@@ -105,6 +105,35 @@ public class ConnectorHelper {
 	 * @throws GeneralSecurityException if the keys cannot be read.
 	 */
 	public void startServer() throws IOException, GeneralSecurityException {
+		startServer(DtlsConnectorConfig.DEFAULT_RETRANSMISSION_TIMEOUT_MS, DtlsConnectorConfig.DEFAULT_MAX_RETRANSMISSIONS);
+	}
+
+	/**
+	 * Configures and starts a connector representing the <em>server side</em>
+	 * of a DTLS connection.
+	 * <p>
+	 * The connector is configured as follows:
+	 * <ul>
+	 * <li>binds to an ephemeral port on loopback address, the address can be
+	 * read from the <em>serverEndpoint</em> property</li>
+	 * <li>supports ECDHE_ECDSA and PSK based ciphers using both CCM and
+	 * CBC</li>
+	 * <li>uses a PSK store containing the {@link #CLIENT_IDENTITY} and matching
+	 * secret</li>
+	 * <li>uses the private key returned by
+	 * {@link DtlsTestTools#getPrivateKey()}</li>
+	 * <li>uses {@link DtlsTestTools#getTrustedCertificates()} as the trust
+	 * anchor</li>
+	 * <li>requires clients to be authenticated</li>
+	 * </ul>
+	 * 
+	 * @param retransmissionTimeout handshake flight retransmission timeout in
+	 *            ms
+	 * @param maxRetransmissions maximum retransmissions of a handshake flight
+	 * @throws IOException if the server cannot be started.
+	 * @throws GeneralSecurityException if the keys cannot be read.
+	 */
+	public void startServer(int retransmissionTimeout, int maxRetransmissions) throws IOException, GeneralSecurityException {
 
 		serverSessionCache = new InMemorySessionCache();
 		serverConnectionStore = new InMemoryConnectionStore(SERVER_CONNECTION_STORE_CAPACITY, 5 * 60, serverSessionCache); // connection timeout 5mins
@@ -127,6 +156,8 @@ public class ConnectorHelper {
 			.setReceiverThreadCount(1)
 			.setConnectionThreadCount(2)
 			.setServerOnly(true)
+			.setRetransmissionTimeout(retransmissionTimeout)
+			.setMaxRetransmissions(maxRetransmissions)
 			.build();
 
 		server = new DTLSConnector(serverConfig, serverConnectionStore);
@@ -347,9 +378,9 @@ public class ConnectorHelper {
 			return records.poll(timeout, unit);
 		}
 
-		public List<Record> waitForFlight(long timeout, TimeUnit unit) throws InterruptedException {
+		public List<Record> waitForFlight(int size, long timeout, TimeUnit unit) throws InterruptedException {
 			List<Record> received = waitForRecords(timeout, unit);
-			if (null != received) {
+			if (null != received && received.size() < size) {
 				received = new ArrayList<Record>(received);
 				List<Record> next;
 				if (null != (next = waitForRecords(200, TimeUnit.MILLISECONDS))) {
