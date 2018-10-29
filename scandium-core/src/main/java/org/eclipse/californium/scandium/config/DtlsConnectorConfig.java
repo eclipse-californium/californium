@@ -85,6 +85,14 @@ public final class DtlsConnectorConfig {
 	 */
 	public static final long DEFAULT_STALE_CONNECTION_TRESHOLD = 30 * 60; // 30 minutes
 	/**
+	 * The default value for the <em>retransmissionTimeout</em> property.
+	 */
+	public static final int DEFAULT_RETRANSMISSION_TIMEOUT_MS = 1000;
+	/**
+	 * The default value for the <em>maxRetransmissions</em> property.
+	 */
+	public static final int DEFAULT_MAX_RETRANSMISSIONS = 4;
+	/**
 	 * The default size of the executor's thread pool which is used for processing records.
 	 * <p>
 	 * The value of this property is 6 * <em>#(CPU cores)</em>.
@@ -1174,10 +1182,10 @@ public final class DtlsConnectorConfig {
 				config.earlyStopRetransmission = true;
 			}
 			if (config.retransmissionTimeout == null) {
-				config.retransmissionTimeout = 1000;
+				config.retransmissionTimeout = DEFAULT_RETRANSMISSION_TIMEOUT_MS;
 			}
 			if (config.maxRetransmissions == null) {
-				config.maxRetransmissions = 4;
+				config.maxRetransmissions = DEFAULT_MAX_RETRANSMISSIONS;
 			}
 			if (config.clientAuthenticationRequired == null) {
 				config.clientAuthenticationRequired = true;
