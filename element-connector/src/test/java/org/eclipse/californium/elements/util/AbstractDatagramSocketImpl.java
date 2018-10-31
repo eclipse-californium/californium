@@ -17,6 +17,7 @@
  *                                                    to prevent the DatagramSocket to
  *                                                    use the erroneous internal
  *                                                    "old implementation mode".
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix deprecation of setTTL and getTTL
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
@@ -85,11 +86,13 @@ public abstract class AbstractDatagramSocketImpl extends DatagramSocketImpl {
 	}
 
 	@Override
+	@Deprecated
 	protected void setTTL(byte ttl) throws IOException {
 		throw new IOException("setTTL(byte) not supported!");
 	}
 
 	@Override
+	@Deprecated
 	protected byte getTTL() throws IOException {
 		throw new IOException("getTTL() not supported!");
 	}
