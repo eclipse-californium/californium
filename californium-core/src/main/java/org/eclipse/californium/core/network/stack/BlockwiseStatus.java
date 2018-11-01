@@ -19,6 +19,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 
 import org.eclipse.californium.core.coap.Message;
@@ -207,9 +208,9 @@ public class BlockwiseStatus {
 	 * @return The bytes contained in the buffer.
 	 */
 	public byte[] getBody() {
-		buf.flip();
+		((Buffer)buf).flip();
 		byte[] body = new byte[buf.remaining()];
-		buf.get(body).clear();
+		((Buffer)buf.get(body)).clear();
 		return body;
 	}
 
