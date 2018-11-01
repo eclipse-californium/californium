@@ -22,10 +22,12 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use unmodifiable facade
  *                                                    instead of create it on
  *                                                    every getMessageObservers()
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix openjdk-11 covariant return types
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
 import java.net.InetAddress;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharsetDecoder;
@@ -373,7 +375,7 @@ public abstract class Message {
 			CharBuffer out = CharBuffer.allocate(24);
 			CoderResult result = decoder.decode(in, out, true);
 			decoder.flush(out);
-			out.flip();
+			((Buffer)out).flip();
 			if (CoderResult.OVERFLOW == result) {
 				return "\"" + out +  "\".. " + payload.length + " bytes";
 			} else if (!result.isError()){
