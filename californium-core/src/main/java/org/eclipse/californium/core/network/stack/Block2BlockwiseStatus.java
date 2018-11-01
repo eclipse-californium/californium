@@ -22,9 +22,11 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use EndpointContext
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - remove "is last", not longer meaningful
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix openjdk-11 covariant return types
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
+import java.nio.Buffer;
 import java.util.Arrays;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,7 +81,7 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 		status.response = response;
 		status.exchange = exchange;
 		status.buf.put(response.getPayload());
-		status.buf.flip();
+		((Buffer)status.buf).flip();
 		status.setCurrentSzx(determineResponseBlock2Szx(exchange, preferredBlockSize));
 		return status;
 	}
@@ -329,7 +331,7 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 			m = to < bodySize;
 
 			// crop payload -- do after calculation of m in case block==response
-			buf.position(from);
+			((Buffer)buf).position(from);
 			buf.get(blockPayload, 0, length);
 			block.setPayload(blockPayload);
 		}
