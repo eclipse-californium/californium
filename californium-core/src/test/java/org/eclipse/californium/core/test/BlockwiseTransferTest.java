@@ -98,7 +98,7 @@ public class BlockwiseTransferTest {
 
 	@Before
 	public void createClient() throws IOException {
-		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setNetworkConfig(config);
 		clientEndpoint = builder.build();
 		clientEndpoint.start();
@@ -274,7 +274,7 @@ public class BlockwiseTransferTest {
 
 		CoapServer result = new CoapServer();
 
-		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 		builder.setNetworkConfig(config);
 

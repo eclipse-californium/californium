@@ -375,7 +375,7 @@ public class MemoryLeakingHashMapTest {
 
 		// Create the endpoint for the server and create surveillant
 		serverExchangeStore = new InMemoryMessageExchangeStore(config);	
-		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 		builder.setNetworkConfig(config);
 		builder.setMessageExchangeStore(serverExchangeStore);
@@ -383,7 +383,7 @@ public class MemoryLeakingHashMapTest {
 		serverEndpoint.addInterceptor(new MessageTracer());
 
 		clientExchangeStore = new InMemoryMessageExchangeStore(config);
-		builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 		builder.setNetworkConfig(config);
 		builder.setMessageExchangeStore(clientExchangeStore);

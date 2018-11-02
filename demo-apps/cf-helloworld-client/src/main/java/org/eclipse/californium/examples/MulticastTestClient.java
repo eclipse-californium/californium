@@ -58,7 +58,7 @@ public class MulticastTestClient {
 
 		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 
-		CoapEndpoint endpoint = new CoapEndpoint.CoapEndpointBuilder().setNetworkConfig(config).build();
+		CoapEndpoint endpoint = new CoapEndpoint.Builder().setNetworkConfig(config).build();
 		CoapClient client = new CoapClient();
 
 		client.setURI("coap://localhost:5683/helloWorld");

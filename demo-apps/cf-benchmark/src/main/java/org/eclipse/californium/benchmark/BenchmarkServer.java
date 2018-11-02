@@ -110,7 +110,7 @@ public class BenchmarkServer {
 		server.add(new FibonacciResource("fibonacci"));
 		server.add(new ShutDownResource("shutdown"));
 
-		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(sockAddr);
 		server.addEndpoint(builder.build());
 		server.start();

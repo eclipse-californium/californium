@@ -22,7 +22,7 @@ import org.eclipse.californium.elements.Connector;
 /**
  * Factory for CoapStack.
  * 
- * Either provided to the {@link CoapEndpoint.CoapEndpointBuilder} or set as
+ * Either provided to the {@link CoapEndpoint.Builder} or set as
  * default {@link CoapEndpoint#setDefaultCoapStackFactory(CoapStackFactory)}.
  */
 public interface CoapStackFactory {

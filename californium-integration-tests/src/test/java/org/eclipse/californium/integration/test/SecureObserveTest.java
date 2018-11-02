@@ -426,7 +426,7 @@ public class SecureObserveTest {
 																// 10s
 				.setString(Keys.RESPONSE_MATCHING, mode.name());
 		serverConnector = new DTLSConnector(dtlsConfig);
-		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setConnector(serverConnector);
 		builder.setNetworkConfig(config);
 		serverEndpoint = builder.build();
@@ -446,7 +446,7 @@ public class SecureObserveTest {
 				.setConnectionThreadCount(2)
 				.setPskStore(pskStore).build();
 		clientConnector = new DTLSConnector(clientdtlsConfig);
-		builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder = new CoapEndpoint.Builder();
 		builder.setConnector(clientConnector);
 		builder.setNetworkConfig(config);
 		clientEndpoint = builder.build();

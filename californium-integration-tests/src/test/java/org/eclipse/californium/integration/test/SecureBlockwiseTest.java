@@ -136,7 +136,7 @@ public class SecureBlockwiseTest {
 				.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE)
 				.setString(Keys.RESPONSE_MATCHING, mode.name());
 		serverConnector = new DTLSConnector(dtlsConfig);
-		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setConnector(serverConnector);
 		builder.setNetworkConfig(config);
 		serverEndpoint = builder.build();
@@ -156,7 +156,7 @@ public class SecureBlockwiseTest {
 				.setConnectionThreadCount(2)
 				.setPskStore(pskStore).build();
 		clientConnector = new DTLSConnector(clientdtlsConfig);
-		builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder = new CoapEndpoint.Builder();
 		builder.setConnector(clientConnector);
 		builder.setNetworkConfig(config);
 		clientEndpoint = builder.build();

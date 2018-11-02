@@ -48,7 +48,7 @@ public class MulticastTestServer {
 		int port = config.getInt(Keys.COAP_PORT);
 		InetSocketAddress localAddress = new InetSocketAddress(port);
 		Connector connector = new UdpMulticastConnector(localAddress, CoAP.MULTICAST_IPV4);
-		return new CoapEndpoint.CoapEndpointBuilder().setNetworkConfig(config).setConnector(connector).build();
+		return new CoapEndpoint.Builder().setNetworkConfig(config).setConnector(connector).build();
 	}
 
 	private static class HelloWorldResource extends CoapResource {

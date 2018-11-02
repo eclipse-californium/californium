@@ -82,7 +82,7 @@ public class RandomAccessBlockTest {
 		NetworkConfig config = network.getStandardTestConfig()
 			.setInt(Keys.MAX_RESOURCE_BODY_SIZE, maxBodySize);
 
-		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 		builder.setNetworkConfig(config);
 
@@ -93,7 +93,7 @@ public class RandomAccessBlockTest {
 		server.start();
 		serverAddress = endpoint.getAddress();
 
-		builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 		builder.setNetworkConfig(config);
 		

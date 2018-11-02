@@ -66,7 +66,7 @@ public class SecureServer {
 		List<Mode> modes = CredentialsUtil.parse(args, CredentialsUtil.DEFAULT_MODES, SUPPORTED_MODES);
 		CredentialsUtil.setupCredentials(config, CredentialsUtil.SERVER_NAME, modes);
 		DTLSConnector connector = new DTLSConnector(config.build());
-		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setConnector(connector);
 		server.addEndpoint(builder.build());
 		server.start();

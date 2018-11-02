@@ -273,7 +273,7 @@ public class ClientAsynchronousTest {
 	}
 
 	private static void createServer() {
-		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 		CoapEndpoint endpoint = builder.build();
 
