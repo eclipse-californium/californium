@@ -133,7 +133,7 @@ public class EndpointManager {
 			} else if (CoAP.COAP_SECURE_TCP_URI_SCHEME.equalsIgnoreCase(uriScheme)) {
 				throw new IllegalStateException("URI scheme " + uriScheme + " requires a previous set connector!");
 			} else {
-				endpoint = new CoapEndpoint.CoapEndpointBuilder().build();
+				endpoint = new CoapEndpoint.Builder().build();
 			}
 			try {
 				endpoint.start();

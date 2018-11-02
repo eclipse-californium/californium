@@ -70,14 +70,14 @@ public class HelloWorldServer extends CoapServer {
 		for (InetAddress addr : EndpointManager.getEndpointManager().getNetworkInterfaces()) {
 			InetSocketAddress bindToAddress = new InetSocketAddress(addr, COAP_PORT);
 			if (udp) {
-				CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+				CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 				builder.setInetSocketAddress(bindToAddress);
 				builder.setNetworkConfig(config);
 				addEndpoint(builder.build());
 			}
 			if (tcp) {
 				TcpServerConnector connector = new TcpServerConnector(bindToAddress, TCP_THREADS, TCP_IDLE_TIMEOUT);
-				CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+				CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 				builder.setConnector(connector);
 				builder.setNetworkConfig(config);
 				addEndpoint(builder.build());

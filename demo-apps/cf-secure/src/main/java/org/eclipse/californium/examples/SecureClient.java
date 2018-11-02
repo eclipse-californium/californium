@@ -49,7 +49,7 @@ public class SecureClient {
 		try {
 			URI uri = new URI(SERVER_URI);
 			CoapClient client = new CoapClient(uri);
-			CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+			CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 			builder.setConnector(dtlsConnector);
 			
 			client.setEndpoint(builder.build());

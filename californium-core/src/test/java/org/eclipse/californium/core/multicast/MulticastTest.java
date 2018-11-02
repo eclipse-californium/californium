@@ -61,7 +61,7 @@ public class MulticastTest {
 		server1 = new CoapServer();
 		InetSocketAddress serverSocketAddress = new InetSocketAddress(CoAP.DEFAULT_COAP_PORT);
 		Connector connector = new UdpMulticastConnector(serverSocketAddress, CoAP.MULTICAST_IPV4);
-		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setNetworkConfig(config);
 		builder.setConnector(connector);
 		server1.addEndpoint(builder.build());
@@ -83,7 +83,7 @@ public class MulticastTest {
 
 		server2 = new CoapServer();
 		connector = new UdpMulticastConnector(serverSocketAddress, CoAP.MULTICAST_IPV4);
-		builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder = new CoapEndpoint.Builder();
 		builder.setNetworkConfig(config);
 		builder.setConnector(connector);
 		server2.addEndpoint(builder.build());
@@ -116,7 +116,7 @@ public class MulticastTest {
 		request.setURI("coap://" + CoAP.MULTICAST_IPV4.getHostAddress() + "/hello");
 		request.setType(Type.NON);
 		CoapClient client = new CoapClient();
-		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setNetworkConfig(config);
 		client.setEndpoint(builder.build());
 		client.advanced(handler, request);
@@ -135,7 +135,7 @@ public class MulticastTest {
 		request.setURI("coap://" + CoAP.MULTICAST_IPV4.getHostAddress() + "/no");
 		request.setType(Type.NON);
 		CoapClient client = new CoapClient();
-		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setNetworkConfig(config);
 		client.setEndpoint(builder.build());
 		client.advanced(handler, request);

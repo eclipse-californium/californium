@@ -155,14 +155,14 @@ public abstract class AbstractTestServer extends CoapServer {
 			if (protocols.contains(Protocol.UDP) || protocols.contains(Protocol.TCP)) {
 				InetSocketAddress bindToAddress = new InetSocketAddress(addr, coapPort);
 				if (protocols.contains(Protocol.UDP)) {
-					CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+					CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 					builder.setInetSocketAddress(bindToAddress);
 					builder.setNetworkConfig(config);
 					addEndpoint(builder.build());
 				}
 				if (protocols.contains(Protocol.TCP)) {
 					TcpServerConnector connector = new TcpServerConnector(bindToAddress, tcpThreads, tcpIdleTimeout);
-					CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+					CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 					builder.setConnector(connector);
 					builder.setNetworkConfig(config);
 					addEndpoint(builder.build());
@@ -185,7 +185,7 @@ public abstract class AbstractTestServer extends CoapServer {
 					dtlsConfig.setConnectionThreadCount(dtlsThreads);
 					dtlsConfig.setReceiverThreadCount(dtlsReceiverThreads);
 					DTLSConnector connector = new DTLSConnector(dtlsConfig.build());
-					CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+					CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 					builder.setConnector(connector);
 					builder.setNetworkConfig(config);
 
@@ -194,7 +194,7 @@ public abstract class AbstractTestServer extends CoapServer {
 				if (protocols.contains(Protocol.TLS)) {
 					TlsServerConnector connector = new TlsServerConnector(serverSslContext, ClientAuthMode.WANTED,
 							bindToAddress, tcpThreads, tlsHandshakeTimeout, tcpIdleTimeout);
-					CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+					CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 					builder.setConnector(connector);
 					builder.setNetworkConfig(config);
 					addEndpoint(builder.build());

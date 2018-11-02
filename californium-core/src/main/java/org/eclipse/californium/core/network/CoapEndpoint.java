@@ -258,136 +258,10 @@ public class CoapEndpoint implements Endpoint {
 	};
 
 	/**
-	 * Creates a new <em>coap</em> endpoint using default configuration.
-	 * <p>
-	 * The endpoint will bind to all network interfaces and listen on an ephemeral port.
-	 */
-	@Deprecated
-	public CoapEndpoint() {
-		this(0);
-	}
-
-	/**
-	 * Creates a new <em>coap</em> endpoint using default configuration.
-	 * <p>
-	 * The endpoint will bind to all network interfaces.
-	 *
-	 * @param port The port to listen on.
-	 */
-	@Deprecated
-	public CoapEndpoint(final int port) {
-		this(new InetSocketAddress(port));
-	}
-
-	/**
-	 * Creates a new <em>coap</em> endpoint using default configuration.
-	 *
-	 * @param address The IP address and port to bind to.
-	 */
-	@Deprecated
-	public CoapEndpoint(final InetSocketAddress address) {
-		this(address, NetworkConfig.getStandard());
-	}
-
-	/**
-	 * Creates a new <em>coap</em> endpoint for a configuration.
-	 * <p>
-	 * The endpoint will bind to all network interfaces and listen on an ephemeral port.
-	 * 
-	 * @param config The configuration values to use.
-	 */
-	@Deprecated
-	public CoapEndpoint(final NetworkConfig config) {
-		this(new InetSocketAddress(0), config);
-	}
-
-	/**
-	 * Creates a new <em>coap</em> endpoint for a port and configuration.
-	 * <p>
-	 * The endpoint will bind to all network interfaces and listen on an ephemeral port.
-	 *
-	 * @param port The port to listen on.
-	 * @param config The configuration values to use.
-	 */
-	@Deprecated
-	public CoapEndpoint(final int port, final NetworkConfig config) {
-		this(new InetSocketAddress(port), config);
-	}
-
-	/**
-	 * Creates a new <em>coap</em> endpoint for a configuration.
-	 *
-	 * @param address The IP address and port to bind to.
-	 * @param config The configuration values to use.
-	 */
-	@Deprecated
-	public CoapEndpoint(final InetSocketAddress address, final NetworkConfig config) {
-		this(new UDPConnector(address), true, config, null, null, null, null, null);
-	}
-
-	/**
-	 * Creates a new <em>coap</em> endpoint for a configuration and message exchange store.
-	 *
-	 * @param address The IP address and port to bind to.
-	 * @param config The configuration values to use.
-	 * @param exchangeStore The store to use for keeping track of message exchanges.
-	 */
-	@Deprecated
-	public CoapEndpoint(final InetSocketAddress address, final NetworkConfig config,
-			final MessageExchangeStore exchangeStore) {
-		this(new UDPConnector(address), true, config, null, null, exchangeStore, null, null);
-	}
-
-	/**
-	 * Creates a new endpoint for a connector and configuration.
-	 * <p>
-	 * The endpoint will support the connector's implemented scheme and will bind to
-	 * the IP address and port the connector is configured for.
-	 * 
-	 * @param connector The connector to use.
-	 * @param config The configuration values to use.
-	 */
-	@Deprecated
-	public CoapEndpoint(final Connector connector, final NetworkConfig config) {
-		this(connector, false, config, null, null, null, null, null);
-	}
-
-	/**
-	 * Creates a new <em>coap</em> endpoint for a configuration and observation store.
-	 * 
-	 * @param address The IP address and port to bind to.
-	 * @param config The configuration values to use.
-	 * @param store The store to use for keeping track of observations initiated by this
-	 *              endpoint.
-	 */
-	@Deprecated
-	public CoapEndpoint(final InetSocketAddress address, final NetworkConfig config, final ObservationStore store) {
-		this(new UDPConnector(address), true, config, null, store, null, null, null);
-	}
-
-	/**
-	 * Creates a new endpoint for a connector, configuration, message exchange and observation store.
-	 * <p>
-	 * The endpoint will support the connector's implemented scheme and will bind to
-	 * the IP address and port the connector is configured for.
-	 *
-	 * @param connector The connector to use.
-	 * @param config The configuration values to use.
-	 * @param store The store to use for keeping track of observations initiated by this
-	 *              endpoint.
-	 * @param exchangeStore The store to use for keeping track of message exchanges.
-	 */
-	@Deprecated
-	public CoapEndpoint(Connector connector, NetworkConfig config, ObservationStore store,
-			MessageExchangeStore exchangeStore) {
-		this(connector, false, config, null, store, exchangeStore, null, null);
-	}
-
-	/**
 	 * Creates a new endpoint for a connector, configuration, message exchange
 	 * and observation store.
 	 * <p>
-	 * Intended to be called either by the {@link CoapEndpointBuilder} or a
+	 * Intended to be called either by the {@link Builder} or a
 	 * subclass constructor. The endpoint will support the connector's
 	 * implemented scheme and will bind to the IP address and port the connector
 	 * is configured for.
@@ -1157,7 +1031,7 @@ public class CoapEndpoint implements Endpoint {
 	/**
 	 * Builder to create CoapEndpoints.
 	 */
-	public static class CoapEndpointBuilder {
+	public static class Builder {
 
 		/**
 		 * Network configuration to be applied.
@@ -1218,7 +1092,7 @@ public class CoapEndpoint implements Endpoint {
 		/**
 		 * Create new builder.
 		 */
-		public CoapEndpointBuilder() {
+		public Builder() {
 		}
 
 		/**
@@ -1231,7 +1105,7 @@ public class CoapEndpoint implements Endpoint {
 		 * @return this
 		 * @see #config
 		 */
-		public CoapEndpointBuilder setNetworkConfig(NetworkConfig config) {
+		public Builder setNetworkConfig(NetworkConfig config) {
 			this.config = config;
 			return this;
 		}
@@ -1258,7 +1132,7 @@ public class CoapEndpoint implements Endpoint {
 		 * @see #bindAddress
 		 * @see #connector
 		 */
-		public CoapEndpointBuilder setPort(int port) {
+		public Builder setPort(int port) {
 			if (this.bindAddress != null || this.connector != null) {
 				throw new IllegalArgumentException("bind address already defined!");
 			}
@@ -1286,7 +1160,7 @@ public class CoapEndpoint implements Endpoint {
 		 * @see #bindAddress
 		 * @see #connector
 		 */
-		public CoapEndpointBuilder setInetSocketAddress(InetSocketAddress address) {
+		public Builder setInetSocketAddress(InetSocketAddress address) {
 			if (this.bindAddress != null || this.connector != null) {
 				throw new IllegalArgumentException("bind address already defined!");
 			}
@@ -1314,7 +1188,7 @@ public class CoapEndpoint implements Endpoint {
 		 * @see #bindAddress
 		 * @see #connector
 		 */
-		public CoapEndpointBuilder setConnector(Connector connector) {
+		public Builder setConnector(Connector connector) {
 			if (this.bindAddress != null || this.connector != null) {
 				throw new IllegalArgumentException("bind address already defined!");
 			}
@@ -1346,7 +1220,7 @@ public class CoapEndpoint implements Endpoint {
 		 * @see #bindAddress
 		 * @see #connector
 		 */
-		public CoapEndpointBuilder setConnectorWithAutoConfiguration(UDPConnector connector) {
+		public Builder setConnectorWithAutoConfiguration(UDPConnector connector) {
 			if (this.bindAddress != null || this.connector != null) {
 				throw new IllegalArgumentException("bind address already defined!");
 			}
@@ -1364,7 +1238,7 @@ public class CoapEndpoint implements Endpoint {
 		 * @return this
 		 * @see #observationStore
 		 */
-		public CoapEndpointBuilder setObservationStore(ObservationStore store) {
+		public Builder setObservationStore(ObservationStore store) {
 			this.observationStore = store;
 			return this;
 		}
@@ -1378,7 +1252,7 @@ public class CoapEndpoint implements Endpoint {
 		 * @return this
 		 * @see #exchangeStore
 		 */
-		public CoapEndpointBuilder setMessageExchangeStore(MessageExchangeStore exchangeStore) {
+		public Builder setMessageExchangeStore(MessageExchangeStore exchangeStore) {
 			this.exchangeStore = exchangeStore;
 			return this;
 		}
@@ -1392,7 +1266,7 @@ public class CoapEndpoint implements Endpoint {
 		 * @return this
 		 * @see #endpointContextMatcher
 		 */
-		public CoapEndpointBuilder setEndpointContextMatcher(EndpointContextMatcher endpointContextMatcher) {
+		public Builder setEndpointContextMatcher(EndpointContextMatcher endpointContextMatcher) {
 			this.endpointContextMatcher = endpointContextMatcher;
 			return this;
 		}
@@ -1406,7 +1280,7 @@ public class CoapEndpoint implements Endpoint {
 		 * @return this
 		 * @see #tokenGenerator
 		 */
-		public CoapEndpointBuilder setTokenGenerator(TokenGenerator tokenGenerator) {
+		public Builder setTokenGenerator(TokenGenerator tokenGenerator) {
 			this.tokenGenerator = tokenGenerator;
 			return this;
 		}
@@ -1420,7 +1294,7 @@ public class CoapEndpoint implements Endpoint {
 		 * @return this
 		 * @see #coapStackFactory
 		 */
-		public CoapEndpointBuilder setCoapStackFactory(CoapStackFactory coapStackFactory) {
+		public Builder setCoapStackFactory(CoapStackFactory coapStackFactory) {
 			this.coapStackFactory = coapStackFactory;
 			return this;
 		}

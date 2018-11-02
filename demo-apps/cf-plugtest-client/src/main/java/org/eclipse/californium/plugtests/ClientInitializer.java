@@ -205,7 +205,7 @@ public class ClientInitializer {
 			connector = new UDPConnector();
 		}
 
-		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setConnector(connector);
 		builder.setNetworkConfig(config);
 		CoapEndpoint endpoint = builder.build();

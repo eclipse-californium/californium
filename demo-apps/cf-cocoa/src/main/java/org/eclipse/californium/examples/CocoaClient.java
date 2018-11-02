@@ -56,7 +56,7 @@ public class CocoaClient {
 				.setInt(NetworkConfig.Keys.NSTART, 4);
 
 		// create an endpoint with this configuration
-		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setNetworkConfig(config);
 		CoapEndpoint cocoaEndpoint = builder.build();
 		// all CoapClients will use the default endpoint (unless

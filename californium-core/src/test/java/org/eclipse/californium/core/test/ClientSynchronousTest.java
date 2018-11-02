@@ -177,7 +177,7 @@ public class ClientSynchronousTest {
 	@Test
 	public void testSynchronousPing() throws Exception {
 		final AtomicBoolean sent = new AtomicBoolean();
-		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 		CoapEndpoint clientEndpoint = builder.build();
 		clientEndpoint.addInterceptor(new MessageInterceptorAdapter() {
@@ -244,7 +244,7 @@ public class ClientSynchronousTest {
 	}
 
 	private static void createServer() {
-		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 		serverEndpoint = builder.build();
 

@@ -625,7 +625,7 @@ public class BenchmarkClient {
 
 		// Create & start clients
 		for (int index = 0; index < clients; ++index) {
-			CoapEndpoint.CoapEndpointBuilder endpointBuilder = new CoapEndpoint.CoapEndpointBuilder();
+			CoapEndpoint.Builder endpointBuilder = new CoapEndpoint.Builder();
 			endpointBuilder.setNetworkConfig(config);
 			Arguments connectionArgs = arguments;
 			if (secure) {
