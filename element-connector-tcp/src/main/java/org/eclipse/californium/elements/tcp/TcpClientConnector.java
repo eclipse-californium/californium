@@ -154,7 +154,7 @@ public class TcpClientConnector implements Connector {
 			msg.onError(new MulticastNotSupportedException("TCP doesn't support multicast!"));
 			return;
 		}
-		InetSocketAddress addressKey = new InetSocketAddress(msg.getAddress(), msg.getPort());
+		InetSocketAddress addressKey = msg.getInetSocketAddress();
 		final boolean connected = poolMap.contains(addressKey);
 		final EndpointContextMatcher endpointMatcher = getEndpointContextMatcher();
 		/* check, if a new connection should be established */
