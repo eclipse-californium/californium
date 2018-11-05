@@ -235,7 +235,7 @@ public class DTLSFlight {
 	 * @return {@code true}, if the first handshake message of the response is
 	 *         received, {@code false}, otherwise.
 	 */
-	public boolean isReponseStarted() {
+	public boolean isResponseStarted() {
 		return responseStarted;
 	}
 

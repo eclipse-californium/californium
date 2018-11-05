@@ -1819,7 +1819,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 
 						if (tries < max) {
 							// limit of retransmissions not reached
-							if (config.isEarlyStopRetransmission() && flight.isReponseStarted()) {
+							if (config.isEarlyStopRetransmission() && flight.isResponseStarted()) {
 								// don't retransmit, just schedule last timeout
 								while (tries < max) {
 									++tries;
