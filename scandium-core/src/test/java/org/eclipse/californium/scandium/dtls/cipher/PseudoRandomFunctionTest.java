@@ -18,9 +18,16 @@ package org.eclipse.californium.scandium.dtls.cipher;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.*;
 
+import java.util.Arrays;
+import java.util.Random;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+
 import org.eclipse.californium.elements.util.StandardCharsets;
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
+import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -84,4 +91,54 @@ public class PseudoRandomFunctionTest {
 		byte[] data = PseudoRandomFunction.doPRF(secret, label, seed, expectedOutput.length);
 		assertArrayEquals(expectedOutput, data);
 	}
+
+	@Test
+	public void testFastExpansion() throws Exception {
+		Random random = new Random(12345678);
+		byte[] secret = new byte[32];
+		random.nextBytes(secret);
+		Mac hmac = Mac.getInstance(PseudoRandomFunction.ALGORITHM_HMAC_SHA256);
+		hmac.init(new SecretKeySpec(secret, "MAC"));
+		for (int loop = 0; loop < 500; ++loop) {
+			int shaLength = random.nextInt(128) + 10;
+			int dataLength = random.nextInt(64) + 4;
+			byte[] data = new byte[dataLength];
+			random.nextBytes(data);
+			byte[] sha1 = doExpansion(hmac, data, shaLength);
+			byte[] sha2 = PseudoRandomFunction.doExpansion(hmac, data, shaLength);
+			assertThat("loop " + loop + ": data " + dataLength + " bytes, sha " + shaLength + " bytes", sha2, is(sha1));
+		}
+	}
+
+	/*
+	 * Copy of the old implementation. Ensure, that both implementations have the same results.
+	 * Will be removed again later.
+	 */
+	static final byte[] doExpansion(Mac hmac, byte[] data, int length) {
+		/*
+		 * RFC 5246, chapter 5, page 15
+		 * 
+		 * P_hash(secret, seed) = 
+		 *    HMAC_hash(secret, A(1) + seed) +
+		 *    HMAC_hash(secret, A(2) + seed) + 
+		 *    HMAC_hash(secret, A(3) + seed) + ...
+		 * where + indicates concatenation.
+		 *  
+		 * A() is defined as: 
+		 *    A(0) = seed, 
+		 *    A(i) = HMAC_hash(secret, A(i-1))
+		 */
+
+		int iterations = (int) Math.ceil(length / (double) hmac.getMacLength());
+		byte[] expansion = new byte[0];
+
+		byte[] A = data;
+		for (int i = 0; i < iterations; i++) {
+			A = hmac.doFinal(A);
+			expansion = ByteArrayUtils.concatenate(expansion, hmac.doFinal(ByteArrayUtils.concatenate(A, data)));
+		}
+
+		return Arrays.copyOf(expansion, length);
+	}
+
 }
