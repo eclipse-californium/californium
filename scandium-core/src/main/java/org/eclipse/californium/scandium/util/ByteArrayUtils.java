@@ -20,26 +20,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.util;
 
-import java.util.Arrays;
-
 public class ByteArrayUtils {
-
-	/**
-	 * Truncates the given array to the request length.
-	 * 
-	 * @param array
-	 *            the array to be truncated.
-	 * @param newLength
-	 *            the new length in bytes.
-	 * @return the truncated array.
-	 */
-	public static byte[] truncate(byte[] array, int newLength) {
-		if (array.length <= newLength) {
-			return array;
-		} else {
-			return Arrays.copyOf(array, newLength);
-		}
-	}
 
 	/**
 	 * Concatenates two byte arrays.

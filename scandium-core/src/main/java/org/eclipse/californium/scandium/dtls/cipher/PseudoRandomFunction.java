@@ -18,6 +18,7 @@ package org.eclipse.californium.scandium.dtls.cipher;
 
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -128,7 +129,7 @@ public final class PseudoRandomFunction {
 			expansion = ByteArrayUtils.concatenate(expansion, hmac.doFinal(ByteArrayUtils.concatenate(A, data)));
 		}
 
-		return ByteArrayUtils.truncate(expansion, length);
+		return Arrays.copyOf(expansion, length);
 	}
 
 }
