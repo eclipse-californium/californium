@@ -31,12 +31,17 @@ import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.Certificate;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
+import org.eclipse.californium.scandium.util.ListUtilsTest;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -49,18 +54,38 @@ public class DtlsConnectorConfigTest {
 
 	@Before
 	public void setUp() throws Exception {
-		endpoint =  new InetSocketAddress(InetAddress.getLoopbackAddress(), 10000);
+		endpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 10000);
 		builder = new DtlsConnectorConfig.Builder().setAddress(endpoint);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testSetSupportedCiphersRejectsNullCipher() {
-		builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_NULL_WITH_NULL_NULL});
+		builder.setSupportedCipherSuites(CipherSuite.TLS_NULL_WITH_NULL_NULL);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testSetSupportedCiphersRejectsEmptyArray() {
-		builder.setSupportedCipherSuites(new CipherSuite[]{});
+		builder.setSupportedCipherSuites(new CipherSuite[] {});
+	}
+
+	@Test(expected = NullPointerException.class)
+	public void testSetSupportedCiphersRejectsNull() {
+		builder.setSupportedCipherSuites((CipherSuite[]) null);
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testSetSupportedCiphersListRejectsNullCipher() {
+		builder.setSupportedCipherSuites(Arrays.asList(CipherSuite.TLS_NULL_WITH_NULL_NULL));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testSetSupportedCiphersListRejectsEmptyArray() {
+		builder.setSupportedCipherSuites(new ArrayList<CipherSuite>(0));
+	}
+
+	@Test(expected = NullPointerException.class)
+	public void testSetSupportedCiphersListRejectsNull() {
+		builder.setSupportedCipherSuites((List<CipherSuite>) null);
 	}
 
 	@Test(expected = IllegalStateException.class)
@@ -73,14 +98,15 @@ public class DtlsConnectorConfigTest {
 		DtlsConnectorConfig config = builder.setPskStore(new StaticPskStore("ID", "KEY".getBytes())).build();
 		assertTrue(config.getSupportedCipherSuites().length > 0);
 		for (CipherSuite suite : config.getSupportedCipherSuites()) {
-			assertThat(suite.getKeyExchange(), either(is(KeyExchangeAlgorithm.PSK)).or(is(KeyExchangeAlgorithm.ECDHE_PSK)));
+			assertThat(suite.getKeyExchange(),
+					either(is(KeyExchangeAlgorithm.PSK)).or(is(KeyExchangeAlgorithm.ECDHE_PSK)));
 		}
 	}
 
 	@Test
-	public void testBuilderSetsEcdhCipherSuiteWhenKeysAreSet() throws Exception {
-		DtlsConnectorConfig config = builder.setIdentity(
-				DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()).build();
+	public void testBuilderSetsEcdheCipherSuiteWhenKeysAreSet() throws Exception {
+		DtlsConnectorConfig config = builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
+				.setClientAuthenticationRequired(false).build();
 		assertTrue(config.getSupportedCipherSuites().length > 0);
 		for (CipherSuite suite : config.getSupportedCipherSuites()) {
 			assertThat(suite.getKeyExchange(), is(KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN));
@@ -89,40 +115,65 @@ public class DtlsConnectorConfigTest {
 
 	@Test
 	public void testBuilderSetsAllCipherSuitesWhenKeysAndPskStoreAreSet() throws Exception {
-		DtlsConnectorConfig config = builder
+		DtlsConnectorConfig config = builder.setClientAuthenticationRequired(false)
 				.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
-				.setPskStore(new StaticPskStore("ID", "KEY".getBytes()))
-				.build();
-		int ecDhSuitesCount = 0;
-		int pskSuitesCount = 0;
-		int dhPskSuitesCount = 0;
-		for (CipherSuite suite : config.getSupportedCipherSuites()) {
-			if (KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN.equals(suite.getKeyExchange())) {
-				ecDhSuitesCount++;
-			} else if (KeyExchangeAlgorithm.PSK.equals(suite.getKeyExchange())) {
-				pskSuitesCount++;
-			} else if (KeyExchangeAlgorithm.ECDHE_PSK.equals(suite.getKeyExchange())) {
-				dhPskSuitesCount++;
-			}
-		}
-		assertTrue(ecDhSuitesCount > 0);
-		assertTrue(pskSuitesCount > 0);
-		assertTrue(dhPskSuitesCount > 0);
+				.setPskStore(new StaticPskStore("ID", "KEY".getBytes())).build();
+		List<CipherSuite> cipherSuites = Arrays.asList(config.getSupportedCipherSuites());
+		assertThat(cipherSuites, ListUtilsTest.containsAll(CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256,
+				CipherSuite.TLS_PSK_WITH_AES_128_CCM_8, CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256,
+				CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
 	}
 
 	@Test(expected = IllegalStateException.class)
 	public void testBuilderDetectsMissingIdentity() {
-		builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8}).build();
+		builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8).setRpkTrustAll().build();
+	}
+
+	@Test(expected = IllegalStateException.class)
+	public void testBuilderDetectsMissingTrust() throws Exception {
+		builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
+				.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey()).build();
 	}
 
 	@Test(expected = IllegalStateException.class)
 	public void testBuilderDetectsMissingPskStore() {
-		builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8}).build();
+		builder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8).build();
 	}
 
 	@Test(expected = NullPointerException.class)
 	public void testSetIdentityRequiresPrivateKey() {
-		builder.setIdentity(null, new Certificate[0], false);
+		builder.setIdentity(null, new Certificate[0], CertificateType.X_509);
+	}
+
+	@Test(expected = NullPointerException.class)
+	public void testSetIdentityRequiresCertChain() throws Exception {
+		builder.setIdentity(DtlsTestTools.getPrivateKey(), null, CertificateType.X_509);
+	}
+
+	public void testSetIdentityWithoutCertificateTypeArray() throws Exception {
+		builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain())
+				.setClientAuthenticationRequired(false).build();
+	}
+
+	public void testSetIdentityWithNullCertificateTypeArray() throws Exception {
+		builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(),
+				(CertificateType[]) null).setClientAuthenticationRequired(false).build();
+	}
+
+	public void testSetIdentityWithoutCertificateTypeList() throws Exception {
+		builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(),
+				(List<CertificateType>) null).setClientAuthenticationRequired(false).build();
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testSetIdentityRequiresNoneEmptyCertificateTypeList() throws Exception {
+		builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(),
+				new ArrayList<CertificateType>(0));
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testSetIdentityRequiresnoneEmptyCertChain() throws Exception {
+		builder.setIdentity(DtlsTestTools.getPrivateKey(), new Certificate[0], CertificateType.X_509);
 	}
 
 	@Test
@@ -144,25 +195,31 @@ public class DtlsConnectorConfigTest {
 	}
 
 	@Test
-	public void testBuildAllowsForAnonymousClient() {
-		builder.setClientOnly()
-			.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8})
-			.build();
+	public void testBuildAllowsForAnonymousClientWithRpkTrust() {
+		builder.setClientOnly().setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
+				.setRpkTrustAll().build();
+	}
+
+	@Test
+	public void testBuildAllowsForAnonymousClientWithTrustStore() {
+		builder.setClientOnly().setTrustStore(new Certificate[0]).build();
 	}
 
 	@Test(expected = IllegalStateException.class)
-	public void testBuildAllowsForAnonymousClientUsingEcDsaCiphersOnly() {
-		builder.setClientOnly()
-			.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8})
-			.build();
+	public void testBuildDetectsErrorForAnonymousClientUsingEcDsaCiphersOnly() {
+		builder.setClientOnly().setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8).build();
+	}
+
+	@Test(expected = IllegalStateException.class)
+	public void testBuildDetectsErrorForAnonymousClientwithotuTrust() {
+		builder.setClientOnly().setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8).build();
 	}
 
 	@Test
 	public void testGetCertificateChainReturnsNullForRpkOnlyConfiguration() throws Exception {
 		// GIVEN a configuration supporting RawPublicKey only
-		DtlsConnectorConfig config = builder
-				.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
-				.build();
+		DtlsConnectorConfig config = builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
+				.setRpkTrustAll().build();
 
 		// WHEN retrieving the certificate chain
 		Certificate[] chain = config.getCertificateChain();

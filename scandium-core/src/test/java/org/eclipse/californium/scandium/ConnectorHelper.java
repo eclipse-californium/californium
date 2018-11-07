@@ -61,6 +61,7 @@ import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.InMemorySessionCache;
 import org.eclipse.californium.scandium.dtls.Record;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 
@@ -143,13 +144,14 @@ public class ConnectorHelper {
 		pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
 		serverConfig = new DtlsConnectorConfig.Builder()
 			.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
-			.setSupportedCipherSuites(new CipherSuite[] {
+			.setSupportedCipherSuites(
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
 						CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
-						CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256})
-			.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), true)
+						CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256)
+			.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509)
 			.setTrustStore(DtlsTestTools.getTrustedCertificates())
+			.setRpkTrustAll()
 			.setPskStore(pskStore)
 			.setMaxConnections(SERVER_CONNECTION_STORE_CAPACITY)
 			.setMaxTransmissionUnit(1024)
@@ -202,8 +204,9 @@ public class ConnectorHelper {
 				.setAddress(bindAddress)
 				.setReceiverThreadCount(1)
 				.setConnectionThreadCount(2)
-				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), true)
-				.setTrustStore(DtlsTestTools.getTrustedCertificates());
+				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509)
+				.setTrustStore(DtlsTestTools.getTrustedCertificates())
+				.setRpkTrustAll();
 	}
 
 	LatchDecrementingRawDataChannel givenAnEstablishedSession(final DTLSConnector client) throws Exception {

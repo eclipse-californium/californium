@@ -33,7 +33,7 @@ import java.util.List;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -189,23 +189,32 @@ public final class ClientHello extends HandshakeMessage {
 		}
 
 		// the certificate types the client is able to provide to the server
-		if (supportedClientCertificateTypes != null && !supportedClientCertificateTypes.isEmpty()) {
-			CertificateTypeExtension clientCertificateType = new ClientCertificateTypeExtension(true);
-			for (CertificateType certificateType : supportedClientCertificateTypes) {
-				clientCertificateType.addCertificateType(certificateType);
-			}
+		if (useCertificateTypeExtension(supportedClientCertificateTypes)) {
+			CertificateTypeExtension clientCertificateType = new ClientCertificateTypeExtension(supportedClientCertificateTypes);
 			this.extensions.addExtension(clientCertificateType);
 		}
 
 		// the type of certificates the client is able to process when provided
 		// by the server
-		if (supportedServerCertificateTypes != null && !supportedServerCertificateTypes.isEmpty()) {
-			CertificateTypeExtension serverCertificateType = new ServerCertificateTypeExtension(true);
-			for (CertificateType certificateType : supportedServerCertificateTypes) {
-				serverCertificateType.addCertificateType(certificateType);
-			}
+		if (useCertificateTypeExtension(supportedServerCertificateTypes)) {
+			CertificateTypeExtension serverCertificateType = new ServerCertificateTypeExtension(supportedServerCertificateTypes);
 			this.extensions.addExtension(serverCertificateType);
 		}
+	}
+
+	/**
+	 * Check, if certificate type extension is used.
+	 * 
+	 * If missing, or only contains X_509, don't send the extension.
+	 * 
+	 * @param supportedCertificateTypes list of certificate types
+	 * @return {@code true}, if extension must be used, {@code false}, otherwise
+	 */
+	private boolean useCertificateTypeExtension(List<CertificateType> supportedCertificateTypes) {
+		if (supportedCertificateTypes != null && !supportedCertificateTypes.isEmpty()) {
+			return supportedCertificateTypes.size() > 1 || !supportedCertificateTypes.contains(CertificateType.X_509);
+		}
+		return false;
 	}
 
 	private ClientHello(InetSocketAddress peerAddress) {

@@ -26,7 +26,7 @@ import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
-import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
@@ -300,16 +300,7 @@ public final class ServerHello extends HandshakeMessage {
 	 * @return the type
 	 */
 	CertificateType getClientCertificateType() {
-		// default type is always X.509
-		CertificateType result = CertificateType.X_509;
-		if (extensions != null) {
-			ClientCertificateTypeExtension ext = (ClientCertificateTypeExtension)
-					extensions.getExtension(ExtensionType.CLIENT_CERT_TYPE);
-			if (ext != null && !ext.getCertificateTypes().isEmpty()) {
-				result = ext.getCertificateTypes().get(0);
-			}
-		}
-		return result;
+		return getCertificateType(ExtensionType.CLIENT_CERT_TYPE);
 	}
 	
 	/**
@@ -319,13 +310,17 @@ public final class ServerHello extends HandshakeMessage {
 	 * @return the type
 	 */
 	CertificateType getServerCertificateType() {
+		return getCertificateType(ExtensionType.SERVER_CERT_TYPE);
+	}
+
+	CertificateType getCertificateType(ExtensionType type) {
 		// default type is always X.509
 		CertificateType result = CertificateType.X_509;
 		if (extensions != null) {
-			ServerCertificateTypeExtension ext = (ServerCertificateTypeExtension)
-					extensions.getExtension(ExtensionType.SERVER_CERT_TYPE);
-			if (ext != null && !ext.getCertificateTypes().isEmpty()) {
-				result = ext.getCertificateTypes().get(0);
+			CertificateTypeExtension certificateExtension = (CertificateTypeExtension)
+					extensions.getExtension(type);
+			if (certificateExtension != null && !certificateExtension.getCertificateTypes().isEmpty()) {
+				result = certificateExtension.getCertificateTypes().get(0);
 			}
 		}
 		return result;

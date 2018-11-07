@@ -61,6 +61,9 @@ public abstract class HelloExtension {
 	// Constructors ///////////////////////////////////////////////////
 
 	protected HelloExtension(final ExtensionType type) {
+		if (type == null) {
+			throw new NullPointerException("extension type must not be null!");
+		}
 		this.type = type;
 	}
 

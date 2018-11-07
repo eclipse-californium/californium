@@ -25,8 +25,9 @@ import java.util.List;
 
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.CertificateType;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
-import org.eclipse.californium.scandium.dtls.rpkstore.TrustAllRpks;
 
 /**
  * Credentials utility for setup DTLS credentials.
@@ -41,6 +42,10 @@ public class CredentialsUtil {
 		 * Preshared secret keys.
 		 */
 		PSK,
+		/**
+		 * EC DHE, preshared secret keys.
+		 */
+		ECDHE_PSK,
 		/**
 		 * Raw public key certificates.
 		 */
@@ -64,11 +69,18 @@ public class CredentialsUtil {
 	}
 
 	/**
-	 * Default list of modes.
+	 * Default list of modes for clients.
 	 * 
 	 * Value is PSK, RPK, X509.
 	 */
-	public static final List<Mode> DEFAULT_MODES = Arrays.asList(new Mode[] { Mode.PSK, Mode.RPK, Mode.X509 });
+	public static final List<Mode> DEFAULT_CLIENT_MODES = Arrays.asList(new Mode[] { Mode.PSK, Mode.RPK, Mode.X509 });
+
+	/**
+	 * Default list of modes for servers.
+	 * 
+	 * Value is PSK, ECDHE_PSK, RPK, X509.
+	 */
+	public static final List<Mode> DEFAULT_SERVER_MODES = Arrays.asList(new Mode[] { Mode.PSK, Mode.ECDHE_PSK, Mode.RPK, Mode.X509 });
 
 	// from ETSI Plugtest test spec
 	public static final String PSK_IDENTITY = "password";
@@ -86,10 +98,13 @@ public class CredentialsUtil {
 	/**
 	 * Parse arguments to modes.
 	 * 
-	 * @param args arguments
-	 * @param defaults default modes to use, if argument is empty or only
-	 *            contains {@link Mode#NO_AUTH}.
-	 * @param supported supported modes
+	 * @param args
+	 *            arguments
+	 * @param defaults
+	 *            default modes to use, if argument is empty or only contains
+	 *            {@link Mode#NO_AUTH}.
+	 * @param supported
+	 *            supported modes
 	 * @return array of modes.
 	 */
 	public static List<Mode> parse(String[] args, List<Mode> defaults, List<Mode> supported) {
@@ -149,47 +164,80 @@ public class CredentialsUtil {
 	 * PSK, X509, RPK setup for PSK, RPK and X509, prefer X509
 	 * </pre>
 	 * 
-	 * @param config DTLS configuration builder. May be already initialized with
+	 * @param config
+	 *            DTLS configuration builder. May be already initialized with
 	 *            PskStore.
-	 * @param certificateAlias alias for certificate to load as credentials.
-	 * @param modes list of supported mode. If a RPK is in the list before X509,
+	 * @param certificateAlias
+	 *            alias for certificate to load as credentials.
+	 * @param modes
+	 *            list of supported mode. If a RPK is in the list before X509,
 	 *            or RPK is provided but not X509, then the RPK is setup as
 	 *            preferred.
-	 * @throws IllegalArgumentException if loading the certificates fails for
-	 *             some reason
+	 * @throws IllegalArgumentException
+	 *             if loading the certificates fails for some reason
 	 */
 	public static void setupCredentials(DtlsConnectorConfig.Builder config, String certificateAlias, List<Mode> modes) {
 
-		boolean psk = modes.contains(Mode.PSK);
+		boolean ecdhePsk = modes.contains(Mode.ECDHE_PSK);
+		boolean plainPsk = modes.contains(Mode.PSK);
+		boolean psk = ecdhePsk || plainPsk;
+
 		if (psk && config.getIncompleteConfig().getPskStore() == null) {
 			// Pre-shared secret keys
 			InMemoryPskStore pskStore = new InMemoryPskStore();
 			pskStore.setKey(PSK_IDENTITY, PSK_SECRET);
 			config.setPskStore(pskStore);
 		}
+		boolean noAuth = modes.contains(Mode.NO_AUTH);
 		boolean x509Trust = modes.contains(Mode.X509_TRUST);
+		boolean rpkTrust = modes.contains(Mode.RPK_TRUST);
 		int x509 = modes.indexOf(Mode.X509);
 		int rpk = modes.indexOf(Mode.RPK);
 
+		if (noAuth) {
+			if (x509Trust) {
+				throw new IllegalArgumentException(Mode.NO_AUTH + " doesn't support " + Mode.X509_TRUST);
+			}
+			if (rpkTrust) {
+				throw new IllegalArgumentException(Mode.NO_AUTH + " doesn't support " + Mode.RPK_TRUST);
+			}
+			config.setClientAuthenticationRequired(false);
+		}
+
 		if (x509 >= 0 || rpk >= 0 || x509Trust) {
-			SslContextUtil.Credentials serverCredentials = null;
-			Certificate[] trustedCertificates = null;
 
 			try {
 				// try to read certificates
-				serverCredentials = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION,
-						certificateAlias, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
-				if (x509 >= 0 || x509Trust) {
-					trustedCertificates = SslContextUtil.loadTrustedCertificates(
-							SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, TRUST_NAME, TRUST_STORE_PASSWORD);
-					if (x509 >= 0) {
-						config.setIdentity(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain(),
-								rpk >= 0 && rpk < x509);
+				SslContextUtil.Credentials serverCredentials = SslContextUtil.loadCredentials(
+						SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, certificateAlias, KEY_STORE_PASSWORD,
+						KEY_STORE_PASSWORD);
+				if (!noAuth) {
+					if (x509Trust || x509 >= 0) {
+						Certificate[] trustedCertificates = SslContextUtil.loadTrustedCertificates(
+								SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, TRUST_NAME,
+								TRUST_STORE_PASSWORD);
+						config.setTrustStore(trustedCertificates);
 					}
-					config.setTrustStore(trustedCertificates);
-				} else {
-					config.setIdentity(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain(),
-							true);
+					if (rpk >= 0) {
+						config.setRpkTrustAll();
+					}
+				}
+				if (x509 >= 0 || rpk >= 0) {
+					List<CertificateType> types = new ArrayList<>();
+					if (x509 >= 0 && rpk >= 0) {
+						if (rpk < x509) {
+							types.add(CertificateType.RAW_PUBLIC_KEY);
+							types.add(CertificateType.X_509);
+						} else {
+							types.add(CertificateType.X_509);
+							types.add(CertificateType.RAW_PUBLIC_KEY);
+						}
+					} else if (x509 >= 0) {
+						types.add(CertificateType.X_509);
+					} else if (rpk >= 0) {
+						types.add(CertificateType.RAW_PUBLIC_KEY);
+					}
+					config.setIdentity(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain(), types);
 				}
 			} catch (GeneralSecurityException e) {
 				e.printStackTrace();
@@ -209,11 +257,23 @@ public class CredentialsUtil {
 				}
 			}
 		}
-		if (modes.contains(Mode.RPK_TRUST)) {
-			config.setRpkTrustStore(new TrustAllRpks());
+		if (!noAuth && rpkTrust) {
+			config.setRpkTrustAll();
 		}
-		if (modes.contains(Mode.NO_AUTH)) {
-			config.setClientAuthenticationRequired(false);
+		if (psk && config.getIncompleteConfig().getSupportedCipherSuites().length == 0) {
+			List<CipherSuite> suites = new ArrayList<>();
+			if (x509 >= 0 || rpk >= 0 || x509Trust || rpkTrust) {
+				suites.add(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+				suites.add(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256);
+			}
+			if (ecdhePsk) {
+				suites.add(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256);
+			} 
+			if (plainPsk) {
+				suites.add(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
+				suites.add(CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256);
+			}
+			config.setSupportedCipherSuites(suites);
 		}
 	}
 }

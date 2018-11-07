@@ -52,7 +52,6 @@ import java.security.SecureRandom;
 import java.security.cert.CertPath;
 import java.security.cert.X509Certificate;
 import java.security.interfaces.ECPublicKey;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -62,7 +61,7 @@ import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
-import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
@@ -103,11 +102,12 @@ public class ClientHandshaker extends Handshaker {
 	protected Integer maxFragmentLengthCode;
 
 	/**
-	 * The certificate types this server supports for client authentication.
+	 * The certificate types this peer supports for client authentication.
 	 */
 	protected final List<CertificateType> supportedClientCertificateTypes;
+
 	/**
-	 * The certificate types this server supports for server authentication.
+	 * The certificate types this peer supports for server authentication.
 	 */
 	protected final List<CertificateType> supportedServerCertificateTypes;
 
@@ -166,32 +166,9 @@ public class ClientHandshaker extends Handshaker {
 		this.preferredCipherSuites = Arrays.asList(config.getSupportedCipherSuites());
 		this.maxFragmentLengthCode = config.getMaxFragmentLengthCode();
 		this.sniEnabled = config.isSniEnabled();
-		this.supportedServerCertificateTypes = new ArrayList<>();
-		this.supportedClientCertificateTypes = new ArrayList<>();
 
-		// we only need to include certificate_type extensions in the CLIENT_HELLO
-		// if we support a cipher suite that requires a certificate exchange
-		if (CipherSuite.containsCipherSuiteRequiringCertExchange(preferredCipherSuites)) {
-
-			// we always support receiving a RawPublicKey from the server
-			this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-			if (certificateVerifier != null) {
-				int index = config.isSendRawKey() ? 1 : 0;
-				this.supportedServerCertificateTypes.add(index, CertificateType.X_509);
-			}
-
-			if (privateKey != null && publicKey != null) {
-				if (certificateChain == null || certificateChain.length == 0) {
-					this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-				} else if (config.isSendRawKey()) {
-					this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-					this.supportedClientCertificateTypes.add(CertificateType.X_509);
-				} else {
-					this.supportedClientCertificateTypes.add(CertificateType.X_509);
-					this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-				}
-			}
-		}
+		this.supportedServerCertificateTypes = config.getTrustCertificateTypes();
+		this.supportedClientCertificateTypes = config.getIdentityCertificateTypes();
 	}
 
 	// Methods ////////////////////////////////////////////////////////

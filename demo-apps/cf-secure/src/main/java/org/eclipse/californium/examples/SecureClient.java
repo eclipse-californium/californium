@@ -35,7 +35,7 @@ import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 public class SecureClient {
 
 	public static final List<Mode> SUPPORTED_MODES = Arrays
-			.asList(new Mode[] { Mode.PSK, Mode.RPK, Mode.X509, Mode.RPK_TRUST, Mode.X509_TRUST });
+			.asList(new Mode[] { Mode.PSK, Mode.ECDHE_PSK, Mode.RPK, Mode.X509, Mode.RPK_TRUST, Mode.X509_TRUST });
 	private static final String SERVER_URI = "coaps://localhost/secure";
 
 	private final DTLSConnector dtlsConnector;
@@ -75,14 +75,14 @@ public class SecureClient {
 	}
 
 	public static void main(String[] args) throws InterruptedException {
-		System.out.println("Usage: java -cp ... org.eclipse.californium.examples.SecureClient [PSK] [RPK|RPK_TRUST] [X509|X509_TRUST]");
+		System.out.println("Usage: java -cp ... org.eclipse.californium.examples.SecureClient [PSK|ECDHE_PSK] [RPK|RPK_TRUST] [X509|X509_TRUST]");
 		System.out.println("Default:            [PSK] [RPK] [X509]");
 
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
 		builder.setClientOnly();
 		builder.setSniEnabled(false);
-		List<Mode> modes = CredentialsUtil.parse(args, CredentialsUtil.DEFAULT_MODES, SUPPORTED_MODES);
-		if (modes.contains(CredentialsUtil.Mode.PSK)) {
+		List<Mode> modes = CredentialsUtil.parse(args, CredentialsUtil.DEFAULT_CLIENT_MODES, SUPPORTED_MODES);
+		if (modes.contains(CredentialsUtil.Mode.PSK) || modes.contains(CredentialsUtil.Mode.ECDHE_PSK)) {
 			builder.setPskStore(new StaticPskStore(CredentialsUtil.PSK_IDENTITY, CredentialsUtil.PSK_SECRET));
 		}
 		CredentialsUtil.setupCredentials(builder, CredentialsUtil.CLIENT_NAME, modes);

@@ -24,12 +24,13 @@ import static org.junit.Assert.*;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.category.Small;
-import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.junit.Before;
 import org.junit.Test;
@@ -50,9 +51,7 @@ public class HelloExtensionsTest {
 
 	@Test
 	public void testSerializationDeserialization() throws HandshakeException {
-		ClientCertificateTypeExtension ext = new ClientCertificateTypeExtension(true);
-		ext.addCertificateType(CertificateType.X_509);
-		ext.addCertificateType(CertificateType.RAW_PUBLIC_KEY);
+		ClientCertificateTypeExtension ext = new ClientCertificateTypeExtension(Arrays.asList(CertificateType.X_509, CertificateType.RAW_PUBLIC_KEY));
 		
 		HelloExtensions extensions = new HelloExtensions();
 		extensions.addExtension(ext);
