@@ -44,6 +44,7 @@ import org.eclipse.californium.elements.tcp.TlsClientConnector;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.ServerNames;
@@ -172,9 +173,13 @@ public class ClientInitializer {
 
 			if (arguments.uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME + "://")) {
 				DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
-				if (arguments.rpk || arguments.x509) {
+				if (arguments.rpk) {
 					dtlsConfig.setIdentity(clientCredentials.getPrivateKey(), clientCredentials.getCertificateChain(),
-							arguments.rpk);
+							CertificateType.RAW_PUBLIC_KEY);
+					dtlsConfig.setRpkTrustAll();
+				} else if (arguments.x509) {
+					dtlsConfig.setIdentity(clientCredentials.getPrivateKey(), clientCredentials.getCertificateChain(),
+							CertificateType.X_509);
 					dtlsConfig.setTrustStore(trustedCertificates);
 				} else if (arguments.id != null) {
 					byte[] secret = arguments.secret == null ? null : arguments.secret.getBytes();

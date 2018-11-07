@@ -58,7 +58,6 @@ import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.PublicKey;
 import java.security.cert.CertPath;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -70,7 +69,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.CertificateRequest.ClientCertificateType;
-import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
@@ -123,11 +122,11 @@ public class ServerHandshaker extends Handshaker {
 	/**
 	 * The certificate types this server supports for client authentication.
 	 */
-	private List<CertificateType> supportedClientCertificateTypes;
+	private final List<CertificateType> supportedClientCertificateTypes;
 	/**
 	 * The certificate types this server supports for server authentication.
 	 */
-	private List<CertificateType> supportedServerCertificateTypes;
+	private final List<CertificateType> supportedServerCertificateTypes;
 
 	private CertificateType negotiatedClientCertificateType;
 	private CertificateType negotiatedServerCertificateType;
@@ -217,33 +216,9 @@ public class ServerHandshaker extends Handshaker {
 		this.sniEnabled = config.isSniEnabled();
 		this.clientAuthenticationRequired = config.isClientAuthenticationRequired();
 
-		this.supportedClientCertificateTypes = new ArrayList<>();
-		this.supportedServerCertificateTypes = new ArrayList<>();
-		
-		// we only need to include certificate_type extensions in the SERVER_HELLO
-		// if we support a cipher suite that requires a certificate exchange
-		if (CipherSuite.containsCipherSuiteRequiringCertExchange(supportedCipherSuites)) {
-
-			if (this.clientAuthenticationRequired) {
-				this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-				if (config.getCertificateVerifier() != null) {
-					int index = config.isSendRawKey() ? 1 : 0;
-					this.supportedClientCertificateTypes.add(index, CertificateType.X_509);
-				}
-			}
-
-			if (privateKey != null && publicKey != null) {
-				if (certificateChain == null || certificateChain.length == 0) {
-					this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-				} else if (config.isSendRawKey()) {
-					this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-					this.supportedServerCertificateTypes.add(CertificateType.X_509);
-				} else {
-					this.supportedServerCertificateTypes.add(CertificateType.X_509);
-					this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-				}
-			}
-		}
+		// the server handshake uses the config with exchanged roles!
+		this.supportedClientCertificateTypes = config.getTrustCertificateTypes();
+		this.supportedServerCertificateTypes = config.getIdentityCertificateTypes();
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -864,16 +839,14 @@ public class ServerHandshaker extends Handshaker {
 		if (negotiatedClientCertificateType != null) {
 			session.setReceiveRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(negotiatedClientCertificateType));
 			if (clientHello.getClientCertificateTypeExtension() != null) {
-				ClientCertificateTypeExtension ext = new ClientCertificateTypeExtension(false);
-				ext.addCertificateType(negotiatedClientCertificateType);
+				ClientCertificateTypeExtension ext = new ClientCertificateTypeExtension(negotiatedClientCertificateType);
 				extensions.addExtension(ext);
 			}
 		}
 		if (negotiatedServerCertificateType != null) {
 			session.setSendRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(negotiatedServerCertificateType));
 			if (clientHello.getServerCertificateTypeExtension() != null) {
-				ServerCertificateTypeExtension ext = new ServerCertificateTypeExtension(false);
-				ext.addCertificateType(negotiatedServerCertificateType);
+				ServerCertificateTypeExtension ext = new ServerCertificateTypeExtension(negotiatedServerCertificateType);
 				extensions.addExtension(ext);
 			}
 		}
@@ -918,31 +891,37 @@ public class ServerHandshaker extends Handshaker {
 		return result;
 	}
 
-	private CertificateType getSupportedClientCertificateType(final ClientHello clientHello) throws HandshakeException {
-
-		ClientCertificateTypeExtension certTypeExt = clientHello.getClientCertificateTypeExtension();
-		if (certTypeExt != null) {
-			for (CertificateType certType : certTypeExt.getCertificateTypes()) {
-				if (supportedClientCertificateTypes.contains(certType)) {
-					return certType;
-				}
-			}
-		} else if (supportedClientCertificateTypes.contains(CertificateType.X_509)) {
-			return CertificateType.X_509;
-		}
-		return null;
+	private CertificateType getSupportedClientCertificateType(final ClientHello clientHello) {
+		return getSupportedCertificateType(clientHello.getClientCertificateTypeExtension(), supportedClientCertificateTypes);
 	}
 
-	private CertificateType getSupportedServerCertificateType(final ClientHello clientHello) throws HandshakeException {
-		ServerCertificateTypeExtension certTypeExt = clientHello.getServerCertificateTypeExtension();
-		if (certTypeExt != null) {
-			for (CertificateType certType : certTypeExt.getCertificateTypes()) {
-				if (supportedServerCertificateTypes.contains(certType)) {
-					return certType;
+	private CertificateType getSupportedServerCertificateType(final ClientHello clientHello) {
+		return getSupportedCertificateType(clientHello.getServerCertificateTypeExtension(), supportedServerCertificateTypes);
+	}
+
+	/**
+	 * Get supported certificate type. If the extension is available, used it to
+	 * find a supported certificate type. If the extension is not available,
+	 * check, if X_509 is supported.
+	 * 
+	 * @param certTypeExt certificate type extension. {@code null}, if not
+	 *            available.
+	 * @param supportedCertificateTypes supported certificate types of peer
+	 * @return supported certificate type, or {@code null}, if no common
+	 *         certificate type could be found.
+	 */
+	private static CertificateType getSupportedCertificateType(CertificateTypeExtension certTypeExt,
+			List<CertificateType> supportedCertificateTypes) {
+		if (supportedCertificateTypes != null) {
+			if (certTypeExt != null) {
+				for (CertificateType certType : certTypeExt.getCertificateTypes()) {
+					if (supportedCertificateTypes.contains(certType)) {
+						return certType;
+					}
 				}
+			} else if (supportedCertificateTypes.contains(CertificateType.X_509)) {
+				return CertificateType.X_509;
 			}
-		} else if (supportedServerCertificateTypes.contains(CertificateType.X_509)) {
-			return CertificateType.X_509;
 		}
 		return null;
 	}

@@ -22,12 +22,9 @@
 package org.eclipse.californium.scandium.examples;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
-import java.security.KeyStore;
-import java.security.PrivateKey;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -42,8 +39,10 @@ import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
+import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,9 +52,9 @@ public class ExampleDTLSClient {
 	private static final int DEFAULT_PORT = 5684;
 	private static final long DEFAULT_TIMEOUT_NANOS = TimeUnit.MILLISECONDS.toNanos(10000);
 	private static final Logger LOG = LoggerFactory.getLogger(ExampleDTLSClient.class.getName());
-	private static final String TRUST_STORE_PASSWORD = "rootPass";
-	private static final String KEY_STORE_PASSWORD = "endPass";
+	private static final char[] KEY_STORE_PASSWORD = "endPass".toCharArray();
 	private static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
+	private static final char[] TRUST_STORE_PASSWORD = "rootPass".toCharArray();
 	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
 
 	private static CountDownLatch messageCounter;
@@ -66,30 +65,20 @@ public class ExampleDTLSClient {
 	private AtomicInteger clientMessageCounter = new AtomicInteger();
 	
 	public ExampleDTLSClient() {
-		InputStream inTrust = null;
-		InputStream in = null;
 		try {
 			// load key store
-			KeyStore keyStore = KeyStore.getInstance("JKS");
-			in = getClass().getClassLoader().getResourceAsStream(KEY_STORE_LOCATION);
-			keyStore.load(in, KEY_STORE_PASSWORD.toCharArray());
-			in.close();
-
-			// load trust store
-			KeyStore trustStore = KeyStore.getInstance("JKS");
-			inTrust = getClass().getClassLoader().getResourceAsStream(TRUST_STORE_LOCATION);
-			trustStore.load(inTrust, TRUST_STORE_PASSWORD.toCharArray());
-
-			// You can load multiple certificates if needed
-			Certificate[] trustedCertificates = new Certificate[1];
-			trustedCertificates[0] = trustStore.getCertificate("root");
+			SslContextUtil.Credentials clientCredentials = SslContextUtil.loadCredentials(
+					SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, "client", KEY_STORE_PASSWORD,
+					KEY_STORE_PASSWORD);
+			Certificate[] trustedCertificates = SslContextUtil.loadTrustedCertificates(
+					SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, "root", TRUST_STORE_PASSWORD);
 
 			DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
 			builder.setPskStore(new StaticPskStore("Client_identity", "secretPSK".getBytes()));
-			builder.setIdentity((PrivateKey) keyStore.getKey("client", KEY_STORE_PASSWORD.toCharArray()),
-					keyStore.getCertificateChain("client"), true);
+			builder.setIdentity(clientCredentials.getPrivateKey(), clientCredentials.getCertificateChain(),
+					CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509);
 			builder.setTrustStore(trustedCertificates);
-			builder.setEnableAddressReuse(false);
+			builder.setRpkTrustAll();
 			builder.setConnectionThreadCount(1);
 			dtlsConnector = new DTLSConnector(builder.build());
 			dtlsConnector.setRawDataReceiver(new RawDataChannel() {
@@ -104,17 +93,6 @@ public class ExampleDTLSClient {
 
 		} catch (GeneralSecurityException | IOException e) {
 			LOG.error("Could not load the keystore", e);
-		} finally {
-			try {
-				if (inTrust != null) {
-					inTrust.close();
-				}
-				if (in != null) {
-					in.close();
-				}
-			} catch (IOException e) {
-				LOG.error("Cannot close key store file", e);
-			}
 		}
 	}
 

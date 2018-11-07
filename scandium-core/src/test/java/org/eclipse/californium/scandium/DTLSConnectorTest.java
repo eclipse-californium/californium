@@ -60,7 +60,6 @@ import java.security.Principal;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
@@ -86,7 +85,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
-import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ClientHello;
 import org.eclipse.californium.scandium.dtls.ClientKeyExchange;
 import org.eclipse.californium.scandium.dtls.CompressionMethod;
@@ -192,14 +191,14 @@ public class DTLSConnectorTest {
 		serverConfig = new DtlsConnectorConfig.Builder()
 			.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
 			.setSupportedCipherSuites(
-				new CipherSuite[]{
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
 						CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
 						CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256,
-						CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256})
-			.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), true)
+						CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256)
+			.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509)
 			.setTrustStore(DtlsTestTools.getTrustedCertificates())
+			.setRpkTrustAll()
 			.setPskStore(pskStore)
 			.setClientAuthenticationRequired(true)
 			.setReceiverThreadCount(1)
@@ -269,8 +268,9 @@ public class DTLSConnectorTest {
 				.setAddress(bindAddress)
 				.setReceiverThreadCount(1)
 				.setConnectionThreadCount(2)
-				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), true)
-				.setTrustStore(DtlsTestTools.getTrustedCertificates());
+				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509)
+				.setTrustStore(DtlsTestTools.getTrustedCertificates())
+				.setRpkTrustAll();
 	}
 
 	@Test
@@ -1141,7 +1141,7 @@ public class DTLSConnectorTest {
 		clientConfig = new DtlsConnectorConfig.Builder()
 				.setAddress(clientEndpoint)
 				.setPskStore(new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()))
-				.setSupportedCipherSuites(new CipherSuite[] {CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256})
+				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256)
 				.build();
 			client = new DTLSConnector(clientConfig, clientConnectionStore);
 			givenAnEstablishedSession();
@@ -1154,8 +1154,8 @@ public class DTLSConnectorTest {
 	public void testConnectorEstablishesSecureSessionUsingCbcBlockCipher() throws Exception {
 		clientConfig =  new DtlsConnectorConfig.Builder()
 			.setAddress(clientEndpoint)
-			.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256})
-			.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), false)
+			.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256)
+			.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), CertificateType.X_509)
 			.setTrustStore(DtlsTestTools.getTrustedCertificates())
 			.build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
@@ -1205,7 +1205,7 @@ public class DTLSConnectorTest {
 		// given an established session with a client using X.509 based authentication
 		clientConfig = new DtlsConnectorConfig.Builder()
 			.setAddress(clientEndpoint)
-			.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), false)
+			.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), CertificateType.X_509)
 			.setTrustStore(DtlsTestTools.getTrustedCertificates())
 			.build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
@@ -1228,7 +1228,7 @@ public class DTLSConnectorTest {
 		// clients to authenticate
 		serverConfig = new DtlsConnectorConfig.Builder()
 				.setAddress(clientEndpoint)
-				.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), true)
+				.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), CertificateType.RAW_PUBLIC_KEY)
 				.setClientAuthenticationRequired(false)
 				.build();
 		server = new DTLSConnector(serverConfig, serverConnectionStore);
@@ -1372,7 +1372,7 @@ public class DTLSConnectorTest {
 			List<CipherSuite> ciperSuites = new ArrayList<>();
 			ciperSuites.add(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
 			ciperSuites.add(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
-			hello = new ClientHello(new ProtocolVersion(), new SecureRandom(), ciperSuites, Collections.<CertificateType> emptyList(), Collections.<CertificateType> emptyList(),clientEndpoint);
+			hello = new ClientHello(new ProtocolVersion(), new SecureRandom(), ciperSuites, null, null, clientEndpoint);
 		} else {
 			hello = new ClientHello(new ProtocolVersion(), new SecureRandom(),sessionToResume, null, null);
 		}

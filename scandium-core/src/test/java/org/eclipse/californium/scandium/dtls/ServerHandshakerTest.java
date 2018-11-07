@@ -41,7 +41,7 @@ import java.util.List;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
-import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
@@ -86,7 +86,7 @@ public class ServerHandshakerTest {
 		recordLayer = new SimpleRecordLayer();
 		config = new DtlsConnectorConfig.Builder()
 				.setAddress(endpoint)
-				.setIdentity(privateKey, certificateChain, false)
+				.setIdentity(privateKey, certificateChain, CertificateType.X_509)
 				.setTrustStore(trustedCertificates)
 				.setSupportedCipherSuites(new CipherSuite[]{SERVER_CIPHER_SUITE})
 				.build();
@@ -213,10 +213,11 @@ public class ServerHandshakerTest {
 		config = new DtlsConnectorConfig.Builder()
 				.setAddress(endpoint)
 				.setIdentity(privateKey, DtlsTestTools.getPublicKey())
-				.setSupportedCipherSuites(new CipherSuite[]{
+				.setSupportedCipherSuites(
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
-						CipherSuite.TLS_PSK_WITH_AES_128_CCM_8})
+						CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
 				.setPskStore(new StaticPskStore("client", "secret".getBytes()))
+				.setRpkTrustAll()
 				.build();
 		handshaker = newHandshaker(config, session);
 
@@ -224,7 +225,7 @@ public class ServerHandshakerTest {
 		// but offering both a public key based as well as a pre-shared key based cipher
 		// supported by the server
 		supportedClientCiphers = new byte[]{(byte) 0xC0, (byte) 0xAE, // TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8
-																				(byte) 0xC0, (byte) 0xA8};// TLS_PSK_WITH_AES_128_CCM_8
+											(byte) 0xC0, (byte) 0xA8};// TLS_PSK_WITH_AES_128_CCM_8
 		List<byte[]> extensions = new LinkedList<>();
 		SupportedGroup supportedGroup = getArbitrarySupportedGroup();
 		extensions.add(DtlsTestTools.newSupportedEllipticCurvesExtension(supportedGroup.getId()));

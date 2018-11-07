@@ -40,6 +40,7 @@ import org.eclipse.californium.elements.tcp.TlsServerConnector.ClientAuthMode;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ServerNames;
@@ -173,13 +174,14 @@ public abstract class AbstractTestServer extends CoapServer {
 				if (protocols.contains(Protocol.DTLS)) {
 					DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
 					dtlsConfig.setAddress(bindToAddress);
-					dtlsConfig.setSupportedCipherSuites(new CipherSuite[] { CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
+					dtlsConfig.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
 							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256,
-							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256 });
+							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256);
 					dtlsConfig.setPskStore(new PlugPskStore());
 					dtlsConfig.setIdentity(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain(),
-							true);
+							CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509);
 					dtlsConfig.setTrustStore(trustedCertificates);
+					dtlsConfig.setRpkTrustAll();
 					dtlsConfig.setMaxConnections(maxPeers);
 					dtlsConfig.setStaleConnectionThreshold(staleTimeout);
 					dtlsConfig.setConnectionThreadCount(dtlsThreads);
