@@ -52,10 +52,10 @@ public class EndpointContextUtil {
 			}
 			if (!match) {
 				/* logging differences with warning level */
-				LOGGER.warn("{}, {}: \"{}\" != \"{}\"", new Object[] { name, key, value1, value2 });
+				LOGGER.warn("{}, {}: \"{}\" != \"{}\"",  name, key, value1, value2);
 			} else if (trace) {
 				/* logging matches with finest level */
-				LOGGER.trace("{}, {}: \"{}\" == \"{}\"", new Object[] { name, key, value1, value2 });
+				LOGGER.trace("{}, {}: \"{}\" == \"{}\"", name, key, value1, value2);
 			}
 			matchAll = matchAll && match;
 		}

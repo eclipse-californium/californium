@@ -144,6 +144,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.EndpointMismatchException;
@@ -227,6 +228,12 @@ public class DTLSConnector implements Connector, RecordLayer {
 
 	private final LeastRecentlyUsedCache<InetSocketAddress, SerialExecutor> connectionExecutors;
 	private final ResumptionSupportingConnectionStore connectionStore;
+
+	/**
+	 * General auto resumption timeout in milliseconds. {@code null}, if auto
+	 * resumption is not used.
+	 */
+	private final Long autoResumptionTimeoutMillis;
 
 	private final int thresholdHandshakesWithoutVerifiedPeer;
 	private final AtomicInteger pendingHandshakesWithoutVerifiedPeer = new AtomicInteger();
@@ -316,6 +323,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		} else {
 			this.config = configuration;
 			this.pendingOutboundMessagesCountdown.set(config.getOutboundMessageBufferSize());
+			this.autoResumptionTimeoutMillis = config.getAutoResumptionTimeoutMillis();
 			this.connectionStore = connectionStore;
 			this.sessionListener = new SessionAdapter() {
 
@@ -965,9 +973,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 					// the fragment could be de-crypted
 					// thus, the handshake seems to have been completed successfully
 					ongoingHandshake.handshakeCompleted();
-				} else {
-					connection.refreshAutoResumptionTime();
 				}
+				connection.refreshAutoResumptionTime();
 				connectionStore.update(connection);
 
 				final RawDataChannel channel = messageHandler;
@@ -1389,7 +1396,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 *           cannot be used to start a handshake with the peer
 	 */
 	private void startNewHandshake(final ClientHello clientHello, final Record record) throws HandshakeException {
-		Connection peerConnection = new Connection(record.getPeerAddress(), config.getAutoResumptionTimeoutMillis());
+		Connection peerConnection = new Connection(record.getPeerAddress());
 		if (!connectionStore.put(peerConnection)) {
 			terminateOngoingHandshake(record.getPeerAddress(), new IllegalStateException("connection store exhausted!"),
 					AlertDescription.INTERNAL_ERROR);
@@ -1422,7 +1429,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		if (previousConnection != null && previousConnection.isActive()) {
 
 			// session has been found in cache, resume it
-			Connection peerConnection = new Connection(record.getPeerAddress(), config.getAutoResumptionTimeoutMillis());
+			Connection peerConnection = new Connection(record.getPeerAddress());
 			SessionTicket ticket = null;
 			if (previousConnection.hasEstablishedSession()) {
 				ticket = previousConnection.getEstablishedSession().getSessionTicket();
@@ -1627,7 +1634,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		Connection connection = connectionStore.get(peerAddress);
 
 		if (connection == null) {
-			connection = new Connection(peerAddress, config.getAutoResumptionTimeoutMillis());
+			connection = new Connection(peerAddress);
 			connectionStore.put(connection);
 		}
 
@@ -1656,38 +1663,53 @@ public class DTLSConnector implements Connector, RecordLayer {
 			}
 			handshaker.addApplicationDataForDeferredProcessing(message);
 		}
-		else if (connection.isResumptionRequired()) {
-			// create the session to resume from the previous one.
-			if (config.isServerOnly()) {
-				message.onError(new EndpointMismatchException());
+		else {
+			Long timeout = autoResumptionTimeoutMillis;
+			String contextTimeout = message.getEndpointContext().get(DtlsEndpointContext.KEY_RESUMPTION_TIMEOUT);
+			if (contextTimeout != null) {
+				if (contextTimeout.isEmpty()) {
+					timeout = null;
+				} else {
+					try {
+						timeout = Long.valueOf(contextTimeout);
+					} catch (NumberFormatException e) {
+					}
+				}
 			}
-			message.onConnecting();
-			SessionId sessionId;
-			if (ticket == null) {
-				ticket = session.getSessionTicket();
-				sessionId = session.getSessionIdentifier();
-			} else {
-				sessionId = connection.getSessionIdentity();
-			}
-			DTLSSession resumableSession = new DTLSSession(sessionId, peerAddress, ticket, 0);
+			if (connection.isAutoResumptionRequired(timeout)) {
+				// create the session to resume from the previous one.
+				if (config.isServerOnly()) {
+					message.onError(new EndpointMismatchException());
+				}
+				message.onConnecting();
+				SessionId sessionId;
+				if (ticket == null) {
+					ticket = session.getSessionTicket();
+					sessionId = session.getSessionIdentifier();
+				} else {
+					sessionId = connection.getSessionIdentity();
+				}
+				DTLSSession resumableSession = new DTLSSession(sessionId, peerAddress, ticket, 0);
 
-			// terminate the previous connection and add the new one to the store
-			Connection newConnection = new Connection(peerAddress, config.getAutoResumptionTimeoutMillis());
-			connection.cancelPendingFlight();
-			connectionStore.remove(connection, false);
-			connectionStore.put(newConnection);
-			Handshaker handshaker = new ResumingClientHandshaker(resumableSession, this,
-					newConnection.getSessionListener(), config, maximumTransmissionUnit);
-			initializeHandshaker(handshaker);
-			Handshaker previous = connection.getOngoingHandshake();
-			if (previous != null) {
-				handshaker.takeDeferredApplicationData(previous);
+				// terminate the previous connection and add the new one to the store
+				Connection newConnection = new Connection(peerAddress);
+				connection.cancelPendingFlight();
+				connectionStore.remove(connection, false);
+				connectionStore.put(newConnection);
+				Handshaker handshaker = new ResumingClientHandshaker(resumableSession, this,
+						newConnection.getSessionListener(), config, maximumTransmissionUnit);
+				initializeHandshaker(handshaker);
+				Handshaker previous = connection.getOngoingHandshake();
+				if (previous != null) {
+					handshaker.takeDeferredApplicationData(previous);
+				}
+				handshaker.addApplicationDataForDeferredProcessing(message);
+				handshaker.startHandshake();
+			} else {
+				// session with peer has already been established,
+				// use it to send encrypted message
+				sendMessage(message, session);
 			}
-			handshaker.addApplicationDataForDeferredProcessing(message);
-			handshaker.startHandshake();
-		} else {
-			// session with peer has already been established, use it to send encrypted message
-			sendMessage(message, session);
 		}
 	}
 

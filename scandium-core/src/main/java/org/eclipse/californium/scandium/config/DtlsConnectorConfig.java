@@ -44,6 +44,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
@@ -535,10 +536,11 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * If no messages are exchanged for this timeout, the next message will
 	 * trigger a session resumption automatically. Intended to be used, if
-	 * traffic is routed over a NAT.
+	 * traffic is routed over a NAT. The value may be overridden by the endpoint
+	 * context attribute {@link DtlsEndpointContext#KEY_RESUMPTION_TIMEOUT}.
 	 * 
-	 * @return timeout in milliseconds, or {@code null}, if no automatic resumption
-	 *         is intended.
+	 * @return timeout in milliseconds, or {@code null}, if no automatic
+	 *         resumption is intended.
 	 */
 	public Long getAutoResumptionTimeoutMillis() {
 		return autoResumptionTimeoutMillis;
@@ -1308,12 +1310,23 @@ public final class DtlsConnectorConfig {
 		/**
 		 * Set the timeout of automatic session resumption in milliseconds.
 		 * <p>
-		 * The default value is {@code null}, no automatic session resumption.
+		 * The default value is {@code null}, for no automatic session
+		 * resumption. The configured value may be overridden by the endpoint
+		 * context attribute {@link DtlsEndpointContext#KEY_RESUMPTION_TIMEOUT}.
 		 * 
-		 * @param timeoutInMillis the number of milliseconds.
+		 * @param timeoutInMillis the number of milliseconds. Usually values
+		 *            around 30000 milliseconds are useful, depending on the
+		 *            setup of NATS on the path. Smaller timeouts are only
+		 *            useful for unit test, they would trigger too many
+		 *            resumption handshakes.
 		 * @return this builder for command chaining.
+		 * @throws IllegalArgumentException if the timeout is below 1
+		 *             millisecond
 		 */
 		public Builder setAutoResumptionTimeoutMillis(long timeoutInMillis) {
+			if (timeoutInMillis < 1) {
+				throw new IllegalArgumentException("auto resumption timeout must not below 1!");
+			}
 			config.autoResumptionTimeoutMillis = timeoutInMillis;
 			return this;
 		}

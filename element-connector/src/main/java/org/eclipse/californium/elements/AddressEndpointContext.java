@@ -112,7 +112,7 @@ public class AddressEndpointContext implements EndpointContext {
 	}
 
 	@Override
-	public boolean inhibitNewConnection() {
+	public boolean hasCriticalEntries() {
 		return false;
 	}
 
