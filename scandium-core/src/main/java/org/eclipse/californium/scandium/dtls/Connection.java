@@ -38,6 +38,8 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+
+import org.eclipse.californium.elements.util.ClockUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,7 +62,14 @@ public final class Connection {
 	private final SessionId sessionId;
 	private final SessionListener sessionListener;
 	private final AtomicReference<Handshaker> ongoingHandshake = new AtomicReference<Handshaker>();
+	/**
+	 * Nanoseconds realtime stamp of the last message send or received.
+	 * {@code null}, if auto resumption is not used.
+	 */
 	private final AtomicLong lastMessage = new AtomicLong();
+	/**
+	 * Timeout for automatic session resumption in nanoseconds.
+	 */
 	private final Long autoResumptionTimeout;
 
 	private volatile DTLSSession establishedSession;
@@ -81,7 +90,8 @@ public final class Connection {
 			this.sessionId = null;
 			this.ticket = null;
 			this.peerAddress = peerAddress;
-			this.autoResumptionTimeout = autoResumptionTimeout;
+			this.autoResumptionTimeout = autoResumptionTimeout == null ? null
+					: TimeUnit.MILLISECONDS.toNanos(autoResumptionTimeout);
 			this.sessionListener = new ConnectionSessionListener();
 		}
 	}
@@ -248,7 +258,7 @@ public final class Connection {
 	 */
 	public boolean isAutoResumptionRequired() {
 		if (autoResumptionTimeout != null && establishedSession != null) {
-			long now = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
+			long now = ClockUtil.nanoRealtime();
 			if ((lastMessage.get() + autoResumptionTimeout - now) < 0) {
 				setResumptionRequired(true);
 				return resumptionRequired;
@@ -264,7 +274,7 @@ public final class Connection {
 	 */
 	public void refreshAutoResumptionTime() {
 		if (autoResumptionTimeout != null) {
-			long now = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
+			long now = ClockUtil.nanoRealtime();
 			lastMessage.set(now);
 		}
 	}

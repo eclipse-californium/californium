@@ -31,6 +31,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.scandium.dtls.ClientHello;
 import org.eclipse.californium.scandium.dtls.CompressionMethod;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -154,7 +155,7 @@ public class CookieGenerator {
 	 */
 	private boolean isKeyExpired() {
 		// consider sign wrap in longs (very optimistic about the uptime :-) )
-		return (System.nanoTime() - nextKeyGenerationNanos) >= 0;
+		return (ClockUtil.nanoRealtime() - nextKeyGenerationNanos) >= 0;
 	}
 
 	/**
@@ -165,7 +166,7 @@ public class CookieGenerator {
 	 * @return secret key for MAC algorithm (cookie generation).
 	 */
 	private void generateSecretKey() {
-		nextKeyGenerationNanos = System.nanoTime() + KEY_LIFE_TIME;
+		nextKeyGenerationNanos = ClockUtil.nanoRealtime() + KEY_LIFE_TIME;
 		rng.nextBytes(rd);
 		lastSecretKey = new SecretKeySpec(rd, "MAC");
 	}

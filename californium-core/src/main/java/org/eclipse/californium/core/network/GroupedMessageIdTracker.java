@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.util.ClockUtil;
 
 /**
  * A helper for keeping track of message IDs.
@@ -62,14 +63,14 @@ public class GroupedMessageIdTracker implements MessageIdTracker {
 	/**
 	 * Exchange lifetime. Value in nanoseconds.
 	 * 
-	 * @see System#nanoTime()
+	 * @see ClockUtil#nanoRealtime()
 	 */
 	private final long exchangeLifetimeNanos;
 	/**
 	 * Array with end of lease for MID groups. MID divided by
 	 * {@link #sizeOfGroups} is used as index. Values in nanoseconds.
 	 * 
-	 * @see System#nanoTime()
+	 * @see ClockUtil#nanoRealtime()
 	 */
 	private final long midLease[];
 	/**
@@ -121,13 +122,13 @@ public class GroupedMessageIdTracker implements MessageIdTracker {
 	 *         currently.
 	 */
 	public int getNextMessageId() {
-		final long now = System.nanoTime();
+		final long now = ClockUtil.nanoRealtime();
 		synchronized (this) {
 			// mask mid to the min-max range
 			int mid = (currentMID & 0xffff) % range;
 			int index = mid / sizeOfGroups;
 			int nextIndex = (index + 1) % numberOfGroups;
-			if (midLease[nextIndex] < now) {
+			if (midLease[nextIndex] - now < 0) {
 				midLease[index] = now + exchangeLifetimeNanos;
 				currentMID = mid + 1;
 				return mid + min;

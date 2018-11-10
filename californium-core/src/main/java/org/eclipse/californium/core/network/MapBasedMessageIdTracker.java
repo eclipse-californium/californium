@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.util.ClockUtil;
 
 /**
  * A helper for keeping track of message IDs using a map.
@@ -91,7 +92,7 @@ public class MapBasedMessageIdTracker implements MessageIdTracker {
 	public int getNextMessageId() {
 		int result = Message.NONE;
 		boolean wrapped = false;
-		long now = System.nanoTime();
+		final long now = ClockUtil.nanoRealtime();
 		synchronized (messageIds) {
 			// mask mid to the range
 			counter = (counter & 0xffff) % range;
@@ -100,7 +101,7 @@ public class MapBasedMessageIdTracker implements MessageIdTracker {
 				// mask mid to the range
 				int idx = counter++ % range;
 				Long earliestUsage = messageIds.get(idx);
-				if (earliestUsage == null || now >= earliestUsage) {
+				if (earliestUsage == null || (earliestUsage - now) <= 0) {
 					// message Id can be safely re-used
 					result = idx + min;
 					messageIds.put(idx, now + exchangeLifetimeNanos);

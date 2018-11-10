@@ -59,6 +59,7 @@ import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.util.ClockUtil;
 
 /**
  * Request represents a CoAP request and has either the {@link Type} CON or NON
@@ -733,16 +734,15 @@ public class Request extends Message {
 	 * @throws InterruptedException the interrupted exception
 	 */
 	public Response waitForResponse(long timeout) throws InterruptedException {
-		long before = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
-		long expired = timeout > 0 ? (before + timeout) : 0;
+		long before = ClockUtil.nanoRealtime();
+		long expires = before + TimeUnit.MILLISECONDS.toNanos(timeout);
 		long leftTimeout = timeout;
 		synchronized (this) {
 			while (this.response == null && !isCanceled() && !isTimedOut() && !isRejected() && getSendError() == null) {
 				wait(leftTimeout);
-				long now = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
 				// timeout expired?
 				if (timeout > 0) {
-					leftTimeout = expired - now;
+					leftTimeout = expires - ClockUtil.nanoRealtime();
 					if (0 >= leftTimeout) {
 						// break loop
 						break;

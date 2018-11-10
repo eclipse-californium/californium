@@ -31,6 +31,7 @@ import org.apache.http.impl.nio.client.CloseableHttpAsyncClient;
 import org.apache.http.protocol.*;
 import org.eclipse.californium.compat.CompletableFuture;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.proxy.*;
@@ -116,7 +117,7 @@ public class ProxyHttpClientResource extends ForwardingResource {
 		asyncClient.execute(httpHost, httpRequest, new BasicHttpContext(), new FutureCallback<HttpResponse>() {
 			@Override
 			public void completed(HttpResponse result) {
-				long timestamp = System.nanoTime();
+				long timestamp = ClockUtil.nanoRealtime();
 				LOGGER.debug("Incoming http response: {}", result.getStatusLine());
 				// the entity of the response, if non repeatable, could be
 				// consumed only one time, so do not debug it!

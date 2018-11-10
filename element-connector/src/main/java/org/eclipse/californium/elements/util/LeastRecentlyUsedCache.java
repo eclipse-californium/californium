@@ -712,7 +712,7 @@ public class LeastRecentlyUsedCache<K, V> {
 		private CacheEntry(K key, V value) {
 			this.value = value;
 			this.key = key;
-			this.lastUpdate = System.nanoTime();
+			this.lastUpdate = ClockUtil.nanoRealtime();
 		}
 
 		private K getKey() {
@@ -724,12 +724,12 @@ public class LeastRecentlyUsedCache<K, V> {
 		}
 
 		private boolean isStale(long thresholdNanos) {
-			return System.nanoTime() - lastUpdate >= thresholdNanos;
+			return ClockUtil.nanoRealtime() - lastUpdate >= thresholdNanos;
 		}
 
 		private void recordAccess(CacheEntry<K, V> header) {
 			remove();
-			lastUpdate = System.nanoTime();
+			lastUpdate = ClockUtil.nanoRealtime();
 			addBefore(header);
 		}
 

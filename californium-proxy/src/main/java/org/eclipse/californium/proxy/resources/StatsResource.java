@@ -33,6 +33,7 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.util.ClockUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -205,7 +206,7 @@ public class StatsResource extends CoapResource {
 			// starting to log the stats on a new file
 
 			// create the new file
-			String logName = System.nanoTime() + CACHE_LOG_NAME;
+			String logName = ClockUtil.nanoRealtime() + CACHE_LOG_NAME;
 			final File cacheLog = new File(logName);
 			try {
 				cacheLog.createNewFile();
