@@ -28,6 +28,7 @@ import java.util.Random;
 
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -98,7 +99,7 @@ public class InMemoryMessageIdProvider implements MessageIdProvider {
 		this.mode = mode;
 		this.config = config;
 		if (config.getBoolean(NetworkConfig.Keys.USE_RANDOM_MID_START)) {
-			random = new Random(System.nanoTime());
+			random = new Random(ClockUtil.nanoRealtime());
 		} else {
 			random = null;
 		}

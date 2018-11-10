@@ -77,6 +77,7 @@ import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -315,7 +316,7 @@ public class Exchange {
 		this.endpointContext.set(ctx);
 		this.keepRequestInStore = keepRequestInStore;
 		this.notification = notification;
-		this.nanoTimestamp = System.nanoTime();
+		this.nanoTimestamp = ClockUtil.nanoRealtime();
 	}
 
 	@Override
@@ -851,7 +852,7 @@ public class Exchange {
 	 * Get the nano-timestamp of the creation of this exchange.
 	 * 
 	 * @return nano-timestamp
-	 * @see System#nanoTime()
+	 * @see ClockUtil#nanoRealtime()
 	 */
 	public long getNanoTimestamp() {
 		return nanoTimestamp;
@@ -865,7 +866,7 @@ public class Exchange {
 	 * @return RTT in milliseconds
 	 */
 	public long calculateRTT() {
-		return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - nanoTimestamp);
+		return TimeUnit.NANOSECONDS.toMillis(ClockUtil.nanoRealtime() - nanoTimestamp);
 	}
 
 	/**

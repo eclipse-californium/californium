@@ -25,6 +25,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.elements.util.ClockUtil;
 
 
 /**
@@ -55,7 +56,7 @@ public class ObserveNotificationOrderer {
 			throw new NullPointerException("observe option must not be null!");
 		}
 		number.set(observe);
-		nanoTimestamp = System.nanoTime();
+		nanoTimestamp = ClockUtil.nanoRealtime();
 	}
 	
 	/**
@@ -101,7 +102,7 @@ public class ObserveNotificationOrderer {
 		// We use the notation from the observe draft-08.
 		long T1 = nanoTimestamp;
 		int V1 = number.get();
-		long T2 = System.nanoTime();
+		long T2 = ClockUtil.nanoRealtime();
 		int V2 = observe;
 		if (V1 < V2 && (V2 - V1) < (1L<<23)
 				|| V1 > V2 && (V1 - V2) > (1L<<23)

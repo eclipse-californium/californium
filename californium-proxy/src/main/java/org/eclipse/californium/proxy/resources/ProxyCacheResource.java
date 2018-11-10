@@ -37,6 +37,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.util.ClockUtil;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -238,7 +239,7 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 			LOGGER.debug("Cache hit");
 
 			// check if the response is expired
-			long currentTime = System.nanoTime();
+			long currentTime = ClockUtil.nanoRealtime();
 			long nanosLeft = getRemainingLifetime(response, currentTime);
 			if (nanosLeft > 0) {
 				// if the response can be used, then update its max-age to
@@ -299,7 +300,7 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 	}
 
 	private long getRemainingLifetime(Response response) {
-		return getRemainingLifetime(response, System.nanoTime());
+		return getRemainingLifetime(response, ClockUtil.nanoRealtime());
 	}
 
 	/**
