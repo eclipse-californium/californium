@@ -43,6 +43,13 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 * the DTLS session.
 	 */
 	public static final String KEY_CIPHER = "DTLS_CIPHER";
+	/**
+	 * The name of the attribute that contains a auto session resumption timeout
+	 * in milliseconds. {@code "0"}, force a session resumption, {@code ""},
+	 * disable auto session resumption. None critical attribute, not considered
+	 * for matching.
+	 */
+	public static final String KEY_RESUMPTION_TIMEOUT = KEY_PREFIX_NONE_CRITICAL + "DTLS_RESUMPTION_TIMEOUT";
 
 	/**
 	 * Creates a context for DTLS session parameters.

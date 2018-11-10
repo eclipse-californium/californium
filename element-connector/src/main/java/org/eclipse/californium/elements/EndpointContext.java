@@ -74,14 +74,16 @@ public interface EndpointContext {
 	Map<String, String> entries();
 
 	/**
-	 * Check, if the correlation information contained, will inhibit a new
-	 * connection.
+	 * Check, if the correlation information contained, contains critical
+	 * entries relevant for matching. A context with critical entries will
+	 * inhibit a new connection.
 	 * 
-	 * @return {@code true}, if no new connection could match the correlation
-	 *         context provided in this instance. {@code false}, if a new
-	 *         connection may match this correlation context.
+	 * @return {@code true}, if critical entries contained, and no new
+	 *         connection could match the correlation context provided in this
+	 *         instance. {@code false}, if a new connection may match this
+	 *         correlation context.
 	 */
-	boolean inhibitNewConnection();
+	boolean hasCriticalEntries();
 
 	/**
 	 * Gets the identity of the peer that the message is for or from.

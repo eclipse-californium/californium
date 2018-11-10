@@ -50,7 +50,6 @@ import org.slf4j.LoggerFactory;
  * <ul>
  * <li>a potentially ongoing handshake with the peer</li>
  * <li>an already established session with the peer</li>
- * <li>a pending flight that has not been acknowledged by the peer yet</li>
  * </ul> 
  */
 public final class Connection {
@@ -63,14 +62,9 @@ public final class Connection {
 	private final SessionListener sessionListener;
 	private final AtomicReference<Handshaker> ongoingHandshake = new AtomicReference<Handshaker>();
 	/**
-	 * Nanoseconds realtime stamp of the last message send or received.
-	 * {@code null}, if auto resumption is not used.
+	 * Expired realtime nanoseconds of the last message send or received.
 	 */
-	private final AtomicLong lastMessage = new AtomicLong();
-	/**
-	 * Timeout for automatic session resumption in nanoseconds.
-	 */
-	private final Long autoResumptionTimeout;
+	private final AtomicLong lastMessageNanos = new AtomicLong();
 
 	private volatile DTLSSession establishedSession;
 	// Used to know when an abbreviated handshake should be initiated
@@ -80,18 +74,15 @@ public final class Connection {
 	 * Creates a new connection to a given peer.
 	 * 
 	 * @param peerAddress the IP address and port of the peer the connection exists with
-	 * @param autoResumptionTimeout
 	 * @throws NullPointerException if the peer address is <code>null</code>
 	 */
-	public Connection(final InetSocketAddress peerAddress, final Long autoResumptionTimeout) {
+	public Connection(final InetSocketAddress peerAddress) {
 		if (peerAddress == null) {
 			throw new NullPointerException("Peer address must not be null");
 		} else {
 			this.sessionId = null;
 			this.ticket = null;
 			this.peerAddress = peerAddress;
-			this.autoResumptionTimeout = autoResumptionTimeout == null ? null
-					: TimeUnit.MILLISECONDS.toNanos(autoResumptionTimeout);
 			this.sessionListener = new ConnectionSessionListener();
 		}
 	}
@@ -113,7 +104,6 @@ public final class Connection {
 		this.ticket = sessionTicket;
 		this.sessionId =sessionId;
 		this.peerAddress = null;
-		this.autoResumptionTimeout = null;
 		this.sessionListener = null;
 	}
 
@@ -244,39 +234,50 @@ public final class Connection {
 	}
 
 	/**
-	 * @return true if an abbreviated handshake should be done next time a data will be sent on this connection.
+	 * Check, if resumption is required.
+	 * 
+	 * @return true if an abbreviated handshake should be done next time a data
+	 *         will be sent on this connection.
 	 */
 	public boolean isResumptionRequired() {
-		return resumptionRequired || isAutoResumptionRequired();
+		return resumptionRequired;
 	}
 
 	/**
-	 * Check, if the automatic session resumption should be triggered.
+	 * Check, if the automatic session resumption should be triggered or is
+	 * already required.
 	 * 
+	 * @param autoResumptionTimeoutMillis auto resumption timeout in
+	 *            milliseconds. {@code 0} milliseconds to force a resumption,
+	 *            {@code null}, if auto resumption is not used.
 	 * @return {@code true}, if the {@link #autoResumptionTimeout} has expired
-	 *         without exchanging message.
+	 *         without exchanging messages.
 	 */
-	public boolean isAutoResumptionRequired() {
-		if (autoResumptionTimeout != null && establishedSession != null) {
-			long now = ClockUtil.nanoRealtime();
-			if ((lastMessage.get() + autoResumptionTimeout - now) < 0) {
+	public boolean isAutoResumptionRequired(Long autoResumptionTimeoutMillis) {
+		if (!resumptionRequired && autoResumptionTimeoutMillis != null && establishedSession != null) {
+			if (autoResumptionTimeoutMillis == 0) {
 				setResumptionRequired(true);
-				return resumptionRequired;
+			} else {
+				long now = ClockUtil.nanoRealtime();
+				long expires = lastMessageNanos.get() + TimeUnit.MILLISECONDS.toNanos(autoResumptionTimeoutMillis);
+				if ((now - expires) > 0) {
+					setResumptionRequired(true);
+				}
 			}
 		}
-		return false;
+		return resumptionRequired;
 	}
 
 	/**
 	 * Refresh auto resumption timeout.
-	 * @see #autoResumptionTimeout
-	 * @see #lastMessage
+	 * 
+	 * Uses {@link ClockUtil#nanoRealtime()}.
+	 * 
+	 * @see #lastMessageNanos
 	 */
 	public void refreshAutoResumptionTime() {
-		if (autoResumptionTimeout != null) {
-			long now = ClockUtil.nanoRealtime();
-			lastMessage.set(now);
-		}
+		long now = ClockUtil.nanoRealtime();
+		lastMessageNanos.set(now);
 	}
 
 	/**
@@ -303,7 +304,6 @@ public final class Connection {
 		@Override
 		public void handshakeCompleted(Handshaker handshaker) {
 			if (ongoingHandshake.compareAndSet(handshaker, null)) {
-				refreshAutoResumptionTime();
 				LOGGER.debug("Handshake with [{}] has been completed", handshaker.getPeerAddress());
 			}
 		}

@@ -71,7 +71,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
@@ -761,11 +763,11 @@ public class DTLSConnectorTest {
 		Connection connection = clientConnectionStore.get(serverEndpoint);
 		byte[] sessionId = connection.getSession().getSessionIdentifier().getId();
 		assertThat(serverSessionCache.establishedSessionCounter.get(), is(1));
-		assertThat(connection.isAutoResumptionRequired(), is(false));
+		assertThat(connection.isAutoResumptionRequired(1000L), is(false));
 
 		Thread.sleep(2000);
 
-		assertThat(connection.isAutoResumptionRequired(), is(true));
+		assertThat(connection.isAutoResumptionRequired(1000L), is(true));
 		
 		// Prepare message sending
 		final String msg = "Hello Again";
@@ -796,7 +798,7 @@ public class DTLSConnectorTest {
 
 		Connection connection = clientConnectionStore.get(serverEndpoint);
 		assertThat(serverSessionCache.establishedSessionCounter.get(), is(1));
-		assertThat(connection.isAutoResumptionRequired(), is(false));
+		assertThat(connection.isAutoResumptionRequired(2000L), is(false));
 		Thread.sleep(1500);
 		// Prepare message sending
 		final String msg = "Hello Again";
@@ -810,7 +812,107 @@ public class DTLSConnectorTest {
 
 		Thread.sleep(1500);
 
-		assertThat(connection.isAutoResumptionRequired(), is(false));
+		assertThat(connection.isAutoResumptionRequired(2000L), is(false));
+		// check, if session is established again
+		assertThat(serverSessionCache.establishedSessionCounter.get(), is(1));
+	}
+
+	@Test
+	public void testConnectorForceAutoResumesSession() throws Exception {
+		autoResumeSetUp(2000);
+
+		// Do a first handshake
+		givenAnEstablishedSession(false);
+
+		Connection connection = clientConnectionStore.get(serverEndpoint);
+		byte[] sessionId = connection.getSession().getSessionIdentifier().getId();
+		assertThat(serverSessionCache.establishedSessionCounter.get(), is(1));
+
+		Thread.sleep(500);
+
+		// Prepare message sending
+		final String msg = "Hello Again";
+		CountDownLatch latch = new CountDownLatch(1);
+		clientRawDataChannel.setLatch(latch);
+
+		// send message
+		EndpointContext context = new MapBasedEndpointContext(serverEndpoint, null, DtlsEndpointContext.KEY_RESUMPTION_TIMEOUT, "0");
+		RawData data = RawData.outbound(msg.getBytes(), context, null, false);
+		client.send(data);
+		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+		// check we use the same session id
+		connection = clientConnectionStore.get(serverEndpoint);
+		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
+		assertClientIdentity(RawPublicKeyIdentity.class);
+
+		// check, if session is established again
+		assertThat(serverSessionCache.establishedSessionCounter.get(), is(2));
+	}
+
+	@Test
+	public void testConnectorSupressAutoResumesSession() throws Exception {
+		autoResumeSetUp(1000);
+
+		// Do a first handshake
+		givenAnEstablishedSession(false);
+
+		Connection connection = clientConnectionStore.get(serverEndpoint);
+		byte[] sessionId = connection.getSession().getSessionIdentifier().getId();
+		assertThat(serverSessionCache.establishedSessionCounter.get(), is(1));
+
+		Thread.sleep(2000);
+
+		// Prepare message sending
+		final String msg = "Hello Again";
+		CountDownLatch latch = new CountDownLatch(1);
+		clientRawDataChannel.setLatch(latch);
+
+		// send message
+		EndpointContext context = new MapBasedEndpointContext(serverEndpoint, null, DtlsEndpointContext.KEY_RESUMPTION_TIMEOUT, "");
+		RawData data = RawData.outbound(msg.getBytes(), context, null, false);
+		client.send(data);
+		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+		// check we use the same session id
+		connection = clientConnectionStore.get(serverEndpoint);
+		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
+		assertClientIdentity(RawPublicKeyIdentity.class);
+
+		// check, if session is established again
+		assertThat(serverSessionCache.establishedSessionCounter.get(), is(1));
+	}
+
+	@Test
+	public void testConnectorChangedAutoResumesSession() throws Exception {
+		autoResumeSetUp(1000);
+
+		// Do a first handshake
+		givenAnEstablishedSession(false);
+
+		Connection connection = clientConnectionStore.get(serverEndpoint);
+		byte[] sessionId = connection.getSession().getSessionIdentifier().getId();
+		assertThat(serverSessionCache.establishedSessionCounter.get(), is(1));
+		assertThat(connection.isAutoResumptionRequired(1000L), is(false));
+
+		Thread.sleep(2000);
+
+		// Prepare message sending
+		final String msg = "Hello Again";
+		CountDownLatch latch = new CountDownLatch(1);
+		clientRawDataChannel.setLatch(latch);
+
+		// send message
+		EndpointContext context = new MapBasedEndpointContext(serverEndpoint, null, DtlsEndpointContext.KEY_RESUMPTION_TIMEOUT, "10000");
+		RawData data = RawData.outbound(msg.getBytes(), context, null, false);
+		client.send(data);
+		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+		// check we use the same session id
+		connection = clientConnectionStore.get(serverEndpoint);
+		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
+		assertClientIdentity(RawPublicKeyIdentity.class);
+
 		// check, if session is established again
 		assertThat(serverSessionCache.establishedSessionCounter.get(), is(1));
 	}
@@ -1063,8 +1165,8 @@ public class DTLSConnectorTest {
 	public void testConnectorTerminatesHandshakeIfConnectionStoreIsExhausted() throws Exception {
 		serverConnectionStore.clear();
 		assertTrue(serverConnectionStore.remainingCapacity() == SERVER_CONNECTION_STORE_CAPACITY);
-		assertTrue(serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.1", 5050), null)));
-		assertTrue(serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.2", 5050), null)));
+		assertTrue(serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.1", 5050))));
+		assertTrue(serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.2", 5050))));
 
 		CountDownLatch latch = new CountDownLatch(1);
 		clientRawDataChannel.setLatch(latch);
