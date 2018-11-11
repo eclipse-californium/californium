@@ -655,12 +655,12 @@ public class DTLSConnector implements Connector, RecordLayer {
 					}
 					connectionExecutors.clear();
 				}
+				if (executorService != timer) {
+					pending.addAll(timer.shutdownNow());
+					shutdownTimer = timer;
+					timer = null;
+				}
 				if (hasInternalExecutor) {
-					if (executorService != timer) {
-						pending.addAll(timer.shutdownNow());
-						shutdownTimer = timer;
-						timer = null;
-					}
 					pending.addAll(executorService.shutdownNow());
 					shutdown = executorService;
 					executorService = null;
