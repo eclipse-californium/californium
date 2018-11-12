@@ -115,15 +115,15 @@ public class LeastRecentlyUsedCacheTest {
 		assume.sleep(THRESHOLD_MILLIS / 2);
 		Iterator<String> valuesIterator = cache.valuesIterator();
 		cache.setUpdatingOnReadAccess(true);
-		assertNext(valuesIterator);
+		assertNext(valuesIterator, assume);
 		cache.setUpdatingOnReadAccess(false);
-		assertNext(valuesIterator);
+		assertNext(valuesIterator, assume);
 		cache.setUpdatingOnReadAccess(true);
-		assertNext(valuesIterator);
+		assertNext(valuesIterator, assume);
 		cache.setUpdatingOnReadAccess(false);
-		assertNext(valuesIterator);
+		assertNext(valuesIterator, assume);
 		cache.setUpdatingOnReadAccess(true);
-		assertNext(valuesIterator);
+		assertNext(valuesIterator, assume);
 		assume.sleep((THRESHOLD_MILLIS / 2) + 100);
 
 		valuesIterator = cache.valuesIterator();
@@ -131,11 +131,6 @@ public class LeastRecentlyUsedCacheTest {
 		assertNext(valuesIterator, assume);
 		assertNext(valuesIterator, assume);
 		assertFalse(valuesIterator.hasNext());
-	}
-
-	private void assertNext(Iterator<String> iterator) {
-		String value = iterator.hasNext() ? iterator.next() : null;
-		assertNotNull(value);
 	}
 
 	private void assertNext(Iterator<String> iterator, TimeAssume assume) {
