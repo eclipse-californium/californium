@@ -52,7 +52,6 @@ import java.security.SecureRandom;
 import java.security.cert.CertPath;
 import java.security.cert.X509Certificate;
 import java.security.interfaces.ECPublicKey;
-import java.util.Arrays;
 import java.util.List;
 
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
@@ -163,7 +162,7 @@ public class ClientHandshaker extends Handshaker {
 		this.certificateChain = config.getCertificateChain();
 		this.publicKey = config.getPublicKey();
 		this.pskStore = config.getPskStore();
-		this.preferredCipherSuites = Arrays.asList(config.getSupportedCipherSuites());
+		this.preferredCipherSuites = config.getSupportedCipherSuites();
 		this.maxFragmentLengthCode = config.getMaxFragmentLengthCode();
 		this.sniEnabled = config.isSniEnabled();
 

@@ -206,7 +206,7 @@ public class ServerHandshaker extends Handshaker {
 			DtlsConnectorConfig config, int maxTransmissionUnit) { 
 		super(false, initialMessageSequenceNo, session, recordLayer, sessionListener, config, maxTransmissionUnit);
 
-		this.supportedCipherSuites = Arrays.asList(config.getSupportedCipherSuites());
+		this.supportedCipherSuites = config.getSupportedCipherSuites();
 
 		this.pskStore = config.getPskStore();
 
