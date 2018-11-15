@@ -96,7 +96,7 @@ public class DtlsConnectorConfigTest {
 	@Test
 	public void testBuilderSetsPskCipherSuitesWhenPskStoreIsSet() {
 		DtlsConnectorConfig config = builder.setPskStore(new StaticPskStore("ID", "KEY".getBytes())).build();
-		assertTrue(config.getSupportedCipherSuites().length > 0);
+		assertFalse(config.getSupportedCipherSuites().isEmpty());
 		for (CipherSuite suite : config.getSupportedCipherSuites()) {
 			assertThat(suite.getKeyExchange(),
 					either(is(KeyExchangeAlgorithm.PSK)).or(is(KeyExchangeAlgorithm.ECDHE_PSK)));
@@ -107,7 +107,7 @@ public class DtlsConnectorConfigTest {
 	public void testBuilderSetsEcdheCipherSuiteWhenKeysAreSet() throws Exception {
 		DtlsConnectorConfig config = builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
 				.setClientAuthenticationRequired(false).build();
-		assertTrue(config.getSupportedCipherSuites().length > 0);
+		assertFalse(config.getSupportedCipherSuites().isEmpty());
 		for (CipherSuite suite : config.getSupportedCipherSuites()) {
 			assertThat(suite.getKeyExchange(), is(KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN));
 		}
@@ -118,7 +118,7 @@ public class DtlsConnectorConfigTest {
 		DtlsConnectorConfig config = builder.setClientAuthenticationRequired(false)
 				.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
 				.setPskStore(new StaticPskStore("ID", "KEY".getBytes())).build();
-		List<CipherSuite> cipherSuites = Arrays.asList(config.getSupportedCipherSuites());
+		List<CipherSuite> cipherSuites = config.getSupportedCipherSuites();
 		assertThat(cipherSuites, ListUtilsTest.containsAll(CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256,
 				CipherSuite.TLS_PSK_WITH_AES_128_CCM_8, CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256,
 				CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));

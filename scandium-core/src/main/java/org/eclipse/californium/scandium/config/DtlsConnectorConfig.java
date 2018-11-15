@@ -172,7 +172,7 @@ public final class DtlsConnectorConfig {
 	private X509Certificate[] certChain;
 
 	/** the supported cipher suites in order of preference */
-	private CipherSuite[] supportedCipherSuites;
+	private List<CipherSuite> supportedCipherSuites;
 
 	/** the trust store for RPKs **/
 	private TrustedRpkStore trustedRPKs;
@@ -382,12 +382,8 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * @return the supported cipher suites (ordered by preference)
 	 */
-	public CipherSuite[] getSupportedCipherSuites() {
-		if (supportedCipherSuites == null) {
-			return new CipherSuite[0];
-		} else {
-			return Arrays.copyOf(supportedCipherSuites, supportedCipherSuites.length);
-		}
+	public List<CipherSuite> getSupportedCipherSuites() {
+		return supportedCipherSuites;
 	}
 
 	/**
@@ -426,6 +422,7 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * @return the root certificates
 	 */
+	@Deprecated
 	public X509Certificate[] getTrustStore() {
 		if (trustStore == null) {
 			return null;
@@ -822,16 +819,7 @@ public final class DtlsConnectorConfig {
 			if (cipherSuites == null) {
 				throw new NullPointerException("Connector must support at least one cipher suite");
 			}
-			if (cipherSuites.length == 0) {
-				throw new IllegalArgumentException("Connector must support at least one cipher suite");
-			} 
-			for (CipherSuite suite : cipherSuites) {
-				if (CipherSuite.TLS_NULL_WITH_NULL_NULL.equals(suite)) {
-					throw new IllegalArgumentException("NULL Cipher Suite is not supported by connector");
-				}
-			}
-			config.supportedCipherSuites = Arrays.copyOf(cipherSuites, cipherSuites.length);
-			return this;
+			return setSupportedCipherSuites(Arrays.asList(cipherSuites));
 		}
 
 		/**
@@ -857,7 +845,7 @@ public final class DtlsConnectorConfig {
 			if (cipherSuites.contains(CipherSuite.TLS_NULL_WITH_NULL_NULL)) {
 				throw new IllegalArgumentException("NULL Cipher Suite is not supported by connector");
 			}
-			config.supportedCipherSuites = cipherSuites.toArray(new CipherSuite[0]);
+			config.supportedCipherSuites = cipherSuites;
 			return this;
 		}
 
@@ -882,24 +870,17 @@ public final class DtlsConnectorConfig {
 			if (cipherSuites == null) {
 				throw new NullPointerException("Connector must support at least one cipher suite");
 			}
-			if (cipherSuites.length == 0) {
-				throw new IllegalArgumentException("Connector must support at least one cipher suite");
-			} 
-			CipherSuite[] suites = new CipherSuite[cipherSuites.length];
+			List<CipherSuite> suites = new ArrayList<>(cipherSuites.length);
 			for (int i = 0; i < cipherSuites.length; i++) {
-				if (CipherSuite.TLS_NULL_WITH_NULL_NULL.name().equals(cipherSuites[i])) {
-					throw new IllegalArgumentException("NULL Cipher Suite is not supported by connector");
-				} 
 				CipherSuite knownSuite = CipherSuite.getTypeByName(cipherSuites[i]);
 				if (knownSuite != null) {
-					suites[i] = knownSuite;
+					suites.add(knownSuite);
 				} else {
 					throw new IllegalArgumentException(
 							String.format("Cipher suite [%s] is not (yet) supported", cipherSuites[i]));
 				}
 			}
-			config.supportedCipherSuites = suites;
-			return this;
+			return setSupportedCipherSuites(suites);
 		}
 
 		/**
@@ -1481,12 +1462,12 @@ public final class DtlsConnectorConfig {
 						"configured trusted certificates or certificate verifier are not used for disabled client authentication!");
 			}
 
-			if (config.supportedCipherSuites == null || config.supportedCipherSuites.length == 0) {
+			if (config.supportedCipherSuites == null || config.supportedCipherSuites.isEmpty()) {
 				determineCipherSuitesFromConfig();
 			}
 
 			// check cipher consistency
-			if (config.supportedCipherSuites == null || config.supportedCipherSuites.length == 0) {
+			if (config.supportedCipherSuites == null || config.supportedCipherSuites.isEmpty()) {
 				throw new IllegalStateException("Supported cipher suites must be set either " +
 						"explicitly or implicitly by means of setting the identity or PSK store");
 			}
@@ -1541,6 +1522,7 @@ public final class DtlsConnectorConfig {
 
 			config.trustCertificateTypes = ListUtils.init(config.trustCertificateTypes);
 			config.identityCertificateTypes = ListUtils.init(config.identityCertificateTypes);
+			config.supportedCipherSuites = ListUtils.init(config.supportedCipherSuites);
 
 			return config;
 		}
@@ -1587,7 +1569,7 @@ public final class DtlsConnectorConfig {
 				ciphers.add(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256);
 			}
 
-			config.supportedCipherSuites = ciphers.toArray(new CipherSuite[ciphers.size()]);
+			config.supportedCipherSuites = ciphers;
 		}
 	}
 }
