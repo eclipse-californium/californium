@@ -21,35 +21,58 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.SocketException;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.CoapResource;
-import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
+import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.plugtests.AbstractTestServer;
 
-public class SimpleFileServer extends CoapServer {
+public class SimpleFileServer extends AbstractTestServer {
+
 	private static final Logger LOG = LoggerFactory.getLogger(SimpleFileServer.class.getName());
 
-	private static final int COAP_PORT = NetworkConfig.getStandard().getInt(NetworkConfig.Keys.COAP_PORT);
+	private static final File CONFIG_FILE = new File("Californium.properties");
+	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Fileserver";
+	private static final int DEFAULT_MAX_RESOURCE_SIZE = 2 * 1024 * 1024; // 2 MB
+	private static final int DEFAULT_BLOCK_SIZE = 512;
+
+	private static NetworkConfigDefaultHandler DEFAULTS = new NetworkConfigDefaultHandler() {
+
+		@Override
+		public void applyDefaults(NetworkConfig config) {
+			config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
+			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
+			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
+		}
+	};
+
 	private static final String DEFAULT_PATH = "data";
 
 	/*
 	 * Application entry point.
 	 */
 	public static void main(String[] args) {
+		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
+		NetworkConfig udpConfig = new NetworkConfig(config);
+		udpConfig.setInt(Keys.MAX_MESSAGE_SIZE, 64);
+		udpConfig.setInt(Keys.PREFERRED_BLOCK_SIZE, 64);
+		Map<Select, NetworkConfig> protocolConfig = new HashMap<>();
+		protocolConfig.put(new Select(Protocol.UDP, InterfaceType.EXTERNAL), udpConfig);
 
 		try {
 			String filesRootPath = DEFAULT_PATH;
@@ -59,8 +82,7 @@ public class SimpleFileServer extends CoapServer {
 			case 2:
 				coapRootPath = args[1];
 				if (0 <= coapRootPath.indexOf('/')) {
-					LOG.error("{} don't use '/'! Only one path segement for coap root allowed!",
-							coapRootPath);
+					LOG.error("{} don't use '/'! Only one path segement for coap root allowed!", coapRootPath);
 					return;
 				}
 			case 1:
@@ -80,14 +102,14 @@ public class SimpleFileServer extends CoapServer {
 			File[] files = filesRoot.listFiles();
 			for (File file : files) {
 				if (file.isFile() && file.canRead()) {
-					LOG.info("GET: coap://<host>/{}/{}", new Object[] { coapRootPath, file.getName() });
+					LOG.info("GET: coap://<host>/{}/{}", coapRootPath, file.getName());
 					break;
 				}
 			}
 			// create server
-			SimpleFileServer server = new SimpleFileServer(coapRootPath, filesRoot);
+			SimpleFileServer server = new SimpleFileServer(config, protocolConfig, coapRootPath, filesRoot);
 			// add endpoints on all IP addresses
-			server.addEndpoints();
+			server.addEndpoints(null, null, Arrays.asList(Protocol.UDP, Protocol.DTLS, Protocol.TCP, Protocol.TLS));
 			server.start();
 
 		} catch (SocketException e) {
@@ -95,27 +117,18 @@ public class SimpleFileServer extends CoapServer {
 		}
 	}
 
-	/**
-	 * Add individual endpoints listening on default CoAP port on all IPv4
-	 * addresses of all network interfaces.
-	 */
-	private void addEndpoints() {
-		for (InetAddress addr : EndpointManager.getEndpointManager().getNetworkInterfaces()) {
-			CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-			builder.setInetSocketAddress(new InetSocketAddress(addr, COAP_PORT));
-			addEndpoint(builder.build());
-		}
-	}
-
 	/*
 	 * Constructor for a new simple file server. Here, the resources of the
 	 * server are initialized.
 	 */
-	public SimpleFileServer(String coapRootPath, File filesRoot) throws SocketException {
-		add(new FileResource(coapRootPath, filesRoot));
+	public SimpleFileServer(NetworkConfig config, Map<Select, NetworkConfig> protocolConfig, String coapRootPath, File filesRoot) throws SocketException {
+		super(config, protocolConfig);
+		add(new FileResource(config, coapRootPath, filesRoot));
 	}
 
 	class FileResource extends CoapResource {
+
+		private final NetworkConfig config;
 		/**
 		 * Files root directory.
 		 */
@@ -124,15 +137,14 @@ public class SimpleFileServer extends CoapServer {
 		/**
 		 * Create CoAP file resource.
 		 * 
-		 * @param coapRootPath
-		 *            CoAP resource (base) name
-		 * @param fileRootPath
-		 *            path to file root
-		 * @param maxFileLength
-		 *            maximum file length
+		 * @param config network configuration
+		 * @param coapRootPath CoAP resource (base) name
+		 * @param fileRootPath path to file root
+		 * @param maxFileLength maximum file length
 		 */
-		public FileResource(String coapRootPath, File filesRoot) {
+		public FileResource(NetworkConfig config, String coapRootPath, File filesRoot) {
 			super(coapRootPath);
+			this.config = config;
 			this.filesRoot = filesRoot;
 		}
 
@@ -171,13 +183,13 @@ public class SimpleFileServer extends CoapServer {
 			String myURI = getURI() + "/";
 			String path = "/" + request.getOptions().getUriPathString();
 			if (!path.startsWith(myURI)) {
-				LOG.info("Request {} does not match {}!", new Object[] { path, myURI });
+				LOG.info("Request {} does not match {}!", path, myURI);
 				exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR);
 				return;
 			}
 			path = path.substring(myURI.length());
 			if (request.getOptions().hasBlock2()) {
-				LOG.info("Send file {} {}", new Object[] { path, request.getOptions().getBlock2() });
+				LOG.info("Send file {} {}", path, request.getOptions().getBlock2());
 			} else {
 				LOG.info("Send file {}", path);
 			}
@@ -188,8 +200,7 @@ public class SimpleFileServer extends CoapServer {
 				return;
 			}
 			if (!checkFileLocation(file, filesRoot)) {
-				LOG.warn("File {} is not in {}!",
-						new Object[] { file.getAbsolutePath(), filesRoot.getAbsolutePath() });
+				LOG.warn("File {} is not in {}!", file.getAbsolutePath(), filesRoot.getAbsolutePath());
 				exchange.respond(CoAP.ResponseCode.UNAUTHORIZED);
 				return;
 			}
@@ -199,11 +210,10 @@ public class SimpleFileServer extends CoapServer {
 				exchange.respond(CoAP.ResponseCode.UNAUTHORIZED);
 				return;
 			}
-			long maxLength = NetworkConfig.getStandard().getInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE);
+			long maxLength = config.getInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE);
 			long length = file.length();
 			if (length > maxLength) {
-				LOG.warn("File {} is too large {} (max.: {})!",
-						new Object[] { file.getAbsolutePath(), length, maxLength });
+				LOG.warn("File {} is too large {} (max.: {})!", file.getAbsolutePath(), length, maxLength);
 				exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR);
 				return;
 			}
@@ -231,10 +241,8 @@ public class SimpleFileServer extends CoapServer {
 		 * 
 		 * Detect attacks via "../.../../file".
 		 * 
-		 * @param file
-		 *            file to check
-		 * @param root
-		 *            file root
+		 * @param file file to check
+		 * @param root file root
 		 * @return true, if file is locate in root (or a sub-folder of root),
 		 *         false, otherwise.
 		 */
@@ -247,5 +255,4 @@ public class SimpleFileServer extends CoapServer {
 			}
 		}
 	}
-
 }
