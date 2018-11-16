@@ -23,7 +23,15 @@
 	<dependencies>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
-			<artifactId>californium-core</artifactId>
+			<artifactId>cf-plugtest-server</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<!-- runtime dependencies -->
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>demo-certs</artifactId>
+			<scope>runtime</scope>
 		</dependency>
 	</dependencies>
 

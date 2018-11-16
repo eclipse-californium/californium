@@ -16,6 +16,7 @@
  ******************************************************************************/
 package org.eclipse.californium.examples;
 
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URI;
@@ -25,15 +26,35 @@ import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
+import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 
 
 public class GETClient {
+
+	private static final File CONFIG_FILE = new File("Californium.properties");
+	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Fileclient";
+	private static final int DEFAULT_MAX_RESOURCE_SIZE = 2 * 1024 * 1024; // 2 MB
+	private static final int DEFAULT_BLOCK_SIZE = 512;
+
+	private static NetworkConfigDefaultHandler DEFAULTS = new NetworkConfigDefaultHandler() {
+
+		@Override
+		public void applyDefaults(NetworkConfig config) {
+			config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
+			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
+			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
+		}
+	};
 
 	/*
 	 * Application entry point.
 	 * 
 	 */	
 	public static void main(String args[]) {
+		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
+		NetworkConfig.setStandard(config);
 		
 		URI uri = null; // URI parameter of the request
 		
