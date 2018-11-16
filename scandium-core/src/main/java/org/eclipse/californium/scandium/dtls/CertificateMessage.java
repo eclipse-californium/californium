@@ -115,7 +115,7 @@ public final class CertificateMessage extends HandshakeMessage {
 	 *            certification.
 	 * 
 	 */
-	public CertificateMessage(X509Certificate[] certificateChain, InetSocketAddress peerAddress) {
+	public CertificateMessage(List<X509Certificate> certificateChain, InetSocketAddress peerAddress) {
 		super(peerAddress);
 		if (certificateChain == null) {
 			throw new NullPointerException("Certificate chain must not be null");
@@ -166,7 +166,7 @@ public final class CertificateMessage extends HandshakeMessage {
 	 * @throws IllegalArgumentException if the given array contains non X.509 certificates or
 	 *                                  the certificates do not form a chain.
 	 */
-	private void setCertificateChain(final X509Certificate[] chain) {
+	private void setCertificateChain(final List<X509Certificate> chain) {
 		this.certPath = X509CertPath.generateCertPath(false, chain);
 	}
 

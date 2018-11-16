@@ -186,7 +186,7 @@ public abstract class Handshaker {
 	protected PublicKey publicKey;
 
 	/** The chain of certificates asserting this handshaker's identity */
-	protected X509Certificate[] certificateChain;
+	protected List<X509Certificate> certificateChain;
 
 	/**
 	 * Support Server Name Indication TLS extension.

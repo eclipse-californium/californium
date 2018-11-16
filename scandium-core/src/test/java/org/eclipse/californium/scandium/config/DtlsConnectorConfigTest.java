@@ -31,6 +31,7 @@ import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -222,7 +223,7 @@ public class DtlsConnectorConfigTest {
 				.setRpkTrustAll().build();
 
 		// WHEN retrieving the certificate chain
-		Certificate[] chain = config.getCertificateChain();
+		List<X509Certificate> chain = config.getCertificateChain();
 
 		// THEN
 		assertThat("Certificate chain should be null for RawPublicKey only configuration", chain, is(nullValue()));

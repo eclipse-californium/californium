@@ -199,7 +199,7 @@ public class CertificateRequestTest {
 		req.addCertificateAuthorities(trustAnchor);
 
 		// WHEN removing trusted certificates from a certificate chain rooting in the trust anchor
-		List<X509Certificate> truncatedChain = Arrays.asList(req.removeTrustedCertificates(clientChain));
+		List<X509Certificate> truncatedChain = req.removeTrustedCertificates(Arrays.asList(clientChain));
 		CertPath clientPath = factory.generateCertPath(truncatedChain);
 
 		// THEN none of the trust anchors is part of the truncated chain
@@ -233,9 +233,9 @@ public class CertificateRequestTest {
 	public void testTruncateCertificateChainReturnsAllNonTrustedCerts() throws Exception {
 		X509Certificate[] certChain = DtlsTestTools.getClientCertificateChain();
 		CertificateRequest req = new CertificateRequest(peerAddress);
-		X509Certificate[] truncatedChain = req.removeTrustedCertificates(certChain);
+		List<X509Certificate> truncatedChain = req.removeTrustedCertificates(Arrays.asList(certChain));
 
-		assertTrue(truncatedChain.length == certChain.length);
+		assertThat(truncatedChain.size(), is(certChain.length));
 	}
 
 	private static boolean isCertificatePartOfChain(X509Certificate cert, List<X509Certificate> chain) {

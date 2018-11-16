@@ -32,6 +32,9 @@ import java.security.PublicKey;
 import java.security.cert.CertPath;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 import javax.security.auth.x500.X500Principal;
 
@@ -167,7 +170,7 @@ public class CertificateMessageTest {
 		if (useRawPublicKey) {
 			message = new CertificateMessage(chain[0].getPublicKey().getEncoded(), peerAddress);
 		} else {
-			message = new CertificateMessage(chain, peerAddress);
+			message = new CertificateMessage(Arrays.asList(chain), peerAddress);
 		}
 	}
 
@@ -184,7 +187,8 @@ public class CertificateMessageTest {
 	}
 
 	private void givenAnEmptyCertificateMessage() {
-		message = new CertificateMessage(new X509Certificate[]{}, peerAddress);
+		List<X509Certificate> certPath = Collections.emptyList();
+		message = new CertificateMessage(certPath, peerAddress);
 	}
 
 	private void givenAnEmptyRawPublicKeyCertificateMessage() {
