@@ -169,7 +169,7 @@ public final class DtlsConnectorConfig {
 	private PublicKey publicKey;
 
 	/** the certificate for X509 mode */
-	private X509Certificate[] certChain;
+	private List<X509Certificate> certChain;
 
 	/** the supported cipher suites in order of preference */
 	private List<CipherSuite> supportedCipherSuites;
@@ -368,12 +368,8 @@ public final class DtlsConnectorConfig {
 	 * @return the certificates or <code>null</code> if the connector is
 	 * not supposed to support certificate based authentication
 	 */
-	public X509Certificate[] getCertificateChain() {
-		if (certChain == null) {
-			return null;
-		} else {
-			return Arrays.copyOf(certChain, certChain.length);
-		}
+	public List<X509Certificate> getCertificateChain() {
+		return certChain;
 	}
 
 	/**
@@ -1074,7 +1070,7 @@ public final class DtlsConnectorConfig {
 			} else {
 				config.privateKey = privateKey;
 				config.certChain = toX509Certificates(certificateChain);
-				config.publicKey = config.certChain[0].getPublicKey();
+				config.publicKey = config.certChain.get(0).getPublicKey();
 				if (certificateTypes == null) {
 					config.identityCertificateTypes = new ArrayList<>(1);
 					config.identityCertificateTypes.add(CertificateType.X_509);
@@ -1111,7 +1107,7 @@ public final class DtlsConnectorConfig {
 			if (trustedCerts == null) {
 				throw new NullPointerException("Trust store must not be null");
 			}
-			config.trustStore = toX509Certificates(trustedCerts);
+			config.trustStore = toX509Certificates(trustedCerts).toArray(new X509Certificate[0]);
 			return this;
 		}
 
@@ -1199,7 +1195,7 @@ public final class DtlsConnectorConfig {
 			return this;
 		}
 
-		private static X509Certificate[] toX509Certificates(Certificate[] certs) {
+		private static List<X509Certificate> toX509Certificates(Certificate[] certs) {
 			List<X509Certificate> result = new ArrayList<>(certs.length);
 			for (Certificate cert : certs) {
 				if (X509Certificate.class.isInstance(cert)) {
@@ -1208,7 +1204,7 @@ public final class DtlsConnectorConfig {
 					throw new IllegalArgumentException("can only process X.509 certificates");
 				}
 			}
-			return result.toArray(new X509Certificate[certs.length]);
+			return result;
 		}
 
 		/**
@@ -1523,6 +1519,7 @@ public final class DtlsConnectorConfig {
 			config.trustCertificateTypes = ListUtils.init(config.trustCertificateTypes);
 			config.identityCertificateTypes = ListUtils.init(config.identityCertificateTypes);
 			config.supportedCipherSuites = ListUtils.init(config.supportedCipherSuites);
+			config.certChain = ListUtils.init(config.certChain);
 
 			return config;
 		}

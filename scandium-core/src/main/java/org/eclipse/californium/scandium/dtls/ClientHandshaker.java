@@ -52,6 +52,7 @@ import java.security.SecureRandom;
 import java.security.cert.CertPath;
 import java.security.cert.X509Certificate;
 import java.security.interfaces.ECPublicKey;
+import java.util.Collections;
 import java.util.List;
 
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
@@ -616,10 +617,10 @@ public class ClientHandshaker extends Handshaker {
 				}
 				clientCertificate = new CertificateMessage(rawPublicKeyBytes, session.getPeer());
 			} else {
-				X509Certificate[] clientChain = determineClientCertificateChain(certificateRequest);
+				List<X509Certificate> clientChain = determineClientCertificateChain(certificateRequest);
 				// make sure we only send certs not part of the server's trust anchor
-				X509Certificate[] truncatedChain = certificateRequest.removeTrustedCertificates(clientChain);
-				LOGGER.debug("sending CERTIFICATE message with client certificate chain [length: {}] to server", truncatedChain.length);
+				List<X509Certificate> truncatedChain = certificateRequest.removeTrustedCertificates(clientChain);
+				LOGGER.debug("sending CERTIFICATE message with client certificate chain [length: {}] to server", truncatedChain.size());
 				clientCertificate = new CertificateMessage(truncatedChain, session.getPeer());
 			}
 			flight.addMessage(wrapMessage(clientCertificate));
@@ -658,7 +659,7 @@ public class ClientHandshaker extends Handshaker {
 	 * configured with an appropriate certificate chain.
 	 * @throws HandshakeException if this handshaker has not been configured with any certificate chain.
 	 */
-	X509Certificate[] determineClientCertificateChain(CertificateRequest certRequest) throws HandshakeException {
+	List<X509Certificate> determineClientCertificateChain(CertificateRequest certRequest) throws HandshakeException {
 
 		if (certificateChain == null) {
 			throw new HandshakeException("no client certificate configured",
@@ -666,7 +667,7 @@ public class ClientHandshaker extends Handshaker {
 		} else {
 			negotiatedSignatureAndHashAlgorithm = certRequest.getSignatureAndHashAlgorithm(certificateChain);
 			if (negotiatedSignatureAndHashAlgorithm == null) {
-				return new X509Certificate[0];
+				return Collections.emptyList();
 			} else {
 				return certificateChain;
 			}

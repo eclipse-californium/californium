@@ -85,13 +85,34 @@ public class X509CertPath implements Principal {
 	}
 
 	/**
-	 * Create x509 certificate path from certificates chain.
+	 * Create x509 certificate path from array certificates chain.
 	 * 
 	 * @param certificateChain chain of certificates
 	 * @return created x509 certificate path
 	 */
-	public static X509CertPath fromCertificatesChain(Certificate[] certificateChain) {
+	public static X509CertPath fromCertificatesChain(Certificate... certificateChain) {
 		if (certificateChain != null && certificateChain.length == 0) {
+			throw new IllegalArgumentException("Certificate chain must not be empty!");
+		}
+		List<X509Certificate> chain = new ArrayList<>();
+		for (Certificate cert : certificateChain) {
+			if (!(cert instanceof X509Certificate)) {
+				throw new IllegalArgumentException("Given certificate is not X.509! " + cert);
+			}
+			chain.add((X509Certificate)cert);
+		}
+		CertPath certPath = generateCertPath(true, chain);
+		return new X509CertPath(certPath);
+	}
+
+	/**
+	 * Create x509 certificate path from list of x509 certificates chain.
+	 * 
+	 * @param certificateChain chain of x509 certificates
+	 * @return created x509 certificate path
+	 */
+	public static X509CertPath fromCertificatesChain(List<X509Certificate>  certificateChain) {
+		if (certificateChain != null && certificateChain.isEmpty()) {
 			throw new IllegalArgumentException("Certificate chain must not be empty!");
 		}
 		CertPath certPath = generateCertPath(true, certificateChain);
@@ -99,14 +120,14 @@ public class X509CertPath implements Principal {
 	}
 
 	/**
-	 * Create certificate path from certificates chain.
+	 * Create certificate path from x509 certificates chain.
 	 * 
 	 * @param includeRoot {@code true}, to include the root certificate in the
 	 *            path, {@code false} otherwise.
-	 * @param certificateChain chain of certificates
+	 * @param certificateChain list with chain of x509 certificates
 	 * @return created certificate path
 	 */
-	public static CertPath generateCertPath(boolean includeRoot, Certificate[] certificateChain) {
+	public static CertPath generateCertPath(boolean includeRoot, List<X509Certificate> certificateChain) {
 		if (certificateChain == null) {
 			throw new NullPointerException("Certificate chain must not be null!");
 		}
@@ -128,11 +149,11 @@ public class X509CertPath implements Principal {
 				++index;
 				if (xcert.getIssuerX500Principal().equals(xcert.getSubjectX500Principal())) {
 					// a self-signed root certificate
-					if (index != certificateChain.length) {
+					if (index != certificateChain.size()) {
 						throw new IllegalArgumentException(
 								"Given certificates do not form a chain, root is not the last!");
 					}
-					if (includeRoot || certificateChain.length == 1) {
+					if (includeRoot || certificateChain.size() == 1) {
 						certificates.add(xcert);
 					}
 				} else {

@@ -40,6 +40,7 @@ import java.security.SecureRandom;
 import java.security.cert.CertPathValidatorException;
 import java.security.cert.CertificateExpiredException;
 import java.security.cert.X509Certificate;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -329,7 +330,7 @@ public class HandshakerTest {
 		if (useRawPublicKey) {
 			message = new CertificateMessage(chain[0].getPublicKey().getEncoded(), peerAddress);
 		} else {
-			message = new CertificateMessage(chain, peerAddress);
+			message = new CertificateMessage(Arrays.asList(chain), peerAddress);
 		}
 	}
 
@@ -378,7 +379,7 @@ public class HandshakerTest {
 	}
 	
 	private CertificateMessage createCertificateMessage(int seqNo) {
-		CertificateMessage result = new CertificateMessage(certificateChain, session.getPeer());
+		CertificateMessage result = new CertificateMessage(Arrays.asList(certificateChain), session.getPeer());
 		result.setMessageSeq(seqNo);
 		return result;
 	}
