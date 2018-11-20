@@ -103,7 +103,7 @@ public class HandshakerTest {
 			receivedMessages[i++] = 0;
 		}
 
-		session = new DTLSSession(endpoint, false);
+		session = new DTLSSession(endpoint);
 		session.setReceiveRawPublicKey(false);
 		session.setParameterAvailable();
 		certificateChain = DtlsTestTools.getServerCertificateChain();

@@ -153,7 +153,7 @@ public class DTLSConnectorAdvancedTest {
 			// Create handshaker with ReverseRecordLayer
 			// to send message in bad order.
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ClientHandshaker clientHandshaker = new ClientHandshaker(new DTLSSession(serverHelper.serverEndpoint, true),
+			ClientHandshaker clientHandshaker = new ClientHandshaker(new DTLSSession(serverHelper.serverEndpoint),
 					new ReverseRecordLayer(rawClient), sessionListener, clientConfig, 1280);
 
 			// Start handshake (Send CLIENT HELLO)
@@ -206,7 +206,7 @@ public class DTLSConnectorAdvancedTest {
 
 			// Create server handshaker
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ServerHandshaker serverHandshaker = new ServerHandshaker(new DTLSSession(client.getAddress(), false, 1),
+			ServerHandshaker serverHandshaker = new ServerHandshaker(new DTLSSession(client.getAddress(), 1),
 					new ReverseRecordLayer(rawServer), sessionListener, serverHelper.serverConfig, 1280);
 
 			// Wait to receive response (should be CLIENT HELLO, flight 3)
@@ -244,7 +244,7 @@ public class DTLSConnectorAdvancedTest {
 			rawClient.start();
 
 			// Create handshaker
-			DTLSSession clientSession = new DTLSSession(serverHelper.serverEndpoint, true);
+			DTLSSession clientSession = new DTLSSession(serverHelper.serverEndpoint);
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			ClientHandshaker clientHandshaker = new ClientHandshaker(clientSession, clientRecordLayer, sessionListener,
 					clientConfig, 1280);
@@ -331,7 +331,7 @@ public class DTLSConnectorAdvancedTest {
 			client.send(data);
 
 			// Create server handshaker
-			DTLSSession serverSession = new DTLSSession(client.getAddress(), false, 1);
+			DTLSSession serverSession = new DTLSSession(client.getAddress(), 1);
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			ServerHandshaker serverHandshaker = new ServerHandshaker(serverSession, serverRecordLayer, sessionListener,
 					serverHelper.serverConfig, 1280);
@@ -425,7 +425,7 @@ public class DTLSConnectorAdvancedTest {
 
 			// Create handshaker
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ClientHandshaker clientHandshaker = new ClientHandshaker(new DTLSSession(serverHelper.serverEndpoint, true),
+			ClientHandshaker clientHandshaker = new ClientHandshaker(new DTLSSession(serverHelper.serverEndpoint),
 					clientRecordLayer, sessionListener, clientConfig, 1280);
 
 			// Start handshake (Send CLIENT HELLO, flight 1)
@@ -499,7 +499,7 @@ public class DTLSConnectorAdvancedTest {
 			client.send(data);
 
 			// Create server handshaker
-			DTLSSession serverSession = new DTLSSession(client.getAddress(), false, 1);
+			DTLSSession serverSession = new DTLSSession(client.getAddress(), 1);
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			ServerHandshaker serverHandshaker = new ServerHandshaker(serverSession, serverRecordLayer, sessionListener,
 					serverHelper.serverConfig, 1280);
@@ -596,7 +596,7 @@ public class DTLSConnectorAdvancedTest {
 
 			// Create server handshaker
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ServerHandshaker serverHandshaker = new ServerHandshaker(new DTLSSession(client.getAddress(), false, 1),
+			ServerHandshaker serverHandshaker = new ServerHandshaker(new DTLSSession(client.getAddress(), 1),
 					new BasicRecordLayer(rawServer), sessionListener, serverHelper.serverConfig, 1280);
 
 			// Wait to receive response (should be CLIENT HELLO, flight 3)
@@ -649,7 +649,7 @@ public class DTLSConnectorAdvancedTest {
 			rawClient.start();
 
 			// Create handshaker
-			DTLSSession clientSession = new DTLSSession(serverHelper.serverEndpoint, true);
+			DTLSSession clientSession = new DTLSSession(serverHelper.serverEndpoint);
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			ClientHandshaker clientHandshaker = new ClientHandshaker(clientSession, clientRecordLayer, sessionListener,
 					clientConfig, 1280);
@@ -737,7 +737,7 @@ public class DTLSConnectorAdvancedTest {
 			rawClient.start();
 
 			// Create handshaker
-			DTLSSession clientSession = new DTLSSession(serverHelper.serverEndpoint, true);
+			DTLSSession clientSession = new DTLSSession(serverHelper.serverEndpoint);
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			ClientHandshaker clientHandshaker = new ClientHandshaker(clientSession, clientRecordLayer, sessionListener,
 					clientConfig, 1280);
@@ -824,7 +824,7 @@ public class DTLSConnectorAdvancedTest {
 			rawClient.start();
 
 			// Create handshaker
-			DTLSSession clientSession = new DTLSSession(serverHelper.serverEndpoint, true);
+			DTLSSession clientSession = new DTLSSession(serverHelper.serverEndpoint);
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			ClientHandshaker clientHandshaker = new ClientHandshaker(clientSession, clientRecordLayer, sessionListener,
 					clientConfig, 1280);
@@ -880,7 +880,7 @@ public class DTLSConnectorAdvancedTest {
 			client.send(data);
 
 			// Create server handshaker
-			DTLSSession serverSession = new DTLSSession(client.getAddress(), false, 1);
+			DTLSSession serverSession = new DTLSSession(client.getAddress(), 1);
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			ServerHandshaker serverHandshaker = new ServerHandshaker(serverSession, serverRecordLayer, sessionListener,
 					serverHelper.serverConfig, 1280);
@@ -958,7 +958,7 @@ public class DTLSConnectorAdvancedTest {
 			// Create server handshaker
 			BasicRecordLayer serverRecordLayer = new BasicRecordLayer(rawServer);
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ServerHandshaker serverHandshaker = new ServerHandshaker(new DTLSSession(client.getAddress(), false, 1),
+			ServerHandshaker serverHandshaker = new ServerHandshaker(new DTLSSession(client.getAddress(), 1),
 					serverRecordLayer, sessionListener, serverHelper.serverConfig, 1280);
 
 			// Wait to receive response (should be CLIENT HELLO, flight 3)
@@ -1003,7 +1003,7 @@ public class DTLSConnectorAdvancedTest {
 		RecordCollectorDataHandler alt2Collector = new RecordCollectorDataHandler();
 		UdpConnector rawAlt2Client = new UdpConnector(0, alt2Collector);
 
-		DTLSSession clientSession = new DTLSSession(serverHelper.serverEndpoint, true);
+		DTLSSession clientSession = new DTLSSession(serverHelper.serverEndpoint);
 		try {
 			// Start connector
 			rawClient.start();

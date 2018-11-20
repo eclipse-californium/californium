@@ -180,7 +180,7 @@ public class CoapEndpointTest {
 		endpoint.setMessageDeliverer(deliverer);
 		endpoint.start();
 		
-		EndpointContext secureCtx = new DtlsEndpointContext(SOURCE_ADDRESS, null, "session", "1", "CIPHER");
+		EndpointContext secureCtx = new DtlsEndpointContext(SOURCE_ADDRESS, null, "session", "1", "CIPHER", "100");
 		RawData inboundRequest = RawData.inbound(getSerializedRequest(), secureCtx, false);
 		connector.receiveMessage(inboundRequest);
 		assertTrue(latch.await(2, TimeUnit.SECONDS));

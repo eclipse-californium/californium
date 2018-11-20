@@ -53,7 +53,7 @@ public class DTLSSessionTest {
 	@Test
 	public void testDefaultMaxFragmentLengthCompliesWithSpec() {
 		// when instantiating a default server session
-		session = new DTLSSession(PEER_ADDRESS, false);
+		session = new DTLSSession(PEER_ADDRESS);
 
 		// then the max fragment size is as specified in DTLS spec
 		assertThat(session.getMaxFragmentLength(), is(DEFAULT_MAX_FRAGMENT_LENGTH));
@@ -146,9 +146,9 @@ public class DTLSSessionTest {
 
 	@Test
 	public void testConstructorEnforcesMaxSequenceNo() {
-		session = new DTLSSession(PEER_ADDRESS, false, DtlsTestTools.MAX_SEQUENCE_NO); // should succeed
+		session = new DTLSSession(PEER_ADDRESS, DtlsTestTools.MAX_SEQUENCE_NO); // should succeed
 		try {
-			session = new DTLSSession(PEER_ADDRESS, false, DtlsTestTools.MAX_SEQUENCE_NO + 1); // should fail
+			session = new DTLSSession(PEER_ADDRESS, DtlsTestTools.MAX_SEQUENCE_NO + 1); // should fail
 			fail("DTLSSession constructor should have refused initial sequence number > 2^48 - 1");
 		} catch (IllegalArgumentException e) {
 			// ok
@@ -157,7 +157,7 @@ public class DTLSSessionTest {
 
 	@Test(expected = IllegalStateException.class)
 	public void testGetSequenceNumberEnforcesMaxSequenceNo() {
-		session = new DTLSSession(PEER_ADDRESS, false, DtlsTestTools.MAX_SEQUENCE_NO);
+		session = new DTLSSession(PEER_ADDRESS, DtlsTestTools.MAX_SEQUENCE_NO);
 		session.getSequenceNumber(); // should throw exception
 	}
 
@@ -183,7 +183,7 @@ public class DTLSSessionTest {
 	}
 
 	public static DTLSSession newEstablishedServerSession(InetSocketAddress peerAddress, CipherSuite cipherSuite, boolean useRawPublicKeys) {
-		DTLSSession session = new DTLSSession(peerAddress, false);
+		DTLSSession session = new DTLSSession(peerAddress);
 		DTLSConnectionState currentState = newConnectionState(cipherSuite);
 		session.setSessionIdentifier(new SessionId());
 		session.setReadState(currentState);

@@ -43,7 +43,7 @@ public class PrincipalEndpointContextMatcherTest {
 		principal2 = new TestPrincipal("P1"); // intended to have the same name as principal1
 		principal3 = new TestPrincipal("P3");
 		
-		connectionContext = new DtlsEndpointContext(ADDRESS, principal1, "session", "1", "CIPHER");
+		connectionContext = new DtlsEndpointContext(ADDRESS, principal1, "session", "1", "CIPHER", "100");
 		messageContext = new AddressEndpointContext(ADDRESS, principal2);
 		differentMessageContext = new AddressEndpointContext(ADDRESS, principal3);
 		unsecureMessageContext = new AddressEndpointContext(ADDRESS, null);

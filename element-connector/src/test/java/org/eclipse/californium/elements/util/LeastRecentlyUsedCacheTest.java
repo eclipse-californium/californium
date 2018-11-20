@@ -286,7 +286,7 @@ public class LeastRecentlyUsedCacheTest {
 		cache = new LeastRecentlyUsedCache<>(capacity, 0);
 		cache.setExpirationThreshold(expirationThresholdMillis, TimeUnit.MILLISECONDS);
 		for (int i = 0; i < noOfEntries; i++) {
-			cache.put(i, String.valueOf(i));
+			cache.put(i, Integer.toString(i));
 		}
 	}
 

@@ -38,6 +38,9 @@
  *                                                    process reordered handshake messages
  *    Achim Kraus (Bosch Software Innovations GmbH) - reset master secret, when
  *                                                    session resumption is refused.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove unused isClient
+ *                                                    add handshake timestamp for
+ *                                                    session and endpoint context.
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -118,12 +121,6 @@ public final class DTLSSession {
 	private byte[] masterSecret = null;
 
 	/**
-	 * Indicates whether this object represents the <em>client</em> or the <em>server</em>
-	 * side of the connection. The <em>client</em> side is the one initiating the handshake.
-	 */
-	private final boolean isClient;
-
-	/**
 	 * The <em>current read state</em> used for processing all inbound records.
 	 */
 	private DTLSConnectionState readState = new DTLSConnectionState();
@@ -172,6 +169,8 @@ public final class DTLSSession {
 	private String virtualHost;
 	private boolean peerSupportsSni;
 
+	private final String handshakeTimeTag;
+
 	// Constructor ////////////////////////////////////////////////////
 
 	/**
@@ -179,11 +178,9 @@ public final class DTLSSession {
 	 *
 	 * @param peerAddress
 	 *            the remote address
-	 * @param isClient
-	 *            whether the entity represents a client or a server.
 	 */
-	public DTLSSession(InetSocketAddress peerAddress, boolean isClient) {
-		this(peerAddress, isClient, 0, System.currentTimeMillis());
+	public DTLSSession(InetSocketAddress peerAddress) {
+		this(peerAddress, 0, System.currentTimeMillis());
 	}
 
 	/**
@@ -209,7 +206,7 @@ public final class DTLSSession {
 	 *            section 4.2.1 of RFC 6347 (DTLS 1.2)</a> for details)
 	 */
 	public DTLSSession(SessionId id, InetSocketAddress peerAddress, SessionTicket ticket, long initialSequenceNo) {
-		this(peerAddress, false, initialSequenceNo, ticket.getTimestamp());
+		this(peerAddress, initialSequenceNo, ticket.getTimestamp());
 		sessionIdentifier = id;
 		masterSecret = ticket.getMasterSecret();
 		peerIdentity = ticket.getClientIdentity();
@@ -221,8 +218,6 @@ public final class DTLSSession {
 	 *
 	 * @param peerAddress
 	 *            the IP address and port of the peer this session is established with
-	 * @param isClient
-	 *            indicates whether this session has been established playing the client or server side
 	 * @param initialSequenceNo the initial record sequence number to start from
 	 *            in epoch 0. When starting a new handshake with a client that
 	 *            has successfully exchanged a cookie with the server, the
@@ -231,8 +226,8 @@ public final class DTLSSession {
 	 *            (see <a href="http://tools.ietf.org/html/rfc6347#section-4.2.1">
 	 *            section 4.2.1 of RFC 6347 (DTLS 1.2)</a> for details)
 	 */
-	public DTLSSession(InetSocketAddress peerAddress, boolean isClient, long initialSequenceNo) {
-		this(peerAddress, isClient, initialSequenceNo, System.currentTimeMillis());
+	public DTLSSession(InetSocketAddress peerAddress, long initialSequenceNo) {
+		this(peerAddress, initialSequenceNo, System.currentTimeMillis());
 	}
 
 	/**
@@ -240,8 +235,6 @@ public final class DTLSSession {
 	 *
 	 * @param peerAddress
 	 *            the IP address and port of the peer this session is established with
-	 * @param isClient
-	 *            indicates whether this session has been established playing the client or server side
 	 * @param initialSequenceNo the initial record sequence number to start from
 	 *            in epoch 0. When starting a new handshake with a client that
 	 *            has successfully exchanged a cookie with the server, the
@@ -251,15 +244,15 @@ public final class DTLSSession {
 	 *            section 4.2.1 of RFC 6347 (DTLS 1.2)</a> for details)
 	 * @param creationTime creation time of session. Maybe from previous session on resumption.
 	 */
-	public DTLSSession(InetSocketAddress peerAddress, boolean isClient, long initialSequenceNo, long creationTime) {
+	public DTLSSession(InetSocketAddress peerAddress, long initialSequenceNo, long creationTime) {
 		if (peerAddress == null) {
 			throw new NullPointerException("Peer address must not be null");
 		} else if (initialSequenceNo < 0 || initialSequenceNo > MAX_SEQUENCE_NO) {
 			throw new IllegalArgumentException("Initial sequence number must be greater than 0 and less than 2^48");
 		} else {
 			this.creationTime = creationTime;
+			this.handshakeTimeTag = Long.toString(System.currentTimeMillis());
 			this.peer = peerAddress;
-			this.isClient = isClient;
 			this.sequenceNumbers.put(0, initialSequenceNo);
 		}
 	}
@@ -276,7 +269,7 @@ public final class DTLSSession {
 	 * @return the new session.
 	 */
 	public static DTLSSession newClientSession(InetSocketAddress peerAddress, String virtualHostName) {
-		DTLSSession session = new DTLSSession(peerAddress, true);
+		DTLSSession session = new DTLSSession(peerAddress);
 		session.virtualHost = virtualHostName;
 		return session;
 	}
@@ -330,13 +323,13 @@ public final class DTLSSession {
 	public DtlsEndpointContext getConnectionWriteContext() {
 
 		return new DtlsEndpointContext(peer, virtualHost, peerIdentity, sessionIdentifier.toString(),
-				String.valueOf(writeEpoch), cipherSuite.name());
+				Integer.toString(writeEpoch), cipherSuite.name(), handshakeTimeTag);
 	}
 
 	public DtlsEndpointContext getConnectionReadContext() {
 
 		return new DtlsEndpointContext(peer, virtualHost, peerIdentity, sessionIdentifier.toString(),
-				String.valueOf(readEpoch), cipherSuite.name());
+				Integer.toString(readEpoch), cipherSuite.name(), handshakeTimeTag);
 	}
 
 	/**
@@ -405,10 +398,6 @@ public final class DTLSSession {
 		this.compressionMethod = compressionMethod;
 	}
 
-	boolean isClient() {
-		return this.isClient;
-	}
-
 	/**
 	 * Gets this session's current write epoch.
 	 * 
@@ -418,6 +407,7 @@ public final class DTLSSession {
 		return writeEpoch;
 	}
 
+	// tests only, currently not used
 	void setWriteEpoch(int epoch) {
 		if (epoch < 0) {
 			throw new IllegalArgumentException("Write epoch must not be negative");

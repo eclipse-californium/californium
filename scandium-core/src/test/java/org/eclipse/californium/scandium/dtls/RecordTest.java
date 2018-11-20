@@ -70,7 +70,7 @@ public class RecordTest {
 		for ( int i = 0; i < payloadLength; i++) {
 			payloadData[i] = 0x34;
 		}
-		session = new DTLSSession(new InetSocketAddress(InetAddress.getLoopbackAddress(), 7000), true);
+		session = new DTLSSession(new InetSocketAddress(InetAddress.getLoopbackAddress(), 7000));
 		DTLSConnectionState readState = new DTLSConnectionState(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
 				CompressionMethod.NULL, key, new IvParameterSpec(client_iv), null);
 		session.setReadState(readState);

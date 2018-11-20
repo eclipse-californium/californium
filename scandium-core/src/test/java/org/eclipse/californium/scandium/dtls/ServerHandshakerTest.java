@@ -83,7 +83,7 @@ public class ServerHandshakerTest {
 	@Before
 	public void setup() throws Exception {
 		endpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
-		session = new DTLSSession(endpoint, false);
+		session = new DTLSSession(endpoint);
 		recordLayer = new SimpleRecordLayer();
 		config = new DtlsConnectorConfig.Builder()
 				.setAddress(endpoint)
