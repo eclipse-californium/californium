@@ -44,7 +44,7 @@ public class UdpEndpointContextMatcherTest {
 		messageContext = new UdpEndpointContext(ADDRESS);
 		multicastContext = new UdpEndpointContext(MULTICAST_ADDRESS);
 		changedAddressContext = new UdpEndpointContext(CHANGED_ADDRESS);
-		secureMessageContext = new DtlsEndpointContext(ADDRESS, null, "session", "1", "CIPHER");
+		secureMessageContext = new DtlsEndpointContext(ADDRESS, null, "session", "1", "CIPHER", "100");
 		matcher = new UdpEndpointContextMatcher(true);
 	}
 

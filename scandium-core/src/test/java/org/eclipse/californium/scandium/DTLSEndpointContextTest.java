@@ -264,7 +264,7 @@ public class DTLSEndpointContextTest {
 				.getLatestInboundMessage().getEndpointContext();
 		assertThat(context, is(notNullValue()));
 		assertThat(context.getSessionId(), is(establishedClientSession.getSessionIdentifier().toString()));
-		assertThat(context.getEpoch(), is(String.valueOf(establishedClientSession.getReadEpoch())));
+		assertThat(context.getEpoch(), is(Integer.toString(establishedClientSession.getReadEpoch())));
 		assertThat(context.getCipher(), is(establishedClientSession.getReadStateCipher()));
 	}
 

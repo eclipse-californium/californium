@@ -56,17 +56,17 @@ public class DtlsEndpointContextMatcherTest {
 		relaxedMatcher = new RelaxedDtlsEndpointContextMatcher();
 		strictMatcher = new StrictDtlsEndpointContextMatcher();
 
-		connectorContext = new DtlsEndpointContext(ADDRESS, null, "session", "1", "CIPHER");
-		scopedConnectorContext = new DtlsEndpointContext(ADDRESS, SCOPE, null, "session", "1", "CIPHER");
+		connectorContext = new DtlsEndpointContext(ADDRESS, null, "session", "1", "CIPHER", "100");
+		scopedConnectorContext = new DtlsEndpointContext(ADDRESS, SCOPE, null, "session", "1", "CIPHER", "100");
 
-		relaxedMessageContext = new DtlsEndpointContext(ADDRESS, null, "session", "2", "CIPHER");
-		scopedRelaxedMessageContext = new DtlsEndpointContext(ADDRESS, SCOPE, null, "session", "2", "CIPHER");
+		relaxedMessageContext = new DtlsEndpointContext(ADDRESS, null, "session", "2", "CIPHER", "200");
+		scopedRelaxedMessageContext = new DtlsEndpointContext(ADDRESS, SCOPE, null, "session", "2", "CIPHER", "200");
 
-		strictMessageContext = new DtlsEndpointContext(ADDRESS, null, "session", "1", "CIPHER");
-		scopedStrictMessageContext = new DtlsEndpointContext(ADDRESS, SCOPE, null, "session", "1", "CIPHER");
+		strictMessageContext = new DtlsEndpointContext(ADDRESS, null, "session", "1", "CIPHER", "100");
+		scopedStrictMessageContext = new DtlsEndpointContext(ADDRESS, SCOPE, null, "session", "1", "CIPHER", "100");
 
-		differentMessageContext = new DtlsEndpointContext(ADDRESS, null,"new session", "1", "CIPHER");
-		scopedDifferentMessageContext = new DtlsEndpointContext(ADDRESS, SCOPE, null,"new session", "1", "CIPHER");
+		differentMessageContext = new DtlsEndpointContext(ADDRESS, null,"new session", "1", "CIPHER", "100");
+		scopedDifferentMessageContext = new DtlsEndpointContext(ADDRESS, SCOPE, null,"new session", "1", "CIPHER", "100");
 
 		unsecureMessageContext = new UdpEndpointContext(ADDRESS);
 		

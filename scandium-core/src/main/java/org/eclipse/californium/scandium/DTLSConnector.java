@@ -1405,7 +1405,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 
 		// use the record sequence number from CLIENT_HELLO as initial sequence number
 		// for records sent to the client (see section 4.2.1 of RFC 6347 (DTLS 1.2))
-		DTLSSession newSession = new DTLSSession(record.getPeerAddress(), false, record.getSequenceNumber());
+		DTLSSession newSession = new DTLSSession(record.getPeerAddress(), record.getSequenceNumber());
 		// initialize handshaker based on CLIENT_HELLO (this accounts
 		// for the case that multiple cookie exchanges have taken place)
 		Handshaker handshaker = new ServerHandshaker(clientHello.getMessageSeq(), newSession,
