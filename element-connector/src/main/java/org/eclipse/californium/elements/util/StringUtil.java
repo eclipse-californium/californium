@@ -28,8 +28,17 @@ import java.util.regex.Pattern;
  */
 public class StringUtil {
 
+	/**
+	 * Special character to signal, that no separator should be used when byte
+	 * array are converted to hexadecimal strings.
+	 * 
+	 * @see #byteArray2HexString(byte[], char, int).
+	 */
 	public static final char NO_SEPARATOR = 0;
 
+	/**
+	 * Regex pattern for valid hostnames.
+	 */
 	private static final Pattern HOSTNAME_PATTERN = Pattern.compile(
 			"^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\\-]*[A-Za-z0-9])$");
 
@@ -44,6 +53,13 @@ public class StringUtil {
 	 * Flag indicating, that InetSocketAddress supports "getHostString".
 	 */
 	public static final boolean SUPPORT_HOST_STRING;
+
+	/**
+	 * Lookup table for hexadecimal digits.
+	 * 
+	 * @see #toHexString(byte[])
+	 */
+	private final static char[] BIN_TO_HEX_ARRAY = "0123456789ABCDEF".toCharArray();
 
 	static {
 		boolean support = false;
@@ -115,6 +131,7 @@ public class StringUtil {
 	 * @return byte array with decoded hexadecimal input parameter.
 	 * @throws IllegalArgumentException if the parameter length is odd or
 	 *             contains non hexadecimal characters.
+	 * @see #byteArray2Hex(byte[])
 	 */
 	public static byte[] hex2ByteArray(String hex) {
 		if (hex == null) {
@@ -144,24 +161,33 @@ public class StringUtil {
 	}
 
 	/**
-	 * Byte array to hexadecimal string.
+	 * Byte array to hexadecimal string without separator.
 	 * 
-	 * @param byteArray byte array to be converted to string
-	 * @param max maximum bytes to be converted.
-	 * @return hexadecimal string
+	 * @param byteArray byte array to be converted to string.
+	 * @return hexadecimal string, e.g "0142A3". {@code null}, if the provided
+	 *         byte array is {@code null}. {@code ""}, if provided byte array is
+	 *         empty.
+	 * @see #hex2ByteArray(String)
 	 */
-	public static String byteArray2HexString(byte[] byteArray, int max) {
-		return byteArray2HexString(byteArray, ' ', max);
+	public static String byteArray2Hex(byte[] byteArray) {
+		if (byteArray == null) {
+			return null;
+		} else if (byteArray.length == 0) {
+			return "";
+		} else {
+			return byteArray2HexString(byteArray, NO_SEPARATOR, 0);
+		}
 	}
 
 	/**
-	 * Byte array to hexadecimal string.
+	 * Byte array to hexadecimal display string.
 	 * 
 	 * @param byteArray byte array to be converted to string
 	 * @param sep separator. If {@link #NO_SEPARATOR}, then no separator is used
 	 *            between the bytes.
-	 * @param max maximum bytes to be converted.
-	 * @return hexadecimal string
+	 * @param max maximum bytes to be converted. 0 to convert all bytes.
+	 * @return hexadecimal string, e.g "01:45:A4", if ':' is used as separator.
+	 *         "--", if byte array is {@code null} or empty.
 	 */
 	public static String byteArray2HexString(byte[] byteArray, char sep, int max) {
 
@@ -169,11 +195,12 @@ public class StringUtil {
 			if (max == 0 || max > byteArray.length) {
 				max = byteArray.length;
 			}
-			StringBuilder builder = new StringBuilder(max * 3);
-			for (int i = 0; i < max; i++) {
-				builder.append(String.format("%02X", 0xFF & byteArray[i]));
-
-				if (sep != NO_SEPARATOR && i < max - 1) {
+			StringBuilder builder = new StringBuilder(max * (sep == NO_SEPARATOR ? 2 : 3));
+			for (int index = 0; index < max; index++) {
+				int value = byteArray[index] & 0xFF;
+				builder.append(BIN_TO_HEX_ARRAY[value >>> 4]);
+				builder.append(BIN_TO_HEX_ARRAY[value & 0x0F]);
+				if (sep != NO_SEPARATOR && index < max - 1) {
 					builder.append(sep);
 				}
 			}
