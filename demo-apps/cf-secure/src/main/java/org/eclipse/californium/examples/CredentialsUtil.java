@@ -260,7 +260,7 @@ public class CredentialsUtil {
 		if (!noAuth && rpkTrust) {
 			config.setRpkTrustAll();
 		}
-		if (psk && config.getIncompleteConfig().getSupportedCipherSuites().isEmpty()) {
+		if (psk && config.getIncompleteConfig().getSupportedCipherSuites() == null) {
 			List<CipherSuite> suites = new ArrayList<>();
 			if (x509 >= 0 || rpk >= 0 || x509Trust || rpkTrust) {
 				suites.add(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
