@@ -37,6 +37,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - check multicast on setURI
  *                                                    set multicast address as
  *                                                    host URI option. 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix left timeout calculation
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -734,19 +735,20 @@ public class Request extends Message {
 	 * @throws InterruptedException the interrupted exception
 	 */
 	public Response waitForResponse(long timeout) throws InterruptedException {
-		long before = ClockUtil.nanoRealtime();
-		long expires = before + TimeUnit.MILLISECONDS.toNanos(timeout);
+		long expiresNano = ClockUtil.nanoRealtime() + TimeUnit.MILLISECONDS.toNanos(timeout);
 		long leftTimeout = timeout;
 		synchronized (this) {
 			while (this.response == null && !isCanceled() && !isTimedOut() && !isRejected() && getSendError() == null) {
 				wait(leftTimeout);
 				// timeout expired?
 				if (timeout > 0) {
-					leftTimeout = expires - ClockUtil.nanoRealtime();
-					if (0 >= leftTimeout) {
+					long leftNanos = expiresNano - ClockUtil.nanoRealtime();
+					if (leftNanos <= 0) {
 						// break loop
 						break;
 					}
+					// add 1 millisecond to prevent last wait with 0!
+					leftTimeout = TimeUnit.NANOSECONDS.toMillis(leftNanos) + 1;
 				}
 			}
 			Response r = this.response;
