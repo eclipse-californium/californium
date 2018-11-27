@@ -204,6 +204,19 @@ public final class Connection {
 	}
 
 	/**
+	 * Checks whether this connection has a ongoing handshake initiated by the
+	 * given message.
+	 * 
+	 * @param handshakeMessage the message to check.
+	 * @return <code>true</code> if the given message has initially started this
+	 *         ongoing handshake.
+	 */
+	public boolean hasOngoingHandshakeStartedByMessage(HandshakeMessage handshakeMessage) {
+		Handshaker handshaker = ongoingHandshake.get();
+		return handshaker != null && handshaker.hasBeenStartedByMessage(handshakeMessage);
+	}
+
+	/**
 	 * Cancels any pending re-transmission of an outbound flight.
 	 */
 	public void cancelPendingFlight() {
