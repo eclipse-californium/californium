@@ -62,7 +62,7 @@ import org.slf4j.LoggerFactory;
  */
 public class TcpServerConnector implements Connector {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(TcpServerConnector.class.getName());
+	protected final Logger LOGGER = LoggerFactory.getLogger(getClass().getName());
 
 	private final int numberOfThreads;
 	private final int connectionIdleTimeoutSeconds;
@@ -111,10 +111,10 @@ public class TcpServerConnector implements Connector {
 		ServerBootstrap bootstrap = new ServerBootstrap();
 		// server socket 
 		bootstrap.group(bossGroup, workerGroup).channel(NioServerSocketChannel.class)
-				.option(ChannelOption.SO_BACKLOG, 100).option(ChannelOption.AUTO_READ, true)
-				.childHandler(new ChannelRegistry());
-		// connection socket
-		bootstrap.childOption(ChannelOption.SO_KEEPALIVE, true);
+				.childHandler(new ChannelRegistry())
+				.option(ChannelOption.SO_BACKLOG, 100)
+				.option(ChannelOption.AUTO_READ, true)
+				.childOption(ChannelOption.SO_KEEPALIVE, true);
 
 		// Start the server.
 		ChannelFuture channelFuture = bootstrap.bind(localAddress).syncUninterruptibly();
@@ -129,11 +129,11 @@ public class TcpServerConnector implements Connector {
 	@Override
 	public synchronized void stop() {
 		if (null != bossGroup) {
-			bossGroup.shutdownGracefully(1, 1000, TimeUnit.MILLISECONDS).syncUninterruptibly();
+			bossGroup.shutdownGracefully(0, 500, TimeUnit.MILLISECONDS).syncUninterruptibly();
 			bossGroup = null;
 		}
 		if (null != workerGroup) {
-			workerGroup.shutdownGracefully(1, 1000, TimeUnit.MILLISECONDS).syncUninterruptibly();
+			workerGroup.shutdownGracefully(0, 500, TimeUnit.MILLISECONDS).syncUninterruptibly();
 			workerGroup = null;
 		}
 	}
@@ -151,6 +151,10 @@ public class TcpServerConnector implements Connector {
 		if (msg.isMulticast()) {
 			LOGGER.warn("TcpConnector drops {} bytes to multicast {}:{}", msg.getSize(), msg.getAddress(), msg.getPort());
 			msg.onError(new MulticastNotSupportedException("TCP doesn't support multicast!"));
+			return;
+		}
+		if (bossGroup == null) {
+			msg.onError(new IllegalStateException("TCP server connector not running!"));
 			return;
 		}
 		Channel channel = activeChannels.get(msg.getInetSocketAddress());
@@ -191,7 +195,7 @@ public class TcpServerConnector implements Connector {
 	@Override
 	public void setRawDataReceiver(RawDataChannel messageHandler) {
 		if (rawDataChannel != null) {
-			throw new IllegalStateException("RawDataChannel alrady set");
+			throw new IllegalStateException("RawDataChannel already set");
 		}
 
 		this.rawDataChannel = messageHandler;

@@ -43,24 +43,17 @@ public class Catcher implements RawDataChannel {
 		}
 	}
 
-	public void blockUntilSize(int expectedSize) throws InterruptedException {
-		synchronized (lock) {
-			while (messages.size() < expectedSize) {
-				lock.wait();
-			}
-		}
-	}
-
 	public boolean blockUntilSize(int expectedSize, long timeout) throws InterruptedException {
+		long end = timeout + TimeUnit.MILLISECONDS.convert(System.nanoTime(), TimeUnit.NANOSECONDS);
 		synchronized (lock) {
-			timeout += TimeUnit.MILLISECONDS.convert(System.nanoTime(), TimeUnit.NANOSECONDS);
 			while (messages.size() < expectedSize) {
-				long time = timeout -= TimeUnit.MILLISECONDS.convert(System.nanoTime(), TimeUnit.NANOSECONDS);
-				if (0 >= time)
+				long time = end - TimeUnit.MILLISECONDS.convert(System.nanoTime(), TimeUnit.NANOSECONDS);
+				if (0 >= time) {
 					break;
+				}
 				lock.wait(time);
 			}
-			return messages.size() >= expectedSize; 
+			return messages.size() >= expectedSize;
 		}
 	}
 

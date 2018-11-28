@@ -27,9 +27,6 @@ import java.net.SocketAddress;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import io.netty.channel.Channel;
 import io.netty.handler.ssl.SslHandler;
 
@@ -37,8 +34,6 @@ import io.netty.handler.ssl.SslHandler;
  * A TLS server connector that accepts inbound TLS connections.
  */
 public class TlsServerConnector extends TcpServerConnector {
-
-	private static final Logger LOGGER = LoggerFactory.getLogger(TlsServerConnector.class.getName());
 	/**
 	 * Default handshake timeout.
 	 */

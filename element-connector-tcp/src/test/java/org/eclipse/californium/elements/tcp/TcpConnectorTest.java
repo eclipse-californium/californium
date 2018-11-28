@@ -33,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.junit.After;
 import org.junit.Rule;
@@ -44,10 +45,13 @@ import org.junit.runners.Parameterized;
 @RunWith(Parameterized.class)
 public class TcpConnectorTest {
 
-	private static final int NUMBER_OF_CONNECTIONS = 50;
+	private static final int NUMBER_OF_CONNECTIONS = 10;
 
 	@Rule
-	public final Timeout timeout = new Timeout(20, TimeUnit.SECONDS);
+	public final Timeout timeout = new Timeout(TEST_TIMEOUT_IN_MS, TimeUnit.MILLISECONDS);
+
+	@Rule
+	public TestNameLoggerRule names = new TestNameLoggerRule();
 
 	private final int messageSize;
 	private final List<Connector> cleanup = new ArrayList<>();
@@ -75,9 +79,7 @@ public class TcpConnectorTest {
 
 	@After
 	public void cleanup() {
-		for (Connector connector : cleanup) {
-			connector.stop();
-		}
+		stop(cleanup);
 	}
 
 	@Test
@@ -100,14 +102,14 @@ public class TcpConnectorTest {
 		RawData msg = createMessage(server.getAddress(), messageSize, null);
 
 		client.send(msg);
-		serverCatcher.blockUntilSize(1);
+		serverCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS);
 		assertArrayEquals(msg.getBytes(), serverCatcher.getMessage(0).getBytes());
 
 		// Response message must go over the same connection client already
 		// opened
 		msg = createMessage(serverCatcher.getMessage(0).getInetSocketAddress(), messageSize, null);
 		server.send(msg);
-		clientCatcher.blockUntilSize(1);
+		clientCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS);
 		assertArrayEquals(msg.getBytes(), clientCatcher.getMessage(0).getBytes());
 	}
 
@@ -136,7 +138,7 @@ public class TcpConnectorTest {
 			client.send(msg);
 		}
 
-		serverCatcher.blockUntilSize(NUMBER_OF_CONNECTIONS);
+		serverCatcher.blockUntilSize(NUMBER_OF_CONNECTIONS, CATCHER_TIMEOUT_IN_MS * NUMBER_OF_CONNECTIONS);
 		for (int i = 0; i < NUMBER_OF_CONNECTIONS; i++) {
 			RawData received = serverCatcher.getMessage(i);
 
@@ -173,14 +175,14 @@ public class TcpConnectorTest {
 		RawData msg = createMessage(server.getAddress(), messageSize, callback);
 
 		client.send(msg);
-		serverCatcher.blockUntilSize(1);
+		serverCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS);
 		assertTrue(callback.isConnecting());
 
 		callback = new SimpleMessageCallback();
 		msg = createMessage(server.getAddress(), messageSize, callback);
 
 		client.send(msg);
-		serverCatcher.blockUntilSize(2);
+		serverCatcher.blockUntilSize(2, CATCHER_TIMEOUT_IN_MS);
 		assertFalse(callback.isConnecting());
 
 	}

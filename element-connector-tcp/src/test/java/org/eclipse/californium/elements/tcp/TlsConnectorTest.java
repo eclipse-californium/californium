@@ -41,6 +41,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.junit.After;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -52,7 +53,11 @@ public class TlsConnectorTest {
 	private static final int NUMBER_OF_CONNECTIONS = 10;
 
 	@Rule
-	public final Timeout timeout = new Timeout(10, TimeUnit.SECONDS);
+	public final Timeout timeout = new Timeout(TEST_TIMEOUT_IN_MS, TimeUnit.MILLISECONDS);
+
+	@Rule
+	public TestNameLoggerRule names = new TestNameLoggerRule();
+
 	private final List<Connector> cleanup = new ArrayList<>();
 
 	@BeforeClass
@@ -62,9 +67,7 @@ public class TlsConnectorTest {
 
 	@After
 	public void cleanup() {
-		for (Connector connector : cleanup) {
-			connector.stop();
-		}
+		stop(cleanup);
 	}
 
 	@Test
@@ -86,14 +89,14 @@ public class TlsConnectorTest {
 		RawData msg = createMessage(server.getAddress(), 100, null);
 
 		client.send(msg);
-		serverCatcher.blockUntilSize(1);
+		serverCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS);
 		assertArrayEquals(msg.getBytes(), serverCatcher.getMessage(0).getBytes());
 
 		// Response message must go over the same connection client already
 		// opened
 		msg = createMessage(serverCatcher.getMessage(0).getInetSocketAddress(), 10000, null);
 		server.send(msg);
-		clientCatcher.blockUntilSize(1);
+		clientCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS);
 		assertArrayEquals(msg.getBytes(), clientCatcher.getMessage(0).getBytes());
 	}
 
@@ -122,7 +125,7 @@ public class TlsConnectorTest {
 			client.send(msg);
 		}
 
-		serverCatcher.blockUntilSize(NUMBER_OF_CONNECTIONS);
+		serverCatcher.blockUntilSize(NUMBER_OF_CONNECTIONS, CATCHER_TIMEOUT_IN_MS * NUMBER_OF_CONNECTIONS);
 		for (int i = 0; i < NUMBER_OF_CONNECTIONS; i++) {
 			RawData received = serverCatcher.getMessage(i);
 
@@ -169,7 +172,7 @@ public class TlsConnectorTest {
 
 		for (RawData message : messages) {
 			Catcher catcher = servers.get(message.getInetSocketAddress());
-			catcher.blockUntilSize(1);
+			catcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS);
 			assertArrayEquals(message.getBytes(), catcher.getMessage(0).getBytes());
 		}
 	}
