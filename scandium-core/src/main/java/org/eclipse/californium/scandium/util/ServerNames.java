@@ -15,21 +15,27 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.util;
 
-import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.Set;
+
+import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.scandium.dtls.HelloExtensions;
+import org.eclipse.californium.scandium.util.ServerName.NameType;
 
 /**
  * A container for server names and their name type.
  *
  */
 public final class ServerNames implements Iterable<ServerName> {
+	private static final int LIST_LENGTH_BITS = 16;
 
 	private final Set<ServerName> names;
 	int encodedLength; // overall length
 
 	private ServerNames() {
-		names = new HashSet<>();
+		names = new LinkedHashSet<>();
 	}
 
 	private ServerNames(final ServerName serverName) {
@@ -114,6 +120,45 @@ public final class ServerNames implements Iterable<ServerName> {
 		return null;
 	}
 
+	public void encode(DatagramWriter writer) {
+		writer.write(encodedLength, LIST_LENGTH_BITS); //server_names_list_length
+
+		for (ServerName serverName : names) {
+			writer.writeByte(serverName.getType().getCode()); // name type
+			writer.write(serverName.getName().length, HelloExtensions.LENGTH_BITS); // name length
+			writer.writeBytes(serverName.getName()); // name
+		}
+	}
+
+	public void decode(DatagramReader reader) {
+		int listLengthBytes = reader.read(LIST_LENGTH_BITS);
+		while (listLengthBytes > 0) {
+			if (reader.bitsLeft() >= 8) {
+				NameType nameType = NameType.fromCode(reader.readNextByte());
+				switch (nameType) {
+				case HOST_NAME:
+					byte[] hostname = readHostName(reader);
+					add(ServerName.from(nameType, hostname));
+					listLengthBytes -= (hostname.length + 3);
+					break;
+				default:
+					throw new IllegalArgumentException("ServerNames: unknown name_type!", new IllegalArgumentException(nameType.name()));
+				}
+			}
+		}
+	}
+
+	private static byte[] readHostName(final DatagramReader reader) {
+
+		if (reader.bitsLeft() >= HelloExtensions.LENGTH_BITS) {
+			int length = reader.read(HelloExtensions.LENGTH_BITS);
+			if (reader.bytesAvailable(length)) {
+				return reader.readBytes(length);
+			}
+		}
+		throw new IllegalArgumentException("ServerNames: no hostname found!");
+	}
+
 	/**
 	 * Gets the server name of a particular type.
 	 * 
@@ -146,5 +191,33 @@ public final class ServerNames implements Iterable<ServerName> {
 		}
 		b.append("]");
 		return b.toString();
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		for (ServerName name : names) {
+			result = prime * result + name.hashCode();
+		}
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object object) {
+		if (this == object)
+			return true;
+		if (object == null)
+			return false;
+		if (getClass() != object.getClass())
+			return false;
+		ServerNames other = (ServerNames) object;
+		if (names.size() != other.names.size()) {
+			return false;
+		}
+		if (!names.containsAll(other.names)) {
+			return false;
+		}
+		return true;
 	}
 }

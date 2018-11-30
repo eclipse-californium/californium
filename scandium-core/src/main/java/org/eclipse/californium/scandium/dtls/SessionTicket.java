@@ -29,6 +29,7 @@ import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.auth.PrincipalSerializer;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
  * A container for a session's crypto parameters that are required for resuming the
@@ -41,24 +42,32 @@ public final class SessionTicket {
 	private final byte[] masterSecret;
 	private final CipherSuite cipherSuite;
 	private final CompressionMethod compressionMethod;
+	private final ServerNames serverNames;
 	private final Principal clientIdentity;
 	private final long timestampMillis;
 
 	/**
 	 * Creates a ticket from a set of crypto params.
 	 * 
-	 * @param protocolVersion
-	 * @param cipherSuite
-	 * @param compressionMethod
-	 * @param masterSecret
-	 * @param clientIdentity
-	 * @param timestampMillis timestamp of session creation.
+	 * @param protocolVersion protocol version. Must not be {@code null}.
+	 * @param cipherSuite cipher suite. Must not be {@code null}.
+	 * @param compressionMethod compression mode. Must not be {@code null}.
+	 * @param masterSecret master secret. Must not be {@code null}.
+	 * @param serverNames server names. May be {@code null}, if no server name
+	 *            is provided, or SNI is not used.
+	 * @param clientIdentity client identity. May be {@code null} for
+	 *            unauthenticated clients.
+	 * @param timestampMillis timestamp of session creation. In milliseconds
+	 *            since 1970.1.1 0:00 (@link System#currentTimeMillis()}.
+	 * @throws NullPointerException if one of the mandatory parameter is
+	 *             {@code null}
 	 */
 	SessionTicket(
 			final ProtocolVersion protocolVersion,
 			final CipherSuite cipherSuite,
 			final CompressionMethod compressionMethod,
 			final byte[] masterSecret,
+			final ServerNames serverNames,
 			final Principal clientIdentity,
 			final long timestampMillis) {
 
@@ -75,6 +84,7 @@ public final class SessionTicket {
 			this.masterSecret = masterSecret;
 			this.cipherSuite = cipherSuite;
 			this.compressionMethod = compressionMethod;
+			this.serverNames = serverNames;
 			this.clientIdentity = clientIdentity;
 			this.timestampMillis = timestampMillis;
 			// the master secret is intended to be unique
@@ -84,8 +94,10 @@ public final class SessionTicket {
 	}
 
 	/**
-	 * Serializes this session into a plain text <em>session ticket</em> following
-	 * the structure defined in <a href="https://tools.ietf.org/html/rfc5077">RFC 5077</a>.
+	 * Serializes this session into a plain text <em>session ticket</em>
+	 * following the structure defined in
+	 * <a href="https://tools.ietf.org/html/rfc5077">RFC 5077</a>.
+	 * 
 	 * <pre>
 	 * struct {
 	 *   ProtocolVersion protocol_version;
@@ -94,14 +106,20 @@ public final class SessionTicket {
 	 *   opaque master_secret[48];
 	 *   ClientIdentity client_identity;
 	 *   uint32 timestamp;
+	 *   *ServerNames server_names;*
 	 * } StatePlaintext;
 	 * </pre>
 	 * <p>
-	 * This method is useful for e.g. sharing the session with other nodes by means
-	 * of a cache server or database so that a client can resume a session on another
-	 * node if this node fails.
+	 * (The server names are added to be able to check provided server names on
+	 * session resumption with the server names provided on the full handshake
+	 * of the session)
 	 * <p>
-	 * The timestampMillis are encoded in seconds.
+	 * This method is useful for e.g. sharing the session with other nodes by
+	 * means of a cache server or database so that a client can resume a session
+	 * on another node if this node fails.
+	 * <p>
+	 * The timestampMillis are encoded in seconds. encode and decode therefore
+	 * lose the milliseconds precision.
 	 * 
 	 * @param writer The writer to serialize to.
 	 */
@@ -124,6 +142,11 @@ public final class SessionTicket {
 
 		// timestamp
 		writer.writeLong(TimeUnit.MILLISECONDS.toSeconds(timestampMillis), 32);
+
+		// server names
+		if (serverNames != null) {
+			serverNames.encode(writer);
+		}
 	}
 
 	/**
@@ -177,8 +200,18 @@ public final class SessionTicket {
 		// timestamp
 		long timestampMillis = TimeUnit.SECONDS.toMillis(source.readLong(32));
 
+		ServerNames serverNames = null;
+		if (source.bytesAvailable()) {
+			serverNames = ServerNames.newInstance();
+			try {
+				serverNames.decode(source);
+			} catch (IllegalArgumentException e) {
+				serverNames = null;
+			}
+		}
+
 		// assemble session
-		return new SessionTicket(ver, cipherSuite, compressionMethod, masterSecret, identity, timestampMillis);
+		return new SessionTicket(ver, cipherSuite, compressionMethod, masterSecret, serverNames, identity, timestampMillis);
 	}
 
 	@Override
@@ -217,7 +250,9 @@ public final class SessionTicket {
 	}
 
 	/**
-	 * @return the protocolVersion
+	 * Gets the protocol version.
+	 * 
+	 * @return the protocol version
 	 */
 	public final ProtocolVersion getProtocolVersion() {
 		return protocolVersion;
@@ -225,7 +260,9 @@ public final class SessionTicket {
 
 	
 	/**
-	 * @return the masterSecret
+	 * Gets the master secret.
+	 * 
+	 * @return the master secret
 	 */
 	public final byte[] getMasterSecret() {
 		return masterSecret;
@@ -233,31 +270,47 @@ public final class SessionTicket {
 
 	
 	/**
-	 * @return the cipherSuite
+	 * Gets the cipher suite.
+	 * 
+	 * @return the cipher suite
 	 */
 	public final CipherSuite getCipherSuite() {
 		return cipherSuite;
 	}
 
-	
 	/**
-	 * @return the compressionMethod
+	 * Gets the compression method.
+	 * 
+	 * @return the compression method
 	 */
 	public final CompressionMethod getCompressionMethod() {
 		return compressionMethod;
 	}
 
-	
 	/**
-	 * @return the clientIdentity
+	 * Gets the server names.
+	 * 
+	 * @return the server names, or {@code null}, if not available.
+	 */
+	public final ServerNames getServerNames() {
+		return serverNames;
+	}
+
+	/**
+	 * Gets the client's identity.
+	 * 
+	 * @return the principal of client's identity, or {@code null}, if not
+	 *         available.
 	 */
 	public final Principal getClientIdentity() {
 		return clientIdentity;
 	}
 
-	
 	/**
+	 * Gets the timestamp in milliseconds.
+	 * 
 	 * @return the timestamp
+	 * @see System#currentTimeMillis()
 	 */
 	public final long getTimestamp() {
 		return timestampMillis;

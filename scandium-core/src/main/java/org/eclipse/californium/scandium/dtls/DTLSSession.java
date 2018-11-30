@@ -54,6 +54,9 @@ import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
+import org.eclipse.californium.scandium.util.ServerName;
+import org.eclipse.californium.scandium.util.ServerNames;
+import org.eclipse.californium.scandium.util.ServerName.NameType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -98,9 +101,18 @@ public final class DTLSSession {
 	 */
 	private SessionId sessionIdentifier;
 
+	/**
+	 * Peer identity.
+	 */
 	private Principal peerIdentity;
 
+	/**
+	 * Maximum used fragment length.
+	 */
 	private int maxFragmentLength = MAX_FRAGMENT_LENGTH_DEFAULT;
+	/**
+	 * Maximum used raw ip message length.
+	 */
 	private int maxTransmissionUnit = MAX_TRANSMISSION_UNIT_DEFAULT;
 
 	/**
@@ -167,6 +179,7 @@ public final class DTLSSession {
 	private volatile long receivedRecordsVector = 0;
 	private long creationTime;
 	private String virtualHost;
+	private ServerNames serverNames;
 	private boolean peerSupportsSni;
 
 	private final String handshakeTimeTag;
@@ -211,6 +224,7 @@ public final class DTLSSession {
 		masterSecret = ticket.getMasterSecret();
 		peerIdentity = ticket.getClientIdentity();
 		cipherSuite = ticket.getCipherSuite();
+		serverNames = ticket.getServerNames();
 		compressionMethod = ticket.getCompressionMethod();
 	}
 	/**
@@ -257,23 +271,6 @@ public final class DTLSSession {
 		}
 	}
 
-	/**
-	 * Creates a new client session to be established with a peer.
-	 * <p>
-	 * 
-	 * @param peerAddress the peer's IP address and port.
-	 * @param virtualHostName the virtual host name at the peer (may be {@code null}).
-	 *                        If specified, the virtual host name is conveyed to the peer
-	 *                        as part of the SNI extension in the client's CLIENT_HELLO
-	 *                        message.
-	 * @return the new session.
-	 */
-	public static DTLSSession newClientSession(InetSocketAddress peerAddress, String virtualHostName) {
-		DTLSSession session = new DTLSSession(peerAddress);
-		session.virtualHost = virtualHostName;
-		return session;
-	}
-
 	// Getters and Setters ////////////////////////////////////////////
 
 	/**
@@ -290,7 +287,7 @@ public final class DTLSSession {
 	}
 
 	/**
-	 * Gets the (virtual) host name at the server that this session
+	 * Gets the (virtual) host name for the server that this session
 	 * has been established for.
 	 * 
 	 * @return the host name or {@code null} if this session has not
@@ -300,8 +297,48 @@ public final class DTLSSession {
 		return virtualHost;
 	}
 
-	void setVirtualHost(String hostname) {
+	/**
+	 * Set the (virtual) host name for the server that this session has been
+	 * established for.
+	 * <p>
+	 * 
+	 * @param hostname the virtual host name at the peer (may be {@code null}).
+	 */
+	public void setVirtualHost(String hostname) {
+		this.serverNames = null;
 		this.virtualHost = hostname;
+		if (hostname != null) {
+			this.serverNames = ServerNames
+					.newInstance(ServerName.from(NameType.HOST_NAME, hostname.getBytes(ServerName.CHARSET)));
+		}
+	}
+
+	/**
+	 * Gets the server names for the server that this session
+	 * has been established for.
+	 * 
+	 * @return server names, or {@code null}, if not used.
+	 */
+	public ServerNames getServerNames() {
+		return serverNames;
+	}
+
+	/**
+	 * Set the server names for the server that this session has been
+	 * established for.
+	 * <p>
+	 * 
+	 * @param serverNames the server names (may be {@code null}).
+	 */
+	public void setServerNames(ServerNames serverNames) {
+		this.virtualHost = null;
+		this.serverNames = serverNames;
+		if (serverNames != null) {
+			ServerName serverName = serverNames.getServerName(NameType.HOST_NAME);
+			if (serverName != null) {
+				virtualHost = serverName.getNameAsString();
+			}
+		}
 	}
 
 	/**
@@ -719,8 +756,7 @@ public final class DTLSSession {
 		if (mtu < 60) {
 			throw new IllegalArgumentException("MTU must be at least 60 bytes");
 		} else {
-			LOGGER.debug("Setting MTU for peer [{}] to {} bytes",
-					new Object[]{peer, mtu});
+			LOGGER.debug("Setting MTU for peer [{}] to {} bytes", peer, mtu);
 			this.maxTransmissionUnit = mtu;
 			determineMaxFragmentLength(mtu);
 		}
@@ -733,8 +769,7 @@ public final class DTLSSession {
 		} else {
 			this.maxFragmentLength = maxTransmissionUnit - HEADER_LENGTH - writeState.getMaxCiphertextExpansion();
 		}
-		LOGGER.debug("Setting maximum fragment length for peer [{}] to {} bytes",
-				new Object[]{peer, this.maxFragmentLength});
+		LOGGER.debug("Setting maximum fragment length for peer [{}] to {} bytes", peer, this.maxFragmentLength);
 	}
 
 	/**
@@ -862,8 +897,8 @@ public final class DTLSSession {
 			if (LOGGER.isDebugEnabled()) {
 				LOGGER.debug(
 						"Checking sequence no [{}] using bit mask [{}] against received records [{}] with lower boundary [{}]",
-						new Object[]{sequenceNo, Long.toBinaryString(bitMask), Long.toBinaryString(receivedRecordsVector),
-						receiveWindowLowerBoundary});
+						sequenceNo, Long.toBinaryString(bitMask), Long.toBinaryString(receivedRecordsVector),
+						receiveWindowLowerBoundary);
 			}
 			return (receivedRecordsVector & bitMask) == bitMask;
 		}
@@ -894,7 +929,7 @@ public final class DTLSSession {
 			// mark sequence number as "received" in receive window
 			receivedRecordsVector |= bitMask;
 			LOGGER.debug("Updated receive window with sequence number [{}]: new upper boundary [{}], new bit vector [{}]",
-					new Object[]{sequenceNo, receiveWindowUpperBoundary, Long.toBinaryString(receivedRecordsVector)});
+					sequenceNo, receiveWindowUpperBoundary, Long.toBinaryString(receivedRecordsVector));
 		}
 	}
 
@@ -923,6 +958,7 @@ public final class DTLSSession {
 					getWriteState().getCipherSuite(),
 					getWriteState().getCompressionMethod(),
 					getMasterSecret(),
+					getServerNames(),
 					getPeerIdentity(),
 					creationTime);
 		} else {

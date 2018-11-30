@@ -45,6 +45,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.eclipse.californium.elements.DtlsEndpointContext;
+import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
@@ -198,6 +199,14 @@ public final class DtlsConnectorConfig {
 	 */
 	private Long autoResumptionTimeoutMillis;
 
+	/**
+	 * Indicates, that "server name indication" is used (client side) and
+	 * supported (server side). The support on the server side currently
+	 * includes a server name specific PSK secret lookup and to forward the
+	 * server name to the CoAP stack in the {@link EndpointContext}.
+	 * 
+	 * See <a href="https://tools.ietf.org/html/rfc6066#section-3">
+	 */
 	private Boolean sniEnabled;
 
 	/**
@@ -299,12 +308,20 @@ public final class DtlsConnectorConfig {
 
 	/**
 	 * Checks whether the connector should support the use of the TLS
-	 * <a href="https://tools.ietf.org/html/rfc6066#section-3">
-	 * Server Name Indication extension</a> in the DTLS handshake.
+	 * <a href="https://tools.ietf.org/html/rfc6066#section-3"> Server Name
+	 * Indication extension</a> in the DTLS handshake.
 	 * <p>
-	 * The default value of this property is {@code null}. If this property
-	 * is not set explicitly using {@link Builder#setSniEnabled(boolean)},
-	 * then the {@link Builder#build()} method will set it to {@code true}.
+	 * If enabled, the client side should send a server name extension, if the
+	 * server is specified with hostname rather then with a raw ip-address. The
+	 * server side support currently includes a server name specific PSK secret
+	 * lookup and a forwarding of the server name to the CoAP stack in the
+	 * {@link EndpointContext}. The x509 or RPK credentials lookup is currently
+	 * not server name specific, therefore the server's certificate will be the
+	 * same, regardless of the indicated server name.
+	 * <p>
+	 * The default value of this property is {@code null}. If this property is
+	 * not set explicitly using {@link Builder#setSniEnabled(boolean)}, then the
+	 * {@link Builder#build()} method will set it to {@code true}.
 	 * 
 	 * @return {@code true} if SNI should be used.
 	 */
@@ -1015,7 +1032,7 @@ public final class DtlsConnectorConfig {
 		 */
 		public Builder setIdentity(PrivateKey privateKey, Certificate[] certificateChain,
 				CertificateType... certificateTypes) {
-			if (certificateTypes == null) {
+			if (certificateTypes == null || certificateTypes.length == 0) {
 				return setIdentity(privateKey, certificateChain, (List<CertificateType>) null);
 			} else {
 				return setIdentity(privateKey, certificateChain, Arrays.asList(certificateTypes));
@@ -1053,7 +1070,7 @@ public final class DtlsConnectorConfig {
 		 *             chain is <code>null</code>
 		 * @throws IllegalArgumentException if the certificate chain does not
 		 *             contain any certificates, or contains a non-X.509
-		 *             certificate
+		 *             certificate. Or the provide certificateTypes is empty.
 		 * @see #setTrustStore(Certificate[])
 		 * @see #setCertificateVerifier(CertificateVerifier)
 		 * @see #setRpkTrustAll()
@@ -1071,7 +1088,7 @@ public final class DtlsConnectorConfig {
 				throw new IllegalArgumentException("The certificate type must not be empty!");
 			} else {
 				config.privateKey = privateKey;
-				config.certChain = toX509Certificates(certificateChain);
+				config.certChain = Arrays.asList(SslContextUtil.asX509Certificates(certificateChain));
 				config.publicKey = config.certChain.get(0).getPublicKey();
 				if (certificateTypes == null) {
 					config.identityCertificateTypes = new ArrayList<>(1);
@@ -1108,8 +1125,11 @@ public final class DtlsConnectorConfig {
 		public Builder setTrustStore(Certificate[] trustedCerts) {
 			if (trustedCerts == null) {
 				throw new NullPointerException("Trust store must not be null");
+			} else if (trustedCerts.length == 0) {
+				config.trustStore = new X509Certificate[0];
+			} else {
+				config.trustStore = SslContextUtil.asX509Certificates(trustedCerts);
 			}
-			config.trustStore = toX509Certificates(trustedCerts).toArray(new X509Certificate[0]);
 			return this;
 		}
 
@@ -1195,18 +1215,6 @@ public final class DtlsConnectorConfig {
 			}
 			config.trustCertificateTypes = Arrays.asList(certificateTypes);
 			return this;
-		}
-
-		private static List<X509Certificate> toX509Certificates(Certificate[] certs) {
-			List<X509Certificate> result = new ArrayList<>(certs.length);
-			for (Certificate cert : certs) {
-				if (X509Certificate.class.isInstance(cert)) {
-					result.add((X509Certificate) cert);
-				} else {
-					throw new IllegalArgumentException("can only process X.509 certificates");
-				}
-			}
-			return result;
 		}
 
 		/**

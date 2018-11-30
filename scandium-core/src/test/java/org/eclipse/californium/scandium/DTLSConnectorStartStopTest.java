@@ -76,7 +76,6 @@ public class DTLSConnectorStartStopTest {
 	static InMemoryClientSessionCache clientSessionCache;
 
 	DTLSConnector client;
-	DtlsConnectorConfig clientConfig;
 	LatchDecrementingRawDataChannel clientChannel;
 	InMemoryConnectionStore clientConnectionStore;
 
@@ -110,7 +109,7 @@ public class DTLSConnectorStartStopTest {
 		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		DtlsConnectorConfig.Builder builder = newStandardClientConfigBuilder(clientEndpoint)
 				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY);
-		clientConfig = builder.build();
+		DtlsConnectorConfig clientConfig = builder.build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		clientChannel = new ConnectorHelper.LatchDecrementingRawDataChannel(client);
 		client.setRawDataReceiver(clientChannel);

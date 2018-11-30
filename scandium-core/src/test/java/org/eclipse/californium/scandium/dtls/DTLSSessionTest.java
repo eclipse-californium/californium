@@ -31,6 +31,8 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
+import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.junit.Before;
@@ -174,12 +176,54 @@ public class DTLSSessionTest {
 		assertThatSessionsHaveSameRelevantPropertiesForResumption(sessionToResume, session);
 	}
 
+	@Test
+	public void testSessionWithServerNamesCanBeResumedFromSessionTicket() throws GeneralSecurityException {
+		// GIVEN a session ticket for an established server session
+		session = newEstablishedServerSession(PEER_ADDRESS, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, true);
+		session.setVirtualHost("test");
+		SessionTicket ticket = session.getSessionTicket();
+
+		// WHEN creating a new session to be resumed from the ticket
+		DTLSSession sessionToResume = new DTLSSession(session.getSessionIdentifier(), session.getPeer(), ticket, 1);
+
+		// THEN the new session contains all relevant pending state to perform an abbreviated handshake
+		assertThatSessionsHaveSameRelevantPropertiesForResumption(sessionToResume, session);
+	}
+
+	@Test
+	public void testSessionCanBeResumedFromSerializedSessionTicket() throws GeneralSecurityException {
+		// GIVEN a session ticket for an established server session
+		session = newEstablishedServerSession(PEER_ADDRESS, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, true);
+		SessionTicket ticket = serialize(session.getSessionTicket());
+
+		// WHEN creating a new session to be resumed from the ticket
+		DTLSSession sessionToResume = new DTLSSession(session.getSessionIdentifier(), session.getPeer(), ticket, 1);
+
+		// THEN the new session contains all relevant pending state to perform an abbreviated handshake
+		assertThatSessionsHaveSameRelevantPropertiesForResumption(sessionToResume, session);
+	}
+
+	@Test
+	public void testSessionWithServerNamesCanBeResumedFromSerializedSessionTicket() throws GeneralSecurityException {
+		// GIVEN a session ticket for an established server session
+		session = newEstablishedServerSession(PEER_ADDRESS, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, true);
+		session.setVirtualHost("test");
+		SessionTicket ticket = serialize(session.getSessionTicket());
+
+		// WHEN creating a new session to be resumed from the ticket
+		DTLSSession sessionToResume = new DTLSSession(session.getSessionIdentifier(), session.getPeer(), ticket, 1);
+
+		// THEN the new session contains all relevant pending state to perform an abbreviated handshake
+		assertThatSessionsHaveSameRelevantPropertiesForResumption(sessionToResume, session);
+	}
+
 	public static void assertThatSessionsHaveSameRelevantPropertiesForResumption(DTLSSession sessionToResume, DTLSSession establishedSession) {
 		assertThat(sessionToResume.getSessionIdentifier(), is(establishedSession.getSessionIdentifier()));
 		assertThat(sessionToResume.getCipherSuite(), is(establishedSession.getWriteState().getCipherSuite()));
 		assertThat(sessionToResume.getCompressionMethod(), is(establishedSession.getWriteState().getCompressionMethod()));
 		assertThat(sessionToResume.getMasterSecret(), is(establishedSession.getMasterSecret()));
 		assertThat(sessionToResume.getPeerIdentity(), is(establishedSession.getPeerIdentity()));
+		assertThat(sessionToResume.getServerNames(), is(establishedSession.getServerNames()));
 	}
 
 	public static DTLSSession newEstablishedServerSession(InetSocketAddress peerAddress, CipherSuite cipherSuite, boolean useRawPublicKeys) {
@@ -209,6 +253,13 @@ public class DTLSSessionTest {
 		byte[] result = new byte[length];
 		RANDOM.nextBytes(result);
 		return result;
+	}
+	
+	private static SessionTicket serialize(SessionTicket ticket) {
+		DatagramWriter writer = new DatagramWriter();
+		ticket.encode(writer);
+		DatagramReader reader = new DatagramReader(writer.toByteArray());
+		return SessionTicket.decode(reader);
 	}
 
 }

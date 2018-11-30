@@ -71,9 +71,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
-import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
-import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
@@ -229,22 +227,6 @@ public class DTLSConnectorTest {
 		clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		clientConfig = newStandardConfig(clientEndpoint);
 
-		client = new DTLSConnector(clientConfig, clientConnectionStore);
-		client.setExecutor(executor);
-
-		clientRawDataChannel = new LatchDecrementingRawDataChannel();
-	}
-
-	private void autoResumeSetUp(int timeout) throws Exception {
-		cleanUp();
-		serverSessionCache.establishedSessionCounter.set(0);
-		pskStoreLatency = 0;
-		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
-		clientConnectionStore.setTag("client");
-		clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
-		DtlsConnectorConfig.Builder clientConfigBuilder = newStandardConfigBuilder(clientEndpoint);
-		clientConfigBuilder.setAutoResumptionTimeoutMillis(timeout);
-		clientConfig = clientConfigBuilder.build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		client.setExecutor(executor);
 
@@ -716,206 +698,6 @@ public class DTLSConnectorTest {
 				con.getEstablishedSession().getSessionIdentifier(), is(not(originalSessionId)));
 	}
 
-	@Test
-	public void testConnectorResumesSessionFromNewConnection() throws Exception {
-		// Do a first handshake
-		givenAnEstablishedSession();
-		client.stop();
-		byte[] sessionId = establishedServerSession.getSessionIdentifier().getId();
-
-		// Force a resume session the next time we send data
-		client.forceResumeSessionFor(serverEndpoint);
-		Connection connection = clientConnectionStore.get(serverEndpoint);
-		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
-
-		// create a new client with different inetAddress but with the same session store.
-		clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 10001);
-		clientConfig = DTLSConnectorTest.newStandardConfig(clientEndpoint);
-		client = new DTLSConnector(clientConfig, clientConnectionStore);
-		clientRawDataChannel = new LatchDecrementingRawDataChannel();
-		client.setRawDataReceiver(clientRawDataChannel);
-		client.start();
-
-		// Prepare message sending
-		final String msg = "Hello Again";
-		CountDownLatch latch = new CountDownLatch(1);
-		clientRawDataChannel.setLatch(latch);
-
-		// send message
-		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverEndpoint), null, false);
-		client.send(data);
-		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
-
-		// check we use the same session id
-		connection = clientConnectionStore.get(serverEndpoint);
-		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
-		assertClientIdentity(RawPublicKeyIdentity.class);
-	}
-
-	@Test
-	public void testConnectorAutoResumesSession() throws Exception {
-
-		autoResumeSetUp(1000);
-
-		// Do a first handshake
-		givenAnEstablishedSession(false);
-
-		Connection connection = clientConnectionStore.get(serverEndpoint);
-		byte[] sessionId = connection.getSession().getSessionIdentifier().getId();
-		assertThat(serverSessionCache.establishedSessionCounter.get(), is(1));
-		assertThat(connection.isAutoResumptionRequired(1000L), is(false));
-
-		Thread.sleep(2000);
-
-		assertThat(connection.isAutoResumptionRequired(1000L), is(true));
-		
-		// Prepare message sending
-		final String msg = "Hello Again";
-		CountDownLatch latch = new CountDownLatch(1);
-		clientRawDataChannel.setLatch(latch);
-
-		// send message
-		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverEndpoint), null, false);
-		client.send(data);
-		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
-
-		// check we use the same session id
-		connection = clientConnectionStore.get(serverEndpoint);
-		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
-		assertClientIdentity(RawPublicKeyIdentity.class);
-
-		// check, if session is established again
-		assertThat(serverSessionCache.establishedSessionCounter.get(), is(2));
-	}
-
-	@Test
-	public void testConnectorNoAutoResumesSession() throws Exception {
-
-		autoResumeSetUp(2000);
-
-		// Do a first handshake
-		givenAnEstablishedSession(false);
-
-		Connection connection = clientConnectionStore.get(serverEndpoint);
-		assertThat(serverSessionCache.establishedSessionCounter.get(), is(1));
-		assertThat(connection.isAutoResumptionRequired(2000L), is(false));
-		Thread.sleep(1500);
-		// Prepare message sending
-		final String msg = "Hello Again";
-		CountDownLatch latch = new CountDownLatch(1);
-		clientRawDataChannel.setLatch(latch);
-
-		// send message
-		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverEndpoint), null, false);
-		client.send(data);
-		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
-
-		Thread.sleep(1500);
-
-		assertThat(connection.isAutoResumptionRequired(2000L), is(false));
-		// check, if session is established again
-		assertThat(serverSessionCache.establishedSessionCounter.get(), is(1));
-	}
-
-	@Test
-	public void testConnectorForceAutoResumesSession() throws Exception {
-		autoResumeSetUp(2000);
-
-		// Do a first handshake
-		givenAnEstablishedSession(false);
-
-		Connection connection = clientConnectionStore.get(serverEndpoint);
-		byte[] sessionId = connection.getSession().getSessionIdentifier().getId();
-		assertThat(serverSessionCache.establishedSessionCounter.get(), is(1));
-
-		Thread.sleep(500);
-
-		// Prepare message sending
-		final String msg = "Hello Again";
-		CountDownLatch latch = new CountDownLatch(1);
-		clientRawDataChannel.setLatch(latch);
-
-		// send message
-		EndpointContext context = new MapBasedEndpointContext(serverEndpoint, null, DtlsEndpointContext.KEY_RESUMPTION_TIMEOUT, "0");
-		RawData data = RawData.outbound(msg.getBytes(), context, null, false);
-		client.send(data);
-		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
-
-		// check we use the same session id
-		connection = clientConnectionStore.get(serverEndpoint);
-		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
-		assertClientIdentity(RawPublicKeyIdentity.class);
-
-		// check, if session is established again
-		assertThat(serverSessionCache.establishedSessionCounter.get(), is(2));
-	}
-
-	@Test
-	public void testConnectorSupressAutoResumesSession() throws Exception {
-		autoResumeSetUp(1000);
-
-		// Do a first handshake
-		givenAnEstablishedSession(false);
-
-		Connection connection = clientConnectionStore.get(serverEndpoint);
-		byte[] sessionId = connection.getSession().getSessionIdentifier().getId();
-		assertThat(serverSessionCache.establishedSessionCounter.get(), is(1));
-
-		Thread.sleep(2000);
-
-		// Prepare message sending
-		final String msg = "Hello Again";
-		CountDownLatch latch = new CountDownLatch(1);
-		clientRawDataChannel.setLatch(latch);
-
-		// send message
-		EndpointContext context = new MapBasedEndpointContext(serverEndpoint, null, DtlsEndpointContext.KEY_RESUMPTION_TIMEOUT, "");
-		RawData data = RawData.outbound(msg.getBytes(), context, null, false);
-		client.send(data);
-		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
-
-		// check we use the same session id
-		connection = clientConnectionStore.get(serverEndpoint);
-		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
-		assertClientIdentity(RawPublicKeyIdentity.class);
-
-		// check, if session is established again
-		assertThat(serverSessionCache.establishedSessionCounter.get(), is(1));
-	}
-
-	@Test
-	public void testConnectorChangedAutoResumesSession() throws Exception {
-		autoResumeSetUp(1000);
-
-		// Do a first handshake
-		givenAnEstablishedSession(false);
-
-		Connection connection = clientConnectionStore.get(serverEndpoint);
-		byte[] sessionId = connection.getSession().getSessionIdentifier().getId();
-		assertThat(serverSessionCache.establishedSessionCounter.get(), is(1));
-		assertThat(connection.isAutoResumptionRequired(1000L), is(false));
-
-		Thread.sleep(2000);
-
-		// Prepare message sending
-		final String msg = "Hello Again";
-		CountDownLatch latch = new CountDownLatch(1);
-		clientRawDataChannel.setLatch(latch);
-
-		// send message
-		EndpointContext context = new MapBasedEndpointContext(serverEndpoint, null, DtlsEndpointContext.KEY_RESUMPTION_TIMEOUT, "10000");
-		RawData data = RawData.outbound(msg.getBytes(), context, null, false);
-		client.send(data);
-		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
-
-		// check we use the same session id
-		connection = clientConnectionStore.get(serverEndpoint);
-		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
-		assertClientIdentity(RawPublicKeyIdentity.class);
-
-		// check, if session is established again
-		assertThat(serverSessionCache.establishedSessionCounter.get(), is(1));
-	}
 
 	@Test
 	public void testStartStopWithNewAddress() throws Exception {
@@ -1012,99 +794,6 @@ public class DTLSConnectorTest {
 		// check we use the same session id
 		connection = clientConnectionStore.get(serverEndpoint);
 		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
-		assertClientIdentity(RawPublicKeyIdentity.class);
-	}
-
-	@Test
-	public void testConnectorResumesSessionFromSharedSessionTicket() throws Exception {
-		// Do a first handshake
-		givenAnEstablishedSession();
-		SessionId establishedSessionId = establishedServerSession.getSessionIdentifier();
-
-		// Force a resume session the next time we send data
-		client.forceResumeSessionFor(serverEndpoint);
-		Connection connection = clientConnectionStore.get(serverEndpoint);
-		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(establishedSessionId));
-		client.start();
-
-		// remove connection from server's connection store and add ticket to session cache
-		// to mimic a fail over from another node
-		serverConnectionStore.remove(clientEndpoint);
-		assertThat(serverSessionCache.get(establishedSessionId), is(nullValue()));
-		serverSessionCache.put(establishedSessionId, establishedServerSession.getSessionTicket());
-
-		// Prepare message sending
-		final String msg = "Hello Again";
-		CountDownLatch latch = new CountDownLatch(1);
-		clientRawDataChannel.setLatch(latch);
-
-		// send message
-		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverEndpoint), null, false);
-		client.send(data);
-		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
-
-		// check we use the same session id
-		connection = clientConnectionStore.get(serverEndpoint);
-		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(establishedSessionId));
-		assertClientIdentity(RawPublicKeyIdentity.class);
-	}
-
-	@Test
-	public void testConnectorResumesSessionFromExistingConnection() throws Exception {
-		// Do a first handshake
-		givenAnEstablishedSession();
-		byte[] sessionId = establishedServerSession.getSessionIdentifier().getId();
-
-		// Force a resume session the next time we send data
-		client.forceResumeSessionFor(serverEndpoint);
-		Connection connection = clientConnectionStore.get(serverEndpoint);
-		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
-		client.start();
-
-		// Prepare message sending
-		final String msg = "Hello Again";
-		CountDownLatch latch = new CountDownLatch(1);
-		clientRawDataChannel.setLatch(latch);
-
-		// send message
-		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverEndpoint), null, false);
-		client.send(data);
-		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
-
-		// check we use the same session id
-		connection = clientConnectionStore.get(serverEndpoint);
-		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
-		assertClientIdentity(RawPublicKeyIdentity.class);
-	}
-
-	@Test
-	public void testConnectorPerformsFullHandshakeWhenResumingNonExistingSession() throws Exception {
-		// Do a first handshake
-		givenAnEstablishedSession();
-		byte[] sessionId = establishedServerSession.getSessionIdentifier().getId();
-
-		// Force a resume session the next time we send data
-		client.forceResumeSessionFor(serverEndpoint);
-		Connection connection = clientConnectionStore.get(serverEndpoint);
-		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
-		client.start();
-
-		// Prepare message sending
-		final String msg = "Hello Again";
-		CountDownLatch latch = new CountDownLatch(1);
-		clientRawDataChannel.setLatch(latch);
-
-		// remove session from server
-		serverConnectionStore.remove(clientEndpoint);
-
-		// send message
-		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverEndpoint), null, false);
-		client.send(data);
-		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
-
-		// check session id was not equals
-		connection = clientConnectionStore.get(serverEndpoint);
-		Assert.assertThat(sessionId, not(equalTo(connection.getEstablishedSession().getSessionIdentifier().getId())));
 		assertClientIdentity(RawPublicKeyIdentity.class);
 	}
 
@@ -1339,8 +1028,7 @@ public class DTLSConnectorTest {
 		assertClientIdentity(null);
 	}
 
-	@SuppressWarnings("rawtypes")
-	private void assertClientIdentity(final Class principalType) {
+	private void assertClientIdentity(final Class<?> principalType) {
 
 		// assert that client identity is of given type
 		if (principalType == null) {

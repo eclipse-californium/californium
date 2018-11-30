@@ -206,8 +206,10 @@ public class ClientHandshakerTest {
 		} else {
 			builder.setClientAuthenticationRequired(false);
 		}
+		DTLSSession session = new DTLSSession(peer);
+		session.setVirtualHost(virtualHost);
 		handshaker = new ClientHandshaker(
-				DTLSSession.newClientSession(peer, virtualHost),
+				session,
 				recordLayer,
 				null,
 				builder.build(),
