@@ -6,13 +6,20 @@
 		<artifactId>parent</artifactId>
 		<version>2.0.0-SNAPSHOT</version>
 	</parent>
+
 	<artifactId>oscore-cf</artifactId>
+
 	<properties>
 		<cose.version>0.9.7</cose.version>
 		<cbor.version>3.0.3</cbor.version>
 		<numbers.version>1.0.2</numbers.version>
 	</properties>
+
 	<dependencies>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>californium-legal</artifactId>
+		</dependency>
 		<dependency>
 			<groupId>org.eclipse.californium</groupId>
 			<artifactId>californium-core</artifactId>
@@ -49,6 +56,19 @@
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<configuration>
+					<descriptors>
+						<descriptor>enhanced-jar-with-licenses.xml</descriptor>
+					</descriptors>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
 	
 	<profiles>
 		<profile>

@@ -33,6 +33,7 @@ android {
         pickFirst 'META-INF/LICENSE'
         pickFirst 'META-INF/io.netty.versions.properties'
         pickFirst 'LICENSE-2.0.txt'
+        pickFirst '3rd-party/*'
         exclude   '**/*.jks'
     }
     compileOptions {
