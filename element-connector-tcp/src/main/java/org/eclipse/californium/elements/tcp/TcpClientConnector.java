@@ -345,8 +345,9 @@ public class TcpClientConnector implements Connector {
 			// TODO: This only works with fixed sized pool with connection one.
 			// Otherwise it's not save to remove and
 			// close the pool as soon as a single channel is closed.
-			poolMap.remove(key);
-			LOGGER.debug("closed channel to {}", key);
+			if (poolMap.remove(key)) {
+				LOGGER.debug("closed channel to {}", key);
+			}
 		}
 	}
 }
