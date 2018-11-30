@@ -23,6 +23,9 @@
 	</fileSets>
 	<dependencySets>
 		<dependencySet>
+			<includes>
+				<include>org.eclipse.californium:californium-legal</include>
+			</includes>
 			<outputDirectory>/</outputDirectory>
 			<useProjectArtifact>false</useProjectArtifact>
 			<unpack>true</unpack>

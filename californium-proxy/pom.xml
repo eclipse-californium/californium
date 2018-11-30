@@ -30,6 +30,10 @@
 	<dependencies>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
+			<artifactId>californium-legal</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
 			<artifactId>californium-core</artifactId>
 		</dependency>		
 		<dependency>
@@ -118,6 +122,14 @@
 						</Import-Package>
 						<Bundle-SymbolicName>${project.groupId}.proxy</Bundle-SymbolicName>
 					</instructions>
+				</configuration>
+			</plugin>
+			<plugin>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<configuration>
+					<descriptors>
+						<descriptor>enhanced-jar-with-licenses.xml</descriptor>
+					</descriptors>
 				</configuration>
 			</plugin>
 		</plugins>

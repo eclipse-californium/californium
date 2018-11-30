@@ -18,6 +18,7 @@ DO NOT USE IN PRODUCTION SYSTEMS!</description>
 
 	<properties>
 		<source.skip>true</source.skip>
+		<javadoc.skip>true</javadoc.skip>
 	</properties>
 
 	<build>
