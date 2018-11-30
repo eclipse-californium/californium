@@ -610,7 +610,7 @@ public class SslContextUtil {
 	 * @throws IllegalArgumentException if null, a empty array is provided or a
 	 *             none x509 certificate was found or a array entry was null.
 	 */
-	private static X509Certificate[] asX509Certificates(Certificate[] certificates) {
+	public static X509Certificate[] asX509Certificates(Certificate[] certificates) {
 		if (null == certificates || 0 == certificates.length) {
 			throw new IllegalArgumentException("certificates missing!");
 		}

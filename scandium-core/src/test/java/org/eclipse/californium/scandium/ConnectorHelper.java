@@ -40,7 +40,6 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
-import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -52,6 +51,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -72,6 +72,8 @@ import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
  */
 public class ConnectorHelper {
 
+	static final String SERVERNAME							= "my.test.server";
+	static final String	SCOPED_CLIENT_IDENTITY				= "My_client_identity";
 	static final String	CLIENT_IDENTITY						= "Client_identity";
 	static final String	CLIENT_IDENTITY_SECRET				= "secretPSK";
 	static final int	MAX_TIME_TO_WAIT_SECS				= 2;
@@ -106,7 +108,8 @@ public class ConnectorHelper {
 	 * @throws GeneralSecurityException if the keys cannot be read.
 	 */
 	public void startServer() throws IOException, GeneralSecurityException {
-		startServer(DtlsConnectorConfig.DEFAULT_RETRANSMISSION_TIMEOUT_MS, DtlsConnectorConfig.DEFAULT_MAX_RETRANSMISSIONS);
+		startServer(DtlsConnectorConfig.DEFAULT_RETRANSMISSION_TIMEOUT_MS,
+				DtlsConnectorConfig.DEFAULT_MAX_RETRANSMISSIONS, true, true);
 	}
 
 	/**
@@ -131,10 +134,11 @@ public class ConnectorHelper {
 	 * @param retransmissionTimeout handshake flight retransmission timeout in
 	 *            ms
 	 * @param maxRetransmissions maximum retransmissions of a handshake flight
+	 * @param enableSni enable support for SNI 
 	 * @throws IOException if the server cannot be started.
 	 * @throws GeneralSecurityException if the keys cannot be read.
 	 */
-	public void startServer(int retransmissionTimeout, int maxRetransmissions) throws IOException, GeneralSecurityException {
+	public void startServer(int retransmissionTimeout, int maxRetransmissions, boolean enableSni, boolean clientAuthRequired) throws IOException, GeneralSecurityException {
 
 		serverSessionCache = new InMemorySessionCache();
 		serverConnectionStore = new InMemoryConnectionStore(SERVER_CONNECTION_STORE_CAPACITY, 5 * 60, serverSessionCache); // connection timeout 5mins
@@ -142,26 +146,31 @@ public class ConnectorHelper {
 
 		InMemoryPskStore pskStore = new InMemoryPskStore();
 		pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
-		serverConfig = new DtlsConnectorConfig.Builder()
-			.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
-			.setSupportedCipherSuites(
-						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
-						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
-						CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
-						CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256)
-			.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509)
-			.setTrustStore(DtlsTestTools.getTrustedCertificates())
-			.setRpkTrustAll()
-			.setPskStore(pskStore)
-			.setMaxConnections(SERVER_CONNECTION_STORE_CAPACITY)
-			.setMaxTransmissionUnit(1024)
-			.setClientAuthenticationRequired(true)
-			.setReceiverThreadCount(1)
-			.setConnectionThreadCount(2)
-			.setServerOnly(true)
-			.setRetransmissionTimeout(retransmissionTimeout)
-			.setMaxRetransmissions(maxRetransmissions)
-			.build();
+		pskStore.setKey(SCOPED_CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME);
+
+		 DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+				.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
+				.setSupportedCipherSuites(
+							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
+							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+							CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
+							CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256)
+				.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509)
+				.setPskStore(pskStore)
+				.setMaxConnections(SERVER_CONNECTION_STORE_CAPACITY)
+				.setMaxTransmissionUnit(1024)
+				.setClientAuthenticationRequired(clientAuthRequired)
+				.setReceiverThreadCount(1)
+				.setConnectionThreadCount(2)
+				.setServerOnly(true)
+				.setSniEnabled(enableSni)
+				.setRetransmissionTimeout(retransmissionTimeout)
+				.setMaxRetransmissions(maxRetransmissions);
+
+		if (clientAuthRequired) {
+			builder.setTrustStore(DtlsTestTools.getTrustedCertificates()).setRpkTrustAll();
+		}
+		serverConfig = builder.build();
 
 		server = new DTLSConnector(serverConfig, serverConnectionStore);
 		serverRawDataProcessor = new MessageCapturingProcessor();
@@ -226,7 +235,7 @@ public class ConnectorHelper {
 		client.setRawDataReceiver(clientChannel);
 		client.start();
 		client.send(msgToSend);
-
+		clientChannel.setAddress(client.getAddress());
 		assertTrue("DTLS handshake timed out after " + MAX_TIME_TO_WAIT_SECS + " seconds", latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 		Connection con = serverConnectionStore.get(client.getAddress());
 		assertNotNull(con);
@@ -269,13 +278,22 @@ public class ConnectorHelper {
 
 		private RawDataProcessor processor;
 		private DTLSConnector connector;
-
+		private InetSocketAddress address;
+		
 		public SimpleRawDataChannel(DTLSConnector connector) {
 			this.connector = connector;
 		}
 
 		public synchronized void setProcessor(final RawDataProcessor processor) {
 			this.processor = processor;
+		}
+
+		public synchronized InetSocketAddress getAddress() {
+			return address;
+		}
+
+		public synchronized void setAddress(InetSocketAddress address) {
+			this.address = address;
 		}
 
 		@Override
@@ -287,6 +305,10 @@ public class ConnectorHelper {
 			if (processor != null) {
 				RawData response = processor.process(raw);
 				if (response != null) {
+					InetSocketAddress socketAddress = connector.getAddress();
+					synchronized (this) {
+						address = socketAddress;
+					}
 					connector.send(response);
 				}
 			}
@@ -299,7 +321,7 @@ public class ConnectorHelper {
 
 		RawData getLatestInboundMessage();
 
-		Principal getClientIdentity();
+		EndpointContext getClientEndpointContext();
 	}
 
 	static class MessageCapturingProcessor implements RawDataProcessor {
@@ -312,9 +334,9 @@ public class ConnectorHelper {
 		}
 
 		@Override
-		public Principal getClientIdentity() {
+		public EndpointContext getClientEndpointContext() {
 			if (inboundMessage != null) {
-				return inboundMessage.get().getSenderIdentity();
+				return inboundMessage.get().getEndpointContext();
 			} else {
 				return null;
 			}

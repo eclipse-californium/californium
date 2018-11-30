@@ -33,8 +33,6 @@ import org.eclipse.californium.scandium.util.ServerNames;
  */
 public final class ServerNameExtension extends HelloExtension {
 
-	private static final int LIST_LENGTH_BITS = 16;
-
 	private ServerNames serverNames;
 
 	private ServerNameExtension() {
@@ -101,19 +99,13 @@ public final class ServerNameExtension extends HelloExtension {
 	}
 
 	@Override
-	protected void addExtensionData(final DatagramWriter writer) {
+	public void addExtensionData(final DatagramWriter writer) {
 
 		if (serverNames == null) {
 			writer.write(0, LENGTH_BITS);
 		} else {
 			writer.write(serverNames.getEncodedLength() + 2, LENGTH_BITS); //extension_length
-			writer.write(serverNames.getEncodedLength(), LIST_LENGTH_BITS); //server_names_list_length
-
-			for (ServerName serverName : serverNames) {
-				writer.writeByte(serverName.getType().getCode()); // name type
-				writer.write(serverName.getName().length, LENGTH_BITS); // name length
-				writer.writeBytes(serverName.getName()); // name
-			}
+			serverNames.encode(writer);
 		}
 	}
 
@@ -131,53 +123,19 @@ public final class ServerNameExtension extends HelloExtension {
 			return ServerNameExtension.emptyServerNameIndication();
 		} else {
 			DatagramReader reader = new DatagramReader(extensionData);
-			return readServerNameList(reader, peerAddress);
-		}
-	}
-
-	private static ServerNameExtension readServerNameList(
-			final DatagramReader reader,
-			final InetSocketAddress peerAddress) throws HandshakeException {
-
-		ServerNames serverNames = ServerNames.newInstance();
-		int listLengthBytes = reader.read(LIST_LENGTH_BITS);
-		while (listLengthBytes > 0) {
-			if (reader.bitsLeft() >= 8) {
-				NameType nameType = NameType.fromCode(reader.readNextByte());
-				switch (nameType) {
-				case HOST_NAME:
-					byte[] hostname = readHostName(reader, peerAddress);
-					serverNames.add(ServerName.from(nameType, hostname));
-					listLengthBytes -= (hostname.length + 3);
-					break;
-				default:
-					throw new HandshakeException(
-							"Server Name Indication extension contains unknown name_type",
+			ServerNames serverNames = ServerNames.newInstance();
+			try {
+				serverNames.decode(reader);
+			} catch (IllegalArgumentException e) {
+				if (e.getCause() instanceof IllegalArgumentException) {
+					throw new HandshakeException("Server Name Indication extension contains unknown name_type",
 							new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER, peerAddress));
 				}
-			} else {
-				throw newDecodeError(peerAddress);
+				throw new HandshakeException("malformed Server Name Indication extension",
+						new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR, peerAddress));
 			}
+			return new ServerNameExtension(serverNames);
 		}
-		return new ServerNameExtension(serverNames);
-	}
-
-	private static byte[] readHostName(final DatagramReader reader, final InetSocketAddress peerAddress) throws HandshakeException {
-
-		if (reader.bitsLeft() >= LENGTH_BITS) {
-			int length = reader.read(LENGTH_BITS);
-			if (reader.bytesAvailable(length)) {
-				return reader.readBytes(length);
-			}
-		}
-		throw newDecodeError(peerAddress);
-	}
-
-	private static HandshakeException newDecodeError(final InetSocketAddress peerAddress) {
-
-		return new HandshakeException(
-				"malformed Server Name Indication extension",
-				new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR, peerAddress));
 	}
 
 	/**

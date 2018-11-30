@@ -75,7 +75,8 @@ import org.slf4j.LoggerFactory;
  * Verifies behavior of {@link DTLSConnector}.
  * <p>
  * Mainly contains integration test cases verifying the correct interaction
- * between a client and a server.
+ * between a client and a server during handshakes including unusual message
+ * order and timeouts.
  */
 @Category(Medium.class)
 public class DTLSConnectorAdvancedTest {
@@ -106,7 +107,7 @@ public class DTLSConnectorAdvancedTest {
 	@BeforeClass
 	public static void loadKeys() throws IOException, GeneralSecurityException {
 		serverHelper = new ConnectorHelper();
-		serverHelper.startServer(RETRANSMISSION_TIMEOUT_MS, MAX_RETRANSMISSIONS);
+		serverHelper.startServer(RETRANSMISSION_TIMEOUT_MS, MAX_RETRANSMISSIONS, true, true);
 		executor = Executors.newFixedThreadPool(2);
 	}
 

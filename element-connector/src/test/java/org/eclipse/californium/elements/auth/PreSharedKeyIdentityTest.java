@@ -44,6 +44,7 @@ public class PreSharedKeyIdentityTest {
 		PreSharedKeyIdentity idOne = new PreSharedKeyIdentity("iot.eclipse.org", "device-1");
 		PreSharedKeyIdentity idTwo = new PreSharedKeyIdentity("coap.eclipse.org", "device-1");
 		assertFalse(idOne.equals(idTwo));
+		assertTrue(idOne.isScopedIdentity());
 	}
 
 	/**
@@ -55,5 +56,19 @@ public class PreSharedKeyIdentityTest {
 		PreSharedKeyIdentity idOne = new PreSharedKeyIdentity("iot.eclipse.org", "device-1");
 		PreSharedKeyIdentity idTwo = new PreSharedKeyIdentity("iot.eclipse.org", "device-1");
 		assertTrue(idOne.equals(idTwo));
+		assertTrue(idOne.isScopedIdentity());
+	}
+
+	/**
+	 * Verifies that two instances with the same identity but one with virtual host
+	 * and one without are not considered equal.
+	 */
+	@Test
+	public void testEqualsFails() {
+		PreSharedKeyIdentity idOne = new PreSharedKeyIdentity("device-1");
+		PreSharedKeyIdentity idTwo = new PreSharedKeyIdentity(null, "device-1");
+		assertFalse(idOne.equals(idTwo));
+		assertFalse(idOne.isScopedIdentity());
+		assertTrue(idTwo.isScopedIdentity());
 	}
 }

@@ -52,7 +52,7 @@ public abstract class HelloExtension {
 
 	protected static final int TYPE_BITS = 16;
 
-	protected static final int LENGTH_BITS = 16;
+	public static final int LENGTH_BITS = 16;
 
 	// Members ////////////////////////////////////////////////////////
 

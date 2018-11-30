@@ -163,7 +163,7 @@ public class ServerHandshakerTest {
 
 		// THEN the server names conveyed in the CLIENT_HELLO message
 		// are stored in the handshaker
-		ServerNames serverNames = handshaker.getIndicatedServerNames();
+		ServerNames serverNames = handshaker.getSession().getServerNames();
 		assertNotNull(serverNames);
 		assertThat(new String(serverNames.get(NameType.HOST_NAME)), is("iot.eclipse.org"));
 	}

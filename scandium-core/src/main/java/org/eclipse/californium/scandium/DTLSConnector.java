@@ -183,6 +183,7 @@ import org.eclipse.californium.scandium.dtls.ResumingClientHandshaker;
 import org.eclipse.californium.scandium.dtls.ResumingServerHandshaker;
 import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
 import org.eclipse.californium.scandium.dtls.ServerHandshaker;
+import org.eclipse.californium.scandium.dtls.ServerNameExtension;
 import org.eclipse.californium.scandium.dtls.SessionAdapter;
 import org.eclipse.californium.scandium.dtls.SessionCache;
 import org.eclipse.californium.scandium.dtls.SessionId;
@@ -190,6 +191,7 @@ import org.eclipse.californium.scandium.dtls.SessionListener;
 import org.eclipse.californium.scandium.dtls.SessionTicket;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
+import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
  * A {@link Connector} using <em>Datagram TLS</em> (DTLS) as specified in
@@ -1367,22 +1369,40 @@ public class DTLSConnector implements Connector, RecordLayer {
 	private void resumeExistingSession(final ClientHello clientHello, final Record record, final Connection connection) throws HandshakeException {
 		LOGGER.debug("Client [{}] wants to resume session with ID [{}]", clientHello.getPeer(),
 				clientHello.getSessionId());
+
+		SessionTicket ticket = null;
 		final Connection previousConnection = connectionStore.find(clientHello.getSessionId());
 		if (previousConnection != null && previousConnection.isActive()) {
-
-			// session has been found in cache, resume it
-			Connection peerConnection = new Connection(record.getPeerAddress());
-			SessionTicket ticket = null;
 			if (previousConnection.hasEstablishedSession()) {
 				ticket = previousConnection.getEstablishedSession().getSessionTicket();
 			} else if (previousConnection.hasSessionTicket()) {
 				ticket = previousConnection.getSessionTicket();
 			} else {
-				// TODO: fall back to full handshake
+				// fall back to full handshake
 			}
+			if (ticket != null && config.isSniEnabled()) {
+				ServerNames serverNames1 = ticket.getServerNames();
+				ServerNames serverNames2 = null;
+				ServerNameExtension extension = clientHello.getServerNameExtension();
+				if (extension != null) {
+					serverNames2 = extension.getServerNames();
+				}
+				if (serverNames1 != null) {
+					if (!serverNames1.equals(serverNames2)) {
+						// invalidate ticket, server names mismatch
+						ticket = null;
+					}
+				} else if (serverNames2 != null) {
+					// invalidate ticket, server names mismatch
+					ticket = null;
+				}
+			}
+		}
+		if (ticket != null) {
+			// session has been found in cache, resume it
+			Connection peerConnection = new Connection(record.getPeerAddress());
 			final DTLSSession sessionToResume = new DTLSSession(clientHello.getSessionId(), record.getPeerAddress(),
 					ticket, record.getSequenceNumber());
-
 			final Handshaker handshaker = new ResumingServerHandshaker(clientHello.getMessageSeq(), sessionToResume,
 					this, peerConnection.getSessionListener(), config,
 					maximumTransmissionUnit);
@@ -1592,10 +1612,12 @@ public class DTLSConnector implements Connector, RecordLayer {
 			message.onConnecting();
 			Handshaker handshaker = connection.getOngoingHandshake();
 			if (handshaker == null) {
+				session = new DTLSSession(peerAddress);
+				session.setVirtualHost(message.getEndpointContext().getVirtualHost());
 				// no session with peer established nor handshaker started yet,
 				// create new empty session & start handshake
 				handshaker = new ClientHandshaker(
-					DTLSSession.newClientSession(peerAddress, message.getEndpointContext().getVirtualHost()),
+					session,
 					this,
 					connection.getSessionListener(),
 					config,
@@ -1632,7 +1654,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 					sessionId = connection.getSessionIdentity();
 				}
 				DTLSSession resumableSession = new DTLSSession(sessionId, peerAddress, ticket, 0);
-
+				resumableSession.setVirtualHost(message.getEndpointContext().getVirtualHost());
 				// terminate the previous connection and add the new one to the store
 				Connection newConnection = new Connection(peerAddress);
 				connection.cancelPendingFlight();
@@ -1696,8 +1718,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 		final EndpointContextMatcher endpointMatcher = getEndpointContextMatcher();
 		if (null != endpointMatcher && !endpointMatcher.isToBeSent(message.getEndpointContext(), connectionContext)) {
 			LOGGER.warn("DTLSConnector ({}) drops {} bytes to {}:{}",
-					new Object[] {this, message.getSize(), message.getAddress(),
-					message.getPort() });
+					this, message.getSize(), message.getAddress(),
+					message.getPort());
 			message.onError(new EndpointMismatchException());
 			return false;
 		}
