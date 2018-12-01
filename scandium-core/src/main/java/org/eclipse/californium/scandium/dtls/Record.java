@@ -74,6 +74,8 @@ public class Record {
 
 	public static final int LENGTH_BITS = 16;
 
+	public static final int CID_LENGTH_BITS = 8;
+
 	public static final int RECORD_HEADER_BITS = CONTENT_TYPE_BITS + VERSION_BITS + VERSION_BITS +
 			EPOCH_BITS + SEQUENCE_NUMBER_BITS + LENGTH_BITS;
 
@@ -96,8 +98,8 @@ public class Record {
 	/** The sequence number for this record */
 	private long sequenceNumber;
 
-	/** The length (in bytes) of the following {@link DTLSMessage}. */
-	private int length = 0;
+	/** The length (in bytes) of the following {@link DTLSMessage} as bytes. */
+	private int fragmentLength = 0;
 
 	/**
 	 * The application data. This data is transparent and treated as an
@@ -109,9 +111,16 @@ public class Record {
 	/** The raw byte representation of the fragment. */
 	private byte[] fragmentBytes = null;
 
+	/** The connection id. */
+	private ConnectionId connectionId = null;
+
+	/** padding to be used, if cid is used */
+	private int padding = 0;
+
 	/** The DTLS session. */
 	private DTLSSession session;
 
+	/** The peer address. */
 	private InetSocketAddress peerAddress;
 
 	// Constructors ///////////////////////////////////////////////////
@@ -126,14 +135,16 @@ public class Record {
 	 * @param version the version
 	 * @param epoch the epoch
 	 * @param sequenceNumber the sequence number
+	 * @param connectionId the connection id
 	 * @param fragmentBytes the encrypted data
 	 */
-	Record(ContentType type, ProtocolVersion version, int epoch, long sequenceNumber, byte[] fragmentBytes,
+	Record(ContentType type, ProtocolVersion version, int epoch, long sequenceNumber, ConnectionId connectionId, byte[] fragmentBytes,
 			InetSocketAddress peerAddress) {
 		this(type, epoch, sequenceNumber);
 		this.version = version;
-		this.fragmentBytes = Arrays.copyOf(fragmentBytes, fragmentBytes.length);
-		this.length = fragmentBytes.length;
+		this.connectionId = connectionId;
+		this.fragmentBytes = fragmentBytes;
+		this.fragmentLength = fragmentBytes.length;
 		this.peerAddress = peerAddress;
 	}
 
@@ -143,7 +154,7 @@ public class Record {
 	 * The given <em>fragment</em> is encoded into its binary representation 
 	 * and encrypted according to the given session's current write state.
 	 * In order to create a <code>Record</code> containing an un-encrypted fragment, use the
-	 * {@link #Record(ContentType, int, long, DTLSMessage, InetSocketAddress)} constructor.
+	 * {@link #Record(ContentType, long, DTLSMessage, InetSocketAddress)} constructor.
 	 * 
 	 * @param type
 	 *            the type of the record's payload
@@ -155,31 +166,40 @@ public class Record {
 	 *            the payload
 	 * @param session
 	 *            the session to determine the current write state from
+	 * @param cid 
+	 *            if {@code true} use write connection id from provided session.
+	 *            Otherwise use {@code null} as connection id
+	 * @param pad 
+	 *            if cid is enabled, pad could be used to add that number of 
+	 *            zero-bytes as padding to the payload to obfuscate the payload length
 	 * @throws NullPointerException if the given session is <code>null</code>
 	 * @throws IllegalArgumentException if the given sequence number is longer than 48 bits
 	 * @throws GeneralSecurityException if the message could not be encrypted, e.g.
 	 *            because the JVM does not support the negotiated cipher suite's cipher algorithm
 	 */
-	public Record(ContentType type, int epoch, long sequenceNumber, DTLSMessage fragment, DTLSSession session) 
-		throws GeneralSecurityException {
+	public Record(ContentType type, int epoch, long sequenceNumber, DTLSMessage fragment, DTLSSession session,
+			boolean cid, int pad) throws GeneralSecurityException {
 		this(type, epoch, sequenceNumber);
 		if (session == null) {
 			throw new NullPointerException("Session must not be null");
 		}
 		this.fragment = fragment;
 		this.session = session;
+		this.peerAddress = session.getPeer();
+		if (cid) {
+			this.connectionId = session.getWriteConnectionId();
+			this.padding = pad;
+		}
 		setFragment(fragment);
 	}
 
 	/**
 	 * Creates a record representing a {@link DTLSMessage} as its payload.
 	 * 
-	 * The payload will be sent un-encrypted.
+	 * The payload will be sent un-encrypted using epoch 0.
 	 * 
 	 * @param type
 	 *            the type of the record's payload
-	 * @param epoch
-	 *            the epoch
 	 * @param sequenceNumber
 	 *            the 48-bit sequence number
 	 * @param fragment
@@ -188,8 +208,8 @@ public class Record {
 	 *            the IP address and port of the peer this record should be sent to
 	 * @throws IllegalArgumentException if the given sequence number is longer than 48 bits
 	 */
-	public Record(ContentType type, int epoch, long sequenceNumber, DTLSMessage fragment, InetSocketAddress peerAddress) {
-		this(type, epoch, sequenceNumber);
+	public Record(ContentType type, long sequenceNumber, DTLSMessage fragment, InetSocketAddress peerAddress) {
+		this(type, 0, sequenceNumber);
 		this.peerAddress = peerAddress;
 		try {
 			setFragment(fragment);
@@ -215,19 +235,25 @@ public class Record {
 	 * 
 	 * @return a byte array containing the <em>DTLSCiphertext</em> structure
 	 */
-	public synchronized byte[] toByteArray() {
+	public byte[] toByteArray() {
 		DatagramWriter writer = new DatagramWriter();
 
-		writer.write(type.getCode(), CONTENT_TYPE_BITS);
+		if (useConnectionId()) {
+			writer.write(ContentType.TLS12_CID.getCode(), CONTENT_TYPE_BITS);
+		} else {
+			writer.write(type.getCode(), CONTENT_TYPE_BITS);
+		}
 
 		writer.write(version.getMajor(), VERSION_BITS);
 		writer.write(version.getMinor(), VERSION_BITS);
 
 		writer.write(epoch, EPOCH_BITS);
 		writer.writeLong(sequenceNumber, SEQUENCE_NUMBER_BITS);
-
-		length = fragmentBytes.length;
-		writer.write(length, LENGTH_BITS);
+		if (useConnectionId()) {
+			writer.writeBytes(connectionId.getBytes());
+		}
+		fragmentLength = fragmentBytes.length;
+		writer.write(fragmentLength, LENGTH_BITS);
 
 		writer.writeBytes(fragmentBytes);
 
@@ -246,7 +272,7 @@ public class Record {
 	 * @return the <code>Record</code> instances
 	 * @throws NullPointerException if either one of the byte array or peer address is <code>null</code>
 	 */
-	public static List<Record> fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) {
+	public static List<Record> fromByteArray(byte[] byteArray, InetSocketAddress peerAddress, Integer connectionIdLength) {
 		if (byteArray == null) {
 			throw new NullPointerException("Byte array must not be null");
 		} else if (peerAddress == null) {
@@ -272,6 +298,18 @@ public class Record {
 			int epoch = reader.read(EPOCH_BITS);
 			long sequenceNumber = reader.readLong(SEQUENCE_NUMBER_BITS);
 
+			ConnectionId connectionId = null;
+			if (type == ContentType.TLS12_CID.getCode()) {
+				if (connectionIdLength == null) {
+					LOGGER.debug("Received TLS_CID record, but cid is not supported. Discarding ...");
+					continue;
+				} else if (connectionIdLength == 0) {
+					LOGGER.debug("Received TLS_CID record, but cid is not used. Discarding ...", type);
+					continue;
+				} else {
+					connectionId = new ConnectionId(reader.readBytes(connectionIdLength));
+				}
+			}
 			int length = reader.read(LENGTH_BITS);
 
 			if (reader.bitsLeft() < length) {
@@ -286,7 +324,8 @@ public class Record {
 			if (contentType == null) {
 				LOGGER.debug("Received DTLS record of unsupported type [{}]. Discarding ...", type);
 			} else {
-				records.add(new Record(contentType, version, epoch, sequenceNumber, fragmentBytes, peerAddress));
+				records.add(new Record(contentType, version, epoch, sequenceNumber, connectionId, fragmentBytes,
+						peerAddress));
 			}
 		}
 
@@ -305,8 +344,8 @@ public class Record {
 	 *            because the JVM does not support the negotiated cipher suite's cipher algorithm
 	 */
 	private byte[] encryptFragment(byte[] plaintextFragment) throws GeneralSecurityException {
-		
-		if (session == null) {
+
+		if (session == null || epoch == 0) {
 			return plaintextFragment;
 		}
 
@@ -314,7 +353,7 @@ public class Record {
 
 		CipherSuite cipherSuite = session.getWriteState().getCipherSuite();
 		LOGGER.trace("Encrypting record fragment using current write state{}{}", StringUtil.lineSeparator(), session.getWriteState());
-		
+
 		switch (cipherSuite.getCipherType()) {
 		case NULL:
 			// do nothing
@@ -363,7 +402,7 @@ public class Record {
 
 		CipherSuite cipherSuite = currentReadState.getCipherSuite();
 		LOGGER.trace("Decrypting record fragment using current read state{}{}", StringUtil.lineSeparator(), currentReadState);
-		
+
 		switch (cipherSuite.getCipherType()) {
 		case NULL:
 			// do nothing
@@ -449,8 +488,7 @@ public class Record {
 		Arrays.fill(padding, (byte) paddingLength);
 		plaintext.writeBytes(padding);
 		Cipher blockCipher = CipherManager.getInstance(session.getWriteState().getCipherSuite().getTransformation());
-		blockCipher.init(Cipher.ENCRYPT_MODE,
-				session.getWriteState().getEncryptionKey());
+		blockCipher.init(Cipher.ENCRYPT_MODE, session.getWriteState().getEncryptionKey());
 
 		// create GenericBlockCipher structure
 		DatagramWriter result = new DatagramWriter();
@@ -559,6 +597,11 @@ public class Record {
 		byte[] key = session.getWriteState().getEncryptionKey().getEncoded();
 		byte[] additionalData = generateAdditionalData(byteArray.length);
 
+		if (LOGGER.isTraceEnabled()) {
+			LOGGER.trace("encrypt: {} bytes", byteArray.length);
+			LOGGER.trace("nonce: {}", StringUtil.byteArray2HexString(nonce, StringUtil.NO_SEPARATOR, 0));
+			LOGGER.trace("adata: {}", StringUtil.byteArray2HexString(additionalData, StringUtil.NO_SEPARATOR, 0));
+		}
 		byte[] encryptedFragment = CCMBlockCipher.encrypt(key, nonce, additionalData, byteArray, 8);
 
 		/*
@@ -568,6 +611,7 @@ public class Record {
 		 */
 		byte[] explicitNonce = generateExplicitNonce();
 		encryptedFragment = ByteArrayUtils.concatenate(explicitNonce, encryptedFragment);
+		LOGGER.trace("==> {} bytes", encryptedFragment.length);
 
 		return encryptedFragment;
 	}
@@ -617,6 +661,11 @@ public class Record {
 		}
 
 		byte[] nonce = getNonce(iv, explicitNonceUsed);
+		if (LOGGER.isTraceEnabled()) {
+			LOGGER.trace("decrypt: {} bytes", byteArray.length - 16);
+			LOGGER.trace("nonce: {}", StringUtil.byteArray2HexString(nonce, StringUtil.NO_SEPARATOR, 0));
+			LOGGER.trace("adata: {}", StringUtil.byteArray2HexString(additionalData, StringUtil.NO_SEPARATOR, 0));
+		}
 		return CCMBlockCipher.decrypt(key, nonce, additionalData, reader.readBytesLeft(), 8);
 	}
 
@@ -674,15 +723,25 @@ public class Record {
 	}
 
 	/**
-	 * See <a href="http://tools.ietf.org/html/rfc5246#section-6.2.3.3">RFC
-	 * 5246</a>:
+	 * See <a href="http://tools.ietf.org/html/rfc5246#section-6.2.3.3">RFC 5246</a>:
 	 * 
 	 * <pre>
 	 * additional_data = seq_num + TLSCompressed.type +
-	 * TLSCompressed.version + TLSCompressed.length;
+	 *                   TLSCompressed.version + TLSCompressed.length;
 	 * </pre>
 	 * 
 	 * where "+" denotes concatenation.
+	 * 
+	 * For the new tls_cid record, currently defined in
+	 * <a href="https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/">Draft dtls-connection-id</a>
+	 * this is extended by the conneciton id:
+	 * 
+	 * <pre>
+	 * additional_data = seq_num + TLSCompressed.type + TLSCompressed.version + 
+	 *                   connection_id + connection_id_length + TLSCompressed.length;
+	 * </pre>
+	 * 
+	 * with the connection_id_length encoded in one uint8 byte.
 	 * 
 	 * @return the additional authentication data.
 	 */
@@ -692,11 +751,17 @@ public class Record {
 		writer.write(epoch, EPOCH_BITS);
 		writer.writeLong(sequenceNumber, SEQUENCE_NUMBER_BITS);
 
-		writer.write(type.getCode(), CONTENT_TYPE_BITS);
-
+		if (useConnectionId()) {
+			writer.write(ContentType.TLS12_CID.getCode(), CONTENT_TYPE_BITS);
+		} else {
+			writer.write(type.getCode(), CONTENT_TYPE_BITS);
+		}
 		writer.write(version.getMajor(), VERSION_BITS);
 		writer.write(version.getMinor(), VERSION_BITS);
-		
+		if (useConnectionId()) {
+			writer.writeBytes(connectionId.getBytes());
+			writer.write(connectionId.length(), CID_LENGTH_BITS);
+		}
 		writer.write(length, LENGTH_BITS);
 
 		return writer.toByteArray();
@@ -708,7 +773,6 @@ public class Record {
 	 * Check, if record is CLIENT_HELLO of epoch 0.
 	 * 
 	 * This is important to detect a new association according RFC6347, section 4.2.8.
-	 * 
 	 * 
 	 * @return {@code true}, if record contains CLIENT_HELLO of epoch 0,
 	 *         {@code false} otherwise.
@@ -750,13 +814,18 @@ public class Record {
 	 * @param sequenceNumber the new sequence number
 	 * @throws GeneralSecurityException if the fragment could not be re-encrypted
 	 */
-	public synchronized void setSequenceNumber(long sequenceNumber) throws GeneralSecurityException {
+	public void setSequenceNumber(long sequenceNumber) throws GeneralSecurityException {
 		if (sequenceNumber > MAX_SEQUENCE_NO) {
 			throw new IllegalArgumentException("Sequence number must have max 48 bits");
 		}
-		this.sequenceNumber = sequenceNumber;
-		if (session != null && session.getWriteState() != null && epoch > 0) {
-			fragmentBytes = encryptFragment(fragment.toByteArray());
+		if (this.sequenceNumber != sequenceNumber) {
+			this.sequenceNumber = sequenceNumber;
+			if (session != null && session.getWriteState() != null && epoch > 0) {
+				byte[] byteArray = fragment.toByteArray();
+				byteArray = applyInnerTypeAndPadding(byteArray);
+				fragmentLength = byteArray.length;
+				fragmentBytes = encryptFragment(byteArray);
+			}
 		}
 	}
 
@@ -769,25 +838,45 @@ public class Record {
 	 * 
 	 * @return the fragment length excluding record headers
 	 */
-	public int getLength() {
-		return length;
+	public int getFragmentLength() {
+		return fragmentLength;
 	}
 
-	public synchronized void setSession(DTLSSession session) {
+	/**
+	 * Set associated session.
+	 * 
+	 * Take over peer address from session.
+	 * 
+	 * @param session session to be set
+	 */
+	public void setSession(DTLSSession session) {
 		this.session = session;
-		if (session != null) {
-			this.peerAddress = null;
+		if (session != null && this.peerAddress == null) {
+			this.peerAddress = session.getPeer();
 		}
 	}
 
+	/**
+	 * Get peer address.
+	 * 
+	 * @return peer address
+	 * @throws IllegalStateException if peer address is not available
+	 */
 	public InetSocketAddress getPeerAddress() {
-		if (session != null) {
-			return session.getPeer();
-		} else if (peerAddress != null) {
+		if (peerAddress != null) {
 			return peerAddress;
 		} else {
 			throw new IllegalStateException("Record does not have a peer address");
 		}
+	}
+
+	/**
+	 * Get connection id.
+	 * 
+	 * @return connection id
+	 */
+	public ConnectionId getConnectionId() {
+		return connectionId;
 	}
 
 	/**
@@ -802,14 +891,19 @@ public class Record {
 	/**
 	 * Gets the object representation of this record's <em>DTLSPlaintext.fragment</em>.
 	 *  
-	 * If this record only contains the fragment's ciphertext representation, it is
-	 * first decrypted and then parsed into a <code>DTLSMessage</code> instance using
-	 * the DTLS connection's <em>current</em> read state.
+	 * If this record not already contains the fragment, the fragment's
+	 * ciphertext representation is first decrypted and then parsed into a
+	 * <code>DTLSMessage</code> instance. If the record uses the new record type
+	 * {@link ContentType#TLS12_CID} the inner-plaintext is also converted to
+	 * plaintext before the DTLSMessage is created and the {@link #type} is
+	 * updated with the type of the inner plaintext.
 	 * 
 	 * @return the plaintext fragment
 	 * @throws InvalidMacException if message authentication failed
-	 * @throws GeneralSecurityException if de-cryption fails, e.g. because
-	 *             the JVM does not support the negotiated cipher algorithm
+	 * @throws GeneralSecurityException if de-cryption fails, e.g. because the
+	 *             JVM does not support the negotiated cipher algorithm, or
+	 *             decoding of the inner plain text of
+	 *             {@link ContentType#TLS12_CID} fails
 	 * @throws HandshakeException if the TLSPlaintext.fragment could not be parsed into
 	 *             a valid handshake message
 	 */
@@ -822,26 +916,54 @@ public class Record {
 	}	
 
 	/**
-	 * Gets the object representation of this record's <em>DTLSPlaintext.fragment</em>. 
-	 * <p>
-	 * If this record only contains the fragment's ciphertext representation, it is
-	 * first decrypted and then parsed into a <code>DTLSMessage</code> instance.
+	 * Gets the object representation of this record's
+	 * <em>DTLSPlaintext.fragment</em>.
 	 * 
-	 * @param currentReadState the crypto params to use for de-crypting the ciphertext,
-	 *           if <code>null</code> the fragment bytes are expected to be plaintext already
-	 *           and will be parsed into a <code>DTLSMessage</code> directly
+	 * If this record not already contains the fragment, the fragment's
+	 * ciphertext representation is first decrypted and then parsed into a
+	 * <code>DTLSMessage</code> instance. If the record uses the new record type
+	 * {@link ContentType#TLS12_CID} the inner-plaintext is also converted to
+	 * plaintext before the DTLSMessage is created and the {@link #type} is
+	 * updated with the type of the inner plaintext.
+	 * 
+	 * @param currentReadState the crypto params to use for de-crypting the
+	 *            ciphertext, if <code>null</code> the fragment bytes are
+	 *            expected to be plaintext already and will be parsed into a
+	 *            <code>DTLSMessage</code> directly
 	 * @return the message object
 	 * @throws InvalidMacException if message authentication failed
-	 * @throws GeneralSecurityException if de-cryption fails, e.g. because
-	 *             the JVM does not support the negotiated cipher algorithm
-	 * @throws HandshakeException if the TLSPlaintext.fragment could not be parsed into
-	 *             a valid handshake message
+	 * @throws GeneralSecurityException if de-cryption fails, e.g. because the
+	 *             JVM does not support the negotiated cipher algorithm, or
+	 *             decoding of the inner plain text of
+	 *             {@link ContentType#TLS12_CID} fails
+	 * @throws HandshakeException if the TLSPlaintext.fragment could not be
+	 *             parsed into a valid handshake message
 	 */
 	public DTLSMessage getFragment(final DTLSConnectionState currentReadState) throws GeneralSecurityException, HandshakeException {
 		if (fragment == null) {
+			ContentType innerType = type;
 			// decide, which type of fragment need de-cryption
 			byte[] decryptedMessage = decryptFragment(fragmentBytes, currentReadState);
-			switch (type) {
+
+			if (ContentType.TLS12_CID == type) {
+				int index = decryptedMessage.length - 1;
+				while (index >= 0 && decryptedMessage[index] == 0) {
+					--index;
+				}
+				if (index < 0) {
+					throw new GeneralSecurityException("no inner type!");
+				}
+				int typeCode = decryptedMessage[index];
+				innerType =  ContentType.getTypeByValue(typeCode);
+				if (innerType == null) {
+					LOGGER.debug("Received DTLS record of unsupported inner type [{}]. Discarding {} bytes ...", typeCode, index);
+					throw new GeneralSecurityException("unknown inner type " + typeCode + "!");
+				}
+				decryptedMessage = Arrays.copyOf(decryptedMessage, index);
+				fragmentLength = decryptedMessage.length;
+			}
+
+			switch (innerType) {
 			case ALERT:
 				// http://tools.ietf.org/html/rfc5246#section-7.2:
 				// "Like other messages, alert messages are encrypted and
@@ -870,6 +992,7 @@ public class Record {
 			default:
 				LOGGER.warn("Cannot decrypt message of unsupported type [{}]", type);
 			}
+			type = innerType;
 		}
 
 		return fragment;
@@ -911,7 +1034,7 @@ public class Record {
 	 * @throws GeneralSecurityException if the message could not be encrypted, e.g.
 	 *            because the JVM does not support the negotiated cipher suite's cipher algorithm
 	 */
-	public synchronized void setFragment(DTLSMessage fragment) throws GeneralSecurityException {
+	public void setFragment(DTLSMessage fragment) throws GeneralSecurityException {
 
 		if (fragmentBytes == null) {
 			// serialize fragment and if necessary encrypt byte array
@@ -919,13 +1042,15 @@ public class Record {
 			byte[] byteArray = fragment.toByteArray();
 			// the current length of the unprotected message
 			// this value is needed to generate the additional data when using AEAD
-			length = byteArray.length;
+			fragmentLength = byteArray.length;
 
 			switch (type) {
 			case ALERT:
 			case APPLICATION_DATA:
 			case HANDSHAKE:
 			case CHANGE_CIPHER_SPEC:
+				byteArray = applyInnerTypeAndPadding(byteArray);
+				fragmentLength = byteArray.length;
 				byteArray = encryptFragment(byteArray);
 				break;
 
@@ -939,6 +1064,42 @@ public class Record {
 		this.fragment = fragment;
 	}
 
+	/**
+	 * Check, if new tls_cid record must be used.
+	 * 
+	 * See <a href=
+	 * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/">Draft dtls-connection-id</a> 
+	 * 2019-feb-18: the last discussion agreement is NOT to use a empty CID for tls_cid records.
+	 * 
+	 * @return {@code true}, if a none empty cid is used.
+	 * @see #Record(ContentType, int, long, DTLSMessage, DTLSSession, boolean,
+	 *      int)
+	 */
+	private final boolean useConnectionId() {
+		return connectionId != null && !connectionId.isEmpty();
+	}
+
+	/**
+	 * Prepare "inner plain text", if tls_cid record is used.
+	 * 
+	 * The "inner plain text" contains the payload, the original record type,
+	 * and optional padding with zeros.
+	 * 
+	 * @param fragment payload
+	 * @return "inner plain text", if tls_cid is used (see
+	 *         {@link #useConnectionId()}).
+	 * @see #padding
+	 * @see #type
+	 */
+	private byte[] applyInnerTypeAndPadding(byte[] fragment) {
+		if (useConnectionId()) {
+			int index = fragment.length;
+			fragment = Arrays.copyOf(fragment, index + 1 + padding);
+			fragment[index] = (byte) type.getCode();
+		}
+		return fragment;
+	}
+
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
@@ -948,7 +1109,10 @@ public class Record {
 		sb.append(StringUtil.lineSeparator()).append("Version: ").append(version.getMajor()).append(", ").append(version.getMinor());
 		sb.append(StringUtil.lineSeparator()).append("Epoch: ").append(epoch);
 		sb.append(StringUtil.lineSeparator()).append("Sequence Number: ").append(sequenceNumber);
-		sb.append(StringUtil.lineSeparator()).append("Length: ").append(length);
+		if (connectionId != null) {
+			sb.append(StringUtil.lineSeparator()).append("connection id: ").append(connectionId.getAsString());
+		}
+		sb.append(StringUtil.lineSeparator()).append("Length: ").append(fragmentLength);
 		sb.append(StringUtil.lineSeparator()).append("Fragment:");
 		if (fragment != null) {
 			sb.append(StringUtil.lineSeparator()).append(fragment);

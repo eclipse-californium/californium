@@ -506,4 +506,18 @@ public final class ClientHello extends HandshakeMessage {
 			return null;
 		}
 	}
+
+	/**
+	 * Gets the <em>connection id</em> extension data from this message.
+	 * 
+	 * @return the extension data or <code>null</code> if this message does not contain the
+	 *          <em>connection id</em> extension.
+	 */
+	public ConnectionIdExtension getConnectionIdExtension() {
+		if (extensions != null) {
+			return (ConnectionIdExtension) extensions.getExtension(ExtensionType.CONNECTION_ID);
+		} else {
+			return null;
+		}
+	}
 }

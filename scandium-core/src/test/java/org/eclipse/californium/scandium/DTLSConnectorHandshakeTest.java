@@ -88,6 +88,7 @@ public class DTLSConnectorHandshakeTest {
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
 				.setClientAuthenticationRequired(clientAuthRequired)
 				.setClientAuthenticationWanted(clientAuthWanted)
+				.setLoggingTag("server")
 				.setSniEnabled(enableSni);
 		serverHelper = new ConnectorHelper();
 		serverHelper.startServer(builder);
@@ -127,6 +128,7 @@ public class DTLSConnectorHandshakeTest {
 	private void startClient(boolean enableSni, String hostname, DtlsConnectorConfig.Builder builder) throws Exception {
 		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		builder.setAddress(clientEndpoint)
+				.setLoggingTag("client")
 				.setReceiverThreadCount(1)
 				.setConnectionThreadCount(1)
 				.setSniEnabled(enableSni)

@@ -252,6 +252,11 @@ public final class DtlsConnectorConfig {
 	 */
 	private String loggingTag;
 
+	/**
+	 * Enables use of connection id. 
+	 */
+	private Integer connectionIdLength;
+
 	private DtlsConnectorConfig() {
 		// empty
 	}
@@ -384,6 +389,16 @@ public final class DtlsConnectorConfig {
 	 */
 	public Integer getVerifyPeersOnResumptionThreshold() {
 		return verifyPeersOnResumptionThreshold;
+	}
+
+	/**
+	 * Gets connection ID length.
+	 * 
+	 * @return length of connection id. 0 for support connection id, but not
+	 *         using it. {@code null} for no supported.
+	 */
+	public Integer getConnectionIdLength() {
+		return connectionIdLength;
 	}
 
 	/**
@@ -674,6 +689,7 @@ public final class DtlsConnectorConfig {
 		cloned.verifyPeersOnResumptionThreshold = verifyPeersOnResumptionThreshold;
 		cloned.useNoServerSessionId = useNoServerSessionId;
 		cloned.loggingTag = loggingTag;
+		cloned.connectionIdLength = connectionIdLength;
 		return cloned;
 	}
 
@@ -1437,6 +1453,20 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
+		 * Sets the connection ID length.
+		 * 
+		 * @param connectionIdLength
+		 * @return this builder for command chaining.
+		 */
+		public Builder setConnectionIdLength(final Integer connectionIdLength) {
+			if (connectionIdLength != null && connectionIdLength < 0) {
+				throw new IllegalArgumentException("cid length must be at least 0");
+			}
+			config.connectionIdLength = connectionIdLength;
+			return this;
+		}
+
+		/**
 		 * Set the number of thread which should be used to handle DTLS
 		 * connection.
 		 * <p>
@@ -1480,8 +1510,8 @@ public final class DtlsConnectorConfig {
 		 * @throws IllegalArgumentException if the timeout is below 1
 		 *             millisecond
 		 */
-		public Builder setAutoResumptionTimeoutMillis(long timeoutInMillis) {
-			if (timeoutInMillis < 1) {
+		public Builder setAutoResumptionTimeoutMillis(Long timeoutInMillis) {
+			if (timeoutInMillis != null && timeoutInMillis < 1) {
 				throw new IllegalArgumentException("auto resumption timeout must not below 1!");
 			}
 			config.autoResumptionTimeoutMillis = timeoutInMillis;

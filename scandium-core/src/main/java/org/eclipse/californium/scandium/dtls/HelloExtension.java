@@ -153,6 +153,8 @@ public abstract class HelloExtension {
 				return MaxFragmentLengthExtension.fromExtensionData(extensionData, peerAddress);
 			case SERVER_NAME:
 				return ServerNameExtension.fromExtensionData(extensionData, peerAddress);
+			case CONNECTION_ID:
+				return ConnectionIdExtension.fromExtensionData(extensionData, peerAddress);
 			default:
 				return null;
 			}
@@ -240,6 +242,10 @@ public abstract class HelloExtension {
 
 		/** See <a href="http://www.iana.org/go/rfc4507">RFC 4507</a> **/
 		SESSION_TICKET_TLS(35, "SessionTicket TLS"),
+
+		/** See <a href="https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/">Draft dtls-connection-id</a> **/
+		/** 2019-feb-18: the iana value is not assigned and 52 is only the currently next unassigned value. This value may change in the future! **/
+		CONNECTION_ID(52, "Connection ID"),
 
 		/** See <a href="http://www.iana.org/go/rfc5746">RFC 5746</a> **/
 		RENEGOTIATION_INFO(65281, "renegotiation_info");

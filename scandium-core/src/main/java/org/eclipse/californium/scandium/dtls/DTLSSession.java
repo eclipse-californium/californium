@@ -133,6 +133,11 @@ public final class DTLSSession {
 	private byte[] masterSecret = null;
 
 	/**
+	 * Connection id used for all outbound records.
+	 */
+	private ConnectionId writeConnectionId = null;
+
+	/**
 	 * The <em>current read state</em> used for processing all inbound records.
 	 */
 	private DTLSConnectionState readState = new DTLSConnectionState();
@@ -298,6 +303,25 @@ public final class DTLSSession {
 			this.masterSecret = null;
 			this.sessionIdentifier = sessionIdentifier;
 		}
+	}
+
+	/**
+	 * Get connection id for outbound records.
+	 * 
+	 * @return connection id for outbound records. {@code null}, if connection
+	 *         id is not used by other peer
+	 */
+	public ConnectionId getWriteConnectionId() {
+		return writeConnectionId;
+	}
+
+	/**
+	 * Set connection id for outbound records.
+	 * 
+	 * @param connectionId connection id for outbound records
+	 */
+	void setWriteConnectionId(ConnectionId connectionId) {
+		this.writeConnectionId = connectionId;
 	}
 
 	/**

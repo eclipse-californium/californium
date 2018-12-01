@@ -1153,7 +1153,7 @@ public class DTLSConnectorAdvancedTest {
 				if (record2.getType() != record1.getType()) {
 					break;
 				}
-				if (record2.getLength() != record1.getLength()) {
+				if (record2.getFragmentLength() != record1.getFragmentLength()) {
 					break;
 				}
 				if (record2.getSequenceNumber() > record1.getSequenceNumber()) {
@@ -1189,7 +1189,8 @@ public class DTLSConnectorAdvancedTest {
 			Record record2 = flight2.get(index);
 			assertThat("retransmitted flight record has different epoch", record2.getEpoch(), is(record1.getEpoch()));
 			assertThat("retransmitted flight record has different type", record2.getType(), is(record1.getType()));
-			assertThat("retransmitted flight record has different lenght", record2.getLength(), is(record1.getLength()));
+			assertThat("retransmitted flight record has different lenght", record2.getFragmentLength(),
+					is(record1.getFragmentLength()));
 			assertThat("retransmitted flight record has no newer seqn", record2.getSequenceNumber(),
 					is(greaterThan(record1.getSequenceNumber())));
 		}

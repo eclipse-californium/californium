@@ -134,7 +134,7 @@ public class ConnectorHelper {
 	public void startServer(DtlsConnectorConfig.Builder builder) throws IOException, GeneralSecurityException {
 
 		serverSessionCache = new InMemorySessionCache();
-		serverConnectionStore = new InMemoryConnectionStore(SERVER_CONNECTION_STORE_CAPACITY, 5 * 60, serverSessionCache); // connection timeout 5mins
+		serverConnectionStore = new InMemoryConnectionStore(null, SERVER_CONNECTION_STORE_CAPACITY, 5 * 60, serverSessionCache); // connection timeout 5mins
 		serverConnectionStore.setTag("server");
 
 		InMemoryPskStore pskStore = new InMemoryPskStore();
@@ -446,7 +446,7 @@ public class ConnectorHelper {
 		@Override
 		public void handleData(InetSocketAddress endpoint, byte[] data) {
 			try {
-				records.put(Record.fromByteArray(data, endpoint));
+				records.put(Record.fromByteArray(data, endpoint, null));
 			} catch (InterruptedException e) {
 			}
 		}

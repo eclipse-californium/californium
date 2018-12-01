@@ -295,22 +295,28 @@ public final class ServerHello extends HandshakeMessage {
 	 * Gets the type of certificate the server expects the client to send in
 	 * its <em>Certificate</em> message.
 	 * 
-	 * @return the type
+	 * @return the certificate type
 	 */
 	CertificateType getClientCertificateType() {
 		return getCertificateType(ExtensionType.CLIENT_CERT_TYPE);
 	}
-	
+
 	/**
 	 * Gets the type of certificate the server will send to the client in
 	 * its <em>Certificate</em> message.
 	 * 
-	 * @return the type
+	 * @return the certificate type
 	 */
 	CertificateType getServerCertificateType() {
 		return getCertificateType(ExtensionType.SERVER_CERT_TYPE);
 	}
 
+	/**
+	 * Gets the type of certificate for the provided extension type.
+	 * 
+	 * @param type extension type. Either {@link ExtensionType#SERVER_CERT_TYPE} or {@link ExtensionType#CLIENT_CERT_TYPE}
+	 * @return the certificate type
+	 */
 	CertificateType getCertificateType(ExtensionType type) {
 		// default type is always X.509
 		CertificateType result = CertificateType.X_509;
@@ -333,6 +339,20 @@ public final class ServerHello extends HandshakeMessage {
 	MaxFragmentLengthExtension getMaxFragmentLength() {
 		if (extensions != null) {
 			return (MaxFragmentLengthExtension) extensions.getExtension(ExtensionType.MAX_FRAGMENT_LENGTH);
+		} else {
+			return null;
+		}
+	}
+
+	/**
+	 * Gets the <em>connection id</em> extension data from this message.
+	 * 
+	 * @return the extension data or <code>null</code> if this message does not contain the
+	 *          <em>connection id</em> extension.
+	 */
+	public ConnectionIdExtension getConnectionIdExtension() {
+		if (extensions != null) {
+			return (ConnectionIdExtension) extensions.getExtension(ExtensionType.CONNECTION_ID);
 		} else {
 			return null;
 		}

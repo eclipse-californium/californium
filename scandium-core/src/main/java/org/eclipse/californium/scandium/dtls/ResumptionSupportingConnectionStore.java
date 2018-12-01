@@ -30,6 +30,13 @@ import java.util.List;
 public interface ResumptionSupportingConnectionStore {
 
 	/**
+	 * Get connection id length.
+	 * 
+	 * return connection id length
+	 */
+	public int getConnectionIdLength();
+
+	/**
 	 * Puts a connection into the store.
 	 * 
 	 * The connection is primary associated with its connection id

@@ -117,10 +117,11 @@ public class DTLSConnectorStartStopTest {
 	@Before
 	public void setUp() throws IOException, GeneralSecurityException {
 		testLogTag = testLogTagHead + testLogTagCounter++;
-		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60, clientSessionCache);
+		clientConnectionStore = new InMemoryConnectionStore(null, CLIENT_CONNECTION_STORE_CAPACITY, 60, clientSessionCache);
 		clientConnectionStore.setTag(testLogTag + "-client");
 		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		DtlsConnectorConfig.Builder builder = newStandardClientConfigBuilder(clientEndpoint)
+				.setLoggingTag(testLogTag + "-client")
 				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY);
 		DtlsConnectorConfig clientConfig = builder.build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
