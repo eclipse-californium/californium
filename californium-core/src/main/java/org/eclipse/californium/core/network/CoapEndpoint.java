@@ -677,7 +677,7 @@ public class CoapEndpoint implements Endpoint {
 			}
 			// Request may have been canceled already, e.g. by one of the interceptors
 			// or client code
-			if (request.isCanceled()) {
+			if (request.isCanceled() || request.getSendError() != null) {
 
 				// make sure we do necessary house keeping, e.g. removing the exchange from
 				// ExchangeStore to avoid memory leak
@@ -716,7 +716,7 @@ public class CoapEndpoint implements Endpoint {
 			}
 
 			// MessageInterceptor might have canceled
-			if (response.isCanceled()) {
+			if (response.isCanceled() || response.getSendError() != null) {
 				if (null != exchange) {
 					exchange.executeComplete();
 				}
@@ -746,7 +746,7 @@ public class CoapEndpoint implements Endpoint {
 			}
 
 			// MessageInterceptor might have canceled
-			if (message.isCanceled()) {
+			if (message.isCanceled() || message.getSendError() != null) {
 				if (null != exchange) {
 					exchange.executeComplete();
 				}
