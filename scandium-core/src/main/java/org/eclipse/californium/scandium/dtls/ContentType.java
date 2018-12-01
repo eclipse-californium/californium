@@ -24,7 +24,7 @@ package org.eclipse.californium.scandium.dtls;
  */
 public enum ContentType {
 
-	CHANGE_CIPHER_SPEC(20), ALERT(21), HANDSHAKE(22), APPLICATION_DATA(23);
+	CHANGE_CIPHER_SPEC(20), ALERT(21), HANDSHAKE(22), APPLICATION_DATA(23), TLS12_CID(25);
 
 	private int code;
 
@@ -55,6 +55,10 @@ public enum ContentType {
 			return ContentType.HANDSHAKE;
 		case 23:
 			return ContentType.APPLICATION_DATA;
+		case 25:
+			/** See <a href="https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/">Draft dtls-connection-id</a> **/
+			/** 2019-feb-18: the iana value is not yet assigned. This value may change in the future! **/
+			return ContentType.TLS12_CID;
 
 		default:
 			return null;
@@ -72,6 +76,8 @@ public enum ContentType {
 			return "Handshake (22)";
 		case 23:
 			return "Application Data (23)";
+		case 25:
+			return "TLS CID (25)";
 
 		default:
 			return "Unknown Content Type";

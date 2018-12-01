@@ -233,7 +233,6 @@ public class ServerHandshaker extends Handshaker {
 			LOGGER.debug(msg.toString(), message.getContentType(), message.getPeer());
 		}
 
-
 		switch (message.getContentType()) {
 		case CHANGE_CIPHER_SPEC:
 			setCurrentReadState();
@@ -517,34 +516,7 @@ public class ServerHandshaker extends Handshaker {
 
 		HelloExtensions serverHelloExtensions = new HelloExtensions();
 		negotiateCipherSuite(clientHello, serverHelloExtensions);
-
-		MaxFragmentLengthExtension maxFragmentLengthExt = clientHello.getMaxFragmentLengthExtension();
-		if (maxFragmentLengthExt != null) {
-			session.setMaxFragmentLength(maxFragmentLengthExt.getFragmentLength().length());
-			serverHelloExtensions.addExtension(maxFragmentLengthExt);
-			LOGGER.debug(
-					"Negotiated max. fragment length [{} bytes] with peer [{}]",
-					maxFragmentLengthExt.getFragmentLength().length(), clientHello.getPeer());
-		}
-
-		ServerNameExtension serverNameExt = clientHello.getServerNameExtension();
-		if (serverNameExt != null) {
-			if (sniEnabled) {
-				// store the names indicated by peer for later reference during key exchange
-				session.setServerNames(serverNameExt.getServerNames());
-				// RFC6066, section 3 requires the server to respond with
-				// an empty SNI extension if it might make use of the value(s)
-				// provided by the client
-				serverHelloExtensions.addExtension(ServerNameExtension.emptyServerNameIndication());
-				session.setSniSupported(true);
-				LOGGER.debug(
-						"using server name indication received from peer [{}]",
-						clientHello.getPeer());
-			} else {
-				LOGGER.debug("client [{}] included SNI in HELLO but SNI support is disabled",
-						clientHello.getPeer());
-			}
-		}
+		processHelloExtensions(clientHello, serverHelloExtensions);
 
 		ServerHello serverHello = new ServerHello(serverVersion, serverRandom, sessionId,
 				session.getCipherSuite(), session.getCompressionMethod(), serverHelloExtensions, session.getPeer());
@@ -684,7 +656,7 @@ public class ServerHandshaker extends Handshaker {
 		byte[] psk = pskStore.getKey(session.getServerNames(), identity);
 		return configurePskCredentials(identity, psk, null);
 	}
-	
+
 	private byte[] receivedClientKeyExchange(final EcdhPskClientKeyExchange message) throws HandshakeException {
 
 		clientKeyExchange = message;
@@ -710,6 +682,53 @@ public class ServerHandshaker extends Handshaker {
 		// by current assumption we take an empty premaster secret
 		// to compute the master secret and the resulting keys
 		return new byte[] {};
+	}
+
+	protected void processHelloExtensions(final ClientHello clientHello, final HelloExtensions serverHelloExtensions) {
+		MaxFragmentLengthExtension maxFragmentLengthExt = clientHello.getMaxFragmentLengthExtension();
+		if (maxFragmentLengthExt != null) {
+			session.setMaxFragmentLength(maxFragmentLengthExt.getFragmentLength().length());
+			serverHelloExtensions.addExtension(maxFragmentLengthExt);
+			LOGGER.debug(
+					"Negotiated max. fragment length [{} bytes] with peer [{}]",
+					maxFragmentLengthExt.getFragmentLength().length(), clientHello.getPeer());
+		}
+
+		ServerNameExtension serverNameExt = clientHello.getServerNameExtension();
+		if (serverNameExt != null) {
+			if (sniEnabled) {
+				// store the names indicated by peer for later reference during key exchange
+				session.setServerNames(serverNameExt.getServerNames());
+				// RFC6066, section 3 requires the server to respond with
+				// an empty SNI extension if it might make use of the value(s)
+				// provided by the client
+				serverHelloExtensions.addExtension(ServerNameExtension.emptyServerNameIndication());
+				session.setSniSupported(true);
+				LOGGER.debug(
+						"using server name indication received from peer [{}]",
+						clientHello.getPeer());
+			} else {
+				LOGGER.debug("client [{}] included SNI in HELLO but SNI support is disabled",
+						clientHello.getPeer());
+			}
+		}
+
+		if (connectionIdLength != null) {
+			ConnectionIdExtension connectionIdExtension = clientHello.getConnectionIdExtension();
+			if (connectionIdExtension != null) {
+				session.setWriteConnectionId(connectionIdExtension.getConnectionId());
+				final ConnectionId connectionId;
+				if (connectionIdLength > 0) {
+					// use the already created unique cid
+					connectionId = getConnection().getConnectionId();
+				} else {
+					// use empty cid
+					connectionId = ConnectionId.EMPTY;
+				}
+				ConnectionIdExtension extension = ConnectionIdExtension.fromConnectionId(connectionId);
+				serverHelloExtensions.addExtension(extension);
+			}
+		}
 	}
 
 	@Override

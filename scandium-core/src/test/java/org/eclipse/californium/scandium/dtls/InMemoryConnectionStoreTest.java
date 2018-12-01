@@ -61,6 +61,30 @@ public class InMemoryConnectionStoreTest {
 	}
 
 	@Test
+	public void testGetConnectionIdRetrievesLocalConnection() {
+		// given a connection store containing a connection with a peer
+		store.put(con);
+		// when retrieving the connection for the given peer
+		ConnectionId cid = con.getConnectionId();
+		Connection connectionWithPeer = store.get(cid);
+		assertThat(connectionWithPeer, is(con));
+		ConnectionId cid2 = new ConnectionId(cid.getBytes());
+		assertThat("hash", cid2.hashCode(), is(cid.hashCode()));
+		assertThat("equals", cid2, is(cid));
+		connectionWithPeer = store.get(cid2);
+		assertThat(connectionWithPeer, is(con));
+	}
+
+	@Test
+	public void testGetAddressRetrievesLocalConnection() {
+		// given a connection store containing a connection with a peer
+		store.put(con);
+		// when retrieving the connection for the given peer
+		Connection connectionWithPeer = store.get(con.getPeerAddress());
+		assertThat(connectionWithPeer, is(con));
+	}
+
+	@Test
 	public void testFindRetrievesLocalConnection() {
 		// given a connection store containing a connection with a peer
 		store.put(con);
@@ -76,7 +100,7 @@ public class InMemoryConnectionStoreTest {
 		// GIVEN an empty connection store with a cached session shared by another node
 		SessionCache sessionCache = new InMemorySessionCache();
 		sessionCache.put(con.getEstablishedSession());
-		store = new InMemoryConnectionStore(INITIAL_CAPACITY, 1000, sessionCache);
+		store = new InMemoryConnectionStore(null, INITIAL_CAPACITY, 1000, sessionCache);
 
 		// WHEN retrieving the connection for the given peer
 		Connection connectionWithPeer = store.find(sessionId);
@@ -95,7 +119,7 @@ public class InMemoryConnectionStoreTest {
 		// and a (local) connection based on this session
 		SessionCache sessionCache = new InMemorySessionCache();
 		sessionCache.put(con.getEstablishedSession());
-		store = new InMemoryConnectionStore(INITIAL_CAPACITY, 1000, sessionCache);
+		store = new InMemoryConnectionStore(null, INITIAL_CAPACITY, 1000, sessionCache);
 		store.put(con);
 		store.putEstablishedSession(con.getEstablishedSession(), con);
 		InetSocketAddress peerAddress = con.getPeerAddress();
@@ -271,6 +295,7 @@ public class InMemoryConnectionStoreTest {
 	}
 
 	private static class TestSerialExecutor extends SerialExecutor {
+
 		private TestSerialExecutor() {
 			super(ExecutorsUtil.getScheduledExecutor());
 		}

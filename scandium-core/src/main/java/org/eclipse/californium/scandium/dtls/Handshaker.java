@@ -108,7 +108,7 @@ import org.slf4j.LoggerFactory;
 public abstract class Handshaker {
 
 	private static final String MESSAGE_DIGEST_ALGORITHM_NAME = "SHA-256";
-	private static final Logger LOGGER = LoggerFactory.getLogger(Handshaker.class.getName());
+	private final Logger LOGGER = LoggerFactory.getLogger(getClass().getName());
 
 	/**
 	 * Indicates whether this handshaker performs the client or server part of
@@ -143,6 +143,12 @@ public abstract class Handshaker {
 
 	/** The trusted raw public keys */
 	protected final TrustedRpkStore rpkStore;
+
+	/**
+	 * The configured connection id length. {@code null}, not supported,
+	 * {@code 0} supported but not used.
+	 */
+	protected final Integer connectionIdLength;
 
 	/**
 	 * The current sequence number (in the handshake message called message_seq)
@@ -200,7 +206,7 @@ public abstract class Handshaker {
 	 */
 	protected boolean sniEnabled = true;
 
-	private Set<SessionListener> sessionListeners = new LinkedHashSet<>();
+	private final Set<SessionListener> sessionListeners = new LinkedHashSet<>();
 
 	private boolean changeCipherSuiteMessageExpected = false;
 	private boolean sessionEstablished = false;
@@ -250,6 +256,7 @@ public abstract class Handshaker {
 		this.session = session;
 		this.recordLayer = recordLayer;
 		this.connection = connection;
+		this.connectionIdLength = config.getConnectionIdLength();
 		this.maxDeferredProcessedApplicationDataMessages = config.getMaxDeferredProcessedApplicationDataMessages();
 		this.deferredApplicationData = new ArrayList<RawData>(maxDeferredProcessedApplicationDataMessages);
 		this.deferredRecords = new ArrayList<Record>(maxDeferredProcessedApplicationDataMessages);
@@ -667,7 +674,7 @@ public abstract class Handshaker {
 			case CHANGE_CIPHER_SPEC:
 				// CCS has only 1 byte payload and doesn't require fragmentation
 				flight.addMessage(new Record(fragment.getContentType(), session.getWriteEpoch(),
-						session.getSequenceNumber(), fragment, session));
+						session.getSequenceNumber(), fragment, session, false, 0));
 				break;
 			default:
 				throw new HandshakeException("Cannot create " + fragment.getContentType() + " record for flight",
@@ -685,13 +692,15 @@ public abstract class Handshaker {
 		int maxFragmentLength = session.getMaxFragmentLength();
 
 		if (messageLength <= maxFragmentLength) {
-			flight.addMessage(new Record(ContentType.HANDSHAKE, session.getWriteEpoch(), session.getSequenceNumber(), handshakeMessage, session));
+			boolean useCid = handshakeMessage.getMessageType() == HandshakeType.FINISHED;
+			flight.addMessage(new Record(ContentType.HANDSHAKE, session.getWriteEpoch(),
+					session.getSequenceNumber(), handshakeMessage, session, useCid, 0));
 			return;
 		}
 
 		// message needs to be fragmented
 		LOGGER.debug("Splitting up {} message for [{}] into multiple fragments of max {} bytes",
-				handshakeMessage.getMessageType(), handshakeMessage.getPeer(), session.getMaxFragmentLength());
+				handshakeMessage.getMessageType(), handshakeMessage.getPeer(), maxFragmentLength);
 		// create N handshake messages, all with the
 		// same message_seq value as the original handshake message
 		byte[] messageBytes = handshakeMessage.fragmentToByteArray();
@@ -721,7 +730,8 @@ public abstract class Handshaker {
 
 			offset += fragmentLength;
 
-			flight .addMessage(new Record(ContentType.HANDSHAKE, session.getWriteEpoch(), session.getSequenceNumber(), fragmentedMessage, session));
+			flight.addMessage(new Record(ContentType.HANDSHAKE, session.getWriteEpoch(), session.getSequenceNumber(),
+					fragmentedMessage, session, false, 0));
 		}
 	}
 

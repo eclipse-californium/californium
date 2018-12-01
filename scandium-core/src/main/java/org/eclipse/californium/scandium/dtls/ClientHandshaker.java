@@ -87,7 +87,7 @@ public class ClientHandshaker extends Handshaker {
 
 	/** The server's public key from its certificate */
 	private PublicKey serverPublicKey;
-	
+
 	// The server's X.509 certificate chain.
 	private CertPath peerCertPath;
 
@@ -367,6 +367,13 @@ public class ClientHandshaker extends Handshaker {
 								AlertLevel.FATAL,
 								AlertDescription.ILLEGAL_PARAMETER,
 								message.getPeer()));
+			}
+		}
+		if (connectionIdLength != null) {
+			ConnectionIdExtension extension = serverHello.getConnectionIdExtension();
+			if (extension != null) {
+				ConnectionId connectionId = extension.getConnectionId();
+				session.setWriteConnectionId(connectionId);
 			}
 		}
 		session.setSendCertificateType(serverHello.getClientCertificateType());
@@ -684,13 +691,10 @@ public class ClientHandshaker extends Handshaker {
 		clientRandom = startMessage.getRandom();
 
 		startMessage.addCompressionMethod(CompressionMethod.NULL);
-		if (maxFragmentLengthCode != null) {
-			MaxFragmentLengthExtension ext = new MaxFragmentLengthExtension(maxFragmentLengthCode); 
-			startMessage.addExtension(ext);
-			LOGGER.debug(
-					"Indicating max. fragment length [{}] to server [{}]",
-					maxFragmentLengthCode, getPeerAddress());
-		}
+
+		addConnectionId(startMessage);
+
+		addMaxFragmentLength(startMessage);
 
 		addServerNameIndication(startMessage);
 
@@ -705,7 +709,32 @@ public class ClientHandshaker extends Handshaker {
 		sendFlight(flight);
 	}
 
-	private void addServerNameIndication(final ClientHello helloMessage) {
+	protected void addMaxFragmentLength(final ClientHello helloMessage) {
+		if (maxFragmentLengthCode != null) {
+			MaxFragmentLengthExtension ext = new MaxFragmentLengthExtension(maxFragmentLengthCode); 
+			helloMessage.addExtension(ext);
+			LOGGER.debug(
+					"Indicating max. fragment length [{}] to server [{}]",
+					maxFragmentLengthCode, getPeerAddress());
+		}
+	}
+
+	protected void addConnectionId(final ClientHello helloMessage) {
+		if (connectionIdLength != null) {
+			final ConnectionId connectionId;
+			if (connectionIdLength > 0) {
+				// use the already created unique cid
+				connectionId = getConnection().getConnectionId();
+			} else {
+				// use empty cid
+				connectionId = ConnectionId.EMPTY;
+			}
+			ConnectionIdExtension extension = ConnectionIdExtension.fromConnectionId(connectionId);
+			helloMessage.addExtension(extension);
+		}
+	}
+
+	protected void addServerNameIndication(final ClientHello helloMessage) {
 
 		if (sniEnabled && session.getVirtualHost() != null) {
 			LOGGER.debug("adding SNI extension to CLIENT_HELLO message [{}]", session.getVirtualHost());

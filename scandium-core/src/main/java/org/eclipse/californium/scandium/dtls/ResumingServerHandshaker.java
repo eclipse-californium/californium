@@ -180,8 +180,11 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 			clientRandom = clientHello.getRandom();
 			serverRandom = new Random(new SecureRandom());
 
+			HelloExtensions serverHelloExtensions = new HelloExtensions();
+			processHelloExtensions(clientHello, serverHelloExtensions);
+
 			ServerHello serverHello = new ServerHello(clientHello.getClientVersion(), serverRandom, session.getSessionIdentifier(),
-					session.getCipherSuite(), session.getCompressionMethod(), null, clientHello.getPeer());
+					session.getCipherSuite(), session.getCompressionMethod(), serverHelloExtensions, clientHello.getPeer());
 			wrapMessage(flight, serverHello);
 			md.update(serverHello.toByteArray());
 

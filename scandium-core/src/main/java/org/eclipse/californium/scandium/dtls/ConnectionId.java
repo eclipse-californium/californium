@@ -24,6 +24,7 @@ import org.eclipse.californium.elements.util.Bytes;
  */
 public final class ConnectionId extends Bytes {
 
+	public static final ConnectionId EMPTY = new ConnectionId(Bytes.EMPTY);
 
 	/**
 	 * Create connection id from bytes.
