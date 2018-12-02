@@ -18,6 +18,9 @@
  *    Kai Hudalla - logging
  *    Achim Kraus (Bosch Software Innovations GmbH) - make getOthers() public.
  *                                                    issue #286
+ *    Achim Kraus (Bosch Software Innovations GmbH) - Include size1 and size2
+ *                                                    in clone and clear
+ *                                                    issue #815
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -133,6 +136,8 @@ public final class OptionSet {
 		proxy_scheme = null;
 		block1 = null;
 		block2 = null;
+		size1 = null;
+		size2 = null;
 		observe = null;
 		oscore = null;
 		if (others != null)
@@ -167,10 +172,12 @@ public final class OptionSet {
 		if (origin.block2 != null)
 			block2          = new BlockOption(origin.block2);
 		
+		size1 = origin.size1;
+		size2 = origin.size2;
 		observe = origin.observe;
-		if(origin.oscore != null)
-				oscore	= origin.oscore.clone();
-		
+		if(origin.oscore != null) {
+			oscore	= origin.oscore.clone();
+		}
 		others              = copyList(origin.others);
 	}
 
