@@ -129,6 +129,7 @@ public class BlockOptionTest {
 		testCombined(0, false, 16);
 		testCombined(0, false, 79);
 		testCombined(0, false, 113);
+		testCombined(0, false, 4096);
 		testCombined(0, false, 26387);
 		testCombined(0, false, 1048575);
 		testCombined(7, false, 1048575);
@@ -142,9 +143,12 @@ public class BlockOptionTest {
 	private static void testCombined(int szx, boolean m, int num) {
 		BlockOption block = new BlockOption(szx, m, num);
 		BlockOption copy = new BlockOption(block.getValue());
-		assertEquals(block.getSzx(), copy.getSzx());
-		assertEquals(block.isM(), copy.isM());
-		assertEquals(block.getNum(), copy.getNum());
+		assertEquals("szx", szx, block.getSzx());
+		assertEquals("m", m, block.isM());
+		assertEquals("num", num, block.getNum());
+		assertEquals("szx", block.getSzx(), copy.getSzx());
+		assertEquals("m", block.isM(), copy.isM());
+		assertEquals("num", block.getNum(), copy.getNum());
 		System.out.println(Utils.toHexString(block.getValue()) +" == " 
 			+ "(szx="+block.getSzx()+", m="+block.isM()+", num="+block.getNum()+")");
 	}
