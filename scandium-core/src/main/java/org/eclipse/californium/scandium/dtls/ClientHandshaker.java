@@ -370,8 +370,8 @@ public class ClientHandshaker extends Handshaker {
 								message.getPeer()));
 			}
 		}
-		session.setSendRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(serverHello.getClientCertificateType()));
-		session.setReceiveRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(serverHello.getServerCertificateType()));
+		session.setSendCertificateType(serverHello.getClientCertificateType());
+		session.setReceiveCertificateType(serverHello.getServerCertificateType());
 		session.setSniSupported(serverHello.hasServerNameExtension());
 		session.setParameterAvailable();
 	}
@@ -606,7 +606,7 @@ public class ClientHandshaker extends Handshaker {
 		 */
 		if (certificateRequest != null) {
 
-			if (session.sendRawPublicKey()) {
+			if (CertificateType.RAW_PUBLIC_KEY == session.sendCertificateType()) {
 				byte[] rawPublicKeyBytes = new byte[0];
 				PublicKey key = determineClientRawPublicKey(certificateRequest);
 				if (key != null) {
@@ -616,12 +616,14 @@ public class ClientHandshaker extends Handshaker {
 					LOGGER.debug("sending CERTIFICATE message with client RawPublicKey [{}] to server", ByteArrayUtils.toHexString(rawPublicKeyBytes));
 				}
 				clientCertificate = new CertificateMessage(rawPublicKeyBytes, session.getPeer());
-			} else {
+			} else if (CertificateType.X_509 == session.sendCertificateType()) {
 				List<X509Certificate> clientChain = determineClientCertificateChain(certificateRequest);
 				// make sure we only send certs not part of the server's trust anchor
 				List<X509Certificate> truncatedChain = certificateRequest.removeTrustedCertificates(clientChain);
 				LOGGER.debug("sending CERTIFICATE message with client certificate chain [length: {}] to server", truncatedChain.size());
 				clientCertificate = new CertificateMessage(truncatedChain, session.getPeer());
+			} else {
+				throw new IllegalArgumentException("Certificate type " + session.sendCertificateType() + " not supported!");
 			}
 			flight.addMessage(wrapMessage(clientCertificate));
 		}

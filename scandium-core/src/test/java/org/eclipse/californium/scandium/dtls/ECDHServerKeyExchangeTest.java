@@ -56,7 +56,7 @@ public class ECDHServerKeyExchangeTest {
 	@Test
 	public void testDeserializedInstanceToString() throws HandshakeException {
 		byte[] serializedMsg = msg.toByteArray();
-		HandshakeParameter parameter = new HandshakeParameter(KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, true);
+		HandshakeParameter parameter = new HandshakeParameter(KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CertificateType.RAW_PUBLIC_KEY);
 		HandshakeMessage handshakeMsg = HandshakeMessage.fromByteArray(serializedMsg, parameter, peerAddress);
 		assertNotNull(handshakeMsg.toString());
 	}

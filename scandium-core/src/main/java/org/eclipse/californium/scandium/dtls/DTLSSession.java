@@ -41,6 +41,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - remove unused isClient
  *                                                    add handshake timestamp for
  *                                                    session and endpoint context.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace raw public key flags by
+ *                                                    certificate types
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -158,15 +160,13 @@ public final class DTLSSession {
 
 	/**
 	 * Indicates the type of certificate to send to the peer in a CERTIFICATE message.
-	 * If <code>true</code> send a RawPublicKey, a full X.509 certificate chain otherwise.
 	 */
-	private boolean sendRawPublicKey = false;
+	private CertificateType sendCertificateType = CertificateType.X_509;
 
 	/**
 	 * Indicates the type of certificate to expect from the peer in a CERTIFICATE message.
-	 * If <code>true</code> expect a RawPublicKey, a full X.509 certificate chain otherwise.
 	 */
-	private boolean receiveRawPublicKey = false;
+	private CertificateType receiveCertificateType = CertificateType.X_509;
 
 	/**
 	 * Indicates, that the handshake parameters are available.
@@ -648,7 +648,7 @@ public final class DTLSSession {
 	 */
 	public HandshakeParameter getParameter() {
 		if (parameterAvailable) {
-			return new HandshakeParameter(cipherSuite.getKeyExchange(), receiveRawPublicKey);
+			return new HandshakeParameter(cipherSuite.getKeyExchange(), receiveCertificateType);
 		}
 		return null;
 	}
@@ -785,20 +785,20 @@ public final class DTLSSession {
 		return this.maxFragmentLength;
 	}
 
-	boolean sendRawPublicKey() {
-		return sendRawPublicKey;
+	CertificateType sendCertificateType() {
+		return sendCertificateType;
 	}
 
-	void setSendRawPublicKey(boolean sendRawPublicKey) {
-		this.sendRawPublicKey = sendRawPublicKey;
+	void setSendCertificateType(CertificateType sendCertificateType) {
+		this.sendCertificateType = sendCertificateType;
 	}
 
-	boolean receiveRawPublicKey() {
-		return receiveRawPublicKey;
+	CertificateType receiveCertificateType() {
+		return receiveCertificateType;
 	}
 
-	void setReceiveRawPublicKey(boolean receiveRawPublicKey) {
-		this.receiveRawPublicKey = receiveRawPublicKey;
+	void setReceiveCertificateType(CertificateType receiveCertificateType) {
+		this.receiveCertificateType = receiveCertificateType;
 	}
 
 	/**

@@ -77,8 +77,7 @@ public abstract class CertificateTypeExtension extends HelloExtension {
 		super(type);
 		if (extensionData == null) {
 			throw new NullPointerException("extension data must not be null!");
-		}
-		if (extensionData.length == 0) {
+		} else if (extensionData.length == 0) {
 			throw new IllegalArgumentException("extension data must not be empty!");
 		}
 		// the selected certificate would be a single byte,
@@ -132,8 +131,7 @@ public abstract class CertificateTypeExtension extends HelloExtension {
 		super(type);
 		if (certificateTypes == null) {
 			throw new NullPointerException("certificate types must not be null!");
-		}
-		if (certificateTypes.isEmpty()) {
+		} else if (certificateTypes.isEmpty()) {
 			throw new IllegalArgumentException("certificate types data must not be empty!");
 		}
 		this.isClientExtension = true;

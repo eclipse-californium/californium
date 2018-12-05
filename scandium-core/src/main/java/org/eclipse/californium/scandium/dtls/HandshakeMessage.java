@@ -225,7 +225,7 @@ public abstract class HandshakeMessage extends AbstractMessage {
 			if (parameter == null) {
 				body = GenericHandshakeMessage.fromByteArray(type, byteArray, peerAddress);
 			} else {
-				body = CertificateMessage.fromByteArray(bytesLeft, parameter.useRawPublicKey(), peerAddress);
+				body = CertificateMessage.fromByteArray(bytesLeft, parameter.getCertificateType(), peerAddress);
 			}
 			break;
 
