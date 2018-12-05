@@ -1085,22 +1085,28 @@ public final class DtlsConnectorConfig {
 			} else if (certificateChain.length < 1) {
 				throw new IllegalArgumentException("The certificate chain must not be empty!");
 			} else if (certificateTypes != null && certificateTypes.isEmpty()) {
-				throw new IllegalArgumentException("The certificate type must not be empty!");
-			} else {
-				config.privateKey = privateKey;
-				config.certChain = Arrays.asList(SslContextUtil.asX509Certificates(certificateChain));
-				config.publicKey = config.certChain.get(0).getPublicKey();
-				if (certificateTypes == null) {
-					config.identityCertificateTypes = new ArrayList<>(1);
-					config.identityCertificateTypes.add(CertificateType.X_509);
-				} else {
-					config.identityCertificateTypes = certificateTypes;
-					if (!config.identityCertificateTypes.contains(CertificateType.X_509)) {
-						config.certChain = null;
+				throw new IllegalArgumentException("The certificate types must not be empty!");
+			} else if (certificateTypes != null) {
+				for (CertificateType certificateType : certificateTypes) {
+					if (!certificateType.isSupported()) {
+						throw new IllegalArgumentException(
+								"The certificate type " + certificateType + " is not supported!");
 					}
 				}
-				return this;
 			}
+			config.privateKey = privateKey;
+			config.certChain = Arrays.asList(SslContextUtil.asX509Certificates(certificateChain));
+			config.publicKey = config.certChain.get(0).getPublicKey();
+			if (certificateTypes == null) {
+				config.identityCertificateTypes = new ArrayList<>(1);
+				config.identityCertificateTypes.add(CertificateType.X_509);
+			} else {
+				config.identityCertificateTypes = certificateTypes;
+				if (!config.identityCertificateTypes.contains(CertificateType.X_509)) {
+					config.certChain = null;
+				}
+			}
+			return this;
 		}
 
 		/**
@@ -1209,9 +1215,14 @@ public final class DtlsConnectorConfig {
 		public Builder setTrustCertificateTypes(CertificateType... certificateTypes) {
 			if (certificateTypes == null) {
 				throw new NullPointerException("CertificateTypes must not be null!");
-			}
-			if (certificateTypes.length == 0) {
+			} else if (certificateTypes.length == 0) {
 				throw new IllegalArgumentException("CertificateTypes must not be empty!");
+			}
+			for (CertificateType certificateType : certificateTypes) {
+				if (!certificateType.isSupported()) {
+					throw new IllegalArgumentException(
+							"The certificate type " + certificateType + " is not supported!");
+				}
 			}
 			config.trustCertificateTypes = Arrays.asList(certificateTypes);
 			return this;

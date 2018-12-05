@@ -22,12 +22,14 @@ package org.eclipse.californium.scandium.dtls;
  */
 public enum CertificateType {
 	// values as defined by IANA TLS Certificate Types registry
-	X_509(0), OPEN_PGP(1), RAW_PUBLIC_KEY(2);
+	X_509(0, true), OPEN_PGP(1, false), RAW_PUBLIC_KEY(2, true);
 
-	private int code;
-
-	private CertificateType(int code) {
+	private final int code;
+	private final boolean isSupported;
+	
+	private CertificateType(int code, boolean isSupported) {
 		this.code = code;
+		this.isSupported = isSupported;
 	}
 	
 	public static CertificateType getTypeFromCode(int code) {
@@ -44,7 +46,11 @@ public enum CertificateType {
 		}
 	}
 
-	int getCode() {
+	public final int getCode() {
 		return code;
+	}
+
+	public final boolean isSupported() {
+		return isSupported;
 	}
 }

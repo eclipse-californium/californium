@@ -227,13 +227,14 @@ public class DTLSSessionTest {
 	}
 
 	public static DTLSSession newEstablishedServerSession(InetSocketAddress peerAddress, CipherSuite cipherSuite, boolean useRawPublicKeys) {
+		CertificateType type = useRawPublicKeys ? CertificateType.RAW_PUBLIC_KEY : CertificateType.X_509;
 		DTLSSession session = new DTLSSession(peerAddress);
 		DTLSConnectionState currentState = newConnectionState(cipherSuite);
 		session.setSessionIdentifier(new SessionId());
 		session.setReadState(currentState);
 		session.setWriteState(currentState);
-		session.setReceiveRawPublicKey(useRawPublicKeys);
-		session.setSendRawPublicKey(useRawPublicKeys);
+		session.setReceiveCertificateType(type);
+		session.setSendCertificateType(type);
 		session.setMasterSecret(getRandomBytes(48));
 		session.setPeerIdentity(new PreSharedKeyIdentity("client_identity"));
 		return session;

@@ -97,11 +97,11 @@ public class CertificateMessageTest {
 	public void testFromByteArrayHandlesEmptyMessageCorrectly() throws HandshakeException {
 		serializedMessage = new byte[]{0x00, 0x00, 0x00}; // length = 0 (empty message)
 		// parse expecting X.509 payload
-		message = CertificateMessage.fromByteArray(serializedMessage, false, peerAddress);
+		message = CertificateMessage.fromByteArray(serializedMessage, CertificateType.X_509, peerAddress);
 		assertSerializedMessageLength(3);
 
 		// parse expecting RawPublicKey payload
-		message = CertificateMessage.fromByteArray(serializedMessage, true, peerAddress);
+		message = CertificateMessage.fromByteArray(serializedMessage, CertificateType.RAW_PUBLIC_KEY, peerAddress);
 		assertSerializedMessageLength(3);
 	}
 
@@ -112,7 +112,7 @@ public class CertificateMessageTest {
 	@Test
 	public void testFromByteArrayCompliesWithRfc7250() throws Exception {
 		givenASerializedRawPublicKeyCertificateMessage(serverPublicKey);
-		message = CertificateMessage.fromByteArray(serializedMessage, true, peerAddress);
+		message = CertificateMessage.fromByteArray(serializedMessage, CertificateType.RAW_PUBLIC_KEY, peerAddress);
 		assertThat(message.getPublicKey(), is(serverPublicKey));
 	}
 
@@ -139,7 +139,7 @@ public class CertificateMessageTest {
 	@Test
 	public void testSerializationUsingRawPublicKey() throws IOException, GeneralSecurityException, HandshakeException {
 		givenACertificateMessage(DtlsTestTools.getServerCertificateChain(), true);
-		HandshakeParameter parameter = new HandshakeParameter(KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, true);
+		HandshakeParameter parameter = new HandshakeParameter(KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CertificateType.RAW_PUBLIC_KEY);
 		PublicKey pk = message.getPublicKey();
 		assertNotNull(pk);
 		serializedMessage = message.toByteArray();
@@ -151,7 +151,7 @@ public class CertificateMessageTest {
 	@Test
 	public void testSerializationUsingX509() throws IOException, GeneralSecurityException, HandshakeException {
 		givenACertificateMessage(DtlsTestTools.getServerCertificateChain(), false);
-		HandshakeParameter parameter = new HandshakeParameter(KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, false);
+		HandshakeParameter parameter = new HandshakeParameter(KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CertificateType.X_509);
 		PublicKey pk = message.getPublicKey();
 		assertNotNull(pk);
 		serializedMessage = message.toByteArray();

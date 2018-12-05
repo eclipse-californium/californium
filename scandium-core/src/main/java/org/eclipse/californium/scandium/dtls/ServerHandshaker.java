@@ -573,10 +573,12 @@ public class ServerHandshaker extends Handshaker {
 
 		CertificateMessage certificateMessage = null;
 		if (session.getCipherSuite().requiresServerCertificateMessage()) {
-			if (session.sendRawPublicKey()){
+			if (CertificateType.RAW_PUBLIC_KEY == session.sendCertificateType()){
 				certificateMessage = new CertificateMessage(publicKey.getEncoded(), session.getPeer());
-			} else {
+			} else if (CertificateType.X_509 == session.sendCertificateType()){
 				certificateMessage = new CertificateMessage(certificateChain, session.getPeer());
+			} else {
+				throw new IllegalArgumentException("Certificate type " + session.sendCertificateType() + " not supported!");
 			}
 
 			flight.addMessage(wrapMessage(certificateMessage));
@@ -833,14 +835,14 @@ public class ServerHandshaker extends Handshaker {
 
 	private void addServerHelloExtensions(final CipherSuite negotiatedCipherSuite, final ClientHello clientHello, final HelloExtensions extensions) {
 		if (negotiatedClientCertificateType != null) {
-			session.setReceiveRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(negotiatedClientCertificateType));
+			session.setReceiveCertificateType(negotiatedClientCertificateType);
 			if (clientHello.getClientCertificateTypeExtension() != null) {
 				ClientCertificateTypeExtension ext = new ClientCertificateTypeExtension(negotiatedClientCertificateType);
 				extensions.addExtension(ext);
 			}
 		}
 		if (negotiatedServerCertificateType != null) {
-			session.setSendRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(negotiatedServerCertificateType));
+			session.setSendCertificateType(negotiatedServerCertificateType);
 			if (clientHello.getServerCertificateTypeExtension() != null) {
 				ServerCertificateTypeExtension ext = new ServerCertificateTypeExtension(negotiatedServerCertificateType);
 				extensions.addExtension(ext);
