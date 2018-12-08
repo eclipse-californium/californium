@@ -124,7 +124,7 @@ public class LeastRecentlyUsedCacheTest {
 		assertNext(valuesIterator, assume);
 		cache.setUpdatingOnReadAccess(true);
 		assertNext(valuesIterator, assume);
-		assume.sleep((THRESHOLD_MILLIS / 2) + 100);
+		assume.sleep((THRESHOLD_MILLIS / 2) + 20, 100);
 
 		valuesIterator = cache.valuesIterator();
 		assertNext(valuesIterator, assume);
