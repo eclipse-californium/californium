@@ -283,7 +283,14 @@ public final class DTLSSession {
 	}
 
 	void setSessionIdentifier(SessionId sessionIdentifier) {
-		this.sessionIdentifier = sessionIdentifier;
+		if (sessionIdentifier == null) {
+			throw new NullPointerException("session identifier must not be null!");
+		}
+		if (!sessionIdentifier.equals(this.sessionIdentifier)) {
+			// reset master secret
+			this.masterSecret = null;
+			this.sessionIdentifier = sessionIdentifier;
+		}
 	}
 
 	/**
@@ -695,16 +702,6 @@ public final class DTLSSession {
 		else {
 			throw new IllegalStateException("master secret already available!");
 		}
-	}
-
-	/**
-	 * Reset master secret. 
-	 * 
-	 * Intended to be used, When session resumption is
-	 * refused and a new session id and master secret is generated.
-	 */
-	void resetMasterSecret() {
-		masterSecret = null;
 	}
 
 	/**
