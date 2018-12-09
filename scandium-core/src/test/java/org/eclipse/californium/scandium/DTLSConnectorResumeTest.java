@@ -182,7 +182,7 @@ public class DTLSConnectorResumeTest {
 		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, false);
 
 		Connection connection = clientConnectionStore.get(serverHelper.serverEndpoint);
-		byte[] sessionId = connection.getSession().getSessionIdentifier().getId();
+		byte[] sessionId = connection.getSession(1).getSessionIdentifier().getId();
 		assertThat(serverHelper.serverSessionCache.establishedSessionCounter.get(), is(1));
 		assertThat(connection.isAutoResumptionRequired(500L), is(false));
 
@@ -246,7 +246,7 @@ public class DTLSConnectorResumeTest {
 		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, false);
 
 		Connection connection = clientConnectionStore.get(serverHelper.serverEndpoint);
-		byte[] sessionId = connection.getSession().getSessionIdentifier().getId();
+		byte[] sessionId = connection.getSession(1).getSessionIdentifier().getId();
 		assertThat(serverHelper.serverSessionCache.establishedSessionCounter.get(), is(1));
 
 		Thread.sleep(500);
@@ -279,7 +279,7 @@ public class DTLSConnectorResumeTest {
 		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, false);
 
 		Connection connection = clientConnectionStore.get(serverHelper.serverEndpoint);
-		byte[] sessionId = connection.getSession().getSessionIdentifier().getId();
+		byte[] sessionId = connection.getSession(1).getSessionIdentifier().getId();
 		assertThat(serverHelper.serverSessionCache.establishedSessionCounter.get(), is(1));
 
 		Thread.sleep(1000);
@@ -312,7 +312,7 @@ public class DTLSConnectorResumeTest {
 		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, false);
 
 		Connection connection = clientConnectionStore.get(serverHelper.serverEndpoint);
-		byte[] sessionId = connection.getSession().getSessionIdentifier().getId();
+		byte[] sessionId = connection.getSession(1).getSessionIdentifier().getId();
 		assertThat(serverHelper.serverSessionCache.establishedSessionCounter.get(), is(1));
 		assertThat(connection.isAutoResumptionRequired(500L), is(false));
 

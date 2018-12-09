@@ -449,7 +449,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 */
 	public final void close(InetSocketAddress peerAddress) {
 		final Connection connection = connectionStore.get(peerAddress);
-		if (connection != null && connection.getEstablishedSession() != null) {
+		if (connection != null && connection.hasEstablishedSession()) {
 			SerialExecutor serialExecutor = getSerialExecutor(peerAddress);
 			if (serialExecutor != null) {
 				serialExecutor.execute(new Runnable() {
@@ -611,7 +611,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 */
 	public final synchronized void forceResumeSessionFor(InetSocketAddress peer) {
 		Connection peerConnection = connectionStore.get(peer);
-		if (peerConnection != null && peerConnection.getEstablishedSession() != null)
+		if (peerConnection != null && peerConnection.hasEstablishedSession())
 			peerConnection.setResumptionRequired(true);
 	}
 
@@ -1012,26 +1012,20 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * @param connection connection to process the received record
 	 */
 	private void processAlertRecord(final Record record, final Connection connection) {
-
-		if (connection.hasEstablishedSession() && connection.getEstablishedSession().getReadEpoch() == record.getEpoch()) {
-				processAlertRecord(record, connection, connection.getEstablishedSession());
-		} else if (connection.hasOngoingHandshake() && connection.getOngoingHandshake().getSession().getReadEpoch() == record.getEpoch()) {
-				processAlertRecord(record, connection, connection.getOngoingHandshake().getSession());
-		} else {
+		DTLSSession session = connection.getSession(record.getEpoch());
+		if (session == null) {
 			LOGGER.debug(
-				"Epoch of ALERT record [epoch={}] from [{}] does not match expected epoch(s), discarding ...",
-				record.getEpoch(), record.getPeerAddress());
+					"Epoch of ALERT record [epoch={}] from [{}] does not match expected epoch(s), discarding ...",
+					record.getEpoch(), record.getPeerAddress());
+			return;
 		}
-	}
-
-	private void processAlertRecord(final Record record, final Connection connection, final DTLSSession session) {
 		record.setSession(session);
 		try {
 			AlertMessage alert = (AlertMessage) record.getFragment();
 			Handshaker handshaker = connection.getOngoingHandshake();
 			HandshakeException error = null;
 			LOGGER.trace("Processing {} ALERT from [{}]: {}",
-					new Object[]{alert.getLevel(), alert.getPeer(), alert.getDescription()});
+					alert.getLevel(), alert.getPeer(), alert.getDescription());
 			if (AlertDescription.CLOSE_NOTIFY.equals(alert.getDescription())) {
 				// according to section 7.2.1 of the TLS 1.2 spec
 				// (http://tools.ietf.org/html/rfc5246#section-7.2.1)

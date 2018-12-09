@@ -227,23 +227,33 @@ public final class Connection {
 	}
 
 	/**
-	 * Gets the session containing the connection's <em>current</em> state.
+	 * Gets the session containing the connection's <em>current</em> state for
+	 * the provided epoch.
 	 * 
-	 * This is the {@link #establishedSession} if not <code>null</code> or
-	 * the session negotiated in the {@link #ongoingHandshake}.
+	 * This is the {@link #establishedSession}, if not {@code null} and the read
+	 * epoch is matching. Or the session negotiated in the
+	 * {@link #ongoingHandshake}, if not {@code null} and the read epoch is
+	 * matching. If both are {@code null}, or the read epoch doesn't match,
+	 * {@code null} is returned.
 	 * 
-	 * @return the <em>current</em> session or <code>null</code> if neither
-	 *                 an established session nor an ongoing handshake exists
+	 * @param readEpoch the read epoch to match.
+	 * @return the <em>current</em> session or {@code null}, if neither an
+	 *         established session nor an ongoing handshake exists with an
+	 *         matching read epoch
 	 */
-	public DTLSSession getSession() {
+	public DTLSSession getSession(int readEpoch) {
 		DTLSSession session = establishedSession;
-		if (session == null) {
-			Handshaker handshaker = ongoingHandshake.get();
-			if (handshaker != null) {
-				session = handshaker.getSession();
+		if (session != null && session.getReadEpoch() == readEpoch) {
+			return session;
+		}
+		Handshaker handshaker = ongoingHandshake.get();
+		if (handshaker != null) {
+			session = handshaker.getSession();
+			if (session != null && session.getReadEpoch() == readEpoch) {
+				return session;
 			}
 		}
-		return session;
+		return null;
 	}
 
 	/**
