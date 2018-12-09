@@ -367,6 +367,15 @@ public final class NetworkConfig {
 	}
 
 	/**
+	 * Instantiates a new network configuration and sets the values
+	 * from the provided configuration.
+	 */
+	public NetworkConfig(NetworkConfig config) {
+		this.properties = new Properties();
+		this.properties.putAll(config.properties);
+	}
+
+	/**
 	 * Loads properties from a file.
 	 *
 	 * For Android, please use {@link NetworkConfig#load(InputStream)}.

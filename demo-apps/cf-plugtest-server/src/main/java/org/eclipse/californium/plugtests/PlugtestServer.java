@@ -136,7 +136,7 @@ public class PlugtestServer extends AbstractTestServer {
 	}
 
 	public PlugtestServer(NetworkConfig config) throws SocketException {
-		super(config);
+		super(config, null);
 		
 		// add resources to the server
 		add(new DefaultTest());

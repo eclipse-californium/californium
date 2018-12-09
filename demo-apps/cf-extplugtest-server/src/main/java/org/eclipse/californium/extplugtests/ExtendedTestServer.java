@@ -23,7 +23,10 @@ import java.io.File;
 import java.net.SocketException;
 import java.net.URI;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -97,6 +100,12 @@ public class ExtendedTestServer extends AbstractTestServer {
 		}
 
 		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
+		NetworkConfig udpConfig = new NetworkConfig(config);
+		udpConfig.setInt(Keys.MAX_MESSAGE_SIZE, 64);
+		udpConfig.setInt(Keys.PREFERRED_BLOCK_SIZE, 64);
+		Map<Protocol, NetworkConfig> protocolConfig = new HashMap<>();
+		protocolConfig.put(Protocol.UDP, udpConfig);
+		
 		// create server
 		try {
 			boolean onlyLoopback = args.length > 0 ? args[0].equalsIgnoreCase("-onlyLoopback") : false;
@@ -118,7 +127,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 					config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT), //
 					new NamedThreadFactory("CoapServer#")); //$NON-NLS-1$
 
-			ExtendedTestServer server = new ExtendedTestServer(config, noBenchmark);
+			ExtendedTestServer server = new ExtendedTestServer(config, protocolConfig, noBenchmark);
 			server.setExecutor(executor);
 			ReverseObserve reverseObserver = new ReverseObserve(config, executor);
 			server.add(reverseObserver);
@@ -176,8 +185,8 @@ public class ExtendedTestServer extends AbstractTestServer {
 
 	}
 
-	public ExtendedTestServer(NetworkConfig config, boolean noBenchmark) throws SocketException {
-		super(config);
+	public ExtendedTestServer(NetworkConfig config, Map<Protocol, NetworkConfig> protocolConfig, boolean noBenchmark) throws SocketException {
+		super(config, protocolConfig);
 		int maxResourceSize = config.getInt(Keys.MAX_RESOURCE_BODY_SIZE);
 		// add resources to the server
 		add(new RequestStatistic());
