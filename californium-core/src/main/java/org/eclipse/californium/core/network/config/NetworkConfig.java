@@ -178,6 +178,18 @@ public final class NetworkConfig {
 		 * {@link NetworkConfigDefaults#DEFAULT_BLOCKWISE_STATUS_LIFETIME}.
 		 */
 		public static final String BLOCKWISE_STATUS_LIFETIME = "BLOCKWISE_STATUS_LIFETIME";
+		
+		/**
+		 * Property to indicate if the response should always include the Block2 option when client request early blockwise negociation but the response can be sent on one packet.
+		 * <p>
+		 * The default value of this property is
+		 * {@link NetworkConfigDefaults#DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION}.
+		 * <p>
+		 * A value of {@code false} indicate that the server will respond without block2 option if no further blocks are required.<br/>
+		 * A value of {@code true} indicate that the server will response with block2 option event if no further blocks are required.
+		 *  
+		 */
+		public static final String BLOCKWISE_STRICT_BLOCK2_OPTION = "BLOCKWISE_STRICT_BLOCK2_OPTION";
 
 		public static final String NOTIFICATION_CHECK_INTERVAL_TIME = "NOTIFICATION_CHECK_INTERVAL";
 		public static final String NOTIFICATION_CHECK_INTERVAL_COUNT = "NOTIFICATION_CHECK_INTERVAL_COUNT";
@@ -610,6 +622,24 @@ public final class NetworkConfig {
 		return result;
 	}
 
+	/**
+	 * Gets the value for the specified key as boolean or the provided default value if not found.
+	 *
+	 * @param key the key
+	 * @param defaultValue the default value to return if there is no value
+	 *            registered for the key.
+	 * @return the boolean
+	 */
+	public boolean getBoolean(final String key, final boolean defaultValue) {
+		String value = properties.getProperty(key);
+		if (value != null) {
+			return Boolean.parseBoolean(value);
+		} else {
+			LOGGER.warn("Key [{}] is undefined, returning defaultValue", key);
+			return defaultValue;
+		}
+	}
+	
 	/**
 	 * Gets the value for the specified key as boolean or false if not found.
 	 *

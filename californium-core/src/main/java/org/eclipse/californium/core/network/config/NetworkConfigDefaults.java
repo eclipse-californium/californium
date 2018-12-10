@@ -66,6 +66,13 @@ public class NetworkConfigDefaults {
 	public static final int DEFAULT_BLOCKWISE_STATUS_LIFETIME = 5 * 60 * 1000; // 5 mins [ms]
 	
 	/**
+	 * The default mode used to respond for early bockwise negociation when response can be sent on one packet.
+	 * <p>
+	 * The default value is false, which indicate that the server will not include the Block2 option.
+	 */
+	public static final boolean DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION = false;
+	
+	/**
 	 * The default value for {@link Keys#PREFERRED_BLOCK_SIZE}
 	 */
 	public static final int DEFAULT_PREFERRED_BLOCK_SIZE = 512;
@@ -194,7 +201,9 @@ public class NetworkConfigDefaults {
 		config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_MAX_MESSAGE_SIZE);
 		config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_BODY_SIZE);
 		config.setInt(Keys.BLOCKWISE_STATUS_LIFETIME, DEFAULT_BLOCKWISE_STATUS_LIFETIME); // [ms]
+		config.setBoolean(Keys.BLOCKWISE_STRICT_BLOCK2_OPTION, DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION);
 
+		
 		config.setLong(Keys.NOTIFICATION_CHECK_INTERVAL_TIME, 24 * 60 * 60 * 1000); //24 [ms]
 		config.setInt(Keys.NOTIFICATION_CHECK_INTERVAL_COUNT, 100);
 		config.setLong(Keys.NOTIFICATION_REREGISTRATION_BACKOFF, 2000); // [ms]

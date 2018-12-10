@@ -116,8 +116,11 @@ public class BlockwiseLayer extends AbstractLayer {
 
 	/*
 	 * What if a request contains a Block2 option with size 128 but the response
-	 * is only 10 bytes long? Should we still add the block2 option to the
-	 * response? Currently, we do.
+	 * is only 10 bytes long? A configuration property allow the server between two choices :
+	 * <ul>
+	 * 	<li>Include block2 option with m flag set to false to indicate that there is no more block to request.</li>
+	 * 	<li>Do not include the block2 option at all (allowed by the RFC, it should be up to the client to handle this use case : https://tools.ietf.org/html/rfc7959#section-2.2)</li>
+	 * </ul>
 	 * <p>
 	 * The draft needs to specify whether it is allowed to use separate
 	 * responses or NONs. Otherwise, I do not know whether I should allow (or
@@ -158,6 +161,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	private int preferredBlockSzx;
 	private int blockTimeout;
 	private int maxResourceBodySize;
+	private boolean strictBlock2Option;
 
 	/**
 	 * Creates a new blockwise layer for a configuration.
@@ -186,6 +190,10 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * The maximum amount of time (in milliseconds) allowed between transfers of individual blocks before
 	 * the blockwise transfer state is discarded.
 	 * If not set, a default value of 30 seconds is used.</li>
+	 * 
+	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#BLOCKWISE_STRICT_BLOCK2_OPTION} -
+	 * This value is used to indicate if the response should always include the Block2 option when client request early blockwise negociation but the response can be sent on one packet.
+	 * If not set, the default value is {@link org.eclipse.californium.core.network.config.NetworkConfigDefaults#DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION}</li>
 	 * </ul>
 
 	 * @param config The configuration values to use.
@@ -205,10 +213,11 @@ public class BlockwiseLayer extends AbstractLayer {
 		block1Transfers.setEvictingOnReadAccess(false);
 		block2Transfers = new LeastRecentlyUsedCache<>(maxActivePeers, TimeUnit.MILLISECONDS.toSeconds(blockTimeout));
 		block2Transfers.setEvictingOnReadAccess(false);
-
+		strictBlock2Option = config.getBoolean(NetworkConfig.Keys.BLOCKWISE_STRICT_BLOCK2_OPTION, NetworkConfigDefaults.DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION);
+		
 		LOGGER.info(
-			"BlockwiseLayer uses MAX_MESSAGE_SIZE={}, PREFERRED_BLOCK_SIZE={}, BLOCKWISE_STATUS_LIFETIME={} and MAX_RESOURCE_BODY_SIZE={}",
-			new Object[]{maxMessageSize, preferredBlockSize, blockTimeout, maxResourceBodySize});
+			"BlockwiseLayer uses MAX_MESSAGE_SIZE={}, PREFERRED_BLOCK_SIZE={}, BLOCKWISE_STATUS_LIFETIME={}, MAX_RESOURCE_BODY_SIZE={}, BLOCKWISE_STRICT_BLOCK2_OPTION={}",
+			maxMessageSize, preferredBlockSize, blockTimeout, maxResourceBodySize, strictBlock2Option);
 		int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
 
 		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled()) {
@@ -1148,7 +1157,8 @@ public class BlockwiseLayer extends AbstractLayer {
 		boolean blockwiseRequired = response.getPayloadSize() > maxMessageSize;
 		if (requestBlock2 != null) {
 			// client might have included early negotiation block2 option
-			blockwiseRequired = blockwiseRequired || response.getPayloadSize() > requestBlock2.getSize();
+			// If the block2 strict mode has been enabled we must respond with a block2 option even if the payload fits in one block
+			blockwiseRequired = blockwiseRequired || strictBlock2Option || response.getPayloadSize() > requestBlock2.getSize();
 		}
 		if (blockwiseRequired) {
 			LOGGER.debug("response body [{}/{}] requires blockwise transfer", response.getPayloadSize(),
