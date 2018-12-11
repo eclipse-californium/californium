@@ -32,6 +32,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.eclipse.californium.CheckCondition;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
@@ -44,6 +45,7 @@ import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.lockstep.ServerBlockwiseInterceptor;
+import org.eclipse.californium.elements.runner.RepeatingTestRunner;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -52,6 +54,7 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.runner.RunWith;
 
 
 /**
@@ -63,6 +66,7 @@ import org.junit.experimental.categories.Category;
 // Category Medium because shutdown of the CoapServer runs into timeout (after 1 sec)
 // because of pending BlockCleanupTask
 @Category(Medium.class)
+@RunWith(RepeatingTestRunner.class)
 public class BlockwiseTransferTest {
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
@@ -260,19 +264,22 @@ public class BlockwiseTransferTest {
 		clientEndpointWithoutTransparentBlockwise.sendRequest(req);
 
 		// receive response and check
-		Response response = req.waitForResponse(10000);
-		
-		assertEquals("More than one block received", 1, counter.get());
-		
-		if(strictBlock2) {
-			
-			BlockOption block2 = response.getOptions().getBlock2();
+		Response response = req.waitForResponse(1000);
+		BlockOption block2 = response.getOptions().getBlock2();
+
+		if (strictBlock2) {
 			assertNotNull(block2);
 			assertEquals("Block2 option should indicate that all blocks have been transfered", false, block2.isM());
-		}else {
-			
-			assertNull(response.getOptions().getBlock2());
+		} else {
+			assertNull(block2);
 		}
+		waitForCondition(500, 100, TimeUnit.MILLISECONDS, new CheckCondition() {
+			@Override
+			public boolean isFulFilled() throws IllegalStateException {
+				return counter.get() > 1;
+			}
+		});
+		assertEquals("Not exactly one block received", 1, counter.get());
 	}
 
 	private void executeGETRequest(final boolean respondShort) throws Exception {
