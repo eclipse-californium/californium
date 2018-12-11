@@ -108,37 +108,29 @@ public class ConnectorHelper {
 	 * @throws GeneralSecurityException if the keys cannot be read.
 	 */
 	public void startServer() throws IOException, GeneralSecurityException {
-		startServer(DtlsConnectorConfig.DEFAULT_RETRANSMISSION_TIMEOUT_MS,
-				DtlsConnectorConfig.DEFAULT_MAX_RETRANSMISSIONS, true, true);
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+		startServer(builder);
 	}
 
+
 	/**
-	 * Configures and starts a connector representing the <em>server side</em>
-	 * of a DTLS connection.
+	 * Configures and starts a connector representing the <em>server side</em> of a DTLS connection.
 	 * <p>
 	 * The connector is configured as follows:
 	 * <ul>
-	 * <li>binds to an ephemeral port on loopback address, the address can be
-	 * read from the <em>serverEndpoint</em> property</li>
-	 * <li>supports ECDHE_ECDSA and PSK based ciphers using both CCM and
-	 * CBC</li>
-	 * <li>uses a PSK store containing the {@link #CLIENT_IDENTITY} and matching
-	 * secret</li>
-	 * <li>uses the private key returned by
-	 * {@link DtlsTestTools#getPrivateKey()}</li>
-	 * <li>uses {@link DtlsTestTools#getTrustedCertificates()} as the trust
-	 * anchor</li>
-	 * <li>requires clients to be authenticated</li>
+	 * <li>binds to an ephemeral port on loopback address, the address can be read from the
+	 * <em>serverEndpoint</em> property</li>
+	 * <li>supports ECDHE_ECDSA and PSK based ciphers using both CCM and CBC</li>
+	 * <li>uses a PSK store containing the {@link #CLIENT_IDENTITY} and matching secret</li>
+	 * <li>uses the private key returned by {@link DtlsTestTools#getPrivateKey()}</li>
+	 * <li>uses {@link DtlsTestTools#getTrustedCertificates()} as the trust anchor</li>
 	 * </ul>
 	 * 
-	 * @param retransmissionTimeout handshake flight retransmission timeout in
-	 *            ms
-	 * @param maxRetransmissions maximum retransmissions of a handshake flight
-	 * @param enableSni enable support for SNI 
+	 * @param builder pre-configuration
 	 * @throws IOException if the server cannot be started.
 	 * @throws GeneralSecurityException if the keys cannot be read.
 	 */
-	public void startServer(int retransmissionTimeout, int maxRetransmissions, boolean enableSni, boolean clientAuthRequired) throws IOException, GeneralSecurityException {
+	public void startServer(DtlsConnectorConfig.Builder builder) throws IOException, GeneralSecurityException {
 
 		serverSessionCache = new InMemorySessionCache();
 		serverConnectionStore = new InMemoryConnectionStore(SERVER_CONNECTION_STORE_CAPACITY, 5 * 60, serverSessionCache); // connection timeout 5mins
@@ -148,8 +140,7 @@ public class ConnectorHelper {
 		pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
 		pskStore.setKey(SCOPED_CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME);
 
-		 DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
-				.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
+		builder.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
 				.setSupportedCipherSuites(
 							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
 							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
@@ -159,15 +150,12 @@ public class ConnectorHelper {
 				.setPskStore(pskStore)
 				.setMaxConnections(SERVER_CONNECTION_STORE_CAPACITY)
 				.setMaxTransmissionUnit(1024)
-				.setClientAuthenticationRequired(clientAuthRequired)
 				.setReceiverThreadCount(1)
 				.setConnectionThreadCount(2)
-				.setServerOnly(true)
-				.setSniEnabled(enableSni)
-				.setRetransmissionTimeout(retransmissionTimeout)
-				.setMaxRetransmissions(maxRetransmissions);
+				.setServerOnly(true);
 
-		if (clientAuthRequired) {
+		if (!Boolean.FALSE.equals(builder.getIncompleteConfig().isClientAuthenticationRequired()) ||
+				Boolean.TRUE.equals(builder.getIncompleteConfig().isClientAuthenticationWanted())) {
 			builder.setTrustStore(DtlsTestTools.getTrustedCertificates()).setRpkTrustAll();
 		}
 		serverConfig = builder.build();

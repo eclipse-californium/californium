@@ -635,13 +635,11 @@ public class ClientHandshaker extends Handshaker {
 	 * 
 	 * @param certRequest The certificate request containing the constraints to match.
 	 * @return An appropriate key or {@code null} if this handshaker has not been configured with an appropriate key.
-	 * @throws HandshakeException if this handshaker has not been configured with any public key.
 	 */
 	PublicKey determineClientRawPublicKey(CertificateRequest certRequest) throws HandshakeException {
 
 		if (publicKey == null) {
-			throw new HandshakeException("no public key configured",
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, getPeerAddress()));
+			return null;
 		} else {
 			negotiatedSignatureAndHashAlgorithm = certRequest.getSignatureAndHashAlgorithm(publicKey);
 			if (negotiatedSignatureAndHashAlgorithm == null) {
@@ -659,13 +657,11 @@ public class ClientHandshaker extends Handshaker {
 	 * @param certRequest The certificate request containing the constraints to match.
 	 * @return The certificate chain to send to the server. The chain will have length 0 if this handshaker has not been
 	 * configured with an appropriate certificate chain.
-	 * @throws HandshakeException if this handshaker has not been configured with any certificate chain.
 	 */
 	List<X509Certificate> determineClientCertificateChain(CertificateRequest certRequest) throws HandshakeException {
 
 		if (certificateChain == null) {
-			throw new HandshakeException("no client certificate configured",
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, getPeerAddress()));
+			return Collections.emptyList();
 		} else {
 			negotiatedSignatureAndHashAlgorithm = certRequest.getSignatureAndHashAlgorithm(certificateChain);
 			if (negotiatedSignatureAndHashAlgorithm == null) {
