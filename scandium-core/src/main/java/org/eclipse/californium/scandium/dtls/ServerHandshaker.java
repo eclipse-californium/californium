@@ -96,6 +96,9 @@ public class ServerHandshaker extends Handshaker {
 	 */
 	private DTLSFlight lastFlight;
 
+	/** Is the client wanted to authenticate itself? */
+	private boolean clientAuthenticationWanted = false;
+
 	/** Is the client required to authenticate itself? */
 	private boolean clientAuthenticationRequired = false;
 
@@ -210,6 +213,7 @@ public class ServerHandshaker extends Handshaker {
 		this.certificateChain = config.getCertificateChain();
 		this.publicKey = config.getPublicKey();
 		this.sniEnabled = config.isSniEnabled();
+		this.clientAuthenticationWanted = config.isClientAuthenticationWanted();
 		this.clientAuthenticationRequired = config.isClientAuthenticationRequired();
 
 		// the server handshake uses the config with exchanged roles!
@@ -646,7 +650,7 @@ public class ServerHandshaker extends Handshaker {
 
 	private void createCertificateRequest(final ClientHello clientHello, final DTLSFlight flight) throws HandshakeException {
 
-		if (clientAuthenticationRequired && signatureAndHashAlgorithm != null) {
+		if ((clientAuthenticationWanted || clientAuthenticationRequired) && signatureAndHashAlgorithm != null) {
 
 			CertificateRequest certificateRequest = new CertificateRequest(session.getPeer());
 
@@ -826,7 +830,7 @@ public class ServerHandshaker extends Handshaker {
 		if (cipher.requiresServerCertificateMessage()) {
 			// make sure that we support the client's proposed server cert types
 			result &= supportedServerCertType != null;
-			if (clientAuthenticationRequired) {
+			if (clientAuthenticationRequired || clientAuthenticationWanted) {
 				result &= supportedClientCertType != null;
 			}
 		}

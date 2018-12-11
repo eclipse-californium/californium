@@ -106,8 +106,11 @@ public class DTLSConnectorAdvancedTest {
 
 	@BeforeClass
 	public static void loadKeys() throws IOException, GeneralSecurityException {
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+					.setRetransmissionTimeout(RETRANSMISSION_TIMEOUT_MS)
+					.setMaxRetransmissions(MAX_RETRANSMISSIONS);
 		serverHelper = new ConnectorHelper();
-		serverHelper.startServer(RETRANSMISSION_TIMEOUT_MS, MAX_RETRANSMISSIONS, true, true);
+		serverHelper.startServer(builder);
 		executor = Executors.newFixedThreadPool(2);
 	}
 

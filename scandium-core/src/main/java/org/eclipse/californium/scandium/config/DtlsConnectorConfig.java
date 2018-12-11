@@ -149,6 +149,9 @@ public final class DtlsConnectorConfig {
 	 */
 	private Integer maxTransmissionUnit;
 
+	/** does the server want/request the client to authenticate */
+	private Boolean clientAuthenticationWanted;
+
 	/** does the server require the client to authenticate */
 	private Boolean clientAuthenticationRequired;
 
@@ -456,6 +459,23 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * Gets whether the connector wants (requests) DTLS clients to authenticate
+	 * during the handshake. The handshake doesn't fail, if the client didn't
+	 * authenticate itself during the handshake. That mostly requires the client
+	 * to use a proprietary mechanism to authenticate itself on the application
+	 * layer (e.g. username/password). It's mainly used, if the implementation
+	 * of the other peer has no PSK cipher suite and client certificate should
+	 * not be used for some reason.
+	 * 
+	 * Only used by the DTLS server side.
+	 * 
+	 * @return <code>true</code> if clients wanted to authenticate
+	 */
+	public Boolean isClientAuthenticationWanted() {
+		return clientAuthenticationWanted;
+	}
+
+	/**
 	 * Gets whether the connector requires DTLS clients to authenticate during
 	 * the handshake. Only used by the DTLS server side.
 	 * 
@@ -587,6 +607,7 @@ public final class DtlsConnectorConfig {
 		cloned.maxRetransmissions = maxRetransmissions;
 		cloned.maxTransmissionUnit = maxTransmissionUnit;
 		cloned.clientAuthenticationRequired = clientAuthenticationRequired;
+		cloned.clientAuthenticationWanted = clientAuthenticationWanted;
 		cloned.serverOnly = serverOnly;
 		cloned.identityCertificateTypes = identityCertificateTypes;
 		cloned.trustCertificateTypes = trustCertificateTypes;
@@ -705,6 +726,12 @@ public final class DtlsConnectorConfig {
 		 * @return this builder for command chaining
 		 */
 		public Builder setClientOnly() {
+			if (config.clientAuthenticationRequired != null || config.clientAuthenticationWanted != null) {
+				throw new IllegalStateException("client only is not support with server side client authentication!");
+			}
+			if (config.serverOnly != null) {
+				throw new IllegalStateException("client only is not support with server only!");
+			}
 			clientOnly = true;
 			return this;
 		}
@@ -718,6 +745,9 @@ public final class DtlsConnectorConfig {
 		 * @return this builder for command chaining
 		 */
 		public Builder setServerOnly(boolean enable) {
+			if (clientOnly) {
+				throw new IllegalStateException("server only is not supported for client only!");
+			}
 			config.serverOnly = enable;
 			return this;
 		}
@@ -805,6 +835,32 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
+		 * Sets whether the connector wants (requests) DTLS clients to authenticate
+		 * during the handshake. The handshake doesn't fail, if the client didn't
+		 * authenticate itself during the handshake. That mostly requires the client
+		 * to use a proprietary mechanism to authenticate itself on the application
+		 * layer (e.g. username/password). It's mainly used, if the implementation
+		 * of the other peer has no PSK cipher suite and client certificate should
+		 * not be used for some reason.
+		 * 
+		 * Only used by the DTLS server side.
+		 * 
+		 * @param authWanted
+		 *            <code>true</code> if clients wanted to authenticate
+		 * @return this builder for command chaining
+		 */
+		public Builder setClientAuthenticationWanted(boolean authWanted) {
+			if (clientOnly) {
+				throw new IllegalStateException("client authentication is not supported for client only!");
+			}
+			if (authWanted && Boolean.TRUE.equals(config.clientAuthenticationRequired)) {
+				throw new IllegalStateException("client authentication is already required!");
+			}
+			config.clientAuthenticationWanted = authWanted;
+			return this;
+		}
+
+		/**
 		 * Sets whether the connector requires DTLS clients to authenticate during
 		 * the handshake. Only used by the DTLS server side.
 		 * 
@@ -813,6 +869,12 @@ public final class DtlsConnectorConfig {
 		 * @return this builder for command chaining
 		 */
 		public Builder setClientAuthenticationRequired(boolean authRequired) {
+			if (clientOnly) {
+				throw new IllegalStateException("client authentication is not supported for client only!");
+			}
+			if (authRequired && Boolean.TRUE.equals(config.clientAuthenticationWanted)) {
+				throw new IllegalStateException("client authentication is already wanted!");
+			}
 			config.clientAuthenticationRequired = authRequired;
 			return this;
 		}
@@ -1443,6 +1505,9 @@ public final class DtlsConnectorConfig {
 			if (config.clientAuthenticationRequired == null) {
 				config.clientAuthenticationRequired = true;
 			}
+			if (config.clientAuthenticationWanted == null) {
+				config.clientAuthenticationWanted = false;
+			}
 			if (config.serverOnly == null) {
 				config.serverOnly = false;
 			}
@@ -1485,7 +1550,8 @@ public final class DtlsConnectorConfig {
 				}
 			} 
 
-			if (!config.clientAuthenticationRequired && config.trustCertificateTypes != null) {
+			if (!config.clientAuthenticationRequired && !config.clientAuthenticationWanted
+					&& config.trustCertificateTypes != null) {
 				throw new IllegalStateException(
 						"configured trusted certificates or certificate verifier are not used for disabled client authentication!");
 			}
@@ -1574,9 +1640,22 @@ public final class DtlsConnectorConfig {
 					throw new IllegalStateException("Keys must be ECDSA capable for configured " + suite.name());
 				}
 			}
-			if (config.clientAuthenticationRequired) {
-				if (config.trustedRPKs == null && config.certificateVerifier == null) {
-					throw new IllegalStateException("certficate trust must be set for configured " + suite.name());
+			if (config.clientAuthenticationRequired || config.clientAuthenticationWanted) {
+				if (config.trustCertificateTypes == null) {
+					throw new IllegalStateException(
+							"trust must be set for configured " + suite.name());
+				}
+				if (config.trustCertificateTypes.contains(CertificateType.RAW_PUBLIC_KEY)) {
+					if (config.trustedRPKs == null) {
+						throw new IllegalStateException(
+								"Raw public key trust must be set for configured " + suite.name());
+					}
+				}
+				if (config.trustCertificateTypes.contains(CertificateType.X_509)) {
+					if (config.certificateVerifier == null) {
+						throw new IllegalStateException(
+								"X509 certficate trust must be set for configured " + suite.name());
+					}
 				}
 			}
 		}
