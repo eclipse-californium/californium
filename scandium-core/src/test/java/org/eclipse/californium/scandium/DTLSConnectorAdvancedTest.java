@@ -735,6 +735,7 @@ public class DTLSConnectorAdvancedTest {
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
 		UdpConnector rawClient = new UdpConnector(0, collector);
 		BasicRecordLayer clientRecordLayer = new BasicRecordLayer(rawClient);
+		int remain = serverHelper.serverConnectionStore.remainingCapacity();
 		try {
 
 			// Start connector
@@ -807,6 +808,7 @@ public class DTLSConnectorAdvancedTest {
 			int timeout = RETRANSMISSION_TIMEOUT_MS * (2 << (MAX_RETRANSMISSIONS + 1));
 			Throwable error = serverSessionListener.waitForSessionFailed(timeout, TimeUnit.MILLISECONDS);
 			assertNotNull("server handshake not failed", error);
+			assertThat(serverHelper.serverConnectionStore.remainingCapacity(), is(remain));
 		} finally {
 			rawClient.stop();
 		}
@@ -821,7 +823,7 @@ public class DTLSConnectorAdvancedTest {
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
 		UdpConnector rawClient = new UdpConnector(0, collector);
 		BasicRecordLayer clientRecordLayer = new BasicRecordLayer(rawClient);
-
+		int remain = serverHelper.serverConnectionStore.remainingCapacity();
 		try {
 
 			// Start connector
@@ -861,6 +863,7 @@ public class DTLSConnectorAdvancedTest {
 			int timeout = RETRANSMISSION_TIMEOUT_MS * (2 << (MAX_RETRANSMISSIONS + 2));
 			Throwable error = serverSessionListener.waitForSessionFailed(timeout, TimeUnit.MILLISECONDS);
 			assertNotNull("server handshake not failed", error);
+			assertThat(serverHelper.serverConnectionStore.remainingCapacity(), is(remain));
 		} finally {
 			rawClient.stop();
 		}
@@ -872,6 +875,7 @@ public class DTLSConnectorAdvancedTest {
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
 		UdpConnector rawServer = new UdpConnector(0, collector);
 		BasicRecordLayer serverRecordLayer = new BasicRecordLayer(rawServer);
+		int remain = clientConnectionStore.remainingCapacity();
 
 		try {
 			// Start connector (Server)
@@ -938,6 +942,7 @@ public class DTLSConnectorAdvancedTest {
 			int timeout = RETRANSMISSION_TIMEOUT_MS * (2 << (MAX_RETRANSMISSIONS + 2));
 			Throwable error = clientSessionListener.waitForSessionFailed(timeout, TimeUnit.MILLISECONDS);
 			assertNotNull("client handshake not failed", error);
+			assertThat(clientConnectionStore.remainingCapacity(), is(remain));
 		} finally {
 			rawServer.stop();
 		}
@@ -948,6 +953,7 @@ public class DTLSConnectorAdvancedTest {
 		// Configure UDP connector we will use as Server
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
 		UdpConnector rawServer = new UdpConnector(0, collector);
+		int remain = clientConnectionStore.remainingCapacity();
 
 		try {
 			// Start connector (Server)
@@ -990,7 +996,9 @@ public class DTLSConnectorAdvancedTest {
 			int timeout = RETRANSMISSION_TIMEOUT_MS * (2 << (MAX_RETRANSMISSIONS + 2));
 			Throwable error = clientSessionListener.waitForSessionFailed(timeout, TimeUnit.MILLISECONDS);
 			assertNotNull("client handshake not failed", error);
-		} finally {
+
+			assertThat(clientConnectionStore.remainingCapacity(), is(remain));
+	} finally {
 			rawServer.stop();
 		}
 	}

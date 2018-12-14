@@ -332,6 +332,11 @@ public class DTLSConnector implements Connector, RecordLayer {
 						throws HandshakeException {
 					DTLSConnector.this.sessionEstablished(handshaker, establishedSession);
 				}
+
+				@Override
+				public void handshakeFailed(Handshaker handshaker, Throwable error) {
+					connectionStore.remove(handshaker.getPeerAddress(), false);
+				}
 			};
 			int maxConnections = configuration.getMaxConnections();
 			// calculate absolute threshold from relative.
@@ -1874,12 +1879,12 @@ public class DTLSConnector implements Connector, RecordLayer {
 						} else if (tries > max) {
 							LOGGER.debug("Flight for [{}] has reached timeout, discarding ...",
 									flight.getPeerAddress());
-							cause = new Exception("handshake timeout with flight " + flight.getFlightNumber() + "!");
+							cause = new IOException("handshake timeout with flight " + flight.getFlightNumber() + "!");
 						} else {
 							LOGGER.debug(
 									"Flight for [{}] has reached maximum no. [{}] of retransmissions, discarding ...",
 									flight.getPeerAddress(), max);
-							cause = new Exception("handshake flight " + flight.getFlightNumber() + " timeout after "
+							cause = new IOException("handshake flight " + flight.getFlightNumber() + " timeout after "
 									+ max + " retransmissions!");
 						}
 					}
