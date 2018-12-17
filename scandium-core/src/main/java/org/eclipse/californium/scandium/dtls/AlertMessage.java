@@ -38,6 +38,7 @@ import org.eclipse.californium.elements.util.StringUtil;
 public final class AlertMessage extends AbstractMessage {
 
 	// CoAP-specific constants/////////////////////////////////////////
+	private static final long serialVersionUID = 1L;
 
 	private static final int BITS = 8;
 

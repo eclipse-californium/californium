@@ -18,6 +18,12 @@ package org.eclipse.californium.scandium.dtls;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 
@@ -89,5 +95,26 @@ public class AlertMessageTest {
 		} catch (HandshakeException e) {
 			assertThat(e.getAlert().getLevel(), is(AlertLevel.FATAL));
 		}
+	}
+
+	@Test
+	public void testSerializeWithHandshakeException() throws IOException, ClassNotFoundException {
+		InetSocketAddress peer = new InetSocketAddress(InetAddress.getLoopbackAddress(), 5683);
+		AlertMessage alert = new AlertMessage(AlertLevel.WARNING, AlertDescription.HANDSHAKE_FAILURE, peer);
+		HandshakeException exception = new HandshakeException("test", alert);
+
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		ObjectOutputStream oout = new ObjectOutputStream(out);
+		oout.writeObject(exception);
+
+		ByteArrayInputStream in = new ByteArrayInputStream(out.toByteArray());
+		ObjectInputStream oin = new ObjectInputStream(in);
+		Object object = oin.readObject();
+		assertThat(object, is(instanceOf(HandshakeException.class)));
+		HandshakeException readException = (HandshakeException) object;
+		assertThat(readException.getMessage(), is(exception.getMessage()));
+		assertThat(readException.getAlert().getPeer(), is(exception.getAlert().getPeer()));
+		assertThat(readException.getAlert().getLevel(), is(exception.getAlert().getLevel()));
+		assertThat(readException.getAlert().getDescription(), is(exception.getAlert().getDescription()));
 	}
 }
