@@ -28,7 +28,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import COSE.AlgorithmID;
+import org.eclipse.californium.cose.AlgorithmID;
 
 public class OSCoreCtxTest {
 

@@ -21,7 +21,7 @@ import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.Request;
 
-import COSE.AlgorithmID;
+import org.eclipse.californium.cose.AlgorithmID;
 
 /**
  * 

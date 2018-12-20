@@ -14,6 +14,7 @@
  *    Joakim Brorsson
  *    Ludwig Seitz (RISE SICS)
  *    Tobias Andersson (RISE SICS)
+ *    Rikard Höglund (RISE SICS)
  *    
  ******************************************************************************/
 package org.eclipse.californium.oscore;
@@ -32,9 +33,9 @@ import org.eclipse.californium.cose.Encrypt0Message;
 
 import com.upokecenter.cbor.CBORObject;
 
-import COSE.Attribute;
-import COSE.CoseException;
-import COSE.HeaderKeys;
+import org.eclipse.californium.cose.Attribute;
+import org.eclipse.californium.cose.CoseException;
+import org.eclipse.californium.cose.HeaderKeys;
 
 /**
  * 
@@ -85,7 +86,7 @@ public abstract class Encryptor {
 				} else {
 					// response' creates its own partialIV
 					partialIV = OSSerializer.processPartialIV(ctx.getSenderSeq());
-					nonce = OSSerializer.nonceGeneration(partialIV, ctx.getRecipientId(), ctx.getCommonIV(),
+					nonce = OSSerializer.nonceGeneration(partialIV, ctx.getSenderId(), ctx.getCommonIV(),
 							ctx.getIVLength());
 				}
 			}
@@ -189,9 +190,9 @@ public abstract class Encryptor {
 	 * Encodes the Object-Security value for a Response.
 	 * 
 	 * @param ctx the context
-	 * @param hasObserve if true encodes the partialIV, otherwise partialIV is
+	 * @param newPartialIV if true encodes the partialIV, otherwise partialIV is
 	 *            not encoded
-	 * @return
+	 * @return the Object-Security value as byte array
 	 */
 	public static byte[] encodeOSCoreResponse(OSCoreCtx ctx, final boolean newPartialIV) {
 		int firstByte = 0x00;

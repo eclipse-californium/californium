@@ -14,12 +14,12 @@
  *    Joakim Brorsson
  *    Ludwig Seitz (RISE SICS)
  *    Tobias Andersson (RISE SICS)
+ *    Rikard Höglund (RISE SICS)
  *    
  ******************************************************************************/
 package org.eclipse.californium.oscore;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,8 +41,6 @@ public class OSSerializer {
 
 	private static final byte[] ONE_ZERO = new byte[] { 0x00 };
 	private static final byte[] EMPTY = new byte[0];
-	private static final byte[] ZEROS = new byte[] { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-			0x00, 0x00 };
 
 	/**
 	 * The logger
@@ -105,6 +103,9 @@ public class OSSerializer {
 					} else {
 						aad.Add(processPartialIV(ctx.getReceiverSeq()));
 					}
+					
+					//Added the last parameter which should be the options
+					aad.Add(CBORObject.FromObject(EMPTY));
 
 					return aad.EncodeToBytes();
 				} else {
@@ -147,6 +148,10 @@ public class OSSerializer {
 						aad.Add(algorithms);
 						aad.Add(ctx.getSenderId());
 						aad.Add(processPartialIV(seq));
+						
+						//Added the last parameter which should be the options
+						aad.Add(CBORObject.FromObject(EMPTY));
+						
 						return aad.EncodeToBytes();
 					} else {
 						LOGGER.error(ErrorDescriptions.OPTIONSET_NULL);
@@ -191,6 +196,10 @@ public class OSSerializer {
 					aad.Add(algorithms);
 					aad.Add(ctx.getSenderId());
 					aad.Add(processPartialIV(ctx.getSenderSeq()));
+					
+					//Added the last parameter which should be the options
+					aad.Add(CBORObject.FromObject(EMPTY));
+					
 					return aad.EncodeToBytes();
 				} else {
 					LOGGER.error(ErrorDescriptions.OPTIONSET_NULL);
@@ -233,6 +242,10 @@ public class OSSerializer {
 						aad.Add(algorithms);
 						aad.Add(ctx.getRecipientId());
 						aad.Add(processPartialIV(seq));
+						
+						//Added the last parameter which should be the options
+						aad.Add(CBORObject.FromObject(EMPTY));
+						
 						return aad.EncodeToBytes();
 					} else {
 						LOGGER.error(ErrorDescriptions.OPTIONSET_NULL);
@@ -254,6 +267,7 @@ public class OSSerializer {
 
 	/**
 	 * Generates the nonce.
+	 * See https://core-wg.github.io/oscoap/draft-ietf-core-object-security.html#nonce
 	 * 
 	 * @param partialIV
 	 * @param senderID
@@ -325,7 +339,7 @@ public class OSSerializer {
 	 * 
 	 * @param paddMe
 	 * @param zeros
-	 * @return
+	 * @return the left-padded byte array
 	 */
 	public static byte[] leftPaddingZeroes(byte[] paddMe, int zeros) {
 		byte[] tmp = new byte[zeros + paddMe.length];
@@ -336,7 +350,7 @@ public class OSSerializer {
 	/**
 	 * Processes a partialIV correctly
 	 * 
-	 * @param partialIV the partialIV
+	 * @param value the partialIV
 	 * @return the processed partialIV
 	 */
 	public static byte[] processPartialIV(int value) {

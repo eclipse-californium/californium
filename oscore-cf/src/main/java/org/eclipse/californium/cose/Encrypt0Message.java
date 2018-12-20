@@ -35,9 +35,6 @@ package org.eclipse.californium.cose;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
-import COSE.CoseException;
-import COSE.MessageTag;
-
 /**
  * 
  * This class is copied from the COSE Java repository to force use of the

@@ -30,7 +30,6 @@ public class ByteIdTest {
 	private final byte[] iv1 = new byte[] { 0x01, 0x02 };
 	private final byte[] iv2 = new byte[] { 0x01, 0x02 };
 	private final byte[] iv3 = new byte[] { 0x02, 0x01 };
-	private final byte[] iv4 = new byte[] { 0x00, 0x01, 0x02 };
 
 	@Rule
 	public final ExpectedException exception = ExpectedException.none();

@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Tobias Andersson (RISE SICS)
+ *    Rikard Höglund (RISE SICS)
  *    
  ******************************************************************************/
 package org.eclipse.californium.oscore;
@@ -25,7 +26,7 @@ public final class ErrorDescriptions {
 
 	public static final String CONTEXT_NOT_FOUND = ("Security context not found");
 	public static final String FAILED_TO_DECODE_COSE = ("Failed to decode COSE");
-	public static final String REPLAY_DETECT = ("Replay protection failed");
+	public static final String REPLAY_DETECT = ("Replay detected");
 	public static final String DECRYPTION_FAILED = ("Decryption failed");
 	public static final String MAC_CCM_FAILED = ("Mac check in CCM failed");
 	public static final String TOKEN_NULL = ("Token is null");

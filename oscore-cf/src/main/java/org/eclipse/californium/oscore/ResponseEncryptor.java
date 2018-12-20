@@ -38,7 +38,7 @@ public class ResponseEncryptor extends Encryptor {
 	private static final Logger LOGGER = LoggerFactory.getLogger(ResponseEncryptor.class.getName());
 
 	/**
-	 * @param r the response
+	 * @param response the response
 	 * @param ctx the OSCore context
 	 * 
 	 * @return the response with the encrypted OSCore option
@@ -46,7 +46,6 @@ public class ResponseEncryptor extends Encryptor {
 	 * @throws OSException when encryption fails
 	 */
 	public static Response encrypt(Response response, OSCoreCtx ctx, final boolean newPartialIV) throws OSException {
-
 		if (ctx == null) {
 			LOGGER.error(ErrorDescriptions.CTX_NULL);
 			throw new OSException(ErrorDescriptions.CTX_NULL);
