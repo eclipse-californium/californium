@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Tobias Andersson (RISE SICS)
+ *    Rikard Höglund (RISE SICS)
  *    
  ******************************************************************************/
 package org.eclipse.californium.oscore;
@@ -67,7 +68,9 @@ public class CoapOSExceptionHandler {
 					error.setType(tmp);
 					error.setPayload(e.getMessage());
 					error.getOptions().setMaxAge(0);
-
+					//Set MID of error response to match request
+					error.setMID(request.getMID());
+					
 					return error;
 				} else {
 					LOGGER.error(ErrorDescriptions.CANNOT_CREATE_ERROR_MESS + ": " + ErrorDescriptions.ERROR_MESS_NULL);
@@ -102,11 +105,13 @@ public class CoapOSExceptionHandler {
 			LOGGER.error(ErrorDescriptions.ERROR_MESS_NULL);
 			throw new NullPointerException(ErrorDescriptions.ERROR_MESS_NULL);
 		}
-
+		
 		if (!response.isConfirmable()) {
 			LOGGER.error("An Empty Message will not be created");
 			return null;
 		}
+		
+		LOGGER.info("Sending empty RST message");
 		return EmptyMessage.newRST(response);
 	}
 }

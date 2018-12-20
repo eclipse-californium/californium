@@ -10,7 +10,6 @@
 	<artifactId>oscore-cf</artifactId>
 
 	<properties>
-		<cose.version>0.9.7</cose.version>
 		<cbor.version>3.0.3</cbor.version>
 		<numbers.version>1.0.2</numbers.version>
 	</properties>
@@ -23,12 +22,6 @@
 		<dependency>
 			<groupId>org.eclipse.californium</groupId>
 			<artifactId>californium-core</artifactId>
-		</dependency>
-		<dependency>
-			<!-- requires java 1.8 -->
-			<groupId>com.augustcellars.cose</groupId>
-			<artifactId>cose-java</artifactId>
-			<version>${cose.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.eclipse.californium</groupId>
@@ -72,21 +65,25 @@
 	
 	<profiles>
 		<profile>
-			<id>jdk17</id>
+			<!-- maven compile would try to resolve test dependencies, 
+				even if tests are skipped. Therefore include this 
+				test dependency only, if tests are enabled -->
+			<id>tests</id>
 			<activation>
-				<jdk>(,1.8)</jdk>
-			</activation>	
-			<build>
-				<plugins>
-					<plugin>
-						<artifactId>maven-surefire-plugin</artifactId>
-						<configuration>
-							<!-- skip test, if a java before 1.8 is used -->
-							<skipTests>true</skipTests>
-						</configuration>
-					</plugin>
-				</plugins>
-			</build>
+				<property>
+					<name>maven.test.skip</name>
+					<value>!true</value>
+				</property>
+			</activation>
+			<dependencies>
+				<dependency>
+					<groupId>${project.groupId}</groupId>
+					<artifactId>californium-core</artifactId>
+					<classifier>tests</classifier>
+					<type>test-jar</type>
+				</dependency>
+			</dependencies>
 		</profile>
 	</profiles>
+
 </project>

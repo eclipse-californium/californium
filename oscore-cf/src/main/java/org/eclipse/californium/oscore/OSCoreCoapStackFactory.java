@@ -39,7 +39,7 @@ public class OSCoreCoapStackFactory implements CoapStackFactory {
 	/**
 	 * Use {@link OSCoreStack} as default for {@link CoapEndpoint}.
 	 * 
-	 * @see CoapEndpoint.#setDefaultCoapStackFactory(CoapStackFactory)
+	 * @see CoapEndpoint#setDefaultCoapStackFactory(CoapStackFactory)
 	 */
 	public static void useAsDefault() {
 		CoapEndpoint.setDefaultCoapStackFactory(new OSCoreCoapStackFactory());

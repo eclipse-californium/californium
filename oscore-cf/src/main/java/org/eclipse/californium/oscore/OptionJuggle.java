@@ -19,7 +19,6 @@
 package org.eclipse.californium.oscore;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -76,7 +75,6 @@ public class OptionJuggle {
 	 * Prepare a set or original CoAP options for unprotected use with OSCore.
 	 * 
 	 * @param options the original options
-	 * @param osOpt the OSCore option
 	 * 
 	 * @return the OSCore-U option set
 	 */

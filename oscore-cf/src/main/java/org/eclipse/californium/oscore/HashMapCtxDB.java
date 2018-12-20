@@ -14,14 +14,21 @@
  *    Joakim Brorsson
  *    Ludwig Seitz (RISE SICS)
  *    Tobias Andersson (RISE SICS)
+ *    Rikard Höglund (RISE SICS)
  *    
  ******************************************************************************/
 package org.eclipse.californium.oscore;
 
+import java.net.Inet6Address;
+import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -199,16 +206,62 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 	 * @param uri the request uri
 	 * @return the normalized uri
 	 *
-	 * @throws OSMyError
+	 * @throws OSException
 	 */
 	private static String normalizeServerUri(String uri) throws OSException {
 		String normalized = null;
+
 		try {
 			normalized = (new URI(uri)).getHost();
 		} catch (URISyntaxException e) {
-			LOGGER.error("Error in the request URI: " + uri + " message: " + e.getMessage());
-			throw new OSException(e.getMessage());
+			// workaround for openjdk bug JDK-8199396.
+			// some characters are not supported for the ipv6 scope.
+			try {
+				String patternString = "(%.*)]";
+				Pattern pattern = Pattern.compile(patternString);
+
+				//Save the original scope
+				Matcher matcher = pattern.matcher(uri);
+				String originalScope = null;
+				if(matcher.find()) {
+					originalScope = matcher.group(1);
+				}
+
+				//Remove unsupported characters in scope before getting the host component
+				normalized = (new URI(uri.replaceAll("[-._~]", ""))).getHost();
+
+				//Find the modified new scope
+				matcher = pattern.matcher(normalized);
+				String newScope = null;
+				if(matcher.find()) {
+					newScope = matcher.group(1);
+				}
+
+				//Restore original scope for the IPv6 normalization
+				//Otherwise getByName below will fail with "no such interface"
+				//Since the scope is no longer matching the interface
+				if(newScope != null && originalScope != null) {
+					normalized = normalized.replace(newScope, originalScope);
+				}
+
+			} catch (URISyntaxException e2) {
+				LOGGER.error("Error in the request URI: " + uri + " message: " + e.getMessage());
+				throw new OSException(e.getMessage());
+			}
 		}
+
+		//Further normalization for IPv6 addresses
+		//Normalization above can give different results depending on structure of IPv6 address
+		InetAddress ipv6Addr = null;
+		try {
+			ipv6Addr = InetAddress.getByName(normalized);
+		} catch (UnknownHostException e) {
+			LOGGER.error("Error finding host of request URI: " + uri + " message: " + e.getMessage());
+		}
+		if(ipv6Addr instanceof Inet6Address) {
+			normalized = ipv6Addr.getHostAddress();
+		}
+
 		return normalized;
 	}
 

@@ -14,6 +14,7 @@
  *    Joakim Brorsson
  *    Ludwig Seitz (RISE SICS)
  *    Tobias Andersson (RISE SICS)
+ *    Rikard Höglund (RISE SICS)
  *    
  ******************************************************************************/
 package org.eclipse.californium.oscore;
@@ -46,7 +47,6 @@ public class ResponseDecryptor extends Decryptor {
 	 * Decrypt the response.
 	 * 
 	 * @param response the response
-	 * @param db the database of OSCore contexts
 	 * 
 	 * @return the decrypted response
 	 * 
@@ -78,16 +78,24 @@ public class ResponseDecryptor extends Decryptor {
 			throw new OSException(ErrorDescriptions.TOKEN_NULL);
 		}
 
-		byte[] plaintext = decryptAndDecode(enc, response, ctx, db.getSeqByToken(token));
-
-		DatagramReader reader = new DatagramReader(new ByteArrayInputStream(plaintext));
-
-		response = OptionJuggle.setRealCodeResponse(response,
-				CoAP.ResponseCode.valueOf(reader.read(CoAP.MessageFormat.CODE_BITS)));
-
-		// resets option so eOptions gets priority during parse
-		response.setOptions(EMPTY);
-		DataParser.parseOptionsAndPayload(reader, response);
+		//Check if parsing of response plaintext succeeds
+		try {
+			byte[] plaintext = decryptAndDecode(enc, response, ctx, db.getSeqByToken(token));
+	
+			DatagramReader reader = new DatagramReader(new ByteArrayInputStream(plaintext));
+			
+			
+			response = OptionJuggle.setRealCodeResponse(response,
+					CoAP.ResponseCode.valueOf(reader.read(CoAP.MessageFormat.CODE_BITS)));
+		
+			
+			// resets option so eOptions gets priority during parse
+			response.setOptions(EMPTY);
+			DataParser.parseOptionsAndPayload(reader, response);
+		} catch (Exception e) {
+			LOGGER.error(ErrorDescriptions.DECRYPTION_FAILED);
+			throw new OSException(ErrorDescriptions.DECRYPTION_FAILED);
+		}
 
 		OptionSet eOptions = response.getOptions();
 		eOptions = OptionJuggle.merge(eOptions, uOptions);

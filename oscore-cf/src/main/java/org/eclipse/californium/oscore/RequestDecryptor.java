@@ -14,6 +14,7 @@
  *    Joakim Brorsson
  *    Ludwig Seitz (RISE SICS)
  *    Tobias Andersson (RISE SICS)
+ *    Rikard Höglund (RISE SICS)
  *    
  ******************************************************************************/
 package org.eclipse.californium.oscore;
@@ -37,7 +38,7 @@ import org.eclipse.californium.oscore.OptionJuggle;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
-import COSE.HeaderKeys;
+import org.eclipse.californium.cose.HeaderKeys;
 
 /**
  * 
@@ -53,7 +54,6 @@ public class RequestDecryptor extends Decryptor {
 
 	/**
 	 * @param request the request to decrypt
-	 * @param db the database of OSCore contexts
 	 * 
 	 * @return the cid of the OSCore context use for this request
 	 * 
@@ -93,18 +93,30 @@ public class RequestDecryptor extends Decryptor {
 		try {
 			plaintext = decryptAndDecode(enc, request, ctx, null);
 		} catch (OSException e) {
+			//First check for replay exceptions
+			if(e.getMessage().equals(ErrorDescriptions.REPLAY_DETECT)) { 
+				LOGGER.error(ErrorDescriptions.REPLAY_DETECT);
+				throw new CoapOSException(ErrorDescriptions.REPLAY_DETECT, ResponseCode.UNAUTHORIZED);
+			}
+			//Otherwise return generic error message
 			LOGGER.error(ErrorDescriptions.DECRYPTION_FAILED);
 			throw new CoapOSException(ErrorDescriptions.DECRYPTION_FAILED, ResponseCode.BAD_REQUEST);
 		}
-
-		DatagramReader reader = new DatagramReader(new ByteArrayInputStream(plaintext));
-		ctx.setCoAPCode(Code.valueOf(reader.read(CoAP.MessageFormat.CODE_BITS)));
-		// resets option so eOptions gets priority during parse
-		request.setOptions(EMPTY);
-		DataParser.parseOptionsAndPayload(reader, request);
+		
+		//Check if parsing of request plaintext succeeds
+		try {
+			DatagramReader reader = new DatagramReader(new ByteArrayInputStream(plaintext));
+			ctx.setCoAPCode(Code.valueOf(reader.read(CoAP.MessageFormat.CODE_BITS)));
+			// resets option so eOptions gets priority during parse
+			request.setOptions(EMPTY);
+			DataParser.parseOptionsAndPayload(reader, request);
+		} catch (Exception e) {
+			LOGGER.error(ErrorDescriptions.DECRYPTION_FAILED);
+			throw new CoapOSException(ErrorDescriptions.DECRYPTION_FAILED, ResponseCode.BAD_REQUEST);
+		}
+			
 		OptionSet eOptions = request.getOptions();
-		eOptions = OptionJuggle.merge(eOptions, uOptions);
-
+		eOptions = OptionJuggle.merge(eOptions, uOptions);	
 		request.setOptions(eOptions);
 
 		// We need the kid value on layer level

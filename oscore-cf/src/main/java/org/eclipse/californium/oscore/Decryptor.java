@@ -14,12 +14,14 @@
  *    Joakim Brorsson
  *    Ludwig Seitz (RISE SICS)
  *    Tobias Andersson (RISE SICS)
+ *    Rikard Höglund (RISE SICS)
  *    
  ******************************************************************************/
 package org.eclipse.californium.oscore;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,9 +34,9 @@ import org.eclipse.californium.cose.Encrypt0Message;
 
 import com.upokecenter.cbor.CBORObject;
 
-import COSE.Attribute;
-import COSE.CoseException;
-import COSE.HeaderKeys;
+import org.eclipse.californium.cose.Attribute;
+import org.eclipse.californium.cose.CoseException;
+import org.eclipse.californium.cose.HeaderKeys;
 
 /**
  * 
@@ -86,6 +88,8 @@ public abstract class Decryptor {
 				partialIV = tmp.GetByteString();
 				partialIV = expandToIntSize(partialIV);
 				seq = ByteBuffer.wrap(partialIV).getInt();
+				
+				//Note that the code below can throw an OSException when replays are detected
 				ctx.checkIncomingSeq(seq);
 
 				nonce = OSSerializer.nonceGeneration(partialIV, ctx.getRecipientId(), ctx.getCommonIV(),
@@ -104,8 +108,9 @@ public abstract class Decryptor {
 				// this should use the partialIV that arrived in the request and
 				// not the response
 				seq = seqByToken;
-				nonce = OSSerializer.nonceGeneration(ByteBuffer.allocate(INTEGER_BYTES).putInt(seqByToken).array(),
-						ctx.getSenderId(), ctx.getCommonIV(), ctx.getIVLength());
+				partialIV = ByteBuffer.allocate(INTEGER_BYTES).putInt(seqByToken).array();
+				nonce = OSSerializer.nonceGeneration(partialIV,	ctx.getSenderId(), ctx.getCommonIV(), 
+						ctx.getIVLength());
 			} else {
 
 				partialIV = tmp.GetByteString();
@@ -121,6 +126,7 @@ public abstract class Decryptor {
 		byte[] aad = serializeAAD(message, ctx, seq);
 
 		enc.setExternal(aad);
+			
 		try {
 
 			enc.addAttribute(HeaderKeys.Algorithm, ctx.getAlg().AsCBOR(), Attribute.DO_NOT_SEND);
@@ -195,7 +201,16 @@ public abstract class Decryptor {
 	protected static Encrypt0Message decompression(byte[] cipherText, Message message) throws OSException {
 		Encrypt0Message enc = new Encrypt0Message(false, true);
 
-		decodeObjectSecurity(message, enc);
+		//Added try-catch for general Exception. The array manipulation can cause exceptions.
+		try {
+			decodeObjectSecurity(message, enc);
+		} catch (OSException e) {
+			LOGGER.error(e.getMessage());
+			throw e;
+		} catch (Exception e) {
+			LOGGER.error("Failed to decode object security option.");
+			throw new OSException("Failed to decode object security option.");
+		}
 
 		if (cipherText != null)
 			enc.setEncryptedContent(cipherText);
@@ -212,6 +227,15 @@ public abstract class Decryptor {
 	private static void decodeObjectSecurity(Message message, Encrypt0Message enc) throws OSException {
 		byte[] total = message.getOptions().getOscore();
 
+		/**
+		 * If the OSCORE option value is a zero length byte array
+		 * it represents a byte array of length 1 with a byte 0x00
+		 * See https://tools.ietf.org/html/draft-ietf-core-object-security-15#page-33 point 4  
+		 */
+		if(total.length == 0) {
+			total = new byte[] { 0x00 };
+		}
+		
 		byte flagByte = total[0];
 
 		int n = flagByte & 0x07;
@@ -254,11 +278,14 @@ public abstract class Decryptor {
 		}
 
 		try {
-			if (partialIV != null)
+			if (partialIV != null) {
 				enc.addAttribute(HeaderKeys.PARTIAL_IV, CBORObject.FromObject(partialIV), Attribute.UNPROTECTED);
-			if (kid != null)
+			}
+			if (kid != null) {
 				enc.addAttribute(HeaderKeys.KID, CBORObject.FromObject(kid), Attribute.UNPROTECTED);
+			}
 		} catch (CoseException e) {
+			LOGGER.error("COSE processing of message failed.");
 			e.printStackTrace();
 		}
 	}

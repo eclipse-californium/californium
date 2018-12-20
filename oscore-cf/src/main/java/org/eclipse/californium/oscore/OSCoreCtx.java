@@ -14,6 +14,7 @@
  *    Joakim Brorsson
  *    Ludwig Seitz (RISE SICS)
  *    Tobias Andersson (RISE SICS)
+ *    Rikard Höglund (RISE SICS)
  *    
  ******************************************************************************/
 package org.eclipse.californium.oscore;
@@ -31,10 +32,8 @@ import org.eclipse.californium.core.coap.CoAP.Code;
 
 import com.upokecenter.cbor.CBORObject;
 
-import COSE.AlgorithmID;
-import COSE.CoseException;
-
-import org.eclipse.californium.core.Utils;
+import org.eclipse.californium.cose.AlgorithmID;
+import org.eclipse.californium.cose.CoseException;
 
 /**
  * 
@@ -111,7 +110,7 @@ public class OSCoreCtx {
 			AlgorithmID kdf, Integer replay_size, byte[] master_salt, byte[] contextId) throws OSException {
 
 		if (alg == null) {
-			this.common_alg = COSE.AlgorithmID.AES_CCM_16_64_128;
+			this.common_alg = AlgorithmID.AES_CCM_16_64_128;
 		} else {
 			this.common_alg = alg;
 		}
@@ -148,7 +147,7 @@ public class OSCoreCtx {
 		}
 
 		if (kdf == null) {
-			this.kdf = COSE.AlgorithmID.HKDF_HMAC_SHA_256;
+			this.kdf = AlgorithmID.HKDF_HMAC_SHA_256;
 		} else {
 			this.kdf = kdf;
 		}
@@ -196,8 +195,6 @@ public class OSCoreCtx {
 		info.Add(CBORObject.FromObject("Key"));
 		info.Add(this.key_length);
 
-		LOGGER.info("Info sender key: " + Utils.toHexString(info.EncodeToBytes()));
-
 		try {
 			this.sender_key = deriveKey(this.common_master_secret, this.common_master_salt, this.key_length, digest,
 					info.EncodeToBytes());
@@ -214,8 +211,6 @@ public class OSCoreCtx {
 		info.Add(CBORObject.FromObject("Key"));
 		info.Add(this.key_length);
 
-		LOGGER.info("Info recipient key: " + Utils.toHexString(info.EncodeToBytes()));
-
 		try {
 			this.recipient_key = deriveKey(this.common_master_secret, this.common_master_salt, this.key_length, digest,
 					info.EncodeToBytes());
@@ -231,8 +226,6 @@ public class OSCoreCtx {
 		info.Add(this.common_alg.AsCBOR());
 		info.Add(CBORObject.FromObject("IV"));
 		info.Add(this.iv_length);
-
-		LOGGER.info("Info common IV: " + Utils.toHexString(info.EncodeToBytes()));
 
 		try {
 			this.common_iv = deriveKey(this.common_master_secret, this.common_master_salt, this.iv_length, digest,
@@ -363,6 +356,15 @@ public class OSCoreCtx {
 	public AlgorithmID getKdf() {
 		return kdf;
 	}
+	
+	/**
+	 * Enables getting the ID Context
+	 * 
+	 * @return Byte array with ID Context
+	 */
+	public byte[] getIdContext() {
+		return context_id;
+	}
 
 	public int rollbackRecipientSeq() {
 		return rollback_recipient_seq;
@@ -395,6 +397,24 @@ public class OSCoreCtx {
 		last_block_tag = tag.clone();
 	}
 
+	/**
+	 * Enables setting the sender key
+	 * 
+	 * @param senderKey
+	 */
+	public void setSenderKey(byte[] senderKey) {
+		this.sender_key = senderKey.clone();
+	}
+	
+	/**
+	 * Enables setting the recipient key
+	 * 
+	 * @param recipientKey
+	 */
+	public void setRecipientKey(byte[] recipientKey) {
+		this.recipient_key = recipientKey.clone();
+	}
+	
 	/**
 	 * Set the maximum sequence number.
 	 * 
@@ -459,6 +479,7 @@ public class OSCoreCtx {
 			recipient_replay_window = recipient_replay_window << shift;
 			recipient_seq = seq;
 		} else if (seq == recipient_seq) {
+			LOGGER.error("Sequence number is replay");
 			throw new OSException(ErrorDescriptions.REPLAY_DETECT);
 		} else { // seq < recipient_seq
 			if (seq + recipient_replay_window_size < recipient_seq) {

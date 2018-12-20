@@ -38,7 +38,7 @@ public class RequestEncryptor extends Encryptor {
 	private static final Logger LOGGER = LoggerFactory.getLogger(RequestEncryptor.class.getName());
 
 	/**
-	 * @param r the request
+	 * @param request the request
 	 * @param ctx the OSCore context
 	 * 
 	 * @return the request with the OSCore option
@@ -46,6 +46,7 @@ public class RequestEncryptor extends Encryptor {
 	 *
 	 */
 	public static Request encrypt(Request request, OSCoreCtx ctx) throws OSException {
+
 		if (ctx == null) {
 			LOGGER.error(ErrorDescriptions.CTX_NULL);
 			throw new OSException(ErrorDescriptions.CTX_NULL);
