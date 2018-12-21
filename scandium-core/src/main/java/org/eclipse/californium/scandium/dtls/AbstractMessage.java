@@ -15,14 +15,12 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.io.Serializable;
 import java.net.InetSocketAddress;
 
 /**
  * An abstract base class for DTLS messages providing support for the peer address.
  */
-public abstract class AbstractMessage implements DTLSMessage, Serializable{
-	private static final long serialVersionUID = 1L;
+public abstract class AbstractMessage implements DTLSMessage {
 
 	private final InetSocketAddress peerAddress;
 	

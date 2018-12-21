@@ -136,7 +136,6 @@ public class DTLSConnectorResumeTest {
 		client.setExecutor(executor);
 	}
 
-	
 	@Test
 	public void testConnectorResumesSessionFromNewConnection() throws Exception {
 		// Do a first handshake
