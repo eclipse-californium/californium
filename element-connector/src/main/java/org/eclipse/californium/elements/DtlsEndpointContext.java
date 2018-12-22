@@ -64,9 +64,10 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 * @param sessionId the session's ID.
 	 * @param epoch the session's current read/write epoch.
 	 * @param cipher the cipher suite of the session's current read/write state.
-	 * @param timestamp the timestamp of the last handshake.
-	 * @throws NullPointerException if any of the parameters other than peerIdentity
-	 *             are {@code null}.
+	 * @param timestamp the timestamp in milliseconds of the last handshake. See
+	 *            {@link System#currentTimeMillis()}.
+	 * @throws NullPointerException if any of the parameters other than
+	 *             peerIdentity are {@code null}.
 	 */
 	public DtlsEndpointContext(InetSocketAddress peerAddress, Principal peerIdentity,
 			String sessionId, String epoch, String cipher, String timestamp) {
@@ -83,9 +84,10 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 * @param sessionId the session's ID.
 	 * @param epoch the session's current read/write epoch.
 	 * @param cipher the cipher suite of the session's current read/write state.
-	 * @param timestamp the timestamp of the last handshake.
-	 * @throws NullPointerException if any of the parameters other than peerIdentity
-	 *             are {@code null}.
+	 * @param timestamp the timestamp in milliseconds of the last handshake. See
+	 *            {@link System#currentTimeMillis()}.
+	 * @throws NullPointerException if any of the parameters other than
+	 *             peerIdentity are {@code null}.
 	 */
 	public DtlsEndpointContext(InetSocketAddress peerAddress, String virtualHost, Principal peerIdentity,
 			String sessionId, String epoch, String cipher, String timestamp) {
@@ -119,6 +121,17 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 */
 	public final String getCipher() {
 		return get(KEY_CIPHER);
+	}
+
+	/**
+	 * Gets the timestamp in milliseconds of the last handshake.
+	 * 
+	 * @return The timestamp in milliseconds of the last handshake.
+	 * 
+	 * @see System#currentTimeMillis()
+	 */
+	public final String getHandshakeTimestamp() {
+		return get(KEY_HANDSHAKE_TIMESTAMP);
 	}
 
 	@Override
