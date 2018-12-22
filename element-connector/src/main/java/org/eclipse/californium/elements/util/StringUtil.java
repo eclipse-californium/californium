@@ -193,7 +193,7 @@ public class StringUtil {
 	 */
 	public static String trunc(String text, int maxLength) {
 		if (text != null && maxLength > 0 && maxLength < text.length()) {
-			return text.substring(0, maxLength - 1);
+			return text.substring(0, maxLength);
 		}
 		return text;
 	}
@@ -215,7 +215,7 @@ public class StringUtil {
 	 * Get socket address as string for logging.
 	 * 
 	 * @param address socket address to be converted to string
-	 * @return the host string, if available, otherwise the host address
+	 * @return the host string, if available, otherwise the host address, both
 	 *         appended with ":" and the port. Or {@code null}, if address is
 	 *         {@code null}.
 	 */
@@ -223,11 +223,13 @@ public class StringUtil {
 		if (address == null) {
 			return null;
 		}
+		String host;
 		if (SUPPORT_HOST_STRING) {
-			return toHostString(address);
+			host = toHostString(address);
 		} else {
-			return address.getAddress().getHostAddress() + ":" + address.getPort();
+			host = toString(address.getAddress());
 		}
+		return host + ":" + address.getPort();
 	}
 
 	/**
