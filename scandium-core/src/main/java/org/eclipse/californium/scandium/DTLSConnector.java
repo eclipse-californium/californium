@@ -1595,6 +1595,10 @@ public class DTLSConnector implements Connector, RecordLayer {
 		Connection connection = connectionStore.get(peerAddress);
 
 		if (connection == null) {
+			if (config.isServerOnly()) {
+				message.onError(new EndpointUnconnectedException());
+				return;
+			}
 			connection = new Connection(peerAddress);
 			connectionStore.put(connection);
 		}
@@ -1604,6 +1608,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		if (session == null && ticket == null) {
 			if (config.isServerOnly()) {
 				message.onError(new EndpointUnconnectedException());
+				return;
 			}
 			if (!checkOutboundEndpointContext(message, null)) {
 				return;
@@ -1643,6 +1648,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 				// create the session to resume from the previous one.
 				if (config.isServerOnly()) {
 					message.onError(new EndpointMismatchException());
+					return;
 				}
 				message.onConnecting();
 				SessionId sessionId;
