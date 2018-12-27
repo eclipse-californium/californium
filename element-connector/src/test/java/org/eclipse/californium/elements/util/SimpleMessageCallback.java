@@ -143,7 +143,10 @@ public class SimpleMessageCallback implements MessageCallback {
 	}
 
 	public synchronized String toString() {
-		if (sent) {
+		long count = latchCalls.getCount();
+		if (count > 0) {
+			return count + " pending calls ...";
+		} else if (sent) {
 			return String.format("sent %s", context);
 		} else if (sendError != null) {
 			return String.format("error %s, %s", sendError, context);
