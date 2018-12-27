@@ -46,6 +46,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.elements.runner.BufferedLoggingTestRunner;
@@ -112,6 +113,10 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 	 * Enable buffered logging.
 	 */
 	private static final AtomicBoolean enableLoggingBuffer = new AtomicBoolean();
+	/**
+	 * Time of last enabling buffered logging in system nanos.
+	 */
+	private static final AtomicLong loggingBufferStartTimeNanos = new AtomicLong();
 
 	/**
 	 * Initialization indicator.
@@ -231,7 +236,9 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 		} else if (LOGGER.isDebugEnabled()) {
 			LOGGER.debug(">> {}", exchange.format(currentSetup));
 		} else if (LOGGER.isInfoEnabled() && enableLoggingBuffer.get()) {
-			logBuffer.offer(exchange.format(currentSetup));
+			String line = exchange.format(currentSetup);
+			long time = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - loggingBufferStartTimeNanos.get());
+			logBuffer.offer(String.format("%04d: %s", time, line));
 		}
 		int receivedLength = exchange.data.length;
 		int destPacketLength = destPacket.getLength();
@@ -505,8 +512,9 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 	 * Clear all messages in the logging buffer. Enables buffered logging.
 	 */
 	public static void clearBufferLogging() {
-		enableLoggingBuffer.set(true);
+		loggingBufferStartTimeNanos.set(System.nanoTime());
 		logBuffer.clear();
+		enableLoggingBuffer.set(true);
 	}
 
 	/**
