@@ -46,7 +46,7 @@ public class ExecutorsUtil {
 
 		@Override
 		public void run() {
-			LOGGER.trace("warnup ...");
+			LOGGER.trace("warmup ...");
 		}
 	};
 
