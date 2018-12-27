@@ -29,6 +29,8 @@
  *                                                    notify. Issue #451
  *                                                    Correct type of MAX_RETRANSMIT
  *                                                    from float to int.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add TestTimeRule for faster
+ *                                                    expired exchanges at test-end.
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
@@ -52,15 +54,17 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.test.CountingMessageObserver;
 import org.eclipse.californium.core.test.ErrorInjector;
+import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
+import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-
 
 /**
  * This test implements all examples from the blockwise draft 14 for a client.
@@ -68,19 +72,22 @@ import org.junit.experimental.categories.Category;
 @Category(Large.class)
 public class ObserveClientSideTest {
 	private static final int TEST_EXCHANGE_LIFETIME = 2470; // milliseconds
-	private static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 1000; // milliseconds
-	
+	private static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 200; // milliseconds
+
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
 	private static NetworkConfig CONFIG;
+
+	@Rule
+	public TestTimeRule time = new TestTimeRule();
 
 	private LockstepEndpoint server;
 	private CoapTestEndpoint client;
 	private int mid = 8000;
 	private String respPayload;
 	private ClientBlockwiseInterceptor clientInterceptor = new ClientBlockwiseInterceptor();
-	
+
 	@BeforeClass
 	public static void init() {
 		System.out.println(System.lineSeparator() + "Start " + ObserveClientSideTest.class.getSimpleName());
@@ -109,7 +116,7 @@ public class ObserveClientSideTest {
 	@After
 	public void shutdownEndpoints() {
 		try {
-			assertAllExchangesAreCompleted(client);
+			assertAllEndpointExchangesAreCompleted(client);
 		} finally {
 			printServerLog(clientInterceptor);
 			
@@ -164,6 +171,8 @@ public class ObserveClientSideTest {
 		assertResponseContainsExpectedPayload(notification1, respPayload);
 		notificationListener.log();
 		assertNumberOfReceivedNotifications(notificationListener, 1, true);
+
+		assertAllEndpointExchangesAreCompleted(client);
 	}
 
 	/**
@@ -326,6 +335,8 @@ public class ObserveClientSideTest {
 		// notification must not be delivered
 		notification = notificationListener.waitForResponse(400);
 		assertThat("Client received notification although canceled", notification, is(nullValue()));
+
+		assertAllEndpointExchangesAreCompleted(client);
 	}
 
 	/**
@@ -419,9 +430,10 @@ public class ObserveClientSideTest {
 
 		response = notificationListener.waitForResponse(1000);
 		assertResponseContainsExpectedPayload(response, notifyPayload);
+
+		assertAllEndpointExchangesAreCompleted(client);
 	}
-	
-	
+
 	/**
 	 * Verifies behavior of observing a resource which start a blockwise
 	 * transfer and receiving an older none-blockwise notification before previous
@@ -511,6 +523,8 @@ public class ObserveClientSideTest {
 
 		response = notificationListener.waitForResponse(1000);
 		assertResponseContainsExpectedPayload(response, notifyPayload);
+
+		assertAllEndpointExchangesAreCompleted(client);
 	}
 
 	/**
@@ -622,6 +636,8 @@ public class ObserveClientSideTest {
 		// ensure, that not transfer is still ongoing
 		Message message = server.receiveNextMessage(1, TimeUnit.SECONDS);
 		assertThat("still receiving messages", message, is(nullValue()));
+
+		assertAllEndpointExchangesAreCompleted(client);
 	}
 
 	/**
@@ -689,7 +705,7 @@ public class ObserveClientSideTest {
 		String notifyPayload2 = generateRandomPayload(32);
 		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(2).mid(++mid).block2(0, true, 16)
 				.payload(notifyPayload2.substring(0, 16)).go();
-		
+
 		// Expect ACK and Next Block request for the notification
 		server.startMultiExpectation();
 		server.expectEmpty(ACK, mid).go();
@@ -702,6 +718,8 @@ public class ObserveClientSideTest {
 
 		response = notificationListener.waitForResponse(1000);
 		assertResponseContainsExpectedPayload(response, notifyPayload2);
+
+		assertAllEndpointExchangesAreCompleted(client);
 	}
 	
 	/**
@@ -710,22 +728,22 @@ public class ObserveClientSideTest {
 	 * <pre>
 	 * (actual used MIDs and Tokens my vary!)
 	 * ####### establish observe #############
-     * CON [MID=13198, T=1213218678da4ff1], GET, /test, observe(0)    ----->
-     * <-----   ACK [MID=13198, T=1213218678da4ff1], 2.05, observe(1)
-     * ####### start new block2 notification #############
-     * <-----   CON [MID=8001, T=1213218678da4ff1], 2.05, 2:0/1/16, observe(3)
-     * ACK [MID=8001]   ----->
-     * CON [MID=13199, T=250c57dae9c9e01d], GET, /test, 2:1/0/16    ----->
-     * ####### older notification received #############
-     * <-----   CON [MID=8002, T=1213218678da4ff1], 2.05, observe(2)
-     * ACK [MID=8002]   ----->
-     * ####### continue 1srt block2 notification #############
-     * <-----   ACK [MID=13199, T=250c57dae9c9e01d], 2.05, 2:1/0/16
-     * ####### test observe relation is still established #############
-     * <-----   CON [MID=8003, T=1213218678da4ff1], 2.05, 2:0/1/16, observe(4)
-     * ACK [MID=8003]   ----->
-     * CON [MID=13200, T=80f6115e5699b906], GET, /test, 2:1/0/16    ----->
-     * <-----   ACK [MID=13200, T=80f6115e5699b906], 2.05, 2:1/0/16
+	 * CON [MID=13198, T=1213218678da4ff1], GET, /test, observe(0)    ----->
+	 * <-----   ACK [MID=13198, T=1213218678da4ff1], 2.05, observe(1)
+	 * ####### start new block2 notification #############
+	 * <-----   CON [MID=8001, T=1213218678da4ff1], 2.05, 2:0/1/16, observe(3)
+	 * ACK [MID=8001]   ----->
+	 * CON [MID=13199, T=250c57dae9c9e01d], GET, /test, 2:1/0/16    ----->
+	 * ####### older notification received #############
+	 * <-----   CON [MID=8002, T=1213218678da4ff1], 2.05, observe(2)
+	 * ACK [MID=8002]   ----->
+	 * ####### continue 1srt block2 notification #############
+	 * <-----   ACK [MID=13199, T=250c57dae9c9e01d], 2.05, 2:1/0/16
+	 * ####### test observe relation is still established #############
+	 * <-----   CON [MID=8003, T=1213218678da4ff1], 2.05, 2:0/1/16, observe(4)
+	 * ACK [MID=8003]   ----->
+	 * CON [MID=13200, T=80f6115e5699b906], GET, /test, 2:1/0/16    ----->
+	 * <-----   ACK [MID=13200, T=80f6115e5699b906], 2.05, 2:1/0/16
 	 * <pre>
 	 */
 	@Test
@@ -743,7 +761,6 @@ public class ObserveClientSideTest {
 		server.sendResponse(ACK, CONTENT).loadBoth("OBS").observe(1).payload(respPayload).go();
 		Response response = request.waitForResponse(2000);
 		assertResponseContainsExpectedPayload(response, respPayload);
-
 
 		// New notification
 		String notifyPayload = generateRandomPayload(32);
@@ -763,7 +780,7 @@ public class ObserveClientSideTest {
 		// Check that we get the response
 		server.sendResponse(ACK, CONTENT).loadBoth("BLOCK").block2(1, false, 16)
 		.payload(notifyPayload.substring(16,32)).go();
-		
+
 		response = notificationListener.waitForResponse(1000);
 		assertResponseContainsExpectedPayload(response, notifyPayload);
 
@@ -771,7 +788,7 @@ public class ObserveClientSideTest {
 		String notifyPayload2 = generateRandomPayload(32);
 		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(4).mid(++mid).block2(0, true, 16)
 				.payload(notifyPayload2.substring(0, 16)).go();
-		
+
 		// Expect ACK and Next Block request for the notification
 		server.startMultiExpectation();
 		server.expectEmpty(ACK, mid).go();
@@ -783,6 +800,8 @@ public class ObserveClientSideTest {
 				.go();
 		response = notificationListener.waitForResponse(1000);
 		assertResponseContainsExpectedPayload(response, notifyPayload2);
+
+		assertAllEndpointExchangesAreCompleted(client);
 	}
 
 	/**
@@ -872,9 +891,10 @@ public class ObserveClientSideTest {
 
 		// Check the GET request is canceled.
 		assertTrue(getRequest.isCanceled());
+
+		assertAllEndpointExchangesAreCompleted(client);
 	}
-	
-	
+
 	/**
 	 * Verifies observe with block2 and server changing IP address/port
 	 * 
@@ -904,10 +924,10 @@ public class ObserveClientSideTest {
 		Response response = request.waitForResponse(1000);
 		assertResponseContainsExpectedPayload(response, respPayload);
 		printServerLog(clientInterceptor);
-		
+
 		// create new server with new port
 		server = createChangedLockstepEndpoint(server);
-		
+
 		// Send new block2 notification
 		respPayload = generateRandomPayload(42);
 		server.sendResponse(CON, CONTENT).loadToken("A").mid(++mid).observe(2).block2(0, true, 16).size2(respPayload.length()).payload(respPayload.substring(0, 16)).go();
@@ -918,12 +938,13 @@ public class ObserveClientSideTest {
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 16).payload(respPayload.substring(16, 32)).go();
 		server.expectRequest(CON, GET, path).storeBoth("C").block2(2, false, 16).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("C").block2(2, false, 16).payload(respPayload.substring(32, 42)).go();
-		
+
 		// check we get the new notification
 		response = notificationListener.waitForResponse(1000);
 		assertResponseContainsExpectedPayload(response, respPayload);
 		printServerLog(clientInterceptor);
 
+		assertAllEndpointExchangesAreCompleted(client);
 	}
 
 	/**
@@ -972,6 +993,8 @@ public class ObserveClientSideTest {
 		// no leak.
 
 		printServerLog(clientInterceptor);
+
+		assertAllEndpointExchangesAreCompleted(client);
 	}
 
 	/**
@@ -1027,8 +1050,9 @@ public class ObserveClientSideTest {
 
 		// TODO we want to check is ExchangeStore is empty but currently
 		// Deduplicator is not empty after cancel.
-		// assertTrue("ExchangeStore must be empty",
-		// clientExchangeStore.isEmpty());
+		// assertTrue("ExchangeStore must be empty", clientExchangeStore.isEmpty());
+
+		assertAllEndpointExchangesAreCompleted(client);
 	}
 
 	/**
@@ -1080,6 +1104,8 @@ public class ObserveClientSideTest {
 		// there is no leak.
 
 		printServerLog(clientInterceptor);
+
+		assertAllEndpointExchangesAreCompleted(client);
 	}
 
 	/**
@@ -1146,7 +1172,7 @@ public class ObserveClientSideTest {
 		// send notify
 		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(2).mid(++mid).block2(0, true, 16)
 				.payload(notifyPayload.substring(0, 16)).go();
-		
+
 		server.startMultiExpectation();
 		server.expectEmpty(ACK, mid).go();
 		server.expectRequest(CON, GET, path).storeBoth("SECOND_BLOCK").block2(1, false, 16).go();
@@ -1155,7 +1181,7 @@ public class ObserveClientSideTest {
 		server.expectRequest(CON, GET, path).sameBoth("SECOND_BLOCK").block2(1, false, 16).go();
 		// timeout, retransmission
 		server.expectRequest(CON, GET, path).sameBoth("SECOND_BLOCK").block2(1, false, 16).go();
-		
+
 		assertNull("unexpected message", server.receiveNextMessage(timeoutMillis, TimeUnit.MILLISECONDS));
 
 		// next notify
@@ -1174,7 +1200,8 @@ public class ObserveClientSideTest {
 
 		Response notification1 = notificationListener.waitForResponse(1000);
 		assertResponseContainsExpectedPayload(notification1, notifyPayload);
-		
+
+		assertAllEndpointExchangesAreCompleted(client);
 	}
 
 	/**
@@ -1207,6 +1234,7 @@ public class ObserveClientSideTest {
 		// We should get a error
 		assertEquals("An error is expected", 1, counter.errorCalls.get());
 		// @after check there is no leak
+		assertAllEndpointExchangesAreCompleted(client);
 	}
 
 	/**
@@ -1239,7 +1267,7 @@ public class ObserveClientSideTest {
 		server.expectEmpty(ACK, mid).go();
 		server.expectRequest(CON, GET, path).storeBoth("BLOCK").block2(1, false, 16).go();
 		server.goMultiExpectation();
-		
+
 		// Simulate error before we send the next block2 request
 		ErrorInjector errorInjector = new ErrorInjector();
 		errorInjector.setErrorOnReadyToSend();
@@ -1249,6 +1277,7 @@ public class ObserveClientSideTest {
 		// TODO We would like to check if the block2 request failed but we have no API for a block2 request which failed to be sent
 
 		// @after check there is no leak
+		assertAllEndpointExchangesAreCompleted(client);
 	}
 
 	/**
@@ -1299,6 +1328,8 @@ public class ObserveClientSideTest {
 		// Ensure we get the response
 		response = request.waitForResponse(1000);
 		assertResponseContainsExpectedPayload(response, respPayload);
+
+		assertAllEndpointExchangesAreCompleted(client);
 	}
 
 	/**
@@ -1359,13 +1390,15 @@ public class ObserveClientSideTest {
 		Response cancelResponse = proactiveCancel.waitForResponse(1000);
 		assertNotNull("We should receive the cancel response", cancelResponse);
 		assertResponseContainsExpectedPayload(cancelResponse, cancelPayload);
-				
+
 		// Ensure notification is rejected
 		server.sendResponse(CON, CONTENT).loadToken("OBS").observe(4).mid(++mid).payload(notifyPayload).go();
 		server.expectEmpty(RST, mid);
 
 		server.sendResponse(NON, CONTENT).loadToken("OBS").observe(5).mid(++mid).payload(notifyPayload).go();
 		server.expectEmpty(RST, mid);
+
+		assertAllEndpointExchangesAreCompleted(client);
 	}
 
 	/**
@@ -1439,5 +1472,14 @@ public class ObserveClientSideTest {
 		cancelResponse = proactiveCancel.waitForResponse(1000);
 		assertNotNull("We should receive the cancel response", cancelResponse);
 		assertResponseContainsExpectedPayload(cancelResponse, cancelPayload);
+
+		assertAllEndpointExchangesAreCompleted(client);
+	}
+
+	private void assertAllEndpointExchangesAreCompleted(final CoapTestEndpoint endpoint) {
+		NetworkConfig config = endpoint.getConfig();
+		int exchangeLifetime = (int) config.getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME) + 1000;
+		time.setTestTimeShift(exchangeLifetime, TimeUnit.MILLISECONDS);
+		assertAllExchangesAreCompleted(client);
 	}
 }
