@@ -48,6 +48,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
@@ -310,13 +311,21 @@ public class ConnectorHelper {
 		RawData getLatestInboundMessage();
 
 		EndpointContext getClientEndpointContext();
+		
+		boolean quiet(long quietMillis, long timeoutMillis) throws InterruptedException;
 	}
 
 	static class MessageCapturingProcessor implements RawDataProcessor {
+		private volatile boolean quiet;
+		private AtomicLong time = new AtomicLong(System.nanoTime());
 		private AtomicReference<RawData> inboundMessage = new AtomicReference<RawData>();
 
 		@Override
 		public RawData process(RawData request) {
+			time.set(System.nanoTime());
+			if (quiet) {
+				return null;
+			}
 			inboundMessage.set(request);
 			return RawData.outbound("ACK".getBytes(), request.getEndpointContext(), null, false);
 		}
@@ -333,6 +342,35 @@ public class ConnectorHelper {
 		@Override
 		public RawData getLatestInboundMessage() {
 			return inboundMessage.get();
+		}
+
+		@Override
+		public boolean quiet(long quietMillis, long timeoutMillis) throws InterruptedException {
+			quiet = true;
+			try {
+				long quietNanos = TimeUnit.MILLISECONDS.toNanos(quietMillis);
+				long leftNanos = TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
+				long endNanos = System.nanoTime() + leftNanos;
+				while (leftNanos > 0) {
+					long delta = System.nanoTime() - time.get();
+					if (delta > quietNanos) {
+						return true;
+					}
+					delta = quietNanos - delta;
+					if (leftNanos < delta) {
+						return false;
+					}
+					delta = TimeUnit.NANOSECONDS.toMillis(delta);
+					if (delta < 1) {
+						delta = 1;
+					}
+					Thread.sleep(delta);
+					leftNanos = endNanos - System.nanoTime();
+				}
+				return (System.nanoTime() - time.get()) > quietNanos;
+			} finally {
+				quiet = false;
+			}
 		}
 	}
 
@@ -359,8 +397,9 @@ public class ConnectorHelper {
 
 		@Override
 		public void handleData(InetSocketAddress endpoint, byte[] data) {
-			if (process(data))
+			if (process(data)) {
 				latch.countDown();
+			}
 		}
 
 		/**
