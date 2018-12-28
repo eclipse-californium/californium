@@ -120,5 +120,11 @@ public class ExampleDTLSServer {
 
 		ExampleDTLSServer server = new ExampleDTLSServer();
 		server.start();
+		try {
+			for (;;) {
+				Thread.sleep(5000);
+			}
+		} catch (InterruptedException e) {
+		}
 	}
 }
