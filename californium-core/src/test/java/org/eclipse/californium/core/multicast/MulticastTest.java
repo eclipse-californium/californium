@@ -12,6 +12,9 @@
  * 
  * Contributors:
  *    Bosch Software Innovations GmbH - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - implement DIRECT processing,
+ *                                                    though NON multicast shown
+ *                                                     to be too unreliable.
  ******************************************************************************/
 package org.eclipse.californium.core.multicast;
 
@@ -44,11 +47,19 @@ import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
+/**
+ * Multicast unit test.
+ *
+ * Note: due to the nature of UDP, this test may fail sporadically, if native
+ * sockets are used.
+ */
 @Category(Small.class)
 public class MulticastTest {
-	// DIRECT doesn't support multicast. Only execute, if test runs in NATIVE
 	@ClassRule
-	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.NATIVE);
+	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.NATIVE, CoapNetworkRule.Mode.DIRECT);
+
+	private final static int TIMEOUT_MILLIS = 2000;
+	private final static int PORT = CoAP.DEFAULT_COAP_PORT + 1000;
 
 	private static CoapServer server1;
 	private static CoapServer server2;
@@ -59,7 +70,7 @@ public class MulticastTest {
 		config = network.getStandardTestConfig();
 		config.setInt(NetworkConfig.Keys.MULTICAST_BASE_MID, 20000);
 		server1 = new CoapServer();
-		InetSocketAddress serverSocketAddress = new InetSocketAddress(CoAP.DEFAULT_COAP_PORT);
+		InetSocketAddress serverSocketAddress = new InetSocketAddress(PORT);
 		Connector connector = new UdpMulticastConnector(serverSocketAddress, CoAP.MULTICAST_IPV4);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setNetworkConfig(config);
@@ -112,18 +123,19 @@ public class MulticastTest {
 
 	@Test
 	public void clientMulticastCheckResponseText() {
+		MultiCoapHandler handler = new MultiCoapHandler();
 		Request request = Request.newGet();
-		request.setURI("coap://" + CoAP.MULTICAST_IPV4.getHostAddress() + "/hello");
+		request.setURI("coap://" + CoAP.MULTICAST_IPV4.getHostAddress() + ":" + PORT + "/hello");
 		request.setType(Type.NON);
 		CoapClient client = new CoapClient();
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setNetworkConfig(config);
 		client.setEndpoint(builder.build());
 		client.advanced(handler, request);
-		CoapResponse response = handler.waitOnLoad(2000);
+		CoapResponse response = handler.waitOnLoad(TIMEOUT_MILLIS);
 		assertThat(response, is(notNullValue()));
 		assertThat(response.getResponseText(), anyOf(is("Hello World 1!"), is("Hello World 2!")));
-		response = handler.waitOnLoad(2000);
+		response = handler.waitOnLoad(TIMEOUT_MILLIS);
 		assertThat(response, is(notNullValue()));
 		assertThat(response.getResponseText(), anyOf(is("Hello World 1!"), is("Hello World 2!")));
 		client.shutdown();
@@ -131,24 +143,24 @@ public class MulticastTest {
 
 	@Test
 	public void clientMulticastCheckReject() {
+		MultiCoapHandler handler = new MultiCoapHandler();
 		Request request = Request.newGet();
-		request.setURI("coap://" + CoAP.MULTICAST_IPV4.getHostAddress() + "/no");
+		request.setURI("coap://" + CoAP.MULTICAST_IPV4.getHostAddress() + ":" + PORT + "/no");
 		request.setType(Type.NON);
 		CoapClient client = new CoapClient();
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setNetworkConfig(config);
 		client.setEndpoint(builder.build());
 		client.advanced(handler, request);
-		CoapResponse response = handler.waitOnLoad(2000);
+		CoapResponse response = handler.waitOnLoad(TIMEOUT_MILLIS);
 		assertThat(response, is(notNullValue()));
 		assertThat(response.getResponseText(), is("no!"));
-		response = handler.waitOnLoad(2000);
+
+		response = handler.waitOnLoad(TIMEOUT_MILLIS);
 		assertThat(response, is(nullValue()));
 		assertThat(request.isRejected(), is(false));
 		client.shutdown();
 	}
-
-	private static final MultiCoapHandler handler = new MultiCoapHandler();
 
 	private static class MultiCoapHandler implements CoapHandler {
 
@@ -170,6 +182,7 @@ public class MulticastTest {
 
 		@Override
 		public synchronized void onLoad(CoapResponse response) {
+			System.out.println("response " + response.getResponseText());
 			responses.add(response);
 			notifyAll();
 		}
