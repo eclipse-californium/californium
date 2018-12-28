@@ -35,7 +35,6 @@ import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
-import org.eclipse.californium.elements.runner.BufferedLoggingTestRunner;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
@@ -52,7 +51,6 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-import org.junit.runner.RunWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,7 +61,6 @@ import org.slf4j.LoggerFactory;
  * if the DTLS session is successful established.
  */
 @Category(Large.class)
-@RunWith(BufferedLoggingTestRunner.class)
 public class DTLSConnectorStartStopTest {
 
 	public static final Logger LOGGER = LoggerFactory.getLogger(DTLSConnectorStartStopTest.class.getName());
