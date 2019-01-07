@@ -11,12 +11,15 @@
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
  * Contributors:
- *    Bosch Software Innovations GmbH - initial implementation. 
- *    Achim Kraus (Bosch Software Innovations GmbH) - introduce configurable 
- *                                                    key store type and 
- *                                                    InputStreamFactory. 
- *    Achim Kraus (Bosch Software Innovations GmbH) - use file system, if 
- *                                                    no scheme is provided in URI 
+ *    Bosch Software Innovations GmbH - initial implementation.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - introduce configurable
+ *                                                    key store type and
+ *                                                    InputStreamFactory.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use file system, if
+ *                                                    no scheme is provided in URI
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add SSLContext protocol to
+ *                                                    selective disable TLSv1.3 for
+ *                                                    TLSv1.2 dependent unit tests.
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
@@ -132,6 +135,11 @@ public class SslContextUtil {
 	 * Key store type PKCS12.
 	 */
 	public static final String PKCS12_TYPE = "PKCS12";
+	/**
+	 * Default protocol used for 
+	 * {@link #createSSLContext(String, PrivateKey, X509Certificate[], Certificate[])}.
+	 */
+	public static final String DEFAULT_SSL_PROTOCOL = "TLSv1.2";
 	/**
 	 * Schema delimiter.
 	 */
@@ -632,12 +640,14 @@ public class SslContextUtil {
 	/**
 	 * Create SSLContext with provided credentials and trusts.
 	 * 
+	 * Uses {@link #DEFAULT_SSL_PROTOCOL}.
+	 * 
 	 * @param alias alias to be used in KeyManager. Used for identification
 	 *            according the X509ExtendedKeyManager API to select the
 	 *            credentials matching the provided key. Though the create
 	 *            KeyManager currently only supports on set of credentials, the
-	 *            alias is only used to select that. If null, its replaced by a
-	 *            default "californium".
+	 *            alias is only used to select that. If {@code null}, it's
+	 *            replaced by a default "californium".
 	 * @param privateKey private key
 	 * @param chain certificate trust chain related to private key.
 	 * @param trusts trusted certificates.
@@ -648,12 +658,35 @@ public class SslContextUtil {
 	 */
 	public static SSLContext createSSLContext(String alias, PrivateKey privateKey, X509Certificate[] chain,
 			Certificate[] trusts) throws GeneralSecurityException {
+		return createSSLContext(alias, privateKey, chain, trusts, DEFAULT_SSL_PROTOCOL);
+	}
+
+	/**
+	 * Create SSLContext with provided credentials and trusts.
+	 * 
+	 * @param alias alias to be used in KeyManager. Used for identification
+	 *            according the X509ExtendedKeyManager API to select the
+	 *            credentials matching the provided key. Though the create
+	 *            KeyManager currently only supports on set of credentials, the
+	 *            alias is only used to select that. If {@code null}, it's
+	 *            replaced by a default "californium".
+	 * @param privateKey private key
+	 * @param chain certificate trust chain related to private key.
+	 * @param trusts trusted certificates.
+	 * @param protocol specific protocol for SSLContext. See {@link SSLContext#getInstance(String)}.
+	 * @return created SSLContext.
+	 * @throws GeneralSecurityException if security setup failed.
+	 * @throws IllegalArgumentException, if private key is null, or the chain is
+	 *             null or empty, or the trusts null or empty.
+	 */
+	public static SSLContext createSSLContext(String alias, PrivateKey privateKey, X509Certificate[] chain,
+			Certificate[] trusts, String protocol) throws GeneralSecurityException {
 		if (null == alias) {
 			alias = "californium";
 		}
 		KeyManager[] keyManager = createKeyManager(alias, privateKey, chain);
 		TrustManager[] trustManager = createTrustManager(alias, trusts);
-		SSLContext sslContext = SSLContext.getInstance("TLS");
+		SSLContext sslContext = SSLContext.getInstance(protocol);
 		sslContext.init(keyManager, trustManager, null);
 		return sslContext;
 	}

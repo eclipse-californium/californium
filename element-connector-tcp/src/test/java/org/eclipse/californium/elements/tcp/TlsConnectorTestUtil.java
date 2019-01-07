@@ -12,19 +12,19 @@
  * 
  * Contributors:
  *    Achim Kraus (Bosch Software Innovations GmbH) - initial implementation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - adapt to use
+ *                                                    SslContextUtil.createSSLContext
+ *                                                    with default to TLSv1.2
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
 import java.security.Principal;
+import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
 
-import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509ExtendedKeyManager;
-import javax.net.ssl.X509ExtendedTrustManager;
 
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.util.SslContextUtil;
@@ -51,37 +51,38 @@ public class TlsConnectorTestUtil {
 	public static X509CertPath clientCertPath;
 
 	public static void initializeSsl() throws Exception {
-		KeyManager[] clientKeys = SslContextUtil.loadKeyManager(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION,
-				CLIENT_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
-		KeyManager[] serverKeys = SslContextUtil.loadKeyManager(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION,
-				SERVER_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
-		TrustManager[] trusts = SslContextUtil
-				.loadTrustManager(SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, null, TRUST_STORE_PASSWORD);
+		Credentials clientCredentials = SslContextUtil.loadCredentials(
+				SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, CLIENT_NAME, KEY_STORE_PASSWORD,
+				KEY_STORE_PASSWORD);
+		Credentials serverCredentials = SslContextUtil.loadCredentials(
+				SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, SERVER_NAME, KEY_STORE_PASSWORD,
+				KEY_STORE_PASSWORD);
+		Certificate[] trustedCertificates = SslContextUtil.loadTrustedCertificates(
+				SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, null, TRUST_STORE_PASSWORD);
 
-		clientSubjectDN = getSubjectDN(clientKeys, CLIENT_NAME);
-		clientCertPath = getX509CertPath(clientKeys, CLIENT_NAME);
-		serverSubjectDN = getSubjectDN(serverKeys, SERVER_NAME);
-		serverCertPath = getX509CertPath(serverKeys, SERVER_NAME);
-		log("client " + clientSubjectDN, clientKeys);
-		log("server " + serverSubjectDN, serverKeys);
-		log("trusts", trusts, true);
+		clientSubjectDN = getSubjectDN(clientCredentials);
+		clientCertPath = getX509CertPath(clientCredentials);
+		serverSubjectDN = getSubjectDN(serverCredentials);
+		serverCertPath = getX509CertPath(serverCredentials);
+		log("client " + clientSubjectDN, clientCredentials);
+		log("server " + serverSubjectDN, serverCredentials);
+		log("trusts", trustedCertificates, true);
 
-		// Initialize the SSLContext to work with our key managers.
-		serverSslContext = SSLContext.getInstance("TLS");
-		serverSslContext.init(serverKeys, trusts, null);
+		serverSslContext = SslContextUtil.createSSLContext(null, serverCredentials.getPrivateKey(),
+				serverCredentials.getCertificateChain(), trustedCertificates);
 
-		clientSslContext = SSLContext.getInstance("TLS");
-		clientSslContext.init(clientKeys, trusts, null);
+		clientSslContext = SslContextUtil.createSSLContext(null, clientCredentials.getPrivateKey(),
+				clientCredentials.getCertificateChain(), trustedCertificates);
 	}
 
 	/**
 	 * Initialize a SSL context.
 	 * 
-	 * @param aliasPrivateKey alias for private key. If <code>null</code>,
-	 *            replaced by aliasChain.
-	 * @param aliasChain alias for certificate chain.
+	 * @param aliasPrivateKey    alias for private key. If <code>null</code>,
+	 *                           replaced by aliasChain.
+	 * @param aliasChain         alias for certificate chain.
 	 * @param aliasTrustsPattern alias pattern for trusts.
-	 * @return ssl context.
+	 * @return ssl test context.
 	 * @throws Exception if an error occurred
 	 */
 	public static SSLTestContext initializeContext(String aliasPrivateKey, String aliasChain, String aliasTrustsPattern)
@@ -89,85 +90,74 @@ public class TlsConnectorTestUtil {
 		if (aliasPrivateKey == null) {
 			aliasPrivateKey = aliasChain;
 		}
-		Credentials credentials = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION,
-				aliasPrivateKey, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
-		X509Certificate[] chain = SslContextUtil.loadCertificateChain(
-				SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, aliasChain, KEY_STORE_PASSWORD);
+		Credentials privateCredentials = SslContextUtil.loadCredentials(
+				SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, aliasPrivateKey, KEY_STORE_PASSWORD,
+				KEY_STORE_PASSWORD);
+		Credentials publicCredentials = SslContextUtil.loadCredentials(
+				SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, aliasChain, KEY_STORE_PASSWORD,
+				KEY_STORE_PASSWORD);
 
-		KeyManager[] keys = SslContextUtil.createKeyManager(aliasChain, credentials.getPrivateKey(), chain);
-
-		TrustManager[] trusts = SslContextUtil.loadTrustManager(
+		Certificate[] trustedCertificates = SslContextUtil.loadTrustedCertificates(
 				SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, aliasTrustsPattern, TRUST_STORE_PASSWORD);
 
-		Principal subjectDN = getSubjectDN(keys, aliasChain);
-		log("keys ", keys);
-		log("trusts", trusts, true);
+		Principal subjectDN = getSubjectDN(publicCredentials);
+		log("keys ", publicCredentials);
+		log("trusts", trustedCertificates, true);
 
-		SSLContext context = SSLContext.getInstance("TLS");
-		context.init(keys, trusts, null);
+		SSLContext context = SslContextUtil.createSSLContext(null, privateCredentials.getPrivateKey(),
+				publicCredentials.getCertificateChain(), trustedCertificates);
+
 		return new SSLTestContext(context, subjectDN);
 	}
 
-	public static Principal getSubjectDN(KeyManager[] manager, String alias) {
-		if (manager != null && manager.length > 0) {
-			if (manager[0] instanceof X509ExtendedKeyManager) {
-				X509ExtendedKeyManager extendedManager = (X509ExtendedKeyManager) manager[0];
-				X509Certificate[] chain = extendedManager.getCertificateChain(alias);
-				if (chain != null && chain.length > 0) {
-					return chain[0].getSubjectX500Principal();
+	public static Principal getSubjectDN(Credentials credentials) {
+		if (credentials != null) {
+			X509Certificate[] chain = credentials.getCertificateChain();
+			if (chain != null && chain.length > 0) {
+				return chain[0].getSubjectX500Principal();
+			}
+		}
+		return null;
+	}
+
+	public static X509CertPath getX509CertPath(Credentials credentials) {
+		if (credentials != null) {
+			X509Certificate[] chain = credentials.getCertificateChain();
+			if (chain != null && chain.length > 0) {
+				try {
+					java.security.cert.CertificateFactory cf = java.security.cert.CertificateFactory
+							.getInstance("X.509");
+					java.security.cert.CertPath javaCertPath = cf.generateCertPath(Arrays.asList(chain));
+					return new X509CertPath(javaCertPath);
+				} catch (CertificateException e) {
+					/* ignore it */
 				}
 			}
 		}
 		return null;
 	}
 
-	public static X509CertPath getX509CertPath(KeyManager[] manager, String alias) {
-		if (manager == null || manager.length == 0 || !(manager[0] instanceof X509ExtendedKeyManager)) {
-			return null;
-		}
-
-		X509ExtendedKeyManager extendedManager = (X509ExtendedKeyManager) manager[0];
-		X509Certificate[] chain = extendedManager.getCertificateChain(alias);
-		if (chain != null && chain.length > 0) {
-			try {
-				java.security.cert.CertificateFactory cf = java.security.cert.CertificateFactory.getInstance("X.509");
-				java.security.cert.CertPath javaCertPath = cf.generateCertPath(Arrays.asList(chain));
-				return new X509CertPath(javaCertPath);
-			} catch (CertificateException e) {
-				/* ignore it */
-			}
-		}
-
-		return null;
-	}
-
-	public static void log(String name, KeyManager[] managers) {
-		if (managers == null) {
+	public static void log(String name, Credentials credentials) {
+		if (credentials == null) {
 			System.out.println(name + ": null");
 			return;
 		}
-		System.out.println(name + ": " + managers.length);
-		for (KeyManager manager : managers) {
-			System.out.println("   " + manager);
+		System.out.println(name + ": " + credentials.getCertificateChain().length);
+		for (X509Certificate certificate : credentials.getCertificateChain()) {
+			System.out.println("      " + certificate.getSubjectX500Principal().getName());
 		}
 	}
 
-	public static void log(String name, TrustManager[] managers, boolean logCertificate) {
-		if (managers == null) {
+	public static void log(String name, Certificate[] trustedCertificates, boolean logCertificate) {
+		if (trustedCertificates == null) {
 			System.out.println(name + ": null");
 			return;
 		}
-		System.out.println(name + ": " + managers.length);
-		for (TrustManager manager : managers) {
-			System.out.println("   " + manager);
-			if (logCertificate && manager instanceof X509ExtendedTrustManager) {
-				X509ExtendedTrustManager extendedManager = (X509ExtendedTrustManager) manager;
-				X509Certificate[] issuers = extendedManager.getAcceptedIssuers();
-				if (issuers != null) {
-					for (X509Certificate issuer : issuers) {
-						System.out.println("      " + issuer.getSubjectX500Principal().getName());
-					}
-				}
+		System.out.println(name + ": " + trustedCertificates.length);
+		for (Certificate trust : trustedCertificates) {
+			if (logCertificate && trust instanceof X509Certificate) {
+				X509Certificate issuer = (X509Certificate) trust;
+				System.out.println("      " + issuer.getSubjectX500Principal().getName());
 			}
 		}
 	}
