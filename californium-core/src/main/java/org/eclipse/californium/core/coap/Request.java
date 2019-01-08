@@ -209,7 +209,15 @@ public class Request extends Message {
 	/**
 	 * {@inheritDoc}
 	 * 
-	 * Required in Request to keep class for fluent API.
+	 * GET and DELETE request are not intended to have payload.
+	 */
+	@Override
+	public boolean isIntendedPayload() {
+		return code != Code.GET && code != Code.DELETE;
+	}
+
+	/**
+	 * {@inheritDoc}
 	 */
 	@Override
 	public Request setPayload(String payload) {
@@ -219,8 +227,6 @@ public class Request extends Message {
 
 	/**
 	 * {@inheritDoc}
-	 * 
-	 * Required in Request to keep class for fluent API.
 	 */
 	@Override
 	public Request setPayload(byte[] payload) {
