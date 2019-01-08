@@ -74,6 +74,16 @@ public class EmptyMessage extends Message {
 	}
 
 	/**
+	 * {@inheritDoc}
+	 * 
+	 * EMPTY messages are never intended to have payload!
+	 */
+	@Override
+	public boolean isIntendedPayload() {
+		return false;
+	}
+
+	/**
 	 * Create a new acknowledgment for the specified message.
 	 *
 	 * @param message the message to acknowledge

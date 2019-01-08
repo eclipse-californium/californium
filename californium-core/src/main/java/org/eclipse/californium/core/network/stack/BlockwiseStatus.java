@@ -274,6 +274,9 @@ public abstract class BlockwiseStatus {
 		message.setOptions(new OptionSet(first.getOptions()));
 		message.getOptions().removeBlock1();
 		message.getOptions().removeBlock2();
+		if (!message.isIntendedPayload()) {
+			message.setUnintendedPayload();
+		}
 		message.setPayload(getBody());
 	}
 

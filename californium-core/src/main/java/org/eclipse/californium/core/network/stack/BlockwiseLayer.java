@@ -64,7 +64,6 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.coap.BlockOption;
-import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.MessageObserver;
@@ -1142,10 +1141,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	}
 
 	private boolean requiresBlockwise(final Request request) {
-		boolean blockwiseRequired = false;
-		if (request.getCode() == Code.PUT || request.getCode() == Code.POST) {
-			blockwiseRequired = request.getPayloadSize() > maxMessageSize;
-		}
+		boolean blockwiseRequired = request.getPayloadSize() > maxMessageSize;
 		if (blockwiseRequired) {
 			LOGGER.debug("request body [{}/{}] requires blockwise transfer", request.getPayloadSize(), maxMessageSize);
 		}

@@ -180,6 +180,9 @@ public abstract class DataParser {
 						message.getMID(), message.getRawCode(), message.isConfirmable());
 			} else {
 				// get payload
+				if (!message.isIntendedPayload()) {
+					message.setUnintendedPayload();
+				}
 				message.setPayload(reader.readBytesLeft());
 			}
 		} else {

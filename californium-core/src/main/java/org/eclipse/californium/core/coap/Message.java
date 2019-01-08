@@ -117,6 +117,9 @@ public abstract class Message {
 	/** The payload of this message. */
 	private byte[] payload;
 
+	/** Marks this message to have payload even if this is not intended */
+	private boolean unintendedPayload;
+
 	/**
 	 * Destination endpoint context. Used for outgoing messages.
 	 */
@@ -242,6 +245,41 @@ public abstract class Message {
 	 * @return the code value.
 	 */
 	public abstract int getRawCode();
+
+	/**
+	 * Checks, if this message is intended to have payload.
+	 * 
+	 * To be overwritten by subclass to provide a specific check.
+	 * 
+	 * @return {@code true}, if message is intended to have payload
+	 */
+	public boolean isIntendedPayload() {
+		return true;
+	}
+
+	/**
+	 * Set marker for unintended payload.
+	 * 
+	 * Enables to use payload with messages, which are not intended to have
+	 * payload.
+	 * 
+	 * @throws IllegalStateException if message is intended to have payload
+	 */
+	public void setUnintendedPayload() {
+		if (isIntendedPayload()) {
+			throw new IllegalStateException("Message is already intended to have payload!");
+		}
+		unintendedPayload = true;
+	}
+
+	/**
+	 * Checks, if message is marked to have unintended payload.
+	 * 
+	 * @return {@code true} if message is marked to have unintended payload
+	 */
+	public boolean isUnintendedPayload() {
+		return unintendedPayload;
+	}
 
 	/**
 	 * Gets the 16-bit message identification.
@@ -472,8 +510,15 @@ public abstract class Message {
 	 * 
 	 * Provides a fluent API to chain setters.
 	 * 
-	 * @param payload the payload as sting
+	 * @param payload the payload as string. {@code null} or a empty string are
+	 *            not considered to be payload and therefore not cause a
+	 *            IllegalArgumentException, if this message must not have
+	 *            payload.
 	 * @return this Message
+	 * @throws IllegalArgumentException if this message must not have payload
+	 * @see #isIntendedPayload()
+	 * @see #isUnintendedPayload()
+	 * @see #setUnintendedPayload()
 	 */
 	public Message setPayload(String payload) {
 		if (payload == null) {
@@ -489,10 +534,20 @@ public abstract class Message {
 	 *
 	 * Provides a fluent API to chain setters.
 	 *
-	 * @param payload the new payload
+	 * @param payload the new payload. {@code null} or a empty array are not
+	 *            considered to be payload and therefore not cause a
+	 *            IllegalArgumentException, if this message must not have
+	 *            payload.
 	 * @return this Message
+	 * @throws IllegalArgumentException if this message must not have payload
+	 * @see #isIntendedPayload()
+	 * @see #isUnintendedPayload()
+	 * @see #setUnintendedPayload()
 	 */
 	public Message setPayload(byte[] payload) {
+		if (payload != null && payload.length > 0 && !isIntendedPayload() && !isUnintendedPayload()) {
+			throw new IllegalArgumentException("Message must not have payload!");
+		}
 		this.payload = payload;
 		return this;
 	}

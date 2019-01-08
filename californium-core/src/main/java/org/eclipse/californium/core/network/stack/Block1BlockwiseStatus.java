@@ -127,6 +127,9 @@ public final class Block1BlockwiseStatus extends BlockwiseStatus {
 			// indicate overall body size to peer
 			block.getOptions().setSize1(request.getPayloadSize());
 		}
+		if (request.isUnintendedPayload()) {
+			block.setUnintendedPayload();
+		}
 
 		int currentSize = getCurrentSize();
 		int from = num * currentSize;
