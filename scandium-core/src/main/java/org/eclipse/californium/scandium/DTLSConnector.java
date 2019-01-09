@@ -1179,6 +1179,14 @@ public class DTLSConnector implements Connector {
 						// start fresh handshake
 						handshaker = new ClientHandshaker(message, new DTLSSession(peerAddress, true), connection, config, maximumTransmissionUnit);
 					}
+					else if (session.getSessionIdentifier().isEmpty()) {
+						// full-handshake
+						Connection newConnection = new Connection(peerAddress);
+						terminateConnection(connection, null, null);
+						connectionStore.put(newConnection);
+						handshaker = new ClientHandshaker(message, new DTLSSession(peerAddress, true), newConnection, config, maximumTransmissionUnit);
+						connection = newConnection;
+					}
 					// TODO what if there already is an ongoing handshake with the peer
 					else {
 						// create the session to resume from the previous one.
@@ -1189,6 +1197,7 @@ public class DTLSConnector implements Connector {
 						terminateConnection(connection, null, null);
 						connectionStore.put(newConnection);
 						handshaker = new ResumingClientHandshaker(message, resumableSession, newConnection, config, maximumTransmissionUnit);
+						connection = newConnection;
 					}
 					// start DTLS handshake protocol
 					// get starting handshake message
