@@ -808,15 +808,25 @@ public class BlockwiseLayer extends AbstractLayer {
 		}
 		int nextNum = status.getCurrentNum() + currentSize / newSize;
 		LOGGER.debug("sending next Block1 num={}", nextNum);
-		Request nextBlock = status.getNextRequestBlock(nextNum, newSzx);
-		// we use the same token to ease traceability
-		nextBlock.setToken(response.getToken());
-		nextBlock.setDestinationContext(response.getSourceContext());
-		addBlock1CleanUpObserver(nextBlock, key, status);
-
-		exchange.setCurrentRequest(nextBlock);
-		prepareBlock1Cleanup(status, key);
-		lower().sendRequest(exchange, nextBlock);
+		Request nextBlock = null;
+		try {
+			nextBlock = status.getNextRequestBlock(nextNum, newSzx);
+			// we use the same token to ease traceability
+			nextBlock.setToken(response.getToken());
+			nextBlock.setDestinationContext(response.getSourceContext());
+			addBlock1CleanUpObserver(nextBlock, key, status);
+	
+			exchange.setCurrentRequest(nextBlock);
+			prepareBlock1Cleanup(status, key);
+			lower().sendRequest(exchange, nextBlock);
+		} catch (RuntimeException ex) {
+			LOGGER.warn("cannot process next block request, aborting request!", ex);
+			if (nextBlock != null) {
+				nextBlock.setSendError(ex);
+			} else {
+				exchange.getRequest().setSendError(ex);
+			}
+		}
 	}
 
 	/**
@@ -894,45 +904,50 @@ public class BlockwiseLayer extends AbstractLayer {
 					Request request = exchange.getRequest();
 
 					Request block = new Request(request.getCode());
-					// do not enforce CON, since NON could make sense over SMS or similar transports
-					block.setType(request.getType());
-					block.setDestinationContext(response.getSourceContext());
+					try {
+						
+						// do not enforce CON, since NON could make sense over SMS or similar transports
+						block.setType(request.getType());
+						block.setDestinationContext(response.getSourceContext());
 
-					/*
-					 * WARNING:
-					 * 
-					 * For Observe, the Matcher then will store the same
-					 * exchange under a different KeyToken in exchangesByToken,
-					 * which is cleaned up in the else case below.
-					 */
-					if (!response.isNotification()) {
-						block.setToken(response.getToken());
-					} else if (exchange.isNotification()) {
-						// Recreate cleanup message observer 
-						request.addMessageObserver(new CleanupMessageObserver(exchange));
+						/*
+						 * WARNING:
+						 * 
+						 * For Observe, the Matcher then will store the same
+						 * exchange under a different KeyToken in exchangesByToken,
+						 * which is cleaned up in the else case below.
+						 */
+						if (!response.isNotification()) {
+							block.setToken(response.getToken());
+						} else if (exchange.isNotification()) {
+							// Recreate cleanup message observer 
+							request.addMessageObserver(new CleanupMessageObserver(exchange));
+						}
+
+						// copy options
+						block.setOptions(new OptionSet(request.getOptions()));
+						block.getOptions().setBlock2(newSzx, false, nextNum);
+
+						// make sure NOT to use Observe for block retrieval
+						block.getOptions().removeObserve();
+
+						// copy message observers from original request so that they will be notified
+						// if something goes wrong with this blockwise request, e.g. if it times out
+						block.addMessageObservers(request.getMessageObservers());
+						// add an observer that cleans up the block2 transfer tracker if the
+						// block request fails
+						addBlock2CleanUpObserver(block, key, status);
+
+						status.setCurrentNum(nextNum);
+
+						LOGGER.debug("requesting next Block2 [num={}]: {}", nextNum, block);
+						exchange.setCurrentRequest(block);
+						prepareBlock2Cleanup(status, key);
+						lower().sendRequest(exchange, block);
+					} catch (RuntimeException ex) {
+						LOGGER.warn("cannot process next block request, aborting request!", ex);
+						block.setSendError(ex);
 					}
-
-					// copy options
-					block.setOptions(new OptionSet(request.getOptions()));
-					block.getOptions().setBlock2(newSzx, false, nextNum);
-
-					// make sure NOT to use Observe for block retrieval
-					block.getOptions().removeObserve();
-
-					// copy message observers from original request so that they will be notified
-					// if something goes wrong with this blockwise request, e.g. if it times out
-					block.addMessageObservers(request.getMessageObservers());
-					// add an observer that cleans up the block2 transfer tracker if the
-					// block request fails
-					addBlock2CleanUpObserver(block, key, status);
-					
-
-					status.setCurrentNum(nextNum);
-
-					LOGGER.debug("requesting next Block2 [num={}]: {}", nextNum, block);
-					exchange.setCurrentRequest(block);
-					prepareBlock2Cleanup(status, key);
-					lower().sendRequest(exchange, block);
 
 				} else {
 

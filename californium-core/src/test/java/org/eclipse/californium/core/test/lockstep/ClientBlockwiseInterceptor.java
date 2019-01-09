@@ -38,7 +38,7 @@ public final class ClientBlockwiseInterceptor extends BlockwiseInterceptor imple
 		appendRequestDetails(request);
 		if (errorInjector != null) {
 			buffer.append("    (should be dropped by error)");
-			request.addMessageObserver(new LoggingMessageObserver(errorInjector, request) {
+			request.addMessageObserver(new LoggingMessageObserver(errorInjector) {
 
 				@Override
 				public void log(IntendedTestException exception) {
