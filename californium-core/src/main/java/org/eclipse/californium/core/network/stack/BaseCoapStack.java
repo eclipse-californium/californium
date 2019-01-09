@@ -81,19 +81,39 @@ public abstract class BaseCoapStack implements CoapStack {
 	@Override
 	public void sendRequest(final Exchange exchange, final Request request) {
 		// delegate to top
-		top.sendRequest(exchange, request);
+		try {
+			top.sendRequest(exchange, request);
+		} catch (RuntimeException ex) {
+			request.setSendError(ex);
+		}
 	}
 
 	@Override
 	public void sendResponse(final Exchange exchange, final Response response) {
 		// delegate to top
-		top.sendResponse(exchange, response);
+		try {
+			if (exchange.getRequest().getOptions().hasObserve()) {
+				// observe- or cancel-observe-requests may have
+				// multiple responses.
+				// when observes are finished, the last response has
+				// no longer an observe option. Therefore check the
+				// request for it.
+				exchange.retransmitResponse();
+			}
+			top.sendResponse(exchange, response);
+		} catch (RuntimeException ex) {
+			response.setSendError(ex);
+		}
 	}
 
 	@Override
 	public void sendEmptyMessage(final Exchange exchange, final EmptyMessage message) {
 		// delegate to top
-		top.sendEmptyMessage(exchange, message);
+		try {
+			top.sendEmptyMessage(exchange, message);
+		} catch (RuntimeException ex) {
+			message.setSendError(ex);
+		}
 	}
 
 	@Override

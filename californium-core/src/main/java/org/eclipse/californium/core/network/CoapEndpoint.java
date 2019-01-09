@@ -67,6 +67,9 @@
  *                                                    was started.
  *    Achim Kraus (Bosch Software Innovations GmbH) - cancel pending messages on stop().
  *    Achim Kraus (Bosch Software Innovations GmbH) - add support for multicast
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move response retransmission
+ *                                                    setup to BaseCoapStack to include
+ *                                                    it also in a try-catch
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -547,12 +550,6 @@ public class CoapEndpoint implements Endpoint {
 			exchange.execute(new Runnable() {
 				@Override
 				public void run() {
-					if (exchange.getRequest().getOptions().hasObserve()) {
-						// observe- or cancel-observe-requests may have multiple responses
-						// when observes are finished, the last response has no longer an
-						// observe option. Therefore check the request for it.
-						exchange.retransmitResponse();
-					}
 					coapstack.sendResponse(exchange, response);
 				}
 			});

@@ -233,7 +233,12 @@ public final class UdpMatcher extends BaseMatcher {
 
 				@Override
 				public void run() {
-					receiver.receiveRequest(previous, request);
+					try {
+						receiver.receiveRequest(previous, request);
+					} catch (RuntimeException ex) {
+						LOGGER.warn("error receiving request {} again!", request, ex);
+						receiver.reject(request);
+					}
 				}
 			});
 		} else {
@@ -242,7 +247,12 @@ public final class UdpMatcher extends BaseMatcher {
 
 				@Override
 				public void run() {
-					receiver.receiveRequest(exchange, request);
+					try {
+						receiver.receiveRequest(exchange, request);
+					} catch (RuntimeException ex) {
+						LOGGER.warn("error receiving request {}", request, ex);
+						receiver.reject(request);
+					}
 				}
 			});
 		}
@@ -294,8 +304,8 @@ public final class UdpMatcher extends BaseMatcher {
 									receiver.receiveResponse(prev, response);
 									return;
 								}
-							} catch (Exception ex) {
-								LOGGER.error("error receiving response {} for {}", response, prev, ex);
+							} catch (RuntimeException ex) {
+								LOGGER.warn("error receiving response {} for {}", response, prev, ex);
 							}
 							reject(response, receiver);
 						}
@@ -388,8 +398,8 @@ public final class UdpMatcher extends BaseMatcher {
 						LOGGER.debug("ignoring potentially forged response for token {} with non-matching endpoint context",
 								idByToken);
 					}
-				} catch (Exception ex) {
-					LOGGER.error("error receiving response {} for {}", response, exchange, ex);
+				} catch (RuntimeException ex) {
+					LOGGER.warn("error receiving response {} for {}", response, exchange, ex);
 				}
 				reject(response, receiver);
 			}
@@ -433,8 +443,8 @@ public final class UdpMatcher extends BaseMatcher {
 								"ignoring potentially forged reply for message {} with non-matching endpoint context",
 								idByMID);
 					}
-				} catch (Exception ex) {
-					LOGGER.error("error receiving empty message {} for {}", message, exchange, ex);
+				} catch (RuntimeException ex) {
+					LOGGER.warn("error receiving empty message {} for {}", message, exchange, ex);
 				}
 			}
 		});
@@ -444,11 +454,11 @@ public final class UdpMatcher extends BaseMatcher {
 	
 		if (response.getType() != Type.ACK && response.hasMID()) {
 			// reject only messages with MID, ignore for TCP
-			LOGGER.debug("rejecting unmatchable response from {}", response.getSourceContext());
+			LOGGER.debug("rejecting response from {}", response.getSourceContext());
 			receiver.reject(response);
 		}
 	}
-	
+
 	private class RemoveHandlerImpl implements RemoveHandler {
 
 		@Override

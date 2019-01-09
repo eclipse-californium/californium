@@ -23,7 +23,6 @@ import java.util.concurrent.TimeUnit;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.EmptyMessage;
-import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.OptionSet;
@@ -189,8 +188,8 @@ public abstract class BlockwiseInterceptor {
 
 		private final MessageObserver errorInjectorObserver;
 
-		protected LoggingMessageObserver(final ErrorInjector errorInjector, final Message message) {
-			this.errorInjectorObserver = errorInjector.new ErrorInjectorMessageObserver(message);
+		protected LoggingMessageObserver(final ErrorInjector errorInjector) {
+			this.errorInjectorObserver = errorInjector.new ErrorInjectorMessageObserver();
 		}
 
 		private void countDown() {
