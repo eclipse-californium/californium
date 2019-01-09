@@ -142,8 +142,9 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 			String value = attributes[++index];
 			if (null == key) {
 				throw new NullPointerException((index / 2) + ". key is null");
-			}
-			if (null == value) {
+			} else if (key.isEmpty()) {
+				throw new IllegalArgumentException((index / 2) + ". key is empty");
+			} else if (null == value) {
 				throw new NullPointerException((index / 2) + ". value is null");
 			}
 			String old = entries.put(key, value);

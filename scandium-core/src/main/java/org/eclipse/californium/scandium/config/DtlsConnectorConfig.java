@@ -229,6 +229,12 @@ public final class DtlsConnectorConfig {
 	 */
 	private Integer verifyPeersOnResumptionThreshold;
 
+	/**
+	 * Indicates, that no session id is used by this server. The sessions are not
+	 * cached by this server and can not be resumed.
+	 */
+	private Boolean useNoServerSessionId;
+
 	private DtlsConnectorConfig() {
 		// empty
 	}
@@ -584,6 +590,16 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * Indicates, that no session id is used by this server and so session are
+	 * also not cached by this server and can not be resumed.
+	 * 
+	 * @return {@code true} if no session id is used by this server.
+	 */
+	public Boolean useNoServerSessionId() {
+		return useNoServerSessionId;
+	}
+
+	/**
 	 * @return The trust store for raw public keys verified out-of-band for
 	 *         DTLS-RPK handshakes
 	 */
@@ -626,6 +642,7 @@ public final class DtlsConnectorConfig {
 		cloned.autoResumptionTimeoutMillis = autoResumptionTimeoutMillis;
 		cloned.sniEnabled = sniEnabled;
 		cloned.verifyPeersOnResumptionThreshold = verifyPeersOnResumptionThreshold;
+		cloned.useNoServerSessionId = useNoServerSessionId;
 		return cloned;
 	}
 
@@ -728,9 +745,10 @@ public final class DtlsConnectorConfig {
 		public Builder setClientOnly() {
 			if (config.clientAuthenticationRequired != null || config.clientAuthenticationWanted != null) {
 				throw new IllegalStateException("client only is not support with server side client authentication!");
-			}
-			if (config.serverOnly != null) {
+			} else if (config.serverOnly != null) {
 				throw new IllegalStateException("client only is not support with server only!");
+			} else if (config.useNoServerSessionId != null && config.useNoServerSessionId.booleanValue()) {
+				throw new IllegalStateException("client only is not support with no server session id!");
 			}
 			clientOnly = true;
 			return this;
@@ -1438,7 +1456,7 @@ public final class DtlsConnectorConfig {
 		 *            is based on
 		 *            {@link DtlsConnectorConfig#DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT}
 		 * @return this builder for command chaining.
-		 * @throws IllegalArgumentException if threshold is not between 0 and 1000
+		 * @throws IllegalArgumentException if threshold is not between 0 and 100
 		 * @see DtlsConnectorConfig#verifyPeersOnResumptionThreshold
 		 */
 		public Builder setVerifyPeersOnResumptionThreshold(int threshold) {
@@ -1446,6 +1464,22 @@ public final class DtlsConnectorConfig {
 				throw new IllegalArgumentException("threshold must be between 0 and 100, but is " + threshold + "!");
 			}
 			config.verifyPeersOnResumptionThreshold = threshold;
+			return this;
+		}
+
+		/**
+		 * Set whether session id is used by this server or not.
+		 * 
+		 * @param flag {@code true} if no session id is used by this server.
+		 * @return this builder for command chaining.
+		 * @throws IllegalArgumentException if no session id should be used and
+		 *             the configuration is for client only.
+		 */
+		public Builder setNoServerSessionId(boolean flag) {
+			if (clientOnly && flag) {
+				throw new IllegalArgumentException("not applicable for client only!");
+			}
+			config.useNoServerSessionId = flag;
 			return this;
 		}
 
@@ -1510,6 +1544,9 @@ public final class DtlsConnectorConfig {
 			}
 			if (config.serverOnly == null) {
 				config.serverOnly = false;
+			}
+			if (config.useNoServerSessionId == null) {
+				config.useNoServerSessionId = false;
 			}
 			if (config.outboundMessageBufferSize == null) {
 				config.outboundMessageBufferSize = 100000;

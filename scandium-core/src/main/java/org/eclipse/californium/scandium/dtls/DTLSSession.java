@@ -294,6 +294,25 @@ public final class DTLSSession {
 	}
 
 	/**
+	 * System time of session creation in milliseconds.
+	 * 
+	 * @return session creation system time in milliseconds
+	 * @see System#currentTimeMillis()
+	 */
+	public long getCreationTime() {
+		return creationTime;
+	}
+
+	/**
+	 * System time tag of last handshake.
+	 * 
+	 * @return system time in milliseconds as string of the last handshake
+	 */
+	public String getLastHandshakeTime() {
+		return handshakeTimeTag;
+	}
+
+	/**
 	 * Gets the (virtual) host name for the server that this session
 	 * has been established for.
 	 * 
@@ -365,15 +384,15 @@ public final class DTLSSession {
 	}
 
 	public DtlsEndpointContext getConnectionWriteContext() {
-
-		return new DtlsEndpointContext(peer, virtualHost, peerIdentity, sessionIdentifier.toString(),
-				Integer.toString(writeEpoch), cipherSuite.name(), handshakeTimeTag);
+		String id = sessionIdentifier.isEmpty() ? "TIME:" + Long.toString(creationTime) : sessionIdentifier.toString();
+		return new DtlsEndpointContext(peer, virtualHost, peerIdentity, id, Integer.toString(writeEpoch),
+				cipherSuite.name(), handshakeTimeTag);
 	}
 
 	public DtlsEndpointContext getConnectionReadContext() {
-
-		return new DtlsEndpointContext(peer, virtualHost, peerIdentity, sessionIdentifier.toString(),
-				Integer.toString(readEpoch), cipherSuite.name(), handshakeTimeTag);
+		String id = sessionIdentifier.isEmpty() ? "TIME:" + Long.toString(creationTime) : sessionIdentifier.toString();
+		return new DtlsEndpointContext(peer, virtualHost, peerIdentity, id, Integer.toString(readEpoch),
+				cipherSuite.name(), handshakeTimeTag);
 	}
 
 	/**
