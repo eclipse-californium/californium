@@ -1312,15 +1312,25 @@ public class DTLSConnector implements Connector {
 		}
 		// TODO what if there already is an ongoing handshake with the peer
 		else if (connection.isResumptionRequired()){
-			// create the session to resume from the previous one.
-			DTLSSession resumableSession = new DTLSSession(session.getSessionIdentifier(), peerAddress, session.getSessionTicket(), 0);
-
-			// terminate the previous connection and add the new one to the store
+			// terminate the previous connection and 
+			// add the new one to the store
 			Connection newConnection = new Connection(peerAddress);
 			terminateConnection(connection, null, null);
 			connectionStore.put(newConnection);
-			Handshaker handshaker = new ResumingClientHandshaker(resumableSession,
-					getRecordLayerForPeer(newConnection), newConnection, config, maximumTransmissionUnit);
+			Handshaker handshaker;
+			// create the session to resume from the previous one.
+			if (session.getSessionIdentifier().isEmpty()) {
+				// full-handshake
+				DTLSSession newSession = new DTLSSession(peerAddress, true);
+				handshaker = new ClientHandshaker(newSession, getRecordLayerForPeer(newConnection), newConnection,
+						config, maximumTransmissionUnit);
+			} else {
+				// resumption-handshake
+				DTLSSession resumableSession = new DTLSSession(session.getSessionIdentifier(), peerAddress,
+						session.getSessionTicket(), 0);
+				handshaker = new ResumingClientHandshaker(resumableSession, getRecordLayerForPeer(newConnection),
+						newConnection, config, maximumTransmissionUnit);
+			}
 			addSessionCacheSynchronization(handshaker);
 			handshaker.addSessionListener(newDeferredMessageSender(message));
 			handshaker.startHandshake();

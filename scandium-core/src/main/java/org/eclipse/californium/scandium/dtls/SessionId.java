@@ -62,6 +62,10 @@ public final class SessionId {
 		return id;
 	}
 
+	public boolean isEmpty() {
+		return id.length == 0; 
+	}
+
 	/**
 	 * Creates a new instance with an empty byte array as the ID.
 	 * 
