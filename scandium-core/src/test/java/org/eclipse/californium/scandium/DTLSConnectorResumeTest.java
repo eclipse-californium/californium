@@ -49,7 +49,6 @@ import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -147,6 +146,7 @@ public class DTLSConnectorResumeTest {
 		client.forceResumeSessionFor(serverHelper.serverEndpoint);
 		Connection connection = clientConnectionStore.get(serverHelper.serverEndpoint);
 		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
+		long time = connection.getEstablishedSession().getCreationTime();
 
 		// create a new client with different inetAddress but with the same session store.
 		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 10001);
@@ -169,6 +169,7 @@ public class DTLSConnectorResumeTest {
 		// check we use the same session id
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
 		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
+		assertThat(time, is(connection.getEstablishedSession().getCreationTime()));
 		assertClientIdentity(RawPublicKeyIdentity.class);
 	}
 
@@ -428,7 +429,7 @@ public class DTLSConnectorResumeTest {
 
 		// check session id was not equals
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
-		Assert.assertThat(sessionId, not(equalTo(connection.getEstablishedSession().getSessionIdentifier().getId())));
+		assertThat(sessionId, not(equalTo(connection.getEstablishedSession().getSessionIdentifier().getId())));
 		assertClientIdentity(RawPublicKeyIdentity.class);
 	}
 
@@ -457,8 +458,51 @@ public class DTLSConnectorResumeTest {
 
 		// check session id was not equals
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
-		Assert.assertThat(sessionId, not(equalTo(connection.getEstablishedSession().getSessionIdentifier().getId())));
+		assertThat(sessionId, not(equalTo(connection.getEstablishedSession().getSessionIdentifier().getId())));
 		assertClientIdentity(RawPublicKeyIdentity.class);
+	}
+
+	@Test
+	public void testConnectorPerformsFullHandshakeWhenResumingWithEmptySessionId() throws Exception {
+		ConnectorHelper serverWithoutSessionId = new ConnectorHelper();
+		try {
+			DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+			builder.setNoServerSessionId(true);
+			serverWithoutSessionId.startServer(builder);
+
+			// Do a first handshake
+			RawData raw = RawData.outbound("Hello World".getBytes(),
+					new AddressEndpointContext(serverWithoutSessionId.serverEndpoint, "server.no", null), null, false);
+			LatchDecrementingRawDataChannel clientRawDataChannel = serverWithoutSessionId
+					.givenAnEstablishedSession(client, raw, true);
+			SessionId sessionId = serverWithoutSessionId.establishedServerSession.getSessionIdentifier();
+			assertTrue("session id must be empty", sessionId.isEmpty());
+			
+			// Force a resume session the next time we send data
+			client.forceResumeSessionFor(serverWithoutSessionId.serverEndpoint);
+			Connection connection = clientConnectionStore.get(serverWithoutSessionId.serverEndpoint);
+			assertTrue(connection.getEstablishedSession().getSessionIdentifier().isEmpty());
+			long time = connection.getEstablishedSession().getCreationTime();
+			client.start();
+
+			// Prepare message sending
+			final String msg = "Hello Again";
+			CountDownLatch latch = new CountDownLatch(1);
+			clientRawDataChannel.setLatch(latch);
+
+			// send message
+			RawData data = RawData.outbound(msg.getBytes(),
+					new AddressEndpointContext(serverWithoutSessionId.serverEndpoint, "server.no", null), null, false);
+			client.send(data);
+			assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+			// check session id was not equals
+			connection = clientConnectionStore.get(serverWithoutSessionId.serverEndpoint);
+			assertTrue(connection.getEstablishedSession().getSessionIdentifier().isEmpty());
+			assertThat(time, is(not(connection.getEstablishedSession().getCreationTime())));
+		} finally {
+			serverWithoutSessionId.destroyServer();
+		}
 	}
 
 	private void assertClientIdentity(final Class<?> principalType) {

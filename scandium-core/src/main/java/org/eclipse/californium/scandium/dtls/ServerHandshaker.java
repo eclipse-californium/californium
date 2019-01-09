@@ -96,6 +96,9 @@ public class ServerHandshaker extends Handshaker {
 	 */
 	private DTLSFlight lastFlight;
 
+	/** Does the server use session id? */
+	private boolean useNoSessionId = false;
+
 	/** Is the client wanted to authenticate itself? */
 	private boolean clientAuthenticationWanted = false;
 
@@ -215,6 +218,7 @@ public class ServerHandshaker extends Handshaker {
 		this.sniEnabled = config.isSniEnabled();
 		this.clientAuthenticationWanted = config.isClientAuthenticationWanted();
 		this.clientAuthenticationRequired = config.isClientAuthenticationRequired();
+		this.useNoSessionId = config.useNoServerSessionId();
 
 		// the server handshake uses the config with exchanged roles!
 		this.supportedClientCertificateTypes = config.getTrustCertificateTypes();
@@ -517,7 +521,8 @@ public class ServerHandshaker extends Handshaker {
 		clientRandom = clientHello.getRandom();
 		serverRandom = new Random();
 
-		SessionId sessionId = new SessionId();
+		
+		SessionId sessionId = useNoSessionId ? SessionId.emptySessionId() : new SessionId();
 		session.setSessionIdentifier(sessionId);
 
 		// currently only NULL compression supported, no negotiation needed

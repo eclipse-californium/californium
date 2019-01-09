@@ -228,16 +228,19 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 	}
 
 	public synchronized void putEstablishedSession(final DTLSSession session, final Connection connection) {
-		connectionsByEstablishedSession.put(session.getSessionIdentifier(), connection);
-		if (sessionCache != null) {
-			sessionCache.put(session);
+		SessionId sessionId = session.getSessionIdentifier();
+		if (!sessionId.isEmpty()) {
+			connectionsByEstablishedSession.put(session.getSessionIdentifier(), connection);
+			if (sessionCache != null) {
+				sessionCache.put(session);
+			}
 		}
 	}
 
 	@Override
 	public synchronized Connection find(final SessionId id) {
 
-		if (id == null) {
+		if (id == null || id.isEmpty()) {
 			return null;
 		} else {
 			Connection conFromLocalCache = findLocally(id);
