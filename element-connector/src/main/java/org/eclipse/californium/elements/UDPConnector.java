@@ -330,7 +330,8 @@ public class UDPConnector implements Connector {
 
 		private Receiver(String name) {
 			super(name);
-			this.size = receiverPacketSize;
+			// we add one byte to be able to detect potential truncation.
+			this.size = receiverPacketSize + 1;
 			this.datagram = new DatagramPacket(new byte[size], size);
 		}
 
@@ -339,16 +340,23 @@ public class UDPConnector implements Connector {
 			DatagramSocket currentSocket = getSocket();
 			if (currentSocket != null) {
 				currentSocket.receive(datagram);
-				LOGGER.debug("UDPConnector ({}) received {} bytes from {}:{}", effectiveAddr, datagram.getLength(),
-						datagram.getAddress(), datagram.getPort());
-				byte[] bytes = Arrays.copyOfRange(datagram.getData(), datagram.getOffset(), datagram.getLength());
-				RawData msg = RawData.inbound(bytes,
-						new UdpEndpointContext(new InetSocketAddress(datagram.getAddress(), datagram.getPort())),
-						false);
-				receiver.receiveData(msg);
+				if (datagram.getLength() >= size) {
+					// too large datagram for our buffer! data could have been
+					// truncated, so we discard it.
+					LOGGER.debug(
+							"UDPConnector ({}) received truncated UDP datagram from {}:{}. Maximum size allowed {}. Discarding ...",
+							effectiveAddr, datagram.getAddress(), datagram.getPort(), size - 1);
+				} else {
+					LOGGER.debug("UDPConnector ({}) received {} bytes from {}:{}", effectiveAddr, datagram.getLength(),
+							datagram.getAddress(), datagram.getPort());
+					byte[] bytes = Arrays.copyOfRange(datagram.getData(), datagram.getOffset(), datagram.getLength());
+					RawData msg = RawData.inbound(bytes,
+							new UdpEndpointContext(new InetSocketAddress(datagram.getAddress(), datagram.getPort())),
+							false);
+					receiver.receiveData(msg);
+				}
 			}
 		}
-
 	}
 
 	private class Sender extends NetworkStageThread {

@@ -21,14 +21,19 @@
 package org.eclipse.californium.elements;
 
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.sameInstance;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.elements.rule.NetworkRule;
@@ -48,6 +53,7 @@ public class UDPConnectorTest {
 
 	UDPConnector connector;
 	UDPConnector destination;
+	LinkedBlockingQueue<RawData> incoming = new LinkedBlockingQueue<>();
 	TestEndpointContextMatcher matcher;
 
 	@Before
@@ -61,6 +67,7 @@ public class UDPConnectorTest {
 
 			@Override
 			public void receiveData(RawData raw) {
+				incoming.offer(raw);
 			}
 		});
 		destination.start();
@@ -112,6 +119,49 @@ public class UDPConnectorTest {
 
 		callback.await(100);
 		assertThat(callback.toString(), callback.isSent(), is(true));
+	}
+
+	@Test
+	public void testTooLargeDatagramIsDropped() throws InterruptedException {
+		matcher.setMatches(2);
+		
+		// ensure too large datagram is dropped
+		byte[] data = new byte[destination.getReceiverPacketSize()+1];
+		Arrays.fill(data, (byte) 1);
+		InetSocketAddress dest = destination.getAddress();
+		EndpointContext context = new UdpEndpointContext(dest);
+
+		RawData message = RawData.outbound(data, context, null, false);
+		connector.send(message);
+
+		RawData receivedData = incoming.poll(100, TimeUnit.MILLISECONDS);
+		assertThat("first received data:", receivedData, is(nullValue())); // null means packet is dropped
+		
+		// ensure next datagram is correctly received
+		data = new byte[5];
+		Arrays.fill(data, (byte) 2);
+		context = new UdpEndpointContext(dest);
+		message = RawData.outbound(data, context, null, false);
+		connector.send(message);
+
+		receivedData = incoming.poll(1000000000, TimeUnit.MILLISECONDS);
+		assertThat("second received data:", receivedData, is(notNullValue()));
+		assertThat("bytes received:", receivedData.bytes, is(equalTo(data)));
+	}
+
+	@Test
+	public void testLargestDatagramIsReceived() throws InterruptedException {
+		byte[] data = new byte[destination.getReceiverPacketSize()];
+		Arrays.fill(data, (byte) 1);
+		InetSocketAddress dest = destination.getAddress();
+		EndpointContext context = new UdpEndpointContext(dest);
+
+		RawData message = RawData.outbound(data, context, null, false);
+		connector.send(message);
+
+		RawData receivedData = incoming.poll(100, TimeUnit.MILLISECONDS);
+		assertThat("second received data:", receivedData, is(notNullValue()));
+		assertThat("bytes received:", receivedData.bytes, is(equalTo(data)));
 	}
 
 	@Test
@@ -175,6 +225,13 @@ public class UDPConnectorTest {
 		public TestEndpointContextMatcher(int count, int matches) {
 			this.latchSendMatcher = new CountDownLatch(count);
 			this.matches = new AtomicInteger(matches);
+		}
+		
+		/**
+		 *  set the number of matches allowed
+		 */
+		public void setMatches(int matches) {
+			this.matches.set(matches);
 		}
 
 		public synchronized EndpointContext getMessageEndpointContext() {
