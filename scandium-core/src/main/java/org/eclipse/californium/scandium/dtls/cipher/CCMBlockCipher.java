@@ -25,8 +25,8 @@ import java.security.GeneralSecurityException;
 import java.util.Arrays;
 
 import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
 import javax.crypto.ShortBufferException;
-import javax.crypto.spec.SecretKeySpec;
 
 /**
  * A generic authenticated encryption block cipher mode which uses the 128-bit
@@ -36,7 +36,6 @@ import javax.crypto.spec.SecretKeySpec;
 public class CCMBlockCipher {
 
 	// Members ////////////////////////////////////////////////////////
-
 	/**
 	 * CCM is only defined for use with 128-bit block ciphers, such as AES
 	 * (http://tools.ietf.org/html/rfc3610).
@@ -46,10 +45,6 @@ public class CCMBlockCipher {
 	 * The underlying block cipher.
 	 */
 	private static final String CIPHER_NAME = "AES/ECB/NoPadding";
-	/**
-	 * Key type for cipher.
-	 */
-	private static final String KEY_TYPE = "AES";
 
 	private static abstract class Block {
 
@@ -297,7 +292,7 @@ public class CCMBlockCipher {
 	 *             e.g. because the ciphertext's block size is not correct
 	 * @throws InvalidMacException if the message could not be authenticated
 	 */
-	public final static byte[] decrypt(byte[] key, byte[] nonce, byte[] a, byte[] c, int numAuthenticationBytes)
+	public final static byte[] decrypt(SecretKey key, byte[] nonce, byte[] a, byte[] c, int numAuthenticationBytes)
 			throws GeneralSecurityException {
 		/*
 		 * http://tools.ietf.org/html/draft-mcgrew-tls-aes-ccm-04#section-6.1:
@@ -307,7 +302,7 @@ public class CCMBlockCipher {
 
 		// instantiate the underlying block cipher
 		Cipher cipher = CipherManager.getInstance(CIPHER_NAME);
-		cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, KEY_TYPE));
+		cipher.init(Cipher.ENCRYPT_MODE, key);
 
 		int lengthM = c.length - numAuthenticationBytes;
 		int blockSize = cipher.getBlockSize();
@@ -370,12 +365,12 @@ public class CCMBlockCipher {
 	 * @throws GeneralSecurityException if the data could not be encrypted, e.g.
 	 *             because the JVM does not support the AES cipher algorithm
 	 */
-	public final static byte[] encrypt(byte[] key, byte[] nonce, byte[] a, byte[] m, int numAuthenticationBytes)
+	public final static byte[] encrypt(SecretKey key, byte[] nonce, byte[] a, byte[] m, int numAuthenticationBytes)
 			throws GeneralSecurityException {
 
 		// instantiate the cipher
 		Cipher cipher = CipherManager.getInstance(CIPHER_NAME);
-		cipher.init(Cipher.ENCRYPT_MODE, new SecretKeySpec(key, KEY_TYPE));
+		cipher.init(Cipher.ENCRYPT_MODE, key);
 		int blockSize = cipher.getBlockSize();
 		int lengthM = m.length;
 

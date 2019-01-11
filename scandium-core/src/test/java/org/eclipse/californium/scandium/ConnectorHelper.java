@@ -151,9 +151,17 @@ public class ConnectorHelper {
 			builder.setSupportedCipherSuites(
 					CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
 					CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+					CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM,
+					CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8,
+					CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM,
+					CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA,
+					CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384,
 					CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256,
 					CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
-					CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256);
+					CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256,
+					CipherSuite.TLS_PSK_WITH_AES_256_CCM_8,
+					CipherSuite.TLS_PSK_WITH_AES_128_CCM,
+					CipherSuite.TLS_PSK_WITH_AES_256_CCM);
 		}
 		if (!Boolean.FALSE.equals(builder.getIncompleteConfig().isClientAuthenticationRequired()) ||
 				Boolean.TRUE.equals(builder.getIncompleteConfig().isClientAuthenticationWanted())) {

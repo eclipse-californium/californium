@@ -186,6 +186,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 						}
 					}
 					expectChangeCipherSpecMessage();
+					initMessageDigest();
 				}
 				break;
 
@@ -231,6 +232,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 			// this last flight
 			return;
 		}
+
 		flightNumber += 2;
 		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
 
@@ -256,14 +258,15 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		// the handshake hash to check the server's verify_data (without the
 		// server's finished message included)
 		handshakeHash = md.digest();
-		message.verifyData(session.getMasterSecret(), false, handshakeHash);
+		String prfMacName = session.getCipherSuite().getPseudoRandomFunctionMacName();
+		message.verifyData(prfMacName, session.getMasterSecret(), false, handshakeHash);
 		
 		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage(message.getPeer());
 		wrapMessage(flight, changeCipherSpecMessage);
 		setCurrentWriteState();
 
 		handshakeHash = mdWithServerFinish.digest();
-		Finished finished = new Finished(session.getMasterSecret(), isClient, handshakeHash, message.getPeer());
+		Finished finished = new Finished(prfMacName, session.getMasterSecret(), isClient, handshakeHash, message.getPeer());
 		wrapMessage(flight, finished);
 		state = HandshakeType.FINISHED.getCode();
 

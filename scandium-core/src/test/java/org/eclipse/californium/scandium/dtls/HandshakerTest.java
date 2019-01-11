@@ -194,7 +194,7 @@ public class HandshakerTest {
 		handshaker.expectChangeCipherSpecMessage();
 
 		// WHEN the peer's FINISHED message is received out-of-sequence before the ChangeCipherSpec message
-		Finished finished = new Finished(new byte[]{0x00, 0x01}, true, new byte[]{0x00, 0x00}, endpoint);
+		Finished finished = new Finished("HmacSHA256", new byte[]{0x00, 0x01}, true, new byte[]{0x00, 0x00}, endpoint);
 		finished.setMessageSeq(0);
 		Record finishedRecord = getRecordForMessage(1, 0, finished, senderAddress);
 		handshaker.processMessage(finishedRecord);
@@ -268,13 +268,39 @@ public class HandshakerTest {
 		}
 		assertThatReassembledMessageEqualsOriginalMessage(result);
 	}
-	
+
 	@Test
 	public void testHandleFragmentationBuffersMessagesSentInReverseOrder() throws Exception {
 		givenAFragmentedHandshakeMessage(certificateMessage);
 		HandshakeMessage result = null;
 		for (int i = handshakeMessageFragments.length - 1; i >= 0; i--) {
 			result = handshaker.handleFragmentation(handshakeMessageFragments[i]);
+		}
+		assertThatReassembledMessageEqualsOriginalMessage(result);
+	}
+
+	@Test
+	public void testHandleFragmentationReassemblesOverlappingMessages() throws Exception {
+		givenAFragmentedHandshakeMessage(certificateMessage, 250, 500);
+		HandshakeMessage result = null;
+		for (FragmentedHandshakeMessage fragment : handshakeMessageFragments) {
+			HandshakeMessage last = handshaker.handleFragmentation(fragment);
+			if (result == null) {
+				result = last;
+			}
+		}
+		assertThatReassembledMessageEqualsOriginalMessage(result);
+	}
+
+	@Test
+	public void testHandleFragmentationReassemblesMissOverlappingMessages() throws Exception {
+		givenAMissFragmentedHandshakeMessage(certificateMessage, 100,  200);
+		HandshakeMessage result = null;
+		for (FragmentedHandshakeMessage fragment : handshakeMessageFragments) {
+			HandshakeMessage last = handshaker.handleFragmentation(fragment);
+			if (result == null) {
+				result = last;
+			}
 		}
 		assertThatReassembledMessageEqualsOriginalMessage(result);
 	}
@@ -308,9 +334,12 @@ public class HandshakerTest {
 	}
 
 	private void givenAFragmentedHandshakeMessage(HandshakeMessage message) {
+		givenAFragmentedHandshakeMessage(message, 500, 500);
+	}
+
+	private void givenAFragmentedHandshakeMessage(HandshakeMessage message, int fragmentStep, int maxFragmentSize) {
 		List<FragmentedHandshakeMessage> fragments = new LinkedList<>();
 		byte[] serializedMsg = message.fragmentToByteArray();
-		int maxFragmentSize = 500;
 		int fragmentOffset = 0;
 		while (fragmentOffset < serializedMsg.length) {
 			int fragmentLength = Math.min(maxFragmentSize, serializedMsg.length - fragmentOffset);
@@ -319,8 +348,22 @@ public class HandshakerTest {
 			FragmentedHandshakeMessage msg = new FragmentedHandshakeMessage(message.getMessageType(),
 					serializedMsg.length, message.getMessageSeq(), fragmentOffset, fragment, endpoint);
 			fragments.add(msg);
-			fragmentOffset += fragmentLength;
+			if (fragmentOffset + fragmentLength == serializedMsg.length) {
+				fragmentOffset += fragmentLength;
+			} else {
+				fragmentOffset += Math.min(fragmentLength, fragmentStep);
+			}
 		}
+		handshakeMessageFragments = fragments.toArray(new FragmentedHandshakeMessage[] {});
+	}
+
+	private void givenAMissFragmentedHandshakeMessage(HandshakeMessage message, int fragmentStep, int maxFragmentSize) {
+		givenAFragmentedHandshakeMessage(message, fragmentStep, maxFragmentSize);
+		List<FragmentedHandshakeMessage> fragments = new LinkedList<>(Arrays.asList(handshakeMessageFragments));
+		fragments.remove(fragments.size() - 1);
+		fragments.remove(fragments.size() / 2);
+		givenAFragmentedHandshakeMessage(message, fragmentStep / 2, maxFragmentSize / 2);
+		fragments.addAll(Arrays.asList(handshakeMessageFragments));
 		handshakeMessageFragments = fragments.toArray(new FragmentedHandshakeMessage[] {});
 	}
 

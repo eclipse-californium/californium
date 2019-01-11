@@ -115,8 +115,6 @@ public final class DtlsConnectorConfig {
 	 */
 	private static final int DEFAULT_RECEIVER_THREADS = (Runtime.getRuntime().availableProcessors() + 1) / 2;
 
-	private static final String EC_ALGORITHM_NAME = "EC";
-
 	/**
 	 * Local network interface.
 	 */
@@ -706,10 +704,11 @@ public final class DtlsConnectorConfig {
 	 *
 	 */
 	public static final class Builder {
-		
+
 		private DtlsConnectorConfig config;
 		private boolean clientOnly;
-		
+		private boolean extendedCipherSuites;
+
 		/**
 		 * Creates a new instance for setting configuration options
 		 * for a <code>DTLSConnector</code> instance.
@@ -780,6 +779,22 @@ public final class DtlsConnectorConfig {
 		 */
 		public Builder setEnableAddressReuse(boolean enable) {
 			config.enableReuseAddress = enable;
+			return this;
+		}
+
+		/**
+		 * Set usage of extended cipher suites for default cipher suites, if
+		 * {@link #setSupportedCipherSuites} is not called.
+		 * 
+		 * @param extendedCipherSuites {@code true} use extended cipher suites
+		 *            as default
+		 * @return this builder for command chaining
+		 */
+		public Builder setExtendedCipherSuites(boolean extendedCipherSuites) {
+			if (config.supportedCipherSuites != null) {
+				throw new IllegalArgumentException("cipher-suites are already provided!");
+			}
+			this.extendedCipherSuites = extendedCipherSuites;
 			return this;
 		}
 
@@ -1004,6 +1019,9 @@ public final class DtlsConnectorConfig {
 			} 
 			if (cipherSuites.contains(CipherSuite.TLS_NULL_WITH_NULL_NULL)) {
 				throw new IllegalArgumentException("NULL Cipher Suite is not supported by connector");
+			}
+			if (extendedCipherSuites) {
+				throw new IllegalArgumentException("Extended default cipher-suites are already provided!");
 			}
 			config.supportedCipherSuites = cipherSuites;
 			return this;
@@ -1742,20 +1760,12 @@ public final class DtlsConnectorConfig {
 			boolean certifacte = false;
 			boolean psk = false;
 			for (CipherSuite suite : config.supportedCipherSuites) {
-				switch (suite) {
-				case TLS_PSK_WITH_AES_128_CCM_8:
-				case TLS_PSK_WITH_AES_128_CBC_SHA256:
-				case TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256:
+				if (suite.isPskBased()) {
 					verifyPskBasedCipherConfig(suite);
 					psk = true;
-					break;
-				case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8:
-				case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256:
-					verifyEcBasedCipherConfig(suite);
+				} else if (suite.requiresServerCertificateMessage()) {
+					verifyCertificateBasedCipherConfig(suite);
 					certifacte = true;
-					break;
-				default:
-					break;
 				}
 			}
 
@@ -1786,22 +1796,22 @@ public final class DtlsConnectorConfig {
 			}
 		}
 
-		private void verifyEcBasedCipherConfig(CipherSuite suite) {
+		private void verifyCertificateBasedCipherConfig(CipherSuite suite) {
 			if (config.privateKey == null || config.publicKey == null) {
 				if (!clientOnly) {
 					throw new IllegalStateException("Identity must be set for configured " + suite.name());
 				}
-			} else if (suite.isEccBased()) {
-				if (!EC_ALGORITHM_NAME.equals(config.privateKey.getAlgorithm())
-						|| !EC_ALGORITHM_NAME.equals(config.publicKey.getAlgorithm())) {
-					// test if private & public key are ECDSA capable
-					throw new IllegalStateException("Keys must be ECDSA capable for configured " + suite.name());
+			} else {
+				String algorithm = suite.getCertificateKeyAlgorithm().name();
+				if (!algorithm.equals(config.privateKey.getAlgorithm())
+						|| !algorithm.equals(config.publicKey.getAlgorithm())) {
+					throw new IllegalStateException(
+							"Keys must be " + algorithm + " capable for configured " + suite.name());
 				}
 			}
 			if (clientOnly || config.clientAuthenticationRequired || config.clientAuthenticationWanted) {
 				if (config.trustCertificateTypes == null) {
-					throw new IllegalStateException(
-							"trust must be set for configured " + suite.name());
+					throw new IllegalStateException("trust must be set for configured " + suite.name());
 				}
 				if (config.trustCertificateTypes.contains(CertificateType.RAW_PUBLIC_KEY)) {
 					if (config.trustedRPKs == null) {
@@ -1825,14 +1835,12 @@ public final class DtlsConnectorConfig {
 			boolean certificates = isConfiguredWithKeyPair() || config.trustCertificateTypes != null;
 
 			if (certificates) {
-				ciphers.add(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
-				ciphers.add(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256);
+				// currently only ECDSA is supported!
+				ciphers.addAll(CipherSuite.getEcdsaCipherSuites(extendedCipherSuites));
 			}
 
 			if (config.pskStore != null) {
-				ciphers.add(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
-				ciphers.add(CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256);
-				ciphers.add(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256);
+				ciphers.addAll(CipherSuite.getPskCipherSuites(extendedCipherSuites, true));
 			}
 
 			config.supportedCipherSuites = ciphers;

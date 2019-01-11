@@ -28,7 +28,7 @@ import java.security.SignatureException;
 import java.util.Arrays;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -166,7 +166,7 @@ public final class CertificateVerify extends HandshakeMessage {
 	 * @return the signature.
 	 */
 	private byte[] setSignature(PrivateKey clientPrivateKey, byte[] handshakeMessages) {
-		signatureBytes = new byte[] {};
+		signatureBytes = Bytes.EMPTY;
 
 		try {
 			Signature signature = Signature.getInstance(signatureAndHashAlgorithm.jcaName());

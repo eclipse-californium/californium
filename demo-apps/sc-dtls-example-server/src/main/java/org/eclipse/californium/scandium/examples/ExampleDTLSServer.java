@@ -58,6 +58,7 @@ public class ExampleDTLSServer {
 					SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, "root", TRUST_STORE_PASSWORD);
 
 			DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+			builder.setExtendedCipherSuites(true);
 			builder.setAddress(new InetSocketAddress(DEFAULT_PORT));
 			builder.setPskStore(pskStore);
 			builder.setIdentity(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain(),
