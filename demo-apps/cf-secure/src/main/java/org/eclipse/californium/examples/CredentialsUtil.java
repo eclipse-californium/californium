@@ -86,6 +86,9 @@ public class CredentialsUtil {
 	public static final String PSK_IDENTITY = "password";
 	public static final byte[] PSK_SECRET = "sesame".getBytes();
 
+	public static final String OPEN_PSK_IDENTITY = "Client_identity";
+	public static final byte[] OPEN_PSK_SECRET = "secretPSK".getBytes();
+
 	// CID
 	public static final String OPT_CID = "CID:";
 	public static final int  DEFAULT_CID_LENGTH = 6;
@@ -241,6 +244,7 @@ public class CredentialsUtil {
 			// Pre-shared secret keys
 			InMemoryPskStore pskStore = new InMemoryPskStore();
 			pskStore.setKey(PSK_IDENTITY, PSK_SECRET);
+			pskStore.setKey(OPEN_PSK_IDENTITY, OPEN_PSK_SECRET);
 			config.setPskStore(pskStore);
 		}
 		boolean noAuth = modes.contains(Mode.NO_AUTH);
@@ -322,15 +326,13 @@ public class CredentialsUtil {
 		if (psk && config.getIncompleteConfig().getSupportedCipherSuites() == null) {
 			List<CipherSuite> suites = new ArrayList<>();
 			if (x509 >= 0 || rpk >= 0 || x509Trust || rpkTrust) {
-				suites.add(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
-				suites.add(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256);
+				suites.addAll(CipherSuite.getEcdsaCipherSuites(true));
 			}
 			if (ecdhePsk) {
 				suites.add(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256);
 			} 
 			if (plainPsk) {
-				suites.add(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
-				suites.add(CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256);
+				suites.addAll(CipherSuite.getPskCipherSuites(true, false));
 			}
 			config.setSupportedCipherSuites(suites);
 		}

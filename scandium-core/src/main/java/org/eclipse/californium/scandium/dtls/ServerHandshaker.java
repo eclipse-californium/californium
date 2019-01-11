@@ -307,7 +307,7 @@ public class ServerHandshaker extends Handshaker {
 				incrementNextReceiveSeq();
 			}
 			LOGGER.debug("Processed {} message with message sequence no [{}] from peer [{}]",
-					new Object[]{handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq(), message.getPeer()});
+					handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq(), message.getPeer());
 			break;
 
 		default:
@@ -419,7 +419,8 @@ public class ServerHandshaker extends Handshaker {
 
 		// Verify client's data
 		byte[] handshakeHash = md.digest();
-		message.verifyData(session.getMasterSecret(), true, handshakeHash);
+		String prfMacName = session.getCipherSuite().getPseudoRandomFunctionMacName();
+		message.verifyData(prfMacName, session.getMasterSecret(), true, handshakeHash);
 
 		/*
 		 * First, send ChangeCipherSpec
@@ -432,7 +433,7 @@ public class ServerHandshaker extends Handshaker {
 		 * Second, send Finished message
 		 */
 		handshakeHash = mdWithClientFinished.digest();
-		Finished finished = new Finished(session.getMasterSecret(), isClient, handshakeHash, session.getPeer());
+		Finished finished = new Finished(prfMacName, session.getMasterSecret(), isClient, handshakeHash, session.getPeer());
 		wrapMessage(flight, finished);
 
 		state = HandshakeType.FINISHED.getCode();
@@ -466,10 +467,6 @@ public class ServerHandshaker extends Handshaker {
 		flightNumber = (cookie != null && cookie.length > 0) ? 4 : 2;
 
 		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
-
-		// update the handshake hash
-		md.update(clientHello.getRawMessage());
-		handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientHello.getRawMessage());
 
 		createServerHello(clientHello, flight);
 
@@ -521,6 +518,11 @@ public class ServerHandshaker extends Handshaker {
 		ServerHello serverHello = new ServerHello(serverVersion, serverRandom, sessionId,
 				session.getCipherSuite(), session.getCompressionMethod(), serverHelloExtensions, session.getPeer());
 		wrapMessage(flight, serverHello);
+
+		initMessageDigest();
+		// update the handshake hash
+		md.update(clientHello.getRawMessage());
+		handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientHello.getRawMessage());
 
 		// update the handshake hash
 		md.update(serverHello.toByteArray());

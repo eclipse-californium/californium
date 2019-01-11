@@ -90,6 +90,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
@@ -107,7 +108,6 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class Handshaker {
 
-	private static final String MESSAGE_DIGEST_ALGORITHM_NAME = "SHA-256";
 	private final Logger LOGGER = LoggerFactory.getLogger(getClass().getName());
 
 	/**
@@ -233,8 +233,6 @@ public abstract class Handshaker {
 	 * @param config the dtls configuration
 	 * @param maxTransmissionUnit the MTU value reported by the network
 	 *            interface the record layer is bound to.
-	 * @throws IllegalStateException if the message digest required for
-	 *             computing the FINISHED message hash cannot be instantiated.
 	 * @throws NullPointerException if session, recordLayer, or config is
 	 *             <code>null</code>.
 	 * @throws IllegalArgumentException if the initial message sequence number
@@ -268,14 +266,6 @@ public abstract class Handshaker {
 		this.session.setMaxTransmissionUnit(maxTransmissionUnit);
 		this.inboundMessageBuffer = new InboundMessageBuffer();
 
-		try {
-			this.md = MessageDigest.getInstance(MESSAGE_DIGEST_ALGORITHM_NAME);
-		} catch (NoSuchAlgorithmException e) {
-			// this cannot happen on a Java SE 7 VM because SHA-256 is mandatory
-			// to implement
-			throw new IllegalStateException(String.format("Message digest algorithm %s is not available on JVM",
-					MESSAGE_DIGEST_ALGORITHM_NAME));
-		}
 		this.rpkStore = config.getRpkTrustStore();
 	}
 
@@ -529,6 +519,23 @@ public abstract class Handshaker {
 	// Methods ////////////////////////////////////////////////////////
 
 	/**
+	 * Initialize message digest for FINISH message.
+	 * 
+	 * @throw IllegalStateException if message digest is not available for this
+	 *        platform. The supported message digest are checked by
+	 *        {@link CipherSuite#isSupported()}.
+	 */
+	protected final void initMessageDigest() {
+		String hashName = session.getCipherSuite().getPseudoRandomFunctionHashName();
+		try {
+			this.md = MessageDigest.getInstance(hashName);
+		} catch (NoSuchAlgorithmException e) {
+			throw new IllegalStateException(
+					String.format("Message digest algorithm %s is not available on JVM", hashName));
+		}
+	}
+
+	/**
 	 * First, generates the master secret from the given premaster secret, set
 	 * it in {@link #session}, and then applying the key expansion on the master
 	 * secret generates a large enough key block to generate the write, MAC and
@@ -555,12 +562,6 @@ public abstract class Handshaker {
 	 *            the master secret.
 	 */
 	protected void calculateKeys(byte[] masterSecret) {
-		// See http://tools.ietf.org/html/rfc5246#section-6.3:
-		//      key_block = PRF(SecurityParameters.master_secret, "key expansion",
-		//                      SecurityParameters.server_random + SecurityParameters.client_random);
-		byte[] seed = ByteArrayUtils.concatenate(serverRandom.getRandomBytes(), clientRandom.getRandomBytes());
-		byte[] data = PseudoRandomFunction.doPRF(masterSecret, Label.KEY_EXPANSION_LABEL, seed);
-
 		/*
 		 * Create keys as suggested in
 		 * http://tools.ietf.org/html/rfc5246#section-6.3:
@@ -572,19 +573,35 @@ public abstract class Handshaker {
 		 * server_write_IV[SecurityParameters.fixed_iv_length]
 		 */
 
+		String prfMacName = session.getCipherSuite().getPseudoRandomFunctionMacName();
 		int macKeyLength = session.getCipherSuite().getMacKeyLength();
 		int encKeyLength = session.getCipherSuite().getEncKeyLength();
 		int fixedIvLength = session.getCipherSuite().getFixedIvLength();
+		int totalLength = (macKeyLength + encKeyLength + fixedIvLength) * 2;
+		// See http://tools.ietf.org/html/rfc5246#section-6.3:
+		//      key_block = PRF(SecurityParameters.master_secret, "key expansion",
+		//                      SecurityParameters.server_random + SecurityParameters.client_random);
+		byte[] seed = ByteArrayUtils.concatenate(serverRandom.getRandomBytes(), clientRandom.getRandomBytes());
+		byte[] data = PseudoRandomFunction.doPRF(prfMacName, masterSecret, Label.KEY_EXPANSION_LABEL, seed, totalLength);
 
-		clientWriteMACKey = new SecretKeySpec(data, 0, macKeyLength, "Mac");
-		serverWriteMACKey = new SecretKeySpec(data, macKeyLength, macKeyLength, "Mac");
 
-		clientWriteKey = new SecretKeySpec(data, 2 * macKeyLength, encKeyLength, "AES");
-		serverWriteKey = new SecretKeySpec(data, (2 * macKeyLength) + encKeyLength, encKeyLength, "AES");
+		int index = 0;
+		int length = macKeyLength;
+		clientWriteMACKey = new SecretKeySpec(data, index, length, "Mac");
+		index += length;
+		serverWriteMACKey = new SecretKeySpec(data, index, length, "Mac");
+		index += length;
 
-		clientWriteIV = new IvParameterSpec(data, (2 * macKeyLength) + (2 * encKeyLength), fixedIvLength);
-		serverWriteIV = new IvParameterSpec(data, (2 * macKeyLength) + (2 * encKeyLength) + fixedIvLength, fixedIvLength);
+		length = encKeyLength;
+		clientWriteKey = new SecretKeySpec(data, index, length, "AES");
+		index += length;
+		serverWriteKey = new SecretKeySpec(data, index, length, "AES");
+		index += length;
 
+		length = fixedIvLength;
+		clientWriteIV = new IvParameterSpec(data, index, length);
+		index += length;
+		serverWriteIV = new IvParameterSpec(data, index, length);
 	}
 
 	/**
@@ -602,8 +619,9 @@ public abstract class Handshaker {
 	 * @return the master secret.
 	 */
 	private byte[] generateMasterSecret(byte[] premasterSecret) {
+		String prfMacName = session.getCipherSuite().getPseudoRandomFunctionMacName();
 		byte[] randomSeed = ByteArrayUtils.concatenate(clientRandom.getRandomBytes(), serverRandom.getRandomBytes());
-		return PseudoRandomFunction.doPRF(premasterSecret, Label.MASTER_SECRET_LABEL, randomSeed);
+		return PseudoRandomFunction.doPRF(prfMacName, premasterSecret, Label.MASTER_SECRET_LABEL, randomSeed);
 	}
 
 	/**

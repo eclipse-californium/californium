@@ -171,7 +171,7 @@ public class RecordTest {
 		// nonce used for encryption, "implicit" part + "explicit" part
 		byte[] nonce = ByteArrayUtils.concatenate(client_iv, explicitNonce);
 		
-		byte[] encryptedData = CCMBlockCipher.encrypt(key.getEncoded(), nonce, additionalData, payloadData, 8);
+		byte[] encryptedData = CCMBlockCipher.encrypt(key, nonce, additionalData, payloadData, 8);
 		
 		// prepend the "explicit" part of nonce to the encrypted data to form the GenericAEADCipher struct
 		return ByteArrayUtils.concatenate(explicitNonce, encryptedData);

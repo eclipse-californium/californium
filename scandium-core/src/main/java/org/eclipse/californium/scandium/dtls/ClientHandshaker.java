@@ -292,8 +292,8 @@ public class ClientHandshaker extends Handshaker {
 	 * @throws GeneralSecurityException if the APPLICATION record cannot be created 
 	 */
 	private void receivedServerFinished(Finished message) throws HandshakeException, GeneralSecurityException {
-
-		message.verifyData(session.getMasterSecret(), false, handshakeHash);
+		String prfMacName = session.getCipherSuite().getPseudoRandomFunctionMacName();
+		message.verifyData(prfMacName, session.getMasterSecret(), false, handshakeHash);
 		state = HandshakeType.FINISHED.getCode();
 		sessionEstablished();
 		handshakeCompleted();
@@ -380,6 +380,7 @@ public class ClientHandshaker extends Handshaker {
 		session.setReceiveCertificateType(serverHello.getServerCertificateType());
 		session.setSniSupported(serverHello.hasServerNameExtension());
 		session.setParameterAvailable();
+		initMessageDigest();
 	}
 
 	/**
@@ -595,7 +596,8 @@ public class ClientHandshaker extends Handshaker {
 		}
 
 		handshakeHash = md.digest();
-		Finished finished = new Finished(session.getMasterSecret(), isClient, handshakeHash, session.getPeer());
+		String prfMacName = session.getCipherSuite().getPseudoRandomFunctionMacName();
+		Finished finished = new Finished(prfMacName, session.getMasterSecret(), isClient, handshakeHash, session.getPeer());
 		wrapMessage(flight, finished);
 
 		// compute handshake hash with client's finished message also

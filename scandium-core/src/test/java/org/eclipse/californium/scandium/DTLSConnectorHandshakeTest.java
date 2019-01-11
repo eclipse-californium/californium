@@ -539,13 +539,43 @@ public class DTLSConnectorHandshakeTest {
 	}
 
 	@Test
-	public void testPskCcmHandshake() throws Exception {
+	public void testPskCcm8Handshake() throws Exception {
 		startServer(false, false,  false,  null);
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
 				.setPskStore(new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()))
 				.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
 		startClient(false,  null, builder);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(), is(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
+	}
+
+	@Test
+	public void testPsk256Ccm8Handshake() throws Exception {
+		startServer(false, false,  false,  null);
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+				.setPskStore(new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()))
+				.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_256_CCM_8);
+		startClient(false,  null, builder);
+		assertThat(serverHelper.establishedServerSession.getCipherSuite(), is(CipherSuite.TLS_PSK_WITH_AES_256_CCM_8));
+	}
+
+	@Test
+	public void testPskCcmHandshake() throws Exception {
+		startServer(false, false,  false,  null);
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+				.setPskStore(new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()))
+				.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM);
+		startClient(false,  null, builder);
+		assertThat(serverHelper.establishedServerSession.getCipherSuite(), is(CipherSuite.TLS_PSK_WITH_AES_128_CCM));
+	}
+
+	@Test
+	public void testPsk256CcmHandshake() throws Exception {
+		startServer(false, false,  false,  null);
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+				.setPskStore(new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()))
+				.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_256_CCM);
+		startClient(false,  null, builder);
+		assertThat(serverHelper.establishedServerSession.getCipherSuite(), is(CipherSuite.TLS_PSK_WITH_AES_256_CCM));
 	}
 
 	@Test
@@ -560,7 +590,7 @@ public class DTLSConnectorHandshakeTest {
 	}
 
 	@Test
-	public void testRpkCcmHandshake() throws Exception {
+	public void testRpkCcm8Handshake() throws Exception {
 		startServer(false, false, false, null);
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
 				.setRpkTrustAll()
@@ -570,4 +600,58 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
 	}
 
+	@Test
+	public void testRpk256Ccm8Handshake() throws Exception {
+		startServer(false, false, false, null);
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+				.setRpkTrustAll()
+				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientPublicKey())
+				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8);
+		startClient(false,  null, builder);
+		assertThat(serverHelper.establishedServerSession.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8));
+	}
+
+	@Test
+	public void testRpkCcmHandshake() throws Exception {
+		startServer(false, false, false, null);
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+				.setRpkTrustAll()
+				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientPublicKey())
+				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM);
+		startClient(false,  null, builder);
+		assertThat(serverHelper.establishedServerSession.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM));
+	}
+
+	@Test
+	public void testRpk256CcmHandshake() throws Exception {
+		startServer(false, false, false, null);
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+				.setRpkTrustAll()
+				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientPublicKey())
+				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM);
+		startClient(false,  null, builder);
+		assertThat(serverHelper.establishedServerSession.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM));
+	}
+
+	@Test
+	public void testRpk256CbcHandshake() throws Exception {
+		startServer(false, false, false, null);
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+				.setRpkTrustAll()
+				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientPublicKey())
+				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA);
+		startClient(false,  null, builder);
+		assertThat(serverHelper.establishedServerSession.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA));
+	}
+
+	@Test
+	public void testRpk256Cbc384Handshake() throws Exception {
+		startServer(false, false, false, null);
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+				.setRpkTrustAll()
+				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientPublicKey())
+				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384);
+		startClient(false,  null, builder);
+		assertThat(serverHelper.establishedServerSession.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384));
+	}
 }
