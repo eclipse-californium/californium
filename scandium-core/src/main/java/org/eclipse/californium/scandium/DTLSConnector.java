@@ -238,6 +238,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 	private final int thresholdHandshakesWithoutVerifiedPeer;
 	private final AtomicInteger pendingHandshakesWithoutVerifiedPeer = new AtomicInteger();
 
+	private final boolean serverOnly;
+
 	/**
 	 * (Down-)counter for pending outbound messages. Initialized with
 	 * {@link DtlsConnectorConfig#getOutboundMessageBufferSize()}.
@@ -324,6 +326,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			this.config = configuration;
 			this.pendingOutboundMessagesCountdown.set(config.getOutboundMessageBufferSize());
 			this.autoResumptionTimeoutMillis = config.getAutoResumptionTimeoutMillis();
+			this.serverOnly = config.isServerOnly();
 			this.connectionStore = connectionStore;
 			this.sessionListener = new SessionAdapter() {
 
@@ -1595,7 +1598,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		Connection connection = connectionStore.get(peerAddress);
 
 		if (connection == null) {
-			if (config.isServerOnly()) {
+			if (serverOnly) {
 				message.onError(new EndpointUnconnectedException());
 				return;
 			}
@@ -1606,7 +1609,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		DTLSSession session = connection.getEstablishedSession();
 		SessionTicket ticket = connection.getSessionTicket();
 		if (session == null && ticket == null) {
-			if (config.isServerOnly()) {
+			if (serverOnly) {
 				message.onError(new EndpointUnconnectedException());
 				return;
 			}
@@ -1646,7 +1649,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			}
 			if (connection.isAutoResumptionRequired(timeout)) {
 				// create the session to resume from the previous one.
-				if (config.isServerOnly()) {
+				if (serverOnly) {
 					message.onError(new EndpointMismatchException());
 					return;
 				}
