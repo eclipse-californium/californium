@@ -497,12 +497,12 @@ public final class DTLSSession {
 		}
 	}
 
-	private synchronized void incrementReadEpoch() {
+	private void incrementReadEpoch() {
 		resetReceiveWindow();
 		this.readEpoch++;
 	}
 
-	private synchronized void incrementWriteEpoch() {
+	private void incrementWriteEpoch() {
 		this.writeEpoch++;
 		// Sequence numbers are maintained separately for each epoch, with each
 		// sequence_number initially being 0 for each epoch.
@@ -517,7 +517,7 @@ public final class DTLSSession {
 	 * @throws IllegalStateException if the maximum sequence number for the
 	 *     epoch has been reached (2^48 - 1)
 	 */
-	public synchronized long getSequenceNumber() {
+	public long getSequenceNumber() {
 		return getSequenceNumber(writeEpoch);
 	}
 
@@ -531,7 +531,7 @@ public final class DTLSSession {
 	 * @throws IllegalStateException if the maximum sequence number for the
 	 *     epoch has been reached (2^48 - 1)
 	 */
-	public synchronized long getSequenceNumber(int epoch) {
+	public long getSequenceNumber(int epoch) {
 		long sequenceNumber = this.sequenceNumbers.get(epoch);
 		if (sequenceNumber < MAX_SEQUENCE_NO) {
 			this.sequenceNumbers.put(epoch, sequenceNumber + 1);
@@ -557,7 +557,7 @@ public final class DTLSSession {
 	 * 
 	 * @return The current read state.
 	 */
-	synchronized DTLSConnectionState getReadState() {
+	DTLSConnectionState getReadState() {
 		return readState;
 	}
 
@@ -578,7 +578,7 @@ public final class DTLSSession {
 	 * @param readState the current read state
 	 * @throws NullPointerException if the given state is <code>null</code>
 	 */
-	synchronized void setReadState(DTLSConnectionState readState) {
+	void setReadState(DTLSConnectionState readState) {
 		if (readState == null) {
 			throw new NullPointerException("Read state must not be null");
 		}
@@ -592,7 +592,7 @@ public final class DTLSSession {
 	 * 
 	 * @return the name.
 	 */
-	public synchronized String getReadStateCipher() {
+	public String getReadStateCipher() {
 		return readState.getCipherSuite().name();
 	}
 
@@ -609,7 +609,7 @@ public final class DTLSSession {
 	 * 
 	 * @return The current write state.
 	 */
-	synchronized DTLSConnectionState getWriteState() {
+	DTLSConnectionState getWriteState() {
 		return writeState;
 	}
 
@@ -631,7 +631,7 @@ public final class DTLSSession {
 	 * @param writeState the current write state
 	 * @throws NullPointerException if the given state is <code>null</code>
 	 */
-	synchronized void setWriteState(DTLSConnectionState writeState) {
+	void setWriteState(DTLSConnectionState writeState) {
 		if (writeState == null) {
 			throw new NullPointerException("Write state must not be null");
 		}
@@ -647,7 +647,7 @@ public final class DTLSSession {
 	 * 
 	 * @return the name.
 	 */
-	synchronized public String getWriteStateCipher() {
+	public String getWriteStateCipher() {
 		return writeState.getCipherSuite().name();
 	}
 
@@ -877,16 +877,12 @@ public final class DTLSSession {
 			// discard record as allowed in DTLS 1.2
 			// http://tools.ietf.org/html/rfc6347#section-4.1
 			return false;
+		} else if (sequenceNo < receiveWindowLowerBoundary) {
+			// record lies out of receive window's "left" edge
+			// discard
+			return false;
 		} else {
-			synchronized (this) {
-				if (sequenceNo < receiveWindowLowerBoundary) {
-					// record lies out of receive window's "left" edge
-					// discard
-					return false;
-				} else {
-					return !isDuplicate(sequenceNo);
-				}
-			}
+			return !isDuplicate(sequenceNo);
 		}
 	}
 
@@ -901,7 +897,7 @@ public final class DTLSSession {
 	 * @param sequenceNo the record's sequence number
 	 * @return <code>true</code> if the record has already been received
 	 */
-	synchronized boolean isDuplicate(long sequenceNo) {
+	boolean isDuplicate(long sequenceNo) {
 		if (sequenceNo > receiveWindowUpperBoundary) {
 			return false;
 		} else {
@@ -931,7 +927,7 @@ public final class DTLSSession {
 	 * @param epoch the record's epoch
 	 * @param sequenceNo the record's sequence number
 	 */
-	public synchronized void markRecordAsRead(long epoch, long sequenceNo) {
+	public void markRecordAsRead(long epoch, long sequenceNo) {
 
 		if (epoch == getReadEpoch()) {
 			if (sequenceNo > receiveWindowUpperBoundary) {
@@ -955,7 +951,7 @@ public final class DTLSSession {
 	 * The receive window is reset to sequence number zero and all
 	 * information about received records is cleared.
 	 */
-	private synchronized void resetReceiveWindow() {
+	private void resetReceiveWindow() {
 		receivedRecordsVector = 0;
 		receiveWindowUpperBoundary = RECEIVE_WINDOW_SIZE - 1;
 		receiveWindowLowerBoundary = 0;

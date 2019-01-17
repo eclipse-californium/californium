@@ -20,6 +20,7 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
+import java.util.List;
 
 /**
  * A connection store which adds support of connection resumption.
@@ -126,6 +127,15 @@ public interface ResumptionSupportingConnectionStore {
 	 * Removes all connections from the store.
 	 */
 	void clear();
+
+	/**
+	 * Stop all serial executors of connections from the store.
+	 * 
+	 * Add pending jobs to provided list.
+	 * 
+	 * @param pending list to add pending jobs
+	 */
+	void stop(List<Runnable> pending);
 
 	/**
 	 * Mark all connections as resumption required.

@@ -232,7 +232,7 @@ public class ServerHandshaker extends Handshaker {
 	}
 
 	@Override
-	protected synchronized void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
+	protected void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
 		if (lastFlight != null) {
 			// we already sent the last flight (including our FINISHED message),
 			// but the client does not seem to have received it because we received
