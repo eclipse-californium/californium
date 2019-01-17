@@ -619,8 +619,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 */
 	public final synchronized void forceResumeSessionFor(InetSocketAddress peer) {
 		Connection peerConnection = connectionStore.get(peer);
-		if (peerConnection != null && peerConnection.hasEstablishedSession())
+		if (peerConnection != null && peerConnection.hasEstablishedSession()) {
 			peerConnection.setResumptionRequired(true);
+		}
 	}
 
 	/**
