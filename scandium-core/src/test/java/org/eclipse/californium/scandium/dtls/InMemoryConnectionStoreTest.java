@@ -25,6 +25,8 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
+import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.junit.Before;
@@ -124,7 +126,7 @@ public class InMemoryConnectionStoreTest {
 	private Connection newConnection(long ip) throws HandshakeException, UnknownHostException {
 		InetAddress addr = InetAddress.getByAddress(longToIp(ip));
 		InetSocketAddress peerAddress = new InetSocketAddress(addr, 0);
-		Connection con = new Connection(peerAddress);
+		Connection con = new Connection(peerAddress, new SerialExecutor(ExecutorsUtil.getScheduledExecutor()));
 		con.getSessionListener().sessionEstablished(null, newSession(peerAddress));
 		return con;
 	}

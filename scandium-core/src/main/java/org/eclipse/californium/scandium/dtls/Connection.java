@@ -31,6 +31,7 @@
  *                                                    ensure, that the session listener methods
  *                                                    are called via the handshaker.
  *    Achim Kraus (Bosch Software Innovations GmbH) - move DTLSFlight to Handshaker
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move serial executor from dtlsconnector
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -40,6 +41,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.elements.util.ClockUtil;
+import org.eclipse.californium.elements.util.SerialExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,6 +58,7 @@ public final class Connection {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(Connection.class.getName());
 
+	private final SerialExecutor serialExecutor;
 	private final InetSocketAddress peerAddress;
 	private final SessionTicket ticket;
 	private final SessionId sessionId;
@@ -74,16 +77,20 @@ public final class Connection {
 	 * Creates a new connection to a given peer.
 	 * 
 	 * @param peerAddress the IP address and port of the peer the connection exists with
-	 * @throws NullPointerException if the peer address is <code>null</code>
+	 * @param serialExecutor serial executor.
+	 * @throws NullPointerException if the peer address or the serial executor is {@code null}
 	 */
-	public Connection(final InetSocketAddress peerAddress) {
+	public Connection(final InetSocketAddress peerAddress, final SerialExecutor serialExecutor) {
 		if (peerAddress == null) {
 			throw new NullPointerException("Peer address must not be null");
+		} else if (serialExecutor == null) {
+			throw new NullPointerException("Serial executor must not be null");
 		} else {
 			this.sessionId = null;
 			this.ticket = null;
 			this.peerAddress = peerAddress;
 			this.sessionListener = new ConnectionSessionListener();
+			this.serialExecutor = serialExecutor;
 		}
 	}
 
@@ -91,20 +98,69 @@ public final class Connection {
 	 * Creates a new connection from a session ticket containing <em>current</em> state from another
 	 * connection that should be resumed.
 	 * 
+	 * The connection is not {@link #isExecuting()}.
+	 * 
 	 * @param sessionTicket The other connection's current state.
 	 * @param sessionId The other connection's session id.
+	 * @throws NullPointerException if the session ticket or id is {@code null}
 	 */
-	public Connection(final SessionTicket sessionTicket, SessionId sessionId) {
+	public Connection(final SessionTicket sessionTicket, final SessionId sessionId) {
 		if (sessionTicket == null) {
 			throw new NullPointerException("session ticket must not be null");
-		}
-		if (sessionId == null) {
+		} else if (sessionId == null) {
 			throw new NullPointerException("session identity must not be null");
+		} else {
+			this.ticket = sessionTicket;
+			this.sessionId =sessionId;
+			this.peerAddress = null;
+			this.sessionListener = null;
+			this.serialExecutor = null;
 		}
-		this.ticket = sessionTicket;
-		this.sessionId =sessionId;
-		this.peerAddress = null;
-		this.sessionListener = null;
+	}
+
+	/**
+	 * Creates a new connection from a connection, which is not {@link #isExecuting()}.
+	 * 
+	 * @param connection The other connection's states.
+	 * @param serialExecutor serial executor.
+	 * @throws NullPointerException if the connection of executor is {@code null}
+	 */
+	public Connection(final Connection connection, final SerialExecutor serialExecutor) {
+		if (connection == null) {
+			throw new NullPointerException("connection must not be null");
+		} else if (serialExecutor == null) {
+			throw new NullPointerException("Serial executor must not be null");
+		} else {
+			this.serialExecutor = serialExecutor;
+			this.ticket = connection.getSessionTicket();
+			this.sessionId =connection.getSessionIdentity();
+			this.peerAddress = connection.getPeerAddress();
+			this.sessionListener =  new ConnectionSessionListener();
+			this.lastMessageNanos.set(connection.lastMessageNanos.get());
+			this.resumptionRequired = connection.resumptionRequired;
+			this.establishedSession = connection.establishedSession;
+		}
+	}
+
+	/**
+	 * Gets the serial executor assigned to this connection.
+	 * 
+	 * @return serial executor. May be {@code null}, if the connection was
+	 *         created with {@link #Connection(SessionTicket, SessionId)}.
+	 */
+	public SerialExecutor getExecutor() {
+		return serialExecutor;
+	}
+
+	/**
+	 * Checks, if the connection has a executing serial executor.
+	 * 
+	 * @return {@code true}, if the connection has an executing serial executor.
+	 *         {@code false}, if no serial executor is available, or the
+	 *         executor is shutdown.
+	 */
+	public boolean isExecuting() {
+		return serialExecutor != null && !serialExecutor.isShutdown();
 	}
 
 	/**
@@ -310,7 +366,30 @@ public final class Connection {
 	public void setResumptionRequired(boolean resumptionRequired) {
 		this.resumptionRequired = resumptionRequired;
 	}
-	
+
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder("dtls-con: ");
+		if (peerAddress != null) {
+			builder.append(peerAddress);
+			if (hasOngoingHandshake()) {
+				builder.append(", ongoing handshake");
+			}
+			if (isResumptionRequired()) {
+				builder.append(", resumption required");
+			} else if (hasEstablishedSession()) {
+				builder.append(", session established");
+			}
+		} else {
+			builder.append(sessionId);
+			builder.append(", ").append(ticket);
+		}
+		if (isExecuting()) {
+			builder.append(", is alive");
+		}
+		return builder.toString();
+	}
+
 	private class ConnectionSessionListener implements SessionListener {
 		@Override
 		public void handshakeStarted(Handshaker handshaker)	throws HandshakeException {

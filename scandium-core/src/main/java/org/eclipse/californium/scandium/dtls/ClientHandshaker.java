@@ -178,7 +178,7 @@ public class ClientHandshaker extends Handshaker {
 	}
 
 	@Override
-	protected synchronized void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
+	protected void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
 
 		// log record now (even if message is still encrypted) in case an Exception
 		// is thrown during processing

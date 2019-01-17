@@ -102,7 +102,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	// Methods ////////////////////////////////////////////////////////
 
 	@Override
-	protected synchronized void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
+	protected void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
 		if (fullHandshake){
 			// handshake resumption was refused by the server
 			// we do a full handshake

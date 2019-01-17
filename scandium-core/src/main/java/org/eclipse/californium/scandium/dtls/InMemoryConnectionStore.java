@@ -36,9 +36,11 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
+import org.eclipse.californium.elements.util.SerialExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -200,11 +202,15 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 	 * @return <code>true</code> if the connection could be added to the
 	 *         store, <code>false</code> otherwise, e.g. because the store's
 	 *         remaining capacity is zero and no stale connection can be evicted
+	 * @throws IllegalStateException, if the connection is not executing!
 	 */
 	@Override
 	public synchronized boolean put(final Connection connection) {
 
 		if (connection != null) {
+			if (!connection.isExecuting()) {
+				throw new IllegalStateException("Connection is not executing!");
+			}
 			if (connections.put(connection.getPeerAddress(), connection)) {
 				LOG.debug("{}connection: add {}", tag, connection.getPeerAddress());
 				return true;
@@ -370,9 +376,25 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 
 	@Override
 	public final synchronized void clear() {
+		for (Connection connection : connections.values()) {
+			SerialExecutor executor = connection.getExecutor();
+			if (executor != null) {
+				executor.shutdownNow();
+			}
+		}
 		connections.clear();
 		connectionsByEstablishedSession.clear();
 		// TODO: does it make sense to clear the SessionCache as well?
+	}
+
+	@Override
+	public final synchronized void stop(List<Runnable> pending) {
+		for (Connection connection : connections.values()) {
+			SerialExecutor executor = connection.getExecutor();
+			if (executor != null) {
+				executor.shutdownNow(pending);
+			}
+		}
 	}
 
 	/**
