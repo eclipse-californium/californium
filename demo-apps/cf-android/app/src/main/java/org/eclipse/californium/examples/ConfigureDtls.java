@@ -12,6 +12,7 @@ import android.content.Context;
 
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 
 import java.io.IOException;
@@ -62,10 +63,10 @@ public class ConfigureDtls {
         } else if (CERTIFICATE_MODE) {
             dtlsConfig.setTrustStore(trustedCertificates);
             dtlsConfig.setIdentity(endpointCredentials.getPrivateKey(),
-                    endpointCredentials.getCertificateChain(), false);
+                    endpointCredentials.getCertificateChain(), CertificateType.X_509);
         } else if (RPK_MODE) {
             dtlsConfig.setIdentity(endpointCredentials.getPrivateKey(),
-                    endpointCredentials.getCertificateChain(), true);
+                    endpointCredentials.getCertificateChain(), CertificateType.RAW_PUBLIC_KEY);
         }
     }
 }
