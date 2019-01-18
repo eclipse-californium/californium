@@ -103,9 +103,9 @@ public class ExtendedTestServer extends AbstractTestServer {
 		NetworkConfig udpConfig = new NetworkConfig(config);
 		udpConfig.setInt(Keys.MAX_MESSAGE_SIZE, 64);
 		udpConfig.setInt(Keys.PREFERRED_BLOCK_SIZE, 64);
-		Map<Protocol, NetworkConfig> protocolConfig = new HashMap<>();
-		protocolConfig.put(Protocol.UDP, udpConfig);
-		
+		Map<Select, NetworkConfig> protocolConfig = new HashMap<>();
+		protocolConfig.put(new Select(Protocol.UDP, InterfaceType.EXTERNAL), udpConfig);
+
 		// create server
 		try {
 			boolean onlyLoopback = args.length > 0 ? args[0].equalsIgnoreCase("-onlyLoopback") : false;
@@ -139,7 +139,6 @@ public class ExtendedTestServer extends AbstractTestServer {
 
 			// add special interceptor for message traces
 			for (Endpoint ep : server.getEndpoints()) {
-				System.out.println("listen on " + ep.getUri());
 				if (noBenchmark) {
 					// Anonymized IoT metrics for validation. On success, remove the OriginTracer. 
 					URI uri = ep.getUri();
@@ -185,7 +184,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 
 	}
 
-	public ExtendedTestServer(NetworkConfig config, Map<Protocol, NetworkConfig> protocolConfig, boolean noBenchmark) throws SocketException {
+	public ExtendedTestServer(NetworkConfig config, Map<Select, NetworkConfig> protocolConfig, boolean noBenchmark) throws SocketException {
 		super(config, protocolConfig);
 		int maxResourceSize = config.getInt(Keys.MAX_RESOURCE_BODY_SIZE);
 		// add resources to the server
