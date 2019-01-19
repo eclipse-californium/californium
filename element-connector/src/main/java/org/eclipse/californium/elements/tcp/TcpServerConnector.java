@@ -87,8 +87,8 @@ public class TcpServerConnector implements Connector, TcpConnector {
 
 		ServerBootstrap bootstrap = new ServerBootstrap();
 		bootstrap.group(bossGroup, workerGroup).channel(NioServerSocketChannel.class)
-				.option(ChannelOption.SO_BACKLOG, 100).option(ChannelOption.SO_KEEPALIVE, true)
-				.option(ChannelOption.AUTO_READ, true).childHandler(new ChannelRegistry());
+				.option(ChannelOption.SO_BACKLOG, 100).option(ChannelOption.AUTO_READ, true)
+				.childOption(ChannelOption.SO_KEEPALIVE, true).childHandler(new ChannelRegistry());
 
 		// Start the server.
 		ChannelFuture channelFuture = bootstrap.bind(localAddress).syncUninterruptibly();

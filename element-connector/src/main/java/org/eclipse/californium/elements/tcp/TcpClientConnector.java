@@ -93,6 +93,9 @@ public class TcpClientConnector implements Connector, TcpConnector {
 	}
 
 	@Override public synchronized void stop() {
+		if (poolMap != null) {
+			poolMap.close();
+		}
 		if (null != workerGroup) {
 			workerGroup.shutdownGracefully(0, 1, TimeUnit.SECONDS).syncUninterruptibly();
 			workerGroup = null;
