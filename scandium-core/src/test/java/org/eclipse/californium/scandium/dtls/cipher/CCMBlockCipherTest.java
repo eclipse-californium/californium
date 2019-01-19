@@ -99,33 +99,9 @@ public class CCMBlockCipherTest {
 	}
 
 	@Test
-	public void testSlowSlowCryption() throws Exception {
-
-		byte[] encryptedData = DeprecatedCCMBlockCipher.encrypt(aesKey, nonce, additionalData, payloadData, 8);
-		byte[] decryptedData = DeprecatedCCMBlockCipher.decrypt(aesKey, nonce, additionalData, encryptedData, 8);
-		assertTrue(Arrays.equals(decryptedData, payloadData));
-	}
-
-	@Test
 	public void testFastFastCryption() throws Exception {
 
 		byte[] encryptedData = CCMBlockCipher.encrypt(aesKey, nonce, additionalData, payloadData, 8);
-		byte[] decryptedData = CCMBlockCipher.decrypt(aesKey, nonce, additionalData, encryptedData, 8);
-		assertTrue(Arrays.equals(decryptedData, payloadData));
-	}
-
-	@Test
-	public void testFastSlowCryption() throws Exception {
-
-		byte[] encryptedData = CCMBlockCipher.encrypt(aesKey, nonce, additionalData, payloadData, 8);
-		byte[] decryptedData = DeprecatedCCMBlockCipher.decrypt(aesKey, nonce, additionalData, encryptedData, 8);
-		assertTrue(Arrays.equals(decryptedData, payloadData));
-	}
-
-	@Test
-	public void testSlowFastCryption() throws Exception {
-
-		byte[] encryptedData = DeprecatedCCMBlockCipher.encrypt(aesKey, nonce, additionalData, payloadData, 8);
 		byte[] decryptedData = CCMBlockCipher.decrypt(aesKey, nonce, additionalData, encryptedData, 8);
 		assertTrue(Arrays.equals(decryptedData, payloadData));
 	}

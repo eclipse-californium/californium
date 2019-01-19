@@ -94,7 +94,7 @@ public class ResourceAttributesTest {
 	@Test
 	public void testDiscoveryFiltering() {
 		Request request = Request.newGet();
-		request.setURI("/.well-known/core?rt=light-lux");
+		request.setURI("coap://localhost/.well-known/core?rt=light-lux");
 		
 		DiscoveryResource discovery = new DiscoveryResource(root);
 		String serialized = discovery.discoverTree(root, request.getOptions().getUriQuery());

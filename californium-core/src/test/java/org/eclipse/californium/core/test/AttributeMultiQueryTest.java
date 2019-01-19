@@ -46,7 +46,7 @@ public class AttributeMultiQueryTest {
 
     private void testFiltering(String query, String expected) {
         Request request = Request.newGet();
-        request.setURI("/.well-known/core?" + query);
+        request.setURI("coap://localhost/.well-known/core?" + query);
 
         DiscoveryResource discovery = new DiscoveryResource(root);
         String serialized = discovery.discoverTree(root, request.getOptions().getUriQuery());
