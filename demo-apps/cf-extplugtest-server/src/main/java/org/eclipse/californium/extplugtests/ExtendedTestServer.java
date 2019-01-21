@@ -20,6 +20,10 @@
 package org.eclipse.californium.extplugtests;
 
 import java.io.File;
+import java.lang.management.GarbageCollectorMXBean;
+import java.lang.management.ManagementFactory;
+import java.lang.management.OperatingSystemMXBean;
+import java.lang.management.ThreadMXBean;
 import java.net.SocketException;
 import java.net.URI;
 import java.util.Arrays;
@@ -29,6 +33,7 @@ import java.util.Map;
 
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
@@ -43,6 +48,8 @@ import org.eclipse.californium.extplugtests.resources.ReverseObserve;
 import org.eclipse.californium.extplugtests.resources.ReverseRequest;
 import org.eclipse.californium.plugtests.AbstractTestServer;
 import org.eclipse.californium.plugtests.PlugtestServer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Extended test server.
@@ -51,6 +58,7 @@ import org.eclipse.californium.plugtests.PlugtestServer;
  * statistic resource.
  */
 public class ExtendedTestServer extends AbstractTestServer {
+	private static final Logger STATISTIC_LOGGER = LoggerFactory.getLogger("org.eclipse.californium.extplugtests.statistics");
 
 	private static final File CONFIG_FILE = new File("CaliforniumReceivetest.properties");
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Receivetest Server";
@@ -75,7 +83,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 			config.setInt(Keys.SECURE_SESSION_TIMEOUT, 60 * 60 * 24); // 24h
 			config.setInt(Keys.HEALTH_STATUS_INTERVAL, 60); // 60s
 			int processors = Runtime.getRuntime().availableProcessors();
-			config.setInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, Math.max((processors / 2), 1));
+			config.setInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, processors > 3 ? 2 : 1);
 			config.setInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, processors);
 		}
 
@@ -92,6 +100,8 @@ public class ExtendedTestServer extends AbstractTestServer {
 		System.out.println("  -onlyDtlsLoopback: endpoint only for loopback with DTLS");
 		System.out.println("  -noBenchmark : disable benchmark resource");
 		System.out.println("  -noPlugtest  : disable plugtest server");
+
+		startManagamentStatistic();
 
 		boolean noPlugtest = args.length > 1 ? args[1].equalsIgnoreCase("-noPlugTest") : false;
 		if (!noPlugtest) {
@@ -154,6 +164,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 				long max = runtime.maxMemory();
 				System.out.println(
 						ExtendedTestServer.class.getSimpleName() + " started (" + max / (1024 * 1024) + "MB heap) ...");
+				long lastGcCount = 0;
 				for (;;) {
 					try {
 						Thread.sleep(15000);
@@ -169,6 +180,17 @@ public class ExtendedTestServer extends AbstractTestServer {
 						System.out.println("in \"" + CONFIG_FILE + "\" or set");
 						System.out.println(Keys.DEDUPLICATOR + " to " + Keys.NO_DEDUPLICATOR + " there.");
 						break;
+					}
+					long gcCount = 0;
+					for (GarbageCollectorMXBean gcMXBean : ManagementFactory.getGarbageCollectorMXBeans()) {
+						long count = gcMXBean.getCollectionCount();
+						if (0 < count) {
+							gcCount += count;
+						}
+					}
+					if (lastGcCount < gcCount) {
+						printManagamentStatistic();
+						lastGcCount = gcCount;
 					}
 				}
 			}
@@ -192,4 +214,50 @@ public class ExtendedTestServer extends AbstractTestServer {
 		add(new ReverseRequest(config));
 		add(new Benchmark(noBenchmark, maxResourceSize));
 	}
+
+	private static void startManagamentStatistic() {
+		ThreadMXBean mxBean = ManagementFactory.getThreadMXBean();
+		if (mxBean.isThreadCpuTimeSupported() && !mxBean.isThreadCpuTimeEnabled()) {
+			mxBean.setThreadCpuTimeEnabled(true);
+		}
+	}
+
+	private static void printManagamentStatistic() {
+		OperatingSystemMXBean osMxBean = ManagementFactory.getOperatingSystemMXBean();
+		int processors = osMxBean.getAvailableProcessors();
+		Logger logger = STATISTIC_LOGGER;
+		logger.info("{} processors", processors);
+		ThreadMXBean threadMxBean = ManagementFactory.getThreadMXBean();
+		if (threadMxBean.isThreadCpuTimeSupported() && threadMxBean.isThreadCpuTimeEnabled()) {
+			long alltime = 0;
+			long[] ids = threadMxBean.getAllThreadIds();
+			for (long id : ids) {
+				long time = threadMxBean.getThreadCpuTime(id);
+				if (0 < time) {
+					alltime += time;
+				}
+			}
+			long pTime = alltime / processors;
+			logger.info("cpu-time: {} ms (per-processor: {} ms)",
+					TimeUnit.NANOSECONDS.toMillis(alltime), TimeUnit.NANOSECONDS.toMillis(pTime));
+		}
+		long gcCount = 0;
+		long gcTime = 0;
+		for (GarbageCollectorMXBean gcMxBean : ManagementFactory.getGarbageCollectorMXBeans()) {
+			long count = gcMxBean.getCollectionCount();
+			if (0 < count) {
+				gcCount += count;
+			}
+			long time = gcMxBean.getCollectionTime();
+			if (0 < time) {
+				gcTime += time;
+			}
+		}
+		logger.info("gc: {} ms, {} calls", gcTime, gcCount);
+		double loadAverage = osMxBean.getSystemLoadAverage();
+		if (!(loadAverage < 0.0d)) {
+			logger.info("average load: {}", String.format("%.2f", loadAverage));
+		}
+	}
+	
 }
