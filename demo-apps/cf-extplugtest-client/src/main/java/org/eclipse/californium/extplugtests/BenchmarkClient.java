@@ -20,6 +20,10 @@
 package org.eclipse.californium.extplugtests;
 
 import java.io.File;
+import java.lang.management.GarbageCollectorMXBean;
+import java.lang.management.ManagementFactory;
+import java.lang.management.OperatingSystemMXBean;
+import java.lang.management.ThreadMXBean;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.SecureRandom;
@@ -71,6 +75,9 @@ public class BenchmarkClient {
 
 	/** The logger. */
 	private static final Logger LOGGER = LoggerFactory.getLogger(BenchmarkClient.class.getCanonicalName());
+
+	private static final Logger STATISTIC_LOGGER = LoggerFactory.getLogger("org.eclipse.californium.extplugtests.statistics");
+
 	/**
 	 * File name for network configuration.
 	 */
@@ -327,6 +334,75 @@ public class BenchmarkClient {
 	private final AtomicBoolean stop = new AtomicBoolean();
 
 	private final FeedObserver feedObserver = new FeedObserver();
+	
+	private class TestHandler implements CoapHandler {
+		
+		private final Request post;
+		
+		private TestHandler(final Request post) {
+			this.post = post;
+		}
+		@Override
+		public void onLoad(CoapResponse response) {
+			if (response.isSuccess()) {
+				if (!stop.get()) {
+					next();
+				}
+				long c = overallRequestsDownCounter.get();
+				LOGGER.info("Received response: {} {}", response.advanced(), c);
+			} else {
+				LOGGER.warn("Received error response: {}", response.advanced());
+				stop();
+			}
+		}
+
+		@Override
+		public void onError() {
+			if (!stop.get()) {
+				long c = requestsCounter.get();
+				String msg = "";
+				if (post.getSendError() != null) {
+					msg = post.getSendError().getMessage();
+				} else if (post.isTimedOut()) {
+					msg = "timeout";
+				} else if (post.isRejected()) {
+					msg = "rejected";
+				}
+				if (noneStop) {
+					transmissionErrorCounter.incrementAndGet();
+					LOGGER.info("Error after {} requests. {}", c, msg);
+					next();
+				} else {
+					LOGGER.error("failed after {} requests! {}", c, msg);
+					stop();
+				}
+			}
+		}
+
+		public void next() {
+			long c = overallRequestsDownCounter.get();
+			while (c > 0) {
+				if (overallRequestsDownCounter.compareAndSet(c, c - 1)) {
+					--c;
+					break;
+				}
+				c = overallRequestsDownCounter.get();
+			}
+
+			if (0 < c) {
+				requestsCounter.incrementAndGet();
+				Request post = Request.newPost();
+				post.setURI(client.getURI());
+				post.addMessageObserver(retransmissionDetector);
+				client.advanced(new TestHandler(post), post);
+			} else {
+				overallRequestsDone.countDown();
+				if (overallReverseResponsesDownCounter.getCount() == 0) {
+					stop();
+				}
+			}
+		}
+	}
 
 	/**
 	 * Create client.
@@ -426,63 +502,7 @@ public class BenchmarkClient {
 			final Request post = Request.newPost();
 			post.setURI(client.getURI());
 			post.addMessageObserver(retransmissionDetector);
-			client.advanced(new CoapHandler() {
-
-				@Override
-				public void onLoad(CoapResponse response) {
-					if (response.isSuccess()) {
-						if (!stop.get()) {
-							next();
-						}
-						long c = overallRequestsDownCounter.get();
-						LOGGER.info("Received response: {} {}", response.advanced(), c);
-					} else {
-						LOGGER.warn("Received error response: {}", response.advanced());
-						stop();
-					}
-				}
-
-				@Override
-				public void onError() {
-					if (!stop.get()) {
-						long c = requestsCounter.get();
-						String msg = post.getSendError() == null ? "" : post.getSendError().getMessage();
-						if (noneStop) {
-							transmissionErrorCounter.incrementAndGet();
-							LOGGER.info("Error after {} requests. {}", c, msg);
-							next();
-						} else {
-							LOGGER.error("failed after {} requests! {}", c, msg);
-							stop();
-						}
-					}
-				}
-
-				public void next() {
-					long c = overallRequestsDownCounter.get();
-					while (c > 0) {
-						if (overallRequestsDownCounter.compareAndSet(c, c - 1)) {
-							--c;
-							break;
-						}
-						c = overallRequestsDownCounter.get();
-					}
-
-					if (0 < c) {
-						requestsCounter.incrementAndGet();
-						Request post = Request.newPost();
-						post.setURI(client.getURI());
-						post.addMessageObserver(retransmissionDetector);
-						client.advanced(this, post);
-					} else {
-						overallRequestsDone.countDown();
-						if (overallReverseResponsesDownCounter.getCount() == 0) {
-							stop();
-						}
-					}
-				}
-
-			}, post);
+			client.advanced(new TestHandler(post), post);
 		} else {
 			overallRequestsDone.countDown();
 		}
@@ -549,6 +569,8 @@ public class BenchmarkClient {
 					"Note: californium.eclipse.org doesn't support a benchmark and will response with 5.01, NOT_IMPLEMENTED!");
 			System.exit(-1);
 		}
+
+		startManagamentStatistic();
 
 		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 		NetworkConfig serverConfig = NetworkConfig.createWithFile(REVERSE_SERVER_CONFIG_FILE,
@@ -752,6 +774,8 @@ public class BenchmarkClient {
 
 		System.out.format("%d benchmark clients %s.%n", clients, stale ? "stopped" : "finished");
 
+		printManagamentStatistic(args, requestNanos);
+
 		// stop and collect per client requests
 		int statistic[] = new int[clients];
 		for (int index = 0; index < clients; ++index) {
@@ -805,6 +829,70 @@ public class BenchmarkClient {
 				}
 			}
 			System.out.println(formatClientRequests(statistic, clients, last));
+		}
+	}
+
+	private static void startManagamentStatistic() {
+		ThreadMXBean mxBean = ManagementFactory.getThreadMXBean();
+		if (mxBean.isThreadCpuTimeSupported() && !mxBean.isThreadCpuTimeEnabled()) {
+			mxBean.setThreadCpuTimeEnabled(true);
+		}
+	}
+
+	private static void printManagamentStatistic(String[] args, long uptimeNanos) {
+		OperatingSystemMXBean osMxBean = ManagementFactory.getOperatingSystemMXBean();
+		int processors = osMxBean.getAvailableProcessors();
+		String tag = System.getProperty("californium.statistic");
+		Logger logger = STATISTIC_LOGGER;
+		if (tag != null) {
+			// with tag, use file
+			logger = LoggerFactory.getLogger(logger.getName() + ".file");
+			logger.info("------- {} ------------------------------------------------", tag);
+			logger.info("{}, {}, {}", osMxBean.getName(), osMxBean.getVersion(), osMxBean.getArch());
+			StringBuilder line = new StringBuilder();
+			List<String> vmArgs = ManagementFactory.getRuntimeMXBean().getInputArguments();
+			for (String arg : vmArgs) {
+				line.append(arg).append(" ");
+			}
+			logger.info("{}", line);
+			line.setLength(0);
+			for (String arg : args) {
+				line.append(arg).append(" ");
+			}
+			logger.info("{}", line);
+		}
+		logger.info("uptime: {} ms, {} processors", TimeUnit.NANOSECONDS.toMillis(uptimeNanos), processors);
+		ThreadMXBean threadMxBean = ManagementFactory.getThreadMXBean();
+		if (threadMxBean.isThreadCpuTimeSupported() && threadMxBean.isThreadCpuTimeEnabled()) {
+			long alltime = 0;
+			long[] ids = threadMxBean.getAllThreadIds();
+			for (long id : ids) {
+				long time = threadMxBean.getThreadCpuTime(id);
+				if (0 < time) {
+					alltime += time;
+				}
+			}
+			long pTime = alltime / processors;
+			logger.info("cpu-time: {} ms (per-processor: {} ms, load: {}%)",
+					TimeUnit.NANOSECONDS.toMillis(alltime), TimeUnit.NANOSECONDS.toMillis(pTime),
+					(pTime * 100) / uptimeNanos);
+		}
+		long gcCount = 0;
+		long gcTime = 0;
+		for (GarbageCollectorMXBean gcMxBean : ManagementFactory.getGarbageCollectorMXBeans()) {
+			long count = gcMxBean.getCollectionCount();
+			if (0 < count) {
+				gcCount += count;
+			}
+			long time = gcMxBean.getCollectionTime();
+			if (0 < time) {
+				gcTime += time;
+			}
+		}
+		logger.info("gc: {} ms, {} calls", gcTime, gcCount);
+		double loadAverage = osMxBean.getSystemLoadAverage();
+		if (!(loadAverage < 0.0d)) {
+			logger.info("average load: {}", String.format("%.2f", loadAverage));
 		}
 	}
 

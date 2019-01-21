@@ -42,6 +42,9 @@
 	<logger name="org.eclipse.californium.extplugtests.resources.ReverseObserve.health" level="DEBUG" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>
+	<logger name="org.eclipse.californium.extplugtests.statistics" level="INFO" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
 
 	<root level="WARN">
 		<appender-ref ref="STDOUT" />
