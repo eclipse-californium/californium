@@ -28,6 +28,7 @@
  *                                                    value provided by peer and current write state
  *    Bosch Software Innovations GmbH - add accessors for current read/write state cipher names
  *                                      (fix GitHub issue #1)
+ *    Achim Kraus (Bosch Software Innovations GmbH) - reset master secret when setting session id.
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -234,8 +235,23 @@ public final class DTLSSession {
 		return sessionIdentifier;
 	}
 
+	/**
+	 * Set session id.
+	 * 
+	 * Reset previous master secret if resumption handshake ends up in full
+	 * handshake.
+	 * 
+	 * @param sessionIdentifier new session id
+	 */
 	void setSessionIdentifier(SessionId sessionIdentifier) {
-		this.sessionIdentifier = sessionIdentifier;
+		if (sessionIdentifier == null) {
+			throw new NullPointerException("session identifier must not be null!");
+		}
+		if (!sessionIdentifier.equals(this.sessionIdentifier)) {
+			// reset master secret
+			this.masterSecret = null;
+			this.sessionIdentifier = sessionIdentifier;
+		}
 	}
 
 	/**
@@ -520,13 +536,17 @@ public final class DTLSSession {
 	 * Sets the master secret to use for encrypting application layer data
 	 * exchanged in this session.
 	 * 
-	 * Once the master secret has been set, it cannot be changed.
+	 * Once the master secret has been set for a session id, it cannot be
+	 * changed without prior changing the session id calling
+	 * {@link #setSessionIdentifier(SessionId)}.
 	 * 
 	 * @param masterSecret the secret
 	 * @throws NullPointerException if the secret is <code>null</code>
 	 * @throws IllegalArgumentException if the secret is not exactly 48 bytes
-	 * (see <a href="http://tools.ietf.org/html/rfc5246#section-8.1">
-	 * RFC 5246 (TLS 1.2), section 8.1</a>) 
+	 *             (see
+	 *             <a href="http://tools.ietf.org/html/rfc5246#section-8.1"> RFC
+	 *             5246 (TLS 1.2), section 8.1</a>)
+	 * @throws IllegalStateException if the secret is already set
 	 */
 	void setMasterSecret(final byte[] masterSecret) {
 		// don't overwrite the master secret, once it has been set in this session
@@ -540,6 +560,8 @@ public final class DTLSSession {
 			} else {
 				this.masterSecret = Arrays.copyOf(masterSecret, masterSecret.length);
 			}
+		} else {
+			throw new IllegalStateException("master secret already available!");
 		}
 	}
 
