@@ -1217,7 +1217,6 @@ public class ObserveClientSideTest {
 		ErrorInjector errorInjector = new ErrorInjector();
 		errorInjector.setErrorOnReadyToSend();
 		clientInterceptor.setErrorInjector(errorInjector);
-		clientInterceptor.setExpectedErrors(1);
 
 		// Try to send request
 		Request request = createRequest(GET, path, server);
@@ -1229,10 +1228,7 @@ public class ObserveClientSideTest {
 		client.sendRequest(request);
 
 		// Wait for error
-		clientInterceptor.awaitErrors(1000, TimeUnit.MILLISECONDS);
-
-		// We should get a error
-		assertEquals("An error is expected", 1, counter.errorCalls.get());
+		assertTrue("An error is expected", counter.waitForErrorCalls(1, 1000, TimeUnit.MILLISECONDS));
 		// @after check there is no leak
 		assertAllEndpointExchangesAreCompleted(client);
 	}

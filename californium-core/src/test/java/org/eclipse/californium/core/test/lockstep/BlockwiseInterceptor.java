@@ -17,7 +17,6 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.Utils;
@@ -42,7 +41,6 @@ public abstract class BlockwiseInterceptor {
 	private final long startNano = System.nanoTime();
 
 	protected ErrorInjector errorInjector;
-	protected CountDownLatch expectedErrors;
 
 	protected final StringBuilder buffer = new StringBuilder();
 
@@ -52,21 +50,6 @@ public abstract class BlockwiseInterceptor {
 
 	public final synchronized void setErrorInjector(ErrorInjector errorInjector) {
 		this.errorInjector = errorInjector;
-	}
-
-	public final synchronized void setExpectedErrors(int expectedErrors) {
-		this.expectedErrors = new CountDownLatch(expectedErrors);
-	}
-
-	public final boolean awaitErrors(long timeout, TimeUnit unit) throws InterruptedException {
-		final CountDownLatch expectedErrors;
-		synchronized (this) {
-			expectedErrors = this.expectedErrors;
-		}
-		if (expectedErrors != null) {
-			return expectedErrors.await(timeout, unit);
-		}
-		return false;
 	}
 
 	/**
@@ -192,23 +175,12 @@ public abstract class BlockwiseInterceptor {
 			this.errorInjectorObserver = errorInjector.new ErrorInjectorMessageObserver();
 		}
 
-		private void countDown() {
-			final CountDownLatch latch;
-			synchronized (this) {
-				latch = expectedErrors;
-			}
-			if (latch != null) {
-				latch.countDown();
-			}
-		}
-
 		@Override
 		public void onReadyToSend() {
 			try {
 				errorInjectorObserver.onReadyToSend();
 			} catch (IntendedTestException exception) {
 				log(exception);
-				countDown();
 				throw exception;
 			}
 		}
@@ -218,10 +190,8 @@ public abstract class BlockwiseInterceptor {
 			try {
 				errorInjectorObserver.onSent();
 				log(null);
-				countDown();
 			} catch (IntendedTestException exception) {
 				log(exception);
-				countDown();
 				throw exception;
 			}
 		}
@@ -232,7 +202,6 @@ public abstract class BlockwiseInterceptor {
 				errorInjectorObserver.onContextEstablished(endpointContext);
 			} catch (IntendedTestException exception) {
 				log(exception);
-				countDown();
 				throw exception;
 			}
 		}
