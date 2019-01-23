@@ -121,7 +121,7 @@ public final class TcpMatcher extends BaseMatcher {
 
 		if (observeRelation != null) {
 			response.addMessageObserver(new MessageObserverAdapter() {
-				
+
 				@Override
 				public void onSendError(Throwable error) {
 					observeRelation.cancel();
@@ -181,7 +181,9 @@ public final class TcpMatcher extends BaseMatcher {
 			public void run() {
 				boolean checkResponseToken = !exchange.isNotification() || exchange.getRequest() != exchange.getCurrentRequest();
 				if (checkResponseToken && exchangeStore.get(idByToken) != exchange) {
-					LOGGER.error("ignoring response {}, exchange completed in the meantime!", response);
+					if (running) {
+						LOGGER.error("ignoring response {}, exchange not longer matching!", response);
+					}
 					return;
 				}
 

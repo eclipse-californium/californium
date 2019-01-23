@@ -327,7 +327,9 @@ public final class UdpMatcher extends BaseMatcher {
 			public void run() {
 				boolean checkResponseToken = !exchange.isNotification() || exchange.getRequest() != exchange.getCurrentRequest();
 				if (checkResponseToken && exchangeStore.get(idByToken) != exchange) {
-					LOGGER.debug("ignoring response {}, exchange not longer matching!", response);
+					if (running) {
+						LOGGER.debug("ignoring response {}, exchange not longer matching!", response);
+					}
 					return;
 				}
 
@@ -419,17 +421,19 @@ public final class UdpMatcher extends BaseMatcher {
 			LOGGER.debug("ignoring unmatchable empty message from {}: {}", message.getSourceContext(), message);
 			return;
 		}
-		
+
 		exchange.execute(new Runnable() {
 
 			@Override
 			public void run() {
 				if (exchange.getCurrentRequest().isMulticast()) {
-					LOGGER.info("ignoring {} message for multicast request {}", message.getType(), idByMID);
+					LOGGER.debug("ignoring {} message for multicast request {}", message.getType(), idByMID);
 					return;
 				}
 				if (exchangeStore.get(idByMID) != exchange) {
-					LOGGER.debug("ignoring ack/rst {}, not longer matching!", message);
+					if (running) {
+						LOGGER.debug("ignoring ack/rst {}, not longer matching!", message);
+					}
 					return;
 				}
 				try {
@@ -451,7 +455,7 @@ public final class UdpMatcher extends BaseMatcher {
 	}
 
 	private void reject(final Response response, final EndpointReceiver receiver) {
-	
+
 		if (response.getType() != Type.ACK && response.hasMID()) {
 			// reject only messages with MID, ignore for TCP
 			LOGGER.debug("rejecting response from {}", response.getSourceContext());
