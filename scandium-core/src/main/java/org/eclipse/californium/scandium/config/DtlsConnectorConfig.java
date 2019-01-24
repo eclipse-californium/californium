@@ -440,12 +440,16 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Gets the trusted root certificates to use when verifying
-	 * a peer's certificate during authentication.
+	 * Gets the trusted root certificates to use when verifying a peer's
+	 * certificate during authentication.
 	 * 
-	 * @return the root certificates
+	 * Only valid, if {@link Builder#setTrustStore(Certificate[])} is used.
+	 * 
+	 * @return the root certificates. If empty (length of zero), all
+	 *         certificates are trusted. If {@code null}, the trust may be
+	 *         implemented by a {@link CertificateVerifier}.
+	 * @see #getCertificateVerifier()
 	 */
-	@Deprecated
 	public X509Certificate[] getTrustStore() {
 		if (trustStore == null) {
 			return null;
@@ -1200,12 +1204,18 @@ public final class DtlsConnectorConfig {
 		 * requesting a client certificate during the DTLS handshake.</li>
 		 * </ul>
 		 * 
-		 * @param trustedCerts the trusted root certificates. if empty (length
+		 * This method must not be called, if
+		 * {@link #setCertificateVerifier(CertificateVerifier)} is already set.
+		 * 
+		 * @param trustedCerts the trusted root certificates. If empty (length
 		 *            of zero), trust all certificates.
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given array is <code>null</code>
 		 * @throws IllegalArgumentException if the array contains a non-X.509
 		 *             certificate
+		 * @throws IllegalStateException if
+		 *             {@link #setCertificateVerifier(CertificateVerifier)} is
+		 *             already set.
 		 * @see #setTrustCertificateTypes
 		 */
 		public Builder setTrustStore(Certificate[] trustedCerts) {
@@ -1213,6 +1223,8 @@ public final class DtlsConnectorConfig {
 				throw new NullPointerException("Trust store must not be null");
 			} else if (trustedCerts.length == 0) {
 				config.trustStore = new X509Certificate[0];
+			} else if (config.certificateVerifier != null) {
+				throw new IllegalStateException("Trust store must not be used after certificate verifier is set!");
 			} else {
 				config.trustStore = SslContextUtil.asX509Certificates(trustedCerts);
 			}
@@ -1229,15 +1241,23 @@ public final class DtlsConnectorConfig {
 		 * <li>revocation not provided by the default implementation (e.g. OCSP)
 		 * <li>cipher suites restriction per client
 		 * </ul>
+		 * 
+		 * This method must not be called, if
+		 * {@link #setTrustStore(Certificate[])} is already set.
 		 *
 		 * @param verifier certificate verifier
 		 * @return this builder for command chaining
-		 * @throws NullPointerException if the given certificate verifier is {@code null}
+		 * @throws NullPointerException if the given certificate verifier is
+		 *             {@code null}
+		 * @throws IllegalStateException if
+		 *             {@link #setTrustStore(Certificate[])} is already set.
 		 * @see #setTrustCertificateTypes
 		 */
 		public Builder setCertificateVerifier(CertificateVerifier verifier) {
 			if (verifier == null) {
 				throw new NullPointerException("CertificateVerifier must not be null");
+			} else if (config.trustStore != null) {
+				throw new IllegalStateException("CertificateVerifier must not be used after trust store is set!");
 			}
 			config.certificateVerifier = verifier;
 			return this;
