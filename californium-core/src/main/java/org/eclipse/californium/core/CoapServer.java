@@ -287,7 +287,7 @@ public class CoapServer implements ServerInterface {
 		LOGGER.info("Destroying server");
 		// prevent new tasks from being submitted
 		try {
-			if (!detachExecutor) {
+			if (running && !detachExecutor) {
 				executor.shutdown(); // cannot be started again
 				try {
 					// wait for currently executing tasks to complete
