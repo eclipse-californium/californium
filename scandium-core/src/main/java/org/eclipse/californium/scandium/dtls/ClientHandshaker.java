@@ -327,9 +327,7 @@ public class ClientHandshaker extends Handshaker {
 	protected void receivedHelloVerifyRequest(HelloVerifyRequest message) throws HandshakeException {
 
 		clientHello.setCookie(message.getCookie());
-		// update the length (cookie added)
-		clientHello.setFragmentLength(clientHello.getMessageLength());
-		
+
 		flightNumber = 3;
 		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
 		flight.addMessage(wrapMessage(clientHello));

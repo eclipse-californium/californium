@@ -370,7 +370,6 @@ public class DTLSConnectorTest {
 
 			// Send CLIENT_HELLO with cookie
 			clientHello.setCookie(cookie);
-			clientHello.setFragmentLength(clientHello.getMessageLength());
 			rawClient.sendRecord(serverEndpoint,
 					DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 0, clientHello.toByteArray()));
 
@@ -442,7 +441,6 @@ public class DTLSConnectorTest {
 
 			// Send CLIENT_HELLO with cookie
 			clientHello.setCookie(cookie);
-			clientHello.setFragmentLength(clientHello.getMessageLength());
 			rawClient.sendRecord(serverEndpoint,
 					DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 0, clientHello.toByteArray()));
 
@@ -616,7 +614,6 @@ public class DTLSConnectorTest {
 			latch = new CountDownLatch(1);
 			handler.setLatch(latch);
 			clientHello.setCookie(cookie);
-			clientHello.setFragmentLength(clientHello.getMessageLength());
 			rawClient.sendRecord(
 					serverEndpoint,
 					DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 0, clientHello.toByteArray()));
@@ -1284,7 +1281,6 @@ public class DTLSConnectorTest {
 			latch = new CountDownLatch(1);
 			handler.setLatch(latch);
 			clientHello.setCookie(cookie);
-			clientHello.setFragmentLength(clientHello.getMessageLength());
 			rawClient.sendRecord(
 					serverEndpoint,
 					DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 0, clientHello.toByteArray()));
