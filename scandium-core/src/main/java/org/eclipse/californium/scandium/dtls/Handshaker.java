@@ -53,6 +53,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - suppress duplicates only from
  *                                                    the same epoch
  *    Achim Kraus (Bosch Software Innovations GmbH) - redesign DTLSFlight and RecordLayer
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove copy of master secret
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -121,8 +122,6 @@ public abstract class Handshaker {
 
 	/** The helper class to execute the ECDHE key agreement and key generation. */
 	protected ECDHECryptography ecdhe;
-
-	private byte[] masterSecret;
 
 	private SecretKey clientWriteMACKey;
 	private SecretKey serverWriteMACKey;
@@ -548,7 +547,7 @@ public abstract class Handshaker {
 	 *            the shared premaster secret.
 	 */
 	protected final void generateKeys(byte[] premasterSecret) {
-		masterSecret = generateMasterSecret(premasterSecret);
+		byte[] masterSecret = generateMasterSecret(premasterSecret);
 		session.setMasterSecret(masterSecret);
 
 		calculateKeys(masterSecret);
@@ -856,10 +855,6 @@ public abstract class Handshaker {
 
 	protected final KeyExchangeAlgorithm getKeyExchangeAlgorithm() {
 		return session.getKeyExchange();
-	}
-
-	final byte[] getMasterSecret() {
-		return masterSecret;
 	}
 
 	final SecretKey getClientWriteMACKey() {

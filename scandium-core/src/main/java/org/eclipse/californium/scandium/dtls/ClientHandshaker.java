@@ -293,7 +293,7 @@ public class ClientHandshaker extends Handshaker {
 	 */
 	private void receivedServerFinished(Finished message) throws HandshakeException, GeneralSecurityException {
 
-		message.verifyData(getMasterSecret(), false, handshakeHash);
+		message.verifyData(session.getMasterSecret(), false, handshakeHash);
 		state = HandshakeType.FINISHED.getCode();
 		sessionEstablished();
 		handshakeCompleted();
@@ -588,7 +588,7 @@ public class ClientHandshaker extends Handshaker {
 		}
 
 		handshakeHash = md.digest();
-		Finished finished = new Finished(getMasterSecret(), isClient, handshakeHash, session.getPeer());
+		Finished finished = new Finished(session.getMasterSecret(), isClient, handshakeHash, session.getPeer());
 		flight.addMessage(wrapMessage(finished));
 
 		// compute handshake hash with client's finished message also
