@@ -108,7 +108,7 @@ public final class DtlsTestTools {
 		hmac.update((byte) clientHello.getClientVersion().getMajor());
 		hmac.update((byte) clientHello.getClientVersion().getMinor());
 		hmac.update(clientHello.getRandom().getRandomBytes());
-		hmac.update(clientHello.getSessionId().getId());
+		hmac.update(clientHello.getSessionId().getBytes());
 		hmac.update(CipherSuite.listToByteArray(clientHello.getCipherSuites()));
 		hmac.update(CompressionMethod.listToByteArray(clientHello.getCompressionMethods()));
 		return hmac.doFinal();

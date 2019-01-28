@@ -1508,7 +1508,7 @@ public class LockstepEndpoint {
 	public class EmptyMessageProperty extends MessageProperty {
 
 		public EmptyMessageProperty(Type type, int mid) {
-			super(type, new Token(new byte[0]), mid);
+			super(type, Token.EMPTY, mid);
 		}
 
 		public EmptyMessageProperty(Type type, String midVar) {

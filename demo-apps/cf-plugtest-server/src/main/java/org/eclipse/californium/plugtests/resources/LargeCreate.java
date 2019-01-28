@@ -22,13 +22,13 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.util.Bytes;
 
 /**
  * This resource implements a test of specification for the
  * ETSI IoT CoAP Plugtests, London, UK, 7--9 Mar 2014.
  */
 public class LargeCreate extends CoapResource {
-	private static final byte[] EMPTY = new byte[0];
 
 // Members /////////////////////////////////////////////////////////////////
 	
@@ -87,7 +87,7 @@ public class LargeCreate extends CoapResource {
 		public StorageResource(String name, byte[] post, int ct) {
 			super(name);
 			
-			this.data = post != null ? post : EMPTY;
+			this.data = post != null ? post : Bytes.EMPTY;
 			this.dataCt = ct;
 			
 			getAttributes().addContentType(dataCt);

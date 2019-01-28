@@ -29,8 +29,6 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.util.ByteArrayUtils;
-
 
 /**
  * A TLS handshake message sent by a server in response to a {@link ClientHello}
@@ -155,7 +153,7 @@ public final class ServerHello extends HandshakeMessage {
 		writer.writeBytes(random.getRandomBytes());
 
 		writer.write(sessionId.length(), SESSION_ID_LENGTH_BITS);
-		writer.writeBytes(sessionId.getId());
+		writer.writeBytes(sessionId.getBytes());
 
 		writer.write(cipherSuite.getCode(), CIPHER_SUITE_BITS);
 		writer.write(compressionMethod.getCode(), COMPRESSION_METHOD_BITS);
@@ -360,7 +358,7 @@ public final class ServerHello extends HandshakeMessage {
 		sb.append(StringUtil.lineSeparator()).append("\t\tRandom:").append(random);
 		sb.append(StringUtil.lineSeparator()).append("\t\tSession ID Length: ").append(sessionId.length());
 		if (sessionId.length() > 0) {
-			sb.append(StringUtil.lineSeparator()).append("\t\tSession ID: ").append(ByteArrayUtils.toHexString(sessionId.getId()));
+			sb.append(StringUtil.lineSeparator()).append("\t\tSession ID: ").append(sessionId);
 		}
 		sb.append(StringUtil.lineSeparator()).append("\t\tCipher Suite: ").append(cipherSuite);
 		sb.append(StringUtil.lineSeparator()).append("\t\tCompression Method: ").append(compressionMethod);

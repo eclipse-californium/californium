@@ -47,6 +47,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
+
+import org.eclipse.californium.elements.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -365,7 +367,7 @@ public class UDPConnector implements Connector {
 
 		private Sender(String name) {
 			super(name);
-			this.datagram = new DatagramPacket(new byte[0], 0);
+			this.datagram = new DatagramPacket(Bytes.EMPTY, 0);
 		}
 
 		protected void work() throws InterruptedException {

@@ -57,6 +57,7 @@ import java.util.List;
 
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -607,7 +608,7 @@ public class ClientHandshaker extends Handshaker {
 		if (certificateRequest != null) {
 
 			if (CertificateType.RAW_PUBLIC_KEY == session.sendCertificateType()) {
-				byte[] rawPublicKeyBytes = new byte[0];
+				byte[] rawPublicKeyBytes = Bytes.EMPTY;
 				PublicKey key = determineClientRawPublicKey(certificateRequest);
 				if (key != null) {
 					rawPublicKeyBytes = key.getEncoded();
