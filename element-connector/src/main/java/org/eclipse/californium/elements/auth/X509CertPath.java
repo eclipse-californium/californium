@@ -29,6 +29,7 @@ import java.util.List;
 
 import javax.security.auth.x500.X500Principal;
 
+import org.eclipse.californium.elements.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -184,7 +185,7 @@ public class X509CertPath implements Principal {
 		} catch (CertificateEncodingException e) {
 			// should not happen because all Java 7 implementations are required
 			// to support PkiPath encoding of X.509 certificates
-			return new byte[0];
+			return Bytes.EMPTY;
 		}
 	}
 

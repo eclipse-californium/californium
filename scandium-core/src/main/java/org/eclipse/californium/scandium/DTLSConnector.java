@@ -154,6 +154,7 @@ import org.eclipse.californium.elements.EndpointUnconnectedException;
 import org.eclipse.californium.elements.MulticastNotSupportedException;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
@@ -1867,7 +1868,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	}
 
 	private void sendFlightOverNetwork(DTLSFlight flight) throws IOException {
-		byte[] payload = new byte[] {};
+		byte[] payload = Bytes.EMPTY;
 		int maxDatagramSize = maximumTransmissionUnit;
 		if (flight.getSession() != null) {
 			// the max. fragment length reported by the session will be
@@ -1897,7 +1898,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 				DatagramPacket datagram = new DatagramPacket(payload, payload.length,
 						flight.getPeerAddress().getAddress(), flight.getPeerAddress().getPort());
 				datagrams.add(datagram);
-				payload = new byte[] {};
+				payload = Bytes.EMPTY;
 			}
 
 			payload = ByteArrayUtils.concatenate(payload, recordBytes);

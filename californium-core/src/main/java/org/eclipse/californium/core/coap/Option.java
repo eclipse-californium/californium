@@ -24,6 +24,8 @@ package org.eclipse.californium.core.coap;
 
 import java.util.Arrays;
 
+import org.eclipse.californium.elements.util.Bytes;
+
 /**
  * Both requests and responses may include a list of one or more options. An
  * Option number is constructed with a bit mask to indicate if an option is
@@ -75,7 +77,7 @@ public class Option implements Comparable<Option> {
 	 * Instantiates a new empty option.
 	 */
 	public Option() {
-		this.value = new byte[0];
+		this.value = Bytes.EMPTY;
 	}
 	
 	// Constructors
@@ -87,7 +89,7 @@ public class Option implements Comparable<Option> {
 	 */
 	public Option(int number) {
 		this.number = number;
-		this.value = new byte[0];
+		this.value = Bytes.EMPTY;
 	}
 	
 	/**

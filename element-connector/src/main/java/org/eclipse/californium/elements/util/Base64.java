@@ -1195,7 +1195,7 @@ public class Base64
 		}   // end if
 
 		if( len == 0 ){
-			return new byte[0];
+			return Bytes.EMPTY;
 		}else if( len < 4 ){
 			throw new IllegalArgumentException( 
 					"Base64-encoded string must have at least four characters, but length specified was " + len );

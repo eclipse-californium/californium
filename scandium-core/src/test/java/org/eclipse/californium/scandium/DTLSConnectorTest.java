@@ -705,13 +705,13 @@ public class DTLSConnectorTest {
 	public void testStartStopWithNewAddress() throws Exception {
 		// Do a first handshake
 		givenAnEstablishedSession(false);
-		byte[] sessionId = establishedServerSession.getSessionIdentifier().getId();
+		byte[] sessionId = establishedServerSession.getSessionIdentifier().getBytes();
 		InetSocketAddress firstAddress = client.getAddress();
 
 		// Stop the client
 		client.stop();
 		Connection connection = clientConnectionStore.get(serverEndpoint);
-		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
+		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getBytes());
 
 		// Restart it
 		client.start();
@@ -729,7 +729,7 @@ public class DTLSConnectorTest {
 
 		// check we use the same session id
 		connection = clientConnectionStore.get(serverEndpoint);
-		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
+		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getBytes());
 		assertClientIdentity(RawPublicKeyIdentity.class);
 	}
 
@@ -737,13 +737,13 @@ public class DTLSConnectorTest {
 	public void testStartStopWithSameAddress() throws Exception {
 		// Do a first handshake
 		givenAnEstablishedSession(false);
-		byte[] sessionId = establishedServerSession.getSessionIdentifier().getId();
+		byte[] sessionId = establishedServerSession.getSessionIdentifier().getBytes();
 		InetSocketAddress firstAddress = client.getAddress();
 
 		// Stop the client
 		client.stop();
 		Connection connection = clientConnectionStore.get(serverEndpoint);
-		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
+		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getBytes());
 
 		// Restart it
 		client.restart();
@@ -761,7 +761,7 @@ public class DTLSConnectorTest {
 
 		// check we use the same session id
 		connection = clientConnectionStore.get(serverEndpoint);
-		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
+		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getBytes());
 		assertClientIdentity(RawPublicKeyIdentity.class);
 	}
 
@@ -771,13 +771,13 @@ public class DTLSConnectorTest {
 		client.setExecutor(null);
 		// Do a first handshake
 		givenAnEstablishedSession(false);
-		byte[] sessionId = establishedServerSession.getSessionIdentifier().getId();
+		byte[] sessionId = establishedServerSession.getSessionIdentifier().getBytes();
 		InetSocketAddress firstAddress = client.getAddress();
 
 		// Stop the client
 		client.stop();
 		Connection connection = clientConnectionStore.get(serverEndpoint);
-		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
+		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getBytes());
 
 		// Restart it
 		client.restart();
@@ -795,7 +795,7 @@ public class DTLSConnectorTest {
 
 		// check we use the same session id
 		connection = clientConnectionStore.get(serverEndpoint);
-		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
+		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getBytes());
 		assertClientIdentity(RawPublicKeyIdentity.class);
 	}
 

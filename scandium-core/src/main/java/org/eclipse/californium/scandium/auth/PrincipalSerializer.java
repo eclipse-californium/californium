@@ -27,6 +27,7 @@ import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.util.Asn1DerDecoder;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StandardCharsets;
@@ -38,7 +39,6 @@ public final class PrincipalSerializer {
 
 	private static final int PSK_HOSTNAME_LENGTH_BITS = 16;
 	private static final int PSK_IDENTITY_LENGTH_BITS = 16;
-	private static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
 
 	private PrincipalSerializer() {
 	}
@@ -101,7 +101,7 @@ public final class PrincipalSerializer {
 		writer.writeByte(ClientAuthenticationType.PSK.code);
 		if (principal.isScopedIdentity()) {
 			writer.writeByte((byte) 1); // scoped
-			byte[] virtualHost = principal.getVirtualHost() == null ? EMPTY_BYTE_ARRAY
+			byte[] virtualHost = principal.getVirtualHost() == null ? Bytes.EMPTY
 					: principal.getVirtualHost().getBytes(StandardCharsets.UTF_8);
 			writeBytesWithLength(PSK_HOSTNAME_LENGTH_BITS, virtualHost, writer);
 			writeBytesWithLength(PSK_IDENTITY_LENGTH_BITS, principal.getIdentity().getBytes(StandardCharsets.UTF_8), writer);

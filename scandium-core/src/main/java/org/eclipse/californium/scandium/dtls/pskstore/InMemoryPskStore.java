@@ -22,6 +22,7 @@ import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.scandium.util.ServerName;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.eclipse.californium.scandium.util.ServerName.NameType;
@@ -40,7 +41,7 @@ import org.eclipse.californium.scandium.util.ServerName.NameType;
  */
 public class InMemoryPskStore implements PskStore {
 
-	private static final ServerName GLOBAL_SCOPE = ServerName.from(NameType.UNDEFINED, new byte[0]);
+	private static final ServerName GLOBAL_SCOPE = ServerName.from(NameType.UNDEFINED, Bytes.EMPTY);
 
 	private final Map<ServerName, Map<String, byte[]>> scopedKeys = new ConcurrentHashMap<>();
 	private final Map<InetSocketAddress, Map<ServerName, String>> scopedIdentities = new ConcurrentHashMap<>();
