@@ -158,13 +158,13 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 
 			ServerHello serverHello = new ServerHello(clientHello.getClientVersion(), serverRandom, session.getSessionIdentifier(),
 					session.getCipherSuite(), session.getCompressionMethod(), null, clientHello.getPeer());
-			flight.addMessage(wrapMessage(serverHello));
+			wrapMessage(flight, serverHello);
 			md.update(serverHello.toByteArray());
 
 			calculateKeys(session.getMasterSecret());
 
 			ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage(clientHello.getPeer());
-			flight.addMessage(wrapMessage(changeCipherSpecMessage));
+			wrapMessage(flight, changeCipherSpecMessage);
 			setCurrentWriteState();
 
 			MessageDigest mdWithServerFinished = null;
@@ -181,7 +181,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 
 			handshakeHash = md.digest();
 			Finished finished = new Finished(session.getMasterSecret(), false, handshakeHash, clientHello.getPeer());
-			flight.addMessage(wrapMessage(finished));
+			wrapMessage(flight, finished);
 
 			mdWithServerFinished.update(finished.toByteArray());
 			handshakeHash = mdWithServerFinished.digest();

@@ -449,7 +449,7 @@ public class ServerHandshaker extends Handshaker {
 		 * First, send ChangeCipherSpec
 		 */
 		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage(session.getPeer());
-		flight.addMessage(wrapMessage(changeCipherSpecMessage));
+		wrapMessage(flight, changeCipherSpecMessage);
 		setCurrentWriteState();
 
 		/*
@@ -457,7 +457,7 @@ public class ServerHandshaker extends Handshaker {
 		 */
 		handshakeHash = mdWithClientFinished.digest();
 		Finished finished = new Finished(session.getMasterSecret(), isClient, handshakeHash, session.getPeer());
-		flight.addMessage(wrapMessage(finished));
+		wrapMessage(flight, finished);
 
 		state = HandshakeType.FINISHED.getCode();
 
@@ -507,7 +507,7 @@ public class ServerHandshaker extends Handshaker {
 		 * Last, send ServerHelloDone (mandatory)
 		 */
 		ServerHelloDone serverHelloDone = new ServerHelloDone(session.getPeer());
-		flight.addMessage(wrapMessage(serverHelloDone));
+		wrapMessage(flight, serverHelloDone);
 		md.update(serverHelloDone.toByteArray());
 		handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverHelloDone.toByteArray());
 		sendFlight(flight);
@@ -571,7 +571,7 @@ public class ServerHandshaker extends Handshaker {
 
 		ServerHello serverHello = new ServerHello(serverVersion, serverRandom, sessionId,
 				session.getCipherSuite(), session.getCompressionMethod(), serverHelloExtensions, session.getPeer());
-		flight.addMessage(wrapMessage(serverHello));
+		wrapMessage(flight, serverHello);
 
 		// update the handshake hash
 		md.update(serverHello.toByteArray());
@@ -590,7 +590,7 @@ public class ServerHandshaker extends Handshaker {
 				throw new IllegalArgumentException("Certificate type " + session.sendCertificateType() + " not supported!");
 			}
 
-			flight.addMessage(wrapMessage(certificateMessage));
+			wrapMessage(flight, certificateMessage);
 			md.update(certificateMessage.toByteArray());
 			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, certificateMessage.toByteArray());
 		}
@@ -647,7 +647,7 @@ public class ServerHandshaker extends Handshaker {
 		}
 
 		if (serverKeyExchange != null) {
-			flight.addMessage(wrapMessage(serverKeyExchange));
+			wrapMessage(flight, serverKeyExchange);
 			md.update(serverKeyExchange.toByteArray());
 			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverKeyExchange.toByteArray());
 		}
@@ -666,7 +666,7 @@ public class ServerHandshaker extends Handshaker {
 				certificateRequest.addCertificateAuthorities(certificateVerifier.getAcceptedIssuers());
 			}
 
-			flight.addMessage(wrapMessage(certificateRequest));
+			wrapMessage(flight, certificateRequest);
 			md.update(certificateRequest.toByteArray());
 			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, certificateRequest.toByteArray());
 		}

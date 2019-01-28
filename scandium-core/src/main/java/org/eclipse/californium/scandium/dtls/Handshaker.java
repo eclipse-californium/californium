@@ -54,6 +54,7 @@
  *                                                    the same epoch
  *    Achim Kraus (Bosch Software Innovations GmbH) - redesign DTLSFlight and RecordLayer
  *    Achim Kraus (Bosch Software Innovations GmbH) - remove copy of master secret
+ *    Achim Kraus (Bosch Software Innovations GmbH) - redesign wrapMessage
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -660,80 +661,84 @@ public abstract class Handshaker {
 	}
 
 	/**
-	 * Wraps a DTLS message fragment into (potentially multiple) DTLS records.
+	 * Wraps a DTLS message fragment into (potentially multiple) DTLS records
+	 * and add them to the flight.
 	 * 
-	 * Sets the record's epoch, sequence number and handles fragmentation
-	 * for handshake messages.
+	 * Sets the record's epoch, sequence number and handles fragmentation for
+	 * handshake messages.
 	 * 
-	 * @param fragment
-	 *            the message fragment
-	 * @return the records containing the message fragment, ready to be sent to the
-	 *            peer
-	 * @throws HandshakeException if the message could not be encrypted using the session's
-	 *            current security parameters
+	 * @param flight the flight to add the wrapped messages
+	 * @param fragment the message fragment
+	 * @throws HandshakeException if the message could not be encrypted using
+	 *             the session's current security parameters
 	 */
-	protected final List<Record> wrapMessage(DTLSMessage fragment) throws HandshakeException {
+	protected final void wrapMessage(DTLSFlight flight, DTLSMessage fragment) throws HandshakeException {
 
 		try {
-			switch(fragment.getContentType()) {
+			switch (fragment.getContentType()) {
 			case HANDSHAKE:
-				return wrapHandshakeMessage((HandshakeMessage) fragment);
+				wrapHandshakeMessage(flight, (HandshakeMessage) fragment);
+				break;
+			case CHANGE_CIPHER_SPEC:
+				// CCS has only 1 byte payload and doesn't require fragmentation
+				flight.addMessage(new Record(fragment.getContentType(), session.getWriteEpoch(),
+						session.getSequenceNumber(), fragment, session));
+				break;
 			default:
-				// other message types should not be prone to fragmentation
-				// since they are only a few bytes in length
-				List<Record> records = new ArrayList<Record>();
-				records.add(new Record(fragment.getContentType(), session.getWriteEpoch(), session.getSequenceNumber(),
-						fragment, session));
-				return records;
+				throw new HandshakeException("Cannot create " + fragment.getContentType() + " record for flight",
+						new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, session.getPeer()));
 			}
 		} catch (GeneralSecurityException e) {
-			throw new HandshakeException(
-					"Cannot create record",
+			throw new HandshakeException("Cannot create record",
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, session.getPeer()));
 		}
 	}
 
-	private List<Record> wrapHandshakeMessage(HandshakeMessage handshakeMessage) throws GeneralSecurityException {
+	private void wrapHandshakeMessage(DTLSFlight flight, HandshakeMessage handshakeMessage) throws GeneralSecurityException {
 		setSequenceNumber(handshakeMessage);
-		List<Record> result = new ArrayList<>();
-		byte[] messageBytes = handshakeMessage.fragmentToByteArray();
+		int messageLength = handshakeMessage.getMessageLength();
+		int maxFragmentLength = session.getMaxFragmentLength();
 
-		if (messageBytes.length <= session.getMaxFragmentLength()) {
-			result.add(new Record(ContentType.HANDSHAKE, session.getWriteEpoch(), session.getSequenceNumber(), handshakeMessage, session));
-		} else {
-			// message needs to be fragmented
-			LOGGER.debug("Splitting up {} message for [{}] into multiple fragments of max {} bytes",
-					handshakeMessage.getMessageType(), handshakeMessage.getPeer(), session.getMaxFragmentLength());
-			// create N handshake messages, all with the
-			// same message_seq value as the original handshake message
-			int messageSeq = handshakeMessage.getMessageSeq();
-			int numFragments = (messageBytes.length / session.getMaxFragmentLength()) + 1;
-			int offset = 0;
-			for (int i = 0; i < numFragments; i++) {
-				int fragmentLength = session.getMaxFragmentLength();
-				if (offset + fragmentLength > messageBytes.length) {
-					// the last fragment is normally shorter than the maximal size
-					fragmentLength = messageBytes.length - offset;
-				}
-				byte[] fragmentBytes = new byte[fragmentLength];
-				System.arraycopy(messageBytes, offset, fragmentBytes, 0, fragmentLength);
-
-				FragmentedHandshakeMessage fragmentedMessage =
-						new FragmentedHandshakeMessage(
-								fragmentBytes,
-								handshakeMessage.getMessageType(),
-								offset,
-								messageBytes.length,
-								session.getPeer());
-
-				// all fragments have the same message_seq
-				fragmentedMessage.setMessageSeq(messageSeq);
-				offset += fragmentBytes.length;
-
-				result.add(new Record(ContentType.HANDSHAKE, session.getWriteEpoch(), session.getSequenceNumber(), fragmentedMessage, session));
-			}
+		if (messageLength <= maxFragmentLength) {
+			flight.addMessage(new Record(ContentType.HANDSHAKE, session.getWriteEpoch(), session.getSequenceNumber(), handshakeMessage, session));
+			return;
 		}
-		return result;
+
+		// message needs to be fragmented
+		LOGGER.debug("Splitting up {} message for [{}] into multiple fragments of max {} bytes",
+				handshakeMessage.getMessageType(), handshakeMessage.getPeer(), session.getMaxFragmentLength());
+		// create N handshake messages, all with the
+		// same message_seq value as the original handshake message
+		byte[] messageBytes = handshakeMessage.fragmentToByteArray();
+		if (messageBytes.length != messageLength) {
+			throw new IllegalStateException(
+					"message length " + messageLength + " differs from message " + messageBytes.length + "!");
+		}
+		int messageSeq = handshakeMessage.getMessageSeq();
+		int offset = 0;
+		while (offset < messageLength) {
+			int fragmentLength = maxFragmentLength;
+			if (offset + fragmentLength > messageLength) {
+				// the last fragment is normally shorter than the maximal size
+				fragmentLength = messageLength - offset;
+			}
+			byte[] fragmentBytes = new byte[fragmentLength];
+			System.arraycopy(messageBytes, offset, fragmentBytes, 0, fragmentLength);
+
+			FragmentedHandshakeMessage fragmentedMessage =
+					new FragmentedHandshakeMessage(
+							fragmentBytes,
+							handshakeMessage.getMessageType(),
+							offset,
+							messageLength,
+							session.getPeer());
+
+			// all fragments have the same message_seq
+			fragmentedMessage.setMessageSeq(messageSeq);
+			offset += fragmentLength;
+
+			flight .addMessage(new Record(ContentType.HANDSHAKE, session.getWriteEpoch(), session.getSequenceNumber(), fragmentedMessage, session));
+		}
 	}
 
 	/**

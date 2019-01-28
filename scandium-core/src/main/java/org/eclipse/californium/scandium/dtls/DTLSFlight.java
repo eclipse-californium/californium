@@ -159,15 +159,6 @@ public class DTLSFlight {
 	}
 
 	/**
-	 * Adds multiple messages to this flight.
-	 * 
-	 * @param messagesToAdd the messages to add.
-	 */
-	public void addMessage(final List<Record> messagesToAdd) {
-		this.messages.addAll(messagesToAdd);
-	}
-
-	/**
 	 * Adds a single message to this flight.
 	 * 
 	 * @param messageToAdd the message to add.

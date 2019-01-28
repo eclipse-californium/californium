@@ -330,7 +330,7 @@ public class ClientHandshaker extends Handshaker {
 
 		flightNumber = 3;
 		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
-		flight.addMessage(wrapMessage(clientHello));
+		wrapMessage(flight, clientHello);
 		sendFlight(flight);
 	}
 
@@ -521,7 +521,7 @@ public class ClientHandshaker extends Handshaker {
 					"Unknown key exchange algorithm: " + getKeyExchangeAlgorithm(),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer()));
 		}
-		flight.addMessage(wrapMessage(clientKeyExchange));
+		wrapMessage(flight, clientKeyExchange);
 
 		/*
 		 * Third, send CertificateVerify message if necessary.
@@ -539,14 +539,14 @@ public class ClientHandshaker extends Handshaker {
 
 			certificateVerify = new CertificateVerify(negotiatedSignatureAndHashAlgorithm, privateKey, handshakeMessages, session.getPeer());
 
-			flight.addMessage(wrapMessage(certificateVerify));
+			wrapMessage(flight, certificateVerify);
 		}
 
 		/*
 		 * Fourth, send ChangeCipherSpec
 		 */
 		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage(session.getPeer());
-		flight.addMessage(wrapMessage(changeCipherSpecMessage));
+		wrapMessage(flight, changeCipherSpecMessage);
 		setCurrentWriteState();
 
 		/*
@@ -589,7 +589,7 @@ public class ClientHandshaker extends Handshaker {
 
 		handshakeHash = md.digest();
 		Finished finished = new Finished(session.getMasterSecret(), isClient, handshakeHash, session.getPeer());
-		flight.addMessage(wrapMessage(finished));
+		wrapMessage(flight, finished);
 
 		// compute handshake hash with client's finished message also
 		// included, used for server's finished message
@@ -624,7 +624,7 @@ public class ClientHandshaker extends Handshaker {
 			} else {
 				throw new IllegalArgumentException("Certificate type " + session.sendCertificateType() + " not supported!");
 			}
-			flight.addMessage(wrapMessage(clientCertificate));
+			wrapMessage(flight, clientCertificate);
 		}
 	}
 
@@ -701,7 +701,7 @@ public class ClientHandshaker extends Handshaker {
 		flightNumber = 1;
 		clientHello = startMessage;
 		DTLSFlight flight = new DTLSFlight(session, flightNumber);
-		flight.addMessage(wrapMessage(startMessage));
+		wrapMessage(flight, startMessage);
 		sendFlight(flight);
 	}
 
