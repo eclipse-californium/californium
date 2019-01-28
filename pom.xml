@@ -380,6 +380,11 @@
 						</annotations>
 					</configuration>
 				</plugin>
+				<plugin>
+					<groupId>org.codehaus.mojo</groupId>
+					<artifactId>license-maven-plugin</artifactId>
+					<version>1.16</version>
+				</plugin>
 			</plugins>
 		</pluginManagement>
 
@@ -468,23 +473,22 @@
 			</activation>
 			<build>
 				<plugins>
-				<plugin>
-					<groupId>org.codehaus.mojo</groupId>
-					<artifactId>license-maven-plugin</artifactId>
-					<version>1.16</version>
-					<executions>
-						<execution>
-							<id>download-licenses</id>
-							<configuration>
-								<excludedGroups>org.eclipse.californium</excludedGroups>
-								<excludedScopes>system,test</excludedScopes>
-							</configuration>
-							<goals>
-								<goal>download-licenses</goal>
-							</goals>
-						</execution>
-					</executions>
-				</plugin>
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>license-maven-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>download-licenses</id>
+								<configuration>
+									<excludedGroups>org.eclipse.californium</excludedGroups>
+									<excludedScopes>system,test</excludedScopes>
+								</configuration>
+								<goals>
+									<goal>download-licenses</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
 				</plugins>
 			</build>
 		</profile>
