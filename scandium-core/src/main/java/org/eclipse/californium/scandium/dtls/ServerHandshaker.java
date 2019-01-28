@@ -443,7 +443,7 @@ public class ServerHandshaker extends Handshaker {
 
 		// Verify client's data
 		byte[] handshakeHash = md.digest();
-		message.verifyData(getMasterSecret(), true, handshakeHash);
+		message.verifyData(session.getMasterSecret(), true, handshakeHash);
 
 		/*
 		 * First, send ChangeCipherSpec
@@ -456,7 +456,7 @@ public class ServerHandshaker extends Handshaker {
 		 * Second, send Finished message
 		 */
 		handshakeHash = mdWithClientFinished.digest();
-		Finished finished = new Finished(getMasterSecret(), isClient, handshakeHash, session.getPeer());
+		Finished finished = new Finished(session.getMasterSecret(), isClient, handshakeHash, session.getPeer());
 		flight.addMessage(wrapMessage(finished));
 
 		state = HandshakeType.FINISHED.getCode();
