@@ -252,12 +252,12 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		message.verifyData(session.getMasterSecret(), false, handshakeHash);
 		
 		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage(message.getPeer());
-		flight.addMessage(wrapMessage(changeCipherSpecMessage));
+		wrapMessage(flight, changeCipherSpecMessage);
 		setCurrentWriteState();
 
 		handshakeHash = mdWithServerFinish.digest();
 		Finished finished = new Finished(session.getMasterSecret(), isClient, handshakeHash, message.getPeer());
-		flight.addMessage(wrapMessage(finished));
+		wrapMessage(flight, finished);
 		state = HandshakeType.FINISHED.getCode();
 
 		flight.setRetransmissionNeeded(false);
@@ -290,7 +290,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		
 		flightNumber = 1;
 		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
-		flight.addMessage(wrapMessage(message));
+		wrapMessage(flight, message);
 		sendFlight(flight);
 	}
 
