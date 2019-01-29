@@ -47,6 +47,7 @@ import static org.junit.Assert.assertThat;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -616,7 +617,7 @@ public class ObserveServerSideTest {
 			short etag = (short) etagSequence.getAndIncrement();
 			ByteBuffer b = ByteBuffer.wrap(new byte[2]);
 			b.putShort(etag);
-			b.flip();
+			((Buffer)b).flip();
 			response.getOptions().addETag(b.array());
 		}
 	}

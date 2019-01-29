@@ -21,11 +21,15 @@
  *                                                    add CodeClass
  *    Achim Kraus (Bosch Software Innovations GmbH) - introduce protocols
  *                                                    with mapping to schemes
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add IPv4 multicast address
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add IPATCH and TOO_MANY_REQUESTS
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
 
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
 
 import org.eclipse.californium.elements.util.StandardCharsets;
@@ -34,7 +38,7 @@ import org.eclipse.californium.elements.util.StandardCharsets;
  * CoAP defines several constants.
  * <ul>
  * <li>Message types: CON, NON, ACK, RST</li>
- * <li>Request codes: GET, POST, PUT, DELETE</li>
+ * <li>Request codes: GET, POST, PUT, DELETE, FETCH, PATCH, IPATCH</li>
  * <li>Response codes</li>
  * <li>Option numbers</li>
  * <li>Message format</li>
@@ -79,6 +83,9 @@ public final class CoAP {
 
 	/** The CoAP charset is always UTF-8 */
 	public static final Charset UTF8_CHARSET = StandardCharsets.UTF_8;
+
+	/** IPv4 multicast address for CoAP, RFC 7252, 12.8. */
+	public static final InetAddress MULTICAST_IPV4 = new InetSocketAddress("224.0.1.187", 0).getAddress();
 
 	private CoAP() {
 		// prevent instantiation
@@ -384,7 +391,10 @@ public final class CoAP {
 		FETCH(5),
 		
 		/** The PATCH code. */
-		PATCH(6);
+		PATCH(6),
+
+		/** The IPATCH code. */
+		IPATCH(7);
 
 		/** The code value. */
 		public final int value;
@@ -418,6 +428,7 @@ public final class CoAP {
 				case 4: return DELETE;
 				case 5: return FETCH;
 				case 6: return PATCH;
+				case 7: return IPATCH;
 				default: throw new MessageFormatException(String.format("Unknown CoAP request code: %s", formatCode(classCode, detailCode)));
 			}
 		}
@@ -451,6 +462,7 @@ public final class CoAP {
 		REQUEST_ENTITY_TOO_LARGE(CodeClass.ERROR_RESPONSE, 13),
 		UNSUPPORTED_CONTENT_FORMAT(CodeClass.ERROR_RESPONSE, 15),
 		UNPROCESSABLE_ENTITY(CodeClass.ERROR_RESPONSE, 22),
+		TOO_MANY_REQUESTS(CodeClass.ERROR_RESPONSE, 29),
 
 		// Server error: 5.00 - 5.31
 		INTERNAL_SERVER_ERROR(CodeClass.SERVER_ERROR_RESPONSE, 0),
@@ -526,6 +538,7 @@ public final class CoAP {
 			case 13: return REQUEST_ENTITY_TOO_LARGE;
 			case 15: return UNSUPPORTED_CONTENT_FORMAT;
 			case 22: return UNPROCESSABLE_ENTITY;
+			case 29: return TOO_MANY_REQUESTS;
 			default:
 				return BAD_REQUEST;
 			}

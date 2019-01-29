@@ -38,6 +38,9 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use endpoint context for
  *                                                    further requests
  *    Achim Kraus (Bosch Software Innovations GmbH) - use executors util
+ *    Achim Kraus (Bosch Software Innovations GmbH) - reset endpoint context on setURI(). 
+ *                                                    Ignore endpoint context of multicast
+ *                                                    responses.
  ******************************************************************************/
 package org.eclipse.californium.core;
 
@@ -212,10 +215,13 @@ public class CoapClient {
 	/**
 	 * Sets the destination URI of this client.
 	 *
+	 * Reset {@link #destinationContext} also.
+	 * 
 	 * @param uri the uri
 	 * @return the CoAP client
 	 */
 	public CoapClient setURI(String uri) {
+		this.destinationContext.set(null);
 		this.uri = uri;
 		return this;
 	}
@@ -1011,7 +1017,7 @@ public class CoapClient {
 	 * @param handler the Response handler
 	 */
 	private void asynchronous(Request request, CoapHandler handler) {
-		request.addMessageObserver(new MessageObserverImpl(handler));
+		request.addMessageObserver(new MessageObserverImpl(handler, request.isMulticast()));
 		send(request);
 	}
 
@@ -1050,7 +1056,9 @@ public class CoapClient {
 				}
 				return null;
 			} else {
-				setDestinationContextFromResponse(response);
+				if (!request.isMulticast()) {
+					setDestinationContextFromResponse(response);
+				}
 				return new CoapResponse(response);
 			}
 		} catch (InterruptedException e) {
@@ -1120,7 +1128,7 @@ public class CoapClient {
 			Endpoint outEndpoint = getEffectiveEndpoint(request);
 			CoapObserveRelation relation = new CoapObserveRelation(request, outEndpoint);
 			// add message observer to get the response.
-			ObserveMessageObserverImpl messageObserver = new ObserveMessageObserverImpl(handler, relation);
+			ObserveMessageObserverImpl messageObserver = new ObserveMessageObserverImpl(handler, request.isMulticast(), relation);
 			request.addMessageObserver(messageObserver);
 			// add notification listener to all notification
 			NotificationListener notificationListener = new Adapter(messageObserver, request);
@@ -1155,7 +1163,7 @@ public class CoapClient {
 			Endpoint outEndpoint = getEffectiveEndpoint(request);
 			CoapObserveRelation relation = new CoapObserveRelation(request, outEndpoint);
 			// add message observer to get the response.
-			ObserveMessageObserverImpl messageObserver = new ObserveMessageObserverImpl(handler, relation);
+			ObserveMessageObserverImpl messageObserver = new ObserveMessageObserverImpl(handler, request.isMulticast(), relation);
 			request.addMessageObserver(messageObserver);
 			// add notification listener to all notification
 			NotificationListener notificationListener = new Adapter(messageObserver, request);
@@ -1338,15 +1346,20 @@ public class CoapClient {
 	private class MessageObserverImpl extends MessageObserverAdapter {
 
 		/** The handler. */
-		protected CoapHandler handler;
+		protected final CoapHandler handler;
+
+		private final boolean multicast;
 
 		/**
 		 * Constructs a new message observer that calls the specified handler
 		 *
 		 * @param handler the Response handler
+		 * @param multicast {@code true} for multicast requests, {@code false},
+		 *            otherwise.
 		 */
-		private MessageObserverImpl(CoapHandler handler) {
+		private MessageObserverImpl(CoapHandler handler, boolean multicast) {
 			this.handler = handler;
+			this.multicast = multicast;
 		}
 
 		/*
@@ -1358,7 +1371,9 @@ public class CoapClient {
 		 */
 		@Override
 		public void onResponse(final Response response) {
-			setDestinationContextFromResponse(response);
+			if (!multicast) {
+				setDestinationContextFromResponse(response);
+			}
 			succeeded(response != null ? new CoapResponse(response) : null);
 		}
 
@@ -1429,8 +1444,8 @@ public class CoapClient {
 		 * @param handler the Response handler
 		 * @param relation the Observe relation
 		 */
-		public ObserveMessageObserverImpl(CoapHandler handler, CoapObserveRelation relation) {
-			super(handler);
+		public ObserveMessageObserverImpl(CoapHandler handler, boolean multicast, CoapObserveRelation relation) {
+			super(handler, multicast);
 			this.relation = relation;
 		}
 

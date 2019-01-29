@@ -76,7 +76,7 @@ public class CoapEndpointTest {
 		establishedContext = new AddressEndpointContext(CONNECTOR_ADDRESS, null);
 		receivedRequests = new ArrayList<Request>();
 		connector = new SimpleConnector();
-		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setConnector(connector);
 		builder.setNetworkConfig(CONFIG);
 
@@ -161,7 +161,7 @@ public class CoapEndpointTest {
 	@Test
 	public void testSecureSchemeIsSetOnIncomingRequest() throws Exception {
 		SimpleConnector connector = new SimpleSecureConnector();
-		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setConnector(connector);
 		builder.setNetworkConfig(CONFIG);
 		Endpoint endpoint = builder.build();
@@ -180,7 +180,7 @@ public class CoapEndpointTest {
 		endpoint.setMessageDeliverer(deliverer);
 		endpoint.start();
 		
-		EndpointContext secureCtx = new DtlsEndpointContext(SOURCE_ADDRESS, null, "session", "1", "CIPHER");
+		EndpointContext secureCtx = new DtlsEndpointContext(SOURCE_ADDRESS, null, "session", "1", "CIPHER", "100");
 		RawData inboundRequest = RawData.inbound(getSerializedRequest(), secureCtx, false);
 		connector.receiveMessage(inboundRequest);
 		assertTrue(latch.await(2, TimeUnit.SECONDS));

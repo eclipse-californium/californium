@@ -18,6 +18,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.io.Serializable;
 import java.net.InetSocketAddress;
 
 import org.eclipse.californium.elements.util.DatagramReader;
@@ -35,13 +36,16 @@ import org.eclipse.californium.elements.util.StringUtil;
  * compressed, as specified by the current connection state. For further details
  * see <a href="http://tools.ietf.org/html/rfc5246#section-7.2">RFC 5246</a>.
  */
-public final class AlertMessage extends AbstractMessage {
+public final class AlertMessage implements DTLSMessage, Serializable {
 
 	// CoAP-specific constants/////////////////////////////////////////
+	private static final long serialVersionUID = 1L;
 
 	private static final int BITS = 8;
 
 	// Members ////////////////////////////////////////////////////////
+
+	private final InetSocketAddress peerAddress;
 
 	/** The level of the alert (warning or fatal). */
 	private final AlertLevel level;
@@ -51,17 +55,29 @@ public final class AlertMessage extends AbstractMessage {
 
 	// Constructors ///////////////////////////////////////////////////
 
+	protected AlertMessage() {
+		this(null, null, null);
+	}
+
 	/**
+	 * Create new instance of alert message.
 	 * 
-	 * @param level
-	 *            the alert level
-	 * @param description
-	 *            the alert description
-	 * @param peerAddress the IP address and port of the peer this message
-	 *            has been received from or is to be sent to
+	 * @param level the alert level
+	 * @param description the alert description
+	 * @param peerAddress the IP address and port of the peer this message has
+	 *            been received from or is to be sent to
+	 * @throws NullPointerException if one of the provided parameter is
+	 *             {@code null}
 	 */
 	public AlertMessage(AlertLevel level, AlertDescription description, InetSocketAddress peerAddress) {
-		super(peerAddress);
+		if (level == null) {
+			throw new NullPointerException("Level must not be null");
+		} else if (description == null) {
+			throw new NullPointerException("Description must not be null");
+		} else if (peerAddress == null) {
+			throw new NullPointerException("Peer address must not be null");
+		}
+		this.peerAddress = peerAddress;
 		this.level = level;
 		this.description = description;
 	}
@@ -173,6 +189,11 @@ public final class AlertMessage extends AbstractMessage {
 	}
 
 	// Methods ////////////////////////////////////////////////////////
+
+	@Override
+	public final InetSocketAddress getPeer() {
+		return peerAddress;
+	}
 
 	@Override
 	public ContentType getContentType() {

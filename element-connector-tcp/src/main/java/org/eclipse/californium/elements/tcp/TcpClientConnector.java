@@ -33,6 +33,8 @@
  * Achim Kraus (Bosch Software Innovations GmbH) - add logs for create and close channel
  * Achim Kraus (Bosch Software Innovations GmbH) - adjust logging
  * Achim Kraus (Bosch Software Innovations GmbH) - add onConnect
+ * Achim Kraus (Bosch Software Innovations GmbH) - close channel pool map before 
+ *                                                 stop event loop group
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp;
 
@@ -53,6 +55,7 @@ import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.EndpointMismatchException;
+import org.eclipse.californium.elements.MulticastNotSupportedException;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 
@@ -72,7 +75,7 @@ import org.slf4j.LoggerFactory;
  */
 public class TcpClientConnector implements Connector {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(TcpClientConnector.class.getName());
+	protected final Logger LOGGER = LoggerFactory.getLogger(getClass().getName());
 
 	private final int numberOfThreads;
 	private final int connectionIdleTimeoutSeconds;
@@ -118,9 +121,13 @@ public class TcpClientConnector implements Connector {
 
 			@Override
 			protected ChannelPool newPool(SocketAddress key) {
-				Bootstrap bootstrap = new Bootstrap().group(workerGroup).channel(NioSocketChannel.class)
-						.option(ChannelOption.SO_KEEPALIVE, true).option(ChannelOption.AUTO_READ, true)
-						.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, connectTimeoutMillis).remoteAddress(key);
+				Bootstrap bootstrap = new Bootstrap()
+						.group(workerGroup)
+						.channel(NioSocketChannel.class)
+						.option(ChannelOption.SO_KEEPALIVE, true)
+						.option(ChannelOption.AUTO_READ, true)
+						.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, connectTimeoutMillis)
+						.remoteAddress(key);
 
 				// We multiplex over the same TCP connection, so don't acquire
 				// more than one connection per endpoint.
@@ -132,8 +139,11 @@ public class TcpClientConnector implements Connector {
 
 	@Override
 	public synchronized void stop() {
+		if (poolMap != null) {
+			poolMap.close();
+		}
 		if (workerGroup != null) {
-			workerGroup.shutdownGracefully(0, 1, TimeUnit.SECONDS).syncUninterruptibly();
+			workerGroup.shutdownGracefully(0, 500, TimeUnit.MILLISECONDS).syncUninterruptibly();
 			workerGroup = null;
 		}
 	}
@@ -145,8 +155,20 @@ public class TcpClientConnector implements Connector {
 
 	@Override
 	public void send(final RawData msg) {
-		InetSocketAddress addressKey = new InetSocketAddress(msg.getAddress(), msg.getPort());
-		boolean connected = poolMap.contains(addressKey);
+		if (msg == null) {
+			throw new NullPointerException("Message must not be null");
+		}
+		if (msg.isMulticast()) {
+			LOGGER.warn("TcpConnector drops {} bytes to multicast {}:{}", msg.getSize(), msg.getAddress(), msg.getPort());
+			msg.onError(new MulticastNotSupportedException("TCP doesn't support multicast!"));
+			return;
+		}
+		if (workerGroup == null) {
+			msg.onError(new IllegalStateException("TCP client connector not running!"));
+			return;
+		}
+		InetSocketAddress addressKey = msg.getInetSocketAddress();
+		final boolean connected = poolMap.contains(addressKey);
 		final EndpointContextMatcher endpointMatcher = getEndpointContextMatcher();
 		/* check, if a new connection should be established */
 		if (endpointMatcher != null && !connected && !endpointMatcher.isToBeSent(msg.getEndpointContext(), null)) {
@@ -323,8 +345,9 @@ public class TcpClientConnector implements Connector {
 			// TODO: This only works with fixed sized pool with connection one.
 			// Otherwise it's not save to remove and
 			// close the pool as soon as a single channel is closed.
-			poolMap.remove(key);
-			LOGGER.debug("closed channel to {}", key);
+			if (poolMap.remove(key)) {
+				LOGGER.debug("closed channel to {}", key);
+			}
 		}
 	}
 }

@@ -115,7 +115,7 @@ public final class CertificateMessage extends HandshakeMessage {
 	 *            certification.
 	 * 
 	 */
-	public CertificateMessage(X509Certificate[] certificateChain, InetSocketAddress peerAddress) {
+	public CertificateMessage(List<X509Certificate> certificateChain, InetSocketAddress peerAddress) {
 		super(peerAddress);
 		if (certificateChain == null) {
 			throw new NullPointerException("Certificate chain must not be null");
@@ -166,7 +166,7 @@ public final class CertificateMessage extends HandshakeMessage {
 	 * @throws IllegalArgumentException if the given array contains non X.509 certificates or
 	 *                                  the certificates do not form a chain.
 	 */
-	private void setCertificateChain(final X509Certificate[] chain) {
+	private void setCertificateChain(final List<X509Certificate> chain) {
 		this.certPath = X509CertPath.generateCertPath(false, chain);
 	}
 
@@ -265,26 +265,28 @@ public final class CertificateMessage extends HandshakeMessage {
 	 * Creates a certificate message from its binary encoding.
 	 * 
 	 * @param byteArray The binary encoding of the message.
-	 * @param useRawPublicKey {@code true} if the certificate message contains a RawPublicKey instead
-	 *                        of an X.509 certificate chain.
+	 * @param certificateType negotiated type of certificate the certificate message contains.
 	 * @param peerAddress The IP address and port of the peer that sent the message.
 	 * @return The certificate message.
 	 * @throws HandshakeException if the binary encoding could not be parsed.
+	 * @throws IllegalArgumentException if the certificate type is not supported.
 	 */
 	public static CertificateMessage fromByteArray(
 			final byte[] byteArray,
-			boolean useRawPublicKey,
+			CertificateType certificateType,
 			InetSocketAddress peerAddress) throws HandshakeException {
 
 		DatagramReader reader = new DatagramReader(byteArray);
 
-		if (useRawPublicKey) {
+		if (CertificateType.RAW_PUBLIC_KEY == certificateType) {
 			LOGGER.debug("Parsing RawPublicKey CERTIFICATE message");
 			int certificateLength = reader.read(CERTIFICATE_LENGTH_BITS);
 			byte[] rawPublicKey = reader.readBytes(certificateLength);
 			return new CertificateMessage(rawPublicKey, peerAddress);
-		} else {
+		} else if (CertificateType.X_509 == certificateType) {
 			return readX509CertificateMessage(reader, peerAddress);
+		} else {
+			throw new IllegalArgumentException("Certificate type " + certificateType + " not supported!");
 		}
 	}
 

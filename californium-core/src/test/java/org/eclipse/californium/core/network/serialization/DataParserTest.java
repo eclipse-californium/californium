@@ -112,10 +112,11 @@ import org.junit.runners.Parameterized;
 	}
 
 	@Test public void testParseMessageDetectsIllegalCode() {
+		byte code = 0b00001000; // 0.08 is currently unassigned
 		// GIVEN a message with a class code of 0.07, i.e. not a request
 		byte[] malformedRequest = new byte[] { 
 				0b01000000, // ver 1, CON, token length: 0
-				0b00000111, // code: 0.07 -> class 1 is reserved
+				code,
 				0x00, 0x10 // message ID
 		};
 
@@ -124,7 +125,7 @@ import org.junit.runners.Parameterized;
 			parser.parseMessage(malformedRequest);
 			fail("Parser should have detected that message is not a request");
 		} catch (CoAPMessageFormatException e) {
-			assertEquals(0b00000111, e.getCode());
+			assertEquals(code, e.getCode());
 			assertEquals(true, e.isConfirmable());
 			// THEN an exception is thrown by the parser
 		}

@@ -87,14 +87,14 @@ public class KeySetEndpointContextMatcher implements EndpointContextMatcher {
 	@Override
 	public boolean isToBeSent(EndpointContext messageContext, EndpointContext connectionContext) {
 		if (null == connectionContext) {
-			return !messageContext.inhibitNewConnection();
+			return !messageContext.hasCriticalEntries();
 		}
 		boolean result = compareHostname ? isSameVirtualHost(messageContext, connectionContext) : true;
 		return result && internalMatch(messageContext, connectionContext);
 	}
 
 	private final boolean internalMatch(EndpointContext requestedContext, EndpointContext availableContext) {
-		if (!requestedContext.inhibitNewConnection()) {
+		if (!requestedContext.hasCriticalEntries()) {
 			return true;
 		}
 		return EndpointContextUtil.match(getName(), keys, requestedContext, availableContext);

@@ -12,21 +12,18 @@
  * 
  * Contributors:
  *    Kai Hudalla (Bosch Software Innovations GmbH) - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove unused sendRecord
+ *    Achim Kraus (Bosch Software Innovations GmbH) - redesign RecordLayer
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
+
+import java.io.IOException;
 
 /**
  * An abstraction of the DTLS record layer's capabilities for sending records to peers.
  * 
  */
 public interface RecordLayer {
-
-	/**
-	 * Sends a DTLS record to a peer.
-	 * 
-	 * @param record the record to send
-	 */
-	void sendRecord(Record record);
 
 	/**
 	 * Sends a set of records containing DTLS handshake messages to a peer.
@@ -38,10 +35,5 @@ public interface RecordLayer {
 	 * @param flight the records to send. The properties of the flight are used to control the
 	 *                  timespan to wait between re-transmissions. 
 	 */
-	void sendFlight(DTLSFlight flight);
-
-	/**
-	 * Cancels any pending re-transmission of the previous outbound flight.
-	 */
-	public void cancelRetransmissions();
+	void sendFlight(DTLSFlight flight) throws IOException;
 }

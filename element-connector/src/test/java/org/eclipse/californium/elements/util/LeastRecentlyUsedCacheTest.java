@@ -115,27 +115,22 @@ public class LeastRecentlyUsedCacheTest {
 		assume.sleep(THRESHOLD_MILLIS / 2);
 		Iterator<String> valuesIterator = cache.valuesIterator();
 		cache.setUpdatingOnReadAccess(true);
-		assertNext(valuesIterator);
+		assertNext(valuesIterator, assume);
 		cache.setUpdatingOnReadAccess(false);
-		assertNext(valuesIterator);
+		assertNext(valuesIterator, assume);
 		cache.setUpdatingOnReadAccess(true);
-		assertNext(valuesIterator);
+		assertNext(valuesIterator, assume);
 		cache.setUpdatingOnReadAccess(false);
-		assertNext(valuesIterator);
+		assertNext(valuesIterator, assume);
 		cache.setUpdatingOnReadAccess(true);
-		assertNext(valuesIterator);
-		assume.sleep((THRESHOLD_MILLIS / 2) + 100);
+		assertNext(valuesIterator, assume);
+		assume.sleep((THRESHOLD_MILLIS / 2) + 20, 100);
 
 		valuesIterator = cache.valuesIterator();
 		assertNext(valuesIterator, assume);
 		assertNext(valuesIterator, assume);
 		assertNext(valuesIterator, assume);
 		assertFalse(valuesIterator.hasNext());
-	}
-
-	private void assertNext(Iterator<String> iterator) {
-		String value = iterator.hasNext() ? iterator.next() : null;
-		assertNotNull(value);
 	}
 
 	private void assertNext(Iterator<String> iterator, TimeAssume assume) {
@@ -291,7 +286,7 @@ public class LeastRecentlyUsedCacheTest {
 		cache = new LeastRecentlyUsedCache<>(capacity, 0);
 		cache.setExpirationThreshold(expirationThresholdMillis, TimeUnit.MILLISECONDS);
 		for (int i = 0; i < noOfEntries; i++) {
-			cache.put(i, String.valueOf(i));
+			cache.put(i, Integer.toString(i));
 		}
 	}
 

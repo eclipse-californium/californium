@@ -20,8 +20,6 @@ import static org.junit.Assert.*;
 import java.net.InetSocketAddress;
 
 import org.eclipse.californium.scandium.category.Small;
-import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.HashAlgorithm;
-import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.SignatureAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
@@ -58,7 +56,7 @@ public class ECDHServerKeyExchangeTest {
 	@Test
 	public void testDeserializedInstanceToString() throws HandshakeException {
 		byte[] serializedMsg = msg.toByteArray();
-		HandshakeParameter parameter = new HandshakeParameter(KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, true);
+		HandshakeParameter parameter = new HandshakeParameter(KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CertificateType.RAW_PUBLIC_KEY);
 		HandshakeMessage handshakeMsg = HandshakeMessage.fromByteArray(serializedMsg, parameter, peerAddress);
 		assertNotNull(handshakeMsg.toString());
 	}

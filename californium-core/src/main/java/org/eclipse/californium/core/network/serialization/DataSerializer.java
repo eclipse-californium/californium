@@ -30,6 +30,7 @@
 package org.eclipse.californium.core.network.serialization;
 
 import org.eclipse.californium.core.coap.*;
+import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -44,28 +45,46 @@ public abstract class DataSerializer {
 	/**
 	 * Serializes a message to the wire format.
 	 * <p>
-	 * This does <em>not</em> cache the byte array in the message's <em>bytes</em> property.
+	 * This does <em>not</em> cache the byte array in the message's
+	 * <em>bytes</em> property.
 	 * 
 	 * @param message The message to serialize.
 	 * @return The encoded message.
 	 * @throws NullPointerException if message is {@code null}
+	 * @throws IllegalArgumentException if a NON empty-message is provided, or a
+	 *             empty-message uses a none-empty-token.
 	 */
 	public final byte[] getByteArray(final Message message) {
 		if (message == null) {
 			throw new NullPointerException("message must not be null!");
 		}
-		DatagramWriter optionsAndPayloadWriter = new DatagramWriter();
-		serializeOptionsAndPayload(optionsAndPayloadWriter, message.getOptions(), message.getPayload());
-		optionsAndPayloadWriter.writeCurrentByte();
-
-		MessageHeader header = new MessageHeader(CoAP.VERSION, message.getType(), message.getToken(),
-				message.getRawCode(), message.getMID(), optionsAndPayloadWriter.size());
-
 		DatagramWriter messageWriter = new DatagramWriter();
-		serializeHeader(messageWriter, header);
-		messageWriter.writeCurrentByte();
-		messageWriter.write(optionsAndPayloadWriter);
+		if (message.getRawCode() == 0) {
+			// simple serialization for empty message.
+			// https://tools.ietf.org/html/rfc7252#section-4.1
+			if (message.getType() == Type.NON) {
+				throw new IllegalArgumentException("NON message must not use code 0 (empty message)!");
+			} else if (!message.getToken().isEmpty()) {
+				throw new IllegalArgumentException("Empty messages must not use a token!");
+			} else if (message.getPayloadSize() > 0) {
+				throw new IllegalArgumentException("Empty messages must not contain payload!");
+			}
+			MessageHeader header = new MessageHeader(CoAP.VERSION, message.getType(), message.getToken(), 0,
+					message.getMID(), 0);
+			serializeHeader(messageWriter, header);
+			messageWriter.writeCurrentByte();
+		} else {
+			DatagramWriter optionsAndPayloadWriter = new DatagramWriter();
+			serializeOptionsAndPayload(optionsAndPayloadWriter, message.getOptions(), message.getPayload());
+			optionsAndPayloadWriter.writeCurrentByte();
 
+			MessageHeader header = new MessageHeader(CoAP.VERSION, message.getType(), message.getToken(),
+					message.getRawCode(), message.getMID(), optionsAndPayloadWriter.size());
+
+			serializeHeader(messageWriter, header);
+			messageWriter.writeCurrentByte();
+			messageWriter.write(optionsAndPayloadWriter);
+		}
 		return messageWriter.toByteArray();
 	}
 
@@ -110,7 +129,7 @@ public abstract class DataSerializer {
 						request.getBytes(),
 						request.getDestinationContext(),
 						outboundCallback,
-						false);
+						request.isMulticast());
 	}
 
 	/**

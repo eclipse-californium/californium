@@ -41,6 +41,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add handshake parameter available to
  *                                                    process reordered handshake messages
  *    Achim Kraus (Bosch Software Innovations GmbH) - add dtls flight number
+ *    Achim Kraus (Bosch Software Innovations GmbH) - redesign DTLSFlight and RecordLayer
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -51,8 +52,7 @@ import java.security.SecureRandom;
 import java.security.cert.CertPath;
 import java.security.cert.X509Certificate;
 import java.security.interfaces.ECPublicKey;
-import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
@@ -61,7 +61,7 @@ import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
-import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
@@ -102,11 +102,12 @@ public class ClientHandshaker extends Handshaker {
 	protected Integer maxFragmentLengthCode;
 
 	/**
-	 * The certificate types this server supports for client authentication.
+	 * The certificate types this peer supports for client authentication.
 	 */
 	protected final List<CertificateType> supportedClientCertificateTypes;
+
 	/**
-	 * The certificate types this server supports for server authentication.
+	 * The certificate types this peer supports for server authentication.
 	 */
 	protected final List<CertificateType> supportedServerCertificateTypes;
 
@@ -162,35 +163,12 @@ public class ClientHandshaker extends Handshaker {
 		this.certificateChain = config.getCertificateChain();
 		this.publicKey = config.getPublicKey();
 		this.pskStore = config.getPskStore();
-		this.preferredCipherSuites = Arrays.asList(config.getSupportedCipherSuites());
+		this.preferredCipherSuites = config.getSupportedCipherSuites();
 		this.maxFragmentLengthCode = config.getMaxFragmentLengthCode();
 		this.sniEnabled = config.isSniEnabled();
-		this.supportedServerCertificateTypes = new ArrayList<>();
-		this.supportedClientCertificateTypes = new ArrayList<>();
 
-		// we only need to include certificate_type extensions in the CLIENT_HELLO
-		// if we support a cipher suite that requires a certificate exchange
-		if (CipherSuite.containsCipherSuiteRequiringCertExchange(preferredCipherSuites)) {
-
-			// we always support receiving a RawPublicKey from the server
-			this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-			if (certificateVerifier != null) {
-				int index = config.isSendRawKey() ? 1 : 0;
-				this.supportedServerCertificateTypes.add(index, CertificateType.X_509);
-			}
-
-			if (privateKey != null && publicKey != null) {
-				if (certificateChain == null || certificateChain.length == 0) {
-					this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-				} else if (config.isSendRawKey()) {
-					this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-					this.supportedClientCertificateTypes.add(CertificateType.X_509);
-				} else {
-					this.supportedClientCertificateTypes.add(CertificateType.X_509);
-					this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-				}
-			}
-		}
+		this.supportedServerCertificateTypes = config.getTrustCertificateTypes();
+		this.supportedClientCertificateTypes = config.getIdentityCertificateTypes();
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -200,7 +178,7 @@ public class ClientHandshaker extends Handshaker {
 	}
 
 	@Override
-	protected synchronized void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
+	protected void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
 
 		// log record now (even if message is still encrypted) in case an Exception
 		// is thrown during processing
@@ -227,9 +205,7 @@ public class ClientHandshaker extends Handshaker {
 			break;
 
 		case HANDSHAKE:
-			recordLayer.cancelRetransmissions();
 			HandshakeMessage handshakeMsg = (HandshakeMessage) message;
-
 			switch (handshakeMsg.getMessageType()) {
 			case HELLO_REQUEST:
 				receivedHelloRequest();
@@ -295,7 +271,7 @@ public class ClientHandshaker extends Handshaker {
 
 			incrementNextReceiveSeq();
 			LOGGER.debug("Processed {} message with sequence no [{}] from peer [{}]",
-					new Object[]{handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq(), handshakeMsg.getPeer()});
+					handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq(), handshakeMsg.getPeer());
 			break;
 
 		default:
@@ -356,7 +332,7 @@ public class ClientHandshaker extends Handshaker {
 		flightNumber = 3;
 		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
 		flight.addMessage(wrapMessage(clientHello));
-		recordLayer.sendFlight(flight);
+		sendFlight(flight);
 	}
 
 	/**
@@ -394,8 +370,8 @@ public class ClientHandshaker extends Handshaker {
 								message.getPeer()));
 			}
 		}
-		session.setSendRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(serverHello.getClientCertificateType()));
-		session.setReceiveRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(serverHello.getServerCertificateType()));
+		session.setSendCertificateType(serverHello.getClientCertificateType());
+		session.setReceiveCertificateType(serverHello.getServerCertificateType());
 		session.setSniSupported(serverHello.hasServerNameExtension());
 		session.setParameterAvailable();
 	}
@@ -620,8 +596,7 @@ public class ClientHandshaker extends Handshaker {
 		// included, used for server's finished message
 		mdWithClientFinished.update(finished.toByteArray());
 		handshakeHash = mdWithClientFinished.digest();
-
-		recordLayer.sendFlight(flight);
+		sendFlight(flight);
 	}
 
 	private void createCertificateMessage(final DTLSFlight flight) throws HandshakeException {
@@ -631,7 +606,7 @@ public class ClientHandshaker extends Handshaker {
 		 */
 		if (certificateRequest != null) {
 
-			if (session.sendRawPublicKey()) {
+			if (CertificateType.RAW_PUBLIC_KEY == session.sendCertificateType()) {
 				byte[] rawPublicKeyBytes = new byte[0];
 				PublicKey key = determineClientRawPublicKey(certificateRequest);
 				if (key != null) {
@@ -641,12 +616,14 @@ public class ClientHandshaker extends Handshaker {
 					LOGGER.debug("sending CERTIFICATE message with client RawPublicKey [{}] to server", ByteArrayUtils.toHexString(rawPublicKeyBytes));
 				}
 				clientCertificate = new CertificateMessage(rawPublicKeyBytes, session.getPeer());
-			} else {
-				X509Certificate[] clientChain = determineClientCertificateChain(certificateRequest);
+			} else if (CertificateType.X_509 == session.sendCertificateType()) {
+				List<X509Certificate> clientChain = determineClientCertificateChain(certificateRequest);
 				// make sure we only send certs not part of the server's trust anchor
-				X509Certificate[] truncatedChain = certificateRequest.removeTrustedCertificates(clientChain);
-				LOGGER.debug("sending CERTIFICATE message with client certificate chain [length: {}] to server", truncatedChain.length);
+				List<X509Certificate> truncatedChain = certificateRequest.removeTrustedCertificates(clientChain);
+				LOGGER.debug("sending CERTIFICATE message with client certificate chain [length: {}] to server", truncatedChain.size());
 				clientCertificate = new CertificateMessage(truncatedChain, session.getPeer());
+			} else {
+				throw new IllegalArgumentException("Certificate type " + session.sendCertificateType() + " not supported!");
 			}
 			flight.addMessage(wrapMessage(clientCertificate));
 		}
@@ -658,13 +635,11 @@ public class ClientHandshaker extends Handshaker {
 	 * 
 	 * @param certRequest The certificate request containing the constraints to match.
 	 * @return An appropriate key or {@code null} if this handshaker has not been configured with an appropriate key.
-	 * @throws HandshakeException if this handshaker has not been configured with any public key.
 	 */
 	PublicKey determineClientRawPublicKey(CertificateRequest certRequest) throws HandshakeException {
 
 		if (publicKey == null) {
-			throw new HandshakeException("no public key configured",
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, getPeerAddress()));
+			return null;
 		} else {
 			negotiatedSignatureAndHashAlgorithm = certRequest.getSignatureAndHashAlgorithm(publicKey);
 			if (negotiatedSignatureAndHashAlgorithm == null) {
@@ -682,17 +657,15 @@ public class ClientHandshaker extends Handshaker {
 	 * @param certRequest The certificate request containing the constraints to match.
 	 * @return The certificate chain to send to the server. The chain will have length 0 if this handshaker has not been
 	 * configured with an appropriate certificate chain.
-	 * @throws HandshakeException if this handshaker has not been configured with any certificate chain.
 	 */
-	X509Certificate[] determineClientCertificateChain(CertificateRequest certRequest) throws HandshakeException {
+	List<X509Certificate> determineClientCertificateChain(CertificateRequest certRequest) throws HandshakeException {
 
 		if (certificateChain == null) {
-			throw new HandshakeException("no client certificate configured",
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, getPeerAddress()));
+			return Collections.emptyList();
 		} else {
 			negotiatedSignatureAndHashAlgorithm = certRequest.getSignatureAndHashAlgorithm(certificateChain);
 			if (negotiatedSignatureAndHashAlgorithm == null) {
-				return new X509Certificate[0];
+				return Collections.emptyList();
 			} else {
 				return certificateChain;
 			}
@@ -730,8 +703,7 @@ public class ClientHandshaker extends Handshaker {
 		clientHello = startMessage;
 		DTLSFlight flight = new DTLSFlight(session, flightNumber);
 		flight.addMessage(wrapMessage(startMessage));
-
-		recordLayer.sendFlight(flight);
+		sendFlight(flight);
 	}
 
 	private void addServerNameIndication(final ClientHello helloMessage) {

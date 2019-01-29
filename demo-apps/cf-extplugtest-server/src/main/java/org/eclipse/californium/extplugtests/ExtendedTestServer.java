@@ -23,7 +23,10 @@ import java.io.File;
 import java.net.SocketException;
 import java.net.URI;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -68,10 +71,11 @@ public class ExtendedTestServer extends AbstractTestServer {
 			config.setInt(Keys.MAX_ACTIVE_PEERS, 20000);
 			config.setInt(Keys.MAX_PEER_INACTIVITY_PERIOD, 60 * 60 * 24); // 24h
 			config.setInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT, 60 * 60 * 12); // 12h
+			config.setInt(Keys.TLS_HANDSHAKE_TIMEOUT, 60 * 1000); // 60s
 			config.setInt(Keys.SECURE_SESSION_TIMEOUT, 60 * 60 * 24); // 24h
 			config.setInt(Keys.HEALTH_STATUS_INTERVAL, 60); // 60s
 			int processors = Runtime.getRuntime().availableProcessors();
-			config.setInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, processors/2);
+			config.setInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, Math.max((processors / 2), 1));
 			config.setInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, processors);
 		}
 
@@ -96,6 +100,12 @@ public class ExtendedTestServer extends AbstractTestServer {
 		}
 
 		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
+		NetworkConfig udpConfig = new NetworkConfig(config);
+		udpConfig.setInt(Keys.MAX_MESSAGE_SIZE, 64);
+		udpConfig.setInt(Keys.PREFERRED_BLOCK_SIZE, 64);
+		Map<Select, NetworkConfig> protocolConfig = new HashMap<>();
+		protocolConfig.put(new Select(Protocol.UDP, InterfaceType.EXTERNAL), udpConfig);
+
 		// create server
 		try {
 			boolean onlyLoopback = args.length > 0 ? args[0].equalsIgnoreCase("-onlyLoopback") : false;
@@ -117,7 +127,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 					config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT), //
 					new NamedThreadFactory("CoapServer#")); //$NON-NLS-1$
 
-			ExtendedTestServer server = new ExtendedTestServer(config, noBenchmark);
+			ExtendedTestServer server = new ExtendedTestServer(config, protocolConfig, noBenchmark);
 			server.setExecutor(executor);
 			ReverseObserve reverseObserver = new ReverseObserve(config, executor);
 			server.add(reverseObserver);
@@ -129,7 +139,6 @@ public class ExtendedTestServer extends AbstractTestServer {
 
 			// add special interceptor for message traces
 			for (Endpoint ep : server.getEndpoints()) {
-				System.out.println("listen on " + ep.getUri());
 				if (noBenchmark) {
 					// Anonymized IoT metrics for validation. On success, remove the OriginTracer. 
 					URI uri = ep.getUri();
@@ -175,8 +184,8 @@ public class ExtendedTestServer extends AbstractTestServer {
 
 	}
 
-	public ExtendedTestServer(NetworkConfig config, boolean noBenchmark) throws SocketException {
-		super(config);
+	public ExtendedTestServer(NetworkConfig config, Map<Select, NetworkConfig> protocolConfig, boolean noBenchmark) throws SocketException {
+		super(config, protocolConfig);
 		int maxResourceSize = config.getInt(Keys.MAX_RESOURCE_BODY_SIZE);
 		// add resources to the server
 		add(new RequestStatistic());

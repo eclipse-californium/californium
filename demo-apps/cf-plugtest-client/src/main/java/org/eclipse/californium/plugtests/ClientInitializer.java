@@ -44,6 +44,7 @@ import org.eclipse.californium.elements.tcp.TlsClientConnector;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.ServerNames;
@@ -140,6 +141,7 @@ public class ClientInitializer {
 		Connector connector = null;
 		int tcpThreads = config.getInt(NetworkConfig.Keys.TCP_WORKER_THREADS);
 		int tcpConnectTimeout = config.getInt(NetworkConfig.Keys.TCP_CONNECT_TIMEOUT);
+		int tlsHandshakeTimeout = config.getInt(NetworkConfig.Keys.TLS_HANDSHAKE_TIMEOUT);
 		int tcpIdleTimeout = config.getInt(NetworkConfig.Keys.TCP_CONNECTION_IDLE_TIMEOUT);
 		int maxPeers = config.getInt(Keys.MAX_ACTIVE_PEERS);
 		int sessionTimeout = config.getInt(Keys.SECURE_SESSION_TIMEOUT);
@@ -171,9 +173,13 @@ public class ClientInitializer {
 
 			if (arguments.uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME + "://")) {
 				DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
-				if (arguments.rpk || arguments.x509) {
+				if (arguments.rpk) {
 					dtlsConfig.setIdentity(clientCredentials.getPrivateKey(), clientCredentials.getCertificateChain(),
-							arguments.rpk);
+							CertificateType.RAW_PUBLIC_KEY);
+					dtlsConfig.setRpkTrustAll();
+				} else if (arguments.x509) {
+					dtlsConfig.setIdentity(clientCredentials.getPrivateKey(), clientCredentials.getCertificateChain(),
+							CertificateType.X_509);
 					dtlsConfig.setTrustStore(trustedCertificates);
 				} else if (arguments.id != null) {
 					byte[] secret = arguments.secret == null ? null : arguments.secret.getBytes();
@@ -195,7 +201,8 @@ public class ClientInitializer {
 				}
 				connector = dtlsConnector;
 			} else if (arguments.uri.startsWith(CoAP.COAP_SECURE_TCP_URI_SCHEME + "://")) {
-				connector = new TlsClientConnector(clientSslContext, tcpThreads, tcpConnectTimeout, tcpIdleTimeout);
+				connector = new TlsClientConnector(clientSslContext, tcpThreads, tcpConnectTimeout, tlsHandshakeTimeout,
+						tcpIdleTimeout);
 			}
 		} else if (arguments.uri.startsWith(CoAP.COAP_TCP_URI_SCHEME + "://")) {
 			connector = new TcpClientConnector(tcpThreads, tcpConnectTimeout, tcpIdleTimeout);
@@ -203,7 +210,7 @@ public class ClientInitializer {
 			connector = new UDPConnector();
 		}
 
-		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setConnector(connector);
 		builder.setNetworkConfig(config);
 		CoapEndpoint endpoint = builder.build();

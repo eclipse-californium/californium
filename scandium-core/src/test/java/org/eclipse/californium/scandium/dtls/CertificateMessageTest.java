@@ -32,6 +32,9 @@ import java.security.PublicKey;
 import java.security.cert.CertPath;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 import javax.security.auth.x500.X500Principal;
 
@@ -94,11 +97,11 @@ public class CertificateMessageTest {
 	public void testFromByteArrayHandlesEmptyMessageCorrectly() throws HandshakeException {
 		serializedMessage = new byte[]{0x00, 0x00, 0x00}; // length = 0 (empty message)
 		// parse expecting X.509 payload
-		message = CertificateMessage.fromByteArray(serializedMessage, false, peerAddress);
+		message = CertificateMessage.fromByteArray(serializedMessage, CertificateType.X_509, peerAddress);
 		assertSerializedMessageLength(3);
 
 		// parse expecting RawPublicKey payload
-		message = CertificateMessage.fromByteArray(serializedMessage, true, peerAddress);
+		message = CertificateMessage.fromByteArray(serializedMessage, CertificateType.RAW_PUBLIC_KEY, peerAddress);
 		assertSerializedMessageLength(3);
 	}
 
@@ -109,7 +112,7 @@ public class CertificateMessageTest {
 	@Test
 	public void testFromByteArrayCompliesWithRfc7250() throws Exception {
 		givenASerializedRawPublicKeyCertificateMessage(serverPublicKey);
-		message = CertificateMessage.fromByteArray(serializedMessage, true, peerAddress);
+		message = CertificateMessage.fromByteArray(serializedMessage, CertificateType.RAW_PUBLIC_KEY, peerAddress);
 		assertThat(message.getPublicKey(), is(serverPublicKey));
 	}
 
@@ -136,7 +139,7 @@ public class CertificateMessageTest {
 	@Test
 	public void testSerializationUsingRawPublicKey() throws IOException, GeneralSecurityException, HandshakeException {
 		givenACertificateMessage(DtlsTestTools.getServerCertificateChain(), true);
-		HandshakeParameter parameter = new HandshakeParameter(KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, true);
+		HandshakeParameter parameter = new HandshakeParameter(KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CertificateType.RAW_PUBLIC_KEY);
 		PublicKey pk = message.getPublicKey();
 		assertNotNull(pk);
 		serializedMessage = message.toByteArray();
@@ -148,7 +151,7 @@ public class CertificateMessageTest {
 	@Test
 	public void testSerializationUsingX509() throws IOException, GeneralSecurityException, HandshakeException {
 		givenACertificateMessage(DtlsTestTools.getServerCertificateChain(), false);
-		HandshakeParameter parameter = new HandshakeParameter(KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, false);
+		HandshakeParameter parameter = new HandshakeParameter(KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CertificateType.X_509);
 		PublicKey pk = message.getPublicKey();
 		assertNotNull(pk);
 		serializedMessage = message.toByteArray();
@@ -167,7 +170,7 @@ public class CertificateMessageTest {
 		if (useRawPublicKey) {
 			message = new CertificateMessage(chain[0].getPublicKey().getEncoded(), peerAddress);
 		} else {
-			message = new CertificateMessage(chain, peerAddress);
+			message = new CertificateMessage(Arrays.asList(chain), peerAddress);
 		}
 	}
 
@@ -184,7 +187,8 @@ public class CertificateMessageTest {
 	}
 
 	private void givenAnEmptyCertificateMessage() {
-		message = new CertificateMessage(new X509Certificate[]{}, peerAddress);
+		List<X509Certificate> certPath = Collections.emptyList();
+		message = new CertificateMessage(certPath, peerAddress);
 	}
 
 	private void givenAnEmptyRawPublicKeyCertificateMessage() {

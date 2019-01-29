@@ -41,6 +41,7 @@ import java.util.concurrent.TimeUnit;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,7 +78,7 @@ public final class SweepDeduplicator implements Deduplicator {
 		 */
 		public DedupExchange(Exchange exchange) {
 			this.exchange = exchange;
-			this.nanoTimestamp = System.nanoTime();
+			this.nanoTimestamp = ClockUtil.nanoRealtime();
 		}
 	}
 	
@@ -187,7 +188,7 @@ public final class SweepDeduplicator implements Deduplicator {
 		private void sweep() {
 			
 			if (!incomingMessages.isEmpty()) {
-				final long start = System.nanoTime();
+				final long start = ClockUtil.nanoRealtime();
 				final long oldestAllowed = start - TimeUnit.MILLISECONDS.toNanos(exchangeLifetime);
 	
 				// Notice that ConcurrentHashMap guarantees the correctness for this iteration.
@@ -199,7 +200,7 @@ public final class SweepDeduplicator implements Deduplicator {
 						incomingMessages.remove(entry.getKey());
 					}
 				}
-				LOGGER.debug("Sweep run took {}ms", TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start));
+				LOGGER.debug("Sweep run took {}ms", TimeUnit.NANOSECONDS.toMillis(ClockUtil.nanoRealtime() - start));
 			}
 		}
 	}

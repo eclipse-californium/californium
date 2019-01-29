@@ -88,7 +88,7 @@ public class ServerDeduplicationTest {
 		config.setInt(Keys.ACK_TIMEOUT, 1000);
 		config.setFloat(Keys.ACK_TIMEOUT_SCALE, 1.0F);
 		config.setFloat(Keys.ACK_RANDOM_FACTOR, 1.0F);
-		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 		builder.setNetworkConfig(config);
 		Endpoint ep = builder.build();

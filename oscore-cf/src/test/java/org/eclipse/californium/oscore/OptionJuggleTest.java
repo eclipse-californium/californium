@@ -138,7 +138,7 @@ public class OptionJuggleTest {
 		options.setAccept(accept);
 
 		request.setOptions(options);
-		Code realCode = Code.GET;
+		Code realCode = Code.PUT;
 
 		Request realed = OptionJuggle.setRealCodeRequest(request, realCode);
 		OptionSet realOptions = realed.getOptions();

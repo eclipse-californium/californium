@@ -16,6 +16,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
+import static org.eclipse.californium.scandium.ConnectorHelper.newStandardClientConfigBuilder;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -24,6 +25,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -34,8 +36,9 @@ import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
-import org.eclipse.californium.scandium.category.Medium;
+import org.eclipse.californium.scandium.category.Large;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.InMemoryClientSessionCache;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
@@ -57,27 +60,30 @@ import org.slf4j.LoggerFactory;
  * Focus on start and stop the DTLSConnector. Currently it only tests the stop,
  * if the DTLS session is successful established.
  */
-@Category(Medium.class)
+@Category(Large.class)
 public class DTLSConnectorStartStopTest {
 
 	public static final Logger LOGGER = LoggerFactory.getLogger(DTLSConnectorStartStopTest.class.getName());
 
 	@ClassRule
-	public static DtlsNetworkRule network = new DtlsNetworkRule(DtlsNetworkRule.Mode.DIRECT,
-			DtlsNetworkRule.Mode.NATIVE);
+	public static DtlsNetworkRule network = new DtlsNetworkRule(DtlsNetworkRule.Mode.DIRECT, DtlsNetworkRule.Mode.NATIVE);
 
 	@Rule
 	public TestNameLoggerRule names = new TestNameLoggerRule();
 
-	private static final int CLIENT_CONNECTION_STORE_CAPACITY = 5;
+	private static final int CLIENT_CONNECTION_STORE_CAPACITY	= 5;
+	private static final int MAX_TIME_TO_WAIT_SECS				= 5;
 
 	static ConnectorHelper serverHelper;
 	static InMemoryClientSessionCache clientSessionCache;
+	static String testLogTagHead;
+	static int testLogTagCounter;
 
 	DTLSConnector client;
-	DtlsConnectorConfig clientConfig;
 	LatchDecrementingRawDataChannel clientChannel;
 	InMemoryConnectionStore clientConnectionStore;
+
+	String testLogTag = "";
 
 	/**
 	 * Configures and starts a server side connector for running the tests
@@ -89,6 +95,12 @@ public class DTLSConnectorStartStopTest {
 	 */
 	@BeforeClass
 	public static void startServer() throws IOException, GeneralSecurityException {
+		if (testLogTagHead == null) {
+			byte[] logid = new byte[5];
+			SecureRandom rand = new SecureRandom();
+			rand.nextBytes(logid);
+			testLogTagHead = StringUtil.byteArray2HexString(logid, StringUtil.NO_SEPARATOR, 0) + "-";
+		}
 		serverHelper = new ConnectorHelper();
 		serverHelper.startServer();
 		clientSessionCache = new InMemoryClientSessionCache();
@@ -104,12 +116,15 @@ public class DTLSConnectorStartStopTest {
 
 	@Before
 	public void setUp() throws IOException, GeneralSecurityException {
+		testLogTag = testLogTagHead + testLogTagCounter++;
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60, clientSessionCache);
-		clientConnectionStore.setTag("client");
+		clientConnectionStore.setTag(testLogTag + "-client");
 		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
-		clientConfig = ConnectorHelper.newStandardClientConfig(clientEndpoint);
+		DtlsConnectorConfig.Builder builder = newStandardClientConfigBuilder(clientEndpoint)
+				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY);
+		DtlsConnectorConfig clientConfig = builder.build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
-		clientChannel = serverHelper.new LatchDecrementingRawDataChannel();
+		clientChannel = new ConnectorHelper.LatchDecrementingRawDataChannel(client);
 		client.setRawDataReceiver(clientChannel);
 	}
 
@@ -154,11 +169,10 @@ public class DTLSConnectorStartStopTest {
 				client.start();
 			} catch (IOException e) {
 			}
-			Thread.sleep(100);
 			clientConnectionStore.dump();
 			serverHelper.serverConnectionStore.dump();
-			LOGGER.info("start/stop: {}/{} loops, {} msgs server {}, client {}", loop, loops, pending, dest,
-					client.getAddress());
+			LOGGER.info("{} start/stop: {}/{} loops, {} msgs server {}, client {}",
+					testLogTag, loop, loops, pending, dest, client.getAddress());
 
 			List<SimpleMessageCallback> callbacks = new ArrayList<>();
 
@@ -170,18 +184,16 @@ public class DTLSConnectorStartStopTest {
 			callbacks.add(messageCallback);
 			RawData message = RawData.outbound(data, context, messageCallback, false);
 			client.send(message);
-			assertTrue(
-					"loop: " + loop + ", " + pending + " msgs, DTLS handshake timed out after "
-							+ ConnectorHelper.MAX_TIME_TO_WAIT_SECS + " seconds",
-					latch.await(ConnectorHelper.MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
-
+			assertTrue(testLogTag + " loop: " + loop + ", " + pending + " msgs," 
+					+ " DTLS handshake timed out after " + MAX_TIME_TO_WAIT_SECS + " seconds",
+					latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 			if (lastServerRemaining > -1) {
-				assertThat("number of server sessions changed!", serverHelper.serverConnectionStore.remainingCapacity(),
-						is(lastServerRemaining));
+				assertThat(testLogTag + " number of server sessions changed!", 
+						serverHelper.serverConnectionStore.remainingCapacity(), is(lastServerRemaining));
 			}
 
 			for (int index = 1; index < pending; ++index) {
-				LOGGER.info("loop: {}, send {}", loop, index);
+				LOGGER.info("{} loop: {}, send {}", testLogTag, loop, index);
 				messageCallback = new SimpleMessageCallback(0, true, callback);
 				callbacks.add(messageCallback);
 				message = RawData.outbound(data, context, messageCallback, false);
@@ -189,25 +201,26 @@ public class DTLSConnectorStartStopTest {
 			}
 
 			client.stop();
+			serverHelper.serverRawDataProcessor.quiet(100, 5000);
+
 			boolean complete = callback.await(200);
 			if (!complete) {
-				LOGGER.info("loop: {}, still miss {} calls!", loop, callback.getPendingCalls());
+				LOGGER.info("{} loop: {}, still miss {} callbacks!", testLogTag, loop, callback.getPendingCalls());
 				for (int index = 0; index < callbacks.size(); ++index) {
 					SimpleMessageCallback calls = callbacks.get(index);
 					if (!calls.isSent() && calls.getError() == null) {
-						LOGGER.info("loop: {}, call {} {}", loop, index, calls);
+						LOGGER.info("{} loop: {}, call {} {}", testLogTag, loop, index, calls);
 					}
 				}
 			}
-			assertThat("loop: " + loop + ", " + callback.toString(), complete, is(true));
+			assertThat(testLogTag + " loop: " + loop + ", missing callbacks " + callback, complete, is(true));
 			lastServerRemaining = serverHelper.serverConnectionStore.remainingCapacity();
 			if (restart) {
 				client.destroy();
 				setup = true;
 			}
-			assertThat("loop: " + loop + ", " + callback.toString(), callback.await(200), is(true));
-			Thread.sleep(100);
+			System.gc();
+			Thread.sleep(200);
 		}
-		Thread.sleep(100);
 	}
 }

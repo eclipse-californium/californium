@@ -54,15 +54,55 @@ public class TimeAssume {
 	}
 
 	/**
+	 * Create new timing assumption with initial timeout.
+	 * 
+	 * @param timeout initial timeout in milliseconds
+	 * @throws IllegalArgumentException if timeout is not larger than 0
+	 */
+	public TimeAssume(long timeout) {
+		this();
+		if (timeout <= 0) {
+			throw new IllegalArgumentException("timeout must be larger than 0!");
+		}
+		if (enabled) {
+			end = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeout);
+		}
+	}
+
+	/**
 	 * Sleep for provided milliseconds.
 	 * 
-	 * Check the actual times using a tolerance of 10%.
+	 * Check the actual times using a tolerance of 10% and use the 10% as
+	 * timeout for the assumption.
 	 * 
 	 * @param milliseconds time to sleep in milliseconds.
 	 * @throws AssumptionViolatedException if sleep is shorter or longer than
 	 *             the provided time.
+	 * @throws IllegalArgumentException if milliseconds is not larger than 0
 	 */
 	public void sleep(long milliseconds) {
+		sleep(milliseconds, milliseconds / 10);
+	}
+
+	/**
+	 * Sleep for provided milliseconds and setup time assumption with timeout.
+	 * 
+	 * Check the actual times using a tolerance of 10%.
+	 * 
+	 * @param milliseconds time to sleep in milliseconds.
+	 * @param timeout timeout of assumption in milliseconds.
+	 * @throws AssumptionViolatedException if sleep is shorter or longer than
+	 *             the provided time.
+	 * @throws IllegalArgumentException if one of the arguments is not larger
+	 *             than 0
+	 */
+	public void sleep(long milliseconds, long timeout) {
+		if (milliseconds <= 0) {
+			throw new IllegalArgumentException("sleep milliseconds must be larger than 0!");
+		}
+		if (timeout <= 0) {
+			throw new IllegalArgumentException("timeout must be larger than 0!");
+		}
 		long start = System.nanoTime();
 		try {
 			Thread.sleep(milliseconds);

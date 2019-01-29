@@ -144,7 +144,8 @@ public class BenchmarkClient {
 			config.setInt(Keys.MAX_ACTIVE_PEERS, 10);
 			config.setInt(Keys.MAX_PEER_INACTIVITY_PERIOD, 60 * 60 * 24); // 24h
 			config.setInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT, 60 * 60 * 12); // 12h
-			config.setInt(Keys.TCP_CONNECT_TIMEOUT, 5 * 1000); // 5s
+			config.setInt(Keys.TCP_CONNECT_TIMEOUT, 30 * 1000); // 20s
+			config.setInt(Keys.TLS_HANDSHAKE_TIMEOUT, 30 * 1000); // 20s
 			config.setInt(Keys.TCP_WORKER_THREADS, 2);
 			config.setInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, 1);
 			config.setInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, 1);
@@ -395,8 +396,8 @@ public class BenchmarkClient {
 					if (c == 0) {
 						overallRequestsDone.countDown();
 						if (overallReverseResponsesDownCounter.getCount() == 0) {
-    						stop();
-    					}
+							stop();
+						}
 					}
 					return true;
 				} else {
@@ -624,7 +625,7 @@ public class BenchmarkClient {
 
 		// Create & start clients
 		for (int index = 0; index < clients; ++index) {
-			CoapEndpoint.CoapEndpointBuilder endpointBuilder = new CoapEndpoint.CoapEndpointBuilder();
+			CoapEndpoint.Builder endpointBuilder = new CoapEndpoint.Builder();
 			endpointBuilder.setNetworkConfig(config);
 			Arguments connectionArgs = arguments;
 			if (secure) {
@@ -667,10 +668,10 @@ public class BenchmarkClient {
 		long lastRetransmissions = retransmissionCounter.get();
 		long lastTransmissionErrrors = transmissionErrorCounter.get();
 
-		for (BenchmarkClient client : clientList) {
+		for (int index = clients - 1; index >= 0; --index) {
+			BenchmarkClient client = clientList.get(index);
 			client.startBenchmark();
 		}
-
 		System.out.println("Benchmark started.");
 
 		// Wait with timeout or all requests send.

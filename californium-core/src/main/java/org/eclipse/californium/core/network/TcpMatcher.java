@@ -121,7 +121,7 @@ public final class TcpMatcher extends BaseMatcher {
 
 		if (observeRelation != null) {
 			response.addMessageObserver(new MessageObserverAdapter() {
-				
+
 				@Override
 				public void onSendError(Throwable error) {
 					observeRelation.cancel();
@@ -143,58 +143,76 @@ public final class TcpMatcher extends BaseMatcher {
 	}
 
 	@Override
-	public Exchange receiveRequest(Request request) {
+	public void receiveRequest(final Request request, final EndpointReceiver receiver) {
 
-		Exchange exchange = new Exchange(request, Exchange.Origin.REMOTE, executor);
+		final Exchange exchange = new Exchange(request, Exchange.Origin.REMOTE, executor);
 		exchange.setRemoveHandler(exchangeRemoveHandler);
-		return exchange;
+		exchange.execute(new Runnable() {
+
+			@Override
+			public void run() {
+				receiver.receiveRequest(exchange, request);
+			}
+		});
 	}
 
 	@Override
-	public Exchange receiveResponse(final Response response) {
+	public void receiveResponse(final Response response, final EndpointReceiver receiver) {
 
 		final Token idByToken = response.getToken();
-		Exchange exchange = exchangeStore.get(idByToken);
+		Exchange tempExchange = exchangeStore.get(idByToken);
 
-		if (exchange == null) {
+		if (tempExchange == null) {
 			// we didn't find a message exchange for the token from the response
 			// let's try to find an existing observation for the token
-			exchange = matchNotifyResponse(response);
+			tempExchange = matchNotifyResponse(response);
 		}
 
-		if (exchange == null) {
+		if (tempExchange == null) {
 			// There is no exchange with the given token - ignore response
 			LOGGER.trace("discarding unmatchable response from [{}]: {}", response.getSourceContext(), response);
-			return null;
+			return;
 		}
 
-		EndpointContext context = exchange.getEndpointContext();
-		if (context == null) {
-			// ignore response
-			LOGGER.info("ignoring response from [{}]: {}, request pending to sent!", response.getSourceContext(),
-					response);
-			return null;
-		}
+		final Exchange exchange = tempExchange;
+		exchange.execute(new Runnable() {
 
-		try {
-			if (endpointContextMatcher.isResponseRelatedToRequest(context, response.getSourceContext())) {
-				return exchange;
-			} else {
-				LOGGER.info(
-						"ignoring potentially forged response from [{}]: {} for {} with non-matching endpoint context",
-						response.getSourceContext(), response, exchange);
+			@Override
+			public void run() {
+				boolean checkResponseToken = !exchange.isNotification() || exchange.getRequest() != exchange.getCurrentRequest();
+				if (checkResponseToken && exchangeStore.get(idByToken) != exchange) {
+					if (running) {
+						LOGGER.error("ignoring response {}, exchange not longer matching!", response);
+					}
+					return;
+				}
+
+				EndpointContext context = exchange.getEndpointContext();
+				if (context == null) {
+					// ignore response
+					LOGGER.error("ignoring response from [{}]: {}, request pending to sent!",
+							response.getSourceContext(), response);
+					return;
+				}
+				try {
+					if (endpointContextMatcher.isResponseRelatedToRequest(context, response.getSourceContext())) {
+						receiver.receiveResponse(exchange, response);
+					} else {
+						LOGGER.debug(
+								"ignoring potentially forged response from [{}]: {} for {} with non-matching endpoint context",
+								response.getSourceContext(), response, exchange);
+					}
+				} catch (Exception ex) {
+					LOGGER.error("error receiving response from [{}]: {} for {}", response.getSourceContext(), response,
+							exchange, ex);
+				}
 			}
-		} catch (Exception ex) {
-			LOGGER.error("error receiving response from [{}]: {} for {}", response.getSourceContext(), response,
-					exchange, ex);
-		}
-		return null;
+		});
 	}
 
 	@Override
-	public Exchange receiveEmptyMessage(final EmptyMessage message) {
+	public void receiveEmptyMessage(final EmptyMessage message, EndpointReceiver receiver) {
 		/* ignore received empty messages via tcp */
-		return null;
 	}
 
 	private class RemoveHandlerImpl implements RemoveHandler {

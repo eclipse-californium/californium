@@ -21,34 +21,32 @@ import java.util.List;
 
 import org.eclipse.californium.elements.util.StringUtil;
 
-
 public class ClientCertificateTypeExtension extends CertificateTypeExtension {
 
 	// Constructors ///////////////////////////////////////////////////
 
-	/**
-	 * Creates an empty certificate type extension. If it is client-sided
-	 * there is a list of supported certificate type (ordered by preference);
-	 * server-side only 1 certificate type is chosen.
-	 * 
-	 * @param isClient
-	 *            whether this instance is considered the client.
-	 */
-	public ClientCertificateTypeExtension(boolean isClient) {
-		super(ExtensionType.CLIENT_CERT_TYPE, isClient);
+	private ClientCertificateTypeExtension(byte[] extensionData) {
+		super(ExtensionType.CLIENT_CERT_TYPE, extensionData);
 	}
 
 	/**
-	 * Constructs a certificate type extension with a list of supported
-	 * certificate types. The server only chooses 1 certificate type.
+	 * Constructs a client-side certificate type extension with a list of
+	 * supported certificate types.
 	 * 
-	 * @param certificateTypes
-	 *            the list of supported certificate types.
-	 * @param isClient
-	 *            whether this instance is considered the client.
+	 * @param certificateTypes the list of supported certificate types.
 	 */
-	public ClientCertificateTypeExtension(boolean isClient, List<CertificateType> certificateTypes) {
-		super(ExtensionType.CLIENT_CERT_TYPE, isClient, certificateTypes);
+	public ClientCertificateTypeExtension(List<CertificateType> certificateTypes) {
+		super(ExtensionType.CLIENT_CERT_TYPE, certificateTypes);
+	}
+
+	/**
+	 * Constructs a server-side certificate type extension with the supported
+	 * certificate type.
+	 * 
+	 * @param certificateType the supported certificate type.
+	 */
+	public ClientCertificateTypeExtension(CertificateType certificateType) {
+		super(ExtensionType.CLIENT_CERT_TYPE, certificateType);
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -56,16 +54,24 @@ public class ClientCertificateTypeExtension extends CertificateTypeExtension {
 	public String toString() {
 		StringBuilder sb = new StringBuilder(super.toString());
 
-		for (CertificateType type : certificateTypes) {
+		for (CertificateType type : getCertificateTypes()) {
 			sb.append("\t\t\t\tClient certificate type: ").append(type).append(StringUtil.lineSeparator());
 		}
 
 		return sb.toString();
-	};
+	}
 
+	/**
+	 * Constructs a client certificate type extension with a list of supported
+	 * certificate types, or a selected certificate type chosen by the server.
+	 * 
+	 * @param extensionData the list of supported certificate types or the
+	 *            selected certificate type encoded in bytes.
+	 * @return the created certificate type extension
+	 * @throws NullPointerException if extension data is {@code null}
+	 * @throws IllegalArgumentException if extension data is empty
+	 */
 	public static ClientCertificateTypeExtension fromExtensionData(byte[] extensionData) {
-		ClientCertificateTypeExtension ext = new ClientCertificateTypeExtension(extensionData.length > 1);
-		ext.addCertiticateTypes(extensionData);
-		return ext;
+		return new ClientCertificateTypeExtension(extensionData);
 	}
 }

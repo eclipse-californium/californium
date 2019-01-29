@@ -20,6 +20,7 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 
 import javax.crypto.Mac;
+import javax.crypto.ShortBufferException;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.util.StandardCharsets;
@@ -32,7 +33,7 @@ import org.eclipse.californium.scandium.util.ByteArrayUtils;
  */
 public final class PseudoRandomFunction {
 
-	private static final String ALGORITHM_HMAC_SHA256 = "HmacSHA256";
+	public static final String ALGORITHM_HMAC_SHA256 = "HmacSHA256";
 
 	private PseudoRandomFunction() {
 	}
@@ -113,22 +114,55 @@ public final class PseudoRandomFunction {
 	 */
 	static final byte[] doExpansion(Mac hmac, byte[] data, int length) {
 		/*
-		 * P_hash(secret, seed) = HMAC_hash(secret, A(1) + seed) +
-		 * HMAC_hash(secret, A(2) + seed) + HMAC_hash(secret, A(3) + seed) + ...
-		 * where + indicates concatenation. A() is defined as: A(0) = seed, A(i)
-		 * = HMAC_hash(secret, A(i-1))
+		 * RFC 5246, chapter 5, page 15
+		 * 
+		 * P_hash(secret, seed) = 
+		 *    HMAC_hash(secret, A(1) + seed) +
+		 *    HMAC_hash(secret, A(2) + seed) + 
+		 *    HMAC_hash(secret, A(3) + seed) + ...
+		 * where + indicates concatenation.
+		 *  
+		 * A() is defined as: 
+		 *    A(0) = seed, 
+		 *    A(i) = HMAC_hash(secret, A(i-1))
 		 */
 
-		int iterations = (int) Math.ceil(length / (double) hmac.getMacLength());
-		byte[] expansion = new byte[0];
-
-		byte[] A = data;
-		for (int i = 0; i < iterations; i++) {
-			A = hmac.doFinal(A);
-			expansion = ByteArrayUtils.concatenate(expansion, hmac.doFinal(ByteArrayUtils.concatenate(A, data)));
+		int offset = 0;
+		final int macLength = hmac.getMacLength();
+		final byte[] aAndSeed = new byte[macLength + data.length];
+		final byte[] expansion = new byte[length];
+		try {
+			// copy appended seed to buffer end
+			System.arraycopy(data, 0, aAndSeed, macLength, data.length);
+			// calculate A(n) from A(0)
+			hmac.update(data);
+			while (true) {
+				// write result to "A(n) + seed"
+				hmac.doFinal(aAndSeed, 0);
+				// calculate HMAC_hash from "A(n) + seed"
+				hmac.update(aAndSeed);
+				final int nextOffset = offset + macLength;
+				if (nextOffset > length) {
+					// too large for expansion!
+					// write HMAC_hash result temporary to "A(n) + seed"
+					hmac.doFinal(aAndSeed, 0);
+					// write head of result from temporary "A(n) + seed" to expansion
+					System.arraycopy(aAndSeed, 0, expansion, offset, length - offset);
+					break;
+				} else {
+					// write HMAC_hash result to expansion
+					hmac.doFinal(expansion, offset);
+					if (nextOffset == length) {
+						break;
+					}
+				}
+				offset = nextOffset;
+				// calculate A(n+1) from "A(n) + seed" head ("A(n)")
+				hmac.update(aAndSeed, 0, macLength);
+			}
+		} catch (ShortBufferException e) {
+			e.printStackTrace();
 		}
-
-		return ByteArrayUtils.truncate(expansion, length);
+		return expansion;
 	}
-
 }

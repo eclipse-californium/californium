@@ -108,7 +108,7 @@ public class ResourceTreeTest {
 	}
 	
 	private void createServer() {
-		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 		CoapEndpoint endpoint = builder.build();
 		

@@ -840,21 +840,31 @@ public class Record {
 	public DTLSMessage getFragment(final DTLSConnectionState currentReadState) throws GeneralSecurityException, HandshakeException {
 		if (fragment == null) {
 			// decide, which type of fragment need de-cryption
+			byte[] decryptedMessage = decryptFragment(fragmentBytes, currentReadState);
 			switch (type) {
 			case ALERT:
-				fragment = decryptAlert(currentReadState);
+				// http://tools.ietf.org/html/rfc5246#section-7.2:
+				// "Like other messages, alert messages are encrypted and
+				// compressed, as specified by the current connection state."
+				fragment = AlertMessage.fromByteArray(decryptedMessage, getPeerAddress());
 				break;
 
 			case APPLICATION_DATA:
-				fragment = decryptApplicationMessage(currentReadState);
+				// http://tools.ietf.org/html/rfc5246#section-7.2:
+				// "Like other messages, alert messages are encrypted and
+				// compressed, as specified by the current connection state."
+				fragment = ApplicationMessage.fromByteArray(decryptedMessage, getPeerAddress());
 				break;
 
 			case CHANGE_CIPHER_SPEC:
-				fragment = decryptChangeCipherSpec(currentReadState);
+				// http://tools.ietf.org/html/rfc5246#section-7.1:
+				// "is encrypted and compressed under the current (not the pending)
+				// connection state"
+				fragment = ChangeCipherSpecMessage.fromByteArray(decryptedMessage, getPeerAddress());
 				break;
 
 			case HANDSHAKE:
-				fragment = decryptHandshakeMessage(currentReadState);
+				fragment = decryptHandshakeMessage(decryptedMessage);
 				break;
 
 			default:
@@ -865,32 +875,7 @@ public class Record {
 		return fragment;
 	}
 
-	private DTLSMessage decryptAlert(DTLSConnectionState currentReadState) throws GeneralSecurityException, HandshakeException {
-		// http://tools.ietf.org/html/rfc5246#section-7.2:
-		// "Like other messages, alert messages are encrypted and
-		// compressed, as specified by the current connection state."
-		byte[] decryptedMessage = decryptFragment(fragmentBytes, currentReadState);
-		return AlertMessage.fromByteArray(decryptedMessage, getPeerAddress());
-	}
-
-	private DTLSMessage decryptApplicationMessage(DTLSConnectionState currentReadState) throws GeneralSecurityException {
-		// http://tools.ietf.org/html/rfc5246#section-10:
-		// "Application data messages are carried by the record layer and are
-		//  fragmented, compressed, and encrypted based on the current connection
-		//  state."
-		byte[] decryptedMessage = decryptFragment(fragmentBytes, currentReadState);
-		return ApplicationMessage.fromByteArray(decryptedMessage, getPeerAddress());
-	}
-
-	private DTLSMessage decryptChangeCipherSpec(DTLSConnectionState currentReadState) throws GeneralSecurityException, HandshakeException {
-		// http://tools.ietf.org/html/rfc5246#section-7.1:
-		// "is encrypted and compressed under the current (not the pending)
-		// connection state"
-		byte[] decryptedMessage = decryptFragment(fragmentBytes, currentReadState);
-		return ChangeCipherSpecMessage.fromByteArray(decryptedMessage, getPeerAddress());
-	}
-
-	private DTLSMessage decryptHandshakeMessage(DTLSConnectionState currentReadState) throws GeneralSecurityException, HandshakeException {
+	private DTLSMessage decryptHandshakeMessage(byte[] decryptedMessage) throws GeneralSecurityException, HandshakeException {
 		// TODO: it is unclear to me whether handshake messages are encrypted or not
 		// http://tools.ietf.org/html/rfc5246#section-7.4:
 		// "Handshake messages are supplied to the TLS record layer, where they
@@ -900,7 +885,6 @@ public class Record {
 			LOGGER.trace("Decrypting HANDSHAKE message ciphertext{}{}", StringUtil.lineSeparator(),
 				ByteArrayUtils.toHexString(fragmentBytes));
 		}
-		byte[] decryptedMessage = decryptFragment(fragmentBytes, currentReadState);
 
 		HandshakeParameter parameter = null;
 		if (session != null) {
@@ -909,8 +893,7 @@ public class Record {
 			LOGGER.debug("Parsing message without a session");
 		}
 		if (LOGGER.isDebugEnabled()) {
-			StringBuilder msg = new StringBuilder(
-					"Parsing HANDSHAKE message plaintext [{}]");
+			StringBuilder msg = new StringBuilder("Parsing HANDSHAKE message plaintext [{}]");
 			if (LOGGER.isTraceEnabled()) {
 				msg.append(":").append(StringUtil.lineSeparator()).append(ByteArrayUtils.toHexString(decryptedMessage));
 			}

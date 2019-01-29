@@ -17,7 +17,6 @@ package org.eclipse.californium.core.test;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -45,46 +44,34 @@ public class ErrorInjector extends MessageInterceptorAdapter {
 
 	@Override
 	public void sendRequest(final Request request) {
-		request.addMessageObserver(new ErrorInjectorMessageObserver(request));
+		request.addMessageObserver(new ErrorInjectorMessageObserver());
 	}
 
 	@Override
 	public void sendResponse(final Response response) {
-		response.addMessageObserver(new ErrorInjectorMessageObserver(response));
+		response.addMessageObserver(new ErrorInjectorMessageObserver());
 	}
 
 	public class ErrorInjectorMessageObserver extends MessageObserverAdapter {
 
-		private Message message;
-
-		public ErrorInjectorMessageObserver(Message message) {
-			this.message = message;
-		}
-
 		@Override
 		public void onReadyToSend() {
-			if (errorOnReadyToSend.getAndSet(false)) {
-				RuntimeException exception = new IntendedTestException("Simulate error before to sent");
-				message.setSendError(exception);
-				throw exception;
+			if (errorOnReadyToSend.compareAndSet(true, false)) {
+				throw new IntendedTestException("Simulate error before to sent");
 			}
 		}
 
 		@Override
 		public void onSent() {
-			if (errorOnReadyToSend.getAndSet(false)) {
-				RuntimeException exception = new IntendedTestException("Simulate error on sent");
-				message.setSendError(exception);
-				throw exception;
+			if (errorOnReadyToSend.compareAndSet(true, false)) {
+				throw new IntendedTestException("Simulate error on sent");
 			}
 		}
 
 		@Override
 		public void onContextEstablished(EndpointContext endpointContext) {
-			if (errorOnEstablishedContext.getAndSet(false)) {
-				RuntimeException exception = new IntendedTestException("Simulate error on context established");
-				message.setSendError(exception);
-				throw exception;
+			if (errorOnEstablishedContext.compareAndSet(true, false)) {
+				throw new IntendedTestException("Simulate error on context established");
 			}
 		}
 	}

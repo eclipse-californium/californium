@@ -24,6 +24,7 @@
  *                                                    add port to exception message.
  *    Achim Kraus (Bosch Software Innovations GmbH) - add message buffer to write
  *                                                    logging only on failure.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - implement multicast support
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
@@ -38,6 +39,10 @@ import java.net.PortUnreachableException;
 import java.net.SocketException;
 import java.net.SocketOptions;
 import java.net.SocketTimeoutException;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -46,6 +51,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.elements.runner.BufferedLoggingTestRunner;
@@ -60,6 +66,15 @@ import org.slf4j.LoggerFactory;
  * port in range {@link #AUTO_PORT_RANGE_MIN} to {@link #AUTO_PORT_RANGE_MAX}.
  * The full range is used before any free port is reused.
  * 
+ * Though the communication is done "in process", the used "network interfaces"
+ * are ignored. The message delivery is done only based on the port numbers. If
+ * the datagram socket is bound to a any address, a received message will be
+ * processed assuming being received with the same host interface information as
+ * the sender of the message, so mostly "localhost" is assumed as receiving
+ * interface. That also applies for multicast, the primary delivery is based on
+ * the port number, the joined group addresses are only used to filter after
+ * mapping the message to the port.
+ * 
  * To log all exchanged message, use level DEBUG. If sending and receiving
  * should be distinguished, use level TRACE. If the messages should only be
  * written on failure, use INFO and the {@link BufferedLoggingTestRunner}. For
@@ -73,8 +88,7 @@ import org.slf4j.LoggerFactory;
  * file, usually "-Dlogback.configurationFile=logback-test.xml" should work for
  * the most californium modules.
  * 
- * Currently neither multicast nor specific/multi network interfaces are
- * supported.
+ * Neither specific nor multi-network-interfaces are supported.
  */
 public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 
@@ -98,12 +112,10 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 	 * {@link #initialize(DatagramSocketImplFactory)}.
 	 */
 	private static final DatagramSocketImplFactory DEFAULT = new DirectDatagramSocketImplFactory();
-
 	/**
 	 * Map of sockets.
 	 */
-	private static final ConcurrentMap<Integer, DirectDatagramSocketImpl> map = new ConcurrentHashMap<Integer, DirectDatagramSocketImpl>();
-
+	private static final ConcurrentMap<Integer, List<DirectDatagramSocketImpl>> map = new ConcurrentHashMap<Integer, List<DirectDatagramSocketImpl>>();
 	/**
 	 * List of buffered logging messages.
 	 */
@@ -112,6 +124,10 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 	 * Enable buffered logging.
 	 */
 	private static final AtomicBoolean enableLoggingBuffer = new AtomicBoolean();
+	/**
+	 * Time of last enabling buffered logging in system nanos.
+	 */
+	private static final AtomicLong loggingBufferStartTimeNanos = new AtomicLong();
 
 	/**
 	 * Initialization indicator.
@@ -152,6 +168,14 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 	private boolean closed;
 
 	/**
+	 * Set of multicast group addresses.
+	 * 
+	 * @see #join(InetAddress)
+	 * @see #leave(InetAddress)
+	 */
+	private final Set<InetAddress> multicast = new HashSet<>();
+
+	/**
 	 * Create instance of this socket implementation.
 	 */
 	private DirectDatagramSocketImpl() {
@@ -181,8 +205,13 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 		}
 		LOGGER.debug("closing port {}, address {}", port, addr);
 		if (!isClosed) {
-			if (!map.remove(port, this)) {
+			List<DirectDatagramSocketImpl> destinations = map.get(port);
+			if (destinations == null) {
 				LOGGER.info("cannot close unknown port {}, address {}", port, addr);
+			} else if (!destinations.remove(this)) {
+				LOGGER.info("cannot close unknown port {}, address {}", port, addr);
+			} else if (destinations.isEmpty()) {
+				map.remove(port, destinations);
 			}
 		}
 	}
@@ -231,7 +260,9 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 		} else if (LOGGER.isDebugEnabled()) {
 			LOGGER.debug(">> {}", exchange.format(currentSetup));
 		} else if (LOGGER.isInfoEnabled() && enableLoggingBuffer.get()) {
-			logBuffer.offer(exchange.format(currentSetup));
+			String line = exchange.format(currentSetup);
+			long time = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - loggingBufferStartTimeNanos.get());
+			logBuffer.offer(String.format("%04d: %s", time, line));
 		}
 		int receivedLength = exchange.data.length;
 		int destPacketLength = destPacket.getLength();
@@ -264,30 +295,51 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 			port = this.localPort;
 			local = this.localAddress;
 		}
+		final InetAddress destinationAddress = packet.getAddress();
 		if (local.isAnyLocalAddress()) {
 			// adjust any to destination host
-			local = packet.getAddress();
+			if (destinationAddress.isMulticastAddress()) {
+				local = InetAddress.getLocalHost();
+			} else {
+				local = destinationAddress;
+			}
 		}
 		final Setup currentSetup = setup.get();
 		final DatagramExchange exchange = new DatagramExchange(local, port, packet);
-		final DirectDatagramSocketImpl destination = map.get(exchange.destinationPort);
-		if (null == destination) {
+		if (isClosed) {
+			if (LOGGER.isWarnEnabled()) {
+				LOGGER.warn("closed/packet dropped! {}", exchange.format(currentSetup));
+			}
+			throw new SocketException("socket is closed");
+		}
+		List<DirectDatagramSocketImpl> destinations = map.get(exchange.destinationPort);
+		if (null == destinations) {
 			String message = String.format("destination port %s not available!", exchange.destinationPort);
 			if (LOGGER.isErrorEnabled()) {
 				LOGGER.error("{} {}", message, exchange.format(currentSetup));
 			}
 			throw new PortUnreachableException(message);
-		} else if (isClosed) {
-			if (LOGGER.isWarnEnabled()) {
-				LOGGER.warn("closed/packet dropped! {}", exchange.format(currentSetup));
-			}
-			throw new SocketException("socket is closed");
-		} else if (!destination.incomingQueue.offer(exchange)) {
+		}
+		// protect from parallel close()
+		destinations = new ArrayList<>(destinations);
+		if (destinations.isEmpty()) {
+			String message = String.format("destination port %s not longer available!", exchange.destinationPort);
 			if (LOGGER.isErrorEnabled()) {
-				LOGGER.error("packet dropped! {}", exchange.format(currentSetup));
+				LOGGER.error("{} {}", message, exchange.format(currentSetup));
 			}
-			throw new PortUnreachableException("buffer exhausted");
-		} else if (LOGGER.isTraceEnabled()) {
+			throw new PortUnreachableException(message);
+		}
+		for (DirectDatagramSocketImpl destinationSocket : destinations) {
+			if (destinationSocket.matches(destinationAddress)) {
+				if (!destinationSocket.incomingQueue.offer(exchange)) {
+					if (LOGGER.isErrorEnabled()) {
+						LOGGER.error("packet dropped! {}", exchange.format(currentSetup));
+					}
+					throw new PortUnreachableException("buffer exhausted");
+				}
+			}
+		}
+		if (LOGGER.isTraceEnabled()) {
 			LOGGER.trace("outgoing {}", exchange.format(currentSetup));
 		}
 	}
@@ -302,6 +354,20 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 	@Override
 	protected int peekData(DatagramPacket p) throws IOException {
 		throw new IOException("peekData(DatagramPacket) not supported!");
+	}
+
+	@Override
+	protected void join(InetAddress inetaddr) throws IOException {
+		synchronized (multicast) {
+			multicast.add(inetaddr);
+		}
+	}
+
+	@Override
+	protected void leave(InetAddress inetaddr) throws IOException {
+		synchronized (multicast) {
+			multicast.remove(inetaddr);
+		}
 	}
 
 	/**
@@ -392,10 +458,12 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 	 *             no free port is available.
 	 */
 	private int bind(int lport) throws SocketException {
+		List<DirectDatagramSocketImpl> newDestinations = new ArrayList<>();
+		newDestinations.add(this);
 		if (0 >= lport) {
 			int count = AUTO_PORT_RANGE_SIZE;
 			int port = AUTO_PORT_RANGE_MIN + nextPort.getAndIncrement() % AUTO_PORT_RANGE_SIZE;
-			while (null != map.putIfAbsent(port, this)) {
+			while (null != map.putIfAbsent(port, newDestinations)) {
 				port = AUTO_PORT_RANGE_MIN + nextPort.getAndIncrement() % AUTO_PORT_RANGE_SIZE;
 				if (0 >= --count) {
 					throw new SocketException("No left free port!");
@@ -404,8 +472,24 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 			LOGGER.debug("assigned port {}", port);
 			return port;
 		} else {
-			if (null != map.putIfAbsent(lport, this)) {
-				throw new SocketException("Port " + lport + " already used!");
+			List<DirectDatagramSocketImpl> destinations = map.putIfAbsent(lport, newDestinations);
+			if (null != destinations) {
+				boolean reuse = getReuseAddress();
+				if (reuse) {
+					for (DirectDatagramSocketImpl destination : destinations) {
+						if (!destination.getReuseAddress()) {
+							reuse = false;
+							break;
+						}
+					}
+				}
+				if (reuse) {
+					destinations.add(this);
+					// put again, may be removed by a parallel close.
+					map.putIfAbsent(lport, destinations);
+				} else {
+					throw new SocketException("Port " + lport + " already used!");
+				}
 			}
 			return lport;
 		}
@@ -424,6 +508,30 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 		} else {
 			return 0;
 		}
+	}
+
+	/**
+	 * Get socket reuse indicator.
+	 * 
+	 * @return {@code true} it the socket may be reused by other sockets (sharing the same port).
+	 * @throws SocketException not used
+	 */
+	private boolean getReuseAddress() throws SocketException {
+		Object option = getOption(SocketOptions.SO_REUSEADDR);
+		if (option instanceof Boolean) {
+			return ((Boolean) option).booleanValue();
+		} else {
+			return false;
+		}
+	}
+
+	private boolean matches(InetAddress destination) {
+		if (destination.isMulticastAddress()) {
+			synchronized (multicast) {
+				return multicast.contains(destination);
+			}
+		}
+		return true;
 	}
 
 	/**
@@ -505,8 +613,9 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 	 * Clear all messages in the logging buffer. Enables buffered logging.
 	 */
 	public static void clearBufferLogging() {
-		enableLoggingBuffer.set(true);
+		loggingBufferStartTimeNanos.set(System.nanoTime());
 		logBuffer.clear();
+		enableLoggingBuffer.set(true);
 	}
 
 	/**

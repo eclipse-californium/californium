@@ -26,6 +26,9 @@
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - don't add canceled
  *                                                    observation-relations again.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add iPATCH
+ *                                                    cleanup source according 
+ *                                                    coding guidelines
  ******************************************************************************/
 package org.eclipse.californium.core;
 
@@ -135,43 +138,43 @@ public  class CoapResource implements Resource {
 
 	/** The logger. */
 	protected final static Logger LOGGER = LoggerFactory.getLogger(CoapResource.class.getCanonicalName());
-	
+
 	/* The attributes of this resource. */
 	private final ResourceAttributes attributes;
-	
+
 	/* The resource name. */
 	private String name;
-	
+
 	/* The resource path. */
 	private String path;
-	
+
 	/* Indicates whether this resource is visible to clients. */
 	private boolean visible;
-	
+
 	/* Indicates whether this resource is observable by clients. */
 	private boolean observable;
-	
+
 	/* The child resources.
 	 * We need a ConcurrentHashMap to have stronger guarantees in a
 	 * multi-threaded environment (e.g. for discovery to work properly).
 	 */
 	private ConcurrentHashMap<String, Resource> children;
-	
+
 	/* The parent of this resource. */
 	private Resource parent;
-	
+
 	/* The type used for notifications (no change when set to null) */
 	private Type observeType = null;
-	
+
 	/* The list of observers (not CoAP observer). */
 	private List<ResourceObserver> observers;
 
 	/* The the list of CoAP observe relations. */
 	private ObserveRelationContainer observeRelations;
-	
+
 	/* The notification orderer. */
 	private ObserveNotificationOrderer notificationOrderer;
-	
+
 	/**
 	 * Constructs a new resource with the specified name.
 	 *
@@ -180,7 +183,7 @@ public  class CoapResource implements Resource {
 	public CoapResource(String name) {
 		this(name, true);
 	}
-	
+
 	/**
 	 * Constructs a new resource with the specified name and makes it visible to
 	 * clients if the flag is true.
@@ -221,9 +224,10 @@ public  class CoapResource implements Resource {
 			case DELETE: handleDELETE(new CoapExchange(exchange, this)); break;
 			case FETCH: handleFETCH(new CoapExchange(exchange, this)); break;
 			case PATCH: handlePATCH(new CoapExchange(exchange, this)); break;
+			case IPATCH: handleIPATCH(new CoapExchange(exchange, this)); break;
 		}
 	}
-	
+
 	/**
 	 * Handles the GET request in the given CoAPExchange. By default it responds
 	 * with a 4.05 (Method Not Allowed). Override this method to respond
@@ -235,7 +239,7 @@ public  class CoapResource implements Resource {
 	public void handleGET(CoapExchange exchange) {
 		exchange.respond(ResponseCode.METHOD_NOT_ALLOWED);
 	}
-	
+
 	/**
 	 * Handles the POST request in the given CoAPExchange. By default it
 	 * responds with a 4.05 (Method Not Allowed). Override this method to
@@ -247,7 +251,7 @@ public  class CoapResource implements Resource {
 	public void handlePOST(CoapExchange exchange) {
 		exchange.respond(ResponseCode.METHOD_NOT_ALLOWED);
 	}
-	
+
 	/**
 	 * Handles the PUT request in the given CoAPExchange. By default it responds
 	 * with a 4.05 (Method Not Allowed). Override this method to respond
@@ -259,7 +263,7 @@ public  class CoapResource implements Resource {
 	public void handlePUT(CoapExchange exchange) {
 		exchange.respond(ResponseCode.METHOD_NOT_ALLOWED);
 	}
-	
+
 	/**
 	 * Handles the DELETE request in the given CoAPExchange. By default it
 	 * responds with a 4.05 (Method Not Allowed). Override this method to
@@ -271,7 +275,7 @@ public  class CoapResource implements Resource {
 	public void handleDELETE(CoapExchange exchange) {
 		exchange.respond(ResponseCode.METHOD_NOT_ALLOWED);
 	}
-	
+
 	/**
 	 * Handles the FETCH request in the given CoAPExchange. By default it
 	 * responds with a 4.05 (Method Not Allowed). Override this method to
@@ -283,19 +287,31 @@ public  class CoapResource implements Resource {
 	public void handleFETCH(CoapExchange exchange) {
 		exchange.respond(ResponseCode.METHOD_NOT_ALLOWED);
 	}
-	
+
 	/**
-	 * Handles the PATCH request in the given CoAPExchange. By default it
-	 * responds with a 4.05 (Method Not Allowed). Override this method to
-	 * respond differently to PATCH requests. The response code to a PATCH
-	 * requests are Created (2.01) and Changed (2.04).
+	 * Handles the PATCH request in the given CoAPExchange (not idempotent). By
+	 * default it responds with a 4.05 (Method Not Allowed). Override this
+	 * method to respond differently to PATCH requests. The response code to a
+	 * PATCH requests are Created (2.01) and Changed (2.04).
 	 *
 	 * @param exchange the CoapExchange for the simple API
 	 */
 	public void handlePATCH(CoapExchange exchange) {
 		exchange.respond(ResponseCode.METHOD_NOT_ALLOWED);
 	}
-	
+
+	/**
+	 * Handles the IPATCH request in the given CoAPExchange (idempotent). By
+	 * default it responds with a 4.05 (Method Not Allowed). Override this
+	 * method to respond differently to IPATCH requests. The response code to a
+	 * IPATCH requests are Created (2.01) and Changed (2.04).
+	 *
+	 * @param exchange the CoapExchange for the simple API
+	 */
+	public void handleIPATCH(CoapExchange exchange) {
+		exchange.respond(ResponseCode.METHOD_NOT_ALLOWED);
+	}
+
 	/**
 	 * This method is used to apply resource-specific knowledge on the exchange.
 	 * If the request was successful, it sets the Observe option for the
@@ -335,7 +351,7 @@ public  class CoapResource implements Resource {
 			}
 		} // ObserveLayer takes care of the else case
 	}
-	
+
 	/**
 	 * Creates a {@link CoapClient} that uses the same executor as this resource
 	 * and one of the endpoints that this resource belongs to. If no executor is
@@ -349,12 +365,13 @@ public  class CoapResource implements Resource {
 	public CoapClient createClient() {
 		CoapClient client = new CoapClient();
 		client.setExecutor(getExecutor());
-		List<Endpoint> endpoints = getEndpoints();
-		if (!endpoints.isEmpty())
+		final List<Endpoint> endpoints = getEndpoints();
+		if (!endpoints.isEmpty()) {
 			client.setEndpoint(endpoints.get(0));
+		}
 		return client;
 	}
-	
+
 	/**
 	 * Creates a {@link CoapClient} that uses the same executor as this resource
 	 * and one of the endpoints that this resource belongs to. If no executor is
@@ -369,7 +386,7 @@ public  class CoapResource implements Resource {
 	public CoapClient createClient(URI uri) {
 		return createClient().setURI(uri.toString());
 	}
-	
+
 	/**
 	 * Creates a {@link CoapClient} that uses the same executor as this resource
 	 * and one of the endpoints that this resource belongs to. If no executor is
@@ -384,22 +401,25 @@ public  class CoapResource implements Resource {
 	public CoapClient createClient(String uri) {
 		return createClient().setURI(uri);
 	}
-	
+
 	/* (non-Javadoc)
 	 * @see org.eclipse.californium.core.server.resources.Resource#add(org.eclipse.californium.core.server.resources.Resource)
 	 */
 	@Override
 	public synchronized void add(Resource child) {
-		if (child.getName() == null)
+		if (child.getName() == null) {
 			throw new NullPointerException("Child must have a name");
-		if (child.getParent() != null)
+		}
+		if (child.getParent() != null) {
 			child.getParent().delete(child);
+		}
 		children.put(child.getName(), child);
 		child.setParent(this);
-		for (ResourceObserver obs:observers)
+		for (ResourceObserver obs : observers) {
 			obs.addedChild(child);
+		}
 	}
-	
+
 	/**
 	 * Adds the specified resource as child. This method is syntactic sugar to
 	 * have a fluent-interface when adding resources to a tree. For instance,
@@ -425,10 +445,10 @@ public  class CoapResource implements Resource {
 	 * @return this
 	 */
 	public synchronized CoapResource add(CoapResource child) {
-		add( (Resource) child);
+		add((Resource) child);
 		return this;
 	}
-	
+
 	/**
 	 * Adds the specified resource as child. This method is syntactic sugar to
 	 * have a fluent-interface when adding resources to a tree. For instance,
@@ -454,27 +474,29 @@ public  class CoapResource implements Resource {
 	 * @return this
 	 */
 	public synchronized CoapResource add(CoapResource... children) {
-		for (CoapResource child:children)
+		for (CoapResource child : children) {
 			add(child);
+		}
 		return this;
 	}
-	
+
 	/* (non-Javadoc)
 	 * @see org.eclipse.californium.core.server.resources.Resource#delete(org.eclipse.californium.core.server.resources.Resource)
 	 */
 	@Override
 	public synchronized boolean delete(Resource child) {
-		Resource deleted = delete(child.getName());
+		final Resource deleted = delete(child.getName());
 		if (deleted == child) {
 			child.setParent(null);
 			child.setPath(null);
-			for (ResourceObserver obs : observers)
+			for (ResourceObserver obs : observers) {
 				obs.removedChild(child);
+			}
 			return true;
 		}
 		return false;
 	}
-	
+
 	/**
 	 * Removes the child with the specified name and returns it. If no child
 	 * with the specified name is found, the return value is null.
@@ -485,13 +507,13 @@ public  class CoapResource implements Resource {
 	public synchronized Resource delete(String name) {
 		return children.remove(name);
 	}
-	
+
 	/**
 	 * Delete this resource from its parents and notify all observing CoAP
 	 * clients that this resource is no longer accessible.
 	 */
 	public synchronized void delete() {
-		Resource parent = getParent();
+		final Resource parent = getParent();
 		if (parent != null) {
 			parent.delete(this);
 		}
@@ -500,7 +522,7 @@ public  class CoapResource implements Resource {
 			clearAndNotifyObserveRelations(ResponseCode.NOT_FOUND);
 		}
 	}
-	
+
 	/**
 	 * Remove all observe relations to CoAP clients and notify them that the
 	 * observe relation has been canceled.
@@ -519,21 +541,21 @@ public  class CoapResource implements Resource {
 		 * from the list of observers.
 		 * This method is called, when the resource is deleted.
 		 */
-		for (ObserveRelation relation:observeRelations) {
+		for (ObserveRelation relation : observeRelations) {
 			relation.cancel();
 			relation.getExchange().sendResponse(new Response(code));
 		}
 	}
-	
+
 	/**
 	 * Cancel all observe relations to CoAP clients.
 	 */
 	public void clearObserveRelations() {
-		for (ObserveRelation relation:observeRelations) {
+		for (ObserveRelation relation : observeRelations) {
 			relation.cancel();
 		}
 	}
-	
+
 	/* (non-Javadoc)
 	 * @see org.eclipse.californium.core.server.resources.Resource#getParent()
 	 */
@@ -541,17 +563,18 @@ public  class CoapResource implements Resource {
 	public Resource getParent() {
 		return parent;
 	}
-	
+
 	/* (non-Javadoc)
 	 * @see org.eclipse.californium.core.server.resources.Resource#setParent(org.eclipse.californium.core.server.resources.Resource)
 	 */
 	public void setParent(Resource parent) {
 		this.parent = parent;
-		if (parent != null)
+		if (parent != null) {
 			this.path = parent.getPath()  + parent.getName() + "/";
+		}
 		adjustChildrenPath();
 	}
-	
+
 	/* (non-Javadoc)
 	 * @see org.eclipse.californium.core.server.resources.Resource#getChild(java.lang.String)
 	 */
@@ -583,7 +606,7 @@ public  class CoapResource implements Resource {
 	public ResourceAttributes getAttributes() {
 		return attributes;
 	}
-	
+
 	/* (non-Javadoc)
 	 * @see org.eclipse.californium.core.server.resources.Resource#getName()
 	 */
@@ -620,10 +643,11 @@ public  class CoapResource implements Resource {
 	 * @see org.eclipse.californium.core.server.resources.Resource#setPath(java.lang.String)
 	 */
 	public synchronized void setPath(String path) {
-		String old = this.path;
+		final String old = this.path;
 		this.path = path;
-		for (ResourceObserver obs:observers)
+		for (ResourceObserver obs : observers) {
 			obs.changedPath(old);
+		}
 		adjustChildrenPath();
 	}
 
@@ -632,12 +656,13 @@ public  class CoapResource implements Resource {
 	 * @see org.eclipse.californium.core.server.resources.Resource#setName(java.lang.String)
 	 */
 	public synchronized void setName(String name) {
-		if (name == null)
-			throw new NullPointerException();
+		if (name == null) {
+			throw new NullPointerException("name must not be null!");
+		}
 		String old = this.name;
-		
+
 		// adjust parent if in tree
-		Resource parent = getParent();
+		final Resource parent = getParent();
 		if (parent!=null) {
 			synchronized (parent) {
 				parent.delete(this);
@@ -648,22 +673,24 @@ public  class CoapResource implements Resource {
 			this.name = name;
 		}
 		adjustChildrenPath();
-		
-		for (ResourceObserver obs:observers)
+
+		for (ResourceObserver obs : observers) {
 			obs.changedName(old);
+		}
 	}
-	
+
 	/**
 	 * Adjust the path of all children. This method is invoked when the URI of
 	 * this resource has changed, e.g., if its name or the name of an ancestor
 	 * has changed.
 	 */
 	private void adjustChildrenPath() {
-		String childpath = path + name + /*since 23.7.2013*/ "/";
-		for (Resource child:children.values())
+		String childpath = path + name + /* since 23.7.2013 */ "/";
+		for (Resource child : children.values()) {
 			child.setPath(childpath);
+		}
 	}
-	
+
 	/* (non-Javadoc)
 	 * @see org.eclipse.californium.core.server.resources.Resource#isVisible()
 	 */
@@ -671,7 +698,7 @@ public  class CoapResource implements Resource {
 	public boolean isVisible() {
 		return visible;
 	}
-	
+
 	/**
 	 * Marks this resource as visible to CoAP clients.
 	 *
@@ -680,7 +707,7 @@ public  class CoapResource implements Resource {
 	public void setVisible(boolean visible) {
 		this.visible = visible;
 	}
-	
+
 	/* (non-Javadoc)
 	 * @see org.eclipse.californium.core.server.resources.Resource#isObservable()
 	 */
@@ -697,7 +724,7 @@ public  class CoapResource implements Resource {
 	public void setObservable(boolean observable) {
 		this.observable = observable;
 	}
-	
+
 	/**
 	 * Sets the type of the notifications that will be sent.
 	 * If set to null (default) the type matching the request will be used.
@@ -706,7 +733,9 @@ public  class CoapResource implements Resource {
 	 * @throws IllegalArgumentException if illegal types for notifications are passed 
 	 */
 	public void setObserveType(Type type) {
-		if (type == Type.ACK || type == Type.RST) throw new IllegalArgumentException("Only CON and NON notifications are allowed or null for no changes by the framework");
+		if (type == Type.ACK || type == Type.RST) {
+			throw new IllegalArgumentException("Only CON and NON notifications are allowed or null for no changes by the framework");
+		}
 		this.observeType = type;
 	}
 
@@ -722,8 +751,9 @@ public  class CoapResource implements Resource {
 			LOGGER.info("successfully established observe relation between {} and resource {} ({}, size {})",
 					relation.getKey(), getURI(), relation.getExchange(), observeRelations.getSize());
 		}
-		for (ResourceObserver obs:observers)
+		for (ResourceObserver obs:observers) {
 			obs.addedObserveRelation(relation);
+		}
 	}
 
 	/* (non-Javadoc)
@@ -739,7 +769,7 @@ public  class CoapResource implements Resource {
 			}
 		}
 	}
-	
+
 	/**
 	 * Returns the number of observe relations that this resource has to CoAP
 	 * clients.
@@ -749,7 +779,7 @@ public  class CoapResource implements Resource {
 	public int getObserverCount() {
 		return observeRelations.getSize();
 	}
-	
+
 	/**
 	 * Notifies all CoAP clients that have established an observe relation with
 	 * this resource that the state has changed by reprocessing their original
@@ -778,16 +808,21 @@ public  class CoapResource implements Resource {
 	 * @see #changed()
 	 */
 	public void changed(final ObserveRelationFilter filter) {
-		Executor executor = getExecutor();
-		// use thread from the protocol stage
-		if (executor == null) notifyObserverRelations(filter);
-		// use thread from the resource pool
-		else executor.execute(new Runnable() {
-			public void run() {
-				notifyObserverRelations(filter);
-			}});
+		final Executor executor = getExecutor();
+		if (executor == null) {
+			// use thread from the protocol stage
+			notifyObserverRelations(filter);
+		} else {
+			// use thread from the resource pool
+			executor.execute(new Runnable() {
+
+				public void run() {
+					notifyObserverRelations(filter);
+				}
+			});
+		}
 	}
-	
+
 	/**
 	 * Notifies all CoAP clients that have established an observe relation with
 	 * this resource that the state has changed by reprocessing their original
@@ -798,8 +833,10 @@ public  class CoapResource implements Resource {
 	 */
 	protected void notifyObserverRelations(final ObserveRelationFilter filter) {
 		notificationOrderer.getNextObserveNumber();
-		for (ObserveRelation relation:observeRelations) {
-			if (null == filter || filter.accept(relation)) relation.notifyObservers();
+		for (ObserveRelation relation : observeRelations) {
+			if (null == filter || filter.accept(relation)) {
+				relation.notifyObservers();
+			}
 		}
 	}
 
@@ -810,14 +847,15 @@ public  class CoapResource implements Resource {
 	public Collection<Resource> getChildren() {
 		return children.values();
 	}
-	
+
 	/* (non-Javadoc)
 	 * @see org.eclipse.californium.core.server.resources.Resource#getExecutor()
 	 */
 	public ExecutorService getExecutor() {
+		final Resource parent = getParent();
 		return parent != null ? parent.getExecutor() : null;
 	}
-	
+
 	/**
 	 * Execute an arbitrary task on the executor of this resource or the first
 	 * parent that defines its own executor. If no parent defines an executor,
@@ -826,13 +864,16 @@ public  class CoapResource implements Resource {
 	 * @param task the task
 	 */
 	public void execute(Runnable task) {
-		Executor executor = getExecutor();
-		// use thread from the protocol stage
-		if (executor == null) task.run();
-		// use thread from the resource pool
-		else executor.execute(task);
+		final Executor executor = getExecutor();
+		if (executor == null) {
+			// use thread from the protocol stage
+			task.run();
+		} else {
+			// use thread from the resource pool
+			executor.execute(task);
+		}
 	}
-	
+
 	/**
 	 * Execute an arbitrary task on the executor of this resource or the first
 	 * parent that defines its own executor and wait until it the task is
@@ -852,13 +893,16 @@ public  class CoapResource implements Resource {
 		});
 		semaphore.acquire();
 	}
-	
+
 	/* (non-Javadoc)
 	 * @see org.eclipse.californium.core.server.resources.Resource#getEndpoints()
 	 */
 	public List<Endpoint> getEndpoints() {
-		if (parent == null)
+		final Resource parent = getParent();
+		if (parent == null) {
 			return Collections.emptyList();
-		else return parent.getEndpoints();
+		} else {
+			return parent.getEndpoints();
+		}
 	}
 }

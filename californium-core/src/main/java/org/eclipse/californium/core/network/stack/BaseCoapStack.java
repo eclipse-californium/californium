@@ -21,11 +21,15 @@
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  * Achim Kraus (Bosch Software Innovations GmbH) - derived from UDP and TCP CoAP stack
  * Bosch Software Innovations GmbH - migrate to SLF4J
+ * Achim Kraus (Bosch Software Innovations GmbH) - support multicast,
+ *                                                 move multicast exchange complete
+ *                                                 to MulticastCleanupMessageObserver
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.eclipse.californium.core.coap.BlockOption;
@@ -77,19 +81,39 @@ public abstract class BaseCoapStack implements CoapStack {
 	@Override
 	public void sendRequest(final Exchange exchange, final Request request) {
 		// delegate to top
-		top.sendRequest(exchange, request);
+		try {
+			top.sendRequest(exchange, request);
+		} catch (RuntimeException ex) {
+			request.setSendError(ex);
+		}
 	}
 
 	@Override
 	public void sendResponse(final Exchange exchange, final Response response) {
 		// delegate to top
-		top.sendResponse(exchange, response);
+		try {
+			if (exchange.getRequest().getOptions().hasObserve()) {
+				// observe- or cancel-observe-requests may have
+				// multiple responses.
+				// when observes are finished, the last response has
+				// no longer an observe option. Therefore check the
+				// request for it.
+				exchange.retransmitResponse();
+			}
+			top.sendResponse(exchange, response);
+		} catch (RuntimeException ex) {
+			response.setSendError(ex);
+		}
 	}
 
 	@Override
 	public void sendEmptyMessage(final Exchange exchange, final EmptyMessage message) {
 		// delegate to top
-		top.sendEmptyMessage(exchange, message);
+		try {
+			top.sendEmptyMessage(exchange, message);
+		} catch (RuntimeException ex) {
+			message.setSendError(ex);
+		}
 	}
 
 	@Override
@@ -163,8 +187,6 @@ public abstract class BaseCoapStack implements CoapStack {
 
 		@Override
 		public void receiveResponse(final Exchange exchange, final Response response) {
-			exchange.setComplete();
-			exchange.getRequest().onComplete();
 			if (hasDeliverer()) {
 				// notify request that response has arrived
 				deliverer.deliverResponse(exchange, response);

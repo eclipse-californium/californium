@@ -28,8 +28,6 @@ import javax.crypto.Cipher;
 import javax.crypto.ShortBufferException;
 import javax.crypto.spec.SecretKeySpec;
 
-import org.eclipse.californium.scandium.util.ByteArrayUtils;
-
 /**
  * A generic authenticated encryption block cipher mode which uses the 128-bit
  * block cipher AES. See <a href="http://tools.ietf.org/html/rfc3610">RFC
@@ -251,7 +249,7 @@ public class CCMBlockCipher {
 				update(a, offset);
 			}
 			update(m, 0);
-			mac = ByteArrayUtils.truncate(block, numAuthenticationBytes);
+			mac = Arrays.copyOf(block, numAuthenticationBytes);
 		}
 
 		private void update(byte[] data, int initialBlockOffset) throws ShortBufferException {

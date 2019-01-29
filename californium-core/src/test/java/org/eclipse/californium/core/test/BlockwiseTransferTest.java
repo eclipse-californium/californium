@@ -32,9 +32,11 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.eclipse.californium.CheckCondition;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
+import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -51,7 +53,6 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-
 
 /**
  * This test tests the blockwise transfer of requests and responses. This test
@@ -81,27 +82,59 @@ public class BlockwiseTransferTest {
 
 	private static CoapServer server;
 	private static NetworkConfig config;
+	private static NetworkConfig configEndpointStrictBlock2Option;
+
 	private static Endpoint serverEndpoint;
+	private static Endpoint serverEndpointStrictBlock2Option;
+
 	private static ServerBlockwiseInterceptor interceptor = new ServerBlockwiseInterceptor();
 
+
+	private static NetworkConfig configEndpointWithoutTransparentBlockwise;
+	
 	private Endpoint clientEndpoint;
+	
+	private Endpoint clientEndpointWithoutTransparentBlockwise;
 
 	@BeforeClass
 	public static void prepare() {
 		System.out.println(System.lineSeparator() + "Start " + BlockwiseTransferTest.class.getSimpleName());
+	
 		config = network.getStandardTestConfig()
+				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32)
+				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32)
+				.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, 500)
+				.setBoolean(NetworkConfig.Keys.BLOCKWISE_STRICT_BLOCK2_OPTION, false);
+		
+		configEndpointStrictBlock2Option = network.createTestConfig()
+				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32)
+				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32)
+				.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, 500)
+				.setBoolean(NetworkConfig.Keys.BLOCKWISE_STRICT_BLOCK2_OPTION, true);
+		
+		
+		configEndpointWithoutTransparentBlockwise = network.createTestConfig()
 			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32)
 			.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32)
-			.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, 500);
+			.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, 0)
+			.setBoolean(NetworkConfig.Keys.BLOCKWISE_STRICT_BLOCK2_OPTION, true);
+		
 		server = createSimpleServer();
 	}
 
 	@Before
-	public void createClient() throws IOException {
-		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+	public void createClients() throws IOException {
+
+		
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setNetworkConfig(config);
 		clientEndpoint = builder.build();
 		clientEndpoint.start();
+		
+		CoapEndpoint.Builder builderBis = new CoapEndpoint.Builder();
+		builderBis.setNetworkConfig(configEndpointWithoutTransparentBlockwise);
+		clientEndpointWithoutTransparentBlockwise = builderBis.build();
+		clientEndpointWithoutTransparentBlockwise.start();		
 	}
 
 	@After
@@ -182,6 +215,67 @@ public class BlockwiseTransferTest {
 		});
 		clientEndpoint.sendRequest(req);
 		assertTrue(latch.await(1000, TimeUnit.MILLISECONDS));
+	}
+	
+	/**
+	 * Send request to the server with early blockwise negociation through block2 option. The response content should fits into a single response.
+	 * <p>The targeted endpoint has the {@link NetworkConfig.Keys#BLOCKWISE_STRICT_BLOCK2_OPTION} set to true and should respond with a block2 option indicating that no more blocks are available. </p>
+	 * 
+	 * @throws InterruptedException
+	 */
+	@Test
+	public void testEarlyNegociationWithStrictBlock2() throws InterruptedException {
+		
+		testGetRequestWithEarlyNegocition(true);
+	}
+	
+	/**
+	 * Send request to the server with early blockwise negociation through block2 option. The response content should fits into a single response.
+	 * <p>The targeted endpoint has the {@link NetworkConfig.Keys#BLOCKWISE_STRICT_BLOCK2_OPTION} set to false and should respond without a block2 option. </p>
+	 * 
+	 * @throws InterruptedException
+	 */
+	@Test
+	public void testEarlyNegociationWithoutStrictBlock2() throws InterruptedException {
+	
+		testGetRequestWithEarlyNegocition(false);
+	}
+	
+	private void testGetRequestWithEarlyNegocition(final boolean strictBlock2) throws InterruptedException {
+
+		final AtomicInteger counter = new AtomicInteger(0);
+
+		final Endpoint targetEndpoint = strictBlock2 ? serverEndpointStrictBlock2Option : serverEndpoint;
+		Request req = Request.newGet().setURI(getUri(targetEndpoint, RESOURCE_TEST));
+		req.getOptions().addUriQuery(PARAM_SHORT_RESP);
+		req.getOptions().setBlock2(BlockOption.size2Szx(256), false, 0);
+
+		req.addMessageObserver(new MessageObserverAdapter() {
+
+			@Override
+			public void onResponse(Response resp) {
+				counter.getAndIncrement();
+			}
+		});
+		clientEndpointWithoutTransparentBlockwise.sendRequest(req);
+
+		// receive response and check
+		Response response = req.waitForResponse(1000);
+		BlockOption block2 = response.getOptions().getBlock2();
+
+		if (strictBlock2) {
+			assertNotNull(block2);
+			assertEquals("Block2 option should indicate that all blocks have been transfered", false, block2.isM());
+		} else {
+			assertNull(block2);
+		}
+		waitForCondition(500, 100, TimeUnit.MILLISECONDS, new CheckCondition() {
+			@Override
+			public boolean isFulFilled() throws IllegalStateException {
+				return counter.get() > 1;
+			}
+		});
+		assertEquals("Not exactly one block received", 1, counter.get());
 	}
 
 	private void executeGETRequest(final boolean respondShort) throws Exception {
@@ -274,13 +368,22 @@ public class BlockwiseTransferTest {
 
 		CoapServer result = new CoapServer();
 
-		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 		builder.setNetworkConfig(config);
 
 		serverEndpoint = builder.build();
 		serverEndpoint.addInterceptor(interceptor);
 		result.addEndpoint(serverEndpoint);
+		
+		//add another endpoint which purpose is to test the NetworkConfig.Keys.BLOCKWISE_STRICT_BLOCK2_OPTION
+		CoapEndpoint.Builder builderStrictBlock2 = new CoapEndpoint.Builder();
+
+		builderStrictBlock2.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builderStrictBlock2.setNetworkConfig(configEndpointStrictBlock2Option);
+		serverEndpointStrictBlock2Option = builderStrictBlock2.build();
+		result.addEndpoint(serverEndpointStrictBlock2Option);
+		
 		result.add(new CoapResource(RESOURCE_TEST) {
 
 			private boolean isShortRequest(final CoapExchange exchange) {

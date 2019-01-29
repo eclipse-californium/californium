@@ -27,7 +27,7 @@ import java.util.Collections;
 import java.util.List;
 
 import org.eclipse.californium.scandium.category.Small;
-import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.junit.Before;
 import org.junit.Test;
@@ -102,7 +102,7 @@ public class ClientHelloTest {
 
 	private void givenAClientHelloWithEmptyExtensions() {
 		clientHello = new ClientHello(new ProtocolVersion(), new SecureRandom(), Collections.<CipherSuite> emptyList(),
-				Collections.<CertificateType> emptyList(), Collections.<CertificateType> emptyList(), peerAddress);
+				null, null, peerAddress);
 	}
 
 	private void givenAClientHello(
@@ -110,8 +110,8 @@ public class ClientHelloTest {
 			List<CertificateType> supportedClientCertTypes,
 			List<CertificateType> supportedServerCertTypes) {
 
-		clientHello = new ClientHello(new ProtocolVersion(), new SecureRandom(), supportedCipherSuites,
-				Collections.<CertificateType> emptyList(), Collections.<CertificateType> emptyList(), peerAddress);
+		clientHello = new ClientHello(new ProtocolVersion(), new SecureRandom(), supportedCipherSuites, null, null,
+				peerAddress);
 	}
 	
 }

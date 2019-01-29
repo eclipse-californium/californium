@@ -114,7 +114,7 @@ public class CCMBlockCipherTest {
 
 	private byte[] adjustLength(byte[] data, int len) {
 		if (data.length > len) {
-			return ByteArrayUtils.truncate(data, len);
+			return Arrays.copyOf(data, len);
 		} else if (data.length < len) {
 			byte[] temp = new byte[len];
 			random.nextBytes(temp);
@@ -176,33 +176,9 @@ public class CCMBlockCipherTest {
 	}
 
 	@Test
-	public void testSlowSlowCryption() throws Exception {
-
-		byte[] encryptedData = DeprecatesCCMBlockCipher.encrypt(aesKey, nonce, additionalData, payloadData, 8);
-		byte[] decryptedData = DeprecatesCCMBlockCipher.decrypt(aesKey, nonce, additionalData, encryptedData, 8);
-		assertTrue(Arrays.equals(decryptedData, payloadData));
-	}
-
-	@Test
 	public void testFastFastCryption() throws Exception {
 
 		byte[] encryptedData = CCMBlockCipher.encrypt(aesKey, nonce, additionalData, payloadData, 8);
-		byte[] decryptedData = CCMBlockCipher.decrypt(aesKey, nonce, additionalData, encryptedData, 8);
-		assertTrue(Arrays.equals(decryptedData, payloadData));
-	}
-
-	@Test
-	public void testFastSlowCryption() throws Exception {
-
-		byte[] encryptedData = CCMBlockCipher.encrypt(aesKey, nonce, additionalData, payloadData, 8);
-		byte[] decryptedData = DeprecatesCCMBlockCipher.decrypt(aesKey, nonce, additionalData, encryptedData, 8);
-		assertTrue(Arrays.equals(decryptedData, payloadData));
-	}
-
-	@Test
-	public void testSlowFastCryption() throws Exception {
-
-		byte[] encryptedData = DeprecatesCCMBlockCipher.encrypt(aesKey, nonce, additionalData, payloadData, 8);
 		byte[] decryptedData = CCMBlockCipher.decrypt(aesKey, nonce, additionalData, encryptedData, 8);
 		assertTrue(Arrays.equals(decryptedData, payloadData));
 	}
@@ -236,7 +212,7 @@ public class CCMBlockCipherTest {
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testTooShortNonce() throws Exception {
-		nonce = ByteArrayUtils.truncate(nonce, 6);
+		nonce = Arrays.copyOf(nonce, 6);
 		CCMBlockCipher.encrypt(aesKey, nonce, additionalData, payloadData, 8);
 	}
 

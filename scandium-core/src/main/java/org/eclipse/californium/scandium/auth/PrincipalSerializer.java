@@ -14,6 +14,8 @@
  *    Bosch Software Innovations GmbH - initial creation
  *    Achim Kraus (Bosch Software Innovations GmbH) - use ASN.1 DER encoding
  *                                                    directly for serialization
+ *    Achim Kraus (Bosch Software Innovations GmbH) - distinguish plain and scoped
+ *                                                    identity. issue #649
  *******************************************************************************/
 
 package org.eclipse.californium.scandium.auth;
@@ -34,7 +36,8 @@ import org.eclipse.californium.elements.util.StandardCharsets;
  */
 public final class PrincipalSerializer {
 
-	private static final int PSK_LENGTH_BITS = 16;
+	private static final int PSK_HOSTNAME_LENGTH_BITS = 16;
+	private static final int PSK_IDENTITY_LENGTH_BITS = 16;
 	private static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
 
 	private PrincipalSerializer() {
@@ -70,6 +73,10 @@ public final class PrincipalSerializer {
 	 * }
 	 * </pre>
 	 * 
+	 * psk_identity may be scoped by server name indication. To distinguish
+	 * scoped and plain psk_identity, the first byte in the opaque psk_identity
+	 * indicates a scoped identity with 1, or a plain identity with 0.
+	 * 
 	 * @param principal The principal to serialize.
 	 * @param writer The writer to serialize to.
 	 * @throws NullPointerException if the writer is {@code null}.
@@ -92,10 +99,16 @@ public final class PrincipalSerializer {
 
 	private static void serializeIdentity(final PreSharedKeyIdentity principal, final DatagramWriter writer) {
 		writer.writeByte(ClientAuthenticationType.PSK.code);
-		byte[] virtualHost = principal.getVirtualHost() == null ? EMPTY_BYTE_ARRAY :
-			principal.getVirtualHost().getBytes(StandardCharsets.UTF_8);
-		writeBytesWithLength(PSK_LENGTH_BITS, virtualHost, writer);
-		writeBytesWithLength(PSK_LENGTH_BITS, principal.getIdentity().getBytes(StandardCharsets.UTF_8), writer);
+		if (principal.isScopedIdentity()) {
+			writer.writeByte((byte) 1); // scoped
+			byte[] virtualHost = principal.getVirtualHost() == null ? EMPTY_BYTE_ARRAY
+					: principal.getVirtualHost().getBytes(StandardCharsets.UTF_8);
+			writeBytesWithLength(PSK_HOSTNAME_LENGTH_BITS, virtualHost, writer);
+			writeBytesWithLength(PSK_IDENTITY_LENGTH_BITS, principal.getIdentity().getBytes(StandardCharsets.UTF_8), writer);
+		} else {
+			writer.writeByte((byte) 0); // plain
+			writeBytesWithLength(PSK_IDENTITY_LENGTH_BITS, principal.getIdentity().getBytes(StandardCharsets.UTF_8), writer);
+		}
 	}
 
 	private static void serializeSubjectInfo(final RawPublicKeyIdentity principal, final DatagramWriter writer) {
@@ -146,10 +159,16 @@ public final class PrincipalSerializer {
 	}
 
 	private static PreSharedKeyIdentity deserializeIdentity(final DatagramReader reader) {
-		byte[] bytes = readBytesWithLength(PSK_LENGTH_BITS, reader);
-		String virtualHost = bytes.length == 0 ? null : new String(bytes, StandardCharsets.UTF_8);
-		bytes = readBytesWithLength(PSK_LENGTH_BITS, reader);
-		return new PreSharedKeyIdentity(virtualHost, new String(bytes, StandardCharsets.UTF_8));
+		byte scoped = reader.readNextByte();
+		if (scoped == 1) {
+			byte[] bytes = readBytesWithLength(PSK_HOSTNAME_LENGTH_BITS, reader);
+			String virtualHost = bytes.length == 0 ? null : new String(bytes, StandardCharsets.UTF_8);
+			bytes = readBytesWithLength(PSK_IDENTITY_LENGTH_BITS, reader);
+			return new PreSharedKeyIdentity(virtualHost, new String(bytes, StandardCharsets.UTF_8));
+		} else {
+			byte[] bytes = readBytesWithLength(PSK_IDENTITY_LENGTH_BITS, reader);
+			return new PreSharedKeyIdentity(new String(bytes, StandardCharsets.UTF_8));
+		}
 	}
 
 	private static RawPublicKeyIdentity deserializeSubjectInfo(final DatagramReader reader)

@@ -117,7 +117,6 @@ public class PlugtestServer extends AbstractTestServer {
 			// add special interceptor for message traces
 			for (Endpoint ep : server.getEndpoints()) {
 				URI uri = ep.getUri();
-				System.out.println("listen on " + uri);
 				ep.addInterceptor(new MessageTracer());
 				// Anonymized IoT metrics for validation. On success, remove the OriginTracer.
 				ep.addInterceptor(new AnonymizedOriginTracer(uri.getPort() + "-" + uri.getScheme()));
@@ -136,7 +135,7 @@ public class PlugtestServer extends AbstractTestServer {
 	}
 
 	public PlugtestServer(NetworkConfig config) throws SocketException {
-		super(config);
+		super(config, null);
 		
 		// add resources to the server
 		add(new DefaultTest());

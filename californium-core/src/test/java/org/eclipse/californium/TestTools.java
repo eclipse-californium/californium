@@ -13,6 +13,7 @@
  * Contributors:
  *    Bosch Software Innovations - initial creation
  *    Achim Kraus (Bosch Software Innovations GmbH) - add waitForCondition
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add inRange
  ******************************************************************************/
 package org.eclipse.californium;
 
@@ -21,6 +22,7 @@ import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.network.Endpoint;
+import org.hamcrest.Description;
 
 /**
  * A collection of utility methods for implementing tests.
@@ -127,5 +129,55 @@ public final class TestTools {
 			}
 		}
 		return check.isFulFilled();
+	}
+
+	/**
+	 * Get in range matcher.
+	 * 
+	 * @param min inclusive minimum value
+	 * @param max exclusive maximum value
+	 * @return matcher.
+	 */
+	public static <T extends Number> org.hamcrest.Matcher<T> inRange(T min, T max) {
+		return new InRange<T>(min, max);
+	}
+
+	/**
+	 * In range matcher.
+	 * 
+	 * @see TestTools#inRange(Number, Number)
+	 */
+	private static class InRange<T extends Number> extends org.hamcrest.BaseMatcher<T> {
+
+		private final Number min;
+		private final Number max;
+
+		private InRange(Number min, Number max) {
+			this.min = min;
+			this.max = max;
+		}
+
+		@Override
+		public boolean matches(Object item) {
+			if (!min.getClass().equals(item.getClass())) {
+				throw new IllegalArgumentException("value type " + item.getClass().getSimpleName()
+						+ " doesn't match range type " + min.getClass().getSimpleName());
+			}
+			Number value = (Number) item;
+			if (item instanceof Float || item instanceof Double) {
+				return min.doubleValue() <= value.doubleValue() && value.doubleValue() < max.doubleValue();
+			} else {
+				return min.longValue() <= value.longValue() && value.longValue() < max.longValue();
+			}
+		}
+
+		@Override
+		public void describeTo(Description description) {
+			description.appendText("range[");
+			description.appendText(min.toString());
+			description.appendText("-");
+			description.appendText(max.toString());
+			description.appendText(")");
+		}
 	}
 }

@@ -12,6 +12,8 @@
  * 
  * Contributors:
  *    Bosch Software Innovations GmbH - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace raw public key flag
+ *                                                    by certificate type
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -30,24 +32,26 @@ public class HandshakeParameter {
 	 */
 	private final KeyExchangeAlgorithm keyExchange;
 	/**
-	 * Indicate to use raw public keys certificates.
+	 * Certificate type.
 	 */
-	private final boolean useRawPublicKey;
+	private final CertificateType certificateType;
 
 	/**
 	 * Create handshake parameter.
 	 * 
 	 * @param keyExchange the key exchange algorithm
-	 * @param useRawPublicKey {@code true} to use raw public keys certificates,
-	 *            {@cod false}, otherwise.
-	 * @throws NullPointerException if key exchange is {@link null}
+	 * @param certificateType the certificate type
+	 * @throws NullPointerException if key exchange or certificate type is {@code null}
 	 */
-	public HandshakeParameter(KeyExchangeAlgorithm keyExchange, boolean useRawPublicKey) {
+	public HandshakeParameter(KeyExchangeAlgorithm keyExchange, CertificateType certificateType) {
 		if (keyExchange == null) {
 			throw new NullPointerException("key exchange must not be null!");
 		}
+		if (certificateType == null) {
+			throw new NullPointerException("certificate type must not be null!");
+		}
 		this.keyExchange = keyExchange;
-		this.useRawPublicKey = useRawPublicKey;
+		this.certificateType = certificateType;
 	}
 
 	/**
@@ -60,16 +64,15 @@ public class HandshakeParameter {
 	}
 
 	/**
-	 * Indicate to use raw public key certificates.
+	 * Get certificate type.
 	 * 
-	 * @return {@code true} to use use raw public key certificates,
-	 *         {@code false} otherwise.
+	 * @return certificate type
 	 */
-	public boolean useRawPublicKey() {
-		return useRawPublicKey;
+	public CertificateType getCertificateType() {
+		return certificateType;
 	}
 
 	public String toString() {
-		return "KeyExgAl=" + keyExchange + ", " + (useRawPublicKey ? "RPK" : "x.509");
+		return "KeyExgAl=" + keyExchange + ", cert.type=" + certificateType;
 	}
 }

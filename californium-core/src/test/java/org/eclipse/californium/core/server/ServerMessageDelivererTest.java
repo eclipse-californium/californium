@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Bosch Software Innovations - initial creation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add category
  ******************************************************************************/
 package org.eclipse.californium.core.server;
 
@@ -22,6 +23,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.MatcherTestUtils;
@@ -29,13 +31,14 @@ import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.mockito.ArgumentCaptor;
 
 
 /**
  * Verifies behavior of {@link ServerMessageDeliverer}.
- *
  */
+@Category(Small.class)
 public class ServerMessageDelivererTest {
 
 	private Resource rootResource;

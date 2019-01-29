@@ -32,8 +32,8 @@ import org.junit.Test;
 public class HttpTranslatorTest {
 
 	@Test
-	public void testGetHttpEntity() throws Exception {
-		Request req = new Request(Code.GET);
+	public void testPutHttpEntity() throws Exception {
+		Request req = new Request(Code.PUT);
 		req.setPayload("payload");
 		req.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
 
@@ -41,8 +41,8 @@ public class HttpTranslatorTest {
 	}
 
 	@Test
-	public void testGetHttpEntityWithJSON() throws Exception {
-		Request req = new Request(Code.GET);
+	public void testPutHttpEntityWithJSON() throws Exception {
+		Request req = new Request(Code.PUT);
 		req.setPayload("{}");
 		req.getOptions().setContentFormat(MediaTypeRegistry.APPLICATION_JSON);
 

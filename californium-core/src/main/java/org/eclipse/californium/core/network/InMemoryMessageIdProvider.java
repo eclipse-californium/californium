@@ -19,6 +19,7 @@
  *                                                    interface and rename old
  *                                                    MessageIdTracker to
  *                                                    MapBasedMessageIdTracker.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add multicast mid tracker.
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -27,7 +28,10 @@ import java.util.Random;
 
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A provider for message IDs thats keeps track of all message IDs in memory.
@@ -37,14 +41,18 @@ import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
  */
 public class InMemoryMessageIdProvider implements MessageIdProvider {
 
+	private static final Logger LOG = LoggerFactory.getLogger(InMemoryMessageIdProvider.class.getName());
+
 	public enum TrackerMode {
 		NULL, GROUPED, MAPBASED
 	}
 
 	private final LeastRecentlyUsedCache<InetSocketAddress, MessageIdTracker> trackers;
+	private final MessageIdTracker multicastTracker;
 	private final TrackerMode mode;
 	private final Random random;
 	private final NetworkConfig config;
+	private final int multicastBaseMid;
 
 	/**
 	 * Creates an new provider for configuration values.
@@ -88,10 +96,10 @@ public class InMemoryMessageIdProvider implements MessageIdProvider {
 		} catch (NullPointerException e) {
 			throw new IllegalArgumentException("Tracker mode not provided/configured!");
 		}
-		this.config = config;
 		this.mode = mode;
+		this.config = config;
 		if (config.getBoolean(NetworkConfig.Keys.USE_RANDOM_MID_START)) {
-			random = new Random(System.currentTimeMillis());
+			random = new Random(ClockUtil.nanoRealtime());
 		} else {
 			random = null;
 		}
@@ -99,6 +107,27 @@ public class InMemoryMessageIdProvider implements MessageIdProvider {
 		trackers = new LeastRecentlyUsedCache<>(config.getInt(NetworkConfig.Keys.MAX_ACTIVE_PEERS, 150000),
 				config.getLong(NetworkConfig.Keys.MAX_PEER_INACTIVITY_PERIOD, 10 * 60));
 		trackers.setEvictingOnReadAccess(false);
+		int multicastBaseMid = config.getInt(NetworkConfig.Keys.MULTICAST_BASE_MID);
+		if (0 < multicastBaseMid) {
+			this.multicastBaseMid = multicastBaseMid;
+			int max = MessageIdTracker.TOTAL_NO_OF_MIDS;
+			int mid = null == random ? multicastBaseMid : random.nextInt(max - multicastBaseMid) + multicastBaseMid;
+			switch (mode) {
+			case NULL:
+				multicastTracker = new NullMessageIdTracker(mid, multicastBaseMid, max);
+				break;
+			case MAPBASED:
+				multicastTracker = new MapBasedMessageIdTracker(mid, multicastBaseMid, max, config);
+				break;
+			case GROUPED:
+			default:
+				multicastTracker = new GroupedMessageIdTracker(mid, multicastBaseMid, max, config);
+				break;
+			}
+		} else {
+			this.multicastBaseMid = MessageIdTracker.TOTAL_NO_OF_MIDS;
+			multicastTracker = null;
+		}
 	}
 
 	@Override
@@ -114,20 +143,34 @@ public class InMemoryMessageIdProvider implements MessageIdProvider {
 	}
 
 	private synchronized MessageIdTracker getTracker(final InetSocketAddress destination) {
+		// destination mc
+		// => use special range 65001-65535
+		// destination sp
+		// => use special range 0 - 65000
+
+		if (destination.getAddress().isMulticastAddress()) {
+			if (multicastTracker == null) {
+				LOG.warn(
+						"Destination address {} is a multicast address, please configure NetworkConfig to support multicast messaging",
+						destination);
+			}
+			return multicastTracker;
+		}
+
 		MessageIdTracker tracker = trackers.get(destination);
 		if (tracker == null) {
 			// create new tracker for destination lazily
-			int mid = null == random ? 0 : random.nextInt(MessageIdTracker.TOTAL_NO_OF_MIDS);
+			int mid = null == random ? 0 : random.nextInt(multicastBaseMid);
 			switch (mode) {
 			case NULL:
-				tracker = new NullMessageIdTracker(mid);
+				tracker = new NullMessageIdTracker(mid, 0, multicastBaseMid);
 				break;
 			case MAPBASED:
-				tracker = new MapBasedMessageIdTracker(mid, config);
+				tracker = new MapBasedMessageIdTracker(mid, 0, multicastBaseMid, config);
 				break;
 			case GROUPED:
 			default:
-				tracker = new GroupedMessageIdTracker(mid, config);
+				tracker = new GroupedMessageIdTracker(mid, 0, multicastBaseMid, config);
 				break;
 			}
 			if (trackers.put(destination, tracker)) {

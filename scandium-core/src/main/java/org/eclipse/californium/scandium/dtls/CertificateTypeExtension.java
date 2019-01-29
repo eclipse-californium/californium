@@ -18,18 +18,20 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.util.ArrayList;
-import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.scandium.util.ListUtils;
 
 
 /**
  * This represents the Certificate Type Extension. See <a
- * href="http://tools.ietf.org/html/draft-ietf-tls-oob-pubkey-03">Draft</a> for
+ * href="http://tools.ietf.org/html/rfc7250">RFC 7250</a> for
  * details.
  */
 public abstract class CertificateTypeExtension extends HelloExtension {
@@ -47,10 +49,10 @@ public abstract class CertificateTypeExtension extends HelloExtension {
 	/**
 	 * Indicates whether this extension belongs to a client or a server. This
 	 * has an impact upon the message format. See <a href=
-	 * "http://tools.ietf.org/html/draft-ietf-tls-oob-pubkey-03#section-3.1"
-	 * >CertificateTypeExtension</a> definition.
+	 * "http://tools.ietf.org/html/rfc7250#section-3">
+	 *  CertificateTypeExtension</a> figure 4, definition.
 	 */
-	private boolean isClientExtension;
+	private final boolean isClientExtension;
 
 	/**
 	 * For the client: a list of certificate types the client supports, sorted
@@ -58,41 +60,100 @@ public abstract class CertificateTypeExtension extends HelloExtension {
 	 * For the server: the certificate selected by the server out of the
 	 * client's list.
 	 */
-	protected List<CertificateType> certificateTypes;
+	private final List<CertificateType> certificateTypes;
 
 	// Constructors ///////////////////////////////////////////////////
-	
-	/**
-	 * Constructs an empty certificate type extension. If it is client-sided
-	 * there is a list of supported certificate type (ordered by preference);
-	 * server-side only 1 certificate type is chosen.
-	 * 
-	 * @param type
-	 *            the type of the extension.
-	 * @param isClient
-	 *            whether this instance is considered the client.
-	 */
-	public CertificateTypeExtension(ExtensionType type, boolean isClient) {
-		super(type);
-		this.isClientExtension = isClient;
-		this.certificateTypes = new ArrayList<CertificateType>();
-	}
-	
 	/**
 	 * Constructs a certificate type extension with a list of supported
-	 * certificate types. The server only chooses 1 certificate type.
+	 * certificate types, or a selected certificate type chosen by the server.
 	 * 
-	 * @param type
-	 *            the type of the extension.
-	 * @param isClient
-	 *            whether this instance is considered the client.
-	 * @param certificateTypes
-	 *            the list of supported certificate types.
+	 * @param type the type of the extension.
+	 * @param extensionData the list of supported certificate types or the
+	 *            selected certificate type encoded in bytes.
+	 * @throws NullPointerException if extension data is {@code null}
+	 * @throws IllegalArgumentException if extension data is empty
 	 */
-	public CertificateTypeExtension(ExtensionType type, boolean isClient, List<CertificateType> certificateTypes) {
+	protected CertificateTypeExtension(ExtensionType type, byte[] extensionData) {
 		super(type);
-		this.isClientExtension = isClient;
+		if (extensionData == null) {
+			throw new NullPointerException("extension data must not be null!");
+		} else if (extensionData.length == 0) {
+			throw new IllegalArgumentException("extension data must not be empty!");
+		}
+		// the selected certificate would be a single byte,
+		// the supported list is longer
+		isClientExtension = extensionData.length > 1;
+		List<CertificateType> types;
+		DatagramReader reader = new DatagramReader(extensionData);
+		if (isClientExtension) {
+			// an extension containing a list of preferred certificate types
+			// is at least 2 bytes long (1 byte length, 1 byte type)
+			int length = reader.read(LIST_FIELD_LENGTH_BITS);
+			types = new ArrayList<>(length);
+			for (int i = 0; i < length; i++) {
+				int typeCode = reader.read(EXTENSION_TYPE_BITS);
+				CertificateType certificateType = CertificateType.getTypeFromCode(typeCode);
+				if (certificateType != null) {
+					types.add(certificateType);
+				} else {
+					// client indicates a preference for an unknown certificate type
+					LOG.debug("Client indicated preference for unknown {} certificate type code [{}]",
+							getType().equals(ExtensionType.CLIENT_CERT_TYPE) ? "client" : "server", typeCode);
+				}
+			}
+		} else {
+			// an extension containing the negotiated certificate type is exactly 1 byte long
+			int typeCode = reader.read(EXTENSION_TYPE_BITS);
+			CertificateType certificateType = CertificateType.getTypeFromCode(typeCode);
+			if (certificateType != null) {
+				types = new ArrayList<>(1);
+				types.add(certificateType);
+			} else {
+				// server selected a certificate type that is unknown to this client
+				LOG.debug("Server selected an unknown {} certificate type code [{}]",
+						getType().equals(ExtensionType.CLIENT_CERT_TYPE) ? "client" : "server", typeCode);
+				throw new IllegalArgumentException("unknown certificate type code " + typeCode + "!");
+			}
+		}
+		certificateTypes = ListUtils.init(types);
+	}
+
+	/**
+	 * Constructs a client-side certificate type extension with a list of supported
+	 * certificate types.
+	 * 
+	 * @param type the type of the extension.
+	 * @param certificateTypes the list of supported certificate types.
+	 * @throws NullPointerException if certificate types is {@code null}
+	 * @throws IllegalArgumentException if certificate types is empty.
+	 */
+	protected CertificateTypeExtension(ExtensionType type, List<CertificateType> certificateTypes) {
+		super(type);
+		if (certificateTypes == null) {
+			throw new NullPointerException("certificate types must not be null!");
+		} else if (certificateTypes.isEmpty()) {
+			throw new IllegalArgumentException("certificate types data must not be empty!");
+		}
+		this.isClientExtension = true;
 		this.certificateTypes = certificateTypes;
+	}
+
+	/**
+	 * Constructs a server-side certificate type extension with a the supported
+	 * certificate type.
+	 * 
+	 * @param type the type of the extension.
+	 * @param certificateType the supported certificate type.
+	 * @throws NullPointerException if certificate type is {@code null}
+	 */
+	protected CertificateTypeExtension(ExtensionType type, CertificateType certificateType) {
+		super(type);
+		if (certificateType == null) {
+			throw new NullPointerException("certificate type must not be null!");
+		}
+		this.isClientExtension = false;
+		this.certificateTypes = new ArrayList<>(1);
+		this.certificateTypes.add(certificateType);
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -112,7 +173,7 @@ public abstract class CertificateTypeExtension extends HelloExtension {
 			return 5;
 		}
 	}
-	
+
 	public String toString() {
 		return super.toString();
 	}
@@ -140,87 +201,10 @@ public abstract class CertificateTypeExtension extends HelloExtension {
 		}
 	}
 
-	// Enums //////////////////////////////////////////////////////////
-
-	/**
-	 * Certificate types as defined in the
-	 * <a href="http://www.iana.org/assignments/tls-extensiontype-values/tls-extensiontype-values.xhtml">IANA registry</a>.
-	 */
-	public enum CertificateType {
-		// values as defined by IANA TLS Certificate Types registry
-		X_509(0), OPEN_PGP(1), RAW_PUBLIC_KEY(2);
-
-		private int code;
-
-		private CertificateType(int code) {
-			this.code = code;
-		}
-		
-		public static CertificateType getTypeFromCode(int code) {
-			switch (code) {
-			case 0:
-				return X_509;
-			case 1:
-				return OPEN_PGP;
-			case 2:
-				return RAW_PUBLIC_KEY;
-
-			default:
-				return null;
-			}
-		}
-
-		int getCode() {
-			return code;
-		}
-	}
 	
 	// Getters and Setters ////////////////////////////////////////////
-	
-	public void addCertificateType(CertificateType certificateType) {
-		if (!isClientExtension && this.certificateTypes.size() > 0) {
-			// the server is only allowed to include 1 certificate type in its ServerHello
-			return;
-		}
-		this.certificateTypes.add(certificateType);
-	}
 
 	public List<CertificateType> getCertificateTypes() {
 		return certificateTypes;
-	}
-
-	protected void addCertiticateTypes(byte[] byteArray) {
-		DatagramReader reader = new DatagramReader(byteArray);
-		boolean containsPreferences = byteArray.length > 1;
-		if (containsPreferences) {
-			// an extension containing preferred certificate types is at least 2 bytes long
-			int length = reader.read(LIST_FIELD_LENGTH_BITS);
-			for (int i = 0; i < length; i++) {
-				int typeCode = reader.read(EXTENSION_TYPE_BITS);
-				CertificateType certType = CertificateType.getTypeFromCode(typeCode);
-				if (certType != null) {
-					certificateTypes.add(certType);
-				} else {
-					// client indicates a preference for an unknown certificate
-					// type
-					LOG.debug("Client indicated preference for unknown {} certificate type code [{}]",
-							getType().equals(ExtensionType.CLIENT_CERT_TYPE) ? "client" : "server",
-							typeCode);
-				}
-			}
-		} else {
-			// an extension containing the negotiated certificate type is exactly 1 byte long
-			int typeCode = reader.read(EXTENSION_TYPE_BITS);
-			CertificateType certType = CertificateType.getTypeFromCode(typeCode);
-			if (certType != null) {
-				certificateTypes.add(certType);
-			} else {
-				// server selected a certificate type that is unknown to this
-				// client
-				LOG.debug("Server selected an unknown {} certificate type code [{0]",
-						getType().equals(ExtensionType.CLIENT_CERT_TYPE) ? "client" : "server",
-						typeCode);
-			}
-		}
 	}
 }

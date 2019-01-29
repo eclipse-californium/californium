@@ -28,6 +28,7 @@ import static org.junit.Assert.assertTrue;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
@@ -82,7 +83,7 @@ public class RandomAccessBlockTest {
 		NetworkConfig config = network.getStandardTestConfig()
 			.setInt(Keys.MAX_RESOURCE_BODY_SIZE, maxBodySize);
 
-		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 		builder.setNetworkConfig(config);
 
@@ -93,7 +94,7 @@ public class RandomAccessBlockTest {
 		server.start();
 		serverAddress = endpoint.getAddress();
 
-		builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 		builder.setNetworkConfig(config);
 		
@@ -185,7 +186,7 @@ public class RandomAccessBlockTest {
 
 				if (offset < buf.capacity() && length > 0) {
 					byte[] payload = new byte[length];
-					buf.position(offset);
+					((Buffer)buf).position(offset);
 					buf.get(payload, 0, length);
 					response = new Response(ResponseCode.CONTENT);
 					response.setPayload(payload);

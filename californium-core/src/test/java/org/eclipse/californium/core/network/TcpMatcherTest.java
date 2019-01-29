@@ -35,6 +35,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
 import org.eclipse.californium.category.Small;
+import org.eclipse.californium.core.network.MatcherTestUtils.TestEndpointReceiver;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.junit.Before;
@@ -69,13 +70,14 @@ public class TcpMatcherTest {
 
 		TcpMatcher matcher = newTcpMatcher(endpointContextMatcher);
 		Exchange exchange = sendRequest(dest, matcher, exchangeEndpointContext);
+		TestEndpointReceiver receiver = new TestEndpointReceiver();
 
-		Exchange matched = matcher.receiveResponse(receiveResponseFor(exchange.getCurrentRequest(), responseEndpointContext));
-		
+		matcher.receiveResponse(receiveResponseFor(exchange.getCurrentRequest(), responseEndpointContext), receiver);
+		Exchange matched = receiver.waitForExchange(1000);
+		assertSame(exchange, matched);
+
 		verify(endpointContextMatcher, times(1)).isResponseRelatedToRequest(exchangeEndpointContext,
 				responseEndpointContext);
-		
-		assertSame(exchange, matched);
 	}
 
 	@Test
@@ -85,13 +87,14 @@ public class TcpMatcherTest {
 
 		TcpMatcher matcher = newTcpMatcher(endpointContextMatcher);
 		Exchange exchange = sendRequest(dest, matcher, exchangeEndpointContext);
+		TestEndpointReceiver receiver = new TestEndpointReceiver();
 
-		Exchange matchedExchange = matcher.receiveResponse(receiveResponseFor(exchange.getCurrentRequest(), responseEndpointContext));
-		
+		matcher.receiveResponse(receiveResponseFor(exchange.getCurrentRequest(), responseEndpointContext), receiver);
+		Exchange matched = receiver.waitForExchange(1000);
+		assertThat(matched, is(nullValue()));
+
 		verify(endpointContextMatcher, times(1)).isResponseRelatedToRequest(exchangeEndpointContext,
 				responseEndpointContext);
-		
-		assertThat(matchedExchange, is(nullValue()));
 	}
 
 }

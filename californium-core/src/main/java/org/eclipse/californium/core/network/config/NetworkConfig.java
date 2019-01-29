@@ -115,6 +115,8 @@ public final class NetworkConfig {
 		public static final String EXCHANGE_LIFETIME = "EXCHANGE_LIFETIME";
 		public static final String NON_LIFETIME = "NON_LIFETIME";
 		public static final String MAX_TRANSMIT_WAIT = "MAX_TRANSMIT_WAIT";
+		public static final String MAX_LATENCY = "MAX_LATENCY";
+		public static final String MAX_SERVER_RESPONSE_DELAY = "MAX_SERVER_RESPONSE_DELAY";
 		public static final String NSTART = "NSTART";
 		public static final String LEISURE = "LEISURE";
 		public static final String PROBING_RATE = "PROBING_RATE";
@@ -122,6 +124,13 @@ public final class NetworkConfig {
 		public static final String USE_RANDOM_MID_START = "USE_RANDOM_MID_START";
 		public static final String MID_TRACKER = "MID_TACKER";
 		public static final String MID_TRACKER_GROUPS = "MID_TRACKER_GROUPS";
+		/**
+		 * Base MID for multicast MID range. All multicast requests use the same
+		 * MID provider, which generates MIDs in the range [base...65536).
+		 * None multicast request use the range [0...base).
+		 * 0 := disable multicast support.
+		 */
+		public static final String MULTICAST_BASE_MID = "MULTICAST_BASE_MID";
 		public static final String TOKEN_SIZE_LIMIT = "TOKEN_SIZE_LIMIT";
 
 		/**
@@ -170,6 +179,18 @@ public final class NetworkConfig {
 		 * {@link NetworkConfigDefaults#DEFAULT_BLOCKWISE_STATUS_LIFETIME}.
 		 */
 		public static final String BLOCKWISE_STATUS_LIFETIME = "BLOCKWISE_STATUS_LIFETIME";
+		
+		/**
+		 * Property to indicate if the response should always include the Block2 option when client request early blockwise negociation but the response can be sent on one packet.
+		 * <p>
+		 * The default value of this property is
+		 * {@link NetworkConfigDefaults#DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION}.
+		 * <p>
+		 * A value of {@code false} indicate that the server will respond without block2 option if no further blocks are required.<br/>
+		 * A value of {@code true} indicate that the server will response with block2 option event if no further blocks are required.
+		 *  
+		 */
+		public static final String BLOCKWISE_STRICT_BLOCK2_OPTION = "BLOCKWISE_STRICT_BLOCK2_OPTION";
 
 		public static final String NOTIFICATION_CHECK_INTERVAL_TIME = "NOTIFICATION_CHECK_INTERVAL";
 		public static final String NOTIFICATION_CHECK_INTERVAL_COUNT = "NOTIFICATION_CHECK_INTERVAL_COUNT";
@@ -218,6 +239,8 @@ public final class NetworkConfig {
 		 * receiving of BERT message is always enabled while using TCP connector.
 		 */
 		public static final String TCP_NUMBER_OF_BULK_BLOCKS = "TCP_NUMBER_OF_BULK_BLOCKS";
+
+		public static final String TLS_HANDSHAKE_TIMEOUT = "TLS_HANDSHAKE_TIMEOUT";
 
 		/** Properties for encryption */
 		/**
@@ -362,6 +385,15 @@ public final class NetworkConfig {
 	public NetworkConfig() {
 		this.properties = new Properties();
 		NetworkConfigDefaults.setDefaults(this);
+	}
+
+	/**
+	 * Instantiates a new network configuration and sets the values
+	 * from the provided configuration.
+	 */
+	public NetworkConfig(NetworkConfig config) {
+		this.properties = new Properties();
+		this.properties.putAll(config.properties);
 	}
 
 	/**
@@ -599,6 +631,24 @@ public final class NetworkConfig {
 		return result;
 	}
 
+	/**
+	 * Gets the value for the specified key as boolean or the provided default value if not found.
+	 *
+	 * @param key the key
+	 * @param defaultValue the default value to return if there is no value
+	 *            registered for the key.
+	 * @return the boolean
+	 */
+	public boolean getBoolean(final String key, final boolean defaultValue) {
+		String value = properties.getProperty(key);
+		if (value != null) {
+			return Boolean.parseBoolean(value);
+		} else {
+			LOGGER.warn("Key [{}] is undefined, returning defaultValue", key);
+			return defaultValue;
+		}
+	}
+	
 	/**
 	 * Gets the value for the specified key as boolean or false if not found.
 	 *

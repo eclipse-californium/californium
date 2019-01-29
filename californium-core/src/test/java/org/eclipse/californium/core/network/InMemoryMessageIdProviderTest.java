@@ -29,7 +29,8 @@ import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.junit.Before;
+import org.eclipse.californium.rule.CoapNetworkRule;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -39,13 +40,10 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Small.class)
 public class InMemoryMessageIdProviderTest {
+	@ClassRule
+	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
-	NetworkConfig config;
-
-	@Before
-	public void setup() {
-		config = NetworkConfig.createStandardWithoutFile();
-	}
+	private NetworkConfig config = network.createStandardTestConfig();
 
 	@Test
 	public void testNullTrackerGetNextMessageIdReturnsMid() {

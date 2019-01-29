@@ -35,8 +35,6 @@ import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.TlsEndpointContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.netty.channel.Channel;
 import io.netty.handler.ssl.SslHandler;
@@ -48,7 +46,6 @@ import io.netty.util.concurrent.GenericFutureListener;
  */
 public class TlsClientConnector extends TcpClientConnector {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(TlsClientConnector.class.getName());
 	private static final int DEFAULT_HANDSHAKE_TIMEOUT_MILLIS = 10000;
 
 	/**

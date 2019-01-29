@@ -53,7 +53,7 @@ public class SimpleServerEndpointFactory implements EndpointFactory {
 
 	@Override
 	public final Endpoint getEndpoint(NetworkConfig config, InetSocketAddress address) {
-		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setNetworkConfig(config);
 		builder.setInetSocketAddress(address);
 		return builder.build();
@@ -65,7 +65,7 @@ public class SimpleServerEndpointFactory implements EndpointFactory {
 		Endpoint endpoint = null;
 		if (secureConnectorFactory != null) {
 			Connector connector = secureConnectorFactory.newConnector(address);
-			CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+			CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 			builder.setNetworkConfig(config);
 			builder.setConnector(connector);
 			endpoint = builder.build();

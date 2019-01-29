@@ -29,7 +29,6 @@ import java.security.PublicKey;
 import java.security.Signature;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -485,11 +484,12 @@ public final class CertificateRequest extends HandshakeMessage {
 	 *         end entity certificate or {@code null} if any of the chain's certificates is not
 	 *         compatible with any of the supported certificate types or any of the supported signature algorithms.
 	 */
-	public SignatureAndHashAlgorithm getSignatureAndHashAlgorithm(X509Certificate[] chain) {
+	public SignatureAndHashAlgorithm getSignatureAndHashAlgorithm(List<X509Certificate> chain) {
 
 		if (isSignedWithSupportedAlgorithm(chain)) {
-			if (isSupportedKeyType(chain[0])) {
-				return getSupportedSignatureAlgorithm(chain[0].getPublicKey());
+			X509Certificate x509Certificate = chain.get(0);
+			if (isSupportedKeyType(x509Certificate)) {
+				return getSupportedSignatureAlgorithm(x509Certificate.getPublicKey());
 			}
 		}
 		return null;
@@ -502,26 +502,36 @@ public final class CertificateRequest extends HandshakeMessage {
 	 * @param cert The certificate chain to test.
 	 * @return {@code true} if all certificates have been signed using one of the supported algorithms.
 	 */
-	boolean isSignedWithSupportedAlgorithm(X509Certificate[] chain) {
-
-		for (int index=0; index < chain.length; ++index) {
-			X509Certificate cert = chain[index];
-			boolean certSignatureAlgorithmSupported = false;
-			for (SignatureAndHashAlgorithm supportedAlgorithm : supportedSignatureAlgorithms) {
-				// android's certificate returns a upper case SigAlgName, e.g. "SHA256WITHECDSA"
-				// But the jcaName returns a mixed case name, e.g. "SHA256withECDSA"
-				if (supportedAlgorithm.jcaName().equalsIgnoreCase(cert.getSigAlgName())) {
-					certSignatureAlgorithmSupported = true;
-					break;
-				}
-			}
-			if (!certSignatureAlgorithmSupported) {
+	boolean isSignedWithSupportedAlgorithm(List<X509Certificate> chain) {
+		for (X509Certificate certificate : chain) {
+			if (!isSignedWithSupportedAlgorithm(certificate)) {
 				LOGGER.debug("certificate chain is NOT signed with supported algorithm(s)");
 				return false;
 			}
 		}
 		LOGGER.debug("certificate chain is signed with supported algorithm(s)");
 		return true;
+	}
+
+	/**
+	 * Checks if the given certificate have been signed using one of the
+	 * algorithms supported by the server.
+	 * 
+	 * @param certificate The certificate to test.
+	 * @return {@code true} if the certificate have been signed using one of the
+	 *         supported algorithms.
+	 */
+	boolean isSignedWithSupportedAlgorithm(X509Certificate certificate) {
+		String sigAlgName = certificate.getSigAlgName();
+		for (SignatureAndHashAlgorithm supportedAlgorithm : supportedSignatureAlgorithms) {
+			// android's certificate returns a upper case SigAlgName, e.g. "SHA256WITHECDSA"
+			// But the jcaName returns a mixed case name, e.g. "SHA256withECDSA"
+			if (supportedAlgorithm.jcaName().equalsIgnoreCase(sigAlgName)) {
+				return true;
+			}
+		}
+		LOGGER.debug("certificate is NOT signed with supported algorithm(s)");
+		return false;
 	}
 
 	SignatureAndHashAlgorithm getSupportedSignatureAlgorithm(PublicKey key) {
@@ -546,20 +556,23 @@ public final class CertificateRequest extends HandshakeMessage {
 	 * @return A (potentially) truncated copy of the original chain.
 	 * @throws NullPointerException if the given chain is {@code null}.
 	 */
-	public X509Certificate[] removeTrustedCertificates(X509Certificate[] chain) {
-
+	public List<X509Certificate> removeTrustedCertificates(List<X509Certificate> chain) {
 		if (chain == null) {
 			throw new NullPointerException("certificate chain must not be null");
-		} else if (chain.length > 1) {
+		} else if (chain.size() > 1) {
+			List<X509Certificate> result = new ArrayList<>();
+			result.add(chain.get(0));
 			int i = 1;
-			for ( ; i < chain.length; i++) {
-				if (certificateAuthorities.contains(chain[i].getSubjectX500Principal())) {
+			for (; i < chain.size(); i++) {
+				X509Certificate x509Certificate = chain.get(i);
+				result.add(x509Certificate);
+				if (certificateAuthorities.contains(x509Certificate.getSubjectX500Principal())) {
 					break;
 				}
 			}
-			return Arrays.copyOf(chain, i);
+			return Collections.unmodifiableList(result);
 		} else {
-			return Arrays.copyOf(chain, chain.length);
+			return chain;
 		}
 	}
 

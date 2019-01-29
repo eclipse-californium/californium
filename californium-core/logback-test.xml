@@ -8,8 +8,10 @@
 		</encoder>
 	</appender>
 
-	<!-- Strictly speaking, the level attribute is not necessary since -->
-	<!-- the level of the root level is set to DEBUG by default. -->
+	<logger name="org.eclipse.californium.core.network.InMemoryMessageExchangeStore.health" level="DEBUG" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
+
 	<root level="WARN">
 		<appender-ref ref="STDOUT" />
 	</root>

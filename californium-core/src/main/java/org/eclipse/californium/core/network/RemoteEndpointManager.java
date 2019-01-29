@@ -18,6 +18,7 @@
 package org.eclipse.californium.core.network;
 
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -50,10 +51,11 @@ public class RemoteEndpointManager {
 	 * @return the endpoint for the exchange
 	 */
 	public RemoteEndpoint getRemoteEndpoint(Exchange exchange){ //int remotePort, InetAddress remoteAddress){
-		
-		InetAddress remoteAddress = exchange.getRequest().getDestination();
-		int remotePort = exchange.getRequest().getDestinationPort();
-		
+
+		InetSocketAddress remoteSocketAddress = exchange.getRequest().getDestinationContext().getPeerAddress();
+		InetAddress remoteAddress = remoteSocketAddress.getAddress();
+		int remotePort = remoteSocketAddress.getPort();
+
 		// TODO: One IP-Address is considered to be a destination endpoint, for higher granularity (portnumber) changes are necessary
 		if (!remoteEndpointsList.containsKey(remoteAddress)){
 			RemoteEndpoint unusedRemoteEndpoint = new RemoteEndpoint(remotePort, remoteAddress, config);
@@ -61,7 +63,7 @@ public class RemoteEndpointManager {
 			
 			//System.out.println("Number of RemoteEndpoint objects stored:" + remoteEndpointsList.size());
 		}
-		
+
 		return remoteEndpointsList.get(remoteAddress);
 	}
 	

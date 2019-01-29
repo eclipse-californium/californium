@@ -45,7 +45,7 @@ public final class ServerBlockwiseInterceptor extends BlockwiseInterceptor imple
 		if (errorInjector != null) {
 			logNewLine("(should be dropped by error)   ");
 			appendResponseDetails(response);
-			response.addMessageObserver(new LoggingMessageObserver(errorInjector, response) {
+			response.addMessageObserver(new LoggingMessageObserver(errorInjector) {
 
 				@Override
 				public void log(IntendedTestException exception) {

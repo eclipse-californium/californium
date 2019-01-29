@@ -13,6 +13,9 @@
  * Contributors:
  *    Bosch Software Innovations GmbH - initial creation
  *                                      extracted from ExchangeCleanupLayer
+ *    Achim Kraus (Bosch Software Innovations GmbH) - make cleanup message observer
+ *                                                    extendible to support multicast
+ *                                                    variant.
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -27,13 +30,13 @@ import org.slf4j.LoggerFactory;
  * Cleanup exchange when user cancelled outgoing requests or messages which
  * failed to be send.
  */
-class CleanupMessageObserver extends MessageObserverAdapter {
+public class CleanupMessageObserver extends MessageObserverAdapter {
 
-	static final Logger LOGGER = LoggerFactory.getLogger(CleanupMessageObserver.class.getName());
+	protected static final Logger LOGGER = LoggerFactory.getLogger(CleanupMessageObserver.class.getName());
 
-	private final Exchange exchange;
+	protected final Exchange exchange;
 
-	CleanupMessageObserver(final Exchange exchange) {
+	protected CleanupMessageObserver(final Exchange exchange) {
 		this.exchange = exchange;
 	}
 
@@ -47,7 +50,7 @@ class CleanupMessageObserver extends MessageObserverAdapter {
 		complete("failed");
 	}
 
-	private void complete(final String action) {
+	protected void complete(final String action) {
 		if (exchange.executeComplete()) {
 			if (exchange.isOfLocalOrigin()) {
 				Request request = exchange.getCurrentRequest();

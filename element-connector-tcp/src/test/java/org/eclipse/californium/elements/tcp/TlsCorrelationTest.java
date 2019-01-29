@@ -36,6 +36,7 @@ import org.eclipse.californium.elements.TcpEndpointContext;
 import org.eclipse.californium.elements.TlsEndpointContext;
 import org.eclipse.californium.elements.TlsEndpointContextMatcher;
 import org.eclipse.californium.elements.auth.X509CertPath;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.tcp.TlsConnectorTestUtil.SSLTestContext;
 import org.eclipse.californium.elements.tcp.TlsServerConnector.ClientAuthMode;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
@@ -49,7 +50,11 @@ import org.junit.rules.Timeout;
 public class TlsCorrelationTest {
 
 	@Rule
-	public final Timeout timeout = new Timeout(10, TimeUnit.SECONDS);
+	public final Timeout timeout = new Timeout(TEST_TIMEOUT_IN_MS, TimeUnit.MILLISECONDS);
+
+	@Rule
+	public TestNameLoggerRule names = new TestNameLoggerRule();
+
 	private final List<Connector> cleanup = new ArrayList<>();
 
 	@BeforeClass
@@ -59,9 +64,7 @@ public class TlsCorrelationTest {
 
 	@After
 	public void cleanup() {
-		for (Connector connector : cleanup) {
-			connector.stop();
-		}
+		stop(cleanup);
 	}
 
 	/**
@@ -99,7 +102,7 @@ public class TlsCorrelationTest {
 		RawData msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
-		serverCatcher.blockUntilSize(1);
+		serverCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS);
 
 		/* client context sent */
 		EndpointContext clientContext = clientCallback.getEndpointContext();
@@ -118,7 +121,7 @@ public class TlsCorrelationTest {
 		SimpleMessageCallback serverCallback = new SimpleMessageCallback();
 		msg = createMessage(serverCatcher.getMessage(0).getInetSocketAddress(), 10000, serverCallback);
 		server.send(msg);
-		clientCatcher.blockUntilSize(1);
+		clientCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS);
 
 		/* server context sent, matching received context */
 		EndpointContext serverResponseContext = serverCallback.getEndpointContext();
@@ -177,7 +180,7 @@ public class TlsCorrelationTest {
 		RawData msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
-		serverCatcher.blockUntilSize(1);
+		serverCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS);
 
 		EndpointContext serverContext = serverCatcher.getEndpointContext(0);
 		EndpointContext clientContext = clientCallback.getEndpointContext();
@@ -189,7 +192,7 @@ public class TlsCorrelationTest {
 		msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
-		serverCatcher.blockUntilSize(2);
+		serverCatcher.blockUntilSize(2, CATCHER_TIMEOUT_IN_MS);
 
 		EndpointContext clientContextAfterReconnect = clientCallback.getEndpointContext();
 		// new (different) client side connection
@@ -237,7 +240,7 @@ public class TlsCorrelationTest {
 		RawData msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
-		serverCatcher.blockUntilSize(1);
+		serverCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS);
 
 		EndpointContext serverContext = serverCatcher.getEndpointContext(0);
 		EndpointContext clientContext = clientCallback.getEndpointContext();
@@ -266,7 +269,7 @@ public class TlsCorrelationTest {
 			}
 			if (resend) {
 				client.send(msg);
-				serverCatcher.blockUntilSize(2);
+				serverCatcher.blockUntilSize(2, CATCHER_TIMEOUT_IN_MS);
 			}
 		}
 		EndpointContext clientContextAfterReconnect = clientCallback.getEndpointContext();
@@ -333,7 +336,7 @@ public class TlsCorrelationTest {
 		clientCallback = new SimpleMessageCallback();
 		msg = createMessage(server.getAddress(), 100, clientCallback);
 		client.send(msg);
-		serverCatcher.blockUntilSize(1);
+		serverCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS);
 
 		EndpointContext clientContext = clientCallback.getEndpointContext();
 		assertThat(clientContext.get(TcpEndpointContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
@@ -344,7 +347,7 @@ public class TlsCorrelationTest {
 		clientCallback = new SimpleMessageCallback();
 		msg = createMessage(100, clientContext, clientCallback);
 		client.send(msg);
-		serverCatcher.blockUntilSize(2);
+		serverCatcher.blockUntilSize(2, CATCHER_TIMEOUT_IN_MS);
 
 		// invalid message context with connector context => drop
 		clientCallback = new SimpleMessageCallback();
@@ -358,7 +361,7 @@ public class TlsCorrelationTest {
 		clientCallback = new SimpleMessageCallback();
 		msg = createMessage(server.getAddress(), 100, clientCallback);
 		client.send(msg);
-		serverCatcher.blockUntilSize(3);
+		serverCatcher.blockUntilSize(3, CATCHER_TIMEOUT_IN_MS);
 	}
 
 	/**
@@ -400,7 +403,7 @@ public class TlsCorrelationTest {
 		RawData msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
-		serverCatcher.blockUntilSize(1);
+		serverCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS);
 
 		RawData receivedMsg = serverCatcher.getMessage(0);
 		EndpointContext serverContext = serverCatcher.getEndpointContext(0);
@@ -412,13 +415,13 @@ public class TlsCorrelationTest {
 		msg = createMessage(100, serverContext, serverCallback);
 		server.send(msg);
 
-		clientCatcher.blockUntilSize(1);
+		clientCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS);
 
 		serverCallback = new SimpleMessageCallback();
 		msg = createMessage(receivedMsg.getInetSocketAddress(), 100, serverCallback);
 		server.send(msg);
 
-		clientCatcher.blockUntilSize(2);
+		clientCatcher.blockUntilSize(2, CATCHER_TIMEOUT_IN_MS);
 
 		serverCallback = new SimpleMessageCallback();
 		EndpointContext invalidContext = new TlsEndpointContext(receivedMsg.getInetSocketAddress(), null, "n.a.", "n.a.", "n.a.");
@@ -452,7 +455,7 @@ public class TlsCorrelationTest {
 		RawData msg = createMessage(server.getAddress(), 100, null);
 
 		client.send(msg);
-		serverCatcher.blockUntilSize(1);
+		serverCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS);
 		RawData receivedMessage = serverCatcher.getMessage(0);
 		assertThat(receivedMessage, is(notNullValue()));
 
@@ -519,11 +522,11 @@ public class TlsCorrelationTest {
 		RawData msg = createMessage(server.getAddress(), 100, null);
 
 		client.send(msg);
-		serverCatcher.blockUntilSize(1);
+		serverCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS);
 
 		msg = createMessage(serverCatcher.getMessage(0).getInetSocketAddress(), 100, null);
 		server.send(msg);
-		clientCatcher.blockUntilSize(1);
+		clientCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS);
 
 		RawData receivedMessage = clientCatcher.getMessage(0);
 		assertThat(receivedMessage, is(notNullValue()));

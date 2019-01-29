@@ -87,7 +87,7 @@ public class ClusteringTest {
 		store = new InMemoryObservationStore(config);
 
 		notificationListener1 = new SynchronousNotificationListener();
-		CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 		builder.setNetworkConfig(config);
 		builder.setObservationStore(store);
@@ -100,7 +100,7 @@ public class ClusteringTest {
 		System.out.println("Client 1 binds to port " + clientPort1);
 
 		notificationListener2 = new SynchronousNotificationListener();
-		builder = new CoapEndpoint.CoapEndpointBuilder();
+		builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 		builder.setNetworkConfig(config);
 		builder.setObservationStore(store);

@@ -13,12 +13,15 @@
  * Contributors:
  *    Bosch Software Innovations GmbH - initial creation
  *    Bosch Software Innovations GmbH - migrate to SLF4J
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add special multicast cleanup
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
+
 
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,6 +34,17 @@ public class ExchangeCleanupLayer extends AbstractLayer {
 	static final Logger LOGGER = LoggerFactory.getLogger(ExchangeCleanupLayer.class.getName());
 
 	/**
+	 * Multicast lifetime in milliseconds.
+	 */
+	private final int multicastLifetime;
+
+	public ExchangeCleanupLayer(final NetworkConfig config) {
+		this.multicastLifetime = config.getInt(NetworkConfig.Keys.NON_LIFETIME)
+				+ config.getInt(NetworkConfig.Keys.MAX_LATENCY)
+				+ config.getInt(NetworkConfig.Keys.MAX_SERVER_RESPONSE_DELAY);
+	}
+
+	/**
 	 * Adds a message observer to the request to be sent which completes the
 	 * exchange if the request gets canceled or failed.
 	 * 
@@ -40,8 +54,11 @@ public class ExchangeCleanupLayer extends AbstractLayer {
 	 */
 	@Override
 	public void sendRequest(final Exchange exchange, final Request request) {
-
-		request.addMessageObserver(new CleanupMessageObserver(exchange));
+		if (request.isMulticast()) {
+			request.addMessageObserver(new MulticastCleanupMessageObserver(exchange, executor, multicastLifetime));
+		} else {
+			request.addMessageObserver(new CleanupMessageObserver(exchange));
+		}
 		super.sendRequest(exchange, request);
 	}
 
@@ -61,4 +78,15 @@ public class ExchangeCleanupLayer extends AbstractLayer {
 		}
 		super.sendResponse(exchange, response);
 	}
+
+	@Override
+	public void receiveResponse(final Exchange exchange, final Response response) {
+		if (!exchange.getRequest().isMulticast()) {
+			// multicast exchanges are completed with MulticastCleanupMessageObserver
+			exchange.setComplete();
+			exchange.getRequest().onComplete();
+		}
+		super.receiveResponse(exchange, response);
+	}
+
 }

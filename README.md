@@ -20,7 +20,7 @@ Executable JARs of the examples with all dependencies can be found in the `demo-
 
 # Using Californium in Maven Projects
 
-We are publishing Californium's artifacts for milestones and releases to [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Ccalifornium).
+We are publishing Californium's artifacts for milestones and releases to [Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:1.0.7).
 To use the latest released version as a library in your projects, add the following dependency
 to your `pom.xml` (without the dots):
 
@@ -30,16 +30,16 @@ to your `pom.xml` (without the dots):
     <dependency>
             <groupId>org.eclipse.californium</groupId>
             <artifactId>californium-core</artifactId>
-            <version>1.0.6</version>
+            <version>1.0.7</version>
     </dependency>
     ...
   </dependencies>
   ...
 ```
 
-If you want to give the most recent milestone a try, use version `2.0.0-M10` instead.
+If you want to give the most recent milestone a try, use version `2.0.0-M13` instead.
 
-Please Note: in the meantime, a lot of new bugfixes and improvements has been made in branch 2.0.x, which had affected the API and could not be back-ported to the other branches. Even if 2.0.x is still under development, we recommend to focus on using the 2.0.x branch, especially for larger changes.
+Please Note: in the meantime, a lot of new bugfixes and improvements has been made in branch 2.0.x, which had affected the API and could not be back-ported to the other branches. Even if 2.0.x is still under development, we strongly recommend to focus on using the 2.0.x branch, especially for new projects or larger updates of projects.
 
 ##### Current Builds
 

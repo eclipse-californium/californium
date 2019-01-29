@@ -37,10 +37,10 @@ public class EndpointContextUtilTest {
 
 	@Before
 	public void setup() {
-		connectorContext = new DtlsEndpointContext(ADDRESS, null, "session", "1", "CIPHER");
-		relaxedMessageContext = new DtlsEndpointContext(ADDRESS, null, "session", "2", "CIPHER");
-		strictMessageContext = new DtlsEndpointContext(ADDRESS, null, "session", "1", "CIPHER");
-		differentMessageContext = new DtlsEndpointContext(ADDRESS, null, "new session", "1", "CIPHER");
+		connectorContext = new DtlsEndpointContext(ADDRESS, null, "session", "1", "CIPHER", "100");
+		relaxedMessageContext = new DtlsEndpointContext(ADDRESS, null, "session", "2", "CIPHER", "200");
+		strictMessageContext = new DtlsEndpointContext(ADDRESS, null, "session", "1", "CIPHER", "100");
+		differentMessageContext = new DtlsEndpointContext(ADDRESS, null, "new session", "1", "CIPHER", "100");
 		MapBasedEndpointContext mapBasedContext = new MapBasedEndpointContext(ADDRESS, null, "ID", "session", "UNKNOWN", "secret");
 		unsecureMessageContext = mapBasedContext;
 		mapBasedContext = new MapBasedEndpointContext(ADDRESS, null, "ID", "session", "UNKNOWN", "topsecret");

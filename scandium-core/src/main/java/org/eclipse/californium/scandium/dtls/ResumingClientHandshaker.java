@@ -33,6 +33,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add dtls flight number
  *    Achim Kraus (Bosch Software Innovations GmbH) - adjust dtls flight number
  *                                                    for short resumption
+ *    Achim Kraus (Bosch Software Innovations GmbH) - redesign DTLSFlight and RecordLayer
 ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -101,7 +102,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	// Methods ////////////////////////////////////////////////////////
 
 	@Override
-	protected synchronized void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
+	protected void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
 		if (fullHandshake){
 			// handshake resumption was refused by the server
 			// we do a full handshake
@@ -117,7 +118,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 				message.getPeer());
 			lastFlight.incrementTries();
 			lastFlight.setNewSequenceNumbers();
-			recordLayer.sendFlight(lastFlight);
+			sendFlight(lastFlight);
 			return;
 		}
 
@@ -142,7 +143,6 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 			break;
 
 		case HANDSHAKE:
-			recordLayer.cancelRetransmissions();
 			HandshakeMessage handshakeMsg = (HandshakeMessage) message;
 			switch (handshakeMsg.getMessageType()) {
 
@@ -159,7 +159,6 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 							new Object[]{serverHello.getPeer(), session.getSessionIdentifier()});
 					// Server refuse to resume the session, go for a full handshake
 					fullHandshake  = true;
-					session.resetMasterSecret();
 					super.receivedServerHello(serverHello);
 					return;
 				} else if (!serverHello.getCompressionMethod().equals(session.getCompressionMethod())) {
@@ -265,7 +264,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		// store, if we need to retransmit this flight, see
 		// http://tools.ietf.org/html/rfc6347#section-4.2.4
 		lastFlight = flight;
-		recordLayer.sendFlight(flight);
+		sendFlight(flight);
 		sessionEstablished();
 	}
 
@@ -292,8 +291,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		flightNumber = 1;
 		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
 		flight.addMessage(wrapMessage(message));
-
-		recordLayer.sendFlight(flight);
+		sendFlight(flight);
 	}
 
 //	@Override

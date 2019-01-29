@@ -50,6 +50,7 @@ import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.TcpEndpointContext;
 import org.eclipse.californium.elements.TcpEndpointContextMatcher;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.junit.After;
 import org.junit.Rule;
@@ -61,15 +62,16 @@ public class TcpEndpointContextTest {
 	public static final long MESSAGE_TIMEOUT_MILLIS = 2000;
 
 	@Rule
-	public final Timeout timeout = new Timeout(20, TimeUnit.SECONDS);
+	public final Timeout timeout = new Timeout(TEST_TIMEOUT_IN_MS, TimeUnit.MILLISECONDS);
+
+	@Rule
+	public TestNameLoggerRule names = new TestNameLoggerRule();
 
 	private final List<Connector> cleanup = new ArrayList<>();
 
 	@After
 	public void cleanup() {
-		for (Connector connector : cleanup) {
-			connector.stop();
-		}
+		stop(cleanup);
 	}
 
 	/**

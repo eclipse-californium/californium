@@ -264,13 +264,13 @@ public class DTLSEndpointContextTest {
 				.getLatestInboundMessage().getEndpointContext();
 		assertThat(context, is(notNullValue()));
 		assertThat(context.getSessionId(), is(establishedClientSession.getSessionIdentifier().toString()));
-		assertThat(context.getEpoch(), is(String.valueOf(establishedClientSession.getReadEpoch())));
+		assertThat(context.getEpoch(), is(Integer.toString(establishedClientSession.getReadEpoch())));
 		assertThat(context.getCipher(), is(establishedClientSession.getReadStateCipher()));
 	}
 
 	private void givenAStartedSession(RawData msgToSend, CountDownLatch latch) throws Exception {
 
-		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.new LatchDecrementingRawDataChannel();
+		LatchDecrementingRawDataChannel clientRawDataChannel = new ConnectorHelper.LatchDecrementingRawDataChannel(client);
 		clientRawDataChannel.setLatch(latch);
 		client.setRawDataReceiver(clientRawDataChannel);
 		client.start();

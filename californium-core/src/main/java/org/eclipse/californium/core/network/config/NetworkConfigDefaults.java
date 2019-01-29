@@ -67,6 +67,13 @@ public class NetworkConfigDefaults {
 	public static final int DEFAULT_BLOCKWISE_STATUS_LIFETIME = 5 * 60 * 1000; // 5 mins [ms]
 	
 	/**
+	 * The default mode used to respond for early bockwise negociation when response can be sent on one packet.
+	 * <p>
+	 * The default value is false, which indicate that the server will not include the Block2 option.
+	 */
+	public static final boolean DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION = false;
+	
+	/**
 	 * The default value for {@link Keys#PREFERRED_BLOCK_SIZE}
 	 */
 	public static final int DEFAULT_PREFERRED_BLOCK_SIZE = 512;
@@ -123,6 +130,13 @@ public class NetworkConfigDefaults {
 	public static final int DEFAULT_TCP_CONNECT_TIMEOUT = 10000; // 10s [ms]
 
 	/**
+	 * The default tls handshake timeout in milliseconds.
+	 * <p>
+	 * The default value is 10s.
+	 */
+	public static final int DEFAULT_TLS_HANDSHAKE_TIMEOUT = 10000; // 10s [ms]
+
+	/**
 	 * The default secure session timeout in seconds.
 	 * <p>
 	 * The default value is 24h.
@@ -140,6 +154,12 @@ public class NetworkConfigDefaults {
 	 * The default health status interval in seconds.
 	 */
 	public static final int DEFAULT_HEALTH_STATUS_INTERVAL = 0; // 0s
+	/**
+	 * The default multicast mid range.
+	 * Enable multicast, and MID reserve range of 65000..65335 for multicast.
+	 * 0 to disable multicast.
+	 */
+	public static final int DEFAULT_MULTICAST_BASE_MID = 65000;
 
 	/*
 	 * Accept other message versions than 1
@@ -170,6 +190,9 @@ public class NetworkConfigDefaults {
 		config.setInt(Keys.LEISURE, 5000);
 		config.setFloat(Keys.PROBING_RATE, 1f);
 
+		config.setInt(Keys.MAX_LATENCY, 100 * 1000); //ms
+		config.setInt(Keys.MAX_SERVER_RESPONSE_DELAY, 250 * 1000); //ms
+
 		config.setBoolean(Keys.USE_RANDOM_MID_START, true);
 		config.setString(Keys.MID_TRACKER, DEFAULT_MID_TRACKER);
 		config.setInt(Keys.MID_TRACKER_GROUPS, DEFAULT_MID_TRACKER_GROUPS);
@@ -179,7 +202,9 @@ public class NetworkConfigDefaults {
 		config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_MAX_MESSAGE_SIZE);
 		config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_BODY_SIZE);
 		config.setInt(Keys.BLOCKWISE_STATUS_LIFETIME, DEFAULT_BLOCKWISE_STATUS_LIFETIME); // [ms]
+		config.setBoolean(Keys.BLOCKWISE_STRICT_BLOCK2_OPTION, DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION);
 
+		
 		config.setLong(Keys.NOTIFICATION_CHECK_INTERVAL_TIME, 24 * 60 * 60 * 1000); //24 [ms]
 		config.setInt(Keys.NOTIFICATION_CHECK_INTERVAL_COUNT, 100);
 		config.setLong(Keys.NOTIFICATION_REREGISTRATION_BACKOFF, 2000); // [ms]
@@ -213,9 +238,12 @@ public class NetworkConfigDefaults {
 		config.setInt(Keys.TCP_WORKER_THREADS, 1);
 		config.setInt(Keys.TCP_CONNECT_TIMEOUT, DEFAULT_TCP_CONNECT_TIMEOUT); // ms
 		config.setInt(Keys.TCP_NUMBER_OF_BULK_BLOCKS, 2);// BERT enabled when > 1.
+		config.setInt(Keys.TLS_HANDSHAKE_TIMEOUT, DEFAULT_TLS_HANDSHAKE_TIMEOUT); // ms
 
 		config.setLong(Keys.SECURE_SESSION_TIMEOUT, DEFAULT_SECURE_SESSION_TIMEOUT);
 		config.setLong(Keys.DTLS_AUTO_RESUME_TIMEOUT, DEFAULT_DTLS_AUTO_RESUME_TIMEOUT);
+
+		config.setInt(Keys.MULTICAST_BASE_MID, DEFAULT_MULTICAST_BASE_MID);
 	}
 
 	// prevent instantiation

@@ -215,8 +215,7 @@ public final class RawData {
 	 * Gets additional information regarding the context this message has been
 	 * received in or should be sent in.
 	 * 
-	 * @return the messageContext the endpoint information or <code>null</code>
-	 *         if no additional endpoint information is available
+	 * @return the message context including the endpoint information
 	 */
 	public EndpointContext getEndpointContext() {
 		return peerEndpointContext;

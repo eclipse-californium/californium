@@ -131,7 +131,7 @@ public class MainActivity extends AppCompatActivity {
      * and dtls connector.
      */
     private void initCoapEndpoint(){
-        CoapEndpoint.CoapEndpointBuilder dtlsEndpointBuilder = new CoapEndpoint.CoapEndpointBuilder();
+        CoapEndpoint.Builder dtlsEndpointBuilder = new CoapEndpoint.Builder();
         // setup coap EndpointManager to dtls connector
         DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
         dtlsConfig.setClientOnly();
@@ -140,7 +140,7 @@ public class MainActivity extends AppCompatActivity {
         dtlsEndpointBuilder.setConnector(dtlsConnector);
         EndpointManager.getEndpointManager().setDefaultEndpoint(dtlsEndpointBuilder.build());
         // setup coap EndpointManager to udp connector
-        CoapEndpoint.CoapEndpointBuilder udpEndpointBuilder = new CoapEndpoint.CoapEndpointBuilder();
+        CoapEndpoint.Builder udpEndpointBuilder = new CoapEndpoint.Builder();
         UDPConnector udpConnector = new UDPConnector();
         udpEndpointBuilder.setConnector(udpConnector);
         EndpointManager.getEndpointManager().setDefaultEndpoint(udpEndpointBuilder.build());

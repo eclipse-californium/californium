@@ -17,6 +17,8 @@
  *                                                    to prevent the DatagramSocket to
  *                                                    use the erroneous internal
  *                                                    "old implementation mode".
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix deprecation of setTTL and getTTL
+ *    Achim Kraus (Bosch Software Innovations GmbH) - implement multicast support
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
@@ -37,7 +39,6 @@ import java.util.concurrent.ConcurrentHashMap;
  * Intended to be extended by an implementation for "in process message
  * exchange". Throws IOException with message containing "not supported" on
  * {@link #peek(InetAddress)}, {@link #setTTL(byte)}, {@link #getTTL()},
- * {@link #join(InetAddress)}, {@link #leave(InetAddress)},
  * {@link #joinGroup(SocketAddress, NetworkInterface)}, and
  * {@link #leaveGroup(SocketAddress, NetworkInterface)}.
  * 
@@ -85,11 +86,13 @@ public abstract class AbstractDatagramSocketImpl extends DatagramSocketImpl {
 	}
 
 	@Override
+	@Deprecated
 	protected void setTTL(byte ttl) throws IOException {
 		throw new IOException("setTTL(byte) not supported!");
 	}
 
 	@Override
+	@Deprecated
 	protected byte getTTL() throws IOException {
 		throw new IOException("getTTL() not supported!");
 	}
@@ -102,16 +105,6 @@ public abstract class AbstractDatagramSocketImpl extends DatagramSocketImpl {
 	@Override
 	protected int getTimeToLive() throws IOException {
 		return ttl;
-	}
-
-	@Override
-	protected void join(InetAddress inetaddr) throws IOException {
-		throw new IOException("join(InetAddress) not supported!");
-	}
-
-	@Override
-	protected void leave(InetAddress inetaddr) throws IOException {
-		throw new IOException("leave(InetAddress) not supported!");
 	}
 
 	@Override

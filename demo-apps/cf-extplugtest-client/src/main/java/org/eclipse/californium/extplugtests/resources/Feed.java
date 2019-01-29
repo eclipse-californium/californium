@@ -12,6 +12,9 @@
  * 
  * Contributors:
  *    Bosch Software Innovations GmbH - initial implementation
+ *    Achim Kraus (Bosch Software Innovations GmbH) - report response on completion
+ *                                                    instead start sending.
+ *                                                    Keeps client longer running.
  ******************************************************************************/
 package org.eclipse.californium.extplugtests.resources;
 
@@ -63,11 +66,15 @@ public class Feed extends CoapResource {
 	/**
 	 * Minimum timeout for notifies complete in milliseconds.
 	 */
-	public static final int DEFAULT_TIMEOUT_IN_MILLIS = 2000;
+	public static final int DEFAULT_TIMEOUT_IN_MILLIS = 5000;
 	/**
 	 * Random generator for interval.
 	 */
 	private static final Random random = new Random(1234);
+	/**
+	 * Counter for started gets/notifies.
+	 */
+	private static final AtomicLong started = new AtomicLong();
 	/**
 	 * Default response.
 	 */
@@ -89,7 +96,7 @@ public class Feed extends CoapResource {
 	 */
 	private final int intervalMax;
 	/**
-	 * Counter for gets/notifies.
+	 * Counter for finished gets/notifies.
 	 */
 	private final CountDownLatch counter;
 	/**
@@ -113,6 +120,7 @@ public class Feed extends CoapResource {
 			changed();
 		}
 	};
+
 	/**
 	 * Executor to schedule {@link #change} jobs.
 	 */
@@ -173,11 +181,8 @@ public class Feed extends CoapResource {
 			}
 		}
 
-		long count;
-		synchronized (counter) {
-			counter.countDown();
-			count = counter.getCount();
-		}
+		long count = started.incrementAndGet();
+
 		// Changing payload on every GET is no good idea,
 		// but helps to debug blockwise notifies :-)
 		byte[] responsePayload = (payload + "-" + count).getBytes();
@@ -189,6 +194,8 @@ public class Feed extends CoapResource {
 			}
 		}
 
+		int interval = 0;
+		int timeout = 0;
 		Response response = Response.createResponse(request, CONTENT);
 		response.setToken(request.getToken());
 		response.setPayload(responsePayload);
@@ -196,8 +203,6 @@ public class Feed extends CoapResource {
 		if (request.isObserve()) {
 			int observer = getObserverCount();
 			if (changeScheduled.compareAndSet(false, true)) {
-				int timeout;
-				final int interval;
 				if (intervalMin < intervalMax) {
 					float r = random.nextFloat();
 					interval = (int) ((r * r * r) * (intervalMax - intervalMin)) + intervalMin;
@@ -212,45 +217,8 @@ public class Feed extends CoapResource {
 					}
 					LOGGER.info("client[{}] {} observer, wait for response {} completed.", id, observer,
 							response.getToken());
-					final AtomicBoolean scheduled = new AtomicBoolean();
-					final Future<?> timeoutFuture = executorService.schedule(new Runnable() {
-
-						@Override
-						public void run() {
-							if (scheduled.compareAndSet(false, true)) {
-								LOGGER.info(
-										"client[{}] response didn't complete in time, next change in {} ms, {} observer.",
-										id, -interval, getObserverCount());
-								timeouts.incrementAndGet();
-								executorService.schedule(change, -interval, TimeUnit.MILLISECONDS);
-							}
-						}
-					}, timeout, TimeUnit.MILLISECONDS);
-
-					response.addMessageObserver(new MessageObserverAdapter() {
-
-						@Override
-						public void onComplete() {
-							if (scheduled.compareAndSet(false, true)) {
-								timeoutFuture.cancel(false);
-								LOGGER.info("client[{}] response complete, next change in {} ms, {} observer.", id,
-										-interval, getObserverCount());
-								executorService.schedule(change, -interval, TimeUnit.MILLISECONDS);
-							}
-						}
-
-						@Override
-						protected void failed() {
-							if (scheduled.compareAndSet(false, true)) {
-								timeoutFuture.cancel(false);
-								LOGGER.info("client[{}] response failed, next change in {} ms, {} observer.", id,
-										-interval, getObserverCount());
-								executorService.schedule(change, -interval, TimeUnit.MILLISECONDS);
-							}
-						}
-
-					});
 				} else {
+					timeout = 0;
 					LOGGER.info("client[{}] next change in {} ms, {} observer.", id, interval, observer);
 					executorService.schedule(change, interval, TimeUnit.MILLISECONDS);
 				}
@@ -260,6 +228,73 @@ public class Feed extends CoapResource {
 		} else {
 			LOGGER.info("client[{}] no observe {}!", id, request);
 		}
+		response.addMessageObserver(new MessageCompletionObserver(timeout, interval));
 		exchange.respond(response);
+	}
+
+	private class MessageCompletionObserver extends MessageObserverAdapter implements Runnable {
+
+		private final Future<?> timeoutJob;
+		private final AtomicBoolean completed = new AtomicBoolean();
+		private final int interval;
+
+		private MessageCompletionObserver(int timeout, int interval) {
+			if (0 < timeout) {
+				this.timeoutJob = executorService.schedule(this, timeout, TimeUnit.MILLISECONDS);
+			} else {
+				this.timeoutJob = null;
+			}
+			this.interval = interval;
+		}
+
+		@Override
+		public void onCancel() {
+			if (completed.compareAndSet(false, true)) {
+				if (timeoutJob != null) {
+					timeoutJob.cancel(false);
+				}
+			}
+		}
+
+		@Override
+		public void onComplete() {
+			if (completed.compareAndSet(false, true)) {
+				next("completed");
+			}
+		}
+
+		@Override
+		protected void failed() {
+			if (completed.compareAndSet(false, true)) {
+				next("failed");
+			}
+		}
+
+		@Override
+		public void run() {
+			// timeout
+			if (completed.compareAndSet(false, true)) {
+				if (interval < 0) {
+					LOGGER.info("client[{}] response didn't complete in time, next change in {} ms, {} observer.", id,
+							-interval, getObserverCount());
+					timeouts.incrementAndGet();
+					executorService.schedule(change, -interval, TimeUnit.MILLISECONDS);
+				}
+			}
+		}
+
+		private void next(String state) {
+			counter.countDown();
+			if (timeoutJob != null) {
+				timeoutJob.cancel(false);
+			}
+			if (interval < 0) {
+				LOGGER.info("client[{}] response {}, next change in {} ms, {} observer.", id, state, -interval,
+						getObserverCount());
+				executorService.schedule(change, -interval, TimeUnit.MILLISECONDS);
+			} else {
+				LOGGER.info("client[{}] response {}, {} observer.", id, state, getObserverCount());
+			}
+		}
 	}
 }

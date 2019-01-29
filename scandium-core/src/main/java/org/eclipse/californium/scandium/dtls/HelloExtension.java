@@ -52,7 +52,7 @@ public abstract class HelloExtension {
 
 	protected static final int TYPE_BITS = 16;
 
-	protected static final int LENGTH_BITS = 16;
+	public static final int LENGTH_BITS = 16;
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -61,6 +61,9 @@ public abstract class HelloExtension {
 	// Constructors ///////////////////////////////////////////////////
 
 	protected HelloExtension(final ExtensionType type) {
+		if (type == null) {
+			throw new NullPointerException("extension type must not be null!");
+		}
 		this.type = type;
 	}
 

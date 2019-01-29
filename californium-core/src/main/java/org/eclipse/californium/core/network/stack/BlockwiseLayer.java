@@ -56,6 +56,7 @@
  *                                                    for blockwise transfers
  *    Achim Kraus (Bosch Software Innovations GmbH) - use ExecutorsUtil.getScheduledExecutor()
  *                                                    for health status instead of own executor.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - disable transparent blockwise for multicast.
  *    Pratheek Rai - changes for BERT 
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
@@ -65,7 +66,6 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.coap.BlockOption;
-import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.MessageObserver;
@@ -117,8 +117,11 @@ public class BlockwiseLayer extends AbstractLayer {
 
 	/*
 	 * What if a request contains a Block2 option with size 128 but the response
-	 * is only 10 bytes long? Should we still add the block2 option to the
-	 * response? Currently, we do.
+	 * is only 10 bytes long? A configuration property allow the server between two choices :
+	 * <ul>
+	 * 	<li>Include block2 option with m flag set to false to indicate that there is no more block to request.</li>
+	 * 	<li>Do not include the block2 option at all (allowed by the RFC, it should be up to the client to handle this use case : https://tools.ietf.org/html/rfc7959#section-2.2)</li>
+	 * </ul>
 	 * <p>
 	 * The draft needs to specify whether it is allowed to use separate
 	 * responses or NONs. Otherwise, I do not know whether I should allow (or
@@ -159,6 +162,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	private int preferredBlockSzx;
 	private int blockTimeout;
 	private int maxResourceBodySize;
+	private boolean strictBlock2Option;
 
 	/**
 	 * Creates a new blockwise layer for a configuration.
@@ -187,6 +191,10 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * The maximum amount of time (in milliseconds) allowed between transfers of individual blocks before
 	 * the blockwise transfer state is discarded.
 	 * If not set, a default value of 30 seconds is used.</li>
+	 * 
+	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#BLOCKWISE_STRICT_BLOCK2_OPTION} -
+	 * This value is used to indicate if the response should always include the Block2 option when client request early blockwise negociation but the response can be sent on one packet.
+	 * If not set, the default value is {@link org.eclipse.californium.core.network.config.NetworkConfigDefaults#DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION}</li>
 	 * </ul>
 
 	 * @param config The configuration values to use.
@@ -206,10 +214,11 @@ public class BlockwiseLayer extends AbstractLayer {
 		block1Transfers.setEvictingOnReadAccess(false);
 		block2Transfers = new LeastRecentlyUsedCache<>(maxActivePeers, TimeUnit.MILLISECONDS.toSeconds(blockTimeout));
 		block2Transfers.setEvictingOnReadAccess(false);
-
+		strictBlock2Option = config.getBoolean(NetworkConfig.Keys.BLOCKWISE_STRICT_BLOCK2_OPTION, NetworkConfigDefaults.DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION);
+		
 		LOGGER.info(
-			"BlockwiseLayer uses MAX_MESSAGE_SIZE={}, PREFERRED_BLOCK_SIZE={}, BLOCKWISE_STATUS_LIFETIME={} and MAX_RESOURCE_BODY_SIZE={}",
-			new Object[]{maxMessageSize, preferredBlockSize, blockTimeout, maxResourceBodySize});
+			"BlockwiseLayer uses MAX_MESSAGE_SIZE={}, PREFERRED_BLOCK_SIZE={}, BLOCKWISE_STATUS_LIFETIME={}, MAX_RESOURCE_BODY_SIZE={}, BLOCKWISE_STRICT_BLOCK2_OPTION={}",
+			maxMessageSize, preferredBlockSize, blockTimeout, maxResourceBodySize, strictBlock2Option);
 		int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
 
 		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled()) {
@@ -261,7 +270,7 @@ public class BlockwiseLayer extends AbstractLayer {
 
 		Request requestToSend = request;
 
-		if (isTransparentBlockwiseHandlingEnabled()) {
+		if (isTransparentBlockwiseHandlingEnabled() && !request.isMulticast()) {
 
 			BlockOption block2 = request.getOptions().getBlock2();
 			if (block2 != null && block2.getNum() > 0) {
@@ -605,7 +614,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	@Override
 	public void receiveResponse(final Exchange exchange, final Response response) {
 
-		if (isTransparentBlockwiseHandlingEnabled()) {
+		if (isTransparentBlockwiseHandlingEnabled() && !exchange.getRequest().isMulticast()) {
 			if (response.isError()) {
 				// handle blockwise specific error codes
 				switch(response.getCode()) {
@@ -801,15 +810,25 @@ public class BlockwiseLayer extends AbstractLayer {
 		}
 		int nextNum = status.getCurrentNum() + currentSize / newSize;
 		LOGGER.debug("sending next Block1 num={}", nextNum);
-		Request nextBlock = status.getNextRequestBlock(nextNum, newSzx);
-		// we use the same token to ease traceability
-		nextBlock.setToken(response.getToken());
-		nextBlock.setDestinationContext(response.getSourceContext());
-		addBlock1CleanUpObserver(nextBlock, key, status);
-
-		exchange.setCurrentRequest(nextBlock);
-		prepareBlock1Cleanup(status, key);
-		lower().sendRequest(exchange, nextBlock);
+		Request nextBlock = null;
+		try {
+			nextBlock = status.getNextRequestBlock(nextNum, newSzx);
+			// we use the same token to ease traceability
+			nextBlock.setToken(response.getToken());
+			nextBlock.setDestinationContext(response.getSourceContext());
+			addBlock1CleanUpObserver(nextBlock, key, status);
+	
+			exchange.setCurrentRequest(nextBlock);
+			prepareBlock1Cleanup(status, key);
+			lower().sendRequest(exchange, nextBlock);
+		} catch (RuntimeException ex) {
+			LOGGER.warn("cannot process next block request, aborting request!", ex);
+			if (nextBlock != null) {
+				nextBlock.setSendError(ex);
+			} else {
+				exchange.getRequest().setSendError(ex);
+			}
+		}
 	}
 
 	/**
@@ -927,45 +946,49 @@ public class BlockwiseLayer extends AbstractLayer {
 		Request request = exchange.getRequest();
 
 		Request block = new Request(request.getCode());
-		// do not enforce CON, since NON could make sense over SMS or similar transports
-		block.setType(request.getType());
-		block.setDestinationContext(response.getSourceContext());
+		try {
+			// do not enforce CON, since NON could make sense over SMS or similar transports
+			block.setType(request.getType());
+			block.setDestinationContext(response.getSourceContext());
 
-		/*
-		 * WARNING:
-		 * 
-		 * For Observe, the Matcher then will store the same
-		 * exchange under a different KeyToken in exchangesByToken,
-		 * which is cleaned up in the else case below.
-		 */
-		if (!response.isNotification()) {
-			block.setToken(response.getToken());
-		} else if (exchange.isNotification()) {
-			// Recreate cleanup message observer 
-			request.addMessageObserver(new CleanupMessageObserver(exchange));
+			/*
+			 * WARNING:
+			 * 
+			 * For Observe, the Matcher then will store the same
+			 * exchange under a different KeyToken in exchangesByToken,
+			 * which is cleaned up in the else case below.
+			 */
+			if (!response.isNotification()) {
+				block.setToken(response.getToken());
+			} else if (exchange.isNotification()) {
+				// Recreate cleanup message observer 
+				request.addMessageObserver(new CleanupMessageObserver(exchange));
+			}
+
+			// copy options
+			block.setOptions(new OptionSet(request.getOptions()));
+			block.getOptions().setBlock2(newSzx, false, nextNum);
+
+			// make sure NOT to use Observe for block retrieval
+			block.getOptions().removeObserve();
+
+			// copy message observers from original request so that they will be notified
+			// if something goes wrong with this blockwise request, e.g. if it times out
+			block.addMessageObservers(request.getMessageObservers());
+			// add an observer that cleans up the block2 transfer tracker if the
+			// block request fails
+			addBlock2CleanUpObserver(block, key, status);
+
+			status.setCurrentNum(nextNum);
+
+			LOGGER.debug("requesting next Block2 [num={}]: {}", nextNum, block);
+			exchange.setCurrentRequest(block);
+			prepareBlock2Cleanup(status, key);
+			lower().sendRequest(exchange, block);
+		} catch (RuntimeException ex) {
+			LOGGER.warn("cannot process next block request, aborting request!", ex);
+			block.setSendError(ex);
 		}
-
-		// copy options
-		block.setOptions(new OptionSet(request.getOptions()));
-		block.getOptions().setBlock2(newSzx, false, nextNum);
-
-		// make sure NOT to use Observe for block retrieval
-		block.getOptions().removeObserve();
-
-		// copy message observers from original request so that they will be notified
-		// if something goes wrong with this blockwise request, e.g. if it times out
-		block.addMessageObservers(request.getMessageObservers());
-		// add an observer that cleans up the block2 transfer tracker if the
-		// block request fails
-		addBlock2CleanUpObserver(block, key, status);
-
-		status.setCurrentNum(nextNum);
-
-		LOGGER.debug("requesting next Block2 [num={}]: {}", nextNum, block);
-		exchange.setCurrentRequest(block);
-		prepareBlock2Cleanup(status, key);
-		lower().sendRequest(exchange, block);
-
 	}
 
 	/////////// HELPER METHODS //////////
@@ -1143,10 +1166,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	}
 
 	protected boolean requiresBlockwise(final Request request) {
-		boolean blockwiseRequired = false;
-		if (request.getCode() == Code.PUT || request.getCode() == Code.POST) {
-			blockwiseRequired = request.getPayloadSize() > maxMessageSize;
-		}
+		boolean blockwiseRequired = request.getPayloadSize() > maxMessageSize;
 		if (blockwiseRequired) {
 			LOGGER.debug("request body [{}/{}] requires blockwise transfer", request.getPayloadSize(), maxMessageSize);
 		}
@@ -1158,7 +1178,8 @@ public class BlockwiseLayer extends AbstractLayer {
 		boolean blockwiseRequired = response.getPayloadSize() > maxMessageSize;
 		if (requestBlock2 != null) {
 			// client might have included early negotiation block2 option
-			blockwiseRequired = blockwiseRequired || response.getPayloadSize() > requestBlock2.getSize();
+			// If the block2 strict mode has been enabled we must respond with a block2 option even if the payload fits in one block
+			blockwiseRequired = blockwiseRequired || strictBlock2Option || response.getPayloadSize() > requestBlock2.getSize();
 		}
 		if (blockwiseRequired) {
 			LOGGER.debug("response body [{}/{}] requires blockwise transfer", response.getPayloadSize(),

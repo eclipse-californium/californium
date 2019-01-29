@@ -52,7 +52,7 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class DataSerializerTest {
 
-	private static final EndpointContext ENDPOINT_CONTEXT = new DtlsEndpointContext(new InetSocketAddress(0), null, "session", "1", "CIPHER");
+	private static final EndpointContext ENDPOINT_CONTEXT = new DtlsEndpointContext(new InetSocketAddress(0), null, "session", "1", "CIPHER", "100");
 
 	/**
 	 * The concrete serializer to run the test cases with.
@@ -144,4 +144,64 @@ public class DataSerializerTest {
 
 		assertThat(data.getEndpointContext(), is(equalTo(ENDPOINT_CONTEXT)));
 	}
+
+	/**
+	 * Verifies that the serializeRequest() method creates bare empty messages with 4 bytes only!
+	 */
+	@Test
+	public void testSerializeEmptyRequest() {
+
+		// GIVEN a empty CoAP request
+		Request request = new Request(null, Type.CON);
+		request.setToken(Token.EMPTY);
+		request.setMID(1);
+		request.setURI("coap://localhost/test");
+
+		// WHEN serializing the request to a RawData object
+		RawData raw = serializer.serializeRequest(request);
+
+		// THEN the serialized byte array is stored in the request's bytes property
+		assertNotNull(raw);
+		assertNotNull(raw.getBytes());
+		assertThat(raw.getSize(), either(is(4)).or(is(2)));
+	}
+
+	@Test (expected = IllegalArgumentException.class)
+	public void testSerializeEmptyNonRequestFails() {
+		// GIVEN a empty CoAP request
+		Request request = new Request(null, Type.NON);
+		request.setToken(Token.EMPTY);
+		request.setMID(1);
+		request.setURI("coap://localhost/test");
+
+		// WHEN serializing the request to a RawData object
+		serializer.serializeRequest(request);
+	}
+
+	@Test (expected = IllegalArgumentException.class)
+	public void testSerializeEmptyRequestWithTokenFails() {
+		// GIVEN a empty CoAP request
+		Request request = new Request(null, Type.CON);
+		request.setToken(new byte[]{1});
+		request.setMID(1);
+		request.setURI("coap://localhost/test");
+
+		// WHEN serializing the request to a RawData object
+		serializer.serializeRequest(request);
+	}
+
+	@Test (expected = IllegalArgumentException.class)
+	public void testSerializeEmptyRequestWithPayloadFails() {
+
+		// GIVEN a empty CoAP request
+		Request request = new Request(null, Type.CON);
+		request.setToken(Token.EMPTY);
+		request.setMID(1);
+		request.setPayload("test");
+		request.setURI("coap://localhost/test");
+
+		// WHEN serializing the request to a RawData object
+		serializer.serializeRequest(request);
+	}
+
 }

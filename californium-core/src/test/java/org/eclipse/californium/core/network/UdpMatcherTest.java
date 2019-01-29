@@ -35,6 +35,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange.Origin;
+import org.eclipse.californium.core.network.MatcherTestUtils.TestEndpointReceiver;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
 import org.eclipse.californium.elements.AddressEndpointContext;
@@ -76,39 +77,43 @@ public class UdpMatcherTest {
 	@Test
 	public void testReceiveResponseAcceptsWithEndpointContext() {
 		// GIVEN a request sent without any additional endpoint information
-		when(endpointContextMatcher.isResponseRelatedToRequest(exchangeEndpointContext, responseEndpointContext)).thenReturn(true);
+		when(endpointContextMatcher.isResponseRelatedToRequest(exchangeEndpointContext, responseEndpointContext))
+				.thenReturn(true);
 
 		UdpMatcher matcher = newUdpMatcher();
 
 		Exchange exchange = sendRequest(dest, matcher, exchangeEndpointContext);
+		TestEndpointReceiver receiver = new TestEndpointReceiver();
 
 		// WHEN a response arrives with arbitrary additional endpoint information
 		Response response = receiveResponseFor(exchange.getCurrentRequest(), responseEndpointContext);
-		Exchange matchedExchange = matcher.receiveResponse(response);
+		matcher.receiveResponse(response, receiver);
+		Exchange matched = receiver.waitForExchange(1000);
+		assertThat(matched, is(exchange));
 
-		verify(endpointContextMatcher, times(1)).isResponseRelatedToRequest(exchangeEndpointContext, responseEndpointContext);
-		
-		// THEN assert that the response is successfully matched against the request
-		assertThat(matchedExchange, is(exchange));
+		verify(endpointContextMatcher, times(1)).isResponseRelatedToRequest(exchangeEndpointContext,
+				responseEndpointContext);
 	}
 
 	@Test
 	public void testReceiveResponseRejectsWithEndpointContext() {
 		// GIVEN a request sent without any additional endpoint information
-		when(endpointContextMatcher.isResponseRelatedToRequest(exchangeEndpointContext, responseEndpointContext)).thenReturn(false);
+		when(endpointContextMatcher.isResponseRelatedToRequest(exchangeEndpointContext, responseEndpointContext))
+				.thenReturn(false);
 
 		UdpMatcher matcher = newUdpMatcher();
 
 		Exchange exchange = sendRequest(dest, matcher, exchangeEndpointContext);
+		TestEndpointReceiver receiver = new TestEndpointReceiver();
 
 		// WHEN a response arrives with arbitrary additional endpoint information
 		Response response = receiveResponseFor(exchange.getCurrentRequest(), responseEndpointContext);
-		Exchange matchedExchange = matcher.receiveResponse(response);
+		matcher.receiveResponse(response, receiver);
+		Exchange matched = receiver.waitForExchange(1000);
+		assertThat(matched, is(nullValue()));
 
-		verify(endpointContextMatcher, times(1)).isResponseRelatedToRequest(exchangeEndpointContext, responseEndpointContext);
-		
-		// THEN assert that the response is successfully matched against the request
-		assertThat(matchedExchange, is(nullValue()));
+		verify(endpointContextMatcher, times(1)).isResponseRelatedToRequest(exchangeEndpointContext,
+				responseEndpointContext);
 	}
 
 	@Test

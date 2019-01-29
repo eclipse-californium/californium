@@ -120,12 +120,16 @@ public final class Block1BlockwiseStatus extends BlockwiseStatus {
 		block.setDestinationContext(request.getDestinationContext());
 		// copy options
 		block.setOptions(new OptionSet(request.getOptions()));
-		// copy message observers so that a failing blockwise request also notifies observers registered with
-		// the original request
+		// copy message observers so that a failing blockwise request
+		// also notifies observers registered with the original request
 		block.addMessageObservers(request.getMessageObservers());
+
 		if (num == 0) {
 			// indicate overall body size to peer
 			block.getOptions().setSize1(request.getPayloadSize());
+		}
+		if (request.isUnintendedPayload()) {
+			block.setUnintendedPayload();
 		}
 
 		int currentSize = getCurrentSize();

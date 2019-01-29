@@ -26,6 +26,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add dtls flight number
  *    Achim Kraus (Bosch Software Innovations GmbH) - adjust dtls flight number
  *                                                    for short resumption
+ *    Achim Kraus (Bosch Software Innovations GmbH) - redesign DTLSFlight and RecordLayer
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -68,7 +69,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	// Methods ////////////////////////////////////////////////////////
 
 	@Override
-	protected synchronized void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
+	protected void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
 
 		// log record now (even if message is still encrypted) in case an Exception
 		// is thrown during processing
@@ -92,7 +93,6 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 			break;
 
 		case HANDSHAKE:
-			recordLayer.cancelRetransmissions();
 			HandshakeMessage handshakeMsg = (HandshakeMessage) message;
 			switch (handshakeMsg.getMessageType()) {
 			case CLIENT_HELLO:
@@ -185,8 +185,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 
 			mdWithServerFinished.update(finished.toByteArray());
 			handshakeHash = mdWithServerFinished.digest();
-
-			recordLayer.sendFlight(flight);
+			sendFlight(flight);
 		}
 	}
 

@@ -50,6 +50,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add dtls flight number
  *    Achim Kraus (Bosch Software Innovations GmbH) - add preSharedKeyIdentity to
  *                                                    support creating statistics.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - redesign DTLSFlight and RecordLayer
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -57,7 +58,6 @@ import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.PublicKey;
 import java.security.cert.CertPath;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -69,7 +69,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.CertificateRequest.ClientCertificateType;
-import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
@@ -77,9 +77,6 @@ import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
-import org.eclipse.californium.scandium.util.ServerName;
-import org.eclipse.californium.scandium.util.ServerNames;
-import org.eclipse.californium.scandium.util.ServerName.NameType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -98,6 +95,12 @@ public class ServerHandshaker extends Handshaker {
 	 * retransmitted unless the peer retransmits its last flight.
 	 */
 	private DTLSFlight lastFlight;
+
+	/** Does the server use session id? */
+	private boolean useNoSessionId = false;
+
+	/** Is the client wanted to authenticate itself? */
+	private boolean clientAuthenticationWanted = false;
 
 	/** Is the client required to authenticate itself? */
 	private boolean clientAuthenticationRequired = false;
@@ -122,17 +125,16 @@ public class ServerHandshaker extends Handshaker {
 	/**
 	 * The certificate types this server supports for client authentication.
 	 */
-	private List<CertificateType> supportedClientCertificateTypes;
+	private final List<CertificateType> supportedClientCertificateTypes;
 	/**
 	 * The certificate types this server supports for server authentication.
 	 */
-	private List<CertificateType> supportedServerCertificateTypes;
+	private final List<CertificateType> supportedServerCertificateTypes;
 
 	private CertificateType negotiatedClientCertificateType;
 	private CertificateType negotiatedServerCertificateType;
 	private SupportedGroup negotiatedSupportedGroup;
 	private SignatureAndHashAlgorithm signatureAndHashAlgorithm;
-	private ServerNames indicatedServerNames;
 
 	/*
 	 * Store all the messages which can possibly be sent by the client. We
@@ -206,7 +208,7 @@ public class ServerHandshaker extends Handshaker {
 			DtlsConnectorConfig config, int maxTransmissionUnit) { 
 		super(false, initialMessageSequenceNo, session, recordLayer, sessionListener, config, maxTransmissionUnit);
 
-		this.supportedCipherSuites = Arrays.asList(config.getSupportedCipherSuites());
+		this.supportedCipherSuites = config.getSupportedCipherSuites();
 
 		this.pskStore = config.getPskStore();
 
@@ -214,35 +216,13 @@ public class ServerHandshaker extends Handshaker {
 		this.certificateChain = config.getCertificateChain();
 		this.publicKey = config.getPublicKey();
 		this.sniEnabled = config.isSniEnabled();
+		this.clientAuthenticationWanted = config.isClientAuthenticationWanted();
 		this.clientAuthenticationRequired = config.isClientAuthenticationRequired();
+		this.useNoSessionId = config.useNoServerSessionId();
 
-		this.supportedClientCertificateTypes = new ArrayList<>();
-		this.supportedServerCertificateTypes = new ArrayList<>();
-		
-		// we only need to include certificate_type extensions in the SERVER_HELLO
-		// if we support a cipher suite that requires a certificate exchange
-		if (CipherSuite.containsCipherSuiteRequiringCertExchange(supportedCipherSuites)) {
-
-			if (this.clientAuthenticationRequired) {
-				this.supportedClientCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-				if (config.getCertificateVerifier() != null) {
-					int index = config.isSendRawKey() ? 1 : 0;
-					this.supportedClientCertificateTypes.add(index, CertificateType.X_509);
-				}
-			}
-
-			if (privateKey != null && publicKey != null) {
-				if (certificateChain == null || certificateChain.length == 0) {
-					this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-				} else if (config.isSendRawKey()) {
-					this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-					this.supportedServerCertificateTypes.add(CertificateType.X_509);
-				} else {
-					this.supportedServerCertificateTypes.add(CertificateType.X_509);
-					this.supportedServerCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-				}
-			}
-		}
+		// the server handshake uses the config with exchanged roles!
+		this.supportedClientCertificateTypes = config.getTrustCertificateTypes();
+		this.supportedServerCertificateTypes = config.getIdentityCertificateTypes();
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -252,7 +232,7 @@ public class ServerHandshaker extends Handshaker {
 	}
 
 	@Override
-	protected synchronized void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
+	protected void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
 		if (lastFlight != null) {
 			// we already sent the last flight (including our FINISHED message),
 			// but the client does not seem to have received it because we received
@@ -261,7 +241,7 @@ public class ServerHandshaker extends Handshaker {
 					getPeerAddress());
 			lastFlight.incrementTries();
 			lastFlight.setNewSequenceNumbers();
-			recordLayer.sendFlight(lastFlight);
+			sendFlight(lastFlight);
 			return;
 		}
 
@@ -285,9 +265,7 @@ public class ServerHandshaker extends Handshaker {
 			break;
 
 		case HANDSHAKE:
-			recordLayer.cancelRetransmissions();
 			HandshakeMessage handshakeMsg = (HandshakeMessage) message;
-
 			switch (handshakeMsg.getMessageType()) {
 			case CLIENT_HELLO:
 				receivedClientHello((ClientHello) handshakeMsg);
@@ -487,7 +465,7 @@ public class ServerHandshaker extends Handshaker {
 		// store, if we need to retransmit this flight, see
 		// http://tools.ietf.org/html/rfc6347#section-4.2.4
 		lastFlight = flight;
-		recordLayer.sendFlight(flight);
+		sendFlight(flight);
 		sessionEstablished();
 	}
 
@@ -532,8 +510,7 @@ public class ServerHandshaker extends Handshaker {
 		flight.addMessage(wrapMessage(serverHelloDone));
 		md.update(serverHelloDone.toByteArray());
 		handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverHelloDone.toByteArray());
-
-		recordLayer.sendFlight(flight);
+		sendFlight(flight);
 	}
 
 	private void createServerHello(final ClientHello clientHello, final DTLSFlight flight) throws HandshakeException {
@@ -544,7 +521,8 @@ public class ServerHandshaker extends Handshaker {
 		clientRandom = clientHello.getRandom();
 		serverRandom = new Random();
 
-		SessionId sessionId = new SessionId();
+		
+		SessionId sessionId = useNoSessionId ? SessionId.emptySessionId() : new SessionId();
 		session.setSessionIdentifier(sessionId);
 
 		// currently only NULL compression supported, no negotiation needed
@@ -576,7 +554,7 @@ public class ServerHandshaker extends Handshaker {
 		if (serverNameExt != null) {
 			if (sniEnabled) {
 				// store the names indicated by peer for later reference during key exchange
-				indicatedServerNames = serverNameExt.getServerNames();
+				session.setServerNames(serverNameExt.getServerNames());
 				// RFC6066, section 3 requires the server to respond with
 				// an empty SNI extension if it might make use of the value(s)
 				// provided by the client
@@ -604,10 +582,12 @@ public class ServerHandshaker extends Handshaker {
 
 		CertificateMessage certificateMessage = null;
 		if (session.getCipherSuite().requiresServerCertificateMessage()) {
-			if (session.sendRawPublicKey()){
+			if (CertificateType.RAW_PUBLIC_KEY == session.sendCertificateType()){
 				certificateMessage = new CertificateMessage(publicKey.getEncoded(), session.getPeer());
-			} else {
+			} else if (CertificateType.X_509 == session.sendCertificateType()){
 				certificateMessage = new CertificateMessage(certificateChain, session.getPeer());
+			} else {
+				throw new IllegalArgumentException("Certificate type " + session.sendCertificateType() + " not supported!");
 			}
 
 			flight.addMessage(wrapMessage(certificateMessage));
@@ -675,7 +655,7 @@ public class ServerHandshaker extends Handshaker {
 
 	private void createCertificateRequest(final ClientHello clientHello, final DTLSFlight flight) throws HandshakeException {
 
-		if (clientAuthenticationRequired && signatureAndHashAlgorithm != null) {
+		if ((clientAuthenticationWanted || clientAuthenticationRequired) && signatureAndHashAlgorithm != null) {
 
 			CertificateRequest certificateRequest = new CertificateRequest(session.getPeer());
 
@@ -724,7 +704,7 @@ public class ServerHandshaker extends Handshaker {
 		// use the client's PSK identity to look up the pre-shared key
 		String identity = message.getIdentity();
 		preSharedKeyIdentity = identity;
-		byte[] psk = pskStore.getKey(indicatedServerNames, identity);
+		byte[] psk = pskStore.getKey(session.getServerNames(), identity);
 		return configurePskCredentials(identity, psk, null);
 	}
 	
@@ -735,7 +715,7 @@ public class ServerHandshaker extends Handshaker {
 		// use the client's PSK identity to look up the pre-shared key
 		String identity = message.getIdentity();
 		preSharedKeyIdentity = identity;
-		byte[] psk = pskStore.getKey(indicatedServerNames, identity);
+		byte[] psk = pskStore.getKey(session.getServerNames(), identity);
 		byte[] otherSecret = ecdhe.getSecret(message.getEncodedPoint()).getEncoded();
 		return configurePskCredentials(identity, psk, otherSecret);
 	}
@@ -855,7 +835,7 @@ public class ServerHandshaker extends Handshaker {
 		if (cipher.requiresServerCertificateMessage()) {
 			// make sure that we support the client's proposed server cert types
 			result &= supportedServerCertType != null;
-			if (clientAuthenticationRequired) {
+			if (clientAuthenticationRequired || clientAuthenticationWanted) {
 				result &= supportedClientCertType != null;
 			}
 		}
@@ -864,18 +844,16 @@ public class ServerHandshaker extends Handshaker {
 
 	private void addServerHelloExtensions(final CipherSuite negotiatedCipherSuite, final ClientHello clientHello, final HelloExtensions extensions) {
 		if (negotiatedClientCertificateType != null) {
-			session.setReceiveRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(negotiatedClientCertificateType));
+			session.setReceiveCertificateType(negotiatedClientCertificateType);
 			if (clientHello.getClientCertificateTypeExtension() != null) {
-				ClientCertificateTypeExtension ext = new ClientCertificateTypeExtension(false);
-				ext.addCertificateType(negotiatedClientCertificateType);
+				ClientCertificateTypeExtension ext = new ClientCertificateTypeExtension(negotiatedClientCertificateType);
 				extensions.addExtension(ext);
 			}
 		}
 		if (negotiatedServerCertificateType != null) {
-			session.setSendRawPublicKey(CertificateType.RAW_PUBLIC_KEY.equals(negotiatedServerCertificateType));
+			session.setSendCertificateType(negotiatedServerCertificateType);
 			if (clientHello.getServerCertificateTypeExtension() != null) {
-				ServerCertificateTypeExtension ext = new ServerCertificateTypeExtension(false);
-				ext.addCertificateType(negotiatedServerCertificateType);
+				ServerCertificateTypeExtension ext = new ServerCertificateTypeExtension(negotiatedServerCertificateType);
 				extensions.addExtension(ext);
 			}
 		}
@@ -920,31 +898,37 @@ public class ServerHandshaker extends Handshaker {
 		return result;
 	}
 
-	private CertificateType getSupportedClientCertificateType(final ClientHello clientHello) throws HandshakeException {
-
-		ClientCertificateTypeExtension certTypeExt = clientHello.getClientCertificateTypeExtension();
-		if (certTypeExt != null) {
-			for (CertificateType certType : certTypeExt.getCertificateTypes()) {
-				if (supportedClientCertificateTypes.contains(certType)) {
-					return certType;
-				}
-			}
-		} else if (supportedClientCertificateTypes.contains(CertificateType.X_509)) {
-			return CertificateType.X_509;
-		}
-		return null;
+	private CertificateType getSupportedClientCertificateType(final ClientHello clientHello) {
+		return getSupportedCertificateType(clientHello.getClientCertificateTypeExtension(), supportedClientCertificateTypes);
 	}
 
-	private CertificateType getSupportedServerCertificateType(final ClientHello clientHello) throws HandshakeException {
-		ServerCertificateTypeExtension certTypeExt = clientHello.getServerCertificateTypeExtension();
-		if (certTypeExt != null) {
-			for (CertificateType certType : certTypeExt.getCertificateTypes()) {
-				if (supportedServerCertificateTypes.contains(certType)) {
-					return certType;
+	private CertificateType getSupportedServerCertificateType(final ClientHello clientHello) {
+		return getSupportedCertificateType(clientHello.getServerCertificateTypeExtension(), supportedServerCertificateTypes);
+	}
+
+	/**
+	 * Get supported certificate type. If the extension is available, used it to
+	 * find a supported certificate type. If the extension is not available,
+	 * check, if X_509 is supported.
+	 * 
+	 * @param certTypeExt certificate type extension. {@code null}, if not
+	 *            available.
+	 * @param supportedCertificateTypes supported certificate types of peer
+	 * @return supported certificate type, or {@code null}, if no common
+	 *         certificate type could be found.
+	 */
+	private static CertificateType getSupportedCertificateType(CertificateTypeExtension certTypeExt,
+			List<CertificateType> supportedCertificateTypes) {
+		if (supportedCertificateTypes != null) {
+			if (certTypeExt != null) {
+				for (CertificateType certType : certTypeExt.getCertificateTypes()) {
+					if (supportedCertificateTypes.contains(certType)) {
+						return certType;
+					}
 				}
+			} else if (supportedCertificateTypes.contains(CertificateType.X_509)) {
+				return CertificateType.X_509;
 			}
-		} else if (supportedServerCertificateTypes.contains(CertificateType.X_509)) {
-			return CertificateType.X_509;
 		}
 		return null;
 	}
@@ -959,10 +943,6 @@ public class ServerHandshaker extends Handshaker {
 
 	final SupportedGroup getNegotiatedSupportedGroup() {
 		return negotiatedSupportedGroup;
-	}
-
-	final ServerNames getIndicatedServerNames() {
-		return indicatedServerNames;
 	}
 
 	/**
@@ -990,21 +970,11 @@ public class ServerHandshaker extends Handshaker {
 //	}
 	
 	private byte[] configurePskCredentials(String identity, byte[] psk, byte[] otherSecret) throws HandshakeException {
-		String virtualHost = null;
-
-		if (indicatedServerNames == null) {
+		String virtualHost = session.getVirtualHost();
+		if (virtualHost == null) {
 			LOGGER.debug("client [{}] uses PSK identity [{}]", getPeerAddress(), identity);
 		} else {
-			// SNI is enabled and the client has indicated a virtual host
-			ServerName serverName = indicatedServerNames.getServerName(NameType.HOST_NAME);
-			if (serverName == null) {
-				LOGGER.debug("client [{}] provided invalid SNI extension which doesn't include a hostname",
-						getPeerAddress());
-			} else {
-				virtualHost = new String(serverName.getName(), ServerName.CHARSET);
-				LOGGER.debug("client [{}] uses PSK identity [{}] for server [{}]",
-						getPeerAddress(), identity, virtualHost);
-			}
+			LOGGER.debug("client [{}] uses PSK identity [{}] for server [{}]", getPeerAddress(), identity, virtualHost);
 		}
 
 		if (psk == null) {
@@ -1013,7 +983,11 @@ public class ServerHandshaker extends Handshaker {
 							identity, virtualHost),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_PSK_IDENTITY, session.getPeer()));
 		} else {
-			session.setPeerIdentity(new PreSharedKeyIdentity(virtualHost, identity));
+			if (sniEnabled) {
+				session.setPeerIdentity(new PreSharedKeyIdentity(virtualHost, identity));
+			} else {
+				session.setPeerIdentity(new PreSharedKeyIdentity(identity));
+			}
 			return generatePremasterSecretFromPSK(psk, otherSecret);
 		}
 	}

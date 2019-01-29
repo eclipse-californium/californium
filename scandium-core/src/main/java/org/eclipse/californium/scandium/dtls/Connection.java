@@ -30,6 +30,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - redesign connection session listener to
  *                                                    ensure, that the session listener methods
  *                                                    are called via the handshaker.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move DTLSFlight to Handshaker
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move serial executor from dtlsconnector
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -37,6 +39,9 @@ import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+
+import org.eclipse.californium.elements.util.ClockUtil;
+import org.eclipse.californium.elements.util.SerialExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,21 +52,22 @@ import org.slf4j.LoggerFactory;
  * <ul>
  * <li>a potentially ongoing handshake with the peer</li>
  * <li>an already established session with the peer</li>
- * <li>a pending flight that has not been acknowledged by the peer yet</li>
  * </ul> 
  */
 public final class Connection {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(Connection.class.getName());
 
+	private final SerialExecutor serialExecutor;
 	private final InetSocketAddress peerAddress;
 	private final SessionTicket ticket;
 	private final SessionId sessionId;
 	private final SessionListener sessionListener;
 	private final AtomicReference<Handshaker> ongoingHandshake = new AtomicReference<Handshaker>();
-	private final AtomicReference<DTLSFlight> pendingFlight = new AtomicReference<DTLSFlight>();
-	private final AtomicLong lastMessage = new AtomicLong();
-	private final Long autoResumptionTimeout;
+	/**
+	 * Expired realtime nanoseconds of the last message send or received.
+	 */
+	private final AtomicLong lastMessageNanos = new AtomicLong();
 
 	private volatile DTLSSession establishedSession;
 	// Used to know when an abbreviated handshake should be initiated
@@ -71,18 +77,20 @@ public final class Connection {
 	 * Creates a new connection to a given peer.
 	 * 
 	 * @param peerAddress the IP address and port of the peer the connection exists with
-	 * @param autoResumptionTimeout
-	 * @throws NullPointerException if the peer address is <code>null</code>
+	 * @param serialExecutor serial executor.
+	 * @throws NullPointerException if the peer address or the serial executor is {@code null}
 	 */
-	public Connection(final InetSocketAddress peerAddress, final Long autoResumptionTimeout) {
+	public Connection(final InetSocketAddress peerAddress, final SerialExecutor serialExecutor) {
 		if (peerAddress == null) {
 			throw new NullPointerException("Peer address must not be null");
+		} else if (serialExecutor == null) {
+			throw new NullPointerException("Serial executor must not be null");
 		} else {
 			this.sessionId = null;
 			this.ticket = null;
 			this.peerAddress = peerAddress;
-			this.autoResumptionTimeout = autoResumptionTimeout;
 			this.sessionListener = new ConnectionSessionListener();
+			this.serialExecutor = serialExecutor;
 		}
 	}
 
@@ -90,21 +98,69 @@ public final class Connection {
 	 * Creates a new connection from a session ticket containing <em>current</em> state from another
 	 * connection that should be resumed.
 	 * 
+	 * The connection is not {@link #isExecuting()}.
+	 * 
 	 * @param sessionTicket The other connection's current state.
 	 * @param sessionId The other connection's session id.
+	 * @throws NullPointerException if the session ticket or id is {@code null}
 	 */
-	public Connection(final SessionTicket sessionTicket, SessionId sessionId) {
+	public Connection(final SessionTicket sessionTicket, final SessionId sessionId) {
 		if (sessionTicket == null) {
 			throw new NullPointerException("session ticket must not be null");
-		}
-		if (sessionId == null) {
+		} else if (sessionId == null) {
 			throw new NullPointerException("session identity must not be null");
+		} else {
+			this.ticket = sessionTicket;
+			this.sessionId =sessionId;
+			this.peerAddress = null;
+			this.sessionListener = null;
+			this.serialExecutor = null;
 		}
-		this.ticket = sessionTicket;
-		this.sessionId =sessionId;
-		this.peerAddress = null;
-		this.autoResumptionTimeout = null;
-		this.sessionListener = null;
+	}
+
+	/**
+	 * Creates a new connection from a connection, which is not {@link #isExecuting()}.
+	 * 
+	 * @param connection The other connection's states.
+	 * @param serialExecutor serial executor.
+	 * @throws NullPointerException if the connection of executor is {@code null}
+	 */
+	public Connection(final Connection connection, final SerialExecutor serialExecutor) {
+		if (connection == null) {
+			throw new NullPointerException("connection must not be null");
+		} else if (serialExecutor == null) {
+			throw new NullPointerException("Serial executor must not be null");
+		} else {
+			this.serialExecutor = serialExecutor;
+			this.ticket = connection.getSessionTicket();
+			this.sessionId =connection.getSessionIdentity();
+			this.peerAddress = connection.getPeerAddress();
+			this.sessionListener =  new ConnectionSessionListener();
+			this.lastMessageNanos.set(connection.lastMessageNanos.get());
+			this.resumptionRequired = connection.resumptionRequired;
+			this.establishedSession = connection.establishedSession;
+		}
+	}
+
+	/**
+	 * Gets the serial executor assigned to this connection.
+	 * 
+	 * @return serial executor. May be {@code null}, if the connection was
+	 *         created with {@link #Connection(SessionTicket, SessionId)}.
+	 */
+	public SerialExecutor getExecutor() {
+		return serialExecutor;
+	}
+
+	/**
+	 * Checks, if the connection has a executing serial executor.
+	 * 
+	 * @return {@code true}, if the connection has an executing serial executor.
+	 *         {@code false}, if no serial executor is available, or the
+	 *         executor is shutdown.
+	 */
+	public boolean isExecuting() {
+		return serialExecutor != null && !serialExecutor.isShutdown();
 	}
 
 	/**
@@ -204,85 +260,103 @@ public final class Connection {
 	}
 
 	/**
-	 * Registers an outbound flight that has not been acknowledged by the peer
-	 * yet in order to be able to cancel its re-transmission later once it has
-	 * been acknowledged. The retransmission of a different previous pending
-	 * flight will be cancelled also.
+	 * Checks whether this connection has a ongoing handshake initiated by the
+	 * given message.
 	 * 
-	 * @param pendingFlight the flight
-	 * @see #cancelPendingFlight()
+	 * @param handshakeMessage the message to check.
+	 * @return <code>true</code> if the given message has initially started this
+	 *         ongoing handshake.
 	 */
-	public void setPendingFlight(DTLSFlight pendingFlight) {
-		DTLSFlight flight = this.pendingFlight.getAndSet(pendingFlight);
-		if (flight != null && flight != pendingFlight) {
-			flight.cancelRetransmission();
-		}
+	public boolean hasOngoingHandshakeStartedByMessage(HandshakeMessage handshakeMessage) {
+		Handshaker handshaker = ongoingHandshake.get();
+		return handshaker != null && handshaker.hasBeenStartedByMessage(handshakeMessage);
 	}
 
 	/**
-	 * Cancels any pending re-transmission of an outbound flight that has been registered
-	 * previously using the {@link #setPendingFlight(DTLSFlight)} method.
-	 * 
-	 * This method is usually invoked once an flight has been acknowledged by the peer. 
+	 * Cancels any pending re-transmission of an outbound flight.
 	 */
 	public void cancelPendingFlight() {
-		setPendingFlight(null);
+		Handshaker handshaker = ongoingHandshake.get();
+		if (handshaker != null) {
+			handshaker.cancelPendingFlight();
+		}
 	}
 
 	/**
-	 * Gets the session containing the connection's <em>current</em> state.
+	 * Gets the session containing the connection's <em>current</em> state for
+	 * the provided epoch.
 	 * 
-	 * This is the {@link #establishedSession} if not <code>null</code> or
-	 * the session negotiated in the {@link #ongoingHandshake}.
+	 * This is the {@link #establishedSession}, if not {@code null} and the read
+	 * epoch is matching. Or the session negotiated in the
+	 * {@link #ongoingHandshake}, if not {@code null} and the read epoch is
+	 * matching. If both are {@code null}, or the read epoch doesn't match,
+	 * {@code null} is returned.
 	 * 
-	 * @return the <em>current</em> session or <code>null</code> if neither
-	 *                 an established session nor an ongoing handshake exists
+	 * @param readEpoch the read epoch to match.
+	 * @return the <em>current</em> session or {@code null}, if neither an
+	 *         established session nor an ongoing handshake exists with an
+	 *         matching read epoch
 	 */
-	public DTLSSession getSession() {
+	public DTLSSession getSession(int readEpoch) {
 		DTLSSession session = establishedSession;
-		if (session == null) {
-			Handshaker handshaker = ongoingHandshake.get();
-			if (handshaker != null) {
-				session = handshaker.getSession();
+		if (session != null && session.getReadEpoch() == readEpoch) {
+			return session;
+		}
+		Handshaker handshaker = ongoingHandshake.get();
+		if (handshaker != null) {
+			session = handshaker.getSession();
+			if (session != null && session.getReadEpoch() == readEpoch) {
+				return session;
 			}
 		}
-		return session;
+		return null;
 	}
 
 	/**
-	 * @return true if an abbreviated handshake should be done next time a data will be sent on this connection.
+	 * Check, if resumption is required.
+	 * 
+	 * @return true if an abbreviated handshake should be done next time a data
+	 *         will be sent on this connection.
 	 */
 	public boolean isResumptionRequired() {
-		return resumptionRequired || isAutoResumptionRequired();
+		return resumptionRequired;
 	}
 
 	/**
-	 * Check, if the automatic session resumption should be triggered.
+	 * Check, if the automatic session resumption should be triggered or is
+	 * already required.
 	 * 
+	 * @param autoResumptionTimeoutMillis auto resumption timeout in
+	 *            milliseconds. {@code 0} milliseconds to force a resumption,
+	 *            {@code null}, if auto resumption is not used.
 	 * @return {@code true}, if the {@link #autoResumptionTimeout} has expired
-	 *         without exchanging message.
+	 *         without exchanging messages.
 	 */
-	public boolean isAutoResumptionRequired() {
-		if (autoResumptionTimeout != null && establishedSession != null) {
-			long now = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
-			if ((lastMessage.get() + autoResumptionTimeout - now) < 0) {
+	public boolean isAutoResumptionRequired(Long autoResumptionTimeoutMillis) {
+		if (!resumptionRequired && autoResumptionTimeoutMillis != null && establishedSession != null) {
+			if (autoResumptionTimeoutMillis == 0) {
 				setResumptionRequired(true);
-				return resumptionRequired;
+			} else {
+				long now = ClockUtil.nanoRealtime();
+				long expires = lastMessageNanos.get() + TimeUnit.MILLISECONDS.toNanos(autoResumptionTimeoutMillis);
+				if ((now - expires) > 0) {
+					setResumptionRequired(true);
+				}
 			}
 		}
-		return false;
+		return resumptionRequired;
 	}
 
 	/**
 	 * Refresh auto resumption timeout.
-	 * @see #autoResumptionTimeout
-	 * @see #lastMessage
+	 * 
+	 * Uses {@link ClockUtil#nanoRealtime()}.
+	 * 
+	 * @see #lastMessageNanos
 	 */
 	public void refreshAutoResumptionTime() {
-		if (autoResumptionTimeout != null) {
-			long now = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
-			lastMessage.set(now);
-		}
+		long now = ClockUtil.nanoRealtime();
+		lastMessageNanos.set(now);
 	}
 
 	/**
@@ -292,7 +366,30 @@ public final class Connection {
 	public void setResumptionRequired(boolean resumptionRequired) {
 		this.resumptionRequired = resumptionRequired;
 	}
-	
+
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder("dtls-con: ");
+		if (peerAddress != null) {
+			builder.append(peerAddress);
+			if (hasOngoingHandshake()) {
+				builder.append(", ongoing handshake");
+			}
+			if (isResumptionRequired()) {
+				builder.append(", resumption required");
+			} else if (hasEstablishedSession()) {
+				builder.append(", session established");
+			}
+		} else {
+			builder.append(sessionId);
+			builder.append(", ").append(ticket);
+		}
+		if (isExecuting()) {
+			builder.append(", is alive");
+		}
+		return builder.toString();
+	}
+
 	private class ConnectionSessionListener implements SessionListener {
 		@Override
 		public void handshakeStarted(Handshaker handshaker)	throws HandshakeException {
@@ -309,8 +406,6 @@ public final class Connection {
 		@Override
 		public void handshakeCompleted(Handshaker handshaker) {
 			if (ongoingHandshake.compareAndSet(handshaker, null)) {
-				refreshAutoResumptionTime();
-				cancelPendingFlight();
 				LOGGER.debug("Handshake with [{}] has been completed", handshaker.getPeerAddress());
 			}
 		}
@@ -318,7 +413,6 @@ public final class Connection {
 		@Override
 		public void handshakeFailed(Handshaker handshaker, Throwable error) {
 			if (ongoingHandshake.compareAndSet(handshaker, null)) {
-				cancelPendingFlight();
 				LOGGER.debug("Handshake with [{}] has failed", handshaker.getPeerAddress());
 			}
 		}

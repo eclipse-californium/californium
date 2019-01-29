@@ -19,6 +19,8 @@
  *                                                    to MapBasedMessageIdTracker.
  *                                                    introduce MessageIdTracker
  *                                                    interface.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add mid range to
+ *                                                    support multicast
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -28,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.util.ClockUtil;
 
 /**
  * A helper for keeping track of message IDs using a map.
@@ -44,6 +47,8 @@ public class MapBasedMessageIdTracker implements MessageIdTracker {
 
 	private final Map<Integer, Long> messageIds;
 	private final long exchangeLifetimeNanos; // milliseconds
+	private final int min;
+	private final int range;
 	private int counter;
 
 	/**
@@ -57,12 +62,25 @@ public class MapBasedMessageIdTracker implements MessageIdTracker {
 	 * </ul>
 	 * 
 	 * @param initialMid initial MID
+	 * @param minMid minimal MID (inclusive).
+	 * @param maxMid maximal MID (exclusive).
 	 * @param config configuration
+	 * @throws IllegalArgumentException if minMid is not smaller than maxMid or
+	 *             initialMid is not in the range of minMid and maxMid
 	 */
-	public MapBasedMessageIdTracker(int initialMid, NetworkConfig config) {
+	public MapBasedMessageIdTracker(int initialMid, int minMid, int maxMid, NetworkConfig config) {
+		if (minMid >= maxMid) {
+			throw new IllegalArgumentException("max. MID " + maxMid + " must be larger than min. MID " + minMid + "!");
+		}
+		if (initialMid < minMid || maxMid <= initialMid) {
+			throw new IllegalArgumentException(
+					"initial MID " + initialMid + " must be in range [" + minMid + "-" + maxMid + ")!");
+		}
 		exchangeLifetimeNanos = TimeUnit.MILLISECONDS.toNanos(config.getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME));
-		counter = initialMid;
-		messageIds = new HashMap<>(TOTAL_NO_OF_MIDS);
+		counter = initialMid - minMid;
+		min = minMid;
+		range = maxMid - minMid;
+		messageIds = new HashMap<>(range);
 	}
 
 	/**
@@ -74,20 +92,21 @@ public class MapBasedMessageIdTracker implements MessageIdTracker {
 	public int getNextMessageId() {
 		int result = Message.NONE;
 		boolean wrapped = false;
-		long now = System.nanoTime();
+		final long now = ClockUtil.nanoRealtime();
 		synchronized (messageIds) {
-			// mask mid to the 16 low bits
-			int startIdx = counter & 0x0000FFFF;
+			// mask mid to the range
+			counter = (counter & 0xffff) % range;
+			int startIdx = counter;
 			while (result < 0 && !wrapped) {
-				// mask mid to the 16 low bits
-				int idx = counter++ & 0x0000FFFF;
+				// mask mid to the range
+				int idx = counter++ % range;
 				Long earliestUsage = messageIds.get(idx);
-				if (earliestUsage == null || now >= earliestUsage) {
+				if (earliestUsage == null || (earliestUsage - now) <= 0) {
 					// message Id can be safely re-used
-					result = idx;
+					result = idx + min;
 					messageIds.put(idx, now + exchangeLifetimeNanos);
 				}
-				wrapped = (counter & 0x0000FFFF) == startIdx;
+				wrapped = (counter % range) == startIdx;
 			}
 		}
 		return result;

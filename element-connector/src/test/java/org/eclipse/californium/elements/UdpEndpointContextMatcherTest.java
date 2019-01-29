@@ -27,10 +27,12 @@ public class UdpEndpointContextMatcherTest {
 
 	private static final InetSocketAddress ADDRESS = new InetSocketAddress(5683);
 	private static final InetSocketAddress CHANGED_ADDRESS = new InetSocketAddress(5684);
-	
+	private static final InetSocketAddress MULTICAST_ADDRESS = new InetSocketAddress("224.0.1.187", 5683);
+
 	private EndpointContext connectorContext;
 	private EndpointContext addressContext;
 	private EndpointContext messageContext;
+	private EndpointContext multicastContext;
 	private EndpointContext changedAddressContext;
 	private EndpointContext secureMessageContext;
 	private EndpointContextMatcher matcher;
@@ -40,8 +42,9 @@ public class UdpEndpointContextMatcherTest {
 		connectorContext = new UdpEndpointContext(ADDRESS);
 		addressContext = new AddressEndpointContext(ADDRESS);
 		messageContext = new UdpEndpointContext(ADDRESS);
+		multicastContext = new UdpEndpointContext(MULTICAST_ADDRESS);
 		changedAddressContext = new UdpEndpointContext(CHANGED_ADDRESS);
-		secureMessageContext = new DtlsEndpointContext(ADDRESS, null, "session", "1", "CIPHER");
+		secureMessageContext = new DtlsEndpointContext(ADDRESS, null, "session", "1", "CIPHER", "100");
 		matcher = new UdpEndpointContextMatcher(true);
 	}
 
@@ -50,6 +53,7 @@ public class UdpEndpointContextMatcherTest {
 		assertThat(matcher.isToBeSent(addressContext, connectorContext), is(true));
 		assertThat(matcher.isToBeSent(messageContext, connectorContext), is(true));
 		assertThat(matcher.isToBeSent(secureMessageContext, connectorContext), is(false));
+		assertThat(matcher.isToBeSent(multicastContext, connectorContext), is(true));
 	}
 
 	@Test
@@ -61,7 +65,7 @@ public class UdpEndpointContextMatcherTest {
 		assertThat(matcher.isResponseRelatedToRequest(messageContext, addressContext), is(false));
 		assertThat(matcher.isResponseRelatedToRequest(messageContext, changedAddressContext), is(false));
 		assertThat(matcher.isResponseRelatedToRequest(changedAddressContext, messageContext), is(false));
+		assertThat(matcher.isResponseRelatedToRequest(multicastContext, messageContext), is(true));
+		assertThat(matcher.isResponseRelatedToRequest(multicastContext, changedAddressContext), is(false));
 	}
-
-
 }

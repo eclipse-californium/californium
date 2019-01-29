@@ -38,6 +38,11 @@
  *                                                    process reordered handshake messages
  *    Achim Kraus (Bosch Software Innovations GmbH) - reset master secret, when
  *                                                    session resumption is refused.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove unused isClient
+ *                                                    add handshake timestamp for
+ *                                                    session and endpoint context.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - replace raw public key flags by
+ *                                                    certificate types
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -51,6 +56,9 @@ import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
+import org.eclipse.californium.scandium.util.ServerName;
+import org.eclipse.californium.scandium.util.ServerNames;
+import org.eclipse.californium.scandium.util.ServerName.NameType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -95,9 +103,18 @@ public final class DTLSSession {
 	 */
 	private SessionId sessionIdentifier;
 
+	/**
+	 * Peer identity.
+	 */
 	private Principal peerIdentity;
 
+	/**
+	 * Maximum used fragment length.
+	 */
 	private int maxFragmentLength = MAX_FRAGMENT_LENGTH_DEFAULT;
+	/**
+	 * Maximum used raw ip message length.
+	 */
 	private int maxTransmissionUnit = MAX_TRANSMISSION_UNIT_DEFAULT;
 
 	/**
@@ -116,12 +133,6 @@ public final class DTLSSession {
 	 * key material from.
 	 */
 	private byte[] masterSecret = null;
-
-	/**
-	 * Indicates whether this object represents the <em>client</em> or the <em>server</em>
-	 * side of the connection. The <em>client</em> side is the one initiating the handshake.
-	 */
-	private final boolean isClient;
 
 	/**
 	 * The <em>current read state</em> used for processing all inbound records.
@@ -149,15 +160,13 @@ public final class DTLSSession {
 
 	/**
 	 * Indicates the type of certificate to send to the peer in a CERTIFICATE message.
-	 * If <code>true</code> send a RawPublicKey, a full X.509 certificate chain otherwise.
 	 */
-	private boolean sendRawPublicKey = false;
+	private CertificateType sendCertificateType = CertificateType.X_509;
 
 	/**
 	 * Indicates the type of certificate to expect from the peer in a CERTIFICATE message.
-	 * If <code>true</code> expect a RawPublicKey, a full X.509 certificate chain otherwise.
 	 */
-	private boolean receiveRawPublicKey = false;
+	private CertificateType receiveCertificateType = CertificateType.X_509;
 
 	/**
 	 * Indicates, that the handshake parameters are available.
@@ -170,7 +179,10 @@ public final class DTLSSession {
 	private volatile long receivedRecordsVector = 0;
 	private long creationTime;
 	private String virtualHost;
+	private ServerNames serverNames;
 	private boolean peerSupportsSni;
+
+	private final String handshakeTimeTag;
 
 	// Constructor ////////////////////////////////////////////////////
 
@@ -179,11 +191,9 @@ public final class DTLSSession {
 	 *
 	 * @param peerAddress
 	 *            the remote address
-	 * @param isClient
-	 *            whether the entity represents a client or a server.
 	 */
-	public DTLSSession(InetSocketAddress peerAddress, boolean isClient) {
-		this(peerAddress, isClient, 0, System.currentTimeMillis());
+	public DTLSSession(InetSocketAddress peerAddress) {
+		this(peerAddress, 0, System.currentTimeMillis());
 	}
 
 	/**
@@ -209,11 +219,12 @@ public final class DTLSSession {
 	 *            section 4.2.1 of RFC 6347 (DTLS 1.2)</a> for details)
 	 */
 	public DTLSSession(SessionId id, InetSocketAddress peerAddress, SessionTicket ticket, long initialSequenceNo) {
-		this(peerAddress, false, initialSequenceNo, ticket.getTimestamp());
+		this(peerAddress, initialSequenceNo, ticket.getTimestamp());
 		sessionIdentifier = id;
 		masterSecret = ticket.getMasterSecret();
 		peerIdentity = ticket.getClientIdentity();
 		cipherSuite = ticket.getCipherSuite();
+		serverNames = ticket.getServerNames();
 		compressionMethod = ticket.getCompressionMethod();
 	}
 	/**
@@ -221,8 +232,6 @@ public final class DTLSSession {
 	 *
 	 * @param peerAddress
 	 *            the IP address and port of the peer this session is established with
-	 * @param isClient
-	 *            indicates whether this session has been established playing the client or server side
 	 * @param initialSequenceNo the initial record sequence number to start from
 	 *            in epoch 0. When starting a new handshake with a client that
 	 *            has successfully exchanged a cookie with the server, the
@@ -231,8 +240,8 @@ public final class DTLSSession {
 	 *            (see <a href="http://tools.ietf.org/html/rfc6347#section-4.2.1">
 	 *            section 4.2.1 of RFC 6347 (DTLS 1.2)</a> for details)
 	 */
-	public DTLSSession(InetSocketAddress peerAddress, boolean isClient, long initialSequenceNo) {
-		this(peerAddress, isClient, initialSequenceNo, System.currentTimeMillis());
+	public DTLSSession(InetSocketAddress peerAddress, long initialSequenceNo) {
+		this(peerAddress, initialSequenceNo, System.currentTimeMillis());
 	}
 
 	/**
@@ -240,8 +249,6 @@ public final class DTLSSession {
 	 *
 	 * @param peerAddress
 	 *            the IP address and port of the peer this session is established with
-	 * @param isClient
-	 *            indicates whether this session has been established playing the client or server side
 	 * @param initialSequenceNo the initial record sequence number to start from
 	 *            in epoch 0. When starting a new handshake with a client that
 	 *            has successfully exchanged a cookie with the server, the
@@ -251,34 +258,17 @@ public final class DTLSSession {
 	 *            section 4.2.1 of RFC 6347 (DTLS 1.2)</a> for details)
 	 * @param creationTime creation time of session. Maybe from previous session on resumption.
 	 */
-	public DTLSSession(InetSocketAddress peerAddress, boolean isClient, long initialSequenceNo, long creationTime) {
+	public DTLSSession(InetSocketAddress peerAddress, long initialSequenceNo, long creationTime) {
 		if (peerAddress == null) {
 			throw new NullPointerException("Peer address must not be null");
 		} else if (initialSequenceNo < 0 || initialSequenceNo > MAX_SEQUENCE_NO) {
 			throw new IllegalArgumentException("Initial sequence number must be greater than 0 and less than 2^48");
 		} else {
 			this.creationTime = creationTime;
+			this.handshakeTimeTag = Long.toString(System.currentTimeMillis());
 			this.peer = peerAddress;
-			this.isClient = isClient;
 			this.sequenceNumbers.put(0, initialSequenceNo);
 		}
-	}
-
-	/**
-	 * Creates a new client session to be established with a peer.
-	 * <p>
-	 * 
-	 * @param peerAddress the peer's IP address and port.
-	 * @param virtualHostName the virtual host name at the peer (may be {@code null}).
-	 *                        If specified, the virtual host name is conveyed to the peer
-	 *                        as part of the SNI extension in the client's CLIENT_HELLO
-	 *                        message.
-	 * @return the new session.
-	 */
-	public static DTLSSession newClientSession(InetSocketAddress peerAddress, String virtualHostName) {
-		DTLSSession session = new DTLSSession(peerAddress, true);
-		session.virtualHost = virtualHostName;
-		return session;
 	}
 
 	// Getters and Setters ////////////////////////////////////////////
@@ -293,11 +283,37 @@ public final class DTLSSession {
 	}
 
 	void setSessionIdentifier(SessionId sessionIdentifier) {
-		this.sessionIdentifier = sessionIdentifier;
+		if (sessionIdentifier == null) {
+			throw new NullPointerException("session identifier must not be null!");
+		}
+		if (!sessionIdentifier.equals(this.sessionIdentifier)) {
+			// reset master secret
+			this.masterSecret = null;
+			this.sessionIdentifier = sessionIdentifier;
+		}
 	}
 
 	/**
-	 * Gets the (virtual) host name at the server that this session
+	 * System time of session creation in milliseconds.
+	 * 
+	 * @return session creation system time in milliseconds
+	 * @see System#currentTimeMillis()
+	 */
+	public long getCreationTime() {
+		return creationTime;
+	}
+
+	/**
+	 * System time tag of last handshake.
+	 * 
+	 * @return system time in milliseconds as string of the last handshake
+	 */
+	public String getLastHandshakeTime() {
+		return handshakeTimeTag;
+	}
+
+	/**
+	 * Gets the (virtual) host name for the server that this session
 	 * has been established for.
 	 * 
 	 * @return the host name or {@code null} if this session has not
@@ -307,8 +323,48 @@ public final class DTLSSession {
 		return virtualHost;
 	}
 
-	void setVirtualHost(String hostname) {
+	/**
+	 * Set the (virtual) host name for the server that this session has been
+	 * established for.
+	 * <p>
+	 * 
+	 * @param hostname the virtual host name at the peer (may be {@code null}).
+	 */
+	public void setVirtualHost(String hostname) {
+		this.serverNames = null;
 		this.virtualHost = hostname;
+		if (hostname != null) {
+			this.serverNames = ServerNames
+					.newInstance(ServerName.from(NameType.HOST_NAME, hostname.getBytes(ServerName.CHARSET)));
+		}
+	}
+
+	/**
+	 * Gets the server names for the server that this session
+	 * has been established for.
+	 * 
+	 * @return server names, or {@code null}, if not used.
+	 */
+	public ServerNames getServerNames() {
+		return serverNames;
+	}
+
+	/**
+	 * Set the server names for the server that this session has been
+	 * established for.
+	 * <p>
+	 * 
+	 * @param serverNames the server names (may be {@code null}).
+	 */
+	public void setServerNames(ServerNames serverNames) {
+		this.virtualHost = null;
+		this.serverNames = serverNames;
+		if (serverNames != null) {
+			ServerName serverName = serverNames.getServerName(NameType.HOST_NAME);
+			if (serverName != null) {
+				virtualHost = serverName.getNameAsString();
+			}
+		}
 	}
 
 	/**
@@ -328,15 +384,15 @@ public final class DTLSSession {
 	}
 
 	public DtlsEndpointContext getConnectionWriteContext() {
-
-		return new DtlsEndpointContext(peer, virtualHost, peerIdentity, sessionIdentifier.toString(),
-				String.valueOf(writeEpoch), cipherSuite.name());
+		String id = sessionIdentifier.isEmpty() ? "TIME:" + Long.toString(creationTime) : sessionIdentifier.toString();
+		return new DtlsEndpointContext(peer, virtualHost, peerIdentity, id, Integer.toString(writeEpoch),
+				cipherSuite.name(), handshakeTimeTag);
 	}
 
 	public DtlsEndpointContext getConnectionReadContext() {
-
-		return new DtlsEndpointContext(peer, virtualHost, peerIdentity, sessionIdentifier.toString(),
-				String.valueOf(readEpoch), cipherSuite.name());
+		String id = sessionIdentifier.isEmpty() ? "TIME:" + Long.toString(creationTime) : sessionIdentifier.toString();
+		return new DtlsEndpointContext(peer, virtualHost, peerIdentity, id, Integer.toString(readEpoch),
+				cipherSuite.name(), handshakeTimeTag);
 	}
 
 	/**
@@ -405,10 +461,6 @@ public final class DTLSSession {
 		this.compressionMethod = compressionMethod;
 	}
 
-	boolean isClient() {
-		return this.isClient;
-	}
-
 	/**
 	 * Gets this session's current write epoch.
 	 * 
@@ -418,6 +470,7 @@ public final class DTLSSession {
 		return writeEpoch;
 	}
 
+	// tests only, currently not used
 	void setWriteEpoch(int epoch) {
 		if (epoch < 0) {
 			throw new IllegalArgumentException("Write epoch must not be negative");
@@ -444,12 +497,12 @@ public final class DTLSSession {
 		}
 	}
 
-	private synchronized void incrementReadEpoch() {
+	private void incrementReadEpoch() {
 		resetReceiveWindow();
 		this.readEpoch++;
 	}
 
-	private synchronized void incrementWriteEpoch() {
+	private void incrementWriteEpoch() {
 		this.writeEpoch++;
 		// Sequence numbers are maintained separately for each epoch, with each
 		// sequence_number initially being 0 for each epoch.
@@ -464,7 +517,7 @@ public final class DTLSSession {
 	 * @throws IllegalStateException if the maximum sequence number for the
 	 *     epoch has been reached (2^48 - 1)
 	 */
-	public synchronized long getSequenceNumber() {
+	public long getSequenceNumber() {
 		return getSequenceNumber(writeEpoch);
 	}
 
@@ -478,7 +531,7 @@ public final class DTLSSession {
 	 * @throws IllegalStateException if the maximum sequence number for the
 	 *     epoch has been reached (2^48 - 1)
 	 */
-	public synchronized long getSequenceNumber(int epoch) {
+	public long getSequenceNumber(int epoch) {
 		long sequenceNumber = this.sequenceNumbers.get(epoch);
 		if (sequenceNumber < MAX_SEQUENCE_NO) {
 			this.sequenceNumbers.put(epoch, sequenceNumber + 1);
@@ -504,7 +557,7 @@ public final class DTLSSession {
 	 * 
 	 * @return The current read state.
 	 */
-	synchronized DTLSConnectionState getReadState() {
+	DTLSConnectionState getReadState() {
 		return readState;
 	}
 
@@ -525,7 +578,7 @@ public final class DTLSSession {
 	 * @param readState the current read state
 	 * @throws NullPointerException if the given state is <code>null</code>
 	 */
-	synchronized void setReadState(DTLSConnectionState readState) {
+	void setReadState(DTLSConnectionState readState) {
 		if (readState == null) {
 			throw new NullPointerException("Read state must not be null");
 		}
@@ -539,7 +592,7 @@ public final class DTLSSession {
 	 * 
 	 * @return the name.
 	 */
-	public synchronized String getReadStateCipher() {
+	public String getReadStateCipher() {
 		return readState.getCipherSuite().name();
 	}
 
@@ -556,7 +609,7 @@ public final class DTLSSession {
 	 * 
 	 * @return The current write state.
 	 */
-	synchronized DTLSConnectionState getWriteState() {
+	DTLSConnectionState getWriteState() {
 		return writeState;
 	}
 
@@ -578,7 +631,7 @@ public final class DTLSSession {
 	 * @param writeState the current write state
 	 * @throws NullPointerException if the given state is <code>null</code>
 	 */
-	synchronized void setWriteState(DTLSConnectionState writeState) {
+	void setWriteState(DTLSConnectionState writeState) {
 		if (writeState == null) {
 			throw new NullPointerException("Write state must not be null");
 		}
@@ -594,7 +647,7 @@ public final class DTLSSession {
 	 * 
 	 * @return the name.
 	 */
-	synchronized public String getWriteStateCipher() {
+	public String getWriteStateCipher() {
 		return writeState.getCipherSuite().name();
 	}
 
@@ -614,7 +667,7 @@ public final class DTLSSession {
 	 */
 	public HandshakeParameter getParameter() {
 		if (parameterAvailable) {
-			return new HandshakeParameter(cipherSuite.getKeyExchange(), receiveRawPublicKey);
+			return new HandshakeParameter(cipherSuite.getKeyExchange(), receiveCertificateType);
 		}
 		return null;
 	}
@@ -671,16 +724,6 @@ public final class DTLSSession {
 	}
 
 	/**
-	 * Reset master secret. 
-	 * 
-	 * Intended to be used, When session resumption is
-	 * refused and a new session id and master secret is generated.
-	 */
-	void resetMasterSecret() {
-		masterSecret = null;
-	}
-
-	/**
 	 * Sets the maximum amount of unencrypted payload data that can be received and processed by
 	 * this session's peer in a single DTLS record.
 	 * <p>
@@ -729,8 +772,7 @@ public final class DTLSSession {
 		if (mtu < 60) {
 			throw new IllegalArgumentException("MTU must be at least 60 bytes");
 		} else {
-			LOGGER.debug("Setting MTU for peer [{}] to {} bytes",
-					new Object[]{peer, mtu});
+			LOGGER.debug("Setting MTU for peer [{}] to {} bytes", peer, mtu);
 			this.maxTransmissionUnit = mtu;
 			determineMaxFragmentLength(mtu);
 		}
@@ -743,8 +785,7 @@ public final class DTLSSession {
 		} else {
 			this.maxFragmentLength = maxTransmissionUnit - HEADER_LENGTH - writeState.getMaxCiphertextExpansion();
 		}
-		LOGGER.debug("Setting maximum fragment length for peer [{}] to {} bytes",
-				new Object[]{peer, this.maxFragmentLength});
+		LOGGER.debug("Setting maximum fragment length for peer [{}] to {} bytes", peer, this.maxFragmentLength);
 	}
 
 	/**
@@ -763,20 +804,20 @@ public final class DTLSSession {
 		return this.maxFragmentLength;
 	}
 
-	boolean sendRawPublicKey() {
-		return sendRawPublicKey;
+	CertificateType sendCertificateType() {
+		return sendCertificateType;
 	}
 
-	void setSendRawPublicKey(boolean sendRawPublicKey) {
-		this.sendRawPublicKey = sendRawPublicKey;
+	void setSendCertificateType(CertificateType sendCertificateType) {
+		this.sendCertificateType = sendCertificateType;
 	}
 
-	boolean receiveRawPublicKey() {
-		return receiveRawPublicKey;
+	CertificateType receiveCertificateType() {
+		return receiveCertificateType;
 	}
 
-	void setReceiveRawPublicKey(boolean receiveRawPublicKey) {
-		this.receiveRawPublicKey = receiveRawPublicKey;
+	void setReceiveCertificateType(CertificateType receiveCertificateType) {
+		this.receiveCertificateType = receiveCertificateType;
 	}
 
 	/**
@@ -836,16 +877,12 @@ public final class DTLSSession {
 			// discard record as allowed in DTLS 1.2
 			// http://tools.ietf.org/html/rfc6347#section-4.1
 			return false;
+		} else if (sequenceNo < receiveWindowLowerBoundary) {
+			// record lies out of receive window's "left" edge
+			// discard
+			return false;
 		} else {
-			synchronized (this) {
-				if (sequenceNo < receiveWindowLowerBoundary) {
-					// record lies out of receive window's "left" edge
-					// discard
-					return false;
-				} else {
-					return !isDuplicate(sequenceNo);
-				}
-			}
+			return !isDuplicate(sequenceNo);
 		}
 	}
 
@@ -860,7 +897,7 @@ public final class DTLSSession {
 	 * @param sequenceNo the record's sequence number
 	 * @return <code>true</code> if the record has already been received
 	 */
-	synchronized boolean isDuplicate(long sequenceNo) {
+	boolean isDuplicate(long sequenceNo) {
 		if (sequenceNo > receiveWindowUpperBoundary) {
 			return false;
 		} else {
@@ -872,8 +909,8 @@ public final class DTLSSession {
 			if (LOGGER.isDebugEnabled()) {
 				LOGGER.debug(
 						"Checking sequence no [{}] using bit mask [{}] against received records [{}] with lower boundary [{}]",
-						new Object[]{sequenceNo, Long.toBinaryString(bitMask), Long.toBinaryString(receivedRecordsVector),
-						receiveWindowLowerBoundary});
+						sequenceNo, Long.toBinaryString(bitMask), Long.toBinaryString(receivedRecordsVector),
+						receiveWindowLowerBoundary);
 			}
 			return (receivedRecordsVector & bitMask) == bitMask;
 		}
@@ -890,7 +927,7 @@ public final class DTLSSession {
 	 * @param epoch the record's epoch
 	 * @param sequenceNo the record's sequence number
 	 */
-	public synchronized void markRecordAsRead(long epoch, long sequenceNo) {
+	public void markRecordAsRead(long epoch, long sequenceNo) {
 
 		if (epoch == getReadEpoch()) {
 			if (sequenceNo > receiveWindowUpperBoundary) {
@@ -904,7 +941,7 @@ public final class DTLSSession {
 			// mark sequence number as "received" in receive window
 			receivedRecordsVector |= bitMask;
 			LOGGER.debug("Updated receive window with sequence number [{}]: new upper boundary [{}], new bit vector [{}]",
-					new Object[]{sequenceNo, receiveWindowUpperBoundary, Long.toBinaryString(receivedRecordsVector)});
+					sequenceNo, receiveWindowUpperBoundary, Long.toBinaryString(receivedRecordsVector));
 		}
 	}
 
@@ -914,7 +951,7 @@ public final class DTLSSession {
 	 * The receive window is reset to sequence number zero and all
 	 * information about received records is cleared.
 	 */
-	private synchronized void resetReceiveWindow() {
+	private void resetReceiveWindow() {
 		receivedRecordsVector = 0;
 		receiveWindowUpperBoundary = RECEIVE_WINDOW_SIZE - 1;
 		receiveWindowLowerBoundary = 0;
@@ -933,6 +970,7 @@ public final class DTLSSession {
 					getWriteState().getCipherSuite(),
 					getWriteState().getCompressionMethod(),
 					getMasterSecret(),
+					getServerNames(),
 					getPeerIdentity(),
 					creationTime);
 		} else {

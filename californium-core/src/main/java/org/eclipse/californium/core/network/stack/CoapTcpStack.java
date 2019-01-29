@@ -20,7 +20,11 @@
  * explicit String concatenation
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  * Achim Kraus (Bosch Software Innovations GmbH) - move common function to BaseCoapStack
+<<<<<<< HEAD
  * Pratheek Rai - BERT option changes.
+=======
+ * Achim Kraus (Bosch Software Innovations GmbH) - add TcpExchangeCleanupLayer
+>>>>>>> refs/heads/2.0.x
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -50,7 +54,7 @@ import org.eclipse.californium.elements.Connector;
  * | +----------v-+---------+ |
  * | | Stack Top            | |
  * | +----------------------+ |
- * | | {@link ExchangeCleanupLayer} | |
+ * | | {@link TcpExchangeCleanupLayer} | |
  * | +----------------------+ |
  * | | {@link TcpObserveLayer}      | |
  * | +----------------------+ |
@@ -90,7 +94,7 @@ public class CoapTcpStack extends BaseCoapStack {
 		}
 
 		Layer layers[] = new Layer[] {
-				new ExchangeCleanupLayer(),
+				new TcpExchangeCleanupLayer(),
 				new TcpObserveLayer(config),
 				new TcpBlockwiseLayer(config),
 				new TcpAdaptionLayer() };

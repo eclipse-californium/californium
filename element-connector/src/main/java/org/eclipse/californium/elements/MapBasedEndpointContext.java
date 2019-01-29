@@ -33,20 +33,28 @@ import java.util.Map;
  */
 public class MapBasedEndpointContext extends AddressEndpointContext {
 
+	/**
+	 * Prefix for none critical attributes. These attributes are not considered
+	 * for context matching nor {@link #hasCriticalEntries()}.
+	 */
+	public static final String KEY_PREFIX_NONE_CRITICAL = "*";
+
+	private final boolean hasCriticalEntries;
 	private final Map<String, String> entries;
 
 	/**
-	 * Creates a context for a socket address, authenticated identity and arbitrary
-	 * key/value pairs.
+	 * Creates a context for a socket address, authenticated identity and
+	 * arbitrary key/value pairs.
 	 * 
 	 * @param peerAddress peer address of endpoint context
 	 * @param peerIdentity peer identity of endpoint context
 	 * @param attributes list of attributes (key/value pairs, e.g. key_1,
 	 *            value_1, key_2, value_2 ...)
-	 * @throws NullPointerException if provided peer address is {@code null}, or
-	 *             one of the attributes is {@code null}.
-	 * @throws IllegalArgumentException if provided attributes list has odd
-	 *             size or contains a duplicate key.
+	 * @throws NullPointerException if provided peer address is {@code null},
+	 *             the provided attributes is {@code null}, or one of the
+	 *             attributes is {@code null}.
+	 * @throws IllegalArgumentException if provided attributes list has odd size
+	 *             or contains a duplicate key.
 	 */
 	public MapBasedEndpointContext(InetSocketAddress peerAddress, Principal peerIdentity, String... attributes) {
 
@@ -54,44 +62,23 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 	}
 
 	/**
-	 * Creates a context for a socket address, authenticated identity and arbitrary
-	 * key/value pairs.
+	 * Creates a context for a socket address, authenticated identity and
+	 * arbitrary key/value pairs.
 	 * 
 	 * @param peerAddress peer address of endpoint context
 	 * @param virtualHost the name of the virtual host at the peer
 	 * @param peerIdentity peer identity of endpoint context
 	 * @param attributes list of attributes (key/value pairs, e.g. key_1,
 	 *            value_1, key_2, value_2 ...)
-	 * @throws NullPointerException if provided peer address is {@code null}, or
-	 *             one of the attributes is {@code null}.
-	 * @throws IllegalArgumentException if provided attributes list has odd
-	 *             size or contains a duplicate key.
+	 * @throws NullPointerException if provided peer address is {@code null},
+	 *             the provided attributes is {@code null}, or one of the
+	 *             attributes is {@code null}.
+	 * @throws IllegalArgumentException if provided attributes list has odd size
+	 *             or contains a duplicate key.
 	 */
 	public MapBasedEndpointContext(InetSocketAddress peerAddress, String virtualHost, Principal peerIdentity,
 			String... attributes) {
-
-		super(peerAddress, virtualHost, peerIdentity);
-
-		if ((attributes.length & 1) == 0) {
-			Map<String, String> newEntries = new HashMap<>();
-			for (int index = 0; index < attributes.length; ++index) {
-				String key = attributes[index];
-				String value = attributes[++index];
-				if (null == key) {
-					throw new NullPointerException((index / 2) + ". key is null");
-				}
-				if (null == value) {
-					throw new NullPointerException((index / 2) + ". value is null");
-				}
-				String old = newEntries.put(key, value);
-				if (null != old) {
-					throw new IllegalArgumentException((index / 2) + ". key '" + key + "' is provided twice");
-				}
-			}
-			this.entries = Collections.unmodifiableMap(newEntries);
-		} else {
-			throw new IllegalArgumentException("number of attributes must be even, not " + attributes.length + "!");
-		}
+		this(peerAddress, virtualHost, peerIdentity, createMap(attributes));
 	}
 
 	/**
@@ -128,6 +115,63 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 			throw new NullPointerException("missing attributes map, must not be null!");
 		}
 		this.entries = Collections.unmodifiableMap(new HashMap<>(attributes));
+		this.hasCriticalEntries = findCriticalEntries(entries);
+	}
+
+	/**
+	 * Create map of attributes.
+	 * 
+	 * @param attributes list of attributes (key/value pairs, e.g. key_1,
+	 *            value_1, key_2, value_2 ...)
+	 * @return create map
+	 * @throws NullPointerException if the provided attributes is {@code null},
+	 *             or one of the attributes is {@code null}.
+	 * @throws IllegalArgumentException if provided attributes list has odd size
+	 *             or contains a duplicate key.
+	 */
+	private static final Map<String, String> createMap(String... attributes) {
+		if (attributes == null) {
+			throw new NullPointerException("attributes must not null!");
+		}
+		if ((attributes.length & 1) != 0) {
+			throw new IllegalArgumentException("number of attributes must be even, not " + attributes.length + "!");
+		}
+		Map<String, String> entries = new HashMap<>();
+		for (int index = 0; index < attributes.length; ++index) {
+			String key = attributes[index];
+			String value = attributes[++index];
+			if (null == key) {
+				throw new NullPointerException((index / 2) + ". key is null");
+			} else if (key.isEmpty()) {
+				throw new IllegalArgumentException((index / 2) + ". key is empty");
+			} else if (null == value) {
+				throw new NullPointerException((index / 2) + ". value is null");
+			}
+			String old = entries.put(key, value);
+			if (null != old) {
+				throw new IllegalArgumentException((index / 2) + ". key '" + key + "' is provided twice");
+			}
+		}
+		return entries;
+	}
+
+	/**
+	 * Check, if at least one critical attribute is contained in the provided
+	 * map.
+	 * 
+	 * Use {@link #KEY_PREFIX_NONE_CRITICAL} to distinguish the critical from
+	 * the none critical attributes.
+	 * 
+	 * @param attributes map of attributes
+	 * @return {@code true}, if at least one critical attribute is contained.
+	 */
+	private static final boolean findCriticalEntries(Map<String, String> attributes) {
+		for (String key : attributes.keySet()) {
+			if (!key.startsWith(KEY_PREFIX_NONE_CRITICAL)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	@Override
@@ -141,8 +185,8 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 	}
 
 	@Override
-	public boolean inhibitNewConnection() {
-		return !entries.isEmpty();
+	public boolean hasCriticalEntries() {
+		return hasCriticalEntries;
 	}
 
 	@Override
@@ -150,4 +194,23 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 		return String.format("MAP(%s)", getPeerAddressAsString());
 	}
 
+	/**
+	 * Add entries to endpoint context.
+	 * 
+	 * @param context original endpoint context.
+	 * @param attributes list of attributes (key/value pairs, e.g. key_1,
+	 *            value_1, key_2, value_2 ...)
+	 * @return new endpoint context with additional attributes.
+	 * @throws NullPointerException if the provided attributes is {@code null},
+	 *             or one of the attributes is {@code null}.
+	 * @throws IllegalArgumentException if provided attributes list has odd size
+	 *             or contains a duplicate key.
+	 */
+	public static MapBasedEndpointContext addEntries(EndpointContext context, String... attributes) {
+		Map<String, String> additionalAttributes = createMap(attributes);
+		Map<String, String> entries = new HashMap<>(context.entries());
+		entries.putAll(additionalAttributes);
+		return new MapBasedEndpointContext(context.getPeerAddress(), context.getVirtualHost(),
+				context.getPeerIdentity(), entries);
+	}
 }

@@ -77,6 +77,7 @@ import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -315,7 +316,7 @@ public class Exchange {
 		this.endpointContext.set(ctx);
 		this.keepRequestInStore = keepRequestInStore;
 		this.notification = notification;
-		this.nanoTimestamp = System.nanoTime();
+		this.nanoTimestamp = ClockUtil.nanoRealtime();
 	}
 
 	@Override
@@ -535,84 +536,6 @@ public class Exchange {
 			}
 			currentResponse = newCurrentResponse;
 		}
-	}
-
-	/**
-	 * Check, if response (still) matches this exchange.
-	 * 
-	 * @param checkResponse response to check.
-	 * @return {@code true}, if the response must be processed using this
-	 *         exchange, {@code false}, otherwise.
-	 * @throws ConcurrentModificationException, if not executed within
-	 *             {@link #execute(Runnable)}.
-	 */
-	public boolean checkCurrentResponse(Response checkResponse) {
-		assertOwner();
-		if (origin == Origin.REMOTE) {
-			return false;
-		}
-
-		if (!checkResponse.isDuplicate() && complete.get()) {
-			return false;
-		}
-
-		Request currentRequest = getCurrentRequest();
-		if (!currentRequest.getToken().equals(checkResponse.getToken())) {
-			if (!keepRequestInStore || !getRequest().getToken().equals(checkResponse.getToken())) {
-				// token not longer matching
-				return false;
-			}
-		}
-
-		int mid = currentRequest.getMID();
-		if (checkResponse.getType() == Type.ACK && mid != checkResponse.getMID()) {
-			// The token matches but not the MID.
-			LOGGER.warn("possible MID reuse before lifetime end for token [{}], expected MID {} but received {}",
-					checkResponse.getToken(), mid, checkResponse.getMID());
-			// when nested blockwise request/responses occurs (e.g. caused
-			// by retransmission), a old response may stop the
-			// retransmission of the current blockwise request. This seems
-			// to be a side effect of reusing the token. If the response to
-			// this current request is lost, the blockwise transfer times
-			// out, because the retransmission is stopped too early.
-			// Therefore don't return a exchange when the MID doesn't match.
-			// See issue #275
-			return false;
-		}
-
-		return true;
-	}
-
-	/**
-	 * Check, if message with provided MID (still) matches this exchange.
-	 * 
-	 * @param mid MID to check.
-	 * @return {@code true}, if the mid matches this exchange, {@code false},
-	 *         otherwise.
-	 * @throws ConcurrentModificationException, if not executed within
-	 *             {@link #execute(Runnable)}.
-	 */
-	public boolean checkMID(final int mid) {
-		assertOwner();
-		if (origin == Origin.LOCAL) {
-			return currentRequest.getMID() == mid;
-		}
-
-		if (currentResponse.getMID() == mid) {
-			return true;
-		}
-
-		ObserveRelation relation = this.relation;
-		if (relation != null) {
-			for (Iterator<Response> iterator = relation.getNotificationIterator(); iterator.hasNext();) {
-				Response previous = iterator.next();
-				if (previous.getMID() == mid) {
-					return true;
-				}
-			}
-		}
-
-		return false;
 	}
 
 	/**
@@ -929,7 +852,7 @@ public class Exchange {
 	 * Get the nano-timestamp of the creation of this exchange.
 	 * 
 	 * @return nano-timestamp
-	 * @see System#nanoTime()
+	 * @see ClockUtil#nanoRealtime()
 	 */
 	public long getNanoTimestamp() {
 		return nanoTimestamp;
@@ -943,7 +866,7 @@ public class Exchange {
 	 * @return RTT in milliseconds
 	 */
 	public long calculateRTT() {
-		return TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - nanoTimestamp);
+		return TimeUnit.NANOSECONDS.toMillis(ClockUtil.nanoRealtime() - nanoTimestamp);
 	}
 
 	/**

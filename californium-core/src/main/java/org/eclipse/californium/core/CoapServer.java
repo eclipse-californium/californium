@@ -171,7 +171,7 @@ public class CoapServer implements ServerInterface {
 		this.endpoints = new ArrayList<>();
 		// create endpoint for each port
 		for (int port : ports) {
-			CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+			CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 			builder.setPort(port);
 			builder.setNetworkConfig(config);
 			addEndpoint(builder.build());
@@ -240,7 +240,7 @@ public class CoapServer implements ServerInterface {
 			// servers should bind to the configured port (while clients should use an ephemeral port through the default endpoint)
 			int port = config.getInt(NetworkConfig.Keys.COAP_PORT);
 			LOGGER.info("no endpoints have been defined for server, setting up server endpoint on default port {}", port);
-			CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+			CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 			builder.setPort(port);
 			builder.setNetworkConfig(config);
 			addEndpoint(builder.build());
@@ -287,7 +287,7 @@ public class CoapServer implements ServerInterface {
 		LOGGER.info("Destroying server");
 		// prevent new tasks from being submitted
 		try {
-			if (!detachExecutor) {
+			if (running && !detachExecutor) {
 				executor.shutdown(); // cannot be started again
 				try {
 					// wait for currently executing tasks to complete

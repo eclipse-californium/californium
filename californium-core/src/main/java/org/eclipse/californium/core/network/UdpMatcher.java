@@ -51,6 +51,10 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - assign mid before register observation
  *    Achim Kraus (Bosch Software Innovations GmbH) - remove exchange on ACK/RST only after
  *                                                    context matching
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add support for multicast
+ *    Achim Kraus (Bosch Software Innovations GmbH) - deduplication base on the ip-address
+ *                                                    and MID may fail when requests
+ *                                                    addresses are changing
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -189,7 +193,7 @@ public final class UdpMatcher extends BaseMatcher {
 	}
 
 	@Override
-	public Exchange receiveRequest(final Request request) {
+	public void receiveRequest(final Request request, final EndpointReceiver receiver) {
 		// This request could be
 		//  - Complete origin request => deliver with new exchange
 		//  - One origin block        => deliver with ongoing exchange
@@ -200,23 +204,62 @@ public final class UdpMatcher extends BaseMatcher {
 		//      if nothing has been sent yet => do nothing
 		// (Retransmission is supposed to be done by the retransm. layer)
 
-		KeyMID idByMID = KeyMID.fromInboundMessage(request);
+		final KeyMID idByMID = KeyMID.fromInboundMessage(request);
+		final Exchange exchange = new Exchange(request, Origin.REMOTE, executor);
+		final Exchange previous = exchangeStore.findPrevious(idByMID, exchange);
+		boolean duplicate = previous != null;
 
-		Exchange exchange = new Exchange(request, Origin.REMOTE, executor);
-		Exchange previous = exchangeStore.findPrevious(idByMID, exchange);
-		if (previous == null) {
-			exchange.setRemoveHandler(exchangeRemoveHandler);
-			return exchange;
+		if (duplicate) {
+			// assuming addresses changing, request could not only be deduplicated by their address and mid.
+			EndpointContext sourceContext = request.getSourceContext();
+			Request previousRequest = previous.getRequest();
+			EndpointContext previousSourceContext = previousRequest.getSourceContext();
+			// the previous response would be send with its previous context using 
+			// the current request context as connection context
+			duplicate = endpointContextMatcher.isToBeSent(previousSourceContext, sourceContext);
+			if (!duplicate) {
+				// the new context doesn't match the previous.
+				exchangeStore.remove(idByMID, previous);
+				if (exchangeStore.findPrevious(idByMID, exchange) != null) {
+					LOGGER.warn("new request could not be registered!");
+				}
+			}
+		}
 
-		} else {
-			LOGGER.debug("duplicate request: {}", request);
+		if (duplicate) {
+			LOGGER.trace("duplicate request: {}", request);
 			request.setDuplicate(true);
-			return previous;
+			previous.execute(new Runnable() {
+
+				@Override
+				public void run() {
+					try {
+						receiver.receiveRequest(previous, request);
+					} catch (RuntimeException ex) {
+						LOGGER.warn("error receiving request {} again!", request, ex);
+						receiver.reject(request);
+					}
+				}
+			});
+		} else {
+			exchange.setRemoveHandler(exchangeRemoveHandler);
+			exchange.execute(new Runnable() {
+
+				@Override
+				public void run() {
+					try {
+						receiver.receiveRequest(exchange, request);
+					} catch (RuntimeException ex) {
+						LOGGER.warn("error receiving request {}", request, ex);
+						receiver.reject(request);
+					}
+				}
+			});
 		}
 	}
 
 	@Override
-	public Exchange receiveResponse(final Response response) {
+	public void receiveResponse(final Response response, final EndpointReceiver receiver) {
 
 		// This response could be
 		// - The first CON/NCON/ACK+response => deliver
@@ -225,129 +268,199 @@ public final class UdpMatcher extends BaseMatcher {
 
 		final Token idByToken = response.getToken();
 		LOGGER.trace("received response {}", response);
-		Exchange exchange = exchangeStore.get(idByToken);
+		Exchange tempExchange = exchangeStore.get(idByToken);
 
-		if (exchange == null) {
+		if (tempExchange == null) {
 			// we didn't find a message exchange for the token from the response
 			// let's try to find an existing observation for the token
-			exchange = matchNotifyResponse(response);
+			tempExchange = matchNotifyResponse(response);
 		}
 
-		if (exchange == null) {
+		if (tempExchange == null) {
 			// There is no exchange with the given token,
 			// nor is there an active observation for that token.
 			// finally check if the response is a duplicate
 			if (response.getType() != Type.ACK) {
 				// deduplication is only relevant for CON/NON messages
 				KeyMID idByMID = KeyMID.fromInboundMessage(response);
-				Exchange prev = exchangeStore.find(idByMID);
+				final Exchange prev = exchangeStore.find(idByMID);
 				if (prev != null) {
-					try {
-						if (endpointContextMatcher.isResponseRelatedToRequest(prev.getEndpointContext(),
-								response.getSourceContext())) {
-							LOGGER.trace("received response for already completed {}: {}", prev, response);
-							response.setDuplicate(true);
-							return prev;
+					prev.execute(new Runnable() {
+
+						@Override
+						public void run() {
+
+							if (prev.getCurrentRequest().isMulticast()) {
+								LOGGER.debug("Ignore delayed response {} to multicast request {}", response,
+										prev.getCurrentRequest().getDestinationContext().getPeerAddress());
+								return;
+							}
+
+							try {
+								if (endpointContextMatcher.isResponseRelatedToRequest(prev.getEndpointContext(),
+										response.getSourceContext())) {
+									LOGGER.trace("received response for already completed {}: {}", prev, response);
+									response.setDuplicate(true);
+									receiver.receiveResponse(prev, response);
+									return;
+								}
+							} catch (RuntimeException ex) {
+								LOGGER.warn("error receiving response {} for {}", response, prev, ex);
+							}
+							reject(response, receiver);
 						}
-					} catch (Exception ex) {
-						LOGGER.error("error receiving response {} for {}", response, prev, ex);
-					}
+					});
+				} else {
+					reject(response, receiver);
 				}
 			} else {
 				LOGGER.trace("discarding unmatchable piggy-backed response from [{}]: {}", response.getSourceContext(),
 						response);
 			}
-			// ignore response
-			return null;
+			return;
 		}
 
-		EndpointContext context = exchange.getEndpointContext();
-		Request currentRequest = exchange.getCurrentRequest();
-		int requestMid = currentRequest.getMID();
-		if (context == null) {
-			LOGGER.debug("ignoring response {}, request pending to sent!", response);
-			return null;
-		}
+		final Exchange exchange = tempExchange;
+		exchange.execute(new Runnable() {
 
-		try {
-			if (endpointContextMatcher.isResponseRelatedToRequest(context, response.getSourceContext())) {
-				if (response.getType() == Type.ACK && requestMid != response.getMID()) {
-					// The token matches but not the MID.
-					LOGGER.warn("possible MID reuse before lifetime end for token {}, expected MID {} but received {}",
-							response.getTokenString(), requestMid, response.getMID());
-					// when nested blockwise request/responses occurs (e.g.
-					// caused by retransmission), a old response may stop the
-					// retransmission of the current blockwise request. This
-					// seems to be a side effect of reusing the token. If the
-					// response to this current request is lost, the blockwise
-					// transfer times out, because the retransmission is stopped
-					// too early. Therefore don't return a exchange when the MID
-					// doesn't match.
-					// See issue #275
-					return null;
-				}
-				// we have received a Response matching the token of an ongoing
-				// Exchange's Request according to the CoAP spec
-				// (https://tools.ietf.org/html/rfc7252#section-4.5),
-				// deduplication is relevant only for CON and NON messages
-				KeyMID idByMID = KeyMID.fromInboundMessage(response);
-				if ((response.getType() == Type.CON || response.getType() == Type.NON)
-						&& exchangeStore.findPrevious(idByMID, exchange) != null) {
-					LOGGER.trace("received duplicate response for open {}: {}", exchange, response);
-					response.setDuplicate(true);
-				} else if (!exchange.isNotification()) {
-					if (response.isNotification() && response.getType() != Type.ACK
-							&& currentRequest.isObserveCancel()) {
-						// overlapping notification for observation cancel request
-						LOGGER.debug("ignoring notify for pending cancel {}!", response);
-						return null;
+			@Override
+			public void run() {
+				boolean checkResponseToken = !exchange.isNotification() || exchange.getRequest() != exchange.getCurrentRequest();
+				if (checkResponseToken && exchangeStore.get(idByToken) != exchange) {
+					if (running) {
+						LOGGER.debug("ignoring response {}, exchange not longer matching!", response);
 					}
-					// we have received the expected response for the
-					// original request
-					idByMID = KeyMID.fromOutboundMessage(currentRequest);
-					if (exchangeStore.remove(idByMID, exchange) != null) {
-						LOGGER.debug("closed open request [{}]", idByMID);
-					}
+					return;
 				}
 
-				return exchange;
-			} else {
-				LOGGER.info("ignoring potentially forged response for token {} with non-matching endpoint context",
-						idByToken);
+				EndpointContext context = exchange.getEndpointContext();
+				Request currentRequest = exchange.getCurrentRequest();
+				int requestMid = currentRequest.getMID();
+				if (context == null) {
+					LOGGER.debug("ignoring response {}, request pending to sent!", response);
+					return;
+				}
+
+				try {
+					if (endpointContextMatcher.isResponseRelatedToRequest(context, response.getSourceContext())) {
+						// As per RFC 7252, section 8.2:
+						// When matching a response to a multicast request, only the token MUST
+						// match; the source endpoint of the response does not need to (and will
+						// not) be the same as the destination endpoint of the original request.
+						if (currentRequest.isMulticast()) {
+							// do some check, e.g. NON ...
+							// this avoids flooding of ACK messages to multicast groups
+							if (response.getType() != Type.NON) {
+								LOGGER.debug(
+										"ignoring response of type {} for multicast request with token [{}], from {}",
+										response.getType(), response.getTokenString(), response.getSourceContext().getPeerAddress());
+								return;
+							}
+						} else if (response.getType() == Type.ACK && requestMid != response.getMID()) {
+							// The token matches but not the MID.
+							LOGGER.debug("ignoring ACK, possible MID reuse before lifetime end for token {}, expected MID {} but received {}",
+									response.getTokenString(), requestMid, response.getMID());
+							// when nested blockwise request/responses occurs (e.g.
+							// caused by retransmission), a old response may stop the
+							// retransmission of the current blockwise request. This
+							// seems to be a side effect of reusing the token. If the
+							// response to this current request is lost, the blockwise
+							// transfer times out, because the retransmission is stopped
+							// too early. Therefore don't return a exchange when the MID
+							// doesn't match.
+							// See issue #275
+							return;
+						}
+						// we have received a Response matching the token of an ongoing
+						// Exchange's Request according to the CoAP spec
+						// (https://tools.ietf.org/html/rfc7252#section-4.5),
+						// deduplication is relevant only for CON and NON messages
+						KeyMID idByMID = KeyMID.fromInboundMessage(response);
+						if ((response.getType() == Type.CON || response.getType() == Type.NON)
+								&& exchangeStore.findPrevious(idByMID, exchange) != null) {
+							LOGGER.trace("received duplicate response for open {}: {}", exchange, response);
+							response.setDuplicate(true);
+						} else if (!exchange.isNotification() && !currentRequest.isMulticast()) {
+							if (response.isNotification() && response.getType() != Type.ACK
+									&& currentRequest.isObserveCancel()) {
+								// overlapping notification for observation cancel request
+								LOGGER.debug("ignoring notify for pending cancel {}!", response);
+								return;
+							}
+							// we have received the expected response for the
+							// original request
+							idByMID = KeyMID.fromOutboundMessage(currentRequest);
+							if (exchangeStore.remove(idByMID, exchange) != null) {
+								LOGGER.debug("closed open request [{}]", idByMID);
+							}
+						}
+						receiver.receiveResponse(exchange, response);
+						return;
+					} else {
+						LOGGER.debug("ignoring potentially forged response for token {} with non-matching endpoint context",
+								idByToken);
+					}
+				} catch (RuntimeException ex) {
+					LOGGER.warn("error receiving response {} for {}", response, exchange, ex);
+				}
+				reject(response, receiver);
 			}
-		} catch (Exception ex) {
-			LOGGER.error("error receiving response {} for {}", response, exchange, ex);
-		}
-		return null;
+		});
 	}
 
 	@Override
-	public Exchange receiveEmptyMessage(final EmptyMessage message) {
+	public void receiveEmptyMessage(final EmptyMessage message, final EndpointReceiver receiver) {
 
 		// an empty ACK or RST always is received as a reply to a message
 		// exchange originating locally, i.e. the message will echo an MID
 		// that has been created here
-		KeyMID idByMID = KeyMID.fromInboundMessage(message);
-		Exchange exchange = exchangeStore.get(idByMID);
+		final KeyMID idByMID = KeyMID.fromInboundMessage(message);
+		final Exchange exchange = exchangeStore.get(idByMID);
 
 		if (exchange == null) {
 			LOGGER.debug("ignoring unmatchable empty message from {}: {}", message.getSourceContext(), message);
-			return null;
+			return;
 		}
-		try {
-			if (endpointContextMatcher.isResponseRelatedToRequest(exchange.getEndpointContext(),
-					message.getSourceContext())) {
-				exchangeStore.remove(idByMID, exchange);
-				LOGGER.debug("received expected reply for message {}", idByMID);
-				return exchange;
-			} else {
-				LOGGER.info("ignoring potentially forged reply for message {} with non-matching endpoint context",
-						idByMID);
+
+		exchange.execute(new Runnable() {
+
+			@Override
+			public void run() {
+				if (exchange.getCurrentRequest().isMulticast()) {
+					LOGGER.debug("ignoring {} message for multicast request {}", message.getType(), idByMID);
+					return;
+				}
+				if (exchangeStore.get(idByMID) != exchange) {
+					if (running) {
+						LOGGER.debug("ignoring ack/rst {}, not longer matching!", message);
+					}
+					return;
+				}
+				try {
+					if (endpointContextMatcher.isResponseRelatedToRequest(exchange.getEndpointContext(),
+							message.getSourceContext())) {
+						exchangeStore.remove(idByMID, exchange);
+						LOGGER.debug("received expected reply for message {}", idByMID);
+						receiver.receiveEmptyMessage(exchange, message);
+					} else {
+						LOGGER.debug(
+								"ignoring potentially forged reply for message {} with non-matching endpoint context",
+								idByMID);
+					}
+				} catch (RuntimeException ex) {
+					LOGGER.warn("error receiving empty message {} for {}", message, exchange, ex);
+				}
 			}
-		} catch (Exception ex) {
-			LOGGER.error("error receiving empty message {} for {}", message, exchange, ex);
+		});
+	}
+
+	private void reject(final Response response, final EndpointReceiver receiver) {
+
+		if (response.getType() != Type.ACK && response.hasMID()) {
+			// reject only messages with MID, ignore for TCP
+			LOGGER.debug("rejecting response from {}", response.getSourceContext());
+			receiver.reject(response);
 		}
-		return null;
 	}
 
 	private class RemoveHandlerImpl implements RemoveHandler {

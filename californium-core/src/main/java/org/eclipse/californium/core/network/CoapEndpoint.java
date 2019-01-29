@@ -66,6 +66,10 @@
  *                                                    executor is set after the endpoint
  *                                                    was started.
  *    Achim Kraus (Bosch Software Innovations GmbH) - cancel pending messages on stop().
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add support for multicast
+ *    Achim Kraus (Bosch Software Innovations GmbH) - move response retransmission
+ *                                                    setup to BaseCoapStack to include
+ *                                                    it also in a try-catch
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
@@ -101,6 +105,8 @@ import org.eclipse.californium.core.network.serialization.TcpDataSerializer;
 import org.eclipse.californium.core.network.serialization.UdpDataParser;
 import org.eclipse.californium.core.network.serialization.UdpDataSerializer;
 import org.eclipse.californium.core.network.stack.BlockwiseLayer;
+import org.eclipse.californium.core.network.stack.ObserveLayer;
+import org.eclipse.californium.core.network.stack.ReliabilityLayer;
 import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.core.network.stack.CoapTcpStack;
 import org.eclipse.californium.core.network.stack.CoapUdpStack;
@@ -183,17 +189,26 @@ public class CoapEndpoint implements Endpoint {
 	private static final Logger LOGGER = LoggerFactory.getLogger(CoapEndpoint.class.getCanonicalName());
 
 	/** The stack of layers that make up the CoAP protocol */
-	protected CoapStack coapstack;
+	protected final CoapStack coapstack;
 
 	/** The connector over which the endpoint connects to the network */
 	private final Connector connector;
 
 	private final String scheme;
 
-	/** The configuration of this endpoint */
-	protected final NetworkConfig config;
+	/**
+	 * Base MID for multicast MID range. All multicast requests use the same MID
+	 * scope with MIDs in the range [base...65536). None multicast request use
+	 * the range [0...base). 0 := disable multicast support.
+	 */
+	private final int multicastBaseMid;
 
-	/** The matcher which matches incoming responses, akcs and rsts an exchange */
+	/** The configuration of this endpoint */
+	private final NetworkConfig config;
+
+	/**
+	 * The matcher which matches incoming responses, akcs and rsts an exchange
+	 */
 	private final Matcher matcher;
 
 	/** Serializer to convert messages to datagrams. */
@@ -217,137 +232,39 @@ public class CoapEndpoint implements Endpoint {
 	/** The list of Notification listener (use for CoAP observer relations) */
 	private List<NotificationListener> notificationListeners = new CopyOnWriteArrayList<>();
 
-	/**
-	 * Creates a new <em>coap</em> endpoint using default configuration.
-	 * <p>
-	 * The endpoint will bind to all network interfaces and listen on an ephemeral port.
-	 */
-	@Deprecated
-	public CoapEndpoint() {
-		this(0);
-	}
+	private final EndpointReceiver endpointStackReceiver = new EndpointReceiver() {
 
-	/**
-	 * Creates a new <em>coap</em> endpoint using default configuration.
-	 * <p>
-	 * The endpoint will bind to all network interfaces.
-	 *
-	 * @param port The port to listen on.
-	 */
-	@Deprecated
-	public CoapEndpoint(final int port) {
-		this(new InetSocketAddress(port));
-	}
+		@Override
+		public void receiveRequest(Exchange exchange, Request request) {
+			exchange.setEndpoint(CoapEndpoint.this);
+			coapstack.receiveRequest(exchange, request);
+		}
 
-	/**
-	 * Creates a new <em>coap</em> endpoint using default configuration.
-	 *
-	 * @param address The IP address and port to bind to.
-	 */
-	@Deprecated
-	public CoapEndpoint(final InetSocketAddress address) {
-		this(address, NetworkConfig.getStandard());
-	}
+		@Override
+		public void receiveResponse(Exchange exchange, Response response) {
+			exchange.setEndpoint(CoapEndpoint.this);
+			response.setRTT(exchange.calculateRTT());
+			coapstack.receiveResponse(exchange, response);
+		}
 
-	/**
-	 * Creates a new <em>coap</em> endpoint for a configuration.
-	 * <p>
-	 * The endpoint will bind to all network interfaces and listen on an ephemeral port.
-	 * 
-	 * @param config The configuration values to use.
-	 */
-	@Deprecated
-	public CoapEndpoint(final NetworkConfig config) {
-		this(new InetSocketAddress(0), config);
-	}
+		@Override
+		public void receiveEmptyMessage(Exchange exchange, EmptyMessage message) {
+			exchange.setEndpoint(CoapEndpoint.this);
+			coapstack.receiveEmptyMessage(exchange, message);
+		}
 
-	/**
-	 * Creates a new <em>coap</em> endpoint for a port and configuration.
-	 * <p>
-	 * The endpoint will bind to all network interfaces and listen on an ephemeral port.
-	 *
-	 * @param port The port to listen on.
-	 * @param config The configuration values to use.
-	 */
-	@Deprecated
-	public CoapEndpoint(final int port, final NetworkConfig config) {
-		this(new InetSocketAddress(port), config);
-	}
-
-	/**
-	 * Creates a new <em>coap</em> endpoint for a configuration.
-	 *
-	 * @param address The IP address and port to bind to.
-	 * @param config The configuration values to use.
-	 */
-	@Deprecated
-	public CoapEndpoint(final InetSocketAddress address, final NetworkConfig config) {
-		this(new UDPConnector(address), true, config, null, null, null, null, null);
-	}
-
-	/**
-	 * Creates a new <em>coap</em> endpoint for a configuration and message exchange store.
-	 *
-	 * @param address The IP address and port to bind to.
-	 * @param config The configuration values to use.
-	 * @param exchangeStore The store to use for keeping track of message exchanges.
-	 */
-	@Deprecated
-	public CoapEndpoint(final InetSocketAddress address, final NetworkConfig config,
-			final MessageExchangeStore exchangeStore) {
-		this(new UDPConnector(address), true, config, null, null, exchangeStore, null, null);
-	}
-
-	/**
-	 * Creates a new endpoint for a connector and configuration.
-	 * <p>
-	 * The endpoint will support the connector's implemented scheme and will bind to
-	 * the IP address and port the connector is configured for.
-	 * 
-	 * @param connector The connector to use.
-	 * @param config The configuration values to use.
-	 */
-	@Deprecated
-	public CoapEndpoint(final Connector connector, final NetworkConfig config) {
-		this(connector, false, config, null, null, null, null, null);
-	}
-
-	/**
-	 * Creates a new <em>coap</em> endpoint for a configuration and observation store.
-	 * 
-	 * @param address The IP address and port to bind to.
-	 * @param config The configuration values to use.
-	 * @param store The store to use for keeping track of observations initiated by this
-	 *              endpoint.
-	 */
-	@Deprecated
-	public CoapEndpoint(final InetSocketAddress address, final NetworkConfig config, final ObservationStore store) {
-		this(new UDPConnector(address), true, config, null, store, null, null, null);
-	}
-
-	/**
-	 * Creates a new endpoint for a connector, configuration, message exchange and observation store.
-	 * <p>
-	 * The endpoint will support the connector's implemented scheme and will bind to
-	 * the IP address and port the connector is configured for.
-	 *
-	 * @param connector The connector to use.
-	 * @param config The configuration values to use.
-	 * @param store The store to use for keeping track of observations initiated by this
-	 *              endpoint.
-	 * @param exchangeStore The store to use for keeping track of message exchanges.
-	 */
-	@Deprecated
-	public CoapEndpoint(Connector connector, NetworkConfig config, ObservationStore store,
-			MessageExchangeStore exchangeStore) {
-		this(connector, false, config, null, store, exchangeStore, null, null);
-	}
+		@Override
+		public void reject(final Message message) {
+			EmptyMessage rst = EmptyMessage.newRST(message);
+			coapstack.sendEmptyMessage(null, rst);
+		}
+	};
 
 	/**
 	 * Creates a new endpoint for a connector, configuration, message exchange
 	 * and observation store.
 	 * <p>
-	 * Intended to be called either by the {@link CoapEndpointBuilder} or a
+	 * Intended to be called either by the {@link Builder} or a
 	 * subclass constructor. The endpoint will support the connector's
 	 * implemented scheme and will bind to the IP address and port the connector
 	 * is configured for.
@@ -376,7 +293,7 @@ public class CoapEndpoint implements Endpoint {
 		this.connector = connector;
 		this.connector.setRawDataReceiver(new InboxImpl());
 		this.scheme = CoAP.getSchemeForProtocol(connector.getProtocol());
-
+		this.multicastBaseMid = config.getInt(NetworkConfig.Keys.MULTICAST_BASE_MID);
 		// when remove the deprecated constructors,
 		// this checks and defaults maybe also removed
 		if (tokenGenerator == null) {
@@ -458,14 +375,17 @@ public class CoapEndpoint implements Endpoint {
 			setExecutor(ExecutorsUtil.newSingleThreadScheduledExecutor(
 					new DaemonThreadFactory("CoapEndpoint-" + connector + '#'))); //$NON-NLS-1$
 			addObserver(new EndpointObserver() {
+
 				@Override
 				public void started(final Endpoint endpoint) {
 					// do nothing
 				}
+
 				@Override
 				public void stopped(final Endpoint endpoint) {
 					// do nothing
 				}
+
 				@Override
 				public void destroyed(final Endpoint endpoint) {
 					executor.shutdown();
@@ -582,6 +502,31 @@ public class CoapEndpoint implements Endpoint {
 		}
 		// create context, if not already set
 		request.prepareDestinationContext();
+
+		InetSocketAddress destinationAddress = request.getDestinationContext().getPeerAddress();
+		if (request.isMulticast()) {
+			if (0 >= multicastBaseMid) {
+				LOGGER.warn(
+						"multicast messaging to destination {} is not enabled! Please enable it configuring \"MULTICAST_BASE_MID\" greater than 0",
+						destinationAddress);
+				return;
+			} else if (request.getType() == Type.CON) {
+				LOGGER.warn(
+						" CON request to multicast destination {} is not allowed, as per RFC 7252, 8.1, a client MUST use NON message type for multicast requests ",
+						destinationAddress);
+				return;
+			} else if (request.hasMID() && request.getMID() < multicastBaseMid) {
+				LOGGER.warn(
+						"multicast request to group {} has mid {} which is not in the MULTICAST_MID range [{}-65535]",
+						destinationAddress, request.getMID(), multicastBaseMid);
+				return;
+			}
+		} else if (0 < multicastBaseMid && request.getMID() >= multicastBaseMid) {
+			LOGGER.warn("request has mid {}, which is in the MULTICAST_MID range [{}-65535]", destinationAddress,
+					request.getMID(), multicastBaseMid);
+			return;
+		}
+
 		final Exchange exchange = new Exchange(request, Origin.LOCAL, executor);
 		exchange.execute(new Runnable() {
 
@@ -605,12 +550,6 @@ public class CoapEndpoint implements Endpoint {
 			exchange.execute(new Runnable() {
 				@Override
 				public void run() {
-					if (exchange.getRequest().getOptions().hasObserve()) {
-						// observe- or cancel-observe-requests may have multiple responses
-						// when observes are finished, the last response has no longer an
-						// observe option. Therefore check the request for it.
-						exchange.retransmitResponse();
-					}
 					coapstack.sendResponse(exchange, response);
 				}
 			});
@@ -719,7 +658,7 @@ public class CoapEndpoint implements Endpoint {
 			exchange.setCurrentRequest(request);
 			matcher.sendRequest(exchange);
 
-			/* 
+			/*
 			 * Logging here causes significant performance loss.
 			 * If necessary, add an interceptor that logs the messages,
 			 * e.g., the MessageTracer.
@@ -735,7 +674,7 @@ public class CoapEndpoint implements Endpoint {
 			}
 			// Request may have been canceled already, e.g. by one of the interceptors
 			// or client code
-			if (request.isCanceled()) {
+			if (request.isCanceled() || request.getSendError() != null) {
 
 				// make sure we do necessary house keeping, e.g. removing the exchange from
 				// ExchangeStore to avoid memory leak
@@ -759,7 +698,7 @@ public class CoapEndpoint implements Endpoint {
 			exchange.setCurrentResponse(response);
 			matcher.sendResponse(exchange);
 
-			/* 
+			/*
 			 * Logging here causes significant performance loss.
 			 * If necessary, add an interceptor that logs the messages,
 			 * e.g., the MessageTracer.
@@ -774,7 +713,7 @@ public class CoapEndpoint implements Endpoint {
 			}
 
 			// MessageInterceptor might have canceled
-			if (response.isCanceled()) {
+			if (response.isCanceled() || response.getSendError() != null) {
 				if (null != exchange) {
 					exchange.executeComplete();
 				}
@@ -804,7 +743,7 @@ public class CoapEndpoint implements Endpoint {
 			}
 
 			// MessageInterceptor might have canceled
-			if (message.isCanceled()) {
+			if (message.isCanceled() || message.getSendError() != null) {
 				if (null != exchange) {
 					exchange.executeComplete();
 				}
@@ -843,6 +782,7 @@ public class CoapEndpoint implements Endpoint {
 
 				// Create a new task to process this message
 				runInProtocolStage(new Runnable() {
+
 					@Override
 					public void run() {
 						receiveMessage(raw);
@@ -909,11 +849,6 @@ public class CoapEndpoint implements Endpoint {
 			coapstack.sendEmptyMessage(null, rst);
 		}
 
-		private void reject(final Message message) {
-			EmptyMessage rst = EmptyMessage.newRST(message);
-			coapstack.sendEmptyMessage(null, rst);
-		}
-
 		private void receiveRequest(final Request request) {
 
 			// set request attributes from raw data
@@ -935,23 +870,13 @@ public class CoapEndpoint implements Endpoint {
 
 			// MessageInterceptor might have canceled
 			if (!request.isCanceled()) {
-				final Exchange exchange = matcher.receiveRequest(request);
-				if (exchange != null) {
-					exchange.execute(new Runnable() {
-
-						@Override
-						public void run() {
-							exchange.setEndpoint(CoapEndpoint.this);
-							coapstack.receiveRequest(exchange, request);
-						}
-					});
-				}
+				matcher.receiveRequest(request, endpointStackReceiver);
 			}
 		}
 
 		private void receiveResponse(final Response response) {
 
-			/* 
+			/*
 			 * Logging here causes significant performance loss.
 			 * If necessary, add an interceptor that logs the messages,
 			 * e.g., the MessageTracer.
@@ -962,39 +887,13 @@ public class CoapEndpoint implements Endpoint {
 
 			// MessageInterceptor might have canceled
 			if (!response.isCanceled()) {
-				final Exchange exchange = matcher.receiveResponse(response);
-				if (exchange != null) {
-					exchange.execute(new Runnable() {
-
-						@Override
-						public void run() {
-							// entered serial execution.
-							// recheck, if the response still match the exchange
-							// and the exchange is not changed in the meantime
-							if (exchange.checkCurrentResponse(response)) {
-								exchange.setEndpoint(CoapEndpoint.this);
-								response.setRTT(exchange.calculateRTT());
-								coapstack.receiveResponse(exchange, response);
-							} else if (!response.isDuplicate() && response.getType() != Type.ACK) {
-								LOGGER.debug("rejecting not longer matchable response from {}",
-										response.getSourceContext());
-								// reject(response);
-							} else {
-								LOGGER.debug("not longer matched response {}", response);
-							}
-						}
-					});
-				} else if (response.getType() != Type.ACK && response.hasMID()) {
-					// reject only messages with MID, ignore for TCP
-					LOGGER.debug("rejecting unmatchable response from {}", response.getSourceContext());
-					reject(response);
-				}
+				matcher.receiveResponse(response, endpointStackReceiver);
 			}
 		}
 
 		private void receiveEmptyMessage(final EmptyMessage message) {
 
-			/* 
+			/*
 			 * Logging here causes significant performance loss.
 			 * If necessary, add an interceptor that logs the messages,
 			 * e.g., the MessageTracer.
@@ -1008,24 +907,9 @@ public class CoapEndpoint implements Endpoint {
 				// CoAP Ping
 				if ((message.getType() == Type.CON || message.getType() == Type.NON) && message.hasMID()) {
 					LOGGER.debug("responding to ping from {}", message.getSourceContext());
-					reject(message);
+					endpointStackReceiver.reject(message);
 				} else {
-					final Exchange exchange = matcher.receiveEmptyMessage(message);
-					if (exchange != null) {
-						exchange.execute(new Runnable() {
-
-							@Override
-							public void run() {
-								// entered serial execution.
-								// recheck, it the empty message still match the exchange
-								// and the exchange is not changed in the meantime
-								if (exchange.checkMID(message.getMID())) {
-									exchange.setEndpoint(CoapEndpoint.this);
-									coapstack.receiveEmptyMessage(exchange, message);
-								}
-							}
-						});
-					}
+					 matcher.receiveEmptyMessage(message, endpointStackReceiver);
 				}
 			}
 		}
@@ -1144,7 +1028,7 @@ public class CoapEndpoint implements Endpoint {
 	/**
 	 * Builder to create CoapEndpoints.
 	 */
-	public static class CoapEndpointBuilder {
+	public static class Builder {
 
 		/**
 		 * Network configuration to be applied.
@@ -1205,7 +1089,7 @@ public class CoapEndpoint implements Endpoint {
 		/**
 		 * Create new builder.
 		 */
-		public CoapEndpointBuilder() {
+		public Builder() {
 		}
 
 		/**
@@ -1218,7 +1102,7 @@ public class CoapEndpoint implements Endpoint {
 		 * @return this
 		 * @see #config
 		 */
-		public CoapEndpointBuilder setNetworkConfig(NetworkConfig config) {
+		public Builder setNetworkConfig(NetworkConfig config) {
 			this.config = config;
 			return this;
 		}
@@ -1240,12 +1124,12 @@ public class CoapEndpoint implements Endpoint {
 		 * @param port port number for socket. A port number of {@code 0} will
 		 *            let the system pick up an ephemeral port
 		 * @return this
-		 * @throws IllegalStateException, if {@link #bindAddress} is already
+		 * @throws IllegalStateException if {@link #bindAddress} is already
 		 *             defined
 		 * @see #bindAddress
 		 * @see #connector
 		 */
-		public CoapEndpointBuilder setPort(int port) {
+		public Builder setPort(int port) {
 			if (this.bindAddress != null || this.connector != null) {
 				throw new IllegalArgumentException("bind address already defined!");
 			}
@@ -1268,12 +1152,12 @@ public class CoapEndpoint implements Endpoint {
 		 * 
 		 * @param address local address to bin to
 		 * @return this
-		 * @throws IllegalStateException, if {@link #bindAddress} is already
+		 * @throws IllegalStateException if {@link #bindAddress} is already
 		 *             defined
 		 * @see #bindAddress
 		 * @see #connector
 		 */
-		public CoapEndpointBuilder setInetSocketAddress(InetSocketAddress address) {
+		public Builder setInetSocketAddress(InetSocketAddress address) {
 			if (this.bindAddress != null || this.connector != null) {
 				throw new IllegalArgumentException("bind address already defined!");
 			}
@@ -1296,12 +1180,12 @@ public class CoapEndpoint implements Endpoint {
 		 * 
 		 * @param connector connector to be used
 		 * @return this
-		 * @throws IllegalStateException, if {@link #bindAddress} is already
+		 * @throws IllegalStateException if {@link #bindAddress} is already
 		 *             defined
 		 * @see #bindAddress
 		 * @see #connector
 		 */
-		public CoapEndpointBuilder setConnector(Connector connector) {
+		public Builder setConnector(Connector connector) {
 			if (this.bindAddress != null || this.connector != null) {
 				throw new IllegalArgumentException("bind address already defined!");
 			}
@@ -1325,7 +1209,7 @@ public class CoapEndpoint implements Endpoint {
 		 * 
 		 * @param connector connector to be used
 		 * @return this
-		 * @throws IllegalStateException, if {@link #bindAddress} is already
+		 * @throws IllegalStateException if {@link #bindAddress} is already
 		 *             defined
 		 * @throws IllegalArgumentException if applyConfiguration is
 		 *             {@code true}, but the connector is not a
@@ -1333,7 +1217,7 @@ public class CoapEndpoint implements Endpoint {
 		 * @see #bindAddress
 		 * @see #connector
 		 */
-		public CoapEndpointBuilder setConnectorWithAutoConfiguration(UDPConnector connector) {
+		public Builder setConnectorWithAutoConfiguration(UDPConnector connector) {
 			if (this.bindAddress != null || this.connector != null) {
 				throw new IllegalArgumentException("bind address already defined!");
 			}
@@ -1351,7 +1235,7 @@ public class CoapEndpoint implements Endpoint {
 		 * @return this
 		 * @see #observationStore
 		 */
-		public CoapEndpointBuilder setObservationStore(ObservationStore store) {
+		public Builder setObservationStore(ObservationStore store) {
 			this.observationStore = store;
 			return this;
 		}
@@ -1365,7 +1249,7 @@ public class CoapEndpoint implements Endpoint {
 		 * @return this
 		 * @see #exchangeStore
 		 */
-		public CoapEndpointBuilder setMessageExchangeStore(MessageExchangeStore exchangeStore) {
+		public Builder setMessageExchangeStore(MessageExchangeStore exchangeStore) {
 			this.exchangeStore = exchangeStore;
 			return this;
 		}
@@ -1379,7 +1263,7 @@ public class CoapEndpoint implements Endpoint {
 		 * @return this
 		 * @see #endpointContextMatcher
 		 */
-		public CoapEndpointBuilder setEndpointContextMatcher(EndpointContextMatcher endpointContextMatcher) {
+		public Builder setEndpointContextMatcher(EndpointContextMatcher endpointContextMatcher) {
 			this.endpointContextMatcher = endpointContextMatcher;
 			return this;
 		}
@@ -1393,7 +1277,7 @@ public class CoapEndpoint implements Endpoint {
 		 * @return this
 		 * @see #tokenGenerator
 		 */
-		public CoapEndpointBuilder setTokenGenerator(TokenGenerator tokenGenerator) {
+		public Builder setTokenGenerator(TokenGenerator tokenGenerator) {
 			this.tokenGenerator = tokenGenerator;
 			return this;
 		}
@@ -1407,7 +1291,7 @@ public class CoapEndpoint implements Endpoint {
 		 * @return this
 		 * @see #coapStackFactory
 		 */
-		public CoapEndpointBuilder setCoapStackFactory(CoapStackFactory coapStackFactory) {
+		public Builder setCoapStackFactory(CoapStackFactory coapStackFactory) {
 			this.coapStackFactory = coapStackFactory;
 			return this;
 		}

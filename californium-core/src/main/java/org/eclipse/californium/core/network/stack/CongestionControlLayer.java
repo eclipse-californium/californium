@@ -24,8 +24,6 @@
 package org.eclipse.californium.core.network.stack;
 
 import java.util.concurrent.TimeUnit;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
@@ -127,7 +125,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 		} else if (getRemoteEndpoint(exchange).getNonConfirmableCounter() > MAX_SUCCESSIVE_NONS) {
 			// Every MAX_SUCCESSIVE_NONS + 1 packets, a non-confirmable needs to
 			// be converted to a confirmable [CoCoA]
-			if (exchange.getCurrentRequest().getDestinationPort() != 0) {
+			if (exchange.getCurrentRequest().getDestinationContext().getPeerAddress().getPort() != 0) {
 				exchange.getCurrentRequest().setType(Type.CON);
 			} else if (exchange.getCurrentResponse() != null) {
 				exchange.getCurrentResponse().setType(Type.CON);
@@ -421,7 +419,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 
 				if (getRemoteEndpoint(exchange).getNonConfirmableCounter() <= MAX_SUCCESSIVE_NONS) {
 					getRemoteEndpoint(exchange).increaseNonConfirmableCounter();
-					if (exchange.getCurrentRequest().getDestinationPort() != 0) {
+					if (exchange.getCurrentRequest().getDestinationContext().getPeerAddress().getPort() != 0) {
 						// it's a response
 						sendBucketRequest(exchange, exchange.getCurrentRequest());
 					} else if (exchange.getCurrentResponse() != null) {

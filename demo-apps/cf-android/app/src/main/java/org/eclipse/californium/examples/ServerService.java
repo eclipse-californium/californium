@@ -43,7 +43,7 @@ public class ServerService extends Service {
         dtlsConfig.setAddress(new InetSocketAddress(DTLS_PORT));
         ConfigureDtls.loadCredentials(dtlsConfig, SERVER_NAME);
         DTLSConnector connector = new DTLSConnector(dtlsConfig.build());
-        CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+        CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
         builder.setConnector(connector);
         server.addEndpoint(builder.build());
         server.add(new HelloWorldResource());

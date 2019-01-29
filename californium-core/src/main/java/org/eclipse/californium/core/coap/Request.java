@@ -34,6 +34,10 @@
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - check endpoint context for 
  *                                                    setURI
+ *    Achim Kraus (Bosch Software Innovations GmbH) - check multicast on setURI
+ *                                                    set multicast address as
+ *                                                    host URI option. 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix left timeout calculation
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
@@ -56,6 +60,7 @@ import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.util.ClockUtil;
 
 /**
  * Request represents a CoAP request and has either the {@link Type} CON or NON
@@ -202,18 +207,17 @@ public class Request extends Message {
 	}
 
 	/**
-	 * Defines whether this request is a multicast request or not.
+	 * {@inheritDoc}
 	 * 
-	 * @param multicast if this request is a multicast request
+	 * GET and DELETE request are not intended to have payload.
 	 */
-	public void setMulticast(boolean multicast) {
-		this.multicast = multicast;
+	@Override
+	public boolean isIntendedPayload() {
+		return code != Code.GET && code != Code.DELETE;
 	}
 
 	/**
 	 * {@inheritDoc}
-	 * 
-	 * Required in Request to keep class for fluent API.
 	 */
 	@Override
 	public Request setPayload(String payload) {
@@ -223,8 +227,6 @@ public class Request extends Message {
 
 	/**
 	 * {@inheritDoc}
-	 * 
-	 * Required in Request to keep class for fluent API.
 	 */
 	@Override
 	public Request setPayload(byte[] payload) {
@@ -481,6 +483,7 @@ public class Request extends Message {
 			throw new IllegalStateException("destination context already set!");
 		}
 		this.destination = destination;
+		multicast = destination != null && destination.isMulticastAddress();
 		return this;
 	}
 
@@ -552,6 +555,7 @@ public class Request extends Message {
 					null);
 			super.setDestinationContext(context);
 		}
+		multicast = context.getPeerAddress().getAddress().isMulticastAddress();
 	}
 
 	/**
@@ -568,7 +572,8 @@ public class Request extends Message {
 				throw new IllegalStateException("different destination!");
 			}
 		}
-		super.setDestinationContext(peerContext);
+		super.setRequestDestinationContext(peerContext);
+		multicast = peerContext != null && peerContext.getPeerAddress().getAddress().isMulticastAddress();
 		return this;
 	}
 
@@ -736,20 +741,20 @@ public class Request extends Message {
 	 * @throws InterruptedException the interrupted exception
 	 */
 	public Response waitForResponse(long timeout) throws InterruptedException {
-		long before = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
-		long expired = timeout > 0 ? (before + timeout) : 0;
+		long expiresNano = ClockUtil.nanoRealtime() + TimeUnit.MILLISECONDS.toNanos(timeout);
 		long leftTimeout = timeout;
 		synchronized (this) {
 			while (this.response == null && !isCanceled() && !isTimedOut() && !isRejected() && getSendError() == null) {
 				wait(leftTimeout);
-				long now = TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
 				// timeout expired?
 				if (timeout > 0) {
-					leftTimeout = expired - now;
-					if (0 >= leftTimeout) {
+					long leftNanos = expiresNano - ClockUtil.nanoRealtime();
+					if (leftNanos <= 0) {
 						// break loop
 						break;
 					}
+					// add 1 millisecond to prevent last wait with 0!
+					leftTimeout = TimeUnit.NANOSECONDS.toMillis(leftNanos) + 1;
 				}
 			}
 			Response r = this.response;

@@ -25,6 +25,7 @@ import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.cert.Certificate;
 import java.util.List;
+import java.util.Map;
 
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSessionContext;
@@ -36,9 +37,11 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.elements.tcp.TcpServerConnector;
 import org.eclipse.californium.elements.tcp.TlsServerConnector;
+import org.eclipse.californium.elements.tcp.TlsServerConnector.ClientAuthMode;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ServerNames;
@@ -56,6 +59,51 @@ public abstract class AbstractTestServer extends CoapServer {
 		LOCAL, EXTERNAL, IPV4, IPV6,
 	}
 
+	public static class Select {
+		public final Protocol protocol;
+		public final InterfaceType interfaceType;
+
+		public Select(Protocol protocol) {
+			this.protocol = protocol;
+			this.interfaceType = null;
+		}
+
+		public Select(InterfaceType interfaceType) {
+			this.protocol = null;
+			this.interfaceType = interfaceType;
+		}
+
+		public Select(Protocol protocol, InterfaceType interfaceType) {
+			this.protocol = protocol;
+			this.interfaceType = interfaceType;
+		}
+
+		@Override
+		public int hashCode() {
+			final int prime = 31;
+			int result = 1;
+			result = prime * result + ((interfaceType == null) ? 0 : interfaceType.hashCode());
+			result = prime * result + ((protocol == null) ? 0 : protocol.hashCode());
+			return result;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (getClass() != obj.getClass())
+				return false;
+			Select other = (Select) obj;
+			if (interfaceType != other.interfaceType)
+				return false;
+			if (protocol != other.protocol)
+				return false;
+			return true;
+		}
+	}
+
 	// exit codes for runtime errors
 	private static final char[] KEY_STORE_PASSWORD = "endPass".toCharArray();
 	private static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
@@ -70,10 +118,43 @@ public abstract class AbstractTestServer extends CoapServer {
 	public static final byte[] ETSI_PSK_SECRET = "sesame".getBytes();
 
 	private final NetworkConfig config;
+	private final Map<Select, NetworkConfig> selectConfig;
 
-	protected AbstractTestServer(NetworkConfig config) {
+	protected AbstractTestServer(NetworkConfig config, Map<Select, NetworkConfig> selectConfig) {
 		super(config);
 		this.config = config;
+		this.selectConfig = selectConfig;
+	}
+
+	public NetworkConfig getConfig(Select select) {
+		if (selectConfig != null) {
+			NetworkConfig udpConfig = selectConfig.get(select);
+			if (udpConfig != null) {
+				return udpConfig;
+			}
+		}
+		return config;
+	}
+
+	public NetworkConfig getConfig(Protocol protocol, InterfaceType interfaceType) {
+		if (selectConfig != null) {
+			Select select = new Select(protocol, interfaceType);
+			NetworkConfig udpConfig = selectConfig.get(select);
+			if (udpConfig != null) {
+				return udpConfig;
+			}
+			select = new Select(protocol);
+			udpConfig = selectConfig.get(select);
+			if (udpConfig != null) {
+				return udpConfig;
+			}
+			select = new Select(interfaceType);
+			udpConfig = selectConfig.get(select);
+			if (udpConfig != null) {
+				return udpConfig;
+			}
+		}
+		return config;
 	}
 
 	/**
@@ -91,13 +172,6 @@ public abstract class AbstractTestServer extends CoapServer {
 	public void addEndpoints(String selectAddress, List<InterfaceType> interfaceTypes, List<Protocol> protocols) {
 		int coapPort = config.getInt(Keys.COAP_PORT);
 		int coapsPort = config.getInt(Keys.COAP_SECURE_PORT);
-		int tcpThreads = config.getInt(Keys.TCP_WORKER_THREADS);
-		int tcpIdleTimeout = config.getInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT);
-		int maxPeers = config.getInt(Keys.MAX_ACTIVE_PEERS);
-		int sessionTimeout = config.getInt(Keys.SECURE_SESSION_TIMEOUT);
-		int staleTimeout = config.getInt(Keys.MAX_PEER_INACTIVITY_PERIOD);
-		int dtlsThreads = config.getInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT);
-		int dtlsReceiverThreads = config.getInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT);
 
 		SslContextUtil.Credentials serverCredentials = null;
 		Certificate[] trustedCertificates = null;
@@ -111,11 +185,6 @@ public abstract class AbstractTestServer extends CoapServer {
 						SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, null, TRUST_STORE_PASSWORD);
 				serverSslContext = SslContextUtil.createSSLContext(SERVER_NAME, serverCredentials.getPrivateKey(),
 						serverCredentials.getCertificateChain(), trustedCertificates);
-				SSLSessionContext serverSessionContext = serverSslContext.getServerSessionContext();
-				if (serverSessionContext != null) {
-					serverSessionContext.setSessionTimeout(sessionTimeout);
-					serverSessionContext.setSessionCacheSize(maxPeers);
-				}
 			} catch (GeneralSecurityException e) {
 				e.printStackTrace();
 			} catch (IOException e) {
@@ -137,8 +206,7 @@ public abstract class AbstractTestServer extends CoapServer {
 					if (!interfaceTypes.contains(InterfaceType.IPV4)) {
 						continue;
 					}
-				}
-				if (addr instanceof Inet6Address) {
+				} else if (addr instanceof Inet6Address) {
 					if (!interfaceTypes.contains(InterfaceType.IPV6)) {
 						continue;
 					}
@@ -150,55 +218,91 @@ public abstract class AbstractTestServer extends CoapServer {
 				}
 			}
 
+			InterfaceType interfaceType = addr.isLoopbackAddress() ? InterfaceType.LOCAL : InterfaceType.EXTERNAL;
+
 			if (protocols.contains(Protocol.UDP) || protocols.contains(Protocol.TCP)) {
 				InetSocketAddress bindToAddress = new InetSocketAddress(addr, coapPort);
 				if (protocols.contains(Protocol.UDP)) {
-					CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+					NetworkConfig udpConfig = getConfig(Protocol.UDP, interfaceType);
+					CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 					builder.setInetSocketAddress(bindToAddress);
-					builder.setNetworkConfig(config);
-					addEndpoint(builder.build());
+					builder.setNetworkConfig(udpConfig);
+					CoapEndpoint endpoint = builder.build();
+					addEndpoint(endpoint);
+					print(endpoint, interfaceType);
 				}
 				if (protocols.contains(Protocol.TCP)) {
+					NetworkConfig tcpConfig =  getConfig(Protocol.TCP, interfaceType);
+					int tcpThreads = tcpConfig.getInt(Keys.TCP_WORKER_THREADS);
+					int tcpIdleTimeout = tcpConfig.getInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT);
 					TcpServerConnector connector = new TcpServerConnector(bindToAddress, tcpThreads, tcpIdleTimeout);
-					CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+					CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 					builder.setConnector(connector);
-					builder.setNetworkConfig(config);
-					addEndpoint(builder.build());
+					builder.setNetworkConfig(tcpConfig);
+					CoapEndpoint endpoint = builder.build();
+					addEndpoint(endpoint);
+					print(endpoint, interfaceType);
 				}
 			}
 			if (protocols.contains(Protocol.DTLS) || protocols.contains(Protocol.TLS)) {
 				InetSocketAddress bindToAddress = new InetSocketAddress(addr, coapsPort);
 				if (protocols.contains(Protocol.DTLS)) {
-					DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
-					dtlsConfig.setAddress(bindToAddress);
-					dtlsConfig.setSupportedCipherSuites(new CipherSuite[] { CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
+					NetworkConfig dtlsConfig = getConfig(Protocol.TLS, interfaceType);
+					int staleTimeout = dtlsConfig.getInt(Keys.MAX_PEER_INACTIVITY_PERIOD);
+					int dtlsThreads = dtlsConfig.getInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT);
+					int dtlsReceiverThreads = dtlsConfig.getInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT);
+					int maxPeers = dtlsConfig.getInt(Keys.MAX_ACTIVE_PEERS);
+					DtlsConnectorConfig.Builder dtlsConfigBuilder = new DtlsConnectorConfig.Builder();
+					dtlsConfigBuilder.setAddress(bindToAddress);
+					dtlsConfigBuilder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
 							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256,
-							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256 });
-					dtlsConfig.setPskStore(new PlugPskStore());
-					dtlsConfig.setIdentity(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain(),
-							true);
-					dtlsConfig.setTrustStore(trustedCertificates);
-					dtlsConfig.setMaxConnections(maxPeers);
-					dtlsConfig.setStaleConnectionThreshold(staleTimeout);
-					dtlsConfig.setConnectionThreadCount(dtlsThreads);
-					dtlsConfig.setReceiverThreadCount(dtlsReceiverThreads);
-					DTLSConnector connector = new DTLSConnector(dtlsConfig.build());
-					CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256);
+					dtlsConfigBuilder.setPskStore(new PlugPskStore());
+					dtlsConfigBuilder.setIdentity(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain(),
+							CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509);
+					dtlsConfigBuilder.setTrustStore(trustedCertificates);
+					dtlsConfigBuilder.setRpkTrustAll();
+					dtlsConfigBuilder.setMaxConnections(maxPeers);
+					dtlsConfigBuilder.setStaleConnectionThreshold(staleTimeout);
+					dtlsConfigBuilder.setConnectionThreadCount(dtlsThreads);
+					dtlsConfigBuilder.setReceiverThreadCount(dtlsReceiverThreads);
+					DTLSConnector connector = new DTLSConnector(dtlsConfigBuilder.build());
+					CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 					builder.setConnector(connector);
-					builder.setNetworkConfig(config);
-
-					addEndpoint(builder.build());
+					builder.setNetworkConfig(dtlsConfig);
+					CoapEndpoint endpoint = builder.build();
+					addEndpoint(endpoint);
+					print(endpoint, interfaceType);
 				}
 				if (protocols.contains(Protocol.TLS)) {
-					TlsServerConnector connector = new TlsServerConnector(serverSslContext, bindToAddress, tcpThreads,
-							tcpIdleTimeout);
-					CoapEndpoint.CoapEndpointBuilder builder = new CoapEndpoint.CoapEndpointBuilder();
+					NetworkConfig tlsConfig = getConfig(Protocol.TLS, interfaceType);
+					int tcpThreads = tlsConfig.getInt(Keys.TCP_WORKER_THREADS);
+					int tcpIdleTimeout = tlsConfig.getInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT);
+					int tlsHandshakeTimeout = tlsConfig.getInt(Keys.TLS_HANDSHAKE_TIMEOUT);
+					int maxPeers = tlsConfig.getInt(Keys.MAX_ACTIVE_PEERS);
+					int sessionTimeout = tlsConfig.getInt(Keys.SECURE_SESSION_TIMEOUT);
+					SSLSessionContext serverSessionContext = serverSslContext.getServerSessionContext();
+					if (serverSessionContext != null) {
+						serverSessionContext.setSessionTimeout(sessionTimeout);
+						serverSessionContext.setSessionCacheSize(maxPeers);
+					}
+					TlsServerConnector connector = new TlsServerConnector(serverSslContext, ClientAuthMode.WANTED,
+							bindToAddress, tcpThreads, tlsHandshakeTimeout, tcpIdleTimeout);
+					CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 					builder.setConnector(connector);
-					builder.setNetworkConfig(config);
-					addEndpoint(builder.build());
+					builder.setNetworkConfig(tlsConfig);
+					CoapEndpoint endpoint = builder.build();
+					addEndpoint(endpoint);
+					print(endpoint, interfaceType);
 				}
 			}
 		}
+	}
+
+	private void print(CoapEndpoint endpoint, InterfaceType interfaceType) {
+		System.out.println("listen on " + endpoint.getUri() + " (" + interfaceType + ") max msg size: "
+				+ endpoint.getConfig().getInt(Keys.MAX_MESSAGE_SIZE) + ", block: "
+				+ endpoint.getConfig().getInt(Keys.PREFERRED_BLOCK_SIZE));
 	}
 
 	private static class PlugPskStore implements PskStore {

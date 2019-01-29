@@ -27,9 +27,11 @@ import java.io.ByteArrayOutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.util.List;
 import java.util.Random;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
@@ -44,8 +46,17 @@ public class ConnectorTestUtil {
 	public static final int IDLE_TIMEOUT_IN_S = 100;
 	public static final int IDLE_TIMEOUT_RECONNECT_IN_S = 2;
 	public static final int CONTEXT_TIMEOUT_IN_MS = 1000;
+	public static final int CATCHER_TIMEOUT_IN_MS = 2000;
+	public static final int TEST_TIMEOUT_IN_MS = 20000;
 
 	private static final Random random = new Random(0);
+
+	public static void stop(List<Connector> list) {
+		for (Connector connector : list) {
+			connector.stop();
+		}
+		list.clear();
+	}
 
 	public static InetSocketAddress createServerAddress(int port) {
 		return new InetSocketAddress(InetAddress.getLoopbackAddress(), port);

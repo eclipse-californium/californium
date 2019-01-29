@@ -52,49 +52,48 @@ public class PskUtil {
 		if (pskStore == null) {
 			throw new NullPointerException("psk store cannot be null");
 		}
-		String virtualHostName = session.getVirtualHost();
+		ServerNames virtualHost = session.getServerNames();
 		String identity = null;
-		if (sniEnabled && virtualHostName != null) {
-			ServerNames virtualHost = ServerNames.newInstance().add(ServerName.fromHostName(virtualHostName));
+		if (sniEnabled && virtualHost != null) {
 			if (!session.isSniSupported()) {
 				LOGGER.warn("client is configured to use SNI but server does not support it, PSK authentication is likely to fail");
 			}
 			// look up identity in scope of virtual host
+			String virtualHostName = session.getVirtualHost();
 			identity = pskStore.getIdentity(session.getPeer(), virtualHost);
 			if (identity == null) {
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
 				throw new HandshakeException(
-						String.format(
-								"No Identity found for peer [address: %s, virtual host: %s]",
+						String.format("No Identity found for peer [address: %s, virtual host: %s]",
 								session.getPeer(), virtualHostName),
 						alert);
-			} else {
-				this.psk = pskStore.getKey(virtualHost, identity);
-				if (psk == null) {
-					AlertMessage alert = new AlertMessage(AlertLevel.FATAL,	AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
-					throw new HandshakeException(
-							String.format("No pre-shared key found for [virtual host: %s, identity: %s]",
-									virtualHostName, identity),
-							alert);
-				} else {
-					this.pskIdentity = new PreSharedKeyIdentity(virtualHostName, identity);
-				}
 			}
+			this.psk = pskStore.getKey(virtualHost, identity);
+			if (psk == null) {
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL,	AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
+				throw new HandshakeException(
+						String.format("No pre-shared key found for [virtual host: %s, identity: %s]",
+								virtualHostName, identity),
+						alert);
+			} 
+			this.pskIdentity = new PreSharedKeyIdentity(virtualHostName, identity);
 		} else {
 			identity = pskStore.getIdentity(session.getPeer());
 			if (identity == null) {
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
 				throw new HandshakeException(
 						String.format("No Identity found for peer [address: %s]", session.getPeer()), alert);
+			}
+			this.psk = pskStore.getKey(identity);
+			if (psk == null) {
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL,	AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
+				throw new HandshakeException(
+						String.format("No pre-shared key found for [identity: %s]", identity), alert);
+			}
+			if (sniEnabled) {
+				this.pskIdentity = new PreSharedKeyIdentity(null, identity);
 			} else {
-				this.psk = pskStore.getKey(identity);
-				if (psk == null) {
-					AlertMessage alert = new AlertMessage(AlertLevel.FATAL,	AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
-					throw new HandshakeException(
-							String.format("No pre-shared key found for [identity: %s]", identity), alert);
-				} else {
-					this.pskIdentity = new PreSharedKeyIdentity(identity);
-				}
+				this.pskIdentity = new PreSharedKeyIdentity(identity);
 			}
 		}		
 	}

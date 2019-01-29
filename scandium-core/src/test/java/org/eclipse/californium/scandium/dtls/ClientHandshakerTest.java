@@ -36,7 +36,7 @@ import java.security.cert.Certificate;
 
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
-import org.eclipse.californium.scandium.dtls.CertificateTypeExtension.CertificateType;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.util.ServerName.NameType;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -98,7 +98,7 @@ public class ClientHandshakerTest {
 	@Test
 	public void testServerCertExtPrefersRawPublicKeysWithoutTrustStore() throws Exception {
 
-		givenAClientHandshaker(false);
+		givenAClientHandshaker(localPeer, null, false, false, true, false);
 		handshaker.startHandshake();
 		ClientHello clientHello = getClientHello(recordLayer.getSentFlight());
 		assertPreferredServerCertificateExtension(clientHello, CertificateType.RAW_PUBLIC_KEY);
@@ -135,7 +135,7 @@ public class ClientHandshakerTest {
 	public void testClientHelloLacksServerNameExtensionForDisabledSni() throws Exception {
 
 		// GIVEN a handshaker for a virtual host but with SNI disabled
-		givenAClientHandshaker(localPeer, serverName, false, false, false);
+		givenAClientHandshaker(localPeer, serverName, false, false, false, false);
 
 		// WHEN a handshake is started with the peer
 		handshaker.startHandshake();
@@ -173,11 +173,11 @@ public class ClientHandshakerTest {
 	}
 
 	private void givenAClientHandshaker(final String virtualHost, final boolean configureTrustStore) throws Exception {
-		givenAClientHandshaker(localPeer, virtualHost, configureTrustStore, false, true);
+		givenAClientHandshaker(localPeer, virtualHost, configureTrustStore, false, false, true);
 	}
 
 	private void givenAClientHandshaker(final InetSocketAddress peer, final boolean configureTrustStore, final boolean configureEmptyTrustStore) throws Exception {
-		givenAClientHandshaker(peer, serverName, configureTrustStore, configureEmptyTrustStore, true);
+		givenAClientHandshaker(peer, serverName, configureTrustStore, configureEmptyTrustStore, false, true);
 	}
 
 	private void givenAClientHandshaker(
@@ -185,6 +185,7 @@ public class ClientHandshakerTest {
 			final String virtualHost,
 			final boolean configureTrustStore,
 			final boolean configureEmptyTrustStore,
+			final boolean configureRpkTrustAll,
 			final boolean sniEnabled) throws Exception {
 
 		DtlsConnectorConfig.Builder builder = 
@@ -193,17 +194,22 @@ public class ClientHandshakerTest {
 					.setIdentity(
 						DtlsTestTools.getClientPrivateKey(),
 						DtlsTestTools.getClientCertificateChain(),
-						false)
+						CertificateType.X_509)
 					.setSniEnabled(sniEnabled);
 
 		if (configureTrustStore) {
 			builder.setTrustStore(DtlsTestTools.getTrustedCertificates());
 		} else if (configureEmptyTrustStore) {
 			builder.setTrustStore(new Certificate[0]);
+		} else if (configureRpkTrustAll) {
+			builder.setRpkTrustAll();
+		} else {
+			builder.setClientAuthenticationRequired(false);
 		}
-
+		DTLSSession session = new DTLSSession(peer);
+		session.setVirtualHost(virtualHost);
 		handshaker = new ClientHandshaker(
-				DTLSSession.newClientSession(peer, virtualHost),
+				session,
 				recordLayer,
 				null,
 				builder.build(),
@@ -211,10 +217,20 @@ public class ClientHandshakerTest {
 	}
 
 	private static void assertPreferredServerCertificateExtension(final ClientHello msg, final CertificateType expectedType) {
-		assertThat(msg.getServerCertificateTypeExtension(), notNullValue());
-		assertThat(
-			msg.getServerCertificateTypeExtension().getCertificateTypes().get(0),
-			is(expectedType));
+		CertificateType preferred = null;
+		ServerCertificateTypeExtension typeExtension = msg.getServerCertificateTypeExtension();
+		if (typeExtension != null) {
+			preferred = typeExtension.getCertificateTypes().get(0);
+		}
+		if (expectedType == CertificateType.X_509) {
+			if (preferred == null) {
+				return;
+			}
+		}
+		else {
+			assertThat(typeExtension, notNullValue());
+		}
+		assertThat(preferred, is(expectedType));
 	}
 
 	private static ClientHello getClientHello(final DTLSFlight flight) throws GeneralSecurityException, HandshakeException {

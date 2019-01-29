@@ -19,6 +19,7 @@ import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
 import java.net.InetSocketAddress;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 
 import org.eclipse.californium.scandium.category.Small;
@@ -88,7 +89,7 @@ public class ServerNameExtensionTest {
 		ByteBuffer b = ByteBuffer.allocate(1024);
 		writeLength(ext.getLength(), b); //extension length
 		b.put(ext.toByteArray());
-		b.flip();
+		((Buffer)b).flip();
 		serverNameStructure = new byte[b.limit()];
 		b.get(serverNameStructure);
 
@@ -141,7 +142,7 @@ public class ServerNameExtensionTest {
 		ByteBuffer b = ByteBuffer.allocate(1024);
 		writeLength(emptyExtension.length, b); // length of extensions list
 		b.put(emptyExtension);
-		b.flip();
+		((Buffer)b).flip();
 		serverNameStructure = new byte[b.limit()];
 		b.get(serverNameStructure);
 	}
@@ -152,19 +153,19 @@ public class ServerNameExtensionTest {
 		nameEntry.put(nameType); // name type
 		writeLength(name.length, nameEntry);
 		nameEntry.put(name);
-		nameEntry.flip();
+		((Buffer)nameEntry).flip();
 
 		ByteBuffer ext = ByteBuffer.allocate(1024);
 		ext.put((byte) 0x00).put((byte) 0x00); // type code 0x0000 = server_name
 		writeLength(nameEntry.limit() + 2, ext); //extension_data length
 		writeLength(nameEntry.limit(), ext); // server name list length
 		ext.put(nameEntry);
-		ext.flip();
+		((Buffer)ext).flip();
 
 		ByteBuffer b = ByteBuffer.allocate(1024);
 		writeLength(ext.limit(), b); // length of extensions list
 		b.put(ext);
-		b.flip();
+		((Buffer)b).flip();
 		serverNameStructure = new byte[b.limit()];
 		b.get(serverNameStructure);
 	}

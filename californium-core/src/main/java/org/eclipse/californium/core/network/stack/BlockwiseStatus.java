@@ -21,9 +21,11 @@
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace striped executor
  *                                                    with serial executor
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix openjdk-11 covariant return types
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.util.concurrent.ScheduledFuture;
 import org.slf4j.Logger;
@@ -223,9 +225,9 @@ public abstract class BlockwiseStatus {
 	 * @return The bytes contained in the buffer.
 	 */
 	final synchronized byte[] getBody() {
-		buf.flip();
+		((Buffer)buf).flip();
 		byte[] body = new byte[buf.remaining()];
-		buf.get(body).clear();
+		((Buffer)buf.get(body)).clear();
 		return body;
 	}
 
@@ -272,6 +274,9 @@ public abstract class BlockwiseStatus {
 		message.setOptions(new OptionSet(first.getOptions()));
 		message.getOptions().removeBlock1();
 		message.getOptions().removeBlock2();
+		if (!message.isIntendedPayload()) {
+			message.setUnintendedPayload();
+		}
 		message.setPayload(getBody());
 	}
 
