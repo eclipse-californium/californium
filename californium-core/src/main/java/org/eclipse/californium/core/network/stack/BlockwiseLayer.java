@@ -56,6 +56,9 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use ExecutorsUtil.getScheduledExecutor()
  *                                                    for health status instead of own executor.
  *    Achim Kraus (Bosch Software Innovations GmbH) - disable transparent blockwise for multicast.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - extract requestNextBlock from 
+ *                                                    tcp_experimental_features branch
+ *                                                    for easier merging in the future.
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -888,66 +891,8 @@ public class BlockwiseLayer extends AbstractLayer {
 					return;
 
 				} else if (block2.isM()) {
-
-					int currentSize = status.getCurrentSize();
-					// do late block size negotiation
-					int newSize, newSzx;
-					if (block2.getSzx() > preferredBlockSzx) {
-						newSize = preferredBlockSize;
-						newSzx = preferredBlockSzx;
-					} else {
-						newSize = currentSize;
-						newSzx = status.getCurrentSzx();
-					}
-					int nextNum = status.getCurrentNum() + currentSize / newSize;
-
-					Request request = exchange.getRequest();
-
-					Request block = new Request(request.getCode());
-					try {
-						
-						// do not enforce CON, since NON could make sense over SMS or similar transports
-						block.setType(request.getType());
-						block.setDestinationContext(response.getSourceContext());
-
-						/*
-						 * WARNING:
-						 * 
-						 * For Observe, the Matcher then will store the same
-						 * exchange under a different KeyToken in exchangesByToken,
-						 * which is cleaned up in the else case below.
-						 */
-						if (!response.isNotification()) {
-							block.setToken(response.getToken());
-						} else if (exchange.isNotification()) {
-							// Recreate cleanup message observer 
-							request.addMessageObserver(new CleanupMessageObserver(exchange));
-						}
-
-						// copy options
-						block.setOptions(new OptionSet(request.getOptions()));
-						block.getOptions().setBlock2(newSzx, false, nextNum);
-
-						// make sure NOT to use Observe for block retrieval
-						block.getOptions().removeObserve();
-
-						// copy message observers from original request so that they will be notified
-						// if something goes wrong with this blockwise request, e.g. if it times out
-						block.addMessageObservers(request.getMessageObservers());
-						// add an observer that cleans up the block2 transfer tracker if the
-						// block request fails
-						addBlock2CleanUpObserver(block, key, status);
-
-						status.setCurrentNum(nextNum);
-
-						LOGGER.debug("requesting next Block2 [num={}]: {}", nextNum, block);
-						exchange.setCurrentRequest(block);
-						prepareBlock2Cleanup(status, key);
-						lower().sendRequest(exchange, block);
-					} catch (RuntimeException ex) {
-						LOGGER.warn("cannot process next block request, aborting request!", ex);
-						block.setSendError(ex);
-					}
+					// request next block
+					requestNextBlock(exchange, response, key, status);
 
 				} else {
 
@@ -979,6 +924,71 @@ public class BlockwiseLayer extends AbstractLayer {
 				LOGGER.warn("ignoring block2 response with wrong block number {} (expected {}): {}", block2.getNum(),
 						status.getCurrentNum(), response);
 			}
+		}
+	}
+
+	/**
+	 * Sends request for the next response block.
+	 */
+	private void requestNextBlock(final Exchange exchange, final Response response, final KeyUri key, final Block2BlockwiseStatus status) {
+		int currentSize = status.getCurrentSize();
+		// do late block size negotiation
+		int newSize, newSzx;
+		BlockOption block2 = response.getOptions().getBlock2();
+		if (block2.getSzx() > preferredBlockSzx) {
+			newSize = preferredBlockSize;
+			newSzx = preferredBlockSzx;
+		} else {
+			newSize = currentSize;
+			newSzx = status.getCurrentSzx();
+		}
+		int nextNum = status.getCurrentNum() + currentSize / newSize;
+
+		Request request = exchange.getRequest();
+
+		Request block = new Request(request.getCode());
+		try {
+			// do not enforce CON, since NON could make sense over SMS or similar transports
+			block.setType(request.getType());
+			block.setDestinationContext(response.getSourceContext());
+
+			/*
+			 * WARNING:
+			 * 
+			 * For Observe, the Matcher then will store the same
+			 * exchange under a different KeyToken in exchangesByToken,
+			 * which is cleaned up in the else case below.
+			 */
+			if (!response.isNotification()) {
+				block.setToken(response.getToken());
+			} else if (exchange.isNotification()) {
+				// Recreate cleanup message observer 
+				request.addMessageObserver(new CleanupMessageObserver(exchange));
+			}
+
+			// copy options
+			block.setOptions(new OptionSet(request.getOptions()));
+			block.getOptions().setBlock2(newSzx, false, nextNum);
+
+			// make sure NOT to use Observe for block retrieval
+			block.getOptions().removeObserve();
+
+			// copy message observers from original request so that they will be notified
+			// if something goes wrong with this blockwise request, e.g. if it times out
+			block.addMessageObservers(request.getMessageObservers());
+			// add an observer that cleans up the block2 transfer tracker if the
+			// block request fails
+			addBlock2CleanUpObserver(block, key, status);
+
+			status.setCurrentNum(nextNum);
+
+			LOGGER.debug("requesting next Block2 [num={}]: {}", nextNum, block);
+			exchange.setCurrentRequest(block);
+			prepareBlock2Cleanup(status, key);
+			lower().sendRequest(exchange, block);
+		} catch (RuntimeException ex) {
+			LOGGER.warn("cannot process next block request, aborting request!", ex);
+			block.setSendError(ex);
 		}
 	}
 
