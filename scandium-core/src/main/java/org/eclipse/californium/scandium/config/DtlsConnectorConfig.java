@@ -857,45 +857,56 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Sets whether the connector wants (requests) DTLS clients to authenticate
-		 * during the handshake. The handshake doesn't fail, if the client didn't
-		 * authenticate itself during the handshake. That mostly requires the client
-		 * to use a proprietary mechanism to authenticate itself on the application
-		 * layer (e.g. username/password). It's mainly used, if the implementation
-		 * of the other peer has no PSK cipher suite and client certificate should
-		 * not be used for some reason.
+		 * Sets whether the connector wants (requests) DTLS clients to
+		 * authenticate during the handshake. The handshake doesn't fail, if the
+		 * client didn't authenticate itself during the handshake. That mostly
+		 * requires the client to use a proprietary mechanism to authenticate
+		 * itself on the application layer (e.g. username/password). It's mainly
+		 * used, if the implementation of the other peer has no PSK cipher suite
+		 * and client certificate should not be used for some reason.
 		 * 
-		 * Only used by the DTLS server side.
+		 * The default is {@code false}. Only used by the DTLS server side.
 		 * 
-		 * @param authWanted
-		 *            <code>true</code> if clients wanted to authenticate
+		 * @param authWanted <code>true</code> if clients wanted to authenticate
 		 * @return this builder for command chaining
+		 * @throws IllegalStateException if configuration is for client only
+		 * @throws IllegalArgumentException if authWanted is {@code true}, but
+		 *             {@link #setClientAuthenticationRequired(boolean)} was set
+		 *             to {@code true} before.
 		 */
 		public Builder setClientAuthenticationWanted(boolean authWanted) {
 			if (clientOnly) {
 				throw new IllegalStateException("client authentication is not supported for client only!");
 			}
 			if (authWanted && Boolean.TRUE.equals(config.clientAuthenticationRequired)) {
-				throw new IllegalStateException("client authentication is already required!");
+				throw new IllegalArgumentException("client authentication is already required!");
 			}
 			config.clientAuthenticationWanted = authWanted;
 			return this;
 		}
 
 		/**
-		 * Sets whether the connector requires DTLS clients to authenticate during
-		 * the handshake. Only used by the DTLS server side.
+		 * Sets whether the connector requires DTLS clients to authenticate
+		 * during the handshake.
 		 * 
-		 * @param authRequired
-		 *            <code>true</code> if clients need to authenticate
+		 * The default is {@code true}. If
+		 * {@link #setClientAuthenticationWanted(boolean)} is set to
+		 * {@code true}, the default is {@code false}. Only used by the DTLS
+		 * server side.
+		 * 
+		 * @param authRequired <code>true</code> if clients need to authenticate
 		 * @return this builder for command chaining
+		 * @throws IllegalStateException if configuration is for client only
+		 * @throws IllegalArgumentException if authWanted is {@code true}, but
+		 *             {@link #setClientAuthenticationWanted(boolean)} was set
+		 *             to {@code true} before.
 		 */
 		public Builder setClientAuthenticationRequired(boolean authRequired) {
 			if (clientOnly) {
 				throw new IllegalStateException("client authentication is not supported for client only!");
 			}
 			if (authRequired && Boolean.TRUE.equals(config.clientAuthenticationWanted)) {
-				throw new IllegalStateException("client authentication is already wanted!");
+				throw new IllegalArgumentException("client authentication is already wanted!");
 			}
 			config.clientAuthenticationRequired = authRequired;
 			return this;
@@ -1556,11 +1567,15 @@ public final class DtlsConnectorConfig {
 			if (config.maxRetransmissions == null) {
 				config.maxRetransmissions = DEFAULT_MAX_RETRANSMISSIONS;
 			}
-			if (config.clientAuthenticationRequired == null) {
-				config.clientAuthenticationRequired = true;
-			}
 			if (config.clientAuthenticationWanted == null) {
 				config.clientAuthenticationWanted = false;
+			}
+			if (config.clientAuthenticationRequired == null) {
+				if (clientOnly) {
+					config.clientAuthenticationRequired = false;
+				} else {
+					config.clientAuthenticationRequired = !config.clientAuthenticationWanted;
+				}
 			}
 			if (config.serverOnly == null) {
 				config.serverOnly = false;
@@ -1607,7 +1622,7 @@ public final class DtlsConnectorConfig {
 				}
 			} 
 
-			if (!config.clientAuthenticationRequired && !config.clientAuthenticationWanted
+			if (config.serverOnly && !config.clientAuthenticationRequired && !config.clientAuthenticationWanted
 					&& config.trustCertificateTypes != null) {
 				throw new IllegalStateException(
 						"configured trusted certificates or certificate verifier are not used for disabled client authentication!");
@@ -1697,7 +1712,7 @@ public final class DtlsConnectorConfig {
 					throw new IllegalStateException("Keys must be ECDSA capable for configured " + suite.name());
 				}
 			}
-			if (config.clientAuthenticationRequired || config.clientAuthenticationWanted) {
+			if (clientOnly || config.clientAuthenticationRequired || config.clientAuthenticationWanted) {
 				if (config.trustCertificateTypes == null) {
 					throw new IllegalStateException(
 							"trust must be set for configured " + suite.name());

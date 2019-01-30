@@ -212,7 +212,7 @@ public class DtlsConnectorConfigTest {
 	}
 
 	@Test(expected = IllegalStateException.class)
-	public void testBuildDetectsErrorForAnonymousClientwithotuTrust() {
+	public void testBuildDetectsErrorForAnonymousClientWithoutTrust() {
 		builder.setClientOnly().setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8).build();
 	}
 
@@ -227,5 +227,66 @@ public class DtlsConnectorConfigTest {
 
 		// THEN
 		assertThat("Certificate chain should be null for RawPublicKey only configuration", chain, is(nullValue()));
+	}
+
+	@Test
+	public void testWantedAuthentication() throws Exception {
+		// GIVEN a configuration supporting RawPublicKey only and wanted client authentication
+		builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
+				.setRpkTrustAll();
+		builder.setClientAuthenticationWanted(true);
+		// WHEN configuration is build
+		DtlsConnectorConfig config = builder.build();
+
+		// THEN
+		assertThat(config.isClientAuthenticationWanted(), is(true));
+		assertThat(config.isClientAuthenticationRequired(), is(false));
+	}
+
+	@Test
+	public void testDisabledRequiredAuthentication() throws Exception {
+		// GIVEN a configuration supporting RawPublicKey only and wanted client authentication
+		builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey());
+		builder.setClientAuthenticationRequired(false);
+		// WHEN configuration is build
+		DtlsConnectorConfig config = builder.build();
+
+		// THEN
+		assertThat(config.isClientAuthenticationWanted(), is(false));
+		assertThat(config.isClientAuthenticationRequired(), is(false));
+	}
+
+	@Test(expected = IllegalStateException.class)
+	public void testClientOnlyWantedAuthentication() throws Exception {
+		// GIVEN a configuration supporting RawPublicKey only and wanted client authentication
+		builder.setClientOnly();
+		builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
+				.setRpkTrustAll();
+		// WHEN client authentication is wanted
+		builder.setClientAuthenticationWanted(true);
+		// THEN fails
+	}
+
+	@Test(expected = IllegalStateException.class)
+	public void testClientOnlyRequiredAuthentication() throws Exception {
+		// GIVEN a configuration supporting RawPublicKey only and wanted client authentication
+		builder.setClientOnly();
+		builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
+				.setRpkTrustAll();
+		// WHEN client authentication is required
+		builder.setClientAuthenticationRequired(true);
+		// THEN fails
+	}
+
+	@Test(expected = IllegalStateException.class)
+	public void testserverOnlyWitdDisabledRequiredAuthenticationFailsOnTrust() throws Exception {
+		// GIVEN a configuration supporting RawPublicKey only and wanted client authentication
+		builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
+				.setRpkTrustAll();
+		builder.setServerOnly(true);
+		builder.setClientAuthenticationRequired(false);
+		// WHEN configuration is build
+		builder.build();
+		// THEN fails
 	}
 }
