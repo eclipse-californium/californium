@@ -116,8 +116,17 @@ public final class DtlsConnectorConfig {
 
 	private static final String EC_ALGORITHM_NAME = "EC";
 
+	/**
+	 * Local network interface.
+	 */
 	private InetSocketAddress address;
+	/**
+	 * Truststore for trusted certificates  
+	 */
 	private X509Certificate[] trustStore;
+	/**
+	 * Certificate verifier for dynamic trust.
+	 */
 	private CertificateVerifier certificateVerifier;
 
 	/**
@@ -234,6 +243,14 @@ public final class DtlsConnectorConfig {
 	 * cached by this server and can not be resumed.
 	 */
 	private Boolean useNoServerSessionId;
+
+	/**
+	 * Logging tag.
+	 * 
+	 * Tag logging messages, if multiple connectors share the same logging
+	 * instance.
+	 */
+	private String loggingTag;
 
 	private DtlsConnectorConfig() {
 		// empty
@@ -612,6 +629,15 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * Get instance logging tag.
+	 * 
+	 * @return logging tag.
+	 */
+	public String getLoggingTag() {
+		return loggingTag;
+	}
+
+	/**
 	 * @return a copy of this configuration
 	 */
 	@Override
@@ -647,6 +673,7 @@ public final class DtlsConnectorConfig {
 		cloned.sniEnabled = sniEnabled;
 		cloned.verifyPeersOnResumptionThreshold = verifyPeersOnResumptionThreshold;
 		cloned.useNoServerSessionId = useNoServerSessionId;
+		cloned.loggingTag = loggingTag;
 		return cloned;
 	}
 
@@ -1514,6 +1541,17 @@ public final class DtlsConnectorConfig {
 			return this;
 		}
 
+		/**
+		 * Set instance logging tag.
+		 * 
+		 * @param tag logging tag of configure instance
+		 * @return this builder for command chaining.
+		 */
+		public Builder setLoggingTag(String tag) {
+			config.loggingTag = tag;
+			return this;
+		}
+
 		private boolean isConfiguredWithKeyPair() {
 			return config.privateKey != null && config.publicKey != null;
 		}
@@ -1554,6 +1592,9 @@ public final class DtlsConnectorConfig {
 			// set default values
 			if (config.address == null) {
 				config.address = new InetSocketAddress(0);
+			}
+			if (config.loggingTag == null) {
+				config.loggingTag = "";
 			}
 			if (config.enableReuseAddress == null) {
 				config.enableReuseAddress = false;

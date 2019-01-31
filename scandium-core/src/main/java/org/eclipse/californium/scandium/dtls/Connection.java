@@ -32,9 +32,13 @@
  *                                                    are called via the handshaker.
  *    Achim Kraus (Bosch Software Innovations GmbH) - move DTLSFlight to Handshaker
  *    Achim Kraus (Bosch Software Innovations GmbH) - move serial executor from dtlsconnector
+ *    Achim Kraus (Bosch Software Innovations GmbH) - add connection id as primary 
+ *                                                    lookup key. redesign to make 
+ *                                                    the connection modifiable
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
@@ -58,21 +62,21 @@ public final class Connection {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(Connection.class.getName());
 
-	private final SerialExecutor serialExecutor;
-	private final SessionTicket ticket;
-	private final SessionId sessionId;
-	private final SessionListener sessionListener;
 	private final AtomicReference<Handshaker> ongoingHandshake = new AtomicReference<Handshaker>();
-	private InetSocketAddress peerAddress;
-
+	private final SessionListener sessionListener = new ConnectionSessionListener();
 	/**
-	 * Expired realtime nanoseconds of the last message send or received.
+	 * Expired real time nanoseconds of the last message send or received.
 	 */
 	private final AtomicLong lastMessageNanos = new AtomicLong();
+	private SerialExecutor serialExecutor;
+	private InetSocketAddress peerAddress;
+	private ConnectionId cid;
+	private SessionTicket ticket;
+	private SessionId sessionId;
 
 	private volatile DTLSSession establishedSession;
 	// Used to know when an abbreviated handshake should be initiated
-	private volatile boolean resumptionRequired = false; 
+	private volatile boolean resumptionRequired; 
 
 	/**
 	 * Creates a new connection to a given peer.
@@ -90,7 +94,6 @@ public final class Connection {
 			this.sessionId = null;
 			this.ticket = null;
 			this.peerAddress = peerAddress;
-			this.sessionListener = new ConnectionSessionListener();
 			this.serialExecutor = serialExecutor;
 		}
 	}
@@ -113,36 +116,27 @@ public final class Connection {
 		} else {
 			this.ticket = sessionTicket;
 			this.sessionId =sessionId;
+			this.resumptionRequired = true;
 			this.peerAddress = null;
-			this.sessionListener = null;
+			this.cid = null;
 			this.serialExecutor = null;
 		}
 	}
 
 	/**
-	 * Creates a new connection with the provided serial executor from a
-	 * previous connection.
+	 * Set new executor to restart execution for stopped connection.
 	 * 
-	 * @param connection The previousconnection's states.
-	 * @param serialExecutor serial executor.
-	 * @throws NullPointerException if the connection or executor is
-	 *             {@code null}
+	 * @param serialExecutor new serial executor
+	 * @throws NullPointerException if the serial executor is {@code null}
+	 * @throws IllegalStateException if the connection is already executing
 	 */
-	public Connection(final Connection connection, final SerialExecutor serialExecutor) {
-		if (connection == null) {
-			throw new NullPointerException("connection must not be null");
-		} else if (serialExecutor == null) {
-			throw new NullPointerException("Serial executor must not be null");
-		} else {
-			this.serialExecutor = serialExecutor;
-			this.ticket = connection.getSessionTicket();
-			this.sessionId =connection.getSessionIdentity();
-			this.peerAddress = connection.getPeerAddress();
-			this.sessionListener =  new ConnectionSessionListener();
-			this.lastMessageNanos.set(connection.lastMessageNanos.get());
-			this.resumptionRequired = connection.resumptionRequired;
-			this.establishedSession = connection.establishedSession;
+	public void setExecutor(SerialExecutor serialExecutor) {
+		if (serialExecutor == null) {
+			throw new NullPointerException("Serial executor must not be null1");
+		} else if (isExecuting()) {
+			throw new IllegalStateException("Serial executor already available!");
 		}
+		this.serialExecutor = serialExecutor;
 	}
 
 	/**
@@ -169,8 +163,7 @@ public final class Connection {
 	/**
 	 * Get session listener of connection.
 	 * 
-	 * @return session listener. {@code null}, if the connection just provides a
-	 *         session ticket ({@link Connection#Connection(SessionTicket)}).
+	 * @return session listener.
 	 */
 	public final SessionListener getSessionListener() {
 		return sessionListener;
@@ -208,13 +201,21 @@ public final class Connection {
 	}
 
 	/**
-	 * Checks if this connection has been created from a session ticket instead of having been established
-	 * locally.
+	 * Gets the connection id.
 	 * 
-	 * @return {@code true} if this connection has been created from a ticket.
+	 * @return the cid
 	 */
-	public boolean hasSessionTicket() {
-		return ticket != null;
+	public ConnectionId getConnectionId() {
+		return cid;
+	}
+
+	/**
+	 * Sets the connection id.
+	 * 
+	 * @param cid the connection id
+	 */
+	public void  setConnectionId(ConnectionId cid) {
+		this.cid = cid;
 	}
 
 	/**
@@ -229,12 +230,27 @@ public final class Connection {
 	/**
 	 * Sets the address of this connection's peer.
 	 * 
+	 * If the new address is {@code null}, a pending flight is cancelled and an
+	 * ongoing handshake is failed.
+	 * 
+	 * Note: to keep track of the associated address in the connection store,
+	 * this method must not be called directly. It must be called by calling
+	 * {@link ResumptionSupportingConnectionStore#update(Connection, InetSocketAddress)}
+	 * or
+	 * {@link ResumptionSupportingConnectionStore#remove(Connection, boolean)}.
+	 * 
 	 * @param peerAddress the address of the peer
 	 */
 	public void setPeerAddress(InetSocketAddress peerAddress) {
 		this.peerAddress = peerAddress;
 		if (establishedSession != null) {
 			establishedSession.setPeer(peerAddress);
+		} else if (peerAddress == null) {
+			cancelPendingFlight();
+			final Handshaker pendingHandshaker = getOngoingHandshake();
+			if (pendingHandshaker != null) {
+				pendingHandshaker.handshakeFailed(new IOException("address changed!"));
+			}
 		}
 	}
 
@@ -364,6 +380,25 @@ public final class Connection {
 	}
 
 	/**
+	 * Reset session.
+	 * 
+	 * Prepare connection for new handshake. Reset established session or
+	 * session ticket and remove resumption mark.
+	 * 
+	 * @throws IllegalStateException if neither a established session nor a
+	 *             ticket is available
+	 */
+	public void resetSession() {
+		if (establishedSession == null && ticket == null) {
+			throw new IllegalStateException("No session established nor ticket available!");
+		}
+		establishedSession = null;
+		sessionId = null;
+		ticket = null;
+		resumptionRequired = false;
+	}
+
+	/**
 	 * Check, if resumption is required.
 	 * 
 	 * @return true if an abbreviated handshake should be done next time a data
@@ -421,8 +456,11 @@ public final class Connection {
 	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder("dtls-con: ");
+		if (cid != null) {
+			builder.append(cid);
+		}
 		if (peerAddress != null) {
-			builder.append(peerAddress);
+			builder.append(", ").append(peerAddress);
 			if (hasOngoingHandshake()) {
 				builder.append(", ongoing handshake");
 			}
@@ -431,8 +469,9 @@ public final class Connection {
 			} else if (hasEstablishedSession()) {
 				builder.append(", session established");
 			}
-		} else {
-			builder.append(sessionId);
+		}
+		if (sessionId != null) {
+			builder.append(", ").append(sessionId);
 			builder.append(", ").append(ticket);
 		}
 		if (isExecuting()) {

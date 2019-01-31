@@ -90,7 +90,7 @@ public class SerialExecutor extends AbstractExecutorService {
 	}
 
 	@Override
-	public final void execute(final Runnable command) {
+	public void execute(final Runnable command) {
 		lock.lock();
 		try {
 			if (shutdown) {
