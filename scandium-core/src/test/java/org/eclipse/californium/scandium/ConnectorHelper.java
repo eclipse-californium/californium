@@ -153,6 +153,7 @@ public class ConnectorHelper {
 				.setMaxTransmissionUnit(1024)
 				.setReceiverThreadCount(1)
 				.setConnectionThreadCount(2)
+				.setLoggingTag("server")
 				.setServerOnly(true);
 
 		if (!Boolean.FALSE.equals(builder.getIncompleteConfig().isClientAuthenticationRequired()) ||
@@ -214,6 +215,7 @@ public class ConnectorHelper {
 
 	static DtlsConnectorConfig.Builder newStandardClientConfigBuilder(final InetSocketAddress bindAddress) throws IOException, GeneralSecurityException {
 		return new DtlsConnectorConfig.Builder()
+				.setLoggingTag("client")
 				.setAddress(bindAddress)
 				.setReceiverThreadCount(1)
 				.setConnectionThreadCount(2)

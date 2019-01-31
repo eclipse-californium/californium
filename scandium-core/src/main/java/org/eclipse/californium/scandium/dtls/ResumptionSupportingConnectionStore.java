@@ -32,9 +32,22 @@ public interface ResumptionSupportingConnectionStore {
 	/**
 	 * Puts a connection into the store.
 	 * 
+	 * The connection is primary associated with its connection id
+	 * {@link Connection#getConnectionId()}. If the connection doesn't have a
+	 * connection id, a randomly unique connection id is assigned. If the
+	 * connection has also a peer address and/or a established session, it get's
+	 * associated with that. It removes also an other connection from these
+	 * associations.
+	 * 
 	 * @param connection the connection to store
-	 * @return <code>true</code> if the connection could be stored, <code>false</code>
-	 *       otherwise (e.g. because the store's capacity is exhausted)
+	 * @return {@code true} if the connection could be stored, {@code false},
+	 *         otherwise (e.g. because the store's capacity is exhausted)
+	 * @throws IllegalStateException if the connection is not executing, the
+	 *             connection ids are exhausted, or the connection id is empty
+	 *             or in use!
+	 * @see #get(ConnectionId)
+	 * @see #get(InetSocketAddress)
+	 * @see #find(SessionId)
 	 */
 	boolean put(Connection connection);
 
@@ -42,19 +55,31 @@ public interface ResumptionSupportingConnectionStore {
 	 * Update a connection in the store.
 	 * 
 	 * Update the last-access time to prevent connection from being evicted.
+	 * Associate a new peer address with this connection, and removes other
+	 * connections from that association.
 	 * 
 	 * @param connection the connection to update.
-	 * @return <code>true</code>, if updated, <code>false</code>, otherwise.
+	 * @return {@code true}, if updated, {@code false}, otherwise.
 	 */
-	boolean update(Connection connection);
+	boolean update(Connection connection, InetSocketAddress newPeerAddress);
 
 	/**
-	 * Put connection associated with the session id into the store.
+	 * Associates the connection with the session id.
+	 * 
+	 * Removes previous associated connection from store.
 	 * 
 	 * @param session established session.
 	 * @param connection connection of established session
 	 */
-	void putEstablishedSession(final DTLSSession session, final Connection connection);
+	void putEstablishedSession(DTLSSession session, Connection connection);
+
+	/**
+	 * Remove the association of the connection with the session id.
+	 * 
+	 * @param session established session.
+	 * @param connection connection of established session
+	 */
+	void removeFromEstablishedSessions(DTLSSession session, Connection connection);
 
 	/**
 	 * Gets the number of additional connection this store can manage.
@@ -67,47 +92,35 @@ public interface ResumptionSupportingConnectionStore {
 	 * Gets a connection by its peer address.
 	 * 
 	 * @param peerAddress the peer address
-	 * @return the matching connection or <code>null</code> if
-	 *     no connection exists for the given address
+	 * @return the matching connection or <code>null</code> if no connection
+	 *         exists for the given address
 	 */
 	Connection get(InetSocketAddress peerAddress);
+
+	/**
+	 * Gets a connection by its connection id.
+	 * 
+	 * @param cid connection id
+	 * @return the matching connection or <code>null</code> if no connection
+	 *         exists for the given connection id
+	 */
+	Connection get(ConnectionId cid);
 
 	/**
 	 * Finds a connection by its session ID.
 	 * 
 	 * @param id the session ID
-	 * @return the matching connection or <code>null</code> if
-	 *     no connection with an established session with the given ID exists
+	 * @return the matching connection or <code>null</code> if no connection
+	 *         with an established session with the given ID exists
 	 */
 	Connection find(SessionId id);
 
 	/**
 	 * Removes a connection from the store and session cache.
 	 * 
-	 * @param peerAddress the peer address of the connection to remove
-	 * @return the removed connection or <code>null</code> if
-	 *     no connection exists for the given address
-	 */
-	Connection remove(InetSocketAddress peerAddress);
-
-	/**
-	 * Removes a connection from the store and optional from the session cache.
-	 * 
-	 * @param peerAddress the peer address of the connection to remove
-	 * @param removeFromSessionCache <code>true</code> if the session of the
-	 *            connection should be removed from the session cache,
-	 *            <code>false</code>, otherwise
-	 * @return the removed connection or <code>null</code> if no connection
-	 *         exists for the given address
-	 */
-	Connection remove(InetSocketAddress peerAddress, boolean removeFromSessionCache);
-
-	/**
-	 * Removes a connection from the store and session cache.
-	 * 
 	 * @param connection the connection to remove
 	 * @return <code>true</code> if the connection was removed,
-	 *            <code>false</code>, otherwise
+	 *         <code>false</code>, otherwise
 	 */
 	boolean remove(Connection connection);
 
@@ -119,7 +132,7 @@ public interface ResumptionSupportingConnectionStore {
 	 *            connection should be removed from the session cache,
 	 *            <code>false</code>, otherwise
 	 * @return <code>true</code> if the connection was removed,
-	 *            <code>false</code>, otherwise
+	 *         <code>false</code>, otherwise
 	 */
 	boolean remove(Connection connection, boolean removeFromSessionCache);
 
