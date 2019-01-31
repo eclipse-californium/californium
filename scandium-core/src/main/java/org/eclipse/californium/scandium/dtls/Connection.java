@@ -59,11 +59,12 @@ public final class Connection {
 	private static final Logger LOGGER = LoggerFactory.getLogger(Connection.class.getName());
 
 	private final SerialExecutor serialExecutor;
-	private final InetSocketAddress peerAddress;
 	private final SessionTicket ticket;
 	private final SessionId sessionId;
 	private final SessionListener sessionListener;
 	private final AtomicReference<Handshaker> ongoingHandshake = new AtomicReference<Handshaker>();
+	private InetSocketAddress peerAddress;
+
 	/**
 	 * Expired realtime nanoseconds of the last message send or received.
 	 */
@@ -119,11 +120,13 @@ public final class Connection {
 	}
 
 	/**
-	 * Creates a new connection from a connection, which is not {@link #isExecuting()}.
+	 * Creates a new connection with the provided serial executor from a
+	 * previous connection.
 	 * 
-	 * @param connection The other connection's states.
+	 * @param connection The previousconnection's states.
 	 * @param serialExecutor serial executor.
-	 * @throws NullPointerException if the connection of executor is {@code null}
+	 * @throws NullPointerException if the connection or executor is
+	 *             {@code null}
 	 */
 	public Connection(final Connection connection, final SerialExecutor serialExecutor) {
 		if (connection == null) {
@@ -224,6 +227,33 @@ public final class Connection {
 	}
 
 	/**
+	 * Sets the address of this connection's peer.
+	 * 
+	 * @param peerAddress the address of the peer
+	 */
+	public void setPeerAddress(InetSocketAddress peerAddress) {
+		this.peerAddress = peerAddress;
+		if (establishedSession != null) {
+			establishedSession.setPeer(peerAddress);
+		}
+	}
+
+	/**
+	 * Check, if the provided address is the peers address.
+	 * 
+	 * @param peerAddress provided peer address
+	 * @return {@code true}, if the addresses are equal
+	 */
+	public boolean equalsPeerAddress(InetSocketAddress peerAddress) {
+		if (this.peerAddress == peerAddress) {
+			return true;
+		} else if (this.peerAddress == null) {
+			return false;
+		}
+		return this.peerAddress.equals(peerAddress);
+	}
+
+	/**
 	 * Gets the already established DTLS session that exists with this connection's peer.
 	 * 
 	 * @return the session or <code>null</code> if no session has been established (yet)
@@ -310,6 +340,26 @@ public final class Connection {
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * Gets the session containing the connection's <em>current</em> state.
+	 * 
+	 * This is the {@link #establishedSession} if not {@code null} or the
+	 * session negotiated in the {@link #ongoingHandshake}.
+	 * 
+	 * @return the <em>current</em> session or {@code null} if neither an
+	 *         established session nor an ongoing handshake exists
+	 */
+	public DTLSSession getSession() {
+		DTLSSession session = establishedSession;
+		if (session == null) {
+			Handshaker handshaker = ongoingHandshake.get();
+			if (handshaker != null) {
+				session = handshaker.getSession();
+			}
+		}
+		return session;
 	}
 
 	/**

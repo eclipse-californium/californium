@@ -116,7 +116,7 @@ public class ServerHandshakerTest {
 		int networkMtu = ETHERNET_MTU;
 
 		// when instantiating a ServerHandshaker to negotiate a new session
-		handshaker = new ServerHandshaker(session, recordLayer, null, config, networkMtu);
+		handshaker = new ServerHandshaker(0, session, recordLayer, null, config, networkMtu);
 
 		// then a fragment created under the session's current write state should
 		// fit into a single unfragmented UDP datagram
@@ -358,7 +358,7 @@ public class ServerHandshakerTest {
 	}
 
 	private ServerHandshaker newHandshaker(final DtlsConnectorConfig config, final DTLSSession session) throws HandshakeException {
-		return new ServerHandshaker(session, recordLayer, null, config, ETHERNET_MTU);
+		return new ServerHandshaker(0, session, recordLayer, null, config, ETHERNET_MTU);
 	}
 
 	private Record givenAHandshakerWithAQueuedMessage() throws Exception {

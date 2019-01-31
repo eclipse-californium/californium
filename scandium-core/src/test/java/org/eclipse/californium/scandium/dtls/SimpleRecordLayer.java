@@ -21,7 +21,7 @@ public class SimpleRecordLayer implements RecordLayer {
 	private DTLSFlight sentFlight;
 
 	@Override
-	public void sendFlight(DTLSFlight flight) {
+	public void sendFlight(DTLSFlight flight, Connection connection) {
 		sentFlight = flight;
 	}
 

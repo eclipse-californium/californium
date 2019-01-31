@@ -78,8 +78,8 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	 *            the session to resume.
 	 * @param recordLayer
 	 *            the object to use for sending flights to the peer.
-	 * @param sessionListener
-	 *            the listener to notify about the session's life-cycle events.
+	 * @param connection
+	 *            the connection related with the session.
 	 * @param config
 	 *            the DTLS configuration parameters to use for the handshake.
 	 * @param maxTransmissionUnit
@@ -91,9 +91,9 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	 * @throws NullPointerException
 	 *            if session, recordLayer or config is <code>null</code>
 	 */
-	public ResumingClientHandshaker(DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener,
+	public ResumingClientHandshaker(DTLSSession session, RecordLayer recordLayer, Connection connection,
 			DtlsConnectorConfig config, int maxTransmissionUnit) {
-		super(session, recordLayer, sessionListener, config, maxTransmissionUnit);
+		super(session, recordLayer, connection, config, maxTransmissionUnit);
 		if (session.getSessionIdentifier() == null) {
 			throw new IllegalArgumentException("Session must contain the ID of the session to resume");
 		}

@@ -194,6 +194,20 @@ public class ConnectorHelper {
 		server.setAlertHandler(null);
 	}
 
+	/**
+	 * Remove connect from server side connection store.
+	 * 
+	 * @param client address of client
+	 * @param removeFromSessionCache {@code true} remove from session cache
+	 *            also.
+	 */
+	public void remove(InetSocketAddress client, boolean removeFromSessionCache) {
+		Connection connection = serverConnectionStore.get(client);
+		if (connection != null) {
+			serverConnectionStore.remove(connection, removeFromSessionCache);
+		}
+	}
+
 	static DtlsConnectorConfig newStandardClientConfig(final InetSocketAddress bindAddress) throws IOException, GeneralSecurityException {
 		return newStandardClientConfigBuilder(bindAddress).build();
 	}
