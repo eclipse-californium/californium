@@ -61,9 +61,33 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 
 	// Constructor ////////////////////////////////////////////////////
 
-	public ResumingServerHandshaker(int sequenceNumber, DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener,
-			DtlsConnectorConfig config, int maxTransmissionUnit) {
-		super(sequenceNumber, session, recordLayer, sessionListener, config, maxTransmissionUnit);
+	/**
+	 * Creates a new handshaker for resuming an existing session with a client.
+	 * 
+	 * @param sequenceNumber
+	 *            the initial message sequence number to expect from the peer
+	 *            (this parameter can be used to initialize the <em>receive_next_seq</em>
+	 *            counter to another value than 0, e.g. if one or more cookie exchange round-trips
+	 *            have been performed with the peer before the handshake starts).
+	 * @param session
+	 *            the session to negotiate with the client.
+	 * @param recordLayer
+	 *            the object to use for sending flights to the peer.
+	 * @param connection
+	 *            the connection related with the session.
+	 * @param config
+	 *            the DTLS configuration parameters to use for the handshake.
+	 * @param maxTransmissionUnit
+	 *            the MTU value reported by the network interface the record layer is bound to.
+	 * @throws IllegalArgumentException
+	 *            if the given session does not contain an identifier.
+	 * @throws IllegalStateException
+	 *            if the message digest required for computing the FINISHED message hash cannot be instantiated.
+	 * @throws NullPointerException
+	 *            if session, recordLayer or config is <code>null</code>
+	 */
+	public ResumingServerHandshaker(int sequenceNumber, DTLSSession session, RecordLayer recordLayer, Connection connection, DtlsConnectorConfig config, int maxTransmissionUnit) {
+		super(sequenceNumber, session, recordLayer, connection, config, maxTransmissionUnit);
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -112,7 +136,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 
 			incrementNextReceiveSeq();
 			LOGGER.debug("Processed {} message with sequence no [{}] from peer [{}]",
-					new Object[]{handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq(), handshakeMsg.getPeer()});
+					handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq(), handshakeMsg.getPeer());
 			break;
 
 		default:

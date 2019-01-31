@@ -146,8 +146,8 @@ public class ClientHandshaker extends Handshaker {
 	 *            the session to negotiate with the server.
 	 * @param recordLayer
 	 *            the object to use for sending flights to the peer.
-	 * @param sessionListener
-	 *            the listener to notify about the session's life-cycle events.
+	 * @param connection
+	 *            the connection related with the session.
 	 * @param config
 	 *            the DTLS configuration.
 	 * @param maxTransmissionUnit
@@ -157,9 +157,9 @@ public class ClientHandshaker extends Handshaker {
 	 * @throws NullPointerException
 	 *            if session, recordLayer or config is <code>null</code>
 	 */
-	public ClientHandshaker(DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener,
+	public ClientHandshaker(DTLSSession session, RecordLayer recordLayer, Connection connection,
 			DtlsConnectorConfig config, int maxTransmissionUnit) {
-		super(true, session, recordLayer, sessionListener, config, maxTransmissionUnit);
+		super(true, 0, session, recordLayer, connection, config, maxTransmissionUnit);
 		this.privateKey = config.getPrivateKey();
 		this.certificateChain = config.getCertificateChain();
 		this.publicKey = config.getPublicKey();
@@ -513,7 +513,7 @@ public class ClientHandshaker extends Handshaker {
 			clientKeyExchange = new NULLClientKeyExchange(session.getPeer());
 
 			// We assume, that the premaster secret is empty
-			generateKeys(new byte[] {});
+			generateKeys(Bytes.EMPTY);
 			break;
 
 		default:

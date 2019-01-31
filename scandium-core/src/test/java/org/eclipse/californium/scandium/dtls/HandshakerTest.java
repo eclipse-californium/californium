@@ -118,7 +118,7 @@ public class HandshakerTest {
 		builder.setCertificateVerifier(new StaticCertificateVerifier(null));
 		builder.setRpkTrustStore(rpkStore);
 		
-		handshaker = new Handshaker(false, session, recordLayer, null, builder.build(), 1500) {
+		handshaker = new Handshaker(false, 0, session, recordLayer, null, builder.build(), 1500) {
 
 			@Override
 			public void startHandshake() {
@@ -138,7 +138,7 @@ public class HandshakerTest {
 		builder.setCertificateVerifier(new StaticCertificateVerifier(trustAnchor));
 		builder.setRpkTrustStore(rpkStore);
 
-		handshakerWithAnchors = new Handshaker(false, session, recordLayer, null,
+		handshakerWithAnchors = new Handshaker(false, 0, session, recordLayer, null,
 				 builder.build(), 1500) {
 
 			@Override
@@ -399,7 +399,7 @@ public class HandshakerTest {
 
 		ChangeCipherSpecTestHandshaker(final DTLSSession session, final RecordLayer recordLayer,
 				DtlsConnectorConfig config) {
-			super(false, session, recordLayer, null, config, 1500);
+			super(false, 0, session, recordLayer, null, config, 1500);
 		}
 
 		@Override

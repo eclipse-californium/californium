@@ -122,13 +122,13 @@ public class DTLSConnectorResumeTest {
 		serverHelper.cleanUpServer();
 	}
 
-	private void autoResumeSetUp(int timeout) throws Exception {
+	private void autoResumeSetUp(long timeout) throws Exception {
 		cleanUp();
 		serverHelper.serverSessionCache.establishedSessionCounter.set(0);
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
 		clientConnectionStore.setTag("client");
 		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
-		DtlsConnectorConfig.Builder clientConfigBuilder = ConnectorHelper.newStandardClientConfigBuilder(clientEndpoint);
+		DtlsConnectorConfig.Builder clientConfigBuilder = newStandardClientConfigBuilder(clientEndpoint);
 		clientConfigBuilder.setAutoResumptionTimeoutMillis(timeout);
 		DtlsConnectorConfig clientConfig = clientConfigBuilder.build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
@@ -150,7 +150,7 @@ public class DTLSConnectorResumeTest {
 
 		// create a new client with different inetAddress but with the same session store.
 		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 10001);
-		DtlsConnectorConfig clientConfig = ConnectorHelper.newStandardClientConfig(clientEndpoint);
+		DtlsConnectorConfig clientConfig = newStandardClientConfig(clientEndpoint);
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		LatchDecrementingRawDataChannel clientRawDataChannel = new LatchDecrementingRawDataChannel(client);
 		client.setRawDataReceiver(clientRawDataChannel);
@@ -182,7 +182,7 @@ public class DTLSConnectorResumeTest {
 		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, false);
 
 		Connection connection = clientConnectionStore.get(serverHelper.serverEndpoint);
-		byte[] sessionId = connection.getSession(1).getSessionIdentifier().getBytes();
+		byte[] sessionId = connection.getSession().getSessionIdentifier().getBytes();
 		assertThat(serverHelper.serverSessionCache.establishedSessionCounter.get(), is(1));
 		assertThat(connection.isAutoResumptionRequired(500L), is(false));
 
@@ -246,7 +246,7 @@ public class DTLSConnectorResumeTest {
 		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, false);
 
 		Connection connection = clientConnectionStore.get(serverHelper.serverEndpoint);
-		byte[] sessionId = connection.getSession(1).getSessionIdentifier().getBytes();
+		byte[] sessionId = connection.getSession().getSessionIdentifier().getBytes();
 		assertThat(serverHelper.serverSessionCache.establishedSessionCounter.get(), is(1));
 
 		Thread.sleep(500);
@@ -279,7 +279,7 @@ public class DTLSConnectorResumeTest {
 		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, false);
 
 		Connection connection = clientConnectionStore.get(serverHelper.serverEndpoint);
-		byte[] sessionId = connection.getSession(1).getSessionIdentifier().getBytes();
+		byte[] sessionId = connection.getSession().getSessionIdentifier().getBytes();
 		assertThat(serverHelper.serverSessionCache.establishedSessionCounter.get(), is(1));
 
 		Thread.sleep(1000);
@@ -312,7 +312,7 @@ public class DTLSConnectorResumeTest {
 		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, false);
 
 		Connection connection = clientConnectionStore.get(serverHelper.serverEndpoint);
-		byte[] sessionId = connection.getSession(1).getSessionIdentifier().getBytes();
+		byte[] sessionId = connection.getSession().getSessionIdentifier().getBytes();
 		assertThat(serverHelper.serverSessionCache.establishedSessionCounter.get(), is(1));
 		assertThat(connection.isAutoResumptionRequired(500L), is(false));
 
@@ -353,7 +353,7 @@ public class DTLSConnectorResumeTest {
 
 		// remove connection from server's connection store and add ticket to session cache
 		// to mimic a fail over from another node
-		serverHelper.serverConnectionStore.remove(clientAddress);
+		serverHelper.remove(clientAddress, true);
 		assertThat(serverHelper.serverSessionCache.get(establishedSessionId), is(nullValue()));
 		serverHelper.serverSessionCache.put(establishedSessionId, serverHelper.establishedServerSession.getSessionTicket());
 
@@ -420,8 +420,8 @@ public class DTLSConnectorResumeTest {
 		clientRawDataChannel.setLatch(latch);
 
 		// remove session from server
-		serverHelper.serverConnectionStore.remove(clientAddress);
-
+		serverHelper.remove(clientAddress, true);
+		
 		// send message
 		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
 		client.send(data);

@@ -158,29 +158,6 @@ public class ServerHandshaker extends Handshaker {
 	 * Creates a handshaker for negotiating a DTLS session with a client
 	 * following the full DTLS handshake protocol. 
 	 * 
-	 * @param session
-	 *            the session to negotiate with the client.
-	 * @param recordLayer
-	 *            the object to use for sending flights to the peer.
-	 * @param sessionListener
-	 *            the listener to notify about the session's life-cycle events.
-	 * @param config
-	 *            the DTLS configuration.
-	 * @param maxTransmissionUnit
-	 *            the MTU value reported by the network interface the record layer is bound to.
-	 * @throws HandshakeException if the handshaker cannot be initialized
-	 * @throws NullPointerException
-	 *            if session or recordLayer is <code>null</code>.
-	 */
-	public ServerHandshaker(DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener,
-			DtlsConnectorConfig config, int maxTransmissionUnit) throws HandshakeException {
-		this(0, session, recordLayer, sessionListener, config, maxTransmissionUnit);
-	}
-	
-	/**
-	 * Creates a handshaker for negotiating a DTLS session with a client
-	 * following the full DTLS handshake protocol. 
-	 * 
 	 * @param initialMessageSequenceNo
 	 *            the initial message sequence number to expect from the peer
 	 *            (this parameter can be used to initialize the <em>receive_next_seq</em>
@@ -190,8 +167,8 @@ public class ServerHandshaker extends Handshaker {
 	 *            the session to negotiate with the client.
 	 * @param recordLayer
 	 *            the object to use for sending flights to the peer.
-	 * @param sessionListener
-	 *            the listener to notify about the session's life-cycle events.
+	 * @param connection
+	 *            the connection related with the session.
 	 * @param config
 	 *            the DTLS configuration.
 	 * @param maxTransmissionUnit
@@ -204,9 +181,9 @@ public class ServerHandshaker extends Handshaker {
 	 * @throws NullPointerException
 	 *            if session, recordLayer or config is <code>null</code>.
 	 */
-	public ServerHandshaker(int initialMessageSequenceNo, DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener,
-			DtlsConnectorConfig config, int maxTransmissionUnit) { 
-		super(false, initialMessageSequenceNo, session, recordLayer, sessionListener, config, maxTransmissionUnit);
+	public ServerHandshaker(int initialMessageSequenceNo, DTLSSession session, RecordLayer recordLayer,
+			Connection connection, DtlsConnectorConfig config, int maxTransmissionUnit) {
+		super(false, initialMessageSequenceNo, session, recordLayer, connection, config, maxTransmissionUnit);
 
 		this.supportedCipherSuites = config.getSupportedCipherSuites();
 

@@ -83,6 +83,7 @@ import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -157,16 +158,22 @@ public abstract class Handshaker {
 
 	/** Maximum number of application data messages, which may be processed deferred after the handshake */
 	private final int maxDeferredProcessedApplicationDataMessages;
-	/** List of application data messages, which are processed deferred after the handshake */
-	private final  List<Object> deferredApplicationData;
-
+	/** List of application data messages, which are send deferred after the handshake */
+	private final  List<RawData> deferredApplicationData;
+	/** List of received application data messages, which are processed deferred after the handshake */
+	private final  List<Record> deferredRecords;
+	/** Currently pending flight */
 	private final AtomicReference<DTLSFlight> pendingFlight = new AtomicReference<DTLSFlight>();
 
 	private final RecordLayer recordLayer;
+	/**
+	 * Associated connection for this handshaker.
+	 */
+	private final Connection connection;
 
 	/** Buffer for received records that can not be processed immediately. */
 	protected InboundMessageBuffer inboundMessageBuffer;
-	
+
 	/** Store the fragmented messages until we are able to reassemble the handshake message. */
 	protected Map<Integer, SortedSet<FragmentedHandshakeMessage>> fragmentedMessages = new HashMap<Integer, SortedSet<FragmentedHandshakeMessage>>();
 
@@ -177,7 +184,7 @@ public abstract class Handshaker {
 	protected MessageDigest md;
 
 	/** All the handshake messages exchanged before the CertificateVerify message. */
-	protected byte[] handshakeMessages = new byte[] {};
+	protected byte[] handshakeMessages = Bytes.EMPTY;
 
 	/** The handshaker's private key. */
 	protected PrivateKey privateKey;
@@ -206,31 +213,6 @@ public abstract class Handshaker {
 	 * 
 	 * @param isClient indicates whether this handshaker plays the client or
 	 *            server role.
-	 * @param session the session this handshaker is negotiating.
-	 * @param recordLayer the object to use for sending flights to the peer.
-	 * @param sessionListener the listener to notify about the session's
-	 *            life-cycle events.
-	 * @param certVerifier the verifier in charge of validating the peer's
-	 *            certificate chain
-	 * @param maxTransmissionUnit the MTU value reported by the network
-	 *            interface the record layer is bound to.
-	 * @param rpkStore the store containing the trusted raw public keys.
-	 * @throws IllegalStateException if the message digest required for
-	 *             computing the FINISHED message hash cannot be instantiated.
-	 * @throws NullPointerException if session or recordLayer is
-	 *             <code>null</code>.
-	 */
-	protected Handshaker(boolean isClient, DTLSSession session, RecordLayer recordLayer,
-			SessionListener sessionListener, DtlsConnectorConfig config, int maxTransmissionUnit) {
-		this(isClient, 0, session, recordLayer, sessionListener, config, maxTransmissionUnit);
-	}
-
-	/**
-	 * Creates a new handshaker for negotiating a DTLS session with a given
-	 * peer.
-	 * 
-	 * @param isClient indicates whether this handshaker plays the client or
-	 *            server role.
 	 * @param initialMessageSeq the initial message sequence number to use and
 	 *            expect in the exchange of handshake messages with the peer.
 	 *            This parameter can be used to initialize the
@@ -240,22 +222,19 @@ public abstract class Handshaker {
 	 *            handshake starts.
 	 * @param session the session this handshaker is negotiating.
 	 * @param recordLayer the object to use for sending flights to the peer.
-	 * @param sessionListener the listener to notify about the session's
-	 *            life-cycle events.
-	 * @param certVerifier the verifier in charge of validating the peer's
-	 *            certificate chain
+	 * @param connection the connection related to this handshaker.
+	 * @param config the dtls configuration
 	 * @param maxTransmissionUnit the MTU value reported by the network
 	 *            interface the record layer is bound to.
-	 * @param rpkStore the store containing the trusted raw public keys.
 	 * @throws IllegalStateException if the message digest required for
 	 *             computing the FINISHED message hash cannot be instantiated.
-	 * @throws NullPointerException if session or recordLayer is
+	 * @throws NullPointerException if session, recordLayer, or config is
 	 *             <code>null</code>.
 	 * @throws IllegalArgumentException if the initial message sequence number
 	 *             is negative
 	 */
 	protected Handshaker(boolean isClient, int initialMessageSeq, DTLSSession session, RecordLayer recordLayer,
-			SessionListener sessionListener, DtlsConnectorConfig config, int maxTransmissionUnit) {
+			Connection connection, DtlsConnectorConfig config, int maxTransmissionUnit) {
 		if (session == null) {
 			throw new NullPointerException("DTLS Session must not be null");
 		} else if (recordLayer == null) {
@@ -270,9 +249,13 @@ public abstract class Handshaker {
 		this.nextReceiveSeq = initialMessageSeq;
 		this.session = session;
 		this.recordLayer = recordLayer;
+		this.connection = connection;
 		this.maxDeferredProcessedApplicationDataMessages = config.getMaxDeferredProcessedApplicationDataMessages();
-		this.deferredApplicationData = new ArrayList<Object>(maxDeferredProcessedApplicationDataMessages);
-		addSessionListener(sessionListener);
+		this.deferredApplicationData = new ArrayList<RawData>(maxDeferredProcessedApplicationDataMessages);
+		this.deferredRecords = new ArrayList<Record>(maxDeferredProcessedApplicationDataMessages);
+		if (connection != null) {
+			addSessionListener(connection.getSessionListener());
+		}
 		this.certificateVerifier = config.getCertificateVerifier();
 		this.session.setMaxTransmissionUnit(maxTransmissionUnit);
 		this.inboundMessageBuffer = new InboundMessageBuffer();
@@ -538,11 +521,13 @@ public abstract class Handshaker {
 	// Methods ////////////////////////////////////////////////////////
 
 	/**
-	 * First, generates the master secret from the given premaster secret and
-	 * then applying the key expansion on the master secret generates a large
-	 * enough key block to generate the write, MAC and IV keys. See <a
-	 * href="http://tools.ietf.org/html/rfc5246#section-6.3">RFC 5246</a> for
-	 * further details about the keys.
+	 * First, generates the master secret from the given premaster secret, set
+	 * it in {@link #session}, and then applying the key expansion on the master
+	 * secret generates a large enough key block to generate the write, MAC and
+	 * IV keys. 
+	 * 
+	 * See <a href="http://tools.ietf.org/html/rfc5246#section-6.3">RFC5246</a>
+	 * for further details about the keys.
 	 * 
 	 * @param premasterSecret
 	 *            the shared premaster secret.
@@ -596,8 +581,8 @@ public abstract class Handshaker {
 
 	/**
 	 * Generates the master secret from a given shared premaster secret as
-	 * described in <a href="http://tools.ietf.org/html/rfc5246#section-8.1">RFC
-	 * 5246</a>.
+	 * described in 
+	 * <a href="http://tools.ietf.org/html/rfc5246#section-8.1">RFC5246</a>.
 	 * 
 	 * <pre>
 	 * master_secret = PRF(pre_master_secret, "master secret",
@@ -906,6 +891,15 @@ public abstract class Handshaker {
 	}
 
 	/**
+	 * Gets related connection.
+	 * 
+	 * @return connection
+	 */
+	public final Connection getConnection() {
+		return connection;
+	}
+
+	/**
 	 * Sets the message sequence number on an outbound handshake message.
 	 * 
 	 * Also increases the sequence number counter afterwards.
@@ -934,16 +928,22 @@ public abstract class Handshaker {
 		}
 	}
 
-	public void addApplicationDataForDeferredProcessing(Record incomingMessage) {
-		if (deferredApplicationData.size() < maxDeferredProcessedApplicationDataMessages) {
-			deferredApplicationData.add(incomingMessage);
+	public void addRecordsForDeferredProcessing(Record incomingMessage) {
+		if (deferredRecords.size() < maxDeferredProcessedApplicationDataMessages) {
+			deferredRecords.add(incomingMessage);
 		}
 	}
 
-	public List<Object> takeDeferredApplicationData() {
-		List<Object> applicationData = new ArrayList<Object>(deferredApplicationData);
+	public List<RawData> takeDeferredApplicationData() {
+		List<RawData> applicationData = new ArrayList<RawData>(deferredApplicationData);
 		deferredApplicationData.clear();
 		return applicationData;
+	}
+
+	public List<Record> takeDeferredRecords() {
+		List<Record> records = new ArrayList<Record>(deferredRecords);
+		deferredRecords.clear();
+		return records;
 	}
 
 	public void takeDeferredApplicationData(Handshaker replacedHandshaker) {
@@ -979,7 +979,7 @@ public abstract class Handshaker {
 	public void sendFlight(DTLSFlight flight) {
 		setPendingFlight(null);
 		try {
-			recordLayer.sendFlight(flight);
+			recordLayer.sendFlight(flight, connection);
 			setPendingFlight(flight);
 		} catch(IOException e) {
 			handshakeFailed(new Exception("handshake flight " + flight.getFlightNumber() + " failed!", e));
@@ -1042,10 +1042,8 @@ public abstract class Handshaker {
 			for (SessionListener sessionListener : sessionListeners) {
 				sessionListener.handshakeFailed(this, cause);
 			}
-			for (Object message : takeDeferredApplicationData()) {
-				if (message instanceof RawData) {
-					((RawData) message).onError(cause);
-				}
+			for (RawData message : takeDeferredApplicationData()) {
+				message.onError(cause);
 			}
 		}
 	}
@@ -1060,10 +1058,8 @@ public abstract class Handshaker {
 		for (SessionListener sessionListener : sessionListeners) {
 			sessionListener.handshakeFlightRetransmitted(this, flight);
 		}
-		for (Object message : deferredApplicationData) {
-			if (message instanceof RawData) {
-				((RawData) message).onDtlsRetransmission(flight);
-			}
+		for (RawData message : deferredApplicationData) {
+			message.onDtlsRetransmission(flight);
 		}
 	}
 
