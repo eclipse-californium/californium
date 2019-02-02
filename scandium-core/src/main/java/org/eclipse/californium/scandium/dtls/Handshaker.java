@@ -712,14 +712,13 @@ public abstract class Handshaker {
 
 			FragmentedHandshakeMessage fragmentedMessage =
 					new FragmentedHandshakeMessage(
-							fragmentBytes,
 							handshakeMessage.getMessageType(),
-							offset,
 							messageLength,
+							messageSeq,
+							offset,
+							fragmentBytes,
 							session.getPeer());
 
-			// all fragments have the same message_seq
-			fragmentedMessage.setMessageSeq(messageSeq);
 			offset += fragmentLength;
 
 			flight .addMessage(new Record(ContentType.HANDSHAKE, session.getWriteEpoch(), session.getSequenceNumber(), fragmentedMessage, session));

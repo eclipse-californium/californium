@@ -315,9 +315,8 @@ public class HandshakerTest {
 			int fragmentLength = Math.min(maxFragmentSize, serializedMsg.length - fragmentOffset);
 			byte[] fragment = new byte[fragmentLength];
 			System.arraycopy(serializedMsg, fragmentOffset, fragment, 0, fragmentLength);
-			FragmentedHandshakeMessage msg = new FragmentedHandshakeMessage(fragment, message.getMessageType(),
-					fragmentOffset, serializedMsg.length, endpoint);
-			msg.setMessageSeq(message.getMessageSeq());
+			FragmentedHandshakeMessage msg = new FragmentedHandshakeMessage(message.getMessageType(),
+					serializedMsg.length, message.getMessageSeq(), fragmentOffset, fragment, endpoint);
 			fragments.add(msg);
 			fragmentOffset += fragmentLength;
 		}
