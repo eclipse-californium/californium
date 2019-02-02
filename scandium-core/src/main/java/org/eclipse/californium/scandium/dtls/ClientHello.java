@@ -398,7 +398,6 @@ public final class ClientHello extends HandshakeMessage {
 			throw new IllegalArgumentException("cookie must not be empty!");
 		}
 		this.cookie = Arrays.copyOf(cookie, cookie.length);
-		setFragmentLength(getMessageLength());
 	}
 
 	public List<CipherSuite> getCipherSuites() {
