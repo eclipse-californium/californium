@@ -290,16 +290,17 @@ public final class Connection {
 	}
 
 	/**
-	 * Checks whether this connection has a ongoing handshake initiated by the
-	 * given message.
+	 * Checks whether this connection has a ongoing handshake initiated
+	 * receiving the provided client hello.
 	 * 
-	 * @param handshakeMessage the message to check.
-	 * @return <code>true</code> if the given message has initially started this
+	 * @param clientHello the message to check.
+	 * @return {@code true} if the given client hello has initially started this
 	 *         ongoing handshake.
+	 * @see Handshaker#hasBeenStartedByClientHello(ClientHello)
 	 */
-	public boolean hasOngoingHandshakeStartedByMessage(HandshakeMessage handshakeMessage) {
+	public boolean hasOngoingHandshakeStartedByClientHello(ClientHello clientHello) {
 		Handshaker handshaker = ongoingHandshake.get();
-		return handshaker != null && handshaker.hasBeenStartedByMessage(handshakeMessage);
+		return handshaker != null && handshaker.hasBeenStartedByClientHello(clientHello);
 	}
 
 	/**
