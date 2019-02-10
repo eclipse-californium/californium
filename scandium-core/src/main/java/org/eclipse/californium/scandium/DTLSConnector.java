@@ -1338,7 +1338,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		// before starting a new handshake or resuming an established session we need to make sure that the
 		// peer is in possession of the IP address indicated in the client hello message
 		if (isClientInControlOfSourceIpAddress(clientHello, record, connection)) {
-			if (connection.hasOngoingHandshakeStartedByMessage(clientHello)) {
+			if (connection.hasOngoingHandshakeStartedByClientHello(clientHello)) {
 				// client has sent this message before (maybe our response flight has been lost)
 				// but we do not want to start over again, so let the existing handshaker handle
 				// the duplicate

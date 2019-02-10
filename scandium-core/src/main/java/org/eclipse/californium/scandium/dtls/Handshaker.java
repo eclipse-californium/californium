@@ -1063,16 +1063,17 @@ public abstract class Handshaker {
 	}
 
 	/**
-	 * Checks whether this handshake has been initiated by the given message.
+	 * Checks whether this handshake has been initiated receiving the provided
+	 * client hello.
 	 * 
-	 * @param handshakeMessage the message to check.
-	 * @return <code>true</code> if the given message has initially started this handshake.
+	 * The client random in the client message is used to check the duplicate.
+	 * Only server handshaker are started receiving a client hello.
+	 * 
+	 * @param clientHello the client_hello to check.
+	 * @return @{code true} if the provided client hello has initially started
+	 *         this handshake.
 	 */
-	public final boolean hasBeenStartedByMessage(final HandshakeMessage handshakeMessage) {
-		return isFirstMessageReceived(handshakeMessage);
-	}
-
-	protected boolean isFirstMessageReceived(final HandshakeMessage handshakeMessage) {
+	public boolean hasBeenStartedByClientHello(final ClientHello clientHello) {
 		return false;
 	}
 
