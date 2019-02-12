@@ -121,7 +121,6 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 * 
 	 * @param exchange The message exchange the transfer is part of.
 	 * @param request The request for retrieving the block.
-	 * @param block2 The options for retrieving the block.
 	 * @return The tracker.
 	 * @throws IllegalArgumentException if the request does not contain a block2 option.
 	 */
@@ -213,7 +212,6 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 * Adds the payload of an incoming response to the buffer.
 	 * 
 	 * @param responseBlock The incoming response.
-	 * @param block2 The block2 option contained in the response.
 	 * @return {@code true} if the payload could be added.
 	 * @throws NullPointerException if response block is {@code null}.
 	 * @throws IllegalArgumentException if the response block has no block2 option.

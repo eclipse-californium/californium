@@ -41,6 +41,8 @@ public class TlsEndpointContext extends TcpEndpointContext {
 	/**
 	 * Creates a new correlation context from TLS session parameters.
 	 * 
+	 * @param peerAddress peer address of endpoint context
+	 * @param peerIdentity peer identity of endpoint context
 	 * @param connectionId the connectionn's ID.
 	 * @param sessionId the session's ID.
 	 * @param cipher the cipher suite of the session's current read/write state.

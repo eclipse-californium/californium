@@ -42,7 +42,7 @@ public class PskUtil {
 	 * @param sniEnabled - {@code true} if SNI should be enabled for negotiating the given session
 	 * @param session - {@code DTLSSession}
 	 * @param pskStore - {@code PskStore}
-	 * @throws HandshakeException
+	 * @throws HandshakeException if no data is available for the provided session
 	 * @throws NullPointerException if either session or pskStore is {@code null}
 	 */
 	public PskUtil(boolean sniEnabled, DTLSSession session, PskStore pskStore) throws HandshakeException {

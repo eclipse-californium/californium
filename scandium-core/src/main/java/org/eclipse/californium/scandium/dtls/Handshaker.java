@@ -607,7 +607,7 @@ public abstract class Handshaker {
 	 * @param otherSecret - either is zeroes (plain PSK case) or comes 
 	 * from the EC Diffie-Hellman exchange (ECDHE_PSK). 
 	 * @see <a href="http://tools.ietf.org/html/rfc4279#section-2">RFC 4279</a>
-	 * @return
+	 * @return byte array with generated premaster secret.
 	 */
 	protected final byte[] generatePremasterSecretFromPSK(byte[] psk, byte[] otherSecret) {
 		/*

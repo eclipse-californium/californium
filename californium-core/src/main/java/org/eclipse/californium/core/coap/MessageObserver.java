@@ -46,7 +46,7 @@ import org.eclipse.californium.elements.EndpointContext;
  * <li>{@link #onConnecting()} right before a connector establish a connection. 
  * Not called, if the connection is already established or the connector doesn't
  * require to establish a connection.</li>
- * <li>{@link #onDtlsRetransmission()} when a dtls handshake flight is retransmitted.</li>
+ * <li>{@link #onDtlsRetransmission(int)} when a dtls handshake flight is retransmitted.</li>
  * <li>{@link #onSent()} right after the message has been sent
  * (successfully)</li>
  * <li>{@link #onSendError(Throwable)} if the message cannot be sent</li>

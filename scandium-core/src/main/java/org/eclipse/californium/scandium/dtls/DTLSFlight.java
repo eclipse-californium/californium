@@ -72,8 +72,8 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
  * To support both variants, the flight provides the {@link #responseStarted}
  * and {@link #responseCompleted} flags and a general handle to a timeout task.
  * 
- * @see e-mail discussion IETF TLS mailarchive, 2017, May 31. - June 1., Simone
- *      Bernard and Raja Ashok
+ * @see "e-mail discussion IETF TLS mailarchive, 
+ *       2017, May 31. - June 1., Simone Bernard and Raja Ashok"
  */
 public class DTLSFlight {
 

@@ -110,7 +110,7 @@ public abstract class DataSerializer {
 	 * simply return the cached byte array. This may cause problems when the first invocation was done on a different
 	 * type of serializer than the second.
 	 * <p>
-	 * Clients should use the {@link #getByteArray(Request)} method in order to prevent caching of the resulting
+	 * Clients should use the {@link #getByteArray(Message)} method in order to prevent caching of the resulting
 	 * byte array.
 	 * 
 	 * @param request The request to serialize.

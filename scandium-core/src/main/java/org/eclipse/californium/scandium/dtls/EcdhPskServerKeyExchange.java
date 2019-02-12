@@ -41,7 +41,7 @@ import org.slf4j.LoggerFactory;
  * <p>
  * Server must send the {@code ServerKeyExchange} message even if the PSK identity hint is not provided.
  * 
- * @see <a href="https://tools.ietf.org/html/rfc5489#section-2">RFC 5489</a>
+ * See <a href="https://tools.ietf.org/html/rfc5489#section-2">RFC 5489</a> for details.
  */
 public final class EcdhPskServerKeyExchange extends ServerKeyExchange {
 	
@@ -62,8 +62,8 @@ public final class EcdhPskServerKeyExchange extends ServerKeyExchange {
 
 	/**
 	 * The PSK identity MUST be first converted to a character string, and then
-	 * encoded to octets using UTF-8. See <a
-	 * href="http://tools.ietf.org/html/rfc4279#section-5.1">RFC 4279</a>.
+	 * encoded to octets using UTF-8. See 
+	 * <a href="http://tools.ietf.org/html/rfc4279#section-5.1">RFC 4279</a>.
 	 */
 	private byte[] hintEncoded;
 	
@@ -100,12 +100,12 @@ public final class EcdhPskServerKeyExchange extends ServerKeyExchange {
 	 * Creates a new key exchange message with psk hint as clear text and ServerDHParams.
 	 * 
 	 * @see <a href="http://tools.ietf.org/html/rfc4279#section-3">RFC 4279</a>
-	 * @param pskHint - preshared key hint in clear text
-	 * @param ecdhe - {@code ECDHECryptography}
-	 * @param clientRandom - nonce
-	 * @param serverRandom - nonce
-	 * @param namedCurveId - ec curve used 
-	 * @param peerAddress
+	 * @param pskHint preshared key hint in clear text
+	 * @param ecdhe {@code ECDHECryptography}
+	 * @param clientRandom nonce
+	 * @param serverRandom nonce
+	 * @param namedCurveId ec curve used 
+	 * @param peerAddress peer's address
 	 * @throws NullPointerException if any of the arguments ecdhe, 
 	 * clientRandom and serverRandom are {@code null}
 	 */
@@ -135,11 +135,11 @@ public final class EcdhPskServerKeyExchange extends ServerKeyExchange {
 	 * Creates a new key exchange message with ServerDHParams.
 	 * 
 	 * @see <a href="http://tools.ietf.org/html/rfc4279#section-3">RFC 4279</a>
-	 * @param ecdhe - {@code ECDHECryptography}
-	 * @param clientRandom - nonce
-	 * @param serverRandom - nonce
-	 * @param namedCurveId - ec curve used 
-	 * @param peerAddress
+	 * @param ecdhe {@code ECDHECryptography}
+	 * @param clientRandom nonce
+	 * @param serverRandom nonce
+	 * @param namedCurveId ec curve used 
+	 * @param peerAddress peer's address
 	 * @throws NullPointerException if any of arguments ecdhe, 
 	 * clientRandom and serverRandom are {@code null}
 	 */
@@ -209,10 +209,10 @@ public final class EcdhPskServerKeyExchange extends ServerKeyExchange {
 	/**
 	 * Deserialize byte array to key exchange message.
 	 * 
-	 * @param byteArray
-	 * @param peerAddress
+	 * @param byteArray byte array of key exchange message
+	 * @param peerAddress peer address
 	 * @return {@code EcdhPskServerKeyExchange}
-	 * @throws HandshakeException - if the byte array includes unsupported curve
+	 * @throws HandshakeException if the byte array includes unsupported curve
 	 * @throws NullPointerException if either byteArray or peerAddress is {@code null}
 	 */
 	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) throws HandshakeException {

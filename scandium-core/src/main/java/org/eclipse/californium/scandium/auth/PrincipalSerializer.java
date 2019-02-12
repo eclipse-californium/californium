@@ -51,6 +51,7 @@ public final class PrincipalSerializer {
 	 * However, it supports the addition of arbitrary authentication mechanisms by extending
 	 * the <em>ClientAuthenticationType</em> which we do as follows: 
 	 * <pre>
+	 * 
 	 * enum {
 	 *   anonymous(0),
 	 *   certificate_based(1),
@@ -64,11 +65,11 @@ public final class PrincipalSerializer {
 	 *     case anonymous: 
 	 *       struct {};
 	 *     case psk:
-	 *       opaque psk_identity<0..2^16-1>;
+	 *       opaque psk_identity&lt;0..2^16-1&gt;;
 	 *     case certificate_based:
-	 *       DER ASN.1Cert certificate_list<0..2^24-1>;
+	 *       DER ASN.1Cert certificate_list&lt;0..2^24-1&gt;;
 	 *     case raw_public_key:
-	 *       DER ASN.1_subjectPublicKeyInfo<1..2^24-1>; // as defined in RFC 7250
+	 *       DER ASN.1_subjectPublicKeyInfo&lt;1..2^24-1&gt;; // as defined in RFC 7250
 	 *   };
 	 * }
 	 * </pre>

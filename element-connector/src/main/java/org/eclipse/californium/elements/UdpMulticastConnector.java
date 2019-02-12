@@ -36,7 +36,7 @@ public class UdpMulticastConnector extends UDPConnector {
 	/**
 	 * Creates a connector bound to given multicast group and IP Port
 	 * 
-	 * @param socketAddress local socket address
+	 * @param localAddress local socket address
 	 * @param multicastGroups multicast groups to join
 	 */
 	public UdpMulticastConnector(InetSocketAddress localAddress, InetAddress... multicastGroups) {
