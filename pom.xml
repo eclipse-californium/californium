@@ -320,6 +320,10 @@
 							</goals>
 						</execution>
 					</executions>
+					<configuration>
+						<doclint>none</doclint>
+						<additionalparam>${javadoc.opts}</additionalparam>
+					</configuration>
 				</plugin>
 				<plugin>
 					<artifactId>maven-assembly-plugin</artifactId>
@@ -512,6 +516,15 @@
 					</plugin>
 				</plugins>
 			</build>
+		</profile>
+		<profile>
+			<id>java11-html4</id>
+			<activation>
+				<jdk>[1.11,)</jdk>
+			</activation>
+			<properties>
+				<javadoc.opts>-X-html4</javadoc.opts>
+			</properties>
 		</profile>
 		<profile>
 			<!-- this profile signs artifacts so that they can be deployed to repo.eclipse.org -->
