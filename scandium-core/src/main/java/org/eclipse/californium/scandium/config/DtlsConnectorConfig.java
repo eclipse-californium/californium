@@ -341,7 +341,7 @@ public final class DtlsConnectorConfig {
 	 * server is specified with hostname rather then with a raw ip-address. The
 	 * server side support currently includes a server name specific PSK secret
 	 * lookup and a forwarding of the server name to the CoAP stack in the
-	 * {@link EndpointContext}. The x509 or RPK credentials lookup is currently
+	 * {@link DtlsEndpointContext}. The x509 or RPK credentials lookup is currently
 	 * not server name specific, therefore the server's certificate will be the
 	 * same, regardless of the indicated server name.
 	 * <p>

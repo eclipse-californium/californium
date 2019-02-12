@@ -59,7 +59,7 @@ public final class DatagramReader {
 	 * Creates a new reader for an bytes stream.
 	 * 
 	 * @param byteStream The byte stream to read from.
-	 * @throws NullPointerException, if byte stream is {@code null}
+	 * @throws NullPointerException if byte stream is {@code null}
 	 */
 	public DatagramReader(final ByteArrayInputStream byteStream) {
 		if (byteStream == null) {

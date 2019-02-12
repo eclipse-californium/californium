@@ -32,7 +32,7 @@ public class StringUtil {
 	 * Special character to signal, that no separator should be used when byte
 	 * array are converted to hexadecimal strings.
 	 * 
-	 * @see #byteArray2HexString(byte[], char, int).
+	 * @see #byteArray2HexString(byte[], char, int)
 	 */
 	public static final char NO_SEPARATOR = 0;
 

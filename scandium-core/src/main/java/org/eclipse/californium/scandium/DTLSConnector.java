@@ -427,7 +427,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * <p>
 	 * If this property is not set before invoking the {@linkplain #start()
 	 * start method}, a new {@link ExecutorService} is created with a thread
-	 * pool of {@linkplain #DEFAULT_EXECUTOR_THREAD_POOL_SIZE default size}.
+	 * pool of {@linkplain DtlsConnectorConfig#getConnectionThreadCount() size}.
 	 * 
 	 * This helps with performing multiple handshakes in parallel, in particular if the key exchange
 	 * requires a look up of identities, e.g. in a database or using a web service.
@@ -456,7 +456,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * prior to removing all session state.
 	 * 
 	 * @param peerAddress the address of the peer to close the connection to
-	 * @throws IllegalStateException, if executor cache is exceeded.
+	 * @throws IllegalStateException if executor cache is exceeded.
 	 */
 	public final void close(InetSocketAddress peerAddress) {
 		final Connection connection = getConnection(peerAddress, false);

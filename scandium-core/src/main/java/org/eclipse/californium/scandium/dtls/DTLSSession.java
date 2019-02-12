@@ -70,7 +70,6 @@ public final class DTLSSession {
 
 	/**
 	 * The overall length of all headers around a DTLS handshake message payload.
-	 * <p>
 	 * <ol>
 	 * <li>12 bytes DTLS message header</li>
 	 * <li>13 bytes DTLS record header</li>
@@ -78,7 +77,6 @@ public final class DTLSSession {
 	 * <li>20 bytes IP header</li>
 	 * <li>36 bytes optional IP options</li>
 	 * </ol>
-	 * <p>
 	 * 53 bytes in total.
 	 */
 	public static final int HEADER_LENGTH = 12 // bytes DTLS message headers

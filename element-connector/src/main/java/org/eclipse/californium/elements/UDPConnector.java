@@ -153,7 +153,7 @@ public class UDPConnector implements Connector {
 	 * Initialize connector using the provided socket.
 	 * 
 	 * @param socket datagram socket for communication
-	 * @throws IOException
+	 * @throws IOException  if there is an error in the datagram socket calls.
 	 */
 	protected void init(DatagramSocket socket) throws IOException {
 		this.socket = socket;

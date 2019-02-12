@@ -33,7 +33,7 @@ import org.eclipse.californium.scandium.util.ByteArrayUtils;
 /**
  * Generates client ephemeral ECDH keys for Dtls ECDH_PSK mode.
  * 
- * @see <a href="https://tools.ietf.org/html/rfc5489#section-2">RFC 5489</a> for details.
+ * See <a href="https://tools.ietf.org/html/rfc5489#section-2">RFC 5489</a> for details.
  */
 public final class EcdhPskClientKeyExchange extends ClientKeyExchange {
 
@@ -54,9 +54,9 @@ public final class EcdhPskClientKeyExchange extends ClientKeyExchange {
 	/**
 	 * Creates a new key exchange message for an identity hint and a public key.
 	 * 
-	 * @param hint - PSK identity as clear text
-	 * @param clientPublicKey - ephemeral public key of client
-	 * @param peerAddress
+	 * @param hint PSK identity as clear text
+	 * @param clientPublicKey ephemeral public key of client
+	 * @param peerAddress peer's address
 	 * @throws NullPointerException if either hint or clietPublicKey are {@code null}
 	 */
 	public EcdhPskClientKeyExchange(String hint, PublicKey clientPublicKey, InetSocketAddress peerAddress) {
@@ -79,9 +79,9 @@ public final class EcdhPskClientKeyExchange extends ClientKeyExchange {
 	/**
 	 * Creates a new key exchange message for an identity hint and a public key.
 	 * 
-	 * @param hintEncoded - opaque encoded PSK identity hint for server
-	 * @param pointEncoded - ephemeral public key of client (encoded point)
-	 * @param peerAddress
+	 * @param hintEncoded opaque encoded PSK identity hint for server
+	 * @param pointEncoded ephemeral public key of client (encoded point)
+	 * @param peerAddress peer's address
 	 * @throws NullPointerException if either hintEncoded or pointEncoded are {@code null}
 	 */
 	public EcdhPskClientKeyExchange(byte[] hintEncoded, byte[] pointEncoded, InetSocketAddress peerAddress) {
@@ -110,9 +110,9 @@ public final class EcdhPskClientKeyExchange extends ClientKeyExchange {
 	/**
 	 * Deserialize byte array to key exchange message.
 	 * 
-	 * @param byteArray
-	 * @param peerAddress
-	 * @return {@code EcdhPskClientKeyExchange}
+	 * @param byteArray byte array of key exchange message
+	 * @param peerAddress peer address
+	 * @return created client key exchange message
 	 * @throws NullPointerException if either byteArray or peerAddress is {@code null}
 	 */
 	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) {

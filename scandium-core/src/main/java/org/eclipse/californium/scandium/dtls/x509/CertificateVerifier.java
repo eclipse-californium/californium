@@ -17,9 +17,9 @@ public interface CertificateVerifier {
 	 * Validates the X.509 certificate chain provided by the the peer as part of
 	 * this message.
 	 * 
-	 * @param message
-	 * @param session
-	 * @throws HandshakeException
+	 * @param message certificate message to be verified
+	 * @param session dtls session to verify
+	 * @throws HandshakeException if verification fails
 	 */
 	void verifyCertificate(CertificateMessage message, DTLSSession session) throws HandshakeException;
 

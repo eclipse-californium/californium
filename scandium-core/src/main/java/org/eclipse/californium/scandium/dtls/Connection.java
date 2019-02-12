@@ -415,8 +415,8 @@ public final class Connection {
 	 * @param autoResumptionTimeoutMillis auto resumption timeout in
 	 *            milliseconds. {@code 0} milliseconds to force a resumption,
 	 *            {@code null}, if auto resumption is not used.
-	 * @return {@code true}, if the {@link #autoResumptionTimeout} has expired
-	 *         without exchanging messages.
+	 * @return {@code true}, if the provided autoResumptionTimeoutMillis has
+	 *         expired without exchanging messages.
 	 */
 	public boolean isAutoResumptionRequired(Long autoResumptionTimeoutMillis) {
 		if (!resumptionRequired && autoResumptionTimeoutMillis != null && establishedSession != null) {
