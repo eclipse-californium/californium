@@ -139,6 +139,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 
 			ExtendedTestServer server = new ExtendedTestServer(config, protocolConfig, noBenchmark);
 			server.setExecutor(executor);
+			server.add(new ReverseRequest(config, executor));
 			ReverseObserve reverseObserver = new ReverseObserve(config, executor);
 			server.add(reverseObserver);
 			server.addEndpoints(null, types, protocols);
@@ -211,7 +212,6 @@ public class ExtendedTestServer extends AbstractTestServer {
 		int maxResourceSize = config.getInt(Keys.MAX_RESOURCE_BODY_SIZE);
 		// add resources to the server
 		add(new RequestStatistic());
-		add(new ReverseRequest(config));
 		add(new Benchmark(noBenchmark, maxResourceSize));
 	}
 

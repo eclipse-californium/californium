@@ -125,7 +125,7 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 	/**
 	 * Scheduler for notification timeout.
 	 */
-	private ScheduledExecutorService executor;
+	private final ScheduledExecutorService executor;
 
 	/**
 	 * Create reverse observation resource.

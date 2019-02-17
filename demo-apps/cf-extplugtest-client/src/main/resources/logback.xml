@@ -25,11 +25,21 @@
 		</encoder>
 	</appender>
 
-	<logger name="org.eclipse.californium.extplugtests.statistics.file" level="INFO">
+	<appender name="STDOUT_SIMPLE" class="ch.qos.logback.core.ConsoleAppender">
+		<!-- encoders are assigned the type ch.qos.logback.classic.encoder.PatternLayoutEncoder 
+			by default -->
+		<encoder>
+			<pattern>%d{HH:mm:ss.SSS}: %msg%n</pattern>
+		</encoder>
+	</appender>
+
+	<logger name="org.eclipse.californium.extplugtests.statistics.file" level="INFO" >
 		<appender-ref ref="FILE" />
 	</logger>
 
-	<logger name="org.eclipse.californium.extplugtests.statistics" level="INFO" />
+	<logger name="org.eclipse.californium.extplugtests.statistics" level="INFO" additivity="false" >
+		<appender-ref ref="STDOUT_SIMPLE" />
+	</logger>
 
 	<root level="WARN" >
 		<appender-ref ref="STDOUT" />
