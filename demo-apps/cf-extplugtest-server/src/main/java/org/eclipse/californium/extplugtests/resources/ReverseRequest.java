@@ -25,6 +25,8 @@ import static org.eclipse.californium.core.coap.MediaTypeRegistry.UNDEFINED;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -88,6 +90,10 @@ public class ReverseRequest extends CoapResource {
 	 */
 	private static final int MAX_REQUESTS = 10000000;
 	/**
+	 * Timeout for response in milliseconds.
+	 */
+	private static final int RESPONSE_TIMEOUT_MILLIS = 120000;
+	/**
 	 * Overall requested requests.
 	 */
 	private final AtomicLong overallRequests = new AtomicLong();
@@ -99,14 +105,19 @@ public class ReverseRequest extends CoapResource {
 	 * Overall pending requests.
 	 */
 	private final AtomicLong overallPendingRequests = new AtomicLong();
+	/**
+	 * Scheduler for request timeout.
+	 */
+	private final ScheduledExecutorService executor;
 
 	/**
 	 * Create reverse observation resource.
 	 * 
 	 * @param config network configuration to read HEALTH_STATUS_INTERVAL.
 	 */
-	public ReverseRequest(NetworkConfig config) {
+	public ReverseRequest(NetworkConfig config, ScheduledExecutorService executor) {
 		super(RESOURCE_NAME);
+		this.executor = executor;
 		getAttributes().setTitle("Reverse Request");
 		getAttributes().addContentType(TEXT_PLAIN);
 		getAttributes().addContentType(APPLICATION_OCTET_STREAM);
@@ -185,7 +196,8 @@ public class ReverseRequest extends CoapResource {
 				getRequest.getOptions().addUriQuery(query);
 			}
 			getRequest.setDestinationContext(request.getSourceContext());
-			getRequest.addMessageObserver(new GetRequestObserver(endpoint, getRequest, numberOfRequests));
+			GetRequestObserver requestObserver = new GetRequestObserver(endpoint, getRequest, numberOfRequests);
+			getRequest.addMessageObserver(requestObserver);
 			getRequest.send(endpoint);
 		} else {
 			exchange.respond(CONTENT, overallRequests.get() + " reverse-requests, " + overallSentRequests.get()
@@ -193,20 +205,23 @@ public class ReverseRequest extends CoapResource {
 		}
 	}
 
-	private class GetRequestObserver extends MessageObserverAdapter {
+	private class GetRequestObserver extends MessageObserverAdapter implements Runnable {
 
+		private ScheduledFuture<?> job;
 		private Endpoint endpoint;
-		private Request outgoingObserveRequest;
+		private Request outgoingRequest;
 		private int count;
 
-		public GetRequestObserver(Endpoint endpoint, Request outgoingObserveRequest, int count) {
+		public GetRequestObserver(Endpoint endpoint, Request outgoingRequest, int count) {
 			this.endpoint = endpoint;
-			this.outgoingObserveRequest = outgoingObserveRequest;
+			this.outgoingRequest = outgoingRequest;
 			this.count = count;
+			this.job = executor.schedule(this, RESPONSE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
 		}
 
 		@Override
 		public void onResponse(final Response response) {
+			job.cancel(false);
 			if (response.isError()) {
 				LOGGER.info("error: {}, pending: {}", response.getCode(), count);
 				subtractPending(count);
@@ -216,9 +231,11 @@ public class ReverseRequest extends CoapResource {
 					LOGGER.trace("send next request");
 					overallSentRequests.incrementAndGet();
 					Request getRequest = Request.newGet();
-					getRequest.setOptions(outgoingObserveRequest.getOptions());
-					getRequest.setDestinationContext(outgoingObserveRequest.getDestinationContext());
+					getRequest.setOptions(outgoingRequest.getOptions());
+					getRequest.setDestinationContext(outgoingRequest.getDestinationContext());
+					outgoingRequest = getRequest;
 					getRequest.addMessageObserver(this);
+					this.job = executor.schedule(this, RESPONSE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
 					getRequest.send(endpoint);
 				} else {
 					LOGGER.trace("sent requests ready!");
@@ -229,7 +246,8 @@ public class ReverseRequest extends CoapResource {
 
 		@Override
 		protected void failed() {
-			LOGGER.info("get request failed! MID {}, pending: {}", outgoingObserveRequest.getMID(), count);
+			job.cancel(false);
+			LOGGER.info("get request failed! MID {}, pending: {}", outgoingRequest.getMID(), count);
 			subtractPending(count);
 		}
 
@@ -237,6 +255,11 @@ public class ReverseRequest extends CoapResource {
 			if (overallPendingRequests.addAndGet(-count) <= 0) {
 				LOGGER.info("sent all requests, ready!");
 			}
+		}
+
+		@Override
+		public void run() {
+			outgoingRequest.cancel();
 		}
 	}
 
