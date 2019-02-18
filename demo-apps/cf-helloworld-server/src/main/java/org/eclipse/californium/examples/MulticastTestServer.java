@@ -15,6 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.examples;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.Random;
@@ -34,7 +35,7 @@ import org.eclipse.californium.elements.UdpMulticastConnector;
  */
 public class MulticastTestServer {
 
-	public static void main(String[] args) throws UnknownHostException {
+	public static void main(String[] args) throws IOException {
 
 		NetworkConfig config = NetworkConfig.getStandard();
 		CoapEndpoint endpoint = createEndpoints(config);
@@ -44,7 +45,7 @@ public class MulticastTestServer {
 		server.start();
 	}
 
-	private static CoapEndpoint createEndpoints(NetworkConfig config) throws UnknownHostException {
+	private static CoapEndpoint createEndpoints(NetworkConfig config) throws IOException {
 		int port = config.getInt(Keys.COAP_PORT);
 		InetSocketAddress localAddress = new InetSocketAddress(port);
 		Connector connector = new UdpMulticastConnector(localAddress, CoAP.MULTICAST_IPV4);

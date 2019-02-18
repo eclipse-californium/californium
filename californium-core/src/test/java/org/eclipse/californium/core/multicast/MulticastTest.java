@@ -21,6 +21,7 @@ package org.eclipse.californium.core.multicast;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.assertThat;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
@@ -66,7 +67,7 @@ public class MulticastTest {
 	private static NetworkConfig config;
 
 	@BeforeClass
-	public static void setupServer() {
+	public static void setupServer() throws IOException {
 		config = network.getStandardTestConfig();
 		config.setInt(NetworkConfig.Keys.MULTICAST_BASE_MID, 20000);
 		server1 = new CoapServer();
