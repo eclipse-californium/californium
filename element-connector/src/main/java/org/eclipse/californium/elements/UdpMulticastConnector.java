@@ -44,7 +44,7 @@ public class UdpMulticastConnector extends UDPConnector {
 	 *
 	 * @param localAddress local socket address
 	 * @param multicastGroups multicast groups to join
-	 * @throws IOException if an I/O exception occurs while creating the MulticastSocket
+	 * @throws IOException if an I/O exception occurs while creating the multicast socket
 	 */
 	public UdpMulticastConnector(InetSocketAddress localAddress, InetAddress... multicastGroups) throws IOException {
 		super(localAddress);

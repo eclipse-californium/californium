@@ -114,13 +114,7 @@ import org.eclipse.californium.core.observe.InMemoryObservationStore;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.core.server.MessageDeliverer;
-import org.eclipse.californium.elements.Connector;
-import org.eclipse.californium.elements.EndpointContext;
-import org.eclipse.californium.elements.EndpointContextMatcher;
-import org.eclipse.californium.elements.MessageCallback;
-import org.eclipse.californium.elements.RawData;
-import org.eclipse.californium.elements.RawDataChannel;
-import org.eclipse.californium.elements.UDPConnector;
+import org.eclipse.californium.elements.*;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.slf4j.Logger;
@@ -268,6 +262,11 @@ public class CoapEndpoint implements Endpoint {
 	 * subclass constructor. The endpoint will support the connector's
 	 * implemented scheme and will bind to the IP address and port the connector
 	 * is configured for.
+	 *
+	 * Note: If you are using a {@link UdpMulticastConnector} you may run into the problem
+	 * described in https://github.com/eclipse/californium/issues/872. To prevent
+	 * that, you need to set the interface used for multicast manually on the connector
+	 * before calling this.
 	 *
 	 * @param connector The connector to use.
 	 * @param applyConfiguration if {@code true}, apply network configuration to
@@ -1177,6 +1176,11 @@ public class CoapEndpoint implements Endpoint {
 		 * therefore doesn't apply network configuration to connector.
 		 * 
 		 * Provides a fluent API to chain setters.
+		 *
+		 * Note: If you are using a {@link UdpMulticastConnector} you may run into the problem
+		 * described in https://github.com/eclipse/californium/issues/872. To prevent
+		 * that, you need to set the interface used for multicast manually on the connector
+		 * before calling this.
 		 * 
 		 * @param connector connector to be used
 		 * @return this
@@ -1206,6 +1210,11 @@ public class CoapEndpoint implements Endpoint {
 		 * used.
 		 * 
 		 * Provides a fluent API to chain setters.
+		 *
+		 * Note: If you are using a {@link UdpMulticastConnector} you may run into the problem
+		 * described in https://github.com/eclipse/californium/issues/872. To prevent
+		 * that, you need to set the interface used for multicast manually on the connector
+		 * before calling this.
 		 * 
 		 * @param connector connector to be used
 		 * @return this
