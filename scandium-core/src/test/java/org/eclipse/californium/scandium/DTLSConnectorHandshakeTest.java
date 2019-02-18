@@ -83,19 +83,22 @@ public class DTLSConnectorHandshakeTest {
 		}
 	}
 
-	private void startServer(boolean enableSni, boolean clientAuthRequired, boolean clientAuthWanted)
+	private void startServer(boolean enableSni, boolean clientAuthRequired, boolean clientAuthWanted, Integer cidLength)
 			throws IOException, GeneralSecurityException {
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
 				.setClientAuthenticationRequired(clientAuthRequired)
 				.setClientAuthenticationWanted(clientAuthWanted)
+				.setConnectionIdLength(cidLength)
 				.setLoggingTag("server")
 				.setSniEnabled(enableSni);
 		serverHelper = new ConnectorHelper();
 		serverHelper.startServer(builder);
 	}
 
-	private void startClientPsk(boolean enableSni, String hostname, PskStore pskStore) throws Exception {
-		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder().setPskStore(pskStore);
+	private void startClientPsk(boolean enableSni, String hostname, Integer cidLength, PskStore pskStore) throws Exception {
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+				.setPskStore(pskStore)
+				.setConnectionIdLength(cidLength);
 		startClient(enableSni, hostname, builder);
 	}
 
@@ -144,8 +147,8 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testPskHandshakeClientWithoutSniAndServerWithoutSni() throws Exception {
-		startServer(false, true, false);
-		startClientPsk(false, null, new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()));
+		startServer(false, true, false, null);
+		startClientPsk(false, null, null, new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()));
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(notNullValue()));
@@ -155,8 +158,8 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testPskHandshakeClientWithoutSniAndServerWithSni() throws Exception {
-		startServer(true, true, false);
-		startClientPsk(false, null, new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()));
+		startServer(true, true, false, null);
+		startClientPsk(false, null, null, new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()));
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(notNullValue()));
@@ -166,8 +169,8 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testPskHandshakeWithServernameClientWithoutSniAndServerWithoutSni() throws Exception {
-		startServer(false, true, false);
-		startClientPsk(false, SERVERNAME, new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()));
+		startServer(false, true, false, null);
+		startClientPsk(false, SERVERNAME, null, new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()));
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(notNullValue()));
@@ -177,8 +180,8 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testPskHandshakeWithServernameClientWithoutSniAndServerWithSni() throws Exception {
-		startServer(true, true, false);
-		startClientPsk(false, SERVERNAME, new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()));
+		startServer(true, true, false, null);
+		startClientPsk(false, SERVERNAME, null, new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()));
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(notNullValue()));
@@ -188,8 +191,8 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testPskHandshakeClientWithSniAndServerWithoutSni() throws Exception {
-		startServer(false, true, false);
-		startClientPsk(true, null, new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()));
+		startServer(false, true, false, null);
+		startClientPsk(true, null, null, new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()));
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(notNullValue()));
@@ -199,8 +202,8 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testPskHandshakeClientWithSniAndServerWithSni() throws Exception {
-		startServer(true, true, false);
-		startClientPsk(true, null, new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()));
+		startServer(true, true, false, null);
+		startClientPsk(true, null, null, new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()));
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(notNullValue()));
@@ -210,8 +213,8 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testPskHandshakeWithServernameClientWithSniAndServerWithoutSni() throws Exception {
-		startServer(false, true, false);
-		startClientPsk(true, SERVERNAME, new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()));
+		startServer(false, true, false, null);
+		startClientPsk(true, SERVERNAME, null, new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()));
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(notNullValue()));
@@ -221,8 +224,8 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testPskHandshakeWithServernameClientWithSniAndServerWithSni() throws Exception {
-		startServer(true, true, false);
-		startClientPsk(true, SERVERNAME, new StaticPskStore(SCOPED_CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()));
+		startServer(true, true, false, null);
+		startClientPsk(true, SERVERNAME, null, new StaticPskStore(SCOPED_CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()));
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(notNullValue()));
@@ -232,7 +235,7 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testRpkHandshakeClientWithSniAndServerWithSni() throws Exception {
-		startServer(true, true, false);
+		startServer(true, true, false, null);
 		startClientRpk(true, null);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
@@ -243,7 +246,7 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testRpkHandshakeClientWithoutSniAndServerWithoutSni() throws Exception {
-		startServer(false, true, false);
+		startServer(false, true, false, null);
 		startClientRpk(false, null);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
@@ -254,7 +257,7 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testRpkHandshakeWithServernameClientWithSniAndServerWithSni() throws Exception {
-		startServer(true, true, false);
+		startServer(true, true, false, null);
 		startClientRpk(true, SERVERNAME);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
@@ -265,7 +268,7 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testRpkHandshakeWithServernameClientWithoutSniAndServerWithoutSni() throws Exception {
-		startServer(false, true, false);
+		startServer(false, true, false, null);
 		startClientRpk(false, SERVERNAME);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
@@ -276,7 +279,7 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testX509HandshakeClientWithSniAndServerWithSni() throws Exception {
-		startServer(true, true, false);
+		startServer(true, true, false, null);
 		startClientX509(true, null);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
@@ -287,7 +290,7 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testX509HandshakeClientWithoutSniAndServerWithoutSni() throws Exception {
-		startServer(false, true, false);
+		startServer(false, true, false, null);
 		startClientX509(false, null);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
@@ -298,7 +301,7 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testX509HandshakeWithServernameClientWithSniAndServerWithSni() throws Exception {
-		startServer(true, true, false);
+		startServer(true, true, false, null);
 		startClientX509(true, SERVERNAME);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
@@ -309,7 +312,7 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testX509HandshakeWithServernameClientWithoutSniAndServerWithoutSni() throws Exception {
-		startServer(false, true, false);
+		startServer(false, true, false, null);
 		startClientX509(false, SERVERNAME);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
@@ -320,7 +323,7 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testRpkHandshakeNoneAuthClientWithSniAndServerWithSni() throws Exception {
-		startServer(true, false, false);
+		startServer(true, false, false, null);
 		startClientRpk(true, null);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
@@ -330,7 +333,7 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testRpkHandshakeNoneAuthClientWithoutSniAndServerWithoutSni() throws Exception {
-		startServer(false, false, false);
+		startServer(false, false, false, null);
 		startClientRpk(false, null);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
@@ -340,7 +343,7 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testRpkHandshakeNoneAuthWithServernameClientWithSniAndServerWithSni() throws Exception {
-		startServer(true, false, false);
+		startServer(true, false, false, null);
 		startClientRpk(true, SERVERNAME);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
@@ -350,7 +353,7 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testRpkHandshakeNoneAuthWithServernameClientWithoutSniAndServerWithoutSni() throws Exception {
-		startServer(false, false, false);
+		startServer(false, false, false, null);
 		startClientRpk(false, SERVERNAME);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
@@ -360,7 +363,7 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testX509HandshakeNoneAuthClientWithSniAndServerWithSni() throws Exception {
-		startServer(true, false, false);
+		startServer(true, false, false, null);
 		startClientX509(true, null);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
@@ -370,7 +373,7 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testX509HandshakeNoneAuthClientWithoutSniAndServerWithoutSni() throws Exception {
-		startServer(false, false, false);
+		startServer(false, false, false, null);
 		startClientX509(false, null);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
@@ -380,7 +383,7 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testX509HandshakeNoneAuthWithServernameClientWithSniAndServerWithSni() throws Exception {
-		startServer(true, false, false);
+		startServer(true, false, false, null);
 		startClientX509(true, SERVERNAME);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
@@ -390,7 +393,7 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testX509HandshakeNoneAuthWithServernameClientWithoutSniAndServerWithoutSni() throws Exception {
-		startServer(false, false, false);
+		startServer(false, false, false, null);
 		startClientX509(false, SERVERNAME);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
@@ -400,7 +403,7 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testRpkHandshakeAuthWanted() throws Exception {
-		startServer(false, false, true);
+		startServer(false, false, true, null);
 		startClientRpk(false, null);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
@@ -410,7 +413,7 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testRpkHandshakeAuthWantedAnonymClient() throws Exception {
-		startServer(false, false, true);
+		startServer(false, false, true, null);
 		startAnonymClientRpk(false, null);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
@@ -420,7 +423,7 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testX509HandshakeAuthWanted() throws Exception {
-		startServer(false, false, true);
+		startServer(false, false, true, null);
 		startClientX509(false, null);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
@@ -430,11 +433,66 @@ public class DTLSConnectorHandshakeTest {
 
 	@Test
 	public void testX509HandshakeAuthWantedAnonymClient() throws Exception {
-		startServer(false, false, true);
+		startServer(false, false, true, null);
 		startAnonymClientX509(false, null);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(nullValue()));
+		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+	}
+
+	@Test
+	public void testPskHandshakeWithCid() throws Exception {
+		startServer(false, false, false, 6);
+		startClientPsk(false, null, 4, new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()));
+		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
+		Principal principal = endpointContext.getPeerIdentity();
+		assertThat(principal, is(notNullValue()));
+		assertThat(principal.getName(), is(CLIENT_IDENTITY));
+		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+	}
+
+	@Test
+	public void testPskHandshakeWithServerCid() throws Exception {
+		startServer(false, false, false, 6);
+		startClientPsk(false, null, 0, new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()));
+		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
+		Principal principal = endpointContext.getPeerIdentity();
+		assertThat(principal, is(notNullValue()));
+		assertThat(principal.getName(), is(CLIENT_IDENTITY));
+		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+	}
+
+	@Test
+	public void testPskHandshakeWithClientCid() throws Exception {
+		startServer(false, false, false, 0);
+		startClientPsk(false, null, 4, new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()));
+		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
+		Principal principal = endpointContext.getPeerIdentity();
+		assertThat(principal, is(notNullValue()));
+		assertThat(principal.getName(), is(CLIENT_IDENTITY));
+		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+	}
+
+	@Test
+	public void testPskHandshakeWithoutServerCid() throws Exception {
+		startServer(false, false, false, null);
+		startClientPsk(false, null, 4, new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()));
+		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
+		Principal principal = endpointContext.getPeerIdentity();
+		assertThat(principal, is(notNullValue()));
+		assertThat(principal.getName(), is(CLIENT_IDENTITY));
+		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+	}
+
+	@Test
+	public void testPskHandshakeWithoutClientCid() throws Exception {
+		startServer(false, false, false, 6);
+		startClientPsk(false, null, null, new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()));
+		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
+		Principal principal = endpointContext.getPeerIdentity();
+		assertThat(principal, is(notNullValue()));
+		assertThat(principal.getName(), is(CLIENT_IDENTITY));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
 	}
 }

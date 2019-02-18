@@ -133,10 +133,6 @@ public class ConnectorHelper {
 	 */
 	public void startServer(DtlsConnectorConfig.Builder builder) throws IOException, GeneralSecurityException {
 
-		serverSessionCache = new InMemorySessionCache();
-		serverConnectionStore = new InMemoryConnectionStore(null, SERVER_CONNECTION_STORE_CAPACITY, 5 * 60, serverSessionCache); // connection timeout 5mins
-		serverConnectionStore.setTag("server");
-
 		InMemoryPskStore pskStore = new InMemoryPskStore();
 		pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
 		pskStore.setKey(SCOPED_CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME);
@@ -161,6 +157,10 @@ public class ConnectorHelper {
 			builder.setTrustStore(DtlsTestTools.getTrustedCertificates()).setRpkTrustAll();
 		}
 		serverConfig = builder.build();
+
+		serverSessionCache = new InMemorySessionCache();
+		serverConnectionStore = new InMemoryConnectionStore(serverConfig.getConnectionIdLength(), SERVER_CONNECTION_STORE_CAPACITY, 5 * 60, serverSessionCache); // connection timeout 5mins
+		serverConnectionStore.setTag("server");
 
 		server = new DTLSConnector(serverConfig, serverConnectionStore);
 		serverRawDataProcessor = new MessageCapturingProcessor();
