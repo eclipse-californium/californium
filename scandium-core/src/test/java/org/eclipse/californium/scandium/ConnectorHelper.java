@@ -138,11 +138,6 @@ public class ConnectorHelper {
 		pskStore.setKey(SCOPED_CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME);
 
 		builder.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
-				.setSupportedCipherSuites(
-							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
-							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
-							CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
-							CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256)
 				.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509)
 				.setPskStore(pskStore)
 				.setMaxConnections(SERVER_CONNECTION_STORE_CAPACITY)
@@ -152,6 +147,14 @@ public class ConnectorHelper {
 				.setLoggingTag("server")
 				.setServerOnly(true);
 
+		if (builder.getIncompleteConfig().getSupportedCipherSuites() == null) {
+			builder.setSupportedCipherSuites(
+					CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
+					CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+					CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256,
+					CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
+					CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256);
+		}
 		if (!Boolean.FALSE.equals(builder.getIncompleteConfig().isClientAuthenticationRequired()) ||
 				Boolean.TRUE.equals(builder.getIncompleteConfig().isClientAuthenticationWanted())) {
 			builder.setTrustStore(DtlsTestTools.getTrustedCertificates()).setRpkTrustAll();

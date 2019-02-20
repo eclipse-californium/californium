@@ -437,7 +437,7 @@ public final class DTLSSession {
 	 * 
 	 * @return the algorithms to be used
 	 */
-	CipherSuite getCipherSuite() {
+	public CipherSuite getCipherSuite() {
 		return cipherSuite;
 	}
 

@@ -928,34 +928,6 @@ public class DTLSConnectorTest {
 		assertFalse(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 		assertThat(alert.get(), is(nullValue()));
 	}
-	
-	@Test
-	public void testConnectorEstablishSessionWithEcdhPskCBCSuite() throws Exception {
-		clientConfig = new DtlsConnectorConfig.Builder()
-				.setAddress(clientEndpoint)
-				.setLoggingTag("client")
-				.setPskStore(new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()))
-				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256)
-				.build();
-			client = new DTLSConnector(clientConfig, clientConnectionStore);
-			givenAnEstablishedSession();
-	}
-	
-	/**
-	 * Verifies that the connector can successfully establish a session using a CBC based cipher suite.
-	 */
-	@Test
-	public void testConnectorEstablishesSecureSessionUsingCbcBlockCipher() throws Exception {
-		clientConfig =  new DtlsConnectorConfig.Builder()
-			.setAddress(clientEndpoint)
-			.setLoggingTag("client")
-			.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256)
-			.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), CertificateType.X_509)
-			.setTrustStore(DtlsTestTools.getTrustedCertificates())
-			.build();
-		client = new DTLSConnector(clientConfig, clientConnectionStore);
-		givenAnEstablishedSession();
-	}
 
 	/**
 	 * Verifies that the connector includes a <code>RawPublicKeyIdentity</code> representing
