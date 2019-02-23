@@ -89,8 +89,10 @@ public class DTLSConnectorResumeTest {
 
 	@BeforeClass
 	public static void loadKeys() throws IOException, GeneralSecurityException {
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+				.setSniEnabled(true);
 		serverHelper = new ConnectorHelper();
-		serverHelper.startServer();
+		serverHelper.startServer(builder);
 		executor = Executors.newFixedThreadPool(2);
 	}
 
@@ -106,6 +108,7 @@ public class DTLSConnectorResumeTest {
 		clientConnectionStore.setTag("client");
 		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		DtlsConnectorConfig.Builder builder = newStandardClientConfigBuilder(clientEndpoint)
+				.setSniEnabled(true)
 				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY);
 		DtlsConnectorConfig clientConfig = builder.build();
 

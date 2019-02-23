@@ -87,9 +87,10 @@ public class ServerHandshakerTest {
 		recordLayer = new SimpleRecordLayer();
 		config = new DtlsConnectorConfig.Builder()
 				.setAddress(endpoint)
+				.setSniEnabled(true)
 				.setIdentity(privateKey, certificateChain, CertificateType.X_509)
 				.setTrustStore(trustedCertificates)
-				.setSupportedCipherSuites(new CipherSuite[]{SERVER_CIPHER_SUITE})
+				.setSupportedCipherSuites(SERVER_CIPHER_SUITE)
 				.build();
 		handshaker = newHandshaker(config, session);
 

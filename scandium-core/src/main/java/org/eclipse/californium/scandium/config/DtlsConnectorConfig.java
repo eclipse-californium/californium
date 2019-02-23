@@ -352,7 +352,7 @@ public final class DtlsConnectorConfig {
 	 * <p>
 	 * The default value of this property is {@code null}. If this property is
 	 * not set explicitly using {@link Builder#setSniEnabled(boolean)}, then the
-	 * {@link Builder#build()} method will set it to {@code true}.
+	 * {@link Builder#build()} method will set it to {@code false}.
 	 * 
 	 * @return {@code true} if SNI should be used.
 	 */
@@ -1673,7 +1673,7 @@ public final class DtlsConnectorConfig {
 				config.staleConnectionThreshold = DEFAULT_STALE_CONNECTION_TRESHOLD;
 			}
 			if (config.sniEnabled == null) {
-				config.sniEnabled = Boolean.TRUE;
+				config.sniEnabled = Boolean.FALSE;
 			}
 			if (config.verifyPeersOnResumptionThreshold == null) {
 				config.verifyPeersOnResumptionThreshold = DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT;

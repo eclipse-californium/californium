@@ -37,7 +37,6 @@ import java.security.GeneralSecurityException;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.RawData;
-import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
@@ -66,7 +65,6 @@ public class HelloExtensionNegotiationTest {
 	DtlsConnectorConfig clientConfig;
 	DTLSConnector client;
 	InetSocketAddress clientEndpoint;
-	LatchDecrementingRawDataChannel clientRawDataChannel;
 	InMemoryConnectionStore clientConnectionStore;
 
 	/**
@@ -77,9 +75,10 @@ public class HelloExtensionNegotiationTest {
 	 */
 	@BeforeClass
 	public static void startServer() throws IOException, GeneralSecurityException {
-
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+				.setSniEnabled(true);
 		serverHelper = new ConnectorHelper();
-		serverHelper.startServer();
+		serverHelper.startServer(builder);
 	}
 
 	/**
@@ -103,11 +102,6 @@ public class HelloExtensionNegotiationTest {
 
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
 		clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
-		clientConfig = ConnectorHelper.newStandardClientConfig(clientEndpoint);
-
-		client = new DTLSConnector(clientConfig, clientConnectionStore);
-
-		clientRawDataChannel = new ConnectorHelper.LatchDecrementingRawDataChannel(client);
 	}
 
 	/**
@@ -157,6 +151,7 @@ public class HelloExtensionNegotiationTest {
 
 		// given a client that indicates a virtual host to connect to using SNI
 		clientConfig = ConnectorHelper.newStandardClientConfigBuilder(clientEndpoint)
+				.setSniEnabled(true)
 				.build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 
