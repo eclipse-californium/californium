@@ -80,8 +80,10 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 		Block2BlockwiseStatus status = new Block2BlockwiseStatus(response.getPayloadSize(), response.getOptions().getContentFormat());
 		status.response = response;
 		status.exchange = exchange;
-		status.buf.put(response.getPayload());
-		((Buffer)status.buf).flip();
+		if (response.getPayload() != null) {
+			status.buf.put(response.getPayload());
+			((Buffer)status.buf).flip();
+		}
 		status.setCurrentSzx(determineResponseBlock2Szx(exchange, preferredBlockSize));
 		return status;
 	}

@@ -84,6 +84,7 @@ public abstract class BaseCoapStack implements CoapStack {
 		try {
 			top.sendRequest(exchange, request);
 		} catch (RuntimeException ex) {
+			LOGGER.warn("error send request {}", request, ex);
 			request.setSendError(ex);
 		}
 	}
@@ -91,8 +92,9 @@ public abstract class BaseCoapStack implements CoapStack {
 	@Override
 	public void sendResponse(final Exchange exchange, final Response response) {
 		// delegate to top
+		boolean retransmit = exchange.getRequest().getOptions().hasObserve();
 		try {
-			if (exchange.getRequest().getOptions().hasObserve()) {
+			if (retransmit) {
 				// observe- or cancel-observe-requests may have
 				// multiple responses.
 				// when observes are finished, the last response has
@@ -102,6 +104,10 @@ public abstract class BaseCoapStack implements CoapStack {
 			}
 			top.sendResponse(exchange, response);
 		} catch (RuntimeException ex) {
+			LOGGER.warn("error send response {}", response, ex);
+			if (!retransmit) {
+				exchange.sendReject();
+			}
 			response.setSendError(ex);
 		}
 	}
@@ -112,6 +118,7 @@ public abstract class BaseCoapStack implements CoapStack {
 		try {
 			top.sendEmptyMessage(exchange, message);
 		} catch (RuntimeException ex) {
+			LOGGER.warn("error send empty message {}", message, ex);
 			message.setSendError(ex);
 		}
 	}
