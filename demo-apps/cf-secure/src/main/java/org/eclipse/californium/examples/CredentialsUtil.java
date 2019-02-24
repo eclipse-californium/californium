@@ -86,6 +86,10 @@ public class CredentialsUtil {
 	public static final String PSK_IDENTITY = "password";
 	public static final byte[] PSK_SECRET = "sesame".getBytes();
 
+	// CID
+	public static final String OPT_CID = "CID:";
+	public static final int  DEFAULT_CID_LENGTH = 6;
+
 	// from demo-certs
 	public static final String SERVER_NAME = "server";
 	public static final String CLIENT_NAME = "client";
@@ -94,6 +98,57 @@ public class CredentialsUtil {
 	private static final char[] KEY_STORE_PASSWORD = "endPass".toCharArray();
 	private static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
 	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
+
+	private static final String[] OPT_CID_LIST = {OPT_CID};
+
+	/**
+	 * Get opt-cid for argument.
+	 * 
+	 * @param arg command line argument
+	 * @return opt-cid, of {@code null}, if argument is no opt-cid
+	 */
+	private static String getOptCid(String arg) {
+		for (String opt : OPT_CID_LIST) {
+			if (arg.startsWith(opt)) {
+				return opt;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Setup connection id configuration.
+	 * 
+	 * Supports "CID:length" for using CID after the handshake, "CID+:length" to sue
+	 * a CID even during the handshake.
+	 * 
+	 * @param args    command line arguments
+	 * @param builder dtls configuration builder.
+	 */
+	public static void setupCid(String[] args, DtlsConnectorConfig.Builder builder) {
+		for (String mode : args) {
+			String opt = getOptCid(mode);
+			if (opt != null) {
+				String value = mode.substring(opt.length());
+				int cidLength = DEFAULT_CID_LENGTH;
+				try {
+					cidLength = Integer.parseInt(value);
+					if (cidLength < 0) {
+						System.err.println("'" + value + "' is negative! Use cid-lenght default " + DEFAULT_CID_LENGTH);
+						cidLength = DEFAULT_CID_LENGTH;
+					}
+				} catch (NumberFormatException e) {
+					System.err.println("'" + value + "' is no number! Use cid-lenght default " + DEFAULT_CID_LENGTH);
+				}
+				builder.setConnectionIdLength(cidLength);
+				if (cidLength == 0) {
+					System.out.println("Enable cid support");
+				} else {
+					System.out.println("Use " + cidLength + " bytes cid");
+				}
+			}
+		}
+	}
 
 	/**
 	 * Parse arguments to modes.
@@ -110,13 +165,13 @@ public class CredentialsUtil {
 	public static List<Mode> parse(String[] args, List<Mode> defaults, List<Mode> supported) {
 		List<Mode> modes;
 		if (args.length == 0) {
-			modes = new ArrayList<>();
-			if (defaults != null) {
-				modes.addAll(defaults);
-			}
+			modes = new ArrayList<>(defaults.size());
 		} else {
 			modes = new ArrayList<>(args.length);
 			for (String mode : args) {
+				if (getOptCid(mode) != null) {
+					continue;
+				}
 				try {
 					modes.add(Mode.valueOf(mode));
 				} catch (IllegalArgumentException ex) {
@@ -204,15 +259,14 @@ public class CredentialsUtil {
 			config.setClientAuthenticationRequired(false);
 		}
 
-		if (x509 >= 0 || rpk >= 0 || x509Trust) {
-
+		if (x509 >= 0 || rpk >= 0) {
 			try {
 				// try to read certificates
 				SslContextUtil.Credentials serverCredentials = SslContextUtil.loadCredentials(
 						SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, certificateAlias, KEY_STORE_PASSWORD,
 						KEY_STORE_PASSWORD);
 				if (!noAuth) {
-					if (x509Trust || x509 >= 0) {
+					if (x509 >= 0) {
 						Certificate[] trustedCertificates = SslContextUtil.loadTrustedCertificates(
 								SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, TRUST_NAME,
 								TRUST_STORE_PASSWORD);
@@ -257,7 +311,12 @@ public class CredentialsUtil {
 				}
 			}
 		}
-		if (!noAuth && rpkTrust) {
+		if (x509Trust) {
+			// trust all
+			config.setTrustStore(new Certificate[0]);
+		}
+		if (rpkTrust) {
+			// trust all
 			config.setRpkTrustAll();
 		}
 		if (psk && config.getIncompleteConfig().getSupportedCipherSuites() == null) {
