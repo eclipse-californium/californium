@@ -96,7 +96,7 @@ public class Nat {
 					util.stop();
 					break;
 				}
-				util.reassignLocalAddresses();
+				util.reassignNewLocalAddresses();
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
