@@ -24,7 +24,9 @@ import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -42,7 +44,7 @@ import org.slf4j.LoggerFactory;
  * Provide function to change the address mapping.
  * 
  * @see #assignLocalAddress(InetSocketAddress)
- * @see #reassignLocalAddresses()
+ * @see #reassignNewLocalAddresses()
  */
 public class NatUtil implements Runnable {
 
@@ -101,6 +103,15 @@ public class NatUtil implements Runnable {
 	 * @see #dumpMessageDroppingStatistic()
 	 */
 	private AtomicLong messageDroppingLogTime = new AtomicLong();
+
+	/**
+	 * Counter for forwarded messages.
+	 */
+	private AtomicLong forwardCounter = new AtomicLong();
+	/**
+	 * Counter for backwarded messages.
+	 */
+	private AtomicLong backwardCounter = new AtomicLong();
 
 	/**
 	 * Message dropping configuration.
@@ -237,10 +248,10 @@ public class NatUtil implements Runnable {
 				}
 			} catch (SocketException e) {
 				if (running) {
-					e.printStackTrace();
+					LOGGER.error("NAT {} to {} socket error", proxyName, destinationName, e);
 				}
 			} catch (Exception e) {
-				e.printStackTrace();
+				LOGGER.error("NAT {} to {} error", proxyName, destinationName, e);
 			}
 		}
 	}
@@ -252,6 +263,7 @@ public class NatUtil implements Runnable {
 		running = false;
 		proxySocket.close();
 		stopAllNatEntries();
+		LOGGER.warn("NAT stopped. {} forwarded messages, {} backwarded", forwardCounter, backwardCounter);
 	}
 
 	/**
@@ -265,15 +277,15 @@ public class NatUtil implements Runnable {
 	}
 
 	/**
-	 * Reassign all local addresses of NAT entries.
+	 * Reassign new local addresses to all NAT entries.
 	 */
-	public void reassignLocalAddresses() {
+	public void reassignNewLocalAddresses() {
 		Set<InetSocketAddress> keys = new HashSet<InetSocketAddress>(nats.keySet());
 		for (InetSocketAddress incoming : keys) {
 			try {
 				assignLocalAddress(incoming);
 			} catch (SocketException e) {
-				e.printStackTrace();
+				LOGGER.error("Failed to reassing NAT entry for {}.", incoming, e);
 			}
 		}
 	}
@@ -298,9 +310,32 @@ public class NatUtil implements Runnable {
 	}
 
 	/**
-	 * Remove mapping for incoming inet address.
+	 * Mix all local addresses of NAT entries.
 	 * 
-	 * @param incoming inet address to remove mapping
+	 * Reuse the local addresses for different incoming addresses.
+	 * 
+	 * @throws SocketException 
+	 */
+	public void mixLocalAddresses() {
+		Random random = new Random();
+		List<NatEntry> destinations = new ArrayList<NatEntry>();
+		Set<InetSocketAddress> keys = new HashSet<InetSocketAddress>(nats.keySet());
+		for (InetSocketAddress incoming : keys) {
+			NatEntry entry = nats.remove(incoming);
+			destinations.add(entry);
+		}
+		for (InetSocketAddress incoming : keys) {
+			int index = random.nextInt(destinations.size());
+			NatEntry entry =  destinations.remove(index);
+			entry.setIncoming(incoming);
+			nats.put(incoming, entry);
+		}
+	}
+
+	/**
+	 * Remove mapping for incoming address.
+	 * 
+	 * @param incoming address to remove mapping
 	 * @return {@code true} , if mapping is removed, {@code false}, if no
 	 *         mapping was available.
 	 */
@@ -312,6 +347,22 @@ public class NatUtil implements Runnable {
 			LOGGER.warn("no mapping found for {}!", incoming);
 		}
 		return null != entry;
+	}
+
+	/**
+	 * Get (outgoing) local port for incoming address.
+	 * 
+	 * @param incoming address to get assigned local port
+	 * @return outgoing port. {@code -1}, if no mapping available.
+	 */
+	public int getLocalPortForAddress(InetSocketAddress incoming) {
+		NatEntry entry = nats.get(incoming);
+		if (null != entry) {
+			return entry.outgoingSocket.getLocalPort();
+		} else {
+			LOGGER.warn("no mapping found for {}!", incoming);
+			return -1;
+		}
 	}
 
 	/**
@@ -415,23 +466,29 @@ public class NatUtil implements Runnable {
 		/**
 		 * Mapped incoming inet address.
 		 */
-		private final InetSocketAddress incoming;
 		private final DatagramSocket outgoingSocket;
 		private final DatagramPacket packet;
-		private final String incomingName;
 		private final String natName;
+		private final Thread thread;
+		private String incomingName;
+		private InetSocketAddress incoming;
+		private boolean stopped = false;
 		private volatile boolean running = true;
-		private volatile boolean stop = false;
 		private final AtomicLong lastUsage = new AtomicLong(System.nanoTime());
 
 		public NatEntry(InetSocketAddress incoming) throws SocketException {
+			setIncoming(incoming);
+			this.outgoingSocket = new DatagramSocket(0);
+			this.outgoingSocket.setSoTimeout(SOCKET_TIMEOUT_MS);
+			this.packet = new DatagramPacket(new byte[DATAGRAM_SIZE], DATAGRAM_SIZE);
+			this.natName = Integer.toString(this.outgoingSocket.getLocalPort());
+			this.thread = new Thread(this);
+			this.thread.start();
+		}
+
+		public synchronized void setIncoming(InetSocketAddress incoming) {
 			this.incoming = incoming;
-			outgoingSocket = new DatagramSocket(0);
-			outgoingSocket.setSoTimeout(SOCKET_TIMEOUT_MS);
-			packet = new DatagramPacket(new byte[DATAGRAM_SIZE], DATAGRAM_SIZE);
-			incomingName = incoming.getHostString() + ":" + incoming.getPort();
-			natName = Integer.toString(outgoingSocket.getLocalPort());
-			new Thread(this).start();
+			this.incomingName = incoming.getHostString() + ":" + incoming.getPort();
 		}
 
 		@Override
@@ -443,6 +500,12 @@ public class NatUtil implements Runnable {
 						packet.setLength(DATAGRAM_SIZE);
 						outgoingSocket.receive(packet);
 						lastUsage.set(System.nanoTime());
+						InetSocketAddress incoming;
+						String incomingName;
+						synchronized (this) {
+							incoming = this.incoming;
+							incomingName = this.incomingName;
+						}
 						packet.setSocketAddress(incoming);
 						MessageDropping dropping = backward;
 						if (dropping != null && dropping.dropMessage()) {
@@ -452,36 +515,62 @@ public class NatUtil implements Runnable {
 							LOGGER.info("backward {} bytes from {} to {} via {}",
 									packet.getLength(), destinationName, incomingName, natName);
 							proxySocket.send(packet);
+							backwardCounter.incrementAndGet();
 						}
 					} catch (SocketTimeoutException e) {
 						if (running) {
+							String incomingName;
+							synchronized (this) {
+								incomingName = this.incomingName;
+							}
 							if (TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - lastUsage.get()) > NAT_TIMEOUT_MS) {
 								running = false;
-								LOGGER.info("expired listen on {} for incoming {}",
-										natName, incomingName);
+								LOGGER.info("expired listen on {} for incoming {}", natName, incomingName);
 							} else {
 								LOGGER.debug("listen on {} for incoming {}", natName, incomingName);
 							}
 						}
 					} catch (IOException e) {
 						if (running) {
-							e.printStackTrace();
+							String incomingName;
+							synchronized (this) {
+								incomingName = this.incomingName;
+							}
+							LOGGER.info("error occured on {} for incoming {}", natName, incomingName, e);
 						}
 					}
 				}
 			} finally {
+				InetSocketAddress incoming;
+				String incomingName;
+				synchronized (this) {
+					incoming = this.incoming;
+					incomingName = this.incomingName;
+				}
 				LOGGER.info("stop listen on {} for incoming {}", natName, incomingName);
 				outgoingSocket.close();
-				if (!stop) {
+				if (running) {
 					nats.remove(incoming, this);
+				}
+				synchronized (this) {
+					stopped = true;
+					notifyAll();
 				}
 			}
 		}
 
 		public void stop() {
-			stop = true;
 			running = false;
 			outgoingSocket.close();
+			thread.interrupt();
+			try {
+				synchronized (this) {
+					while (!stopped) {
+						wait();
+					}
+				}
+			} catch (InterruptedException e) {
+			}
 		}
 
 		public int getPort() {
@@ -489,6 +578,10 @@ public class NatUtil implements Runnable {
 		}
 
 		public void forward(DatagramPacket packet) throws IOException {
+			String incomingName;
+			synchronized (this) {
+				incomingName = this.incomingName;
+			}
 			MessageDropping dropping = forward;
 			if (dropping != null && dropping.dropMessage()) {
 				LOGGER.info("forward drops {} bytes from {} to {} via {}",
@@ -499,6 +592,7 @@ public class NatUtil implements Runnable {
 				packet.setSocketAddress(destination);
 				lastUsage.set(System.nanoTime());
 				outgoingSocket.send(packet);
+				forwardCounter.incrementAndGet();
 			}
 		}
 	}

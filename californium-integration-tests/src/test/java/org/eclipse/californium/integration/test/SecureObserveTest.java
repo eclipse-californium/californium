@@ -238,7 +238,7 @@ public class SecureObserveTest {
 
 		assertTrue("Missing notifies", handler.waitForLoadCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 
-		nat.reassignLocalAddresses();
+		nat.reassignNewLocalAddresses();
 		serverConnector.forceResumeAllSessions();
 
 		// trigger handshake
@@ -288,7 +288,7 @@ public class SecureObserveTest {
 
 		assertTrue("Missing notifies", handler.waitForLoadCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 
-		nat.reassignLocalAddresses();
+		nat.reassignNewLocalAddresses();
 		serverConnector.clearConnectionState();
 		resource.changed("client");
 
@@ -341,7 +341,7 @@ public class SecureObserveTest {
 
 		assertTrue("Missing notifies", handler.waitForLoadCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 
-		nat.reassignLocalAddresses();
+		nat.reassignNewLocalAddresses();
 		serverConnector.clearConnectionState();
 		resource.changed("client");
 
@@ -389,7 +389,7 @@ public class SecureObserveTest {
 
 		assertTrue("Missing notifies", handler.waitForLoadCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 
-		nat.reassignLocalAddresses();
+		nat.reassignNewLocalAddresses();
 		serverConnector.clearConnectionState();
 		// change principal
 		pskStore.set("stranger", "danger".getBytes());
