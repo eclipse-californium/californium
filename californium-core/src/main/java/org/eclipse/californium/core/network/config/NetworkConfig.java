@@ -243,6 +243,23 @@ public final class NetworkConfig {
 		 * without exchanged messages, the session is forced to resume.
 		 */
 		public static final String DTLS_AUTO_RESUME_TIMEOUT = "DTLS_AUTO_RESUME_TIMEOUT";
+		/**
+		 * DTLS connection id length.
+		 * 
+		 * <a https://tools.ietf.org/html/draft-ietf-tls-dtls-connection-id-02>
+		 * draft-ietf-tls-dtls-connection-id-02</a>
+		 * 
+		 * <ul>
+		 * <li>{@code ""} disabled support for connection id.</li>
+		 * <li>{@code 0} enable support for connection id, but don't use it for
+		 * incoming traffic to this peer.</li>
+		 * <li>{@code n} use connection id of n bytes. Note: chose n large
+		 * enough for the number of considered peers. Recommended to have 100
+		 * time more values than peers. E.g. 65000 peers, chose not 2 bytes,
+		 * chose at lease 3 bytes!</li>
+		 * </ul>
+		 */
+		public static final String DTLS_CONNECTION_ID_LENGTH = "DTLS_CONNECTION_ID_LENGTH";
 	}
 
 	/**
@@ -485,6 +502,42 @@ public final class NetworkConfig {
 	}
 
 	/**
+	 * Gets the Integer value for a key.
+	 *
+	 * @param key the key to look up.
+	 * @return the value for the key, or {@code null}, if this configuration
+	 *         does not contain a value for the given key or the value is not an
+	 *         integer (e.g. {@code ""}.
+	 */
+	public Integer getOptInteger(final String key) {
+		return getNumberValue(new PropertyParser<Integer>() {
+
+			@Override
+			public Integer parseValue(String value) {
+				return Integer.parseInt(value);
+			}
+		}, key, null);
+	}
+
+	/**
+	 * Gets the Long value for a key.
+	 *
+	 * @param key the key to look up.
+	 * @return the value for the key, or {@code null}, if this configuration
+	 *         does not contain a value for the given key or the value is not an
+	 *         long (e.g. {@code ""}.
+	 */
+	public Long getOptLong(final String key) {
+		return getNumberValue(new PropertyParser<Long>() {
+
+			@Override
+			public Long parseValue(String value) {
+				return Long.parseLong(value);
+			}
+		}, key, null);
+	}
+
+	/**
 	 * Gets the integer value for a key.
 	 *
 	 * @param key the key to look up.
@@ -609,15 +662,16 @@ public final class NetworkConfig {
 	private <T> T getNumberValue(final PropertyParser<T> parser, final String key, final T defaultValue) {
 		T result = defaultValue;
 		String value = properties.getProperty(key);
-		if (value != null) {
+		if (value != null && !value.isEmpty()) {
 			try {
 				result = parser.parseValue(value);
 			} catch (NumberFormatException e) {
-				LOGGER.warn("value for key [{}] is not a {0}, returning default value",
-						new Object[] { key, defaultValue.getClass() });
+				LOGGER.warn("value for key [{}] is not a {0}, returning default value", key, defaultValue.getClass());
 			}
-		} else {
+		} else if (value == null) {
 			LOGGER.warn("key [{}] is undefined, returning default value", key);
+		} else {
+			LOGGER.warn("key [{}] is empty, returning default value", key);
 		}
 		return result;
 	}

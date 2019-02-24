@@ -149,6 +149,7 @@ public class BenchmarkClient {
 			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
 			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
 			config.setInt(Keys.MAX_ACTIVE_PEERS, 10);
+			config.setInt(Keys.DTLS_CONNECTION_ID_LENGTH, 0); // support it, but don't use for incoming traffic
 			config.setInt(Keys.MAX_PEER_INACTIVITY_PERIOD, 60 * 60 * 24); // 24h
 			config.setInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT, 60 * 60 * 12); // 12h
 			config.setInt(Keys.TCP_CONNECT_TIMEOUT, 30 * 1000); // 20s

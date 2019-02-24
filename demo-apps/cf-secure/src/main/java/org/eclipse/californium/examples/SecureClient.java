@@ -79,6 +79,7 @@ public class SecureClient {
 		System.out.println("Default:            [PSK] [RPK] [X509]");
 
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+		CredentialsUtil.setupCid(args, builder);
 		builder.setClientOnly();
 		builder.setSniEnabled(false);
 		List<Mode> modes = CredentialsUtil.parse(args, CredentialsUtil.DEFAULT_CLIENT_MODES, SUPPORTED_MODES);

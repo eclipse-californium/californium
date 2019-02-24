@@ -77,6 +77,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
 			config.setInt(Keys.EXCHANGE_LIFETIME, 24700); // 24.7s instead of 247s
 			config.setInt(Keys.MAX_ACTIVE_PEERS, 20000);
+			config.setInt(Keys.DTLS_CONNECTION_ID_LENGTH, 6);
 			config.setInt(Keys.MAX_PEER_INACTIVITY_PERIOD, 60 * 60 * 24); // 24h
 			config.setInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT, 60 * 60 * 12); // 12h
 			config.setInt(Keys.TLS_HANDSHAKE_TIMEOUT, 60 * 1000); // 60s
