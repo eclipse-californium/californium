@@ -100,11 +100,12 @@ public class SecureTest {
 
 	private void createEndpoint() {
 		// setup DTLS Config
-		Builder builder = new DtlsConnectorConfig.Builder();
-		builder.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
-		builder.setPskStore(new TestUtilPskStore(PSK_IDENITITY, PSK_KEY.getBytes()));
-		builder.setMaxRetransmissions(NB_RETRANSMISSION);
-		builder.setRetransmissionTimeout(RETRANSMISSION_TIMEOUT);
+		Builder builder = new DtlsConnectorConfig.Builder()
+				.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
+				.setLoggingTag("server")
+				.setPskStore(new TestUtilPskStore(PSK_IDENITITY, PSK_KEY.getBytes()))
+				.setMaxRetransmissions(NB_RETRANSMISSION)
+				.setRetransmissionTimeout(RETRANSMISSION_TIMEOUT);
 		DtlsConnectorConfig dtlsConfig = builder.build();
 
 		// setup CoAP config
