@@ -80,20 +80,20 @@ import org.slf4j.LoggerFactory;
  * Storing and reading to/from the store is thread safe.
  * </p>
  */
-public final class InMemoryConnectionStore implements ResumptionSupportingConnectionStore {
+public class InMemoryConnectionStore implements ResumptionSupportingConnectionStore {
 
 	private static final Logger LOG = LoggerFactory.getLogger(InMemoryConnectionStore.class.getName());
 	private static final int DEFAULT_EXTRA_CID_LENGTH = 2; // extra cid bytes additionally to required bytes for the capacity.
 	private static final int DEFAULT_CACHE_SIZE = 150000;
 	private static final long DEFAULT_EXPIRATION_THRESHOLD = 36 * 60 * 60; // 36h
-	private final LeastRecentlyUsedCache<ConnectionId, Connection> connections;
-	private final ConcurrentMap<InetSocketAddress, Connection> connectionsByAddress;
-	private final ConcurrentMap<SessionId, Connection> connectionsByEstablishedSession;
 	private final SessionCache sessionCache;
 	private final Random random = new Random(System.currentTimeMillis());
 	private final int cidLength;
+	protected final LeastRecentlyUsedCache<ConnectionId, Connection> connections;
+	protected final ConcurrentMap<InetSocketAddress, Connection> connectionsByAddress;
+	protected final ConcurrentMap<SessionId, Connection> connectionsByEstablishedSession;
 
-	private String tag = "";
+	protected String tag = "";
 
 	/**
 	 * Creates a store with a capacity of 500000 connections and
@@ -300,9 +300,6 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 				return true;
 			} else {
 				LOG.info("{}connection store is full! {} max. entries.", tag, connections.getCapacity());
-				if (LOG.isDebugEnabled()) {
-					dump();
-				}
 				return false;
 			}
 		} else {
@@ -469,9 +466,6 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 				LOG.trace("{}connection: remove {} (size {})", tag, connection, connections.size(), new Throwable("connection removed!"));
 			} else {
 				LOG.debug("{}connection: remove {} (size {})", tag, connection, connections.size());
-				if (LOG.isDebugEnabled()) {
-					dump();
-				}
 			}
 			removeFromEstablishedSessions(connection);
 			removeFromAddressConnections(connection);
@@ -557,25 +551,6 @@ public final class InMemoryConnectionStore implements ResumptionSupportingConnec
 			SerialExecutor executor = connection.getExecutor();
 			if (executor != null) {
 				executor.shutdownNow(pending);
-			}
-		}
-	}
-
-	/**
-	 * Dump connections to logger. Intended to be used for unit tests.
-	 */
-	public synchronized void dump() {
-		if (connections.size() == 0) {
-			LOG.debug("  {}connections empty!", tag);
-		} else {
-			for (Connection connection : connections.values()) {
-				if (connection.hasEstablishedSession()) {
-					LOG.debug("  {}connection: {} - {} : {}", tag, connection.getConnectionId(),
-							connection.getPeerAddress(), connection.getSession().getSessionIdentifier());
-				} else {
-					LOG.debug("  {}connection: {} - {}", tag, connection.getConnectionId(),
-							connection.getPeerAddress());
-				}
 			}
 		}
 	}

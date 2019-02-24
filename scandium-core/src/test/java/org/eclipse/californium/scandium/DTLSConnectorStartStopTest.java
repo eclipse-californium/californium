@@ -40,8 +40,8 @@ import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
 import org.eclipse.californium.scandium.category.Large;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.DebugConnectionStore;
 import org.eclipse.californium.scandium.dtls.InMemoryClientSessionCache;
-import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -81,7 +81,7 @@ public class DTLSConnectorStartStopTest {
 
 	DTLSConnector client;
 	LatchDecrementingRawDataChannel clientChannel;
-	InMemoryConnectionStore clientConnectionStore;
+	DebugConnectionStore clientConnectionStore;
 
 	String testLogTag = "";
 
@@ -117,7 +117,7 @@ public class DTLSConnectorStartStopTest {
 	@Before
 	public void setUp() throws IOException, GeneralSecurityException {
 		testLogTag = testLogTagHead + testLogTagCounter++;
-		clientConnectionStore = new InMemoryConnectionStore(null, CLIENT_CONNECTION_STORE_CAPACITY, 60, clientSessionCache);
+		clientConnectionStore = new DebugConnectionStore(null, CLIENT_CONNECTION_STORE_CAPACITY, 60, clientSessionCache);
 		clientConnectionStore.setTag(testLogTag + "-client");
 		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		DtlsConnectorConfig.Builder builder = newStandardClientConfigBuilder(clientEndpoint)
