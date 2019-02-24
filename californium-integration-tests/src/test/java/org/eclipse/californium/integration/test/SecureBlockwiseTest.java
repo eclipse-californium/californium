@@ -85,6 +85,7 @@ public class SecureBlockwiseTest {
 	@After
 	public void shutdownServer() {
 		server.destroy();
+		EndpointManager.reset();
 		System.out.println("End " + getClass().getSimpleName());
 	}
 
@@ -125,6 +126,7 @@ public class SecureBlockwiseTest {
 		pskStore = new TestUtilPskStore(IDENITITY, KEY.getBytes());
 		DtlsConnectorConfig dtlsConfig = new DtlsConnectorConfig.Builder()
 				.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
+				.setLoggingTag("server")
 				.setReceiverThreadCount(2)
 				.setConnectionThreadCount(2)
 				.setPskStore(pskStore).build();
@@ -152,6 +154,7 @@ public class SecureBlockwiseTest {
 		// prepare secure client endpoint
 		DtlsConnectorConfig clientdtlsConfig = new DtlsConnectorConfig.Builder()
 				.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
+				.setLoggingTag("client")
 				.setReceiverThreadCount(2)
 				.setConnectionThreadCount(2)
 				.setPskStore(pskStore).build();
