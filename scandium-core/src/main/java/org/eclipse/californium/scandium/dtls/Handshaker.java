@@ -210,6 +210,7 @@ public abstract class Handshaker {
 
 	private boolean changeCipherSuiteMessageExpected = false;
 	private boolean sessionEstablished = false;
+	private boolean handshakeFailed = false;
 
 	// Constructor ////////////////////////////////////////////////////
 
@@ -966,23 +967,12 @@ public abstract class Handshaker {
 	 * flight will be cancelled also.
 	 * 
 	 * @param pendingFlight the flight
-	 * @see #cancelPendingFlight()
 	 */
 	public void setPendingFlight(DTLSFlight pendingFlight) {
 		DTLSFlight flight = this.pendingFlight.getAndSet(pendingFlight);
 		if (flight != null && flight != pendingFlight) {
 			flight.setResponseCompleted();
 		}
-	}
-
-	/**
-	 * Cancels any pending re-transmission of an outbound flight that has been registered
-	 * previously using the {@link #setPendingFlight(DTLSFlight)} method.
-	 * 
-	 * This method is usually invoked once an flight has been acknowledged by the peer. 
-	 */
-	public void cancelPendingFlight() {
-		setPendingFlight(null);
 	}
 
 	public void sendFlight(DTLSFlight flight) {
@@ -1026,14 +1016,16 @@ public abstract class Handshaker {
 	}
 
 	protected final void sessionEstablished() throws HandshakeException {
-		sessionEstablished = true;
-		for (SessionListener sessionListener : sessionListeners) {
-			sessionListener.sessionEstablished(this, this.getSession());
+		if (!sessionEstablished) {
+			sessionEstablished = true;
+			for (SessionListener sessionListener : sessionListeners) {
+				sessionListener.sessionEstablished(this, this.getSession());
+			}
 		}
 	}
 
 	public final void handshakeCompleted() {
-		cancelPendingFlight();
+		setPendingFlight(null);
 		for (SessionListener sessionListener : sessionListeners) {
 			sessionListener.handshakeCompleted(this);
 		}
@@ -1046,13 +1038,16 @@ public abstract class Handshaker {
 	 * @param cause The reason for the failure.
 	 */
 	public final void handshakeFailed(Throwable cause) {
-		cancelPendingFlight();
-		if (!sessionEstablished) {
-			for (SessionListener sessionListener : sessionListeners) {
-				sessionListener.handshakeFailed(this, cause);
-			}
-			for (RawData message : takeDeferredApplicationData()) {
-				message.onError(cause);
+		if (!handshakeFailed) {
+			handshakeFailed = true;
+			setPendingFlight(null);
+			if (!sessionEstablished) {
+				for (SessionListener sessionListener : sessionListeners) {
+					sessionListener.handshakeFailed(this, cause);
+				}
+				for (RawData message : takeDeferredApplicationData()) {
+					message.onError(cause);
+				}
 			}
 		}
 	}
