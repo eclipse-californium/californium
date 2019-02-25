@@ -106,9 +106,11 @@ public final class Connection {
 	 * 
 	 * @param sessionTicket The other connection's current state.
 	 * @param sessionId The other connection's session id.
+	 * @param peerAddress optional peer address for {@link ClientSessionCache}.
+	 *            May be {@code null}.
 	 * @throws NullPointerException if the session ticket or id is {@code null}
 	 */
-	public Connection(final SessionTicket sessionTicket, final SessionId sessionId) {
+	public Connection(SessionTicket sessionTicket, SessionId sessionId, InetSocketAddress peerAddress) {
 		if (sessionTicket == null) {
 			throw new NullPointerException("session ticket must not be null");
 		} else if (sessionId == null) {
@@ -117,7 +119,7 @@ public final class Connection {
 			this.ticket = sessionTicket;
 			this.sessionId =sessionId;
 			this.resumptionRequired = true;
-			this.peerAddress = null;
+			this.peerAddress = peerAddress;
 			this.cid = null;
 			this.serialExecutor = null;
 		}
@@ -228,10 +230,10 @@ public final class Connection {
 	}
 
 	/**
-	 * Sets the address of this connection's peer.
+	 * Update the address of this connection's peer.
 	 * 
-	 * If the new address is {@code null}, a pending flight is cancelled and an
-	 * ongoing handshake is failed.
+	 * If the new address is {@code null}, an ongoing handshake is failed. A
+	 * non-null address could only be applied, if the session is established.
 	 * 
 	 * Note: to keep track of the associated address in the connection store,
 	 * this method must not be called directly. It must be called by calling
@@ -240,17 +242,20 @@ public final class Connection {
 	 * {@link ResumptionSupportingConnectionStore#remove(Connection, boolean)}.
 	 * 
 	 * @param peerAddress the address of the peer
+	 * @throws IllegalArgumentException if the address should be updated with a
+	 *             non-null value without an established session.
 	 */
-	public void setPeerAddress(InetSocketAddress peerAddress) {
+	public void updatePeerAddress(InetSocketAddress peerAddress) {
 		this.peerAddress = peerAddress;
 		if (establishedSession != null) {
 			establishedSession.setPeer(peerAddress);
 		} else if (peerAddress == null) {
-			cancelPendingFlight();
 			final Handshaker pendingHandshaker = getOngoingHandshake();
 			if (pendingHandshaker != null) {
 				pendingHandshaker.handshakeFailed(new IOException("address changed!"));
 			}
+		} else {
+			throw new IllegalArgumentException("Address change without established sesson is not supported!");
 		}
 	}
 
@@ -317,16 +322,6 @@ public final class Connection {
 	public boolean hasOngoingHandshakeStartedByClientHello(ClientHello clientHello) {
 		Handshaker handshaker = ongoingHandshake.get();
 		return handshaker != null && handshaker.hasBeenStartedByClientHello(clientHello);
-	}
-
-	/**
-	 * Cancels any pending re-transmission of an outbound flight.
-	 */
-	public void cancelPendingFlight() {
-		Handshaker handshaker = ongoingHandshake.get();
-		if (handshaker != null) {
-			handshaker.cancelPendingFlight();
-		}
 	}
 
 	/**

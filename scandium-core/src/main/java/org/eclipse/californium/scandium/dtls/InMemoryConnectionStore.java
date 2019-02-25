@@ -197,11 +197,10 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 					SessionId id = clientCache.getSessionIdentity(peer);
 					if (ticket != null && id != null) {
 						// restore connection from session ticket
-						Connection connection = new Connection(ticket, id);
+						Connection connection = new Connection(ticket, id, peer);
 						ConnectionId connectionId = newConnectionId();
 						if (connectionId != null) {
 							connection.setConnectionId(connectionId);
-							connection.setPeerAddress(peer);
 							connections.put(connectionId, connection);
 							connectionsByAddress.put(peer, connection);
 							LOG.debug("resume {} {}", peer, id);
@@ -320,9 +319,9 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 				if (oldPeerAddress != null) {
 					connectionsByAddress.remove(oldPeerAddress, connection);
 				}
-				connection.setPeerAddress(null);
+				connection.updatePeerAddress(null);
 				if (newPeerAddress != null) {
-					connection.setPeerAddress(newPeerAddress);
+					connection.updatePeerAddress(newPeerAddress);
 					addToAddressConnections(connection);
 				}
 			} else {
@@ -399,7 +398,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 
 				} else if (conFromLocalCache == null) {
 					// this probably means that we are taking over the session from a failed node
-					return new Connection(ticket, id);
+					return new Connection(ticket, id, null);
 					// connection will be put to first level cache as part of
 					// the abbreviated handshake
 				} else {
@@ -487,7 +486,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	private void removeFromAddressConnections(Connection connection) {
 		InetSocketAddress peerAddress = connection.getPeerAddress();
 		if (peerAddress != null) {
-			connection.setPeerAddress(null);
+			connection.updatePeerAddress(null);
 			connectionsByAddress.remove(peerAddress, connection);
 		}
 	}
@@ -512,7 +511,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 					@Override
 					public void run() {
 						if (previous.equalsPeerAddress(peerAddress)) {
-							previous.setPeerAddress(null);
+							previous.updatePeerAddress(null);
 						}
 					}
 				};

@@ -1021,8 +1021,6 @@ public class DTLSConnector implements Connector, RecordLayer {
 			throw new IllegalArgumentException("Session must not be NULL if alert message is to be sent");
 		}
 
-		connection.cancelPendingFlight();
-
 		if (alert == null) {
 			LOGGER.debug("Terminating connection with peer [{}]", connection.getPeerAddress());
 		} else {
