@@ -40,6 +40,7 @@ import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
@@ -68,6 +69,7 @@ public class BlockwiseTransferTest {
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
 	private static final String PARAM_SHORT_RESP = "srr";
+	private static final String PARAM_EMPTY_RESP = "empty";
 	private static final String PARAM_SHORT_REQ = "sr";
 	private static final String RESOURCE_TEST = "test";
 	private static final String RESOURCE_BIG = "big";
@@ -226,7 +228,7 @@ public class BlockwiseTransferTest {
 	@Test
 	public void testEarlyNegociationWithStrictBlock2() throws InterruptedException {
 		
-		testGetRequestWithEarlyNegocition(true);
+		testGetRequestWithEarlyNegocition(true, PARAM_SHORT_RESP);
 	}
 	
 	/**
@@ -238,16 +240,28 @@ public class BlockwiseTransferTest {
 	@Test
 	public void testEarlyNegociationWithoutStrictBlock2() throws InterruptedException {
 	
-		testGetRequestWithEarlyNegocition(false);
+		testGetRequestWithEarlyNegocition(false, PARAM_SHORT_RESP);
 	}
 	
-	private void testGetRequestWithEarlyNegocition(final boolean strictBlock2) throws InterruptedException {
+	/**
+	 * Send request to the server with early blockwise negociation through block2 option. The response content should be empty and contains the block2 option.
+	 * <p>The targeted endpoint has the {@link NetworkConfig.Keys#BLOCKWISE_STRICT_BLOCK2_OPTION} set to true and should respond with a block2 option. </p>
+	 * 
+	 * @throws InterruptedException
+	 */
+	@Test
+	public void testEarlyNegociationWithStrictBlock2NoResponsePayload() throws InterruptedException {
+	
+		testGetRequestWithEarlyNegocition(true, PARAM_EMPTY_RESP);
+	}
+	
+	private void testGetRequestWithEarlyNegocition(final boolean strictBlock2, String uriQueryResponseType) throws InterruptedException {
 
 		final AtomicInteger counter = new AtomicInteger(0);
 
 		final Endpoint targetEndpoint = strictBlock2 ? serverEndpointStrictBlock2Option : serverEndpoint;
 		Request req = Request.newGet().setURI(getUri(targetEndpoint, RESOURCE_TEST));
-		req.getOptions().addUriQuery(PARAM_SHORT_RESP);
+		req.getOptions().addUriQuery(uriQueryResponseType);
 		req.getOptions().setBlock2(BlockOption.size2Szx(256), false, 0);
 
 		req.addMessageObserver(new MessageObserverAdapter() {
@@ -261,6 +275,10 @@ public class BlockwiseTransferTest {
 
 		// receive response and check
 		Response response = req.waitForResponse(1000);
+		
+		//ensure there is a response from the server
+		assertNotNull("No response received", response);
+		
 		BlockOption block2 = response.getOptions().getBlock2();
 
 		if (strictBlock2) {
@@ -393,13 +411,22 @@ public class BlockwiseTransferTest {
 			private boolean isShortResponseRequested(final CoapExchange exchange) {
 				return exchange.getQueryParameter(PARAM_SHORT_RESP) != null;
 			}
+			
+			private boolean isEmptyResponseRequested(final CoapExchange exchange) {
+				return exchange.getQueryParameter(PARAM_EMPTY_RESP) != null;
+			}
 
 			@Override
 			public void handleGET(final CoapExchange exchange) {
 				System.out.println("Server received GET request");
 				if (isShortResponseRequested(exchange)) {
+					
 					exchange.respond(SHORT_GET_RESPONSE);
-				} else {
+				} else if (isEmptyResponseRequested(exchange)){
+					
+					exchange.respond(ResponseCode._UNKNOWN_SUCCESS_CODE);
+				}else {
+					
 					exchange.respond(LONG_GET_RESPONSE);
 				}
 			}
