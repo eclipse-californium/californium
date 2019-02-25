@@ -306,7 +306,7 @@ public class DTLSFlight {
 			for (Record record : messages) {
 				// adjust the record sequence number
 				int epoch = record.getEpoch();
-				record.setSequenceNumber(session.getSequenceNumber(epoch));
+				record.updateSequenceNumber(session.getSequenceNumber(epoch));
 			}
 		} else {
 			throw new IllegalStateException("Can only set new sequence numbers for retransmitted flight with session");
