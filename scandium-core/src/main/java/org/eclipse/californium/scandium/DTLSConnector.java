@@ -165,6 +165,7 @@ import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.ApplicationMessage;
+import org.eclipse.californium.scandium.dtls.AvailableConnections;
 import org.eclipse.californium.scandium.dtls.ClientHandshaker;
 import org.eclipse.californium.scandium.dtls.ClientHello;
 import org.eclipse.californium.scandium.dtls.Connection;
@@ -1313,24 +1314,22 @@ public class DTLSConnector implements Connector, RecordLayer {
 			// before starting a new handshake or resuming an established
 			// session we need to make sure that the peer is in possession of
 			// the IP address indicated in the client hello message
-			if (isClientInControlOfSourceIpAddress(clientHello, record, null)) {
-				final Connection handshakeConnection;
-				if (connection != null && connection.hasOngoingHandshakeStartedByClientHello(clientHello)) {
-					handshakeConnection = connection;
-				} else {
-					handshakeConnection = new Connection(peerAddress, new SerialExecutor(getExecutorService()));
-					if (!connectionStore.put(handshakeConnection)) {
+			final AvailableConnections connections = new AvailableConnections(connection);
+			if (isClientInControlOfSourceIpAddress(clientHello, record, connections)) {
+				if (connection == null || !connection.hasOngoingHandshakeStartedByClientHello(clientHello)) {
+					connections.setConnectionByAddress(new Connection(peerAddress, new SerialExecutor(getExecutorService())));
+					if (!connectionStore.put(connections.getConnectionByAddress())) {
 						return;
 					}
 				}
 				try {
 
-					handshakeConnection.getExecutor().execute(new Runnable() {
+					connections.getConnectionByAddress().getExecutor().execute(new Runnable() {
 
 						@Override
 						public void run() {
 							if (running.get()) {
-								processClientHello(clientHello, record, handshakeConnection);
+								processClientHello(clientHello, record, connections);
 							}
 						}
 					});
@@ -1341,7 +1340,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 				} catch (RuntimeException e) {
 					LOGGER.info("Unexpected error occurred while processing record [type: {}, peer: {}]",
 							record.getType(), peerAddress, e);
-					terminateConnection(handshakeConnection, e, AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
+					terminateConnection(connections.getConnectionByAddress(), e, AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
 				}
 			}
 		} catch (HandshakeException e) {
@@ -1361,7 +1360,14 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 *             message cannot be used to start a new handshake or resume an
 	 *             existing session
 	 */
-	private void processClientHello(final ClientHello clientHello, final Record record, final Connection connection) {
+	private void processClientHello(ClientHello clientHello, Record record, AvailableConnections connections) {
+		if (connections == null) {
+			throw new NullPointerException("available connections must not be null!");
+		}
+		Connection connection = connections.getConnectionByAddress();
+		if (connection == null) {
+			throw new NullPointerException("connection by address must not be null!");
+		}
 		if (!connection.equalsPeerAddress(record.getPeerAddress())) {
 			LOGGER.warn("Drop CLIENT_HELLO, changed address {} => {}!",
 					record.getPeerAddress(), connection.getPeerAddress());
@@ -1383,7 +1389,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 				processOngoingHandshakeMessage(clientHello, record, connection);
 			} else if (clientHello.hasSessionId()) {
 				// client wants to resume a cached session
-				resumeExistingSession(clientHello, record, connection);
+				resumeExistingSession(clientHello, record, connections);
 			} else {
 				// At this point the client has demonstrated reachability by completing a cookie exchange
 				// so we terminate the previous connection and start a new handshake
@@ -1417,13 +1423,18 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * @param clientHello the peer's client hello method including the cookie to
 	 *            verify
 	 * @param record the received record
-	 * @param connection the connection, or {@code null}, if the connection is
-	 *            not in connection store.
+	 * @param connections expect the {@link AvailableConnections#byAddress} to
+	 *            be provided and set the
+	 *            {@link AvailableConnections#bySessionId} with the result of
+	 *            {@link ResumptionSupportingConnectionStore#find(SessionId)}.
 	 * @return <code>true</code> if the client hello message contains a cookie
 	 *         and the cookie is identical to the cookie expected from the peer
 	 *         address, or it contains a matching session id.
 	 */
-	private boolean isClientInControlOfSourceIpAddress(ClientHello clientHello, Record record, Connection connection) {
+	private boolean isClientInControlOfSourceIpAddress(ClientHello clientHello, Record record, AvailableConnections connections) {
+		if (connections == null) {
+			throw new NullPointerException("available connections must not be null!");
+		}
 		// verify client's ability to respond on given IP address
 		// by exchanging a cookie as described in section 4.2.1 of the DTLS 1.2 spec
 		// see http://tools.ietf.org/html/rfc6347#section-4.2.1
@@ -1446,28 +1457,33 @@ public class DTLSConnector implements Connector, RecordLayer {
 			} else  {
 				// threshold 0 always use a verify request
 				if (0 < thresholdHandshakesWithoutVerifiedPeer) {
-					Connection sessionConnection = connectionStore.find(clientHello.getSessionId());
-					if (sessionConnection != null) {
-						// found provided session.
-						if (sessionConnection.equalsPeerAddress(record.getPeerAddress())) {
-							// same peer wants to resume his session, no verify request
-							LOGGER.trace("resuming peer's [{}] session", record.getPeerAddress());
-							return true;
-						}
-						if (connection == null || !connection.hasEstablishedSession()) {
-							int pending = pendingHandshakesWithoutVerifiedPeer.get();
-							LOGGER.trace("pending fast resumptions [{}], threshold [{}]", pending, thresholdHandshakesWithoutVerifiedPeer);
-							if (pending < thresholdHandshakesWithoutVerifiedPeer) {
+					int pending = pendingHandshakesWithoutVerifiedPeer.get();
+					LOGGER.trace("pending fast resumptions [{}], threshold [{}]", pending,
+							thresholdHandshakesWithoutVerifiedPeer);
+					if (pending < thresholdHandshakesWithoutVerifiedPeer) {
+						// use short resumption (without verify request)
+						// only, if the number of the pending short
+						// resumption handshakes is below the threshold
+						Connection sessionConnection = connectionStore.find(clientHello.getSessionId());
+						connections.setConnectionBySessionId(sessionConnection);
+						if (sessionConnection != null) {
+							// found provided session.
+							if (sessionConnection.equalsPeerAddress(record.getPeerAddress())) {
+								// same peer wants to resume his session,
+								// no verify request required
+								LOGGER.trace("resuming peer's [{}] session", record.getPeerAddress());
+								return true;
+							} else if (connections.getConnectionByAddress() == null || !connections.getConnectionByAddress().hasEstablishedSession()) {
 								// use short resumption (without verify request)
 								// only, if the number of the pending short
 								// resumption handshakes is below the threshold
 								LOGGER.trace("fast resume for peer [{}] [{}]", record.getPeerAddress(), pending);
 								return true;
 							}
+							// for connection with other established session,
+							// use the verify request
 						}
 					}
-					// for connection with other established session,
-					// use the verify request
 				}
 			}
 			if (expectedCookie == null) {
@@ -1509,12 +1525,26 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * @throws HandshakeException if the session cannot be resumed based on the parameters
 	 *             provided in the client hello message
 	 */
-	private void resumeExistingSession(final ClientHello clientHello, final Record record, final Connection connection) throws HandshakeException {
-		InetSocketAddress peerAddress = connection.getPeerAddress();
+	private void resumeExistingSession(ClientHello clientHello, Record record, final AvailableConnections connections)
+			throws HandshakeException {
+		InetSocketAddress peerAddress = record.getPeerAddress();
 		LOGGER.debug("Client [{}] wants to resume session with ID [{}]", peerAddress, clientHello.getSessionId());
 
+		if (connections == null) {
+			throw new NullPointerException("available connections must not be null!");
+		}
+		Connection connection = connections.getConnectionByAddress();
+		if (connection == null) {
+			throw new NullPointerException("connection by address must not be null!");
+		} else if (!connection.equalsPeerAddress(peerAddress)) {
+			throw new IllegalArgumentException("connection must have records address!");
+		}
+
 		SessionTicket ticket = null;
-		final Connection previousConnection = connectionStore.find(clientHello.getSessionId());
+		if (!connections.isConnectionBySessionIdKnown()) {
+			connections.setConnectionBySessionId(connectionStore.find(clientHello.getSessionId()));
+		}
+		Connection previousConnection = connections.getConnectionBySessionId();
 		if (previousConnection != null && previousConnection.isActive()) {
 			if (previousConnection.hasEstablishedSession()) {
 				ticket = previousConnection.getEstablishedSession().getSessionTicket();
@@ -1541,8 +1571,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 		}
 		if (ticket != null) {
 			// session has been found in cache, resume it
-			final DTLSSession sessionToResume = new DTLSSession(clientHello.getSessionId(), peerAddress,
-					ticket, record.getSequenceNumber());
+			final DTLSSession sessionToResume = new DTLSSession(clientHello.getSessionId(), peerAddress, ticket,
+					record.getSequenceNumber());
 			final Handshaker handshaker = new ResumingServerHandshaker(clientHello.getMessageSeq(), sessionToResume,
 					this, connection, config, maximumTransmissionUnit);
 			initializeHandshaker(handshaker);
@@ -1550,27 +1580,25 @@ public class DTLSConnector implements Connector, RecordLayer {
 			if (previousConnection.hasEstablishedSession()) {
 				// client wants to resume a session that has been negotiated by this node
 				// make sure that the same client only has a single active connection to this server
-				final InetSocketAddress previousAddress = previousConnection.getPeerAddress();
-				if (previousAddress != null && !previousAddress.equals(peerAddress)) {
-					if (clientHello.getCookie().length == 0) {
-						// short resumption without verify request
-						pendingHandshakesWithoutVerifiedPeer.incrementAndGet();
-						handshaker.addSessionListener(new SessionAdapter() {
-							@Override
-							public void sessionEstablished(final Handshaker currentHandshaker, final DTLSSession establishedSession)
-									throws HandshakeException {
-								pendingHandshakesWithoutVerifiedPeer.decrementAndGet();
-							}
-
-							@Override
-							public void handshakeFailed(Handshaker handshaker, Throwable error) {
-								pendingHandshakesWithoutVerifiedPeer.decrementAndGet();
-							}
-						});
-					}
-				} else {
+				if (previousConnection.getPeerAddress() == null || previousConnection.equalsPeerAddress(peerAddress)) {
 					// immediately remove previous connection
 					connectionStore.remove(previousConnection, false);
+				} else if (clientHello.getCookie().length == 0) {
+					// short resumption without verify request
+					pendingHandshakesWithoutVerifiedPeer.incrementAndGet();
+					handshaker.addSessionListener(new SessionAdapter() {
+
+						@Override
+						public void sessionEstablished(final Handshaker currentHandshaker,
+								final DTLSSession establishedSession) throws HandshakeException {
+							pendingHandshakesWithoutVerifiedPeer.decrementAndGet();
+						}
+
+						@Override
+						public void handshakeFailed(Handshaker handshaker, Throwable error) {
+							pendingHandshakesWithoutVerifiedPeer.decrementAndGet();
+						}
+					});
 				}
 			}
 
@@ -1579,7 +1607,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		} else {
 			LOGGER.debug(
 					"Client [{}] tries to resume non-existing session [ID={}], performing full handshake instead ...",
-					clientHello.getPeer(), clientHello.getSessionId());
+					peerAddress, clientHello.getSessionId());
 			startNewHandshake(clientHello, record, connection);
 		}
 	}
