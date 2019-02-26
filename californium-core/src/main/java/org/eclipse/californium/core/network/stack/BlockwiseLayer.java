@@ -368,7 +368,7 @@ public class BlockwiseLayer extends AbstractLayer {
 				// This is a large POST or PUT request
 				handleInboundBlockwiseUpload(exchange, request);
 
-			} else if (block2 != null) {
+			} else if (block2 != null && block2.getNum() > 0) {
 
 				KeyUri key = getKey(exchange, request);
 				Block2BlockwiseStatus status = getBlock2Status(key);
