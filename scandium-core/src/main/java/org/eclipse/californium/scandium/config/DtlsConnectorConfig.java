@@ -47,6 +47,7 @@ import java.util.List;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.dtls.CertificateType;
+import org.eclipse.californium.scandium.dtls.SessionCache;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustAllRpks;
@@ -383,6 +384,12 @@ public final class DtlsConnectorConfig {
 	 * controls, if a verify request is sued or not. If more resumption
 	 * handshakes without verified peers are pending than this threshold, then a
 	 * verify request is used.
+	 * 
+	 * Note: a value larger than 0 will call
+	 * {@link SessionCache#get(org.eclipse.californium.scandium.dtls.SessionId)}.
+	 * If that implementation is expensive, please ensure, that this value is
+	 * configured with {@code 0}. Otherwise, CLIENT_HELLOs with invalid session
+	 * ids may be spoofed and gets too expensive.
 	 * 
 	 * @return threshold handshakes without verified peer in percent of
 	 *         {@link #getMaxConnections()}.
@@ -1538,6 +1545,12 @@ public final class DtlsConnectorConfig {
 		/**
 		 * Sets threshold in percent of {@link #setMaxConnections(int)}, whether
 		 * a HELLO_VERIFY_REQUEST should be used also for session resumption.
+		 * 
+		 * Note: a value larger than 0 will call
+		 * {@link SessionCache#get(org.eclipse.californium.scandium.dtls.SessionId)}.
+		 * If that implementation is expensive, please ensure, that this value
+		 * is configured with {@code 0}. Otherwise, CLIENT_HELLOs with invalid
+		 * session ids may be spoofed and gets too expensive.
 		 * 
 		 * @param threshold 0 := always use HELLO_VERIFY_REQUEST, 1 ... 100 :=
 		 *            dynamically determine to use HELLO_VERIFY_REQUEST. Default

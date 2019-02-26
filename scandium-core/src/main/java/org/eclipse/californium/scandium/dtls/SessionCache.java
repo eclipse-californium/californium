@@ -17,6 +17,8 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+
 /**
  * A second level cache for current connection state of DTLS sessions.
  * <p>
@@ -24,6 +26,11 @@ package org.eclipse.californium.scandium.dtls;
  * session's ID. The provided cache is required to be thread-safe because it
  * will be accessed concurrently.
  * </p>
+ * Note: {@link #get(SessionId)} is called to validate session ids, if
+ * {@link DtlsConnectorConfig#getVerifyPeersOnResumptionThreshold()} is larger
+ * than {@code 0}. If the implementation is expensive, please ensure, that the
+ * value is configured with {@code 0}. Otherwise, CLIENT_HELLOs with invalid
+ * session ids may be spoofed and gets too expensive.
  */
 public interface SessionCache {
 
@@ -37,9 +44,16 @@ public interface SessionCache {
 	/**
 	 * Gets a session from the cache.
 	 * 
+	 * Note: This method is called to validate session ids, if
+	 * {@link DtlsConnectorConfig#getVerifyPeersOnResumptionThreshold()} is
+	 * larger than {@code 0}. If this implementation is expensive, please
+	 * ensure, that the value is configured with {@code 0}. Otherwise,
+	 * CLIENT_HELLOs with invalid session ids may be spoofed and gets too
+	 * expensive.
+	 * 
 	 * @param id The session identifier to look up.
-	 * @return The session with the given ID or {@code null} if the cache does not contain
-	 *         a session with the given ID.
+	 * @return The session with the given ID or {@code null} if the cache does
+	 *         not contain a session with the given ID.
 	 */
 	SessionTicket get(SessionId id);
 
