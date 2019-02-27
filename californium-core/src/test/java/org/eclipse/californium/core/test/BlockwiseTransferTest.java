@@ -97,6 +97,8 @@ public class BlockwiseTransferTest {
 	private Endpoint clientEndpoint;
 	
 	private Endpoint clientEndpointWithoutTransparentBlockwise;
+	
+	private static AtomicInteger applicationLayerGetRequestCount = new AtomicInteger(0);
 
 	@BeforeClass
 	public static void prepare() {
@@ -142,6 +144,8 @@ public class BlockwiseTransferTest {
 	@After
 	public void destroyClient() throws Exception {
 		clientEndpoint.destroy();
+		clientEndpointWithoutTransparentBlockwise.destroy();
+		applicationLayerGetRequestCount.set(0);
 	}
 
 	@AfterClass
@@ -220,42 +224,55 @@ public class BlockwiseTransferTest {
 	}
 	
 	/**
-	 * Send request to the server with early blockwise negociation through block2 option. The response content should fits into a single response.
+	 * Send request to the server with early blockwise negotiation through block2 option. The response content should fits into a single response.
 	 * <p>The targeted endpoint has the {@link NetworkConfig.Keys#BLOCKWISE_STRICT_BLOCK2_OPTION} set to true and should respond with a block2 option indicating that no more blocks are available. </p>
 	 * 
 	 * @throws InterruptedException
 	 */
 	@Test
-	public void testEarlyNegociationWithStrictBlock2() throws InterruptedException {
+	public void testEarlyNegotiationWithStrictBlock2() throws InterruptedException {
 		
-		testGetRequestWithEarlyNegocition(true, PARAM_SHORT_RESP);
+		testGetRequestWithEarlyNegotiation(true, PARAM_SHORT_RESP);
 	}
 	
 	/**
-	 * Send request to the server with early blockwise negociation through block2 option. The response content should fits into a single response.
+	 * Send request to the server with early blockwise negotiation through block2 option. The response content should fits into a single response.
 	 * <p>The targeted endpoint has the {@link NetworkConfig.Keys#BLOCKWISE_STRICT_BLOCK2_OPTION} set to false and should respond without a block2 option. </p>
 	 * 
 	 * @throws InterruptedException
 	 */
 	@Test
-	public void testEarlyNegociationWithoutStrictBlock2() throws InterruptedException {
+	public void testEarlyNegotiationWithoutStrictBlock2() throws InterruptedException {
 	
-		testGetRequestWithEarlyNegocition(false, PARAM_SHORT_RESP);
+		testGetRequestWithEarlyNegotiation(false, PARAM_SHORT_RESP);
 	}
 	
 	/**
-	 * Send request to the server with early blockwise negociation through block2 option. The response content should be empty and contains the block2 option.
+	 * Send request to the server with early blockwise negotiation through block2 option. The response content should be empty and contains the block2 option.
 	 * <p>The targeted endpoint has the {@link NetworkConfig.Keys#BLOCKWISE_STRICT_BLOCK2_OPTION} set to true and should respond with a block2 option. </p>
 	 * 
 	 * @throws InterruptedException
 	 */
 	@Test
-	public void testEarlyNegociationWithStrictBlock2NoResponsePayload() throws InterruptedException {
+	public void testEarlyNegotiationWithStrictBlock2NoResponsePayload() throws InterruptedException {
 	
-		testGetRequestWithEarlyNegocition(true, PARAM_EMPTY_RESP);
+		testGetRequestWithEarlyNegotiation(true, PARAM_EMPTY_RESP);
 	}
 	
-	private void testGetRequestWithEarlyNegocition(final boolean strictBlock2, String uriQueryResponseType) throws InterruptedException {
+	
+	/**
+	 * Test that consecutive requests to a same resource with early blockwise negotiation are both going through the application layer
+	 * @throws InterruptedException
+	 */
+	@Test
+	public void testMultipleEarlyNegotiationWithShortInterval() throws InterruptedException {
+		testGetRequestWithEarlyNegotiation(false, PARAM_SHORT_RESP);
+		testGetRequestWithEarlyNegotiation(false, PARAM_SHORT_RESP);
+		
+		assertEquals("Application layer did not receive two requests", 2, applicationLayerGetRequestCount.get());
+	}
+	
+	private void testGetRequestWithEarlyNegotiation(final boolean strictBlock2, String uriQueryResponseType) throws InterruptedException {
 
 		final AtomicInteger counter = new AtomicInteger(0);
 
@@ -419,6 +436,7 @@ public class BlockwiseTransferTest {
 			@Override
 			public void handleGET(final CoapExchange exchange) {
 				System.out.println("Server received GET request");
+				applicationLayerGetRequestCount.incrementAndGet();
 				if (isShortResponseRequested(exchange)) {
 					
 					exchange.respond(SHORT_GET_RESPONSE);
