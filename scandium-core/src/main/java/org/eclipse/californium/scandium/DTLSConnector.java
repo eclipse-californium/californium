@@ -257,7 +257,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	private final AtomicInteger pendingOutboundMessagesCountdown = new AtomicInteger();
 
 	private final List<Thread> receiverThreads = new LinkedList<Thread>();
-	
+
 	private InetSocketAddress lastBindAddress;
 	private int maximumTransmissionUnit = DEFAULT_IPV4_MTU;
 	private int inboundDatagramBufferSize = MAX_DATAGRAM_BUFFER_SIZE;
