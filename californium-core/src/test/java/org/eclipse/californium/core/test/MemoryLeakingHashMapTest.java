@@ -67,6 +67,7 @@ import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.core.test.lockstep.ClientBlockwiseInterceptor;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -115,6 +116,7 @@ public class MemoryLeakingHashMapTest {
 	private static CoapEndpoint clientEndpoint;
 	private static InMemoryMessageExchangeStore clientExchangeStore;
 	private static InMemoryMessageExchangeStore serverExchangeStore;
+	private static ClientBlockwiseInterceptor clientInterceptor = new ClientBlockwiseInterceptor();
 
 	private static volatile String currentRequestText;
 	private static TestResource resource;
@@ -145,6 +147,8 @@ public class MemoryLeakingHashMapTest {
 		try {
 			assertAllExchangesAreCompleted(network.getStandardTestConfig(), clientExchangeStore, serverExchangeStore);
 		} finally {
+			System.out.println(clientInterceptor.toString());
+			clientInterceptor.clear();
 			clientExchangeStore.stop();
 			serverExchangeStore.stop();
 		}
@@ -388,6 +392,7 @@ public class MemoryLeakingHashMapTest {
 		builder.setNetworkConfig(config);
 		builder.setMessageExchangeStore(clientExchangeStore);
 		clientEndpoint = builder.build();
+		clientEndpoint.addInterceptor(clientInterceptor);
 		clientEndpoint.start();
 
 		// Create a server with two resources: one that sends piggy-backed
