@@ -7,7 +7,11 @@
 		<version>2.0.0-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>oscore-cf</artifactId>
+	<artifactId>cf-oscore</artifactId>
+	<packaging>jar</packaging>
+
+	<name>Cf-OSCORE</name>
+	<description>Californium (Cf) OSCORE, Object Security for Constrained RESTful Environments</description>
 
 	<properties>
 		<cbor.version>3.0.3</cbor.version>
