@@ -29,6 +29,8 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.util.Arrays;
 
+import org.eclipse.californium.core.test.lockstep.ClientBlockwiseInterceptor;
+
 /**
  * The man in the middle is between the server and client and monitors the
  * communication. It can drop a packet to simulate packet loss.
@@ -40,7 +42,7 @@ public class ManInTheMiddle implements Runnable {
 
 	private final DatagramSocket socket;
 	private final DatagramPacket packet;
-	
+	private final ClientBlockwiseInterceptor interceptor;
 	private volatile boolean running = true;
 
 	private int[] drops = new int[0];
@@ -48,12 +50,12 @@ public class ManInTheMiddle implements Runnable {
 	// drop bursts longer than MAX_RETRANSMIT must be avoided
 	private final int max;
 
-	public ManInTheMiddle(final InetAddress bindAddress, final int clientPort, final int serverPort, final int maxRetransmissions) throws Exception {
+	public ManInTheMiddle(final InetAddress bindAddress, final int clientPort, final int serverPort, final int maxRetransmissions, final ClientBlockwiseInterceptor interceptor) throws Exception {
 
 		this.max = maxRetransmissions;
 		this.clientPort = clientPort;
 		this.serverPort = serverPort;
-
+		this.interceptor = interceptor;
 		if (bindAddress == null) {
 			this.socket = new DatagramSocket();
 		} else {
@@ -65,8 +67,13 @@ public class ManInTheMiddle implements Runnable {
 	}
 
 	public void drop(int... numbers) {
+		System.out.println(interceptor.toString());
+		System.out.println();
+		interceptor.clear();
+
 		Arrays.sort(numbers);
-		System.out.println("Man in the middle will drop packets " + Arrays.toString(numbers));
+
+		interceptor.log("Man in the middle will drop packets " + Arrays.toString(numbers));
 		synchronized(this) {
 			drops = numbers;
 		}
@@ -99,10 +106,8 @@ public class ManInTheMiddle implements Runnable {
 					if (last + 1 == current || last + 2 == current) {
 						burst++;
 					}
-					System.out.println(
-							String.format(
-									"Dropping packet %d (burst %d) from %s",
-									current, burst, isClientPacket ? "client" : "server"));
+					interceptor.log(String.format(" Dropping packet %d (burst %d/%d) from %s", 
+							current, burst, max, isClientPacket ? "client" : "server"));
 					last = current;
 
 				} else {
@@ -123,13 +128,17 @@ public class ManInTheMiddle implements Runnable {
 				current++;
 			}
 		} catch (Exception e) {
-			e.printStackTrace();
+			if (running) {
+				e.printStackTrace();
+			}
 		}
 	}
 
 	public void stop() {
 		running = false;
 		socket.close();
+		System.out.println(interceptor.toString());
+		interceptor.clear();
 	}
 
 	public int getPort() {
@@ -137,7 +146,6 @@ public class ManInTheMiddle implements Runnable {
 	}
 
 	private static boolean contains(final int[] array, final int value) {
-
 		return (array != null) && (Arrays.binarySearch(array, value) >= 0);
 	}
 }
