@@ -162,6 +162,8 @@ public abstract class Handshaker {
 	/** The current flight number. */
 	protected int flightNumber = 0;
 
+	/** Maximum length of reassembled fragmented handshake messages */
+	private final int maxFragmentedHandshakeMessageLength;
 	/** Maximum number of application data messages, which may be processed deferred after the handshake */
 	private final int maxDeferredProcessedApplicationDataMessages;
 	/** List of application data messages, which are send deferred after the handshake */
@@ -180,8 +182,10 @@ public abstract class Handshaker {
 	/** Buffer for received records that can not be processed immediately. */
 	protected InboundMessageBuffer inboundMessageBuffer;
 
-	/** Store the fragmented messages until we are able to reassemble the handshake message. */
-	protected Map<Integer, SortedSet<FragmentedHandshakeMessage>> fragmentedMessages = new HashMap<Integer, SortedSet<FragmentedHandshakeMessage>>();
+	/**
+	 * Store for partial to reassembled handshake messages.
+	 */
+	protected Map<Integer, ReassemblingHandshakeMessage> reassembledMessages = new HashMap<Integer, ReassemblingHandshakeMessage>();
 
 	/**
 	 * The message digest to compute the handshake hashes sent in the
@@ -256,6 +260,7 @@ public abstract class Handshaker {
 		this.recordLayer = recordLayer;
 		this.connection = connection;
 		this.connectionIdLength = config.getConnectionIdLength();
+		this.maxFragmentedHandshakeMessageLength = config.getMaxFragmentedHandshakeMessageLength();
 		this.maxDeferredProcessedApplicationDataMessages = config.getMaxDeferredProcessedApplicationDataMessages();
 		this.deferredApplicationData = new ArrayList<RawData>(maxDeferredProcessedApplicationDataMessages);
 		this.deferredRecords = new ArrayList<Record>(maxDeferredProcessedApplicationDataMessages);
@@ -769,104 +774,35 @@ public abstract class Handshaker {
 	protected final HandshakeMessage handleFragmentation(FragmentedHandshakeMessage fragment) throws HandshakeException {
 
 		LOGGER.debug("Processing {} message fragment ...", fragment.getMessageType());
-		HandshakeMessage reassembledMessage = null;
-		int messageSeq = fragment.getMessageSeq();
-		SortedSet<FragmentedHandshakeMessage> existingFragments = fragmentedMessages.get(messageSeq);
-		if (existingFragments == null) {
-			existingFragments = new TreeSet<FragmentedHandshakeMessage>(new Comparator<FragmentedHandshakeMessage>() {
-
-				// @Override
-				public int compare(FragmentedHandshakeMessage o1, FragmentedHandshakeMessage o2) {
-					if (o1.getFragmentOffset() == o2.getFragmentOffset()) {
-						return 0;
-					} else if (o1.getFragmentOffset() < o2.getFragmentOffset()) {
-						return -1;
-					} else {
-						return 1;
-					}
-				}
-			});
-			fragmentedMessages.put(messageSeq, existingFragments);
-		}
-		// store fragment together with other fragments of same message_seq
-		existingFragments.add(fragment);
 		
-		reassembledMessage = reassembleFragments(messageSeq, existingFragments,
-				fragment.getMessageLength(), fragment.getMessageType(), session);
-		if (reassembledMessage != null) {
-			LOGGER.debug("Successfully re-assembled {} message", reassembledMessage.getMessageType());
-			fragmentedMessages.remove(messageSeq);
+		if (fragment.getMessageLength() > maxFragmentedHandshakeMessageLength) {
+			throw new HandshakeException(
+					"Fragmented message length exceeded (" + fragment.getMessageLength() + " > " + maxFragmentedHandshakeMessageLength + ")!",
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER, fragment.getPeer()));
 		}
-
-		return reassembledMessage;
-	}
-
-	/**
-	 * Reassembles handshake message fragments into the original message.
-	 * 
-	 * @param messageSeq
-	 *            the fragment's message_seq
-	 * @param fragments the fragments to reassemble
-	 * @param totalLength
-	 *            the expected total length of the reassembled fragment
-	 * @param type
-	 *            the type of the handshake message
-	 * @param session
-	 *            the {@link DTLSSession}
-	 * @return the reassembled handshake message (if all fragements are available),
-	 *         <code>null</code> otherwise.
-	 * @throws HandshakeException
-	 *             if the reassembled fragments cannot be parsed into a valid <code>HandshakeMessage</code>
-	 */
-	private final HandshakeMessage reassembleFragments(
-			int messageSeq,
-			SortedSet<FragmentedHandshakeMessage> fragments,
-			int totalLength,
-			HandshakeType type,
-			DTLSSession session) throws HandshakeException {
-
-		HandshakeMessage message = null;
-
-		byte[] reassembly = new byte[] {};
-		int offset = 0;
-		for (FragmentedHandshakeMessage fragmentedHandshakeMessage : fragments) {
-
-			int fragmentOffset = fragmentedHandshakeMessage.getFragmentOffset();
-			int fragmentLength = fragmentedHandshakeMessage.getFragmentLength();
-
-			if (fragmentOffset == offset) { // eliminate duplicates
-				// case: no overlap
-				reassembly = ByteArrayUtils.concatenate(reassembly, fragmentedHandshakeMessage.fragmentToByteArray());
-				offset = reassembly.length;
-			} else if (fragmentOffset < offset && (fragmentOffset + fragmentLength) > offset) {
-				// case: overlap fragment
-				
-				// determine the offset where the fragment adds new information for the reassembly
-				int newOffset = offset - fragmentOffset;
-				int newLength = fragmentLength - newOffset;
-				byte[] newBytes = new byte[newLength];
-				// take only the new bytes and add them
-				System.arraycopy(fragmentedHandshakeMessage.fragmentToByteArray(), newOffset, newBytes, 0, newLength);
-				reassembly = ByteArrayUtils.concatenate(reassembly, newBytes);
-
-				offset = reassembly.length;
+		int messageSeq = fragment.getMessageSeq();
+		ReassemblingHandshakeMessage reassembledMessage = reassembledMessages.get(messageSeq);
+		try {
+			if (reassembledMessage == null) {
+				reassembledMessage = new ReassemblingHandshakeMessage(fragment);
+				reassembledMessages.put(messageSeq, reassembledMessage);
 			}
-		}
-
-		if (reassembly.length == totalLength) {
-			// the reassembled fragment has the expected length
-			FragmentedHandshakeMessage wholeMessage =
-					new FragmentedHandshakeMessage(type, totalLength, messageSeq, 0, reassembly, getPeerAddress());
-			reassembly = wholeMessage.toByteArray();
-
-			HandshakeParameter parameter = null;
-			if (session != null) {
-				parameter = session.getParameter();
+			else {
+				reassembledMessage.add(fragment);
 			}
-			message = HandshakeMessage.fromByteArray(reassembly, parameter, getPeerAddress());
+			if (reassembledMessage.isComplete()) {
+				HandshakeMessage message = HandshakeMessage.fromByteArray(reassembledMessage.toByteArray(),
+						session.getParameter(), reassembledMessage.getPeer());
+				LOGGER.debug("Successfully re-assembled {} message", message.getMessageType());
+				reassembledMessages.remove(messageSeq);
+				return message;
+			}
+		} catch (IllegalArgumentException ex) {
+			throw new HandshakeException(ex.getMessage(),
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER, fragment.getPeer()));
 		}
-
-		return message;
+		
+		return null;
 	}
 
 	// Getters and Setters ////////////////////////////////////////////

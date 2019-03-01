@@ -86,6 +86,10 @@ public final class DtlsConnectorConfig {
 	 */
 	public static final int DEFAULT_MAX_CONNECTIONS = 150000;
 	/**
+	 * The default value for the <em>maxFragmentedHandshakeMessageLength</em> property.
+	 */
+	public static final int DEFAULT_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH = 8192;
+	/**
 	 * The default value for the <em>staleConnectionThreshold</em> property.
 	 */
 	public static final long DEFAULT_STALE_CONNECTION_TRESHOLD = 30 * 60; // 30 minutes
@@ -142,6 +146,11 @@ public final class DtlsConnectorConfig {
 	 * The maximum fragment length this connector can process at once.
 	 */
 	private Integer maxFragmentLengthCode;
+
+	/**
+	 * The maximum length of a reassembled fragmented handshake message.
+	 */
+	private Integer maxFragmentedHandshakeMessageLength;
 
 	/** The initial timer value for retransmission; rfc6347, section: 4.2.4.1 */
 	private Integer retransmissionTimeout;
@@ -276,6 +285,15 @@ public final class DtlsConnectorConfig {
 	 */
 	public Integer getMaxFragmentLengthCode() {
 		return maxFragmentLengthCode;
+	}
+
+	/**
+	 * Gets the maximum length of a reassembled fragmented handshake message.
+	 * 
+	 * @return maximum length
+	 */
+	public Integer getMaxFragmentedHandshakeMessageLength() {
+		return maxFragmentedHandshakeMessageLength;
 	}
 
 	/**
@@ -669,6 +687,7 @@ public final class DtlsConnectorConfig {
 		cloned.earlyStopRetransmission = earlyStopRetransmission;
 		cloned.enableReuseAddress = enableReuseAddress;
 		cloned.maxFragmentLengthCode = maxFragmentLengthCode;
+		cloned.maxFragmentedHandshakeMessageLength = maxFragmentedHandshakeMessageLength;
 		cloned.retransmissionTimeout = retransmissionTimeout;
 		cloned.maxRetransmissions = maxRetransmissions;
 		cloned.maxTransmissionUnit = maxTransmissionUnit;
@@ -874,6 +893,17 @@ public final class DtlsConnectorConfig {
 				config.maxFragmentLengthCode = lengthCode;
 				return this;
 			}
+		}
+
+		/**
+		 * Set maximum length of handshake message.
+		 * 
+		 * @param length maximum length of handshake message
+		 * @return this builder for command chaining
+		 */
+		public Builder setMaxFragmentedHandshakeMessageLength(Integer length) {
+			config.maxFragmentedHandshakeMessageLength = length;
+			return this;
 		}
 
 		/**
@@ -1670,6 +1700,9 @@ public final class DtlsConnectorConfig {
 			}
 			if (config.maxRetransmissions == null) {
 				config.maxRetransmissions = DEFAULT_MAX_RETRANSMISSIONS;
+			}
+			if (config.maxFragmentedHandshakeMessageLength == null) {
+				config.maxFragmentedHandshakeMessageLength = DEFAULT_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH;
 			}
 			if (config.clientAuthenticationWanted == null) {
 				config.clientAuthenticationWanted = false;
