@@ -1829,7 +1829,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 
 	private void sendMessage(final RawData message, final Connection connection, final DTLSSession session) {
 		try {
-			LOGGER.info("send {}-{} using {}-{}", connection.getConnectionId(), connection.getPeerAddress(),
+			LOGGER.trace("send {}-{} using {}-{}", connection.getConnectionId(), connection.getPeerAddress(),
 					session.getSessionIdentifier(), session.getPeer());
 			final EndpointContext ctx = session.getConnectionWriteContext();
 			if (!checkOutboundEndpointContext(message, ctx)) {
