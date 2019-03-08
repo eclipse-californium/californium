@@ -910,6 +910,24 @@ public abstract class Handshaker {
 	}
 
 	/**
+	 * Get client random.
+	 * 
+	 * @return client random, or {@code null}, if not available.
+	 */
+	public Random getClientRandom() {
+		return clientRandom;
+	}
+
+	/**
+	 * Get server random.
+	 * 
+	 * @return server random, or {@code null}, if not available.
+	 */
+	public Random getServerRandom() {
+		return serverRandom;
+	}
+
+	/**
 	 * Sets the message sequence number on an outbound handshake message.
 	 * 
 	 * Also increases the sequence number counter afterwards.
