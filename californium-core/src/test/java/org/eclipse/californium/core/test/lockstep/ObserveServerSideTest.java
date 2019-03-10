@@ -579,10 +579,7 @@ public class ObserveServerSideTest {
 	}
 
 	private void assertAllEndpointExchangesAreCompleted(final CoapTestEndpoint endpoint) {
-		NetworkConfig config = endpoint.getConfig();
-		int exchangeLifetime = (int) config.getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME) + 1000;
-		time.setTestTimeShift(exchangeLifetime, TimeUnit.MILLISECONDS);
-		assertAllExchangesAreCompleted(endpoint);
+		assertAllExchangesAreCompleted(endpoint, time);
 	}
 
 	private int waitForObservers(long timeoutMillis, final int count) throws InterruptedException {

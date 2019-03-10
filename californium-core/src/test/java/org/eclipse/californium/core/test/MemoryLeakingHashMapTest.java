@@ -68,12 +68,14 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.lockstep.ClientBlockwiseInterceptor;
+import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.slf4j.Logger;
@@ -88,6 +90,9 @@ import org.slf4j.LoggerFactory;
 public class MemoryLeakingHashMapTest {
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
+
+	@Rule
+	public TestTimeRule time = new TestTimeRule();
 
 	// Configuration for this test
 	private static final int TEST_EXCHANGE_LIFETIME = 247; // milliseconds
@@ -145,7 +150,7 @@ public class MemoryLeakingHashMapTest {
 	@After
 	public void stopExchangeStores() {
 		try {
-			assertAllExchangesAreCompleted(network.getStandardTestConfig(), clientExchangeStore, serverExchangeStore);
+			assertAllExchangesAreCompleted(network.getStandardTestConfig(), clientExchangeStore, serverExchangeStore, time);
 		} finally {
 			System.out.println(clientInterceptor.toString());
 			clientInterceptor.clear();
