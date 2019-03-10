@@ -37,6 +37,7 @@ import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.network.ExchangeCompleteException;
 import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.network.stack.Layer.TopDownBuilder;
 import org.eclipse.californium.core.server.MessageDeliverer;
@@ -103,6 +104,9 @@ public abstract class BaseCoapStack implements CoapStack {
 				exchange.retransmitResponse();
 			}
 			top.sendResponse(exchange, response);
+		} catch (ExchangeCompleteException ex) {
+			LOGGER.warn("error send response {}", response, ex);
+			response.setSendError(ex);
 		} catch (RuntimeException ex) {
 			LOGGER.warn("error send response {}", response, ex);
 			if (!retransmit) {
