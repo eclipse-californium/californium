@@ -798,7 +798,7 @@ public class BenchmarkClient {
 				formatPerSecond("reqs", overallSentRequests, requestNanos));
 		if (overallReverseResponses > 0) {
 			if (observe) {
-				statisticsLogger.info("{} notifies sent, {} expected, {} observe request{}", overallSentReverseResponses,
+				statisticsLogger.info("{} notifies sent, {} expected, {} observe request", overallSentReverseResponses,
 						overallReverseResponses, overallObservationRegistrationCounter.get());
 				statisticsLogger.info("{} notifies in {}ms{}", overallSentReverseResponses,
 						TimeUnit.NANOSECONDS.toMillis(reverseResponseNanos),
