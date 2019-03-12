@@ -22,7 +22,7 @@ import org.eclipse.californium.elements.util.Bytes;
  * 
  * <a href="https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id">draft-ietf-tls-dtls-connection-id</a>
  */
-public final class ConnectionId extends Bytes {
+public class ConnectionId extends Bytes {
 
 	public static final ConnectionId EMPTY = new ConnectionId(Bytes.EMPTY);
 
@@ -31,7 +31,7 @@ public final class ConnectionId extends Bytes {
 	 * 
 	 * @param connectionId connectionId bytes
 	 * @throws NullPointerException if connectionId is {@code null}
-	 * @throws IllegalArgumentException if tokens length is larger than 255
+	 * @throws IllegalArgumentException if connectionId length is larger than 255
 	 */
 	public ConnectionId(byte[] connectionId) {
 		super(connectionId);
