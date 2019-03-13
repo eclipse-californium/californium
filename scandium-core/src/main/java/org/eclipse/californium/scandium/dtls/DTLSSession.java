@@ -891,20 +891,24 @@ public final class DTLSSession {
 	}
 
 	/**
-	 * * Checks whether a given record can be processed within the context
-	 * of this session.
+	 * Checks whether a given record can be processed within the context of this
+	 * session.
 	 * 
 	 * This is the case if
 	 * <ul>
-	 * <li>the record is from the same epoch as session's current read epoch</li>
+	 * <li>the record is from the same epoch as session's current read
+	 * epoch</li>
 	 * <li>the record has not been received before</li>
 	 * </ul>
-	 *  
+	 * 
 	 * @param epoch the record's epoch
 	 * @param sequenceNo the record's sequence number
-	 * @return <code>true</code> if the record satisfies the conditions above
+	 * @param useWindowOnly {@code true} use only message window for filter. For
+	 *            message too old for the message window {@code true} is
+	 *            returned.
+	 * @return {@code true} if the record satisfies the conditions above
 	 */
-	public boolean isRecordProcessable(long epoch, long sequenceNo) {
+	public boolean isRecordProcessable(long epoch, long sequenceNo, boolean useWindowOnly) {
 		if (epoch < getReadEpoch()) {
 			// record is from a previous epoch
 			// discard record as proposed in DTLS 1.2
@@ -918,7 +922,7 @@ public final class DTLSSession {
 		} else if (sequenceNo < receiveWindowLowerBoundary) {
 			// record lies out of receive window's "left" edge
 			// discard
-			return false;
+			return useWindowOnly;
 		} else {
 			return !isDuplicate(sequenceNo);
 		}

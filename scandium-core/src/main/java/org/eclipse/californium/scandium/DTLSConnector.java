@@ -249,6 +249,14 @@ public class DTLSConnector implements Connector, RecordLayer {
 	private final AtomicInteger pendingHandshakesWithoutVerifiedPeer = new AtomicInteger();
 
 	private final boolean serverOnly;
+	/**
+	 * Apply record filter only for records within the receive window.
+	 */
+	private final boolean useWindowFilter;
+	/**
+	 * Apply record filter.
+	 */
+	private final boolean useFilter;
 
 	/**
 	 * (Down-)counter for pending outbound messages. Initialized with
@@ -347,6 +355,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 			this.pendingOutboundMessagesCountdown.set(config.getOutboundMessageBufferSize());
 			this.autoResumptionTimeoutMillis = config.getAutoResumptionTimeoutMillis();
 			this.serverOnly = config.isServerOnly();
+			this.useWindowFilter = config.useWindowFilter();
+			this.useFilter = config.useAntiReplayFilter() || useWindowFilter;
 			this.connectionStore = connectionStore;
 			this.sessionListener = new SessionAdapter() {
 
@@ -1045,7 +1055,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			// The DTLS 1.2 spec (section 4.1.2.6) advises to do replay detection
 			// before MAC validation based on the record's sequence numbers
 			// see http://tools.ietf.org/html/rfc6347#section-4.1.2.6
-			if (session.isRecordProcessable(record.getEpoch(), record.getSequenceNumber())) {
+			if (!useFilter || session.isRecordProcessable(record.getEpoch(), record.getSequenceNumber(), useWindowFilter)) {
 				try {
 					// APPLICATION_DATA can only be processed within the context of
 					// an established, i.e. fully negotiated, session
