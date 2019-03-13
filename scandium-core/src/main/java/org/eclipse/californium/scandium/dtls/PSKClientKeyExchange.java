@@ -17,10 +17,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import static org.eclipse.californium.elements.util.StandardCharsets.UTF_8;
-
 import java.net.InetSocketAddress;
-import java.util.Arrays;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -42,28 +39,19 @@ public final class PSKClientKeyExchange extends ClientKeyExchange {
 
 	// Members ////////////////////////////////////////////////////////
 
-	/**
-	 * The PSK identity MUST be first converted to a character string, and then
-	 * encoded to octets using UTF-8. See <a
-	 * href="http://tools.ietf.org/html/rfc4279#section-5.1">RFC 4279</a>.
-	 */
-	private final byte[] identityEncoded;
-
 	/** The identity in cleartext. */
-	private final String identity;
+	private final PskPublicInformation identity;
 
 	// Constructors ///////////////////////////////////////////////////
 
-	public PSKClientKeyExchange(String identity, InetSocketAddress peerAddress) {
+	public PSKClientKeyExchange(PskPublicInformation identity, InetSocketAddress peerAddress) {
 		super(peerAddress);
-		this.identityEncoded = identity.getBytes(UTF_8);
 		this.identity = identity;
 	}
-	
+
 	private PSKClientKeyExchange(byte[] identityEncoded, InetSocketAddress peerAddress) {
 		super(peerAddress);
-		this.identityEncoded = Arrays.copyOf(identityEncoded, identityEncoded.length);
-		this.identity = new String(this.identityEncoded, UTF_8);
+		this.identity = PskPublicInformation.fromByteArray(identityEncoded);
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -72,7 +60,7 @@ public final class PSKClientKeyExchange extends ClientKeyExchange {
 	public int getMessageLength() {
 		// fixed: 2 bytes for the length field
 		// http://tools.ietf.org/html/rfc4279#section-2: opaque psk_identity<0..2^16-1>
-		return 2 + identityEncoded.length;
+		return 2 + identity.length();
 	}
 
 	@Override
@@ -89,8 +77,8 @@ public final class PSKClientKeyExchange extends ClientKeyExchange {
 	public byte[] fragmentToByteArray() {
 		DatagramWriter writer = new DatagramWriter();
 		
-		writer.write(identityEncoded.length, IDENTITY_LENGTH_BITS);
-		writer.writeBytes(identityEncoded);
+		writer.write(identity.length(), IDENTITY_LENGTH_BITS);
+		writer.writeBytes(identity.getBytes());
 		
 		return writer.toByteArray();
 	}
@@ -106,7 +94,7 @@ public final class PSKClientKeyExchange extends ClientKeyExchange {
 
 	// Getters and Setters ////////////////////////////////////////////
 
-	public String getIdentity() {
+	public PskPublicInformation getIdentity() {
 		return identity;
 	}
 }

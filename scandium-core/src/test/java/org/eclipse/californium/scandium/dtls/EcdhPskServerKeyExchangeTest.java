@@ -40,7 +40,8 @@ public class EcdhPskServerKeyExchangeTest {
 	public void setUp() throws Exception {
 
 		SupportedGroup usableGroup = SupportedGroup.secp256r1;
-		msg = new EcdhPskServerKeyExchange(ECDHECryptography.fromNamedCurveId(usableGroup.getId()),
+		msg = new EcdhPskServerKeyExchange(PskPublicInformation.EMPTY,
+				ECDHECryptography.fromNamedCurveId(usableGroup.getId()),
 				new Random(),
 				new Random(),
 				usableGroup.getId(),

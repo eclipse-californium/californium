@@ -174,7 +174,7 @@ public class HandshakerTest {
 		// THEN the ChangeCipherSpec message is not processed until the missing message arrives
 		assertFalse(handshaker.changeCipherSpecProcessed.get());
 		handshaker.expectChangeCipherSpecMessage();
-		PSKClientKeyExchange msg = new PSKClientKeyExchange("id", endpoint);
+		PSKClientKeyExchange msg = new PSKClientKeyExchange(new PskPublicInformation("id"), endpoint);
 		msg.setMessageSeq(0);
 		Record keyExchangeRecord = getRecordForMessage(0, 6, msg, senderAddress);
 		handshaker.processMessage(keyExchangeRecord);

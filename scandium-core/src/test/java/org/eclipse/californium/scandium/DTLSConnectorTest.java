@@ -105,6 +105,7 @@ import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.InMemorySessionCache;
 import org.eclipse.californium.scandium.dtls.PSKClientKeyExchange;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
+import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -142,7 +143,7 @@ public class DTLSConnectorTest {
 
 	private static final int CLIENT_CONNECTION_STORE_CAPACITY = 5;
 	private static final int SERVER_CONNECTION_STORE_CAPACITY = 2;
-	private static final String CLIENT_IDENTITY = "Client_identity";
+	private static final PskPublicInformation CLIENT_IDENTITY = new PskPublicInformation("Client_identity");
 	private static final String CLIENT_IDENTITY_SECRET = "secretPSK";
 	private static final int MAX_TIME_TO_WAIT_SECS = 2;
 
@@ -178,7 +179,7 @@ public class DTLSConnectorTest {
 		InMemoryPskStore pskStore = new InMemoryPskStore() {
 
 			@Override
-			public byte[] getKey(String identity) {
+			public byte[] getKey(PskPublicInformation identity) {
 				if (pskStoreLatency != 0) {
 					try {
 						Thread.sleep(pskStoreLatency);

@@ -46,7 +46,7 @@ import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
-import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.StringPskStore;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -222,7 +222,7 @@ public class ClientInitializer {
 		return endpoint;
 	}
 
-	public static class PlugPskStore implements PskStore {
+	public static class PlugPskStore extends StringPskStore {
 
 		private final String identity;
 		private final byte[] secret;
@@ -256,13 +256,13 @@ public class ClientInitializer {
 		}
 
 		@Override
-		public String getIdentity(InetSocketAddress inetAddress) {
+		public String getIdentityAsString(InetSocketAddress inetAddress) {
 			return identity;
 		}
 
 		@Override
-		public String getIdentity(InetSocketAddress peerAddress, ServerNames virtualHost) {
-			return getIdentity(peerAddress);
+		public String getIdentityAsString(InetSocketAddress peerAddress, ServerNames virtualHost) {
+			return getIdentityAsString(peerAddress);
 		}
 	}
 

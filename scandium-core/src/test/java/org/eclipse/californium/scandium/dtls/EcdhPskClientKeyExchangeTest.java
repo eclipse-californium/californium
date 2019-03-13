@@ -35,14 +35,14 @@ public class EcdhPskClientKeyExchangeTest {
 	EcdhPskClientKeyExchange msg;
 	InetSocketAddress peerAddress = new InetSocketAddress(5000);
 	byte[] ephemeralKeyPointEncoded;
-	String identity;
+	PskPublicInformation identity;
 	
 	@Before
 	public void setUp() throws Exception {
 
 		SupportedGroup usableGroup = SupportedGroup.secp256r1;
 		ECDHECryptography ecdhe = ECDHECryptography.fromNamedCurveId(usableGroup.getId());
-		msg = new EcdhPskClientKeyExchange("ID", ecdhe.getPublicKey(), peerAddress);
+		msg = new EcdhPskClientKeyExchange(new PskPublicInformation("ID"), ecdhe.getPublicKey(), peerAddress);
 		ephemeralKeyPointEncoded = msg.getEncodedPoint();
 		identity = msg.getIdentity();
 	}
