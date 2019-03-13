@@ -1,19 +1,20 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2018 Institute for Pervasive Computing, ETH Zurich and others.
- * 
+ * Copyright (c) 2019 Bosch Software Innovations GmbH and others.
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
- * 
+ *
  * The Eclipse Public License is available at
  *    http://www.eclipse.org/legal/epl-v10.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
- * 
+ *
  * Contributors:
- * Julien Vermillard - Sierra Wireless
- * Bosch Software Innovations GmbH - add SNI support
- ******************************************************************************/
+ *    Bosch Software Innovations GmbH - initial implementation
+ *                                      abstract API 
+ *******************************************************************************/
+
 package org.eclipse.californium.scandium.dtls.pskstore;
 
 import java.net.InetSocketAddress;
@@ -22,43 +23,59 @@ import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
- * A service for resolving pre-shared key identities.
+ * String based pre-shared-key store.
+ * <p>
+ * May be used for backwards compatibility.
  */
-public interface PskStore {
+public abstract class StringPskStore implements PskStore {
+
+	@Override
+	public byte[] getKey(final PskPublicInformation identity) {
+		if (identity.isCompliantEncoding()) {
+			return getKey(identity.getPublicInfoAsString());
+		}
+		return null;
+	}
+
+	@Override
+	public byte[] getKey(final ServerNames serverNames, final PskPublicInformation identity) {
+		if (identity.isCompliantEncoding()) {
+			return getKey(serverNames, identity.getPublicInfoAsString());
+		}
+		return null;
+	}
+
+	@Override
+	public PskPublicInformation getIdentity(final InetSocketAddress inetAddress) {
+		return new PskPublicInformation(getIdentityAsString(inetAddress));
+	}
+
+	@Override
+	public PskPublicInformation getIdentity(InetSocketAddress peerAddress, ServerNames virtualHost) {
+		return new PskPublicInformation(getIdentityAsString(peerAddress, virtualHost));
+	}
 
 	/**
 	 * Gets the shared key for a given identity.
 	 * <p>
 	 * A DTLS server can use this method to look up the pre-shared key for an
 	 * identity provided by the client as part of a PSK key exchange.
-	 * </p>
-	 * <p>
-	 * The implementation is intended to normalize the identity by a matching
-	 * entry, if that entry is not UTF-8 compliant encoded.
-	 * </p>
 	 * 
 	 * @param identity The identity to look up the key for.
-	 * @return The key or {@code null} if the given identity is unknown.
+	 * @return The key or <code>null</code> if the given identity is unknown.
 	 * @throws NullPointerException if identity is {@code null}.
-	 * @see PskPublicInformation#normalize(String)
 	 */
-	byte[] getKey(PskPublicInformation identity);
+	public abstract byte[] getKey(String identity);
 
 	/**
 	 * Gets the shared key for a given identity in the scope of a server name.
 	 * <p>
 	 * A DTLS server can use this method to look up the pre-shared key for an
 	 * identity provided by the client as part of a PSK key exchange.
-	 * </p>
 	 * <p>
 	 * The key is looked up in the context of the <em>virtual host</em> that the
 	 * client has provided in the <em>Server Name Indication</em> extension
 	 * contained in its <em>CLIENT_HELLO</em> message.
-	 * </p>
-	 * <p>
-	 * The implementation is intended to normalize the identity by a matching
-	 * entry, if that entry is not UTF-8 compliant encoded.
-	 * </p>
 	 * 
 	 * @param serverName The name of the host that the client wants to connect
 	 *            to as provided in the <em>Server Name Indication</em> HELLO
@@ -66,12 +83,11 @@ public interface PskStore {
 	 *            given identity is being looked up in the context of this host
 	 *            name.
 	 * @param identity The identity to look up the key for.
-	 * @return The key or {@code null} if no matching identity has been
+	 * @return The key or <code>null</code> if no matching identity has been
 	 *         registered for any of the server name types.
 	 * @throws NullPointerException if any of the parameters is {@code null}.
-	 * @see PskPublicInformation#normalize(String)
 	 */
-	byte[] getKey(ServerNames serverName, PskPublicInformation identity);
+	public abstract byte[] getKey(ServerNames serverName, String identity);
 
 	/**
 	 * Gets the <em>identity</em> to use for a PSK based handshake with a given
@@ -83,11 +99,11 @@ public interface PskStore {
 	 * 
 	 * @param inetAddress The IP address of the peer to perform the handshake
 	 *            with.
-	 * @return The identity to use or {@code null} if no peer with the given
-	 *         address is registered.
+	 * @return The identity to use or <code>null</code> if no peer with the
+	 *         given address is registered.
 	 * @throws NullPointerException if address is {@code null}.
 	 */
-	PskPublicInformation getIdentity(InetSocketAddress inetAddress);
+	public abstract String getIdentityAsString(InetSocketAddress inetAddress);
 
 	/**
 	 * Gets the <em>identity</em> to use for a PSK based handshake with a given
@@ -103,9 +119,10 @@ public interface PskStore {
 	 *            {@code null}, the identity will be looked up in the
 	 *            <em>global</em> scope, yielding the same result as
 	 *            {@link #getIdentity(InetSocketAddress)}.
-	 * @return The identity to use or {@code null} if no peer with the given
-	 *         address and virtual host is registered.
+	 * @return The identity to use or <code>null</code> if no peer with the
+	 *         given address and virtual host is registered.
 	 * @throws NullPointerException if address or host are {@code null}.
 	 */
-	PskPublicInformation getIdentity(InetSocketAddress peerAddress, ServerNames virtualHost);
+	public abstract String getIdentityAsString(InetSocketAddress peerAddress, ServerNames virtualHost);
+
 }

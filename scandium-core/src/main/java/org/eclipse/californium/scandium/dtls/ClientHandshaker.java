@@ -502,17 +502,17 @@ public class ClientHandshaker extends Handshaker {
 			break;
 		case PSK:
 			PskUtil pskUtilPlain = new PskUtil(sniEnabled, session, pskStore);
-			LOGGER.debug("Using PSK identity: {}", pskUtilPlain.getPskIdentity());
-			session.setPeerIdentity(pskUtilPlain.getPskIdentity());
-			clientKeyExchange = new PSKClientKeyExchange(pskUtilPlain.getPskIdentity().getIdentity(), session.getPeer());
+			LOGGER.debug("Using PSK identity: {}", pskUtilPlain.getPskPrincipal());
+			session.setPeerIdentity(pskUtilPlain.getPskPrincipal());
+			clientKeyExchange = new PSKClientKeyExchange(pskUtilPlain.getPskPublicIdentity(), session.getPeer());
 			premasterSecret = generatePremasterSecretFromPSK(pskUtilPlain.getPreSharedKey(), null);
 			generateKeys(premasterSecret);
 			break;
 		case ECDHE_PSK:
 			PskUtil pskUtil = new PskUtil(sniEnabled, session, pskStore);
-			LOGGER.debug("Using PSK identity: {}", pskUtil.getPskIdentity());
-			session.setPeerIdentity(pskUtil.getPskIdentity());
-			clientKeyExchange = new EcdhPskClientKeyExchange(pskUtil.getPskIdentity().getIdentity(), ecdhe.getPublicKey(), session.getPeer());
+			LOGGER.debug("Using PSK identity: {}", pskUtil.getPskPrincipal());
+			session.setPeerIdentity(pskUtil.getPskPrincipal());
+			clientKeyExchange = new EcdhPskClientKeyExchange(pskUtil.getPskPublicIdentity(), ecdhe.getPublicKey(), session.getPeer());
 			byte[] otherSecret = ecdhe.getSecret(ephemeralServerPublicKey).getEncoded();
 			premasterSecret = generatePremasterSecretFromPSK(pskUtil.getPreSharedKey(), otherSecret);
 			generateKeys(premasterSecret);

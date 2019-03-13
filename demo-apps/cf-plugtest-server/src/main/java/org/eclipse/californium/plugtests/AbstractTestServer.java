@@ -43,7 +43,7 @@ import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.StringPskStore;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
@@ -307,7 +307,7 @@ public abstract class AbstractTestServer extends CoapServer {
 				+ endpoint.getConfig().getInt(Keys.PREFERRED_BLOCK_SIZE));
 	}
 
-	private static class PlugPskStore implements PskStore {
+	private static class PlugPskStore extends StringPskStore {
 
 		@Override
 		public byte[] getKey(String identity) {
@@ -326,13 +326,13 @@ public abstract class AbstractTestServer extends CoapServer {
 		}
 
 		@Override
-		public String getIdentity(InetSocketAddress inetAddress) {
+		public String getIdentityAsString(InetSocketAddress inetAddress) {
 			return PSK_IDENTITY_PREFIX + "sandbox";
 		}
 
 		@Override
-		public String getIdentity(InetSocketAddress peerAddress, ServerNames virtualHost) {
-			return getIdentity(peerAddress);
+		public String getIdentityAsString(InetSocketAddress peerAddress, ServerNames virtualHost) {
+			return getIdentityAsString(peerAddress);
 		}
 	}
 }

@@ -17,10 +17,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import static org.eclipse.californium.elements.util.StandardCharsets.UTF_8;
-
 import java.net.InetSocketAddress;
-import java.util.Arrays;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -42,28 +39,19 @@ public final class PSKServerKeyExchange extends ServerKeyExchange {
 
 	// Members ////////////////////////////////////////////////////////
 
-	/**
-	 * The PSK identity MUST be first converted to a character string, and then
-	 * encoded to octets using UTF-8. See <a
-	 * href="http://tools.ietf.org/html/rfc4279#section-5.1">RFC 4279</a>.
-	 */
-	private final byte[] hintEncoded;
-
 	/** The hint in cleartext. */
-	private final String hint;
+	private final PskPublicInformation hint;
 
 	// Constructors ///////////////////////////////////////////////////
 	
-	public PSKServerKeyExchange(String hint, InetSocketAddress peerAddress) {
+	public PSKServerKeyExchange(PskPublicInformation hint, InetSocketAddress peerAddress) {
 		super(peerAddress);
 		this.hint = hint;
-		this.hintEncoded = hint.getBytes(UTF_8);
 	}
 	
 	private PSKServerKeyExchange(byte[] hintEncoded, InetSocketAddress peerAddress) {
 		super(peerAddress);
-		this.hintEncoded = Arrays.copyOf(hintEncoded, hintEncoded.length);
-		this.hint = new String(this.hintEncoded, UTF_8);
+		this.hint = PskPublicInformation.fromByteArray(hintEncoded);
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -72,7 +60,7 @@ public final class PSKServerKeyExchange extends ServerKeyExchange {
 	public int getMessageLength() {
 		// fixed: 2 bytes for the length field
 		// http://tools.ietf.org/html/rfc4279#section-2: opaque psk_identity_hint<0..2^16-1>
-		return 2 + hintEncoded.length;
+		return 2 + hint.length();
 	}
 
 	@Override
@@ -89,8 +77,8 @@ public final class PSKServerKeyExchange extends ServerKeyExchange {
 	public byte[] fragmentToByteArray() {
 		DatagramWriter writer = new DatagramWriter();
 		
-		writer.write(hintEncoded.length, IDENTITY_HINT_LENGTH_BITS);
-		writer.writeBytes(hintEncoded);
+		writer.write(hint.length(), IDENTITY_HINT_LENGTH_BITS);
+		writer.writeBytes(hint.getBytes());
 		
 		return writer.toByteArray();
 	}
@@ -106,7 +94,7 @@ public final class PSKServerKeyExchange extends ServerKeyExchange {
 	
 	// Getters and Setters ////////////////////////////////////////////
 
-	public String getHint() {
+	public PskPublicInformation getHint() {
 		return hint;
 	}
 }

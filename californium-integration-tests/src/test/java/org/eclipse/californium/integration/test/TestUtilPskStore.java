@@ -20,12 +20,13 @@ import java.net.InetSocketAddress;
 import java.util.Arrays;
 
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.StringPskStore;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
  * Simple {@link PskStore} implementation with exchangeable credentials.
  */
-public class TestUtilPskStore implements PskStore {
+public class TestUtilPskStore extends StringPskStore {
 
 	/**
 	 * PSK identity.
@@ -63,17 +64,17 @@ public class TestUtilPskStore implements PskStore {
 	}
 
 	@Override
-	public synchronized byte[] getKey(ServerNames serverNames, String identity) {
+	public byte[] getKey(ServerNames serverNames, String identity) {
 		return getKey(identity);
 	}
 
 	@Override
-	public synchronized String getIdentity(InetSocketAddress inetAddress) {
+	public synchronized String getIdentityAsString(InetSocketAddress inetAddress) {
 		return identity;
 	}
 
 	@Override
-	public synchronized String getIdentity(InetSocketAddress peerAddress, ServerNames virtualHost) {
-		return getIdentity(peerAddress);
+	public String getIdentityAsString(InetSocketAddress peerAddress, ServerNames virtualHost) {
+		return getIdentityAsString(peerAddress);
 	}
 }
