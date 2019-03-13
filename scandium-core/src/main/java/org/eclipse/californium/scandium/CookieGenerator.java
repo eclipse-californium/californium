@@ -108,6 +108,10 @@ public class CookieGenerator {
 
 	/**
 	 * Return a fresh HMAC algorithm instance.
+	 * 
+	 * @return fresh HMAC
+	 * @throws GeneralSecurityException if an security related exception occurs
+	 *             when refreshing the HMAC.
 	 */
 	private Mac getHMAC() throws GeneralSecurityException {
 
@@ -162,8 +166,6 @@ public class CookieGenerator {
 	 * Generate a new secret key for MAC algorithm.
 	 * 
 	 * MUST be called in write scope of {@link #lock}!
-	 * 
-	 * @return secret key for MAC algorithm (cookie generation).
 	 */
 	private void generateSecretKey() {
 		nextKeyGenerationNanos = ClockUtil.nanoRealtime() + KEY_LIFE_TIME;

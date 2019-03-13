@@ -279,8 +279,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * 
 	 * @see #setEndpointContextMatcher(EndpointContextMatcher)
 	 * @see #getEndpointContextMatcher()
-	 * @see #sendMessage(RawData)
-	 * @see #sendMessage(RawData, DTLSSession)
+	 * @see #sendMessage(RawData, Connection)
+	 * @see #sendMessage(RawData, Connection, DTLSSession)
 	 */
 	private EndpointContextMatcher endpointContextMatcher;
 
@@ -955,7 +955,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * <li>destroying any state for an ongoing handshake with the peer</li>
 	 * </ul>
 	 * 
-	 * @param peerAddress the peer to terminate the handshake with
+	 * @param connection the peer to terminate the handshake with
 	 * @param cause the exception that is the cause for terminating the handshake
 	 * @param description the reason to indicate in the message sent to the peer before terminating the handshake
 	 */
@@ -1267,7 +1267,6 @@ public class DTLSConnector implements Connector, RecordLayer {
 	/**
 	 * Process HELLO_REQUEST.
 	 * 
-	 * @param helloRequest HELLO_REQUEST to process.
 	 * @param connection connection to process HELLO_REQUEST message.
 	 * @throws HandshakeException if the message to initiate the handshake with
 	 *             the peer cannot be created
@@ -1355,10 +1354,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * 
 	 * @param clientHello CLIENT_HELLO message
 	 * @param record record of CLIENT_HELLO message
-	 * @param connection connection to process handshake message
-	 * @throws HandshakeException if the parameters provided in the client hello
-	 *             message cannot be used to start a new handshake or resume an
-	 *             existing session
+	 * @param connections available connections to process handshake message
 	 */
 	private void processClientHello(ClientHello clientHello, Record record, AvailableConnections connections) {
 		if (connections == null) {
@@ -1412,7 +1408,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * <p>This method sends a <em>HELLO_VERIFY_REQUEST</em> to the peer if the cookie contained
 	 * in <code>clientHello</code> does not match the expected cookie.
 	 * </p>
-	 * If a matching session id is contained, but no cookie, it depends on the
+	 * <p>If a matching session id is contained, but no cookie, it depends on the
 	 * number of pending resumption handshakes, if a
 	 * <em>HELLO_VERIFY_REQUEST</em> is send to the peer, of a resumption
 	 * handshake is started without.
@@ -1499,9 +1495,11 @@ public class DTLSConnector implements Connector, RecordLayer {
 	}
 
 	/**
+	 * Start a new handshake.
 	 * 
-	 * @param clientHello
-	 * @param record
+	 * @param clientHello CLIENT_HELLO message.
+	 * @param record record containing the CLIENT_HELLO message.
+	 * @param connection connection to start handshake.
 	 * @throws HandshakeException if the parameters provided in the client hello message
 	 *           cannot be used to start a handshake with the peer
 	 */
@@ -1518,10 +1516,11 @@ public class DTLSConnector implements Connector, RecordLayer {
 	}
 
 	/**
+	 * Resume existing session.
 	 * 
-	 * @param clientHello
-	 * @param record
-	 * @param connection 
+	 * @param clientHello CLIENT_HELLO message.
+	 * @param record record containing the CLIENT_HELLO message.
+	 * @param connections available connections to resume
 	 * @throws HandshakeException if the session cannot be resumed based on the parameters
 	 *             provided in the client hello message
 	 */
@@ -1740,6 +1739,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * </p>
 	 * 
 	 * @param message the data to send to the peer
+	 * @param connection connection of the peer
+	 * @throws HandshakeException if starting a handshake fails
 	 */
 	private void sendMessage(final RawData message, final Connection connection) throws HandshakeException {
 
@@ -2163,7 +2164,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		/**
 		 * Create peer task.
 		 * 
-		 * @param peer related peer
+		 * @param connection connection for related peer
 		 * @param task task to be execute in serial executor
 		 * @param force flag indicating, that the task should be executed, even
 		 *            if the serial executors are exhausted or shutdown.
@@ -2189,7 +2190,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	}
 
 	/**
-	 * Peer task calling the {@link #handleTimeout(DTLSFlight)}. 
+	 * Peer task calling the {@link #handleTimeout(DTLSFlight, Connection)}. 
 	 */
 	private class TimeoutPeerTask extends ConnectionTask {
 

@@ -419,6 +419,7 @@ public class DTLSConnectorAdvancedTest {
 	 * usual retransmission, the special case is flight 6. Therefore this test
 	 * drops the 1. transmission of flight 6 to check, if retransmission of
 	 * flight 5 triggers the retransmission of flight 6.
+	 * @throws Exception if the test fails
 	 */
 	@Test
 	public void testServerFinishedMessageRetransmission() throws Exception {
@@ -489,6 +490,7 @@ public class DTLSConnectorAdvancedTest {
 	 * usual retransmission, the special case is flight 3. Therefore this test
 	 * drops the 1. transmission of flight 3 to check, if retransmission of
 	 * flight 2 triggers the retransmission of flight 3.
+	 * @throws Exception if the test fails
 	 */
 	@Test
 	public void testResumeClientFinishedMessageRetransmission() throws Exception {
@@ -588,6 +590,7 @@ public class DTLSConnectorAdvancedTest {
 	 * Drops the first transmission of flight 5 to test, if flight 5 is
 	 * retransmitted. Usual retransmission, the special case is flight 6, see
 	 * "testServerFinishedMessageRetransmission".
+	 * @throws Exception if the test fails
 	 */
 	@Test
 	public void testFinishedMessageRetransmission() throws Exception {
@@ -648,6 +651,7 @@ public class DTLSConnectorAdvancedTest {
 	 * flight 3, see "testResumeClientFinishedMessageRetransmission". Note:
 	 * scandium uses a additional HELLO VERIFY REQUEST. May be optimized in the
 	 * future.
+	 * @throws Exception if the test fails
 	 */
 	@Test
 	public void testResumeFinishedMessageRetransmission() throws Exception {
@@ -738,6 +742,7 @@ public class DTLSConnectorAdvancedTest {
 
 	/**
 	 * Test the server resuming handshake fails, if clients FINISH is dropped.
+	 * @throws Exception if the test fails
 	 */
 	@Test
 	public void testServerResumeTimeout() throws Exception {
@@ -828,6 +833,7 @@ public class DTLSConnectorAdvancedTest {
 
 	/**
 	 * Test the server handshake fails, if clients FINISH is dropped.
+	 * @throws Exception if the test fails
 	 */
 	@Test
 	public void testServerTimeout() throws Exception {

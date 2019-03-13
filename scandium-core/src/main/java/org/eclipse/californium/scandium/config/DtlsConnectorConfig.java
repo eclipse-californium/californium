@@ -216,9 +216,9 @@ public final class DtlsConnectorConfig {
 	 * Indicates, that "server name indication" is used (client side) and
 	 * supported (server side). The support on the server side currently
 	 * includes a server name specific PSK secret lookup and to forward the
-	 * server name to the CoAP stack in the {@link EndpointContext}.
+	 * server name to the CoAP stack in the {@link org.eclipse.californium.elements.EndpointContext}.
 	 * 
-	 * See <a href="https://tools.ietf.org/html/rfc6066#section-3">
+	 * See <a href="https://tools.ietf.org/html/rfc6066#section-3">RFC 6066, Section 3</a>
 	 */
 	private Boolean sniEnabled;
 
@@ -1462,7 +1462,9 @@ public final class DtlsConnectorConfig {
 		/**
 		 * Sets the connection ID length.
 		 * 
-		 * @param connectionIdLength
+		 * @param connectionIdLength length of connection id. 0 for support
+		 *            connection id, but not using it. {@code null} for no
+		 *            supported.
 		 * @return this builder for command chaining.
 		 */
 		public Builder setConnectionIdLength(final Integer connectionIdLength) {
