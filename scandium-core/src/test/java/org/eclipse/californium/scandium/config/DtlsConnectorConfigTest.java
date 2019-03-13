@@ -281,7 +281,7 @@ public class DtlsConnectorConfigTest {
 	}
 
 	@Test(expected = IllegalStateException.class)
-	public void testserverOnlyWitdDisabledRequiredAuthenticationFailsOnTrust() throws Exception {
+	public void testServerOnlyWithDisabledRequiredAuthenticationFailsOnTrust() throws Exception {
 		// GIVEN a configuration supporting RawPublicKey only and wanted client authentication
 		builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
 				.setRpkTrustAll();
@@ -290,5 +290,37 @@ public class DtlsConnectorConfigTest {
 		// WHEN configuration is build
 		builder.build();
 		// THEN fails
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testAntiReplayFilterAndWindowFilter() throws Exception {
+		builder.setUseAntiReplayFilter(true);
+		builder.setUseWindowFilter(true);
+	}
+
+	@Test
+	public void testAntiReplayFilterDefault() throws Exception {
+		builder.setPskStore(new StaticPskStore("ID", "KEY".getBytes()));
+		
+		builder.build();
+		// WHEN configuration is build
+		DtlsConnectorConfig config = builder.build();
+
+		// THEN
+		assertThat(config.useAntiReplayFilter(), is(true));
+		assertThat(config.useWindowFilter(), is(false));
+	}
+
+	@Test
+	public void testAntiReplayFilterDefaultWithWindowFilter() throws Exception {
+		builder.setPskStore(new StaticPskStore("ID", "KEY".getBytes()));
+		builder.setUseWindowFilter(true);
+		builder.build();
+		// WHEN configuration is build
+		DtlsConnectorConfig config = builder.build();
+
+		// THEN
+		assertThat(config.useAntiReplayFilter(), is(false));
+		assertThat(config.useWindowFilter(), is(true));
 	}
 }

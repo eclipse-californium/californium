@@ -253,6 +253,22 @@ public final class DtlsConnectorConfig {
 	private Boolean useNoServerSessionId;
 
 	/**
+	 * Use anti replay filter.
+	 * 
+	 * @see http://tools.ietf.org/html/rfc6347#section-4.1
+	 */
+	private Boolean useAntiReplayFilter;
+
+	/**
+	 * Use filter for record in window only.
+	 * 
+	 * Messages too old for the filter window will pass the filter.
+	 * 
+	 * @see http://tools.ietf.org/html/rfc6347#section-4.1
+	 */
+	private Boolean useWindowFilter;
+
+	/**
 	 * Logging tag.
 	 * 
 	 * Tag logging messages, if multiple connectors share the same logging
@@ -659,6 +675,28 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * Use anti replay filter.
+	 * 
+	 * @return {@code true}, apply anti replay filter
+	 * @see http://tools.ietf.org/html/rfc6347#section-4.1
+	 */
+	public Boolean useAntiReplayFilter() {
+		return useAntiReplayFilter;
+	}
+
+	/**
+	 * Use window filter.
+	 * 
+	 * Messages too old for the filter window will pass the filter.
+	 * 
+	 * @return {@code true}, apply window filter
+	 * @see http://tools.ietf.org/html/rfc6347#section-4.1
+	 */
+	public Boolean useWindowFilter() {
+		return useWindowFilter;
+	}
+
+	/**
 	 * @return The trust store for raw public keys verified out-of-band for
 	 *         DTLS-RPK handshakes
 	 */
@@ -714,6 +752,8 @@ public final class DtlsConnectorConfig {
 		cloned.useNoServerSessionId = useNoServerSessionId;
 		cloned.loggingTag = loggingTag;
 		cloned.connectionIdLength = connectionIdLength;
+		cloned.useAntiReplayFilter = useAntiReplayFilter;
+		cloned.useWindowFilter = useWindowFilter;
 		return cloned;
 	}
 
@@ -1642,6 +1682,40 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
+		 * Use anti replay filter.
+		 * 
+		 * @param enable {@code true} to enable filter. Default {@code true}.
+		 * @return this builder for command chaining.
+		 * @throws IllegalArgumentException if window filter is active.
+		 * @see http://tools.ietf.org/html/rfc6347#section-4.1
+		 */
+		public Builder setUseAntiReplayFilter(boolean enable) {
+			if (enable && Boolean.TRUE.equals(config.useWindowFilter)) {
+				throw new IllegalArgumentException("Window filter is active!");
+			}
+			config.useAntiReplayFilter = enable;
+			return this;
+		}
+
+		/**
+		 * Use window filter.
+		 * 
+		 * Messages too old for the filter window will pass the filter.
+		 * 
+		 * @param enable {@code true} to enable filter. Default {@code false}.
+		 * @return this builder for command chaining.
+		 * @throws IllegalArgumentException if anti replay window filter is active.
+		 * @see http://tools.ietf.org/html/rfc6347#section-4.1
+		 */
+		public Builder setUseWindowFilter(boolean enable) {
+			if (enable && Boolean.TRUE.equals(config.useAntiReplayFilter)) {
+				throw new IllegalArgumentException("Anti replay filter is active!");
+			}
+			config.useWindowFilter = enable;
+			return this;
+		}
+
+		/**
 		 * Set instance logging tag.
 		 * 
 		 * @param tag logging tag of configure instance
@@ -1747,6 +1821,12 @@ public final class DtlsConnectorConfig {
 			}
 			if (config.sniEnabled == null) {
 				config.sniEnabled = Boolean.FALSE;
+			}
+			if (config.useAntiReplayFilter == null) {
+				config.useAntiReplayFilter = !Boolean.TRUE.equals(config.useWindowFilter);
+			}
+			if (config.useWindowFilter == null) {
+				config.useWindowFilter = false;
 			}
 			if (config.verifyPeersOnResumptionThreshold == null) {
 				config.verifyPeersOnResumptionThreshold = DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT;
