@@ -145,7 +145,7 @@ public final class Connection {
 	 * Gets the serial executor assigned to this connection.
 	 * 
 	 * @return serial executor. May be {@code null}, if the connection was
-	 *         created with {@link #Connection(SessionTicket, SessionId)}.
+	 *         created with {@link #Connection(SessionTicket, SessionId, InetSocketAddress)}.
 	 */
 	public SerialExecutor getExecutor() {
 		return serialExecutor;
