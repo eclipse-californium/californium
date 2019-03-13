@@ -619,7 +619,7 @@ public class ClientHandshaker extends Handshaker {
 					rawPublicKeyBytes = key.getEncoded();
 				}
 				if (LOGGER.isDebugEnabled()) {
-					LOGGER.debug("sending CERTIFICATE message with client RawPublicKey [{}] to server", ByteArrayUtils.toHexString(rawPublicKeyBytes));
+					LOGGER.debug("sending CERTIFICATE message with client RawPublicKey [{}] to server", StringUtil.byteArray2HexString(rawPublicKeyBytes));
 				}
 				clientCertificate = new CertificateMessage(rawPublicKeyBytes, session.getPeer());
 			} else if (CertificateType.X_509 == session.sendCertificateType()) {

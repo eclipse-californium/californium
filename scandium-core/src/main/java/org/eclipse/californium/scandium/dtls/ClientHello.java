@@ -38,7 +38,6 @@ import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
-import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
 /**
  * When a client first connects to a server, it is required to send the
@@ -332,7 +331,7 @@ public final class ClientHello extends HandshakeMessage {
 		}
 		sb.append(StringUtil.lineSeparator()).append("\t\tCookie Length: ").append(cookie.length);
 		if (cookie.length > 0) {
-			sb.append(StringUtil.lineSeparator()).append("\t\tCookie: ").append(ByteArrayUtils.toHexString(cookie));
+			sb.append(StringUtil.lineSeparator()).append("\t\tCookie: ").append(StringUtil.byteArray2HexString(cookie));
 		}
 		sb.append(StringUtil.lineSeparator()).append("\t\tCipher Suites Length: ").append(supportedCipherSuites.size() * 2);
 		sb.append(StringUtil.lineSeparator()).append("\t\tCipher Suites (").append(supportedCipherSuites.size()).append(" suites)");

@@ -104,7 +104,7 @@ public class Bytes {
 	 * @return bytes as (hexadecimal) string
 	 */
 	public final String getAsString() {
-		return StringUtil.byteArray2HexString(bytes, StringUtil.NO_SEPARATOR, 0);
+		return StringUtil.byteArray2Hex(bytes);
 	}
 
 	/**

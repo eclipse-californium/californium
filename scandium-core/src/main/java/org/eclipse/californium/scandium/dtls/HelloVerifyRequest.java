@@ -23,7 +23,6 @@ import java.util.Arrays;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
 /**
  * The server send this request after receiving a {@link ClientHello} message to
@@ -114,7 +113,7 @@ public final class HelloVerifyRequest extends HandshakeMessage {
 		sb.append("\t\tServer Version: ").append(serverVersion.getMajor()).append(", ").append(serverVersion.getMinor())
 			.append(StringUtil.lineSeparator());
 		sb.append("\t\tCookie Length: ").append(cookie.length).append(StringUtil.lineSeparator());
-		sb.append("\t\tCookie: ").append(ByteArrayUtils.toHexString(cookie)).append(StringUtil.lineSeparator());
+		sb.append("\t\tCookie: ").append(StringUtil.byteArray2HexString(cookie)).append(StringUtil.lineSeparator());
 
 		return sb.toString();
 	}

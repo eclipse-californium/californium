@@ -21,7 +21,6 @@ import java.util.Arrays;
 import java.util.Date;
 
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
 /**
  * A 32-byte value provided by the client and the server in the
@@ -106,7 +105,7 @@ public class Random {
 
 		// output the remaining 28 random bytes
 		byte[] rand = Arrays.copyOfRange(randomBytes, 4, 32);
-		sb.append("\t\t\tRandom Bytes: ").append(ByteArrayUtils.toHexString(rand)).append(StringUtil.lineSeparator());
+		sb.append("\t\t\tRandom Bytes: ").append(StringUtil.byteArray2HexString(rand)).append(StringUtil.lineSeparator());
 
 		return sb.toString();
 	}
