@@ -28,7 +28,6 @@ import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
-import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
 /**
  * Generates client ephemeral ECDH keys for Dtls ECDH_PSK mode.
@@ -150,9 +149,9 @@ public final class EcdhPskClientKeyExchange extends ClientKeyExchange {
 		StringBuilder sb = new StringBuilder();
 		sb.append(super.toString());
 		sb.append("\t\t Encoded identity value: ");
-		sb.append(ByteArrayUtils.toHex(identityEncoded)).append(StringUtil.lineSeparator());;
+		sb.append(StringUtil.byteArray2Hex(identityEncoded)).append(StringUtil.lineSeparator());;
 		sb.append("\t\tEC Diffie-Hellman public value: ");		
-		sb.append(ByteArrayUtils.toHexString(pointEncoded));
+		sb.append(StringUtil.byteArray2Hex(pointEncoded));
 		sb.append(StringUtil.lineSeparator());
 		return sb.toString();
 	}		

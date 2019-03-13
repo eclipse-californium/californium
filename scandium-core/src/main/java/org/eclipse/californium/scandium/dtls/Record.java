@@ -683,16 +683,16 @@ public class Record {
 		byte[] explicitNonceUsed = reader.readBytes(8);
 		if (LOGGER.isDebugEnabled() && !Arrays.equals(explicitNonce, explicitNonceUsed)) {
 			StringBuilder b = new StringBuilder("The explicit nonce used by the sender does not match the values provided in the DTLS record");
-			b.append(StringUtil.lineSeparator()).append("Used    : ").append(ByteArrayUtils.toHexString(explicitNonceUsed));
-			b.append(StringUtil.lineSeparator()).append("Expected: ").append(ByteArrayUtils.toHexString(explicitNonce));
+			b.append(StringUtil.lineSeparator()).append("Used    : ").append(StringUtil.byteArray2HexString(explicitNonceUsed));
+			b.append(StringUtil.lineSeparator()).append("Expected: ").append(StringUtil.byteArray2HexString(explicitNonce));
 			LOGGER.debug(b.toString());
 		}
 
 		byte[] nonce = getNonce(iv, explicitNonceUsed);
 		if (LOGGER.isTraceEnabled()) {
 			LOGGER.trace("decrypt: {} bytes", byteArray.length - 16);
-			LOGGER.trace("nonce: {}", StringUtil.byteArray2HexString(nonce, StringUtil.NO_SEPARATOR, 0));
-			LOGGER.trace("adata: {}", StringUtil.byteArray2HexString(additionalData, StringUtil.NO_SEPARATOR, 0));
+			LOGGER.trace("nonce: {}", StringUtil.byteArray2HexString(nonce));
+			LOGGER.trace("adata: {}", StringUtil.byteArray2HexString(additionalData));
 		}
 		return CCMBlockCipher.decrypt(key, nonce, additionalData, reader.readBytesLeft(), 8);
 	}
@@ -1035,7 +1035,7 @@ public class Record {
 		//  are processed and transmitted as specified by the current active session state."
 		if (LOGGER.isTraceEnabled()) {
 			LOGGER.trace("Decrypting HANDSHAKE message ciphertext{}{}", StringUtil.lineSeparator(),
-				ByteArrayUtils.toHexString(decryptedMessage));
+					StringUtil.byteArray2HexString(decryptedMessage));
 		}
 
 		HandshakeParameter parameter = null;
@@ -1047,7 +1047,7 @@ public class Record {
 		if (LOGGER.isDebugEnabled()) {
 			StringBuilder msg = new StringBuilder("Parsing HANDSHAKE message plaintext [{}]");
 			if (LOGGER.isTraceEnabled()) {
-				msg.append(":").append(StringUtil.lineSeparator()).append(ByteArrayUtils.toHexString(decryptedMessage));
+				msg.append(":").append(StringUtil.lineSeparator()).append(StringUtil.byteArray2HexString(decryptedMessage));
 			}
 			LOGGER.debug(msg.toString(), parameter);
 		}

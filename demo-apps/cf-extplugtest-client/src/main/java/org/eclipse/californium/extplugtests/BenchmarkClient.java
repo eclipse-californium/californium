@@ -58,10 +58,10 @@ import org.eclipse.californium.core.server.resources.ResourceObserver;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.extplugtests.resources.Feed;
 import org.eclipse.californium.plugtests.ClientInitializer;
 import org.eclipse.californium.plugtests.ClientInitializer.Arguments;
-import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -655,7 +655,7 @@ public class BenchmarkClient {
 			Arguments connectionArgs = arguments;
 			if (secure) {
 				random.nextBytes(id);
-				String name = ClientInitializer.PSK_IDENTITY_PREFIX + ByteArrayUtils.toHex(id);
+				String name = ClientInitializer.PSK_IDENTITY_PREFIX + StringUtil.byteArray2Hex(id);
 				connectionArgs = arguments.create(name, null);
 			}
 			CoapEndpoint coapEndpoint = ClientInitializer.createEndpoint(config, connectionArgs, connectorExecutor);

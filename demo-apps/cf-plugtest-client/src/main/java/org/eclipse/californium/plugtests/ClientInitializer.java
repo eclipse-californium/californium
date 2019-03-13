@@ -42,11 +42,11 @@ import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.tcp.TcpClientConnector;
 import org.eclipse.californium.elements.tcp.TlsClientConnector;
 import org.eclipse.californium.elements.util.SslContextUtil;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
-import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -189,7 +189,7 @@ public class ClientInitializer {
 					byte[] rid = new byte[8];
 					SecureRandom random = new SecureRandom();
 					random.nextBytes(rid);
-					dtlsConfig.setPskStore(new PlugPskStore(ByteArrayUtils.toHex(rid)));
+					dtlsConfig.setPskStore(new PlugPskStore(StringUtil.byteArray2Hex(rid)));
 				}
 				dtlsConfig.setConnectionIdLength(cidLength);
 				dtlsConfig.setClientOnly();

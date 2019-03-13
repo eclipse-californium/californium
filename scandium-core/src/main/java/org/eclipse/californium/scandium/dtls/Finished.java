@@ -30,7 +30,6 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
-import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -112,8 +111,8 @@ public final class Finished extends HandshakeMessage {
 			StringBuilder msg = new StringBuilder("Verification of peer's [").append(getPeer())
 					.append("] FINISHED message failed");
 			if (LOG.isTraceEnabled()) {
-				msg.append(StringUtil.lineSeparator()).append("Expected: ").append(ByteArrayUtils.toHexString(myVerifyData));
-				msg.append(StringUtil.lineSeparator()).append("Received: ").append(ByteArrayUtils.toHexString(verifyData));
+				msg.append(StringUtil.lineSeparator()).append("Expected: ").append(StringUtil.byteArray2HexString(myVerifyData));
+				msg.append(StringUtil.lineSeparator()).append("Received: ").append(StringUtil.byteArray2HexString(verifyData));
 			}
 			LOG.debug(msg.toString());
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, getPeer());
@@ -145,7 +144,7 @@ public final class Finished extends HandshakeMessage {
 	@Override
 	public String toString() {
 		return new StringBuilder(super.toString())
-				.append("\t\tVerify Data: ").append(ByteArrayUtils.toHexString(verifyData)).append(StringUtil.lineSeparator())
+				.append("\t\tVerify Data: ").append(StringUtil.byteArray2HexString(verifyData)).append(StringUtil.lineSeparator())
 				.toString();
 	}
 

@@ -21,7 +21,6 @@
 package org.eclipse.californium.scandium.util;
 
 import org.eclipse.californium.elements.util.Bytes;
-import org.eclipse.californium.elements.util.StringUtil;
 
 public class ByteArrayUtils {
 
@@ -44,35 +43,6 @@ public class ByteArrayUtils {
 		System.arraycopy(b, 0, concat, lengthA, lengthB);
 
 		return concat;
-	}
-
-	/**
-	 * Byte array to hexadecimal display string.
-	 * 
-	 * Intended for logging. The hexadecimal characters will be separated by
-	 * spaces.
-	 * 
-	 * @param byteArray byte array to be converted to string
-	 * @return hexadecimal string, e.g "01 45 A4". "--", if byte array is
-	 *         {@code null} or empty.
-	 * @see StringUtil#byteArray2HexString(byte[], char, int)
-	 */
-	public static String toHexString(byte[] byteArray) {
-		return StringUtil.byteArray2HexString(byteArray, ' ', 0);
-	}
-
-	/**
-	 * Byte array to hexadecimal string without separator.
-	 * 
-	 * @param byteArray byte array to be converted to string.
-	 * @return hexadecimal string, e.g "0142A3". {@code null}, if the provided
-	 *         byte array is {@code null}. {@code ""}, if provided byte array is
-	 *         empty.
-	 * @see StringUtil#byteArray2Hex(byte[])
-	 * @see StringUtil#hex2ByteArray(String)
-	 */
-	public static String toHex(byte[] byteArray) {
-		return StringUtil.byteArray2Hex(byteArray);
 	}
 
 	/**
