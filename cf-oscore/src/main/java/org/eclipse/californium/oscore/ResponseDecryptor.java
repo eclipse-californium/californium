@@ -101,7 +101,11 @@ public class ResponseDecryptor extends Decryptor {
 		eOptions = OptionJuggle.merge(eOptions, uOptions);
 		response.setOptions(eOptions);
 
-		db.removeToken(token);
+		//Remove token after response is received, unless it has Observe
+		//If is has Observe it will be removed after cancellation elsewhere
+		if(response.getOptions().hasObserve() == false) {
+			db.removeToken(token);
+		}
 
 		return response;
 	}

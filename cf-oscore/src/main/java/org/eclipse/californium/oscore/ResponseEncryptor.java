@@ -65,6 +65,11 @@ public class ResponseEncryptor extends Encryptor {
 		options = response.getOptions();
 		response.setOptions(OptionJuggle.prepareUoptions(options));
 
+		//If new partial IV was generated for response increment sender seq nr.
+		if(newPartialIV) {
+			ctx.increaseSenderSeq();
+		}
+		
 		return response;
 	}
 }

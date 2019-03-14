@@ -20,7 +20,6 @@ package org.eclipse.californium.oscore;
 
 import static org.junit.Assert.*;
 
-import java.math.BigInteger;
 import java.util.ArrayList;
 
 import org.eclipse.californium.core.coap.CoAP;
@@ -44,6 +43,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.eclipse.californium.elements.util.Bytes;
 
 public class OSCoreTest {
 
@@ -95,11 +95,11 @@ public class OSCoreTest {
 	public void testEndcodingObjectSecurityValueCompression() {
 		byte[] objectSecurityRequest = Encryptor.encodeOSCoreRequest(clientCtx);
 
-		assertArrays(objectSecurityRequest, new byte[] { 0x09, 0x00, 0x00 });
+		assertArrayEquals(objectSecurityRequest, new byte[] { 0x09, 0x00, 0x00 });
 
 		byte[] objectSecurityResponse = Encryptor.encodeOSCoreResponse(serverCtx, false);
 
-		assertArrays(objectSecurityResponse, new byte[] { 0x00 });
+		assertArrayEquals(objectSecurityResponse, Bytes.EMPTY);
 	}
 
 	@Test
@@ -128,7 +128,7 @@ public class OSCoreTest {
 
 		System.out.println();
 
-		assertArrays(nonce, predictedNonce);
+		assertArrayEquals(nonce, predictedNonce);
 	}
 
 	@Test
@@ -461,16 +461,6 @@ public class OSCoreTest {
 		response.setToken(token);
 
 		return ObjectSecurityLayer.prepareSend(response, tid, false);
-	}
-
-	private static boolean assertArrays(byte[] oldValue, byte[] newValue) {
-		int res = (new BigInteger(oldValue)).compareTo((new BigInteger(newValue)));
-
-		if (res == -1) {
-			return true;
-		} else {
-			return false;
-		}
 	}
 
 	public Token generateToken() {

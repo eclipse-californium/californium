@@ -53,6 +53,7 @@ public class OSSerializer {
 	 * @param options the options
 	 * 
 	 * @param payload the payload
+ 	 * @param realCode the actual code of the message
 	 * 
 	 * @return the serialized plaintext for OSCore
 	 */
@@ -83,6 +84,7 @@ public class OSSerializer {
 	 * @param version the CoAP version number
 	 * @param ctx the OSCore context
 	 * @param options the option set
+	 * @param newPartialIV if response contains partialIV
 	 * 
 	 * @return the serialized AAD for OSCore
 	 */
@@ -104,7 +106,7 @@ public class OSSerializer {
 						aad.Add(processPartialIV(ctx.getReceiverSeq()));
 					}
 					
-					//Added the last parameter which should be the options
+					//I-class options (currently none)
 					aad.Add(CBORObject.FromObject(EMPTY));
 
 					return aad.EncodeToBytes();
@@ -149,7 +151,7 @@ public class OSSerializer {
 						aad.Add(ctx.getSenderId());
 						aad.Add(processPartialIV(seq));
 						
-						//Added the last parameter which should be the options
+						//I-class options (currently none)
 						aad.Add(CBORObject.FromObject(EMPTY));
 						
 						return aad.EncodeToBytes();
@@ -197,7 +199,7 @@ public class OSSerializer {
 					aad.Add(ctx.getSenderId());
 					aad.Add(processPartialIV(ctx.getSenderSeq()));
 					
-					//Added the last parameter which should be the options
+					//I-class options (currently none)
 					aad.Add(CBORObject.FromObject(EMPTY));
 					
 					return aad.EncodeToBytes();
@@ -243,7 +245,7 @@ public class OSSerializer {
 						aad.Add(ctx.getRecipientId());
 						aad.Add(processPartialIV(seq));
 						
-						//Added the last parameter which should be the options
+						//I-class options (currently none)
 						aad.Add(CBORObject.FromObject(EMPTY));
 						
 						return aad.EncodeToBytes();
@@ -267,7 +269,7 @@ public class OSSerializer {
 
 	/**
 	 * Generates the nonce.
-	 * See https://core-wg.github.io/oscoap/draft-ietf-core-object-security.html#nonce
+	 * See https://tools.ietf.org/html/draft-ietf-core-object-security-16#section-5.2
 	 * 
 	 * @param partialIV
 	 * @param senderID

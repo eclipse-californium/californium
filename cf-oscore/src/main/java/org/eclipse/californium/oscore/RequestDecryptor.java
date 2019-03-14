@@ -55,9 +55,9 @@ public class RequestDecryptor extends Decryptor {
 	/**
 	 * @param request the request to decrypt
 	 * 
-	 * @return the cid of the OSCore context use for this request
+	 * @return the decrypted request
 	 * 
-	 * @throws OSException if decryption fails
+	 * @throws CoapOSException if decryption fails
 	 */
 	public static Request decrypt(Request request) throws CoapOSException {
 		

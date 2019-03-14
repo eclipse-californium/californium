@@ -141,11 +141,6 @@ public class OptionJuggle {
 		for (Option o : options.asSortedList()) {
 			switch (o.getNumber()) {
 
-			// We do not support observe as of now and so the message is
-			// processed as a normal message
-			case OptionNumberRegistry.OBSERVE:
-				options.removeObserve();
-				break;
 			case OptionNumberRegistry.URI_HOST:
 			case OptionNumberRegistry.URI_PORT:
 			case OptionNumberRegistry.PROXY_SCHEME:

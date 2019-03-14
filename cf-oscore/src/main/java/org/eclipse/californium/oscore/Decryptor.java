@@ -230,7 +230,7 @@ public abstract class Decryptor {
 		/**
 		 * If the OSCORE option value is a zero length byte array
 		 * it represents a byte array of length 1 with a byte 0x00
-		 * See https://tools.ietf.org/html/draft-ietf-core-object-security-15#page-33 point 4  
+		 * See https://tools.ietf.org/html/draft-ietf-core-object-security-16#page-33 point 4  
 		 */
 		if(total.length == 0) {
 			total = new byte[] { 0x00 };
@@ -294,7 +294,7 @@ public abstract class Decryptor {
 	 * Replaces the message's options with a new OptionSet which doesn't contain
 	 * any of the non-special E options as outer options
 	 * 
-	 * @param message
+	 * @param message the received message
 	 */
 	protected static void discardEOptions(Message message) {
 		OptionSet newOptions = OptionJuggle.discardEOptions(message.getOptions());
