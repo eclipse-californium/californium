@@ -36,6 +36,7 @@ import com.upokecenter.cbor.CBORObject;
 import org.eclipse.californium.cose.Attribute;
 import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.cose.HeaderKeys;
+import org.eclipse.californium.elements.util.Bytes;
 
 /**
  * 
@@ -56,6 +57,7 @@ public abstract class Encryptor {
 	 * @param enc the encrypt structure
 	 * @param ctx the OSCore context
 	 * @param mess the message
+	 * @param newPartialIV if response contains partialIV
 	 *
 	 * @return the COSE message
 	 * 
@@ -84,7 +86,7 @@ public abstract class Encryptor {
 					nonce = OSSerializer.nonceGeneration(partialIV, ctx.getRecipientId(), ctx.getCommonIV(),
 							ctx.getIVLength());
 				} else {
-					// response' creates its own partialIV
+					// response creates its own partialIV
 					partialIV = OSSerializer.processPartialIV(ctx.getSenderSeq());
 					nonce = OSSerializer.nonceGeneration(partialIV, ctx.getSenderId(), ctx.getCommonIV(),
 							ctx.getIVLength());
@@ -107,6 +109,7 @@ public abstract class Encryptor {
 	 * 
 	 * @param m the message
 	 * @param ctx the OSCore context
+	 * @param newPartialIV if response contains partialIV
 	 * @return the serialized AAD
 	 */
 	protected static byte[] serializeAAD(Message m, OSCoreCtx ctx, final boolean newPartialIV) {
@@ -142,6 +145,7 @@ public abstract class Encryptor {
 	 * @param ctx the OSCoreCtx
 	 * @param cipherText the cipher text to be appended to this compression
 	 * @param message the message
+	 * @param newPartialIV if response contains partialIV
 	 * @return the entire message's byte array
 	 */
 	protected static byte[] compression(OSCoreCtx ctx, byte[] cipherText, Message message, final boolean newPartialIV) {
@@ -183,6 +187,7 @@ public abstract class Encryptor {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+		
 		return bRes.toByteArray();
 	}
 
@@ -209,8 +214,15 @@ public abstract class Encryptor {
 			}
 		} else {
 			bRes.write(firstByte);
-			return bRes.toByteArray();
 		}
-		return bRes.toByteArray();
+		
+		//If the OSCORE option is length 1 and 0x00, it can be empty
+		//See https://tools.ietf.org/html/draft-ietf-core-object-security-16#page-33 point 4
+		byte[] optionBytes = bRes.toByteArray();
+		if(optionBytes.length == 1 && optionBytes[0] == 0x00) {
+			return Bytes.EMPTY;
+		} else {
+			return optionBytes;
+		}
 	}
 }

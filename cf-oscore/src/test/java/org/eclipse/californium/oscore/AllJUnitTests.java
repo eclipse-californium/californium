@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Tobias Andersson (RISE SICS)
+ *    Rikard Höglund (RISE SICS)
  *    
  ******************************************************************************/
 package org.eclipse.californium.oscore;
@@ -22,7 +23,7 @@ import org.junit.runners.Suite.SuiteClasses;
 
 @RunWith(Suite.class)
 @SuiteClasses({ ByteIdTest.class, HashMapCtxDBTest.class, OptionJuggleTest.class, OSCoreCtxTest.class, OSCoreTest.class,
-		OSSerializerTest.class })
+		OSSerializerTest.class, OSCoreServerClientTest.class, OSCoreObserveTest.class })
 public class AllJUnitTests {
 
 }

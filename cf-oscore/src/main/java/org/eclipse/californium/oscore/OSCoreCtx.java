@@ -38,7 +38,7 @@ import org.eclipse.californium.cose.CoseException;
 /**
  * 
  * Represents the Security Context and its parameters. At initiation derives the
- * keys and ivs. Also maintains replay window.
+ * keys and IVs. Also maintains replay window.
  *
  */
 public class OSCoreCtx {
@@ -103,6 +103,7 @@ public class OSCoreCtx {
 	 *            default
 	 * @param replay_size the replay window size or null for the default
 	 * @param master_salt the optional master salt, can be null
+	 * @param contextId the context id, can be null
 	 *
 	 * @throws OSException if the KDF is not supported
 	 */
@@ -262,35 +263,35 @@ public class OSCoreCtx {
 	}
 
 	/**
-	 * @return get the sender key
+	 * @return the sender key
 	 */
 	public byte[] getSenderKey() {
 		return sender_key;
 	}
 
 	/**
-	 * @return get the recipient key
+	 * @return the recipient key
 	 */
 	public byte[] getRecipientKey() {
 		return recipient_key;
 	}
 
 	/**
-	 * @return get the encryption algorithm
+	 * @return the encryption algorithm
 	 */
 	public AlgorithmID getAlg() {
 		return this.common_alg;
 	}
 
 	/**
-	 * @return get the sender sequence number
+	 * @return the sender sequence number
 	 */
 	public synchronized int getSenderSeq() {
 		return sender_seq;
 	}
 
 	/**
-	 * @return get the receiver sequence number
+	 * @return the receiver sequence number
 	 */
 	public synchronized int getReceiverSeq() {
 		return recipient_seq;
@@ -325,7 +326,7 @@ public class OSCoreCtx {
 	}
 
 	/**
-	 * @return the set length of iv:s
+	 * @return the set length of IV:s
 	 */
 	public int getIVLength() {
 		return iv_length;
@@ -425,7 +426,7 @@ public class OSCoreCtx {
 	}
 
 	/**
-	 * Sets the valid lengths, in bytes, of constrained variables(ids, ivs and
+	 * Sets the valid lengths, in bytes, of constrained variables(ids, IVs and
 	 * keys).
 	 * 
 	 * @throws RuntimeException if not this.common_alg has been initiated
