@@ -36,15 +36,18 @@ public class AeadBlockCipher {
 	 * Test, if cipher is supported.
 	 * 
 	 * @param transformation name of cipher
+	 * @param keyLength key length in bytes
 	 * @return {@code true}, if supported
 	 */
-	public final static boolean isSupported(String transformation) {
+	public final static boolean isSupported(String transformation, int keyLength) {
+		String cipherName = transformation;
 		if (AES_CCM.equals(transformation)) {
-			return true;
+			cipherName = CCMBlockCipher.CIPHER_NAME;
 		}
 		try {
-			CipherManager.getInstance(transformation);
-			return true;
+			CipherManager.getInstance(cipherName);
+			int maxAllowedKeyLengthBits = Cipher.getMaxAllowedKeyLength(cipherName);
+			return keyLength * 8 <= maxAllowedKeyLengthBits;
 		} catch (GeneralSecurityException ex) {
 			return false;
 		}

@@ -1034,11 +1034,13 @@ public final class DtlsConnectorConfig {
 		 * order) during the DTLS handshake when negotiating a cipher suite with
 		 * a peer.
 		 * 
-		 * @param cipherSuites the supported cipher suites in the order of preference
+		 * @param cipherSuites the supported cipher suites in the order of
+		 *            preference
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given array is <code>null</code>
 		 * @throws IllegalArgumentException if the given array is empty or
-		 *             contains {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}
+		 *             contains {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}, or
+		 *             contains a cipher suite, not supported by the JVM.
 		 */
 		public Builder setSupportedCipherSuites(List<CipherSuite> cipherSuites) {
 			if (cipherSuites == null) {
@@ -1052,6 +1054,11 @@ public final class DtlsConnectorConfig {
 			}
 			if (extendedCipherSuites) {
 				throw new IllegalArgumentException("Extended default cipher-suites are already provided!");
+			}
+			for (CipherSuite cipherSuite : cipherSuites) {
+				if (!cipherSuite.isSupported()) {
+					throw new IllegalArgumentException("cipher-suites " + cipherSuite + " is not supported by JVM!");
+				}
 			}
 			config.supportedCipherSuites = cipherSuites;
 			return this;
@@ -1773,6 +1780,11 @@ public final class DtlsConnectorConfig {
 			if (config.supportedCipherSuites == null || config.supportedCipherSuites.isEmpty()) {
 				throw new IllegalStateException("Supported cipher suites must be set either " +
 						"explicitly or implicitly by means of setting the identity or PSK store");
+			}
+			for (CipherSuite cipherSuite : config.supportedCipherSuites) {
+				if (!cipherSuite.isSupported()) {
+					throw new IllegalStateException("cipher-suites " + cipherSuite + " is not supported by JVM!");
+				}
 			}
 
 			if (config.trustCertificateTypes != null) {

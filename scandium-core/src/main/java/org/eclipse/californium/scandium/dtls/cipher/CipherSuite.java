@@ -671,7 +671,7 @@ public enum CipherSuite {
 			this.recordIvLength = recordIvLength;
 			this.macLength = macLength;
 			if (type == CipherType.AEAD || type == CipherType.BLOCK) {
-				this.supported = AeadBlockCipher.isSupported(transformation);
+				this.supported = AeadBlockCipher.isSupported(transformation, keyLength);
 			} else {
 				this.supported = true;
 			}
