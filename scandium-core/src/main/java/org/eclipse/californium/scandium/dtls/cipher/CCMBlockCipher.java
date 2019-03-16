@@ -44,7 +44,7 @@ public class CCMBlockCipher {
 	/**
 	 * The underlying block cipher.
 	 */
-	private static final String CIPHER_NAME = "AES/ECB/NoPadding";
+	public static final String CIPHER_NAME = "AES/ECB/NoPadding";
 
 	private static abstract class Block {
 
