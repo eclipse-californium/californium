@@ -47,6 +47,7 @@ import java.util.List;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.dtls.CertificateType;
+import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.SessionCache;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
@@ -277,9 +278,13 @@ public final class DtlsConnectorConfig {
 	private String loggingTag;
 
 	/**
-	 * Enables use of connection id. 
+	 * Connection id generator. {@code null}, if connection id is not supported.
+	 * The generator may only support the use of a connection id without using
+	 * it by itself. In that case
+	 * {@link ConnectionIdGenerator#useConnectionId()} will return
+	 * {@code false}.
 	 */
-	private Integer connectionIdLength;
+	private ConnectionIdGenerator connectionIdGenerator;
 
 	private DtlsConnectorConfig() {
 		// empty
@@ -431,13 +436,16 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Gets connection ID length.
+	 * Gets connection ID generator.
 	 * 
-	 * @return length of connection id. 0 for support connection id, but not
-	 *         using it. {@code null} for no supported.
+	 * @return connection id generator. {@code null} for not supported. The
+	 *         returned generator may only support the use of a connection id
+	 *         without using it by itself. In that case
+	 *         {@link ConnectionIdGenerator#useConnectionId()} will return
+	 *         {@code false}.
 	 */
-	public Integer getConnectionIdLength() {
-		return connectionIdLength;
+	public ConnectionIdGenerator getConnectionIdGenerator() {
+		return connectionIdGenerator;
 	}
 
 	/**
@@ -751,9 +759,9 @@ public final class DtlsConnectorConfig {
 		cloned.verifyPeersOnResumptionThreshold = verifyPeersOnResumptionThreshold;
 		cloned.useNoServerSessionId = useNoServerSessionId;
 		cloned.loggingTag = loggingTag;
-		cloned.connectionIdLength = connectionIdLength;
 		cloned.useAntiReplayFilter = useAntiReplayFilter;
 		cloned.useWindowFilter = useWindowFilter;
+		cloned.connectionIdGenerator = connectionIdGenerator;
 		return cloned;
 	}
 
@@ -1555,18 +1563,17 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Sets the connection ID length.
+		 * Sets the connection id generator.
 		 * 
-		 * @param connectionIdLength length of connection id. 0 for support
-		 *            connection id, but not using it. {@code null} for no
-		 *            supported.
+		 * @param connectionIdGenerator connection id generator. {@code null}
+		 *            for not supported. The generator may only support the use
+		 *            of a connection id without using it by itself. In that
+		 *            case {@link ConnectionIdGenerator#useConnectionId()} must
+		 *            return {@code false}.
 		 * @return this builder for command chaining.
 		 */
-		public Builder setConnectionIdLength(final Integer connectionIdLength) {
-			if (connectionIdLength != null && connectionIdLength < 0) {
-				throw new IllegalArgumentException("cid length must be at least 0");
-			}
-			config.connectionIdLength = connectionIdLength;
+		public Builder setConnectionIdGenerator(ConnectionIdGenerator connectionIdGenerator) {
+			config.connectionIdGenerator = connectionIdGenerator;
 			return this;
 		}
 

@@ -26,6 +26,7 @@ import java.util.List;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
+import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 
@@ -143,7 +144,7 @@ public class CredentialsUtil {
 				} catch (NumberFormatException e) {
 					System.err.println("'" + value + "' is no number! Use cid-lenght default " + DEFAULT_CID_LENGTH);
 				}
-				builder.setConnectionIdLength(cidLength);
+				builder.setConnectionIdGenerator(new SingleNodeConnectionIdGenerator(cidLength));
 				if (cidLength == 0) {
 					System.out.println("Enable cid support");
 				} else {
