@@ -260,6 +260,7 @@ public final class NetworkConfig {
 		 * </ul>
 		 */
 		public static final String DTLS_CONNECTION_ID_LENGTH = "DTLS_CONNECTION_ID_LENGTH";
+		public static final String DTLS_CONNECTION_ID_NODE = "DTLS_CONNECTION_ID_NODE";
 	}
 
 	/**

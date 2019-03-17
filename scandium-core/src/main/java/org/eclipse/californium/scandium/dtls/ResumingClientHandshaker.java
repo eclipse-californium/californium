@@ -178,7 +178,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 				} else {
 					this.serverHello = serverHello;
 					serverRandom = serverHello.getRandom();
-					if (connectionIdLength != null) {
+					if (connectionIdGenerator != null) {
 						ConnectionIdExtension extension = serverHello.getConnectionIdExtension();
 						if (extension != null) {
 							ConnectionId connectionId = extension.getConnectionId();

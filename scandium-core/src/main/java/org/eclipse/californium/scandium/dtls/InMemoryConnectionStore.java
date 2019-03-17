@@ -36,12 +36,13 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 import java.util.List;
-import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 import org.eclipse.californium.elements.util.SerialExecutor;
+import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,8 +88,20 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	private static final int DEFAULT_CACHE_SIZE = 150000;
 	private static final long DEFAULT_EXPIRATION_THRESHOLD = 36 * 60 * 60; // 36h
 	private final SessionCache sessionCache;
-	private final Random random = new Random(System.currentTimeMillis());
-	private final int cidLength;
+	/**
+	 * Passed in cid generator. May be {@code null}.
+	 * 
+	 * @see #getConnectionIdGenerator()
+	 */
+	private final ConnectionIdGenerator connectionIdGenerator;
+	/**
+	 * Internally used cid generator. May differ from
+	 * {@link #connectionIdGenerator}, if that is {@code null} or not
+	 * {@link ConnectionIdGenerator#useConnectionId()}.
+	 * 
+	 * @see #newConnectionId()
+	 */
+	private final ConnectionIdGenerator internalConnectionIdGenerator;
 	protected final LeastRecentlyUsedCache<ConnectionId, Connection> connections;
 	protected final ConcurrentMap<InetSocketAddress, Connection> connectionsByAddress;
 	protected final ConcurrentMap<SessionId, Connection> connectionsByEstablishedSession;
@@ -129,9 +142,9 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	/**
 	 * Creates a store based on given configuration parameters.
 	 * 
-	 * @param cidLength connection id length. If {@code null} or {@code 0}, the
-	 *            number of bytes required for the provided capacity plus
-	 *            {@link #DEFAULT_EXTRA_CID_LENGTH} is used.
+	 * @param connectionIdGenerator connection id generator. Must be the same as
+	 *            passed in to the {@link DTLSConnector} via
+	 *            {@link DtlsConnectorConfig}.
 	 * @param capacity the maximum number of connections the store can manage
 	 * @param threshold the period of time of inactivity (in seconds) after
 	 *            which a connection is considered stale and can be evicted from
@@ -140,25 +153,26 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	 *            connection state of established DTLS sessions. If implements
 	 *            {@link ClientSessionCache}, restore connection from the cache
 	 *            and mark them to resume.
+	 * @param connectionIdGenerator custom connection id generator. If
+	 *            {@code null} or not
+	 *            {@link ConnectionIdGenerator#useConnectionId()} use a default
+	 *            {@link SingleNodeConnectionIdGenerator}.
 	 */
-	public InMemoryConnectionStore(final Integer cidLength, final int capacity, final long threshold, final SessionCache sessionCache) {
+	public InMemoryConnectionStore(ConnectionIdGenerator connectionIdGenerator, int capacity, long threshold, SessionCache sessionCache) {
 		this.connections = new LeastRecentlyUsedCache<>(capacity, threshold);
 		this.connections.setEvictingOnReadAccess(false);
 		this.connections.setUpdatingOnReadAccess(false);
 		this.connectionsByEstablishedSession = new ConcurrentHashMap<>();
 		this.connectionsByAddress = new ConcurrentHashMap<>();
 		this.sessionCache = sessionCache;
-
-		if (cidLength == null || cidLength == 0) {
-			// get number of used bits for capacity to determine the number of used bytes
-			// e.g.: capacity   : 30000 => 111 0101 0011 0000 => 15 [bits]
-			//       to bytes   : => (15 + 7) [bits] / 8 [bits per byte] => 2 [bytes]
-			//       cid length : => 2 + DEFAULT_EXTRA_CID_LENGTH
+		this.connectionIdGenerator = connectionIdGenerator;
+		if (connectionIdGenerator == null || !connectionIdGenerator.useConnectionId()) {
 			int bits = Integer.SIZE - Integer.numberOfLeadingZeros(capacity);
-			this.cidLength = ((bits + 7)/ 8) + DEFAULT_EXTRA_CID_LENGTH;
+			int cidLength = ((bits + 7) / 8) + DEFAULT_EXTRA_CID_LENGTH;
+			this.internalConnectionIdGenerator = new SingleNodeConnectionIdGenerator(cidLength);
 		} else {
-			this.cidLength = cidLength;
-		}
+			this.internalConnectionIdGenerator = connectionIdGenerator;
+		}	
 
 		if (sessionCache != null) {
 			// make sure that session state for stale (evicted) connections is removed from second level cache
@@ -234,12 +248,12 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	 * 
 	 * @return connection id, or {@code null}, if no free connection id could
 	 *         created
+	 * @see #internalConnectionIdGenerator
+	 * @see ConnectionIdGenerator
 	 */
 	private ConnectionId newConnectionId() {
-		byte[] cidBytes = new byte[cidLength];
 		for (int i = 0; i < 10; ++i) {
-			random.nextBytes(cidBytes);
-			ConnectionId cid = new ConnectionId(cidBytes);
+			ConnectionId cid = internalConnectionIdGenerator.createConnectionId();
 			if (connections.get(cid) == null) {
 				return cid;
 			}
@@ -247,8 +261,16 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		return null;
 	}
 
-	public int getConnectionIdLength() {
-		return cidLength;
+	/**
+	 * {@inheritDoc}
+	 * <p>
+	 * A connection can be successfully added to the store if any of the
+	 * following conditions is met:
+	 * </p>
+	 */
+	@Override
+	public ConnectionIdGenerator getConnectionIdGenerator() {
+		return connectionIdGenerator;
 	}
 	
 

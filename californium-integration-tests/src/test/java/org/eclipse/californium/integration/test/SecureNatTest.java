@@ -46,8 +46,10 @@ import org.eclipse.californium.examples.NatUtil;
 import org.eclipse.californium.integration.test.util.CoapsNetworkRule;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.DebugConnectionStore;
 import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
+import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -122,7 +124,7 @@ public class SecureNatTest {
 	@Test
 	public void testSecureGetWithCID() throws Exception {
 
-		createSecureServer(MatcherMode.STRICT, 4);
+		createSecureServer(MatcherMode.STRICT, new SingleNodeConnectionIdGenerator(4));
 		createNat();
 
 		CoapClient client = new CoapClient(uri);
@@ -139,7 +141,7 @@ public class SecureNatTest {
 
 	@Test
 	public void testMultipleSecureGetWithCID() throws Exception {
-		createSecureServer(MatcherMode.STRICT, 4);
+		createSecureServer(MatcherMode.STRICT, new SingleNodeConnectionIdGenerator(4));
 		createNat();
 
 		CoapClient client = new CoapClient(uri);
@@ -148,7 +150,7 @@ public class SecureNatTest {
 		assertNotNull("Response not received", coapResponse);
 
 		for (int count = 0; count < NUM_OF_CLIENTS; ++count) {
-			createClientEndpoint(MatcherMode.STRICT, 4);
+			createClientEndpoint(MatcherMode.STRICT, new SingleNodeConnectionIdGenerator(4));
 		}
 		testMultipleSecureGet(0, 0, null);
 
@@ -163,7 +165,7 @@ public class SecureNatTest {
 
 	@Test
 	public void testMultipleSecureGetWithCIDAndResumption() throws Exception {
-		createSecureServer(MatcherMode.STRICT, 4);
+		createSecureServer(MatcherMode.STRICT, new SingleNodeConnectionIdGenerator(4));
 		createNat();
 
 		int overallResumes = 0;
@@ -175,7 +177,7 @@ public class SecureNatTest {
 		assertNotNull("Response not received", coapResponse);
 
 		for (int count = 0; count < NUM_OF_CLIENTS; ++count) {
-			createClientEndpoint(MatcherMode.STRICT, 4);
+			createClientEndpoint(MatcherMode.STRICT, new SingleNodeConnectionIdGenerator(4));
 		}
 		testMultipleSecureGet(0, overallResumes, resumeEndpoints);
 
@@ -192,7 +194,7 @@ public class SecureNatTest {
 
 	@Test
 	public void testSecureGetWithMixedAddressesAndCID() throws Exception {
-		createSecureServer(MatcherMode.STRICT, 4);
+		createSecureServer(MatcherMode.STRICT, new SingleNodeConnectionIdGenerator(4));
 		createNat();
 
 		CoapClient client = new CoapClient(uri);
@@ -201,7 +203,7 @@ public class SecureNatTest {
 		assertNotNull("Response not received", coapResponse);
 
 		for (int count = 0; count < NUM_OF_CLIENTS; ++count) {
-			createClientEndpoint(MatcherMode.STRICT, 4);
+			createClientEndpoint(MatcherMode.STRICT, new SingleNodeConnectionIdGenerator(4));
 		}
 		testMultipleSecureGet(0, 0, null);
 
@@ -216,7 +218,7 @@ public class SecureNatTest {
 
 	@Test
 	public void testSecureGetWithMixedAddressesCIDAndResumption() throws Exception {
-		createSecureServer(MatcherMode.STRICT, 4);
+		createSecureServer(MatcherMode.STRICT, new SingleNodeConnectionIdGenerator(4));
 		createNat();
 
 		int overallResumes = 0;
@@ -228,7 +230,7 @@ public class SecureNatTest {
 		assertNotNull("Response not received", coapResponse);
 
 		for (int count = 0; count < NUM_OF_CLIENTS; ++count) {
-			createClientEndpoint(MatcherMode.STRICT, 4);
+			createClientEndpoint(MatcherMode.STRICT, new SingleNodeConnectionIdGenerator(4));
 		}
 		testMultipleSecureGet(0, overallResumes, resumeEndpoints);
 
@@ -317,7 +319,7 @@ public class SecureNatTest {
 		}
 	}
 
-	private void createSecureServer(MatcherMode mode, Integer cidLength) throws IOException {
+	private void createSecureServer(MatcherMode mode, ConnectionIdGenerator cidGenerator) throws IOException {
 		setupNetworkConfig(mode);
 
 		DtlsConnectorConfig dtlsConfig = new DtlsConnectorConfig.Builder()
@@ -326,11 +328,11 @@ public class SecureNatTest {
 				.setServerOnly(true)
 				.setReceiverThreadCount(2)
 				.setConnectionThreadCount(2)
-				.setConnectionIdLength(cidLength)
+				.setConnectionIdGenerator(cidGenerator)
 				.setPskStore(pskStore).build();
 
 		connections = new DebugConnectionStore(
-				dtlsConfig.getConnectionIdLength(),
+				dtlsConfig.getConnectionIdGenerator(),
 				dtlsConfig.getMaxConnections(),
 				dtlsConfig.getStaleConnectionThreshold(),
 				null);
@@ -351,13 +353,13 @@ public class SecureNatTest {
 		uri = serverEndpoint.getUri() + "/" + TARGET;
 
 		// prepare secure client endpoint
-		clientEndpoint = createClientEndpoint(mode, cidLength);
+		clientEndpoint = createClientEndpoint(mode, cidGenerator);
 		EndpointManager.getEndpointManager().setDefaultEndpoint(clientEndpoint);
 		System.out.println("coap-server " + uri);
 		System.out.println("coap-client " + clientEndpoint.getUri());
 	}
 
-	private CoapEndpoint createClientEndpoint(MatcherMode mode, Integer cidLength) throws IOException {
+	private CoapEndpoint createClientEndpoint(MatcherMode mode, ConnectionIdGenerator cidGenerator) throws IOException {
 		setupNetworkConfig(mode);
 
 		String tag = "client";
@@ -372,7 +374,7 @@ public class SecureNatTest {
 				.setLoggingTag(tag)
 				.setReceiverThreadCount(2)
 				.setConnectionThreadCount(2)
-				.setConnectionIdLength(cidLength)
+				.setConnectionIdGenerator(cidGenerator)
 				.setPskStore(pskStore).build();
 
 		DTLSConnector clientConnector = new DTLSConnector(clientdtlsConfig);

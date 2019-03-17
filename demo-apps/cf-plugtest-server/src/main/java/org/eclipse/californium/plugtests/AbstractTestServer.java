@@ -42,6 +42,8 @@ import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
+import org.eclipse.californium.scandium.dtls.MultiNodeConnectionIdGenerator;
+import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.StringPskStore;
 import org.eclipse.californium.scandium.util.ServerNames;
@@ -253,8 +255,13 @@ public abstract class AbstractTestServer extends CoapServer {
 					int dtlsReceiverThreads = dtlsConfig.getInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT);
 					int maxPeers = dtlsConfig.getInt(Keys.MAX_ACTIVE_PEERS);
 					Integer cidLength = dtlsConfig.getOptInteger(Keys.DTLS_CONNECTION_ID_LENGTH);
+					Integer cidNode = dtlsConfig.getOptInteger(Keys.DTLS_CONNECTION_ID_NODE);
 					DtlsConnectorConfig.Builder dtlsConfigBuilder = new DtlsConnectorConfig.Builder();
-					dtlsConfigBuilder.setConnectionIdLength(cidLength);
+					if (cidLength != null && cidLength > 4 && cidNode != null) {
+						dtlsConfigBuilder.setConnectionIdGenerator(new MultiNodeConnectionIdGenerator(cidNode, cidLength));
+					} else {
+						dtlsConfigBuilder.setConnectionIdGenerator(new SingleNodeConnectionIdGenerator(cidLength));
+					}
 					dtlsConfigBuilder.setAddress(bindToAddress);
 					dtlsConfigBuilder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
 							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256,

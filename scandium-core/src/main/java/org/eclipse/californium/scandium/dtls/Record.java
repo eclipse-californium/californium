@@ -289,18 +289,19 @@ public class Record {
 	}
 
 	/**
-	 * Parses a sequence of <em>DTLSCiphertext</em> structures into <code>Record</code> instances.
+	 * Parses a sequence of <em>DTLSCiphertext</em> structures into {@code Record}> instances.
 	 * 
 	 * The binary representation is expected to comply with the <em>DTLSCiphertext</em> structure
 	 * defined in <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1">RFC6347, Section 4.3.1</a>.
 	 * 
-	 * @param byteArray the raw binary representation containing one or more DTLSCiphertext strctures
+	 * @param byteArray the raw binary representation containing one or more DTLSCiphertext structures
 	 * @param peerAddress the IP address and port of the peer from which the bytes have been
 	 *           received
-	 * @return the <code>Record</code> instances
-	 * @throws NullPointerException if either one of the byte array or peer address is <code>null</code>
+	 * @param cidGenerator the connection id generator. May be {@code null}.
+	 * @return the {@code Record} instances
+	 * @throws NullPointerException if either one of the byte array or peer address is {@code null}
 	 */
-	public static List<Record> fromByteArray(byte[] byteArray, InetSocketAddress peerAddress, Integer connectionIdLength) {
+	public static List<Record> fromByteArray(byte[] byteArray, InetSocketAddress peerAddress, ConnectionIdGenerator cidGenerator) {
 		if (byteArray == null) {
 			throw new NullPointerException("Byte array must not be null");
 		} else if (peerAddress == null) {
@@ -328,14 +329,18 @@ public class Record {
 
 			ConnectionId connectionId = null;
 			if (type == ContentType.TLS12_CID.getCode()) {
-				if (connectionIdLength == null) {
+				if (cidGenerator == null) {
 					LOGGER.debug("Received TLS_CID record, but cid is not supported. Discarding ...");
 					continue;
-				} else if (connectionIdLength == 0) {
-					LOGGER.debug("Received TLS_CID record, but cid is not used. Discarding ...", type);
-					continue;
+				} else if (cidGenerator.useConnectionId()) {
+					connectionId = cidGenerator.read(reader);
+					if (connectionId == null) {
+						LOGGER.debug("Received TLS_CID record, but cid is not matching. Discarding ...");
+						continue;
+					}
 				} else {
-					connectionId = new ConnectionId(reader.readBytes(connectionIdLength));
+					LOGGER.debug("Received TLS_CID record, but cid is not used. Discarding ...");
+					continue;
 				}
 			}
 			int length = reader.read(LENGTH_BITS);

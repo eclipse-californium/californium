@@ -160,7 +160,7 @@ public class ConnectorHelper {
 		serverConfig = builder.build();
 
 		serverSessionCache = new InMemorySessionCache();
-		serverConnectionStore = new DebugConnectionStore(serverConfig.getConnectionIdLength(), SERVER_CONNECTION_STORE_CAPACITY, 5 * 60, serverSessionCache); // connection timeout 5mins
+		serverConnectionStore = new DebugConnectionStore(serverConfig.getConnectionIdGenerator(), SERVER_CONNECTION_STORE_CAPACITY, 5 * 60, serverSessionCache); // connection timeout 5mins
 		serverConnectionStore.setTag("server");
 
 		server = new DTLSConnector(serverConfig, serverConnectionStore);

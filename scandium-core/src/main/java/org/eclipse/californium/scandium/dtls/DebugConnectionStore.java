@@ -18,6 +18,8 @@ package org.eclipse.californium.scandium.dtls;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ConcurrentMap;
 
+import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,9 +33,9 @@ public final class DebugConnectionStore extends InMemoryConnectionStore {
 	/**
 	 * Creates a store based on given configuration parameters.
 	 * 
-	 * @param cidLength connection id length. If {@code null} or {@code 0}, the
-	 *            number of bytes required for the provided capacity plus
-	 *            {@link #DEFAULT_EXTRA_CID_LENGTH} is used.
+	 * @param connectionIdGenerator connection id generator. Must be the same as
+	 *            passed in to the {@link DTLSConnector} via
+	 *            {@link DtlsConnectorConfig}.
 	 * @param capacity the maximum number of connections the store can manage
 	 * @param threshold the period of time of inactivity (in seconds) after
 	 *            which a connection is considered stale and can be evicted from
@@ -43,9 +45,9 @@ public final class DebugConnectionStore extends InMemoryConnectionStore {
 	 *            {@link ClientSessionCache}, restore connection from the cache
 	 *            and mark them to resume.
 	 */
-	public DebugConnectionStore(final Integer cidLength, final int capacity, final long threshold,
+	public DebugConnectionStore(final ConnectionIdGenerator connectionIdGenerator, final int capacity, final long threshold,
 			final SessionCache sessionCache) {
-		super(cidLength, capacity, threshold, sessionCache);
+		super(connectionIdGenerator, capacity, threshold, sessionCache);
 	}
 
 	/**

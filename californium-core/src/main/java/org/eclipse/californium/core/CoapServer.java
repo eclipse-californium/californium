@@ -444,7 +444,7 @@ public class CoapServer implements ServerInterface {
 		private static final String SPACE = "                                               "; // 47 until line end
 		private final String VERSION = CoapServer.class.getPackage().getImplementationVersion()!=null ?
 				"Cf "+CoapServer.class.getPackage().getImplementationVersion() : SPACE;
-		private final String msg = new StringBuilder()
+		private String msg = new StringBuilder()
 			.append("************************************************************\n")
 			.append("CoAP RFC 7252").append(SPACE.substring(VERSION.length())).append(VERSION).append("\n")
 			.append("************************************************************\n")
@@ -457,6 +457,10 @@ public class CoapServer implements ServerInterface {
 
 		public RootResource() {
 			super("");
+			String nodeId = config.getString(NetworkConfig.Keys.DTLS_CONNECTION_ID_NODE);
+			if (nodeId != null && !nodeId.isEmpty()) {
+				msg = msg + "\n node id = " + nodeId;
+			}
 		}
 
 		@Override

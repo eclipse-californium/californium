@@ -62,6 +62,8 @@ import org.eclipse.californium.examples.NatUtil;
 import org.eclipse.californium.integration.test.util.CoapsNetworkRule;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
+import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -215,7 +217,7 @@ public class SecureObserveTest {
 	@Test
 	public void testSecureObserveServerAddressChangedWithCid() throws Exception {
 
-		createSecureServer(MatcherMode.STRICT, 6);
+		createSecureServer(MatcherMode.STRICT, new SingleNodeConnectionIdGenerator(6));
 
 		createInverseNat();
 
@@ -485,14 +487,14 @@ public class SecureObserveTest {
 				is(instanceOf(EndpointMismatchException.class)));
 	}
 
-	private void createSecureServer(MatcherMode mode, Integer cidLength) {
+	private void createSecureServer(MatcherMode mode, ConnectionIdGenerator cidGenerator) {
 		pskStore = new TestUtilPskStore(IDENITITY, KEY.getBytes());
 		DtlsConnectorConfig dtlsConfig = new DtlsConnectorConfig.Builder()
 				.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
 				.setLoggingTag("server")
 				.setReceiverThreadCount(2)
 				.setConnectionThreadCount(2)
-				.setConnectionIdLength(cidLength)
+				.setConnectionIdGenerator(cidGenerator)
 				.setPskStore(pskStore).build();
 
 		NetworkConfig config = network.createTestConfig()
@@ -523,7 +525,7 @@ public class SecureObserveTest {
 				.setLoggingTag("client")
 				.setReceiverThreadCount(2)
 				.setConnectionThreadCount(2)
-				.setConnectionIdLength(cidLength)
+				.setConnectionIdGenerator(cidGenerator)
 				.setPskStore(pskStore).build();
 		clientConnector = new DTLSConnector(clientdtlsConfig);
 		builder = new CoapEndpoint.Builder();

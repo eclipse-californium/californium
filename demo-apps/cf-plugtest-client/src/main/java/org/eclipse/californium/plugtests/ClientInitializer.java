@@ -47,6 +47,7 @@ import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.pskstore.StringPskStore;
+import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -191,7 +192,7 @@ public class ClientInitializer {
 					random.nextBytes(rid);
 					dtlsConfig.setPskStore(new PlugPskStore(StringUtil.byteArray2Hex(rid)));
 				}
-				dtlsConfig.setConnectionIdLength(cidLength);
+				dtlsConfig.setConnectionIdGenerator(new SingleNodeConnectionIdGenerator(cidLength));
 				dtlsConfig.setClientOnly();
 				dtlsConfig.setMaxConnections(maxPeers);
 				dtlsConfig.setConnectionThreadCount(senderThreads);

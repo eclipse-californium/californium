@@ -148,7 +148,7 @@ public abstract class Handshaker {
 	 * The configured connection id length. {@code null}, not supported,
 	 * {@code 0} supported but not used.
 	 */
-	protected final Integer connectionIdLength;
+	protected final ConnectionIdGenerator connectionIdGenerator;
 
 	/**
 	 * The current sequence number (in the handshake message called message_seq)
@@ -259,7 +259,7 @@ public abstract class Handshaker {
 		this.session = session;
 		this.recordLayer = recordLayer;
 		this.connection = connection;
-		this.connectionIdLength = config.getConnectionIdLength();
+		this.connectionIdGenerator = config.getConnectionIdGenerator();
 		this.maxFragmentedHandshakeMessageLength = config.getMaxFragmentedHandshakeMessageLength();
 		this.maxDeferredProcessedApplicationDataMessages = config.getMaxDeferredProcessedApplicationDataMessages();
 		this.deferredApplicationData = new ArrayList<RawData>(maxDeferredProcessedApplicationDataMessages);

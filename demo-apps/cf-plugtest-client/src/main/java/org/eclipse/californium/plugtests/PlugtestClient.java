@@ -70,6 +70,8 @@ public class PlugtestClient {
 			config.setInt(Keys.NOTIFICATION_CHECK_INTERVAL_TIME, 30000);
 			config.setInt(Keys.HEALTH_STATUS_INTERVAL, 300);
 			config.setInt(Keys.MAX_ACTIVE_PEERS, 10);
+			config.setInt(Keys.DTLS_AUTO_RESUME_TIMEOUT, 0);
+			config.setInt(Keys.DTLS_CONNECTION_ID_LENGTH, 0); // support it, but don't use it
 		}
 		
 	};

@@ -30,11 +30,11 @@ import java.util.List;
 public interface ResumptionSupportingConnectionStore {
 
 	/**
-	 * Get connection id length.
+	 * Get connection id generator.
 	 * 
-	 * return connection id length
+	 * return connection id generator. May be {@code null}.
 	 */
-	public int getConnectionIdLength();
+	public ConnectionIdGenerator getConnectionIdGenerator();
 
 	/**
 	 * Puts a connection into the store.
