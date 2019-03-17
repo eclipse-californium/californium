@@ -44,6 +44,7 @@ public class InMemoryConnectionStoreTest {
 	@Before
 	public void setUp() throws Exception {
 		store = new InMemoryConnectionStore(INITIAL_CAPACITY, 1000);
+		store.attach(null);
 		con = newConnection(50L);
 		sessionId = con.getEstablishedSession().getSessionIdentifier();
 	}
@@ -100,7 +101,7 @@ public class InMemoryConnectionStoreTest {
 		// GIVEN an empty connection store with a cached session shared by another node
 		SessionCache sessionCache = new InMemorySessionCache();
 		sessionCache.put(con.getEstablishedSession());
-		store = new InMemoryConnectionStore(null, INITIAL_CAPACITY, 1000, sessionCache);
+		store = new InMemoryConnectionStore(INITIAL_CAPACITY, 1000, sessionCache);
 
 		// WHEN retrieving the connection for the given peer
 		Connection connectionWithPeer = store.find(sessionId);
@@ -119,7 +120,8 @@ public class InMemoryConnectionStoreTest {
 		// and a (local) connection based on this session
 		SessionCache sessionCache = new InMemorySessionCache();
 		sessionCache.put(con.getEstablishedSession());
-		store = new InMemoryConnectionStore(null, INITIAL_CAPACITY, 1000, sessionCache);
+		store = new InMemoryConnectionStore(INITIAL_CAPACITY, 1000, sessionCache);
+		store.attach(null);
 		store.put(con);
 		store.putEstablishedSession(con.getEstablishedSession(), con);
 		InetSocketAddress peerAddress = con.getPeerAddress();

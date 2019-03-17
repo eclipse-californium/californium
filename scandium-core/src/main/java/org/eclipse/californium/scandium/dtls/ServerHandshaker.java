@@ -713,12 +713,12 @@ public class ServerHandshaker extends Handshaker {
 			}
 		}
 
-		if (connectionIdLength != null) {
+		if (connectionIdGenerator != null) {
 			ConnectionIdExtension connectionIdExtension = clientHello.getConnectionIdExtension();
 			if (connectionIdExtension != null) {
 				session.setWriteConnectionId(connectionIdExtension.getConnectionId());
 				final ConnectionId connectionId;
-				if (connectionIdLength > 0) {
+				if (connectionIdGenerator.useConnectionId()) {
 					// use the already created unique cid
 					connectionId = getConnection().getConnectionId();
 				} else {

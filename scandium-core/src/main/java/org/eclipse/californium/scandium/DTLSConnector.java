@@ -170,6 +170,7 @@ import org.eclipse.californium.scandium.dtls.ClientHandshaker;
 import org.eclipse.californium.scandium.dtls.ClientHello;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
+import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.ContentType;
 import org.eclipse.californium.scandium.dtls.DTLSFlight;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
@@ -266,6 +267,12 @@ public class DTLSConnector implements Connector, RecordLayer {
 
 	private final List<Thread> receiverThreads = new LinkedList<Thread>();
 
+	/**
+	 * Configure connection id generator. May be {@code null}, if connection id
+	 * should not be supported.
+	 */
+	private final ConnectionIdGenerator connectionIdGenerator;
+
 	private InetSocketAddress lastBindAddress;
 	private int maximumTransmissionUnit = DEFAULT_IPV4_MTU;
 	private int inboundDatagramBufferSize = MAX_DATAGRAM_BUFFER_SIZE;
@@ -323,7 +330,6 @@ public class DTLSConnector implements Connector, RecordLayer {
 	public DTLSConnector(final DtlsConnectorConfig configuration, final SessionCache sessionCache) {
 		this(configuration,
 				new InMemoryConnectionStore(
-						configuration.getConnectionIdLength(),
 						configuration.getMaxConnections(),
 						configuration.getStaleConnectionThreshold(),
 						sessionCache).setTag(configuration.getLoggingTag()));
@@ -332,13 +338,16 @@ public class DTLSConnector implements Connector, RecordLayer {
 	/**
 	 * Creates a DTLS connector for a given set of configuration options.
 	 * 
-	 * The connection store must be configured to use the same cid length
-	 * as configured in the provided configuration.
+	 * The connection store must use the same connection id generator as
+	 * configured in the provided configuration.
 	 * 
 	 * @param configuration The configuration options.
-	 * @param connectionStore The registry to use for managing connections to peers.
-	 * @throws NullPointerException if any of the parameters is <code>null</code>.
-	 * @throws IllegalArgumentException if the connection store uses a different cid length.
+	 * @param connectionStore The registry to use for managing connections to
+	 *            peers.
+	 * @throws NullPointerException if any of the parameters is
+	 *             <code>null</code>.
+	 * @throws IllegalArgumentException if the connection store uses a different
+	 *             cid generator than the configuration.
 	 */
 	protected DTLSConnector(final DtlsConnectorConfig configuration, final ResumptionSupportingConnectionStore connectionStore) {
 		if (configuration == null) {
@@ -346,11 +355,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		} else if (connectionStore == null) {
 			throw new NullPointerException("Connection store must not be null");
 		} else {
-			Integer cidLength = configuration.getConnectionIdLength();
-			if (cidLength != null && cidLength > 0 && cidLength != connectionStore.getConnectionIdLength()) {
-				throw new IllegalArgumentException("Connection store must use the same cid length! " + cidLength
-						+ " != " + connectionStore.getConnectionIdLength());
-			}
+			this.connectionIdGenerator = configuration.getConnectionIdGenerator();
 			this.config = configuration;
 			this.pendingOutboundMessagesCountdown.set(config.getOutboundMessageBufferSize());
 			this.autoResumptionTimeoutMillis = config.getAutoResumptionTimeoutMillis();
@@ -358,6 +363,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			this.useWindowFilter = config.useWindowFilter();
 			this.useFilter = config.useAntiReplayFilter() || useWindowFilter;
 			this.connectionStore = connectionStore;
+			this.connectionStore.attach(connectionIdGenerator);
 			this.sessionListener = new SessionAdapter() {
 
 				@Override
@@ -805,7 +811,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		InetSocketAddress peerAddress = new InetSocketAddress(packet.getAddress(), packet.getPort());
 
 		byte[] data = Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getLength());
-		List<Record> records = Record.fromByteArray(data, peerAddress, config.getConnectionIdLength());
+		List<Record> records = Record.fromByteArray(data, peerAddress, connectionIdGenerator);
 		LOGGER.debug("Received {} DTLS records from {} using a {} byte datagram buffer",
 				records.size(), peerAddress, inboundDatagramBufferSize);
 
@@ -892,8 +898,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			LOGGER.trace("Received DTLS record of type [{}], length: {}, [epoche:{},reqn:{}]", 
 					record.getType(), record.getFragmentLength(), epoch, record.getSequenceNumber());
 
-			Integer cidLength = config.getConnectionIdLength();
-			boolean useCid = cidLength != null && cidLength > 0;
+			boolean useCid = connectionIdGenerator != null && connectionIdGenerator.useConnectionId();
 			if (record.getType() == ContentType.TLS12_CID) {
 				// !useCid already dropped in Record.fromByteArray
 				if (epoch == 0) {

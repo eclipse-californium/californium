@@ -42,7 +42,9 @@ import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.ClientSessionCache;
 import org.eclipse.californium.scandium.dtls.Connection;
+import org.eclipse.californium.scandium.dtls.InMemoryClientSessionCache;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.SessionId;
@@ -140,7 +142,15 @@ public class DTLSConnectorResumeTest {
 
 	@Test
 	public void testConnectorResumesSessionFromNewConnection() throws Exception {
-		// Do a first handshake
+		ClientSessionCache sessions = new InMemoryClientSessionCache();
+		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60, sessions);
+		clientConnectionStore.setTag("client-before");
+		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 10000);
+		DtlsConnectorConfig clientConfig = newStandardClientConfig(clientEndpoint);
+
+		client = new DTLSConnector(clientConfig, clientConnectionStore);
+		client.setExecutor(executor);
+
 		serverHelper.givenAnEstablishedSession(client);
 		client.stop();
 		byte[] sessionId = serverHelper.establishedServerSession.getSessionIdentifier().getBytes();
@@ -152,8 +162,10 @@ public class DTLSConnectorResumeTest {
 		long time = connection.getEstablishedSession().getCreationTime();
 
 		// create a new client with different inetAddress but with the same session store.
-		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 10001);
-		DtlsConnectorConfig clientConfig = newStandardClientConfig(clientEndpoint);
+		clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 10001);
+		clientConfig = newStandardClientConfig(clientEndpoint);
+		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60, sessions);
+		clientConnectionStore.setTag("client-after");
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		LatchDecrementingRawDataChannel clientRawDataChannel = new LatchDecrementingRawDataChannel(client);
 		client.setRawDataReceiver(clientRawDataChannel);

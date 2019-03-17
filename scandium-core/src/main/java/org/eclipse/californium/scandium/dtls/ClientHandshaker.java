@@ -369,7 +369,7 @@ public class ClientHandshaker extends Handshaker {
 								message.getPeer()));
 			}
 		}
-		if (connectionIdLength != null) {
+		if (connectionIdGenerator != null) {
 			ConnectionIdExtension extension = serverHello.getConnectionIdExtension();
 			if (extension != null) {
 				ConnectionId connectionId = extension.getConnectionId();
@@ -722,9 +722,9 @@ public class ClientHandshaker extends Handshaker {
 	}
 
 	protected void addConnectionId(final ClientHello helloMessage) {
-		if (connectionIdLength != null) {
+		if (connectionIdGenerator != null) {
 			final ConnectionId connectionId;
-			if (connectionIdLength > 0) {
+			if (connectionIdGenerator.useConnectionId()) {
 				// use the already created unique cid
 				connectionId = getConnection().getConnectionId();
 			} else {

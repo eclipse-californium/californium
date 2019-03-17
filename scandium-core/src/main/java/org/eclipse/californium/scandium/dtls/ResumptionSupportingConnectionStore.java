@@ -30,28 +30,37 @@ import java.util.List;
 public interface ResumptionSupportingConnectionStore {
 
 	/**
-	 * Get connection id length.
+	 * Attach connection id generator.
 	 * 
-	 * return connection id length
+	 * Must be called before {@link #put(Connection)}.
+	 * 
+	 * @param connectionIdGenerator connection id generator. If {@code null} a
+	 *            default connection id generator is created.
+	 * @throws IllegalStateException if {@link #attach(ConnectionIdGenerator)}
+	 *             was already called before.
 	 */
-	public int getConnectionIdLength();
+	void attach(ConnectionIdGenerator connectionIdGenerator);
 
 	/**
 	 * Puts a connection into the store.
 	 * 
 	 * The connection is primary associated with its connection id
 	 * {@link Connection#getConnectionId()}. If the connection doesn't have a
-	 * connection id, a randomly unique connection id is assigned. If the
-	 * connection has also a peer address and/or a established session, it get's
-	 * associated with that. It removes also an other connection from these
+	 * connection id, a unique connection id created with the
+	 * {@link #attach(ConnectionIdGenerator)} is assigned. If the connection has
+	 * also a peer address and/or a established session, it get's associated
+	 * with that as well. It removes also an other connection from these
 	 * associations.
+	 * 
+	 * Note: {@link #attach(ConnectionIdGenerator)} must be called before!
 	 * 
 	 * @param connection the connection to store
 	 * @return {@code true} if the connection could be stored, {@code false},
 	 *         otherwise (e.g. because the store's capacity is exhausted)
 	 * @throws IllegalStateException if the connection is not executing, the
 	 *             connection ids are exhausted, or the connection id is empty
-	 *             or in use!
+	 *             or in use, or the connection id generator is not
+	 *             {@link #attach(ConnectionIdGenerator)} before!
 	 * @see #get(ConnectionId)
 	 * @see #get(InetSocketAddress)
 	 * @see #find(SessionId)

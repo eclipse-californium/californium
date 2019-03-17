@@ -260,6 +260,14 @@ public final class NetworkConfig {
 		 * </ul>
 		 */
 		public static final String DTLS_CONNECTION_ID_LENGTH = "DTLS_CONNECTION_ID_LENGTH";
+		/**
+		 * If {@link #DTLS_CONNECTION_ID_LENGTH} enables the use of a connection
+		 * id, this node id could be used to configure the generation of
+		 * connection ids specific for node in a multi-node deployment
+		 * (cluster). The value is used as first byte in generated connection
+		 * ids.
+		 */
+		public static final String DTLS_CONNECTION_ID_NODE_ID = "DTLS_CONNECTION_ID_NODE_ID";
 	}
 
 	/**
