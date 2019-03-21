@@ -49,11 +49,7 @@
 		<plugins>
 			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
-				<configuration>
-					<descriptors>
-						<descriptor>enhanced-jar-with-licenses.xml</descriptor>
-					</descriptors>
-				</configuration>
+				<!-- inherit configuration from parent POM -->
 			</plugin>
 		</plugins>
 	</build>

@@ -15,6 +15,11 @@
 			<directory>${project.build.outputDirectory}</directory>
 			<outputDirectory/>
 		</fileSet>
+		<fileSet>
+			<directory>${project.build.directory}/generated-resources</directory>
+			<outputDirectory>licenses</outputDirectory>
+			<useDefaultExcludes>false</useDefaultExcludes>
+		</fileSet>
 	</fileSets>
 	<dependencySets>
 		<dependencySet>
