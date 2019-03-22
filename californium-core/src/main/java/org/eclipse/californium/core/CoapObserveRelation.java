@@ -29,6 +29,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - Use remove to cleanup canceled tasks.
  *                                                    fix issue #681
  *    Achim Kraus (Bosch Software Innovations GmbH) - use executors util
+ *    Rogier Cobben - notification re-registration backoff fix, issue #917
  ******************************************************************************/
 package org.eclipse.californium.core;
 
@@ -42,6 +43,7 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.Endpoint;
+import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObserveNotificationOrderer;
 import org.eclipse.californium.elements.EndpointContext;
@@ -61,10 +63,13 @@ public class CoapObserveRelation {
 	private static final Logger LOGGER = LoggerFactory.getLogger(CoapObserveRelation.class.getCanonicalName());
 
 	/** A executor service to schedule re-registrations */
-	private static final ScheduledThreadPoolExecutor scheduler = ExecutorsUtil.getScheduledExecutor(); 
+	private static final ScheduledThreadPoolExecutor scheduler = ExecutorsUtil.getScheduledExecutor();
 
 	/** The endpoint. */
 	private final Endpoint endpoint;
+
+	/** The re-registration backoff duration [ms]. */
+	private final long reregistrationBackoff;
 
 	/**
 	 * Indicates, that an observe request is pending.
@@ -112,6 +117,8 @@ public class CoapObserveRelation {
 		this.request = request;
 		this.endpoint = endpoint;
 		this.orderer = new ObserveNotificationOrderer();
+		this.reregistrationBackoff = endpoint.getConfig()
+				.getLong(NetworkConfig.Keys.NOTIFICATION_REREGISTRATION_BACKOFF);
 	}
 
 	/**
@@ -276,7 +283,7 @@ public class CoapObserveRelation {
 	protected boolean onResponse(CoapResponse response) {
 		if (null != response && orderer.isNew(response.advanced())) {
 			current = response;
-			prepareReregistration(response, 2000);
+			prepareReregistration(response);
 			registrationPending.set(false);
 			return true;
 		} else {
@@ -295,9 +302,9 @@ public class CoapObserveRelation {
 		}
 	}
 
-	private void prepareReregistration(CoapResponse response, long backoff) {
+	private void prepareReregistration(CoapResponse response) {
 		if (!isCanceled()) {
-			long timeout = response.getOptions().getMaxAge() * 1000 + backoff;
+			long timeout = response.getOptions().getMaxAge() * 1000 + this.reregistrationBackoff;
 			ScheduledFuture<?> f = scheduler.schedule(reregister, timeout, TimeUnit.MILLISECONDS);
 			setReregistrationHandle(f);
 		}
