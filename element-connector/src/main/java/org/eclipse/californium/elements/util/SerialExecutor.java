@@ -79,7 +79,7 @@ public class SerialExecutor extends AbstractExecutorService {
 	/**
 	 * Create serial executor
 	 * 
-	 * @param executor target executor. If {@link null}, the executor is
+	 * @param executor target executor. If {@code null}, the executor is
 	 *            shutdown.
 	 */
 	public SerialExecutor(final Executor executor) {
@@ -90,7 +90,7 @@ public class SerialExecutor extends AbstractExecutorService {
 	}
 
 	@Override
-	public final void execute(final Runnable command) {
+	public void execute(final Runnable command) {
 		lock.lock();
 		try {
 			if (shutdown) {

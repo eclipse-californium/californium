@@ -58,8 +58,8 @@ import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
+import org.eclipse.californium.scandium.dtls.DebugConnectionStore;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
-import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.InMemorySessionCache;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.CertificateType;
@@ -83,7 +83,7 @@ public class ConnectorHelper {
 
 	DTLSConnector server;
 	InetSocketAddress serverEndpoint;
-	InMemoryConnectionStore serverConnectionStore;
+	DebugConnectionStore serverConnectionStore;
 	InMemorySessionCache serverSessionCache;
 	SimpleRawDataChannel serverRawDataChannel;
 	RawDataProcessor serverRawDataProcessor;
@@ -133,33 +133,37 @@ public class ConnectorHelper {
 	 */
 	public void startServer(DtlsConnectorConfig.Builder builder) throws IOException, GeneralSecurityException {
 
-		serverSessionCache = new InMemorySessionCache();
-		serverConnectionStore = new InMemoryConnectionStore(SERVER_CONNECTION_STORE_CAPACITY, 5 * 60, serverSessionCache); // connection timeout 5mins
-		serverConnectionStore.setTag("server");
-
 		InMemoryPskStore pskStore = new InMemoryPskStore();
 		pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
 		pskStore.setKey(SCOPED_CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME);
 
 		builder.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
-				.setSupportedCipherSuites(
-							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
-							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
-							CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
-							CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256)
 				.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509)
 				.setPskStore(pskStore)
 				.setMaxConnections(SERVER_CONNECTION_STORE_CAPACITY)
 				.setMaxTransmissionUnit(1024)
 				.setReceiverThreadCount(1)
 				.setConnectionThreadCount(2)
+				.setLoggingTag("server")
 				.setServerOnly(true);
 
+		if (builder.getIncompleteConfig().getSupportedCipherSuites() == null) {
+			builder.setSupportedCipherSuites(
+					CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
+					CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
+					CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256,
+					CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
+					CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256);
+		}
 		if (!Boolean.FALSE.equals(builder.getIncompleteConfig().isClientAuthenticationRequired()) ||
 				Boolean.TRUE.equals(builder.getIncompleteConfig().isClientAuthenticationWanted())) {
 			builder.setTrustStore(DtlsTestTools.getTrustedCertificates()).setRpkTrustAll();
 		}
 		serverConfig = builder.build();
+
+		serverSessionCache = new InMemorySessionCache();
+		serverConnectionStore = new DebugConnectionStore(serverConfig.getConnectionIdLength(), SERVER_CONNECTION_STORE_CAPACITY, 5 * 60, serverSessionCache); // connection timeout 5mins
+		serverConnectionStore.setTag("server");
 
 		server = new DTLSConnector(serverConfig, serverConnectionStore);
 		serverRawDataProcessor = new MessageCapturingProcessor();
@@ -194,12 +198,27 @@ public class ConnectorHelper {
 		server.setAlertHandler(null);
 	}
 
+	/**
+	 * Remove connect from server side connection store.
+	 * 
+	 * @param client address of client
+	 * @param removeFromSessionCache {@code true} remove from session cache
+	 *            also.
+	 */
+	public void remove(InetSocketAddress client, boolean removeFromSessionCache) {
+		Connection connection = serverConnectionStore.get(client);
+		if (connection != null) {
+			serverConnectionStore.remove(connection, removeFromSessionCache);
+		}
+	}
+
 	static DtlsConnectorConfig newStandardClientConfig(final InetSocketAddress bindAddress) throws IOException, GeneralSecurityException {
 		return newStandardClientConfigBuilder(bindAddress).build();
 	}
 
 	static DtlsConnectorConfig.Builder newStandardClientConfigBuilder(final InetSocketAddress bindAddress) throws IOException, GeneralSecurityException {
 		return new DtlsConnectorConfig.Builder()
+				.setLoggingTag("client")
 				.setAddress(bindAddress)
 				.setReceiverThreadCount(1)
 				.setConnectionThreadCount(2)
@@ -430,7 +449,7 @@ public class ConnectorHelper {
 		@Override
 		public void handleData(InetSocketAddress endpoint, byte[] data) {
 			try {
-				records.put(Record.fromByteArray(data, endpoint));
+				records.put(Record.fromByteArray(data, endpoint, null));
 			} catch (InterruptedException e) {
 			}
 		}

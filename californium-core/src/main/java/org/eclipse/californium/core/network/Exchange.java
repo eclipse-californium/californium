@@ -742,8 +742,8 @@ public class Exchange {
 	 * <p>
 	 * This means that both request and response have been sent/received.
 	 * <p>
-	 * This method invokes the {@linkplain RemoveHandler#completed(Exchange)
-	 * completed} method on the observer registered on this exchange (if any).
+	 * This method invokes the {@linkplain RemoveHandler#remove(Exchange, Token, KeyMID)
+	 * remove} method on the observer registered on this exchange (if any).
 	 * <p>
 	 * Call this method to trigger a clean-up in the Matcher through its
 	 * ExchangeObserverImpl. Usually, it is called automatically when reaching

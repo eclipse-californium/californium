@@ -47,6 +47,7 @@ import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.UdpEndpointContextMatcher;
+import org.eclipse.californium.elements.rule.TestTimeRule;
 
 /**
  * Test tools for MessageExchangeStore.
@@ -66,9 +67,12 @@ public class MessageExchangeStoreTool {
 	 */
 	public static void assertAllExchangesAreCompleted(NetworkConfig config,
 			final InMemoryMessageExchangeStore clientExchangeStore,
-			final InMemoryMessageExchangeStore serverExchangeStore) {
+			final InMemoryMessageExchangeStore serverExchangeStore, TestTimeRule time) {
 		int exchangeLifetime = (int) config.getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME);
 		int sweepInterval = config.getInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL);
+		if (time != null) {
+			time.setTestTimeShift(exchangeLifetime + 1000, TimeUnit.MILLISECONDS);
+		}
 		waitUntilDeduplicatorShouldBeEmpty(exchangeLifetime, sweepInterval, new CheckCondition() {
 
 			@Override
@@ -89,9 +93,12 @@ public class MessageExchangeStoreTool {
 	 * @param exchangeStore message exchange store.
 	 */
 	public static void assertAllExchangesAreCompleted(NetworkConfig config,
-			final InMemoryMessageExchangeStore exchangeStore) {
+			final InMemoryMessageExchangeStore exchangeStore, TestTimeRule time) {
 		int exchangeLifetime = (int) config.getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME);
 		int sweepInterval = config.getInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL);
+		if (time != null) {
+			time.setTestTimeShift(exchangeLifetime + 1000, TimeUnit.MILLISECONDS);
+		}
 		waitUntilDeduplicatorShouldBeEmpty(exchangeLifetime, sweepInterval, new CheckCondition() {
 
 			@Override
@@ -105,11 +112,13 @@ public class MessageExchangeStoreTool {
 	/**
 	 * Assert, that exchanges store and block-wise layer are empty.
 	 */
-	public static void assertAllExchangesAreCompleted(final CoapTestEndpoint endpoint) {
+	public static void assertAllExchangesAreCompleted(final CoapTestEndpoint endpoint, TestTimeRule time) {
 		NetworkConfig config = endpoint.getConfig();
 		int exchangeLifetime = (int) config.getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME);
 		int sweepInterval = config.getInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL);
-
+		if (time != null) {
+			time.setTestTimeShift(exchangeLifetime + 1000, TimeUnit.MILLISECONDS);
+		}
 		waitUntilDeduplicatorShouldBeEmpty(exchangeLifetime, sweepInterval, new CheckCondition() {
 
 			@Override

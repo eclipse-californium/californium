@@ -64,6 +64,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.ErrorInjector;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
+import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -71,6 +72,7 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -86,6 +88,9 @@ import org.junit.experimental.categories.Category;
 public class ObserveServerSideTest {
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
+
+	@Rule
+	public TestTimeRule time = new TestTimeRule();
 
 	private static final int ACK_TIMEOUT = 200;
 	private static final String RESOURCE_PATH = "obs";
@@ -141,7 +146,7 @@ public class ObserveServerSideTest {
 	@After
 	public void stopClient() {
 		try {
-			assertAllExchangesAreCompleted(serverEndpoint);
+			assertAllEndpointExchangesAreCompleted(serverEndpoint);
 		} finally {
 			printServerLog(serverInterceptor);
 			System.out.println();
@@ -571,6 +576,10 @@ public class ObserveServerSideTest {
 		client.sendEmpty(RST).loadMID("MID1").go();
 
 		Assert.assertEquals("Resource has not removed observe relation:", 0, waitForObservers(ACK_TIMEOUT + 100, 0));
+	}
+
+	private void assertAllEndpointExchangesAreCompleted(final CoapTestEndpoint endpoint) {
+		assertAllExchangesAreCompleted(endpoint, time);
 	}
 
 	private int waitForObservers(long timeoutMillis, final int count) throws InterruptedException {

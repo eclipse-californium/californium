@@ -70,7 +70,6 @@ public final class DTLSSession {
 
 	/**
 	 * The overall length of all headers around a DTLS handshake message payload.
-	 * <p>
 	 * <ol>
 	 * <li>12 bytes DTLS message header</li>
 	 * <li>13 bytes DTLS record header</li>
@@ -78,7 +77,6 @@ public final class DTLSSession {
 	 * <li>20 bytes IP header</li>
 	 * <li>36 bytes optional IP options</li>
 	 * </ol>
-	 * <p>
 	 * 53 bytes in total.
 	 */
 	public static final int HEADER_LENGTH = 12 // bytes DTLS message headers
@@ -96,7 +94,7 @@ public final class DTLSSession {
 	/**
 	 * This session's peer's IP address and port.
 	 */
-	private final InetSocketAddress peer;
+	private InetSocketAddress peer;
 
 	/**
 	 * An arbitrary byte sequence chosen by the server to identify this session.
@@ -133,6 +131,11 @@ public final class DTLSSession {
 	 * key material from.
 	 */
 	private byte[] masterSecret = null;
+
+	/**
+	 * Connection id used for all outbound records.
+	 */
+	private ConnectionId writeConnectionId = null;
 
 	/**
 	 * The <em>current read state</em> used for processing all inbound records.
@@ -282,6 +285,15 @@ public final class DTLSSession {
 		return sessionIdentifier;
 	}
 
+	/**
+	 * Sets the session identifier.
+	 * 
+	 * Resets the {@link #masterSecret}, if the session identifier is changed.
+	 * 
+	 * @param sessionIdentifier new session identifier
+	 * @throws NullPointerException if the provided session identifier is
+	 *             {@code null}
+	 */
 	void setSessionIdentifier(SessionId sessionIdentifier) {
 		if (sessionIdentifier == null) {
 			throw new NullPointerException("session identifier must not be null!");
@@ -291,6 +303,25 @@ public final class DTLSSession {
 			this.masterSecret = null;
 			this.sessionIdentifier = sessionIdentifier;
 		}
+	}
+
+	/**
+	 * Get connection id for outbound records.
+	 * 
+	 * @return connection id for outbound records. {@code null}, if connection
+	 *         id is not used by other peer
+	 */
+	public ConnectionId getWriteConnectionId() {
+		return writeConnectionId;
+	}
+
+	/**
+	 * Set connection id for outbound records.
+	 * 
+	 * @param connectionId connection id for outbound records
+	 */
+	void setWriteConnectionId(ConnectionId connectionId) {
+		this.writeConnectionId = connectionId;
 	}
 
 	/**
@@ -406,7 +437,7 @@ public final class DTLSSession {
 	 * 
 	 * @return the algorithms to be used
 	 */
-	CipherSuite getCipherSuite() {
+	public CipherSuite getCipherSuite() {
 		return cipherSuite;
 	}
 
@@ -695,14 +726,15 @@ public final class DTLSSession {
 	 * Sets the master secret to use for encrypting application layer data
 	 * exchanged in this session.
 	 * 
-	 * Once the master secret has been set, it cannot be changed.
+	 * Once the master secret has been set, it cannot be changed without
+	 * changing the session id ahead.
 	 * 
 	 * @param masterSecret the secret
-	 * @throws NullPointerException if the secret is <code>null</code>
+	 * @throws NullPointerException if the master secret is {@code null}
 	 * @throws IllegalArgumentException if the secret is not exactly 48 bytes
 	 * (see <a href="http://tools.ietf.org/html/rfc5246#section-8.1">
 	 * RFC 5246 (TLS 1.2), section 8.1</a>) 
-	 * @throws IllegalStateException if the secret is already set
+	 * @throws IllegalStateException if the master secret is already set
 	 */
 	void setMasterSecret(final byte[] masterSecret) {
 		// don't overwrite the master secret, once it has been set in this session
@@ -774,6 +806,8 @@ public final class DTLSSession {
 		} else {
 			LOGGER.debug("Setting MTU for peer [{}] to {} bytes", peer, mtu);
 			this.maxTransmissionUnit = mtu;
+			// use mtu as fragment length will be detected as too large
+			// and is reduced to the maximum fragment length for this mtu
 			determineMaxFragmentLength(mtu);
 		}
 	}
@@ -827,6 +861,10 @@ public final class DTLSSession {
 	 */
 	public InetSocketAddress getPeer() {
 		return peer;
+	}
+
+	public void setPeer(InetSocketAddress peer) {
+		this.peer = peer;
 	}
 
 	/**

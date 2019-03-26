@@ -203,12 +203,22 @@ A copy of the license is contained in the file <a href="3rd-party/cc0-legalcode.
 A copy of the license is contained in the file <a href="3rd-party/BSD-3-Clause-LICENSE.txt">BSD-3-Clause-LICENSE.txt</a> and is also available at
 <a href="https://github.com/jimsch/COSE-JAVA/blob/master/LICENSE">https://github.com/jimsch/COSE-JAVA/blob/master/LICENSE</a>.</p>
 
-<p>The binary code in <em>com.augustcellars.cose.cose-java-0.9.7.jar</em> is included without modifications. 
-The binary and source is available from
-<a href="http://search.maven.org/#artifactdetails%7Ccom.augustcellars.cose%7Ccose-java%7C0.9.7%7Cjar">Maven Central</a>.</p>
+<p>In order to use COSE with java 1.7, the java source files are copied from 
+<a href="https://github.com/jimsch/COSE-JAVA/tree/master/src/main/java/COSE">https://github.com/jimsch/COSE-JAVA/tree/master/src/main/java/COSE Commit 1a20373</a>.
+into the package "org.eclipse.californium.cose". The java source files "AlgorithmID.java", "Attribute.java", "CoseException.java", "HeaderKeys.java", 
+and "MessageTag.java" are copied without modification except, that the license from the root folder of the COSE project was copied into the header
+along with the additional information about the provenance. 
 
-<p><b>Note</b>: the jar is included without modifications, but two classes/files are not used and instead modified versions of those two classes are used. 
-These modified versions of EncryptCommon.java and Encrypt0Message.java could found in the oscore-cf module within the package org.eclipse.californium.cose.</p>
+<pre>
+ * Original from https://github.com/cose-wg/COSE-JAVA Commit 1a20373
+ *
+ * Copyright (c) 2016, Jim Schaad
+ * All rights reserved.
+</pre>
+
+The java source files "EncryptCommon.java", "Encrypt0Message.java", and "Message.java" are copied with modifications.
+The header was added as for the other none modified files.
+</p>
 
 </body>
 </html>

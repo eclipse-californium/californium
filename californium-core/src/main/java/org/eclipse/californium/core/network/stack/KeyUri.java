@@ -121,7 +121,7 @@ public final class KeyUri {
 	/**
 	 * Creates a new key for an incoming response scoped to the response's source endpoint address.
 	 * 
-	 * @param requestUri The URI of the requested resource.
+	 * @param request The request with the URI of the requested resource.
 	 * @param response The response.
 	 * @return The key.
 	 * @throws NullPointerException if any of the parameters is {@code null}.
@@ -138,7 +138,7 @@ public final class KeyUri {
 	/**
 	 * Creates a new key for an outgoing response scoped to the response's destination endpoint address.
 	 * 
-	 * @param requestUri The URI of the requested resource.
+	 * @param request The request with the URI of the requested resource.
 	 * @param response The response.
 	 * @return The key.
 	 * @throws NullPointerException if any of the parameters is {@code null}.

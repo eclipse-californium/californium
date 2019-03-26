@@ -31,7 +31,7 @@ public class DatagramReaderTest {
 
 	@Test
 	public void testBitsLeftWorksForEmptyBuffer() {
-		givenABuffer(new byte[] {});
+		givenABuffer(Bytes.EMPTY);
 		assertThat(reader.bitsLeft(), is(0));
 	}
 

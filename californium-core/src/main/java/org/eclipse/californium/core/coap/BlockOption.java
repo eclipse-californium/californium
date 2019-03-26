@@ -22,6 +22,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
+import org.eclipse.californium.elements.util.Bytes;
 
 /**
  * BlockOption represents a Block1 or Block2 option in a CoAP message.
@@ -163,9 +164,9 @@ public final class BlockOption {
 	 */
 	public byte[] getValue() {
 		int last = szx | (m ? 1<<3 : 0);
-		if (num == 0 && !m && szx==0)
-			return new byte[0];
-		else if (num < 1 << 4) {
+		if (num == 0 && !m && szx==0) {
+			return Bytes.EMPTY;
+		} else if (num < 1 << 4) {
 			return new byte[] {(byte) (last | (num << 4))};
 		} else if (num < 1 << 12) {
 			return new byte[] {
@@ -217,9 +218,9 @@ public final class BlockOption {
 	 * <a href="https://tools.ietf.org/html/rfc7959#section-2.2">RFC 7959, Section 2.2</a>:
 	 * 
 	 * <pre>
-	 * 16 bytes = 2^4 --> 0
+	 * 16 bytes = 2^4 --&gt; 0
 	 * ... 
-	 * 1024 bytes = 2^10 -> 6
+	 * 1024 bytes = 2^10 -&gt; 6
 	 * </pre>
 	 * <p>
 	 * This method is tolerant towards <em>illegal</em> block sizes

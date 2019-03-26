@@ -20,6 +20,9 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use handshake parameter and
  *                                                    generic handshake messages to
  *                                                    process reordered handshake messages
+ *    Achim Kraus (Bosch Software Innovations GmbH) - redesign fragmentation support
+ *                                                    move fragment field into 
+ *                                                    FragmentedHandshakeMessage
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -34,7 +37,6 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 
 /**
  * Represents a general handshake message and defines the common header. The
@@ -72,17 +74,6 @@ public abstract class HandshakeMessage extends AbstractMessage {
 	private int messageSeq = -1;
 
 	/**
-	 * The number of bytes contained in previous fragments.
-	 */
-	private int fragmentOffset = -1;
-
-	/**
-	 * The length of this fragment. A non-fragmented message is a degenerate case
-	 * with fragment_offset=0 and fragment_length=length.
-	 */
-	private int fragmentLength = -1;
-
-	/**
 	 * Used to store the message this instance has been created from. Only set
 	 * if this message has been received from a client, i.e. we're the server in
 	 * the handshake. The rawMessage is used to calculate the hash/message
@@ -118,7 +109,7 @@ public abstract class HandshakeMessage extends AbstractMessage {
 	 * @return the length of the message <strong>in bytes</strong>.
 	 */
 	public abstract int getMessageLength();
-	
+
 	/**
 	 * The serialization of the handshake body (without the handshake header).
 	 * Must be implemented by each subclass.
@@ -133,7 +124,7 @@ public abstract class HandshakeMessage extends AbstractMessage {
 	public final ContentType getContentType() {
 		return ContentType.HANDSHAKE;
 	}
-	
+
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
@@ -141,8 +132,6 @@ public abstract class HandshakeMessage extends AbstractMessage {
 		sb.append(StringUtil.lineSeparator()).append("\tType: ").append(getMessageType());
 		sb.append(StringUtil.lineSeparator()).append("\tPeer: ").append(getPeer());
 		sb.append(StringUtil.lineSeparator()).append("\tMessage Sequence No: ").append(messageSeq);
-		sb.append(StringUtil.lineSeparator()).append("\tFragment Offset: ").append(fragmentOffset);
-		sb.append(StringUtil.lineSeparator()).append("\tFragment Length: ").append(fragmentLength);
 		sb.append(StringUtil.lineSeparator()).append("\tLength: ").append(getMessageLength()).append(StringUtil.lineSeparator());
 
 		return sb.toString();
@@ -163,23 +152,12 @@ public abstract class HandshakeMessage extends AbstractMessage {
 		// write fixed-size handshake message header
 		writer.write(getMessageType().getCode(), MESSAGE_TYPE_BITS);
 		writer.write(getMessageLength(), MESSAGE_LENGTH_BITS);
-
 		writer.write(messageSeq, MESSAGE_SEQ_BITS);
-		
-		if (fragmentOffset < 0) {
-			// message not fragmented
-			fragmentOffset = 0;
-		}
-		writer.write(fragmentOffset, FRAGMENT_OFFSET_BITS);
-		
-		if (fragmentLength < 0) {
-			// non-fragmented message is a degenerate case with fragment_offset=0
-			// and fragment_length=length
-			fragmentLength = getMessageLength();
-		}
-		writer.write(fragmentLength, FRAGMENT_LENGTH_BITS);
-		
-		writer.writeBytes(fragmentToByteArray());
+		writer.write(getFragmentOffset(), FRAGMENT_OFFSET_BITS);
+		writer.write(getFragmentLength(), FRAGMENT_LENGTH_BITS);
+
+		byte[] fragmentByteArray = fragmentToByteArray();
+		writer.writeBytes(fragmentByteArray);
 
 		return writer.toByteArray();
 	}
@@ -199,8 +177,17 @@ public abstract class HandshakeMessage extends AbstractMessage {
 		byte[] bytesLeft = reader.readBytes(fragmentLength);
 
 		if (length != fragmentLength) {
+			if (fragmentOffset + fragmentLength > length) {
+				throw new HandshakeException(
+						String.format("Message %s fragment overflow %d > %d", type, fragmentOffset + fragmentLength,
+								length),
+						new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER, peerAddress));
+			}
 			// fragmented message received
 			return new FragmentedHandshakeMessage(type, length, messageSeq, fragmentOffset, bytesLeft, peerAddress);
+		} else if (fragmentOffset != 0) {
+			throw new HandshakeException(String.format("Message %s unexpected fragment offset", type),
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER, peerAddress));
 		}
 
 		HandshakeMessage body;
@@ -271,8 +258,6 @@ public abstract class HandshakeMessage extends AbstractMessage {
 		}
 		// keep the raw bytes for computation of handshake hash
 		body.rawMessage = Arrays.copyOf(byteArray, byteArray.length);
-		body.setFragmentLength(fragmentLength);
-		body.setFragmentOffset(fragmentOffset);
 		body.setMessageSeq(messageSeq);
 
 		return body;
@@ -324,23 +309,15 @@ public abstract class HandshakeMessage extends AbstractMessage {
 	}
 
 	public int getFragmentOffset() {
-		return fragmentOffset;
+		return 0;
 	}
 
 	public int getFragmentLength() {
-		return fragmentLength;
-	}
-
-	public void setFragmentLength(int length) {
-		this.fragmentLength = length;
+		return getMessageLength();
 	}
 
 	public void setMessageSeq(int messageSeq) {
 		this.messageSeq = messageSeq;
-	}
-
-	public void setFragmentOffset(int fragmentOffset) {
-		this.fragmentOffset = fragmentOffset;
 	}
 
 	/**

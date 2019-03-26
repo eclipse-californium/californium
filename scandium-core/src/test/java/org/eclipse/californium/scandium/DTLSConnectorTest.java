@@ -172,7 +172,7 @@ public class DTLSConnectorTest {
 
 		serverRawDataProcessor = new MessageCapturingProcessor();
 		serverSessionCache = new InMemorySessionCache();
-		serverConnectionStore = new InMemoryConnectionStore(SERVER_CONNECTION_STORE_CAPACITY, 5 * 60, serverSessionCache); // connection timeout 5mins
+		serverConnectionStore = new InMemoryConnectionStore(null, SERVER_CONNECTION_STORE_CAPACITY, 5 * 60, serverSessionCache); // connection timeout 5mins
 		serverRawDataChannel = new SimpleRawDataChannel(serverRawDataProcessor);
 
 		InMemoryPskStore pskStore = new InMemoryPskStore() {
@@ -205,6 +205,7 @@ public class DTLSConnectorTest {
 			.setClientAuthenticationRequired(true)
 			.setReceiverThreadCount(1)
 			.setServerOnly(true)
+			.setLoggingTag("server")
 			.build();
 
 		server = new DTLSConnector(serverConfig, serverConnectionStore);
@@ -252,6 +253,7 @@ public class DTLSConnectorTest {
 	private static DtlsConnectorConfig.Builder newStandardConfigBuilder(InetSocketAddress bindAddress)  throws Exception {
 		return new DtlsConnectorConfig.Builder()
 				.setAddress(bindAddress)
+				.setLoggingTag("client")
 				.setReceiverThreadCount(1)
 				.setConnectionThreadCount(2)
 				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509)
@@ -370,7 +372,6 @@ public class DTLSConnectorTest {
 
 			// Send CLIENT_HELLO with cookie
 			clientHello.setCookie(cookie);
-			clientHello.setFragmentLength(clientHello.getMessageLength());
 			rawClient.sendRecord(serverEndpoint,
 					DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 0, clientHello.toByteArray()));
 
@@ -442,7 +443,6 @@ public class DTLSConnectorTest {
 
 			// Send CLIENT_HELLO with cookie
 			clientHello.setCookie(cookie);
-			clientHello.setFragmentLength(clientHello.getMessageLength());
 			rawClient.sendRecord(serverEndpoint,
 					DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 0, clientHello.toByteArray()));
 
@@ -496,7 +496,7 @@ public class DTLSConnectorTest {
 			
 			@Override
 			public void handleData(byte[] data) {
-				receivedRecords.addAll(Record.fromByteArray(data, serverEndpoint));
+				receivedRecords.addAll(Record.fromByteArray(data, serverEndpoint, null));
 				latch.countDown();
 			}
 		};
@@ -582,7 +582,7 @@ public class DTLSConnectorTest {
 		LatchDecrementingDataHandler handler = new LatchDecrementingDataHandler(latch) {
 			@Override
 			public boolean handle(byte[] data) {
-				receivedRecords.addAll(Record.fromByteArray(data, serverEndpoint));
+				receivedRecords.addAll(Record.fromByteArray(data, serverEndpoint, null));
 				return true;
 			}
 		};
@@ -616,7 +616,6 @@ public class DTLSConnectorTest {
 			latch = new CountDownLatch(1);
 			handler.setLatch(latch);
 			clientHello.setCookie(cookie);
-			clientHello.setFragmentLength(clientHello.getMessageLength());
 			rawClient.sendRecord(
 					serverEndpoint,
 					DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 0, clientHello.toByteArray()));
@@ -705,13 +704,13 @@ public class DTLSConnectorTest {
 	public void testStartStopWithNewAddress() throws Exception {
 		// Do a first handshake
 		givenAnEstablishedSession(false);
-		byte[] sessionId = establishedServerSession.getSessionIdentifier().getId();
+		byte[] sessionId = establishedServerSession.getSessionIdentifier().getBytes();
 		InetSocketAddress firstAddress = client.getAddress();
 
 		// Stop the client
 		client.stop();
 		Connection connection = clientConnectionStore.get(serverEndpoint);
-		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
+		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getBytes());
 
 		// Restart it
 		client.start();
@@ -729,7 +728,7 @@ public class DTLSConnectorTest {
 
 		// check we use the same session id
 		connection = clientConnectionStore.get(serverEndpoint);
-		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
+		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getBytes());
 		assertClientIdentity(RawPublicKeyIdentity.class);
 	}
 
@@ -737,13 +736,13 @@ public class DTLSConnectorTest {
 	public void testStartStopWithSameAddress() throws Exception {
 		// Do a first handshake
 		givenAnEstablishedSession(false);
-		byte[] sessionId = establishedServerSession.getSessionIdentifier().getId();
+		byte[] sessionId = establishedServerSession.getSessionIdentifier().getBytes();
 		InetSocketAddress firstAddress = client.getAddress();
 
 		// Stop the client
 		client.stop();
 		Connection connection = clientConnectionStore.get(serverEndpoint);
-		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
+		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getBytes());
 
 		// Restart it
 		client.restart();
@@ -761,7 +760,7 @@ public class DTLSConnectorTest {
 
 		// check we use the same session id
 		connection = clientConnectionStore.get(serverEndpoint);
-		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
+		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getBytes());
 		assertClientIdentity(RawPublicKeyIdentity.class);
 	}
 
@@ -771,13 +770,13 @@ public class DTLSConnectorTest {
 		client.setExecutor(null);
 		// Do a first handshake
 		givenAnEstablishedSession(false);
-		byte[] sessionId = establishedServerSession.getSessionIdentifier().getId();
+		byte[] sessionId = establishedServerSession.getSessionIdentifier().getBytes();
 		InetSocketAddress firstAddress = client.getAddress();
 
 		// Stop the client
 		client.stop();
 		Connection connection = clientConnectionStore.get(serverEndpoint);
-		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
+		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getBytes());
 
 		// Restart it
 		client.restart();
@@ -795,7 +794,7 @@ public class DTLSConnectorTest {
 
 		// check we use the same session id
 		connection = clientConnectionStore.get(serverEndpoint);
-		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getId());
+		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getBytes());
 		assertClientIdentity(RawPublicKeyIdentity.class);
 	}
 
@@ -810,7 +809,7 @@ public class DTLSConnectorTest {
 
 			@Override
 			public void handleData(byte[] data) {
-				receivedRecords.addAll(Record.fromByteArray(data, serverEndpoint)); 
+				receivedRecords.addAll(Record.fromByteArray(data, serverEndpoint, null)); 
 				latch.countDown();
 			}
 		};
@@ -890,6 +889,7 @@ public class DTLSConnectorTest {
 	private void ensureConnectorIgnoresBadCredentials(PskStore pskStoreWithBadCredentials) throws Exception {
 		final CountDownLatch latch = new CountDownLatch(1);
 		clientConfig = new DtlsConnectorConfig.Builder()
+			.setLoggingTag("client")
 			.setAddress(clientEndpoint)
 			.setPskStore(pskStoreWithBadCredentials)
 			.build();
@@ -928,32 +928,6 @@ public class DTLSConnectorTest {
 		assertFalse(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 		assertThat(alert.get(), is(nullValue()));
 	}
-	
-	@Test
-	public void testConnectorEstablishSessionWithEcdhPskCBCSuite() throws Exception {
-		clientConfig = new DtlsConnectorConfig.Builder()
-				.setAddress(clientEndpoint)
-				.setPskStore(new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()))
-				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256)
-				.build();
-			client = new DTLSConnector(clientConfig, clientConnectionStore);
-			givenAnEstablishedSession();
-	}
-	
-	/**
-	 * Verifies that the connector can successfully establish a session using a CBC based cipher suite.
-	 */
-	@Test
-	public void testConnectorEstablishesSecureSessionUsingCbcBlockCipher() throws Exception {
-		clientConfig =  new DtlsConnectorConfig.Builder()
-			.setAddress(clientEndpoint)
-			.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256)
-			.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), CertificateType.X_509)
-			.setTrustStore(DtlsTestTools.getTrustedCertificates())
-			.build();
-		client = new DTLSConnector(clientConfig, clientConnectionStore);
-		givenAnEstablishedSession();
-	}
 
 	/**
 	 * Verifies that the connector includes a <code>RawPublicKeyIdentity</code> representing
@@ -979,6 +953,7 @@ public class DTLSConnectorTest {
 		// given an established session with a client using PSK authentication
 		clientConfig = new DtlsConnectorConfig.Builder()
 			.setAddress(clientEndpoint)
+			.setLoggingTag("client")
 			.setPskStore(new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()))
 			.build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
@@ -998,6 +973,7 @@ public class DTLSConnectorTest {
 		// given an established session with a client using X.509 based authentication
 		clientConfig = new DtlsConnectorConfig.Builder()
 			.setAddress(clientEndpoint)
+			.setLoggingTag("client")
 			.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), CertificateType.X_509)
 			.setTrustStore(DtlsTestTools.getTrustedCertificates())
 			.build();
@@ -1021,6 +997,7 @@ public class DTLSConnectorTest {
 		// clients to authenticate
 		serverConfig = new DtlsConnectorConfig.Builder()
 				.setAddress(clientEndpoint)
+				.setLoggingTag("server")
 				.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), CertificateType.RAW_PUBLIC_KEY)
 				.setClientAuthenticationRequired(false)
 				.build();
@@ -1090,7 +1067,7 @@ public class DTLSConnectorTest {
 		// send a CLIENT_HELLO message to the server to renegotiation connection
 		client.sendRecord(new Record(ContentType.HANDSHAKE, establishedClientSession.getWriteEpoch(),
 				establishedClientSession.getSequenceNumber(), createClientHello(),
-				establishedClientSession));
+				establishedClientSession, false, 0));
 
 		// ensure server answer with a NO_RENOGIATION alert
 		AlertMessage alert = alertCatcher.waitForFirstAlert(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
@@ -1110,7 +1087,7 @@ public class DTLSConnectorTest {
 		// send a HELLO_REQUEST message to the client
 		server.sendRecord(new Record(ContentType.HANDSHAKE, establishedServerSession.getWriteEpoch(),
 				establishedServerSession.getSequenceNumber(), new HelloRequest(clientEndpoint),
-				establishedServerSession));
+				establishedServerSession, false, 0));
 
 		// ensure client answer with a NO_RENOGIATION alert
 		AlertMessage alert = alertCatcher.waitForFirstAlert(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
@@ -1232,7 +1209,7 @@ public class DTLSConnectorTest {
 		@Override
 		public void handleData(byte[] data) {
 			try {
-				records.put(Record.fromByteArray(data, serverEndpoint));
+				records.put(Record.fromByteArray(data, serverEndpoint, null));
 			} catch (InterruptedException e) {
 			}
 		}
@@ -1249,7 +1226,7 @@ public class DTLSConnectorTest {
 		LatchDecrementingDataHandler handler = new LatchDecrementingDataHandler(latch) {
 			@Override
 			public boolean handle(byte[] data) {
-				receivedRecords.addAll(Record.fromByteArray(data, serverEndpoint));
+				receivedRecords.addAll(Record.fromByteArray(data, serverEndpoint, null));
 				return true;
 			}
 		};
@@ -1284,7 +1261,6 @@ public class DTLSConnectorTest {
 			latch = new CountDownLatch(1);
 			handler.setLatch(latch);
 			clientHello.setCookie(cookie);
-			clientHello.setFragmentLength(clientHello.getMessageLength());
 			rawClient.sendRecord(
 					serverEndpoint,
 					DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 0, clientHello.toByteArray()));

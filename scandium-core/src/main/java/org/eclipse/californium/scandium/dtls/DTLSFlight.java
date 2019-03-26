@@ -72,8 +72,8 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
  * To support both variants, the flight provides the {@link #responseStarted}
  * and {@link #responseCompleted} flags and a general handle to a timeout task.
  * 
- * @see e-mail discussion IETF TLS mailarchive, 2017, May 31. - June 1., Simone
- *      Bernard and Raja Ashok
+ * @see "e-mail discussion IETF TLS mailarchive, 
+ *       2017, May 31. - June 1., Simone Bernard and Raja Ashok"
  */
 public class DTLSFlight {
 
@@ -156,15 +156,6 @@ public class DTLSFlight {
 		this.messages = new ArrayList<Record>();
 		this.retransmissionNeeded = true;
 		this.flightNumber = flightNumber;
-	}
-
-	/**
-	 * Adds multiple messages to this flight.
-	 * 
-	 * @param messagesToAdd the messages to add.
-	 */
-	public void addMessage(final List<Record> messagesToAdd) {
-		this.messages.addAll(messagesToAdd);
 	}
 
 	/**
@@ -315,7 +306,7 @@ public class DTLSFlight {
 			for (Record record : messages) {
 				// adjust the record sequence number
 				int epoch = record.getEpoch();
-				record.setSequenceNumber(session.getSequenceNumber(epoch));
+				record.updateSequenceNumber(session.getSequenceNumber(epoch));
 			}
 		} else {
 			throw new IllegalStateException("Can only set new sequence numbers for retransmitted flight with session");

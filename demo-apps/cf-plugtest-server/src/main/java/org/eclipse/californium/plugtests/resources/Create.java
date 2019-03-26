@@ -20,13 +20,13 @@ import static org.eclipse.californium.core.coap.MediaTypeRegistry.*;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.util.Bytes;
 
 
 /**
  * This resource implements a test of specification for the ETSI IoT CoAP Plugtests, London, UK, 7--9 Mar 2014.
  */
 public class Create extends CoapResource {
-	private static final byte[] EMPTY = new byte[0];
 
 	// Members ////////////////////////////////////////////////////////////////
 
@@ -82,7 +82,7 @@ public class Create extends CoapResource {
 	private synchronized void storeData(byte[] payload, int cf) {
 
 		// set payload and content type
-		data = payload != null ? payload : EMPTY;
+		data = payload != null ? payload : Bytes.EMPTY;
 		dataCf = cf;
 		getAttributes().clearContentType();
 		getAttributes().addContentType(dataCf);

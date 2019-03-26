@@ -29,8 +29,6 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.util.ByteArrayUtils;
-
 
 /**
  * A TLS handshake message sent by a server in response to a {@link ClientHello}
@@ -155,7 +153,7 @@ public final class ServerHello extends HandshakeMessage {
 		writer.writeBytes(random.getRandomBytes());
 
 		writer.write(sessionId.length(), SESSION_ID_LENGTH_BITS);
-		writer.writeBytes(sessionId.getId());
+		writer.writeBytes(sessionId.getBytes());
 
 		writer.write(cipherSuite.getCode(), CIPHER_SUITE_BITS);
 		writer.write(compressionMethod.getCode(), COMPRESSION_METHOD_BITS);
@@ -297,22 +295,28 @@ public final class ServerHello extends HandshakeMessage {
 	 * Gets the type of certificate the server expects the client to send in
 	 * its <em>Certificate</em> message.
 	 * 
-	 * @return the type
+	 * @return the certificate type
 	 */
 	CertificateType getClientCertificateType() {
 		return getCertificateType(ExtensionType.CLIENT_CERT_TYPE);
 	}
-	
+
 	/**
 	 * Gets the type of certificate the server will send to the client in
 	 * its <em>Certificate</em> message.
 	 * 
-	 * @return the type
+	 * @return the certificate type
 	 */
 	CertificateType getServerCertificateType() {
 		return getCertificateType(ExtensionType.SERVER_CERT_TYPE);
 	}
 
+	/**
+	 * Gets the type of certificate for the provided extension type.
+	 * 
+	 * @param type extension type. Either {@link ExtensionType#SERVER_CERT_TYPE} or {@link ExtensionType#CLIENT_CERT_TYPE}
+	 * @return the certificate type
+	 */
 	CertificateType getCertificateType(ExtensionType type) {
 		// default type is always X.509
 		CertificateType result = CertificateType.X_509;
@@ -341,6 +345,20 @@ public final class ServerHello extends HandshakeMessage {
 	}
 
 	/**
+	 * Gets the <em>connection id</em> extension data from this message.
+	 * 
+	 * @return the extension data or <code>null</code> if this message does not contain the
+	 *          <em>connection id</em> extension.
+	 */
+	public ConnectionIdExtension getConnectionIdExtension() {
+		if (extensions != null) {
+			return (ConnectionIdExtension) extensions.getExtension(ExtensionType.CONNECTION_ID);
+		} else {
+			return null;
+		}
+	}
+
+	/**
 	 * Checks whether <em>server_name</em> extension is present in this message.
 	 * <p>
 	 * During a handshake it is sufficient to check for the mere presence of the
@@ -360,7 +378,7 @@ public final class ServerHello extends HandshakeMessage {
 		sb.append(StringUtil.lineSeparator()).append("\t\tRandom:").append(random);
 		sb.append(StringUtil.lineSeparator()).append("\t\tSession ID Length: ").append(sessionId.length());
 		if (sessionId.length() > 0) {
-			sb.append(StringUtil.lineSeparator()).append("\t\tSession ID: ").append(ByteArrayUtils.toHexString(sessionId.getId()));
+			sb.append(StringUtil.lineSeparator()).append("\t\tSession ID: ").append(sessionId);
 		}
 		sb.append(StringUtil.lineSeparator()).append("\t\tCipher Suite: ").append(cipherSuite);
 		sb.append(StringUtil.lineSeparator()).append("\t\tCompression Method: ").append(compressionMethod);

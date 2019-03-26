@@ -125,7 +125,7 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 	/**
 	 * Scheduler for notification timeout.
 	 */
-	private ScheduledExecutorService executor;
+	private final ScheduledExecutorService executor;
 
 	/**
 	 * Create reverse observation resource.
@@ -155,17 +155,6 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 		}
 	}
 
-	/**
-	 * Get lookup key based on scheme and peer.
-	 * 
-	 * @param exchange exchange of request.
-	 * @return key
-	 */
-	private static String getPeerKey(CoapExchange exchange) {
-		Request request = exchange.advanced().getRequest();
-		return request.getScheme() + "://" + request.getSourceContext().getPeerAddress();
-	}
-
 	@Override
 	public void handlePOST(CoapExchange exchange) {
 
@@ -177,6 +166,12 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 			exchange.respond(NOT_ACCEPTABLE);
 			return;
 		}
+
+		processPOST(new IncomingExchange(exchange));
+	}
+
+	private void processPOST(IncomingExchange exchange) {
+		Request request = exchange.getRequest();
 
 		List<String> observeUriQuery = new ArrayList<>();
 		List<String> uriQuery = request.getOptions().getUriQuery();
@@ -210,12 +205,12 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 		}
 
 		if (observe != null && resource != null) {
-			Endpoint endpoint = exchange.advanced().getEndpoint();
-			String key = getPeerKey(exchange);
+			Endpoint endpoint = exchange.getEndpoint();
+			String key = exchange.getPeerKey();
 			ObservationRequest pendingObservation = observesByPeer.putIfAbsent(key,
 					new ObservationRequest(exchange, Token.EMPTY));
 			if (pendingObservation != null && pendingObservation.getObservationToken().equals(Token.EMPTY)) {
-				if (pendingObservation.getIncomingExchange().advanced().getRequest().getMID() == request.getMID()) {
+				if (request.hasMID() && pendingObservation.getIncomingExchange().getRequest().getMID() == request.getMID()) {
 					LOGGER.info("Too many duplicate requests from {}, ignore!", key);
 				} else {
 					LOGGER.info("Too many requests from {}", key);
@@ -271,14 +266,65 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 		}
 	}
 
-	private class RequestObserver extends MessageObserverAdapter {
+	private class IncomingExchange {
 
 		private final CoapExchange incomingExchange;
+		private final AtomicBoolean processed = new AtomicBoolean();
+
+		private IncomingExchange(CoapExchange incomingExchange) {
+			this.incomingExchange = incomingExchange;
+		}
+
+		private void accept() {
+			incomingExchange.accept();
+		}
+
+		private void respond(ResponseCode code) {
+			if (processed.compareAndSet(false, true)) {
+				incomingExchange.respond(code);
+			}
+		}
+
+		private void respond(ResponseCode code, byte[] payload, int contentFormat) {
+			if (processed.compareAndSet(false, true)) {
+				incomingExchange.respond(code, payload, contentFormat);
+			}
+		}
+
+		private void respond(ResponseCode code, String payload, int contentFormat) {
+			if (processed.compareAndSet(false, true)) {
+				incomingExchange.respond(code, payload, contentFormat);
+			}
+		}
+
+		private void respond(Response response) {
+			if (processed.compareAndSet(false, true)) {
+				incomingExchange.respond(response);
+			}
+		}
+
+		private Request getRequest() {
+			return incomingExchange.advanced().getRequest();
+		}
+
+		private String getPeerKey() {
+			Request request = incomingExchange.advanced().getRequest();
+			return request.getScheme() + "://" + request.getSourceContext().getPeerAddress();
+		}
+
+		private Endpoint getEndpoint() {
+			return incomingExchange.advanced().getEndpoint();
+		}
+	}
+
+	private class RequestObserver extends MessageObserverAdapter {
+
+		private final IncomingExchange incomingExchange;
 		private final Request outgoingObserveRequest;
 		private final AtomicBoolean registered = new AtomicBoolean();
 		private final int count;
 
-		public RequestObserver(CoapExchange incomingExchange, Request outgoingObserveRequest, int count) {
+		private RequestObserver(IncomingExchange incomingExchange, Request outgoingObserveRequest, int count) {
 			this.incomingExchange = incomingExchange;
 			this.outgoingObserveRequest = outgoingObserveRequest;
 			this.count = count;
@@ -291,8 +337,8 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 				remove(response.getCode());
 			} else if (response.isNotification()) {
 				if (registered.compareAndSet(false, true)) {
-					String key = getPeerKey(incomingExchange);
-					Endpoint endpoint = incomingExchange.advanced().getEndpoint();
+					String key = incomingExchange.getPeerKey();
+					Endpoint endpoint = incomingExchange.getEndpoint();
 					Token token = outgoingObserveRequest.getToken();
 					ObservationRequest previous = observesByPeer.put(key,
 							new ObservationRequest(incomingExchange, token));
@@ -303,9 +349,7 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 					}
 					peersByToken.put(token, key);
 					observesByToken.put(token, new Observation(incomingExchange, token, count));
-					if (!incomingExchange.advanced().isComplete()) {
-						incomingExchange.respond(CONTENT, token.getBytes(), APPLICATION_OCTET_STREAM);
-					}
+					incomingExchange.respond(CONTENT, token.getBytes(), APPLICATION_OCTET_STREAM);
 				}
 			} else {
 				LOGGER.info("Observation {} not established!", outgoingObserveRequest.getToken());
@@ -319,57 +363,55 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 			remove(INTERNAL_SERVER_ERROR);
 		}
 
-		public void remove(ResponseCode code) {
-			String key = getPeerKey(incomingExchange);
+		private void remove(ResponseCode code) {
+			String key = incomingExchange.getPeerKey();
 			observesByPeer.remove(key);
 			LOGGER.info("Removed observation for {}", key);
-			if (!incomingExchange.advanced().isComplete()) {
-				incomingExchange.respond(code);
-			}
+			incomingExchange.respond(code);
 		}
 	}
 
 	private class ObservationRequest {
 
-		private final CoapExchange incomingExchange;
+		private final IncomingExchange incomingExchange;
 		private final Token observationToken;
 
-		public ObservationRequest(CoapExchange incomingExchange, Token observationToken) {
+		private ObservationRequest(IncomingExchange incomingExchange, Token observationToken) {
 			this.incomingExchange = incomingExchange;
 			this.observationToken = observationToken;
 		}
 
-		public Token getObservationToken() {
+		private Token getObservationToken() {
 			return observationToken;
 		}
 
-		public CoapExchange getIncomingExchange() {
+		private IncomingExchange getIncomingExchange() {
 			return incomingExchange;
 		}
 	}
 
 	private class Observation {
 
-		private final CoapExchange incomingExchange;
+		private final IncomingExchange incomingExchange;
 		private final Token observationToken;
 		private final AtomicInteger countDown;
 		private final AtomicReference<Future<?>> timeout = new AtomicReference<Future<?>>();
 
-		public Observation(CoapExchange incomingExchange, Token observationToken, int count) {
+		private Observation(IncomingExchange incomingExchange, Token observationToken, int count) {
 			this.incomingExchange = incomingExchange;
 			this.observationToken = observationToken;
 			this.countDown = new AtomicInteger(count);
 			scheduleTimeout();
 		}
 
-		public void setTimeout(ScheduledFuture<?> future) {
+		private void setTimeout(ScheduledFuture<?> future) {
 			Future<?> previous = timeout.getAndSet(future);
 			if (previous != null) {
 				previous.cancel(false);
 			}
 		}
 
-		public void scheduleTimeout() {
+		private void scheduleTimeout() {
 			ScheduledFuture<?> future = executor.schedule(new Runnable() {
 
 				@Override
@@ -380,7 +422,7 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 			setTimeout(future);
 		}
 
-		public void onNotification() {
+		private void onNotification() {
 			if (countDown.decrementAndGet() == 0) {
 				setTimeout(null);
 				reregister();
@@ -389,14 +431,14 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 			}
 		}
 
-		public void reregister() {
-			String key = getPeerKey(incomingExchange);
+		private void reregister() {
+			String key = incomingExchange.getPeerKey();
 			LOGGER.info("Cancel observation {} for {}", observationToken, key);
-			incomingExchange.advanced().getEndpoint().cancelObservation(observationToken);
+			incomingExchange.getEndpoint().cancelObservation(observationToken);
 			observesByPeer.remove(key);
 			observesByToken.remove(observationToken, this);
 			LOGGER.info("Restart observation for {}", key);
-			handlePOST(incomingExchange);
+			processPOST(incomingExchange);
 		}
 	}
 

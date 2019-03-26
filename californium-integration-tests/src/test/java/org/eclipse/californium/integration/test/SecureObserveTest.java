@@ -32,6 +32,7 @@ import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
 import static org.eclipse.californium.core.network.EndpointContextMatcherFactory.MatcherMode;
 
 import java.net.InetAddress;
@@ -54,6 +55,8 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.CountingHandler;
+import org.eclipse.californium.elements.DtlsEndpointContext;
+import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointMismatchException;
 import org.eclipse.californium.examples.NatUtil;
 import org.eclipse.californium.integration.test.util.CoapsNetworkRule;
@@ -101,6 +104,7 @@ public class SecureObserveTest {
 			nat.stop();
 		}
 		server.destroy();
+		EndpointManager.reset();
 		System.out.println("End " + getClass().getSimpleName());
 	}
 
@@ -110,7 +114,7 @@ public class SecureObserveTest {
 	@Test
 	public void testSecureObserve() throws Exception {
 
-		createSecureServer(MatcherMode.STRICT);
+		createSecureServer(MatcherMode.STRICT, null);
 
 		CoapClient client = new CoapClient(uri);
 		CountingHandler handler = new CountingHandler();
@@ -140,7 +144,7 @@ public class SecureObserveTest {
 	@Test(expected = RuntimeException.class)
 	public void testSecureGetWithNewSession() throws Exception {
 
-		createSecureServer(MatcherMode.STRICT);
+		createSecureServer(MatcherMode.STRICT, null);
 
 		CoapClient client = new CoapClient(uri);
 		CoapResponse response = client.get();
@@ -160,7 +164,7 @@ public class SecureObserveTest {
 	@Test
 	public void testSecureObserveWithNewSession() throws Exception {
 
-		createSecureServer(MatcherMode.STRICT);
+		createSecureServer(MatcherMode.STRICT, null);
 
 		CoapClient client = new CoapClient(uri);
 		CountingHandler handler = new CountingHandler();
@@ -206,14 +210,12 @@ public class SecureObserveTest {
 
 	/**
 	 * Test observe using a DTLS connection when the observed server changed the
-	 * address and resumed the DTLS session. Though the number of the epoch
-	 * after resume will still be 1, this is not detected by the (current)
-	 * STRICT matcher.
+	 * address using a dtls connection id.
 	 */
 	@Test
-	public void testSecureObserveServerAddressChangedWithResume() throws Exception {
+	public void testSecureObserveServerAddressChangedWithCid() throws Exception {
 
-		createSecureServer(MatcherMode.STRICT);
+		createSecureServer(MatcherMode.STRICT, 6);
 
 		createInverseNat();
 
@@ -230,6 +232,8 @@ public class SecureObserveTest {
 		assertFalse("Response not received", rel.isCanceled());
 		assertNotNull("Response not received", rel.getCurrent());
 		assertEquals("\"resource says hi for the 1 time\"", rel.getCurrent().getResponseText());
+		EndpointContext context1 = rel.getCurrent().advanced().getSourceContext();
+		assertNotNull("context-1 missing", context1);
 
 		for (int i = 0; i < REPEATS; ++i) {
 			resource.changed("client");
@@ -238,7 +242,73 @@ public class SecureObserveTest {
 
 		assertTrue("Missing notifies", handler.waitForLoadCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 
-		nat.reassignLocalAddresses();
+		nat.reassignNewLocalAddresses();
+
+		// trigger handshake
+		resource.changed("client");
+		// wait for established session
+		assertTrue("Missing notifies", handler.waitForLoadCalls(REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+
+		for (int i = 0; i < REPEATS; ++i) {
+			resource.changed("client");
+			Thread.sleep(50);
+		}
+
+		assertTrue("Missing notifies after address changed",
+				handler.waitForLoadCalls(REPEATS + REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+		assertThat("sending response missing", resource.getCurrentResponse(), is(notNullValue()));
+		assertThat("sending response caused error", resource.getCurrentResponse().getSendError(), is(nullValue()));
+
+		EndpointContext context2 = rel.getCurrent().advanced().getSourceContext();
+		assertNotNull("context-2 missing", context2);
+		assertThat(context2.get(DtlsEndpointContext.KEY_HANDSHAKE_TIMESTAMP),
+				is(context1.get(DtlsEndpointContext.KEY_HANDSHAKE_TIMESTAMP)));
+
+		String natURI = uri.replace(":" + context1.getPeerAddress().getPort() + "/", ":" + context2.getPeerAddress().getPort() + "/");
+		System.out.println("URI: change " + uri + " to " + natURI);
+		
+		client.setURI(natURI);
+		CoapResponse coapResponse = client.get();
+		assertNotNull("response missing", coapResponse);
+	}
+
+	/**
+	 * Test observe using a DTLS connection when the observed server changed the
+	 * address and resumed the DTLS session. Though the number of the epoch
+	 * after resume will still be 1, this is not detected by the (current)
+	 * STRICT matcher.
+	 */
+	@Test
+	public void testSecureObserveServerAddressChangedWithResume() throws Exception {
+
+		createSecureServer(MatcherMode.STRICT, null);
+
+		createInverseNat();
+
+		CoapClient client = new CoapClient(uri);
+		CountingHandler handler = new CountingHandler();
+		CoapObserveRelation rel = client.observeAndWait(handler);
+
+		assertFalse("Observe relation not established!", rel.isCanceled());
+
+		// onLoad is called asynchronous to returning the response
+		// therefore wait for one onLoad
+		assertTrue(handler.waitForLoadCalls(1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+
+		assertFalse("Response not received", rel.isCanceled());
+		assertNotNull("Response not received", rel.getCurrent());
+		assertEquals("\"resource says hi for the 1 time\"", rel.getCurrent().getResponseText());
+		EndpointContext context1 = rel.getCurrent().advanced().getSourceContext();
+		assertNotNull("context-1 missing", context1);
+
+		for (int i = 0; i < REPEATS; ++i) {
+			resource.changed("client");
+			Thread.sleep(50);
+		}
+
+		assertTrue("Missing notifies", handler.waitForLoadCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
+
+		nat.reassignNewLocalAddresses();
 		serverConnector.forceResumeAllSessions();
 
 		// trigger handshake
@@ -255,6 +325,11 @@ public class SecureObserveTest {
 				handler.waitForLoadCalls(REPEATS + REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 		assertThat("sending response missing", resource.getCurrentResponse(), is(notNullValue()));
 		assertThat("sending response caused error", resource.getCurrentResponse().getSendError(), is(nullValue()));
+
+		EndpointContext context2 = rel.getCurrent().advanced().getSourceContext();
+		assertNotNull("context-2 missing", context2);
+		assertThat(context2.get(DtlsEndpointContext.KEY_HANDSHAKE_TIMESTAMP),
+				not(context1.get(DtlsEndpointContext.KEY_HANDSHAKE_TIMESTAMP)));
 	}
 
 	/**
@@ -264,7 +339,7 @@ public class SecureObserveTest {
 	 */
 	@Test
 	public void testSecureObserveServerAddressChangedWithNewSessionRelaxedMatching() throws Exception {
-		createSecureServer(MatcherMode.RELAXED);
+		createSecureServer(MatcherMode.RELAXED, null);
 		createInverseNat();
 
 		CoapClient client = new CoapClient(uri);
@@ -288,7 +363,7 @@ public class SecureObserveTest {
 
 		assertTrue("Missing notifies", handler.waitForLoadCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 
-		nat.reassignLocalAddresses();
+		nat.reassignNewLocalAddresses();
 		serverConnector.clearConnectionState();
 		resource.changed("client");
 
@@ -317,7 +392,7 @@ public class SecureObserveTest {
 	 */
 	@Test
 	public void testSecureObserveServerAddressChangedWithNewSessionPrincipalMatching() throws Exception {
-		createSecureServer(MatcherMode.PRINCIPAL);
+		createSecureServer(MatcherMode.PRINCIPAL, null);
 		createInverseNat();
 
 		CoapClient client = new CoapClient(uri);
@@ -341,7 +416,7 @@ public class SecureObserveTest {
 
 		assertTrue("Missing notifies", handler.waitForLoadCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 
-		nat.reassignLocalAddresses();
+		nat.reassignNewLocalAddresses();
 		serverConnector.clearConnectionState();
 		resource.changed("client");
 
@@ -365,7 +440,7 @@ public class SecureObserveTest {
 	 */
 	@Test
 	public void testObserveServerAddressChangedWithNewSessionAndPrincipal() throws Exception {
-		createSecureServer(MatcherMode.PRINCIPAL);
+		createSecureServer(MatcherMode.PRINCIPAL, null);
 		createInverseNat();
 
 		CoapClient client = new CoapClient(uri);
@@ -389,7 +464,7 @@ public class SecureObserveTest {
 
 		assertTrue("Missing notifies", handler.waitForLoadCalls(REPEATS + 1, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 
-		nat.reassignLocalAddresses();
+		nat.reassignNewLocalAddresses();
 		serverConnector.clearConnectionState();
 		// change principal
 		pskStore.set("stranger", "danger".getBytes());
@@ -410,21 +485,24 @@ public class SecureObserveTest {
 				is(instanceOf(EndpointMismatchException.class)));
 	}
 
-	private void createSecureServer(MatcherMode mode) {
+	private void createSecureServer(MatcherMode mode, Integer cidLength) {
 		pskStore = new TestUtilPskStore(IDENITITY, KEY.getBytes());
 		DtlsConnectorConfig dtlsConfig = new DtlsConnectorConfig.Builder()
 				.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
+				.setLoggingTag("server")
 				.setReceiverThreadCount(2)
 				.setConnectionThreadCount(2)
+				.setConnectionIdLength(cidLength)
 				.setPskStore(pskStore).build();
-		// retransmit constantly all 200 milliseconds
-		NetworkConfig config = network.createTestConfig().setInt(Keys.ACK_TIMEOUT, 200)
+
+		NetworkConfig config = network.createTestConfig()
+				// retransmit constantly all 200 milliseconds
+				.setInt(Keys.ACK_TIMEOUT, 200)
 				.setFloat(Keys.ACK_RANDOM_FACTOR, 1f).setFloat(Keys.ACK_TIMEOUT_SCALE, 1f)
-				.setLong(Keys.EXCHANGE_LIFETIME, 10 * 1000L) // set response
-																// timeout
-																// (indirect) to
-																// 10s
+				// set response timeout (indirect) to 10s
+				.setLong(Keys.EXCHANGE_LIFETIME, 10 * 1000L)
 				.setString(Keys.RESPONSE_MATCHING, mode.name());
+
 		serverConnector = new DTLSConnector(dtlsConfig);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setConnector(serverConnector);
@@ -442,8 +520,10 @@ public class SecureObserveTest {
 		// prepare secure client endpoint
 		DtlsConnectorConfig clientdtlsConfig = new DtlsConnectorConfig.Builder()
 				.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
+				.setLoggingTag("client")
 				.setReceiverThreadCount(2)
 				.setConnectionThreadCount(2)
+				.setConnectionIdLength(cidLength)
 				.setPskStore(pskStore).build();
 		clientConnector = new DTLSConnector(clientdtlsConfig);
 		builder = new CoapEndpoint.Builder();
@@ -451,6 +531,8 @@ public class SecureObserveTest {
 		builder.setNetworkConfig(config);
 		clientEndpoint = builder.build();
 		EndpointManager.getEndpointManager().setDefaultEndpoint(clientEndpoint);
+		System.out.println("coap-server " + uri);
+		System.out.println("coap-client " + clientEndpoint.getUri());
 	}
 
 	private void createInverseNat() throws Exception {

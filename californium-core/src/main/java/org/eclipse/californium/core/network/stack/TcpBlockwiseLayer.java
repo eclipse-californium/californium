@@ -104,7 +104,7 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 					// ERROR, wrong number, Incomplete
 					LOGGER.warn(
 							"peer sent wrong block, expected no. {} but got {}. Responding with 4.08 (Request Entity Incomplete)",
-							new Object[] { status.getCurrentNum(), block1.getNum() });
+							status.getCurrentNum(), block1.getNum());
 
 					sendBlock1ErrorResponse(key, status, exchange, request, ResponseCode.REQUEST_ENTITY_INCOMPLETE,
 							"wrong block number");
@@ -117,44 +117,47 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 				} else if (!status.addBlock(request.getPayload())) {
 					sendBlock1ErrorResponse(key, status, exchange, request, ResponseCode.REQUEST_ENTITY_TOO_LARGE,
 							"body exceeded expected size " + status.getBufferSize());
-				}
-
-				status.setCurrentNum(status.getCurrentNum() + (request.getPayloadSize() / BERT_INT_BLOCK_SIZE));
-				if (block1.isM()) {
-
-					// Message has more blocks.
-
-					LOGGER.debug("acknowledging incoming block1 [num={}], expecting more blocks to come",
-							block1.getNum());
-
-					Response piggybacked = Response.createResponse(request, ResponseCode.CONTINUE);
-					piggybacked.getOptions().setBlock1(block1.getSzx(), true, block1.getNum());
-
-					exchange.setCurrentResponse(piggybacked);
-					lower().sendResponse(exchange, piggybacked);
-
 				} else {
 
-					LOGGER.debug("peer has sent last block1 [num={}], delivering request to application layer",
-							block1.getNum());
+					status.setCurrentNum(status.getCurrentNum() + (request.getPayloadSize() / BERT_INT_BLOCK_SIZE));
+					if (block1.isM()) {
 
-					// Remember block to acknowledge.
-					// TODO: We might make this a boolean flag in status.
-					exchange.setBlock1ToAck(block1);
+						// Message has more blocks.
 
-					// Assemble and deliver
-					Request assembled = new Request(request.getCode());
-					status.assembleReceivedMessage(assembled);
+						LOGGER.debug("acknowledging incoming block1 [num={}], expecting more blocks to come", block1.getNum());
 
-					assembled.setMID(request.getMID());
-					assembled.setToken(request.getToken());
+						Response piggybacked = Response.createResponse(request, ResponseCode.CONTINUE);
+						piggybacked.getOptions().setBlock1(block1.getSzx(), true, block1.getNum());
 
-					assembled.getOptions().setBlock2(request.getOptions().getBlock2());
+						exchange.setCurrentResponse(piggybacked);
+						lower().sendResponse(exchange, piggybacked);
 
-					clearBlock1Status(key, status);
+					} else {
 
-					exchange.setRequest(assembled);
-					upper().receiveRequest(exchange, assembled);
+						LOGGER.debug("peer has sent last block1 [num={}], delivering request to application layer", block1.getNum());
+
+						// Remember block to acknowledge. TODO: We might make this a boolean flag in status.
+						exchange.setBlock1ToAck(block1);
+
+						// Assemble and deliver
+						Request assembled = new Request(request.getCode());
+						status.assembleReceivedMessage(assembled);
+
+						// make sure we deliver the request using the MID and token of the latest request
+						// so that the response created by the application layer can reply to his 
+						// token and MID
+						assembled.setMID(request.getMID());
+						assembled.setToken(request.getToken());
+						// copy scheme
+						assembled.setScheme(request.getScheme());
+						// make sure peer's early negotiation of block2 size gets included
+						assembled.getOptions().setBlock2(request.getOptions().getBlock2());
+
+						clearBlock1Status(key, status);
+
+						exchange.setRequest(assembled);
+						upper().receiveRequest(exchange, assembled);
+					}
 				}
 			} else {
 				super.handleInboundBlockwiseUpload(exchange, request);
@@ -198,7 +201,7 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 					LOGGER.debug("peer has requested intermediary block of blockwise transfer: {}", status);
 				}
 
-				block.setPayload(getBody(responseBlockBuilder));
+				block.setPayload(BlockwiseStatus.getBody(responseBlockBuilder));
 				boolean m = block.getOptions().getBlock2().isM();
 				block.getOptions().setBlock2(BERT_SZX, m, blockNum);
 				exchange.setCurrentResponse(block);
@@ -231,34 +234,49 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 					LOGGER.debug("outbound request contains block2 option, creating random-access blockwise status");
 					addRandomAccessBlock2Status(exchange, request);
 					handleRandomBlockAccess(exchange, request, block2.getNum());
-				} else if (requiresBlockwise(request)) {
-					// This must be a large POST or PUT request with BERT
-					// option.
-					ByteBuffer requestBuilder = ByteBuffer.allocate(bertStepSize * BERT_INT_BLOCK_SIZE);
-					boolean hasNextBlock = true;
-					KeyUri key = getKey(exchange, request);
-					Request firstRequest = startBlockwiseUpload(exchange, request);
-					requestBuilder.put(firstRequest.getPayload());
-
-					Block1BlockwiseStatus status = getBlock1Status(key);
-					for (int i = 1; ((i < bertStepSize) && (hasNextBlock)); i++) {
-						status.setCurrentNum(i);
-						requestToSend = status.getNextRequestBlock();
-						requestBuilder.put(requestToSend.getPayload());
-						hasNextBlock = requestToSend.getOptions().getBlock1().isM();
-					}
-					firstRequest.setPayload(getBody(requestBuilder));
-					firstRequest.getOptions().setBlock1(BERT_SZX, hasNextBlock, 0);
-					exchange.setCurrentRequest(firstRequest);
-					lower().sendRequest(exchange, firstRequest);
 				} else {
-					exchange.setCurrentRequest(requestToSend);
-					lower().sendRequest(exchange, requestToSend);
+					KeyUri key = getKey(exchange, request);
+					Block2BlockwiseStatus status2 = getBlock2Status(key);
+					if (status2 != null) {
+						// Receiving a blockwise response in transparent mode
+						// is done by in an "internal request" for the left payload.
+						// Therefore the client is not aware of that ongoing request
+						// and may send an additional request for the same resource.
+						// If that happens, two blockwise request may pend for the 
+						// same resource. RFC7959, section 2.4, page 13, 
+						// "The Block2 Option provides no way for a single endpoint
+						//  to perform multiple concurrently proceeding block-wise
+						//  response payload transfer (e.g., GET) operations to the
+						//  same resource."
+						// So one transfer must be abandoned. This chose the transfer
+						// of the notify to be abandoned so that the client receives
+						// the requested response but lose the notify. 
+						clearBlock2Status(key, status2);
+						status2.completeOldTransfer(null);
+					}
+					if (requiresBlockwise(request)) {
+						// This must be a large POST or PUT request with BERT
+						// option.
+						ByteBuffer requestBuilder = ByteBuffer.allocate(bertStepSize * BERT_INT_BLOCK_SIZE);
+						boolean hasNextBlock = true;
+						Request firstRequest = startBlockwiseUpload(exchange, request);
+						requestBuilder.put(firstRequest.getPayload());
+	
+						Block1BlockwiseStatus status1 = getBlock1Status(key);
+						for (int i = 1; ((i < bertStepSize) && (hasNextBlock)); i++) {
+							status1.setCurrentNum(i);
+							requestToSend = status1.getNextRequestBlock();
+							requestBuilder.put(requestToSend.getPayload());
+							hasNextBlock = requestToSend.getOptions().getBlock1().isM();
+						}
+						firstRequest.setPayload(BlockwiseStatus.getBody(requestBuilder));
+						firstRequest.getOptions().setBlock1(BERT_SZX, hasNextBlock, 0);
+						requestToSend = firstRequest;
+					}
 				}
-			} else {
-				exchange.setCurrentRequest(requestToSend);
-				lower().sendRequest(exchange, requestToSend);
-			}
+			} 
+			exchange.setCurrentRequest(requestToSend);
+			lower().sendRequest(exchange, requestToSend);
 		} else {
 			super.sendRequest(exchange, requestToSend);
 		}
@@ -285,12 +303,11 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 					if (requestBlock2.getNum() != responseBlock2.getNum()) {
 						LOGGER.warn(
 								"resource [{}] implementation error, peer requested block {} but resource returned block {}",
-								new Object[] { exchange.getRequest().getURI(), requestBlock2.getNum(),
-										responseBlock2.getNum() });
-						responseToSend = Response.createResponse(exchange.getRequest(),
-								ResponseCode.INTERNAL_SERVER_ERROR);
+								exchange.getRequest().getURI(), requestBlock2.getNum(), responseBlock2.getNum());
+						responseToSend = Response.createResponse(exchange.getRequest(), ResponseCode.INTERNAL_SERVER_ERROR);
 						responseToSend.setType(response.getType());
 						responseToSend.setMID(response.getMID());
+						responseToSend.addMessageObservers(response.getMessageObservers());
 					}
 
 				} else if (response.hasBlock(requestBlock2)) {
@@ -310,7 +327,7 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 						nextBlockOption = new BlockOption(nextBlockOption.getSzx(), hasNextBlock,
 								(nextBlockOption.getNum() + 1));
 					}
-					responseToSend.setPayload(getBody(responseBuilder));
+					responseToSend.setPayload(BlockwiseStatus.getBody(responseBuilder));
 					responseToSend.getOptions().setBlock2(BERT_SZX, responseToSend.getOptions().getBlock2().isM(),
 							requestBlock2.getNum());
 				} else {
@@ -320,6 +337,7 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 					responseToSend.setType(response.getType());
 					responseToSend.setMID(response.getMID());
 					responseToSend.getOptions().setBlock2(requestBlock2);
+					responseToSend.addMessageObservers(response.getMessageObservers());
 
 				}
 
@@ -331,7 +349,8 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 
 				KeyUri key = getKey(exchange, response);
 				Block2BlockwiseStatus status = resetOutboundBlock2Status(key, exchange, response);
-				BlockOption block2 = requestBlock2 != null ? requestBlock2 : new BlockOption(BERT_SZX, false, 0);
+				BlockOption block2 = requestBlock2 != null ? requestBlock2 
+						: new BlockOption(BERT_SZX, false, 0);
 				firstResponse = status.getNextResponseBlock(block2);
 				boolean hasNextBlock = true;
 				ByteBuffer responseBuilder = ByteBuffer.allocate(bertStepSize * BERT_INT_BLOCK_SIZE);
@@ -344,13 +363,8 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 					responseBuilder.put(responseToSend.getPayload());
 					hasNextBlock = responseToSend.getOptions().getBlock2().isM();
 				}
-				firstResponse.setPayload(getBody(responseBuilder));
+				firstResponse.setPayload(BlockwiseStatus.getBody(responseBuilder));
 				firstResponse.getOptions().setBlock2(BERT_SZX, responseToSend.getOptions().getBlock2().isM(), 0);
-				if (status.isComplete()) {
-					// clean up blockwise status
-					LOGGER.debug("block2 transfer of response finished after first block: {}", status);
-					clearBlock2Status(key, status);
-				}
 				responseToSend = firstResponse;
 			}
 
@@ -377,29 +391,39 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 			LOGGER.debug("sending next Block1 num={}", nextNum);
 
 			Request nextBlock = null;
-			ByteBuffer nextRequestBuilder = ByteBuffer.allocate(bertStepSize * BERT_INT_BLOCK_SIZE);
+			try {
+				ByteBuffer nextRequestBuilder = ByteBuffer.allocate(bertStepSize * BERT_INT_BLOCK_SIZE);
 
-			boolean hasNextBlock = true;
-			for (int i = 0; ((i < bertStepSize) && (hasNextBlock)); i++) {
-				status.setCurrentNum(nextNum);
-				nextBlock = status.getNextRequestBlock(nextNum, BERT_SZX);
-				nextRequestBuilder.put(nextBlock.getPayload());
-				hasNextBlock = nextBlock.getOptions().getBlock1().isM();
-				nextNum = nextNum + 1;
+				boolean hasNextBlock = true;
+				for (int i = 0; ((i < bertStepSize) && (hasNextBlock)); i++) {
+					status.setCurrentNum(nextNum);
+					nextBlock = status.getNextRequestBlock(nextNum, BERT_SZX);
+					nextRequestBuilder.put(nextBlock.getPayload());
+					hasNextBlock = nextBlock.getOptions().getBlock1().isM();
+					nextNum = nextNum + 1;
 
+				}
+				nextBlock.setPayload(BlockwiseStatus.getBody(nextRequestBuilder));
+				// we use the same token to ease traceability
+				nextBlock.setToken(response.getToken());
+				nextBlock.setDestinationContext(response.getSourceContext());
+				addBlock1CleanUpObserver(nextBlock, key, status);
+
+				BlockOption blockOption1 = nextBlock.getOptions().getBlock1();
+				boolean currentm = blockOption1.isM();
+				nextBlock.getOptions().setBlock1(BERT_SZX, currentm, blockNum);
+
+				exchange.setCurrentRequest(nextBlock);
+				prepareBlock1Cleanup(status, key);
+				lower().sendRequest(exchange, nextBlock);
+			} catch (RuntimeException ex) {
+				LOGGER.warn("cannot process next block request, aborting request!", ex);
+				if (nextBlock != null) {
+					nextBlock.setSendError(ex);
+				} else {
+					exchange.getRequest().setSendError(ex);
+				}
 			}
-			nextBlock.setPayload(getBody(nextRequestBuilder));
-			// we use the same token to ease traceability
-			nextBlock.setToken(response.getToken());
-			addBlock1CleanUpObserver(nextBlock, key, status);
-
-			BlockOption blockOption1 = nextBlock.getOptions().getBlock1();
-			boolean currentm = blockOption1.isM();
-			nextBlock.getOptions().setBlock1(BERT_SZX, currentm, blockNum);
-
-			exchange.setCurrentRequest(nextBlock);
-			lower().sendRequest(exchange, nextBlock);
-
 		} else {
 			super.sendNextBlock(exchange, response, key, status);
 		}
@@ -417,46 +441,49 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 			int blockNum = status.getCurrentNum() + (response.getPayloadSize() / BERT_INT_BLOCK_SIZE);
 			Request request = exchange.getRequest();
 			Request block = new Request(request.getCode());
-			// do not enforce CON, since NON could make sense over SMS or
-			// similar transports
-			block.setType(request.getType());
-			block.setDestinationContext(response.getSourceContext());
+			try {
+				// do not enforce CON, since NON could make sense over SMS or similar transports
+				block.setType(request.getType());
+				block.setDestinationContext(response.getSourceContext());
 
-			/*
-			 * WARNING:
-			 * 
-			 * For Observe, the Matcher then will store the same exchange under a different
-			 * KeyToken in exchangesByToken, which is cleaned up in the else case below.
-			 */
-			if (!response.getOptions().hasObserve()) {
-				block.setToken(response.getToken());
+				/*
+				 * WARNING:
+				 * 
+				 * For Observe, the Matcher then will store the same
+				 * exchange under a different KeyToken in exchangesByToken,
+				 * which is cleaned up in the else case below.
+				 */
+				if (!response.isNotification()) {
+					block.setToken(response.getToken());
+				} else if (exchange.isNotification()) {
+					// Recreate cleanup message observer
+					request.addMessageObserver(new CleanupMessageObserver(exchange));
+				}
+
+				// copy options
+				block.setOptions(new OptionSet(request.getOptions()));
+				block.getOptions().setBlock2(BERT_SZX, false, blockNum);
+
+				// make sure NOT to use Observe for block retrieval
+				block.getOptions().removeObserve();
+
+				// copy message observers from original request so that they will be
+				// notified, if something goes wrong with this blockwise request,
+				// e.g. if it times out
+				block.addMessageObservers(request.getMessageObservers());
+				// add an observer that cleans up the block2 transfer tracker
+				// if the block request fails
+				addBlock2CleanUpObserver(block, key, status);
+
+				status.setCurrentNum(blockNum);
+
+				LOGGER.debug("requesting next Block2 [num={}]: {}", blockNum, block);
+				exchange.setCurrentRequest(block);
+				lower().sendRequest(exchange, block);
+			} catch (RuntimeException ex) {
+				LOGGER.warn("cannot process next block request, aborting request!", ex);
+				block.setSendError(ex);
 			}
-
-			// copy options
-			block.setOptions(new OptionSet(request.getOptions()));
-			block.getOptions().setBlock2(BERT_SZX, false, blockNum);
-			if (response.getOptions().getETagCount() > 0) {
-				// use ETag provided by peer
-				block.getOptions().addETag(response.getOptions().getETags().get(0));
-			}
-
-			// make sure NOT to use Observe for block retrieval
-			block.getOptions().removeObserve();
-
-			// copy message observers from original request so that they will be
-			// notified, if something goes wrong with this blockwise request,
-			// e.g. if it times out
-			block.addMessageObservers(request.getMessageObservers());
-			// add an observer that cleans up the block2 transfer tracker if the
-			// block request fails
-			addBlock2CleanUpObserver(block, key, status);
-
-			status.setCurrentNum(blockNum);
-
-			LOGGER.debug("requesting next Block2 [num={}]: {}", new Object[] { blockNum, block });
-			exchange.setCurrentRequest(block);
-			lower().sendRequest(exchange, block);
-
 		} else {
 			super.requestNextBlock(exchange, response, key, status);
 		}
@@ -491,24 +518,10 @@ public class TcpBlockwiseLayer extends BlockwiseLayer {
 				hasNextBlock = nextBlock.getOptions().getBlock1().isM();
 				nextBlockNum = nextBlockNum + 1;
 			}
-			requestToSend.setPayload(getBody(requestBuilder));
+			requestToSend.setPayload(BlockwiseStatus.getBody(requestBuilder));
 			requestToSend.getOptions().setBlock1(BERT_SZX, hasNextBlock, 0);
 			exchange.setCurrentRequest(requestToSend);
 			lower().sendRequest(exchange, requestToSend);
 		}
-	}
-
-	/**
-	 * Truncates the buffer and returns only the filled part. Call this method only
-	 * when all the data is added to the buffer.
-	 * 
-	 * @param buf
-	 * @return Returns only the filled part of the buffer.
-	 */
-	private byte[] getBody(ByteBuffer buf) {
-		buf.flip();
-		byte[] body = new byte[buf.remaining()];
-		buf.get(body).clear();
-		return body;
 	}
 }

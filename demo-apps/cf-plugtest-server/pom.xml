@@ -18,6 +18,8 @@
 
 	<properties>
 		<assembly.mainClass>org.eclipse.californium.plugtests.PlugtestServer</assembly.mainClass>
+		<skipNexusStagingDeployMojo>false</skipNexusStagingDeployMojo>
+		<skipStaging>false</skipStaging>
 	</properties>
 
 	<dependencies>
@@ -46,9 +48,13 @@
 		<plugins>
 			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
-				<!-- inherit configuration from parent POM -->
+				<configuration>
+					<descriptors>
+						<descriptor>enhanced-jar-with-licenses.xml</descriptor>
+					</descriptors>
+				</configuration>
 			</plugin>
-      </plugins>
-	 </build>
+		</plugins>
+	</build>
 
 </project>

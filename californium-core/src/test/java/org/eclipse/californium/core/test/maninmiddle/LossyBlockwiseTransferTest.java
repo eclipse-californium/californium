@@ -40,6 +40,7 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.core.test.lockstep.ClientBlockwiseInterceptor;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.Before;
@@ -70,6 +71,8 @@ public class LossyBlockwiseTransferTest {
 	private String respPayload;
 	private Random rand = new Random();
 
+	private ClientBlockwiseInterceptor clientInterceptor = new ClientBlockwiseInterceptor();
+
 	@Before
 	public void setupEndpoints() throws Exception {
 
@@ -87,6 +90,7 @@ public class LossyBlockwiseTransferTest {
 		builder.setNetworkConfig(config);
 
 		clientEndpoint = builder.build();
+		clientEndpoint.addInterceptor(clientInterceptor);
 		clientEndpoint.start();
 
 		builder = new CoapEndpoint.Builder();
@@ -108,7 +112,7 @@ public class LossyBlockwiseTransferTest {
 		clientPort = clientEndpoint.getAddress().getPort();
 		serverPort = serverEndpoint.getAddress().getPort();
 		middleAddress = InetAddress.getLoopbackAddress();
-		middle = new ManInTheMiddle(middleAddress, clientPort, serverPort, config.getInt(NetworkConfig.Keys.MAX_RETRANSMIT));
+		middle = new ManInTheMiddle(middleAddress, clientPort, serverPort, config.getInt(NetworkConfig.Keys.MAX_RETRANSMIT), clientInterceptor);
 		middlePort = middle.getPort();
 
 		System.out.println(
@@ -125,6 +129,7 @@ public class LossyBlockwiseTransferTest {
 		server.destroy();
 		clientEndpoint.destroy();
 		System.out.printf("End %s", getClass().getSimpleName());
+		middle.stop();
 	}
 
 	@Test
@@ -159,8 +164,8 @@ public class LossyBlockwiseTransferTest {
 		long start = System.currentTimeMillis();
 		CoapResponse response = client.get();
 		long end = System.currentTimeMillis();
-		assertThat("Blockwise GET timed out after " + (end - start) + "ms", response, is(notNullValue()));
-		System.out.println(String.format("Received %d bytes after %dms", response.getPayload().length, end - start));
+		assertThat("Blockwise GET timed out after " + (end - start) + " ms", response, is(notNullValue()));
+		System.out.println(String.format("Received %d bytes after %d ms", response.getPayload().length, end - start));
 		assertThat("Did not receive expected resource body", response.getResponseText(), is(expectedPayload));
 	}
 }

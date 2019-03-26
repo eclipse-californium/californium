@@ -1473,9 +1473,6 @@ public class ObserveClientSideTest {
 	}
 
 	private void assertAllEndpointExchangesAreCompleted(final CoapTestEndpoint endpoint) {
-		NetworkConfig config = endpoint.getConfig();
-		int exchangeLifetime = (int) config.getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME) + 1000;
-		time.setTestTimeShift(exchangeLifetime, TimeUnit.MILLISECONDS);
-		assertAllExchangesAreCompleted(client);
+		assertAllExchangesAreCompleted(endpoint, time);
 	}
 }

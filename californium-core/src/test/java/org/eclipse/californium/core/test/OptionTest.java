@@ -28,6 +28,7 @@ import org.junit.Assert;
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionSet;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.junit.After;
 import org.junit.Before;
@@ -252,7 +253,7 @@ public class OptionTest {
 		Option option = new Option();
 		
 		option.setStringValue("");
-		assertArrayEquals(option.getValue(), new byte[0]);
+		assertArrayEquals(option.getValue(), Bytes.EMPTY);
 
 		option.setStringValue("Californium");
 		assertArrayEquals(option.getValue(), "Californium".getBytes());
@@ -263,7 +264,7 @@ public class OptionTest {
 		Option option = new Option();
 
 		option.setIntegerValue(0);
-		assertArrayEquals(option.getValue(), new byte[0]);
+		assertArrayEquals(option.getValue(), Bytes.EMPTY);
 		assertEquals(0, option.getIntegerValue());
 		
 		option.setIntegerValue(11);
@@ -300,7 +301,7 @@ public class OptionTest {
 		Option option = new Option();
 
 		option.setLongValue(0);
-		assertArrayEquals(option.getValue(), new byte[0]);
+		assertArrayEquals(option.getValue(), Bytes.EMPTY);
 		assertEquals(0, option.getLongValue());
 		
 		option.setLongValue(11);

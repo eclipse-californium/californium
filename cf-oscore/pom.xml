@@ -1,0 +1,93 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>org.eclipse.californium</groupId>
+		<artifactId>parent</artifactId>
+		<version>2.0.0-SNAPSHOT</version>
+	</parent>
+
+	<artifactId>cf-oscore</artifactId>
+	<packaging>jar</packaging>
+
+	<name>Cf-OSCORE</name>
+	<description>Californium (Cf) OSCORE, Object Security for Constrained RESTful Environments</description>
+
+	<properties>
+		<cbor.version>3.0.3</cbor.version>
+		<numbers.version>1.0.2</numbers.version>
+	</properties>
+
+	<dependencies>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>californium-legal</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.eclipse.californium</groupId>
+			<artifactId>californium-core</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.eclipse.californium</groupId>
+			<artifactId>scandium</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.upokecenter</groupId>
+			<artifactId>cbor</artifactId>
+			<version>${cbor.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>com.github.peteroupc</groupId>
+			<artifactId>numbers</artifactId>
+			<version>${numbers.version}</version>
+		</dependency>
+		<!-- test dependencies -->
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>ch.qos.logback</groupId>
+			<artifactId>logback-classic</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<configuration>
+					<descriptors>
+						<descriptor>enhanced-jar-with-licenses.xml</descriptor>
+					</descriptors>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+	
+	<profiles>
+		<profile>
+			<!-- maven compile would try to resolve test dependencies, 
+				even if tests are skipped. Therefore include this 
+				test dependency only, if tests are enabled -->
+			<id>tests</id>
+			<activation>
+				<property>
+					<name>maven.test.skip</name>
+					<value>!true</value>
+				</property>
+			</activation>
+			<dependencies>
+				<dependency>
+					<groupId>${project.groupId}</groupId>
+					<artifactId>californium-core</artifactId>
+					<classifier>tests</classifier>
+					<type>test-jar</type>
+				</dependency>
+			</dependencies>
+		</profile>
+	</profiles>
+
+</project>

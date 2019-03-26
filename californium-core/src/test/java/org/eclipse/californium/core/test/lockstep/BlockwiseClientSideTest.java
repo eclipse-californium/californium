@@ -59,12 +59,14 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.test.CountingMessageObserver;
 import org.eclipse.californium.core.test.ErrorInjector;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
+import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -77,7 +79,10 @@ import org.junit.experimental.categories.Category;
 public class BlockwiseClientSideTest {
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
-	
+
+	@Rule
+	public TestTimeRule time = new TestTimeRule();
+
 	private static final int TEST_EXCHANGE_LIFETIME = 247; // milliseconds
 	private static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 100; // milliseconds
 	private static final int TEST_BLOCKWISE_STATUS_LIFETIME = 300;
@@ -127,7 +132,7 @@ public class BlockwiseClientSideTest {
 	@After
 	public void shutdownEndpoints() {
 		try {
-			assertAllExchangesAreCompleted(client);
+			assertAllExchangesAreCompleted(client, time);
 		} finally {
 			printServerLog(clientInterceptor);
 			client.destroy();
@@ -1115,7 +1120,7 @@ public class BlockwiseClientSideTest {
 
 		System.out.println("Cancel request " + request);
 		request.cancel();
-		assertAllExchangesAreCompleted(config, client.getExchangeStore());
+		assertAllExchangesAreCompleted(config, client.getExchangeStore(), time);
 	}
 
 	/**
@@ -1142,7 +1147,7 @@ public class BlockwiseClientSideTest {
 
 		System.out.println("Cancel request " + request);
 		request.cancel();
-		assertAllExchangesAreCompleted(config, client.getExchangeStore());
+		assertAllExchangesAreCompleted(config, client.getExchangeStore(), time);
 	}
 
 	/**

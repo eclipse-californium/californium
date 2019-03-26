@@ -37,6 +37,7 @@ import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.network.ExchangeCompleteException;
 import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.network.stack.Layer.TopDownBuilder;
 import org.eclipse.californium.core.server.MessageDeliverer;
@@ -84,6 +85,7 @@ public abstract class BaseCoapStack implements CoapStack {
 		try {
 			top.sendRequest(exchange, request);
 		} catch (RuntimeException ex) {
+			LOGGER.warn("error send request {}", request, ex);
 			request.setSendError(ex);
 		}
 	}
@@ -91,8 +93,9 @@ public abstract class BaseCoapStack implements CoapStack {
 	@Override
 	public void sendResponse(final Exchange exchange, final Response response) {
 		// delegate to top
+		boolean retransmit = exchange.getRequest().getOptions().hasObserve();
 		try {
-			if (exchange.getRequest().getOptions().hasObserve()) {
+			if (retransmit) {
 				// observe- or cancel-observe-requests may have
 				// multiple responses.
 				// when observes are finished, the last response has
@@ -101,7 +104,14 @@ public abstract class BaseCoapStack implements CoapStack {
 				exchange.retransmitResponse();
 			}
 			top.sendResponse(exchange, response);
+		} catch (ExchangeCompleteException ex) {
+			LOGGER.warn("error send response {}", response, ex);
+			response.setSendError(ex);
 		} catch (RuntimeException ex) {
+			LOGGER.warn("error send response {}", response, ex);
+			if (!retransmit) {
+				exchange.sendReject();
+			}
 			response.setSendError(ex);
 		}
 	}
@@ -112,6 +122,7 @@ public abstract class BaseCoapStack implements CoapStack {
 		try {
 			top.sendEmptyMessage(exchange, message);
 		} catch (RuntimeException ex) {
+			LOGGER.warn("error send empty message {}", message, ex);
 			message.setSendError(ex);
 		}
 	}

@@ -234,7 +234,7 @@ public final class ClientHello extends HandshakeMessage {
 		writer.writeBytes(random.getRandomBytes());
 
 		writer.write(sessionId.length(), SESSION_ID_LENGTH_BITS);
-		writer.writeBytes(sessionId.getId());
+		writer.writeBytes(sessionId.getBytes());
 
 		writer.write(cookie.length, COOKIE_LENGTH);
 		writer.writeBytes(cookie);
@@ -328,7 +328,7 @@ public final class ClientHello extends HandshakeMessage {
 		sb.append(StringUtil.lineSeparator()).append("\t\tRandom:").append(StringUtil.lineSeparator()).append(random);
 		sb.append("\t\tSession ID Length: ").append(sessionId.length());
 		if (sessionId.length() > 0) {
-			sb.append(StringUtil.lineSeparator()).append("\t\tSession ID: ").append(ByteArrayUtils.toHexString(sessionId.getId()));
+			sb.append(StringUtil.lineSeparator()).append("\t\tSession ID: ").append(sessionId);
 		}
 		sb.append(StringUtil.lineSeparator()).append("\t\tCookie Length: ").append(cookie.length);
 		if (cookie.length > 0) {
@@ -382,7 +382,21 @@ public final class ClientHello extends HandshakeMessage {
 		return cookie;
 	}
 
+	/**
+	 * Set received cookie.
+	 * 
+	 * Adjust fragment length.
+	 * 
+	 * @param cookie recevied cookie
+	 * @throws NullPointerException if cookie is {@code null}
+	 * @throws IllegalArgumentException if cookie is empty
+	 */
 	public void setCookie(byte[] cookie) {
+		if (cookie == null) {
+			throw new NullPointerException("cookie must not be null!");
+		} else if (cookie.length == 0) {
+			throw new IllegalArgumentException("cookie must not be empty!");
+		}
 		this.cookie = Arrays.copyOf(cookie, cookie.length);
 	}
 
@@ -488,6 +502,20 @@ public final class ClientHello extends HandshakeMessage {
 	public ServerNameExtension getServerNameExtension() {
 		if (extensions != null) {
 			return (ServerNameExtension) extensions.getExtension(ExtensionType.SERVER_NAME);
+		} else {
+			return null;
+		}
+	}
+
+	/**
+	 * Gets the <em>connection id</em> extension data from this message.
+	 * 
+	 * @return the extension data or <code>null</code> if this message does not contain the
+	 *          <em>connection id</em> extension.
+	 */
+	public ConnectionIdExtension getConnectionIdExtension() {
+		if (extensions != null) {
+			return (ConnectionIdExtension) extensions.getExtension(ExtensionType.CONNECTION_ID);
 		} else {
 			return null;
 		}

@@ -21,7 +21,6 @@ import java.io.IOException;
 
 /**
  * An abstraction of the DTLS record layer's capabilities for sending records to peers.
- * 
  */
 public interface RecordLayer {
 
@@ -34,6 +33,8 @@ public interface RecordLayer {
 	 * 
 	 * @param flight the records to send. The properties of the flight are used to control the
 	 *                  timespan to wait between re-transmissions. 
+	 * @param connection to send the flight
+	 * @throws IOException if an io error occurs
 	 */
-	void sendFlight(DTLSFlight flight) throws IOException;
+	void sendFlight(DTLSFlight flight, Connection connection) throws IOException;
 }

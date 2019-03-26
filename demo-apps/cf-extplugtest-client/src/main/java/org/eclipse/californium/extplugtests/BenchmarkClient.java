@@ -20,6 +20,10 @@
 package org.eclipse.californium.extplugtests;
 
 import java.io.File;
+import java.lang.management.GarbageCollectorMXBean;
+import java.lang.management.ManagementFactory;
+import java.lang.management.OperatingSystemMXBean;
+import java.lang.management.ThreadMXBean;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.SecureRandom;
@@ -71,6 +75,9 @@ public class BenchmarkClient {
 
 	/** The logger. */
 	private static final Logger LOGGER = LoggerFactory.getLogger(BenchmarkClient.class.getCanonicalName());
+
+	private static final Logger STATISTIC_LOGGER = LoggerFactory.getLogger("org.eclipse.californium.extplugtests.statistics");
+
 	/**
 	 * File name for network configuration.
 	 */
@@ -142,6 +149,7 @@ public class BenchmarkClient {
 			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
 			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
 			config.setInt(Keys.MAX_ACTIVE_PEERS, 10);
+			config.setInt(Keys.DTLS_CONNECTION_ID_LENGTH, 0); // support it, but don't use for incoming traffic
 			config.setInt(Keys.MAX_PEER_INACTIVITY_PERIOD, 60 * 60 * 24); // 24h
 			config.setInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT, 60 * 60 * 12); // 12h
 			config.setInt(Keys.TCP_CONNECT_TIMEOUT, 30 * 1000); // 20s
@@ -327,6 +335,75 @@ public class BenchmarkClient {
 	private final AtomicBoolean stop = new AtomicBoolean();
 
 	private final FeedObserver feedObserver = new FeedObserver();
+	
+	private class TestHandler implements CoapHandler {
+		
+		private final Request post;
+		
+		private TestHandler(final Request post) {
+			this.post = post;
+		}
+		@Override
+		public void onLoad(CoapResponse response) {
+			if (response.isSuccess()) {
+				if (!stop.get()) {
+					next();
+				}
+				long c = overallRequestsDownCounter.get();
+				LOGGER.info("Received response: {} {}", response.advanced(), c);
+			} else {
+				LOGGER.warn("Received error response: {}", response.advanced());
+				stop();
+			}
+		}
+
+		@Override
+		public void onError() {
+			if (!stop.get()) {
+				long c = requestsCounter.get();
+				String msg = "";
+				if (post.getSendError() != null) {
+					msg = post.getSendError().getMessage();
+				} else if (post.isTimedOut()) {
+					msg = "timeout";
+				} else if (post.isRejected()) {
+					msg = "rejected";
+				}
+				if (noneStop) {
+					transmissionErrorCounter.incrementAndGet();
+					LOGGER.info("Error after {} requests. {}", c, msg);
+					next();
+				} else {
+					LOGGER.error("failed after {} requests! {}", c, msg);
+					stop();
+				}
+			}
+		}
+
+		public void next() {
+			long c = overallRequestsDownCounter.get();
+			while (c > 0) {
+				if (overallRequestsDownCounter.compareAndSet(c, c - 1)) {
+					--c;
+					break;
+				}
+				c = overallRequestsDownCounter.get();
+			}
+
+			if (0 < c) {
+				requestsCounter.incrementAndGet();
+				Request post = Request.newPost();
+				post.setURI(client.getURI());
+				post.addMessageObserver(retransmissionDetector);
+				client.advanced(new TestHandler(post), post);
+			} else {
+				overallRequestsDone.countDown();
+				if (overallReverseResponsesDownCounter.getCount() == 0) {
+					stop();
+				}
+			}
+		}
+	}
 
 	/**
 	 * Create client.
@@ -426,63 +503,7 @@ public class BenchmarkClient {
 			final Request post = Request.newPost();
 			post.setURI(client.getURI());
 			post.addMessageObserver(retransmissionDetector);
-			client.advanced(new CoapHandler() {
-
-				@Override
-				public void onLoad(CoapResponse response) {
-					if (response.isSuccess()) {
-						if (!stop.get()) {
-							next();
-						}
-						long c = overallRequestsDownCounter.get();
-						LOGGER.info("Received response: {} {}", response.advanced(), c);
-					} else {
-						LOGGER.warn("Received error response: {}", response.advanced());
-						stop();
-					}
-				}
-
-				@Override
-				public void onError() {
-					if (!stop.get()) {
-						long c = requestsCounter.get();
-						String msg = post.getSendError() == null ? "" : post.getSendError().getMessage();
-						if (noneStop) {
-							transmissionErrorCounter.incrementAndGet();
-							LOGGER.info("Error after {} requests. {}", c, msg);
-							next();
-						} else {
-							LOGGER.error("failed after {} requests! {}", c, msg);
-							stop();
-						}
-					}
-				}
-
-				public void next() {
-					long c = overallRequestsDownCounter.get();
-					while (c > 0) {
-						if (overallRequestsDownCounter.compareAndSet(c, c - 1)) {
-							--c;
-							break;
-						}
-						c = overallRequestsDownCounter.get();
-					}
-
-					if (0 < c) {
-						requestsCounter.incrementAndGet();
-						Request post = Request.newPost();
-						post.setURI(client.getURI());
-						post.addMessageObserver(retransmissionDetector);
-						client.advanced(this, post);
-					} else {
-						overallRequestsDone.countDown();
-						if (overallReverseResponsesDownCounter.getCount() == 0) {
-							stop();
-						}
-					}
-				}
-
-			}, post);
+			client.advanced(new TestHandler(post), post);
 		} else {
 			overallRequestsDone.countDown();
 		}
@@ -550,6 +571,8 @@ public class BenchmarkClient {
 			System.exit(-1);
 		}
 
+		startManagamentStatistic();
+
 		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 		NetworkConfig serverConfig = NetworkConfig.createWithFile(REVERSE_SERVER_CONFIG_FILE,
 				REVERSE_SERVER_CONFIG_HEADER, REVERSE_DEFAULTS);
@@ -559,7 +582,7 @@ public class BenchmarkClient {
 		byte[] id = new byte[8];
 
 		URI uri = null;
-		int clients = DEFAULT_CLIENTS;
+		int argClients = DEFAULT_CLIENTS;
 		int requests = DEFAULT_REQUESTS;
 		int reverseResponses = DEFAULT_REVERSE_RESPONSES;
 		int intervalMin = Feed.DEFAULT_FEED_INTERVAL_IN_MILLIS;
@@ -578,8 +601,9 @@ public class BenchmarkClient {
 		case 2:
 			requests = Integer.parseInt(arguments.args[1]);
 		case 1:
-			clients = Integer.parseInt(arguments.args[0]);
+			argClients = Integer.parseInt(arguments.args[0]);
 		}
+		final int clients = argClients;
 
 		if (intervalMax == null) {
 			intervalMax = intervalMin;
@@ -624,6 +648,7 @@ public class BenchmarkClient {
 		final CountDownLatch start = new CountDownLatch(clients);
 
 		// Create & start clients
+		final AtomicBoolean errors = new AtomicBoolean();
 		for (int index = 0; index < clients; ++index) {
 			CoapEndpoint.Builder endpointBuilder = new CoapEndpoint.Builder();
 			endpointBuilder.setNetworkConfig(config);
@@ -646,13 +671,21 @@ public class BenchmarkClient {
 					System.exit(-1);
 				}
 				System.out.println("Benchmark clients, first request successful.");
-			} else {
+			} else if (!errors.get()){
 				executor.execute(new Runnable() {
 
 					@Override
 					public void run() {
-						client.start();
-						start.countDown();
+						try {
+							client.start();
+							start.countDown();
+						} catch (RuntimeException e) {
+							if (!errors.getAndSet(true)) {
+								e.printStackTrace();
+								System.out.format("Failed after %d clients, exit Benchmark.%n", (clients - start.getCount()));
+								System.exit(-1);
+							}
+						}
 					}
 				});
 			}
@@ -751,6 +784,7 @@ public class BenchmarkClient {
 		reverseResponseNanos = System.nanoTime() - reverseResponseNanos;
 
 		System.out.format("%d benchmark clients %s.%n", clients, stale ? "stopped" : "finished");
+		Logger statisticsLogger = printManagamentStatistic(args, reverseResponseNanos);
 
 		// stop and collect per client requests
 		int statistic[] = new int[clients];
@@ -759,38 +793,38 @@ public class BenchmarkClient {
 			statistic[index] = client.stop();
 		}
 		executor.shutdown();
-
-		System.out.format("%d requests sent, %d expected%n", overallSentRequests, overallRequests);
-		System.out.format("%d requests in %d ms%s%n", overallSentRequests, TimeUnit.NANOSECONDS.toMillis(requestNanos),
+		statisticsLogger.info("{} requests sent, {} expected", overallSentRequests, overallRequests);
+		statisticsLogger.info("{} requests in {} ms{}", overallSentRequests, TimeUnit.NANOSECONDS.toMillis(requestNanos),
 				formatPerSecond("reqs", overallSentRequests, requestNanos));
 		if (overallReverseResponses > 0) {
 			if (observe) {
-				System.out.format("%d notifies sent, %d expected, %d observe requests%n", overallSentReverseResponses,
+				statisticsLogger.info("{} notifies sent, {} expected, {} observe request", overallSentReverseResponses,
 						overallReverseResponses, overallObservationRegistrationCounter.get());
-				System.out.format("%d notifies in %dms%s%n", overallSentReverseResponses,
+				statisticsLogger.info("{} notifies in {}ms{}", overallSentReverseResponses,
 						TimeUnit.NANOSECONDS.toMillis(reverseResponseNanos),
 						formatPerSecond("notifies", overallSentReverseResponses, reverseResponseNanos));
-				System.out.format("%d notifies could not be completed.%n", notifiesCompleteTimeouts.get());
+				statisticsLogger.info("{} notifies could not be completed", notifiesCompleteTimeouts.get());
 			} else {
-				System.out.format("%d reverse-responses sent, %d expected,%n", overallSentReverseResponses,
+				statisticsLogger.info("{} reverse-responses sent, {} expected", overallSentReverseResponses,
 						overallReverseResponses);
-				System.out.format("%d reverse-responses in %dms%s%n", overallSentReverseResponses,
+				statisticsLogger.info("{} reverse-responses in {}ms{}", overallSentReverseResponses,
 						TimeUnit.NANOSECONDS.toMillis(reverseResponseNanos),
 						formatPerSecond("reverse-responses", overallSentReverseResponses, reverseResponseNanos));
 			}
 		}
 		long retransmissions = retransmissionCounter.get();
 		if (retransmissions > 0) {
-			System.out.println(formatRetransmissions(retransmissions, overallSentRequests));
+			statisticsLogger.info("{}", formatRetransmissions(retransmissions, overallSentRequests));
 		}
 		long transmissionErrors = transmissionErrorCounter.get();
 		if (transmissionErrors > 0) {
-			System.out.println(formatTransmissionErrors(transmissionErrors, overallSentRequests));
+			statisticsLogger.info("{}", formatTransmissionErrors(transmissionErrors, overallSentRequests));
 		}
 		if (overallSentRequests < overallRequests) {
-			System.out.format("Stale at %d messages (%d%%)%n", overallSentRequests,
+			statisticsLogger.info("Stale at {} messages ({}%)", overallSentRequests,
 					(overallSentRequests * 100L) / overallRequests);
 		}
+
 		if (1 < clients) {
 			Arrays.sort(statistic);
 			int grouped = 10;
@@ -806,6 +840,71 @@ public class BenchmarkClient {
 			}
 			System.out.println(formatClientRequests(statistic, clients, last));
 		}
+	}
+
+	private static void startManagamentStatistic() {
+		ThreadMXBean mxBean = ManagementFactory.getThreadMXBean();
+		if (mxBean.isThreadCpuTimeSupported() && !mxBean.isThreadCpuTimeEnabled()) {
+			mxBean.setThreadCpuTimeEnabled(true);
+		}
+	}
+
+	private static Logger printManagamentStatistic(String[] args, long uptimeNanos) {
+		OperatingSystemMXBean osMxBean = ManagementFactory.getOperatingSystemMXBean();
+		int processors = osMxBean.getAvailableProcessors();
+		String tag = System.getProperty("californium.statistic");
+		Logger logger = STATISTIC_LOGGER;
+		if (tag != null) {
+			// with tag, use file
+			logger = LoggerFactory.getLogger(logger.getName() + ".file");
+			logger.info("------- {} ------------------------------------------------", tag);
+			logger.info("{}, {}, {}", osMxBean.getName(), osMxBean.getVersion(), osMxBean.getArch());
+			StringBuilder line = new StringBuilder();
+			List<String> vmArgs = ManagementFactory.getRuntimeMXBean().getInputArguments();
+			for (String arg : vmArgs) {
+				line.append(arg).append(" ");
+			}
+			logger.info("{}", line);
+			line.setLength(0);
+			for (String arg : args) {
+				line.append(arg).append(" ");
+			}
+			logger.info("{}", line);
+		}
+		logger.info("uptime: {} ms, {} processors", TimeUnit.NANOSECONDS.toMillis(uptimeNanos), processors);
+		ThreadMXBean threadMxBean = ManagementFactory.getThreadMXBean();
+		if (threadMxBean.isThreadCpuTimeSupported() && threadMxBean.isThreadCpuTimeEnabled()) {
+			long alltime = 0;
+			long[] ids = threadMxBean.getAllThreadIds();
+			for (long id : ids) {
+				long time = threadMxBean.getThreadCpuTime(id);
+				if (0 < time) {
+					alltime += time;
+				}
+			}
+			long pTime = alltime / processors;
+			logger.info("cpu-time: {} ms (per-processor: {} ms, load: {}%)",
+					TimeUnit.NANOSECONDS.toMillis(alltime), TimeUnit.NANOSECONDS.toMillis(pTime),
+					(pTime * 100) / uptimeNanos);
+		}
+		long gcCount = 0;
+		long gcTime = 0;
+		for (GarbageCollectorMXBean gcMxBean : ManagementFactory.getGarbageCollectorMXBeans()) {
+			long count = gcMxBean.getCollectionCount();
+			if (0 < count) {
+				gcCount += count;
+			}
+			long time = gcMxBean.getCollectionTime();
+			if (0 < time) {
+				gcTime += time;
+			}
+		}
+		logger.info("gc: {} ms, {} calls", gcTime, gcCount);
+		double loadAverage = osMxBean.getSystemLoadAverage();
+		if (!(loadAverage < 0.0d)) {
+			logger.info("average load: {}", String.format("%.2f", loadAverage));
+		}
+		return logger;
 	}
 
 	private static String formatRetransmissions(long retransmissions, long requests) {

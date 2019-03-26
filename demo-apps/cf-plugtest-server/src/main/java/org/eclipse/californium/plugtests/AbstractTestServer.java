@@ -252,7 +252,9 @@ public abstract class AbstractTestServer extends CoapServer {
 					int dtlsThreads = dtlsConfig.getInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT);
 					int dtlsReceiverThreads = dtlsConfig.getInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT);
 					int maxPeers = dtlsConfig.getInt(Keys.MAX_ACTIVE_PEERS);
+					Integer cidLength = dtlsConfig.getOptInteger(Keys.DTLS_CONNECTION_ID_LENGTH);
 					DtlsConnectorConfig.Builder dtlsConfigBuilder = new DtlsConnectorConfig.Builder();
+					dtlsConfigBuilder.setConnectionIdLength(cidLength);
 					dtlsConfigBuilder.setAddress(bindToAddress);
 					dtlsConfigBuilder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
 							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256,

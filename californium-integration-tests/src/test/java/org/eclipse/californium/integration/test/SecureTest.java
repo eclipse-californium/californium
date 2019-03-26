@@ -30,6 +30,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.test.CountingHandler;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
 import org.eclipse.californium.elements.StrictDtlsEndpointContextMatcher;
+import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.integration.test.util.CoapsNetworkRule;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -38,6 +39,7 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -47,6 +49,9 @@ public class SecureTest {
 	@ClassRule
 	public static CoapsNetworkRule network = new CoapsNetworkRule(CoapsNetworkRule.Mode.DIRECT,
 			CoapsNetworkRule.Mode.NATIVE);
+
+	@Rule
+	public TestTimeRule time = new TestTimeRule();
 
 	// CoAP config constants
 	private static final int TEST_EXCHANGE_LIFETIME = 247; // milliseconds
@@ -94,17 +99,18 @@ public class SecureTest {
 			Assert.assertEquals("An error is expected", 1, handler.errorCalls.get());
 
 			// Ensure there is no leak : all exchanges are completed
-			assertAllExchangesAreCompleted(coapTestEndpoint);
+			assertAllExchangesAreCompleted(coapTestEndpoint, time);
 		}
 	}
 
 	private void createEndpoint() {
 		// setup DTLS Config
-		Builder builder = new DtlsConnectorConfig.Builder();
-		builder.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
-		builder.setPskStore(new TestUtilPskStore(PSK_IDENITITY, PSK_KEY.getBytes()));
-		builder.setMaxRetransmissions(NB_RETRANSMISSION);
-		builder.setRetransmissionTimeout(RETRANSMISSION_TIMEOUT);
+		Builder builder = new DtlsConnectorConfig.Builder()
+				.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
+				.setLoggingTag("server")
+				.setPskStore(new TestUtilPskStore(PSK_IDENITITY, PSK_KEY.getBytes()))
+				.setMaxRetransmissions(NB_RETRANSMISSION)
+				.setRetransmissionTimeout(RETRANSMISSION_TIMEOUT);
 		DtlsConnectorConfig dtlsConfig = builder.build();
 
 		// setup CoAP config

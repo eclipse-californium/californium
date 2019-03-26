@@ -16,7 +16,7 @@
 package org.eclipse.californium.elements.util;
 
 /**
- * Clock utility. Provides a {@link #Realtime} handler.
+ * Clock utility. Provides a {@linkplain ClockUtil#handler handler}.
  * 
  * Intended to be used for system as android, where {@link System#nanoTime()}
  * reflects the system uptime without system sleep times. Android devices, which
@@ -59,7 +59,7 @@ public class ClockUtil {
 	 * Set handler system specific expired realtime in nanoseconds.
 	 * 
 	 * @param systemHandler system specific expired realtime in nanoseconds.
-	 * @throws NullPointerException, if systemHandler is {@code null}
+	 * @throws NullPointerException if systemHandler is {@code null}
 	 */
 	public static void setRealtimeHandler(Realtime systemHandler) {
 		if (systemHandler == null) {

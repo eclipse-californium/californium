@@ -8,6 +8,39 @@
 		</encoder>
 	</appender>
 
+	<appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<file>logs/statistics.log</file>
+		<rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+			<!-- roll-over monthly, or if filesize exceeds -->
+			<fileNamePattern>logs/statistics-%d{yyyy-MM}.%i.log</fileNamePattern>
+			<!-- each file should be at most 10MB, keep 200 files worth of history, but at most 2GB -->
+			<maxFileSize>10MB</maxFileSize>
+			<maxHistory>200</maxHistory>
+			<totalSizeCap>2GB</totalSizeCap>
+		</rollingPolicy>
+
+		<encoder>
+			<!-- use tab to separate timestamp from message -->
+			<pattern>[%date{yyyy-MM-dd HH:mm:ss}]\t%msg%n</pattern>
+		</encoder>
+	</appender>
+
+	<appender name="STDOUT_SIMPLE" class="ch.qos.logback.core.ConsoleAppender">
+		<!-- encoders are assigned the type ch.qos.logback.classic.encoder.PatternLayoutEncoder 
+			by default -->
+		<encoder>
+			<pattern>%d{HH:mm:ss.SSS}: %msg%n</pattern>
+		</encoder>
+	</appender>
+
+	<logger name="org.eclipse.californium.extplugtests.statistics.file" level="INFO" >
+		<appender-ref ref="FILE" />
+	</logger>
+
+	<logger name="org.eclipse.californium.extplugtests.statistics" level="INFO" additivity="false" >
+		<appender-ref ref="STDOUT_SIMPLE" />
+	</logger>
+
 	<root level="WARN" >
 		<appender-ref ref="STDOUT" />
 	</root>

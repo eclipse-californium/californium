@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Utility to create executors.
  * 
- * Note: THE INTERNAL/PRIVATE {@link SplitScheduledThreadPoolExecutor} IS
+ * Note: THE INTERNAL/PRIVATE {@code SplitScheduledThreadPoolExecutor} IS
  * EXPERIMENTAL! IT'S INTENDED TO BE USED FOR REPRODUCING BENCHMARKS OF ISSUE
  * #690
  */
@@ -80,7 +80,7 @@ public class ExecutorsUtil {
 	 * Create a scheduled thread pool executor service.
 	 * 
 	 * Experimentally, if the provided number of threads exceeds the
-	 * {@link #SPLIT_THRESHOLD}, the {@link SplitScheduledThreadPoolExecutor} is
+	 * {@link #SPLIT_THRESHOLD}, the {@code SplitScheduledThreadPoolExecutor} is
 	 * returned.
 	 * 
 	 * @param poolSize number of threads for thread pool.

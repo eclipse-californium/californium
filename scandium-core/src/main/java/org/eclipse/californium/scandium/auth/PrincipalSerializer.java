@@ -27,6 +27,7 @@ import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.util.Asn1DerDecoder;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StandardCharsets;
@@ -38,7 +39,6 @@ public final class PrincipalSerializer {
 
 	private static final int PSK_HOSTNAME_LENGTH_BITS = 16;
 	private static final int PSK_IDENTITY_LENGTH_BITS = 16;
-	private static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
 
 	private PrincipalSerializer() {
 	}
@@ -51,6 +51,7 @@ public final class PrincipalSerializer {
 	 * However, it supports the addition of arbitrary authentication mechanisms by extending
 	 * the <em>ClientAuthenticationType</em> which we do as follows: 
 	 * <pre>
+	 * 
 	 * enum {
 	 *   anonymous(0),
 	 *   certificate_based(1),
@@ -64,11 +65,11 @@ public final class PrincipalSerializer {
 	 *     case anonymous: 
 	 *       struct {};
 	 *     case psk:
-	 *       opaque psk_identity<0..2^16-1>;
+	 *       opaque psk_identity&lt;0..2^16-1&gt;;
 	 *     case certificate_based:
-	 *       DER ASN.1Cert certificate_list<0..2^24-1>;
+	 *       DER ASN.1Cert certificate_list&lt;0..2^24-1&gt;;
 	 *     case raw_public_key:
-	 *       DER ASN.1_subjectPublicKeyInfo<1..2^24-1>; // as defined in RFC 7250
+	 *       DER ASN.1_subjectPublicKeyInfo&lt;1..2^24-1&gt;; // as defined in RFC 7250
 	 *   };
 	 * }
 	 * </pre>
@@ -101,7 +102,7 @@ public final class PrincipalSerializer {
 		writer.writeByte(ClientAuthenticationType.PSK.code);
 		if (principal.isScopedIdentity()) {
 			writer.writeByte((byte) 1); // scoped
-			byte[] virtualHost = principal.getVirtualHost() == null ? EMPTY_BYTE_ARRAY
+			byte[] virtualHost = principal.getVirtualHost() == null ? Bytes.EMPTY
 					: principal.getVirtualHost().getBytes(StandardCharsets.UTF_8);
 			writeBytesWithLength(PSK_HOSTNAME_LENGTH_BITS, virtualHost, writer);
 			writeBytesWithLength(PSK_IDENTITY_LENGTH_BITS, principal.getIdentity().getBytes(StandardCharsets.UTF_8), writer);

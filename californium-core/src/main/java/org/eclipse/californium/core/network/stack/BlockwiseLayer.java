@@ -57,6 +57,9 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - use ExecutorsUtil.getScheduledExecutor()
  *                                                    for health status instead of own executor.
  *    Achim Kraus (Bosch Software Innovations GmbH) - disable transparent blockwise for multicast.
+ *    Achim Kraus (Bosch Software Innovations GmbH) - extract requestNextBlock from 
+ *                                                    tcp_experimental_features branch
+ *                                                    for easier merging in the future.
  *    Pratheek Rai - changes for BERT 
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
@@ -367,7 +370,7 @@ public class BlockwiseLayer extends AbstractLayer {
 				// This is a large POST or PUT request
 				handleInboundBlockwiseUpload(exchange, request);
 
-			} else if (block2 != null) {
+			} else if (block2 != null && block2.getNum() > 0) {
 
 				KeyUri key = getKey(exchange, request);
 				Block2BlockwiseStatus status = getBlock2Status(key);
@@ -1130,7 +1133,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		}
 	}
 
-	private Block2BlockwiseStatus getBlock2Status(final KeyUri key) {
+	protected Block2BlockwiseStatus getBlock2Status(final KeyUri key) {
 
 		synchronized (block2Transfers) {
 			return block2Transfers.get(key);

@@ -13,33 +13,21 @@
  * Contributors:
  *    Bosch Software Innovations GmbH - initial API and implementation
  *    Achim Kraus (Bosch Software Innovations GmbH) - remove double [] from toString
+ *    Achim Kraus (Bosch Software Innovations GmbH) - use introduced Bytes
  *******************************************************************************/
 package org.eclipse.californium.core.coap;
 
-import java.util.Arrays;
-
-import org.eclipse.californium.core.Utils;
+import org.eclipse.californium.elements.util.Bytes;
 
 /**
  * Implementation of CoAP token.
  */
-public class Token {
+public class Token extends Bytes {
 
 	/**
 	 * Empty token.
 	 */
-	public static final Token EMPTY = new Token(new byte[0]);
-
-	/**
-	 * token data.
-	 */
-	private final byte[] token;
-	/**
-	 * Pre-calculated hash.
-	 * 
-	 * @see #hashCode()
-	 */
-	private final int hash;
+	public static final Token EMPTY = new Token(Bytes.EMPTY);
 
 	/**
 	 * Create token from bytes.
@@ -61,75 +49,12 @@ public class Token {
 	 *             specified in CoAP)
 	 */
 	private Token(byte[] token, boolean copy) {
-		if (token == null) {
-			throw new NullPointerException("token bytes must not be null");
-		} else if (token.length > 8) {
-			throw new IllegalArgumentException("Token length must be between 0 and 8 inclusive");
-		}
-		if (copy && token.length > 0) {
-			this.token = Arrays.copyOf(token, token.length);
-		} else {
-			this.token = token;
-		}
-		this.hash = Arrays.hashCode(this.token);
+		super(token, 8, copy);
 	}
 
 	@Override
 	public String toString() {
-		return new StringBuilder("Token=").append(Utils.toHexString(token)).toString();
-	}
-
-	@Override
-	public int hashCode() {
-		return hash;
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		Token other = (Token) obj;
-		return Arrays.equals(token, other.token);
-	}
-
-	/**
-	 * Get token bytes.
-	 * 
-	 * @return token bytes. Not Copied!
-	 */
-	public byte[] getBytes() {
-		return token;
-	}
-
-	/**
-	 * Get token bytes as (hexadecimal) string.
-	 * 
-	 * @return token bytes as (hexadecimal) string
-	 */
-	public String getAsString() {
-		return Utils.toHexString(token);
-	}
-
-	/**
-	 * Check, if token is empty.
-	 * 
-	 * @return {@code true}, if token is empty, {@code false}, otherwise
-	 */
-	public boolean isEmpty() {
-		return token.length == 0;
-	}
-
-	/**
-	 * Return number of token bytes.
-	 * 
-	 * @return number of token bytes. 0 to 8.
-	 */
-	public int length() {
-		return token.length;
+		return new StringBuilder("Token=").append(getAsString()).toString();
 	}
 
 	/**

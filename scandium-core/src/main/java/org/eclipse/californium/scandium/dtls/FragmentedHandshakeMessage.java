@@ -21,8 +21,6 @@ import java.net.InetSocketAddress;
 import java.util.Arrays;
 
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.scandium.util.ByteArrayUtils;
-
 
 /**
  * This class represents a fragmented handshake message. It treats the
@@ -34,13 +32,18 @@ public final class FragmentedHandshakeMessage extends HandshakeMessage {
 	// Members ////////////////////////////////////////////////////////
 
 	/** The fragmented handshake body. */
-	private byte[] fragmentedBytes;
+	private final byte[] fragmentedBytes;
 
 	/** The handshake message's type. */
-	private HandshakeType type;
+	private final HandshakeType type;
 
 	/** The handshake message's unfragmented length. */
-	private int messageLength;
+	private final int messageLength;
+
+	/**
+	 * The number of bytes contained in previous fragments.
+	 */
+	private final int fragmentOffset;
 
 	// Constructors ///////////////////////////////////////////////////
 
@@ -63,32 +66,12 @@ public final class FragmentedHandshakeMessage extends HandshakeMessage {
 	 */
 	public FragmentedHandshakeMessage(HandshakeType type, int messageLength, int messageSeq, int fragmentOffset,
 			byte[] fragmentedBytes, InetSocketAddress peerAddress) {
-		this(fragmentedBytes, type, fragmentOffset, messageLength, peerAddress);
-		setMessageSeq(messageSeq);
-	}
-
-	/**
-	 * Called when fragmenting a handshake message.
-	 * 
-	 * @param fragmentedBytes
-	 *            the fragment's byte representation.
-	 * @param type
-	 *            the message's type.
-	 * @param fragmentOffset
-	 *            the fragment's fragment_offset.
-	 * @param messageLength
-	 *            the message's total (unfragmented) length.
-	 * @param peerAddress the IP address and port of the peer this
-	 *            message has been received from or should be sent to
-	 */
-	public FragmentedHandshakeMessage(byte[] fragmentedBytes, HandshakeType type, int fragmentOffset, int messageLength,
-			InetSocketAddress peerAddress) {
 		super(peerAddress);
 		this.type = type;
 		this.messageLength = messageLength;
 		this.fragmentedBytes = Arrays.copyOf(fragmentedBytes, fragmentedBytes.length);
-		setFragmentOffset(fragmentOffset);
-		setFragmentLength(fragmentedBytes.length);
+		this.fragmentOffset = fragmentOffset;
+		setMessageSeq(messageSeq);
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -104,11 +87,26 @@ public final class FragmentedHandshakeMessage extends HandshakeMessage {
 	}
 
 	@Override
+	public int getFragmentOffset() {
+		return fragmentOffset;
+	}
+
+	@Override
+	public int getFragmentLength() {
+		return fragmentedBytes.length;
+	}
+
+	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
-		sb.append(super.toString());
-		sb.append("\t\t\tFragmented Handshake Message: ").append(fragmentedBytes.length).append(" bytes").append(StringUtil.lineSeparator());
-		sb.append("\t\t\t\t").append(ByteArrayUtils.toHexString(fragmentedBytes)).append(StringUtil.lineSeparator());
+		sb.append("\tFragmented Handshake Protocol");
+		sb.append(StringUtil.lineSeparator()).append("\tType: ").append(getMessageType());
+		sb.append(StringUtil.lineSeparator()).append("\tPeer: ").append(getPeer());
+		sb.append(StringUtil.lineSeparator()).append("\tMessage Sequence No: ").append(getMessageSeq());
+		sb.append(StringUtil.lineSeparator()).append("\tFragment Offset: ").append(getFragmentOffset());
+		sb.append(StringUtil.lineSeparator()).append("\tFragment Length: ").append(getFragmentLength());
+		sb.append(StringUtil.lineSeparator()).append("\tLength: ").append(getMessageLength());
+		sb.append(StringUtil.lineSeparator());
 
 		return sb.toString();
 	}

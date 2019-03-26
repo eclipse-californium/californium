@@ -113,10 +113,10 @@ public class TimeAssume {
 		long time = TimeUnit.NANOSECONDS.toMillis(now - start);
 		if (time < (milliseconds - tolerance)) {
 			throw new AssumptionViolatedException("sleep too short! " + time + " instead of " + milliseconds + " ms");
-		} else if ((milliseconds + tolerance) < time) {
+		} else if ((milliseconds + timeout) < time) {
 			throw new AssumptionViolatedException("sleep too long! " + time + " instead of " + milliseconds + " ms");
 		}
-		end = start + TimeUnit.MILLISECONDS.toNanos(milliseconds + tolerance);
+		end = start + TimeUnit.MILLISECONDS.toNanos(milliseconds + timeout);
 	}
 
 	/**
@@ -172,6 +172,14 @@ public class TimeAssume {
 			@Override
 			public void describeMismatch(Object item, Description mismatchDescription) {
 				matcher.describeMismatch(item, mismatchDescription);
+				if (!enabled && 0 < end) {
+					long left = end - System.nanoTime();
+					if (left < 0) {
+						mismatchDescription.appendText(", assumed time expired! ");
+						mismatchDescription.appendText(Long.toString(TimeUnit.NANOSECONDS.toMillis(-left)));
+						mismatchDescription.appendText("ms");
+					}
+				}
 			}
 		};
 	}

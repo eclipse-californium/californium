@@ -225,9 +225,13 @@ public abstract class BlockwiseStatus {
 	 * @return The bytes contained in the buffer.
 	 */
 	final synchronized byte[] getBody() {
-		((Buffer)buf).flip();
-		byte[] body = new byte[buf.remaining()];
-		((Buffer)buf.get(body)).clear();
+		return getBody(buf);
+	}
+
+	public static byte[] getBody(ByteBuffer buffer) {
+		((Buffer)buffer).flip();
+		byte[] body = new byte[buffer.remaining()];
+		((Buffer)buffer.get(body)).clear();
 		return body;
 	}
 

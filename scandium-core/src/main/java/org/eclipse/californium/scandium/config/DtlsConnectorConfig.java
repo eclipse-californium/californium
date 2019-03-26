@@ -47,6 +47,7 @@ import java.util.List;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.dtls.CertificateType;
+import org.eclipse.californium.scandium.dtls.SessionCache;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustAllRpks;
@@ -116,8 +117,17 @@ public final class DtlsConnectorConfig {
 
 	private static final String EC_ALGORITHM_NAME = "EC";
 
+	/**
+	 * Local network interface.
+	 */
 	private InetSocketAddress address;
+	/**
+	 * Truststore for trusted certificates  
+	 */
 	private X509Certificate[] trustStore;
+	/**
+	 * Certificate verifier for dynamic trust.
+	 */
 	private CertificateVerifier certificateVerifier;
 
 	/**
@@ -235,6 +245,19 @@ public final class DtlsConnectorConfig {
 	 */
 	private Boolean useNoServerSessionId;
 
+	/**
+	 * Logging tag.
+	 * 
+	 * Tag logging messages, if multiple connectors share the same logging
+	 * instance.
+	 */
+	private String loggingTag;
+
+	/**
+	 * Enables use of connection id. 
+	 */
+	private Integer connectionIdLength;
+
 	private DtlsConnectorConfig() {
 		// empty
 	}
@@ -324,13 +347,13 @@ public final class DtlsConnectorConfig {
 	 * server is specified with hostname rather then with a raw ip-address. The
 	 * server side support currently includes a server name specific PSK secret
 	 * lookup and a forwarding of the server name to the CoAP stack in the
-	 * {@link EndpointContext}. The x509 or RPK credentials lookup is currently
+	 * {@link DtlsEndpointContext}. The x509 or RPK credentials lookup is currently
 	 * not server name specific, therefore the server's certificate will be the
 	 * same, regardless of the indicated server name.
 	 * <p>
 	 * The default value of this property is {@code null}. If this property is
 	 * not set explicitly using {@link Builder#setSniEnabled(boolean)}, then the
-	 * {@link Builder#build()} method will set it to {@code true}.
+	 * {@link Builder#build()} method will set it to {@code false}.
 	 * 
 	 * @return {@code true} if SNI should be used.
 	 */
@@ -362,11 +385,27 @@ public final class DtlsConnectorConfig {
 	 * handshakes without verified peers are pending than this threshold, then a
 	 * verify request is used.
 	 * 
+	 * Note: a value larger than 0 will call
+	 * {@link SessionCache#get(org.eclipse.californium.scandium.dtls.SessionId)}.
+	 * If that implementation is expensive, please ensure, that this value is
+	 * configured with {@code 0}. Otherwise, CLIENT_HELLOs with invalid session
+	 * ids may be spoofed and gets too expensive.
+	 * 
 	 * @return threshold handshakes without verified peer in percent of
 	 *         {@link #getMaxConnections()}.
 	 */
 	public Integer getVerifyPeersOnResumptionThreshold() {
 		return verifyPeersOnResumptionThreshold;
+	}
+
+	/**
+	 * Gets connection ID length.
+	 * 
+	 * @return length of connection id. 0 for support connection id, but not
+	 *         using it. {@code null} for no supported.
+	 */
+	public Integer getConnectionIdLength() {
+		return connectionIdLength;
 	}
 
 	/**
@@ -612,6 +651,15 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * Get instance logging tag.
+	 * 
+	 * @return logging tag.
+	 */
+	public String getLoggingTag() {
+		return loggingTag;
+	}
+
+	/**
 	 * @return a copy of this configuration
 	 */
 	@Override
@@ -647,6 +695,8 @@ public final class DtlsConnectorConfig {
 		cloned.sniEnabled = sniEnabled;
 		cloned.verifyPeersOnResumptionThreshold = verifyPeersOnResumptionThreshold;
 		cloned.useNoServerSessionId = useNoServerSessionId;
+		cloned.loggingTag = loggingTag;
+		cloned.connectionIdLength = connectionIdLength;
 		return cloned;
 	}
 
@@ -857,45 +907,56 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Sets whether the connector wants (requests) DTLS clients to authenticate
-		 * during the handshake. The handshake doesn't fail, if the client didn't
-		 * authenticate itself during the handshake. That mostly requires the client
-		 * to use a proprietary mechanism to authenticate itself on the application
-		 * layer (e.g. username/password). It's mainly used, if the implementation
-		 * of the other peer has no PSK cipher suite and client certificate should
-		 * not be used for some reason.
+		 * Sets whether the connector wants (requests) DTLS clients to
+		 * authenticate during the handshake. The handshake doesn't fail, if the
+		 * client didn't authenticate itself during the handshake. That mostly
+		 * requires the client to use a proprietary mechanism to authenticate
+		 * itself on the application layer (e.g. username/password). It's mainly
+		 * used, if the implementation of the other peer has no PSK cipher suite
+		 * and client certificate should not be used for some reason.
 		 * 
-		 * Only used by the DTLS server side.
+		 * The default is {@code false}. Only used by the DTLS server side.
 		 * 
-		 * @param authWanted
-		 *            <code>true</code> if clients wanted to authenticate
+		 * @param authWanted <code>true</code> if clients wanted to authenticate
 		 * @return this builder for command chaining
+		 * @throws IllegalStateException if configuration is for client only
+		 * @throws IllegalArgumentException if authWanted is {@code true}, but
+		 *             {@link #setClientAuthenticationRequired(boolean)} was set
+		 *             to {@code true} before.
 		 */
 		public Builder setClientAuthenticationWanted(boolean authWanted) {
 			if (clientOnly) {
 				throw new IllegalStateException("client authentication is not supported for client only!");
 			}
 			if (authWanted && Boolean.TRUE.equals(config.clientAuthenticationRequired)) {
-				throw new IllegalStateException("client authentication is already required!");
+				throw new IllegalArgumentException("client authentication is already required!");
 			}
 			config.clientAuthenticationWanted = authWanted;
 			return this;
 		}
 
 		/**
-		 * Sets whether the connector requires DTLS clients to authenticate during
-		 * the handshake. Only used by the DTLS server side.
+		 * Sets whether the connector requires DTLS clients to authenticate
+		 * during the handshake.
 		 * 
-		 * @param authRequired
-		 *            <code>true</code> if clients need to authenticate
+		 * The default is {@code true}. If
+		 * {@link #setClientAuthenticationWanted(boolean)} is set to
+		 * {@code true}, the default is {@code false}. Only used by the DTLS
+		 * server side.
+		 * 
+		 * @param authRequired <code>true</code> if clients need to authenticate
 		 * @return this builder for command chaining
+		 * @throws IllegalStateException if configuration is for client only
+		 * @throws IllegalArgumentException if authWanted is {@code true}, but
+		 *             {@link #setClientAuthenticationWanted(boolean)} was set
+		 *             to {@code true} before.
 		 */
 		public Builder setClientAuthenticationRequired(boolean authRequired) {
 			if (clientOnly) {
 				throw new IllegalStateException("client authentication is not supported for client only!");
 			}
 			if (authRequired && Boolean.TRUE.equals(config.clientAuthenticationWanted)) {
-				throw new IllegalStateException("client authentication is already wanted!");
+				throw new IllegalArgumentException("client authentication is already wanted!");
 			}
 			config.clientAuthenticationRequired = authRequired;
 			return this;
@@ -1399,6 +1460,20 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
+		 * Sets the connection ID length.
+		 * 
+		 * @param connectionIdLength
+		 * @return this builder for command chaining.
+		 */
+		public Builder setConnectionIdLength(final Integer connectionIdLength) {
+			if (connectionIdLength != null && connectionIdLength < 0) {
+				throw new IllegalArgumentException("cid length must be at least 0");
+			}
+			config.connectionIdLength = connectionIdLength;
+			return this;
+		}
+
+		/**
 		 * Set the number of thread which should be used to handle DTLS
 		 * connection.
 		 * <p>
@@ -1442,8 +1517,8 @@ public final class DtlsConnectorConfig {
 		 * @throws IllegalArgumentException if the timeout is below 1
 		 *             millisecond
 		 */
-		public Builder setAutoResumptionTimeoutMillis(long timeoutInMillis) {
-			if (timeoutInMillis < 1) {
+		public Builder setAutoResumptionTimeoutMillis(Long timeoutInMillis) {
+			if (timeoutInMillis != null && timeoutInMillis < 1) {
 				throw new IllegalArgumentException("auto resumption timeout must not below 1!");
 			}
 			config.autoResumptionTimeoutMillis = timeoutInMillis;
@@ -1470,6 +1545,12 @@ public final class DtlsConnectorConfig {
 		/**
 		 * Sets threshold in percent of {@link #setMaxConnections(int)}, whether
 		 * a HELLO_VERIFY_REQUEST should be used also for session resumption.
+		 * 
+		 * Note: a value larger than 0 will call
+		 * {@link SessionCache#get(org.eclipse.californium.scandium.dtls.SessionId)}.
+		 * If that implementation is expensive, please ensure, that this value
+		 * is configured with {@code 0}. Otherwise, CLIENT_HELLOs with invalid
+		 * session ids may be spoofed and gets too expensive.
 		 * 
 		 * @param threshold 0 := always use HELLO_VERIFY_REQUEST, 1 ... 100 :=
 		 *            dynamically determine to use HELLO_VERIFY_REQUEST. Default
@@ -1500,6 +1581,17 @@ public final class DtlsConnectorConfig {
 				throw new IllegalArgumentException("not applicable for client only!");
 			}
 			config.useNoServerSessionId = flag;
+			return this;
+		}
+
+		/**
+		 * Set instance logging tag.
+		 * 
+		 * @param tag logging tag of configure instance
+		 * @return this builder for command chaining.
+		 */
+		public Builder setLoggingTag(String tag) {
+			config.loggingTag = tag;
 			return this;
 		}
 
@@ -1544,6 +1636,9 @@ public final class DtlsConnectorConfig {
 			if (config.address == null) {
 				config.address = new InetSocketAddress(0);
 			}
+			if (config.loggingTag == null) {
+				config.loggingTag = "";
+			}
 			if (config.enableReuseAddress == null) {
 				config.enableReuseAddress = false;
 			}
@@ -1556,11 +1651,15 @@ public final class DtlsConnectorConfig {
 			if (config.maxRetransmissions == null) {
 				config.maxRetransmissions = DEFAULT_MAX_RETRANSMISSIONS;
 			}
-			if (config.clientAuthenticationRequired == null) {
-				config.clientAuthenticationRequired = true;
-			}
 			if (config.clientAuthenticationWanted == null) {
 				config.clientAuthenticationWanted = false;
+			}
+			if (config.clientAuthenticationRequired == null) {
+				if (clientOnly) {
+					config.clientAuthenticationRequired = false;
+				} else {
+					config.clientAuthenticationRequired = !config.clientAuthenticationWanted;
+				}
 			}
 			if (config.serverOnly == null) {
 				config.serverOnly = false;
@@ -1587,7 +1686,7 @@ public final class DtlsConnectorConfig {
 				config.staleConnectionThreshold = DEFAULT_STALE_CONNECTION_TRESHOLD;
 			}
 			if (config.sniEnabled == null) {
-				config.sniEnabled = Boolean.TRUE;
+				config.sniEnabled = Boolean.FALSE;
 			}
 			if (config.verifyPeersOnResumptionThreshold == null) {
 				config.verifyPeersOnResumptionThreshold = DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT;
@@ -1607,7 +1706,7 @@ public final class DtlsConnectorConfig {
 				}
 			} 
 
-			if (!config.clientAuthenticationRequired && !config.clientAuthenticationWanted
+			if (config.serverOnly && !config.clientAuthenticationRequired && !config.clientAuthenticationWanted
 					&& config.trustCertificateTypes != null) {
 				throw new IllegalStateException(
 						"configured trusted certificates or certificate verifier are not used for disabled client authentication!");
@@ -1697,7 +1796,7 @@ public final class DtlsConnectorConfig {
 					throw new IllegalStateException("Keys must be ECDSA capable for configured " + suite.name());
 				}
 			}
-			if (config.clientAuthenticationRequired || config.clientAuthenticationWanted) {
+			if (clientOnly || config.clientAuthenticationRequired || config.clientAuthenticationWanted) {
 				if (config.trustCertificateTypes == null) {
 					throw new IllegalStateException(
 							"trust must be set for configured " + suite.name());

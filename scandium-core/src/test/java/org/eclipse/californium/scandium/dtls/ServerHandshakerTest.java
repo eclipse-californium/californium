@@ -87,9 +87,10 @@ public class ServerHandshakerTest {
 		recordLayer = new SimpleRecordLayer();
 		config = new DtlsConnectorConfig.Builder()
 				.setAddress(endpoint)
+				.setSniEnabled(true)
 				.setIdentity(privateKey, certificateChain, CertificateType.X_509)
 				.setTrustStore(trustedCertificates)
-				.setSupportedCipherSuites(new CipherSuite[]{SERVER_CIPHER_SUITE})
+				.setSupportedCipherSuites(SERVER_CIPHER_SUITE)
 				.build();
 		handshaker = newHandshaker(config, session);
 
@@ -116,7 +117,7 @@ public class ServerHandshakerTest {
 		int networkMtu = ETHERNET_MTU;
 
 		// when instantiating a ServerHandshaker to negotiate a new session
-		handshaker = new ServerHandshaker(session, recordLayer, null, config, networkMtu);
+		handshaker = new ServerHandshaker(0, session, recordLayer, null, config, networkMtu);
 
 		// then a fragment created under the session's current write state should
 		// fit into a single unfragmented UDP datagram
@@ -358,7 +359,7 @@ public class ServerHandshakerTest {
 	}
 
 	private ServerHandshaker newHandshaker(final DtlsConnectorConfig config, final DTLSSession session) throws HandshakeException {
-		return new ServerHandshaker(session, recordLayer, null, config, ETHERNET_MTU);
+		return new ServerHandshaker(0, session, recordLayer, null, config, ETHERNET_MTU);
 	}
 
 	private Record givenAHandshakerWithAQueuedMessage() throws Exception {
@@ -409,7 +410,7 @@ public class ServerHandshakerTest {
 		clientHelloMsg = newHandshakeMessage(HandshakeType.CLIENT_HELLO, messageSeq, clientHelloFragment);
 		byte[] dtlsRecord = DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), epoch,
 				sequenceNo, clientHelloMsg);
-		List<Record> list = Record.fromByteArray(dtlsRecord, endpoint);
+		List<Record> list = Record.fromByteArray(dtlsRecord, endpoint, null);
 		assertFalse("Should be able to deserialize DTLS Record from byte array", list.isEmpty());
 		Record record = list.get(0);
 		handshaker.processMessage(record);
@@ -477,7 +478,7 @@ public class ServerHandshakerTest {
 	private static Record getRecordForMessage(int epoch, int seqNo, DTLSMessage msg, InetSocketAddress peer) {
 		byte[] dtlsRecord = DtlsTestTools.newDTLSRecord(msg.getContentType().getCode(), epoch,
 				seqNo, msg.toByteArray());
-		List<Record> list = Record.fromByteArray(dtlsRecord, peer);
+		List<Record> list = Record.fromByteArray(dtlsRecord, peer, null);
 		assertFalse("Should be able to deserialize DTLS Record from byte array", list.isEmpty());
 		return list.get(0);
 	}
