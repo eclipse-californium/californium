@@ -12,51 +12,25 @@
  * 
  * Contributors:
  *    Tobias Andersson (RISE SICS)
+ *    Rikard Höglund (RISE SICS)
  *    
  ******************************************************************************/
 package org.eclipse.californium.oscore;
 
-import java.util.Arrays;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.eclipse.californium.elements.util.Bytes;
 
 /**
  *
  * Provides byte arrays with identification.
  */
-
-public class ByteId {
-
-	/**
-	 * The logger
-	 */
-	private static final Logger LOGGER = LoggerFactory.getLogger(ByteId.class.getName());
-
-	private byte[] id;
+public class ByteId extends Bytes {
 
 	public ByteId(byte[] id) {
-		if (id != null) {
-			this.id = id;
-		} else {
-			LOGGER.error(ErrorDescriptions.TOKEN_NULL);
-			throw new NullPointerException(ErrorDescriptions.TOKEN_NULL);
-		}
+		super(id);
 	}
-
+	
 	@Override
-	public int hashCode() {
-		return Arrays.hashCode(id);
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		ByteId other = (ByteId) obj;
-		return Arrays.equals(id, other.id);
+	public String toString() {
+		return new StringBuilder("ByteId=").append(getAsString()).toString();
 	}
 }
