@@ -335,7 +335,13 @@ public class BenchmarkClient {
 	private final AtomicBoolean stop = new AtomicBoolean();
 
 	private final FeedObserver feedObserver = new FeedObserver();
-	
+
+	private static Request prepareRequest(CoapClient client) {
+		Request post = Request.newPost();
+		post.setURI(client.getURI());
+		return post;
+	}
+
 	private class TestHandler implements CoapHandler {
 		
 		private final Request post;
@@ -392,8 +398,7 @@ public class BenchmarkClient {
 
 			if (0 < c) {
 				requestsCounter.incrementAndGet();
-				Request post = Request.newPost();
-				post.setURI(client.getURI());
+				Request post = prepareRequest(client);
 				post.addMessageObserver(retransmissionDetector);
 				client.advanced(new TestHandler(post), post);
 			} else {
@@ -460,8 +465,7 @@ public class BenchmarkClient {
 	 * @return {@code true} on success, {@code false} on failure.
 	 */
 	public boolean test() {
-		Request post = Request.newPost();
-		post.setURI(client.getURI());
+		Request post = prepareRequest(client);
 		try {
 			CoapResponse response = client.advanced(post);
 			if (response != null) {
@@ -500,8 +504,7 @@ public class BenchmarkClient {
 			if (requestsCounter.get() == 0) {
 				clientCounter.incrementAndGet();
 			}
-			final Request post = Request.newPost();
-			post.setURI(client.getURI());
+			Request post = prepareRequest(client);
 			post.addMessageObserver(retransmissionDetector);
 			client.advanced(new TestHandler(post), post);
 		} else {
