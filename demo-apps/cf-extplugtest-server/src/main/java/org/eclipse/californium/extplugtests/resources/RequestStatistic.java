@@ -131,7 +131,7 @@ public class RequestStatistic extends CoapResource {
 
 	public RequestStatistic() {
 		super(RESOURCE_NAME);
-		getAttributes().setTitle("Resource that collects requests for client staistics");
+		getAttributes().setTitle("Resource that collects requests for client statistics");
 		getAttributes().addContentType(TEXT_PLAIN);
 		getAttributes().addContentType(APPLICATION_JSON);
 		requests.setEvictingOnReadAccess(false);
