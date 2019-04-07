@@ -59,6 +59,7 @@
 		<module>cf-secure</module>
 		<module>cf-nat</module>
 		<module>cf-proxy</module>
+		<module>cf-unix-setup</module>
 		<module>cf-benchmark</module>
 		<module>cf-benchmark-observe</module>
 	</modules>
