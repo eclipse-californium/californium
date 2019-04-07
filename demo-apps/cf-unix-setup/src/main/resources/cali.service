@@ -1,0 +1,36 @@
+#/*******************************************************************************
+# * Copyright (c) 2019 Bosch Software Innovations GmbH and others.
+# * 
+# * All rights reserved. This program and the accompanying materials
+# * are made available under the terms of the Eclipse Public License v1.0
+# * and Eclipse Distribution License v1.0 which accompany this distribution.
+# * 
+# * The Eclipse Public License is available at
+# *    http://www.eclipse.org/legal/epl-v10.html
+# * and the Eclipse Distribution License is available at
+# *    http://www.eclipse.org/org/documents/edl-v10.html.
+# * 
+# * Contributors:
+# *    Achim Kraus (Bosch Software Innovations GmbH) - initial configuration
+# ******************************************************************************/
+
+[Unit]
+Description=Californium Test Server
+BindsTo=network-online.target
+After=network-online.target
+RequiresMountsFor=/home
+
+[Service]
+Type=simple
+User=cali
+WorkingDirectory=/home/cali
+Environment="JAR=/home/cali/cf-plugtest-server-2.0.0-SNAPSHOT.jar"
+Environment="ARGS=-noloopback"
+# Adapt the java heap configuration "-Xmx1600m" according your environment! 
+Environment="OPTS=-XX:+UseG1GC -Xmx1600m -Dlogback.configurationFile=./logback.xml"
+ExecStart=/usr/bin/java $OPTS -jar ${JAR} $ARGS
+RestartSec=10
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
