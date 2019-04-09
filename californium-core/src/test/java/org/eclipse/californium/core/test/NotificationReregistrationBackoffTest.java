@@ -15,13 +15,20 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
+import static org.hamcrest.CoreMatchers.*;
+
+import static org.eclipse.californium.TestTools.inRange;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapClient;
@@ -82,7 +89,7 @@ public class NotificationReregistrationBackoffTest {
 	 */
 	@Parameters(name = "notification re-registration backoff = {0}")
 	public static Iterable<Long> backoffParams() {
-		return Arrays.asList(100L, 2000L, 4000L);
+		return Arrays.asList(500L, 2000L, 4000L);
 	}
 
 	/**
@@ -155,15 +162,24 @@ public class NotificationReregistrationBackoffTest {
 	 */
 	@Test
 	public void reregistrationTest() throws InterruptedException {
+		final long expectedTimespanMillis = 3 * (MAX_AGE * 1000 + backoff);
+		final CountDownLatch countdown = new CountDownLatch(4);
+		final CountDownLatch canceled = new CountDownLatch(1);
 		final List<CoapResponse> observations = Collections.synchronizedList(new ArrayList<CoapResponse>());
-		CoapObserveRelation relation = client.observe(new ResponseHander(observations));
+		long time = System.nanoTime();
+		CoapObserveRelation relation = client.observe(new ResponseHander(observations, countdown, canceled));
 		// wait for 3 re-registrations to happen, plus some grace time
-		Thread.sleep(3 * (MAX_AGE * 1000 + backoff) + 100);
+		boolean ready = countdown.await(expectedTimespanMillis + 200, TimeUnit.MILLISECONDS);
+		time = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - time);
 		relation.proactiveCancel();
+		assertTrue("cancel times out", canceled.await(2000, TimeUnit.MILLISECONDS));
+
+		assertTrue("wrong number of responses/notifications", ready);
+		assertThat("timespan not in expected range", time, is(inRange(expectedTimespanMillis - 100L, expectedTimespanMillis + 200L)));
 
 		synchronized (observations) {
-			// expect 1 primary response + 3 re-registration responses = 4
-			assertEquals("wrong number of responses/notifications", 4, observations.size());
+			// expect 1 primary response + 3 re-registration responses + 1 cancel response = 5
+			assertEquals("wrong number of responses/notifications", 5, observations.size());
 			for (CoapResponse response : observations) {
 				assertNotNull("no response from server: ", response);
 				assertEquals("wrong responsecode: ", ResponseCode.CONTENT, response.getCode());
@@ -179,13 +195,18 @@ public class NotificationReregistrationBackoffTest {
 
 		private List<CoapResponse> responses;
 
+		private CountDownLatch countDown;
+		private CountDownLatch ready;
+
 		/**
 		 * Constructor
 		 * 
 		 * @param responses list to deposit received responses in
 		 */
-		public ResponseHander(List<CoapResponse> responses) {
+		public ResponseHander(List<CoapResponse> responses, CountDownLatch countDown, CountDownLatch ready) {
 			this.responses = responses;
+			this.countDown = countDown;
+			this.ready = ready;
 		}
 
 		/*
@@ -197,6 +218,10 @@ public class NotificationReregistrationBackoffTest {
 		@Override
 		public void onLoad(CoapResponse response) {
 			responses.add(response);
+			countDown.countDown();
+			if (!response.advanced().isNotification()) {
+				ready.countDown();
+			}
 		}
 
 		/*
@@ -206,8 +231,10 @@ public class NotificationReregistrationBackoffTest {
 		 */
 		@Override
 		public void onError() {
-			//note that an error occured
+			//note that an error occurred
 			responses.add(null);
+			countDown.countDown();
+			ready.countDown();
 		}
 	};
 
