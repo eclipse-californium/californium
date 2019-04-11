@@ -31,11 +31,14 @@ LOADBA_IP=192.168.178.118
 NODE_1_IP=192.168.178.123
 NODE_2_IP=192.168.178.124
 
-echo "Create IP LVS"
+# set ipvs UDP timeout to 15s
+ipvsadm --set 0 0 15
+
+echo "Remove IP LVS for port 5683 and 5684"
 
 ipvsadm -D -u ${LOADBA_IP}:5683
 ipvsadm -D -u ${LOADBA_IP}:5684
-i
+
 echo "Create IP LVS 5683"
 
 ipvsadm -A -u ${LOADBA_IP}:5683 -s rr
@@ -82,6 +85,7 @@ iptables -t nat -A PREROUTING ${INTERFACE} -p udp --dport 5684 -j DTLS_NAT
 
 echo "1" > /proc/sys/net/ipv4/ip_forward
 
+# set DNAT timeout to 15s
 echo "15" > /proc/sys/net/netfilter/nf_conntrack_udp_timeout
 echo "15" > /proc/sys/net/netfilter/nf_conntrack_udp_timeout_stream
 
