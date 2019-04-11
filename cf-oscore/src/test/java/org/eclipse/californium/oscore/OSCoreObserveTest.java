@@ -131,7 +131,7 @@ public class OSCoreObserveTest {
 	 * After this the observation is cancelled.
 	 * Equivalent to Test 7 in the interop test specification.
 	 * 
-	 * @throws InterruptedException
+	 * @throws InterruptedException if sleep fails
 	 */
 	@Test
 	public void testObserve() throws InterruptedException {
@@ -184,7 +184,7 @@ public class OSCoreObserveTest {
 	
 		//Wait until 2 messages have been received
 		while(handler.count <= 2) {
-			Thread.sleep(500);
+			Thread.sleep(250);
 			
 			//Failsafe to abort test if needed
 			if(handler.abort > 5) {
@@ -205,13 +205,13 @@ public class OSCoreObserveTest {
 		assertEquals(resp.getOptions().getContentFormat(), MediaTypeRegistry.TEXT_PLAIN);
 		assertEquals(resp.getOptions().hasObserve(), false);
 		assertEquals(resp.getPayloadString(), "two");
+		assertEquals(relation.getCurrent().getResponseText(), "two");
 	}
 	
 	/* --- End of client Observe tests --- */
 
 	/**
 	 * Set OSCORE context information for clients
-	 * @throws OSException 
 	 */
 	@Before
 	public void setClientContext() {
@@ -232,7 +232,6 @@ public class OSCoreObserveTest {
 	
 	/**
 	 * (Re)sets the OSCORE context information for the server
-	 * @throws OSException 
 	 */
 	@Before
 	public void setServerContext() {
@@ -252,7 +251,7 @@ public class OSCoreObserveTest {
 	
 	/**
 	 * Creates server with resources to test OSCORE Observe functionality
-	 * @throws InterruptedException 
+	 * @throws InterruptedException if resource update task fails
 	 */
 	@Before
 	public void createServer() throws InterruptedException {

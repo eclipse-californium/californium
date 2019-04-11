@@ -14,13 +14,13 @@
  *    Joakim Brorsson
  *    Ludwig Seitz (RISE SICS)
  *    Tobias Andersson (RISE SICS)
+ *    Rikard Höglund (RISE SICS)
  *    
  ******************************************************************************/
 package org.eclipse.californium.oscore;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.cose.Encrypt0Message;
@@ -57,8 +57,7 @@ public class RequestEncryptor extends Encryptor {
 
 		OptionSet options = request.getOptions();
 		byte[] confidential = OSSerializer.serializeConfidentialData(options, request.getPayload(), realCode);
-		byte[] aad = serializeAAD(request, ctx, false);
-		Encrypt0Message enc = prepareCOSEStructure(confidential, aad);
+		Encrypt0Message enc = prepareCOSEStructure(confidential);
 		byte[] cipherText = encryptAndEncode(enc, ctx, request, false);
 		compression(ctx, cipherText, request, false);
 

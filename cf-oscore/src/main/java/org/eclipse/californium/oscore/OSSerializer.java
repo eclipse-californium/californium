@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.network.serialization.DataSerializer;
+import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.elements.util.DatagramWriter;
 
 import com.upokecenter.cbor.CBORObject;
@@ -76,80 +77,34 @@ public class OSSerializer {
 	}
 
 	/**
-	 * Prepare the additional authenticated data of a response to be sent.
+	 * Prepare the additional authenticated data of a message.
 	 * 
-	 * external_aad = [ ver : uint, alg : int, request_kid : bstr, request_seq :
+	 * Note that for the request* parameters they must contain the value of what was in
+	 * a request. Either this actual request or the request associated to this response. 
+	 * 
+	 * external_aad = [ ver : uint, alg : int, request_kid : bstr, request_piv :
 	 * bstr, options : bstr]
 	 * 
 	 * @param version the CoAP version number
-	 * @param ctx the OSCore context
+	 * @param algorithm AEAD algorithm
+	 * @param requestSeq the sequence number (request PIV)
+	 * @param requestSenderId sender ID (request KID)
 	 * @param options the option set
-	 * @param newPartialIV if response contains partialIV
-	 * 
-	 * @return the serialized AAD for OSCore
+	 * @return byte array with AAD
 	 */
-	public static byte[] serializeSendResponseAAD(int version, OSCoreCtx ctx, OptionSet options, boolean newPartialIV) {
+	public static byte[] serializeAAD(int version, AlgorithmID algorithm, int requestSeq, byte[] requestSenderId, OptionSet options) {
 		if (version == CoAP.VERSION) {
-			if (ctx != null) {
-				if (options != null) {
-					CBORObject algorithms = CBORObject.NewArray();
-					algorithms.Add(ctx.getAlg().AsCBOR());
-
-					CBORObject aad = CBORObject.NewArray();
-					aad.Add(version);
-					aad.Add(algorithms);
-					aad.Add(ctx.getRecipientId());
-
-					if (newPartialIV) {
-						aad.Add(processPartialIV(ctx.getSenderSeq()));
-					} else {
-						aad.Add(processPartialIV(ctx.getReceiverSeq()));
-					}
-					
-					//I-class options (currently none)
-					aad.Add(CBORObject.FromObject(EMPTY));
-
-					return aad.EncodeToBytes();
-				} else {
-					LOGGER.error(ErrorDescriptions.OPTIONSET_NULL);
-					throw new NullPointerException(ErrorDescriptions.OPTIONSET_NULL);
-				}
-			} else {
-				LOGGER.error(ErrorDescriptions.CTX_NULL);
-				throw new NullPointerException(ErrorDescriptions.CTX_NULL);
-			}
-		} else {
-			LOGGER.error(ErrorDescriptions.WRONG_VERSION_NBR);
-			throw new IllegalArgumentException(ErrorDescriptions.WRONG_VERSION_NBR);
-		}
-	}
-
-	/**
-	 * Prepare the additional authenticated data of a received response.
-	 * 
-	 * external_aad = [ ver : uint, alg : int, request_kid : bstr, request_seq :
-	 * bstr, options : bstr]
-	 * 
-	 * @param version the CoAP version number
-	 * @param seq the sequence number
-	 * @param ctx the OSCore context
-	 * @param options the option set
-	 * 
-	 * @return the serialized AAD for OSCore
-	 */
-	public static byte[] serializeReceiveResponseAAD(int version, int seq, OSCoreCtx ctx, OptionSet options) {
-		if (version == CoAP.VERSION) {
-			if (seq > -1) {
-				if (ctx != null) {
+			if (requestSeq > -1) {
+				if (algorithm != null) {
 					if (options != null) {
 						CBORObject algorithms = CBORObject.NewArray();
-						algorithms.Add(ctx.getAlg().AsCBOR());
+						algorithms.Add(algorithm.AsCBOR());
 
 						CBORObject aad = CBORObject.NewArray();
 						aad.Add(version);
 						aad.Add(algorithms);
-						aad.Add(ctx.getSenderId());
-						aad.Add(processPartialIV(seq));
+						aad.Add(requestSenderId);
+						aad.Add(processPartialIV(requestSeq));
 						
 						//I-class options (currently none)
 						aad.Add(CBORObject.FromObject(EMPTY));
@@ -160,102 +115,8 @@ public class OSSerializer {
 						throw new NullPointerException(ErrorDescriptions.OPTIONSET_NULL);
 					}
 				} else {
-					LOGGER.error(ErrorDescriptions.CTX_NULL);
-					throw new NullPointerException(ErrorDescriptions.CTX_NULL);
-				}
-			} else {
-				LOGGER.error(ErrorDescriptions.SEQ_NBR_INVALID);
-				throw new IllegalArgumentException(ErrorDescriptions.SEQ_NBR_INVALID);
-			}
-		} else {
-			LOGGER.error(ErrorDescriptions.WRONG_VERSION_NBR);
-			throw new IllegalArgumentException(ErrorDescriptions.WRONG_VERSION_NBR);
-		}
-	}
-
-	/**
-	 * Prepare the additional authenticated data of a request to be sent.
-	 * 
-	 * external_aad = [ ver : uint, alg : int, request_kid : bstr, request_seq :
-	 * bstr, options : bstr]
-	 * 
-	 * @param version the CoAP version number
-	 * @param ctx the OSCore context@param code
-	 * @param options the option set
-	 * 
-	 *
-	 * @return the serialized AAD for OSCore
-	 */
-	public static byte[] serializeSendRequestAAD(int version, OSCoreCtx ctx, OptionSet options) {
-		if (version == CoAP.VERSION) {
-			if (ctx != null) {
-				if (options != null) {
-					CBORObject algorithms = CBORObject.NewArray();
-					algorithms.Add(ctx.getAlg().AsCBOR());
-
-					CBORObject aad = CBORObject.NewArray();
-					aad.Add(version);
-					aad.Add(algorithms);
-					aad.Add(ctx.getSenderId());
-					aad.Add(processPartialIV(ctx.getSenderSeq()));
-					
-					//I-class options (currently none)
-					aad.Add(CBORObject.FromObject(EMPTY));
-					
-					return aad.EncodeToBytes();
-				} else {
-					LOGGER.error(ErrorDescriptions.OPTIONSET_NULL);
-					throw new NullPointerException(ErrorDescriptions.OPTIONSET_NULL);
-				}
-			} else {
-				LOGGER.error(ErrorDescriptions.CTX_NULL);
-				throw new NullPointerException(ErrorDescriptions.CTX_NULL);
-			}
-		} else {
-			LOGGER.error(ErrorDescriptions.WRONG_VERSION_NBR);
-			throw new IllegalArgumentException(ErrorDescriptions.WRONG_VERSION_NBR);
-		}
-	}
-
-	/**
-	 * Prepare the additional authenticated data of a received request.
-	 * 
-	 * external_aad = [ ver : uint, alg : int, request_kid : bstr, request_seq :
-	 * bstr, options : bstr]
-	 * 
-	 * @param version the CoAP version number
-	 * @param seq the sent sequence number
-	 * @param ctx the OSCore context@param code
-	 * @param options the option set
-	 * 
-	 *
-	 * @return the serialized AAD for OSCore
-	 */
-	public static byte[] serializeReceiveRequestAAD(int version, int seq, OSCoreCtx ctx, OptionSet options) {
-		if (version == CoAP.VERSION) {
-			if (seq > -1) {
-				if (ctx != null) {
-					if (options != null) {
-						CBORObject algorithms = CBORObject.NewArray();
-						algorithms.Add(ctx.getAlg().AsCBOR());
-
-						CBORObject aad = CBORObject.NewArray();
-						aad.Add(version);
-						aad.Add(algorithms);
-						aad.Add(ctx.getRecipientId());
-						aad.Add(processPartialIV(seq));
-						
-						//I-class options (currently none)
-						aad.Add(CBORObject.FromObject(EMPTY));
-						
-						return aad.EncodeToBytes();
-					} else {
-						LOGGER.error(ErrorDescriptions.OPTIONSET_NULL);
-						throw new NullPointerException(ErrorDescriptions.OPTIONSET_NULL);
-					}
-				} else {
-					LOGGER.error(ErrorDescriptions.CTX_NULL);
-					throw new NullPointerException(ErrorDescriptions.CTX_NULL);
+					LOGGER.error(ErrorDescriptions.ALGORITHM_NOT_DEFINED);
+					throw new NullPointerException(ErrorDescriptions.ALGORITHM_NOT_DEFINED);
 				}
 			} else {
 				LOGGER.error(ErrorDescriptions.SEQ_NBR_INVALID);
@@ -269,15 +130,19 @@ public class OSSerializer {
 
 	/**
 	 * Generates the nonce.
+	 * 
+	 * Note that that if a response does not include a partial IV the nonce will be 
+	 * generated using parameters from the corresponding original request.
+	 * 
 	 * See https://tools.ietf.org/html/draft-ietf-core-object-security-16#section-5.2
 	 * 
-	 * @param partialIV
-	 * @param senderID
-	 * @param commonIV
+	 * @param partialIV partial IV to calculate nonce with (from original request or response)
+	 * @param senderID sender ID of message (either original request or response)
+	 * @param commonIV common IV shared between sender and recipient
 	 * @param nonceLength the algorithm dependent length of nonce
 	 * @return the generated nonce or null if either one of the input parameters
 	 *         are null
-	 * @throws OSException if any of the parameters are unvalid
+	 * @throws OSException if any of the parameters are invalid
 	 */
 	public static byte[] nonceGeneration(byte[] partialIV, byte[] senderID, byte[] commonIV, int nonceLength)
 			throws OSException {
@@ -339,8 +204,8 @@ public class OSSerializer {
 	 * Padds the left side of the byte array paddMe with zeros as the int zeros
 	 * has
 	 * 
-	 * @param paddMe
-	 * @param zeros
+	 * @param paddMe byte array to pad
+	 * @param zeros number of zeroes to pad with
 	 * @return the left-padded byte array
 	 */
 	public static byte[] leftPaddingZeroes(byte[] paddMe, int zeros) {

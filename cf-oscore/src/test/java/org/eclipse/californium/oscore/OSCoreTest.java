@@ -14,6 +14,7 @@
  *    Joakim Brorsson
  *    Ludwig Seitz (RISE SICS)
  *    Tobias Andersson (RISE SICS)
+ *    Rikard Höglund (RISE SICS)
  *    
  ******************************************************************************/
 package org.eclipse.californium.oscore;
@@ -26,6 +27,7 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionNumberRegistry;
+import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
@@ -41,10 +43,14 @@ import org.eclipse.californium.oscore.OSSerializer;
 import org.eclipse.californium.oscore.ObjectSecurityLayer;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.eclipse.californium.elements.util.Bytes;
 
+/**
+ * Tests various functionality of OSCORE message handling
+ * and generation of cryptographic material.
+ *
+ */
 public class OSCoreTest {
 
 	private OSCoreCtxDB db;
@@ -56,7 +62,8 @@ public class OSCoreTest {
 	private OSCoreCtx serverCtx;
 	private TokenGenerator tokenGenerator = new RandomTokenGenerator(NetworkConfig.getStandard());
 	private ArrayList<Token> allTokens = new ArrayList<Token>();
-
+	private final static OptionSet options = new OptionSet();
+	
 	@Before
 	public void setUp() throws Exception {
 		db = HashMapCtxDB.getInstance();
@@ -102,6 +109,11 @@ public class OSCoreTest {
 		assertArrayEquals(objectSecurityResponse, Bytes.EMPTY);
 	}
 
+	/**
+	 * Tests generation of nonce.
+	 *
+	 * @throws OSException if nonce generation fails
+	 */
 	@Test
 	public void testNonceGeneration() throws OSException {
 
@@ -128,7 +140,106 @@ public class OSCoreTest {
 
 		System.out.println();
 
-		assertArrayEquals(nonce, predictedNonce);
+		assertArrayEquals(predictedNonce, nonce);
+	}
+	
+	/**
+	 * Tests generation of nonce.
+	 * Test vector is from OSCORE draft. (Test Vector 5)
+	 *
+	 * @throws OSException if nonce generation fails
+	 */
+	@Test
+	public void testNonceGenerationVector() throws OSException {
+
+		byte[] partialIV = new byte[] { 0x14 };
+		byte[] senderID = new byte[] { 0x00 };
+		byte[] commonIV = new byte[] { (byte) 0xbe, 0x35, (byte) 0xae, 0x29, 0x7d, 0x2d, (byte) 0xac, (byte) 0xe9,
+				0x10, (byte) 0xc5, 0x2e, (byte) 0x99, (byte) 0xf9 };
+
+		int nonceLength = 13;
+
+		byte[] nonce = OSSerializer.nonceGeneration(partialIV, senderID, commonIV, nonceLength);
+		byte[] predictedNonce = new byte[] { (byte) 0xbf, 0x35, (byte) 0xae, 0x29, 0x7d, 0x2d, (byte) 0xac, (byte) 0xe9,
+				0x10, (byte) 0xc5, 0x2e, (byte) 0x99, (byte) 0xed  };
+
+		System.out.println("The generated nonce:");
+		for (byte b : nonce) {
+			System.out.print(Integer.toHexString(b & 0xff) + " ");
+		}
+
+		System.out.println();
+
+		System.out.println("The predicted nonce:");
+		for (byte b : predictedNonce) {
+			System.out.print(Integer.toHexString(b & 0xff) + " ");
+		}
+
+		System.out.println();
+
+		assertArrayEquals(predictedNonce, nonce);
+	}
+
+	/**
+	 * Tests generation of (external) AAD.
+	 *
+	 * @throws OSException if AAD generation fails
+	 */
+	@Test
+	public void testAADGeneration() throws OSException {
+
+		byte[] AAD = OSSerializer.serializeAAD(CoAP.VERSION, clientCtx.getAlg(), clientCtx.getSenderSeq(), clientCtx.getSenderId(), options);
+		
+		byte[] predictedAAD = new byte[] { (byte) 0x85, 0x01, (byte) 0x81, 0x0a, 0x41, 0x00, 0x41, 0x00, 0x40 };
+
+		System.out.println("The generated AAD:");
+		for (byte b : AAD) {
+			System.out.print(Integer.toHexString(b & 0xff) + " ");
+		}
+
+		System.out.println();
+
+		System.out.println("The predicted AAD:");
+		for (byte b : predictedAAD) {
+			System.out.print(Integer.toHexString(b & 0xff) + " ");
+		}
+
+		System.out.println();
+
+		assertArrayEquals(predictedAAD, AAD);
+	}
+
+	/**
+	 * Tests generation of (external) AAD.
+	 * Test vector is from OSCORE draft. (Test Vector 5)
+	 *
+	 * @throws OSException if AAD generation fails
+	 */
+	@Test
+	public void testAADGenerationVector() throws OSException {
+
+		Integer senderSeq = 0x14;
+		byte[] senderID = { 0x00 };
+
+		byte[] AAD = OSSerializer.serializeAAD(CoAP.VERSION, clientCtx.getAlg(), senderSeq, senderID, options);
+
+		byte[] predictedAAD = new byte[] { (byte) 0x85, 0x01, (byte) 0x81, 0x0a, 0x41, 0x00, 0x41, 0x14, 0x40 };
+
+		System.out.println("The generated AAD:");
+		for (byte b : AAD) {
+			System.out.print(Integer.toHexString(b & 0xff) + " ");
+		}
+
+		System.out.println();
+
+		System.out.println("The predicted AAD:");
+		for (byte b : predictedAAD) {
+			System.out.print(Integer.toHexString(b & 0xff) + " ");
+		}
+
+		System.out.println();
+
+		assertArrayEquals(predictedAAD, AAD);
 	}
 
 	@Test
@@ -212,9 +323,8 @@ public class OSCoreTest {
 	 * Tests that protected options are encrypted and moved to OSOption-value
 	 * after encryption and restored after decryption.
 	 * 
-	 * @throws OSException
+	 * @throws OSException if encryption or decryption fails
 	 */
-	@Ignore
 	@Test
 	public void testEncryptDecryptOptions() throws OSException {
 		Request request = Request.newGet().setURI("coap://localhost:5683");
@@ -222,7 +332,7 @@ public class OSCoreTest {
 		request.getOptions().addOption(new Option(OptionNumberRegistry.OSCORE));
 		assertEquals(2, request.getOptions().getLocationPathCount());
 		try {
-			ObjectSecurityLayer.prepareSend(request, db.getContext("coap://localhost:5683"));
+			request = ObjectSecurityLayer.prepareSend(request, db.getContext("coap://localhost:5683"));
 		} catch (OSException e) {
 			e.printStackTrace();
 			assertTrue(false);
@@ -232,7 +342,7 @@ public class OSCoreTest {
 		dbClientToServer();
 
 		try {
-			ObjectSecurityLayer.prepareReceive(request);
+			request = ObjectSecurityLayer.prepareReceive(request);
 		} catch (OSException e) {
 			e.printStackTrace();
 			assertTrue(false);

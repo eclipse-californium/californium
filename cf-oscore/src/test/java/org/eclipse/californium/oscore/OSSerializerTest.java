@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Tobias Andersson (RISE SICS)
+ *    Rikard Höglund (RISE SICS)
  *    
  ******************************************************************************/
 package org.eclipse.californium.oscore;
@@ -46,7 +47,6 @@ public class OSSerializerTest {
 	private final static AlgorithmID kdf = AlgorithmID.HKDF_HMAC_SHA_256;
 
 	private final static OptionSet options = new OptionSet();
-	private final static boolean newPartialIV = false;
 	private final static int version = CoAP.VERSION;
 	private final static int seq = 1;
 	private final static byte[] partialIV = new byte[] { 0x01 };
@@ -83,87 +83,28 @@ public class OSSerializerTest {
 	}
 
 	@Test
-	public void testserializeSendResponseAADVersionInvalid() {
+	public void testserializeAADVersionInvalid() {
 		exception.expect(IllegalArgumentException.class);
-		OSSerializer.serializeSendResponseAAD(-1, ctx, options, newPartialIV);
+		OSSerializer.serializeAAD(-1, ctx.getAlg(), seq, ctx.getSenderId(), options);
 	}
 
 	@Test
-	public void testserializeSendResponseAADCtxNull() {
+	public void testserializeAADCtxNull() {
 		exception.expect(NullPointerException.class);
-		OSSerializer.serializeSendResponseAAD(version, null, options, newPartialIV);
+		ctx = null;
+		OSSerializer.serializeAAD(version, ctx.getAlg(), seq, ctx.getSenderId(), options);
 	}
 
 	@Test
-	public void testserializeSendResponseAADOptionsNull() {
+	public void testserializeAADOptionsNull() {
 		exception.expect(NullPointerException.class);
-		OSSerializer.serializeSendResponseAAD(version, ctx, null, newPartialIV);
+		OSSerializer.serializeAAD(version, ctx.getAlg(), seq, ctx.getSenderId(), null);
 	}
 
 	@Test
-	public void testserializeReceiveResponseAADVersionInvalid() {
+	public void testserializeAADSeqInvalid() {
 		exception.expect(IllegalArgumentException.class);
-		OSSerializer.serializeReceiveResponseAAD(-1, seq, ctx, options);
-	}
-
-	@Test
-	public void testserializeReceiveResponseAADSeqInvalid() {
-		exception.expect(IllegalArgumentException.class);
-		OSSerializer.serializeReceiveResponseAAD(version, -5, ctx, options);
-	}
-
-	@Test
-	public void testserializeReceiveResponseAADCtxNull() {
-		exception.expect(NullPointerException.class);
-		OSSerializer.serializeReceiveResponseAAD(version, seq, null, options);
-	}
-
-	@Test
-	public void testserializeReceiveResponseAADOptionsNull() {
-		exception.expect(NullPointerException.class);
-		OSSerializer.serializeReceiveResponseAAD(version, seq, ctx, null);
-	}
-
-	@Test
-	public void testserializeSendRequestAADVersionInvalid() {
-		exception.expect(IllegalArgumentException.class);
-		OSSerializer.serializeSendRequestAAD(-1, ctx, options);
-	}
-
-	@Test
-	public void testserializeSendRequestAADCtxNull() {
-		exception.expect(NullPointerException.class);
-		OSSerializer.serializeSendRequestAAD(version, null, options);
-	}
-
-	@Test
-	public void testserializeSendRequestAADOptionsNull() {
-		exception.expect(NullPointerException.class);
-		OSSerializer.serializeSendRequestAAD(version, ctx, null);
-	}
-
-	@Test
-	public void testserializeReceiveRequestAADVersionInvalid() {
-		exception.expect(IllegalArgumentException.class);
-		OSSerializer.serializeReceiveRequestAAD(-1, seq, ctx, options);
-	}
-
-	@Test
-	public void testserializeReceiveRequestAADSeqInvalid() {
-		exception.expect(IllegalArgumentException.class);
-		OSSerializer.serializeReceiveRequestAAD(version, -5, ctx, options);
-	}
-
-	@Test
-	public void testserializeReceiveRequestAADCtxNull() {
-		exception.expect(NullPointerException.class);
-		OSSerializer.serializeReceiveRequestAAD(version, seq, null, options);
-	}
-
-	@Test
-	public void testserializeReceiveRequestAADOptionsNull() {
-		exception.expect(NullPointerException.class);
-		OSSerializer.serializeReceiveRequestAAD(version, seq, ctx, null);
+		OSSerializer.serializeAAD(version, ctx.getAlg(), -5, ctx.getSenderId(), options);
 	}
 
 	@Test
