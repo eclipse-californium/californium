@@ -368,7 +368,7 @@ public final class CertificateRequest extends HandshakeMessage {
 		int authoritiesAdded = 0;
 		for (X500Principal authority : authorities) {
 			if (!addCertificateAuthority(authority)) {
-				LOGGER.log(Level.FINE, "could add only {0} of {1} certificate authorities, max length exceeded",
+				LOGGER.log(Level.FINEST, "could add only {0} of {1} certificate authorities, max length exceeded",
 						new Object[]{ authoritiesAdded, authorities.size() });
 				return false;
 			} else {
@@ -393,7 +393,7 @@ public final class CertificateRequest extends HandshakeMessage {
 			int authoritiesAdded = 0;
 			for (X509Certificate certificate : trustedCas) {
 				if (!addCertificateAuthority(certificate.getSubjectX500Principal())) {
-					LOGGER.log(Level.FINE, "could add only {0} of {1} certificate authorities, max length exceeded",
+					LOGGER.log(Level.FINEST, "could add only {0} of {1} certificate authorities, max length exceeded",
 							new Object[]{ authoritiesAdded, trustedCas.length });
 					return false;
 				} else {
@@ -440,13 +440,13 @@ public final class CertificateRequest extends HandshakeMessage {
 			boolean isCompatibleType = type.isCompatibleWithKeyAlgorithm(cert.getPublicKey().getAlgorithm());
 			boolean meetsSigningRequirements = !type.requiresSigningCapability() ||
 					(type.requiresSigningCapability() && cert.getKeyUsage() != null && cert.getKeyUsage()[0]);
-			LOGGER.log(Level.FINER, "type: {0}, isCompatibleWithKeyAlgorithm[{1}]: {2}, meetsSigningRequirements: {3}", 
+			LOGGER.log(Level.FINEST, "type: {0}, isCompatibleWithKeyAlgorithm[{1}]: {2}, meetsSigningRequirements: {3}", 
 					new Object[]{ type, cert.getPublicKey().getAlgorithm(), isCompatibleType, meetsSigningRequirements});
 			if (isCompatibleType && meetsSigningRequirements) {
 				return true;
 			}
 		}
-		LOGGER.log(Level.FINER, "certificate [{0}] is not of any supported type", cert);
+		LOGGER.log(Level.FINEST, "certificate [{0}] is not of any supported type", cert);
 		return false;
 	}
 
@@ -503,11 +503,11 @@ public final class CertificateRequest extends HandshakeMessage {
 				}
 			}
 			if (!certSignatureAlgorithmSupported) {
-				LOGGER.log(Level.FINE, "certificate chain is NOT signed with supported algorithm(s)");
+				LOGGER.log(Level.FINEST, "certificate chain is NOT signed with supported algorithm(s)");
 				return false;
 			}
 		}
-		LOGGER.log(Level.FINE, "certificate chain is signed with supported algorithm(s)");
+		LOGGER.log(Level.FINEST, "certificate chain is signed with supported algorithm(s)");
 		return true;
 	}
 

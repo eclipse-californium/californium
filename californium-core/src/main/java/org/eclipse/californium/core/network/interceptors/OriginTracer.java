@@ -73,7 +73,7 @@ public class OriginTracer implements MessageInterceptor {
 
 	@Override
 	public void receiveRequest(Request request) {
-		LOGGER.log(Level.INFO, "{0}", request.getSource());
+		LOGGER.log(Level.FINEST, "{0}", request.getSource());
 	}
 
 	@Override
@@ -100,6 +100,6 @@ public class OriginTracer implements MessageInterceptor {
 	public void receiveEmptyMessage(EmptyMessage message) {
 		// only log pings
 		if (message.getType() == Type.CON)
-			LOGGER.log(Level.INFO, "{0}", message.getSource());
+			LOGGER.log(Level.FINEST, "{0}", message.getSource());
 	}
 }

@@ -286,7 +286,7 @@ public final class NetworkConfig {
 		if (file == null) {
 			throw new NullPointerException("file must not be null");
 		} else {
-			LOGGER.log(Level.INFO, "loading properties from file {0}", file.getAbsolutePath());
+			LOGGER.log(Level.FINEST, "loading properties from file {0}", file.getAbsolutePath());
 			try (InputStream inStream = new FileInputStream(file)) {
 				load(inStream);
 			} catch (IOException e) {
@@ -330,7 +330,7 @@ public final class NetworkConfig {
 		if (file == null) {
 			throw new NullPointerException("file must not be null");
 		} else {
-			LOGGER.log(Level.INFO, "writing properties to file {0}", file.getAbsolutePath());
+			LOGGER.log(Level.FINEST, "writing properties to file {0}", file.getAbsolutePath());
 			try (FileWriter writer = new FileWriter(file)) {
 				properties.store(writer, header);
 			} catch (IOException e) {

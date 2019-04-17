@@ -193,7 +193,7 @@ public class CoapObserveRelation {
 	public void reactiveCancel() {
 		Request request = this.request;
 		if (CoAP.isTcpScheme(request.getScheme())) {
-			LOGGER.log(Level.INFO, "Change to cancel the observe {0} proactive over TCP.", request.getTokenString());
+			LOGGER.log(Level.FINEST, "Change to cancel the observe {0} proactive over TCP.", request.getTokenString());
 			proactiveCancel();
 		} else {
 			// cancel old ongoing request

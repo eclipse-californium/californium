@@ -78,10 +78,10 @@ public class TlsServerConnector extends TcpServerConnector {
 		SocketAddress remoteAddress = ch.remoteAddress();
 		if (remoteAddress instanceof InetSocketAddress) {
 			InetSocketAddress remote = (InetSocketAddress) remoteAddress;
-			LOGGER.log(Level.INFO, "Connection from inet {0}", remote);
+			LOGGER.log(Level.FINEST, "Connection from inet {0}", remote);
 			return sslContext.createSSLEngine(remote.getHostString(), remote.getPort());
 		} else {
-			LOGGER.log(Level.INFO, "Connection from {0}", remoteAddress);
+			LOGGER.log(Level.FINEST, "Connection from {0}", remoteAddress);
 			return sslContext.createSSLEngine();
 		}
 	}

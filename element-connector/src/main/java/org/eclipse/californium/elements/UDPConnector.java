@@ -234,12 +234,12 @@ public class UDPConnector implements Connector {
 		}
 
 		public void run() {
-			LOGGER.log(Level.FINE, "Starting network stage thread [{0}]", getName());
+			LOGGER.log(Level.FINER, "Starting network stage thread [{0}]", getName());
 			while (true) {
 				try {
 					work();
 					if (!running) {
-						LOGGER.log(Level.FINE, "Network stage thread [{0}] was stopped successfully", getName());
+						LOGGER.log(Level.FINER, "Network stage thread [{0}] was stopped successfully", getName());
 						break;
 					}
 				} catch (Throwable t) {

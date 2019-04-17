@@ -198,12 +198,12 @@ public class CoapServer implements ServerInterface {
 			return;
 		}
 
-		LOGGER.info("Starting server");
+		LOGGER.finest("Starting server");
 
 		if (endpoints.isEmpty()) {
 			// servers should bind to the configured port (while clients should use an ephemeral port through the default endpoint)
 			int port = config.getInt(NetworkConfig.Keys.COAP_PORT);
-			LOGGER.log(Level.INFO, "No endpoints have been defined for server, setting up server endpoint on default port {0}", port);
+			LOGGER.log(Level.FINEST, "No endpoints have been defined for server, setting up server endpoint on default port {0}", port);
 			addEndpoint(new CoapEndpoint(port, this.config));
 		}
 
@@ -232,7 +232,7 @@ public class CoapServer implements ServerInterface {
 	public synchronized void stop() {
 
 		if (running) {
-			LOGGER.info("Stopping server");
+			LOGGER.finest("Stopping server");
 			for (Endpoint ep : endpoints) {
 				ep.stop();
 			}
@@ -246,7 +246,7 @@ public class CoapServer implements ServerInterface {
 	@Override
 	public synchronized void destroy() {
 
-		LOGGER.info("Destroying server");
+		LOGGER.finest("Destroying server");
 		// prevent new tasks from being submitted
 		executor.shutdown(); // cannot be started again
 		try {
@@ -258,7 +258,7 @@ public class CoapServer implements ServerInterface {
 				if (runningTasks.size() > 0) {
 					// this is e.g. the case if we have performed an incomplete blockwise transfer
 					// and the BlockwiseLayer has scheduled a pending BlockCleanupTask for tidying up
-					LOGGER.log(Level.FINE, "Ignoring remaining {0} scheduled task(s)", runningTasks.size());
+					LOGGER.log(Level.FINEST, "Ignoring remaining {0} scheduled task(s)", runningTasks.size());
 				}
 				// wait for executing tasks to respond to being cancelled
 				executor.awaitTermination(1, TimeUnit.SECONDS);
@@ -270,7 +270,7 @@ public class CoapServer implements ServerInterface {
 			for (Endpoint ep : endpoints) {
 				ep.destroy();
 			}
-			LOGGER.log(Level.INFO, "CoAP server has been destroyed");
+			LOGGER.log(Level.FINEST, "CoAP server has been destroyed");
 			running = false;
 		}
 	}

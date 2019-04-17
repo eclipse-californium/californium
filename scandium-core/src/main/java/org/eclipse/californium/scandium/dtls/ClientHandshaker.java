@@ -203,7 +203,7 @@ public class ClientHandshaker extends Handshaker {
 		case CHANGE_CIPHER_SPEC:
 			// TODO check, if all expected messages already received
 			setCurrentReadState();
-			LOGGER.log(Level.FINE, "Processed {1} message from peer [{0}]",
+			LOGGER.log(Level.FINEST, "Processed {1} message from peer [{0}]",
 					new Object[]{message.getPeer(), message.getContentType()});
 			break;
 
@@ -239,7 +239,7 @@ public class ClientHandshaker extends Handshaker {
 					break;
 					
 				case NULL:
-					LOGGER.info("Received unexpected ServerKeyExchange message in NULL key exchange mode.");
+					LOGGER.finest("Received unexpected ServerKeyExchange message in NULL key exchange mode.");
 					break;
 
 				default:
@@ -270,7 +270,7 @@ public class ClientHandshaker extends Handshaker {
 			}
 
 			incrementNextReceiveSeq();
-			LOGGER.log(Level.FINE, "Processed {1} message with sequence no [{2}] from peer [{0}]",
+			LOGGER.log(Level.FINEST, "Processed {1} message with sequence no [{2}] from peer [{0}]",
 					new Object[]{handshakeMsg.getPeer(), handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq()});
 			break;
 
@@ -477,7 +477,7 @@ public class ClientHandshaker extends Handshaker {
 			}
 			session.setPeerIdentity(new PreSharedKeyIdentity(identity));
 			clientKeyExchange = new PSKClientKeyExchange(identity, session.getPeer());
-			LOGGER.log(Level.FINER, "Using PSK identity: {0}", identity);
+			LOGGER.log(Level.FINEST, "Using PSK identity: {0}", identity);
 			premasterSecret = generatePremasterSecretFromPSK(psk);
 			generateKeys(premasterSecret);
 
@@ -586,13 +586,13 @@ public class ClientHandshaker extends Handshaker {
 				if (key != null) {
 					rawPublicKeyBytes = key.getEncoded();
 				}
-				LOGGER.log(Level.FINE, "sending CERTIFICATE message with client RawPublicKey [{0}] to server", ByteArrayUtils.toHexString(rawPublicKeyBytes));
+				LOGGER.log(Level.FINEST, "sending CERTIFICATE message with client RawPublicKey [{0}] to server", ByteArrayUtils.toHexString(rawPublicKeyBytes));
 				clientCertificate = new CertificateMessage(rawPublicKeyBytes, session.getPeer());
 			} else {
 				X509Certificate[] clientChain = determineClientCertificateChain(certificateRequest);
 				// make sure we only send certs not part of the server's trust anchor
 				X509Certificate[] truncatedChain = certificateRequest.removeTrustedCertificates(clientChain);
-				LOGGER.log(Level.FINE, "sending CERTIFICATE message with client certificate chain [length: {0}] to server", truncatedChain.length);
+				LOGGER.log(Level.FINEST, "sending CERTIFICATE message with client certificate chain [length: {0}] to server", truncatedChain.length);
 				clientCertificate = new CertificateMessage(truncatedChain, session.getPeer());
 			}
 			flight.addMessage(wrapMessage(clientCertificate));
@@ -665,7 +665,7 @@ public class ClientHandshaker extends Handshaker {
 			MaxFragmentLengthExtension ext = new MaxFragmentLengthExtension(maxFragmentLengthCode); 
 			startMessage.addExtension(ext);
 			LOGGER.log(
-					Level.FINE,
+					Level.FINEST,
 					"Indicating max. fragment length [{0}] to server [{1}]",
 					new Object[]{maxFragmentLengthCode, getPeerAddress()});
 		}

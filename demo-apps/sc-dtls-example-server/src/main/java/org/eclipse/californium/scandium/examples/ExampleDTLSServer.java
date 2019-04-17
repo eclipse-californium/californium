@@ -111,7 +111,7 @@ public class ExampleDTLSServer {
 
 		@Override
 		public void receiveData(final RawData raw) {
-			LOG.log(Level.INFO, "Received request: {0}", new String(raw.getBytes()));
+			LOG.log(Level.FINER, "Received request: {0}", new String(raw.getBytes()));
 			connector.send(new RawData("ACK".getBytes(), raw.getAddress(), raw.getPort()));
 		}
 	}

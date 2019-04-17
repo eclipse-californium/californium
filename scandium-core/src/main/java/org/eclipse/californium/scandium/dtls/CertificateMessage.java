@@ -170,9 +170,9 @@ public final class CertificateMessage extends HandshakeMessage {
 		try {
 			CertificateFactory factory = CertificateFactory.getInstance(CERTIFICATE_TYPE_X509);
 			for (X509Certificate cert : chain) {
-				LOGGER.log(Level.FINER, "Current Subject DN: {0}", cert.getSubjectX500Principal().getName());
+				LOGGER.log(Level.FINEST, "Current Subject DN: {0}", cert.getSubjectX500Principal().getName());
 				if (issuer != null && !issuer.equals(cert.getSubjectX500Principal())) {
-					LOGGER.log(Level.FINER, "Actual Issuer DN: {0}",
+					LOGGER.log(Level.FINEST, "Actual Issuer DN: {0}",
 							cert.getSubjectX500Principal().getName());
 					throw new IllegalArgumentException("Given certificates do not form a chain");
 				}
@@ -180,7 +180,7 @@ public final class CertificateMessage extends HandshakeMessage {
 					// not a self-signed certificate
 					certificates.add(cert);
 					issuer = cert.getIssuerX500Principal();
-					LOGGER.log(Level.FINER, "Expected Issuer DN: {0}", issuer.getName());
+					LOGGER.log(Level.FINEST, "Expected Issuer DN: {0}", issuer.getName());
 				}
 			}
 			this.certPath = factory.generateCertPath(certificates);
@@ -299,7 +299,7 @@ public final class CertificateMessage extends HandshakeMessage {
 		DatagramReader reader = new DatagramReader(byteArray);
 
 		if (useRawPublicKey) {
-			LOGGER.log(Level.FINER, "Parsing RawPublicKey CERTIFICATE message");
+			LOGGER.log(Level.FINEST, "Parsing RawPublicKey CERTIFICATE message");
 			int certificateLength = reader.read(CERTIFICATE_LENGTH_BITS);
 			byte[] rawPublicKey = reader.readBytes(certificateLength);
 			return new CertificateMessage(rawPublicKey, peerAddress);
@@ -310,7 +310,7 @@ public final class CertificateMessage extends HandshakeMessage {
 
 	private static CertificateMessage readX509CertificateMessage(final DatagramReader reader, final InetSocketAddress peerAddress) throws HandshakeException {
 
-		LOGGER.log(Level.FINER, "Parsing X.509 CERTIFICATE message");
+		LOGGER.log(Level.FINEST, "Parsing X.509 CERTIFICATE message");
 		int certificateChainLength = reader.read(CERTIFICATE_LIST_LENGTH);
 		List<Certificate> certs = new ArrayList<>();
 

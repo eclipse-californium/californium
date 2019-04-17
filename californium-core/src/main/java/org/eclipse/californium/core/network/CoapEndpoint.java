@@ -306,7 +306,7 @@ public class CoapEndpoint implements Endpoint {
 	@Override
 	public synchronized void start() throws IOException {
 		if (started) {
-			LOGGER.log(Level.FINE, "Endpoint at {0} is already started", getAddress());
+			LOGGER.log(Level.FINEST, "Endpoint at {0} is already started", getAddress());
 			return;
 		}
 
@@ -338,7 +338,7 @@ public class CoapEndpoint implements Endpoint {
 		}
 
 		try {
-			LOGGER.log(Level.INFO, "Starting endpoint at {0}", getAddress());
+			LOGGER.log(Level.FINEST, "Starting endpoint at {0}", getAddress());
 
 			started = true;
 			matcher.start();
@@ -374,9 +374,9 @@ public class CoapEndpoint implements Endpoint {
 	@Override
 	public synchronized void stop() {
 		if (!started) {
-			LOGGER.log(Level.INFO, "Endpoint at {0} is already stopped", getAddress());
+			LOGGER.log(Level.FINEST, "Endpoint at {0} is already stopped", getAddress());
 		} else {
-			LOGGER.log(Level.INFO, "Stopping endpoint at address {0}", getAddress());
+			LOGGER.log(Level.FINEST, "Stopping endpoint at address {0}", getAddress());
 			started = false;
 			connector.stop();
 			matcher.stop();
@@ -389,7 +389,7 @@ public class CoapEndpoint implements Endpoint {
 
 	@Override
 	public synchronized void destroy() {
-		LOGGER.log(Level.INFO, "Destroying endpoint at address {0}", getAddress());
+		LOGGER.log(Level.FINEST, "Destroying endpoint at address {0}", getAddress());
 		if (started) {
 			stop();
 		}
@@ -673,7 +673,7 @@ public class CoapEndpoint implements Endpoint {
 					receiveEmptyMessage((EmptyMessage) msg, raw);
 
 				} else {
-					LOGGER.log(Level.FINER, "Silently ignoring non-CoAP message from {0}", raw.getInetSocketAddress());
+					LOGGER.log(Level.FINEST, "Silently ignoring non-CoAP message from {0}", raw.getInetSocketAddress());
 				}
 
 			} catch (CoAPMessageFormatException e) {
@@ -757,7 +757,7 @@ public class CoapEndpoint implements Endpoint {
 					response.setRTT(System.currentTimeMillis() - exchange.getTimestamp());
 					coapstack.receiveResponse(exchange, response);
 				} else if (response.getType() != Type.ACK) {
-					LOGGER.log(Level.FINE, "Rejecting unmatchable response from {0}", raw.getInetSocketAddress());
+					LOGGER.log(Level.FINEST, "Rejecting unmatchable response from {0}", raw.getInetSocketAddress());
 					reject(response);
 				}
 			}
@@ -778,7 +778,7 @@ public class CoapEndpoint implements Endpoint {
 			if (!message.isCanceled()) {
 				// CoAP Ping
 				if (message.getType() == Type.CON || message.getType() == Type.NON) {
-					LOGGER.log(Level.FINER, "responding to ping from {0}", raw.getInetSocketAddress());
+					LOGGER.log(Level.FINEST, "responding to ping from {0}", raw.getInetSocketAddress());
 					reject(message);
 				} else {
 					Exchange exchange = matcher.receiveEmptyMessage(message);

@@ -113,7 +113,7 @@ public final class Finished extends HandshakeMessage {
 				msg.append(System.lineSeparator()).append("Expected: ").append(ByteArrayUtils.toHexString(myVerifyData));
 				msg.append(System.lineSeparator()).append("Received: ").append(ByteArrayUtils.toHexString(verifyData));
 			}
-			LOG.log(Level.FINE, msg.toString());
+			LOG.log(Level.FINEST, msg.toString());
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, getPeer());
 			throw new HandshakeException("Verification of FINISHED message failed", alert);
 		}

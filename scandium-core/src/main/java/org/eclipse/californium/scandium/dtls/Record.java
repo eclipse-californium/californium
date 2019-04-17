@@ -256,7 +256,7 @@ public class Record {
 		while (reader.bytesAvailable()) {
 
 			if (reader.bitsLeft() < RECORD_HEADER_BITS) {
-				LOGGER.log(Level.FINE, "Received truncated DTLS record(s). Discarding ...");
+				LOGGER.log(Level.FINEST, "Received truncated DTLS record(s). Discarding ...");
 				return records;
 			}
 
@@ -271,7 +271,7 @@ public class Record {
 			int length = reader.read(LENGTH_BITS);
 
 			if (reader.bitsLeft() < length) {
-				LOGGER.log(Level.FINE, "Received truncated DTLS record(s). Discarding ...");
+				LOGGER.log(Level.FINEST, "Received truncated DTLS record(s). Discarding ...");
 				return records;
 			}
 
@@ -280,7 +280,7 @@ public class Record {
 
 			ContentType contentType = ContentType.getTypeByValue(type);
 			if (contentType == null) {
-				LOGGER.log(Level.FINE, "Received DTLS record of unsupported type [{0}]. Discarding ...", type);
+				LOGGER.log(Level.FINEST, "Received DTLS record of unsupported type [{0}]. Discarding ...", type);
 			} else {
 				records.add(new Record(contentType, version, epoch, sequenceNumber, fragmentBytes, peerAddress));
 			}
@@ -904,7 +904,7 @@ public class Record {
 			keyExchangeAlgorithm = session.getKeyExchange();
 			receiveRawPublicKey = session.receiveRawPublicKey();
 		} else {
-			LOGGER.log(Level.FINE, "Parsing message without a session");
+			LOGGER.log(Level.FINEST, "Parsing message without a session");
 		}
 		if (LOGGER.isLoggable(Level.FINER)) {
 			StringBuilder msg = new StringBuilder(

@@ -202,7 +202,7 @@ public abstract class CertificateTypeExtension extends HelloExtension {
 				} else {
 					// client indicates a preference for an unknown certificate
 					// type
-					LOG.log(Level.FINER, String.format(
+					LOG.log(Level.FINEST, String.format(
 							"Client indicated preference for unknown %s certificate type code [%d]",
 							getType().equals(ExtensionType.CLIENT_CERT_TYPE) ? "client" : "server",
 							typeCode));
@@ -217,7 +217,7 @@ public abstract class CertificateTypeExtension extends HelloExtension {
 			} else {
 				// server selected a certificate type that is unknown to this
 				// client
-				LOG.log(Level.FINER, String.format(
+				LOG.log(Level.FINEST, String.format(
 						"Server selected an unknown %s certificate type code [%d]",
 						getType().equals(ExtensionType.CLIENT_CERT_TYPE) ? "client" : "server",
 						typeCode));

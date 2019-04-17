@@ -191,7 +191,7 @@ public class ManagedServer implements ManagedService, ServiceTrackerCustomizer<R
 	 */
 	public void stop() {
 		if (managedServer != null) {
-			LOGGER.fine("Destroying managed server instance");
+			LOGGER.finest("Destroying managed server instance");
 			if (resourceTracker != null) {
 				// stop tracking Resources
 				resourceTracker.close();
@@ -214,7 +214,7 @@ public class ManagedServer implements ManagedService, ServiceTrackerCustomizer<R
 	@Override
 	public Resource addingService(ServiceReference<Resource> reference) {
 		Resource resource = context.getService(reference);
-		LOGGER.fine(String.format("Adding resource [%s]", resource.getName()));
+		LOGGER.finest(String.format("Adding resource [%s]", resource.getName()));
 		if (resource != null) {
 			managedServer.add(resource);
 		}
@@ -233,7 +233,7 @@ public class ManagedServer implements ManagedService, ServiceTrackerCustomizer<R
 	@Override
 	public void removedService(ServiceReference<Resource> reference,
 			Resource service) {
-		LOGGER.fine(String.format("Removing resource [%s]", service.getName()));
+		LOGGER.finest(String.format("Removing resource [%s]", service.getName()));
 		managedServer.remove(service);
 		context.ungetService(reference);
 	}

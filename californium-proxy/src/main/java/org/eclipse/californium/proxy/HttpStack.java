@@ -165,7 +165,7 @@ public class HttpStack {
 
 		// retrieve the request linked to the response
 		// if (Bench_Help.DO_LOG)
-		LOGGER.fine("Handling response for request: " + request);
+		LOGGER.finer("Handling response for request: " + request);
 
 		// fill the exchanger with the incoming response
 		Exchanger<Response> exchanger = exchangeMap.get(request);
@@ -351,7 +351,7 @@ public class HttpStack {
 				// Create server-side I/O reactor
 				ioReactor = new DefaultListeningIOReactor();
 				// Listen of the given port
-				LOGGER.info("HttpStack listening on port " + httpPort);
+				LOGGER.finer("HttpStack listening on port " + httpPort);
 				ioReactor.listen(new InetSocketAddress(httpPort));
 
 				// create the listener thread
@@ -362,20 +362,20 @@ public class HttpStack {
 						// Starts the reactor and initiates the dispatch of I/O
 						// event notifications to the given IOEventDispatch.
 						try {
-							LOGGER.info("Submitted http listening to thread 'HttpStack listener'");
+							LOGGER.finest("Submitted http listening to thread 'HttpStack listener'");
 
 							ioReactor.execute(ioEventDispatch);
 						} catch (IOException e) {
 							LOGGER.severe("I/O Exception in HttpStack: " + e.getMessage());
 						}
 
-						LOGGER.info("Shutdown HttpStack");
+						LOGGER.finest("Shutdown HttpStack");
 					}
 				};
 
 				listener.setDaemon(false);
 				listener.start();
-				LOGGER.info("HttpStack started");
+				LOGGER.finer("HttpStack started");
 			} catch (IOException e) {
 				LOGGER.severe("I/O error: " + e.getMessage());
 			}

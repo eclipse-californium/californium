@@ -126,7 +126,7 @@ public class ProxyHttpClientResource extends ForwardingResource {
 		try {
 			// get the mapping to http for the incoming coap request
 			httpRequest = HttpTranslator.getHttpRequest(incomingCoapRequest);
-			LOGGER.finer("Outgoing http request: " + httpRequest.getRequestLine());
+			LOGGER.finest("Outgoing http request: " + httpRequest.getRequestLine());
 		} catch (InvalidFieldException e) {
 			LOGGER.warning("Problems during the http/coap translation: " + e.getMessage());
 			return new Response(CoapTranslator.STATUS_FIELD_MALFORMED);
@@ -139,7 +139,7 @@ public class ProxyHttpClientResource extends ForwardingResource {
 			@Override
 			public Response handleResponse(HttpResponse httpResponse) throws ClientProtocolException, IOException {
 				long timestamp = System.nanoTime();
-				LOGGER.finer("Incoming http response: " + httpResponse.getStatusLine());
+				LOGGER.finest("Incoming http response: " + httpResponse.getStatusLine());
 				// the entity of the response, if non repeatable, could be
 				// consumed only one time, so do not debug it!
 				// System.out.println(EntityUtils.toString(httpResponse.getEntity()));
@@ -161,7 +161,7 @@ public class ProxyHttpClientResource extends ForwardingResource {
 
 		// accept the request sending a separate response to avoid the timeout
 		// in the requesting client
-		LOGGER.finer("Acknowledge message sent");
+		LOGGER.finest("Acknowledge message sent");
 
 		Response coapResponse = null;
 		try {

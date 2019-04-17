@@ -106,7 +106,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 			// we already sent the last flight, but the server does not seem to have received
 			// it since it sent its FINISHED message again, so we simply retransmit our last flight
 			LOGGER.log(
-				Level.FINER,
+				Level.FINEST,
 				"Received server's [{0}] FINISHED message again, retransmitting last flight...",
 				message.getPeer());
 			lastFlight.incrementTries();
@@ -133,7 +133,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		case CHANGE_CIPHER_SPEC:
 			calculateKeys(session.getMasterSecret());
 			setCurrentReadState();
-			LOGGER.log(Level.FINE, "Processed {1} message from peer [{0}]",
+			LOGGER.log(Level.FINEST, "Processed {1} message from peer [{0}]",
 					new Object[]{message.getPeer(), message.getContentType()});
 			break;
 
@@ -150,7 +150,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 				if (!session.getSessionIdentifier().equals(serverHello.getSessionId()))
 				{
 					LOGGER.log(
-							Level.FINER,
+							Level.FINEST,
 							"Server [{0}] refuses to resume session [{1}], performing full handshake instead...",
 							new Object[]{serverHello.getPeer(), session.getSessionIdentifier()});
 					// Server refuse to resume the session, go for a full handshake
@@ -192,7 +192,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 				// not ignore a server FINISHED retransmission caused by lost client FINISHED
 				incrementNextReceiveSeq();
 			}
-			LOGGER.log(Level.FINE, "Processed {1} message with sequence no [{2}] from peer [{0}]",
+			LOGGER.log(Level.FINEST, "Processed {1} message with sequence no [{2}] from peer [{0}]",
 					new Object[]{handshakeMsg.getPeer(), handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq()});
 			break;
 
@@ -276,7 +276,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 			MaxFragmentLengthExtension ext = new MaxFragmentLengthExtension(maxFragmentLengthCode); 
 			message.addExtension(ext);
 			LOGGER.log(
-					Level.FINE,
+					Level.FINEST,
 					"Indicating max. fragment length [{0}] to server [{1}]",
 					new Object[]{maxFragmentLengthCode, getPeerAddress()});
 		}

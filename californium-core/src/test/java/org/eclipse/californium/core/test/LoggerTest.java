@@ -94,7 +94,7 @@ public class LoggerTest {
 
 	@Test
 	public void testLogInfo() throws UnsupportedEncodingException {
-		LOGGER.info("message");
+		LOGGER.finest("message");
 		String result = handler.getOutputAsText();
 		assertThat(result, containsString(" testLogInfo() "));
 		assertThat(result, containsString(".LoggerTest.java:97)"));
@@ -102,7 +102,7 @@ public class LoggerTest {
 
 	@Test
 	public void testLogLevelInfo() throws UnsupportedEncodingException {
-		LOGGER.log(Level.INFO, "message");
+		LOGGER.log(Level.FINEST, "message");
 		String result = handler.getOutputAsText();
 		assertThat(result, containsString(" testLogLevelInfo() "));
 		assertThat(result, containsString(".LoggerTest.java:105)"));
@@ -111,7 +111,7 @@ public class LoggerTest {
 	@Test
 	public void testLogLevelInfoThrowing() throws UnsupportedEncodingException {
 		Throwable throwable = new Throwable("test");
-		LOGGER.log(Level.INFO, "message", throwable);
+		LOGGER.log(Level.FINEST, "message", throwable);
 		String result = handler.getOutputAsText();
 		assertThat(result, containsString(" testLogLevelInfoThrowing() "));
 		assertThat(result, containsString(".LoggerTest.java:114)"));
@@ -123,7 +123,7 @@ public class LoggerTest {
 
 			@Override
 			public void run() {
-				LOGGER.info("message");
+				LOGGER.finest("message");
 			}
 		};
 		inner.run();
@@ -138,7 +138,7 @@ public class LoggerTest {
 
 			@Override
 			public void run() {
-				LOGGER.log(Level.INFO, "message");
+				LOGGER.log(Level.FINEST, "message");
 			}
 		};
 		inner.run();
@@ -154,7 +154,7 @@ public class LoggerTest {
 
 			@Override
 			public void run() {
-				LOGGER.log(Level.INFO, "message", throwable);
+				LOGGER.log(Level.FINEST, "message", throwable);
 			}
 		};
 		inner.run();

@@ -173,11 +173,11 @@ public final class SweepDeduplicator implements Deduplicator {
 				Exchange exchange = entry.getValue();
 				if (exchange.getTimestamp() < oldestAllowed) {
 					//TODO check if exchange of observe relationship is periodically created and sweeped
-					LOGGER.log(Level.FINER, "Mark-And-Sweep removes {0}", entry.getKey());
+					LOGGER.log(Level.FINEST, "Mark-And-Sweep removes {0}", entry.getKey());
 					incomingMessages.remove(entry.getKey());
 				}
 			}
-			LOGGER.log(Level.FINE, "Sweep run took {0}ms", System.currentTimeMillis() - start);
+			LOGGER.log(Level.FINEST, "Sweep run took {0}ms", System.currentTimeMillis() - start);
 		}
 
 		/**

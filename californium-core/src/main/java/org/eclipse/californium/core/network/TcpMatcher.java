@@ -68,7 +68,7 @@ public final class TcpMatcher extends BaseMatcher {
 
 		exchange.setObserver(exchangeObserver);
 		exchangeStore.registerOutboundRequestWithTokenOnly(exchange);
-		LOGGER.log(Level.FINE, "Tracking open request using {0}", new Object[] { request.getTokenString() });
+		LOGGER.log(Level.FINEST, "Tracking open request using {0}", new Object[] { request.getTokenString() });
 	}
 
 	@Override
@@ -87,14 +87,14 @@ public final class TcpMatcher extends BaseMatcher {
 			if (exchange.getResponseBlockStatus() != null && !response.getOptions().hasObserve()) {
 				// Remember ongoing blockwise GET requests
 				if (exchangeStore.registerBlockwiseExchange(idByUri, exchange) == null) {
-					LOGGER.log(Level.FINE, "Ongoing Block2 started late, storing {0} for {1}", new Object[] { idByUri,
+					LOGGER.log(Level.FINEST, "Ongoing Block2 started late, storing {0} for {1}", new Object[] { idByUri,
 							request });
 				} else {
-					LOGGER.log(Level.FINE, "Ongoing Block2 continued, storing {0} for {1}", new Object[] { idByUri,
+					LOGGER.log(Level.FINEST, "Ongoing Block2 continued, storing {0} for {1}", new Object[] { idByUri,
 							request });
 				}
 			} else {
-				LOGGER.log(Level.FINE, "Ongoing Block2 completed, cleaning up {0} for {1}", new Object[] { idByUri,
+				LOGGER.log(Level.FINEST, "Ongoing Block2 completed, cleaning up {0} for {1}", new Object[] { idByUri,
 						request });
 				exchangeStore.remove(idByUri, exchange);
 			}
@@ -132,7 +132,7 @@ public final class TcpMatcher extends BaseMatcher {
 		} else {
 			Exchange.KeyUri idByUri = new Exchange.KeyUri(request.getURI(), request.getSource().getAddress(),
 					request.getSourcePort());
-			LOGGER.log(Level.FINE, "Looking up ongoing exchange for {0}", idByUri);
+			LOGGER.log(Level.FINEST, "Looking up ongoing exchange for {0}", idByUri);
 
 			Exchange ongoing = exchangeStore.get(idByUri);
 			if (ongoing != null) {
@@ -148,7 +148,7 @@ public final class TcpMatcher extends BaseMatcher {
 				 */
 
 				Exchange exchange = new Exchange(request, Exchange.Origin.REMOTE);
-				LOGGER.log(Level.FINER, "New ongoing request, storing {0} for {1}", new Object[] { idByUri, request });
+				LOGGER.log(Level.FINEST, "New ongoing request, storing {0} for {1}", new Object[] { idByUri, request });
 				exchange.setObserver(exchangeObserver);
 				exchangeStore.registerBlockwiseExchange(idByUri, exchange);
 				return exchange;
@@ -168,7 +168,7 @@ public final class TcpMatcher extends BaseMatcher {
 		} else if (isResponseRelatedToRequest(exchange, responseContext)) {
 			return exchange;
 		} else {
-			LOGGER.log(Level.INFO,
+			LOGGER.log(Level.FINEST,
 					"Ignoring potentially forged response for token {0} with non-matching correlation context",
 					idByToken);
 			return null;
@@ -210,7 +210,7 @@ public final class TcpMatcher extends BaseMatcher {
 					if(!originRequest.isObserve()) {
 						exchangeStore.releaseToken(idByToken);
 					}
-					LOGGER.log(Level.FINER, "Exchange [{0}, origin: {1}] completed", new Object[]{idByToken, exchange.getOrigin()});
+					LOGGER.log(Level.FINEST, "Exchange [{0}, origin: {1}] completed", new Object[]{idByToken, exchange.getOrigin()});
 				}
 			} else { // Origin.REMOTE
 				// this endpoint created the Exchange to respond to a request
@@ -220,7 +220,7 @@ public final class TcpMatcher extends BaseMatcher {
 				if (request != null && (request.getOptions().hasBlock1() || response.getOptions().hasBlock2())) {
 					Exchange.KeyUri uriKey = new Exchange.KeyUri(request.getURI(), request.getSource().getAddress(),
 							request.getSourcePort());
-					LOGGER.log(Level.FINE, "Remote ongoing completed, cleaning up ", uriKey);
+					LOGGER.log(Level.FINEST, "Remote ongoing completed, cleaning up ", uriKey);
 					exchangeStore.remove(uriKey, exchange);
 				}
 			}

@@ -31,7 +31,7 @@ class CloseOnIdleHandler extends ChannelDuplexHandler {
 
 	@Override public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
 		if (evt instanceof IdleStateEvent) {
-			LOGGER.log(Level.FINER, "Closing channel with {0} due to idle time.",
+			LOGGER.log(Level.FINEST, "Closing channel with {0} due to idle time.",
 					new Object[] { ctx.channel().remoteAddress() });
 			ctx.channel().close();
 		}

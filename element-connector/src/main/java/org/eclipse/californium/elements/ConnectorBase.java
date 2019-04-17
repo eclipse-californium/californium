@@ -224,7 +224,7 @@ public abstract class ConnectorBase implements Connector {
 
 		public void run() {
 			try {
-				LOGGER.fine("Starting thread " + getName());
+				LOGGER.finest("Starting thread " + getName());
 				while (running) {
 					try {
 						work();
@@ -236,7 +236,7 @@ public abstract class ConnectorBase implements Connector {
 					}
 				}
 			} finally {
-				LOGGER.fine("Thread " + getName() + " has terminated");
+				LOGGER.finest("Thread " + getName() + " has terminated");
 			}
 		}
 

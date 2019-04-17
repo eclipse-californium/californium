@@ -134,7 +134,7 @@ public final class HelloExtensions {
 				extensions.add(extension);
 			} else {
 				LOGGER.log(
-						Level.FINER,
+						Level.FINEST,
 						"Peer included an unknown extension type code [{0}] in its Hello message",
 						typeId);
 			}

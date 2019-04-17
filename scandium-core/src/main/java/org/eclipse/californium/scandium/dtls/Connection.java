@@ -236,13 +236,13 @@ public final class Connection implements SessionListener {
 	@Override
 	public void handshakeStarted(Handshaker handshaker)	throws HandshakeException {
 		this.ongoingHandshake.set(handshaker);
-		LOGGER.log(Level.FINE, "Handshake with [{0}] has been started", handshaker.getPeerAddress());
+		LOGGER.log(Level.FINEST, "Handshake with [{0}] has been started", handshaker.getPeerAddress());
 	}
 
 	@Override
 	public void sessionEstablished(Handshaker handshaker, DTLSSession session) throws HandshakeException {
 		this.establishedSession = session;
-		LOGGER.log(Level.FINE, "Session with [{0}] has been established", session.getPeer());
+		LOGGER.log(Level.FINEST, "Session with [{0}] has been established", session.getPeer());
 	}
 
 	@Override
@@ -250,7 +250,7 @@ public final class Connection implements SessionListener {
 		Handshaker handshaker = ongoingHandshake.getAndSet(null);
 		if (handshaker != null) {
 			cancelPendingFlight();
-			LOGGER.log(Level.FINE, "Handshake with [{0}] has been completed", peer);
+			LOGGER.log(Level.FINEST, "Handshake with [{0}] has been completed", peer);
 		}
 	}
 

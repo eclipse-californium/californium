@@ -39,31 +39,31 @@ public class MessageTracer implements MessageInterceptor {
 	
 	@Override
 	public void sendRequest(Request request) {
-		LOGGER.log(Level.INFO, "{0}:{1} <== req {2}", new Object[]{request.getDestination(), request.getDestinationPort(), request});
+		LOGGER.log(Level.FINEST, "{0}:{1} <== req {2}", new Object[]{request.getDestination(), request.getDestinationPort(), request});
 	}
 	
 	@Override
 	public void sendResponse(Response response) {
-		LOGGER.log(Level.INFO, "{0}:{1} <== res {2}", new Object[]{response.getDestination(), response.getDestinationPort(), response});
+		LOGGER.log(Level.FINEST, "{0}:{1} <== res {2}", new Object[]{response.getDestination(), response.getDestinationPort(), response});
 	}
 	
 	@Override
 	public void sendEmptyMessage(EmptyMessage message) {
-		LOGGER.log(Level.INFO, "{0}:{1} <== emp {2}", new Object[]{message.getDestination(), message.getDestinationPort(), message});
+		LOGGER.log(Level.FINEST, "{0}:{1} <== emp {2}", new Object[]{message.getDestination(), message.getDestinationPort(), message});
 	}
 	
 	@Override
 	public void receiveRequest(Request request) {
-		LOGGER.log(Level.INFO, "{0}:{1} ==> req {2}", new Object[]{request.getSource(), request.getSourcePort(), request});
+		LOGGER.log(Level.FINEST, "{0}:{1} ==> req {2}", new Object[]{request.getSource(), request.getSourcePort(), request});
 	}
 	
 	@Override
 	public void receiveResponse(Response response) {
-		LOGGER.log(Level.INFO, "{0}:{1} ==> res {2}", new Object[]{response.getSource(), response.getSourcePort(), response});
+		LOGGER.log(Level.FINEST, "{0}:{1} ==> res {2}", new Object[]{response.getSource(), response.getSourcePort(), response});
 	}	
 
 	@Override
 	public void receiveEmptyMessage(EmptyMessage message) {
-		LOGGER.log(Level.INFO, "{0}:{1} ==> emp {2}", new Object[]{message.getSource(), message.getSourcePort(), message});
+		LOGGER.log(Level.FINEST, "{0}:{1} ==> emp {2}", new Object[]{message.getSource(), message.getSourcePort(), message});
 	}
 }

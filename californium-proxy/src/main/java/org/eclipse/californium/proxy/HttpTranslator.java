@@ -886,8 +886,8 @@ public final class HttpTranslator {
 				httpResponse.setHeader("content-type", contentType.toString());
 			}
 		}
-		LOGGER.info("Translated " + coapResponse);
-		LOGGER.info("To " + httpResponse);
+		LOGGER.finest("Translated " + coapResponse);
+		LOGGER.finest("To " + httpResponse);
 	}
 
 	/**

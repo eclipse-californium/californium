@@ -687,9 +687,9 @@ public  class CoapResource implements Resource {
 	@Override
 	public void addObserveRelation(ObserveRelation relation) {
 		if (observeRelations.add(relation)) {
-			LOGGER.log(Level.INFO, "Replacing observe relation between {0} and resource {1}", new Object[]{relation.getKey(), getURI()});
+			LOGGER.log(Level.FINEST, "Replacing observe relation between {0} and resource {1}", new Object[]{relation.getKey(), getURI()});
 		} else {
-			LOGGER.log(Level.INFO, "Successfully established observe relation between {0} and resource {1}", new Object[]{relation.getKey(), getURI()});
+			LOGGER.log(Level.FINEST, "Successfully established observe relation between {0} and resource {1}", new Object[]{relation.getKey(), getURI()});
 		}
 		for (ResourceObserver obs:observers)
 			obs.addedObserveRelation(relation);

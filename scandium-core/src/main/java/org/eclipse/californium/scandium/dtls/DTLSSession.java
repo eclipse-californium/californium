@@ -614,7 +614,7 @@ public final class DTLSSession {
 		if (mtu < 60) {
 			throw new IllegalArgumentException("MTU must be at least 60 bytes");
 		} else {
-			LOGGER.log(Level.FINER, "Setting MTU for peer [{0}] to {1} bytes",
+			LOGGER.log(Level.FINEST, "Setting MTU for peer [{0}] to {1} bytes",
 					new Object[]{peer, mtu});
 			this.maxTransmissionUnit = mtu;
 			determineMaxFragmentLength(mtu);
@@ -628,7 +628,7 @@ public final class DTLSSession {
 		} else {
 			this.maxFragmentLength = maxTransmissionUnit - HEADER_LENGTH - writeState.getMaxCiphertextExpansion();
 		}
-		LOGGER.log(Level.FINER, "Setting maximum fragment length for peer [{0}] to {1} bytes",
+		LOGGER.log(Level.FINEST, "Setting maximum fragment length for peer [{0}] to {1} bytes",
 				new Object[]{peer, this.maxFragmentLength});
 	}
 
@@ -788,7 +788,7 @@ public final class DTLSSession {
 			long bitMask = 1L << (sequenceNo - receiveWindowLowerBoundary);
 			// mark sequence number as "received" in receive window
 			receivedRecordsVector |= bitMask;
-			LOGGER.log(Level.FINER, "Updated receive window with sequence number [{0}]: new upper boundary [{1}], new bit vector [{2}]",
+			LOGGER.log(Level.FINEST, "Updated receive window with sequence number [{0}]: new upper boundary [{1}], new bit vector [{2}]",
 					new Object[]{sequenceNo, receiveWindowUpperBoundary, Long.toBinaryString(receivedRecordsVector)});
 		}
 	}

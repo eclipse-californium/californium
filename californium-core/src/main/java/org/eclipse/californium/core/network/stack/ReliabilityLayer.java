@@ -76,7 +76,7 @@ public class ReliabilityLayer extends AbstractLayer {
 	@Override
 	public void sendRequest(final Exchange exchange, final Request request) {
 
-		LOGGER.log(Level.FINER, "Send request, failed transmissions: {0}", exchange.getFailedTransmissionCount());
+		LOGGER.log(Level.FINEST, "Send request, failed transmissions: {0}", exchange.getFailedTransmissionCount());
 
 		if (request.getType() == null) {
 			request.setType(Type.CON);
@@ -101,7 +101,7 @@ public class ReliabilityLayer extends AbstractLayer {
 	@Override
 	public void sendResponse(final Exchange exchange, final Response response) {
 
-		LOGGER.log(Level.FINER, "Send response, failed transmissions: {0}", exchange.getFailedTransmissionCount());
+		LOGGER.log(Level.FINEST, "Send response, failed transmissions: {0}", exchange.getFailedTransmissionCount());
 
 		// If a response type is set, we do not mess around with it.
 		// Only if none is set, we have to decide for one here.
@@ -132,7 +132,7 @@ public class ReliabilityLayer extends AbstractLayer {
 		}
 
 		if (response.getType() == Type.CON) {
-			LOGGER.finer("Scheduling retransmission for " + response);
+			LOGGER.finest("Scheduling retransmission for " + response);
 			prepareRetransmission(exchange, new RetransmissionTask(exchange, response) {
 
 				public void retransmit() {
@@ -154,7 +154,7 @@ public class ReliabilityLayer extends AbstractLayer {
 
 		// prevent RejectedExecutionException
 		if (executor.isShutdown()) {
-			LOGGER.info("Endpoint is being destroyed: skipping retransmission");
+			LOGGER.finest("Endpoint is being destroyed: skipping retransmission");
 			return;
 		}
 
@@ -191,22 +191,22 @@ public class ReliabilityLayer extends AbstractLayer {
 		if (request.isDuplicate()) {
 			// Request is a duplicate, so resend ACK, RST or response
 			if (exchange.getCurrentResponse() != null) {
-				LOGGER.fine("Respond with the current response to the duplicate request");
+				LOGGER.finest("Respond with the current response to the duplicate request");
 				// Do not restart retransmission cycle
 				lower().sendResponse(exchange, exchange.getCurrentResponse());
 
 			} else if (exchange.getCurrentRequest().isAcknowledged()) {
-				LOGGER.fine("The duplicate request was acknowledged but no response computed yet. Retransmit ACK");
+				LOGGER.finest("The duplicate request was acknowledged but no response computed yet. Retransmit ACK");
 				EmptyMessage ack = EmptyMessage.newACK(request);
 				sendEmptyMessage(exchange, ack);
 
 			} else if (exchange.getCurrentRequest().isRejected()) {
-				LOGGER.fine("The duplicate request was rejected. Reject again");
+				LOGGER.finest("The duplicate request was rejected. Reject again");
 				EmptyMessage rst = EmptyMessage.newRST(request);
 				sendEmptyMessage(exchange, rst);
 
 			} else {
-				LOGGER.fine("The server has not yet decided what to do with the request. We ignore the duplicate.");
+				LOGGER.finest("The server has not yet decided what to do with the request. We ignore the duplicate.");
 				// The server has not yet decided, whether to acknowledge or
 				// reject the request. We know for sure that the server has
 				// received the request though and can drop this duplicate here.
@@ -232,13 +232,13 @@ public class ReliabilityLayer extends AbstractLayer {
 		exchange.setRetransmissionHandle(null);
 
 		if (response.getType() == Type.CON && !exchange.getRequest().isCanceled()) {
-			LOGGER.finer("acknowledging CON response");
+			LOGGER.finest("acknowledging CON response");
 			EmptyMessage ack = EmptyMessage.newACK(response);
 			sendEmptyMessage(exchange, ack);
 		}
 
 		if (response.isDuplicate()) {
-			LOGGER.fine("ignoring duplicate response");
+			LOGGER.finest("ignoring duplicate response");
 		} else {
 			upper().receiveResponse(exchange, response);
 		}
@@ -335,19 +335,19 @@ public class ReliabilityLayer extends AbstractLayer {
 					return;
 
 				} else if (failedCount <= max_retransmit) {
-					LOGGER.log(Level.FINER, "Timeout: retransmit message, failed: {0}, message: {1}", new Object[]{failedCount, message});
+					LOGGER.log(Level.FINEST, "Timeout: retransmit message, failed: {0}, message: {1}", new Object[]{failedCount, message});
 
 					// Trigger MessageObservers
 					message.retransmitting();
 
 					// MessageObserver might have canceled
 					if (message.isCanceled()) {
-						LOGGER.log(Level.FINER, "Timeout: canceled (MID={0}), do not retransmit", message.getMID());
+						LOGGER.log(Level.FINEST, "Timeout: canceled (MID={0}), do not retransmit", message.getMID());
 						return;
 					}
 					retransmit();
 				} else {
-					LOGGER.log(Level.FINE, "Timeout: retransmission limit reached, exchange failed, message: {0}", message);
+					LOGGER.log(Level.FINEST, "Timeout: retransmission limit reached, exchange failed, message: {0}", message);
 					exchange.setTimedOut();
 					message.setTimedOut(true);
 				}

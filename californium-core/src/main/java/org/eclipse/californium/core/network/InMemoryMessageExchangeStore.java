@@ -157,7 +157,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 
 	@Override
 	public boolean isEmpty() {
-		LOGGER.finer(dumpCurrentLoadLevels());
+		LOGGER.finest(dumpCurrentLoadLevels());
 		return exchangesByMID.isEmpty() && exchangesByToken.isEmpty() && ongoingExchanges.isEmpty() &&
 				deduplicator.isEmpty();
 	}
@@ -257,7 +257,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	public void remove(final KeyToken token, final Exchange exchange) {
 		boolean removed = exchangesByToken.remove(token, exchange);
 		if (removed) {
-			LOGGER.log(Level.FINE, "removing exchange for token {0}", new Object[] { token });
+			LOGGER.log(Level.FINEST, "removing exchange for token {0}", new Object[] { token });
 		}
 	}
 
@@ -272,7 +272,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			removedExchange = null;
 		}
 		if (null != removedExchange) {
-			LOGGER.log(Level.FINE, "removing exchange for MID {0}", new Object[] { messageId });
+			LOGGER.log(Level.FINEST, "removing exchange for MID {0}", new Object[] { messageId });
 		}
 		return removedExchange;
 	}
@@ -323,7 +323,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	@Override
 	public void remove(final KeyUri requestUri, final Exchange exchange) {
 		if (ongoingExchanges.remove(requestUri, exchange)) {
-			LOGGER.log(Level.FINE, "removing transfer for URI {0}, remaining ongoing exchanges: {1}", new Object[]{requestUri, ongoingExchanges.size()});
+			LOGGER.log(Level.FINEST, "removing transfer for URI {0}, remaining ongoing exchanges: {1}", new Object[]{requestUri, ongoingExchanges.size()});
 		}
 	}
 

@@ -224,7 +224,7 @@ public class CoapClient {
 		if (!endpoint.isStarted()) {
 			try {
 				endpoint.start();
-				LOGGER.log(Level.INFO, "Started set client endpoint {0}", endpoint.getAddress());
+				LOGGER.log(Level.FINEST, "Started set client endpoint {0}", endpoint.getAddress());
 			} catch (IOException e) {
 				LOGGER.log(Level.SEVERE, "Could not set and start client endpoint", e);
 			}
@@ -1146,7 +1146,7 @@ public class CoapClient {
 				if (relation.onResponse(response)) {
 					handler.onLoad(response);
 				} else {
-					LOGGER.log(Level.FINER, "Dropping old notification: {0}", response.advanced());
+					LOGGER.log(Level.FINEST, "Dropping old notification: {0}", response.advanced());
 					return;
 				}
 			}

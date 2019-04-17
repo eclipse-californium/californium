@@ -69,7 +69,7 @@ public final class ProxyMessageDeliverer implements MessageDeliverer {
 			request.getOptions().setProxyUri(request.getURI());
 			
 		} else {
-			LOGGER.info("Local request to " + request.getURI());
+			LOGGER.finest("Local request to " + request.getURI());
 			List<String> path = request.getOptions().getUriPath();
 			resource = findResource(path);
 		}
@@ -89,7 +89,7 @@ public final class ProxyMessageDeliverer implements MessageDeliverer {
 				resource.handleRequest(exchange);
 			}
 		} else {
-			LOGGER.log(Level.INFO, "Did not find resource {0} requested by {1}:{2}",
+			LOGGER.log(Level.FINEST, "Did not find resource {0} requested by {1}:{2}",
 					new Object[]{request.getOptions().getUriPath(), request.getSource(), request.getSourcePort()});
 			exchange.sendResponse(new Response(ResponseCode.NOT_FOUND));
 		}
@@ -120,7 +120,7 @@ public final class ProxyMessageDeliverer implements MessageDeliverer {
 			
 			if (request.getOptions().getObserve()==0) {
 				// Requests wants to observe and resource allows it :-)
-				LOGGER.log(Level.FINER,
+				LOGGER.log(Level.FINEST,
 						"Initiate an observe relation between {0}:{1} and resource {2}",
 						new Object[]{request.getSource(), request.getSourcePort(), resource.getURI()});
 				ObservingEndpoint remote = observeManager.findObservingEndpoint(source);

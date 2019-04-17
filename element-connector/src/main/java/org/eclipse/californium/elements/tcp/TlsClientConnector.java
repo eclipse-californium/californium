@@ -77,10 +77,10 @@ public class TlsClientConnector extends TcpClientConnector {
 	private SSLEngine createSllEngine(SocketAddress remoteAddress) {
 		if (remoteAddress instanceof InetSocketAddress) {
 			InetSocketAddress remote = (InetSocketAddress) remoteAddress;
-			LOGGER.log(Level.INFO, "Connection to inet {0}", remote);
+			LOGGER.log(Level.FINEST, "Connection to inet {0}", remote);
 			return sslContext.createSSLEngine(remote.getHostString(), remote.getPort());
 		} else {
-			LOGGER.log(Level.INFO, "Connection to {0}", remoteAddress);
+			LOGGER.log(Level.FINEST, "Connection to {0}", remoteAddress);
 			return sslContext.createSSLEngine();
 		}
 	}

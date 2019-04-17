@@ -228,7 +228,7 @@ public class ServerHandshaker extends Handshaker {
 			// we already sent the last flight (including our FINISHED message),
 			// but the client does not seem to have received it because we received
 			// its finished message again, so we simply retransmit our last flight
-			LOGGER.log(Level.FINER, "Received client's ({0}) FINISHED message again, retransmitting last flight...",
+			LOGGER.log(Level.FINEST, "Received client's ({0}) FINISHED message again, retransmitting last flight...",
 					getPeerAddress());
 			lastFlight.incrementTries();
 			lastFlight.setNewSequenceNumbers();
@@ -253,7 +253,7 @@ public class ServerHandshaker extends Handshaker {
 		switch (message.getContentType()) {
 		case CHANGE_CIPHER_SPEC:
 			setCurrentReadState();
-			LOGGER.log(Level.FINE, "Processed {1} message from peer [{0}]",
+			LOGGER.log(Level.FINEST, "Processed {1} message from peer [{0}]",
 					new Object[]{message.getPeer(), message.getContentType()});
 			break;
 
@@ -319,7 +319,7 @@ public class ServerHandshaker extends Handshaker {
 				// not ignore a client FINISHED retransmission caused by lost server FINISHED
 				incrementNextReceiveSeq();
 			}
-			LOGGER.log(Level.FINE, "Processed {1} message with message sequence no [{2}] from peer [{0}]",
+			LOGGER.log(Level.FINEST, "Processed {1} message with message sequence no [{2}] from peer [{0}]",
 					new Object[]{message.getPeer(), handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq()});
 			break;
 
@@ -530,7 +530,7 @@ public class ServerHandshaker extends Handshaker {
 			session.setMaxFragmentLength(maxFragmentLengthExt.getFragmentLength().length());
 			serverHelloExtensions.addExtension(maxFragmentLengthExt);
 			LOGGER.log(
-					Level.FINE,
+					Level.FINEST,
 					"Negotiated max. fragment length [{0} bytes] with peer [{1}]",
 					new Object[]{maxFragmentLengthExt.getFragmentLength().length(), clientHello.getPeer()});
 		}
@@ -541,7 +541,7 @@ public class ServerHandshaker extends Handshaker {
 			indicatedServerNames = serverNameExt.getServerNames();
 			serverHelloExtensions.addExtension(ServerNameExtension.emptyServerNameIndication());
 			LOGGER.log(
-					Level.FINE,
+					Level.FINEST,
 					"Using server name indication received from peer [{1}]",
 					clientHello.getPeer());
 		}
@@ -665,7 +665,7 @@ public class ServerHandshaker extends Handshaker {
 		// use the client's PSK identity to get right preshared key
 		String identity = message.getIdentity();
 
-		LOGGER.log(Level.FINER, "Client [{0}] uses PSK identity [{1}]",
+		LOGGER.log(Level.FINEST, "Client [{0}] uses PSK identity [{1}]",
 				new Object[]{getPeerAddress(), identity});
 
 		if (getIndicatedServerNames() == null) {
@@ -781,7 +781,7 @@ public class ServerHandshaker extends Handshaker {
 					negotiatedSupportedGroup = group;
 					session.setCipherSuite(cipherSuite);
 					addServerHelloExtensions(cipherSuite, serverHelloExtensions);
-					LOGGER.log(Level.FINER, "Negotiated cipher suite [{0}] with peer [{1}]",
+					LOGGER.log(Level.FINEST, "Negotiated cipher suite [{0}] with peer [{1}]",
 							new Object[]{cipherSuite.name(), getPeerAddress()});
 					return;
 				}

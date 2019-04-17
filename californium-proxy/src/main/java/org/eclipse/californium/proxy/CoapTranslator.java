@@ -155,7 +155,7 @@ public final class CoapTranslator {
 		outgoingResponse.setOptions(new OptionSet(
 				incomingResponse.getOptions()));
 		
-		LOGGER.finer("Incoming response translated correctly");
+		LOGGER.finest("Incoming response translated correctly");
 		return outgoingResponse;
 	}
 

@@ -163,7 +163,7 @@ public class EndpointManager {
 
 		try {
 			default_endpoint.start();
-			LOGGER.log(Level.INFO, "Created implicit default endpoint {0}", default_endpoint.getAddress());
+			LOGGER.log(Level.FINEST, "Created implicit default endpoint {0}", default_endpoint.getAddress());
 		} catch (IOException e) {
 			LOGGER.log(Level.SEVERE, "Could not create default endpoint", e);
 		}
@@ -181,7 +181,7 @@ public class EndpointManager {
 		default_tcp_endpoint = new CoapEndpoint(connector, config);
 		try {
 			default_tcp_endpoint.start();
-			LOGGER.log(Level.INFO, "Created implicit tcp endpoint {0}", default_tcp_endpoint.getAddress());
+			LOGGER.log(Level.FINEST, "Created implicit tcp endpoint {0}", default_tcp_endpoint.getAddress());
 		} catch (IOException e) {
 			LOGGER.log(Level.SEVERE, "Could not create tcp endpoint", e);
 		}
@@ -199,7 +199,7 @@ public class EndpointManager {
 		default_secure_tpc_endpoint = new CoapEndpoint(connector, config);
 		try {
 			default_secure_tpc_endpoint.start();
-			LOGGER.log(Level.INFO, "Created implicit secure tcp endpoint {0}",
+			LOGGER.log(Level.FINEST, "Created implicit secure tcp endpoint {0}",
 					default_secure_tpc_endpoint.getAddress());
 		} catch (IOException e) {
 			LOGGER.log(Level.SEVERE, "Could not create secure tcp endpoint", e);
@@ -329,7 +329,7 @@ public class EndpointManager {
 		if (!this.default_secure_endpoint.isStarted()) {
 			try {
 				default_secure_endpoint.start();
-				LOGGER.log(Level.INFO, "Started new default secure endpoint {0}", default_secure_endpoint.getAddress());
+				LOGGER.log(Level.FINEST, "Started new default secure endpoint {0}", default_secure_endpoint.getAddress());
 			} catch (IOException e) {
 				LOGGER.log(Level.SEVERE, "Could not start new default secure endpoint", e);
 			}

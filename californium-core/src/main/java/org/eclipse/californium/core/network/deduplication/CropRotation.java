@@ -170,7 +170,7 @@ public class CropRotation implements Deduplicator {
 		
 		private void schedule() {
 			if (!executor.isShutdown()) {
-				LOGGER.log(Level.FINE, "CR schedules in {0} ms", period);
+				LOGGER.log(Level.FINEST, "CR schedules in {0} ms", period);
 				future = executor.schedule(this, period, TimeUnit.MILLISECONDS);
 			}
 		}

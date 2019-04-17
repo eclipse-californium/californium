@@ -274,7 +274,7 @@ public class NetworkRule implements TestRule {
 			RULES_STACK.push(this);
 			size = RULES_STACK.size();
 		}
-		LOGGER.log(Level.INFO, "{0} rules active.", size);
+		LOGGER.log(Level.FINEST, "{0} rules active.", size);
 		initNetwork(first);
 	}
 
@@ -296,7 +296,7 @@ public class NetworkRule implements TestRule {
 			activeRule = RULES_STACK.peek();
 			size = RULES_STACK.size();
 		}
-		LOGGER.log(Level.INFO, "{0} rules active.", size);
+		LOGGER.log(Level.FINEST, "{0} rules active.", size);
 		if (this != closedRule) {
 			throw new IllegalStateException("closed rule differs!");
 		}
@@ -348,7 +348,7 @@ public class NetworkRule implements TestRule {
 	protected void initNetwork(boolean outerScope) {
 		if (Mode.DIRECT == usedMode) {
 			if (outerScope && !DirectDatagramSocketImpl.isEmpty()) {
-				LOGGER.info("Previous test did not call ''closeNetwork()''!");
+				LOGGER.finest("Previous test did not call ''closeNetwork()''!");
 				DirectDatagramSocketImpl.clearAll();
 			}
 			DirectDatagramSocketImpl.configure(formatter, delayInMillis);
@@ -371,7 +371,7 @@ public class NetworkRule implements TestRule {
 				synchronized (RULES_STACK) {
 					description = this.description;
 				}
-				LOGGER.log(Level.INFO, "Test {0} did not close all DatagramSockets!", description);
+				LOGGER.log(Level.FINEST, "Test {0} did not close all DatagramSockets!", description);
 				DirectDatagramSocketImpl.clearAll();
 			}
 			DirectDatagramSocketImpl.configure(DEFAULT_FORMATTER, DEFAULT_DELAY_IN_MILLIS);
@@ -426,7 +426,7 @@ public class NetworkRule implements TestRule {
 			size = RULES_STACK.size();
 			active = !RULES_STACK.isEmpty();
 		}
-		LOGGER.log(Level.INFO, "{0} rules active.", size);
+		LOGGER.log(Level.FINEST, "{0} rules active.", size);
 		return active;
 	}
 }

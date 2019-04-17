@@ -128,14 +128,14 @@ public final class UdpMatcher extends BaseMatcher {
 			if (exchange.getResponseBlockStatus() != null && !response.getOptions().hasObserve()) {
 				// Remember ongoing blockwise GET requests
 				if (exchangeStore.registerBlockwiseExchange(idByUri, exchange) == null) {
-					LOGGER.log(Level.FINE, "Ongoing Block2 started late, storing {0} for {1}",
+					LOGGER.log(Level.FINEST, "Ongoing Block2 started late, storing {0} for {1}",
 							new Object[] { idByUri, request });
 				} else {
-					LOGGER.log(Level.FINE, "Ongoing Block2 continued, storing {0} for {1}",
+					LOGGER.log(Level.FINEST, "Ongoing Block2 continued, storing {0} for {1}",
 							new Object[] { idByUri, request });
 				}
 			} else {
-				LOGGER.log(Level.FINE, "Ongoing Block2 completed, cleaning up {0} for {1}",
+				LOGGER.log(Level.FINEST, "Ongoing Block2 completed, cleaning up {0} for {1}",
 						new Object[] { idByUri, request });
 				exchangeStore.remove(idByUri, exchange);
 			}
@@ -210,7 +210,7 @@ public final class UdpMatcher extends BaseMatcher {
 				return exchange;
 
 			} else {
-				LOGGER.log(Level.FINER, "Duplicate request: {0}", request);
+				LOGGER.log(Level.FINEST, "Duplicate request: {0}", request);
 				request.setDuplicate(true);
 				return previous;
 			}
@@ -218,14 +218,14 @@ public final class UdpMatcher extends BaseMatcher {
 		} else {
 
 			KeyUri idByUri = new KeyUri(request.getURI(), request.getSource().getAddress(), request.getSourcePort());
-			LOGGER.log(Level.FINE, "Looking up ongoing exchange for {0}", idByUri);
+			LOGGER.log(Level.FINEST, "Looking up ongoing exchange for {0}", idByUri);
 
 			Exchange ongoing = exchangeStore.get(idByUri);
 			if (ongoing != null) {
 
 				Exchange prev = exchangeStore.findPrevious(idByMID, ongoing);
 				if (prev != null) {
-					LOGGER.log(Level.FINER, "Duplicate ongoing request: {0}", request);
+					LOGGER.log(Level.FINEST, "Duplicate ongoing request: {0}", request);
 					request.setDuplicate(true);
 				} else {
 					// the exchange is continuing, we can (i.e., must) clean up the previous response
@@ -233,7 +233,7 @@ public final class UdpMatcher extends BaseMatcher {
 					if (ongoing.getCurrentResponse() != null && ongoing.getCurrentResponse().getType() != Type.ACK
 							&& !ongoing.getCurrentResponse().getOptions().hasObserve()) {
 						idByMID = KeyMID.fromOutboundMessage(ongoing.getCurrentResponse());
-						LOGGER.log(Level.FINE, "Ongoing exchange got new request, cleaning up {0}", idByMID);
+						LOGGER.log(Level.FINEST, "Ongoing exchange got new request, cleaning up {0}", idByMID);
 						exchangeStore.remove(idByMID, ongoing);
 					}
 				}
@@ -252,13 +252,13 @@ public final class UdpMatcher extends BaseMatcher {
 				Exchange exchange = new Exchange(request, Origin.REMOTE);
 				Exchange previous = exchangeStore.findPrevious(idByMID, exchange);
 				if (previous == null) {
-					LOGGER.log(Level.FINER, "New ongoing request, storing {0} for {1}",
+					LOGGER.log(Level.FINEST, "New ongoing request, storing {0} for {1}",
 							new Object[] { idByUri, request });
 					exchange.setObserver(exchangeObserver);
 					exchangeStore.registerBlockwiseExchange(idByUri, exchange);
 					return exchange;
 				} else {
-					LOGGER.log(Level.FINER, "Duplicate initial request: {0}", request);
+					LOGGER.log(Level.FINEST, "Duplicate initial request: {0}", request);
 					request.setDuplicate(true);
 					return previous;
 				}
@@ -278,7 +278,7 @@ public final class UdpMatcher extends BaseMatcher {
 
 		KeyMID idByMID = KeyMID.fromInboundMessage(response);
 		KeyToken idByToken = KeyToken.fromInboundMessage(response);
-		LOGGER.log(Level.FINER, "received response {0}", response);
+		LOGGER.log(Level.FINEST, "received response {0}", response);
 		Exchange exchange = exchangeStore.get(idByToken);
 
 		if (exchange == null) {
@@ -287,12 +287,12 @@ public final class UdpMatcher extends BaseMatcher {
 				// only act upon separate (non piggy-backed) responses
 				Exchange prev = exchangeStore.find(idByMID);
 				if (prev != null) {
-					LOGGER.log(Level.FINER, "Received response for already completed exchange: {0}", response);
+					LOGGER.log(Level.FINEST, "Received response for already completed exchange: {0}", response);
 					response.setDuplicate(true);
 					return prev;
 				}
 			} else {
-				LOGGER.log(Level.FINER, "Discarding unmatchable piggy-backed response from [{0}:{1}]: {2}",
+				LOGGER.log(Level.FINEST, "Discarding unmatchable piggy-backed response from [{0}:{1}]: {2}",
 						new Object[] { response.getSource(), response.getSourcePort(), response });
 			}
 			// ignore response
@@ -321,19 +321,19 @@ public final class UdpMatcher extends BaseMatcher {
 
 			if ((response.getType() == Type.CON || response.getType() == Type.NON) &&
 					exchangeStore.findPrevious(idByMID, exchange) != null) {
-				LOGGER.log(Level.FINER, "Received duplicate response for open exchange: {0}", response);
+				LOGGER.log(Level.FINEST, "Received duplicate response for open exchange: {0}", response);
 				response.setDuplicate(true);
 			} else {
 				// we have received the expected response for the original request
 				idByMID = KeyMID.fromOutboundMessage(exchange.getCurrentRequest());
 				if (exchangeStore.remove(idByMID, exchange) != null) {
-					LOGGER.log(Level.FINE, "Closed open request [{0}]", idByMID);
+					LOGGER.log(Level.FINEST, "Closed open request [{0}]", idByMID);
 				}
 			}
 
 			return exchange;
 		} else {
-			LOGGER.log(Level.INFO,
+			LOGGER.log(Level.FINEST,
 					"Ignoring potentially forged response for token {0} with non-matching correlation context",
 					idByToken);
 			return null;
@@ -394,16 +394,16 @@ public final class UdpMatcher extends BaseMatcher {
 		Exchange exchange = exchangeStore.remove(idByMID, null);
 
 		if (exchange != null) {
-			LOGGER.log(Level.FINE, "Received expected reply for message exchange {0}", idByMID);
+			LOGGER.log(Level.FINEST, "Received expected reply for message exchange {0}", idByMID);
 		} else {
-			LOGGER.log(Level.FINER, "Ignoring non-matchable empty message from {0}:{1}: {2}",
+			LOGGER.log(Level.FINEST, "Ignoring non-matchable empty message from {0}:{1}: {2}",
 					new Object[] {message.getSource(), message.getSourcePort(), message});
 		}
 		return exchange;
 	}
 
 	private void removeNotificationsOf(final ObserveRelation relation) {
-		LOGGER.log(Level.FINE, "Removing all remaining NON-notifications of observe relation with {0}",
+		LOGGER.log(Level.FINEST, "Removing all remaining NON-notifications of observe relation with {0}",
 				relation.getSource());
 		for (Iterator<Response> iterator = relation.getNotificationIterator(); iterator.hasNext(); ) {
 			Response previous = iterator.next();
@@ -468,7 +468,7 @@ public final class UdpMatcher extends BaseMatcher {
 					if (!originRequest.isObserve()) {
 						exchangeStore.releaseToken(idByToken);
 					}
-					LOGGER.log(Level.FINER, "Exchange [{0}, origin: {1}] completed", new Object[]{idByToken, exchange.getOrigin()});
+					LOGGER.log(Level.FINEST, "Exchange [{0}, origin: {1}] completed", new Object[]{idByToken, exchange.getOrigin()});
 				}
 
 			} else { // Origin.REMOTE
@@ -487,7 +487,7 @@ public final class UdpMatcher extends BaseMatcher {
 						KeyMID midKey = KeyMID.fromOutboundMessage(response);
 						exchangeStore.remove(midKey, exchange);
 
-						LOGGER.log(Level.FINER, "Exchange [{0}, {1}] completed", new Object[]{midKey, exchange.getOrigin()});
+						LOGGER.log(Level.FINEST, "Exchange [{0}, {1}] completed", new Object[]{midKey, exchange.getOrigin()});
 					}
 					else {
 						// sometime proactive cancel requests and notifies are overlapping
@@ -498,7 +498,7 @@ public final class UdpMatcher extends BaseMatcher {
 				if (request != null && (request.getOptions().hasBlock1() || ( null != response && response.getOptions().hasBlock2()))) {
 					KeyUri uriKey = new KeyUri(request.getURI(), request.getSource().getAddress(),
 							request.getSourcePort());
-					LOGGER.log(Level.FINE, "Blockwise exchange with remote peer {0} completed, cleaning up ", uriKey);
+					LOGGER.log(Level.FINEST, "Blockwise exchange with remote peer {0} completed, cleaning up ", uriKey);
 					exchangeStore.remove(uriKey, exchange);
 				}
 

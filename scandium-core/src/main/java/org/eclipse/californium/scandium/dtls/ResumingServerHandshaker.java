@@ -84,7 +84,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 
 		case CHANGE_CIPHER_SPEC:
 			setCurrentReadState();
-			LOGGER.log(Level.FINE, "Processed {1} message from peer [{0}]",
+			LOGGER.log(Level.FINEST, "Processed {1} message from peer [{0}]",
 					new Object[]{message.getPeer(), message.getContentType()});
 			break;
 
@@ -107,7 +107,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 			}
 
 			incrementNextReceiveSeq();
-			LOGGER.log(Level.FINE, "Processed {1} message with sequence no [{2}] from peer [{0}]",
+			LOGGER.log(Level.FINEST, "Processed {1} message with sequence no [{2}] from peer [{0}]",
 					new Object[]{handshakeMsg.getPeer(), handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq()});
 			break;
 

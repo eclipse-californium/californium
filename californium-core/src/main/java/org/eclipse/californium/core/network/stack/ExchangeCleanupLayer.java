@@ -40,7 +40,7 @@ public class ExchangeCleanupLayer extends AbstractLayer {
 		public void onCancel() {
 
 			if (!exchange.isComplete()) {
-				LOGGER.log(Level.FINE, "completing canceled request [MID={0}, token={1}]",
+				LOGGER.log(Level.FINEST, "completing canceled request [MID={0}, token={1}]",
 						new Object[]{ exchange.getRequest().getMID(), exchange.getRequest().getTokenString() });
 				exchange.setComplete();
 			}

@@ -73,7 +73,7 @@ public enum CompressionMethod {
 			return CompressionMethod.DEFLATE;
 
 		default:
-			LOGGER.log(Level.FINER, "Unknown compression method code: {0}", code);
+			LOGGER.log(Level.FINEST, "Unknown compression method code: {0}", code);
 			return null;
 		}
 	}

@@ -138,7 +138,7 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 
 	@Override
 	protected void bind(int lport, InetAddress laddr) throws SocketException {
-		LOGGER.log(Level.FINE, "binding to port {0}, address {1}", new Object[] { lport, laddr });
+		LOGGER.log(Level.FINEST, "binding to port {0}, address {1}", new Object[] { lport, laddr });
 		int port = bind(lport);
 		synchronized (this) {
 			this.localPort = port;
@@ -158,10 +158,10 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 			addr = this.localAddress;
 			this.closed = true;
 		}
-		LOGGER.log(Level.FINE, "closing port {0}, address {1}", new Object[] { port, addr });
+		LOGGER.log(Level.FINEST, "closing port {0}, address {1}", new Object[] { port, addr });
 		if (!isClosed) {
 			if (!map.remove(port, this)) {
-				LOGGER.log(Level.INFO, "cannot close unknown port {0}, address {1}", new Object[] { port, addr });
+				LOGGER.log(Level.FINEST, "cannot close unknown port {0}, address {1}", new Object[] { port, addr });
 			}
 		}
 	}
@@ -378,7 +378,7 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 					throw new SocketException("No left free port!");
 				}
 			}
-			LOGGER.log(Level.FINE, "assigned port {0}", port);
+			LOGGER.log(Level.FINEST, "assigned port {0}", port);
 			return port;
 		} else {
 			if (null != map.putIfAbsent(lport, this)) {

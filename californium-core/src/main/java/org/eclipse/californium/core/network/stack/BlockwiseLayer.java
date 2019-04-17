@@ -154,7 +154,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			// Note: We do not regard it as random access when the block num is
 			// 0. This is because the user might just want to do early block
 			// size negotiation but actually wants to receive all blocks.
-			LOGGER.fine("request contains block2 option, creating random-access blockwise status");
+			LOGGER.finest("request contains block2 option, creating random-access blockwise status");
 			BlockwiseStatus status = new BlockwiseStatus(getSizeForSzx(block2.getSzx()), request.getOptions().getContentFormat());
 			status.setCurrentSzx(block2.getSzx());
 			status.setCurrentNum(block2.getNum());
@@ -193,7 +193,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		if (block1 != null) {
 
 			// This is a large POST or PUT request
-			LOGGER.log(Level.FINE, "inbound request contains block1 option {0}", block1);
+			LOGGER.log(Level.FINEST, "inbound request contains block1 option {0}", block1);
 
 			if (isTransparentBlockwiseHandlingEnabled()) {
 
@@ -201,7 +201,7 @@ public class BlockwiseLayer extends AbstractLayer {
 
 			} else {
 
-				LOGGER.fine("transparent blockwise handling is disabled, delivering request to application layer");
+				LOGGER.finest("transparent blockwise handling is disabled, delivering request to application layer");
 				upper().receiveRequest(exchange, request);
 
 			}
@@ -220,11 +220,11 @@ public class BlockwiseLayer extends AbstractLayer {
 			block.getOptions().setSize2(response.getPayloadSize());
 			if (status.isComplete()) {
 				// clean up blockwise status
-				LOGGER.log(Level.FINE, "peer has requested last block of blockwise transfer: {0}", status);
+				LOGGER.log(Level.FINEST, "peer has requested last block of blockwise transfer: {0}", status);
 				exchange.setResponseBlockStatus(null);
 				exchange.setBlockCleanupHandle(null);
 			} else {
-				LOGGER.log(Level.FINE, "peer has requested intermediary block of blockwise transfer: {0}", status);
+				LOGGER.log(Level.FINEST, "peer has requested intermediary block of blockwise transfer: {0}", status);
 			}
 
 			exchange.setCurrentResponse(block);
@@ -253,7 +253,7 @@ public class BlockwiseLayer extends AbstractLayer {
 
 			if (block1.getNum() == 0 && status.getCurrentNum() > 0) {
 				// reset the blockwise transfer
-				LOGGER.finer("Block1 num is 0, the client has restarted the blockwise transfer. Reset status.");
+				LOGGER.finest("Block1 num is 0, the client has restarted the blockwise transfer. Reset status.");
 				// reset current status
 				exchange.setRequestBlockStatus(null);
 				// and create new status for fresher notification
@@ -279,7 +279,7 @@ public class BlockwiseLayer extends AbstractLayer {
 						// do not assemble and deliver the request yet
 
 					} else {
-						LOGGER.finer("This was the last block. Deliver request");
+						LOGGER.finest("This was the last block. Deliver request");
 
 						// Remember block to acknowledge. TODO: We might make this a boolean flag in status.
 						exchange.setBlock1ToAck(block1); 
@@ -343,11 +343,11 @@ public class BlockwiseLayer extends AbstractLayer {
 			}
 			if (status.isComplete()) {
 				// clean up blockwise status
-				LOGGER.log(Level.FINE, "Ongoing finished on first block {0}", status);
+				LOGGER.log(Level.FINEST, "Ongoing finished on first block {0}", status);
 				exchange.setResponseBlockStatus(null);
 				exchange.setBlockCleanupHandle(null);
 			} else {
-				LOGGER.log(Level.FINE, "Ongoing started {0}", status);
+				LOGGER.log(Level.FINEST, "Ongoing started {0}", status);
 			}
 
 			exchange.setCurrentResponse(block);
@@ -382,7 +382,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			// do not continue fetching blocks if canceled
 			// reject (in particular for Block+Observe)
 			if (response.getType()!=Type.ACK) {
-				LOGGER.finer("rejecting blockwise transfer for canceled Exchange");
+				LOGGER.finest("rejecting blockwise transfer for canceled Exchange");
 				EmptyMessage rst = EmptyMessage.newRST(response);
 				sendEmptyMessage(exchange, rst);
 				// Matcher sets exchange as complete when RST is sent
@@ -419,13 +419,13 @@ public class BlockwiseLayer extends AbstractLayer {
 	 */
 	private void handleBlock1Response(final Exchange exchange, final Response response, final BlockOption block1) {
 
-		LOGGER.log(Level.FINER, "received response acknowledging block {0}", block1);
+		LOGGER.log(Level.FINEST, "received response acknowledging block {0}", block1);
 
 		BlockwiseStatus status = exchange.getRequestBlockStatus();
 		if (status == null) {
 
 			// request has not been sent blockwise
-			LOGGER.log(Level.FINE, "discarding response containing unexpected block1 option: {0}", response);
+			LOGGER.log(Level.FINEST, "discarding response containing unexpected block1 option: {0}", response);
 
 		} else if (!status.isComplete()) {
 
@@ -457,7 +457,7 @@ public class BlockwiseLayer extends AbstractLayer {
 
 		} else {
 
-			LOGGER.finer("Block1 followed by Block2 transfer");
+			LOGGER.finest("Block1 followed by Block2 transfer");
 
 		}
 	}
@@ -476,7 +476,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			newSzx = requestStatus.getCurrentSzx();
 		}
 		int nextNum = requestStatus.getCurrentNum() + currentSize / newSize;
-		LOGGER.log(Level.FINER, "Sending next Block1 num={0}", nextNum);
+		LOGGER.log(Level.FINEST, "Sending next Block1 num={0}", nextNum);
 		requestStatus.setCurrentNum(nextNum);
 		requestStatus.setCurrentSzx(newSzx);
 		Request nextBlock = getNextRequestBlock(exchange.getRequest(), requestStatus);
@@ -503,7 +503,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	private void handleBlock2Response(final Exchange exchange, final Response response, final BlockOption block2) {
 
 		if (responseExceedsMaxBodySize(response)) {
-			LOGGER.log(Level.FINE, "requested resource body exceeds max buffer size [{0}], aborting request", maxResourceBodySize);
+			LOGGER.log(Level.FINEST, "requested resource body exceeds max buffer size [{0}], aborting request", maxResourceBodySize);
 			exchange.getRequest().cancel();
 			return;
 		}
@@ -521,7 +521,7 @@ public class BlockwiseLayer extends AbstractLayer {
 				// and create new status for fresher notification
 				responseStatus = findResponseBlockStatus(exchange, response);
 			} else {
-				LOGGER.log(Level.FINE, "discarding old notification received during ongoing blockwise transfer: {0}", response);
+				LOGGER.log(Level.FINEST, "discarding old notification received during ongoing blockwise transfer: {0}", response);
 				return;
 			}
 		}
@@ -532,7 +532,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			// We got the block we expected :-)
 
 			if (!responseStatus.addBlock(response.getPayload())) {
-				LOGGER.log(Level.FINE, "requested resource body exceeds max buffer size [{0}], aborting request", maxResourceBodySize);
+				LOGGER.log(Level.FINEST, "requested resource body exceeds max buffer size [{0}], aborting request", maxResourceBodySize);
 				exchange.getRequest().cancel();
 				return;
 			}
@@ -554,7 +554,7 @@ public class BlockwiseLayer extends AbstractLayer {
 				int szx = block2.getSzx();
 				boolean m = false;
 
-				LOGGER.log(Level.FINER, "Requesting next Block2 num={0}", num);
+				LOGGER.log(Level.FINEST, "Requesting next Block2 num={0}", num);
 
 				Request block = new Request(request.getCode());
 				// do not enforce CON, since NON could make sense over SMS or similar transports
@@ -588,7 +588,7 @@ public class BlockwiseLayer extends AbstractLayer {
 				lower().sendRequest(exchange, block);
 
 			} else {
-				LOGGER.log(Level.FINER, "We have received all {0} blocks of the response. Assemble and deliver", responseStatus.getBlockCount());
+				LOGGER.log(Level.FINEST, "We have received all {0} blocks of the response. Assemble and deliver", responseStatus.getBlockCount());
 				Response assembled = new Response(response.getCode());
 
 				assembleMessage(responseStatus, assembled);
@@ -616,7 +616,7 @@ public class BlockwiseLayer extends AbstractLayer {
 					exchange.setResponseBlockStatus(null);
 				}
 
-				LOGGER.log(Level.FINE, "Assembled response: {0}", assembled);
+				LOGGER.log(Level.FINEST, "Assembled response: {0}", assembled);
 				// Set the assembled response as current response
 				exchange.setResponse(assembled);
 				upper().receiveResponse(exchange, assembled);
@@ -644,7 +644,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		BlockOption block2 = request.getOptions().getBlock2();
 		if (block2 != null) {
 			BlockwiseStatus status2 = new BlockwiseStatus(request.getOptions().getContentFormat(), block2.getNum(), block2.getSzx());
-			LOGGER.log(Level.FINE, "Request with early block negotiation {0}. Create and set new Block2 status: {1}", new Object[]{block2, status2});
+			LOGGER.log(Level.FINEST, "Request with early block negotiation {0}. Create and set new Block2 status: {1}", new Object[]{block2, status2});
 			exchange.setResponseBlockStatus(status2);
 		}
 	}
@@ -674,9 +674,9 @@ public class BlockwiseLayer extends AbstractLayer {
 			status.setFirst(request);
 			status.setCurrentSzx(computeSZX(preferredBlockSize));
 			exchange.setRequestBlockStatus(status);
-			LOGGER.log(Level.FINER, "There is no assembler status yet. Create and set new Block1 status: {0}", status);
+			LOGGER.log(Level.FINEST, "There is no assembler status yet. Create and set new Block1 status: {0}", status);
 		} else {
-			LOGGER.log(Level.FINER, "Current Block1 status: {0}", status);
+			LOGGER.log(Level.FINEST, "Current Block1 status: {0}", status);
 		}
 		// sets a timeout to complete exchange
 		prepareBlockCleanup(exchange);
@@ -708,9 +708,9 @@ public class BlockwiseLayer extends AbstractLayer {
 			status.setCurrentSzx(computeSZX(preferredBlockSize));
 			status.setFirst(response);
 			exchange.setResponseBlockStatus(status);
-			LOGGER.log(Level.FINER, "There is no blockwise status yet. Create and set new Block2 status: {0}", status);
+			LOGGER.log(Level.FINEST, "There is no blockwise status yet. Create and set new Block2 status: {0}", status);
 		} else {
-			LOGGER.log(Level.FINER, "Current Block2 status: {0}", status);
+			LOGGER.log(Level.FINEST, "Current Block2 status: {0}", status);
 		}
 		// sets a timeout to complete exchange
 		prepareBlockCleanup(exchange);
@@ -808,7 +808,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			blockwiseRequired = request.getPayloadSize() > maxMessageSize;
 		}
 		if (blockwiseRequired) {
-			LOGGER.log(Level.FINE, "request body [{0}/{1}] requires blockwise transfer",
+			LOGGER.log(Level.FINEST, "request body [{0}/{1}] requires blockwise transfer",
 					new Object[]{request.getPayloadSize(), maxMessageSize});
 		}
 		return blockwiseRequired;
@@ -817,7 +817,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	private boolean requiresBlockwise(final Exchange exchange, final Response response) {
 		boolean blockwiseRequired = response.getPayloadSize() > maxMessageSize || exchange.getResponseBlockStatus() != null;
 		if (blockwiseRequired) {
-			LOGGER.log(Level.FINE, "response body [{0}/{1}] requires blockwise transfer",
+			LOGGER.log(Level.FINEST, "response body [{0}/{1}] requires blockwise transfer",
 					new Object[]{response.getPayloadSize(), maxMessageSize});
 		}
 		return blockwiseRequired;
@@ -875,7 +875,7 @@ public class BlockwiseLayer extends AbstractLayer {
 
 		// prevent RejectedExecutionException
 		if (executor.isShutdown()) {
-			LOGGER.info("Endpoint is being destroyed: skipping block clean-up");
+			LOGGER.finest("Endpoint is being destroyed: skipping block clean-up");
 			return;
 		}
 
@@ -897,9 +897,9 @@ public class BlockwiseLayer extends AbstractLayer {
 		public void run() {
 			if (!exchange.isComplete()) {
 				if (exchange.getRequest() == null) {
-					LOGGER.log(Level.INFO, "Block1 transfer timed out: {0}", exchange.getCurrentRequest());
+					LOGGER.log(Level.FINEST, "Block1 transfer timed out: {0}", exchange.getCurrentRequest());
 				} else {
-					LOGGER.log(Level.INFO, "Block2 transfer timed out: {0}", exchange.getRequest());
+					LOGGER.log(Level.FINEST, "Block2 transfer timed out: {0}", exchange.getRequest());
 				}
 				exchange.setComplete();
 			}

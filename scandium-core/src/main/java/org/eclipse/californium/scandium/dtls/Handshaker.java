@@ -327,7 +327,7 @@ public abstract class Handshaker {
 			int epoch = candidate.getEpoch();
 			if (epoch < session.getReadEpoch()) {
 				// discard old message
-				LOGGER.log(Level.FINER,
+				LOGGER.log(Level.FINEST,
 						"Discarding message from peer [{0}] from past epoch [{1}] < current epoch [{2}]",
 						new Object[]{getPeerAddress(), epoch, session.getReadEpoch()});
 				return null;
@@ -361,26 +361,26 @@ public abstract class Handshaker {
 					if (messageSeq == nextReceiveSeq) {
 						return handshakeMessage;
 					} else if (messageSeq > nextReceiveSeq) {
-						LOGGER.log(Level.FINER,
+						LOGGER.log(Level.FINEST,
 								"Queued newer message from current epoch, message_seq [{0}] > next_receive_seq [{1}]",
 								new Object[]{messageSeq, nextReceiveSeq});
 						queue.add(candidate);
 						return null;
 					} else {
-						LOGGER.log(Level.FINER,
+						LOGGER.log(Level.FINEST,
 								"Discarding old message, message_seq [{0}] < next_receive_seq [{1}]",
 								new Object[]{messageSeq, nextReceiveSeq});
 						return null;
 					}
 				default:
-					LOGGER.log(Level.FINER, "Cannot process message of type [{0}], discarding...",
+					LOGGER.log(Level.FINEST, "Cannot process message of type [{0}], discarding...",
 							fragment.getContentType());
 					return null;
 				}
 			} else {
 				// newer epoch, queue message
 				queue.add(candidate);
-				LOGGER.log(Level.FINER,
+				LOGGER.log(Level.FINEST,
 						"Queueing HANDSHAKE message from future epoch [{0}] > current epoch [{1}]",
 						new Object[]{epoch, getSession().getReadEpoch()});
 				return null;
@@ -640,7 +640,7 @@ public abstract class Handshaker {
 		} else {
 			// message needs to be fragmented
 			LOGGER.log(
-					Level.FINER,
+					Level.FINEST,
 					"Splitting up {0} message for [{1}] into multiple fragments of max {2} bytes",
 					new Object[]{handshakeMessage.getMessageType(), handshakeMessage.getPeer(), session.getMaxFragmentLength()});
 			// create N handshake messages, all with the
@@ -689,7 +689,7 @@ public abstract class Handshaker {
 	 */
 	protected final HandshakeMessage handleFragmentation(FragmentedHandshakeMessage fragment) throws HandshakeException {
 
-		LOGGER.log(Level.FINER, "Processing {0} message fragment ...", fragment.getMessageType());
+		LOGGER.log(Level.FINEST, "Processing {0} message fragment ...", fragment.getMessageType());
 		HandshakeMessage reassembledMessage = null;
 		int messageSeq = fragment.getMessageSeq();
 		SortedSet<FragmentedHandshakeMessage> existingFragments = fragmentedMessages.get(messageSeq);
@@ -715,7 +715,7 @@ public abstract class Handshaker {
 		reassembledMessage = reassembleFragments(messageSeq, existingFragments,
 				fragment.getMessageLength(), fragment.getMessageType(), session);
 		if (reassembledMessage != null) {
-			LOGGER.log(Level.FINER, "Successfully re-assembled {0} message", reassembledMessage.getMessageType());
+			LOGGER.log(Level.FINEST, "Successfully re-assembled {0} message", reassembledMessage.getMessageType());
 			fragmentedMessages.remove(messageSeq);
 		}
 		
@@ -981,7 +981,7 @@ public abstract class Handshaker {
 		} else {
 			RawPublicKeyIdentity rpk = new RawPublicKeyIdentity(message.getPublicKey());
 			if (!rpkStore.isTrusted(rpk)) {
-				LOGGER.fine("Certificate validation failed: Raw public key is not trusted");
+				LOGGER.finest("Certificate validation failed: Raw public key is not trusted");
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE,
 						session.getPeer());
 				throw new HandshakeException("Raw public key is not trusted", alert);

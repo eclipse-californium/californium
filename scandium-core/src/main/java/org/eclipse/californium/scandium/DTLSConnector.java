@@ -372,7 +372,7 @@ public class DTLSConnector implements Connector {
 		receiver.setDaemon(true);
 		receiver.start();
 		LOGGER.log(
-				Level.INFO,
+				Level.FINEST,
 				"DTLS connector listening on [{0}] with MTU [{1}] using (inbound) datagram buffer size [{2} bytes]",
 				new Object[]{lastBindAddress, maximumTransmissionUnit, inboundDatagramBufferSize});
 	}
@@ -430,7 +430,7 @@ public class DTLSConnector implements Connector {
 	@Override
 	public final synchronized void stop() {
 		if (running.get()) {
-			LOGGER.log(Level.INFO, "Stopping DTLS connector on [{0}]", lastBindAddress);
+			LOGGER.log(Level.FINEST, "Stopping DTLS connector on [{0}]", lastBindAddress);
 			timer.shutdownNow();
 			if (hasInternalExecutor) {
 				executor.shutdownNow();
@@ -479,7 +479,7 @@ public class DTLSConnector implements Connector {
 
 		byte[] data = Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getLength());
 		List<Record> records = Record.fromByteArray(data, peerAddress);
-		LOGGER.log(Level.FINER, "Received {0} DTLS records using a {1} byte datagram buffer",
+		LOGGER.log(Level.FINEST, "Received {0} DTLS records using a {1} byte datagram buffer",
 				new Object[]{records.size(), inboundDatagramBufferSize});
 
 		for (final Record record : records) {
@@ -505,7 +505,7 @@ public class DTLSConnector implements Connector {
 					break;
 				default:
 					LOGGER.log(
-						Level.FINE,
+						Level.FINEST,
 						"Discarding unsupported record [type: {0}, peer: {1}]",
 						new Object[]{record.getType(), record.getPeerAddress()});
 				}
@@ -541,7 +541,7 @@ public class DTLSConnector implements Connector {
 				break;
 			default:
 				LOGGER.log(
-					Level.FINE,
+					Level.FINEST,
 					"Discarding record of unsupported type [{0}] from peer [{1}]",
 					new Object[]{record.getType(), record.getPeerAddress()});
 			}
@@ -649,9 +649,9 @@ public class DTLSConnector implements Connector {
 		connection.cancelPendingFlight();
 
 		if (alert == null) {
-			LOGGER.log(Level.FINE, "Terminating connection with peer [{0}]", connection.getPeerAddress());
+			LOGGER.log(Level.FINEST, "Terminating connection with peer [{0}]", connection.getPeerAddress());
 		} else {
-			LOGGER.log(Level.FINE, "Terminating connection with peer [{0}], reason [{1}]",
+			LOGGER.log(Level.FINEST, "Terminating connection with peer [{0}], reason [{1}]",
 					new Object[]{connection.getPeerAddress(), alert.getDescription()});
 			send(alert, session);
 		}
@@ -685,7 +685,7 @@ public class DTLSConnector implements Connector {
 						discardRecord(record, e);
 					}
 				} else {
-					LOGGER.log(Level.FINER, "Discarding duplicate APPLICATION_DATA record received from peer [{0}]",
+					LOGGER.log(Level.FINEST, "Discarding duplicate APPLICATION_DATA record received from peer [{0}]",
 							record.getPeerAddress());
 				}
 			}
@@ -695,7 +695,7 @@ public class DTLSConnector implements Connector {
 				channel.receiveData(receivedApplicationMessage);
 			}
 		} else {
-			LOGGER.log(Level.FINER,
+			LOGGER.log(Level.FINEST,
 					"Discarding APPLICATION_DATA record received from peer [{0}] without an active session",
 					new Object[]{record.getPeerAddress()});
 		}
@@ -726,7 +726,7 @@ public class DTLSConnector implements Connector {
 
 		Connection connection = connectionStore.get(record.getPeerAddress());
 		if (connection == null) {
-			LOGGER.log(Level.FINER, "Discarding ALERT record from [{0}] received without existing connection", record.getPeerAddress());
+			LOGGER.log(Level.FINEST, "Discarding ALERT record from [{0}] received without existing connection", record.getPeerAddress());
 		} else {
 			processAlertRecord(record, connection);
 		}
@@ -740,7 +740,7 @@ public class DTLSConnector implements Connector {
 				processAlertRecord(record, connection, connection.getOngoingHandshake().getSession());
 		} else {
 			LOGGER.log(
-				Level.FINER,
+				Level.FINEST,
 				"Epoch of ALERT record [epoch=%d] from [%s] does not match expected epoch(s), discarding ...",
 				new Object[]{record.getEpoch(), record.getPeerAddress()});
 		}
@@ -794,13 +794,13 @@ public class DTLSConnector implements Connector {
 		} else {
 			// change cipher spec can only be processed within the
 			// context of an existing handshake -> ignore record
-			LOGGER.log(Level.FINE, "Received CHANGE_CIPHER_SPEC record from peer [{0}] with no handshake going on", record.getPeerAddress());
+			LOGGER.log(Level.FINEST, "Received CHANGE_CIPHER_SPEC record from peer [{0}] with no handshake going on", record.getPeerAddress());
 		}
 	}
 
 	private void processHandshakeRecord(final Record record) {
 
-		LOGGER.log(Level.FINE, "Received {0} record from peer [{1}]",
+		LOGGER.log(Level.FINEST, "Received {0} record from peer [{1}]",
 				new Object[]{record.getType(), record.getPeerAddress()});
 		final Connection con = connectionStore.get(record.getPeerAddress());
 		try {
@@ -822,7 +822,7 @@ public class DTLSConnector implements Connector {
 	private void processHandshakeRecordWithoutConnection(final Record record) throws HandshakeException {
 		if (record.getEpoch() > 0) {
 			LOGGER.log(
-				Level.FINE,
+				Level.FINEST,
 				"Discarding unexpected handshake message [epoch={0}] received from peer [{1}] without existing connection",
 				new Object[]{record.getEpoch(), record.getPeerAddress()});
 		} else {
@@ -834,7 +834,7 @@ public class DTLSConnector implements Connector {
 					processClientHello((ClientHello) handshakeMessage, record);
 				} else {
 					LOGGER.log(
-							Level.FINE,
+							Level.FINEST,
 							"Discarding unexpected {0} message from peer [{1}]",
 							new Object[]{handshakeMessage.getMessageType(), handshakeMessage.getPeer()});
 				}
@@ -872,7 +872,7 @@ public class DTLSConnector implements Connector {
 			// in epoch 0 no crypto params have been established yet, thus we do not need to set a session
 		} else {
 			LOGGER.log(
-				Level.FINE,
+				Level.FINEST,
 				"Discarding HANDSHAKE message [epoch={0}] from peer [{1}] which does not match expected epoch(s)",
 				new Object[]{record.getEpoch(), record.getPeerAddress()});
 			return;
@@ -912,7 +912,7 @@ public class DTLSConnector implements Connector {
 			connection.getOngoingHandshake().processMessage(record);
 		} else {
 			LOGGER.log(
-				Level.FINE,
+				Level.FINEST,
 				"Discarding {0} message received from peer [{1}] with no handshake going on",
 				new Object[]{message.getMessageType(), message.getPeer()});
 		}
@@ -929,7 +929,7 @@ public class DTLSConnector implements Connector {
 			// TLS 1.2, Section 7.4 advises to ignore HELLO_REQUEST messages arriving while
 			// in an ongoing handshake (http://tools.ietf.org/html/rfc5246#section-7.4)
 			LOGGER.log(
-					Level.FINE,
+					Level.FINEST,
 					"Ignoring {0} received from [{1}] while already in an ongoing handshake with peer",
 					new Object[]{helloRequest.getMessageType(), helloRequest.getPeer()});
 		} else {
@@ -1077,7 +1077,7 @@ public class DTLSConnector implements Connector {
 	 *             provided in the client hello message
 	 */
 	private void resumeExistingSession(final ClientHello clientHello, final Record record) throws HandshakeException {
-		LOGGER.log(Level.FINER, "Client [{0}] wants to resume session with ID [{1}]",
+		LOGGER.log(Level.FINEST, "Client [{0}] wants to resume session with ID [{1}]",
 				new Object[]{clientHello.getPeer(), clientHello.getSessionId()});
 		final Connection previousConnection = connectionStore.find(clientHello.getSessionId());
 		if (previousConnection != null && previousConnection.isActive()) {
@@ -1108,7 +1108,7 @@ public class DTLSConnector implements Connector {
 						@Override
 						public void sessionEstablished(final Handshaker currentHandshaker, final DTLSSession establishedSession)
 								throws HandshakeException {
-							LOGGER.log(Level.FINER,
+							LOGGER.log(Level.FINEST,
 									"Discarding existing connection to [{0}] after successful resumption of session [ID={1}] by peer [{2}]",
 									new Object[]{
 											previousConnection.getPeerAddress(),
@@ -1133,7 +1133,7 @@ public class DTLSConnector implements Connector {
 			handshaker.processMessage(record);
 		} else {
 			LOGGER.log(
-				Level.FINER,
+				Level.FINEST,
 				"Client [{0}] tries to resume non-existing session [ID={1}], performing full handshake instead ...",
 				new Object[]{clientHello.getPeer(), clientHello.getSessionId()});
 			terminateConnection(clientHello.getPeer());
@@ -1144,7 +1144,7 @@ public class DTLSConnector implements Connector {
 	private void sendHelloVerify(ClientHello clientHello, Record record, byte[] expectedCookie) {
 		// send CLIENT_HELLO_VERIFY with cookie in order to prevent
 		// DOS attack as described in DTLS 1.2 spec
-		LOGGER.log(Level.FINER, "Verifying client IP address [{0}] using HELLO_VERIFY_REQUEST", record.getPeerAddress());
+		LOGGER.log(Level.FINEST, "Verifying client IP address [{0}] using HELLO_VERIFY_REQUEST", record.getPeerAddress());
 		HelloVerifyRequest msg = new HelloVerifyRequest(new ProtocolVersion(), expectedCookie, record.getPeerAddress());
 		// because we do not have a handshaker in place yet that
 		// manages message_seq numbers, we need to set it explicitly
@@ -1289,7 +1289,7 @@ public class DTLSConnector implements Connector {
 	private void sendMessage(final RawData message) throws HandshakeException {
 
 		InetSocketAddress peerAddress = message.getInetSocketAddress();
-		LOGGER.log(Level.FINER, "Sending application layer message to peer [{0}]", peerAddress);
+		LOGGER.log(Level.FINEST, "Sending application layer message to peer [{0}]", peerAddress);
 		Connection connection = connectionStore.get(peerAddress);
 
 		// TODO make sure that only ONE handshake is in progress with a peer
@@ -1372,7 +1372,7 @@ public class DTLSConnector implements Connector {
 
 			@Override
 			public void sessionEstablished(Handshaker handshaker, DTLSSession establishedSession) throws HandshakeException {
-				LOGGER.log(Level.FINE, "Session with [{0}] established, now sending deferred message", establishedSession.getPeer());
+				LOGGER.log(Level.FINEST, "Session with [{0}] established, now sending deferred message", establishedSession.getPeer());
 				sendMessage(message, establishedSession);
 			}
 		};
@@ -1428,14 +1428,14 @@ public class DTLSConnector implements Connector {
 				byte[] recordBytes = record.toByteArray();
 				if (recordBytes.length > maxDatagramSize) {
 					LOGGER.log(
-							Level.INFO,
+							Level.FINE,
 							"{0} record of {1} bytes for peer [{2}] exceeds max. datagram size [{3}], discarding...",
 							new Object[]{record.getType(), recordBytes.length, record.getPeerAddress(), maxDatagramSize});
 					// TODO: inform application layer, e.g. using error handler
 					continue;
 				}
 				LOGGER.log(
-						Level.FINEST,
+						Level.FINE,
 						"Sending record of {2} bytes to peer [{0}]:\n{1}",
 						new Object[]{flight.getPeerAddress(), record, recordBytes.length});
 
@@ -1456,7 +1456,7 @@ public class DTLSConnector implements Connector {
 			datagrams.add(datagram);
 	
 			// send it over the UDP socket
-			LOGGER.log(Level.FINER, "Sending flight of {0} message(s) to peer [{1}] using {2} datagram(s) of max. {3} bytes",
+			LOGGER.log(Level.FINE, "Sending flight of {0} message(s) to peer [{1}] using {2} datagram(s) of max. {3} bytes",
 					new Object[]{flight.getMessages().size(), flight.getPeerAddress(), datagrams.size(), maxDatagramSize});
 			for (DatagramPacket datagramPacket : datagrams) {
 				sendNextDatagramOverNetwork(datagramPacket);
@@ -1481,7 +1481,7 @@ public class DTLSConnector implements Connector {
 		if (socket != null && !socket.isClosed()) {
 			socket.send(datagramPacket);
 		} else {
-			LOGGER.log(Level.FINE, "Socket [{0}] is closed, discarding packet ...", config.getAddress());
+			LOGGER.log(Level.FINEST, "Socket [{0}] is closed, discarding packet ...", config.getAddress());
 		}
 	}
 
@@ -1492,7 +1492,7 @@ public class DTLSConnector implements Connector {
 
 		// check if limit of retransmissions reached
 		if (flight.getTries() < max) {
-			LOGGER.log(Level.FINE, "Re-transmitting flight for [{0}], [{1}] retransmissions left",
+			LOGGER.log(Level.FINEST, "Re-transmitting flight for [{0}], [{1}] retransmissions left",
 					new Object[]{flight.getPeerAddress(), max - flight.getTries() - 1});
 
 			try {
@@ -1509,7 +1509,7 @@ public class DTLSConnector implements Connector {
 						e);
 			}
 		} else {
-			LOGGER.log(Level.FINE, "Flight for [{0}] has reached maximum no. [{1}] of retransmissions, discarding ...",
+			LOGGER.log(Level.FINEST, "Flight for [{0}] has reached maximum no. [{1}] of retransmissions, discarding ...",
 					new Object[]{flight.getPeerAddress(), max});
 		}
 	}

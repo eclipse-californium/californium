@@ -100,7 +100,7 @@ public class ProxyHttpServer {
 					request.setResponse(response);
 					responseProduced(request, response);
 					httpStack.doSendResponse(request, response);
-					LOGGER.info("HTTP returned " + response);
+					LOGGER.finest("HTTP returned " + response);
 				} catch (Exception e) {
 					LOGGER.log(Level.WARNING, "Exception while responding to Http request", e);
 				}
@@ -138,11 +138,11 @@ public class ProxyHttpServer {
 	protected void responseProduced(Request request, Response response) {
 		// check if the proxy-uri is defined
 		if (request.getOptions().hasProxyUri()) {
-				LOGGER.info("Cache response");
+				LOGGER.finest("Cache response");
 			// insert the response in the cache
 			cacheResource.cacheResponse(request, response);
 		} else {
-				LOGGER.info("Do not cache response");
+				LOGGER.finest("Do not cache response");
 		}
 	}	
 }
