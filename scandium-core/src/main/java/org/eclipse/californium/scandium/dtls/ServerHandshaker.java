@@ -941,12 +941,6 @@ public class ServerHandshaker extends Handshaker {
 		return negotiatedSupportedGroup;
 	}
 
-	@Override
-	public boolean hasBeenStartedByClientHello(final ClientHello clientHello) {
-		Random messageRandom = clientHello.getRandom();
-		return Arrays.equals(clientRandom.getRandomBytes(), messageRandom.getRandomBytes());
-	}
-
 	private byte[] configurePskCredentials(PskPublicInformation identity, byte[] psk, byte[] otherSecret) throws HandshakeException {
 		String virtualHost = session.getVirtualHost();
 		if (virtualHost == null) {

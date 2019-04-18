@@ -1040,21 +1040,6 @@ public abstract class Handshaker {
 	}
 
 	/**
-	 * Checks whether this handshake has been initiated receiving the provided
-	 * client hello.
-	 * 
-	 * The client random in the client message is used to check the duplicate.
-	 * Only server handshaker are started receiving a client hello.
-	 * 
-	 * @param clientHello the client_hello to check.
-	 * @return @{code true} if the provided client hello has initially started
-	 *         this handshake.
-	 */
-	public boolean hasBeenStartedByClientHello(final ClientHello clientHello) {
-		return false;
-	}
-
-	/**
 	 * Checks whether the peer's <em>CHANGE_CIPHER_SPEC</em> message is the next message
 	 * expected in the ongoing handshake.
 	 * 

@@ -825,19 +825,20 @@ public class DTLSConnector implements Connector, RecordLayer {
 		}
 
 		final Record fristRecord = records.get(0);
-		final ConnectionId connectionId = fristRecord.getConnectionId();
-		final Connection connection = getConnection(peerAddress, connectionId, false);
 
 		if (records.size() == 1 && fristRecord.isNewClientHello()) {
 			executorService.execute(new Runnable() {
 
 				@Override
 				public void run() {
-					processNewClientHello(fristRecord, connection);
+					processNewClientHello(fristRecord);
 				}
 			});
 			return;
 		}
+
+		final ConnectionId connectionId = fristRecord.getConnectionId();
+		final Connection connection = getConnection(peerAddress, connectionId, false);
 
 		if (connection == null) {
 			if (connectionId == null) {
@@ -1302,16 +1303,18 @@ public class DTLSConnector implements Connector, RecordLayer {
 	}
 
 	/**
-	 * Process new CLIENT_HELLO message without available connection.
+	 * Process new CLIENT_HELLO message.
 	 * 
-	 * Executed outside the serial execution. If either a valid session id or
-	 * cookie is contained, then a connection is created and the execution is
-	 * passed to the serial execution of that connection.
+	 * Executed outside the serial execution. Checks for either a valid session
+	 * id or a valid cookie. If the check is passed successfully, check next, if
+	 * a connection for that CLIENT_HELLO already exists using the client random
+	 * contained in the CLIENT_HELLO message. If the connection already exists,
+	 * take that, otherwise create a new one and pass the execution to the
+	 * serial execution of that connection.
 	 * 
 	 * @param record record of CLIENT_HELLO message
-	 * @param connection connection to process the record. Maybe {@code null}.
 	 */
-	private void processNewClientHello(final Record record, final Connection connection) {
+	private void processNewClientHello(final Record record) {
 		InetSocketAddress peerAddress = record.getPeerAddress();
 		if (LOGGER.isDebugEnabled()) {
 			StringBuilder msg = new StringBuilder("Processing new CLIENT_HELLO from peer [")
@@ -1327,17 +1330,23 @@ public class DTLSConnector implements Connector, RecordLayer {
 			// before starting a new handshake or resuming an established
 			// session we need to make sure that the peer is in possession of
 			// the IP address indicated in the client hello message
-			final AvailableConnections connections = new AvailableConnections(connection);
+			final AvailableConnections connections = new AvailableConnections();
 			if (isClientInControlOfSourceIpAddress(clientHello, record, connections)) {
-				if (connection == null || !connection.hasOngoingHandshakeStartedByClientHello(clientHello)) {
-					connections.setConnectionByAddress(new Connection(peerAddress, new SerialExecutor(getExecutorService())));
-					if (!connectionStore.put(connections.getConnectionByAddress())) {
-						return;
+				Connection connection;
+				synchronized (connectionStore) {
+					connection = connectionStore.get(peerAddress);
+					if (connection == null || !connection.isStartedByClientHello(clientHello)) {
+						connection = new Connection(peerAddress, new SerialExecutor(getExecutorService()));
+						connection.startByClientHello(clientHello);
+						if (!connectionStore.put(connection)) {
+							return;
+						}
 					}
 				}
+				connections.setConnectionByAddress(connection);
 				try {
 
-					connections.getConnectionByAddress().getExecutor().execute(new Runnable() {
+					connection.getExecutor().execute(new Runnable() {
 
 						@Override
 						public void run() {
@@ -1392,7 +1401,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		}
 
 		try {
-			if (connection.hasOngoingHandshakeStartedByClientHello(clientHello)) {
+			if (connection.hasOngoingHandshake() && connection.isStartedByClientHello(clientHello)) {
 				// client has sent this message before (maybe our response flight has been lost)
 				// but we do not want to start over again, so let the existing handshaker handle
 				// the duplicate
@@ -1483,12 +1492,13 @@ public class DTLSConnector implements Connector, RecordLayer {
 								// no verify request required
 								LOGGER.trace("resuming peer's [{}] session", record.getPeerAddress());
 								return true;
-							} else if (connections.getConnectionByAddress() == null || !connections.getConnectionByAddress().hasEstablishedSession()) {
-								// use short resumption (without verify request)
-								// only, if the number of the pending short
-								// resumption handshakes is below the threshold
-								LOGGER.trace("fast resume for peer [{}] [{}]", record.getPeerAddress(), pending);
-								return true;
+							} else {
+								Connection addressConnection = connectionStore.get(record.getPeerAddress());
+								if (addressConnection == null || !addressConnection.hasEstablishedSession()) {
+									LOGGER.trace("fast resume for peer [{}] [{}]", record.getPeerAddress(),
+											pending);
+									return true;
+								}
 							}
 							// for connection with other established session,
 							// use the verify request
@@ -1611,6 +1621,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 						public void handshakeFailed(Handshaker handshaker, Throwable error) {
 							pendingHandshakesWithoutVerifiedPeer.decrementAndGet();
 						}
+
 					});
 				}
 			}
