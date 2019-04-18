@@ -64,6 +64,7 @@ public class ExecutorsUtil {
 		ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(2,
 				new DaemonThreadFactory("Timer#", TIMER_THREAD_GROUP));
 		executor.execute(WARMUP);
+		executor.prestartAllCoreThreads();
 		scheduler = executor;
 	}
 
