@@ -40,6 +40,7 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -63,6 +64,7 @@ public final class Connection {
 	private static final Logger LOGGER = LoggerFactory.getLogger(Connection.class.getName());
 
 	private final AtomicReference<Handshaker> ongoingHandshake = new AtomicReference<Handshaker>();
+	private final AtomicReference<Random> startedByClient = new AtomicReference<Random>();
 	private final SessionListener sessionListener = new ConnectionSessionListener();
 	/**
 	 * Expired real time nanoseconds of the last message send or received.
@@ -311,17 +313,35 @@ public final class Connection {
 	}
 
 	/**
-	 * Checks whether this connection has a ongoing handshake initiated
-	 * receiving the provided client hello.
+	 * Checks whether this connection is started for the provided CLIENT_HELLO.
+	 * 
+	 * Use the random contained in the CLIENT_HELLO.
 	 * 
 	 * @param clientHello the message to check.
 	 * @return {@code true} if the given client hello has initially started this
-	 *         ongoing handshake.
-	 * @see Handshaker#hasBeenStartedByClientHello(ClientHello)
+	 *         connection.
+	 * @see #startByClientHello(ClientHello)
 	 */
-	public boolean hasOngoingHandshakeStartedByClientHello(ClientHello clientHello) {
-		Handshaker handshaker = ongoingHandshake.get();
-		return handshaker != null && handshaker.hasBeenStartedByClientHello(clientHello);
+	public boolean isStartedByClientHello(ClientHello clientHello) {
+		Random startRandom = startedByClient.get();
+		Random messageRandom = clientHello.getRandom();
+		if (startRandom != null && messageRandom != null) {
+			return Arrays.equals(startRandom.getRandomBytes(), messageRandom.getRandomBytes());
+		}
+		return false;
+	}
+
+	/**
+	 * Set starting CLIENT_HELLO.
+	 * 
+	 * Use the random contained in the CLIENT_HELLO. Removed, if when the
+	 * handshake is completed or fails.
+	 * 
+	 * @param clientHello message which starts the connection.
+	 * @see #isStartedByClientHello(ClientHello)
+	 */
+	public void startByClientHello(ClientHello clientHello) {
+		startedByClient.set(clientHello.getRandom());
 	}
 
 	/**
@@ -491,6 +511,7 @@ public final class Connection {
 		@Override
 		public void handshakeCompleted(Handshaker handshaker) {
 			if (ongoingHandshake.compareAndSet(handshaker, null)) {
+				startedByClient.set(null);
 				LOGGER.debug("Handshake with [{}] has been completed", handshaker.getPeerAddress());
 			}
 		}
@@ -498,6 +519,7 @@ public final class Connection {
 		@Override
 		public void handshakeFailed(Handshaker handshaker, Throwable error) {
 			if (ongoingHandshake.compareAndSet(handshaker, null)) {
+				startedByClient.set(null);
 				LOGGER.debug("Handshake with [{}] has failed", handshaker.getPeerAddress());
 			}
 		}

@@ -46,13 +46,8 @@ public class AvailableConnections {
 
 	/**
 	 * Creates a new connection pair.
-	 * 
-	 * @param byAddress connection associated with the peer's address. May be
-	 *            {@code null}, if no connection is associated with the peer's
-	 *            address.
 	 */
-	public AvailableConnections(Connection byAddress) {
-		this.byAddress = byAddress;
+	public AvailableConnections() {
 	}
 
 	/**
