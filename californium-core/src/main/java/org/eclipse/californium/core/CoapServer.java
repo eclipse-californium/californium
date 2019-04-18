@@ -287,27 +287,36 @@ public class CoapServer implements ServerInterface {
 		LOGGER.info("Destroying server");
 		// prevent new tasks from being submitted
 		try {
-			if (running && !detachExecutor) {
-				executor.shutdown(); // cannot be started again
-				try {
-					// wait for currently executing tasks to complete
-					if (!executor.awaitTermination(1, TimeUnit.SECONDS)) {
-						// cancel still executing tasks
-						// and ignore all remaining tasks scheduled for later
-						List<Runnable> runningTasks = executor.shutdownNow();
-						if (runningTasks.size() > 0) {
-							// this is e.g. the case if we have performed an incomplete blockwise transfer
-							// and the BlockwiseLayer has scheduled a pending BlockCleanupTask for tidying up
-							LOGGER.debug("ignoring remaining {} scheduled task(s)", runningTasks.size());
+			if (!detachExecutor)
+				if (running) {
+					executor.shutdown(); // cannot be started again
+					try {
+						// wait for currently executing tasks to complete
+						if (!executor.awaitTermination(1, TimeUnit.SECONDS)) {
+							// cancel still executing tasks
+							// and ignore all remaining tasks scheduled for
+							// later
+							List<Runnable> runningTasks = executor.shutdownNow();
+							if (runningTasks.size() > 0) {
+								// this is e.g. the case if we have performed an
+								// incomplete blockwise transfer
+								// and the BlockwiseLayer has scheduled a
+								// pending BlockCleanupTask for tidying up
+								LOGGER.debug("ignoring remaining {} scheduled task(s)", runningTasks.size());
+							}
+							// wait for executing tasks to respond to being
+							// cancelled
+							executor.awaitTermination(1, TimeUnit.SECONDS);
 						}
-						// wait for executing tasks to respond to being cancelled
-						executor.awaitTermination(1, TimeUnit.SECONDS);
+					} catch (InterruptedException e) {
+						executor.shutdownNow();
+						Thread.currentThread().interrupt();
 					}
-				} catch (InterruptedException e) {
-					executor.shutdownNow();
-					Thread.currentThread().interrupt();
+				} else {
+					if (executor !=null) {
+						executor.shutdownNow();
+					}
 				}
-			}
 		} finally {
 			for (Endpoint ep : endpoints) {
 				ep.destroy();
