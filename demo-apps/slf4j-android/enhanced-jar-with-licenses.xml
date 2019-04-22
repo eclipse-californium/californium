@@ -1,0 +1,35 @@
+<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.0.0 http://maven.apache.org/xsd/assembly-2.0.0.xsd">
+	<id>jar-with-dependencies</id>
+
+	<!-- This descriptor behave like maven "jar-without-dependency" except the 
+		californium-legal dependency and it ensure that current module files
+		have always priority on dependency files in case of duplicate.
+		It's intended for jars, which are deployed into a public repository -->
+	<formats>
+		<format>jar</format>
+	</formats>
+	<includeBaseDirectory>false</includeBaseDirectory>
+	<fileSets>
+		<fileSet>
+			<directory>${project.build.outputDirectory}</directory>
+			<outputDirectory/>
+		</fileSet>
+		<fileSet>
+			<directory>${project.build.directory}/generated-resources</directory>
+			<outputDirectory>licenses</outputDirectory>
+			<useDefaultExcludes>false</useDefaultExcludes>
+		</fileSet>
+	</fileSets>
+	<dependencySets>
+		<dependencySet>
+			<includes>
+				<include>org.eclipse.californium:californium-legal</include>
+			</includes>
+			<outputDirectory>/</outputDirectory>
+			<useProjectArtifact>false</useProjectArtifact>
+			<unpack>true</unpack>
+		</dependencySet>
+	</dependencySets>
+</assembly>
