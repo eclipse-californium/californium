@@ -18,6 +18,7 @@
  ******************************************************************************/
 package org.eclipse.californium.examples;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
@@ -27,6 +28,7 @@ import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.examples.CredentialsUtil.Mode;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -58,6 +60,9 @@ public class SecureClient {
 			client.shutdown();
 		} catch (URISyntaxException e) {
 			System.err.println("Invalid URI: " + e.getMessage());
+			System.exit(-1);
+		} catch (ConnectorException | IOException e) {
+			System.err.println("Error occurred while sending request: " + e);
 			System.exit(-1);
 		}
 

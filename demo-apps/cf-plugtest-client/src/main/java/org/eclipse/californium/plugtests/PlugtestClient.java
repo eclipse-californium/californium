@@ -24,6 +24,7 @@
 package org.eclipse.californium.plugtests;
 
 import java.io.File;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Set;
@@ -41,6 +42,7 @@ import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
+import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.plugtests.ClientInitializer.Arguments;
 
 /**
@@ -82,7 +84,7 @@ public class PlugtestClient {
 	 * 
 	 * @param args the arguments
 	 */
-	public static void main(String[] args) {
+	public static void main(String[] args) throws ConnectorException, IOException {
 
 		if (args.length == 0) {
 
@@ -122,7 +124,7 @@ public class PlugtestClient {
 		System.exit(0);
 	}
 
-	public static void testCC(String uri) {
+	public static void testCC(String uri) throws ConnectorException, IOException {
 
 		// re-usable response object
 		CoapResponse response;
@@ -338,7 +340,7 @@ public class PlugtestClient {
 		System.out.println(response.getCode());
 	}
 
-	public static void testCB(String uri) {
+	public static void testCB(String uri) throws ConnectorException, IOException {
 
 		CoapClient client = new CoapClient(uri + "/large");
 		CoapResponse response;
@@ -400,7 +402,7 @@ public class PlugtestClient {
 		System.out.println(response.getResponseText());
 	}
 
-	public static void testCO(String uri) {
+	public static void testCO(String uri) throws ConnectorException, IOException {
 
 		CoapClient client = new CoapClient(uri + "/obs");
 
@@ -555,7 +557,7 @@ public class PlugtestClient {
 		}
 	}
 
-	public static void testCL(String uri) {
+	public static void testCL(String uri) throws ConnectorException, IOException {
 
 		CoapClient client = new CoapClient(uri);
 		Set<WebLink> links;

@@ -18,7 +18,7 @@ package org.eclipse.californium.core.test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import java.net.InetSocketAddress;
+import java.io.IOException;
 import java.util.Arrays;
 
 import org.eclipse.californium.category.Medium;
@@ -30,6 +30,7 @@ import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -148,7 +149,7 @@ public class RequestPayloadTest {
 	 * @param payload to use in the request
 	 * @param expect is the expected response code
 	 */
-	public void runTestCase(Code code, byte[] payload, ResponseCode expect, boolean forceUnintendedPayload) {
+	public void runTestCase(Code code, byte[] payload, ResponseCode expect, boolean forceUnintendedPayload) throws ConnectorException, IOException {
 		Request request = new Request(code);
 		if (forceUnintendedPayload)
 			request.setUnintendedPayload();
@@ -165,7 +166,7 @@ public class RequestPayloadTest {
 	 * Test get with payload.
 	 */
 	@Test
-	public void testGetWithPayload() {
+	public void testGetWithPayload() throws ConnectorException, IOException {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Message must not have payload!");
 		runTestCase(Code.GET, getContent(), ResponseCode.CONTENT, false);
@@ -175,7 +176,7 @@ public class RequestPayloadTest {
 	 * test get with uninteded payload forced
 	 */
 	@Test
-	public void testGetWithForcedPayload() {
+	public void testGetWithForcedPayload() throws ConnectorException, IOException {
 		runTestCase(Code.GET, getContent(), ResponseCode.CONTENT, true);
 	}
 
@@ -183,7 +184,7 @@ public class RequestPayloadTest {
 	 * test post with payload
 	 */
 	@Test
-	public void testPostWithPayload() {
+	public void testPostWithPayload() throws ConnectorException, IOException {
 		runTestCase(Code.POST, getContent(), ResponseCode.CREATED, false);
 	}
 
@@ -191,7 +192,7 @@ public class RequestPayloadTest {
 	 * Test put with payload.
 	 */
 	@Test
-	public void testPutWithPayload() {
+	public void testPutWithPayload() throws ConnectorException, IOException {
 		runTestCase(Code.PUT, getContent(), ResponseCode.CHANGED, false);
 	}
 
@@ -199,7 +200,7 @@ public class RequestPayloadTest {
 	 * Test delete with payload.
 	 */
 	@Test
-	public void testDeleteWithPayload() {
+	public void testDeleteWithPayload() throws ConnectorException, IOException {
 		exception.expect(IllegalArgumentException.class);
 		exception.expectMessage("Message must not have payload!");
 		runTestCase(Code.DELETE, getContent(), ResponseCode.DELETED, false);
@@ -209,7 +210,7 @@ public class RequestPayloadTest {
 	 * test delete with uninteded payload forced
 	 */
 	@Test
-	public void testDeleteWithForcedPayload() {
+	public void testDeleteWithForcedPayload() throws ConnectorException, IOException {
 		runTestCase(Code.DELETE, getContent(), ResponseCode.DELETED, true);
 	}
 
@@ -217,7 +218,7 @@ public class RequestPayloadTest {
 	 * Test fetch with payload.
 	 */
 	@Test
-	public void testFetchWithPayload() {
+	public void testFetchWithPayload() throws ConnectorException, IOException {
 		runTestCase(Code.FETCH, getContent(), ResponseCode.CONTENT, false);
 	}
 
@@ -225,7 +226,7 @@ public class RequestPayloadTest {
 	 * test patch with payload
 	 */
 	@Test
-	public void testPatchWithPayload() {
+	public void testPatchWithPayload() throws ConnectorException, IOException {
 		runTestCase(Code.PATCH, getContent(), ResponseCode.CHANGED, false);
 	}
 

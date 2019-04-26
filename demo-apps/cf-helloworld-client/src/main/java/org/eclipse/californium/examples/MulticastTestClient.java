@@ -16,6 +16,7 @@
 package org.eclipse.californium.examples;
 
 import java.io.File;
+import java.io.IOException;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
@@ -28,6 +29,7 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
+import org.eclipse.californium.elements.exception.ConnectorException;
 
 /**
  * Test client configured to support multicast requests.
@@ -63,12 +65,18 @@ public class MulticastTestClient {
 
 		client.setURI("coap://localhost:5683/helloWorld");
 		client.setEndpoint(endpoint);
-		
+
 		Request request = Request.newGet();
 		request.setType(Type.CON);
 
-		// sends an uni-cast request
-		CoapResponse response = client.advanced(request);
+		CoapResponse response = null;
+		try {
+			// sends an uni-cast request
+			response = client.advanced(request);
+		} catch (ConnectorException | IOException e) {
+			System.err.println("Error occurred while sending request: " + e);
+		}
+
 		if (response != null) {
 			System.out.println(Utils.prettyPrint(response));
 		} else {

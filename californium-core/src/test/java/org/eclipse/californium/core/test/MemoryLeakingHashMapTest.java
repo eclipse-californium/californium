@@ -38,6 +38,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.CancellationException;
@@ -68,6 +69,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.lockstep.ClientBlockwiseInterceptor;
+import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
@@ -261,7 +263,7 @@ public class MemoryLeakingHashMapTest {
 		testBlockwise(client, mode);
 	}
 
-	private static void testBlockwise(final CoapClient client, final Mode mode) {
+	private static void testBlockwise(final CoapClient client, final Mode mode) throws ConnectorException, IOException {
 
 		LOGGER.debug("Test blockwise POST to {}", client.getURI());
 
