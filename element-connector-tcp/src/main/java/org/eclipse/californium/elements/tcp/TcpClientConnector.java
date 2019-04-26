@@ -54,8 +54,8 @@ import io.netty.util.concurrent.GenericFutureListener;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
-import org.eclipse.californium.elements.EndpointMismatchException;
-import org.eclipse.californium.elements.MulticastNotSupportedException;
+import org.eclipse.californium.elements.exception.EndpointMismatchException;
+import org.eclipse.californium.elements.exception.MulticastNotSupportedException;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 

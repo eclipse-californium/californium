@@ -39,6 +39,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
+import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.plugtests.ClientInitializer;
 import org.eclipse.californium.plugtests.ClientInitializer.Arguments;
 
@@ -96,7 +97,7 @@ public class ReceivetestClient {
 	 * 
 	 * @param args the arguments
 	 */
-	public static void main(String[] args) {
+	public static void main(String[] args) throws ConnectorException, IOException {
 
 		if (args.length == 0) {
 

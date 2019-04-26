@@ -52,6 +52,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.eclipse.californium.elements.exception.ConnectorException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -435,11 +436,11 @@ public class CoapClient {
 		return false;
 	}
 
-	public Set<WebLink> discover() {
+	public Set<WebLink> discover() throws ConnectorException, IOException {
 		return discover(null);
 	}
 
-	public Set<WebLink> discover(String query) {
+	public Set<WebLink> discover(String query) throws ConnectorException, IOException {
 		Request discover = newGet();
 		// set URI for scheme and authority, but then remove path and query
 		assignClientUriIfEmpty(discover);
@@ -469,8 +470,10 @@ public class CoapClient {
 	 * Sends a GET request and blocks until the response is available.
 	 * 
 	 * @return the CoAP response
+	 * @throws ConnectorException if an issue specific to the connector occurred
+	 * @throws IOException if any other issue (not specific to the connector) occurred
 	 */
-	public CoapResponse get() {
+	public CoapResponse get() throws ConnectorException, IOException {
 		Request request = newGet();
 		assignClientUriIfEmpty(request);
 		return synchronous(request);
@@ -482,8 +485,10 @@ public class CoapClient {
 	 * 
 	 * @param accept the Accept option
 	 * @return the CoAP response
+	 * @throws ConnectorException if an issue specific to the connector occurred
+	 * @throws IOException if any other issue (not specific to the connector) occurred
 	 */
-	public CoapResponse get(int accept) {
+	public CoapResponse get(int accept) throws ConnectorException, IOException {
 		Request request = newGet();
 		request.getOptions().setAccept(accept);
 		assignClientUriIfEmpty(request);
@@ -527,8 +532,10 @@ public class CoapClient {
 	 * @param payload the payload
 	 * @param format the Content-Format
 	 * @return the CoAP response
+	 * @throws ConnectorException if an issue specific to the connector occurred
+	 * @throws IOException if any other issue (not specific to the connector) occurred
 	 */
-	public CoapResponse post(String payload, int format) {
+	public CoapResponse post(String payload, int format) throws ConnectorException, IOException {
 		Request request = newPost();
 		request.setPayload(payload);
 		request.getOptions().setContentFormat(format);
@@ -543,8 +550,10 @@ public class CoapClient {
 	 * @param payload the payload
 	 * @param format the Content-Format
 	 * @return the CoAP response
+	 * @throws ConnectorException if an issue specific to the connector occurred
+	 * @throws IOException if any other issue (not specific to the connector) occurred
 	 */
-	public CoapResponse post(byte[] payload, int format) {
+	public CoapResponse post(byte[] payload, int format) throws ConnectorException, IOException {
 		Request request = newPost();
 		request.setPayload(payload);
 		request.getOptions().setContentFormat(format);
@@ -561,8 +570,10 @@ public class CoapClient {
 	 * @param format the Content-Format
 	 * @param accept the Accept option
 	 * @return the CoAP response
+	 * @throws ConnectorException if an issue specific to the connector occurred
+	 * @throws IOException if any other issue (not specific to the connector) occurred
 	 */
-	public CoapResponse post(String payload, int format, int accept) {
+	public CoapResponse post(String payload, int format, int accept) throws ConnectorException, IOException {
 		Request request = newPost();
 		request.setPayload(payload);
 		request.getOptions().setContentFormat(format);
@@ -580,8 +591,10 @@ public class CoapClient {
 	 * @param format the Content-Format
 	 * @param accept the Accept option
 	 * @return the CoAP response
+	 * @throws ConnectorException if an issue specific to the connector occurred
+	 * @throws IOException if any other issue (not specific to the connector) occurred
 	 */
-	public CoapResponse post(byte[] payload, int format, int accept) {
+	public CoapResponse post(byte[] payload, int format, int accept) throws ConnectorException, IOException {
 		Request request = newPost();
 		request.setPayload(payload);
 		request.getOptions().setContentFormat(format);
@@ -671,8 +684,10 @@ public class CoapClient {
 	 * @param payload the payload
 	 * @param format the Content-Format
 	 * @return the CoAP response
+	 * @throws ConnectorException if an issue specific to the connector occurred
+	 * @throws IOException if any other issue (not specific to the connector) occurred
 	 */
-	public CoapResponse put(String payload, int format) {
+	public CoapResponse put(String payload, int format) throws ConnectorException, IOException {
 		Request request = newPut();
 		request.setPayload(payload);
 		request.getOptions().setContentFormat(format);
@@ -687,8 +702,10 @@ public class CoapClient {
 	 * @param payload the payload
 	 * @param format the Content-Format
 	 * @return the CoAP response
+	 * @throws ConnectorException if an issue specific to the connector occurred
+	 * @throws IOException if any other issue (not specific to the connector) occurred
 	 */
-	public CoapResponse put(byte[] payload, int format) {
+	public CoapResponse put(byte[] payload, int format) throws ConnectorException, IOException {
 		Request request = newPut();
 		request.setPayload(payload);
 		request.getOptions().setContentFormat(format);
@@ -704,8 +721,10 @@ public class CoapClient {
 	 * @param format the Content-Format
 	 * @param etags the ETags for the If-Match option
 	 * @return the CoAP response
+	 * @throws ConnectorException if an issue specific to the connector occurred
+	 * @throws IOException if any other issue (not specific to the connector) occurred
 	 */
-	public CoapResponse putIfMatch(String payload, int format, byte[]... etags) {
+	public CoapResponse putIfMatch(String payload, int format, byte[]... etags) throws ConnectorException, IOException {
 		Request request = newPut();
 		request.setPayload(payload);
 		request.getOptions().setContentFormat(format);
@@ -722,8 +741,10 @@ public class CoapClient {
 	 * @param format the Content-Format
 	 * @param etags the ETags for the If-Match option
 	 * @return the CoAP response
+	 * @throws ConnectorException if an issue specific to the connector occurred
+	 * @throws IOException if any other issue (not specific to the connector) occurred
 	 */
-	public CoapResponse putIfMatch(byte[] payload, int format, byte[]... etags) {
+	public CoapResponse putIfMatch(byte[] payload, int format, byte[]... etags) throws ConnectorException, IOException {
 		Request request = newPut();
 		request.setPayload(payload);
 		request.getOptions().setContentFormat(format);
@@ -739,8 +760,10 @@ public class CoapClient {
 	 * @param payload the payload string
 	 * @param format the Content-Format
 	 * @return the CoAP response
+	 * @throws ConnectorException if an issue specific to the connector occurred
+	 * @throws IOException if any other issue (not specific to the connector) occurred
 	 */
-	public CoapResponse putIfNoneMatch(String payload, int format) {
+	public CoapResponse putIfNoneMatch(String payload, int format) throws ConnectorException, IOException {
 		Request request = newPut();
 		request.setPayload(payload);
 		request.getOptions().setContentFormat(format);
@@ -756,8 +779,10 @@ public class CoapClient {
 	 * @param payload the payload
 	 * @param format the Content-Format
 	 * @return the CoAP response
+	 * @throws ConnectorException if an issue specific to the connector occurred
+	 * @throws IOException if any other issue (not specific to the connector) occurred
 	 */
-	public CoapResponse putIfNoneMatch(byte[] payload, int format) {
+	public CoapResponse putIfNoneMatch(byte[] payload, int format) throws ConnectorException, IOException {
 		Request request = newPut();
 		request.setPayload(payload);
 		request.getOptions().setContentFormat(format);
@@ -868,8 +893,10 @@ public class CoapClient {
 	 * Sends a DELETE request and waits for the response.
 	 *
 	 * @return the CoAP response
+	 * @throws ConnectorException if an issue specific to the connector occurred
+	 * @throws IOException if any other issue (not specific to the connector) occurred
 	 */
-	public CoapResponse delete() {
+	public CoapResponse delete() throws ConnectorException, IOException {
 		Request request = newDelete();
 		assignClientUriIfEmpty(request);
 		return synchronous(request);
@@ -889,7 +916,7 @@ public class CoapClient {
 
 	// ETag validation
 
-	public CoapResponse validate(byte[]... etags) {
+	public CoapResponse validate(byte[]... etags) throws ConnectorException, IOException {
 		Request request = newGet();
 		etags(request, etags);
 		assignClientUriIfEmpty(request);
@@ -911,8 +938,10 @@ public class CoapClient {
 	 * 
 	 * @param request the custom request
 	 * @return the CoAP response
+	 * @throws ConnectorException if an issue specific to the connector occurred
+	 * @throws IOException if any other issue (not specific to the connector) occurred
 	 */
-	public CoapResponse advanced(Request request) {
+	public CoapResponse advanced(Request request) throws ConnectorException, IOException {
 		assignClientUriIfEmpty(request);
 		return synchronous(request);
 	}
@@ -937,8 +966,10 @@ public class CoapClient {
 	 *
 	 * @param handler the Response handler
 	 * @return the CoAP observe relation
+	 * @throws ConnectorException if an issue specific to the connector occurred
+	 * @throws IOException if any other issue (not specific to the connector) occurred
 	 */
-	public CoapObserveRelation observeAndWait(CoapHandler handler) {
+	public CoapObserveRelation observeAndWait(CoapHandler handler) throws ConnectorException, IOException {
 		Request request = newGet();
 		request.setObserve();
 		return observeAndWait(request, handler);
@@ -952,8 +983,10 @@ public class CoapClient {
 	 * @param handler the Response handler
 	 * @param accept the Accept option
 	 * @return the CoAP observe relation
+	 * @throws ConnectorException if an issue specific to the connector occurred
+	 * @throws IOException if any other issue (not specific to the connector) occurred
 	 */
-	public CoapObserveRelation observeAndWait(CoapHandler handler, int accept) {
+	public CoapObserveRelation observeAndWait(CoapHandler handler, int accept) throws ConnectorException, IOException {
 		Request request = newGet();
 		request.setObserve();
 		request.getOptions().setAccept(accept);
@@ -1009,7 +1042,7 @@ public class CoapClient {
 
 	// Implementation
 
-	/*
+	/**
 	 * Asynchronously sends the specified request and invokes the specified
 	 * handler when a response arrives.
 	 *
@@ -1021,26 +1054,30 @@ public class CoapClient {
 		send(request);
 	}
 
-	/*
+	/**
 	 * Synchronously sends the specified request.
 	 *
 	 * @param request the request
 	 * 
 	 * @return the CoAP response
+	 * @throws ConnectorException if an issue specific to the connector occurred
+	 * @throws IOException if any other issue (not specific to the connector) occurred
 	 */
-	private CoapResponse synchronous(Request request) {
+	private CoapResponse synchronous(Request request) throws ConnectorException, IOException {
 		return synchronous(request, getEffectiveEndpoint(request));
 	}
 
-	/*
+	/**
 	 * Synchronously sends the specified request over the specified endpoint.
 	 *
 	 * @param request the request
-	 * @param endpoint the endpoint
+	 * @param outEndpoint the endpoint
 	 * 
 	 * @return the CoAP response
+	 * @throws ConnectorException if an issue specific to the connector occurred
+	 * @throws IOException if any other issue (not specific to the connector) occurred
 	 */
-	private CoapResponse synchronous(Request request, Endpoint outEndpoint) {
+	private CoapResponse synchronous(Request request, Endpoint outEndpoint) throws ConnectorException, IOException {
 		try {
 			Long timeout = getTimeout();
 			if (timeout == null) {
@@ -1052,7 +1089,11 @@ public class CoapClient {
 				request.cancel();
 				Throwable sendError = request.getSendError();
 				if (sendError != null) {
-					throw new RuntimeException(sendError);
+					if (sendError instanceof ConnectorException) {
+						throw (ConnectorException) sendError;
+					} else {
+						throw new IOException(sendError);
+					}
 				}
 				return null;
 			} else {
@@ -1120,8 +1161,10 @@ public class CoapClient {
 	 * @return the CoAP observe relation
 	 * @throws IllegalArgumentException if the observe option is not set in the
 	 *             request
+	 * @throws ConnectorException if an issue specific to the connector occurred
+	 * @throws IOException if any other issue (not specific to the connector) occurred
 	 */
-	public CoapObserveRelation observeAndWait(Request request, CoapHandler handler) {
+	public CoapObserveRelation observeAndWait(Request request, CoapHandler handler) throws ConnectorException, IOException {
 
 		if (request.getOptions().hasObserve()) {
 			assignClientUriIfEmpty(request);

@@ -24,6 +24,7 @@ import java.net.URISyntaxException;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.Utils;
+import org.eclipse.californium.elements.exception.ConnectorException;
 
 
 public class GETClient {
@@ -48,8 +49,13 @@ public class GETClient {
 			
 			CoapClient client = new CoapClient(uri);
 
-			CoapResponse response = client.get();
-			
+			CoapResponse response = null;
+			try {
+				response = client.get();
+			} catch (ConnectorException | IOException e) {
+				System.err.println("Got an error: " + e);
+			}
+
 			if (response!=null) {
 				
 				System.out.println(response.getCode());

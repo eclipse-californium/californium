@@ -55,9 +55,10 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.CountingHandler;
+import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
-import org.eclipse.californium.elements.EndpointMismatchException;
+import org.eclipse.californium.elements.exception.EndpointMismatchException;
 import org.eclipse.californium.examples.NatUtil;
 import org.eclipse.californium.integration.test.util.CoapsNetworkRule;
 import org.eclipse.californium.scandium.DTLSConnector;
@@ -143,7 +144,7 @@ public class SecureObserveTest {
 		assertThat("sending response caused error", resource.getCurrentResponse().getSendError(), is(nullValue()));
 	}
 
-	@Test(expected = RuntimeException.class)
+	@Test(expected = ConnectorException.class)
 	public void testSecureGetWithNewSession() throws Exception {
 
 		createSecureServer(MatcherMode.STRICT, null);

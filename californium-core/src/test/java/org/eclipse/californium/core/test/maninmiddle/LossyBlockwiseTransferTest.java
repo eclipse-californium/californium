@@ -26,6 +26,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.junit.Assert.assertThat;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Random;
@@ -41,6 +42,7 @@ import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.lockstep.ClientBlockwiseInterceptor;
+import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.Before;
@@ -157,7 +159,7 @@ public class LossyBlockwiseTransferTest {
 		}
 	}
 
-	private static void getResourceAndAssertPayload(final CoapClient client, final String expectedPayload) {
+	private static void getResourceAndAssertPayload(final CoapClient client, final String expectedPayload) throws ConnectorException, IOException {
 
 		System.out.println(String.format("doing a blockwise GET on: %s", client.getURI()));
 

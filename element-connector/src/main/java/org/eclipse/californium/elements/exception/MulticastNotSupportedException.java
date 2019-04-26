@@ -13,23 +13,20 @@
  * Contributors:
  *    Bosch Software Innovations GmbH - initial implementation
  ******************************************************************************/
-package org.eclipse.californium.elements;
+package org.eclipse.californium.elements.exception;
 
 /**
- * Exception indicating, that the destination endpoint is currently not
- * connected to the source server endpoint. Used for TCP/TLS server and for DTLS
- * server, if the DTLS server is configured to act as server only and therefore
- * not starting handshakes.
+ * Exception indicating, that the connector doesn't support multicast messages.
  */
-public class EndpointUnconnectedException extends Exception {
+public class MulticastNotSupportedException extends ConnectorException {
 
 	private static final long serialVersionUID = 1L;
 
 	/**
 	 * Create new instance.
 	 */
-	public EndpointUnconnectedException() {
-
+	public MulticastNotSupportedException() {
+		super();
 	}
 
 	/**
@@ -37,7 +34,7 @@ public class EndpointUnconnectedException extends Exception {
 	 * 
 	 * @param message message
 	 */
-	public EndpointUnconnectedException(String message) {
+	public MulticastNotSupportedException(String message) {
 		super(message);
 	}
 }

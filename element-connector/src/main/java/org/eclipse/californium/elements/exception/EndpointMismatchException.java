@@ -14,13 +14,13 @@
  *    Bosch Software Innovations GmbH - initial implementation
  *                                      (GitHub issue #305)
  ******************************************************************************/
-package org.eclipse.californium.elements;
+package org.eclipse.californium.elements.exception;
 
 /**
  * Exception indicating, that the endpoint context doesn't match for some
  * reason.
  */
-public class EndpointMismatchException extends Exception {
+public class EndpointMismatchException extends ConnectorException {
 
 	private static final long serialVersionUID = 1L;
 
@@ -28,7 +28,7 @@ public class EndpointMismatchException extends Exception {
 	 * Create new instance.
 	 */
 	public EndpointMismatchException() {
-
+		super();
 	}
 
 	/**

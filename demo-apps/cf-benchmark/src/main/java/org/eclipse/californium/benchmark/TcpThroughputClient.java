@@ -3,14 +3,16 @@ package org.eclipse.californium.benchmark;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.elements.exception.ConnectorException;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 public class TcpThroughputClient {
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws ConnectorException, IOException {
 		CoapClient coapClient = new CoapClient("coap+tcp", "localhost", CoAP.DEFAULT_COAP_PORT, "echo");
 
 		Random random = new Random(0);
