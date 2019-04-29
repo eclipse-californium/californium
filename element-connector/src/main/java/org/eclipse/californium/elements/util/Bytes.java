@@ -16,6 +16,7 @@
 package org.eclipse.californium.elements.util;
 
 import java.util.Arrays;
+import java.util.Random;
 
 import org.eclipse.californium.elements.util.StringUtil;
 
@@ -86,6 +87,8 @@ public class Bytes {
 		if (getClass() != obj.getClass())
 			return false;
 		Bytes other = (Bytes) obj;
+		if (hash != other.hash)
+			return false;
 		return Arrays.equals(bytes, other.bytes);
 	}
 
@@ -123,5 +126,19 @@ public class Bytes {
 	 */
 	public final int length() {
 		return bytes.length;
+	}
+
+	/**
+	 * Create byte array initialized with random bytes.
+	 * 
+	 * @param generator random generator
+	 * @param size number of bytes
+	 * @return byte array initialized with random bytes
+	 * @see Random#nextBytes(byte[])
+	 */
+	public static byte[] createBytes(Random generator, int size) {
+		byte[] byteArray = new byte[size];
+		generator.nextBytes(byteArray);
+		return byteArray;
 	}
 }

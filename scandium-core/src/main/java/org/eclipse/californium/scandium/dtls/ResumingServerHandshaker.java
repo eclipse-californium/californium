@@ -32,7 +32,6 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
-import java.security.SecureRandom;
 
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -174,7 +173,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 							clientHello.getPeer()));
 		} else {
 			clientRandom = clientHello.getRandom();
-			serverRandom = new Random(new SecureRandom());
+			serverRandom = new Random();
 
 			HelloExtensions serverHelloExtensions = new HelloExtensions();
 			processHelloExtensions(clientHello, serverHelloExtensions);

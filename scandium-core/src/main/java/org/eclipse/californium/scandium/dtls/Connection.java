@@ -40,7 +40,6 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -324,9 +323,8 @@ public final class Connection {
 	 */
 	public boolean isStartedByClientHello(ClientHello clientHello) {
 		Random startRandom = startedByClient.get();
-		Random messageRandom = clientHello.getRandom();
-		if (startRandom != null && messageRandom != null) {
-			return Arrays.equals(startRandom.getRandomBytes(), messageRandom.getRandomBytes());
+		if (startRandom != null) {
+			return startRandom.equals(clientHello.getRandom());
 		}
 		return false;
 	}

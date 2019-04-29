@@ -39,7 +39,6 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
-import java.security.SecureRandom;
 
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -281,7 +280,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	@Override
 	public void startHandshake() throws HandshakeException {
 		handshakeStarted();
-		ClientHello message = new ClientHello(new ProtocolVersion(), new SecureRandom(), session,
+		ClientHello message = new ClientHello(new ProtocolVersion(), session,
 				supportedClientCertificateTypes, supportedServerCertificateTypes);
 
 		clientRandom = message.getRandom();

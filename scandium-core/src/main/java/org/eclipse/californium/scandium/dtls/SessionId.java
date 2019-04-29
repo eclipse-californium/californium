@@ -21,8 +21,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.security.SecureRandom;
-
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.StringUtil;
 
@@ -38,7 +36,7 @@ public final class SessionId extends Bytes {
 	// Constructors ///////////////////////////////////////////////////
 
 	public SessionId() {
-		this(new Random(new SecureRandom()).getRandomBytes());
+		this(Random.createBytes());
 	}
 
 	/**
