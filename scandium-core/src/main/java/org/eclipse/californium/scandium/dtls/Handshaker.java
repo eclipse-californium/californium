@@ -586,7 +586,7 @@ public abstract class Handshaker {
 		// See http://tools.ietf.org/html/rfc5246#section-6.3:
 		//      key_block = PRF(SecurityParameters.master_secret, "key expansion",
 		//                      SecurityParameters.server_random + SecurityParameters.client_random);
-		byte[] seed = ByteArrayUtils.concatenate(serverRandom.getRandomBytes(), clientRandom.getRandomBytes());
+		byte[] seed = ByteArrayUtils.concatenate(serverRandom.getBytes(), clientRandom.getBytes());
 		byte[] data = PseudoRandomFunction.doPRF(prfMacName, masterSecret, Label.KEY_EXPANSION_LABEL, seed, totalLength);
 
 
@@ -625,7 +625,7 @@ public abstract class Handshaker {
 	 */
 	private byte[] generateMasterSecret(byte[] premasterSecret) {
 		String prfMacName = session.getCipherSuite().getPseudoRandomFunctionMacName();
-		byte[] randomSeed = ByteArrayUtils.concatenate(clientRandom.getRandomBytes(), serverRandom.getRandomBytes());
+		byte[] randomSeed = ByteArrayUtils.concatenate(clientRandom.getBytes(), serverRandom.getBytes());
 		return PseudoRandomFunction.doPRF(prfMacName, premasterSecret, Label.MASTER_SECRET_LABEL, randomSeed);
 	}
 

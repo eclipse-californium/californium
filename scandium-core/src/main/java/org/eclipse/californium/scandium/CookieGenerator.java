@@ -200,7 +200,7 @@ public class CookieGenerator {
 		// Client-Parameters
 		hmac.update((byte) clientHello.getClientVersion().getMajor());
 		hmac.update((byte) clientHello.getClientVersion().getMinor());
-		hmac.update(clientHello.getRandom().getRandomBytes());
+		hmac.update(clientHello.getRandom().getBytes());
 		hmac.update(clientHello.getSessionId().getBytes());
 		hmac.update(CipherSuite.listToByteArray(clientHello.getCipherSuites()));
 		hmac.update(CompressionMethod.listToByteArray(clientHello.getCompressionMethods()));

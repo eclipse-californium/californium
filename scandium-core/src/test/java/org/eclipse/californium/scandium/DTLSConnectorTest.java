@@ -57,7 +57,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.Principal;
-import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -1148,9 +1147,9 @@ public class DTLSConnectorTest {
 			List<CipherSuite> ciperSuites = new ArrayList<>();
 			ciperSuites.add(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
 			ciperSuites.add(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
-			hello = new ClientHello(new ProtocolVersion(), new SecureRandom(), ciperSuites, null, null, clientEndpoint);
+			hello = new ClientHello(new ProtocolVersion(), ciperSuites, null, null, clientEndpoint);
 		} else {
-			hello = new ClientHello(new ProtocolVersion(), new SecureRandom(),sessionToResume, null, null);
+			hello = new ClientHello(new ProtocolVersion(), sessionToResume, null, null);
 		}
 		hello.addCompressionMethod(CompressionMethod.NULL);
 		hello.setMessageSeq(0);

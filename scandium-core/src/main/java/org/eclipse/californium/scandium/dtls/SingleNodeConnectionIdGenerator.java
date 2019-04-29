@@ -15,16 +15,14 @@
  *******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.util.Random;
-
 import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
 
 /**
  * Connection id generator for single node systems (no cluster).
  */
 public class SingleNodeConnectionIdGenerator implements ConnectionIdGenerator {
 
-	private final Random random = new Random(System.currentTimeMillis());
 	/**
 	 * Length of connection id.
 	 */
@@ -54,7 +52,7 @@ public class SingleNodeConnectionIdGenerator implements ConnectionIdGenerator {
 	public ConnectionId createConnectionId() {
 		if (useConnectionId()) {
 			byte[] cidBytes = new byte[connectionIdLength];
-			random.nextBytes(cidBytes);
+			RandomManager.currentRandom().nextBytes(cidBytes);
 			return new ConnectionId(cidBytes);
 		} else {
 			return null;

@@ -15,9 +15,8 @@
  *******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.util.Random;
-
 import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
 
 /**
  * Connection id generator for multiple nodes systems (cluster).
@@ -28,7 +27,6 @@ import org.eclipse.californium.elements.util.DatagramReader;
  */
 public class MultiNodeConnectionIdGenerator implements ConnectionIdGenerator {
 
-	private final Random random = new Random(System.currentTimeMillis());
 	/**
 	 * Node id. Must be unique in cluster.
 	 */
@@ -68,7 +66,7 @@ public class MultiNodeConnectionIdGenerator implements ConnectionIdGenerator {
 	@Override
 	public ConnectionId createConnectionId() {
 		byte[] cidBytes = new byte[connectionIdLength];
-		random.nextBytes(cidBytes);
+		RandomManager.currentRandom().nextBytes(cidBytes);
 		cidBytes[0] = (byte) nodeId;
 		return new ConnectionId(cidBytes);
 	}

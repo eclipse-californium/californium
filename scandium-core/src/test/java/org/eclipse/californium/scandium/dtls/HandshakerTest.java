@@ -36,7 +36,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.PublicKey;
-import java.security.SecureRandom;
 import java.security.cert.CertPathValidatorException;
 import java.security.cert.CertificateExpiredException;
 import java.security.cert.X509Certificate;
@@ -416,7 +415,7 @@ public class HandshakerTest {
 	}
 
 	private Record createRecord(int epoch, long sequenceNo, int messageSeqNo) throws GeneralSecurityException {
-		ClientHello clientHello = new ClientHello(new ProtocolVersion(), new SecureRandom(), session, null, null);
+		ClientHello clientHello = new ClientHello(new ProtocolVersion(), session, null, null);
 		clientHello.setMessageSeq(messageSeqNo);
 		return new Record(ContentType.HANDSHAKE, epoch, sequenceNo, clientHello, session, true, 0);
 	}

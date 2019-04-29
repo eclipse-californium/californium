@@ -48,7 +48,6 @@ package org.eclipse.californium.scandium.dtls;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.PublicKey;
-import java.security.SecureRandom;
 import java.security.cert.CertPath;
 import java.security.cert.X509Certificate;
 import java.security.interfaces.ECPublicKey;
@@ -685,8 +684,7 @@ public class ClientHandshaker extends Handshaker {
 
 		handshakeStarted();
 
-		ClientHello startMessage = new ClientHello(maxProtocolVersion, new SecureRandom(), 
-				preferredCipherSuites,
+		ClientHello startMessage = new ClientHello(maxProtocolVersion, preferredCipherSuites,
 				supportedClientCertificateTypes, supportedServerCertificateTypes, session.getPeer());
 
 		// store client random for later calculations
