@@ -30,6 +30,12 @@ import org.eclipse.californium.elements.util.NotForAndroid;
  */
 public class AeadBlockCipher {
 
+	/**
+	 * Support java prior 1.7, aes-ccm is a non-java-vm transformation and
+	 * handled as special transformation.
+	 * 
+	 * @see CCMBlockCipher
+	 */
 	public static final String AES_CCM = "AES/CCM";
 
 	/**
@@ -40,17 +46,21 @@ public class AeadBlockCipher {
 	 * @return {@code true}, if supported
 	 */
 	public final static boolean isSupported(String transformation, int keyLength) {
-		String cipherName = transformation;
-		if (AES_CCM.equals(transformation)) {
-			cipherName = CCMBlockCipher.CIPHER_NAME;
-		}
 		try {
-			CipherManager.getInstance(cipherName);
-			int maxAllowedKeyLengthBits = Cipher.getMaxAllowedKeyLength(cipherName);
-			return keyLength * 8 <= maxAllowedKeyLengthBits;
+			// check, if java-vm supports transformation
+			Cipher cipher;
+			if (AES_CCM.equals(transformation)) {
+				cipher = CCMBlockCipher.CIPHER.current();
+			} else {
+				cipher = Cipher.getInstance(transformation);
+			}
+			if (cipher != null) {
+				int maxAllowedKeyLengthBits = Cipher.getMaxAllowedKeyLength(cipher.getAlgorithm());
+				return keyLength * 8 <= maxAllowedKeyLengthBits;
+			}
 		} catch (GeneralSecurityException ex) {
-			return false;
 		}
+		return false;
 	}
 
 	/**
@@ -115,7 +125,7 @@ public class AeadBlockCipher {
 	private final static byte[] jreDecrypt(CipherSuite suite, SecretKey key, byte[] nonce, byte[] a, byte[] c)
 			throws GeneralSecurityException {
 
-		Cipher cipher = CipherManager.getInstance(suite.getTransformation());
+		Cipher cipher = suite.getCipher();
 		GCMParameterSpec parameterSpec = new GCMParameterSpec(suite.getEncKeyLength() * 8, nonce);
 		cipher.init(Cipher.DECRYPT_MODE, key, parameterSpec);
 		cipher.updateAAD(a);
@@ -137,14 +147,15 @@ public class AeadBlockCipher {
 	@NotForAndroid
 	private final static byte[] jreEncrypt(CipherSuite suite, SecretKey key, byte[] nonce, byte[] a, byte[] m)
 			throws GeneralSecurityException {
-		Cipher cipher = CipherManager.getInstance(suite.getTransformation());
+		Cipher cipher = suite.getCipher();
 		GCMParameterSpec parameterSpec = new GCMParameterSpec(suite.getEncKeyLength() * 8, nonce);
 		try {
 			cipher.init(Cipher.ENCRYPT_MODE, key, parameterSpec);
-		} catch(InvalidAlgorithmParameterException ex) {
+		} catch (InvalidAlgorithmParameterException ex) {
 			// if a record is encrypted twice using the same nonce,"
 			// GCM reports this with "Cannot reuse iv for GCM encryption"
-			// workaround is to use a different nonce and then the repeated nonce again.
+			// workaround is to use a different nonce and then the repeated
+			// nonce again.
 			byte[] nonceReset = Arrays.copyOf(nonce, nonce.length);
 			nonceReset[0] ^= 0x55;
 			GCMParameterSpec parameterSpecReset = new GCMParameterSpec(suite.getEncKeyLength() * 8, nonceReset);

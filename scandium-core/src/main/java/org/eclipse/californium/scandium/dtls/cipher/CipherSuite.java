@@ -35,6 +35,8 @@ package org.eclipse.californium.scandium.dtls.cipher;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.crypto.Cipher;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,27 +78,27 @@ public enum CipherSuite {
 	// - Currently Scandium does not support RFC 7366.
 
 	// PSK cipher suites, ordered by default preference, see getPskCiperSuites ///
-	TLS_PSK_WITH_AES_128_GCM_SHA256(0x00A8, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, Cipher.AES_128_GCM, MACAlgorithm.NULL),
-	TLS_PSK_WITH_AES_128_CCM_8(0xC0A8, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, Cipher.AES_128_CCM_8, MACAlgorithm.NULL),
-	TLS_PSK_WITH_AES_256_CCM_8(0xC0A9, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, Cipher.AES_256_CCM_8, MACAlgorithm.NULL),
-	TLS_PSK_WITH_AES_128_CCM(0xC0A4, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, Cipher.AES_128_CCM, MACAlgorithm.NULL),
-	TLS_PSK_WITH_AES_256_CCM(0xC0A5, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, Cipher.AES_256_CCM, MACAlgorithm.NULL),
+	TLS_PSK_WITH_AES_128_GCM_SHA256(0x00A8, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_GCM, MACAlgorithm.NULL),
+	TLS_PSK_WITH_AES_128_CCM_8(0xC0A8, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_CCM_8, MACAlgorithm.NULL),
+	TLS_PSK_WITH_AES_256_CCM_8(0xC0A9, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_256_CCM_8, MACAlgorithm.NULL),
+	TLS_PSK_WITH_AES_128_CCM(0xC0A4, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_CCM, MACAlgorithm.NULL),
+	TLS_PSK_WITH_AES_256_CCM(0xC0A5, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_256_CCM, MACAlgorithm.NULL),
 	/**See <a href="https://tools.ietf.org/html/rfc5489#section-3.2">RFC 5489</a> for details*/
-	TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256(0xC037, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.ECDHE_PSK, Cipher.AES_128_CBC, MACAlgorithm.HMAC_SHA256),
-	TLS_PSK_WITH_AES_128_CBC_SHA256(0x00AE, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, Cipher.AES_128_CBC, MACAlgorithm.HMAC_SHA256),
+	TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256(0xC037, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.ECDHE_PSK, CipherSpec.AES_128_CBC, MACAlgorithm.HMAC_SHA256),
+	TLS_PSK_WITH_AES_128_CBC_SHA256(0x00AE, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_CBC, MACAlgorithm.HMAC_SHA256),
 
 	// Certificate cipher suites, ordered by default preference, see getCertificateCipherSuites or getEcdsaCipherSuites ///
-	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256(0xc02b, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, Cipher.AES_128_GCM, MACAlgorithm.NULL),
-	TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8(0xC0AE, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, Cipher.AES_128_CCM_8, MACAlgorithm.NULL),
-	TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8(0xC0AF, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, Cipher.AES_256_CCM_8, MACAlgorithm.NULL),
-	TLS_ECDHE_ECDSA_WITH_AES_128_CCM(0xC0AC, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, Cipher.AES_128_CCM, MACAlgorithm.NULL),
-	TLS_ECDHE_ECDSA_WITH_AES_256_CCM(0xC0AD, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, Cipher.AES_256_CCM, MACAlgorithm.NULL),
-	TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA(0xC00A, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, Cipher.AES_256_CBC, MACAlgorithm.HMAC_SHA1),
-	TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256(0xC023, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, Cipher.AES_128_CBC, MACAlgorithm.HMAC_SHA256),
-	TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384(0xC024, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, Cipher.AES_256_CBC, MACAlgorithm.HMAC_SHA384, PRFAlgorithm.TLS_PRF_SHA384),
+	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256(0xc02b, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_GCM, MACAlgorithm.NULL),
+	TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8(0xC0AE, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_CCM_8, MACAlgorithm.NULL),
+	TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8(0xC0AF, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CCM_8, MACAlgorithm.NULL),
+	TLS_ECDHE_ECDSA_WITH_AES_128_CCM(0xC0AC, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_CCM, MACAlgorithm.NULL),
+	TLS_ECDHE_ECDSA_WITH_AES_256_CCM(0xC0AD, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CCM, MACAlgorithm.NULL),
+	TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA(0xC00A, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CBC, MACAlgorithm.HMAC_SHA1),
+	TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256(0xC023, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_CBC, MACAlgorithm.HMAC_SHA256),
+	TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384(0xC024, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CBC, MACAlgorithm.HMAC_SHA384, PRFAlgorithm.TLS_PRF_SHA384),
 
 	// Null cipher suite ///
-	TLS_NULL_WITH_NULL_NULL(0x0000, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.NULL, Cipher.NULL, MACAlgorithm.NULL),
+	TLS_NULL_WITH_NULL_NULL(0x0000, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.NULL, CipherSpec.NULL, MACAlgorithm.NULL),
 	;
 
 	// DTLS-specific constants ////////////////////////////////////////
@@ -115,18 +117,18 @@ public enum CipherSuite {
 	private final int code;
 	private final CertificateKeyAlgorithm certificateKeyAlgorithm;
 	private final KeyExchangeAlgorithm keyExchange;
-	private final Cipher cipher;
+	private final CipherSpec cipher;
 	private final MACAlgorithm macAlgorithm;
 	private final PRFAlgorithm pseudoRandomFunction;
 	private final int maxCipherTextExpansion;
 
 	// Constructor ////////////////////////////////////////////////////
 
-	private CipherSuite(int code, CertificateKeyAlgorithm certificate, KeyExchangeAlgorithm keyExchange, Cipher cipher, MACAlgorithm macAlgorithm) {
+	private CipherSuite(int code, CertificateKeyAlgorithm certificate, KeyExchangeAlgorithm keyExchange, CipherSpec cipher, MACAlgorithm macAlgorithm) {
 		this(code, certificate, keyExchange, cipher, macAlgorithm, PRFAlgorithm.TLS_PRF_SHA256);
 	}
 
-	private CipherSuite(int code, CertificateKeyAlgorithm certificate, KeyExchangeAlgorithm keyExchange, Cipher cipher, MACAlgorithm macAlgorithm, PRFAlgorithm prf) {
+	private CipherSuite(int code, CertificateKeyAlgorithm certificate, KeyExchangeAlgorithm keyExchange, CipherSpec cipher, MACAlgorithm macAlgorithm, PRFAlgorithm prf) {
 		this.code = code;
 		this.certificateKeyAlgorithm = certificate;
 		this.keyExchange = keyExchange;
@@ -179,6 +181,16 @@ public enum CipherSuite {
 	 */
 	public String getTransformation() {
 		return cipher.getTransformation();
+	}
+
+	/**
+	 * Gets the suite's underlying cipher.
+	 * 
+	 * @return the cipher, or {@code null}, if the cipher is not supported by
+	 *         the java-vm.
+	 */
+	public Cipher getCipher() {
+		return cipher.getCipher();
 	}
 
 	/**
@@ -623,7 +635,7 @@ public enum CipherSuite {
 		}
 	}
 
-	private enum Cipher {
+	private enum CipherSpec {
 		// key_length & record_iv_length as documented in RFC 5426, Appendix C
 		// see http://tools.ietf.org/html/rfc5246#appendix-C
 		NULL("NULL", CipherType.NULL, 0, 0, 0),
@@ -648,12 +660,13 @@ public enum CipherSuite {
 		private final int recordIvLength;
 		private final int macLength;
 		private final boolean supported;
+		private final ThreadLocalCipher cipher;
 
-		private Cipher(String transformation, CipherType type, int keyLength, int fixedIvLength, int recordIvLength) {
+		private CipherSpec(String transformation, CipherType type, int keyLength, int fixedIvLength, int recordIvLength) {
 			this(transformation, type, keyLength, fixedIvLength, recordIvLength, 0);
 		}
 
-		private Cipher(String transformation, CipherType type, int keyLength, int fixedIvLength, int recordIvLength,
+		private CipherSpec(String transformation, CipherType type, int keyLength, int fixedIvLength, int recordIvLength,
 				int macLength) {
 			this.transformation = transformation;
 			this.type = type;
@@ -661,10 +674,16 @@ public enum CipherSuite {
 			this.fixedIvLength = fixedIvLength;
 			this.recordIvLength = recordIvLength;
 			this.macLength = macLength;
+			boolean supported = true;
 			if (type == CipherType.AEAD || type == CipherType.BLOCK) {
-				this.supported = AeadBlockCipher.isSupported(transformation, keyLength);
+				supported = AeadBlockCipher.isSupported(transformation, keyLength);
+			}
+			if (AeadBlockCipher.AES_CCM.equals(transformation)) {
+				this.cipher = null;
+				this.supported = supported;
 			} else {
-				this.supported = true;
+				this.cipher = supported ? new ThreadLocalCipher(transformation) : null;
+				this.supported = this.cipher == null ? false : this.cipher.isSupported();
 			}
 		}
 
@@ -714,6 +733,10 @@ public enum CipherSuite {
 	
 		private boolean isSupported() {
 			return supported;
+		}
+		
+		private Cipher getCipher() {
+			return cipher.current();
 		}
 	}
 
