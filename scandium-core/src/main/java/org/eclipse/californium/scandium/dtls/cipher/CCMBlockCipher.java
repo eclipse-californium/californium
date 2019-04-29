@@ -45,6 +45,7 @@ public class CCMBlockCipher {
 	 * The underlying block cipher.
 	 */
 	public static final String CIPHER_NAME = "AES/ECB/NoPadding";
+	public static final ThreadLocalCipher CIPHER = new ThreadLocalCipher(CIPHER_NAME);
 
 	private static abstract class Block {
 
@@ -301,7 +302,7 @@ public class CCMBlockCipher {
 		 */
 
 		// instantiate the underlying block cipher
-		Cipher cipher = CipherManager.getInstance(CIPHER_NAME);
+		Cipher cipher = CIPHER.current();
 		cipher.init(Cipher.ENCRYPT_MODE, key);
 
 		int lengthM = c.length - numAuthenticationBytes;
@@ -369,7 +370,7 @@ public class CCMBlockCipher {
 			throws GeneralSecurityException {
 
 		// instantiate the cipher
-		Cipher cipher = CipherManager.getInstance(CIPHER_NAME);
+		Cipher cipher = CIPHER.current();
 		cipher.init(Cipher.ENCRYPT_MODE, key);
 		int blockSize = cipher.getBlockSize();
 		int lengthM = m.length;

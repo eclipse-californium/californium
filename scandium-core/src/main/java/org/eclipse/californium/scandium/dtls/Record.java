@@ -40,7 +40,6 @@ import javax.crypto.spec.IvParameterSpec;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.scandium.dtls.cipher.CipherManager;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.AeadBlockCipher;
 import org.eclipse.californium.scandium.dtls.cipher.InvalidMacException;
@@ -521,7 +520,7 @@ public class Record {
 		byte[] padding = new byte[paddingLength + 1];
 		Arrays.fill(padding, (byte) paddingLength);
 		plaintext.writeBytes(padding);
-		Cipher blockCipher = CipherManager.getInstance(writeState.getCipherSuite().getTransformation());
+		Cipher blockCipher = writeState.getCipherSuite().getCipher();
 		blockCipher.init(Cipher.ENCRYPT_MODE, writeState.getEncryptionKey());
 
 		// create GenericBlockCipher structure
@@ -572,7 +571,7 @@ public class Record {
 		 */
 		DatagramReader reader = new DatagramReader(ciphertextFragment);
 		byte[] iv = reader.readBytes(currentReadState.getRecordIvLength());
-		Cipher blockCipher = CipherManager.getInstance(currentReadState.getCipherSuite().getTransformation());
+		Cipher blockCipher = currentReadState.getCipherSuite().getCipher();
 		blockCipher.init(Cipher.DECRYPT_MODE,
 				currentReadState.getEncryptionKey(),
 				new IvParameterSpec(iv));
