@@ -327,13 +327,13 @@ public class CredentialsUtil {
 		if (psk && config.getIncompleteConfig().getSupportedCipherSuites() == null) {
 			List<CipherSuite> suites = new ArrayList<>();
 			if (x509 >= 0 || rpk >= 0 || x509Trust || rpkTrust) {
-				suites.addAll(CipherSuite.getEcdsaCipherSuites(true));
+				suites.addAll(CipherSuite.getEcdsaCipherSuites());
 			}
 			if (ecdhePsk) {
 				suites.add(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256);
 			} 
 			if (plainPsk) {
-				suites.addAll(CipherSuite.getPskCipherSuites(true, false));
+				suites.addAll(CipherSuite.getPskCipherSuites(false));
 			}
 			config.setSupportedCipherSuites(suites);
 		}

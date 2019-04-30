@@ -148,9 +148,8 @@ public class ConnectorHelper {
 				.setServerOnly(true);
 
 		if (builder.getIncompleteConfig().getSupportedCipherSuites() == null) {
-			CipherSuite.getEcdsaCipherSuites(true);
-			List<CipherSuite> list = new ArrayList<>(CipherSuite.getEcdsaCipherSuites(true));
-			list.addAll(CipherSuite.getPskCipherSuites(true, true));
+			List<CipherSuite> list = new ArrayList<>(CipherSuite.getEcdsaCipherSuites());
+			list.addAll(CipherSuite.getPskCipherSuites(true));
 			builder.setSupportedCipherSuites(list);
 		}
 		if (!Boolean.FALSE.equals(builder.getIncompleteConfig().isClientAuthenticationRequired()) ||
