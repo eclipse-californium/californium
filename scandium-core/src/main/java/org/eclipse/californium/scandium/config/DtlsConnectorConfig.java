@@ -774,7 +774,6 @@ public final class DtlsConnectorConfig {
 
 		private DtlsConnectorConfig config;
 		private boolean clientOnly;
-		private boolean extendedCipherSuites;
 
 		/**
 		 * Creates a new instance for setting configuration options
@@ -846,22 +845,6 @@ public final class DtlsConnectorConfig {
 		 */
 		public Builder setEnableAddressReuse(boolean enable) {
 			config.enableReuseAddress = enable;
-			return this;
-		}
-
-		/**
-		 * Set usage of extended cipher suites for default cipher suites, if
-		 * {@link #setSupportedCipherSuites} is not called.
-		 * 
-		 * @param extendedCipherSuites {@code true} use extended cipher suites
-		 *            as default
-		 * @return this builder for command chaining
-		 */
-		public Builder setExtendedCipherSuites(boolean extendedCipherSuites) {
-			if (config.supportedCipherSuites != null) {
-				throw new IllegalArgumentException("cipher-suites are already provided!");
-			}
-			this.extendedCipherSuites = extendedCipherSuites;
 			return this;
 		}
 
@@ -1099,9 +1082,6 @@ public final class DtlsConnectorConfig {
 			} 
 			if (cipherSuites.contains(CipherSuite.TLS_NULL_WITH_NULL_NULL)) {
 				throw new IllegalArgumentException("NULL Cipher Suite is not supported by connector");
-			}
-			if (extendedCipherSuites) {
-				throw new IllegalArgumentException("Extended default cipher-suites are already provided!");
 			}
 			for (CipherSuite cipherSuite : cipherSuites) {
 				if (!cipherSuite.isSupported()) {
@@ -1968,11 +1948,11 @@ public final class DtlsConnectorConfig {
 
 			if (certificates) {
 				// currently only ECDSA is supported!
-				ciphers.addAll(CipherSuite.getEcdsaCipherSuites(extendedCipherSuites));
+				ciphers.addAll(CipherSuite.getEcdsaCipherSuites());
 			}
 
 			if (config.pskStore != null) {
-				ciphers.addAll(CipherSuite.getPskCipherSuites(extendedCipherSuites, true));
+				ciphers.addAll(CipherSuite.getPskCipherSuites(true));
 			}
 
 			config.supportedCipherSuites = ciphers;
