@@ -220,6 +220,9 @@ public class CoapEndpoint implements Endpoint {
 	/** A store containing data about message exchanges. */
 	private final MessageExchangeStore exchangeStore;
 
+	/** A Store containing data about observation. */
+	private final ObservationStore observationStore;
+
 	/** The executor to run tasks for this endpoint and its layers */
 	private ExecutorService executor;
 
@@ -310,7 +313,7 @@ public class CoapEndpoint implements Endpoint {
 		}
 		this.exchangeStore = (null != exchangeStore) ? exchangeStore
 				: new InMemoryMessageExchangeStore(config, tokenGenerator);
-		ObservationStore observationStore = (null != store) ? store : new InMemoryObservationStore(config);
+		observationStore = (null != store) ? store : new InMemoryObservationStore(config);
 		if (null == endpointContextMatcher) {
 			endpointContextMatcher = EndpointContextMatcherFactory.create(connector, config);
 		}
@@ -471,6 +474,7 @@ public class CoapEndpoint implements Endpoint {
 		this.secondaryExecutor = secondaryExecutor;
 		this.coapstack.setExecutors(mainExecutor, this.secondaryExecutor);
 		this.exchangeStore.setExecutor(this.secondaryExecutor);
+		this.observationStore.setExecutor(this.secondaryExecutor);
 	}
 
 	@Override
