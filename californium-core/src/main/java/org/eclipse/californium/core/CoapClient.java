@@ -316,6 +316,19 @@ public class CoapClient {
 		return this;
 	}
 
+	private ScheduledThreadPoolExecutor getSecondaryExecutor() {
+		if (secondaryExecutor == null) {
+			synchronized (this) {
+				if (secondaryExecutor == null) {
+					secondaryExecutor = new ScheduledThreadPoolExecutor(1,
+							new NamedThreadFactory("CoapClient(secondary)#"));
+				}
+				this.detachExecutor = false;
+			}
+		}
+		return secondaryExecutor;
+	}
+
 	/**
 	 * Gets the endpoint this client uses.
 	 *
@@ -1170,7 +1183,7 @@ public class CoapClient {
 		if (request.getOptions().hasObserve()) {
 			assignClientUriIfEmpty(request);
 			Endpoint outEndpoint = getEffectiveEndpoint(request);
-			CoapObserveRelation relation = new CoapObserveRelation(request, outEndpoint);
+			CoapObserveRelation relation = new CoapObserveRelation(request, outEndpoint, getSecondaryExecutor());
 			// add message observer to get the response.
 			ObserveMessageObserverImpl messageObserver = new ObserveMessageObserverImpl(handler, request.isMulticast(), relation);
 			request.addMessageObserver(messageObserver);
@@ -1205,7 +1218,7 @@ public class CoapClient {
 		if (request.getOptions().hasObserve()) {
 			assignClientUriIfEmpty(request);
 			Endpoint outEndpoint = getEffectiveEndpoint(request);
-			CoapObserveRelation relation = new CoapObserveRelation(request, outEndpoint);
+			CoapObserveRelation relation = new CoapObserveRelation(request, outEndpoint, getSecondaryExecutor());
 			// add message observer to get the response.
 			ObserveMessageObserverImpl messageObserver = new ObserveMessageObserverImpl(handler, request.isMulticast(), relation);
 			request.addMessageObserver(messageObserver);

@@ -47,7 +47,6 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObserveNotificationOrderer;
 import org.eclipse.californium.elements.EndpointContext;
-import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,7 +62,7 @@ public class CoapObserveRelation {
 	private static final Logger LOGGER = LoggerFactory.getLogger(CoapObserveRelation.class.getCanonicalName());
 
 	/** A executor service to schedule re-registrations */
-	private static final ScheduledThreadPoolExecutor scheduler = ExecutorsUtil.getScheduledExecutor();
+	private final ScheduledThreadPoolExecutor scheduler;
 
 	/** The endpoint. */
 	private final Endpoint endpoint;
@@ -113,12 +112,13 @@ public class CoapObserveRelation {
 	 * @param request the request
 	 * @param endpoint the endpoint
 	 */
-	protected CoapObserveRelation(Request request, Endpoint endpoint) {
+	protected CoapObserveRelation(Request request, Endpoint endpoint, ScheduledThreadPoolExecutor executor) {
 		this.request = request;
 		this.endpoint = endpoint;
 		this.orderer = new ObserveNotificationOrderer();
 		this.reregistrationBackoff = endpoint.getConfig()
 				.getLong(NetworkConfig.Keys.NOTIFICATION_REREGISTRATION_BACKOFF);
+		this.scheduler = executor;
 	}
 
 	/**
