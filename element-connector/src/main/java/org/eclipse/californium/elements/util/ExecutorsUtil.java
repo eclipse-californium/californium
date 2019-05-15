@@ -128,6 +128,67 @@ public class ExecutorsUtil {
 	}
 
 	/**
+	 * Create a scheduler with 2 threads in pools.
+	 * 
+	 * Intended to be used for rare executing timers (e.g. cleanup tasks).
+	 * 
+	 * @return scheduled executor service
+	 */
+	public static ScheduledThreadPoolExecutor newDefaultSecondaryScheduler(String namePrefix) {
+		ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(2,
+				new NamedThreadFactory(namePrefix));
+		executor.execute(WARMUP);
+		executor.prestartAllCoreThreads();
+		return executor;
+	}
+
+	/**
+	 * Shutdown executor gracefully by waiting for task terminations.
+	 * 
+	 * @param timeMaxToWaitInMs max time to wait in milliseconds for task
+	 *            completions, after this time a more aggressive
+	 *            {@link ExecutorService#shutdownNow()} will be called.
+	 * @param executors
+	 */
+	public static void shutdownExecutorGracefully(long timeMaxToWaitInMs, ScheduledExecutorService... executors) {
+		if (executors.length == 0)
+			return;
+		
+		// shutdown executor
+		for (ScheduledExecutorService executor : executors) {
+			executor.shutdown();
+		}
+
+		// wait for task termination
+		try {
+			long timeToWait = timeMaxToWaitInMs / executors.length / 2;
+			for (ScheduledExecutorService executor : executors) {
+				if (!executor.awaitTermination(timeToWait, TimeUnit.MILLISECONDS)) {
+					// cancel still executing tasks
+					// and ignore all remaining tasks scheduled for
+					// later
+					List<Runnable> runningTasks = executor.shutdownNow();
+					if (runningTasks.size() > 0) {
+						// this is e.g. the case if we have performed an
+						// incomplete blockwise transfer
+						// and the BlockwiseLayer has scheduled a
+						// pending BlockCleanupTask for tidying up
+						LOGGER.debug("ignoring remaining {} scheduled task(s)", runningTasks.size());
+					}
+					// wait for executing tasks to respond to being
+					// cancelled
+					executor.awaitTermination(timeToWait, TimeUnit.MILLISECONDS);
+				}
+			}
+		} catch (InterruptedException e) {
+			for (ScheduledExecutorService executor : executors) {
+				executor.shutdownNow();
+			}
+			Thread.currentThread().interrupt();
+		}
+	}
+
+	/**
 	 * Get general scheduled executor.
 	 * 
 	 * Intended to be used for rare executing timers (e.g. cleanup tasks).

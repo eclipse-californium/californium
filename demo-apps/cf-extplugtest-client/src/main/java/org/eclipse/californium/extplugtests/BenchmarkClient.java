@@ -33,6 +33,7 @@ import java.util.Formatter;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -420,9 +421,10 @@ public class BenchmarkClient {
 	 * @param uri destination URI
 	 * @param endpoint local endpoint to exchange messages
 	 * @param executor
+	 * @param secondaryExecutor intended to be used for rare executing timers (e.g. cleanup tasks). 
 	 */
 	public BenchmarkClient(int index, int intervalMin, int intervalMax, URI uri, Endpoint endpoint,
-			ScheduledExecutorService executor) {
+			ScheduledExecutorService executor, ScheduledExecutorService secondaryExecutor) {
 		int maxResourceSize = endpoint.getConfig().getInt(Keys.MAX_RESOURCE_BODY_SIZE);
 		if (executor == null) {
 			int threads = endpoint.getConfig().getInt(KEY_BENCHMARK_CLIENT_THREADS);
@@ -433,7 +435,7 @@ public class BenchmarkClient {
 			shutdown = false;
 		}
 		endpoint.addInterceptor(new MessageTracer());
-		endpoint.setExecutors(executorService, ExecutorsUtil.getScheduledExecutor());
+		endpoint.setExecutors(executorService, secondaryExecutor);
 		client = new CoapClient(uri);
 		server = new CoapServer(endpoint.getConfig());
 		Feed feed = new Feed(CoAP.Type.NON, index, maxResourceSize, intervalMin, intervalMax, executorService,
@@ -444,9 +446,9 @@ public class BenchmarkClient {
 				overallReverseResponsesDownCounter, notifiesCompleteTimeouts);
 		feed.addObserver(feedObserver);
 		server.add(feed);
-		server.setExecutor(executorService, true);
+		server.setExecutors(executorService, secondaryExecutor, true);
 		client.setExecutor(executorService, true);
-		endpoint.setExecutors(executorService, ExecutorsUtil.getScheduledExecutor());
+		endpoint.setExecutors(executorService, secondaryExecutor);
 		this.endpoint = endpoint;
 	}
 
@@ -643,6 +645,9 @@ public class BenchmarkClient {
 		ScheduledExecutorService connectorExecutor = config.getInt(KEY_BENCHMARK_CLIENT_THREADS) == 0 ? executor : null;
 		boolean secure = CoAP.isSecureScheme(uri.getScheme());
 
+		ScheduledExecutorService secondaryExecutor = new ScheduledThreadPoolExecutor(2,
+				new DaemonThreadFactory("CoapServer(secondary)#"));
+
 		System.out.format("Create %d %s%sbenchmark clients, expect to send %d request overall to %s%n", clients,
 				noneStop ? "none-stop " : "", secure ? "secure " : "", overallRequests, uri);
 
@@ -670,7 +675,7 @@ public class BenchmarkClient {
 			}
 			CoapEndpoint coapEndpoint = ClientInitializer.createEndpoint(config, connectionArgs, connectorExecutor);
 			final BenchmarkClient client = new BenchmarkClient(index, intervalMin, intervalMax, uri,
-					coapEndpoint, connectorExecutor);
+					coapEndpoint, connectorExecutor, secondaryExecutor);
 			clientList.add(client);
 			if (index == 0) {
 				// first client, so test request

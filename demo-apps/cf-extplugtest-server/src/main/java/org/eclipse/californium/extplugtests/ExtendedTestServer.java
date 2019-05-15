@@ -137,10 +137,10 @@ public class ExtendedTestServer extends AbstractTestServer {
 
 			ScheduledExecutorService executor = ExecutorsUtil.newScheduledThreadPool(//
 					config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT), //
-					new NamedThreadFactory("CoapServer#")); //$NON-NLS-1$
+					new NamedThreadFactory("CoapServer(main)#")); //$NON-NLS-1$
 
 			ExtendedTestServer server = new ExtendedTestServer(config, protocolConfig, noBenchmark);
-			server.setExecutor(executor);
+			server.setExecutors(executor, ExecutorsUtil.newDefaultSecondaryScheduler("CoapServer(secondary)#"), false);
 			server.add(new ReverseRequest(config, executor));
 			ReverseObserve reverseObserver = new ReverseObserve(config, executor);
 			server.add(reverseObserver);
