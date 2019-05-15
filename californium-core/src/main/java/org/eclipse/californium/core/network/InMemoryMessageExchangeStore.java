@@ -51,6 +51,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
@@ -65,7 +66,6 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.network.deduplication.Deduplicator;
 import org.eclipse.californium.core.network.deduplication.DeduplicatorFactory;
-import org.eclipse.californium.elements.util.ExecutorsUtil;
 
 /**
  * A {@code MessageExchangeStore} that manages all exchanges in local memory.
@@ -85,6 +85,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	private volatile boolean running = false;
 	private volatile Deduplicator deduplicator;
 	private volatile MessageIdProvider messageIdProvider;
+	private ScheduledExecutorService loggingScheduler;
 	private ScheduledFuture<?> statusLogger;
 
 	/**
@@ -118,12 +119,11 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	}
 
 	private void startStatusLogging() {
-
 		final int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, NetworkConfigDefaults.DEFAULT_HEALTH_STATUS_INTERVAL); // seconds
 		// this is a useful health metric
 		// that could later be exported to some kind of monitoring interface
-		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled()) {
-			statusLogger = ExecutorsUtil.getScheduledExecutor().scheduleAtFixedRate(new Runnable() {
+		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled() && loggingScheduler != null) {
+			statusLogger = loggingScheduler.scheduleAtFixedRate(new Runnable() {
 
 				@Override
 				public void run() {
@@ -174,6 +174,15 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			throw new NullPointerException("Message ID Provider must not be null");
 		} else {
 			this.messageIdProvider = provider;
+		}
+	}
+
+	@Override
+	public synchronized void setExecutor(ScheduledExecutorService executor) {
+		if (running) {
+			throw new IllegalStateException("Cannot set messageIdProvider when store is already started");
+		} else {
+			loggingScheduler = executor;
 		}
 	}
 
