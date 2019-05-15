@@ -77,7 +77,6 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
-import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -228,7 +227,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	@Override
 	public void start() {
 		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled() && statusLogger == null) {
-			statusLogger = ExecutorsUtil.getScheduledExecutor().scheduleAtFixedRate(new Runnable() {
+			statusLogger = secondaryExecutor.scheduleAtFixedRate(new Runnable() {
 
 				@Override
 				public void run() {
