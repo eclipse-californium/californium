@@ -135,6 +135,11 @@ public interface Layer {
 	void setExecutor(ScheduledExecutorService executor);
 
 	/**
+	 * start this layer. (E.g. starting periodic task)
+	 */
+	void start();
+
+	/**
 	 * Stop this layer and release any resources.
 	 * 
 	 * The outcome of any operations invoked on this layer after this method has

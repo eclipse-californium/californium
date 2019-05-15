@@ -35,6 +35,8 @@ public interface CoapStack {
 
 	void setDeliverer(MessageDeliverer deliverer);
 
+	void start();
+
 	void destroy();
 
 	boolean hasDeliverer();

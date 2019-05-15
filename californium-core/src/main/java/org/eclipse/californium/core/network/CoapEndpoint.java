@@ -406,6 +406,7 @@ public class CoapEndpoint implements Endpoint {
 			started = true;
 			matcher.start();
 			connector.start();
+			coapstack.start();
 			for (EndpointObserver obs : observers) {
 				obs.started(this);
 			}

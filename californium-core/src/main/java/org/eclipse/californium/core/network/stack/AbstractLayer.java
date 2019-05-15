@@ -155,6 +155,11 @@ public abstract class AbstractLayer implements Layer {
 		}
 	}
 
+	@Override
+	public void start() {
+		
+	}
+
 	/**
 	 * This method is empty.
 	 * <p>
@@ -223,6 +228,11 @@ public abstract class AbstractLayer implements Layer {
 
 		@Override
 		public void setExecutor(final ScheduledExecutorService executor) {
+			// do nothing
+		}
+		
+		@Override
+		public void start() {
 			// do nothing
 		}
 

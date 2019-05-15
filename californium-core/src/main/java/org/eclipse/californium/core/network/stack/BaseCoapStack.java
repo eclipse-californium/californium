@@ -163,6 +163,13 @@ public abstract class BaseCoapStack implements CoapStack {
 	}
 
 	@Override
+	public void start() {
+		for (Layer layer : layers) {
+			layer.start();
+		}
+	}
+
+	@Override
 	public void destroy() {
 		for (Layer layer : layers) {
 			layer.destroy();
