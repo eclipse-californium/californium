@@ -36,7 +36,7 @@ public class CoapStackTest {
 
 	public CoapStackTest(CoapStack stack, Outbox outbox) {
 		this.stack = stack;
-		this.stack.setExecutor(Executors.newSingleThreadScheduledExecutor());
+		this.stack.setExecutors(Executors.newSingleThreadScheduledExecutor(), Executors.newSingleThreadScheduledExecutor());
 		this.outbox = outbox;
 	}
 

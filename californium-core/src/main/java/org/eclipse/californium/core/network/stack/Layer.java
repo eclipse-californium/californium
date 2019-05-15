@@ -128,11 +128,15 @@ public interface Layer {
 	void setUpperLayer(Layer layer);
 
 	/**
-	 * Sets the executor.
+	 * Sets executors for this layer.
 	 *
-	 * @param executor the new executor
+	 * Executors are not managed by the layer, it must be shutdown
+	 * externally, if the resource should be freed.
+	 *
+	 * @param mainExecutor executors used for main tasks
+	 * @param secondaryExecutor intended to be used for rare executing timers (e.g. cleanup tasks). 
 	 */
-	void setExecutor(ScheduledExecutorService executor);
+	void setExecutors(ScheduledExecutorService mainExecutor, ScheduledExecutorService secondaryExecutor);
 
 	/**
 	 * start this layer. (E.g. starting periodic task)

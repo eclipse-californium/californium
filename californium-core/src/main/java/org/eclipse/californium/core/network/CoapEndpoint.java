@@ -469,7 +469,7 @@ public class CoapEndpoint implements Endpoint {
 		}
 		this.executor = mainExecutor;
 		this.secondaryExecutor = secondaryExecutor;
-		this.coapstack.setExecutor(mainExecutor);
+		this.coapstack.setExecutors(mainExecutor, this.secondaryExecutor);
 		this.exchangeStore.setExecutor(this.secondaryExecutor);
 	}
 

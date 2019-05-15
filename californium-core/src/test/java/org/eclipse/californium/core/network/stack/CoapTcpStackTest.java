@@ -42,7 +42,7 @@ public class CoapTcpStackTest {
 	public void initialize() {
 		stack = new CoapTcpStack(CONFIG, outbox);
 		stack.setDeliverer(deliverer);
-		stack.setExecutor(executor);
+		stack.setExecutors(executor, executor);
 
 	}
 

@@ -58,8 +58,11 @@ public abstract class AbstractLayer implements Layer {
 	/** The lower layer. */
 	private Layer lowerLayer = LogOnlyLayer.getInstance();
 
-	/** The executor. */
+	/** The main executor. */
 	protected ScheduledExecutorService executor;
+
+	/** Scheduled executor intended to be used for rare executing timers (e.g. cleanup tasks). */
+	protected ScheduledExecutorService secondaryExecutor;
 
 	@Override
 	public void sendRequest(final Exchange exchange, final Request request) {
@@ -132,8 +135,9 @@ public abstract class AbstractLayer implements Layer {
 	}
 
 	@Override
-	public final void setExecutor(final ScheduledExecutorService executor) {
-		this.executor = executor;
+	public final void setExecutors(ScheduledExecutorService mainExecutor, ScheduledExecutorService secondaryExecutor) {
+		this.executor = mainExecutor;
+		this.secondaryExecutor = secondaryExecutor;
 	}
 
 	/**
@@ -227,10 +231,11 @@ public abstract class AbstractLayer implements Layer {
 		}
 
 		@Override
-		public void setExecutor(final ScheduledExecutorService executor) {
-			// do nothing
+		public void setExecutors(ScheduledExecutorService mainExecutor, ScheduledExecutorService secondaryExecutor) {
+			// no nothing
+			
 		}
-		
+
 		@Override
 		public void start() {
 			// do nothing

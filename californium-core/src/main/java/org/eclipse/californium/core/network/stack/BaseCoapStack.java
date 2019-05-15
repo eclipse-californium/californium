@@ -146,9 +146,9 @@ public abstract class BaseCoapStack implements CoapStack {
 	}
 
 	@Override
-	public final void setExecutor(final ScheduledExecutorService executor) {
+	public final void setExecutors(ScheduledExecutorService mainExecutor, ScheduledExecutorService secondaryExecutor) {
 		for (Layer layer : layers) {
-			layer.setExecutor(executor);
+			layer.setExecutors(mainExecutor, secondaryExecutor);
 		}
 	}
 

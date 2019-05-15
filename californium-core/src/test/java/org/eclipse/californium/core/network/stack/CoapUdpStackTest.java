@@ -41,7 +41,7 @@ public class CoapUdpStackTest {
 	public void initialize() {
 		stack = new CoapUdpStack(CONFIG, outbox);
 		stack.setDeliverer(deliverer);
-		stack.setExecutor(executor);
+		stack.setExecutors(executor, executor);
 
 	}
 
