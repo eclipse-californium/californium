@@ -26,6 +26,8 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -51,6 +53,7 @@ public class InMemoryMessageExchangeStoreTest {
 		config = NetworkConfig.createStandardWithoutFile();
 		config.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, 200); //ms
 		store = new InMemoryMessageExchangeStore(config);
+		store.setExecutor(ExecutorsUtil.newSingleThreadScheduledExecutor(new NamedThreadFactory("ExchangeStore")));
 		store.start();
 	}
 

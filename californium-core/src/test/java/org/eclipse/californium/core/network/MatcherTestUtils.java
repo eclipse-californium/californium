@@ -35,6 +35,8 @@ import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.NamedThreadFactory;
 
 /**
  * Helper methods for testing {@code Matcher}s.
@@ -57,8 +59,11 @@ public final class MatcherTestUtils {
 	
 	static TcpMatcher newTcpMatcher(EndpointContextMatcher correlationContextMatcher) {
 		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
+		InMemoryMessageExchangeStore exchangeStore = new InMemoryMessageExchangeStore(config);
 		TcpMatcher matcher = new TcpMatcher(config, notificationListener, new RandomTokenGenerator(config),
-				new InMemoryObservationStore(config), new InMemoryMessageExchangeStore(config), TEST_EXCHANGE_EXECUTOR, correlationContextMatcher);
+				new InMemoryObservationStore(config), exchangeStore, TEST_EXCHANGE_EXECUTOR, correlationContextMatcher);
+		exchangeStore
+				.setExecutor(ExecutorsUtil.newSingleThreadScheduledExecutor(new NamedThreadFactory("ExchangeStore")));
 		matcher.start();
 		return matcher;
 	}
@@ -68,7 +73,8 @@ public final class MatcherTestUtils {
 		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
 		UdpMatcher matcher = new UdpMatcher(config, notificationListener, new RandomTokenGenerator(config),
 				observationStore, exchangeStore, TEST_EXCHANGE_EXECUTOR, correlationContextMatcher);
-
+		exchangeStore
+				.setExecutor(ExecutorsUtil.newSingleThreadScheduledExecutor(new NamedThreadFactory("ExchangeStore")));
 		matcher.start();
 		return matcher;
 	}

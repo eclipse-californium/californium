@@ -85,7 +85,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	private volatile boolean running = false;
 	private volatile Deduplicator deduplicator;
 	private volatile MessageIdProvider messageIdProvider;
-	private ScheduledExecutorService loggingScheduler;
+	private ScheduledExecutorService executor;
 	private ScheduledFuture<?> statusLogger;
 
 	/**
@@ -122,8 +122,8 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		final int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, NetworkConfigDefaults.DEFAULT_HEALTH_STATUS_INTERVAL); // seconds
 		// this is a useful health metric
 		// that could later be exported to some kind of monitoring interface
-		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled() && loggingScheduler != null) {
-			statusLogger = loggingScheduler.scheduleAtFixedRate(new Runnable() {
+		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled() && executor != null) {
+			statusLogger = executor.scheduleAtFixedRate(new Runnable() {
 
 				@Override
 				public void run() {
@@ -182,7 +182,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		if (running) {
 			throw new IllegalStateException("Cannot set messageIdProvider when store is already started");
 		} else {
-			loggingScheduler = executor;
+			this.executor = executor;
 		}
 	}
 
@@ -390,6 +390,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 				DeduplicatorFactory factory = DeduplicatorFactory.getDeduplicatorFactory();
 				this.deduplicator = factory.createDeduplicator(config);
 			}
+			this.deduplicator.setExecutor(executor);
 			this.deduplicator.start();
 			if (messageIdProvider == null) {
 				LOGGER.debug("no MessageIdProvider set, using default {}", InMemoryMessageIdProvider.class.getName());

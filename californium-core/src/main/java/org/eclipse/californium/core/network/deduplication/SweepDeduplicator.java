@@ -35,6 +35,7 @@ package org.eclipse.californium.core.network.deduplication;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -42,7 +43,6 @@ import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.util.ClockUtil;
-import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,6 +88,7 @@ public final class SweepDeduplicator implements Deduplicator {
 	private final long sweepInterval;
 	private final long exchangeLifetime;
 	private volatile ScheduledFuture<?> jobStatus;
+	private ScheduledExecutorService executor;
 
 	/**
 	 * Creates a new deduplicator from configuration values.
@@ -113,7 +114,7 @@ public final class SweepDeduplicator implements Deduplicator {
 	@Override
 	public synchronized void start() {
 		if (jobStatus == null) {
-			jobStatus = ExecutorsUtil.getScheduledExecutor().scheduleAtFixedRate(algorithm, sweepInterval, sweepInterval,
+			jobStatus = executor.scheduleAtFixedRate(algorithm, sweepInterval, sweepInterval,
 					TimeUnit.MILLISECONDS);
 		}
 	}
@@ -125,6 +126,13 @@ public final class SweepDeduplicator implements Deduplicator {
 			jobStatus = null;
 			clear();
 		}
+	}
+
+	@Override
+	public synchronized void setExecutor(ScheduledExecutorService executor) {
+		if (jobStatus != null)
+			throw new IllegalStateException("executor service can not be set on running Deduplicator");
+		this.executor = executor;
 	}
 
 	/**
