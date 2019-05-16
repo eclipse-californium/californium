@@ -12,6 +12,10 @@
  * 
  * Contributors:
  *    Achim Kraus (Bosch Software Innovations GmbH) - initial implementation. 
+ *    Achim Kraus (Bosch Software Innovations GmbH) - fix potentially equally initialized 
+ *                                                    Random, if they are created very
+ *                                                    fast from different threads without
+ *                                                    currentTimeMillis changing. 
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.cipher;
 
@@ -25,6 +29,10 @@ import java.util.Random;
  * {@link Random}.
  */
 public class RandomManager {
+	/**
+	 * Use system time as base for random seed.
+	 */
+	private static final long START = System.currentTimeMillis();
 
 	private static final ThreadLocal<SecureRandom> threadLocalSecureRandom = new ThreadLocal<SecureRandom>() {
 
@@ -47,7 +55,7 @@ public class RandomManager {
 
 		@Override
 		protected Random initialValue() {
-			return new Random(System.currentTimeMillis());
+			return new Random(START + Thread.currentThread().getId());
 		}
 	};
 
