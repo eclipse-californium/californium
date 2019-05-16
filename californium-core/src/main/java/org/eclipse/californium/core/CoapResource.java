@@ -40,6 +40,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.Semaphore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -854,6 +855,11 @@ public  class CoapResource implements Resource {
 	public ExecutorService getExecutor() {
 		final Resource parent = getParent();
 		return parent != null ? parent.getExecutor() : null;
+	}
+
+	public ScheduledThreadPoolExecutor getSecondaryExecutor() {
+		final Resource parent = getParent();
+		return parent != null ? parent.getSecondaryExecutor() : null;
 	}
 
 	/**
