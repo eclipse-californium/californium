@@ -50,6 +50,7 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.elements.exception.ConnectorException;
@@ -105,6 +106,9 @@ public class CoapClient {
 
 	/** The client-specific executor service. */
 	private ExecutorService executor;
+
+	/** Scheduled executor intended to be used for rare executing timers (e.g. cleanup tasks). */
+	private ScheduledThreadPoolExecutor secondaryExecutor;
 
 	/**
 	 * Indicate, it the client-specific executor service is detached, or
@@ -252,16 +256,19 @@ public class CoapClient {
 	 */
 	public CoapClient useExecutor() {
 		boolean failed = true;
-		ExecutorService executor = ExecutorsUtil.newFixedThreadPool(1, new NamedThreadFactory("CoapClient#")); //$NON-NLS-1$
+		ExecutorService executor = ExecutorsUtil.newFixedThreadPool(1, new NamedThreadFactory("CoapClient(main)#")); //$NON-NLS-1$
+		ScheduledThreadPoolExecutor secondaryExecutor = new ScheduledThreadPoolExecutor(1, new NamedThreadFactory("CoapClient(secondary)#"));
 		synchronized (this) {
-			if (this.executor == null) {
+			if (this.executor == null && this.secondaryExecutor == null) {
 				this.executor = executor;
+				this.secondaryExecutor = secondaryExecutor;
 				this.detachExecutor = false;
 				failed = false;
 			}
 		}
 		if (failed) {
 			executor.shutdownNow();
+			secondaryExecutor.shutdown();
 			throw new IllegalStateException("Executor already set or used!");
 		}
 
@@ -277,41 +284,28 @@ public class CoapClient {
 	}
 
 	/**
-	 * Sets the executor service for this client.
+	 * Sets the executor services for this client.
 	 * 
-	 * All handlers will be invoked by this executor. The executor will shutdown
-	 * on {@link #shutdown()}.
-	 * 
-	 * @param executor the executor service
-	 * @return the CoAP client
-	 * @throws IllegalStateException if executor is already set or used.
-	 * @throws NullPointerException if provided executor is null
-	 */
-	public CoapClient setExecutor(ExecutorService executor) {
-		return setExecutor(executor, false);
-	}
-
-	/**
-	 * Sets the executor service for this client.
-	 * 
-	 * All handlers will be invoked by this executor. The executor will shutdown
+	 * All handlers will be invoked by the main executor. The executors will shutdown
 	 * on {@link #shutdown()}, if not detached.
 	 * 
-	 * @param executor the executor service
+	 * @param executor the main executor service
+	 * @param secondaryExecutor intended to be used for rare executing timers (e.g. cleanup tasks).
 	 * @param detach {@code true}, if the executor is not shutdown on
 	 *            {@link #shutdown()}, {@code false}, otherwise.
 	 * @return the CoAP client
 	 * @throws IllegalStateException if executor is already set or used.
-	 * @throws NullPointerException if provided executor is null
+	 * @throws NullPointerException if provided executors are null
 	 */
-	public CoapClient setExecutor(ExecutorService executor, boolean detach) {
-		if (executor == null) {
-			throw new NullPointerException("Executor must not be null!");
+	public CoapClient setExecutors(ExecutorService executor, ScheduledThreadPoolExecutor secondaryExecutor, boolean detach) {
+		if (executor == null || secondaryExecutor == null) {
+			throw new NullPointerException("Executors must not be null!");
 		}
 		boolean failed = true;
 		synchronized (this) {
-			if (this.executor == null) {
+			if (this.executor == null && this.secondaryExecutor == null) {
 				this.executor = executor;
+				this.secondaryExecutor = secondaryExecutor;
 				this.detachExecutor = detach;
 				failed = false;
 			}
@@ -1023,20 +1017,27 @@ public class CoapClient {
 	}
 
 	/**
-	 * Shutdown the client-specific executor service, when not detached. Only
-	 * needed if {@link #useExecutor()} or {@link #setExecutor(ExecutorService)}
-	 * are used (i.e., a client-specific executor service was set).
+	 * Shutdown the client-specific executor service, when not detached. Always
+	 * needed unless you used detached executor.
 	 */
 	public void shutdown() {
 		ExecutorService executor;
+		ExecutorService secondaryExecutor;
 		boolean shutdown;
 		synchronized (this) {
 			executor = this.executor;
+			secondaryExecutor = this.secondaryExecutor;
 			shutdown = !this.detachExecutor;
 			this.executor = null;
+			this.secondaryExecutor = null;
 		}
-		if (shutdown && executor != null) {
-			executor.shutdownNow();
+		if (shutdown) {
+			if (executor != null) {
+				executor.shutdownNow();
+			}
+			if (secondaryExecutor != null) {
+				secondaryExecutor.shutdownNow();
+			}
 		}
 	}
 

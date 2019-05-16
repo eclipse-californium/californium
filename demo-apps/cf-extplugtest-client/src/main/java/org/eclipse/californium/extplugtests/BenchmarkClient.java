@@ -424,7 +424,7 @@ public class BenchmarkClient {
 	 * @param secondaryExecutor intended to be used for rare executing timers (e.g. cleanup tasks). 
 	 */
 	public BenchmarkClient(int index, int intervalMin, int intervalMax, URI uri, Endpoint endpoint,
-			ScheduledExecutorService executor, ScheduledExecutorService secondaryExecutor) {
+			ScheduledExecutorService executor, ScheduledThreadPoolExecutor secondaryExecutor) {
 		int maxResourceSize = endpoint.getConfig().getInt(Keys.MAX_RESOURCE_BODY_SIZE);
 		if (executor == null) {
 			int threads = endpoint.getConfig().getInt(KEY_BENCHMARK_CLIENT_THREADS);
@@ -447,7 +447,7 @@ public class BenchmarkClient {
 		feed.addObserver(feedObserver);
 		server.add(feed);
 		server.setExecutors(executorService, secondaryExecutor, true);
-		client.setExecutor(executorService, true);
+		client.setExecutors(executorService, secondaryExecutor, true);
 		endpoint.setExecutors(executorService, secondaryExecutor);
 		this.endpoint = endpoint;
 	}
@@ -645,7 +645,7 @@ public class BenchmarkClient {
 		ScheduledExecutorService connectorExecutor = config.getInt(KEY_BENCHMARK_CLIENT_THREADS) == 0 ? executor : null;
 		boolean secure = CoAP.isSecureScheme(uri.getScheme());
 
-		ScheduledExecutorService secondaryExecutor = new ScheduledThreadPoolExecutor(2,
+		ScheduledThreadPoolExecutor secondaryExecutor = new ScheduledThreadPoolExecutor(2,
 				new DaemonThreadFactory("CoapServer(secondary)#"));
 
 		System.out.format("Create %d %s%sbenchmark clients, expect to send %d request overall to %s%n", clients,

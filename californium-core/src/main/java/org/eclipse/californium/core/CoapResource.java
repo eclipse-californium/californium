@@ -365,7 +365,7 @@ public  class CoapResource implements Resource {
 	 */
 	public CoapClient createClient() {
 		CoapClient client = new CoapClient();
-		client.setExecutor(getExecutor());
+		client.setExecutors(getExecutor(), getSecondaryExecutor(), false);
 		final List<Endpoint> endpoints = getEndpoints();
 		if (!endpoints.isEmpty()) {
 			client.setEndpoint(endpoints.get(0));
