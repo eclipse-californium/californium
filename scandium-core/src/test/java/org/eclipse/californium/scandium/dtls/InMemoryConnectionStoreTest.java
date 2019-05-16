@@ -26,6 +26,7 @@ import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
 import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -299,7 +300,7 @@ public class InMemoryConnectionStoreTest {
 	private static class TestSerialExecutor extends SerialExecutor {
 
 		private TestSerialExecutor() {
-			super(ExecutorsUtil.getScheduledExecutor());
+			super(ExecutorsUtil.newSingleThreadScheduledExecutor(new NamedThreadFactory("test serial executor")));
 		}
 
 		/**

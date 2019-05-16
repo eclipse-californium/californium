@@ -65,6 +65,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
@@ -857,8 +858,9 @@ public class DTLSConnectorTest {
 	public void testConnectorTerminatesHandshakeIfConnectionStoreIsExhausted() throws Exception {
 		serverConnectionStore.clear();
 		assertTrue(serverConnectionStore.remainingCapacity() == SERVER_CONNECTION_STORE_CAPACITY);
-		assertTrue(serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.1", 5050), new SerialExecutor(ExecutorsUtil.getScheduledExecutor()))));
-		assertTrue(serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.2", 5050), new SerialExecutor(ExecutorsUtil.getScheduledExecutor()))));
+		ScheduledThreadPoolExecutor executor = ExecutorsUtil.newDefaultSecondaryScheduler("connection executor");
+		assertTrue(serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.1", 5050), new SerialExecutor(executor))));
+		assertTrue(serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.2", 5050), new SerialExecutor(executor))));
 
 		CountDownLatch latch = new CountDownLatch(1);
 		clientRawDataChannel.setLatch(latch);

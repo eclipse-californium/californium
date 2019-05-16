@@ -36,11 +36,6 @@ public class CoapServerTest {
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT,
 			CoapNetworkRule.Mode.NATIVE);
 
-	@BeforeClass
-	public static void init() {
-		ExecutorsUtil.getScheduledExecutor();
-	}
-
 	@Test
 	public void testDestroyWithoutStart() {
 		CoapServer server = new CoapServer();

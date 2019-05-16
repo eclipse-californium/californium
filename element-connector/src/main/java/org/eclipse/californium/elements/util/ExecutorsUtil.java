@@ -55,20 +55,6 @@ public class ExecutorsUtil {
 	public static final ThreadGroup TIMER_THREAD_GROUP = new ThreadGroup("Timer"); //$NON-NLS-1$
 
 	/**
-	 * General scheduled executor intended for rare executing timers (e.g.
-	 * cleanup task).
-	 */
-	private static final ScheduledThreadPoolExecutor scheduler;
-
-	static {
-		ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(2,
-				new DaemonThreadFactory("Timer#", TIMER_THREAD_GROUP));
-		executor.execute(WARMUP);
-		executor.prestartAllCoreThreads();
-		scheduler = executor;
-	}
-
-	/**
 	 * Threshold for using the {@link SplitScheduledThreadPoolExecutor} to split
 	 * thread pool into scheduled and immediately executing threads. {@code 0}
 	 * to disable the use of the {@link SplitScheduledThreadPoolExecutor}.
@@ -186,17 +172,6 @@ public class ExecutorsUtil {
 			}
 			Thread.currentThread().interrupt();
 		}
-	}
-
-	/**
-	 * Get general scheduled executor.
-	 * 
-	 * Intended to be used for rare executing timers (e.g. cleanup tasks).
-	 * 
-	 * @return scheduled executor service
-	 */
-	public static ScheduledThreadPoolExecutor getScheduledExecutor() {
-		return scheduler;
 	}
 
 	/**
