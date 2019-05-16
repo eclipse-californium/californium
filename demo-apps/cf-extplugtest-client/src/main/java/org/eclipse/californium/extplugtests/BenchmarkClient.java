@@ -514,13 +514,20 @@ public class BenchmarkClient {
 	}
 
 	/**
-	 * Stop client.
+	 * Stop benchmark.
+	 */
+	public void stop() {
+		if (stop.compareAndSet(false, true)) {
+			clientCounter.decrementAndGet();
+		}
+	}
+
+	/**
+	 * Destroy client.
 	 * 
 	 * @return number of requests processed by this client.
 	 */
-	public int stop() {
-		if (stop.compareAndSet(false, true)) {
-			clientCounter.decrementAndGet();
+	public int destroy() {
 			endpoint.stop();
 			server.stop();
 			if (shutdown) {
@@ -529,7 +536,6 @@ public class BenchmarkClient {
 			client.shutdown();
 			server.destroy();
 			endpoint.destroy();
-		}
 		return requestsCounter.get();
 	}
 
@@ -794,7 +800,7 @@ public class BenchmarkClient {
 		int statistic[] = new int[clients];
 		for (int index = 0; index < clients; ++index) {
 			BenchmarkClient client = clientList.get(index);
-			statistic[index] = client.stop();
+			statistic[index] = client.destroy();
 		}
 		executor.shutdown();
 		statisticsLogger.info("{} requests sent, {} expected", overallSentRequests, overallRequests);
