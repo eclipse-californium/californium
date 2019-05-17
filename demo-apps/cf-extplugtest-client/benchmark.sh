@@ -32,7 +32,8 @@ CF_OPT="-d64 -XX:+UseG1GC -Xmx6g -Dcalifornium.statistic=M14"
 CF_HOST=localhost
 
 # adjust the multiplier to the speed of your CPU
-MULTIPLIER=10
+USE_TCP=0
+MULTIPLIER=1
 REQS=$((500 * $MULTIPLIER))
 REQS_EXTRA=$(($REQS + ($REQS/10)))
 REV_REQS=$((2 * $REQS))
@@ -65,6 +66,7 @@ benchmark_udp()
 
 benchmark_tcp()
 {
+   if [ ${USE_TCP} -eq 0 ] ; then return; fi
    java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} coap+tcp://${CF_HOST}:5783/$@
    if [ ! $? -eq 0 ] ; then exit $?; fi
    sleep 5
