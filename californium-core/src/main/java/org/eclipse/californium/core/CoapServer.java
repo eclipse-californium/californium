@@ -209,7 +209,7 @@ public class CoapServer implements ServerInterface {
 				this.executor = executor;
 				this.detachExecutor = detach;
 				for (Endpoint ep : endpoints) {
-					ep.setExecutor(executor);
+					ep.setExecutors(executor, ExecutorsUtil.getScheduledExecutor());
 				}
 			}
 		}
@@ -359,7 +359,9 @@ public class CoapServer implements ServerInterface {
 	@Override
 	public void addEndpoint(final Endpoint endpoint) {
 		endpoint.setMessageDeliverer(deliverer);
-		endpoint.setExecutor(executor);
+		if (executor != null) {
+			endpoint.setExecutors(executor, ExecutorsUtil.getScheduledExecutor());
+		}
 		endpoints.add(endpoint);
 	}
 

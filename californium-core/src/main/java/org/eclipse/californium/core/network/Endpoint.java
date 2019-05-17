@@ -82,16 +82,19 @@ public interface Endpoint {
 	boolean isStarted();
 
 	/**
-	 * Sets the executor for this endpoint and all its components.
+	 * Sets executors for this endpoint and all its components.
 	 *
-	 * The executor is not managed by the endpoint, it must be shutdown
+	 * Executors are not managed by the endpoint, it must be shutdown
 	 * externally, if the resource should be freed.
+	 * 
+	 * Executors must not be <code>null</code>.
 	 *
-	 * @param executor the new executor
+	 * @param mainExecutor executors used for main tasks
+	 * @param secondaryExecutor intended to be used for rare executing timers (e.g. cleanup tasks). 
 	 * @throws IllegalStateException if the endpoint is already started and a
 	 *             new executor is provided.
 	 */
-	void setExecutor(ScheduledExecutorService executor);
+	void setExecutors(ScheduledExecutorService mainExecutor, ScheduledExecutorService secondaryExecutor);
 
 	/**
 	 * Adds the observer to the list of observers. This has nothing to do with

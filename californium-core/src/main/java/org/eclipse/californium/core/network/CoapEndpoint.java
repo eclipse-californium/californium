@@ -220,6 +220,9 @@ public class CoapEndpoint implements Endpoint {
 	/** The executor to run tasks for this endpoint and its layers */
 	private ExecutorService executor;
 
+	/** Scheduled executor intended to be used for rare executing timers (e.g. cleanup tasks). */
+	private ScheduledExecutorService secondaryExecutor;
+
 	/** Indicates if the endpoint has been started */
 	private boolean started;
 
@@ -370,10 +373,11 @@ public class CoapEndpoint implements Endpoint {
 		if (this.executor == null) {
 			LOGGER.info("Endpoint [{}] requires an executor to start, using default single-threaded daemon executor", getUri());
 
-			// in production environments the executor should be set to a multi threaded version
-			// in order to utilize all cores of the processor
-			setExecutor(ExecutorsUtil.newSingleThreadScheduledExecutor(
-					new DaemonThreadFactory("CoapEndpoint-" + connector + '#'))); //$NON-NLS-1$
+			// in production environments the executor should be set to a multi
+			// threaded version in order to utilize all cores of the processor
+			ScheduledExecutorService executorService = ExecutorsUtil
+					.newSingleThreadScheduledExecutor(new DaemonThreadFactory("CoapEndpoint-" + connector + '#')); //$NON-NLS-1$
+			setExecutors(executorService, executorService);
 			addObserver(new EndpointObserver() {
 
 				@Override
@@ -449,14 +453,19 @@ public class CoapEndpoint implements Endpoint {
 	}
 
 	@Override
-	public synchronized void setExecutor(final ScheduledExecutorService executor) {
-		if (this.executor != executor) {
-			if (started) {
-				throw new IllegalStateException("endpoint already started!");
-			}
-			this.executor = executor;
-			this.coapstack.setExecutor(executor);
+	public void setExecutors(ScheduledExecutorService mainExecutor, ScheduledExecutorService secondaryExecutor) {
+		if (mainExecutor == null || secondaryExecutor == null) {
+			throw new IllegalArgumentException("executors must not be null");
 		}
+		if (this.executor == mainExecutor &&  this.secondaryExecutor == secondaryExecutor) {
+			return;
+		}
+		if (started) {
+			throw new IllegalStateException("endpoint already started!");
+		}
+		this.executor = mainExecutor;
+		this.secondaryExecutor = secondaryExecutor;
+		this.coapstack.setExecutor(mainExecutor);
 	}
 
 	@Override

@@ -150,7 +150,7 @@ public class ResourceAttributesTest {
 		}
 
 		@Override
-		public void setExecutor(ScheduledExecutorService executor) {
+		public void setExecutors(ScheduledExecutorService executor, ScheduledExecutorService secondaryExecutor) {
 		}
 
 		@Override

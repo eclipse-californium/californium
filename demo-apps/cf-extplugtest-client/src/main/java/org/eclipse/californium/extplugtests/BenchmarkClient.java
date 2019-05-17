@@ -433,7 +433,7 @@ public class BenchmarkClient {
 			shutdown = false;
 		}
 		endpoint.addInterceptor(new MessageTracer());
-		endpoint.setExecutor(executorService);
+		endpoint.setExecutors(executorService, ExecutorsUtil.getScheduledExecutor());
 		client = new CoapClient(uri);
 		server = new CoapServer(endpoint.getConfig());
 		Feed feed = new Feed(CoAP.Type.NON, index, maxResourceSize, intervalMin, intervalMax, executorService,
@@ -446,7 +446,7 @@ public class BenchmarkClient {
 		server.add(feed);
 		server.setExecutor(executorService, true);
 		client.setExecutor(executorService, true);
-		endpoint.setExecutor(executorService);
+		endpoint.setExecutors(executorService, ExecutorsUtil.getScheduledExecutor());
 		this.endpoint = endpoint;
 	}
 
