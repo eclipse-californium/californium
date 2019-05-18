@@ -810,14 +810,14 @@ public class BenchmarkClient {
 			if (observe) {
 				statisticsLogger.info("{} notifies sent, {} expected, {} observe request", overallSentReverseResponses,
 						overallReverseResponses, overallObservationRegistrationCounter.get());
-				statisticsLogger.info("{} notifies in {}ms{}", overallSentReverseResponses,
+				statisticsLogger.info("{} notifies in {} ms{}", overallSentReverseResponses,
 						TimeUnit.NANOSECONDS.toMillis(reverseResponseNanos),
 						formatPerSecond("notifies", overallSentReverseResponses, reverseResponseNanos));
 				statisticsLogger.info("{} notifies could not be completed", notifiesCompleteTimeouts.get());
 			} else {
 				statisticsLogger.info("{} reverse-responses sent, {} expected", overallSentReverseResponses,
 						overallReverseResponses);
-				statisticsLogger.info("{} reverse-responses in {}ms{}", overallSentReverseResponses,
+				statisticsLogger.info("{} reverse-responses in {} ms{}", overallSentReverseResponses,
 						TimeUnit.NANOSECONDS.toMillis(reverseResponseNanos),
 						formatPerSecond("reverse-responses", overallSentReverseResponses, reverseResponseNanos));
 			}
