@@ -215,6 +215,7 @@ public abstract class Handshaker {
 	private boolean changeCipherSuiteMessageExpected = false;
 	private boolean sessionEstablished = false;
 	private boolean handshakeFailed = false;
+	private Throwable cause;
 
 	// Constructor ////////////////////////////////////////////////////
 
@@ -1004,24 +1005,55 @@ public abstract class Handshaker {
 	}
 
 	/**
-	 * Notifies all registered session listeners about a handshake
-	 * failure.
+	 * Notifies all registered session listeners about a handshake failure.
+	 * 
+	 * If {@link #setFailureCause(Throwable)} was called before, only calls with
+	 * the same cause will notify the listeners. If
+	 * {@link #setFailureCause(Throwable)} wasn't called before, set the
+	 * {@link #cause} according the provided cause.
 	 * 
 	 * @param cause The reason for the failure.
 	 */
 	public final void handshakeFailed(Throwable cause) {
-		if (!handshakeFailed) {
+		if (this.cause == null) {
+			this.cause = cause;
+		}
+		if (!handshakeFailed && this.cause == cause) {
 			handshakeFailed = true;
 			setPendingFlight(null);
 			if (!sessionEstablished) {
 				for (SessionListener sessionListener : sessionListeners) {
 					sessionListener.handshakeFailed(this, cause);
 				}
-				for (RawData message : takeDeferredApplicationData()) {
-					message.onError(cause);
-				}
 			}
 		}
+	}
+
+	/**
+	 * Get cause of failure.
+	 * 
+	 * @return cause of failure, or {@code null}, if the cause is unknown and not set before
+	 * @see #setFailureCause(Throwable)
+	 * @see #handshakeFailed(Throwable)
+	 */
+	public Throwable getFailureCause() {
+		return cause;
+	}
+
+	/**
+	 * Set the failure cause.
+	 * 
+	 * In some cases the cleanup of the handshake may consider a different
+	 * failure as cause. This prevents {@link #handshakeFailed(Throwable)} to
+	 * notify listener in that case.
+	 * 
+	 * @param cause failure cause
+	 * @see #handshakeFailed(Throwable)
+	 * @see #getFailureCause()
+	 */
+	public void setFailureCause(Throwable cause) {
+		setPendingFlight(null);
+		this.cause = cause;
 	}
 
 	/**

@@ -382,7 +382,18 @@ public class DTLSConnector implements Connector, RecordLayer {
 							message.onError(error);
 						}
 					}
-					connectionStore.remove(handshaker.getConnection(), false);
+					Connection connection = handshaker.getConnection();
+					if (!connection.hasEstablishedSession()) {
+						connectionStore.remove(connection, false);
+					} else if (connection.getEstablishedSession() == handshaker.getSession()) {
+						// failure after established (last FINISH),
+						// but before completed (first data)
+						LOGGER.warn("Handshake with [{}] failed after session was established!",
+								handshaker.getPeerAddress());
+					} else {
+						LOGGER.warn("Handshake with [{}] failed, but has an established session!",
+								handshaker.getPeerAddress());
+					}
 				}
 			};
 			int maxConnections = configuration.getMaxConnections();
@@ -976,19 +987,26 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 */
 	private void terminateOngoingHandshake(final Connection connection, final Throwable cause, final AlertDescription description) {
 
-		if (connection.hasOngoingHandshake()) {
+		Handshaker handshaker = connection.getOngoingHandshake();
+		if (handshaker != null) {
 			if (LOGGER.isTraceEnabled()) {
 				LOGGER.trace("Aborting handshake with peer [{}]:", connection.getPeerAddress(), cause);
 			} else if (LOGGER.isInfoEnabled()) {
 				LOGGER.info("Aborting handshake with peer [{}]: {}", connection.getPeerAddress(), cause.getMessage());
 			}
-			Handshaker handshaker = connection.getOngoingHandshake();
+			handshaker.setFailureCause(cause);
 			DTLSSession session = handshaker.getSession();
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, description, connection.getPeerAddress());
 			if (!connection.hasEstablishedSession()) {
 				terminateConnection(connection, alert, session);
 			} else {
 				// keep established session intact and only terminate ongoing handshake
+				if (connection.getEstablishedSession() == handshaker.getSession()) {
+					// failure after established (last FINISH), but before completed (first data)
+					LOGGER.warn("Handshake with [{}] failed after session was established!", handshaker.getPeerAddress());
+				} else {
+					LOGGER.warn("Handshake with [{}] failed, but has an established session!", handshaker.getPeerAddress());
+				}
 				send(alert, session);
 			}
 			handshaker.handshakeFailed(cause);
@@ -1132,6 +1150,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 				// we need to respond with a CLOSE_NOTIFY alert and
 				// then close and remove the connection immediately
 				error = new HandshakeException("Received 'close notify'", alert);
+				if (handshaker != null) {
+					handshaker.setFailureCause(error);
+				}
 				terminateConnection(
 						connection,
 						new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY, alert.getPeer()),
@@ -1141,6 +1162,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 				// (http://tools.ietf.org/html/rfc5246#section-7.2)
 				// the connection needs to be terminated immediately
 				error = new HandshakeException("Received 'fatal alert'", alert);
+				if (handshaker != null) {
+					handshaker.setFailureCause(error);
+				}
 				terminateConnection(connection);
 			} else {
 				// non-fatal alerts do not require any special handling
