@@ -253,6 +253,7 @@ public final class Connection {
 		} else if (peerAddress == null) {
 			final Handshaker pendingHandshaker = getOngoingHandshake();
 			if (pendingHandshaker != null) {
+				// this will only call the listener, if no other cause was set before!
 				pendingHandshaker.handshakeFailed(new IOException("address changed!"));
 			}
 		} else {
@@ -524,7 +525,6 @@ public final class Connection {
 
 		@Override
 		public void handshakeFlightRetransmitted(Handshaker handshaker, int flight) {
-			
 		}
 	}
 }
