@@ -1983,18 +1983,20 @@ public class DTLSConnector implements Connector, RecordLayer {
 		if (socket != null && !socket.isClosed()) {
 			try {
 				socket.send(datagramPacket);
-			} catch(IOException e) {
-				LOGGER.warn("Could not send record", e);
-				throw e;
+				return;
+			} catch (IOException e) {
+				if (!socket.isClosed()) {
+					LOGGER.warn("Could not send record", e);
+					throw e;
+				}
 			}
-		} else {
-			InetSocketAddress address = lastBindAddress;
-			if (address == null) {
-				address = config.getAddress();
-			}
-			LOGGER.debug("Socket [{}] is closed, discarding packet ...", address);
-			throw new IOException("Socket closed.");
 		}
+		InetSocketAddress address = lastBindAddress;
+		if (address == null) {
+			address = config.getAddress();
+		}
+		LOGGER.debug("Socket [{}] is closed, discarding packet ...", address);
+		throw new IOException("Socket closed.");
 	}
 
 	private void handleTimeout(DTLSFlight flight, Connection connection) {
