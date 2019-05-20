@@ -39,13 +39,13 @@ public class LinkFormat {
 	public static final String LINK                  = "href";
 
 	// for Resource Directory
-	public static final String HOST		     		 = "h";
-	public static final String LIFE_TIME     		 = "lt";
-	public static final String INSTANCE		   		 = "ins";
-	public static final String DOMAIN	     		 = "d";
-	public static final String CONTEXT		   		 = "con";
-	public static final String END_POINT     		 = "ep";
-	public static final String END_POINT_TYPE		 = "et";
+	public static final String LIFE_TIME             = "lt";
+	public static final String SECTOR                = "d";
+	public static final String CONTEXT               = "anchor";
+	public static final String BASE                  = "base";
+	public static final String RELATION              = "rel";
+	public static final String END_POINT             = "ep";
+	public static final String END_POINT_TYPE        = "et";
 
 	// for parsing
 	public static final Pattern DELIMITER      = Pattern.compile("\\s*,+\\s*");
