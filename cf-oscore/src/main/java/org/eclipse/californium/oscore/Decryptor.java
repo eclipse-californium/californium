@@ -24,7 +24,7 @@ import java.util.Arrays;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.OptionSet;
@@ -226,7 +226,7 @@ public abstract class Decryptor {
 		 * it represents a byte array of length 1 with a byte 0x00
 		 * See https://tools.ietf.org/html/draft-ietf-core-object-security-16#section-2  
 		 */
-		if(total.length == 0) {
+		if (total.length == 0) {
 			total = new byte[] { 0x00 };
 		}
 		
@@ -238,7 +238,7 @@ public abstract class Decryptor {
 
 		byte[] partialIV = null;
 		byte[] kid = null;
-		byte[] contextID = null;
+		byte[] kidContext = null;
 		int index = 1;
 
 		//Parsing Partial IV
@@ -256,15 +256,12 @@ public abstract class Decryptor {
 		if (h != 0) {
 			int s = total[index];
 
-			contextID = Arrays.copyOfRange(total, index + 1, index + 1 + s);
+			kidContext = Arrays.copyOfRange(total, index + 1, index + 1 + s);
 
 			index += s + 1;
 
 			if (s > 0) {
-				System.out.print("Received KID Context: 0x");
-				for(int i = 0 ; i < contextID.length ; i++) {
-					System.out.print(String.format("%02X", contextID[i])); }
-				System.out.println("");
+				LOGGER.info("Received KID Context: " + Utils.toHexString(kidContext));
 			} else {
 				LOGGER.error("Kid context is missing from message when it is expected.");
 				throw new OSException(ErrorDescriptions.FAILED_TO_DECODE_COSE);
@@ -291,8 +288,8 @@ public abstract class Decryptor {
 			}
 			//COSE Header parameter for KID Context defined with label 10
 			//https://www.iana.org/assignments/cose/cose.xhtml
-			if (contextID != null) {
-				enc.addAttribute(CBORObject.FromObject(10), CBORObject.FromObject(contextID), Attribute.UNPROTECTED);
+			if (kidContext != null) {
+				enc.addAttribute(CBORObject.FromObject(10), CBORObject.FromObject(kidContext), Attribute.UNPROTECTED);
 			}
 		} catch (CoseException e) {
 			LOGGER.error("COSE processing of message failed.");

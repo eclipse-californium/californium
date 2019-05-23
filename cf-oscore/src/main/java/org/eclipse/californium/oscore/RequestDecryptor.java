@@ -20,6 +20,8 @@
 package org.eclipse.californium.oscore;
 
 import java.io.ByteArrayInputStream;
+import java.util.Arrays;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,6 +84,16 @@ public class RequestDecryptor extends Decryptor {
 		}
 		byte[] rid = kid.GetByteString();
 
+		//Retrieve Context ID (kid context)
+		CBORObject kidContext = enc.findAttribute(CBORObject.FromObject(10));
+		byte[] contextID = null;
+		if (kidContext != null) {
+			contextID = kidContext.GetByteString();
+		}
+
+		//Trigger context re-derivation if applicable
+		checkContextRederivation(rid, contextID);
+
 		OSCoreCtx ctx = db.getContext(rid);
 
 		if (ctx == null) {
@@ -94,7 +106,7 @@ public class RequestDecryptor extends Decryptor {
 			plaintext = decryptAndDecode(enc, request, ctx, null);
 		} catch (OSException e) {
 			//First check for replay exceptions
-			if(e.getMessage().equals(ErrorDescriptions.REPLAY_DETECT)) { 
+			if (e.getMessage().equals(ErrorDescriptions.REPLAY_DETECT)) { 
 				LOGGER.error(ErrorDescriptions.REPLAY_DETECT);
 				throw new CoapOSException(ErrorDescriptions.REPLAY_DETECT, ResponseCode.UNAUTHORIZED);
 			}
@@ -122,5 +134,39 @@ public class RequestDecryptor extends Decryptor {
 		// We need the kid value on layer level
 		request.getOptions().setOscore(rid);
 		return OptionJuggle.setRealCodeRequest(request, ctx.getCoAPCode());
+	}
+
+	/**
+	 * Checks if an incoming messages should trigger re-derivation of the security
+	 * context as detailed in Appendix B.2. If so this re-derivation is also performed.
+	 *
+	 * See https://tools.ietf.org/html/draft-ietf-core-object-security-16#section-5.2
+	 *
+	 * @throws CoapOSException if re-generation of the context fails
+	 */
+	private static void checkContextRederivation(byte[] rid, byte[] receivedContextID) throws CoapOSException {
+		//Get the context corresponding to the incoming rid
+		OSCoreCtxDB db = HashMapCtxDB.getInstance();
+		OSCoreCtx ctx = db.getContext(rid);
+
+		//Check if the received Context ID matches the one in the context, if so do nothing
+		if (receivedContextID == null || Arrays.equals(receivedContextID, ctx.getIdContext())) {
+			return;
+		}
+
+		//Otherwise generate a new context with the newly received Context ID
+		OSCoreCtx newCtx = null;
+		try {
+			newCtx = new OSCoreCtx(ctx.getMasterSecret(), true, ctx.getAlg(),
+					ctx.getSenderId(), ctx.getRecipientId(), ctx.getKdf(),
+					ctx.getRecipientReplaySize(), ctx.getSalt(), receivedContextID);
+		} catch (OSException e) {
+			LOGGER.error(ErrorDescriptions.CONTEXT_REGENERATION_FAILED);
+			throw new CoapOSException(ErrorDescriptions.CONTEXT_REGENERATION_FAILED, ResponseCode.BAD_REQUEST);
+		}
+		newCtx.setIncludeContextId(true);
+
+		//Now replace the old context with the newly generated in the context DB
+		db.addContext(newCtx);
 	}
 }
