@@ -79,6 +79,9 @@ public class OSCoreCtx {
 
 	private Code CoAPCode = null;
 
+	//Include the context id in messages generated using this context
+	private boolean includeContextId;
+
 	/**
 	 * Constructor. Generates the context from the base parameters with the
 	 * minimal input.
@@ -172,6 +175,8 @@ public class OSCoreCtx {
 		} else {
 			this.context_id = null;
 		}
+
+		includeContextId = false;
 
 		String digest = null;
 		switch (this.kdf) {
@@ -365,6 +370,35 @@ public class OSCoreCtx {
 	 */
 	public byte[] getIdContext() {
 		return context_id;
+	}
+
+	/**
+	 * Get the flag controlling whether or not to include the Context ID in
+	 * messages generated using this context.
+	 *
+	 * @return the includeContextId
+	 */
+	public boolean getIncludeContextId() {
+		return includeContextId;
+	}
+
+	/**
+	 * Set the flag controlling whether or not to include the Context ID in
+	 * messages generated using this context.
+	 * 
+	 * Note that this flag should never be set to true in a context without a Context ID set.
+	 *
+	 * @param includeContextId the includeContextId to set
+	 *
+	 * @throws IllegalStateException if a Context ID has not been set for this context
+	 */
+	public void setIncludeContextId(boolean includeContextId) {
+		if(context_id == null) {
+			LOGGER.error("Context ID cannot be included for a context without one set.");
+			throw new IllegalStateException("Context ID cannot be included for a context without one set.");
+		}
+		
+		this.includeContextId = includeContextId;
 	}
 
 	public int rollbackRecipientSeq() {

@@ -160,17 +160,30 @@ public abstract class Encryptor {
 		int firstByte = 0x00;
 		ByteArrayOutputStream bRes = new ByteArrayOutputStream();
 		byte[] partialIV = OSSerializer.processPartialIV(ctx.getSenderSeq());
-		firstByte = firstByte | (partialIV.length & 0x07);
-		firstByte = firstByte | 0x08;
+		firstByte = firstByte | (partialIV.length & 0x07); //PartialIV length
+		firstByte = firstByte | 0x08; //Set the KID bit
+
+		//If the Context ID should be included for this context, set its bit
+		if (ctx.getIncludeContextId()) {
+			firstByte = firstByte | 0x10;
+		}
 
 		bRes.write(firstByte);
+
 		try {
 			bRes.write(partialIV);
+
+			//Encode the Context ID length and value if to be included
+			if (ctx.getIncludeContextId()) {
+				bRes.write(ctx.getIdContext().length);
+				bRes.write(ctx.getIdContext());
+			}
+
+			//Encode Sender ID (KID)
 			bRes.write(ctx.getSenderId());
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		
 		return bRes.toByteArray();
 	}
 
@@ -186,9 +199,15 @@ public abstract class Encryptor {
 		int firstByte = 0x00;
 		ByteArrayOutputStream bRes = new ByteArrayOutputStream();
 
+		//If the Context ID should be included for this context, set its bit
+		if (ctx.getIncludeContextId()) {
+			firstByte = firstByte | 0x10;
+		}
+
 		if (newPartialIV) {
 			byte[] partialIV = OSSerializer.processPartialIV(ctx.getSenderSeq());
 			firstByte = firstByte | (partialIV.length & 0x07);
+
 			bRes.write(firstByte);
 			try {
 				bRes.write(partialIV);
@@ -198,11 +217,21 @@ public abstract class Encryptor {
 		} else {
 			bRes.write(firstByte);
 		}
-		
+
+		//Encode the Context ID length and value if to be included
+		if (ctx.getIncludeContextId()) {
+			try {
+				bRes.write(ctx.getIdContext().length);
+				bRes.write(ctx.getIdContext());
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+
 		//If the OSCORE option is length 1 and 0x00, it should be empty
 		//See https://tools.ietf.org/html/draft-ietf-core-object-security-16#section-2
 		byte[] optionBytes = bRes.toByteArray();
-		if(optionBytes.length == 1 && optionBytes[0] == 0x00) {
+		if (optionBytes.length == 1 && optionBytes[0] == 0x00) {
 			return Bytes.EMPTY;
 		} else {
 			return optionBytes;
