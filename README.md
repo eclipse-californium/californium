@@ -37,7 +37,7 @@ to your `pom.xml` (without the dots):
   ...
 ```
 
-If you want to give the most recent milestone a try, use version `2.0.0-M13` instead.
+If you want to give the most recent milestone a try, use version `2.0.0-M15` instead.
 
 Please Note: in the meantime, a lot of new bugfixes and improvements has been made in branch 2.0.x, which had affected the API and could not be back-ported to the other branches. Even if 2.0.x is still under development, we strongly recommend to focus on using the 2.0.x branch, especially for new projects or larger updates of projects.
 
