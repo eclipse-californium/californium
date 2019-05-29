@@ -241,7 +241,8 @@
 		<module>demo-certs</module>
 		<module>legal</module>
 		<module>cf-oscore</module>
-	</modules>
+        <module>cf-pubsub</module>
+    </modules>
 
 	<build>
 		<pluginManagement>
