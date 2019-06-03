@@ -61,11 +61,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
-import org.eclipse.californium.elements.EndpointContext;
-import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
@@ -204,7 +201,7 @@ public class DTLSConnectorTest {
 		clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		clientConfig = newStandardConfig(clientEndpoint);
 
-		client = new DTLSConnector(clientConfig, clientConnectionStore);
+		client = serverHelper.createClient(clientConfig, clientConnectionStore);
 		client.setExecutor(executor);
 
 		clientRawDataChannel = new LatchDecrementingRawDataChannel();
@@ -290,16 +287,8 @@ public class DTLSConnectorTest {
 
 	private void assertConnectionTerminatedOnAlert(final AlertMessage alertToSend) throws Exception {
 
-		final CountDownLatch alertReceived = new CountDownLatch(1);
-		serverHelper.server.setAlertHandler(new AlertHandler() {
-			
-			@Override
-			public void onAlert(InetSocketAddress peerAddress, AlertMessage alert) {
-				if (alertToSend.getDescription().equals(alert.getDescription()) && peerAddress.equals(clientEndpoint)) {
-					alertReceived.countDown();
-				}
-			}
-		});
+		SingleAlertCatcher alertCatcher = new SingleAlertCatcher();
+		serverHelper.server.setAlertHandler(alertCatcher);
 
 		givenAnEstablishedSession(false);
 
@@ -307,7 +296,8 @@ public class DTLSConnectorTest {
 		client.send(alertToSend, establishedClientSession);
 
 		// THEN assert that the server has removed all connection state with client
-		assertTrue(alertReceived.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		AlertMessage alert = alertCatcher.waitForFirstAlert(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+		assertNotNull(alert);
 		assertThat(serverHelper.serverConnectionStore.get(clientEndpoint), is(nullValue()));
 	}
 
@@ -826,46 +816,38 @@ public class DTLSConnectorTest {
 	}
 
 	private void ensureConnectorIgnoresBadCredentials(PskStore pskStoreWithBadCredentials) throws Exception {
-		final CountDownLatch latch = new CountDownLatch(1);
+		if (client != null) {
+			client.destroy();
+		}
 		clientConfig = new DtlsConnectorConfig.Builder()
 			.setLoggingTag("client")
 			.setAddress(clientEndpoint)
 			.setPskStore(pskStoreWithBadCredentials)
+			.setRetransmissionTimeout(500)
+			.setMaxRetransmissions(2)
 			.build();
-		client = new DTLSConnector(clientConfig);
+		client = serverHelper.createClient(clientConfig);
 		client.start();
-		final AtomicReference<AlertMessage> alert = new AtomicReference<>();
-		MessageCallback callback = new MessageCallback() {
-
-			@Override
-			public void onConnecting() {
-			}
-
-			@Override
-			public void onDtlsRetransmission(int flight) {
-			}
-
-			@Override
-			public void onSent() {
-			}
-
-			@Override
-			public void onError(Throwable error) {
-				if (error instanceof HandshakeException) {
-					alert.set(((HandshakeException) error).getAlert());
-					latch.countDown();
-				}
-			}
-
-			@Override
-			public void onContextEstablished(EndpointContext context) {
-			}
-		};
+		SimpleMessageCallback callback = new SimpleMessageCallback();
 		RawData data = RawData.outbound("Hello".getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), callback, false);
 		client.send(data);
 
-		assertFalse(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
-		assertThat(alert.get(), is(nullValue()));
+		Throwable error = callback.getError(TimeUnit.SECONDS.toMillis(MAX_TIME_TO_WAIT_SECS * 5));
+		assertThat(error, is(notNullValue()));
+		// timeout is not reported with HandshakeException!
+		assertThat(error, not(instanceOf(HandshakeException.class)));
+
+		LatchSessionListener listener = serverHelper.sessionListenerMap.get(client.getAddress());
+		assertThat("server side session listener missing", listener, is(notNullValue()));
+		Throwable cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
+		assertThat("server side handshake failure missing", cause, is(notNullValue()));
+		assertThat(cause.getMessage(), containsString("handshake flight"));
+
+		listener = serverHelper.sessionListenerMap.get(serverHelper.serverEndpoint);
+		assertThat("client side session listener missing", listener, is(notNullValue()));
+		cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
+		assertThat("client side handshake failure missing", cause, is(notNullValue()));
+		assertThat(cause.getMessage(), containsString("handshake flight "));
 	}
 
 	/**
@@ -1007,7 +989,7 @@ public class DTLSConnectorTest {
 		AlertMessage alert = alertCatcher.waitForFirstAlert(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 		assertNotNull("Client does not receive alert as answer to renenotiation", alert);
 		assertEquals("Server must answer with a NO_RENEGOTIATION alert", AlertDescription.NO_RENEGOTIATION, alert.getDescription());
-		assertEquals("NO_RENEGOTIATION alert MUST be a warning", AlertLevel.WARNING, alert.getLevel());	
+		assertEquals("NO_RENEGOTIATION alert MUST be a warning", AlertLevel.WARNING, alert.getLevel());
 	}
 
 	@Test
@@ -1027,7 +1009,7 @@ public class DTLSConnectorTest {
 		AlertMessage alert = alertCatcher.waitForFirstAlert(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 		assertNotNull("Server does not receive alert as answer of HELLO_REQUEST", alert);
 		assertEquals("Client must answer to HELLO_REQUEST with a NO_RENEGOTIATION alert", AlertDescription.NO_RENEGOTIATION, alert.getDescription());
-		assertEquals("NO_RENEGOTIATION alert MUST be a warning", AlertLevel.WARNING, alert.getLevel());	
+		assertEquals("NO_RENEGOTIATION alert MUST be a warning", AlertLevel.WARNING, alert.getLevel());
 	}
 
 	/**
@@ -1087,7 +1069,7 @@ public class DTLSConnectorTest {
 	private void givenAnEstablishedSession() throws Exception {
 		givenAnEstablishedSession(true);
 	}
-	
+
 	private void givenAnEstablishedSession(boolean releaseSocket) throws Exception {
 		RawData raw = RawData.outbound("Hello World".getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
 		givenAnEstablishedSession(raw, releaseSocket);

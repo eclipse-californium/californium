@@ -45,7 +45,9 @@ import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -62,8 +64,12 @@ import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.DebugConnectionStore;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
+import org.eclipse.californium.scandium.dtls.HandshakeException;
+import org.eclipse.californium.scandium.dtls.Handshaker;
 import org.eclipse.californium.scandium.dtls.InMemorySessionCache;
 import org.eclipse.californium.scandium.dtls.Record;
+import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
+import org.eclipse.californium.scandium.dtls.SessionAdapter;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
@@ -82,13 +88,13 @@ public class ConnectorHelper {
 	static final int	MAX_TIME_TO_WAIT_SECS				= 2;
 	static final int	SERVER_CONNECTION_STORE_CAPACITY	= 3;
 
-
 	DTLSConnector server;
 	InetSocketAddress serverEndpoint;
 	DebugConnectionStore serverConnectionStore;
 	InMemorySessionCache serverSessionCache;
 	SimpleRawDataChannel serverRawDataChannel;
 	RawDataProcessor serverRawDataProcessor;
+	Map<InetSocketAddress, LatchSessionListener> sessionListenerMap = new ConcurrentHashMap<>();
 	DTLSSession establishedServerSession;
 
 	DtlsConnectorConfig serverConfig;
@@ -164,7 +170,7 @@ public class ConnectorHelper {
 		serverConnectionStore = new DebugConnectionStore(SERVER_CONNECTION_STORE_CAPACITY, 5 * 60, serverSessionCache); // connection timeout 5mins
 		serverConnectionStore.setTag("server");
 
-		server = new DTLSConnector(serverConfig, serverConnectionStore);
+		server = new DtlsTestConnector(serverConfig, serverConnectionStore);
 		serverRawDataProcessor = new MessageCapturingProcessor();
 		serverRawDataChannel = new SimpleRawDataChannel(server, serverRawDataProcessor);
 		server.setRawDataReceiver(serverRawDataChannel);
@@ -176,6 +182,7 @@ public class ConnectorHelper {
 	 * Shuts down and destroys the encapsulated server side connector.
 	 */
 	public void destroyServer() {
+		cleanUpServer();
 		server.destroy();
 	}
 
@@ -194,6 +201,7 @@ public class ConnectorHelper {
 		serverRawDataProcessor.clear();
 		serverRawDataChannel.setProcessor(serverRawDataProcessor);
 		server.setAlertHandler(null);
+		sessionListenerMap.clear();
 	}
 
 	/**
@@ -208,6 +216,15 @@ public class ConnectorHelper {
 		if (connection != null) {
 			serverConnectionStore.remove(connection, removeFromSessionCache);
 		}
+	}
+
+	public DTLSConnector createClient(DtlsConnectorConfig configuration) {
+		return new DtlsTestConnector(configuration);
+	}
+
+	public DTLSConnector createClient(DtlsConnectorConfig configuration,
+			ResumptionSupportingConnectionStore connectionStore) {
+		return new DtlsTestConnector(configuration, connectionStore);
 	}
 
 	static DtlsConnectorConfig newStandardClientConfig(final InetSocketAddress bindAddress) throws IOException, GeneralSecurityException {
@@ -485,6 +502,36 @@ public class ConnectorHelper {
 
 	};
 
+	static class LatchSessionListener extends SessionAdapter {
+
+		private CountDownLatch established = new CountDownLatch(1);
+		private CountDownLatch failed = new CountDownLatch(1);
+		private AtomicReference<Throwable> error = new AtomicReference<Throwable>();
+
+		@Override
+		public void sessionEstablished(Handshaker handshaker, DTLSSession establishedSession)
+				throws HandshakeException {
+			established.countDown();
+		}
+
+		@Override
+		public void handshakeFailed(Handshaker handshaker, Throwable error) {
+			this.error.set(error);
+			failed.countDown();
+		}
+
+		public boolean waitForSessionEstablished(long timeout, TimeUnit unit) throws InterruptedException {
+			return established.await(timeout, unit);
+		}
+
+		public Throwable waitForSessionFailed(long timeout, TimeUnit unit) throws InterruptedException {
+			if (failed.await(timeout, unit)) {
+				return error.get();
+			}
+			return null;
+		}
+	};
+
 	static class UdpConnector {
 
 		final InetSocketAddress address;
@@ -550,6 +597,23 @@ public class ConnectorHelper {
 			} else {
 				return new InetSocketAddress(socket.getLocalAddress(), socket.getLocalPort());
 			}
+		}
+	}
+
+	class DtlsTestConnector extends DTLSConnector {
+		DtlsTestConnector(DtlsConnectorConfig configuration) {
+			super(configuration);
+		}
+
+		DtlsTestConnector(DtlsConnectorConfig configuration, ResumptionSupportingConnectionStore connectionStore) {
+			super(configuration, connectionStore);
+		}
+
+		@Override
+		protected void onInitializeHandshaker(final Handshaker handshaker) {
+			LatchSessionListener listener = new LatchSessionListener();
+			handshaker.addSessionListener(listener);
+			sessionListenerMap.put(handshaker.getPeerAddress(), listener);
 		}
 	}
 }
