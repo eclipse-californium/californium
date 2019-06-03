@@ -46,6 +46,8 @@ public class LinkFormat {
 	public static final String RELATION              = "rel";
 	public static final String END_POINT             = "ep";
 	public static final String END_POINT_TYPE        = "et";
+	public static final String COUNT                 = "count";
+	public static final String PAGE                  = "page";
 
 	// for parsing
 	public static final Pattern DELIMITER      = Pattern.compile("\\s*,+\\s*");
