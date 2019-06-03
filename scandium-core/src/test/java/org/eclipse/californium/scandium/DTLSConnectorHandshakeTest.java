@@ -29,11 +29,14 @@ import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.Principal;
 import java.security.cert.Certificate;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.elements.util.SimpleMessageCallback;
+import org.eclipse.californium.scandium.ConnectorHelper.LatchSessionListener;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
@@ -148,10 +151,30 @@ public class DTLSConnectorHandshakeTest {
 				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY);
 		DtlsConnectorConfig clientConfig = builder.build();
 
-		client = new DTLSConnector(clientConfig);
+		client = serverHelper.createClient(clientConfig);
 		RawData raw = RawData.outbound("Hello World".getBytes(),
 				new AddressEndpointContext(serverHelper.serverEndpoint, hostname, null), null, false);
 		serverHelper.givenAnEstablishedSession(client, raw, true);
+	}
+
+	private void startClientFailing(DtlsConnectorConfig.Builder builder) throws Exception {
+		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
+		builder.setAddress(clientEndpoint)
+				.setLoggingTag("client")
+				.setReceiverThreadCount(1)
+				.setConnectionThreadCount(1)
+				.setClientOnly()
+				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY);
+		DtlsConnectorConfig clientConfig = builder.build();
+
+		client = serverHelper.createClient(clientConfig);
+		client.start();
+		SimpleMessageCallback callback = new SimpleMessageCallback();
+		RawData raw = RawData.outbound("Hello World".getBytes(),
+				new AddressEndpointContext(serverHelper.serverEndpoint), callback, false);
+		client.send(raw);
+		Throwable error = callback.getError(TimeUnit.SECONDS.toMillis(MAX_TIME_TO_WAIT_SECS));
+		assertThat("client side error missing", error, is(notNullValue()));
 	}
 
 	@Test
@@ -685,5 +708,50 @@ public class DTLSConnectorHandshakeTest {
 				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256);
 		startClient(false,  null, builder);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256));
+	}
+
+	@Test
+	public void testX509HandshakeFailingWrongClientCertificate() throws Exception {
+		startServer(false, true, false, null);
+
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+				.setTrustStore(new Certificate[0])
+				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getServerCertificateChain());
+
+		startClientFailing(builder);
+
+		LatchSessionListener listener = serverHelper.sessionListenerMap.get(client.getAddress());
+		assertThat("server side session listener missing", listener, is(notNullValue()));
+		Throwable cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
+		assertThat("server side handshake failure missing", cause, is(notNullValue()));
+		assertThat(cause.getMessage(), containsString("CertificateVerify message could not be verified."));
+
+		listener = serverHelper.sessionListenerMap.get(serverHelper.serverEndpoint);
+		assertThat("client side session listener missing", listener, is(notNullValue()));
+		cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
+		assertThat("client side handshake failure missing", cause, is(notNullValue()));
+		assertThat(cause.getMessage(), containsString("fatal alert"));
+	}
+
+	@Test
+	public void testX509HandshakeFailingMissingClientCertificate() throws Exception {
+		startServer(false, true, false, null);
+
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+				.setTrustStore(new Certificate[0]);
+		
+		startClientFailing(builder);		
+
+		LatchSessionListener listener = serverHelper.sessionListenerMap.get(client.getAddress());
+		assertThat("server side session listener missing", listener, is(notNullValue()));
+		Throwable cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
+		assertThat("server side handshake failure missing", cause, is(notNullValue()));
+		assertThat(cause.getMessage(), containsString("Client Certificate required!"));
+
+		listener = serverHelper.sessionListenerMap.get(serverHelper.serverEndpoint);
+		assertThat("client side session listener missing", listener, is(notNullValue()));
+		cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
+		assertThat("client side handshake failure missing", cause, is(notNullValue()));
+		assertThat(cause.getMessage(), containsString("fatal alert"));
 	}
 }

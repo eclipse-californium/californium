@@ -34,12 +34,10 @@ import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.RawData;
@@ -50,15 +48,12 @@ import org.eclipse.californium.scandium.dtls.ClientHandshaker;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.DTLSFlight;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
-import org.eclipse.californium.scandium.dtls.HandshakeException;
-import org.eclipse.californium.scandium.dtls.Handshaker;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.RecordLayer;
 import org.eclipse.californium.scandium.dtls.ResumingClientHandshaker;
 import org.eclipse.californium.scandium.dtls.ResumingServerHandshaker;
 import org.eclipse.californium.scandium.dtls.ServerHandshaker;
-import org.eclipse.californium.scandium.dtls.SessionAdapter;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -131,7 +126,7 @@ public class DTLSConnectorAdvancedTest {
 				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY);
 		clientConfig = builder.build();
 
-		client = new DTLSConnector(clientConfig, clientConnectionStore);
+		client = serverHelper.createClient(clientConfig, clientConnectionStore);
 		client.setExecutor(executor);
 	}
 
@@ -301,7 +296,7 @@ public class DTLSConnectorAdvancedTest {
 
 			// create server session listener to ensure,
 			// that server finish also the handshake
-			LatchSessionListener serverSessionListener = addSessionListenerForEndpoint("server", rawClient);
+			LatchSessionListener serverSessionListener = getSessionListenerForEndpoint("server", rawClient);
 
 			// Handle and answer ( CHANGE CIPHER SPEC, FINISHED, flight 3)
 			for (Record r : rs) {
@@ -718,7 +713,7 @@ public class DTLSConnectorAdvancedTest {
 
 			// create server session listener to ensure,
 			// that server finish also the handshake
-			LatchSessionListener serverSessionListener = addSessionListenerForEndpoint("server", rawClient);
+			LatchSessionListener serverSessionListener = getSessionListenerForEndpoint("server", rawClient);
 
 			// drop it, force retransmission
 			// (SERVER_HELLO, CHANGE CIPHER SPEC, FINISHED, fight 2)
@@ -810,7 +805,7 @@ public class DTLSConnectorAdvancedTest {
 
 			// create server session listener to ensure,
 			// that server finish also the handshake
-			LatchSessionListener serverSessionListener = addSessionListenerForEndpoint("server", rawClient);
+			LatchSessionListener serverSessionListener = getSessionListenerForEndpoint("server", rawClient);
 
 			// Handle and answer
 			// (CHANGE CIPHER SPEC, FINISHED (drop), flight 3)
@@ -869,7 +864,7 @@ public class DTLSConnectorAdvancedTest {
 
 			// create server session listener to ensure,
 			// that server finish also the handshake
-			LatchSessionListener serverSessionListener = addSessionListenerForEndpoint("server", rawClient);
+			LatchSessionListener serverSessionListener = getSessionListenerForEndpoint("server", rawClient);
 
 			// Handle and answer
 			// (CERTIFICATE, CHANGE CIPHER SPEC, ..., FINISHED)
@@ -950,7 +945,7 @@ public class DTLSConnectorAdvancedTest {
 			// Wait to receive response (should be CLIENT HELLO, flight 1)
 			rs = waitForFlightReceived("flight 1", collector, 1);
 
-			LatchSessionListener clientSessionListener = addSessionListenerForEndpoint("client", rawServer);
+			LatchSessionListener clientSessionListener = getSessionListenerForEndpoint("client", rawServer);
 
 			// Handle and answer
 			// (SERVER HELLO, CCS, FINISHED drop, flight 2).
@@ -1001,7 +996,7 @@ public class DTLSConnectorAdvancedTest {
 				serverHandshaker.processMessage(r);
 			}
 
-			LatchSessionListener clientSessionListener = addSessionListenerForEndpoint("client", rawServer);
+			LatchSessionListener clientSessionListener = getSessionListenerForEndpoint("client", rawServer);
 
 			// Wait for transmission (CERTIFICATE, ... , FINISHED, flight 5)
 			rs = waitForFlightReceived("flight 3", collector, 5);
@@ -1093,7 +1088,7 @@ public class DTLSConnectorAdvancedTest {
 			// (SERVER_HELLO, CHANGE CIPHER SPEC, FINISHED, fight 4)
 			rs = waitForFlightReceived("flight 4", alt1Collector, 3);
 
-			LatchSessionListener serverAlt1SessionListener = addSessionListenerForEndpoint("server", rawAlt1Client);
+			LatchSessionListener serverAlt1SessionListener = getSessionListenerForEndpoint("server", rawAlt1Client);
 
 			// Create 2. resume handshaker
 			rawAlt2Client.start();
@@ -1124,7 +1119,7 @@ public class DTLSConnectorAdvancedTest {
 			// that server finish also the handshake
 			serverHelper.serverConnectionStore.dump();
 
-			LatchSessionListener serverAlt2SessionListener = addSessionListenerForEndpoint("server", rawAlt2Client);
+			LatchSessionListener serverAlt2SessionListener = getSessionListenerForEndpoint("server", rawAlt2Client);
 
 			for (Record r : rs) {
 				resumingClientHandshaker.processMessage(r);
@@ -1202,51 +1197,12 @@ public class DTLSConnectorAdvancedTest {
 		}
 	}
 
-	private LatchSessionListener addSessionListenerForEndpoint(String side, UdpConnector clientEndpoint) {
+	private LatchSessionListener getSessionListenerForEndpoint(String side, UdpConnector clientEndpoint) {
 		InetSocketAddress address = clientEndpoint.getAddress();
-		Connection con;
-		if (side.equals("client")) {
-			con = clientConnectionStore.get(address);
-		} else {
-			con = serverHelper.serverConnectionStore.get(address);
-		}
-		assertNotNull("missing " + side + "-side session for " + address, con);
-		Handshaker handshaker = con.getOngoingHandshake();
-		assertNotNull("missing " + side + "-side handshaker for " + address, handshaker);
-		LatchSessionListener serverSessionListener = new LatchSessionListener();
-		handshaker.addSessionListener(serverSessionListener);
+		LatchSessionListener serverSessionListener = serverHelper.sessionListenerMap.get(address);
+		assertNotNull("missing " + side + "-side session listener for " + address);
 		return serverSessionListener;
 	}
-
-	private static class LatchSessionListener extends SessionAdapter {
-
-		private CountDownLatch established = new CountDownLatch(1);
-		private CountDownLatch failed = new CountDownLatch(1);
-		private AtomicReference<Throwable> error = new AtomicReference<Throwable>();
-
-		@Override
-		public void sessionEstablished(Handshaker handshaker, DTLSSession establishedSession)
-				throws HandshakeException {
-			established.countDown();
-		}
-
-		@Override
-		public void handshakeFailed(Handshaker handshaker, Throwable error) {
-			this.error.set(error);
-			failed.countDown();
-		}
-
-		public boolean waitForSessionEstablished(long timeout, TimeUnit unit) throws InterruptedException {
-			return established.await(timeout, unit);
-		}
-
-		public Throwable waitForSessionFailed(long timeout, TimeUnit unit) throws InterruptedException {
-			if (failed.await(timeout, unit)) {
-				return error.get();
-			}
-			return null;
-		}
-	};
 
 	public static class BasicRecordLayer implements RecordLayer {
 
