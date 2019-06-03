@@ -411,17 +411,17 @@ public class ConnectorHelper {
 	 * A data handler that decrements a latch on successful processing of data.
 	 *
 	 */
-	abstract class LatchDecrementingDataHandler implements DataHandler {
+	static abstract class LatchDecrementingDataHandler implements DataHandler {
 
 		private CountDownLatch latch;
 
-		public LatchDecrementingDataHandler(final CountDownLatch latch){
+		public LatchDecrementingDataHandler(CountDownLatch latch){
 			this.setLatch(latch);
 		}
 
 		@Override
-		public void handleData(InetSocketAddress endpoint, byte[] data) {
-			if (process(data)) {
+		public final void handleData(InetSocketAddress endpoint, byte[] data) {
+			if (process(endpoint, data)) {
 				latch.countDown();
 			}
 		}
@@ -432,14 +432,14 @@ public class ConnectorHelper {
 		 * @param data The data.
 		 * @return {@code true} if the data has been processed successfully.
 		 */
-		public abstract boolean process(final byte[] data);
+		public abstract boolean process(InetSocketAddress endpoint, byte[] data);
 
-		public void setLatch(final CountDownLatch latch) {
+		public void setLatch(CountDownLatch latch) {
 			this.latch = latch;
 		}
 	};
 
-	static class RecordCollectorDataHandler implements ConnectorHelper.DataHandler {
+	static class RecordCollectorDataHandler implements DataHandler {
 
 		private BlockingQueue<List<Record>> records = new LinkedBlockingQueue<>();
 
