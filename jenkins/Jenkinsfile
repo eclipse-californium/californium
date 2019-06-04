@@ -1,0 +1,88 @@
+/*******************************************************************************
+ * Copyright (c) 2019 Bosch Software Innovations GmbH and others.
+ * 
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * and Eclipse Distribution License v1.0 which accompany this distribution.
+ * 
+ * The Eclipse Public License is available at
+ *    http://www.eclipse.org/legal/epl-v10.html
+ * and the Eclipse Distribution License is available at
+ *    http://www.eclipse.org/org/documents/edl-v10.html.
+ * 
+ * Contributors:
+ *    Bosch Software Innovations GmbH - Initial creation
+ ******************************************************************************/
+
+pipeline {
+
+/**
+ * Continues Integration & Deployment
+ *
+ * Intended to be used as "Pipeline script from SCM".
+ * Create a pipeline job and configure the repo and branch
+ * to be build in the SCM git definition of the pipeline
+ * Configure a "Build Trigger / SCM schedule" 
+ *    continues integration:
+ *       # every 5 Minutes
+ *       H/5 * * * *
+ *    continues deployment:
+ *       # every night at 2:00 to 2:59
+ *       H(0-59) 2 * * *
+ * Run the job.
+ * After the first run, refresh the job configuration.
+ * For a integration job, it's done.
+ * For a deployment job, activate the build parameter DEPLOY
+ * and run the job again.
+ */
+	agent any
+	parameters {
+		// DEPLOY parameter, sticky default value with ?: operator
+		booleanParam(name: 'DEPLOY', defaultValue: params.DEPLOY ?: false, description: 'deploy build into maven-repo')
+	}
+	tools {
+		maven 'apache-maven-latest'
+		jdk 'oracle-jdk7-latest'
+	}
+	environment {
+		// reset global env of ci.eclipse jenkins e.g
+		// -XX:+UseContainerSupport
+		// otherwise these global settings will cause
+		// a failure using java 1.7
+		JAVA_TOOL_OPTIONS = ' '
+		_JAVA_OPTIONS = ' '
+		// enable junit test features to relax test timing
+		MVN_ARGS = '-Dorg.eclipse.californium.junit.starving=true' +
+		' -Dorg.eclipse.californium.elements.assume.TimeAssume.enable=true'
+	}
+	options {
+		disableConcurrentBuilds()
+		quietPeriod(5)
+		skipStagesAfterUnstable()
+		timeout(time: 20, unit: 'MINUTES')
+	}
+	stages {
+		stage ('Build') {
+			steps {
+				sh "mvn $MVN_ARGS clean verify"
+			}
+			post {
+				success {
+					junit '**/target/surefire-reports/*.xml'
+				}
+			}
+		}
+		stage ('Deploy') {
+			when {
+				equals expected: true, actual: params.DEPLOY
+			}
+			environment {
+				MVN_DEPLOY_ARGS = '-DenableEclipseJarSigner=true' +
+				' -DskipTests=true'
+			}
+			steps {
+				sh "mvn $MVN_ARGS $MVN_DEPLOY_ARGS --projects californium-osgi,californium-proxy,demo-apps/cf-plugtest-server -am deploy"
+			}
+		}
+	}
+}
