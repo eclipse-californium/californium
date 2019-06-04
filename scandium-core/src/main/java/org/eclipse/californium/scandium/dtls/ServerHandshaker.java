@@ -112,11 +112,6 @@ public class ServerHandshaker extends Handshaker {
 	private PublicKey clientPublicKey;
 
 	/**
-	 * The client's X.509 certificate chain.
-	 */
-	private CertPath peerCertPath;
-
-	/**
 	 * The cryptographic options this server supports, e.g. for exchanging keys,
 	 * digital signatures etc.
 	 */
@@ -334,9 +329,15 @@ public class ServerHandshaker extends Handshaker {
 		}
 
 		clientCertificate = message;
+		if (clientAuthenticationRequired && clientCertificate.getCertificateChain() != null
+				&& clientCertificate.getPublicKey() == null) {
+			LOGGER.debug("Client authentication failed: missing certificate!");
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE,
+					session.getPeer());
+			throw new HandshakeException("Client Certificate required!", alert);
+		}
 		verifyCertificate(clientCertificate);
 		clientPublicKey = clientCertificate.getPublicKey();
-		peerCertPath = message.getCertificateChain();
 		// TODO why don't we also update the MessageDigest at this point?
 		handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientCertificate.getRawMessage());
 	}
@@ -355,6 +356,7 @@ public class ServerHandshaker extends Handshaker {
 
 		message.verifySignature(clientPublicKey, handshakeMessages);
 		// at this point we have successfully authenticated the client
+		CertPath peerCertPath = clientCertificate.getCertificateChain();
 		if (peerCertPath != null) {
 			session.setPeerIdentity(new X509CertPath(peerCertPath));
 		} else {
