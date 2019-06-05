@@ -460,17 +460,7 @@ public class DTLSConnectorTest {
 		// and has been "crashed"
 		// now we try to establish a new session with a client connecting from the
 		// same IP address and port again
-		
-		final CountDownLatch latch = new CountDownLatch(1);
-		final List<Record> receivedRecords = new ArrayList<>();
-
-		LatchDecrementingDataHandler handler = new LatchDecrementingDataHandler(latch) {
-			@Override
-			public boolean process(InetSocketAddress endpoint, byte[] data) {
-				receivedRecords.addAll(Record.fromByteArray(data, endpoint, null));
-				return true;
-			}
-		};
+		RecordCollectorDataHandler handler = new RecordCollectorDataHandler();
 
 		UdpConnector rawClient = new UdpConnector(clientEndpoint.getPort(), handler);
 		rawClient.start();
@@ -479,8 +469,8 @@ public class DTLSConnectorTest {
 				DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 0, createClientHello().toByteArray()));
 
 		try {
-			assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
-			Record record = receivedRecords.get(0);
+			List<Record> flight = handler.assertFlight(1, MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			Record record = flight.get(0);
 			assertThat("Expected HANDSHAKE message from server",
 					record.getType(), is(ContentType.HANDSHAKE));
 			HandshakeMessage msg = (HandshakeMessage) record.getFragment();
@@ -550,15 +540,7 @@ public class DTLSConnectorTest {
 	@Test
 	public void testClientHelloRetransmissionDoNotRestartHandshake() throws Exception {
 		// configure UDP connector
-		CountDownLatch latch = new CountDownLatch(1);
-		final List<Record> receivedRecords = new ArrayList<>();
-		LatchDecrementingDataHandler handler = new LatchDecrementingDataHandler(latch) {
-			@Override
-			public boolean process(InetSocketAddress endpoint, byte[] data) {
-				receivedRecords.addAll(Record.fromByteArray(data, endpoint, null));
-				return true;
-			}
-		};
+		RecordCollectorDataHandler handler = new RecordCollectorDataHandler();
 
 		UdpConnector rawClient = new UdpConnector(clientEndpoint.getPort(), handler);
 		try {
@@ -572,8 +554,9 @@ public class DTLSConnectorTest {
 					DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 0, clientHello.toByteArray()));
 
 			// handle HELLO_VERIFY_REQUEST
-			assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
-			Record record = receivedRecords.get(0);
+			List<Record> flight = handler.assertFlight(1, MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			Record record = flight.get(0);
+
 			assertThat("Expected HANDSHAKE message from server",
 					record.getType(), is(ContentType.HANDSHAKE));
 			HandshakeMessage msg = (HandshakeMessage) record.getFragment();
@@ -583,40 +566,35 @@ public class DTLSConnectorTest {
 			assertNull(con);
 			byte[] cookie = ((HelloVerifyRequest) msg).getCookie();
 			assertNotNull(cookie);
-			receivedRecords.clear();
 
 			// send CLIENT_HELLO with cookie
-			latch = new CountDownLatch(1);
-			handler.setLatch(latch);
 			clientHello.setCookie(cookie);
 			rawClient.sendRecord(
 					serverHelper.serverEndpoint,
 					DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 0, clientHello.toByteArray()));
 
 			// assert that we have an ongoingHandshake for this connection
-			assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
-			con = serverHelper.serverConnectionStore.get(clientEndpoint);
-			assertNotNull(con);
-			Handshaker ongoingHandshake = con.getOngoingHandshake();
-			assertNotNull(ongoingHandshake);
-			record = receivedRecords.get(0);
+			flight = handler.assertFlight(1, MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			record = flight.get(0);
+
 			assertThat("Expected HANDSHAKE message from server",
 					record.getType(), is(ContentType.HANDSHAKE));
 			msg = (HandshakeMessage) record.getFragment();
 			assertThat("Expected SERVER_HELLO from server",
 					msg.getMessageType(), is(HandshakeType.SERVER_HELLO));
-			receivedRecords.clear();
+
+			con = serverHelper.serverConnectionStore.get(clientEndpoint);
+			assertNotNull(con);
+			Handshaker ongoingHandshake = con.getOngoingHandshake();
+			assertNotNull(ongoingHandshake);
 
 			// send CLIENT_KEY_EXCHANGE
-			latch = new CountDownLatch(1);
-			handler.setLatch(latch);
 			ClientKeyExchange keyExchange = new PSKClientKeyExchange(CLIENT_IDENTITY, serverHelper.serverEndpoint);
 			rawClient.sendRecord(serverHelper.serverEndpoint,
 							DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 1, keyExchange.toByteArray()));
+			handler.assertFlight(1, MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 
 			// re-send CLIENT_HELLO to simulate retransmission
-			latch = new CountDownLatch(1);
-			handler.setLatch(latch);
 			rawClient.sendRecord(
 					serverHelper.serverEndpoint,
 					DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 0, clientHello.toByteArray()));
@@ -626,8 +604,9 @@ public class DTLSConnectorTest {
 			rawClient.sendRecord(serverHelper.serverEndpoint, DtlsTestTools.newDTLSRecord(ContentType.ALERT.getCode(), 0, 2, closeNotify.toByteArray()));
 
 			// check that we don't get a response for this CLIENT_HELLO, it must be ignore
-			assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
-			record = receivedRecords.get(0);
+			flight = handler.assertFlight(1, MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+
+			record = flight.get(0);
 			assertThat("Expected ALERT message from server",
 					record.getType(), is(ContentType.ALERT));
 
@@ -771,17 +750,8 @@ public class DTLSConnectorTest {
 	@Test
 	public void testConnectorSendsHelloVerifyRequestWithoutCreatingSession() throws Exception {
 
-		final CountDownLatch latch = new CountDownLatch(1);
-		final List<Record> receivedRecords = new ArrayList<>();
 		InetSocketAddress endpoint = new InetSocketAddress(12000);
-
-		LatchDecrementingDataHandler handler = new LatchDecrementingDataHandler(latch) {
-			@Override
-			public boolean process(InetSocketAddress endpoint, byte[] data) {
-				receivedRecords.addAll(Record.fromByteArray(data, endpoint, null));
-				return true;
-			}
-		};
+		RecordCollectorDataHandler handler = new RecordCollectorDataHandler();
 
 		UdpConnector rawClient = new UdpConnector(endpoint.getPort(), handler);
 
@@ -794,9 +764,9 @@ public class DTLSConnectorTest {
 			rawClient.sendRecord(serverHelper.serverEndpoint,
 					DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 0, clientHello.toByteArray()));
 
-			Assert.assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
-			Assert.assertFalse(receivedRecords.isEmpty());
-			Record record = receivedRecords.get(0);
+			List<Record> flight = handler.assertFlight(1, MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			Record record = flight.get(0);
+
 			Assert.assertThat("Expected HANDSHAKE message from server",
 					record.getType(), is(ContentType.HANDSHAKE));
 			HandshakeMessage handshake = (HandshakeMessage) record.getFragment();
@@ -1138,15 +1108,7 @@ public class DTLSConnectorTest {
 
 	private void givenAnIncompleteHandshake() throws Exception {
 		// configure UDP connector
-		CountDownLatch latch = new CountDownLatch(1);
-		final List<Record> receivedRecords = new ArrayList<>();
-		LatchDecrementingDataHandler handler = new LatchDecrementingDataHandler(latch) {
-			@Override
-			public boolean process(InetSocketAddress endpoint, byte[] data) {
-				receivedRecords.addAll(Record.fromByteArray(data, endpoint, null));
-				return true;
-			}
-		};
+		RecordCollectorDataHandler handler = new RecordCollectorDataHandler();
 
 		UdpConnector rawClient = new UdpConnector(clientEndpoint.getPort(), handler);
 
@@ -1161,8 +1123,8 @@ public class DTLSConnectorTest {
 					DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 0, clientHello.toByteArray()));
 
 			// handle HELLO_VERIFY_REQUEST
-			assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
-			Record record = receivedRecords.get(0);
+			List<Record> flight = handler.assertFlight(1, MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			Record record = flight.get(0);
 			assertThat("Expected HANDSHAKE message from server",
 					record.getType(), is(ContentType.HANDSHAKE));
 			HandshakeMessage msg = (HandshakeMessage) record.getFragment();
@@ -1172,18 +1134,16 @@ public class DTLSConnectorTest {
 			assertNull(con);
 			byte[] cookie = ((HelloVerifyRequest) msg).getCookie();
 			assertNotNull(cookie);
-			receivedRecords.clear();
 
 			// send CLIENT_HELLO with cookie
-			latch = new CountDownLatch(1);
-			handler.setLatch(latch);
 			clientHello.setCookie(cookie);
 			rawClient.sendRecord(
 					serverHelper.serverEndpoint,
 					DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 0, clientHello.toByteArray()));
 
+			handler.assertFlight(1, MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+
 			// assert that we have an ongoingHandshake for this connection
-			assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 			con = serverHelper.serverConnectionStore.get(clientEndpoint);
 			assertNotNull(con);
 			Handshaker ongoingHandshake = con.getOngoingHandshake();
