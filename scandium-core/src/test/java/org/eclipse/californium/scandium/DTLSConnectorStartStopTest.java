@@ -16,7 +16,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
-import static org.eclipse.californium.scandium.ConnectorHelper.newStandardClientConfigBuilder;
+import static org.eclipse.californium.scandium.ConnectorHelper.*;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -125,7 +125,7 @@ public class DTLSConnectorStartStopTest {
 				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY);
 		DtlsConnectorConfig clientConfig = builder.build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
-		clientChannel = new ConnectorHelper.LatchDecrementingRawDataChannel(client);
+		clientChannel = new LatchDecrementingRawDataChannel();
 		client.setRawDataReceiver(clientChannel);
 	}
 

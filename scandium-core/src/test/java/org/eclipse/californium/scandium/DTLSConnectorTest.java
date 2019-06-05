@@ -207,7 +207,7 @@ public class DTLSConnectorTest {
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		client.setExecutor(executor);
 
-		clientRawDataChannel = new LatchDecrementingRawDataChannel(serverHelper.server);
+		clientRawDataChannel = new LatchDecrementingRawDataChannel();
 	}
 
 	@After
