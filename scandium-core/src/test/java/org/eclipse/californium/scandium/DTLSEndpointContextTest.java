@@ -40,6 +40,7 @@ import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
+import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.Connection;
@@ -143,11 +144,10 @@ public class DTLSEndpointContextTest {
 
 		// WHEN sending the initial message, but being blocked by
 		// EndpointContextMatcher
-		CountDownLatch latch = new CountDownLatch(1);
-		givenAStartedSession(outboundMessage, latch);
+		LatchDecrementingRawDataChannel channel = givenAStartedSession(outboundMessage);
 
-		// THEN assert that no session is established.
-		assertFalse(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		// THEN assert that no data is sent / no session is established.
+		assertFalse(channel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
 		// THEN assert that the EndpointContextMatcher is invoked once
 		assertThat(endpointContextMatcher.getConnectionEndpointContext(0), is(nullValue()));
@@ -194,8 +194,7 @@ public class DTLSEndpointContextTest {
 		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 }, endpointContext, null, false);
 
 		// prepare waiting for response
-		CountDownLatch latch = new CountDownLatch(1);
-		channel.setLatch(latch);
+		channel.setLatchCount(1);
 
 		// WHEN sending a message
 		client.send(outboundMessage);
@@ -205,7 +204,7 @@ public class DTLSEndpointContextTest {
 
 		// THEN wait for response from server before shutdown client
 		assertTrue("DTLS client timed out after " + MAX_TIME_TO_WAIT_SECS + " seconds waiting for response!",
-				latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+				channel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 	}
 
 	/**
@@ -228,8 +227,7 @@ public class DTLSEndpointContextTest {
 				new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
 
 		// prepare waiting for response
-		CountDownLatch latch = new CountDownLatch(1);
-		channel.setLatch(latch);
+		channel.setLatchCount(1);
 
 		// WHEN sending a message
 		client.send(outboundMessage);
@@ -240,7 +238,7 @@ public class DTLSEndpointContextTest {
 
 		// THEN wait for response from server before shutdown client
 		assertTrue("DTLS client timed out after " + MAX_TIME_TO_WAIT_SECS + " seconds waiting for response!",
-				latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+				channel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 	}
 
 	@Test
@@ -267,13 +265,13 @@ public class DTLSEndpointContextTest {
 		assertThat(context.getCipher(), is(establishedClientSession.getReadStateCipher()));
 	}
 
-	private void givenAStartedSession(RawData msgToSend, CountDownLatch latch) throws Exception {
+	private LatchDecrementingRawDataChannel givenAStartedSession(RawData msgToSend) throws Exception {
 
-		LatchDecrementingRawDataChannel clientRawDataChannel = new LatchDecrementingRawDataChannel();
-		clientRawDataChannel.setLatch(latch);
+		LatchDecrementingRawDataChannel clientRawDataChannel = new LatchDecrementingRawDataChannel(1);
 		client.setRawDataReceiver(clientRawDataChannel);
 		client.start();
 		client.send(msgToSend);
+		return clientRawDataChannel;
 	}
 
 	private void assertEstablishedClientSession() {

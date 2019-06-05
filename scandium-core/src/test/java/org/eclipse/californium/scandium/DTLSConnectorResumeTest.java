@@ -27,7 +27,6 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -167,19 +166,17 @@ public class DTLSConnectorResumeTest {
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60, sessions);
 		clientConnectionStore.setTag("client-after");
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
-		LatchDecrementingRawDataChannel clientRawDataChannel = new LatchDecrementingRawDataChannel();
+		LatchDecrementingRawDataChannel clientRawDataChannel = new LatchDecrementingRawDataChannel(1);
 		client.setRawDataReceiver(clientRawDataChannel);
 		client.start();
 
 		// Prepare message sending
 		final String msg = "Hello Again";
-		CountDownLatch latch = new CountDownLatch(1);
-		clientRawDataChannel.setLatch(latch);
 
 		// send message
 		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
 		client.send(data);
-		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
 		// check we use the same session id
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
@@ -207,13 +204,12 @@ public class DTLSConnectorResumeTest {
 		
 		// Prepare message sending
 		final String msg = "Hello Again";
-		CountDownLatch latch = new CountDownLatch(1);
-		clientRawDataChannel.setLatch(latch);
+		clientRawDataChannel.setLatchCount(1);
 
 		// send message
 		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
 		client.send(data);
-		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
 		// check we use the same session id
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
@@ -238,13 +234,12 @@ public class DTLSConnectorResumeTest {
 		Thread.sleep(750);
 		// Prepare message sending
 		final String msg = "Hello Again";
-		CountDownLatch latch = new CountDownLatch(1);
-		clientRawDataChannel.setLatch(latch);
+		clientRawDataChannel.setLatchCount(1);
 
 		// send message
 		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
 		client.send(data);
-		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
 		Thread.sleep(750);
 
@@ -268,14 +263,13 @@ public class DTLSConnectorResumeTest {
 
 		// Prepare message sending
 		final String msg = "Hello Again";
-		CountDownLatch latch = new CountDownLatch(1);
-		clientRawDataChannel.setLatch(latch);
+		clientRawDataChannel.setLatchCount(1);
 
 		// send message
 		EndpointContext context = new MapBasedEndpointContext(serverHelper.serverEndpoint, null, DtlsEndpointContext.KEY_RESUMPTION_TIMEOUT, "0");
 		RawData data = RawData.outbound(msg.getBytes(), context, null, false);
 		client.send(data);
-		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
 		// check we use the same session id
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
@@ -301,14 +295,13 @@ public class DTLSConnectorResumeTest {
 
 		// Prepare message sending
 		final String msg = "Hello Again";
-		CountDownLatch latch = new CountDownLatch(1);
-		clientRawDataChannel.setLatch(latch);
+		clientRawDataChannel.setLatchCount(1);
 
 		// send message
 		EndpointContext context = new MapBasedEndpointContext(serverHelper.serverEndpoint, null, DtlsEndpointContext.KEY_RESUMPTION_TIMEOUT, "");
 		RawData data = RawData.outbound(msg.getBytes(), context, null, false);
 		client.send(data);
-		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
 		// check we use the same session id
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
@@ -335,14 +328,13 @@ public class DTLSConnectorResumeTest {
 
 		// Prepare message sending
 		final String msg = "Hello Again";
-		CountDownLatch latch = new CountDownLatch(1);
-		clientRawDataChannel.setLatch(latch);
+		clientRawDataChannel.setLatchCount(1);
 
 		// send message
 		EndpointContext context = new MapBasedEndpointContext(serverHelper.serverEndpoint, null, DtlsEndpointContext.KEY_RESUMPTION_TIMEOUT, "10000");
 		RawData data = RawData.outbound(msg.getBytes(), context, null, false);
 		client.send(data);
-		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
 		// check we use the same session id
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
@@ -374,13 +366,12 @@ public class DTLSConnectorResumeTest {
 
 		// Prepare message sending
 		final String msg = "Hello Again";
-		CountDownLatch latch = new CountDownLatch(1);
-		clientRawDataChannel.setLatch(latch);
+		clientRawDataChannel.setLatchCount(1);
 
 		// send message
 		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
 		client.send(data);
-		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
 		// check we use the same session id
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
@@ -402,13 +393,12 @@ public class DTLSConnectorResumeTest {
 
 		// Prepare message sending
 		final String msg = "Hello Again";
-		CountDownLatch latch = new CountDownLatch(1);
-		clientRawDataChannel.setLatch(latch);
+		clientRawDataChannel.setLatchCount(1);
 
 		// send message
 		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
 		client.send(data);
-		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
 		// check we use the same session id
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
@@ -431,8 +421,7 @@ public class DTLSConnectorResumeTest {
 
 		// Prepare message sending
 		final String msg = "Hello Again";
-		CountDownLatch latch = new CountDownLatch(1);
-		clientRawDataChannel.setLatch(latch);
+		clientRawDataChannel.setLatchCount(1);
 
 		// remove session from server
 		serverHelper.remove(clientAddress, true);
@@ -440,7 +429,7 @@ public class DTLSConnectorResumeTest {
 		// send message
 		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
 		client.send(data);
-		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
 		// check session id was not equals
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
@@ -463,13 +452,12 @@ public class DTLSConnectorResumeTest {
 
 		// Prepare message sending
 		final String msg = "Hello Again";
-		CountDownLatch latch = new CountDownLatch(1);
-		clientRawDataChannel.setLatch(latch);
+		clientRawDataChannel.setLatchCount(1);
 
 		// send message
 		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint, "server.two", null), null, false);
 		client.send(data);
-		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
 		// check session id was not equals
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
@@ -502,14 +490,13 @@ public class DTLSConnectorResumeTest {
 
 			// Prepare message sending
 			final String msg = "Hello Again";
-			CountDownLatch latch = new CountDownLatch(1);
-			clientRawDataChannel.setLatch(latch);
+			clientRawDataChannel.setLatchCount(1);
 
 			// send message
 			RawData data = RawData.outbound(msg.getBytes(),
 					new AddressEndpointContext(serverWithoutSessionId.serverEndpoint, "server.no", null), null, false);
 			client.send(data);
-			assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+			assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
 			// check session id was not equals
 			connection = clientConnectionStore.get(serverWithoutSessionId.serverEndpoint);

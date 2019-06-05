@@ -234,14 +234,12 @@ public class ConnectorHelper {
 
 	LatchDecrementingRawDataChannel givenAnEstablishedSession(DTLSConnector client, RawData msgToSend, boolean releaseSocket) throws Exception {
 
-		CountDownLatch latch = new CountDownLatch(1);
-		LatchDecrementingRawDataChannel clientChannel = new LatchDecrementingRawDataChannel();
-		clientChannel.setLatch(latch);
+		LatchDecrementingRawDataChannel clientChannel = new LatchDecrementingRawDataChannel(1);
 		client.setRawDataReceiver(clientChannel);
 		client.start();
 		clientChannel.setAddress(client.getAddress());
 		client.send(msgToSend);
-		assertTrue("DTLS handshake timed out after " + MAX_TIME_TO_WAIT_SECS + " seconds", latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		assertTrue("DTLS handshake timed out after " + MAX_TIME_TO_WAIT_SECS + " seconds", clientChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 		Connection con = serverConnectionStore.get(client.getAddress());
 		assertNotNull(con);
 		establishedServerSession = con.getEstablishedSession();
@@ -262,7 +260,10 @@ public class ConnectorHelper {
 		private CountDownLatch latch;
 
 		public LatchDecrementingRawDataChannel() {
-			super();
+		}
+
+		public LatchDecrementingRawDataChannel(int count) {
+			setLatchCount(count);
 		}
 
 		public synchronized InetSocketAddress getAddress() {
@@ -273,18 +274,28 @@ public class ConnectorHelper {
 			this.address = address;
 		}
 
-		public synchronized void setLatch(CountDownLatch latchToDecrement) {
-			this.latch = latchToDecrement;
+		public synchronized void setLatchCount(int count) {
+			this.latch = new CountDownLatch(count);
+		}
+
+		private synchronized CountDownLatch getLatch() {
+			return this.latch;
 		}
 
 		@Override
 		public void receiveData(RawData raw) {
-			CountDownLatch latch;
-			synchronized (this) {
-				latch = this.latch;
-			}
+			CountDownLatch latch = getLatch();
 			if (latch != null) {
 				latch.countDown();
+			}
+		}
+		
+		public boolean await(long timeout, TimeUnit unit) throws InterruptedException {
+			CountDownLatch latch = getLatch();
+			if (latch != null) {
+				return latch.await(timeout, unit);
+			} else {
+				return false;
 			}
 		}
 	}
