@@ -28,7 +28,6 @@ import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
@@ -177,8 +176,7 @@ public class DTLSConnectorStartStopTest {
 
 			List<SimpleMessageCallback> callbacks = new ArrayList<>();
 
-			CountDownLatch latch = new CountDownLatch(1);
-			clientChannel.setLatch(latch);
+			clientChannel.setLatchCount(1);
 
 			SimpleMessageCallback callback = new SimpleMessageCallback(pending, false);
 			SimpleMessageCallback messageCallback = new SimpleMessageCallback(0, true, callback);
@@ -187,7 +185,7 @@ public class DTLSConnectorStartStopTest {
 			client.send(message);
 			assertTrue(testLogTag + " loop: " + loop + ", " + pending + " msgs," 
 					+ " DTLS handshake timed out after " + MAX_TIME_TO_WAIT_SECS + " seconds",
-					latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+					clientChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 			if (lastServerRemaining > -1) {
 				assertThat(testLogTag + " number of server sessions changed!", 
 						serverHelper.serverConnectionStore.remainingCapacity(), is(lastServerRemaining));

@@ -503,8 +503,7 @@ public class DTLSConnectorTest {
 
 		// now check if we can still use the originally established session to
 		// exchange application data
-		final CountDownLatch clientLatch = new CountDownLatch(1);
-		clientRawDataChannel.setLatch(clientLatch);
+		clientRawDataChannel.setLatchCount(1);
 		// restart original client binding to same IP address and port as before
 		client.restart();
 		// make sure client still has original session in its cache
@@ -519,7 +518,7 @@ public class DTLSConnectorTest {
 		con = serverHelper.serverConnectionStore.get(client.getAddress());
 		assertNotNull(con);
 		assertNotNull(con.getEstablishedSession());
-		assertTrue(clientLatch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 		assertThat("Server should have reused existing session with client instead of creating a new one",
 				con.getEstablishedSession().getSessionIdentifier(),
 				is(serverHelper.establishedServerSession.getSessionIdentifier()));
@@ -655,16 +654,16 @@ public class DTLSConnectorTest {
 		// and has been "crashed"
 		// now we try to establish a new session with a client connecting from the
 		// same IP address and port again
-		final CountDownLatch latch = new CountDownLatch(1);
-		clientRawDataChannel.setLatch(latch);
+		clientRawDataChannel.setLatchCount(1);
 		client = new DTLSConnector(newStandardConfig(clientEndpoint));
 		client.setRawDataReceiver(clientRawDataChannel);
+		client.setExecutor(executor);
 		client.start();
 
 		RawData data = RawData.outbound("Hello World".getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
 		client.send(data);
 
-		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 		Connection con = serverHelper.serverConnectionStore.get(clientEndpoint);
 		assertNotNull(con);
 		assertNotNull(con.getEstablishedSession());
@@ -692,13 +691,12 @@ public class DTLSConnectorTest {
 
 		// Prepare message sending
 		final String msg = "Hello Again";
-		CountDownLatch latch = new CountDownLatch(1);
-		clientRawDataChannel.setLatch(latch);
+		clientRawDataChannel.setLatchCount(1);
 
 		// send message
 		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
 		client.send(data);
-		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
 		// check we use the same session id
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
@@ -724,13 +722,12 @@ public class DTLSConnectorTest {
 
 		// Prepare message sending
 		final String msg = "Hello Again";
-		CountDownLatch latch = new CountDownLatch(1);
-		clientRawDataChannel.setLatch(latch);
+		clientRawDataChannel.setLatchCount(1);
 
 		// send message
 		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
 		client.send(data);
-		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
 		// check we use the same session id
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
@@ -758,13 +755,12 @@ public class DTLSConnectorTest {
 
 		// Prepare message sending
 		final String msg = "Hello Again";
-		CountDownLatch latch = new CountDownLatch(1);
-		clientRawDataChannel.setLatch(latch);
+		clientRawDataChannel.setLatchCount(1);
 
 		// send message
 		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
 		client.send(data);
-		assertTrue(latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
 		// check we use the same session id
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
@@ -832,15 +828,14 @@ public class DTLSConnectorTest {
 		assertTrue(serverHelper.serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.2", 5050), new SerialExecutor(executor))));
 		assertTrue(serverHelper.serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.3", 5050), new SerialExecutor(executor))));
 
-		CountDownLatch latch = new CountDownLatch(1);
-		clientRawDataChannel.setLatch(latch);
+		clientRawDataChannel.setLatchCount(1);
 		client.setRawDataReceiver(clientRawDataChannel);
 		client.start();
 		clientEndpoint = client.getAddress();
 		RawData data = RawData.outbound("Hello World".getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
 		client.send(data);
 
-		assertFalse(latch.await(500, TimeUnit.MILLISECONDS));
+		assertFalse(clientRawDataChannel.await(500, TimeUnit.MILLISECONDS));
 		assertNull("Server should not have established a session with client", serverHelper.serverConnectionStore.get(clientEndpoint));
 	}
 
