@@ -164,8 +164,7 @@ public class ConnectorHelper {
 
 		server = new DTLSConnector(serverConfig, serverConnectionStore);
 		serverRawDataProcessor = new MessageCapturingProcessor();
-		serverRawDataChannel = new SimpleRawDataChannel(server);
-		serverRawDataChannel.setProcessor(serverRawDataProcessor);
+		serverRawDataChannel = new SimpleRawDataChannel(server, serverRawDataProcessor);
 		server.setRawDataReceiver(serverRawDataChannel);
 		server.start();
 		serverEndpoint = server.getAddress();
@@ -224,24 +223,24 @@ public class ConnectorHelper {
 				.setRpkTrustAll();
 	}
 
-	LatchDecrementingRawDataChannel givenAnEstablishedSession(final DTLSConnector client) throws Exception {
+	LatchDecrementingRawDataChannel givenAnEstablishedSession(DTLSConnector client) throws Exception {
 		return givenAnEstablishedSession(client, true);
 	}
 
-	LatchDecrementingRawDataChannel givenAnEstablishedSession(final DTLSConnector client, boolean releaseSocket) throws Exception {
+	LatchDecrementingRawDataChannel givenAnEstablishedSession(DTLSConnector client, boolean releaseSocket) throws Exception {
 		RawData raw = RawData.outbound("Hello World".getBytes(), new AddressEndpointContext(serverEndpoint), null, false);
 		return givenAnEstablishedSession(client, raw, releaseSocket);
 	}
 
-	LatchDecrementingRawDataChannel givenAnEstablishedSession(final DTLSConnector client, RawData msgToSend, boolean releaseSocket) throws Exception {
+	LatchDecrementingRawDataChannel givenAnEstablishedSession(DTLSConnector client, RawData msgToSend, boolean releaseSocket) throws Exception {
 
 		CountDownLatch latch = new CountDownLatch(1);
-		LatchDecrementingRawDataChannel clientChannel = new LatchDecrementingRawDataChannel(client);
+		LatchDecrementingRawDataChannel clientChannel = new LatchDecrementingRawDataChannel();
 		clientChannel.setLatch(latch);
 		client.setRawDataReceiver(clientChannel);
 		client.start();
-		client.send(msgToSend);
 		clientChannel.setAddress(client.getAddress());
+		client.send(msgToSend);
 		assertTrue("DTLS handshake timed out after " + MAX_TIME_TO_WAIT_SECS + " seconds", latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 		Connection con = serverConnectionStore.get(client.getAddress());
 		assertNotNull(con);
@@ -258,40 +257,12 @@ public class ConnectorHelper {
 		return clientChannel;
 	}
 
-	static class LatchDecrementingRawDataChannel extends SimpleRawDataChannel {
+	static class LatchDecrementingRawDataChannel implements RawDataChannel {
+		private InetSocketAddress address;
 		private CountDownLatch latch;
 
-		public LatchDecrementingRawDataChannel(DTLSConnector server) {
-			super(server);
-		}
-
-		public synchronized void setLatch(CountDownLatch latchToDecrement) {
-			this.latch = latchToDecrement;
-		}
-
-		@Override
-		public void receiveData(RawData raw) {
-			super.receiveData(raw);
-			synchronized (this) {
-				if (latch != null) {
-					latch.countDown();
-				}
-			}
-		}
-	}
-
-	static class SimpleRawDataChannel implements RawDataChannel {
-
-		private RawDataProcessor processor;
-		private DTLSConnector connector;
-		private InetSocketAddress address;
-		
-		public SimpleRawDataChannel(DTLSConnector connector) {
-			this.connector = connector;
-		}
-
-		public synchronized void setProcessor(final RawDataProcessor processor) {
-			this.processor = processor;
+		public LatchDecrementingRawDataChannel() {
+			super();
 		}
 
 		public synchronized InetSocketAddress getAddress() {
@@ -302,19 +273,58 @@ public class ConnectorHelper {
 			this.address = address;
 		}
 
+		public synchronized void setLatch(CountDownLatch latchToDecrement) {
+			this.latch = latchToDecrement;
+		}
+
+		@Override
+		public void receiveData(RawData raw) {
+			CountDownLatch latch;
+			synchronized (this) {
+				latch = this.latch;
+			}
+			if (latch != null) {
+				latch.countDown();
+			}
+		}
+	}
+
+	static class SimpleRawDataChannel extends LatchDecrementingRawDataChannel {
+
+		private RawDataProcessor processor;
+		private DTLSConnector connector;
+
+		public SimpleRawDataChannel() {
+		}
+
+		public SimpleRawDataChannel(DTLSConnector connector, RawDataProcessor processor) {
+			if (connector == null) {
+				throw new NullPointerException("connector must not be null!");
+			}
+			this.connector = connector;
+			setProcessor(processor);
+		}
+
+		public synchronized void setProcessor(RawDataProcessor processor) {
+			if (processor != null && connector == null) {
+				throw new IllegalStateException("connector must be provided when creating the instance!");
+			}
+			this.processor = processor;
+		}
+
 		@Override
 		public void receiveData(final RawData raw) {
+			DTLSConnector connector;
 			RawDataProcessor processor;
 			synchronized (this) {
 				processor = this.processor;
+				connector = this.connector;
 			}
 			if (processor != null) {
 				RawData response = processor.process(raw);
-				if (response != null) {
+				if (response != null && connector != null) {
 					InetSocketAddress socketAddress = connector.getAddress();
-					synchronized (this) {
-						address = socketAddress;
-					}
+					setAddress(socketAddress);
 					connector.send(response);
 				}
 			}

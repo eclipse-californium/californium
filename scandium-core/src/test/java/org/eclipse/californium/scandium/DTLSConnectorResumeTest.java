@@ -167,7 +167,7 @@ public class DTLSConnectorResumeTest {
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60, sessions);
 		clientConnectionStore.setTag("client-after");
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
-		LatchDecrementingRawDataChannel clientRawDataChannel = new LatchDecrementingRawDataChannel(client);
+		LatchDecrementingRawDataChannel clientRawDataChannel = new LatchDecrementingRawDataChannel();
 		client.setRawDataReceiver(clientRawDataChannel);
 		client.start();
 

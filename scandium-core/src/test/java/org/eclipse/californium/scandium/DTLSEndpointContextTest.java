@@ -18,7 +18,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
-import static org.eclipse.californium.scandium.ConnectorHelper.MAX_TIME_TO_WAIT_SECS;
+import static org.eclipse.californium.scandium.ConnectorHelper.*;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
@@ -40,7 +40,6 @@ import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
-import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.Connection;
@@ -270,7 +269,7 @@ public class DTLSEndpointContextTest {
 
 	private void givenAStartedSession(RawData msgToSend, CountDownLatch latch) throws Exception {
 
-		LatchDecrementingRawDataChannel clientRawDataChannel = new ConnectorHelper.LatchDecrementingRawDataChannel(client);
+		LatchDecrementingRawDataChannel clientRawDataChannel = new LatchDecrementingRawDataChannel();
 		clientRawDataChannel.setLatch(latch);
 		client.setRawDataReceiver(clientRawDataChannel);
 		client.start();
