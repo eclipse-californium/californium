@@ -32,6 +32,8 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.junit.Assert.*;
 
 import java.io.IOException;
@@ -289,7 +291,7 @@ public class ConnectorHelper {
 				latch.countDown();
 			}
 		}
-		
+
 		public boolean await(long timeout, TimeUnit unit) throws InterruptedException {
 			CountDownLatch latch = getLatch();
 			if (latch != null) {
@@ -428,38 +430,6 @@ public class ConnectorHelper {
 		void handleData(InetSocketAddress endpoint, byte[] data);
 	}
 
-	/**
-	 * A data handler that decrements a latch on successful processing of data.
-	 *
-	 */
-	static abstract class LatchDecrementingDataHandler implements DataHandler {
-
-		private CountDownLatch latch;
-
-		public LatchDecrementingDataHandler(CountDownLatch latch){
-			this.setLatch(latch);
-		}
-
-		@Override
-		public final void handleData(InetSocketAddress endpoint, byte[] data) {
-			if (process(endpoint, data)) {
-				latch.countDown();
-			}
-		}
-
-		/**
-		 * Processes data in a context specific way.
-		 * 
-		 * @param data The data.
-		 * @return {@code true} if the data has been processed successfully.
-		 */
-		public abstract boolean process(InetSocketAddress endpoint, byte[] data);
-
-		public void setLatch(CountDownLatch latch) {
-			this.latch = latch;
-		}
-	};
-
 	static class RecordCollectorDataHandler implements DataHandler {
 
 		private BlockingQueue<List<Record>> records = new LinkedBlockingQueue<>();
@@ -492,6 +462,27 @@ public class ConnectorHelper {
 			}
 			return received;
 		}
+
+		public List<Record> assertFlight(int size, long timeout, TimeUnit unit) throws InterruptedException {
+			long timeoutNanos = unit.toNanos(timeout);
+			long time = System.nanoTime();
+			List<Record> received = waitForRecords(timeoutNanos, TimeUnit.NANOSECONDS);
+			if (null != received && received.size() < size) {
+				received = new ArrayList<Record>(received);
+				List<Record> next;
+				timeoutNanos -= (System.nanoTime() - time);
+				if (0 < timeoutNanos) {
+					if (null != (next = waitForRecords(timeoutNanos, TimeUnit.NANOSECONDS))) {
+						received.addAll(next);
+					}
+				}
+			}
+			assertThat("timeout: flight not received", received, is(notNullValue()));
+			int left = Math.max(size - received.size(), 0);
+			assertThat("timeout: flight missing records", left, is(0));
+			return received;
+		}
+
 	};
 
 	static class UdpConnector {
