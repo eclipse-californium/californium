@@ -338,6 +338,8 @@ public class PlugtestClient {
 		response = client.putIfNoneMatch("CC23 at " + new SimpleDateFormat("HH:mm:ss.SSS").format(new Date()),
 				MediaTypeRegistry.TEXT_PLAIN);
 		System.out.println(response.getCode());
+
+		client.shutdown();
 	}
 
 	public static void testCB(String uri) throws ConnectorException, IOException {
@@ -400,6 +402,8 @@ public class PlugtestClient {
 		response = client.get();
 		System.out.println(response.getCode());
 		System.out.println(response.getResponseText());
+
+		client.shutdown();
 	}
 
 	public static void testCO(String uri) throws ConnectorException, IOException {
@@ -555,6 +559,8 @@ public class PlugtestClient {
 			Thread.sleep(6 * 1000);
 		} catch (InterruptedException e) {
 		}
+
+		client.shutdown();
 	}
 
 	public static void testCL(String uri) throws ConnectorException, IOException {
@@ -637,6 +643,8 @@ public class PlugtestClient {
 				System.out.println(response.getResponseText());
 			}
 		}
+
+		client.shutdown();
 	}
 
 	public static String getLargeRequestPayload() {

@@ -77,7 +77,7 @@ public class GETClient {
 			} else {
 				System.out.println("No response received.");
 			}
-			
+			client.shutdown();
 		} else {
 			// display help
 			System.out.println("Californium (Cf) GET Client");

@@ -153,7 +153,7 @@ public class ReceivetestClient {
 		} else {
 			System.out.println("No response received.");
 		}
-
+		client.shutdown();
 		System.exit(0);
 	}
 

@@ -90,6 +90,7 @@ public class MulticastTestClient {
 		client.advanced(handler, multicastRequest);
 		while (handler.waitOn(2000))
 			;
+		client.shutdown();
 	}
 
 	private static final MultiCoapHandler handler = new MultiCoapHandler();
