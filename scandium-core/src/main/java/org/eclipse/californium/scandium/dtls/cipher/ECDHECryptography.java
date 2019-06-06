@@ -43,13 +43,13 @@ import java.security.spec.ECPublicKeySpec;
 import java.security.spec.EllipticCurve;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.eclipse.californium.elements.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.crypto.KeyAgreement;
 import javax.crypto.SecretKey;
-
-import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
 /**
  * A helper class to execute the ECDHE key agreement and key generation.
@@ -214,7 +214,32 @@ public final class ECDHECryptography {
 	}
 	
 	// Serialization //////////////////////////////////////////////////
-	
+
+	/**
+	 * Trims the leading zeros.
+	 * 
+	 * @param byeArray the byte array with possible leading zeros.
+	 * @return the byte array with no leading zeros.
+	 */
+	public static byte[] trimZeroes(byte[] byeArray) {
+		// count how many leading zeros
+		int count = 0;
+		while ((count < byeArray.length - 1) && (byeArray[count] == 0)) {
+			count++;
+		}
+		if (count == 0) {
+			// no leading zeros initially
+			return byeArray;
+		}
+		if (count < byeArray.length) {
+			byte[] trimmedByteArray = new byte[byeArray.length - count];
+			System.arraycopy(byeArray, count, trimmedByteArray, 0, trimmedByteArray.length);
+			return trimmedByteArray;
+		} else {
+			return Bytes.EMPTY;
+		}
+	}
+
 	/**
 	 * Decodes an EC point according to the X9.62 specification.
 	 * 
@@ -257,8 +282,8 @@ public final class ECDHECryptography {
 		// get field size in bytes (rounding up)
 		int fieldSize = (curve.getField().getFieldSize() + 7) / 8;
 		
-		byte[] xb = ByteArrayUtils.trimZeroes(point.getAffineX().toByteArray());
-		byte[] yb = ByteArrayUtils.trimZeroes(point.getAffineY().toByteArray());
+		byte[] xb = trimZeroes(point.getAffineX().toByteArray());
+		byte[] yb = trimZeroes(point.getAffineY().toByteArray());
 		
 		if ((xb.length > fieldSize) || (yb.length > fieldSize)) {
 			LOGGER.error("Point coordinates do not match field size.");

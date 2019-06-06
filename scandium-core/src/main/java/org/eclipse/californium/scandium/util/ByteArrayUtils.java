@@ -20,8 +20,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.util;
 
-import org.eclipse.californium.elements.util.Bytes;
-
 public class ByteArrayUtils {
 
 	/**
@@ -43,30 +41,5 @@ public class ByteArrayUtils {
 		System.arraycopy(b, 0, concat, lengthA, lengthB);
 
 		return concat;
-	}
-
-	/**
-	 * Trims the leading zeros.
-	 * 
-	 * @param byeArray the byte array with possible leading zeros.
-	 * @return the byte array with no leading zeros.
-	 */
-	public static byte[] trimZeroes(byte[] byeArray) {
-		// count how many leading zeros
-		int count = 0;
-		while ((count < byeArray.length - 1) && (byeArray[count] == 0)) {
-			count++;
-		}
-		if (count == 0) {
-			// no leading zeros initially
-			return byeArray;
-		}
-		if (count < byeArray.length) {
-			byte[] trimmedByteArray = new byte[byeArray.length - count];
-			System.arraycopy(byeArray, count, trimmedByteArray, 0, trimmedByteArray.length);
-			return trimmedByteArray;
-		} else {
-			return Bytes.EMPTY;
-		}
 	}
 }
