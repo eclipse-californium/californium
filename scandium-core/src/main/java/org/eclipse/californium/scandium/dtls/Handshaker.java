@@ -83,7 +83,6 @@ import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
-import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -99,7 +98,6 @@ import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 
 /**
  * A base class for the DTLS handshake protocol.
@@ -192,9 +190,6 @@ public abstract class Handshaker {
 	 * {@link Finished} messages.
 	 */
 	protected MessageDigest md;
-
-	/** All the handshake messages exchanged before the CertificateVerify message. */
-	protected byte[] handshakeMessages = Bytes.EMPTY;
 
 	/** The handshaker's private key. */
 	protected PrivateKey privateKey;

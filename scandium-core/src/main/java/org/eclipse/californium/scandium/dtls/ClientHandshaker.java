@@ -57,6 +57,7 @@ import java.util.List;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -65,7 +66,6 @@ import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
-import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.PskUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
@@ -535,16 +535,17 @@ public class ClientHandshaker extends Handshaker {
 		 */
 		if (certificateRequest != null && negotiatedSignatureAndHashAlgorithm != null) {
 			// prepare handshake messages
-			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientHello.toByteArray());
-			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverHello.toByteArray());
-			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverCertificate.toByteArray());
-			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverKeyExchange.toByteArray());
-			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, certificateRequest.toByteArray());
-			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverHelloDone.toByteArray());
-			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientCertificate.toByteArray());
-			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientKeyExchange.toByteArray());
+			DatagramWriter handshakeMessages = new DatagramWriter(2048);
+			handshakeMessages.writeBytes(clientHello.toByteArray());
+			handshakeMessages.writeBytes(serverHello.toByteArray());
+			handshakeMessages.writeBytes(serverCertificate.toByteArray());
+			handshakeMessages.writeBytes(serverKeyExchange.toByteArray());
+			handshakeMessages.writeBytes(certificateRequest.toByteArray());
+			handshakeMessages.writeBytes(serverHelloDone.toByteArray());
+			handshakeMessages.writeBytes(clientCertificate.toByteArray());
+			handshakeMessages.writeBytes(clientKeyExchange.toByteArray());
 
-			certificateVerify = new CertificateVerify(negotiatedSignatureAndHashAlgorithm, privateKey, handshakeMessages, session.getPeer());
+			certificateVerify = new CertificateVerify(negotiatedSignatureAndHashAlgorithm, privateKey, handshakeMessages.toByteArray(), session.getPeer());
 
 			wrapMessage(flight, certificateVerify);
 		}
