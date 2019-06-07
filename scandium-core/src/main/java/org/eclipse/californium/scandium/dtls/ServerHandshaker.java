@@ -64,6 +64,7 @@ import java.util.List;
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
+import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -76,7 +77,6 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgor
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
-import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -130,6 +130,8 @@ public class ServerHandshaker extends Handshaker {
 	private CertificateType negotiatedServerCertificateType;
 	private SupportedGroup negotiatedSupportedGroup;
 	private SignatureAndHashAlgorithm signatureAndHashAlgorithm;
+	/** All the handshake messages exchanged before the CertificateVerify message. */
+	protected DatagramWriter handshakeMessages;
 
 	/*
 	 * Store all the messages which can possibly be sent by the client. We
@@ -274,7 +276,7 @@ public class ServerHandshaker extends Handshaker {
 							String.format("Unsupported key exchange algorithm %s", getKeyExchangeAlgorithm().name()),
 							new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, handshakeMsg.getPeer()));
 				}
-				handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientKeyExchange.getRawMessage());
+				handshakeMessages.writeBytes(clientKeyExchange.getRawMessage());
 
 				if (!clientAuthenticationRequired || getKeyExchangeAlgorithm() != KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN) {
 					expectChangeCipherSpecMessage();
@@ -339,7 +341,7 @@ public class ServerHandshaker extends Handshaker {
 		verifyCertificate(clientCertificate);
 		clientPublicKey = clientCertificate.getPublicKey();
 		// TODO why don't we also update the MessageDigest at this point?
-		handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientCertificate.getRawMessage());
+		handshakeMessages.writeBytes(clientCertificate.getRawMessage());
 	}
 
 	/**
@@ -354,7 +356,7 @@ public class ServerHandshaker extends Handshaker {
 	private void receivedCertificateVerify(CertificateVerify message) throws HandshakeException {
 		certificateVerify = message;
 
-		message.verifySignature(clientPublicKey, handshakeMessages);
+		message.verifySignature(clientPublicKey, handshakeMessages.toByteArray());
 		// at this point we have successfully authenticated the client
 		CertPath peerCertPath = clientCertificate.getCertificateChain();
 		if (peerCertPath != null) {
@@ -467,6 +469,7 @@ public class ServerHandshaker extends Handshaker {
 
 		byte[] cookie = clientHello.getCookie();
 		flightNumber = (cookie != null && cookie.length > 0) ? 4 : 2;
+		handshakeMessages = new DatagramWriter(2048);
 
 		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
 
@@ -484,7 +487,7 @@ public class ServerHandshaker extends Handshaker {
 		ServerHelloDone serverHelloDone = new ServerHelloDone(session.getPeer());
 		wrapMessage(flight, serverHelloDone);
 		md.update(serverHelloDone.toByteArray());
-		handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverHelloDone.toByteArray());
+		handshakeMessages.writeBytes(serverHelloDone.toByteArray());
 		sendFlight(flight);
 	}
 
@@ -524,11 +527,11 @@ public class ServerHandshaker extends Handshaker {
 		initMessageDigest();
 		// update the handshake hash
 		md.update(clientHello.getRawMessage());
-		handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientHello.getRawMessage());
+		handshakeMessages.writeBytes(clientHello.getRawMessage());
 
 		// update the handshake hash
 		md.update(serverHello.toByteArray());
-		handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverHello.toByteArray());
+		handshakeMessages.writeBytes(serverHello.toByteArray());
 	}
 
 	private void createCertificateMessage(final ClientHello clientHello, final DTLSFlight flight) throws HandshakeException {
@@ -545,7 +548,7 @@ public class ServerHandshaker extends Handshaker {
 
 			wrapMessage(flight, certificateMessage);
 			md.update(certificateMessage.toByteArray());
-			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, certificateMessage.toByteArray());
+			handshakeMessages.writeBytes(certificateMessage.toByteArray());
 		}
 	}
 
@@ -602,7 +605,7 @@ public class ServerHandshaker extends Handshaker {
 		if (serverKeyExchange != null) {
 			wrapMessage(flight, serverKeyExchange);
 			md.update(serverKeyExchange.toByteArray());
-			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverKeyExchange.toByteArray());
+			handshakeMessages.writeBytes(serverKeyExchange.toByteArray());
 		}
 	}
 
@@ -621,7 +624,7 @@ public class ServerHandshaker extends Handshaker {
 
 			wrapMessage(flight, certificateRequest);
 			md.update(certificateRequest.toByteArray());
-			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, certificateRequest.toByteArray());
+			handshakeMessages.writeBytes(certificateRequest.toByteArray());
 		}
 	}
 

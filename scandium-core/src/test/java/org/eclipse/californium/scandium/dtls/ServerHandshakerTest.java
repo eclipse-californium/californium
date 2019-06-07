@@ -179,7 +179,7 @@ public class ServerHandshakerTest {
 
 		byte[] loggedMsg = new byte[clientHelloMsg.length];
 		// copy the received ClientHello message from the handshakeMessages buffer
-		System.arraycopy(handshaker.handshakeMessages, 0, loggedMsg, 0, clientHelloMsg.length);
+		System.arraycopy(handshaker.handshakeMessages.toByteArray(), 0, loggedMsg, 0, clientHelloMsg.length);
 		// and verify that it is equal to the original ClientHello message
 		// sent by the client
 		assertArrayEquals(clientHelloMsg, loggedMsg);
