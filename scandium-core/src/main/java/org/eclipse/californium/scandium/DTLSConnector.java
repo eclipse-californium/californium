@@ -304,6 +304,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 	private ExecutorService executorService;
 	private boolean hasInternalExecutor;
 
+	private ThreadGroup workerThreadGroup = NamedThreadFactory.SCANDIUM_THREAD_GROUP;
+
 	/**
 	 * Creates a DTLS connector from a given configuration object
 	 * using the standard in-memory <code>ConnectionStore</code>. 
@@ -495,6 +497,28 @@ public class DTLSConnector implements Connector, RecordLayer {
 	}
 
 	/**
+	 * Sets the thread group to be used for the worker threads.
+	 * <p>
+	 * If this property is not set before invoking the {@linkplain #start()
+	 * start method}, the default thread group {@link NamedThreadFactory#SCANDIUM_THREAD_GROUP} is used.
+	 * 
+	 * This helps with performing multiple handshakes in parallel, in particular if the key exchange
+	 * requires a look up of identities, e.g. in a database or using a web service.
+	 * 
+	 * @param workerThreadGroup The thread group.
+	 * @throws IllegalStateException if a new thread group is set and this connector is already running.
+	 */
+	public final synchronized void setWorkerThreadGroup(ThreadGroup workerThreadGroup) {
+		if (this.workerThreadGroup != workerThreadGroup) {
+			if (running.get()) {
+				throw new IllegalStateException("cannot set new workerThreadGroup while connector is running");
+			} else {
+				this.workerThreadGroup = workerThreadGroup;
+			}
+		}
+	}
+
+	/**
 	 * Closes a connection with a given peer.
 	 * 
 	 * The connection is gracefully shut down, i.e. a final
@@ -635,7 +659,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 
 		int receiverThreadCount = config.getReceiverThreadCount();
 		for (int i = 0; i < receiverThreadCount; i++) {
-			Worker receiver = new Worker("DTLS-Receiver-" + i + "-" + lastBindAddress) {
+			Worker receiver = new Worker(workerThreadGroup, "DTLS-Receiver-" + i + "-" + lastBindAddress) {
 
 				private final byte[] receiverBuffer = new byte[inboundDatagramBufferSize];
 				private final DatagramPacket packet = new DatagramPacket(receiverBuffer, inboundDatagramBufferSize);
@@ -2266,6 +2290,16 @@ public class DTLSConnector implements Connector, RecordLayer {
 		 */
 		protected Worker(String name) {
 			super(NamedThreadFactory.SCANDIUM_THREAD_GROUP, name);
+		}
+
+		/**
+		 * Instantiates a new worker.
+		 *
+		 * @param group the thread group
+		 * @param name the name, e.g., of the transport protocol
+		 */
+		protected Worker(ThreadGroup group, String name) {
+			super(group, name);
 		}
 
 		@Override
