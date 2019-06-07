@@ -378,7 +378,7 @@ public final class ClientHello extends HandshakeMessage {
 	 * 
 	 * Adjust fragment length.
 	 * 
-	 * @param cookie recevied cookie
+	 * @param cookie received cookie
 	 * @throws NullPointerException if cookie is {@code null}
 	 * @throws IllegalArgumentException if cookie is empty
 	 */
@@ -389,6 +389,7 @@ public final class ClientHello extends HandshakeMessage {
 			throw new IllegalArgumentException("cookie must not be empty!");
 		}
 		this.cookie = Arrays.copyOf(cookie, cookie.length);
+		fragmentChanged();
 	}
 
 	public List<CipherSuite> getCipherSuites() {
