@@ -206,6 +206,7 @@ public class OSCoreObserveTest {
 		assertEquals(resp.getOptions().hasObserve(), false);
 		assertEquals(resp.getPayloadString(), "two");
 		assertEquals(relation.getCurrent().getResponseText(), "two");
+		client.shutdown();
 	}
 	
 	/* --- End of client Observe tests --- */

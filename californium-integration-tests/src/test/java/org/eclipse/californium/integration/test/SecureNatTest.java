@@ -161,6 +161,7 @@ public class SecureNatTest {
 			assertNotNull("Response not received", coapResponse);
 			testMultipleSecureGet(count, 0, null);
 		}
+		client.shutdown();
 	}
 
 	@Test
@@ -190,6 +191,7 @@ public class SecureNatTest {
 			forceResumption(resumeEndpoints);
 			overallResumes += resumeEndpoints.size();
 		}
+		client.shutdown();
 	}
 
 	@Test
@@ -214,6 +216,7 @@ public class SecureNatTest {
 			assertNotNull("Response not received", coapResponse);
 			testMultipleSecureGet(count, 0, null);
 		}
+		client.shutdown();
 	}
 
 	@Test
@@ -243,6 +246,7 @@ public class SecureNatTest {
 			forceResumption(resumeEndpoints);
 			overallResumes += resumeEndpoints.size();
 		}
+		client.shutdown();
 	}
 
 	private void testMultipleSecureGet(int loop, int overallResumes, List<Integer> resumeEndpoints) throws InterruptedException {

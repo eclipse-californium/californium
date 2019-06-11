@@ -97,6 +97,7 @@ public class SecureBlockwiseTest {
 		assertThat(response.getCode(), is(CoAP.ResponseCode.CONTENT));
 		assertThat(response.getResponseText(), is(payload));
 		assertThat(resource.getCounter(), is(1));
+		client.shutdown();
 	}
 
 	@Test
@@ -108,6 +109,7 @@ public class SecureBlockwiseTest {
 		assertThat(response.getCode(), is(CoAP.ResponseCode.CHANGED));
 		assertThat(resource.currentPayload, is(payload));
 		assertThat(resource.getCounter(), is(1));
+		client.shutdown();
 	}
 
 	@Test
@@ -120,6 +122,7 @@ public class SecureBlockwiseTest {
 		assertThat(response.getResponseText(), is(this.payload + payload));
 		assertThat(resource.currentPayload, is(this.payload + payload));
 		assertThat(resource.getCounter(), is(1));
+		client.shutdown();
 	}
 
 	private void createSecureServer(MatcherMode mode) {
