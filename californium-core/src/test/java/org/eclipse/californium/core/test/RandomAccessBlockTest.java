@@ -157,6 +157,7 @@ public class RandomAccessBlockTest {
 			assertThat(response.getOptions().getBlock2().getNum(), is(num));
 			assertThat(response.getOptions().getBlock2().getSzx(), is(szx));
 		}
+		client.shutdown();
 	}
 
 	private static class BlockwiseResource extends CoapResource {

@@ -172,6 +172,7 @@ public class ClientSynchronousTest {
 		Thread.sleep(100);
 		Assert.assertEquals(5, notifications.get());
 		Assert.assertFalse(failed);
+		client.shutdown();
 	}
 
 	@Test
@@ -196,6 +197,7 @@ public class ClientSynchronousTest {
 		boolean ping = client.ping();
 		Assert.assertTrue(ping);
 		Assert.assertTrue("Ping not sent using provided endpoint", sent.get());
+		client.shutdown();
 	}
 
 	@Test
@@ -213,6 +215,7 @@ public class ClientSynchronousTest {
 
 		Assert.assertEquals(Type.ACK, resp.advanced().getType());
 		Assert.assertEquals(CONTENT_1, resp.getResponseText());
+		client.shutdown();
 	}
 
 	@Test
@@ -229,6 +232,7 @@ public class ClientSynchronousTest {
 
 		Assert.assertEquals(Type.ACK, resp.advanced().getType());
 		Assert.assertEquals(CONTENT_1, resp.getResponseText());
+		client.shutdown();
 	}
 
 	@Test
@@ -241,6 +245,7 @@ public class ClientSynchronousTest {
 
 		Assert.assertEquals(ResponseCode.SERVICE_UNAVAILABLE, resp.getCode());
 		Assert.assertEquals(OVERLOAD_TIME, resp.getOptions().getMaxAge().intValue());
+		client.shutdown();
 	}
 
 	private static void createServer() {

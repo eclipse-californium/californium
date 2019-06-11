@@ -956,6 +956,7 @@ public class BlockwiseClientSideTest {
 		server.sendResponse(ACK, CONTENT).loadBoth("A").block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
 
 		assertTrue(latch.await(3, TimeUnit.SECONDS));
+		coapClient.shutdown();
 	}
 	
 	/**

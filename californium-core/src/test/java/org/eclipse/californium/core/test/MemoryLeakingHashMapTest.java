@@ -220,6 +220,7 @@ public class MemoryLeakingHashMapTest {
 
 		CoapResponse response = client.get();
 		assertThatResponseContainsValue(response, currentResponseText);
+		client.shutdown();
 	}
 
 	/**
@@ -255,12 +256,14 @@ public class MemoryLeakingHashMapTest {
 		CoapClient client = new CoapClient(uriOf(URI)).useNONs();
 		client.setEndpoint(clientEndpoint);
 		testBlockwise(client, Mode.PIGGY_BACKED_RESPONSE);
+		client.shutdown();
 	}
 
 	private static void testBlockwise(final Mode mode) throws Exception {
 		CoapClient client = new CoapClient(uriOf(URI));
 		client.setEndpoint(clientEndpoint);
 		testBlockwise(client, mode);
+		client.shutdown();
 	}
 
 	private static void testBlockwise(final CoapClient client, final Mode mode) throws ConnectorException, IOException {
@@ -332,6 +335,7 @@ public class MemoryLeakingHashMapTest {
 		latch.await(calculateNotifiesTimeout((HOW_MANY_NOTIFICATION_WE_WAIT_FOR + 1) * blocks), TimeUnit.MILLISECONDS);
 		assertTrue("Client has not received all expected responses, left " + latch.getCount(), 0 == latch.getCount());
 		assertFalse(isOnErrorInvoked.get()); // should not happen
+		client.shutdown();
 	}
 
 	/**
@@ -362,6 +366,7 @@ public class MemoryLeakingHashMapTest {
 		assertTrue("Client has not received all expected responses",
 				latch.await(calculateNotifiesTimeout(HOW_MANY_NOTIFICATION_WE_WAIT_FOR), TimeUnit.MILLISECONDS));
 		assertFalse(isOnErrorInvoked.get()); // should not happen
+		client.shutdown();
 	}
 
 	private static long calculateNotifiesTimeout(int numberOfNotifiesToWait) {

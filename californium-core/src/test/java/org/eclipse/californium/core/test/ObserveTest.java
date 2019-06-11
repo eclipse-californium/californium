@@ -220,6 +220,7 @@ public class ObserveTest {
 		assertEquals(repeat, resetCounter.get()); // repeat RST received
 		// no RST delivered (interceptor)
 		assertEquals(1, resourceX.getObserverCount());
+		client.shutdown();
 	}
 
 	@Test
@@ -235,13 +236,13 @@ public class ObserveTest {
 		assertFalse("Response not received", rel.isCanceled());
 		assertNotNull("Response not received", rel.getCurrent());
 		assertEquals("\"resX says hi for the 1 time\"", rel.getCurrent().getResponseText());
-		
+
 		resourceX.changed("client");
 		// assert notify received
 		assertTrue(handler.waitForLoadCalls(2, 1000, TimeUnit.MILLISECONDS));
 		assertFalse(rel.isCanceled());
 		assertEquals("\"resX says client for the 2 time\"", rel.getCurrent().getResponseText());
-		
+
 		rel.reregister();
 		assertFalse(rel.isCanceled());
 		// assert reregister succeeded
@@ -250,12 +251,13 @@ public class ObserveTest {
 		assertFalse(rel.isCanceled());
 		// resource not changed
 		assertEquals("\"resX says client for the 2 time\"", rel.getCurrent().getResponseText());
-		
+
 		resourceX.changed("new client");
 		// assert notify received after reregister
 		assertTrue(handler.waitForLoadCalls(4, 1000, TimeUnit.MILLISECONDS));
 		assertEquals("\"resX says new client for the 3 time\"", rel.getCurrent().getResponseText());
 		assertEquals(1, resourceX.getObserverCount());
+		client.shutdown();
 	}
 
 	@Test(expected = IllegalStateException.class)
@@ -263,10 +265,14 @@ public class ObserveTest {
 		resourceX.setObserveType(Type.NON);
 		resourceX.rejectNextGet();
 		CoapClient client = new CoapClient(uriX);
-		CountingHandler handler = new CountingHandler();
-		CoapObserveRelation rel = client.observeAndWait(handler);
-		assertTrue("Not rejected", rel.isCanceled());
-		rel.reregister();
+		try {
+			CountingHandler handler = new CountingHandler();
+			CoapObserveRelation rel = client.observeAndWait(handler);
+			assertTrue("Not rejected", rel.isCanceled());
+			rel.reregister();
+		} finally {
+			client.shutdown();
+		}
 	}
 
 	@Test(expected = IllegalStateException.class)
@@ -274,12 +280,16 @@ public class ObserveTest {
 		resourceX.setObserveType(Type.NON);
 		resourceX.delayNextGet(100);
 		CoapClient client = new CoapClient(uriX);
-		client.setTimeout(1L);
-		CountingHandler handler = new CountingHandler();
-		CoapObserveRelation rel = client.observeAndWait(handler);
-		assertTrue("No timeout", rel.isCanceled());
-		client.setTimeout(null);
-		rel.reregister();
+		try {
+			client.setTimeout(1L);
+			CountingHandler handler = new CountingHandler();
+			CoapObserveRelation rel = client.observeAndWait(handler);
+			assertTrue("No timeout", rel.isCanceled());
+			client.setTimeout(null);
+			rel.reregister();
+		} finally {
+			client.shutdown();
+		}
 	}
 
 	@Test
@@ -287,16 +297,20 @@ public class ObserveTest {
 		resourceX.setObserveType(Type.NON);
 		resourceX.delayNextGet(100);
 		CoapClient client = new CoapClient(uriX);
-		CountingHandler handler = new CountingHandler();
-		CoapObserveRelation rel = client.observe(handler);
-		assertFalse("Timeout", rel.isCanceled());
-		assertFalse("reregister not ignored", rel.reregister()); 
-		assertTrue(handler.waitForLoadCalls(1, 1000, TimeUnit.MILLISECONDS));
+		try {
+			CountingHandler handler = new CountingHandler();
+			CoapObserveRelation rel = client.observe(handler);
+			assertFalse("Timeout", rel.isCanceled());
+			assertFalse("reregister not ignored", rel.reregister()); 
+			assertTrue(handler.waitForLoadCalls(1, 1000, TimeUnit.MILLISECONDS));
 
-		resourceX.changed("client");
-		// assert notify received
-		assertTrue(handler.waitForLoadCalls(2, 1000, TimeUnit.MILLISECONDS));
-		assertFalse("Response not received", rel.isCanceled());
+			resourceX.changed("client");
+			// assert notify received
+			assertTrue(handler.waitForLoadCalls(2, 1000, TimeUnit.MILLISECONDS));
+			assertFalse("Response not received", rel.isCanceled());
+		} finally {
+			client.shutdown();
+		}
 	}
 
 	@Test
@@ -319,6 +333,7 @@ public class ObserveTest {
 		// assert notify received
 		assertTrue(handler.waitForLoadCalls(3, 1000, TimeUnit.MILLISECONDS));
 		assertFalse("Response not received", rel.isCanceled());
+		client.shutdown();
 	}
 
 	/**
@@ -330,19 +345,23 @@ public class ObserveTest {
 	@Test(expected = IllegalArgumentException.class)
 	public void testObserveAndWaitExceptionHandling() throws Exception {
 		CoapClient client = new CoapClient(uriX);
-		Request request = Request.newGet().setURI(uriX);
+		try {
+			Request request = Request.newGet().setURI(uriX);
 
-		@SuppressWarnings("unused")
-		CoapObserveRelation rel = client.observeAndWait(request, new CoapHandler() {
+			@SuppressWarnings("unused")
+			CoapObserveRelation rel = client.observeAndWait(request, new CoapHandler() {
 
-			@Override
-			public void onLoad(CoapResponse response) {
-			}
+				@Override
+				public void onLoad(CoapResponse response) {
+				}
 
-			@Override
-			public void onError() {
-			}
-		});
+				@Override
+				public void onError() {
+				}
+			});
+		} finally {
+			client.shutdown();
+		}
 	}
 
 	/**
@@ -354,19 +373,23 @@ public class ObserveTest {
 	@Test(expected = IllegalArgumentException.class)
 	public void testObserveExceptionHandling() throws Exception {
 		CoapClient client = new CoapClient(uriX);
-		Request request = Request.newGet().setURI(uriX);
-
-		@SuppressWarnings("unused")
-		CoapObserveRelation rel = client.observe(request, new CoapHandler() {
-
-			@Override
-			public void onLoad(CoapResponse response) {
-			}
-
-			@Override
-			public void onError() {
-			}
-		});
+		try {
+			Request request = Request.newGet().setURI(uriX);
+	
+			@SuppressWarnings("unused")
+			CoapObserveRelation rel = client.observe(request, new CoapHandler() {
+	
+				@Override
+				public void onLoad(CoapResponse response) {
+				}
+	
+				@Override
+				public void onError() {
+				}
+			});
+		} finally {
+			client.shutdown();
+		}
 	}
 
 	private void createServer() {

@@ -99,6 +99,7 @@ public class ClientAsynchronousTest {
 
 	@After
 	public void shutdownServer() {
+		client.shutdown();
 	}
 
 	@AfterClass

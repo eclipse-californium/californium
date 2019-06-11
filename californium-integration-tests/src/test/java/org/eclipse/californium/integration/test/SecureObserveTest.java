@@ -142,6 +142,7 @@ public class SecureObserveTest {
 		assertThat("sending response missing", resource.getCurrentResponse(), is(notNullValue()));
 		assertThat(resource.getCurrentResponse().getPayloadString(), is("\"resource says client for the " + (REPEATS + 1) +" time\""));
 		assertThat("sending response caused error", resource.getCurrentResponse().getSendError(), is(nullValue()));
+		client.shutdown();
 	}
 
 	@Test(expected = ConnectorException.class)
@@ -150,14 +151,18 @@ public class SecureObserveTest {
 		createSecureServer(MatcherMode.STRICT, null);
 
 		CoapClient client = new CoapClient(uri);
-		CoapResponse response = client.get();
+		try {
+			CoapResponse response = client.get();
 
-		assertEquals("\"resource says hi for the 1 time\"", response.getResponseText());
+			assertEquals("\"resource says hi for the 1 time\"", response.getResponseText());
 
-		clientConnector.clearConnectionState();
+			clientConnector.clearConnectionState();
 
-		// new handshake with already set endpoint context => exception 
-		response = client.get();
+			// new handshake with already set endpoint context => exception 
+			response = client.get();
+		} finally {
+			client.shutdown();
+		}
 	}
 
 	/**
@@ -209,6 +214,7 @@ public class SecureObserveTest {
 		assertThat(resource.getCurrentResponse().getPayloadString(), is("\"resource says new client for the " + (REPEATS + 2) +" time\""));
 		assertThat("sending response misses error", resource.getCurrentResponse().getSendError(),
 				is(instanceOf(EndpointMismatchException.class)));
+		client.shutdown();
 	}
 
 	/**
@@ -273,6 +279,7 @@ public class SecureObserveTest {
 		client.setURI(natURI);
 		CoapResponse coapResponse = client.get();
 		assertNotNull("response missing", coapResponse);
+		client.shutdown();
 	}
 
 	/**
@@ -333,6 +340,7 @@ public class SecureObserveTest {
 		assertNotNull("context-2 missing", context2);
 		assertThat(context2.get(DtlsEndpointContext.KEY_HANDSHAKE_TIMESTAMP),
 				not(context1.get(DtlsEndpointContext.KEY_HANDSHAKE_TIMESTAMP)));
+		client.shutdown();
 	}
 
 	/**
@@ -386,6 +394,7 @@ public class SecureObserveTest {
 		assertThat("sending response missing", resource.getCurrentResponse(), is(notNullValue()));
 		assertThat("sending response misses error", resource.getCurrentResponse().getSendError(),
 				is(instanceOf(EndpointMismatchException.class)));
+		client.shutdown();
 	}
 
 	/**
@@ -434,6 +443,7 @@ public class SecureObserveTest {
 				handler.waitForLoadCalls(REPEATS + REPEATS + 2, TIMEOUT_IN_MILLIS, TimeUnit.MILLISECONDS));
 		assertThat("sending response missing", resource.getCurrentResponse(), is(notNullValue()));
 		assertThat("sending response caused error", resource.getCurrentResponse().getSendError(), is(nullValue()));
+		client.shutdown();
 	}
 
 	/**
@@ -486,6 +496,7 @@ public class SecureObserveTest {
 		assertThat("sending response missing", resource.getCurrentResponse(), is(notNullValue()));
 		assertThat("sending response misses error", resource.getCurrentResponse().getSendError(),
 				is(instanceOf(EndpointMismatchException.class)));
+		client.shutdown();
 	}
 
 	private void createSecureServer(MatcherMode mode, ConnectionIdGenerator cidGenerator) {

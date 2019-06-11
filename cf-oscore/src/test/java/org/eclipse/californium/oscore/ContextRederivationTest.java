@@ -91,6 +91,7 @@ public class ContextRederivationTest {
 		
 		assertEquals(resp.getCode(), ResponseCode.CONTENT);
 		assertEquals(resp.getResponseText(), SERVER_RESPONSE);
+		c.shutdown();
 	}
 
 	/**
@@ -128,6 +129,7 @@ public class ContextRederivationTest {
 		CoapResponse resp = null;
 		resp = c.advanced(r);
 		System.out.println(Utils.prettyPrint(resp));
+		c.shutdown();
 	}
 	
 }

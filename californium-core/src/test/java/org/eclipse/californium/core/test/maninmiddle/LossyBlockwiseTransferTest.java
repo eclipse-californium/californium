@@ -157,6 +157,7 @@ public class LossyBlockwiseTransferTest {
 
 			getResourceAndAssertPayload(coapclient, respPayload);
 		}
+		coapclient.shutdown();
 	}
 
 	private static void getResourceAndAssertPayload(final CoapClient client, final String expectedPayload) throws ConnectorException, IOException {

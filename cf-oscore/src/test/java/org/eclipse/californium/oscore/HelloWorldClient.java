@@ -62,6 +62,7 @@ public class HelloWorldClient {
 		r.getOptions().setOscore(new byte[0]);
 		resp = c.advanced(r);
 		printResponse(resp);
+		c.shutdown();
 	}
 
 	private static void printResponse(CoapResponse resp) {
