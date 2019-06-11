@@ -118,11 +118,12 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 
 		// Put into queues for NON or CON messages
 		if (messageType == Type.CON) {
-			if (!checkNSTART(exchange)) { // Check if NSTART is not reached yet
-										  // for confirmable transmissions
-				return false;
-			}
-		} else if (getRemoteEndpoint(exchange).getNonConfirmableCounter() > MAX_SUCCESSIVE_NONS) {
+			// Check if NSTART is not reached yet
+			// for confirmable transmissions
+			return checkNSTART(exchange);
+		}
+		RemoteEndpoint endpoint = getRemoteEndpoint(exchange);
+		if (endpoint.getNonConfirmableCounter() > MAX_SUCCESSIVE_NONS) {
 			// Every MAX_SUCCESSIVE_NONS + 1 packets, a non-confirmable needs to
 			// be converted to a confirmable [CoCoA]
 			if (exchange.getCurrentRequest().getDestinationContext().getPeerAddress().getPort() != 0) {
@@ -130,51 +131,45 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 			} else if (exchange.getCurrentResponse() != null) {
 				exchange.getCurrentResponse().setType(Type.CON);
 			}
-			getRemoteEndpoint(exchange).resetNonConfirmableCounter();
+			endpoint.resetNonConfirmableCounter();
 
 			// Check if NSTART is not reached yet for confirmable transmissions
-			if (!checkNSTART(exchange)) {
-				return false;
-			}
-		} else {
-			// Check of if there's space to queue a NON
-			if (getRemoteEndpoint(exchange).getNonConfirmableQueue().size() == EXCHANGELIMIT) {
-				// System.out.println("Non-confirmable exchange queue limit reached!");
-				// TODO: Drop packet -> Notify upper layers?
-			} else {
-				getRemoteEndpoint(exchange).getNonConfirmableQueue().add(
-						exchange);
-
-				// Check if NONs are already processed, if not, start bucket
-				// Thread
-				if (!getRemoteEndpoint(exchange).getProcessingNON()) {
-					executor.schedule(new BucketThread(
-							getRemoteEndpoint(exchange)), 0,
-							TimeUnit.MILLISECONDS);
-				}
-			}
-			return false;
+			return checkNSTART(exchange);
 		}
-		return true;
+		// Check of if there's space to queue a NON
+		if (endpoint.getNonConfirmableQueue().size() == EXCHANGELIMIT) {
+			// System.out.println("Non-confirmable exchange queue limit reached!");
+			// TODO: Drop packet -> Notify upper layers?
+		} else {
+			endpoint.getNonConfirmableQueue().add(exchange);
 
+			// Check if NONs are already processed, if not, start bucket
+			// Thread
+			if (!endpoint.getProcessingNON()) {
+				executor.schedule(new BucketThread(endpoint),
+						0, TimeUnit.MILLISECONDS);
+			}
+		}
+		return false;
 	}
 
 	/*
 	 * Check if the limit of exchanges towards the remote endpoint has reached NSTART.
 	 */
 	private boolean checkNSTART(final Exchange exchange) {
-		getRemoteEndpoint(exchange).checkForDeletedExchanges();
-		if (getRemoteEndpoint(exchange).getNumberOfOngoingExchanges(exchange) < config
+		RemoteEndpoint endpoint = getRemoteEndpoint(exchange);
+		endpoint.checkForDeletedExchanges();
+		if (endpoint.getNumberOfOngoingExchanges(exchange) < config
 				.getInt("NSTART")) {
 			// System.out.println("Processing exchange (NSTART OK!)");
 
 			// NSTART allows to start the exchange, proceed normally
-			getRemoteEndpoint(exchange).registerExchange(exchange,
+			endpoint.registerExchange(exchange,
 					calculateVBF(getRemoteEndpoint(exchange).getRTO()));
 
 			// The exchange needs to be deleted after at least 255 s TODO:
 			// should this value be calculated dynamically
-			executor.schedule(new SweepCheckTask(getRemoteEndpoint(exchange),
+			executor.schedule(new SweepCheckTask(endpoint,
 					exchange), MAX_REMOTE_TRANSACTION_DURATION,
 					TimeUnit.MILLISECONDS);
 			return true;
@@ -185,14 +180,14 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 			// + getRemoteEndpoint(exchange).getRemoteAddress().toString());
 
 			// Check if the queue limit for exchanges is already reached
-			if (getRemoteEndpoint(exchange).getConfirmableQueue().size() == EXCHANGELIMIT) {
+			if (endpoint.getConfirmableQueue().size() == EXCHANGELIMIT) {
 				// Request cannot be queued TODO: does this trigger some
 				// feedback for other layers?
 				// System.out.println("Confirmable exchange queue limit reached! Message dropped...");
 
 			} else {
 				// Queue exchange in the CON-Queue
-				getRemoteEndpoint(exchange).getConfirmableQueue().add(exchange);
+				endpoint.getConfirmableQueue().add(exchange);
 				// System.out.println("Added exchange to the queue (NSTART limit reached)");
 			}
 		}
@@ -274,18 +269,23 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	 * Gets a request or response from the dedicated queue and polls it
 	 */
 	private void checkRemoteEndpointQueue(final Exchange exchange) {
-		// 0 = empty queue | 1 = response | 2 = request
-		if (!getRemoteEndpoint(exchange).getConfirmableQueue().isEmpty()) {
-			// We have some exchanges that need to be processed; is it a
-			// response or a request?
-			Exchange queuedExchange = getRemoteEndpoint(exchange).getConfirmableQueue().poll();
-			if (queuedExchange.getCurrentResponse() != null) {
-				// it's a response
-				sendResponse(queuedExchange, queuedExchange.getCurrentResponse());
-			} else if (queuedExchange.getCurrentRequest() != null) {
-				// it's a request
-				sendRequest(queuedExchange, queuedExchange.getCurrentRequest());
-			}
+		final Exchange queuedExchange = getRemoteEndpoint(exchange).getConfirmableQueue().poll();
+		if (queuedExchange != null) {
+			queuedExchange.execute(new Runnable() {
+				
+				@Override
+				public void run() {
+					// We have some exchanges that need to be processed;
+					//  is it a response or a request?
+					if (queuedExchange.getCurrentResponse() != null) {
+						// it's a response
+						sendResponse(queuedExchange, queuedExchange.getCurrentResponse());
+					} else if (queuedExchange.getCurrentRequest() != null) {
+						// it's a request
+						sendRequest(queuedExchange, queuedExchange.getCurrentRequest());
+					}
+				}
+			});
 		}
 	}
 
@@ -412,25 +412,30 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 
 		@Override
 		public void run() {
-			if (!endpoint.getNonConfirmableQueue().isEmpty()) {
+			final Exchange exchange = endpoint.getNonConfirmableQueue().poll();
+			if (exchange != null) {
 				endpoint.setProcessingNON(true);
 
-				Exchange exchange = endpoint.getNonConfirmableQueue().poll();
-
-				if (getRemoteEndpoint(exchange).getNonConfirmableCounter() <= MAX_SUCCESSIVE_NONS) {
-					getRemoteEndpoint(exchange).increaseNonConfirmableCounter();
-					if (exchange.getCurrentRequest().getDestinationContext().getPeerAddress().getPort() != 0) {
-						// it's a response
-						sendBucketRequest(exchange, exchange.getCurrentRequest());
-					} else if (exchange.getCurrentResponse() != null) {
-						// it's a request
-						sendBucketResponse(exchange, exchange.getCurrentResponse());
-					}
+				if (endpoint.getNonConfirmableCounter() <= MAX_SUCCESSIVE_NONS) {
+					endpoint.increaseNonConfirmableCounter();
+					exchange.execute(new Runnable() {
+						
+						@Override
+						public void run() {
+							if (exchange.getCurrentRequest().getDestinationContext().getPeerAddress().getPort() != 0) {
+								// it's a response
+								sendBucketRequest(exchange, exchange.getCurrentRequest());
+							} else if (exchange.getCurrentResponse() != null) {
+								// it's a request
+								sendBucketResponse(exchange, exchange.getCurrentResponse());
+							}
+						}
+					});
 				}
 				// schedule next transmission of a NON based on the RTO value (rate = 1/RTO)
 				executor.schedule(
-						new BucketThread(getRemoteEndpoint(exchange)),
-						getRemoteEndpoint(exchange).getRTO(),
+						new BucketThread(endpoint),
+						endpoint.getRTO(),
 						TimeUnit.MILLISECONDS);
 
 			} else {
