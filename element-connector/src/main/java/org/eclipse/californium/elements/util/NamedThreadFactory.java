@@ -4,7 +4,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * The default thread factory
+ * The default thread factory.
  */
 public class NamedThreadFactory implements ThreadFactory {
 
@@ -16,6 +16,12 @@ public class NamedThreadFactory implements ThreadFactory {
 	 * The default thread group for Scandium threads.
 	 */
 	public static final ThreadGroup SCANDIUM_THREAD_GROUP = new ThreadGroup("Scandium"); //$NON-NLS-1$
+
+	static {
+		// reset daemon, may be set by parent group!
+		COAP_THREAD_GROUP.setDaemon(false);
+		SCANDIUM_THREAD_GROUP.setDaemon(false);
+	}
 
 	private final ThreadGroup group;
 	private final AtomicInteger index = new AtomicInteger(1);
