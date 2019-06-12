@@ -154,8 +154,8 @@ import org.eclipse.californium.elements.exception.EndpointUnconnectedException;
 import org.eclipse.californium.elements.exception.MulticastNotSupportedException;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
-import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
+import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.SerialExecutor;
@@ -195,7 +195,6 @@ import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.SessionListener;
 import org.eclipse.californium.scandium.dtls.SessionTicket;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
@@ -1955,9 +1954,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 	}
 
 	private void sendFlightOverNetwork(DTLSFlight flight) throws IOException {
-		byte[] payload = Bytes.EMPTY;
 		int maxDatagramSize = flight.getSession().getMaxDatagramSize();
-
+		DatagramWriter writer = new DatagramWriter(maxDatagramSize);
 		// put as many records into one datagram as allowed by the max. payload size
 		List<DatagramPacket> datagrams = new ArrayList<DatagramPacket>();
 
@@ -1972,18 +1970,19 @@ public class DTLSConnector implements Connector, RecordLayer {
 			LOGGER.trace("Sending record of {} bytes to peer [{}]:\n{}", recordBytes.length, flight.getPeerAddress(),
 					record);
 
-			if (payload.length + recordBytes.length > maxDatagramSize) {
+			if (writer.size() + recordBytes.length > maxDatagramSize) {
 				// current record does not fit into datagram anymore
 				// thus, send out current datagram and put record into new one
+				byte[] payload = writer.toByteArray();
 				DatagramPacket datagram = new DatagramPacket(payload, payload.length,
 						flight.getPeerAddress().getAddress(), flight.getPeerAddress().getPort());
 				datagrams.add(datagram);
-				payload = Bytes.EMPTY;
 			}
 
-			payload = ByteArrayUtils.concatenate(payload, recordBytes);
+			writer.writeBytes(recordBytes);
 		}
 
+		byte[] payload = writer.toByteArray();
 		DatagramPacket datagram = new DatagramPacket(payload, payload.length, flight.getPeerAddress().getAddress(),
 				flight.getPeerAddress().getPort());
 		datagrams.add(datagram);
