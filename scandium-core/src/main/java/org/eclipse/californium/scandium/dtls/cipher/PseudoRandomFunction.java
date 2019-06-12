@@ -25,7 +25,6 @@ import javax.crypto.ShortBufferException;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.util.StandardCharsets;
-import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
 /**
  * The Pseudo Random Function as defined in TLS 1.2.
@@ -74,11 +73,13 @@ public final class PseudoRandomFunction {
 		// http://tools.ietf.org/html/rfc5246#section-7.4.9
 		SERVER_FINISHED_LABEL("server finished", 12);
 
-		private String value;
-		private int length;
+		private final String value;
+		private final byte[] bytesValue;
+		private final int length;
 
 		private Label(String value, int length) {
 			this.value = value;
+			this.bytesValue = value.getBytes(StandardCharsets.UTF_8);
 			this.length = length;
 		}
 
@@ -87,7 +88,7 @@ public final class PseudoRandomFunction {
 		}
 
 		public byte[] getBytes() {
-			return value.getBytes(StandardCharsets.UTF_8);
+			return bytesValue;
 		}
 
 		public int length() {
@@ -99,7 +100,7 @@ public final class PseudoRandomFunction {
 		try {
 			Mac hmac = Mac.getInstance(algorithmMac);
 			hmac.init(new SecretKeySpec(secret, "MAC"));
-			return doExpansion(hmac, ByteArrayUtils.concatenate(label, seed), length);
+			return doExpansion(hmac, label, seed, length);
 		} catch (NoSuchAlgorithmException e) {
 			throw new IllegalStateException(String.format("MAC algorithm %s is not available on JVM", algorithmMac), e);
 		} catch (InvalidKeyException e) {
@@ -149,7 +150,7 @@ public final class PseudoRandomFunction {
 	 * @param length the number of bytes to expand the data to.
 	 * @return the expanded data.
 	 */
-	static final byte[] doExpansion(Mac hmac, byte[] data, int length) {
+	public static final byte[] doExpansion(Mac hmac, byte[] label, byte[] seed, int length) {
 		/*
 		 * RFC 5246, chapter 5, page 15
 		 * 
@@ -166,13 +167,15 @@ public final class PseudoRandomFunction {
 
 		int offset = 0;
 		final int macLength = hmac.getMacLength();
-		final byte[] aAndSeed = new byte[macLength + data.length];
+		final byte[] aAndSeed = new byte[macLength + label.length + seed.length];
 		final byte[] expansion = new byte[length];
 		try {
 			// copy appended seed to buffer end
-			System.arraycopy(data, 0, aAndSeed, macLength, data.length);
+			System.arraycopy(label, 0, aAndSeed, macLength, label.length);
+			System.arraycopy(seed, 0, aAndSeed, macLength + label.length, seed.length);
 			// calculate A(n) from A(0)
-			hmac.update(data);
+			hmac.update(label);
+			hmac.update(seed);
 			while (true) {
 				// write result to "A(n) + seed"
 				hmac.doFinal(aAndSeed, 0);
