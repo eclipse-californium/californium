@@ -32,12 +32,12 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.ContentType;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.cipher.CCMBlockCipher;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -133,7 +133,7 @@ public class RecordTest {
 		byte[] application_record = DtlsTestTools.newDTLSRecord(TYPE_APPL_DATA, EPOCH, SEQUENCE_NO, newGenericAEADCipherFragment());
 		byte[] unsupported_dtls_record = DtlsTestTools.newDTLSRecord(55, EPOCH, SEQUENCE_NO, newGenericAEADCipherFragment());
 		
-		List<Record> recordList = Record.fromByteArray(ByteArrayUtils.concatenate(unsupported_dtls_record, application_record), session.getPeer(), null);
+		List<Record> recordList = Record.fromByteArray(Bytes.concatenate(unsupported_dtls_record, application_record), session.getPeer(), null);
 		Assert.assertTrue(recordList.size() == 1);
 		Assert.assertEquals(ContentType.APPLICATION_DATA, recordList.get(0).getType());
 	}
@@ -163,17 +163,17 @@ public class RecordTest {
 		
 		// additional data based on sequence number, type (APPLICATION DATA) and protocol version
 		byte[] additionalData = new byte[]{TYPE_APPL_DATA, (byte) protocolVer.getMajor(), (byte) protocolVer.getMinor(), 0, (byte) payloadLength};
-		additionalData = ByteArrayUtils.concatenate(seq_num, additionalData);
+		additionalData = Bytes.concatenate(seq_num, additionalData);
 
 		// "explicit" part of nonce, intentionally different from seq_num which MAY be used as the explicit nonce
 		// but does not need to be used (at least that's my interpretation of the specs)
 		byte[] explicitNonce = new byte[]{1, 2, 3, 4, 5, 6, 7, 8};
 		// nonce used for encryption, "implicit" part + "explicit" part
-		byte[] nonce = ByteArrayUtils.concatenate(client_iv, explicitNonce);
+		byte[] nonce = Bytes.concatenate(client_iv, explicitNonce);
 		
 		byte[] encryptedData = CCMBlockCipher.encrypt(key, nonce, additionalData, payloadData, 8);
 		
 		// prepend the "explicit" part of nonce to the encrypted data to form the GenericAEADCipher struct
-		return ByteArrayUtils.concatenate(explicitNonce, encryptedData);
+		return Bytes.concatenate(explicitNonce, encryptedData);
 	}
 }

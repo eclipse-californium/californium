@@ -141,4 +141,40 @@ public class Bytes {
 		generator.nextBytes(byteArray);
 		return byteArray;
 	}
+
+	/**
+	 * Concatenates two Bytes.
+	 * 
+	 * @param a
+	 *            the first Bytes.
+	 * @param b
+	 *            the second Bytes.
+	 * @return the concatenated array.
+	 * @see #concatenate(byte[], byte[])
+	 */
+	public static byte[] concatenate(Bytes a, Bytes b) {
+		return concatenate(a.getBytes(), b.getBytes());
+	}
+
+	/**
+	 * Concatenates two byte arrays.
+	 * 
+	 * @param a
+	 *            the first array.
+	 * @param b
+	 *            the second array.
+	 * @return the concatenated array.
+	 * @see #concatenate(Bytes, Bytes)
+	 */
+	public static byte[] concatenate(byte[] a, byte[] b) {
+		int lengthA = a.length;
+		int lengthB = b.length;
+
+		byte[] concat = new byte[lengthA + lengthB];
+
+		System.arraycopy(a, 0, concat, 0, lengthA);
+		System.arraycopy(b, 0, concat, lengthA, lengthB);
+
+		return concat;
+	}
 }
