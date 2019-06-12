@@ -83,6 +83,7 @@ import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -95,7 +96,6 @@ import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
 import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
-import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -582,7 +582,7 @@ public abstract class Handshaker {
 		// See http://tools.ietf.org/html/rfc5246#section-6.3:
 		//      key_block = PRF(SecurityParameters.master_secret, "key expansion",
 		//                      SecurityParameters.server_random + SecurityParameters.client_random);
-		byte[] seed = ByteArrayUtils.concatenate(serverRandom.getBytes(), clientRandom.getBytes());
+		byte[] seed = Bytes.concatenate(serverRandom, clientRandom);
 		byte[] data = PseudoRandomFunction.doPRF(prfMacName, masterSecret, Label.KEY_EXPANSION_LABEL, seed, totalLength);
 
 
@@ -621,7 +621,7 @@ public abstract class Handshaker {
 	 */
 	private byte[] generateMasterSecret(byte[] premasterSecret) {
 		String prfMacName = session.getCipherSuite().getPseudoRandomFunctionMacName();
-		byte[] randomSeed = ByteArrayUtils.concatenate(clientRandom.getBytes(), serverRandom.getBytes());
+		byte[] randomSeed = Bytes.concatenate(clientRandom, serverRandom);
 		return PseudoRandomFunction.doPRF(prfMacName, premasterSecret, Label.MASTER_SECRET_LABEL, randomSeed);
 	}
 

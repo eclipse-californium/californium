@@ -37,13 +37,13 @@ import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.AeadBlockCipher;
 import org.eclipse.californium.scandium.dtls.cipher.InvalidMacException;
-import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -645,7 +645,7 @@ public class Record {
 		 *            the write IV (either client or server).
 		 * @return the 12 bytes nonce.
 		 */
-		byte[] nonce = ByteArrayUtils.concatenate(iv, explicitNonce);
+		byte[] nonce = Bytes.concatenate(iv, explicitNonce);
 		byte[] additionalData = generateAdditionalData(byteArray.length);
 		SecretKey key = writeState.getEncryptionKey();
 
@@ -660,7 +660,7 @@ public class Record {
 		 * http://tools.ietf.org/html/rfc5246#section-6.2.3.3 and
 		 * http://tools.ietf.org/html/draft-mcgrew-tls-aes-ccm-04#section-3
 		 */
-		encryptedFragment = ByteArrayUtils.concatenate(explicitNonce, encryptedFragment);
+		encryptedFragment = Bytes.concatenate(explicitNonce, encryptedFragment);
 		LOGGER.trace("==> {} bytes", encryptedFragment.length);
 
 		return encryptedFragment;
@@ -704,7 +704,7 @@ public class Record {
 		// retrieve actual explicit nonce as contained in GenericAEADCipher struct (8 bytes long)
 		byte[] explicitNonceUsed = reader.readBytes(cipherSuite.getRecordIvLength());
 
-		byte[] nonce = ByteArrayUtils.concatenate(iv, explicitNonceUsed);
+		byte[] nonce = Bytes.concatenate(iv, explicitNonceUsed);
 		if (LOGGER.isTraceEnabled()) {
 			LOGGER.trace("decrypt: {} bytes", applicationDataLength);
 			LOGGER.trace("nonce: {}", StringUtil.byteArray2HexString(nonce));
