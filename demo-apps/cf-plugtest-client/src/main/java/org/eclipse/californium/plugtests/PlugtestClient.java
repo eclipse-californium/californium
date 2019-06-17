@@ -43,7 +43,10 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.plugtests.ClientInitializer.Arguments;
+import org.eclipse.californium.plugtests.util.CborDecoder;
+import org.eclipse.californium.plugtests.util.JsonDecoder;
 
 /**
  * The PlugtestClient uses the developer API of Californium to test if the test
@@ -257,7 +260,18 @@ public class PlugtestClient {
 		System.out.println(
 				response.getCode() + "-" + MediaTypeRegistry.toString(response.getOptions().getContentFormat()));
 		System.out.println(response.getResponseText());
-
+		System.out.println("---------------\nGET /multi-format application/json\n---------------");
+		response = client.get(MediaTypeRegistry.APPLICATION_JSON);
+		System.out.println(
+				response.getCode() + "-" + MediaTypeRegistry.toString(response.getOptions().getContentFormat()));
+		System.out.println(response.getResponseText());
+		System.out.println(new JsonDecoder().decode(response.getPayload()));
+		System.out.println("---------------\nGET /multi-format application/cbor\n---------------");
+		response = client.get(MediaTypeRegistry.APPLICATION_CBOR);
+		System.out.println(
+				response.getCode() + "-" + MediaTypeRegistry.toString(response.getOptions().getContentFormat()));
+		System.out.println(StringUtil.byteArray2Hex(response.getPayload()));
+		System.out.println(new CborDecoder().decode(response.getPayload()));
 		client.setURI(uri + "/validate");
 		byte[] etag;
 

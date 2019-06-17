@@ -36,7 +36,12 @@
 			<groupId>${project.groupId}</groupId>
 			<artifactId>scandium</artifactId>
 		</dependency>
-		
+
+		<dependency>
+			<groupId>com.upokecenter</groupId>
+			<artifactId>cbor</artifactId>
+		</dependency>
+
 		<!-- runtime dependencies -->
 		<dependency>
 			<groupId>${project.groupId}</groupId>
