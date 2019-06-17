@@ -465,10 +465,15 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	public synchronized boolean remove(final Connection connection, final boolean removeFromSessionCache) {
 		boolean removed = connections.remove(connection.getConnectionId(), connection) == connection;
 		if (removed) {
+			List<Runnable> pendings = connection.getExecutor().shutdownNow();
 			if (LOG.isTraceEnabled()) {
-				LOG.trace("{}connection: remove {} (size {})", tag, connection, connections.size(), new Throwable("connection removed!"));
-			} else {
+				LOG.trace("{}connection: remove {} (size {}, left jobs: {})", tag, connection, connections.size(),
+						pendings.size(), new Throwable("connection removed!"));
+			} else if (pendings.isEmpty()) {
 				LOG.debug("{}connection: remove {} (size {})", tag, connection, connections.size());
+			} else {
+				LOG.debug("{}connection: remove {} (size {}, left jobs: {})", tag, connection, connections.size(),
+						pendings.size());
 			}
 			removeFromEstablishedSessions(connection);
 			removeFromAddressConnections(connection);
