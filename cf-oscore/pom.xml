@@ -14,7 +14,6 @@
 	<description>Californium (Cf) OSCORE, Object Security for Constrained RESTful Environments</description>
 
 	<properties>
-		<cbor.version>3.0.3</cbor.version>
 		<numbers.version>1.0.2</numbers.version>
 	</properties>
 
@@ -34,7 +33,6 @@
 		<dependency>
 			<groupId>com.upokecenter</groupId>
 			<artifactId>cbor</artifactId>
-			<version>${cbor.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.github.peteroupc</groupId>
