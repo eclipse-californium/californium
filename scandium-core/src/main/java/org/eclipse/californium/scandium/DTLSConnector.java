@@ -741,7 +741,11 @@ public class DTLSConnector implements Connector, RecordLayer {
 			}
 		}
 		for (Runnable job : pending) {
-			job.run();
+			try {
+				job.run();
+			} catch (Exception e) {
+				LOGGER.warn("Shutdown DTLS connector:", e);
+			}
 		}
 	}
 
