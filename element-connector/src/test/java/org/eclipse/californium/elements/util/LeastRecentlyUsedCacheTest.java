@@ -133,6 +133,22 @@ public class LeastRecentlyUsedCacheTest {
 		assertFalse(valuesIterator.hasNext());
 	}
 
+	@Test
+	public void testIteratorOnRemove() throws InterruptedException {
+		int capacity = 5;
+		int numberOfSessions = 5;
+
+		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfSessions);
+		cache.setEvictingOnReadAccess(false);
+		Iterator<String> valuesIterator = cache.valuesIterator();
+		cache.remove(2);
+		cache.remove(4);
+		assertThat(valuesIterator.next(), is(notNullValue()));
+		assertThat(valuesIterator.next(), is(notNullValue()));
+		assertThat(valuesIterator.next(), is(notNullValue()));
+		assertThat(valuesIterator.hasNext(), is(false));
+	}
+
 	private void assertNext(Iterator<String> iterator, TimeAssume assume) {
 		String value = iterator.hasNext() ? iterator.next() : null;
 		assertThat(value, assume.inTime(is(notNullValue())));
