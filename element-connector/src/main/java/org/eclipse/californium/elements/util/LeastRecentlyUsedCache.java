@@ -33,12 +33,12 @@ package org.eclipse.californium.elements.util;
 
 import java.util.AbstractCollection;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -167,7 +167,7 @@ public class LeastRecentlyUsedCache<K, V> {
 			throw new IllegalArgumentException("initial capacity must be <= max capacity");
 		} else {
 			this.capacity = maxCapacity;
-			this.cache = new HashMap<>(initialCapacity);
+			this.cache = new ConcurrentHashMap<>(initialCapacity);
 			setExpirationThreshold(threshold);
 			initLinkedList();
 		}
@@ -594,9 +594,12 @@ public class LeastRecentlyUsedCache<K, V> {
 	/**
 	 * Gets iterator over all connections contained in this cache.
 	 * <p>
-	 * The iterator returned is directly backed by this cache's underlying map.
-	 * If the cache is modified while an iteration over the values is in
-	 * progress, the results of the iteration are undefined.
+	 * The iterator returned is backed by this cache's underlying
+	 * {@link ConcurrentHashMap#values()}. The iterator is a "weakly consistent"
+	 * iterator that will never throw {@link ConcurrentModificationException},
+	 * and guarantees to traverse elements as they existed upon construction of
+	 * the iterator, and may (but is not guaranteed to) reflect any
+	 * modifications subsequent to construction.
 	 * </p>
 	 * <p>
 	 * The {@link #evictOnReadAccess} and {@link #updateOnReadAccess} are
