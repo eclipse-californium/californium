@@ -19,19 +19,27 @@ package org.eclipse.californium.oscore;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
-import java.security.SecureRandom;
-
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
+import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.rule.CoapNetworkRule;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.EndpointManager;
+import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.cose.AlgorithmID;
 
 /**
@@ -43,17 +51,21 @@ import org.eclipse.californium.cose.AlgorithmID;
  * about the mutable parts of a context (e.g. sequence number) but retains information
  * about static parts (e.g. master secret)
  * 
- * To be ran together with the HelloWorldServer
  */
 public class ContextRederivationTest {
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 	
+	private CoapServer server;
+	private int serverPort;
+	private static String serverAddress = InetAddress.getLoopbackAddress().getHostAddress();
+
+	private static String clientAddress = InetAddress.getLoopbackAddress().getHostName();
+
 	private static String SERVER_RESPONSE = "Hello World!";
 	
 	private final static HashMapCtxDB db = HashMapCtxDB.getInstance();
-	private final static String uriLocal = "coap://localhost";
-	private final static String hello1 = "/hello/1";
+	private final static String hello1 = "/hello";
 	private final static AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
 	private final static AlgorithmID kdf = AlgorithmID.HKDF_HMAC_SHA_256;
 
@@ -65,6 +77,26 @@ public class ContextRederivationTest {
 	private final static byte[] sid = new byte[0];
 	private final static byte[] rid = new byte[] { 0x01 };
 	
+	@Before
+	public void initLogger() {
+		System.out.println(System.lineSeparator() + "Start " + getClass().getSimpleName());
+		EndpointManager.clear();
+	}
+
+	//Use the OSCORE stack factory
+	@BeforeClass
+	public static void setStackFactory() {
+		OSCoreCoapStackFactory.useAsDefault();
+	}
+
+	@After
+	public void after() {
+		if (null != server) {
+			server.destroy();
+		}
+		System.out.println("End " + getClass().getSimpleName());
+	}
+
 	/**
 	 * Test context re-derivation followed by a normal message exchange.
 	 * 
@@ -72,16 +104,17 @@ public class ContextRederivationTest {
 	 * @throws ConnectorException
 	 * @throws IOException
 	 */
-	@Ignore
 	@Test
 	public void rederivationTest() throws OSException, ConnectorException, IOException {
 		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, null);
-		db.addContext(uriLocal, ctx);
-		OSCoreCoapStackFactory.useAsDefault();
+		String serverUri = "coap://" + serverAddress + ":" + serverPort;
+		db.addContext(serverUri, ctx);
 
-		rederive(uriLocal);
+		//Indicate that context information has been lost for the context associated to this URI
+		ContextRederivation.setLostContext(serverUri);
 		
-		CoapClient c = new CoapClient(uriLocal + hello1);
+		//Now proceed with a normal request from the client
+		CoapClient c = new CoapClient(serverUri + hello1);
 		Request r = new Request(Code.GET);
 		r.getOptions().setOscore(new byte[0]);
 		System.out.println((Utils.prettyPrint(r)));
@@ -95,41 +128,59 @@ public class ContextRederivationTest {
 	}
 
 	/**
-	 * Perform re-derivation of contexts as detailed in Appendix B.2.
-	 * Essentially it uses a message exchange together with the Context ID
-	 * field in the OSCORE option to securely generate a new shared context.
-	 * 
-	 * @throws IOException 
-	 * @throws ConnectorException 
+	 * Creates server with resources for test
+	 * @throws InterruptedException if resource update task fails
 	 * @throws OSException 
 	 */
-	public static void rederive(String uriLocal) throws ConnectorException, IOException, OSException {
-		//Generate a random 8 byte Context ID
-		SecureRandom random = new SecureRandom();
-		byte[] newContextId = new byte[8];
-		random.nextBytes(newContextId);
+	@Before
+	public void createServer() throws InterruptedException, OSException {
+		//Do not create server if it is already running
+		if(server != null) {
+			return;
+		}
 		
-		//Create new context with the generated Context ID
-		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, newContextId);
-		ctx.setIncludeContextId(true);
-		db.addContext(uriLocal, ctx);
-		OSCoreCoapStackFactory.useAsDefault();
+		//Set up OSCORE context information for response (server)
+		byte[] sid = new byte[] { 0x01 };
+		byte[] rid = new byte[0];
+		OSCoreCtx ctx = new OSCoreCtx(master_secret, false, alg, sid, rid, kdf, 32, master_salt, null);
+		db.addContext("coap://" + clientAddress, ctx);
+
+		//Create server
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		
-		//Now send request using the new context
-		String resource = "/rederive"; //Dummy resource to access for context re-derivation
-		String URI = uriLocal + resource;
-		System.out.println(URI);
-		OSCoreCoapStackFactory.useAsDefault();
+		InetAddress serverInetAddress = null;
+		try {
+			serverInetAddress = InetAddress.getByName(serverAddress);
+		} catch (UnknownHostException e) {
+			System.err.println("Failed to find server address!");
+		}
 		
-		CoapClient c = new CoapClient(URI);
-		Request r = new Request(Code.GET);
-		r.getOptions().setOscore(new byte[0]);
-		System.out.println(Utils.prettyPrint(r));
+		builder.setInetSocketAddress(new InetSocketAddress(serverInetAddress, 0));
+		CoapEndpoint endpoint = builder.build();
+		server = new CoapServer();
+		server.addEndpoint(endpoint);
+
+		/** --- Resources for tests follow --- **/
+
+		//Create Hello World-resource
+		OSCoreResource hello = new OSCoreResource("hello", true) {
+
+			@Override
+			public void handleGET(CoapExchange exchange) {
+				System.out.println("Accessing hello resource");
+				Response r = new Response(ResponseCode.CONTENT);
+				r.setPayload(SERVER_RESPONSE);
+				exchange.respond(r);
+			}
+		};
 		
-		CoapResponse resp = null;
-		resp = c.advanced(r);
-		System.out.println(Utils.prettyPrint(resp));
-		c.shutdown();
+		//Creating resource hierarchy
+		server.add(hello);
+
+		/** --- End of resources for tests **/
+
+		//Start server
+		server.start();
+		serverPort = endpoint.getAddress().getPort();
 	}
-	
 }
