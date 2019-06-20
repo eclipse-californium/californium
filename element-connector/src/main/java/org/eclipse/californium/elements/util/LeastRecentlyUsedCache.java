@@ -511,8 +511,13 @@ public class LeastRecentlyUsedCache<K, V> {
 	/**
 	 * Finds a value based on a predicate.
 	 * 
+	 * Returns the first matching value applying the {@link #evictOnReadAccess}
+	 * setting. Access the values to provide them as arguments for the predicate
+	 * only applies the {@link #updateOnReadAccess} for matching values.
+	 * 
 	 * @param predicate the condition to match. Assumed to match entries in a
-	 *            unique manner.
+	 *            unique manner. Therefore stops on first match, even if that
+	 *            gets evicted on the read access.
 	 * @return the first value from the cache that matches according to the
 	 *         given predicate, or {@code null}, if no value matches
 	 */
@@ -524,11 +529,15 @@ public class LeastRecentlyUsedCache<K, V> {
 	 * Finds a value based on a predicate.
 	 * 
 	 * Returns the first matching value applying the {@link #evictOnReadAccess}
-	 * setting.
+	 * setting. Access the values to provide them as arguments for the predicate
+	 * only applies the {@link #updateOnReadAccess} for matching values.
 	 * 
 	 * @param predicate the condition to match
 	 * @param unique {@code true}, if the predicate matches entries in a unique
-	 *            manner, {@code false}, if more entries may be matched.
+	 *            manner and stops, even if that entry gets evicted on the read
+	 *            access. {@code false}, if more entries may be matched and so
+	 *            continue to search, if a matching entry gets evicted on the
+	 *            read access.
 	 * @return the first value from the cache that matches according to the
 	 *         given predicate, or {@code null}, if no value matches
 	 */
@@ -588,6 +597,10 @@ public class LeastRecentlyUsedCache<K, V> {
 	 * The iterator returned is directly backed by this cache's underlying map.
 	 * If the cache is modified while an iteration over the values is in
 	 * progress, the results of the iteration are undefined.
+	 * </p>
+	 * <p>
+	 * The {@link #evictOnReadAccess} and {@link #updateOnReadAccess} are
+	 * applied on {@link Iterator#hasNext()}.
 	 * </p>
 	 * <p>
 	 * Removal of connections from the iterator is unsupported.
