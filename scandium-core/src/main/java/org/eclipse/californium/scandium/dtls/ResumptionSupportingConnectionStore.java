@@ -20,6 +20,8 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
+import java.util.ConcurrentModificationException;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -75,6 +77,8 @@ public interface ResumptionSupportingConnectionStore {
 	 * connections from that association.
 	 * 
 	 * @param connection the connection to update.
+	 * @param newPeerAddress the (new) peer address. If not changed, the already
+	 *            used one is provided.
 	 * @return {@code true}, if updated, {@code false}, otherwise.
 	 */
 	boolean update(Connection connection, InetSocketAddress newPeerAddress);
@@ -170,5 +174,18 @@ public interface ResumptionSupportingConnectionStore {
 	 * Mark all connections as resumption required.
 	 */
 	void markAllAsResumptionRequired();
+
+	/**
+	 * Get "weakly consistent" iterator over all connections.
+	 * 
+	 * The iterator is a "weakly consistent" iterator that will never throw
+	 * {@link ConcurrentModificationException}, and guarantees to traverse
+	 * elements as they existed upon construction of the iterator, and may (but
+	 * is not guaranteed to) reflect any modifications subsequent to
+	 * construction.
+	 * 
+	 * @return "weakly consistent" iterator
+	 */
+	Iterator<Connection> iterator();
 
 }

@@ -29,6 +29,7 @@ import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.Principal;
 import java.security.cert.Certificate;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
@@ -757,5 +758,36 @@ public class DTLSConnectorHandshakeTest {
 		cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
 		assertThat("client side handshake failure missing", cause, is(notNullValue()));
 		assertThat(cause.getMessage(), containsString("fatal alert"));
+	}
+
+	@Test
+	public void testServerDropsX509Principal() throws Exception {
+		startServer(false, true, false, null);
+		startClientX509(false, null);
+		startClientPsk(false,  null,  null, new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()));
+		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
+		Principal principal = endpointContext.getPeerIdentity();
+		assertThat(principal, is(notNullValue()));
+		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		int remainingCapacity = serverHelper.serverConnectionStore.remainingCapacity();
+		Future<Void> future = serverHelper.server.startDropConnectionsForPrincipal(principal);
+		future.get();
+		assertThat(serverHelper.serverConnectionStore.remainingCapacity(), is(remainingCapacity + 1));
+	}
+
+	@Test
+	public void testServerDropsPreSharedKeyPrincipal() throws Exception {
+		startServer(false, false, false, null);
+		startClientX509(false, null);
+		startClientPsk(false,  null,  null, new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()));
+		startClientPsk(false,  null,  null, new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()));
+		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
+		Principal principal = endpointContext.getPeerIdentity();
+		assertThat(principal, is(notNullValue()));
+		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		int remainingCapacity = serverHelper.serverConnectionStore.remainingCapacity();
+		Future<Void> future = serverHelper.server.startDropConnectionsForPrincipal(principal);
+		future.get();
+		assertThat(serverHelper.serverConnectionStore.remainingCapacity(), is(remainingCapacity + 2));
 	}
 }

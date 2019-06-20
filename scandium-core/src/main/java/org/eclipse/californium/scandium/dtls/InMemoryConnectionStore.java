@@ -35,6 +35,7 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -585,4 +586,15 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 			}
 		}
 	}
+
+	/**
+	 * {@inheritDoc}
+	 * 
+	 * @see LeastRecentlyUsedCache#valuesIterator()
+	 */
+	@Override
+	public Iterator<Connection> iterator() {
+		return connections.valuesIterator();
+	}
+
 }

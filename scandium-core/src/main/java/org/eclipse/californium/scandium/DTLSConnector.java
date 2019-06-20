@@ -128,18 +128,26 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
 import java.security.GeneralSecurityException;
+import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -157,6 +165,7 @@ import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -770,6 +779,138 @@ public class DTLSConnector implements Connector, RecordLayer {
 	public final synchronized void destroy() {
 		stop();
 		connectionStore.clear();
+	}
+
+	/**
+	 * Start to terminate connections related to the provided principals.
+	 * 
+	 * Note: if {@link SessionCache} is used, it's not possible to remove a
+	 * cache entry, if no related connection is in the connection store.
+	 * 
+	 * @param principal principal, which connections are to terminate
+	 * @return future to cancel or wait for completion
+	 */
+	public Future<Void> startDropConnectionsForPrincipal(final Principal principal) {
+		if (principal == null) {
+			throw new NullPointerException("principal must not be null!");
+		}
+		LeastRecentlyUsedCache.Predicate<Principal> handler = new LeastRecentlyUsedCache.Predicate<Principal>() {
+
+			@Override
+			public boolean accept(Principal connectionPrincipal) {
+				return principal.equals(connectionPrincipal);
+			}
+		};
+		return startTerminateConnectionsForPrincipal(handler);
+	}
+
+	/**
+	 * Start to terminate connections applying the provided handler to the
+	 * principals of all connections.
+	 * 
+	 * Note: if {@link SessionCache} is used, it's not possible to remove a
+	 * cache entry, if no related connection is in the connection store.
+	 * 
+	 * @param principalHandler handler to be called within the serial execution
+	 *            of the related connection. If {@code true} is returned, the
+	 *            related connection is terminated
+	 * @return future to cancel or wait for completion
+	 */
+	public Future<Void> startTerminateConnectionsForPrincipal(
+			final LeastRecentlyUsedCache.Predicate<Principal> principalHandler) {
+		if (principalHandler == null) {
+			throw new NullPointerException("principal handler must not be null!");
+		}
+		LeastRecentlyUsedCache.Predicate<Connection> connectionHandler = new LeastRecentlyUsedCache.Predicate<Connection>() {
+
+			@Override
+			public boolean accept(Connection connection) {
+				Principal peer = null;
+				SessionTicket ticket = connection.getSessionTicket();
+				if (ticket != null) {
+					peer = ticket.getClientIdentity();
+				} else {
+					DTLSSession session = connection.getSession();
+					if (session != null) {
+						peer = session.getPeerIdentity();
+					}
+				}
+				if (peer != null && principalHandler.accept(peer)) {
+					connectionStore.remove(connection, true);
+				}
+				return false;
+			}
+		};
+		return startForEach(connectionHandler);
+	}
+
+	/**
+	 * Start applying provided handler to all connections.
+	 * 
+	 * @param handler handler to be called within the serial execution of the
+	 *            passed in connection. If {@code true} is returned, iterating
+	 *            is stopped.
+	 * @return future to cancel or wait for completion
+	 */
+	public Future<Void> startForEach(LeastRecentlyUsedCache.Predicate<Connection> handler) {
+		if (handler == null) {
+			throw new NullPointerException("handler must not be null!");
+		}
+		ForEachFuture result = new ForEachFuture();
+		nextForEach(connectionStore.iterator(), handler, result);
+		return result;
+	}
+
+	/**
+	 * Calls provided handler for each connection returned be the provided
+	 * iterator.
+	 * 
+	 * @param iterator iterator over connections
+	 * @param handler handler to be called for all connections returned by the
+	 *            iterator. Iteration is stopped, when handler returns
+	 *            {@code true}
+	 * @param result future to get cancelled or signal completion
+	 */
+	private void nextForEach(final Iterator<Connection> iterator,
+			final LeastRecentlyUsedCache.Predicate<Connection> handler, final ForEachFuture result) {
+
+		if (!result.isStopped() && iterator.hasNext()) {
+			final Connection next = iterator.next();
+			try {
+				next.getExecutor().execute(new Runnable() {
+
+					@Override
+					public void run() {
+						boolean done = true;
+						try {
+							if (!result.isStopped() && !handler.accept(next)) {
+								done = false;
+								nextForEach(iterator, handler, result);
+							}
+						} catch (Exception exception) {
+							result.failed(exception);
+						} finally {
+							if (done) {
+								result.done();
+							}
+						}
+					}
+				});
+				return;
+			} catch (RejectedExecutionException ex) {
+				if (!handler.accept(next)) {
+					while (iterator.hasNext()) {
+						if (handler.accept(iterator.next())) {
+							break;
+						}
+						if (result.isStopped()) {
+							break;
+						}
+					}
+				}
+			}
+		}
+		result.done();
 	}
 
 	/**
@@ -2322,6 +2463,112 @@ public class DTLSConnector implements Connector, RecordLayer {
 		 * @throws Exception if something goes wrong
 		 */
 		protected abstract void doWork() throws Exception;
+	}
+
+	/**
+	 * Future implementation for tasks passed in to the serial executors for each
+	 * connection.
+	 */
+	private static class ForEachFuture implements Future<Void> {
+
+		private final Lock lock = new ReentrantLock();
+		private final Condition waitDone = lock.newCondition();
+		private volatile boolean cancel;
+		private volatile boolean done;
+		private volatile Exception exception;
+
+		/**
+		 * {@inheritDoc}
+		 * 
+		 * Cancel iteration for each connection.
+		 * 
+		 * Note: if a connection serial execution busy executing a different
+		 * blocking task, cancel will not interrupt that task!
+		 */
+		@Override
+		public boolean cancel(boolean mayInterruptIfRunning) {
+			boolean cancelled = false;
+			lock.lock();
+			try {
+				if (!done && !cancel) {
+					cancelled = true;
+					cancel = true;
+				}
+			} finally {
+				lock.unlock();
+			}
+			return cancelled;
+		}
+
+		@Override
+		public boolean isCancelled() {
+			return cancel;
+		}
+
+		@Override
+		public boolean isDone() {
+			return done;
+		}
+
+		@Override
+		public Void get() throws InterruptedException, ExecutionException {
+			lock.lock();
+			try {
+				if (!done) {
+					waitDone.await();
+				}
+				if (exception != null) {
+					throw new ExecutionException(exception);
+				}
+			} finally {
+				lock.unlock();
+			}
+			return null;
+		}
+
+		@Override
+		public Void get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+			lock.lock();
+			try {
+				if (!done) {
+					waitDone.await(timeout, unit);
+				}
+				if (exception != null) {
+					throw new ExecutionException(exception);
+				}
+			} finally {
+				lock.unlock();
+			}
+			return null;
+		}
+
+		/**
+		 * Signals, that the task has completed.
+		 */
+		public void done() {
+			lock.lock();
+			try {
+				done = true;
+				waitDone.signalAll();
+			} finally {
+				lock.unlock();
+			}
+		}
+
+		public void failed(Exception exception) {
+			lock.lock();
+			try {
+				this.exception = exception;
+				done = true;
+				waitDone.signalAll();
+			} finally {
+				lock.unlock();
+			}
+		}
+
+		public boolean isStopped() {
+			return done || cancel;
+		}
 	}
 
 	@Override
