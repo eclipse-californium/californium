@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2019 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -12,28 +12,19 @@
  * 
  * Contributors:
  *    Bosch Software Innovations - initial implementation
- *    Achim Kraus (Bosch Software Innovations GmbH) - add logging of test description
- *    Bosch Software Innovations GmbH - migrate to SLF4J
- *    Achim Kraus (Bosch Software Innovations GmbH) - fix typo "alife" with "alive"
- *                                                    cleanup logging
- *    Achim Kraus (Bosch Software Innovations GmbH) - add earlier failure logging
- *                                                    for easier locating the
- *                                                    failure cause in logs.
- *    Achim Kraus (Bosch Software Innovations GmbH) - move functionality to
- *                                                    TestRepeater
+ *                                 based on RepeatingTestRunner
  ******************************************************************************/
 package org.eclipse.californium.elements.runner;
 
 import org.junit.runner.Description;
 import org.junit.runner.Runner;
 import org.junit.runner.notification.RunNotifier;
-import org.junit.runners.BlockJUnit4ClassRunner;
-import org.junit.runners.model.InitializationError;
+import org.junit.runners.Parameterized;
 
 /**
- * Runner for tests under debugging.
+ * Parameterized runner for tests under debugging.
  * 
- * Runs a test repeated until it fails or the maximum number of repeats is
+ * Runs a parameterized test repeated until it fails or the maximum number of repeats is
  * reached.
  * 
  * <pre>
@@ -46,7 +37,7 @@ import org.junit.runners.model.InitializationError;
  * To use, add runner to JUni test with
  * 
  * <pre>
- * &#64;RunWith(RepeatingTestRunner.class)
+ * &#64;RunWith(ParameterizedRepeatingTestRunner.class)
  * public class SomeTests {
  * </pre>
  * 
@@ -55,11 +46,11 @@ import org.junit.runners.model.InitializationError;
  * 
  * Note: If used with "maven-surefire-plugin", parallel testing can not be used!
  */
-public class RepeatingTestRunner extends BlockJUnit4ClassRunner {
+public class ParameterizedRepeatingTestRunner extends Parameterized {
 
 	private final TestRepeater repeater;
 
-	public RepeatingTestRunner(Class<?> klass) throws InitializationError {
+	public ParameterizedRepeatingTestRunner(Class<?> klass) throws Throwable {
 		super(klass);
 		repeater = new TestRepeater();
 	}
@@ -70,12 +61,12 @@ public class RepeatingTestRunner extends BlockJUnit4ClassRunner {
 
 			@Override
 			public void run(RunNotifier notifier) {
-				RepeatingTestRunner.super.run(notifier);
+				ParameterizedRepeatingTestRunner.super.run(notifier);
 			}
 
 			@Override
 			public Description getDescription() {
-				return RepeatingTestRunner.this.getDescription();
+				return ParameterizedRepeatingTestRunner.this.getDescription();
 			}
 		}, notifier);
 	}
