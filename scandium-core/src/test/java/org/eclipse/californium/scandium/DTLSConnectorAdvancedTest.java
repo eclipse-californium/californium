@@ -35,13 +35,15 @@ import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.elements.rule.ThreadsRule;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.TestThreadFactory;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.ClientHandshaker;
@@ -82,6 +84,9 @@ public class DTLSConnectorAdvancedTest {
 	public static DtlsNetworkRule network = new DtlsNetworkRule(DtlsNetworkRule.Mode.DIRECT,
 			DtlsNetworkRule.Mode.NATIVE);
 
+	@ClassRule
+	public static ThreadsRule cleanup = new ThreadsRule();
+
 	@Rule
 	public TestNameLoggerRule names = new TestNameLoggerRule();
 
@@ -106,13 +111,13 @@ public class DTLSConnectorAdvancedTest {
 					.setMaxRetransmissions(MAX_RETRANSMISSIONS);
 		serverHelper = new ConnectorHelper();
 		serverHelper.startServer(builder);
-		executor = Executors.newFixedThreadPool(2);
+		executor = ExecutorsUtil.newFixedThreadPool(2, new TestThreadFactory("DTLS-ADVANCED-"));
 	}
 
 	@AfterClass
 	public static void tearDown() {
 		serverHelper.destroyServer();
-		executor.shutdownNow();
+		ExecutorsUtil.shutdownExecutorGracefully(100, executor);
 	}
 
 	@Before
@@ -1134,6 +1139,8 @@ public class DTLSConnectorAdvancedTest {
 			assertNotNull("server handshake not failed", error);
 		} finally {
 			rawClient.stop();
+			rawAlt1Client.stop();
+			rawAlt2Client.stop();
 		}
 	}
 

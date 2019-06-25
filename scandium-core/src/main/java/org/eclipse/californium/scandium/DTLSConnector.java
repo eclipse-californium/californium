@@ -127,7 +127,6 @@ import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
-import java.nio.channels.ClosedByInterruptException;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -295,7 +294,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * @see #sendMessage(RawData, Connection)
 	 * @see #sendMessage(RawData, Connection, DTLSSession)
 	 */
-	private EndpointContextMatcher endpointContextMatcher;
+	private volatile EndpointContextMatcher endpointContextMatcher;
 
 	private RawDataChannel messageHandler;
 	private AlertHandler alertHandler;
@@ -689,7 +688,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		connectionStore.clear();
 	}
 
-	private final synchronized DatagramSocket getSocket() {
+	private final DatagramSocket getSocket() {
 		return socket;
 	}
 
@@ -704,7 +703,6 @@ public class DTLSConnector implements Connector, RecordLayer {
 				for (Thread t : receiverThreads) {
 					t.interrupt();
 				}
-				receiverThreads.clear();
 				if (socket != null) {
 					socket.close();
 					socket = null;
@@ -722,6 +720,14 @@ public class DTLSConnector implements Connector, RecordLayer {
 					executorService = null;
 					hasInternalExecutor = false;
 				}
+				for (Thread t : receiverThreads) {
+					t.interrupt();
+					try {
+						t.join(500);
+					} catch (InterruptedException e) {
+					}
+				}
+				receiverThreads.clear();
 			}
 		}
 		if (shutdownTimer != null) {
@@ -2278,8 +2284,14 @@ public class DTLSConnector implements Connector, RecordLayer {
 				while (running.get()) {
 					try {
 						doWork();
-					} catch (ClosedByInterruptException e) {
-						LOGGER.info("Worker thread [{}] has been interrupted", getName());
+					} catch (InterruptedIOException e) {
+						if (running.get()) {
+							LOGGER.info("Worker thread [{}] has been interrupted", getName());
+						}
+					} catch (InterruptedException e) {
+						if (running.get()) {
+							LOGGER.info("Worker thread [{}] has been interrupted", getName());
+						}
 					} catch (Exception e) {
 						if (running.get()) {
 							LOGGER.debug("Exception thrown by worker thread [{}]", getName(), e);
@@ -2310,11 +2322,11 @@ public class DTLSConnector implements Connector, RecordLayer {
 	}
 
 	@Override
-	public synchronized void setEndpointContextMatcher(EndpointContextMatcher endpointContextMatcher) {
+	public void setEndpointContextMatcher(EndpointContextMatcher endpointContextMatcher) {
 		this.endpointContextMatcher = endpointContextMatcher;
 	}
 
-	private synchronized EndpointContextMatcher getEndpointContextMatcher() {
+	private EndpointContextMatcher getEndpointContextMatcher() {
 		return endpointContextMatcher;
 	}
 

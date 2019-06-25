@@ -35,6 +35,7 @@ import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.elements.rule.ThreadsRule;
 
 /**
  * Utils for TCP based connector tests.
@@ -50,6 +51,8 @@ public class ConnectorTestUtil {
 	public static final int TEST_TIMEOUT_IN_MS = 20000;
 
 	private static final Random random = new Random(0);
+
+	public static final ThreadsRule THREADS_RULE = new ThreadsRule("ObjectCleanerThread", "globalEventExecutor-.*");
 
 	public static void stop(List<Connector> list) {
 		for (Connector connector : list) {

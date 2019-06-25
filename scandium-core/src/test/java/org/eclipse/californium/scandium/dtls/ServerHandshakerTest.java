@@ -39,6 +39,7 @@ import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -50,6 +51,7 @@ import org.eclipse.californium.scandium.util.ServerName.NameType;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -62,6 +64,9 @@ public class ServerHandshakerTest {
 	static PrivateKey privateKey;
 	static X509Certificate[] certificateChain;
 	static X509Certificate[] trustedCertificates;
+
+	@Rule
+	public ThreadsRule cleanup = new ThreadsRule();
 
 	DtlsConnectorConfig config;
 	ServerHandshaker handshaker;

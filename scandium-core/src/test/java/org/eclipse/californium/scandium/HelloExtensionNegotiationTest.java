@@ -37,6 +37,7 @@ import java.security.GeneralSecurityException;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
@@ -57,6 +58,9 @@ import org.junit.experimental.categories.Category;
 public class HelloExtensionNegotiationTest {
 	@ClassRule
 	public static DtlsNetworkRule network = new DtlsNetworkRule(DtlsNetworkRule.Mode.DIRECT, DtlsNetworkRule.Mode.NATIVE);
+
+	@ClassRule
+	public static ThreadsRule cleanup = new ThreadsRule();
 
 	private static final int CLIENT_CONNECTION_STORE_CAPACITY = 5;
 
