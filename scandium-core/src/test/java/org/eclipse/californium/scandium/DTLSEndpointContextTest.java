@@ -39,6 +39,8 @@ import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
 import org.eclipse.californium.scandium.category.Medium;
@@ -55,8 +57,6 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-import org.junit.rules.TestName;
-import org.junit.runner.Description;
 
 /**
  * Verifies behavior of {@link DTLSConnector}.
@@ -71,14 +71,11 @@ public class DTLSEndpointContextTest {
 	public static DtlsNetworkRule network = new DtlsNetworkRule(DtlsNetworkRule.Mode.DIRECT,
 			DtlsNetworkRule.Mode.NATIVE);
 
-	@Rule
-	public TestName names = new TestName() {
+	@ClassRule
+	public static ThreadsRule cleanup = new ThreadsRule();
 
-		@Override
-		protected void starting(Description d) {
-			System.out.println("Test " + d.getMethodName());
-		}
-	};
+	@Rule
+	public TestNameLoggerRule names = new TestNameLoggerRule();
 
 	private static final long TIMEOUT_IN_MILLIS = 2000;
 	private static final int CLIENT_CONNECTION_STORE_CAPACITY = 5;

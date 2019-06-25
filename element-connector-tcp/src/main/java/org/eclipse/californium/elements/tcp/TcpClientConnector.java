@@ -88,7 +88,7 @@ public class TcpClientConnector implements Connector {
 	 * @see #setEndpointContextMatcher(EndpointContextMatcher)
 	 * @see #getEndpointContextMatcher()
 	 */
-	private EndpointContextMatcher endpointContextMatcher;
+	private volatile EndpointContextMatcher endpointContextMatcher;
 	private EventLoopGroup workerGroup;
 	private RawDataChannel rawDataChannel;
 	private AbstractChannelPoolMap<SocketAddress, ChannelPool> poolMap;
@@ -266,11 +266,11 @@ public class TcpClientConnector implements Connector {
 	}
 
 	@Override
-	public synchronized void setEndpointContextMatcher(EndpointContextMatcher matcher) {
+	public void setEndpointContextMatcher(EndpointContextMatcher matcher) {
 		endpointContextMatcher = matcher;
 	}
 
-	private synchronized EndpointContextMatcher getEndpointContextMatcher() {
+	private EndpointContextMatcher getEndpointContextMatcher() {
 		return endpointContextMatcher;
 	}
 

@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
@@ -53,6 +54,7 @@ import org.eclipse.californium.scandium.dtls.rpkstore.InMemoryRpkTrustStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
 import org.eclipse.californium.scandium.dtls.x509.StaticCertificateVerifier;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -62,6 +64,8 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Medium.class)
 public class HandshakerTest {
+	@Rule
+	public ThreadsRule cleanup = new ThreadsRule();
 
 	final int[] receivedMessages = new int[10];
 	InetSocketAddress endpoint = InetSocketAddress.createUnresolved("localhost", 10000);

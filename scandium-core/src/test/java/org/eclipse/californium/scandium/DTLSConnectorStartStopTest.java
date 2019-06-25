@@ -34,6 +34,7 @@ import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
@@ -66,6 +67,9 @@ public class DTLSConnectorStartStopTest {
 
 	@ClassRule
 	public static DtlsNetworkRule network = new DtlsNetworkRule(DtlsNetworkRule.Mode.DIRECT, DtlsNetworkRule.Mode.NATIVE);
+
+	@ClassRule
+	public static ThreadsRule cleanup = new ThreadsRule();
 
 	@Rule
 	public TestNameLoggerRule names = new TestNameLoggerRule();

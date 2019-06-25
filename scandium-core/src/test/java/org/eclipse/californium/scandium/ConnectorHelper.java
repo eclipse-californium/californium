@@ -50,6 +50,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -59,6 +60,7 @@ import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
+import org.eclipse.californium.elements.util.TestThreadFactory;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
@@ -87,6 +89,8 @@ public class ConnectorHelper {
 	static final String	CLIENT_IDENTITY_SECRET				= "secretPSK";
 	static final int	MAX_TIME_TO_WAIT_SECS				= 2;
 	static final int	SERVER_CONNECTION_STORE_CAPACITY	= 3;
+
+	static final ThreadFactory TEST_UDP_THREAD_FACTORY = new TestThreadFactory("TEST-UDP-");
 
 	DTLSConnector server;
 	InetSocketAddress serverEndpoint;
@@ -120,7 +124,6 @@ public class ConnectorHelper {
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
 		startServer(builder);
 	}
-
 
 	/**
 	 * Configures and starts a connector representing the <em>server side</em> of a DTLS connection.
@@ -537,8 +540,8 @@ public class ConnectorHelper {
 		final InetSocketAddress address;
 		final DataHandler handler;
 		final AtomicBoolean running = new AtomicBoolean();
-		DatagramSocket socket;
-		Thread receiver;
+		final Thread receiver;
+		volatile DatagramSocket socket;
 
 		public UdpConnector(final int port, final DataHandler dataHandler) {
 			this.address = new InetSocketAddress(InetAddress.getLoopbackAddress(), port);
@@ -551,6 +554,7 @@ public class ConnectorHelper {
 					DatagramPacket packet = new DatagramPacket(buf, buf.length);
 					while (running.get()) {
 						try {
+							DatagramSocket socket = getSocket();
 							socket.receive(packet);
 							if (packet.getLength() > 0) {
 								// handle data
@@ -563,40 +567,46 @@ public class ConnectorHelper {
 					}
 				}
 			};
-			receiver = new Thread(rec);
+			receiver = TEST_UDP_THREAD_FACTORY.newThread(rec);
 		}
 
-		public synchronized void start() throws IOException {
+		public void start() throws IOException {
 			if (running.compareAndSet(false, true)) {
 				socket = new DatagramSocket(address);
 				receiver.start();
 			}
 		}
 
-		public synchronized void stop() {
+		public void stop() {
 			if (running.compareAndSet(true, false)) {
 				socket.close();
+				receiver.interrupt();
+				try {
+					receiver.join(2000);
+				} catch (InterruptedException e) {
+				}
 			}
 		}
 
 		public void sendRecord(InetSocketAddress peerAddress, byte[] record) throws IOException {
 			DatagramPacket datagram = new DatagramPacket(record, record.length, peerAddress.getAddress(), peerAddress.getPort());
-
+			DatagramSocket socket = getSocket();
 			if (!socket.isClosed()) {
 				socket.send(datagram);
 			}
 		}
 
 		public final InetSocketAddress getAddress() {
-			DatagramSocket socket;
-			synchronized (this) {
-				socket = this.socket;
-			}
+			DatagramSocket socket = getSocket();
 			if (socket == null) {
 				return address;
 			} else {
 				return new InetSocketAddress(socket.getLocalAddress(), socket.getLocalPort());
 			}
+		}
+
+		private DatagramSocket getSocket() {
+			return socket;
 		}
 	}
 

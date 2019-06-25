@@ -28,7 +28,6 @@ import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
@@ -38,6 +37,9 @@ import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.elements.rule.ThreadsRule;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.TestThreadFactory;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -74,6 +76,9 @@ public class DTLSConnectorResumeTest {
 	public static DtlsNetworkRule network = new DtlsNetworkRule(DtlsNetworkRule.Mode.DIRECT,
 			DtlsNetworkRule.Mode.NATIVE);
 
+	@ClassRule
+	public static ThreadsRule cleanup = new ThreadsRule();
+
 	@Rule
 	public TestNameLoggerRule names = new TestNameLoggerRule();
 
@@ -94,13 +99,13 @@ public class DTLSConnectorResumeTest {
 				.setSniEnabled(true);
 		serverHelper = new ConnectorHelper();
 		serverHelper.startServer(builder);
-		executor = Executors.newFixedThreadPool(2);
+		executor = ExecutorsUtil.newFixedThreadPool(2, new TestThreadFactory("DTLS-RESUME-"));
 	}
 
 	@AfterClass
 	public static void tearDown() {
 		serverHelper.destroyServer();
-		executor.shutdownNow();
+		ExecutorsUtil.shutdownExecutorGracefully(100, executor);
 	}
 
 	@Before

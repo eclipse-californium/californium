@@ -42,6 +42,7 @@ import java.util.concurrent.TimeUnit;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.junit.After;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -57,6 +58,9 @@ public class TlsConnectorTest {
 
 	@Rule
 	public TestNameLoggerRule names = new TestNameLoggerRule();
+
+	@Rule
+	public ThreadsRule threads = THREADS_RULE;
 
 	private final List<Connector> cleanup = new ArrayList<>();
 

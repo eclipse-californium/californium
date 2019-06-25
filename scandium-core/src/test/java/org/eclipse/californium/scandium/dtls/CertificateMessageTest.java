@@ -38,6 +38,7 @@ import java.util.List;
 
 import javax.security.auth.x500.X500Principal;
 
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.category.Small;
@@ -192,6 +193,6 @@ public class CertificateMessageTest {
 	}
 
 	private void givenAnEmptyRawPublicKeyCertificateMessage() {
-		message = new CertificateMessage(new byte[]{}, peerAddress);
+		message = new CertificateMessage(Bytes.EMPTY, peerAddress);
 	}
 }

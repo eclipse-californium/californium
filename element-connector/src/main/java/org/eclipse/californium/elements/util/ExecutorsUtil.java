@@ -136,23 +136,22 @@ public class ExecutorsUtil {
 	 *            {@link ExecutorService#shutdownNow()} will be called.
 	 * @param executors
 	 */
-	public static void shutdownExecutorGracefully(long timeMaxToWaitInMs, ScheduledExecutorService... executors) {
+	public static void shutdownExecutorGracefully(long timeMaxToWaitInMs, ExecutorService... executors) {
 		if (executors.length == 0)
 			return;
 		
 		// shutdown executor
-		for (ScheduledExecutorService executor : executors) {
+		for (ExecutorService executor : executors) {
 			executor.shutdown();
 		}
 
 		// wait for task termination
 		try {
 			long timeToWait = timeMaxToWaitInMs / executors.length / 2;
-			for (ScheduledExecutorService executor : executors) {
+			for (ExecutorService executor : executors) {
 				if (!executor.awaitTermination(timeToWait, TimeUnit.MILLISECONDS)) {
 					// cancel still executing tasks
-					// and ignore all remaining tasks scheduled for
-					// later
+					// and ignore all remaining tasks scheduled for later
 					List<Runnable> runningTasks = executor.shutdownNow();
 					if (runningTasks.size() > 0) {
 						// this is e.g. the case if we have performed an
@@ -161,13 +160,12 @@ public class ExecutorsUtil {
 						// pending BlockCleanupTask for tidying up
 						LOGGER.debug("ignoring remaining {} scheduled task(s)", runningTasks.size());
 					}
-					// wait for executing tasks to respond to being
-					// cancelled
+					// wait for executing tasks to respond to being cancelled
 					executor.awaitTermination(timeToWait, TimeUnit.MILLISECONDS);
 				}
 			}
 		} catch (InterruptedException e) {
-			for (ScheduledExecutorService executor : executors) {
+			for (ExecutorService executor : executors) {
 				executor.shutdownNow();
 			}
 			Thread.currentThread().interrupt();
