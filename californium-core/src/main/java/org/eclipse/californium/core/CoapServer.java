@@ -127,17 +127,19 @@ public class CoapServer implements ServerInterface {
 	/**
 	 * Constructs a default server. The server starts after the method
 	 * {@link #start()} is called. If a server starts and has no specific ports
-	 * assigned, it will bind to CoAp's default port 5683.
+	 * assigned, it will bind to CoAP's default port 5683.
 	 */
 	public CoapServer() {
 		this(NetworkConfig.getStandard());
 	}
-	
+
 	/**
 	 * Constructs a server that listens to the specified port(s) after method
 	 * {@link #start()} is called.
 	 * 
-	 * @param ports the ports to bind to
+	 * @param ports the ports to bind to. If empty or {@code null} and no
+	 *            endpoints are added with {@link #addEndpoint(Endpoint)}, it
+	 *            will bind to CoAP's default port 5683 on {@link #start()}.
 	 */
 	public CoapServer(final int... ports) {
 		this(NetworkConfig.getStandard(), ports);
@@ -147,36 +149,39 @@ public class CoapServer implements ServerInterface {
 	 * Constructs a server with the specified configuration that listens to the
 	 * specified ports after method {@link #start()} is called.
 	 *
-	 * @param config the configuration, if <code>null</code> the configuration returned by
-	 * {@link NetworkConfig#getStandard()} is used.
-	 * @param ports the ports to bind to
+	 * @param config the configuration, if {@code null} the configuration
+	 *            returned by {@link NetworkConfig#getStandard()} is used.
+	 * @param ports the ports to bind to. If empty or {@code null} and no
+	 *            endpoints are added with {@link #addEndpoint(Endpoint)}, it
+	 *            will bind to CoAP's default port 5683 on {@link #start()}.
 	 */
 	public CoapServer(final NetworkConfig config, final int... ports) {
-		
 		// global configuration that is passed down (can be observed for changes)
 		if (config != null) {
 			this.config = config;
 		} else {
 			this.config = NetworkConfig.getStandard();
 		}
-		
+
 		// resources
 		this.root = createRoot();
 		this.deliverer = new ServerMessageDeliverer(root);
-		
+
 		CoapResource wellKnown = new CoapResource(".well-known");
 		wellKnown.setVisible(false);
 		wellKnown.add(new DiscoveryResource(root));
 		root.add(wellKnown);
-		
+
 		// endpoints
 		this.endpoints = new ArrayList<>();
 		// create endpoint for each port
-		for (int port : ports) {
-			CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-			builder.setPort(port);
-			builder.setNetworkConfig(config);
-			addEndpoint(builder.build());
+		if (ports != null) {
+			for (int port : ports) {
+				CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+				builder.setPort(port);
+				builder.setNetworkConfig(config);
+				addEndpoint(builder.build());
+			}
 		}
 	}
 
