@@ -170,6 +170,10 @@ public class LockstepEndpoint {
 		return connector.getAddress().getAddress();
 	}
 
+	public InetSocketAddress getSocketAddress() {
+		return connector.getAddress();
+	}
+
 	public Object get(String var) {
 		return storage.get(var);
 	}

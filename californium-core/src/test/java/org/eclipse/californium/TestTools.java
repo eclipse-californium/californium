@@ -17,7 +17,10 @@
  ******************************************************************************/
 package org.eclipse.californium;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -29,22 +32,57 @@ import org.hamcrest.Description;
  */
 public final class TestTools {
 
+	public static final String URI_SEPARATOR = "/";
 	private static final Random RAND = new Random();
-	private static final String URI_TEMPLATE = "coap://%s:%d/%s";
+	private static final String URI_TEMPLATE = "coap://%s:%d%s";
+	public static final InetSocketAddress LOCALHOST_EPHEMERAL = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 
 	private TestTools() {
 		// prevent instantiation
 	}
 
 	/**
+	 * Normalize relative URI path.
+	 * 
+	 * The values {@code null}, {@code ""}, or {@value #URI_SEPARATOR} are
+	 * normalized to {@code null}. For all other values, the returned value is
+	 * normalized to start with {@value #URI_SEPARATOR}.
+	 * 
+	 * @param relativePath path to be normalized
+	 * @return normalized path
+	 */
+	public static String normalizeRelativePath(final String relativePath) {
+		if (relativePath != null && !relativePath.isEmpty() && !relativePath.equals(URI_SEPARATOR)) {
+			if (relativePath.startsWith(URI_SEPARATOR)) {
+				return relativePath;
+			} else {
+				return URI_SEPARATOR + relativePath;
+			}
+		} else {
+			return "";
+		}
+	}
+
+	/**
 	 * Creates a URI string for a resource hosted on an endpoint.
 	 * 
 	 * @param endpoint The endpoint the resource is hosted on.
-	 * @param path The path of the resource on the endpoint.
+	 * @param path The path of the resource on the endpoint. The value is
+	 *            {@link #normalizeRelativePath(String)}.
 	 * @return The URI string.
 	 */
 	public static String getUri(final Endpoint endpoint, final String path) {
-		return getUri(endpoint.getAddress(), path);
+		URI uri = endpoint.getUri();
+		String resourcePath = normalizeRelativePath(path);
+		System.out.println(resourcePath);
+		if (!resourcePath.isEmpty()) {
+			try {
+				uri = new URI(uri.getScheme(), uri.getUserInfo(), uri.getHost(), uri.getPort(),
+						uri.getPath() + resourcePath, uri.getQuery(), uri.getFragment());
+			} catch (URISyntaxException e) {
+			}
+		}
+		return uri.toASCIIString();
 	}
 
 	/**
@@ -56,7 +94,22 @@ public final class TestTools {
 	 * @return The URI string.
 	 */
 	public static String getUri(final InetSocketAddress address, final String path) {
-		return String.format(URI_TEMPLATE, address.getHostString(), address.getPort(), path);
+		String resourcePath = normalizeRelativePath(path);
+		return String.format(URI_TEMPLATE, address.getHostString(), address.getPort(), resourcePath);
+	}
+
+	/**
+	 * Creates a URI string for a resource hosted on an endpoint.
+	 * 
+	 * @param address The address of the endpoint that the resource is hosted
+	 *            on.
+	 * @param port The port of the endpoint that the resource is hosted on.
+	 * @param path The path of the resource on the endpoint.
+	 * @return The URI string.
+	 */
+	public static String getUri(final InetAddress address, final int port, final String path) {
+		String resourcePath = normalizeRelativePath(path);
+		return String.format(URI_TEMPLATE, address.getHostAddress(), port, resourcePath);
 	}
 
 	/**
@@ -134,6 +187,7 @@ public final class TestTools {
 	/**
 	 * Get in range matcher.
 	 * 
+	 * @param <T> type of values.
 	 * @param min inclusive minimum value
 	 * @param max exclusive maximum value
 	 * @return matcher.

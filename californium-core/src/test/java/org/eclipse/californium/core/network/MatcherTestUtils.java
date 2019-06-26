@@ -21,6 +21,7 @@ package org.eclipse.californium.core.network;
 
 import java.net.InetSocketAddress;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
@@ -36,7 +37,7 @@ import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
-import org.eclipse.californium.elements.util.NamedThreadFactory;
+import org.eclipse.californium.elements.util.TestThreadFactory;
 
 /**
  * Helper methods for testing {@code Matcher}s.
@@ -56,25 +57,29 @@ public final class MatcherTestUtils {
 	};
 
 	public static final Executor TEST_EXCHANGE_EXECUTOR = null;
-	
-	static TcpMatcher newTcpMatcher(EndpointContextMatcher correlationContextMatcher) {
-		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
+
+	static ScheduledExecutorService newScheduler() {
+		return ExecutorsUtil.newSingleThreadScheduledExecutor(new TestThreadFactory("MatcherTest-"));
+	}
+
+	static TcpMatcher newTcpMatcher(NetworkConfig config, EndpointContextMatcher correlationContextMatcher, ScheduledExecutorService scheduler) {
 		InMemoryMessageExchangeStore exchangeStore = new InMemoryMessageExchangeStore(config);
 		TcpMatcher matcher = new TcpMatcher(config, notificationListener, new RandomTokenGenerator(config),
 				new InMemoryObservationStore(config), exchangeStore, TEST_EXCHANGE_EXECUTOR, correlationContextMatcher);
-		exchangeStore
-				.setExecutor(ExecutorsUtil.newSingleThreadScheduledExecutor(new NamedThreadFactory("ExchangeStore")));
+		exchangeStore.setExecutor(scheduler);
 		matcher.start();
 		return matcher;
 	}
 
-	static UdpMatcher newUdpMatcher(MessageExchangeStore exchangeStore, ObservationStore observationStore,
-			EndpointContextMatcher correlationContextMatcher) {
-		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
+	static UdpMatcher newUdpMatcher(NetworkConfig config, EndpointContextMatcher correlationContextMatcher, ScheduledExecutorService scheduler) {
+		return newUdpMatcher(config, new InMemoryMessageExchangeStore(config), new InMemoryObservationStore(config), correlationContextMatcher, scheduler);
+	}
+
+	static UdpMatcher newUdpMatcher(NetworkConfig config, MessageExchangeStore exchangeStore, ObservationStore observationStore,
+			EndpointContextMatcher correlationContextMatcher, ScheduledExecutorService scheduler) {
 		UdpMatcher matcher = new UdpMatcher(config, notificationListener, new RandomTokenGenerator(config),
 				observationStore, exchangeStore, TEST_EXCHANGE_EXECUTOR, correlationContextMatcher);
-		exchangeStore
-				.setExecutor(ExecutorsUtil.newSingleThreadScheduledExecutor(new NamedThreadFactory("ExchangeStore")));
+		exchangeStore.setExecutor(scheduler);
 		matcher.start();
 		return matcher;
 	}

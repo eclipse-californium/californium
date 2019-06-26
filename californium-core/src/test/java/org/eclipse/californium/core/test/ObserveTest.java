@@ -33,13 +33,12 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
@@ -57,10 +56,13 @@ import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptorAdapter;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -108,28 +110,30 @@ public class ObserveTest {
 	static final String TARGET_Y = "resY";
 	static final String RESPONSE = "hi";
 
-	private CoapServer server;
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
+
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
+
+	private CoapEndpoint serverEndpoint;
 	private MyResource resourceX;
 	private MyResource resourceY;
 	private ClientMessageInterceptor interceptor;
 
 	private final CountDownLatch waitforit = new CountDownLatch(1);
 
-	private int serverPort;
 	private String uriX;
 	private String uriY;
 
 	@Before
 	public void startupServer() {
-		System.out.println(System.lineSeparator() + "Start " + getClass().getSimpleName());
-		createServer();
+		cleanup.add(createServer());
 	}
 
 	@After
 	public void shutdownServer() {
 		EndpointManager.getEndpointManager().getDefaultEndpoint().removeInterceptor(interceptor);
-		server.destroy();
-		System.out.println("End " + getClass().getSimpleName());
 	}
 
 	@Test
@@ -190,7 +194,7 @@ public class ObserveTest {
 
 		final AtomicInteger resetCounter = new AtomicInteger(0);
 
-		server.getEndpoints().get(0).addInterceptor(new ServerMessageInterceptor(resetCounter));
+		serverEndpoint.addInterceptor(new ServerMessageInterceptor(resetCounter));
 		resourceX.setObserveType(Type.NON);
 
 		int repeat = 3;
@@ -392,27 +396,27 @@ public class ObserveTest {
 		}
 	}
 
-	private void createServer() {
+	private CoapServer createServer() {
 		// retransmit constantly all 200 milliseconds
 		NetworkConfig config = network.createTestConfig().setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200)
 				.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f).setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f);
 
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
 		builder.setNetworkConfig(config);
-		CoapEndpoint endpoint = builder.build();
+		serverEndpoint = builder.build();
 
-		server = new CoapServer();
-		server.addEndpoint(endpoint);
+		CoapServer server = new CoapServer(config);
+		server.addEndpoint(serverEndpoint);
 		resourceX = new MyResource(TARGET_X);
 		resourceY = new MyResource(TARGET_Y);
 		server.add(resourceX);
 		server.add(resourceY);
 		server.start();
 
-		serverPort = endpoint.getAddress().getPort();
-		uriX = String.format("coap://127.0.0.1:%d/%s", serverPort, TARGET_X);
-		uriY = String.format("coap://127.0.0.1:%d/%s", serverPort, TARGET_Y);
+		uriX = TestTools.getUri(serverEndpoint, TARGET_X);
+		uriY = TestTools.getUri(serverEndpoint, TARGET_Y);
+		return server;
 	}
 
 	private class ClientMessageInterceptor extends MessageInterceptorAdapter {

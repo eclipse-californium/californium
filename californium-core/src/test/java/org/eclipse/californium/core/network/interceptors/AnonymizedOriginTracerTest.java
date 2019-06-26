@@ -29,7 +29,9 @@ import java.util.concurrent.TimeUnit;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -40,6 +42,9 @@ import org.junit.experimental.categories.Category;
 public class AnonymizedOriginTracerTest {
 
 	private static final long FILTER_TIMEOUT_IN_SECONDS = 2;
+
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
 
 	private AnonymizedOriginTracer tracer;
 	private byte[] rawAddress;

@@ -43,6 +43,7 @@ public class ManInTheMiddle implements Runnable {
 	private final DatagramSocket socket;
 	private final DatagramPacket packet;
 	private final ClientBlockwiseInterceptor interceptor;
+	private final Thread thread;
 	private volatile boolean running = true;
 
 	private int[] drops = new int[0];
@@ -63,7 +64,8 @@ public class ManInTheMiddle implements Runnable {
 		}
 		this.packet = new DatagramPacket(new byte[2000], 2000);
 
-		new Thread(this).start();
+		thread = new Thread(this);
+		thread.start();
 	}
 
 	public void drop(int... numbers) {
@@ -101,7 +103,7 @@ public class ManInTheMiddle implements Runnable {
 						burst = 1;
 					}
 				}
-				
+
 				if (burst < max && contains(drops, current)) {
 					if (last + 1 == current || last + 2 == current) {
 						burst++;
@@ -109,17 +111,13 @@ public class ManInTheMiddle implements Runnable {
 					interceptor.log(String.format(" Dropping packet %d (burst %d/%d) from %s", 
 							current, burst, max, isClientPacket ? "client" : "server"));
 					last = current;
-
 				} else {
-
 					if (isClientPacket) {
 						packet.setPort(serverPort);
 					} else {
 						packet.setPort(clientPort);
 					}
-
 					socket.send(packet);
-
 					if (last + 1 != current && last + 2 != current) {
 						burst = 1;
 					}
@@ -137,8 +135,13 @@ public class ManInTheMiddle implements Runnable {
 	public void stop() {
 		running = false;
 		socket.close();
+		thread.interrupt();
 		System.out.println(interceptor.toString());
 		interceptor.clear();
+		try {
+			thread.join(2000);
+		} catch (InterruptedException e) {
+		}
 	}
 
 	public int getPort() {

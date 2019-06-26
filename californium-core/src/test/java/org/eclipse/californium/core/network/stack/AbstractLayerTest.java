@@ -18,6 +18,8 @@ package org.eclipse.californium.core.network.stack;
 import static org.mockito.Mockito.mock;
 
 import org.eclipse.californium.category.Small;
+import org.eclipse.californium.rule.CoapThreadsRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -28,6 +30,8 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Small.class)
 public class AbstractLayerTest {
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
 
 	@Test(expected = NullPointerException.class)
 	public void testSetLowerLayerRejectsNull() {

@@ -230,7 +230,7 @@ public class CoapEndpoint implements Endpoint {
 	private ScheduledExecutorService secondaryExecutor;
 
 	/** Indicates if the endpoint has been started */
-	private boolean started;
+	private volatile boolean started;
 
 	/** The list of endpoint observers (has nothing to do with CoAP observe relations) */
 	private List<EndpointObserver> observers = new CopyOnWriteArrayList<>();
@@ -381,8 +381,8 @@ public class CoapEndpoint implements Endpoint {
 
 			// in production environments the executor should be set to a multi
 			// threaded version in order to utilize all cores of the processor
-			ScheduledExecutorService executorService = ExecutorsUtil
-					.newSingleThreadScheduledExecutor(new DaemonThreadFactory("CoapEndpoint-" + connector + '#')); //$NON-NLS-1$
+			final ScheduledExecutorService executorService = ExecutorsUtil
+					.newSingleThreadScheduledExecutor(new DaemonThreadFactory(":CoapEndpoint-" + connector + '#')); //$NON-NLS-1$
 			setExecutors(executorService, executorService);
 			addObserver(new EndpointObserver() {
 
@@ -398,7 +398,7 @@ public class CoapEndpoint implements Endpoint {
 
 				@Override
 				public void destroyed(final Endpoint endpoint) {
-					executor.shutdown();
+					ExecutorsUtil.shutdownExecutorGracefully(1000, executorService);
 				}
 			});
 		}
@@ -455,7 +455,7 @@ public class CoapEndpoint implements Endpoint {
 	}
 
 	@Override
-	public synchronized boolean isStarted() {
+	public boolean isStarted() {
 		return started;
 	}
 

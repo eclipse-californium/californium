@@ -21,15 +21,21 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
+import java.net.InetAddress;
+import java.util.concurrent.ScheduledExecutorService;
+
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
-import org.eclipse.californium.elements.util.NamedThreadFactory;
+import org.eclipse.californium.elements.util.TestThreadFactory;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -40,20 +46,22 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Small.class)
 public class InMemoryMessageExchangeStoreTest {
-
-	/**
-	 * 
-	 */
 	private static final int PEER_PORT = 12000;
+
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
+
 	InMemoryMessageExchangeStore store;
 	NetworkConfig config;
 
 	@Before
 	public void createConfig() {
+		ScheduledExecutorService executor = ExecutorsUtil.newSingleThreadScheduledExecutor(new TestThreadFactory("ExchangeStore-"));
+		cleanup.add(executor);
 		config = NetworkConfig.createStandardWithoutFile();
 		config.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, 200); //ms
 		store = new InMemoryMessageExchangeStore(config);
-		store.setExecutor(ExecutorsUtil.newSingleThreadScheduledExecutor(new NamedThreadFactory("ExchangeStore")));
+		store.setExecutor(executor);
 		store.start();
 	}
 
@@ -141,7 +149,8 @@ public class InMemoryMessageExchangeStoreTest {
 
 	private Exchange newOutboundRequest() {
 		Request request = Request.newGet();
-		request.setURI("coap://127.0.0.1:" + PEER_PORT + "/test");
+		String uri = TestTools.getUri(InetAddress.getLoopbackAddress(), PEER_PORT, "test");
+		request.setURI(uri);
 		Exchange exchange = new Exchange(request, Origin.LOCAL, MatcherTestUtils.TEST_EXCHANGE_EXECUTOR);
 		return exchange;
 	}

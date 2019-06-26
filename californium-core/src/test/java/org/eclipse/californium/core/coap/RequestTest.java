@@ -31,6 +31,8 @@ import java.util.List;
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -41,6 +43,8 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Small.class)
 public class RequestTest {
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
 
 	/**
 	 * Verifies that a Request that is instantiated with a {@code null} CoAP.Code
@@ -73,7 +77,7 @@ public class RequestTest {
 			req.setDestination(InetAddress.getLoopbackAddress());
 			req.setOptions(uri);
 			assertThat(req.getOptions().getUriHost(), is("example.com"));
-			assertThat(req.getDestinationPort(), is(5683));
+			assertThat(req.getDestinationContext().getPeerAddress().getPort(), is(5683));
 			assertThat(req.getOptions().getUriPort(), is(nullValue()));
 			assertThat(req.getOptions().getUriPathString(), is("~sensors/temp.xml"));
 		}
@@ -125,8 +129,8 @@ public class RequestTest {
 	public void testSetURISetsDestination() {
 		InetSocketAddress dest = InetSocketAddress.createUnresolved("192.168.0.1", 12000);
 		Request req = Request.newGet().setURI("coap://192.168.0.1:12000");
-		assertThat(req.getDestination().getHostAddress(), is(dest.getHostString()));
-		assertThat(req.getDestinationPort(), is(dest.getPort()));
+		assertThat(req.getDestinationContext().getPeerAddress().getAddress().getHostAddress(), is(dest.getHostString()));
+		assertThat(req.getDestinationContext().getPeerAddress().getPort(), is(dest.getPort()));
 	}
 
 	/**
@@ -192,8 +196,8 @@ public class RequestTest {
 
 		assumeTrue(dnsIsWorking());
 		Request req = Request.newGet().setURI("coaps://localhost");
-		assertNotNull(req.getDestination());
-		assertThat(req.getDestinationPort(), is(CoAP.DEFAULT_COAP_SECURE_PORT));
+		assertNotNull(req.getDestinationContext().getPeerAddress());
+		assertThat(req.getDestinationContext().getPeerAddress().getPort(), is(CoAP.DEFAULT_COAP_SECURE_PORT));
 		assertThat(req.getOptions().getUriHost(), is("localhost"));
 	}
 
@@ -223,16 +227,16 @@ public class RequestTest {
 	@Test
 	public void testSetURISetsDestinationPortBasedOnUriScheme() {
 		Request req = Request.newGet().setURI("coap://127.0.0.1");
-		assertThat(req.getDestinationPort(), is(CoAP.DEFAULT_COAP_PORT));
+		assertThat(req.getDestinationContext().getPeerAddress().getPort(), is(CoAP.DEFAULT_COAP_PORT));
 
 		req = Request.newGet().setURI("coaps://127.0.0.1");
-		assertThat(req.getDestinationPort(), is(CoAP.DEFAULT_COAP_SECURE_PORT));
+		assertThat(req.getDestinationContext().getPeerAddress().getPort(), is(CoAP.DEFAULT_COAP_SECURE_PORT));
 
 		req = Request.newGet().setURI("coap+tcp://127.0.0.1");
-		assertThat(req.getDestinationPort(), is(CoAP.DEFAULT_COAP_PORT));
+		assertThat(req.getDestinationContext().getPeerAddress().getPort(), is(CoAP.DEFAULT_COAP_PORT));
 
 		req = Request.newGet().setURI("coaps+tcp://127.0.0.1");
-		assertThat(req.getDestinationPort(), is(CoAP.DEFAULT_COAP_SECURE_PORT));
+		assertThat(req.getDestinationContext().getPeerAddress().getPort(), is(CoAP.DEFAULT_COAP_SECURE_PORT));
 	}
 
 	@Test(expected = IllegalStateException.class)
@@ -246,7 +250,7 @@ public class RequestTest {
 		Request req = Request.newGet();
 		req.setDestination(InetAddress.getLoopbackAddress());
 		req.setOptions(URI.create("coap://iot.eclipse.org"));
-		assertThat(req.getDestinationPort(), is(CoAP.DEFAULT_COAP_PORT));
+		assertThat(req.getDestinationContext().getPeerAddress().getPort(), is(CoAP.DEFAULT_COAP_PORT));
 		assertThat(req.getOptions().getUriHost(), is("iot.eclipse.org"));
 	}
 

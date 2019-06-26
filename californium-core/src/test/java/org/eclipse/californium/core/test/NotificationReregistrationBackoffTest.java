@@ -42,9 +42,10 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -67,6 +68,12 @@ public class NotificationReregistrationBackoffTest {
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT,
 			CoapNetworkRule.Mode.NATIVE);
+
+	@ClassRule
+	public static CoapThreadsRule cleanup = new CoapThreadsRule();
+
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
 
 	/**
 	 * No exception expected by default
@@ -99,35 +106,23 @@ public class NotificationReregistrationBackoffTest {
 	public long backoff;
 
 	/**
-	 * Test server.
-	 */
-	private static CoapServer server = null;
-	/**
 	 * Test client.
 	 */
 	private CoapClient client = null;
+	/**
+	 * Test client endpoint;
+	 */
+	private CoapEndpoint clientEndpoint = null;
 
 	/**
 	 * Start server
 	 */
 	@BeforeClass
 	public static void setupServer() {
-		System.out.println(System.lineSeparator() + "Start " + NotificationReregistrationBackoffTest.class.getName());
-		server = new CoapServer();
+		CoapServer server = new CoapServer(network.getStandardTestConfig());
+		cleanup.add(server);
 		server.add(new LazyResource(TARGET));
 		server.start();
-	}
-
-	/**
-	 * Stop server.
-	 */
-	@AfterClass
-	public static void tearDownServer() {
-		if (server != null) {
-			server.stop();
-			server.destroy();
-			server = null;
-		}
 	}
 
 	/**
@@ -137,10 +132,10 @@ public class NotificationReregistrationBackoffTest {
 	public void setupClient() {
 		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
 		config.setLong(NetworkConfig.Keys.NOTIFICATION_REREGISTRATION_BACKOFF, backoff); // [ms]
-		CoapEndpoint endpoint = new CoapEndpoint.Builder().setNetworkConfig(config).build();
+		clientEndpoint = new CoapEndpoint.Builder().setNetworkConfig(config).build();
 		client = new CoapClient();
 		client.setURI("coap://127.0.0.1/" + TARGET);
-		client.setEndpoint(endpoint);
+		client.setEndpoint(clientEndpoint);
 		client.setTimeout(1000L);
 	}
 
@@ -149,6 +144,10 @@ public class NotificationReregistrationBackoffTest {
 	 */
 	@After
 	public void tearDownClient() {
+		if (clientEndpoint != null) {
+			clientEndpoint.destroy();
+			clientEndpoint = null;
+		}
 		if (client != null) {
 			client.shutdown();
 			client = null;

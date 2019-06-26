@@ -43,6 +43,8 @@ import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.rule.CoapThreadsRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -52,9 +54,15 @@ import org.junit.runners.Parameterized;
  * This test tests the serialization of messages to byte arrays and the parsing
  * back to messages.
  */
-@Category(Small.class) @RunWith(Parameterized.class) public class DataParserTest {
+@Category(Small.class)
+@RunWith(Parameterized.class)
+public class DataParserTest {
 
 	private static final EndpointContext ENDPOINT_CONTEXT = new AddressEndpointContext(InetAddress.getLoopbackAddress(), 1000);
+
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
+
 	private final DataSerializer serializer;
 	private final DataParser parser;
 	private final int expectedMid;
