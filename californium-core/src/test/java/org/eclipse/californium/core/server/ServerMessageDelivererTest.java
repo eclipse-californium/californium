@@ -29,7 +29,9 @@ import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.MatcherTestUtils;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.mockito.ArgumentCaptor;
@@ -40,6 +42,8 @@ import org.mockito.ArgumentCaptor;
  */
 @Category(Small.class)
 public class ServerMessageDelivererTest {
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
 
 	private Resource rootResource;
 	private Exchange incomingRequest;

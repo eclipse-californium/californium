@@ -33,12 +33,17 @@ import static org.mockito.Mockito.when;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.network.MatcherTestUtils.TestEndpointReceiver;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.rule.CoapNetworkRule;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
+import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -48,14 +53,23 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Small.class)
 public class TcpMatcherTest {
+	@ClassRule
+	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
+
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
 
 	private static final InetSocketAddress dest = new InetSocketAddress(InetAddress.getLoopbackAddress(), 5684);
+
+	private ScheduledExecutorService scheduler;
 	private EndpointContext exchangeEndpointContext;
 	private EndpointContext responseEndpointContext;
 	private EndpointContextMatcher endpointContextMatcher;
 
 	@Before
 	public void before() {
+		scheduler = MatcherTestUtils.newScheduler();
+		cleanup.add(scheduler);
 		exchangeEndpointContext = mock(EndpointContext.class);
 		responseEndpointContext = mock(EndpointContext.class);
 		endpointContextMatcher = mock(EndpointContextMatcher.class);
@@ -68,7 +82,7 @@ public class TcpMatcherTest {
 		when(endpointContextMatcher.isResponseRelatedToRequest(exchangeEndpointContext, responseEndpointContext))
 				.thenReturn(true);
 
-		TcpMatcher matcher = newTcpMatcher(endpointContextMatcher);
+		TcpMatcher matcher = newTcpMatcher(network.getStandardTestConfig(), endpointContextMatcher, scheduler);
 		Exchange exchange = sendRequest(dest, matcher, exchangeEndpointContext);
 		TestEndpointReceiver receiver = new TestEndpointReceiver();
 
@@ -85,7 +99,7 @@ public class TcpMatcherTest {
 		when(endpointContextMatcher.isResponseRelatedToRequest(exchangeEndpointContext, responseEndpointContext))
 				.thenReturn(false);
 
-		TcpMatcher matcher = newTcpMatcher(endpointContextMatcher);
+		TcpMatcher matcher = newTcpMatcher(network.getStandardTestConfig(), endpointContextMatcher, scheduler);
 		Exchange exchange = sendRequest(dest, matcher, exchangeEndpointContext);
 		TestEndpointReceiver receiver = new TestEndpointReceiver();
 

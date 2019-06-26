@@ -37,6 +37,7 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
@@ -51,8 +52,10 @@ import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -64,6 +67,10 @@ public class CoapEndpointTest {
 	static final byte[] TOKEN = new byte[] { 0x01, 0x02, 0x03 };
 	static final InetSocketAddress SOURCE_ADDRESS = new InetSocketAddress(InetAddress.getLoopbackAddress(), 12000);
 	static final InetSocketAddress CONNECTOR_ADDRESS = new InetSocketAddress(InetAddress.getLoopbackAddress(), 13000);
+
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
+
 	CoapEndpoint endpoint;
 	SimpleConnector connector;
 	List<Request> receivedRequests;
@@ -102,13 +109,12 @@ public class CoapEndpointTest {
 
 	@After
 	public void shutDownEndpoint() {
-		endpoint.stop();
+		endpoint.destroy();
 	}
 
 	@Test
 	public void testGetUriReturnsConnectorUri() throws URISyntaxException {
-		InetSocketAddress socketAddress = connector.getAddress();
-		URI uri = new URI("coap://" + socketAddress.getAddress().getHostAddress() + ":" + socketAddress.getPort());
+		URI uri = new URI(TestTools.getUri(connector.getAddress().getAddress(), connector.getAddress().getPort(), null));
 		assertThat(endpoint.getUri(), is(uri));
 	}
 
@@ -179,6 +185,7 @@ public class CoapEndpointTest {
 		};
 		endpoint.setMessageDeliverer(deliverer);
 		endpoint.start();
+		cleanup.add(endpoint);
 		
 		EndpointContext secureCtx = new DtlsEndpointContext(SOURCE_ADDRESS, null, "session", "1", "CIPHER", "100");
 		RawData inboundRequest = RawData.inbound(getSerializedRequest(), secureCtx, false);

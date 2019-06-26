@@ -12,6 +12,10 @@
 		<appender-ref ref="STDOUT" />
 	</logger>
 
+	<logger name="org.eclipse.californium.elements.rule.ThreadsRule" level="TRACE" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
+
 	<root level="WARN">
 		<appender-ref ref="STDOUT" />
 	</root>

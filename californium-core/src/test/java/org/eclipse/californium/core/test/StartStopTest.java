@@ -21,20 +21,24 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
-import java.net.DatagramSocket;
-
 import org.junit.Assert;
+
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
+import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.rule.CoapNetworkRule;
-import org.junit.After;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -55,83 +59,86 @@ public class StartStopTest {
 
 	public static final String SERVER_1_RESPONSE = "This is server one";
 	public static final String SERVER_2_RESPONSE = "This is server two";
-	
+
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
+
 	private CoapServer server1, server2;
-	private int serverPort;
-	
+	private String uri;
+
 	@Before
 	public void setupServers() throws Exception {
-		System.out.println("\nStart "+getClass().getSimpleName());
-		EndpointManager.clear();
-		
-		// Find a port
-//		// Not possible in Java 1.6
-//		try (DatagramSocket s = new DatagramSocket()) {
-//			serverPort = s.getLocalPort();
-//		} // here, Java closes the socket
-		DatagramSocket s = new DatagramSocket();
-		serverPort = s.getLocalPort();
-		s.close();
-		
-		Thread.sleep(500);
-		System.out.println("Socket port: "+serverPort);
-		
-		server1 = new CoapServer(serverPort);
+		NetworkConfig config = network.getStandardTestConfig();
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+		builder.setNetworkConfig(config);
+		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
+		Endpoint serverEndpoint = builder.build();
+		serverEndpoint.start();
+		uri = TestTools.getUri(serverEndpoint, "res");
+
+		builder = new CoapEndpoint.Builder();
+		builder.setNetworkConfig(config);
+		builder.setInetSocketAddress(serverEndpoint.getAddress());
+
+		server1 = new CoapServer(config);
+		server1.addEndpoint(builder.build());
 		server1.add(new CoapResource("res") {
 			@Override public void handleGET(CoapExchange exchange) {
 				exchange.respond(SERVER_1_RESPONSE);
 			}
 		});
-		
-		server2 = new CoapServer(serverPort);
+		cleanup.add(server1);
+
+		builder = new CoapEndpoint.Builder();
+		builder.setNetworkConfig(config);
+		builder.setInetSocketAddress(serverEndpoint.getAddress());
+
+		server2 = new CoapServer(config);
+		server2.addEndpoint(builder.build());
 		server2.add(new CoapResource("res") {
 			@Override public void handleGET(CoapExchange exchange) {
 				exchange.respond(SERVER_2_RESPONSE);
 			}
 		});
+		cleanup.add(server2);
+
+		serverEndpoint.destroy();
 	}
-	
-	@After
-	public void shutdownServers() {
-		if (server1 != null) server1.destroy();
-		if (server2 != null) server2.destroy();
-		System.out.println("End "+getClass().getSimpleName());
-	}
-	
+
 	@Test
 	public void test() throws Exception {
 		System.out.println("Start server 1");
 		server1.start();
 		sendRequestAndExpect(SERVER_1_RESPONSE);
-		
-		for (int i=0;i<3;i++) {
-			System.out.println("Stop server 1 and start server 2");
+
+		for (int i=1;i<4;i++) {
+			System.out.println("loop: " + i + " stop server 1 and start server 2");
 			server1.stop();
 			Thread.sleep(100); // sometimes Travis does not free the port immediately
 			EndpointManager.clear(); // forget all duplicates
 			server2.start();
 			sendRequestAndExpect(SERVER_2_RESPONSE);
 
-			System.out.println("Stop server 2 and start server 1");
+			System.out.println("loop: " + i + " stop server 2 and start server 1");
 			server2.stop();
 			Thread.sleep(100); // sometimes Travis does not free the port immediately
 			EndpointManager.clear(); // forget all duplicates
 			server1.start();
 			sendRequestAndExpect(SERVER_1_RESPONSE);
 		}
-		
+
 		System.out.println("Stop server 1");
 		server1.stop();
 	}
-	
+
 	private void sendRequestAndExpect(String expected) throws Exception {
 		System.out.println();
 		Thread.sleep(100);
 		Request request = Request.newGet();
-		request.setURI("coap://localhost:"+serverPort+"/res");
+		request.setURI(uri);
 		Response response = request.send().waitForResponse(2000);
-		Assert.assertNotNull(response);
-		Assert.assertEquals(expected, response.getPayloadString());
+		Assert.assertNotNull("missing response", response);
+		Assert.assertEquals("not expected response", expected, response.getPayloadString());
 	}
-	
+
 }

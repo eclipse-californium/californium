@@ -27,8 +27,8 @@ import static org.junit.Assert.assertThat;
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.BlockOption;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -40,16 +40,8 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Small.class)
 public class BlockOptionTest {
-
-	@BeforeClass
-	public static void start() {
-		System.out.println(System.lineSeparator() + "Start " + BlockOptionTest.class.getSimpleName());
-	}
-
-	@AfterClass
-	public static void end() {
-		System.out.println(System.lineSeparator() + "End " + BlockOptionTest.class.getSimpleName());
-	}
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
 
 	/**
 	 * Verifies that conversion from block size to szx code works.

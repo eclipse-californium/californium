@@ -39,8 +39,6 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -51,6 +49,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
@@ -64,16 +63,18 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.lockstep.ClientBlockwiseInterceptor;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -92,6 +93,12 @@ import org.slf4j.LoggerFactory;
 public class MemoryLeakingHashMapTest {
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
+
+	@ClassRule
+	public static CoapThreadsRule cleanup = new CoapThreadsRule();
+
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
 
 	@Rule
 	public TestTimeRule time = new TestTimeRule();
@@ -114,12 +121,9 @@ public class MemoryLeakingHashMapTest {
 	private static final String URI = "test";
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(MemoryLeakingHashMapTest.class.getName());
-	private static ScheduledExecutorService timer;
-	private static CoapServer server;
-	private static int serverPort;
+	private static Endpoint serverEndpoint;
 
 	// The server endpoint that we test
-	private static CoapEndpoint serverEndpoint;
 	private static CoapEndpoint clientEndpoint;
 	private static InMemoryMessageExchangeStore clientExchangeStore;
 	private static InMemoryMessageExchangeStore serverExchangeStore;
@@ -130,18 +134,9 @@ public class MemoryLeakingHashMapTest {
 
 	@BeforeClass
 	public static void startupServer() throws Exception {
-		LOGGER.debug("start {}", MemoryLeakingHashMapTest.class.getSimpleName());
-		timer = Executors.newSingleThreadScheduledExecutor();
 		createServerAndClientEndpoints();
 	}
 
-	@AfterClass
-	public static void shutdownServer() {
-		timer.shutdown();
-		clientEndpoint.stop();
-		server.destroy();
-		LOGGER.debug("end {}", MemoryLeakingHashMapTest.class.getSimpleName());
-	}
 
 	@Before
 	public void startExchangeStores() {
@@ -392,7 +387,7 @@ public class MemoryLeakingHashMapTest {
 		// Create the endpoint for the server and create surveillant
 		serverExchangeStore = new InMemoryMessageExchangeStore(config);	
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
 		builder.setNetworkConfig(config);
 		builder.setMessageExchangeStore(serverExchangeStore);
 		serverEndpoint = builder.build();
@@ -400,26 +395,29 @@ public class MemoryLeakingHashMapTest {
 
 		clientExchangeStore = new InMemoryMessageExchangeStore(config);
 		builder = new CoapEndpoint.Builder();
-		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
 		builder.setNetworkConfig(config);
 		builder.setMessageExchangeStore(clientExchangeStore);
 		clientEndpoint = builder.build();
+		cleanup.add(clientEndpoint);
 		clientEndpoint.addInterceptor(clientInterceptor);
 		clientEndpoint.start();
 
 		// Create a server with two resources: one that sends piggy-backed
 		// responses and one that sends separate responses
+		ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor();
+		cleanup.add(timer);
 
-		server = new CoapServer(config);
+		CoapServer server = new CoapServer(config);
+		cleanup.add(server);
 		server.addEndpoint(serverEndpoint);
 		resource = new TestResource(timer);
 		server.add(resource);
 		server.start();
-		serverPort = serverEndpoint.getAddress().getPort();
 	}
 
 	private static String uriOf(final String resourcePath) {
-		return String.format("coap://%s:%d/%s", InetAddress.getLoopbackAddress().getHostAddress(), serverPort, resourcePath);
+		return TestTools.getUri(serverEndpoint, resourcePath);
 	}
 
 	private enum Mode { PIGGY_BACKED_RESPONSE, SEPARATE_RESPONSE; }

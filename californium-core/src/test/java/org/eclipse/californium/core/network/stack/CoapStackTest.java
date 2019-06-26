@@ -9,6 +9,10 @@ import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.TestThreadFactory;
+import org.eclipse.californium.rule.CoapThreadsRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -18,7 +22,7 @@ import org.mockito.ArgumentCaptor;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -31,12 +35,17 @@ public class CoapStackTest {
 
 	private static final NetworkConfig CONFIG = NetworkConfig.createStandardWithoutFile();
 
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
+
 	private final CoapStack stack;
 	private final Outbox outbox;
 
 	public CoapStackTest(CoapStack stack, Outbox outbox) {
 		this.stack = stack;
-		this.stack.setExecutors(Executors.newSingleThreadScheduledExecutor(), Executors.newSingleThreadScheduledExecutor());
+		ScheduledExecutorService executor = ExecutorsUtil.newSingleThreadScheduledExecutor(new TestThreadFactory("coap-stack-"));
+		cleanup.add(executor);
+		this.stack.setExecutors(executor, executor);
 		this.outbox = outbox;
 	}
 

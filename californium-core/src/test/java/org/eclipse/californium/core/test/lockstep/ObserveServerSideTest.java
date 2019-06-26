@@ -45,7 +45,6 @@ import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.pr
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
@@ -64,10 +63,11 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.ErrorInjector;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -89,14 +89,19 @@ public class ObserveServerSideTest {
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
+	@ClassRule
+	public static CoapThreadsRule cleanup = new CoapThreadsRule();
+
 	@Rule
 	public TestTimeRule time = new TestTimeRule();
+
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
 
 	private static final int ACK_TIMEOUT = 200;
 	private static final String RESOURCE_PATH = "obs";
 	private static NetworkConfig CONFIG;
 
-	private static CoapServer server;
 	private static InetSocketAddress serverAddress;
 	private static CoapTestEndpoint serverEndpoint;
 
@@ -111,8 +116,6 @@ public class ObserveServerSideTest {
 
 	@BeforeClass
 	public static void start() {
-		System.out.println(System.lineSeparator() + "Start " + ObserveServerSideTest.class.getSimpleName());
-
 		CONFIG = network.createTestConfig()
 				.setInt(NetworkConfig.Keys.ACK_TIMEOUT, ACK_TIMEOUT)
 				.setFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1f)
@@ -125,15 +128,15 @@ public class ObserveServerSideTest {
 
 		testObsResource = new TestObserveResource(RESOURCE_PATH);
 
-		server = new CoapServer();
-		serverEndpoint = new CoapTestEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG);
+		CoapServer server = new CoapServer(CONFIG);
+		cleanup.add(server);
+		serverEndpoint = new CoapTestEndpoint(TestTools.LOCALHOST_EPHEMERAL, CONFIG);
 		server.addEndpoint(serverEndpoint);
 		server.add(testObsResource);
-		server.getEndpoints().get(0).addInterceptor(serverInterceptor);
+		serverEndpoint.addInterceptor(serverInterceptor);
 		server.start();
-		serverAddress = server.getEndpoints().get(0).getAddress();
+		serverAddress = serverEndpoint.getAddress();
 		System.out.println("Server binds to port " + serverAddress.getPort());
-
 	}
 
 	@Before
@@ -149,16 +152,8 @@ public class ObserveServerSideTest {
 			assertAllEndpointExchangesAreCompleted(serverEndpoint);
 		} finally {
 			printServerLog(serverInterceptor);
-			System.out.println();
 			client.destroy();
 		}
-	}
-
-	@AfterClass
-	public static void finish() {
-
-		System.out.println("End " + ObserveServerSideTest.class.getSimpleName());
-		server.destroy();
 	}
 
 	@Test

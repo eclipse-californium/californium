@@ -41,7 +41,7 @@ import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.UdpMulticastConnector;
 import org.eclipse.californium.rule.CoapNetworkRule;
-import org.junit.AfterClass;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -58,18 +58,19 @@ public class MulticastTest {
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.NATIVE, CoapNetworkRule.Mode.DIRECT);
 
+	@ClassRule
+	public static CoapThreadsRule cleanup = new CoapThreadsRule();
+
 	private final static int TIMEOUT_MILLIS = 2000;
 	private final static int PORT = CoAP.DEFAULT_COAP_PORT + 1000;
 
-	private static CoapServer server1;
-	private static CoapServer server2;
 	private static NetworkConfig config;
 
 	@BeforeClass
 	public static void setupServer() {
 		config = network.getStandardTestConfig();
 		config.setInt(NetworkConfig.Keys.MULTICAST_BASE_MID, 20000);
-		server1 = new CoapServer();
+		CoapServer server1 = new CoapServer(config);
 		InetSocketAddress serverSocketAddress = new InetSocketAddress(PORT);
 		Connector connector = new UdpMulticastConnector(serverSocketAddress, CoAP.MULTICAST_IPV4);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
@@ -91,8 +92,9 @@ public class MulticastTest {
 			}
 		});
 		server1.start();
+		cleanup.add(server1);
 
-		server2 = new CoapServer();
+		CoapServer server2 = new CoapServer();
 		connector = new UdpMulticastConnector(serverSocketAddress, CoAP.MULTICAST_IPV4);
 		builder = new CoapEndpoint.Builder();
 		builder.setNetworkConfig(config);
@@ -113,12 +115,7 @@ public class MulticastTest {
 			}
 		});
 		server2.start();
-	}
-
-	@AfterClass
-	public static void closeServer() {
-		server1.destroy();
-		server2.destroy();
+		cleanup.add(server2);
 	}
 
 	@Test
@@ -128,9 +125,12 @@ public class MulticastTest {
 		request.setURI("coap://" + CoAP.MULTICAST_IPV4.getHostAddress() + ":" + PORT + "/hello");
 		request.setType(Type.NON);
 		CoapClient client = new CoapClient();
+		cleanup.add(client);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setNetworkConfig(config);
-		client.setEndpoint(builder.build());
+		CoapEndpoint endpoint = builder.build();
+		cleanup.add(endpoint);
+		client.setEndpoint(endpoint);
 		client.advanced(handler, request);
 		CoapResponse response = handler.waitOnLoad(TIMEOUT_MILLIS);
 		assertThat(response, is(notNullValue()));
@@ -138,7 +138,6 @@ public class MulticastTest {
 		response = handler.waitOnLoad(TIMEOUT_MILLIS);
 		assertThat(response, is(notNullValue()));
 		assertThat(response.getResponseText(), anyOf(is("Hello World 1!"), is("Hello World 2!")));
-		client.shutdown();
 	}
 
 	@Test
@@ -148,9 +147,12 @@ public class MulticastTest {
 		request.setURI("coap://" + CoAP.MULTICAST_IPV4.getHostAddress() + ":" + PORT + "/no");
 		request.setType(Type.NON);
 		CoapClient client = new CoapClient();
+		cleanup.add(client);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setNetworkConfig(config);
-		client.setEndpoint(builder.build());
+		CoapEndpoint endpoint = builder.build();
+		cleanup.add(endpoint);
+		client.setEndpoint(endpoint);
 		client.advanced(handler, request);
 		CoapResponse response = handler.waitOnLoad(TIMEOUT_MILLIS);
 		assertThat(response, is(notNullValue()));
@@ -159,7 +161,6 @@ public class MulticastTest {
 		response = handler.waitOnLoad(TIMEOUT_MILLIS);
 		assertThat(response, is(nullValue()));
 		assertThat(request.isRejected(), is(false));
-		client.shutdown();
 	}
 
 	private static class MultiCoapHandler implements CoapHandler {

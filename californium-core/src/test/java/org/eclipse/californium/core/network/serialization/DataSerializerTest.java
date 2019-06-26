@@ -38,6 +38,8 @@ import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.rule.CoapThreadsRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -53,6 +55,9 @@ import org.junit.runners.Parameterized.Parameters;
 public class DataSerializerTest {
 
 	private static final EndpointContext ENDPOINT_CONTEXT = new DtlsEndpointContext(new InetSocketAddress(0), null, "session", "1", "CIPHER", "100");
+
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
 
 	/**
 	 * The concrete serializer to run the test cases with.

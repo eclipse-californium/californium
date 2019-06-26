@@ -47,11 +47,13 @@ import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptorAdapter;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
-import org.junit.AfterClass;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -59,6 +61,12 @@ import org.junit.experimental.categories.Category;
 public class ClientSynchronousTest {
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
+
+	@ClassRule
+	public static CoapThreadsRule cleanup = new CoapThreadsRule();
+
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
 
 	private static final String TARGET = "storage";
 	private static final String CONTENT_1 = "one";
@@ -69,7 +77,6 @@ public class ClientSynchronousTest {
 	private static final String OVERLOAD = "overload";
 	private static final int OVERLOAD_TIME = 123;
 
-	private static CoapServer server;
 	private static Endpoint serverEndpoint;
 	private static int serverPort;
 	private static StorageResource resource;
@@ -81,20 +88,13 @@ public class ClientSynchronousTest {
 	@BeforeClass
 	public static void startupServer() {
 		network.getStandardTestConfig().setLong(NetworkConfig.Keys.MAX_TRANSMIT_WAIT, 100);
-		createServer();
-		System.out.println(System.lineSeparator() + "Start " + ClientSynchronousTest.class.getSimpleName() +
-				" on " + serverEndpoint.getUri());
+		CoapServer server = createServer();
+		cleanup.add(server);
 	}
 
 	@Before
 	public void resetResource() {
 		resource.reset();
-	}
-
-	@AfterClass
-	public static void shutdownServer() {
-		server.destroy();
-		System.out.println("End " + ClientSynchronousTest.class.getSimpleName());
 	}
 
 	@Test
@@ -163,8 +163,10 @@ public class ClientSynchronousTest {
 		Assert.assertEquals(CONTENT_3, resp7);
 
 		// Try to use the builder and add a query
-		String resp8 = new CoapClient.Builder("localhost", serverPort)
-			.scheme("coap").path(TARGET).query(QUERY_UPPER_CASE).create().get().getResponseText();
+		CoapClient client2 = new CoapClient.Builder("localhost", serverPort)
+			.scheme("coap").path(TARGET).query(QUERY_UPPER_CASE).create();
+		cleanup.add(client2);
+		String resp8 = client2.get().getResponseText();
 		Assert.assertEquals(CONTENT_4.toUpperCase(), resp8);
 
 		// Check that we indeed received 5 notifications
@@ -181,6 +183,7 @@ public class ClientSynchronousTest {
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 		CoapEndpoint clientEndpoint = builder.build();
+		cleanup.add(clientEndpoint);
 		clientEndpoint.addInterceptor(new MessageInterceptorAdapter() {
 			
 			@Override
@@ -248,18 +251,19 @@ public class ClientSynchronousTest {
 		client.shutdown();
 	}
 
-	private static void createServer() {
+	private static CoapServer createServer() {
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
 		serverEndpoint = builder.build();
 
 		resource = new StorageResource(TARGET, CONTENT_1);
-		server = new CoapServer();
+		CoapServer server = new CoapServer(network.getStandardTestConfig());
 		server.add(resource);
 
 		server.addEndpoint(serverEndpoint);
 		server.start();
 		serverPort = serverEndpoint.getAddress().getPort();
+		return server;
 	}
 
 	private static class StorageResource extends CoapResource {

@@ -43,10 +43,9 @@ import static org.eclipse.californium.core.test.MessageExchangeStoreTool.*;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Large;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
@@ -55,12 +54,12 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.test.CountingMessageObserver;
 import org.eclipse.californium.core.test.ErrorInjector;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -77,10 +76,16 @@ public class ObserveClientSideTest {
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
-	private static NetworkConfig CONFIG;
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
 
 	@Rule
 	public TestTimeRule time = new TestTimeRule();
+
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
+
+	private NetworkConfig config;
 
 	private LockstepEndpoint server;
 	private CoapTestEndpoint client;
@@ -88,10 +93,9 @@ public class ObserveClientSideTest {
 	private String respPayload;
 	private ClientBlockwiseInterceptor clientInterceptor = new ClientBlockwiseInterceptor();
 
-	@BeforeClass
-	public static void init() {
-		System.out.println(System.lineSeparator() + "Start " + ObserveClientSideTest.class.getSimpleName());
-		CONFIG = network.createTestConfig()
+	@Before
+	public void setup() throws Exception {
+		config = network.createStandardTestConfig()
 				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 16)
 				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 16)
 				.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200) // client retransmits after 200 ms
@@ -101,33 +105,23 @@ public class ObserveClientSideTest {
 				.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL)
 				.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME)
 				.setLong(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, 2000);
-	}
-
-	@Before
-	public void setupEndpoints() throws Exception {
 		// don't check address, tests explicitly change it!
-		client = new CoapTestEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG, false);
+		client = new CoapTestEndpoint(TestTools.LOCALHOST_EPHEMERAL, config, false);
 		client.addInterceptor(clientInterceptor);
 		client.start();
+		cleanup.add(client);
 		System.out.println("Client binds to port " + client.getAddress().getPort());
 		server = createLockstepEndpoint(client.getAddress());
+		cleanup.add(server);
 	}
 
 	@After
-	public void shutdownEndpoints() {
+	public void shutdown() {
 		try {
 			assertAllEndpointExchangesAreCompleted(client);
 		} finally {
 			printServerLog(clientInterceptor);
-			
-			client.destroy();
-			server.destroy();
 		}
-	}
-
-	@AfterClass
-	public static void end() {
-		System.out.println("End " + ObserveClientSideTest.class.getSimpleName());
 	}
 
 	@Test
@@ -927,6 +921,7 @@ public class ObserveClientSideTest {
 
 		// create new server with new port
 		server = createChangedLockstepEndpoint(server);
+		cleanup.add(server);
 
 		// Send new block2 notification
 		respPayload = generateRandomPayload(42);
@@ -1030,6 +1025,7 @@ public class ObserveClientSideTest {
 
 		// create new server with new port
 		server = createChangedLockstepEndpoint(server);
+		cleanup.add(server);
 
 		// Send new block2 notification
 		respPayload = generateRandomPayload(42);
@@ -1088,6 +1084,7 @@ public class ObserveClientSideTest {
 
 		// create new server with new port
 		server = createChangedLockstepEndpoint(server);
+		cleanup.add(server);
 
 		// Send new block2 notification
 		respPayload = generateRandomPayload(42);
@@ -1138,7 +1135,7 @@ public class ObserveClientSideTest {
 	@Test
 	public void testBlockwiseObserveAndTimedoutNotification() throws Exception {
 		System.out.println("Blockwise Observe:");
-		int timeoutMillis = CONFIG.getInt(NetworkConfig.Keys.ACK_TIMEOUT);
+		int timeoutMillis = config.getInt(NetworkConfig.Keys.ACK_TIMEOUT);
 		
 		// observer request response will be sent using blockwise
 		respPayload = generateRandomPayload(2 * 16);

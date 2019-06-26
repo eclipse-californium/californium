@@ -43,10 +43,12 @@ import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
-import org.junit.After;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -59,12 +61,16 @@ public class ClusteringTest {
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
+
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
+
 	private LockstepEndpoint server;
 
 	private Endpoint client1;
 	private Endpoint client2;
-	private int clientPort1;
-	private int clientPort2;
 	private int mid = 8000;
 	private String respPayload;
 	private ClientBlockwiseInterceptor clientInterceptor = new ClientBlockwiseInterceptor();
@@ -73,11 +79,9 @@ public class ClusteringTest {
 	private SynchronousNotificationListener notificationListener2;
 
 	@Before
-	public void setupClient() throws IOException {
+	public void setup() throws IOException {
 
-		System.out.println(System.lineSeparator() + "Start " + getClass().getSimpleName());
-
-		NetworkConfig config = network.createTestConfig()
+		NetworkConfig config = network.createStandardTestConfig()
 				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 16)
 				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 16)
 				.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200) // client retransmits after 200ms
@@ -96,8 +100,8 @@ public class ClusteringTest {
 		client1.addInterceptor(clientInterceptor);
 		client1.addInterceptor(new MessageTracer());
 		client1.start();
-		clientPort1 = client1.getAddress().getPort();
-		System.out.println("Client 1 binds to port " + clientPort1);
+		cleanup.add(client1);
+		System.out.println("Client 1 binds to port " + client1.getAddress().getPort());
 
 		notificationListener2 = new SynchronousNotificationListener();
 		builder = new CoapEndpoint.Builder();
@@ -109,16 +113,12 @@ public class ClusteringTest {
 		client2.addInterceptor(clientInterceptor);
 		client2.addInterceptor(new MessageTracer());
 		client2.start();
-		clientPort2 = client2.getAddress().getPort();
-		System.out.println("Client 2 binds to port " + clientPort2);
-	}
+		cleanup.add(client2);
+		System.out.println("Client 2 binds to port " + client2.getAddress().getPort());
 
-	@After
-	public void shutdownClient() {
-		System.out.println();
-		client1.destroy();
-		client2.destroy();
-		System.out.println("End " + getClass().getSimpleName());
+		server = new LockstepEndpoint();
+		server.setDestination(client1.getAddress());
+		cleanup.add(server);
 	}
 
 	@Test
@@ -127,7 +127,6 @@ public class ClusteringTest {
 		System.out.println(System.lineSeparator() + "Observe:");
 		respPayload = TestTools.generateRandomPayload(10);
 		String path = "test";
-		server = createLockstepEndpoint();
 		int obs = 100;
 
 		assertTrue(store.isEmpty());
@@ -184,7 +183,6 @@ public class ClusteringTest {
 		System.out.println(System.lineSeparator() + "Observe with blockwise:");
 		respPayload = TestTools.generateRandomPayload(40);
 		String path = "test";
-		server = createLockstepEndpoint();
 		int obs = 100;
 
 		assertTrue(store.isEmpty());
@@ -257,7 +255,6 @@ public class ClusteringTest {
 		System.out.println(System.lineSeparator() + "Observe:");
 		respPayload = TestTools.generateRandomPayload(10);
 		String path = "test";
-		server = createLockstepEndpoint();
 		int obs = 100;
 
 		assertTrue(store.isEmpty());
@@ -339,17 +336,10 @@ public class ClusteringTest {
 		assertThat(String.format("Client %d received wrong payload", clientNo), response.getPayloadString(), is(expectedPayload));
 	}
 
-	private LockstepEndpoint createLockstepEndpoint() throws Exception {
-
-		LockstepEndpoint endpoint = new LockstepEndpoint();
-		endpoint.setDestination(new InetSocketAddress(InetAddress.getLoopbackAddress(), clientPort1));
-		return endpoint;
-	}
-
 	private Request createRequest(Code code, String path) throws Exception {
 
 		Request request = new Request(code);
-		String uri = TestTools.getUri(new InetSocketAddress(server.getAddress(),  server.getPort()), path);
+		String uri = TestTools.getUri(server.getSocketAddress(), path);
 		request.setURI(uri);
 		return request;
 	}

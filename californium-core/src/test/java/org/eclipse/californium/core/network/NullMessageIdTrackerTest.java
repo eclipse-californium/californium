@@ -22,6 +22,8 @@ import static org.eclipse.californium.TestTools.inRange;
 import static org.eclipse.californium.core.network.MessageIdTracker.TOTAL_NO_OF_MIDS;
 
 import org.eclipse.californium.category.Small;
+import org.eclipse.californium.rule.CoapThreadsRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -30,6 +32,8 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Small.class)
 public class NullMessageIdTrackerTest {
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
 
 	private static final int INITIAL_MID = 0;
 

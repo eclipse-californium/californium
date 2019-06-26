@@ -54,12 +54,12 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
 import org.eclipse.californium.elements.assume.TimeAssume;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -76,7 +76,13 @@ public class BlockwiseServerSideTest {
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
 	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
+
+	@Rule
 	public TestTimeRule time = new TestTimeRule();
+
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
 
 	private static final int TEST_EXCHANGE_LIFETIME = 247; // milliseconds
 	private static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 100; // milliseconds
@@ -85,7 +91,7 @@ public class BlockwiseServerSideTest {
 	private static final int MAX_RESOURCE_BODY_SIZE = 1024;
 	private static final String RESOURCE_PATH = "test";
 
-	private static NetworkConfig CONFIG;
+	private NetworkConfig config;
 
 	private CoapServer server;
 	private CoapTestEndpoint serverEndpoint;
@@ -99,20 +105,15 @@ public class BlockwiseServerSideTest {
 	private Token expectedToken;
 	private ServerBlockwiseInterceptor serverInterceptor = new ServerBlockwiseInterceptor();
 
-	@BeforeClass
-	public static void init() {
-		System.out.println(System.lineSeparator() + "Start " + BlockwiseServerSideTest.class.getSimpleName());
-		CONFIG = network.createTestConfig()
+	@Before
+	public void setup() throws Exception {
+		config = network.createStandardTestConfig()
 				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 128)
 				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, TEST_PREFERRED_BLOCK_SIZE)
 				.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, MAX_RESOURCE_BODY_SIZE)
 				.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL)
 				.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME)
 				.setLong(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, TEST_BLOCKWISE_STATUS_LIFETIME);
-	}
-
-	@Before
-	public void setupEndpoints() throws Exception {
 
 		etag = null;
 		expectedMid = null;
@@ -120,33 +121,26 @@ public class BlockwiseServerSideTest {
 		testResource = new TestResource(RESOURCE_PATH);
 		testResource.setObservable(true);
 		// bind to loopback address using an ephemeral port
-		serverEndpoint = new CoapTestEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG);
+		serverEndpoint = new CoapTestEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
 		serverEndpoint.addInterceptor(serverInterceptor);
-		server = new CoapServer();
+		server = new CoapServer(config);
 		server.addEndpoint(serverEndpoint);
 		server.add(testResource);
 		server.start();
+		cleanup.add(server);
 		InetSocketAddress serverAddress = serverEndpoint.getAddress();
 		System.out.println("Server binds to port " + serverAddress.getPort());
 		client = createLockstepEndpoint(serverAddress);
+		cleanup.add(client);
 	}
 
 	@After
-	public void shutdownEndpoints() {
+	public void shutdown() {
 		try {
 			assertAllExchangesAreCompleted(serverEndpoint, time);
 		} finally {
 			printServerLog(serverInterceptor);
-
-			System.out.println();
-			client.destroy();
-			server.destroy();
 		}
-	}
-
-	@AfterClass
-	public static void finish() {
-		System.out.println("End " + BlockwiseServerSideTest.class.getSimpleName());
 	}
 
 	/**

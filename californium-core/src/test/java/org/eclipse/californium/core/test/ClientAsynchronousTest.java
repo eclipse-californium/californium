@@ -28,8 +28,6 @@ package org.eclipse.californium.core.test;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -39,6 +37,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
@@ -52,14 +51,17 @@ import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -68,13 +70,18 @@ public class ClientAsynchronousTest {
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
+	@ClassRule
+	public static CoapThreadsRule cleanup = new CoapThreadsRule();
+
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
+
 	public static final String TARGET = "storage";
 	public static final String CONTENT_1 = "one";
 	public static final String CONTENT_2 = "two";
 	public static final String QUERY_UPPER_CASE = "uppercase";
 
-	private static CoapServer server;
-	private static InetSocketAddress serverAddress;
+	private static Endpoint serverEndpoint;
 	private static String uri;
 
 	private static StorageResource resource;
@@ -84,28 +91,20 @@ public class ClientAsynchronousTest {
 
 	@BeforeClass
 	public static void init() {
-		System.out.println(System.lineSeparator() + "Start " + ClientAsynchronousTest.class.getSimpleName());
 		network.getStandardTestConfig()
 			.setLong(NetworkConfig.Keys.MAX_TRANSMIT_WAIT, 100);
-		createServer();
-		uri = String.format("coap://%s:%d/%s", serverAddress.getHostString(), serverAddress.getPort(), TARGET);
+		cleanup.add(createServer());
 	}
 
 	@Before
-	public void startupServer() {
+	public void startupClient() {
 		resource.setContent(CONTENT_1);
 		client = new CoapClient(uri).useExecutor();
 	}
 
 	@After
-	public void shutdownServer() {
+	public void shutdownClient() {
 		client.shutdown();
-	}
-
-	@AfterClass
-	public static void finish() {
-		server.destroy();
-		System.out.println("End " + ClientAsynchronousTest.class.getSimpleName());
 	}
 
 	@Test
@@ -209,9 +208,9 @@ public class ClientAsynchronousTest {
 		final CountDownLatch latch = new CountDownLatch(1);
 
 		// Try to use the builder and add a query
-		new CoapClient.Builder(serverAddress.getHostString(), serverAddress.getPort())
-				.scheme("coap").path(TARGET).query(QUERY_UPPER_CASE).create()
-				.get(new TestHandler("Test 8") {
+		String uri = client.getURI() + "?" + QUERY_UPPER_CASE;
+		client.setURI(uri);
+		client.get(new TestHandler("Test 8") {
 					@Override
 					public void onLoad(CoapResponse response) {
 						if (CONTENT_1.toUpperCase().equals(response.getResponseText())) {
@@ -244,8 +243,7 @@ public class ClientAsynchronousTest {
 
 	@Test
 	public void testAdvancedUsesUriFromRequest() throws Exception {
-		String unexistingUri =
-				String.format("coap://%s:%d/%s", serverAddress.getHostString(), serverAddress.getPort(), "unexisting");
+		String unexistingUri = TestTools.getUri(serverEndpoint, "unexisting");
 		client.setURI(unexistingUri);
 		final CountDownLatch latch = new CountDownLatch(1);
 
@@ -273,18 +271,20 @@ public class ClientAsynchronousTest {
 		}
 	}
 
-	private static void createServer() {
+	private static CoapServer createServer() {
+		NetworkConfig config = network.getStandardTestConfig();
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
-		CoapEndpoint endpoint = builder.build();
+		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
+		serverEndpoint = builder.build();
 
 		resource = new StorageResource(TARGET, CONTENT_1);
-		server = new CoapServer();
+		CoapServer server = new CoapServer(config);
 		server.add(resource);
 
-		server.addEndpoint(endpoint);
+		server.addEndpoint(serverEndpoint);
 		server.start();
-		serverAddress = endpoint.getAddress();
+		uri = TestTools.getUri(serverEndpoint, TARGET);
+		return server;
 	}
 
 	private static class StorageResource extends CoapResource {

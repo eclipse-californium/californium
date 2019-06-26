@@ -29,7 +29,9 @@ import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.rule.CoapNetworkRule;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -40,11 +42,14 @@ import org.junit.experimental.categories.Category;
 @Category(Small.class)
 public class GroupedMessageIdTrackerTest {
 
+	private static final int INITIAL_MID = 0;
+
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT,
 			CoapNetworkRule.Mode.NATIVE);
 
-	private static final int INITIAL_MID = 0;
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
 
 	@Test
 	public void testGetNextMessageIdFailsIfAllMidsAreInUse() throws Exception {
@@ -58,8 +63,9 @@ public class GroupedMessageIdTrackerTest {
 		// THEN using the complete other half should not be possible
 		for (int i = 0; i < TOTAL_NO_OF_MIDS / 2; i++) {
 			int mid = tracker.getNextMessageId();
-			if (0 > mid)
+			if (0 > mid) {
 				return;
+			}
 		}
 		fail("mids should run out.");
 	}
@@ -79,8 +85,9 @@ public class GroupedMessageIdTrackerTest {
 		// THEN using the complete other half should not be possible
 		for (int i = 0; i < rangeMid / 2; i++) {
 			int mid = tracker.getNextMessageId();
-			if (0 > mid)
+			if (0 > mid) {
 				return;
+			}
 			assertThat(mid, is(inRange(minMid, maxMid)));
 		}
 		fail("mids should run out.");
@@ -99,8 +106,9 @@ public class GroupedMessageIdTrackerTest {
 		long start = System.nanoTime();
 		for (int i = 1; i < TOTAL_NO_OF_MIDS; i++) {
 			int nextMid = tracker.getNextMessageId();
-			if (nextMid < 0)
+			if (nextMid < 0) {
 				break;
+			}
 		}
 
 		// THEN the first message ID is re-used after EXCHANGE_LIFETIME has
