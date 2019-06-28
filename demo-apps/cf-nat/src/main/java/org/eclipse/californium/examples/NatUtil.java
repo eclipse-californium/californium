@@ -66,6 +66,12 @@ public class NatUtil implements Runnable {
 	 * Message dropping log interval.
 	 */
 	private static final int MESSAGE_DROPPING_LOG_INTERVAL_MS = 1000 * 10;
+
+	private static final ThreadGroup NAT_THREAD_GROUP = new ThreadGroup("NAT");
+	/**
+	 * The thread for the proxy.
+	 */
+	private final Thread proxyThread;
 	/**
 	 * The name of the proxy interface address.
 	 */
@@ -217,8 +223,8 @@ public class NatUtil implements Runnable {
 		this.proxyName = proxy.getHostString() + ":" + proxy.getPort();
 		this.destinationName = destination.getHostString() + ":" + destination.getPort();
 		this.proxyPacket = new DatagramPacket(new byte[DATAGRAM_SIZE], DATAGRAM_SIZE);
-
-		new Thread(this).start();
+		this.proxyThread = new Thread(NAT_THREAD_GROUP, this, "NAT-" + proxy.getPort());
+		this.proxyThread.start();
 	}
 
 	@Override
@@ -262,7 +268,12 @@ public class NatUtil implements Runnable {
 	public void stop() {
 		running = false;
 		proxySocket.close();
+		proxyThread.interrupt();
 		stopAllNatEntries();
+		try {
+			proxyThread.join(1000);
+		} catch (InterruptedException ex) {
+		}
 		LOGGER.warn("NAT stopped. {} forwarded messages, {} backwarded", forwardCounter, backwardCounter);
 	}
 
@@ -472,7 +483,6 @@ public class NatUtil implements Runnable {
 		private final Thread thread;
 		private String incomingName;
 		private InetSocketAddress incoming;
-		private boolean stopped = false;
 		private volatile boolean running = true;
 		private final AtomicLong lastUsage = new AtomicLong(System.nanoTime());
 
@@ -482,7 +492,7 @@ public class NatUtil implements Runnable {
 			this.outgoingSocket.setSoTimeout(SOCKET_TIMEOUT_MS);
 			this.packet = new DatagramPacket(new byte[DATAGRAM_SIZE], DATAGRAM_SIZE);
 			this.natName = Integer.toString(this.outgoingSocket.getLocalPort());
-			this.thread = new Thread(this);
+			this.thread = new Thread(NAT_THREAD_GROUP, this, "NAT-ENTRY-" + incoming.getPort());
 			this.thread.start();
 		}
 
@@ -552,10 +562,6 @@ public class NatUtil implements Runnable {
 				if (running) {
 					nats.remove(incoming, this);
 				}
-				synchronized (this) {
-					stopped = true;
-					notifyAll();
-				}
 			}
 		}
 
@@ -564,11 +570,7 @@ public class NatUtil implements Runnable {
 			outgoingSocket.close();
 			thread.interrupt();
 			try {
-				synchronized (this) {
-					while (!stopped) {
-						wait();
-					}
-				}
+				thread.join(2000);
 			} catch (InterruptedException e) {
 			}
 		}
