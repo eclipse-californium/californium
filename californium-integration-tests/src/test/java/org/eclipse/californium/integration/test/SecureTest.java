@@ -20,13 +20,12 @@ import static org.junit.Assert.fail;
 import static org.junit.Assert.assertEquals;
 
 import java.net.DatagramSocket;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapServer;
@@ -39,13 +38,13 @@ import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.test.CountingHandler;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
 import org.eclipse.californium.elements.StrictDtlsEndpointContextMatcher;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.integration.test.util.CoapsNetworkRule;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -57,6 +56,12 @@ public class SecureTest {
 	@ClassRule
 	public static CoapsNetworkRule network = new CoapsNetworkRule(CoapsNetworkRule.Mode.DIRECT,
 			CoapsNetworkRule.Mode.NATIVE);
+
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
+
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
 
 	@Rule
 	public TestTimeRule time = new TestTimeRule();
@@ -78,21 +83,12 @@ public class SecureTest {
 	private static final int RETRANSMISSION_TIMEOUT = 100; // milliseconds
 
 	// DTLS config constants for simultaneous handshakes
+	private static final int TEST_DTLS_RETRANSMISSIONS = 5;
 	private static final int TEST_DTLS_TIMEOUT = 2000; // milliseconds
 	private static final int TEST_DTLS_FAST_TIMEOUT = 100; // milliseconds
 	private static final int TEST_DTLS_PSK_DELAY = 50; // milliseconds
 
 	private CoapTestEndpoint coapTestEndpoint;
-
-	@Before
-	public void startupServer() {
-		System.out.println(System.lineSeparator() + "Start " + getClass().getSimpleName());
-	}
-
-	@After
-	public void shutdownServer() {
-		System.out.println("End " + getClass().getSimpleName());
-	}
 
 	/**
 	 * Ensure there is no leak when we try to send a request to an absent peer
@@ -107,7 +103,7 @@ public class SecureTest {
 			createTestEndpoint();
 
 			// Send a request to an absent peer
-			CoapClient client = new CoapClient("coaps", InetAddress.getLoopbackAddress().getHostAddress(), freePort);
+			CoapClient client = new CoapClient("coaps", TestTools.LOCALHOST_EPHEMERAL.getHostString(), freePort);
 			CountingHandler handler = new CountingHandler();
 			client.get(handler);
 
@@ -145,7 +141,7 @@ public class SecureTest {
 	public void testSecureHandshakes(int loop) throws Exception {
 		CoapEndpoint serverEndpoint = createEndpoint("server", TEST_EXCHANGE_LIFETIME, TEST_ACK_TIMEOUT,
 				TEST_DTLS_TIMEOUT, TEST_DTLS_PSK_DELAY);
-		CoapServer server = new CoapServer(serverEndpoint.getConfig(), new int[0]);
+		CoapServer server = new CoapServer(serverEndpoint.getConfig());
 		server.addEndpoint(serverEndpoint);
 		server.start();
 		URI uri = serverEndpoint.getUri();
@@ -167,7 +163,7 @@ public class SecureTest {
 		List<Integer> errors = new ArrayList<>();
 		for (int index = 0; index < requests.size(); ++index) {
 			Request request = requests.get(index);
-			Response response = request.waitForResponse(15000);
+			Response response = request.waitForResponse(TEST_EXCHANGE_LIFETIME);
 			if (response == null) {
 				if (request.getSendError() != null) {
 					errors.add(index);
@@ -177,9 +173,17 @@ public class SecureTest {
 			}
 		}
 		for (CoapEndpoint clientEndpoint : clientEndpoints) {
-			clientEndpoint.destroy();
+			try {
+				clientEndpoint.destroy();
+			} catch (Exception ex) {
+
+			}
 		}
-		server.destroy();
+		try {
+			server.destroy();
+		} catch (Exception ex) {
+
+		}
 		if (!pending.isEmpty() || !errors.isEmpty()) {
 			StringBuilder message = new StringBuilder("loop: ");
 			message.append(loop).append(" - ");
@@ -207,14 +211,18 @@ public class SecureTest {
 	private void createTestEndpoint() {
 		// setup DTLS Config
 		Builder builder = new DtlsConnectorConfig.Builder()
-				.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0)).setLoggingTag("client")
+				.setAddress(TestTools.LOCALHOST_EPHEMERAL)
+				.setLoggingTag("client")
 				.setPskStore(new TestUtilPskStore(PSK_IDENITITY, PSK_KEY.getBytes()))
-				.setMaxRetransmissions(NB_RETRANSMISSION).setRetransmissionTimeout(RETRANSMISSION_TIMEOUT);
+				.setMaxRetransmissions(NB_RETRANSMISSION)
+				.setRetransmissionTimeout(RETRANSMISSION_TIMEOUT);
 		DtlsConnectorConfig dtlsConfig = builder.build();
 
 		// setup CoAP config
-		NetworkConfig config = network.createTestConfig().setInt(Keys.ACK_TIMEOUT, 200)
-				.setFloat(Keys.ACK_RANDOM_FACTOR, 1f).setFloat(Keys.ACK_TIMEOUT_SCALE, 1f)
+		NetworkConfig config = network.createTestConfig()
+				.setInt(Keys.ACK_TIMEOUT, 200)
+				.setFloat(Keys.ACK_RANDOM_FACTOR, 1f)
+				.setFloat(Keys.ACK_TIMEOUT_SCALE, 1f)
 				.setLong(Keys.EXCHANGE_LIFETIME, TEST_TIMEOUT_EXCHANGE_LIFETIME)
 				.setLong(Keys.MARK_AND_SWEEP_INTERVAL, TEST_TIMEOUT_SWEEP_DEDUPLICATOR_INTERVAL);
 
@@ -228,9 +236,13 @@ public class SecureTest {
 			int pskDelay) {
 		// setup DTLS Config
 		Builder builder = new DtlsConnectorConfig.Builder()
-				.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0)).setLoggingTag(tag)
+				.setAddress(TestTools.LOCALHOST_EPHEMERAL)
+				.setLoggingTag(tag)
 				.setPskStore(new TestUtilPskStore(PSK_IDENITITY, PSK_KEY.getBytes(), pskDelay))
-				.setReceiverThreadCount(2).setConnectionThreadCount(2).setRetransmissionTimeout(dtlsTimeout);
+				.setReceiverThreadCount(2)
+				.setConnectionThreadCount(2)
+				.setRetransmissionTimeout(dtlsTimeout)
+				.setMaxRetransmissions(TEST_DTLS_RETRANSMISSIONS);
 		DtlsConnectorConfig dtlsConfig = builder.build();
 
 		// setup CoAP config

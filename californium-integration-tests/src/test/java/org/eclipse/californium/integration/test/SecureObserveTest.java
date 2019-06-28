@@ -35,11 +35,11 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.eclipse.californium.core.network.EndpointContextMatcherFactory.MatcherMode;
 
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapObserveRelation;
@@ -59,15 +59,17 @@ import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.exception.EndpointMismatchException;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.examples.NatUtil;
 import org.eclipse.californium.integration.test.util.CoapsNetworkRule;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.junit.After;
-import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -78,6 +80,12 @@ public class SecureObserveTest {
 	public static CoapsNetworkRule network = new CoapsNetworkRule(CoapsNetworkRule.Mode.DIRECT,
 			CoapsNetworkRule.Mode.NATIVE);
 
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
+
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
+
 	static final int TIMEOUT_IN_MILLIS = 2000;
 	static final int REPEATS = 3;
 	static final String TARGET = "resource";
@@ -86,7 +94,6 @@ public class SecureObserveTest {
 	static final String KEY = "key1";
 
 	private NatUtil nat;
-	private CoapServer server;
 	private TestUtilPskStore pskStore;
 	private DTLSConnector serverConnector;
 	private DTLSConnector clientConnector;
@@ -96,19 +103,11 @@ public class SecureObserveTest {
 
 	private String uri;
 
-	@Before
-	public void startupServer() {
-		System.out.println(System.lineSeparator() + "Start " + getClass().getSimpleName());
-	}
-
 	@After
 	public void shutdownServer() {
 		if (nat != null) {
 			nat.stop();
 		}
-		server.destroy();
-		EndpointManager.reset();
-		System.out.println("End " + getClass().getSimpleName());
 	}
 
 	/**
@@ -502,7 +501,7 @@ public class SecureObserveTest {
 	private void createSecureServer(MatcherMode mode, ConnectionIdGenerator cidGenerator) {
 		pskStore = new TestUtilPskStore(IDENITITY, KEY.getBytes());
 		DtlsConnectorConfig dtlsConfig = new DtlsConnectorConfig.Builder()
-				.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
+				.setAddress(TestTools.LOCALHOST_EPHEMERAL)
 				.setLoggingTag("server")
 				.setReceiverThreadCount(2)
 				.setConnectionThreadCount(2)
@@ -523,17 +522,18 @@ public class SecureObserveTest {
 		builder.setNetworkConfig(config);
 		serverEndpoint = builder.build();
 
-		server = new CoapServer();
+		CoapServer server = new CoapServer();
 		server.addEndpoint(serverEndpoint);
 		resource = new MyResource(TARGET);
 		server.add(resource);
 		server.start();
+		cleanup.add(server);
 
-		uri = serverEndpoint.getUri() + "/" + TARGET;
+		uri = TestTools.getUri(serverEndpoint, TARGET);
 
 		// prepare secure client endpoint
 		DtlsConnectorConfig clientdtlsConfig = new DtlsConnectorConfig.Builder()
-				.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
+				.setAddress(TestTools.LOCALHOST_EPHEMERAL)
 				.setLoggingTag("client")
 				.setReceiverThreadCount(2)
 				.setConnectionThreadCount(2)
@@ -550,9 +550,10 @@ public class SecureObserveTest {
 	}
 
 	private void createInverseNat() throws Exception {
-		nat = new NatUtil(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), clientEndpoint.getAddress());
-		int port = nat.assignLocalAddress(serverEndpoint.getAddress());
-		String natURI = uri.replace(":" + serverEndpoint.getAddress().getPort() + "/", ":" + port + "/");
+		nat = new NatUtil(TestTools.LOCALHOST_EPHEMERAL, clientEndpoint.getAddress());
+		InetSocketAddress address = serverEndpoint.getAddress();
+		int port = nat.assignLocalAddress(address);
+		String natURI = uri.replace(":" + address.getPort() + "/", ":" + port + "/");
 		System.out.println("URI: change " + uri + " to " + natURI);
 		uri = natURI;
 	}

@@ -21,12 +21,11 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Large;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResource;
@@ -36,14 +35,17 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointContextMatcherFactory.MatcherMode;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.examples.NatUtil;
 import org.eclipse.californium.integration.test.util.CoapsNetworkRule;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
@@ -53,6 +55,7 @@ import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -62,6 +65,12 @@ public class SecureNatTest {
 	@ClassRule
 	public static CoapsNetworkRule network = new CoapsNetworkRule(CoapsNetworkRule.Mode.DIRECT,
 			CoapsNetworkRule.Mode.NATIVE);
+
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
+
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
 
 	static final long RESPONSE_TIMEOUT = 10000L;
 	static final int NUM_OF_CLIENTS = 20;
@@ -73,21 +82,17 @@ public class SecureNatTest {
 
 	private NatUtil nat;
 	private DebugConnectionStore connections;
-	private CoapServer server;
 	private TestUtilPskStore pskStore;
 	private NetworkConfig config;
-	private DTLSConnector serverConnector;
 	private CoapEndpoint serverEndpoint;
-	private CoapEndpoint clientEndpoint;
 	private List<CoapEndpoint> clientEndpoints = new ArrayList<>();
 	private MyResource resource;
 
 	private String uri;
 
 	@Before
-	public void startupServer() {
+	public void setupPSK() {
 		pskStore = new TestUtilPskStore(IDENITITY, KEY.getBytes());
-		System.out.println(System.lineSeparator() + "Start " + getClass().getSimpleName());
 	}
 
 	@After
@@ -95,12 +100,9 @@ public class SecureNatTest {
 		if (nat != null) {
 			nat.stop();
 		}
-		server.destroy();
-		EndpointManager.reset();
 		for (CoapEndpoint endpoint : clientEndpoints) {
 			endpoint.destroy();
 		}
-		System.out.println("End " + getClass().getSimpleName());
 	}
 
 	@Test
@@ -312,6 +314,12 @@ public class SecureNatTest {
 	}
 
 	private void setupNetworkConfig(MatcherMode mode) {
+		if (config != null) {
+			String matching = config.getString(Keys.RESPONSE_MATCHING);
+			if (!mode.name().equals(matching)) {
+				config = null;
+			}
+		}
 		if (config == null) {
 			config = network.getStandardTestConfig()
 					// retransmit constantly all 200 milliseconds
@@ -327,7 +335,7 @@ public class SecureNatTest {
 		setupNetworkConfig(mode);
 
 		DtlsConnectorConfig dtlsConfig = new DtlsConnectorConfig.Builder()
-				.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
+				.setAddress(TestTools.LOCALHOST_EPHEMERAL)
 				.setLoggingTag("server")
 				.setServerOnly(true)
 				.setReceiverThreadCount(2)
@@ -341,22 +349,23 @@ public class SecureNatTest {
 				null);
 		connections.setTag(dtlsConfig.getLoggingTag());
 
-		serverConnector = new MyDtlsConnector(dtlsConfig, connections);
+		Connector serverConnector = new MyDtlsConnector(dtlsConfig, connections);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setConnector(serverConnector);
 		builder.setNetworkConfig(config);
 		serverEndpoint = builder.build();
 
-		server = new CoapServer();
+		CoapServer server = new CoapServer();
 		server.addEndpoint(serverEndpoint);
 		resource = new MyResource(TARGET);
 		server.add(resource);
 		server.start();
+		cleanup.add(server);
 
-		uri = serverEndpoint.getUri() + "/" + TARGET;
+		uri = TestTools.getUri(serverEndpoint, TARGET);
 
 		// prepare secure client endpoint
-		clientEndpoint = createClientEndpoint(mode, cidGenerator);
+		Endpoint clientEndpoint = createClientEndpoint(mode, cidGenerator);
 		EndpointManager.getEndpointManager().setDefaultEndpoint(clientEndpoint);
 		System.out.println("coap-server " + uri);
 		System.out.println("coap-client " + clientEndpoint.getUri());
@@ -373,7 +382,7 @@ public class SecureNatTest {
 
 		// prepare secure client endpoint
 		DtlsConnectorConfig clientdtlsConfig = new DtlsConnectorConfig.Builder()
-				.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
+				.setAddress(TestTools.LOCALHOST_EPHEMERAL)
 				.setLoggingTag(tag)
 				.setReceiverThreadCount(2)
 				.setConnectionThreadCount(2)
@@ -391,7 +400,7 @@ public class SecureNatTest {
 	}
 
 	private void createNat() throws Exception {
-		nat = new NatUtil(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), serverEndpoint.getAddress());
+		nat = new NatUtil(TestTools.LOCALHOST_EPHEMERAL, serverEndpoint.getAddress());
 		int port = nat.getProxySocketAddress().getPort();
 		String natURI = uri.replace(":" + serverEndpoint.getAddress().getPort() + "/", ":" + port + "/");
 		System.out.println("URI: change " + uri + " to " + natURI);
