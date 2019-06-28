@@ -21,12 +21,11 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Large;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
@@ -41,14 +40,19 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.cose.AlgorithmID;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.rule.CoapNetworkRule;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -63,15 +67,20 @@ import org.junit.experimental.categories.Category;
 public class OSCoreObserveTest {
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
-	
-	private CoapServer server;
-	private int serverPort;
+
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
+
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
+
+	private Timer timer;
+	private Endpoint serverEndpoint;
 	private static String serverAddress = InetAddress.getLoopbackAddress().getHostAddress();
-	
 	private static String clientAddress = InetAddress.getLoopbackAddress().getHostName();
-	
+
 	private static boolean withOSCORE = true;
-	
+
 	//OSCORE context information shared between server and client
 	private final static HashMapCtxDB db = HashMapCtxDB.getInstance();
 	private final static AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
@@ -80,13 +89,12 @@ public class OSCoreObserveTest {
 			0x0C, 0x0D, 0x0E, 0x0F, 0x10 };
 	private final static byte[] master_salt = { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22, (byte) 0x23,
 			(byte) 0x78, (byte) 0x63, (byte) 0x40 };
-	
+
 	@Before
-	public void initLogger() {
-		System.out.println(System.lineSeparator() + "Start " + getClass().getSimpleName());
+	public void init() {
 		EndpointManager.clear();
 	}
-	
+
 	//Use the OSCORE stack factory
 	@BeforeClass
 	public static void setStackFactory() {
@@ -95,14 +103,13 @@ public class OSCoreObserveTest {
 
 	@After
 	public void after() {
-		if (null != server) {
-			server.destroy();
+		if (null != timer) {
+			timer.cancel();
 		}
-		System.out.println("End " + getClass().getSimpleName());
 	}
-	
+
 	/* --- Client Observe tests follow --- */ 
-	
+
 	/**
 	 * Create an OSCORE request to be set from a client to the server
 	 * 
@@ -111,20 +118,20 @@ public class OSCoreObserveTest {
 	 * @return The request
 	 */
 	private Request createClientRequest(Code c, String resourceUri) {
-		String serverUri = "coap://" + serverAddress + ":" + serverPort;
-		
+		String serverUri = TestTools.getUri(serverEndpoint, null);
+
 		Request r = new Request(c);
-				
+
 		r.setConfirmable(true);
 		r.setURI(serverUri + resourceUri);
-		
+
 		if(withOSCORE) {
-			r.getOptions().setOscore(new byte[0]); //Use OSCORE
+			r.getOptions().setOscore(Bytes.EMPTY); //Use OSCORE
 		}
-		
+
 		return r;
 	}
-	
+
 	/**
 	 * Tests Observe functionality with OSCORE.
 	 * First registers to a resource and listens for 2 notifications.
@@ -208,7 +215,7 @@ public class OSCoreObserveTest {
 		assertEquals(relation.getCurrent().getResponseText(), "two");
 		client.shutdown();
 	}
-	
+
 	/* --- End of client Observe tests --- */
 
 	/**
@@ -228,28 +235,27 @@ public class OSCoreObserveTest {
 			System.err.println("Failed to set client OSCORE Context information!");
 		}
 	}
-	
+
 	/* Server related code below */
-	
+
 	/**
 	 * (Re)sets the OSCORE context information for the server
 	 */
-	@Before
 	public void setServerContext() {
 		//Set up OSCORE context information for response (server)
 		byte[] sid = new byte[] { 0x01 };
-		byte[] rid = new byte[0];
-		
+		byte[] rid = Bytes.EMPTY;
+
 		try {
 			OSCoreCtx ctx_B = new OSCoreCtx(master_secret, false, alg, sid, rid, kdf, 32, master_salt, null);
-	
+
 			db.addContext("coap://" + clientAddress, ctx_B);
 		}
 		catch (OSException e) {
 			System.err.println("Failed to set server OSCORE Context information!");
 		}
 	}
-	
+
 	/**
 	 * Creates server with resources to test OSCORE Observe functionality
 	 * @throws InterruptedException if resource update task fails
@@ -257,26 +263,18 @@ public class OSCoreObserveTest {
 	@Before
 	public void createServer() throws InterruptedException {
 		//Do not create server if it is already running
-		if(server != null) {
+		if(serverEndpoint != null) {
 			return;
 		}
-		
+
 		setServerContext();
 
 		//Create server
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		
-		InetAddress serverInetAddress = null;
-		try {
-			serverInetAddress = InetAddress.getByName(serverAddress);
-		} catch (UnknownHostException e) {
-			System.err.println("Failed to find server address!");
-		}
-		
-		builder.setInetSocketAddress(new InetSocketAddress(serverInetAddress, 0));
-		CoapEndpoint endpoint = builder.build();
-		server = new CoapServer();
-		server.addEndpoint(endpoint);
+		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
+		serverEndpoint = builder.build();
+		CoapServer server = new CoapServer();
+		server.addEndpoint(serverEndpoint);
 
 		/** --- Resources for Observe tests follow --- **/
 		
@@ -304,7 +302,6 @@ public class OSCoreObserveTest {
 				this.setObserveType(Type.NON);
 				this.getAttributes().setObservable();
 				
-				Timer timer = new Timer();
 				timer.schedule(new UpdateTask(), 0, 750);
 			}
 
@@ -326,20 +323,20 @@ public class OSCoreObserveTest {
 				}
 			}
 		}
-		
+		timer = new Timer();
 		//observe2 resource for OSCORE Observe tests
 		ObserveResource oscore_observe2 = new ObserveResource("observe2", true);
-		
+
 		//Creating resource hierarchy	
 		oscore.add(oscore_hello);
 		oscore.add(oscore_observe2);
-		
+
 		server.add(oscore);
-		
+
 		/** --- End of resources for Observe tests **/
-		
+
 		//Start server
 		server.start();
-		serverPort = endpoint.getAddress().getPort();
+		cleanup.add(server);
 	}
 }
