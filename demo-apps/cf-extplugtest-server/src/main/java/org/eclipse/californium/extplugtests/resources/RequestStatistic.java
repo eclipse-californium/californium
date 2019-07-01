@@ -18,10 +18,14 @@ package org.eclipse.californium.extplugtests.resources;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.BAD_OPTION;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
+import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_CBOR;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_JSON;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.TEXT_PLAIN;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.UNDEFINED;
 
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -35,6 +39,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.upokecenter.cbor.CBORObject;
 
 /**
  * CoAP resource for request statistic.
@@ -42,8 +47,16 @@ import com.google.gson.JsonObject;
  * Intended use:
  * 
  * <pre>
- * POST {@code<host>/requests?dev=<devid>&rid=<requestid>}
+ * POST {@code <host>/requests?dev=<devid>&rid=<requestid>}
  * </pre>
+ * 
+ * or 
+ * 
+ * <pre>
+ * POST {@code <host>/requests?dev=<devid>&rid=<requestid>&ep}
+ * </pre>
+ * 
+ * if the source endpoint should be included in the statistic.
  * 
  * Response: History of request with same devid of at most {@link #MAX_HISTORY}
  * entries:
@@ -51,28 +64,28 @@ import com.google.gson.JsonObject;
  * <pre>
  * TEXT:
  *  systemstart: {@code <system time millis>}
- * {@code <requestid[n-7]>}: {@code <system time millis>} of that request
- * {@code <requestid[n-6]>}: {@code <system time millis>} of that request
- * {@code <requestid[n-5]>}: {@code <system time millis>} of that request
- * {@code <requestid[n-4]>}: {@code <system time millis>} of that request
- * {@code <requestid[n-3]>}: {@code <system time millis>} of that request
- * {@code <requestid[n-2]>}: {@code <system time millis>} of that request
+ * {@code <requestid[n]>}: {@code <system time millis>} of that request
  * {@code <requestid[n-1]>}: {@code <system time millis>} of that request
- * {@code <requestid[n]>}  : {@code <system time millis>} of that request
+ * {@code <requestid[n-2]>}: {@code <system time millis>} of that request
+ * {@code <requestid[n-3]>}: {@code <system time millis>} of that request
+ * {@code <requestid[n-4]>}: {@code <system time millis>} of that request
+ * {@code <requestid[n-5]>}: {@code <system time millis>} of that request
+ * {@code <requestid[n-6]>}: {@code <system time millis>} of that request
+ * {@code <requestid[n-7]>}  : {@code <system time millis>} of that request
  * </pre>
  * 
  * e.g.:
  * 
  * <pre>
  * systemstart:1512577466765
- * RID1512577550360:1512577550374
- * RID1512577556514:1512577556528
- * RID1512577558402:1512577558415
- * RID1512577559806:1512577559819
- * RID1512577561137:1512577561149
- * RID1512577562631:1512577562647
- * RID1512577564778:1512577564791
  * RID1512577566713:1512577566727
+ * RID1512577564778:1512577564791
+ * RID1512577562631:1512577562647
+ * RID1512577561137:1512577561149
+ * RID1512577559806:1512577559819
+ * RID1512577558402:1512577558415
+ * RID1512577556514:1512577556528
+ * RID1512577550360:1512577550374
  * </pre>
  * 
  * or equivalent in JSON.
@@ -83,36 +96,36 @@ import com.google.gson.JsonObject;
  *     "systemstart": 1512577466765
  *   },
  *   {
- *     "rid": "RID1512577556514",
- *     "time": 1512577556528
- *   },
- *   {
- *     "rid": "RID1512577558402",
- *     "time": 1512577558415
- *   },
- *   {
- *     "rid": "RID1512577559806",
- *     "time": 1512577559819
- *   },
- *   {
- *     "rid": "RID1512577561137",
- *     "time": 1512577561149
- *   },
- *   {
- *     "rid": "RID1512577562631",
- *     "time": 1512577562647
- *   },
- *   {
- *     "rid": "RID1512577564778",
- *     "time": 1512577564791
+ *     "rid": "RID1512577680858",
+ *     "time": 1512577680872
  *   },
  *   {
  *     "rid": "RID1512577566713",
  *     "time": 1512577566727
  *   },
  *   {
- *     "rid": "RID1512577680858",
- *     "time": 1512577680872
+ *     "rid": "RID1512577564778",
+ *     "time": 1512577564791
+ *   },
+ *   {
+ *     "rid": "RID1512577562631",
+ *     "time": 1512577562647
+ *   },
+ *   {
+ *     "rid": "RID1512577561137",
+ *     "time": 1512577561149
+ *   },
+ *   {
+ *     "rid": "RID1512577559806",
+ *     "time": 1512577559819
+ *   },
+ *   {
+ *     "rid": "RID1512577558402",
+ *     "time": 1512577558415
+ *   },
+ *   {
+ *     "rid": "RID1512577556514",
+ *     "time": 1512577556528
  *   }
  * ]
  * </pre>
@@ -123,8 +136,16 @@ public class RequestStatistic extends CoapResource {
 	private static final String TEXT_SEPARATER = ":";
 	private static final String URI_QUERY_OPTION_DEV_ID = "dev";
 	private static final String URI_QUERY_OPTION_REQUEST_ID = "rid";
+	private static final String URI_QUERY_OPTION_ENDPOINT = "ep";
 	private static final long START_TIME = System.currentTimeMillis();
-	private static final int MAX_HISTORY = 8;
+	/**
+	 * Maximum entries in the request history.
+	 */
+	private static final int MAX_HISTORY = 24;
+	/**
+	 * Maximum payload length.
+	 */
+	private static final int MAX_PAYLOAD_LENGTH = 500;
 
 	private final LeastRecentlyUsedCache<String, List<RequestInformation>> requests = new LeastRecentlyUsedCache<String, List<RequestInformation>>(
 			1024 * 16, 0);
@@ -147,6 +168,7 @@ public class RequestStatistic extends CoapResource {
 
 		String rid = null;
 		String dev = null;
+		boolean endpoint = false;
 		for (String query : uriQuery) {
 			if (query.startsWith(URI_QUERY_OPTION_REQUEST_ID + "=")) {
 				rid = query.substring(4);
@@ -159,6 +181,8 @@ public class RequestStatistic extends CoapResource {
 				}
 			} else if (query.startsWith(URI_QUERY_OPTION_DEV_ID + "=")) {
 				dev = query.substring(4);
+			} else if (query.equals(URI_QUERY_OPTION_ENDPOINT)) {
+				endpoint = true;
 			} else {
 				Response response = Response.createResponse(request, BAD_OPTION);
 				response.setPayload("URI-query-option " + query + " is not supported!");
@@ -195,11 +219,12 @@ public class RequestStatistic extends CoapResource {
 		}
 
 		if (history != null) {
-			RequestInformation information = new RequestInformation(rid, System.currentTimeMillis());
+			InetSocketAddress source = endpoint ? request.getSourceContext().getPeerAddress() : null;
+			RequestInformation information = new RequestInformation(rid, System.currentTimeMillis(), source);
 			synchronized (history) {
-				history.add(information);
+				history.add(0, information);
 				if (history.size() > MAX_HISTORY) {
-					history.remove(0);
+					history.remove(MAX_HISTORY);
 				}
 				history = new ArrayList<RequestInformation>(history);
 			}
@@ -213,15 +238,27 @@ public class RequestStatistic extends CoapResource {
 			response.getOptions().setContentFormat(TEXT_PLAIN);
 			StringBuilder builder = new StringBuilder();
 			builder.append("systemstart:").append(START_TIME).append(System.lineSeparator());
+			int last = builder.length();
 			for (RequestInformation entry : history) {
 				builder.append(entry.requestId).append(":").append(entry.requestTime).append(System.lineSeparator());
+				int length = builder.length();
+				if (length > MAX_PAYLOAD_LENGTH) {
+					break;
+				}
+				last = length;
 			}
+			builder.setLength(last);
 			response.setPayload(builder.toString());
 			break;
 
 		case APPLICATION_JSON:
 			response.getOptions().setContentFormat(APPLICATION_JSON);
 			response.setPayload(toJson(history));
+			break;
+
+		case APPLICATION_CBOR:
+			response.getOptions().setContentFormat(APPLICATION_CBOR);
+			response.setPayload(toCbor(history));
 			break;
 
 		default:
@@ -243,15 +280,59 @@ public class RequestStatistic extends CoapResource {
 		JsonObject element = new JsonObject();
 		element.addProperty("systemstart", START_TIME);
 		array.add(element);
+		GsonBuilder builder = new GsonBuilder();
+		Gson gson = builder.create();
+		String response = gson.toJson(array);
 		for (RequestInformation entry : history) {
 			element = new JsonObject();
 			element.addProperty("rid", entry.requestId);
 			element.addProperty("time", entry.requestTime);
+			if (entry.sourceAddress != null) {
+				try {
+					InetAddress address = InetAddress.getByAddress(entry.sourceAddress);
+					element.addProperty("ep", address.getHostAddress());
+					element.addProperty("port", entry.sourcePort & 0xffff);
+				} catch (UnknownHostException e) {
+				}
+			}
 			array.add(element);
+			String payload = gson.toJson(array);
+			if (payload.length() > MAX_PAYLOAD_LENGTH) {
+				break;
+			}
+			response = payload;
 		}
-		GsonBuilder builder = new GsonBuilder();
-		Gson gson = builder.create();
-		return gson.toJson(array);
+		return response;
 	}
 
+	/**
+	 * Convert history list into CBOR format.
+	 * 
+	 * @param history history list.
+	 * @return CBOR content
+	 */
+	public byte[] toCbor(List<RequestInformation> history) {
+		CBORObject list = CBORObject.NewArray();
+		CBORObject map = CBORObject.NewMap();
+		map.set("systemstart", CBORObject.FromObject(START_TIME));
+		list.Add(map);
+		byte[] response = list.EncodeToBytes();
+
+		for (RequestInformation entry : history) {
+			map = CBORObject.NewMap();
+			map.set("rid", CBORObject.FromObject(entry.requestId));
+			map.set("time", CBORObject.FromObject(entry.requestTime));
+			if (entry.sourceAddress != null) {
+				map.set("ep", CBORObject.FromObject(entry.sourceAddress));
+				map.set("port", CBORObject.FromObject(entry.sourcePort));
+			}
+			list.Add(map);
+			byte[] payload = list.EncodeToBytes();
+			if (payload.length > MAX_PAYLOAD_LENGTH) {
+				break;
+			}
+			response = payload;
+		}
+		return response;
+	}
 }

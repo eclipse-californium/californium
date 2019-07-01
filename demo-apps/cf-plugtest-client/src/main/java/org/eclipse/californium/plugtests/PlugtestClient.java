@@ -105,8 +105,8 @@ public class PlugtestClient {
 		}
 
 		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
-		
-		Arguments arguments = ClientInitializer.init(config, args);
+
+		Arguments arguments = ClientInitializer.init(config, args, true);
 
 		if (arguments.ping) {
 			CoapClient clientPing = new CoapClient(arguments.uri);
