@@ -20,6 +20,7 @@
 package org.eclipse.californium.extplugtests;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
@@ -541,7 +542,7 @@ public class BenchmarkClient {
 		return requestsCounter.get();
 	}
 
-	public static void main(String[] args) throws InterruptedException {
+	public static void main(String[] args) throws InterruptedException, IOException {
 
 		if (args.length == 0) {
 
@@ -588,7 +589,7 @@ public class BenchmarkClient {
 		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 		NetworkConfig serverConfig = NetworkConfig.createWithFile(REVERSE_SERVER_CONFIG_FILE,
 				REVERSE_SERVER_CONFIG_HEADER, REVERSE_DEFAULTS);
-		Arguments arguments = ClientInitializer.init(config, args);
+		Arguments arguments = ClientInitializer.init(config, args, true);
 		// random part of PSK identity
 		SecureRandom random = new SecureRandom();
 		byte[] id = new byte[8];
@@ -673,7 +674,7 @@ public class BenchmarkClient {
 				String name = ClientInitializer.PSK_IDENTITY_PREFIX + StringUtil.byteArray2Hex(id);
 				connectionArgs = arguments.create(name, null);
 			}
-			CoapEndpoint coapEndpoint = ClientInitializer.createEndpoint(config, connectionArgs, connectorExecutor);
+			CoapEndpoint coapEndpoint = ClientInitializer.createEndpoint(config, connectionArgs, connectorExecutor, true);
 			final BenchmarkClient client = new BenchmarkClient(index, intervalMin, intervalMax, uri,
 					coapEndpoint, connectorExecutor, secondaryExecutor);
 			clientList.add(client);

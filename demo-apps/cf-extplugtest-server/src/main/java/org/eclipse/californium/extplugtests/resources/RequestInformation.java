@@ -15,6 +15,8 @@
  ******************************************************************************/
 package org.eclipse.californium.extplugtests.resources;
 
+import java.net.InetSocketAddress;
+
 /**
  * Request information. Provides received {@link #requestId} together with
  * {@link #requestTime} (system time in milliseconds).
@@ -29,15 +31,29 @@ public class RequestInformation {
 	 * System time of receiving the request.
 	 */
 	public final long requestTime;
+	/**
+	 * Source endpoint.
+	 */
+	public final byte[] sourceAddress;
+	public final short sourcePort;
 
 	/**
 	 * Create instance for received request.
 	 * 
-	 * @param requestId request id received with message
+	 * @param requestId   request id received with message
 	 * @param requestTime system time in milliseconds when receiving the message
+	 * @param source      source endpoint, May be {@code null}, if it should not be
+	 *                    tracked.
 	 */
-	public RequestInformation(String requestId, long requestTime) {
+	public RequestInformation(String requestId, long requestTime, InetSocketAddress source) {
 		this.requestId = requestId;
 		this.requestTime = requestTime;
+		if (source == null) {
+			this.sourceAddress = null;
+			this.sourcePort = 0;
+		} else {
+			this.sourceAddress = source.getAddress().getAddress();
+			this.sourcePort = (short) source.getPort();
+		}
 	}
 }

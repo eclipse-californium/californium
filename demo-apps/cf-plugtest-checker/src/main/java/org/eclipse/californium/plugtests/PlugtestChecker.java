@@ -28,6 +28,7 @@
 package org.eclipse.californium.plugtests;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
@@ -191,8 +192,9 @@ public class PlugtestChecker {
 	 * start all tests.
 	 * 
 	 * @param args the arguments
+	 * @throws IOException 
 	 */
-	public static void main(String[] args) {
+	public static void main(String[] args) throws IOException {
 
 		if (args.length == 0) {
 
@@ -220,7 +222,7 @@ public class PlugtestChecker {
 
 		// Config used for plugtest
 		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
-		Arguments arguments = ClientInitializer.init(config, args);
+		Arguments arguments = ClientInitializer.init(config, args, true);
 
 		if (arguments.ping) {
 			System.out.println("===============\nCC31\n---------------");

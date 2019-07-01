@@ -71,11 +71,16 @@ public class ClientInitializer {
 	/**
 	 * Initialize client.
 	 * 
-	 * @param args the arguments
+	 * @param config        network configuration to use
+	 * @param args          the arguments
+	 * @param ephemeralPort {@code true}, use ephemeral port, {@code false} use port
+	 *                      from network configuration.
+	 * @throws IOException if an i/o error occurs
 	 */
-	public static Arguments init(NetworkConfig config, String[] args) {
+	public static Arguments init(NetworkConfig config, String[] args, boolean ephemeralPort) throws IOException {
 		int index = 0;
 		boolean json = false;
+		boolean cbor = false;
 		boolean verbose = false;
 		boolean ping = true;
 		boolean rpk = false;
@@ -94,6 +99,9 @@ public class ClientInitializer {
 		if (args[index].equals("-j")) {
 			++index;
 			json = true;
+		} else if (args[index].equals("-c")) {
+			++index;
+			cbor = true;
 		}
 		if (args[index].equals("-r")) {
 			++index;
@@ -114,7 +122,11 @@ public class ClientInitializer {
 		// allow quick hostname as argument
 
 		if (uri.indexOf("://") == -1) {
-			uri = "coap://" + uri;
+			if (rpk || x509 || id != null) {
+				uri = CoAP.COAP_SECURE_URI_SCHEME + "://" + uri;
+			} else {
+				uri = CoAP.COAP_URI_SCHEME + "://" + uri;
+			}
 		}
 		if (uri.endsWith("/")) {
 			uri = uri.substring(uri.length() - 1);
@@ -123,8 +135,10 @@ public class ClientInitializer {
 		ping = ping && !uri.startsWith(CoAP.COAP_TCP_URI_SCHEME + "://")
 				&& !uri.startsWith(CoAP.COAP_SECURE_TCP_URI_SCHEME + "://");
 		String[] leftArgs = Arrays.copyOfRange(args, index + 1, args.length);
-		Arguments arguments = new Arguments(uri, id, secret, rpk, x509, ping, verbose, json, leftArgs);
-		CoapEndpoint coapEndpoint = createEndpoint(config, arguments, null);
+		Arguments arguments = new Arguments(uri, id, secret, rpk, x509, ping, verbose, json, cbor, leftArgs);
+		CoapEndpoint coapEndpoint = createEndpoint(config, arguments, null, ephemeralPort);
+		coapEndpoint.start();
+		LOGGER.info("endpoint started at {}", coapEndpoint.getAddress());
 		EndpointManager.getEndpointManager().setDefaultEndpoint(coapEndpoint);
 
 		return arguments;
@@ -133,12 +147,16 @@ public class ClientInitializer {
 	/**
 	 * Create endpoint from arguments.
 	 * 
-	 * @param config network configuration to use
-	 * @param arguments arguments
-	 * @param executor executor service. {@code null}, if no external executor should be used.
+	 * @param config        network configuration to use
+	 * @param arguments     arguments
+	 * @param executor      executor service. {@code null}, if no external executor
+	 *                      should be used.
+	 * @param ephemeralPort {@code true}, use ephemeral port, {@code false} use port
+	 *                      from network configuration.
 	 * @return created endpoint.
 	 */
-	public static CoapEndpoint createEndpoint(NetworkConfig config, Arguments arguments, ExecutorService executor) {
+	public static CoapEndpoint createEndpoint(NetworkConfig config, Arguments arguments, ExecutorService executor,
+			boolean ephemeralPort) {
 		Connector connector = null;
 		int tcpThreads = config.getInt(NetworkConfig.Keys.TCP_WORKER_THREADS);
 		int tcpConnectTimeout = config.getInt(NetworkConfig.Keys.TCP_CONNECT_TIMEOUT);
@@ -174,6 +192,7 @@ public class ClientInitializer {
 			}
 
 			if (arguments.uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME + "://")) {
+				int coapsPort = ephemeralPort ? 0 : config.getInt(Keys.COAP_SECURE_PORT);
 				DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
 				if (arguments.rpk) {
 					dtlsConfig.setIdentity(clientCredentials.getPrivateKey(), clientCredentials.getCertificateChain(),
@@ -200,6 +219,7 @@ public class ClientInitializer {
 				dtlsConfig.setConnectionThreadCount(senderThreads);
 				dtlsConfig.setReceiverThreadCount(receiverThreads);
 				dtlsConfig.setStaleConnectionThreshold(staleTimeout);
+				dtlsConfig.setAddress(new InetSocketAddress(coapsPort));
 				DTLSConnector dtlsConnector = new DTLSConnector(dtlsConfig.build());
 				if (executor != null) {
 					dtlsConnector.setExecutor(executor);
@@ -212,7 +232,8 @@ public class ClientInitializer {
 		} else if (arguments.uri.startsWith(CoAP.COAP_TCP_URI_SCHEME + "://")) {
 			connector = new TcpClientConnector(tcpThreads, tcpConnectTimeout, tcpIdleTimeout);
 		} else if (arguments.uri.startsWith(CoAP.COAP_URI_SCHEME + "://")) {
-			connector = new UDPConnector();
+			int coapPort = ephemeralPort ? 0 : config.getInt(Keys.COAP_PORT);
+			connector = new UDPConnector(new InetSocketAddress(coapPort));
 		}
 
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
@@ -274,6 +295,7 @@ public class ClientInitializer {
 		public final boolean ping;
 		public final boolean verbose;
 		public final boolean json;
+		public final boolean cbor;
 		public final boolean rpk;
 		public final boolean x509;
 		public final String id;
@@ -284,25 +306,26 @@ public class ClientInitializer {
 		/**
 		 * Create new arguments instance.
 		 * 
-		 * @param uri destination URI
-		 * @param id client id
-		 * @param secret client secret (PSK only). if {@code null} and
-		 *            {@link ClientInitializer#PSK_IDENTITY_PREFIX} is used, use
-		 *            {@link ClientInitializer#PSK_SECRET}
-		 * @param rpk {@code true}, if raw public key is preferred,
-		 *            {@code false}, otherwise
-		 * @param x509 {@code true}, if x.509 should be used, {@code false},
-		 *            otherwise
-		 * @param ping {@code true}, if client starts communication with ping,
-		 *            {@code false}, otherwise
-		 * @param verbose {@code true}, enable verbose mode, {@code false},
-		 *            otherwise
-		 * @param json {@code true}, json content should be used, {@code false},
-		 *            otherwise
-		 * @param args left arguments
+		 * @param uri     destination URI
+		 * @param id      client id
+		 * @param secret  client secret (PSK only). if {@code null} and
+		 *                {@link ClientInitializer#PSK_IDENTITY_PREFIX} is used, use
+		 *                {@link ClientInitializer#PSK_SECRET}
+		 * @param rpk     {@code true}, if raw public key is preferred, {@code false},
+		 *                otherwise
+		 * @param x509    {@code true}, if x.509 should be used, {@code false},
+		 *                otherwise
+		 * @param ping    {@code true}, if client starts communication with ping,
+		 *                {@code false}, otherwise
+		 * @param verbose {@code true}, enable verbose mode, {@code false}, otherwise
+		 * @param json    {@code true}, json content should be used, {@code false},
+		 *                otherwise
+		 * @param cbor    {@code true}, cbor content should be used, {@code false},
+		 *                otherwise
+		 * @param args    left arguments
 		 */
 		public Arguments(String uri, String id, String secret, boolean rpk, boolean x509, boolean ping, boolean verbose,
-				boolean json, String[] args) {
+				boolean json, boolean cbor, String[] args) {
 			this.uri = uri;
 			this.id = id;
 			this.secret = secret;
@@ -311,20 +334,21 @@ public class ClientInitializer {
 			this.ping = ping;
 			this.verbose = verbose;
 			this.json = json;
+			this.cbor = cbor;
 			this.args = args;
 		}
 
 		/**
 		 * Create arguments clone with different PSK identity and secret.
 		 * 
-		 * @param id psk identity
+		 * @param id     psk identity
 		 * @param secret secret (PSK only). if {@code null} and
-		 *            {@link ClientInitializer#PSK_IDENTITY_PREFIX} is used, use
-		 *            {@link ClientInitializer#PSK_SECRET}
+		 *               {@link ClientInitializer#PSK_IDENTITY_PREFIX} is used, use
+		 *               {@link ClientInitializer#PSK_SECRET}
 		 * @return create arguments clone.
 		 */
 		public Arguments create(String id, String secret) {
-			return new Arguments(uri, id, secret, rpk, x509, ping, verbose, json, args);
+			return new Arguments(uri, id, secret, rpk, x509, ping, verbose, json, cbor, args);
 		}
 	}
 }
