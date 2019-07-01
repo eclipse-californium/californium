@@ -257,10 +257,13 @@ public abstract class AbstractTestServer extends CoapServer {
 					Integer cidLength = dtlsConfig.getOptInteger(Keys.DTLS_CONNECTION_ID_LENGTH);
 					Integer cidNode = dtlsConfig.getOptInteger(Keys.DTLS_CONNECTION_ID_NODE_ID);
 					DtlsConnectorConfig.Builder dtlsConfigBuilder = new DtlsConnectorConfig.Builder();
-					if (cidLength != null && cidLength > 4 && cidNode != null) {
-						dtlsConfigBuilder.setConnectionIdGenerator(new MultiNodeConnectionIdGenerator(cidNode, cidLength));
-					} else {
-						dtlsConfigBuilder.setConnectionIdGenerator(new SingleNodeConnectionIdGenerator(cidLength));
+					if (cidLength != null) {
+						if (cidLength > 4 && cidNode != null) {
+							dtlsConfigBuilder
+									.setConnectionIdGenerator(new MultiNodeConnectionIdGenerator(cidNode, cidLength));
+						} else {
+							dtlsConfigBuilder.setConnectionIdGenerator(new SingleNodeConnectionIdGenerator(cidLength));
+						}
 					}
 					dtlsConfigBuilder.setAddress(bindToAddress);
 					dtlsConfigBuilder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,

@@ -192,7 +192,9 @@ public class ClientInitializer {
 					random.nextBytes(rid);
 					dtlsConfig.setPskStore(new PlugPskStore(StringUtil.byteArray2Hex(rid)));
 				}
-				dtlsConfig.setConnectionIdGenerator(new SingleNodeConnectionIdGenerator(cidLength));
+				if (cidLength != null) {
+					dtlsConfig.setConnectionIdGenerator(new SingleNodeConnectionIdGenerator(cidLength));
+				}
 				dtlsConfig.setClientOnly();
 				dtlsConfig.setMaxConnections(maxPeers);
 				dtlsConfig.setConnectionThreadCount(senderThreads);
