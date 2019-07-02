@@ -63,10 +63,12 @@ import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.Principal;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
@@ -82,10 +84,12 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -211,6 +215,7 @@ public abstract class Handshaker {
 	private boolean sessionEstablished = false;
 	private boolean handshakeFailed = false;
 	private Throwable cause;
+	private ApplicationLevelInfoSupplier applicationLevelInfoSupplier;
 
 	// Constructor ////////////////////////////////////////////////////
 
@@ -266,6 +271,7 @@ public abstract class Handshaker {
 		this.certificateVerifier = config.getCertificateVerifier();
 		this.session.setMaxTransmissionUnit(maxTransmissionUnit);
 		this.inboundMessageBuffer = new InboundMessageBuffer();
+		this.applicationLevelInfoSupplier = config.getApplicationLevelInfoSupplier();
 
 		this.rpkStore = config.getRpkTrustStore();
 	}
@@ -984,6 +990,7 @@ public abstract class Handshaker {
 	}
 
 	protected final void sessionEstablished() throws HandshakeException {
+		amendPeerPrincipal();
 		if (!sessionEstablished) {
 			sessionEstablished = true;
 			for (SessionListener sessionListener : sessionListeners) {
@@ -1004,8 +1011,8 @@ public abstract class Handshaker {
 	 * 
 	 * If {@link #setFailureCause(Throwable)} was called before, only calls with
 	 * the same cause will notify the listeners. If
-	 * {@link #setFailureCause(Throwable)} wasn't called before, set the
-	 * {@link #cause} according the provided cause.
+	 * {@link #setFailureCause(Throwable)} wasn't called before, sets the
+	 * <em>cause</em> property to the given cause.
 	 * 
 	 * @param cause The reason for the failure.
 	 */
@@ -1116,6 +1123,30 @@ public abstract class Handshaker {
 						session.getPeer());
 				throw new HandshakeException("Raw public key is not trusted", alert);
 			}
+		}
+	}
+
+	/**
+	 * Amends the peer principal with additional application level information.
+	 */
+	private void amendPeerPrincipal() {
+
+		Principal peerIdentity = session.getPeerIdentity();
+		if (peerIdentity instanceof ExtensiblePrincipal) {
+			// amend the client principal with additional application level information
+			@SuppressWarnings("unchecked")
+			ExtensiblePrincipal<? extends Principal> extensibleClientIdentity = (ExtensiblePrincipal<? extends Principal>) peerIdentity;
+			Map<String, Principal> additionalInfo = getAdditionalPeerInfo(peerIdentity);
+			session.setPeerIdentity(extensibleClientIdentity.amend(additionalInfo));
+		}
+	}
+
+
+	private Map<String, Principal> getAdditionalPeerInfo(Principal peerIdentity) {
+		if (applicationLevelInfoSupplier == null || peerIdentity == null) {
+			return Collections.emptyMap();
+		} else {
+			return applicationLevelInfoSupplier.getInfo(peerIdentity);
 		}
 	}
 }

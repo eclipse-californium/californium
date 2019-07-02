@@ -18,10 +18,23 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
-import static org.junit.Assume.*;
-import static org.eclipse.californium.scandium.ConnectorHelper.*;
+import static org.eclipse.californium.scandium.ConnectorHelper.CLIENT_IDENTITY;
+import static org.eclipse.californium.scandium.ConnectorHelper.CLIENT_IDENTITY_SECRET;
+import static org.eclipse.californium.scandium.ConnectorHelper.MAX_TIME_TO_WAIT_SECS;
+import static org.eclipse.californium.scandium.ConnectorHelper.SCOPED_CLIENT_IDENTITY;
+import static org.eclipse.californium.scandium.ConnectorHelper.SERVERNAME;
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.CoreMatchers.startsWith;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assume.assumeTrue;
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -29,6 +42,8 @@ import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.Principal;
 import java.security.cert.Certificate;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -39,9 +54,11 @@ import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchSessionListener;
+import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
+import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
@@ -50,12 +67,12 @@ import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.junit.After;
+import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Verifies behavior of {@link DTLSConnector}.
@@ -66,8 +83,6 @@ import org.slf4j.LoggerFactory;
 @Category(Medium.class)
 public class DTLSConnectorHandshakeTest {
 
-	public static final Logger LOGGER = LoggerFactory.getLogger(DTLSConnectorHandshakeTest.class.getName());
-
 	@ClassRule
 	public static DtlsNetworkRule network = new DtlsNetworkRule(DtlsNetworkRule.Mode.DIRECT,
 			DtlsNetworkRule.Mode.NATIVE);
@@ -75,16 +90,62 @@ public class DTLSConnectorHandshakeTest {
 	@ClassRule
 	public static ThreadsRule cleanup = new ThreadsRule();
 
+	private static final int CLIENT_CONNECTION_STORE_CAPACITY = 5;
+	private static final String DEVICE_ID = "the-device";
+	private static Map<String, Principal> additionalClientInfo;
+	private static Map<String, Principal> additionalServerInfo;
+
 	@Rule
 	public TestNameLoggerRule names = new TestNameLoggerRule();
-
-	private static final int CLIENT_CONNECTION_STORE_CAPACITY = 5;
 
 	ConnectorHelper serverHelper;
 
 	DTLSConnector client;
 	InMemoryConnectionStore clientConnectionStore;
+	ApplicationLevelInfoSupplier clientInfoSupplier;
+	ApplicationLevelInfoSupplier serverInfoSupplier;
 
+	/**
+	 * Initializes static variables.
+	 */
+	@BeforeClass
+	public static void init() {
+
+		additionalServerInfo = new HashMap<>();
+		additionalServerInfo.put("server-name", new Principal() {
+
+			@Override
+			public String getName() {
+				return SERVERNAME;
+			}
+		});
+
+		additionalClientInfo = new HashMap<>();
+		additionalClientInfo.put("device-id", new Principal() {
+
+			@Override
+			public String getName() {
+				return DEVICE_ID;
+			}
+		});
+
+	}
+
+	/**
+	 * Sets up the fixture.
+	 */
+	@Before
+	public void setUp() {
+
+		serverInfoSupplier = mock(ApplicationLevelInfoSupplier.class);
+		when(serverInfoSupplier.getInfo(any(Principal.class))).thenReturn(additionalServerInfo);
+		clientInfoSupplier = mock(ApplicationLevelInfoSupplier.class);
+		when(clientInfoSupplier.getInfo(any(Principal.class))).thenReturn(additionalClientInfo);
+	}
+
+	/**
+	 * Destroys the server and client.
+	 */
 	@After
 	public void cleanUp() {
 		if (serverHelper != null) {
@@ -95,6 +156,10 @@ public class DTLSConnectorHandshakeTest {
 		}
 	}
 
+	private void assertClientPrincipalHasAdditionalInfo(Principal clientIdentity) {
+		ConnectorHelper.assertPrincipalHasAdditionalInfo(clientIdentity, DEVICE_ID);
+	}
+
 	private void startServer(boolean enableSni, boolean clientAuthRequired, boolean clientAuthWanted, ConnectionIdGenerator cidGenerator)
 			throws IOException, GeneralSecurityException {
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
@@ -102,7 +167,8 @@ public class DTLSConnectorHandshakeTest {
 				.setClientAuthenticationWanted(clientAuthWanted)
 				.setConnectionIdGenerator(cidGenerator)
 				.setLoggingTag("server")
-				.setSniEnabled(enableSni);
+				.setSniEnabled(enableSni)
+				.setApplicationLevelInfoSupplier(clientInfoSupplier);
 		startServer(builder);
 	}
 
@@ -153,13 +219,17 @@ public class DTLSConnectorHandshakeTest {
 				.setConnectionThreadCount(1)
 				.setSniEnabled(enableSni)
 				.setClientOnly()
-				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY);
+				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY)
+				.setApplicationLevelInfoSupplier(serverInfoSupplier);
 		DtlsConnectorConfig clientConfig = builder.build();
 
 		client = serverHelper.createClient(clientConfig);
 		RawData raw = RawData.outbound("Hello World".getBytes(),
 				new AddressEndpointContext(serverHelper.serverEndpoint, hostname, null), null, false);
 		serverHelper.givenAnEstablishedSession(client, raw, true);
+		final DTLSSession session = client.getSessionByAddress(serverHelper.serverEndpoint);
+		assertThat(session, is(notNullValue()));
+		ConnectorHelper.assertPrincipalHasAdditionalInfo(session.getPeerIdentity(), ConnectorHelper.SERVERNAME);
 	}
 
 	private void startClientFailing(DtlsConnectorConfig.Builder builder) throws Exception {
@@ -191,6 +261,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal, is(notNullValue()));
 		assertThat(principal.getName(), is(CLIENT_IDENTITY));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertClientPrincipalHasAdditionalInfo(principal);
 	}
 
 	@Test
@@ -202,6 +273,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal, is(notNullValue()));
 		assertThat(principal.getName(), is(":" + CLIENT_IDENTITY));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertClientPrincipalHasAdditionalInfo(principal);
 	}
 
 	@Test
@@ -213,6 +285,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal, is(notNullValue()));
 		assertThat(principal.getName(), is(CLIENT_IDENTITY));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertClientPrincipalHasAdditionalInfo(principal);
 	}
 
 	@Test
@@ -224,6 +297,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal, is(notNullValue()));
 		assertThat(principal.getName(), is(":" + CLIENT_IDENTITY));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertClientPrincipalHasAdditionalInfo(principal);
 	}
 
 	@Test
@@ -235,6 +309,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal, is(notNullValue()));
 		assertThat(principal.getName(), is(CLIENT_IDENTITY));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertClientPrincipalHasAdditionalInfo(principal);
 	}
 
 	@Test
@@ -246,6 +321,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal, is(notNullValue()));
 		assertThat(principal.getName(), is(":" + CLIENT_IDENTITY));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertClientPrincipalHasAdditionalInfo(principal);
 	}
 
 	@Test
@@ -257,6 +333,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal, is(notNullValue()));
 		assertThat(principal.getName(), is(CLIENT_IDENTITY));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertClientPrincipalHasAdditionalInfo(principal);
 	}
 
 	@Test
@@ -268,6 +345,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal, is(notNullValue()));
 		assertThat(principal.getName(), is(SERVERNAME + ":" + SCOPED_CLIENT_IDENTITY));
 		assertThat(endpointContext.getVirtualHost(), is(SERVERNAME));
+		assertClientPrincipalHasAdditionalInfo(principal);
 	}
 
 	@Test
@@ -279,6 +357,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal, is(notNullValue()));
 		assertThat(principal.getName(), startsWith("ni:///sha-256;"));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertClientPrincipalHasAdditionalInfo(principal);
 	}
 
 	@Test
@@ -290,6 +369,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal, is(notNullValue()));
 		assertThat(principal.getName(), startsWith("ni:///sha-256;"));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertClientPrincipalHasAdditionalInfo(principal);
 	}
 
 	@Test
@@ -301,6 +381,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal, is(notNullValue()));
 		assertThat(principal.getName(), startsWith("ni:///sha-256;"));
 		assertThat(endpointContext.getVirtualHost(), is(SERVERNAME));
+		assertClientPrincipalHasAdditionalInfo(principal);
 	}
 
 	@Test
@@ -312,6 +393,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal, is(notNullValue()));
 		assertThat(principal.getName(), startsWith("ni:///sha-256;"));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertClientPrincipalHasAdditionalInfo(principal);
 	}
 
 	@Test
@@ -323,6 +405,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal, is(notNullValue()));
 		assertThat(principal.getName(), is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-client"));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertClientPrincipalHasAdditionalInfo(principal);
 	}
 
 	@Test
@@ -334,6 +417,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal, is(notNullValue()));
 		assertThat(principal.getName(), is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-client"));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertClientPrincipalHasAdditionalInfo(principal);
 	}
 
 	@Test
@@ -345,6 +429,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal, is(notNullValue()));
 		assertThat(principal.getName(), is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-client"));
 		assertThat(endpointContext.getVirtualHost(), is(SERVERNAME));
+		assertClientPrincipalHasAdditionalInfo(principal);
 	}
 
 	@Test
@@ -356,6 +441,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal, is(notNullValue()));
 		assertThat(principal.getName(), is("C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-client"));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertClientPrincipalHasAdditionalInfo(principal);
 	}
 
 	@Test
@@ -366,6 +452,7 @@ public class DTLSConnectorHandshakeTest {
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(nullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		verify(clientInfoSupplier, never()).getInfo(any(Principal.class));
 	}
 
 	@Test
@@ -376,6 +463,7 @@ public class DTLSConnectorHandshakeTest {
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(nullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		verify(clientInfoSupplier, never()).getInfo(any(Principal.class));
 	}
 
 	@Test
@@ -386,6 +474,7 @@ public class DTLSConnectorHandshakeTest {
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(nullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(SERVERNAME));
+		verify(clientInfoSupplier, never()).getInfo(any(Principal.class));
 	}
 
 	@Test
@@ -396,6 +485,7 @@ public class DTLSConnectorHandshakeTest {
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(nullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		verify(clientInfoSupplier, never()).getInfo(any(Principal.class));
 	}
 
 	@Test
@@ -406,6 +496,7 @@ public class DTLSConnectorHandshakeTest {
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(nullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		verify(clientInfoSupplier, never()).getInfo(any(Principal.class));
 	}
 
 	@Test
@@ -416,6 +507,7 @@ public class DTLSConnectorHandshakeTest {
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(nullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		verify(clientInfoSupplier, never()).getInfo(any(Principal.class));
 	}
 
 	@Test
@@ -426,6 +518,7 @@ public class DTLSConnectorHandshakeTest {
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(nullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(SERVERNAME));
+		verify(clientInfoSupplier, never()).getInfo(any(Principal.class));
 	}
 
 	@Test
@@ -436,6 +529,7 @@ public class DTLSConnectorHandshakeTest {
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(nullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		verify(clientInfoSupplier, never()).getInfo(any(Principal.class));
 	}
 
 	@Test
@@ -446,6 +540,7 @@ public class DTLSConnectorHandshakeTest {
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(notNullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertClientPrincipalHasAdditionalInfo(principal);
 	}
 
 	@Test
@@ -456,6 +551,7 @@ public class DTLSConnectorHandshakeTest {
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(nullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		verify(clientInfoSupplier, never()).getInfo(any(Principal.class));
 	}
 
 	@Test
@@ -466,6 +562,7 @@ public class DTLSConnectorHandshakeTest {
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(notNullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertClientPrincipalHasAdditionalInfo(principal);
 	}
 
 	@Test
@@ -476,6 +573,7 @@ public class DTLSConnectorHandshakeTest {
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(nullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		verify(clientInfoSupplier, never()).getInfo(any(Principal.class));
 	}
 
 	@Test
@@ -487,6 +585,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal, is(notNullValue()));
 		assertThat(principal.getName(), is(CLIENT_IDENTITY));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertClientPrincipalHasAdditionalInfo(principal);
 	}
 
 	@Test
@@ -498,6 +597,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal, is(notNullValue()));
 		assertThat(principal.getName(), is(CLIENT_IDENTITY));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertClientPrincipalHasAdditionalInfo(principal);
 	}
 
 	@Test
@@ -509,6 +609,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal, is(notNullValue()));
 		assertThat(principal.getName(), is(CLIENT_IDENTITY));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertClientPrincipalHasAdditionalInfo(principal);
 	}
 
 	@Test
@@ -520,6 +621,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal, is(notNullValue()));
 		assertThat(principal.getName(), is(CLIENT_IDENTITY));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertClientPrincipalHasAdditionalInfo(principal);
 	}
 
 	@Test
@@ -531,6 +633,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal, is(notNullValue()));
 		assertThat(principal.getName(), is(CLIENT_IDENTITY));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertClientPrincipalHasAdditionalInfo(principal);
 	}
 
 	@Test
@@ -540,13 +643,15 @@ public class DTLSConnectorHandshakeTest {
 				.setClientAuthenticationWanted(false)
 				.setSniEnabled(false)
 				.setNoServerSessionId(true)
-				.setLoggingTag("server");
+				.setLoggingTag("server")
+				.setApplicationLevelInfoSupplier(clientInfoSupplier);
 		startServer(builder);
 		startClientPsk(false, null, null, new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()));
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(notNullValue()));
 		assertThat(principal.getName(), is(CLIENT_IDENTITY));
+		assertClientPrincipalHasAdditionalInfo(principal);
 	}
 
 	@Test

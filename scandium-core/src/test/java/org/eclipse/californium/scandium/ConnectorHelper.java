@@ -32,6 +32,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.junit.Assert.*;
@@ -42,6 +43,7 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
+import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -60,6 +62,7 @@ import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
+import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
 import org.eclipse.californium.elements.util.TestThreadFactory;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -276,6 +279,15 @@ public class ConnectorHelper {
 			}
 		}
 		return clientChannel;
+	}
+
+	static void assertPrincipalHasAdditionalInfo(Principal peerIdentity, String expectedName) {
+		assertThat(peerIdentity, instanceOf(ExtensiblePrincipal.class));
+		@SuppressWarnings("unchecked")
+		ExtensiblePrincipal<? extends Principal> p = (ExtensiblePrincipal<? extends Principal>) peerIdentity;
+		assertFalse(p.getExtendedInfo().isEmpty());
+		Principal extendedInfo = p.getExtendedInfo().values().iterator().next();
+		assertThat(extendedInfo.getName(), is(expectedName));
 	}
 
 	static class LatchDecrementingRawDataChannel implements RawDataChannel {

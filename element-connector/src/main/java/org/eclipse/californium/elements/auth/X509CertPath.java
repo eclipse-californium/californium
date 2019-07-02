@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2016 - 2019 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -26,6 +26,7 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import javax.security.auth.x500.X500Principal;
 
@@ -40,7 +41,7 @@ import org.slf4j.LoggerFactory;
  * the asserted identity) at first position and the certificate issued by the
  * trust anchor at the end of the list.
  */
-public class X509CertPath implements Principal {
+public class X509CertPath extends AbstractExtensiblePrincipal<X509CertPath> {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(X509CertPath.class.getCanonicalName());
 	private static final String TYPE_X509 = "X.509";
@@ -56,6 +57,19 @@ public class X509CertPath implements Principal {
 	 *             or does not contain X.509 certificates only.
 	 */
 	public X509CertPath(final CertPath certPath) {
+		this(certPath, null);
+	}
+
+	/**
+	 * Creates a new instance for a certificate chain.
+	 * 
+	 * @param certPath The certificate chain asserting the peer's identity.
+	 * @param additionalInformation Additional information for this principal.
+	 * @throws IllegalArgumentException if the given certificate chain is empty
+	 *             or does not contain X.509 certificates only.
+	 */
+	public X509CertPath(final CertPath certPath, Map<String, Principal> additionalInformation) {
+		super(additionalInformation);
 		if (!TYPE_X509.equals(certPath.getType())) {
 			throw new IllegalArgumentException("Cert path must contain X.509 certificates only");
 		} else if (certPath.getCertificates().isEmpty()) {
@@ -64,6 +78,14 @@ public class X509CertPath implements Principal {
 			this.path = certPath;
 			this.target = (X509Certificate) certPath.getCertificates().get(0);
 		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public X509CertPath amend(Map<String, Principal> additionInfo) {
+		return new X509CertPath(path, additionInfo);
 	}
 
 	/**

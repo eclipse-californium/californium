@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2018 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2019 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -56,16 +56,21 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
+import java.security.Principal;
 import java.security.PublicKey;
 import java.security.cert.CertPath;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
+import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -185,7 +190,6 @@ public class ServerHandshaker extends Handshaker {
 		this.supportedCipherSuites = config.getSupportedCipherSuites();
 
 		this.pskStore = config.getPskStore();
-
 		this.privateKey = config.getPrivateKey();
 		this.certificateChain = config.getCertificateChain();
 		this.publicKey = config.getPublicKey();
@@ -447,6 +451,7 @@ public class ServerHandshaker extends Handshaker {
 		// http://tools.ietf.org/html/rfc6347#section-4.2.4
 		lastFlight = flight;
 		sendFlight(flight);
+
 		sessionEstablished();
 	}
 

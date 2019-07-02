@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2018 - 2019 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -18,15 +18,23 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
-import static org.eclipse.californium.scandium.ConnectorHelper.*;
+import static org.eclipse.californium.scandium.ConnectorHelper.newStandardClientConfig;
+import static org.eclipse.californium.scandium.ConnectorHelper.newStandardClientConfigBuilder;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.CoreMatchers.nullValue;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
-import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.security.GeneralSecurityException;
+import java.security.Principal;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -41,6 +49,7 @@ import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.TestThreadFactory;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
+import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.ClientSessionCache;
@@ -79,24 +88,48 @@ public class DTLSConnectorResumeTest {
 	@ClassRule
 	public static ThreadsRule cleanup = new ThreadsRule();
 
-	@Rule
-	public TestNameLoggerRule names = new TestNameLoggerRule();
-
-	private static final int CLIENT_CONNECTION_STORE_CAPACITY = 5;
-	private static final int MAX_TIME_TO_WAIT_SECS = 2;
-
 	static ConnectorHelper serverHelper;
 
 	static ExecutorService executor;
+
+	private static final int CLIENT_CONNECTION_STORE_CAPACITY = 5;
+	private static final int MAX_TIME_TO_WAIT_SECS = 2;
+	private static final String DEVICE_ID = "device-id";
+
+	@Rule
+	public TestNameLoggerRule names = new TestNameLoggerRule();
 
 	DTLSConnector client;
 	InMemoryConnectionStore clientConnectionStore;
 	List<Record> lastReceivedFlight;
 
+	/**
+	 * Starts the server side DTLS connector.
+	 * 
+	 * @throws Exception if the connector cannot be started.
+	 */
 	@BeforeClass
-	public static void loadKeys() throws IOException, GeneralSecurityException {
+	public static void startServer() throws Exception {
+
+		final Map<String, Principal> applicationLevelInfo = new HashMap<>();
+		applicationLevelInfo.put("device-id", new Principal() {
+
+			@Override
+			public String getName() {
+				return DEVICE_ID;
+			}
+		});
+
+		ApplicationLevelInfoSupplier supplier = new ApplicationLevelInfoSupplier() {
+
+			@Override
+			public Map<String, Principal> getInfo(Principal clientIdentity) {
+				return applicationLevelInfo;
+			}
+		};
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
-				.setSniEnabled(true);
+				.setSniEnabled(true)
+				.setApplicationLevelInfoSupplier(supplier);
 		serverHelper = new ConnectorHelper();
 		serverHelper.startServer(builder);
 		executor = ExecutorsUtil.newFixedThreadPool(2, new TestThreadFactory("DTLS-RESUME-"));
@@ -514,11 +547,13 @@ public class DTLSConnectorResumeTest {
 
 	private void assertClientIdentity(final Class<?> principalType) {
 
+		Principal clientIdentity = serverHelper.serverRawDataProcessor.getClientEndpointContext().getPeerIdentity();
 		// assert that client identity is of given type
 		if (principalType == null) {
-			assertThat(serverHelper.serverRawDataProcessor.getClientEndpointContext().getPeerIdentity(), is(nullValue()));
+			assertThat(clientIdentity, is(nullValue()));
 		} else {
-			assertThat(serverHelper.serverRawDataProcessor.getClientEndpointContext().getPeerIdentity(), instanceOf(principalType));
+			assertThat(clientIdentity, instanceOf(principalType));
+			ConnectorHelper.assertPrincipalHasAdditionalInfo(clientIdentity, DEVICE_ID);
 		}
 	}
 }

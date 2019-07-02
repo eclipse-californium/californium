@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2018 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2019 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -18,6 +18,7 @@
 package org.eclipse.californium.elements.auth;
 
 import java.security.Principal;
+import java.util.Map;
 
 import org.eclipse.californium.elements.util.StringUtil;
 
@@ -25,7 +26,7 @@ import org.eclipse.californium.elements.util.StringUtil;
  * A principal representing an authenticated peer's identity as used in a
  * <em>pre-shared key</em> handshake.
  */
-public final class PreSharedKeyIdentity implements Principal {
+public final class PreSharedKeyIdentity extends AbstractExtensiblePrincipal<PreSharedKeyIdentity> {
 
 	private final boolean scopedIdentity;
 	private final String virtualHost;
@@ -39,7 +40,18 @@ public final class PreSharedKeyIdentity implements Principal {
 	 * @throws NullPointerException if the identity is <code>null</code>
 	 */
 	public PreSharedKeyIdentity(String identity) {
-		this(false, null, identity);
+		this(false, null, identity, null);
+	}
+
+	/**
+	 * Creates a new instance for an identity.
+	 * 
+	 * @param identity the identity
+	 * @param additionalInformation Additional information for this principal.
+	 * @throws NullPointerException if the identity is <code>null</code>
+	 */
+	public PreSharedKeyIdentity(String identity, Map<String, Principal> additionalInformation) {
+		this(false, null, identity, additionalInformation);
 	}
 
 	/**
@@ -53,7 +65,22 @@ public final class PreSharedKeyIdentity implements Principal {
 	 *             as per <a href="http://tools.ietf.org/html/rfc1123">RFC 1123</a>.
 	 */
 	public PreSharedKeyIdentity(String virtualHost, String identity) {
-		this(true, virtualHost, identity);
+		this(true, virtualHost, identity, null);
+	}
+
+	/**
+	 * Creates a new instance for an identity scoped to a virtual host.
+	 * 
+	 * @param virtualHost The virtual host name that the identity is scoped to.
+	 *                    The host name will be converted to lower case.
+	 * @param identity the identity.
+	 * @param additionalInformation Additional information for this principal.
+	 * @throws NullPointerException if the identity is <code>null</code>
+	 * @throws IllegalArgumentException if virtual host is not a valid host name
+	 *             as per <a href="http://tools.ietf.org/html/rfc1123">RFC 1123</a>.
+	 */
+	public PreSharedKeyIdentity(String virtualHost, String identity, Map<String, Principal> additionalInformation) {
+		this(true, virtualHost, identity, additionalInformation);
 	}
 
 	/**
@@ -63,12 +90,14 @@ public final class PreSharedKeyIdentity implements Principal {
 	 * @param virtualHost The virtual host name that the identity is scoped to.
 	 *            The host name will be converted to lower case.
 	 * @param identity the identity.
+	 * @param additionalInformation Additional information for this principal.
 	 * @throws NullPointerException if the identity is <code>null</code>
 	 * @throws IllegalArgumentException if virtual host is not a valid host name
 	 *             as per <a href="http://tools.ietf.org/html/rfc1123">RFC
 	 *             1123</a>.
 	 */
-	private PreSharedKeyIdentity(boolean sni, String virtualHost, String identity) {
+	private PreSharedKeyIdentity(boolean sni, String virtualHost, String identity, Map<String, Principal> additionalInformation) {
+		super(additionalInformation);
 		if (identity == null) {
 			throw new NullPointerException("Identity must not be null");
 		} else {
@@ -95,6 +124,22 @@ public final class PreSharedKeyIdentity implements Principal {
 			b.append(identity);
 			this.name = b.toString();
 		}
+	}
+
+	private PreSharedKeyIdentity(boolean scopedIdentity, String virtualHost, String identity, String name, Map<String, Principal> additionalInfo) {
+		super(additionalInfo);
+		this.scopedIdentity = scopedIdentity;
+		this.virtualHost = virtualHost;
+		this.identity = identity;
+		this.name = name;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public PreSharedKeyIdentity amend(Map<String, Principal> additionInfo) {
+		return new PreSharedKeyIdentity(scopedIdentity, virtualHost, identity, name, additionInfo);
 	}
 
 	/**
