@@ -46,6 +46,7 @@ import java.util.List;
 
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.util.SslContextUtil;
+import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.SessionCache;
@@ -285,6 +286,8 @@ public final class DtlsConnectorConfig {
 	 * {@code false}.
 	 */
 	private ConnectionIdGenerator connectionIdGenerator;
+
+	private ApplicationLevelInfoSupplier applicationLevelInfoSupplier;
 
 	private DtlsConnectorConfig() {
 		// empty
@@ -548,6 +551,15 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * Gets the supplier of application level information for an authenticated peer's identity.
+	 * 
+	 * @return the supplier or {@code null} if not set
+	 */
+	public ApplicationLevelInfoSupplier getApplicationLevelInfoSupplier() {
+		return applicationLevelInfoSupplier;
+	}
+
+	/**
 	 * Gets whether the connector wants (requests) DTLS clients to authenticate
 	 * during the handshake. The handshake doesn't fail, if the client didn't
 	 * authenticate itself during the handshake. That mostly requires the client
@@ -762,6 +774,7 @@ public final class DtlsConnectorConfig {
 		cloned.useAntiReplayFilter = useAntiReplayFilter;
 		cloned.useWindowFilter = useWindowFilter;
 		cloned.connectionIdGenerator = connectionIdGenerator;
+		cloned.applicationLevelInfoSupplier = applicationLevelInfoSupplier;
 		return cloned;
 	}
 
@@ -1402,6 +1415,21 @@ public final class DtlsConnectorConfig {
 				throw new IllegalStateException("CertificateVerifier must not be used after trust store is set!");
 			}
 			config.certificateVerifier = verifier;
+			return this;
+		}
+
+		/**
+		 * Sets a supplier of application level information for an authenticated peer's identity.
+		 * 
+		 * @param supplier The supplier.
+		 * @return this  builder for command chaining.
+		 * @throws NullPointerException if supplier is {@code null}.
+		 */
+		public Builder setApplicationLevelInfoSupplier(ApplicationLevelInfoSupplier supplier) {
+			if (supplier == null) {
+				throw new NullPointerException("Supplier must not be null");
+			}
+			config.applicationLevelInfoSupplier = supplier;
 			return this;
 		}
 
