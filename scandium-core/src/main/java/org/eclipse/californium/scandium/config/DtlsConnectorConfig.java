@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015 - 2017 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2015 - 2019 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -256,7 +256,7 @@ public final class DtlsConnectorConfig {
 	/**
 	 * Use anti replay filter.
 	 * 
-	 * @see http://tools.ietf.org/html/rfc6347#section-4.1
+	 * @see "http://tools.ietf.org/html/rfc6347#section-4.1"
 	 */
 	private Boolean useAntiReplayFilter;
 
@@ -265,7 +265,7 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * Messages too old for the filter window will pass the filter.
 	 * 
-	 * @see http://tools.ietf.org/html/rfc6347#section-4.1
+	 * @see "http://tools.ietf.org/html/rfc6347#section-4.1"
 	 */
 	private Boolean useWindowFilter;
 
@@ -686,7 +686,7 @@ public final class DtlsConnectorConfig {
 	 * Use anti replay filter.
 	 * 
 	 * @return {@code true}, apply anti replay filter
-	 * @see http://tools.ietf.org/html/rfc6347#section-4.1
+	 * @see "http://tools.ietf.org/html/rfc6347#section-4.1"
 	 */
 	public Boolean useAntiReplayFilter() {
 		return useAntiReplayFilter;
@@ -698,7 +698,7 @@ public final class DtlsConnectorConfig {
 	 * Messages too old for the filter window will pass the filter.
 	 * 
 	 * @return {@code true}, apply window filter
-	 * @see http://tools.ietf.org/html/rfc6347#section-4.1
+	 * @see "http://tools.ietf.org/html/rfc6347#section-4.1"
 	 */
 	public Boolean useWindowFilter() {
 		return useWindowFilter;
@@ -1179,11 +1179,9 @@ public final class DtlsConnectorConfig {
 		 * public key pair.
 		 * <p>
 		 * Using this method implies that the connector <em>only</em> supports
-		 * <em>RawPublicKey</em> mode for authenticating to a peer. This sets
-		 * the {@link DtlsConnectorConfig#identityCertificateTypes} to
-		 * RAW_PUBLIC_KEY also. Please ensure, that you setup
-		 * {@link #setRpkTrustStore(TrustedRpkStore)}, or [@link
-		 * {@link #setRpkTrustAll()}}, if you want to trust the other peer using
+		 * <em>RawPublicKey</em> mode for authenticating to a peer. Please ensure,
+		 * that you setup {@link #setRpkTrustStore(TrustedRpkStore)}, or
+		 * {@link #setRpkTrustAll()}, if you want to trust the other peer using
 		 * RAW_PUBLIC_KEY also.
 		 * 
 		 * If X_509 is intended to be supported together with RAW_PUBLIC_KEY,
@@ -1642,7 +1640,6 @@ public final class DtlsConnectorConfig {
 		 *            {@link DtlsConnectorConfig#DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT}
 		 * @return this builder for command chaining.
 		 * @throws IllegalArgumentException if threshold is not between 0 and 100
-		 * @see DtlsConnectorConfig#verifyPeersOnResumptionThreshold
 		 */
 		public Builder setVerifyPeersOnResumptionThreshold(int threshold) {
 			if (threshold < 0 || threshold > 100) {
@@ -1674,7 +1671,7 @@ public final class DtlsConnectorConfig {
 		 * @param enable {@code true} to enable filter. Default {@code true}.
 		 * @return this builder for command chaining.
 		 * @throws IllegalArgumentException if window filter is active.
-		 * @see http://tools.ietf.org/html/rfc6347#section-4.1
+		 * @see "http://tools.ietf.org/html/rfc6347#section-4.1"
 		 */
 		public Builder setUseAntiReplayFilter(boolean enable) {
 			if (enable && Boolean.TRUE.equals(config.useWindowFilter)) {
@@ -1692,7 +1689,7 @@ public final class DtlsConnectorConfig {
 		 * @param enable {@code true} to enable filter. Default {@code false}.
 		 * @return this builder for command chaining.
 		 * @throws IllegalArgumentException if anti replay window filter is active.
-		 * @see http://tools.ietf.org/html/rfc6347#section-4.1
+		 * @see "http://tools.ietf.org/html/rfc6347#section-4.1"
 		 */
 		public Builder setUseWindowFilter(boolean enable) {
 			if (enable && Boolean.TRUE.equals(config.useAntiReplayFilter)) {
