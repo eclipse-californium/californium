@@ -112,7 +112,7 @@ public class Record {
 	/** The connection id. */
 	private ConnectionId connectionId;
 
-	/** padding to be used, if cid is used */
+	/** Padding to be used with cid */
 	private int padding;
 
 	/** The DTLS session. */
@@ -187,11 +187,11 @@ public class Record {
 	 *            Otherwise use {@code null} as connection id
 	 * @param pad if cid is enabled, pad could be used to add that number of
 	 *            zero-bytes as padding to the payload to obfuscate the payload
-	 *            length
+	 *            length.
 	 * @throws IllegalArgumentException if the given sequence number is longer
-	 *             than 48 bits or less than 0, the given epoch is less than
-	 *             0, the provided type is not supported or the fragment could
-	 *             not be converted into bytes.
+	 *             than 48 bits or less than 0, the given epoch is less than 0,
+	 *             the provided type is not supported or the fragment could not
+	 *             be converted into bytes.
 	 * @throws NullPointerException if the given type, fragment or session is
 	 *             {@code null}.
 	 * @throws GeneralSecurityException if the message could not be encrypted,
@@ -342,16 +342,21 @@ public class Record {
 			if (type == ContentType.TLS12_CID.getCode()) {
 				if (cidGenerator == null) {
 					LOGGER.debug("Received TLS_CID record, but cid is not supported. Discarding ...");
-					continue;
+					return records;
 				} else if (cidGenerator.useConnectionId()) {
-					connectionId = cidGenerator.read(reader);
-					if (connectionId == null) {
-						LOGGER.debug("Received TLS_CID record, but cid is not matching. Discarding ...");
-						continue;
+					try {
+						connectionId = cidGenerator.read(reader);
+						if (connectionId == null) {
+							LOGGER.debug("Received TLS_CID record, but cid is not matching. Discarding ...");
+							return records;
+						}
+					} catch (RuntimeException ex) {
+						LOGGER.debug("Received TLS_CID record, failed to read cid. Discarding ...", ex.getMessage());
+						return records;
 					}
 				} else {
 					LOGGER.debug("Received TLS_CID record, but cid is not used. Discarding ...");
-					continue;
+					return records;
 				}
 			}
 			int length = reader.read(LENGTH_BITS);
@@ -451,15 +456,15 @@ public class Record {
 		case NULL:
 			// do nothing
 			break;
-			
+
 		case AEAD:
 			result = decryptAEAD(ciphertextFragment, currentReadState);
 			break;
-			
+
 		case BLOCK:
 			result = decryptBlockCipher(ciphertextFragment, currentReadState);
 			break;
-			
+
 		case STREAM:
 			// Currently, Scandium does not support any stream ciphers
 			// RC4 is explicitly ruled out from being used in DTLS
@@ -521,14 +526,14 @@ public class Record {
 		plaintext.writeBytes(getBlockCipherMac(writeState, compressedFragment));
 
 		// determine padding length
-		int ciphertextLength = compressedFragment.length + writeState.getCipherSuite().getMacLength() + 1;
-		int smallestMultipleOfBlocksize = writeState.getRecordIvLength();
-		while ( smallestMultipleOfBlocksize <= ciphertextLength) {
-			smallestMultipleOfBlocksize += writeState.getRecordIvLength();
+		int ciphertextLength = compressedFragment.length + writeState.getMacLength() + 1;
+		int blocksize = writeState.getRecordIvLength();
+		int paddingLength = ciphertextLength % blocksize;
+		if (0 < paddingLength) {
+			// padding to fill last block
+			paddingLength = blocksize - paddingLength;
 		}
-		int paddingLength = smallestMultipleOfBlocksize % ciphertextLength;
-
-		// create padding
+ 		// create padding
 		byte[] padding = new byte[paddingLength + 1];
 		Arrays.fill(padding, (byte) paddingLength);
 		plaintext.writeBytes(padding);
@@ -576,7 +581,11 @@ public class Record {
 			throw new NullPointerException("Current read state must not be null");
 		} else if (ciphertextFragment == null) {
 			throw new NullPointerException("Ciphertext must not be null");
+		} else if (ciphertextFragment.length < currentReadState.getRecordIvLength() + currentReadState.getMacLength()
+				+ 1) {
+			throw new GeneralSecurityException("Ciphertext too short!");
 		}
+
 		/*
 		 * See http://tools.ietf.org/html/rfc5246#section-6.2.3.2 for
 		 * explanation
@@ -593,10 +602,10 @@ public class Record {
 		int fragmentLength = plaintext.length
 				- 1 // paddingLength byte
 				- paddingLength
-				- currentReadState.getCipherSuite().getMacLength();
+				- currentReadState.getMacLength();
 
 		reader = new DatagramReader(plaintext);
-		byte[] content = reader.readBytes(fragmentLength);			
+		byte[] content = reader.readBytes(fragmentLength);
 		byte[] macFromMessage = reader.readBytes(currentReadState.getCipherSuite().getMacLength());
 		byte[] mac = getBlockCipherMac(currentReadState, content);
 		if (Arrays.equals(macFromMessage, mac)) {
@@ -694,6 +703,8 @@ public class Record {
 			throw new NullPointerException("Current read state must not be null");
 		} else if (byteArray == null) {
 			throw new NullPointerException("Ciphertext must not be null");
+		} else if (byteArray.length < currentReadState.getRecordIvLength() + currentReadState.getMacLength()) {
+			throw new GeneralSecurityException("Ciphertext too short!");
 		}
 		CipherSuite cipherSuite = currentReadState.getCipherSuite();
 		// the "implicit" part of the nonce is the salt as exchanged during the session establishment
@@ -983,7 +994,7 @@ public class Record {
 	 * @throws GeneralSecurityException if de-cryption fails, e.g. because the
 	 *             JVM does not support the negotiated cipher algorithm, or
 	 *             decoding of the inner plain text of
-	 *             {@link ContentType#TLS12_CID} fails
+	 *             {@link ContentType#TLS12_CID} fails.
 	 * @throws HandshakeException if the TLSPlaintext.fragment could not be
 	 *             parsed into a valid handshake message
 	 */
@@ -1032,7 +1043,7 @@ public class Record {
 				break;
 
 			case HANDSHAKE:
-				fragment = decryptHandshakeMessage(decryptedMessage);
+				fragment = handshakeMessageFromByteArray(decryptedMessage);
 				break;
 
 			default:
@@ -1044,7 +1055,7 @@ public class Record {
 		return fragment;
 	}
 
-	private DTLSMessage decryptHandshakeMessage(byte[] decryptedMessage) throws GeneralSecurityException, HandshakeException {
+	private DTLSMessage handshakeMessageFromByteArray(byte[] decryptedMessage) throws GeneralSecurityException, HandshakeException {
 		// TODO: it is unclear to me whether handshake messages are encrypted or not
 		// http://tools.ietf.org/html/rfc5246#section-7.4:
 		// "Handshake messages are supplied to the TLS record layer, where they
@@ -1107,7 +1118,7 @@ public class Record {
 	 * @see #Record(ContentType, int, long, DTLSMessage, DTLSSession, boolean,
 	 *      int)
 	 */
-	private boolean useConnectionId() {
+	boolean useConnectionId() {
 		return connectionId != null && !connectionId.isEmpty();
 	}
 
