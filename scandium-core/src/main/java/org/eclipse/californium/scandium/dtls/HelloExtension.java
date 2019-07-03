@@ -244,8 +244,8 @@ public abstract class HelloExtension {
 		SESSION_TICKET_TLS(35, "SessionTicket TLS"),
 
 		/** See <a href="https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/">Draft dtls-connection-id</a> **/
-		/** 2019-feb-18: the iana value is not assigned and 52 is only the currently next unassigned value. This value may change in the future! **/
-		CONNECTION_ID(52, "Connection ID"),
+		/** See <a href="https://mailarchive.ietf.org/arch/msg/tls/3wCyihI6Y7ZlciwcSDaQ322myYY">IANA code point assignment</a> **/
+		CONNECTION_ID(53, "Connection ID"),
 
 		/** See <a href="http://www.iana.org/go/rfc5746">RFC 5746</a> **/
 		RENEGOTIATION_INFO(65281, "renegotiation_info");

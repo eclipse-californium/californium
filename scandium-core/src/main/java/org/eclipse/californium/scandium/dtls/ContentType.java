@@ -42,7 +42,7 @@ public enum ContentType {
 	 * 
 	 * @param code
 	 *            the code representation of the content type (i.e. 20, 21, 22,
-	 *            23).
+	 *            23, 25).
 	 * @return the corresponding content type.
 	 */
 	public static ContentType getTypeByValue(int code) {
@@ -57,7 +57,7 @@ public enum ContentType {
 			return ContentType.APPLICATION_DATA;
 		case 25:
 			/** See <a href="https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/">Draft dtls-connection-id</a> **/
-			/** 2019-feb-18: the iana value is not yet assigned. This value may change in the future! **/
+			/** See <a href="https://mailarchive.ietf.org/arch/msg/tls/3wCyihI6Y7ZlciwcSDaQ322myYY">IANA code point assignment</a> **/
 			return ContentType.TLS12_CID;
 
 		default:
