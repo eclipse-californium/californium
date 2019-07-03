@@ -416,6 +416,15 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	private synchronized Connection findLocally(final SessionId id) {
 		Connection connection = connectionsByEstablishedSession.get(id);
 		if (connection != null) {
+			DTLSSession establishedSession = connection.getEstablishedSession();
+			if (establishedSession != null) {
+				if (!establishedSession.getSessionIdentifier().equals(id)) {
+					LOG.warn("{}connection {} changed session {}!={}!", tag, connection.getConnectionId(), id,
+							establishedSession.getSessionIdentifier());
+				}
+			} else {
+				LOG.warn("{}connection {} lost session {}!", tag, connection.getConnectionId(), id);
+			}
 			connections.update(connection.getConnectionId());
 		}
 		return connection;
@@ -443,6 +452,13 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		Connection connection = connectionsByAddress.get(peerAddress);
 		if (connection == null) {
 			LOG.debug("{}connection: missing connection for {}!", tag, peerAddress);
+		} else {
+			InetSocketAddress address = connection.getPeerAddress();
+			if (address == null) {
+				LOG.warn("{}connection {} lost ip-address {}!", tag, connection.getConnectionId(), peerAddress);
+			} else if (!address.equals(peerAddress)) {
+				LOG.warn("{}connection {} changed ip-address {}!={}!", tag, connection.getConnectionId(), peerAddress, address);
+			}
 		}
 		return connection;
 	}
@@ -452,6 +468,13 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		Connection connection = connections.get(cid);
 		if (connection == null) {
 			LOG.debug("{}connection: missing connection for {}!", tag, cid);
+		} else {
+			ConnectionId connectionId = connection.getConnectionId();
+			if (connectionId == null) {
+				LOG.warn("{}connection lost cid {}!", tag,  cid);
+			} else if (!connectionId.equals(cid)) {
+				LOG.warn("{}connection changed cid {}!={}!", tag, connectionId, cid);
+			}
 		}
 		return connection;
 	}
@@ -495,8 +518,8 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	private void removeFromAddressConnections(Connection connection) {
 		InetSocketAddress peerAddress = connection.getPeerAddress();
 		if (peerAddress != null) {
-			connection.updatePeerAddress(null);
 			connectionsByAddress.remove(peerAddress, connection);
+			connection.updatePeerAddress(null);
 		}
 	}
 
