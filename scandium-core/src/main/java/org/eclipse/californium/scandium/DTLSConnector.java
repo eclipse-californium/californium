@@ -153,6 +153,7 @@ import org.eclipse.californium.elements.exception.EndpointUnconnectedException;
 import org.eclipse.californium.elements.exception.MulticastNotSupportedException;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
+import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
@@ -828,10 +829,11 @@ public class DTLSConnector implements Connector, RecordLayer {
 			// nothing to do
 			return;
 		}
+		long timestamp = ClockUtil.nanoRealtime();
 		InetSocketAddress peerAddress = new InetSocketAddress(packet.getAddress(), packet.getPort());
 
 		byte[] data = Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getLength());
-		List<Record> records = Record.fromByteArray(data, peerAddress, connectionIdGenerator);
+		List<Record> records = Record.fromByteArray(data, peerAddress, connectionIdGenerator, timestamp);
 		LOGGER.debug("Received {} DTLS records from {} using a {} byte datagram buffer",
 				records.size(), peerAddress, inboundDatagramBufferSize);
 
@@ -911,8 +913,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 			// ensure, that connection is still related to record 
 			// and not changed by processing an other record before 
 			if (record.getConnectionId() == null && !connection.equalsPeerAddress(record.getPeerAddress())) {
-				LOGGER.warn("Drop record {}, connection changed address {} => {}!", record.getType(),
-						record.getPeerAddress(), connection.getPeerAddress());
+				long delay = TimeUnit.NANOSECONDS.toMillis(ClockUtil.nanoRealtime() - record.getReceiveNanos());
+				LOGGER.warn("Drop record {}, connection changed address {} => {}! (shift {}ms)", record.getType(),
+						record.getPeerAddress(), connection.getPeerAddress(), delay);
 				return;
 			}
 			int epoch = record.getEpoch();
