@@ -38,6 +38,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 
 import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -120,6 +121,13 @@ public class Record {
 	/** The peer address. */
 	private InetSocketAddress peerAddress;
 
+	/**
+	 * Receive time in uptime nanoseconds.
+	 * 
+	 * @link {@link ClockUtil#nanoRealtime()}
+	 */
+	private final long receiveNanos;
+
 	// Constructors ///////////////////////////////////////////////////
 
 	/**
@@ -135,14 +143,16 @@ public class Record {
 	 * @param sequenceNumber the sequence number
 	 * @param connectionId the connection id
 	 * @param fragmentBytes the encrypted data
+	 * @param peerAddress peer address
+	 * @param receiveNanos uptime nanoseconds of receiving this record
 	 * @throws IllegalArgumentException if the given sequence number is longer
 	 *             than 48 bits or less than 0. Or the given epoch is less than 0.
 	 * @throws NullPointerException if the given type, protocol version,
 	 *             fragment bytes or peer address is {@code null}.
 	 */
 	Record(ContentType type, ProtocolVersion version, int epoch, long sequenceNumber, ConnectionId connectionId,
-			byte[] fragmentBytes, InetSocketAddress peerAddress) {
-		this(version, epoch, sequenceNumber);
+			byte[] fragmentBytes, InetSocketAddress peerAddress, long receiveNanos) {
+		this(version, epoch, sequenceNumber, receiveNanos);
 		if (type == null) {
 			throw new NullPointerException("Type must not be null");
 		} else if (fragmentBytes == null) {
@@ -190,7 +200,7 @@ public class Record {
 	 */
 	public Record(ContentType type, int epoch, long sequenceNumber, DTLSMessage fragment, DTLSSession session,
 			boolean cid, int pad) throws GeneralSecurityException {
-		this(new ProtocolVersion(), epoch, sequenceNumber);
+		this(new ProtocolVersion(), epoch, sequenceNumber, 0);
 		if (fragment == null) {
 			throw new NullPointerException("Fragment must not be null");
 		} else if (session == null) {
@@ -227,7 +237,7 @@ public class Record {
 	 *             is {@code null}.
 	 */
 	public Record(ContentType type, long sequenceNumber, DTLSMessage fragment, InetSocketAddress peerAddress) {
-		this(new ProtocolVersion(), 0, sequenceNumber);
+		this(new ProtocolVersion(), 0, sequenceNumber, 0);
 		if (fragment == null) {
 			throw new NullPointerException("Fragment must not be null");
 		} else if (peerAddress == null) {
@@ -242,7 +252,7 @@ public class Record {
 		}
 	}
 
-	private Record(ProtocolVersion version, int epoch, long sequenceNumber) {
+	private Record(ProtocolVersion version, int epoch, long sequenceNumber, long receiveNanos) {
 		if (sequenceNumber > MAX_SEQUENCE_NO) {
 			throw new IllegalArgumentException("Sequence number must be 48 bits only! " + sequenceNumber);
 		} else if (sequenceNumber < 0) {
@@ -255,6 +265,7 @@ public class Record {
 		this.version = version;
 		this.epoch = epoch;
 		this.sequenceNumber = sequenceNumber;
+		this.receiveNanos = receiveNanos;
 	}
 
 	// Serialization //////////////////////////////////////////////////
@@ -297,10 +308,11 @@ public class Record {
 	 * @param peerAddress the IP address and port of the peer from which the bytes have been
 	 *           received
 	 * @param cidGenerator the connection id generator. May be {@code null}.
+	 * @param receiveNanos uptime nanoseconds of receiving this record
 	 * @return the {@code Record} instances
 	 * @throws NullPointerException if either one of the byte array or peer address is {@code null}
 	 */
-	public static List<Record> fromByteArray(byte[] byteArray, InetSocketAddress peerAddress, ConnectionIdGenerator cidGenerator) {
+	public static List<Record> fromByteArray(byte[] byteArray, InetSocketAddress peerAddress, ConnectionIdGenerator cidGenerator, long receiveNanos) {
 		if (byteArray == null) {
 			throw new NullPointerException("Byte array must not be null");
 		} else if (peerAddress == null) {
@@ -357,7 +369,7 @@ public class Record {
 				LOGGER.debug("Received DTLS record of unsupported type [{}]. Discarding ...", type);
 			} else {
 				records.add(new Record(contentType, version, epoch, sequenceNumber, connectionId, fragmentBytes,
-						peerAddress));
+						peerAddress, receiveNanos));
 			}
 		}
 
@@ -904,6 +916,15 @@ public class Record {
 	 */
 	public ConnectionId getConnectionId() {
 		return connectionId;
+	}
+
+	/**
+	 * Get uptime nanoseconds receiving this record.
+	 * 
+	 * @return uptime nanoseconds, or {@code 0}, if records wasn't received.
+	 */
+	public long getReceiveNanos() {
+		return receiveNanos;
 	}
 
 	/**
