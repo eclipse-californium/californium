@@ -60,7 +60,7 @@ public class DecryptorTest {
 		//Set up OSCORE context
 		ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, null, null);
 		
-		OSCoreCtxDB db = HashMapCtxDB.getInstance();
+		OSCoreCtxDB db = new HashMapCtxDB();
 		db.addContext(ctx);
 
 		//Create the encrypted request message from raw byte array
@@ -78,7 +78,7 @@ public class DecryptorTest {
 		}
 		
 		//Decrypt the request message
-		Request decrypted = RequestDecryptor.decrypt(r);
+		Request decrypted = RequestDecryptor.decrypt(db, r);
 		decrypted.getOptions().removeOscore();
 		
 		//Serialize the request message to byte array
@@ -126,12 +126,12 @@ public class DecryptorTest {
 		}
 		
 		//Set up some state information simulating the original outgoing request
-		OSCoreCtxDB db = HashMapCtxDB.getInstance();
+		OSCoreCtxDB db = new HashMapCtxDB();
 		db.addContext(r.getToken(), ctx);
 		db.addSeqByToken(r.getToken(), seq);
 		
 		//Decrypt the response message
-		Response decrypted = ResponseDecryptor.decrypt(r);
+		Response decrypted = ResponseDecryptor.decrypt(db, r);
 		decrypted.getOptions().removeOscore();
 		
 		//Check the decrypted response payload

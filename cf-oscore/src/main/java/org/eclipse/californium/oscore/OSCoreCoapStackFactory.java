@@ -31,23 +31,34 @@ import org.eclipse.californium.core.network.stack.CoapStack;
 public class OSCoreCoapStackFactory implements CoapStackFactory {
 
 	private static AtomicBoolean init = new AtomicBoolean();
-	
+	private static volatile OSCoreCtxDB defaultCtxDb;
+
 	@Override
-	public CoapStack createCoapStack(String protocol, NetworkConfig config, Outbox outbox) {
+	public CoapStack createCoapStack(String protocol, NetworkConfig config, Outbox outbox, Object customStackArgument) {
 		if (CoAP.isTcpProtocol(protocol)) {
 			throw new IllegalArgumentException("protocol \"" + protocol + "\" is not supported!");
 		}
-		return new OSCoreStack(config, outbox);
+		OSCoreCtxDB ctxDb = defaultCtxDb;
+		if (customStackArgument != null) {
+			ctxDb = (OSCoreCtxDB) customStackArgument;
+		}
+		return new OSCoreStack(config, outbox, ctxDb);
 	}
 
 	/**
 	 * Use {@link OSCoreStack} as default for {@link CoapEndpoint}.
 	 * 
+	 * Note: the factory is only applied once with the first call, the
+	 * {@link #defaultCtxDb} is update on every call.
+	 * 
+	 * @param db default argument for {@link OSCoreStack}
+	 * 
 	 * @see CoapEndpoint#setDefaultCoapStackFactory(CoapStackFactory)
 	 */
-	public static void useAsDefault() {
+	public static void useAsDefault(OSCoreCtxDB defaultCtxDb) {
 		if (init.compareAndSet(false, true)) {
 			CoapEndpoint.setDefaultCoapStackFactory(new OSCoreCoapStackFactory());
 		}
+		OSCoreCoapStackFactory.defaultCtxDb = defaultCtxDb;
 	}
 }

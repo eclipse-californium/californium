@@ -64,7 +64,7 @@ public class ContextRederivationTest {
 
 	private static String SERVER_RESPONSE = "Hello World!";
 	
-	private final static HashMapCtxDB db = HashMapCtxDB.getInstance();
+	private final static HashMapCtxDB db = new HashMapCtxDB();
 	private final static String hello1 = "/hello";
 	private final static AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
 	private final static AlgorithmID kdf = AlgorithmID.HKDF_HMAC_SHA_256;
@@ -86,7 +86,7 @@ public class ContextRederivationTest {
 	//Use the OSCORE stack factory
 	@BeforeClass
 	public static void setStackFactory() {
-		OSCoreCoapStackFactory.useAsDefault();
+		OSCoreCoapStackFactory.useAsDefault(db);
 	}
 
 	@After
@@ -111,7 +111,7 @@ public class ContextRederivationTest {
 		db.addContext(serverUri, ctx);
 
 		//Indicate that context information has been lost for the context associated to this URI
-		ContextRederivation.setLostContext(serverUri);
+		ContextRederivation.setLostContext(db, serverUri);
 		
 		//Now proceed with a normal request from the client
 		CoapClient c = new CoapClient(serverUri + hello1);

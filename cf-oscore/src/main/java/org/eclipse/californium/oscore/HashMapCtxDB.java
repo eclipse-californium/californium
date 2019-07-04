@@ -58,7 +58,7 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 	/**
 	 * Create the database
 	 */
-	private HashMapCtxDB() {
+	public HashMapCtxDB() {
 
 		// Prevent form the reflection api.
 		if (singleton != null) {
@@ -70,21 +70,6 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 		this.uriMap = new HashMap<>();
 		this.seqMap = new HashMap<>();
 		this.allTokens = new ArrayList<Token>();
-	}
-
-	/**
-	 * @return the singleton instance of this context database
-	 */
-	public static HashMapCtxDB getInstance() {
-		if (singleton == null) {
-
-			synchronized (HashMapCtxDB.class) {
-				if (singleton == null) {
-					singleton = new HashMapCtxDB();
-				}
-			}
-		}
-		return singleton;
 	}
 
 	@Override

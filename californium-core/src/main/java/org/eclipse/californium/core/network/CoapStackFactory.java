@@ -15,6 +15,8 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
+import java.util.Map;
+
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.elements.Connector;
@@ -34,9 +36,13 @@ public interface CoapStackFactory {
 	 *            {@link Connector#getProtocol()}.
 	 * @param config network configuration used for this coap stack
 	 * @param outbox outbox to be used for this coap stack
+	 * @param customStackArgument argument for custom stack, if required.
+	 *            {@code null} for standard stacks, or if the custom stack
+	 *            doesn't require specific arguments. My be a {@link Map}, if
+	 *            multiple arguments are required.
 	 * @return create coap stack-
 	 * @throws NullPointerException if any parameter is {@code null}
 	 * @throws IllegalArgumentException if protocol is not supported.
 	 */
-	CoapStack createCoapStack(String protocol, NetworkConfig config, Outbox outbox);
+	CoapStack createCoapStack(String protocol, NetworkConfig config, Outbox outbox, Object customStackArgument);
 }

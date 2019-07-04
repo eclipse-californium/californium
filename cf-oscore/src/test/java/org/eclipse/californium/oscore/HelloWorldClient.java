@@ -33,7 +33,7 @@ import java.io.IOException;
  */
 public class HelloWorldClient {
 
-	private final static HashMapCtxDB db = HashMapCtxDB.getInstance();
+	private final static HashMapCtxDB db = new HashMapCtxDB();
 	private final static String uriLocal = "coap://localhost";
 	private final static String hello1 = "/hello/1";
 	private final static AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
@@ -51,7 +51,7 @@ public class HelloWorldClient {
 		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, null);
 		db.addContext(uriLocal, ctx);
 
-		OSCoreCoapStackFactory.useAsDefault();
+		OSCoreCoapStackFactory.useAsDefault(db);
 		CoapClient c = new CoapClient(uriLocal + hello1);
 
 		Request r = new Request(Code.GET);

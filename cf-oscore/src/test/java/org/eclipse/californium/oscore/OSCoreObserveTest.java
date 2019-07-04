@@ -18,9 +18,10 @@
 package org.eclipse.californium.oscore;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.net.InetAddress;
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -76,13 +77,14 @@ public class OSCoreObserveTest {
 
 	private Timer timer;
 	private Endpoint serverEndpoint;
-	private static String serverAddress = InetAddress.getLoopbackAddress().getHostAddress();
-	private static String clientAddress = InetAddress.getLoopbackAddress().getHostName();
-
+	private static String serverName = TestTools.LOCALHOST_EPHEMERAL.getAddress().getHostAddress();
+	private static String clientName = TestTools.LOCALHOST_EPHEMERAL.getAddress().getHostAddress();
+	
 	private static boolean withOSCORE = true;
 
 	//OSCORE context information shared between server and client
-	private final static HashMapCtxDB db = HashMapCtxDB.getInstance();
+	private final static HashMapCtxDB dbClient = new HashMapCtxDB();
+	private final static HashMapCtxDB dbServer = new HashMapCtxDB();
 	private final static AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
 	private final static AlgorithmID kdf = AlgorithmID.HKDF_HMAC_SHA_256;
 	private final static byte[] master_secret = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
@@ -98,7 +100,7 @@ public class OSCoreObserveTest {
 	//Use the OSCORE stack factory
 	@BeforeClass
 	public static void setStackFactory() {
-		OSCoreCoapStackFactory.useAsDefault();
+		OSCoreCoapStackFactory.useAsDefault(dbClient);
 	}
 
 	@After
@@ -118,13 +120,13 @@ public class OSCoreObserveTest {
 	 * @return The request
 	 */
 	private Request createClientRequest(Code c, String resourceUri) {
-		String serverUri = TestTools.getUri(serverEndpoint, null);
-
+		String serverUri = TestTools.getUri(serverEndpoint, resourceUri);
+		
 		Request r = new Request(c);
 
 		r.setConfirmable(true);
-		r.setURI(serverUri + resourceUri);
-
+		r.setURI(serverUri);
+		
 		if(withOSCORE) {
 			r.getOptions().setOscore(Bytes.EMPTY); //Use OSCORE
 		}
@@ -142,7 +144,7 @@ public class OSCoreObserveTest {
 	 */
 	@Test
 	public void testObserve() throws InterruptedException {
-		
+
 		String resourceUri = "/oscore/observe2";
 		CoapClient client = new CoapClient();
 
@@ -159,15 +161,15 @@ public class OSCoreObserveTest {
 				System.out.println("NOTIFICATION: " + content);		
 				
 				//Check the incoming responses
-				assertEquals(response.getCode(), ResponseCode.CONTENT);
-				assertEquals(response.getOptions().getContentFormat(), MediaTypeRegistry.TEXT_PLAIN);
+				assertEquals(ResponseCode.CONTENT, response.getCode());
+				assertEquals(MediaTypeRegistry.TEXT_PLAIN, response.getOptions().getContentFormat());
 				
 				if(count == 1) {
-					assertEquals(response.getOptions().hasObserve(), true);
-					assertEquals(response.getResponseText(), "one");
+					assertTrue(response.getOptions().hasObserve());
+					assertEquals("one", response.getResponseText());
 				} else if(count == 2) {
-					assertEquals(response.getOptions().hasObserve(), true);
-					assertEquals(response.getResponseText(), "two");
+					assertTrue(response.getOptions().hasObserve());
+					assertEquals("two", response.getResponseText());
 				}
 				
 				count++;
@@ -208,11 +210,11 @@ public class OSCoreObserveTest {
 		
 		Response resp = r.waitForResponse(1000);
 		
-		assertEquals(resp.getCode(), ResponseCode.CONTENT);
-		assertEquals(resp.getOptions().getContentFormat(), MediaTypeRegistry.TEXT_PLAIN);
-		assertEquals(resp.getOptions().hasObserve(), false);
-		assertEquals(resp.getPayloadString(), "two");
-		assertEquals(relation.getCurrent().getResponseText(), "two");
+		assertEquals( ResponseCode.CONTENT, resp.getCode());
+		assertEquals(MediaTypeRegistry.TEXT_PLAIN, resp.getOptions().getContentFormat());
+		assertFalse(resp.getOptions().hasObserve());
+		assertEquals("two", resp.getPayloadString());
+		assertEquals("two", relation.getCurrent().getResponseText());
 		client.shutdown();
 	}
 
@@ -229,7 +231,7 @@ public class OSCoreObserveTest {
 	
 		try {
 			OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, null);
-			db.addContext("coap://" + serverAddress, ctx);
+			dbClient.addContext("coap://" + serverName, ctx);
 		}
 		catch(OSException e) {
 			System.err.println("Failed to set client OSCORE Context information!");
@@ -248,8 +250,7 @@ public class OSCoreObserveTest {
 
 		try {
 			OSCoreCtx ctx_B = new OSCoreCtx(master_secret, false, alg, sid, rid, kdf, 32, master_salt, null);
-
-			db.addContext("coap://" + clientAddress, ctx_B);
+			dbServer.addContext("coap://" + clientName, ctx_B);
 		}
 		catch (OSException e) {
 			System.err.println("Failed to set server OSCORE Context information!");
@@ -271,6 +272,7 @@ public class OSCoreObserveTest {
 
 		//Create server
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+		builder.setCustomCoapStackArgument(dbServer);
 		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
 		serverEndpoint = builder.build();
 		CoapServer server = new CoapServer();

@@ -79,6 +79,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -292,12 +293,16 @@ public class CoapEndpoint implements Endpoint {
 	 *            {@link EndpointContextMatcherFactory#create(Connector, NetworkConfig)}
 	 *            is used as matcher.
 	 * @param coapStackFactory coap-stack-factory factory to create coap-stack
+	 * @param customStackArgument argument for custom stack, if required.
+	 *            {@code null} for standard stacks, or if the custom stack
+	 *            doesn't require specific arguments. My be a {@link Map}, if
+	 *            multiple arguments are required.
 	 * @throws IllegalArgumentException if applyConfiguration is {@code true},
 	 *             but the connector is not a {@link UDPConnector}
 	 */
 	protected CoapEndpoint(Connector connector, boolean applyConfiguration, NetworkConfig config,
 			TokenGenerator tokenGenerator, ObservationStore store, MessageExchangeStore exchangeStore,
-			EndpointContextMatcher endpointContextMatcher, CoapStackFactory coapStackFactory) {
+			EndpointContextMatcher endpointContextMatcher, CoapStackFactory coapStackFactory, Object customStackArgument) {
 		this.config = config;
 		this.connector = connector;
 		this.connector.setRawDataReceiver(new InboxImpl());
@@ -350,7 +355,7 @@ public class CoapEndpoint implements Endpoint {
 		this.connector.setEndpointContextMatcher(endpointContextMatcher);
 		LOGGER.info("{} uses {}", getClass().getSimpleName(), endpointContextMatcher.getName());
 
-		this.coapstack = coapStackFactory.createCoapStack(connector.getProtocol(), config, new OutboxImpl());
+		this.coapstack = coapStackFactory.createCoapStack(connector.getProtocol(), config, new OutboxImpl(), customStackArgument);
 
 		if (CoAP.isTcpProtocol(connector.getProtocol())) {
 			this.matcher = new TcpMatcher(config, new NotificationDispatcher(), tokenGenerator, observationStore,
@@ -1103,6 +1108,10 @@ public class CoapEndpoint implements Endpoint {
 		 * Coap-stack-factory to create coap-stack.
 		 */
 		private CoapStackFactory coapStackFactory;
+		/**
+		 * Additional argument for custom coap stack.
+		 */
+		private Object customStackArgument;
 
 		/**
 		 * Create new builder.
@@ -1315,6 +1324,21 @@ public class CoapEndpoint implements Endpoint {
 		}
 
 		/**
+		 * Set additional argument for custom coap stack.
+		 * 
+		 * @param customStackArgument argument for custom stack, if required.
+		 *            {@code null} for standard stacks, or if the custom stack
+		 *            doesn't require specific arguments. My be a {@link Map},
+		 *            if multiple arguments are required.
+		 * @return this
+		 * @see #customStackArgument
+		 */
+		public Builder setCustomCoapStackArgument(Object customStackArgument) {
+			this.customStackArgument = customStackArgument;
+			return this;
+		}
+
+		/**
 		 * Create {@link CoapEndpoint} using the provided parameter or defaults.
 		 * 
 		 * @return new endpoint
@@ -1345,7 +1369,7 @@ public class CoapEndpoint implements Endpoint {
 				coapStackFactory = getDefaultCoapStackFactory();
 			}
 			return new CoapEndpoint(connector, applyConfiguration, config, tokenGenerator, observationStore,
-					exchangeStore, endpointContextMatcher, coapStackFactory);
+					exchangeStore, endpointContextMatcher, coapStackFactory, customStackArgument);
 		}
 	}
 
@@ -1364,7 +1388,7 @@ public class CoapEndpoint implements Endpoint {
 		if (defaultCoapStackFactory == null) {
 			defaultCoapStackFactory = new CoapStackFactory() {
 
-				public CoapStack createCoapStack(String protocol, NetworkConfig config, Outbox outbox) {
+				public CoapStack createCoapStack(String protocol, NetworkConfig config, Outbox outbox, Object customStackArgument) {
 					if (CoAP.isTcpProtocol(protocol)) {
 						return new CoapTcpStack(config, outbox);
 					} else {
