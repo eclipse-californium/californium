@@ -34,25 +34,19 @@ package org.eclipse.californium.core.test;
 import static org.eclipse.californium.core.test.MessageExchangeStoreTool.assertAllExchangesAreCompleted;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapClient;
-import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapObserveRelation;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
@@ -310,12 +304,10 @@ public class MemoryLeakingHashMapTest {
 
 		String currentResponseText = responseText;
 		int blocks = resource.setNotifies(currentResponseText, Mode.PIGGY_BACKED_RESPONSE);
-		CountDownLatch latch = new CountDownLatch(HOW_MANY_NOTIFICATION_WE_WAIT_FOR + 1);
-		AtomicBoolean isOnErrorInvoked = new AtomicBoolean();
 
 		CoapClient client = new CoapClient(uriOf(URI));
 		client.setEndpoint(clientEndpoint);
-		CoapObserverAndCanceler handler = new CoapObserverAndCanceler(latch, isOnErrorInvoked, true);
+		CoapObserverAndCanceler handler = new CoapObserverAndCanceler(HOW_MANY_NOTIFICATION_WE_WAIT_FOR + 1, true);
 		CoapObserveRelation rel = client.observe(handler);
 		handler.setObserveRelation(rel);
 
@@ -327,9 +319,11 @@ public class MemoryLeakingHashMapTest {
 
 		// Wait until all the notifications are received and
 		// the relation is canceled
-		latch.await(calculateNotifiesTimeout((HOW_MANY_NOTIFICATION_WE_WAIT_FOR + 1) * blocks), TimeUnit.MILLISECONDS);
-		assertTrue("Client has not received all expected responses, left " + latch.getCount(), 0 == latch.getCount());
-		assertFalse(isOnErrorInvoked.get()); // should not happen
+		handler.waitOnLoadCalls(HOW_MANY_NOTIFICATION_WE_WAIT_FOR + 1,
+				calculateNotifiesTimeout(HOW_MANY_NOTIFICATION_WE_WAIT_FOR + 1) * blocks, TimeUnit.MILLISECONDS);
+		assertThat("Client has not received all expected responses", handler.getOnLoadCalls(),
+				is(HOW_MANY_NOTIFICATION_WE_WAIT_FOR + 1));
+		assertThat("Client has errors", handler.getOnErrorCalls(), is(0));
 		client.shutdown();
 	}
 
@@ -349,18 +343,17 @@ public class MemoryLeakingHashMapTest {
 		String currentResponseText = "Hello observer";
 		resource.setNotifies(currentResponseText, Mode.PIGGY_BACKED_RESPONSE);
 
-		CountDownLatch latch = new CountDownLatch(HOW_MANY_NOTIFICATION_WE_WAIT_FOR);
-		AtomicBoolean isOnErrorInvoked = new AtomicBoolean();
-
 		CoapClient client = new CoapClient(uri);
 		client.setEndpoint(clientEndpoint);
-		CoapObserverAndCanceler handler = new CoapObserverAndCanceler(latch, isOnErrorInvoked, false);
+		CoapObserverAndCanceler handler = new CoapObserverAndCanceler(HOW_MANY_NOTIFICATION_WE_WAIT_FOR, false);
 		CoapObserveRelation rel = client.observe(handler);
 		handler.setObserveRelation(rel);
 
-		assertTrue("Client has not received all expected responses",
-				latch.await(calculateNotifiesTimeout(HOW_MANY_NOTIFICATION_WE_WAIT_FOR), TimeUnit.MILLISECONDS));
-		assertFalse(isOnErrorInvoked.get()); // should not happen
+		handler.waitOnLoadCalls(HOW_MANY_NOTIFICATION_WE_WAIT_FOR,
+				calculateNotifiesTimeout(HOW_MANY_NOTIFICATION_WE_WAIT_FOR), TimeUnit.MILLISECONDS);
+		assertThat("Client has not received all expected responses", handler.getOnLoadCalls(),
+				is(HOW_MANY_NOTIFICATION_WE_WAIT_FOR));
+		assertThat("Client has errors", handler.getOnErrorCalls(), is(0));
 		client.shutdown();
 	}
 
@@ -504,17 +497,14 @@ public class MemoryLeakingHashMapTest {
 		}
 	}
 
-	private class CoapObserverAndCanceler implements CoapHandler {
+	private class CoapObserverAndCanceler extends CountingCoapHandler {
 
 		private CoapObserveRelation relation;
-		final AtomicInteger counter = new AtomicInteger();
-		final CountDownLatch latch;
-		final AtomicBoolean errorFlag;
+		final int expectedNotifies;
 		final boolean cancelProactively;
 
-		public CoapObserverAndCanceler(final CountDownLatch latch, final AtomicBoolean errorFlag, final boolean cancelProactively) {
-			this.latch = latch;
-			this.errorFlag = errorFlag;
+		public CoapObserverAndCanceler(int expectedNotifies, boolean cancelProactively) {
+			this.expectedNotifies = expectedNotifies;
 			this.cancelProactively = cancelProactively;
 		}
 
@@ -523,43 +513,27 @@ public class MemoryLeakingHashMapTest {
 		}
 
 		@Override
-		public void onLoad(CoapResponse response) {
-			CoapObserveRelation relation;
-			synchronized (this) {
-				relation = this.relation;
-			}
-			int counter = this.counter.incrementAndGet();
+		public void assertLoad(CoapResponse response) {
+			int counter = this.loadCalls.get();
 
 			if (null == relation) {
-				LOGGER.info("Client ignore notification {}: [{}]",
-						new Object[] { counter, response.getResponseText() });
+				LOGGER.info("Client ignore notification {}: [{}]", counter, response.getResponseText());
 				return;
 			}
 
-			long countDown;
-			synchronized (latch) {
-				latch.countDown();
-				countDown = latch.getCount();
-			}
-			LOGGER.debug("Client received notification {}: [{}]",
-					new Object[] { counter, response.getResponseText() });
+			LOGGER.debug("Client received notification {}: [{}]", counter, response.getResponseText());
 
 			if (cancelProactively) {
-				if (countDown == 1) {
+				if ((counter + 1) == expectedNotifies) {
 					LOGGER.debug("Client proactively cancels observe relation");
 					relation.proactiveCancel();
 				}
 			} else {
-				if (countDown == 0) {
+				if (counter == expectedNotifies) {
 					LOGGER.debug("Client forgets observe relation");
 					relation.reactiveCancel();
 				}
 			}
-		}
-
-		@Override
-		public void onError() {
-			errorFlag.set(true);
 		}
 	}
 }

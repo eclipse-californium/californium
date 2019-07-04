@@ -43,18 +43,16 @@ import static org.eclipse.californium.core.test.MessageExchangeStoreTool.*;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapClient;
-import org.eclipse.californium.core.CoapHandler;
-import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.test.CountingCoapHandler;
 import org.eclipse.californium.core.test.CountingMessageObserver;
 import org.eclipse.californium.core.test.ErrorInjector;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
@@ -926,7 +924,7 @@ public class BlockwiseClientSideTest {
 	public void testGETCallsOnErrorAfterLostACK() throws Exception {
 		String path = "test";
 
-		final CountDownLatch latch = new CountDownLatch(1);
+		CountingCoapHandler handler = new CountingCoapHandler();
 		System.out.println("Blockwise GET with Lost ACK:");
 
 		respPayload = generateRandomPayload(300);
@@ -935,21 +933,12 @@ public class BlockwiseClientSideTest {
 		coapClient.setEndpoint(client);
 		Request request = createRequest(GET, path, server);
 
-		coapClient.advanced(new CoapHandler() {
-
-			@Override
-			public void onLoad(CoapResponse response) {}
-
-			@Override
-			public void onError() {
-				latch.countDown();
-			}
-		}, request);
+		coapClient.advanced(handler, request);
 
 		server.expectRequest(CON, GET, path).storeBoth("A").go();
 		server.sendResponse(ACK, CONTENT).loadBoth("A").block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
 
-		assertTrue(latch.await(3, TimeUnit.SECONDS));
+		assertTrue(handler.waitOnErrorCalls(1, 3, TimeUnit.SECONDS));
 		coapClient.shutdown();
 	}
 	

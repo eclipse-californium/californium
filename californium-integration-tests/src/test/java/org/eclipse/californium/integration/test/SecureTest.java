@@ -35,7 +35,7 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
-import org.eclipse.californium.core.test.CountingHandler;
+import org.eclipse.californium.core.test.CountingCoapHandler;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
 import org.eclipse.californium.elements.StrictDtlsEndpointContextMatcher;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
@@ -104,11 +104,11 @@ public class SecureTest {
 
 			// Send a request to an absent peer
 			CoapClient client = new CoapClient("coaps", TestTools.LOCALHOST_EPHEMERAL.getHostString(), freePort);
-			CountingHandler handler = new CountingHandler();
+			CountingCoapHandler handler = new CountingCoapHandler();
 			client.get(handler);
 
 			// Wait for error
-			handler.waitForErrorCalls(1, 5000, TimeUnit.MILLISECONDS);
+			handler.waitOnErrorCalls(1, 5000, TimeUnit.MILLISECONDS);
 
 			// We should get a handshake timeout error and so exchange store is
 			// empty
