@@ -31,6 +31,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.stack.AbstractLayer;
+import org.eclipse.californium.elements.util.Bytes;
 
 /**
  * 
@@ -44,8 +45,6 @@ public class ObjectSecurityLayer extends AbstractLayer {
 	 */
 	private static final Logger LOGGER = LoggerFactory.getLogger(ObjectSecurityLayer.class.getName());
 
-	private static final byte[] EMPTY = new byte[0];
-
 	/**
 	 * Generate a new partial IV for outgoing Response messages.
 	 * If this variable is false the same nonce from the original request will be used.
@@ -56,7 +55,16 @@ public class ObjectSecurityLayer extends AbstractLayer {
 	 *
 	 * This variable will control the general behaviour of the sender of Response messages
 	 */
-	private static boolean responseWithPartialIV = false; 
+	private boolean responseWithPartialIV = false; 
+
+	private final OSCoreCtxDB ctxDb;
+
+	public ObjectSecurityLayer(OSCoreCtxDB ctxDb) {
+		if (ctxDb == null) {
+			throw new NullPointerException("OSCoreCtxDB must be provided!");
+		}
+		this.ctxDb = ctxDb;
+	}
 
 	/**
 	 * Encrypt an outgoing request using the OSCore context.
@@ -95,8 +103,8 @@ public class ObjectSecurityLayer extends AbstractLayer {
 	 * 
 	 * @throws OSException error while decrypting request
 	 */
-	public static Request prepareReceive(Request request) throws CoapOSException {
-		return RequestDecryptor.decrypt(request);
+	public static Request prepareReceive(OSCoreCtxDB ctxDb, Request request) throws CoapOSException {
+		return RequestDecryptor.decrypt(ctxDb, request);
 	}
 
 	/**
@@ -107,8 +115,8 @@ public class ObjectSecurityLayer extends AbstractLayer {
 	 * 
 	 * @throws OSException error while decrypting response
 	 */
-	public static Response prepareReceive(Response response) throws OSException {
-		return ResponseDecryptor.decrypt(response);
+	public static Response prepareReceive(OSCoreCtxDB ctxDb, Response response) throws OSException {
+		return ResponseDecryptor.decrypt(ctxDb, response);
 	}
 
 	@Override
@@ -117,18 +125,13 @@ public class ObjectSecurityLayer extends AbstractLayer {
 		if (shouldProtectRequest(request)) {
 			try {
 				String uri = request.getURI();
-				final OSCoreCtxDB db = HashMapCtxDB.getInstance();
 
 				if (uri == null) {
 					LOGGER.error(ErrorDescriptions.URI_NULL);
 					throw new OSException(ErrorDescriptions.URI_NULL);
 				}
-				if (db == null) {
-					LOGGER.error(ErrorDescriptions.DB_NULL);
-					throw new OSException(ErrorDescriptions.DB_NULL);
-				}
 
-				final OSCoreCtx ctx = db.getContext(uri);
+				final OSCoreCtx ctx = ctxDb.getContext(uri);
 				if (ctx == null) {
 					LOGGER.error(ErrorDescriptions.CTX_NULL);
 					throw new OSException(ErrorDescriptions.CTX_NULL);
@@ -143,8 +146,8 @@ public class ObjectSecurityLayer extends AbstractLayer {
 					@Override
 					public void onReadyToSend() {
 						Token token = preparedRequest.getToken();
-						db.addContext(token, ctx);
-						db.addSeqByToken(token, seqByToken);
+						ctxDb.addContext(token, ctx);
+						ctxDb.addSeqByToken(token, seqByToken);
 					}
 				});
 
@@ -171,8 +174,7 @@ public class ObjectSecurityLayer extends AbstractLayer {
 		
 		if (shouldProtectResponse(exchange)) {
 			try {
-				HashMapCtxDB db = HashMapCtxDB.getInstance();
-				OSCoreCtx ctx = db.getContext(exchange.getCryptographicContextID());
+				OSCoreCtx ctx = ctxDb.getContext(exchange.getCryptographicContextID());
 				response = prepareSend(response, ctx, addPartialIV);
 				exchange.setResponse(response);
 			} catch (OSException e) {
@@ -193,9 +195,9 @@ public class ObjectSecurityLayer extends AbstractLayer {
 		if (isProtected(request)) {
 			byte[] rid = null;
 			try {
-				request = prepareReceive(request);
+				request = prepareReceive(ctxDb, request);
 				rid = request.getOptions().getOscore();
-				request.getOptions().setOscore(EMPTY);
+				request.getOptions().setOscore(Bytes.EMPTY);
 				exchange.setRequest(request);
 			} catch (CoapOSException e) {
 				LOGGER.error("Error while receiving OSCore request: " + e.getMessage());
@@ -230,7 +232,7 @@ public class ObjectSecurityLayer extends AbstractLayer {
 
 			//If response is protected with OSCORE parse it first with prepareReceive
 			if (isProtected(response)) {
-				response = prepareReceive(response);
+				response = prepareReceive(ctxDb, response);
 			}
 		} catch (OSException e) {
 			LOGGER.error("Error while receiving OSCore response: " + e.getMessage());
@@ -243,8 +245,7 @@ public class ObjectSecurityLayer extends AbstractLayer {
 		
 		//Remove token if this is a response to a Observe cancellation request
 		if(exchange.getRequest().isObserveCancel()) {
-			OSCoreCtxDB db = HashMapCtxDB.getInstance();
-			db.removeToken(response.getToken());
+			ctxDb.removeToken(response.getToken());
 		}
 		
 		super.receiveResponse(exchange, response);
@@ -260,7 +261,7 @@ public class ObjectSecurityLayer extends AbstractLayer {
 	}
 
 	//Method that checks if a response is expected to be protected with OSCORE
-	private static boolean responseShouldBeProtected(Exchange exchange, Response response) throws OSException {
+	private boolean responseShouldBeProtected(Exchange exchange, Response response) throws OSException {
 		Request request = exchange.getCurrentRequest();
 		OptionSet options = request.getOptions();
 		if (exchange.getCryptographicContextID() == null) {
@@ -270,15 +271,13 @@ public class ObjectSecurityLayer extends AbstractLayer {
 				// cryptographic id doesn't exist
 				if (options.hasOscore()) {
 					String uri = request.getURI();
-					OSCoreCtxDB db = HashMapCtxDB.getInstance();
-					OSCoreCtx ctx = null;
 					try {
-						ctx = db.getContext(uri);
+						OSCoreCtx ctx = ctxDb.getContext(uri);
+						exchange.setCryptographicContextID(ctx.getRecipientId());
 					} catch (OSException e) {
 						LOGGER.error("Error when re-creating exchange at OSCORE level");
 						throw new OSException("Error when re-creating exchange at OSCORE level");
 					}
-					exchange.setCryptographicContextID(ctx.getRecipientId());
 				}
 			}
 		}

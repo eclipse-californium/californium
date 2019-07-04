@@ -160,7 +160,7 @@ public class MessageExchangeStoreTool {
 
 	private static final CoapStackFactory COAP_STACK_TEST_FACTORY = new CoapStackFactory() {
 
-		public CoapStack createCoapStack(String protocol, NetworkConfig config, Outbox outbox) {
+		public CoapStack createCoapStack(String protocol, NetworkConfig config, Outbox outbox, Object customStackArgument) {
 			if (CoAP.isTcpProtocol(protocol)) {
 				throw new IllegalArgumentException("protocol \"" + protocol + "\" is not supported!");
 			}
@@ -201,7 +201,7 @@ public class MessageExchangeStoreTool {
 				InMemoryObservationStore observationStore, InMemoryMessageExchangeStore exchangeStore,
 				EndpointContextMatcher matcher) {
 			super(connector, applyConfiguration, config, new RandomTokenGenerator(config), observationStore,
-					exchangeStore, matcher, COAP_STACK_TEST_FACTORY);
+					exchangeStore, matcher, COAP_STACK_TEST_FACTORY, null);
 			this.exchangeStore = exchangeStore;
 			this.observationStore = observationStore;
 			this.requestChecker = new RequestEventChecker();

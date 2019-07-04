@@ -28,9 +28,7 @@ package org.eclipse.californium.oscore;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
@@ -38,6 +36,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.MessageDeliverer;
@@ -66,10 +65,11 @@ public class OSCoreServerClientTest {
 
 	private CoapServer server;
 
-	private int serverPort;
+	private Endpoint serverEndpoint;
 	
 	//OSCORE context information shared between server and client
-	private final static HashMapCtxDB db = HashMapCtxDB.getInstance();
+	private final static HashMapCtxDB dbServer = new HashMapCtxDB();
+	private final static HashMapCtxDB dbClient = new HashMapCtxDB();
 	private final static AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
 	private final static AlgorithmID kdf = AlgorithmID.HKDF_HMAC_SHA_256;
 	private final static byte[] master_secret = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
@@ -86,7 +86,7 @@ public class OSCoreServerClientTest {
 	//Use the OSCORE stack factory
 	@BeforeClass
 	public static void setStackFactory() {
-		OSCoreCoapStackFactory.useAsDefault();
+		OSCoreCoapStackFactory.useAsDefault(dbClient);
 	}
 
 	@After
@@ -108,7 +108,7 @@ public class OSCoreServerClientTest {
 		byte[] sid = new byte[0];
 		byte[] rid = new byte[] { 0x01 };
 		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, null);
-		db.addContext("coap://" + InetAddress.getLoopbackAddress().getHostAddress(), ctx);
+		dbClient.addContext("coap://" + serverEndpoint.getAddress().getAddress().getHostAddress(), ctx);
 		
 		// send request
 		Request request = new Request(CoAP.Code.POST);
@@ -116,7 +116,7 @@ public class OSCoreServerClientTest {
 		int requestMID = 10000;
 		request.setMID(requestMID);
 		request.setConfirmable(true);
-		request.setDestinationContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), serverPort));
+		request.setDestinationContext(new AddressEndpointContext(serverEndpoint.getAddress()));
 		request.setPayload("client says hi");
 		request.send();
 		System.out.println("client sent request");
@@ -142,7 +142,7 @@ public class OSCoreServerClientTest {
 		byte[] sid = new byte[] { 0x77 }; //Modified sender ID to be incorrect
 		byte[] rid = new byte[] { 0x01 };
 		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, null);
-		db.addContext("coap://" + InetAddress.getLoopbackAddress().getHostAddress(), ctx);
+		dbClient.addContext("coap://" + serverEndpoint.getAddress().getAddress().getHostAddress(), ctx);
 		
 		// send request
 		Request request = new Request(CoAP.Code.POST);
@@ -150,7 +150,7 @@ public class OSCoreServerClientTest {
 		int requestMID = 10000;
 		request.setMID(requestMID);
 		request.setConfirmable(true);
-		request.setDestinationContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), serverPort));
+		request.setDestinationContext(new AddressEndpointContext(serverEndpoint.getAddress()));
 		request.setPayload("client says hi");
 		request.send();
 		System.out.println("client sent request");
@@ -170,14 +170,15 @@ public class OSCoreServerClientTest {
 		byte[] sid = new byte[] { 0x01 };
 		byte[] rid = new byte[0];
 		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, null);
-		db.addContext("coap://" + InetAddress.getLoopbackAddress().getHostName(), ctx);
-		
+		dbServer.addContext("coap://" + TestTools.LOCALHOST_EPHEMERAL.getAddress().getHostName(), ctx);
+
 		//Create server
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
-		CoapEndpoint endpoint = builder.build();
+		builder.setCustomCoapStackArgument(dbServer);
+		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
+		serverEndpoint = builder.build();
 		server = new CoapServer();
-		server.addEndpoint(endpoint);
+		server.addEndpoint(serverEndpoint);
 		server.setMessageDeliverer(new MessageDeliverer() {
 			@Override
 			public void deliverRequest(Exchange exchange) {
@@ -192,6 +193,5 @@ public class OSCoreServerClientTest {
 			public void deliverResponse(Exchange exchange, Response response) { }
 		});
 		server.start();
-		serverPort = endpoint.getAddress().getPort();
 	}
 }

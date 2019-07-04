@@ -61,12 +61,11 @@ public class RequestDecryptor extends Decryptor {
 	 * 
 	 * @throws CoapOSException if decryption fails
 	 */
-	public static Request decrypt(Request request) throws CoapOSException {
+	public static Request decrypt(OSCoreCtxDB db, Request request) throws CoapOSException {
 		
 		LOGGER.info("Removes E options from outer options which are not allowed there");
 		discardEOptions(request);
 
-		OSCoreCtxDB db = HashMapCtxDB.getInstance();
 		byte[] protectedData = request.getPayload();
 		Encrypt0Message enc;
 		OptionSet uOptions = request.getOptions();
@@ -92,7 +91,7 @@ public class RequestDecryptor extends Decryptor {
 		}
 
 		//Trigger context re-derivation if applicable
-		checkContextRederivation(rid, contextID);
+		checkContextRederivation(db, rid, contextID);
 
 		OSCoreCtx ctx = db.getContext(rid);
 
@@ -144,9 +143,8 @@ public class RequestDecryptor extends Decryptor {
 	 *
 	 * @throws CoapOSException if re-generation of the context fails
 	 */
-	private static void checkContextRederivation(byte[] rid, byte[] receivedContextID) throws CoapOSException {
+	private static void checkContextRederivation(OSCoreCtxDB db, byte[] rid, byte[] receivedContextID) throws CoapOSException {
 		//Get the context corresponding to the incoming rid
-		OSCoreCtxDB db = HashMapCtxDB.getInstance();
 		OSCoreCtx ctx = db.getContext(rid);
 
 		//Check if the received Context ID matches the one in the context, if so do nothing

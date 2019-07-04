@@ -49,7 +49,7 @@ public class OSCoreStack extends BaseCoapStack {
 	 * @param outbox The adapter for submitting outbound messages to the
 	 *            transport.
 	 */
-	public OSCoreStack(final NetworkConfig config, final Outbox outbox) {
+	public OSCoreStack(final NetworkConfig config, final Outbox outbox, final OSCoreCtxDB ctxDb) {
 		super(outbox);
 		ReliabilityLayer reliabilityLayer;
 		if (config.getBoolean(NetworkConfig.Keys.USE_CONGESTION_CONTROL)) {
@@ -60,7 +60,7 @@ public class OSCoreStack extends BaseCoapStack {
 		}
 
 		Layer layers[] = new Layer[] { new ExchangeCleanupLayer(config), new ObserveLayer(config), new BlockwiseLayer(config),
-				reliabilityLayer, new ObjectSecurityLayer(), };
+				reliabilityLayer, new ObjectSecurityLayer(ctxDb), };
 		setLayers(layers);
 	}
 }

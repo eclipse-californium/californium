@@ -50,10 +50,10 @@ public class ContextRederivation {
 	 * @param uri the URI associated with the context information has been lost for
 	 * @throws CoapOSException if re-generation of the context fails
 	 */
-	public static void setLostContext(String uri) throws CoapOSException
+	public static void setLostContext(OSCoreCtxDB db, String uri) throws CoapOSException
 	{
 		try {
-			rederive(uri);
+			rederive(db, uri);
 		} catch (ConnectorException | IOException | OSException e) {
 			LOGGER.error(ErrorDescriptions.CONTEXT_REGENERATION_FAILED);
 			throw new CoapOSException(ErrorDescriptions.CONTEXT_REGENERATION_FAILED, ResponseCode.BAD_REQUEST);
@@ -69,14 +69,13 @@ public class ContextRederivation {
 	 * @throws ConnectorException 
 	 * @throws OSException 
 	 */
-	private static void rederive(String uri) throws ConnectorException, IOException, OSException {
+	private static void rederive(OSCoreCtxDB db, String uri) throws ConnectorException, IOException, OSException {
 		//Generate a random 8 byte Context ID
 		SecureRandom random = new SecureRandom();
 		byte[] newContextId = new byte[8];
 		random.nextBytes(newContextId);
 		
 		//Retrieve the context for the target URI
-		HashMapCtxDB db = HashMapCtxDB.getInstance();
 		OSCoreCtx oldCtx = db.getContext(uri);
 		
 		//Create new context with the generated Context ID
