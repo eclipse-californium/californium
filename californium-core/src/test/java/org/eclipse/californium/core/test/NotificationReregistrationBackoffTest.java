@@ -23,16 +23,11 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.assertThat;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapClient;
-import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapObserveRelation;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
@@ -162,80 +157,24 @@ public class NotificationReregistrationBackoffTest {
 	@Test
 	public void reregistrationTest() throws InterruptedException {
 		final long expectedTimespanMillis = 3 * (MAX_AGE * 1000 + backoff);
-		final CountDownLatch countdown = new CountDownLatch(4);
-		final CountDownLatch canceled = new CountDownLatch(1);
-		final List<CoapResponse> observations = Collections.synchronizedList(new ArrayList<CoapResponse>());
+		CountingCoapHandler handler = new CountingCoapHandler();
 		long time = System.nanoTime();
-		CoapObserveRelation relation = client.observe(new ResponseHander(observations, countdown, canceled));
+		CoapObserveRelation relation = client.observe(handler);
 		// wait for 3 re-registrations to happen, plus some grace time
-		boolean ready = countdown.await(expectedTimespanMillis + 200, TimeUnit.MILLISECONDS);
+		boolean ready = handler.waitOnLoadCalls(4, expectedTimespanMillis + 200, TimeUnit.MILLISECONDS);
 		time = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - time);
 		relation.proactiveCancel();
-		assertTrue("cancel times out", canceled.await(2000, TimeUnit.MILLISECONDS));
+		assertTrue("cancel times out", handler.waitOnLoadCalls(5, 2000, TimeUnit.MILLISECONDS));
 
 		assertTrue("wrong number of responses/notifications", ready);
 		assertThat("timespan not in expected range", time, is(inRange(expectedTimespanMillis - 100L, expectedTimespanMillis + 200L)));
 
-		synchronized (observations) {
-			// expect 1 primary response + 3 re-registration responses + 1 cancel response = 5
-			assertEquals("wrong number of responses/notifications", 5, observations.size());
-			for (CoapResponse response : observations) {
-				assertNotNull("no response from server: ", response);
-				assertEquals("wrong responsecode: ", ResponseCode.CONTENT, response.getCode());
-			}
+		for (int index = 0; index < 5; ++index) {
+			CoapResponse response = handler.waitOnLoad(0);
+			assertNotNull("no response from server: ", response);
+			assertEquals("wrong responsecode: ", ResponseCode.CONTENT, response.getCode());
 		}
 	}
-
-	/**
-	 * Handler that collects responses
-	 *
-	 */
-	public class ResponseHander implements CoapHandler {
-
-		private List<CoapResponse> responses;
-
-		private CountDownLatch countDown;
-		private CountDownLatch ready;
-
-		/**
-		 * Constructor
-		 * 
-		 * @param responses list to deposit received responses in
-		 */
-		public ResponseHander(List<CoapResponse> responses, CountDownLatch countDown, CountDownLatch ready) {
-			this.responses = responses;
-			this.countDown = countDown;
-			this.ready = ready;
-		}
-
-		/*
-		 * (non-Javadoc)
-		 * 
-		 * @see org.eclipse.californium.core.CoapHandler#onLoad(org.eclipse.
-		 * californium.core. CoapResponse)
-		 */
-		@Override
-		public void onLoad(CoapResponse response) {
-			responses.add(response);
-			countDown.countDown();
-			if (!response.advanced().isNotification()) {
-				ready.countDown();
-			}
-		}
-
-		/*
-		 * (non-Javadoc)
-		 * 
-		 * @see org.eclipse.californium.core.CoapHandler#onError()
-		 */
-		@Override
-		public void onError() {
-			//note that an error occurred
-			responses.add(null);
-			countDown.countDown();
-			ready.countDown();
-		}
-	};
 
 	/**
 	 * Service resource that does not bother to notify observing clients.

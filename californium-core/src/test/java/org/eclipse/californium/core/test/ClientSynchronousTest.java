@@ -22,17 +22,19 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Assert;
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapClient;
-import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapObserveRelation;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
@@ -81,10 +83,6 @@ public class ClientSynchronousTest {
 	private static int serverPort;
 	private static StorageResource resource;
 
-	private String expected;
-	private AtomicInteger notifications = new AtomicInteger();
-	private boolean failed = false;
-
 	@BeforeClass
 	public static void startupServer() {
 		network.getStandardTestConfig().setLong(NetworkConfig.Keys.MAX_TRANSMIT_WAIT, 100);
@@ -117,34 +115,37 @@ public class ClientSynchronousTest {
 		String resp4 = client.get().getResponseText();
 		Assert.assertEquals(CONTENT_2, resp4);
 
+		CountingCoapHandler handler = new CountingCoapHandler();
 		// Observe the resource
-		expected = CONTENT_2;
-		CoapObserveRelation obs1 = client.observeAndWait(
-			new CoapHandler() {
-				@Override public void onLoad(CoapResponse response) {
-					notifications.incrementAndGet();
-					String payload = response.getResponseText();
-					Assert.assertEquals(expected, payload);
-					Assert.assertTrue(response.advanced().getOptions().hasObserve());
-				}
-				@Override public void onError() {
-					failed = true;
-					Assert.assertTrue(false);
-				}
-			});
+		CoapObserveRelation obs1 = client.observeAndWait(handler);
 		Assert.assertFalse(obs1.isCanceled());
+		CoapResponse response = handler.waitOnLoad(100);
+		assertNotNull("missing initial notification", response);
+		assertEquals(CONTENT_2, response.getResponseText());
 
 		Thread.sleep(100);
 		resource.changed();
+		response = handler.waitOnLoad(100);
+		assertNotNull("missing notification", response);
+		assertEquals(CONTENT_2, response.getResponseText());
 		Thread.sleep(100);
 		resource.changed();
+		response = handler.waitOnLoad(100);
+		assertNotNull("missing notification", response);
+		assertEquals(CONTENT_2, response.getResponseText());
 		Thread.sleep(100);
 		resource.changed();
+		response = handler.waitOnLoad(100);
+		assertNotNull("missing notification", response);
+		assertEquals(CONTENT_2, response.getResponseText());
 
 		Thread.sleep(100);
-		expected = CONTENT_3;
 		String resp5 = client.post(CONTENT_3, MediaTypeRegistry.TEXT_PLAIN).getResponseText();
 		Assert.assertEquals(CONTENT_2, resp5);
+
+		response = handler.waitOnLoad(100);
+		assertNotNull("missing notification", response);
+		assertEquals(CONTENT_3, response.getResponseText());
 
 		// Try a put and receive a METHOD_NOT_ALLOWED
 		ResponseCode code6 = client.put(CONTENT_4, MediaTypeRegistry.TEXT_PLAIN).getCode();
@@ -152,10 +153,11 @@ public class ClientSynchronousTest {
 
 		// Cancel observe relation of obs1 and check that it does no longer receive notifications
 		Thread.sleep(100);
-		expected = null; // The next notification would now cause a failure
 		obs1.reactiveCancel();
 		Thread.sleep(100);
 		resource.changed();
+		response = handler.waitOnLoad(100);
+		assertNull("unexpected notification", response == null ? null : response.getResponseText());
 
 		// Make another post
 		Thread.sleep(100);
@@ -172,8 +174,8 @@ public class ClientSynchronousTest {
 		// Check that we indeed received 5 notifications
 		// 1 from origin GET request, 3 x from changed(), 1 from post()
 		Thread.sleep(100);
-		Assert.assertEquals(5, notifications.get());
-		Assert.assertFalse(failed);
+		Assert.assertEquals(5, handler.getOnLoadCalls());
+		Assert.assertEquals(0, handler.getOnErrorCalls());
 		client.shutdown();
 	}
 

@@ -22,12 +22,9 @@ import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.assertThat;
 
 import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.List;
 
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.CoapClient;
-import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
@@ -38,6 +35,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.core.test.CountingCoapHandler;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.UdpMulticastConnector;
 import org.eclipse.californium.rule.CoapNetworkRule;
@@ -120,7 +118,7 @@ public class MulticastTest {
 
 	@Test
 	public void clientMulticastCheckResponseText() {
-		MultiCoapHandler handler = new MultiCoapHandler();
+		CountingCoapHandler handler = new CountingCoapHandler();
 		Request request = Request.newGet();
 		request.setURI("coap://" + CoAP.MULTICAST_IPV4.getHostAddress() + ":" + PORT + "/hello");
 		request.setType(Type.NON);
@@ -142,7 +140,7 @@ public class MulticastTest {
 
 	@Test
 	public void clientMulticastCheckReject() {
-		MultiCoapHandler handler = new MultiCoapHandler();
+		CountingCoapHandler handler = new CountingCoapHandler();
 		Request request = Request.newGet();
 		request.setURI("coap://" + CoAP.MULTICAST_IPV4.getHostAddress() + ":" + PORT + "/no");
 		request.setType(Type.NON);
@@ -162,37 +160,4 @@ public class MulticastTest {
 		assertThat(response, is(nullValue()));
 		assertThat(request.isRejected(), is(false));
 	}
-
-	private static class MultiCoapHandler implements CoapHandler {
-
-		private int index;
-		private List<CoapResponse> responses = new ArrayList<>();
-
-		public synchronized CoapResponse waitOnLoad(long timeout) {
-			if (!(index < responses.size())) {
-				try {
-					wait(timeout);
-				} catch (InterruptedException e) {
-				}
-			}
-			if (index < responses.size()) {
-				return responses.get(index++);
-			}
-			return null;
-		}
-
-		@Override
-		public synchronized void onLoad(CoapResponse response) {
-			System.out.println("response " + response.getResponseText());
-			responses.add(response);
-			notifyAll();
-		}
-
-		@Override
-		public synchronized void onError() {
-			System.err.println("error");
-			notifyAll();
-		}
-	};
-
 }
