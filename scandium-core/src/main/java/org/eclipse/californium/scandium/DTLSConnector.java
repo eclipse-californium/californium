@@ -1750,6 +1750,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			throw error;
 		}
 
+		final long now =ClockUtil.nanoRealtime();
 		if (pendingOutboundMessagesCountdown.decrementAndGet() >= 0) {
 			try {
 				SerialExecutor executor = connection.getExecutor();
@@ -1762,7 +1763,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 					public void run() {
 						try {
 							if (running.get()) {
-								sendMessage(msg, connection);
+								sendMessage(now, msg, connection);
 							} else {
 								msg.onError(new InterruptedIOException("Connector is not running."));
 							}
@@ -1803,16 +1804,23 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * @param connection connection of the peer
 	 * @throws HandshakeException if starting a handshake fails
 	 */
-	private void sendMessage(final RawData message, final Connection connection) throws HandshakeException {
+	private void sendMessage(final long nanos, final RawData message, final Connection connection) throws HandshakeException {
 
 		InetSocketAddress peerAddress = message.getInetSocketAddress();
+		if (connection.getPeerAddress() == null) {
+			long delay = TimeUnit.NANOSECONDS.toMillis(ClockUtil.nanoRealtime() - nanos);
+			LOGGER.warn("Drop record with {} bytes, connection lost address {}! (shift {}ms)", message.getSize(),
+					message.getInetSocketAddress(), delay);
+			message.onError(new EndpointUnconnectedException("connection not longer assigned to address!"));
+			return;
+		}
 		LOGGER.debug("Sending application layer message to [{}]", message.getEndpointContext());
 
 		DTLSSession session = connection.getEstablishedSession();
 		SessionTicket ticket = connection.getSessionTicket();
 		if (session == null && ticket == null) {
 			if (serverOnly) {
-				message.onError(new EndpointUnconnectedException());
+				message.onError(new EndpointUnconnectedException("server only, connection missing!"));
 				return;
 			}
 			if (!checkOutboundEndpointContext(message, null)) {
@@ -1847,7 +1855,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			if (connection.isAutoResumptionRequired(timeout)) {
 				// create the session to resume from the previous one.
 				if (serverOnly) {
-					message.onError(new EndpointMismatchException());
+					message.onError(new EndpointUnconnectedException("server only, resumption required!"));
 					return;
 				}
 				message.onConnecting();
