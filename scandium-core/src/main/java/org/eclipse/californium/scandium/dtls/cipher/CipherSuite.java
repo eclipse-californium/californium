@@ -736,7 +736,7 @@ public enum CipherSuite {
 		}
 		
 		private Cipher getCipher() {
-			return cipher.current();
+			return cipher == null ? null : cipher.current();
 		}
 	}
 
