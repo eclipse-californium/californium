@@ -2377,12 +2377,15 @@ public class DTLSConnector implements Connector, RecordLayer {
 	}
 
 	private static void discardRecord(final Record record, final Throwable cause) {
+		byte[] bytes = record.getFragmentBytes();
 		if (LOGGER.isTraceEnabled()) {
-			LOGGER.trace("Discarding {} record from peer [{}]: ", record.getType(), record.getPeerAddress(), cause);
+			String hexString = StringUtil.byteArray2HexString(bytes, StringUtil.NO_SEPARATOR, 64);
+			LOGGER.trace("Discarding {} record (epoch {}, payload: {}) from peer [{}]: ", record.getType(),
+					record.getEpoch(), hexString, record.getPeerAddress(), cause);
 		} else if (LOGGER.isDebugEnabled()) {
-			LOGGER.debug(
-				"Discarding {} record from peer [{}]: {}",
-				record.getType(), record.getPeerAddress(), cause.getMessage());
+			String hexString = StringUtil.byteArray2HexString(bytes, StringUtil.NO_SEPARATOR, 16);
+			LOGGER.debug("Discarding {} record (epoch {}, payload: {}) from peer [{}]: {}", record.getType(),
+					record.getEpoch(), hexString, record.getPeerAddress(), cause.getMessage());
 		}
 	}
 
