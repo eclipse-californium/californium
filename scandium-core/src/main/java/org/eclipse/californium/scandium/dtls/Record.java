@@ -18,6 +18,11 @@
  *                   in client code
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add initial support for Block Ciphers
  *    Achim Kraus (Bosch Software Innovations GmbH) - add isNewClientHello
+ *    Achim Kraus (Bosch Software Innovations GmbH) - check minimum record length ahead of
+ *                                                    decryption in order to omit
+ *                                                    RuntimeExceptions.
+ *                                                    Cleanup block cipher padding length
+ *                                                    calculations.
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -435,11 +440,12 @@ public class Record {
 
 		// determine padding length
 		int ciphertextLength = compressedFragment.length + session.getWriteState().getCipherSuite().getMacLength() + 1;
-		int smallestMultipleOfBlocksize = session.getWriteState().getRecordIvLength();
-		while ( smallestMultipleOfBlocksize <= ciphertextLength) {
-			smallestMultipleOfBlocksize += session.getWriteState().getRecordIvLength();
+		int blocksize = session.getWriteState().getRecordIvLength();
+		int paddingLength = ciphertextLength % blocksize;
+		if (0 < paddingLength) {
+			// padding to fill last block
+			paddingLength = blocksize - paddingLength;
 		}
-		int paddingLength = smallestMultipleOfBlocksize % ciphertextLength;
 
 		// create padding
 		byte[] padding = new byte[paddingLength + 1];
@@ -490,6 +496,9 @@ public class Record {
 			throw new NullPointerException("Current read state must not be null");
 		} else if (ciphertextFragment == null) {
 			throw new NullPointerException("Ciphertext must not be null");
+		} else if (ciphertextFragment.length < currentReadState.getRecordIvLength() + currentReadState.getMacLength()
+				+ 1) {
+			throw new GeneralSecurityException("Ciphertext too short!");
 		}
 		/*
 		 * See http://tools.ietf.org/html/rfc5246#section-6.2.3.2 for
@@ -556,7 +565,7 @@ public class Record {
 		byte[] key = session.getWriteState().getEncryptionKey().getEncoded();
 		byte[] additionalData = generateAdditionalData(byteArray.length);
 
-		byte[] encryptedFragment = CCMBlockCipher.encrypt(key, nonce, additionalData, byteArray, 8);
+		byte[] encryptedFragment = CCMBlockCipher.encrypt(key, nonce, additionalData, byteArray, session.getWriteState().getMacLength());
 
 		/*
 		 * Prepend the explicit nonce as specified in
@@ -585,6 +594,8 @@ public class Record {
 			throw new NullPointerException("Current read state must not be null");
 		} else if (byteArray == null) {
 			throw new NullPointerException("Ciphertext must not be null");
+		} else if (byteArray.length < currentReadState.getRecordIvLength() + currentReadState.getMacLength()) {
+			throw new GeneralSecurityException("Ciphertext too short!");
 		}
 		// the "implicit" part of the nonce is the salt as exchanged during the session establishment
 		byte[] iv = currentReadState.getIv().getIV();
@@ -598,14 +609,14 @@ public class Record {
 		 * The decrypted message is always 16 bytes shorter than the cipher (8
 		 * for the authentication tag and 8 for the explicit nonce).
 		 */
-		byte[] additionalData = generateAdditionalData(byteArray.length - 16);
+		byte[] additionalData = generateAdditionalData(byteArray.length - currentReadState.getRecordIvLength() - currentReadState.getMacLength());
 
 		DatagramReader reader = new DatagramReader(byteArray);
 	
 		// create explicit nonce from values provided in DTLS record 
 		byte[] explicitNonce = generateExplicitNonce();
 		// retrieve actual explicit nonce as contained in GenericAEADCipher struct (8 bytes long)
-		byte[] explicitNonceUsed = reader.readBytes(8);
+		byte[] explicitNonceUsed = reader.readBytes(currentReadState.getRecordIvLength());
 		if (LOGGER.isLoggable(Level.FINE) && !Arrays.equals(explicitNonce, explicitNonceUsed)) {
 			StringBuilder b = new StringBuilder("The explicit nonce used by the sender does not match the values provided in the DTLS record");
 			b.append(System.lineSeparator()).append("Used    : ").append(ByteArrayUtils.toHexString(explicitNonceUsed));
@@ -614,7 +625,7 @@ public class Record {
 		}
 
 		byte[] nonce = getNonce(iv, explicitNonceUsed);
-		return CCMBlockCipher.decrypt(key, nonce, additionalData, reader.readBytesLeft(), 8);
+		return CCMBlockCipher.decrypt(key, nonce, additionalData, reader.readBytesLeft(), currentReadState.getMacLength());
 	}
 
 	// Cryptography Helper Methods ////////////////////////////////////

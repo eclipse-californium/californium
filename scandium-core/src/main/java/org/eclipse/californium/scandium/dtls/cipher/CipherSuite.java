@@ -20,6 +20,7 @@
  *               cipher suites mandatory for LW M2M servers
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add method for checking if suite requires
  *               sending of a CERTIFICATE message to the client
+ *    Achim Kraus (Bosch Software Innovations GmbH) - rename Cipher ciphertextExpansion to macLength
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.cipher;
 
@@ -96,7 +97,7 @@ public enum CipherSuite {
 		case AEAD:
 			maxCipherTextExpansion =
 				cipher.getRecordIvLength() // explicit nonce
-					+ cipher.getCiphertextExpansion();
+					+ cipher.getMacLength();
 			break;
 		default:
 			maxCipherTextExpansion = 0;
@@ -173,7 +174,11 @@ public enum CipherSuite {
 	 * @return the length in bytes
 	 */
 	public int getMacLength() {
-		return macAlgorithm.getOutputLength();
+		if (macAlgorithm == MACAlgorithm.NULL) {
+			return cipher.getMacLength();
+		} else {
+			return macAlgorithm.getOutputLength();
+		}
 	}
 
 	/**
@@ -404,7 +409,7 @@ public enum CipherSuite {
 		private int fixedIvLength;
 		private int recordIvLength;
 		private CipherType type;
-		private int ciphertextExpansion;
+		private int macLength;
 
 
 		private Cipher(String transformation, CipherType type, int keyLength, int fixedIvLength, int recordIvLength) {
@@ -416,9 +421,9 @@ public enum CipherSuite {
 		}
 
 		private Cipher(String transformation, CipherType type, int keyLength, int fixedIvLength, int recordIvLength,
-				int ciphertextExpansion) {
+				int macLength) {
 			this(transformation, type, keyLength, fixedIvLength, recordIvLength);
-			this.ciphertextExpansion = ciphertextExpansion;
+			this.macLength = macLength;
 		}
 
 		/**
@@ -461,8 +466,8 @@ public enum CipherSuite {
 			return recordIvLength;
 		}
 
-		private int getCiphertextExpansion() {
-			return ciphertextExpansion;
+		private int getMacLength() {
+			return macLength;
 		}
 	}
 
