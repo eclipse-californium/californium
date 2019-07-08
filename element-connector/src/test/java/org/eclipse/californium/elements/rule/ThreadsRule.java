@@ -93,12 +93,15 @@ public class ThreadsRule implements TestRule {
 	 * Calls {@link #shutdown()} and then verifies, that no new thread is still
 	 * alive.
 	 * 
+	 * @param reportLeakAsException {@code true}, if leaks are reported with a
+	 *            {@link IllegalStateException}, {@code false} to only write
+	 *            logging.
 	 * @throws IllegalStateException if the number of active threads is changing
-	 *             to fast or new threads are still alive.
+	 *             too fast or new threads are still alive.
 	 */
-	private final void closeRule() {
+	private final void closeRule(boolean reportLeakAsException) {
 		shutdown();
-		checkThreadLeak(activeThreads);
+		checkThreadLeak(activeThreads, reportLeakAsException);
 		synchronized (this) {
 			this.description = null;
 		}
@@ -109,7 +112,7 @@ public class ThreadsRule implements TestRule {
 	 * 
 	 * @return list of active threads
 	 * @throws IllegalStateException if the number of active threads is changing
-	 *             to fast.
+	 *             too fast.
 	 */
 	public List<Thread> getActiveThreads() {
 		for (int i = 0; i < 5; ++i) {
@@ -141,8 +144,16 @@ public class ThreadsRule implements TestRule {
 
 	/**
 	 * Check for thread leaks.
+	 * 
+	 * @param activeThreads list of active threads at
+	 *            {@link #startRule(Description)}.
+	 * @param reportLeakAsException {@code true}, if leaks are reported with a
+	 *            {@link IllegalStateException}, {@code false} to only write
+	 *            logging.
+	 * @throws IllegalStateException if the number of active threads is changing
+	 *             too fast or new threads are still alive.
 	 */
-	public void checkThreadLeak(List<Thread> activeThreads) {
+	public void checkThreadLeak(List<Thread> activeThreads, boolean reportLeakAsException) {
 		List<Thread> listAfter = new ArrayList<>(getActiveThreads());
 		listAfter.removeAll(activeThreads);
 		if (!listAfter.isEmpty()) {
@@ -156,11 +167,12 @@ public class ThreadsRule implements TestRule {
 			listAfter.removeAll(activeThreads);
 			if (!listAfter.isEmpty()) {
 				dump("leaking " + description, listAfter);
-				throw new IllegalStateException(
-						"Active threads differs by " + listAfter.size() + "! (" + description + ")");
+				if (reportLeakAsException) {
+					throw new IllegalStateException(
+							"Active threads differs by " + listAfter.size() + "! (" + description + ")");
+				}
 			}
 		}
-
 	}
 
 	/**
@@ -196,9 +208,11 @@ public class ThreadsRule implements TestRule {
 				startRule(description);
 				try {
 					base.evaluate();
-				} finally {
-					closeRule();
+				} catch (Throwable t) {
+					closeRule(false);
+					throw t;
 				}
+				closeRule(true);
 			}
 		};
 	}
