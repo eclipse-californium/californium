@@ -893,7 +893,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 						record.getType(), peerAddress, e);
 				break;
 			} catch (RuntimeException e) {
-				LOGGER.info("Unexpected error occurred while processing record [type: {}, peer: {}]",
+				LOGGER.warn("Unexpected error occurred while processing record [type: {}, peer: {}]",
 						record.getType(), peerAddress, e);
 				terminateConnection(connection, e, AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
 				break;
@@ -1396,7 +1396,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 					LOGGER.debug("Execution rejected while processing record [type: {}, peer: {}]",
 							record.getType(), peerAddress, e);
 				} catch (RuntimeException e) {
-					LOGGER.info("Unexpected error occurred while processing record [type: {}, peer: {}]",
+					LOGGER.warn("Unexpected error occurred while processing record [type: {}, peer: {}]",
 							record.getType(), peerAddress, e);
 					terminateConnection(connections.getConnectionByAddress(), e, AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
 				}
