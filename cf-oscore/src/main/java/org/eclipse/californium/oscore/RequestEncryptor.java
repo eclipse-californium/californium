@@ -47,6 +47,9 @@ public class RequestEncryptor extends Encryptor {
 	 */
 	public static Request encrypt(Request request, OSCoreCtx ctx) throws OSException {
 
+		//Set an OSCORE peer identity for this message
+		OSCorePeerIdentityHandler.setPeerIdentity(ctx, request);
+
 		if (ctx == null) {
 			LOGGER.error(ErrorDescriptions.CTX_NULL);
 			throw new OSException(ErrorDescriptions.CTX_NULL);

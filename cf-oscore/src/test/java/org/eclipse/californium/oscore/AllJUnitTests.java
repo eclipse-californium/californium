@@ -28,7 +28,7 @@ import org.junit.runners.Suite.SuiteClasses;
 @RunWith(Suite.class)
 @SuiteClasses({ ByteIdTest.class, HashMapCtxDBTest.class, OptionJuggleTest.class, OSCoreCtxTest.class,
 	OSCoreTest.class, OSSerializerTest.class, OSCoreServerClientTest.class, OSCoreObserveTest.class,
-	EncryptorTest.class, DecryptorTest.class })
+	EncryptorTest.class, DecryptorTest.class, PeerIdentityMessageTest.class })
 public class AllJUnitTests {
 
 }

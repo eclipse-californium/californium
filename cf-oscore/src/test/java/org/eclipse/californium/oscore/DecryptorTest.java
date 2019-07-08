@@ -96,7 +96,7 @@ public class DecryptorTest {
 	/**
 	 * Tests decryption of a CoAP Response with partial IV.
 	 * Test vector is from OSCORE draft. (Test Vector 8)
-	 * FIXME
+	 *
 	 * @throws OSException if decryption fails
 	 */
 	@Test

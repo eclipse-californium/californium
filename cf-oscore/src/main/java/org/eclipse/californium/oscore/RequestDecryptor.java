@@ -62,7 +62,7 @@ public class RequestDecryptor extends Decryptor {
 	 * @throws CoapOSException if decryption fails
 	 */
 	public static Request decrypt(Request request) throws CoapOSException {
-		
+
 		LOGGER.info("Removes E options from outer options which are not allowed there");
 		discardEOptions(request);
 
@@ -133,6 +133,10 @@ public class RequestDecryptor extends Decryptor {
 
 		// We need the kid value on layer level
 		request.getOptions().setOscore(rid);
+
+		//Set an OSCORE peer identity for this message
+		OSCorePeerIdentityHandler.setPeerIdentity(ctx, request);
+
 		return OptionJuggle.setRealCodeRequest(request, ctx.getCoAPCode());
 	}
 

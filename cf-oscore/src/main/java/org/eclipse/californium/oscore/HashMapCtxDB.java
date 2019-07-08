@@ -131,7 +131,9 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 	@Override
 	public synchronized void addContext(String uri, OSCoreCtx ctx) throws OSException {
 		if (uri != null) {
-			uriMap.put(normalizeServerUri(uri), ctx);
+			String normalizedUri = normalizeServerUri(uri);
+			uriMap.put(normalizedUri, ctx);
+			ctx.setUri(normalizedUri);
 		}
 		addContext(ctx);
 	}

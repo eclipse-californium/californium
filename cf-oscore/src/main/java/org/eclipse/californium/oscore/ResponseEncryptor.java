@@ -51,6 +51,9 @@ public class ResponseEncryptor extends Encryptor {
 			throw new OSException(ErrorDescriptions.CTX_NULL);
 		}
 
+		//Set an OSCORE peer identity for this message
+		OSCorePeerIdentityHandler.setPeerIdentity(ctx, response);
+
 		int realCode = response.getCode().value;
 		response = OptionJuggle.setFakeCodeResponse(response);
 
@@ -68,7 +71,7 @@ public class ResponseEncryptor extends Encryptor {
 		if(newPartialIV) {
 			ctx.increaseSenderSeq();
 		}
-		
+
 		return response;
 	}
 }

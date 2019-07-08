@@ -82,6 +82,9 @@ public class OSCoreCtx {
 	//Include the context id in messages generated using this context
 	private boolean includeContextId;
 
+	//URI this Context is associated with if any
+	private String uri;
+
 	/**
 	 * Constructor. Generates the context from the base parameters with the
 	 * minimal input.
@@ -479,6 +482,22 @@ public class OSCoreCtx {
 			LOGGER.error("Common_alg has not yet been initiated.");
 			throw new RuntimeException("Common_alg has not yet been initiated.");
 		}
+	}
+
+	/**
+	 * @return the URI this context is associated with if any.
+	 */
+	public String getUri() {
+		return uri;
+	}
+
+	/**
+	 * Sets the URI this context is associated with.
+	 *
+	 * This will be set when added to the HashMapCtxDB.
+	 */
+	protected void setUri(String uri) {
+		this.uri = uri;
 	}
 
 	/**

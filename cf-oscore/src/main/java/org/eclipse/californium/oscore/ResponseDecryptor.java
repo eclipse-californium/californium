@@ -107,6 +107,9 @@ public class ResponseDecryptor extends Decryptor {
 			db.removeToken(token);
 		}
 
+		//Set an OSCORE peer identity for this message
+		OSCorePeerIdentityHandler.setPeerIdentity(ctx, response);
+
 		return response;
 	}
 }
