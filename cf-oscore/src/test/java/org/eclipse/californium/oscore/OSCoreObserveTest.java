@@ -20,16 +20,15 @@ package org.eclipse.californium.oscore;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 
 import java.util.Random;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Large;
 import org.eclipse.californium.core.CoapClient;
-import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapObserveRelation;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
@@ -44,6 +43,7 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.core.test.CountingCoapHandler;
 import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.Bytes;
@@ -121,12 +121,12 @@ public class OSCoreObserveTest {
 	 */
 	private Request createClientRequest(Code c, String resourceUri) {
 		String serverUri = TestTools.getUri(serverEndpoint, resourceUri);
-		
+
 		Request r = new Request(c);
 
 		r.setConfirmable(true);
 		r.setURI(serverUri);
-		
+
 		if(withOSCORE) {
 			r.getOptions().setOscore(Bytes.EMPTY); //Use OSCORE
 		}
@@ -148,60 +148,43 @@ public class OSCoreObserveTest {
 		String resourceUri = "/oscore/observe2";
 		CoapClient client = new CoapClient();
 
-		//Handler for Observe responses
-		class ObserveHandler implements CoapHandler {
-			int count = 1;
-			int abort = 0;
-			
-			//Triggered when a Observe response is received
-			@Override public void onLoad(CoapResponse response) {
-				abort++;
-				
+		// Handler for Observe responses
+		class ObserveHandler extends CountingCoapHandler {
+
+			// Triggered when a Observe response is received
+			@Override
+			protected void assertLoad(CoapResponse response) {
+
 				String content = response.getResponseText();
-				System.out.println("NOTIFICATION: " + content);		
-				
-				//Check the incoming responses
+				System.out.println("NOTIFICATION: " + content);
+
+				// Check the incoming responses
 				assertEquals(ResponseCode.CONTENT, response.getCode());
 				assertEquals(MediaTypeRegistry.TEXT_PLAIN, response.getOptions().getContentFormat());
-				
-				if(count == 1) {
+
+				if (loadCalls.get() == 1) {
 					assertTrue(response.getOptions().hasObserve());
 					assertEquals("one", response.getResponseText());
-				} else if(count == 2) {
+				} else if (loadCalls.get() == 2) {
 					assertTrue(response.getOptions().hasObserve());
 					assertEquals("two", response.getResponseText());
 				}
-				
-				count++;
-			}
-		
-			@Override public void onError() {
-				System.err.println("Observing failed");
 			}
 		}
 
 		ObserveHandler handler = new ObserveHandler();
 		
 		//Create request and initiate Observe relationship
-		byte[] token = new byte[8];
-		new Random().nextBytes(token);
-		
+		byte[] token = Bytes.createBytes(new Random(), 8);
+
 		Request r = createClientRequest(Code.GET, resourceUri);
 		r.setToken(token);
 		r.setObserve();
 		CoapObserveRelation relation = client.observe(r, handler);
 	
 		//Wait until 2 messages have been received
-		while(handler.count <= 2) {
-			Thread.sleep(250);
-			
-			//Failsafe to abort test if needed
-			if(handler.abort > 5) {
-				fail("Message limit reached, failing test");
-				break;
-			}
-		}
-		
+		assertTrue(handler.waitOnLoadCalls(2, 2000, TimeUnit.MILLISECONDS));
+
 		//Now cancel the Observe and wait for the final response
 		r = createClientRequest(Code.GET, resourceUri);
 		r.setToken(token);
