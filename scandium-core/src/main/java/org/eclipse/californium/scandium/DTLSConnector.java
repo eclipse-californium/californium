@@ -972,7 +972,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 					record.getType(), record.getPeerAddress());
 			}
 		} catch (RuntimeException e) {
-			LOGGER.info("Unexpected error occurred while processing record from peer [{}]",
+			LOGGER.warn("Unexpected error occurred while processing record from peer [{}]",
 					record.getPeerAddress(), e);
 			terminateConnection(connection, e, AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
 		} catch (GeneralSecurityException e) {
