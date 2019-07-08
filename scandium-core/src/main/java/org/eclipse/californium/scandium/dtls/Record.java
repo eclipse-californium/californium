@@ -528,11 +528,9 @@ public class Record {
 		// determine padding length
 		int ciphertextLength = compressedFragment.length + writeState.getMacLength() + 1;
 		int blocksize = writeState.getRecordIvLength();
-		int paddingLength = ciphertextLength % blocksize;
-		if (0 < paddingLength) {
-			// padding to fill last block
-			paddingLength = blocksize - paddingLength;
-		}
+		int lastBlockBytes = ciphertextLength % blocksize;
+		int paddingLength = lastBlockBytes > 0 ? blocksize - lastBlockBytes : 0;
+
  		// create padding
 		byte[] padding = new byte[paddingLength + 1];
 		Arrays.fill(padding, (byte) paddingLength);
