@@ -192,18 +192,17 @@ public class RawPublicKeyIdentity implements Principal {
 			return true;
 		} else if (obj == null) {
 			return false;
-		} else if (!(obj instanceof RawPublicKeyIdentity)) {
+		} else if (getClass() != obj.getClass()) {
 			return false;
-		} else {
-			RawPublicKeyIdentity other = (RawPublicKeyIdentity) obj;
-			if (publicKey == null) {
-				if (other.publicKey != null) {
-					return false;
-				}
-			} else if (!Arrays.equals(getSubjectInfo(), other.getSubjectInfo())) {
+		}
+		RawPublicKeyIdentity other = (RawPublicKeyIdentity) obj;
+		if (publicKey == null) {
+			if (other.publicKey != null) {
 				return false;
 			}
-			return true;
+		} else if (!Arrays.equals(getSubjectInfo(), other.getSubjectInfo())) {
+			return false;
 		}
+		return true;
 	}
 }
