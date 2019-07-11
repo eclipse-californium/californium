@@ -217,14 +217,15 @@ public class X509CertPath implements Principal {
 		return target;
 	}
 
-	public boolean equals(Object o) {
-		if (this == o) {
+	public boolean equals(Object obj) {
+		if (this == obj) {
 			return true;
-		}
-		if (o instanceof X509CertPath == false) {
+		} else if (obj == null) {
+			return false;
+		} else if (getClass() != obj.getClass()) {
 			return false;
 		}
-		X509CertPath other = (X509CertPath) o;
+		X509CertPath other = (X509CertPath) obj;
 		return this.target.equals(other.target);
 	}
 
