@@ -26,16 +26,13 @@ import static org.eclipse.californium.TestTools.*;
 import static org.junit.Assert.*;
 
 import java.io.IOException;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.eclipse.californium.CheckCondition;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.BlockOption;
-import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -205,19 +202,11 @@ public class BlockwiseTransferTest {
 
 	@Test
 	public void testRequestForOversizedBodyGetsCanceled() throws InterruptedException {
-
-		final CountDownLatch latch = new CountDownLatch(1);
-
+		CountingMessageObserver observer = new CountingMessageObserver();
 		Request req = Request.newGet().setURI(getUri(serverEndpoint, RESOURCE_BIG));
-		req.addMessageObserver(new MessageObserverAdapter() {
-
-			@Override
-			public void onCancel() {
-				latch.countDown();
-			}
-		});
+		req.addMessageObserver(observer);
 		clientEndpoint.sendRequest(req);
-		assertTrue(latch.await(1000, TimeUnit.MILLISECONDS));
+		assertTrue(observer.waitForCancelCalls(1, 1000, TimeUnit.MILLISECONDS));
 	}
 	
 	/**
@@ -271,20 +260,13 @@ public class BlockwiseTransferTest {
 	
 	private void testGetRequestWithEarlyNegotiation(final boolean strictBlock2, String uriQueryResponseType) throws InterruptedException {
 
-		final AtomicInteger counter = new AtomicInteger(0);
-
 		final Endpoint targetEndpoint = strictBlock2 ? serverEndpointStrictBlock2Option : serverEndpoint;
+		CountingMessageObserver observer = new CountingMessageObserver();
 		Request req = Request.newGet().setURI(getUri(targetEndpoint, RESOURCE_TEST));
 		req.getOptions().addUriQuery(uriQueryResponseType);
 		req.getOptions().setBlock2(BlockOption.size2Szx(256), false, 0);
 
-		req.addMessageObserver(new MessageObserverAdapter() {
-
-			@Override
-			public void onResponse(Response resp) {
-				counter.getAndIncrement();
-			}
-		});
+		req.addMessageObserver(observer);
 		clientEndpointWithoutTransparentBlockwise.sendRequest(req);
 
 		// receive response and check
@@ -301,13 +283,9 @@ public class BlockwiseTransferTest {
 		} else {
 			assertNull(block2);
 		}
-		waitForCondition(500, 100, TimeUnit.MILLISECONDS, new CheckCondition() {
-			@Override
-			public boolean isFulFilled() throws IllegalStateException {
-				return counter.get() > 1;
-			}
-		});
-		assertEquals("Not exactly one block received", 1, counter.get());
+		// 2 calls should not be reached!
+		observer.waitForLoadCalls(2, 1000, TimeUnit.MILLISECONDS);
+		assertEquals("Not exactly one block received", 1, observer.loadCalls.get());
 	}
 
 	private void executeGETRequest(final boolean respondShort) throws Exception {

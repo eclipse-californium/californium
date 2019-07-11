@@ -23,11 +23,29 @@ import org.eclipse.californium.core.coap.Response;
 
 public class CountingMessageObserver extends MessageObserverAdapter {
 
+	public AtomicInteger cancelCalls = new AtomicInteger();
+	public AtomicInteger sentCalls = new AtomicInteger();
 	public AtomicInteger loadCalls = new AtomicInteger();
 	public AtomicInteger errorCalls = new AtomicInteger();
 
 	@Override
-	public void onRetransmission() {
+	public void onSent() {
+		int counter;
+		synchronized (this) {
+			counter = sentCalls.incrementAndGet();
+			notifyAll();
+		}
+		System.out.println(counter + " messages sent!");
+	}
+
+	@Override
+	public void onCancel() {
+		int counter;
+		synchronized (this) {
+			counter = cancelCalls.incrementAndGet();
+			notifyAll();
+		}
+		System.out.println(counter + " messages cancelled!");
 	}
 
 	@Override
@@ -48,6 +66,16 @@ public class CountingMessageObserver extends MessageObserverAdapter {
 			notifyAll();
 		}
 		System.out.println(counter + " Errors!");
+	}
+	
+	public boolean waitForSentCalls(final int counter, final long timeout, final TimeUnit unit)
+			throws InterruptedException {
+		return waitForCalls(counter, timeout, unit, sentCalls);
+	}
+
+	public boolean waitForCancelCalls(final int counter, final long timeout, final TimeUnit unit)
+			throws InterruptedException {
+		return waitForCalls(counter, timeout, unit, cancelCalls);
 	}
 
 	public boolean waitForLoadCalls(final int counter, final long timeout, final TimeUnit unit)
