@@ -135,7 +135,7 @@ public class RequestDecryptor extends Decryptor {
 		request.getOptions().setOscore(rid);
 
 		//Set an OSCORE peer identity for this message
-		OSCorePeerIdentityHandler.setPeerIdentity(ctx, request);
+		OSCorePeerIdentityHandler.receivingRequest(ctx, request);
 
 		return OptionJuggle.setRealCodeRequest(request, ctx.getCoAPCode());
 	}

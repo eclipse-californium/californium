@@ -52,7 +52,7 @@ public class ResponseEncryptor extends Encryptor {
 		}
 
 		//Set an OSCORE peer identity for this message
-		OSCorePeerIdentityHandler.setPeerIdentity(ctx, response);
+		OSCorePeerIdentityHandler.sendingResponse(ctx, response);
 
 		int realCode = response.getCode().value;
 		response = OptionJuggle.setFakeCodeResponse(response);

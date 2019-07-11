@@ -108,7 +108,7 @@ public class ResponseDecryptor extends Decryptor {
 		}
 
 		//Set an OSCORE peer identity for this message
-		OSCorePeerIdentityHandler.setPeerIdentity(ctx, response);
+		OSCorePeerIdentityHandler.receivingResponse(ctx, response);
 
 		return response;
 	}
