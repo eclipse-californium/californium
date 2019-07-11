@@ -40,11 +40,11 @@ import java.util.concurrent.TimeUnit;
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
+import org.eclipse.californium.core.test.CountingMessageObserver;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContext;
@@ -75,7 +75,7 @@ public class CoapEndpointTest {
 	SimpleConnector connector;
 	List<Request> receivedRequests;
 	CountDownLatch latch;
-	CountDownLatch sentLatch;
+	CountDownLatch connectorSentLatch;
 	EndpointContext establishedContext;
 
 	@Before
@@ -88,7 +88,7 @@ public class CoapEndpointTest {
 		builder.setNetworkConfig(CONFIG);
 
 		endpoint = builder.build();
-		sentLatch = new CountDownLatch(1);
+		connectorSentLatch = new CountDownLatch(1);
 		latch = new CountDownLatch(1);
 		MessageDeliverer deliverer = new MessageDeliverer() {
 
@@ -124,19 +124,15 @@ public class CoapEndpointTest {
 		// GIVEN an outbound request
 		Request request = Request.newGet();
 		request.setDestinationContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), CoAP.DEFAULT_COAP_PORT));
-		request.addMessageObserver(new MessageObserverAdapter() {
-			@Override
-			public void onSent() {
-				latch.countDown();
-			}
-		});
+		CountingMessageObserver observer = new CountingMessageObserver();
+		request.addMessageObserver(observer);
 
 		// WHEN sending the request to the peer
 		endpoint.sendRequest(request);
 
 		// THEN assert that the message delivered to the Connector contains a
 		// MessageCallback
-		assertTrue(latch.await(1, TimeUnit.SECONDS));
+		assertTrue(observer.waitForSentCalls(1, 1, TimeUnit.SECONDS));
 	}
 
 	@Test
@@ -171,6 +167,7 @@ public class CoapEndpointTest {
 		builder.setConnector(connector);
 		builder.setNetworkConfig(CONFIG);
 		Endpoint endpoint = builder.build();
+		final CountDownLatch latch = new CountDownLatch(1);
 		MessageDeliverer deliverer = new MessageDeliverer() {
 
 			@Override
@@ -209,7 +206,7 @@ public class CoapEndpointTest {
 		connector.receiveMessage(inboundMessage);
 
 		// THEN an RST message is sent back to the sender and the incoming message is not being delivered
-		assertTrue(sentLatch.await(2, TimeUnit.SECONDS));
+		assertTrue(connectorSentLatch.await(2, TimeUnit.SECONDS));
 		assertTrue(receivedRequests.isEmpty());
 	}
 
@@ -250,7 +247,7 @@ public class CoapEndpointTest {
 		public void send(RawData msg) {
 			msg.onContextEstablished(establishedContext);
 			msg.onSent();
-			sentLatch.countDown();
+			connectorSentLatch.countDown();
 		}
 
 		@Override
