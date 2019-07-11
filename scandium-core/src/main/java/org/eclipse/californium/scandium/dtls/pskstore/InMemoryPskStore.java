@@ -123,7 +123,7 @@ public class InMemoryPskStore implements PskStore {
 	 * 
 	 * @param identity the identity associated with the key
 	 * @param key the key used to authenticate the identity
-	 * @see #setKey(PskPublicInformation, byte[])
+	 * @see #setKey(PskPublicInformation, byte[], ServerName)
 	 */
 	public void setKey(final String identity, final byte[] key) {
 
@@ -138,7 +138,7 @@ public class InMemoryPskStore implements PskStore {
 	 * 
 	 * @param identity the identity associated with the key
 	 * @param key the key used to authenticate the identity
-	 * @see #setKey(String, byte[])
+	 * @see #setKey(PskPublicInformation, byte[], ServerName)
 	 */
 	public void setKey(final PskPublicInformation identity, final byte[] key) {
 
@@ -155,7 +155,7 @@ public class InMemoryPskStore implements PskStore {
 	 * @param key The key to set for the identity.
 	 * @param virtualHost The virtual host to associate the identity and key
 	 *            with.
-	 * @see #setKey(PskPublicInformation, byte[], String)
+	 * @see #setKey(PskPublicInformation, byte[], ServerName)
 	 */
 	public void setKey(final String identity, final byte[] key, final String virtualHost) {
 		setKey(new PskPublicInformation(identity), key, ServerName.fromHostName(virtualHost));
@@ -171,7 +171,7 @@ public class InMemoryPskStore implements PskStore {
 	 * @param key The key to set for the identity.
 	 * @param virtualHost The virtual host to associate the identity and key
 	 *            with.
-	 * @see #setKey(String, byte[], String)
+	 * @see #setKey(PskPublicInformation, byte[], ServerName)
 	 */
 	public void setKey(final PskPublicInformation identity, final byte[] key, final String virtualHost) {
 		setKey(identity, key, ServerName.fromHostName(virtualHost));
@@ -317,6 +317,83 @@ public class InMemoryPskStore implements PskStore {
 				}
 				identities.put(virtualHost, identity);
 				setKey(identity, key, virtualHost);
+			}
+		}
+	}
+
+	/**
+	 * Removes a key value for a given identity.
+	 * 
+	 * @param identity The identity to remove the key for.
+	 * @see #removeKey(PskPublicInformation, ServerName)
+	 */
+	public void removeKey(final String identity) {
+		removeKey(new PskPublicInformation(identity), GLOBAL_SCOPE);
+	}
+
+	/**
+	 * Removes a key value for a given identity.
+	 * 
+	 * @param identity The identity to remove the key for.
+	 * @see #removeKey(PskPublicInformation, ServerName)
+	 */
+	public void removeKey(final PskPublicInformation identity) {
+		removeKey(identity, GLOBAL_SCOPE);
+	}
+
+	/**
+	 * Removes a key for an identity scoped to a virtual host.
+	 * 
+	 * @param identity The identity to remove the key for.
+	 * @param virtualHost The virtual host to associate the identity and key
+	 *            with.
+	 * @see #removeKey(PskPublicInformation, ServerName)
+	 */
+	public void removeKey(final String identity, final String virtualHost) {
+		removeKey(new PskPublicInformation(identity), ServerName.fromHostName(virtualHost));
+	}
+
+	/**
+	 * Removes a key for an identity scoped to a virtual host.
+	 * 
+	 * @param identity The identity to remove the key for.
+	 * @param virtualHost The virtual host to associate the identity and key
+	 *            with.
+	 * @see #removeKey(PskPublicInformation, ServerName)
+	 */
+	public void removeKey(final PskPublicInformation identity, final String virtualHost) {
+		removeKey(identity, ServerName.fromHostName(virtualHost));
+	}
+
+	/**
+	 * Removes a key for an identity scoped to a virtual host.
+	 * 
+	 * @param identity The identity to remove the key for.
+	 * @param virtualHost The virtual host to associate the identity with.
+	 * @see #removeKey(PskPublicInformation, ServerName)
+	 */
+	public void removeKey(final String identity, final ServerName virtualHost) {
+		removeKey(new PskPublicInformation(identity), virtualHost);
+	}
+
+	/**
+	 * Removes a key for an identity scoped to a virtual host.
+	 * 
+	 * @param identity The identity to remove the key for.
+	 * @param virtualHost The virtual host to associate the identity with.
+	 */
+	public void removeKey(final PskPublicInformation identity, final ServerName virtualHost) {
+
+		if (identity == null) {
+			throw new NullPointerException("identity must not be null");
+		} else if (virtualHost == null) {
+			throw new NullPointerException("serverName must not be null");
+		} else {
+			synchronized (scopedKeys) {
+				Map<PskPublicInformation, Psk> keysForServerName = scopedKeys.get(virtualHost);
+				if (keysForServerName != null) {
+					keysForServerName.remove(identity);
+				}
 			}
 		}
 	}
