@@ -189,6 +189,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	 * Set tag for logging outputs.
 	 * 
 	 * @param tag tag for logging
+	 * @return this connection store for calls chaining
 	 */
 	public synchronized InMemoryConnectionStore setTag(final String tag) {
 		if (tag.isEmpty() || tag.endsWith(" ")) {
@@ -243,9 +244,9 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 						connection.setConnectionId(connectionId);
 						connections.put(connectionId, connection);
 						connectionsByAddress.put(peer, connection);
-						LOG.debug("resume {} {}", peer, id);
+						LOG.debug("{}resume {} {}", tag, peer, id);
 					} else {
-						LOG.info("drop session {} {}, could not allocated cid!", peer, id);
+						LOG.info("{}drop session {} {}, could not allocated cid!", tag, peer, id);
 					}
 				}
 			}
