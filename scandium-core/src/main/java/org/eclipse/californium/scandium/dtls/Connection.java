@@ -41,7 +41,6 @@ package org.eclipse.californium.scandium.dtls;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.elements.util.ClockUtil;
@@ -63,12 +62,18 @@ public final class Connection {
 	private static final Logger LOGGER = LoggerFactory.getLogger(Connection.class.getName());
 
 	private final AtomicReference<Handshaker> ongoingHandshake = new AtomicReference<Handshaker>();
+	/**
+	 * Random used by client to start the handshake.
+	 * 
+	 * Note: used outside of serial-execution!
+	 */
 	private final AtomicReference<Random> startedByClient = new AtomicReference<Random>();
 	private final SessionListener sessionListener = new ConnectionSessionListener();
 	/**
 	 * Expired real time nanoseconds of the last message send or received.
 	 */
-	private final AtomicLong lastMessageNanos = new AtomicLong();
+	private long lastMessageNanos;
+	private long lastPeerAddressNanos;
 	private SerialExecutor serialExecutor;
 	private InetSocketAddress peerAddress;
 	private ConnectionId cid;
@@ -92,10 +97,13 @@ public final class Connection {
 		} else if (serialExecutor == null) {
 			throw new NullPointerException("Serial executor must not be null");
 		} else {
+			long now = ClockUtil.nanoRealtime();
 			this.sessionId = null;
 			this.ticket = null;
 			this.peerAddress = peerAddress;
 			this.serialExecutor = serialExecutor;
+			this.lastPeerAddressNanos = now;
+			this.lastMessageNanos = now;
 		}
 	}
 
@@ -222,6 +230,17 @@ public final class Connection {
 	}
 
 	/**
+	 * Get real time nanoseconds of last
+	 * {@link #updatePeerAddress(InetSocketAddress)}.
+	 * 
+	 * @return real time nanoseconds
+	 * @see ClockUtil#nanoRealtime()
+	 */
+	public long getLastPeerAddressNanos() {
+		return lastPeerAddressNanos;
+	}
+
+	/**
 	 * Gets the address of this connection's peer.
 	 * 
 	 * @return the address
@@ -247,17 +266,20 @@ public final class Connection {
 	 *             non-null value without an established session.
 	 */
 	public void updatePeerAddress(InetSocketAddress peerAddress) {
-		this.peerAddress = peerAddress;
-		if (establishedSession != null) {
-			establishedSession.setPeer(peerAddress);
-		} else if (peerAddress == null) {
-			final Handshaker pendingHandshaker = getOngoingHandshake();
-			if (pendingHandshaker != null) {
-				// this will only call the listener, if no other cause was set before!
-				pendingHandshaker.handshakeFailed(new IOException("address changed!"));
+		if (!equalsPeerAddress(peerAddress)) {
+			this.lastPeerAddressNanos = ClockUtil.nanoRealtime();
+			this.peerAddress = peerAddress;
+			if (establishedSession != null) {
+				establishedSession.setPeer(peerAddress);
+			} else if (peerAddress == null) {
+				final Handshaker pendingHandshaker = getOngoingHandshake();
+				if (pendingHandshaker != null) {
+					// this will only call the listener, if no other cause was set before!
+					pendingHandshaker.handshakeFailed(new IOException("address changed!"));
+				}
+			} else {
+				throw new IllegalArgumentException("Address change without established sesson is not supported!");
 			}
-		} else {
-			throw new IllegalArgumentException("Address change without established sesson is not supported!");
 		}
 	}
 
@@ -317,6 +339,8 @@ public final class Connection {
 	 * 
 	 * Use the random contained in the CLIENT_HELLO.
 	 * 
+	 * Note: called outside of serial-execution!
+	 * 
 	 * @param clientHello the message to check.
 	 * @return {@code true} if the given client hello has initially started this
 	 *         connection.
@@ -335,6 +359,8 @@ public final class Connection {
 	 * 
 	 * Use the random contained in the CLIENT_HELLO. Removed, if when the
 	 * handshake is completed or fails.
+	 * 
+	 * Note: called outside of serial-execution!
 	 * 
 	 * @param clientHello message which starts the connection.
 	 * @see #isStartedByClientHello(ClientHello)
@@ -438,7 +464,7 @@ public final class Connection {
 				setResumptionRequired(true);
 			} else {
 				long now = ClockUtil.nanoRealtime();
-				long expires = lastMessageNanos.get() + TimeUnit.MILLISECONDS.toNanos(autoResumptionTimeoutMillis);
+				long expires = lastMessageNanos + TimeUnit.MILLISECONDS.toNanos(autoResumptionTimeoutMillis);
 				if ((now - expires) > 0) {
 					setResumptionRequired(true);
 				}
@@ -455,8 +481,7 @@ public final class Connection {
 	 * @see #lastMessageNanos
 	 */
 	public void refreshAutoResumptionTime() {
-		long now = ClockUtil.nanoRealtime();
-		lastMessageNanos.set(now);
+		lastMessageNanos = ClockUtil.nanoRealtime();
 	}
 
 	/**

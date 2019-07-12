@@ -271,6 +271,12 @@ public final class DtlsConnectorConfig {
 	private Boolean useWindowFilter;
 
 	/**
+	 * Use filter to update the ip-address from DTLS 1.2 CID
+	 * records only for newer records based on epoch/sequence_number.
+	 */
+	private Boolean useCidUpdateAddressOnNewerRecordFilter;
+
+	/**
 	 * Logging tag.
 	 * 
 	 * Tag logging messages, if multiple connectors share the same logging
@@ -717,6 +723,16 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * Use filter to update the ip-address from DTLS 1.2 CID
+	 * records only for newer records based on epoch/sequence_number.
+	 * 
+	 * @return {@code true}, apply the newer filter
+	 */
+	public Boolean useCidUpdateAddressOnNewerRecordFilter() {
+		return useCidUpdateAddressOnNewerRecordFilter;
+	}
+
+	/**
 	 * @return The trust store for raw public keys verified out-of-band for
 	 *         DTLS-RPK handshakes
 	 */
@@ -773,6 +789,7 @@ public final class DtlsConnectorConfig {
 		cloned.loggingTag = loggingTag;
 		cloned.useAntiReplayFilter = useAntiReplayFilter;
 		cloned.useWindowFilter = useWindowFilter;
+		cloned.useCidUpdateAddressOnNewerRecordFilter = useCidUpdateAddressOnNewerRecordFilter;
 		cloned.connectionIdGenerator = connectionIdGenerator;
 		cloned.applicationLevelInfoSupplier = applicationLevelInfoSupplier;
 		return cloned;
@@ -1728,6 +1745,24 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
+		 * Use filter to update the ip-address from DTLS 1.2 CID records only
+		 * for newer records based on epoch/sequence_number.
+		 * 
+		 * Only used, if a connection ID generator
+		 * {@link #setConnectionIdGenerator(ConnectionIdGenerator)} is provided,
+		 * which "uses" CID. If the "anti-replay-filter is switched off, it's
+		 * not recommended to switch this off also!
+		 * 
+		 * @param enable {@code true} to enable filter, {@code false} to disable
+		 *            filter. Default {@code true}.
+		 * @return this builder for command chaining.
+		 */
+		public Builder setCidUpdateAddressOnNewerRecordFilter(boolean enable) {
+			config.useCidUpdateAddressOnNewerRecordFilter = enable;
+			return this;
+		}
+
+		/**
 		 * Set instance logging tag.
 		 * 
 		 * @param tag logging tag of configure instance
@@ -1783,10 +1818,10 @@ public final class DtlsConnectorConfig {
 				config.loggingTag = "";
 			}
 			if (config.enableReuseAddress == null) {
-				config.enableReuseAddress = false;
+				config.enableReuseAddress = Boolean.FALSE;
 			}
 			if (config.earlyStopRetransmission == null) {
-				config.earlyStopRetransmission = true;
+				config.earlyStopRetransmission = Boolean.TRUE;
 			}
 			if (config.retransmissionTimeout == null) {
 				config.retransmissionTimeout = DEFAULT_RETRANSMISSION_TIMEOUT_MS;
@@ -1798,20 +1833,20 @@ public final class DtlsConnectorConfig {
 				config.maxFragmentedHandshakeMessageLength = DEFAULT_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH;
 			}
 			if (config.clientAuthenticationWanted == null) {
-				config.clientAuthenticationWanted = false;
+				config.clientAuthenticationWanted = Boolean.FALSE;
 			}
 			if (config.clientAuthenticationRequired == null) {
 				if (clientOnly) {
-					config.clientAuthenticationRequired = false;
+					config.clientAuthenticationRequired = Boolean.FALSE;
 				} else {
 					config.clientAuthenticationRequired = !config.clientAuthenticationWanted;
 				}
 			}
 			if (config.serverOnly == null) {
-				config.serverOnly = false;
+				config.serverOnly = Boolean.FALSE;
 			}
 			if (config.useNoServerSessionId == null) {
-				config.useNoServerSessionId = false;
+				config.useNoServerSessionId = Boolean.FALSE;
 			}
 			if (config.outboundMessageBufferSize == null) {
 				config.outboundMessageBufferSize = 100000;
@@ -1838,7 +1873,10 @@ public final class DtlsConnectorConfig {
 				config.useAntiReplayFilter = !Boolean.TRUE.equals(config.useWindowFilter);
 			}
 			if (config.useWindowFilter == null) {
-				config.useWindowFilter = false;
+				config.useWindowFilter = Boolean.FALSE;
+			}
+			if (config.useCidUpdateAddressOnNewerRecordFilter == null) {
+				config.useCidUpdateAddressOnNewerRecordFilter = Boolean.TRUE;
 			}
 			if (config.verifyPeersOnResumptionThreshold == null) {
 				config.verifyPeersOnResumptionThreshold = DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT;
