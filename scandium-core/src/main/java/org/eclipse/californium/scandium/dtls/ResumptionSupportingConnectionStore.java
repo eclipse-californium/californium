@@ -77,8 +77,8 @@ public interface ResumptionSupportingConnectionStore {
 	 * connections from that association.
 	 * 
 	 * @param connection the connection to update.
-	 * @param newPeerAddress the (new) peer address. If not changed, the already
-	 *            used one is provided.
+	 * @param newPeerAddress the (new) peer address. If {@code null}, don't
+	 *            update the connection's address.
 	 * @return {@code true}, if updated, {@code false}, otherwise.
 	 */
 	boolean update(Connection connection, InetSocketAddress newPeerAddress);

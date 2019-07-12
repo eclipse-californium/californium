@@ -168,6 +168,44 @@ public class DTLSSessionTest {
 	}
 
 	@Test
+	public void testHigherSequenceNumberIsNewer() {
+
+		int epoch = session.getReadEpoch();
+		session.markRecordAsRead(epoch, 0);
+		assertTrue(session.markRecordAsRead(epoch, 2));
+	}
+
+	@Test
+	public void testLowerSequenceNumberIsNotNewer() {
+
+		int epoch = session.getReadEpoch();
+		session.markRecordAsRead(epoch, 2);
+		assertFalse(session.markRecordAsRead(epoch, 0));
+	}
+
+	@Test
+	public void testSameSequenceNumberIsNotNewer() {
+
+		int epoch = session.getReadEpoch();
+		session.markRecordAsRead(epoch, 2);
+		assertFalse(session.markRecordAsRead(epoch, 2));
+	}
+
+	@Test
+	public void testHigherEpochIsNewer() {
+		int epoch = session.getReadEpoch();
+		session.markRecordAsRead(epoch, 2);
+		assertTrue(session.markRecordAsRead(epoch + 1, 0));
+	}
+
+	@Test
+	public void testLowerEpochIsNotNewer() {
+		int epoch = session.getReadEpoch();
+		session.markRecordAsRead(epoch, 0);
+		assertFalse(session.markRecordAsRead(epoch - 1, 2));
+	}
+
+	@Test
 	public void testConstructorEnforcesMaxSequenceNo() {
 		session = new DTLSSession(PEER_ADDRESS, DtlsTestTools.MAX_SEQUENCE_NO); // should succeed
 		try {

@@ -318,20 +318,18 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 			return false;
 		}
 		if (connections.update(connection.getConnectionId())) {
-			if (!connection.equalsPeerAddress(newPeerAddress)) {
+			if (newPeerAddress == null) {
+				LOG.debug("{}connection: {} updated usage!", tag, connection.getConnectionId());
+			} else if (!connection.equalsPeerAddress(newPeerAddress)) {
 				InetSocketAddress oldPeerAddress = connection.getPeerAddress();
 				LOG.debug("{}connection: {} updated, address changed from {} to {}!", tag, connection.getConnectionId(),
 						oldPeerAddress, newPeerAddress);
 				if (oldPeerAddress != null) {
 					connectionsByAddress.remove(oldPeerAddress, connection);
+					connection.updatePeerAddress(null);
 				}
-				connection.updatePeerAddress(null);
-				if (newPeerAddress != null) {
-					connection.updatePeerAddress(newPeerAddress);
-					addToAddressConnections(connection);
-				}
-			} else {
-				LOG.debug("{}connection: {} - {} updated!", tag, connection.getConnectionId(), newPeerAddress);
+				connection.updatePeerAddress(newPeerAddress);
+				addToAddressConnections(connection);
 			}
 			return true;
 		} else {

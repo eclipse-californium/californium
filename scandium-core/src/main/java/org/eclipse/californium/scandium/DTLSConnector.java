@@ -266,6 +266,10 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * Apply record filter.
 	 */
 	private final boolean useFilter;
+	/**
+	 * Apply address update only for newer records based on epoch/sequence_number.
+	 */
+	private final boolean useCidUpdateAddressOnNewerRecordFilter;
 
 	/**
 	 * (Down-)counter for pending outbound messages. Initialized with
@@ -370,6 +374,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			this.serverOnly = config.isServerOnly();
 			this.useWindowFilter = config.useWindowFilter();
 			this.useFilter = config.useAntiReplayFilter() || useWindowFilter;
+			this.useCidUpdateAddressOnNewerRecordFilter = config.useCidUpdateAddressOnNewerRecordFilter();
 			this.connectionStore = connectionStore;
 			this.connectionStore.attach(connectionIdGenerator);
 			this.sessionListener = new SessionAdapter() {
@@ -1238,20 +1243,39 @@ public class DTLSConnector implements Connector, RecordLayer {
 					// an established, i.e. fully negotiated, session
 					record.setSession(session);
 					ApplicationMessage message = (ApplicationMessage) record.getFragment();
+
+					InetSocketAddress newAddress = record.getPeerAddress();
+					if (connection.equalsPeerAddress(newAddress)) {
+						// no address update required!
+						newAddress = null;
+					}
 					// the fragment could be de-crypted, mark it
-					session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber());
+					if (!session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber())
+							&& useCidUpdateAddressOnNewerRecordFilter) {
+						// suppress address update!
+						newAddress = null;
+					}
 					if (ongoingHandshake != null) {
 						// the handshake has been completed successfully
 						ongoingHandshake.handshakeCompleted();
 					}
 					connection.refreshAutoResumptionTime();
-					connectionStore.update(connection, record.getPeerAddress());
+					connectionStore.update(connection, newAddress);
 
 					final RawDataChannel channel = messageHandler;
 					// finally, forward de-crypted message to application layer
 					if (channel != null) {
+						DtlsEndpointContext context;
+						if (session.getPeer() == null) {
+							// endpoint context would fail ...
+							session.setPeer(record.getPeerAddress());
+							context = session.getConnectionWriteContext();
+							session.setPeer(null);
+							LOGGER.warn("Received APPLICATION_DATA from deprecated {}", record.getPeerAddress());
+						} else {
+							context = session.getConnectionWriteContext();
+						}
 						// create application message.
-						DtlsEndpointContext context = session.getConnectionWriteContext();
 						LOGGER.debug("Received APPLICATION_DATA for {}", context);
 						RawData receivedApplicationMessage = RawData.inbound(message.getData(), context, false);
 						channel.receiveData(receivedApplicationMessage);
