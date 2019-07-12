@@ -311,27 +311,40 @@ public abstract class Handshaker {
 		 * @throws GeneralSecurityException if the record's ciphertext fragment could not be decrypted 
 		 */
 		DTLSMessage getNextMessage() throws GeneralSecurityException, HandshakeException {
-
-			DTLSMessage result = null;
-
 			if (isChangeCipherSpecMessageExpected() && changeCipherSpec != null) {
-				result = changeCipherSpec;
+				DTLSMessage result = changeCipherSpec;
 				changeCipherSpec = null;
-			} else {
+				return result;
+			}
 
-				for (Record record : queue) {
-					if (record.getEpoch() == session.getReadEpoch()) {
-						HandshakeMessage msg = (HandshakeMessage) record.getFragment(session.getReadState());
+			for (Record record : queue) {
+				if (record.getEpoch() == session.getReadEpoch()) {
+					record.setSession(session);
+					DTLSMessage fragment = record.getFragment();
+					switch(fragment.getContentType()) {
+					case HANDSHAKE:
+						HandshakeMessage msg = (HandshakeMessage) fragment;
 						if (msg.getMessageSeq() == nextReceiveSeq) {
-							result = msg;
 							queue.remove(record);
-							break;
+							session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber());
+							return fragment;
 						}
+						break;
+					case ALERT:
+						queue.remove(record);
+						return fragment;
+					case APPLICATION_DATA:
+						queue.remove(record);
+						addRecordsForDeferredProcessing(record);
+						break;
+					default:
+						queue.remove(record);
+						break;
 					}
 				}
 			}
 
-			return result;
+			return null;
 		}
 
 		/**
@@ -361,7 +374,13 @@ public abstract class Handshaker {
 						getPeerAddress(), epoch, session.getReadEpoch());
 				return null;
 			} else if (epoch == session.getReadEpoch()) {
+				candidate.setSession(session);
 				DTLSMessage fragment = candidate.getFragment();
+				if (fragment.getContentType() == ContentType.APPLICATION_DATA) {
+					addRecordsForDeferredProcessing(candidate);
+					return null;
+				}
+				session.markRecordAsRead(candidate.getEpoch(), candidate.getSequenceNumber());
 				switch (fragment.getContentType()) {
 				case ALERT:
 					return fragment;
@@ -438,7 +457,6 @@ public abstract class Handshaker {
 		if ((sameEpoch && !session.isDuplicate(record.getSequenceNumber()))
 				|| (session.getReadEpoch() + 1) == record.getEpoch()) {
 			try {
-				record.setSession(session);
 				DTLSMessage messageToProcess = inboundMessageBuffer.getNextMessage(record);
 				while (messageToProcess != null) {
 					if (messageToProcess instanceof FragmentedHandshakeMessage) {
@@ -473,7 +491,6 @@ public abstract class Handshaker {
 					// process next expected message (if available yet)
 					messageToProcess = inboundMessageBuffer.getNextMessage();
 				}
-				session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber());
 			} catch (GeneralSecurityException e) {
 				LOGGER.warn("Cannot process handshake message from peer [{}] due to [{}]", getSession().getPeer(),
 						e.getMessage(), e);

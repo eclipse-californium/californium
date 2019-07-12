@@ -177,7 +177,7 @@ public final class DTLSSession {
 	 */
 	private boolean parameterAvailable = false;
 
-	private volatile long receiveWindowUpperBoundary = RECEIVE_WINDOW_SIZE - 1;
+	private volatile long receiveWindowUpperCurrent =  -1;
 	private volatile long receiveWindowLowerBoundary = 0;
 	private volatile long receivedRecordsVector = 0;
 	private long creationTime;
@@ -940,7 +940,7 @@ public final class DTLSSession {
 	 * @return <code>true</code> if the record has already been received
 	 */
 	boolean isDuplicate(long sequenceNo) {
-		if (sequenceNo > receiveWindowUpperBoundary) {
+		if (sequenceNo > receiveWindowUpperCurrent) {
 			return false;
 		} else {
 			
@@ -959,31 +959,39 @@ public final class DTLSSession {
 	}
 
 	/**
-	 * Marks a record as having been received so that it can be detected
-	 * as a duplicate if it is received again, e.g. if a client re-transmits
-	 * the record because it runs into a timeout.
+	 * Marks a record as having been received so that it can be detected as a
+	 * duplicate if it is received again, e.g. if a client re-transmits the
+	 * record because it runs into a timeout.
 	 * 
 	 * The record is marked as received only if it belongs to this session's
 	 * current read epoch as indicated by {@link #getReadEpoch()}.
 	 * 
 	 * @param epoch the record's epoch
 	 * @param sequenceNo the record's sequence number
+	 * @return {@code true}, if the sequenceNo is higher than the current upper
+	 *         boundary. {@code false}, if not.
 	 */
-	public void markRecordAsRead(long epoch, long sequenceNo) {
-
+	public boolean markRecordAsRead(long epoch, long sequenceNo) {
 		if (epoch == getReadEpoch()) {
-			if (sequenceNo > receiveWindowUpperBoundary) {
-				long incr = sequenceNo - receiveWindowUpperBoundary;
-				receiveWindowUpperBoundary = sequenceNo;
-				// slide receive window to the right
-				receivedRecordsVector = receivedRecordsVector >>> incr;
-				receiveWindowLowerBoundary = Math.max(0, receiveWindowUpperBoundary - RECEIVE_WINDOW_SIZE + 1);
+			boolean newest = sequenceNo > receiveWindowUpperCurrent;
+			if (newest) {
+				receiveWindowUpperCurrent = sequenceNo;
+				long lowerBoundary = Math.max(0, sequenceNo - RECEIVE_WINDOW_SIZE + 1);
+				long incr = lowerBoundary - receiveWindowLowerBoundary;
+				if (incr > 0) {
+					// slide receive window to the right
+					receivedRecordsVector = receivedRecordsVector >>> incr;
+					receiveWindowLowerBoundary = lowerBoundary;
+				}
 			}
 			long bitMask = 1L << (sequenceNo - receiveWindowLowerBoundary);
 			// mark sequence number as "received" in receive window
 			receivedRecordsVector |= bitMask;
 			LOGGER.debug("Updated receive window with sequence number [{}]: new upper boundary [{}], new bit vector [{}]",
-					sequenceNo, receiveWindowUpperBoundary, Long.toBinaryString(receivedRecordsVector));
+					sequenceNo, receiveWindowUpperCurrent, Long.toBinaryString(receivedRecordsVector));
+			return newest;
+		} else {
+			return epoch > getReadEpoch();
 		}
 	}
 
@@ -995,7 +1003,7 @@ public final class DTLSSession {
 	 */
 	private void resetReceiveWindow() {
 		receivedRecordsVector = 0;
-		receiveWindowUpperBoundary = RECEIVE_WINDOW_SIZE - 1;
+		receiveWindowUpperCurrent = -1;
 		receiveWindowLowerBoundary = 0;
 	}
 

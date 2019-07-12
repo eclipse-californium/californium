@@ -1239,13 +1239,15 @@ public class DTLSConnector implements Connector, RecordLayer {
 					record.setSession(session);
 					ApplicationMessage message = (ApplicationMessage) record.getFragment();
 					// the fragment could be de-crypted, mark it
-					session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber());
+					boolean updateAddress = session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber());
 					if (ongoingHandshake != null) {
 						// the handshake has been completed successfully
 						ongoingHandshake.handshakeCompleted();
 					}
 					connection.refreshAutoResumptionTime();
-					connectionStore.update(connection, record.getPeerAddress());
+					if (updateAddress) {
+						connectionStore.update(connection, record.getPeerAddress());
+					}
 
 					final RawDataChannel channel = messageHandler;
 					// finally, forward de-crypted message to application layer
