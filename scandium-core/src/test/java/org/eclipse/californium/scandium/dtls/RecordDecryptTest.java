@@ -70,7 +70,7 @@ public class RecordDecryptTest {
 	 * @return List of cipher suites.
 	 */
 	@Parameters(name = "ciphersuite = {0}")
-	public static Iterable<CipherSuite> backoffParams() {
+	public static Iterable<CipherSuite> cipherSuiteParams() {
 		return Arrays.asList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
 				CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM,
 				CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
