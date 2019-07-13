@@ -110,20 +110,88 @@ public class CountingCoapHandler implements CoapHandler {
 		return exception;
 	}
 
-	public boolean waitOnLoadCalls(final int counter, final long timeout, final TimeUnit unit)
-			throws InterruptedException {
+	/**
+	 * Wait for number of calls to {@link #onLoad(CoapResponse)}.
+	 * 
+	 * Also forwards {@link Error} or {@link RuntimeException} during execution
+	 * of {@link #assertLoad(CoapResponse)} to the caller's thread.
+	 * 
+	 * @param counter number of expected calls
+	 * @param timeout time to wait
+	 * @param unit unit of time to wait
+	 * @return {@code true}, if number of calls is reached in time,
+	 *         {@code false}, otherwise.
+	 * @throws InterruptedException if thread was interrupted.
+	 * @throws Error if an error occurred execution
+	 *             {@link #assertLoad(CoapResponse)}
+	 * @throws RuntimeException if an runtime exception occurred execution
+	 *             {@link #assertLoad(CoapResponse)}
+	 */
+	public boolean waitOnLoadCalls(int counter, long timeout, TimeUnit unit) throws InterruptedException {
 		return waitOnCalls(counter, timeout, unit, loadCalls);
 	}
 
-	public boolean waitOnErrorCalls(final int counter, final long timeout, final TimeUnit unit)
-			throws InterruptedException {
+	/**
+	 * Wait for number of calls to {@link #onError()}.
+	 * 
+	 * Also forwards {@link Error} or {@link RuntimeException} during execution
+	 * of {@link #assertLoad(CoapResponse)} to the caller's thread.
+	 * 
+	 * @param counter number of expected calls
+	 * @param timeout time to wait
+	 * @param unit unit of time to wait
+	 * @return {@code true}, if number of calls is reached in time,
+	 *         {@code false}, otherwise.
+	 * @throws InterruptedException if thread was interrupted.
+	 * @throws Error if an error occurred execution
+	 *             {@link #assertLoad(CoapResponse)}
+	 * @throws RuntimeException if an runtime exception occurred execution
+	 *             {@link #assertLoad(CoapResponse)}
+	 */
+	public boolean waitOnErrorCalls(int counter, long timeout, TimeUnit unit) throws InterruptedException {
 		return waitOnCalls(counter, timeout, unit, errorCalls);
 	}
 
+	/**
+	 * Wait for number of calls to {@link #onLoad(CoapResponse)} or
+	 * {@link #onError()}.
+	 * 
+	 * Also forwards {@link Error} or {@link RuntimeException} during execution
+	 * of {@link #assertLoad(CoapResponse)} to the caller's thread.
+	 * 
+	 * @param counter number of expected calls
+	 * @param timeout time to wait
+	 * @param unit unit of time to wait
+	 * @return {@code true}, if number of calls is reached in time,
+	 *         {@code false}, otherwise.
+	 * @throws InterruptedException if thread was interrupted.
+	 * @throws Error if an error occurred execution
+	 *             {@link #assertLoad(CoapResponse)}
+	 * @throws RuntimeException if an runtime exception occurred execution
+	 *             {@link #assertLoad(CoapResponse)}
+	 */
 	public boolean waitOnCalls(final int counter, final long timeout, final TimeUnit unit) throws InterruptedException {
 		return waitOnCalls(counter, timeout, unit, loadCalls, errorCalls);
 	}
 
+	/**
+	 * Wait for number of calls.
+	 * 
+	 * Also forwards {@link Error} or {@link RuntimeException} during execution
+	 * of {@link #assertLoad(CoapResponse)} to the caller's thread.
+	 * 
+	 * @param counter number of expected calls
+	 * @param timeout time to wait
+	 * @param unit unit of time to wait
+	 * @param calls list of counters
+	 * @return {@code true}, if number of calls is reached in time,
+	 *         {@code false}, otherwise.
+	 * @throws InterruptedException if thread was interrupted.
+	 * @throws Error if an error occurred execution
+	 *             {@link #assertLoad(CoapResponse)}
+	 * @throws RuntimeException if an runtime exception occurred execution
+	 *             {@link #assertLoad(CoapResponse)}
+	 */
 	private synchronized boolean waitOnCalls(final int counter, final long timeout, final TimeUnit unit,
 			AtomicInteger... calls) throws InterruptedException {
 		if (0 < timeout) {
@@ -141,7 +209,19 @@ public class CountingCoapHandler implements CoapHandler {
 		return sum(calls) >= counter;
 	}
 
-	private void checkError() {
+	/**
+	 * Check, if executing {@link #assertLoad(CoapResponse)} has thrown a
+	 * {@link Error} or {@link RuntimeException} and forwards these to the
+	 * caller's thread.
+	 * 
+	 * @throws Error if an error occurred execution
+	 *             {@link #assertLoad(CoapResponse)}
+	 * @throws RuntimeException if an runtime exception occurred execution
+	 *             {@link #assertLoad(CoapResponse)}
+	 * @see #exception
+	 */
+	private void forwardError() {
+		Throwable exception = this.exception;
 		if (exception != null) {
 			if (exception instanceof Error) {
 				throw (Error) exception;
@@ -151,8 +231,22 @@ public class CountingCoapHandler implements CoapHandler {
 		}
 	}
 
+	/**
+	 * Sum values of AtomicIntegers.
+	 * 
+	 * Also forwards {@link Error} or {@link RuntimeException} during execution
+	 * of {@link #assertLoad(CoapResponse)} to the caller's thread.
+	 * 
+	 * @param calls list of AtomicInteger to add their values
+	 * @return sum of AtomicInteger.
+	 * @throws Error if an error occurred execution
+	 *             {@link #assertLoad(CoapResponse)}
+	 * @throws RuntimeException if an runtime exception occurred execution
+	 *             {@link #assertLoad(CoapResponse)}
+	 * @see #forwardError()
+	 */
 	private int sum(AtomicInteger... calls) {
-		checkError();
+		forwardError();
 		int sum = 0;
 		for (AtomicInteger counter : calls) {
 			sum += counter.get();
@@ -160,6 +254,21 @@ public class CountingCoapHandler implements CoapHandler {
 		return sum;
 	}
 
+	/**
+	 * Wait for next response.
+	 * 
+	 * If the next response is already received, it's returned immediately. Also
+	 * forwards {@link Error} or {@link RuntimeException} during execution of
+	 * {@link #assertLoad(CoapResponse)} to the caller's thread.
+	 * 
+	 * @param timeout timeout in milliseconds. [@code 0}, don't wait.
+	 * @return next response, or {@code null}, if no next response is available
+	 *         within the provided timeout.
+	 * @throws Error if an error occurred execution
+	 *             {@link #assertLoad(CoapResponse)}
+	 * @throws RuntimeException if an runtime exception occurred execution
+	 *             {@link #assertLoad(CoapResponse)}
+	 */
 	public synchronized CoapResponse waitOnLoad(long timeout) {
 		if (0 < timeout && !(readIndex < responses.size())) {
 			try {
@@ -167,7 +276,7 @@ public class CountingCoapHandler implements CoapHandler {
 			} catch (InterruptedException e) {
 			}
 		}
-		checkError();
+		forwardError();
 		if (readIndex < responses.size()) {
 			return responses.get(readIndex++);
 		}
