@@ -52,14 +52,38 @@ public final class DebugConnectionStore extends InMemoryConnectionStore {
 			LOG.info("  {}connections empty!", tag);
 		} else {
 			for (Connection connection : connections.values()) {
-				if (connection.hasEstablishedSession()) {
-					LOG.info("  {}connection: {} - {} : {}", tag, connection.getConnectionId(),
-							connection.getPeerAddress(), connection.getSession().getSessionIdentifier());
-				} else {
-					LOG.info("  {}connection: {} - {}", tag, connection.getConnectionId(),
-							connection.getPeerAddress());
-				}
+				dump(connection);
 			}
+		}
+	}
+
+	/**
+	 * Dump connections to logger. Intended to be used for unit tests.
+	 */
+	public boolean dump(InetSocketAddress address) {
+		if (connections.size() == 0) {
+			LOG.info("  {}connections empty!", tag);
+		} else {
+			Connection connection = get(address);
+			if (connection == null) {
+				LOG.info("  {}connection: {} - not available!", tag, address);
+			} else {
+				dump(connection);
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Dump connection to logger. Intended to be used for unit tests.
+	 */
+	private void dump(Connection connection) {
+		if (connection.hasEstablishedSession()) {
+			LOG.info("  {}connection: {} - {} : {}", tag, connection.getConnectionId(),
+					connection.getPeerAddress(), connection.getEstablishedSession().getSessionIdentifier());
+		} else {
+			LOG.info("  {}connection: {} - {}", tag, connection.getConnectionId(), connection.getPeerAddress());
 		}
 	}
 
