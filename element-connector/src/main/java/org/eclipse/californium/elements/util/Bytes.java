@@ -16,6 +16,7 @@
 package org.eclipse.californium.elements.util;
 
 import java.util.Arrays;
+import java.util.Random;
 
 import org.eclipse.californium.elements.util.StringUtil;
 
@@ -86,6 +87,8 @@ public class Bytes {
 		if (getClass() != obj.getClass())
 			return false;
 		Bytes other = (Bytes) obj;
+		if (hash != other.hash)
+			return false;
 		return Arrays.equals(bytes, other.bytes);
 	}
 
@@ -104,7 +107,7 @@ public class Bytes {
 	 * @return bytes as (hexadecimal) string
 	 */
 	public final String getAsString() {
-		return StringUtil.byteArray2HexString(bytes, StringUtil.NO_SEPARATOR, 0);
+		return StringUtil.byteArray2Hex(bytes);
 	}
 
 	/**
@@ -123,5 +126,55 @@ public class Bytes {
 	 */
 	public final int length() {
 		return bytes.length;
+	}
+
+	/**
+	 * Create byte array initialized with random bytes.
+	 * 
+	 * @param generator random generator
+	 * @param size number of bytes
+	 * @return byte array initialized with random bytes
+	 * @see Random#nextBytes(byte[])
+	 */
+	public static byte[] createBytes(Random generator, int size) {
+		byte[] byteArray = new byte[size];
+		generator.nextBytes(byteArray);
+		return byteArray;
+	}
+
+	/**
+	 * Concatenates two Bytes.
+	 * 
+	 * @param a
+	 *            the first Bytes.
+	 * @param b
+	 *            the second Bytes.
+	 * @return the concatenated array.
+	 * @see #concatenate(byte[], byte[])
+	 */
+	public static byte[] concatenate(Bytes a, Bytes b) {
+		return concatenate(a.getBytes(), b.getBytes());
+	}
+
+	/**
+	 * Concatenates two byte arrays.
+	 * 
+	 * @param a
+	 *            the first array.
+	 * @param b
+	 *            the second array.
+	 * @return the concatenated array.
+	 * @see #concatenate(Bytes, Bytes)
+	 */
+	public static byte[] concatenate(byte[] a, byte[] b) {
+		int lengthA = a.length;
+		int lengthB = b.length;
+
+		byte[] concat = new byte[lengthA + lengthB];
+
+		System.arraycopy(a, 0, concat, 0, lengthA);
+		System.arraycopy(b, 0, concat, lengthA, lengthB);
+
+		return concat;
 	}
 }

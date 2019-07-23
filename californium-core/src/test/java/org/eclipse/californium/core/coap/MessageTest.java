@@ -24,6 +24,8 @@ import java.util.List;
 
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -34,6 +36,8 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Small.class)
 public class MessageTest {
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
 
 	@Test
 	public void testInitalEmptyMessageObservers() {

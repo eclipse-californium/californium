@@ -35,7 +35,6 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.EndpointObserver;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.MatcherTestUtils;
@@ -46,22 +45,23 @@ import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.server.resources.DiscoveryResource;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 @Category(Small.class)
 public class ResourceAttributesTest {
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
 
 	private Resource root;
 
 	@Before
 	public void setup() {
 		try {
-			System.out.println(System.lineSeparator() + "Start " + getClass().getSimpleName());
-			EndpointManager.clear();
-
 			root = new CoapResource("");
 			Resource sensors = new CoapResource("sensors");
 			Resource temp = new CoapResource("temp");
@@ -150,7 +150,7 @@ public class ResourceAttributesTest {
 		}
 
 		@Override
-		public void setExecutor(ScheduledExecutorService executor) {
+		public void setExecutors(ScheduledExecutorService executor, ScheduledExecutorService secondaryExecutor) {
 		}
 
 		@Override

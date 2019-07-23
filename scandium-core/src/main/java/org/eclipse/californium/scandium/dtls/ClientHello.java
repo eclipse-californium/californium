@@ -24,7 +24,6 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
-import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -38,7 +37,6 @@ import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
-import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
 /**
  * When a client first connects to a server, it is required to send the
@@ -104,8 +102,6 @@ public final class ClientHello extends HandshakeMessage {
 	 * Creates a <em>Client Hello</em> message to be sent to a server.
 	 * 
 	 * @param version the protocol version to use
-	 * @param secureRandom a function to use for creating random values included
-	 *            in the message
 	 * @param supportedCipherSuites the list of the supported cipher suites in order of
 	 *            the client’s preference (favorite choice first)
 	 * @param supportedClientCertificateTypes the list of certificate types
@@ -117,13 +113,12 @@ public final class ClientHello extends HandshakeMessage {
 	 */
 	public ClientHello(
 			ProtocolVersion version,
-			SecureRandom secureRandom,
 			List<CipherSuite> supportedCipherSuites,
 			List<CertificateType> supportedClientCertificateTypes,
 			List<CertificateType> supportedServerCertificateTypes,
 			InetSocketAddress peerAddress) {
 
-		this(version, secureRandom, null, supportedCipherSuites, supportedClientCertificateTypes,
+		this(version, null, supportedCipherSuites, supportedClientCertificateTypes,
 				supportedServerCertificateTypes, peerAddress);
 	}
 
@@ -132,8 +127,6 @@ public final class ClientHello extends HandshakeMessage {
 	 * existing DTLS session.
 	 * 
 	 * @param version the protocol version to use
-	 * @param secureRandom a function to use for creating random values included
-	 *            in the message
 	 * @param session the (already existing) DTLS session to resume
 	 * @param supportedClientCertificateTypes the list of certificate types
 	 *            supported by the client
@@ -142,12 +135,11 @@ public final class ClientHello extends HandshakeMessage {
 	 */
 	public ClientHello(
 			ProtocolVersion version,
-			SecureRandom secureRandom,
 			DTLSSession session,
 			List<CertificateType> supportedClientCertificateTypes,
 			List<CertificateType> supportedServerCertificateTypes) {
 
-		this(version, secureRandom, session.getSessionIdentifier(),
+		this(version, session.getSessionIdentifier(),
 				Arrays.asList(session.getCipherSuite()), supportedClientCertificateTypes,
 				supportedServerCertificateTypes, session.getPeer());
 		addCompressionMethod(session.getWriteState().getCompressionMethod());
@@ -155,7 +147,6 @@ public final class ClientHello extends HandshakeMessage {
 
 	private ClientHello(
 			ProtocolVersion version,
-			SecureRandom secureRandom,
 			SessionId sessionId,
 			List<CipherSuite> supportedCipherSuites,
 			List<CertificateType> supportedClientCertificateTypes,
@@ -164,7 +155,7 @@ public final class ClientHello extends HandshakeMessage {
 
 		this(peerAddress);
 		this.clientVersion = version;
-		this.random = new Random(secureRandom);
+		this.random = new Random();
 		this.cookie = new byte[] {};
 		if (sessionId != null) {
 			this.sessionId = sessionId;
@@ -231,7 +222,7 @@ public final class ClientHello extends HandshakeMessage {
 		writer.write(clientVersion.getMajor(), VERSION_BITS);
 		writer.write(clientVersion.getMinor(), VERSION_BITS);
 
-		writer.writeBytes(random.getRandomBytes());
+		writer.writeBytes(random.getBytes());
 
 		writer.write(sessionId.length(), SESSION_ID_LENGTH_BITS);
 		writer.writeBytes(sessionId.getBytes());
@@ -332,7 +323,7 @@ public final class ClientHello extends HandshakeMessage {
 		}
 		sb.append(StringUtil.lineSeparator()).append("\t\tCookie Length: ").append(cookie.length);
 		if (cookie.length > 0) {
-			sb.append(StringUtil.lineSeparator()).append("\t\tCookie: ").append(ByteArrayUtils.toHexString(cookie));
+			sb.append(StringUtil.lineSeparator()).append("\t\tCookie: ").append(StringUtil.byteArray2HexString(cookie));
 		}
 		sb.append(StringUtil.lineSeparator()).append("\t\tCipher Suites Length: ").append(supportedCipherSuites.size() * 2);
 		sb.append(StringUtil.lineSeparator()).append("\t\tCipher Suites (").append(supportedCipherSuites.size()).append(" suites)");
@@ -387,7 +378,7 @@ public final class ClientHello extends HandshakeMessage {
 	 * 
 	 * Adjust fragment length.
 	 * 
-	 * @param cookie recevied cookie
+	 * @param cookie received cookie
 	 * @throws NullPointerException if cookie is {@code null}
 	 * @throws IllegalArgumentException if cookie is empty
 	 */
@@ -398,6 +389,7 @@ public final class ClientHello extends HandshakeMessage {
 			throw new IllegalArgumentException("cookie must not be empty!");
 		}
 		this.cookie = Arrays.copyOf(cookie, cookie.length);
+		fragmentChanged();
 	}
 
 	public List<CipherSuite> getCipherSuites() {

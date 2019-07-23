@@ -34,31 +34,28 @@ import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.elements.rule.ThreadsRule;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.TestThreadFactory;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.ClientHandshaker;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.DTLSFlight;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
-import org.eclipse.californium.scandium.dtls.HandshakeException;
-import org.eclipse.californium.scandium.dtls.Handshaker;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.RecordLayer;
 import org.eclipse.californium.scandium.dtls.ResumingClientHandshaker;
 import org.eclipse.californium.scandium.dtls.ResumingServerHandshaker;
 import org.eclipse.californium.scandium.dtls.ServerHandshaker;
-import org.eclipse.californium.scandium.dtls.SessionAdapter;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -87,6 +84,9 @@ public class DTLSConnectorAdvancedTest {
 	public static DtlsNetworkRule network = new DtlsNetworkRule(DtlsNetworkRule.Mode.DIRECT,
 			DtlsNetworkRule.Mode.NATIVE);
 
+	@ClassRule
+	public static ThreadsRule cleanup = new ThreadsRule();
+
 	@Rule
 	public TestNameLoggerRule names = new TestNameLoggerRule();
 
@@ -111,13 +111,13 @@ public class DTLSConnectorAdvancedTest {
 					.setMaxRetransmissions(MAX_RETRANSMISSIONS);
 		serverHelper = new ConnectorHelper();
 		serverHelper.startServer(builder);
-		executor = Executors.newFixedThreadPool(2);
+		executor = ExecutorsUtil.newFixedThreadPool(2, new TestThreadFactory("DTLS-ADVANCED-"));
 	}
 
 	@AfterClass
 	public static void tearDown() {
 		serverHelper.destroyServer();
-		executor.shutdownNow();
+		ExecutorsUtil.shutdownExecutorGracefully(100, executor);
 	}
 
 	@Before
@@ -131,7 +131,7 @@ public class DTLSConnectorAdvancedTest {
 				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY);
 		clientConfig = builder.build();
 
-		client = new DTLSConnector(clientConfig, clientConnectionStore);
+		client = serverHelper.createClient(clientConfig, clientConnectionStore);
 		client.setExecutor(executor);
 	}
 
@@ -301,7 +301,7 @@ public class DTLSConnectorAdvancedTest {
 
 			// create server session listener to ensure,
 			// that server finish also the handshake
-			LatchSessionListener serverSessionListener = addSessionListenerForEndpoint("server", rawClient);
+			LatchSessionListener serverSessionListener = getSessionListenerForEndpoint("server", rawClient);
 
 			// Handle and answer ( CHANGE CIPHER SPEC, FINISHED, flight 3)
 			for (Record r : rs) {
@@ -419,6 +419,7 @@ public class DTLSConnectorAdvancedTest {
 	 * usual retransmission, the special case is flight 6. Therefore this test
 	 * drops the 1. transmission of flight 6 to check, if retransmission of
 	 * flight 5 triggers the retransmission of flight 6.
+	 * @throws Exception if the test fails
 	 */
 	@Test
 	public void testServerFinishedMessageRetransmission() throws Exception {
@@ -489,6 +490,7 @@ public class DTLSConnectorAdvancedTest {
 	 * usual retransmission, the special case is flight 3. Therefore this test
 	 * drops the 1. transmission of flight 3 to check, if retransmission of
 	 * flight 2 triggers the retransmission of flight 3.
+	 * @throws Exception if the test fails
 	 */
 	@Test
 	public void testResumeClientFinishedMessageRetransmission() throws Exception {
@@ -588,6 +590,7 @@ public class DTLSConnectorAdvancedTest {
 	 * Drops the first transmission of flight 5 to test, if flight 5 is
 	 * retransmitted. Usual retransmission, the special case is flight 6, see
 	 * "testServerFinishedMessageRetransmission".
+	 * @throws Exception if the test fails
 	 */
 	@Test
 	public void testFinishedMessageRetransmission() throws Exception {
@@ -648,6 +651,7 @@ public class DTLSConnectorAdvancedTest {
 	 * flight 3, see "testResumeClientFinishedMessageRetransmission". Note:
 	 * scandium uses a additional HELLO VERIFY REQUEST. May be optimized in the
 	 * future.
+	 * @throws Exception if the test fails
 	 */
 	@Test
 	public void testResumeFinishedMessageRetransmission() throws Exception {
@@ -714,7 +718,7 @@ public class DTLSConnectorAdvancedTest {
 
 			// create server session listener to ensure,
 			// that server finish also the handshake
-			LatchSessionListener serverSessionListener = addSessionListenerForEndpoint("server", rawClient);
+			LatchSessionListener serverSessionListener = getSessionListenerForEndpoint("server", rawClient);
 
 			// drop it, force retransmission
 			// (SERVER_HELLO, CHANGE CIPHER SPEC, FINISHED, fight 2)
@@ -738,6 +742,7 @@ public class DTLSConnectorAdvancedTest {
 
 	/**
 	 * Test the server resuming handshake fails, if clients FINISH is dropped.
+	 * @throws Exception if the test fails
 	 */
 	@Test
 	public void testServerResumeTimeout() throws Exception {
@@ -805,7 +810,7 @@ public class DTLSConnectorAdvancedTest {
 
 			// create server session listener to ensure,
 			// that server finish also the handshake
-			LatchSessionListener serverSessionListener = addSessionListenerForEndpoint("server", rawClient);
+			LatchSessionListener serverSessionListener = getSessionListenerForEndpoint("server", rawClient);
 
 			// Handle and answer
 			// (CHANGE CIPHER SPEC, FINISHED (drop), flight 3)
@@ -828,6 +833,7 @@ public class DTLSConnectorAdvancedTest {
 
 	/**
 	 * Test the server handshake fails, if clients FINISH is dropped.
+	 * @throws Exception if the test fails
 	 */
 	@Test
 	public void testServerTimeout() throws Exception {
@@ -863,7 +869,7 @@ public class DTLSConnectorAdvancedTest {
 
 			// create server session listener to ensure,
 			// that server finish also the handshake
-			LatchSessionListener serverSessionListener = addSessionListenerForEndpoint("server", rawClient);
+			LatchSessionListener serverSessionListener = getSessionListenerForEndpoint("server", rawClient);
 
 			// Handle and answer
 			// (CERTIFICATE, CHANGE CIPHER SPEC, ..., FINISHED)
@@ -944,7 +950,7 @@ public class DTLSConnectorAdvancedTest {
 			// Wait to receive response (should be CLIENT HELLO, flight 1)
 			rs = waitForFlightReceived("flight 1", collector, 1);
 
-			LatchSessionListener clientSessionListener = addSessionListenerForEndpoint("client", rawServer);
+			LatchSessionListener clientSessionListener = getSessionListenerForEndpoint("client", rawServer);
 
 			// Handle and answer
 			// (SERVER HELLO, CCS, FINISHED drop, flight 2).
@@ -995,7 +1001,7 @@ public class DTLSConnectorAdvancedTest {
 				serverHandshaker.processMessage(r);
 			}
 
-			LatchSessionListener clientSessionListener = addSessionListenerForEndpoint("client", rawServer);
+			LatchSessionListener clientSessionListener = getSessionListenerForEndpoint("client", rawServer);
 
 			// Wait for transmission (CERTIFICATE, ... , FINISHED, flight 5)
 			rs = waitForFlightReceived("flight 3", collector, 5);
@@ -1087,7 +1093,7 @@ public class DTLSConnectorAdvancedTest {
 			// (SERVER_HELLO, CHANGE CIPHER SPEC, FINISHED, fight 4)
 			rs = waitForFlightReceived("flight 4", alt1Collector, 3);
 
-			LatchSessionListener serverAlt1SessionListener = addSessionListenerForEndpoint("server", rawAlt1Client);
+			LatchSessionListener serverAlt1SessionListener = getSessionListenerForEndpoint("server", rawAlt1Client);
 
 			// Create 2. resume handshaker
 			rawAlt2Client.start();
@@ -1118,7 +1124,7 @@ public class DTLSConnectorAdvancedTest {
 			// that server finish also the handshake
 			serverHelper.serverConnectionStore.dump();
 
-			LatchSessionListener serverAlt2SessionListener = addSessionListenerForEndpoint("server", rawAlt2Client);
+			LatchSessionListener serverAlt2SessionListener = getSessionListenerForEndpoint("server", rawAlt2Client);
 
 			for (Record r : rs) {
 				resumingClientHandshaker.processMessage(r);
@@ -1133,6 +1139,8 @@ public class DTLSConnectorAdvancedTest {
 			assertNotNull("server handshake not failed", error);
 		} finally {
 			rawClient.stop();
+			rawAlt1Client.stop();
+			rawAlt2Client.stop();
 		}
 	}
 
@@ -1196,51 +1204,12 @@ public class DTLSConnectorAdvancedTest {
 		}
 	}
 
-	private LatchSessionListener addSessionListenerForEndpoint(String side, UdpConnector clientEndpoint) {
+	private LatchSessionListener getSessionListenerForEndpoint(String side, UdpConnector clientEndpoint) {
 		InetSocketAddress address = clientEndpoint.getAddress();
-		Connection con;
-		if (side.equals("client")) {
-			con = clientConnectionStore.get(address);
-		} else {
-			con = serverHelper.serverConnectionStore.get(address);
-		}
-		assertNotNull("missing " + side + "-side session for " + address, con);
-		Handshaker handshaker = con.getOngoingHandshake();
-		assertNotNull("missing " + side + "-side handshaker for " + address, handshaker);
-		LatchSessionListener serverSessionListener = new LatchSessionListener();
-		handshaker.addSessionListener(serverSessionListener);
+		LatchSessionListener serverSessionListener = serverHelper.sessionListenerMap.get(address);
+		assertNotNull("missing " + side + "-side session listener for " + address);
 		return serverSessionListener;
 	}
-
-	private static class LatchSessionListener extends SessionAdapter {
-
-		private CountDownLatch established = new CountDownLatch(1);
-		private CountDownLatch failed = new CountDownLatch(1);
-		private AtomicReference<Throwable> error = new AtomicReference<Throwable>();
-
-		@Override
-		public void sessionEstablished(Handshaker handshaker, DTLSSession establishedSession)
-				throws HandshakeException {
-			established.countDown();
-		}
-
-		@Override
-		public void handshakeFailed(Handshaker handshaker, Throwable error) {
-			this.error.set(error);
-			failed.countDown();
-		}
-
-		public boolean waitForSessionEstablished(long timeout, TimeUnit unit) throws InterruptedException {
-			return established.await(timeout, unit);
-		}
-
-		public Throwable waitForSessionFailed(long timeout, TimeUnit unit) throws InterruptedException {
-			if (failed.await(timeout, unit)) {
-				return error.get();
-			}
-			return null;
-		}
-	};
 
 	public static class BasicRecordLayer implements RecordLayer {
 

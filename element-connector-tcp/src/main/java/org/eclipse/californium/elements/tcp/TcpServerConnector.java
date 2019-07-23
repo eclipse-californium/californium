@@ -40,9 +40,9 @@ import io.netty.util.concurrent.GenericFutureListener;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
-import org.eclipse.californium.elements.EndpointMismatchException;
-import org.eclipse.californium.elements.EndpointUnconnectedException;
-import org.eclipse.californium.elements.MulticastNotSupportedException;
+import org.eclipse.californium.elements.exception.EndpointMismatchException;
+import org.eclipse.californium.elements.exception.EndpointUnconnectedException;
+import org.eclipse.californium.elements.exception.MulticastNotSupportedException;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 
@@ -66,6 +66,7 @@ public class TcpServerConnector implements Connector {
 
 	private final int numberOfThreads;
 	private final int connectionIdleTimeoutSeconds;
+	private final InetSocketAddress localAddress;
 	private final TcpContextUtil contextUtil;
 	private final ConcurrentMap<SocketAddress, Channel> activeChannels = new ConcurrentHashMap<>();
 
@@ -75,12 +76,12 @@ public class TcpServerConnector implements Connector {
 	 * @see #setEndpointContextMatcher(EndpointContextMatcher)
 	 * @see #getEndpointContextMatcher()
 	 */
-	private EndpointContextMatcher endpointContextMatcher;
+	private volatile EndpointContextMatcher endpointContextMatcher;
+	private volatile InetSocketAddress effectiveLocalAddress;
 
 	private RawDataChannel rawDataChannel;
 	private EventLoopGroup bossGroup;
 	private EventLoopGroup workerGroup;
-	private InetSocketAddress localAddress;
 
 	public TcpServerConnector(InetSocketAddress localAddress, int numberOfThreads, int idleTimeout) {
 		this(localAddress, numberOfThreads, idleTimeout, new TcpContextUtil());
@@ -91,6 +92,7 @@ public class TcpServerConnector implements Connector {
 		this.connectionIdleTimeoutSeconds = idleTimeout;
 		this.localAddress = localAddress;
 		this.contextUtil = contextUtil;
+		this.effectiveLocalAddress = localAddress;
 	}
 
 	@Override
@@ -122,7 +124,7 @@ public class TcpServerConnector implements Connector {
 		if (channelFuture.isSuccess() && 0 == localAddress.getPort()) {
 			// replace port with the assigned one
 			InetSocketAddress listenAddress = (InetSocketAddress) channelFuture.channel().localAddress();
-			localAddress = new InetSocketAddress(localAddress.getAddress(), listenAddress.getPort());
+			effectiveLocalAddress = new InetSocketAddress(localAddress.getAddress(), listenAddress.getPort());
 		}
 	}
 
@@ -136,6 +138,7 @@ public class TcpServerConnector implements Connector {
 			workerGroup.shutdownGracefully(0, 500, TimeUnit.MILLISECONDS).syncUninterruptibly();
 			workerGroup = null;
 		}
+		effectiveLocalAddress = localAddress;
 	}
 
 	@Override
@@ -202,17 +205,17 @@ public class TcpServerConnector implements Connector {
 	}
 
 	@Override
-	public synchronized void setEndpointContextMatcher(EndpointContextMatcher matcher) {
+	public void setEndpointContextMatcher(EndpointContextMatcher matcher) {
 		endpointContextMatcher = matcher;
 	}
 
-	private synchronized EndpointContextMatcher getEndpointContextMatcher() {
+	private EndpointContextMatcher getEndpointContextMatcher() {
 		return endpointContextMatcher;
 	}
 
 	@Override
-	public synchronized InetSocketAddress getAddress() {
-		return localAddress;
+	public InetSocketAddress getAddress() {
+		return effectiveLocalAddress;
 	}
 
 	/**

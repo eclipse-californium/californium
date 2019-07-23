@@ -12,6 +12,7 @@
  * 
  * Contributors:
  *    Tobias Andersson (RISE SICS)
+ *    Rikard Höglund (RISE SICS)
  *    
  ******************************************************************************/
 package org.eclipse.californium.oscore;
@@ -20,9 +21,14 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 import org.junit.runners.Suite.SuiteClasses;
 
+/**
+ * Class to launch all JUnit tests defined for OSCORE
+ *
+ */
 @RunWith(Suite.class)
-@SuiteClasses({ ByteIdTest.class, HashMapCtxDBTest.class, OptionJuggleTest.class, OSCoreCtxTest.class, OSCoreTest.class,
-		OSSerializerTest.class })
+@SuiteClasses({ ByteIdTest.class, HashMapCtxDBTest.class, OptionJuggleTest.class, OSCoreCtxTest.class,
+	OSCoreTest.class, OSSerializerTest.class, OSCoreServerClientTest.class, OSCoreObserveTest.class,
+	EncryptorTest.class, DecryptorTest.class })
 public class AllJUnitTests {
 
 }

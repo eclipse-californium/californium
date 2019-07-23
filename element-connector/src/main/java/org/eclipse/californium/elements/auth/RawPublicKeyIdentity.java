@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2018 Institute for Pervasive Computing, ETH Zurich and others.
+ * Copyright (c) 2015, 2019 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -23,7 +23,6 @@ import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.security.Principal;
 import java.security.PublicKey;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
@@ -34,7 +33,7 @@ import org.eclipse.californium.elements.util.Base64;
 /**
  * A principal representing an authenticated peer's <em>RawPublicKey</em>.
  */
-public class RawPublicKeyIdentity implements Principal {
+public class RawPublicKeyIdentity extends AbstractExtensiblePrincipal<RawPublicKeyIdentity> {
 
 	private static final int BASE_64_ENCODING_OPTIONS = Base64.ENCODE | Base64.URL_SAFE | Base64.NO_PADDING;
 	private String niUri;
@@ -47,6 +46,18 @@ public class RawPublicKeyIdentity implements Principal {
 	 * @throws NullPointerException if the key is <code>null</code>
 	 */
 	public RawPublicKeyIdentity(PublicKey key) {
+		this(key, null);
+	}
+
+	/**
+	 * Creates a new instance for a given public key.
+	 * 
+	 * @param key the public key
+	 * @param additionalInformation Additional information for this principal.
+	 * @throws NullPointerException if the key is <code>null</code>
+	 */
+	private RawPublicKeyIdentity(PublicKey key, AdditionalInfo additionalInformation) {
+		super(additionalInformation);
 		if (key == null) {
 			throw new NullPointerException("Public key must not be null");
 		} else {
@@ -57,8 +68,6 @@ public class RawPublicKeyIdentity implements Principal {
 
 	/**
 	 * Creates a new instance for a given ASN.1 subject public key info structure.
-	 * <p>
-	 * The given subject info is expected to represent an EC public key.
 	 * 
 	 * @param subjectInfo the ASN.1 encoded X.509 subject public key info.
 	 * @throws NullPointerException if the subject info is <code>null</code>
@@ -66,7 +75,7 @@ public class RawPublicKeyIdentity implements Principal {
 	 *             algorithm used by the public key.
 	 */
 	public RawPublicKeyIdentity(byte[] subjectInfo) throws GeneralSecurityException {
-		this(subjectInfo, null);
+		this(subjectInfo, null, null);
 	}
 
 	/**
@@ -75,13 +84,31 @@ public class RawPublicKeyIdentity implements Principal {
 	 * @param subjectInfo the ASN.1 encoded X.509 subject public key info.
 	 * @param keyAlgorithm the algorithm name to verify, that the subject public
 	 *            key uses this key algorithm, or to support currently not
-	 *            supported key algorithms for serialization/deserialization. If
-	 *            {@code null}, use the to key algorithm provided by the ASN.1
-	 *            DER encoded subject public key.
+	 *            supported key algorithms for serialization/deserialization.
+	 *            If {@code null}, the key algorithm provided by the ASN.1
+	 *            DER encoded subject public key is used.
 	 * @throws NullPointerException if the subject info is <code>null</code>
 	 * @throws GeneralSecurityException if the JVM does not support the given key algorithm.
 	 */
 	public RawPublicKeyIdentity(byte[] subjectInfo, String keyAlgorithm) throws GeneralSecurityException {
+		this(subjectInfo, keyAlgorithm, null);
+	}
+
+	/**
+	 * Creates a new instance for a given ASN.1 subject public key info structure.
+	 * 
+	 * @param subjectInfo the ASN.1 encoded X.509 subject public key info.
+	 * @param keyAlgorithm the algorithm name to verify, that the subject public
+	 *            key uses this key algorithm, or to support currently not
+	 *            supported key algorithms for serialization/deserialization.
+	 *            If {@code null}, the key algorithm provided by the ASN.1
+	 *            DER encoded subject public key is used.
+	 * @param additionalInformation Additional information for this principal.
+	 * @throws NullPointerException if the subject info is <code>null</code>
+	 * @throws GeneralSecurityException if the JVM does not support the given key algorithm.
+	 */
+	private RawPublicKeyIdentity(byte[] subjectInfo, String keyAlgorithm, AdditionalInfo additionalInformation) throws GeneralSecurityException {
+		super(additionalInformation);
 		if (subjectInfo == null) {
 			throw new NullPointerException("SubjectPublicKeyInfo must not be null");
 		} else {
@@ -106,6 +133,14 @@ public class RawPublicKeyIdentity implements Principal {
 			this.publicKey = KeyFactory.getInstance(specKeyAlgorithm).generatePublic(spec);
 			createNamedInformationUri(subjectInfo);
 		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public RawPublicKeyIdentity amend(AdditionalInfo additionalInfo) {
+		return new RawPublicKeyIdentity(publicKey, additionalInfo);
 	}
 
 	private void createNamedInformationUri(byte[] subjectPublicKeyInfo) {
@@ -192,18 +227,17 @@ public class RawPublicKeyIdentity implements Principal {
 			return true;
 		} else if (obj == null) {
 			return false;
-		} else if (!(obj instanceof RawPublicKeyIdentity)) {
+		} else if (getClass() != obj.getClass()) {
 			return false;
-		} else {
-			RawPublicKeyIdentity other = (RawPublicKeyIdentity) obj;
-			if (publicKey == null) {
-				if (other.publicKey != null) {
-					return false;
-				}
-			} else if (!Arrays.equals(getSubjectInfo(), other.getSubjectInfo())) {
+		}
+		RawPublicKeyIdentity other = (RawPublicKeyIdentity) obj;
+		if (publicKey == null) {
+			if (other.publicKey != null) {
 				return false;
 			}
-			return true;
+		} else if (!Arrays.equals(getSubjectInfo(), other.getSubjectInfo())) {
+			return false;
 		}
+		return true;
 	}
 }

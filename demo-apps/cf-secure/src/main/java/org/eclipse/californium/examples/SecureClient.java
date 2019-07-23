@@ -18,6 +18,7 @@
  ******************************************************************************/
 package org.eclipse.californium.examples;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
@@ -27,16 +28,18 @@ import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.examples.CredentialsUtil.Mode;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 
 public class SecureClient {
 
 	public static final List<Mode> SUPPORTED_MODES = Arrays
 			.asList(new Mode[] { Mode.PSK, Mode.ECDHE_PSK, Mode.RPK, Mode.X509, Mode.RPK_TRUST, Mode.X509_TRUST });
-	private static final String SERVER_URI = "coaps://localhost/secure";
+	private static final String SERVER_URI = "coaps://127.0.0.1:5684/secure";
 
 	private final DTLSConnector dtlsConnector;
 
@@ -57,6 +60,9 @@ public class SecureClient {
 			client.shutdown();
 		} catch (URISyntaxException e) {
 			System.err.println("Invalid URI: " + e.getMessage());
+			System.exit(-1);
+		} catch (ConnectorException | IOException e) {
+			System.err.println("Error occurred while sending request: " + e);
 			System.exit(-1);
 		}
 
@@ -84,7 +90,9 @@ public class SecureClient {
 		builder.setSniEnabled(false);
 		List<Mode> modes = CredentialsUtil.parse(args, CredentialsUtil.DEFAULT_CLIENT_MODES, SUPPORTED_MODES);
 		if (modes.contains(CredentialsUtil.Mode.PSK) || modes.contains(CredentialsUtil.Mode.ECDHE_PSK)) {
-			builder.setPskStore(new StaticPskStore(CredentialsUtil.PSK_IDENTITY, CredentialsUtil.PSK_SECRET));
+			builder.setPskStore(new StaticPskStore(CredentialsUtil.OPEN_PSK_IDENTITY, CredentialsUtil.OPEN_PSK_SECRET));
+		} else {
+			builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256);
 		}
 		CredentialsUtil.setupCredentials(builder, CredentialsUtil.CLIENT_NAME, modes);
 		DTLSConnector dtlsConnector = new DTLSConnector(builder.build());

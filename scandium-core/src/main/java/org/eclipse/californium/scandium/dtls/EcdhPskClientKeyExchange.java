@@ -15,8 +15,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import static org.eclipse.californium.elements.util.StandardCharsets.UTF_8;
-
 import java.net.InetSocketAddress;
 import java.security.PublicKey;
 import java.security.interfaces.ECPublicKey;
@@ -28,7 +26,6 @@ import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
-import org.eclipse.californium.scandium.util.ByteArrayUtils;
 
 /**
  * Generates client ephemeral ECDH keys for Dtls ECDH_PSK mode.
@@ -44,31 +41,26 @@ public final class EcdhPskClientKeyExchange extends ClientKeyExchange {
 	/**
 	 *See <a href="https://tools.ietf.org/html/rfc5489#section-2">RFC 5489</a>.
 	 */
-	private final byte[] identityEncoded;
-	/**
-	 *See <a href="https://tools.ietf.org/html/rfc5489#section-2">RFC 5489</a>.
-	 */
-	private final String identity;
+	private final PskPublicInformation identity;
 	private final byte[] pointEncoded;
 	
 	/**
 	 * Creates a new key exchange message for an identity hint and a public key.
 	 * 
-	 * @param hint PSK identity as clear text
+	 * @param identity PSK identity as public information
 	 * @param clientPublicKey ephemeral public key of client
 	 * @param peerAddress peer's address
 	 * @throws NullPointerException if either hint or clietPublicKey are {@code null}
 	 */
-	public EcdhPskClientKeyExchange(String hint, PublicKey clientPublicKey, InetSocketAddress peerAddress) {
+	public EcdhPskClientKeyExchange(PskPublicInformation identity, PublicKey clientPublicKey, InetSocketAddress peerAddress) {
 		super(peerAddress);
-		if (hint == null) {
+		if (identity == null) {
 			throw new NullPointerException("identity cannot be null");
 		}
 		if (clientPublicKey == null) {
 			throw new NullPointerException("ephemeral public key cannot be null");
 		}
-		this.identity = hint;
-		this.identityEncoded = hint.getBytes(UTF_8);
+		this.identity = identity;
 		ECPublicKey publicKey = (ECPublicKey) clientPublicKey;
 		ECPoint point = publicKey.getW();
 		ECParameterSpec params = publicKey.getParams();
@@ -79,29 +71,28 @@ public final class EcdhPskClientKeyExchange extends ClientKeyExchange {
 	/**
 	 * Creates a new key exchange message for an identity hint and a public key.
 	 * 
-	 * @param hintEncoded opaque encoded PSK identity hint for server
+	 * @param identityEncoded opaque encoded PSK identity hint for server
 	 * @param pointEncoded ephemeral public key of client (encoded point)
 	 * @param peerAddress peer's address
 	 * @throws NullPointerException if either hintEncoded or pointEncoded are {@code null}
 	 */
-	public EcdhPskClientKeyExchange(byte[] hintEncoded, byte[] pointEncoded, InetSocketAddress peerAddress) {
+	public EcdhPskClientKeyExchange(byte[] identityEncoded, byte[] pointEncoded, InetSocketAddress peerAddress) {
 		super(peerAddress);
-		if (hintEncoded ==null) {
+		if (identityEncoded ==null) {
 			throw new NullPointerException("identity cannot be null");
 		}
 		if (pointEncoded == null) {
 			throw new NullPointerException("epehemeral public key cannot be null");
 		}
-		this.identityEncoded = Arrays.copyOf(hintEncoded, hintEncoded.length);
-		this.identity = new String(this.identityEncoded,UTF_8);
+		this.identity = PskPublicInformation.fromByteArray(identityEncoded);
 		this.pointEncoded = Arrays.copyOf(pointEncoded, pointEncoded.length);
 	}
 
 	@Override
 	public byte[] fragmentToByteArray() {
 		DatagramWriter writer = new DatagramWriter();
-		writer.write(identityEncoded.length, IDENTITY_LENGTH_BITS);
-		writer.writeBytes(identityEncoded);
+		writer.write(identity.length(), IDENTITY_LENGTH_BITS);
+		writer.writeBytes(identity.getBytes());
 		writer.write(pointEncoded.length, LENGTH_BITS);
 		writer.writeBytes(pointEncoded);
 		return writer.toByteArray();
@@ -133,7 +124,7 @@ public final class EcdhPskClientKeyExchange extends ClientKeyExchange {
 
 	@Override
 	public int getMessageLength() {
-		return 3 + identityEncoded.length + pointEncoded.length;
+		return 3 + identity.length() + pointEncoded.length;
 	}
 
 	/**
@@ -150,19 +141,19 @@ public final class EcdhPskClientKeyExchange extends ClientKeyExchange {
 		StringBuilder sb = new StringBuilder();
 		sb.append(super.toString());
 		sb.append("\t\t Encoded identity value: ");
-		sb.append(ByteArrayUtils.toHex(identityEncoded)).append(StringUtil.lineSeparator());;
+		sb.append(identity).append(StringUtil.lineSeparator());;
 		sb.append("\t\tEC Diffie-Hellman public value: ");		
-		sb.append(ByteArrayUtils.toHexString(pointEncoded));
+		sb.append(StringUtil.byteArray2Hex(pointEncoded));
 		sb.append(StringUtil.lineSeparator());
 		return sb.toString();
 	}		
 	
 	/**
-	 * This method returns the PSK identity as clear text.
+	 * This method returns the PSK identity as public information.
 	 * 
 	 * @return psk identity
 	 */
-	public String getIdentity() {
+	public PskPublicInformation getIdentity() {
 		return identity;
 	}
 }

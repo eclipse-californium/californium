@@ -77,6 +77,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
 			config.setInt(Keys.EXCHANGE_LIFETIME, 24700); // 24.7s instead of 247s
 			config.setInt(Keys.MAX_ACTIVE_PEERS, 20000);
+			config.setInt(Keys.DTLS_AUTO_RESUME_TIMEOUT, 0);
 			config.setInt(Keys.DTLS_CONNECTION_ID_LENGTH, 6);
 			config.setInt(Keys.MAX_PEER_INACTIVITY_PERIOD, 60 * 60 * 24); // 24h
 			config.setInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT, 60 * 60 * 12); // 12h
@@ -136,10 +137,10 @@ public class ExtendedTestServer extends AbstractTestServer {
 
 			ScheduledExecutorService executor = ExecutorsUtil.newScheduledThreadPool(//
 					config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT), //
-					new NamedThreadFactory("CoapServer#")); //$NON-NLS-1$
+					new NamedThreadFactory("CoapServer(main)#")); //$NON-NLS-1$
 
 			ExtendedTestServer server = new ExtendedTestServer(config, protocolConfig, noBenchmark);
-			server.setExecutor(executor);
+			server.setExecutors(executor, ExecutorsUtil.newDefaultSecondaryScheduler("CoapServer(secondary)#"), false);
 			server.add(new ReverseRequest(config, executor));
 			ReverseObserve reverseObserver = new ReverseObserve(config, executor);
 			server.add(reverseObserver);

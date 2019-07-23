@@ -19,11 +19,10 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.junit.Assert.assertThat;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResource;
@@ -39,12 +38,14 @@ import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.integration.test.util.CoapsNetworkRule;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -55,6 +56,12 @@ public class SecureBlockwiseTest {
 	public static CoapsNetworkRule network = new CoapsNetworkRule(CoapsNetworkRule.Mode.DIRECT,
 			CoapsNetworkRule.Mode.NATIVE);
 
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
+
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
+
 	private static final int DEFAULT_BLOCK_SIZE = 64;
 
 	static final int TIMEOUT_IN_MILLIS = 5000;
@@ -63,12 +70,6 @@ public class SecureBlockwiseTest {
 	static final String IDENITITY = "client1";
 	static final String KEY = "key1";
 
-	private CoapServer server;
-	private TestUtilPskStore pskStore;
-	private DTLSConnector serverConnector;
-	private DTLSConnector clientConnector;
-	private CoapEndpoint serverEndpoint;
-	private CoapEndpoint clientEndpoint;
 	private MyResource resource;
 
 	private String uri;
@@ -76,17 +77,9 @@ public class SecureBlockwiseTest {
 
 	@Before
 	public void startupServer() {
-		System.out.println(System.lineSeparator() + "Start " + getClass().getSimpleName());
 		payload = createRandomPayload(DEFAULT_BLOCK_SIZE * 4);
 		createSecureServer(MatcherMode.STRICT);
 		resource.setPayload(payload);
-	}
-
-	@After
-	public void shutdownServer() {
-		server.destroy();
-		EndpointManager.reset();
-		System.out.println("End " + getClass().getSimpleName());
 	}
 
 	@Test
@@ -97,6 +90,7 @@ public class SecureBlockwiseTest {
 		assertThat(response.getCode(), is(CoAP.ResponseCode.CONTENT));
 		assertThat(response.getResponseText(), is(payload));
 		assertThat(resource.getCounter(), is(1));
+		client.shutdown();
 	}
 
 	@Test
@@ -108,6 +102,7 @@ public class SecureBlockwiseTest {
 		assertThat(response.getCode(), is(CoAP.ResponseCode.CHANGED));
 		assertThat(resource.currentPayload, is(payload));
 		assertThat(resource.getCounter(), is(1));
+		client.shutdown();
 	}
 
 	@Test
@@ -120,12 +115,13 @@ public class SecureBlockwiseTest {
 		assertThat(response.getResponseText(), is(this.payload + payload));
 		assertThat(resource.currentPayload, is(this.payload + payload));
 		assertThat(resource.getCounter(), is(1));
+		client.shutdown();
 	}
 
 	private void createSecureServer(MatcherMode mode) {
-		pskStore = new TestUtilPskStore(IDENITITY, KEY.getBytes());
+		TestUtilPskStore pskStore = new TestUtilPskStore(IDENITITY, KEY.getBytes());
 		DtlsConnectorConfig dtlsConfig = new DtlsConnectorConfig.Builder()
-				.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
+				.setAddress(TestTools.LOCALHOST_EPHEMERAL)
 				.setLoggingTag("server")
 				.setReceiverThreadCount(2)
 				.setConnectionThreadCount(2)
@@ -137,33 +133,33 @@ public class SecureBlockwiseTest {
 				.setLong(Keys.EXCHANGE_LIFETIME, 10 * 1000L).setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE)
 				.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE)
 				.setString(Keys.RESPONSE_MATCHING, mode.name());
-		serverConnector = new DTLSConnector(dtlsConfig);
+		DTLSConnector serverConnector = new DTLSConnector(dtlsConfig);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setConnector(serverConnector);
 		builder.setNetworkConfig(config);
-		serverEndpoint = builder.build();
+		CoapEndpoint serverEndpoint = builder.build();
 
-		server = new CoapServer();
+		CoapServer server = new CoapServer();
+		cleanup.add(server);
 		server.addEndpoint(serverEndpoint);
 		resource = new MyResource(TARGET);
 		server.add(resource);
 		server.start();
 
-		uri = serverEndpoint.getUri() + "/" + TARGET;
+		uri = TestTools.getUri(serverEndpoint, TARGET);
 
 		// prepare secure client endpoint
 		DtlsConnectorConfig clientdtlsConfig = new DtlsConnectorConfig.Builder()
-				.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
+				.setAddress(TestTools.LOCALHOST_EPHEMERAL)
 				.setLoggingTag("client")
 				.setReceiverThreadCount(2)
 				.setConnectionThreadCount(2)
 				.setPskStore(pskStore).build();
-		clientConnector = new DTLSConnector(clientdtlsConfig);
+		DTLSConnector clientConnector = new DTLSConnector(clientdtlsConfig);
 		builder = new CoapEndpoint.Builder();
 		builder.setConnector(clientConnector);
 		builder.setNetworkConfig(config);
-		clientEndpoint = builder.build();
-		EndpointManager.getEndpointManager().setDefaultEndpoint(clientEndpoint);
+		EndpointManager.getEndpointManager().setDefaultEndpoint(builder.build());
 	}
 
 	private static String createRandomPayload(int size) {

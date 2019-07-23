@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -12,23 +12,24 @@
  * 
  * Contributors:
  *    Bosch Software Innovations GmbH - initial implementation
- *                                      (GitHub issue #305)
  ******************************************************************************/
-package org.eclipse.californium.elements;
+package org.eclipse.californium.elements.exception;
 
 /**
- * Exception indicating, that the endpoint context doesn't match for some
- * reason.
+ * Exception indicating, that the destination endpoint is currently not
+ * connected to the source server endpoint. Used for TCP/TLS server and for DTLS
+ * server, if the DTLS server is configured to act as server only and therefore
+ * not starting handshakes.
  */
-public class EndpointMismatchException extends Exception {
+public class EndpointUnconnectedException extends ConnectorException {
 
 	private static final long serialVersionUID = 1L;
 
 	/**
 	 * Create new instance.
 	 */
-	public EndpointMismatchException() {
-
+	public EndpointUnconnectedException() {
+		super();
 	}
 
 	/**
@@ -36,7 +37,7 @@ public class EndpointMismatchException extends Exception {
 	 * 
 	 * @param message message
 	 */
-	public EndpointMismatchException(String message) {
+	public EndpointUnconnectedException(String message) {
 		super(message);
 	}
 }

@@ -31,9 +31,6 @@ public final class DebugConnectionStore extends InMemoryConnectionStore {
 	/**
 	 * Creates a store based on given configuration parameters.
 	 * 
-	 * @param cidLength connection id length. If {@code null} or {@code 0}, the
-	 *            number of bytes required for the provided capacity plus
-	 *            {@link #DEFAULT_EXTRA_CID_LENGTH} is used.
 	 * @param capacity the maximum number of connections the store can manage
 	 * @param threshold the period of time of inactivity (in seconds) after
 	 *            which a connection is considered stale and can be evicted from
@@ -43,9 +40,8 @@ public final class DebugConnectionStore extends InMemoryConnectionStore {
 	 *            {@link ClientSessionCache}, restore connection from the cache
 	 *            and mark them to resume.
 	 */
-	public DebugConnectionStore(final Integer cidLength, final int capacity, final long threshold,
-			final SessionCache sessionCache) {
-		super(cidLength, capacity, threshold, sessionCache);
+	public DebugConnectionStore(final int capacity, final long threshold, final SessionCache sessionCache) {
+		super(capacity, threshold, sessionCache);
 	}
 
 	/**

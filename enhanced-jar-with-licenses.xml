@@ -3,9 +3,10 @@
 	xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.0.0 http://maven.apache.org/xsd/assembly-2.0.0.xsd">
 	<id>jar-with-dependencies</id>
 
-	<!-- This descriptor behave like maven "jar-with-dependency" except it ensure 
-		that current module files have always priority on dependency files in case 
-		of duplicate -->
+	<!-- This descriptor behave like maven "jar-without-dependency" except the 
+		californium-legal dependency and it ensure that current module files
+		have always priority on dependency files in case of duplicate.
+		It's intended for jars, which are deployed into a public repository -->
 	<formats>
 		<format>jar</format>
 	</formats>
@@ -17,7 +18,7 @@
 		</fileSet>
 		<fileSet>
 			<directory>${project.build.directory}/generated-resources</directory>
-			<outputDirectory>/licenses</outputDirectory>
+			<outputDirectory>licenses</outputDirectory>
 			<useDefaultExcludes>false</useDefaultExcludes>
 		</fileSet>
 	</fileSets>
@@ -29,7 +30,6 @@
 			<outputDirectory>/</outputDirectory>
 			<useProjectArtifact>false</useProjectArtifact>
 			<unpack>true</unpack>
-			<scope>runtime</scope>
 		</dependencySet>
 	</dependencySets>
 </assembly>

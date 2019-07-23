@@ -20,25 +20,30 @@ package org.eclipse.californium.extplugtests;
 
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_JSON;
+import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_CBOR;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.BindException;
+import java.net.InetAddress;
 import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.Properties;
 import java.util.UUID;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.Utils;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
+import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.plugtests.ClientInitializer;
 import org.eclipse.californium.plugtests.ClientInitializer.Arguments;
 
@@ -48,6 +53,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
+import com.upokecenter.cbor.CBORException;
+import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
 
 /**
  * The RecevietestClient uses the developer API of Californium to test the
@@ -96,16 +104,17 @@ public class ReceivetestClient {
 	 * 
 	 * @param args the arguments
 	 */
-	public static void main(String[] args) {
+	public static void main(String[] args) throws ConnectorException, IOException {
 
 		if (args.length == 0) {
 
 			System.out.println("\nCalifornium (Cf) Receivetest Client");
 			System.out.println("(c) 2017, Bosch Software Innovations GmbH and others");
 			System.out.println();
-			System.out.println("Usage: " + ReceivetestClient.class.getSimpleName() + " [-v] [-j] [-r|-x|-i id pw] URI");
+			System.out.println("Usage: " + ReceivetestClient.class.getSimpleName() + " [-v] [-j|-c] [-r|-x|-i id pw] URI");
 			System.out.println("  -v        : verbose. Enable message tracing.");
 			System.out.println("  -j        : use JSON format.");
+			System.out.println("  -c        : use CBOR format.");
 			System.out.println("  -r        : use raw public certificate. Default PSK.");
 			System.out.println("  -x        : use x.509 certificate");
 			System.out.println("  -i id pw  : use PSK with id and password");
@@ -117,20 +126,30 @@ public class ReceivetestClient {
 
 		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 
-		Arguments arguments = ClientInitializer.init(config, args);
+		Arguments arguments;
+		try {
+			arguments = ClientInitializer.init(config, args, false);
+		} catch (BindException ex) {
+			arguments = ClientInitializer.init(config, args, true);
+			System.out.println("Default port not available, use ephemeral port!");
+		}
 
 		String uuid = getUUID();
 		CoapClient client = new CoapClient(arguments.uri);
 		Request request = Request.newPost();
 		if (arguments.json) {
 			request.getOptions().setAccept(APPLICATION_JSON);
+		} else if (arguments.cbor) {
+			request.getOptions().setAccept(APPLICATION_CBOR);
 		}
 		request.setURI(
-				arguments.uri + "/requests?dev=" + uuid + "&rid=" + REQUEST_ID_PREFIX + System.currentTimeMillis());
+				arguments.uri + "/requests?dev=" + uuid + "&rid=" + REQUEST_ID_PREFIX + System.currentTimeMillis() + "&ep");
 		CoapResponse coapResponse = client.advanced(request);
 
 		if (coapResponse != null) {
-			if (CONTENT == coapResponse.getCode() && coapResponse.getOptions().getContentFormat() == APPLICATION_JSON) {
+			ResponseCode code = coapResponse.getCode();
+			int format = coapResponse.getOptions().getContentFormat();
+			if (CONTENT == code && format == APPLICATION_JSON) {
 				// JSON success
 				System.out.println();
 				Response response = coapResponse.advanced();
@@ -143,6 +162,19 @@ public class ReceivetestClient {
 				System.out.println();
 				String statistic = processJSON(response.getPayloadString(), "", arguments.verbose);
 				System.out.println(statistic);
+			} else if (CONTENT == code && format == APPLICATION_CBOR) {
+				// CBOR success
+				System.out.println();
+				Response response = coapResponse.advanced();
+				String payload = response.getPayloadString();
+				System.out.println("Payload: " + payload.length() + " bytes");
+				Long rtt = response.getRTT();
+				if (rtt != null) {
+					System.out.println("RTT: " + rtt + "ms");
+				}
+				System.out.println();
+				String statistic = processCBOR(response.getPayload(), "", arguments.verbose);
+				System.out.println(statistic);
 			} else {
 				System.out.println(coapResponse.getCode());
 				System.out.println(coapResponse.getOptions());
@@ -152,7 +184,7 @@ public class ReceivetestClient {
 		} else {
 			System.out.println("No response received.");
 		}
-
+		client.shutdown();
 		System.exit(0);
 	}
 
@@ -193,25 +225,33 @@ public class ReceivetestClient {
 								boolean hit = errors.contains(rid);
 								rid = rid.substring(REQUEST_ID_PREFIX.length());
 								long requestTime = Long.parseLong(rid);
-								statistic.append("Request: ").append(format.format(new Date(requestTime)));
+								statistic.append("Request: ").append(format.format(requestTime));
 								long diff = time - requestTime;
 								if (-MAX_DIFF_TIME_IN_MILLIS < diff && diff < MAX_DIFF_TIME_IN_MILLIS) {
 									statistic.append(", received: ").append(diff).append(" ms");
 								} else {
-									statistic.append(", received: ").append(format.format(new Date(time)));
+									statistic.append(", received: ").append(format.format(time));
 								}
 								if (hit) {
 									statistic.append(" * lost response!");
 								}
-								statistic.append(System.lineSeparator());
 							} else {
 								statistic.append("Request: ").append(rid);
-								statistic.append(", received: ").append(format.format(new Date(time)));
-								statistic.append(System.lineSeparator());
+								statistic.append(", received: ").append(format.format(time));
 							}
+							if (object.has("ep")) {
+								String endpoint = object.get("ep").getAsString();
+								if (endpoint.contains(":")) {
+									endpoint = "[" + endpoint + "]";
+								}
+								int port = object.get("port").getAsInt();
+								statistic.append(System.lineSeparator());
+								statistic.append("    (").append(endpoint).append(":").append(port).append(")");
+							}
+							statistic.append(System.lineSeparator());
 						} else {
 							long time = object.get("systemstart").getAsLong();
-							statistic.append("Server's system start: ").append(format.format(new Date(time)));
+							statistic.append("Server's system start: ").append(format.format(time));
 							statistic.append(System.lineSeparator());
 						}
 					}
@@ -234,6 +274,78 @@ public class ReceivetestClient {
 			statistic.append(payload);
 		}
 		return statistic.toString();
+	}
+
+	public static String processCBOR(byte[] payload, String errors, boolean verbose) {
+		try {
+			StringBuilder statistic = new StringBuilder();
+			CBORObject element = CBORObject.DecodeFromBytes(payload);
+			if (verbose && element.getType() == CBORType.Array) {
+				// expected JSON data
+				SimpleDateFormat format = new SimpleDateFormat("HH:mm:ss dd.MM.yyyy");
+				try {
+					for (CBORObject item : element.getValues()) {
+						if (item.getType() != CBORType.Map) {
+							// unexpected =>
+							// stop application pretty printing
+							statistic.setLength(0);
+							break;
+						}
+						CBORObject value;
+						if ((value = item.get("rid")) != null) {
+							String rid = value.AsString();
+							long time = item.get("time").AsInt64();
+							if (rid.startsWith(REQUEST_ID_PREFIX)) {
+								boolean hit = errors.contains(rid);
+								rid = rid.substring(REQUEST_ID_PREFIX.length());
+								long requestTime = Long.parseLong(rid);
+								statistic.append("Request: ").append(format.format(requestTime));
+								long diff = time - requestTime;
+								if (-MAX_DIFF_TIME_IN_MILLIS < diff && diff < MAX_DIFF_TIME_IN_MILLIS) {
+									statistic.append(", received: ").append(diff).append(" ms");
+								} else {
+									statistic.append(", received: ").append(format.format(time));
+								}
+								if (hit) {
+									statistic.append(" * lost response!");
+								}
+							} else {
+								statistic.append("Request: ").append(rid);
+								statistic.append(", received: ").append(format.format(time));
+							}
+							if ((value = item.get("ep")) != null) {
+								byte[] endpoint = value.GetByteString();
+								int port = item.get("port").AsInt16() & 0xffff;
+								statistic.append(System.lineSeparator());
+								String address = InetAddress.getByAddress(endpoint).getHostAddress();
+								if (address.contains(":")) {
+									address = "[" + address + "]";
+								}
+								statistic.append("    (").append(address).append(":").append(port).append(")");
+							}
+							statistic.append(System.lineSeparator());
+						} else {
+							long time = item.get("systemstart").AsInt64();
+							statistic.append("Server's system start: ").append(format.format(time));
+							statistic.append(System.lineSeparator());
+						}
+					}
+				} catch (Throwable e) {
+					// unexpected => stop application pretty printing
+					statistic.setLength(0);
+				}
+			}
+			if (statistic.length() > 0) {
+				return statistic.toString();
+			} else {
+				// CBOR plain pretty printing
+				return element.toString();
+			}
+		} catch (CBORException e) {
+			// plain payload
+			e.printStackTrace();
+			return StringUtil.byteArray2Hex(payload);
+		}
 	}
 
 	/**

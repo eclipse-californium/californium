@@ -63,6 +63,7 @@ public final class Connection {
 	private static final Logger LOGGER = LoggerFactory.getLogger(Connection.class.getName());
 
 	private final AtomicReference<Handshaker> ongoingHandshake = new AtomicReference<Handshaker>();
+	private final AtomicReference<Random> startedByClient = new AtomicReference<Random>();
 	private final SessionListener sessionListener = new ConnectionSessionListener();
 	/**
 	 * Expired real time nanoseconds of the last message send or received.
@@ -145,7 +146,7 @@ public final class Connection {
 	 * Gets the serial executor assigned to this connection.
 	 * 
 	 * @return serial executor. May be {@code null}, if the connection was
-	 *         created with {@link #Connection(SessionTicket, SessionId)}.
+	 *         created with {@link #Connection(SessionTicket, SessionId, InetSocketAddress)}.
 	 */
 	public SerialExecutor getExecutor() {
 		return serialExecutor;
@@ -252,6 +253,7 @@ public final class Connection {
 		} else if (peerAddress == null) {
 			final Handshaker pendingHandshaker = getOngoingHandshake();
 			if (pendingHandshaker != null) {
+				// this will only call the listener, if no other cause was set before!
 				pendingHandshaker.handshakeFailed(new IOException("address changed!"));
 			}
 		} else {
@@ -311,17 +313,34 @@ public final class Connection {
 	}
 
 	/**
-	 * Checks whether this connection has a ongoing handshake initiated
-	 * receiving the provided client hello.
+	 * Checks whether this connection is started for the provided CLIENT_HELLO.
+	 * 
+	 * Use the random contained in the CLIENT_HELLO.
 	 * 
 	 * @param clientHello the message to check.
 	 * @return {@code true} if the given client hello has initially started this
-	 *         ongoing handshake.
-	 * @see Handshaker#hasBeenStartedByClientHello(ClientHello)
+	 *         connection.
+	 * @see #startByClientHello(ClientHello)
 	 */
-	public boolean hasOngoingHandshakeStartedByClientHello(ClientHello clientHello) {
-		Handshaker handshaker = ongoingHandshake.get();
-		return handshaker != null && handshaker.hasBeenStartedByClientHello(clientHello);
+	public boolean isStartedByClientHello(ClientHello clientHello) {
+		Random startRandom = startedByClient.get();
+		if (startRandom != null) {
+			return startRandom.equals(clientHello.getRandom());
+		}
+		return false;
+	}
+
+	/**
+	 * Set starting CLIENT_HELLO.
+	 * 
+	 * Use the random contained in the CLIENT_HELLO. Removed, if when the
+	 * handshake is completed or fails.
+	 * 
+	 * @param clientHello message which starts the connection.
+	 * @see #isStartedByClientHello(ClientHello)
+	 */
+	public void startByClientHello(ClientHello clientHello) {
+		startedByClient.set(clientHello.getRandom());
 	}
 
 	/**
@@ -491,6 +510,7 @@ public final class Connection {
 		@Override
 		public void handshakeCompleted(Handshaker handshaker) {
 			if (ongoingHandshake.compareAndSet(handshaker, null)) {
+				startedByClient.set(null);
 				LOGGER.debug("Handshake with [{}] has been completed", handshaker.getPeerAddress());
 			}
 		}
@@ -498,13 +518,13 @@ public final class Connection {
 		@Override
 		public void handshakeFailed(Handshaker handshaker, Throwable error) {
 			if (ongoingHandshake.compareAndSet(handshaker, null)) {
+				startedByClient.set(null);
 				LOGGER.debug("Handshake with [{}] has failed", handshaker.getPeerAddress());
 			}
 		}
 
 		@Override
 		public void handshakeFlightRetransmitted(Handshaker handshaker, int flight) {
-			
 		}
 	}
 }

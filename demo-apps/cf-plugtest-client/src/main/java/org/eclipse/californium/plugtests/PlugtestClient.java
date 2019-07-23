@@ -24,6 +24,7 @@
 package org.eclipse.californium.plugtests;
 
 import java.io.File;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Set;
@@ -41,7 +42,11 @@ import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
+import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.plugtests.ClientInitializer.Arguments;
+import org.eclipse.californium.plugtests.util.CborDecoder;
+import org.eclipse.californium.plugtests.util.JsonDecoder;
 
 /**
  * The PlugtestClient uses the developer API of Californium to test if the test
@@ -70,6 +75,8 @@ public class PlugtestClient {
 			config.setInt(Keys.NOTIFICATION_CHECK_INTERVAL_TIME, 30000);
 			config.setInt(Keys.HEALTH_STATUS_INTERVAL, 300);
 			config.setInt(Keys.MAX_ACTIVE_PEERS, 10);
+			config.setInt(Keys.DTLS_AUTO_RESUME_TIMEOUT, 0);
+			config.setInt(Keys.DTLS_CONNECTION_ID_LENGTH, 0); // support it, but don't use it
 		}
 		
 	};
@@ -80,7 +87,7 @@ public class PlugtestClient {
 	 * 
 	 * @param args the arguments
 	 */
-	public static void main(String[] args) {
+	public static void main(String[] args) throws ConnectorException, IOException {
 
 		if (args.length == 0) {
 
@@ -98,8 +105,8 @@ public class PlugtestClient {
 		}
 
 		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
-		
-		Arguments arguments = ClientInitializer.init(config, args);
+
+		Arguments arguments = ClientInitializer.init(config, args, true);
 
 		if (arguments.ping) {
 			CoapClient clientPing = new CoapClient(arguments.uri);
@@ -120,7 +127,7 @@ public class PlugtestClient {
 		System.exit(0);
 	}
 
-	public static void testCC(String uri) {
+	public static void testCC(String uri) throws ConnectorException, IOException {
 
 		// re-usable response object
 		CoapResponse response;
@@ -253,7 +260,18 @@ public class PlugtestClient {
 		System.out.println(
 				response.getCode() + "-" + MediaTypeRegistry.toString(response.getOptions().getContentFormat()));
 		System.out.println(response.getResponseText());
-
+		System.out.println("---------------\nGET /multi-format application/json\n---------------");
+		response = client.get(MediaTypeRegistry.APPLICATION_JSON);
+		System.out.println(
+				response.getCode() + "-" + MediaTypeRegistry.toString(response.getOptions().getContentFormat()));
+		System.out.println(response.getResponseText());
+		System.out.println(new JsonDecoder().decode(response.getPayload()));
+		System.out.println("---------------\nGET /multi-format application/cbor\n---------------");
+		response = client.get(MediaTypeRegistry.APPLICATION_CBOR);
+		System.out.println(
+				response.getCode() + "-" + MediaTypeRegistry.toString(response.getOptions().getContentFormat()));
+		System.out.println(StringUtil.byteArray2Hex(response.getPayload()));
+		System.out.println(new CborDecoder().decode(response.getPayload()));
 		client.setURI(uri + "/validate");
 		byte[] etag;
 
@@ -334,9 +352,11 @@ public class PlugtestClient {
 		response = client.putIfNoneMatch("CC23 at " + new SimpleDateFormat("HH:mm:ss.SSS").format(new Date()),
 				MediaTypeRegistry.TEXT_PLAIN);
 		System.out.println(response.getCode());
+
+		client.shutdown();
 	}
 
-	public static void testCB(String uri) {
+	public static void testCB(String uri) throws ConnectorException, IOException {
 
 		CoapClient client = new CoapClient(uri + "/large");
 		CoapResponse response;
@@ -396,9 +416,11 @@ public class PlugtestClient {
 		response = client.get();
 		System.out.println(response.getCode());
 		System.out.println(response.getResponseText());
+
+		client.shutdown();
 	}
 
-	public static void testCO(String uri) {
+	public static void testCO(String uri) throws ConnectorException, IOException {
 
 		CoapClient client = new CoapClient(uri + "/obs");
 
@@ -551,9 +573,11 @@ public class PlugtestClient {
 			Thread.sleep(6 * 1000);
 		} catch (InterruptedException e) {
 		}
+
+		client.shutdown();
 	}
 
-	public static void testCL(String uri) {
+	public static void testCL(String uri) throws ConnectorException, IOException {
 
 		CoapClient client = new CoapClient(uri);
 		Set<WebLink> links;
@@ -633,6 +657,8 @@ public class PlugtestClient {
 				System.out.println(response.getResponseText());
 			}
 		}
+
+		client.shutdown();
 	}
 
 	public static String getLargeRequestPayload() {

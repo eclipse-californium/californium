@@ -31,9 +31,11 @@ public interface CoapStack {
 	// delegate to bottom
 	void receiveEmptyMessage(Exchange exchange, EmptyMessage message);
 
-	void setExecutor(ScheduledExecutorService executor);
+	void setExecutors(ScheduledExecutorService mainExecutor, ScheduledExecutorService secondaryExecutor);
 
 	void setDeliverer(MessageDeliverer deliverer);
+
+	void start();
 
 	void destroy();
 

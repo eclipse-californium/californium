@@ -20,6 +20,13 @@
 		<assembly.mainClass>org.eclipse.californium.examples.Nat</assembly.mainClass>
 	</properties>
 
+	<dependencies>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>californium-legal</artifactId>
+		</dependency>
+	</dependencies>
+
 	<build>
 		<plugins>
 			<plugin>

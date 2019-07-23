@@ -28,6 +28,7 @@ import org.junit.experimental.categories.Category;
 
 @Category(Small.class)
 public class PseudoRandomFunctionTest {
+	public static final String ALGORITHM_HMAC_SHA256 = "HmacSHA256";
 
 	@Before
 	public void setUp() throws Exception {
@@ -37,14 +38,14 @@ public class PseudoRandomFunctionTest {
 	public void testDoPrfProducesDataOfCorrectLength() {
 		byte[] secret = "secret".getBytes();
 		byte[] seed = "seed".getBytes();
-		byte[] data = PseudoRandomFunction.doPRF(secret, Label.MASTER_SECRET_LABEL, seed);
-		assertThat(data.length, is(48));
-		data = PseudoRandomFunction.doPRF(secret, Label.KEY_EXPANSION_LABEL, seed);
-		assertThat(data.length, is(128));
-		data = PseudoRandomFunction.doPRF(secret, Label.CLIENT_FINISHED_LABEL, seed);
-		assertThat(data.length, is(12));
-		data = PseudoRandomFunction.doPRF(secret, Label.SERVER_FINISHED_LABEL, seed);
-		assertThat(data.length, is(12));
+		byte[] data = PseudoRandomFunction.doPRF(ALGORITHM_HMAC_SHA256, secret, Label.MASTER_SECRET_LABEL, seed);
+		assertThat(data.length, is(Label.MASTER_SECRET_LABEL.length()));
+		data = PseudoRandomFunction.doPRF(ALGORITHM_HMAC_SHA256, secret, Label.KEY_EXPANSION_LABEL, seed);
+		assertThat(data.length, is(Label.KEY_EXPANSION_LABEL.length()));
+		data = PseudoRandomFunction.doPRF(ALGORITHM_HMAC_SHA256, secret, Label.CLIENT_FINISHED_LABEL, seed);
+		assertThat(data.length, is(Label.CLIENT_FINISHED_LABEL.length()));
+		data = PseudoRandomFunction.doPRF(ALGORITHM_HMAC_SHA256, secret, Label.SERVER_FINISHED_LABEL, seed);
+		assertThat(data.length, is(Label.SERVER_FINISHED_LABEL.length()));
 	}
 
 	/**
@@ -82,7 +83,7 @@ public class PseudoRandomFunctionTest {
 				(byte) 0x5a, (byte) 0x51, (byte) 0x10, (byte) 0xff, (byte) 0xf7, (byte) 0x01,
 				(byte) 0x87, (byte) 0x34, (byte) 0x7b, (byte) 0x66};
 
-		byte[] data = PseudoRandomFunction.doPRF(secret, label, seed, expectedOutput.length);
+		byte[] data = PseudoRandomFunction.doPRF(ALGORITHM_HMAC_SHA256, secret, label, seed, expectedOutput.length);
 		assertArrayEquals(expectedOutput, data);
 	}
 }

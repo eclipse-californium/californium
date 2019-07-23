@@ -31,7 +31,6 @@ import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -114,6 +113,9 @@ public class CoapServer implements ServerInterface {
 
 	/** The executor of the server for its endpoints (can be null). */
 	private ScheduledExecutorService executor;
+
+	/** Scheduled executor intended to be used for rare executing timers (e.g. cleanup tasks). */
+	private ScheduledExecutorService secondaryExecutor;
 	/**
 	 * Indicate, it the server-specific executor service is detached, or
 	 * shutdown with this server.
@@ -125,17 +127,19 @@ public class CoapServer implements ServerInterface {
 	/**
 	 * Constructs a default server. The server starts after the method
 	 * {@link #start()} is called. If a server starts and has no specific ports
-	 * assigned, it will bind to CoAp's default port 5683.
+	 * assigned, it will bind to CoAP's default port 5683.
 	 */
 	public CoapServer() {
 		this(NetworkConfig.getStandard());
 	}
-	
+
 	/**
 	 * Constructs a server that listens to the specified port(s) after method
 	 * {@link #start()} is called.
 	 * 
-	 * @param ports the ports to bind to
+	 * @param ports the ports to bind to. If empty or {@code null} and no
+	 *            endpoints are added with {@link #addEndpoint(Endpoint)}, it
+	 *            will bind to CoAP's default port 5683 on {@link #start()}.
 	 */
 	public CoapServer(final int... ports) {
 		this(NetworkConfig.getStandard(), ports);
@@ -145,73 +149,67 @@ public class CoapServer implements ServerInterface {
 	 * Constructs a server with the specified configuration that listens to the
 	 * specified ports after method {@link #start()} is called.
 	 *
-	 * @param config the configuration, if <code>null</code> the configuration returned by
-	 * {@link NetworkConfig#getStandard()} is used.
-	 * @param ports the ports to bind to
+	 * @param config the configuration, if {@code null} the configuration
+	 *            returned by {@link NetworkConfig#getStandard()} is used.
+	 * @param ports the ports to bind to. If empty or {@code null} and no
+	 *            endpoints are added with {@link #addEndpoint(Endpoint)}, it
+	 *            will bind to CoAP's default port 5683 on {@link #start()}.
 	 */
 	public CoapServer(final NetworkConfig config, final int... ports) {
-		
 		// global configuration that is passed down (can be observed for changes)
 		if (config != null) {
 			this.config = config;
 		} else {
 			this.config = NetworkConfig.getStandard();
 		}
-		
+
 		// resources
 		this.root = createRoot();
 		this.deliverer = new ServerMessageDeliverer(root);
-		
+
 		CoapResource wellKnown = new CoapResource(".well-known");
 		wellKnown.setVisible(false);
 		wellKnown.add(new DiscoveryResource(root));
 		root.add(wellKnown);
-		
+
 		// endpoints
 		this.endpoints = new ArrayList<>();
 		// create endpoint for each port
-		for (int port : ports) {
-			CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-			builder.setPort(port);
-			builder.setNetworkConfig(config);
-			addEndpoint(builder.build());
+		if (ports != null) {
+			for (int port : ports) {
+				CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+				builder.setPort(port);
+				builder.setNetworkConfig(config);
+				addEndpoint(builder.build());
+			}
 		}
 	}
 
-	/**
-	 * Sets the executor service to use for running tasks in the protocol stage.
-	 * 
-	 * @param executor The thread pool to use.
-	 * @throws IllegalStateException if this server is running and a new
-	 *             executor is provided.
-	 */
-	public void setExecutor(final ScheduledExecutorService executor) {
-		setExecutor(executor, false);
-	}
+	public synchronized void setExecutors(final ScheduledExecutorService mainExecutor,
+			final ScheduledExecutorService secondaryExecutor, final boolean detach) {
+		if (mainExecutor == null || secondaryExecutor == null) {
+			throw new NullPointerException("executors must not be null");
+		}
+		if (this.executor == mainExecutor && this.secondaryExecutor == secondaryExecutor) {
+			return;
+		}
+		if (running) {
+			throw new IllegalStateException("executor service can not be set on running server");
+		}
 
-	/**
-	 * Sets the executor service to use for running tasks in the protocol stage.
-	 * 
-	 * @param executor The thread pool to use.
-	 * @param detach {@code true}, if the executor is not shutdown on
-	 *            {@link #destroy()}, {@code false}, otherwise.
-	 * @throws IllegalStateException if this server is running and a new
-	 *             executor is provided.
-	 */
-	public synchronized void setExecutor(final ScheduledExecutorService executor, final boolean detach) {
-		if (this.executor != executor) {
-			if (running) {
-				throw new IllegalStateException("executor service can not be set on running server");
-			} else {
-				if (!this.detachExecutor && this.executor != null) {
-					this.executor.shutdownNow();
-				}
-				this.executor = executor;
-				this.detachExecutor = detach;
-				for (Endpoint ep : endpoints) {
-					ep.setExecutor(executor);
-				}
+		if (!this.detachExecutor) {
+			if (this.executor != null) {
+				this.executor.shutdownNow();
 			}
+			if (this.secondaryExecutor != null) {
+				this.secondaryExecutor.shutdownNow();
+			}
+		}
+		this.executor = mainExecutor;
+		this.secondaryExecutor = secondaryExecutor;
+		this.detachExecutor = detach;
+		for (Endpoint ep : endpoints) {
+			ep.setExecutors(this.executor, this.secondaryExecutor);
 		}
 	}
 
@@ -230,10 +228,12 @@ public class CoapServer implements ServerInterface {
 		LOGGER.info("Starting server");
 
 		if (executor == null) {
-			// sets the central thread pool for the protocol stage over all endpoints
-			setExecutor(ExecutorsUtil.newScheduledThreadPool(//
-				this.config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT), //
-				new NamedThreadFactory("CoapServer#"))); //$NON-NLS-1$
+			// sets the central thread pool for the protocol stage over all
+			// endpoints
+			setExecutors(ExecutorsUtil.newScheduledThreadPool(//
+					this.config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT),
+					new NamedThreadFactory("CoapServer(main)#")), //$NON-NLS-1$
+					ExecutorsUtil.newDefaultSecondaryScheduler("CoapServer(secondary)#"), false);
 		}
 
 		if (endpoints.isEmpty()) {
@@ -287,27 +287,17 @@ public class CoapServer implements ServerInterface {
 		LOGGER.info("Destroying server");
 		// prevent new tasks from being submitted
 		try {
-			if (running && !detachExecutor) {
-				executor.shutdown(); // cannot be started again
-				try {
-					// wait for currently executing tasks to complete
-					if (!executor.awaitTermination(1, TimeUnit.SECONDS)) {
-						// cancel still executing tasks
-						// and ignore all remaining tasks scheduled for later
-						List<Runnable> runningTasks = executor.shutdownNow();
-						if (runningTasks.size() > 0) {
-							// this is e.g. the case if we have performed an incomplete blockwise transfer
-							// and the BlockwiseLayer has scheduled a pending BlockCleanupTask for tidying up
-							LOGGER.debug("ignoring remaining {} scheduled task(s)", runningTasks.size());
-						}
-						// wait for executing tasks to respond to being cancelled
-						executor.awaitTermination(1, TimeUnit.SECONDS);
+			if (!detachExecutor)
+				if (running) {
+					ExecutorsUtil.shutdownExecutorGracefully(2000, executor, secondaryExecutor);
+				} else {
+					if (executor !=null) {
+						executor.shutdownNow();
 					}
-				} catch (InterruptedException e) {
-					executor.shutdownNow();
-					Thread.currentThread().interrupt();
+					if (secondaryExecutor != null) {
+						secondaryExecutor.shutdownNow();
+					}
 				}
-			}
 		} finally {
 			for (Endpoint ep : endpoints) {
 				ep.destroy();
@@ -350,7 +340,9 @@ public class CoapServer implements ServerInterface {
 	@Override
 	public void addEndpoint(final Endpoint endpoint) {
 		endpoint.setMessageDeliverer(deliverer);
-		endpoint.setExecutor(executor);
+		if (executor != null && secondaryExecutor != null) {
+			endpoint.setExecutors(executor, secondaryExecutor);
+		}
 		endpoints.add(endpoint);
 	}
 
@@ -444,19 +436,22 @@ public class CoapServer implements ServerInterface {
 		private static final String SPACE = "                                               "; // 47 until line end
 		private final String VERSION = CoapServer.class.getPackage().getImplementationVersion()!=null ?
 				"Cf "+CoapServer.class.getPackage().getImplementationVersion() : SPACE;
-		private final String msg = new StringBuilder()
-			.append("************************************************************\n")
-			.append("CoAP RFC 7252").append(SPACE.substring(VERSION.length())).append(VERSION).append("\n")
-			.append("************************************************************\n")
-			.append("This server is using the Eclipse Californium (Cf) CoAP framework\n")
-			.append("published under EPL+EDL: http://www.eclipse.org/californium/\n")
-			.append("\n")
-			.append("(c) 2014, 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others\n")
-			.append("************************************************************")
-			.toString();
+		private final String msg;
 
 		public RootResource() {
 			super("");
+			String nodeId = config.getString(NetworkConfig.Keys.DTLS_CONNECTION_ID_NODE_ID);
+			StringBuilder builder = new StringBuilder()
+					.append("************************************************************\n").append("CoAP RFC 7252")
+					.append(SPACE.substring(VERSION.length())).append(VERSION).append("\n")
+					.append("************************************************************\n")
+					.append("This server is using the Eclipse Californium (Cf) CoAP framework\n")
+					.append("published under EPL+EDL: http://www.eclipse.org/californium/\n").append("\n");
+			if (nodeId != null && !nodeId.isEmpty()) {
+				builder.append("node id = ").append(nodeId).append("\n\n");
+			}
+			msg = builder.append("(c) 2014, 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others\n")
+					.append("************************************************************").toString();
 		}
 
 		@Override

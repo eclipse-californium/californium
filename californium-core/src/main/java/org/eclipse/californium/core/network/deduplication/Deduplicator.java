@@ -20,6 +20,8 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.deduplication;
 
+import java.util.concurrent.ScheduledExecutorService;
+
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 
@@ -39,6 +41,19 @@ public interface Deduplicator {
 	 * Stops the deduplicator. The deduplicator should NOT clear its state.
 	 */
 	void stop();
+
+	/**
+	 * Set executor for this Deduplicator.
+	 *
+	 * Executor is not managed by the Deduplicator, it must be shutdown
+	 * externally, if the resource should be freed.
+	 *
+	 * @param executor intended to be used for rare executing timers (e.g.
+	 *            cleanup tasks).
+	 *
+	 * @throws IllegalStateException if this Deduplicator is running.
+	 */
+	void setExecutor(ScheduledExecutorService executor);
 
 	/**
 	 * Checks if the specified key is already associated with a previous

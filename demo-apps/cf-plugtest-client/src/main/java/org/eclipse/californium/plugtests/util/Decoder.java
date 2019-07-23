@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2019 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -13,28 +13,9 @@
  * Contributors:
  *    Bosch Software Innovations GmbH - initial implementation
  ******************************************************************************/
-package org.eclipse.californium.elements;
+package org.eclipse.californium.plugtests.util;
 
-/**
- * Exception indicating, that the connector doesn't support multicast messages.
- */
-public class MulticastNotSupportedException extends Exception {
+public interface Decoder {
 
-	private static final long serialVersionUID = 1L;
-
-	/**
-	 * Create new instance.
-	 */
-	public MulticastNotSupportedException() {
-
-	}
-
-	/**
-	 * Create new instance with message.
-	 * 
-	 * @param message message
-	 */
-	public MulticastNotSupportedException(String message) {
-		super(message);
-	}
+	String decode(byte[] payload);
 }

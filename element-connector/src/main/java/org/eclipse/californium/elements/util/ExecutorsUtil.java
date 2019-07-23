@@ -33,9 +33,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Utility to create executors.
  * 
- * Note: THE INTERNAL/PRIVATE {@code SplitScheduledThreadPoolExecutor} IS
- * EXPERIMENTAL! IT'S INTENDED TO BE USED FOR REPRODUCING BENCHMARKS OF ISSUE
- * #690
+ * Note: THE INTERNAL/PRIVATE {@code SplitScheduledThreadPoolExecutor} IS A
+ * WORKAROUND! IT MAY BE REPLACED IN THE FUTURE. See issue #690.
  */
 public class ExecutorsUtil {
 
@@ -56,32 +55,17 @@ public class ExecutorsUtil {
 	public static final ThreadGroup TIMER_THREAD_GROUP = new ThreadGroup("Timer"); //$NON-NLS-1$
 
 	/**
-	 * General scheduled executor intended for rare executing timers (e.g.
-	 * cleanup task).
-	 */
-	private static final ScheduledThreadPoolExecutor scheduler;
-
-	static {
-		ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(2,
-				new DaemonThreadFactory("Timer#", TIMER_THREAD_GROUP));
-		executor.execute(WARMUP);
-		scheduler = executor;
-	}
-
-	/**
-	 * Threshold for using the experimental
-	 * {@link SplitScheduledThreadPoolExecutor} to split thread pool into
-	 * scheduled and immediately executing threads. Experimental! {@code 0} to
-	 * disable the use of the {@link SplitScheduledThreadPoolExecutor}.
+	 * Threshold for using the {@link SplitScheduledThreadPoolExecutor} to split
+	 * thread pool into scheduled and immediately executing threads. {@code 0}
+	 * to disable the use of the {@link SplitScheduledThreadPoolExecutor}.
 	 */
 	private static final int SPLIT_THRESHOLD = 1;
 
 	/**
 	 * Create a scheduled thread pool executor service.
 	 * 
-	 * Experimentally, if the provided number of threads exceeds the
-	 * {@link #SPLIT_THRESHOLD}, the {@code SplitScheduledThreadPoolExecutor} is
-	 * returned.
+	 * If the provided number of threads exceeds the {@link #SPLIT_THRESHOLD},
+	 * the {@code SplitScheduledThreadPoolExecutor} is returned.
 	 * 
 	 * @param poolSize number of threads for thread pool.
 	 * @param threadFactory thread factory
@@ -130,25 +114,72 @@ public class ExecutorsUtil {
 	}
 
 	/**
-	 * Get general scheduled executor.
+	 * Create a scheduler with 2 threads in pools.
 	 * 
 	 * Intended to be used for rare executing timers (e.g. cleanup tasks).
 	 * 
 	 * @return scheduled executor service
 	 */
-	public static ScheduledThreadPoolExecutor getScheduledExecutor() {
-		return scheduler;
+	public static ScheduledThreadPoolExecutor newDefaultSecondaryScheduler(String namePrefix) {
+		ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(2,
+				new NamedThreadFactory(namePrefix));
+		executor.execute(WARMUP);
+		executor.prestartAllCoreThreads();
+		return executor;
 	}
 
 	/**
-	 * Experimental executor, which uses a {@link ScheduledThreadPoolExecutor}
+	 * Shutdown executor gracefully by waiting for task terminations.
+	 * 
+	 * @param timeMaxToWaitInMs max time to wait in milliseconds for task
+	 *            completions, after this time a more aggressive
+	 *            {@link ExecutorService#shutdownNow()} will be called.
+	 * @param executors
+	 */
+	public static void shutdownExecutorGracefully(long timeMaxToWaitInMs, ExecutorService... executors) {
+		if (executors.length == 0)
+			return;
+		
+		// shutdown executor
+		for (ExecutorService executor : executors) {
+			executor.shutdown();
+		}
+
+		// wait for task termination
+		try {
+			long timeToWait = timeMaxToWaitInMs / executors.length / 2;
+			for (ExecutorService executor : executors) {
+				if (!executor.awaitTermination(timeToWait, TimeUnit.MILLISECONDS)) {
+					// cancel still executing tasks
+					// and ignore all remaining tasks scheduled for later
+					List<Runnable> runningTasks = executor.shutdownNow();
+					if (runningTasks.size() > 0) {
+						// this is e.g. the case if we have performed an
+						// incomplete blockwise transfer
+						// and the BlockwiseLayer has scheduled a
+						// pending BlockCleanupTask for tidying up
+						LOGGER.debug("ignoring remaining {} scheduled task(s)", runningTasks.size());
+					}
+					// wait for executing tasks to respond to being cancelled
+					executor.awaitTermination(timeToWait, TimeUnit.MILLISECONDS);
+				}
+			}
+		} catch (InterruptedException e) {
+			for (ExecutorService executor : executors) {
+				executor.shutdownNow();
+			}
+			Thread.currentThread().interrupt();
+		}
+	}
+
+	/**
+	 * Executor, which uses a {@link ScheduledThreadPoolExecutor}
 	 * with {@link ExecutorsUtil#SPLIT_THRESHOLD} threads for scheduling, and an
 	 * additional {@link ThreadPoolExecutor} for execution. This may result in
 	 * better performance for direct job, when many scheduled job are queued for
 	 * execution.
 	 * 
-	 * Note: IS EXPERIMENTAL! IT'S NOT INTENDED TO BE USED, EXCEPT FOR
-	 * REPRODUCING BENCHMARKS OF ISSUE #690
+	 * Note: IT'S A WORKAROUND! IT MAY BE REPLACED IN THE FUTURE! See issue #690.
 	 */
 	private static class SplitScheduledThreadPoolExecutor extends ScheduledThreadPoolExecutor {
 

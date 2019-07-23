@@ -6,14 +6,19 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.server.resources.DiscoveryResource;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 @Category(Small.class)
 public class AttributeMultiQueryTest {
-    private Resource root;
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
+
+	private Resource root;
 
     @Before
     public void setup() {

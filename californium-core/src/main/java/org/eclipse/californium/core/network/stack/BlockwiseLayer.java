@@ -79,7 +79,6 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
-import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -166,6 +165,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	private int blockTimeout;
 	private int maxResourceBodySize;
 	private boolean strictBlock2Option;
+	private int healthStatusInterval;
 
 	/**
 	 * Creates a new blockwise layer for a configuration.
@@ -222,10 +222,14 @@ public class BlockwiseLayer extends AbstractLayer {
 		LOGGER.info(
 			"BlockwiseLayer uses MAX_MESSAGE_SIZE={}, PREFERRED_BLOCK_SIZE={}, BLOCKWISE_STATUS_LIFETIME={}, MAX_RESOURCE_BODY_SIZE={}, BLOCKWISE_STRICT_BLOCK2_OPTION={}",
 			maxMessageSize, preferredBlockSize, blockTimeout, maxResourceBodySize, strictBlock2Option);
-		int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
+		
+		healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
+	}
 
-		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled()) {
-			statusLogger = ExecutorsUtil.getScheduledExecutor().scheduleAtFixedRate(new Runnable() {
+	@Override
+	public void start() {
+		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled() && statusLogger == null) {
+			statusLogger = secondaryExecutor.scheduleAtFixedRate(new Runnable() {
 
 				@Override
 				public void run() {

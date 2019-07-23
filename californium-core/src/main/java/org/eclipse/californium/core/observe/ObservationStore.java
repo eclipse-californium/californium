@@ -16,6 +16,8 @@
  ******************************************************************************/
 package org.eclipse.californium.core.observe;
 
+import java.util.concurrent.ScheduledExecutorService;
+
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.elements.EndpointContext;
 
@@ -88,6 +90,16 @@ public interface ObservationStore {
 	 * @param endpointContext The context to set.
 	 */
 	void setContext(Token token, EndpointContext endpointContext);
+
+	/**
+	 * Set executor for this store.
+	 *
+	 * Executor is not managed by the store, it must be shutdown
+	 * externally, if the resource should be freed.
+	 *
+	 * @param executor intended to be used for rare executing timers (e.g. cleanup tasks). 
+	 */
+	void setExecutor(ScheduledExecutorService executor);
 
 	void start();
 

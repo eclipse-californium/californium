@@ -48,7 +48,6 @@ package org.eclipse.californium.scandium.dtls;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.PublicKey;
-import java.security.SecureRandom;
 import java.security.cert.CertPath;
 import java.security.cert.X509Certificate;
 import java.security.interfaces.ECPublicKey;
@@ -58,6 +57,7 @@ import java.util.List;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -66,7 +66,6 @@ import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
-import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.eclipse.californium.scandium.util.PskUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
@@ -292,8 +291,8 @@ public class ClientHandshaker extends Handshaker {
 	 * @throws GeneralSecurityException if the APPLICATION record cannot be created 
 	 */
 	private void receivedServerFinished(Finished message) throws HandshakeException, GeneralSecurityException {
-
-		message.verifyData(session.getMasterSecret(), false, handshakeHash);
+		String prfMacName = session.getCipherSuite().getPseudoRandomFunctionMacName();
+		message.verifyData(prfMacName, session.getMasterSecret(), false, handshakeHash);
 		state = HandshakeType.FINISHED.getCode();
 		sessionEstablished();
 		handshakeCompleted();
@@ -369,7 +368,7 @@ public class ClientHandshaker extends Handshaker {
 								message.getPeer()));
 			}
 		}
-		if (connectionIdLength != null) {
+		if (connectionIdGenerator != null) {
 			ConnectionIdExtension extension = serverHello.getConnectionIdExtension();
 			if (extension != null) {
 				ConnectionId connectionId = extension.getConnectionId();
@@ -380,6 +379,7 @@ public class ClientHandshaker extends Handshaker {
 		session.setReceiveCertificateType(serverHello.getServerCertificateType());
 		session.setSniSupported(serverHello.hasServerNameExtension());
 		session.setParameterAvailable();
+		initMessageDigest();
 	}
 
 	/**
@@ -501,17 +501,17 @@ public class ClientHandshaker extends Handshaker {
 			break;
 		case PSK:
 			PskUtil pskUtilPlain = new PskUtil(sniEnabled, session, pskStore);
-			LOGGER.debug("Using PSK identity: {}", pskUtilPlain.getPskIdentity());
-			session.setPeerIdentity(pskUtilPlain.getPskIdentity());
-			clientKeyExchange = new PSKClientKeyExchange(pskUtilPlain.getPskIdentity().getIdentity(), session.getPeer());
+			LOGGER.debug("Using PSK identity: {}", pskUtilPlain.getPskPrincipal());
+			session.setPeerIdentity(pskUtilPlain.getPskPrincipal());
+			clientKeyExchange = new PSKClientKeyExchange(pskUtilPlain.getPskPublicIdentity(), session.getPeer());
 			premasterSecret = generatePremasterSecretFromPSK(pskUtilPlain.getPreSharedKey(), null);
 			generateKeys(premasterSecret);
 			break;
 		case ECDHE_PSK:
 			PskUtil pskUtil = new PskUtil(sniEnabled, session, pskStore);
-			LOGGER.debug("Using PSK identity: {}", pskUtil.getPskIdentity());
-			session.setPeerIdentity(pskUtil.getPskIdentity());
-			clientKeyExchange = new EcdhPskClientKeyExchange(pskUtil.getPskIdentity().getIdentity(), ecdhe.getPublicKey(), session.getPeer());
+			LOGGER.debug("Using PSK identity: {}", pskUtil.getPskPrincipal());
+			session.setPeerIdentity(pskUtil.getPskPrincipal());
+			clientKeyExchange = new EcdhPskClientKeyExchange(pskUtil.getPskPublicIdentity(), ecdhe.getPublicKey(), session.getPeer());
 			byte[] otherSecret = ecdhe.getSecret(ephemeralServerPublicKey).getEncoded();
 			premasterSecret = generatePremasterSecretFromPSK(pskUtil.getPreSharedKey(), otherSecret);
 			generateKeys(premasterSecret);
@@ -535,16 +535,17 @@ public class ClientHandshaker extends Handshaker {
 		 */
 		if (certificateRequest != null && negotiatedSignatureAndHashAlgorithm != null) {
 			// prepare handshake messages
-			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientHello.toByteArray());
-			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverHello.toByteArray());
-			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverCertificate.toByteArray());
-			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverKeyExchange.toByteArray());
-			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, certificateRequest.toByteArray());
-			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverHelloDone.toByteArray());
-			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientCertificate.toByteArray());
-			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientKeyExchange.toByteArray());
+			DatagramWriter handshakeMessages = new DatagramWriter(2048);
+			handshakeMessages.writeBytes(clientHello.toByteArray());
+			handshakeMessages.writeBytes(serverHello.toByteArray());
+			handshakeMessages.writeBytes(serverCertificate.toByteArray());
+			handshakeMessages.writeBytes(serverKeyExchange.toByteArray());
+			handshakeMessages.writeBytes(certificateRequest.toByteArray());
+			handshakeMessages.writeBytes(serverHelloDone.toByteArray());
+			handshakeMessages.writeBytes(clientCertificate.toByteArray());
+			handshakeMessages.writeBytes(clientKeyExchange.toByteArray());
 
-			certificateVerify = new CertificateVerify(negotiatedSignatureAndHashAlgorithm, privateKey, handshakeMessages, session.getPeer());
+			certificateVerify = new CertificateVerify(negotiatedSignatureAndHashAlgorithm, privateKey, handshakeMessages.toByteArray(), session.getPeer());
 
 			wrapMessage(flight, certificateVerify);
 		}
@@ -595,7 +596,8 @@ public class ClientHandshaker extends Handshaker {
 		}
 
 		handshakeHash = md.digest();
-		Finished finished = new Finished(session.getMasterSecret(), isClient, handshakeHash, session.getPeer());
+		String prfMacName = session.getCipherSuite().getPseudoRandomFunctionMacName();
+		Finished finished = new Finished(prfMacName, session.getMasterSecret(), isClient, handshakeHash, session.getPeer());
 		wrapMessage(flight, finished);
 
 		// compute handshake hash with client's finished message also
@@ -619,7 +621,7 @@ public class ClientHandshaker extends Handshaker {
 					rawPublicKeyBytes = key.getEncoded();
 				}
 				if (LOGGER.isDebugEnabled()) {
-					LOGGER.debug("sending CERTIFICATE message with client RawPublicKey [{}] to server", ByteArrayUtils.toHexString(rawPublicKeyBytes));
+					LOGGER.debug("sending CERTIFICATE message with client RawPublicKey [{}] to server", StringUtil.byteArray2HexString(rawPublicKeyBytes));
 				}
 				clientCertificate = new CertificateMessage(rawPublicKeyBytes, session.getPeer());
 			} else if (CertificateType.X_509 == session.sendCertificateType()) {
@@ -683,8 +685,7 @@ public class ClientHandshaker extends Handshaker {
 
 		handshakeStarted();
 
-		ClientHello startMessage = new ClientHello(maxProtocolVersion, new SecureRandom(), 
-				preferredCipherSuites,
+		ClientHello startMessage = new ClientHello(maxProtocolVersion, preferredCipherSuites,
 				supportedClientCertificateTypes, supportedServerCertificateTypes, session.getPeer());
 
 		// store client random for later calculations
@@ -720,9 +721,9 @@ public class ClientHandshaker extends Handshaker {
 	}
 
 	protected void addConnectionId(final ClientHello helloMessage) {
-		if (connectionIdLength != null) {
+		if (connectionIdGenerator != null) {
 			final ConnectionId connectionId;
-			if (connectionIdLength > 0) {
+			if (connectionIdGenerator.useConnectionId()) {
 				// use the already created unique cid
 				connectionId = getConnection().getConnectionId();
 			} else {

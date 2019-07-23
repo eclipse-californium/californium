@@ -355,8 +355,8 @@ public final class ECDHServerKeyExchange extends ServerKeyExchange {
 	 *             the signature exception
 	 */
 	private void updateSignature(Signature signature, Random clientRandom, Random serverRandom) throws SignatureException {
-		signature.update(clientRandom.getRandomBytes());
-		signature.update(serverRandom.getRandomBytes());
+		signature.update(clientRandom.getBytes());
+		signature.update(serverRandom.getBytes());
 
 		switch (curveType) {
 		case EXPLICIT_PRIME:

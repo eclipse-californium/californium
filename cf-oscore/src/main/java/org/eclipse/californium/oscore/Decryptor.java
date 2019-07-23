@@ -24,12 +24,11 @@ import java.util.Arrays;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.cose.Encrypt0Message;
 
 import com.upokecenter.cbor.CBORObject;
@@ -55,6 +54,9 @@ public abstract class Decryptor {
 	 */
 	private static final Logger LOGGER = LoggerFactory.getLogger(Decryptor.class.getName());
 
+	/**
+	 * Empty option set
+	 */
 	protected static final OptionSet EMPTY = new OptionSet();
 
 	/**
@@ -75,17 +77,18 @@ public abstract class Decryptor {
 		boolean isRequest = message instanceof Request;
 		byte[] nonce = null;
 		byte[] partialIV = null;
+		byte[] aad = null;
 
 		if (isRequest) {
 
-			CBORObject tmp = enc.findAttribute(HeaderKeys.PARTIAL_IV);
+			CBORObject piv = enc.findAttribute(HeaderKeys.PARTIAL_IV);
 
-			if (tmp == null) {
+			if (piv == null) {
 				LOGGER.error("Decryption failed: no partialIV in request");
 				throw new OSException(ErrorDescriptions.DECRYPTION_FAILED);
 			} else {
 
-				partialIV = tmp.GetByteString();
+				partialIV = piv.GetByteString();
 				partialIV = expandToIntSize(partialIV);
 				seq = ByteBuffer.wrap(partialIV).getInt();
 				
@@ -94,6 +97,7 @@ public abstract class Decryptor {
 
 				nonce = OSSerializer.nonceGeneration(partialIV, ctx.getRecipientId(), ctx.getCommonIV(),
 						ctx.getIVLength());
+				aad = OSSerializer.serializeAAD(CoAP.VERSION, ctx.getAlg(), seq, ctx.getRecipientId(), message.getOptions());
 			}
 		} else {
 			if (seqByToken == null) {
@@ -101,29 +105,33 @@ public abstract class Decryptor {
 				throw new OSException(ErrorDescriptions.DECRYPTION_FAILED);
 			}
 
-			CBORObject tmp = enc.findAttribute(HeaderKeys.PARTIAL_IV);
-
-			if (tmp == null) {
-
-				// this should use the partialIV that arrived in the request and
-				// not the response
-				seq = seqByToken;
-				partialIV = ByteBuffer.allocate(INTEGER_BYTES).putInt(seqByToken).array();
+			CBORObject piv = enc.findAttribute(HeaderKeys.PARTIAL_IV);
+		
+			//Sequence number taken from original request
+			seq = seqByToken;
+			
+			if (piv == null) {
+				//Use the partialIV that arrived in the original request (response has no partial IV)
+				
+				partialIV = ByteBuffer.allocate(INTEGER_BYTES).putInt(seq).array();
 				nonce = OSSerializer.nonceGeneration(partialIV,	ctx.getSenderId(), ctx.getCommonIV(), 
 						ctx.getIVLength());
 			} else {
-
-				partialIV = tmp.GetByteString();
+				//Since the response contains a partial IV use it for nonce calculation
+				
+				partialIV = piv.GetByteString();
 				partialIV = expandToIntSize(partialIV);
-				seq = ByteBuffer.wrap(partialIV).getInt();
 				nonce = OSSerializer.nonceGeneration(partialIV, ctx.getRecipientId(), ctx.getCommonIV(),
 						ctx.getIVLength());
 			}
+			
+			//Nonce calculation uses partial IV in response (if present).
+			//AAD calculation always uses partial IV (seq. nr.) of original request.  
+			aad = OSSerializer.serializeAAD(CoAP.VERSION, ctx.getAlg(), seq, ctx.getSenderId(), message.getOptions());
 		}
 
 		byte[] plaintext = null;
 		byte[] key = ctx.getRecipientKey();
-		byte[] aad = serializeAAD(message, ctx, seq);
 
 		enc.setExternal(aad);
 			
@@ -141,6 +149,12 @@ public abstract class Decryptor {
 		return plaintext;
 	}
 
+	/**
+	 * @param partialIV partial IV to expand
+	 * @return partial IV as byte array length of int
+	 * 
+	 * @throws OSException if the partial IV is longer than length of int
+	 */
 	private static byte[] expandToIntSize(byte[] partialIV) throws OSException {
 		if (partialIV.length > INTEGER_BYTES) {
 			LOGGER.error("The partial IV is: " + partialIV.length + " long, " + INTEGER_BYTES + " was expected");
@@ -171,32 +185,12 @@ public abstract class Decryptor {
 	}
 
 	/**
-	 * Prepare the AAD.
-	 * 
-	 * @param message the message
-	 * @param ctx the OSCore context
-	 * @param seq the sequence number
-	 * 
-	 * @return the serialized AAD
-	 */
-	protected static byte[] serializeAAD(Message message, OSCoreCtx ctx, int seq) {
-		if (message instanceof Request) {
-			Request r = (Request) message;
-			return OSSerializer.serializeReceiveRequestAAD(CoAP.VERSION, seq, ctx, r.getOptions());
-		} else if (message instanceof Response) {
-			Response r = (Response) message;
-			return OSSerializer.serializeReceiveResponseAAD(CoAP.VERSION, seq, ctx, r.getOptions());
-		}
-		return null;
-	}
-
-	/**
 	 * Decompress the message.
 	 * 
 	 * @param cipherText the encrypted data
 	 * @param message the received message
 	 * @return the Encrypt0Message
-	 * @throws OSException
+	 * @throws OSException if OSCORE option fails to decode
 	 */
 	protected static Encrypt0Message decompression(byte[] cipherText, Message message) throws OSException {
 		Encrypt0Message enc = new Encrypt0Message(false, true);
@@ -222,7 +216,7 @@ public abstract class Decryptor {
 	 * 
 	 * @param message the received message
 	 * @param enc the Encrypt0Message object
-	 * @throws OSException
+	 * @throws OSException if OSCORE option fails to decode
 	 */
 	private static void decodeObjectSecurity(Message message, Encrypt0Message enc) throws OSException {
 		byte[] total = message.getOptions().getOscore();
@@ -230,9 +224,9 @@ public abstract class Decryptor {
 		/**
 		 * If the OSCORE option value is a zero length byte array
 		 * it represents a byte array of length 1 with a byte 0x00
-		 * See https://tools.ietf.org/html/draft-ietf-core-object-security-15#page-33 point 4  
+		 * See https://tools.ietf.org/html/draft-ietf-core-object-security-16#section-2  
 		 */
-		if(total.length == 0) {
+		if (total.length == 0) {
 			total = new byte[] { 0x00 };
 		}
 		
@@ -240,12 +234,14 @@ public abstract class Decryptor {
 
 		int n = flagByte & 0x07;
 		int k = flagByte & 0x08;
-		int h = flagByte & 0xa6;
+		int h = flagByte & 0x10;
 
 		byte[] partialIV = null;
 		byte[] kid = null;
+		byte[] kidContext = null;
 		int index = 1;
 
+		//Parsing Partial IV
 		if (n > 0) {
 			try {
 				partialIV = Arrays.copyOfRange(total, index, index + n);
@@ -256,19 +252,24 @@ public abstract class Decryptor {
 			}
 		}
 
-		if (h == 16) {
+		//Parsing KID Context
+		if (h != 0) {
 			int s = total[index];
-			index += 1;
+
+			kidContext = Arrays.copyOfRange(total, index + 1, index + 1 + s);
+
+			index += s + 1;
 
 			if (s > 0) {
-				LOGGER.error("Kidcontext is included, but it is not supported. We ignore it and continue processing.");
+				LOGGER.info("Received KID Context: " + Utils.toHexString(kidContext));
 			} else {
 				LOGGER.error("Kid context is missing from message when it is expected.");
 				throw new OSException(ErrorDescriptions.FAILED_TO_DECODE_COSE);
 			}
 		}
 
-		if (k == 8) {
+		//Parsing KID
+		if (k != 0) {
 			kid = Arrays.copyOfRange(total, index, total.length);
 		} else {
 			if (message instanceof Request) {
@@ -277,12 +278,18 @@ public abstract class Decryptor {
 			}
 		}
 
+		//Adding parsed data to Encrypt0Message object
 		try {
 			if (partialIV != null) {
 				enc.addAttribute(HeaderKeys.PARTIAL_IV, CBORObject.FromObject(partialIV), Attribute.UNPROTECTED);
 			}
 			if (kid != null) {
 				enc.addAttribute(HeaderKeys.KID, CBORObject.FromObject(kid), Attribute.UNPROTECTED);
+			}
+			//COSE Header parameter for KID Context defined with label 10
+			//https://www.iana.org/assignments/cose/cose.xhtml
+			if (kidContext != null) {
+				enc.addAttribute(CBORObject.FromObject(10), CBORObject.FromObject(kidContext), Attribute.UNPROTECTED);
 			}
 		} catch (CoseException e) {
 			LOGGER.error("COSE processing of message failed.");
@@ -294,7 +301,7 @@ public abstract class Decryptor {
 	 * Replaces the message's options with a new OptionSet which doesn't contain
 	 * any of the non-special E options as outer options
 	 * 
-	 * @param message
+	 * @param message the received message
 	 */
 	protected static void discardEOptions(Message message) {
 		OptionSet newOptions = OptionJuggle.discardEOptions(message.getOptions());

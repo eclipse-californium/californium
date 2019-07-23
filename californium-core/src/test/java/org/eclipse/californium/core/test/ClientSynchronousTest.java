@@ -22,17 +22,19 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.junit.Assert;
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapClient;
-import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapObserveRelation;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
@@ -47,11 +49,13 @@ import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptorAdapter;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
-import org.junit.AfterClass;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -59,6 +63,12 @@ import org.junit.experimental.categories.Category;
 public class ClientSynchronousTest {
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
+
+	@ClassRule
+	public static CoapThreadsRule cleanup = new CoapThreadsRule();
+
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
 
 	private static final String TARGET = "storage";
 	private static final String CONTENT_1 = "one";
@@ -69,32 +79,20 @@ public class ClientSynchronousTest {
 	private static final String OVERLOAD = "overload";
 	private static final int OVERLOAD_TIME = 123;
 
-	private static CoapServer server;
 	private static Endpoint serverEndpoint;
 	private static int serverPort;
 	private static StorageResource resource;
 
-	private String expected;
-	private AtomicInteger notifications = new AtomicInteger();
-	private boolean failed = false;
-
 	@BeforeClass
 	public static void startupServer() {
 		network.getStandardTestConfig().setLong(NetworkConfig.Keys.MAX_TRANSMIT_WAIT, 100);
-		createServer();
-		System.out.println(System.lineSeparator() + "Start " + ClientSynchronousTest.class.getSimpleName() +
-				" on " + serverEndpoint.getUri());
+		CoapServer server = createServer();
+		cleanup.add(server);
 	}
 
 	@Before
 	public void resetResource() {
 		resource.reset();
-	}
-
-	@AfterClass
-	public static void shutdownServer() {
-		server.destroy();
-		System.out.println("End " + ClientSynchronousTest.class.getSimpleName());
 	}
 
 	@Test
@@ -117,34 +115,37 @@ public class ClientSynchronousTest {
 		String resp4 = client.get().getResponseText();
 		Assert.assertEquals(CONTENT_2, resp4);
 
+		CountingCoapHandler handler = new CountingCoapHandler();
 		// Observe the resource
-		expected = CONTENT_2;
-		CoapObserveRelation obs1 = client.observeAndWait(
-			new CoapHandler() {
-				@Override public void onLoad(CoapResponse response) {
-					notifications.incrementAndGet();
-					String payload = response.getResponseText();
-					Assert.assertEquals(expected, payload);
-					Assert.assertTrue(response.advanced().getOptions().hasObserve());
-				}
-				@Override public void onError() {
-					failed = true;
-					Assert.assertTrue(false);
-				}
-			});
+		CoapObserveRelation obs1 = client.observeAndWait(handler);
 		Assert.assertFalse(obs1.isCanceled());
+		CoapResponse response = handler.waitOnLoad(100);
+		assertNotNull("missing initial notification", response);
+		assertEquals(CONTENT_2, response.getResponseText());
 
 		Thread.sleep(100);
 		resource.changed();
+		response = handler.waitOnLoad(100);
+		assertNotNull("missing notification", response);
+		assertEquals(CONTENT_2, response.getResponseText());
 		Thread.sleep(100);
 		resource.changed();
+		response = handler.waitOnLoad(100);
+		assertNotNull("missing notification", response);
+		assertEquals(CONTENT_2, response.getResponseText());
 		Thread.sleep(100);
 		resource.changed();
+		response = handler.waitOnLoad(100);
+		assertNotNull("missing notification", response);
+		assertEquals(CONTENT_2, response.getResponseText());
 
 		Thread.sleep(100);
-		expected = CONTENT_3;
 		String resp5 = client.post(CONTENT_3, MediaTypeRegistry.TEXT_PLAIN).getResponseText();
 		Assert.assertEquals(CONTENT_2, resp5);
+
+		response = handler.waitOnLoad(100);
+		assertNotNull("missing notification", response);
+		assertEquals(CONTENT_3, response.getResponseText());
 
 		// Try a put and receive a METHOD_NOT_ALLOWED
 		ResponseCode code6 = client.put(CONTENT_4, MediaTypeRegistry.TEXT_PLAIN).getCode();
@@ -152,10 +153,11 @@ public class ClientSynchronousTest {
 
 		// Cancel observe relation of obs1 and check that it does no longer receive notifications
 		Thread.sleep(100);
-		expected = null; // The next notification would now cause a failure
 		obs1.reactiveCancel();
 		Thread.sleep(100);
 		resource.changed();
+		response = handler.waitOnLoad(100);
+		assertNull("unexpected notification", response == null ? null : response.getResponseText());
 
 		// Make another post
 		Thread.sleep(100);
@@ -163,15 +165,18 @@ public class ClientSynchronousTest {
 		Assert.assertEquals(CONTENT_3, resp7);
 
 		// Try to use the builder and add a query
-		String resp8 = new CoapClient.Builder("localhost", serverPort)
-			.scheme("coap").path(TARGET).query(QUERY_UPPER_CASE).create().get().getResponseText();
+		CoapClient client2 = new CoapClient.Builder("localhost", serverPort)
+			.scheme("coap").path(TARGET).query(QUERY_UPPER_CASE).create();
+		cleanup.add(client2);
+		String resp8 = client2.get().getResponseText();
 		Assert.assertEquals(CONTENT_4.toUpperCase(), resp8);
 
 		// Check that we indeed received 5 notifications
 		// 1 from origin GET request, 3 x from changed(), 1 from post()
 		Thread.sleep(100);
-		Assert.assertEquals(5, notifications.get());
-		Assert.assertFalse(failed);
+		Assert.assertEquals(5, handler.getOnLoadCalls());
+		Assert.assertEquals(0, handler.getOnErrorCalls());
+		client.shutdown();
 	}
 
 	@Test
@@ -180,6 +185,7 @@ public class ClientSynchronousTest {
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 		CoapEndpoint clientEndpoint = builder.build();
+		cleanup.add(clientEndpoint);
 		clientEndpoint.addInterceptor(new MessageInterceptorAdapter() {
 			
 			@Override
@@ -196,6 +202,7 @@ public class ClientSynchronousTest {
 		boolean ping = client.ping();
 		Assert.assertTrue(ping);
 		Assert.assertTrue("Ping not sent using provided endpoint", sent.get());
+		client.shutdown();
 	}
 
 	@Test
@@ -213,6 +220,7 @@ public class ClientSynchronousTest {
 
 		Assert.assertEquals(Type.ACK, resp.advanced().getType());
 		Assert.assertEquals(CONTENT_1, resp.getResponseText());
+		client.shutdown();
 	}
 
 	@Test
@@ -229,6 +237,7 @@ public class ClientSynchronousTest {
 
 		Assert.assertEquals(Type.ACK, resp.advanced().getType());
 		Assert.assertEquals(CONTENT_1, resp.getResponseText());
+		client.shutdown();
 	}
 
 	@Test
@@ -241,20 +250,22 @@ public class ClientSynchronousTest {
 
 		Assert.assertEquals(ResponseCode.SERVICE_UNAVAILABLE, resp.getCode());
 		Assert.assertEquals(OVERLOAD_TIME, resp.getOptions().getMaxAge().intValue());
+		client.shutdown();
 	}
 
-	private static void createServer() {
+	private static CoapServer createServer() {
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
 		serverEndpoint = builder.build();
 
 		resource = new StorageResource(TARGET, CONTENT_1);
-		server = new CoapServer();
+		CoapServer server = new CoapServer(network.getStandardTestConfig());
 		server.add(resource);
 
 		server.addEndpoint(serverEndpoint);
 		server.start();
 		serverPort = serverEndpoint.getAddress().getPort();
+		return server;
 	}
 
 	private static class StorageResource extends CoapResource {

@@ -22,6 +22,9 @@ import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.Request;
 
 import org.eclipse.californium.cose.AlgorithmID;
+import org.eclipse.californium.elements.exception.ConnectorException;
+
+import java.io.IOException;
 
 /**
  * 
@@ -30,7 +33,7 @@ import org.eclipse.californium.cose.AlgorithmID;
  */
 public class HelloWorldClient {
 
-	private final static HashMapCtxDB db = HashMapCtxDB.getInstance();
+	private final static HashMapCtxDB db = new HashMapCtxDB();
 	private final static String uriLocal = "coap://localhost";
 	private final static String hello1 = "/hello/1";
 	private final static AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
@@ -44,11 +47,11 @@ public class HelloWorldClient {
 	private final static byte[] sid = new byte[0];
 	private final static byte[] rid = new byte[] { 0x01 };
 
-	public static void main(String[] args) throws OSException {
+	public static void main(String[] args) throws OSException, ConnectorException, IOException {
 		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, null);
 		db.addContext(uriLocal, ctx);
 
-		OSCoreCoapStackFactory.useAsDefault();
+		OSCoreCoapStackFactory.useAsDefault(db);
 		CoapClient c = new CoapClient(uriLocal + hello1);
 
 		Request r = new Request(Code.GET);
@@ -59,6 +62,7 @@ public class HelloWorldClient {
 		r.getOptions().setOscore(new byte[0]);
 		resp = c.advanced(r);
 		printResponse(resp);
+		c.shutdown();
 	}
 
 	private static void printResponse(CoapResponse resp) {

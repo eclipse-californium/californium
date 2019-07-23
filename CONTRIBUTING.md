@@ -41,7 +41,7 @@ You can find all the details in the [Contributing via Git](http://wiki.eclipse.o
 1. Consider to start with creating an issue on GitHub to discuss your plans and get the proper startup information.
 1. Ensure, your plans will work with java 1.7
 1. Fork the repository on GitHub
-1. Create a new branch for your changes based on the 2.0.x branch. 
+1. Create a new branch for your changes based on the master branch.
    Please note: work based on other branches without prior discussion in an issue, may be in vain.
 1. If you use the eclipse IDE, please import our prefer formatter `eclipse-formatter-profile.xml` from the californium parent-folder and apply it to your changes (only :-) ).
 1. Make your changes 

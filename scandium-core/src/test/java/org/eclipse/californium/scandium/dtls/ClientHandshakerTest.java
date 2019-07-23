@@ -34,10 +34,12 @@ import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.cert.Certificate;
 
+import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.util.ServerName.NameType;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -49,6 +51,9 @@ import org.junit.experimental.categories.Category;
 public class ClientHandshakerTest {
 
 	final static int MAX_TRANSMISSION_UNIT = 1500;
+
+	@Rule
+	public ThreadsRule cleanup = new ThreadsRule();
 
 	final InetSocketAddress localPeer = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 	final SimpleRecordLayer recordLayer = new SimpleRecordLayer();

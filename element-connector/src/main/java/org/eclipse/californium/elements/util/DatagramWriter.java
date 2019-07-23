@@ -40,13 +40,24 @@ public final class DatagramWriter {
 	 * Creates a new empty writer.
 	 */
 	public DatagramWriter() {
-
 		// initialize underlying byte stream
 		byteStream = new ByteArrayOutputStream();
 
 		// initialize bit buffer
-		currentByte = 0;
-		currentBitIndex = Byte.SIZE - 1;
+		resetCurrentByte();
+	}
+
+	/**
+	 * Creates a new empty writer with provided initial size.
+	 * 
+	 * @param size initial size
+	 */
+	public DatagramWriter(int size) {
+		// initialize underlying byte stream
+		byteStream = new ByteArrayOutputStream(size);
+
+		// initialize bit buffer
+		resetCurrentByte();
 	}
 
 	// Methods /////////////////////////////////////////////////////////////////
@@ -132,7 +143,7 @@ public final class DatagramWriter {
 			return;
 
 		// are there bits left to write in buffer?
-		if (currentBitIndex < Byte.SIZE - 1) {
+		if (isBytePending()) {
 
 			for (int i = 0; i < bytes.length; i++) {
 				write(bytes[i], Byte.SIZE);
@@ -145,7 +156,7 @@ public final class DatagramWriter {
 			byteStream.write(bytes, 0, bytes.length);
 		}
 	}
-	
+
 	/**
 	 * Writes one byte to the stream.
 	 * 
@@ -153,7 +164,11 @@ public final class DatagramWriter {
 	 *            The byte to be written.
 	 */
 	public void writeByte(final byte b) {
-		writeBytes(new byte[] { b });
+		if (isBytePending()) {
+			writeBytes(new byte[] { b });
+		} else {
+			byteStream.write(b);
+		}
 	}
 
 	// Functions ///////////////////////////////////////////////////////////////
@@ -180,6 +195,7 @@ public final class DatagramWriter {
 
 	public void write(DatagramWriter data) {
 		try {
+			data.writeCurrentByte();
 			data.byteStream.writeTo(byteStream);
 		} catch (IOException e) {
 		}
@@ -193,14 +209,19 @@ public final class DatagramWriter {
 	 * Writes pending bits to the stream.
 	 */
 	public void writeCurrentByte() {
-
-		if (currentBitIndex < Byte.SIZE - 1) {
-
+		if (isBytePending()) {
 			byteStream.write(currentByte);
-
-			currentByte = 0;
-			currentBitIndex = Byte.SIZE - 1;
+			resetCurrentByte();
 		}
+	}
+
+	public final boolean isBytePending() {
+		return currentBitIndex < Byte.SIZE - 1;
+	}
+
+	private final void resetCurrentByte() {
+		currentByte = 0;
+		currentBitIndex = Byte.SIZE - 1;
 	}
 
 	// Utilities ///////////////////////////////////////////////////////////////

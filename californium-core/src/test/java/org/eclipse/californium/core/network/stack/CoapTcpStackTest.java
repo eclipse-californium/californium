@@ -12,7 +12,9 @@ import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -32,6 +34,9 @@ public class CoapTcpStackTest {
 
 	private static final NetworkConfig CONFIG = NetworkConfig.createStandardWithoutFile();
 
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
+
 	@Mock private Outbox outbox;
 	@Mock private MessageDeliverer deliverer;
 	@Mock private ScheduledExecutorService executor;
@@ -42,7 +47,7 @@ public class CoapTcpStackTest {
 	public void initialize() {
 		stack = new CoapTcpStack(CONFIG, outbox);
 		stack.setDeliverer(deliverer);
-		stack.setExecutor(executor);
+		stack.setExecutors(executor, executor);
 
 	}
 

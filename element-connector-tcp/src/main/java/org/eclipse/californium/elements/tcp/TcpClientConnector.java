@@ -54,8 +54,8 @@ import io.netty.util.concurrent.GenericFutureListener;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
-import org.eclipse.californium.elements.EndpointMismatchException;
-import org.eclipse.californium.elements.MulticastNotSupportedException;
+import org.eclipse.californium.elements.exception.EndpointMismatchException;
+import org.eclipse.californium.elements.exception.MulticastNotSupportedException;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 
@@ -88,7 +88,7 @@ public class TcpClientConnector implements Connector {
 	 * @see #setEndpointContextMatcher(EndpointContextMatcher)
 	 * @see #getEndpointContextMatcher()
 	 */
-	private EndpointContextMatcher endpointContextMatcher;
+	private volatile EndpointContextMatcher endpointContextMatcher;
 	private EventLoopGroup workerGroup;
 	private RawDataChannel rawDataChannel;
 	private AbstractChannelPoolMap<SocketAddress, ChannelPool> poolMap;
@@ -266,11 +266,11 @@ public class TcpClientConnector implements Connector {
 	}
 
 	@Override
-	public synchronized void setEndpointContextMatcher(EndpointContextMatcher matcher) {
+	public void setEndpointContextMatcher(EndpointContextMatcher matcher) {
 		endpointContextMatcher = matcher;
 	}
 
-	private synchronized EndpointContextMatcher getEndpointContextMatcher() {
+	private EndpointContextMatcher getEndpointContextMatcher() {
 		return endpointContextMatcher;
 	}
 

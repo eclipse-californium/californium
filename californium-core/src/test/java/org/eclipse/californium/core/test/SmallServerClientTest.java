@@ -25,9 +25,9 @@ package org.eclipse.californium.core.test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
@@ -35,14 +35,14 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.rule.CoapNetworkRule;
-import org.junit.After;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -57,32 +57,23 @@ public class SmallServerClientTest {
 
 	private static String SERVER_RESPONSE = "server responds hi";
 
-	private CoapServer server;
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
 
-	private int serverPort;
+	private InetSocketAddress serverAddress;
 
 	@Before
-	public void initLogger() {
-		System.out.println(System.lineSeparator() + "Start " + getClass().getSimpleName());
-		EndpointManager.clear();
-	}
-
-	@After
-	public void after() {
-		if (null != server) {
-			server.destroy();
-		}
-		System.out.println("End " + getClass().getSimpleName());
+	public void init() {
+		cleanup.add(createSimpleServer());
 	}
 
 	@Test
 	public void testNonconfirmable() throws Exception {
-		createSimpleServer();
 
 		// send request
 		Request request = new Request(CoAP.Code.POST);
 		request.setConfirmable(false);
-		request.setDestinationContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), serverPort));
+		request.setDestinationContext(new AddressEndpointContext(serverAddress));
 		request.setPayload("client says hi");
 		request.send();
 		System.out.println("client sent request");
@@ -94,11 +85,11 @@ public class SmallServerClientTest {
 		assertEquals(response.getPayloadString(), SERVER_RESPONSE);
 	}
 
-	private void createSimpleServer() {
+	private CoapServer createSimpleServer() {
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
 		CoapEndpoint endpoint = builder.build();
-		server = new CoapServer();
+		CoapServer server = new CoapServer(network.getStandardTestConfig());
 		server.addEndpoint(endpoint);
 		server.setMessageDeliverer(new MessageDeliverer() {
 			@Override
@@ -115,6 +106,7 @@ public class SmallServerClientTest {
 			public void deliverResponse(Exchange exchange, Response response) { }
 		});
 		server.start();
-		serverPort = endpoint.getAddress().getPort();
+		serverAddress = endpoint.getAddress();
+		return server;
 	}
 }

@@ -24,7 +24,7 @@ import java.net.InetSocketAddress;
 import java.util.regex.Pattern;
 
 /**
- * String utils (as there are so many already out).
+ * String utility (as there are so many already out).
  */
 public class StringUtil {
 
@@ -177,6 +177,19 @@ public class StringUtil {
 		} else {
 			return byteArray2HexString(byteArray, NO_SEPARATOR, 0);
 		}
+	}
+
+	/**
+	 * Byte array to hexadecimal display string.
+	 * 
+	 * All bytes are converted without separator.
+	 * 
+	 * @param byteArray byte array to be converted to string
+	 * @return hexadecimal string, e.g "0145A4", "--", if byte array is
+	 *         {@code null} or empty.
+	 */
+	public static String byteArray2HexString(byte[] byteArray) {
+		return byteArray2HexString(byteArray, NO_SEPARATOR, 0);
 	}
 
 	/**

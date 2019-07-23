@@ -39,10 +39,12 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
-import org.junit.After;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -55,15 +57,18 @@ public class DeduplicationTest {
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
+
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
+
 	private LockstepEndpoint server;
 
 	private Endpoint client;
-	private int clientPort;
 
 	@Before
-	public void setupServer() throws Exception {
-		System.out.println(System.lineSeparator() + "Start " + getClass().getSimpleName());
-
+	public void setup() throws Exception {
 		NetworkConfig config = network.createTestConfig()
 			.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 128)
 			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 128)
@@ -73,22 +78,12 @@ public class DeduplicationTest {
 		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 		builder.setNetworkConfig(config);
 		client = builder.build();
+		cleanup.add(client);
 		client.addInterceptor(new MessageTracer());
 		client.start();
-		clientPort = client.getAddress().getPort();
 		server = createLockstepEndpoint(client.getAddress());
-		System.out.println("Client binds to port " + clientPort);
-	}
-
-	@After
-	public void shutdownServer() {
-		if (server != null) {
-			server.destroy();
-		}
-		if (client != null) {
-			client.destroy();
-		}
-		System.out.println(System.lineSeparator() + "End " + getClass().getSimpleName());
+		cleanup.add(server);
+		System.out.println("Client binds to port " + client.getAddress().getPort());
 	}
 
 	@Test

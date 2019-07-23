@@ -41,6 +41,10 @@
 		<appender-ref ref="STDOUT_SIMPLE" />
 	</logger>
 
+	<logger name="org.eclipse.californium.plugtests.ClientInitializer" level="INFO" additivity="false" >
+		<appender-ref ref="STDOUT_SIMPLE" />
+	</logger>
+
 	<root level="WARN" >
 		<appender-ref ref="STDOUT" />
 	</root>

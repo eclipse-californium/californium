@@ -19,7 +19,7 @@
 	<properties>
 		<osgi.version>4.3.1</osgi.version>
 	</properties>
-	
+
 	<dependencies>
 		<dependency>
 			<groupId>org.slf4j</groupId>
@@ -97,8 +97,11 @@
 				<artifactId>maven-assembly-plugin</artifactId>
 				<configuration>
 					<descriptors>
-						<descriptor>enhanced-jar-with-licenses.xml</descriptor>
+						<descriptor>${project.parent.basedir}/enhanced-jar-with-licenses.xml</descriptor>
 					</descriptors>
+					<archive>
+						<manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
+					</archive>
 				</configuration>
 			</plugin>
 		</plugins>

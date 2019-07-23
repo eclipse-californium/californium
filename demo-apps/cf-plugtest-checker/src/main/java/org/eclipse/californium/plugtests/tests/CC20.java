@@ -27,6 +27,9 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 
 import org.eclipse.californium.plugtests.PlugtestChecker.TestClientAbstract;
+import org.eclipse.californium.plugtests.util.CborDecoder;
+import org.eclipse.californium.plugtests.util.Decoder;
+import org.eclipse.californium.plugtests.util.JsonDecoder;
 
 /**
  * TD_COAP_CORE_20: Perform GET transaction containing the Accept option
@@ -78,74 +81,29 @@ public class CC20 extends TestClientAbstract {
 
 		// execute the request
 		try {
-			Response response = null;
-			boolean success = true;
-
 			System.out.println();
 			System.out.println("**** TEST: " + testName + " ****");
 			System.out.println("**** BEGIN CHECK ****");
 
-			// Part A
-			request.send();
-			response = request.waitForResponse(6000);
+			boolean success = executeRequest(request, MediaTypeRegistry.TEXT_PLAIN, null);
 
-			// checking the response
-			if (response != null) {
-
-				// print response info
-				if (verbose) {
-					System.out.println("Response received");
-					System.out.println("Time elapsed (ms): "
-							+ response.getRTT());
-					Utils.prettyPrint(response);
-				}
-
-				success &= checkType(Type.ACK, response.getType());
-				success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
-				success &= checkOption(MediaTypeRegistry.TEXT_PLAIN,
-						response.getOptions().getContentFormat(),
-						"Content-Format");
-				success &= hasNonEmptyPalyoad(response);
-
+			if (success) {
 				// Part B
 				request = new Request(Code.GET, Type.CON);
-				// request.setOption(new
-				// Option(MediaTypeRegistry.APPLICATION_XML,
-				// OptionNumberRegistry.ACCEPT));
-				request.getOptions().setAccept(
-						MediaTypeRegistry.APPLICATION_XML);
-
 				request.setURI(uri);
-				// if (request.requiresToken()) {
-				// request.setToken(TokenManager.getInstance().acquireToken());
-				// }
-
-				// enable response queue for synchronous I/O
-				// request.enableResponseQueue(true);
-
-				request.send();
-				response = request.waitForResponse(6000);
-
-				// checking the response
-				if (response != null) {
-
-					// print response info
-					if (verbose) {
-						System.out.println("Response received");
-						System.out.println("Time elapsed (ms): "
-								+ response.getRTT());
-						Utils.prettyPrint(response);
-					}
-
-					success &= checkType(Type.ACK, response.getType());
-					success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
-					success &= checkOption(
-							MediaTypeRegistry.APPLICATION_XML, response
-									.getOptions().getContentFormat(),
-							"Content-Format");
-					success &= hasNonEmptyPalyoad(response);
-
-				}
+				success = executeRequest(request, MediaTypeRegistry.APPLICATION_XML, null);
+			}
+			if (success) {
+				// Part C
+				request = new Request(Code.GET, Type.CON);
+				request.setURI(uri);
+				success = executeRequest(request, MediaTypeRegistry.APPLICATION_JSON, new JsonDecoder());
+			}
+			if (success) {
+				// Part B
+				request = new Request(Code.GET, Type.CON);
+				request.setURI(uri);
+				success = executeRequest(request, MediaTypeRegistry.APPLICATION_CBOR, new CborDecoder());
 			}
 
 			if (success) {
@@ -169,8 +127,43 @@ public class CC20 extends TestClientAbstract {
 		}
 	}
 
+	private boolean executeRequest(Request request, int contentType, Decoder decoder) throws InterruptedException {
+
+		// execute the request
+		Response response = null;
+		boolean success = true;
+
+		// Part A
+		request.getOptions().setAccept(contentType);
+		request.send();
+		response = request.waitForResponse(6000);
+
+		// checking the response
+		if (response != null) {
+
+			// print response info
+			if (verbose) {
+				System.out.println("Response received");
+				System.out.println("Time elapsed (ms): "
+						+ response.getRTT());
+				Utils.prettyPrint(response);
+			}
+
+			success &= checkType(Type.ACK, response.getType());
+			success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
+			success &= checkOption(contentType,
+					response.getOptions().getContentFormat(),
+					"Content-Format");
+			success &= hasNonEmptyPalyoad(response);
+			if (decoder != null) {
+				String decoded = decoder.decode(response.getPayload());
+				System.out.println("Response decoded: " + decoded);
+			}
+		}
+		return success;
+	}
+
 	protected boolean checkResponse(Request request, Response response) {
 		return false;
 	}
-
 }

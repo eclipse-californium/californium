@@ -26,6 +26,7 @@ import org.eclipse.californium.benchmark.observe.ObserveBenchmarkClient;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
 
 public class ObserveBenchmarkClient {
 	public static final int CORES = Runtime.getRuntime().availableProcessors();
@@ -94,7 +95,8 @@ public class ObserveBenchmarkClient {
 
 		if (use_executor) {
 			System.out.println("Using a scheduled thread pool with "+protocol_threads+" workers");
-			server.setExecutor(Executors.newScheduledThreadPool(protocol_threads));
+			server.setExecutors(Executors.newScheduledThreadPool(protocol_threads), 
+					ExecutorsUtil.newDefaultSecondaryScheduler("CoapServer(secondary)#"), false);
 		}
 		
 		System.out.println("Number of receiver/sender threads: "+udp_receiver+"/"+udp_sender);

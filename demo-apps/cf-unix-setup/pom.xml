@@ -1,0 +1,34 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+	xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>org.eclipse.californium</groupId>
+		<artifactId>demo-apps</artifactId>
+		<version>2.0.0-SNAPSHOT</version>
+	</parent>
+	<artifactId>cf-unix-setup</artifactId>
+
+	<name>Californium (Cf) Demo Setup for Unix</name>
+	<description>Collection of scripts and files to demonstrate the use of Californium applications with unix.
+DO NOT USE IN PRODUCTION SYSTEMS!</description>
+
+	<properties>
+		<maven.source.skip>true</maven.source.skip>
+	</properties>
+
+	<build>
+		<resources>
+			<resource>
+				<directory>src/main/resources</directory>
+				<targetPath>unix-setup</targetPath>
+				<includes>
+					<include>*</include>
+				</includes>
+			</resource>
+		</resources>
+	</build>
+</project>

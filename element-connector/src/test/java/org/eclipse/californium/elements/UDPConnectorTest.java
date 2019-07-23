@@ -37,10 +37,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.elements.rule.NetworkRule;
+import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,6 +52,9 @@ public class UDPConnectorTest {
 
 	@ClassRule
 	public static NetworkRule network = new NetworkRule(NetworkRule.Mode.DIRECT, NetworkRule.Mode.NATIVE);
+
+	@Rule
+	public ThreadsRule cleanup = new ThreadsRule();
 
 	UDPConnector connector;
 	UDPConnector destination;

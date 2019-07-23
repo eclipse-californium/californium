@@ -167,6 +167,7 @@ public class NetworkConfigDefaults {
 	 * The default value is "" for disabled.
 	 */
 	public static final String DEFAULT_DTLS_CONNECTION_ID_LENGTH = ""; // disabled
+	public static final String DEFAULT_DTLS_CONNECTION_ID_NODE_ID = ""; // disabled
 
 	public static void setDefaults(final NetworkConfig config) {
 
@@ -244,6 +245,7 @@ public class NetworkConfigDefaults {
 		config.setLong(Keys.SECURE_SESSION_TIMEOUT, DEFAULT_SECURE_SESSION_TIMEOUT);
 		config.setLong(Keys.DTLS_AUTO_RESUME_TIMEOUT, DEFAULT_DTLS_AUTO_RESUME_TIMEOUT);
 		config.setString(Keys.DTLS_CONNECTION_ID_LENGTH, DEFAULT_DTLS_CONNECTION_ID_LENGTH);
+		config.setString(Keys.DTLS_CONNECTION_ID_NODE_ID, DEFAULT_DTLS_CONNECTION_ID_NODE_ID);
 
 		config.setInt(Keys.MULTICAST_BASE_MID, DEFAULT_MULTICAST_BASE_MID);
 	}

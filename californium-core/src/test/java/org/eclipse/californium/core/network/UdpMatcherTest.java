@@ -29,6 +29,7 @@ import static org.eclipse.californium.core.network.MatcherTestUtils.*;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.Request;
@@ -41,7 +42,11 @@ import org.eclipse.californium.core.observe.InMemoryObservationStore;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.rule.CoapNetworkRule;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
+import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -51,9 +56,15 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Small.class)
 public class UdpMatcherTest {
+	@ClassRule
+	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
 	static final InetSocketAddress dest = new InetSocketAddress(InetAddress.getLoopbackAddress(), 5684);
 
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
+
+	private ScheduledExecutorService scheduler;
 	private InMemoryObservationStore observationStore;
 	private RandomTokenGenerator tokenProvider; 
 	private InMemoryMessageExchangeStore messageExchangeStore;
@@ -64,6 +75,8 @@ public class UdpMatcherTest {
 	@Before
 	public void before(){
 		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
+		scheduler = MatcherTestUtils.newScheduler();
+		cleanup.add(scheduler);
 		tokenProvider = new RandomTokenGenerator(config);
 		messageExchangeStore = new InMemoryMessageExchangeStore(config, tokenProvider);
 		observationStore =  new InMemoryObservationStore(config);
@@ -177,7 +190,7 @@ public class UdpMatcherTest {
 		MessageExchangeStore exchangeStore = mock(MessageExchangeStore.class);
 		when(exchangeStore.registerOutboundRequest(exchange)).thenReturn(false);
 		verify(endpointContextMatcher, never()).isResponseRelatedToRequest(null, null);
-		UdpMatcher matcher = MatcherTestUtils.newUdpMatcher(exchangeStore, observationStore, endpointContextMatcher);
+		UdpMatcher matcher = newUdpMatcher(exchangeStore);
 
 		// WHEN the request is being sent
 		matcher.sendRequest(exchange);
@@ -189,6 +202,11 @@ public class UdpMatcherTest {
 	}
 
 	private UdpMatcher newUdpMatcher() {
-		return MatcherTestUtils.newUdpMatcher(messageExchangeStore, observationStore, endpointContextMatcher);
+		return newUdpMatcher(messageExchangeStore);
+	}
+
+	private UdpMatcher newUdpMatcher(MessageExchangeStore exchangeStore) {
+		return MatcherTestUtils.newUdpMatcher(network.getStandardTestConfig(), exchangeStore, observationStore,
+				endpointContextMatcher, scheduler);
 	}
 }

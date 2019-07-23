@@ -53,12 +53,10 @@ public class ResponseDecryptor extends Decryptor {
 	 * @throws OSException when decryption fails
 	 * 
 	 */
-	public static Response decrypt(Response response) throws OSException {
+	public static Response decrypt(OSCoreCtxDB db, Response response) throws OSException {
 
 		LOGGER.info("Removes E options from outer options which are not allowed there");
 		discardEOptions(response);
-
-		OSCoreCtxDB db = HashMapCtxDB.getInstance();
 
 		byte[] protectedData = response.getPayload();
 		Encrypt0Message enc = null;
@@ -101,7 +99,11 @@ public class ResponseDecryptor extends Decryptor {
 		eOptions = OptionJuggle.merge(eOptions, uOptions);
 		response.setOptions(eOptions);
 
-		db.removeToken(token);
+		//Remove token after response is received, unless it has Observe
+		//If is has Observe it will be removed after cancellation elsewhere
+		if(response.getOptions().hasObserve() == false) {
+			db.removeToken(token);
+		}
 
 		return response;
 	}

@@ -23,6 +23,7 @@ import static org.eclipse.californium.core.network.MatcherTestUtils.*;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP;
@@ -33,13 +34,14 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.MatcherTestUtils.TestEndpointReceiver;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.observe.InMemoryObservationStore;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.rule.CoapNetworkRule;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -55,9 +57,10 @@ public class UdpMatcherMulticastTest {
 	private static final InetSocketAddress dest = new InetSocketAddress(InetAddress.getLoopbackAddress(), 5687);
 	private static final InetSocketAddress multicast_dest = new InetSocketAddress(CoAP.MULTICAST_IPV4, 5687);
 
-	private InMemoryObservationStore observationStore;
-	private RandomTokenGenerator tokenProvider;
-	private InMemoryMessageExchangeStore messageExchangeStore;
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
+
+	private ScheduledExecutorService scheduler;
 	private EndpointContext exchangeEndpointContext;
 	private EndpointContext responseEndpointContext;
 	private EndpointContextMatcher endpointContextMatcher;
@@ -66,9 +69,8 @@ public class UdpMatcherMulticastTest {
 	public void before() throws UnknownHostException {
 		NetworkConfig config = network.createStandardTestConfig();
 		config.setInt(NetworkConfig.Keys.MULTICAST_BASE_MID, 20000);
-		tokenProvider = new RandomTokenGenerator(config);
-		messageExchangeStore = new InMemoryMessageExchangeStore(config, tokenProvider);
-		observationStore = new InMemoryObservationStore(config);
+		scheduler = MatcherTestUtils.newScheduler();
+		cleanup.add(scheduler);
 		exchangeEndpointContext = mock(EndpointContext.class);
 		responseEndpointContext = mock(EndpointContext.class);
 		endpointContextMatcher = mock(EndpointContextMatcher.class);
@@ -80,7 +82,7 @@ public class UdpMatcherMulticastTest {
 	@Test
 	public void testReceivedResponseExchangeWithMulticastRequestExchange() {
 
-		UdpMatcher matcher = newUdpMatcher(messageExchangeStore, observationStore, endpointContextMatcher);
+		UdpMatcher matcher = newUdpMatcher(network.getStandardTestConfig(), endpointContextMatcher, scheduler);
 
 		// multicast request
 		Request request = Request.newGet();
@@ -123,5 +125,7 @@ public class UdpMatcherMulticastTest {
 
 		verify(endpointContextMatcher, times(2)).isResponseRelatedToRequest(exchangeEndpointContext,
 				responseEndpointContext);
+
+		matcher.stop();
 	}
 }

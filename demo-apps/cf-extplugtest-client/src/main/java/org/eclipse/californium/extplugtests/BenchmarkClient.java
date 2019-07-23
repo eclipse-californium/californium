@@ -20,6 +20,7 @@
 package org.eclipse.californium.extplugtests;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
@@ -33,6 +34,7 @@ import java.util.Formatter;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -58,10 +60,10 @@ import org.eclipse.californium.core.server.resources.ResourceObserver;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.extplugtests.resources.Feed;
 import org.eclipse.californium.plugtests.ClientInitializer;
 import org.eclipse.californium.plugtests.ClientInitializer.Arguments;
-import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -149,7 +151,8 @@ public class BenchmarkClient {
 			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
 			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
 			config.setInt(Keys.MAX_ACTIVE_PEERS, 10);
-			config.setInt(Keys.DTLS_CONNECTION_ID_LENGTH, 0); // support it, but don't use for incoming traffic
+			config.setInt(Keys.DTLS_AUTO_RESUME_TIMEOUT, 0);
+			config.setInt(Keys.DTLS_CONNECTION_ID_LENGTH, 0); // support it, but don't use it
 			config.setInt(Keys.MAX_PEER_INACTIVITY_PERIOD, 60 * 60 * 24); // 24h
 			config.setInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT, 60 * 60 * 12); // 12h
 			config.setInt(Keys.TCP_CONNECT_TIMEOUT, 30 * 1000); // 20s
@@ -335,7 +338,13 @@ public class BenchmarkClient {
 	private final AtomicBoolean stop = new AtomicBoolean();
 
 	private final FeedObserver feedObserver = new FeedObserver();
-	
+
+	private static Request prepareRequest(CoapClient client) {
+		Request post = Request.newPost();
+		post.setURI(client.getURI());
+		return post;
+	}
+
 	private class TestHandler implements CoapHandler {
 		
 		private final Request post;
@@ -392,8 +401,7 @@ public class BenchmarkClient {
 
 			if (0 < c) {
 				requestsCounter.incrementAndGet();
-				Request post = Request.newPost();
-				post.setURI(client.getURI());
+				Request post = prepareRequest(client);
 				post.addMessageObserver(retransmissionDetector);
 				client.advanced(new TestHandler(post), post);
 			} else {
@@ -414,9 +422,10 @@ public class BenchmarkClient {
 	 * @param uri destination URI
 	 * @param endpoint local endpoint to exchange messages
 	 * @param executor
+	 * @param secondaryExecutor intended to be used for rare executing timers (e.g. cleanup tasks). 
 	 */
 	public BenchmarkClient(int index, int intervalMin, int intervalMax, URI uri, Endpoint endpoint,
-			ScheduledExecutorService executor) {
+			ScheduledExecutorService executor, ScheduledThreadPoolExecutor secondaryExecutor) {
 		int maxResourceSize = endpoint.getConfig().getInt(Keys.MAX_RESOURCE_BODY_SIZE);
 		if (executor == null) {
 			int threads = endpoint.getConfig().getInt(KEY_BENCHMARK_CLIENT_THREADS);
@@ -427,7 +436,7 @@ public class BenchmarkClient {
 			shutdown = false;
 		}
 		endpoint.addInterceptor(new MessageTracer());
-		endpoint.setExecutor(executorService);
+		endpoint.setExecutors(executorService, secondaryExecutor);
 		client = new CoapClient(uri);
 		server = new CoapServer(endpoint.getConfig());
 		Feed feed = new Feed(CoAP.Type.NON, index, maxResourceSize, intervalMin, intervalMax, executorService,
@@ -438,9 +447,9 @@ public class BenchmarkClient {
 				overallReverseResponsesDownCounter, notifiesCompleteTimeouts);
 		feed.addObserver(feedObserver);
 		server.add(feed);
-		server.setExecutor(executorService, true);
-		client.setExecutor(executorService, true);
-		endpoint.setExecutor(executorService);
+		server.setExecutors(executorService, secondaryExecutor, true);
+		client.setExecutors(executorService, secondaryExecutor, true);
+		endpoint.setExecutors(executorService, secondaryExecutor);
 		this.endpoint = endpoint;
 	}
 
@@ -460,8 +469,7 @@ public class BenchmarkClient {
 	 * @return {@code true} on success, {@code false} on failure.
 	 */
 	public boolean test() {
-		Request post = Request.newPost();
-		post.setURI(client.getURI());
+		Request post = prepareRequest(client);
 		try {
 			CoapResponse response = client.advanced(post);
 			if (response != null) {
@@ -500,8 +508,7 @@ public class BenchmarkClient {
 			if (requestsCounter.get() == 0) {
 				clientCounter.incrementAndGet();
 			}
-			final Request post = Request.newPost();
-			post.setURI(client.getURI());
+			Request post = prepareRequest(client);
 			post.addMessageObserver(retransmissionDetector);
 			client.advanced(new TestHandler(post), post);
 		} else {
@@ -510,13 +517,20 @@ public class BenchmarkClient {
 	}
 
 	/**
-	 * Stop client.
+	 * Stop benchmark.
+	 */
+	public void stop() {
+		if (stop.compareAndSet(false, true)) {
+			clientCounter.decrementAndGet();
+		}
+	}
+
+	/**
+	 * Destroy client.
 	 * 
 	 * @return number of requests processed by this client.
 	 */
-	public int stop() {
-		if (stop.compareAndSet(false, true)) {
-			clientCounter.decrementAndGet();
+	public int destroy() {
 			endpoint.stop();
 			server.stop();
 			if (shutdown) {
@@ -525,11 +539,10 @@ public class BenchmarkClient {
 			client.shutdown();
 			server.destroy();
 			endpoint.destroy();
-		}
 		return requestsCounter.get();
 	}
 
-	public static void main(String[] args) throws InterruptedException {
+	public static void main(String[] args) throws InterruptedException, IOException {
 
 		if (args.length == 0) {
 
@@ -576,7 +589,7 @@ public class BenchmarkClient {
 		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 		NetworkConfig serverConfig = NetworkConfig.createWithFile(REVERSE_SERVER_CONFIG_FILE,
 				REVERSE_SERVER_CONFIG_HEADER, REVERSE_DEFAULTS);
-		Arguments arguments = ClientInitializer.init(config, args);
+		Arguments arguments = ClientInitializer.init(config, args, true);
 		// random part of PSK identity
 		SecureRandom random = new SecureRandom();
 		byte[] id = new byte[8];
@@ -633,6 +646,9 @@ public class BenchmarkClient {
 		ScheduledExecutorService connectorExecutor = config.getInt(KEY_BENCHMARK_CLIENT_THREADS) == 0 ? executor : null;
 		boolean secure = CoAP.isSecureScheme(uri.getScheme());
 
+		ScheduledThreadPoolExecutor secondaryExecutor = new ScheduledThreadPoolExecutor(2,
+				new DaemonThreadFactory("CoapServer(secondary)#"));
+
 		System.out.format("Create %d %s%sbenchmark clients, expect to send %d request overall to %s%n", clients,
 				noneStop ? "none-stop " : "", secure ? "secure " : "", overallRequests, uri);
 
@@ -655,12 +671,12 @@ public class BenchmarkClient {
 			Arguments connectionArgs = arguments;
 			if (secure) {
 				random.nextBytes(id);
-				String name = ClientInitializer.PSK_IDENTITY_PREFIX + ByteArrayUtils.toHex(id);
+				String name = ClientInitializer.PSK_IDENTITY_PREFIX + StringUtil.byteArray2Hex(id);
 				connectionArgs = arguments.create(name, null);
 			}
-			CoapEndpoint coapEndpoint = ClientInitializer.createEndpoint(config, connectionArgs, connectorExecutor);
+			CoapEndpoint coapEndpoint = ClientInitializer.createEndpoint(config, connectionArgs, connectorExecutor, true);
 			final BenchmarkClient client = new BenchmarkClient(index, intervalMin, intervalMax, uri,
-					coapEndpoint, connectorExecutor);
+					coapEndpoint, connectorExecutor, secondaryExecutor);
 			clientList.add(client);
 			if (index == 0) {
 				// first client, so test request
@@ -790,7 +806,7 @@ public class BenchmarkClient {
 		int statistic[] = new int[clients];
 		for (int index = 0; index < clients; ++index) {
 			BenchmarkClient client = clientList.get(index);
-			statistic[index] = client.stop();
+			statistic[index] = client.destroy();
 		}
 		executor.shutdown();
 		statisticsLogger.info("{} requests sent, {} expected", overallSentRequests, overallRequests);
@@ -800,14 +816,14 @@ public class BenchmarkClient {
 			if (observe) {
 				statisticsLogger.info("{} notifies sent, {} expected, {} observe request", overallSentReverseResponses,
 						overallReverseResponses, overallObservationRegistrationCounter.get());
-				statisticsLogger.info("{} notifies in {}ms{}", overallSentReverseResponses,
+				statisticsLogger.info("{} notifies in {} ms{}", overallSentReverseResponses,
 						TimeUnit.NANOSECONDS.toMillis(reverseResponseNanos),
 						formatPerSecond("notifies", overallSentReverseResponses, reverseResponseNanos));
 				statisticsLogger.info("{} notifies could not be completed", notifiesCompleteTimeouts.get());
 			} else {
 				statisticsLogger.info("{} reverse-responses sent, {} expected", overallSentReverseResponses,
 						overallReverseResponses);
-				statisticsLogger.info("{} reverse-responses in {}ms{}", overallSentReverseResponses,
+				statisticsLogger.info("{} reverse-responses in {} ms{}", overallSentReverseResponses,
 						TimeUnit.NANOSECONDS.toMillis(reverseResponseNanos),
 						formatPerSecond("reverse-responses", overallSentReverseResponses, reverseResponseNanos));
 			}

@@ -25,6 +25,7 @@ package org.eclipse.californium.core.network;
 
 import java.util.ConcurrentModificationException;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Token;
@@ -208,4 +209,10 @@ public interface MessageExchangeStore {
 	 */
 	List<Exchange> findByToken(Token token);
 
+	/**
+	 * Set a scheduler to execute rare periodic task.
+	 * 
+	 * @param executor
+	 */
+	void setExecutor(ScheduledExecutorService executor);
 }

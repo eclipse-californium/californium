@@ -48,6 +48,7 @@ import java.util.List;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import org.eclipse.californium.elements.exception.EndpointMismatchException;
 import org.eclipse.californium.elements.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,19 +77,31 @@ public class UDPConnector implements Connector {
 
 	static final ThreadGroup ELEMENTS_THREAD_GROUP = new ThreadGroup("Californium/Elements"); //$NON-NLS-1$
 
-	protected volatile boolean running;
+	static {
+		ELEMENTS_THREAD_GROUP.setDaemon(false);
+	}
 
+	/** 
+	 * Provided local address. 
+	 */
 	protected final InetSocketAddress localAddr;
-
-	private DatagramSocket socket;
-
-	private volatile InetSocketAddress effectiveAddr;
-
-	private List<Thread> receiverThreads;
-	private List<Thread> senderThreads;
+	/**
+	 * List of receiver threads.
+	 */
+	private final List<Thread> receiverThreads = new LinkedList<Thread>();
+	/**
+	 * List of sender threads.
+	 */
+	private final List<Thread> senderThreads = new LinkedList<Thread>();
 
 	/** The outbound message queue. */
 	private final BlockingQueue<RawData> outgoing;
+
+	protected volatile boolean running;
+
+	private volatile DatagramSocket socket;
+
+	private volatile InetSocketAddress effectiveAddr;
 
 	/**
 	 * Endpoint context matcher for outgoing messages.
@@ -98,7 +111,7 @@ public class UDPConnector implements Connector {
 	private volatile EndpointContextMatcher endpointContextMatcher;
 
 	/** The receiver of incoming messages. */
-	private RawDataChannel receiver;
+	private volatile RawDataChannel receiver;
 
 	private int receiveBufferSize = UNDEFINED;
 	private int sendBufferSize = UNDEFINED;
@@ -175,12 +188,10 @@ public class UDPConnector implements Connector {
 		// start receiver and sender threads
 		LOGGER.info("UDPConnector starts up {} sender threads and {} receiver threads", senderCount, receiverCount);
 
-		receiverThreads = new LinkedList<Thread>();
 		for (int i = 0; i < receiverCount; i++) {
 			receiverThreads.add(new Receiver("UDP-Receiver-" + localAddr + "[" + i + "]"));
 		}
 
-		senderThreads = new LinkedList<Thread>();
 		for (int i = 0; i < senderCount; i++) {
 			senderThreads.add(new Sender("UDP-Sender-" + localAddr + "[" + i + "]"));
 		}
@@ -212,26 +223,36 @@ public class UDPConnector implements Connector {
 				return;
 			}
 			running = false;
+			
 			// stop all threads
-			if (senderThreads != null) {
-				for (Thread t : senderThreads) {
-					t.interrupt();
-				}
-				senderThreads.clear();
-				senderThreads = null;
+			for (Thread t : senderThreads) {
+				t.interrupt();
 			}
-			if (receiverThreads != null) {
-				for (Thread t : receiverThreads) {
-					t.interrupt();
-				}
-				receiverThreads.clear();
-				receiverThreads = null;
+			for (Thread t : receiverThreads) {
+				t.interrupt();
 			}
 			outgoing.drainTo(pending);
 			if (socket != null) {
 				socket.close();
 				socket = null;
 			}
+			// stop all threads
+			for (Thread t : senderThreads) {
+				t.interrupt();
+				try {
+					t.join(1000);
+				} catch (InterruptedException e) {
+				}
+			}
+			senderThreads.clear();
+			for (Thread t : receiverThreads) {
+				t.interrupt();
+				try {
+					t.join(1000);
+				} catch (InterruptedException e) {
+				}
+			}
+			receiverThreads.clear();
 			LOGGER.info("UDPConnector on [{}] has stopped.", effectiveAddr);
 		}
 		for (RawData data : pending) {
@@ -272,16 +293,13 @@ public class UDPConnector implements Connector {
 		this.endpointContextMatcher = matcher;
 	}
 
+	@Override
 	public InetSocketAddress getAddress() {
 		return effectiveAddr;
 	}
 
 	private void notifyMsgAsInterrupted(RawData msg) {
 		msg.onError(new InterruptedIOException("Connector is not running."));
-	}
-
-	private synchronized DatagramSocket getSocket() {
-		return socket;
 	}
 
 	private abstract class NetworkStageThread extends Thread {
@@ -305,6 +323,8 @@ public class UDPConnector implements Connector {
 						LOGGER.debug("Network stage thread [{}] was stopped successfully", getName());
 						break;
 					}
+				} catch (InterruptedIOException t) {
+					LOGGER.trace("Network stage thread [{}] was stopped successfully at:", getName(), t);
 				} catch (InterruptedException t) {
 					LOGGER.trace("Network stage thread [{}] was stopped successfully at:", getName(), t);
 				} catch (IOException t) {
@@ -339,7 +359,7 @@ public class UDPConnector implements Connector {
 
 		protected void work() throws IOException {
 			datagram.setLength(size);
-			DatagramSocket currentSocket = getSocket();
+			DatagramSocket currentSocket = socket;
 			if (currentSocket != null) {
 				currentSocket.receive(datagram);
 				if (datagram.getLength() >= size) {
@@ -389,7 +409,7 @@ public class UDPConnector implements Connector {
 			datagram.setData(raw.getBytes());
 			datagram.setSocketAddress(destinationAddress);
 
-			DatagramSocket currentSocket = getSocket();
+			DatagramSocket currentSocket = socket;
 			if (currentSocket != null) {
 				try {
 					raw.onContextEstablished(connectionContext);

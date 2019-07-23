@@ -81,7 +81,7 @@ public final class ConnectionIdExtension extends HelloExtension {
 	 * 
 	 * @param cid connection id
 	 * @return created connection id extension
-	 * @throw NullPointerException if cid is {@code null}
+	 * @throws NullPointerException if cid is {@code null}
 	 */
 	public static ConnectionIdExtension fromConnectionId(ConnectionId cid) {
 		if (cid == null) {
@@ -96,7 +96,7 @@ public final class ConnectionIdExtension extends HelloExtension {
 	 * @param extensionData extension data bytes
 	 * @param peerAddress peer address
 	 * @return created connection id extension
-	 * @throw NullPointerException if extensionData is {@code null}
+	 * @throws NullPointerException if extensionData is {@code null}
 	 * @throws HandshakeException if the extension data could not be decoded
 	 */
 	public static ConnectionIdExtension fromExtensionData(final byte[] extensionData,

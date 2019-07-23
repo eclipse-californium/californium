@@ -20,6 +20,7 @@
 		<assembly.mainClass>org.eclipse.californium.plugtests.PlugtestServer</assembly.mainClass>
 		<skipNexusStagingDeployMojo>false</skipNexusStagingDeployMojo>
 		<skipStaging>false</skipStaging>
+		<maven.javadoc.skip>false</maven.javadoc.skip>
 	</properties>
 
 	<dependencies>
@@ -35,7 +36,12 @@
 			<groupId>${project.groupId}</groupId>
 			<artifactId>scandium</artifactId>
 		</dependency>
-		
+
+		<dependency>
+			<groupId>com.upokecenter</groupId>
+			<artifactId>cbor</artifactId>
+		</dependency>
+
 		<!-- runtime dependencies -->
 		<dependency>
 			<groupId>${project.groupId}</groupId>
@@ -48,11 +54,7 @@
 		<plugins>
 			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
-				<configuration>
-					<descriptors>
-						<descriptor>enhanced-jar-with-licenses.xml</descriptor>
-					</descriptors>
-				</configuration>
+				<!-- inherit configuration from parent POM -->
 			</plugin>
 		</plugins>
 	</build>

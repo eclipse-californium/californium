@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.network.Endpoint;
@@ -253,7 +254,15 @@ public interface Resource {
 	 * @return the executor
 	 */
 	public ExecutorService getExecutor();
-	
+
+	/**
+	 * Gets the scheduled executor of this resource. Generally used for rare
+	 * executing timers (e.g. cleanup tasks).
+	 *
+	 * @return the executor
+	 */
+	public ScheduledThreadPoolExecutor getSecondaryExecutor();
+
 	/**
 	 * Gets the endpoints this resource is bound to. As long as a resource is
 	 * not added to a server, it should return an empty list. After a resource

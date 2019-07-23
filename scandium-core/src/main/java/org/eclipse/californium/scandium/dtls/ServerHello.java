@@ -150,7 +150,7 @@ public final class ServerHello extends HandshakeMessage {
 		writer.write(serverVersion.getMajor(), VERSION_BITS);
 		writer.write(serverVersion.getMinor(), VERSION_BITS);
 
-		writer.writeBytes(random.getRandomBytes());
+		writer.writeBytes(random.getBytes());
 
 		writer.write(sessionId.length(), SESSION_ID_LENGTH_BITS);
 		writer.writeBytes(sessionId.getBytes());

@@ -25,13 +25,13 @@
 package org.eclipse.californium.core.network.deduplication;
 
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,6 +56,7 @@ public class CropRotation implements Deduplicator {
 
 	private final long period;
 	private final Rotation rotation;
+	private ScheduledExecutorService executor;
 
 	/**
 	 * Creates a new crop rotation deduplicator for configuration properties.
@@ -81,7 +82,7 @@ public class CropRotation implements Deduplicator {
 	@Override
 	public synchronized void start() {
 		if (jobStatus == null) {
-			jobStatus = ExecutorsUtil.getScheduledExecutor().scheduleAtFixedRate(rotation, period, period,
+			jobStatus = executor.scheduleAtFixedRate(rotation, period, period,
 					TimeUnit.MILLISECONDS);
 		}
 	}
@@ -93,6 +94,13 @@ public class CropRotation implements Deduplicator {
 			jobStatus = null;
 			clear();
 		}
+	}
+
+	@Override
+	public synchronized void setExecutor(ScheduledExecutorService executor) {
+		if (jobStatus != null)
+			throw new IllegalStateException("executor service can not be set on running Deduplicator");
+		this.executor = executor;
 	}
 
 	@Override

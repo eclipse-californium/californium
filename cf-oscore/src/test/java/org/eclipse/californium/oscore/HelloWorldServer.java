@@ -30,7 +30,7 @@ import org.eclipse.californium.cose.AlgorithmID;
  */
 public class HelloWorldServer {
 
-	private final static HashMapCtxDB db = HashMapCtxDB.getInstance();
+	private final static HashMapCtxDB db = new HashMapCtxDB();
 	private final static String uriLocal = "coap://localhost";
 	private final static AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
 	private final static AlgorithmID kdf = AlgorithmID.HKDF_HMAC_SHA_256;
@@ -46,7 +46,7 @@ public class HelloWorldServer {
 	public static void main(String[] args) throws OSException {
 		OSCoreCtx ctx = new OSCoreCtx(master_secret, false, alg, sid, rid, kdf, 32, master_salt, null);
 		db.addContext(uriLocal, ctx);
-		OSCoreCoapStackFactory.useAsDefault();
+		OSCoreCoapStackFactory.useAsDefault(db);
 
 		final CoapServer server = new CoapServer(5683);
 

@@ -24,28 +24,44 @@ import static org.junit.Assert.*;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
 
+import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.SerialExecutor;
+import org.eclipse.californium.elements.util.TestThreadFactory;
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 @Category(Small.class)
 public class InMemoryConnectionStoreTest {
+	@Rule
+	public ThreadsRule cleanup = new ThreadsRule();
 
 	private static final int INITIAL_CAPACITY = 10;
 	InMemoryConnectionStore store;
+	ExecutorService executor;
 	Connection con;
 	SessionId sessionId;
 
 	@Before
 	public void setUp() throws Exception {
+		executor = ExecutorsUtil.newFixedThreadPool(1, new TestThreadFactory("TEST-SERIALEXECUTOR-"));
 		store = new InMemoryConnectionStore(INITIAL_CAPACITY, 1000);
+		store.attach(null);
 		con = newConnection(50L);
 		sessionId = con.getEstablishedSession().getSessionIdentifier();
+	}
+
+	@After
+	public void tearDown() throws Exception {
+		ExecutorsUtil.shutdownExecutorGracefully(100, executor);
 	}
 
 	@Test
@@ -100,7 +116,7 @@ public class InMemoryConnectionStoreTest {
 		// GIVEN an empty connection store with a cached session shared by another node
 		SessionCache sessionCache = new InMemorySessionCache();
 		sessionCache.put(con.getEstablishedSession());
-		store = new InMemoryConnectionStore(null, INITIAL_CAPACITY, 1000, sessionCache);
+		store = new InMemoryConnectionStore(INITIAL_CAPACITY, 1000, sessionCache);
 
 		// WHEN retrieving the connection for the given peer
 		Connection connectionWithPeer = store.find(sessionId);
@@ -119,7 +135,8 @@ public class InMemoryConnectionStoreTest {
 		// and a (local) connection based on this session
 		SessionCache sessionCache = new InMemorySessionCache();
 		sessionCache.put(con.getEstablishedSession());
-		store = new InMemoryConnectionStore(null, INITIAL_CAPACITY, 1000, sessionCache);
+		store = new InMemoryConnectionStore(INITIAL_CAPACITY, 1000, sessionCache);
+		store.attach(null);
 		store.put(con);
 		store.putEstablishedSession(con.getEstablishedSession(), con);
 		InetSocketAddress peerAddress = con.getPeerAddress();
@@ -131,6 +148,18 @@ public class InMemoryConnectionStoreTest {
 		Connection connectionToResume = store.find(sessionId);
 		assertThat(connectionToResume, is(nullValue()));
 		assertThat(store.get(peerAddress), is(nullValue()));
+	}
+
+	@Test
+	public void testRemoveShutsdownExecutor() throws Exception {
+		// given a non-empty connection store
+		store.put(con);
+
+		// when clearing the store
+		store.remove(con);
+
+		// assert that the executor is shutdown
+		assertThat(con.getExecutor().isShutdown(), is(true));
 	}
 
 	@Test
@@ -275,7 +304,7 @@ public class InMemoryConnectionStoreTest {
 	private Connection newConnection(long ip) throws HandshakeException, UnknownHostException {
 		InetAddress addr = InetAddress.getByAddress(longToIp(ip));
 		InetSocketAddress peerAddress = new InetSocketAddress(addr, 0);
-		Connection con = new Connection(peerAddress, new TestSerialExecutor());
+		Connection con = new Connection(peerAddress, new TestSerialExecutor(executor));
 		con.getSessionListener().sessionEstablished(null, newSession(peerAddress));
 		return con;
 	}
@@ -296,8 +325,8 @@ public class InMemoryConnectionStoreTest {
 
 	private static class TestSerialExecutor extends SerialExecutor {
 
-		private TestSerialExecutor() {
-			super(ExecutorsUtil.getScheduledExecutor());
+		private TestSerialExecutor(Executor executor) {
+			super(executor);
 		}
 
 		/**

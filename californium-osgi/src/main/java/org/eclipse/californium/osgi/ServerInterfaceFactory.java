@@ -24,7 +24,7 @@ import org.eclipse.californium.core.server.ServerInterface;
  * This factory is used by the {@link ManagedServer} in order to create a new server instance
  * when properties are updated via OSGi's Config Admin Service.
  */
-interface ServerInterfaceFactory {
+public interface ServerInterfaceFactory {
 	
 	/**
 	 * Creates a new {@link ServerInterface} instance.

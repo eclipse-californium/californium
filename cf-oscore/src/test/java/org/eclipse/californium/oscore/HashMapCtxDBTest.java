@@ -50,8 +50,6 @@ public class HashMapCtxDBTest {
 
 	@Before
 	public void setUp() throws Exception {
-		HashMapCtxDB db = HashMapCtxDB.getInstance();
-		db.purge();
 	}
 
 	@After
@@ -60,7 +58,7 @@ public class HashMapCtxDBTest {
 
 	@Test
 	public void testGetContextNull() throws OSException {
-		HashMapCtxDB db = HashMapCtxDB.getInstance();
+		HashMapCtxDB db = new HashMapCtxDB();
 
 		assertNull(db.getContext(rid));
 		assertNull(db.getContext(uri));
@@ -69,7 +67,7 @@ public class HashMapCtxDBTest {
 
 	@Test
 	public void testAddGetContextRid() throws OSException {
-		HashMapCtxDB db = HashMapCtxDB.getInstance();
+		HashMapCtxDB db = new HashMapCtxDB();
 		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, AlgorithmID.HKDF_HMAC_SHA_256, 32, null,
 				null);
 		db.addContext(ctx);
@@ -82,7 +80,7 @@ public class HashMapCtxDBTest {
 
 	@Test
 	public void testAddGetContextUri() throws OSException {
-		HashMapCtxDB db = HashMapCtxDB.getInstance();
+		HashMapCtxDB db = new HashMapCtxDB();
 		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, AlgorithmID.HKDF_HMAC_SHA_256, 32, null,
 				null);
 		db.addContext(uri, ctx);
@@ -96,7 +94,7 @@ public class HashMapCtxDBTest {
 
 	@Test
 	public void testAddGetContextToken() throws OSException {
-		HashMapCtxDB db = HashMapCtxDB.getInstance();
+		HashMapCtxDB db = new HashMapCtxDB();
 		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, AlgorithmID.HKDF_HMAC_SHA_256, 32, null,
 				null);
 		db.addContext(token, ctx);
@@ -110,7 +108,7 @@ public class HashMapCtxDBTest {
 
 	@Test
 	public void testNullSeqByToken() throws OSException {
-		HashMapCtxDB db = HashMapCtxDB.getInstance();
+		HashMapCtxDB db = new HashMapCtxDB();
 		exception.expect(NullPointerException.class);
 
 		db.addSeqByToken(token, null);
@@ -118,7 +116,7 @@ public class HashMapCtxDBTest {
 
 	@Test
 	public void testSeqByNullToken() throws OSException {
-		HashMapCtxDB db = HashMapCtxDB.getInstance();
+		HashMapCtxDB db = new HashMapCtxDB();
 		exception.expect(NullPointerException.class);
 
 		db.addSeqByToken(null, seq);
@@ -126,7 +124,7 @@ public class HashMapCtxDBTest {
 
 	@Test
 	public void testSeqBytToken() throws OSException {
-		HashMapCtxDB db = HashMapCtxDB.getInstance();
+		HashMapCtxDB db = new HashMapCtxDB();
 		db.addSeqByToken(token, seq);
 
 		assertEquals(seq, db.getSeqByToken(token));
@@ -135,7 +133,7 @@ public class HashMapCtxDBTest {
 
 	@Test
 	public void testRemoveSeqBytToken() throws OSException {
-		HashMapCtxDB db = HashMapCtxDB.getInstance();
+		HashMapCtxDB db = new HashMapCtxDB();
 		db.addSeqByToken(token, seq);
 		db.removeSeqByToken(token);
 
@@ -145,7 +143,7 @@ public class HashMapCtxDBTest {
 
 	@Test
 	public void testUpdateNonExistentSeqByToken() {
-		HashMapCtxDB db = HashMapCtxDB.getInstance();
+		HashMapCtxDB db = new HashMapCtxDB();
 
 		try {
 			db.updateSeqByToken(null, seq);
@@ -166,7 +164,7 @@ public class HashMapCtxDBTest {
 
 	@Test
 	public void testTokenExists() throws OSException {
-		HashMapCtxDB db = HashMapCtxDB.getInstance();
+		HashMapCtxDB db = new HashMapCtxDB();
 		db.addSeqByToken(token, seq);
 
 		assertTrue(db.tokenExist(token));

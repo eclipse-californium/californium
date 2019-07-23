@@ -89,5 +89,6 @@ public class CocoaClient {
 			semaphore.acquire(NUMBER);
 		} catch (InterruptedException e) {
 		}
+		client.shutdown();
 	}
 }

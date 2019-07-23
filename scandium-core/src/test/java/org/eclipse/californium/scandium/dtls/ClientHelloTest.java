@@ -22,7 +22,6 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.*;
 
 import java.net.InetSocketAddress;
-import java.security.SecureRandom;
 import java.util.Collections;
 import java.util.List;
 
@@ -101,7 +100,7 @@ public class ClientHelloTest {
 	}
 
 	private void givenAClientHelloWithEmptyExtensions() {
-		clientHello = new ClientHello(new ProtocolVersion(), new SecureRandom(), Collections.<CipherSuite> emptyList(),
+		clientHello = new ClientHello(new ProtocolVersion(), Collections.<CipherSuite> emptyList(),
 				null, null, peerAddress);
 	}
 
@@ -110,7 +109,7 @@ public class ClientHelloTest {
 			List<CertificateType> supportedClientCertTypes,
 			List<CertificateType> supportedServerCertTypes) {
 
-		clientHello = new ClientHello(new ProtocolVersion(), new SecureRandom(), supportedCipherSuites, null, null,
+		clientHello = new ClientHello(new ProtocolVersion(), supportedCipherSuites, null, null,
 				peerAddress);
 	}
 	

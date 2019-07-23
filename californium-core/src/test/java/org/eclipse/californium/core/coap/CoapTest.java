@@ -30,7 +30,9 @@ import org.eclipse.californium.core.coap.CoAP.CodeClass;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.core.coap.CoAP.MessageFormat;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -41,6 +43,8 @@ import static org.hamcrest.core.Is.is;
  */
 @Category(Small.class)
 public class CoapTest {
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
 
 	@Test
 	public void testType() {

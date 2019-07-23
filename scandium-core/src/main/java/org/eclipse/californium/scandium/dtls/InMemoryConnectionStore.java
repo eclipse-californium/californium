@@ -35,8 +35,8 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
+import java.util.Iterator;
 import java.util.List;
-import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -87,11 +87,16 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	private static final int DEFAULT_CACHE_SIZE = 150000;
 	private static final long DEFAULT_EXPIRATION_THRESHOLD = 36 * 60 * 60; // 36h
 	private final SessionCache sessionCache;
-	private final Random random = new Random(System.currentTimeMillis());
-	private final int cidLength;
 	protected final LeastRecentlyUsedCache<ConnectionId, Connection> connections;
 	protected final ConcurrentMap<InetSocketAddress, Connection> connectionsByAddress;
 	protected final ConcurrentMap<SessionId, Connection> connectionsByEstablishedSession;
+
+	/**
+	 * Connection id generator.
+	 * 
+	 * @see #attach(ConnectionIdGenerator)
+	 */
+	private ConnectionIdGenerator connectionIdGenerator;
 
 	protected String tag = "";
 
@@ -100,7 +105,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	 * a connection expiration threshold of 36 hours.
 	 */
 	public InMemoryConnectionStore() {
-		this(null, DEFAULT_CACHE_SIZE, DEFAULT_EXPIRATION_THRESHOLD, null);
+		this(DEFAULT_CACHE_SIZE, DEFAULT_EXPIRATION_THRESHOLD, null);
 	}
 
 	/**
@@ -111,7 +116,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	 *            connection state of established DTLS sessions.
 	 */
 	public InMemoryConnectionStore(final SessionCache sessionCache) {
-		this(null, DEFAULT_CACHE_SIZE, DEFAULT_EXPIRATION_THRESHOLD, sessionCache);
+		this(DEFAULT_CACHE_SIZE, DEFAULT_EXPIRATION_THRESHOLD, sessionCache);
 	}
 
 	/**
@@ -123,15 +128,12 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	 *            a new connection is to be added to the store
 	 */
 	public InMemoryConnectionStore(final int capacity, final long threshold) {
-		this(null, capacity, threshold, null);
+		this(capacity, threshold, null);
 	}
 
 	/**
 	 * Creates a store based on given configuration parameters.
 	 * 
-	 * @param cidLength connection id length. If {@code null} or {@code 0}, the
-	 *            number of bytes required for the provided capacity plus
-	 *            {@link #DEFAULT_EXTRA_CID_LENGTH} is used.
 	 * @param capacity the maximum number of connections the store can manage
 	 * @param threshold the period of time of inactivity (in seconds) after
 	 *            which a connection is considered stale and can be evicted from
@@ -141,24 +143,13 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	 *            {@link ClientSessionCache}, restore connection from the cache
 	 *            and mark them to resume.
 	 */
-	public InMemoryConnectionStore(final Integer cidLength, final int capacity, final long threshold, final SessionCache sessionCache) {
+	public InMemoryConnectionStore(int capacity, long threshold, SessionCache sessionCache) {
 		this.connections = new LeastRecentlyUsedCache<>(capacity, threshold);
 		this.connections.setEvictingOnReadAccess(false);
 		this.connections.setUpdatingOnReadAccess(false);
 		this.connectionsByEstablishedSession = new ConcurrentHashMap<>();
 		this.connectionsByAddress = new ConcurrentHashMap<>();
 		this.sessionCache = sessionCache;
-
-		if (cidLength == null || cidLength == 0) {
-			// get number of used bits for capacity to determine the number of used bytes
-			// e.g.: capacity   : 30000 => 111 0101 0011 0000 => 15 [bits]
-			//       to bytes   : => (15 + 7) [bits] / 8 [bits per byte] => 2 [bytes]
-			//       cid length : => 2 + DEFAULT_EXTRA_CID_LENGTH
-			int bits = Integer.SIZE - Integer.numberOfLeadingZeros(capacity);
-			this.cidLength = ((bits + 7)/ 8) + DEFAULT_EXTRA_CID_LENGTH;
-		} else {
-			this.cidLength = cidLength;
-		}
 
 		if (sessionCache != null) {
 			// make sure that session state for stale (evicted) connections is removed from second level cache
@@ -189,27 +180,6 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 				}
 			});
 
-			if (sessionCache instanceof ClientSessionCache) {
-				ClientSessionCache clientCache = (ClientSessionCache) sessionCache;
-				LOG.debug("resume client sessions {}", clientCache);
-				for (InetSocketAddress peer : clientCache) {
-					SessionTicket ticket = clientCache.getSessionTicket(peer);
-					SessionId id = clientCache.getSessionIdentity(peer);
-					if (ticket != null && id != null) {
-						// restore connection from session ticket
-						Connection connection = new Connection(ticket, id, peer);
-						ConnectionId connectionId = newConnectionId();
-						if (connectionId != null) {
-							connection.setConnectionId(connectionId);
-							connections.put(connectionId, connection);
-							connectionsByAddress.put(peer, connection);
-							LOG.debug("resume {} {}", peer, id);
-						} else {
-							LOG.info("drop session {} {}, could not allocated cid!", peer, id);
-						}
-					}
-				}
-			}
 		}
 		LOG.info("Created new InMemoryConnectionStore [capacity: {}, connection expiration threshold: {}s]",
 				capacity, threshold);
@@ -219,6 +189,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	 * Set tag for logging outputs.
 	 * 
 	 * @param tag tag for logging
+	 * @return this connection store for calls chaining
 	 */
 	public synchronized InMemoryConnectionStore setTag(final String tag) {
 		if (tag.isEmpty() || tag.endsWith(" ")) {
@@ -234,12 +205,12 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	 * 
 	 * @return connection id, or {@code null}, if no free connection id could
 	 *         created
+	 * @see #internalConnectionIdGenerator
+	 * @see ConnectionIdGenerator
 	 */
 	private ConnectionId newConnectionId() {
-		byte[] cidBytes = new byte[cidLength];
 		for (int i = 0; i < 10; ++i) {
-			random.nextBytes(cidBytes);
-			ConnectionId cid = new ConnectionId(cidBytes);
+			ConnectionId cid = connectionIdGenerator.createConnectionId();
 			if (connections.get(cid) == null) {
 				return cid;
 			}
@@ -247,8 +218,40 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		return null;
 	}
 
-	public int getConnectionIdLength() {
-		return cidLength;
+	@Override
+	public void attach(ConnectionIdGenerator connectionIdGenerator) {
+		if (this.connectionIdGenerator != null) {
+			throw new IllegalStateException("Connection id generator already attached!");
+		}
+		if (connectionIdGenerator == null || !connectionIdGenerator.useConnectionId()) {
+			int bits = Integer.SIZE - Integer.numberOfLeadingZeros(connections.getCapacity());
+			int cidLength = ((bits + 7) / 8) + DEFAULT_EXTRA_CID_LENGTH;
+			this.connectionIdGenerator = new SingleNodeConnectionIdGenerator(cidLength);
+		} else {
+			this.connectionIdGenerator = connectionIdGenerator;
+		}	
+		if (sessionCache instanceof ClientSessionCache) {
+			ClientSessionCache clientCache = (ClientSessionCache) sessionCache;
+			LOG.debug("resume client sessions {}", clientCache);
+			for (InetSocketAddress peer : clientCache) {
+				SessionTicket ticket = clientCache.getSessionTicket(peer);
+				SessionId id = clientCache.getSessionIdentity(peer);
+				if (ticket != null && id != null) {
+					// restore connection from session ticket
+					Connection connection = new Connection(ticket, id, peer);
+					ConnectionId connectionId = newConnectionId();
+					if (connectionId != null) {
+						connection.setConnectionId(connectionId);
+						connections.put(connectionId, connection);
+						connectionsByAddress.put(peer, connection);
+						LOG.debug("{}resume {} {}", tag, peer, id);
+					} else {
+						LOG.info("{}drop session {} {}, could not allocated cid!", tag, peer, id);
+					}
+				}
+			}
+		}
+		
 	}
 	
 
@@ -275,6 +278,9 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 			}
 			ConnectionId connectionId = connection.getConnectionId();
 			if (connectionId == null) {
+				if (connectionIdGenerator == null) {
+					throw new IllegalStateException("Connection id generator must be attached before!");
+				}
 				connectionId = newConnectionId();
 				if (connectionId == null) {
 					throw new IllegalStateException("Connection ids exhausted!");
@@ -412,6 +418,15 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	private synchronized Connection findLocally(final SessionId id) {
 		Connection connection = connectionsByEstablishedSession.get(id);
 		if (connection != null) {
+			DTLSSession establishedSession = connection.getEstablishedSession();
+			if (establishedSession != null) {
+				if (!establishedSession.getSessionIdentifier().equals(id)) {
+					LOG.warn("{}connection {} changed session {}!={}!", tag, connection.getConnectionId(), id,
+							establishedSession.getSessionIdentifier());
+				}
+			} else {
+				LOG.warn("{}connection {} lost session {}!", tag, connection.getConnectionId(), id);
+			}
 			connections.update(connection.getConnectionId());
 		}
 		return connection;
@@ -439,6 +454,13 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		Connection connection = connectionsByAddress.get(peerAddress);
 		if (connection == null) {
 			LOG.debug("{}connection: missing connection for {}!", tag, peerAddress);
+		} else {
+			InetSocketAddress address = connection.getPeerAddress();
+			if (address == null) {
+				LOG.warn("{}connection {} lost ip-address {}!", tag, connection.getConnectionId(), peerAddress);
+			} else if (!address.equals(peerAddress)) {
+				LOG.warn("{}connection {} changed ip-address {}!={}!", tag, connection.getConnectionId(), peerAddress, address);
+			}
 		}
 		return connection;
 	}
@@ -448,6 +470,13 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		Connection connection = connections.get(cid);
 		if (connection == null) {
 			LOG.debug("{}connection: missing connection for {}!", tag, cid);
+		} else {
+			ConnectionId connectionId = connection.getConnectionId();
+			if (connectionId == null) {
+				LOG.warn("{}connection lost cid {}!", tag,  cid);
+			} else if (!connectionId.equals(cid)) {
+				LOG.warn("{}connection changed cid {}!={}!", tag, connectionId, cid);
+			}
 		}
 		return connection;
 	}
@@ -461,10 +490,15 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	public synchronized boolean remove(final Connection connection, final boolean removeFromSessionCache) {
 		boolean removed = connections.remove(connection.getConnectionId(), connection) == connection;
 		if (removed) {
+			List<Runnable> pendings = connection.getExecutor().shutdownNow();
 			if (LOG.isTraceEnabled()) {
-				LOG.trace("{}connection: remove {} (size {})", tag, connection, connections.size(), new Throwable("connection removed!"));
-			} else {
+				LOG.trace("{}connection: remove {} (size {}, left jobs: {})", tag, connection, connections.size(),
+						pendings.size(), new Throwable("connection removed!"));
+			} else if (pendings.isEmpty()) {
 				LOG.debug("{}connection: remove {} (size {})", tag, connection, connections.size());
+			} else {
+				LOG.debug("{}connection: remove {} (size {}, left jobs: {})", tag, connection, connections.size(),
+						pendings.size());
 			}
 			removeFromEstablishedSessions(connection);
 			removeFromAddressConnections(connection);
@@ -486,8 +520,8 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	private void removeFromAddressConnections(Connection connection) {
 		InetSocketAddress peerAddress = connection.getPeerAddress();
 		if (peerAddress != null) {
-			connection.updatePeerAddress(null);
 			connectionsByAddress.remove(peerAddress, connection);
+			connection.updatePeerAddress(null);
 		}
 	}
 
@@ -553,4 +587,15 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 			}
 		}
 	}
+
+	/**
+	 * {@inheritDoc}
+	 * 
+	 * @see LeastRecentlyUsedCache#valuesIterator()
+	 */
+	@Override
+	public Iterator<Connection> iterator() {
+		return connections.valuesIterator();
+	}
+
 }

@@ -34,16 +34,17 @@ import java.util.List;
 
 import javax.crypto.Cipher;
 import javax.crypto.Mac;
+import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 
+import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.scandium.dtls.cipher.CCMBlockCipher;
-import org.eclipse.californium.scandium.dtls.cipher.CipherManager;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.AeadBlockCipher;
 import org.eclipse.californium.scandium.dtls.cipher.InvalidMacException;
-import org.eclipse.californium.scandium.util.ByteArrayUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -111,7 +112,7 @@ public class Record {
 	/** The connection id. */
 	private ConnectionId connectionId;
 
-	/** padding to be used, if cid is used */
+	/** Padding to be used with cid */
 	private int padding;
 
 	/** The DTLS session. */
@@ -119,6 +120,13 @@ public class Record {
 
 	/** The peer address. */
 	private InetSocketAddress peerAddress;
+
+	/**
+	 * Receive time in uptime nanoseconds.
+	 * 
+	 * @link {@link ClockUtil#nanoRealtime()}
+	 */
+	private final long receiveNanos;
 
 	// Constructors ///////////////////////////////////////////////////
 
@@ -135,14 +143,16 @@ public class Record {
 	 * @param sequenceNumber the sequence number
 	 * @param connectionId the connection id
 	 * @param fragmentBytes the encrypted data
+	 * @param peerAddress peer address
+	 * @param receiveNanos uptime nanoseconds of receiving this record
 	 * @throws IllegalArgumentException if the given sequence number is longer
 	 *             than 48 bits or less than 0. Or the given epoch is less than 0.
 	 * @throws NullPointerException if the given type, protocol version,
 	 *             fragment bytes or peer address is {@code null}.
 	 */
 	Record(ContentType type, ProtocolVersion version, int epoch, long sequenceNumber, ConnectionId connectionId,
-			byte[] fragmentBytes, InetSocketAddress peerAddress) {
-		this(version, epoch, sequenceNumber);
+			byte[] fragmentBytes, InetSocketAddress peerAddress, long receiveNanos) {
+		this(version, epoch, sequenceNumber, receiveNanos);
 		if (type == null) {
 			throw new NullPointerException("Type must not be null");
 		} else if (fragmentBytes == null) {
@@ -177,11 +187,11 @@ public class Record {
 	 *            Otherwise use {@code null} as connection id
 	 * @param pad if cid is enabled, pad could be used to add that number of
 	 *            zero-bytes as padding to the payload to obfuscate the payload
-	 *            length
+	 *            length.
 	 * @throws IllegalArgumentException if the given sequence number is longer
-	 *             than 48 bits or less than 0, the given epoch is less than
-	 *             0, the provided type is not supported or the fragment could
-	 *             not be converted into bytes.
+	 *             than 48 bits or less than 0, the given epoch is less than 0,
+	 *             the provided type is not supported or the fragment could not
+	 *             be converted into bytes.
 	 * @throws NullPointerException if the given type, fragment or session is
 	 *             {@code null}.
 	 * @throws GeneralSecurityException if the message could not be encrypted,
@@ -190,7 +200,7 @@ public class Record {
 	 */
 	public Record(ContentType type, int epoch, long sequenceNumber, DTLSMessage fragment, DTLSSession session,
 			boolean cid, int pad) throws GeneralSecurityException {
-		this(new ProtocolVersion(), epoch, sequenceNumber);
+		this(new ProtocolVersion(), epoch, sequenceNumber, 0);
 		if (fragment == null) {
 			throw new NullPointerException("Fragment must not be null");
 		} else if (session == null) {
@@ -227,7 +237,7 @@ public class Record {
 	 *             is {@code null}.
 	 */
 	public Record(ContentType type, long sequenceNumber, DTLSMessage fragment, InetSocketAddress peerAddress) {
-		this(new ProtocolVersion(), 0, sequenceNumber);
+		this(new ProtocolVersion(), 0, sequenceNumber, 0);
 		if (fragment == null) {
 			throw new NullPointerException("Fragment must not be null");
 		} else if (peerAddress == null) {
@@ -242,7 +252,7 @@ public class Record {
 		}
 	}
 
-	private Record(ProtocolVersion version, int epoch, long sequenceNumber) {
+	private Record(ProtocolVersion version, int epoch, long sequenceNumber, long receiveNanos) {
 		if (sequenceNumber > MAX_SEQUENCE_NO) {
 			throw new IllegalArgumentException("Sequence number must be 48 bits only! " + sequenceNumber);
 		} else if (sequenceNumber < 0) {
@@ -255,6 +265,7 @@ public class Record {
 		this.version = version;
 		this.epoch = epoch;
 		this.sequenceNumber = sequenceNumber;
+		this.receiveNanos = receiveNanos;
 	}
 
 	// Serialization //////////////////////////////////////////////////
@@ -288,18 +299,20 @@ public class Record {
 	}
 
 	/**
-	 * Parses a sequence of <em>DTLSCiphertext</em> structures into <code>Record</code> instances.
+	 * Parses a sequence of <em>DTLSCiphertext</em> structures into {@code Record}> instances.
 	 * 
 	 * The binary representation is expected to comply with the <em>DTLSCiphertext</em> structure
 	 * defined in <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1">RFC6347, Section 4.3.1</a>.
 	 * 
-	 * @param byteArray the raw binary representation containing one or more DTLSCiphertext strctures
+	 * @param byteArray the raw binary representation containing one or more DTLSCiphertext structures
 	 * @param peerAddress the IP address and port of the peer from which the bytes have been
 	 *           received
-	 * @return the <code>Record</code> instances
-	 * @throws NullPointerException if either one of the byte array or peer address is <code>null</code>
+	 * @param cidGenerator the connection id generator. May be {@code null}.
+	 * @param receiveNanos uptime nanoseconds of receiving this record
+	 * @return the {@code Record} instances
+	 * @throws NullPointerException if either one of the byte array or peer address is {@code null}
 	 */
-	public static List<Record> fromByteArray(byte[] byteArray, InetSocketAddress peerAddress, Integer connectionIdLength) {
+	public static List<Record> fromByteArray(byte[] byteArray, InetSocketAddress peerAddress, ConnectionIdGenerator cidGenerator, long receiveNanos) {
 		if (byteArray == null) {
 			throw new NullPointerException("Byte array must not be null");
 		} else if (peerAddress == null) {
@@ -327,14 +340,23 @@ public class Record {
 
 			ConnectionId connectionId = null;
 			if (type == ContentType.TLS12_CID.getCode()) {
-				if (connectionIdLength == null) {
+				if (cidGenerator == null) {
 					LOGGER.debug("Received TLS_CID record, but cid is not supported. Discarding ...");
-					continue;
-				} else if (connectionIdLength == 0) {
-					LOGGER.debug("Received TLS_CID record, but cid is not used. Discarding ...", type);
-					continue;
+					return records;
+				} else if (cidGenerator.useConnectionId()) {
+					try {
+						connectionId = cidGenerator.read(reader);
+						if (connectionId == null) {
+							LOGGER.debug("Received TLS_CID record, but cid is not matching. Discarding ...");
+							return records;
+						}
+					} catch (RuntimeException ex) {
+						LOGGER.debug("Received TLS_CID record, failed to read cid. Discarding ...", ex.getMessage());
+						return records;
+					}
 				} else {
-					connectionId = new ConnectionId(reader.readBytes(connectionIdLength));
+					LOGGER.debug("Received TLS_CID record, but cid is not used. Discarding ...");
+					return records;
 				}
 			}
 			int length = reader.read(LENGTH_BITS);
@@ -352,7 +374,7 @@ public class Record {
 				LOGGER.debug("Received DTLS record of unsupported type [{}]. Discarding ...", type);
 			} else {
 				records.add(new Record(contentType, version, epoch, sequenceNumber, connectionId, fragmentBytes,
-						peerAddress));
+						peerAddress, receiveNanos));
 			}
 		}
 
@@ -434,15 +456,15 @@ public class Record {
 		case NULL:
 			// do nothing
 			break;
-			
+
 		case AEAD:
 			result = decryptAEAD(ciphertextFragment, currentReadState);
 			break;
-			
+
 		case BLOCK:
 			result = decryptBlockCipher(ciphertextFragment, currentReadState);
 			break;
-			
+
 		case STREAM:
 			// Currently, Scandium does not support any stream ciphers
 			// RC4 is explicitly ruled out from being used in DTLS
@@ -504,18 +526,16 @@ public class Record {
 		plaintext.writeBytes(getBlockCipherMac(writeState, compressedFragment));
 
 		// determine padding length
-		int ciphertextLength = compressedFragment.length + writeState.getCipherSuite().getMacLength() + 1;
-		int smallestMultipleOfBlocksize = writeState.getRecordIvLength();
-		while ( smallestMultipleOfBlocksize <= ciphertextLength) {
-			smallestMultipleOfBlocksize += writeState.getRecordIvLength();
-		}
-		int paddingLength = smallestMultipleOfBlocksize % ciphertextLength;
+		int ciphertextLength = compressedFragment.length + writeState.getMacLength() + 1;
+		int blocksize = writeState.getRecordIvLength();
+		int lastBlockBytes = ciphertextLength % blocksize;
+		int paddingLength = lastBlockBytes > 0 ? blocksize - lastBlockBytes : 0;
 
-		// create padding
+ 		// create padding
 		byte[] padding = new byte[paddingLength + 1];
 		Arrays.fill(padding, (byte) paddingLength);
 		plaintext.writeBytes(padding);
-		Cipher blockCipher = CipherManager.getInstance(writeState.getCipherSuite().getTransformation());
+		Cipher blockCipher = writeState.getCipherSuite().getCipher();
 		blockCipher.init(Cipher.ENCRYPT_MODE, writeState.getEncryptionKey());
 
 		// create GenericBlockCipher structure
@@ -559,14 +579,18 @@ public class Record {
 			throw new NullPointerException("Current read state must not be null");
 		} else if (ciphertextFragment == null) {
 			throw new NullPointerException("Ciphertext must not be null");
+		} else if (ciphertextFragment.length < currentReadState.getRecordIvLength() + currentReadState.getMacLength()
+				+ 1) {
+			throw new GeneralSecurityException("Ciphertext too short!");
 		}
+
 		/*
 		 * See http://tools.ietf.org/html/rfc5246#section-6.2.3.2 for
 		 * explanation
 		 */
 		DatagramReader reader = new DatagramReader(ciphertextFragment);
 		byte[] iv = reader.readBytes(currentReadState.getRecordIvLength());
-		Cipher blockCipher = CipherManager.getInstance(currentReadState.getCipherSuite().getTransformation());
+		Cipher blockCipher = currentReadState.getCipherSuite().getCipher();
 		blockCipher.init(Cipher.DECRYPT_MODE,
 				currentReadState.getEncryptionKey(),
 				new IvParameterSpec(iv));
@@ -576,10 +600,10 @@ public class Record {
 		int fragmentLength = plaintext.length
 				- 1 // paddingLength byte
 				- paddingLength
-				- currentReadState.getCipherSuite().getMacLength();
+				- currentReadState.getMacLength();
 
 		reader = new DatagramReader(plaintext);
-		byte[] content = reader.readBytes(fragmentLength);			
+		byte[] content = reader.readBytes(fragmentLength);
 		byte[] macFromMessage = reader.readBytes(currentReadState.getCipherSuite().getMacLength());
 		byte[] mac = getBlockCipherMac(currentReadState, content);
 		if (Arrays.equals(macFromMessage, mac)) {
@@ -620,25 +644,42 @@ public class Record {
 		 * explanation of additional data or
 		 * http://tools.ietf.org/html/rfc5116#section-2.1
 		 */
-		byte[] iv = session.getWriteState().getIv().getIV();
-		byte[] nonce = generateNonce(iv);
-		byte[] key = session.getWriteState().getEncryptionKey().getEncoded();
+		DTLSConnectionState writeState = session.getWriteState();
+		byte[] iv = writeState.getIv().getIV();
+		byte[] explicitNonce = generateExplicitNonce();
+		/*
+		 * http://tools.ietf.org/html/draft-mcgrew-tls-aes-ccm-ecc-03#section-2:
+		 * 
+		 * <pre>
+		 * struct {
+		 *   case client:
+		 *     uint32 client_write_IV;  // low order 32-bits
+		 *   case server:
+		 *     uint32 server_write_IV;  // low order 32-bits
+		 *  uint64 seq_num;
+		 * } CCMNonce.
+		 * </pre>
+		 * 
+		 * @param iv
+		 *            the write IV (either client or server).
+		 * @return the 12 bytes nonce.
+		 */
+		byte[] nonce = Bytes.concatenate(iv, explicitNonce);
 		byte[] additionalData = generateAdditionalData(byteArray.length);
+		SecretKey key = writeState.getEncryptionKey();
 
 		if (LOGGER.isTraceEnabled()) {
 			LOGGER.trace("encrypt: {} bytes", byteArray.length);
-			LOGGER.trace("nonce: {}", StringUtil.byteArray2HexString(nonce, StringUtil.NO_SEPARATOR, 0));
-			LOGGER.trace("adata: {}", StringUtil.byteArray2HexString(additionalData, StringUtil.NO_SEPARATOR, 0));
+			LOGGER.trace("nonce: {}", StringUtil.byteArray2HexString(nonce));
+			LOGGER.trace("adata: {}", StringUtil.byteArray2HexString(additionalData));
 		}
-		byte[] encryptedFragment = CCMBlockCipher.encrypt(key, nonce, additionalData, byteArray, 8);
-
+		byte[] encryptedFragment = AeadBlockCipher.encrypt(writeState.getCipherSuite(), key, nonce, additionalData, byteArray);
 		/*
 		 * Prepend the explicit nonce as specified in
 		 * http://tools.ietf.org/html/rfc5246#section-6.2.3.3 and
 		 * http://tools.ietf.org/html/draft-mcgrew-tls-aes-ccm-04#section-3
 		 */
-		byte[] explicitNonce = generateExplicitNonce();
-		encryptedFragment = ByteArrayUtils.concatenate(explicitNonce, encryptedFragment);
+		encryptedFragment = Bytes.concatenate(explicitNonce, encryptedFragment);
 		LOGGER.trace("==> {} bytes", encryptedFragment.length);
 
 		return encryptedFragment;
@@ -660,11 +701,14 @@ public class Record {
 			throw new NullPointerException("Current read state must not be null");
 		} else if (byteArray == null) {
 			throw new NullPointerException("Ciphertext must not be null");
+		} else if (byteArray.length < currentReadState.getRecordIvLength() + currentReadState.getMacLength()) {
+			throw new GeneralSecurityException("Ciphertext too short!");
 		}
+		CipherSuite cipherSuite = currentReadState.getCipherSuite();
 		// the "implicit" part of the nonce is the salt as exchanged during the session establishment
 		byte[] iv = currentReadState.getIv().getIV();
 		// the symmetric key exchanged during the DTLS handshake
-		byte[] key = currentReadState.getEncryptionKey().getEncoded();
+		SecretKey key = currentReadState.getEncryptionKey();
 		/*
 		 * See http://tools.ietf.org/html/rfc5246#section-6.2.3.3 and
 		 * http://tools.ietf.org/html/rfc5116#section-2.1 for an
@@ -673,63 +717,36 @@ public class Record {
 		 * The decrypted message is always 16 bytes shorter than the cipher (8
 		 * for the authentication tag and 8 for the explicit nonce).
 		 */
-		byte[] additionalData = generateAdditionalData(byteArray.length - 16);
+		int applicationDataLength = byteArray.length - cipherSuite.getRecordIvLength() - cipherSuite.getMacLength();
+		byte[] additionalData = generateAdditionalData(applicationDataLength);
 
 		DatagramReader reader = new DatagramReader(byteArray);
 	
-		// create explicit nonce from values provided in DTLS record 
-		byte[] explicitNonce = generateExplicitNonce();
 		// retrieve actual explicit nonce as contained in GenericAEADCipher struct (8 bytes long)
-		byte[] explicitNonceUsed = reader.readBytes(8);
-		if (LOGGER.isDebugEnabled() && !Arrays.equals(explicitNonce, explicitNonceUsed)) {
-			StringBuilder b = new StringBuilder("The explicit nonce used by the sender does not match the values provided in the DTLS record");
-			b.append(StringUtil.lineSeparator()).append("Used    : ").append(ByteArrayUtils.toHexString(explicitNonceUsed));
-			b.append(StringUtil.lineSeparator()).append("Expected: ").append(ByteArrayUtils.toHexString(explicitNonce));
-			LOGGER.debug(b.toString());
-		}
+		byte[] explicitNonceUsed = reader.readBytes(cipherSuite.getRecordIvLength());
 
-		byte[] nonce = getNonce(iv, explicitNonceUsed);
+		byte[] nonce = Bytes.concatenate(iv, explicitNonceUsed);
 		if (LOGGER.isTraceEnabled()) {
-			LOGGER.trace("decrypt: {} bytes", byteArray.length - 16);
-			LOGGER.trace("nonce: {}", StringUtil.byteArray2HexString(nonce, StringUtil.NO_SEPARATOR, 0));
-			LOGGER.trace("adata: {}", StringUtil.byteArray2HexString(additionalData, StringUtil.NO_SEPARATOR, 0));
+			LOGGER.trace("decrypt: {} bytes", applicationDataLength);
+			LOGGER.trace("nonce: {}", StringUtil.byteArray2HexString(nonce));
+			LOGGER.trace("adata: {}", StringUtil.byteArray2HexString(additionalData));
 		}
-		return CCMBlockCipher.decrypt(key, nonce, additionalData, reader.readBytesLeft(), 8);
+		if (LOGGER.isDebugEnabled() && AeadBlockCipher.AES_CCM.equals(cipherSuite.getTransformation())) {
+			// create explicit nonce from values provided in DTLS record 
+			byte[] explicitNonce = generateExplicitNonce();
+			// retrieve actual explicit nonce as contained in GenericAEADCipher struct (8 bytes long)
+			if ( !Arrays.equals(explicitNonce, explicitNonceUsed)) {
+				StringBuilder b = new StringBuilder("The explicit nonce used by the sender does not match the values provided in the DTLS record");
+				b.append(StringUtil.lineSeparator()).append("Used    : ").append(StringUtil.byteArray2HexString(explicitNonceUsed));
+				b.append(StringUtil.lineSeparator()).append("Expected: ").append(StringUtil.byteArray2HexString(explicitNonce));
+				LOGGER.debug(b.toString());
+			}
+		}
+		return AeadBlockCipher.decrypt(cipherSuite, key, nonce, additionalData, reader.readBytesLeft());
 	}
 
 	// Cryptography Helper Methods ////////////////////////////////////
 
-	/**
-	 * http://tools.ietf.org/html/draft-mcgrew-tls-aes-ccm-ecc-03#section-2:
-	 * 
-	 * <pre>
-	 * struct {
-	 *   case client:
-	 *     uint32 client_write_IV;  // low order 32-bits
-	 *   case server:
-	 *     uint32 server_write_IV;  // low order 32-bits
-	 *  uint64 seq_num;
-	 * } CCMNonce.
-	 * </pre>
-	 * 
-	 * @param iv
-	 *            the write IV (either client or server).
-	 * @return the 12 bytes nonce.
-	 */
-	private byte[] generateNonce(byte[] iv) {
-		return getNonce(iv, generateExplicitNonce());
-	}
-
-	private byte[] getNonce(byte[] implicitNonce, byte[] explicitNonce) {
-		DatagramWriter writer = new DatagramWriter();
-		
-		writer.writeBytes(implicitNonce);
-		writer.writeBytes(explicitNonce);
-		
-		return writer.toByteArray();
-	}
-
-	
 	/**
 	 * Generates the explicit part of the nonce to be used with the AEAD Cipher.
 	 * 
@@ -911,6 +928,15 @@ public class Record {
 	}
 
 	/**
+	 * Get uptime nanoseconds receiving this record.
+	 * 
+	 * @return uptime nanoseconds, or {@code 0}, if records wasn't received.
+	 */
+	public long getReceiveNanos() {
+		return receiveNanos;
+	}
+
+	/**
 	 * Get fragment payload as byte array.
 	 * 
 	 * @return fragments byte array.
@@ -966,7 +992,7 @@ public class Record {
 	 * @throws GeneralSecurityException if de-cryption fails, e.g. because the
 	 *             JVM does not support the negotiated cipher algorithm, or
 	 *             decoding of the inner plain text of
-	 *             {@link ContentType#TLS12_CID} fails
+	 *             {@link ContentType#TLS12_CID} fails.
 	 * @throws HandshakeException if the TLSPlaintext.fragment could not be
 	 *             parsed into a valid handshake message
 	 */
@@ -1015,7 +1041,7 @@ public class Record {
 				break;
 
 			case HANDSHAKE:
-				fragment = decryptHandshakeMessage(decryptedMessage);
+				fragment = handshakeMessageFromByteArray(decryptedMessage);
 				break;
 
 			default:
@@ -1027,7 +1053,7 @@ public class Record {
 		return fragment;
 	}
 
-	private DTLSMessage decryptHandshakeMessage(byte[] decryptedMessage) throws GeneralSecurityException, HandshakeException {
+	private DTLSMessage handshakeMessageFromByteArray(byte[] decryptedMessage) throws GeneralSecurityException, HandshakeException {
 		// TODO: it is unclear to me whether handshake messages are encrypted or not
 		// http://tools.ietf.org/html/rfc5246#section-7.4:
 		// "Handshake messages are supplied to the TLS record layer, where they
@@ -1035,7 +1061,7 @@ public class Record {
 		//  are processed and transmitted as specified by the current active session state."
 		if (LOGGER.isTraceEnabled()) {
 			LOGGER.trace("Decrypting HANDSHAKE message ciphertext{}{}", StringUtil.lineSeparator(),
-				ByteArrayUtils.toHexString(decryptedMessage));
+					StringUtil.byteArray2HexString(decryptedMessage));
 		}
 
 		HandshakeParameter parameter = null;
@@ -1047,7 +1073,7 @@ public class Record {
 		if (LOGGER.isDebugEnabled()) {
 			StringBuilder msg = new StringBuilder("Parsing HANDSHAKE message plaintext [{}]");
 			if (LOGGER.isTraceEnabled()) {
-				msg.append(":").append(StringUtil.lineSeparator()).append(ByteArrayUtils.toHexString(decryptedMessage));
+				msg.append(":").append(StringUtil.lineSeparator()).append(StringUtil.byteArray2HexString(decryptedMessage));
 			}
 			LOGGER.debug(msg.toString(), parameter);
 		}
@@ -1090,7 +1116,7 @@ public class Record {
 	 * @see #Record(ContentType, int, long, DTLSMessage, DTLSSession, boolean,
 	 *      int)
 	 */
-	private boolean useConnectionId() {
+	boolean useConnectionId() {
 		return connectionId != null && !connectionId.isEmpty();
 	}
 

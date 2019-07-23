@@ -31,11 +31,11 @@ import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.pr
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
@@ -50,8 +50,8 @@ import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.rule.CoapNetworkRule;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -68,12 +68,14 @@ public class ServerDeduplicationTest {
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT,
 			CoapNetworkRule.Mode.NATIVE);
 
+	@ClassRule
+	public static CoapThreadsRule cleanup = new CoapThreadsRule();
+
 	private static final int DEDUPLICATOR_SWEEP_INTERVAL = 200; // ms
 	private static final String resourceName = "test";
 	private static final String payload = "hello there ";
 
 	private static AtomicInteger handleCounter;
-	private static CoapServer server;
 	private static ServerBlockwiseInterceptor serverInterceptor = new ServerBlockwiseInterceptor();
 	private static InetSocketAddress serverAddress;
 
@@ -89,13 +91,14 @@ public class ServerDeduplicationTest {
 		config.setFloat(Keys.ACK_TIMEOUT_SCALE, 1.0F);
 		config.setFloat(Keys.ACK_RANDOM_FACTOR, 1.0F);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
 		builder.setNetworkConfig(config);
 		Endpoint ep = builder.build();
 		ep.addInterceptor(new MessageTracer());
 		ep.addInterceptor(serverInterceptor);
 		handleCounter = new AtomicInteger();
-		server = new CoapServer();
+		CoapServer server = new CoapServer(config);
+		cleanup.add(server);
 		server.addEndpoint(ep);
 		server.add(new CoapResource(resourceName) {
 
@@ -146,13 +149,6 @@ public class ServerDeduplicationTest {
 			client.destroy();
 		}
 		printServerLog(serverInterceptor);
-	}
-
-	@AfterClass
-	public static void shutdownServer() {
-		if (server != null) {
-			server.destroy();
-		}
 	}
 
 	/**

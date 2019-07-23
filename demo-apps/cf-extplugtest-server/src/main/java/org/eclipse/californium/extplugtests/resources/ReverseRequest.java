@@ -122,8 +122,8 @@ public class ReverseRequest extends CoapResource {
 		getAttributes().addContentType(TEXT_PLAIN);
 		getAttributes().addContentType(APPLICATION_OCTET_STREAM);
 		int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
-		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled()) {
-			ExecutorsUtil.getScheduledExecutor().scheduleWithFixedDelay(new Runnable() {
+		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled() && getSecondaryExecutor() != null) {
+			getSecondaryExecutor().scheduleWithFixedDelay(new Runnable() {
 
 				@Override
 				public void run() {

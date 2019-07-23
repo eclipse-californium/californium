@@ -26,12 +26,11 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResource;
@@ -47,10 +46,12 @@ import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
-import org.junit.After;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -63,14 +64,18 @@ import org.junit.runners.Parameterized.Parameters;
 public class RandomAccessBlockTest {
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
 
 	private static final String TARGET = "test";
 	private static final String RESP_PAYLOAD = generateRandomPayload(87);
-	private InetSocketAddress serverAddress;
-	private CoapServer server;
+
 	@Parameter
 	public int maxBodySize;
 	private Endpoint clientEndpoint;
+	private Endpoint serverEndpoint;
 
 	@Parameters(name = "MAX_RESOURCE_BODY_SIZE = {0}")
 	public static Iterable<Integer> maxBodySizeParams() {
@@ -79,33 +84,26 @@ public class RandomAccessBlockTest {
 
 	@Before
 	public void startupServer() throws Exception {
-		System.out.println(System.lineSeparator() + "Start " + RandomAccessBlockTest.class.getName());
 		NetworkConfig config = network.getStandardTestConfig()
 			.setInt(Keys.MAX_RESOURCE_BODY_SIZE, maxBodySize);
 
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
 		builder.setNetworkConfig(config);
 
-		CoapEndpoint endpoint = builder.build();
-		server = new CoapServer();
-		server.addEndpoint(endpoint);
+		serverEndpoint = builder.build();
+		CoapServer server = new CoapServer(config);
+		cleanup.add(server);
+		server.addEndpoint(serverEndpoint);
 		server.add(new BlockwiseResource(TARGET, RESP_PAYLOAD));
 		server.start();
-		serverAddress = endpoint.getAddress();
 
 		builder = new CoapEndpoint.Builder();
-		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
 		builder.setNetworkConfig(config);
-		
-		clientEndpoint = builder.build();
-	}
 
-	@After
-	public void shutdownServer() {
-		clientEndpoint.destroy();
-		server.destroy();
-		System.out.println("End " + RandomAccessBlockTest.class.getName());
+		clientEndpoint = builder.build();
+		cleanup.add(clientEndpoint);
 	}
 
 	@Test
@@ -113,7 +111,7 @@ public class RandomAccessBlockTest {
 
 		int szx = BlockOption.size2Szx(16);
 		Request request = Request.newGet();
-		request.setURI(getUri(serverAddress, TARGET));
+		request.setURI(getUri(serverEndpoint, TARGET));
 		request.getOptions().setBlock2(szx, false, 6); // 6 * 16 = 96 is out of bounds
 
 		Response response = request.send().waitForResponse(1000);
@@ -136,7 +134,7 @@ public class RandomAccessBlockTest {
 				RESP_PAYLOAD.substring(48, 64)
 		};
 
-		String uri = getUri(serverAddress, TARGET);
+		String uri = getUri(serverEndpoint, TARGET);
 		CoapClient client = new CoapClient();
 		client.setEndpoint(clientEndpoint);
 		client.setTimeout(1000L);
@@ -157,6 +155,7 @@ public class RandomAccessBlockTest {
 			assertThat(response.getOptions().getBlock2().getNum(), is(num));
 			assertThat(response.getOptions().getBlock2().getSzx(), is(szx));
 		}
+		client.shutdown();
 	}
 
 	private static class BlockwiseResource extends CoapResource {

@@ -15,8 +15,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import static org.eclipse.californium.elements.util.StandardCharsets.UTF_8;
-
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
@@ -44,15 +42,15 @@ import org.slf4j.LoggerFactory;
  * See <a href="https://tools.ietf.org/html/rfc5489#section-2">RFC 5489</a> for details.
  */
 public final class EcdhPskServerKeyExchange extends ServerKeyExchange {
-	
+
 	private static final Logger LOGGER = LoggerFactory.getLogger(EcdhPskServerKeyExchange.class.getCanonicalName());
-	
+
 	private static final int IDENTITY_HINT_LENGTH_BITS = 16;
 	private static final String MSG_UNKNOWN_CURVE_TYPE = "Unknown curve type [{}]";
 	private static final int CURVE_TYPE_BITS = 8;
 	private static final int NAMED_CURVE_BITS = 16;
 	private static final int PUBLIC_LENGTH_BITS = 8;
-	
+
 	/**
 	 * The algorithm name to generate elliptic curve keypairs. See also <a href=
 	 * "http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#KeyPairGenerator"
@@ -60,28 +58,21 @@ public final class EcdhPskServerKeyExchange extends ServerKeyExchange {
 	 */
 	private static final String KEYPAIR_GENERATOR_INSTANCE = "EC";
 
-	/**
-	 * The PSK identity MUST be first converted to a character string, and then
-	 * encoded to octets using UTF-8. See 
-	 * <a href="http://tools.ietf.org/html/rfc4279#section-5.1">RFC 4279</a>.
-	 */
-	private byte[] hintEncoded;
-	
 	/** The hint in cleartext. */
-	private String hint;
-	
+	private final PskPublicInformation hint;
+
 	/** The ECCurveType */
-	
+
 	/** parameters are conveyed verbosely; underlying finite field is a prime 
 	 * field
 	*/ 
 	private static final int EXPLICIT_PRIME = 1;
-	
+
 	/** parameters are conveyed verbosely; underlying finite field is a 
 	 * characteristic-2 field
 	*/ 
 	private static final int EXPLICIT_CHAR2 = 2;
-	
+
 	/** a named curve is used */
 	private static final int NAMED_CURVE = 3;
 
@@ -92,10 +83,10 @@ public final class EcdhPskServerKeyExchange extends ServerKeyExchange {
 	private byte[] pointEncoded = null;
 
 	private final int curveId;
-	
+
 	// TODO right now only named curve is supported
 	private int curveType = NAMED_CURVE;
-	
+
 	/**
 	 * Creates a new key exchange message with psk hint as clear text and ServerDHParams.
 	 * 
@@ -109,7 +100,7 @@ public final class EcdhPskServerKeyExchange extends ServerKeyExchange {
 	 * @throws NullPointerException if any of the arguments ecdhe, 
 	 * clientRandom and serverRandom are {@code null}
 	 */
-	public EcdhPskServerKeyExchange(String pskHint, ECDHECryptography ecdhe, Random clientRandom, Random serverRandom, 
+	public EcdhPskServerKeyExchange(PskPublicInformation pskHint, ECDHECryptography ecdhe, Random clientRandom, Random serverRandom, 
 			int namedCurveId, InetSocketAddress peerAddress) {	
 		super(peerAddress);	
 		if (ecdhe == null) {
@@ -118,41 +109,18 @@ public final class EcdhPskServerKeyExchange extends ServerKeyExchange {
 		if (clientRandom == null || serverRandom == null) {
 			throw new NullPointerException("nonce cannot be null");
 		}
-		if (pskHint != null) {
-			this.hint = pskHint;		
-		} else {
-			this.hint = "";
-		}
-		this.hintEncoded = hint.getBytes(UTF_8);
+		this.hint = pskHint;
 		this.curveId = namedCurveId;
 		publicKey = ecdhe.getPublicKey();
 		ECParameterSpec parameters = publicKey.getParams();
 		point = publicKey.getW();
 		pointEncoded = ECDHECryptography.encodePoint(point, parameters.getCurve());
 	}
-	
-	/**
-	 * Creates a new key exchange message with ServerDHParams.
-	 * 
-	 * @see <a href="http://tools.ietf.org/html/rfc4279#section-3">RFC 4279</a>
-	 * @param ecdhe {@code ECDHECryptography}
-	 * @param clientRandom nonce
-	 * @param serverRandom nonce
-	 * @param namedCurveId ec curve used 
-	 * @param peerAddress peer's address
-	 * @throws NullPointerException if any of arguments ecdhe, 
-	 * clientRandom and serverRandom are {@code null}
-	 */
-	public EcdhPskServerKeyExchange(ECDHECryptography ecdhe, Random clientRandom, Random serverRandom, 
-			int namedCurveId, InetSocketAddress peerAddress) {
-		this(null, ecdhe, clientRandom, serverRandom, namedCurveId, peerAddress);
-	}
-	
+
 	private EcdhPskServerKeyExchange(byte[] hintEncoded, int curveId, byte[] pointEncoded, InetSocketAddress peerAddress) throws HandshakeException {		
 		super(peerAddress);
 		this.curveId = curveId;
-		this.hintEncoded = hintEncoded;
-		this.hint = new String(this.hintEncoded, UTF_8);
+		this.hint = PskPublicInformation.fromByteArray(hintEncoded);
 		if (pointEncoded == null) {
 			throw new NullPointerException("ephemeral public key cannot be null");
 		}
@@ -181,8 +149,8 @@ public final class EcdhPskServerKeyExchange extends ServerKeyExchange {
 	@Override
 	public byte[] fragmentToByteArray() {
 		DatagramWriter writer = new DatagramWriter();
-		writer.write(hintEncoded.length, IDENTITY_HINT_LENGTH_BITS);
-		writer.writeBytes(hintEncoded);
+		writer.write(hint.length(), IDENTITY_HINT_LENGTH_BITS);
+		writer.writeBytes(hint.getBytes());
 		switch (curveType) {
 		// TODO add support for other curve types
 		case EXPLICIT_PRIME:
@@ -249,7 +217,7 @@ public final class EcdhPskServerKeyExchange extends ServerKeyExchange {
 		case EXPLICIT_CHAR2:
 			break;		
 		case NAMED_CURVE:
-			length = 6 + hintEncoded.length + pointEncoded.length;
+			length = 6 + hint.length() + pointEncoded.length;
 			break;
 		default:
 			LOGGER.warn(MSG_UNKNOWN_CURVE_TYPE, curveType);
@@ -282,7 +250,7 @@ public final class EcdhPskServerKeyExchange extends ServerKeyExchange {
 	 * 
 	 * @return preshared key hint as clear text.
 	 */
-	public String getHint() {
+	public PskPublicInformation getHint() {
 		return hint;
 	}
 	
@@ -290,7 +258,7 @@ public final class EcdhPskServerKeyExchange extends ServerKeyExchange {
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append(super.toString());
-		if (hint.equals("")) {
+		if (hint.isEmpty()) {
 			sb.append("\t\tPSK Identity Hint: ").append("psk hint not present");
 		} else {
 			sb.append("\t\tPSK Identity Hint: ").append(hint);

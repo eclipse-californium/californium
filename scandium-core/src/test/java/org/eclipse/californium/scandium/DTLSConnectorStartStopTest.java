@@ -16,7 +16,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
-import static org.eclipse.californium.scandium.ConnectorHelper.newStandardClientConfigBuilder;
+import static org.eclipse.californium.scandium.ConnectorHelper.*;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -28,13 +28,13 @@ import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
@@ -67,6 +67,9 @@ public class DTLSConnectorStartStopTest {
 
 	@ClassRule
 	public static DtlsNetworkRule network = new DtlsNetworkRule(DtlsNetworkRule.Mode.DIRECT, DtlsNetworkRule.Mode.NATIVE);
+
+	@ClassRule
+	public static ThreadsRule cleanup = new ThreadsRule();
 
 	@Rule
 	public TestNameLoggerRule names = new TestNameLoggerRule();
@@ -117,7 +120,7 @@ public class DTLSConnectorStartStopTest {
 	@Before
 	public void setUp() throws IOException, GeneralSecurityException {
 		testLogTag = testLogTagHead + testLogTagCounter++;
-		clientConnectionStore = new DebugConnectionStore(null, CLIENT_CONNECTION_STORE_CAPACITY, 60, clientSessionCache);
+		clientConnectionStore = new DebugConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60, clientSessionCache);
 		clientConnectionStore.setTag(testLogTag + "-client");
 		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		DtlsConnectorConfig.Builder builder = newStandardClientConfigBuilder(clientEndpoint)
@@ -125,7 +128,7 @@ public class DTLSConnectorStartStopTest {
 				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY);
 		DtlsConnectorConfig clientConfig = builder.build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
-		clientChannel = new ConnectorHelper.LatchDecrementingRawDataChannel(client);
+		clientChannel = new LatchDecrementingRawDataChannel();
 		client.setRawDataReceiver(clientChannel);
 	}
 
@@ -177,8 +180,7 @@ public class DTLSConnectorStartStopTest {
 
 			List<SimpleMessageCallback> callbacks = new ArrayList<>();
 
-			CountDownLatch latch = new CountDownLatch(1);
-			clientChannel.setLatch(latch);
+			clientChannel.setLatchCount(1);
 
 			SimpleMessageCallback callback = new SimpleMessageCallback(pending, false);
 			SimpleMessageCallback messageCallback = new SimpleMessageCallback(0, true, callback);
@@ -187,7 +189,7 @@ public class DTLSConnectorStartStopTest {
 			client.send(message);
 			assertTrue(testLogTag + " loop: " + loop + ", " + pending + " msgs," 
 					+ " DTLS handshake timed out after " + MAX_TIME_TO_WAIT_SECS + " seconds",
-					latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+					clientChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 			if (lastServerRemaining > -1) {
 				assertThat(testLogTag + " number of server sessions changed!", 
 						serverHelper.serverConnectionStore.remainingCapacity(), is(lastServerRemaining));

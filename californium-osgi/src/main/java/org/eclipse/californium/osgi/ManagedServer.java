@@ -93,7 +93,7 @@ public class ManagedServer implements ManagedService, ServiceTrackerCustomizer<R
 	 * @param serverFactory the factory to use for creating new server instances
 	 * @param endpointFactory the factory to use for creating endpoints for the managed
 	 * server
-	 * @throws NullPointerException if the bundle context is <code>null</code>
+	 * @throws NullPointerException if the bundle context or endpoint factory is <code>null</code>
 	 */
 	public ManagedServer(BundleContext bundleContext, ServerInterfaceFactory serverFactory,
 			EndpointFactory endpointFactory) {

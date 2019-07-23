@@ -20,6 +20,8 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.deduplication;
 
+import java.util.concurrent.ScheduledExecutorService;
+
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 
@@ -36,6 +38,10 @@ public class NoDeduplicator implements Deduplicator {
 
 	@Override
 	public void stop() { }
+	
+	@Override
+	public void setExecutor(ScheduledExecutorService executor) {
+	}
 
 	@Override
 	public Exchange findPrevious(KeyMID key, Exchange exchange) {

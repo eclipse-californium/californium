@@ -38,7 +38,7 @@ import org.eclipse.californium.cose.CoseException;
 /**
  * 
  * Represents the Security Context and its parameters. At initiation derives the
- * keys and ivs. Also maintains replay window.
+ * keys and IVs. Also maintains replay window.
  *
  */
 public class OSCoreCtx {
@@ -79,6 +79,9 @@ public class OSCoreCtx {
 
 	private Code CoAPCode = null;
 
+	//Include the context id in messages generated using this context
+	private boolean includeContextId;
+
 	/**
 	 * Constructor. Generates the context from the base parameters with the
 	 * minimal input.
@@ -103,6 +106,7 @@ public class OSCoreCtx {
 	 *            default
 	 * @param replay_size the replay window size or null for the default
 	 * @param master_salt the optional master salt, can be null
+	 * @param contextId the context id, can be null
 	 *
 	 * @throws OSException if the KDF is not supported
 	 */
@@ -171,6 +175,8 @@ public class OSCoreCtx {
 		} else {
 			this.context_id = null;
 		}
+
+		includeContextId = false;
 
 		String digest = null;
 		switch (this.kdf) {
@@ -262,35 +268,35 @@ public class OSCoreCtx {
 	}
 
 	/**
-	 * @return get the sender key
+	 * @return the sender key
 	 */
 	public byte[] getSenderKey() {
 		return sender_key;
 	}
 
 	/**
-	 * @return get the recipient key
+	 * @return the recipient key
 	 */
 	public byte[] getRecipientKey() {
 		return recipient_key;
 	}
 
 	/**
-	 * @return get the encryption algorithm
+	 * @return the encryption algorithm
 	 */
 	public AlgorithmID getAlg() {
 		return this.common_alg;
 	}
 
 	/**
-	 * @return get the sender sequence number
+	 * @return the sender sequence number
 	 */
 	public synchronized int getSenderSeq() {
 		return sender_seq;
 	}
 
 	/**
-	 * @return get the receiver sequence number
+	 * @return the receiver sequence number
 	 */
 	public synchronized int getReceiverSeq() {
 		return recipient_seq;
@@ -325,7 +331,7 @@ public class OSCoreCtx {
 	}
 
 	/**
-	 * @return the set length of iv:s
+	 * @return the set length of IV:s
 	 */
 	public int getIVLength() {
 		return iv_length;
@@ -364,6 +370,35 @@ public class OSCoreCtx {
 	 */
 	public byte[] getIdContext() {
 		return context_id;
+	}
+
+	/**
+	 * Get the flag controlling whether or not to include the Context ID in
+	 * messages generated using this context.
+	 *
+	 * @return the includeContextId
+	 */
+	public boolean getIncludeContextId() {
+		return includeContextId;
+	}
+
+	/**
+	 * Set the flag controlling whether or not to include the Context ID in
+	 * messages generated using this context.
+	 * 
+	 * Note that this flag should never be set to true in a context without a Context ID set.
+	 *
+	 * @param includeContextId the includeContextId to set
+	 *
+	 * @throws IllegalStateException if a Context ID has not been set for this context
+	 */
+	public void setIncludeContextId(boolean includeContextId) {
+		if(context_id == null) {
+			LOGGER.error("Context ID cannot be included for a context without one set.");
+			throw new IllegalStateException("Context ID cannot be included for a context without one set.");
+		}
+		
+		this.includeContextId = includeContextId;
 	}
 
 	public int rollbackRecipientSeq() {
@@ -425,7 +460,7 @@ public class OSCoreCtx {
 	}
 
 	/**
-	 * Sets the valid lengths, in bytes, of constrained variables(ids, ivs and
+	 * Sets the valid lengths, in bytes, of constrained variables(ids, IVs and
 	 * keys).
 	 * 
 	 * @throws RuntimeException if not this.common_alg has been initiated

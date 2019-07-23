@@ -106,11 +106,12 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.build.javaVersion>1.7</project.build.javaVersion>
 		<snapshotDependencyAllowed>true</snapshotDependencyAllowed>
-		<hamcrest.version>1.3</hamcrest.version>
-		<junit.version>4.12</junit.version>
-		<logback.version>1.2.3</logback.version>
-		<mockito.version>1.10.19</mockito.version>
+		<cbor.version>3.0.3</cbor.version>
 		<slf4j.version>1.7.25</slf4j.version>
+		<logback.version>1.2.3</logback.version>
+		<junit.version>4.12</junit.version>
+		<hamcrest.version>1.3</hamcrest.version>
+		<mockito.version>1.10.19</mockito.version>
 	</properties>
 
 	<distributionManagement>
@@ -177,20 +178,24 @@
 				<artifactId>slf4j-api</artifactId>
 				<version>${slf4j.version}</version>
 			</dependency>
-			
+			<dependency>
+				<groupId>com.upokecenter</groupId>
+				<artifactId>cbor</artifactId>
+				<version>${cbor.version}</version>
+			</dependency>
+
 			<!--  tests & runtime -->
 			<dependency>
 				<groupId>${project.groupId}</groupId>
 				<artifactId>demo-certs</artifactId>
 				<version>${project.version}</version>
 			</dependency>
-			
 			<dependency>
 				<groupId>ch.qos.logback</groupId>
 				<artifactId>logback-classic</artifactId>
 				<version>${logback.version}</version>
 			</dependency>
-			
+
 			<!--  tests -->
 			<dependency>
 				<groupId>${project.groupId}</groupId>
@@ -236,7 +241,8 @@
 		<module>demo-certs</module>
 		<module>legal</module>
 		<module>cf-oscore</module>
-	</modules>
+        <module>cf-pubsub</module>
+    </modules>
 
 	<build>
 		<pluginManagement>
@@ -308,6 +314,15 @@
 					<groupId>org.apache.felix</groupId>
 					<artifactId>maven-bundle-plugin</artifactId>
 					<version>3.5.0</version>
+					<executions>
+						<execution>
+							<id>bundle-manifest</id>
+							<phase>process-classes</phase>
+							<goals>
+								<goal>manifest</goal>
+							</goals>
+						</execution>
+					</executions>
 				</plugin>
 				<plugin>
 					<artifactId>maven-javadoc-plugin</artifactId>
@@ -368,6 +383,11 @@
 				<plugin>
 					<artifactId>maven-gpg-plugin</artifactId>
 					<version>1.6</version>
+				</plugin>
+				<plugin>
+					<groupId>org.eclipse.cbi.maven.plugins</groupId>
+					<artifactId>eclipse-jarsigner-plugin</artifactId>
+					<version>1.1.3</version>
 				</plugin>
 				<plugin>
 					<groupId>org.codehaus.mojo</groupId>
@@ -553,7 +573,6 @@
 					<plugin>
 						<groupId>org.eclipse.cbi.maven.plugins</groupId>
 						<artifactId>eclipse-jarsigner-plugin</artifactId>
-						<version>1.1.3</version>
 						<executions>
 							<execution>
 								<id>sign-jars</id>
@@ -587,6 +606,12 @@
 								<goals>
 									<goal>sign</goal>
 								</goals>
+								<configuration>
+									<gpgArguments>
+										<arg>--pinentry-mode</arg>
+										<arg>loopback</arg>
+									</gpgArguments>
+								</configuration>
 							</execution>
 						</executions>
 					</plugin>

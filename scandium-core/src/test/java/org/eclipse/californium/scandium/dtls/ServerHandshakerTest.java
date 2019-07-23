@@ -39,6 +39,8 @@ import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.eclipse.californium.elements.rule.ThreadsRule;
+import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -50,6 +52,7 @@ import org.eclipse.californium.scandium.util.ServerName.NameType;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.junit.Before;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -62,6 +65,9 @@ public class ServerHandshakerTest {
 	static PrivateKey privateKey;
 	static X509Certificate[] certificateChain;
 	static X509Certificate[] trustedCertificates;
+
+	@Rule
+	public ThreadsRule cleanup = new ThreadsRule();
 
 	DtlsConnectorConfig config;
 	ServerHandshaker handshaker;
@@ -179,7 +185,7 @@ public class ServerHandshakerTest {
 
 		byte[] loggedMsg = new byte[clientHelloMsg.length];
 		// copy the received ClientHello message from the handshakeMessages buffer
-		System.arraycopy(handshaker.handshakeMessages, 0, loggedMsg, 0, clientHelloMsg.length);
+		System.arraycopy(handshaker.handshakeMessages.toByteArray(), 0, loggedMsg, 0, clientHelloMsg.length);
 		// and verify that it is equal to the original ClientHello message
 		// sent by the client
 		assertArrayEquals(clientHelloMsg, loggedMsg);
@@ -410,7 +416,7 @@ public class ServerHandshakerTest {
 		clientHelloMsg = newHandshakeMessage(HandshakeType.CLIENT_HELLO, messageSeq, clientHelloFragment);
 		byte[] dtlsRecord = DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), epoch,
 				sequenceNo, clientHelloMsg);
-		List<Record> list = Record.fromByteArray(dtlsRecord, endpoint, null);
+		List<Record> list = Record.fromByteArray(dtlsRecord, endpoint, null, ClockUtil.nanoRealtime());
 		assertFalse("Should be able to deserialize DTLS Record from byte array", list.isEmpty());
 		Record record = list.get(0);
 		handshaker.processMessage(record);
@@ -478,7 +484,7 @@ public class ServerHandshakerTest {
 	private static Record getRecordForMessage(int epoch, int seqNo, DTLSMessage msg, InetSocketAddress peer) {
 		byte[] dtlsRecord = DtlsTestTools.newDTLSRecord(msg.getContentType().getCode(), epoch,
 				seqNo, msg.toByteArray());
-		List<Record> list = Record.fromByteArray(dtlsRecord, peer, null);
+		List<Record> list = Record.fromByteArray(dtlsRecord, peer, null, ClockUtil.nanoRealtime());
 		assertFalse("Should be able to deserialize DTLS Record from byte array", list.isEmpty());
 		return list.get(0);
 	}

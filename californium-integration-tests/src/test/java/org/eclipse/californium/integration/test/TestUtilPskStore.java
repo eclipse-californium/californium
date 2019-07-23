@@ -20,13 +20,15 @@ import java.net.InetSocketAddress;
 import java.util.Arrays;
 
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.StringPskStore;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
  * Simple {@link PskStore} implementation with exchangeable credentials.
  */
-public class TestUtilPskStore implements PskStore {
+public class TestUtilPskStore extends StringPskStore {
 
+	private final long delay;
 	/**
 	 * PSK identity.
 	 */
@@ -43,7 +45,19 @@ public class TestUtilPskStore implements PskStore {
 	 * @param key PSK secret key
 	 */
 	public TestUtilPskStore(String identity, byte[] key) {
+		this(identity, key, 0);
+	}
+
+	/**
+	 * Create simple store with initial credentials and delay.
+	 * 
+	 * @param identity PSK identity
+	 * @param key PSK secret key
+	 * @param delay delay for {@link #getKey(String)} in milliseconds
+	 */
+	public TestUtilPskStore(String identity, byte[] key, int delay) {
 		set(identity, key);
+		this.delay = delay;
 	}
 
 	/**
@@ -58,22 +72,30 @@ public class TestUtilPskStore implements PskStore {
 	}
 
 	@Override
-	public synchronized byte[] getKey(String identity) {
-		return key;
+	public byte[] getKey(String identity) {
+		if (0 < delay) {
+			try {
+				Thread.sleep(delay);
+			} catch (InterruptedException e) {
+			}
+		}
+		synchronized (this) {
+			return key;
+		}
 	}
 
 	@Override
-	public synchronized byte[] getKey(ServerNames serverNames, String identity) {
+	public byte[] getKey(ServerNames serverNames, String identity) {
 		return getKey(identity);
 	}
 
 	@Override
-	public synchronized String getIdentity(InetSocketAddress inetAddress) {
+	public synchronized String getIdentityAsString(InetSocketAddress inetAddress) {
 		return identity;
 	}
 
 	@Override
-	public synchronized String getIdentity(InetSocketAddress peerAddress, ServerNames virtualHost) {
-		return getIdentity(peerAddress);
+	public String getIdentityAsString(InetSocketAddress peerAddress, ServerNames virtualHost) {
+		return getIdentityAsString(peerAddress);
 	}
 }

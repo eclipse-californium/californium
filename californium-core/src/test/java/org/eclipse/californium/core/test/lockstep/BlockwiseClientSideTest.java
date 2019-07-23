@@ -43,28 +43,25 @@ import static org.eclipse.californium.core.test.MessageExchangeStoreTool.*;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapClient;
-import org.eclipse.californium.core.CoapHandler;
-import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.test.CountingCoapHandler;
 import org.eclipse.californium.core.test.CountingMessageObserver;
 import org.eclipse.californium.core.test.ErrorInjector;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -81,7 +78,13 @@ public class BlockwiseClientSideTest {
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
 	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
+
+	@Rule
 	public TestTimeRule time = new TestTimeRule();
+
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
 
 	private static final int TEST_EXCHANGE_LIFETIME = 247; // milliseconds
 	private static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 100; // milliseconds
@@ -93,7 +96,7 @@ public class BlockwiseClientSideTest {
 	// client retransmits after 200 ms
 	private static final int ACK_TIMEOUT_IN_MS = 200;
 
-	private static NetworkConfig config;
+	private NetworkConfig config;
 
 	private LockstepEndpoint server;
 	private CoapTestEndpoint client;
@@ -102,11 +105,9 @@ public class BlockwiseClientSideTest {
 	private String reqtPayload;
 	private ClientBlockwiseInterceptor clientInterceptor = new ClientBlockwiseInterceptor();
 
-	@BeforeClass
-	public static void init() {
-		System.out.println(System.lineSeparator() + "Start " + BlockwiseClientSideTest.class.getSimpleName());
-
-		config = network.getStandardTestConfig()
+	@Before
+	public void setup() throws Exception {
+		config = network.createStandardTestConfig()
 				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 128)
 				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 128)
 				.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, MAX_RESOURCE_BODY_SIZE)
@@ -117,32 +118,23 @@ public class BlockwiseClientSideTest {
 				.setInt(NetworkConfig.Keys.MAX_RETRANSMIT, 2)
 				.setInt(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1)
 				.setInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, TEST_BLOCKWISE_STATUS_LIFETIME);
-	}
 
-	@Before
-	public void setupEndpoints() throws Exception {
-
-		client = new CoapTestEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
+		client = new CoapTestEndpoint(TestTools.LOCALHOST_EPHEMERAL, config);
+		cleanup.add(client);
 		client.addInterceptor(clientInterceptor);
 		client.start();
 		System.out.println("Client binds to port " + client.getAddress().getPort());
 		server = createLockstepEndpoint(client.getAddress());
+		cleanup.add(server);
 	}
 
 	@After
-	public void shutdownEndpoints() {
+	public void shutdown() {
 		try {
 			assertAllExchangesAreCompleted(client, time);
 		} finally {
 			printServerLog(clientInterceptor);
-			client.destroy();
-			server.destroy();
 		}
-	}
-
-	@AfterClass
-	public static void end() {
-		System.out.println("End " + BlockwiseClientSideTest.class.getSimpleName());
 	}
 
 	/**
@@ -932,7 +924,7 @@ public class BlockwiseClientSideTest {
 	public void testGETCallsOnErrorAfterLostACK() throws Exception {
 		String path = "test";
 
-		final CountDownLatch latch = new CountDownLatch(1);
+		CountingCoapHandler handler = new CountingCoapHandler();
 		System.out.println("Blockwise GET with Lost ACK:");
 
 		respPayload = generateRandomPayload(300);
@@ -941,21 +933,13 @@ public class BlockwiseClientSideTest {
 		coapClient.setEndpoint(client);
 		Request request = createRequest(GET, path, server);
 
-		coapClient.advanced(new CoapHandler() {
-
-			@Override
-			public void onLoad(CoapResponse response) {}
-
-			@Override
-			public void onError() {
-				latch.countDown();
-			}
-		}, request);
+		coapClient.advanced(handler, request);
 
 		server.expectRequest(CON, GET, path).storeBoth("A").go();
 		server.sendResponse(ACK, CONTENT).loadBoth("A").block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
 
-		assertTrue(latch.await(3, TimeUnit.SECONDS));
+		assertTrue(handler.waitOnErrorCalls(1, 3, TimeUnit.SECONDS));
+		coapClient.shutdown();
 	}
 	
 	/**
