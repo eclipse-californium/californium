@@ -92,7 +92,7 @@ public class ClientHandshaker extends Handshaker {
 	private CertPath peerCertPath;
 
 	/** The server's ephemeral public key, used for key agreement */
-	private ECPublicKey ephemeralServerPublicKey;
+	protected ECPublicKey ephemeralServerPublicKey;
 
 	/** The client's hello handshake message. Store it, to add the cookie in the second flight. */
 	protected ClientHello clientHello = null;
@@ -475,7 +475,7 @@ public class ClientHandshaker extends Handshaker {
 	 * @throws HandshakeException
 	 * @throws GeneralSecurityException if the client's handshake records cannot be created
 	 */
-	private void receivedServerHelloDone(ServerHelloDone message) throws HandshakeException, GeneralSecurityException {
+	protected void receivedServerHelloDone(ServerHelloDone message) throws HandshakeException, GeneralSecurityException {
 		serverHelloDone = message;
 		flightNumber += 2;
 		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
@@ -611,7 +611,7 @@ public class ClientHandshaker extends Handshaker {
 		sendFlight(flight);
 	}
 
-	private void createCertificateMessage(final DTLSFlight flight) throws HandshakeException {
+	protected void createCertificateMessage(final DTLSFlight flight) throws HandshakeException {
 
 		/*
 		 * First, if required by server, send Certificate.
