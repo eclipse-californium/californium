@@ -549,28 +549,29 @@ public class ConnectorHelper {
 
 	static class LatchSessionListener extends SessionAdapter {
 
-		private CountDownLatch established = new CountDownLatch(1);
-		private CountDownLatch failed = new CountDownLatch(1);
+		private CountDownLatch finished = new CountDownLatch(1);
+		private AtomicBoolean established = new AtomicBoolean();
 		private AtomicReference<Throwable> error = new AtomicReference<Throwable>();
 
 		@Override
 		public void sessionEstablished(Handshaker handshaker, DTLSSession establishedSession)
 				throws HandshakeException {
-			established.countDown();
+			established.set(true);
+			finished.countDown();
 		}
 
 		@Override
 		public void handshakeFailed(Handshaker handshaker, Throwable error) {
 			this.error.set(error);
-			failed.countDown();
+			finished.countDown();
 		}
 
 		public boolean waitForSessionEstablished(long timeout, TimeUnit unit) throws InterruptedException {
-			return established.await(timeout, unit);
+			return finished.await(timeout, unit) && established.get();
 		}
 
 		public Throwable waitForSessionFailed(long timeout, TimeUnit unit) throws InterruptedException {
-			if (failed.await(timeout, unit)) {
+			if (finished.await(timeout, unit)) {
 				return error.get();
 			}
 			return null;
