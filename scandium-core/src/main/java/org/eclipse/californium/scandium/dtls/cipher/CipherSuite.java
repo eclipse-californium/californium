@@ -368,6 +368,25 @@ public enum CipherSuite {
 	}
 
 	/**
+	 * Get the message block length of hash function.
+	 * 
+	 * @return message block length in bytes
+	 */
+	public int getMacMessageBlockLength() {
+		return macAlgorithm.getMessageBlockLength();
+	}
+
+	/**
+	 * Get the number of bytes used to encode the message length for hmac
+	 * function.
+	 * 
+	 * @return number of bytes for message length
+	 */
+	public int getMacMessageLengthBytes() {
+		return macAlgorithm.getMessageLengthBytes();
+	}
+
+	/**
 	 * Gets the amount of data needed to be generated for the cipher's
 	 * initialization vector.
 	 * 
@@ -402,7 +421,7 @@ public enum CipherSuite {
 	 * See <a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Mac">
 	 * Java Security Documentation</a>.
 	 * 
-	 * @return the name of the mac
+	 * @return the name of the pseudo-random function
 	 */
 	public String getPseudoRandomFunctionMacName() {
 		return pseudoRandomFunction.getMacAlgorithm().getName();
@@ -738,24 +757,29 @@ public enum CipherSuite {
 	 * See http://tools.ietf.org/html/rfc5246#appendix-A.6
 	 */
 	private enum MACAlgorithm {
-		NULL(null, null, 0),
-		HMAC_MD5("HmacMD5", "MD5",16),
-		HMAC_SHA1("HmacSHA1", "SHA-1", 20),
-		HMAC_SHA256("HmacSHA256", "SHA-256", 32),
-		HMAC_SHA384("HmacSHA384", "SHA-384", 48),
-		HMAC_SHA512("HmacSHA512", "SHA-512", 64);
+		NULL(null, null, 0, 0, 0),
+		HMAC_MD5("HmacMD5", "MD5",16, 0, 0),
+		HMAC_SHA1("HmacSHA1", "SHA-1", 20, 8, 64),
+		HMAC_SHA256("HmacSHA256", "SHA-256", 32, 8, 64),
+		HMAC_SHA384("HmacSHA384", "SHA-384", 48, 16, 128),
+		HMAC_SHA512("HmacSHA512", "SHA-512", 64, 16, 128);
 
 		private final String name;
 		private final String mdName;
 		private final int outputLength;
+		private final int messageLengthBytes;
+		private final int messageBlockLength;
 		private final boolean supported;
 		private final ThreadLocalMac mac;
 		private final ThreadLocalMessageDigest md;
 
-		private MACAlgorithm(String name, String mdName, int outputLength) {
+		private MACAlgorithm(String name, String mdName, int outputLength, int messageLengthBytes,
+				int messageBlockLength) {
 			this.name = name;
 			this.mdName = mdName;
 			this.outputLength = outputLength;
+			this.messageLengthBytes = messageLengthBytes;
+			this.messageBlockLength = messageBlockLength;
 			if (name == null && mdName == null) {
 				this.supported = true;
 				this.mac = null;
@@ -816,6 +840,25 @@ public enum CipherSuite {
 		 */
 		public int getKeyLength() {
 			return outputLength;
+		}
+
+		/**
+		 * Get the message block length of hash function.
+		 * 
+		 * @return message block length in bytes
+		 */
+		public int getMessageBlockLength() {
+			return messageBlockLength;
+		}
+
+		/**
+		 * Get the number of bytes used to encode the message length for hmac
+		 * function.
+		 * 
+		 * @return number of bytes for message length
+		 */
+		public int getMessageLengthBytes() {
+			return messageLengthBytes;
 		}
 
 		/**
