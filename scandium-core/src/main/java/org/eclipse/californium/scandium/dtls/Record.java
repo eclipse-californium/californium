@@ -32,10 +32,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import javax.crypto.Cipher;
-import javax.crypto.Mac;
 import javax.crypto.SecretKey;
-import javax.crypto.spec.IvParameterSpec;
 
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
@@ -44,6 +41,7 @@ import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.AeadBlockCipher;
+import org.eclipse.californium.scandium.dtls.cipher.CbcBlockCipher;
 import org.eclipse.californium.scandium.dtls.cipher.InvalidMacException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -532,37 +530,16 @@ public class Record {
 		 * See http://tools.ietf.org/html/rfc5246#section-6.2.3.2 for
 		 * explanation
 		 */
-		DatagramWriter plaintext = new DatagramWriter();
-		plaintext.writeBytes(compressedFragment);
-
-		// add MAC
-		plaintext.writeBytes(getBlockCipherMac(outgoingWriteState, compressedFragment));
-
-		// determine padding length
-		int ciphertextLength = compressedFragment.length + outgoingWriteState.getMacLength() + 1;
-		int blocksize = outgoingWriteState.getRecordIvLength();
-		int lastBlockBytes = ciphertextLength % blocksize;
-		int paddingLength = lastBlockBytes > 0 ? blocksize - lastBlockBytes : 0;
-
- 		// create padding
-		byte[] padding = new byte[paddingLength + 1];
-		Arrays.fill(padding, (byte) paddingLength);
-		plaintext.writeBytes(padding);
-		Cipher blockCipher = outgoingWriteState.getCipherSuite().getThreadLocalCipher();
-		blockCipher.init(Cipher.ENCRYPT_MODE, outgoingWriteState.getEncryptionKey());
-
-		// create GenericBlockCipher structure
-		DatagramWriter result = new DatagramWriter();
-		result.writeBytes(blockCipher.getIV());
-		result.writeBytes(blockCipher.doFinal(plaintext.toByteArray()));
-		return result.toByteArray();
+		// additional data for  MAC
+		byte[] additionalData = generateAdditionalData(compressedFragment.length);
+		return CbcBlockCipher.encrypt(outgoingWriteState.getCipherSuite(), outgoingWriteState.getEncryptionKey(), outgoingWriteState.getMacKey(), additionalData, compressedFragment);
 	}
 
 	/**
-	 * Converts a given TLSCiphertext.fragment to a
-	 * TLSCompressed.fragment structure as defined by
-	 * <a href="http://tools.ietf.org/html/rfc5246#section-6.2.3.2">
-	 * RFC 5246, section 6.2.3.2</a>:
+	 * Converts a given TLSCiphertext.fragment to a TLSCompressed.fragment
+	 * structure as defined by
+	 * <a href="http://tools.ietf.org/html/rfc5246#section-6.2.3.2"> RFC 5246,
+	 * section 6.2.3.2</a>:
 	 * 
 	 * <pre>
 	 * struct {
@@ -581,10 +558,14 @@ public class Record {
 	 * 
 	 * @param ciphertextFragment the TLSCiphertext.fragment
 	 * @return the TLSCompressed.fragment
-	 * @throws NullPointerException if the given ciphertext or encryption params is <code>null</code>
+	 * @throws NullPointerException if the given ciphertext or encryption params
+	 *             is {@code null}
 	 * @throws InvalidMacException if message authentication failed
-	 * @throws GeneralSecurityException if the ciphertext could not be decrpyted, e.g.
-	 *             because the JVM does not support the negotiated block cipher
+	 * @throws GeneralSecurityException if the ciphertext could not be
+	 *             decrpyted, e.g. because the JVM does not support the
+	 *             negotiated block cipher
+	 * @see CbcBlockCipher#decrypt(CipherSuite, SecretKey, SecretKey, byte[],
+	 *      byte[])
 	 */
 	private byte[] decryptBlockCipher(byte[] ciphertextFragment) throws GeneralSecurityException {
 		if (ciphertextFragment == null) {
@@ -595,61 +576,13 @@ public class Record {
 				+ 1) {
 			throw new GeneralSecurityException("Ciphertext too short!");
 		}
-
 		/*
 		 * See http://tools.ietf.org/html/rfc5246#section-6.2.3.2 for
 		 * explanation
 		 */
-		DatagramReader reader = new DatagramReader(ciphertextFragment);
-		byte[] iv = reader.readBytes(incomingReadState.getRecordIvLength());
-		Cipher blockCipher = incomingReadState.getCipherSuite().getThreadLocalCipher();
-		blockCipher.init(Cipher.DECRYPT_MODE,
-				incomingReadState.getEncryptionKey(),
-				new IvParameterSpec(iv));
-		byte[] plaintext = blockCipher.doFinal(reader.readBytesLeft());
-		// last byte contains padding length
-		int macLength = incomingReadState.getMacLength();
-		int paddingLength = plaintext[plaintext.length - 1] & 0xff;
-		int fragmentLength = plaintext.length
-				- 1 // paddingLength byte
-				- paddingLength
-				- macLength;
-		if (fragmentLength < 0) {
-			throw new InvalidMacException();
-		}
-		for (int index = fragmentLength + macLength; index < plaintext.length; ++index) {
-			if (plaintext[index] != (byte) paddingLength) {
-				throw new InvalidMacException();
-			}
-		}
-		byte[] content = Arrays.copyOf(plaintext, fragmentLength);
-		byte[] macFromMessage = Arrays.copyOfRange(plaintext, fragmentLength, fragmentLength + macLength);
-		byte[] mac = getBlockCipherMac(incomingReadState, content);
-		if (Arrays.equals(macFromMessage, mac)) {
-			return content;
-		} else {
-			throw new InvalidMacException(mac, macFromMessage);
-		}
-	}
-
-	/**
-	 * Calculates a MAC for use with CBC block ciphers as specified
-	 * by <a href="http://tools.ietf.org/html/rfc5246#section-6.2.3.2">
-	 * RFC 5246, section 6.2.3.2</a>.
-	 * 
-	 * @param conState the security parameters for calculating the MAC
-	 * @param content the data to calculate the MAC for
-	 * @return the MAC
-	 * @throws GeneralSecurityException if the MAC could not be calculated,
-	 *           e.g. because the JVM does not support the cipher suite's
-	 *           HMac algorithm
-	 */
-	private byte[] getBlockCipherMac(DTLSConnectionState conState, byte[] content) throws GeneralSecurityException {
-
-		Mac hmac = conState.getCipherSuite().getThreadLocalMac();
-		hmac.init(conState.getMacKey());
-		hmac.update(generateAdditionalData(content.length));
-		return hmac.doFinal(content);
+		// additional data for MAC, use length 0 and overwrite it after decryption
+		byte[] additionalData = generateAdditionalData(0);
+		return CbcBlockCipher.decrypt(incomingReadState.getCipherSuite(), incomingReadState.getEncryptionKey(), incomingReadState.getMacKey(), additionalData, ciphertextFragment);
 	}
 
 	// AEAD Cryptography //////////////////////////////////////////////
