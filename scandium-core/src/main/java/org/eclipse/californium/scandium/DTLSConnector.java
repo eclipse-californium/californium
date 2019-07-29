@@ -243,6 +243,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 */
 	private static final int TLS12_CID_PADDING = 0;
 
+	private static final long CLIENT_HELLO_TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(60);
+
 	/** all the configuration options for the DTLS connector */ 
 	private final DtlsConnectorConfig config;
 
@@ -383,6 +385,16 @@ public class DTLSConnector implements Connector, RecordLayer {
 				public void sessionEstablished(Handshaker handshaker, DTLSSession establishedSession)
 						throws HandshakeException {
 					DTLSConnector.this.sessionEstablished(handshaker, establishedSession);
+				}
+
+				@Override
+				public void handshakeCompleted(final Handshaker handshaker) {
+					timer.schedule(new Runnable() {
+						@Override
+						public void run() {
+							handshaker.getConnection().isStartedByClientHello(null);
+						}
+					}, CLIENT_HELLO_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
 				}
 
 				@Override
@@ -1533,10 +1545,23 @@ public class DTLSConnector implements Connector, RecordLayer {
 			// the IP address indicated in the client hello message
 			final AvailableConnections connections = new AvailableConnections();
 			if (isClientInControlOfSourceIpAddress(clientHello, record, connections)) {
+				boolean verify = false;
 				Connection connection;
 				synchronized (connectionStore) {
 					connection = connectionStore.get(peerAddress);
-					if (connection == null || !connection.isStartedByClientHello(clientHello)) {
+					if (connection != null && !connection.isStartedByClientHello(clientHello)) {
+						Connection sessionConnection = connections.getConnectionBySessionId();
+						if (sessionConnection != null && sessionConnection != connection) {
+							// don't overwrite
+							verify = true;
+						} else {
+							if (sessionConnection != null && sessionConnection == connection) {
+								connections.setRemoveConnectionBySessionId(true);
+							}
+							connection = null;
+						}
+					}
+					if (connection == null) {
 						connection = new Connection(peerAddress, new SerialExecutor(getExecutorService()));
 						connection.startByClientHello(clientHello);
 						if (!connectionStore.put(connection)) {
@@ -1544,26 +1569,28 @@ public class DTLSConnector implements Connector, RecordLayer {
 						}
 					}
 				}
-				connections.setConnectionByAddress(connection);
-				try {
-
-					connection.getExecutor().execute(new Runnable() {
-
-						@Override
-						public void run() {
-							if (running.get()) {
-								processClientHello(clientHello, record, connections);
+				if (verify) {
+					sendHelloVerify(clientHello, record, null);
+				} else {
+					connections.setConnectionByAddress(connection);
+					try {
+						connection.getExecutor().execute(new Runnable() {
+							@Override
+							public void run() {
+								if (running.get()) {
+									processClientHello(clientHello, record, connections);
+								}
 							}
-						}
-					});
-				} catch (RejectedExecutionException e) {
-					// dont't terminate connection on shutdown!
-					LOGGER.debug("Execution rejected while processing record [type: {}, peer: {}]",
-							record.getType(), peerAddress, e);
-				} catch (RuntimeException e) {
-					LOGGER.warn("Unexpected error occurred while processing record [type: {}, peer: {}]",
-							record.getType(), peerAddress, e);
-					terminateConnection(connections.getConnectionByAddress(), e, AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
+						});
+					} catch (RejectedExecutionException e) {
+						// dont't terminate connection on shutdown!
+						LOGGER.debug("Execution rejected while processing record [type: {}, peer: {}]",
+								record.getType(), peerAddress, e);
+					} catch (RuntimeException e) {
+						LOGGER.warn("Unexpected error occurred while processing record [type: {}, peer: {}]",
+								record.getType(), peerAddress, e);
+						terminateConnection(connections.getConnectionByAddress(), e, AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
+					}
 				}
 			}
 		} catch (HandshakeException e) {
@@ -1587,10 +1614,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 		Connection connection = connections.getConnectionByAddress();
 		if (connection == null) {
 			throw new NullPointerException("connection by address must not be null!");
-		}
-		if (!connection.equalsPeerAddress(record.getPeerAddress())) {
-			LOGGER.warn("Drop CLIENT_HELLO, changed address {} => {}!",
-					record.getPeerAddress(), connection.getPeerAddress());
+		} else if (!connection.equalsPeerAddress(record.getPeerAddress())) {
+			LOGGER.warn("Drop CLIENT_HELLO, changed address {} => {}!", record.getPeerAddress(),
+					connection.getPeerAddress());
 			return;
 		}
 		if (LOGGER.isDebugEnabled()) {
@@ -1602,11 +1628,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 		}
 
 		try {
-			if (connection.hasOngoingHandshake() && connection.isStartedByClientHello(clientHello)) {
-				// client has sent this message before (maybe our response flight has been lost)
-				// but we do not want to start over again, so let the existing handshaker handle
-				// the duplicate
-				processOngoingHandshakeMessage(clientHello, record, connection);
+			if (connection.hasEstablishedSession() || connection.getOngoingHandshake() != null) {
+				LOGGER.debug("Discarding duplicate CLIENT_HELLO message [epoch={}] from peer [{}]!", record.getEpoch(),
+						record.getPeerAddress());
 			} else if (clientHello.hasSessionId()) {
 				// client wants to resume a cached session
 				resumeExistingSession(clientHello, record, connections);
@@ -1661,7 +1685,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		try {
 			byte[] expectedCookie = null;
 			byte[] providedCookie = clientHello.getCookie();
-			if (providedCookie != null && providedCookie.length > 0) {
+			if (providedCookie.length > 0) {
 				expectedCookie = cookieGenerator.generateCookie(clientHello);
 				// if cookie is present, it must match
 				if (Arrays.equals(expectedCookie, providedCookie)) {
@@ -1674,7 +1698,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 							record.getPeerAddress());
 				}
 				// otherwise send verify request
-			} else  {
+			} else {
 				// threshold 0 always use a verify request
 				if (0 < thresholdHandshakesWithoutVerifiedPeer) {
 					int pending = pendingHandshakesWithoutVerifiedPeer.get();
@@ -1688,27 +1712,10 @@ public class DTLSConnector implements Connector, RecordLayer {
 						connections.setConnectionBySessionId(sessionConnection);
 						if (sessionConnection != null) {
 							// found provided session.
-							if (sessionConnection.equalsPeerAddress(record.getPeerAddress())) {
-								// same peer wants to resume his session,
-								// no verify request required
-								LOGGER.trace("resuming peer's [{}] session", record.getPeerAddress());
-								return true;
-							} else {
-								Connection addressConnection = connectionStore.get(record.getPeerAddress());
-								if (addressConnection == null || !addressConnection.hasEstablishedSession()) {
-									LOGGER.trace("fast resume for peer [{}] [{}]", record.getPeerAddress(),
-											pending);
-									return true;
-								}
-							}
-							// for connection with other established session,
-							// use the verify request
+							return true;
 						}
 					}
 				}
-			}
-			if (expectedCookie == null) {
-				expectedCookie = cookieGenerator.generateCookie(clientHello);
 			}
 			// for all cases not detected above, use a verify request.
 			sendHelloVerify(clientHello, record, expectedCookie);
@@ -1804,7 +1811,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			if (previousConnection.hasEstablishedSession()) {
 				// client wants to resume a session that has been negotiated by this node
 				// make sure that the same client only has a single active connection to this server
-				if (previousConnection.getPeerAddress() == null || previousConnection.equalsPeerAddress(peerAddress)) {
+				if (connections.isRemoveConnectionBySessionId()) {
 					// immediately remove previous connection
 					connectionStore.remove(previousConnection, false);
 				} else if (clientHello.getCookie().length == 0) {
@@ -1837,10 +1844,13 @@ public class DTLSConnector implements Connector, RecordLayer {
 		}
 	}
 
-	private void sendHelloVerify(ClientHello clientHello, Record record, byte[] expectedCookie) {
+	private void sendHelloVerify(ClientHello clientHello, Record record, byte[] expectedCookie) throws GeneralSecurityException {
 		// send CLIENT_HELLO_VERIFY with cookie in order to prevent
 		// DOS attack as described in DTLS 1.2 spec
 		LOGGER.debug("Verifying client IP address [{}] using HELLO_VERIFY_REQUEST", record.getPeerAddress());
+		if (expectedCookie == null) {
+			expectedCookie = cookieGenerator.generateCookie(clientHello);
+		}
 		HelloVerifyRequest msg = new HelloVerifyRequest(new ProtocolVersion(), expectedCookie, record.getPeerAddress());
 		// because we do not have a handshaker in place yet that
 		// manages message_seq numbers, we need to set it explicitly
@@ -2216,7 +2226,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 				Exception cause = null;
 				if (!connection.isExecuting() || !running.get()) {
 					cause = new Exception("Stopped by shutdown!");
-				} else if (!connection.equalsPeerAddress(flight.getPeerAddress())) {
+				} else if (connectionStore.get(flight.getPeerAddress()) != connection) {
 					cause = new Exception("Stopped by address change!");
 				} else {
 					// set DTLS retransmission maximum
