@@ -67,9 +67,7 @@ import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.elements.util.TestThreadFactory;
-import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
-import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.scandium.category.Medium;
@@ -853,64 +851,6 @@ public class DTLSConnectorTest {
 		cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
 		assertThat("client side handshake failure missing", cause, is(notNullValue()));
 		assertThat(cause.getMessage(), containsString("handshake flight "));
-	}
-
-	/**
-	 * Verifies that the connector includes a <code>RawPublicKeyIdentity</code> representing
-	 * the authenticated client in the <code>RawData</code> object passed to the application
-	 * layer.
-	 */
-	@Test
-	public void testProcessApplicationMessageAddsRawPublicKeyIdentity() throws Exception {
-
-		givenAnEstablishedSession();
-
-		assertClientIdentity(RawPublicKeyIdentity.class);
-	}
-
-	/**
-	 * Verifies that the connector includes a <code>PreSharedKeyIdentity</code> representing
-	 * the authenticated client in the <code>RawData</code> object passed to the application
-	 * layer.
-	 */
-	@Test
-	public void testProcessApplicationMessageAddsPreSharedKeyIdentity() throws Exception {
-
-		// given an established session with a client using PSK authentication
-		clientConfig = new DtlsConnectorConfig.Builder()
-			.setAddress(clientEndpoint)
-			.setLoggingTag("client")
-			.setPskStore(new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()))
-			.build();
-		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
-		clientConnectionStore.setTag("client");
-		client = new DTLSConnector(clientConfig, clientConnectionStore);
-		givenAnEstablishedSession();
-
-		assertClientIdentity(PreSharedKeyIdentity.class);
-	}
-
-	/**
-	 * Verifies that the connector includes an <code>X500Principal</code> representing
-	 * the authenticated client in the <code>RawData</code> object passed to the application
-	 * layer.
-	 */
-	@Test
-	public void testProcessApplicationMessageAddsX509CertPath() throws Exception {
-
-		// given an established session with a client using X.509 based authentication
-		clientConfig = new DtlsConnectorConfig.Builder()
-			.setAddress(clientEndpoint)
-			.setLoggingTag("client")
-			.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), CertificateType.X_509)
-			.setTrustStore(DtlsTestTools.getTrustedCertificates())
-			.build();
-		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
-		clientConnectionStore.setTag("client");
-		client = new DTLSConnector(clientConfig, clientConnectionStore);
-		givenAnEstablishedSession();
-
-		assertClientIdentity(X509CertPath.class);
 	}
 
 	@Test
