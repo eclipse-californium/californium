@@ -140,12 +140,12 @@ public final class DTLSSession {
 	/**
 	 * The <em>current read state</em> used for processing all inbound records.
 	 */
-	private DTLSConnectionState readState = new DTLSConnectionState();
+	private DTLSConnectionState readState = DTLSConnectionState.NULL;
 
 	/**
 	 * The <em>current write state</em> used for processing all outbound records.
 	 */
-	private DTLSConnectionState writeState = new DTLSConnectionState();
+	private DTLSConnectionState writeState = DTLSConnectionState.NULL;
 
 	/**
 	 * The current read epoch, incremented with every CHANGE_CIPHER_SPEC message received

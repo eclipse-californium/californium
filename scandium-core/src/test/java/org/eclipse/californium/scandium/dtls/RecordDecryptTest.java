@@ -132,7 +132,7 @@ public class RecordDecryptTest {
 		List<Record> list = Record.fromByteArray(raw, session.getPeer(), null, ClockUtil.nanoRealtime());
 		assertFalse("failed to decode raw message", list.isEmpty());
 		for (Record recv : list) {
-			recv.setSession(session);
+			recv.applySession(session);
 			DTLSMessage message = recv.getFragment();
 			assertArrayEquals("decrypted payload differs", payload, message.toByteArray());
 		}
@@ -241,10 +241,15 @@ public class RecordDecryptTest {
 				new ApplicationMessage(payload, session.getPeer()), session, true, 0);
 		byte[] raw = record.toByteArray();
 		byte[] jraw = juggler.juggle(raw);
+		if (jraw.length > 4) {
+			// fix epoch to 1, prevent session read epoch check failure!
+			jraw[3] = 0;
+			jraw[4] = 1;
+		}
 		dumpDiff(raw, jraw);
 		List<Record> list = Record.fromByteArray(jraw, session.getPeer(), null, ClockUtil.nanoRealtime());
 		for (Record recv : list) {
-			recv.setSession(session);
+			recv.applySession(session);
 			recv.getFragment();
 		}
 	}
@@ -286,7 +291,7 @@ public class RecordDecryptTest {
 		byte[] raw = toByteArray(record, jfragment);
 		List<Record> list = Record.fromByteArray(raw, session.getPeer(), null, ClockUtil.nanoRealtime());
 		for (Record recv : list) {
-			recv.setSession(session);
+			recv.applySession(session);
 			recv.getFragment();
 		}
 	}

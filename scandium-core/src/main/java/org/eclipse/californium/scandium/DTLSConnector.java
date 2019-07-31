@@ -1101,7 +1101,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 					return;
 				} else {
 					// decode record to access "inner type" with record.getType()
-					record.setSession(session);
+					record.applySession(session);
 					record.getFragment();
 				}
 			} else if (epoch > 0 && useCid) {
@@ -1253,7 +1253,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 				try {
 					// APPLICATION_DATA can only be processed within the context of
 					// an established, i.e. fully negotiated, session
-					record.setSession(session);
+					record.applySession(session);
 					ApplicationMessage message = (ApplicationMessage) record.getFragment();
 
 					InetSocketAddress newAddress = record.getPeerAddress();
@@ -1326,8 +1326,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 					record.getEpoch(), record.getPeerAddress());
 			return;
 		}
-		record.setSession(session);
 		try {
+			record.applySession(session);
 			AlertMessage alert = (AlertMessage) record.getFragment();
 			Handshaker handshaker = connection.getOngoingHandshake();
 			HandshakeException error = null;
@@ -1407,7 +1407,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 				DTLSSession handshakeSession = connection.getOngoingHandshake().getSession();
 				if (handshakeSession.getReadEpoch() == record.getEpoch()) {
 					// evaluate message in context of ongoing handshake
-					record.setSession(handshakeSession);
+					record.applySession(handshakeSession);
 				} else if (!record.isNewClientHello()) {
 					// epoch is not the same as the current session so we
 					// can not decrypt the message now. Let handshaker handle it
@@ -1419,7 +1419,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 					&& connection.getEstablishedSession().getReadEpoch() == record.getEpoch()) {
 				// client wants to re-negotiate established connection's
 				// crypto params evaluate message in context of established session
-				record.setSession(connection.getEstablishedSession());
+				record.applySession(connection.getEstablishedSession());
 			} else if (record.isNewClientHello()) {
 				// client has lost track of existing connection and wants to
 				// negotiate a new connection
@@ -1432,12 +1432,10 @@ public class DTLSConnector implements Connector, RecordLayer {
 				return;
 			}
 
-			try {
-				HandshakeMessage handshakeMessage = (HandshakeMessage) record.getFragment();
-				processDecryptedHandshakeMessage(handshakeMessage, record, connection);
-			} catch (GeneralSecurityException e) {
+			HandshakeMessage handshakeMessage = (HandshakeMessage) record.getFragment();
+			processDecryptedHandshakeMessage(handshakeMessage, record, connection);
+		} catch (GeneralSecurityException e) {
 				discardRecord(record, e);
-			}
 		} catch (HandshakeException e) {
 			handleExceptionDuringHandshake(e, e.getAlert().getLevel(), e.getAlert().getDescription(), connection, record);
 		}
@@ -1538,6 +1536,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 			LOGGER.debug(msg.toString());
 		}
 		try {
+			// CLIENT_HELLO with epoch 0 is not encrypted, so use DTLSConnectionState.NULL 
+			record.applySession(null);
 			final ClientHello clientHello = (ClientHello) record.getFragment();
 
 			// before starting a new handshake or resuming an established

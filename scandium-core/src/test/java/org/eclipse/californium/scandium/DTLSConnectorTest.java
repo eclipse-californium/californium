@@ -311,6 +311,7 @@ public class DTLSConnectorTest {
 	public void testRetransmission() throws Exception {
 		// Configure UDP connector
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
+		collector.applySession(null);
 		UdpConnector rawClient = new UdpConnector(clientEndpoint.getPort(), collector);
 
 		try {
@@ -379,6 +380,7 @@ public class DTLSConnectorTest {
 	public void testNoRetransmissionIfMessageReceived() throws Exception {
 		// Configure UDP connector
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
+		collector.applySession(null);
 		UdpConnector rawClient = new UdpConnector(clientEndpoint.getPort(), collector);
 
 		// Add latency to PSK store
@@ -454,6 +456,7 @@ public class DTLSConnectorTest {
 		// now we try to establish a new session with a client connecting from the
 		// same IP address and port again
 		RecordCollectorDataHandler handler = new RecordCollectorDataHandler();
+		handler.applySession(null);
 
 		UdpConnector rawClient = new UdpConnector(clientEndpoint.getPort(), handler);
 		rawClient.start();
@@ -534,7 +537,7 @@ public class DTLSConnectorTest {
 	public void testClientHelloRetransmissionDoNotRestartHandshake() throws Exception {
 		// configure UDP connector
 		RecordCollectorDataHandler handler = new RecordCollectorDataHandler();
-
+		handler.applySession(null);
 		UdpConnector rawClient = new UdpConnector(clientEndpoint.getPort(), handler);
 		try {
 			rawClient.start();
@@ -745,7 +748,7 @@ public class DTLSConnectorTest {
 
 		InetSocketAddress endpoint = new InetSocketAddress(12000);
 		RecordCollectorDataHandler handler = new RecordCollectorDataHandler();
-
+		handler.applySession(null);
 		UdpConnector rawClient = new UdpConnector(endpoint.getPort(), handler);
 
 		try{
@@ -1036,7 +1039,7 @@ public class DTLSConnectorTest {
 	private void givenAnIncompleteHandshake() throws Exception {
 		// configure UDP connector
 		RecordCollectorDataHandler handler = new RecordCollectorDataHandler();
-
+		handler.applySession(null);
 		UdpConnector rawClient = new UdpConnector(clientEndpoint.getPort(), handler);
 
 		try {
