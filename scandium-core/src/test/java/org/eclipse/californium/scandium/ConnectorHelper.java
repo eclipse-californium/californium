@@ -46,6 +46,7 @@ import java.security.GeneralSecurityException;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -464,6 +465,21 @@ public class ConnectorHelper {
 	static class RecordCollectorDataHandler implements DataHandler {
 
 		private BlockingQueue<List<Record>> records = new LinkedBlockingQueue<>();
+		private Map<Integer, DTLSSession> apply = new HashMap<Integer, DTLSSession>(8);
+
+		/**
+		 * Apply session to all collected records with matching epoch.
+		 * 
+		 * @param session session to be applied. {@code null} is applied to
+		 *            epoch 0.
+		 */
+		void applySession(DTLSSession session) {
+			if (session == null) {
+				apply.put(0, null);
+			} else {
+				apply.put(session.getReadEpoch(), session);
+			}
+		}
 
 		@Override
 		public void handleData(InetSocketAddress endpoint, byte[] data) {
@@ -474,7 +490,21 @@ public class ConnectorHelper {
 		}
 
 		public List<Record> waitForRecords(long timeout, TimeUnit unit) throws InterruptedException {
-			return records.poll(timeout, unit);
+			List<Record> result = records.poll(timeout, unit);
+			if (result != null) {
+				for (Record record : result) {
+					if (apply.containsKey(record.getEpoch())) {
+						try {
+							record.applySession(apply.get(record.getEpoch()));
+						} catch (GeneralSecurityException e) {
+							throw new IllegalStateException(e);
+						} catch (HandshakeException e) {
+							throw new IllegalStateException(e);
+						}
+					}
+				}
+			}
+			return result;
 		}
 
 		public List<Record> waitForFlight(int size, long timeout, TimeUnit unit) throws InterruptedException {

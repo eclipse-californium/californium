@@ -327,7 +327,8 @@ public abstract class Handshaker {
 
 				for (Record record : queue) {
 					if (record.getEpoch() == session.getReadEpoch()) {
-						HandshakeMessage msg = (HandshakeMessage) record.getFragment(session.getReadState());
+						record.applySession(session);
+						HandshakeMessage msg = (HandshakeMessage) record.getFragment();
 						if (msg.getMessageSeq() == nextReceiveSeq) {
 							result = msg;
 							queue.remove(record);
@@ -367,6 +368,7 @@ public abstract class Handshaker {
 						getPeerAddress(), epoch, session.getReadEpoch());
 				return null;
 			} else if (epoch == session.getReadEpoch()) {
+				candidate.applySession(session);
 				DTLSMessage fragment = candidate.getFragment();
 				switch (fragment.getContentType()) {
 				case ALERT:
@@ -444,7 +446,6 @@ public abstract class Handshaker {
 		if ((sameEpoch && !session.isDuplicate(record.getSequenceNumber()))
 				|| (session.getReadEpoch() + 1) == record.getEpoch()) {
 			try {
-				record.setSession(session);
 				DTLSMessage messageToProcess = inboundMessageBuffer.getNextMessage(record);
 				while (messageToProcess != null) {
 					if (messageToProcess instanceof FragmentedHandshakeMessage) {
