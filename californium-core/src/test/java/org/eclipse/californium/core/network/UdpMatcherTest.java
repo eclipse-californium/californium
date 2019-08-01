@@ -35,6 +35,7 @@ import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.core.network.Exchange.EndpointContextOperator;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.MatcherTestUtils.TestEndpointReceiver;
 import org.eclipse.californium.core.network.config.NetworkConfig;
@@ -70,7 +71,9 @@ public class UdpMatcherTest {
 	private InMemoryMessageExchangeStore messageExchangeStore;
 	private EndpointContext exchangeEndpointContext;
 	private EndpointContext responseEndpointContext;
+	private EndpointContext preEndpointContext;
 	private EndpointContextMatcher endpointContextMatcher;
+	private EndpointContextOperator endpointContextOperator;
 	
 	@Before
 	public void before(){
@@ -82,9 +85,12 @@ public class UdpMatcherTest {
 		observationStore =  new InMemoryObservationStore(config);
 		exchangeEndpointContext = mock(EndpointContext.class);
 		responseEndpointContext = mock(EndpointContext.class);
+		preEndpointContext = mock(EndpointContext.class);
 		endpointContextMatcher = mock(EndpointContextMatcher.class);
+		endpointContextOperator = mock(EndpointContextOperator.class);
 		when(exchangeEndpointContext.getPeerAddress()).thenReturn(dest);
 		when(responseEndpointContext.getPeerAddress()).thenReturn(dest);
+		when(endpointContextOperator.apply(preEndpointContext)).thenReturn(exchangeEndpointContext);
 	}
 
 	@Test
@@ -199,6 +205,28 @@ public class UdpMatcherTest {
 		assertThat(request.getToken(), is(nullValue()));
 		assertFalse(request.hasMID());
 		assertFalse(exchange.hasRemoveHandler());
+	}
+
+	@Test
+	public void testRequestGetEndpointConextAfterPreOperator() {
+		// GIVEN a request sent without any additional endpoint information
+		when(endpointContextMatcher.isResponseRelatedToRequest(exchangeEndpointContext, responseEndpointContext))
+				.thenReturn(true);
+
+		UdpMatcher matcher = newUdpMatcher();
+
+		Exchange exchange = sendRequest(dest, matcher, endpointContextOperator, preEndpointContext);
+		TestEndpointReceiver receiver = new TestEndpointReceiver();
+
+		// WHEN a response arrives with arbitrary additional endpoint information
+		Response response = receiveResponseFor(exchange.getCurrentRequest(), responseEndpointContext);
+		matcher.receiveResponse(response, receiver);
+		Exchange matched = receiver.waitForExchange(1000);
+		assertThat(matched, is(exchange));
+
+		verify(endpointContextMatcher, times(1)).isResponseRelatedToRequest(exchangeEndpointContext,
+				responseEndpointContext);
+		verify(endpointContextOperator, times(1)).apply(preEndpointContext);
 	}
 
 	private UdpMatcher newUdpMatcher() {
