@@ -256,6 +256,7 @@ public class Exchange {
 	private volatile ObserveRelation relation;
 
 	private final AtomicReference<EndpointContext> endpointContext = new AtomicReference<EndpointContext>();
+	private volatile EndpointContextOperator endpointContextPreOperator;
 
 	//If object security option is used, the Cryptographic context identifier is stored here
     // for request/response mapping of contexts
@@ -935,10 +936,16 @@ public class Exchange {
 	 * exchange to increase security when matching an incoming response to this
 	 * exchange's request.
 	 * </p>
+	 * If a {@link #setEndpointContextPreOperator(EndpointContextOperator)} is used,
+	 * this pre-operator is called before the endpoint context is set and forwarded.
 	 * 
 	 * @param ctx the endpoint context information
 	 */
-	public void setEndpointContext(final EndpointContext ctx) {
+	public void setEndpointContext(EndpointContext ctx) {
+		EndpointContextOperator operator = endpointContextPreOperator;
+		if (operator != null) {
+			ctx = operator.apply(ctx);
+		}
 		if (endpointContext.compareAndSet(null, ctx)) {
 			getCurrentRequest().onContextEstablished(ctx);
 		} else {
@@ -955,6 +962,18 @@ public class Exchange {
 	 */
 	public EndpointContext getEndpointContext() {
 		return endpointContext.get();
+	}
+
+	/**
+	 * Set endpoint context pre-operator.
+	 * 
+	 * Applied on {@link #setEndpointContext(EndpointContext)} before the
+	 * endpoint context is set and forwarded.
+	 * 
+	 * @param operator preprocessing operator for endoint context.
+	 */
+	public void setEndpointContextPreOperator(EndpointContextOperator operator) {
+		endpointContextPreOperator = operator;
 	}
 
 	/**
@@ -1140,5 +1159,20 @@ public class Exchange {
 	 */
 	public byte[] getCryptographicContextID() {
 		return this.cryptoContextId;
+	}
+
+	/**
+	 * Endpoint context operator. Use to pre-process a reported endpoint context
+	 * before set and forwarding it.
+	 */
+	public interface EndpointContextOperator {
+
+		/**
+		 * Apply operation on endpoint context.
+		 * 
+		 * @param context endpoint context
+		 * @return resulting endpoint context.
+		 */
+		EndpointContext apply(EndpointContext context);
 	}
 }

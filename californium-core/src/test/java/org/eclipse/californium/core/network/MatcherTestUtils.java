@@ -103,6 +103,16 @@ public final class MatcherTestUtils {
 		return exchange;
 	}
 
+	static Exchange sendRequest(InetSocketAddress dest, Matcher matcher, Exchange.EndpointContextOperator preoperator, EndpointContext exchangeContext) {
+		Request request = Request.newGet();
+		request.setDestinationContext(new AddressEndpointContext(dest));
+		Exchange exchange = new Exchange(request, Origin.LOCAL, TEST_EXCHANGE_EXECUTOR);
+		exchange.setEndpointContextPreOperator(preoperator);
+		matcher.sendRequest(exchange);
+		exchange.setEndpointContext(exchangeContext);
+		return exchange;
+	}
+
 	public static Response receiveResponseFor(final Request request) {
 		return receiveResponseFor(request, request.getDestinationContext());
 	}
