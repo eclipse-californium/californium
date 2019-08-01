@@ -46,9 +46,12 @@ import org.slf4j.LoggerFactory;
 /**
  * The configuration for a Californium server, endpoint and/or connector.
  * Depending on the environment, the configuration is stored and loaded from
- * properties files. If file access is not possible, there are variants, which
- * are marked as "WithoutFile" or variants, which use a {@link InputStream} to
- * read the properties.
+ * properties files. When missing, californium will generated this properties
+ * file. If file access is not possible, there are variants, which are marked as
+ * "WithoutFile" or variants, which use a {@link InputStream} to read the
+ * properties. Please use such a variant, e.g.
+ * {@link #createStandardWithoutFile()}, if you want californium to stop
+ * generating a properties file.
  * 
  * Note: For Android it's recommended to use the AssetManager and pass in the
  * InputStream to the variants using that as parameter. Alternatively you may
