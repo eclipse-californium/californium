@@ -579,6 +579,8 @@ public class Record {
 			throw new NullPointerException("Current read state must not be null");
 		} else if (ciphertextFragment == null) {
 			throw new NullPointerException("Ciphertext must not be null");
+		} else if (ciphertextFragment.length % currentReadState.getRecordIvLength() != 0) {
+			throw new GeneralSecurityException("Ciphertext doesn't fit block size!");
 		} else if (ciphertextFragment.length < currentReadState.getRecordIvLength() + currentReadState.getMacLength()
 				+ 1) {
 			throw new GeneralSecurityException("Ciphertext too short!");
@@ -596,15 +598,22 @@ public class Record {
 				new IvParameterSpec(iv));
 		byte[] plaintext = blockCipher.doFinal(reader.readBytesLeft());
 		// last byte contains padding length
-		int paddingLength = plaintext[plaintext.length - 1];
+		int paddingLength = plaintext[plaintext.length - 1] & 0xff;
 		int fragmentLength = plaintext.length
 				- 1 // paddingLength byte
 				- paddingLength
 				- currentReadState.getMacLength();
-
-		reader = new DatagramReader(plaintext);
-		byte[] content = reader.readBytes(fragmentLength);
-		byte[] macFromMessage = reader.readBytes(currentReadState.getCipherSuite().getMacLength());
+		if (fragmentLength < 0) {
+			throw new InvalidMacException();
+		}
+		for (int index = fragmentLength + currentReadState.getMacLength(); index < plaintext.length; ++index) {
+			if (plaintext[index] != (byte) paddingLength) {
+				throw new InvalidMacException();
+			}
+		}
+		byte[] content = Arrays.copyOf(plaintext, fragmentLength);
+		byte[] macFromMessage = Arrays.copyOfRange(plaintext, fragmentLength,
+				fragmentLength + currentReadState.getCipherSuite().getMacLength());
 		byte[] mac = getBlockCipherMac(currentReadState, content);
 		if (Arrays.equals(macFromMessage, mac)) {
 			return content;
