@@ -211,12 +211,13 @@ public class ClientHandshakerTest {
 		} else {
 			builder.setClientAuthenticationRequired(false);
 		}
+		Connection connection = new Connection(peer, new SyncSerialExecutor());
 		DTLSSession session = new DTLSSession(peer);
 		session.setVirtualHost(virtualHost);
 		handshaker = new ClientHandshaker(
 				session,
 				recordLayer,
-				null,
+				connection,
 				builder.build(),
 				MAX_TRANSMISSION_UNIT);
 	}
