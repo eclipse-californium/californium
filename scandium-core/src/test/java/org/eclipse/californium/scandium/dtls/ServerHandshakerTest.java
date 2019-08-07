@@ -59,7 +59,7 @@ import org.junit.experimental.categories.Category;
 @Category(Medium.class)
 public class ServerHandshakerTest {
 
-	final static CipherSuite SERVER_CIPHER_SUITE = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256;
+	final static CipherSuite SERVER_CIPHER_SUITE = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
 	final static int ETHERNET_MTU = 1500;
 
 	static PrivateKey privateKey;
@@ -114,6 +114,7 @@ public class ServerHandshakerTest {
 		supportedClientCiphers = new byte[]{
 				(byte) 0xFF, (byte) 0xA8, // fantasy cipher (non-existent)
 				(byte) 0xC0, (byte) 0xA8, // TLS_PSK_WITH_AES_128_CCM_8
+				(byte) 0xC0, (byte) 0xAE, // TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8
 				(byte) 0xC0, (byte) 0x23};// TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
 	}
 

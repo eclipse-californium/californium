@@ -804,6 +804,7 @@ public final class DtlsConnectorConfig {
 
 		private DtlsConnectorConfig config;
 		private boolean clientOnly;
+		private boolean recommendedCipherSuitesOnly = true;
 
 		/**
 		 * Creates a new instance for setting configuration options
@@ -875,6 +876,22 @@ public final class DtlsConnectorConfig {
 		 */
 		public Builder setEnableAddressReuse(boolean enable) {
 			config.enableReuseAddress = enable;
+			return this;
+		}
+
+		/**
+		 * Set usage of recommended cipher suites.
+		 * 
+		 * @param recommendedCipherSuitesOnly {@code true} allow only
+		 *            recommended cipher suites, {@code false}, also allow not
+		 *            recommended cipher suites. Default value is {@code true}
+		 * @return this builder for command chaining
+		 */
+		public Builder setRecommendedCipherSuitesOnly(boolean recommendedCipherSuitesOnly) {
+			this.recommendedCipherSuitesOnly = recommendedCipherSuitesOnly;
+			if (recommendedCipherSuitesOnly && config.supportedCipherSuites != null) {
+				verifyRecommendedCipherSuitesOnly(config.supportedCipherSuites);
+			}
 			return this;
 		}
 
@@ -1075,11 +1092,15 @@ public final class DtlsConnectorConfig {
 		 * order) during the DTLS handshake when negotiating a cipher suite with
 		 * a peer.
 		 * 
-		 * @param cipherSuites the supported cipher suites in the order of preference
+		 * @param cipherSuites the supported cipher suites in the order of
+		 *            preference
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given array is <code>null</code>
-		 * @throws IllegalArgumentException if the given array is empty or
-		 *             contains {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}
+		 * @throws IllegalArgumentException if the given array is empty,
+		 *             contains {@link CipherSuite#TLS_NULL_WITH_NULL_NULL},
+		 *             contains a cipher suite, not supported by the JVM, or
+		 *             violates the
+		 *             {@link #setRecommendedCipherSuitesOnly(boolean)} setting.
 		 */
 		public Builder setSupportedCipherSuites(CipherSuite... cipherSuites) {
 			if (cipherSuites == null) {
@@ -1099,9 +1120,11 @@ public final class DtlsConnectorConfig {
 		 *            preference
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given array is <code>null</code>
-		 * @throws IllegalArgumentException if the given array is empty or
-		 *             contains {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}, or
-		 *             contains a cipher suite, not supported by the JVM.
+		 * @throws IllegalArgumentException if the given array is empty,
+		 *             contains {@link CipherSuite#TLS_NULL_WITH_NULL_NULL},
+		 *             contains a cipher suite, not supported by the JVM, or
+		 *             violates the
+		 *             {@link #setRecommendedCipherSuitesOnly(boolean)} setting.
 		 */
 		public Builder setSupportedCipherSuites(List<CipherSuite> cipherSuites) {
 			if (cipherSuites == null) {
@@ -1113,11 +1136,15 @@ public final class DtlsConnectorConfig {
 			if (cipherSuites.contains(CipherSuite.TLS_NULL_WITH_NULL_NULL)) {
 				throw new IllegalArgumentException("NULL Cipher Suite is not supported by connector");
 			}
+			if (recommendedCipherSuitesOnly) {
+				verifyRecommendedCipherSuitesOnly(cipherSuites);
+			}
 			for (CipherSuite cipherSuite : cipherSuites) {
 				if (!cipherSuite.isSupported()) {
 					throw new IllegalArgumentException("cipher-suites " + cipherSuite + " is not supported by JVM!");
 				}
 			}
+			
 			config.supportedCipherSuites = cipherSuites;
 			return this;
 		}
@@ -1135,9 +1162,11 @@ public final class DtlsConnectorConfig {
 		 *            IANA registry</a> for a list of cipher suite names)
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given array is <code>null</code>
-		 * @throws IllegalArgumentException if the given array is empty or
-		 *             contains <em>TLS_NULL_WITH_NULL_NULL</em> or if a name
-		 *             from the given list is unsupported (yet)
+		 * @throws IllegalArgumentException if the given array is empty,
+		 *             contains {@link CipherSuite#TLS_NULL_WITH_NULL_NULL},
+		 *             contains a cipher suite, not supported by the JVM,
+		 *             contains a name, which is not supported, or violates the
+		 *             {@link #setRecommendedCipherSuitesOnly(boolean)} setting.
 		 */
 		public Builder setSupportedCipherSuites(String... cipherSuites) {
 			if (cipherSuites == null) {
@@ -2003,19 +2032,34 @@ public final class DtlsConnectorConfig {
 			}
 		}
 
+		private void verifyRecommendedCipherSuitesOnly(List<CipherSuite> suites) {
+			StringBuilder message = new StringBuilder();
+			for (CipherSuite cipherSuite : suites) {
+				if (!cipherSuite.isRecommended()) {
+					if (message.length() > 0) {
+						message.append(", ");
+					}
+					message.append(cipherSuite.name());
+				}
+			}
+			if (message.length() > 0) {
+				throw new IllegalStateException("Not recommended cipher suites " + message
+						+ " used! (Requires to set recommendedCipherSuitesOnly to false.)");
+			}
+		}
+
 		private void determineCipherSuitesFromConfig() {
 			// user has not explicitly set cipher suites
 			// try to guess his intentions from properties he has set
 			List<CipherSuite> ciphers = new ArrayList<>();
 			boolean certificates = isConfiguredWithKeyPair() || config.trustCertificateTypes != null;
-
 			if (certificates) {
 				// currently only ECDSA is supported!
-				ciphers.addAll(CipherSuite.getEcdsaCipherSuites());
+				ciphers.addAll(CipherSuite.getEcdsaCipherSuites(recommendedCipherSuitesOnly));
 			}
 
 			if (config.pskStore != null) {
-				ciphers.addAll(CipherSuite.getPskCipherSuites(true));
+				ciphers.addAll(CipherSuite.getPskCipherSuites(recommendedCipherSuitesOnly, true));
 			}
 
 			config.supportedCipherSuites = ciphers;

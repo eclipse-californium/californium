@@ -74,31 +74,35 @@ public enum CipherSuite {
 	//
 	// /!\ CBC should be avoid /!\  because :
 	// - Implementing authenticated decryption (checking padding and mac) without any side channel is hard (see Lucky 13 attack and its variants).
-	//   The solution is to use the encrypt then mac extension defined in RFC 7366, which is recommended. (from LWM2M 1.0.2 specification)
-	// - Currently Scandium does not support RFC 7366.
+	// - In fact, the current Scandium CBC implementation is not "processing time stable" according such "padding" attacks.
+	// - One solution is to use the encrypt then mac extension defined in RFC 7366, which is recommended. (from LWM2M 1.0.2 specification)
+	//   But currently Scandium also does not support RFC 7366.
+	//
+	// Therefore the CBC cipher suites are not recommended. If you want to use them, you MUST first disable
+	// the "recommendedCipherSuitesOnly" in DtlsConnectorConfig.Builder.
 
 	// PSK cipher suites, ordered by default preference, see getPskCiperSuites ///
-	TLS_PSK_WITH_AES_128_GCM_SHA256(0x00A8, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_GCM, MACAlgorithm.NULL),
-	TLS_PSK_WITH_AES_128_CCM_8(0xC0A8, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_CCM_8, MACAlgorithm.NULL),
-	TLS_PSK_WITH_AES_256_CCM_8(0xC0A9, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_256_CCM_8, MACAlgorithm.NULL),
-	TLS_PSK_WITH_AES_128_CCM(0xC0A4, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_CCM, MACAlgorithm.NULL),
-	TLS_PSK_WITH_AES_256_CCM(0xC0A5, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_256_CCM, MACAlgorithm.NULL),
+	TLS_PSK_WITH_AES_128_GCM_SHA256(0x00A8, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_GCM, MACAlgorithm.NULL, true),
+	TLS_PSK_WITH_AES_128_CCM_8(0xC0A8, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_CCM_8, MACAlgorithm.NULL, true),
+	TLS_PSK_WITH_AES_256_CCM_8(0xC0A9, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_256_CCM_8, MACAlgorithm.NULL, true),
+	TLS_PSK_WITH_AES_128_CCM(0xC0A4, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_CCM, MACAlgorithm.NULL, true),
+	TLS_PSK_WITH_AES_256_CCM(0xC0A5, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_256_CCM, MACAlgorithm.NULL, true),
 	/**See <a href="https://tools.ietf.org/html/rfc5489#section-3.2">RFC 5489</a> for details*/
-	TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256(0xC037, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.ECDHE_PSK, CipherSpec.AES_128_CBC, MACAlgorithm.HMAC_SHA256),
-	TLS_PSK_WITH_AES_128_CBC_SHA256(0x00AE, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_CBC, MACAlgorithm.HMAC_SHA256),
+	TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256(0xC037, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.ECDHE_PSK, CipherSpec.AES_128_CBC, MACAlgorithm.HMAC_SHA256, false),
+	TLS_PSK_WITH_AES_128_CBC_SHA256(0x00AE, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_CBC, MACAlgorithm.HMAC_SHA256, false),
 
 	// Certificate cipher suites, ordered by default preference, see getCertificateCipherSuites or getEcdsaCipherSuites ///
-	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256(0xc02b, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_GCM, MACAlgorithm.NULL),
-	TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8(0xC0AE, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_CCM_8, MACAlgorithm.NULL),
-	TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8(0xC0AF, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CCM_8, MACAlgorithm.NULL),
-	TLS_ECDHE_ECDSA_WITH_AES_128_CCM(0xC0AC, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_CCM, MACAlgorithm.NULL),
-	TLS_ECDHE_ECDSA_WITH_AES_256_CCM(0xC0AD, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CCM, MACAlgorithm.NULL),
-	TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA(0xC00A, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CBC, MACAlgorithm.HMAC_SHA1),
-	TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256(0xC023, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_CBC, MACAlgorithm.HMAC_SHA256),
-	TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384(0xC024, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CBC, MACAlgorithm.HMAC_SHA384, PRFAlgorithm.TLS_PRF_SHA384),
+	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256(0xc02b, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_GCM, MACAlgorithm.NULL, true),
+	TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8(0xC0AE, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_CCM_8, MACAlgorithm.NULL, true),
+	TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8(0xC0AF, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CCM_8, MACAlgorithm.NULL, true),
+	TLS_ECDHE_ECDSA_WITH_AES_128_CCM(0xC0AC, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_CCM, MACAlgorithm.NULL, true),
+	TLS_ECDHE_ECDSA_WITH_AES_256_CCM(0xC0AD, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CCM, MACAlgorithm.NULL, true),
+	TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA(0xC00A, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CBC, MACAlgorithm.HMAC_SHA1, false),
+	TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256(0xC023, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_CBC, MACAlgorithm.HMAC_SHA256, false),
+	TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384(0xC024, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CBC, MACAlgorithm.HMAC_SHA384, false, PRFAlgorithm.TLS_PRF_SHA384),
 
 	// Null cipher suite ///
-	TLS_NULL_WITH_NULL_NULL(0x0000, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.NULL, CipherSpec.NULL, MACAlgorithm.NULL),
+	TLS_NULL_WITH_NULL_NULL(0x0000, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.NULL, CipherSpec.NULL, MACAlgorithm.NULL, false),
 	;
 
 	// DTLS-specific constants ////////////////////////////////////////
@@ -121,19 +125,21 @@ public enum CipherSuite {
 	private final MACAlgorithm macAlgorithm;
 	private final PRFAlgorithm pseudoRandomFunction;
 	private final int maxCipherTextExpansion;
+	private boolean recommendedCipherSuite;
 
 	// Constructor ////////////////////////////////////////////////////
 
-	private CipherSuite(int code, CertificateKeyAlgorithm certificate, KeyExchangeAlgorithm keyExchange, CipherSpec cipher, MACAlgorithm macAlgorithm) {
-		this(code, certificate, keyExchange, cipher, macAlgorithm, PRFAlgorithm.TLS_PRF_SHA256);
+	private CipherSuite(int code, CertificateKeyAlgorithm certificate, KeyExchangeAlgorithm keyExchange, CipherSpec cipher, MACAlgorithm macAlgorithm, boolean recommendedCipherSuite) {
+		this(code, certificate, keyExchange, cipher, macAlgorithm, recommendedCipherSuite, PRFAlgorithm.TLS_PRF_SHA256);
 	}
 
-	private CipherSuite(int code, CertificateKeyAlgorithm certificate, KeyExchangeAlgorithm keyExchange, CipherSpec cipher, MACAlgorithm macAlgorithm, PRFAlgorithm prf) {
+	private CipherSuite(int code, CertificateKeyAlgorithm certificate, KeyExchangeAlgorithm keyExchange, CipherSpec cipher, MACAlgorithm macAlgorithm, boolean recommendedCipherSuite, PRFAlgorithm prf) {
 		this.code = code;
 		this.certificateKeyAlgorithm = certificate;
 		this.keyExchange = keyExchange;
 		this.cipher = cipher;
 		this.macAlgorithm = macAlgorithm;
+		this.recommendedCipherSuite = recommendedCipherSuite;
 		this.pseudoRandomFunction = prf;
 		switch(this.cipher.getType()) {
 		case BLOCK:
@@ -265,6 +271,15 @@ public enum CipherSuite {
 	}
 
 	/**
+	 * Check whether this cipher suite is recommended.
+	 * 
+	 * @return {@code true} if cipher suite is recommended
+	 */
+	public boolean isRecommended() {
+		return recommendedCipherSuite;
+	}
+
+	/**
 	 * Gets the output length of the cipher suite's MAC algorithm.
 	 *  
 	 * @return the length in bytes
@@ -385,15 +400,18 @@ public enum CipherSuite {
 	/**
 	 * Get a list of all supported PSK cipher suites.
 	 * 
+	 * @param recommendedCipherSuitesOnly {@code true} use only recommended cipher suites
 	 * @return list of all supported PSK cipher suites. Ordered by their definition above.
 	 */
-	public static List<CipherSuite> getPskCipherSuites(boolean ecdhePsk) {
+	public static List<CipherSuite> getPskCipherSuites(boolean recommendedCipherSuitesOnly, boolean ecdhePsk) {
 		List<CipherSuite> list = new ArrayList<>();
 		for (CipherSuite suite : values()) {
 			if (suite.isSupported()) {
 				if (KeyExchangeAlgorithm.PSK.equals(suite.keyExchange)
 						|| (ecdhePsk && KeyExchangeAlgorithm.ECDHE_PSK.equals(suite.keyExchange))) {
-					list.add(suite);
+					if (!recommendedCipherSuitesOnly || suite.recommendedCipherSuite) {
+						list.add(suite);
+					}
 				}
 			}
 		}
@@ -403,10 +421,11 @@ public enum CipherSuite {
 	/**
 	 * Get a list of all supported ECDSA cipher suites.
 	 * 
+	 * @param recommendedCipherSuitesOnly {@code true} use only recommended cipher suites
 	 * @return list of all supported ECDSA cipher suites. Ordered by their definition above.
 	 */
-	public static List<CipherSuite> getEcdsaCipherSuites() {
-		return getCertificateCipherSuites(CertificateKeyAlgorithm.EC.name());
+	public static List<CipherSuite> getEcdsaCipherSuites(boolean recommendedCipherSuitesOnly) {
+		return getCertificateCipherSuites(recommendedCipherSuitesOnly, CertificateKeyAlgorithm.EC.name());
 	}
 
 	/**
@@ -415,17 +434,20 @@ public enum CipherSuite {
 	 * 
 	 * Note: currently only ECDSA is supported. There are no plans to support
 	 * other key algorithm
-	 * 
+	 * @param recommendedCipherSuitesOnly {@code true} use only recommended cipher suites
 	 * @param keyAlgorithm name of key algorithm. e.g. "EC"
+	 * 
 	 * @return list of all supported cipher suites with the provided key
 	 *         algorithm. Ordered by their definition above.
 	 */
-	public static List<CipherSuite> getCertificateCipherSuites(String keyAlgorithm) {
+	public static List<CipherSuite> getCertificateCipherSuites(boolean recommendedCipherSuitesOnly, String keyAlgorithm) {
 		List<CipherSuite> list = new ArrayList<>();
 		for (CipherSuite suite : values()) {
 			if (suite.isSupported()) {
 				if (suite.certificateKeyAlgorithm.name().equals(keyAlgorithm)) {
-					list.add(suite);
+					if (!recommendedCipherSuitesOnly || suite.recommendedCipherSuite) {
+						list.add(suite);
+					}
 				}
 			}
 		}

@@ -42,7 +42,6 @@ import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.Principal;
 import java.security.cert.Certificate;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.Future;
@@ -652,6 +651,7 @@ public class DTLSConnectorHandshakeTest {
 	public void testEcdhPskHandshake() throws Exception {
 		startServer(false, false,  false,  null);
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+				.setRecommendedCipherSuitesOnly(false)
 				.setPskStore(new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()))
 				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256);
 		startClient(false,  null, builder);
@@ -663,6 +663,7 @@ public class DTLSConnectorHandshakeTest {
 		startServer(false, false,  false,  null);
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
 				.setPskStore(new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()))
+				.setRecommendedCipherSuitesOnly(false)
 				.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256);
 		startClient(false,  null, builder);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(), is(CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256));
@@ -727,6 +728,7 @@ public class DTLSConnectorHandshakeTest {
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
 				.setRpkTrustAll()
 				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientPublicKey())
+				.setRecommendedCipherSuitesOnly(false)
 				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256);
 		startClient(false,  null, builder);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256));
@@ -785,6 +787,7 @@ public class DTLSConnectorHandshakeTest {
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
 				.setRpkTrustAll()
 				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientPublicKey())
+				.setRecommendedCipherSuitesOnly(false)
 				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA);
 		startClient(false,  null, builder);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA));
@@ -797,6 +800,7 @@ public class DTLSConnectorHandshakeTest {
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
 				.setRpkTrustAll()
 				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientPublicKey())
+				.setRecommendedCipherSuitesOnly(false)
 				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384);
 		startClient(false,  null, builder);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384));

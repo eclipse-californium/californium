@@ -116,7 +116,7 @@ public class DtlsConnectorConfigTest {
 
 	@Test
 	public void testBuilderSetsAtLeastAllMandatoryCipherSuitesWhenKeysAndPskStoreAreSet() throws Exception {
-		DtlsConnectorConfig config = builder.setClientAuthenticationRequired(false)
+		DtlsConnectorConfig config = builder.setClientAuthenticationRequired(false).setRecommendedCipherSuitesOnly(false)
 				.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
 				.setPskStore(new StaticPskStore("ID", "KEY".getBytes())).build();
 		List<CipherSuite> cipherSuites = config.getSupportedCipherSuites();
@@ -125,6 +125,22 @@ public class DtlsConnectorConfigTest {
 						CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256));
+	}
+
+	@Test
+	public void testBuilderSetsNoNotRecommendedCipherSuitesWhenKeysAndPskStoreAreSet() throws Exception {
+		DtlsConnectorConfig config = builder.setClientAuthenticationRequired(false)
+				.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
+				.setPskStore(new StaticPskStore("ID", "KEY".getBytes())).build();
+		List<CipherSuite> cipherSuites = config.getSupportedCipherSuites();
+		for (CipherSuite cipherSuite :cipherSuites) {
+			assertThat(cipherSuite.isRecommended(), is(true)); 
+		}
+	}
+
+	@Test(expected = IllegalStateException.class)
+	public void testBuilderDetectsNotRecommendedCiperSuite() {
+		builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256);
 	}
 
 	@Test(expected = IllegalStateException.class)
