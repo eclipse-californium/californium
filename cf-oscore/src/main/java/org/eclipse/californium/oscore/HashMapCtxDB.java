@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018 RISE SICS and others.
+ * Copyright (c) 2019 RISE SICS and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -53,17 +53,10 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 
 	private ArrayList<Token> allTokens;
 
-	private static volatile HashMapCtxDB singleton = null;
-
 	/**
 	 * Create the database
 	 */
 	public HashMapCtxDB() {
-
-		// Prevent form the reflection api.
-		if (singleton != null) {
-			throw new RuntimeException("Use getInstance() method to get the single instance of this class.");
-		}
 
 		this.tokenMap = new HashMap<>();
 		this.ridMap = new HashMap<>();
@@ -116,7 +109,9 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 	@Override
 	public synchronized void addContext(String uri, OSCoreCtx ctx) throws OSException {
 		if (uri != null) {
-			uriMap.put(normalizeServerUri(uri), ctx);
+		    String normalizedUri = normalizeServerUri(uri);
+		    uriMap.put(normalizedUri, ctx);
+		    ctx.setUri(normalizedUri);
 		}
 		addContext(ctx);
 	}
@@ -191,7 +186,7 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 	 * @param uri the request uri
 	 * @return the normalized uri
 	 *
-	 * @throws OSException
+	 * @throws OSException on failure to parse the URI
 	 */
 	private static String normalizeServerUri(String uri) throws OSException {
 		String normalized = null;
@@ -208,7 +203,7 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 				//Save the original scope
 				Matcher matcher = pattern.matcher(uri);
 				String originalScope = null;
-				if(matcher.find()) {
+				if (matcher.find()) {
 					originalScope = matcher.group(1);
 				}
 
@@ -218,14 +213,14 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 				//Find the modified new scope
 				matcher = pattern.matcher(normalized);
 				String newScope = null;
-				if(matcher.find()) {
+				if (matcher.find()) {
 					newScope = matcher.group(1);
 				}
 
 				//Restore original scope for the IPv6 normalization
 				//Otherwise getByName below will fail with "no such interface"
 				//Since the scope is no longer matching the interface
-				if(newScope != null && originalScope != null) {
+				if (newScope != null && originalScope != null) {
 					normalized = normalized.replace(newScope, originalScope);
 				}
 
@@ -243,7 +238,7 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 		} catch (UnknownHostException e) {
 			LOGGER.error("Error finding host of request URI: " + uri + " message: " + e.getMessage());
 		}
-		if(ipv6Addr instanceof Inet6Address) {
+		if (ipv6Addr instanceof Inet6Address) {
 			normalized = ipv6Addr.getHostAddress();
 		}
 
@@ -259,7 +254,7 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 	/**
 	 * Removes associations for this token, except for the generator
 	 * 
-	 * @param token
+	 * @param token the token to remove
 	 */
 	@Override
 	public synchronized void removeToken(Token token) {
