@@ -88,6 +88,7 @@ import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -249,6 +250,8 @@ public abstract class Handshaker {
 			throw new NullPointerException("DTLS Session must not be null");
 		} else if (recordLayer == null) {
 			throw new NullPointerException("Record layer must not be null");
+		} else if (connection == null) {
+			throw new NullPointerException("Connection must not be null");
 		} else if (config == null) {
 			throw new NullPointerException("Dtls Connector Config must not be null");
 		} else if (initialMessageSeq < 0) {
@@ -288,10 +291,9 @@ public abstract class Handshaker {
 			@Override
 			public int compare(Record r1, Record r2) {
 
-				if (r1.getEpoch() < r2.getEpoch()) {
-					return -1;
-				} else if (r1.getEpoch() > r2.getEpoch()) {
-					return 1;
+				if (r1.getEpoch() != r2.getEpoch()) {
+					throw new IllegalArgumentException(
+							"records with different epoch! " + r1.getEpoch() + " != " + r2.getEpoch());
 				} else if (r1.getSequenceNumber() < r2.getSequenceNumber()) {
 					return -1;
 				} else if (r1.getSequenceNumber() > r2.getSequenceNumber()) {
@@ -327,7 +329,6 @@ public abstract class Handshaker {
 
 				for (Record record : queue) {
 					if (record.getEpoch() == session.getReadEpoch()) {
-						record.applySession(session);
 						HandshakeMessage msg = (HandshakeMessage) record.getFragment();
 						if (msg.getMessageSeq() == nextReceiveSeq) {
 							result = msg;
@@ -361,18 +362,11 @@ public abstract class Handshaker {
 		 * @throws GeneralSecurityException if the record's ciphertext fragment could not be de-crypted 
 		 */
 		DTLSMessage getNextMessage(Record candidate) throws GeneralSecurityException, HandshakeException {
-			int epoch = candidate.getEpoch();
-			if (epoch < session.getReadEpoch()) {
-				// discard old message
-				LOGGER.debug("Discarding message from peer [{}] from past epoch [{}] < current epoch [{}]",
-						getPeerAddress(), epoch, session.getReadEpoch());
-				return null;
-			} else if (epoch == session.getReadEpoch()) {
-				candidate.applySession(session);
+			int recordEpoch = candidate.getEpoch();
+			int sessionEpoch = session.getReadEpoch();
+			if (recordEpoch == sessionEpoch) {
 				DTLSMessage fragment = candidate.getFragment();
 				switch (fragment.getContentType()) {
-				case ALERT:
-					return fragment;
 				case CHANGE_CIPHER_SPEC:
 					// the following cases are possible:
 					// 1. the CCS message is the one we currently expect
@@ -405,20 +399,18 @@ public abstract class Handshaker {
 						queue.add(candidate);
 						return null;
 					} else {
-						LOGGER.debug("Discarding old message, message_seq [{}] < next_receive_seq [{}]", messageSeq,
+						LOGGER.debug("Discarding old {} message_seq [{}] < next_receive_seq [{}]",
+								handshakeMessage.getMessageType(),
+								messageSeq,
 								nextReceiveSeq);
 						return null;
 					}
 				default:
-					LOGGER.debug("Cannot process message of type [{}], discarding...", fragment.getContentType());
+					LOGGER.warn("Cannot process message of type [{}], discarding...", fragment.getContentType());
 					return null;
 				}
 			} else {
-				// newer epoch, queue message
-				queue.add(candidate);
-				LOGGER.debug("Queueing HANDSHAKE message from future epoch [{}] > current epoch [{}]", epoch,
-						getSession().getReadEpoch());
-				return null;
+				throw new IllegalArgumentException("record epoch " + recordEpoch + " doesn't match session " + sessionEpoch);
 			}
 		}
 	}
@@ -442,58 +434,71 @@ public abstract class Handshaker {
 		// The DTLS 1.2 spec (section 4.1.2.6) advises to do replay detection
 		// before MAC validation based on the record's sequence numbers
 		// see http://tools.ietf.org/html/rfc6347#section-4.1.2.6
-		boolean sameEpoch = session.getReadEpoch() == record.getEpoch();
-		if ((sameEpoch && !session.isDuplicate(record.getSequenceNumber()))
-				|| (session.getReadEpoch() + 1) == record.getEpoch()) {
-			try {
-				DTLSMessage messageToProcess = inboundMessageBuffer.getNextMessage(record);
-				while (messageToProcess != null) {
-					if (messageToProcess instanceof FragmentedHandshakeMessage) {
-						messageToProcess = handleFragmentation((FragmentedHandshakeMessage) messageToProcess);
-					}
-
-					if (messageToProcess == null) {
-						// messageToProcess is fragmented and not all parts have been received yet
-					} else {
-						// continue with the now fully re-assembled message
-						if (messageToProcess instanceof GenericHandshakeMessage) {
-							HandshakeParameter parameter = session.getParameter();
-							if (parameter == null) {
-								throw new IllegalStateException("handshake parameter are required!");
-							}
-							messageToProcess = ((GenericHandshakeMessage) messageToProcess)
-									.getSpecificHandshakeMessage(parameter);
-						}
-						if (messageToProcess.getContentType() == ContentType.HANDSHAKE) {
-							// only cancel on HANDSHAKE messages
-							// the very last flight CCS + FINISH
-							// must be not canceled before the FINISH
-							DTLSFlight flight = pendingFlight.get();
-							if (flight != null) {
-								LOGGER.debug("response for flight {} started", flight.getFlightNumber());
-								flight.setResponseStarted();
-							}
-						}
-						doProcessMessage(messageToProcess);
-					}
-
-					// process next expected message (if available yet)
-					messageToProcess = inboundMessageBuffer.getNextMessage();
-				}
-				session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber());
-			} catch (GeneralSecurityException e) {
-				LOGGER.warn("Cannot process handshake message from peer [{}] due to [{}]", getSession().getPeer(),
-						e.getMessage(), e);
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR,
-						session.getPeer());
-				throw new HandshakeException("Cannot process handshake message", alert);
-			}
-		} else if (sameEpoch) {
-			LOGGER.trace("Discarding duplicate HANDSHAKE message received from peer [{}]:{}{}", record.getPeerAddress(),
-					StringUtil.lineSeparator(), record);
-		} else {
-			LOGGER.trace("Discarding HANDSHAKE message with wrong epoch received from peer [{}]:{}{}",
+		int epoch = session.getReadEpoch();
+		if (epoch != record.getEpoch()) {
+			LOGGER.debug("Discarding HANDSHAKE message with wrong epoch received from peer [{}]:{}{}",
 					record.getPeerAddress(), StringUtil.lineSeparator(), record);
+			throw new IllegalArgumentException("processing record with wrong epoch! " + record.getEpoch() + " expected " + epoch);
+		}
+		try {
+			DTLSMessage messageToProcess = inboundMessageBuffer.getNextMessage(record);
+			while (messageToProcess != null) {
+				if (messageToProcess instanceof FragmentedHandshakeMessage) {
+					messageToProcess = handleFragmentation((FragmentedHandshakeMessage) messageToProcess);
+				}
+				if (messageToProcess == null) {
+					// messageToProcess is fragmented and not all parts have been received yet
+				} else {
+					// continue with the now fully re-assembled message
+					if (messageToProcess instanceof GenericHandshakeMessage) {
+						HandshakeParameter parameter = session.getParameter();
+						if (parameter == null) {
+							throw new IllegalStateException("handshake parameter are required!");
+						}
+						messageToProcess = ((GenericHandshakeMessage) messageToProcess)
+								.getSpecificHandshakeMessage(parameter);
+					}
+					if (messageToProcess.getContentType() == ContentType.HANDSHAKE) {
+						// only cancel on HANDSHAKE messages
+						// the very last flight CCS + FINISH
+						// must be not canceled before the FINISH
+						DTLSFlight flight = pendingFlight.get();
+						if (flight != null) {
+							LOGGER.debug("response for flight {} started", flight.getFlightNumber());
+							flight.setResponseStarted();
+						}
+					}
+					doProcessMessage(messageToProcess);
+				}
+
+				// process next expected message (if available yet)
+				messageToProcess = inboundMessageBuffer.getNextMessage();
+			}
+			session.markRecordAsRead(epoch, record.getSequenceNumber());
+			if (session.getReadEpoch() > epoch) {
+				final SerialExecutor serialExecutor = connection.getExecutor();
+				final List<Record> records = takeDeferredRecords();
+				for (Record deferredRecord : records) {
+					if (serialExecutor != null) {
+						final Record dRecord = deferredRecord;
+						serialExecutor.execute(new Runnable() {
+
+							@Override
+							public void run() {
+								recordLayer.processRecord(dRecord, connection);
+							}
+						});
+					} else {
+						recordLayer.processRecord(deferredRecord, connection);
+					}
+				}
+			}
+		} catch (GeneralSecurityException e) {
+			LOGGER.warn("Cannot process handshake message from peer [{}] due to [{}]", getSession().getPeer(),
+					e.getMessage(), e);
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR,
+					session.getPeer());
+			throw new HandshakeException("Cannot process handshake message", alert);
 		}
 	}
 

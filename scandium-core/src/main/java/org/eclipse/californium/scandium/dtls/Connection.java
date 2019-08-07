@@ -211,6 +211,17 @@ public final class Connection {
 	}
 
 	/**
+	 * Check, if this connection expects connection ID for incoming records.
+	 * 
+	 * @return {@code true}, if connection ID is expected, {@code false},
+	 *         otherwise
+	 */
+	public boolean expectCid() {
+		DTLSSession session = getSession();
+		return session != null && session.getWriteConnectionId() != null;
+	}
+
+	/**
 	 * Gets the connection id.
 	 * 
 	 * @return the cid

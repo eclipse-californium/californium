@@ -122,9 +122,10 @@ public class ServerHandshakerTest {
 	public void testConstructorAdjustsMaxFragmentSize() throws HandshakeException {
 		// given a network interface with standard ethernet MTU (1500 bytes)
 		int networkMtu = ETHERNET_MTU;
+		Connection connection = new Connection(session.getPeer(), new SyncSerialExecutor());
 
 		// when instantiating a ServerHandshaker to negotiate a new session
-		handshaker = new ServerHandshaker(0, session, recordLayer, null, config, networkMtu);
+		handshaker = new ServerHandshaker(0, session, recordLayer, connection, config, networkMtu);
 
 		// then a fragment created under the session's current write state should
 		// fit into a single unfragmented UDP datagram
@@ -177,7 +178,7 @@ public class ServerHandshakerTest {
 	}
 
 	@Test
-	public void testReceiveClientHelloIncludesUnknownCiphersInHandshakeHashGeneration() throws HandshakeException {
+	public void testReceiveClientHelloIncludesUnknownCiphersInHandshakeHashGeneration() throws Exception {
 
 		List<byte[]> extensions = new LinkedList<>();
 		extensions.add(DtlsTestTools.newSupportedEllipticCurvesExtension(getArbitrarySupportedGroup().getId()));
@@ -193,7 +194,7 @@ public class ServerHandshakerTest {
 	}
 
 	@Test
-	public void testReceiveClientHelloDoesNotNegotiateNullCipher() throws HandshakeException {
+	public void testReceiveClientHelloDoesNotNegotiateNullCipher() throws Exception {
 
 		supportedClientCiphers = new byte[]{(byte) 0x00, (byte) 0x00}; // TLS_NULL_WITH_NULL_NULL
 
@@ -248,7 +249,7 @@ public class ServerHandshakerTest {
 	}
 
 	@Test
-	public void testReceiveClientHelloAbortsOnUnknownClientCertificateType() throws HandshakeException {
+	public void testReceiveClientHelloAbortsOnUnknownClientCertificateType() throws Exception {
 
 		List<byte[]> extensions = new LinkedList<>();
 		// certificate type 0x05 is not defined by IANA
@@ -264,7 +265,7 @@ public class ServerHandshakerTest {
 	}
 
 	@Test
-	public void testReceiveClientHelloAbortsOnNonMatchingClientCertificateTypes() {
+	public void testReceiveClientHelloAbortsOnNonMatchingClientCertificateTypes() throws Exception {
 		List<byte[]> extensions = new LinkedList<>();
 		// certificate type OpenPGP is not supported by Scandium
 		extensions.add(DtlsTestTools.newClientCertificateTypesExtension(
@@ -297,7 +298,7 @@ public class ServerHandshakerTest {
 	}
 
 	@Test
-	public void testReceiveClientHelloAbortsOnUnknownServerCertificateType() throws HandshakeException {
+	public void testReceiveClientHelloAbortsOnUnknownServerCertificateType() throws Exception {
 		List<byte[]> extensions = new LinkedList<>();
 		// certificate type 0x05 is not defined by IANA
 		extensions.add(DtlsTestTools.newServerCertificateTypesExtension(0x05));
@@ -313,7 +314,7 @@ public class ServerHandshakerTest {
 	}
 
 	@Test
-	public void testReceiveClientHelloAbortsOnUnsupportedEcCurveIds() throws HandshakeException {
+	public void testReceiveClientHelloAbortsOnUnsupportedEcCurveIds() throws Exception {
 
 		List<byte[]> extensions = new LinkedList<>();
 		// curveId 0x0000 is not assigned by IANA
@@ -328,7 +329,7 @@ public class ServerHandshakerTest {
 	}
 
 	@Test()
-	public void testReceiveClientHelloNegotiatesSupportedEcCurveId() throws HandshakeException {
+	public void testReceiveClientHelloNegotiatesSupportedEcCurveId() throws Exception {
 
 		List<byte[]> extensions = new LinkedList<>();
 		SupportedGroup supportedGroup = getArbitrarySupportedGroup();
@@ -346,7 +347,7 @@ public class ServerHandshakerTest {
 	 * <em>Supported Elliptic Curves Extension</em>.
 	 */
 	@Test()
-	public void testReceiveClientHelloPicksCurveIfClientOmitsSupportedCurveExtension() throws HandshakeException {
+	public void testReceiveClientHelloPicksCurveIfClientOmitsSupportedCurveExtension() throws Exception {
 
 		// omit supported elliptic curves extension
 		processClientHello(0, null);
@@ -358,6 +359,7 @@ public class ServerHandshakerTest {
 	public void testDoProcessMessageProcessesQueuedMessages() throws Exception {
 		Record nextRecord = givenAHandshakerWithAQueuedMessage();
 		try {
+			nextRecord.applySession(handshaker.getSession());
 			handshaker.processMessage(nextRecord);
 		} catch (HandshakeException e) {
 			HandshakerTest.failedHandshake(e);
@@ -366,7 +368,8 @@ public class ServerHandshakerTest {
 	}
 
 	private ServerHandshaker newHandshaker(final DtlsConnectorConfig config, final DTLSSession session) throws HandshakeException {
-		return new ServerHandshaker(0, session, recordLayer, null, config, ETHERNET_MTU);
+		Connection connection = new Connection(session.getPeer(), new SyncSerialExecutor());
+		return new ServerHandshaker(0, session, recordLayer, connection, config, ETHERNET_MTU);
 	}
 
 	private Record givenAHandshakerWithAQueuedMessage() throws Exception {
@@ -385,7 +388,8 @@ public class ServerHandshakerTest {
 		keyExchangeMsg.setMessageSeq(2);
 		Record keyExchangeRecord = getRecordForMessage(0, 2, keyExchangeMsg, senderAddress);
 
-		// put KEY_EXCHANGE message with seq no. 2 to inbound message queue 
+		// put KEY_EXCHANGE message with seq no. 2 to inbound message queue
+		keyExchangeRecord.applySession(handshaker.getSession());
 		handshaker.processMessage(keyExchangeRecord);
 		assertThat(handshaker.clientKeyExchange, nullValue());
 		assertFalse("Client's KEY_EXCHANGE message should have been queued",
@@ -405,13 +409,13 @@ public class ServerHandshakerTest {
 
 	}
 
-	private void processClientHello(int messageSeq, List<byte[]> helloExtensions) throws HandshakeException {
+	private void processClientHello(int messageSeq, List<byte[]> helloExtensions) throws Exception {
 
 		processClientHello(0, 0, messageSeq, null, supportedClientCiphers, helloExtensions);
 	}
 
 	private void processClientHello(int epoch, long sequenceNo, int messageSeq, byte[] cookie,
-			byte[] supportedCiphers, List<byte[]> helloExtensions) throws HandshakeException {
+			byte[] supportedCiphers, List<byte[]> helloExtensions) throws Exception {
 
 		byte[] clientHelloFragment = newClientHelloFragment(cookie, supportedCiphers, helloExtensions);
 		clientHelloMsg = newHandshakeMessage(HandshakeType.CLIENT_HELLO, messageSeq, clientHelloFragment);
@@ -420,6 +424,7 @@ public class ServerHandshakerTest {
 		List<Record> list = Record.fromByteArray(dtlsRecord, endpoint, null, ClockUtil.nanoRealtime());
 		assertFalse("Should be able to deserialize DTLS Record from byte array", list.isEmpty());
 		Record record = list.get(0);
+		record.applySession(handshaker.getSession());
 		handshaker.processMessage(record);
 	}
 
