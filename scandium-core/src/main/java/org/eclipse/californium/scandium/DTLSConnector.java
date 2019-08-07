@@ -392,7 +392,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 					timer.schedule(new Runnable() {
 						@Override
 						public void run() {
-							handshaker.getConnection().isStartedByClientHello(null);
+							handshaker.getConnection().startByClientHello(null);
 						}
 					}, CLIENT_HELLO_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
 				}

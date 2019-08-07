@@ -340,16 +340,17 @@ public final class Connection {
 	 * 
 	 * Note: called outside of serial-execution and so requires external synchronization!
 	 * 
-	 * @param clientHello the message to check. If {@code null}, reset the
-	 *            {@link #startingClientHello}.
+	 * @param clientHello the message to check.
 	 * @return {@code true} if the given client hello has initially started this
 	 *         connection.
 	 * @see #startByClientHello(ClientHello)
+	 * @throws NullPointerException if client hello is {@code null}.
 	 */
 	public boolean isStartedByClientHello(ClientHello clientHello) {
 		if (clientHello == null) {
-			startingClientHello = null;
-		} else if (startingClientHello != null) {
+			throw new NullPointerException("client hello must not be null!");
+		}
+		if (startingClientHello != null) {
 			if (startingClientHello.getRandom().equals(clientHello.getRandom())) {
 				if (startingClientHello.getMessageSeq() >= clientHello.getMessageSeq()) {
 					return true;
