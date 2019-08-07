@@ -170,6 +170,7 @@ public class DTLSConnectorTest {
 
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
 			.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
+			.setRecommendedCipherSuitesOnly(false)
 			.setSupportedCipherSuites(
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,

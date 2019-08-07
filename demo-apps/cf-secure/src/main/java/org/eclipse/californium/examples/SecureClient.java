@@ -88,6 +88,7 @@ public class SecureClient {
 		CredentialsUtil.setupCid(args, builder);
 		builder.setClientOnly();
 		builder.setSniEnabled(false);
+		builder.setRecommendedCipherSuitesOnly(false);
 		List<Mode> modes = CredentialsUtil.parse(args, CredentialsUtil.DEFAULT_CLIENT_MODES, SUPPORTED_MODES);
 		if (modes.contains(CredentialsUtil.Mode.PSK) || modes.contains(CredentialsUtil.Mode.ECDHE_PSK)) {
 			builder.setPskStore(new StaticPskStore(CredentialsUtil.OPEN_PSK_IDENTITY, CredentialsUtil.OPEN_PSK_SECRET));
