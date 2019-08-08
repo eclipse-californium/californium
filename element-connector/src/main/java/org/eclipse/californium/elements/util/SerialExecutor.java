@@ -173,7 +173,7 @@ public class SerialExecutor extends AbstractExecutorService {
 	 * Doesn't shutdown the target executor {@link #executor}.
 	 */
 	@Override
-	public final void shutdown() {
+	public void shutdown() {
 		lock.lock();
 		try {
 			shutdown = true;
@@ -190,12 +190,11 @@ public class SerialExecutor extends AbstractExecutorService {
 	 * @see #shutdownNow(Collection)
 	 */
 	@Override
-	public final List<Runnable> shutdownNow() {
+	public List<Runnable> shutdownNow() {
 		lock.lock();
 		try {
-			shutdown = true;
 			List<Runnable> pending = new ArrayList<>(tasks.size());
-			tasks.drainTo(pending);
+			shutdownNow(pending);
 			return pending;
 		} finally {
 			lock.unlock();
@@ -213,7 +212,7 @@ public class SerialExecutor extends AbstractExecutorService {
 	public int shutdownNow(final Collection<Runnable> jobs) {
 		lock.lock();
 		try {
-			shutdown = true;
+			shutdown();
 			return tasks.drainTo(jobs);
 		} finally {
 			lock.unlock();
