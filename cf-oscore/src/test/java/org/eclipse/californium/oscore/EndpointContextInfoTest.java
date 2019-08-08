@@ -30,8 +30,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import javax.xml.bind.DatatypeConverter;
-
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapServer;
@@ -50,6 +48,7 @@ import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.Before;
@@ -131,9 +130,9 @@ public class EndpointContextInfoTest {
 	    dbClient.addContext(serverUri, ctx);
 
 	    //Create string versions of rid, sid and context ID for client
-	    String sidClientString = DatatypeConverter.printHexBinary(sidClient);
-	    String ridClientString = DatatypeConverter.printHexBinary(ridClient);
-	    String contextIdString = DatatypeConverter.printHexBinary(context_id);
+	    String sidClientString = StringUtil.byteArray2Hex(sidClient);
+	    String ridClientString = StringUtil.byteArray2Hex(ridClient);
+	    String contextIdString = StringUtil.byteArray2Hex(context_id);
 
 	    String ctxUri = ctx.getUri();
 	    assertNotNull(ctxUri);
@@ -211,9 +210,9 @@ public class EndpointContextInfoTest {
         dbClient.addContext(serverUri, ctx);
 
         //Create string versions of rid, sid and context ID for client
-        String sidClientString = DatatypeConverter.printHexBinary(sidClient);
-        String ridClientString = DatatypeConverter.printHexBinary(ridClient);
-        String contextIdString = DatatypeConverter.printHexBinary(context_id);
+        String sidClientString = StringUtil.byteArray2Hex(sidClient);
+        String ridClientString = StringUtil.byteArray2Hex(ridClient);
+        String contextIdString = StringUtil.byteArray2Hex(context_id);
         String ctxUri = ctx.getUri();
 
         //Create request
@@ -337,9 +336,9 @@ public class EndpointContextInfoTest {
 	    dbServer.addContext(clientUri, ctx);
 
 	    //Create string versions of rid, sid and context ID for server
-	    final String sidServerString = DatatypeConverter.printHexBinary(sidServer);
-	    final String ridServerString = DatatypeConverter.printHexBinary(ridServer);
-	    final String contextIdString = DatatypeConverter.printHexBinary(context_id);
+	    final String sidServerString = StringUtil.byteArray2Hex(sidServer);
+	    final String ridServerString = StringUtil.byteArray2Hex(ridServer);
+	    final String contextIdString = StringUtil.byteArray2Hex(context_id);
 
 	    final String ctxUri = ctx.getUri();
 	    assertNotNull(ctxUri);

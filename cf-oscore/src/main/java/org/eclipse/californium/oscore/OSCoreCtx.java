@@ -27,7 +27,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import javax.xml.bind.DatatypeConverter;
 
 import org.eclipse.californium.core.coap.CoAP.Code;
 
@@ -35,6 +34,7 @@ import com.upokecenter.cbor.CBORObject;
 
 import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.cose.CoseException;
+import org.eclipse.californium.elements.util.StringUtil;
 
 /**
  * 
@@ -225,20 +225,12 @@ public class OSCoreCtx {
 		if (this.context_id == null || this.context_id.length == 0) {
 		    contextIdString = "";
 		} else {
-		    contextIdString = DatatypeConverter.printHexBinary(this.context_id);
+		    contextIdString = StringUtil.byteArray2Hex(this.context_id);
 		}
 
-		if (this.sender_id == null || this.sender_id.length == 0) {
-		    senderIdString = "";
-		} else {
-		    senderIdString = DatatypeConverter.printHexBinary(this.sender_id);
-		}
+	    senderIdString = StringUtil.byteArray2Hex(this.sender_id);
 
-		if (this.recipient_id == null || this.recipient_id.length == 0) {
-		    recipientIdString = "";
-		} else {
-		    recipientIdString = DatatypeConverter.printHexBinary(this.recipient_id);
-		}
+	    recipientIdString = StringUtil.byteArray2Hex(this.recipient_id);
 
 		//Set digest value depending on HKDF
 		String digest = null;
