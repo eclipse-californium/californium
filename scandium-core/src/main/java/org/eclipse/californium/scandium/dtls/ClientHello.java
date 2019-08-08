@@ -29,6 +29,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -156,7 +157,7 @@ public final class ClientHello extends HandshakeMessage {
 		this(peerAddress);
 		this.clientVersion = version;
 		this.random = new Random();
-		this.cookie = new byte[] {};
+		this.cookie = Bytes.EMPTY;
 		if (sessionId != null) {
 			this.sessionId = sessionId;
 		} else {
@@ -369,6 +370,11 @@ public final class ClientHello extends HandshakeMessage {
 		this.sessionId = sessionId;
 	}
 
+	/**
+	 * Get cookie.
+	 * 
+	 * @return cookie, or {@link Bytes#EMPTY}, if no cookie is available.
+	 */
 	public byte[] getCookie() {
 		return cookie;
 	}
