@@ -942,7 +942,7 @@ public class Record {
 			readState = session.getReadState();
 		}
 		if (readEpoch != epoch) {
-			throw new IllegalArgumentException("session for different epoch! " + readEpoch + " != " + epoch);
+			throw new IllegalArgumentException("session for different epoch! session " + readEpoch + " != record " + epoch);
 		}
 		
 		if (fragment != null) {
