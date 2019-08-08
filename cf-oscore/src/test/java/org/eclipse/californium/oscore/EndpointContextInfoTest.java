@@ -125,7 +125,7 @@ public class EndpointContextInfoTest {
 	    byte[] sidClient = new byte[] { 0x77, 0x66, 0x55, 0x44 };
 	    byte[] ridClient = new byte[] { 0x01, 0x02, 0x03, 0x04 };
 	    OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sidClient, ridClient, kdf, 32, null, context_id);
-	    String serverUri = "coap://" + serverEndpoint.getAddress().getAddress().getHostAddress() + ":" + serverEndpoint.getAddress().getPort();
+	    String serverUri = serverEndpoint.getUri().toASCIIString();
 	    dbClient.addContext(serverUri, ctx);
 
 	    //Create string versions of rid, sid and context ID for client
@@ -204,7 +204,7 @@ public class EndpointContextInfoTest {
         byte[] sidClient = new byte[] { 0x77, 0x66, 0x55, 0x44 };
         byte[] ridClient = new byte[] { 0x01, 0x02, 0x03, 0x04 };
         OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sidClient, ridClient, kdf, 32, null, context_id);
-        String serverUri = "coap://" + serverEndpoint.getAddress().getAddress().getHostAddress() + ":" + serverEndpoint.getAddress().getPort();
+        String serverUri = serverEndpoint.getUri().toASCIIString();
         dbClient.addContext(serverUri, ctx);
 
         //Create string versions of rid, sid and context ID for client
