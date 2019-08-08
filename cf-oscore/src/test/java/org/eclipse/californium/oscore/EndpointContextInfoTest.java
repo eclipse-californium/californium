@@ -44,9 +44,7 @@ import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.cose.AlgorithmID;
-import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
-import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.rule.CoapNetworkRule;
@@ -149,7 +147,6 @@ public class EndpointContextInfoTest {
 	    assertNull(request.getSourceContext());
 	    EndpointContext requestDestinationContext = request.getDestinationContext();
 	    System.out.println("Client: Request destination context type: " + requestDestinationContext.getClass());
-	    assertEquals(AddressEndpointContext.class, requestDestinationContext.getClass());
 	    assertNull(requestDestinationContext.get(OSCORE_URI));
 
 
@@ -166,7 +163,6 @@ public class EndpointContextInfoTest {
 
 	    System.out.println("Client: Response source context type: " + responseSourceContext.getClass());
 	    assertNotNull(responseSourceContext);
-	    assertEquals(MapBasedEndpointContext.class, responseSourceContext.getClass());
 
 	    assertEquals(sidClientString, responseSourceContext.get(OSCORE_SENDER_ID));
 	    assertEquals(ridClientString, responseSourceContext.get(OSCORE_RECIPIENT_ID));
@@ -285,7 +281,6 @@ public class EndpointContextInfoTest {
 
             try {
                 assertNotNull(endpointContext);
-                assertEquals(MapBasedEndpointContext.class, endpointContext.getClass());
 
                 assertEquals(sidString, endpointContext.get(OSCORE_SENDER_ID));
                 assertEquals(ridString, endpointContext.get(OSCORE_RECIPIENT_ID));
@@ -358,7 +353,6 @@ public class EndpointContextInfoTest {
 
 	            System.out.println("Server: Request source context type: " + requestSourceContext.getClass());
 	            assertNotNull(requestSourceContext);
-	            assertEquals(MapBasedEndpointContext.class, requestSourceContext.getClass());
 
 	            assertEquals(sidServerString, requestSourceContext.get(OSCORE_SENDER_ID));
 	            assertEquals(ridServerString, requestSourceContext.get(OSCORE_RECIPIENT_ID));
@@ -379,7 +373,6 @@ public class EndpointContextInfoTest {
 
 	                System.out.println("Server: Response destination context type: " + responseDestinationContext.getClass());
 	                assertNotNull(responseDestinationContext);
-	                assertEquals(MapBasedEndpointContext.class, responseDestinationContext.getClass());
 
 	                assertEquals(sidServerString, responseDestinationContext.get(OSCORE_SENDER_ID));
 	                assertEquals(ridServerString, responseDestinationContext.get(OSCORE_RECIPIENT_ID));
