@@ -145,16 +145,8 @@ public class OSCoreEndpointContextInfo {
      */
     private static void setInfoOutgoing(OSCoreCtx oscoreCtx, Message message) {
 
-        //Do nothing if this is not an instance of MapBasedEndpointContext (must cast to it)
-        if (message.getDestinationContext() instanceof MapBasedEndpointContext == false) {
-            return;
-        }
-
         //Create new MapBasedEndpointContext for destination endpoint context with string values for OSCORE added
-        MapBasedEndpointContext endpointContext = (MapBasedEndpointContext) message.getDestinationContext();
-
-        MapBasedEndpointContext newEndpointContext = setInfo(oscoreCtx, endpointContext);
-
+        EndpointContext newEndpointContext = setInfo(oscoreCtx, message.getDestinationContext());
         message.setDestinationContext(newEndpointContext);
     }
 
@@ -167,16 +159,8 @@ public class OSCoreEndpointContextInfo {
      */
     private static void setInfoIncoming(OSCoreCtx oscoreCtx, Message message) {
 
-        //Do nothing if this is not an instance of MapBasedEndpointContext (must cast to it)
-        if (message.getSourceContext() instanceof MapBasedEndpointContext == false) {
-            return;
-        }
-
         //Create new MapBasedEndpointContext for source endpoint context with string values for OSCORE added
-        MapBasedEndpointContext endpointContext = (MapBasedEndpointContext) message.getSourceContext();
-
-        MapBasedEndpointContext newEndpointContext = setInfo(oscoreCtx, endpointContext);
-
+        EndpointContext newEndpointContext = setInfo(oscoreCtx, message.getSourceContext());
         message.setSourceContext(newEndpointContext);
     }
 
@@ -191,6 +175,11 @@ public class OSCoreEndpointContextInfo {
      */
     private static MapBasedEndpointContext setInfo(OSCoreCtx oscoreCtx, EndpointContext endpointContext) {
 
+    	//If endpoint context is not set, keep it unset
+    	if (endpointContext == null) {
+    		return null;
+    	}
+    	
         //Create new MapBasedEndpointContext for this endpoint context with string values for OSCORE added
         MapBasedEndpointContext newEndpointContext = MapBasedEndpointContext.addEntries(
                 endpointContext,
