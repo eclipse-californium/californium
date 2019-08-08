@@ -46,8 +46,6 @@ public class OSCoreEndpointContextInfo {
 
     private final static String PREFIX = MapBasedEndpointContext.KEY_PREFIX_NONE_CRITICAL;
 
-    public final static String OSCORE = PREFIX + "OSCORE";
-
     public final static String OSCORE_SENDER_ID = PREFIX + "OSCORE_SENDER_ID";
 
     public final static String OSCORE_RECIPIENT_ID = PREFIX + "OSCORE_RECIPIENT_ID";
@@ -196,7 +194,6 @@ public class OSCoreEndpointContextInfo {
         //Create new MapBasedEndpointContext for this endpoint context with string values for OSCORE added
         MapBasedEndpointContext newEndpointContext = MapBasedEndpointContext.addEntries(
                 endpointContext,
-                OSCORE, Boolean.TRUE.toString(),
                 OSCORE_SENDER_ID, oscoreCtx.getSenderIdString(),
                 OSCORE_RECIPIENT_ID, oscoreCtx.getRecipientIdString(),
                 OSCORE_CONTEXT_ID, oscoreCtx.getContextIdString(),

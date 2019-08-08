@@ -84,7 +84,6 @@ public class EndpointContextInfoTest {
 	private final static byte[] context_id = { 0x74, 0x65, 0x73, 0x74 };
 
 	//Keys used in the endpoint context map of strings
-	private final static String OSCORE = OSCoreEndpointContextInfo.OSCORE;
 	private final static String OSCORE_SENDER_ID = OSCoreEndpointContextInfo.OSCORE_SENDER_ID;
 	private final static String OSCORE_RECIPIENT_ID = OSCoreEndpointContextInfo.OSCORE_RECIPIENT_ID;
 	private final static String OSCORE_CONTEXT_ID = OSCoreEndpointContextInfo.OSCORE_CONTEXT_ID;
@@ -151,7 +150,7 @@ public class EndpointContextInfoTest {
 	    EndpointContext requestDestinationContext = request.getDestinationContext();
 	    System.out.println("Client: Request destination context type: " + requestDestinationContext.getClass());
 	    assertEquals(AddressEndpointContext.class, requestDestinationContext.getClass());
-	    assertNull(requestDestinationContext.get(OSCORE));
+	    assertNull(requestDestinationContext.get(OSCORE_URI));
 
 
 	    //Receive response and check its content
@@ -169,7 +168,6 @@ public class EndpointContextInfoTest {
 	    assertNotNull(responseSourceContext);
 	    assertEquals(MapBasedEndpointContext.class, responseSourceContext.getClass());
 
-	    assertEquals(Boolean.TRUE.toString(), responseSourceContext.get(OSCORE));
 	    assertEquals(sidClientString, responseSourceContext.get(OSCORE_SENDER_ID));
 	    assertEquals(ridClientString, responseSourceContext.get(OSCORE_RECIPIENT_ID));
 	    assertEquals(contextIdString, responseSourceContext.get(OSCORE_CONTEXT_ID));
@@ -289,7 +287,6 @@ public class EndpointContextInfoTest {
                 assertNotNull(endpointContext);
                 assertEquals(MapBasedEndpointContext.class, endpointContext.getClass());
 
-                assertEquals(Boolean.TRUE.toString(), endpointContext.get(OSCORE));
                 assertEquals(sidString, endpointContext.get(OSCORE_SENDER_ID));
                 assertEquals(ridString, endpointContext.get(OSCORE_RECIPIENT_ID));
                 assertEquals(contextIdString, endpointContext.get(OSCORE_CONTEXT_ID));
@@ -363,7 +360,6 @@ public class EndpointContextInfoTest {
 	            assertNotNull(requestSourceContext);
 	            assertEquals(MapBasedEndpointContext.class, requestSourceContext.getClass());
 
-	            assertEquals(Boolean.TRUE.toString(), requestSourceContext.get(OSCORE));
 	            assertEquals(sidServerString, requestSourceContext.get(OSCORE_SENDER_ID));
 	            assertEquals(ridServerString, requestSourceContext.get(OSCORE_RECIPIENT_ID));
 	            assertEquals(contextIdString, requestSourceContext.get(OSCORE_CONTEXT_ID));
@@ -385,7 +381,6 @@ public class EndpointContextInfoTest {
 	                assertNotNull(responseDestinationContext);
 	                assertEquals(MapBasedEndpointContext.class, responseDestinationContext.getClass());
 
-	                assertEquals(Boolean.TRUE.toString(), responseDestinationContext.get(OSCORE));
 	                assertEquals(sidServerString, responseDestinationContext.get(OSCORE_SENDER_ID));
 	                assertEquals(ridServerString, responseDestinationContext.get(OSCORE_RECIPIENT_ID));
 	                assertEquals(contextIdString, responseDestinationContext.get(OSCORE_CONTEXT_ID));
