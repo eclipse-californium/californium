@@ -208,8 +208,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 			}
 
 			handshakeHash = md.digest();
-			String prfMacName = session.getCipherSuite().getPseudoRandomFunctionMacName();
-			Finished finished = new Finished(prfMacName, session.getMasterSecret(), false, handshakeHash, clientHello.getPeer());
+			Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), session.getMasterSecret(), false, handshakeHash, clientHello.getPeer());
 			wrapMessage(flight, finished);
 
 			mdWithServerFinished.update(finished.toByteArray());
@@ -228,8 +227,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	 *             if the client's Finished message can not be verified.
 	 */
 	private void receivedClientFinished(Finished message) throws HandshakeException {
-		String prfMacName = session.getCipherSuite().getPseudoRandomFunctionMacName();
-		message.verifyData(prfMacName, session.getMasterSecret(), true, handshakeHash);
+		message.verifyData(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), session.getMasterSecret(), true, handshakeHash);
 		sessionEstablished();
 		handshakeCompleted();
 	}

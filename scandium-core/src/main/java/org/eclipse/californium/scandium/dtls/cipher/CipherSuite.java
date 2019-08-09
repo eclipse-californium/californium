@@ -32,10 +32,12 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.cipher;
 
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.List;
 
 import javax.crypto.Cipher;
+import javax.crypto.Mac;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -190,12 +192,12 @@ public enum CipherSuite {
 	}
 
 	/**
-	 * Gets the suite's underlying cipher.
+	 * Gets the thread local cipher used by this cipher suite.
 	 * 
 	 * @return the cipher, or {@code null}, if the cipher is not supported by
 	 *         the java-vm.
 	 */
-	public Cipher getCipher() {
+	public Cipher getThreadLocalCipher() {
 		return cipher.getCipher();
 	}
 
@@ -280,6 +282,56 @@ public enum CipherSuite {
 	}
 
 	/**
+	 * Gets the name of the cipher suite's MAC algorithm.
+	 * 
+	 * The name can be used to instantiate a <code>javax.crypto.Mac</code>
+	 * instance.
+	 * 
+	 * See <a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Mac">
+	 * Java Security Documentation</a>.
+	 * 
+	 * @return the name or <code>null</code> for the <em>NULL</em> MAC
+	 */
+	public String getMacName() {
+		return macAlgorithm.getName();
+	}
+
+	/**
+	 * Gets the name of the message digest (hash) function used by the cipher
+	 * suite MAC.
+	 * 
+	 * The name can be used to instantiate a
+	 * <code>java.security.MessageDigest</code> instance.
+	 * 
+	 * See <a href=
+	 * "http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#MessageDigest">
+	 * Java Security Documentation</a>.
+	 * 
+	 * @return the name or <code>null</code> for the <em>NULL</em> MAC
+	 */
+	public String getMessageDigestName() {
+		return macAlgorithm.getMessageDigestName();
+	}
+
+	/**
+	 * Gets the thread local MAC used by this cipher suite.
+	 * 
+	 * @return mac, or {@code null}, if not supported by vm.
+	 */
+	public Mac getThreadLocalMac() {
+		return macAlgorithm.getMac();
+	}
+
+	/**
+	 * Gets the thread local message digest used by this cipher suite.
+	 * 
+	 * @return message digest, or {@code null}, if not supported by vm.
+	 */
+	public MessageDigest getThreadLocalMacMessageDigest() {
+		return macAlgorithm.getMessageDigest();
+	}
+
+	/**
 	 * Gets the output length of the cipher suite's MAC algorithm.
 	 *  
 	 * @return the length in bytes
@@ -299,21 +351,6 @@ public enum CipherSuite {
 	 */
 	public int getMacKeyLength() {
 		return macAlgorithm.getKeyLength();
-	}
-
-	/**
-	 * Gets the name of the cipher suite's MAC algorithm.
-	 * 
-	 * The name can be used to instantiate a <code>javax.crypto.Mac</code>
-	 * instance.
-	 * 
-	 * See <a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Mac">
-	 * Java Security Documentation</a>.
-	 * 
-	 * @return the name or <code>null</code> for the <em>NULL</em> MAC
-	 */
-	public String getMacName() {
-		return macAlgorithm.getName();
 	}
 
 	/**
@@ -345,20 +382,43 @@ public enum CipherSuite {
 	 * Gets the pseudo-random function used by the cipher suite
 	 * to create (pseudo-)random data from a seed.
 	 * 
-	 * @return the function
+	 * The name can be used to instantiate a <code>javax.crypto.Mac</code>
+	 * instance.
+	 * 
+	 * See <a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Mac">
+	 * Java Security Documentation</a>.
+	 * 
+	 * @return the name of the mac
 	 */
 	public String getPseudoRandomFunctionMacName() {
 		return pseudoRandomFunction.getMacAlgorithm().getName();
 	}
 
 	/**
-	 * Gets the pseudo-random hash function used by the cipher suite
-	 * to create the hash over the handshake messages.
+	 * Gets the name of the pseudo-random message digest (hash) function used by
+	 * the cipher suite to create the hash over the handshake messages.
 	 * 
-	 * @return the hash function
+	 * The name can be used to instantiate a
+	 * <code>java.security.MessageDigest</code> instance.
+	 * 
+	 * See <a href=
+	 * "http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#MessageDigest">
+	 * Java Security Documentation</a>.
+	 * 
+	 * @return the name of the message digest
 	 */
-	public String getPseudoRandomFunctionHashName() {
-		return pseudoRandomFunction.getMacAlgorithm().getHashName();
+	public String getPseudoRandomFunctionMessageDigestName() {
+		return pseudoRandomFunction.getMacAlgorithm().getMessageDigestName();
+	}
+
+	/**
+	 * Gets the thread local MAC used by the pseudo random function of this
+	 * cipher suite.
+	 * 
+	 * @return mac, or {@code null}, if not supported by vm.
+	 */
+	public Mac getThreadLocalPseudoRandomFunctionMac() {
+		return pseudoRandomFunction.getMacAlgorithm().getMac();
 	}
 
 	/**
@@ -582,18 +642,24 @@ public enum CipherSuite {
 		HMAC_SHA512("HmacSHA512", "SHA-512", 64);
 
 		private final String name;
-		private final String hashName;
+		private final String mdName;
 		private final int outputLength;
 		private final boolean supported;
+		private final ThreadLocalMac mac;
+		private final ThreadLocalMessageDigest md;
 
-		private MACAlgorithm(String name, String hashName, int outputLength) {
+		private MACAlgorithm(String name, String mdName, int outputLength) {
 			this.name = name;
-			this.hashName = hashName;
+			this.mdName = mdName;
 			this.outputLength = outputLength;
-			if (name == null && hashName == null) {
+			if (name == null && mdName == null) {
 				this.supported = true;
+				this.mac = null;
+				this.md = null;
 			} else {
-				this.supported = PseudoRandomFunction.isSupported(name, hashName);
+				this.mac = new ThreadLocalMac(name);
+				this.md = new ThreadLocalMessageDigest(mdName);
+				this.supported = mac.isSupported() && md.isSupported();
 			}
 		}
 
@@ -623,8 +689,8 @@ public enum CipherSuite {
 		 * 
 		 * @return the name or <code>null</code> for the {@link #NULL} MAC
 		 */
-		public String getHashName() {
-			return hashName;
+		public String getMessageDigestName() {
+			return mdName;
 		}
 
 		/**
@@ -654,6 +720,14 @@ public enum CipherSuite {
 		 */
 		public boolean isSupported() {
 			return supported;
+		}
+
+		public Mac getMac() {
+			return mac == null ? null : mac.current();
+		}
+
+		public MessageDigest getMessageDigest() {
+			return md == null ? null : md.current();
 		}
 	}
 

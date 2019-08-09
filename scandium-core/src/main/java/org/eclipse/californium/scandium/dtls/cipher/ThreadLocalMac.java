@@ -17,30 +17,28 @@ package org.eclipse.californium.scandium.dtls.cipher;
 
 import java.security.GeneralSecurityException;
 
-import javax.crypto.Cipher;
+import javax.crypto.Mac;
 
 /**
- * Thread local cipher.
+ * Thread local mac.
  * 
- * Uses {@link ThreadLocal} to cache calls to
- * {@link Cipher#getInstance(String)}.
+ * Uses {@link ThreadLocal} to cache calls to {@link Mac#getInstance(String)}.
  */
-public class ThreadLocalCipher extends ThreadLocalCrypto<Cipher> {
+public class ThreadLocalMac extends ThreadLocalCrypto<Mac> {
 
 	/**
-	 * {@inheritDoc} Create thread local cipher.
+	 * {@inheritDoc} Create thread local mac.
 	 * 
-	 * Try to instance the cipher for the provided transformation.
+	 * Try to instance the mac for the provided algorithm.
 	 * 
-	 * @param transformation transformation. Passed to
-	 *            {@link Cipher#getInstance(String)}.
+	 * @param algorithm algorithm. Passed to {@link Mac#getInstance(String)}.
 	 */
-	public ThreadLocalCipher(final String transformation) {
-		super(new Factory<Cipher>() {
+	public ThreadLocalMac(final String algorithm) {
+		super(new Factory<Mac>() {
 
 			@Override
-			public Cipher getInstance() throws GeneralSecurityException {
-				return Cipher.getInstance(transformation);
+			public Mac getInstance() throws GeneralSecurityException {
+				return Mac.getInstance(algorithm);
 			}
 
 		});

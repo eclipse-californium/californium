@@ -23,6 +23,8 @@ package org.eclipse.californium.scandium.dtls;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 
+import javax.crypto.Mac;
+
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -57,8 +59,8 @@ public final class Finished extends HandshakeMessage {
 	 * href="http://tools.ietf.org/html/rfc5246#section-7.4.9">RFC 5246</a>:<br>
 	 * <code>PRF(master_secret, finished_label, Hash(handshake_messages))</code>.
 	 * 
-	 * @param prfMacName
-	 *            the mac name. e.g. "HmacSHA256"
+	 * @param hmac
+	 *            the mac. e.g. HmacSHA256
 	 * @param masterSecret
 	 *            the master_secret
 	 * @param isClient
@@ -68,9 +70,9 @@ public final class Finished extends HandshakeMessage {
 	 * @param peerAddress the IP address and port of the peer this
 	 *            message has been received from or should be sent to
 	 */
-	public Finished(String prfMacName, byte[] masterSecret, boolean isClient, byte[] handshakeHash, InetSocketAddress peerAddress) {
+	public Finished(Mac hmac, byte[] masterSecret, boolean isClient, byte[] handshakeHash, InetSocketAddress peerAddress) {
 		super(peerAddress);
-		verifyData = getVerifyData(prfMacName, masterSecret, isClient, handshakeHash);
+		verifyData = getVerifyData(hmac, masterSecret, isClient, handshakeHash);
 	}
 
 	/**
@@ -94,8 +96,8 @@ public final class Finished extends HandshakeMessage {
 	 * message. This is only data visible at the handshake layer and does not
 	 * include record layer headers.
 	 * 
-	 * @param prfMacName
-	 *            the mac name. e.g. "HmacSHA256"
+	 * @param hmac
+	 *            the mac. e.g. HmacSHA256
 	 * @param masterSecret
 	 *            the master secret.
 	 * @param isClient
@@ -104,9 +106,9 @@ public final class Finished extends HandshakeMessage {
 	 *            the handshake hash.
 	 * @throws HandshakeException if the data can not be verified.
 	 */
-	public void verifyData(String prfMacName, byte[] masterSecret, boolean isClient, byte[] handshakeHash) throws HandshakeException {
+	public void verifyData(Mac hmac, byte[] masterSecret, boolean isClient, byte[] handshakeHash) throws HandshakeException {
 
-		byte[] myVerifyData = getVerifyData(prfMacName, masterSecret, isClient, handshakeHash);
+		byte[] myVerifyData = getVerifyData(hmac, masterSecret, isClient, handshakeHash);
 
 		if (!Arrays.equals(myVerifyData, verifyData)) {
 			StringBuilder msg = new StringBuilder("Verification of peer's [").append(getPeer())
@@ -121,14 +123,14 @@ public final class Finished extends HandshakeMessage {
 		}
 	}
 
-	private byte[] getVerifyData(String prfMacName, byte[] masterSecret, boolean isClient, byte[] handshakeHash) {
+	private byte[] getVerifyData(Mac hmac, byte[] masterSecret, boolean isClient, byte[] handshakeHash) {
 
 		// See http://tools.ietf.org/html/rfc5246#section-7.4.9:
 		// verify_data = PRF(master_secret, finished_label, Hash(handshake_messages)) [0..verify_data_length-1]
 		if (isClient) {
-			return PseudoRandomFunction.doPRF(prfMacName, masterSecret, Label.CLIENT_FINISHED_LABEL, handshakeHash);
+			return PseudoRandomFunction.doPRF(hmac, masterSecret, Label.CLIENT_FINISHED_LABEL, handshakeHash);
 		} else {
-			return PseudoRandomFunction.doPRF(prfMacName, masterSecret, Label.SERVER_FINISHED_LABEL, handshakeHash);
+			return PseudoRandomFunction.doPRF(hmac, masterSecret, Label.SERVER_FINISHED_LABEL, handshakeHash);
 		}
 	}
 

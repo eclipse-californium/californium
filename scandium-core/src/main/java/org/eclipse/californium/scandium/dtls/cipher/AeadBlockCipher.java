@@ -125,7 +125,7 @@ public class AeadBlockCipher {
 	private final static byte[] jreDecrypt(CipherSuite suite, SecretKey key, byte[] nonce, byte[] a, byte[] c)
 			throws GeneralSecurityException {
 
-		Cipher cipher = suite.getCipher();
+		Cipher cipher = suite.getThreadLocalCipher();
 		GCMParameterSpec parameterSpec = new GCMParameterSpec(suite.getEncKeyLength() * 8, nonce);
 		cipher.init(Cipher.DECRYPT_MODE, key, parameterSpec);
 		cipher.updateAAD(a);
@@ -147,7 +147,7 @@ public class AeadBlockCipher {
 	@NotForAndroid
 	private final static byte[] jreEncrypt(CipherSuite suite, SecretKey key, byte[] nonce, byte[] a, byte[] m)
 			throws GeneralSecurityException {
-		Cipher cipher = suite.getCipher();
+		Cipher cipher = suite.getThreadLocalCipher();
 		GCMParameterSpec parameterSpec = new GCMParameterSpec(suite.getEncKeyLength() * 8, nonce);
 		try {
 			cipher.init(Cipher.ENCRYPT_MODE, key, parameterSpec);

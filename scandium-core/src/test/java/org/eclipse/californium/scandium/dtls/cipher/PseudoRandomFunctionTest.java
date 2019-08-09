@@ -18,6 +18,7 @@ package org.eclipse.californium.scandium.dtls.cipher;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.*;
 
+import javax.crypto.Mac;
 
 import org.eclipse.californium.elements.util.StandardCharsets;
 import org.eclipse.californium.scandium.category.Small;
@@ -30,21 +31,24 @@ import org.junit.experimental.categories.Category;
 public class PseudoRandomFunctionTest {
 	public static final String ALGORITHM_HMAC_SHA256 = "HmacSHA256";
 
+	Mac hmac;
+	
 	@Before
 	public void setUp() throws Exception {
+		hmac = Mac.getInstance("HmacSHA256");
 	}
 
 	@Test
 	public void testDoPrfProducesDataOfCorrectLength() {
 		byte[] secret = "secret".getBytes();
 		byte[] seed = "seed".getBytes();
-		byte[] data = PseudoRandomFunction.doPRF(ALGORITHM_HMAC_SHA256, secret, Label.MASTER_SECRET_LABEL, seed);
+		byte[] data = PseudoRandomFunction.doPRF(hmac, secret, Label.MASTER_SECRET_LABEL, seed);
 		assertThat(data.length, is(Label.MASTER_SECRET_LABEL.length()));
-		data = PseudoRandomFunction.doPRF(ALGORITHM_HMAC_SHA256, secret, Label.KEY_EXPANSION_LABEL, seed);
+		data = PseudoRandomFunction.doPRF(hmac, secret, Label.KEY_EXPANSION_LABEL, seed);
 		assertThat(data.length, is(Label.KEY_EXPANSION_LABEL.length()));
-		data = PseudoRandomFunction.doPRF(ALGORITHM_HMAC_SHA256, secret, Label.CLIENT_FINISHED_LABEL, seed);
+		data = PseudoRandomFunction.doPRF(hmac, secret, Label.CLIENT_FINISHED_LABEL, seed);
 		assertThat(data.length, is(Label.CLIENT_FINISHED_LABEL.length()));
-		data = PseudoRandomFunction.doPRF(ALGORITHM_HMAC_SHA256, secret, Label.SERVER_FINISHED_LABEL, seed);
+		data = PseudoRandomFunction.doPRF(hmac, secret, Label.SERVER_FINISHED_LABEL, seed);
 		assertThat(data.length, is(Label.SERVER_FINISHED_LABEL.length()));
 	}
 
@@ -83,7 +87,7 @@ public class PseudoRandomFunctionTest {
 				(byte) 0x5a, (byte) 0x51, (byte) 0x10, (byte) 0xff, (byte) 0xf7, (byte) 0x01,
 				(byte) 0x87, (byte) 0x34, (byte) 0x7b, (byte) 0x66};
 
-		byte[] data = PseudoRandomFunction.doPRF(ALGORITHM_HMAC_SHA256, secret, label, seed, expectedOutput.length);
+		byte[] data = PseudoRandomFunction.doPRF(hmac, secret, label, seed, expectedOutput.length);
 		assertArrayEquals(expectedOutput, data);
 	}
 }
