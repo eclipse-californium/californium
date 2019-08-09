@@ -52,9 +52,6 @@ public class ResponseEncryptor extends Encryptor {
 			throw new OSException(ErrorDescriptions.CTX_NULL);
 		}
 
-		//Set information about the OSCORE context used in the endpoint context of this response
-		OSCoreEndpointContextInfo.sendingResponse(ctx, response);
-		
 		int realCode = response.getCode().value;
 		response = OptionJuggle.setFakeCodeResponse(response);
 

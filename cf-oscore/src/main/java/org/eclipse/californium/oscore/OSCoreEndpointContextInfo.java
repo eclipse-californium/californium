@@ -37,6 +37,11 @@ import org.eclipse.californium.elements.MapBasedEndpointContext;
  * Information that can be retrieved is the URI associated to the OSCORE context,
  * the Sender ID, Recipient ID and Context ID of the OSCORE context.
  *
+ * This class contains methods to set the source endpoint context for incoming
+ * messages. It also contains a method that adds an operator on the exchange when
+ * sending a request that will make the new created destination endpoint context
+ * available via a callback. For outgoing responses the destination endpoint context
+ * used will be the source endpoint context created for the incoming request.
  */
 public class OSCoreEndpointContextInfo {
 
@@ -117,37 +122,13 @@ public class OSCoreEndpointContextInfo {
     }
 
     /**
-     * Sets information in a destination endpoint context for outgoing responses.
-     *
-     * @param oscoreCtx the OSCORE context used for this message
-     * @param response the response to set the endpoint context for
-     */
-    public static void sendingResponse(OSCoreCtx oscoreCtx, Response response) {
-        setInfoOutgoing(oscoreCtx, response);
-    }
-
-    /**
-     * Sets information in a destination endpoint context for incoming responses.
+     * Sets information in a source endpoint context for incoming responses.
      *
      * @param oscoreCtx the OSCORE context used for this message
      * @param response the response to set the endpoint context for
      */
     public static void receivingResponse(OSCoreCtx oscoreCtx, Response response) {
         setInfoIncoming(oscoreCtx, response);
-    }
-
-    /**
-     * Adds strings with information about the OSCORE context used to this
-     * destination endpoint context for outgoing messages.
-     *
-     * @param oscoreCtx the OSCORE context used for this message
-     * @param message the message to set information in the destination endpoint context for
-     */
-    private static void setInfoOutgoing(OSCoreCtx oscoreCtx, Message message) {
-
-        //Create new MapBasedEndpointContext for destination endpoint context with string values for OSCORE added
-        EndpointContext newEndpointContext = setInfo(oscoreCtx, message.getDestinationContext());
-        message.setDestinationContext(newEndpointContext);
     }
 
     /**
