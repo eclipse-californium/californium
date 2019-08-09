@@ -17,8 +17,6 @@
 package org.eclipse.californium.scandium.dtls.cipher;
 
 import java.security.InvalidKeyException;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 
 import javax.crypto.Mac;
 import javax.crypto.ShortBufferException;
@@ -32,27 +30,6 @@ import org.eclipse.californium.elements.util.StandardCharsets;
  * @see <a href="http://tools.ietf.org/html/rfc5246#section-5">RFC 5246</a>
  */
 public final class PseudoRandomFunction {
-
-	/**
-	 * Test, if mac and hash is supported.
-	 * 
-	 * @param macName name of mac
-	 * @param hashName name of hash
-	 * @return {@code true}, if supported
-	 */
-	public final static boolean isSupported(String macName, String hashName) {
-		try {
-			Mac.getInstance(macName);
-		} catch (NoSuchAlgorithmException e) {
-			return false;
-		}
-		try {
-			MessageDigest.getInstance(hashName);
-		} catch (NoSuchAlgorithmException e) {
-			return false;
-		}
-		return true;
-	}
 
 	private PseudoRandomFunction() {
 	}
@@ -96,49 +73,45 @@ public final class PseudoRandomFunction {
 		}
 	}
 
-	static byte[] doPRF(String algorithmMac, byte[] secret, byte[] label, byte[] seed, int length) {
+	static byte[] doPRF(Mac hmac, byte[] secret, byte[] label, byte[] seed, int length) {
 		try {
-			Mac hmac = Mac.getInstance(algorithmMac);
 			hmac.init(new SecretKeySpec(secret, "MAC"));
 			return doExpansion(hmac, label, seed, length);
-		} catch (NoSuchAlgorithmException e) {
-			throw new IllegalStateException(String.format("MAC algorithm %s is not available on JVM", algorithmMac), e);
 		} catch (InvalidKeyException e) {
 			// according to http://www.ietf.org/rfc/rfc2104 (HMAC) section 3
 			// keys can be of arbitrary length
 			throw new IllegalArgumentException("Cannot run Pseudo Random Function with invalid key", e);
 		}
-		
 	}
 
 	/**
 	 * Does the pseudo random function as defined in
 	 * <a href="http://tools.ietf.org/html/rfc5246#section-5">RFC 5246</a>.
 	 * 
-	 * @param algorithmMac MAC algorithm name. e.g. "HmacSHA256"
+	 * @param hmac MAC algorithm.  e.g. HmacSHA256
 	 * @param secret the secret to use for the secure hash function
 	 * @param label the label to use for creating the original data. Uses the
 	 *            length from the label.
 	 * @param seed the seed to use for creating the original data
 	 * @return the expanded data
 	 */
-	public static final byte[] doPRF(String algorithmMac, byte[] secret, Label label, byte[] seed) {
-		return doPRF(algorithmMac, secret, label.getBytes(), seed, label.length());
+	public static final byte[] doPRF(Mac hmac, byte[] secret, Label label, byte[] seed) {
+		return doPRF(hmac, secret, label.getBytes(), seed, label.length());
 	}
 
 	/**
 	 * Does the pseudo random function as defined in <a
 	 * href="http://tools.ietf.org/html/rfc5246#section-5">RFC 5246</a>.
 	 * 
-	 * @param algorithmMac MAC algorithm name. e.g. "HmacSHA256"
+	 * @param hmac MAC algorithm. e.g. HmacSHA256
 	 * @param secret the secret to use for the secure hash function
 	 * @param label the label to use for creating the original data
 	 * @param seed the seed to use for creating the original data
 	 * @param length the length of data to create
 	 * @return the expanded data
 	 */
-	public static final byte[] doPRF(String algorithmMac, byte[] secret, Label label, byte[] seed, int length) {
-		return doPRF(algorithmMac, secret, label.getBytes(), seed, length);
+	public static final byte[] doPRF(Mac hmac, byte[] secret, Label label, byte[] seed, int length) {
+		return doPRF(hmac, secret, label.getBytes(), seed, length);
 	}
 
 	/**
@@ -146,7 +119,8 @@ public final class PseudoRandomFunction {
 	 * href="http://tools.ietf.org/html/rfc5246#section-5">RFC 5246</a>.
 	 * 
 	 * @param hmac the cryptographic hash function to use for expansion.
-	 * @param data the data to expand.
+	 * @param label the label to use for creating the original data
+	 * @param seed the seed to use for creating the original data
 	 * @param length the number of bytes to expand the data to.
 	 * @return the expanded data.
 	 */

@@ -45,6 +45,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import javax.crypto.Mac;
+
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.ClockUtil;
@@ -169,7 +171,8 @@ public class HandshakerTest {
 		handshaker.expectChangeCipherSpecMessage();
 
 		// WHEN the peer's FINISHED message is received out-of-sequence before the ChangeCipherSpec message
-		Finished finished = new Finished("HmacSHA256", new byte[]{0x00, 0x01}, true, new byte[]{0x00, 0x00}, endpoint);
+		Mac hmac = Mac.getInstance("HmacSHA256");
+		Finished finished = new Finished(hmac, new byte[]{0x00, 0x01}, true, new byte[]{0x00, 0x00}, endpoint);
 		finished.setMessageSeq(0);
 		Record finishedRecord = getRecordForMessage(1, 0, finished);
 		handshaker.addRecordsForDeferredProcessing(finishedRecord);

@@ -539,8 +539,11 @@ public abstract class Handshaker {
 	 *        {@link CipherSuite#isSupported()}.
 	 */
 	protected final void initMessageDigest() {
-		String hashName = session.getCipherSuite().getPseudoRandomFunctionHashName();
+		String hashName = session.getCipherSuite().getPseudoRandomFunctionMessageDigestName();
 		try {
+			// used for several records, which may be processed by different
+			// threads. Therefore create a separate instance, the thread local
+			// instance will not work.
 			this.md = MessageDigest.getInstance(hashName);
 		} catch (NoSuchAlgorithmException e) {
 			throw new IllegalStateException(
@@ -586,7 +589,6 @@ public abstract class Handshaker {
 		 * server_write_IV[SecurityParameters.fixed_iv_length]
 		 */
 
-		String prfMacName = session.getCipherSuite().getPseudoRandomFunctionMacName();
 		int macKeyLength = session.getCipherSuite().getMacKeyLength();
 		int encKeyLength = session.getCipherSuite().getEncKeyLength();
 		int fixedIvLength = session.getCipherSuite().getFixedIvLength();
@@ -595,8 +597,8 @@ public abstract class Handshaker {
 		//      key_block = PRF(SecurityParameters.master_secret, "key expansion",
 		//                      SecurityParameters.server_random + SecurityParameters.client_random);
 		byte[] seed = Bytes.concatenate(serverRandom, clientRandom);
-		byte[] data = PseudoRandomFunction.doPRF(prfMacName, masterSecret, Label.KEY_EXPANSION_LABEL, seed, totalLength);
-
+		byte[] data = PseudoRandomFunction.doPRF(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret,
+				Label.KEY_EXPANSION_LABEL, seed, totalLength);
 
 		int index = 0;
 		int length = macKeyLength;
@@ -632,9 +634,9 @@ public abstract class Handshaker {
 	 * @return the master secret.
 	 */
 	private byte[] generateMasterSecret(byte[] premasterSecret) {
-		String prfMacName = session.getCipherSuite().getPseudoRandomFunctionMacName();
 		byte[] randomSeed = Bytes.concatenate(clientRandom, serverRandom);
-		return PseudoRandomFunction.doPRF(prfMacName, premasterSecret, Label.MASTER_SECRET_LABEL, randomSeed);
+		return PseudoRandomFunction.doPRF(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), premasterSecret,
+				Label.MASTER_SECRET_LABEL, randomSeed);
 	}
 
 	/**

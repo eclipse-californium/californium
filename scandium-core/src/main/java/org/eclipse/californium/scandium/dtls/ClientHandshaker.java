@@ -291,8 +291,7 @@ public class ClientHandshaker extends Handshaker {
 	 * @throws GeneralSecurityException if the APPLICATION record cannot be created 
 	 */
 	private void receivedServerFinished(Finished message) throws HandshakeException, GeneralSecurityException {
-		String prfMacName = session.getCipherSuite().getPseudoRandomFunctionMacName();
-		message.verifyData(prfMacName, session.getMasterSecret(), false, handshakeHash);
+		message.verifyData(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), session.getMasterSecret(), false, handshakeHash);
 		state = HandshakeType.FINISHED.getCode();
 		sessionEstablished();
 		handshakeCompleted();
@@ -596,8 +595,7 @@ public class ClientHandshaker extends Handshaker {
 		}
 
 		handshakeHash = md.digest();
-		String prfMacName = session.getCipherSuite().getPseudoRandomFunctionMacName();
-		Finished finished = new Finished(prfMacName, session.getMasterSecret(), isClient, handshakeHash, session.getPeer());
+		Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), session.getMasterSecret(), isClient, handshakeHash, session.getPeer());
 		wrapMessage(flight, finished);
 
 		// compute handshake hash with client's finished message also

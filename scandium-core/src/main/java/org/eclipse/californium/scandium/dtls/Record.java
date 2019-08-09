@@ -548,7 +548,7 @@ public class Record {
 		byte[] padding = new byte[paddingLength + 1];
 		Arrays.fill(padding, (byte) paddingLength);
 		plaintext.writeBytes(padding);
-		Cipher blockCipher = outgoingWriteState.getCipherSuite().getCipher();
+		Cipher blockCipher = outgoingWriteState.getCipherSuite().getThreadLocalCipher();
 		blockCipher.init(Cipher.ENCRYPT_MODE, outgoingWriteState.getEncryptionKey());
 
 		// create GenericBlockCipher structure
@@ -602,7 +602,7 @@ public class Record {
 		 */
 		DatagramReader reader = new DatagramReader(ciphertextFragment);
 		byte[] iv = reader.readBytes(incomingReadState.getRecordIvLength());
-		Cipher blockCipher = incomingReadState.getCipherSuite().getCipher();
+		Cipher blockCipher = incomingReadState.getCipherSuite().getThreadLocalCipher();
 		blockCipher.init(Cipher.DECRYPT_MODE,
 				incomingReadState.getEncryptionKey(),
 				new IvParameterSpec(iv));
@@ -646,13 +646,10 @@ public class Record {
 	 */
 	private byte[] getBlockCipherMac(DTLSConnectionState conState, byte[] content) throws GeneralSecurityException {
 
-		Mac hmac = Mac.getInstance(conState.getCipherSuite().getMacName());
+		Mac hmac = conState.getCipherSuite().getThreadLocalMac();
 		hmac.init(conState.getMacKey());
-		
-		DatagramWriter mac = new DatagramWriter();
-		mac.writeBytes(generateAdditionalData(content.length));
-		mac.writeBytes(content);
-		return hmac.doFinal(mac.toByteArray());
+		hmac.update(generateAdditionalData(content.length));
+		return hmac.doFinal(content);
 	}
 
 	// AEAD Cryptography //////////////////////////////////////////////
