@@ -222,15 +222,13 @@ public class OSCoreCtx {
 		responsesIncludePartialIV = false;
 
 		//Set string versions of sender ID, recipient ID and Context ID
-		if (this.context_id == null || this.context_id.length == 0) {
-		    contextIdString = "";
-		} else {
-		    contextIdString = StringUtil.byteArray2Hex(this.context_id);
-		}
+	    contextIdString = toHex(this.context_id);
+	    senderIdString = toHex(this.sender_id);
+	    recipientIdString = toHex(this.recipient_id);
 
-	    senderIdString = StringUtil.byteArray2Hex(this.sender_id);
-
-	    recipientIdString = StringUtil.byteArray2Hex(this.recipient_id);
+	    //Initialize the URI associated with the context
+	    //It will be overwritten if this context is added to a HashMapCtxDB
+	    uri = "";
 
 		//Set digest value depending on HKDF
 		String digest = null;
@@ -720,6 +718,20 @@ public class OSCoreCtx {
 			throw new CoseException("Algorithm not supported", ex);
 		} catch (Exception ex) {
 			throw new CoseException("Derivation failure", ex);
+		}
+	}
+
+	/**
+	 * Converts a byte array to a hexadecimal string representation.
+	 *
+	 * @param bytes the byte array to convert
+	 * @return the string representation
+	 */
+	private String toHex(byte[] bytes) {
+		if(bytes == null || bytes.length == 0) {
+			return "";
+		} else {
+			return StringUtil.byteArray2Hex(bytes);
 		}
 	}
 

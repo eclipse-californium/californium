@@ -16,6 +16,9 @@
  ******************************************************************************/
 package org.eclipse.californium.oscore;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -162,13 +165,28 @@ public class OSCoreEndpointContextInfo {
     	}
     	
         //Create new MapBasedEndpointContext for this endpoint context with string values for OSCORE added
+        List<String> attributes = new ArrayList<String>();
+        add(attributes, OSCORE_SENDER_ID, oscoreCtx.getSenderIdString());
+        add(attributes, OSCORE_RECIPIENT_ID, oscoreCtx.getRecipientIdString());
+        add(attributes, OSCORE_CONTEXT_ID, oscoreCtx.getContextIdString());
+        add(attributes, OSCORE_URI, oscoreCtx.getUri());
         MapBasedEndpointContext newEndpointContext = MapBasedEndpointContext.addEntries(
-                endpointContext,
-                OSCORE_SENDER_ID, oscoreCtx.getSenderIdString(),
-                OSCORE_RECIPIENT_ID, oscoreCtx.getRecipientIdString(),
-                OSCORE_CONTEXT_ID, oscoreCtx.getContextIdString(),
-                OSCORE_URI, oscoreCtx.getUri());
+                endpointContext, attributes.toArray(new String[attributes.size()]));
 
         return newEndpointContext;
+    }
+
+    /**
+     * Add values and keys to a list if the value provided is not null.
+     *
+     * @param attributes the list to add values and keys to
+     * @param key the key to add
+     * @param value the value to add
+     */
+    private static void add(List<String> attributes, String key, String value) {
+        if (value != null) {
+            attributes.add(key);
+            attributes.add(value);
+        }
     }
 }
