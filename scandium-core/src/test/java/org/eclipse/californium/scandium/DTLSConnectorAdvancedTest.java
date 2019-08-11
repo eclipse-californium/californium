@@ -33,6 +33,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -51,6 +52,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AdversaryClientHandshaker;
 import org.eclipse.californium.scandium.dtls.ClientHandshaker;
 import org.eclipse.californium.scandium.dtls.Connection;
+import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.DTLSFlight;
 import org.eclipse.californium.scandium.dtls.DTLSMessage;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
@@ -62,6 +64,7 @@ import org.eclipse.californium.scandium.dtls.RecordLayer;
 import org.eclipse.californium.scandium.dtls.ResumingClientHandshaker;
 import org.eclipse.californium.scandium.dtls.ResumingServerHandshaker;
 import org.eclipse.californium.scandium.dtls.ServerHandshaker;
+import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -71,6 +74,10 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.Parameterized.Parameters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,6 +88,7 @@ import org.slf4j.LoggerFactory;
  * between a client and a server during handshakes including unusual message
  * order and timeouts.
  */
+@RunWith(Parameterized.class)
 @Category(Medium.class)
 public class DTLSConnectorAdvancedTest {
 
@@ -104,6 +112,7 @@ public class DTLSConnectorAdvancedTest {
 	static ConnectorHelper serverHelper;
 
 	static ExecutorService executor;
+	static ConnectionIdGenerator serverCidGenerator;
 
 	DtlsConnectorConfig clientConfig;
 	DTLSConnector client;
@@ -112,9 +121,11 @@ public class DTLSConnectorAdvancedTest {
 
 	@BeforeClass
 	public static void loadKeys() throws IOException, GeneralSecurityException {
+		serverCidGenerator = new SingleNodeConnectionIdGenerator(6);
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
 					.setRetransmissionTimeout(RETRANSMISSION_TIMEOUT_MS)
-					.setMaxRetransmissions(MAX_RETRANSMISSIONS);
+					.setMaxRetransmissions(MAX_RETRANSMISSIONS)
+					.setConnectionIdGenerator(serverCidGenerator);
 		serverHelper = new ConnectorHelper();
 		serverHelper.startServer(builder);
 		executor = ExecutorsUtil.newFixedThreadPool(2, new TestThreadFactory("DTLS-ADVANCED-"));
@@ -126,6 +137,30 @@ public class DTLSConnectorAdvancedTest {
 		ExecutorsUtil.shutdownExecutorGracefully(100, executor);
 	}
 
+	/**
+	 * Actual cipher suite.
+	 */
+	@Parameter
+	public ConnectionIdGenerator clientCidGenerator;
+
+	/**
+	 * @return List of cipher suites.
+	 */
+	@Parameters(name = "cid = {0}")
+	public static Iterable<ConnectionIdGenerator> cidParams() {
+		return Arrays.asList((ConnectionIdGenerator) null, new SingleNodeConnectionIdGenerator(0) {
+
+			public String toString() {
+				return "cid supported";
+			}
+		}, new SingleNodeConnectionIdGenerator(5) {
+
+			public String toString() {
+				return "cid used";
+			}
+		});
+	}
+
 	@Before
 	public void setUp() throws Exception {
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
@@ -134,7 +169,8 @@ public class DTLSConnectorAdvancedTest {
 		DtlsConnectorConfig.Builder builder = newStandardClientConfigBuilder(clientEndpoint)
 				.setRetransmissionTimeout(RETRANSMISSION_TIMEOUT_MS)
 				.setMaxRetransmissions(MAX_RETRANSMISSIONS)
-				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY);
+				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY)
+				.setConnectionIdGenerator(clientCidGenerator);
 		clientConfig = builder.build();
 
 		client = serverHelper.createClient(clientConfig, clientConnectionStore);
@@ -153,7 +189,7 @@ public class DTLSConnectorAdvancedTest {
 	@Test
 	public void testServerReceivingMessagesInBadOrderDuringHandshake() throws Exception {
 		// Configure and create UDP connector
-		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);
 		UdpConnector rawClient = new UdpConnector(0, collector);
 		try {
 
@@ -195,7 +231,7 @@ public class DTLSConnectorAdvancedTest {
 	@Test
 	public void testClientReceivingMessagesInBadOrderDuringHandshake() throws Exception {
 		// Configure UDP connector we will use as Server
-		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(serverCidGenerator);
 		UdpConnector rawServer = new UdpConnector(0, collector);
 
 		try {
@@ -236,7 +272,7 @@ public class DTLSConnectorAdvancedTest {
 	@Test
 	public void testServerResumeReceivingMessagesInBadOrderDuringHandshake() throws Exception {
 		// Configure and create UDP connector
-		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);
 		UdpConnector rawClient = new UdpConnector(0, collector);
 		ReverseRecordLayer clientRecordLayer = new ReverseRecordLayer(rawClient);
 		try {
@@ -311,7 +347,7 @@ public class DTLSConnectorAdvancedTest {
 	@Test
 	public void testClientResumeReceivingMessagesInBadOrderDuringHandshake() throws Exception {
 		// Configure UDP connector we will use as Server
-		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(serverCidGenerator);
 		UdpConnector rawServer = new UdpConnector(0, collector);
 		ReverseRecordLayer serverRecordLayer = new ReverseRecordLayer(rawServer);
 
@@ -406,7 +442,7 @@ public class DTLSConnectorAdvancedTest {
 	@Test
 	public void testServerFinishedMessageRetransmission() throws Exception {
 		// Configure and create UDP connector
-		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);
 		UdpConnector rawClient = new UdpConnector(0, collector);
 		BasicRecordLayer clientRecordLayer = new BasicRecordLayer(rawClient);
 		try {
@@ -471,7 +507,7 @@ public class DTLSConnectorAdvancedTest {
 	@Test
 	public void testResumeClientFinishedMessageRetransmission() throws Exception {
 		// Configure UDP connector we will use as Server
-		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(serverCidGenerator);
 		UdpConnector rawServer = new UdpConnector(0, collector);
 		BasicRecordLayer serverRecordLayer = new BasicRecordLayer(rawServer);
 
@@ -563,7 +599,7 @@ public class DTLSConnectorAdvancedTest {
 	@Test
 	public void testFinishedMessageRetransmission() throws Exception {
 		// Configure UDP connector we will use as Server
-		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(serverCidGenerator);
 		UdpConnector rawServer = new UdpConnector(0, collector);
 
 		try {
@@ -620,7 +656,7 @@ public class DTLSConnectorAdvancedTest {
 	@Test
 	public void testResumeFinishedMessageRetransmission() throws Exception {
 		// Configure and create UDP connector
-		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);
 		UdpConnector rawClient = new UdpConnector(0, collector);
 		BasicRecordLayer clientRecordLayer = new BasicRecordLayer(rawClient);
 		try {
@@ -703,7 +739,7 @@ public class DTLSConnectorAdvancedTest {
 	@Test
 	public void testServerResumeTimeout() throws Exception {
 		// Configure and create UDP connector
-		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);
 		UdpConnector rawClient = new UdpConnector(0, collector);
 		BasicRecordLayer clientRecordLayer = new BasicRecordLayer(rawClient);
 		int remain = serverHelper.serverConnectionStore.remainingCapacity();
@@ -786,7 +822,7 @@ public class DTLSConnectorAdvancedTest {
 	@Test
 	public void testServerTimeout() throws Exception {
 		// Configure and create UDP connector
-		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);
 		UdpConnector rawClient = new UdpConnector(0, collector);
 		BasicRecordLayer clientRecordLayer = new BasicRecordLayer(rawClient);
 		int remain = serverHelper.serverConnectionStore.remainingCapacity();
@@ -835,7 +871,7 @@ public class DTLSConnectorAdvancedTest {
 	@Test
 	public void testClientResumeTimeout() throws Exception {
 		// Configure UDP connector we will use as Server
-		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(serverCidGenerator);
 		UdpConnector rawServer = new UdpConnector(0, collector);
 		BasicRecordLayer serverRecordLayer = new BasicRecordLayer(rawServer);
 		int remain = clientConnectionStore.remainingCapacity();
@@ -910,7 +946,7 @@ public class DTLSConnectorAdvancedTest {
 	@Test
 	public void testClientTimeout() throws Exception {
 		// Configure UDP connector we will use as Server
-		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(serverCidGenerator);
 		UdpConnector rawServer = new UdpConnector(0, collector);
 		int remain = clientConnectionStore.remainingCapacity();
 
@@ -961,13 +997,13 @@ public class DTLSConnectorAdvancedTest {
 	@Test
 	public void testResumeWithVerify() throws Exception {
 		// Configure and create UDP connector
-		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);
 		UdpConnector rawClient = new UdpConnector(0, collector);
 
-		RecordCollectorDataHandler alt1Collector = new RecordCollectorDataHandler();
+		RecordCollectorDataHandler alt1Collector = new RecordCollectorDataHandler(clientCidGenerator);
 		UdpConnector rawAlt1Client = new UdpConnector(0, alt1Collector);
 
-		RecordCollectorDataHandler alt2Collector = new RecordCollectorDataHandler();
+		RecordCollectorDataHandler alt2Collector = new RecordCollectorDataHandler(clientCidGenerator);
 		UdpConnector rawAlt2Client = new UdpConnector(0, alt2Collector);
 
 		DTLSSession clientSession = new DTLSSession(serverHelper.serverEndpoint);
@@ -1332,11 +1368,15 @@ public class DTLSConnectorAdvancedTest {
 
 	private Connection createServerConnection() {
 		Connection connection = new Connection(client.getAddress(), new SerialExecutor(executor));
+		connection.setConnectionId(serverCidGenerator.createConnectionId());
 		return connection;
 	}
 
 	private Connection createClientConnection() {
 		Connection connection = new Connection(serverHelper.serverEndpoint, new SerialExecutor(executor));
+		if (clientCidGenerator != null) {
+			connection.setConnectionId(clientCidGenerator.createConnectionId());
+		}
 		return connection;
 	}
 

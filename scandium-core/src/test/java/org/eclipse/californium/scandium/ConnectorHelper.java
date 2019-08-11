@@ -68,6 +68,7 @@ import org.eclipse.californium.elements.util.TestThreadFactory;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.Connection;
+import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.DebugConnectionStore;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
@@ -467,6 +468,15 @@ public class ConnectorHelper {
 
 		private BlockingQueue<List<Record>> records = new LinkedBlockingQueue<>();
 		private Map<Integer, DTLSSession> apply = new HashMap<Integer, DTLSSession>(8);
+		private final ConnectionIdGenerator cidGenerator;
+
+		RecordCollectorDataHandler() {
+			this(null);
+		}
+
+		RecordCollectorDataHandler(ConnectionIdGenerator cidGenerator) {
+			this.cidGenerator = cidGenerator;
+		}
 
 		/**
 		 * Apply session to all collected records with matching epoch.
@@ -485,7 +495,7 @@ public class ConnectorHelper {
 		@Override
 		public void handleData(InetSocketAddress endpoint, byte[] data) {
 			try {
-				records.put(Record.fromByteArray(data, endpoint, null, ClockUtil.nanoRealtime()));
+				records.put(Record.fromByteArray(data, endpoint, cidGenerator, ClockUtil.nanoRealtime()));
 			} catch (InterruptedException e) {
 			}
 		}
