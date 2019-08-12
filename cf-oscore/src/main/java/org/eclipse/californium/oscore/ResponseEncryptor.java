@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018 RISE SICS and others.
+ * Copyright (c) 2019 RISE SICS and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -40,6 +40,7 @@ public class ResponseEncryptor extends Encryptor {
 	/**
 	 * @param response the response
 	 * @param ctx the OSCore context
+	 * @param newPartialIV boolean to indicate whether to use a new partial IV or not
 	 * 
 	 * @return the response with the encrypted OSCore option
 	 * 
@@ -65,7 +66,7 @@ public class ResponseEncryptor extends Encryptor {
 		response.setOptions(OptionJuggle.prepareUoptions(options));
 
 		//If new partial IV was generated for response increment sender seq nr.
-		if(newPartialIV) {
+		if (newPartialIV) {
 			ctx.increaseSenderSeq();
 		}
 		
