@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018 RISE SICS and others.
+ * Copyright (c) 2019 RISE SICS and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -55,6 +55,7 @@ public class RequestDecryptor extends Decryptor {
 	private static final Logger LOGGER = LoggerFactory.getLogger(RequestDecryptor.class.getName());
 
 	/**
+	 * @param db the context database used
 	 * @param request the request to decrypt
 	 * 
 	 * @return the decrypted request
@@ -132,6 +133,10 @@ public class RequestDecryptor extends Decryptor {
 
 		// We need the kid value on layer level
 		request.getOptions().setOscore(rid);
+
+		//Set information about the OSCORE context used in the endpoint context of this request
+		OSCoreEndpointContextInfo.receivingRequest(ctx, request);
+
 		return OptionJuggle.setRealCodeRequest(request, ctx.getCoAPCode());
 	}
 
@@ -140,6 +145,10 @@ public class RequestDecryptor extends Decryptor {
 	 * context as detailed in Appendix B.2. If so this re-derivation is also performed.
 	 *
 	 * See https://tools.ietf.org/html/draft-ietf-core-object-security-16#section-5.2
+	 *
+	 * @param db the context database used
+	 * @param rid the recipient ID
+	 * @param receivedContextID the previously received context ID
 	 *
 	 * @throws CoapOSException if re-generation of the context fails
 	 */
