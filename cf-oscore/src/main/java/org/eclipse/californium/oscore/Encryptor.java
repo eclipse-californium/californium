@@ -175,8 +175,8 @@ public abstract class Encryptor {
 
 			//Encode the Context ID length and value if to be included
 			if (ctx.getIncludeContextId()) {
-				bRes.write(ctx.getIdContext().length);
-				bRes.write(ctx.getIdContext());
+				bRes.write(ctx.getMessageIdContext().length);
+				bRes.write(ctx.getMessageIdContext());
 			}
 
 			//Encode Sender ID (KID)
@@ -221,8 +221,8 @@ public abstract class Encryptor {
 		//Encode the Context ID length and value if to be included
 		if (ctx.getIncludeContextId()) {
 			try {
-				bRes.write(ctx.getIdContext().length);
-				bRes.write(ctx.getIdContext());
+				bRes.write(ctx.getMessageIdContext().length);
+				bRes.write(ctx.getMessageIdContext());
 			} catch (IOException e) {
 				e.printStackTrace();
 			}

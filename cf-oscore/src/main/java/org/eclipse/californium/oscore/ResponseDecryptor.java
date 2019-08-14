@@ -23,6 +23,8 @@ import java.io.ByteArrayInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.upokecenter.cbor.CBORObject;
+
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Response;
@@ -75,6 +77,21 @@ public class ResponseDecryptor extends Decryptor {
 		} else {
 			LOGGER.error(ErrorDescriptions.TOKEN_NULL);
 			throw new OSException(ErrorDescriptions.TOKEN_NULL);
+		}
+
+		// Retrieve Context ID (kid context)
+		CBORObject kidContext = enc.findAttribute(CBORObject.FromObject(10));
+		byte[] contextID = null;
+		if (kidContext != null) {
+			contextID = kidContext.GetByteString();
+		}
+
+		// Perform context re-derivation procedure if ongoing
+		try {
+			ctx = ContextRederivation.incomingResponse(db, ctx, contextID);
+		} catch (OSException e) {
+			LOGGER.error(ErrorDescriptions.CONTEXT_REGENERATION_FAILED);
+			throw new OSException(ErrorDescriptions.CONTEXT_REGENERATION_FAILED);
 		}
 
 		//Check if parsing of response plaintext succeeds

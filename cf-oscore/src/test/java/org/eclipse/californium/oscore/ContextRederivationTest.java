@@ -16,12 +16,14 @@
  ******************************************************************************/
 package org.eclipse.californium.oscore;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
@@ -29,6 +31,8 @@ import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.oscore.ContextRederivation.PHASE;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.Before;
@@ -38,6 +42,7 @@ import org.junit.Test;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.cose.AlgorithmID;
@@ -57,14 +62,12 @@ public class ContextRederivationTest {
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 	
 	private CoapServer server;
-	private int serverPort;
-	private static String serverAddress = InetAddress.getLoopbackAddress().getHostAddress();
-
-	private static String clientAddress = InetAddress.getLoopbackAddress().getHostName();
+	private Endpoint serverEndpoint;
 
 	private static String SERVER_RESPONSE = "Hello World!";
-	
-	private final static HashMapCtxDB db = new HashMapCtxDB();
+
+	private final static HashMapCtxDB dbClient = new HashMapCtxDB();
+	private final static HashMapCtxDB dbServer = new HashMapCtxDB();
 	private final static String hello1 = "/hello";
 	private final static AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
 	private final static AlgorithmID kdf = AlgorithmID.HKDF_HMAC_SHA_256;
@@ -76,17 +79,19 @@ public class ContextRederivationTest {
 			(byte) 0x78, (byte) 0x63, (byte) 0x40 };
 	private final static byte[] sid = new byte[0];
 	private final static byte[] rid = new byte[] { 0x01 };
-	
+
+	private static int SEGMENT_LENGTH = ContextRederivation.SEGMENT_LENGTH;
+
 	@Before
 	public void initLogger() {
 		System.out.println(System.lineSeparator() + "Start " + getClass().getSimpleName());
 		EndpointManager.clear();
 	}
 
-	//Use the OSCORE stack factory
+	// Use the OSCORE stack factory with the client context DB
 	@BeforeClass
 	public static void setStackFactory() {
-		OSCoreCoapStackFactory.useAsDefault(db);
+		OSCoreCoapStackFactory.useAsDefault(dbClient);
 	}
 
 	@After
@@ -106,24 +111,67 @@ public class ContextRederivationTest {
 	 */
 	@Test
 	public void rederivationTest() throws OSException, ConnectorException, IOException {
-		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, null);
-		String serverUri = "coap://" + serverAddress + ":" + serverPort;
-		db.addContext(serverUri, ctx);
-
-		//Indicate that context information has been lost for the context associated to this URI
-		ContextRederivation.setLostContext(db, serverUri);
 		
-		//Now proceed with a normal request from the client
-		CoapClient c = new CoapClient(serverUri + hello1);
+		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, null);
+		String serverUri = serverEndpoint.getUri().toASCIIString();
+		dbClient.addContext(serverUri, ctx);
+
+		// Set the context to be in the initiate phase
+		ctx.setContextRederivationPhase(PHASE.CLIENT_INITIATE);
+
+		// Now a send request to initiate the context re-derivation
+		String resource = "/rederive"; // Dummy resource for re-derivation
+		String URI = serverUri + resource;
+
+		CoapClient c = new CoapClient(URI);
 		Request r = new Request(Code.GET);
+		r.getOptions().setOscore(Bytes.EMPTY);
+		CoapResponse resp = c.advanced(r);
+
+		OSCoreCtx currCtx = dbClient.getContext(serverUri);
+		assertEquals(ContextRederivation.PHASE.CLIENT_PHASE_2, currCtx.getContextRederivationPhase()); // Phase
+		int contextIDLen = currCtx.getIdContext().length;
+		// Length of Context ID in context
+		assertEquals(3 * SEGMENT_LENGTH, contextIDLen);
+		byte[] oscoreOption = resp.getOptions().getOscore();
+		// OSCORE option in response is 2 * SEGMENT_LENGTH (R2 as Context ID) +
+		// 2 additional bytes
+		assertEquals(2 * SEGMENT_LENGTH + 2, oscoreOption.length);
+
+		// Now proceed with a normal request from the client
+		c = new CoapClient(serverUri + hello1);
+		r = new Request(Code.GET);
 		r.getOptions().setOscore(new byte[0]);
 		System.out.println((Utils.prettyPrint(r)));
-		
-		CoapResponse resp = c.advanced(r);
+
+		resp = c.advanced(r);
 		System.out.println((Utils.prettyPrint(resp)));
-		
-		assertEquals(resp.getCode(), ResponseCode.CONTENT);
-		assertEquals(resp.getResponseText(), SERVER_RESPONSE);
+
+		assertEquals(ResponseCode.CONTENT, resp.getCode());
+		assertEquals(SERVER_RESPONSE, resp.getResponseText());
+
+		// Check current state of context after request/response
+		OSCoreCtx lastCtx = dbClient.getContext(serverUri);
+		contextIDLen = lastCtx.getIdContext().length;
+		assertNotNull(lastCtx.getUri());
+
+		assertEquals(3 * SEGMENT_LENGTH, contextIDLen);
+		assertEquals(ContextRederivation.PHASE.INACTIVE, lastCtx.getContextRederivationPhase());
+		assertFalse(lastCtx.getIncludeContextId()); // Do not include Context ID
+
+		// Empty OSCORE option
+		assertArrayEquals(new byte[0], resp.getOptions().getOscore());
+
+		// 2nd request for testing
+		resp = c.advanced(r);
+		System.out.println((Utils.prettyPrint(resp)));
+
+		assertEquals(ResponseCode.CONTENT, resp.getCode());
+		assertEquals(SERVER_RESPONSE, resp.getResponseText());
+
+		resp = c.advanced(r);
+		System.out.println((Utils.prettyPrint(resp)));
+
 		c.shutdown();
 	}
 
@@ -143,22 +191,16 @@ public class ContextRederivationTest {
 		byte[] sid = new byte[] { 0x01 };
 		byte[] rid = new byte[0];
 		OSCoreCtx ctx = new OSCoreCtx(master_secret, false, alg, sid, rid, kdf, 32, master_salt, null);
-		db.addContext("coap://" + clientAddress, ctx);
+		String clientUri = "coap://" + TestTools.LOCALHOST_EPHEMERAL.getAddress().getHostAddress();
+		dbServer.addContext(clientUri, ctx);
 
 		//Create server
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		
-		InetAddress serverInetAddress = null;
-		try {
-			serverInetAddress = InetAddress.getByName(serverAddress);
-		} catch (UnknownHostException e) {
-			System.err.println("Failed to find server address!");
-		}
-		
-		builder.setInetSocketAddress(new InetSocketAddress(serverInetAddress, 0));
-		CoapEndpoint endpoint = builder.build();
+		builder.setCustomCoapStackArgument(dbServer);
+		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
+		serverEndpoint = builder.build();
 		server = new CoapServer();
-		server.addEndpoint(endpoint);
+		server.addEndpoint(serverEndpoint);
 
 		/** --- Resources for tests follow --- **/
 
@@ -181,6 +223,5 @@ public class ContextRederivationTest {
 
 		//Start server
 		server.start();
-		serverPort = endpoint.getAddress().getPort();
 	}
 }

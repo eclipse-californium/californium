@@ -73,7 +73,9 @@ public class EncryptorTest {
 		}
 		
 		//Encrypt the request message
-		Request encrypted = RequestEncryptor.encrypt(r, ctx);
+		HashMapCtxDB db = new HashMapCtxDB();
+		db.addContext(r.getURI(), ctx);
+		Request encrypted = RequestEncryptor.encrypt(db, r);
 		
 		//Check the OSCORE option value
 		byte[] predictedOSCoreOption = { 0x09, 0x14, 0x00 };
@@ -132,7 +134,7 @@ public class EncryptorTest {
 
 		//Encrypt the response message
 		boolean newPartialIV = true;
-		Response encrypted = ResponseEncryptor.encrypt(r, ctx, newPartialIV);
+		Response encrypted = ResponseEncryptor.encrypt(null, r, ctx, newPartialIV);
 		
 		//Check the OSCORE option value
 		byte[] predictedOSCoreOption = { 0x01, 0x00 };
