@@ -123,6 +123,23 @@ public class OSCoreCtx {
 	private final String recipientIdString;
 
 	/**
+	 * Key that is used during the context re-derivation process.
+	 */
+	private byte[] contextRederivationKey;
+
+	/**
+	 * Makes it possible to override the Context ID to include in messages.
+	 * Typically this would be the Context ID this context was generated with
+	 * but that is not the case for the context re-derivation procedure.
+	 */
+	private byte[] overrideContextId;
+
+	/**
+	 * Indicate which phase the context re-derivation procedure is in,
+	 */
+	private ContextRederivation.PHASE contextRederivationPhase;
+
+	/**
 	 * Constructor. Generates the context from the base parameters with the
 	 * minimal input.
 	 * 
@@ -229,6 +246,9 @@ public class OSCoreCtx {
 		//Initialize the URI associated with the context
 		//It will be overwritten if this context is added to a HashMapCtxDB
 		uri = "";
+
+		overrideContextId = null;
+		contextRederivationPhase = ContextRederivation.PHASE.INACTIVE;
 
 		//Set digest value depending on HKDF
 		String digest = null;
@@ -426,6 +446,22 @@ public class OSCoreCtx {
 	}
 
 	/**
+	 * Enables getting the ID Context to put in an outgoing message.
+	 *
+	 * Typically this will be the Context ID this context was generated with but
+	 * it may be different when performing the context re-derivation procedure.
+	 * 
+	 * @return Byte array with ID Context
+	 */
+	public byte[] getMessageIdContext() {
+		if (overrideContextId != null) {
+			return overrideContextId;
+		} else {
+			return context_id;
+		}
+	}
+
+	/**
 	 * Get the flag controlling whether or not to include the Context ID in
 	 * messages generated using this context.
 	 *
@@ -446,12 +482,24 @@ public class OSCoreCtx {
 	 * @throws IllegalStateException if a Context ID has not been set for this context
 	 */
 	public void setIncludeContextId(boolean includeContextId) {
-		if (context_id == null) {
+		if (context_id == null && overrideContextId == null) {
 			LOGGER.error("Context ID cannot be included for a context without one set.");
 			throw new IllegalStateException("Context ID cannot be included for a context without one set.");
 		}
 		
 		this.includeContextId = includeContextId;
+	}
+
+	/**
+	 * Indicate as a parameter exactly what Context ID should be included.
+	 * Normally that would be the Context ID this context was generated with but
+	 * that is not the case for the context re-derivation procedure.
+	 * 
+	 * @param overrideContextId the Context ID to include in messages
+	 */
+	public void setIncludeContextId(byte[] overrideContextId) {
+		this.overrideContextId = overrideContextId.clone();
+		this.setIncludeContextId(true);
 	}
 
 	/**
@@ -604,6 +652,42 @@ public class OSCoreCtx {
 	}
 
 	/**
+	 * Get the context re-derivation key.
+	 * 
+	 * @return the context re-derivation key
+	 */
+	protected byte[] getContextRederivationKey() {
+		return contextRederivationKey;
+	}
+
+	/**
+	 * Sets the context re-derivation key.
+	 * 
+	 * @param contextRederivationKey the context re-derivation key to set
+	 */
+	protected void setContextRederivationKey(byte[] contextRederivationKey) {
+		this.contextRederivationKey = contextRederivationKey;
+	}
+
+	/**
+	 * Check the phase of the context re-derivation process.
+	 * 
+	 * @return the contextRederivationOngoing
+	 */
+	public ContextRederivation.PHASE getContextRederivationPhase() {
+		return contextRederivationPhase;
+	}
+
+	/**
+	 * Set the phase of the context re-derivation process.
+	 * 
+	 * @param contextRederivationOngoing the contextRederivationPhase to set
+	 */
+	public void setContextRederivationPhase(ContextRederivation.PHASE contextRederivationPhase) {
+		this.contextRederivationPhase = contextRederivationPhase;
+	}
+
+	/**
 	 * Increase the sender's sequence number by one
 	 *
 	 * @throws OSException if the sequence number wraps
@@ -685,7 +769,7 @@ public class OSCoreCtx {
 		}
 	}
 
-	private byte[] deriveKey(byte[] secret, byte[] salt, int cbitKey, String digest, byte[] rgbContext)
+	protected static byte[] deriveKey(byte[] secret, byte[] salt, int cbitKey, String digest, byte[] rgbContext)
 			throws CoseException {
 
 		final String HMAC_ALG_NAME = "Hmac" + digest;

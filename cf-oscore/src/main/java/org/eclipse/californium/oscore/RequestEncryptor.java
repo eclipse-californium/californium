@@ -39,17 +39,28 @@ public class RequestEncryptor extends Encryptor {
 
 	/**
 	 * @param request the request
-	 * @param ctx the OSCore context
+	 * @param db the context database used
 	 * 
 	 * @return the request with the OSCore option
 	 * @throws OSException if encryption fails
 	 *
 	 */
-	public static Request encrypt(Request request, OSCoreCtx ctx) throws OSException {
+	public static Request encrypt(OSCoreCtxDB db, Request request) throws OSException {
+
+		String uri = request.getURI();
+		OSCoreCtx ctx = db.getContext(uri);
 
 		if (ctx == null) {
 			LOGGER.error(ErrorDescriptions.CTX_NULL);
 			throw new OSException(ErrorDescriptions.CTX_NULL);
+		}
+
+		// Perform context re-derivation procedure if ongoing
+		try {
+			ctx = ContextRederivation.outgoingRequest(db, ctx);
+		} catch (OSException e) {
+			LOGGER.error(ErrorDescriptions.CONTEXT_REGENERATION_FAILED);
+			throw new OSException(ErrorDescriptions.CONTEXT_REGENERATION_FAILED);
 		}
 
 		int realCode = request.getCode().value;

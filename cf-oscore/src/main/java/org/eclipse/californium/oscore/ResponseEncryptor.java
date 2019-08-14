@@ -46,10 +46,18 @@ public class ResponseEncryptor extends Encryptor {
 	 * 
 	 * @throws OSException when encryption fails
 	 */
-	public static Response encrypt(Response response, OSCoreCtx ctx, final boolean newPartialIV) throws OSException {
+	public static Response encrypt(OSCoreCtxDB db, Response response, OSCoreCtx ctx, final boolean newPartialIV) throws OSException {
 		if (ctx == null) {
 			LOGGER.error(ErrorDescriptions.CTX_NULL);
 			throw new OSException(ErrorDescriptions.CTX_NULL);
+		}
+
+		// Perform context re-derivation procedure if ongoing
+		try {
+			ctx = ContextRederivation.outgoingResponse(db, ctx);
+		} catch (OSException e) {
+			LOGGER.error(ErrorDescriptions.CONTEXT_REGENERATION_FAILED);
+			throw new OSException(ErrorDescriptions.CONTEXT_REGENERATION_FAILED);
 		}
 
 		int realCode = response.getCode().value;

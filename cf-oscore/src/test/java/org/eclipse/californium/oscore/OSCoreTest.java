@@ -313,7 +313,7 @@ public class OSCoreTest {
 	public void testEncryptedNoOptionsNoPayload() {
 		Request request = Request.newGet().setURI("coap://localhost:5683");
 		try {
-			ObjectSecurityLayer.prepareSend(request, dbClient.getContext("coap://localhost:5683"));
+			ObjectSecurityLayer.prepareSend(dbClient, request);
 		} catch (OSException e) {
 			e.printStackTrace();
 			assertTrue(false);
@@ -333,7 +333,7 @@ public class OSCoreTest {
 		request.getOptions().addOption(new Option(OptionNumberRegistry.OSCORE));
 		assertEquals(2, request.getOptions().getLocationPathCount());
 		try {
-			request = ObjectSecurityLayer.prepareSend(request, dbClient.getContext("coap://localhost:5683"));
+			request = ObjectSecurityLayer.prepareSend(dbClient, request);
 		} catch (OSException e) {
 			e.printStackTrace();
 			assertTrue(false);
@@ -357,7 +357,7 @@ public class OSCoreTest {
 		request.setPayload("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
 		assertTrue("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".equals(request.getPayloadString()));
 		try {
-			request = ObjectSecurityLayer.prepareSend(request, dbClient.getContext("coap://localhost:5683"));
+			request = ObjectSecurityLayer.prepareSend(dbClient, request);
 		} catch (OSException e) {
 			e.printStackTrace();
 			assertTrue(false);
@@ -427,9 +427,9 @@ public class OSCoreTest {
 		request2.setToken(t2);
 		try {
 			// sending seq 0
-			request = ObjectSecurityLayer.prepareSend(request, dbClient.getContext("coap://localhost:5683"));
+			request = ObjectSecurityLayer.prepareSend(dbClient, request);
 			dbClient.getContext("coap://localhost:5683").setSenderSeq(0);
-			request2 = ObjectSecurityLayer.prepareSend(request2, dbClient.getContext("coap://localhost:5683"));
+			request2 = ObjectSecurityLayer.prepareSend(dbClient, request2);
 		} catch (OSException e) {
 			e.printStackTrace();
 			fail();
@@ -533,7 +533,7 @@ public class OSCoreTest {
 		db.addContext(token, ctx);
 		request.getOptions().addOption(new Option(OptionNumberRegistry.OSCORE));
 		db.addSeqByToken(token, ctx.getSenderSeq());
-		return ObjectSecurityLayer.prepareSend(request, ctx);
+		return ObjectSecurityLayer.prepareSend(db, request);
 	}
 
 	private boolean assertCtxState(OSCoreCtx ctx, int send, int receive) {
@@ -571,7 +571,7 @@ public class OSCoreTest {
 		response.getOptions().addOption(new Option(OptionNumberRegistry.OSCORE));
 		response.setToken(token);
 
-		return ObjectSecurityLayer.prepareSend(response, tid, false);
+		return ObjectSecurityLayer.prepareSend(null, response, tid, false);
 	}
 
 	public Token generateToken() {
