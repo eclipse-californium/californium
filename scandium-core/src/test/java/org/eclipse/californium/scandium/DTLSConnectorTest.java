@@ -55,7 +55,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -317,7 +317,7 @@ public class DTLSConnectorTest {
 
 		try {
 			rawClient.start();
-			clientEndpoint = new InetSocketAddress(rawClient.socket.getLocalAddress(), rawClient.socket.getLocalPort());
+			clientEndpoint = rawClient.getAddress();
 
 			// Send CLIENT_HELLO
 			ClientHello clientHello = createClientHello();
@@ -389,10 +389,10 @@ public class DTLSConnectorTest {
 
 		try {
 			rawClient.start();
-			clientEndpoint = new InetSocketAddress(rawClient.socket.getLocalAddress(), rawClient.socket.getLocalPort());
+			clientEndpoint = rawClient.getAddress();
 
 			// Send CLIENT_HELLO
-			ClientHello clientHello = createClientHello();
+			ClientHello clientHello = createClientHello(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
 			rawClient.sendRecord(serverHelper.serverEndpoint,
 					DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 0, clientHello.toByteArray()));
 
@@ -517,6 +517,9 @@ public class DTLSConnectorTest {
 	 */
 	@Test
 	public void testAcceptClientHelloAfterIncompleteHandshake() throws Exception {
+		if (client != null) {
+			client.destroy();
+		}
 		// GIVEN a handshake that has been aborted before completion
 		givenAnIncompleteHandshake();
 
@@ -527,7 +530,9 @@ public class DTLSConnectorTest {
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 
 		// THEN assert that the handshake succeeds and a session is established
-		givenAnEstablishedSession();
+		// sometime the retransmission of the previous incomplete handshake
+		// fails the new handshake. Therefore a retry is used.
+		givenAnEstablishedSessionWithRetry();
 	}
 
 	/**
@@ -542,7 +547,7 @@ public class DTLSConnectorTest {
 		UdpConnector rawClient = new UdpConnector(clientEndpoint.getPort(), handler);
 		try {
 			rawClient.start();
-			clientEndpoint = new InetSocketAddress(rawClient.socket.getLocalAddress(),rawClient.socket.getLocalPort());
+			clientEndpoint = rawClient.getAddress();
 
 			// send CLIENT_HELLO
 			ClientHello clientHello = createClientHello();
@@ -995,21 +1000,13 @@ public class DTLSConnectorTest {
 		assertThat(callback.isConnecting(), is(false));
 	}
 
-	private ClientHello createClientHello() {
-		return createClientHello(null);
-	}
-
-	private ClientHello createClientHello(DTLSSession sessionToResume) {
-		ClientHello hello = null;
-		
-		if (sessionToResume == null) {
-			List<CipherSuite> ciperSuites = new ArrayList<>();
-			ciperSuites.add(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
-			ciperSuites.add(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
-			hello = new ClientHello(new ProtocolVersion(), ciperSuites, null, null, clientEndpoint);
-		} else {
-			hello = new ClientHello(new ProtocolVersion(), sessionToResume, null, null);
+	private ClientHello createClientHello(CipherSuite... cipherSuites) {
+		List<CipherSuite> list = clientConfig.getSupportedCipherSuites();
+		if (cipherSuites != null && cipherSuites.length > 0) {
+			list = Arrays.asList(cipherSuites);
 		}
+		ClientHello hello = new ClientHello(new ProtocolVersion(), list,
+				clientConfig.getIdentityCertificateTypes(), clientConfig.getTrustCertificateTypes(), clientEndpoint);
 		hello.addCompressionMethod(CompressionMethod.NULL);
 		hello.setMessageSeq(0);
 		return hello;
@@ -1037,6 +1034,35 @@ public class DTLSConnectorTest {
 		}
 	}
 
+	private void givenAnEstablishedSessionWithRetry() throws Exception {
+		SimpleMessageCallback callback = new SimpleMessageCallback();
+		RawData raw = RawData.outbound("Hello World".getBytes(),
+				new AddressEndpointContext(serverHelper.serverEndpoint), callback, false);
+		try {
+			clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, raw, false);
+		} catch (AssertionError error) {
+			Throwable sendError = callback.getError();
+			if (sendError instanceof HandshakeException) {
+				// sending failed, retry
+				raw = RawData.outbound("Hello World".getBytes(),
+						new AddressEndpointContext(serverHelper.serverEndpoint), callback, false);
+				client.stop();
+				clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, raw, false);
+			} else {
+				if (sendError != null) {
+					sendError.printStackTrace();
+				}
+				throw error;
+			}
+		}
+		clientEndpoint = client.getAddress();
+		Connection con = clientConnectionStore.get(serverHelper.serverEndpoint);
+		assertNotNull(con);
+		establishedClientSession = con.getEstablishedSession();
+		assertNotNull(establishedClientSession);
+		client.stop();
+	}
+
 	private void givenAnIncompleteHandshake() throws Exception {
 		// configure UDP connector
 		RecordCollectorDataHandler handler = new RecordCollectorDataHandler();
@@ -1045,7 +1071,7 @@ public class DTLSConnectorTest {
 
 		try {
 			rawClient.start();
-			clientEndpoint = new InetSocketAddress(rawClient.socket.getLocalAddress(),rawClient.socket.getLocalPort());
+			clientEndpoint = rawClient.getAddress();
 
 			// send CLIENT_HELLO
 			ClientHello clientHello = createClientHello();
