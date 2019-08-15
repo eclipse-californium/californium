@@ -58,6 +58,10 @@ public class SupportedPointFormatsExtension extends HelloExtension {
 		ecPointFormatList.add(format);
 	}
 
+	public boolean contains(ECPointFormat format) {
+		return ecPointFormatList.contains(format);
+	}
+
 	@Override
 	public int getLength() {
 		// fixed: type (2 bytes), length (2 bytes), list length (1 byte)
