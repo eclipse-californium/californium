@@ -345,6 +345,20 @@ public final class ServerHello extends HandshakeMessage {
 	}
 
 	/**
+	 * Gets the <em>Point Formats</em> extension data from this message.
+	 * 
+	 * @return the extension data or <code>null</code> if this message does not contain the
+	 *          <em>SupportedPointFormats</em> extension.
+	 */
+	SupportedPointFormatsExtension getSupportedPointFormatsExtension() {
+		if (extensions != null) {
+			return (SupportedPointFormatsExtension) extensions.getExtension(ExtensionType.EC_POINT_FORMATS);
+		} else {
+			return null;
+		}
+	}
+
+	/**
 	 * Gets the <em>connection id</em> extension data from this message.
 	 * 
 	 * @return the extension data or <code>null</code> if this message does not contain the

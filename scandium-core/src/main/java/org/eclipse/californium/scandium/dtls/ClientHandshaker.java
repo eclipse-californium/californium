@@ -63,6 +63,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.CertificateType;
+import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
@@ -351,8 +352,36 @@ public class ClientHandshaker extends Handshaker {
 		usedProtocol = message.getServerVersion();
 		serverRandom = message.getRandom();
 		session.setSessionIdentifier(message.getSessionId());
-		session.setCipherSuite(message.getCipherSuite());
+		CipherSuite cipherSuite = message.getCipherSuite();
+		if (!preferredCipherSuites.contains(cipherSuite)) {
+			throw new HandshakeException(
+					"Server wants to use not supported cipher suite " + cipherSuite,
+					new AlertMessage(
+							AlertLevel.FATAL,
+							AlertDescription.ILLEGAL_PARAMETER,
+							message.getPeer()));
+		}
+		session.setCipherSuite(cipherSuite);
+		CompressionMethod compressionMethod = message.getCompressionMethod();
+		if (compressionMethod != CompressionMethod.NULL) {
+			throw new HandshakeException(
+					"Server wants to use not supported compression method " + compressionMethod,
+					new AlertMessage(
+							AlertLevel.FATAL,
+							AlertDescription.ILLEGAL_PARAMETER,
+							message.getPeer()));
+		}
 		session.setCompressionMethod(message.getCompressionMethod());
+		SupportedPointFormatsExtension pointFormatsExtension = message.getSupportedPointFormatsExtension();
+		if (pointFormatsExtension !=null && !pointFormatsExtension.contains(ECPointFormat.UNCOMPRESSED)) {
+			throw new HandshakeException(
+					"Server wants to use only not supported EC point formats!",
+					new AlertMessage(
+							AlertLevel.FATAL,
+							AlertDescription.ILLEGAL_PARAMETER,
+							message.getPeer()));
+		}
+		
 		if (message.getMaxFragmentLength() != null) {
 			MaxFragmentLengthExtension.Length maxFragmentLength = message.getMaxFragmentLength().getFragmentLength(); 
 			if (maxFragmentLength.code() == maxFragmentLengthCode) {
@@ -375,7 +404,16 @@ public class ClientHandshaker extends Handshaker {
 			}
 		}
 		session.setSendCertificateType(serverHello.getClientCertificateType());
-		session.setReceiveCertificateType(serverHello.getServerCertificateType());
+		CertificateType serverCertificateType = serverHello.getServerCertificateType();
+		if (!isSupportedCertificateType(serverCertificateType, supportedServerCertificateTypes)) {
+			throw new HandshakeException(
+					"Server wants to use not supported server certificate type " + serverCertificateType,
+					new AlertMessage(
+							AlertLevel.FATAL,
+							AlertDescription.ILLEGAL_PARAMETER,
+							message.getPeer()));
+		}
+		session.setReceiveCertificateType(serverCertificateType);
 		session.setSniSupported(serverHello.hasServerNameExtension());
 		session.setParameterAvailable();
 		initMessageDigest();
@@ -396,7 +434,6 @@ public class ClientHandshaker extends Handshaker {
 			// discard duplicate message
 			return;
 		}
-
 		serverCertificate = message;
 		verifyCertificate(serverCertificate);
 		serverPublicKey = serverCertificate.getPublicKey();
@@ -533,6 +570,16 @@ public class ClientHandshaker extends Handshaker {
 		 * Third, send CertificateVerify message if necessary.
 		 */
 		if (certificateRequest != null && negotiatedSignatureAndHashAlgorithm != null) {
+			CertificateType clientCertificateType = session.sendCertificateType();
+			if (!isSupportedCertificateType(clientCertificateType, supportedClientCertificateTypes)) {
+				throw new HandshakeException(
+						"Server wants to use not supported client certificate type " + clientCertificateType,
+						new AlertMessage(
+								AlertLevel.FATAL,
+								AlertDescription.ILLEGAL_PARAMETER,
+								message.getPeer()));
+			}
+
 			// prepare handshake messages
 			DatagramWriter handshakeMessages = new DatagramWriter(2048);
 			handshakeMessages.writeBytes(clientHello.toByteArray());
@@ -675,6 +722,23 @@ public class ClientHandshaker extends Handshaker {
 			} else {
 				return certificateChain;
 			}
+		}
+	}
+
+	/**
+	 * Checks, if the provided certificate type is supported.
+	 * 
+	 * @param certType certificate type
+	 * @param supportedCertificateTypes list of supported certificate type. if
+	 *            {@code null}, only {@link CertificateType#X_509} is supported.
+	 * @return {@code true}, if supported, {@code false} otherwise.
+	 */
+	private static boolean isSupportedCertificateType(CertificateType certType,
+			List<CertificateType> supportedCertificateTypes) {
+		if (supportedCertificateTypes != null) {
+			return supportedCertificateTypes.contains(certType);
+		} else {
+			return certType == CertificateType.X_509;
 		}
 	}
 
