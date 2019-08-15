@@ -459,12 +459,17 @@ public abstract class Handshaker {
 				} else {
 					// continue with the now fully re-assembled message
 					if (messageToProcess instanceof GenericHandshakeMessage) {
+						GenericHandshakeMessage genericMessage = (GenericHandshakeMessage) messageToProcess;
 						HandshakeParameter parameter = session.getParameter();
 						if (parameter == null) {
-							throw new IllegalStateException("handshake parameter are required!");
+							LOGGER.warn("Cannot process handshake {} message from peer [{}], parameter are required!",
+									genericMessage.getMessageType(), getSession().getPeer());
+							AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR,
+									session.getPeer());
+							throw new HandshakeException("Cannot process " + genericMessage.getMessageType()
+									+ " handshake message, parameter are required!", alert);
 						}
-						messageToProcess = ((GenericHandshakeMessage) messageToProcess)
-								.getSpecificHandshakeMessage(parameter);
+						messageToProcess = genericMessage.getSpecificHandshakeMessage(parameter);
 					}
 					if (messageToProcess.getContentType() == ContentType.HANDSHAKE) {
 						// only cancel on HANDSHAKE messages
