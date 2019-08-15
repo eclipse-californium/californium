@@ -519,8 +519,12 @@ public final class Connection {
 		if (peerAddress != null) {
 			builder.append(", ").append(peerAddress);
 			if (getOngoingHandshake() != null) {
-				String id = getOngoingHandshake().getSession().getSessionIdentifier().getAsString().substring(0,  8);
-				builder.append(", ongoing handshake ").append(id);
+				builder.append(", ongoing handshake ");
+				SessionId id = getOngoingHandshake().getSession().getSessionIdentifier();
+				if (id != null) {
+					// during handshake this may by not already set
+					builder.append(id.getAsString().substring(0,  8));
+				}
 			}
 			if (isResumptionRequired()) {
 				builder.append(", resumption required");
