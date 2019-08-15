@@ -85,6 +85,7 @@ import org.eclipse.californium.elements.auth.AdditionalInfo;
 import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -159,6 +160,9 @@ public abstract class Handshaker {
 
 	/** The next expected handshake message sequence number. */
 	private int nextReceiveSeq = 0;
+
+	/** Realtime nanoseconds of last sending a flight */
+	private long flightSendNanos;
 
 	/** The current flight number. */
 	protected int flightNumber = 0;
@@ -435,9 +439,14 @@ public abstract class Handshaker {
 	public final void processMessage(Record record) throws HandshakeException {
 		int epoch = session.getReadEpoch();
 		if (epoch != record.getEpoch()) {
-			LOGGER.debug("Discarding HANDSHAKE message with wrong epoch received from peer [{}]:{}{}",
-					record.getPeerAddress(), StringUtil.lineSeparator(), record);
+			LOGGER.debug("Discarding {} message with wrong epoch received from peer [{}]:{}{}",
+					record.getType(), record.getPeerAddress(), StringUtil.lineSeparator(), record);
 			throw new IllegalArgumentException("processing record with wrong epoch! " + record.getEpoch() + " expected " + epoch);
+		}
+		if (record.getReceiveNanos() < flightSendNanos) {
+			LOGGER.debug("Discarding {} message received from peer [{}] before last flight was sent:{}{}",
+					record.getType(), record.getPeerAddress(), StringUtil.lineSeparator(), record);
+			return;
 		}
 		try {
 			DTLSMessage messageToProcess = inboundMessageBuffer.getNextMessage(record);
@@ -962,6 +971,7 @@ public abstract class Handshaker {
 	public void sendFlight(DTLSFlight flight) {
 		setPendingFlight(null);
 		try {
+			flightSendNanos = ClockUtil.nanoRealtime();
 			recordLayer.sendFlight(flight, connection);
 			setPendingFlight(flight);
 		} catch (IOException e) {
