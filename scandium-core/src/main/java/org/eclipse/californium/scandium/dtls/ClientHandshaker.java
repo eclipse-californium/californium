@@ -208,9 +208,6 @@ public class ClientHandshaker extends Handshaker {
 		case HANDSHAKE:
 			HandshakeMessage handshakeMsg = (HandshakeMessage) message;
 			switch (handshakeMsg.getMessageType()) {
-			case HELLO_REQUEST:
-				receivedHelloRequest();
-				break;
 
 			case HELLO_VERIFY_REQUEST:
 				receivedHelloVerifyRequest((HelloVerifyRequest) handshakeMsg);
@@ -299,21 +296,6 @@ public class ClientHandshaker extends Handshaker {
 	}
 
 	/**
-	 * Used by the server to kickstart negotiations.
-	 * 
-	 * @param message
-	 *            the hello request message
-	 * @throws HandshakeException if the CLIENT_HELLO record cannot be created
-	 */
-	private void receivedHelloRequest() throws HandshakeException {
-		if (state < HandshakeType.HELLO_REQUEST.getCode()) {
-			startHandshake();
-		} else {
-			// already started with handshake, drop this message
-		}
-	}
-
-	/**
 	 * A {@link HelloVerifyRequest} is sent by the server upon the arrival of
 	 * the client's {@link ClientHello}. It is sent by the server to prevent
 	 * flooding of a client. The client answers with the same
@@ -342,10 +324,6 @@ public class ClientHandshaker extends Handshaker {
 	 * 	e.g. because the server selected an unknown or unsupported cipher suite
 	 */
 	protected void receivedServerHello(ServerHello message) throws HandshakeException {
-		if (serverHello != null && (message.getMessageSeq() == serverHello.getMessageSeq())) {
-			// received duplicate version (retransmission), discard it
-			return;
-		}
 		serverHello = message;
 
 		// store the negotiated values
@@ -430,10 +408,6 @@ public class ClientHandshaker extends Handshaker {
 	 *             if the certificate could not be verified.
 	 */
 	private void receivedServerCertificate(CertificateMessage message) throws HandshakeException {
-		if (serverCertificate != null && (serverCertificate.getMessageSeq() == message.getMessageSeq())) {
-			// discard duplicate message
-			return;
-		}
 		serverCertificate = message;
 		verifyCertificate(serverCertificate);
 		serverPublicKey = serverCertificate.getPublicKey();
@@ -452,11 +426,6 @@ public class ClientHandshaker extends Handshaker {
 	 * @throws HandshakeException if the message can't be verified
 	 */
 	private void receivedServerKeyExchange(ECDHServerKeyExchange message) throws HandshakeException {
-		if (serverKeyExchange != null && (serverKeyExchange.getMessageSeq() == message.getMessageSeq())) {
-			// discard duplicate message
-			return;
-		}
-
 		serverKeyExchange = message;
 		message.verifySignature(serverPublicKey, clientRandom, serverRandom);
 		// server identity has been proven
@@ -476,7 +445,7 @@ public class ClientHandshaker extends Handshaker {
 				new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, getPeerAddress()));
 		}
 	}
-	
+
 	/**
 	 * This method is called after receiving {@link ServerKeyExchange} message in ECDHE_PSK mode 
 	 * to extract the ServerDHEParams that includes the ephemeral public key.
@@ -485,10 +454,6 @@ public class ClientHandshaker extends Handshaker {
 	 * @throws HandshakeException
 	 */
 	private void receivedServerKeyExchange(EcdhPskServerKeyExchange message) throws HandshakeException {
-		if (serverKeyExchange != null && (serverKeyExchange.getMessageSeq() == message.getMessageSeq())) {
-			// discard duplicate message
-			return;
-		}
 		serverKeyExchange = message;
 		ephemeralServerPublicKey = message.getPublicKey();
 		try {
@@ -512,11 +477,6 @@ public class ClientHandshaker extends Handshaker {
 	 * @throws GeneralSecurityException if the client's handshake records cannot be created
 	 */
 	private void receivedServerHelloDone(ServerHelloDone message) throws HandshakeException, GeneralSecurityException {
-
-		if (serverHelloDone != null && (serverHelloDone.getMessageSeq() == message.getMessageSeq())) {
-			// discard duplicate message
-			return;
-		}
 		serverHelloDone = message;
 		flightNumber += 2;
 		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
