@@ -159,6 +159,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 					// Server refuse to resume the session, go for a full handshake
 					fullHandshake  = true;
 					super.receivedServerHello(serverHello);
+					incrementNextReceiveSeq();
 					return;
 				} else if (!serverHello.getCompressionMethod().equals(session.getCompressionMethod())) {
 					throw new HandshakeException(
