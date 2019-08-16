@@ -323,11 +323,6 @@ public class ServerHandshaker extends Handshaker {
 	 */
 	private void receivedClientCertificate(final CertificateMessage message) throws HandshakeException {
 
-		if (clientCertificate != null && (clientCertificate.getMessageSeq() == message.getMessageSeq())) {
-			// discard duplicate message
-			return;
-		}
-
 		clientCertificate = message;
 		if (clientAuthenticationRequired && clientCertificate.getCertificateChain() != null
 				&& clientCertificate.getPublicKey() == null) {
