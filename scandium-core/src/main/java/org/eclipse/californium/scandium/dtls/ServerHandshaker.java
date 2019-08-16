@@ -432,8 +432,6 @@ public class ServerHandshaker extends Handshaker {
 		Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), session.getMasterSecret(), isClient, handshakeHash, session.getPeer());
 		wrapMessage(flight, finished);
 
-		state = HandshakeType.FINISHED.getCode();
-
 		flight.setRetransmissionNeeded(false);
 		// store, if we need to retransmit this flight, see
 		// http://tools.ietf.org/html/rfc6347#section-4.2.4

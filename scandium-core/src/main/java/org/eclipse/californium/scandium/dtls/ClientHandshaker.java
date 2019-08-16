@@ -290,7 +290,6 @@ public class ClientHandshaker extends Handshaker {
 	 */
 	private void receivedServerFinished(Finished message) throws HandshakeException, GeneralSecurityException {
 		message.verifyData(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), session.getMasterSecret(), false, handshakeHash);
-		state = HandshakeType.FINISHED.getCode();
 		sessionEstablished();
 		handshakeCompleted();
 	}
@@ -720,9 +719,6 @@ public class ClientHandshaker extends Handshaker {
 		addMaxFragmentLength(startMessage);
 
 		addServerNameIndication(startMessage);
-
-		// set current state
-		state = startMessage.getMessageType().getCode();
 
 		// store for later calculations
 		flightNumber = 1;
