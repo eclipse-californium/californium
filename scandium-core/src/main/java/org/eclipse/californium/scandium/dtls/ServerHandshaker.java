@@ -75,7 +75,6 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
-import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,6 +85,16 @@ import org.slf4j.LoggerFactory;
 public class ServerHandshaker extends Handshaker {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(ServerHandshaker.class.getName());
+
+	private static HandshakeState[] CLIENT_CERTIFICATE = { new HandshakeState(HandshakeType.CERTIFICATE),
+			new HandshakeState(HandshakeType.CLIENT_KEY_EXCHANGE),
+			new HandshakeState(HandshakeType.CERTIFICATE_VERIFY),
+			new HandshakeState(ContentType.CHANGE_CIPHER_SPEC), new HandshakeState(HandshakeType.FINISHED) };
+	private static HandshakeState[] EMPTY_CLIENT_CERTIFICATE = { new HandshakeState(HandshakeType.CERTIFICATE),
+			new HandshakeState(HandshakeType.CLIENT_KEY_EXCHANGE),
+			new HandshakeState(ContentType.CHANGE_CIPHER_SPEC), new HandshakeState(HandshakeType.FINISHED) };
+	protected static HandshakeState[] NO_CLIENT_CERTIFICATE = { new HandshakeState(HandshakeType.CLIENT_KEY_EXCHANGE),
+			new HandshakeState(ContentType.CHANGE_CIPHER_SPEC), new HandshakeState(HandshakeType.FINISHED) };
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -143,9 +152,6 @@ public class ServerHandshaker extends Handshaker {
 	/** The client's {@link CertificateVerify}. Optional. */
 	protected CertificateVerify certificateVerify = null;
 
-	/** Used to retrieve pre-shared-key from a given client identity */
-	protected final PskStore pskStore;
-
 	private PskPublicInformation preSharedKeyIdentity;
 
 	// Constructors ///////////////////////////////////////////////////
@@ -183,11 +189,6 @@ public class ServerHandshaker extends Handshaker {
 
 		this.supportedCipherSuites = config.getSupportedCipherSuites();
 
-		this.pskStore = config.getPskStore();
-		this.privateKey = config.getPrivateKey();
-		this.certificateChain = config.getCertificateChain();
-		this.publicKey = config.getPublicKey();
-		this.sniEnabled = config.isSniEnabled();
 		this.clientAuthenticationWanted = config.isClientAuthenticationWanted();
 		this.clientAuthenticationRequired = config.isClientAuthenticationRequired();
 		this.useNoSessionId = config.useNoServerSessionId();
@@ -214,6 +215,8 @@ public class ServerHandshaker extends Handshaker {
 			lastFlight.incrementTries();
 			lastFlight.setNewSequenceNumbers();
 			sendFlight(lastFlight);
+			// expect FINISH again
+			--statesIndex;
 			return;
 		}
 
@@ -299,7 +302,7 @@ public class ServerHandshaker extends Handshaker {
 			if (lastFlight == null) {
 				// only increment for ongoing handshake flights, not for the last flight!
 				// not ignore a client FINISHED retransmission caused by lost server FINISHED
-				incrementNextReceiveSeq();
+				incrementNextReceiveMessageSequenceNumber();
 			}
 			LOGGER.debug("Processed {} message with message sequence no [{}] from peer [{}]",
 					handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq(), message.getPeer());
@@ -335,6 +338,9 @@ public class ServerHandshaker extends Handshaker {
 		clientPublicKey = clientCertificate.getPublicKey();
 		// TODO why don't we also update the MessageDigest at this point?
 		handshakeMessages.writeBytes(clientCertificate.getRawMessage());
+		if (clientCertificate.getPublicKey() == null) {
+			states = EMPTY_CLIENT_CERTIFICATE;
+		}
 	}
 
 	/**
@@ -437,8 +443,9 @@ public class ServerHandshaker extends Handshaker {
 		// http://tools.ietf.org/html/rfc6347#section-4.2.4
 		lastFlight = flight;
 		sendFlight(flight);
-
 		sessionEstablished();
+		// expect FINISH again
+		--statesIndex;
 	}
 
 	/**
@@ -470,7 +477,14 @@ public class ServerHandshaker extends Handshaker {
 
 		createServerKeyExchange(clientHello, flight);
 
-		createCertificateRequest(clientHello, flight);
+		boolean clientCertificate = createCertificateRequest(clientHello, flight);
+
+		if (clientCertificate) {
+			states = CLIENT_CERTIFICATE;
+		} else {
+			states = NO_CLIENT_CERTIFICATE;
+		}
+		statesIndex = -1;
 
 		/*
 		 * Last, send ServerHelloDone (mandatory)
@@ -600,7 +614,7 @@ public class ServerHandshaker extends Handshaker {
 		}
 	}
 
-	private void createCertificateRequest(final ClientHello clientHello, final DTLSFlight flight) throws HandshakeException {
+	private boolean createCertificateRequest(final ClientHello clientHello, final DTLSFlight flight) throws HandshakeException {
 
 		if ((clientAuthenticationWanted || clientAuthenticationRequired) && signatureAndHashAlgorithm != null) {
 
@@ -616,7 +630,9 @@ public class ServerHandshaker extends Handshaker {
 			wrapMessage(flight, certificateRequest);
 			md.update(certificateRequest.toByteArray());
 			handshakeMessages.writeBytes(certificateRequest.toByteArray());
+			return true;
 		}
+		return false;
 	}
 
 	/**

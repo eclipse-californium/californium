@@ -436,7 +436,7 @@ public class HandshakerTest {
 			case HANDSHAKE:
 				final HandshakeMessage handshakeMessage = (HandshakeMessage) message;
 				receivedMessages[((HandshakeMessage) message).getMessageSeq()] += 1;
-				incrementNextReceiveSeq();
+				incrementNextReceiveMessageSequenceNumber();
 				if (handshakeMessage.getMessageType() == HandshakeType.FINISHED) {
 					finishedProcessed.set(true);
 				}

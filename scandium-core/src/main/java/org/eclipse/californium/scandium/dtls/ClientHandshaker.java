@@ -66,7 +66,6 @@ import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
-import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.PskUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
@@ -80,6 +79,18 @@ import org.slf4j.LoggerFactory;
 public class ClientHandshaker extends Handshaker {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(ClientHandshaker.class.getName());
+
+	protected static HandshakeState[] SEVER_CERTIFICATE = { new HandshakeState(HandshakeType.HELLO_VERIFY_REQUEST, true),
+			new HandshakeState(HandshakeType.SERVER_HELLO), new HandshakeState(HandshakeType.CERTIFICATE),
+			new HandshakeState(HandshakeType.SERVER_KEY_EXCHANGE),
+			new HandshakeState(HandshakeType.CERTIFICATE_REQUEST, true),
+			new HandshakeState(HandshakeType.SERVER_HELLO_DONE), new HandshakeState(ContentType.CHANGE_CIPHER_SPEC),
+			new HandshakeState(HandshakeType.FINISHED) };
+	private static HandshakeState[] NO_SEVER_CERTIFICATE = {
+			new HandshakeState(HandshakeType.HELLO_VERIFY_REQUEST, true),
+			new HandshakeState(HandshakeType.SERVER_HELLO), new HandshakeState(HandshakeType.SERVER_KEY_EXCHANGE, true),
+			new HandshakeState(HandshakeType.SERVER_HELLO_DONE), new HandshakeState(ContentType.CHANGE_CIPHER_SPEC),
+			new HandshakeState(HandshakeType.FINISHED) };
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -132,8 +143,6 @@ public class ClientHandshaker extends Handshaker {
 	/** The hash of all received handshake messages sent in the finished message. */
 	protected byte[] handshakeHash = null;
 
-	/** Used to retrieve identity/pre-shared-key for a given destination */
-	protected final PskStore pskStore;
 	protected ServerNames indicatedServerNames;
 	protected SignatureAndHashAlgorithm negotiatedSignatureAndHashAlgorithm;
 
@@ -160,13 +169,8 @@ public class ClientHandshaker extends Handshaker {
 	public ClientHandshaker(DTLSSession session, RecordLayer recordLayer, Connection connection,
 			DtlsConnectorConfig config, int maxTransmissionUnit) {
 		super(true, 0, session, recordLayer, connection, config, maxTransmissionUnit);
-		this.privateKey = config.getPrivateKey();
-		this.certificateChain = config.getCertificateChain();
-		this.publicKey = config.getPublicKey();
-		this.pskStore = config.getPskStore();
 		this.preferredCipherSuites = config.getSupportedCipherSuites();
 		this.maxFragmentLengthCode = config.getMaxFragmentLengthCode();
-		this.sniEnabled = config.isSniEnabled();
 
 		this.supportedServerCertificateTypes = config.getTrustCertificateTypes();
 		this.supportedClientCertificateTypes = config.getIdentityCertificateTypes();
@@ -267,7 +271,7 @@ public class ClientHandshaker extends Handshaker {
 						new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, handshakeMsg.getPeer()));
 			}
 
-			incrementNextReceiveSeq();
+			incrementNextReceiveMessageSequenceNumber();
 			LOGGER.debug("Processed {} message with sequence no [{}] from peer [{}]",
 					handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq(), handshakeMsg.getPeer());
 			break;
@@ -312,6 +316,8 @@ public class ClientHandshaker extends Handshaker {
 		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
 		wrapMessage(flight, clientHello);
 		sendFlight(flight);
+		// the cookie may have changed
+		--statesIndex;
 	}
 
 	/**
@@ -393,6 +399,9 @@ public class ClientHandshaker extends Handshaker {
 		session.setReceiveCertificateType(serverCertificateType);
 		session.setSniSupported(serverHello.hasServerNameExtension());
 		session.setParameterAvailable();
+		if (!cipherSuite.requiresServerCertificateMessage()) {
+			states = NO_SEVER_CERTIFICATE;
+		}
 		initMessageDigest();
 	}
 
@@ -726,6 +735,8 @@ public class ClientHandshaker extends Handshaker {
 		DTLSFlight flight = new DTLSFlight(session, flightNumber);
 		wrapMessage(flight, startMessage);
 		sendFlight(flight);
+		states = SEVER_CERTIFICATE;
+		statesIndex = 0;
 	}
 
 	protected void addMaxFragmentLength(final ClientHello helloMessage) {

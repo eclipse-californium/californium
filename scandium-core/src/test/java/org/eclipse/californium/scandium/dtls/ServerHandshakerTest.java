@@ -376,7 +376,7 @@ public class ServerHandshakerTest {
 
 		InetSocketAddress senderAddress = new InetSocketAddress(5000);
 		processClientHello(0, null);
-		assertThat(handshaker.getNextReceiveSeq(), is(1));
+		assertThat(handshaker.getNextReceiveMessageSequenceNumber(), is(1));
 		// create client CERTIFICATE msg
 		X509Certificate[] clientChain = DtlsTestTools.getClientCertificateChain();
 		CertificateMessage certificateMsg = new CertificateMessage(Arrays.asList(clientChain), endpoint);
@@ -399,7 +399,7 @@ public class ServerHandshakerTest {
 	}
 
 	private void assertThatAllMessagesHaveBeenProcessedInOrder() {
-		assertThat(handshaker.getNextReceiveSeq(), is(3));
+		assertThat(handshaker.getNextReceiveMessageSequenceNumber(), is(3));
 		assertThat("Client's CERTIFICATE message should have been processed",
 				handshaker.clientCertificate, notNullValue());
 		assertThat("Client's KEY_EXCHANGE message should have been processed",

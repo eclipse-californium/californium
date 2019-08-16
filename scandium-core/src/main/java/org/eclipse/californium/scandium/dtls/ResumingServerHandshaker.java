@@ -133,7 +133,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 						new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, handshakeMsg.getPeer()));
 			}
 
-			incrementNextReceiveSeq();
+			incrementNextReceiveMessageSequenceNumber();
 			LOGGER.debug("Processed {} message with sequence no [{}] from peer [{}]",
 					handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq(), handshakeMsg.getPeer());
 			break;
@@ -214,6 +214,8 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 			mdWithServerFinished.update(finished.toByteArray());
 			handshakeHash = mdWithServerFinished.digest();
 			sendFlight(flight);
+			states = NO_CLIENT_CERTIFICATE;
+			statesIndex = 0;
 		}
 	}
 
