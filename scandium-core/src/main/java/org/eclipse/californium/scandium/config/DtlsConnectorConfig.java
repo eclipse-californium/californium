@@ -295,6 +295,12 @@ public final class DtlsConnectorConfig {
 
 	private ApplicationLevelInfoSupplier applicationLevelInfoSupplier;
 
+	
+	/**
+	 * Use the handshake state validation to verify valid handshakes.
+	 */
+	private Boolean useHandshakeStateValidation;
+
 	private DtlsConnectorConfig() {
 		// empty
 	}
@@ -741,6 +747,15 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * Use the handshake state validation to verify valid handshakes.
+	 * 
+	 * @return {@code true}, if handshake state validation is used
+	 */
+	public Boolean useHandshakeStateValidation() {
+		return useHandshakeStateValidation;
+	}
+
+	/**
 	 * Get instance logging tag.
 	 * 
 	 * @return logging tag.
@@ -792,6 +807,7 @@ public final class DtlsConnectorConfig {
 		cloned.useCidUpdateAddressOnNewerRecordFilter = useCidUpdateAddressOnNewerRecordFilter;
 		cloned.connectionIdGenerator = connectionIdGenerator;
 		cloned.applicationLevelInfoSupplier = applicationLevelInfoSupplier;
+		cloned.useHandshakeStateValidation = useHandshakeStateValidation;
 		return cloned;
 	}
 
@@ -1792,6 +1808,22 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
+		 * Use the handshake state validation to verify valid handshakes.
+		 * 
+		 * Note: the handshake state validation is used by default. If a client
+		 * can' process a handshake in the assumed way, the state validation may
+		 * be disabled at the risk of potential more volnerability.
+		 * 
+		 * @param enable {@code true} to enable state machine. Default
+		 *            {@code true}.
+		 * @return this builder for command chaining.
+		 */
+		public Builder setUseHandshakeStateValidation(boolean enable) {
+			config.useHandshakeStateValidation = enable;
+			return this;
+		}
+
+		/**
 		 * Set instance logging tag.
 		 * 
 		 * @param tag logging tag of configure instance
@@ -1848,6 +1880,9 @@ public final class DtlsConnectorConfig {
 			}
 			if (config.enableReuseAddress == null) {
 				config.enableReuseAddress = Boolean.FALSE;
+			}
+			if (config.useHandshakeStateValidation == null) {
+				config.useHandshakeStateValidation = Boolean.TRUE;
 			}
 			if (config.earlyStopRetransmission == null) {
 				config.earlyStopRetransmission = Boolean.TRUE;

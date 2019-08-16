@@ -59,6 +59,10 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	
 	private static final Logger LOGGER = LoggerFactory.getLogger(ResumingClientHandshaker.class.getName());
 
+	private static HandshakeState[] RESUME = { new HandshakeState(HandshakeType.HELLO_VERIFY_REQUEST, true),
+			new HandshakeState(HandshakeType.SERVER_HELLO), new HandshakeState(ContentType.CHANGE_CIPHER_SPEC),
+			new HandshakeState(HandshakeType.FINISHED) };
+
 	// flag to indicate if we must do a full handshake or an abbreviated one
 	private boolean fullHandshake = false;
 
@@ -118,6 +122,8 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 			lastFlight.incrementTries();
 			lastFlight.setNewSequenceNumbers();
 			sendFlight(lastFlight);
+			// expect FINISH again
+			--statesIndex;
 			return;
 		}
 
@@ -158,8 +164,9 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 							serverHello.getPeer(), session.getSessionIdentifier());
 					// Server refuse to resume the session, go for a full handshake
 					fullHandshake  = true;
+					states = SEVER_CERTIFICATE;
 					super.receivedServerHello(serverHello);
-					incrementNextReceiveSeq();
+					incrementNextReceiveMessageSequenceNumber();
 					return;
 				} else if (!serverHello.getCompressionMethod().equals(session.getCompressionMethod())) {
 					throw new HandshakeException(
@@ -203,7 +210,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 			if (lastFlight == null) {
 				// only increment for ongoing handshake flights, not for the last flight!
 				// not ignore a server FINISHED retransmission caused by lost client FINISHED
-				incrementNextReceiveSeq();
+				incrementNextReceiveMessageSequenceNumber();
 			}
 			LOGGER.debug("Processed {} message with sequence no [{}] from peer [{}]",
 					handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq(), handshakeMsg.getPeer());
@@ -274,6 +281,8 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		lastFlight = flight;
 		sendFlight(flight);
 		sessionEstablished();
+		// expect FINISH again
+		--statesIndex;
 	}
 
 	@Override
@@ -296,5 +305,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
 		wrapMessage(flight, message);
 		sendFlight(flight);
+		states = RESUME;
+		statesIndex = 0;
 	}
 }

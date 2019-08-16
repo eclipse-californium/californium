@@ -98,6 +98,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgor
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
+import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
 import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 import org.slf4j.Logger;
@@ -144,6 +145,9 @@ public abstract class Handshaker {
 	/** The trusted raw public keys */
 	protected final TrustedRpkStore rpkStore;
 
+	/** Used to retrieve identity/pre-shared-key for a given destination */
+	protected final PskStore pskStore;
+
 	/**
 	 * The configured connection id length. {@code null}, not supported,
 	 * {@code 0} supported but not used.
@@ -151,13 +155,16 @@ public abstract class Handshaker {
 	protected final ConnectionIdGenerator connectionIdGenerator;
 
 	/**
-	 * The current sequence number (in the handshake message called message_seq)
-	 * for this handshake.
+	 * The current handshake message sequence number (in the handshake message
+	 * called message_seq) for outgoing messages of this handshake.
 	 */
-	private int sequenceNumber = 0;
+	private int sendMessageSequence = 0;
 
-	/** The next expected handshake message sequence number. */
-	private int nextReceiveSeq = 0;
+	/**
+	 * The next expected handshake message sequence number (in the handshake
+	 * message called message_seq) for incoming messages of this handshake.
+	 */
+	private int nextReceiveMessageSequence = 0;
 
 	/** Realtime nanoseconds of last sending a flight */
 	private long flightSendNanos;
@@ -208,9 +215,16 @@ public abstract class Handshaker {
 	/**
 	 * Support Server Name Indication TLS extension.
 	 */
-	protected boolean sniEnabled = true;
+	protected boolean sniEnabled;
+	/**
+	 * Use handshake state machine validation.
+	 */
+	protected boolean useStateValidation;
 
 	private final Set<SessionListener> sessionListeners = new LinkedHashSet<>();
+	
+	protected int statesIndex;
+	protected HandshakeState[] states;
 
 	private boolean changeCipherSuiteMessageExpected = false;
 	private boolean sessionEstablished = false;
@@ -258,25 +272,29 @@ public abstract class Handshaker {
 			throw new IllegalArgumentException("Initial message sequence number must not be negative");
 		}
 		this.isClient = isClient;
-		this.sequenceNumber = initialMessageSeq;
-		this.nextReceiveSeq = initialMessageSeq;
+		this.sendMessageSequence = initialMessageSeq;
+		this.nextReceiveMessageSequence = initialMessageSeq;
 		this.session = session;
 		this.recordLayer = recordLayer;
 		this.connection = connection;
 		this.connectionIdGenerator = config.getConnectionIdGenerator();
 		this.maxFragmentedHandshakeMessageLength = config.getMaxFragmentedHandshakeMessageLength();
 		this.maxDeferredProcessedApplicationDataMessages = config.getMaxDeferredProcessedApplicationDataMessages();
+		this.sniEnabled = config.isSniEnabled();
+		this.useStateValidation = config.useHandshakeStateValidation();
+		this.privateKey = config.getPrivateKey();
+		this.publicKey = config.getPublicKey();
+		this.certificateChain = config.getCertificateChain();
+		this.certificateVerifier = config.getCertificateVerifier();
+		this.rpkStore = config.getRpkTrustStore();
+		this.pskStore = config.getPskStore();
+		this.session.setMaxTransmissionUnit(maxTransmissionUnit);
+		this.applicationLevelInfoSupplier = config.getApplicationLevelInfoSupplier();
 		this.deferredApplicationData = new ArrayList<RawData>(maxDeferredProcessedApplicationDataMessages);
 		this.deferredRecords = new ArrayList<Record>(maxDeferredProcessedApplicationDataMessages);
-		if (connection != null) {
-			addSessionListener(connection.getSessionListener());
-		}
-		this.certificateVerifier = config.getCertificateVerifier();
-		this.session.setMaxTransmissionUnit(maxTransmissionUnit);
 		this.inboundMessageBuffer = new InboundMessageBuffer();
-		this.applicationLevelInfoSupplier = config.getApplicationLevelInfoSupplier();
 
-		this.rpkStore = config.getRpkTrustStore();
+		addSessionListener(connection.getSessionListener());
 	}
 
 	/**
@@ -327,7 +345,7 @@ public abstract class Handshaker {
 				for (Record record : queue) {
 					if (record.getEpoch() == session.getReadEpoch()) {
 						HandshakeMessage msg = (HandshakeMessage) record.getFragment();
-						if (msg.getMessageSeq() == nextReceiveSeq) {
+						if (msg.getMessageSeq() == nextReceiveMessageSequence) {
 							result = msg;
 							queue.remove(record);
 							break;
@@ -389,21 +407,21 @@ public abstract class Handshaker {
 				case HANDSHAKE:
 					HandshakeMessage handshakeMessage = (HandshakeMessage) fragment;
 					int messageSeq = handshakeMessage.getMessageSeq();
-					if (messageSeq == nextReceiveSeq) {
+					if (messageSeq == nextReceiveMessageSequence) {
 						return handshakeMessage;
-					} else if (messageSeq > nextReceiveSeq) {
+					} else if (messageSeq > nextReceiveMessageSequence) {
 						LOGGER.debug(
 								"Queued newer {} message from current epoch, message_seq [{}] > next_receive_seq [{}]",
 								handshakeMessage.getMessageType(),
 								messageSeq,
-								nextReceiveSeq);
+								nextReceiveMessageSequence);
 						queue.add(candidate);
 						return null;
 					} else {
 						LOGGER.debug("Discarding old {} message_seq [{}] < next_receive_seq [{}]",
 								handshakeMessage.getMessageType(),
 								messageSeq,
-								nextReceiveSeq);
+								nextReceiveMessageSequence);
 						return null;
 					}
 				default:
@@ -487,7 +505,9 @@ public abstract class Handshaker {
 							throw new HandshakeException("FINISH with epoch 0!", alert);
 						}
 					}
+					expectMessage(messageToProcess);
 					doProcessMessage(messageToProcess);
+					++statesIndex;
 				}
 				// process next expected message (if available yet)
 				messageToProcess = inboundMessageBuffer.getNextMessage();
@@ -517,6 +537,46 @@ public abstract class Handshaker {
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR,
 					session.getPeer());
 			throw new HandshakeException("Cannot process handshake message", alert);
+		}
+	}
+	/**
+	 * Check, if message is expected.
+	 * 
+	 * @param message mesage to check
+	 * @throws HandshakeException if the message is not expected
+	 * @see #useStateValidation
+	 * @see DtlsConnectorConfig#useHandshakeStateValidation()
+	 */
+	protected void expectMessage(DTLSMessage message) throws HandshakeException {
+		if (useStateValidation && states != null) {
+			if (statesIndex >= states.length) {
+				LOGGER.warn("Cannot process {} message from peer [{}], no more expected!", HandshakeState.toString(message),
+						getSession().getPeer());
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR,
+						session.getPeer());
+				throw new HandshakeException("Cannot process " + HandshakeState.toString(message)
+						+ " handshake message, no more expected!", alert);
+			}
+			HandshakeState expectedState = states[statesIndex];
+			boolean expected = expectedState.expect(message);
+			if (!expected && expectedState.isOptional()) {
+				if (statesIndex + 1 < states.length) {
+					HandshakeState nextExpectedState = states[statesIndex + 1];
+					if (nextExpectedState.expect(message)) {
+						++statesIndex;
+						expected = true;
+					}
+				}
+			}
+
+			if (!expected) {
+				LOGGER.warn("Cannot process {} message from peer [{}], {} expected!", HandshakeState.toString(message),
+						getSession().getPeer(), expectedState);
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR,
+						session.getPeer());
+				throw new HandshakeException("Cannot process " + HandshakeState.toString(message)
+						+ " handshake message, " + expectedState + " expected!", alert);
+			}
 		}
 	}
 
@@ -739,7 +799,7 @@ public abstract class Handshaker {
 	}
 
 	private void wrapHandshakeMessage(DTLSFlight flight, HandshakeMessage handshakeMessage) throws GeneralSecurityException {
-		setSequenceNumber(handshakeMessage);
+		applySendMessageSequenceNumber(handshakeMessage);
 		int messageLength = handshakeMessage.getMessageLength();
 		int maxFragmentLength = session.getMaxFragmentLength();
 
@@ -914,24 +974,24 @@ public abstract class Handshaker {
 	}
 
 	/**
-	 * Sets the message sequence number on an outbound handshake message.
+	 * Sets the handshake message sequence number on an outbound handshake message.
 	 * 
 	 * Also increases the sequence number counter afterwards.
 	 * 
 	 * @param message
 	 *            the handshake message to set the <em>message_seq</em> on
 	 */
-	private void setSequenceNumber(HandshakeMessage message) {
-		message.setMessageSeq(sequenceNumber);
-		sequenceNumber++;
+	private void applySendMessageSequenceNumber(HandshakeMessage message) {
+		message.setMessageSeq(sendMessageSequence);
+		sendMessageSequence++;
 	}
 
-	final int getNextReceiveSeq() {
-		return nextReceiveSeq;
+	final int getNextReceiveMessageSequenceNumber() {
+		return nextReceiveMessageSequence;
 	}
 
-	final void incrementNextReceiveSeq() {
-		this.nextReceiveSeq++;
+	final void incrementNextReceiveMessageSequenceNumber() {
+		this.nextReceiveMessageSequence++;
 	}
 
 	public void addApplicationDataForDeferredProcessing(RawData outgoingMessage) {
