@@ -266,7 +266,6 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		handshakeHash = mdWithServerFinish.digest();
 		Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), session.getMasterSecret(), isClient, handshakeHash, message.getPeer());
 		wrapMessage(flight, finished);
-		state = HandshakeType.FINISHED.getCode();
 
 		flight.setRetransmissionNeeded(false);
 		// store, if we need to retransmit this flight, see
@@ -290,7 +289,6 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		addMaxFragmentLength(message);
 		addServerNameIndication(message);
 
-		state = message.getMessageType().getCode();
 		clientHello = message;
 
 		flightNumber = 1;

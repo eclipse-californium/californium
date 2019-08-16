@@ -118,8 +118,6 @@ public abstract class Handshaker {
 	 */
 	protected final boolean isClient;
 
-	protected int state = -1;
-
 	protected ProtocolVersion usedProtocol;
 	protected Random clientRandom;
 	protected Random serverRandom;
