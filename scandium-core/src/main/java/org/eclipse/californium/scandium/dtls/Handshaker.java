@@ -478,6 +478,14 @@ public abstract class Handshaker {
 							LOGGER.debug("response for flight {} started", flight.getFlightNumber());
 							flight.setResponseStarted();
 						}
+						HandshakeMessage handshakeMessage = (HandshakeMessage)messageToProcess;
+						if (handshakeMessage.getMessageType() == HandshakeType.FINISHED && epoch == 0) {
+							LOGGER.debug("FINISH with epoch 0 from peer [{}]!",
+									 getSession().getPeer());
+							AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE,
+									 getSession().getPeer());
+							throw new HandshakeException("FINISH with epoch 0!", alert);
+						}
 					}
 					doProcessMessage(messageToProcess);
 				}
