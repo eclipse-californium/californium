@@ -330,6 +330,7 @@ public class CredentialsUtil {
 				suites.addAll(CipherSuite.getEcdsaCipherSuites(false));
 			}
 			if (ecdhePsk) {
+				suites.add(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_SHA256);
 				suites.add(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256);
 			} 
 			if (plainPsk) {
