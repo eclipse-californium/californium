@@ -64,6 +64,7 @@ public class SecureServer {
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
 		CredentialsUtil.setupCid(args, builder);
 		builder.setAddress(new InetSocketAddress(DTLS_PORT));
+		builder.setRecommendedCipherSuitesOnly(false);
 		List<Mode> modes = CredentialsUtil.parse(args, CredentialsUtil.DEFAULT_SERVER_MODES, SUPPORTED_MODES);
 		CredentialsUtil.setupCredentials(builder, CredentialsUtil.SERVER_NAME, modes);
 		DTLSConnector connector = new DTLSConnector(builder.build());

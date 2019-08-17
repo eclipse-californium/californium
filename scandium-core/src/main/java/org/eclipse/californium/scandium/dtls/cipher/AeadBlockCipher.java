@@ -126,7 +126,7 @@ public class AeadBlockCipher {
 			throws GeneralSecurityException {
 
 		Cipher cipher = suite.getThreadLocalCipher();
-		GCMParameterSpec parameterSpec = new GCMParameterSpec(suite.getEncKeyLength() * 8, nonce);
+		GCMParameterSpec parameterSpec = new GCMParameterSpec(suite.getMacLength() * 8, nonce);
 		cipher.init(Cipher.DECRYPT_MODE, key, parameterSpec);
 		cipher.updateAAD(a);
 		return cipher.doFinal(c);
@@ -148,7 +148,7 @@ public class AeadBlockCipher {
 	private final static byte[] jreEncrypt(CipherSuite suite, SecretKey key, byte[] nonce, byte[] a, byte[] m)
 			throws GeneralSecurityException {
 		Cipher cipher = suite.getThreadLocalCipher();
-		GCMParameterSpec parameterSpec = new GCMParameterSpec(suite.getEncKeyLength() * 8, nonce);
+		GCMParameterSpec parameterSpec = new GCMParameterSpec(suite.getMacLength() * 8, nonce);
 		try {
 			cipher.init(Cipher.ENCRYPT_MODE, key, parameterSpec);
 		} catch (InvalidAlgorithmParameterException ex) {
@@ -158,7 +158,7 @@ public class AeadBlockCipher {
 			// nonce again.
 			byte[] nonceReset = Arrays.copyOf(nonce, nonce.length);
 			nonceReset[0] ^= 0x55;
-			GCMParameterSpec parameterSpecReset = new GCMParameterSpec(suite.getEncKeyLength() * 8, nonceReset);
+			GCMParameterSpec parameterSpecReset = new GCMParameterSpec(suite.getMacLength() * 8, nonceReset);
 			cipher.init(Cipher.ENCRYPT_MODE, key, parameterSpecReset);
 			cipher.init(Cipher.ENCRYPT_MODE, key, parameterSpec);
 		}
