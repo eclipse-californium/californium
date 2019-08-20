@@ -205,7 +205,7 @@ public class ServerHandshaker extends Handshaker {
 	}
 
 	@Override
-	protected void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
+	protected void doProcessMessage(HandshakeMessage message) throws HandshakeException, GeneralSecurityException {
 		if (lastFlight != null) {
 			// we already sent the last flight (including our FINISHED message),
 			// but the client does not seem to have received it because we received
@@ -231,83 +231,72 @@ public class ServerHandshaker extends Handshaker {
 			LOGGER.debug(msg.toString(), message.getContentType(), message.getPeer());
 		}
 
-		switch (message.getContentType()) {
+		switch (message.getMessageType()) {
+		case CLIENT_HELLO:
+			receivedClientHello((ClientHello) message);
+			break;
 
-		case HANDSHAKE:
-			HandshakeMessage handshakeMsg = (HandshakeMessage) message;
-			switch (handshakeMsg.getMessageType()) {
-			case CLIENT_HELLO:
-				receivedClientHello((ClientHello) handshakeMsg);
+		case CERTIFICATE:
+			receivedClientCertificate((CertificateMessage) message);
+			break;
+
+		case CLIENT_KEY_EXCHANGE:
+			byte[] premasterSecret;
+			switch (getKeyExchangeAlgorithm()) {
+			case PSK:
+				premasterSecret = receivedClientKeyExchange((PSKClientKeyExchange) message);
+				generateKeys(premasterSecret);
+				break;
+				
+			case ECDHE_PSK:
+				premasterSecret = receivedClientKeyExchange((EcdhPskClientKeyExchange) message);
+				generateKeys(premasterSecret);
+				break;
+				
+			case EC_DIFFIE_HELLMAN:
+				premasterSecret = receivedClientKeyExchange((ECDHClientKeyExchange) message);
+				generateKeys(premasterSecret);
 				break;
 
-			case CERTIFICATE:
-				receivedClientCertificate((CertificateMessage) handshakeMsg);
-				break;
-
-			case CLIENT_KEY_EXCHANGE:
-				byte[] premasterSecret;
-				switch (getKeyExchangeAlgorithm()) {
-				case PSK:
-					premasterSecret = receivedClientKeyExchange((PSKClientKeyExchange) handshakeMsg);
-					generateKeys(premasterSecret);
-					break;
-					
-				case ECDHE_PSK:
-					premasterSecret = receivedClientKeyExchange((EcdhPskClientKeyExchange) handshakeMsg);
-					generateKeys(premasterSecret);
-					break;
-					
-				case EC_DIFFIE_HELLMAN:
-					premasterSecret = receivedClientKeyExchange((ECDHClientKeyExchange) handshakeMsg);
-					generateKeys(premasterSecret);
-					break;
-
-				case NULL:
-					premasterSecret = receivedClientKeyExchange((NULLClientKeyExchange) handshakeMsg);
-					generateKeys(premasterSecret);
-					break;
-
-				default:
-					throw new HandshakeException(
-							String.format("Unsupported key exchange algorithm %s", getKeyExchangeAlgorithm().name()),
-							new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, handshakeMsg.getPeer()));
-				}
-				handshakeMessages.writeBytes(clientKeyExchange.getRawMessage());
-
-				if (!clientAuthenticationRequired || getKeyExchangeAlgorithm() != KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN) {
-					expectChangeCipherSpecMessage();
-				}
-				break;
-
-			case CERTIFICATE_VERIFY:
-				receivedCertificateVerify((CertificateVerify) handshakeMsg);
-				expectChangeCipherSpecMessage();
-				break;
-
-			case FINISHED:
-				receivedClientFinished((Finished) handshakeMsg);
+			case NULL:
+				premasterSecret = receivedClientKeyExchange((NULLClientKeyExchange) message);
+				generateKeys(premasterSecret);
 				break;
 
 			default:
 				throw new HandshakeException(
-						String.format("Received unexpected %s message from peer %s", handshakeMsg.getMessageType(), handshakeMsg.getPeer()),
-						new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, handshakeMsg.getPeer()));
+						String.format("Unsupported key exchange algorithm %s", getKeyExchangeAlgorithm().name()),
+						new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, message.getPeer()));
 			}
+			handshakeMessages.writeBytes(clientKeyExchange.getRawMessage());
 
-			if (lastFlight == null) {
-				// only increment for ongoing handshake flights, not for the last flight!
-				// not ignore a client FINISHED retransmission caused by lost server FINISHED
-				incrementNextReceiveMessageSequenceNumber();
+			if (!clientAuthenticationRequired || getKeyExchangeAlgorithm() != KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN) {
+				expectChangeCipherSpecMessage();
 			}
-			LOGGER.debug("Processed {} message with message sequence no [{}] from peer [{}]",
-					handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq(), message.getPeer());
+			break;
+
+		case CERTIFICATE_VERIFY:
+			receivedCertificateVerify((CertificateVerify) message);
+			expectChangeCipherSpecMessage();
+			break;
+
+		case FINISHED:
+			receivedClientFinished((Finished) message);
 			break;
 
 		default:
 			throw new HandshakeException(
-					String.format("Received unexpected %s message from peer %s", message.getContentType(), message.getPeer()),
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, message.getPeer()));
+					String.format("Received unexpected %s message from peer %s", message.getMessageType(), message.getPeer()),
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, message.getPeer()));
 		}
+
+		if (lastFlight == null) {
+			// only increment for ongoing handshake flights, not for the last flight!
+			// not ignore a client FINISHED retransmission caused by lost server FINISHED
+			incrementNextReceiveMessageSequenceNumber();
+		}
+		LOGGER.debug("Processed {} message with message sequence no [{}] from peer [{}]",
+				message.getMessageType(), message.getMessageSeq(), message.getPeer());
 	}
 
 	/**

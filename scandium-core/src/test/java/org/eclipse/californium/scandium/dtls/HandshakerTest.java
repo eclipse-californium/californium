@@ -425,7 +425,7 @@ public class HandshakerTest {
 		}
 
 		@Override
-		protected void doProcessMessage(DTLSMessage message) throws GeneralSecurityException, HandshakeException {
+		protected void doProcessMessage(HandshakeMessage message) throws GeneralSecurityException, HandshakeException {
 			switch(message.getContentType()) {
 
 			case HANDSHAKE:

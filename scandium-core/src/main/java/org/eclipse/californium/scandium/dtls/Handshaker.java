@@ -440,7 +440,7 @@ public abstract class Handshaker {
 	 * 
 	 * This method passes the messages into the {@link InboundMessageBuffer} and
 	 * delegates processing of the ordered messages to the
-	 * {@link #doProcessMessage(DTLSMessage)} method. If
+	 * {@link #doProcessMessage(HandshakeMessage)} method. If
 	 * {@link ChangeCipherSpecMessage} is processed, the
 	 * {@link #deferredRecords} are passed again to the {@link RecordLayer} to
 	 * get decrypted and processed.
@@ -467,51 +467,52 @@ public abstract class Handshaker {
 		try {
 			DTLSMessage messageToProcess = inboundMessageBuffer.getNextMessage(record);
 			while (messageToProcess != null) {
-				if (messageToProcess instanceof FragmentedHandshakeMessage) {
-					messageToProcess = handleFragmentation((FragmentedHandshakeMessage) messageToProcess);
-				}
-				if (messageToProcess == null) {
-					// messageToProcess is fragmented and not all parts have been received yet
-				} else {
-					// continue with the now fully re-assembled message
-					if (messageToProcess instanceof GenericHandshakeMessage) {
-						GenericHandshakeMessage genericMessage = (GenericHandshakeMessage) messageToProcess;
-						HandshakeParameter parameter = session.getParameter();
-						if (parameter == null) {
-							LOGGER.warn("Cannot process handshake {} message from peer [{}], parameter are required!",
-									genericMessage.getMessageType(), getSession().getPeer());
-							AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR,
-									session.getPeer());
-							throw new HandshakeException("Cannot process " + genericMessage.getMessageType()
-									+ " handshake message, parameter are required!", alert);
-						}
-						messageToProcess = genericMessage.getSpecificHandshakeMessage(parameter);
-					}
-					if (messageToProcess.getContentType() == ContentType.HANDSHAKE) {
-						// only cancel on HANDSHAKE messages
-						// the very last flight CCS + FINISH
-						// must be not canceled before the FINISH
-						DTLSFlight flight = pendingFlight.get();
-						if (flight != null) {
-							LOGGER.debug("response for flight {} started", flight.getFlightNumber());
-							flight.setResponseStarted();
-						}
-						HandshakeMessage handshakeMessage = (HandshakeMessage)messageToProcess;
-						if (handshakeMessage.getMessageType() == HandshakeType.FINISHED && epoch == 0) {
-							LOGGER.debug("FINISH with epoch 0 from peer [{}]!",
-									 getSession().getPeer());
-							AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE,
-									 getSession().getPeer());
-							throw new HandshakeException("FINISH with epoch 0!", alert);
-						}
-					}
-					expectMessage(messageToProcess);
-					if (messageToProcess.getContentType() == ContentType.CHANGE_CIPHER_SPEC) {
-						setCurrentReadState();
-					} else {
-						doProcessMessage(messageToProcess);
-					}
+				expectMessage(messageToProcess);
+				if (messageToProcess.getContentType() == ContentType.CHANGE_CIPHER_SPEC) {
+					setCurrentReadState();
 					++statesIndex;
+				} else if (messageToProcess.getContentType() == ContentType.HANDSHAKE) {
+					HandshakeMessage handshakeMessage = (HandshakeMessage) messageToProcess;
+					if (handshakeMessage.getMessageType() == HandshakeType.FINISHED && epoch == 0) {
+						LOGGER.debug("FINISH with epoch 0 from peer [{}]!", getSession().getPeer());
+						AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE,
+								getSession().getPeer());
+						throw new HandshakeException("FINISH with epoch 0!", alert);
+					}
+					// only cancel on HANDSHAKE messages
+					// the very last flight CCS + FINISH
+					// must be not canceled before the FINISH
+					DTLSFlight flight = pendingFlight.get();
+					if (flight != null) {
+						LOGGER.debug("response for flight {} started", flight.getFlightNumber());
+						flight.setResponseStarted();
+					}
+					if (handshakeMessage instanceof FragmentedHandshakeMessage) {
+						handshakeMessage = handleFragmentation((FragmentedHandshakeMessage) handshakeMessage);
+					}
+					if (handshakeMessage != null) {
+						if (handshakeMessage instanceof GenericHandshakeMessage) {
+							GenericHandshakeMessage genericMessage = (GenericHandshakeMessage) handshakeMessage;
+							HandshakeParameter parameter = session.getParameter();
+							if (parameter == null) {
+								LOGGER.warn("Cannot process handshake {} message from peer [{}], parameter are required!",
+										genericMessage.getMessageType(), getSession().getPeer());
+								AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR,
+										session.getPeer());
+								throw new HandshakeException("Cannot process " + genericMessage.getMessageType()
+										+ " handshake message, parameter are required!", alert);
+							}
+							handshakeMessage = genericMessage.getSpecificHandshakeMessage(parameter);
+						}
+						doProcessMessage(handshakeMessage);
+						++statesIndex;
+					}
+				} else {
+					throw new HandshakeException(
+							String.format("Received unexpected message [%s] from peer %s",
+									messageToProcess.getContentType(), messageToProcess.getPeer()),
+							new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE,
+									messageToProcess.getPeer()));
 				}
 				// process next expected message (if available yet)
 				messageToProcess = inboundMessageBuffer.getNextMessage();
@@ -543,6 +544,7 @@ public abstract class Handshaker {
 			throw new HandshakeException("Cannot process handshake message", alert);
 		}
 	}
+
 	/**
 	 * Check, if message is expected.
 	 * 
@@ -597,7 +599,7 @@ public abstract class Handshaker {
 	 *            a handshake message or cannot be processed properly
 	 * @throws GeneralSecurityException if the record's ciphertext fragment cannot be decrypted
 	 */
-	protected abstract void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException;
+	protected abstract void doProcessMessage(HandshakeMessage message) throws HandshakeException, GeneralSecurityException;
 
 	/**
 	 * Starts the handshake by sending the first flight to the peer.

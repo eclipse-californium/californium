@@ -105,7 +105,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	// Methods ////////////////////////////////////////////////////////
 
 	@Override
-	protected void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
+	protected void doProcessMessage(HandshakeMessage message) throws HandshakeException, GeneralSecurityException {
 		if (fullHandshake){
 			// handshake resumption was refused by the server
 			// we do a full handshake
@@ -137,84 +137,73 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 			}
 			LOGGER.debug(msg.toString(), message.getContentType(), message.getPeer());
 		}
-		
-		switch (message.getContentType()) {
 
-		case HANDSHAKE:
-			HandshakeMessage handshakeMsg = (HandshakeMessage) message;
-			switch (handshakeMsg.getMessageType()) {
+		switch (message.getMessageType()) {
 
-			case HELLO_VERIFY_REQUEST:
-				receivedHelloVerifyRequest((HelloVerifyRequest) message);
-				break;
+		case HELLO_VERIFY_REQUEST:
+			receivedHelloVerifyRequest((HelloVerifyRequest) message);
+			break;
 
-			case SERVER_HELLO:
-				ServerHello serverHello = (ServerHello) message;
-				if (!session.getSessionIdentifier().equals(serverHello.getSessionId()))
-				{
-					LOGGER.debug(
-							"Server [{}] refuses to resume session [{}], performing full handshake instead...",
-							serverHello.getPeer(), session.getSessionIdentifier());
-					// Server refuse to resume the session, go for a full handshake
-					fullHandshake  = true;
-					states = SEVER_CERTIFICATE;
-					super.receivedServerHello(serverHello);
-					incrementNextReceiveMessageSequenceNumber();
-					return;
-				} else if (!serverHello.getCompressionMethod().equals(session.getCompressionMethod())) {
-					throw new HandshakeException(
-							"Server wants to change compression method in resumed session",
-							new AlertMessage(
-									AlertLevel.FATAL,
-									AlertDescription.ILLEGAL_PARAMETER,
-									serverHello.getPeer()));
-				} else if (!serverHello.getCipherSuite().equals(session.getCipherSuite())) {
-					throw new HandshakeException(
-							"Server wants to change cipher suite in resumed session",
-							new AlertMessage(
-									AlertLevel.FATAL,
-									AlertDescription.ILLEGAL_PARAMETER,
-									serverHello.getPeer()));
-				} else {
-					this.serverHello = serverHello;
-					serverRandom = serverHello.getRandom();
-					if (connectionIdGenerator != null) {
-						ConnectionIdExtension extension = serverHello.getConnectionIdExtension();
-						if (extension != null) {
-							ConnectionId connectionId = extension.getConnectionId();
-							session.setWriteConnectionId(connectionId);
-						}
-					}
-					expectChangeCipherSpecMessage();
-					initMessageDigest();
-					calculateKeys(session.getMasterSecret());
-				}
-				break;
-
-			case FINISHED:
-				receivedServerFinished((Finished) handshakeMsg);
-				break;
-
-			default:
-				throw new HandshakeException(
-						String.format("Received unexpected handshake message [%s] from peer %s", handshakeMsg.getMessageType(), handshakeMsg.getPeer()),
-						new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, handshakeMsg.getPeer()));
-			}
-
-			if (lastFlight == null) {
-				// only increment for ongoing handshake flights, not for the last flight!
-				// not ignore a server FINISHED retransmission caused by lost client FINISHED
+		case SERVER_HELLO:
+			ServerHello serverHello = (ServerHello) message;
+			if (!session.getSessionIdentifier().equals(serverHello.getSessionId()))
+			{
+				LOGGER.debug(
+						"Server [{}] refuses to resume session [{}], performing full handshake instead...",
+						serverHello.getPeer(), session.getSessionIdentifier());
+				// Server refuse to resume the session, go for a full handshake
+				fullHandshake  = true;
+				states = SEVER_CERTIFICATE;
+				super.receivedServerHello(serverHello);
 				incrementNextReceiveMessageSequenceNumber();
+				return;
+			} else if (!serverHello.getCompressionMethod().equals(session.getCompressionMethod())) {
+				throw new HandshakeException(
+						"Server wants to change compression method in resumed session",
+						new AlertMessage(
+								AlertLevel.FATAL,
+								AlertDescription.ILLEGAL_PARAMETER,
+								serverHello.getPeer()));
+			} else if (!serverHello.getCipherSuite().equals(session.getCipherSuite())) {
+				throw new HandshakeException(
+						"Server wants to change cipher suite in resumed session",
+						new AlertMessage(
+								AlertLevel.FATAL,
+								AlertDescription.ILLEGAL_PARAMETER,
+								serverHello.getPeer()));
+			} else {
+				this.serverHello = serverHello;
+				serverRandom = serverHello.getRandom();
+				if (connectionIdGenerator != null) {
+					ConnectionIdExtension extension = serverHello.getConnectionIdExtension();
+					if (extension != null) {
+						ConnectionId connectionId = extension.getConnectionId();
+						session.setWriteConnectionId(connectionId);
+					}
+				}
+				expectChangeCipherSpecMessage();
+				initMessageDigest();
+				calculateKeys(session.getMasterSecret());
 			}
-			LOGGER.debug("Processed {} message with sequence no [{}] from peer [{}]",
-					handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq(), handshakeMsg.getPeer());
+			break;
+
+		case FINISHED:
+			receivedServerFinished((Finished) message);
 			break;
 
 		default:
 			throw new HandshakeException(
-					String.format("Received unexpected message [%s] from peer %s", message.getContentType(), message.getPeer()),
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, message.getPeer()));
+					String.format("Received unexpected handshake message [%s] from peer %s", message.getMessageType(), message.getPeer()),
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, message.getPeer()));
 		}
+
+		if (lastFlight == null) {
+			// only increment for ongoing handshake flights, not for the last flight!
+			// not ignore a server FINISHED retransmission caused by lost client FINISHED
+			incrementNextReceiveMessageSequenceNumber();
+		}
+		LOGGER.debug("Processed {} message with sequence no [{}] from peer [{}]",
+				message.getMessageType(), message.getMessageSeq(), message.getPeer());
 	}
 
 	/**

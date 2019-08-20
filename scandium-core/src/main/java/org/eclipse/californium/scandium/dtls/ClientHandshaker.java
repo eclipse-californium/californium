@@ -183,7 +183,7 @@ public class ClientHandshaker extends Handshaker {
 	}
 
 	@Override
-	protected void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
+	protected void doProcessMessage(HandshakeMessage message) throws HandshakeException, GeneralSecurityException {
 
 		// log record now (even if message is still encrypted) in case an Exception
 		// is thrown during processing
@@ -197,81 +197,70 @@ public class ClientHandshaker extends Handshaker {
 			}
 			LOGGER.debug(msg.toString());
 		}
-		
-		switch (message.getContentType()) {
 
-		case HANDSHAKE:
-			HandshakeMessage handshakeMsg = (HandshakeMessage) message;
-			switch (handshakeMsg.getMessageType()) {
+		switch (message.getMessageType()) {
 
-			case HELLO_VERIFY_REQUEST:
-				receivedHelloVerifyRequest((HelloVerifyRequest) handshakeMsg);
+		case HELLO_VERIFY_REQUEST:
+			receivedHelloVerifyRequest((HelloVerifyRequest) message);
+			break;
+
+		case SERVER_HELLO:
+			receivedServerHello((ServerHello) message);
+			break;
+
+		case CERTIFICATE:
+			receivedServerCertificate((CertificateMessage) message);
+			break;
+
+		case SERVER_KEY_EXCHANGE:
+
+			switch (getKeyExchangeAlgorithm()) {
+			case EC_DIFFIE_HELLMAN:
+				receivedServerKeyExchange((ECDHServerKeyExchange) message);
 				break;
 
-			case SERVER_HELLO:
-				receivedServerHello((ServerHello) handshakeMsg);
+			case PSK:
+				serverKeyExchange = (PSKServerKeyExchange) message;
 				break;
-
-			case CERTIFICATE:
-				receivedServerCertificate((CertificateMessage) handshakeMsg);
+			
+			case ECDHE_PSK:
+				receivedServerKeyExchange((EcdhPskServerKeyExchange) message);
 				break;
-
-			case SERVER_KEY_EXCHANGE:
-
-				switch (getKeyExchangeAlgorithm()) {
-				case EC_DIFFIE_HELLMAN:
-					receivedServerKeyExchange((ECDHServerKeyExchange) handshakeMsg);
-					break;
-
-				case PSK:
-					serverKeyExchange = (PSKServerKeyExchange) handshakeMsg;
-					break;
 				
-				case ECDHE_PSK:
-					receivedServerKeyExchange((EcdhPskServerKeyExchange) handshakeMsg);
-					break;
-					
-				case NULL:
-					LOGGER.info("Received unexpected ServerKeyExchange message in NULL key exchange mode.");
-					break;
-
-				default:
-					throw new HandshakeException(
-							String.format("Unsupported key exchange algorithm %s", getKeyExchangeAlgorithm().name()),
-							new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, handshakeMsg.getPeer()));
-				}
-				break;
-
-			case CERTIFICATE_REQUEST:
-				// save for later, will be handled by server hello done
-				certificateRequest = (CertificateRequest) handshakeMsg;
-				break;
-
-			case SERVER_HELLO_DONE:
-				receivedServerHelloDone((ServerHelloDone) handshakeMsg);
-				expectChangeCipherSpecMessage();
-				break;
-
-			case FINISHED:
-				receivedServerFinished((Finished) handshakeMsg);
+			case NULL:
+				LOGGER.info("Received unexpected ServerKeyExchange message in NULL key exchange mode.");
 				break;
 
 			default:
 				throw new HandshakeException(
-						String.format("Received unexpected handshake message [%s] from peer %s", handshakeMsg.getMessageType(), handshakeMsg.getPeer()),
-						new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, handshakeMsg.getPeer()));
+						String.format("Unsupported key exchange algorithm %s", getKeyExchangeAlgorithm().name()),
+						new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, message.getPeer()));
 			}
+			break;
 
-			incrementNextReceiveMessageSequenceNumber();
-			LOGGER.debug("Processed {} message with sequence no [{}] from peer [{}]",
-					handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq(), handshakeMsg.getPeer());
+		case CERTIFICATE_REQUEST:
+			// save for later, will be handled by server hello done
+			certificateRequest = (CertificateRequest) message;
+			break;
+
+		case SERVER_HELLO_DONE:
+			receivedServerHelloDone((ServerHelloDone) message);
+			expectChangeCipherSpecMessage();
+			break;
+
+		case FINISHED:
+			receivedServerFinished((Finished) message);
 			break;
 
 		default:
 			throw new HandshakeException(
-					String.format("Received unexpected message [%s] from peer %s", message.getContentType(), message.getPeer()),
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, message.getPeer()));
+					String.format("Received unexpected handshake message [%s] from peer %s", message.getMessageType(), message.getPeer()),
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, message.getPeer()));
 		}
+
+		incrementNextReceiveMessageSequenceNumber();
+		LOGGER.debug("Processed {} message with sequence no [{}] from peer [{}]",
+				message.getMessageType(), message.getMessageSeq(), message.getPeer());
 	}
 
 	/**
