@@ -1107,7 +1107,7 @@ public class DTLSConnectorAdvancedTest {
 	@Test
 	public void testServerNoCCS() throws Exception {
 		// Configure and create UDP connector
-		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);
 		UdpConnector rawClient = new UdpConnector(0, collector);
 		BasicRecordLayer clientRecordLayer = new BasicRecordLayer(rawClient);
 		int remain = serverHelper.serverConnectionStore.remainingCapacity();
@@ -1156,7 +1156,7 @@ public class DTLSConnectorAdvancedTest {
 	@Test
 	public void testClientNoCCS() throws Exception {
 		// Configure UDP connector we will use as Server
-		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(serverCidGenerator);
 		UdpConnector rawServer = new UdpConnector(0, collector);
 		int remain = clientConnectionStore.remainingCapacity();
 
@@ -1207,7 +1207,7 @@ public class DTLSConnectorAdvancedTest {
 	@Test
 	public void testServerAdverseryClient() throws Exception {
 		// Configure and create UDP connector
-		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);
 		UdpConnector rawClient = new UdpConnector(0, collector);
 		BasicRecordLayer clientRecordLayer = new BasicRecordLayer(rawClient);
 		int remain = serverHelper.serverConnectionStore.remainingCapacity();
