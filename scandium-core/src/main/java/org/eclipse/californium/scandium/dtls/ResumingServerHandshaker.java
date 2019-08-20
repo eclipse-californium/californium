@@ -92,7 +92,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	// Methods ////////////////////////////////////////////////////////
 
 	@Override
-	protected void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
+	protected void doProcessMessage(HandshakeMessage message) throws HandshakeException, GeneralSecurityException {
 
 		// log record now (even if message is still encrypted) in case an Exception
 		// is thrown during processing
@@ -105,36 +105,25 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 			LOGGER.debug(msg.toString(), message.getContentType(), message.getPeer());
 		}
 
-		switch (message.getContentType()) {
+		switch (message.getMessageType()) {
+		case CLIENT_HELLO:
+			receivedClientHello((ClientHello) message);
+			expectChangeCipherSpecMessage();
+			break;
 
-		case HANDSHAKE:
-			HandshakeMessage handshakeMsg = (HandshakeMessage) message;
-			switch (handshakeMsg.getMessageType()) {
-			case CLIENT_HELLO:
-				receivedClientHello((ClientHello) handshakeMsg);
-				expectChangeCipherSpecMessage();
-				break;
-
-			case FINISHED:
-				receivedClientFinished((Finished) handshakeMsg);
-				break;
-
-			default:
-				throw new HandshakeException(
-						String.format("Received unexpected handshake message [%s] from peer %s", handshakeMsg.getMessageType(), handshakeMsg.getPeer()),
-						new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, handshakeMsg.getPeer()));
-			}
-
-			incrementNextReceiveMessageSequenceNumber();
-			LOGGER.debug("Processed {} message with sequence no [{}] from peer [{}]",
-					handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq(), handshakeMsg.getPeer());
+		case FINISHED:
+			receivedClientFinished((Finished) message);
 			break;
 
 		default:
 			throw new HandshakeException(
-					String.format("Received unexpected message [%s] from peer %s", message.getContentType(), message.getPeer()),
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, message.getPeer()));
+					String.format("Received unexpected handshake message [%s] from peer %s", message.getMessageType(), message.getPeer()),
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, message.getPeer()));
 		}
+
+		incrementNextReceiveMessageSequenceNumber();
+		LOGGER.debug("Processed {} message with sequence no [{}] from peer [{}]",
+				message.getMessageType(), message.getMessageSeq(), message.getPeer());
 	}
 
 	/**
