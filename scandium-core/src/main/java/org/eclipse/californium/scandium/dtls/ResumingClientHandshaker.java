@@ -140,13 +140,6 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		
 		switch (message.getContentType()) {
 
-		case CHANGE_CIPHER_SPEC:
-			calculateKeys(session.getMasterSecret());
-			setCurrentReadState();
-			LOGGER.debug("Processed {} message from peer [{}]", message.getContentType(),
-					message.getPeer());
-			break;
-
 		case HANDSHAKE:
 			HandshakeMessage handshakeMsg = (HandshakeMessage) message;
 			switch (handshakeMsg.getMessageType()) {
@@ -194,6 +187,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 					}
 					expectChangeCipherSpecMessage();
 					initMessageDigest();
+					calculateKeys(session.getMasterSecret());
 				}
 				break;
 

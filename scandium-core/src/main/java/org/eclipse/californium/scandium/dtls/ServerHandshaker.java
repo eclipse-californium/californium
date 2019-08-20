@@ -232,11 +232,6 @@ public class ServerHandshaker extends Handshaker {
 		}
 
 		switch (message.getContentType()) {
-		case CHANGE_CIPHER_SPEC:
-			setCurrentReadState();
-			LOGGER.debug("Processed {} message from peer [{}]", message.getContentType(),
-					message.getPeer());
-			break;
 
 		case HANDSHAKE:
 			HandshakeMessage handshakeMsg = (HandshakeMessage) message;
