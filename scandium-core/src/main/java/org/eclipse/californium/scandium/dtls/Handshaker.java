@@ -506,7 +506,11 @@ public abstract class Handshaker {
 						}
 					}
 					expectMessage(messageToProcess);
-					doProcessMessage(messageToProcess);
+					if (messageToProcess.getContentType() == ContentType.CHANGE_CIPHER_SPEC) {
+						setCurrentReadState();
+					} else {
+						doProcessMessage(messageToProcess);
+					}
 					++statesIndex;
 				}
 				// process next expected message (if available yet)

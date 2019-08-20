@@ -200,13 +200,6 @@ public class ClientHandshaker extends Handshaker {
 		
 		switch (message.getContentType()) {
 
-		case CHANGE_CIPHER_SPEC:
-			// TODO check, if all expected messages already received
-			setCurrentReadState();
-			LOGGER.debug("Processed {} message from peer [{}]",
-					message.getContentType(), message.getPeer());
-			break;
-
 		case HANDSHAKE:
 			HandshakeMessage handshakeMsg = (HandshakeMessage) message;
 			switch (handshakeMsg.getMessageType()) {

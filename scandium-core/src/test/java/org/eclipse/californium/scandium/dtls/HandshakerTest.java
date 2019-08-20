@@ -149,13 +149,13 @@ public class HandshakerTest {
 		handshaker.decryptAndProcessMessage(ccsRecord);
 
 		// THEN the ChangeCipherSpec message is not processed until the missing message arrives
-		assertFalse(handshaker.changeCipherSpecProcessed.get());
+		assertThat(handshaker.getSession().getReadEpoch(), is(0));
 		handshaker.expectChangeCipherSpecMessage();
 		PSKClientKeyExchange msg = new PSKClientKeyExchange(new PskPublicInformation("id"), endpoint);
 		msg.setMessageSeq(0);
 		Record keyExchangeRecord = getRecordForMessage(0, 6, msg);
 		handshaker.decryptAndProcessMessage(keyExchangeRecord);
-		assertTrue(handshaker.changeCipherSpecProcessed.get());
+		assertThat(handshaker.getSession().getReadEpoch(), is(1));
 	}
 
 	@Test
@@ -183,7 +183,7 @@ public class HandshakerTest {
 		ChangeCipherSpecMessage ccs = new ChangeCipherSpecMessage(endpoint);
 		Record ccsRecord = getRecordForMessage(0, 5, ccs);
 		handshaker.decryptAndProcessMessage(ccsRecord);
-		assertTrue(handshaker.changeCipherSpecProcessed.get());
+		assertThat(handshaker.getSession().getReadEpoch(), is(1));
 		assertTrue(handshaker.finishedProcessed.get());
 	}
 
@@ -413,7 +413,6 @@ public class HandshakerTest {
 
 	private class TestHandshaker extends Handshaker {
 
-		private AtomicBoolean changeCipherSpecProcessed = new AtomicBoolean(false);
 		private AtomicBoolean finishedProcessed = new AtomicBoolean(false);
 
 		TestHandshaker(DTLSSession session, RecordLayer recordLayer, DtlsConnectorConfig config) {
@@ -429,10 +428,6 @@ public class HandshakerTest {
 		protected void doProcessMessage(DTLSMessage message) throws GeneralSecurityException, HandshakeException {
 			switch(message.getContentType()) {
 
-			case CHANGE_CIPHER_SPEC:
-				changeCipherSpecProcessed.set(true);
-				setCurrentReadState();
-				break;
 			case HANDSHAKE:
 				final HandshakeMessage handshakeMessage = (HandshakeMessage) message;
 				receivedMessages[((HandshakeMessage) message).getMessageSeq()] += 1;
