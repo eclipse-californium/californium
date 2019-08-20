@@ -106,8 +106,6 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 		}
 
 		switch (message.getContentType()) {
-		case ALERT:
-			break;
 
 		case CHANGE_CIPHER_SPEC:
 			setCurrentReadState();

@@ -199,8 +199,6 @@ public class ClientHandshaker extends Handshaker {
 		}
 		
 		switch (message.getContentType()) {
-		case ALERT:
-			break;
 
 		case CHANGE_CIPHER_SPEC:
 			// TODO check, if all expected messages already received
