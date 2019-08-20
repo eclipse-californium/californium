@@ -166,6 +166,8 @@ public abstract class Handshaker {
 	 */
 	private int nextReceiveMessageSequence = 0;
 
+	private boolean lastFlight;
+
 	/** Realtime nanoseconds of last sending a flight */
 	private long flightSendNanos;
 
@@ -504,8 +506,23 @@ public abstract class Handshaker {
 							}
 							handshakeMessage = genericMessage.getSpecificHandshakeMessage(parameter);
 						}
-						doProcessMessage(handshakeMessage);
-						++statesIndex;
+						if (lastFlight) {
+							// we already sent the last flight (including our FINISHED message),
+							// but the other peer does not seem to have received it because we received
+							// its finished message again, so we simply retransmit our last flight
+							LOGGER.debug("Received ({}) FINISHED message again, retransmitting last flight...",
+									getPeerAddress());
+							flight.incrementTries();
+							flight.setNewSequenceNumbers();
+							sendFlight(flight);
+						} else {
+							doProcessMessage(handshakeMessage);
+							if (!lastFlight) {
+								// last Flight may have changed processing the handshake message
+								++nextReceiveMessageSequence;
+								++statesIndex;
+							}
+						}
 					}
 				} else {
 					throw new HandshakeException(
@@ -996,10 +1013,6 @@ public abstract class Handshaker {
 		return nextReceiveMessageSequence;
 	}
 
-	final void incrementNextReceiveMessageSequenceNumber() {
-		this.nextReceiveMessageSequence++;
-	}
-
 	public void addApplicationDataForDeferredProcessing(RawData outgoingMessage) {
 		// backwards compatibility, allow on outgoing message to be stored.
 		int max = maxDeferredProcessedApplicationDataMessages == 0 ? 1 : maxDeferredProcessedApplicationDataMessages;
@@ -1043,6 +1056,12 @@ public abstract class Handshaker {
 		if (flight != null && flight != pendingFlight) {
 			flight.setResponseCompleted();
 		}
+	}
+
+	public void sendLastFlight(DTLSFlight flight) {
+		lastFlight = true;
+		flight.setRetransmissionNeeded(false);
+		sendFlight(flight);
 	}
 
 	public void sendFlight(DTLSFlight flight) {
