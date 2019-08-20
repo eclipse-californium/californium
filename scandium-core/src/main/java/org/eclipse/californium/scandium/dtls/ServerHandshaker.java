@@ -98,12 +98,6 @@ public class ServerHandshaker extends Handshaker {
 
 	// Members ////////////////////////////////////////////////////////
 
-	/**
-	 * The last flight that is sent during this handshake, will not be
-	 * retransmitted unless the peer retransmits its last flight.
-	 */
-	private DTLSFlight lastFlight;
-
 	/** Does the server use session id? */
 	private boolean useNoSessionId = false;
 
@@ -206,19 +200,6 @@ public class ServerHandshaker extends Handshaker {
 
 	@Override
 	protected void doProcessMessage(HandshakeMessage message) throws HandshakeException, GeneralSecurityException {
-		if (lastFlight != null) {
-			// we already sent the last flight (including our FINISHED message),
-			// but the client does not seem to have received it because we received
-			// its finished message again, so we simply retransmit our last flight
-			LOGGER.debug("Received client's ({}) FINISHED message again, retransmitting last flight...",
-					getPeerAddress());
-			lastFlight.incrementTries();
-			lastFlight.setNewSequenceNumbers();
-			sendFlight(lastFlight);
-			// expect FINISH again
-			--statesIndex;
-			return;
-		}
 
 		// log record now (even if message is still encrypted) in case an Exception
 		// is thrown during processing
@@ -290,11 +271,6 @@ public class ServerHandshaker extends Handshaker {
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, message.getPeer()));
 		}
 
-		if (lastFlight == null) {
-			// only increment for ongoing handshake flights, not for the last flight!
-			// not ignore a client FINISHED retransmission caused by lost server FINISHED
-			incrementNextReceiveMessageSequenceNumber();
-		}
 		LOGGER.debug("Processed {} message with message sequence no [{}] from peer [{}]",
 				message.getMessageType(), message.getMessageSeq(), message.getPeer());
 	}
@@ -363,9 +339,6 @@ public class ServerHandshaker extends Handshaker {
 	 *            cannot be created
 	 */
 	private void receivedClientFinished(Finished message) throws HandshakeException {
-		if (lastFlight != null) {
-			return;
-		}
 
 		// check if client sent all expected messages
 		// (i.e. ClientCertificate/CertificateVerify when server sent CertificateRequest)
@@ -421,15 +394,8 @@ public class ServerHandshaker extends Handshaker {
 		handshakeHash = mdWithClientFinished.digest();
 		Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), session.getMasterSecret(), isClient, handshakeHash, session.getPeer());
 		wrapMessage(flight, finished);
-
-		flight.setRetransmissionNeeded(false);
-		// store, if we need to retransmit this flight, see
-		// http://tools.ietf.org/html/rfc6347#section-4.2.4
-		lastFlight = flight;
-		sendFlight(flight);
+		sendLastFlight(flight);
 		sessionEstablished();
-		// expect FINISH again
-		--statesIndex;
 	}
 
 	/**

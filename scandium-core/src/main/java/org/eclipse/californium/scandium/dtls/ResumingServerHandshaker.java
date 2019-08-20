@@ -121,7 +121,6 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, message.getPeer()));
 		}
 
-		incrementNextReceiveMessageSequenceNumber();
 		LOGGER.debug("Processed {} message with sequence no [{}] from peer [{}]",
 				message.getMessageType(), message.getMessageSeq(), message.getPeer());
 	}
