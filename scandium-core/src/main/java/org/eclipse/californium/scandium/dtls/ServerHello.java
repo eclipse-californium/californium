@@ -169,7 +169,7 @@ public final class ServerHello extends HandshakeMessage {
 	 * Creates a <em>Server Hello</em> object from its binary encoding as used on
 	 * the wire.
 	 * 
-	 * @param byteArray the binary encoded message
+	 * @param reader reader for the binary encoding of the message.
 	 * @param peerAddress the IP address and port of the peer this
 	 *           message has been received from or should be sent to
 	 * @return the object representation
@@ -177,8 +177,7 @@ public final class ServerHello extends HandshakeMessage {
 	 *           unknown, i.e. not defined in {@link CipherSuite} at all, or
 	 *           {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}
 	 */
-	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) throws HandshakeException {
-		DatagramReader reader = new DatagramReader(byteArray);
+	public static HandshakeMessage fromReader(DatagramReader reader, InetSocketAddress peerAddress) throws HandshakeException {
 
 		int major = reader.read(VERSION_BITS);
 		int minor = reader.read(VERSION_BITS);
@@ -201,10 +200,9 @@ public final class ServerHello extends HandshakeMessage {
 		}
 		CompressionMethod compressionMethod = CompressionMethod.getMethodByCode(reader.read(COMPRESSION_METHOD_BITS));
 
-		byte[] bytesLeft = reader.readBytesLeft();
 		HelloExtensions extensions = null;
-		if (bytesLeft.length > 0) {
-			extensions = HelloExtensions.fromByteArray(bytesLeft, peerAddress);
+		if (reader.bytesAvailable()) {
+			extensions = HelloExtensions.fromReader(reader, peerAddress);
 		}
 
 		return new ServerHello(version, random, sessionId, cipherSuite, compressionMethod, extensions, peerAddress);

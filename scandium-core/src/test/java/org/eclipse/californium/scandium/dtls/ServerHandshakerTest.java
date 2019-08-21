@@ -429,13 +429,12 @@ public class ServerHandshakerTest {
 	}
 
 	private static byte[] newHandshakeMessage(HandshakeType type, int messageSeq, byte[] fragment) {
-		int length = 8 + 24 + 16 + 24 + 24 + fragment.length;
 		DatagramWriter writer = new DatagramWriter();
 		writer.write(type.getCode(), 8);
-		writer.write(length, 24);
+		writer.write(fragment.length, 24);
 		writer.write(messageSeq, 16);
 		writer.write(0, 24); // fragment offset is always 0
-		writer.write(length, 24);
+		writer.write(fragment.length, 24);
 		writer.writeBytes(fragment);
 		return writer.toByteArray();
 	}

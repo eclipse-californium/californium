@@ -227,11 +227,6 @@ public class ServerHandshaker extends Handshaker {
 				generateKeys(premasterSecret);
 				break;
 
-			case NULL:
-				premasterSecret = receivedClientKeyExchange((NULLClientKeyExchange) message);
-				generateKeys(premasterSecret);
-				break;
-
 			default:
 				throw new HandshakeException(
 						String.format("Unsupported key exchange algorithm %s", getKeyExchangeAlgorithm().name()),
@@ -614,21 +609,6 @@ public class ServerHandshaker extends Handshaker {
 		byte[] psk = pskStore.getKey(session.getServerNames(), preSharedKeyIdentity);
 		byte[] otherSecret = ecdhe.getSecret(message.getEncodedPoint()).getEncoded();
 		return configurePskCredentials(preSharedKeyIdentity, psk, otherSecret);
-	}
-
-	/**
-	 * Returns an empty premaster secret.
-	 * 
-	 * @param message
-	 *            the client's key exchange message.
-	 * @return the premaster secret
-	 */
-	private byte[] receivedClientKeyExchange(NULLClientKeyExchange message) {
-		clientKeyExchange = message;
-
-		// by current assumption we take an empty premaster secret
-		// to compute the master secret and the resulting keys
-		return new byte[] {};
 	}
 
 	protected void processHelloExtensions(final ClientHello clientHello, final HelloExtensions serverHelloExtensions) {

@@ -25,6 +25,7 @@ import java.util.Arrays;
 
 import javax.crypto.Mac;
 
+import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -82,9 +83,9 @@ public final class Finished extends HandshakeMessage {
 	 * @param peerAddress the IP address and port of the peer this
 	 *            message has been received from or should be sent to
 	 */
-	private Finished(byte[] verifyData, InetSocketAddress peerAddress) {
+	private Finished(DatagramReader reader, InetSocketAddress peerAddress) {
 		super(peerAddress);
-		this.verifyData = Arrays.copyOf(verifyData, verifyData.length);
+		this.verifyData = reader.readBytesLeft();
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -158,7 +159,7 @@ public final class Finished extends HandshakeMessage {
 		return verifyData;
 	}
 
-	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) {
-		return new Finished(byteArray, peerAddress);
+	public static HandshakeMessage fromReader(DatagramReader reader, InetSocketAddress peerAddress) {
+		return new Finished(reader, peerAddress);
 	}
 }

@@ -175,22 +175,18 @@ public final class EcdhPskServerKeyExchange extends ServerKeyExchange {
 	}
 	
 	/**
-	 * Deserialize byte array to key exchange message.
+	 * Creates a new server key exchange instance from its byte representation.
 	 * 
-	 * @param byteArray byte array of key exchange message
+	 * @param reader reader for the binary encoding of the message.
 	 * @param peerAddress peer address
 	 * @return {@code EcdhPskServerKeyExchange}
 	 * @throws HandshakeException if the byte array includes unsupported curve
 	 * @throws NullPointerException if either byteArray or peerAddress is {@code null}
 	 */
-	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) throws HandshakeException {
-		if (byteArray == null) {
-			throw new NullPointerException("byte array cannot be null");
-		}
+	public static HandshakeMessage fromReader(DatagramReader reader, InetSocketAddress peerAddress) throws HandshakeException {
 		if (peerAddress == null) {
 			throw new NullPointerException("peer address cannot be null");
 		}
-		DatagramReader reader = new DatagramReader(byteArray);
 		int hintLength = reader.read(IDENTITY_HINT_LENGTH_BITS);
 		byte[] hintEncoded = reader.readBytes(hintLength);
 		int curveType = reader.read(CURVE_TYPE_BITS);

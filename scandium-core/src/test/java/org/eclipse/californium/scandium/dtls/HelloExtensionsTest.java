@@ -28,6 +28,7 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.CertificateType;
@@ -57,7 +58,7 @@ public class HelloExtensionsTest {
 		extensions.addExtension(ext);
 		byte[] serializedExtension = extensions.toByteArray();
 		
-		HelloExtensions deserializedExt = HelloExtensions.fromByteArray(serializedExtension, peerAddress);
+		HelloExtensions deserializedExt = HelloExtensions.fromReader(new DatagramReader(serializedExtension), peerAddress);
 		ClientCertificateTypeExtension certTypeExt = (ClientCertificateTypeExtension)
 				deserializedExt.getExtensions().get(0);
 		assertTrue(certTypeExt.getCertificateTypes().size() == 2);
@@ -124,7 +125,7 @@ public class HelloExtensionsTest {
 	}
 
 	private void whenDeserializingFromByteArray() throws HandshakeException {
-		helloExtensions = HelloExtensions.fromByteArray(helloExtensionBytes, peerAddress);
+		helloExtensions = HelloExtensions.fromReader(new DatagramReader(helloExtensionBytes), peerAddress);
 	}
 
 	private boolean containsExtensionType(int type, List<HelloExtension> extensions) {

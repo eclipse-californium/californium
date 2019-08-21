@@ -97,8 +97,7 @@ public final class ECDHClientKeyExchange extends ClientKeyExchange {
 		return writer.toByteArray();
 	}
 
-	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) {
-		DatagramReader reader = new DatagramReader(byteArray);
+	public static HandshakeMessage fromReader(DatagramReader reader, InetSocketAddress peerAddress) {
 		int length = reader.read(LENGTH_BITS);
 		byte[] pointEncoded = reader.readBytes(length);
 

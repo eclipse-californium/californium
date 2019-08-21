@@ -22,6 +22,7 @@ import java.net.InetSocketAddress;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 
+import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.util.ServerName;
@@ -171,7 +172,7 @@ public class ServerNameExtensionTest {
 	}
 
 	private void whenParsingTheExtensionStruct() throws HandshakeException {
-		HelloExtensions helloExtensions = HelloExtensions.fromByteArray(serverNameStructure, new InetSocketAddress(0));
+		HelloExtensions helloExtensions = HelloExtensions.fromReader(new DatagramReader(serverNameStructure), new InetSocketAddress(0));
 		extension = (ServerNameExtension) helloExtensions.getExtension(ExtensionType.SERVER_NAME);
 	}
 

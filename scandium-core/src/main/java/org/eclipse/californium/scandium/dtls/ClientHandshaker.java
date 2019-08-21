@@ -483,12 +483,6 @@ public class ClientHandshaker extends Handshaker {
 			premasterSecret = generatePremasterSecretFromPSK(pskUtil.getPreSharedKey(), otherSecret);
 			generateKeys(premasterSecret);
 			break;
-		case NULL:
-			clientKeyExchange = new NULLClientKeyExchange(session.getPeer());
-
-			// We assume, that the premaster secret is empty
-			generateKeys(Bytes.EMPTY);
-			break;
 
 		default:
 			throw new HandshakeException(
