@@ -125,45 +125,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 			break;
 
 		case SERVER_HELLO:
-			ServerHello serverHello = (ServerHello) message;
-			if (!session.getSessionIdentifier().equals(serverHello.getSessionId()))
-			{
-				LOGGER.debug(
-						"Server [{}] refuses to resume session [{}], performing full handshake instead...",
-						serverHello.getPeer(), session.getSessionIdentifier());
-				// Server refuse to resume the session, go for a full handshake
-				fullHandshake  = true;
-				states = SEVER_CERTIFICATE;
-				super.receivedServerHello(serverHello);
-				return;
-			} else if (!serverHello.getCompressionMethod().equals(session.getCompressionMethod())) {
-				throw new HandshakeException(
-						"Server wants to change compression method in resumed session",
-						new AlertMessage(
-								AlertLevel.FATAL,
-								AlertDescription.ILLEGAL_PARAMETER,
-								serverHello.getPeer()));
-			} else if (!serverHello.getCipherSuite().equals(session.getCipherSuite())) {
-				throw new HandshakeException(
-						"Server wants to change cipher suite in resumed session",
-						new AlertMessage(
-								AlertLevel.FATAL,
-								AlertDescription.ILLEGAL_PARAMETER,
-								serverHello.getPeer()));
-			} else {
-				this.serverHello = serverHello;
-				serverRandom = serverHello.getRandom();
-				if (connectionIdGenerator != null) {
-					ConnectionIdExtension extension = serverHello.getConnectionIdExtension();
-					if (extension != null) {
-						ConnectionId connectionId = extension.getConnectionId();
-						session.setWriteConnectionId(connectionId);
-					}
-				}
-				expectChangeCipherSpecMessage();
-				initMessageDigest();
-				calculateKeys(session.getMasterSecret());
-			}
+			receivedServerHello((ServerHello)message);
 			break;
 
 		case FINISHED:
@@ -178,6 +140,54 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 
 		LOGGER.debug("Processed {} message with sequence no [{}] from peer [{}]",
 				message.getMessageType(), message.getMessageSeq(), message.getPeer());
+	}
+
+	/**
+	 * Stores the negotiated security parameters.
+	 * 
+	 * @param message
+	 *            the {@link ServerHello} message.
+	 * @throws HandshakeException if the ServerHello message cannot be processed,
+	 * 	e.g. because the server selected an unknown or unsupported cipher suite
+	 */
+	protected void receivedServerHello(ServerHello message) throws HandshakeException {
+		if (!session.getSessionIdentifier().equals(message.getSessionId()))
+		{
+			LOGGER.debug(
+					"Server [{}] refuses to resume session [{}], performing full handshake instead...",
+					message.getPeer(), session.getSessionIdentifier());
+			// Server refuse to resume the session, go for a full handshake
+			fullHandshake  = true;
+			states = SEVER_CERTIFICATE;
+			super.receivedServerHello(message);
+		} else if (!message.getCompressionMethod().equals(session.getCompressionMethod())) {
+			throw new HandshakeException(
+					"Server wants to change compression method in resumed session",
+					new AlertMessage(
+							AlertLevel.FATAL,
+							AlertDescription.ILLEGAL_PARAMETER,
+							message.getPeer()));
+		} else if (!message.getCipherSuite().equals(session.getCipherSuite())) {
+			throw new HandshakeException(
+					"Server wants to change cipher suite in resumed session",
+					new AlertMessage(
+							AlertLevel.FATAL,
+							AlertDescription.ILLEGAL_PARAMETER,
+							message.getPeer()));
+		} else {
+			this.serverHello = message;
+			serverRandom = message.getRandom();
+			if (connectionIdGenerator != null) {
+				ConnectionIdExtension extension = message.getConnectionIdExtension();
+				if (extension != null) {
+					ConnectionId connectionId = extension.getConnectionId();
+					session.setWriteConnectionId(connectionId);
+				}
+			}
+			expectChangeCipherSpecMessage();
+			initMessageDigest();
+			calculateKeys(session.getMasterSecret());
+		}
 	}
 
 	/**
