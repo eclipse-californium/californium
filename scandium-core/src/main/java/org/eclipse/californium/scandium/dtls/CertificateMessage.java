@@ -264,19 +264,17 @@ public final class CertificateMessage extends HandshakeMessage {
 	/**
 	 * Creates a certificate message from its binary encoding.
 	 * 
-	 * @param byteArray The binary encoding of the message.
+	 * @param reader reader for the binary encoding of the message.
 	 * @param certificateType negotiated type of certificate the certificate message contains.
 	 * @param peerAddress The IP address and port of the peer that sent the message.
 	 * @return The certificate message.
 	 * @throws HandshakeException if the binary encoding could not be parsed.
 	 * @throws IllegalArgumentException if the certificate type is not supported.
 	 */
-	public static CertificateMessage fromByteArray(
-			final byte[] byteArray,
+	public static CertificateMessage fromReader(
+			DatagramReader reader,
 			CertificateType certificateType,
 			InetSocketAddress peerAddress) throws HandshakeException {
-
-		DatagramReader reader = new DatagramReader(byteArray);
 
 		if (CertificateType.RAW_PUBLIC_KEY == certificateType) {
 			LOGGER.debug("Parsing RawPublicKey CERTIFICATE message");

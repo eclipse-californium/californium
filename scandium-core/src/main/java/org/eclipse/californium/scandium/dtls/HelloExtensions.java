@@ -120,8 +120,7 @@ public final class HelloExtensions {
 		}
 	}
 
-	public static HelloExtensions fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) throws HandshakeException {
-		DatagramReader reader = new DatagramReader(byteArray);
+	public static HelloExtensions fromReader(DatagramReader reader, InetSocketAddress peerAddress) throws HandshakeException {
 		List<HelloExtension> extensions = new ArrayList<HelloExtension>();
 
 		int length = reader.read(LENGTH_BITS);

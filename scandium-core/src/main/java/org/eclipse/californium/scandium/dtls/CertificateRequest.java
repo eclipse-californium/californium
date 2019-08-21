@@ -199,12 +199,11 @@ public final class CertificateRequest extends HandshakeMessage {
 	/**
 	 * Parses a certificate request message from its binary encoding.
 	 * 
-	 * @param byteArray The encoded message.
+	 * @param reader reader for the binary encoding of the message.
 	 * @param peerAddress The origin address of the message.
 	 * @return The parsed instance.
 	 */
-	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) {
-		DatagramReader reader = new DatagramReader(byteArray);
+	public static HandshakeMessage fromReader(DatagramReader reader, InetSocketAddress peerAddress) {
 
 		int length = reader.read(CERTIFICATE_TYPES_LENGTH_BITS);
 		List<ClientCertificateType> certificateTypes = new ArrayList<>();

@@ -53,6 +53,7 @@ import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.rpkstore.InMemoryRpkTrustStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
 import org.eclipse.californium.scandium.dtls.x509.StaticCertificateVerifier;
@@ -139,6 +140,8 @@ public class HandshakerTest {
 		DtlsConnectorConfig.Builder builder = new Builder();
 		builder.setClientOnly();
 		builder.setRpkTrustStore(rpkStore);
+
+		session.setCipherSuite(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
 
 		// GIVEN a handshaker not yet expecting the peer's ChangeCipherSpec message
 		TestHandshaker handshaker = new TestHandshaker(session, recordLayer, builder.build());

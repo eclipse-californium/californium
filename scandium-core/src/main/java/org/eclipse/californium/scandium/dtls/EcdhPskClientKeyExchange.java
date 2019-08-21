@@ -99,21 +99,17 @@ public final class EcdhPskClientKeyExchange extends ClientKeyExchange {
 	}
 	
 	/**
-	 * Deserialize byte array to key exchange message.
+	 * Creates a new client key exchange instance from its byte representation.
 	 * 
-	 * @param byteArray byte array of key exchange message
+	 * @param reader reader for the binary encoding of the message.
 	 * @param peerAddress peer address
 	 * @return created client key exchange message
-	 * @throws NullPointerException if either byteArray or peerAddress is {@code null}
+	 * @throws NullPointerException if peerAddress is {@code null}
 	 */
-	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) {
-		if (byteArray == null) {
-			throw new NullPointerException("byte array cannot be null");
-		}
+	public static HandshakeMessage fromReader(DatagramReader reader, InetSocketAddress peerAddress) {
 		if (peerAddress == null) {
 			throw new NullPointerException("peer address cannot be null");
 		}
-		DatagramReader reader = new DatagramReader(byteArray);
 		int identityLength = reader.read(IDENTITY_LENGTH_BITS);
 		byte[] identityEncoded = reader.readBytes(identityLength);	
 		int length = reader.read(LENGTH_BITS);

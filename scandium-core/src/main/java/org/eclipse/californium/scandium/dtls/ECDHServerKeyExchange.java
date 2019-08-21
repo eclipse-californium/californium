@@ -238,8 +238,7 @@ public final class ECDHServerKeyExchange extends ServerKeyExchange {
 		}
 	}
 
-	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) throws HandshakeException {
-		DatagramReader reader = new DatagramReader(byteArray);
+	public static HandshakeMessage fromReader(DatagramReader reader, InetSocketAddress peerAddress) throws HandshakeException {
 		int curveType = reader.read(CURVE_TYPE_BITS);
 		switch (curveType) {
 		// TODO right now only named curve supported

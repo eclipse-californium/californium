@@ -245,8 +245,10 @@ public final class ClientHello extends HandshakeMessage {
 	}
 
 	/**
-	 * Creates a new ClientObject instance from its byte representation.
+	 * Creates a new ClientHello instance from its byte representation.
 	 * 
+	 * @param reader 
+	 *            reader for the binary encoding of the message.
 	 * @param byteArray
 	 *            the bytes representing the message
 	 * @param peerAddress
@@ -257,9 +259,8 @@ public final class ClientHello extends HandshakeMessage {
 	 *             if any of the extensions included in the message is of an
 	 *             unsupported type
 	 */
-	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress)
+	public static HandshakeMessage fromReader(DatagramReader reader, InetSocketAddress peerAddress)
 			throws HandshakeException {
-		DatagramReader reader = new DatagramReader(byteArray);
 		ClientHello result = new ClientHello(peerAddress);
 
 		int major = reader.read(VERSION_BITS);
@@ -282,9 +283,8 @@ public final class ClientHello extends HandshakeMessage {
 		result.compressionMethods = CompressionMethod.listFromByteArray(reader.readBytes(compressionMethodsLength),
 				compressionMethodsLength);
 
-		byte[] bytesLeft = reader.readBytesLeft();
-		if (bytesLeft.length > 0) {
-			result.extensions = HelloExtensions.fromByteArray(bytesLeft, peerAddress);
+		if (reader.bytesAvailable()) {
+			result.extensions = HelloExtensions.fromReader(reader, peerAddress);
 		}
 		return result;
 

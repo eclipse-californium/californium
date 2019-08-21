@@ -1080,28 +1080,17 @@ public class Record {
 	}
 
 	private DTLSMessage handshakeMessageFromByteArray(byte[] decryptedMessage) throws GeneralSecurityException, HandshakeException {
-		// TODO: it is unclear to me whether handshake messages are encrypted or not
-		// http://tools.ietf.org/html/rfc5246#section-7.4:
-		// "Handshake messages are supplied to the TLS record layer, where they
-		//  are encapsulated within one or more TLSPlaintext structures, which
-		//  are processed and transmitted as specified by the current active session state."
 		if (LOGGER.isTraceEnabled()) {
-			LOGGER.trace("Decrypting HANDSHAKE message ciphertext{}{}", StringUtil.lineSeparator(),
+			LOGGER.trace("Parsing HANDSHAKE message plaintext{}{}", StringUtil.lineSeparator(),
 					StringUtil.byteArray2HexString(decryptedMessage));
 		}
 
 		HandshakeParameter parameter = null;
 		if (incomingSession != null) {
 			parameter = incomingSession.getParameter();
+			LOGGER.debug("Parsing HANDSHAKE message plaintext with parameter [{}]", parameter);
 		} else {
-			LOGGER.debug("Parsing message without a session");
-		}
-		if (LOGGER.isDebugEnabled()) {
-			StringBuilder msg = new StringBuilder("Parsing HANDSHAKE message plaintext [{}]");
-			if (LOGGER.isTraceEnabled()) {
-				msg.append(":").append(StringUtil.lineSeparator()).append(StringUtil.byteArray2HexString(decryptedMessage));
-			}
-			LOGGER.debug(msg.toString(), parameter);
+			LOGGER.debug("Parsing HANDSHAKE message without a session");
 		}
 		return HandshakeMessage.fromByteArray(decryptedMessage, parameter, getPeerAddress());
 	}

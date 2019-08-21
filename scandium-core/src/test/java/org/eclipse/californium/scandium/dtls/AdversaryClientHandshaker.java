@@ -18,7 +18,6 @@ package org.eclipse.californium.scandium.dtls;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 
-import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -107,12 +106,6 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 			byte[] otherSecret = ecdhe.getSecret(ephemeralServerPublicKey).getEncoded();
 			premasterSecret = generatePremasterSecretFromPSK(pskUtil.getPreSharedKey(), otherSecret);
 			generateKeys(premasterSecret);
-			break;
-		case NULL:
-			clientKeyExchange = new NULLClientKeyExchange(session.getPeer());
-
-			// We assume, that the premaster secret is empty
-			generateKeys(Bytes.EMPTY);
 			break;
 
 		default:

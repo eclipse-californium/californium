@@ -100,6 +100,16 @@ public final class DatagramReader {
 	}
 
 	/**
+	 * Close reader.
+	 * Free resource and clear left bytes.
+	 */
+	public void close() {
+		byteStream.skip(byteStream.available());
+		currentByte = 0;
+		currentBitIndex = -1; // indicates that no byte read yet
+	}
+
+	/**
 	 * 
 	 * Reads a sequence of bits from the stream.
 	 * 
