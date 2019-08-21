@@ -127,7 +127,7 @@ public class RecordDecryptTest {
 	 * @throws HandshakeException if a handshake error occurs
 	 */
 	private void testEncryptDecrypt(byte[] payload) throws GeneralSecurityException, HandshakeException {
-		Record record = new Record(ContentType.APPLICATION_DATA, EPOCH, 1,
+		Record record = new Record(ContentType.APPLICATION_DATA, EPOCH, session.getSequenceNumber(EPOCH),
 				new ApplicationMessage(payload, session.getPeer()), session, true, 0);
 		byte[] raw = record.toByteArray();
 		List<Record> list = Record.fromByteArray(raw, session.getPeer(), null, ClockUtil.nanoRealtime());
@@ -238,7 +238,7 @@ public class RecordDecryptTest {
 	 */
 	private void testEncryptDecryptRecordFailure(byte[] payload, Juggler juggler)
 			throws GeneralSecurityException, HandshakeException {
-		Record record = new Record(ContentType.APPLICATION_DATA, EPOCH, 1,
+		Record record = new Record(ContentType.APPLICATION_DATA, EPOCH, session.getSequenceNumber(EPOCH),
 				new ApplicationMessage(payload, session.getPeer()), session, true, 0);
 		byte[] raw = record.toByteArray();
 		byte[] jraw = juggler.juggle(raw);
@@ -283,7 +283,7 @@ public class RecordDecryptTest {
 	 */
 	private void testEncryptDecryptFragmentFailure(byte[] payload, Juggler juggler)
 			throws GeneralSecurityException, HandshakeException {
-		Record record = new Record(ContentType.APPLICATION_DATA, EPOCH, 1,
+		Record record = new Record(ContentType.APPLICATION_DATA, EPOCH, session.getSequenceNumber(EPOCH),
 				new ApplicationMessage(payload, session.getPeer()), session, true, 0);
 		byte[] fragment = record.getFragmentBytes();
 		byte[] jfragment = juggler.juggle(fragment);

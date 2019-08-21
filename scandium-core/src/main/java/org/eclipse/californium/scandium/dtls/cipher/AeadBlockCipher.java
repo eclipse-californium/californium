@@ -16,8 +16,6 @@
 package org.eclipse.californium.scandium.dtls.cipher;
 
 import java.security.GeneralSecurityException;
-import java.security.InvalidAlgorithmParameterException;
-import java.util.Arrays;
 
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
@@ -149,19 +147,7 @@ public class AeadBlockCipher {
 			throws GeneralSecurityException {
 		Cipher cipher = suite.getThreadLocalCipher();
 		GCMParameterSpec parameterSpec = new GCMParameterSpec(suite.getMacLength() * 8, nonce);
-		try {
-			cipher.init(Cipher.ENCRYPT_MODE, key, parameterSpec);
-		} catch (InvalidAlgorithmParameterException ex) {
-			// if a record is encrypted twice using the same nonce,"
-			// GCM reports this with "Cannot reuse iv for GCM encryption"
-			// workaround is to use a different nonce and then the repeated
-			// nonce again.
-			byte[] nonceReset = Arrays.copyOf(nonce, nonce.length);
-			nonceReset[0] ^= 0x55;
-			GCMParameterSpec parameterSpecReset = new GCMParameterSpec(suite.getMacLength() * 8, nonceReset);
-			cipher.init(Cipher.ENCRYPT_MODE, key, parameterSpecReset);
-			cipher.init(Cipher.ENCRYPT_MODE, key, parameterSpec);
-		}
+		cipher.init(Cipher.ENCRYPT_MODE, key, parameterSpec);
 		cipher.updateAAD(a);
 		return cipher.doFinal(m);
 	}
