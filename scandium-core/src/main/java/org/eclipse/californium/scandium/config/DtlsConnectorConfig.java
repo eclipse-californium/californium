@@ -1811,8 +1811,10 @@ public final class DtlsConnectorConfig {
 		 * Use the handshake state validation to verify valid handshakes.
 		 * 
 		 * Note: the handshake state validation is used by default. If a client
-		 * can' process a handshake in the assumed way, the state validation may
-		 * be disabled at the risk of potential more volnerability.
+		 * can't process a handshake in the assumed way, the state validation
+		 * may be disabled at the risk of potential more vulnerability. Please
+		 * report us a capture of such handshakes in order to decide, if the
+		 * state validation gets adapted.
 		 * 
 		 * @param enable {@code true} to enable state machine. Default
 		 *            {@code true}.
