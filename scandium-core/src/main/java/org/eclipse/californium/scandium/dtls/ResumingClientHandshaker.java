@@ -40,7 +40,6 @@ package org.eclipse.californium.scandium.dtls;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 
-import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -107,17 +106,6 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 			return;
 		}
 
-		// log record now (even if message is still encrypted) in case an Exception
-		// is thrown during processing
-		if (LOGGER.isDebugEnabled()) {
-			StringBuilder msg = new StringBuilder();
-			msg.append("Processing {} message from peer [{}]");
-			if (LOGGER.isTraceEnabled()) {
-				msg.append(":").append(StringUtil.lineSeparator()).append(message);
-			}
-			LOGGER.debug(msg.toString(), message.getContentType(), message.getPeer());
-		}
-
 		switch (message.getMessageType()) {
 
 		case HELLO_VERIFY_REQUEST:
@@ -137,9 +125,6 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 					String.format("Received unexpected handshake message [%s] from peer %s", message.getMessageType(), message.getPeer()),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, message.getPeer()));
 		}
-
-		LOGGER.debug("Processed {} message with sequence no [{}] from peer [{}]",
-				message.getMessageType(), message.getMessageSeq(), message.getPeer());
 	}
 
 	/**

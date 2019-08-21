@@ -33,12 +33,9 @@ package org.eclipse.californium.scandium.dtls;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 
-import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * The resuming server handshaker executes an abbreviated handshake when
@@ -50,8 +47,6 @@ import org.slf4j.LoggerFactory;
  * href="http://tools.ietf.org/html/rfc5246#section-7.3">Figure 2</a>.
  */
 public class ResumingServerHandshaker extends ServerHandshaker {
-
-	private static final Logger LOGGER = LoggerFactory.getLogger(ResumingServerHandshaker.class.getName());
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -94,17 +89,6 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	@Override
 	protected void doProcessMessage(HandshakeMessage message) throws HandshakeException, GeneralSecurityException {
 
-		// log record now (even if message is still encrypted) in case an Exception
-		// is thrown during processing
-		if (LOGGER.isDebugEnabled()) {
-			StringBuilder msg = new StringBuilder();
-			msg.append("Processing {} message from peer [{}]");
-			if (LOGGER.isTraceEnabled()) {
-				msg.append(":").append(StringUtil.lineSeparator()).append(message);
-			}
-			LOGGER.debug(msg.toString(), message.getContentType(), message.getPeer());
-		}
-
 		switch (message.getMessageType()) {
 		case CLIENT_HELLO:
 			receivedClientHello((ClientHello) message);
@@ -121,8 +105,6 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, message.getPeer()));
 		}
 
-		LOGGER.debug("Processed {} message with sequence no [{}] from peer [{}]",
-				message.getMessageType(), message.getMessageSeq(), message.getPeer());
 	}
 
 	/**

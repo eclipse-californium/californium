@@ -470,9 +470,15 @@ public abstract class Handshaker {
 			DTLSMessage messageToProcess = inboundMessageBuffer.getNextMessage(record);
 			while (messageToProcess != null) {
 				expectMessage(messageToProcess);
+				
 				if (messageToProcess.getContentType() == ContentType.CHANGE_CIPHER_SPEC) {
+					// is thrown during processing
+					LOGGER.debug("Processing %s message from peer [%s]", messageToProcess.getContentType(),
+							messageToProcess.getPeer());
 					setCurrentReadState();
 					++statesIndex;
+					LOGGER.debug("Processed %s message from peer [%s]", messageToProcess.getContentType(),
+							messageToProcess.getPeer());
 				} else if (messageToProcess.getContentType() == ContentType.HANDSHAKE) {
 					HandshakeMessage handshakeMessage = (HandshakeMessage) messageToProcess;
 					if (handshakeMessage.getMessageType() == HandshakeType.FINISHED && epoch == 0) {
@@ -516,9 +522,23 @@ public abstract class Handshaker {
 							flight.setNewSequenceNumbers();
 							sendFlight(flight);
 						} else {
+							// is thrown during processing
+							if (LOGGER.isDebugEnabled()) {
+								StringBuilder msg = new StringBuilder();
+								msg.append(String.format("Processing %s message from peer [%s], seqn: [%d]",
+										handshakeMessage.getMessageType(), handshakeMessage.getPeer(),
+										handshakeMessage.getMessageSeq()));
+								if (LOGGER.isTraceEnabled()) {
+									msg.append(":").append(StringUtil.lineSeparator()).append(handshakeMessage);
+								}
+								LOGGER.debug(msg.toString());
+							}
 							doProcessMessage(handshakeMessage);
+							LOGGER.debug("Processed %s message from peer [%s]", handshakeMessage.getMessageType(),
+									handshakeMessage.getPeer());
 							if (!lastFlight) {
-								// last Flight may have changed processing the handshake message
+								// last Flight may have changed processing
+								//  the handshake message
 								++nextReceiveMessageSequence;
 								++statesIndex;
 							}
