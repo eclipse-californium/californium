@@ -169,7 +169,7 @@ public class CredentialsUtil {
 	public static List<Mode> parse(String[] args, List<Mode> defaults, List<Mode> supported) {
 		List<Mode> modes;
 		if (args.length == 0) {
-			modes = new ArrayList<>(defaults.size());
+			modes = new ArrayList<>();
 		} else {
 			modes = new ArrayList<>(args.length);
 			for (String mode : args) {
@@ -190,9 +190,11 @@ public class CredentialsUtil {
 				}
 			}
 		}
-		// adjust default for "NO_AUTH"
-		if (defaults != null && modes.size() == 1 && modes.contains(Mode.NO_AUTH)) {
-			modes.addAll(defaults);
+		if (defaults != null) {
+			if (modes.isEmpty() || (modes.size() == 1 && modes.contains(Mode.NO_AUTH))) {
+				// adjust defaults, also for only "NO_AUTH"
+				modes.addAll(defaults);
+			}
 		}
 		return modes;
 	}

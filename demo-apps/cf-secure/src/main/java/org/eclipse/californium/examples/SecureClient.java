@@ -21,6 +21,7 @@ package org.eclipse.californium.examples;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.Principal;
 import java.util.Arrays;
 import java.util.List;
 
@@ -28,6 +29,8 @@ import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.elements.DtlsEndpointContext;
+import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.examples.CredentialsUtil.Mode;
 import org.eclipse.californium.scandium.DTLSConnector;
@@ -68,13 +71,20 @@ public class SecureClient {
 
 		if (response != null) {
 
-			System.out.println(response.getCode());
+			System.out.println(response.getCode() + " - " + response.getCode().name());
 			System.out.println(response.getOptions());
 			System.out.println(response.getResponseText());
-
-			System.out.println("\nADVANCED\n");
+			System.out.println();
+			System.out.println("ADVANCED:");
+			EndpointContext context = response.advanced().getSourceContext();
+			Principal identity = context.getPeerIdentity();
+			if (identity != null) { 
+				System.out.println(context.getPeerIdentity());
+			} else {
+				System.out.println("anonymous");
+			}
+			System.out.println(context.get(DtlsEndpointContext.KEY_CIPHER));
 			System.out.println(Utils.prettyPrint(response));
-
 		} else {
 			System.out.println("No response received.");
 		}
