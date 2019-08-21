@@ -253,4 +253,17 @@ public class X509CertPath extends AbstractExtensiblePrincipal<X509CertPath> {
 		return target.hashCode();
 	}
 
+	/**
+	 * Gets a string representation of this principal.
+	 * 
+	 * Clients should not assume any particular format of the returned string
+	 * since it may change over time.
+	 *  
+	 * @return the string representation
+	 */
+	@Override
+	public String toString() {
+		return new StringBuilder("x509 [").append(getName()).append("]").toString();
+	}
+
 }
