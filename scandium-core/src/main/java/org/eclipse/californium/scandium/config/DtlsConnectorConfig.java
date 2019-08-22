@@ -46,6 +46,7 @@ import java.util.List;
 
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.util.SslContextUtil;
+import org.eclipse.californium.scandium.ConnectionListener;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
@@ -300,6 +301,8 @@ public final class DtlsConnectorConfig {
 	 * Use the handshake state validation to verify valid handshakes.
 	 */
 	private Boolean useHandshakeStateValidation;
+
+	private ConnectionListener connectionListener;
 
 	private DtlsConnectorConfig() {
 		// empty
@@ -755,6 +758,10 @@ public final class DtlsConnectorConfig {
 		return useHandshakeStateValidation;
 	}
 
+	public ConnectionListener getConnectionListener() {
+		return connectionListener;
+	}
+
 	/**
 	 * Get instance logging tag.
 	 * 
@@ -808,6 +815,7 @@ public final class DtlsConnectorConfig {
 		cloned.connectionIdGenerator = connectionIdGenerator;
 		cloned.applicationLevelInfoSupplier = applicationLevelInfoSupplier;
 		cloned.useHandshakeStateValidation = useHandshakeStateValidation;
+		cloned.connectionListener = connectionListener;
 		return cloned;
 	}
 
@@ -1833,6 +1841,11 @@ public final class DtlsConnectorConfig {
 		 */
 		public Builder setLoggingTag(String tag) {
 			config.loggingTag = tag;
+			return this;
+		}
+
+		public Builder setConnectionListener(ConnectionListener connectionListener) {
+			config.connectionListener = connectionListener;
 			return this;
 		}
 

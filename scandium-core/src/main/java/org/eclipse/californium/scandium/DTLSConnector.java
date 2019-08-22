@@ -379,6 +379,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			this.useCidUpdateAddressOnNewerRecordFilter = config.useCidUpdateAddressOnNewerRecordFilter();
 			this.connectionStore = connectionStore;
 			this.connectionStore.attach(connectionIdGenerator);
+			this.connectionStore.setConnectionListener(config.getConnectionListener());
 			this.sessionListener = new SessionAdapter() {
 
 				@Override
