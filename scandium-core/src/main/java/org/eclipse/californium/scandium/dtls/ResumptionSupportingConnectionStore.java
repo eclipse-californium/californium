@@ -24,12 +24,15 @@ import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.List;
 
+import org.eclipse.californium.scandium.ConnectionListener;
+
 /**
  * A connection store which adds support of connection resumption.
  * 
  * @since 1.1
  */
 public interface ResumptionSupportingConnectionStore {
+	void setConnectionListener(ConnectionListener listener);
 
 	/**
 	 * Attach connection id generator.
