@@ -513,6 +513,23 @@
 							</execution>
 						</executions>
 					</plugin>
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>license-maven-plugin</artifactId>
+						<inherited>false</inherited>
+						<executions>
+							<execution>
+								<id>download-licenses</id>
+								<configuration>
+									<excludedGroups>org.eclipse.californium</excludedGroups>
+									<excludedScopes>system,test</excludedScopes>
+								</configuration>
+								<goals>
+									<goal>aggregate-download-licenses</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
 				</plugins>
 			</build>
 		</profile>
