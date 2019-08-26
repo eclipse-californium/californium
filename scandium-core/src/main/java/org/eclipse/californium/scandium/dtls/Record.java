@@ -385,7 +385,7 @@ public class Record {
 			}
 			int length = reader.read(LENGTH_BITS);
 
-			if (reader.bitsLeft() < length) {
+			if (reader.bitsLeft() < (length * Byte.SIZE)) {
 				LOGGER.debug("Received truncated DTLS record(s). Discarding ...");
 				return records;
 			}

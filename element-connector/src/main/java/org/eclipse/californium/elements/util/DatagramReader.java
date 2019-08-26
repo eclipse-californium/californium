@@ -117,6 +117,7 @@ public final class DatagramReader {
 	 *            The number of bits to read.
 	 * 
 	 * @return A Long containing the bits read.
+	 * @throws IllegalArgumentException if provided numBits exceeds available bytes
 	 */
 	public long readLong(final int numBits) {
 
@@ -151,6 +152,7 @@ public final class DatagramReader {
 	 *            The number of bits to read.
 	 * 
 	 * @return An integer containing the bits read.
+	 * @throws IllegalArgumentException if provided numBits exceeds available bytes
 	 */
 	public int read(final int numBits) {
 
@@ -185,13 +187,19 @@ public final class DatagramReader {
 	 *            The number of bytes to read.
 	 * 
 	 * @return The sequence of bytes read from the stream.
+	 * @throws IllegalArgumentException if provided count exceeds available bytes
 	 */
 	public byte[] readBytes(final int count) {
 
+		int available = byteStream.available();
 		int bytesToRead = count;
+
 		// for negative count values, read all bytes left
-		if (bytesToRead < 0)
-			bytesToRead = byteStream.available();
+		if (bytesToRead < 0) {
+			bytesToRead = available;
+		} else if (bytesToRead > available) {
+			throw new IllegalArgumentException("requested bytes " + count + " exceeds available bytes " + available);
+		}
 
 		// allocate byte array
 		byte[] bytes = new byte[bytesToRead];
@@ -217,6 +225,7 @@ public final class DatagramReader {
 	 * Reads the next byte from the stream.
 	 * 
 	 * @return The next byte.
+	 * @throws IllegalArgumentException if no bytes are available
 	 */
 	public byte readNextByte() {
 		byte[] bytes = readBytes(1);
@@ -267,7 +276,9 @@ public final class DatagramReader {
 	// Utilities ///////////////////////////////////////////////////////////////
 
 	/**
-	 * Reads new bits from the stream
+	 * Reads new bits from the stream.
+	 * 
+	 * @throws IllegalArgumentException if no bytes are available
 	 */
 	private void readCurrentByte() {
 
@@ -279,8 +290,7 @@ public final class DatagramReader {
 			currentByte = (byte) val;
 		} else {
 			// end of stream reached
-			// return implicit zero bytes
-			currentByte = 0;
+			throw new IllegalArgumentException("requested byte exceeds available bytes!");
 		}
 
 		// reset current bit index
