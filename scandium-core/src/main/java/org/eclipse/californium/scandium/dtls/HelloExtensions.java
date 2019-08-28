@@ -87,9 +87,21 @@ public final class HelloExtensions {
 		return length;
 	}
 
+	/**
+	 * Add hello extension.
+	 * 
+	 * @param extension hello extension to add
+	 * @throws IllegalArgumentException if extension of that type was already
+	 *             added.
+	 */
 	public void addExtension(HelloExtension extension) {
 		if (extension != null) {
-			this.extensions.add(extension);
+			if (getExtension(extension.getType()) == null) {
+				this.extensions.add(extension);
+			} else {
+				throw new IllegalArgumentException(
+						"Hello Extension of type " + extension.getType() + " already added!");
+			}
 		}
 	}
 
@@ -120,39 +132,54 @@ public final class HelloExtensions {
 		}
 	}
 
-	public static HelloExtensions fromReader(DatagramReader reader, InetSocketAddress peerAddress) throws HandshakeException {
-		List<HelloExtension> extensions = new ArrayList<HelloExtension>();
+	public static HelloExtensions fromReader(DatagramReader reader, InetSocketAddress peerAddress)
+			throws HandshakeException {
+		try {
+			List<HelloExtension> extensions = new ArrayList<HelloExtension>();
 
-		int length = reader.read(LENGTH_BITS);
+			int length = reader.read(LENGTH_BITS);
 
-		while (length > 0) {
-			int typeId = reader.read(HelloExtension.TYPE_BITS);
-			int extensionLength = reader.read(HelloExtension.LENGTH_BITS);
-			byte[] extensionBytes = reader.readBytes(extensionLength);
-			HelloExtension extension = HelloExtension.fromByteArray(typeId, extensionBytes, peerAddress);
+			while (length > 0) {
+				int typeId = reader.read(HelloExtension.TYPE_BITS);
+				int extensionLength = reader.read(HelloExtension.LENGTH_BITS);
+				DatagramReader extensionDataReader = reader.createRangeReader(extensionLength);
+				HelloExtension extension = HelloExtension.fromExtensionDataReader(typeId, extensionDataReader,
+						peerAddress);
+				if (extensionDataReader.bytesAvailable()) {
+					byte[] bytesLeft = reader.readBytesLeft();
+					throw new HandshakeException(String.format(
+							"Too many bytes, %d left, hello extension not completely parsed! hello extension type %d",
+							bytesLeft.length, typeId),
+							new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR, peerAddress));
+				}
+				if (extension != null) {
+					if (getExtension(extensions, extension.getType()) == null) {
+						extensions.add(extension);
+					} else {
+						throw new HandshakeException(
+								"Hello message contains extension " + extension.getType() + " more than once!",
+								new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR, peerAddress));
+					}
+				} else {
+					LOGGER.debug("Peer included an unknown extension type code [{}] in its Hello message", typeId);
+				}
+				// reduce by (type field length + length field length +
+				// extension's length)
+				length -= (HelloExtension.TYPE_BITS + HelloExtension.LENGTH_BITS) / Byte.SIZE + extensionLength;
 
-			if (extension != null) {
-				extensions.add(extension);
-			} else {
-				LOGGER.debug(
-						"Peer included an unknown extension type code [{}] in its Hello message",
-						typeId);
 			}
-			// reduce by (type field length + length field length +
-			// extension's length)
-			length -= HelloExtension.TYPE_BITS / 8 + HelloExtension.LENGTH_BITS / 8
-					+ extensionLength;
 
-		}
-
-		if (length < 0) {
-			// the lengths of the extensions did not add up correctly
-			// this is always FATAL as defined by the TLS spec (section 7.2.2)
-			throw new HandshakeException(
-					"Hello message contained malformed extensions",
+			if (length < 0) {
+				// the lengths of the extensions did not add up correctly
+				// this is always FATAL as defined by the TLS spec (section 7.2.2)
+				throw new HandshakeException("Hello message contained malformed extensions",
+						new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR, peerAddress));
+			} else {
+				return new HelloExtensions(extensions);
+			}
+		} catch (IllegalArgumentException ex) {
+			throw new HandshakeException("Hello message contained malformed extensions, " + ex.getMessage(),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR, peerAddress));
-		} else {
-			return new HelloExtensions(extensions);
 		}
 	}
 
@@ -160,10 +187,22 @@ public final class HelloExtensions {
 	 * Gets a hello extension of a particular type.
 	 * 
 	 * @param type the type of extension
-	 * @return the extension or <code>null</code> if no extension
-	 *     of the given type is present
+	 * @return the extension, or {@code null}, if no extension of the given type
+	 *         is present
 	 */
 	final HelloExtension getExtension(ExtensionType type) {
+		return getExtension(extensions, type);
+	}
+
+	/**
+	 * Gets a hello extension of a particular type.
+	 * 
+	 * @param extensions list of extensions
+	 * @param type the type of extension
+	 * @return the extension, or {@code null}, if no extension of the given type
+	 *         is present
+	 */
+	private static HelloExtension getExtension(List<HelloExtension> extensions, ExtensionType type) {
 		if (type != null) {
 			for (HelloExtension ext : extensions) {
 				if (type.equals(ext.getType())) {

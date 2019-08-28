@@ -19,6 +19,8 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import static org.junit.Assert.assertFalse;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
@@ -27,10 +29,12 @@ import java.security.PublicKey;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
+import java.util.List;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -78,6 +82,14 @@ public final class DtlsTestTools {
 	}
 
 	private DtlsTestTools() {
+	}
+
+	public static Record getRecordForMessage(int epoch, int seqNo, DTLSMessage msg, InetSocketAddress peer) {
+		byte[] dtlsRecord = newDTLSRecord(msg.getContentType().getCode(), epoch,
+				seqNo, msg.toByteArray());
+		List<Record> list = Record.fromByteArray(dtlsRecord, peer, null, ClockUtil.nanoRealtime());
+		assertFalse("Should be able to deserialize DTLS Record from byte array", list.isEmpty());
+		return list.get(0);
 	}
 
 	public static final byte[] newDTLSRecord(int typeCode, int epoch, long sequenceNo, byte[] fragment) {

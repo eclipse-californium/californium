@@ -424,6 +424,15 @@ public final class ClientHello extends HandshakeMessage {
 	}
 
 	/**
+	 * Gets the client hello extensions the client has included in this message.
+	 * 
+	 * @return The extensions or {@code null} if no extensions are used.
+	 */
+	public HelloExtensions getExtensions() {
+		return extensions;
+	}
+
+	/**
 	 * Gets the supported elliptic curves.
 	 * 
 	 * @return the client's supported elliptic curves extension if available,

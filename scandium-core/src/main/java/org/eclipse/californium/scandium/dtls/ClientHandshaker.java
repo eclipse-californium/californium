@@ -318,6 +318,41 @@ public class ClientHandshaker extends Handshaker {
 							message.getPeer()));
 		}
 		session.setCompressionMethod(message.getCompressionMethod());
+		verifyServerHelloExtensions(message);
+		if (connectionIdGenerator != null) {
+			ConnectionIdExtension extension = serverHello.getConnectionIdExtension();
+			if (extension != null) {
+				ConnectionId connectionId = extension.getConnectionId();
+				session.setWriteConnectionId(connectionId);
+			}
+		}
+		session.setSendCertificateType(serverHello.getClientCertificateType());
+		session.setSniSupported(serverHello.hasServerNameExtension());
+		session.setParameterAvailable();
+		if (!cipherSuite.requiresServerCertificateMessage()) {
+			states = NO_SEVER_CERTIFICATE;
+		}
+		initMessageDigest();
+	}
+
+	protected void verifyServerHelloExtensions(ServerHello message) throws HandshakeException {
+		HelloExtensions serverExtensions = message.getExtensions();
+		if (serverExtensions != null && !serverExtensions.isEmpty()) {
+			HelloExtensions clientExtensions = clientHello.getExtensions();
+			if (clientExtensions == null || clientExtensions.isEmpty()) {
+				throw new HandshakeException("Server wants extensions, but client not!",
+						new AlertMessage(AlertLevel.FATAL, AlertDescription.UNSUPPORTED_EXTENSION, message.getPeer()));
+			} else {
+				for (HelloExtension serverExtension : serverExtensions.getExtensions()) {
+					if (clientExtensions.getExtension(serverExtension.getType()) == null) {
+						throw new HandshakeException("Server wants " + serverExtension.getType() + ", but client not!",
+								new AlertMessage(AlertLevel.FATAL, AlertDescription.UNSUPPORTED_EXTENSION,
+										message.getPeer()));
+					}
+				}
+			}
+		}
+
 		SupportedPointFormatsExtension pointFormatsExtension = message.getSupportedPointFormatsExtension();
 		if (pointFormatsExtension !=null && !pointFormatsExtension.contains(ECPointFormat.UNCOMPRESSED)) {
 			throw new HandshakeException(
@@ -327,9 +362,9 @@ public class ClientHandshaker extends Handshaker {
 							AlertDescription.ILLEGAL_PARAMETER,
 							message.getPeer()));
 		}
-		
-		if (message.getMaxFragmentLength() != null) {
-			MaxFragmentLengthExtension.Length maxFragmentLength = message.getMaxFragmentLength().getFragmentLength(); 
+		MaxFragmentLengthExtension maxFragmentLengthExtension = message.getMaxFragmentLength();
+		if (maxFragmentLengthExtension != null) {
+			MaxFragmentLengthExtension.Length maxFragmentLength = maxFragmentLengthExtension.getFragmentLength(); 
 			if (maxFragmentLength.code() == maxFragmentLengthCode) {
 				// immediately use negotiated max. fragment size
 				session.setMaxFragmentLength(maxFragmentLength.length());
@@ -342,14 +377,6 @@ public class ClientHandshaker extends Handshaker {
 								message.getPeer()));
 			}
 		}
-		if (connectionIdGenerator != null) {
-			ConnectionIdExtension extension = serverHello.getConnectionIdExtension();
-			if (extension != null) {
-				ConnectionId connectionId = extension.getConnectionId();
-				session.setWriteConnectionId(connectionId);
-			}
-		}
-		session.setSendCertificateType(serverHello.getClientCertificateType());
 		CertificateType serverCertificateType = serverHello.getServerCertificateType();
 		if (!isSupportedCertificateType(serverCertificateType, supportedServerCertificateTypes)) {
 			throw new HandshakeException(
@@ -360,12 +387,6 @@ public class ClientHandshaker extends Handshaker {
 							message.getPeer()));
 		}
 		session.setReceiveCertificateType(serverCertificateType);
-		session.setSniSupported(serverHello.hasServerNameExtension());
-		session.setParameterAvailable();
-		if (!cipherSuite.requiresServerCertificateMessage()) {
-			states = NO_SEVER_CERTIFICATE;
-		}
-		initMessageDigest();
 	}
 
 	/**

@@ -381,12 +381,12 @@ public class ServerHandshakerTest {
 		X509Certificate[] clientChain = DtlsTestTools.getClientCertificateChain();
 		CertificateMessage certificateMsg = new CertificateMessage(Arrays.asList(clientChain), endpoint);
 		certificateMsg.setMessageSeq(1);
-		Record certificateMsgRecord = getRecordForMessage(0, 1, certificateMsg, senderAddress);
+		Record certificateMsgRecord =  DtlsTestTools.getRecordForMessage(0, 1, certificateMsg, senderAddress);
 
 		// create client KEY_EXCHANGE msg
 		ECDHClientKeyExchange keyExchangeMsg = new ECDHClientKeyExchange(clientChain[0].getPublicKey(), endpoint);
 		keyExchangeMsg.setMessageSeq(2);
-		Record keyExchangeRecord = getRecordForMessage(0, 2, keyExchangeMsg, senderAddress);
+		Record keyExchangeRecord =  DtlsTestTools.getRecordForMessage(0, 2, keyExchangeMsg, senderAddress);
 
 		// put KEY_EXCHANGE message with seq no. 2 to inbound message queue
 		keyExchangeRecord.applySession(handshaker.getSession());
@@ -484,14 +484,6 @@ public class ServerHandshakerTest {
 			writer.writeBytes(extBytes);
 		}
 		return writer.toByteArray();
-	}
-
-	private static Record getRecordForMessage(int epoch, int seqNo, DTLSMessage msg, InetSocketAddress peer) {
-		byte[] dtlsRecord = DtlsTestTools.newDTLSRecord(msg.getContentType().getCode(), epoch,
-				seqNo, msg.toByteArray());
-		List<Record> list = Record.fromByteArray(dtlsRecord, peer, null, ClockUtil.nanoRealtime());
-		assertFalse("Should be able to deserialize DTLS Record from byte array", list.isEmpty());
-		return list.get(0);
 	}
 
 	/**

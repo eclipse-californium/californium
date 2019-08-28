@@ -68,30 +68,29 @@ public abstract class CertificateTypeExtension extends HelloExtension {
 	 * certificate types, or a selected certificate type chosen by the server.
 	 * 
 	 * @param type the type of the extension.
-	 * @param extensionData the list of supported certificate types or the
+	 * @param extensionDataReader the list of supported certificate types or the
 	 *            selected certificate type encoded in bytes.
 	 * @throws NullPointerException if extension data is {@code null}
 	 * @throws IllegalArgumentException if extension data is empty
 	 */
-	protected CertificateTypeExtension(ExtensionType type, byte[] extensionData) {
+	protected CertificateTypeExtension(ExtensionType type, DatagramReader extensionDataReader) {
 		super(type);
-		if (extensionData == null) {
+		if (extensionDataReader == null) {
 			throw new NullPointerException("extension data must not be null!");
-		} else if (extensionData.length == 0) {
+		} else if (!extensionDataReader.bytesAvailable()) {
 			throw new IllegalArgumentException("extension data must not be empty!");
 		}
 		// the selected certificate would be a single byte,
 		// the supported list is longer
-		isClientExtension = extensionData.length > 1;
+		isClientExtension = extensionDataReader.bitsLeft() > Byte.SIZE;
 		List<CertificateType> types;
-		DatagramReader reader = new DatagramReader(extensionData);
 		if (isClientExtension) {
 			// an extension containing a list of preferred certificate types
 			// is at least 2 bytes long (1 byte length, 1 byte type)
-			int length = reader.read(LIST_FIELD_LENGTH_BITS);
+			int length = extensionDataReader.read(LIST_FIELD_LENGTH_BITS);
 			types = new ArrayList<>(length);
 			for (int i = 0; i < length; i++) {
-				int typeCode = reader.read(EXTENSION_TYPE_BITS);
+				int typeCode = extensionDataReader.read(EXTENSION_TYPE_BITS);
 				CertificateType certificateType = CertificateType.getTypeFromCode(typeCode);
 				if (certificateType != null) {
 					types.add(certificateType);
@@ -103,7 +102,7 @@ public abstract class CertificateTypeExtension extends HelloExtension {
 			}
 		} else {
 			// an extension containing the negotiated certificate type is exactly 1 byte long
-			int typeCode = reader.read(EXTENSION_TYPE_BITS);
+			int typeCode = extensionDataReader.read(EXTENSION_TYPE_BITS);
 			CertificateType certificateType = CertificateType.getTypeFromCode(typeCode);
 			if (certificateType != null) {
 				types = new ArrayList<>(1);

@@ -1521,6 +1521,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 			LOGGER.debug("Processing new CLIENT_HELLO from peer [{}] failed!", record.getPeerAddress(), e);
 		} catch (GeneralSecurityException e) {
 			LOGGER.debug("Processing new CLIENT_HELLO from peer [{}] failed!", record.getPeerAddress(), e);
+		} catch (RuntimeException e) {
+			LOGGER.debug("Processing new CLIENT_HELLO from peer [{}] failed!", record.getPeerAddress(), e);
 		}
 	}
 
