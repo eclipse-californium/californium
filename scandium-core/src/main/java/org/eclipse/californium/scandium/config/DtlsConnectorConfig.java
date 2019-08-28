@@ -93,6 +93,10 @@ public final class DtlsConnectorConfig {
 	 */
 	public static final int DEFAULT_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH = 8192;
 	/**
+	 * The default value for the <em>maxDeferredProcessedHandshakeRecordsSize</em> property.
+	 */
+	public static final int DEFAULT_MAX_DEFERRED_PROCESSED_HANDSHAKE_RECORDS_SIZE = 8192;
+	/**
 	 * The default value for the <em>staleConnectionThreshold</em> property.
 	 */
 	public static final long DEFAULT_STALE_CONNECTION_TRESHOLD = 30 * 60; // 30 minutes
@@ -204,7 +208,9 @@ public final class DtlsConnectorConfig {
 
 	private Integer outboundMessageBufferSize;
 
-	private Integer maxDeferredProcessedApplicationDataMessages;
+	private Integer maxDeferredProcessedOutgoingApplicationDataMessages;
+
+	private Integer maxDeferredProcessedIncomingRecordsSize;
 
 	private Integer maxConnections;
 
@@ -349,12 +355,21 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Gets the maximum number of deferred processed application data messages.
+	 * Gets the maximum number of deferred processed outgoing application data messages.
 	 * 
-	 * @return the maximum number of deferred processed application data messages
+	 * @return the maximum number of deferred processed outgoing application data messages
 	 */
-	public Integer getMaxDeferredProcessedApplicationDataMessages() {
-		return maxDeferredProcessedApplicationDataMessages;
+	public Integer getMaxDeferredProcessedOutgoingApplicationDataMessages() {
+		return maxDeferredProcessedOutgoingApplicationDataMessages;
+	}
+
+	/**
+	 * Gets the maximum size of all deferred processed incoming records.
+	 * 
+	 * @return the maximum size of all deferred processed incoming records
+	 */
+	public Integer getMaxDeferredProcessedIncomingRecordsSize() {
+		return maxDeferredProcessedIncomingRecordsSize;
 	}
 
 	/**
@@ -799,7 +814,8 @@ public final class DtlsConnectorConfig {
 		cloned.supportedCipherSuites = supportedCipherSuites;
 		cloned.trustedRPKs = trustedRPKs;
 		cloned.outboundMessageBufferSize = outboundMessageBufferSize;
-		cloned.maxDeferredProcessedApplicationDataMessages = maxDeferredProcessedApplicationDataMessages;
+		cloned.maxDeferredProcessedOutgoingApplicationDataMessages = maxDeferredProcessedOutgoingApplicationDataMessages;
+		cloned.maxDeferredProcessedIncomingRecordsSize = maxDeferredProcessedIncomingRecordsSize;
 		cloned.maxConnections = maxConnections;
 		cloned.staleConnectionThreshold = staleConnectionThreshold;
 		cloned.connectionThreadCount = connectionThreadCount;
@@ -1569,24 +1585,49 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Set maximum number of deferred processed application data messages.
+		 * Set maximum number of deferred processed outgoing application data
+		 * messages.
 		 * 
-		 * Application data messages received or sent during a handshake may be
-		 * dropped or processed deferred after the handshake. Set this to limit
-		 * the maximum number of messages, which are intended to be processed
-		 * deferred. If more messages are sent or received, theses messages are
-		 * dropped.
+		 * Application data messages sent during a handshake may be dropped or
+		 * processed deferred after the handshake. Set this to limit the maximum
+		 * number of messages, which are intended to be processed deferred. If
+		 * more messages are sent, these messages are dropped.
 		 * 
-		 * @param maxDeferredProcessedApplicationDataMessages maximum number of
-		 *            deferred processed messages
+		 * @param maxDeferredProcessedOutgoingApplicationDataMessages maximum
+		 *            number of deferred processed messages
 		 * @return this builder for command chaining.
 		 * @throws IllegalArgumentException if the given limit is &lt; 0.
 		 */
-		public Builder setMaxDeferredProcessedApplicationDataMessages(final int maxDeferredProcessedApplicationDataMessages) {
-			if (maxDeferredProcessedApplicationDataMessages < 0) {
-				throw new IllegalArgumentException("Max deferred processed application data messages must not be negative!");
+		public Builder setMaxDeferredProcessedOutgoingApplicationDataMessages(
+				int maxDeferredProcessedOutgoingApplicationDataMessages) {
+			if (maxDeferredProcessedOutgoingApplicationDataMessages < 0) {
+				throw new IllegalArgumentException(
+						"Max deferred processed outging application data messages must not be negative!");
 			}
-			config.maxDeferredProcessedApplicationDataMessages = maxDeferredProcessedApplicationDataMessages;
+			config.maxDeferredProcessedOutgoingApplicationDataMessages = maxDeferredProcessedOutgoingApplicationDataMessages;
+			return this;
+		}
+
+		/**
+		 * Set maximum size of deferred processed incoming records.
+		 * 
+		 * Handshake records with future handshake message sequence number or
+		 * records with future epochs received during a handshake may be dropped
+		 * or processed deferred. Set this to limit the maximum size of all
+		 * records, which are intended to be processed deferred. If more records
+		 * are received, these records are dropped.
+		 * 
+		 * @param maxDeferredProcessedIncomingRecordsSize maximum size of all
+		 *            deferred handshake records
+		 * @return this builder for command chaining.
+		 * @throws IllegalArgumentException if the given limit is &lt; 0.
+		 */
+		public Builder setMaxDeferredProcessedIncomingRecordsSize(int maxDeferredProcessedIncomingRecordsSize) {
+			if (maxDeferredProcessedIncomingRecordsSize < 0) {
+				throw new IllegalArgumentException(
+						"Max deferred processed incoming records size must not be negative!");
+			}
+			config.maxDeferredProcessedIncomingRecordsSize = maxDeferredProcessedIncomingRecordsSize;
 			return this;
 		}
 
@@ -1930,8 +1971,11 @@ public final class DtlsConnectorConfig {
 			if (config.outboundMessageBufferSize == null) {
 				config.outboundMessageBufferSize = 100000;
 			}
-			if (config.maxDeferredProcessedApplicationDataMessages == null){
-				config.maxDeferredProcessedApplicationDataMessages = DEFAULT_MAX_DEFERRED_PROCESSED_APPLICATION_DATA_MESSAGES;
+			if (config.maxDeferredProcessedOutgoingApplicationDataMessages == null){
+				config.maxDeferredProcessedOutgoingApplicationDataMessages = DEFAULT_MAX_DEFERRED_PROCESSED_APPLICATION_DATA_MESSAGES;
+			}
+			if (config.maxDeferredProcessedIncomingRecordsSize == null){
+				config.maxDeferredProcessedIncomingRecordsSize = DEFAULT_MAX_DEFERRED_PROCESSED_HANDSHAKE_RECORDS_SIZE;
 			}
 			if (config.maxConnections == null){
 				config.maxConnections = DEFAULT_MAX_CONNECTIONS;

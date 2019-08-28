@@ -229,6 +229,68 @@ public class DTLSConnectorAdvancedTest {
 	}
 
 	@Test
+	public void testLimitedServerReceivingMessagesInBadOrderDuringHandshake() throws Exception {
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+				.setRetransmissionTimeout(RETRANSMISSION_TIMEOUT_MS)
+				.setMaxRetransmissions(MAX_RETRANSMISSIONS)
+				.setMaxDeferredProcessedIncomingRecordsSize(128)
+				.setConnectionIdGenerator(serverCidGenerator);
+		ConnectorHelper limitedServerHelper = new ConnectorHelper();
+
+		// Configure and create UDP connector
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);
+		UdpConnector rawClient = new UdpConnector(0, collector);
+		ReverseRecordLayer recordLayer = new ReverseRecordLayer(rawClient);
+		try {
+			// create limited server
+			limitedServerHelper.startServer(builder);
+
+			// Start connector
+			rawClient.start();
+
+			// Create handshaker with ReverseRecordLayer
+			// to send message in bad order.
+			LatchSessionListener sessionListener = new LatchSessionListener();
+			ClientHandshaker clientHandshaker = new ClientHandshaker(new DTLSSession(limitedServerHelper.serverEndpoint),
+					recordLayer, createClientConnection(), clientConfig, 1280);
+			clientHandshaker.addSessionListener(sessionListener);
+			// Start handshake (Send CLIENT HELLO)
+			clientHandshaker.startHandshake();
+
+			// Wait to receive response (should be HELLO VERIFY REQUEST)
+			List<Record> rs = waitForFlightReceived("flight 2", collector, 1);
+			// Handle and answer (CLIENT HELLO with cookie)
+			processAll(clientHandshaker, rs);
+
+			// Wait for response (SERVER_HELLO, CERTIFICATE, ... , SERVER_DONE)
+			rs = waitForFlightReceived("flight 4", collector, 5);
+			// Handle and answer (FINISHED, CHANGE CIPHER SPEC, ...,CERTIFICATE)
+			processAll(clientHandshaker, rs);
+
+			List<Record> records = collector.waitForRecords(500,  TimeUnit.MILLISECONDS);
+			assertThat(records, is(nullValue()));
+
+			recordLayer.resendLastFlight();
+			records = collector.waitForRecords(500,  TimeUnit.MILLISECONDS);
+			assertThat(records, is(nullValue()));
+
+			recordLayer.resendLastFlight();
+
+			// Wait to receive response (should be CHANGE CIPHER SPEC, FINISHED)
+			rs = waitForFlightReceived("flight 6", collector, 2);
+			// Handle it
+			processAll(clientHandshaker, rs);
+
+			// Ensure handshake is successfully done
+			assertTrue("handshake failed",
+					sessionListener.waitForSessionEstablished(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		} finally {
+			rawClient.stop();
+			limitedServerHelper.destroyServer();
+		}
+	}
+
+	@Test
 	public void testClientReceivingMessagesInBadOrderDuringHandshake() throws Exception {
 		// Configure UDP connector we will use as Server
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(serverCidGenerator);

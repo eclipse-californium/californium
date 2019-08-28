@@ -174,14 +174,18 @@ public abstract class Handshaker {
 	/** The current flight number. */
 	protected int flightNumber = 0;
 
+	private int deferredRecordsSize;
+
 	/** Maximum length of reassembled fragmented handshake messages */
 	private final int maxFragmentedHandshakeMessageLength;
-	/** Maximum number of application data messages, which may be processed deferred after the handshake */
-	private final int maxDeferredProcessedApplicationDataMessages;
+	/** Maximum number of outgoing application data messages, which may be processed deferred after the handshake */
+	private final int maxDeferredProcessedOutgoingApplicationDataMessages;
+	/** Maximum number of bytes of deferred processed incoming records */
+	private final int maxDeferredProcessedIncomingRecordsSize;
 	/** List of application data messages, which are send deferred after the handshake */
-	private final List<RawData> deferredApplicationData;
+	private final List<RawData> deferredApplicationData = new ArrayList<RawData>();
 	/** List of received records, which are processed deferred after the epoch changed or the handshake finished */
-	private final List<Record> deferredRecords;
+	private final List<Record> deferredRecords = new ArrayList<Record>();
 	/** Currently pending flight */
 	private final AtomicReference<DTLSFlight> pendingFlight = new AtomicReference<DTLSFlight>();
 
@@ -281,7 +285,8 @@ public abstract class Handshaker {
 		this.connection = connection;
 		this.connectionIdGenerator = config.getConnectionIdGenerator();
 		this.maxFragmentedHandshakeMessageLength = config.getMaxFragmentedHandshakeMessageLength();
-		this.maxDeferredProcessedApplicationDataMessages = config.getMaxDeferredProcessedApplicationDataMessages();
+		this.maxDeferredProcessedOutgoingApplicationDataMessages = config.getMaxDeferredProcessedOutgoingApplicationDataMessages();
+		this.maxDeferredProcessedIncomingRecordsSize = config.getMaxDeferredProcessedIncomingRecordsSize();
 		this.sniEnabled = config.isSniEnabled();
 		this.useStateValidation = config.useHandshakeStateValidation();
 		this.privateKey = config.getPrivateKey();
@@ -292,8 +297,6 @@ public abstract class Handshaker {
 		this.pskStore = config.getPskStore();
 		this.session.setMaxTransmissionUnit(maxTransmissionUnit);
 		this.applicationLevelInfoSupplier = config.getApplicationLevelInfoSupplier();
-		this.deferredApplicationData = new ArrayList<RawData>(maxDeferredProcessedApplicationDataMessages);
-		this.deferredRecords = new ArrayList<Record>(maxDeferredProcessedApplicationDataMessages);
 		this.inboundMessageBuffer = new InboundMessageBuffer();
 
 		addSessionListener(connection.getSessionListener());
@@ -350,6 +353,7 @@ public abstract class Handshaker {
 						if (msg.getMessageSeq() == nextReceiveMessageSequence) {
 							result = msg;
 							queue.remove(record);
+							removeDeferredProcessedRecord(record);
 							break;
 						}
 					}
@@ -417,7 +421,9 @@ public abstract class Handshaker {
 								handshakeMessage.getMessageType(),
 								messageSeq,
 								nextReceiveMessageSequence);
-						queue.add(candidate);
+						if (addDeferredProcessedRecord(candidate)) {
+							queue.add(candidate);
+						}
 						return null;
 					} else {
 						LOGGER.debug("Discarding old {} message_seq [{}] < next_receive_seq [{}]",
@@ -558,6 +564,12 @@ public abstract class Handshaker {
 			if (session.getReadEpoch() > epoch) {
 				final SerialExecutor serialExecutor = connection.getExecutor();
 				final List<Record> records = takeDeferredRecords();
+				if (deferredRecordsSize > 0) {
+					throw new HandshakeException(
+							String.format("Received unexpected message left from peer %s", record.getPeerAddress()),
+							new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE,
+									record.getPeerAddress()));
+				}
 				for (Record deferredRecord : records) {
 					if (serialExecutor != null) {
 						final Record dRecord = deferredRecord;
@@ -1034,17 +1046,38 @@ public abstract class Handshaker {
 	}
 
 	public void addApplicationDataForDeferredProcessing(RawData outgoingMessage) {
-		// backwards compatibility, allow on outgoing message to be stored.
-		int max = maxDeferredProcessedApplicationDataMessages == 0 ? 1 : maxDeferredProcessedApplicationDataMessages;
-		if (deferredApplicationData.size() < max) {
+		if (deferredApplicationData.size() < maxDeferredProcessedOutgoingApplicationDataMessages) {
 			deferredApplicationData.add(outgoingMessage);
 		}
 	}
 
 	public void addRecordsForDeferredProcessing(Record incomingMessage) {
-		if (deferredRecords.size() < maxDeferredProcessedApplicationDataMessages) {
+		if (addDeferredProcessedRecord(incomingMessage)) {
 			deferredRecords.add(incomingMessage);
 		}
+	}
+
+	private boolean addDeferredProcessedRecord(Record incomingMessage) {
+		int size = incomingMessage.size();
+		if (deferredRecordsSize + size < maxDeferredProcessedIncomingRecordsSize) {
+			deferredRecordsSize += size;
+			return true;
+		} else {
+			LOGGER.debug("Dropped incoming record from peer [{}], limit of {} bytes exceeded by {}+{} bytes!",
+					incomingMessage.getPeerAddress(), maxDeferredProcessedIncomingRecordsSize, deferredRecordsSize, size);
+			return false;
+		}
+	}
+
+	private void removeDeferredProcessedRecord(Record incomingMessage) {
+		int size = incomingMessage.size();
+		if (deferredRecordsSize < size) {
+			LOGGER.warn(
+					"deferred processed incoming records corrupted for peer [{}]! Removing {} bytes exceeds available {} bytes!",
+					incomingMessage.getPeerAddress(), size, deferredRecordsSize);
+			throw new IllegalArgumentException("deferred processing of incoming records corrupted!");
+		}
+		deferredRecordsSize -= size;
 	}
 
 	public List<RawData> takeDeferredApplicationData() {
@@ -1056,6 +1089,9 @@ public abstract class Handshaker {
 	public List<Record> takeDeferredRecords() {
 		List<Record> records = new ArrayList<Record>(deferredRecords);
 		deferredRecords.clear();
+		for (Record record : records) {
+			removeDeferredProcessedRecord(record);
+		}
 		return records;
 	}
 
