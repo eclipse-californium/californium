@@ -61,15 +61,14 @@ public class MaxFragmentLengthExtension extends HelloExtension {
 	 * Creates an instance from a <em>MaxFragmentLength</em> structure as defined
 	 * in <a href="http://tools.ietf.org/html/rfc6066#section-4">RFC 6066, Section 4</a>.
 	 * 
-	 * @param extensionData the extension data struct containing the length code
+	 * @param extensionDataReader the extension data struct containing the length code
 	 * @param peerAddress the IP address and port of the peer that sent the extension
 	 * @return the extension object
 	 * @throws HandshakeException if the extension data contains an unknown code
 	 */
-	static final MaxFragmentLengthExtension fromExtensionData(byte[] extensionData,
+	static final MaxFragmentLengthExtension fromExtensionDataReader(DatagramReader extensionDataReader,
 			InetSocketAddress peerAddress) throws HandshakeException {
-		DatagramReader reader = new DatagramReader(extensionData);
-		int code = reader.read(CODE_BITS);
+		int code = extensionDataReader.read(CODE_BITS);
 		Length length = Length.fromCode(code);
 		if (length != null) {
 			return new MaxFragmentLengthExtension(length);

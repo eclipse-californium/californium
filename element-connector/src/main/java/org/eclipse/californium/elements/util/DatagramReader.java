@@ -28,6 +28,49 @@ import java.util.Arrays;
  */
 public final class DatagramReader {
 
+	/**
+	 * Input stream with improved range reading.
+	 */
+	private static class RangeInputStream extends ByteArrayInputStream {
+
+		/**
+		 * Create reader from byte array.
+		 * 
+		 * @param buffer directly used byte array
+		 */
+		private RangeInputStream(byte[] buffer) {
+			super(buffer);
+		}
+
+		/**
+		 * Create reader from byte array range.
+		 * 
+		 * @param buffer directly used byte array
+		 * @param offset offset in buffer
+		 * @param length length of range
+		 */
+		private RangeInputStream(byte[] buffer, int offset, int length) {
+			super(buffer, offset, length);
+		}
+
+		/**
+		 * Create reader for range. Read range and pass it to the returned
+		 * reader.
+		 * 
+		 * @param count number of bytes for the range
+		 * @return reader containing the range
+		 * @throws IllegalArgumentException if provided count exceeds available bytes
+		 */
+		private RangeInputStream range(int count) {
+			int offset = pos;
+			long available = skip(count);
+			if (available < count) {
+				throw new IllegalArgumentException(
+						"requested " + count + " bytes exceeds available " + available + " bytes.");
+			}
+			return new RangeInputStream(buf, offset, count);
+		}
+	}
 	// Attributes //////////////////////////////////////////////////////////////
 
 	private final ByteArrayInputStream byteStream;
@@ -47,12 +90,29 @@ public final class DatagramReader {
 	// Constructors ////////////////////////////////////////////////////////////
 
 	/**
-	 * Creates a new reader for an array of bytes.
+	 * Creates a new reader for an copied array of bytes.
 	 * 
 	 * @param byteArray The byte array to read from.
 	 */
 	public DatagramReader(final byte[] byteArray) {
-		this(new ByteArrayInputStream(Arrays.copyOf(byteArray, byteArray.length)));
+		this(byteArray, true);
+	}
+
+	/**
+	 * Creates a new reader for an array of bytes.
+	 * 
+	 * @param byteArray The byte array to read from.
+	 * @param copy {@code true} to copy the array, {@code false} to us it
+	 *            directly.
+	 */
+	public DatagramReader(final byte[] byteArray, boolean copy) {
+		byteStream = new RangeInputStream(copy ? Arrays.copyOf(byteArray, byteArray.length) : byteArray);
+
+		// initialize bit buffer
+		currentByte = 0;
+		currentBitIndex = -1; // indicates that no byte read yet
+		markByte = currentByte;
+		markBitIndex = currentBitIndex;
 	}
 
 	/**
@@ -198,7 +258,8 @@ public final class DatagramReader {
 		if (bytesToRead < 0) {
 			bytesToRead = available;
 		} else if (bytesToRead > available) {
-			throw new IllegalArgumentException("requested bytes " + count + " exceeds available bytes " + available);
+			throw new IllegalArgumentException(
+					"requested " + count + " bytes exceeds available " + available + " bytes.");
 		}
 
 		// allocate byte array
@@ -271,6 +332,34 @@ public final class DatagramReader {
 	 */
 	public int bitsLeft() {
 		return (byteStream.available() * Byte.SIZE) + (currentBitIndex + 1);
+	}
+
+	/**
+	 * Create reader for provided range.
+	 * 
+	 * @param count size of the range
+	 * @return reader
+	 * @throws IllegalStateException if some bits are unread
+	 * @throws IllegalArgumentException if provided count exceeds available
+	 *             bytes
+	 */
+	public DatagramReader createRangeReader(int count) {
+		if (currentBitIndex > 0) {
+			throw new IllegalStateException(currentBitIndex + " bits unread!");
+		}
+		int available = byteStream.available();
+		if (available < count) {
+			throw new IllegalArgumentException(
+					"requested " + count + " bytes exceeds available " + available + " bytes.");
+		}
+		if (byteStream instanceof RangeInputStream) {
+			RangeInputStream range = (RangeInputStream) byteStream;
+			return new DatagramReader(range.range(count));
+		} else {
+			byte[] range = new byte[count];
+			byteStream.read(range, 0, count);
+			return new DatagramReader(new RangeInputStream(range));
+		}
 	}
 
 	// Utilities ///////////////////////////////////////////////////////////////

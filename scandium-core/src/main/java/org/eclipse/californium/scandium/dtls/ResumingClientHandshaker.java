@@ -161,6 +161,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 							message.getPeer()));
 		} else {
 			this.serverHello = message;
+			verifyServerHelloExtensions(message);
 			serverRandom = message.getRandom();
 			if (connectionIdGenerator != null) {
 				ConnectionIdExtension extension = message.getConnectionIdExtension();

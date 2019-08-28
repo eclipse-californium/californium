@@ -19,14 +19,15 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.util.List;
 
+import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.StringUtil;
 
 public class ClientCertificateTypeExtension extends CertificateTypeExtension {
 
 	// Constructors ///////////////////////////////////////////////////
 
-	private ClientCertificateTypeExtension(byte[] extensionData) {
-		super(ExtensionType.CLIENT_CERT_TYPE, extensionData);
+	private ClientCertificateTypeExtension(DatagramReader extensionDataReader) {
+		super(ExtensionType.CLIENT_CERT_TYPE, extensionDataReader);
 	}
 
 	/**
@@ -65,13 +66,13 @@ public class ClientCertificateTypeExtension extends CertificateTypeExtension {
 	 * Constructs a client certificate type extension with a list of supported
 	 * certificate types, or a selected certificate type chosen by the server.
 	 * 
-	 * @param extensionData the list of supported certificate types or the
+	 * @param extensionDataReader the list of supported certificate types or the
 	 *            selected certificate type encoded in bytes.
 	 * @return the created certificate type extension
 	 * @throws NullPointerException if extension data is {@code null}
 	 * @throws IllegalArgumentException if extension data is empty
 	 */
-	public static ClientCertificateTypeExtension fromExtensionData(byte[] extensionData) {
-		return new ClientCertificateTypeExtension(extensionData);
+	public static ClientCertificateTypeExtension fromExtensionDataReaader(DatagramReader extensionDataReader) {
+		return new ClientCertificateTypeExtension(extensionDataReader);
 	}
 }

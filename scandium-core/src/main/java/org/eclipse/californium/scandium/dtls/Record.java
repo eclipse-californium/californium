@@ -343,7 +343,7 @@ public class Record {
 
 		List<Record> records = new ArrayList<Record>();
 
-		DatagramReader reader = new DatagramReader(byteArray);
+		DatagramReader reader = new DatagramReader(byteArray, false);
 
 		while (reader.bytesAvailable()) {
 
@@ -930,7 +930,7 @@ public class Record {
 	 * Gets the object representation of this record's
 	 * <em>DTLSPlaintext.fragment</em>.
 	 * 
-	 * For incoming records, the fragment is only available after the sesson of
+	 * For incoming records, the fragment is only available after the session of
 	 * the epoch is {@link #applySession(DTLSSession)}.
 	 * 
 	 * @return the plaintext fragment
