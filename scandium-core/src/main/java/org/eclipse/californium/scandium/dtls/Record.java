@@ -320,6 +320,10 @@ public class Record {
 		return writer.toByteArray();
 	}
 
+	public int size() {
+		return RECORD_HEADER_BITS / Byte.SIZE + getFragmentLength();
+	}
+
 	/**
 	 * Parses a sequence of <em>DTLSCiphertext</em> structures into {@code Record}> instances.
 	 * 
