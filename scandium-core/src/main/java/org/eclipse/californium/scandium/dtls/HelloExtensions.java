@@ -138,15 +138,15 @@ public final class HelloExtensions {
 			List<HelloExtension> extensions = new ArrayList<HelloExtension>();
 
 			int length = reader.read(LENGTH_BITS);
-
-			while (length > 0) {
-				int typeId = reader.read(HelloExtension.TYPE_BITS);
-				int extensionLength = reader.read(HelloExtension.LENGTH_BITS);
-				DatagramReader extensionDataReader = reader.createRangeReader(extensionLength);
+			DatagramReader rangeReader = reader.createRangeReader(length);
+			while (rangeReader.bytesAvailable()) {
+				int typeId = rangeReader.read(HelloExtension.TYPE_BITS);
+				int extensionLength = rangeReader.read(HelloExtension.LENGTH_BITS);
+				DatagramReader extensionDataReader = rangeReader.createRangeReader(extensionLength);
 				HelloExtension extension = HelloExtension.fromExtensionDataReader(typeId, extensionDataReader,
 						peerAddress);
 				if (extensionDataReader.bytesAvailable()) {
-					byte[] bytesLeft = reader.readBytesLeft();
+					byte[] bytesLeft = extensionDataReader.readBytesLeft();
 					throw new HandshakeException(String.format(
 							"Too many bytes, %d left, hello extension not completely parsed! hello extension type %d",
 							bytesLeft.length, typeId),
@@ -163,20 +163,9 @@ public final class HelloExtensions {
 				} else {
 					LOGGER.debug("Peer included an unknown extension type code [{}] in its Hello message", typeId);
 				}
-				// reduce by (type field length + length field length +
-				// extension's length)
-				length -= (HelloExtension.TYPE_BITS + HelloExtension.LENGTH_BITS) / Byte.SIZE + extensionLength;
-
 			}
 
-			if (length < 0) {
-				// the lengths of the extensions did not add up correctly
-				// this is always FATAL as defined by the TLS spec (section 7.2.2)
-				throw new HandshakeException("Hello message contained malformed extensions",
-						new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR, peerAddress));
-			} else {
-				return new HelloExtensions(extensions);
-			}
+			return new HelloExtensions(extensions);
 		} catch (IllegalArgumentException ex) {
 			throw new HandshakeException("Hello message contained malformed extensions, " + ex.getMessage(),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR, peerAddress));

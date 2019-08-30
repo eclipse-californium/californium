@@ -87,14 +87,12 @@ public final class SupportedEllipticCurvesExtension extends HelloExtension {
 
 	public static HelloExtension fromExtensionDataReader(DatagramReader extensionDataReader) {
 
-		int listLength = extensionDataReader.read(LIST_LENGTH_BITS);
-
 		List<Integer> groupIds = new ArrayList<Integer>();
-		while (listLength > 0) {
-			int id = extensionDataReader.read(CURVE_BITS);
+		int listLength = extensionDataReader.read(LIST_LENGTH_BITS);
+		DatagramReader rangeReader = extensionDataReader.createRangeReader(listLength);
+		while (rangeReader.bytesAvailable()) {
+			int id = rangeReader.read(CURVE_BITS);
 			groupIds.add(id);
-
-			listLength -= (CURVE_BITS / Byte.SIZE);
 		}
 
 		return new SupportedEllipticCurvesExtension(groupIds);

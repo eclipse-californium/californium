@@ -672,11 +672,36 @@ public enum CipherSuite {
 		return writer.toByteArray();
 	}
 
+	/**
+	 * Decode cipher suite list from byte array.
+	 * 
+	 * @param byteArray byte array with encoded cipher suites
+	 * @param numElements number of encoded cipher suites
+	 * @return list of cipher suites
+	 * @throws IllegalArgumentException if provided number of cipher suites
+	 *             doesn't macht the provided byte array
+	 * @deprecated use {@link #listFromReader(DatagramReader)}
+	 */
+	@Deprecated
 	public static List<CipherSuite> listFromByteArray(byte[] byteArray, int numElements) {
-		List<CipherSuite> cipherSuites = new ArrayList<CipherSuite>();
-		DatagramReader reader = new DatagramReader(byteArray);
+		List<CipherSuite> cipherSuites = listFromReader(new DatagramReader(byteArray, false));
+		if (cipherSuites.size() != numElements) {
+			throw new IllegalArgumentException("");
+		}
+		return cipherSuites;
+	}
 
-		for (int i = 0; i < numElements; i++) {
+	/**
+	 * Decode cipher suite list from reader.
+	 * 
+	 * @param reader reader with encoded cipher suites
+	 * @return list of cipher suites
+	 * @throws IllegalArgumentException if a decode error occurs
+	 */
+	public static List<CipherSuite> listFromReader(DatagramReader reader) {
+		List<CipherSuite> cipherSuites = new ArrayList<CipherSuite>();
+
+		while (reader.bytesAvailable()) {
 			int code = reader.read(CIPHER_SUITE_BITS);
 			CipherSuite cipher = CipherSuite.getTypeByCode(code);
 			// simply ignore unknown cipher suites as mandated by

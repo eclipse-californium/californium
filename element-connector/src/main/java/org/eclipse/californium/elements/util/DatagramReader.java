@@ -337,13 +337,26 @@ public final class DatagramReader {
 	/**
 	 * Create reader for provided range.
 	 * 
-	 * @param count size of the range
+	 * @param count size of the range in bytes
 	 * @return reader
-	 * @throws IllegalStateException if some bits are unread
+	 * @throws IllegalStateException if some bits of the current byte are unread
 	 * @throws IllegalArgumentException if provided count exceeds available
 	 *             bytes
 	 */
 	public DatagramReader createRangeReader(int count) {
+		return new DatagramReader(createRangeInputStream(count));
+	}
+
+	/**
+	 * Create input stream for provided range.
+	 * 
+	 * @param count size of the range in bytes
+	 * @return input stream
+	 * @throws IllegalStateException if some bits of the current byte are unread
+	 * @throws IllegalArgumentException if provided count exceeds available
+	 *             bytes
+	 */
+	public ByteArrayInputStream createRangeInputStream(int count) {
 		if (currentBitIndex > 0) {
 			throw new IllegalStateException(currentBitIndex + " bits unread!");
 		}
@@ -354,11 +367,11 @@ public final class DatagramReader {
 		}
 		if (byteStream instanceof RangeInputStream) {
 			RangeInputStream range = (RangeInputStream) byteStream;
-			return new DatagramReader(range.range(count));
+			return range.range(count);
 		} else {
 			byte[] range = new byte[count];
 			byteStream.read(range, 0, count);
-			return new DatagramReader(new RangeInputStream(range));
+			return new RangeInputStream(range);
 		}
 	}
 

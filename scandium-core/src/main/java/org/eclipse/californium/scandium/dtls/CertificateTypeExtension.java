@@ -89,8 +89,9 @@ public abstract class CertificateTypeExtension extends HelloExtension {
 			// is at least 2 bytes long (1 byte length, 1 byte type)
 			int length = extensionDataReader.read(LIST_FIELD_LENGTH_BITS);
 			types = new ArrayList<>(length);
-			for (int i = 0; i < length; i++) {
-				int typeCode = extensionDataReader.read(EXTENSION_TYPE_BITS);
+			DatagramReader rangeReader = extensionDataReader.createRangeReader(length);
+			while (rangeReader.bytesAvailable()) {
+				int typeCode = rangeReader.read(EXTENSION_TYPE_BITS);
 				CertificateType certificateType = CertificateType.getTypeFromCode(typeCode);
 				if (certificateType != null) {
 					types.add(certificateType);

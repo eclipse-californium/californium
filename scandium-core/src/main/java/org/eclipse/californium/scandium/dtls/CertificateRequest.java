@@ -205,30 +205,31 @@ public final class CertificateRequest extends HandshakeMessage {
 	 */
 	public static HandshakeMessage fromReader(DatagramReader reader, InetSocketAddress peerAddress) {
 
-		int length = reader.read(CERTIFICATE_TYPES_LENGTH_BITS);
 		List<ClientCertificateType> certificateTypes = new ArrayList<>();
-		for (int i = 0; i < length; i++) {
-			int code = reader.read(CERTIFICATE_TYPE_BITS);
+		int length = reader.read(CERTIFICATE_TYPES_LENGTH_BITS);
+		DatagramReader rangeReader = reader.createRangeReader(length);
+		while (rangeReader.bytesAvailable()) {
+			int code = rangeReader.read(CERTIFICATE_TYPE_BITS);
 			certificateTypes.add(ClientCertificateType.getTypeByCode(code));
 		}
 
-		length = reader.read(SUPPORTED_SIGNATURE_LENGTH_BITS);
 		List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms = new ArrayList<>();
-		for (int i = 0; i < length; i += 2) {
-			int codeHash = reader.read(SUPPORTED_SIGNATURE_BITS);
-			int codeSignature = reader.read(SUPPORTED_SIGNATURE_BITS);
+		length = reader.read(SUPPORTED_SIGNATURE_LENGTH_BITS);
+		rangeReader = reader.createRangeReader(length);
+		while (rangeReader.bytesAvailable()) {
+			int codeHash = rangeReader.read(SUPPORTED_SIGNATURE_BITS);
+			int codeSignature = rangeReader.read(SUPPORTED_SIGNATURE_BITS);
 			supportedSignatureAlgorithms.add(new SignatureAndHashAlgorithm(HashAlgorithm.getAlgorithmByCode(codeHash),
 					SignatureAlgorithm.getAlgorithmByCode(codeSignature)));
 		}
 
-		length = reader.read(CERTIFICATE_AUTHORITIES_LENGTH_BITS);
 		List<X500Principal> certificateAuthorities = new ArrayList<>();
-		while (length > 0) {
-			int nameLength = reader.read(CERTIFICATE_AUTHORITY_LENGTH_BITS);
-			byte[] name = reader.readBytes(nameLength);
+		length = reader.read(CERTIFICATE_AUTHORITIES_LENGTH_BITS);
+		rangeReader = reader.createRangeReader(length);
+		while (rangeReader.bytesAvailable()) {
+			int nameLength = rangeReader.read(CERTIFICATE_AUTHORITY_LENGTH_BITS);
+			byte[] name = rangeReader.readBytes(nameLength);
 			certificateAuthorities.add(new X500Principal(name));
-
-			length -= 2 + name.length;
 		}
 
 		return new CertificateRequest(certificateTypes, supportedSignatureAlgorithms, certificateAuthorities, peerAddress);
@@ -448,8 +449,8 @@ public final class CertificateRequest extends HandshakeMessage {
 			// (For more details see : https://github.com/eclipse/californium/issues/748)
 			boolean meetsSigningRequirements = !type.requiresSigningCapability()
 					|| (cert.getKeyUsage() == null || cert.getKeyUsage()[0]);
-			LOGGER.debug("type: {}, isCompatibleWithKeyAlgorithm[{}]: {}, meetsSigningRequirements: {}", new Object[] {
-					type, cert.getPublicKey().getAlgorithm(), isCompatibleType, meetsSigningRequirements });
+			LOGGER.debug("type: {}, isCompatibleWithKeyAlgorithm[{}]: {}, meetsSigningRequirements: {}", type,
+					cert.getPublicKey().getAlgorithm(), isCompatibleType, meetsSigningRequirements);
 			if (isCompatibleType && meetsSigningRequirements) {
 				return true;
 			}
