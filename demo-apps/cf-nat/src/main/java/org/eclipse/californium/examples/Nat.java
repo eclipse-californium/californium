@@ -30,6 +30,14 @@ import java.net.URISyntaxException;
  */
 public class Nat {
 
+	static {
+		// Define a default logback.configurationFile
+		String property = System.getProperty("logback.configurationFile");
+		if (property == null) {
+			System.setProperty("logback.configurationFile", "logback-nat-config.xml");
+		}
+	}
+
 	public static void main(String[] args) {
 		if (args.length < 2 || args.length > 4) {
 			System.out.println(
