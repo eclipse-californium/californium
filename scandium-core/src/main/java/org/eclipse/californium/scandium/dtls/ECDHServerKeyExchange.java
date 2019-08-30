@@ -258,19 +258,16 @@ public final class ECDHServerKeyExchange extends ServerKeyExchange {
 		int length = reader.read(PUBLIC_LENGTH_BITS);
 		byte[] pointEncoded = reader.readBytes(length);
 
-		byte[] bytesLeft = reader.readBytesLeft();
-
 		// default is SHA256withECDSA
 		SignatureAndHashAlgorithm signAndHash = new SignatureAndHashAlgorithm(SignatureAndHashAlgorithm.HashAlgorithm.SHA256, SignatureAndHashAlgorithm.SignatureAlgorithm.ECDSA);
 
 		byte[] signatureEncoded = null;
-		if (bytesLeft.length > 0) {
-			DatagramReader remainder = new DatagramReader(bytesLeft);
-			int hashAlgorithm = remainder.read(HASH_ALGORITHM_BITS);
-			int signatureAlgorithm = remainder.read(SIGNATURE_ALGORITHM_BITS);
+		if (reader.bytesAvailable()) {
+			int hashAlgorithm = reader.read(HASH_ALGORITHM_BITS);
+			int signatureAlgorithm = reader.read(SIGNATURE_ALGORITHM_BITS);
 			signAndHash = new SignatureAndHashAlgorithm(hashAlgorithm, signatureAlgorithm);
-			length = remainder.read(SIGNATURE_LENGTH_BITS);
-			signatureEncoded = remainder.readBytes(length);
+			length = reader.read(SIGNATURE_LENGTH_BITS);
+			signatureEncoded = reader.readBytes(length);
 		}
 
 		return new ECDHServerKeyExchange(signAndHash, curveId, pointEncoded, signatureEncoded, peerAddress);

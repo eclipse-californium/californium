@@ -100,21 +100,16 @@ public enum CompressionMethod {
 	}
 
 	/**
-	 * Takes a byte array and creates the representing list of compression
-	 * methods.
+	 * Takes a reader and creates the representing list of compression methods.
 	 * 
-	 * @param byteArray
+	 * @param reader
 	 *            the encoded compression methods as byte array
-	 * @param numElements
-	 *            the number of compression methods represented in the byte
-	 *            array
 	 * @return corresponding list of compression methods
 	 */
-	public static List<CompressionMethod> listFromByteArray(byte[] byteArray, int numElements) {
+	public static List<CompressionMethod> listFromReader(DatagramReader reader) {
 		List<CompressionMethod> compressionMethods = new ArrayList<CompressionMethod>();
-		DatagramReader reader = new DatagramReader(byteArray);
 
-		for (int i = 0; i < numElements; i++) {
+		while (reader.bytesAvailable()) {
 			int code = reader.read(COMPRESSION_METHOD_BITS);
 			CompressionMethod method = CompressionMethod.getMethodByCode(code);
 			if (method != null) {

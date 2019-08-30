@@ -23,7 +23,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.io.ByteArrayInputStream;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
@@ -291,20 +290,15 @@ public final class CertificateMessage extends HandshakeMessage {
 	private static CertificateMessage readX509CertificateMessage(final DatagramReader reader, final InetSocketAddress peerAddress) throws HandshakeException {
 
 		LOGGER.debug("Parsing X.509 CERTIFICATE message");
-		int certificateChainLength = reader.read(CERTIFICATE_LIST_LENGTH);
 		List<Certificate> certs = new ArrayList<>();
-
+		int certificateChainLength = reader.read(CERTIFICATE_LIST_LENGTH);
+		DatagramReader rangeReader = reader.createRangeReader(certificateChainLength);
 		try {
 			CertificateFactory factory = CertificateFactory.getInstance(CERTIFICATE_TYPE_X509);
 
-			while (certificateChainLength > 0) {
-				int certificateLength = reader.read(CERTIFICATE_LENGTH_BITS);
-				byte[] certificate = reader.readBytes(certificateLength);
-	
-				// the size of the length and the actual length of the encoded certificate
-				certificateChainLength -= (CERTIFICATE_LENGTH_BITS/8) + certificateLength;
-
-				certs.add(factory.generateCertificate(new ByteArrayInputStream(certificate)));
+			while (rangeReader.bytesAvailable()) {
+				int certificateLength = rangeReader.read(CERTIFICATE_LENGTH_BITS);
+				certs.add(factory.generateCertificate(rangeReader.createRangeInputStream(certificateLength)));
 			}
 
 			return new CertificateMessage(factory.generateCertPath(certs), peerAddress);

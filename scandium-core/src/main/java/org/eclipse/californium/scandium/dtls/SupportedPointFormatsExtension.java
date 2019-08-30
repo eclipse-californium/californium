@@ -99,15 +99,12 @@ public class SupportedPointFormatsExtension extends HelloExtension {
 
 	public static HelloExtension fromExtensionDataReader(DatagramReader extensionDataReader) {
 
-		int listLength = extensionDataReader.read(LIST_LENGTH_BITS);
-
 		List<ECPointFormat> ecPointFormatList = new ArrayList<ECPointFormat>();
-		while (listLength > 0) {
-			ECPointFormat format = ECPointFormat.getECPointFormatById(extensionDataReader.read(POINT_FORMAT_BITS));
+		int listLength = extensionDataReader.read(LIST_LENGTH_BITS);
+		DatagramReader rangeReader = extensionDataReader.createRangeReader(listLength);
+		while (rangeReader.bytesAvailable()) {
+			ECPointFormat format = ECPointFormat.getECPointFormatById(rangeReader.read(POINT_FORMAT_BITS));
 			ecPointFormatList.add(format);
-
-			// one point format uses 1 byte
-			listLength -= 1;
 		}
 
 		return new SupportedPointFormatsExtension(ecPointFormatList);

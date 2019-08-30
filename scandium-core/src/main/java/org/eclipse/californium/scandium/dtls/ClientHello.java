@@ -276,12 +276,12 @@ public final class ClientHello extends HandshakeMessage {
 		result.cookie = reader.readBytes(cookieLength);
 
 		int cipherSuitesLength = reader.read(CIPHER_SUITS_LENGTH_BITS);
-		result.supportedCipherSuites = CipherSuite.listFromByteArray(reader.readBytes(cipherSuitesLength),
-				cipherSuitesLength / 2); // 2
+		DatagramReader rangeReader = reader.createRangeReader(cipherSuitesLength);
+		result.supportedCipherSuites = CipherSuite.listFromReader(rangeReader);
 
 		int compressionMethodsLength = reader.read(COMPRESSION_METHODS_LENGTH_BITS);
-		result.compressionMethods = CompressionMethod.listFromByteArray(reader.readBytes(compressionMethodsLength),
-				compressionMethodsLength);
+		rangeReader = reader.createRangeReader(compressionMethodsLength);
+		result.compressionMethods = CompressionMethod.listFromReader(rangeReader);
 
 		if (reader.bytesAvailable()) {
 			result.extensions = HelloExtensions.fromReader(reader, peerAddress);
