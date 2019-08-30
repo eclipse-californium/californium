@@ -309,6 +309,7 @@ public abstract class HandshakeMessage extends AbstractMessage {
 
 			return body;
 		} catch (IllegalArgumentException ex) {
+			LOGGER.debug("Handshake message from peer [{}] malformed", peerAddress, ex);
 			throw new HandshakeException("Handshake message malformed, " + ex.getMessage(),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR, peerAddress));
 		}

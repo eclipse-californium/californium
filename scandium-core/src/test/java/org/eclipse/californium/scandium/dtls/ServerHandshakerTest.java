@@ -185,12 +185,11 @@ public class ServerHandshakerTest {
 
 		processClientHello(0, extensions);
 
-		byte[] loggedMsg = new byte[clientHelloMsg.length];
-		// copy the received ClientHello message from the handshakeMessages buffer
-		System.arraycopy(handshaker.handshakeMessages.toByteArray(), 0, loggedMsg, 0, clientHelloMsg.length);
+		// access the received ClientHello message from the handshakeMessages buffer
+		byte[] receivedMsg = handshaker.handshakeMessages.get(0).toByteArray();
 		// and verify that it is equal to the original ClientHello message
 		// sent by the client
-		assertArrayEquals(clientHelloMsg, loggedMsg);
+		assertArrayEquals(clientHelloMsg, receivedMsg);
 	}
 
 	@Test
@@ -391,7 +390,8 @@ public class ServerHandshakerTest {
 		// put KEY_EXCHANGE message with seq no. 2 to inbound message queue
 		keyExchangeRecord.applySession(handshaker.getSession());
 		handshaker.processMessage(keyExchangeRecord);
-		assertThat(handshaker.clientKeyExchange, nullValue());
+		
+		assertThat(handshaker.handshakeMessages.size(), is(6));
 		assertFalse("Client's KEY_EXCHANGE message should have been queued",
 				handshaker.inboundMessageBuffer.isEmpty());
 
@@ -401,9 +401,9 @@ public class ServerHandshakerTest {
 	private void assertThatAllMessagesHaveBeenProcessedInOrder() {
 		assertThat(handshaker.getNextReceiveMessageSequenceNumber(), is(3));
 		assertThat("Client's CERTIFICATE message should have been processed",
-				handshaker.clientCertificate, notNullValue());
+				getHandshakeMessage(6, HandshakeType.CERTIFICATE), notNullValue());
 		assertThat("Client's KEY_EXCHANGE message should have been processed",
-				handshaker.clientKeyExchange, notNullValue());
+				getHandshakeMessage(7, HandshakeType.CLIENT_KEY_EXCHANGE), notNullValue());
 		assertTrue("All (processed) messages should have been removed from inbound messages queue",
 				handshaker.inboundMessageBuffer.isEmpty());
 
@@ -484,6 +484,14 @@ public class ServerHandshakerTest {
 			writer.writeBytes(extBytes);
 		}
 		return writer.toByteArray();
+	}
+
+	public HandshakeMessage getHandshakeMessage(int index, HandshakeType type) {
+		HandshakeMessage message = handshaker.handshakeMessages.get(index);
+		if (message.getMessageType() == type) {
+			return message;
+		}
+		return null;
 	}
 
 	/**

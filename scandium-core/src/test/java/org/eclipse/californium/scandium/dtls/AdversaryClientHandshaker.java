@@ -18,7 +18,6 @@ package org.eclipse.californium.scandium.dtls;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 
-import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -67,11 +66,6 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 	protected void receivedServerHelloDone(ServerHelloDone message)
 			throws HandshakeException, GeneralSecurityException {
 
-		if (serverHelloDone != null && (serverHelloDone.getMessageSeq() == message.getMessageSeq())) {
-			// discard duplicate message
-			return;
-		}
-		serverHelloDone = message;
 		flightNumber += 2;
 		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
 
@@ -119,18 +113,9 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 		 */
 		if (certificateRequest != null && negotiatedSignatureAndHashAlgorithm != null) {
 			// prepare handshake messages
-			DatagramWriter handshakeMessages = new DatagramWriter(2048);
-			handshakeMessages.writeBytes(clientHello.toByteArray());
-			handshakeMessages.writeBytes(serverHello.toByteArray());
-			handshakeMessages.writeBytes(serverCertificate.toByteArray());
-			handshakeMessages.writeBytes(serverKeyExchange.toByteArray());
-			handshakeMessages.writeBytes(certificateRequest.toByteArray());
-			handshakeMessages.writeBytes(serverHelloDone.toByteArray());
-			handshakeMessages.writeBytes(clientCertificate.toByteArray());
-			handshakeMessages.writeBytes(clientKeyExchange.toByteArray());
 
-			certificateVerify = new CertificateVerify(negotiatedSignatureAndHashAlgorithm, privateKey,
-					handshakeMessages.toByteArray(), session.getPeer());
+			CertificateVerify certificateVerify = new CertificateVerify(negotiatedSignatureAndHashAlgorithm, privateKey,
+					handshakeMessages, session.getPeer());
 
 			wrapMessage(flight, certificateVerify);
 		}
@@ -150,29 +135,9 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 		// create hash of handshake messages
 		// can't do this on the fly, since there is no explicit ordering of
 		// messages
-		md.update(clientHello.toByteArray());
-		md.update(serverHello.toByteArray());
-		if (serverCertificate != null) {
-			md.update(serverCertificate.toByteArray());
-		}
-		if (serverKeyExchange != null) {
-			md.update(serverKeyExchange.toByteArray());
-		}
-		if (certificateRequest != null) {
-			md.update(certificateRequest.toByteArray());
-		}
-		md.update(serverHelloDone.toByteArray());
+		MessageDigest md = getHandshakeMessageDigest();
 
-		if (clientCertificate != null) {
-			md.update(clientCertificate.toByteArray());
-		}
-		md.update(clientKeyExchange.toByteArray());
-
-		if (certificateVerify != null) {
-			md.update(certificateVerify.toByteArray());
-		}
-
-		MessageDigest mdWithClientFinished = null;
+		MessageDigest mdWithClientFinished;
 		try {
 			mdWithClientFinished = (MessageDigest) md.clone();
 		} catch (CloneNotSupportedException e) {
@@ -180,9 +145,8 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, message.getPeer()));
 		}
 
-		handshakeHash = md.digest();
 		Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(),
-				session.getMasterSecret(), isClient, handshakeHash, session.getPeer());
+				session.getMasterSecret(), isClient, md.digest(), session.getPeer());
 		wrapMessage(flight, finished);
 
 		// compute handshake hash with client's finished message also

@@ -57,7 +57,6 @@ import java.util.List;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.util.Bytes;
-import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -123,22 +122,8 @@ public class ClientHandshaker extends Handshaker {
 	 */
 	protected final List<CertificateType> supportedServerCertificateTypes;
 
-	/*
-	 * Store all the message which can possibly be sent by the server. We need
-	 * these to compute the handshake hash.
-	 */
-	/** The server's {@link ServerHello}. Mandatory. */
-	protected ServerHello serverHello;
-	/** The server's {@link CertificateMessage}. Optional. */
-	protected CertificateMessage serverCertificate = null;
-	protected CertificateMessage clientCertificate = null;
 	/** The server's {@link CertificateRequest}. Optional. */
 	protected CertificateRequest certificateRequest = null;
-	protected CertificateVerify certificateVerify = null;
-	/** The server's {@link ServerKeyExchange}. Optional. */
-	protected ServerKeyExchange serverKeyExchange = null;
-	/** The server's {@link ServerHelloDone}. Mandatory. */
-	protected ServerHelloDone serverHelloDone;
 
 	/** The hash of all received handshake messages sent in the finished message. */
 	protected byte[] handshakeHash = null;
@@ -207,7 +192,7 @@ public class ClientHandshaker extends Handshaker {
 				break;
 
 			case PSK:
-				serverKeyExchange = (PSKServerKeyExchange) message;
+				// server hint is not supported! Therefore no processing is done
 				break;
 			
 			case ECDHE_PSK:
@@ -272,6 +257,8 @@ public class ClientHandshaker extends Handshaker {
 	 * @throws HandshakeException if the CLIENT_HELLO record cannot be created
 	 */
 	protected void receivedHelloVerifyRequest(HelloVerifyRequest message) throws HandshakeException {
+		// HelloVerifyRequest and messages before are not included in the handshake hashs
+		handshakeMessages.clear();
 
 		clientHello.setCookie(message.getCookie());
 
@@ -292,8 +279,6 @@ public class ClientHandshaker extends Handshaker {
 	 * 	e.g. because the server selected an unknown or unsupported cipher suite
 	 */
 	protected void receivedServerHello(ServerHello message) throws HandshakeException {
-		serverHello = message;
-
 		// store the negotiated values
 		usedProtocol = message.getServerVersion();
 		serverRandom = message.getRandom();
@@ -320,19 +305,18 @@ public class ClientHandshaker extends Handshaker {
 		session.setCompressionMethod(message.getCompressionMethod());
 		verifyServerHelloExtensions(message);
 		if (connectionIdGenerator != null) {
-			ConnectionIdExtension extension = serverHello.getConnectionIdExtension();
+			ConnectionIdExtension extension = message.getConnectionIdExtension();
 			if (extension != null) {
 				ConnectionId connectionId = extension.getConnectionId();
 				session.setWriteConnectionId(connectionId);
 			}
 		}
-		session.setSendCertificateType(serverHello.getClientCertificateType());
-		session.setSniSupported(serverHello.hasServerNameExtension());
+		session.setSendCertificateType(message.getClientCertificateType());
+		session.setSniSupported(message.hasServerNameExtension());
 		session.setParameterAvailable();
 		if (!cipherSuite.requiresServerCertificateMessage()) {
 			states = NO_SEVER_CERTIFICATE;
 		}
-		initMessageDigest();
 	}
 
 	protected void verifyServerHelloExtensions(ServerHello message) throws HandshakeException {
@@ -377,7 +361,7 @@ public class ClientHandshaker extends Handshaker {
 								message.getPeer()));
 			}
 		}
-		CertificateType serverCertificateType = serverHello.getServerCertificateType();
+		CertificateType serverCertificateType = message.getServerCertificateType();
 		if (!isSupportedCertificateType(serverCertificateType, supportedServerCertificateTypes)) {
 			throw new HandshakeException(
 					"Server wants to use not supported server certificate type " + serverCertificateType,
@@ -400,9 +384,8 @@ public class ClientHandshaker extends Handshaker {
 	 *             if the certificate could not be verified.
 	 */
 	private void receivedServerCertificate(CertificateMessage message) throws HandshakeException {
-		serverCertificate = message;
-		verifyCertificate(serverCertificate);
-		serverPublicKey = serverCertificate.getPublicKey();
+		verifyCertificate(message);
+		serverPublicKey = message.getPublicKey();
 		peerCertPath = message.getCertificateChain();
 	}
 
@@ -418,7 +401,6 @@ public class ClientHandshaker extends Handshaker {
 	 * @throws HandshakeException if the message can't be verified
 	 */
 	private void receivedServerKeyExchange(ECDHServerKeyExchange message) throws HandshakeException {
-		serverKeyExchange = message;
 		message.verifySignature(serverPublicKey, clientRandom, serverRandom);
 		// server identity has been proven
 		if (peerCertPath != null) {
@@ -446,7 +428,6 @@ public class ClientHandshaker extends Handshaker {
 	 * @throws HandshakeException
 	 */
 	private void receivedServerKeyExchange(EcdhPskServerKeyExchange message) throws HandshakeException {
-		serverKeyExchange = message;
 		ephemeralServerPublicKey = message.getPublicKey();
 		try {
 			ecdhe = new ECDHECryptography(ephemeralServerPublicKey.getParams());
@@ -469,7 +450,6 @@ public class ClientHandshaker extends Handshaker {
 	 * @throws GeneralSecurityException if the client's handshake records cannot be created
 	 */
 	protected void receivedServerHelloDone(ServerHelloDone message) throws HandshakeException, GeneralSecurityException {
-		serverHelloDone = message;
 		flightNumber += 2;
 		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
 
@@ -527,17 +507,8 @@ public class ClientHandshaker extends Handshaker {
 			}
 
 			// prepare handshake messages
-			DatagramWriter handshakeMessages = new DatagramWriter(2048);
-			handshakeMessages.writeBytes(clientHello.toByteArray());
-			handshakeMessages.writeBytes(serverHello.toByteArray());
-			handshakeMessages.writeBytes(serverCertificate.toByteArray());
-			handshakeMessages.writeBytes(serverKeyExchange.toByteArray());
-			handshakeMessages.writeBytes(certificateRequest.toByteArray());
-			handshakeMessages.writeBytes(serverHelloDone.toByteArray());
-			handshakeMessages.writeBytes(clientCertificate.toByteArray());
-			handshakeMessages.writeBytes(clientKeyExchange.toByteArray());
 
-			certificateVerify = new CertificateVerify(negotiatedSignatureAndHashAlgorithm, privateKey, handshakeMessages.toByteArray(), session.getPeer());
+			CertificateVerify certificateVerify = new CertificateVerify(negotiatedSignatureAndHashAlgorithm, privateKey, handshakeMessages, session.getPeer());
 
 			wrapMessage(flight, certificateVerify);
 		}
@@ -555,29 +526,8 @@ public class ClientHandshaker extends Handshaker {
 		// create hash of handshake messages
 		// can't do this on the fly, since there is no explicit ordering of
 		// messages
-		md.update(clientHello.toByteArray());
-		md.update(serverHello.toByteArray());
-		if (serverCertificate != null) {
-			md.update(serverCertificate.toByteArray());
-		}
-		if (serverKeyExchange != null) {
-			md.update(serverKeyExchange.toByteArray());
-		}
-		if (certificateRequest != null) {
-			md.update(certificateRequest.toByteArray());
-		}
-		md.update(serverHelloDone.toByteArray());
-
-		if (clientCertificate != null) {
-			md.update(clientCertificate.toByteArray());
-		}
-		md.update(clientKeyExchange.toByteArray());
-
-		if (certificateVerify != null) {
-			md.update(certificateVerify.toByteArray());
-		}
-
-		MessageDigest mdWithClientFinished = null;
+		MessageDigest md = getHandshakeMessageDigest();
+		MessageDigest mdWithClientFinished;
 		try {
 			mdWithClientFinished = (MessageDigest) md.clone();
 		} catch (CloneNotSupportedException e) {
@@ -587,8 +537,7 @@ public class ClientHandshaker extends Handshaker {
 							AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, message.getPeer()));
 		}
 
-		handshakeHash = md.digest();
-		Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), session.getMasterSecret(), isClient, handshakeHash, session.getPeer());
+		Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), session.getMasterSecret(), isClient, md.digest(), session.getPeer());
 		wrapMessage(flight, finished);
 
 		// compute handshake hash with client's finished message also
@@ -604,7 +553,7 @@ public class ClientHandshaker extends Handshaker {
 		 * First, if required by server, send Certificate.
 		 */
 		if (certificateRequest != null) {
-
+			CertificateMessage clientCertificate;
 			if (CertificateType.RAW_PUBLIC_KEY == session.sendCertificateType()) {
 				byte[] rawPublicKeyBytes = Bytes.EMPTY;
 				PublicKey key = determineClientRawPublicKey(certificateRequest);
