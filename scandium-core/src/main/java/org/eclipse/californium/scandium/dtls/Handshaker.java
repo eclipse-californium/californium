@@ -62,7 +62,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -93,7 +92,6 @@ import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
@@ -197,17 +195,13 @@ public abstract class Handshaker {
 
 	/** Buffer for received records that can not be processed immediately. */
 	protected InboundMessageBuffer inboundMessageBuffer;
+	/** List of handshake messages */
+	protected final List<HandshakeMessage> handshakeMessages = new ArrayList<HandshakeMessage>();
 
 	/**
 	 * Current partial reassembled handshake message.
 	 */
 	protected ReassemblingHandshakeMessage reassembledMessage;
-
-	/**
-	 * The message digest to compute the handshake hashes sent in the
-	 * {@link Finished} messages.
-	 */
-	protected MessageDigest md;
 
 	/** The handshaker's private key. */
 	protected PrivateKey privateKey;
@@ -479,11 +473,11 @@ public abstract class Handshaker {
 				
 				if (messageToProcess.getContentType() == ContentType.CHANGE_CIPHER_SPEC) {
 					// is thrown during processing
-					LOGGER.debug("Processing %s message from peer [%s]", messageToProcess.getContentType(),
+					LOGGER.debug("Processing {} message from peer [{}]", messageToProcess.getContentType(),
 							messageToProcess.getPeer());
 					setCurrentReadState();
 					++statesIndex;
-					LOGGER.debug("Processed %s message from peer [%s]", messageToProcess.getContentType(),
+					LOGGER.debug("Processed {} message from peer [{}]", messageToProcess.getContentType(),
 							messageToProcess.getPeer());
 				} else if (messageToProcess.getContentType() == ContentType.HANDSHAKE) {
 					HandshakeMessage handshakeMessage = (HandshakeMessage) messageToProcess;
@@ -539,8 +533,11 @@ public abstract class Handshaker {
 								}
 								LOGGER.debug(msg.toString());
 							}
+							if (epoch == 0) {
+								handshakeMessages.add(handshakeMessage);
+							}
 							doProcessMessage(handshakeMessage);
-							LOGGER.debug("Processed %s message from peer [%s]", handshakeMessage.getMessageType(),
+							LOGGER.debug("Processed {} message from peer [{}]", handshakeMessage.getMessageType(),
 									handshakeMessage.getPeer());
 							if (!lastFlight) {
 								// last Flight may have changed processing
@@ -665,23 +662,20 @@ public abstract class Handshaker {
 	// Methods ////////////////////////////////////////////////////////
 
 	/**
-	 * Initialize message digest for FINISH message.
+	 * Get message digest for FINISH message.
 	 * 
-	 * @throw IllegalStateException if message digest is not available for this
-	 *        platform. The supported message digest are checked by
-	 *        {@link CipherSuite#isSupported()}.
+	 * @return message digest update with all handshake messages in
+	 *         {@link #handshakeMessages}
 	 */
-	protected final void initMessageDigest() {
-		String hashName = session.getCipherSuite().getPseudoRandomFunctionMessageDigestName();
-		try {
-			// used for several records, which may be processed by different
-			// threads. Therefore create a separate instance, the thread local
-			// instance will not work.
-			this.md = MessageDigest.getInstance(hashName);
-		} catch (NoSuchAlgorithmException e) {
-			throw new IllegalStateException(
-					String.format("Message digest algorithm %s is not available on JVM", hashName));
+	protected final MessageDigest getHandshakeMessageDigest() {
+		MessageDigest md = session.getCipherSuite().getThreadLocalPseudoRandomFunctionMessageDigest();
+		int index = 0;
+		for (HandshakeMessage handshakeMessage : handshakeMessages) {
+			md.update(handshakeMessage.toByteArray());
+			LOGGER.trace("  [{}] - {}", index, handshakeMessage.getMessageType());
+			++index;
 		}
+		return md;
 	}
 
 	/**
@@ -857,6 +851,10 @@ public abstract class Handshaker {
 		applySendMessageSequenceNumber(handshakeMessage);
 		int messageLength = handshakeMessage.getMessageLength();
 		int maxFragmentLength = session.getMaxFragmentLength();
+
+		if (session.getWriteEpoch() == 0) {
+			handshakeMessages.add(handshakeMessage);
+		}
 
 		if (messageLength <= maxFragmentLength) {
 			boolean useCid = handshakeMessage.getMessageType() == HandshakeType.FINISHED;

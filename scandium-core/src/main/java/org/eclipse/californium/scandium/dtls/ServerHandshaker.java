@@ -64,7 +64,6 @@ import java.util.List;
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
-import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -132,18 +131,15 @@ public class ServerHandshaker extends Handshaker {
 	private SupportedGroup negotiatedSupportedGroup;
 	private SignatureAndHashAlgorithm signatureAndHashAlgorithm;
 	/** All the handshake messages exchanged before the CertificateVerify message. */
-	protected DatagramWriter handshakeMessages;
 
 	/*
 	 * Store all the messages which can possibly be sent by the client. We
 	 * need these to compute the handshake hash.
 	 */
 	/** The client's {@link CertificateMessage}. Optional. */
-	protected CertificateMessage clientCertificate = null;
-	/** The client's {@link ClientKeyExchange}. mandatory. */
-	protected ClientKeyExchange clientKeyExchange;
+	private CertificateMessage clientCertificate = null;
 	/** The client's {@link CertificateVerify}. Optional. */
-	protected CertificateVerify certificateVerify = null;
+	private CertificateVerify certificateVerify = null;
 
 	private PskPublicInformation preSharedKeyIdentity;
 
@@ -232,7 +228,6 @@ public class ServerHandshaker extends Handshaker {
 						String.format("Unsupported key exchange algorithm %s", getKeyExchangeAlgorithm().name()),
 						new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, message.getPeer()));
 			}
-			handshakeMessages.writeBytes(clientKeyExchange.getRawMessage());
 
 			if (!clientAuthenticationRequired || getKeyExchangeAlgorithm() != KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN) {
 				expectChangeCipherSpecMessage();
@@ -267,18 +262,17 @@ public class ServerHandshaker extends Handshaker {
 	private void receivedClientCertificate(final CertificateMessage message) throws HandshakeException {
 
 		clientCertificate = message;
-		if (clientAuthenticationRequired && clientCertificate.getCertificateChain() != null
-				&& clientCertificate.getPublicKey() == null) {
+		if (clientAuthenticationRequired && message.getCertificateChain() != null
+				&& message.getPublicKey() == null) {
 			LOGGER.debug("Client authentication failed: missing certificate!");
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE,
 					session.getPeer());
 			throw new HandshakeException("Client Certificate required!", alert);
 		}
-		verifyCertificate(clientCertificate);
-		clientPublicKey = clientCertificate.getPublicKey();
+		verifyCertificate(message);
+		clientPublicKey = message.getPublicKey();
 		// TODO why don't we also update the MessageDigest at this point?
-		handshakeMessages.writeBytes(clientCertificate.getRawMessage());
-		if (clientCertificate.getPublicKey() == null) {
+		if (message.getPublicKey() == null) {
 			states = EMPTY_CLIENT_CERTIFICATE;
 		}
 	}
@@ -294,8 +288,11 @@ public class ServerHandshaker extends Handshaker {
 	 */
 	private void receivedCertificateVerify(CertificateVerify message) throws HandshakeException {
 		certificateVerify = message;
-
-		message.verifySignature(clientPublicKey, handshakeMessages.toByteArray());
+		// remove last message - CertificateVerify itself
+		handshakeMessages.remove(handshakeMessages.size() - 1);
+		message.verifySignature(clientPublicKey, handshakeMessages);
+		// add CertificateVerify again
+		handshakeMessages.add(message);
 		// at this point we have successfully authenticated the client
 		CertPath peerCertPath = clientCertificate.getCertificateChain();
 		if (peerCertPath != null) {
@@ -333,17 +330,9 @@ public class ServerHandshaker extends Handshaker {
 		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
 
 		// create handshake hash
-		if (clientCertificate != null) { // optional
-			md.update(clientCertificate.getRawMessage());
-		}
+		MessageDigest md = getHandshakeMessageDigest();
 
-		md.update(clientKeyExchange.getRawMessage()); // mandatory
-
-		if (certificateVerify != null) { // optional
-			md.update(certificateVerify.getRawMessage());
-		}
-
-		MessageDigest mdWithClientFinished = null;
+		MessageDigest mdWithClientFinished;
 		try {
 			/*
 			 * the handshake_messages for the Finished message sent by the
@@ -352,14 +341,18 @@ public class ServerHandshaker extends Handshaker {
 			 * the prior one.
 			 */
 			mdWithClientFinished = (MessageDigest) md.clone();
-			mdWithClientFinished.update(message.toByteArray());
 		} catch (CloneNotSupportedException e) {
-			LOGGER.error("Cannot compute digest for server's Finish handshake message", e);
+			throw new HandshakeException(
+					"Cannot create FINISHED message hash",
+					new AlertMessage(
+							AlertLevel.FATAL,
+							AlertDescription.INTERNAL_ERROR,
+							message.getPeer()));
+//			LOGGER.error("Cannot compute digest for server's Finish handshake message", e);
 		}
 
 		// Verify client's data
-		byte[] handshakeHash = md.digest();
-		message.verifyData(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), session.getMasterSecret(), true, handshakeHash);
+		message.verifyData(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), session.getMasterSecret(), true, md.digest());
 
 		/*
 		 * First, send ChangeCipherSpec
@@ -371,8 +364,8 @@ public class ServerHandshaker extends Handshaker {
 		/*
 		 * Second, send Finished message
 		 */
-		handshakeHash = mdWithClientFinished.digest();
-		Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), session.getMasterSecret(), isClient, handshakeHash, session.getPeer());
+		mdWithClientFinished.update(message.toByteArray());
+		Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), session.getMasterSecret(), isClient, mdWithClientFinished.digest(), session.getPeer());
 		wrapMessage(flight, finished);
 		sendLastFlight(flight);
 		sessionEstablished();
@@ -397,7 +390,6 @@ public class ServerHandshaker extends Handshaker {
 
 		byte[] cookie = clientHello.getCookie();
 		flightNumber = (cookie != null && cookie.length > 0) ? 4 : 2;
-		handshakeMessages = new DatagramWriter(2048);
 
 		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
 
@@ -421,8 +413,6 @@ public class ServerHandshaker extends Handshaker {
 		 */
 		ServerHelloDone serverHelloDone = new ServerHelloDone(session.getPeer());
 		wrapMessage(flight, serverHelloDone);
-		md.update(serverHelloDone.toByteArray());
-		handshakeMessages.writeBytes(serverHelloDone.toByteArray());
 		sendFlight(flight);
 	}
 
@@ -458,15 +448,6 @@ public class ServerHandshaker extends Handshaker {
 		ServerHello serverHello = new ServerHello(serverVersion, serverRandom, sessionId,
 				session.getCipherSuite(), session.getCompressionMethod(), serverHelloExtensions, session.getPeer());
 		wrapMessage(flight, serverHello);
-
-		initMessageDigest();
-		// update the handshake hash
-		md.update(clientHello.getRawMessage());
-		handshakeMessages.writeBytes(clientHello.getRawMessage());
-
-		// update the handshake hash
-		md.update(serverHello.toByteArray());
-		handshakeMessages.writeBytes(serverHello.toByteArray());
 	}
 
 	private void createCertificateMessage(final ClientHello clientHello, final DTLSFlight flight) throws HandshakeException {
@@ -482,8 +463,6 @@ public class ServerHandshaker extends Handshaker {
 			}
 
 			wrapMessage(flight, certificateMessage);
-			md.update(certificateMessage.toByteArray());
-			handshakeMessages.writeBytes(certificateMessage.toByteArray());
 		}
 	}
 
@@ -539,8 +518,6 @@ public class ServerHandshaker extends Handshaker {
 
 		if (serverKeyExchange != null) {
 			wrapMessage(flight, serverKeyExchange);
-			md.update(serverKeyExchange.toByteArray());
-			handshakeMessages.writeBytes(serverKeyExchange.toByteArray());
 		}
 	}
 
@@ -558,8 +535,6 @@ public class ServerHandshaker extends Handshaker {
 			}
 
 			wrapMessage(flight, certificateRequest);
-			md.update(certificateRequest.toByteArray());
-			handshakeMessages.writeBytes(certificateRequest.toByteArray());
 			return true;
 		}
 		return false;
@@ -574,10 +549,7 @@ public class ServerHandshaker extends Handshaker {
 	 * @return the premaster secret
 	 */
 	private byte[] receivedClientKeyExchange(ECDHClientKeyExchange message) {
-		clientKeyExchange = message;
-		byte[] premasterSecret = ecdhe.getSecret(message.getEncodedPoint()).getEncoded();
-
-		return premasterSecret;
+		return ecdhe.getSecret(message.getEncodedPoint()).getEncoded();
 	}
 
 	/**
@@ -591,9 +563,6 @@ public class ServerHandshaker extends Handshaker {
 	 *             if no specified preshared key available.
 	 */
 	private byte[] receivedClientKeyExchange(final PSKClientKeyExchange message) throws HandshakeException {
-
-		clientKeyExchange = message;
-
 		// use the client's PSK identity to look up the pre-shared key
 		preSharedKeyIdentity = message.getIdentity();
 		byte[] psk = pskStore.getKey(session.getServerNames(), preSharedKeyIdentity);
@@ -601,9 +570,6 @@ public class ServerHandshaker extends Handshaker {
 	}
 
 	private byte[] receivedClientKeyExchange(final EcdhPskClientKeyExchange message) throws HandshakeException {
-
-		clientKeyExchange = message;
-
 		// use the client's PSK identity to look up the pre-shared key
 		preSharedKeyIdentity = message.getIdentity();
 		byte[] psk = pskStore.getKey(session.getServerNames(), preSharedKeyIdentity);

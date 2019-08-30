@@ -140,16 +140,12 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 			HelloExtensions serverHelloExtensions = new HelloExtensions();
 			processHelloExtensions(clientHello, serverHelloExtensions);
 
-			initMessageDigest();
-
 			flightNumber += 2;
 			DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
-			md.update(clientHello.getRawMessage());
 
 			ServerHello serverHello = new ServerHello(clientHello.getClientVersion(), serverRandom, session.getSessionIdentifier(),
 					session.getCipherSuite(), session.getCompressionMethod(), serverHelloExtensions, clientHello.getPeer());
 			wrapMessage(flight, serverHello);
-			md.update(serverHello.toByteArray());
 
 			calculateKeys(session.getMasterSecret());
 
@@ -157,7 +153,9 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 			wrapMessage(flight, changeCipherSpecMessage);
 			setCurrentWriteState();
 
-			MessageDigest mdWithServerFinished = null;
+			MessageDigest md = getHandshakeMessageDigest();
+
+			MessageDigest mdWithServerFinished;
 			try {
 				mdWithServerFinished = (MessageDigest) md.clone();
 			} catch (CloneNotSupportedException e) {
@@ -169,8 +167,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 								clientHello.getPeer()));
 			}
 
-			handshakeHash = md.digest();
-			Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), session.getMasterSecret(), false, handshakeHash, clientHello.getPeer());
+			Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), session.getMasterSecret(), false, md.digest(), clientHello.getPeer());
 			wrapMessage(flight, finished);
 
 			mdWithServerFinished.update(finished.toByteArray());

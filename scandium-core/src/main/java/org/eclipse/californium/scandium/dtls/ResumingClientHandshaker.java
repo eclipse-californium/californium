@@ -160,7 +160,6 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 							AlertDescription.ILLEGAL_PARAMETER,
 							message.getPeer()));
 		} else {
-			this.serverHello = message;
 			verifyServerHelloExtensions(message);
 			serverRandom = message.getRandom();
 			if (connectionIdGenerator != null) {
@@ -171,7 +170,6 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 				}
 			}
 			expectChangeCipherSpecMessage();
-			initMessageDigest();
 			calculateKeys(session.getMasterSecret());
 		}
 	}
@@ -192,10 +190,9 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
 
 		// update the handshake hash
-		md.update(clientHello.toByteArray());
-		md.update(serverHello.getRawMessage());
+		MessageDigest md = getHandshakeMessageDigest();
 
-		MessageDigest mdWithServerFinish = null;
+		MessageDigest mdWithServerFinish;
 		try {
 			// the client's finished verify_data must also contain the server's
 			// finished message
@@ -208,17 +205,16 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 							AlertDescription.INTERNAL_ERROR,
 							message.getPeer()));
 		}
-		mdWithServerFinish.update(message.getRawMessage());
 
 		// the handshake hash to check the server's verify_data (without the
 		// server's finished message included)
-		handshakeHash = md.digest();
-		message.verifyData(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), session.getMasterSecret(), false, handshakeHash);
+		message.verifyData(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), session.getMasterSecret(), false, md.digest());
 		
 		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage(message.getPeer());
 		wrapMessage(flight, changeCipherSpecMessage);
 		setCurrentWriteState();
 
+		mdWithServerFinish.update(message.getRawMessage());
 		handshakeHash = mdWithServerFinish.digest();
 		Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), session.getMasterSecret(), isClient, handshakeHash, message.getPeer());
 		wrapMessage(flight, finished);

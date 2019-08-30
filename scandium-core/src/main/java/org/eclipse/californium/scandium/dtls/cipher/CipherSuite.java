@@ -328,6 +328,8 @@ public enum CipherSuite {
 	/**
 	 * Gets the thread local MAC used by this cipher suite.
 	 * 
+	 * Calls {@link Mac#reset()} on access.
+	 * 
 	 * @return mac, or {@code null}, if not supported by vm.
 	 */
 	public Mac getThreadLocalMac() {
@@ -431,6 +433,16 @@ public enum CipherSuite {
 	 */
 	public Mac getThreadLocalPseudoRandomFunctionMac() {
 		return pseudoRandomFunction.getMacAlgorithm().getMac();
+	}
+
+	/**
+	 * Gets the thread local message digest used by the pseudo random function
+	 * of this cipher suite.
+	 * 
+	 * @return message digest, or {@code null}, if not supported by vm.
+	 */
+	public MessageDigest getThreadLocalPseudoRandomFunctionMessageDigest() {
+		return pseudoRandomFunction.getMacAlgorithm().getMessageDigest();
 	}
 
 	/**
@@ -770,12 +782,38 @@ public enum CipherSuite {
 			return supported;
 		}
 
+		/**
+		 * Gets the thread local MAC used by this MAC algorithm.
+		 * 
+		 * Calls {@link Mac#reset()} on access.
+		 * 
+		 * @return mac, or {@code null}, if not supported by vm.
+		 */
 		public Mac getMac() {
-			return mac == null ? null : mac.current();
+			if (mac != null) {
+				Mac current = mac.current();
+				current.reset();
+				return current;
+			} else {
+				return null;
+			}
 		}
 
+		/**
+		 * Gets the thread local message digest used by this MAC algorithm.
+		 * 
+		 * Calls {@link MessageDigest#reset()} on access.
+		 * 
+		 * @return message digest, or {@code null}, if not supported by vm.
+		 */
 		public MessageDigest getMessageDigest() {
-			return md == null ? null : md.current();
+			if (md != null) {
+				MessageDigest current = md.current();
+				current.reset();
+				return current;
+			} else {
+				return null;
+			}
 		}
 	}
 
@@ -879,7 +917,13 @@ public enum CipherSuite {
 		private boolean isSupported() {
 			return supported;
 		}
-		
+
+		/**
+		 * Gets the thread local cipher used by this cipher specification.
+		 * 
+		 * @return the cipher, or {@code null}, if the cipher is not supported by
+		 *         the java-vm.
+		 */
 		private Cipher getCipher() {
 			return cipher == null ? null : cipher.current();
 		}
