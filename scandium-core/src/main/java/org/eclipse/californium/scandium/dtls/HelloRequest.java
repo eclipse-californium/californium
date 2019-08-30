@@ -19,6 +19,8 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.elements.util.Bytes;
+
 
 /**
  * HelloRequest is a simple notification that the client should begin the
@@ -47,7 +49,7 @@ public final class HelloRequest extends HandshakeMessage {
 
 	@Override
 	public byte[] fragmentToByteArray() {
-		return new byte[] {};
+		return Bytes.EMPTY;
 	}
 
 }
