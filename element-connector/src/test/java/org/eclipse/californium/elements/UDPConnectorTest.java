@@ -32,13 +32,13 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.elements.rule.NetworkRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
+import org.eclipse.californium.elements.util.SimpleRawDataChannel;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -58,8 +58,8 @@ public class UDPConnectorTest {
 
 	UDPConnector connector;
 	UDPConnector destination;
-	LinkedBlockingQueue<RawData> incoming = new LinkedBlockingQueue<>();
 	TestEndpointContextMatcher matcher;
+	SimpleRawDataChannel channel;
 
 	@Before
 	public void setup() throws IOException {
@@ -67,14 +67,9 @@ public class UDPConnectorTest {
 		connector = new UDPConnector(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
 		connector.setEndpointContextMatcher(matcher);
 		connector.start();
+		channel = new SimpleRawDataChannel(1);
 		destination = new UDPConnector(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
-		destination.setRawDataReceiver(new RawDataChannel() {
-
-			@Override
-			public void receiveData(RawData raw) {
-				incoming.offer(raw);
-			}
-		});
+		destination.setRawDataReceiver(channel);
 		destination.start();
 	}
 
@@ -139,9 +134,9 @@ public class UDPConnectorTest {
 		RawData message = RawData.outbound(data, context, null, false);
 		connector.send(message);
 
-		RawData receivedData = incoming.poll(100, TimeUnit.MILLISECONDS);
+		RawData receivedData = channel.poll(100, TimeUnit.MILLISECONDS);
 		assertThat("first received data:", receivedData, is(nullValue())); // null means packet is dropped
-		
+
 		// ensure next datagram is correctly received
 		data = new byte[5];
 		Arrays.fill(data, (byte) 2);
@@ -149,7 +144,7 @@ public class UDPConnectorTest {
 		message = RawData.outbound(data, context, null, false);
 		connector.send(message);
 
-		receivedData = incoming.poll(1000000000, TimeUnit.MILLISECONDS);
+		receivedData = channel.poll(100, TimeUnit.SECONDS);
 		assertThat("second received data:", receivedData, is(notNullValue()));
 		assertThat("bytes received:", receivedData.bytes, is(equalTo(data)));
 	}
@@ -164,7 +159,7 @@ public class UDPConnectorTest {
 		RawData message = RawData.outbound(data, context, null, false);
 		connector.send(message);
 
-		RawData receivedData = incoming.poll(100, TimeUnit.MILLISECONDS);
+		RawData receivedData = channel.poll(100, TimeUnit.MILLISECONDS);
 		assertThat("second received data:", receivedData, is(notNullValue()));
 		assertThat("bytes received:", receivedData.bytes, is(equalTo(data)));
 	}

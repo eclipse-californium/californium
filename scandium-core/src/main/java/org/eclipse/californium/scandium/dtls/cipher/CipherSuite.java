@@ -615,11 +615,30 @@ public enum CipherSuite {
 	}
 
 	/**
+	 * Checks if a list of cipher suite contains an PSK based cipher.
+	 * 
+	 * @param cipherSuites The cipher suites to check.
+	 * @return {@code true}, if the list contains an PSK based cipher suite,
+	 *         {@code false}, otherwise.
+	 * 
+	 */
+	public static boolean containsPskBasedCipherSuite(List<CipherSuite> cipherSuites) {
+		if (cipherSuites != null) {
+			for (CipherSuite cipherSuite : cipherSuites) {
+				if (cipherSuite.isPskBased()) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * Checks if a list of cipher suite contains an ECC based cipher.
 	 * 
 	 * @param cipherSuites The cipher suites to check.
-	 * @return {@code true} if the list contains an ECC based cipher suite,
-	 *         {@code false} otherwise.
+	 * @return {@code true}, if the list contains an ECC based cipher suite,
+	 *         {@code false}, otherwise.
 	 * 
 	 */
 	public static boolean containsEccBasedCipherSuite(List<CipherSuite> cipherSuites) {
