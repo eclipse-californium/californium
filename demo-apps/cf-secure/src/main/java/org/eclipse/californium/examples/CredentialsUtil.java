@@ -28,6 +28,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 
 /**
@@ -64,6 +65,10 @@ public class CredentialsUtil {
 		 */
 		X509_TRUST,
 		/**
+		 * Client authentication wanted (server only).
+		 */
+		WANT_AUTH,
+		/**
 		 * No client authentication (server only).
 		 */
 		NO_AUTH,
@@ -74,14 +79,14 @@ public class CredentialsUtil {
 	 * 
 	 * Value is PSK, RPK, X509.
 	 */
-	public static final List<Mode> DEFAULT_CLIENT_MODES = Arrays.asList(new Mode[] { Mode.PSK, Mode.RPK, Mode.X509 });
+	public static final List<Mode> DEFAULT_CLIENT_MODES = Arrays.asList(Mode.PSK, Mode.RPK, Mode.X509);
 
 	/**
 	 * Default list of modes for servers.
 	 * 
 	 * Value is PSK, ECDHE_PSK, RPK, X509.
 	 */
-	public static final List<Mode> DEFAULT_SERVER_MODES = Arrays.asList(new Mode[] { Mode.PSK, Mode.ECDHE_PSK, Mode.RPK, Mode.X509 });
+	public static final List<Mode> DEFAULT_SERVER_MODES = Arrays.asList(Mode.PSK, Mode.ECDHE_PSK, Mode.RPK, Mode.X509);
 
 	// from ETSI Plugtest test spec
 	public static final String PSK_IDENTITY = "password";
@@ -191,7 +196,8 @@ public class CredentialsUtil {
 			}
 		}
 		if (defaults != null) {
-			if (modes.isEmpty() || (modes.size() == 1 && modes.contains(Mode.NO_AUTH))) {
+			if (modes.isEmpty()
+					|| (modes.size() == 1 && (modes.contains(Mode.NO_AUTH) || modes.contains(Mode.WANT_AUTH)))) {
 				// adjust defaults, also for only "NO_AUTH"
 				modes.addAll(defaults);
 			}
@@ -265,6 +271,9 @@ public class CredentialsUtil {
 			}
 			config.setClientAuthenticationRequired(false);
 		}
+		else if (modes.contains(Mode.WANT_AUTH)) {
+			config.setClientAuthenticationWanted(true);
+		}
 
 		if (x509 >= 0 || rpk >= 0) {
 			try {
@@ -332,11 +341,10 @@ public class CredentialsUtil {
 				suites.addAll(CipherSuite.getEcdsaCipherSuites(false));
 			}
 			if (ecdhePsk) {
-				suites.add(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_SHA256);
-				suites.add(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256);
-			} 
+				suites.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(false, KeyExchangeAlgorithm.ECDHE_PSK));
+			}
 			if (plainPsk) {
-				suites.addAll(CipherSuite.getPskCipherSuites(false, false));
+				suites.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(false, KeyExchangeAlgorithm.PSK));
 			}
 			config.setSupportedCipherSuites(suites);
 		}

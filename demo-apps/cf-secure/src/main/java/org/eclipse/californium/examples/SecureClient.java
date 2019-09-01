@@ -40,8 +40,8 @@ import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 
 public class SecureClient {
 
-	public static final List<Mode> SUPPORTED_MODES = Arrays
-			.asList(new Mode[] { Mode.PSK, Mode.ECDHE_PSK, Mode.RPK, Mode.X509, Mode.RPK_TRUST, Mode.X509_TRUST });
+	public static final List<Mode> SUPPORTED_MODES = Arrays.asList(Mode.PSK, Mode.ECDHE_PSK, Mode.RPK, Mode.X509,
+			Mode.RPK_TRUST, Mode.X509_TRUST);
 	private static final String SERVER_URI = "coaps://127.0.0.1:5684/secure";
 
 	private final DTLSConnector dtlsConnector;
