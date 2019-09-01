@@ -34,6 +34,7 @@ package org.eclipse.californium.scandium.dtls.cipher;
 
 import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import javax.crypto.Cipher;
@@ -471,9 +472,14 @@ public enum CipherSuite {
 	/**
 	 * Get a list of all supported PSK cipher suites.
 	 * 
-	 * @param recommendedCipherSuitesOnly {@code true} use only recommended cipher suites
-	 * @return list of all supported PSK cipher suites. Ordered by their definition above.
+	 * @param recommendedCipherSuitesOnly {@code true} use only recommended
+	 *            cipher suites
+	 * @return list of all supported PSK cipher suites. Ordered by their
+	 *         definition above.
+	 * @deprecated use
+	 *             {@link #getCipherSuitesByKeyExchangeAlgorithm(boolean, KeyExchangeAlgorithm...)}
 	 */
+	@Deprecated
 	public static List<CipherSuite> getPskCipherSuites(boolean recommendedCipherSuitesOnly, boolean ecdhePsk) {
 		List<CipherSuite> list = new ArrayList<>();
 		for (CipherSuite suite : values()) {
@@ -483,6 +489,37 @@ public enum CipherSuite {
 					if (!recommendedCipherSuitesOnly || suite.recommendedCipherSuite) {
 						list.add(suite);
 					}
+				}
+			}
+		}
+		return list;
+	}
+
+	/**
+	 * Get a list of all cipher suites using the provided key exchange
+	 * algorithms.
+	 * 
+	 * @param recommendedCipherSuitesOnly {@code true} use only recommended
+	 *            cipher suites
+	 * @param keyExchangeAlgorithms list of key exchange algorithms to select
+	 *            cipher suites
+	 * @return list of all cipher suites. Ordered by their definition above.
+	 * @throws NullPointerException if keyExchangeAlgorithms is {@code null}
+	 * @throws IllegalArgumentException if keyExchangeAlgorithms is empty
+	 */
+	public static List<CipherSuite> getCipherSuitesByKeyExchangeAlgorithm(boolean recommendedCipherSuitesOnly,
+			KeyExchangeAlgorithm... keyExchangeAlgorithms) {
+		if (keyExchangeAlgorithms == null) {
+			throw new NullPointerException("KeyExchangeAlgorithms must not be null!");
+		} else if (keyExchangeAlgorithms.length == 0) {
+			throw new IllegalArgumentException("KeyExchangeAlgorithms must not be empty!");
+		}
+		List<KeyExchangeAlgorithm> keyExchanges = Arrays.asList(keyExchangeAlgorithms);
+		List<CipherSuite> list = new ArrayList<>();
+		for (CipherSuite suite : values()) {
+			if (!recommendedCipherSuitesOnly || suite.recommendedCipherSuite) {
+				if (suite.isSupported() && keyExchanges.contains(suite.keyExchange)) {
+					list.add(suite);
 				}
 			}
 		}
