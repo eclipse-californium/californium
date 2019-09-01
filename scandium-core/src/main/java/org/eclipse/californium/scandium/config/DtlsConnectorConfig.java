@@ -52,6 +52,7 @@ import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.SessionCache;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustAllRpks;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
@@ -2153,7 +2154,8 @@ public final class DtlsConnectorConfig {
 			}
 
 			if (config.pskStore != null) {
-				ciphers.addAll(CipherSuite.getPskCipherSuites(recommendedCipherSuitesOnly, true));
+				ciphers.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(recommendedCipherSuitesOnly,
+						KeyExchangeAlgorithm.ECDHE_PSK, KeyExchangeAlgorithm.PSK));
 			}
 
 			config.supportedCipherSuites = ciphers;

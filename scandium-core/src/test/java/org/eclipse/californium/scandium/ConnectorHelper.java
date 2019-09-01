@@ -80,6 +80,7 @@ import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore
 import org.eclipse.californium.scandium.dtls.SessionAdapter;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 
 /**
@@ -166,7 +167,8 @@ public class ConnectorHelper {
 
 		if (builder.getIncompleteConfig().getSupportedCipherSuites() == null) {
 			List<CipherSuite> list = new ArrayList<>(CipherSuite.getEcdsaCipherSuites(false));
-			list.addAll(CipherSuite.getPskCipherSuites(false, true));
+			list.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(false, KeyExchangeAlgorithm.ECDHE_PSK,
+					KeyExchangeAlgorithm.PSK));
 			builder.setRecommendedCipherSuitesOnly(false);
 			builder.setSupportedCipherSuites(list);
 		}
