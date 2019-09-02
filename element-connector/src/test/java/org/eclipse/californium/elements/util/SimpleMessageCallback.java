@@ -233,14 +233,12 @@ public class SimpleMessageCallback implements MessageCallback {
 	 * Get endpoint context of sent message waiting with timeout.
 	 * 
 	 * @param timeout timeout in milliseconds
-	 * @return endpoint context of sent message, or null, if not sent within
+	 * @return endpoint context of sent message, or {@code null}, if not sent within
 	 *         provided timeout or no endpoint context is available.
 	 * @see #getEndpointContext()
 	 */
 	public synchronized EndpointContext getEndpointContext(long timeout) throws InterruptedException {
-		if (null == context && null == sendError) {
-			wait(timeout);
-		}
+		wait(endpointContextCheck, timeout);
 		return context;
 	}
 
@@ -253,9 +251,7 @@ public class SimpleMessageCallback implements MessageCallback {
 	 * @see #isSent()
 	 */
 	public synchronized boolean isSent(long timeout) throws InterruptedException {
-		if (!sent && null == sendError) {
-			wait(timeout);
-		}
+		wait(sentCheck, timeout);
 		return sent;
 	}
 
@@ -268,10 +264,67 @@ public class SimpleMessageCallback implements MessageCallback {
 	 * @see #getError()
 	 */
 	public synchronized Throwable getError(long timeout) throws InterruptedException {
-		if (!sent && null == sendError) {
-			wait(timeout);
-		}
+		wait(sentCheck, timeout);
 		return sendError;
 	}
 
+	/**
+	 * Wait for provided condition with timeout.
+	 * 
+	 * @param check condition to check
+	 * @param timeout timeout in milliseconds.
+	 * @throws InterruptedException
+	 * @see #endpointContextCheck
+	 * @see #sentCheck
+	 * @see #getEndpointContext(long)
+	 * @see #isSent(long)
+	 * @see #getError(long)
+	 */
+	private void wait(Check check, long timeout) throws InterruptedException {
+		long end = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeout);
+		while (!check.check()) {
+			long left = TimeUnit.NANOSECONDS.toMillis(end - System.nanoTime());
+			if (left > 0) {
+				wait(left);
+			} else {
+				break;
+			}
+		}
+	}
+
+	/**
+	 * Condition to wait for.
+	 */
+	private interface Check {
+
+		/**
+		 * Check, if condition gets fulfilled.
+		 * 
+		 * @return {@code true}, if condition is fulfilled, {@code false},
+		 *         otherwise.
+		 */
+		boolean check();
+	}
+
+	/**
+	 * Condition to wait for endpoint context.
+	 * Includes endpoint context and send error.
+	 */
+	private Check endpointContextCheck = new Check() {
+		@Override
+		public boolean check() {
+			return (null != context || null != sendError);
+		}
+	};
+
+	/**
+	 * Condition to wait for message gets sent.
+	 * Includes message sent and send error.
+	 */
+	private Check sentCheck = new Check() {
+		@Override
+		public boolean check() {
+			return (sent || null != sendError);
+		}
+	};
 }
