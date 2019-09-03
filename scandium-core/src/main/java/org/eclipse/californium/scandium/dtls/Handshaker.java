@@ -468,7 +468,9 @@ public abstract class Handshaker {
 			throw new IllegalArgumentException("processing record with wrong epoch! " + record.getEpoch() + " expected " + epoch);
 		}
 		if (record.getReceiveNanos() < flightSendNanos) {
-			LOGGER.debug("Discarding {} message received from peer [{}] before last flight was sent:{}{}",
+			// TODO reuse debug level after the M17. 
+			// (see https://github.com/eclipse/californium/issues/1034#issuecomment-526656943)
+			LOGGER.info("Discarding {} message received from peer [{}] before last flight was sent:{}{}",
 					record.getType(), record.getPeerAddress(), StringUtil.lineSeparator(), record);
 			return;
 		}
