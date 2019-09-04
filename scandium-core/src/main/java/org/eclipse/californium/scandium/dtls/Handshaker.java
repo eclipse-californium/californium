@@ -297,27 +297,17 @@ public abstract class Handshaker {
 	}
 
 	/**
-	 * A queue for buffering inbound handshake messages.
+	 * A queue for buffering inbound handshake records.
 	 */
 	class InboundMessageBuffer {
 
-		private ChangeCipherSpecMessage changeCipherSpec = null;
+		private Record changeCipherSpec = null;
 
 		private SortedSet<Record> queue = new TreeSet<>(new Comparator<Record>() {
 
 			@Override
 			public int compare(Record r1, Record r2) {
-
-				if (r1.getEpoch() != r2.getEpoch()) {
-					throw new IllegalArgumentException(
-							"records with different epoch! " + r1.getEpoch() + " != " + r2.getEpoch());
-				} else if (r1.getSequenceNumber() < r2.getSequenceNumber()) {
-					return -1;
-				} else if (r1.getSequenceNumber() > r2.getSequenceNumber()) {
-					return 1;
-				} else {
-					return 0;
-				}
+				return compareRecords(r1, r2);
 			}
 		});
 
@@ -326,30 +316,30 @@ public abstract class Handshaker {
 		}
 
 		/**
-		 * Gets (and removes from the queue) the handshake message
-		 * with this handshake's next expected message sequence number.
+		 * Gets (and removes from the queue) the next record of the handshake
+		 * message with this handshake's next expected message sequence number.
 		 * 
-		 * @return the message or <code>null</code> if the queue does not contain the next expected
-		 *           message (yet) 
+		 * @return the record or {@code null} if the queue does not contain the
+		 *         next expected message (yet)
 		 */
-		DTLSMessage getNextMessage() {
+		Record getNextRecord() {
 
-			DTLSMessage result = null;
+			Record result = null;
 
 			if (isChangeCipherSpecMessageExpected() && changeCipherSpec != null) {
 				result = changeCipherSpec;
 				changeCipherSpec = null;
 			} else {
-
 				for (Record record : queue) {
-					if (record.getEpoch() == session.getReadEpoch()) {
-						HandshakeMessage msg = (HandshakeMessage) record.getFragment();
-						if (msg.getMessageSeq() == nextReceiveMessageSequence) {
-							result = msg;
-							queue.remove(record);
-							removeDeferredProcessedRecord(record);
-							break;
-						}
+					int messageSeq = ((HandshakeMessage) record.getFragment()).getMessageSeq();
+					if (messageSeq > nextReceiveMessageSequence) {
+						break;
+					}
+					queue.remove(record);
+					removeDeferredProcessedRecord(record);
+					if (messageSeq == nextReceiveMessageSequence) {
+						result = record;
+						break;
 					}
 				}
 			}
@@ -361,7 +351,7 @@ public abstract class Handshaker {
 		 * Checks if a given record contains a message that can be processed
 		 * immediately as part of the ongoing handshake.
 		 * <p>
-		 * This is the case if the record is from the <em>current read
+		 * This is the case, if the record is from the <em>current read
 		 * epoch</em> and the contained message is either a
 		 * <em>CHANGE_CIPHER_SPEC</em> message or a <em>HANDSHAKE</em> message
 		 * with the next expected sequence number.
@@ -372,13 +362,13 @@ public abstract class Handshaker {
 		 * next expected one.
 		 * 
 		 * @param record the record containing the message to check
-		 * @return the contained message if the message is up for immediate
-		 *         processing or <code>null</code> if the message cannot be
-		 *         processed immediately
+		 * @return the record containing a message if the message is up for
+		 *         immediate processing or {@code null}, if the message cannot
+		 *         be processed immediately
 		 * @throws IllegalArgumentException if the record's epoch differs from
 		 *             the session's read epoch
 		 */
-		DTLSMessage getNextMessage(Record candidate) {
+		Record getNextRecord(Record candidate) {
 			int recordEpoch = candidate.getEpoch();
 			int sessionEpoch = session.getReadEpoch();
 			if (recordEpoch == sessionEpoch) {
@@ -397,18 +387,22 @@ public abstract class Handshaker {
 					//       current read epoch + 1 and thus will have been queued by the
 					//       "else" branch below
 					if (isChangeCipherSpecMessageExpected()) {
-						return fragment;
-					} else {
+						return candidate;
+					} else if (changeCipherSpec == null) {
 						// store message for later processing
 						LOGGER.debug("Change Cipher Spec is not expected and therefore kept for later processing!");
-						changeCipherSpec = (ChangeCipherSpecMessage) fragment;
+						changeCipherSpec = candidate;
+						return null;
+					} else {
+						// already stored message for later processing
+						LOGGER.debug("Change Cipher Spec is received again!");
 						return null;
 					}
 				case HANDSHAKE:
 					HandshakeMessage handshakeMessage = (HandshakeMessage) fragment;
 					int messageSeq = handshakeMessage.getMessageSeq();
 					if (messageSeq == nextReceiveMessageSequence) {
-						return handshakeMessage;
+						return candidate;
 					} else if (messageSeq > nextReceiveMessageSequence) {
 						LOGGER.debug(
 								"Queued newer {} message from current epoch, message_seq [{}] > next_receive_seq [{}]",
@@ -418,6 +412,7 @@ public abstract class Handshaker {
 						if (addDeferredProcessedRecord(candidate)) {
 							queue.add(candidate);
 						}
+						// Dropped handshake messages are retransmitted by the other peer!
 						return null;
 					} else {
 						LOGGER.debug("Discarding old {} message_seq [{}] < next_receive_seq [{}]",
@@ -432,6 +427,54 @@ public abstract class Handshaker {
 				}
 			} else {
 				throw new IllegalArgumentException("record epoch " + recordEpoch + " doesn't match session " + sessionEpoch);
+			}
+		}
+
+		/**
+		 * Cleanup (remove) all records with the provided record sequence number
+		 * 
+		 * @param recordSequenceNumber actual processed record sequence number
+		 */
+		public void clean(long recordSequenceNumber) {
+			if (changeCipherSpec != null && changeCipherSpec.getSequenceNumber() == recordSequenceNumber) {
+				changeCipherSpec = null;
+			}
+			for (Record record : queue) {
+				if (record.getSequenceNumber() == recordSequenceNumber) {
+					queue.remove(record);
+					removeDeferredProcessedRecord(record);
+				}
+			}
+		}
+	}
+
+	/**
+	 * Compare records by the handshake message seqn and record sequence number
+	 * 
+	 * @param r1 first record to be compared
+	 * @param r2 second record to be compared
+	 * @return a negative integer, zero, or a positive integer as the first
+	 *         record is before, equal to, or after the second.
+	 */
+	private static int compareRecords(Record r1, Record r2) {
+
+		if (r1.getEpoch() != r2.getEpoch()) {
+			throw new IllegalArgumentException(
+					"records with different epoch! " + r1.getEpoch() + " != " + r2.getEpoch());
+		}
+		HandshakeMessage h1 = (HandshakeMessage) r1.getFragment();
+		HandshakeMessage h2 = (HandshakeMessage) r2.getFragment();
+		if (h1.getMessageSeq() < h2.getMessageSeq()) {
+			return -1;
+		} else if (h1.getMessageSeq() > h2.getMessageSeq()) {
+			return 1;
+		} else {
+			if (r1.getSequenceNumber() < r2.getSequenceNumber()) {
+				return -1;
+			} else if (r1.getSequenceNumber() > r2.getSequenceNumber()) {
+				return 1;
+			} else {
+				return 0;
 			}
 		}
 	}
@@ -469,8 +512,9 @@ public abstract class Handshaker {
 			return;
 		}
 		try {
-			DTLSMessage messageToProcess = inboundMessageBuffer.getNextMessage(record);
-			while (messageToProcess != null) {
+			Record recordToProcess = inboundMessageBuffer.getNextRecord(record);
+			while (recordToProcess != null) {
+				DTLSMessage messageToProcess=recordToProcess.getFragment();
 				expectMessage(messageToProcess);
 				
 				if (messageToProcess.getContentType() == ContentType.CHANGE_CIPHER_SPEC) {
@@ -556,10 +600,11 @@ public abstract class Handshaker {
 							new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE,
 									messageToProcess.getPeer()));
 				}
-				// process next expected message (if available yet)
-				messageToProcess = inboundMessageBuffer.getNextMessage();
+				// process next expected record/message (if available yet)
+				session.markRecordAsRead(epoch, recordToProcess.getSequenceNumber());
+				inboundMessageBuffer.clean(recordToProcess.getSequenceNumber());
+				recordToProcess = inboundMessageBuffer.getNextRecord();
 			}
-			session.markRecordAsRead(epoch, record.getSequenceNumber());
 			if (session.getReadEpoch() > epoch) {
 				final SerialExecutor serialExecutor = connection.getExecutor();
 				final List<Record> records = takeDeferredRecords();
@@ -1055,6 +1100,7 @@ public abstract class Handshaker {
 		if (addDeferredProcessedRecord(incomingMessage)) {
 			deferredRecords.add(incomingMessage);
 		}
+		// At least, the dropped handshake messages are retransmitted by the other peer!
 	}
 
 	private boolean addDeferredProcessedRecord(Record incomingMessage) {
