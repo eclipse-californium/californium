@@ -121,7 +121,7 @@ import org.eclipse.californium.elements.util.ClockUtil;
 public class Request extends Message {
 
 	private static final Pattern IP_PATTERN = Pattern
-			.compile("(\\[[0-9a-f:]+\\]|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})");
+			.compile("(\\[[0-9a-f:]+(%\\w+)?\\]|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})");
 
 	/** The request code. */
 	private final CoAP.Code code;
