@@ -36,6 +36,7 @@ import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.TestThreadFactory;
 
@@ -75,10 +76,12 @@ public final class MatcherTestUtils {
 		return newUdpMatcher(config, new InMemoryMessageExchangeStore(config), new InMemoryObservationStore(config), correlationContextMatcher, scheduler);
 	}
 
-	static UdpMatcher newUdpMatcher(NetworkConfig config, MessageExchangeStore exchangeStore, ObservationStore observationStore,
-			EndpointContextMatcher correlationContextMatcher, ScheduledExecutorService scheduler) {
+	static UdpMatcher newUdpMatcher(NetworkConfig config, MessageExchangeStore exchangeStore,
+			ObservationStore observationStore, EndpointContextMatcher correlationContextMatcher,
+			ScheduledExecutorService scheduler) {
 		UdpMatcher matcher = new UdpMatcher(config, notificationListener, new RandomTokenGenerator(config),
-				observationStore, exchangeStore, TEST_EXCHANGE_EXECUTOR, correlationContextMatcher);
+				observationStore, exchangeStore, TEST_EXCHANGE_EXECUTOR,
+				correlationContextMatcher);
 		exchangeStore.setExecutor(scheduler);
 		matcher.start();
 		return matcher;
@@ -121,7 +124,7 @@ public final class MatcherTestUtils {
 		Response response = new Response(ResponseCode.CONTENT);
 		response.setMID(request.getMID());
 		response.setToken(request.getToken());
-		response.setBytes(new byte[]{});
+		response.setBytes(Bytes.EMPTY);
 		response.setSourceContext(sourceContext);
 		return response;
 	}

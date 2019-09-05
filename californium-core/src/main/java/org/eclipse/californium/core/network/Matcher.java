@@ -146,10 +146,14 @@ public interface Matcher {
 	void clear();
 
 	/**
-	 * Cancels all pending blockwise requests that have been induced by a notification
-	 * we have received indicating a blockwise transfer of the resource.
+	 * Cancels all pending blockwise requests that have been induced by a
+	 * notification we have received indicating a blockwise transfer of the
+	 * resource.
 	 * 
 	 * @param token the token of the observation.
+	 *            The token must not have client-local scope.
+	 * @return the exchanges.
+	 * @throws IllegalArgumentException if the token has client-local scope.
 	 */
 	void cancelObserve(Token token);
 }

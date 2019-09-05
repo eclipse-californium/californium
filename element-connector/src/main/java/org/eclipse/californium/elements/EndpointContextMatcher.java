@@ -24,7 +24,7 @@ package org.eclipse.californium.elements;
  * 
  * Enable implementor to flexible decide on endpoint context information.
  */
-public interface EndpointContextMatcher {
+public interface EndpointContextMatcher extends EndpointIdentityResolver {
 
 	/**
 	 * Return matcher name. Used for logging.

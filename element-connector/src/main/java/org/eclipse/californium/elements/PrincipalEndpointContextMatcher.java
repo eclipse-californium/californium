@@ -24,12 +24,32 @@ import java.security.Principal;
  */
 public class PrincipalEndpointContextMatcher implements EndpointContextMatcher {
 
+	private final boolean usePrincipalAsIdentity;
+
 	public PrincipalEndpointContextMatcher() {
+		this(false);
+	}
+
+	public PrincipalEndpointContextMatcher(boolean usePrincipalAsIdentity) {
+		this.usePrincipalAsIdentity = usePrincipalAsIdentity;
 	}
 
 	@Override
 	public String getName() {
 		return "principal correlation";
+	}
+
+	@Override
+	public Object getEndpointIdentity(EndpointContext context) {
+		if (usePrincipalAsIdentity) {
+			Principal identity = context.getPeerIdentity();
+			if (identity == null) {
+				throw new IllegalArgumentException("Principal identity missing in provided endpoint context!");
+			}
+			return identity;
+		} else {
+			return context.getPeerAddress();
+		}
 	}
 
 	@Override
@@ -79,4 +99,5 @@ public class PrincipalEndpointContextMatcher implements EndpointContextMatcher {
 	protected boolean matchPrincipals(Principal requestedPrincipal, Principal availablePrincipal) {
 		return requestedPrincipal.equals(availablePrincipal);
 	}
+
 }

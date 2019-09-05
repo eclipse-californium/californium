@@ -23,7 +23,7 @@ package org.eclipse.californium.core.network.deduplication;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.Exchange.KeyMID;
+import org.eclipse.californium.core.network.KeyMID;
 
 
 /**

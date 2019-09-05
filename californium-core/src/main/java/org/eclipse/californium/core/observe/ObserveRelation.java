@@ -27,8 +27,6 @@
 package org.eclipse.californium.core.observe;
 
 import java.net.InetSocketAddress;
-import java.util.Iterator;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,9 +73,6 @@ public class ObserveRelation {
 	private long interestCheckTimer = System.currentTimeMillis();
 	private int interestCheckCounter = 1;
 
-	/** The notifications that have been sent, so they can be removed from the Matcher */
-	private ConcurrentLinkedQueue<Response> notifications = new ConcurrentLinkedQueue<Response>();
-	
 	/**
 	 * Constructs a new observe relation.
 	 * 
@@ -229,16 +224,7 @@ public class ObserveRelation {
 		}
 		this.nextControlNotification = nextControlNotification;
 	}
-	
-	public void addNotification(Response notification) {
-		notifications.add(notification);
-		LOGGER.trace("{} add notification MID {} (size {}).", resource.getURI(), notification.getMID(), notifications.size());
-	}
-	
-	public Iterator<Response> getNotificationIterator() {
-		return notifications.iterator();
-	}
-	
+
 	public String getKey() {
 		return this.key;
 	}

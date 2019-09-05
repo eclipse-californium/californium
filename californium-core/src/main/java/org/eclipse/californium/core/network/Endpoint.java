@@ -206,9 +206,10 @@ public interface Endpoint {
 	/**
 	 * Cancel observation for this request.
 	 * 
-	 * @param token
-	 *            the token of the original request which establishes the
-	 *            observe relation to cancel.
+	 * @param token the token of the original request which establishes the
+	 *            observe relation to cancel. The token must have none
+	 *            client-local scope.
+	 * @throws IllegalArgumentException if the token has client-local scope.
 	 */
 	void cancelObservation(Token token);
 }

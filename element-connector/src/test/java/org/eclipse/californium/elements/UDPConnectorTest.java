@@ -244,6 +244,11 @@ public class UDPConnectorTest {
 		}
 
 		@Override
+		public Object getEndpointIdentity(EndpointContext context) {
+			return context.getPeerAddress();
+		}
+
+		@Override
 		public boolean isResponseRelatedToRequest(EndpointContext requestContext, EndpointContext responseContext) {
 			return false;
 		}

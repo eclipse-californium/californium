@@ -76,6 +76,7 @@ public class UdpMatcherMulticastTest {
 		endpointContextMatcher = mock(EndpointContextMatcher.class);
 		when(endpointContextMatcher.isResponseRelatedToRequest(exchangeEndpointContext, responseEndpointContext)).thenReturn(true);
 		when(responseEndpointContext.getPeerAddress()).thenReturn(dest);
+		when(endpointContextMatcher.getEndpointIdentity(responseEndpointContext)).thenReturn(dest);
 		when(exchangeEndpointContext.getPeerAddress()).thenReturn(multicast_dest);
 	}
 

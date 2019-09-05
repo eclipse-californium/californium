@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2019 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -11,22 +11,28 @@
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
  * Contributors:
- *    Bosch Software Innovations GmbH - replace ExchangeObserver.
+ *    Bosch Software Innovations GmbH - initial implementation
  ******************************************************************************/
-package org.eclipse.californium.core.network;
+package org.eclipse.californium.elements;
 
 /**
- * The remove handler can be set to an {@link Exchange} and will be invoked
- * for release the exchange from the exchange store.
+ * Interface for resolving the endpoint identity from an endpoint context.
  */
-public interface RemoveHandler {
+public interface EndpointIdentityResolver {
 
 	/**
-	 * Remove exchange from store.
+	 * Return resolver name. Used for logging.
 	 * 
-	 * @param exchange exchange to remove from store
-	 * @param keyToken token to remove exchange. Maybe {@code null}.
-	 * @param keyMID mid key to remove exchange. Maybe {@code null}.
+	 * @return name of resolver.
 	 */
-	void remove(Exchange exchange, KeyToken keyToken, KeyMID keyMID);
+	String getName();
+
+	/**
+	 * Get the endpoint identity object.
+	 * 
+	 * @param context endpoint context
+	 * @return endpoint identity object.
+	 */
+	Object getEndpointIdentity(EndpointContext context);
+
 }

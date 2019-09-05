@@ -33,8 +33,10 @@ import javax.net.ssl.SSLSessionContext;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
+import org.eclipse.californium.core.network.EndpointContextMatcherFactory.MatcherMode;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
+import org.eclipse.californium.elements.PrincipalEndpointContextMatcher;
 import org.eclipse.californium.elements.tcp.TcpServerConnector;
 import org.eclipse.californium.elements.tcp.TlsServerConnector;
 import org.eclipse.californium.elements.tcp.TlsServerConnector.ClientAuthMode;
@@ -282,6 +284,9 @@ public abstract class AbstractTestServer extends CoapServer {
 					DTLSConnector connector = new DTLSConnector(dtlsConfigBuilder.build());
 					CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 					builder.setConnector(connector);
+					if (MatcherMode.PRINCIPAL.name().equals(dtlsConfig.getString(Keys.RESPONSE_MATCHING))) {
+						builder.setEndpointContextMatcher(new PrincipalEndpointContextMatcher(true));
+					}
 					builder.setNetworkConfig(dtlsConfig);
 					CoapEndpoint endpoint = builder.build();
 					addEndpoint(endpoint);
