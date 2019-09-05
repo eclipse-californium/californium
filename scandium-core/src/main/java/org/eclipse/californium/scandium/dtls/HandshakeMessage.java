@@ -249,7 +249,7 @@ public abstract class HandshakeMessage extends AbstractMessage {
 			case CERTIFICATE:
 				if (parameter == null) {
 					reader.close();
-					body = GenericHandshakeMessage.fromByteArray(type, byteArray, peerAddress);
+					body = GenericHandshakeMessage.fromByteArray(type, peerAddress);
 				} else {
 					body = CertificateMessage.fromReader(reader, parameter.getCertificateType(), peerAddress);
 				}
@@ -258,7 +258,7 @@ public abstract class HandshakeMessage extends AbstractMessage {
 			case SERVER_KEY_EXCHANGE:
 				if (parameter == null) {
 					reader.close();
-					body = GenericHandshakeMessage.fromByteArray(type, byteArray, peerAddress);
+					body = GenericHandshakeMessage.fromByteArray(type, peerAddress);
 				} else {
 					body = readServerKeyExchange(reader, parameter.getKeyExchangeAlgorithm(), peerAddress);
 				}
