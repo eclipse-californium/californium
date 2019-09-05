@@ -119,14 +119,6 @@ public class ObserveLayer extends AbstractLayer {
 				relation.setNextControlNotification(null);
 			}
 
-			/*
-			 * The matcher must be able to find the NON notifications to remove
-			 * them from the exchangesByMID hashmap
-			 */
-			if (response.getType() == Type.NON) {
-				relation.addNotification(response);
-			}
-
 		} // else no observe was requested or the resource does not allow it
 		lower().sendResponse(exchange, response);
 	}
@@ -198,13 +190,6 @@ public class ObserveLayer extends AbstractLayer {
 			relation.setNextControlNotification(null);
 			if (next != null) {
 				LOGGER.debug("notification has been acknowledged, send the next one");
-				/*
-				 * The matcher must be able to find the NON notifications to
-				 * remove them from the exchangesByMID hashmap
-				 */
-				if (next.getType() == Type.NON) {
-					relation.addNotification(next);
-				}
 				// Create a new task for sending next response so that we
 				// can leave the sync-block
 				exchange.execute(new Runnable() {

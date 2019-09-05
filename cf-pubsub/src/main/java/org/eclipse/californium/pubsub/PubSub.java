@@ -31,6 +31,7 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.RandomTokenGenerator;
+import org.eclipse.californium.core.network.TokenGenerator.Scope;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import java.io.IOException;
@@ -321,7 +322,7 @@ public class PubSub {
 
             config.set(NetworkConfig.Keys.TOKEN_SIZE_LIMIT, 4);
             RandomTokenGenerator rand = new RandomTokenGenerator(config);
-            Token token = rand.createToken(false);
+            Token token = rand.createToken(Scope.SHORT_TERM_CLIENT_LOCAL);
             req.setToken(token);
 
             relation = client.observe(req, handler);

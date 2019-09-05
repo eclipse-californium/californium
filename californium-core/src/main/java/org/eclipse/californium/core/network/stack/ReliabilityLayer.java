@@ -81,8 +81,8 @@ public class ReliabilityLayer extends AbstractLayer {
 		ack_timeout_scale = config.getFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE);
 		max_retransmit = config.getInt(NetworkConfig.Keys.MAX_RETRANSMIT);
 
-		LOGGER.info("ReliabilityLayer uses ACK_TIMEOUT={}, ACK_RANDOM_FACTOR={}, and ACK_TIMEOUT_SCALE={}",
-				new Object[] { ack_timeout, ack_random_factor, ack_timeout_scale });
+		LOGGER.info("ReliabilityLayer uses ACK_TIMEOUT={}, ACK_RANDOM_FACTOR={}, and ACK_TIMEOUT_SCALE={}", ack_timeout,
+				ack_random_factor, ack_timeout_scale);
 	}
 
 	/**
@@ -273,7 +273,6 @@ public class ReliabilityLayer extends AbstractLayer {
 
 		exchange.setFailedTransmissionCount(0);
 		exchange.setRetransmissionHandle(null);
-		exchange.getCurrentRequest().setAcknowledged(true);
 
 		if (response.getType() == Type.CON && !exchange.getRequest().isCanceled()) {
 			LOGGER.debug("{} acknowledging CON response", exchange);
@@ -284,6 +283,7 @@ public class ReliabilityLayer extends AbstractLayer {
 		if (response.isDuplicate()) {
 			LOGGER.debug("{} ignoring duplicate response", exchange);
 		} else {
+			exchange.getCurrentRequest().setAcknowledged(true);
 			upper().receiveResponse(exchange, response);
 		}
 	}

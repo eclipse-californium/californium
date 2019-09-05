@@ -40,7 +40,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.Exchange.KeyMID;
+import org.eclipse.californium.core.network.KeyMID;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.slf4j.Logger;

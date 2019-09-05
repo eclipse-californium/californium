@@ -152,7 +152,7 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 
 			if (request.isObserve()) {
 				// Requests wants to observe and resource allows it :-)
-				LOGGER.debug("initiating an observe relation between {} and resource {}", source, resource.getURI());
+				LOGGER.debug("initiating an observe relation between {} and resource {}, {}", source, resource.getURI(), exchange);
 				ObservingEndpoint remote = observeManager.findObservingEndpoint(source);
 				ObserveRelation relation = new ObserveRelation(remote, resource, exchange);
 				remote.addObserveRelation(relation);
