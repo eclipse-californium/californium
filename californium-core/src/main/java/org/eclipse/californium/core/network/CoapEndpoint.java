@@ -1022,7 +1022,12 @@ public class CoapEndpoint implements Endpoint {
 
 	@Override
 	public void cancelObservation(Token token) {
-		matcher.cancelObserve(token);
+		matcher.cancelObserve(token, null);
+	}
+
+	@Override
+	public void cancelObservation(Token token, EndpointContext context) {
+		matcher.cancelObserve(token, context);
 	}
 
 	/**

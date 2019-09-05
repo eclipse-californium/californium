@@ -25,6 +25,7 @@ import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.elements.EndpointContext;
 
 /**
  * The Matcher is the component at the bottom of the CoAP stack.
@@ -146,10 +147,15 @@ public interface Matcher {
 	void clear();
 
 	/**
-	 * Cancels all pending blockwise requests that have been induced by a notification
-	 * we have received indicating a blockwise transfer of the resource.
+	 * Cancels all pending blockwise requests that have been induced by a
+	 * notification we have received indicating a blockwise transfer of the
+	 * resource.
 	 * 
 	 * @param token the token of the observation.
+	 * @param context the endpoint context of the observe request. May be
+	 *            {@code null}, if the token has a none client-local scope
+	 * @throws IllegalArgumentException if the token has a client-local scope
+	 *             and no endpoint context is provided.
 	 */
-	void cancelObserve(Token token);
+	void cancelObserve(Token token, EndpointContext context);
 }

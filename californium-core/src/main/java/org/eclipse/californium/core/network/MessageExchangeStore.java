@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.coap.Message;
-import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
 
 /**
@@ -128,12 +127,12 @@ public interface MessageExchangeStore {
 	boolean registerOutboundResponse(Exchange exchange);
 
 	/**
-	 * Removes the exchange registered under a given token.
+	 * Removes the exchange registered under a given key token.
 	 * 
-	 * @param token the token of the exchange to remove.
-	 * @param exchange Exchange to be removed, if registered with provided token.
+	 * @param token the key token of the exchange to remove.
+	 * @param exchange Exchange to be removed, if registered with provided key token.
 	 */
-	void remove(Token token, Exchange exchange);
+	void remove(KeyToken token, Exchange exchange);
 
 	/**
 	 * Removes the exchange registered under a given message ID.
@@ -148,12 +147,12 @@ public interface MessageExchangeStore {
 	Exchange remove(KeyMID messageId, Exchange exchange);
 
 	/**
-	 * Gets the exchange registered under a given token.
+	 * Gets the exchange registered under a given key token.
 	 * 
-	 * @param token the token under which the exchange has been registered.
+	 * @param token the key token under which the exchange has been registered.
 	 * @return the exchange or {@code null} if no exchange exists for the given token.
 	 */
-	Exchange get(Token token);
+	Exchange get(KeyToken token);
 
 	/**
 	 * Gets the exchange registered under a given message ID.
@@ -207,7 +206,7 @@ public interface MessageExchangeStore {
 	 * @param token the token to look for.
 	 * @return the exchanges.
 	 */
-	List<Exchange> findByToken(Token token);
+	List<Exchange> findByToken(KeyToken token);
 
 	/**
 	 * Set a scheduler to execute rare periodic task.

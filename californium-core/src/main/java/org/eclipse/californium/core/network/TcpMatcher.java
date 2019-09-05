@@ -159,7 +159,8 @@ public final class TcpMatcher extends BaseMatcher {
 	@Override
 	public void receiveResponse(final Response response, final EndpointReceiver receiver) {
 
-		final Token idByToken = response.getToken();
+		final KeyToken idByToken = tokenGenerator.getKeyToken(response.getToken(),  response.getSourceContext());
+		
 		Exchange tempExchange = exchangeStore.get(idByToken);
 
 		if (tempExchange == null) {
@@ -220,7 +221,13 @@ public final class TcpMatcher extends BaseMatcher {
 		@Override
 		public void remove(Exchange exchange, Token token, KeyMID key) {
 			if (token != null) {
-				exchangeStore.remove(token, exchange);
+				EndpointContext peer;
+				if (exchange.isOfLocalOrigin()) {
+					peer = exchange.getCurrentRequest().getDestinationContext();
+				} else {
+					peer = exchange.getCurrentRequest().getSourceContext();
+				}
+				exchangeStore.remove(tokenGenerator.getKeyToken(token, peer), exchange);
 			}
 			// ignore key, MID is not used for TCP!
 		}

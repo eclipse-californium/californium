@@ -34,6 +34,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.MessageDeliverer;
+import org.eclipse.californium.elements.EndpointContext;
 
 /**
  * A communication endpoint multiplexing CoAP message exchanges between (potentially multiple) clients and servers.
@@ -208,7 +209,27 @@ public interface Endpoint {
 	 * 
 	 * @param token
 	 *            the token of the original request which establishes the
-	 *            observe relation to cancel.
+	 *            observe relation to cancel. The token must have none
+	 *            client-local scope.
+	 * @throws IllegalArgumentException if the token has a client-local scope.
+	 * @deprecated use {@link #cancelObservation(Token, EndpointContext)} and
+	 *           provide the endpoint context, or {@code null}, if not available
+	 *           and a none client-local token is used.
 	 */
+	@Deprecated
 	void cancelObservation(Token token);
+
+	/**
+	 * Cancel observation for this request.
+	 * 
+	 * @param token
+	 *            the key token for the original request which establishes the
+	 *            observe relation to cancel.
+	 * @param context
+	 *            the endpoint context of the observe request. May be {@code null},
+	 *            if the token has a none client-local scope
+	 * @throws IllegalArgumentException if the token has a client-local scope and
+	 *            no endpoint context is provided.
+	 */
+	void cancelObservation(Token token, EndpointContext context);
 }

@@ -144,8 +144,10 @@ public class UdpMatcherTest {
 		exchange.setComplete();
 
 		// THEN assert that token got released in both stores
-		Token token = exchange.getCurrentRequest().getToken();
-		assertThat(messageExchangeStore.get(token), is(nullValue()));
+		Request request = exchange.getCurrentRequest();
+		Token token = request.getToken();
+		KeyToken keyToken = tokenProvider.getKeyToken(token,  request.getDestinationContext());
+		assertThat(messageExchangeStore.get(keyToken), is(nullValue()));
 		assertThat(observationStore.get(token), is(nullValue()));
 	}
 
@@ -160,8 +162,10 @@ public class UdpMatcherTest {
 
 		// THEN assert that token got released in message exchange store
 		// THEN assert that token got not released in observation store
-		Token token = exchange.getCurrentRequest().getToken();
-		assertThat(messageExchangeStore.get(token), is(nullValue()));
+		Request request = exchange.getCurrentRequest();
+		Token token = request.getToken();
+		KeyToken keyToken = tokenProvider.getKeyToken(token,  request.getDestinationContext());
+		assertThat(messageExchangeStore.get(keyToken), is(nullValue()));
 		assertThat(observationStore.get(token), is(notNullValue()));
 	}
 
@@ -173,11 +177,13 @@ public class UdpMatcherTest {
 		Exchange exchange = sendObserveRequest(dest, matcher, exchangeEndpointContext);
 
 		// WHEN canceling any observe relations for the exchange's token
-		matcher.cancelObserve(exchange.getCurrentRequest().getToken());
+		matcher.cancelObserve(exchange.getRequest().getToken(), exchange.getRequest().getDestinationContext());
 
 		// THEN the token has been released for re-use
-		Token token = exchange.getCurrentRequest().getToken();
-		assertThat(messageExchangeStore.get(token), is(nullValue()));
+		Request request = exchange.getCurrentRequest();
+		Token token = request.getToken();
+		KeyToken keyToken = tokenProvider.getKeyToken(token,  request.getDestinationContext());
+		assertThat(messageExchangeStore.get(keyToken), is(nullValue()));
 		assertThat(observationStore.get(token), is(nullValue()));
 	}
 

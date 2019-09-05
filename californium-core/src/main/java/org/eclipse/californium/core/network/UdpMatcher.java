@@ -266,7 +266,7 @@ public final class UdpMatcher extends BaseMatcher {
 		// - Retransmitted CON (because client got no ACK)
 		// => resend ACK
 
-		final Token idByToken = response.getToken();
+		final KeyToken idByToken = tokenGenerator.getKeyToken(response.getToken(),  response.getSourceContext());
 		LOGGER.trace("received response {}", response);
 		Exchange tempExchange = exchangeStore.get(idByToken);
 
@@ -468,7 +468,13 @@ public final class UdpMatcher extends BaseMatcher {
 		@Override
 		public void remove(Exchange exchange, Token token, KeyMID key) {
 			if (token != null) {
-				exchangeStore.remove(token, exchange);
+				EndpointContext peer;
+				if (exchange.isOfLocalOrigin()) {
+					peer = exchange.getCurrentRequest().getDestinationContext();
+				} else {
+					peer = exchange.getCurrentRequest().getSourceContext();
+				}
+				exchangeStore.remove(tokenGenerator.getKeyToken(token, peer), exchange);
 			}
 			if (key != null) {
 				exchangeStore.remove(key, exchange);

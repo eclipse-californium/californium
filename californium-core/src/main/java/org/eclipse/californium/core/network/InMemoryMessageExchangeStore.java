@@ -62,6 +62,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange.KeyMID;
+import org.eclipse.californium.core.network.TokenGenerator.Scope;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.network.deduplication.Deduplicator;
@@ -77,7 +78,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	// for all
 	private final ConcurrentMap<KeyMID, Exchange> exchangesByMID = new ConcurrentHashMap<>();
 	// for outgoing
-	private final ConcurrentMap<Token, Exchange> exchangesByToken = new ConcurrentHashMap<>();
+	private final ConcurrentMap<KeyToken, Exchange> exchangesByToken = new ConcurrentHashMap<>();
 	private volatile boolean enableStatus;
 
 	private final NetworkConfig config;
@@ -250,35 +251,39 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		exchange.assertIncomplete(request);
 		Token token = request.getToken();
 		if (token == null) {
+			KeyToken key;
+			Scope scope = request.isMulticast() ? Scope.SHORT_TERM : Scope.SHORT_TERM_CLIENT_LOCAL;
 			do {
-				token = tokenGenerator.createToken(false);
+				token = tokenGenerator.createToken(scope);
 				request.setToken(token);
-			} while (exchangesByToken.putIfAbsent(token, exchange) != null);
-			LOGGER.debug("{} added with generated token {}, {}", exchange, token, request);
+				key = tokenGenerator.getKeyToken(token, request.getDestinationContext());
+			} while (exchangesByToken.putIfAbsent(key, exchange) != null);
+			LOGGER.debug("{} added with generated token {}, {}", exchange, key, request);
 		} else {
 			// ongoing requests may reuse token
 			if (token.isEmpty() && request.getCode() == null) {
 				// ping, no exchange by token required!
 				return;
 			}
-			Exchange previous = exchangesByToken.put(token, exchange);
+			KeyToken key = tokenGenerator.getKeyToken(token, request.getDestinationContext());
+			Exchange previous = exchangesByToken.put(key, exchange);
 			if (previous == null) {
 				BlockOption block2 = request.getOptions().getBlock2();
 				if (block2 != null) {
-					LOGGER.debug("block2 {} for block {} add with token {}", exchange, block2.getNum(), token);
+					LOGGER.debug("block2 {} for block {} add with token {}", exchange, block2.getNum(), key);
 				} else {
-					LOGGER.debug("{} added with token {}, {}", exchange, token, request);
+					LOGGER.debug("{} added with token {}, {}", exchange, key, request);
 				}
 			} else if (previous != exchange) {
 				if (exchange.getFailedTransmissionCount() == 0 && !request.getOptions().hasBlock1()
 						&& !request.getOptions().hasBlock2() && !request.getOptions().hasObserve()) {
 					LOGGER.warn("{} with manual token overrides existing {} with open request: {}", exchange, previous,
-							token);
+							key);
 				} else {
-					LOGGER.debug("{} replaced with token {}, {}", exchange, token, request);
+					LOGGER.debug("{} replaced with token {}, {}", exchange, key, request);
 				}
 			} else {
-				LOGGER.debug("{} keep for {}, {}", exchange, token, request);
+				LOGGER.debug("{} keep for {}, {}", exchange, key, request);
 			}
 		}
 	}
@@ -322,7 +327,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	}
 
 	@Override
-	public void remove(final Token token, final Exchange exchange) {
+	public void remove(final KeyToken token, final Exchange exchange) {
 		boolean removed = exchangesByToken.remove(token, exchange);
 		if (removed) {
 			LOGGER.debug("removing {} for token {}", exchange, token);
@@ -346,11 +351,11 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	}
 
 	@Override
-	public Exchange get(final Token token) {
-		if (token == null) {
+	public Exchange get(final KeyToken keyToken) {
+		if (keyToken == null) {
 			return null;
 		} else {
-			return exchangesByToken.get(token);
+			return exchangesByToken.get(keyToken);
 		}
 	}
 
@@ -482,15 +487,18 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	}
 
 	@Override
-	public List<Exchange> findByToken(Token token) {
+	public List<Exchange> findByToken(KeyToken token) {
 		List<Exchange> result = new ArrayList<>();
 		if (token != null) {
 			// TODO: remove the for ...
-			for (Entry<Token, Exchange> entry : exchangesByToken.entrySet()) {
+			for (Entry<KeyToken, Exchange> entry : exchangesByToken.entrySet()) {
 				if (entry.getValue().isOfLocalOrigin()) {
 					Request request = entry.getValue().getRequest();
-					if (request != null && token.equals(request.getToken())) {
-						result.add(entry.getValue());
+					if (request != null) {
+						KeyToken requestKeyToken = tokenGenerator.getKeyToken(request.getToken(), request.getDestinationContext());
+						if (token.equals(requestKeyToken)) {
+							result.add(entry.getValue());
+						}
 					}
 				}
 			}

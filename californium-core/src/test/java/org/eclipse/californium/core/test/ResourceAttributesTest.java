@@ -45,6 +45,7 @@ import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.server.resources.DiscoveryResource;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.junit.Assert;
 import org.junit.Before;
@@ -217,6 +218,9 @@ public class ResourceAttributesTest {
 		@Override
 		public void cancelObservation(Token token) {
 		}
-		
+
+		@Override
+		public void cancelObservation(Token token, EndpointContext context) {
+		}
 	}
 }

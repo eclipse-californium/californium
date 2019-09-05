@@ -76,6 +76,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange.Origin;
+import org.eclipse.californium.core.network.TokenGenerator.Scope;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.Observation;
@@ -181,7 +182,7 @@ public abstract class BaseMatcher implements Matcher {
 			Token token = request.getToken();
 			if (token == null) {
 				do {
-					token = tokenGenerator.createToken(true);
+					token = tokenGenerator.createToken(Scope.LONG_TERM);
 					request.setToken(token);
 				} while (observationStore.putIfAbsent(token, new Observation(request, null)) != null);
 			} else {
@@ -264,12 +265,13 @@ public abstract class BaseMatcher implements Matcher {
 	 * @param token the token of the observation.
 	 */
 	@Override
-	public void cancelObserve(Token token) {
+	public void cancelObserve(Token token, EndpointContext context) {
 		// Note: the initial observe exchanges is not longer stored with
 		// the original token but a pending blockwise notifies may still
 		// have a request with that token.
+		KeyToken keyToken = tokenGenerator.getKeyToken(token, context);
 		boolean found = false;
-		for (Exchange exchange : exchangeStore.findByToken(token)) {
+		for (Exchange exchange : exchangeStore.findByToken(keyToken)) {
 			Request request = exchange.getRequest();
 			if (request.isObserve()) {
 				// cancel only observe requests,
