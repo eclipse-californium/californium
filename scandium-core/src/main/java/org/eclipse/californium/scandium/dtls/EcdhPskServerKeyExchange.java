@@ -17,13 +17,11 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
-import java.security.KeyFactory;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECParameterSpec;
-import java.security.spec.ECPoint;
-import java.security.spec.ECPublicKeySpec;
 import java.util.Arrays;
 
+import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -51,13 +49,6 @@ public final class EcdhPskServerKeyExchange extends ServerKeyExchange {
 	private static final int NAMED_CURVE_BITS = 16;
 	private static final int PUBLIC_LENGTH_BITS = 8;
 
-	/**
-	 * The algorithm name to generate elliptic curve keypairs. See also <a href=
-	 * "http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#KeyPairGenerator"
-	 * >KeyPairGenerator Algorithms</a>.
-	 */
-	private static final String KEYPAIR_GENERATOR_INSTANCE = "EC";
-
 	/** The hint in cleartext. */
 	private final PskPublicInformation hint;
 
@@ -79,7 +70,6 @@ public final class EcdhPskServerKeyExchange extends ServerKeyExchange {
 	/** ephemeral public key */
 	private ECPublicKey publicKey = null;
 
-	private ECPoint point = null;
 	private byte[] pointEncoded = null;
 
 	private final int curveId;
@@ -113,8 +103,7 @@ public final class EcdhPskServerKeyExchange extends ServerKeyExchange {
 		this.curveId = namedCurveId;
 		publicKey = ecdhe.getPublicKey();
 		ECParameterSpec parameters = publicKey.getParams();
-		point = publicKey.getW();
-		pointEncoded = ECDHECryptography.encodePoint(point, parameters.getCurve());
+		pointEncoded = ECDHECryptography.encodePoint(publicKey.getW(), parameters.getCurve());
 	}
 
 	private EcdhPskServerKeyExchange(byte[] hintEncoded, int curveId, byte[] pointEncoded, InetSocketAddress peerAddress) throws HandshakeException {		
@@ -133,9 +122,9 @@ public final class EcdhPskServerKeyExchange extends ServerKeyExchange {
 				new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, peerAddress));
 		} else {
 			try {
-				point = ECDHECryptography.decodePoint(pointEncoded, group.getEcParams().getCurve());
-				KeyFactory keyFactory = KeyFactory.getInstance(KEYPAIR_GENERATOR_INSTANCE);
-				publicKey = (ECPublicKey) keyFactory.generatePublic(new ECPublicKeySpec(point, group.getEcParams()));
+				ECParameterSpec params = group.getEcParams();
+				DatagramReader reader = new DatagramReader(pointEncoded, false);
+				publicKey = Asn1DerDecoder.readEcPublicKey(reader, params);
 			} catch (GeneralSecurityException e) {
 				LOGGER.debug("Cannot re-create server's public key from params", e);
 				throw new HandshakeException(
