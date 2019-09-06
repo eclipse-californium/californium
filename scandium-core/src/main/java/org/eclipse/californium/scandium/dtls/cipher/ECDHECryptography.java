@@ -24,7 +24,6 @@ package org.eclipse.californium.scandium.dtls.cipher;
 
 import java.math.BigInteger;
 import java.security.GeneralSecurityException;
-import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
@@ -39,12 +38,13 @@ import java.security.spec.ECFieldFp;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.ECParameterSpec;
 import java.security.spec.ECPoint;
-import java.security.spec.ECPublicKeySpec;
 import java.security.spec.EllipticCurve;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.DatagramReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -177,11 +177,8 @@ public final class ECDHECryptography {
 		try {
 			// extract public key
 			ECParameterSpec params = publicKey.getParams();
-			ECPoint point = decodePoint(encodedPoint, params.getCurve());
-
-			KeyFactory keyFactory = KeyFactory.getInstance(KEYPAIR_GENERATOR_ALGORITHM);
-			ECPublicKeySpec keySpec = new ECPublicKeySpec(point, params);
-			PublicKey peerPublicKey = keyFactory.generatePublic(keySpec);
+			DatagramReader reader = new DatagramReader(encodedPoint, false);
+			PublicKey peerPublicKey = Asn1DerDecoder.readEcPublicKey(reader, params);
 
 			secretKey = getSecret(peerPublicKey);
 
@@ -240,35 +237,6 @@ public final class ECDHECryptography {
 		}
 	}
 
-	/**
-	 * Decodes an EC point according to the X9.62 specification.
-	 * 
-	 * @param encoded
-	 *            the encoded EC point.
-	 * @param curve
-	 *            the elliptic curve the point lies on.
-	 * @return the EC point.
-	 */
-	public static ECPoint decodePoint(byte[] encoded, EllipticCurve curve) {
-		if ((encoded.length == 0) || (encoded[0] != 0x04)) {
-			LOGGER.error("Only uncompressed point format supported.");
-			return null;
-		}
-		
-		int fieldSize = (curve.getField().getFieldSize() + 7) / 8;
-		if (encoded.length != (fieldSize * 2) + 1) {
-			LOGGER.error("Point does not match field size.");
-			return null;
-		}
-		byte[] xb = new byte[fieldSize];
-		byte[] yb = new byte[fieldSize];
-		
-		System.arraycopy(encoded, 1, xb, 0, fieldSize);
-		System.arraycopy(encoded, fieldSize + 1, yb, 0, fieldSize);
-		
-		return new ECPoint(new BigInteger(1, xb), new BigInteger(1, yb));
-	}
-	
 	/**
 	 * Encodes an EC point according to the X9.62 specification.
 	 * 

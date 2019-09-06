@@ -29,6 +29,7 @@ DO NOT USE IN PRODUCTION SYSTEMS!</description>
 				<includes>
 					<include>*.jks</include>
 					<include>*.p12</include>
+					<include>*.pem</include>
 				</includes>
 			</resource>
 		</resources>
