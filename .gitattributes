@@ -15,6 +15,7 @@
 *.crt text
 *.srl text
 *.key text
+*.pem text
 
 *.gradle text
 .name text
@@ -33,3 +34,6 @@ epl-v10 text
 *.jar binary
 *.jks binary
 *.png binary
+*.jks binary
+*.p12 binary
+
