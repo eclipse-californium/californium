@@ -21,6 +21,7 @@ import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.RemoteEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.stack.CongestionControlLayer;
+import org.eclipse.californium.core.network.stack.ReliabilityLayerParameters;
 
 
 public class Cocoa extends CongestionControlLayer {
@@ -119,14 +120,15 @@ public class Cocoa extends CongestionControlLayer {
 	 * @param rto the initial RTO
 	 * @return the new VBF
 	 */
-	public double calculateVBF(long rto) {
+	@Override
+	protected double calculateVBF(long rto, ReliabilityLayerParameters reliabilityLayerParameters) {
 		if (rto > UPPERVBFLIMIT) {
 			return VBFHIGH;
 		}
 		if (rto < LOWERVBFLIMIT) {
 			return VBFLOW;
 		}
-		return config.getFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE);
+		return reliabilityLayerParameters.getAckTimeoutScale();
 	}
 	
 	/**

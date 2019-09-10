@@ -22,7 +22,7 @@ import java.util.LinkedList;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.stack.ReliabilityLayerParameters;
 
 public class RemoteEndpoint {
 	
@@ -30,6 +30,7 @@ public class RemoteEndpoint {
 	private InetAddress Address;
 	// The port number of the remote endpoint
 	private int Port;
+	private final ReliabilityLayerParameters reliabilityLayerParameters;
 	// A concurrent Hash Map that contains timestamp information for the exchanges
 	private ConcurrentHashMap<Exchange, exchangeInfo> exchangeInfoMap;
 	
@@ -87,16 +88,17 @@ public class RemoteEndpoint {
 	/* A queue for non-confirmable exchanges that need to be rate-controlled */
 	private Queue<Exchange> nonConfirmableQueue; 
 	
-	public RemoteEndpoint(int remotePort, InetAddress remoteAddress, NetworkConfig config){
+	public RemoteEndpoint(int remotePort, InetAddress remoteAddress, ReliabilityLayerParameters reliabilityLayerParameters){
 		Address = remoteAddress;
 		Port = remotePort;
-		
+		this.reliabilityLayerParameters = reliabilityLayerParameters;
+
 		// Fill Array with initial values
 		overallRTO = new long[RTOARRAYSIZE];
 		for(int i=0; i < RTOARRAYSIZE; i++){
-			overallRTO[i] = config.getInt(NetworkConfig.Keys.ACK_TIMEOUT) ;
+			overallRTO[i] = reliabilityLayerParameters.getAckTimeout() ;
 		}
-		currentRTO =  config.getInt(NetworkConfig.Keys.ACK_TIMEOUT);
+		currentRTO =  reliabilityLayerParameters.getAckTimeout();
 
 		xRTO = new long[3];
 		xRTT = new long[3];
@@ -104,10 +106,10 @@ public class RemoteEndpoint {
 		RTOupdateTimestamp = new long[3];	
 		
 		for(int i=0; i <= 2; i++){
-			setEstimatorValues(config.getInt(NetworkConfig.Keys.ACK_TIMEOUT), 0, 0, i);
+			setEstimatorValues(reliabilityLayerParameters.getAckTimeout(), 0, 0, i);
 			setRTOtimestamp(System.currentTimeMillis(), i);
 		}
-		meanOverallRTO = config.getInt(NetworkConfig.Keys.ACK_TIMEOUT);
+		meanOverallRTO = reliabilityLayerParameters.getAckTimeout();
 		
 		currentArrayElement = 0;
 		nonConfirmableCounter = 7;
@@ -197,7 +199,11 @@ public class RemoteEndpoint {
 	public Queue<Exchange> getNonConfirmableQueue(){
 		return nonConfirmableQueue;
 	}
-	
+
+	public ReliabilityLayerParameters getConfigForEndpoint() {
+		return reliabilityLayerParameters;
+	}
+
 	public Exchange pollConfirmableExchange(){
 		return confirmableQueue.poll();
 	}
