@@ -159,13 +159,11 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	private boolean checkNSTART(final Exchange exchange) {
 		RemoteEndpoint endpoint = getRemoteEndpoint(exchange);
 		endpoint.checkForDeletedExchanges();
-		if (endpoint.getNumberOfOngoingExchanges(exchange) < config
-				.getInt("NSTART")) {
+		if (endpoint.getNumberOfOngoingExchanges(exchange) < endpoint.getReliabilityLayerParameters().getNstart()) {
 			// System.out.println("Processing exchange (NSTART OK!)");
 
 			// NSTART allows to start the exchange, proceed normally
-			endpoint.registerExchange(exchange,
-					calculateVBF(getRemoteEndpoint(exchange).getRTO()));
+			endpoint.registerExchange(exchange, calculateVBF(endpoint.getRTO(), endpoint));
 
 			// The exchange needs to be deleted after at least 255 s TODO:
 			// should this value be calculated dynamically
@@ -235,8 +233,8 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	 * @param estimatorType the type indicating if the measurement was a strong or a weak one
 	 * @param endpoint      the Remote Endpoint for which the RTO update is done
 	 */
-	protected void initializeRTOEstimators(final long measuredRTT, final int estimatorType, final RemoteEndpoint endpoint){		
-		long newRTO = config.getInt(NetworkConfig.Keys.ACK_TIMEOUT);
+	protected void initializeRTOEstimators(final long measuredRTT, final int estimatorType, final RemoteEndpoint endpoint){
+		long newRTO = endpoint.getReliabilityLayerParameters().getAckTimeout();
 
 		endpoint.updateRTO(newRTO);
 	}
@@ -251,18 +249,20 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	 */
 	protected void updateEstimator(final long measuredRTT, final int estimatorType, final RemoteEndpoint endpoint){
 		// Default CoAP always uses the default timeout
-		long newRTO = config.getInt(NetworkConfig.Keys.ACK_TIMEOUT);
+		long newRTO = endpoint.getReliabilityLayerParameters().getAckTimeout();
 		endpoint.updateRTO(newRTO);
-	}	
+	}
 
 	/**
-	 * Calculates the Backoff Factor for the retransmissions. By default this is a binary backoff (= 2)
+	 * Calculates the Backoff Factor for the retransmissions. By default this is
+	 * a binary backoff (= 2)
 	 * 
 	 * @param rto the initial RTO value
+	 * @param endpoint The Remote Endpoint for which the backoff is calculated
 	 * @return the new VBF
 	 */
-	protected double calculateVBF(final long rto){
-		return config.getFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE);
+	protected double calculateVBF(final long rto, final RemoteEndpoint endpoint) {
+		return endpoint.getReliabilityLayerParameters().getAckTimeoutScale();
 	}
 
 	/*
@@ -325,26 +325,24 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	}
 
 	@Override
-	protected void updateRetransmissionTimeout(final Exchange exchange) {
+	protected void updateRetransmissionTimeout(final Exchange exchange, ReliabilityLayerParameters reliabilityLayerParameters) {
 		int timeout;
 		//System.out.println("TXCount: " + exchange.getFailedTransmissionCount());
+		RemoteEndpoint remoteEndpoint = getRemoteEndpoint(exchange);
 		if (exchange.getFailedTransmissionCount() == 0) {
-			timeout = (int)getRemoteEndpoint(exchange).getRTO();	
+			timeout = (int) remoteEndpoint.getRTO();
 			if(appliesDithering()){
 				//TODO: Workaround to force CoCoA (-Strong) not to use the same RTO after backing off several times
 				//System.out.println("Applying dithering, matching RTO");
-				getRemoteEndpoint(exchange).matchCurrentRTO();
-				timeout = (int)getRemoteEndpoint(exchange).getRTO();
-				// Apply dithering by randomly choosing RTO from [RTO, RTO * 1.5]
-				float ack_random_factor = config.getFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR);
-				timeout = getRandomTimeout(timeout, (int) (timeout*ack_random_factor));
+				remoteEndpoint.matchCurrentRTO();
+				timeout = getRandomTimeout((int) remoteEndpoint.getRTO(), reliabilityLayerParameters.getAckRandomFactor());
 			}
 			//System.out.println("meanrto:" + timeout + ";" + System.currentTimeMillis());
 		} else {
-				int tempTimeout= (int)(getRemoteEndpoint(exchange).getExchangeVBF(exchange) * exchange.getCurrentTimeout());
-				timeout = (tempTimeout < MAX_RTO) ? tempTimeout : MAX_RTO;
-				getRemoteEndpoint(exchange).setCurrentRTO(timeout);
-				//System.out.println("RTX");
+			int tempTimeout= (int)(remoteEndpoint.getExchangeVBF(exchange) * exchange.getCurrentTimeout());
+			timeout = (tempTimeout < MAX_RTO) ? tempTimeout : MAX_RTO;
+			remoteEndpoint.setCurrentRTO(timeout);
+			//System.out.println("RTX");
 		}
 		exchange.setCurrentTimeout(timeout);
 		//expectedmaxduration = calculateMaxTransactionDuration(exchange); //FIXME what was this for?

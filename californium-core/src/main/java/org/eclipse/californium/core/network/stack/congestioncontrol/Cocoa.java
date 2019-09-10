@@ -117,16 +117,18 @@ public class Cocoa extends CongestionControlLayer {
 	 * CoCoA applies a variable backoff factor (VBF) to retransmissions, depending on the RTO value of the first transmission
 	 * of the CoAP request.
 	 * @param rto the initial RTO
+	 * @param endpoint The Remote Endpoint for which the backoff is calculated
 	 * @return the new VBF
 	 */
-	public double calculateVBF(long rto) {
+	@Override
+	protected double calculateVBF(long rto, final RemoteEndpoint endpoint) {
 		if (rto > UPPERVBFLIMIT) {
 			return VBFHIGH;
 		}
 		if (rto < LOWERVBFLIMIT) {
 			return VBFLOW;
 		}
-		return config.getFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE);
+		return endpoint.getReliabilityLayerParameters().getAckTimeoutScale();
 	}
 	
 	/**
