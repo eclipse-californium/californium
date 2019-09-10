@@ -52,8 +52,6 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
-import java.net.InetSocketAddress;
-import java.util.Arrays;
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.concurrent.Executor;
@@ -64,7 +62,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
@@ -1037,108 +1034,6 @@ public class Exchange {
 			return executor.checkOwner();
 		} else {
 			return true;
-		}
-	}
-
-	/**
-	 * A CoAP message ID scoped to a remote endpoint.
-	 * <p>
-	 * This class is used by the matcher to correlate messages by MID and
-	 * endpoint address.
-	 */
-	public static final class KeyMID {
-
-		private static final int MAX_PORT_NO = (1 << 16) - 1;
-		private final int MID;
-		private final byte[] address;
-		private final int port;
-		private final int hash;
-
-		/**
-		 * Creates a key based on a message ID and a remote endpoint address.
-		 * 
-		 * @param mid the message ID.
-		 * @param address the IP address of the remote endpoint.
-		 * @param port the port of the remote endpoint.
-		 * @throws NullPointerException if address or origin is {@code null}
-		 * @throws IllegalArgumentException if mid or port &lt; 0 or &gt; 65535.
-		 * 
-		 */
-		private KeyMID(final int mid, final byte[] address, final int port) {
-			if (mid < 0 || mid > Message.MAX_MID) {
-				throw new IllegalArgumentException("MID must be a 16 bit unsigned int: " + mid);
-			} else if (address == null) {
-				throw new NullPointerException("address must not be null");
-			} else if (port < 0 || port > MAX_PORT_NO) {
-				throw new IllegalArgumentException("Port must be a 16 bit unsigned int");
-			} else {
-				this.MID = mid;
-				this.address = address;
-				this.port = port;
-				this.hash = createHashCode();
-			}
-		}
-
-		@Override
-		public int hashCode() {
-			return hash;
-		}
-
-		private int createHashCode() {
-			final int prime = 31;
-			int result = 1;
-			result = prime * result + MID;
-			result = prime * result + Arrays.hashCode(address);
-			result = prime * result + port;
-			return result;
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			if (this == obj)
-				return true;
-			if (obj == null)
-				return false;
-			if (getClass() != obj.getClass())
-				return false;
-			KeyMID other = (KeyMID) obj;
-			if (MID != other.MID)
-				return false;
-			if (!Arrays.equals(address, other.address))
-				return false;
-			if (port != other.port)
-				return false;
-			return true;
-		}
-
-		@Override
-		public String toString() {
-			return new StringBuilder("KeyMID[").append(MID).append(", ").append(Utils.toHexString(address)).append(":")
-					.append(port).append("]").toString();
-		}
-
-		/**
-		 * Creates a key from an inbound CoAP message.
-		 * 
-		 * @param message the message.
-		 * @return the key derived from the message. The key's <em>mid</em> is
-		 *         scoped to the message's source address and port.
-		 */
-		public static KeyMID fromInboundMessage(Message message) {
-			InetSocketAddress address = message.getSourceContext().getPeerAddress();
-			return new KeyMID(message.getMID(), address.getAddress().getAddress(), address.getPort());
-		}
-
-		/**
-		 * Creates a key from an outbound CoAP message.
-		 * 
-		 * @param message the message.
-		 * @return the key derived from the message. The key's <em>mid</em> is
-		 *         scoped to the message's destination address and port.
-		 */
-		public static KeyMID fromOutboundMessage(Message message) {
-			InetSocketAddress address = message.getDestinationContext().getPeerAddress();
-			return new KeyMID(message.getMID(), address.getAddress().getAddress(), address.getPort());
 		}
 	}
 

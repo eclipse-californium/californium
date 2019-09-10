@@ -16,7 +16,6 @@
 package org.eclipse.californium.core.network;
 
 import org.eclipse.californium.core.coap.Token;
-import org.eclipse.californium.core.network.Exchange.KeyMID;
 
 /**
  * The remove handler can be set to an {@link Exchange} and will be invoked

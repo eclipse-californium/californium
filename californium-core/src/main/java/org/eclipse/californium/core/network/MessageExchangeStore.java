@@ -28,7 +28,6 @@ import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.coap.Message;
-import org.eclipse.californium.core.network.Exchange.KeyMID;
 
 /**
  * A registry for keeping track of message exchanges with peers.
