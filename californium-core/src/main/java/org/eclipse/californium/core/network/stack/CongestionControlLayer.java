@@ -1,15 +1,15 @@
 /*******************************************************************************
  * Copyright (c) 2015, 2017 Wireless Networks Group, UPC Barcelona, i2CAT and others.
- * 
+ *
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
- * 
+ *
  * The Eclipse Public License is available at
  *    http://www.eclipse.org/legal/epl-v10.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
- * 
+ *
  * Contributors:
  *    August Betzler    – CoCoA implementation
  *    Matthias Kovatsch - Embedding of CoCoA in Californium
@@ -20,7 +20,7 @@
  *                                                    issue #305
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  ******************************************************************************/
- 
+
 package org.eclipse.californium.core.network.stack;
 
 import java.util.concurrent.TimeUnit;
@@ -33,6 +33,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.RemoteEndpoint;
 import org.eclipse.californium.core.network.RemoteEndpointManager;
+import org.eclipse.californium.core.network.config.EndpointSpecificConfigProvider;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.stack.congestioncontrol.*;
 
@@ -53,9 +54,6 @@ import org.eclipse.californium.core.network.stack.congestioncontrol.*;
 
 public abstract class CongestionControlLayer extends ReliabilityLayer {
 
-	/** The configuration */ 
-	protected NetworkConfig config;
-
 	private final static long MAX_REMOTE_TRANSACTION_DURATION = 255 * 1000; // Maximum duration of a transaction, after that, sweep the exchanges
 	// Amount of non-confirmables that can be transmitted before a NON is converted to a CON (to get an RTT measurement); this is a CoCoA feature
 	private final static int MAX_SUCCESSIVE_NONS = 7; 
@@ -75,13 +73,12 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 
 	/**
 	 * Constructs a new congestion control layer.
-	 * 
+	 *
 	 * @param config the configuration
 	 */
 	public CongestionControlLayer(final NetworkConfig config) {
 		super(config);
-		this.config = config;
-		this.remoteEndpointmanager = new RemoteEndpointManager(config);
+		this.remoteEndpointmanager = new RemoteEndpointManager(config.getEndpointSpecificConfigProvider(ReliabilityLayerParameters.class));
 		setDithering(false);
 	}
 
@@ -159,13 +156,12 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	private boolean checkNSTART(final Exchange exchange) {
 		RemoteEndpoint endpoint = getRemoteEndpoint(exchange);
 		endpoint.checkForDeletedExchanges();
-		if (endpoint.getNumberOfOngoingExchanges(exchange) < config
-				.getInt("NSTART")) {
+		if (endpoint.getNumberOfOngoingExchanges(exchange) < endpoint.getConfigForEndpoint().getNstart()) {
 			// System.out.println("Processing exchange (NSTART OK!)");
 
 			// NSTART allows to start the exchange, proceed normally
 			endpoint.registerExchange(exchange,
-					calculateVBF(getRemoteEndpoint(exchange).getRTO()));
+					calculateVBF(endpoint.getRTO(), endpoint.getConfigForEndpoint()));
 
 			// The exchange needs to be deleted after at least 255 s TODO:
 			// should this value be calculated dynamically
@@ -235,8 +231,8 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	 * @param estimatorType the type indicating if the measurement was a strong or a weak one
 	 * @param endpoint      the Remote Endpoint for which the RTO update is done
 	 */
-	protected void initializeRTOEstimators(final long measuredRTT, final int estimatorType, final RemoteEndpoint endpoint){		
-		long newRTO = config.getInt(NetworkConfig.Keys.ACK_TIMEOUT);
+	protected void initializeRTOEstimators(final long measuredRTT, final int estimatorType, final RemoteEndpoint endpoint){
+		long newRTO = endpoint.getConfigForEndpoint().getAckTimeout();
 
 		endpoint.updateRTO(newRTO);
 	}
@@ -244,25 +240,26 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	/**
 	 * If the RTO estimator already has been used previously, this function takes care of updating it according to the
 	 * new RTT measurement (or other trigger for non-CoCoA algorithms)
-	 * 
+	 *
 	 * @param measuredRTT   Time it took to get an ACK for a CON message
 	 * @param estimatorType Estimatortype indicates if the measurement was a strong or a weak one
 	 * @param endpoint      The Remote Endpoint for which the RTO update is done
 	 */
 	protected void updateEstimator(final long measuredRTT, final int estimatorType, final RemoteEndpoint endpoint){
 		// Default CoAP always uses the default timeout
-		long newRTO = config.getInt(NetworkConfig.Keys.ACK_TIMEOUT);
+		long newRTO = endpoint.getConfigForEndpoint().getAckTimeout();
 		endpoint.updateRTO(newRTO);
-	}	
+	}
 
 	/**
 	 * Calculates the Backoff Factor for the retransmissions. By default this is a binary backoff (= 2)
-	 * 
+	 *
 	 * @param rto the initial RTO value
+	 * @param reliabilityLayerParameters
 	 * @return the new VBF
 	 */
-	protected double calculateVBF(final long rto){
-		return config.getFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE);
+	protected double calculateVBF(final long rto, ReliabilityLayerParameters reliabilityLayerParameters){
+		return reliabilityLayerParameters.getAckTimeoutScale();
 	}
 
 	/*
@@ -272,7 +269,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 		final Exchange queuedExchange = getRemoteEndpoint(exchange).getConfirmableQueue().poll();
 		if (queuedExchange != null) {
 			queuedExchange.execute(new Runnable() {
-				
+
 				@Override
 				public void run() {
 					// We have some exchanges that need to be processed;
@@ -325,25 +322,26 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 	}
 
 	@Override
-	protected void updateRetransmissionTimeout(final Exchange exchange) {
+	protected void updateRetransmissionTimeout(final Exchange exchange, ReliabilityLayerParameters reliabilityLayerParameters) {
 		int timeout;
 		//System.out.println("TXCount: " + exchange.getFailedTransmissionCount());
+		RemoteEndpoint remoteEndpoint = getRemoteEndpoint(exchange);
 		if (exchange.getFailedTransmissionCount() == 0) {
-			timeout = (int)getRemoteEndpoint(exchange).getRTO();	
+			timeout = (int) remoteEndpoint.getRTO();
 			if(appliesDithering()){
 				//TODO: Workaround to force CoCoA (-Strong) not to use the same RTO after backing off several times
 				//System.out.println("Applying dithering, matching RTO");
-				getRemoteEndpoint(exchange).matchCurrentRTO();
-				timeout = (int)getRemoteEndpoint(exchange).getRTO();
+				remoteEndpoint.matchCurrentRTO();
+				timeout = (int) remoteEndpoint.getRTO();
 				// Apply dithering by randomly choosing RTO from [RTO, RTO * 1.5]
-				float ack_random_factor = config.getFloat(NetworkConfig.Keys.ACK_RANDOM_FACTOR);
+				float ack_random_factor = reliabilityLayerParameters.getAckRandomFactor();
 				timeout = getRandomTimeout(timeout, (int) (timeout*ack_random_factor));
 			}
 			//System.out.println("meanrto:" + timeout + ";" + System.currentTimeMillis());
 		} else {
-				int tempTimeout= (int)(getRemoteEndpoint(exchange).getExchangeVBF(exchange) * exchange.getCurrentTimeout());
+				int tempTimeout= (int)(remoteEndpoint.getExchangeVBF(exchange) * exchange.getCurrentTimeout());
 				timeout = (tempTimeout < MAX_RTO) ? tempTimeout : MAX_RTO;
-				getRemoteEndpoint(exchange).setCurrentRTO(timeout);
+				remoteEndpoint.setCurrentRTO(timeout);
 				//System.out.println("RTX");
 		}
 		exchange.setCurrentTimeout(timeout);
@@ -358,9 +356,9 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 			getRemoteEndpoint(exchange).setEstimatorState(exchange);
 		}
 		super.receiveResponse(exchange, response);
-		
-		calculateRTT(exchange);	
-		checkRemoteEndpointQueue(exchange);	
+
+		calculateRTT(exchange);
+		checkRemoteEndpointQueue(exchange);
 	}
 
 	/**
