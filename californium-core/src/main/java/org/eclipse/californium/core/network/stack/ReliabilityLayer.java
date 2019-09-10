@@ -50,7 +50,6 @@ import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.config.EndpointSpecificConfigProvider;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,7 +65,7 @@ public class ReliabilityLayer extends AbstractLayer {
 	/** The random numbers generator for the back-off timer */
 	private final Random rand = new Random();
 
-	private final EndpointSpecificConfigProvider<ReliabilityLayerParameters> reliabilityLayerConfigProvider;
+	private final ReliabilityLayerParameters defaultReliabilityLayerParameters;
 
 	private final AtomicInteger counter = new AtomicInteger();
 	
@@ -77,7 +76,10 @@ public class ReliabilityLayer extends AbstractLayer {
 	 * @param config the configuration
 	 */
 	public ReliabilityLayer(NetworkConfig config) {
-		this.reliabilityLayerConfigProvider = config.getEndpointSpecificConfigProvider(ReliabilityLayerParameters.class);
+		defaultReliabilityLayerParameters = ReliabilityLayerParameters.builder().applyConfig(config).build();
+		LOGGER.info("ReliabilityLayer uses ACK_TIMEOUT={}, ACK_RANDOM_FACTOR={}, and ACK_TIMEOUT_SCALE={} as default",
+				defaultReliabilityLayerParameters.getAckTimeout(), defaultReliabilityLayerParameters.getAckRandomFactor(),
+				defaultReliabilityLayerParameters.getAckTimeoutScale());
 	}
 
 	/**
@@ -93,8 +95,7 @@ public class ReliabilityLayer extends AbstractLayer {
 		}
 		if (request.getType() == Type.CON) {
 			LOGGER.debug("{} prepare retransmission for {}", exchange, request);
-			ReliabilityLayerParameters reliabilityLayerParameters = reliabilityLayerConfigProvider.getConfigForEndpoint(exchange.getEndpointContext());
-			prepareRetransmission(exchange, new RetransmissionTask(exchange, request, reliabilityLayerParameters) {
+			prepareRetransmission(exchange, new RetransmissionTask(exchange, request) {
 
 				public void retransmit() {
 					sendRequest(exchange, request);
@@ -146,8 +147,7 @@ public class ReliabilityLayer extends AbstractLayer {
 
 		if (response.getType() == Type.CON) {
 			LOGGER.debug("{} prepare retransmission for {}", exchange, response);
-			ReliabilityLayerParameters reliabilityLayerParameters = reliabilityLayerConfigProvider.getConfigForEndpoint(exchange.getEndpointContext());
-			prepareRetransmission(exchange, new RetransmissionTask(exchange, response, reliabilityLayerParameters) {
+			prepareRetransmission(exchange, new RetransmissionTask(exchange, response) {
 
 				public void retransmit() {
 					sendResponse(exchange, response);
@@ -160,7 +160,7 @@ public class ReliabilityLayer extends AbstractLayer {
 	/**
 	 * Computes the back-off timer and schedules the specified retransmission
 	 * task.
-	 *
+	 * 
 	 * @param exchange the exchange
 	 * @param task the retransmission task
 	 */
@@ -173,7 +173,7 @@ public class ReliabilityLayer extends AbstractLayer {
 		}
 
 		exchange.setRetransmissionHandle(null); // cancel before reschedule
-		updateRetransmissionTimeout(exchange, task.getConfigForEndpoint());
+		updateRetransmissionTimeout(exchange, task.getReliabilityLayerParameters());
 
 		task.message.addMessageObserver(new MessageObserverAdapter() {
 
@@ -340,10 +340,10 @@ public class ReliabilityLayer extends AbstractLayer {
 
 	/**
 	 * Update the exchange's current timeout.
-	 *
+	 * 
 	 * Prepares either for the first transmission or stretches timeout for
 	 * follow-up retransmissions.
-	 *
+	 * 
 	 * @param exchange exchange to update the current timeout
 	 * @param reliabilityLayerParameters
 	 * @see Exchange#getCurrentTimeout()
@@ -358,7 +358,7 @@ public class ReliabilityLayer extends AbstractLayer {
 			 * random number between ACK_TIMEOUT and (ACK_TIMEOUT *
 			 * ACK_RANDOM_FACTOR)
 			 */
-			timeout = getRandomTimeout(reliabilityLayerParameters.getAckTimeout(), (int) (reliabilityLayerParameters.getAckTimeout() * reliabilityLayerParameters.getAckRandomFactor()));
+			timeout = getRandomTimeout(reliabilityLayerParameters.getAckTimeout(), reliabilityLayerParameters.getAckRandomFactor());
 		} else {
 			timeout = (int) (reliabilityLayerParameters.getAckTimeoutScale() * exchange.getCurrentTimeout());
 		}
@@ -367,17 +367,18 @@ public class ReliabilityLayer extends AbstractLayer {
 
 	/**
 	 * Returns a random timeout between the specified min and max.
-	 *
-	 * @param min the min
-	 * @param max the max
-	 * @return a random value between min and max
+	 * 
+	 * @param ackTimeout ack timeout in milliseconds
+	 * @param randomFactor random factor. Intended to be above 1.5.
+	 * @return a random value between ackTimeout and ackTimeout * randomFactor
 	 */
-	protected int getRandomTimeout(final int min, final int max) {
-		if (min >= max) {
-			return min;
+	protected int getRandomTimeout(int ackTimeout, float randomFactor) {
+		if (randomFactor <= 1.0) {
+			return ackTimeout;
 		}
+		int delta = (int)(ackTimeout * randomFactor) - ackTimeout;
 		synchronized (rand) {
-			return min + rand.nextInt(max - min + 1);
+			return ackTimeout + rand.nextInt(delta + 1);
 		}
 	}
 
@@ -391,16 +392,23 @@ public class ReliabilityLayer extends AbstractLayer {
 
 		private final Exchange exchange;
 		private final Message message;
-		private final ReliabilityLayerParameters reliabilityLayerParameters;
 
-		public RetransmissionTask(final Exchange exchange, final Message message, final ReliabilityLayerParameters reliabilityLayerParameters) {
+		public RetransmissionTask(final Exchange exchange, final Message message) {
 			this.exchange = exchange;
 			this.message = message;
-			this.reliabilityLayerParameters = reliabilityLayerParameters;
 		}
 
-		public ReliabilityLayerParameters getConfigForEndpoint() {
-			return reliabilityLayerParameters;
+		/**
+		 * Get effective reliability layer parameters.
+		 * 
+		 * @return effective reliability layer parameters.
+		 */
+		public ReliabilityLayerParameters getReliabilityLayerParameters() {
+			ReliabilityLayerParameters parameters = message.getReliabilityLayerParameters();
+			if (parameters == null) {
+				parameters = defaultReliabilityLayerParameters;
+			}
+			return parameters;
 		}
 
 		public void startTimer() {
@@ -453,7 +461,7 @@ public class ReliabilityLayer extends AbstractLayer {
 					LOGGER.trace("Timeout: for {}, {} is canceled, do not retransmit", exchange, message);
 					return;
 
-				} else if (failedCount <= reliabilityLayerParameters.getMaxRetransmit()) {
+				} else if (failedCount <= getReliabilityLayerParameters().getMaxRetransmit()) {
 					LOGGER.debug("Timeout: for {} retransmit message, failed: {}, message: {}", exchange, failedCount,
 							message);
 

@@ -22,8 +22,8 @@ import java.net.InetSocketAddress;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.stack.ReliabilityLayerParameters;
-import org.eclipse.californium.core.network.config.EndpointSpecificConfigProvider;
 
 public class RemoteEndpointManager {
 
@@ -33,17 +33,17 @@ public class RemoteEndpointManager {
 	/** The list of remote endpoints */
 	private LimitedRemoteEndpointHashmap<InetAddress,RemoteEndpoint> remoteEndpointsList = new LimitedRemoteEndpointHashmap<InetAddress,RemoteEndpoint>(MAX_REMOTE_ENDPOINTS);//ArrayList<RemoteEndpoint>(0);
 
-	/** The configuration */ 
-	private final EndpointSpecificConfigProvider<ReliabilityLayerParameters> reliabilityLayerConfigProvider;
+	/** Default reliability layer parameters from {@link NetworkConfig} */
+	private final ReliabilityLayerParameters defaultReliabilityLayerParameters;
 
 	/**
 	 * The RemoteEndpointManager is responsible for creating a new RemoteEndpoint object when exchanges with a 
 	 * new destination endpoint are initiated and managing existing ones.
-	 *
-	 * @param reliabilityLayerConfigProvider
+	 * 
+	 * @param config the network parameter configuration
 	 */
-	public RemoteEndpointManager(EndpointSpecificConfigProvider<ReliabilityLayerParameters> reliabilityLayerConfigProvider) {
-		this.reliabilityLayerConfigProvider = reliabilityLayerConfigProvider;
+	public RemoteEndpointManager(NetworkConfig config) {
+		defaultReliabilityLayerParameters = ReliabilityLayerParameters.builder().applyConfig(config).build();
 	}
 
 	/**
@@ -59,8 +59,11 @@ public class RemoteEndpointManager {
 
 		// TODO: One IP-Address is considered to be a destination endpoint, for higher granularity (portnumber) changes are necessary
 		if (!remoteEndpointsList.containsKey(remoteAddress)){
-			ReliabilityLayerParameters reliabilityLayerParameters = reliabilityLayerConfigProvider.getConfigForEndpoint(exchange.getEndpointContext());
-			RemoteEndpoint unusedRemoteEndpoint = new RemoteEndpoint(remotePort, remoteAddress, reliabilityLayerParameters);
+			ReliabilityLayerParameters parameters = exchange.getRequest().getReliabilityLayerParameters();
+			if (parameters == null) {
+				parameters = defaultReliabilityLayerParameters;
+			}
+			RemoteEndpoint unusedRemoteEndpoint = new RemoteEndpoint(remotePort, remoteAddress, parameters);
 			remoteEndpointsList.put(remoteAddress,unusedRemoteEndpoint);
 			
 			//System.out.println("Number of RemoteEndpoint objects stored:" + remoteEndpointsList.size());

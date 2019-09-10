@@ -30,9 +30,10 @@ public class RemoteEndpoint {
 	private InetAddress Address;
 	// The port number of the remote endpoint
 	private int Port;
-	private final ReliabilityLayerParameters reliabilityLayerParameters;
+	// Endpoint specific reliability layer parameters from the first message.
+	private final ReliabilityLayerParameters endpointReliabilityLayerParameters;
 	// A concurrent Hash Map that contains timestamp information for the exchanges
-	private ConcurrentHashMap<Exchange, exchangeInfo> exchangeInfoMap;
+	private ConcurrentHashMap<Exchange, ExchangeInfo> exchangeInfoMap;
 	
 	//Overall RTO, Strong RTO, Strong RTT, Strong RTTVAR, to be used to set the retransmission timeout.
 	private long[] overallRTO;
@@ -65,19 +66,18 @@ public class RemoteEndpoint {
 	public long[] RTT_sample = new long[2];
 	public long RTT_previous;
 	public long RTO_min;
-	
-	
+
 	private int currentArrayElement;
 	private int nonConfirmableCounter;
-	
+
 	private boolean usesBlindEstimator;
 	private boolean isBlindStrong; // As long as no weak RTT measurement has been carried out, the RTO timers are calculated differently
 	private boolean isBlindWeak; // As long as no weak RTT measurement has been carried out, the RTO timers are calculated differently
-	
+
 	private boolean processingNON;
-	
+
 	private final static int RTOARRAYSIZE 	= 1; 	// Amounts of elements in the RTO history length
-	
+
 	private final static int STRONGRTOTYPE = 1;
 	private final static int WEAKRTOTYPE = 2;
 	private final static int NOESTIMATOR = 3;
@@ -91,14 +91,14 @@ public class RemoteEndpoint {
 	public RemoteEndpoint(int remotePort, InetAddress remoteAddress, ReliabilityLayerParameters reliabilityLayerParameters){
 		Address = remoteAddress;
 		Port = remotePort;
-		this.reliabilityLayerParameters = reliabilityLayerParameters;
-
+		this.endpointReliabilityLayerParameters = reliabilityLayerParameters;
+		int ackTimeout = reliabilityLayerParameters.getAckTimeout();
 		// Fill Array with initial values
 		overallRTO = new long[RTOARRAYSIZE];
 		for(int i=0; i < RTOARRAYSIZE; i++){
-			overallRTO[i] = reliabilityLayerParameters.getAckTimeout() ;
+			overallRTO[i] = ackTimeout;
 		}
-		currentRTO =  reliabilityLayerParameters.getAckTimeout();
+		currentRTO = ackTimeout;
 
 		xRTO = new long[3];
 		xRTT = new long[3];
@@ -106,10 +106,10 @@ public class RemoteEndpoint {
 		RTOupdateTimestamp = new long[3];	
 		
 		for(int i=0; i <= 2; i++){
-			setEstimatorValues(reliabilityLayerParameters.getAckTimeout(), 0, 0, i);
+			setEstimatorValues(ackTimeout, 0, 0, i);
 			setRTOtimestamp(System.currentTimeMillis(), i);
 		}
-		meanOverallRTO = reliabilityLayerParameters.getAckTimeout();
+		meanOverallRTO = ackTimeout;
 		
 		currentArrayElement = 0;
 		nonConfirmableCounter = 7;
@@ -120,7 +120,7 @@ public class RemoteEndpoint {
 		
 		processingNON = false;
 		
-		exchangeInfoMap = new ConcurrentHashMap<Exchange, exchangeInfo>();
+		exchangeInfoMap = new ConcurrentHashMap<Exchange, ExchangeInfo>();
 
 		confirmableQueue = new LinkedList<Exchange>();
 	    nonConfirmableQueue = new LinkedList<Exchange>();
@@ -200,8 +200,8 @@ public class RemoteEndpoint {
 		return nonConfirmableQueue;
 	}
 
-	public ReliabilityLayerParameters getConfigForEndpoint() {
-		return reliabilityLayerParameters;
+	public ReliabilityLayerParameters getReliabilityLayerParameters() {
+		return endpointReliabilityLayerParameters;
 	}
 
 	public Exchange pollConfirmableExchange(){
@@ -321,7 +321,7 @@ public class RemoteEndpoint {
 	 * @param vbf the variable back-off factor
 	 */
 	public void registerExchange(Exchange exchange, double vbf){
-		exchangeInfo newExchange = new exchangeInfo(System.currentTimeMillis(), vbf);
+		ExchangeInfo newExchange = new ExchangeInfo(System.currentTimeMillis(), vbf);
 		exchangeInfoMap.put(exchange, newExchange);
 	}
 	
@@ -425,13 +425,13 @@ public class RemoteEndpoint {
 	 * 2.) Variable Backoff Factor
 	 * 3.) Estimator Type (weak/strong/none)
 	 */ 
-	private class exchangeInfo{
+	private class ExchangeInfo{
 		
 		private long timestamp;
 		private double vbf;
 		private int estimatorType;
 		
-		public exchangeInfo(long timestamp, double vbf){
+		public ExchangeInfo(long timestamp, double vbf){
 			this.timestamp = timestamp;
 			this.vbf = vbf;
 			estimatorType = STRONGRTOTYPE;

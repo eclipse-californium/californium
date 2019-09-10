@@ -21,7 +21,6 @@ import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.RemoteEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.stack.CongestionControlLayer;
-import org.eclipse.californium.core.network.stack.ReliabilityLayerParameters;
 
 
 public class Cocoa extends CongestionControlLayer {
@@ -118,17 +117,18 @@ public class Cocoa extends CongestionControlLayer {
 	 * CoCoA applies a variable backoff factor (VBF) to retransmissions, depending on the RTO value of the first transmission
 	 * of the CoAP request.
 	 * @param rto the initial RTO
+	 * @param endpoint The Remote Endpoint for which the backoff is calculated
 	 * @return the new VBF
 	 */
 	@Override
-	protected double calculateVBF(long rto, ReliabilityLayerParameters reliabilityLayerParameters) {
+	protected double calculateVBF(long rto, final RemoteEndpoint endpoint) {
 		if (rto > UPPERVBFLIMIT) {
 			return VBFHIGH;
 		}
 		if (rto < LOWERVBFLIMIT) {
 			return VBFLOW;
 		}
-		return reliabilityLayerParameters.getAckTimeoutScale();
+		return endpoint.getReliabilityLayerParameters().getAckTimeoutScale();
 	}
 	
 	/**

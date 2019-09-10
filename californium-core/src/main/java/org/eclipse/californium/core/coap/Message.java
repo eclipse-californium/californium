@@ -60,6 +60,8 @@ import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.stack.ReliabilityLayerParameters;
 import org.eclipse.californium.core.observe.ObserveManager;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.util.ClockUtil;
@@ -121,6 +123,12 @@ public abstract class Message {
 
 	/** Marks this message to have payload even if this is not intended */
 	private boolean unintendedPayload;
+
+	/**
+	 * Message specific parameter. Overwrites then general ones from
+	 * {@link NetworkConfig}.
+	 */
+	private volatile ReliabilityLayerParameters parameters;
 
 	/**
 	 * Destination endpoint context. Used for outgoing messages.
@@ -281,6 +289,26 @@ public abstract class Message {
 	 */
 	public boolean isUnintendedPayload() {
 		return unintendedPayload;
+	}
+
+	/**
+	 * Set message specific reliability layer parameters.
+	 * 
+	 * @param parameter message specific reliability layer parameters.
+	 *            {@code null} to reset to default configuration.
+	 */
+	public void setReliabilityLayerParameters(ReliabilityLayerParameters parameter) {
+		this.parameters = parameter;
+	}
+
+	/**
+	 * Get message specific reliability layer parameters.
+	 * 
+	 * @return parameter message specific reliability layer parameters, or
+	 *         {@code null}, if default configuration is to be used.
+	 */
+	public ReliabilityLayerParameters getReliabilityLayerParameters() {
+		return parameters;
 	}
 
 	/**

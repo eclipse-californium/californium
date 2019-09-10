@@ -1,15 +1,15 @@
 /*******************************************************************************
  * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
- *
+ * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
- *
+ * 
  * The Eclipse Public License is available at
  *    http://www.eclipse.org/legal/epl-v10.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
- *
+ * 
  * Contributors:
  *    Matthias Kovatsch - creator and main architect
  *    Martin Lanter - architect and re-implementation
@@ -30,15 +30,18 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.config;
 
-import org.eclipse.californium.core.network.stack.DefaultReliabilityLayerParametersConfigProvider;
-import org.eclipse.californium.core.network.stack.ReliabilityLayerParameters;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Properties;
+
 import org.eclipse.californium.elements.util.NotForAndroid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.*;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * The configuration for a Californium server, endpoint and/or connector.
@@ -73,11 +76,6 @@ public final class NetworkConfig {
 
 	/** The list of config observers. */
 	private List<NetworkConfigObserver> observers = new LinkedList<NetworkConfigObserver>();
-
-	/**
-	 * A map of registered providers for endpoint specific configuration
-	 */
-	private Map<Class<?>, EndpointSpecificConfigProvider<?>> configProviderMap = new ConcurrentHashMap<>();
 
 	/**
 	 * Network configuration key names
@@ -420,8 +418,6 @@ public final class NetworkConfig {
 	public NetworkConfig(NetworkConfig config) {
 		this.properties = new Properties();
 		this.properties.putAll(config.properties);
-		this.observers.addAll(config.observers);
-		this.configProviderMap.putAll(config.configProviderMap);
 	}
 
 	/**
@@ -830,25 +826,5 @@ public final class NetworkConfig {
 	public NetworkConfig removeConfigObserver(NetworkConfigObserver observer) {
 		observers.remove(observer);
 		return this;
-	}
-
-	public <T> NetworkConfig addEndpointSpecificConfigProvider(Class<T> clazz, EndpointSpecificConfigProvider<T> endpointSpecificConfigProvider) {
-		configProviderMap.put(clazz, endpointSpecificConfigProvider);
-		return this;
-	}
-
-	public NetworkConfig removeEndpointSpecificConfigProvider(Class<?> clazz) {
-		configProviderMap.remove(clazz);
-		return this;
-	}
-
-	public <T> EndpointSpecificConfigProvider<T> getEndpointSpecificConfigProvider(Class<T> clazz) {
-		EndpointSpecificConfigProvider<T> configProvider = (EndpointSpecificConfigProvider<T>) configProviderMap.get(clazz);
-		if (configProvider == null) {
-			if (clazz == ReliabilityLayerParameters.class) {
-				return (EndpointSpecificConfigProvider<T>) new DefaultReliabilityLayerParametersConfigProvider(this);
-			}
-		}
-		return configProvider;
 	}
 }
