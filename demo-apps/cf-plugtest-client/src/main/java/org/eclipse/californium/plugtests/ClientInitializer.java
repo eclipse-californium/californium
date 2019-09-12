@@ -254,7 +254,7 @@ public class ClientInitializer {
 		public PlugPskStore(String id, byte[] secret) {
 			this.identity = id;
 			this.secret = secret;
-			LOGGER.info("DTLS-PSK-Identity: {})", identity);
+			LOGGER.info("DTLS-PSK-Identity: {}", identity);
 		}
 
 		public PlugPskStore(String id) {
