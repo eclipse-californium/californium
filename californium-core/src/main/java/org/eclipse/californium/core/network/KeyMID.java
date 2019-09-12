@@ -27,7 +27,7 @@ import org.eclipse.californium.core.coap.Message;
  */
 public final class KeyMID {
 
-	private final int MID;
+	private final int mid;
 	private final Object peer;
 	private final int hash;
 
@@ -41,16 +41,24 @@ public final class KeyMID {
 	 * @throws IllegalArgumentException if mid is &lt; 0 or &gt; 65535.
 	 * 
 	 */
-	private KeyMID(int mid,  Object peer) {
+	public KeyMID(int mid,  Object peer) {
 		if (mid < 0 || mid > Message.MAX_MID) {
 			throw new IllegalArgumentException("MID must be a 16 bit unsigned int: " + mid);
 		} else if (peer == null) {
 			throw new NullPointerException("peer must not be null");
 		} else {
-			this.MID = mid;
+			this.mid = mid;
 			this.peer = peer;
 			this.hash = 31 * mid + peer.hashCode();
 		}
+	}
+
+	public int getMID() {
+		return mid;
+	}
+
+	public Object getPeer() {
+		return peer;
 	}
 
 	@Override
@@ -67,14 +75,14 @@ public final class KeyMID {
 		if (getClass() != obj.getClass())
 			return false;
 		KeyMID other = (KeyMID) obj;
-		if (MID != other.MID)
+		if (mid != other.mid)
 			return false;
 		return peer.equals(other.peer);
 	}
 
 	@Override
 	public String toString() {
-		return new StringBuilder("KeyMID[").append(MID).append(", ").append(peer).append("]").toString();
+		return new StringBuilder("KeyMID[").append(peer).append(", ").append(mid).append("]").toString();
 	}
 
 	/**

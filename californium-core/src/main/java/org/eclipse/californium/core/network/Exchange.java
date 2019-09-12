@@ -199,6 +199,10 @@ public class Exchange {
 	 */
 	private final boolean notification;
 
+	private KeyMID outboundKeyMID;
+
+	private KeyMID outboundCurrentKeyMID;
+
 	/**
 	 * The actual request that caused this exchange. Layers below the
 	 * {@link BlockwiseLayer} should only work with the {@link #currentRequest}
@@ -466,7 +470,7 @@ public class Exchange {
 			}
 			KeyMID key = null;
 			if (currentRequest.hasMID() && currentRequest.getMID() != newCurrentRequest.getMID()) {
-				key = KeyMID.fromOutboundMessage(currentRequest);
+				key = outboundCurrentKeyMID;
 			}
 			if (token != null || key != null) {
 				LOGGER.debug("{} replace {} by {}", this, currentRequest, newCurrentRequest);
@@ -528,12 +532,22 @@ public class Exchange {
 			if (currentResponse != null && currentResponse.getType() == Type.CON && currentResponse.hasMID()) {
 				RemoveHandler handler = this.removeHandler;
 				if (handler != null) {
-					KeyMID key = KeyMID.fromOutboundMessage(currentResponse);
-					handler.remove(this, null, key);
+					handler.remove(this, null, outboundCurrentKeyMID);
 				}
 			}
 			currentResponse = newCurrentResponse;
 		}
+	}
+
+	public void setOutboundKeyMID(KeyMID keyMID) {
+		this.outboundCurrentKeyMID = keyMID;
+		if (request == currentRequest) {
+			this.outboundKeyMID = keyMID;
+		}
+	}
+
+	public KeyMID getOutboundKeyMID() {
+		return this.outboundCurrentKeyMID;
 	}
 
 	/**
@@ -773,7 +787,7 @@ public class Exchange {
 				if (origin == Origin.LOCAL) {
 					Request currrentRequest = getCurrentRequest();
 					Token token = currrentRequest.getToken();
-					KeyMID key = currrentRequest.hasMID() ? KeyMID.fromOutboundMessage(currrentRequest) : null;
+					KeyMID key = outboundCurrentKeyMID;
 					if (token != null || key != null) {
 						handler.remove(this, token, key);
 					}
@@ -781,7 +795,7 @@ public class Exchange {
 					if (keepRequestInStore) {
 						if (request != currrentRequest) {
 							token = request.getToken();
-							key = request.hasMID() ? KeyMID.fromOutboundMessage(request) : null;
+							key = outboundKeyMID;
 							if (token != null || key != null) {
 								handler.remove(this, token, key);
 							}
@@ -798,8 +812,7 @@ public class Exchange {
 						LOGGER.debug("remote {} rejected (without response)!", this);
 					} else {
 						if (currentResponse.getType() == Type.CON && currentResponse.hasMID()) {
-							KeyMID key = KeyMID.fromOutboundMessage(currentResponse);
-							handler.remove(this, null, key);
+							handler.remove(this, null, outboundCurrentKeyMID);
 						}
 						removeNotifications();
 						Response response = getResponse();
@@ -907,7 +920,7 @@ public class Exchange {
 				// notifications are local MID namespace
 				if (previous.hasMID()) {
 					if (handler != null) {
-						KeyMID key = KeyMID.fromOutboundMessage(previous);
+						KeyMID key = new KeyMID(previous.getMID(), outboundCurrentKeyMID.getPeer());
 						handler.remove(this, null, key);
 					}
 				} else {

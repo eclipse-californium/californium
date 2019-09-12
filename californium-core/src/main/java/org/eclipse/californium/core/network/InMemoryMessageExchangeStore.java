@@ -214,19 +214,22 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	private int registerWithMessageId(final Exchange exchange, final Message message) {
 		enableStatus = true;
 		exchange.assertIncomplete(message);
+		KeyMID key;
 		int mid = message.getMID();
 		if (Message.NONE == mid) {
 			mid = assignMessageId(message);
 			if (Message.NONE != mid) {
-				KeyMID key = KeyMID.fromOutboundMessage(message);
+				key = KeyMID.fromOutboundMessage(message);
 				if (exchangesByMID.putIfAbsent(key, exchange) != null) {
 					throw new IllegalArgumentException(String.format(
 							"generated mid [%d] already in use, cannot register %s", message.getMID(), exchange));
 				}
 				LOGGER.debug("{} added with generated mid {}, {}", exchange, key, message);
+			} else {
+				key = null;
 			}
 		} else {
-			KeyMID key = KeyMID.fromOutboundMessage(message);
+			key = KeyMID.fromOutboundMessage(message);
 			Exchange existingExchange = exchangesByMID.putIfAbsent(key, exchange);
 			if (existingExchange != null) {
 				if (existingExchange != exchange) {
@@ -240,6 +243,9 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			} else {
 				LOGGER.debug("{} added with {}, {}", exchange, key, message);
 			}
+		}
+		if (key != null) {
+			exchange.setOutboundKeyMID(key);
 		}
 		return mid;
 	}
