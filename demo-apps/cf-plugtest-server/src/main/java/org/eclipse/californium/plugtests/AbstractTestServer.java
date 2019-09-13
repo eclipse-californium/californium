@@ -33,6 +33,8 @@ import javax.net.ssl.SSLSessionContext;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
+import org.eclipse.californium.core.network.PrincipalKeyMidGenerator;
+import org.eclipse.californium.core.network.PrinicpalRandomTokenGenerator;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.elements.tcp.TcpServerConnector;
@@ -282,6 +284,8 @@ public abstract class AbstractTestServer extends CoapServer {
 					DTLSConnector connector = new DTLSConnector(dtlsConfigBuilder.build());
 					CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 					builder.setConnector(connector);
+					builder.setTokenGenerator(new PrinicpalRandomTokenGenerator(dtlsConfig));
+					builder.setKeyMidGenerator(new PrincipalKeyMidGenerator());
 					builder.setNetworkConfig(dtlsConfig);
 					CoapEndpoint endpoint = builder.build();
 					addEndpoint(endpoint);

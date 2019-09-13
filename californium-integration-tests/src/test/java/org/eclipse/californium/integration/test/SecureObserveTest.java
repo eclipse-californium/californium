@@ -51,6 +51,8 @@ import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
+import org.eclipse.californium.core.network.PrincipalKeyMidGenerator;
+import org.eclipse.californium.core.network.PrinicpalRandomTokenGenerator;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -519,6 +521,9 @@ public class SecureObserveTest {
 		serverConnector = new DTLSConnector(dtlsConfig);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setConnector(serverConnector);
+		
+		builder.setTokenGenerator(new PrinicpalRandomTokenGenerator(config));
+		builder.setKeyMidGenerator(new PrincipalKeyMidGenerator());
 		builder.setNetworkConfig(config);
 		serverEndpoint = builder.build();
 

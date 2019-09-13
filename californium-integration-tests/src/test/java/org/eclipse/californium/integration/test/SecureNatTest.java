@@ -39,6 +39,8 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointContextMatcherFactory.MatcherMode;
 import org.eclipse.californium.core.network.EndpointManager;
+import org.eclipse.californium.core.network.PrincipalKeyMidGenerator;
+import org.eclipse.californium.core.network.PrinicpalRandomTokenGenerator;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -426,6 +428,8 @@ public class SecureNatTest {
 		Connector serverConnector = new MyDtlsConnector(dtlsConfig, serverConnections);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setConnector(serverConnector);
+		builder.setTokenGenerator(new PrinicpalRandomTokenGenerator(config));
+		builder.setKeyMidGenerator(new PrincipalKeyMidGenerator());
 		builder.setNetworkConfig(config);
 		serverEndpoint = builder.build();
 
