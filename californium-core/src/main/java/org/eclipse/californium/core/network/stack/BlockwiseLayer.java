@@ -65,6 +65,7 @@ package org.eclipse.californium.core.network.stack;
 import java.util.Iterator;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -155,6 +156,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	private static final Logger HEALTH_LOGGER = LoggerFactory.getLogger(LOGGER.getName() + ".health");
 	private final LeastRecentlyUsedCache<KeyUri, Block1BlockwiseStatus> block1Transfers;
 	private final LeastRecentlyUsedCache<KeyUri, Block2BlockwiseStatus> block2Transfers;
+	private final AtomicInteger ignoredBlock2 = new AtomicInteger();
 	private volatile boolean enableStatus;
 	private ScheduledFuture<?> statusLogger;
 	private int maxMessageSize;
@@ -216,12 +218,12 @@ public class BlockwiseLayer extends AbstractLayer {
 		block2Transfers = new LeastRecentlyUsedCache<>(maxActivePeers, TimeUnit.MILLISECONDS.toSeconds(blockTimeout));
 		block2Transfers.setEvictingOnReadAccess(false);
 		strictBlock2Option = config.getBoolean(NetworkConfig.Keys.BLOCKWISE_STRICT_BLOCK2_OPTION, NetworkConfigDefaults.DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION);
-		
-		LOGGER.info(
-			"BlockwiseLayer uses MAX_MESSAGE_SIZE={}, PREFERRED_BLOCK_SIZE={}, BLOCKWISE_STATUS_LIFETIME={}, MAX_RESOURCE_BODY_SIZE={}, BLOCKWISE_STRICT_BLOCK2_OPTION={}",
-			maxMessageSize, preferredBlockSize, blockTimeout, maxResourceBodySize, strictBlock2Option);
-		
+
 		healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
+
+		LOGGER.info(
+				"BlockwiseLayer uses MAX_MESSAGE_SIZE={}, PREFERRED_BLOCK_SIZE={}, BLOCKWISE_STATUS_LIFETIME={}, MAX_RESOURCE_BODY_SIZE={}, BLOCKWISE_STRICT_BLOCK2_OPTION={}",
+				 maxMessageSize, preferredBlockSize, blockTimeout, maxResourceBodySize, strictBlock2Option);
 	}
 
 	@Override
@@ -256,6 +258,7 @@ public class BlockwiseLayer extends AbstractLayer {
 								}
 							}
 						}
+						HEALTH_LOGGER.debug("{} block2 responses ignored", ignoredBlock2.get());
 					}
 				}
 			}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
@@ -925,8 +928,9 @@ public class BlockwiseLayer extends AbstractLayer {
 			} else {
 				// ERROR, wrong block number (server error)
 				// Canceling the request would interfere with Observe, so just ignore it
-				LOGGER.warn("ignoring block2 response with wrong block number {} (expected {}): {}", block2.getNum(),
-						status.getCurrentNum(), response);
+				ignoredBlock2.incrementAndGet();
+				LOGGER.warn("ignoring block2 response with wrong block number {} (expected {}): {}",
+						block2.getNum(), status.getCurrentNum(), response);
 			}
 		}
 	}
