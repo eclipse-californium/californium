@@ -66,6 +66,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.network.deduplication.Deduplicator;
 import org.eclipse.californium.core.network.deduplication.DeduplicatorFactory;
+import org.eclipse.californium.elements.EndpointContext;
 
 /**
  * A {@code MessageExchangeStore} that manages all exchanges in local memory.
@@ -82,6 +83,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 
 	private final NetworkConfig config;
 	private final TokenGenerator tokenGenerator;
+	private final KeyMidGenerator midGenerator;
 	private volatile boolean running = false;
 	private volatile Deduplicator deduplicator;
 	private volatile MessageIdProvider messageIdProvider;
@@ -95,7 +97,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	 * 
 	 */
 	public InMemoryMessageExchangeStore(final NetworkConfig config) {
-		this(config, new RandomTokenGenerator(config));
+		this(config, new RandomTokenGenerator(config), new InetSocketAddreesKeyMidGenerator());
 		LOGGER.debug("using default TokenProvider {}", RandomTokenGenerator.class.getName());
 	}
 
@@ -107,7 +109,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	 *            are guaranteed to be not in use.
 	 * 
 	 */
-	public InMemoryMessageExchangeStore(final NetworkConfig config, TokenGenerator tokenProvider) {
+	public InMemoryMessageExchangeStore(final NetworkConfig config, TokenGenerator tokenProvider, KeyMidGenerator midManager) {
 		if (config == null) {
 			throw new NullPointerException("Configuration must not be null");
 		}
@@ -115,6 +117,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			throw new NullPointerException("TokenProvider must not be null");
 		}
 		this.tokenGenerator = tokenProvider;
+		this.midGenerator = midManager;
 		this.config = config;
 	}
 
@@ -219,7 +222,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		if (Message.NONE == mid) {
 			mid = assignMessageId(message);
 			if (Message.NONE != mid) {
-				key = KeyMID.fromOutboundMessage(message);
+				key = midGenerator.getKeyMid(message.getMID(), message.getDestinationContext());
 				if (exchangesByMID.putIfAbsent(key, exchange) != null) {
 					throw new IllegalArgumentException(String.format(
 							"generated mid [%d] already in use, cannot register %s", message.getMID(), exchange));
@@ -229,7 +232,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 				key = null;
 			}
 		} else {
-			key = KeyMID.fromOutboundMessage(message);
+			key = midGenerator.getKeyMid(message.getMID(), message.getDestinationContext());
 			Exchange existingExchange = exchangesByMID.putIfAbsent(key, exchange);
 			if (existingExchange != null) {
 				if (existingExchange != exchange) {
@@ -509,5 +512,10 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			}
 		}
 		return result;
+	}
+
+	@Override
+	public KeyMID getKeyMid(int mid, EndpointContext peer) {
+		return midGenerator.getKeyMid(mid, peer);
 	}
 }

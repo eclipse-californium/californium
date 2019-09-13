@@ -84,28 +84,4 @@ public final class KeyMID {
 	public String toString() {
 		return new StringBuilder("KeyMID[").append(peer).append(", ").append(mid).append("]").toString();
 	}
-
-	/**
-	 * Creates a key from an inbound CoAP message.
-	 * 
-	 * @param message the message.
-	 * @return the key derived from the message. The key's <em>mid</em> is
-	 *         scoped to the message's source address and port.
-	 */
-	public static KeyMID fromInboundMessage(Message message) {
-		InetSocketAddress address = message.getSourceContext().getPeerAddress();
-		return new KeyMID(message.getMID(), address);
-	}
-
-	/**
-	 * Creates a key from an outbound CoAP message.
-	 * 
-	 * @param message the message.
-	 * @return the key derived from the message. The key's <em>mid</em> is
-	 *         scoped to the message's destination address and port.
-	 */
-	public static KeyMID fromOutboundMessage(Message message) {
-		InetSocketAddress address = message.getDestinationContext().getPeerAddress();
-		return new KeyMID(message.getMID(), address);
-	}
 }

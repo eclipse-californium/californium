@@ -203,7 +203,7 @@ public final class UdpMatcher extends BaseMatcher {
 		//      if nothing has been sent yet => do nothing
 		// (Retransmission is supposed to be done by the retransm. layer)
 
-		final KeyMID idByMID = KeyMID.fromInboundMessage(request);
+		final KeyMID idByMID = exchangeStore.getKeyMid(request.getMID(), request.getSourceContext());
 		final Exchange exchange = new Exchange(request, Origin.REMOTE, executor);
 		final Exchange previous = exchangeStore.findPrevious(idByMID, exchange);
 		boolean duplicate = previous != null;
@@ -281,7 +281,7 @@ public final class UdpMatcher extends BaseMatcher {
 			// finally check if the response is a duplicate
 			if (response.getType() != Type.ACK) {
 				// deduplication is only relevant for CON/NON messages
-				KeyMID idByMID = KeyMID.fromInboundMessage(response);
+				final KeyMID idByMID = exchangeStore.getKeyMid(response.getMID(), response.getSourceContext());
 				final Exchange prev = exchangeStore.find(idByMID);
 				if (prev != null) {
 					prev.execute(new Runnable() {
@@ -374,7 +374,7 @@ public final class UdpMatcher extends BaseMatcher {
 						// Exchange's Request according to the CoAP spec
 						// (https://tools.ietf.org/html/rfc7252#section-4.5),
 						// deduplication is relevant only for CON and NON messages
-						KeyMID idByMID = KeyMID.fromInboundMessage(response);
+						KeyMID idByMID = exchangeStore.getKeyMid(response.getMID(), response.getSourceContext());
 						if ((response.getType() == Type.CON || response.getType() == Type.NON)
 								&& exchangeStore.findPrevious(idByMID, exchange) != null) {
 							LOGGER.trace("received duplicate response for open {}: {}", exchange, response);
@@ -413,7 +413,7 @@ public final class UdpMatcher extends BaseMatcher {
 		// an empty ACK or RST always is received as a reply to a message
 		// exchange originating locally, i.e. the message will echo an MID
 		// that has been created here
-		final KeyMID idByMID = KeyMID.fromInboundMessage(message);
+		final KeyMID idByMID = exchangeStore.getKeyMid(message.getMID(), message.getSourceContext());
 		final Exchange exchange = exchangeStore.get(idByMID);
 
 		if (exchange == null) {

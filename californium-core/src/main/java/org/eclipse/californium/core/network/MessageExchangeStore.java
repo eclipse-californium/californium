@@ -38,7 +38,7 @@ import org.eclipse.californium.core.coap.Message;
  * (which initiated the observation of the resource) has crashed.
  * </p>
  */
-public interface MessageExchangeStore {
+public interface MessageExchangeStore extends KeyMidGenerator {
 
 	/**
 	 * Starts this store.

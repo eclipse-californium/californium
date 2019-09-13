@@ -301,8 +301,9 @@ public class CoapEndpoint implements Endpoint {
 	 *             but the connector is not a {@link UDPConnector}
 	 */
 	protected CoapEndpoint(Connector connector, boolean applyConfiguration, NetworkConfig config,
-			TokenGenerator tokenGenerator, ObservationStore store, MessageExchangeStore exchangeStore,
-			EndpointContextMatcher endpointContextMatcher, CoapStackFactory coapStackFactory, Object customStackArgument) {
+			TokenGenerator tokenGenerator, KeyMidGenerator midManager, ObservationStore store,
+			MessageExchangeStore exchangeStore, EndpointContextMatcher endpointContextMatcher,
+			CoapStackFactory coapStackFactory, Object customStackArgument) {
 		this.config = config;
 		this.connector = connector;
 		this.connector.setRawDataReceiver(new InboxImpl());
@@ -317,7 +318,7 @@ public class CoapEndpoint implements Endpoint {
 			coapStackFactory = getDefaultCoapStackFactory();
 		}
 		this.exchangeStore = (null != exchangeStore) ? exchangeStore
-				: new InMemoryMessageExchangeStore(config, tokenGenerator);
+				: new InMemoryMessageExchangeStore(config, tokenGenerator, midManager);
 		observationStore = (null != store) ? store : new InMemoryObservationStore(config);
 		if (null == endpointContextMatcher) {
 			endpointContextMatcher = EndpointContextMatcherFactory.create(connector, config);
@@ -363,8 +364,8 @@ public class CoapEndpoint implements Endpoint {
 			this.serializer = new TcpDataSerializer();
 			this.parser = new TcpDataParser();
 		} else {
-			this.matcher = new UdpMatcher(config, new NotificationDispatcher(), tokenGenerator, observationStore,
-					this.exchangeStore, exchangeExecutionHandler, endpointContextMatcher);
+			this.matcher = new UdpMatcher(config, new NotificationDispatcher(), tokenGenerator,
+					observationStore, this.exchangeStore, exchangeExecutionHandler, endpointContextMatcher);
 			this.serializer = new UdpDataSerializer();
 			this.parser = new UdpDataParser();
 		}
@@ -1110,6 +1111,10 @@ public class CoapEndpoint implements Endpoint {
 		 */
 		private TokenGenerator tokenGenerator;
 		/**
+		 * Key MID generator.
+		 */
+		private KeyMidGenerator midGenerator;
+		/**
 		 * Coap-stack-factory to create coap-stack.
 		 */
 		private CoapStackFactory coapStackFactory;
@@ -1315,6 +1320,20 @@ public class CoapEndpoint implements Endpoint {
 		}
 
 		/**
+		 * Set token generator.
+		 * 
+		 * Provides a fluent API to chain setters.
+		 * 
+		 * @param tokenGenerator token generator
+		 * @return this
+		 * @see #tokenGenerator
+		 */
+		public Builder setKeyMidGenerator(KeyMidGenerator midGenerator) {
+			this.midGenerator = midGenerator;
+			return this;
+		}
+
+		/**
 		 * Set coap-stack-factory.
 		 * 
 		 * Provides a fluent API to chain setters.
@@ -1361,11 +1380,14 @@ public class CoapEndpoint implements Endpoint {
 			if (tokenGenerator == null) {
 				tokenGenerator = new RandomTokenGenerator(config);
 			}
+			if (midGenerator == null) {
+				midGenerator = new InetSocketAddreesKeyMidGenerator();
+			}
 			if (observationStore == null) {
 				observationStore = new InMemoryObservationStore(config);
 			}
 			if (exchangeStore == null) {
-				exchangeStore = new InMemoryMessageExchangeStore(config, tokenGenerator);
+				exchangeStore = new InMemoryMessageExchangeStore(config, tokenGenerator, midGenerator);
 			}
 			if (endpointContextMatcher == null) {
 				endpointContextMatcher = EndpointContextMatcherFactory.create(connector, config);
@@ -1373,7 +1395,7 @@ public class CoapEndpoint implements Endpoint {
 			if (coapStackFactory == null) {
 				coapStackFactory = getDefaultCoapStackFactory();
 			}
-			return new CoapEndpoint(connector, applyConfiguration, config, tokenGenerator, observationStore,
+			return new CoapEndpoint(connector, applyConfiguration, config, tokenGenerator, midGenerator, observationStore,
 					exchangeStore, endpointContextMatcher, coapStackFactory, customStackArgument);
 		}
 	}

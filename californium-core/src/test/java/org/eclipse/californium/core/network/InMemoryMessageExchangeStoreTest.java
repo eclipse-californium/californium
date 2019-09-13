@@ -51,6 +51,7 @@ public class InMemoryMessageExchangeStoreTest {
 	public CoapThreadsRule cleanup = new CoapThreadsRule();
 
 	InMemoryMessageExchangeStore store;
+	KeyMidGenerator midGenerator;
 	NetworkConfig config;
 
 	@Before
@@ -59,7 +60,8 @@ public class InMemoryMessageExchangeStoreTest {
 		cleanup.add(executor);
 		config = NetworkConfig.createStandardWithoutFile();
 		config.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, 200); //ms
-		store = new InMemoryMessageExchangeStore(config);
+		midGenerator = new InetSocketAddreesKeyMidGenerator();
+		store = new InMemoryMessageExchangeStore(config, new RandomTokenGenerator(config), midGenerator);
 		store.setExecutor(executor);
 		store.start();
 	}
@@ -79,7 +81,8 @@ public class InMemoryMessageExchangeStoreTest {
 
 		// THEN the request gets assigned an MID and is put to the store
 		assertNotNull(exchange.getCurrentRequest().getMID());
-		KeyMID key = KeyMID.fromOutboundMessage(exchange.getCurrentRequest());
+		KeyMID key = midGenerator.getKeyMid(exchange.getCurrentRequest().getMID(),
+				exchange.getCurrentRequest().getDestinationContext());
 		assertThat(store.get(key), is(exchange));
 	}
 
@@ -97,7 +100,8 @@ public class InMemoryMessageExchangeStoreTest {
 			fail("should have thrown IllegalArgumentException");
 		} catch (IllegalArgumentException e) {
 			// THEN the newExchange is not put to the store
-			KeyMID key = KeyMID.fromOutboundMessage(exchange.getCurrentRequest());
+			KeyMID key = midGenerator.getKeyMid(exchange.getCurrentRequest().getMID(),
+					exchange.getCurrentRequest().getDestinationContext());
 			Exchange exchangeFromStore = store.get(key);
 			assertThat(exchangeFromStore, is(exchange));
 			assertThat(exchangeFromStore, is(not(newExchange)));
@@ -123,7 +127,7 @@ public class InMemoryMessageExchangeStoreTest {
 	public void testShouldNotCreateInMemoryMessageExchangeStoreWithoutTokenProvider() {
 		//WHEN trying to create new InMemoryMessageExchangeStore without TokenProvider
 		try {
-			store = new InMemoryMessageExchangeStore(config, null);
+			store = new InMemoryMessageExchangeStore(config, null, new InetSocketAddreesKeyMidGenerator());
 			fail("should have thrown NullPointerException");
 		} catch (NullPointerException e) {
 			//THEN NullPointerException is thrown 
@@ -140,7 +144,8 @@ public class InMemoryMessageExchangeStoreTest {
 		store.registerOutboundRequest(exchange);
 
 		// THEN the store contains the re-transmitted request
-		KeyMID key = KeyMID.fromOutboundMessage(exchange.getCurrentRequest());
+		KeyMID key = midGenerator.getKeyMid(exchange.getCurrentRequest().getMID(),
+				exchange.getCurrentRequest().getDestinationContext());
 		Exchange exchangeFromStore = store.get(key);
 		assertThat(exchangeFromStore, is(exchange));
 		assertThat(exchangeFromStore.getFailedTransmissionCount(), is(1));

@@ -81,7 +81,7 @@ public class UdpMatcherTest {
 		scheduler = MatcherTestUtils.newScheduler();
 		cleanup.add(scheduler);
 		tokenProvider = new RandomTokenGenerator(config);
-		messageExchangeStore = new InMemoryMessageExchangeStore(config, tokenProvider);
+		messageExchangeStore = new InMemoryMessageExchangeStore(config, tokenProvider, new InetSocketAddreesKeyMidGenerator());
 		observationStore =  new InMemoryObservationStore(config);
 		exchangeEndpointContext = mock(EndpointContext.class);
 		responseEndpointContext = mock(EndpointContext.class);

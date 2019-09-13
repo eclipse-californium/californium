@@ -75,10 +75,12 @@ public final class MatcherTestUtils {
 		return newUdpMatcher(config, new InMemoryMessageExchangeStore(config), new InMemoryObservationStore(config), correlationContextMatcher, scheduler);
 	}
 
-	static UdpMatcher newUdpMatcher(NetworkConfig config, MessageExchangeStore exchangeStore, ObservationStore observationStore,
-			EndpointContextMatcher correlationContextMatcher, ScheduledExecutorService scheduler) {
+	static UdpMatcher newUdpMatcher(NetworkConfig config, MessageExchangeStore exchangeStore,
+			ObservationStore observationStore, EndpointContextMatcher correlationContextMatcher,
+			ScheduledExecutorService scheduler) {
 		UdpMatcher matcher = new UdpMatcher(config, notificationListener, new RandomTokenGenerator(config),
-				observationStore, exchangeStore, TEST_EXCHANGE_EXECUTOR, correlationContextMatcher);
+				observationStore, exchangeStore, TEST_EXCHANGE_EXECUTOR,
+				correlationContextMatcher);
 		exchangeStore.setExecutor(scheduler);
 		matcher.start();
 		return matcher;
