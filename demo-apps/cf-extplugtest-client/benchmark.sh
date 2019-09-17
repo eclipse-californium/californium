@@ -32,12 +32,15 @@ CF_OPT="-d64 -XX:+UseG1GC -Xmx6g -Dcalifornium.statistic=M17"
 CF_HOST=localhost
 
 # adjust the multiplier according the speed of your CPU
-USE_TCP=0
+USE_TCP=1
 MULTIPLIER=10
 REQS=$((500 * $MULTIPLIER))
 REQS_EXTRA=$(($REQS + ($REQS/10)))
 REV_REQS=$((2 * $REQS))
 NOTIFIES=$((100 * $MULTIPLIER))
+
+PAYLOAD=40
+PAYLOAD_LARGE=400
 
 echo ${REV_REQS2}
 
@@ -83,18 +86,18 @@ benchmark()
 }
 
 # GET
-benchmark_udp "benchmark?rlen=40" ${UDP_CLIENTS} ${REQS}
-benchmark_tcp "benchmark?rlen=40" ${TCP_CLIENTS} ${REQS}
+benchmark_udp "benchmark?rlen=${PAYLOAD}" ${UDP_CLIENTS} ${REQS}
+benchmark_tcp "benchmark?rlen=${PAYLOAD}" ${TCP_CLIENTS} ${REQS}
 
 # reverse GET
-benchmark_udp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=40" ${UDP_CLIENTS} 2 stop ${REV_REQS}
-benchmark_tcp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=40" ${TCP_CLIENTS} 2 stop ${REV_REQS}
+benchmark_udp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" ${UDP_CLIENTS} 2 stop ${REV_REQS}
+benchmark_tcp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" ${TCP_CLIENTS} 2 stop ${REV_REQS}
 
 # observe CON 
-benchmark "reverse-observe?obs=25000&res=feed-CON&rlen=400" ${OBS_CLIENTS} 1 stop ${NOTIFIES} 20 100
+benchmark "reverse-observe?obs=25000&res=feed-CON&rlen=${PAYLOAD_LARGE}" ${OBS_CLIENTS} 1 stop ${NOTIFIES} 20 100
 
 # observe NON
-benchmark_udp "reverse-observe?obs=25000&res=feed-NON&rlen=400" ${OBS_CLIENTS} 1 stop ${NOTIFIES} 20 100
+benchmark_udp "reverse-observe?obs=25000&res=feed-NON&rlen=${PAYLOAD_LARGE}" ${OBS_CLIENTS} 1 stop ${NOTIFIES} 20 100
 
 END_BENCHMARK=`date +%s`
 

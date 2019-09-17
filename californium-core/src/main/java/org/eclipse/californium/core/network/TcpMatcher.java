@@ -182,7 +182,7 @@ public final class TcpMatcher extends BaseMatcher {
 				boolean checkResponseToken = !exchange.isNotification() || exchange.getRequest() != exchange.getCurrentRequest();
 				if (checkResponseToken && exchangeStore.get(idByToken) != exchange) {
 					if (running) {
-						LOGGER.error("ignoring response {}, exchange not longer matching!", response);
+						LOGGER.debug("ignoring response {}, exchange not longer matching!", response);
 					}
 					return;
 				}
