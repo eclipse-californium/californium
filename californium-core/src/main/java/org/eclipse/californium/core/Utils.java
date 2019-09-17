@@ -140,7 +140,7 @@ public final class Utils {
 		sb.append(String.format("MID    : %d", r.getMID())).append(StringUtil.lineSeparator());
 		sb.append(String.format("Token  : %s", r.getTokenString())).append(StringUtil.lineSeparator());
 		sb.append(String.format("Type   : %s", r.getType().toString())).append(StringUtil.lineSeparator());
-		sb.append(String.format("Status : %s", r.getCode().toString())).append(StringUtil.lineSeparator());
+		sb.append(String.format("Status : %s - %s", r.getCode().toString(), r.getCode().name())).append(StringUtil.lineSeparator());
 		sb.append(String.format("Options: %s", r.getOptions().toString())).append(StringUtil.lineSeparator());
 		if (r.getRTT() != null) {
 			sb.append(String.format("RTT    : %d ms", r.getRTT())).append(StringUtil.lineSeparator());

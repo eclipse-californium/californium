@@ -266,6 +266,7 @@ public class CoapServer implements ServerInterface {
 	/**
 	 * Stops the server, i.e., unbinds it from all ports. Frees as much system
 	 * resources as possible to still be able to be re-started with the previous binds.
+	 * To free all system resources {@link #destroy()} must be called!
 	 */
 	@Override
 	public synchronized void stop() {

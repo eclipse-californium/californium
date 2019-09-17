@@ -33,12 +33,9 @@ package org.eclipse.californium.scandium.dtls;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 
-import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * The resuming server handshaker executes an abbreviated handshake when
@@ -50,8 +47,6 @@ import org.slf4j.LoggerFactory;
  * href="http://tools.ietf.org/html/rfc5246#section-7.3">Figure 2</a>.
  */
 public class ResumingServerHandshaker extends ServerHandshaker {
-
-	private static final Logger LOGGER = LoggerFactory.getLogger(ResumingServerHandshaker.class.getName());
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -92,57 +87,24 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	// Methods ////////////////////////////////////////////////////////
 
 	@Override
-	protected void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
+	protected void doProcessMessage(HandshakeMessage message) throws HandshakeException, GeneralSecurityException {
 
-		// log record now (even if message is still encrypted) in case an Exception
-		// is thrown during processing
-		if (LOGGER.isDebugEnabled()) {
-			StringBuilder msg = new StringBuilder();
-			msg.append("Processing {} message from peer [{}]");
-			if (LOGGER.isTraceEnabled()) {
-				msg.append(":").append(StringUtil.lineSeparator()).append(message);
-			}
-			LOGGER.debug(msg.toString(), message.getContentType(), message.getPeer());
-		}
-
-		switch (message.getContentType()) {
-		case ALERT:
+		switch (message.getMessageType()) {
+		case CLIENT_HELLO:
+			receivedClientHello((ClientHello) message);
+			expectChangeCipherSpecMessage();
 			break;
 
-		case CHANGE_CIPHER_SPEC:
-			setCurrentReadState();
-			LOGGER.debug("Processed {} message from peer [{}]", message.getContentType(),
-					message.getPeer());
-			break;
-
-		case HANDSHAKE:
-			HandshakeMessage handshakeMsg = (HandshakeMessage) message;
-			switch (handshakeMsg.getMessageType()) {
-			case CLIENT_HELLO:
-				receivedClientHello((ClientHello) handshakeMsg);
-				expectChangeCipherSpecMessage();
-				break;
-
-			case FINISHED:
-				receivedClientFinished((Finished) handshakeMsg);
-				break;
-
-			default:
-				throw new HandshakeException(
-						String.format("Received unexpected handshake message [%s] from peer %s", handshakeMsg.getMessageType(), handshakeMsg.getPeer()),
-						new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, handshakeMsg.getPeer()));
-			}
-
-			incrementNextReceiveSeq();
-			LOGGER.debug("Processed {} message with sequence no [{}] from peer [{}]",
-					handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq(), handshakeMsg.getPeer());
+		case FINISHED:
+			receivedClientFinished((Finished) message);
 			break;
 
 		default:
 			throw new HandshakeException(
-					String.format("Received unexpected message [%s] from peer %s", message.getContentType(), message.getPeer()),
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, message.getPeer()));
+					String.format("Received unexpected handshake message [%s] from peer %s", message.getMessageType(), message.getPeer()),
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, message.getPeer()));
 		}
+
 	}
 
 	/**
@@ -178,16 +140,12 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 			HelloExtensions serverHelloExtensions = new HelloExtensions();
 			processHelloExtensions(clientHello, serverHelloExtensions);
 
-			initMessageDigest();
-
 			flightNumber += 2;
 			DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
-			md.update(clientHello.getRawMessage());
 
 			ServerHello serverHello = new ServerHello(clientHello.getClientVersion(), serverRandom, session.getSessionIdentifier(),
 					session.getCipherSuite(), session.getCompressionMethod(), serverHelloExtensions, clientHello.getPeer());
 			wrapMessage(flight, serverHello);
-			md.update(serverHello.toByteArray());
 
 			calculateKeys(session.getMasterSecret());
 
@@ -195,7 +153,9 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 			wrapMessage(flight, changeCipherSpecMessage);
 			setCurrentWriteState();
 
-			MessageDigest mdWithServerFinished = null;
+			MessageDigest md = getHandshakeMessageDigest();
+
+			MessageDigest mdWithServerFinished;
 			try {
 				mdWithServerFinished = (MessageDigest) md.clone();
 			} catch (CloneNotSupportedException e) {
@@ -207,14 +167,14 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 								clientHello.getPeer()));
 			}
 
-			handshakeHash = md.digest();
-			String prfMacName = session.getCipherSuite().getPseudoRandomFunctionMacName();
-			Finished finished = new Finished(prfMacName, session.getMasterSecret(), false, handshakeHash, clientHello.getPeer());
+			Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), session.getMasterSecret(), false, md.digest(), clientHello.getPeer());
 			wrapMessage(flight, finished);
 
 			mdWithServerFinished.update(finished.toByteArray());
 			handshakeHash = mdWithServerFinished.digest();
 			sendFlight(flight);
+			states = NO_CLIENT_CERTIFICATE;
+			statesIndex = 0;
 		}
 	}
 
@@ -228,8 +188,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	 *             if the client's Finished message can not be verified.
 	 */
 	private void receivedClientFinished(Finished message) throws HandshakeException {
-		String prfMacName = session.getCipherSuite().getPseudoRandomFunctionMacName();
-		message.verifyData(prfMacName, session.getMasterSecret(), true, handshakeHash);
+		message.verifyData(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), session.getMasterSecret(), true, handshakeHash);
 		sessionEstablished();
 		handshakeCompleted();
 	}

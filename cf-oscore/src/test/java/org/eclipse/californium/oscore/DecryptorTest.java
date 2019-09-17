@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018 RISE SICS and others.
+ * Copyright (c) 2019 RISE SICS and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -73,7 +73,7 @@ public class DecryptorTest {
 		Message mess = parser.parseMessage(encryptedRequestBytes);
 		
 		Request r = null;
-		if(mess instanceof Request) {
+		if (mess instanceof Request) {
 			r = (Request)mess;
 		}
 		
@@ -96,7 +96,7 @@ public class DecryptorTest {
 	/**
 	 * Tests decryption of a CoAP Response with partial IV.
 	 * Test vector is from OSCORE draft. (Test Vector 8)
-	 * FIXME
+	 *
 	 * @throws OSException if decryption fails
 	 */
 	@Test
@@ -121,7 +121,7 @@ public class DecryptorTest {
 		Message mess = parser.parseMessage(encryptedResponseBytes);
 		
 		Response r = null;
-		if(mess instanceof Response) {
+		if (mess instanceof Response) {
 			r = (Response)mess;
 		}
 		

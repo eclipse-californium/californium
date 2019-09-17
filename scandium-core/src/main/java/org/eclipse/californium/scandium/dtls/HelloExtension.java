@@ -21,6 +21,7 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 
 
@@ -126,39 +127,39 @@ public abstract class HelloExtension {
 	 * a client sends an extension of a type that the server does not know or support (yet).
 	 * 
 	 * @param typeCode the extension type code
-	 * @param extensionData the serialized extension
+	 * @param extensionDataReader the serialized extension
 	 * @param peerAddress the IP address and port of the peer that sent this extension
 	 * @return the object representing the extension or <code>null</code> if the extension
 	 * type is not (yet) known to or supported by Scandium.
 	 * @throws HandshakeException if the (supported) extension could not be de-serialized, e.g. due
 	 * to erroneous encoding etc.
 	 */
-	public static HelloExtension fromByteArray(int typeCode, byte[] extensionData, InetSocketAddress peerAddress)
+	public static HelloExtension fromExtensionDataReader(int typeCode, DatagramReader extensionDataReader, InetSocketAddress peerAddress)
 			throws HandshakeException {
 		ExtensionType type = ExtensionType.getExtensionTypeById(typeCode);
-		if (type == null) {
-			return null;
-		} else {
+		if (type != null) {
 			switch (type) {
 			// the currently supported extensions
 			case ELLIPTIC_CURVES:
-				return SupportedEllipticCurvesExtension.fromExtensionData(extensionData);
+				return SupportedEllipticCurvesExtension.fromExtensionDataReader(extensionDataReader);
 			case EC_POINT_FORMATS:
-				return SupportedPointFormatsExtension.fromExtensionData(extensionData);
+				return SupportedPointFormatsExtension.fromExtensionDataReader(extensionDataReader);
 			case CLIENT_CERT_TYPE:
-				return ClientCertificateTypeExtension.fromExtensionData(extensionData);
+				return ClientCertificateTypeExtension.fromExtensionDataReaader(extensionDataReader);
 			case SERVER_CERT_TYPE:
-				return ServerCertificateTypeExtension.fromExtensionData(extensionData);
+				return ServerCertificateTypeExtension.fromExtensionDataReader(extensionDataReader);
 			case MAX_FRAGMENT_LENGTH:
-				return MaxFragmentLengthExtension.fromExtensionData(extensionData, peerAddress);
+				return MaxFragmentLengthExtension.fromExtensionDataReader(extensionDataReader, peerAddress);
 			case SERVER_NAME:
-				return ServerNameExtension.fromExtensionData(extensionData, peerAddress);
+				return ServerNameExtension.fromExtensionDataReader(extensionDataReader, peerAddress);
 			case CONNECTION_ID:
-				return ConnectionIdExtension.fromExtensionData(extensionData, peerAddress);
+				return ConnectionIdExtension.fromExtensionDataReader(extensionDataReader, peerAddress);
 			default:
-				return null;
+				break;
 			}
 		}
+		extensionDataReader.close();
+		return null;
 	}
 
 	// Methods ////////////////////////////////////////////////////////

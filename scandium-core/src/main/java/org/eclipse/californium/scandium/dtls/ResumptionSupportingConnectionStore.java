@@ -24,12 +24,15 @@ import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.List;
 
+import org.eclipse.californium.scandium.ConnectionListener;
+
 /**
  * A connection store which adds support of connection resumption.
  * 
  * @since 1.1
  */
 public interface ResumptionSupportingConnectionStore {
+	void setConnectionListener(ConnectionListener listener);
 
 	/**
 	 * Attach connection id generator.
@@ -77,8 +80,8 @@ public interface ResumptionSupportingConnectionStore {
 	 * connections from that association.
 	 * 
 	 * @param connection the connection to update.
-	 * @param newPeerAddress the (new) peer address. If not changed, the already
-	 *            used one is provided.
+	 * @param newPeerAddress the (new) peer address. If {@code null}, don't
+	 *            update the connection's address.
 	 * @return {@code true}, if updated, {@code false}, otherwise.
 	 */
 	boolean update(Connection connection, InetSocketAddress newPeerAddress);

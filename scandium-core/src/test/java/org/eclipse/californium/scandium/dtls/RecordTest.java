@@ -49,7 +49,7 @@ public class RecordTest {
 
 	static final long SEQUENCE_NO = 5;
 	static final int TYPE_APPL_DATA = 23;
-	static final int EPOCH = 0;
+	static final int EPOCH = 1;
 	// byte representation of a 128 bit AES symmetric key
 	static final byte[] aesKey = new byte[]{(byte) 0xC9, 0x0E, 0x6A, (byte) 0xA2, (byte) 0xEF, 0x60, 0x34, (byte) 0x96,
 		(byte) 0x90, 0x54, (byte) 0xC4, (byte) 0x96, 0x65, (byte) 0xBA, 0x03, (byte) 0x9E};
@@ -88,7 +88,7 @@ public class RecordTest {
 		}
 
 		try {
-			new Record(ContentType.HANDSHAKE, DtlsTestTools.MAX_SEQUENCE_NO + 1, new HelloRequest(session.getPeer()), session.getPeer());
+			new Record(ContentType.HANDSHAKE, 0, DtlsTestTools.MAX_SEQUENCE_NO + 1, new HelloRequest(session.getPeer()), session, false, 0);
 			Assert.fail("Record constructor should have rejected sequence no > 2^48 - 1");
 		} catch (IllegalArgumentException e) {
 			// all is well
@@ -97,7 +97,7 @@ public class RecordTest {
 	
 	@Test
 	public void testSetSequenceNumberEnforcesMaxSequenceNo() throws GeneralSecurityException {
-		Record record = new Record(ContentType.HANDSHAKE, 0, new HelloRequest(session.getPeer()), session.getPeer());
+		Record record = new Record(ContentType.HANDSHAKE, 0, 0, new HelloRequest(session.getPeer()), session, false, 0);
 		record.updateSequenceNumber(DtlsTestTools.MAX_SEQUENCE_NO);
 		try {
 			record.updateSequenceNumber(DtlsTestTools.MAX_SEQUENCE_NO + 1);
@@ -152,9 +152,9 @@ public class RecordTest {
 		
 		byte[] fragment = newGenericAEADCipherFragment();
 		Record record = new Record(ContentType.APPLICATION_DATA, protocolVer, EPOCH, SEQUENCE_NO, null, fragment, session.getPeer(), ClockUtil.nanoRealtime());
-		record.setSession(session);
+		record.applySession(session);
 		
-		byte[] decryptedData = record.decryptAEAD(fragment, session.getReadState());
+		byte[] decryptedData = record.decryptAEAD(fragment);
 		assertTrue(Arrays.equals(decryptedData, payloadData));
 	}
 	

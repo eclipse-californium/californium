@@ -43,6 +43,10 @@ public class AvailableConnections {
 	 * called.
 	 */
 	private boolean setBySessionId;
+	/**
+	 * Indicates, that {@link #getConnectionBySessionId()} must be removed.
+	 */
+	private boolean removeBySessionId;
 
 	/**
 	 * Creates a new connection pair.
@@ -103,5 +107,25 @@ public class AvailableConnections {
 	 */
 	public boolean isConnectionBySessionIdKnown() {
 		return setBySessionId;
+	}
+
+	/**
+	 * Set, if the connection for the provided session id must be removed.
+	 * 
+	 * @param remove {@code true}, if {@link #getConnectionBySessionId()} must be
+	 *         removed, {@code false}, otherwise (default).
+	 */
+	public void setRemoveConnectionBySessionId(boolean remove) {
+		removeBySessionId = remove;
+	}
+
+	/**
+	 * Check, if the connection for the provided session id must be removed.
+	 * 
+	 * @return {@code true}, if {@link #getConnectionBySessionId()} must be
+	 *         removed, {@code false}, otherwise.
+	 */
+	public boolean isRemoveConnectionBySessionId() {
+		return removeBySessionId;
 	}
 }

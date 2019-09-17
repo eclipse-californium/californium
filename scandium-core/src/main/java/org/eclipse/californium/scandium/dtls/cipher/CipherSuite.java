@@ -32,10 +32,13 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.cipher;
 
+import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import javax.crypto.Cipher;
+import javax.crypto.Mac;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,31 +77,46 @@ public enum CipherSuite {
 	//
 	// /!\ CBC should be avoid /!\  because :
 	// - Implementing authenticated decryption (checking padding and mac) without any side channel is hard (see Lucky 13 attack and its variants).
-	//   The solution is to use the encrypt then mac extension defined in RFC 7366, which is recommended. (from LWM2M 1.0.2 specification)
-	// - Currently Scandium does not support RFC 7366.
+	// - In fact, the current Scandium CBC implementation is not "processing time stable" according such "padding" attacks.
+	// - One solution is to use the encrypt then mac extension defined in RFC 7366, which is recommended. (from LWM2M 1.0.2 specification)
+	//   But currently Scandium also does not support RFC 7366.
+	//
+	// Therefore the CBC cipher suites are not recommended. If you want to use them, you MUST first disable
+	// the "recommendedCipherSuitesOnly" in DtlsConnectorConfig.Builder.
 
 	// PSK cipher suites, ordered by default preference, see getPskCiperSuites ///
-	TLS_PSK_WITH_AES_128_GCM_SHA256(0x00A8, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_GCM, MACAlgorithm.NULL),
-	TLS_PSK_WITH_AES_128_CCM_8(0xC0A8, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_CCM_8, MACAlgorithm.NULL),
-	TLS_PSK_WITH_AES_256_CCM_8(0xC0A9, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_256_CCM_8, MACAlgorithm.NULL),
-	TLS_PSK_WITH_AES_128_CCM(0xC0A4, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_CCM, MACAlgorithm.NULL),
-	TLS_PSK_WITH_AES_256_CCM(0xC0A5, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_256_CCM, MACAlgorithm.NULL),
+
+	/**See <a href="https://tools.ietf.org/html/rfc8442#section-3">RFC 8442</a> for details*/
+	/**Note: compatibility not tested! openssl 1.1.1 seems not supporting them */
+	TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256(0xD001, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.ECDHE_PSK, CipherSpec.AES_128_GCM, MACAlgorithm.NULL, true),
+	TLS_ECDHE_PSK_WITH_AES_256_GCM_SHA378(0xD002, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.ECDHE_PSK, CipherSpec.AES_256_GCM, MACAlgorithm.NULL, true, PRFAlgorithm.TLS_PRF_SHA384),
+	TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256(0xD003, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.ECDHE_PSK, CipherSpec.AES_128_CCM_8, MACAlgorithm.NULL, true),
+	TLS_ECDHE_PSK_WITH_AES_128_CCM_SHA256(0xD005, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.ECDHE_PSK, CipherSpec.AES_128_CCM, MACAlgorithm.NULL, true),
+
+	TLS_PSK_WITH_AES_128_GCM_SHA256(0x00A8, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_GCM, MACAlgorithm.NULL, true),
+	TLS_PSK_WITH_AES_256_GCM_SHA378(0x00A9, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_256_GCM, MACAlgorithm.NULL, true, PRFAlgorithm.TLS_PRF_SHA384),
+	TLS_PSK_WITH_AES_128_CCM_8(0xC0A8, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_CCM_8, MACAlgorithm.NULL, true),
+	TLS_PSK_WITH_AES_256_CCM_8(0xC0A9, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_256_CCM_8, MACAlgorithm.NULL, true),
+	TLS_PSK_WITH_AES_128_CCM(0xC0A4, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_CCM, MACAlgorithm.NULL, true),
+	TLS_PSK_WITH_AES_256_CCM(0xC0A5, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_256_CCM, MACAlgorithm.NULL, true),
+
 	/**See <a href="https://tools.ietf.org/html/rfc5489#section-3.2">RFC 5489</a> for details*/
-	TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256(0xC037, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.ECDHE_PSK, CipherSpec.AES_128_CBC, MACAlgorithm.HMAC_SHA256),
-	TLS_PSK_WITH_AES_128_CBC_SHA256(0x00AE, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_CBC, MACAlgorithm.HMAC_SHA256),
+	TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256(0xC037, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.ECDHE_PSK, CipherSpec.AES_128_CBC, MACAlgorithm.HMAC_SHA256, false),
+	TLS_PSK_WITH_AES_128_CBC_SHA256(0x00AE, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_CBC, MACAlgorithm.HMAC_SHA256, false),
 
 	// Certificate cipher suites, ordered by default preference, see getCertificateCipherSuites or getEcdsaCipherSuites ///
-	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256(0xc02b, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_GCM, MACAlgorithm.NULL),
-	TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8(0xC0AE, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_CCM_8, MACAlgorithm.NULL),
-	TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8(0xC0AF, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CCM_8, MACAlgorithm.NULL),
-	TLS_ECDHE_ECDSA_WITH_AES_128_CCM(0xC0AC, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_CCM, MACAlgorithm.NULL),
-	TLS_ECDHE_ECDSA_WITH_AES_256_CCM(0xC0AD, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CCM, MACAlgorithm.NULL),
-	TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA(0xC00A, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CBC, MACAlgorithm.HMAC_SHA1),
-	TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256(0xC023, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_CBC, MACAlgorithm.HMAC_SHA256),
-	TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384(0xC024, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CBC, MACAlgorithm.HMAC_SHA384, PRFAlgorithm.TLS_PRF_SHA384),
+	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256(0xc02b, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_GCM, MACAlgorithm.NULL, true),
+	TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384(0xc02c, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_GCM, MACAlgorithm.NULL, true, PRFAlgorithm.TLS_PRF_SHA384),
+	TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8(0xC0AE, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_CCM_8, MACAlgorithm.NULL, true),
+	TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8(0xC0AF, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CCM_8, MACAlgorithm.NULL, true),
+	TLS_ECDHE_ECDSA_WITH_AES_128_CCM(0xC0AC, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_CCM, MACAlgorithm.NULL, true),
+	TLS_ECDHE_ECDSA_WITH_AES_256_CCM(0xC0AD, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CCM, MACAlgorithm.NULL, true),
+	TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA(0xC00A, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CBC, MACAlgorithm.HMAC_SHA1, false),
+	TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256(0xC023, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_128_CBC, MACAlgorithm.HMAC_SHA256, false),
+	TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384(0xC024, CertificateKeyAlgorithm.EC, KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CipherSpec.AES_256_CBC, MACAlgorithm.HMAC_SHA384, false, PRFAlgorithm.TLS_PRF_SHA384),
 
 	// Null cipher suite ///
-	TLS_NULL_WITH_NULL_NULL(0x0000, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.NULL, CipherSpec.NULL, MACAlgorithm.NULL),
+	TLS_NULL_WITH_NULL_NULL(0x0000, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.NULL, CipherSpec.NULL, MACAlgorithm.NULL, false),
 	;
 
 	// DTLS-specific constants ////////////////////////////////////////
@@ -121,19 +139,21 @@ public enum CipherSuite {
 	private final MACAlgorithm macAlgorithm;
 	private final PRFAlgorithm pseudoRandomFunction;
 	private final int maxCipherTextExpansion;
+	private boolean recommendedCipherSuite;
 
 	// Constructor ////////////////////////////////////////////////////
 
-	private CipherSuite(int code, CertificateKeyAlgorithm certificate, KeyExchangeAlgorithm keyExchange, CipherSpec cipher, MACAlgorithm macAlgorithm) {
-		this(code, certificate, keyExchange, cipher, macAlgorithm, PRFAlgorithm.TLS_PRF_SHA256);
+	private CipherSuite(int code, CertificateKeyAlgorithm certificate, KeyExchangeAlgorithm keyExchange, CipherSpec cipher, MACAlgorithm macAlgorithm, boolean recommendedCipherSuite) {
+		this(code, certificate, keyExchange, cipher, macAlgorithm, recommendedCipherSuite, PRFAlgorithm.TLS_PRF_SHA256);
 	}
 
-	private CipherSuite(int code, CertificateKeyAlgorithm certificate, KeyExchangeAlgorithm keyExchange, CipherSpec cipher, MACAlgorithm macAlgorithm, PRFAlgorithm prf) {
+	private CipherSuite(int code, CertificateKeyAlgorithm certificate, KeyExchangeAlgorithm keyExchange, CipherSpec cipher, MACAlgorithm macAlgorithm, boolean recommendedCipherSuite, PRFAlgorithm prf) {
 		this.code = code;
 		this.certificateKeyAlgorithm = certificate;
 		this.keyExchange = keyExchange;
 		this.cipher = cipher;
 		this.macAlgorithm = macAlgorithm;
+		this.recommendedCipherSuite = recommendedCipherSuite;
 		this.pseudoRandomFunction = prf;
 		switch(this.cipher.getType()) {
 		case BLOCK:
@@ -184,12 +204,12 @@ public enum CipherSuite {
 	}
 
 	/**
-	 * Gets the suite's underlying cipher.
+	 * Gets the thread local cipher used by this cipher suite.
 	 * 
 	 * @return the cipher, or {@code null}, if the cipher is not supported by
 	 *         the java-vm.
 	 */
-	public Cipher getCipher() {
+	public Cipher getThreadLocalCipher() {
 		return cipher.getCipher();
 	}
 
@@ -265,6 +285,67 @@ public enum CipherSuite {
 	}
 
 	/**
+	 * Check whether this cipher suite is recommended.
+	 * 
+	 * @return {@code true} if cipher suite is recommended
+	 */
+	public boolean isRecommended() {
+		return recommendedCipherSuite;
+	}
+
+	/**
+	 * Gets the name of the cipher suite's MAC algorithm.
+	 * 
+	 * The name can be used to instantiate a <code>javax.crypto.Mac</code>
+	 * instance.
+	 * 
+	 * See <a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Mac">
+	 * Java Security Documentation</a>.
+	 * 
+	 * @return the name or <code>null</code> for the <em>NULL</em> MAC
+	 */
+	public String getMacName() {
+		return macAlgorithm.getName();
+	}
+
+	/**
+	 * Gets the name of the message digest (hash) function used by the cipher
+	 * suite MAC.
+	 * 
+	 * The name can be used to instantiate a
+	 * <code>java.security.MessageDigest</code> instance.
+	 * 
+	 * See <a href=
+	 * "http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#MessageDigest">
+	 * Java Security Documentation</a>.
+	 * 
+	 * @return the name or <code>null</code> for the <em>NULL</em> MAC
+	 */
+	public String getMessageDigestName() {
+		return macAlgorithm.getMessageDigestName();
+	}
+
+	/**
+	 * Gets the thread local MAC used by this cipher suite.
+	 * 
+	 * Calls {@link Mac#reset()} on access.
+	 * 
+	 * @return mac, or {@code null}, if not supported by vm.
+	 */
+	public Mac getThreadLocalMac() {
+		return macAlgorithm.getMac();
+	}
+
+	/**
+	 * Gets the thread local message digest used by this cipher suite.
+	 * 
+	 * @return message digest, or {@code null}, if not supported by vm.
+	 */
+	public MessageDigest getThreadLocalMacMessageDigest() {
+		return macAlgorithm.getMessageDigest();
+	}
+
+	/**
 	 * Gets the output length of the cipher suite's MAC algorithm.
 	 *  
 	 * @return the length in bytes
@@ -284,21 +365,6 @@ public enum CipherSuite {
 	 */
 	public int getMacKeyLength() {
 		return macAlgorithm.getKeyLength();
-	}
-
-	/**
-	 * Gets the name of the cipher suite's MAC algorithm.
-	 * 
-	 * The name can be used to instantiate a <code>javax.crypto.Mac</code>
-	 * instance.
-	 * 
-	 * See <a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Mac">
-	 * Java Security Documentation</a>.
-	 * 
-	 * @return the name or <code>null</code> for the <em>NULL</em> MAC
-	 */
-	public String getMacName() {
-		return macAlgorithm.getName();
 	}
 
 	/**
@@ -330,20 +396,53 @@ public enum CipherSuite {
 	 * Gets the pseudo-random function used by the cipher suite
 	 * to create (pseudo-)random data from a seed.
 	 * 
-	 * @return the function
+	 * The name can be used to instantiate a <code>javax.crypto.Mac</code>
+	 * instance.
+	 * 
+	 * See <a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Mac">
+	 * Java Security Documentation</a>.
+	 * 
+	 * @return the name of the mac
 	 */
 	public String getPseudoRandomFunctionMacName() {
 		return pseudoRandomFunction.getMacAlgorithm().getName();
 	}
 
 	/**
-	 * Gets the pseudo-random hash function used by the cipher suite
-	 * to create the hash over the handshake messages.
+	 * Gets the name of the pseudo-random message digest (hash) function used by
+	 * the cipher suite to create the hash over the handshake messages.
 	 * 
-	 * @return the hash function
+	 * The name can be used to instantiate a
+	 * <code>java.security.MessageDigest</code> instance.
+	 * 
+	 * See <a href=
+	 * "http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#MessageDigest">
+	 * Java Security Documentation</a>.
+	 * 
+	 * @return the name of the message digest
 	 */
-	public String getPseudoRandomFunctionHashName() {
-		return pseudoRandomFunction.getMacAlgorithm().getHashName();
+	public String getPseudoRandomFunctionMessageDigestName() {
+		return pseudoRandomFunction.getMacAlgorithm().getMessageDigestName();
+	}
+
+	/**
+	 * Gets the thread local MAC used by the pseudo random function of this
+	 * cipher suite.
+	 * 
+	 * @return mac, or {@code null}, if not supported by vm.
+	 */
+	public Mac getThreadLocalPseudoRandomFunctionMac() {
+		return pseudoRandomFunction.getMacAlgorithm().getMac();
+	}
+
+	/**
+	 * Gets the thread local message digest used by the pseudo random function
+	 * of this cipher suite.
+	 * 
+	 * @return message digest, or {@code null}, if not supported by vm.
+	 */
+	public MessageDigest getThreadLocalPseudoRandomFunctionMessageDigest() {
+		return pseudoRandomFunction.getMacAlgorithm().getMessageDigest();
 	}
 
 	/**
@@ -385,14 +484,53 @@ public enum CipherSuite {
 	/**
 	 * Get a list of all supported PSK cipher suites.
 	 * 
-	 * @return list of all supported PSK cipher suites. Ordered by their definition above.
+	 * @param recommendedCipherSuitesOnly {@code true} use only recommended
+	 *            cipher suites
+	 * @return list of all supported PSK cipher suites. Ordered by their
+	 *         definition above.
+	 * @deprecated use
+	 *             {@link #getCipherSuitesByKeyExchangeAlgorithm(boolean, KeyExchangeAlgorithm...)}
 	 */
-	public static List<CipherSuite> getPskCipherSuites(boolean ecdhePsk) {
+	@Deprecated
+	public static List<CipherSuite> getPskCipherSuites(boolean recommendedCipherSuitesOnly, boolean ecdhePsk) {
 		List<CipherSuite> list = new ArrayList<>();
 		for (CipherSuite suite : values()) {
 			if (suite.isSupported()) {
 				if (KeyExchangeAlgorithm.PSK.equals(suite.keyExchange)
 						|| (ecdhePsk && KeyExchangeAlgorithm.ECDHE_PSK.equals(suite.keyExchange))) {
+					if (!recommendedCipherSuitesOnly || suite.recommendedCipherSuite) {
+						list.add(suite);
+					}
+				}
+			}
+		}
+		return list;
+	}
+
+	/**
+	 * Get a list of all cipher suites using the provided key exchange
+	 * algorithms.
+	 * 
+	 * @param recommendedCipherSuitesOnly {@code true} use only recommended
+	 *            cipher suites
+	 * @param keyExchangeAlgorithms list of key exchange algorithms to select
+	 *            cipher suites
+	 * @return list of all cipher suites. Ordered by their definition above.
+	 * @throws NullPointerException if keyExchangeAlgorithms is {@code null}
+	 * @throws IllegalArgumentException if keyExchangeAlgorithms is empty
+	 */
+	public static List<CipherSuite> getCipherSuitesByKeyExchangeAlgorithm(boolean recommendedCipherSuitesOnly,
+			KeyExchangeAlgorithm... keyExchangeAlgorithms) {
+		if (keyExchangeAlgorithms == null) {
+			throw new NullPointerException("KeyExchangeAlgorithms must not be null!");
+		} else if (keyExchangeAlgorithms.length == 0) {
+			throw new IllegalArgumentException("KeyExchangeAlgorithms must not be empty!");
+		}
+		List<KeyExchangeAlgorithm> keyExchanges = Arrays.asList(keyExchangeAlgorithms);
+		List<CipherSuite> list = new ArrayList<>();
+		for (CipherSuite suite : values()) {
+			if (!recommendedCipherSuitesOnly || suite.recommendedCipherSuite) {
+				if (suite.isSupported() && keyExchanges.contains(suite.keyExchange)) {
 					list.add(suite);
 				}
 			}
@@ -403,10 +541,11 @@ public enum CipherSuite {
 	/**
 	 * Get a list of all supported ECDSA cipher suites.
 	 * 
+	 * @param recommendedCipherSuitesOnly {@code true} use only recommended cipher suites
 	 * @return list of all supported ECDSA cipher suites. Ordered by their definition above.
 	 */
-	public static List<CipherSuite> getEcdsaCipherSuites() {
-		return getCertificateCipherSuites(CertificateKeyAlgorithm.EC.name());
+	public static List<CipherSuite> getEcdsaCipherSuites(boolean recommendedCipherSuitesOnly) {
+		return getCertificateCipherSuites(recommendedCipherSuitesOnly, CertificateKeyAlgorithm.EC.name());
 	}
 
 	/**
@@ -415,17 +554,20 @@ public enum CipherSuite {
 	 * 
 	 * Note: currently only ECDSA is supported. There are no plans to support
 	 * other key algorithm
-	 * 
+	 * @param recommendedCipherSuitesOnly {@code true} use only recommended cipher suites
 	 * @param keyAlgorithm name of key algorithm. e.g. "EC"
+	 * 
 	 * @return list of all supported cipher suites with the provided key
 	 *         algorithm. Ordered by their definition above.
 	 */
-	public static List<CipherSuite> getCertificateCipherSuites(String keyAlgorithm) {
+	public static List<CipherSuite> getCertificateCipherSuites(boolean recommendedCipherSuitesOnly, String keyAlgorithm) {
 		List<CipherSuite> list = new ArrayList<>();
 		for (CipherSuite suite : values()) {
 			if (suite.isSupported()) {
 				if (suite.certificateKeyAlgorithm.name().equals(keyAlgorithm)) {
-					list.add(suite);
+					if (!recommendedCipherSuitesOnly || suite.recommendedCipherSuite) {
+						list.add(suite);
+					}
 				}
 			}
 		}
@@ -473,11 +615,30 @@ public enum CipherSuite {
 	}
 
 	/**
+	 * Checks if a list of cipher suite contains an PSK based cipher.
+	 * 
+	 * @param cipherSuites The cipher suites to check.
+	 * @return {@code true}, if the list contains an PSK based cipher suite,
+	 *         {@code false}, otherwise.
+	 * 
+	 */
+	public static boolean containsPskBasedCipherSuite(List<CipherSuite> cipherSuites) {
+		if (cipherSuites != null) {
+			for (CipherSuite cipherSuite : cipherSuites) {
+				if (cipherSuite.isPskBased()) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * Checks if a list of cipher suite contains an ECC based cipher.
 	 * 
 	 * @param cipherSuites The cipher suites to check.
-	 * @return {@code true} if the list contains an ECC based cipher suite,
-	 *         {@code false} otherwise.
+	 * @return {@code true}, if the list contains an ECC based cipher suite,
+	 *         {@code false}, otherwise.
 	 * 
 	 */
 	public static boolean containsEccBasedCipherSuite(List<CipherSuite> cipherSuites) {
@@ -530,11 +691,36 @@ public enum CipherSuite {
 		return writer.toByteArray();
 	}
 
+	/**
+	 * Decode cipher suite list from byte array.
+	 * 
+	 * @param byteArray byte array with encoded cipher suites
+	 * @param numElements number of encoded cipher suites
+	 * @return list of cipher suites
+	 * @throws IllegalArgumentException if provided number of cipher suites
+	 *             doesn't macht the provided byte array
+	 * @deprecated use {@link #listFromReader(DatagramReader)}
+	 */
+	@Deprecated
 	public static List<CipherSuite> listFromByteArray(byte[] byteArray, int numElements) {
-		List<CipherSuite> cipherSuites = new ArrayList<CipherSuite>();
-		DatagramReader reader = new DatagramReader(byteArray);
+		List<CipherSuite> cipherSuites = listFromReader(new DatagramReader(byteArray, false));
+		if (cipherSuites.size() != numElements) {
+			throw new IllegalArgumentException("");
+		}
+		return cipherSuites;
+	}
 
-		for (int i = 0; i < numElements; i++) {
+	/**
+	 * Decode cipher suite list from reader.
+	 * 
+	 * @param reader reader with encoded cipher suites
+	 * @return list of cipher suites
+	 * @throws IllegalArgumentException if a decode error occurs
+	 */
+	public static List<CipherSuite> listFromReader(DatagramReader reader) {
+		List<CipherSuite> cipherSuites = new ArrayList<CipherSuite>();
+
+		while (reader.bytesAvailable()) {
 			int code = reader.read(CIPHER_SUITE_BITS);
 			CipherSuite cipher = CipherSuite.getTypeByCode(code);
 			// simply ignore unknown cipher suites as mandated by
@@ -560,18 +746,24 @@ public enum CipherSuite {
 		HMAC_SHA512("HmacSHA512", "SHA-512", 64);
 
 		private final String name;
-		private final String hashName;
+		private final String mdName;
 		private final int outputLength;
 		private final boolean supported;
+		private final ThreadLocalMac mac;
+		private final ThreadLocalMessageDigest md;
 
-		private MACAlgorithm(String name, String hashName, int outputLength) {
+		private MACAlgorithm(String name, String mdName, int outputLength) {
 			this.name = name;
-			this.hashName = hashName;
+			this.mdName = mdName;
 			this.outputLength = outputLength;
-			if (name == null && hashName == null) {
+			if (name == null && mdName == null) {
 				this.supported = true;
+				this.mac = null;
+				this.md = null;
 			} else {
-				this.supported = PseudoRandomFunction.isSupported(name, hashName);
+				this.mac = new ThreadLocalMac(name);
+				this.md = new ThreadLocalMessageDigest(mdName);
+				this.supported = mac.isSupported() && md.isSupported();
 			}
 		}
 
@@ -601,8 +793,8 @@ public enum CipherSuite {
 		 * 
 		 * @return the name or <code>null</code> for the {@link #NULL} MAC
 		 */
-		public String getHashName() {
-			return hashName;
+		public String getMessageDigestName() {
+			return mdName;
 		}
 
 		/**
@@ -633,6 +825,40 @@ public enum CipherSuite {
 		public boolean isSupported() {
 			return supported;
 		}
+
+		/**
+		 * Gets the thread local MAC used by this MAC algorithm.
+		 * 
+		 * Calls {@link Mac#reset()} on access.
+		 * 
+		 * @return mac, or {@code null}, if not supported by vm.
+		 */
+		public Mac getMac() {
+			if (mac != null) {
+				Mac current = mac.current();
+				current.reset();
+				return current;
+			} else {
+				return null;
+			}
+		}
+
+		/**
+		 * Gets the thread local message digest used by this MAC algorithm.
+		 * 
+		 * Calls {@link MessageDigest#reset()} on access.
+		 * 
+		 * @return message digest, or {@code null}, if not supported by vm.
+		 */
+		public MessageDigest getMessageDigest() {
+			if (md != null) {
+				MessageDigest current = md.current();
+				current.reset();
+				return current;
+			} else {
+				return null;
+			}
+		}
 	}
 
 	private enum CipherSpec {
@@ -646,7 +872,8 @@ public enum CipherSuite {
 		AES_256_CCM_8(AeadBlockCipher.AES_CCM, CipherType.AEAD, 32, 4, 8, 8), // explicit nonce (record IV) length = 8
 		AES_128_CCM(AeadBlockCipher.AES_CCM, CipherType.AEAD, 16, 4, 8, 16), // explicit nonce (record IV) length = 8
 		AES_256_CCM(AeadBlockCipher.AES_CCM, CipherType.AEAD, 32, 4, 8, 16), // explicit nonce (record IV) length = 8
-		AES_128_GCM("AES/GCM/NoPadding", CipherType.AEAD, 16, 4, 8, 16); // requires jvm implementation of AES/GCM
+		AES_128_GCM("AES/GCM/NoPadding", CipherType.AEAD, 16, 4, 8, 16), // requires jvm implementation of AES/GCM
+		AES_256_GCM("AES/GCM/NoPadding", CipherType.AEAD, 32, 4, 8, 16); // requires jvm implementation of AES/GCM
 
 		/**
 		 * The <em>transformation</em> string of the corresponding Java Cryptography Architecture
@@ -734,7 +961,13 @@ public enum CipherSuite {
 		private boolean isSupported() {
 			return supported;
 		}
-		
+
+		/**
+		 * Gets the thread local cipher used by this cipher specification.
+		 * 
+		 * @return the cipher, or {@code null}, if the cipher is not supported by
+		 *         the java-vm.
+		 */
 		private Cipher getCipher() {
 			return cipher == null ? null : cipher.current();
 		}

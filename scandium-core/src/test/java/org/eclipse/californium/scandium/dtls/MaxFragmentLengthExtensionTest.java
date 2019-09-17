@@ -20,6 +20,7 @@ import static org.junit.Assert.*;
 
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.junit.Test;
@@ -90,7 +91,7 @@ public class MaxFragmentLengthExtensionTest {
 	}
 
 	private void whenParsingTheExtensionStruct() throws HandshakeException {
-		HelloExtensions helloExtions = HelloExtensions.fromByteArray(maxFragmentLengthStructure, new InetSocketAddress(0));
+		HelloExtensions helloExtions = HelloExtensions.fromReader(new DatagramReader(maxFragmentLengthStructure), new InetSocketAddress(0));
 		extension = (MaxFragmentLengthExtension) 
 				helloExtions.getExtension(ExtensionType.MAX_FRAGMENT_LENGTH);
 	}

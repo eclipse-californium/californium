@@ -29,6 +29,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -156,7 +157,7 @@ public final class ClientHello extends HandshakeMessage {
 		this(peerAddress);
 		this.clientVersion = version;
 		this.random = new Random();
-		this.cookie = new byte[] {};
+		this.cookie = Bytes.EMPTY;
 		if (sessionId != null) {
 			this.sessionId = sessionId;
 		} else {
@@ -244,8 +245,10 @@ public final class ClientHello extends HandshakeMessage {
 	}
 
 	/**
-	 * Creates a new ClientObject instance from its byte representation.
+	 * Creates a new ClientHello instance from its byte representation.
 	 * 
+	 * @param reader 
+	 *            reader for the binary encoding of the message.
 	 * @param byteArray
 	 *            the bytes representing the message
 	 * @param peerAddress
@@ -256,9 +259,8 @@ public final class ClientHello extends HandshakeMessage {
 	 *             if any of the extensions included in the message is of an
 	 *             unsupported type
 	 */
-	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress)
+	public static HandshakeMessage fromReader(DatagramReader reader, InetSocketAddress peerAddress)
 			throws HandshakeException {
-		DatagramReader reader = new DatagramReader(byteArray);
 		ClientHello result = new ClientHello(peerAddress);
 
 		int major = reader.read(VERSION_BITS);
@@ -274,16 +276,15 @@ public final class ClientHello extends HandshakeMessage {
 		result.cookie = reader.readBytes(cookieLength);
 
 		int cipherSuitesLength = reader.read(CIPHER_SUITS_LENGTH_BITS);
-		result.supportedCipherSuites = CipherSuite.listFromByteArray(reader.readBytes(cipherSuitesLength),
-				cipherSuitesLength / 2); // 2
+		DatagramReader rangeReader = reader.createRangeReader(cipherSuitesLength);
+		result.supportedCipherSuites = CipherSuite.listFromReader(rangeReader);
 
 		int compressionMethodsLength = reader.read(COMPRESSION_METHODS_LENGTH_BITS);
-		result.compressionMethods = CompressionMethod.listFromByteArray(reader.readBytes(compressionMethodsLength),
-				compressionMethodsLength);
+		rangeReader = reader.createRangeReader(compressionMethodsLength);
+		result.compressionMethods = CompressionMethod.listFromReader(rangeReader);
 
-		byte[] bytesLeft = reader.readBytesLeft();
-		if (bytesLeft.length > 0) {
-			result.extensions = HelloExtensions.fromByteArray(bytesLeft, peerAddress);
+		if (reader.bytesAvailable()) {
+			result.extensions = HelloExtensions.fromReader(reader, peerAddress);
 		}
 		return result;
 
@@ -369,6 +370,11 @@ public final class ClientHello extends HandshakeMessage {
 		this.sessionId = sessionId;
 	}
 
+	/**
+	 * Get cookie.
+	 * 
+	 * @return cookie, or {@link Bytes#EMPTY}, if no cookie is available.
+	 */
 	public byte[] getCookie() {
 		return cookie;
 	}
@@ -415,6 +421,15 @@ public final class ClientHello extends HandshakeMessage {
 		if (extensions != null) {
 			extensions.addExtension(extension);
 		}
+	}
+
+	/**
+	 * Gets the client hello extensions the client has included in this message.
+	 * 
+	 * @return The extensions or {@code null} if no extensions are used.
+	 */
+	public HelloExtensions getExtensions() {
+		return extensions;
 	}
 
 	/**

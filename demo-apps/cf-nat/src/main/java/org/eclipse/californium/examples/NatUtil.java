@@ -25,12 +25,16 @@ import java.net.InetSocketAddress;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -49,7 +53,6 @@ import org.slf4j.LoggerFactory;
 public class NatUtil implements Runnable {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(NatUtil.class.getCanonicalName());
-
 	/**
 	 * Supported maximum message size.
 	 */
@@ -66,8 +69,18 @@ public class NatUtil implements Runnable {
 	 * Message dropping log interval.
 	 */
 	private static final int MESSAGE_DROPPING_LOG_INTERVAL_MS = 1000 * 10;
-
+	/**
+	 * Thread group for NAT.
+	 */
 	private static final ThreadGroup NAT_THREAD_GROUP = new ThreadGroup("NAT");
+	/**
+	 * Counter for NAT threads
+	 */
+	private static final AtomicInteger NAT_THREAD_COUNTER = new AtomicInteger();
+
+	static {
+		NAT_THREAD_GROUP.setDaemon(false);
+	}
 	/**
 	 * The thread for the proxy.
 	 */
@@ -92,24 +105,33 @@ public class NatUtil implements Runnable {
 	 * Packet to receive incoming message for the NAT.
 	 */
 	private final DatagramPacket proxyPacket;
-
 	/**
 	 * Map of external incoming addresses to local used addresses for forwarding
 	 * the messages to the destination.
 	 */
 	private final ConcurrentMap<InetSocketAddress, NatEntry> nats = new ConcurrentHashMap<InetSocketAddress, NatEntry>();
 	/**
+	 * Scheduler for reordering.
+	 */
+	private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2, new ThreadFactory() {
+
+		@Override
+		public Thread newThread(Runnable runnable) {
+			final Thread ret = new Thread(NAT_THREAD_GROUP, runnable, "NAT-" + NAT_THREAD_COUNTER.getAndIncrement(), 0);
+			ret.setDaemon(true);
+			return ret;
+		}
+	});
+	/**
 	 * Running/shutdown indicator.
 	 */
 	private volatile boolean running = true;
-
 	/**
 	 * Nano time for next message dropping statistic log.
 	 * 
 	 * @see #dumpMessageDroppingStatistic()
 	 */
 	private AtomicLong messageDroppingLogTime = new AtomicLong();
-
 	/**
 	 * Counter for forwarded messages.
 	 */
@@ -120,30 +142,82 @@ public class NatUtil implements Runnable {
 	private AtomicLong backwardCounter = new AtomicLong();
 
 	/**
-	 * Message dropping configuration.
+	 * Message transmission manipulation configuration.
 	 */
-	private static class MessageDropping {
+	private static class TransmissionManipulation {
 
 		/**
 		 * Title for statistic.
 		 */
 		private final String title;
 		/**
-		 * Random for message dropping.
+		 * Random for message transmission manipulation.
 		 */
-		private final Random random = new Random();
+		protected final Random random = new Random();
 		/**
-		 * Threshold in percent. 0 := no message dropping.
+		 * Threshold in percent. 0 := no message transmission manipulation.
 		 */
 		private final int threshold;
 		/**
-		 * Counter for sent messages.
+		 * Counter for not manipulated message transmissions.
 		 */
 		private final AtomicInteger sentMessages = new AtomicInteger();
 		/**
-		 * Counter for dropped messages.
+		 * Counter for manipulated message transmissions.
 		 */
-		private final AtomicInteger droppedMessages = new AtomicInteger();
+		private final AtomicInteger manipulatedMessages = new AtomicInteger();
+
+		/**
+		 * Create instance.
+		 * 
+		 * @param title title for statistic dump
+		 * @param threshold threshold in percent
+		 */
+		public TransmissionManipulation(String title, int threshold) {
+			this.title = title;
+			this.threshold = threshold;
+			this.random.setSeed(threshold);
+		}
+
+		/**
+		 * Check, if message should be manipulated.
+		 * 
+		 * @return {@code true}, if message should be manipulated,
+		 *         {@code false}, if message should be sent.
+		 */
+		public boolean manipulateMessage() {
+			if (threshold == 0) {
+				return false;
+			} else if (threshold == 100) {
+				return true;
+			} else if (threshold > random.nextInt(100)) {
+				manipulatedMessages.incrementAndGet();
+				return true;
+			} else {
+				sentMessages.incrementAndGet();
+				return false;
+			}
+		}
+
+		/**
+		 * Dump message manipulation statistic to log.
+		 */
+		public void dumpStatistic() {
+			int sent = sentMessages.get();
+			int manipulated = manipulatedMessages.get();
+			if (sent > 0) {
+				LOGGER.warn("manipulated {} {}/{}%, sent {} {}.", title, manipulated,
+						manipulated * 100 / (manipulated + sent), title, sent);
+			} else if (manipulated > 0) {
+				LOGGER.warn("manipulated {} {}/100%, no {} sent!.", title, manipulated, title);
+			}
+		}
+	}
+
+	/**
+	 * Message dropping configuration.
+	 */
+	private static class MessageDropping extends TransmissionManipulation {
 
 		/**
 		 * Create instance.
@@ -152,9 +226,7 @@ public class NatUtil implements Runnable {
 		 * @param threshold threshold in percent
 		 */
 		public MessageDropping(String title, int threshold) {
-			this.title = title;
-			this.threshold = threshold;
-			this.random.setSeed(threshold);
+			super(title + " drops", threshold);
 		}
 
 		/**
@@ -164,33 +236,72 @@ public class NatUtil implements Runnable {
 		 *         message should be sent.
 		 */
 		public boolean dropMessage() {
-			if (threshold == 0) {
-				return false;
-			}
-			if (threshold == 1000) {
-				return true;
-			}
-			if (threshold > random.nextInt(100)) {
-				droppedMessages.incrementAndGet();
-				return true;
+			return manipulateMessage();
+		}
+	}
+
+	/**
+	 * Message dropping configuration.
+	 */
+	private class MessageReordering extends TransmissionManipulation {
+
+		private final NatEntry entry;
+		private final int delayMillis;
+		private final int randomDelayMillis;
+		private boolean reordering = true;
+		
+		public MessageReordering(String title, int threshold, int delayMillis, int randomDelayMillis) {
+			super(title + " reorders", threshold);
+			this.delayMillis = delayMillis;
+			this.randomDelayMillis = randomDelayMillis;
+			this.entry = null;
+		}
+
+		public MessageReordering(String title, NatEntry entry, int threshold, int delayMillis, int randomDelayMillis) {
+			super(title + " reorders", threshold);
+			this.delayMillis = delayMillis;
+			this.randomDelayMillis = randomDelayMillis;
+			this.entry = entry;
+		}
+
+		public void forward(DatagramPacket packet) throws IOException {
+			if (manipulateMessage()) {
+				final long delay = delayMillis + random.nextInt(randomDelayMillis);
+				byte[] data = Arrays.copyOfRange(packet.getData(), packet.getOffset(),
+						packet.getOffset() + packet.getLength());
+				final DatagramPacket clone = new DatagramPacket(data, data.length, packet.getSocketAddress());
+				scheduler.schedule(new Runnable() {
+
+					@Override
+					public void run() {
+						if (isRunning()) {
+							try {
+								if (entry != null) {
+									LOGGER.info("send message {} bytes, delayed {}ms to {}", clone.getLength(), delay,
+											clone.getSocketAddress());
+									entry.forward(clone);
+								} else {
+									LOGGER.info("deliver message {} bytes, delayed {}ms to {}", clone.getLength(),
+											delay, clone.getSocketAddress());
+									deliver(clone);
+								}
+							} catch (IOException ex) {
+								LOGGER.info("delayed forward failed!", ex);
+							}
+						}
+					}
+				}, delay, TimeUnit.MILLISECONDS);
 			} else {
-				sentMessages.incrementAndGet();
-				return false;
+				deliver(packet);
 			}
 		}
 
-		/**
-		 * Dump message dropping statistic to log.
-		 */
-		public void dumpStatistic() {
-			int sent = sentMessages.get();
-			int dropped = droppedMessages.get();
-			if (sent > 0) {
-				LOGGER.warn("dropped {} {}/{}%, sent {} {}.",
-						title, dropped, dropped * 100 / (dropped + sent), title, sent);
-			} else {
-				LOGGER.warn("dropped {} {}/100%, no {} sent!.", title, dropped, title);
-			}
+		public synchronized void stop() {
+			reordering = false;
+		}
+
+		private synchronized boolean isRunning() {
+			return reordering;
 		}
 	}
 
@@ -203,8 +314,10 @@ public class NatUtil implements Runnable {
 	 */
 	private volatile MessageDropping backward;
 
+	private volatile MessageReordering reorder;
+
 	/**
-	 * Create a new NAT util.
+	 * Create a new NAT utility.
 	 * 
 	 * @param bindAddress address to bind to, or {@code null}, if any should be
 	 * @param destination destination address to forward the messages using a
@@ -239,14 +352,11 @@ public class NatUtil implements Runnable {
 
 				proxyPacket.setLength(DATAGRAM_SIZE);
 				proxySocket.receive(proxyPacket);
-				if (running) {
-					InetSocketAddress incoming = (InetSocketAddress) proxyPacket.getSocketAddress();
-					NatEntry entry = nats.get(incoming);
-					if (null == entry) {
-						entry = new NatEntry(incoming);
-						nats.put(incoming, entry);
-					}
-					entry.forward(proxyPacket);
+				MessageReordering before = this.reorder;
+				if (before != null) {
+					before.forward(proxyPacket);
+				} else {
+					deliver(proxyPacket);
 				}
 			} catch (SocketTimeoutException e) {
 				if (running) {
@@ -262,6 +372,22 @@ public class NatUtil implements Runnable {
 		}
 	}
 
+	public void deliver(DatagramPacket packet) throws IOException {
+		if (running) {
+			InetSocketAddress incoming = (InetSocketAddress)  packet.getSocketAddress();
+			NatEntry entry = nats.get(incoming);
+			if (null == entry) {
+				entry = new NatEntry(incoming);
+				NatEntry previousEntry = nats.putIfAbsent(incoming, entry);
+				if (previousEntry != null) {
+					entry.stop();
+					entry = previousEntry;
+				}
+			}
+			entry.forward(packet);
+		}
+	}
+
 	/**
 	 * Stop the NAT.
 	 */
@@ -270,9 +396,12 @@ public class NatUtil implements Runnable {
 		proxySocket.close();
 		proxyThread.interrupt();
 		stopAllNatEntries();
+		scheduler.shutdownNow();
 		try {
 			proxyThread.join(1000);
+			scheduler.awaitTermination(1000, TimeUnit.MILLISECONDS);
 		} catch (InterruptedException ex) {
+			LOGGER.error("shutdown failed!", ex);
 		}
 		LOGGER.warn("NAT stopped. {} forwarded messages, {} backwarded", forwardCounter, backwardCounter);
 	}
@@ -325,7 +454,7 @@ public class NatUtil implements Runnable {
 	 * 
 	 * Reuse the local addresses for different incoming addresses.
 	 * 
-	 * @throws SocketException 
+	 * @throws SocketException
 	 */
 	public void mixLocalAddresses() {
 		Random random = new Random();
@@ -337,7 +466,7 @@ public class NatUtil implements Runnable {
 		}
 		for (InetSocketAddress incoming : keys) {
 			int index = random.nextInt(destinations.size());
-			NatEntry entry =  destinations.remove(index);
+			NatEntry entry = destinations.remove(index);
 			entry.setIncoming(incoming);
 			nats.put(incoming, entry);
 		}
@@ -369,10 +498,26 @@ public class NatUtil implements Runnable {
 	public int getLocalPortForAddress(InetSocketAddress incoming) {
 		NatEntry entry = nats.get(incoming);
 		if (null != entry) {
-			return entry.outgoingSocket.getLocalPort();
+			return entry.getPort();
 		} else {
 			LOGGER.warn("no mapping found for {}!", incoming);
 			return -1;
+		}
+	}
+
+	/**
+	 * Get (outgoing) local socket address for incoming address.
+	 * 
+	 * @param incoming address to get assigned local socket address
+	 * @return outgoing local socket address. {@code null}, if no mapping available.
+	 */
+	public InetSocketAddress getLocalAddressForAddress(InetSocketAddress incoming) {
+		NatEntry entry = nats.get(incoming);
+		if (null != entry) {
+			return new InetSocketAddress(destination.getAddress(), entry.getPort());
+		} else {
+			LOGGER.warn("no mapping found for {}!", incoming);
+			return null;
 		}
 	}
 
@@ -453,6 +598,32 @@ public class NatUtil implements Runnable {
 	}
 
 	/**
+	 * Set message reordering level in percent.
+	 * 
+	 * @param percent message reordering level in percent
+	 * @param delayMillis message delay in milliseconds
+	 * @param randomDelayMillis maximum random message delay in milliseconds
+	 * @throws IllegalArgumentException if percent is out of range 0 to 100.
+	 */
+	public void setMessageReordering(int percent, int delayMillis, int randomDelayMillis) {
+		if (percent < 0 || percent > 100) {
+			throw new IllegalArgumentException("Message reordering " + percent + "% out of range [0...100]!");
+		}
+		if (reorder != null) {
+			reorder.stop();
+		}
+		if (percent == 0) {
+			if (reorder != null) {
+				reorder = null;
+				LOGGER.info("NAT stops message reordering.");
+			}
+		} else {
+			reorder = new MessageReordering("reordering", percent, delayMillis, randomDelayMillis);
+			LOGGER.info("NAT message reordering {}%.", percent);
+		}
+	}
+
+	/**
 	 * Dump message dropping statistics to log.
 	 */
 	public void dumpMessageDroppingStatistic() {
@@ -519,11 +690,11 @@ public class NatUtil implements Runnable {
 						packet.setSocketAddress(incoming);
 						MessageDropping dropping = backward;
 						if (dropping != null && dropping.dropMessage()) {
-							LOGGER.info("backward drops {} bytes from {} to {} via {}",
-									packet.getLength(), destinationName, incomingName, natName);
+							LOGGER.info("backward drops {} bytes from {} to {} via {}", packet.getLength(),
+									destinationName, incomingName, natName);
 						} else {
-							LOGGER.info("backward {} bytes from {} to {} via {}",
-									packet.getLength(), destinationName, incomingName, natName);
+							LOGGER.info("backward {} bytes from {} to {} via {}", packet.getLength(), destinationName,
+									incomingName, natName);
 							proxySocket.send(packet);
 							backwardCounter.incrementAndGet();
 						}
@@ -572,6 +743,7 @@ public class NatUtil implements Runnable {
 			try {
 				thread.join(2000);
 			} catch (InterruptedException e) {
+				LOGGER.error("shutdown failed!", e);
 			}
 		}
 
@@ -586,11 +758,11 @@ public class NatUtil implements Runnable {
 			}
 			MessageDropping dropping = forward;
 			if (dropping != null && dropping.dropMessage()) {
-				LOGGER.info("forward drops {} bytes from {} to {} via {}",
-						packet.getLength(), incomingName, destinationName, natName);
+				LOGGER.info("forward drops {} bytes from {} to {} via {}", packet.getLength(), incomingName,
+						destinationName, natName);
 			} else {
-				LOGGER.info("forward {} bytes from {} to {} via {}",
-						packet.getLength(), incomingName, destinationName, natName);
+				LOGGER.info("forward {} bytes from {} to {} via {}", packet.getLength(), incomingName, destinationName,
+						natName);
 				packet.setSocketAddress(destination);
 				lastUsage.set(System.nanoTime());
 				outgoingSocket.send(packet);

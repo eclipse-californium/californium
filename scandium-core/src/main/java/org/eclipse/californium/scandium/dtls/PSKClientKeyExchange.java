@@ -83,8 +83,7 @@ public final class PSKClientKeyExchange extends ClientKeyExchange {
 		return writer.toByteArray();
 	}
 
-	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) {
-		DatagramReader reader = new DatagramReader(byteArray);
+	public static HandshakeMessage fromReader(DatagramReader reader, InetSocketAddress peerAddress) {
 		
 		int length = reader.read(IDENTITY_LENGTH_BITS);
 		byte[] identityEncoded = reader.readBytes(length);

@@ -41,7 +41,6 @@ package org.eclipse.californium.scandium.dtls;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.elements.util.ClockUtil;
@@ -63,12 +62,17 @@ public final class Connection {
 	private static final Logger LOGGER = LoggerFactory.getLogger(Connection.class.getName());
 
 	private final AtomicReference<Handshaker> ongoingHandshake = new AtomicReference<Handshaker>();
-	private final AtomicReference<Random> startedByClient = new AtomicReference<Random>();
 	private final SessionListener sessionListener = new ConnectionSessionListener();
+	/**
+	 * Random used by client to start the handshake. Maybe {@code null}, for
+	 * client side connections. Note: used outside of serial-execution!
+	 */
+	private ClientHello startingClientHello;
 	/**
 	 * Expired real time nanoseconds of the last message send or received.
 	 */
-	private final AtomicLong lastMessageNanos = new AtomicLong();
+	private long lastMessageNanos;
+	private long lastPeerAddressNanos;
 	private SerialExecutor serialExecutor;
 	private InetSocketAddress peerAddress;
 	private ConnectionId cid;
@@ -86,16 +90,19 @@ public final class Connection {
 	 * @param serialExecutor serial executor.
 	 * @throws NullPointerException if the peer address or the serial executor is {@code null}
 	 */
-	public Connection(final InetSocketAddress peerAddress, final SerialExecutor serialExecutor) {
+	public Connection(InetSocketAddress peerAddress, SerialExecutor serialExecutor) {
 		if (peerAddress == null) {
 			throw new NullPointerException("Peer address must not be null");
 		} else if (serialExecutor == null) {
 			throw new NullPointerException("Serial executor must not be null");
 		} else {
+			long now = ClockUtil.nanoRealtime();
 			this.sessionId = null;
 			this.ticket = null;
 			this.peerAddress = peerAddress;
 			this.serialExecutor = serialExecutor;
+			this.lastPeerAddressNanos = now;
+			this.lastMessageNanos = now;
 		}
 	}
 
@@ -204,6 +211,17 @@ public final class Connection {
 	}
 
 	/**
+	 * Check, if this connection expects connection ID for incoming records.
+	 * 
+	 * @return {@code true}, if connection ID is expected, {@code false},
+	 *         otherwise
+	 */
+	public boolean expectCid() {
+		DTLSSession session = getSession();
+		return session != null && session.getWriteConnectionId() != null;
+	}
+
+	/**
 	 * Gets the connection id.
 	 * 
 	 * @return the cid
@@ -219,6 +237,17 @@ public final class Connection {
 	 */
 	public void  setConnectionId(ConnectionId cid) {
 		this.cid = cid;
+	}
+
+	/**
+	 * Get real time nanoseconds of last
+	 * {@link #updatePeerAddress(InetSocketAddress)}.
+	 * 
+	 * @return real time nanoseconds
+	 * @see ClockUtil#nanoRealtime()
+	 */
+	public long getLastPeerAddressNanos() {
+		return lastPeerAddressNanos;
 	}
 
 	/**
@@ -247,17 +276,20 @@ public final class Connection {
 	 *             non-null value without an established session.
 	 */
 	public void updatePeerAddress(InetSocketAddress peerAddress) {
-		this.peerAddress = peerAddress;
-		if (establishedSession != null) {
-			establishedSession.setPeer(peerAddress);
-		} else if (peerAddress == null) {
-			final Handshaker pendingHandshaker = getOngoingHandshake();
-			if (pendingHandshaker != null) {
-				// this will only call the listener, if no other cause was set before!
-				pendingHandshaker.handshakeFailed(new IOException("address changed!"));
+		if (!equalsPeerAddress(peerAddress)) {
+			this.lastPeerAddressNanos = ClockUtil.nanoRealtime();
+			this.peerAddress = peerAddress;
+			if (establishedSession != null) {
+				establishedSession.setPeer(peerAddress);
+			} else if (peerAddress == null) {
+				final Handshaker pendingHandshaker = getOngoingHandshake();
+				if (pendingHandshaker != null) {
+					// this will only call the listener, if no other cause was set before!
+					pendingHandshaker.handshakeFailed(new IOException("address changed!"));
+				}
+			} else {
+				throw new IllegalArgumentException("Address change without established sesson is not supported!");
 			}
-		} else {
-			throw new IllegalArgumentException("Address change without established sesson is not supported!");
 		}
 	}
 
@@ -315,17 +347,26 @@ public final class Connection {
 	/**
 	 * Checks whether this connection is started for the provided CLIENT_HELLO.
 	 * 
-	 * Use the random contained in the CLIENT_HELLO.
+	 * Use the random and message sequence number contained in the CLIENT_HELLO.
+	 * 
+	 * Note: called outside of serial-execution and so requires external synchronization!
 	 * 
 	 * @param clientHello the message to check.
 	 * @return {@code true} if the given client hello has initially started this
 	 *         connection.
 	 * @see #startByClientHello(ClientHello)
+	 * @throws NullPointerException if client hello is {@code null}.
 	 */
 	public boolean isStartedByClientHello(ClientHello clientHello) {
-		Random startRandom = startedByClient.get();
-		if (startRandom != null) {
-			return startRandom.equals(clientHello.getRandom());
+		if (clientHello == null) {
+			throw new NullPointerException("client hello must not be null!");
+		}
+		if (startingClientHello != null) {
+			if (startingClientHello.getRandom().equals(clientHello.getRandom())) {
+				if (startingClientHello.getMessageSeq() >= clientHello.getMessageSeq()) {
+					return true;
+				}
+			}
 		}
 		return false;
 	}
@@ -333,14 +374,17 @@ public final class Connection {
 	/**
 	 * Set starting CLIENT_HELLO.
 	 * 
-	 * Use the random contained in the CLIENT_HELLO. Removed, if when the
-	 * handshake is completed or fails.
+	 * Use the random and handshake message sequence number contained in the
+	 * CLIENT_HELLO. Removed, if when the handshake fails or with configurable
+	 * timeout after handshake completion.
+	 * 
+	 * Note: called outside of serial-execution and so requires external synchronization!
 	 * 
 	 * @param clientHello message which starts the connection.
 	 * @see #isStartedByClientHello(ClientHello)
 	 */
 	public void startByClientHello(ClientHello clientHello) {
-		startedByClient.set(clientHello.getRandom());
+		startingClientHello = clientHello;
 	}
 
 	/**
@@ -438,7 +482,7 @@ public final class Connection {
 				setResumptionRequired(true);
 			} else {
 				long now = ClockUtil.nanoRealtime();
-				long expires = lastMessageNanos.get() + TimeUnit.MILLISECONDS.toNanos(autoResumptionTimeoutMillis);
+				long expires = lastMessageNanos + TimeUnit.MILLISECONDS.toNanos(autoResumptionTimeoutMillis);
 				if ((now - expires) > 0) {
 					setResumptionRequired(true);
 				}
@@ -455,8 +499,7 @@ public final class Connection {
 	 * @see #lastMessageNanos
 	 */
 	public void refreshAutoResumptionTime() {
-		long now = ClockUtil.nanoRealtime();
-		lastMessageNanos.set(now);
+		lastMessageNanos = ClockUtil.nanoRealtime();
 	}
 
 	/**
@@ -475,13 +518,19 @@ public final class Connection {
 		}
 		if (peerAddress != null) {
 			builder.append(", ").append(peerAddress);
-			if (hasOngoingHandshake()) {
-				builder.append(", ongoing handshake");
+			if (getOngoingHandshake() != null) {
+				builder.append(", ongoing handshake ");
+				SessionId id = getOngoingHandshake().getSession().getSessionIdentifier();
+				if (id != null) {
+					// during handshake this may by not already set
+					builder.append(id.getAsString().substring(0,  8));
+				}
 			}
 			if (isResumptionRequired()) {
 				builder.append(", resumption required");
 			} else if (hasEstablishedSession()) {
-				builder.append(", session established");
+				String id = getEstablishedSession().getSessionIdentifier().getAsString().substring(0,  8);
+				builder.append(", session established ").append(id);
 			}
 		}
 		if (sessionId != null) {
@@ -510,7 +559,6 @@ public final class Connection {
 		@Override
 		public void handshakeCompleted(Handshaker handshaker) {
 			if (ongoingHandshake.compareAndSet(handshaker, null)) {
-				startedByClient.set(null);
 				LOGGER.debug("Handshake with [{}] has been completed", handshaker.getPeerAddress());
 			}
 		}
@@ -518,7 +566,7 @@ public final class Connection {
 		@Override
 		public void handshakeFailed(Handshaker handshaker, Throwable error) {
 			if (ongoingHandshake.compareAndSet(handshaker, null)) {
-				startedByClient.set(null);
+				startingClientHello = null;
 				LOGGER.debug("Handshake with [{}] has failed", handshaker.getPeerAddress());
 			}
 		}

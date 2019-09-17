@@ -509,6 +509,7 @@
 								</configuration>
 								<goals>
 									<goal>download-licenses</goal>
+									<goal>aggregate-download-licenses</goal>
 								</goals>
 							</execution>
 						</executions>

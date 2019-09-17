@@ -18,6 +18,9 @@
 
 	<properties>
 		<assembly.mainClass>org.eclipse.californium.examples.Nat</assembly.mainClass>
+		<skipNexusStagingDeployMojo>false</skipNexusStagingDeployMojo>
+		<skipStaging>false</skipStaging>
+		<maven.javadoc.skip>false</maven.javadoc.skip>
 	</properties>
 
 	<dependencies>

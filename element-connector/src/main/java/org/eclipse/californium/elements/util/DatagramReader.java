@@ -28,6 +28,49 @@ import java.util.Arrays;
  */
 public final class DatagramReader {
 
+	/**
+	 * Input stream with improved range reading.
+	 */
+	private static class RangeInputStream extends ByteArrayInputStream {
+
+		/**
+		 * Create reader from byte array.
+		 * 
+		 * @param buffer directly used byte array
+		 */
+		private RangeInputStream(byte[] buffer) {
+			super(buffer);
+		}
+
+		/**
+		 * Create reader from byte array range.
+		 * 
+		 * @param buffer directly used byte array
+		 * @param offset offset in buffer
+		 * @param length length of range
+		 */
+		private RangeInputStream(byte[] buffer, int offset, int length) {
+			super(buffer, offset, length);
+		}
+
+		/**
+		 * Create reader for range. Read range and pass it to the returned
+		 * reader.
+		 * 
+		 * @param count number of bytes for the range
+		 * @return reader containing the range
+		 * @throws IllegalArgumentException if provided count exceeds available bytes
+		 */
+		private RangeInputStream range(int count) {
+			int offset = pos;
+			long available = skip(count);
+			if (available < count) {
+				throw new IllegalArgumentException(
+						"requested " + count + " bytes exceeds available " + available + " bytes.");
+			}
+			return new RangeInputStream(buf, offset, count);
+		}
+	}
 	// Attributes //////////////////////////////////////////////////////////////
 
 	private final ByteArrayInputStream byteStream;
@@ -47,12 +90,29 @@ public final class DatagramReader {
 	// Constructors ////////////////////////////////////////////////////////////
 
 	/**
-	 * Creates a new reader for an array of bytes.
+	 * Creates a new reader for an copied array of bytes.
 	 * 
 	 * @param byteArray The byte array to read from.
 	 */
 	public DatagramReader(final byte[] byteArray) {
-		this(new ByteArrayInputStream(Arrays.copyOf(byteArray, byteArray.length)));
+		this(byteArray, true);
+	}
+
+	/**
+	 * Creates a new reader for an array of bytes.
+	 * 
+	 * @param byteArray The byte array to read from.
+	 * @param copy {@code true} to copy the array, {@code false} to us it
+	 *            directly.
+	 */
+	public DatagramReader(final byte[] byteArray, boolean copy) {
+		byteStream = new RangeInputStream(copy ? Arrays.copyOf(byteArray, byteArray.length) : byteArray);
+
+		// initialize bit buffer
+		currentByte = 0;
+		currentBitIndex = -1; // indicates that no byte read yet
+		markByte = currentByte;
+		markBitIndex = currentBitIndex;
 	}
 
 	/**
@@ -100,6 +160,16 @@ public final class DatagramReader {
 	}
 
 	/**
+	 * Close reader.
+	 * Free resource and clear left bytes.
+	 */
+	public void close() {
+		byteStream.skip(byteStream.available());
+		currentByte = 0;
+		currentBitIndex = -1; // indicates that no byte read yet
+	}
+
+	/**
 	 * 
 	 * Reads a sequence of bits from the stream.
 	 * 
@@ -107,6 +177,7 @@ public final class DatagramReader {
 	 *            The number of bits to read.
 	 * 
 	 * @return A Long containing the bits read.
+	 * @throws IllegalArgumentException if provided numBits exceeds available bytes
 	 */
 	public long readLong(final int numBits) {
 
@@ -141,6 +212,7 @@ public final class DatagramReader {
 	 *            The number of bits to read.
 	 * 
 	 * @return An integer containing the bits read.
+	 * @throws IllegalArgumentException if provided numBits exceeds available bytes
 	 */
 	public int read(final int numBits) {
 
@@ -175,13 +247,20 @@ public final class DatagramReader {
 	 *            The number of bytes to read.
 	 * 
 	 * @return The sequence of bytes read from the stream.
+	 * @throws IllegalArgumentException if provided count exceeds available bytes
 	 */
 	public byte[] readBytes(final int count) {
 
+		int available = byteStream.available();
 		int bytesToRead = count;
+
 		// for negative count values, read all bytes left
-		if (bytesToRead < 0)
-			bytesToRead = byteStream.available();
+		if (bytesToRead < 0) {
+			bytesToRead = available;
+		} else if (bytesToRead > available) {
+			throw new IllegalArgumentException(
+					"requested " + count + " bytes exceeds available " + available + " bytes.");
+		}
 
 		// allocate byte array
 		byte[] bytes = new byte[bytesToRead];
@@ -207,6 +286,7 @@ public final class DatagramReader {
 	 * Reads the next byte from the stream.
 	 * 
 	 * @return The next byte.
+	 * @throws IllegalArgumentException if no bytes are available
 	 */
 	public byte readNextByte() {
 		byte[] bytes = readBytes(1);
@@ -254,10 +334,53 @@ public final class DatagramReader {
 		return (byteStream.available() * Byte.SIZE) + (currentBitIndex + 1);
 	}
 
+	/**
+	 * Create reader for provided range.
+	 * 
+	 * @param count size of the range in bytes
+	 * @return reader
+	 * @throws IllegalStateException if some bits of the current byte are unread
+	 * @throws IllegalArgumentException if provided count exceeds available
+	 *             bytes
+	 */
+	public DatagramReader createRangeReader(int count) {
+		return new DatagramReader(createRangeInputStream(count));
+	}
+
+	/**
+	 * Create input stream for provided range.
+	 * 
+	 * @param count size of the range in bytes
+	 * @return input stream
+	 * @throws IllegalStateException if some bits of the current byte are unread
+	 * @throws IllegalArgumentException if provided count exceeds available
+	 *             bytes
+	 */
+	public ByteArrayInputStream createRangeInputStream(int count) {
+		if (currentBitIndex > 0) {
+			throw new IllegalStateException(currentBitIndex + " bits unread!");
+		}
+		int available = byteStream.available();
+		if (available < count) {
+			throw new IllegalArgumentException(
+					"requested " + count + " bytes exceeds available " + available + " bytes.");
+		}
+		if (byteStream instanceof RangeInputStream) {
+			RangeInputStream range = (RangeInputStream) byteStream;
+			return range.range(count);
+		} else {
+			byte[] range = new byte[count];
+			byteStream.read(range, 0, count);
+			return new RangeInputStream(range);
+		}
+	}
+
 	// Utilities ///////////////////////////////////////////////////////////////
 
 	/**
-	 * Reads new bits from the stream
+	 * Reads new bits from the stream.
+	 * 
+	 * @throws IllegalArgumentException if no bytes are available
 	 */
 	private void readCurrentByte() {
 
@@ -269,8 +392,7 @@ public final class DatagramReader {
 			currentByte = (byte) val;
 		} else {
 			// end of stream reached
-			// return implicit zero bytes
-			currentByte = 0;
+			throw new IllegalArgumentException("requested byte exceeds available bytes!");
 		}
 
 		// reset current bit index

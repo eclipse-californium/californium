@@ -24,16 +24,10 @@ import static org.junit.Assert.*;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 
 import org.eclipse.californium.elements.rule.ThreadsRule;
-import org.eclipse.californium.elements.util.ExecutorsUtil;
-import org.eclipse.californium.elements.util.SerialExecutor;
-import org.eclipse.californium.elements.util.TestThreadFactory;
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -46,22 +40,15 @@ public class InMemoryConnectionStoreTest {
 
 	private static final int INITIAL_CAPACITY = 10;
 	InMemoryConnectionStore store;
-	ExecutorService executor;
 	Connection con;
 	SessionId sessionId;
 
 	@Before
 	public void setUp() throws Exception {
-		executor = ExecutorsUtil.newFixedThreadPool(1, new TestThreadFactory("TEST-SERIALEXECUTOR-"));
 		store = new InMemoryConnectionStore(INITIAL_CAPACITY, 1000);
 		store.attach(null);
 		con = newConnection(50L);
 		sessionId = con.getEstablishedSession().getSessionIdentifier();
-	}
-
-	@After
-	public void tearDown() throws Exception {
-		ExecutorsUtil.shutdownExecutorGracefully(100, executor);
 	}
 
 	@Test
@@ -304,7 +291,7 @@ public class InMemoryConnectionStoreTest {
 	private Connection newConnection(long ip) throws HandshakeException, UnknownHostException {
 		InetAddress addr = InetAddress.getByAddress(longToIp(ip));
 		InetSocketAddress peerAddress = new InetSocketAddress(addr, 0);
-		Connection con = new Connection(peerAddress, new TestSerialExecutor(executor));
+		Connection con = new Connection(peerAddress, new SyncSerialExecutor());
 		con.getSessionListener().sessionEstablished(null, newSession(peerAddress));
 		return con;
 	}
@@ -321,20 +308,5 @@ public class InMemoryConnectionStoreTest {
 			ip >>= 8;
 		}
 		return result;
-	}
-
-	private static class TestSerialExecutor extends SerialExecutor {
-
-		private TestSerialExecutor(Executor executor) {
-			super(executor);
-		}
-
-		/**
-		 * Ensure, the jobs are executed synchronous with the test.
-		 */
-		@Override
-		public void execute(final Runnable command) {
-			command.run();
-		}
 	}
 }

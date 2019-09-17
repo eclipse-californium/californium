@@ -98,11 +98,11 @@ public class CertificateMessageTest {
 	public void testFromByteArrayHandlesEmptyMessageCorrectly() throws HandshakeException {
 		serializedMessage = new byte[]{0x00, 0x00, 0x00}; // length = 0 (empty message)
 		// parse expecting X.509 payload
-		message = CertificateMessage.fromByteArray(serializedMessage, CertificateType.X_509, peerAddress);
+		message = CertificateMessage.fromReader(new DatagramReader(serializedMessage), CertificateType.X_509, peerAddress);
 		assertSerializedMessageLength(3);
 
 		// parse expecting RawPublicKey payload
-		message = CertificateMessage.fromByteArray(serializedMessage, CertificateType.RAW_PUBLIC_KEY, peerAddress);
+		message = CertificateMessage.fromReader(new DatagramReader(serializedMessage), CertificateType.RAW_PUBLIC_KEY, peerAddress);
 		assertSerializedMessageLength(3);
 	}
 
@@ -113,7 +113,7 @@ public class CertificateMessageTest {
 	@Test
 	public void testFromByteArrayCompliesWithRfc7250() throws Exception {
 		givenASerializedRawPublicKeyCertificateMessage(serverPublicKey);
-		message = CertificateMessage.fromByteArray(serializedMessage, CertificateType.RAW_PUBLIC_KEY, peerAddress);
+		message = CertificateMessage.fromReader(new DatagramReader(serializedMessage), CertificateType.RAW_PUBLIC_KEY, peerAddress);
 		assertThat(message.getPublicKey(), is(serverPublicKey));
 	}
 

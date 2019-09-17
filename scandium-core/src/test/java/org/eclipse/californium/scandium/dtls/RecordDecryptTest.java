@@ -74,6 +74,7 @@ public class RecordDecryptTest {
 		return Arrays.asList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
 				CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM,
 				CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+				CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
 				CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
 				CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM_8,
 				CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CCM,
@@ -126,13 +127,13 @@ public class RecordDecryptTest {
 	 * @throws HandshakeException if a handshake error occurs
 	 */
 	private void testEncryptDecrypt(byte[] payload) throws GeneralSecurityException, HandshakeException {
-		Record record = new Record(ContentType.APPLICATION_DATA, EPOCH, 1,
+		Record record = new Record(ContentType.APPLICATION_DATA, EPOCH, session.getSequenceNumber(EPOCH),
 				new ApplicationMessage(payload, session.getPeer()), session, true, 0);
 		byte[] raw = record.toByteArray();
 		List<Record> list = Record.fromByteArray(raw, session.getPeer(), null, ClockUtil.nanoRealtime());
 		assertFalse("failed to decode raw message", list.isEmpty());
 		for (Record recv : list) {
-			recv.setSession(session);
+			recv.applySession(session);
 			DTLSMessage message = recv.getFragment();
 			assertArrayEquals("decrypted payload differs", payload, message.toByteArray());
 		}
@@ -237,14 +238,18 @@ public class RecordDecryptTest {
 	 */
 	private void testEncryptDecryptRecordFailure(byte[] payload, Juggler juggler)
 			throws GeneralSecurityException, HandshakeException {
-		Record record = new Record(ContentType.APPLICATION_DATA, EPOCH, 1,
+		Record record = new Record(ContentType.APPLICATION_DATA, EPOCH, session.getSequenceNumber(EPOCH),
 				new ApplicationMessage(payload, session.getPeer()), session, true, 0);
 		byte[] raw = record.toByteArray();
 		byte[] jraw = juggler.juggle(raw);
 		dumpDiff(raw, jraw);
 		List<Record> list = Record.fromByteArray(jraw, session.getPeer(), null, ClockUtil.nanoRealtime());
 		for (Record recv : list) {
-			recv.setSession(session);
+			if (recv.getEpoch() != EPOCH) {
+				// skip
+				continue;
+			}
+			recv.applySession(session);
 			recv.getFragment();
 		}
 	}
@@ -278,7 +283,7 @@ public class RecordDecryptTest {
 	 */
 	private void testEncryptDecryptFragmentFailure(byte[] payload, Juggler juggler)
 			throws GeneralSecurityException, HandshakeException {
-		Record record = new Record(ContentType.APPLICATION_DATA, EPOCH, 1,
+		Record record = new Record(ContentType.APPLICATION_DATA, EPOCH, session.getSequenceNumber(EPOCH),
 				new ApplicationMessage(payload, session.getPeer()), session, true, 0);
 		byte[] fragment = record.getFragmentBytes();
 		byte[] jfragment = juggler.juggle(fragment);
@@ -286,7 +291,7 @@ public class RecordDecryptTest {
 		byte[] raw = toByteArray(record, jfragment);
 		List<Record> list = Record.fromByteArray(raw, session.getPeer(), null, ClockUtil.nanoRealtime());
 		for (Record recv : list) {
-			recv.setSession(session);
+			recv.applySession(session);
 			recv.getFragment();
 		}
 	}

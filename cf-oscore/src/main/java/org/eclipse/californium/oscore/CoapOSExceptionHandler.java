@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018 RISE SICS and others.
+ * Copyright (c) 2019 RISE SICS and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v1.0
@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
+import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 
@@ -68,8 +69,12 @@ public class CoapOSExceptionHandler {
 					error.setType(tmp);
 					error.setPayload(e.getMessage());
 					error.getOptions().setMaxAge(0);
+					
 					//Set MID of error response to match request
 					error.setMID(request.getMID());
+					
+					//Set content format to text/plain
+					error.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
 					
 					return error;
 				} else {

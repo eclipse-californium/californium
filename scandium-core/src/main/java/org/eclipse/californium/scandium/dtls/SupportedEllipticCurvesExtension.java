@@ -76,8 +76,8 @@ public final class SupportedEllipticCurvesExtension extends HelloExtension {
 
 	@Override
 	protected void addExtensionData(DatagramWriter writer) {
-		int listLength = supportedGroups.size() * 2;
-		writer.write(listLength + 2, LENGTH_BITS);
+		int listLength = supportedGroups.size() * (CURVE_BITS / Byte.SIZE);
+		writer.write(listLength + (LIST_LENGTH_BITS / Byte.SIZE), LENGTH_BITS);
 		writer.write(listLength, LIST_LENGTH_BITS);
 
 		for (Integer groupId : supportedGroups) {
@@ -85,17 +85,14 @@ public final class SupportedEllipticCurvesExtension extends HelloExtension {
 		}
 	}
 
-	public static HelloExtension fromExtensionData(byte[] extensionData) {
-		DatagramReader reader = new DatagramReader(extensionData);
-
-		int listLength = reader.read(LIST_LENGTH_BITS);
+	public static HelloExtension fromExtensionDataReader(DatagramReader extensionDataReader) {
 
 		List<Integer> groupIds = new ArrayList<Integer>();
-		while (listLength > 0) {
-			int id = reader.read(CURVE_BITS);
+		int listLength = extensionDataReader.read(LIST_LENGTH_BITS);
+		DatagramReader rangeReader = extensionDataReader.createRangeReader(listLength);
+		while (rangeReader.bytesAvailable()) {
+			int id = rangeReader.read(CURVE_BITS);
 			groupIds.add(id);
-
-			listLength -= 2;
 		}
 
 		return new SupportedEllipticCurvesExtension(groupIds);
@@ -107,7 +104,7 @@ public final class SupportedEllipticCurvesExtension extends HelloExtension {
 	public int getLength() {
 		// fixed: type (2 bytes), length (2 bytes), list length (2 bytes)
 		// variable: number of named curves * 2 (2 bytes for each curve)
-		return 6 + (supportedGroups.size() * 2);
+		return 6 + (supportedGroups.size() * (CURVE_BITS / Byte.SIZE));
 	}
 
 	@Override

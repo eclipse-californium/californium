@@ -19,6 +19,8 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.elements.util.Bytes;
+
 
 /**
  * The ServerHelloDone message is sent by the server to indicate the end of the
@@ -45,7 +47,7 @@ public final class ServerHelloDone extends HandshakeMessage {
 
 	@Override
 	public byte[] fragmentToByteArray() {
-		return new byte[] {};
+		return Bytes.EMPTY;
 	}
 
 }

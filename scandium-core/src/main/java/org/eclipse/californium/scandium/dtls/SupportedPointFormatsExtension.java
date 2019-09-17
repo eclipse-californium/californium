@@ -58,6 +58,10 @@ public class SupportedPointFormatsExtension extends HelloExtension {
 		ecPointFormatList.add(format);
 	}
 
+	public boolean contains(ECPointFormat format) {
+		return ecPointFormatList.contains(format);
+	}
+
 	@Override
 	public int getLength() {
 		// fixed: type (2 bytes), length (2 bytes), list length (1 byte)
@@ -93,18 +97,14 @@ public class SupportedPointFormatsExtension extends HelloExtension {
 		}
 	}
 
-	public static HelloExtension fromExtensionData(byte[] extensionData) {
-		DatagramReader reader = new DatagramReader(extensionData);
-
-		int listLength = reader.read(LIST_LENGTH_BITS);
+	public static HelloExtension fromExtensionDataReader(DatagramReader extensionDataReader) {
 
 		List<ECPointFormat> ecPointFormatList = new ArrayList<ECPointFormat>();
-		while (listLength > 0) {
-			ECPointFormat format = ECPointFormat.getECPointFormatById(reader.read(POINT_FORMAT_BITS));
+		int listLength = extensionDataReader.read(LIST_LENGTH_BITS);
+		DatagramReader rangeReader = extensionDataReader.createRangeReader(listLength);
+		while (rangeReader.bytesAvailable()) {
+			ECPointFormat format = ECPointFormat.getECPointFormatById(rangeReader.read(POINT_FORMAT_BITS));
 			ecPointFormatList.add(format);
-
-			// one point format uses 1 byte
-			listLength -= 1;
 		}
 
 		return new SupportedPointFormatsExtension(ecPointFormatList);

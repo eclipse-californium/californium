@@ -26,6 +26,8 @@ import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.util.Arrays;
+import java.util.List;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.eclipse.californium.elements.util.Bytes;
@@ -80,7 +82,7 @@ public final class CertificateVerify extends HandshakeMessage {
 	 *            message has been received from or should be sent to
 	 */
 	public CertificateVerify(SignatureAndHashAlgorithm signatureAndHashAlgorithm, PrivateKey clientPrivateKey,
-			byte[] handshakeMessages, InetSocketAddress peerAddress) {
+			List<HandshakeMessage> handshakeMessages, InetSocketAddress peerAddress) {
 		this(signatureAndHashAlgorithm, peerAddress);
 		this.signatureBytes = setSignature(clientPrivateKey, handshakeMessages);
 	}
@@ -139,8 +141,7 @@ public final class CertificateVerify extends HandshakeMessage {
 		return writer.toByteArray();
 	}
 
-	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) {
-		DatagramReader reader = new DatagramReader(byteArray);
+	public static HandshakeMessage fromReader(DatagramReader reader, InetSocketAddress peerAddress) {
 
 		// according to http://tools.ietf.org/html/rfc5246#section-4.7 the
 		// signature algorithm must also be included
@@ -165,15 +166,18 @@ public final class CertificateVerify extends HandshakeMessage {
 	 *            the handshake messages used up to now in the handshake.
 	 * @return the signature.
 	 */
-	private byte[] setSignature(PrivateKey clientPrivateKey, byte[] handshakeMessages) {
+	private byte[] setSignature(PrivateKey clientPrivateKey, List<HandshakeMessage> handshakeMessages) {
 		signatureBytes = Bytes.EMPTY;
 
 		try {
 			Signature signature = Signature.getInstance(signatureAndHashAlgorithm.jcaName());
 			signature.initSign(clientPrivateKey);
-
-			signature.update(handshakeMessages);
-
+			int index  = 0;
+			for (HandshakeMessage message : handshakeMessages) {
+				signature.update(message.toByteArray());
+				LOGGER.trace("  [{}] - {}", index, message.getMessageType());
+				++index;
+			}
 			signatureBytes = signature.sign();
 		} catch (Exception e) {
 			LOGGER.error("Could not create signature.", e);
@@ -192,25 +196,26 @@ public final class CertificateVerify extends HandshakeMessage {
 	 *            the handshake messages exchanged so far.
 	 * @throws HandshakeException if the signature could not be verified.
 	 */
-	public void verifySignature(PublicKey clientPublicKey, byte[] handshakeMessages) throws HandshakeException {
-		boolean verified = false;
+	public void verifySignature(PublicKey clientPublicKey, List<HandshakeMessage> handshakeMessages) throws HandshakeException {
 		try {
 			Signature signature = Signature.getInstance(signatureAndHashAlgorithm.jcaName());
 			signature.initVerify(clientPublicKey);
-
-			signature.update(handshakeMessages);
-
-			verified = signature.verify(signatureBytes);
+			int index  = 0;
+			for (HandshakeMessage message : handshakeMessages) {
+				signature.update(message.toByteArray());
+				LOGGER.trace("  [{}] - {}", index, message.getMessageType());
+				++index;
+			}
+			if (signature.verify(signatureBytes)) {
+				return;
+			}
 
 		} catch (SignatureException | InvalidKeyException | NoSuchAlgorithmException e) {
 			LOGGER.error("Could not verify the client's signature.", e);
 		}
-		
-		if (!verified) {
-			String message = "The client's CertificateVerify message could not be verified.";
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, getPeer());
-			throw new HandshakeException(message, alert);
-		}
+		String message = "The client's CertificateVerify message could not be verified.";
+		AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, getPeer());
+		throw new HandshakeException(message, alert);
 	}
 
 }

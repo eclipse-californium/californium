@@ -42,28 +42,17 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
  */
 class DTLSConnectionState {
 
+	public static final DTLSConnectionState NULL = new DTLSConnectionState(CipherSuite.TLS_NULL_WITH_NULL_NULL, CompressionMethod.NULL, null, null, null);
+
 	// Members ////////////////////////////////////////////////////////
 
-	private CipherSuite cipherSuite;
-	private CompressionMethod compressionMethod;
-	private SecretKey encryptionKey;
-	private IvParameterSpec iv;
-	private SecretKey macKey;
+	private final CipherSuite cipherSuite;
+	private final CompressionMethod compressionMethod;
+	private final SecretKey encryptionKey;
+	private final IvParameterSpec iv;
+	private final SecretKey macKey;
 
 	// Constructors ///////////////////////////////////////////////////
-
-	/**
-	 * Convenience constructor for creating an instance representing
-	 * the initial connection state.
-	 * 
-	 * Simply invokes 
-	 * {@link #DTLSConnectionState(CipherSuite, CompressionMethod, SecretKey, IvParameterSpec, SecretKey)}
-	 * with the default {@link CipherSuite#TLS_NULL_WITH_NULL_NULL} and default
-	 * {@link CompressionMethod#NULL} and <code>null</code> for all other parameters.
-	 */
-	DTLSConnectionState() {
-		this(CipherSuite.TLS_NULL_WITH_NULL_NULL, CompressionMethod.NULL, null, null, null);
-	}
 
 	/**
 	 * Initializes all fields with given values.

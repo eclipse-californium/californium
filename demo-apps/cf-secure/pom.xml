@@ -18,6 +18,7 @@
 
 	<properties>
 		<assembly.mainClass>org.eclipse.californium.examples.SecureServer</assembly.mainClass>
+		<skipTests>true</skipTests>
 	</properties>
 
 	<dependencies>
@@ -33,7 +34,18 @@
 			<groupId>${project.groupId}</groupId>
 			<artifactId>scandium</artifactId>
 		</dependency>
-		
+
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>ch.qos.logback</groupId>
+			<artifactId>logback-classic</artifactId>
+			<scope>test</scope>
+		</dependency>
+
 		<!-- runtime dependencies -->
 		<dependency>
 			<groupId>${project.groupId}</groupId>
@@ -41,6 +53,30 @@
 			<scope>runtime</scope>
 		</dependency>
 	</dependencies>
+
+	<profiles>
+		<profile>
+			<!-- maven compile would try to resolve test dependencies, 
+				even if tests are skipped. Therefore include this 
+				test dependency only, if tests are enabled -->
+			<id>tests</id>
+			<activation>
+				<property>
+					<name>maven.test.skip</name>
+					<value>!true</value>
+				</property>
+			</activation>
+			<dependencies>
+				<dependency>
+					<groupId>${project.groupId}</groupId>
+					<artifactId>californium-core</artifactId>
+					<classifier>tests</classifier>
+					<scope>test</scope>
+					<type>test-jar</type>
+				</dependency>
+			</dependencies>
+		</profile>
+	</profiles>
 
 	<build>
 		<plugins>

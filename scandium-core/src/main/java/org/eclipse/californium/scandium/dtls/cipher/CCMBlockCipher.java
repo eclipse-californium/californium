@@ -22,6 +22,7 @@
 package org.eclipse.californium.scandium.dtls.cipher;
 
 import java.security.GeneralSecurityException;
+import java.security.MessageDigest;
 import java.util.Arrays;
 
 import javax.crypto.Cipher;
@@ -345,7 +346,7 @@ public class CCMBlockCipher {
 		 * MUST NOT reveal the decrypted message, the value T, or any other
 		 * information.
 		 */
-		if (Arrays.equals(T, mac)) {
+		if (MessageDigest.isEqual(T, mac)) {
 			return decrypted;
 		} else {
 			throw new InvalidMacException(mac, T);

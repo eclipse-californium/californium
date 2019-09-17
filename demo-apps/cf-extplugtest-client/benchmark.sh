@@ -28,10 +28,10 @@ echo
 
 CF_JAR=cf-extplugtest-client-2.0.0-SNAPSHOT.jar
 CF_EXEC=org.eclipse.californium.extplugtests.BenchmarkClient
-CF_OPT="-d64 -XX:+UseG1GC -Xmx6g -Dcalifornium.statistic=M14"
+CF_OPT="-d64 -XX:+UseG1GC -Xmx6g -Dcalifornium.statistic=M17"
 CF_HOST=localhost
 
-# adjust the multiplier to the speed of your CPU
+# adjust the multiplier according the speed of your CPU
 USE_TCP=0
 MULTIPLIER=10
 REQS=$((500 * $MULTIPLIER))

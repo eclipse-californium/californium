@@ -62,17 +62,14 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
@@ -87,17 +84,19 @@ import org.eclipse.californium.elements.auth.AdditionalInfo;
 import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
+import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
 import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 import org.slf4j.Logger;
@@ -117,8 +116,6 @@ public abstract class Handshaker {
 	 * the protocol.
 	 */
 	protected final boolean isClient;
-
-	protected int state = -1;
 
 	protected ProtocolVersion usedProtocol;
 	protected Random clientRandom;
@@ -146,6 +143,9 @@ public abstract class Handshaker {
 	/** The trusted raw public keys */
 	protected final TrustedRpkStore rpkStore;
 
+	/** Used to retrieve identity/pre-shared-key for a given destination */
+	protected final PskStore pskStore;
+
 	/**
 	 * The configured connection id length. {@code null}, not supported,
 	 * {@code 0} supported but not used.
@@ -153,25 +153,37 @@ public abstract class Handshaker {
 	protected final ConnectionIdGenerator connectionIdGenerator;
 
 	/**
-	 * The current sequence number (in the handshake message called message_seq)
-	 * for this handshake.
+	 * The current handshake message sequence number (in the handshake message
+	 * called message_seq) for outgoing messages of this handshake.
 	 */
-	private int sequenceNumber = 0;
+	private int sendMessageSequence = 0;
 
-	/** The next expected handshake message sequence number. */
-	private int nextReceiveSeq = 0;
+	/**
+	 * The next expected handshake message sequence number (in the handshake
+	 * message called message_seq) for incoming messages of this handshake.
+	 */
+	private int nextReceiveMessageSequence = 0;
+
+	private boolean lastFlight;
+
+	/** Realtime nanoseconds of last sending a flight */
+	private long flightSendNanos;
 
 	/** The current flight number. */
 	protected int flightNumber = 0;
 
+	private int deferredRecordsSize;
+
 	/** Maximum length of reassembled fragmented handshake messages */
 	private final int maxFragmentedHandshakeMessageLength;
-	/** Maximum number of application data messages, which may be processed deferred after the handshake */
-	private final int maxDeferredProcessedApplicationDataMessages;
+	/** Maximum number of outgoing application data messages, which may be processed deferred after the handshake */
+	private final int maxDeferredProcessedOutgoingApplicationDataMessages;
+	/** Maximum number of bytes of deferred processed incoming records */
+	private final int maxDeferredProcessedIncomingRecordsSize;
 	/** List of application data messages, which are send deferred after the handshake */
-	private final  List<RawData> deferredApplicationData;
-	/** List of received application data messages, which are processed deferred after the handshake */
-	private final  List<Record> deferredRecords;
+	private final List<RawData> deferredApplicationData = new ArrayList<RawData>();
+	/** List of received records, which are processed deferred after the epoch changed or the handshake finished */
+	private final List<Record> deferredRecords = new ArrayList<Record>();
 	/** Currently pending flight */
 	private final AtomicReference<DTLSFlight> pendingFlight = new AtomicReference<DTLSFlight>();
 
@@ -183,17 +195,13 @@ public abstract class Handshaker {
 
 	/** Buffer for received records that can not be processed immediately. */
 	protected InboundMessageBuffer inboundMessageBuffer;
+	/** List of handshake messages */
+	protected final List<HandshakeMessage> handshakeMessages = new ArrayList<HandshakeMessage>();
 
 	/**
-	 * Store for partial to reassembled handshake messages.
+	 * Current partial reassembled handshake message.
 	 */
-	protected Map<Integer, ReassemblingHandshakeMessage> reassembledMessages = new HashMap<Integer, ReassemblingHandshakeMessage>();
-
-	/**
-	 * The message digest to compute the handshake hashes sent in the
-	 * {@link Finished} messages.
-	 */
-	protected MessageDigest md;
+	protected ReassemblingHandshakeMessage reassembledMessage;
 
 	/** The handshaker's private key. */
 	protected PrivateKey privateKey;
@@ -207,9 +215,16 @@ public abstract class Handshaker {
 	/**
 	 * Support Server Name Indication TLS extension.
 	 */
-	protected boolean sniEnabled = true;
+	protected boolean sniEnabled;
+	/**
+	 * Use handshake state machine validation.
+	 */
+	protected boolean useStateValidation;
 
 	private final Set<SessionListener> sessionListeners = new LinkedHashSet<>();
+	
+	protected int statesIndex;
+	protected HandshakeState[] states;
 
 	private boolean changeCipherSuiteMessageExpected = false;
 	private boolean sessionEstablished = false;
@@ -249,56 +264,50 @@ public abstract class Handshaker {
 			throw new NullPointerException("DTLS Session must not be null");
 		} else if (recordLayer == null) {
 			throw new NullPointerException("Record layer must not be null");
+		} else if (connection == null) {
+			throw new NullPointerException("Connection must not be null");
 		} else if (config == null) {
 			throw new NullPointerException("Dtls Connector Config must not be null");
 		} else if (initialMessageSeq < 0) {
 			throw new IllegalArgumentException("Initial message sequence number must not be negative");
 		}
 		this.isClient = isClient;
-		this.sequenceNumber = initialMessageSeq;
-		this.nextReceiveSeq = initialMessageSeq;
+		this.sendMessageSequence = initialMessageSeq;
+		this.nextReceiveMessageSequence = initialMessageSeq;
 		this.session = session;
 		this.recordLayer = recordLayer;
 		this.connection = connection;
 		this.connectionIdGenerator = config.getConnectionIdGenerator();
 		this.maxFragmentedHandshakeMessageLength = config.getMaxFragmentedHandshakeMessageLength();
-		this.maxDeferredProcessedApplicationDataMessages = config.getMaxDeferredProcessedApplicationDataMessages();
-		this.deferredApplicationData = new ArrayList<RawData>(maxDeferredProcessedApplicationDataMessages);
-		this.deferredRecords = new ArrayList<Record>(maxDeferredProcessedApplicationDataMessages);
-		if (connection != null) {
-			addSessionListener(connection.getSessionListener());
-		}
+		this.maxDeferredProcessedOutgoingApplicationDataMessages = config.getMaxDeferredProcessedOutgoingApplicationDataMessages();
+		this.maxDeferredProcessedIncomingRecordsSize = config.getMaxDeferredProcessedIncomingRecordsSize();
+		this.sniEnabled = config.isSniEnabled();
+		this.useStateValidation = config.useHandshakeStateValidation();
+		this.privateKey = config.getPrivateKey();
+		this.publicKey = config.getPublicKey();
+		this.certificateChain = config.getCertificateChain();
 		this.certificateVerifier = config.getCertificateVerifier();
-		this.session.setMaxTransmissionUnit(maxTransmissionUnit);
-		this.inboundMessageBuffer = new InboundMessageBuffer();
-		this.applicationLevelInfoSupplier = config.getApplicationLevelInfoSupplier();
-
 		this.rpkStore = config.getRpkTrustStore();
+		this.pskStore = config.getPskStore();
+		this.session.setMaxTransmissionUnit(maxTransmissionUnit);
+		this.applicationLevelInfoSupplier = config.getApplicationLevelInfoSupplier();
+		this.inboundMessageBuffer = new InboundMessageBuffer();
+
+		addSessionListener(connection.getSessionListener());
 	}
 
 	/**
-	 * A queue for buffering inbound handshake messages.
+	 * A queue for buffering inbound handshake records.
 	 */
 	class InboundMessageBuffer {
 
-		private ChangeCipherSpecMessage changeCipherSpec = null;
+		private Record changeCipherSpec = null;
 
 		private SortedSet<Record> queue = new TreeSet<>(new Comparator<Record>() {
 
 			@Override
 			public int compare(Record r1, Record r2) {
-
-				if (r1.getEpoch() < r2.getEpoch()) {
-					return -1;
-				} else if (r1.getEpoch() > r2.getEpoch()) {
-					return 1;
-				} else if (r1.getSequenceNumber() < r2.getSequenceNumber()) {
-					return -1;
-				} else if (r1.getSequenceNumber() > r2.getSequenceNumber()) {
-					return 1;
-				} else {
-					return 0;
-				}
+				return compareRecords(r1, r2);
 			}
 		});
 
@@ -307,32 +316,30 @@ public abstract class Handshaker {
 		}
 
 		/**
-		 * Gets (and removes from the queue) the handshake message
-		 * with this handshake's next expected message sequence number.
+		 * Gets (and removes from the queue) the next record of the handshake
+		 * message with this handshake's next expected message sequence number.
 		 * 
-		 * @return the message or <code>null</code> if the queue does not contain the next expected
-		 *           message (yet) 
-		 * @throws HandshakeException if the record's plaintext fragment could not be parsed
-		 *           into a handshake message
-		 * @throws GeneralSecurityException if the record's ciphertext fragment could not be decrypted 
+		 * @return the record or {@code null} if the queue does not contain the
+		 *         next expected message (yet)
 		 */
-		DTLSMessage getNextMessage() throws GeneralSecurityException, HandshakeException {
+		Record getNextRecord() {
 
-			DTLSMessage result = null;
+			Record result = null;
 
 			if (isChangeCipherSpecMessageExpected() && changeCipherSpec != null) {
 				result = changeCipherSpec;
 				changeCipherSpec = null;
 			} else {
-
 				for (Record record : queue) {
-					if (record.getEpoch() == session.getReadEpoch()) {
-						HandshakeMessage msg = (HandshakeMessage) record.getFragment(session.getReadState());
-						if (msg.getMessageSeq() == nextReceiveSeq) {
-							result = msg;
-							queue.remove(record);
-							break;
-						}
+					int messageSeq = ((HandshakeMessage) record.getFragment()).getMessageSeq();
+					if (messageSeq > nextReceiveMessageSequence) {
+						break;
+					}
+					queue.remove(record);
+					removeDeferredProcessedRecord(record);
+					if (messageSeq == nextReceiveMessageSequence) {
+						result = record;
+						break;
 					}
 				}
 			}
@@ -341,36 +348,32 @@ public abstract class Handshaker {
 		}
 
 		/**
-		 * Checks if a given record contains a message that can be processed immediately as part
-		 * of the ongoing handshake.
+		 * Checks if a given record contains a message that can be processed
+		 * immediately as part of the ongoing handshake.
 		 * <p>
-		 * This is the case if the record is from the <em>current read epoch</em> and the contained
-		 * message is either a <em>CHANGE_CIPHER_SPEC</em> message or a <em>HANDSHAKE</em> message
+		 * This is the case, if the record is from the <em>current read
+		 * epoch</em> and the contained message is either a
+		 * <em>CHANGE_CIPHER_SPEC</em> message or a <em>HANDSHAKE</em> message
 		 * with the next expected sequence number.
 		 * <p>
-		 * If the record contains a message from a future epoch or having a sequence number that is
-		 * not the next expected one, the record is put into a buffer for later processing when all
-		 * fragments are available and/or the message's sequence number becomes the next expected one.
+		 * If the record contains a message having a sequence number that is
+		 * higher than the next expected one, the record is put into a buffer
+		 * for later processing when the message's sequence number becomes the
+		 * next expected one.
 		 * 
 		 * @param record the record containing the message to check
-		 * @return the contained message if the message is up for immediate processing or <code>null</code>
-		 *         if the message cannot be processed immediately
-		 * @throws HandshakeException if the record's plaintext fragment could not be parsed
-		 *           into a message
-		 * @throws GeneralSecurityException if the record's ciphertext fragment could not be de-crypted 
+		 * @return the record containing a message if the message is up for
+		 *         immediate processing or {@code null}, if the message cannot
+		 *         be processed immediately
+		 * @throws IllegalArgumentException if the record's epoch differs from
+		 *             the session's read epoch
 		 */
-		DTLSMessage getNextMessage(Record candidate) throws GeneralSecurityException, HandshakeException {
-			int epoch = candidate.getEpoch();
-			if (epoch < session.getReadEpoch()) {
-				// discard old message
-				LOGGER.debug("Discarding message from peer [{}] from past epoch [{}] < current epoch [{}]",
-						getPeerAddress(), epoch, session.getReadEpoch());
-				return null;
-			} else if (epoch == session.getReadEpoch()) {
+		Record getNextRecord(Record candidate) {
+			int recordEpoch = candidate.getEpoch();
+			int sessionEpoch = session.getReadEpoch();
+			if (recordEpoch == sessionEpoch) {
 				DTLSMessage fragment = candidate.getFragment();
 				switch (fragment.getContentType()) {
-				case ALERT:
-					return fragment;
 				case CHANGE_CIPHER_SPEC:
 					// the following cases are possible:
 					// 1. the CCS message is the one we currently expect
@@ -384,39 +387,94 @@ public abstract class Handshaker {
 					//       current read epoch + 1 and thus will have been queued by the
 					//       "else" branch below
 					if (isChangeCipherSpecMessageExpected()) {
-						return fragment;
-					} else {
+						return candidate;
+					} else if (changeCipherSpec == null) {
 						// store message for later processing
 						LOGGER.debug("Change Cipher Spec is not expected and therefore kept for later processing!");
-						changeCipherSpec = (ChangeCipherSpecMessage) fragment;
+						changeCipherSpec = candidate;
+						return null;
+					} else {
+						// already stored message for later processing
+						LOGGER.debug("Change Cipher Spec is received again!");
 						return null;
 					}
 				case HANDSHAKE:
 					HandshakeMessage handshakeMessage = (HandshakeMessage) fragment;
 					int messageSeq = handshakeMessage.getMessageSeq();
-					if (messageSeq == nextReceiveSeq) {
-						return handshakeMessage;
-					} else if (messageSeq > nextReceiveSeq) {
+					if (messageSeq == nextReceiveMessageSequence) {
+						return candidate;
+					} else if (messageSeq > nextReceiveMessageSequence) {
 						LOGGER.debug(
-								"Queued newer message from current epoch, message_seq [{}] > next_receive_seq [{}]",
-								messageSeq, nextReceiveSeq);
-						queue.add(candidate);
+								"Queued newer {} message from current epoch, message_seq [{}] > next_receive_seq [{}]",
+								handshakeMessage.getMessageType(),
+								messageSeq,
+								nextReceiveMessageSequence);
+						if (addDeferredProcessedRecord(candidate)) {
+							queue.add(candidate);
+						}
+						// Dropped handshake messages are retransmitted by the other peer!
 						return null;
 					} else {
-						LOGGER.debug("Discarding old message, message_seq [{}] < next_receive_seq [{}]", messageSeq,
-								nextReceiveSeq);
+						LOGGER.debug("Discarding old {} message_seq [{}] < next_receive_seq [{}]",
+								handshakeMessage.getMessageType(),
+								messageSeq,
+								nextReceiveMessageSequence);
 						return null;
 					}
 				default:
-					LOGGER.debug("Cannot process message of type [{}], discarding...", fragment.getContentType());
+					LOGGER.warn("Cannot process message of type [{}], discarding...", fragment.getContentType());
 					return null;
 				}
 			} else {
-				// newer epoch, queue message
-				queue.add(candidate);
-				LOGGER.debug("Queueing HANDSHAKE message from future epoch [{}] > current epoch [{}]", epoch,
-						getSession().getReadEpoch());
-				return null;
+				throw new IllegalArgumentException("record epoch " + recordEpoch + " doesn't match session " + sessionEpoch);
+			}
+		}
+
+		/**
+		 * Cleanup (remove) all records with the provided record sequence number
+		 * 
+		 * @param recordSequenceNumber actual processed record sequence number
+		 */
+		public void clean(long recordSequenceNumber) {
+			if (changeCipherSpec != null && changeCipherSpec.getSequenceNumber() == recordSequenceNumber) {
+				changeCipherSpec = null;
+			}
+			for (Record record : queue) {
+				if (record.getSequenceNumber() == recordSequenceNumber) {
+					queue.remove(record);
+					removeDeferredProcessedRecord(record);
+				}
+			}
+		}
+	}
+
+	/**
+	 * Compare records by the handshake message seqn and record sequence number
+	 * 
+	 * @param r1 first record to be compared
+	 * @param r2 second record to be compared
+	 * @return a negative integer, zero, or a positive integer as the first
+	 *         record is before, equal to, or after the second.
+	 */
+	private static int compareRecords(Record r1, Record r2) {
+
+		if (r1.getEpoch() != r2.getEpoch()) {
+			throw new IllegalArgumentException(
+					"records with different epoch! " + r1.getEpoch() + " != " + r2.getEpoch());
+		}
+		HandshakeMessage h1 = (HandshakeMessage) r1.getFragment();
+		HandshakeMessage h2 = (HandshakeMessage) r2.getFragment();
+		if (h1.getMessageSeq() < h2.getMessageSeq()) {
+			return -1;
+		} else if (h1.getMessageSeq() > h2.getMessageSeq()) {
+			return 1;
+		} else {
+			if (r1.getSequenceNumber() < r2.getSequenceNumber()) {
+				return -1;
+			} else if (r1.getSequenceNumber() > r2.getSequenceNumber()) {
+				return 1;
+			} else {
+				return 0;
 			}
 		}
 	}
@@ -425,74 +483,199 @@ public abstract class Handshaker {
 	 * Processes a handshake record received from a peer based on the
 	 * handshake's current state.
 	 * 
-	 * This method only does a duplicate check as described in
-	 * <a href="http://tools.ietf.org/html/rfc6347#section-4.1.2.6">
-     * section 4.1.2.6 of the DTLS 1.2 spec</a> and then delegates
-     * processing of the record to the {@link #doProcessMessage(DTLSMessage)}
-     * method.
-     * 
-	 * @param record
-	 *            the handshake record
-	 * @throws HandshakeException if the record's plaintext fragment cannot be parsed into
-	 *            a handshake message or cannot be processed properly
+	 * This method passes the messages into the {@link InboundMessageBuffer} and
+	 * delegates processing of the ordered messages to the
+	 * {@link #doProcessMessage(HandshakeMessage)} method. If
+	 * {@link ChangeCipherSpecMessage} is processed, the
+	 * {@link #deferredRecords} are passed again to the {@link RecordLayer} to
+	 * get decrypted and processed.
+	 * 
+	 * @param record the handshake record
+	 * @throws HandshakeException if the record's plaintext fragment cannot be
+	 *             parsed into a handshake message or cannot be processed
+	 *             properly
+	 * @throws IllegalArgumentException if the record's epoch differs from the
+	 *             session's read epoch
 	 */
 	public final void processMessage(Record record) throws HandshakeException {
-		// The DTLS 1.2 spec (section 4.1.2.6) advises to do replay detection
-		// before MAC validation based on the record's sequence numbers
-		// see http://tools.ietf.org/html/rfc6347#section-4.1.2.6
-		boolean sameEpoch = session.getReadEpoch() == record.getEpoch();
-		if ((sameEpoch && !session.isDuplicate(record.getSequenceNumber()))
-				|| (session.getReadEpoch() + 1) == record.getEpoch()) {
-			try {
-				record.setSession(session);
-				DTLSMessage messageToProcess = inboundMessageBuffer.getNextMessage(record);
-				while (messageToProcess != null) {
-					if (messageToProcess instanceof FragmentedHandshakeMessage) {
-						messageToProcess = handleFragmentation((FragmentedHandshakeMessage) messageToProcess);
+		int epoch = session.getReadEpoch();
+		if (epoch != record.getEpoch()) {
+			LOGGER.debug("Discarding {} message with wrong epoch received from peer [{}]:{}{}",
+					record.getType(), record.getPeerAddress(), StringUtil.lineSeparator(), record);
+			throw new IllegalArgumentException("processing record with wrong epoch! " + record.getEpoch() + " expected " + epoch);
+		}
+		if (record.getReceiveNanos() < flightSendNanos) {
+			// TODO reuse debug level after the M17. 
+			// (see https://github.com/eclipse/californium/issues/1034#issuecomment-526656943)
+			LOGGER.info("Discarding {} message received from peer [{}] before last flight was sent:{}{}",
+					record.getType(), record.getPeerAddress(), StringUtil.lineSeparator(), record);
+			return;
+		}
+		try {
+			Record recordToProcess = inboundMessageBuffer.getNextRecord(record);
+			while (recordToProcess != null) {
+				DTLSMessage messageToProcess=recordToProcess.getFragment();
+				expectMessage(messageToProcess);
+				
+				if (messageToProcess.getContentType() == ContentType.CHANGE_CIPHER_SPEC) {
+					// is thrown during processing
+					LOGGER.debug("Processing {} message from peer [{}]", messageToProcess.getContentType(),
+							messageToProcess.getPeer());
+					setCurrentReadState();
+					++statesIndex;
+					LOGGER.debug("Processed {} message from peer [{}]", messageToProcess.getContentType(),
+							messageToProcess.getPeer());
+				} else if (messageToProcess.getContentType() == ContentType.HANDSHAKE) {
+					HandshakeMessage handshakeMessage = (HandshakeMessage) messageToProcess;
+					if (handshakeMessage.getMessageType() == HandshakeType.FINISHED && epoch == 0) {
+						LOGGER.debug("FINISH with epoch 0 from peer [{}]!", getSession().getPeer());
+						AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE,
+								getSession().getPeer());
+						throw new HandshakeException("FINISH with epoch 0!", alert);
 					}
-
-					if (messageToProcess == null) {
-						// messageToProcess is fragmented and not all parts have been received yet
-					} else {
-						// continue with the now fully re-assembled message
-						if (messageToProcess instanceof GenericHandshakeMessage) {
+					// only cancel on HANDSHAKE messages
+					// the very last flight CCS + FINISH
+					// must be not canceled before the FINISH
+					DTLSFlight flight = pendingFlight.get();
+					if (flight != null) {
+						LOGGER.debug("response for flight {} started", flight.getFlightNumber());
+						flight.setResponseStarted();
+					}
+					if (handshakeMessage instanceof FragmentedHandshakeMessage) {
+						handshakeMessage = handleFragmentation((FragmentedHandshakeMessage) handshakeMessage);
+					}
+					if (handshakeMessage != null) {
+						if (handshakeMessage instanceof GenericHandshakeMessage) {
+							GenericHandshakeMessage genericMessage = (GenericHandshakeMessage) handshakeMessage;
 							HandshakeParameter parameter = session.getParameter();
 							if (parameter == null) {
-								throw new IllegalStateException("handshake parameter are required!");
+								LOGGER.warn("Cannot process handshake {} message from peer [{}], parameter are required!",
+										genericMessage.getMessageType(), getSession().getPeer());
+								AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR,
+										session.getPeer());
+								throw new HandshakeException("Cannot process " + genericMessage.getMessageType()
+										+ " handshake message, parameter are required!", alert);
 							}
-							messageToProcess = ((GenericHandshakeMessage) messageToProcess)
-									.getSpecificHandshakeMessage(parameter);
+							handshakeMessage = genericMessage.getSpecificHandshakeMessage(parameter);
 						}
-						if (messageToProcess.getContentType() == ContentType.HANDSHAKE) {
-							// only cancel on HANDSHAKE messages
-							// the very last flight CCS + FINISH
-							// must be not canceled before the FINISH
-							DTLSFlight flight = pendingFlight.get();
-							if (flight != null) {
-								LOGGER.debug("response for flight {} started", flight.getFlightNumber());
-								flight.setResponseStarted();
+						if (lastFlight) {
+							// we already sent the last flight (including our FINISHED message),
+							// but the other peer does not seem to have received it because we received
+							// its finished message again, so we simply retransmit our last flight
+							LOGGER.debug("Received ({}) FINISHED message again, retransmitting last flight...",
+									getPeerAddress());
+							flight.incrementTries();
+							flight.setNewSequenceNumbers();
+							sendFlight(flight);
+						} else {
+							// is thrown during processing
+							if (LOGGER.isDebugEnabled()) {
+								StringBuilder msg = new StringBuilder();
+								msg.append(String.format("Processing %s message from peer [%s], seqn: [%d]",
+										handshakeMessage.getMessageType(), handshakeMessage.getPeer(),
+										handshakeMessage.getMessageSeq()));
+								if (LOGGER.isTraceEnabled()) {
+									msg.append(":").append(StringUtil.lineSeparator()).append(handshakeMessage);
+								}
+								LOGGER.debug(msg.toString());
+							}
+							if (epoch == 0) {
+								handshakeMessages.add(handshakeMessage);
+							}
+							doProcessMessage(handshakeMessage);
+							LOGGER.debug("Processed {} message from peer [{}]", handshakeMessage.getMessageType(),
+									handshakeMessage.getPeer());
+							if (!lastFlight) {
+								// last Flight may have changed processing
+								//  the handshake message
+								++nextReceiveMessageSequence;
+								++statesIndex;
 							}
 						}
-						doProcessMessage(messageToProcess);
 					}
-
-					// process next expected message (if available yet)
-					messageToProcess = inboundMessageBuffer.getNextMessage();
+				} else {
+					throw new HandshakeException(
+							String.format("Received unexpected message [%s] from peer %s",
+									messageToProcess.getContentType(), messageToProcess.getPeer()),
+							new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE,
+									messageToProcess.getPeer()));
 				}
-				session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber());
-			} catch (GeneralSecurityException e) {
-				LOGGER.warn("Cannot process handshake message from peer [{}] due to [{}]", getSession().getPeer(),
-						e.getMessage(), e);
+				// process next expected record/message (if available yet)
+				session.markRecordAsRead(epoch, recordToProcess.getSequenceNumber());
+				inboundMessageBuffer.clean(recordToProcess.getSequenceNumber());
+				recordToProcess = inboundMessageBuffer.getNextRecord();
+			}
+			if (session.getReadEpoch() > epoch) {
+				final SerialExecutor serialExecutor = connection.getExecutor();
+				final List<Record> records = takeDeferredRecords();
+				if (deferredRecordsSize > 0) {
+					throw new HandshakeException(
+							String.format("Received unexpected message left from peer %s", record.getPeerAddress()),
+							new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE,
+									record.getPeerAddress()));
+				}
+				for (Record deferredRecord : records) {
+					if (serialExecutor != null) {
+						final Record dRecord = deferredRecord;
+						serialExecutor.execute(new Runnable() {
+
+							@Override
+							public void run() {
+								recordLayer.processRecord(dRecord, connection);
+							}
+						});
+					} else {
+						recordLayer.processRecord(deferredRecord, connection);
+					}
+				}
+			}
+		} catch (GeneralSecurityException e) {
+			LOGGER.warn("Cannot process handshake message from peer [{}] due to [{}]", getSession().getPeer(),
+					e.getMessage(), e);
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR,
+					session.getPeer());
+			throw new HandshakeException("Cannot process handshake message", alert);
+		}
+	}
+
+	/**
+	 * Check, if message is expected.
+	 * 
+	 * @param message mesage to check
+	 * @throws HandshakeException if the message is not expected
+	 * @see #useStateValidation
+	 * @see DtlsConnectorConfig#useHandshakeStateValidation()
+	 */
+	protected void expectMessage(DTLSMessage message) throws HandshakeException {
+		if (useStateValidation && states != null) {
+			if (statesIndex >= states.length) {
+				LOGGER.warn("Cannot process {} message from peer [{}], no more expected!", HandshakeState.toString(message),
+						getSession().getPeer());
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR,
 						session.getPeer());
-				throw new HandshakeException("Cannot process handshake message", alert);
+				throw new HandshakeException("Cannot process " + HandshakeState.toString(message)
+						+ " handshake message, no more expected!", alert);
 			}
-		} else if (sameEpoch) {
-			LOGGER.trace("Discarding duplicate HANDSHAKE message received from peer [{}]:{}{}", record.getPeerAddress(),
-					StringUtil.lineSeparator(), record);
-		} else {
-			LOGGER.trace("Discarding HANDSHAKE message with wrong epoch received from peer [{}]:{}{}",
-					record.getPeerAddress(), StringUtil.lineSeparator(), record);
+			HandshakeState expectedState = states[statesIndex];
+			boolean expected = expectedState.expect(message);
+			if (!expected && expectedState.isOptional()) {
+				if (statesIndex + 1 < states.length) {
+					HandshakeState nextExpectedState = states[statesIndex + 1];
+					if (nextExpectedState.expect(message)) {
+						++statesIndex;
+						expected = true;
+					}
+				}
+			}
+
+			if (!expected) {
+				LOGGER.warn("Cannot process {} message from peer [{}], {} expected!", HandshakeState.toString(message),
+						getSession().getPeer(), expectedState);
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR,
+						session.getPeer());
+				throw new HandshakeException("Cannot process " + HandshakeState.toString(message)
+						+ " handshake message, " + expectedState + " expected!", alert);
+			}
 		}
 	}
 
@@ -509,7 +692,7 @@ public abstract class Handshaker {
 	 *            a handshake message or cannot be processed properly
 	 * @throws GeneralSecurityException if the record's ciphertext fragment cannot be decrypted
 	 */
-	protected abstract void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException;
+	protected abstract void doProcessMessage(HandshakeMessage message) throws HandshakeException, GeneralSecurityException;
 
 	/**
 	 * Starts the handshake by sending the first flight to the peer.
@@ -526,27 +709,27 @@ public abstract class Handshaker {
 	// Methods ////////////////////////////////////////////////////////
 
 	/**
-	 * Initialize message digest for FINISH message.
+	 * Get message digest for FINISH message.
 	 * 
-	 * @throw IllegalStateException if message digest is not available for this
-	 *        platform. The supported message digest are checked by
-	 *        {@link CipherSuite#isSupported()}.
+	 * @return message digest update with all handshake messages in
+	 *         {@link #handshakeMessages}
 	 */
-	protected final void initMessageDigest() {
-		String hashName = session.getCipherSuite().getPseudoRandomFunctionHashName();
-		try {
-			this.md = MessageDigest.getInstance(hashName);
-		} catch (NoSuchAlgorithmException e) {
-			throw new IllegalStateException(
-					String.format("Message digest algorithm %s is not available on JVM", hashName));
+	protected final MessageDigest getHandshakeMessageDigest() {
+		MessageDigest md = session.getCipherSuite().getThreadLocalPseudoRandomFunctionMessageDigest();
+		int index = 0;
+		for (HandshakeMessage handshakeMessage : handshakeMessages) {
+			md.update(handshakeMessage.toByteArray());
+			LOGGER.trace("  [{}] - {}", index, handshakeMessage.getMessageType());
+			++index;
 		}
+		return md;
 	}
 
 	/**
 	 * First, generates the master secret from the given premaster secret, set
 	 * it in {@link #session}, and then applying the key expansion on the master
 	 * secret generates a large enough key block to generate the write, MAC and
-	 * IV keys. 
+	 * IV keys.
 	 * 
 	 * See <a href="http://tools.ietf.org/html/rfc5246#section-6.3">RFC5246</a>
 	 * for further details about the keys.
@@ -580,7 +763,6 @@ public abstract class Handshaker {
 		 * server_write_IV[SecurityParameters.fixed_iv_length]
 		 */
 
-		String prfMacName = session.getCipherSuite().getPseudoRandomFunctionMacName();
 		int macKeyLength = session.getCipherSuite().getMacKeyLength();
 		int encKeyLength = session.getCipherSuite().getEncKeyLength();
 		int fixedIvLength = session.getCipherSuite().getFixedIvLength();
@@ -589,8 +771,8 @@ public abstract class Handshaker {
 		//      key_block = PRF(SecurityParameters.master_secret, "key expansion",
 		//                      SecurityParameters.server_random + SecurityParameters.client_random);
 		byte[] seed = Bytes.concatenate(serverRandom, clientRandom);
-		byte[] data = PseudoRandomFunction.doPRF(prfMacName, masterSecret, Label.KEY_EXPANSION_LABEL, seed, totalLength);
-
+		byte[] data = PseudoRandomFunction.doPRF(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret,
+				Label.KEY_EXPANSION_LABEL, seed, totalLength);
 
 		int index = 0;
 		int length = macKeyLength;
@@ -613,7 +795,7 @@ public abstract class Handshaker {
 
 	/**
 	 * Generates the master secret from a given shared premaster secret as
-	 * described in 
+	 * described in
 	 * <a href="http://tools.ietf.org/html/rfc5246#section-8.1">RFC5246</a>.
 	 * 
 	 * <pre>
@@ -626,9 +808,9 @@ public abstract class Handshaker {
 	 * @return the master secret.
 	 */
 	private byte[] generateMasterSecret(byte[] premasterSecret) {
-		String prfMacName = session.getCipherSuite().getPseudoRandomFunctionMacName();
 		byte[] randomSeed = Bytes.concatenate(clientRandom, serverRandom);
-		return PseudoRandomFunction.doPRF(prfMacName, premasterSecret, Label.MASTER_SECRET_LABEL, randomSeed);
+		return PseudoRandomFunction.doPRF(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), premasterSecret,
+				Label.MASTER_SECRET_LABEL, randomSeed);
 	}
 
 	/**
@@ -648,14 +830,14 @@ public abstract class Handshaker {
 		 * struct { opaque other_secret<0..2^16-1>; opaque psk<0..2^16-1>; };
 		 */
 		int pskLength = psk.length;
-		
+
 		byte[] other = otherSecret == null ? new byte[pskLength] : otherSecret;
 		DatagramWriter writer = new DatagramWriter();
 		writer.write(other.length, 16);
 		writer.writeBytes(other);
 		writer.write(pskLength, 16);
 		writer.writeBytes(psk);
-		return writer.toByteArray();	
+		return writer.toByteArray();
 	}
 
 	protected final void setCurrentReadState() {
@@ -713,9 +895,13 @@ public abstract class Handshaker {
 	}
 
 	private void wrapHandshakeMessage(DTLSFlight flight, HandshakeMessage handshakeMessage) throws GeneralSecurityException {
-		setSequenceNumber(handshakeMessage);
+		applySendMessageSequenceNumber(handshakeMessage);
 		int messageLength = handshakeMessage.getMessageLength();
 		int maxFragmentLength = session.getMaxFragmentLength();
+
+		if (session.getWriteEpoch() == 0) {
+			handshakeMessages.add(handshakeMessage);
+		}
 
 		if (messageLength <= maxFragmentLength) {
 			boolean useCid = handshakeMessage.getMessageType() == HandshakeType.FINISHED;
@@ -773,37 +959,41 @@ public abstract class Handshaker {
 	 * @throws HandshakeException
 	 *             if the reassembled fragments cannot be parsed into a valid <code>HandshakeMessage</code>
 	 */
-	protected final HandshakeMessage handleFragmentation(FragmentedHandshakeMessage fragment) throws HandshakeException {
+	protected final HandshakeMessage handleFragmentation(FragmentedHandshakeMessage fragment)
+			throws HandshakeException {
 
 		LOGGER.debug("Processing {} message fragment ...", fragment.getMessageType());
-		
+
 		if (fragment.getMessageLength() > maxFragmentedHandshakeMessageLength) {
 			throw new HandshakeException(
-					"Fragmented message length exceeded (" + fragment.getMessageLength() + " > " + maxFragmentedHandshakeMessageLength + ")!",
+					"Fragmented message length exceeded (" + fragment.getMessageLength() + " > "
+							+ maxFragmentedHandshakeMessageLength + ")!",
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER, fragment.getPeer()));
 		}
 		int messageSeq = fragment.getMessageSeq();
-		ReassemblingHandshakeMessage reassembledMessage = reassembledMessages.get(messageSeq);
+
 		try {
 			if (reassembledMessage == null) {
 				reassembledMessage = new ReassemblingHandshakeMessage(fragment);
-				reassembledMessages.put(messageSeq, reassembledMessage);
-			}
-			else {
+			} else {
+				if (reassembledMessage.getMessageSeq() != messageSeq) {
+					throw new IllegalArgumentException("Current reassemble message has different seqn "
+							+ reassembledMessage.getMessageSeq() + " != " + messageSeq);
+				}
 				reassembledMessage.add(fragment);
 			}
 			if (reassembledMessage.isComplete()) {
 				HandshakeMessage message = HandshakeMessage.fromByteArray(reassembledMessage.toByteArray(),
 						session.getParameter(), reassembledMessage.getPeer());
 				LOGGER.debug("Successfully re-assembled {} message", message.getMessageType());
-				reassembledMessages.remove(messageSeq);
+				reassembledMessage = null;
 				return message;
 			}
 		} catch (IllegalArgumentException ex) {
 			throw new HandshakeException(ex.getMessage(),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER, fragment.getPeer()));
 		}
-		
+
 		return null;
 	}
 
@@ -884,38 +1074,56 @@ public abstract class Handshaker {
 	}
 
 	/**
-	 * Sets the message sequence number on an outbound handshake message.
+	 * Sets the handshake message sequence number on an outbound handshake message.
 	 * 
 	 * Also increases the sequence number counter afterwards.
 	 * 
 	 * @param message
 	 *            the handshake message to set the <em>message_seq</em> on
 	 */
-	private void setSequenceNumber(HandshakeMessage message) {
-		message.setMessageSeq(sequenceNumber);
-		sequenceNumber++;
+	private void applySendMessageSequenceNumber(HandshakeMessage message) {
+		message.setMessageSeq(sendMessageSequence);
+		sendMessageSequence++;
 	}
 
-	final int getNextReceiveSeq() {
-		return nextReceiveSeq;
-	}
-
-	final void incrementNextReceiveSeq() {
-		this.nextReceiveSeq++;
+	final int getNextReceiveMessageSequenceNumber() {
+		return nextReceiveMessageSequence;
 	}
 
 	public void addApplicationDataForDeferredProcessing(RawData outgoingMessage) {
-		// backwards compatibility, allow on outgoing message to be stored.
-		int max = maxDeferredProcessedApplicationDataMessages == 0 ? 1 : maxDeferredProcessedApplicationDataMessages;
-		if (deferredApplicationData.size() < max) {
+		if (deferredApplicationData.size() < maxDeferredProcessedOutgoingApplicationDataMessages) {
 			deferredApplicationData.add(outgoingMessage);
 		}
 	}
 
 	public void addRecordsForDeferredProcessing(Record incomingMessage) {
-		if (deferredRecords.size() < maxDeferredProcessedApplicationDataMessages) {
+		if (addDeferredProcessedRecord(incomingMessage)) {
 			deferredRecords.add(incomingMessage);
 		}
+		// At least, the dropped handshake messages are retransmitted by the other peer!
+	}
+
+	private boolean addDeferredProcessedRecord(Record incomingMessage) {
+		int size = incomingMessage.size();
+		if (deferredRecordsSize + size < maxDeferredProcessedIncomingRecordsSize) {
+			deferredRecordsSize += size;
+			return true;
+		} else {
+			LOGGER.debug("Dropped incoming record from peer [{}], limit of {} bytes exceeded by {}+{} bytes!",
+					incomingMessage.getPeerAddress(), maxDeferredProcessedIncomingRecordsSize, deferredRecordsSize, size);
+			return false;
+		}
+	}
+
+	private void removeDeferredProcessedRecord(Record incomingMessage) {
+		int size = incomingMessage.size();
+		if (deferredRecordsSize < size) {
+			LOGGER.warn(
+					"deferred processed incoming records corrupted for peer [{}]! Removing {} bytes exceeds available {} bytes!",
+					incomingMessage.getPeerAddress(), size, deferredRecordsSize);
+			throw new IllegalArgumentException("deferred processing of incoming records corrupted!");
+		}
+		deferredRecordsSize -= size;
 	}
 
 	public List<RawData> takeDeferredApplicationData() {
@@ -927,6 +1135,9 @@ public abstract class Handshaker {
 	public List<Record> takeDeferredRecords() {
 		List<Record> records = new ArrayList<Record>(deferredRecords);
 		deferredRecords.clear();
+		for (Record record : records) {
+			removeDeferredProcessedRecord(record);
+		}
 		return records;
 	}
 
@@ -949,12 +1160,19 @@ public abstract class Handshaker {
 		}
 	}
 
+	public void sendLastFlight(DTLSFlight flight) {
+		lastFlight = true;
+		flight.setRetransmissionNeeded(false);
+		sendFlight(flight);
+	}
+
 	public void sendFlight(DTLSFlight flight) {
 		setPendingFlight(null);
 		try {
+			flightSendNanos = ClockUtil.nanoRealtime();
 			recordLayer.sendFlight(flight, connection);
 			setPendingFlight(flight);
-		} catch(IOException e) {
+		} catch (IOException e) {
 			handshakeFailed(new Exception("handshake flight " + flight.getFlightNumber() + " failed!", e));
 		}
 	}
@@ -1140,7 +1358,6 @@ public abstract class Handshaker {
 			session.setPeerIdentity(extensibleClientIdentity.amend(additionalInfo));
 		}
 	}
-
 
 	private AdditionalInfo getAdditionalPeerInfo(Principal peerIdentity) {
 		if (applicationLevelInfoSupplier == null || peerIdentity == null) {

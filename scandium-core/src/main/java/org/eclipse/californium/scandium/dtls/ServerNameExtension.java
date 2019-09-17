@@ -112,20 +112,19 @@ public final class ServerNameExtension extends HelloExtension {
 	/**
 	 * Creates a new instance from its byte representation.
 	 * 
-	 * @param extensionData The byte representation.
+	 * @param extensionDataReader The byte representation.
 	 * @param peerAddress The IP address and port that the extension has been received from.
 	 * @return The instance.
 	 * @throws HandshakeException if the byte representation could not be parsed.
 	 */
-	public static ServerNameExtension fromExtensionData(final byte[] extensionData, final InetSocketAddress peerAddress) throws HandshakeException {
-		if (extensionData == null || extensionData.length == 0) {
+	public static ServerNameExtension fromExtensionDataReader(DatagramReader extensionDataReader, final InetSocketAddress peerAddress) throws HandshakeException {
+		if (extensionDataReader == null || !extensionDataReader.bytesAvailable()) {
 			// this is an "empty" Server Name Indication received in a SERVER_HELLO
 			return ServerNameExtension.emptyServerNameIndication();
 		} else {
-			DatagramReader reader = new DatagramReader(extensionData);
 			ServerNames serverNames = ServerNames.newInstance();
 			try {
-				serverNames.decode(reader);
+				serverNames.decode(extensionDataReader);
 			} catch (IllegalArgumentException e) {
 				if (e.getCause() instanceof IllegalArgumentException) {
 					throw new HandshakeException("Server Name Indication extension contains unknown name_type",

@@ -36,15 +36,15 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 
 public class SecureServer {
 
-	public static final List<Mode> SUPPORTED_MODES = Arrays
-			.asList(new Mode[] { Mode.PSK, Mode.ECDHE_PSK, Mode.RPK, Mode.X509, Mode.NO_AUTH });
+	public static final List<Mode> SUPPORTED_MODES = Arrays.asList(Mode.PSK, Mode.ECDHE_PSK, Mode.RPK, Mode.X509,
+			Mode.WANT_AUTH, Mode.NO_AUTH);
 
 	// allows configuration via Californium.properties
 	public static final int DTLS_PORT = NetworkConfig.getStandard().getInt(NetworkConfig.Keys.COAP_SECURE_PORT);
 
 	public static void main(String[] args) {
 
-		System.out.println("Usage: java -jar ... [PSK] [ECDHE_PSK] [RPK] [X509] [NO_AUTH]");
+		System.out.println("Usage: java -jar ... [PSK] [ECDHE_PSK] [RPK] [X509] [WANT_AUTH|NO_AUTH]");
 		System.out.println("Default :            [PSK] [ECDHE_PSK] [RPK] [X509]");
 		
 		CoapServer server = new CoapServer();
@@ -64,6 +64,7 @@ public class SecureServer {
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
 		CredentialsUtil.setupCid(args, builder);
 		builder.setAddress(new InetSocketAddress(DTLS_PORT));
+		builder.setRecommendedCipherSuitesOnly(false);
 		List<Mode> modes = CredentialsUtil.parse(args, CredentialsUtil.DEFAULT_SERVER_MODES, SUPPORTED_MODES);
 		CredentialsUtil.setupCredentials(builder, CredentialsUtil.SERVER_NAME, modes);
 		DTLSConnector connector = new DTLSConnector(builder.build());

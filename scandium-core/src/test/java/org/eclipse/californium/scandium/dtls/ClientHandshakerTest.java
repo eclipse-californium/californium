@@ -38,6 +38,9 @@ import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.ServerName.NameType;
 import org.junit.Rule;
 import org.junit.Test;
@@ -171,6 +174,34 @@ public class ClientHandshakerTest {
 		assertThat(
 				clientHello.getServerNameExtension().getServerNames().getServerName(NameType.HOST_NAME).getNameAsString(),
 				is(serverName));
+		
+	}
+
+	@Test
+	public void testClientReceivesBrokenServerHello() throws Exception {
+
+		givenAClientHandshaker(false);
+
+		// WHEN a handshake is started
+		handshaker.startHandshake();
+
+		// THEN assert that the sent client hello contains an SNI extension
+		ClientHello clientHello = getClientHello(recordLayer.getSentFlight());
+		assertNotNull(clientHello);
+		CipherSuite cipherSuite = clientHello.getCipherSuites().get(0);
+		HelloExtensions extensions = new HelloExtensions();
+		extensions.addExtension(ConnectionIdExtension.fromConnectionId(ConnectionId.EMPTY));
+		ServerHello serverHello = new ServerHello(clientHello.getClientVersion(), new Random(), new SessionId(),
+				cipherSuite, CompressionMethod.NULL, extensions, localPeer);
+		Record record =  DtlsTestTools.getRecordForMessage(0, 1, serverHello, localPeer);
+		record.applySession(handshaker.session);
+		try {
+			handshaker.processMessage(record);
+			fail("Broken SERVER_HELLO not detected!");
+		} catch (HandshakeException ex) {
+			assertThat(ex.getAlert().getLevel(), is(AlertLevel.FATAL));
+			assertThat(ex.getAlert().getDescription(), is(AlertDescription.UNSUPPORTED_EXTENSION));
+		}
 	}
 
 	private void givenAClientHandshaker(final boolean configureTrustStore) throws Exception {
@@ -211,12 +242,13 @@ public class ClientHandshakerTest {
 		} else {
 			builder.setClientAuthenticationRequired(false);
 		}
+		Connection connection = new Connection(peer, new SyncSerialExecutor());
 		DTLSSession session = new DTLSSession(peer);
 		session.setVirtualHost(virtualHost);
 		handshaker = new ClientHandshaker(
 				session,
 				recordLayer,
-				null,
+				connection,
 				builder.build(),
 				MAX_TRANSMISSION_UNIT);
 	}

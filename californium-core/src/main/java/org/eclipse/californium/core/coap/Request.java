@@ -61,6 +61,7 @@ import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.util.ClockUtil;
+import org.eclipse.californium.elements.util.StringUtil;
 
 /**
  * Request represents a CoAP request and has either the {@link Type} CON or NON
@@ -121,7 +122,7 @@ import org.eclipse.californium.elements.util.ClockUtil;
 public class Request extends Message {
 
 	private static final Pattern IP_PATTERN = Pattern
-			.compile("(\\[[0-9a-f:]+\\]|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})");
+			.compile("(\\[[0-9a-f:]+(%\\w+)?\\]|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})");
 
 	/** The request code. */
 	private final CoAP.Code code;
@@ -355,7 +356,11 @@ public class Request extends Message {
 			} else {
 				// host contains a host name, put it into Uri-Host option to
 				// enable virtual hosts (multiple names, same IP address)
-				getOptions().setUriHost(host);
+				if (StringUtil.isValidHostName(host)) {
+					getOptions().setUriHost(host);
+				} else {
+					throw new IllegalArgumentException("URI's hostname '" + host + "' is invalid!'");
+				}
 			}
 		}
 

@@ -37,4 +37,12 @@ public interface RecordLayer {
 	 * @throws IOException if an io error occurs
 	 */
 	void sendFlight(DTLSFlight flight, Connection connection) throws IOException;
+
+	/**
+	 * Process received record.
+	 * 
+	 * @param record received record.
+	 * @param connection connection to process record.
+	 */
+	void processRecord(Record record, Connection connection);
 }

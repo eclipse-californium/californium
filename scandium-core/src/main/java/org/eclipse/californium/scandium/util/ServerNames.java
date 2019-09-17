@@ -132,18 +132,16 @@ public final class ServerNames implements Iterable<ServerName> {
 
 	public void decode(DatagramReader reader) {
 		int listLengthBytes = reader.read(LIST_LENGTH_BITS);
-		while (listLengthBytes > 0) {
-			if (reader.bitsLeft() >= 8) {
-				NameType nameType = NameType.fromCode(reader.readNextByte());
-				switch (nameType) {
-				case HOST_NAME:
-					byte[] hostname = readHostName(reader);
-					add(ServerName.from(nameType, hostname));
-					listLengthBytes -= (hostname.length + 3);
-					break;
-				default:
-					throw new IllegalArgumentException("ServerNames: unknown name_type!", new IllegalArgumentException(nameType.name()));
-				}
+		DatagramReader rangeReader = reader.createRangeReader(listLengthBytes);
+		while (rangeReader.bytesAvailable()) {
+			NameType nameType = NameType.fromCode(rangeReader.readNextByte());
+			switch (nameType) {
+			case HOST_NAME:
+				byte[] hostname = readHostName(rangeReader);
+				add(ServerName.from(nameType, hostname));
+				break;
+			default:
+				throw new IllegalArgumentException("ServerNames: unknown name_type!", new IllegalArgumentException(nameType.name()));
 			}
 		}
 	}

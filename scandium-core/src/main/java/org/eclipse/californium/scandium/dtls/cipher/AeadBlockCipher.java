@@ -16,8 +16,6 @@
 package org.eclipse.californium.scandium.dtls.cipher;
 
 import java.security.GeneralSecurityException;
-import java.security.InvalidAlgorithmParameterException;
-import java.util.Arrays;
 
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
@@ -125,8 +123,8 @@ public class AeadBlockCipher {
 	private final static byte[] jreDecrypt(CipherSuite suite, SecretKey key, byte[] nonce, byte[] a, byte[] c)
 			throws GeneralSecurityException {
 
-		Cipher cipher = suite.getCipher();
-		GCMParameterSpec parameterSpec = new GCMParameterSpec(suite.getEncKeyLength() * 8, nonce);
+		Cipher cipher = suite.getThreadLocalCipher();
+		GCMParameterSpec parameterSpec = new GCMParameterSpec(suite.getMacLength() * 8, nonce);
 		cipher.init(Cipher.DECRYPT_MODE, key, parameterSpec);
 		cipher.updateAAD(a);
 		return cipher.doFinal(c);
@@ -147,21 +145,9 @@ public class AeadBlockCipher {
 	@NotForAndroid
 	private final static byte[] jreEncrypt(CipherSuite suite, SecretKey key, byte[] nonce, byte[] a, byte[] m)
 			throws GeneralSecurityException {
-		Cipher cipher = suite.getCipher();
-		GCMParameterSpec parameterSpec = new GCMParameterSpec(suite.getEncKeyLength() * 8, nonce);
-		try {
-			cipher.init(Cipher.ENCRYPT_MODE, key, parameterSpec);
-		} catch (InvalidAlgorithmParameterException ex) {
-			// if a record is encrypted twice using the same nonce,"
-			// GCM reports this with "Cannot reuse iv for GCM encryption"
-			// workaround is to use a different nonce and then the repeated
-			// nonce again.
-			byte[] nonceReset = Arrays.copyOf(nonce, nonce.length);
-			nonceReset[0] ^= 0x55;
-			GCMParameterSpec parameterSpecReset = new GCMParameterSpec(suite.getEncKeyLength() * 8, nonceReset);
-			cipher.init(Cipher.ENCRYPT_MODE, key, parameterSpecReset);
-			cipher.init(Cipher.ENCRYPT_MODE, key, parameterSpec);
-		}
+		Cipher cipher = suite.getThreadLocalCipher();
+		GCMParameterSpec parameterSpec = new GCMParameterSpec(suite.getMacLength() * 8, nonce);
+		cipher.init(Cipher.ENCRYPT_MODE, key, parameterSpec);
 		cipher.updateAAD(a);
 		return cipher.doFinal(m);
 	}

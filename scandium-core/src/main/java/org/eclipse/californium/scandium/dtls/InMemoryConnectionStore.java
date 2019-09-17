@@ -42,6 +42,7 @@ import java.util.concurrent.ConcurrentMap;
 
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 import org.eclipse.californium.elements.util.SerialExecutor;
+import org.eclipse.californium.scandium.ConnectionListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,6 +92,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	protected final ConcurrentMap<InetSocketAddress, Connection> connectionsByAddress;
 	protected final ConcurrentMap<SessionId, Connection> connectionsByEstablishedSession;
 
+	private ConnectionListener connectionListener;
 	/**
 	 * Connection id generator.
 	 * 
@@ -169,6 +171,10 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 								removeFromAddressConnections(staleConnection);
 								removeFromEstablishedSessions(staleConnection);
 								removeSessionFromCache(staleConnection);
+								ConnectionListener listener = connectionListener;
+								if (listener != null) {
+									listener.onConnectionRemoved(staleConnection);
+								}
 							}
 						}
 					};
@@ -216,6 +222,11 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 			}
 		}
 		return null;
+	}
+
+	@Override
+	public void setConnectionListener(ConnectionListener listener) {
+		this.connectionListener = listener;
 	}
 
 	@Override
@@ -318,20 +329,18 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 			return false;
 		}
 		if (connections.update(connection.getConnectionId())) {
-			if (!connection.equalsPeerAddress(newPeerAddress)) {
+			if (newPeerAddress == null) {
+				LOG.debug("{}connection: {} updated usage!", tag, connection.getConnectionId());
+			} else if (!connection.equalsPeerAddress(newPeerAddress)) {
 				InetSocketAddress oldPeerAddress = connection.getPeerAddress();
 				LOG.debug("{}connection: {} updated, address changed from {} to {}!", tag, connection.getConnectionId(),
 						oldPeerAddress, newPeerAddress);
 				if (oldPeerAddress != null) {
 					connectionsByAddress.remove(oldPeerAddress, connection);
+					connection.updatePeerAddress(null);
 				}
-				connection.updatePeerAddress(null);
-				if (newPeerAddress != null) {
-					connection.updatePeerAddress(newPeerAddress);
-					addToAddressConnections(connection);
-				}
-			} else {
-				LOG.debug("{}connection: {} - {} updated!", tag, connection.getConnectionId(), newPeerAddress);
+				connection.updatePeerAddress(newPeerAddress);
+				addToAddressConnections(connection);
 			}
 			return true;
 		} else {
@@ -342,6 +351,10 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 
 	@Override
 	public synchronized void putEstablishedSession(final DTLSSession session, final Connection connection) {
+		ConnectionListener listener = connectionListener;
+		if (listener != null) {
+			listener.onConnectionEstablished(connection);
+		}
 		SessionId sessionId = session.getSessionIdentifier();
 		if (!sessionId.isEmpty()) {
 			if (sessionCache != null) {
@@ -504,6 +517,10 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 			removeFromAddressConnections(connection);
 			if (removeFromSessionCache) {
 				removeSessionFromCache(connection);
+			}
+			ConnectionListener listener = connectionListener;
+			if (listener != null) {
+				listener.onConnectionRemoved(connection);
 			}
 		}
 		return removed;

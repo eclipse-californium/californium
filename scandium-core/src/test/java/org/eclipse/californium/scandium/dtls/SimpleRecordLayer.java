@@ -17,8 +17,15 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.security.GeneralSecurityException;
+
 public class SimpleRecordLayer implements RecordLayer {
+
+	private volatile Handshaker handshaker;
 	private DTLSFlight sentFlight;
+
+	public SimpleRecordLayer() {
+	}
 
 	@Override
 	public void sendFlight(DTLSFlight flight, Connection connection) {
@@ -27,5 +34,26 @@ public class SimpleRecordLayer implements RecordLayer {
 
 	public DTLSFlight getSentFlight() {
 		return sentFlight;
+	}
+
+	@Override
+	public void processRecord(Record record, Connection connection) {
+		Handshaker handshaker = this.handshaker;
+		if (handshaker != null) {
+			try {
+				record.applySession(handshaker.getSession());
+				handshaker.processMessage(record);
+			} catch (HandshakeException e) {
+				e.printStackTrace();
+				throw new IllegalArgumentException(e);
+			} catch (GeneralSecurityException e) {
+				e.printStackTrace();
+				throw new IllegalArgumentException(e);
+			}
+		}
+	}
+
+	public void setHandshaker(Handshaker handshaker) {
+		this.handshaker = handshaker;
 	}
 }

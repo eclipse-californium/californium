@@ -42,6 +42,8 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.locks.ReentrantLock;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -142,6 +144,8 @@ public  class CoapResource implements Resource {
 
 	/* The attributes of this resource. */
 	private final ResourceAttributes attributes;
+
+	private final ReentrantLock recursionProtection = new ReentrantLock();
 
 	/* The resource name. */
 	private String name;
@@ -789,6 +793,9 @@ public  class CoapResource implements Resource {
 	 * transitively ancestor. If no ancestor defines its own executor, the
 	 * thread that has called this method performs the notification.
 	 * 
+	 * @throws IllegalStateException if method is called recursively from
+	 *             current thread (without executor).
+	 * 
 	 * @see #changed(ObserveRelationFilter)
 	 */
 	public void changed() {
@@ -798,21 +805,33 @@ public  class CoapResource implements Resource {
 	/**
 	 * Notifies a filtered set of CoAP clients that have established an observe
 	 * relation with this resource that the state has changed by reprocessing
-	 * their original request that has established the relation. The notification
-	 * is done by the executor of this resource or on the executor of its parent or
-	 * transitively ancestor. If no ancestor defines its own executor, the
-	 * thread that has called this method performs the notification.
+	 * their original request that has established the relation. The
+	 * notification is done by the executor of this resource or on the executor
+	 * of its parent or transitively ancestor. If no ancestor defines its own
+	 * executor, the thread that has called this method performs the
+	 * notification.
 	 * 
-	 * @param filter filter to select set of relations. 
-	 *               <code>null</code>, if all clients should be notified.
-	 * 
+	 * @param filter filter to select set of relations. <code>null</code>, if
+	 *            all clients should be notified.
+	 * @throws IllegalStateException if method is called recursively from
+	 *             current thread (without executor).
 	 * @see #changed()
 	 */
 	public void changed(final ObserveRelationFilter filter) {
 		final Executor executor = getExecutor();
 		if (executor == null) {
 			// use thread from the protocol stage
-			notifyObserverRelations(filter);
+			if (recursionProtection.isHeldByCurrentThread()) {
+				// thread performs already a changed!
+				throw new IllegalStateException("Recursion detected! Please call \"changed()\" using an executor.");
+			} else {
+				recursionProtection.lock();
+				try {
+					notifyObserverRelations(filter);
+				} finally {
+					recursionProtection.unlock();
+				}
+			}
 		} else {
 			// use thread from the resource pool
 			executor.execute(new Runnable() {

@@ -46,6 +46,7 @@ import java.security.GeneralSecurityException;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -67,6 +68,7 @@ import org.eclipse.californium.elements.util.TestThreadFactory;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.Connection;
+import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.DebugConnectionStore;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
@@ -78,6 +80,7 @@ import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore
 import org.eclipse.californium.scandium.dtls.SessionAdapter;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 
 /**
@@ -163,8 +166,10 @@ public class ConnectorHelper {
 				.setServerOnly(true);
 
 		if (builder.getIncompleteConfig().getSupportedCipherSuites() == null) {
-			List<CipherSuite> list = new ArrayList<>(CipherSuite.getEcdsaCipherSuites());
-			list.addAll(CipherSuite.getPskCipherSuites(true));
+			List<CipherSuite> list = new ArrayList<>(CipherSuite.getEcdsaCipherSuites(false));
+			list.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(false, KeyExchangeAlgorithm.ECDHE_PSK,
+					KeyExchangeAlgorithm.PSK));
+			builder.setRecommendedCipherSuitesOnly(false);
 			builder.setSupportedCipherSuites(list);
 		}
 		if (!Boolean.FALSE.equals(builder.getIncompleteConfig().isClientAuthenticationRequired()) ||
@@ -464,17 +469,55 @@ public class ConnectorHelper {
 	static class RecordCollectorDataHandler implements DataHandler {
 
 		private BlockingQueue<List<Record>> records = new LinkedBlockingQueue<>();
+		private Map<Integer, DTLSSession> apply = new HashMap<Integer, DTLSSession>(8);
+		private final ConnectionIdGenerator cidGenerator;
+
+		RecordCollectorDataHandler() {
+			this(null);
+		}
+
+		RecordCollectorDataHandler(ConnectionIdGenerator cidGenerator) {
+			this.cidGenerator = cidGenerator;
+		}
+
+		/**
+		 * Apply session to all collected records with matching epoch.
+		 * 
+		 * @param session session to be applied. {@code null} is applied to
+		 *            epoch 0.
+		 */
+		void applySession(DTLSSession session) {
+			if (session == null) {
+				apply.put(0, null);
+			} else {
+				apply.put(session.getReadEpoch(), session);
+			}
+		}
 
 		@Override
 		public void handleData(InetSocketAddress endpoint, byte[] data) {
 			try {
-				records.put(Record.fromByteArray(data, endpoint, null, ClockUtil.nanoRealtime()));
+				records.put(Record.fromByteArray(data, endpoint, cidGenerator, ClockUtil.nanoRealtime()));
 			} catch (InterruptedException e) {
 			}
 		}
 
 		public List<Record> waitForRecords(long timeout, TimeUnit unit) throws InterruptedException {
-			return records.poll(timeout, unit);
+			List<Record> result = records.poll(timeout, unit);
+			if (result != null) {
+				for (Record record : result) {
+					if (apply.containsKey(record.getEpoch())) {
+						try {
+							record.applySession(apply.get(record.getEpoch()));
+						} catch (GeneralSecurityException e) {
+							throw new IllegalStateException(e);
+						} catch (HandshakeException e) {
+							throw new IllegalStateException(e);
+						}
+					}
+				}
+			}
+			return result;
 		}
 
 		public List<Record> waitForFlight(int size, long timeout, TimeUnit unit) throws InterruptedException {
@@ -518,28 +561,29 @@ public class ConnectorHelper {
 
 	static class LatchSessionListener extends SessionAdapter {
 
-		private CountDownLatch established = new CountDownLatch(1);
-		private CountDownLatch failed = new CountDownLatch(1);
+		private CountDownLatch finished = new CountDownLatch(1);
+		private AtomicBoolean established = new AtomicBoolean();
 		private AtomicReference<Throwable> error = new AtomicReference<Throwable>();
 
 		@Override
 		public void sessionEstablished(Handshaker handshaker, DTLSSession establishedSession)
 				throws HandshakeException {
-			established.countDown();
+			established.set(true);
+			finished.countDown();
 		}
 
 		@Override
 		public void handshakeFailed(Handshaker handshaker, Throwable error) {
 			this.error.set(error);
-			failed.countDown();
+			finished.countDown();
 		}
 
 		public boolean waitForSessionEstablished(long timeout, TimeUnit unit) throws InterruptedException {
-			return established.await(timeout, unit);
+			return finished.await(timeout, unit) && established.get();
 		}
 
 		public Throwable waitForSessionFailed(long timeout, TimeUnit unit) throws InterruptedException {
-			if (failed.await(timeout, unit)) {
+			if (finished.await(timeout, unit)) {
 				return error.get();
 			}
 			return null;

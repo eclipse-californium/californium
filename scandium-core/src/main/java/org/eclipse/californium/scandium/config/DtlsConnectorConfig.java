@@ -46,11 +46,13 @@ import java.util.List;
 
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.util.SslContextUtil;
+import org.eclipse.californium.scandium.ConnectionListener;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.SessionCache;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustAllRpks;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
@@ -91,6 +93,10 @@ public final class DtlsConnectorConfig {
 	 * The default value for the <em>maxFragmentedHandshakeMessageLength</em> property.
 	 */
 	public static final int DEFAULT_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH = 8192;
+	/**
+	 * The default value for the <em>maxDeferredProcessedHandshakeRecordsSize</em> property.
+	 */
+	public static final int DEFAULT_MAX_DEFERRED_PROCESSED_HANDSHAKE_RECORDS_SIZE = 8192;
 	/**
 	 * The default value for the <em>staleConnectionThreshold</em> property.
 	 */
@@ -203,7 +209,9 @@ public final class DtlsConnectorConfig {
 
 	private Integer outboundMessageBufferSize;
 
-	private Integer maxDeferredProcessedApplicationDataMessages;
+	private Integer maxDeferredProcessedOutgoingApplicationDataMessages;
+
+	private Integer maxDeferredProcessedIncomingRecordsSize;
 
 	private Integer maxConnections;
 
@@ -271,6 +279,12 @@ public final class DtlsConnectorConfig {
 	private Boolean useWindowFilter;
 
 	/**
+	 * Use filter to update the ip-address from DTLS 1.2 CID
+	 * records only for newer records based on epoch/sequence_number.
+	 */
+	private Boolean useCidUpdateAddressOnNewerRecordFilter;
+
+	/**
 	 * Logging tag.
 	 * 
 	 * Tag logging messages, if multiple connectors share the same logging
@@ -288,6 +302,14 @@ public final class DtlsConnectorConfig {
 	private ConnectionIdGenerator connectionIdGenerator;
 
 	private ApplicationLevelInfoSupplier applicationLevelInfoSupplier;
+
+	
+	/**
+	 * Use the handshake state validation to verify valid handshakes.
+	 */
+	private Boolean useHandshakeStateValidation;
+
+	private ConnectionListener connectionListener;
 
 	private DtlsConnectorConfig() {
 		// empty
@@ -334,12 +356,21 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Gets the maximum number of deferred processed application data messages.
+	 * Gets the maximum number of deferred processed outgoing application data messages.
 	 * 
-	 * @return the maximum number of deferred processed application data messages
+	 * @return the maximum number of deferred processed outgoing application data messages
 	 */
-	public Integer getMaxDeferredProcessedApplicationDataMessages() {
-		return maxDeferredProcessedApplicationDataMessages;
+	public Integer getMaxDeferredProcessedOutgoingApplicationDataMessages() {
+		return maxDeferredProcessedOutgoingApplicationDataMessages;
+	}
+
+	/**
+	 * Gets the maximum size of all deferred processed incoming records.
+	 * 
+	 * @return the maximum size of all deferred processed incoming records
+	 */
+	public Integer getMaxDeferredProcessedIncomingRecordsSize() {
+		return maxDeferredProcessedIncomingRecordsSize;
 	}
 
 	/**
@@ -717,11 +748,34 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * Use filter to update the ip-address from DTLS 1.2 CID
+	 * records only for newer records based on epoch/sequence_number.
+	 * 
+	 * @return {@code true}, apply the newer filter
+	 */
+	public Boolean useCidUpdateAddressOnNewerRecordFilter() {
+		return useCidUpdateAddressOnNewerRecordFilter;
+	}
+
+	/**
 	 * @return The trust store for raw public keys verified out-of-band for
 	 *         DTLS-RPK handshakes
 	 */
 	public TrustedRpkStore getRpkTrustStore() {
 		return trustedRPKs;
+	}
+
+	/**
+	 * Use the handshake state validation to verify valid handshakes.
+	 * 
+	 * @return {@code true}, if handshake state validation is used
+	 */
+	public Boolean useHandshakeStateValidation() {
+		return useHandshakeStateValidation;
+	}
+
+	public ConnectionListener getConnectionListener() {
+		return connectionListener;
 	}
 
 	/**
@@ -761,7 +815,8 @@ public final class DtlsConnectorConfig {
 		cloned.supportedCipherSuites = supportedCipherSuites;
 		cloned.trustedRPKs = trustedRPKs;
 		cloned.outboundMessageBufferSize = outboundMessageBufferSize;
-		cloned.maxDeferredProcessedApplicationDataMessages = maxDeferredProcessedApplicationDataMessages;
+		cloned.maxDeferredProcessedOutgoingApplicationDataMessages = maxDeferredProcessedOutgoingApplicationDataMessages;
+		cloned.maxDeferredProcessedIncomingRecordsSize = maxDeferredProcessedIncomingRecordsSize;
 		cloned.maxConnections = maxConnections;
 		cloned.staleConnectionThreshold = staleConnectionThreshold;
 		cloned.connectionThreadCount = connectionThreadCount;
@@ -773,8 +828,11 @@ public final class DtlsConnectorConfig {
 		cloned.loggingTag = loggingTag;
 		cloned.useAntiReplayFilter = useAntiReplayFilter;
 		cloned.useWindowFilter = useWindowFilter;
+		cloned.useCidUpdateAddressOnNewerRecordFilter = useCidUpdateAddressOnNewerRecordFilter;
 		cloned.connectionIdGenerator = connectionIdGenerator;
 		cloned.applicationLevelInfoSupplier = applicationLevelInfoSupplier;
+		cloned.useHandshakeStateValidation = useHandshakeStateValidation;
+		cloned.connectionListener = connectionListener;
 		return cloned;
 	}
 
@@ -787,6 +845,7 @@ public final class DtlsConnectorConfig {
 
 		private DtlsConnectorConfig config;
 		private boolean clientOnly;
+		private boolean recommendedCipherSuitesOnly = true;
 
 		/**
 		 * Creates a new instance for setting configuration options
@@ -858,6 +917,22 @@ public final class DtlsConnectorConfig {
 		 */
 		public Builder setEnableAddressReuse(boolean enable) {
 			config.enableReuseAddress = enable;
+			return this;
+		}
+
+		/**
+		 * Set usage of recommended cipher suites.
+		 * 
+		 * @param recommendedCipherSuitesOnly {@code true} allow only
+		 *            recommended cipher suites, {@code false}, also allow not
+		 *            recommended cipher suites. Default value is {@code true}
+		 * @return this builder for command chaining
+		 */
+		public Builder setRecommendedCipherSuitesOnly(boolean recommendedCipherSuitesOnly) {
+			this.recommendedCipherSuitesOnly = recommendedCipherSuitesOnly;
+			if (recommendedCipherSuitesOnly && config.supportedCipherSuites != null) {
+				verifyRecommendedCipherSuitesOnly(config.supportedCipherSuites);
+			}
 			return this;
 		}
 
@@ -1058,11 +1133,15 @@ public final class DtlsConnectorConfig {
 		 * order) during the DTLS handshake when negotiating a cipher suite with
 		 * a peer.
 		 * 
-		 * @param cipherSuites the supported cipher suites in the order of preference
+		 * @param cipherSuites the supported cipher suites in the order of
+		 *            preference
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given array is <code>null</code>
-		 * @throws IllegalArgumentException if the given array is empty or
-		 *             contains {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}
+		 * @throws IllegalArgumentException if the given array is empty,
+		 *             contains {@link CipherSuite#TLS_NULL_WITH_NULL_NULL},
+		 *             contains a cipher suite, not supported by the JVM, or
+		 *             violates the
+		 *             {@link #setRecommendedCipherSuitesOnly(boolean)} setting.
 		 */
 		public Builder setSupportedCipherSuites(CipherSuite... cipherSuites) {
 			if (cipherSuites == null) {
@@ -1082,9 +1161,11 @@ public final class DtlsConnectorConfig {
 		 *            preference
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given array is <code>null</code>
-		 * @throws IllegalArgumentException if the given array is empty or
-		 *             contains {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}, or
-		 *             contains a cipher suite, not supported by the JVM.
+		 * @throws IllegalArgumentException if the given array is empty,
+		 *             contains {@link CipherSuite#TLS_NULL_WITH_NULL_NULL},
+		 *             contains a cipher suite, not supported by the JVM, or
+		 *             violates the
+		 *             {@link #setRecommendedCipherSuitesOnly(boolean)} setting.
 		 */
 		public Builder setSupportedCipherSuites(List<CipherSuite> cipherSuites) {
 			if (cipherSuites == null) {
@@ -1096,11 +1177,15 @@ public final class DtlsConnectorConfig {
 			if (cipherSuites.contains(CipherSuite.TLS_NULL_WITH_NULL_NULL)) {
 				throw new IllegalArgumentException("NULL Cipher Suite is not supported by connector");
 			}
+			if (recommendedCipherSuitesOnly) {
+				verifyRecommendedCipherSuitesOnly(cipherSuites);
+			}
 			for (CipherSuite cipherSuite : cipherSuites) {
 				if (!cipherSuite.isSupported()) {
 					throw new IllegalArgumentException("cipher-suites " + cipherSuite + " is not supported by JVM!");
 				}
 			}
+			
 			config.supportedCipherSuites = cipherSuites;
 			return this;
 		}
@@ -1118,9 +1203,11 @@ public final class DtlsConnectorConfig {
 		 *            IANA registry</a> for a list of cipher suite names)
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given array is <code>null</code>
-		 * @throws IllegalArgumentException if the given array is empty or
-		 *             contains <em>TLS_NULL_WITH_NULL_NULL</em> or if a name
-		 *             from the given list is unsupported (yet)
+		 * @throws IllegalArgumentException if the given array is empty,
+		 *             contains {@link CipherSuite#TLS_NULL_WITH_NULL_NULL},
+		 *             contains a cipher suite, not supported by the JVM,
+		 *             contains a name, which is not supported, or violates the
+		 *             {@link #setRecommendedCipherSuitesOnly(boolean)} setting.
 		 */
 		public Builder setSupportedCipherSuites(String... cipherSuites) {
 			if (cipherSuites == null) {
@@ -1499,24 +1586,49 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Set maximum number of deferred processed application data messages.
+		 * Set maximum number of deferred processed outgoing application data
+		 * messages.
 		 * 
-		 * Application data messages received or sent during a handshake may be
-		 * dropped or processed deferred after the handshake. Set this to limit
-		 * the maximum number of messages, which are intended to be processed
-		 * deferred. If more messages are sent or received, theses messages are
-		 * dropped.
+		 * Application data messages sent during a handshake may be dropped or
+		 * processed deferred after the handshake. Set this to limit the maximum
+		 * number of messages, which are intended to be processed deferred. If
+		 * more messages are sent, these messages are dropped.
 		 * 
-		 * @param maxDeferredProcessedApplicationDataMessages maximum number of
-		 *            deferred processed messages
+		 * @param maxDeferredProcessedOutgoingApplicationDataMessages maximum
+		 *            number of deferred processed messages
 		 * @return this builder for command chaining.
 		 * @throws IllegalArgumentException if the given limit is &lt; 0.
 		 */
-		public Builder setMaxDeferredProcessedApplicationDataMessages(final int maxDeferredProcessedApplicationDataMessages) {
-			if (maxDeferredProcessedApplicationDataMessages < 0) {
-				throw new IllegalArgumentException("Max deferred processed application data messages must not be negative!");
+		public Builder setMaxDeferredProcessedOutgoingApplicationDataMessages(
+				int maxDeferredProcessedOutgoingApplicationDataMessages) {
+			if (maxDeferredProcessedOutgoingApplicationDataMessages < 0) {
+				throw new IllegalArgumentException(
+						"Max deferred processed outging application data messages must not be negative!");
 			}
-			config.maxDeferredProcessedApplicationDataMessages = maxDeferredProcessedApplicationDataMessages;
+			config.maxDeferredProcessedOutgoingApplicationDataMessages = maxDeferredProcessedOutgoingApplicationDataMessages;
+			return this;
+		}
+
+		/**
+		 * Set maximum size of deferred processed incoming records.
+		 * 
+		 * Handshake records with future handshake message sequence number or
+		 * records with future epochs received during a handshake may be dropped
+		 * or processed deferred. Set this to limit the maximum size of all
+		 * records, which are intended to be processed deferred. If more records
+		 * are received, these records are dropped.
+		 * 
+		 * @param maxDeferredProcessedIncomingRecordsSize maximum size of all
+		 *            deferred handshake records
+		 * @return this builder for command chaining.
+		 * @throws IllegalArgumentException if the given limit is &lt; 0.
+		 */
+		public Builder setMaxDeferredProcessedIncomingRecordsSize(int maxDeferredProcessedIncomingRecordsSize) {
+			if (maxDeferredProcessedIncomingRecordsSize < 0) {
+				throw new IllegalArgumentException(
+						"Max deferred processed incoming records size must not be negative!");
+			}
+			config.maxDeferredProcessedIncomingRecordsSize = maxDeferredProcessedIncomingRecordsSize;
 			return this;
 		}
 
@@ -1728,6 +1840,42 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
+		 * Use filter to update the ip-address from DTLS 1.2 CID records only
+		 * for newer records based on epoch/sequence_number.
+		 * 
+		 * Only used, if a connection ID generator
+		 * {@link #setConnectionIdGenerator(ConnectionIdGenerator)} is provided,
+		 * which "uses" CID. If the "anti-replay-filter is switched off, it's
+		 * not recommended to switch this off also!
+		 * 
+		 * @param enable {@code true} to enable filter, {@code false} to disable
+		 *            filter. Default {@code true}.
+		 * @return this builder for command chaining.
+		 */
+		public Builder setCidUpdateAddressOnNewerRecordFilter(boolean enable) {
+			config.useCidUpdateAddressOnNewerRecordFilter = enable;
+			return this;
+		}
+
+		/**
+		 * Use the handshake state validation to verify valid handshakes.
+		 * 
+		 * Note: the handshake state validation is used by default. If a client
+		 * can't process a handshake in the assumed way, the state validation
+		 * may be disabled at the risk of potential more vulnerability. Please
+		 * report us a capture of such handshakes in order to decide, if the
+		 * state validation gets adapted.
+		 * 
+		 * @param enable {@code true} to enable state machine. Default
+		 *            {@code true}.
+		 * @return this builder for command chaining.
+		 */
+		public Builder setUseHandshakeStateValidation(boolean enable) {
+			config.useHandshakeStateValidation = enable;
+			return this;
+		}
+
+		/**
 		 * Set instance logging tag.
 		 * 
 		 * @param tag logging tag of configure instance
@@ -1735,6 +1883,11 @@ public final class DtlsConnectorConfig {
 		 */
 		public Builder setLoggingTag(String tag) {
 			config.loggingTag = tag;
+			return this;
+		}
+
+		public Builder setConnectionListener(ConnectionListener connectionListener) {
+			config.connectionListener = connectionListener;
 			return this;
 		}
 
@@ -1783,10 +1936,13 @@ public final class DtlsConnectorConfig {
 				config.loggingTag = "";
 			}
 			if (config.enableReuseAddress == null) {
-				config.enableReuseAddress = false;
+				config.enableReuseAddress = Boolean.FALSE;
+			}
+			if (config.useHandshakeStateValidation == null) {
+				config.useHandshakeStateValidation = Boolean.TRUE;
 			}
 			if (config.earlyStopRetransmission == null) {
-				config.earlyStopRetransmission = true;
+				config.earlyStopRetransmission = Boolean.TRUE;
 			}
 			if (config.retransmissionTimeout == null) {
 				config.retransmissionTimeout = DEFAULT_RETRANSMISSION_TIMEOUT_MS;
@@ -1798,26 +1954,29 @@ public final class DtlsConnectorConfig {
 				config.maxFragmentedHandshakeMessageLength = DEFAULT_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH;
 			}
 			if (config.clientAuthenticationWanted == null) {
-				config.clientAuthenticationWanted = false;
+				config.clientAuthenticationWanted = Boolean.FALSE;
 			}
 			if (config.clientAuthenticationRequired == null) {
 				if (clientOnly) {
-					config.clientAuthenticationRequired = false;
+					config.clientAuthenticationRequired = Boolean.FALSE;
 				} else {
 					config.clientAuthenticationRequired = !config.clientAuthenticationWanted;
 				}
 			}
 			if (config.serverOnly == null) {
-				config.serverOnly = false;
+				config.serverOnly = Boolean.FALSE;
 			}
 			if (config.useNoServerSessionId == null) {
-				config.useNoServerSessionId = false;
+				config.useNoServerSessionId = Boolean.FALSE;
 			}
 			if (config.outboundMessageBufferSize == null) {
 				config.outboundMessageBufferSize = 100000;
 			}
-			if (config.maxDeferredProcessedApplicationDataMessages == null){
-				config.maxDeferredProcessedApplicationDataMessages = DEFAULT_MAX_DEFERRED_PROCESSED_APPLICATION_DATA_MESSAGES;
+			if (config.maxDeferredProcessedOutgoingApplicationDataMessages == null){
+				config.maxDeferredProcessedOutgoingApplicationDataMessages = DEFAULT_MAX_DEFERRED_PROCESSED_APPLICATION_DATA_MESSAGES;
+			}
+			if (config.maxDeferredProcessedIncomingRecordsSize == null){
+				config.maxDeferredProcessedIncomingRecordsSize = DEFAULT_MAX_DEFERRED_PROCESSED_HANDSHAKE_RECORDS_SIZE;
 			}
 			if (config.maxConnections == null){
 				config.maxConnections = DEFAULT_MAX_CONNECTIONS;
@@ -1838,7 +1997,10 @@ public final class DtlsConnectorConfig {
 				config.useAntiReplayFilter = !Boolean.TRUE.equals(config.useWindowFilter);
 			}
 			if (config.useWindowFilter == null) {
-				config.useWindowFilter = false;
+				config.useWindowFilter = Boolean.FALSE;
+			}
+			if (config.useCidUpdateAddressOnNewerRecordFilter == null) {
+				config.useCidUpdateAddressOnNewerRecordFilter = Boolean.TRUE;
 			}
 			if (config.verifyPeersOnResumptionThreshold == null) {
 				config.verifyPeersOnResumptionThreshold = DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT;
@@ -1965,19 +2127,35 @@ public final class DtlsConnectorConfig {
 			}
 		}
 
+		private void verifyRecommendedCipherSuitesOnly(List<CipherSuite> suites) {
+			StringBuilder message = new StringBuilder();
+			for (CipherSuite cipherSuite : suites) {
+				if (!cipherSuite.isRecommended()) {
+					if (message.length() > 0) {
+						message.append(", ");
+					}
+					message.append(cipherSuite.name());
+				}
+			}
+			if (message.length() > 0) {
+				throw new IllegalStateException("Not recommended cipher suites " + message
+						+ " used! (Requires to set recommendedCipherSuitesOnly to false.)");
+			}
+		}
+
 		private void determineCipherSuitesFromConfig() {
 			// user has not explicitly set cipher suites
 			// try to guess his intentions from properties he has set
 			List<CipherSuite> ciphers = new ArrayList<>();
 			boolean certificates = isConfiguredWithKeyPair() || config.trustCertificateTypes != null;
-
 			if (certificates) {
 				// currently only ECDSA is supported!
-				ciphers.addAll(CipherSuite.getEcdsaCipherSuites());
+				ciphers.addAll(CipherSuite.getEcdsaCipherSuites(recommendedCipherSuitesOnly));
 			}
 
 			if (config.pskStore != null) {
-				ciphers.addAll(CipherSuite.getPskCipherSuites(true));
+				ciphers.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(recommendedCipherSuitesOnly,
+						KeyExchangeAlgorithm.ECDHE_PSK, KeyExchangeAlgorithm.PSK));
 			}
 
 			config.supportedCipherSuites = ciphers;
