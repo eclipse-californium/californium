@@ -249,7 +249,7 @@ public abstract class AbstractTestServer extends CoapServer {
 			if (protocols.contains(Protocol.DTLS) || protocols.contains(Protocol.TLS)) {
 				InetSocketAddress bindToAddress = new InetSocketAddress(addr, coapsPort);
 				if (protocols.contains(Protocol.DTLS)) {
-					NetworkConfig dtlsConfig = getConfig(Protocol.TLS, interfaceType);
+					NetworkConfig dtlsConfig = getConfig(Protocol.DTLS, interfaceType);
 					int staleTimeout = dtlsConfig.getInt(Keys.MAX_PEER_INACTIVITY_PERIOD);
 					int dtlsThreads = dtlsConfig.getInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT);
 					int dtlsReceiverThreads = dtlsConfig.getInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT);
