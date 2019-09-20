@@ -21,6 +21,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import static org.hamcrest.number.OrderingComparison.*;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
@@ -67,6 +68,8 @@ public class CertificateMessageTest {
 
 	@Test
 	public void testCertificateMessageDoesNotContainRootCert() throws IOException, GeneralSecurityException {
+		X509Certificate[] chain = DtlsTestTools.getServerCertificateChain();
+		assertThat(chain.length, is(greaterThan(1)));
 		givenACertificateMessage(DtlsTestTools.getServerCertificateChain(), false);
 		assertThatCertificateChainDoesNotContainRootCert(message.getCertificateChain());
 	}
