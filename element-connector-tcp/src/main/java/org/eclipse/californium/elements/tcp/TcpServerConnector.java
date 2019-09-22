@@ -163,7 +163,7 @@ public class TcpServerConnector implements Connector {
 		Channel channel = activeChannels.get(msg.getInetSocketAddress());
 		if (channel == null) {
 			// TODO: Is it worth allowing opening a new connection when in server mode?
-			LOGGER.warn("Attempting to send message to an address without an active connection {}",
+			LOGGER.debug("Attempting to send message to an address without an active connection {}",
 					msg.getAddress());
 			msg.onError(new EndpointUnconnectedException());
 			return;
