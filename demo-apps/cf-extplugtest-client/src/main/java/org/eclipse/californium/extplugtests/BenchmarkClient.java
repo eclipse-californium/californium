@@ -346,12 +346,13 @@ public class BenchmarkClient {
 	}
 
 	private class TestHandler implements CoapHandler {
-		
+
 		private final Request post;
-		
+
 		private TestHandler(final Request post) {
 			this.post = post;
 		}
+
 		@Override
 		public void onLoad(CoapResponse response) {
 			if (response.isSuccess()) {
@@ -361,7 +362,8 @@ public class BenchmarkClient {
 				long c = overallRequestsDownCounter.get();
 				LOGGER.info("Received response: {} {}", response.advanced(), c);
 			} else {
-				LOGGER.warn("Received error response: {}", response.advanced());
+				long c = requestsCounter.get();
+				LOGGER.warn("Received error response: {} {} ({} successful)", endpoint.getUri(), response.advanced(), c);
 				stop();
 			}
 		}

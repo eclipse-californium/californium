@@ -254,13 +254,13 @@ public class ClientInitializer {
 		public PlugPskStore(String id, byte[] secret) {
 			this.identity = id;
 			this.secret = secret;
-			LOGGER.info("DTLS-PSK-Identity: {}", identity);
+			LOGGER.trace("DTLS-PSK-Identity: {}", identity);
 		}
 
 		public PlugPskStore(String id) {
 			identity = PSK_IDENTITY_PREFIX + id;
 			secret = null;
-			LOGGER.info("DTLS-PSK-Identity: {} ({} random bytes)", identity, (id.length() / 2));
+			LOGGER.trace("DTLS-PSK-Identity: {} ({} random bytes)", identity, (id.length() / 2));
 		}
 
 		@Override
