@@ -19,6 +19,7 @@
 package org.eclipse.californium.examples;
 
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
@@ -365,6 +366,10 @@ public class NatUtil implements Runnable {
 			} catch (SocketException e) {
 				if (running) {
 					LOGGER.error("NAT {} to {} socket error", proxyName, destinationName, e);
+				}
+			} catch (InterruptedIOException e) {
+				if (running) {
+					LOGGER.error("NAT {} to {} interrupted", proxyName, destinationName, e);
 				}
 			} catch (Exception e) {
 				LOGGER.error("NAT {} to {} error", proxyName, destinationName, e);
