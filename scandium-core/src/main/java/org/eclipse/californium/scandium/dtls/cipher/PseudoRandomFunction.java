@@ -19,8 +19,8 @@ package org.eclipse.californium.scandium.dtls.cipher;
 import java.security.InvalidKeyException;
 
 import javax.crypto.Mac;
+import javax.crypto.SecretKey;
 import javax.crypto.ShortBufferException;
-import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.util.StandardCharsets;
 
@@ -73,9 +73,9 @@ public final class PseudoRandomFunction {
 		}
 	}
 
-	static byte[] doPRF(Mac hmac, byte[] secret, byte[] label, byte[] seed, int length) {
+	static byte[] doPRF(Mac hmac, SecretKey secret, byte[] label, byte[] seed, int length) {
 		try {
-			hmac.init(new SecretKeySpec(secret, "MAC"));
+			hmac.init(secret);
 			byte[] prf = doExpansion(hmac, label, seed, length);
 			hmac.reset();
 			return prf;
@@ -97,7 +97,7 @@ public final class PseudoRandomFunction {
 	 * @param seed the seed to use for creating the original data
 	 * @return the expanded data
 	 */
-	public static final byte[] doPRF(Mac hmac, byte[] secret, Label label, byte[] seed) {
+	public static final byte[] doPRF(Mac hmac, SecretKey secret, Label label, byte[] seed) {
 		return doPRF(hmac, secret, label.getBytes(), seed, label.length());
 	}
 
@@ -112,7 +112,7 @@ public final class PseudoRandomFunction {
 	 * @param length the length of data to create
 	 * @return the expanded data
 	 */
-	public static final byte[] doPRF(Mac hmac, byte[] secret, Label label, byte[] seed, int length) {
+	public static final byte[] doPRF(Mac hmac, SecretKey secret, Label label, byte[] seed, int length) {
 		return doPRF(hmac, secret, label.getBytes(), seed, length);
 	}
 

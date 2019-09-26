@@ -134,10 +134,18 @@ public class CbcBlockCipher {
 		md.update(plaintextOversized, fragmentLength, (blocks * macMessageBlockLength) + 1);
 		md.reset();
 		byte[] macFromMessage = Arrays.copyOfRange(plaintextOversized, fragmentLength, fragmentLength + macLength);
-		if (!MessageDigest.isEqual(macFromMessage, mac)) {
+		boolean ok = MessageDigest.isEqual(macFromMessage, mac);
+		Bytes.clear(mac);
+		Bytes.clear(macFromMessage);
+		byte[] payload = null;
+		if (ok) {
+			payload = Arrays.copyOf(plaintextOversized, fragmentLength);
+		}
+		Bytes.clear(plaintextOversized);
+		if (!ok) {
 			throw new InvalidMacException();
 		}
-		return Arrays.copyOf(plaintextOversized, fragmentLength);
+		return payload;
 	}
 
 	/**
@@ -175,12 +183,13 @@ public class CbcBlockCipher {
 		 * See http://tools.ietf.org/html/rfc5246#section-6.2.3.2 for
 		 * explanation
 		 */
-		DatagramWriter plainMessage = new DatagramWriter();
+		DatagramWriter plainMessage = new DatagramWriter(true);
 		plainMessage.writeBytes(payload);
 
 		// add MAC
-		plainMessage.writeBytes(
-				getBlockCipherMac(suite.getThreadLocalMac(), macKey, additionalData, payload, payload.length));
+		byte[] mac = getBlockCipherMac(suite.getThreadLocalMac(), macKey, additionalData, payload, payload.length);
+		plainMessage.writeBytes(mac);
+		Bytes.clear(mac);
 
 		// determine padding length
 		int ciphertextLength = payload.length + suite.getMacLength() + 1;
@@ -192,11 +201,14 @@ public class CbcBlockCipher {
 		byte[] padding = new byte[paddingLength + 1];
 		Arrays.fill(padding, (byte) paddingLength);
 		plainMessage.writeBytes(padding);
+		Bytes.clear(padding);
 
 		Cipher blockCipher = suite.getThreadLocalCipher();
 		blockCipher.init(Cipher.ENCRYPT_MODE, key);
 		byte[] iv = blockCipher.getIV();
 		byte[] plaintext = plainMessage.toByteArray();
+		plainMessage.close();
+
 		byte[] message = Arrays.copyOf(iv,  iv.length+  plaintext.length);
 		blockCipher.doFinal(plaintext, 0,  plaintext.length, message, iv.length);
 		return message;

@@ -18,10 +18,13 @@ package org.eclipse.californium.scandium.dtls;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 
+import javax.crypto.SecretKey;
+
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.util.PskUtil;
+import org.eclipse.californium.scandium.util.SecretUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,12 +79,11 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 		 * algorithm.
 		 */
 		ClientKeyExchange clientKeyExchange;
-		byte[] premasterSecret;
+		SecretKey premasterSecret;
 		switch (getKeyExchangeAlgorithm()) {
 		case EC_DIFFIE_HELLMAN:
 			clientKeyExchange = new ECDHClientKeyExchange(ecdhe.getPublicKey(), session.getPeer());
-			premasterSecret = ecdhe.getSecret(ephemeralServerPublicKey).getEncoded();
-			generateKeys(premasterSecret);
+			premasterSecret = ecdhe.generateSecret(ephemeralServerPublicKey);
 			break;
 		case PSK:
 			PskUtil pskUtilPlain = new PskUtil(sniEnabled, session, pskStore);
@@ -89,7 +91,7 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 			session.setPeerIdentity(pskUtilPlain.getPskPrincipal());
 			clientKeyExchange = new PSKClientKeyExchange(pskUtilPlain.getPskPublicIdentity(), session.getPeer());
 			premasterSecret = generatePremasterSecretFromPSK(pskUtilPlain.getPreSharedKey(), null);
-			generateKeys(premasterSecret);
+			SecretUtil.destroy(pskUtilPlain.getPreSharedKey());
 			break;
 		case ECDHE_PSK:
 			PskUtil pskUtil = new PskUtil(sniEnabled, session, pskStore);
@@ -97,14 +99,19 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 			session.setPeerIdentity(pskUtil.getPskPrincipal());
 			clientKeyExchange = new EcdhPskClientKeyExchange(pskUtil.getPskPublicIdentity(), ecdhe.getPublicKey(),
 					session.getPeer());
-			byte[] otherSecret = ecdhe.getSecret(ephemeralServerPublicKey).getEncoded();
-			premasterSecret = generatePremasterSecretFromPSK(pskUtil.getPreSharedKey(), otherSecret);
-			generateKeys(premasterSecret);
+			SecretKey eck = ecdhe.generateSecret(ephemeralServerPublicKey);
+			premasterSecret = generatePremasterSecretFromPSK(pskUtil.getPreSharedKey(), eck);
+			SecretUtil.destroy(pskUtil.getPreSharedKey());
+			SecretUtil.destroy(eck);
 			break;
 
 		default:
 			throw new HandshakeException("Unknown key exchange algorithm: " + getKeyExchangeAlgorithm(),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer()));
+		}
+		if (premasterSecret != null) {
+			generateKeys(premasterSecret);
+			SecretUtil.destroy(premasterSecret);
 		}
 		wrapMessage(flight, clientKeyExchange);
 
@@ -146,7 +153,7 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 		}
 
 		Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(),
-				session.getMasterSecret(), isClient, md.digest(), session.getPeer());
+				masterSecret, isClient, md.digest(), session.getPeer());
 		wrapMessage(flight, finished);
 
 		// compute handshake hash with client's finished message also

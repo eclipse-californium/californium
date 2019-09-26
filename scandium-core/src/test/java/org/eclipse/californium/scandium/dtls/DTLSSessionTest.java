@@ -27,14 +27,15 @@ import java.security.GeneralSecurityException;
 import java.util.Random;
 
 import javax.crypto.SecretKey;
-import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.util.SecretIvParameterSpec;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -83,8 +84,7 @@ public class DTLSSessionTest {
 
 		// when negotiating a cipher suite introducing ciphertext expansion
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256;
-		DTLSConnectionState newWriteState =
-				new DTLSConnectionState(cipherSuite, CompressionMethod.NULL, null, null, null);
+		DTLSConnectionState newWriteState = newConnectionState(cipherSuite);
 		session.setWriteState(newWriteState);
 
 		// then the maxFragmentLength is adjusted so that any fragment using
@@ -294,7 +294,7 @@ public class DTLSSessionTest {
 		session.setWriteState(currentState);
 		session.setReceiveCertificateType(type);
 		session.setSendCertificateType(type);
-		session.setMasterSecret(getRandomBytes(48));
+		session.setMasterSecret(new SecretKeySpec(getRandomBytes(48), "MAC"));
 		session.setPeerIdentity(new PreSharedKeyIdentity("client_identity"));
 		return session;
 	}
@@ -305,8 +305,8 @@ public class DTLSSessionTest {
 			macKey = new SecretKeySpec(getRandomBytes(cipherSuite.getMacKeyLength()), "AES");
 		}
 		SecretKey encryptionKey = new SecretKeySpec(getRandomBytes(cipherSuite.getEncKeyLength()), "AES");
-		IvParameterSpec iv = new IvParameterSpec(getRandomBytes(cipherSuite.getFixedIvLength()));
-		return new DTLSConnectionState(cipherSuite, CompressionMethod.NULL, encryptionKey, iv, macKey);
+		SecretIvParameterSpec iv = new SecretIvParameterSpec(getRandomBytes(cipherSuite.getFixedIvLength()));
+		return DTLSConnectionState.create(cipherSuite, CompressionMethod.NULL, encryptionKey, iv, macKey);
 	}
 
 	private static byte[] getRandomBytes(int length) {
@@ -316,10 +316,14 @@ public class DTLSSessionTest {
 	}
 	
 	private static SessionTicket serialize(SessionTicket ticket) {
-		DatagramWriter writer = new DatagramWriter();
+		DatagramWriter writer = new DatagramWriter(true);
 		ticket.encode(writer);
-		DatagramReader reader = new DatagramReader(writer.toByteArray());
-		return SessionTicket.decode(reader);
+		byte[] ticketBytes = writer.toByteArray();
+		DatagramReader reader = new DatagramReader(ticketBytes);
+		SessionTicket result = SessionTicket.decode(reader);
+		Bytes.clear(ticketBytes);
+		writer.close();
+		return result;
 	}
 
 }

@@ -27,6 +27,7 @@ import java.security.cert.Certificate;
 import java.util.List;
 import java.util.Map;
 
+import javax.crypto.SecretKey;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSessionContext;
 
@@ -48,6 +49,7 @@ import org.eclipse.californium.scandium.dtls.MultiNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.StringPskStore;
+import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
@@ -115,11 +117,11 @@ public abstract class AbstractTestServer extends CoapServer {
 	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
 	private static final String SERVER_NAME = "server";
 	private static final String PSK_IDENTITY_PREFIX = "cali.";
-	private static final byte[] PSK_SECRET = ".fornium".getBytes();
+	private static final SecretKey PSK_SECRET = SecretUtil.create(".fornium".getBytes(), "PSK");
 
 	// from ETSI Plugtest test spec
 	public static final String ETSI_PSK_IDENTITY = "password";
-	public static final byte[] ETSI_PSK_SECRET = "sesame".getBytes();
+	public static final SecretKey ETSI_PSK_SECRET = SecretUtil.create("sesame".getBytes(), "PSK");
 
 	private final NetworkConfig config;
 	private final Map<Select, NetworkConfig> selectConfig;
@@ -326,18 +328,18 @@ public abstract class AbstractTestServer extends CoapServer {
 	private static class PlugPskStore extends StringPskStore {
 
 		@Override
-		public byte[] getKey(String identity) {
+		public SecretKey getKey(String identity) {
 			if (identity.startsWith(PSK_IDENTITY_PREFIX)) {
-				return PSK_SECRET;
+				return SecretUtil.create(PSK_SECRET);
 			}
 			if (identity.equals(ETSI_PSK_IDENTITY)) {
-				return ETSI_PSK_SECRET;
+				return SecretUtil.create(ETSI_PSK_SECRET);
 			}
 			return null;
 		}
 
 		@Override
-		public byte[] getKey(ServerNames serverNames, String identity) {
+		public SecretKey getKey(ServerNames serverNames, String identity) {
 			return getKey(identity);
 		}
 

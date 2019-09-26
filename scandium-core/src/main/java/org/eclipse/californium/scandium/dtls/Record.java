@@ -32,16 +32,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import javax.crypto.SecretKey;
 
-import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.cipher.AeadBlockCipher;
-import org.eclipse.californium.scandium.dtls.cipher.CbcBlockCipher;
 import org.eclipse.californium.scandium.dtls.cipher.InvalidMacException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -407,293 +402,6 @@ public class Record {
 		return records;
 	}
 
-	// Cryptography /////////////////////////////////////////////////////////
-
-	/**
-	 * Encrypts a TLSPlaintext.fragment according to the <em>current</em> DTLS connection state.
-	 * 
-	 * @param plaintextFragment
-	 *            the TLSPlaintext.fragment to encrypt
-	 * @return the (encrypted) TLSCiphertext.fragment
-	 * @throws GeneralSecurityException if the plaintext could not be encrypted, e.g.
-	 *            because the JVM does not support the negotiated cipher suite's cipher algorithm
-	 */
-	private byte[] encryptFragment(byte[] plaintextFragment) throws GeneralSecurityException {
-
-		if (epoch == 0) {
-			return plaintextFragment;
-		}
-
-		byte[] encryptedFragment = plaintextFragment;
-
-		CipherSuite cipherSuite = outgoingWriteState.getCipherSuite();
-		LOGGER.trace("Encrypting record fragment using current write state{}{}", StringUtil.lineSeparator(), outgoingWriteState);
-
-		switch (cipherSuite.getCipherType()) {
-		case NULL:
-			// do nothing
-			break;
-			
-		case AEAD:
-			encryptedFragment = encryptAEAD(plaintextFragment);
-			break;
-			
-		case BLOCK:
-			encryptedFragment = encryptBlockCipher(plaintextFragment);
-			break;
-			
-		case STREAM:
-			// Currently, Scandium does not support any stream ciphers
-			// RC4 is explicitly ruled out from being used in DTLS
-			// see http://tools.ietf.org/html/rfc6347#section-4.1.2.2
-			break;
-
-		default:
-			break;
-		}
-
-		return encryptedFragment;
-	}
-
-	/**
-	 * Decrypts a TLSCiphertext.fragment according to the <em>current</em> DTLS connection state.
-	 * 
-	 * So, potentially no decryption takes place at all.
-	 * 
-	 * @param ciphertextFragment
-	 *            the TLSCiphertext.fragment to decrypt
-	 * @return the (de-crypted) TLSPlaintext.fragment
-	 * @throws GeneralSecurityException
-	 *             if de-cryption fails, e.g. because the MAC could not be validated.
-	 */
-	private byte[] decryptFragment(byte[] ciphertextFragment) throws GeneralSecurityException {
-		if (epoch == 0) {
-			return ciphertextFragment;
-		}
-
-		byte[] result = ciphertextFragment;
-
-		CipherSuite cipherSuite = incomingReadState.getCipherSuite();
-		LOGGER.trace("Decrypting record fragment using current read state{}{}", StringUtil.lineSeparator(), incomingReadState);
-
-		switch (cipherSuite.getCipherType()) {
-		case NULL:
-			// do nothing
-			break;
-
-		case AEAD:
-			result = decryptAEAD(ciphertextFragment);
-			break;
-
-		case BLOCK:
-			result = decryptBlockCipher(ciphertextFragment);
-			break;
-
-		case STREAM:
-			// Currently, Scandium does not support any stream ciphers
-			// RC4 is explicitly ruled out from being used in DTLS
-			// see http://tools.ietf.org/html/rfc6347#section-4.1.2.2
-			break;
-
-		default:
-			break;
-		}
-
-		return result;
-	}
-
-	// Block Cipher Cryptography //////////////////////////////////////
-
-	/**
-	 * Converts a given TLSCompressed.fragment to a
-	 * TLSCiphertext.fragment structure as defined by
-	 * <a href="http://tools.ietf.org/html/rfc5246#section-6.2.3.2">
-	 * RFC 5246, section 6.2.3.2</a>
-	 * 
-	 * <pre>
-	 * struct {
-	 *    opaque IV[SecurityParameters.record_iv_length];
-	 *    block-ciphered struct {
-	 *       opaque content[TLSCompressed.length];
-	 *       opaque MAC[SecurityParameters.mac_length];
-	 *       uint8 padding[GenericBlockCipher.padding_length];
-	 *       uint8 padding_length;
-	 *    };
-	 * } GenericBlockCipher;
-	 * </pre>
-	 * 
-	 * The particular cipher to use is determined from the negotiated
-	 * cipher suite in the <em>current</em> DTLS connection state.
-	 *  
-	 * @param compressedFragment the TLSCompressed.fragment
-	 * @return the TLSCiphertext.fragment
-	 * @throws GeneralSecurityException if the JVM does not support the negotiated block cipher
-	 */
-	private byte[] encryptBlockCipher(byte[] compressedFragment) throws GeneralSecurityException {
-		/*
-		 * See http://tools.ietf.org/html/rfc5246#section-6.2.3.2 for
-		 * explanation
-		 */
-		// additional data for  MAC
-		byte[] additionalData = generateAdditionalData(compressedFragment.length);
-		return CbcBlockCipher.encrypt(outgoingWriteState.getCipherSuite(), outgoingWriteState.getEncryptionKey(), outgoingWriteState.getMacKey(), additionalData, compressedFragment);
-	}
-
-	/**
-	 * Converts a given TLSCiphertext.fragment to a TLSCompressed.fragment
-	 * structure as defined by
-	 * <a href="http://tools.ietf.org/html/rfc5246#section-6.2.3.2"> RFC 5246,
-	 * section 6.2.3.2</a>:
-	 * 
-	 * <pre>
-	 * struct {
-	 *    opaque IV[SecurityParameters.record_iv_length];
-	 *    block-ciphered struct {
-	 *       opaque content[TLSCompressed.length];
-	 *       opaque MAC[SecurityParameters.mac_length];
-	 *       uint8 padding[GenericBlockCipher.padding_length];
-	 *       uint8 padding_length;
-	 *    };
-	 * } GenericBlockCipher;
-	 * </pre>
-	 * 
-	 * The particular cipher to use is determined from the negotiated
-	 * cipher suite in the <em>current</em> DTLS connection state.
-	 * 
-	 * @param ciphertextFragment the TLSCiphertext.fragment
-	 * @return the TLSCompressed.fragment
-	 * @throws NullPointerException if the given ciphertext or encryption params
-	 *             is {@code null}
-	 * @throws InvalidMacException if message authentication failed
-	 * @throws GeneralSecurityException if the ciphertext could not be
-	 *             decrpyted, e.g. because the JVM does not support the
-	 *             negotiated block cipher
-	 * @see CbcBlockCipher#decrypt(CipherSuite, SecretKey, SecretKey, byte[],
-	 *      byte[])
-	 */
-	private byte[] decryptBlockCipher(byte[] ciphertextFragment) throws GeneralSecurityException {
-		if (ciphertextFragment == null) {
-			throw new NullPointerException("Ciphertext must not be null");
-		} else if (ciphertextFragment.length % incomingReadState.getRecordIvLength() != 0) {
-			throw new GeneralSecurityException("Ciphertext doesn't fit block size!");
-		} else if (ciphertextFragment.length < incomingReadState.getRecordIvLength() + incomingReadState.getMacLength()
-				+ 1) {
-			throw new GeneralSecurityException("Ciphertext too short!");
-		}
-		/*
-		 * See http://tools.ietf.org/html/rfc5246#section-6.2.3.2 for
-		 * explanation
-		 */
-		// additional data for MAC, use length 0 and overwrite it after decryption
-		byte[] additionalData = generateAdditionalData(0);
-		return CbcBlockCipher.decrypt(incomingReadState.getCipherSuite(), incomingReadState.getEncryptionKey(), incomingReadState.getMacKey(), additionalData, ciphertextFragment);
-	}
-
-	// AEAD Cryptography //////////////////////////////////////////////
-
-	protected byte[] encryptAEAD(byte[] byteArray) throws GeneralSecurityException {
-		/*
-		 * See http://tools.ietf.org/html/rfc5246#section-6.2.3.3 for
-		 * explanation of additional data or
-		 * http://tools.ietf.org/html/rfc5116#section-2.1
-		 */
-		byte[] iv = outgoingWriteState.getIv().getIV();
-		byte[] explicitNonce = generateExplicitNonce();
-		/*
-		 * http://tools.ietf.org/html/draft-mcgrew-tls-aes-ccm-ecc-03#section-2:
-		 * 
-		 * <pre>
-		 * struct {
-		 *   case client:
-		 *     uint32 client_write_IV;  // low order 32-bits
-		 *   case server:
-		 *     uint32 server_write_IV;  // low order 32-bits
-		 *  uint64 seq_num;
-		 * } CCMNonce.
-		 * </pre>
-		 * 
-		 * @param iv
-		 *            the write IV (either client or server).
-		 * @return the 12 bytes nonce.
-		 */
-		byte[] nonce = Bytes.concatenate(iv, explicitNonce);
-		byte[] additionalData = generateAdditionalData(byteArray.length);
-		SecretKey key = outgoingWriteState.getEncryptionKey();
-
-		if (LOGGER.isTraceEnabled()) {
-			LOGGER.trace("encrypt: {} bytes", byteArray.length);
-			LOGGER.trace("nonce: {}", StringUtil.byteArray2HexString(nonce));
-			LOGGER.trace("adata: {}", StringUtil.byteArray2HexString(additionalData));
-		}
-		byte[] encryptedFragment = AeadBlockCipher.encrypt(outgoingWriteState.getCipherSuite(), key, nonce, additionalData, byteArray);
-		/*
-		 * Prepend the explicit nonce as specified in
-		 * http://tools.ietf.org/html/rfc5246#section-6.2.3.3 and
-		 * http://tools.ietf.org/html/draft-mcgrew-tls-aes-ccm-04#section-3
-		 */
-		encryptedFragment = Bytes.concatenate(explicitNonce, encryptedFragment);
-		LOGGER.trace("==> {} bytes", encryptedFragment.length);
-
-		return encryptedFragment;
-	}
-
-	/**
-	 * Decrypts the given byte array using a AEAD cipher.
-	 * 
-	 * @param byteArray the ciphertext to be decrypted
-	 * @param currentReadState the encryption parameters to use
-	 * @return the decrypted message
-	 * @throws NullPointerException if the given ciphertext or encryption params is <code>null</code>
-	 * @throws InvalidMacException if message authentication failed
-	 * @throws GeneralSecurityException if de-cryption failed
-	 */
-	protected byte[] decryptAEAD(byte[] byteArray) throws GeneralSecurityException {
-		if (byteArray == null) {
-			throw new NullPointerException("Ciphertext must not be null");
-		} else if (byteArray.length < incomingReadState.getRecordIvLength() + incomingReadState.getMacLength()) {
-			throw new GeneralSecurityException("Ciphertext too short!");
-		}
-		CipherSuite cipherSuite = incomingReadState.getCipherSuite();
-		// the "implicit" part of the nonce is the salt as exchanged during the session establishment
-		byte[] iv = incomingReadState.getIv().getIV();
-		// the symmetric key exchanged during the DTLS handshake
-		SecretKey key = incomingReadState.getEncryptionKey();
-		/*
-		 * See http://tools.ietf.org/html/rfc5246#section-6.2.3.3 and
-		 * http://tools.ietf.org/html/rfc5116#section-2.1 for an
-		 * explanation of "additional data" and its structure
-		 * 
-		 * The decrypted message is always 16 bytes shorter than the cipher (8
-		 * for the authentication tag and 8 for the explicit nonce).
-		 */
-		int applicationDataLength = byteArray.length - cipherSuite.getRecordIvLength() - cipherSuite.getMacLength();
-		byte[] additionalData = generateAdditionalData(applicationDataLength);
-
-		DatagramReader reader = new DatagramReader(byteArray);
-	
-		// retrieve actual explicit nonce as contained in GenericAEADCipher struct (8 bytes long)
-		byte[] explicitNonceUsed = reader.readBytes(cipherSuite.getRecordIvLength());
-
-		byte[] nonce = Bytes.concatenate(iv, explicitNonceUsed);
-		if (LOGGER.isTraceEnabled()) {
-			LOGGER.trace("decrypt: {} bytes", applicationDataLength);
-			LOGGER.trace("nonce: {}", StringUtil.byteArray2HexString(nonce));
-			LOGGER.trace("adata: {}", StringUtil.byteArray2HexString(additionalData));
-		}
-		if (LOGGER.isDebugEnabled() && AeadBlockCipher.AES_CCM.equals(cipherSuite.getTransformation())) {
-			// create explicit nonce from values provided in DTLS record 
-			byte[] explicitNonce = generateExplicitNonce();
-			// retrieve actual explicit nonce as contained in GenericAEADCipher struct (8 bytes long)
-			if ( !Arrays.equals(explicitNonce, explicitNonceUsed)) {
-				StringBuilder b = new StringBuilder("The explicit nonce used by the sender does not match the values provided in the DTLS record");
-				b.append(StringUtil.lineSeparator()).append("Used    : ").append(StringUtil.byteArray2HexString(explicitNonceUsed));
-				b.append(StringUtil.lineSeparator()).append("Expected: ").append(StringUtil.byteArray2HexString(explicitNonce));
-				LOGGER.debug(b.toString());
-			}
-		}
-		return AeadBlockCipher.decrypt(cipherSuite, key, nonce, additionalData, reader.readBytesLeft());
-	}
-
 	// Cryptography Helper Methods ////////////////////////////////////
 
 	/**
@@ -705,7 +413,7 @@ public class Record {
 	 * 
 	 * @return the 64-bit explicit nonce constructed from the epoch and sequence number
 	 */
-	private byte[] generateExplicitNonce() {
+	protected byte[] generateExplicitNonce() {
 		
 		//TODO: re-factor to use simple byte array manipulation instead of using bit-based DatagramWriter
 		DatagramWriter writer = new DatagramWriter();
@@ -739,7 +447,7 @@ public class Record {
 	 * 
 	 * @return the additional authentication data.
 	 */
-	private byte[] generateAdditionalData(int length) {
+	protected byte[] generateAdditionalData(int length) {
 		DatagramWriter writer = new DatagramWriter();
 		
 		writer.write(epoch, EPOCH_BITS);
@@ -966,7 +674,7 @@ public class Record {
 			throws GeneralSecurityException, HandshakeException {
 		ContentType actualType = type;
 		// decide, which type of fragment need de-cryption
-		byte[] decryptedMessage = decryptFragment(fragmentBytes);
+		byte[] decryptedMessage = incomingReadState.decrypt(this, fragmentBytes);
 
 		if (ContentType.TLS12_CID == type) {
 			int index = decryptedMessage.length - 1;
@@ -1058,7 +766,7 @@ public class Record {
 			byteArray = Arrays.copyOf(byteArray, index + 1 + padding);
 			byteArray[index] = (byte) type.getCode();
 		}
-		this.fragmentBytes = encryptFragment(byteArray);
+		this.fragmentBytes = outgoingWriteState.encrypt(this, byteArray);
 		this.fragment = fragment;
 	}
 

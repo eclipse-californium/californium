@@ -21,9 +21,10 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
-import java.util.Arrays;
+import java.security.MessageDigest;
 
 import javax.crypto.Mac;
+import javax.crypto.SecretKey;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -71,9 +72,9 @@ public final class Finished extends HandshakeMessage {
 	 * @param peerAddress the IP address and port of the peer this
 	 *            message has been received from or should be sent to
 	 */
-	public Finished(Mac hmac, byte[] masterSecret, boolean isClient, byte[] handshakeHash, InetSocketAddress peerAddress) {
+	public Finished(Mac hmac, SecretKey masterSecret, boolean isClient, byte[] handshakeHash, InetSocketAddress peerAddress) {
 		super(peerAddress);
-		verifyData = getVerifyData(hmac, masterSecret, isClient, handshakeHash);
+		verifyData = generateVerifyData(hmac, masterSecret, isClient, handshakeHash);
 	}
 
 	/**
@@ -107,11 +108,11 @@ public final class Finished extends HandshakeMessage {
 	 *            the handshake hash.
 	 * @throws HandshakeException if the data can not be verified.
 	 */
-	public void verifyData(Mac hmac, byte[] masterSecret, boolean isClient, byte[] handshakeHash) throws HandshakeException {
+	public void verifyData(Mac hmac, SecretKey masterSecret, boolean isClient, byte[] handshakeHash) throws HandshakeException {
 
-		byte[] myVerifyData = getVerifyData(hmac, masterSecret, isClient, handshakeHash);
+		byte[] myVerifyData = generateVerifyData(hmac, masterSecret, isClient, handshakeHash);
 
-		if (!Arrays.equals(myVerifyData, verifyData)) {
+		if (!MessageDigest.isEqual(myVerifyData, verifyData)) {
 			StringBuilder msg = new StringBuilder("Verification of peer's [").append(getPeer())
 					.append("] FINISHED message failed");
 			if (LOG.isTraceEnabled()) {
@@ -124,7 +125,7 @@ public final class Finished extends HandshakeMessage {
 		}
 	}
 
-	private byte[] getVerifyData(Mac hmac, byte[] masterSecret, boolean isClient, byte[] handshakeHash) {
+	private byte[] generateVerifyData(Mac hmac, SecretKey masterSecret, boolean isClient, byte[] handshakeHash) {
 
 		// See http://tools.ietf.org/html/rfc5246#section-7.4.9:
 		// verify_data = PRF(master_secret, finished_label, Hash(handshake_messages)) [0..verify_data_length-1]

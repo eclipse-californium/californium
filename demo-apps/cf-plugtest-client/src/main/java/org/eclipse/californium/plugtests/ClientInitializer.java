@@ -28,6 +28,7 @@ import java.security.cert.Certificate;
 import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
 
+import javax.crypto.SecretKey;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSessionContext;
 
@@ -48,6 +49,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.pskstore.StringPskStore;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
+import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,7 +68,7 @@ public class ClientInitializer {
 	private static final char[] TRUST_STORE_PASSWORD = "rootPass".toCharArray();
 	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
 	private static final String CLIENT_NAME = "client";
-	private static final byte[] PSK_SECRET = ".fornium".getBytes();
+	private static final SecretKey PSK_SECRET = SecretUtil.create(".fornium".getBytes(), "PSK");
 
 	/**
 	 * Initialize client.
@@ -249,11 +251,11 @@ public class ClientInitializer {
 	public static class PlugPskStore extends StringPskStore {
 
 		private final String identity;
-		private final byte[] secret;
+		private final SecretKey secret;
 
 		public PlugPskStore(String id, byte[] secret) {
 			this.identity = id;
-			this.secret = secret;
+			this.secret = secret == null ? null : SecretUtil.create(secret, "PSK");
 			LOGGER.trace("DTLS-PSK-Identity: {}", identity);
 		}
 
@@ -264,18 +266,18 @@ public class ClientInitializer {
 		}
 
 		@Override
-		public byte[] getKey(String identity) {
+		public SecretKey getKey(String identity) {
 			if (secret != null) {
-				return secret;
+				return SecretUtil.create(secret);
 			}
 			if (identity.startsWith(PSK_IDENTITY_PREFIX)) {
-				return PSK_SECRET;
+				return SecretUtil.create(PSK_SECRET);
 			}
 			return null;
 		}
 
 		@Override
-		public byte[] getKey(ServerNames serverNames, String identity) {
+		public SecretKey getKey(ServerNames serverNames, String identity) {
 			return getKey(identity);
 		}
 
