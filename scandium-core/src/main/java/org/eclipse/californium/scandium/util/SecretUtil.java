@@ -1,0 +1,272 @@
+/*******************************************************************************
+ * Copyright (c) 2019 Bosch Software Innovations GmbH and others.
+ *
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * and Eclipse Distribution License v1.0 which accompany this distribution.
+ *
+ * The Eclipse Public License is available at
+ *    http://www.eclipse.org/legal/epl-v10.html
+ * and the Eclipse Distribution License is available at
+ *    http://www.eclipse.org/org/documents/edl-v10.html.
+ *
+ * Contributors:
+ *    Bosch Software Innovations GmbH - initial implementation
+ ******************************************************************************/
+package org.eclipse.californium.scandium.util;
+
+import java.security.MessageDigest;
+import java.security.spec.KeySpec;
+import java.util.Arrays;
+
+import javax.crypto.SecretKey;
+import javax.security.auth.DestroyFailedException;
+import javax.security.auth.Destroyable;
+
+import org.eclipse.californium.elements.util.Bytes;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Utility to use {@link Destroyable} {@link SecretKey} for java before 1.8.
+ */
+public class SecretUtil {
+	private static final Logger LOGGER = LoggerFactory.getLogger(SecretUtil.class.getCanonicalName());
+
+	/**
+	 * Destroy secret key.
+	 * 
+	 * @param key secret key to destroy. If {@code null}, nothing is destroyed.
+	 */
+	public static void destroy(SecretKey key) {
+		if (key instanceof Destroyable) {
+			destroy((Destroyable) key);
+		}
+	}
+
+	/**
+	 * Destroy provided security destroyable.
+	 * 
+	 * @param destroyable object to destroy. Maybe {@code null}.
+	 */
+	public static void destroy(Destroyable destroyable) {
+		if (destroyable != null) {
+			try {
+				destroyable.destroy();
+			} catch (DestroyFailedException e) {
+				// Using SecretIvParameterSpec or SecretKey created by this class
+				// should never throw whit. Using other Destroyable implementations
+				// may throw it.
+				LOGGER.warn("Destroy on {} failed!", destroyable.getClass(), e);
+			}
+		}
+	}
+
+	/**
+	 * Check, if secret key was destroyed.
+	 * 
+	 * @param key secret key to check. If {@code null}, {@code true} is returned.
+	 */
+	public static boolean isDestroyed(SecretKey key) {
+		if (key != null) {
+			if (key instanceof Destroyable) {
+				return ((Destroyable) key).isDestroyed();
+			} else {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * Check, if destroyable was destroyed.
+	 * 
+	 * @param destroyable destroyable to check. If {@code null}, {@code true} is returned.
+	 */
+	public static boolean isDestroyed(Destroyable destroyable) {
+		return destroyable == null || destroyable.isDestroyed();
+	}
+
+	/**
+	 * Create secret key (with destroyable implementation).
+	 * 
+	 * @param secret secret as byte array
+	 * @param algorithm algorithm the secret key is used for.
+	 * @return the secreate key
+	 */
+	public static SecretKey create(byte[] secret, String algorithm) {
+		return new DestroyableSecretKeySpec(secret, algorithm);
+	}
+
+	/**
+	 * Create secret key (with destroyable implementation).
+	 * 
+	 * @param secret secret as byte array
+	 * @param offset offset of secret within the provided byte array
+	 * @param length length of secret
+	 * @param algorithm algorithm the secret key is used for.
+	 * @return the secreate key
+	 */
+	public static SecretKey create(byte[] secret, int offset, int length, String algorithm) {
+		return new DestroyableSecretKeySpec(secret, offset, length, algorithm);
+	}
+
+	/**
+	 * Create a copy destroyable of the provided secret key.
+	 * 
+	 * @param key key to create copy.
+	 * @return secret key, or {@code null}, if provided key was {@code null}
+	 */
+	public static SecretKey create(SecretKey key) {
+		SecretKey result = null;
+		if (key != null) {
+			byte[] secret = key.getEncoded();
+			result = new DestroyableSecretKeySpec(secret, key.getAlgorithm());
+			Bytes.clear(secret);
+		}
+		return result;
+	}
+
+	/**
+	 * Create a copy destroyable of the provided secret key.
+	 * 
+	 * @param key key to create copy.
+	 * @return secret key, or {@code null}, if provided key was {@code null}
+	 */
+	public static SecretIvParameterSpec createIv(SecretIvParameterSpec iv) {
+		SecretIvParameterSpec result = null;
+		if (iv != null) {
+			byte[] secret = iv.getIV();
+			result = new SecretIvParameterSpec(secret, 0, secret.length);
+			Bytes.clear(secret);
+		}
+		return result;
+	}
+
+	/**
+	 * Create secret iv paramter (with destroyable implementation).
+	 * 
+	 * @param iv as byte array
+	 * @param offset offset of iv within the provided byte array
+	 * @param length length of iv
+	 * @return the secreate iv
+	 * @throws NullPointerException if iv is {@code null}
+	 * @throws IllegalArgumentException if iv is empty, or len is negative or
+	 *             offset and length doesn't fit into iv.
+	 */
+	public static SecretIvParameterSpec createIv(byte[] iv, int offset, int length) {
+		return new SecretIvParameterSpec(iv, offset, length);
+	}
+
+	private static class DestroyableSecretKeySpec implements KeySpec, SecretKey, Destroyable {
+
+		private static final long serialVersionUID = 6578238307397289933L;
+
+		private final int hashCode;
+		/**
+		 * The secret key.
+		 *
+		 * @serial
+		 */
+		private final byte[] key;
+
+		/**
+		 * The name of the algorithm associated with this key.
+		 *
+		 * @serial
+		 */
+		private final String algorithm;
+		/**
+		 * Indicates, that this instance has been {@link #destroy()}ed.
+		 */
+		private boolean destroyed;
+
+		public DestroyableSecretKeySpec(byte[] key, String algorithm) {
+			this(key, 0, key == null ? 0 : key.length, algorithm);
+		}
+
+		public DestroyableSecretKeySpec(byte[] key, int offset, int len, String algorithm) {
+			if (key == null) {
+				throw new NullPointerException("Key missing");
+			}
+			if (algorithm == null) {
+				throw new NullPointerException("Algorithm missing");
+			}
+			if (key.length == 0) {
+				throw new IllegalArgumentException("Empty key");
+			}
+			if (key.length - offset < len) {
+				throw new IllegalArgumentException("Invalid offset/length combination");
+			}
+			if (len < 0) {
+				throw new ArrayIndexOutOfBoundsException("len is negative");
+			}
+			this.key = Arrays.copyOfRange(key, offset, offset + len);
+			this.algorithm = algorithm;
+			this.hashCode = calcHashCode();
+		}
+
+		private int calcHashCode() {
+			return hashCode;
+		}
+
+		@Override
+		public String getAlgorithm() {
+			return algorithm;
+		}
+
+		@Override
+		public String getFormat() {
+			return "RAW";
+		}
+
+		@Override
+		public byte[] getEncoded() {
+			if (destroyed) {
+				throw new IllegalStateException("secret destroyed!");
+			}
+			return key.clone();
+		}
+
+		@Override
+		public int hashCode() {
+			return hashCode;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj) {
+				return true;
+			} else if (!(obj instanceof SecretKey)) {
+				return false;
+			}
+			SecretKey other = (SecretKey) obj;
+			if (!algorithm.equalsIgnoreCase(other.getAlgorithm())) {
+				return false;
+			}
+			if (destroyed) {
+				throw new IllegalStateException("secret destroyed!");
+			}
+			byte[] otherKey = other.getEncoded();
+			boolean result = MessageDigest.isEqual(key, otherKey);
+			Bytes.clear(otherKey);
+			return result;
+		}
+
+		/**
+		 * Destroy key material! {@link #equals(Object)} and {@link #hashCode}
+		 * must not be used after the key is destroyed!
+		 */
+		@Override
+		public void destroy() throws DestroyFailedException {
+			Bytes.clear(key);
+			destroyed = true;
+		}
+
+		@Override
+		public boolean isDestroyed() {
+			return destroyed;
+		}
+	}
+
+}

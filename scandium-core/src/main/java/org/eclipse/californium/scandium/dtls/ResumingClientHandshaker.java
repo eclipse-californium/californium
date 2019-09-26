@@ -165,7 +165,8 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 				}
 			}
 			expectChangeCipherSpecMessage();
-			calculateKeys(session.getMasterSecret());
+			masterSecret = session.getMasterSecret();
+			calculateKeys(masterSecret);
 		}
 	}
 
@@ -203,15 +204,15 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 
 		// the handshake hash to check the server's verify_data (without the
 		// server's finished message included)
-		message.verifyData(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), session.getMasterSecret(), false, md.digest());
-		
+		message.verifyData(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, false, md.digest());
+
 		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage(message.getPeer());
 		wrapMessage(flight, changeCipherSpecMessage);
 		setCurrentWriteState();
 
 		mdWithServerFinish.update(message.getRawMessage());
 		handshakeHash = mdWithServerFinish.digest();
-		Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), session.getMasterSecret(), isClient, handshakeHash, message.getPeer());
+		Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, isClient, handshakeHash, message.getPeer());
 		wrapMessage(flight, finished);
 		sendLastFlight(flight);
 		sessionEstablished();

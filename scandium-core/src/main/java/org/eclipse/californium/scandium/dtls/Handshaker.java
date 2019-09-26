@@ -76,8 +76,8 @@ import java.util.TreeSet;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.crypto.SecretKey;
-import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
+import javax.security.auth.DestroyFailedException;
+import javax.security.auth.Destroyable;
 
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.auth.AdditionalInfo;
@@ -99,6 +99,8 @@ import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
 import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
+import org.eclipse.californium.scandium.util.SecretIvParameterSpec;
+import org.eclipse.californium.scandium.util.SecretUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -107,7 +109,7 @@ import org.slf4j.LoggerFactory;
  * 
  * Contains all functionality and fields needed by all types of handshakers.
  */
-public abstract class Handshaker {
+public abstract class Handshaker implements Destroyable {
 
 	protected final Logger LOGGER = LoggerFactory.getLogger(getClass().getName());
 
@@ -124,14 +126,20 @@ public abstract class Handshaker {
 	/** The helper class to execute the ECDHE key agreement and key generation. */
 	protected ECDHECryptography ecdhe;
 
+	/**
+	 * The master secret for this handshake.
+	 */
+	protected SecretKey masterSecret;
 	private SecretKey clientWriteMACKey;
 	private SecretKey serverWriteMACKey;
 
-	private IvParameterSpec clientWriteIV;
-	private IvParameterSpec serverWriteIV;
-
 	private SecretKey clientWriteKey;
 	private SecretKey serverWriteKey;
+
+	private SecretIvParameterSpec clientWriteIV;
+	private SecretIvParameterSpec serverWriteIV;
+
+	private boolean destroyed;
 
 	protected final DTLSSession session;
 	/**
@@ -726,22 +734,24 @@ public abstract class Handshaker {
 	}
 
 	/**
-	 * First, generates the master secret from the given premaster secret, set
-	 * it in {@link #session}, and then applying the key expansion on the master
-	 * secret generates a large enough key block to generate the write, MAC and
-	 * IV keys.
+	 * Generates the master secret from the given premaster secret. Applying the
+	 * key expansion on the master secret generates a large key block to
+	 * generate the encryption, MAC and IV keys. Also set the master secret to
+	 * the session for resumption handshakes.
 	 * 
 	 * See <a href="http://tools.ietf.org/html/rfc5246#section-6.3">RFC5246</a>
 	 * for further details about the keys.
 	 * 
-	 * @param premasterSecret
-	 *            the shared premaster secret.
+	 * @param premasterSecret the shared premaster secret.
+	 * @see #masterSecret
 	 */
-	protected final void generateKeys(byte[] premasterSecret) {
-		byte[] masterSecret = generateMasterSecret(premasterSecret);
-		session.setMasterSecret(masterSecret);
-
+	protected final void generateKeys(SecretKey premasterSecret) {
+		if (destroyed) {
+			throw new IllegalStateException("secrets destroyed!");
+		}
+		masterSecret = generateMasterSecret(premasterSecret);
 		calculateKeys(masterSecret);
+		session.setMasterSecret(masterSecret);
 	}
 
 	/**
@@ -751,7 +761,10 @@ public abstract class Handshaker {
 	 * @param masterSecret
 	 *            the master secret.
 	 */
-	protected void calculateKeys(byte[] masterSecret) {
+	protected void calculateKeys(SecretKey masterSecret) {
+		if (destroyed) {
+			throw new IllegalStateException("secrets destroyed!");
+		}
 		/*
 		 * Create keys as suggested in
 		 * http://tools.ietf.org/html/rfc5246#section-6.3:
@@ -776,21 +789,23 @@ public abstract class Handshaker {
 
 		int index = 0;
 		int length = macKeyLength;
-		clientWriteMACKey = new SecretKeySpec(data, index, length, "Mac");
+		clientWriteMACKey = SecretUtil.create(data, index, length, "Mac");
 		index += length;
-		serverWriteMACKey = new SecretKeySpec(data, index, length, "Mac");
+		serverWriteMACKey = SecretUtil.create(data, index, length, "Mac");
 		index += length;
 
 		length = encKeyLength;
-		clientWriteKey = new SecretKeySpec(data, index, length, "AES");
+		clientWriteKey = SecretUtil.create(data, index, length, "AES");
 		index += length;
-		serverWriteKey = new SecretKeySpec(data, index, length, "AES");
+		serverWriteKey = SecretUtil.create(data, index, length, "AES");
 		index += length;
 
 		length = fixedIvLength;
-		clientWriteIV = new IvParameterSpec(data, index, length);
+		clientWriteIV = SecretUtil.createIv(data, index, length);
 		index += length;
-		serverWriteIV = new IvParameterSpec(data, index, length);
+		serverWriteIV = SecretUtil.createIv(data, index, length);
+
+		Bytes.clear(data);
 	}
 
 	/**
@@ -807,10 +822,13 @@ public abstract class Handshaker {
 	 *            the shared premaster secret.
 	 * @return the master secret.
 	 */
-	private byte[] generateMasterSecret(byte[] premasterSecret) {
+	private SecretKey generateMasterSecret(SecretKey premasterSecret) {
 		byte[] randomSeed = Bytes.concatenate(clientRandom, serverRandom);
-		return PseudoRandomFunction.doPRF(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), premasterSecret,
-				Label.MASTER_SECRET_LABEL, randomSeed);
+		byte[] secret = PseudoRandomFunction.doPRF(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(),
+				premasterSecret, Label.MASTER_SECRET_LABEL, randomSeed);
+		SecretKey masterSecret = SecretUtil.create(secret, "MAC");
+		Bytes.clear(secret);
+		return masterSecret;
 	}
 
 	/**
@@ -824,28 +842,34 @@ public abstract class Handshaker {
 	 * @see <a href="http://tools.ietf.org/html/rfc4279#section-2">RFC 4279</a>
 	 * @return byte array with generated premaster secret.
 	 */
-	protected final byte[] generatePremasterSecretFromPSK(byte[] psk, byte[] otherSecret) {
+	protected final SecretKey generatePremasterSecretFromPSK(SecretKey psk, SecretKey otherSecret) {
 		/*
 		 * What we are building is the following with length fields in between:
 		 * struct { opaque other_secret<0..2^16-1>; opaque psk<0..2^16-1>; };
 		 */
-		int pskLength = psk.length;
-
-		byte[] other = otherSecret == null ? new byte[pskLength] : otherSecret;
-		DatagramWriter writer = new DatagramWriter();
-		writer.write(other.length, 16);
-		writer.writeBytes(other);
+		byte[] pskBytes = psk.getEncoded();
+		int pskLength = pskBytes.length;
+		byte[] otherBytes = otherSecret != null ? otherSecret.getEncoded() : new byte[pskLength];
+		DatagramWriter writer = new DatagramWriter(true);
+		writer.write(otherBytes.length, 16);
+		writer.writeBytes(otherBytes);
 		writer.write(pskLength, 16);
-		writer.writeBytes(psk);
-		return writer.toByteArray();
+		writer.writeBytes(pskBytes);
+		byte[] secret = writer.toByteArray();
+		writer.close();
+		SecretKey premaster =  SecretUtil.create(secret, "MAC");
+		Bytes.clear(pskBytes);
+		Bytes.clear(otherBytes);
+		Bytes.clear(secret);
+		return premaster;
 	}
 
 	protected final void setCurrentReadState() {
 		DTLSConnectionState connectionState;
 		if (isClient) {
-			connectionState = new DTLSConnectionState(session.getCipherSuite(), session.getCompressionMethod(), serverWriteKey, serverWriteIV, serverWriteMACKey);
+			connectionState = DTLSConnectionState.create(session.getCipherSuite(), session.getCompressionMethod(), serverWriteKey, serverWriteIV, serverWriteMACKey);
 		} else {
-			connectionState = new DTLSConnectionState(session.getCipherSuite(), session.getCompressionMethod(), clientWriteKey, clientWriteIV, clientWriteMACKey);
+			connectionState = DTLSConnectionState.create(session.getCipherSuite(), session.getCompressionMethod(), clientWriteKey, clientWriteIV, clientWriteMACKey);
 		}
 		session.setReadState(connectionState);
 	}
@@ -853,9 +877,9 @@ public abstract class Handshaker {
 	protected final void setCurrentWriteState() {
 		DTLSConnectionState connectionState;
 		if (isClient) {
-			connectionState = new DTLSConnectionState(session.getCipherSuite(), session.getCompressionMethod(), clientWriteKey, clientWriteIV, clientWriteMACKey);
+			connectionState = DTLSConnectionState.create(session.getCipherSuite(), session.getCompressionMethod(), clientWriteKey, clientWriteIV, clientWriteMACKey);
 		} else {
-			connectionState = new DTLSConnectionState(session.getCipherSuite(), session.getCompressionMethod(), serverWriteKey, serverWriteIV, serverWriteMACKey);
+			connectionState = DTLSConnectionState.create(session.getCipherSuite(), session.getCompressionMethod(), serverWriteKey, serverWriteIV, serverWriteMACKey);
 		}
 		session.setWriteState(connectionState);
 	}
@@ -1001,30 +1025,6 @@ public abstract class Handshaker {
 
 	protected final KeyExchangeAlgorithm getKeyExchangeAlgorithm() {
 		return session.getKeyExchange();
-	}
-
-	final SecretKey getClientWriteMACKey() {
-		return clientWriteMACKey;
-	}
-
-	final SecretKey getServerWriteMACKey() {
-		return serverWriteMACKey;
-	}
-
-	final IvParameterSpec getClientWriteIV() {
-		return clientWriteIV;
-	}
-
-	final IvParameterSpec getServerWriteIV() {
-		return serverWriteIV;
-	}
-
-	final SecretKey getClientWriteKey() {
-		return clientWriteKey;
-	}
-
-	final SecretKey getServerWriteKey() {
-		return serverWriteKey;
 	}
 
 	/**
@@ -1224,6 +1224,7 @@ public abstract class Handshaker {
 		for (SessionListener sessionListener : sessionListeners) {
 			sessionListener.handshakeCompleted(this);
 		}
+		SecretUtil.destroy(this);
 		LOGGER.debug("handshake completed {}", connection);
 	}
 
@@ -1251,6 +1252,8 @@ public abstract class Handshaker {
 				}
 			}
 		}
+		SecretUtil.destroy(session);
+		SecretUtil.destroy(this);
 	}
 
 	/**
@@ -1346,6 +1349,30 @@ public abstract class Handshaker {
 				throw new HandshakeException("Raw public key is not trusted", alert);
 			}
 		}
+	}
+
+	@Override
+	public void destroy() throws DestroyFailedException {
+		SecretUtil.destroy(masterSecret);
+		masterSecret = null;
+		SecretUtil.destroy(clientWriteKey);
+		clientWriteKey = null;
+		SecretUtil.destroy(clientWriteMACKey);
+		clientWriteMACKey = null;
+		SecretUtil.destroy(clientWriteIV);
+		clientWriteIV = null;
+		SecretUtil.destroy(serverWriteKey);
+		serverWriteKey = null;
+		SecretUtil.destroy(serverWriteMACKey);
+		serverWriteMACKey = null;
+		SecretUtil.destroy(serverWriteIV);
+		serverWriteIV = null;
+		destroyed = true;
+	}
+
+	@Override
+	public boolean isDestroyed() {
+		return destroyed;
 	}
 
 	/**

@@ -21,11 +21,15 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.security.GeneralSecurityException;
+
 import javax.crypto.SecretKey;
-import javax.crypto.spec.IvParameterSpec;
+import javax.security.auth.DestroyFailedException;
+import javax.security.auth.Destroyable;
 
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.util.SecretIvParameterSpec;
 
 /**
  * A set of algorithms and corresponding security parameters that together
@@ -40,17 +44,70 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
  * This class is immutable and thus only appropriate to reflect a <em>current</em> read or
  * write state whose properties have been negotiated/established already.
  */
-class DTLSConnectionState {
+abstract class DTLSConnectionState implements Destroyable {
 
-	public static final DTLSConnectionState NULL = new DTLSConnectionState(CipherSuite.TLS_NULL_WITH_NULL_NULL, CompressionMethod.NULL, null, null, null);
+	public static final DTLSConnectionState NULL = new DTLSConnectionState(CipherSuite.TLS_NULL_WITH_NULL_NULL,
+			CompressionMethod.NULL) {
 
+		@Override
+		public byte[] encrypt(Record record, byte[] fragment) {
+			return fragment;
+		}
+
+		@Override
+		public byte[] decrypt(Record record, byte[] fragment) {
+			return fragment;
+		}
+
+		@Override
+		public final String toString() {
+			StringBuilder b = new StringBuilder("DtlsNullConnectionState:");
+			b.append(StringUtil.lineSeparator()).append("\tCipher suite: ").append(cipherSuite);
+			b.append(StringUtil.lineSeparator()).append("\tCompression method: ").append(compressionMethod);
+			return b.toString();
+		}
+
+		@Override
+		public void destroy() throws DestroyFailedException {
+		}
+
+		@Override
+		public boolean isDestroyed() {
+			return false;
+		}
+
+	};
+
+	/**
+	 * Initializes all fields with given values.
+	 * 
+	 * @param cipherSuite the cipher and MAC algorithm to use for encrypting
+	 *            message content
+	 * @param compressionMethod the algorithm to use for compressing message
+	 *            content
+	 * @param encryptionKey the secret key to use for encrypting message content
+	 * @param iv the initialization vector to use for encrypting message content
+	 * @param macKey the key to use for creating/verifying message
+	 *            authentication codes (MAC)
+	 * @throws NullPointerException if any of the parameter is {@code null}
+	 */
+	public static DTLSConnectionState create(CipherSuite cipherSuite, CompressionMethod compressionMethod,
+			SecretKey encryptionKey, SecretIvParameterSpec iv, SecretKey macKey) {
+		switch (cipherSuite.getCipherType()) {
+		case NULL:
+			return NULL;
+		case BLOCK:
+			return new DtlsBlockConnectionState(cipherSuite, compressionMethod, encryptionKey, macKey);
+		case AEAD:
+			return new DtlsAeadConnectionState(cipherSuite, compressionMethod, encryptionKey, iv);
+		default:
+			throw new IllegalArgumentException("cipher type " + cipherSuite.getCipherType() + " not supported!");
+		}
+	}
 	// Members ////////////////////////////////////////////////////////
 
-	private final CipherSuite cipherSuite;
-	private final CompressionMethod compressionMethod;
-	private final SecretKey encryptionKey;
-	private final IvParameterSpec iv;
-	private final SecretKey macKey;
+	protected final CipherSuite cipherSuite;
+	protected final CompressionMethod compressionMethod;
 
 	// Constructors ///////////////////////////////////////////////////
 
@@ -67,10 +124,9 @@ class DTLSConnectionState {
 	 *            the initialization vector to use for encrypting message content
 	 * @param macKey
 	 *            the key to use for creating/verifying message authentication codes (MAC)
-	 * @throws NullPointerException if any of cipher suite or compression method is <code>null</code>
+	 * @throws NullPointerException if any of the parameter is {@code null}
 	 */
-	DTLSConnectionState(CipherSuite cipherSuite, CompressionMethod compressionMethod, SecretKey encryptionKey,
-			IvParameterSpec iv, SecretKey macKey) {
+	DTLSConnectionState(CipherSuite cipherSuite, CompressionMethod compressionMethod) {
 		if (cipherSuite == null) {
 			throw new NullPointerException("Cipher suite must not be null");
 		} else if (compressionMethod == null) {
@@ -78,9 +134,6 @@ class DTLSConnectionState {
 		}
 		this.cipherSuite = cipherSuite;
 		this.compressionMethod = compressionMethod;
-		this.encryptionKey = encryptionKey;
-		this.iv = iv;
-		this.macKey = macKey;
 	}
 
 	// Getters ////////////////////////////////////////////
@@ -99,8 +152,29 @@ class DTLSConnectionState {
 	}
 
 	/**
-	 * Gets the algorithm used for reducing the size of <em>plaintext</em> data to
-	 * be exchanged with a peer by means of TLS <em>APPLICATION_DATA</em> messages.
+	 * Encrypt fragment for provided record.
+	 * 
+	 * @param record record to encrypt fragment for
+	 * @param fragment fragment to encrypt
+	 * @return encrypted fragment
+	 * @throws GeneralSecurityException if an error occured during encryption
+	 */
+	public abstract byte[] encrypt(Record record, byte[] fragment) throws GeneralSecurityException;
+
+	/**
+	 * Decrypt fragment for provided record.
+	 * 
+	 * @param record record to decrypt fragment for
+	 * @param ciphertextFragmen encrypted fragment
+	 * @return fragment
+	 * @throws GeneralSecurityException if an error occured during decryption
+	 */
+	public abstract byte[] decrypt(Record record, byte[] ciphertextFragment) throws GeneralSecurityException;
+
+	/**
+	 * Gets the algorithm used for reducing the size of <em>plaintext</em> data
+	 * to be exchanged with a peer by means of TLS <em>APPLICATION_DATA</em>
+	 * messages.
 	 * 
 	 * @return the algorithm identifier
 	 */
@@ -109,30 +183,8 @@ class DTLSConnectionState {
 	}
 
 	/**
-	 * Gets the cipher algorithm key.
-	 * 
-	 * @return the key
-	 */
-	SecretKey getEncryptionKey() {
-		return encryptionKey;
-	}
-
-	/**
-	 * Gets the fixed initialization vector for use with AEAD based cipher suites.
-	 * 
-	 * @return the initialization vector
-	 */
-	IvParameterSpec getIv() {
-		return iv;
-	}
-
-	SecretKey getMacKey() {
-		return macKey;
-	}
-
-	/**
 	 * Gets the output length of the MAC algorithm.
-	 *  
+	 * 
 	 * @return the length in bytes
 	 */
 	int getMacLength() {
@@ -141,7 +193,7 @@ class DTLSConnectionState {
 
 	/**
 	 * Gets the key length of the MAC algorithm.
-	 *  
+	 * 
 	 * @return the length in bytes
 	 */
 	int getMacKeyLength() {
@@ -151,8 +203,7 @@ class DTLSConnectionState {
 	/**
 	 * Gets the length of the cipher algorithm's initialization vector.
 	 * 
-	 * For block ciphers (e.g. AES) this is the same as the cipher's
-	 * block size.
+	 * For block ciphers (e.g. AES) this is the same as the cipher's block size.
 	 * 
 	 * @return the length in bytes
 	 */
@@ -186,16 +237,5 @@ class DTLSConnectionState {
 	 */
 	final int getMaxCiphertextExpansion() {
 		return cipherSuite.getMaxCiphertextExpansion();
-	}
-
-	@Override
-	public final String toString() {
-		StringBuilder b = new StringBuilder("DTLSConnectionState:");
-		b.append(StringUtil.lineSeparator()).append("\tCipher suite: ").append(cipherSuite);
-		b.append(StringUtil.lineSeparator()).append("\tCompression method: ").append(compressionMethod);
-		b.append(StringUtil.lineSeparator()).append("\tIV: ").append(iv == null ? "null" : "not null");
-		b.append(StringUtil.lineSeparator()).append("\tMAC key: ").append(macKey == null ? "null" : "not null");
-		b.append(StringUtil.lineSeparator()).append("\tEncryption key: ").append(encryptionKey == null ? "null" : "not null");
-		return b.toString();
 	}
 }

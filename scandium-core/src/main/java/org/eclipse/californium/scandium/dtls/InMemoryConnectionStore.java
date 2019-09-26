@@ -43,6 +43,7 @@ import java.util.concurrent.ConcurrentMap;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.scandium.ConnectionListener;
+import org.eclipse.californium.scandium.util.SecretUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -531,6 +532,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		if (establishedSession != null) {
 			SessionId sessionId = establishedSession.getSessionIdentifier();
 			connectionsByEstablishedSession.remove(sessionId, connection);
+			SecretUtil.destroy(establishedSession);
 		}
 	}
 

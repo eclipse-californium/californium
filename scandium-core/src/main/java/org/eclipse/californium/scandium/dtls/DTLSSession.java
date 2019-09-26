@@ -48,14 +48,19 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 import java.security.Principal;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.crypto.SecretKey;
+import javax.security.auth.DestroyFailedException;
+import javax.security.auth.Destroyable;
+
 import org.eclipse.californium.elements.DtlsEndpointContext;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
+import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerName;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.eclipse.californium.scandium.util.ServerName.NameType;
@@ -66,7 +71,7 @@ import org.slf4j.LoggerFactory;
  * Represents a DTLS session between two peers. Keeps track of the current and
  * pending read/write states, the current epoch and sequence number, etc.
  */
-public final class DTLSSession {
+public final class DTLSSession implements Destroyable {
 
 	/**
 	 * The overall length of all headers around a DTLS handshake message payload.
@@ -130,7 +135,7 @@ public final class DTLSSession {
 	 * The 48-byte master secret shared by client and server to derive
 	 * key material from.
 	 */
-	private byte[] masterSecret = null;
+	private SecretKey masterSecret = null;
 
 	/**
 	 * Connection id used for all outbound records.
@@ -224,12 +229,13 @@ public final class DTLSSession {
 	public DTLSSession(SessionId id, InetSocketAddress peerAddress, SessionTicket ticket, long initialSequenceNo) {
 		this(peerAddress, initialSequenceNo, ticket.getTimestamp());
 		sessionIdentifier = id;
-		masterSecret = ticket.getMasterSecret();
+		masterSecret = SecretUtil.create(ticket.getMasterSecret());
 		peerIdentity = ticket.getClientIdentity();
 		cipherSuite = ticket.getCipherSuite();
 		serverNames = ticket.getServerNames();
 		compressionMethod = ticket.getCompressionMethod();
 	}
+
 	/**
 	 * Creates a new session initialized with a given sequence number.
 	 *
@@ -276,6 +282,26 @@ public final class DTLSSession {
 
 	// Getters and Setters ////////////////////////////////////////////
 
+	@Override
+	public void destroy() throws DestroyFailedException {
+		SecretUtil.destroy(masterSecret);
+		masterSecret = null;
+		if (readState != DTLSConnectionState.NULL) {
+			readState.destroy();
+			readState = DTLSConnectionState.NULL;
+		}
+		if (writeState != DTLSConnectionState.NULL) {
+			writeState.destroy();
+			writeState = DTLSConnectionState.NULL;
+		}
+	}
+
+	@Override
+	public boolean isDestroyed() {
+		return SecretUtil.isDestroyed(masterSecret) && SecretUtil.isDestroyed(readState)
+				&& SecretUtil.isDestroyed(writeState);
+	}
+
 	/**
 	 * Gets this session's identifier.
 	 * 
@@ -300,6 +326,7 @@ public final class DTLSSession {
 		}
 		if (!sessionIdentifier.equals(this.sessionIdentifier)) {
 			// reset master secret
+			SecretUtil.destroy(this.masterSecret);
 			this.masterSecret = null;
 			this.sessionIdentifier = sessionIdentifier;
 		}
@@ -613,6 +640,7 @@ public final class DTLSSession {
 		if (readState == null) {
 			throw new NullPointerException("Read state must not be null");
 		}
+		SecretUtil.destroy(this.readState);
 		this.readState = readState;
 		incrementReadEpoch();
 		LOGGER.trace("Setting current read state to{}{}", StringUtil.lineSeparator(), readState);
@@ -666,6 +694,7 @@ public final class DTLSSession {
 		if (writeState == null) {
 			throw new NullPointerException("Write state must not be null");
 		}
+		SecretUtil.destroy(this.writeState);
 		this.writeState = writeState;
 		incrementWriteEpoch();
 		// re-calculate maximum fragment length based on cipher suite from updated write state
@@ -712,45 +741,48 @@ public final class DTLSSession {
 	}
 
 	/**
-	 * Gets the master secret used for encrypting application layer data
-	 * exchanged in this session.
+	 * Gets the master secret used for resumption handshakes.
 	 * 
-	 * @return the secret or <code>null</code> if it has not yet been
-	 * created
+	 * @return the secret, or {@code null}, if it has not yet been created or
+	 *         the session doesn't support resumption
 	 */
-	byte[] getMasterSecret() {
-		return masterSecret;
+	SecretKey getMasterSecret() {
+		return SecretUtil.create(masterSecret);
 	}
 
 	/**
-	 * Sets the master secret to use for encrypting application layer data
-	 * exchanged in this session.
+	 * Sets the master secret to be use on session resumptions.
 	 * 
 	 * Once the master secret has been set, it cannot be changed without
-	 * changing the session id ahead.
+	 * changing the session id ahead. If the session id is empty, the session
+	 * doesn't support resumption and therefore the master secret is not set.
 	 * 
-	 * @param masterSecret the secret
+	 * @param masterSecret the secret, copied on set
 	 * @throws NullPointerException if the master secret is {@code null}
 	 * @throws IllegalArgumentException if the secret is not exactly 48 bytes
-	 * (see <a href="http://tools.ietf.org/html/rfc5246#section-8.1">
-	 * RFC 5246 (TLS 1.2), section 8.1</a>) 
+	 *             (see
+	 *             <a href="http://tools.ietf.org/html/rfc5246#section-8.1"> RFC
+	 *             5246 (TLS 1.2), section 8.1</a>)
 	 * @throws IllegalStateException if the master secret is already set
 	 */
-	void setMasterSecret(final byte[] masterSecret) {
+	void setMasterSecret(SecretKey masterSecret) {
 		// don't overwrite the master secret, once it has been set in this session
 		if (this.masterSecret == null) {
-			if (masterSecret == null) {
-				throw new NullPointerException("Master secret must not be null");
-			} else if (masterSecret.length != MASTER_SECRET_LENGTH) {
-				throw new IllegalArgumentException(String.format(
-						"Master secret must consist of of exactly %d bytes but has %d bytes",
-						MASTER_SECRET_LENGTH, masterSecret.length));
-			} else {
-				this.masterSecret = Arrays.copyOf(masterSecret, masterSecret.length);
-				this.creationTime = System.currentTimeMillis();
+			if (!sessionIdentifier.isEmpty()) {
+				if (masterSecret == null) {
+					throw new NullPointerException("Master secret must not be null");
+				}
+				byte[] secret = masterSecret.getEncoded();
+				Bytes.clear(secret);
+				if (secret.length != MASTER_SECRET_LENGTH) {
+					throw new IllegalArgumentException(
+							String.format("Master secret must consist of of exactly %d bytes but has %d bytes",
+									MASTER_SECRET_LENGTH, secret.length));
+				}
+				this.masterSecret = SecretUtil.create(masterSecret);
 			}
-		}
-		else {
+			this.creationTime = System.currentTimeMillis();
+		} else {
 			throw new IllegalStateException("master secret already available!");
 		}
 	}
@@ -1008,23 +1040,28 @@ public final class DTLSSession {
 	}
 
 	/**
-	 * Gets a session ticket representing this session's <em>current</em> connection state.
+	 * Get a session ticket representing this session's <em>current</em>
+	 * connection state.
 	 * 
-	 * @return The ticket.
-	 * @throws IllegalStateException if this session does not have its current connection state set yet.
+	 * @return The ticket. Or {@code null}, if the session id is empty and
+	 *         doesnt support resumption.
+	 * @throws IllegalStateException if this session does not have its current
+	 *             connection state set yet.
 	 */
 	public SessionTicket getSessionTicket() {
-		if (getWriteState().hasValidCipherSuite()) {
-			return new SessionTicket(
-					new ProtocolVersion(),
-					getWriteState().getCipherSuite(),
-					getWriteState().getCompressionMethod(),
-					getMasterSecret(),
-					getServerNames(),
-					getPeerIdentity(),
-					creationTime);
-		} else {
+		if (!getWriteState().hasValidCipherSuite()) {
 			throw new IllegalStateException("session has no valid crypto params, not fully negotiated yet?");
 		}
+		else if (sessionIdentifier.isEmpty()) {
+			return null;
+		}
+		return new SessionTicket(
+				new ProtocolVersion(),
+				getWriteState().getCipherSuite(),
+				getWriteState().getCompressionMethod(),
+				masterSecret,
+				getServerNames(),
+				getPeerIdentity(),
+				creationTime);
 	}
 }

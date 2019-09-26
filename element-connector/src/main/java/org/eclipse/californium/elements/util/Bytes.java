@@ -177,4 +177,15 @@ public class Bytes {
 
 		return concat;
 	}
+
+	/**
+	 * Clear provided byte array.
+	 * 
+	 * Fill it with 0s.
+	 * 
+	 * @param data byte array to be cleared.
+	 */
+	public static void clear(byte[] data) {
+		Arrays.fill(data, (byte) 0);
+	}
 }

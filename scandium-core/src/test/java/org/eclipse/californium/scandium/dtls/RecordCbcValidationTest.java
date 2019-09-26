@@ -181,7 +181,7 @@ public class RecordCbcValidationTest {
 	byte[] payloadData;
 	byte[] additionalData;
 	SecureRandom secureRandom;
-	DTLSConnectionState state;
+	DtlsBlockConnectionState state;
 	Mac hmac;
 	MessageDigest md;
 	int blocks;
@@ -222,7 +222,7 @@ public class RecordCbcValidationTest {
 		SecretKey macKey = new SecretKeySpec(Bytes.createBytes(secureRandom, macKeyLength), "Mac");
 		payloadData = Bytes.createBytes(secureRandom, Math.max(maxVerifyPayloadLength, maxMacPayloadLength));
 		additionalData = Bytes.createBytes(secureRandom, 13);
-		state = new DTLSConnectionState(cipherSuite, CompressionMethod.NULL, null, null, macKey);
+		state = new DtlsBlockConnectionState(cipherSuite, CompressionMethod.NULL, macKey, macKey);
 	}
 
 	@AfterClass

@@ -29,7 +29,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import javax.crypto.SecretKey;
-import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.util.Bytes;
@@ -39,6 +38,7 @@ import org.eclipse.californium.scandium.dtls.ContentType;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.cipher.CCMBlockCipher;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.util.SecretIvParameterSpec;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -72,8 +72,8 @@ public class RecordTest {
 			payloadData[i] = 0x34;
 		}
 		session = new DTLSSession(new InetSocketAddress(InetAddress.getLoopbackAddress(), 7000));
-		DTLSConnectionState readState = new DTLSConnectionState(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
-				CompressionMethod.NULL, key, new IvParameterSpec(client_iv), null);
+		DTLSConnectionState readState = DTLSConnectionState.create(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
+				CompressionMethod.NULL, key, new SecretIvParameterSpec(client_iv), null);
 		session.setReadState(readState);
 	}
 
@@ -154,7 +154,7 @@ public class RecordTest {
 		Record record = new Record(ContentType.APPLICATION_DATA, protocolVer, EPOCH, SEQUENCE_NO, null, fragment, session.getPeer(), ClockUtil.nanoRealtime());
 		record.applySession(session);
 		
-		byte[] decryptedData = record.decryptAEAD(fragment);
+		byte[] decryptedData = record.getFragment().toByteArray();
 		assertTrue(Arrays.equals(decryptedData, payloadData));
 	}
 	

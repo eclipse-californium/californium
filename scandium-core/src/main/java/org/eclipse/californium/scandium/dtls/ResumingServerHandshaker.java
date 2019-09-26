@@ -147,11 +147,8 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 					session.getCipherSuite(), session.getCompressionMethod(), serverHelloExtensions, clientHello.getPeer());
 			wrapMessage(flight, serverHello);
 
-			calculateKeys(session.getMasterSecret());
-
 			ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage(clientHello.getPeer());
 			wrapMessage(flight, changeCipherSpecMessage);
-			setCurrentWriteState();
 
 			MessageDigest md = getHandshakeMessageDigest();
 
@@ -167,7 +164,12 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 								clientHello.getPeer()));
 			}
 
-			Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), session.getMasterSecret(), false, md.digest(), clientHello.getPeer());
+			masterSecret = session.getMasterSecret();
+			calculateKeys(masterSecret);
+
+			setCurrentWriteState();
+
+			Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, false, md.digest(), clientHello.getPeer());
 			wrapMessage(flight, finished);
 
 			mdWithServerFinished.update(finished.toByteArray());
@@ -188,7 +190,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	 *             if the client's Finished message can not be verified.
 	 */
 	private void receivedClientFinished(Finished message) throws HandshakeException {
-		message.verifyData(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), session.getMasterSecret(), true, handshakeHash);
+		message.verifyData(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, true, handshakeHash);
 		sessionEstablished();
 		handshakeCompleted();
 	}

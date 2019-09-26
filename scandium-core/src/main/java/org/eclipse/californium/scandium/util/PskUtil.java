@@ -15,6 +15,10 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.util;
 
+import javax.crypto.SecretKey;
+import javax.security.auth.DestroyFailedException;
+import javax.security.auth.Destroyable;
+
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -29,11 +33,11 @@ import org.slf4j.LoggerFactory;
 /**
  * Extracts psk credentials from the current {@code DTLSSession}.
  */
-public class PskUtil {
+public class PskUtil implements Destroyable {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(PskUtil.class.getName());
 
-	private byte[] pskSecret;
+	private SecretKey pskSecret;
 
 	private PskPublicInformation pskIdentity;
 
@@ -70,7 +74,7 @@ public class PskUtil {
 				throw new HandshakeException(String.format("No Identity found for peer [address: %s, virtual host: %s]",
 						session.getPeer(), virtualHostName), alert);
 			}
-			this.pskSecret = pskStore.getKey(virtualHost, pskIdentity);
+			pskSecret = pskStore.getKey(virtualHost, pskIdentity);
 			if (pskSecret == null) {
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE,
 						session.getPeer());
@@ -88,7 +92,7 @@ public class PskUtil {
 				throw new HandshakeException(
 						String.format("No Identity found for peer [address: %s]", session.getPeer()), alert);
 			}
-			this.pskSecret = pskStore.getKey(pskIdentity);
+			pskSecret = pskStore.getKey(pskIdentity);
 			if (pskSecret == null) {
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE,
 						session.getPeer());
@@ -126,9 +130,19 @@ public class PskUtil {
 	 * This method returns the pre shared key for the current
 	 * {@code DTLSSession} and {@code PskStore}.
 	 * 
-	 * @return byte array
+	 * @return copy of pre shared secret key
 	 */
-	public byte[] getPreSharedKey() {
-		return this.pskSecret;
+	public SecretKey getPreSharedKey() {
+		return SecretUtil.create(this.pskSecret);
+	}
+
+	@Override
+	public void destroy() throws DestroyFailedException {
+		SecretUtil.destroy(pskSecret);
+	}
+
+	@Override
+	public boolean isDestroyed() {
+		return SecretUtil.isDestroyed(pskSecret);
 	}
 }

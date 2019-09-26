@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.scandium.util.SecretUtil;
 
 /**
  * A simple session cache that stores {@code SessionTickets} in a hash map.
@@ -47,17 +48,20 @@ public class InMemorySessionCache implements SessionCache {
 	 */
 	public void put(final SessionId id, final SessionTicket ticket) {
 		if (id != null && ticket != null) {
-			DatagramWriter writer = new DatagramWriter();
+			DatagramWriter writer = new DatagramWriter(true);
 			ticket.encode(writer);
 			cache.put(id, writer.toByteArray());
+			writer.close();
 		}
 	}
 
 	@Override
 	public void put(final DTLSSession session) {
-		if (session != null) {
+		SessionTicket ticket;
+		if (session != null && (ticket = session.getSessionTicket()) != null) {
 			establishedSessionCounter.incrementAndGet();
-			put(session.getSessionIdentifier(), session.getSessionTicket());
+			put(session.getSessionIdentifier(), ticket);
+			SecretUtil.destroy(ticket);
 		}
 	}
 
