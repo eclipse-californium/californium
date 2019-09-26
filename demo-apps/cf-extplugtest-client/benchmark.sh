@@ -85,19 +85,36 @@ benchmark()
    benchmark_tcp $@
 }
 
+benchmark_all()
+{
 # GET
-benchmark_udp "benchmark?rlen=${PAYLOAD}" ${UDP_CLIENTS} ${REQS}
-benchmark_tcp "benchmark?rlen=${PAYLOAD}" ${TCP_CLIENTS} ${REQS}
+	benchmark_udp "benchmark?rlen=${PAYLOAD}" ${UDP_CLIENTS} ${REQS}
+	benchmark_tcp "benchmark?rlen=${PAYLOAD}" ${TCP_CLIENTS} ${REQS}
 
 # reverse GET
-benchmark_udp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" ${UDP_CLIENTS} 2 stop ${REV_REQS}
-benchmark_tcp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" ${TCP_CLIENTS} 2 stop ${REV_REQS}
+	benchmark_udp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" ${UDP_CLIENTS} 2 stop ${REV_REQS}
+	benchmark_tcp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" ${TCP_CLIENTS} 2 stop ${REV_REQS}
 
 # observe CON 
-benchmark "reverse-observe?obs=25000&res=feed-CON&rlen=${PAYLOAD_LARGE}" ${OBS_CLIENTS} 1 stop ${NOTIFIES} 20 100
+	benchmark "reverse-observe?obs=25000&res=feed-CON&rlen=${PAYLOAD_LARGE}" ${OBS_CLIENTS} 1 stop ${NOTIFIES} 20 100
 
 # observe NON
-benchmark_udp "reverse-observe?obs=25000&res=feed-NON&rlen=${PAYLOAD_LARGE}" ${OBS_CLIENTS} 1 stop ${NOTIFIES} 20 100
+	benchmark_udp "reverse-observe?obs=25000&res=feed-NON&rlen=${PAYLOAD_LARGE}" ${OBS_CLIENTS} 1 stop ${NOTIFIES} 20 100
+}
+
+longterm()
+{
+# in seconds
+	LONG_INTERVAL_S=$((60 * 5))
+	LONG_INTERVAL_MS=$(($LONG_INTERVAL_S * 1000))
+	LONG_INTERVAL_TIMEOUT_S=$(($LONG_INTERVAL_S + 30))
+
+# long term observe NON
+	benchmark_udp "reverse-observe?obs=2500000&res=feed-NON&timeout=${LONG_INTERVAL_TIMEOUT_S}&rlen=${PAYLOAD}" ${UDP_CLIENTS} 1 stop ${NOTIFIES} ${LONG_INTERVAL_MS}
+}
+
+benchmark_all
+longterm
 
 END_BENCHMARK=`date +%s`
 

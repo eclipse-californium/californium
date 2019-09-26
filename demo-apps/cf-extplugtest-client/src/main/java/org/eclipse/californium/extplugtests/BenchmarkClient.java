@@ -57,6 +57,7 @@ import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.core.server.resources.ResourceObserver;
+import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
@@ -574,7 +575,7 @@ public class BenchmarkClient {
 					"  (Benchmark 500 clients each sending about 2000 request and the response should have 200 bytes payload.)");
 			System.out.println();
 			System.out.println("  " + BenchmarkClient.class.getSimpleName()
-					+ " coap://localhost:5783/reverse-observe?obs=25&res=feed-CON&rlen=400 50 2 x 500 2000");
+					+ " coap://localhost:5783/reverse-observe?obs=25&res=feed-CON&timeout=10&rlen=400 50 2 x 500 2000");
 			System.out.println(
 					"  (Reverse-observe benchmark using 50 clients each sending about 2 request and waiting for about 500 notifies each client.");
 			System.out.println("   The notifies are sent as CON every 2000ms and have 400 bytes payload.");
@@ -731,7 +732,7 @@ public class BenchmarkClient {
 			int numberOfClients = clientCounter.get();
 			long requestDifference = (lastRequestsCountDown - currentRequestsCountDown);
 			long currentOverallSentRequests = overallRequests - currentRequestsCountDown;
-			if ((lastRequestsCountDown == currentRequestsCountDown && currentRequestsCountDown < overallRequests)
+			if ((requestDifference == 0 && currentRequestsCountDown < overallRequests)
 					|| (numberOfClients == 0)) {
 				// no new requests, clients are stale, or no clients left
 				// adjust start time with timeout
@@ -760,6 +761,7 @@ public class BenchmarkClient {
 		long lastReverseResponsesCountDown = overallReverseResponsesDownCounter.getCount();
 		if (lastReverseResponsesCountDown > 0) {
 			System.out.println("Requests send.");
+			long lastChangeNanoRealtime = ClockUtil.nanoRealtime();
 			while (!overallReverseResponsesDownCounter.await(DEFAULT_TIMEOUT_NANOS, TimeUnit.NANOSECONDS)) {
 				long currentReverseResponsesCountDown = overallReverseResponsesDownCounter.getCount();
 				int numberOfClients = clientCounter.get();
@@ -769,11 +771,18 @@ public class BenchmarkClient {
 				if (overallObservationRegistrationCounter.get() > 0) {
 					observe = true;
 				}
-				if ((lastReverseResponsesCountDown == currentReverseResponsesCountDown
-						&& currentReverseResponsesCountDown < overallReverseResponses) || (numberOfClients == 0)) {
-					// no new notifies, clients are stale, or no clients left
+				long time = 0;
+				if (currentReverseResponsesCountDown < overallReverseResponses) {
+					if (reverseResponsesDifference == 0) {
+						time = ClockUtil.nanoRealtime() - lastChangeNanoRealtime;
+					} else {
+						lastChangeNanoRealtime = ClockUtil.nanoRealtime();
+					}
+				}
+				if ((intervalMax < TimeUnit.NANOSECONDS.toMillis(time - DEFAULT_TIMEOUT_NANOS)) || (numberOfClients == 0)) {
+					// no new notifies for interval max, clients are stale, or no clients left
 					// adjust start time with timeout
-					reverseResponseNanos += DEFAULT_TIMEOUT_NANOS;
+					reverseResponseNanos += time;
 					stale = true;
 					if (observe) {
 						System.out.format("%d notifies, stale (%d clients, %d observes)%n",
