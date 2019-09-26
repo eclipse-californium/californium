@@ -99,6 +99,10 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 	 */
 	private static final String URI_QUERY_OPTION_RESOURCE = "res";
 	/**
+	 * URI query parameter to specify reverse observation.
+	 */
+	private static final String URI_QUERY_OPTION_TIMEOUT = "timeout";
+	/**
 	 * Maximum number of notifies before reregister is triggered.
 	 */
 	private static final int MAX_NOTIFIES = 10000000;
@@ -241,7 +245,8 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 
 		private final CoapExchange incomingExchange;
 		private final String resource;
-		private final Integer observe ;
+		private final Integer observe;
+		private final Integer timeout;
 		private final List<String> observeUriQuery = new ArrayList<>();
 		private final AtomicBoolean processed = new AtomicBoolean();
 
@@ -249,6 +254,7 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 			this.incomingExchange = incomingExchange;
 			Request request = incomingExchange.advanced().getRequest();
 			List<String> uriQuery = request.getOptions().getUriQuery();
+			Integer timeout = 30;
 			Integer observe = null;
 			String resource = null;
 			for (String query : uriQuery) {
@@ -271,6 +277,23 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 						respond(response);
 						break;
 					}
+				} else if (query.startsWith(URI_QUERY_OPTION_TIMEOUT + "=")) {
+					String message = null;
+					String obs = query.substring(URI_QUERY_OPTION_TIMEOUT.length() + 1);
+					try {
+						timeout = Integer.parseInt(obs);
+						if (timeout < 0) {
+							message = "URI-query-option " + query + " is negative number!";
+						}
+					} catch (NumberFormatException ex) {
+						message = "URI-query-option " + query + " is no number!";
+					}
+					if (message != null) {
+						Response response = Response.createResponse(request, BAD_OPTION);
+						response.setPayload(message);
+						respond(response);
+						break;
+					}
 				} else if (query.startsWith(URI_QUERY_OPTION_RESOURCE + "=")) {
 					resource = query.substring(URI_QUERY_OPTION_RESOURCE.length() + 1);
 				} else {
@@ -279,6 +302,7 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 			}
 			this.resource = resource;
 			this.observe = observe;
+			this.timeout = timeout;
 		}
 
 		private void accept() {
@@ -319,6 +343,10 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 
 		private Integer getObserves() {
 			return observe;
+		}
+
+		private Integer getTimeout() {
+			return timeout;
 		}
 
 		private List<String>  getUriQuery() {
@@ -440,7 +468,7 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 				public void run() {
 					reregister();
 				}
-			}, 30, TimeUnit.SECONDS);
+			}, incomingExchange.getTimeout(), TimeUnit.SECONDS);
 			setTimeout(future);
 		}
 
