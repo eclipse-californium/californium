@@ -179,6 +179,7 @@ public class BenchmarkClient {
 			DEFAULTS.applyDefaults(config);
 			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_REVERSE_SERVER_BLOCK_SIZE);
 			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_REVERSE_SERVER_BLOCK_SIZE);
+			config.setInt(Keys.NOTIFICATION_CHECK_INTERVAL_COUNT, 10);
 			// 24.7s instead of 247s
 			config.setInt(Keys.EXCHANGE_LIFETIME, 24700);
 		}

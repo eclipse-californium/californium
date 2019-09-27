@@ -58,6 +58,8 @@ if [ ! -s ${CF_JAR} ] && [ -s target/${CF_JAR} ]  ; then
    CF_JAR=target/${CF_JAR}
 elif [ ! -s ${CF_JAR} ] && [ -s ../${CF_JAR} ]  ; then
    CF_JAR=../${CF_JAR}
+elif [ ! -s ${CF_JAR} ] && [ -s ../target/${CF_JAR} ]  ; then
+   CF_JAR=../target/${CF_JAR}
 fi
 
 START_BENCHMARK=`date +%s`
@@ -128,8 +130,8 @@ longterm()
 	benchmark_udp "reverse-observe?obs=2500000&res=feed-NON&timeout=${LONG_INTERVAL_TIMEOUT_S}&rlen=${PAYLOAD}" ${UDP_CLIENTS} 1 stop ${NOTIFIES} ${LONG_INTERVAL_MS}
 }
 
-benchmark_all
-#longterm
+#benchmark_all
+longterm
 
 END_BENCHMARK=`date +%s`
 

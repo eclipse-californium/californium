@@ -127,6 +127,7 @@ import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
+import java.net.SocketTimeoutException;
 import java.security.GeneralSecurityException;
 import java.security.Principal;
 import java.util.ArrayList;
@@ -229,6 +230,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 	public static final int DEFAULT_IPV4_MTU = 576;
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(DTLSConnector.class.getCanonicalName());
+	private static final Logger HEALTH_LOGGER = LoggerFactory.getLogger(LOGGER.getName() + ".health");
+
 	private static final int MAX_PLAINTEXT_FRAGMENT_LENGTH = 16384; // max. DTLSPlaintext.length (2^14 bytes)
 	private static final int MAX_CIPHERTEXT_EXPANSION = CipherSuite.getOverallMaxCiphertextExpansion();
 	private static final int MAX_DATAGRAM_BUFFER_SIZE = MAX_PLAINTEXT_FRAGMENT_LENGTH
@@ -600,6 +603,10 @@ public class DTLSConnector implements Connector, RecordLayer {
 			this.hasInternalExecutor = true;
 		}
 		socket = new DatagramSocket(null);
+		if (HEALTH_LOGGER.isDebugEnabled()) {
+			// set timeout to 60s
+			socket.setSoTimeout(60 * 1000);
+		}
 		if (bindAddress.getPort() != 0 && config.isAddressReuseEnabled()) {
 			// make it easier to stop/start a server consecutively without delays
 			LOGGER.info("Enable address reuse for socket!");
@@ -980,10 +987,13 @@ public class DTLSConnector implements Connector, RecordLayer {
 		DatagramSocket currentSocket = getSocket();
 		if (currentSocket == null) {
 			// very unlikely race condition.
+			HEALTH_LOGGER.debug("worker thread [{}] socket down!", Thread.currentThread().getName());
 			return;
 		}
 
 		currentSocket.receive(packet);
+
+		HEALTH_LOGGER.debug("worker thread [{}] received record of {} bytes.", Thread.currentThread().getName(), packet.getLength());
 
 		if (packet.getLength() == 0) {
 			// nothing to do
@@ -2398,9 +2408,12 @@ public class DTLSConnector implements Connector, RecordLayer {
 		public void run() {
 			try {
 				LOGGER.info("Starting worker thread [{}]", getName());
+				HEALTH_LOGGER.debug("Worker thread [{}] alive check enabled!", getName());
 				while (running.get()) {
 					try {
 						doWork();
+					} catch (SocketTimeoutException e) {
+						HEALTH_LOGGER.debug("Worker thread [{}] is alive!", getName());
 					} catch (InterruptedIOException e) {
 						if (running.get()) {
 							LOGGER.info("Worker thread [{}] has been interrupted", getName());
@@ -2417,6 +2430,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 				}
 			} finally {
 				LOGGER.info("Worker thread [{}] has terminated", getName());
+				HEALTH_LOGGER.debug("Worker thread [{}] has terminated!", getName());
 			}
 		}
 
