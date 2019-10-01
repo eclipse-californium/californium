@@ -80,8 +80,26 @@ public final class SweepDeduplicator implements Deduplicator {
 			this.exchange = exchange;
 			this.nanoTimestamp = ClockUtil.nanoRealtime();
 		}
-	}
+
+		@Override
+		public int hashCode() {
+			return exchange.hashCode();
+		}
 	
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj) {
+				return true;
+			} else if (obj == null) {
+				return false;
+			} else if (getClass() != obj.getClass()) {
+				return false;
+			}
+			DedupExchange other = (DedupExchange) obj;
+			return exchange.equals(other.exchange);
+		}
+	}
+
 	/** The hash map with all incoming messages. */
 	private final ConcurrentMap<KeyMID, DedupExchange> incomingMessages = new ConcurrentHashMap<>();
 	private final SweepAlgorithm algorithm;
@@ -146,6 +164,17 @@ public final class SweepDeduplicator implements Deduplicator {
 	public Exchange findPrevious(final KeyMID key, final Exchange exchange) {
 		DedupExchange previous = incomingMessages.putIfAbsent(key, new DedupExchange(exchange));
 		return null == previous ? null : previous.exchange;
+	}
+
+	@Override
+	public boolean replacePrevious(KeyMID key, Exchange previous, Exchange exchange) {
+		boolean result = true;
+		DedupExchange prev = new DedupExchange(previous);
+		DedupExchange current = new DedupExchange(exchange);
+		if (!incomingMessages.replace(key, prev, current)) {
+			result = incomingMessages.putIfAbsent(key, current) == null;
+		}
+		return result;
 	}
 
 	@Override

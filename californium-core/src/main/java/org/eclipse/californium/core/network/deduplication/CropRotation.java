@@ -82,8 +82,7 @@ public class CropRotation implements Deduplicator {
 	@Override
 	public synchronized void start() {
 		if (jobStatus == null) {
-			jobStatus = executor.scheduleAtFixedRate(rotation, period, period,
-					TimeUnit.MILLISECONDS);
+			jobStatus = executor.scheduleAtFixedRate(rotation, period, period, TimeUnit.MILLISECONDS);
 		}
 	}
 
@@ -115,13 +114,19 @@ public class CropRotation implements Deduplicator {
 	}
 
 	@Override
+	public boolean replacePrevious(KeyMID key, Exchange previous, Exchange exchange) {
+		int s = second;
+		return maps[s].replace(key, previous, exchange) || maps[s].putIfAbsent(key, exchange) == null;
+	}
+
+	@Override
 	public Exchange find(KeyMID key) {
 		int f = first;
 		int s = second;
-		Exchange prev = maps[f].get(key);
+		Exchange prev = maps[s].get(key);
 		if (prev != null || f == s)
 			return prev;
-		prev = maps[s].get(key);
+		prev = maps[f].get(key);
 		return prev;
 	}
 

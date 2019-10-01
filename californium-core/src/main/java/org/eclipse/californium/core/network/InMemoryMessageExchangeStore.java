@@ -502,6 +502,11 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	}
 
 	@Override
+	public boolean replacePrevious(KeyMID key, Exchange previous, Exchange exchange) {
+		return deduplicator.replacePrevious(key, previous, exchange);
+	}
+
+	@Override
 	public Exchange find(final KeyMID messageId) {
 		return deduplicator.find(messageId);
 	}

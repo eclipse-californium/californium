@@ -183,6 +183,20 @@ public interface MessageExchangeStore {
 	Exchange findPrevious(KeyMID messageId, Exchange exchange);
 
 	/**
+	 * Replace the previous exchange with the current.
+	 * 
+	 * In difference to the normal definition of this function, the current
+	 * exchange will be also added, if no exchange was registered with the key.
+	 * 
+	 * @param key the key
+	 * @param previous previous exchange
+	 * @param exchange current exchange
+	 * @return {@code true}, if the current exchange is registered,
+	 *         {@code false}, otherwise.
+	 */
+	boolean replacePrevious(KeyMID key, Exchange previous, Exchange exchange);
+
+	/**
 	 * Checks if a message with a given ID has been processed already.
 	 * 
 	 * @param messageId the message ID.

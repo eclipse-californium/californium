@@ -49,6 +49,11 @@ public class NoDeduplicator implements Deduplicator {
 	}
 
 	@Override
+	public boolean replacePrevious(KeyMID key, Exchange exchange, Exchange previous) {
+		return true;
+	}
+
+	@Override
 	public Exchange find(KeyMID key) {
 		return null;
 	}

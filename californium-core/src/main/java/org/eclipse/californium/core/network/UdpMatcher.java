@@ -219,9 +219,10 @@ public final class UdpMatcher extends BaseMatcher {
 			duplicate = endpointContextMatcher.isToBeSent(previousSourceContext, sourceContext);
 			if (!duplicate) {
 				// the new context doesn't match the previous.
-				exchangeStore.remove(idByMID, previous);
-				if (exchangeStore.findPrevious(idByMID, exchange) != null) {
-					LOGGER.warn("new request could not be registered!");
+				if (exchangeStore.replacePrevious(idByMID, previous, exchange)) {
+					LOGGER.debug("replaced request {} by new request {}!", previous.getCurrentRequest(), request);
+				} else {
+					LOGGER.warn("new request {} could not be registered! Deduplication disabled!", request);
 				}
 			}
 		}
