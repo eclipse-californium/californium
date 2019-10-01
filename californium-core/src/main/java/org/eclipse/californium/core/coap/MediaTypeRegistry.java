@@ -36,26 +36,41 @@ public class MediaTypeRegistry {
 
 	// Constants ///////////////////////////////////////////////////////////////
 	public static final int TEXT_PLAIN = 0;
+	@Deprecated
 	public static final int TEXT_XML = 1;
+	@Deprecated
 	public static final int TEXT_CSV = 2;
+	@Deprecated
 	public static final int TEXT_HTML = 3;
+	@Deprecated
 	public static final int IMAGE_GIF = 21; // 03
+	@Deprecated
 	public static final int IMAGE_JPEG = 22; // 03
+	@Deprecated
 	public static final int IMAGE_PNG = 23; // 03
+	@Deprecated
 	public static final int IMAGE_TIFF = 24; // 03
+	@Deprecated
 	public static final int AUDIO_RAW = 25; // 03
+	@Deprecated
 	public static final int VIDEO_RAW = 26; // 03
 	public static final int APPLICATION_LINK_FORMAT = 40;
 	public static final int APPLICATION_XML = 41;
 	public static final int APPLICATION_OCTET_STREAM = 42;
+	@Deprecated
 	public static final int APPLICATION_RDF_XML = 43;
+	@Deprecated
 	public static final int APPLICATION_SOAP_XML = 44;
+	@Deprecated
 	public static final int APPLICATION_ATOM_XML = 45;
 	public static final int APPLICATION_XMPP_XML = 46;
 	public static final int APPLICATION_EXI = 47;
+	@Deprecated
 	public static final int APPLICATION_FASTINFOSET = 48; // 04
+	@Deprecated
 	public static final int APPLICATION_SOAP_FASTINFOSET = 49; // 04
 	public static final int APPLICATION_JSON = 50; // 04
+	@Deprecated
 	public static final int APPLICATION_X_OBIX_BINARY = 51; // 04
 	public static final int APPLICATION_CBOR = 60;
 	public static final int APPLICATION_SENML_JSON = 110;
