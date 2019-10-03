@@ -188,7 +188,8 @@ public class BenchmarkClient {
 	 * Benchmark timeout. If no messages are exchanged within this timeout, the
 	 * benchmark is stopped.
 	 */
-	private static final long DEFAULT_TIMEOUT_NANOS = TimeUnit.MILLISECONDS.toNanos(10000);
+	private static final long DEFAULT_TIMEOUT_SECONDS = TimeUnit.MILLISECONDS.toSeconds(10000);
+	private static final long DEFAULT_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(DEFAULT_TIMEOUT_SECONDS);
 	/**
 	 * Atomic down-counter for overall request.
 	 */
@@ -750,7 +751,7 @@ public class BenchmarkClient {
 			lastRetransmissions = retransmissions;
 			lastTransmissionErrrors = transmissionErrors;
 			System.out.format("%d requests (%d reqs/s, %s, %s, %d clients)%n", currentOverallSentRequests,
-					requestDifference / TimeUnit.NANOSECONDS.toSeconds(DEFAULT_TIMEOUT_NANOS),
+					roundDiv(requestDifference, DEFAULT_TIMEOUT_SECONDS),
 					formatRetransmissions(retransmissionsDifference, requestDifference),
 					formatTransmissionErrors(transmissionErrorsDifference, requestDifference), numberOfClients);
 		}
@@ -797,12 +798,12 @@ public class BenchmarkClient {
 				if (observe) {
 					System.out.format("%d notifies (%d notifies/s, %d clients, %d observes)%n",
 							currentOverallReverseResponses,
-							reverseResponsesDifference / TimeUnit.NANOSECONDS.toSeconds(DEFAULT_TIMEOUT_NANOS),
+							roundDiv(reverseResponsesDifference, DEFAULT_TIMEOUT_SECONDS),
 							numberOfClients, observers);
 				} else {
 					System.out.format("%d reverse-responses (%d reverse-responses/s, %d clients)%n",
 							currentOverallReverseResponses,
-							reverseResponsesDifference / TimeUnit.NANOSECONDS.toSeconds(DEFAULT_TIMEOUT_NANOS),
+							roundDiv(reverseResponsesDifference, DEFAULT_TIMEOUT_SECONDS),
 							numberOfClients);
 				}
 			}
@@ -963,7 +964,7 @@ public class BenchmarkClient {
 		long millis = TimeUnit.NANOSECONDS.toMillis(nanos);
 		if (millis > 0) {
 			try (Formatter formatter = new Formatter()) {
-				return formatter.format(", %d %s/s", (requests * 1000) / millis, units).toString();
+				return formatter.format(", %d %s/s", roundDiv(requests * 1000, millis), units).toString();
 			}
 		}
 		return "";
@@ -977,5 +978,9 @@ public class BenchmarkClient {
 			}
 			return formatter.format(" requests.").toString();
 		}
+	}
+
+	private static long roundDiv(long count, long div) {
+		return (count + (div/2)) / div;
 	}
 }
