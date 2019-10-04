@@ -84,7 +84,6 @@ public final class UdpMatcher extends BaseMatcher {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(UdpMatcher.class.getName());
 
-	// TODO: Multicast Exchanges: should not be removed from deduplicator
 	private final RemoveHandler exchangeRemoveHandler = new RemoveHandlerImpl();
 	private final EndpointContextMatcher endpointContextMatcher;
 
@@ -210,17 +209,23 @@ public final class UdpMatcher extends BaseMatcher {
 		boolean duplicate = previous != null;
 
 		if (duplicate) {
-			// assuming addresses changing, request could not only be deduplicated by their address and mid.
+			// assuming addresses changing, request could not be
+			// deduplicated only by their address and MID.
 			EndpointContext sourceContext = request.getSourceContext();
-			Request previousRequest = previous.getRequest();
-			EndpointContext previousSourceContext = previousRequest.getSourceContext();
-			// the previous response would be send with its previous context using 
-			// the current request context as connection context
+			Request previousRequest = previous.getCurrentRequest();
+			EndpointContext previousSourceContext;
+			if (previous.getOrigin() == Origin.REMOTE) {
+				previousSourceContext = previousRequest.getSourceContext();
+			} else {
+				previousSourceContext = previousRequest.getDestinationContext();
+			}
+			// the previous response would be send with its previous context
+			// using the current request context as connection context
 			duplicate = endpointContextMatcher.isToBeSent(previousSourceContext, sourceContext);
 			if (!duplicate) {
 				// the new context doesn't match the previous.
 				if (exchangeStore.replacePrevious(idByMID, previous, exchange)) {
-					LOGGER.debug("replaced request {} by new request {}!", previous.getCurrentRequest(), request);
+					LOGGER.debug("replaced request {} by new request {}!", previousRequest, request);
 				} else {
 					LOGGER.warn("new request {} could not be registered! Deduplication disabled!", request);
 				}
