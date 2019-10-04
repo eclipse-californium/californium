@@ -76,7 +76,9 @@ public final class PseudoRandomFunction {
 	static byte[] doPRF(Mac hmac, byte[] secret, byte[] label, byte[] seed, int length) {
 		try {
 			hmac.init(new SecretKeySpec(secret, "MAC"));
-			return doExpansion(hmac, label, seed, length);
+			byte[] prf = doExpansion(hmac, label, seed, length);
+			hmac.reset();
+			return prf;
 		} catch (InvalidKeyException e) {
 			// according to http://www.ietf.org/rfc/rfc2104 (HMAC) section 3
 			// keys can be of arbitrary length
@@ -124,7 +126,7 @@ public final class PseudoRandomFunction {
 	 * @param length the number of bytes to expand the data to.
 	 * @return the expanded data.
 	 */
-	public static final byte[] doExpansion(Mac hmac, byte[] label, byte[] seed, int length) {
+	static final byte[] doExpansion(Mac hmac, byte[] label, byte[] seed, int length) {
 		/*
 		 * RFC 5246, chapter 5, page 15
 		 * 

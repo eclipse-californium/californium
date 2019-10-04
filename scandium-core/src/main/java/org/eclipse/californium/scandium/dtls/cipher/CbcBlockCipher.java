@@ -220,7 +220,9 @@ public class CbcBlockCipher {
 		hmac.init(macKey);
 		hmac.update(additionalData);
 		hmac.update(content, 0, length);
-		return hmac.doFinal();
+		byte[] mac = hmac.doFinal();
+		hmac.reset();
+		return mac;
 	}
 
 	/**
