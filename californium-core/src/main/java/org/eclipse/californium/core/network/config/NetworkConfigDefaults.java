@@ -105,6 +105,14 @@ public class NetworkConfigDefaults {
 	 */
 	public static final long DEFAULT_EXCHANGE_LIFETIME = 247 * 1000;
 
+	public static final String DEFAULT_DEDUPLICATOR =  Keys.DEDUPLICATOR_MARK_AND_SWEEP;
+
+	public static final long DEFAULT_MARK_AND_SWEEP_INTERVAL =  10 * 1000; // 10 secs
+
+	public static final int DEFAULT_CROP_ROTATION_PERIOD = (int) DEFAULT_EXCHANGE_LIFETIME;
+
+	public static final boolean DEFAULT_DEDUPLICATOR_AUTO_REPLACE = true;
+
 	/**
 	 * The default DTLS response matcher.
 	 * 
@@ -222,9 +230,10 @@ public class NetworkConfigDefaults {
 		config.setInt(Keys.UDP_CONNECTOR_SEND_BUFFER, UDPConnector.UNDEFINED);
 		config.setInt(Keys.UDP_CONNECTOR_OUT_CAPACITY, Integer.MAX_VALUE); // unbounded
 
-		config.setString(Keys.DEDUPLICATOR, Keys.DEDUPLICATOR_MARK_AND_SWEEP);
-		config.setLong(Keys.MARK_AND_SWEEP_INTERVAL, 10 * 1000); // 10 secs
-		config.setInt(Keys.CROP_ROTATION_PERIOD, 2000);
+		config.setString(Keys.DEDUPLICATOR, DEFAULT_DEDUPLICATOR);
+		config.setLong(Keys.MARK_AND_SWEEP_INTERVAL, DEFAULT_MARK_AND_SWEEP_INTERVAL);
+		config.setInt(Keys.CROP_ROTATION_PERIOD, DEFAULT_CROP_ROTATION_PERIOD);
+		config.setBoolean(Keys.DEDUPLICATOR_AUTO_REPLACE, DEFAULT_DEDUPLICATOR_AUTO_REPLACE);
 		config.setString(Keys.RESPONSE_MATCHING, DEFAULT_RESPONSE_MATCHING);
 
 		config.setInt(Keys.HTTP_PORT, 8080);

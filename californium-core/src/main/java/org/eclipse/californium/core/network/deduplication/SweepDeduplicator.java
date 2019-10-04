@@ -42,6 +42,7 @@ import java.util.concurrent.TimeUnit;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.KeyMID;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -105,6 +106,7 @@ public final class SweepDeduplicator implements Deduplicator {
 	private final SweepAlgorithm algorithm;
 	private final long sweepInterval;
 	private final long exchangeLifetime;
+	private final boolean replace;
 	private volatile ScheduledFuture<?> jobStatus;
 	private ScheduledExecutorService executor;
 
@@ -127,6 +129,7 @@ public final class SweepDeduplicator implements Deduplicator {
 		algorithm = new SweepAlgorithm();
 		sweepInterval = config.getLong(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL);
 		exchangeLifetime = config.getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME);
+		replace = config.getBoolean(Keys.DEDUPLICATOR_AUTO_REPLACE);
 	}
 
 	@Override
@@ -162,7 +165,18 @@ public final class SweepDeduplicator implements Deduplicator {
 	 */
 	@Override
 	public Exchange findPrevious(final KeyMID key, final Exchange exchange) {
-		DedupExchange previous = incomingMessages.putIfAbsent(key, new DedupExchange(exchange));
+		DedupExchange current = new DedupExchange(exchange);
+		DedupExchange previous = incomingMessages.putIfAbsent(key, current);
+		if (replace && previous != null) {
+			if (previous.exchange.getOrigin() != exchange.getOrigin()) {
+				LOGGER.debug("replace exchange for {}", key);
+				if (incomingMessages.replace(key, previous, current)) {
+					previous = null;
+				} else {
+					previous = incomingMessages.putIfAbsent(key, current);
+				}
+			}
+		}
 		return null == previous ? null : previous.exchange;
 	}
 
