@@ -328,8 +328,6 @@ public enum CipherSuite {
 	/**
 	 * Gets the thread local MAC used by this cipher suite.
 	 * 
-	 * Calls {@link Mac#reset()} on access.
-	 * 
 	 * @return mac, or {@code null}, if not supported by vm.
 	 */
 	public Mac getThreadLocalMac() {
@@ -872,14 +870,11 @@ public enum CipherSuite {
 		/**
 		 * Gets the thread local MAC used by this MAC algorithm.
 		 * 
-		 * Calls {@link Mac#reset()} on access.
-		 * 
 		 * @return mac, or {@code null}, if not supported by vm.
 		 */
 		public Mac getMac() {
 			if (mac != null) {
 				Mac current = mac.current();
-				current.reset();
 				return current;
 			} else {
 				return null;
