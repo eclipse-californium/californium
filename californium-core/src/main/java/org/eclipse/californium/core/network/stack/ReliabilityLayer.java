@@ -215,9 +215,9 @@ public class ReliabilityLayer extends AbstractLayer {
 		if (request.isDuplicate()) {
 			if (exchange.getSendNanoTimestamp() > request.getReceiveNanoTimestamp()) {
 				// received before response was sent
-				int c = counter.incrementAndGet();
-				LOGGER.warn("{}: {} duplicate request {}, server sent response delayed, ignore request", c, exchange,
-						request);
+				int count = counter.incrementAndGet();
+				LOGGER.warn("{}: {} duplicate request {}, server sent response delayed, ignore request", count,
+						exchange, request);
 				return;
 			}
 
