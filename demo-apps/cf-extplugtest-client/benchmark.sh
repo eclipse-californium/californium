@@ -30,13 +30,13 @@ echo "      Please delete therefore the \"Californium???.properties\" to apply t
 echo
 
 CF_JAR=cf-extplugtest-client-2.0.0-SNAPSHOT.jar
-CF_EXEC=org.eclipse.californium.extplugtests.BenchmarkClient
-CF_OPT="-d64 -XX:+UseG1GC -Xmx6g -Dcalifornium.statistic=M17"
+CF_EXEC="org.eclipse.californium.extplugtests.BenchmarkClient"
+CF_OPT="-d64 -XX:+UseG1GC -Xmx6g -Dcalifornium.statistic=M18"
 CF_HOST=localhost
 
 # adjust the multiplier according the speed of your CPU
 USE_TCP=0
-USE_PLAIN=0
+USE_PLAIN=1
 USE_SECURE=1
 MULTIPLIER=10
 REQS=$((500 * $MULTIPLIER))
@@ -115,6 +115,20 @@ benchmark_all()
 
 # observe NON
 	benchmark_udp "reverse-observe?obs=25000&res=feed-NON&rlen=${PAYLOAD_LARGE}" ${OBS_CLIENTS} 1 stop ${NOTIFIES} 20 100
+	
+}
+
+benchmark_dtls_handshake()
+{
+   if [ ${USE_SECURE} -ne 0 ] ; then 
+      i=0
+      while [ $i -lt $1 ] ; do
+	java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} -r "coaps://${CF_HOST}:5784/benchmark?rlen=${PAYLOAD}" ${UDP_CLIENTS} 10
+	if [ ! $? -eq 0 ] ; then exit $?; fi
+	sleep 2
+	i=$(($i + 1))
+      done
+   fi   
 }
 
 longterm()
@@ -129,6 +143,9 @@ longterm()
 }
 
 benchmark_all
+benchmark_all
+benchmark_all
+benchmark_dtls_handshake 25
 #longterm
 
 END_BENCHMARK=`date +%s`
