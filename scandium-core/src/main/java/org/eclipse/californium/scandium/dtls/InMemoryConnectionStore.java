@@ -314,7 +314,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 				}
 				return true;
 			} else {
-				LOG.info("{}connection store is full! {} max. entries.", tag, connections.getCapacity());
+				LOG.warn("{}connection store is full! {} max. entries.", tag, connections.getCapacity());
 				return false;
 			}
 		} else {

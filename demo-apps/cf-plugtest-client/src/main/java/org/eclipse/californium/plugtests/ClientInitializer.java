@@ -23,6 +23,8 @@ package org.eclipse.californium.plugtests;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
 import java.util.Arrays;
@@ -69,6 +71,9 @@ public class ClientInitializer {
 	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
 	private static final String CLIENT_NAME = "client";
 	private static final SecretKey PSK_SECRET = SecretUtil.create(".fornium".getBytes(), "PSK");
+
+	private static SslContextUtil.Credentials clientCredentials = null;
+	private static Certificate[] trustedCertificates = null;
 
 	/**
 	 * Initialize client.
@@ -137,7 +142,7 @@ public class ClientInitializer {
 		ping = ping && !uri.startsWith(CoAP.COAP_TCP_URI_SCHEME + "://")
 				&& !uri.startsWith(CoAP.COAP_SECURE_TCP_URI_SCHEME + "://");
 		String[] leftArgs = Arrays.copyOfRange(args, index + 1, args.length);
-		Arguments arguments = new Arguments(uri, id, secret, rpk, x509, ping, verbose, json, cbor, leftArgs);
+		Arguments arguments = new Arguments(uri, id, secret, rpk, x509, ping, verbose, json, cbor, null, null, leftArgs);
 		CoapEndpoint coapEndpoint = createEndpoint(config, arguments, null, ephemeralPort);
 		coapEndpoint.start();
 		LOGGER.info("endpoint started at {}", coapEndpoint.getAddress());
@@ -172,33 +177,43 @@ public class ClientInitializer {
 		Integer cidLength = config.getOptInteger(Keys.DTLS_CONNECTION_ID_LENGTH);
 
 		if (arguments.uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME)) {
-			SslContextUtil.Credentials clientCredentials = null;
-			Certificate[] trustedCertificates = null;
-			SSLContext clientSslContext = null;
-			try {
-				clientCredentials = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION,
-						CLIENT_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
-				trustedCertificates = SslContextUtil.loadTrustedCertificates(
-						SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, null, TRUST_STORE_PASSWORD);
-				clientSslContext = SslContextUtil.createSSLContext(CLIENT_NAME, clientCredentials.getPrivateKey(),
-						clientCredentials.getCertificateChain(), trustedCertificates);
-				SSLSessionContext clientSessionContext = clientSslContext.getClientSessionContext();
-				if (clientSessionContext != null) {
-					clientSessionContext.setSessionTimeout(sessionTimeout);
-					clientSessionContext.setSessionCacheSize(maxPeers);
+			if (clientCredentials == null || trustedCertificates == null) {
+				try {
+					clientCredentials = SslContextUtil.loadCredentials(
+							SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, CLIENT_NAME, KEY_STORE_PASSWORD,
+							KEY_STORE_PASSWORD);
+					trustedCertificates = SslContextUtil.loadTrustedCertificates(
+							SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, null, TRUST_STORE_PASSWORD);
+				} catch (GeneralSecurityException e) {
+					e.printStackTrace();
+				} catch (IOException e) {
+					e.printStackTrace();
 				}
-			} catch (GeneralSecurityException e) {
-				e.printStackTrace();
-			} catch (IOException e) {
-				e.printStackTrace();
 			}
-
+			SSLContext clientSslContext = null;
+			if (clientCredentials != null && trustedCertificates != null) {
+				try {
+					clientSslContext = SslContextUtil.createSSLContext(CLIENT_NAME, clientCredentials.getPrivateKey(),
+							clientCredentials.getCertificateChain(), trustedCertificates);
+					SSLSessionContext clientSessionContext = clientSslContext.getClientSessionContext();
+					if (clientSessionContext != null) {
+						clientSessionContext.setSessionTimeout(sessionTimeout);
+						clientSessionContext.setSessionCacheSize(maxPeers);
+					}
+				} catch (GeneralSecurityException e) {
+					e.printStackTrace();
+				}
+			}
 			if (arguments.uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME + "://")) {
 				int coapsPort = ephemeralPort ? 0 : config.getInt(Keys.COAP_SECURE_PORT);
 				DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
 				if (arguments.rpk) {
-					dtlsConfig.setIdentity(clientCredentials.getPrivateKey(), clientCredentials.getCertificateChain(),
-							CertificateType.RAW_PUBLIC_KEY);
+					if (arguments.privateKey != null && arguments.publicKey != null) {
+						dtlsConfig.setIdentity(arguments.privateKey, arguments.publicKey);
+					} else {
+						dtlsConfig.setIdentity(clientCredentials.getPrivateKey(),
+								clientCredentials.getCertificateChain(), CertificateType.RAW_PUBLIC_KEY);
+					}
 					dtlsConfig.setRpkTrustAll();
 				} else if (arguments.x509) {
 					dtlsConfig.setIdentity(clientCredentials.getPrivateKey(), clientCredentials.getCertificateChain(),
@@ -304,6 +319,8 @@ public class ClientInitializer {
 		public final String secret;
 		public final String uri;
 		public final String[] args;
+		public final PrivateKey privateKey;
+		public final PublicKey publicKey;
 
 		/**
 		 * Create new arguments instance.
@@ -327,7 +344,7 @@ public class ClientInitializer {
 		 * @param args    left arguments
 		 */
 		public Arguments(String uri, String id, String secret, boolean rpk, boolean x509, boolean ping, boolean verbose,
-				boolean json, boolean cbor, String[] args) {
+				boolean json, boolean cbor, PrivateKey privateKey, PublicKey publicKey, String[] args) {
 			this.uri = uri;
 			this.id = id;
 			this.secret = secret;
@@ -338,6 +355,8 @@ public class ClientInitializer {
 			this.json = json;
 			this.cbor = cbor;
 			this.args = args;
+			this.privateKey = null;
+			this.publicKey = null;
 		}
 
 		/**
@@ -350,7 +369,15 @@ public class ClientInitializer {
 		 * @return create arguments clone.
 		 */
 		public Arguments create(String id, String secret) {
-			return new Arguments(uri, id, secret, rpk, x509, ping, verbose, json, cbor, args);
+			return new Arguments(uri, id, secret, false, false, ping, verbose, json, cbor, privateKey, publicKey, args);
+		}
+
+		/**
+		 * Create arguments clone with different ec key pair.
+		 * @return create arguments clone.
+		 */
+		public Arguments create(PrivateKey privateKey, PublicKey publicKey) {
+			return new Arguments(uri, null, null, true, false, ping, verbose, json, cbor, privateKey, publicKey,args);
 		}
 	}
 }

@@ -27,7 +27,11 @@ import java.lang.management.OperatingSystemMXBean;
 import java.lang.management.ThreadMXBean;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.GeneralSecurityException;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
 import java.security.SecureRandom;
+import java.security.spec.ECGenParameterSpec;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Formatter;
@@ -197,7 +201,7 @@ public class BenchmarkClient {
 	/**
 	 * Done indicator for overall requests.
 	 */
-	private static CountDownLatch overallRequestsDone;
+	private static final CountDownLatch overallRequestsDone = new CountDownLatch(1);
 	/**
 	 * Overall reverse responses down-counter.
 	 */
@@ -206,6 +210,10 @@ public class BenchmarkClient {
 	 * Client counter.
 	 */
 	private static final AtomicInteger clientCounter = new AtomicInteger();
+	/**
+	 * Client counter.
+	 */
+	private static final AtomicInteger connectDownCounter = new AtomicInteger();
 	/**
 	 * Overall retransmission counter.
 	 */
@@ -366,6 +374,7 @@ public class BenchmarkClient {
 			} else {
 				long c = requestsCounter.get();
 				LOGGER.warn("Received error response: {} {} ({} successful)", endpoint.getUri(), response.advanced(), c);
+				checkReady(true, true);
 				stop();
 			}
 		}
@@ -388,31 +397,18 @@ public class BenchmarkClient {
 					next();
 				} else {
 					LOGGER.error("failed after {} requests! {}", c, msg);
+					checkReady(true, false);
 					stop();
 				}
 			}
 		}
 
 		public void next() {
-			long c = overallRequestsDownCounter.get();
-			while (c > 0) {
-				if (overallRequestsDownCounter.compareAndSet(c, c - 1)) {
-					--c;
-					break;
-				}
-				c = overallRequestsDownCounter.get();
-			}
-
-			if (0 < c) {
+			if (!checkReady(true, true)) {
 				requestsCounter.incrementAndGet();
 				Request post = prepareRequest(client);
 				post.addMessageObserver(retransmissionDetector);
 				client.advanced(new TestHandler(post), post);
-			} else {
-				overallRequestsDone.countDown();
-				if (overallReverseResponsesDownCounter.getCount() == 0) {
-					stop();
-				}
 			}
 		}
 	}
@@ -480,14 +476,7 @@ public class BenchmarkClient {
 				if (response.isSuccess()) {
 					LOGGER.info("Received response: {}", response.advanced());
 					clientCounter.incrementAndGet();
-					requestsCounter.incrementAndGet();
-					long c = overallRequestsDownCounter.decrementAndGet();
-					if (c == 0) {
-						overallRequestsDone.countDown();
-						if (overallReverseResponsesDownCounter.getCount() == 0) {
-							stop();
-						}
-					}
+					checkReady(true, true);
 					return true;
 				} else {
 					LOGGER.warn("Received error response: {} - {}", response.advanced().getCode(), response.advanced().getPayloadString());
@@ -508,16 +497,34 @@ public class BenchmarkClient {
 	 * Must be called after {@link #start()}
 	 */
 	public void startBenchmark() {
-		if (overallRequestsDownCounter.getAndDecrement() > 0) {
+		if (!checkReady(false, false)) {
 			if (requestsCounter.get() == 0) {
 				clientCounter.incrementAndGet();
 			}
 			Request post = prepareRequest(client);
 			post.addMessageObserver(retransmissionDetector);
 			client.advanced(new TestHandler(post), post);
-		} else {
-			overallRequestsDone.countDown();
 		}
+	}
+
+	public boolean checkReady(boolean connected, boolean response) {
+		boolean allConnected = connectDownCounter.get() <= 0;
+		if (connected) {
+			if (requestsCounter.get() == 0) {
+				allConnected = connectDownCounter.decrementAndGet() <= 0;
+			}
+			if (response) {
+				requestsCounter.getAndIncrement();
+			}
+		}
+		long c = response ? countDownOverallRequests() : overallRequestsDownCounter.get();
+		if (c == 0 && allConnected) {
+			overallRequestsDone.countDown();
+			if (overallReverseResponsesDownCounter.getCount() == 0) {
+				stop();
+			}
+		}
+		return c == 0;
 	}
 
 	/**
@@ -535,15 +542,28 @@ public class BenchmarkClient {
 	 * @return number of requests processed by this client.
 	 */
 	public int destroy() {
-			endpoint.stop();
-			server.stop();
-			if (shutdown) {
-				executorService.shutdownNow();
-			}
-			client.shutdown();
-			server.destroy();
-			endpoint.destroy();
+		stop();
+		endpoint.stop();
+		server.stop();
+		if (shutdown) {
+			executorService.shutdownNow();
+		}
+		client.shutdown();
+		server.destroy();
+		endpoint.destroy();
 		return requestsCounter.get();
+	}
+
+	public static long countDownOverallRequests() {
+		long c = overallRequestsDownCounter.get();
+		while (c > 0) {
+			if (overallRequestsDownCounter.compareAndSet(c, c - 1)) {
+				--c;
+				break;
+			}
+			c = overallRequestsDownCounter.get();
+		}
+		return c;
 	}
 
 	public static void main(String[] args) throws InterruptedException, IOException {
@@ -639,7 +659,6 @@ public class BenchmarkClient {
 
 		int overallRequests = (requests * clients);
 		int overallReverseResponses = (reverseResponses * clients);
-		overallRequestsDone = new CountDownLatch(1);
 		overallRequestsDownCounter.set(overallRequests);
 		overallReverseResponsesDownCounter = new CountDownLatch(overallReverseResponses);
 
@@ -664,9 +683,19 @@ public class BenchmarkClient {
 						intervalMax);
 			}
 		}
-
+		connectDownCounter.set(clients);
 		final CountDownLatch start = new CountDownLatch(clients);
-
+		KeyPairGenerator keyPairGenerator = null;
+		if (arguments.rpk) {
+			try {
+				keyPairGenerator = KeyPairGenerator.getInstance("EC");
+				keyPairGenerator.initialize(new ECGenParameterSpec("secp256r1"));
+				System.out.println("Use RPK.");
+			} catch (GeneralSecurityException ex) {
+				LOGGER.error("EC failed!", ex);
+				keyPairGenerator = null;
+			}
+		}
 		// Create & start clients
 		final AtomicBoolean errors = new AtomicBoolean();
 		for (int index = 0; index < clients; ++index) {
@@ -674,9 +703,16 @@ public class BenchmarkClient {
 			endpointBuilder.setNetworkConfig(config);
 			Arguments connectionArgs = arguments;
 			if (secure) {
-				random.nextBytes(id);
-				String name = ClientInitializer.PSK_IDENTITY_PREFIX + StringUtil.byteArray2Hex(id);
-				connectionArgs = arguments.create(name, null);
+				if (arguments.rpk) {
+					if (keyPairGenerator != null) {
+						KeyPair keyPair = keyPairGenerator.generateKeyPair();
+						connectionArgs = arguments.create(keyPair.getPrivate(), keyPair.getPublic());
+					}
+				} else if (!arguments.x509) {
+					random.nextBytes(id);
+					String name = ClientInitializer.PSK_IDENTITY_PREFIX + StringUtil.byteArray2Hex(id);
+					connectionArgs = arguments.create(name, null);
+				}
 			}
 			CoapEndpoint coapEndpoint = ClientInitializer.createEndpoint(config, connectionArgs, connectorExecutor, true);
 			final BenchmarkClient client = new BenchmarkClient(index, intervalMin, intervalMax, uri,
@@ -731,6 +767,7 @@ public class BenchmarkClient {
 		while (!overallRequestsDone.await(DEFAULT_TIMEOUT_NANOS, TimeUnit.NANOSECONDS)) {
 			long currentRequestsCountDown = overallRequestsDownCounter.get();
 			int numberOfClients = clientCounter.get();
+			int connectsPending = connectDownCounter.get();
 			long requestDifference = (lastRequestsCountDown - currentRequestsCountDown);
 			long currentOverallSentRequests = overallRequests - currentRequestsCountDown;
 			if ((requestDifference == 0 && currentRequestsCountDown < overallRequests)
@@ -740,7 +777,7 @@ public class BenchmarkClient {
 				requestNanos += DEFAULT_TIMEOUT_NANOS;
 				reverseResponseNanos = requestNanos;
 				stale = true;
-				System.out.format("%d requests, stale (%d clients)%n", currentOverallSentRequests, numberOfClients);
+				System.out.format("%d requests, stale (%d clients, %d pending)%n", currentOverallSentRequests, numberOfClients, connectsPending);
 				break;
 			}
 			long retransmissions = retransmissionCounter.get();
