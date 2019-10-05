@@ -109,7 +109,7 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class Handshaker {
 
-	private final Logger LOGGER = LoggerFactory.getLogger(getClass().getName());
+	protected final Logger LOGGER = LoggerFactory.getLogger(getClass().getName());
 
 	/**
 	 * Indicates whether this handshaker performs the client or server part of
@@ -1202,6 +1202,7 @@ public abstract class Handshaker {
 	}
 
 	protected final void handshakeStarted() throws HandshakeException {
+		LOGGER.debug("handshake started {}", connection);
 		for (SessionListener sessionListener : sessionListeners) {
 			sessionListener.handshakeStarted(this);
 		}
@@ -1209,6 +1210,7 @@ public abstract class Handshaker {
 
 	protected final void sessionEstablished() throws HandshakeException {
 		if (!sessionEstablished) {
+			LOGGER.debug("session established {}", connection);
 			amendPeerPrincipal();
 			sessionEstablished = true;
 			for (SessionListener sessionListener : sessionListeners) {
@@ -1222,6 +1224,7 @@ public abstract class Handshaker {
 		for (SessionListener sessionListener : sessionListeners) {
 			sessionListener.handshakeCompleted(this);
 		}
+		LOGGER.debug("handshake completed {}", connection);
 	}
 
 	/**
@@ -1239,6 +1242,7 @@ public abstract class Handshaker {
 			this.cause = cause;
 		}
 		if (!handshakeFailed && this.cause == cause) {
+			LOGGER.debug("handshake failed {}", connection, cause);
 			handshakeFailed = true;
 			setPendingFlight(null);
 			if (!sessionEstablished) {

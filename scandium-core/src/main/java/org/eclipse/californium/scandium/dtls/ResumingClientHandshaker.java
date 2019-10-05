@@ -43,9 +43,6 @@ import java.security.MessageDigest;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 
 /**
  * The resuming client handshaker executes a abbreviated handshake by adding a
@@ -55,8 +52,6 @@ import org.slf4j.LoggerFactory;
  * previous full handshake.
  */
 public class ResumingClientHandshaker extends ClientHandshaker {
-	
-	private static final Logger LOGGER = LoggerFactory.getLogger(ResumingClientHandshaker.class.getName());
 
 	private static HandshakeState[] RESUME = { new HandshakeState(HandshakeType.HELLO_VERIFY_REQUEST, true),
 			new HandshakeState(HandshakeType.SERVER_HELLO), new HandshakeState(ContentType.CHANGE_CIPHER_SPEC),

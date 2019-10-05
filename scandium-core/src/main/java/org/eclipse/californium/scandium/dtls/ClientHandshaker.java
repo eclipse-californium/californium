@@ -67,8 +67,6 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.util.PskUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * ClientHandshaker does the protocol handshaking from the point of view of a
@@ -76,8 +74,6 @@ import org.slf4j.LoggerFactory;
  * {@link Handshaker} class.
  */
 public class ClientHandshaker extends Handshaker {
-
-	private static final Logger LOGGER = LoggerFactory.getLogger(ClientHandshaker.class.getName());
 
 	protected static HandshakeState[] SEVER_CERTIFICATE = { new HandshakeState(HandshakeType.HELLO_VERIFY_REQUEST, true),
 			new HandshakeState(HandshakeType.SERVER_HELLO), new HandshakeState(HandshakeType.CERTIFICATE),
