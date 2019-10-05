@@ -48,6 +48,7 @@ import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.exception.ConnectorException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -373,6 +374,7 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 		private final Request outgoingObserveRequest;
 		private final AtomicBoolean registered = new AtomicBoolean();
 		private final int count;
+		private boolean failureLogged;
 
 		private RequestObserver(IncomingExchange incomingExchange, Request outgoingObserveRequest, int count) {
 			this.incomingExchange = incomingExchange;
@@ -408,8 +410,19 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 		}
 
 		@Override
+		public void onSendError(Throwable error) {
+			if (error instanceof ConnectorException) {
+				LOGGER.warn("Observe request failed! {}", outgoingObserveRequest.getToken());
+				failureLogged = true;
+			}
+			super.onSendError(error);
+		}
+
+		@Override
 		protected void failed() {
-			LOGGER.info("Observe request failed! {}", outgoingObserveRequest.getToken());
+			if (!failureLogged) {
+				LOGGER.debug("Observe request failed! {}", outgoingObserveRequest.getToken());
+			}
 			remove(INTERNAL_SERVER_ERROR);
 		}
 
