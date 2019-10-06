@@ -436,6 +436,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 					Connection connection = handshaker.getConnection();
 					if (handshaker.isRemovingConnection()) {
 						connectionStore.remove(connection, false);
+					} else if (handshaker.isProbing()) {
+						LOGGER.debug("Handshake with [{}] failed within probe!", handshaker.getPeerAddress());
 					} else if (connection.getEstablishedSession() == handshaker.getSession()) {
 						// failure after established (last FINISH),
 						// but before completed (first data)
@@ -445,8 +447,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 						LOGGER.warn("Handshake with [{}] failed, but has an established session!",
 								handshaker.getPeerAddress());
 					} else {
-						LOGGER.warn("Handshake with [{}] failed, connection preserved!",
-								handshaker.getPeerAddress());
+						LOGGER.warn("Handshake with [{}] failed, connection preserved!", handshaker.getPeerAddress());
 					}
 				}
 			};
@@ -1236,6 +1237,16 @@ public class DTLSConnector implements Connector, RecordLayer {
 			}
 
 			record.applySession(session);
+
+			if (handshaker != null && handshaker.isProbing()) {
+				// received record, probe successful
+				if (connection.hasEstablishedSession()) {
+					connectionStore.removeFromEstablishedSessions(connection.getEstablishedSession(), connection);
+				}
+				connection.resetSession();
+				handshaker.resetProbing();
+				LOGGER.debug("handshake probe successful {}", connection.getPeerAddress());
+			}
 
 			switch (record.getType()) {
 			case APPLICATION_DATA:
@@ -2091,10 +2102,18 @@ public class DTLSConnector implements Connector, RecordLayer {
 		LOGGER.debug("Sending application layer message to [{}]", message.getEndpointContext());
 
 		Handshaker handshaker = connection.getOngoingHandshake();
-		if (handshaker != null && handshaker.isExpired()) {
-			// handshake expired during Android / OS "deep sleep"
-			// on sending, abort, keep connection for new handshake
-			handshaker.handshakeAborted(new Exception("handshake already expired!"));
+		if (handshaker != null) {
+			if (handshaker.isExpired()) {
+				// handshake expired during Android / OS "deep sleep"
+				// on sending, abort, keep connection for new handshake
+				handshaker.handshakeAborted(new Exception("handshake already expired!"));
+			} else if (handshaker.isProbing()) {
+				if (checkOutboundEndpointContext(message, null)) {
+					message.onConnecting();
+					handshaker.addApplicationDataForDeferredProcessing(message);
+				}
+				return;
+			}
 		}
 
 		if (connection.isActive()) {
@@ -2172,8 +2191,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 				return;
 			}
 		} else {
+			boolean probing = DtlsEndpointContext.HANDSHAKE_MODE_PROBE.equals(handshakeMode);
 			boolean full = DtlsEndpointContext.HANDSHAKE_MODE_FORCE_FULL.equals(handshakeMode);
-			boolean force = full || DtlsEndpointContext.HANDSHAKE_MODE_FORCE.equals(handshakeMode);
+			boolean force = probing || full || DtlsEndpointContext.HANDSHAKE_MODE_FORCE.equals(handshakeMode);
 			if (force || connection.isAutoResumptionRequired(getAutResumptionTimeout(message))) {
 				// create the session to resume from the previous one.
 				if (serverOnly) {
@@ -2185,17 +2205,28 @@ public class DTLSConnector implements Connector, RecordLayer {
 				}
 				message.onConnecting();
 				Handshaker previousHandshaker = connection.getOngoingHandshake();
-				SessionTicket ticket;
-				SessionId sessionId;
+				SessionTicket ticket = null;
+				SessionId sessionId = null;
 				if (session != null) {
 					sessionId = session.getSessionIdentifier();
 					ticket = session.getSessionTicket();
-					connectionStore.removeFromEstablishedSessions(session, connection);
+					if (!probing) {
+						connectionStore.removeFromEstablishedSessions(session, connection);
+					}
 				} else {
-					sessionId = connection.getSessionIdentity();
-					ticket = connection.getSessionTicket();
+					if (!full) {
+						sessionId = connection.getSessionIdentity();
+						ticket = connection.getSessionTicket();
+					}
+					probing = false;
 				}
-				connection.resetSession();
+				if (probing) {
+					// Only reset the resumption trigger, but keep the session for now
+					// the session will be reseted with the first received data
+					connection.setResumptionRequired(false);
+				} else {
+					connection.resetSession();
+				}
 				Handshaker newHandshaker;
 				if (full || sessionId.isEmpty()) {
 					// server may use a empty session id to indicate,
@@ -2210,7 +2241,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 					SecretUtil.destroy(ticket);
 					resumableSession.setHostName(message.getEndpointContext().getVirtualHost());
 					newHandshaker = new ResumingClientHandshaker(resumableSession, this, connection, config,
-							maximumTransmissionUnit);
+							maximumTransmissionUnit, probing);
 				}
 				initializeHandshaker(newHandshaker);
 				if (previousHandshaker != null) {
@@ -2391,9 +2422,12 @@ public class DTLSConnector implements Connector, RecordLayer {
 
 	private void handleTimeout(DTLSFlight flight, Connection connection) {
 
-		if (!flight.isResponseCompleted() && !connection.hasEstablishedSession()) {
+		if (!flight.isResponseCompleted()) {
 			Handshaker handshaker = connection.getOngoingHandshake();
 			if (null != handshaker) {
+				if (!handshaker.isProbing() && connection.hasEstablishedSession()) {
+					return;
+				}
 				Exception cause = null;
 				String message = "";
 				if (!connection.isExecuting() || !running.get()) {
