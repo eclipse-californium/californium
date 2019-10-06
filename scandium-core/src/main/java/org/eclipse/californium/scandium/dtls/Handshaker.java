@@ -1300,6 +1300,31 @@ public abstract class Handshaker implements Destroyable {
 	}
 
 	/**
+	 * Test, if handshake was started in probing mode.
+	 * 
+	 * Usually a resuming client handshake removes the session from the
+	 * connection store with the start. Probing removes the session only with
+	 * the first data received back.
+	 * 
+	 * @return {@code true}, if handshake is in probing mode, {@code false},
+	 *         otherwise.
+	 * @see ResumingClientHandshaker
+	 */
+	public boolean isProbing() {
+		// intended to be overriden by the ResumingClientHandshaker
+		return false;
+	}
+
+	/**
+	 * Reset probing mode, when data is received during.
+	 * 
+	 * @see ResumingClientHandshaker
+	 */
+	public void resetProbing() {
+		// intended to be overriden by the ResumingClientHandshaker
+	}
+
+	/**
 	 * Test, if handshake is expired according nano realtime.
 	 * 
 	 * Used to mitigate deep sleep during handhsakes.
