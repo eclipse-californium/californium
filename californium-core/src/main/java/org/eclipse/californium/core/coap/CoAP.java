@@ -394,7 +394,19 @@ public final class CoAP {
 		PATCH(6),
 
 		/** The IPATCH code. */
-		IPATCH(7);
+		IPATCH(7),
+
+		/** 
+		 * The custom code 30.
+		 * 
+		 * Support for openHAB custom CoAP extension, CoIoT, used for shelly binding.
+		 * <a href="https://shelly-api-docs.shelly.cloud/images/CoIoT%20for%20Shelly%20devices%20(rev%201.0)%20.pdf">CoIot Shelly</a>.
+		 * 
+		 * Note: though this code is not assigned byt IANA, it may cause future incompatibilities.
+		 * If the IANA assigns this value, this will get replaced!
+		 * <a href="https://www.iana.org/assignments/core-parameters/core-parameters.xhtml#method-codes">IANA CoAP Codes</a>.
+		 */
+		CUSTOM_30(30);
 
 		/** The code value. */
 		public final int value;
@@ -429,6 +441,7 @@ public final class CoAP {
 				case 5: return FETCH;
 				case 6: return PATCH;
 				case 7: return IPATCH;
+				case 30: return CUSTOM_30;
 				default: throw new MessageFormatException(String.format("Unknown CoAP request code: %s", formatCode(classCode, detailCode)));
 			}
 		}
