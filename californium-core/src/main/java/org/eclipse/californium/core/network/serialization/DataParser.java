@@ -54,7 +54,7 @@ public abstract class DataParser {
 		}
 		Message message = parseMessage(raw.getBytes());
 		message.setSourceContext(raw.getEndpointContext());
-		message.setReceiveNanoTimestamp(raw.getReceiveNanoTimestamp());
+		message.setNanoTimestamp(raw.getReceiveNanoTimestamp());
 		return message;
 	}
 

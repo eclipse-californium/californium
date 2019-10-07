@@ -53,6 +53,7 @@ import java.nio.charset.CodingErrorAction;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -172,9 +173,10 @@ public abstract class Message {
 	private volatile List<MessageObserver> unmodifiableMessageObserversFacade = null;
 
 	/**
-	 * The nano-timestamp when this message has been received, or {@code 0} for outgoing messages.
+	 * The nano-timestamp when this message has been received, sent, or
+	 * {@code 0} if neither has happened yet.
 	 */
-	private volatile long receiveNanoTimestamp;
+	private volatile long nanoTimestamp;
 
 	/**
 	 * Creates a new message with no specified message type.
@@ -883,6 +885,41 @@ public abstract class Message {
 	}
 
 	/**
+	 * Waits for the message to be sent.
+	 * <p>
+	 * This function blocks until the message is sent, has been canceled, the
+	 * specified timeout has expired, or an error occurred. A timeout of 0 is
+	 * interpreted as infinity. If the message is already sent, this method
+	 * returns it immediately.
+	 * <p>
+	 * 
+	 * @param timeout the maximum time to wait in milliseconds.
+	 * @return {@code true}, if the message was sent in time, {@code false},
+	 *         otherwise
+	 * @throws InterruptedException the interrupted exception
+	 */
+	public boolean waitForSent(long timeout) throws InterruptedException {
+		long expiresNano = ClockUtil.nanoRealtime() + TimeUnit.MILLISECONDS.toNanos(timeout);
+		long leftTimeout = timeout;
+		synchronized (this) {
+			while (!sent && !isCanceled() && !isTimedOut() && getSendError() == null) {
+				wait(leftTimeout);
+				// timeout expired?
+				if (timeout > 0) {
+					long leftNanos = expiresNano - ClockUtil.nanoRealtime();
+					if (leftNanos <= 0) {
+						// break loop
+						break;
+					}
+					// add 1 millisecond to prevent last wait with 0!
+					leftTimeout = TimeUnit.NANOSECONDS.toMillis(leftNanos) + 1;
+				}
+			}
+			return sent;
+		}
+	}
+
+	/**
 	 * Checks if this message is a duplicate.
 	 *
 	 * @return true, if is a duplicate
@@ -935,25 +972,31 @@ public abstract class Message {
 	}
 
 	/**
-	 * Gets the nano timestamp of receiving this message.
-	 *
+	 * Gets the nano timestamp when this message has been received, sent, or
+	 * {@code 0}, if neither has happened yet. The sent timestamp is garanted to
+	 * be not after sending, therefore it's very short before actual sending the
+	 * message. And the receive timestamp is garanted te be not before receiving
+	 * the message, therefore it's very short after actual receiving the
+	 * message.
+	 * 
 	 * @return the nano timestamp
 	 * @see ClockUtil#nanoRealtime()
 	 */
-	public long getReceiveNanoTimestamp() {
-		return receiveNanoTimestamp;
+	public long getNanoTimestamp() {
+		return nanoTimestamp;
 	}
 
 	/**
-	 * Sets nano timestamp of receiving this message.
+	 * Sets the nano timestamp when this message has been received, sent, or
+	 * {@code 0} if neither has happened yet.
 	 * 
 	 * Not part of the fluent API.
 	 *
-	 * @param nano timestamp the nano timestamp when receiving this message.
+	 * @param timestamp the nano timestamp.
 	 * @see ClockUtil#nanoRealtime()
 	 */
-	public void setReceiveNanoTimestamp(long timestamp) {
-		this.receiveNanoTimestamp = timestamp;
+	public void setNanoTimestamp(long timestamp) {
+		this.nanoTimestamp = timestamp;
 	}
 
 	/**
