@@ -122,6 +122,7 @@ import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.UDPConnector;
+import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.slf4j.Logger;
@@ -973,8 +974,10 @@ public class CoapEndpoint implements Endpoint {
 		}
 
 		@Override
-		public void onContextEstablished(EndpointContext context) {
-
+		public final void onContextEstablished(EndpointContext context) {
+			long now = ClockUtil.nanoRealtime();
+			message.setNanoTimestamp(now);
+			onContextEstablished(context, now);
 		}
 
 		@Override
@@ -985,6 +988,9 @@ public class CoapEndpoint implements Endpoint {
 		@Override
 		public void onError(Throwable error) {
 			message.setSendError(error);
+		}
+
+		protected void onContextEstablished(EndpointContext context, long nanoTimestamp) {
 		}
 	}
 
@@ -1015,7 +1021,8 @@ public class CoapEndpoint implements Endpoint {
 		}
 
 		@Override
-		public void onContextEstablished(EndpointContext context) {
+		protected void onContextEstablished(EndpointContext context, long nanoTimestamp) {
+			exchange.setSendNanoTimestamp(nanoTimestamp);
 			exchange.setEndpointContext(context);
 		}
 	}

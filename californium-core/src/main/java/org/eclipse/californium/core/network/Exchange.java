@@ -889,13 +889,23 @@ public class Exchange {
 	 * Get the realtime of the last sending of a message in nanoseconds.
 	 * 
 	 * The realtime is just before sending this message to ensure, that the
-	 * message wasn't sent up to this time..
+	 * message wasn't sent up to this time. This will alos contain the realtime
+	 * for ACK or RST messages.
 	 * 
 	 * @return nano-time of last message sending.
 	 * @see ClockUtil#nanoRealtime()
 	 */
 	public long getSendNanoTimestamp() {
 		return sendNanoTimestamp.get();
+	}
+
+	/**
+	 * Set the realtime of the last sending of a message in nanoseconds.
+	 * 
+	 * @param nanoTimestamp realtime in nanoseconds
+	 */
+	public void setSendNanoTimestamp(long nanoTimestamp) {
+		sendNanoTimestamp.set(nanoTimestamp);
 	}
 
 	/**
@@ -982,7 +992,6 @@ public class Exchange {
 	 * @param ctx the endpoint context information
 	 */
 	public void setEndpointContext(EndpointContext ctx) {
-		sendNanoTimestamp.set(ClockUtil.nanoRealtime());
 		EndpointContextOperator operator = endpointContextPreOperator;
 		if (operator != null) {
 			ctx = operator.apply(ctx);
