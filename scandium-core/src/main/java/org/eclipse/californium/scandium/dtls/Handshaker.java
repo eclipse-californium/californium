@@ -85,7 +85,6 @@ import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
-import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
@@ -829,39 +828,6 @@ public abstract class Handshaker implements Destroyable {
 		SecretKey masterSecret = SecretUtil.create(secret, "MAC");
 		Bytes.clear(secret);
 		return masterSecret;
-	}
-
-	/**
-	 * The premaster secret is formed as follows: if the PSK is N octets long,
-	 * concatenate a uint16 with the value N, N zero octets, a second uint16
-	 * with the value N, and the PSK itself.
-	 * 
-	 * @param psk - preshared key as byte array
-	 * @param otherSecret - either is zeroes (plain PSK case) or comes 
-	 * from the EC Diffie-Hellman exchange (ECDHE_PSK). 
-	 * @see <a href="http://tools.ietf.org/html/rfc4279#section-2">RFC 4279</a>
-	 * @return byte array with generated premaster secret.
-	 */
-	protected final SecretKey generatePremasterSecretFromPSK(SecretKey psk, SecretKey otherSecret) {
-		/*
-		 * What we are building is the following with length fields in between:
-		 * struct { opaque other_secret<0..2^16-1>; opaque psk<0..2^16-1>; };
-		 */
-		byte[] pskBytes = psk.getEncoded();
-		int pskLength = pskBytes.length;
-		byte[] otherBytes = otherSecret != null ? otherSecret.getEncoded() : new byte[pskLength];
-		DatagramWriter writer = new DatagramWriter(true);
-		writer.write(otherBytes.length, 16);
-		writer.writeBytes(otherBytes);
-		writer.write(pskLength, 16);
-		writer.writeBytes(pskBytes);
-		byte[] secret = writer.toByteArray();
-		writer.close();
-		SecretKey premaster =  SecretUtil.create(secret, "MAC");
-		Bytes.clear(pskBytes);
-		Bytes.clear(otherBytes);
-		Bytes.clear(secret);
-		return premaster;
 	}
 
 	protected final void setCurrentReadState() {
