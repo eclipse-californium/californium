@@ -216,7 +216,7 @@ public class ReliabilityLayer extends AbstractLayer {
 			if (exchange.getSendNanoTimestamp() > request.getNanoTimestamp()) {
 				// received before response was sent
 				int count = counter.incrementAndGet();
-				LOGGER.warn("{}: {} duplicate request {}, server sent response delayed, ignore request", count,
+				LOGGER.debug("{}: {} duplicate request {}, server sent response delayed, ignore request", count,
 						exchange, request);
 				return;
 			}
@@ -286,9 +286,17 @@ public class ReliabilityLayer extends AbstractLayer {
 		exchange.setRetransmissionHandle(null);
 
 		if (response.getType() == Type.CON && !exchange.getRequest().isCanceled()) {
-			LOGGER.debug("{} acknowledging CON response", exchange);
-			EmptyMessage ack = EmptyMessage.newACK(response);
-			sendEmptyMessage(exchange, ack);
+			if (exchange.getSendNanoTimestamp() > response.getNanoTimestamp()) {
+				// received before ACK/RST was sent
+				int count = counter.incrementAndGet();
+				LOGGER.debug("{}: {} duplicate response {}, server sent ACK delayed, ignore response", count,
+						exchange, response);
+				return;
+			} else {
+				LOGGER.debug("{} acknowledging CON response", exchange);
+				EmptyMessage ack = EmptyMessage.newACK(response);
+				sendEmptyMessage(exchange, ack);
+			}
 		}
 
 		if (response.isDuplicate()) {
