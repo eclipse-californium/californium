@@ -63,7 +63,6 @@ import java.util.List;
 
 import javax.crypto.SecretKey;
 
-import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -565,19 +564,19 @@ public class ServerHandshaker extends Handshaker {
 	private SecretKey receivedClientKeyExchange(final PSKClientKeyExchange message) throws HandshakeException {
 		// use the client's PSK identity to look up the pre-shared key
 		preSharedKeyIdentity = message.getIdentity();
-		SecretKey psk = pskStore.getKey(session.getServerNames(), preSharedKeyIdentity);
-		SecretKey premaster = configurePskCredentials(preSharedKeyIdentity, psk, null);
-		SecretUtil.destroy(psk);
+		PskUtil pskUtil = new PskUtil(sniEnabled, session, pskStore, preSharedKeyIdentity);
+		SecretKey premaster = pskUtil.generatePremasterSecretFromPSK(null);
+		SecretUtil.destroy(pskUtil);
 		return premaster;
 	}
 
 	private SecretKey receivedClientKeyExchange(final EcdhPskClientKeyExchange message) throws HandshakeException {
 		// use the client's PSK identity to look up the pre-shared key
 		preSharedKeyIdentity = message.getIdentity();
-		SecretKey psk = pskStore.getKey(session.getServerNames(), preSharedKeyIdentity);
+		PskUtil pskUtil = new PskUtil(sniEnabled, session, pskStore, preSharedKeyIdentity);
 		SecretKey eck = ecdhe.generateSecret(message.getEncodedPoint());
-		SecretKey premaster = configurePskCredentials(preSharedKeyIdentity, psk, eck);
-		SecretUtil.destroy(psk);
+		SecretKey premaster = pskUtil.generatePremasterSecretFromPSK(eck);
+		SecretUtil.destroy(pskUtil);
 		SecretUtil.destroy(eck);
 		return premaster;
 	}
@@ -837,28 +836,5 @@ public class ServerHandshaker extends Handshaker {
 
 	final SupportedGroup getNegotiatedSupportedGroup() {
 		return negotiatedSupportedGroup;
-	}
-
-	private SecretKey configurePskCredentials(PskPublicInformation identity, SecretKey psk, SecretKey otherSecret) throws HandshakeException {
-		String virtualHost = session.getVirtualHost();
-		if (virtualHost == null) {
-			LOGGER.debug("client [{}] uses PSK identity [{}]", getPeerAddress(), identity);
-		} else {
-			LOGGER.debug("client [{}] uses PSK identity [{}] for server [{}]", getPeerAddress(), identity, virtualHost);
-		}
-
-		if (psk == null) {
-			throw new HandshakeException(
-					String.format("cannot authenticate client, identity [%s] is unknown for server [%s]",
-							identity, virtualHost),
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_PSK_IDENTITY, session.getPeer()));
-		} else {
-			if (sniEnabled) {
-				session.setPeerIdentity(new PreSharedKeyIdentity(virtualHost, identity.getPublicInfoAsString()));
-			} else {
-				session.setPeerIdentity(new PreSharedKeyIdentity(identity.getPublicInfoAsString()));
-			}
-			return generatePremasterSecretFromPSK(psk, otherSecret);
-		}
 	}
 }
