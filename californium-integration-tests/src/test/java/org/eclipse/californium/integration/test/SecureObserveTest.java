@@ -33,7 +33,6 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
-import static org.eclipse.californium.core.network.EndpointContextMatcherFactory.MatcherMode;
 
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
@@ -51,6 +50,7 @@ import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
+import org.eclipse.californium.core.network.EndpointContextMatcherFactory.MatcherMode;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -58,6 +58,7 @@ import org.eclipse.californium.core.test.CountingCoapHandler;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.PrincipalEndpointContextMatcher;
 import org.eclipse.californium.elements.exception.EndpointMismatchException;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.examples.NatUtil;
@@ -519,6 +520,9 @@ public class SecureObserveTest {
 		serverConnector = new DTLSConnector(dtlsConfig);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setConnector(serverConnector);
+		if (mode == MatcherMode.PRINCIPAL) {
+			builder.setEndpointContextMatcher(new PrincipalEndpointContextMatcher(true));
+		}
 		builder.setNetworkConfig(config);
 		serverEndpoint = builder.build();
 

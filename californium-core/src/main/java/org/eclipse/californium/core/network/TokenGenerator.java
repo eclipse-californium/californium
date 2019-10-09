@@ -26,6 +26,13 @@ import org.eclipse.californium.core.coap.Token;
 public interface TokenGenerator {
 
 	/**
+	 * Scope of token
+	 */
+	public enum Scope {
+		LONG_TERM, SHORT_TERM, SHORT_TERM_CLIENT_LOCAL
+	}
+
+	/**
 	 * Creates a token for the provided request.
 	 * 
 	 * Intended to generate tokens with separate scopes for standard- and
@@ -42,11 +49,31 @@ public interface TokenGenerator {
 	 * generated token is already in use, it's intended to create a next token
 	 * calling this method again.
 	 * 
-	 * @param longTermScope {@code true} for observe request within the
-	 *            long-term scope, {@code false} for normal request with
-	 *            short-term scope.
+	 * @param scope {@code LONG_TERM} for observe request within the long-term
+	 *            scope, {@code SHORT_TERM} for multicast request with
+	 *            short-term scope, and {@code SHORT_TERM_CLIENT_LOCAL} for
+	 *            normal requests.
 	 * @return the generated token
 	 */
-	Token createToken(boolean longTermScope);
+	Token createToken(Scope scope);
 
+	/**
+	 * Get scope of token.
+	 * 
+	 * @param token token to determine the scope of
+	 * @return scope of the provided token
+	 */
+	Scope getScope(Token token);
+
+	/**
+	 * Create a key token.
+	 * 
+	 * @param token the message token
+	 * @param peer peer identity. May be {@code null},
+	 *            if the token has a none client-local scope
+	 * @return key token
+	 * @throws IllegalArgumentException if the token has a client-local scope
+	 *             and no peer is provided.
+	 */
+	KeyToken getKeyToken(Token token, Object peer);
 }

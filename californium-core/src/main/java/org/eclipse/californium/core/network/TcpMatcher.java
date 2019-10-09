@@ -55,7 +55,6 @@ import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
-import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
@@ -158,8 +157,9 @@ public final class TcpMatcher extends BaseMatcher {
 
 	@Override
 	public void receiveResponse(final Response response, final EndpointReceiver receiver) {
+		Object peer = endpointContextMatcher.getEndpointIdentity(response.getSourceContext());
+		final KeyToken idByToken = tokenGenerator.getKeyToken(response.getToken(), peer);
 
-		final Token idByToken = response.getToken();
 		Exchange tempExchange = exchangeStore.get(idByToken);
 
 		if (tempExchange == null) {
@@ -182,7 +182,7 @@ public final class TcpMatcher extends BaseMatcher {
 				boolean checkResponseToken = !exchange.isNotification() || exchange.getRequest() != exchange.getCurrentRequest();
 				if (checkResponseToken && exchangeStore.get(idByToken) != exchange) {
 					if (running) {
-						LOGGER.error("ignoring response {}, exchange not longer matching!", response);
+						LOGGER.debug("ignoring response {}, exchange not longer matching!", response);
 					}
 					return;
 				}
@@ -196,6 +196,14 @@ public final class TcpMatcher extends BaseMatcher {
 				}
 				try {
 					if (endpointContextMatcher.isResponseRelatedToRequest(context, response.getSourceContext())) {
+						Request currentRequest = exchange.getCurrentRequest();
+						if (exchange.isNotification() && !currentRequest.isMulticast()
+								&& response.isNotification() && currentRequest.isObserveCancel()) {
+							// overlapping notification for observation cancel
+							// request
+							LOGGER.debug("ignoring notify for pending cancel {}!", response);
+							return;
+						}
 						receiver.receiveResponse(exchange, response);
 					} else {
 						LOGGER.debug(
@@ -218,9 +226,9 @@ public final class TcpMatcher extends BaseMatcher {
 	private class RemoveHandlerImpl implements RemoveHandler {
 
 		@Override
-		public void remove(Exchange exchange, Token token, KeyMID key) {
-			if (token != null) {
-				exchangeStore.remove(token, exchange);
+		public void remove(Exchange exchange, KeyToken keyToken, KeyMID keyMID) {
+			if (keyToken != null) {
+				exchangeStore.remove(keyToken, exchange);
 			}
 			// ignore key, MID is not used for TCP!
 		}

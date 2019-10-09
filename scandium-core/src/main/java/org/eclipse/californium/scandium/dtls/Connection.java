@@ -45,6 +45,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.SerialExecutor;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -521,16 +522,19 @@ public final class Connection {
 			if (getOngoingHandshake() != null) {
 				builder.append(", ongoing handshake ");
 				SessionId id = getOngoingHandshake().getSession().getSessionIdentifier();
-				if (id != null) {
+				if (id != null && !id.isEmpty()) {
 					// during handshake this may by not already set
-					builder.append(id.getAsString().substring(0,  8));
+					builder.append(StringUtil.byteArray2HexString(id.getBytes(), StringUtil.NO_SEPARATOR, 6));
 				}
 			}
 			if (isResumptionRequired()) {
 				builder.append(", resumption required");
 			} else if (hasEstablishedSession()) {
-				String id = getEstablishedSession().getSessionIdentifier().getAsString().substring(0,  8);
-				builder.append(", session established ").append(id);
+				builder.append(", session established ");
+				SessionId id = getEstablishedSession().getSessionIdentifier();
+				if (id != null && !id.isEmpty()) {
+					builder.append(StringUtil.byteArray2HexString(id.getBytes(), StringUtil.NO_SEPARATOR, 6));
+				}
 			}
 		}
 		if (sessionId != null) {

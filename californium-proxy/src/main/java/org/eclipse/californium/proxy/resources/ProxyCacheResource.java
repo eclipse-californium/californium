@@ -153,12 +153,12 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 					Response cachedResponse = responseCache.getUnchecked(cacheKey);
 
 					// calculate the new parameters
-					long newCurrentTime = response.getTimestamp();
+					long newCurrentTime = response.getNanoTimestamp();
 					long newMaxAge = maxAgeOption.longValue();
 
 					// set the new parameters
 					cachedResponse.getOptions().setMaxAge(newMaxAge);
-					cachedResponse.setTimestamp(newCurrentTime);
+					cachedResponse.setNanoTimestamp(newCurrentTime);
 
 					LOGGER.debug("Updated cached response");
 				} else {
@@ -246,7 +246,7 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 				// consider the aging of the response while in the cache
 				response.getOptions().setMaxAge(nanosLeft);
 				// set the current time as the response timestamp
-				response.setTimestamp(currentTime);
+				response.setNanoTimestamp(currentTime);
 			} else {
 				LOGGER.debug("Expired response");
 
@@ -317,7 +317,7 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 	 */
 	private long getRemainingLifetime(Response response, long currentTime) {
 		// get the timestamp
-		long arriveTime = response.getTimestamp();
+		long arriveTime = response.getNanoTimestamp();
 		
 		Long maxAgeOption = response.getOptions().getMaxAge();
 		long oldMaxAge = OptionNumberRegistry.Defaults.MAX_AGE;

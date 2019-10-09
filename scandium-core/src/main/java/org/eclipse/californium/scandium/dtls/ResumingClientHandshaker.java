@@ -43,9 +43,6 @@ import java.security.MessageDigest;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 
 /**
  * The resuming client handshaker executes a abbreviated handshake by adding a
@@ -55,8 +52,6 @@ import org.slf4j.LoggerFactory;
  * previous full handshake.
  */
 public class ResumingClientHandshaker extends ClientHandshaker {
-	
-	private static final Logger LOGGER = LoggerFactory.getLogger(ResumingClientHandshaker.class.getName());
 
 	private static HandshakeState[] RESUME = { new HandshakeState(HandshakeType.HELLO_VERIFY_REQUEST, true),
 			new HandshakeState(HandshakeType.SERVER_HELLO), new HandshakeState(ContentType.CHANGE_CIPHER_SPEC),
@@ -170,7 +165,8 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 				}
 			}
 			expectChangeCipherSpecMessage();
-			calculateKeys(session.getMasterSecret());
+			masterSecret = session.getMasterSecret();
+			calculateKeys(masterSecret);
 		}
 	}
 
@@ -208,15 +204,15 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 
 		// the handshake hash to check the server's verify_data (without the
 		// server's finished message included)
-		message.verifyData(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), session.getMasterSecret(), false, md.digest());
-		
+		message.verifyData(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, false, md.digest());
+
 		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage(message.getPeer());
 		wrapMessage(flight, changeCipherSpecMessage);
 		setCurrentWriteState();
 
 		mdWithServerFinish.update(message.getRawMessage());
 		handshakeHash = mdWithServerFinish.digest();
-		Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), session.getMasterSecret(), isClient, handshakeHash, message.getPeer());
+		Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, isClient, handshakeHash, message.getPeer());
 		wrapMessage(flight, finished);
 		sendLastFlight(flight);
 		sessionEstablished();

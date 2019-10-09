@@ -33,6 +33,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.RandomTokenGenerator;
 import org.eclipse.californium.core.network.TokenGenerator;
+import org.eclipse.californium.core.network.TokenGenerator.Scope;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.oscore.Encryptor;
 import org.eclipse.californium.oscore.HashMapCtxDB;
@@ -576,7 +577,7 @@ public class OSCoreTest {
 	public Token generateToken() {
 		Token token;
 		do {
-			token = tokenGenerator.createToken(false);
+			token = tokenGenerator.createToken(Scope.SHORT_TERM);
 		} while (tokenExist(token));
 		return token;
 	}

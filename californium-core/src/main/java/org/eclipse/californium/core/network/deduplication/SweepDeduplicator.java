@@ -40,8 +40,9 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.Exchange.KeyMID;
+import org.eclipse.californium.core.network.KeyMID;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,13 +81,32 @@ public final class SweepDeduplicator implements Deduplicator {
 			this.exchange = exchange;
 			this.nanoTimestamp = ClockUtil.nanoRealtime();
 		}
-	}
+
+		@Override
+		public int hashCode() {
+			return exchange.hashCode();
+		}
 	
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj) {
+				return true;
+			} else if (obj == null) {
+				return false;
+			} else if (getClass() != obj.getClass()) {
+				return false;
+			}
+			DedupExchange other = (DedupExchange) obj;
+			return exchange.equals(other.exchange);
+		}
+	}
+
 	/** The hash map with all incoming messages. */
 	private final ConcurrentMap<KeyMID, DedupExchange> incomingMessages = new ConcurrentHashMap<>();
 	private final SweepAlgorithm algorithm;
 	private final long sweepInterval;
 	private final long exchangeLifetime;
+	private final boolean replace;
 	private volatile ScheduledFuture<?> jobStatus;
 	private ScheduledExecutorService executor;
 
@@ -109,6 +129,7 @@ public final class SweepDeduplicator implements Deduplicator {
 		algorithm = new SweepAlgorithm();
 		sweepInterval = config.getLong(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL);
 		exchangeLifetime = config.getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME);
+		replace = config.getBoolean(Keys.DEDUPLICATOR_AUTO_REPLACE);
 	}
 
 	@Override
@@ -144,8 +165,30 @@ public final class SweepDeduplicator implements Deduplicator {
 	 */
 	@Override
 	public Exchange findPrevious(final KeyMID key, final Exchange exchange) {
-		DedupExchange previous = incomingMessages.putIfAbsent(key, new DedupExchange(exchange));
+		DedupExchange current = new DedupExchange(exchange);
+		DedupExchange previous = incomingMessages.putIfAbsent(key, current);
+		if (replace && previous != null) {
+			if (previous.exchange.getOrigin() != exchange.getOrigin()) {
+				LOGGER.debug("replace exchange for {}", key);
+				if (incomingMessages.replace(key, previous, current)) {
+					previous = null;
+				} else {
+					previous = incomingMessages.putIfAbsent(key, current);
+				}
+			}
+		}
 		return null == previous ? null : previous.exchange;
+	}
+
+	@Override
+	public boolean replacePrevious(KeyMID key, Exchange previous, Exchange exchange) {
+		boolean result = true;
+		DedupExchange prev = new DedupExchange(previous);
+		DedupExchange current = new DedupExchange(exchange);
+		if (!incomingMessages.replace(key, prev, current)) {
+			result = incomingMessages.putIfAbsent(key, current) == null;
+		}
+		return result;
 	}
 
 	@Override

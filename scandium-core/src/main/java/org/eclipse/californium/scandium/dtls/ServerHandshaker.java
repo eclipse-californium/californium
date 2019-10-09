@@ -61,7 +61,8 @@ import java.security.cert.CertPath;
 import java.util.Arrays;
 import java.util.List;
 
-import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
+import javax.crypto.SecretKey;
+
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -73,16 +74,13 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.eclipse.californium.scandium.util.SecretUtil;
 
 /**
  * Server handshaker does the protocol handshaking from the point of view of a
  * server. It is message-driven by the parent {@link Handshaker} class.
  */
 public class ServerHandshaker extends Handshaker {
-
-	private static final Logger LOGGER = LoggerFactory.getLogger(ServerHandshaker.class.getName());
 
 	private static HandshakeState[] CLIENT_CERTIFICATE = { new HandshakeState(HandshakeType.CERTIFICATE),
 			new HandshakeState(HandshakeType.CLIENT_KEY_EXCHANGE),
@@ -206,27 +204,28 @@ public class ServerHandshaker extends Handshaker {
 			break;
 
 		case CLIENT_KEY_EXCHANGE:
-			byte[] premasterSecret;
+			SecretKey premasterSecret;
 			switch (getKeyExchangeAlgorithm()) {
 			case PSK:
 				premasterSecret = receivedClientKeyExchange((PSKClientKeyExchange) message);
-				generateKeys(premasterSecret);
 				break;
 				
 			case ECDHE_PSK:
 				premasterSecret = receivedClientKeyExchange((EcdhPskClientKeyExchange) message);
-				generateKeys(premasterSecret);
 				break;
 				
 			case EC_DIFFIE_HELLMAN:
 				premasterSecret = receivedClientKeyExchange((ECDHClientKeyExchange) message);
-				generateKeys(premasterSecret);
 				break;
 
 			default:
 				throw new HandshakeException(
 						String.format("Unsupported key exchange algorithm %s", getKeyExchangeAlgorithm().name()),
 						new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, message.getPeer()));
+			}
+			if (premasterSecret != null) {
+				generateKeys(premasterSecret);
+				SecretUtil.destroy(premasterSecret);
 			}
 
 			if (!clientAuthenticationRequired || getKeyExchangeAlgorithm() != KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN) {
@@ -352,7 +351,7 @@ public class ServerHandshaker extends Handshaker {
 		}
 
 		// Verify client's data
-		message.verifyData(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), session.getMasterSecret(), true, md.digest());
+		message.verifyData(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, true, md.digest());
 
 		/*
 		 * First, send ChangeCipherSpec
@@ -365,7 +364,7 @@ public class ServerHandshaker extends Handshaker {
 		 * Second, send Finished message
 		 */
 		mdWithClientFinished.update(message.toByteArray());
-		Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), session.getMasterSecret(), isClient, mdWithClientFinished.digest(), session.getPeer());
+		Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, isClient, mdWithClientFinished.digest(), session.getPeer());
 		wrapMessage(flight, finished);
 		sendLastFlight(flight);
 		sessionEstablished();
@@ -548,8 +547,8 @@ public class ServerHandshaker extends Handshaker {
 	 *            the client's key exchange message.
 	 * @return the premaster secret
 	 */
-	private byte[] receivedClientKeyExchange(ECDHClientKeyExchange message) {
-		return ecdhe.getSecret(message.getEncodedPoint()).getEncoded();
+	private SecretKey receivedClientKeyExchange(ECDHClientKeyExchange message) {
+		return ecdhe.generateSecret(message.getEncodedPoint());
 	}
 
 	/**
@@ -562,19 +561,24 @@ public class ServerHandshaker extends Handshaker {
 	 * @throws HandshakeException
 	 *             if no specified preshared key available.
 	 */
-	private byte[] receivedClientKeyExchange(final PSKClientKeyExchange message) throws HandshakeException {
+	private SecretKey receivedClientKeyExchange(final PSKClientKeyExchange message) throws HandshakeException {
 		// use the client's PSK identity to look up the pre-shared key
 		preSharedKeyIdentity = message.getIdentity();
-		byte[] psk = pskStore.getKey(session.getServerNames(), preSharedKeyIdentity);
-		return configurePskCredentials(preSharedKeyIdentity, psk, null);
+		PskUtil pskUtil = new PskUtil(sniEnabled, session, pskStore, preSharedKeyIdentity);
+		SecretKey premaster = pskUtil.generatePremasterSecretFromPSK(null);
+		SecretUtil.destroy(pskUtil);
+		return premaster;
 	}
 
-	private byte[] receivedClientKeyExchange(final EcdhPskClientKeyExchange message) throws HandshakeException {
+	private SecretKey receivedClientKeyExchange(final EcdhPskClientKeyExchange message) throws HandshakeException {
 		// use the client's PSK identity to look up the pre-shared key
 		preSharedKeyIdentity = message.getIdentity();
-		byte[] psk = pskStore.getKey(session.getServerNames(), preSharedKeyIdentity);
-		byte[] otherSecret = ecdhe.getSecret(message.getEncodedPoint()).getEncoded();
-		return configurePskCredentials(preSharedKeyIdentity, psk, otherSecret);
+		PskUtil pskUtil = new PskUtil(sniEnabled, session, pskStore, preSharedKeyIdentity);
+		SecretKey eck = ecdhe.generateSecret(message.getEncodedPoint());
+		SecretKey premaster = pskUtil.generatePremasterSecretFromPSK(eck);
+		SecretUtil.destroy(pskUtil);
+		SecretUtil.destroy(eck);
+		return premaster;
 	}
 
 	protected void processHelloExtensions(final ClientHello clientHello, final HelloExtensions serverHelloExtensions) {
@@ -832,28 +836,5 @@ public class ServerHandshaker extends Handshaker {
 
 	final SupportedGroup getNegotiatedSupportedGroup() {
 		return negotiatedSupportedGroup;
-	}
-
-	private byte[] configurePskCredentials(PskPublicInformation identity, byte[] psk, byte[] otherSecret) throws HandshakeException {
-		String virtualHost = session.getVirtualHost();
-		if (virtualHost == null) {
-			LOGGER.debug("client [{}] uses PSK identity [{}]", getPeerAddress(), identity);
-		} else {
-			LOGGER.debug("client [{}] uses PSK identity [{}] for server [{}]", getPeerAddress(), identity, virtualHost);
-		}
-
-		if (psk == null) {
-			throw new HandshakeException(
-					String.format("cannot authenticate client, identity [%s] is unknown for server [%s]",
-							identity, virtualHost),
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_PSK_IDENTITY, session.getPeer()));
-		} else {
-			if (sniEnabled) {
-				session.setPeerIdentity(new PreSharedKeyIdentity(virtualHost, identity.getPublicInfoAsString()));
-			} else {
-				session.setPeerIdentity(new PreSharedKeyIdentity(identity.getPublicInfoAsString()));
-			}
-			return generatePremasterSecretFromPSK(psk, otherSecret);
-		}
 	}
 }

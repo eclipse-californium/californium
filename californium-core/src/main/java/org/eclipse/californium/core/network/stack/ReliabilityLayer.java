@@ -41,6 +41,7 @@ package org.eclipse.californium.core.network.stack;
 import java.util.Random;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
@@ -67,6 +68,8 @@ public class ReliabilityLayer extends AbstractLayer {
 
 	private final EndpointSpecificConfigProvider<ReliabilityLayerParameters> reliabilityLayerConfigProvider;
 
+	private final AtomicInteger counter = new AtomicInteger();
+	
 	/**
 	 * Constructs a new reliability layer. Changes to the configuration are
 	 * observed and automatically applied.
@@ -204,6 +207,14 @@ public class ReliabilityLayer extends AbstractLayer {
 	public void receiveRequest(final Exchange exchange, final Request request) {
 
 		if (request.isDuplicate()) {
+			if (exchange.getSendNanoTimestamp() > request.getNanoTimestamp()) {
+				// received before response was sent
+				int count = counter.incrementAndGet();
+				LOGGER.debug("{}: {} duplicate request {}, server sent response delayed, ignore request", count,
+						exchange, request);
+				return;
+			}
+
 			// Request is a duplicate, so resend ACK, RST or response
 			exchange.retransmitResponse();
 			Response currentResponse = exchange.getCurrentResponse();
@@ -267,17 +278,25 @@ public class ReliabilityLayer extends AbstractLayer {
 
 		exchange.setFailedTransmissionCount(0);
 		exchange.setRetransmissionHandle(null);
-		exchange.getCurrentRequest().setAcknowledged(true);
 
 		if (response.getType() == Type.CON && !exchange.getRequest().isCanceled()) {
-			LOGGER.debug("{} acknowledging CON response", exchange);
-			EmptyMessage ack = EmptyMessage.newACK(response);
-			sendEmptyMessage(exchange, ack);
+			if (exchange.getSendNanoTimestamp() > response.getNanoTimestamp()) {
+				// received before ACK/RST was sent
+				int count = counter.incrementAndGet();
+				LOGGER.debug("{}: {} duplicate response {}, server sent ACK delayed, ignore response", count,
+						exchange, response);
+				return;
+			} else {
+				LOGGER.debug("{} acknowledging CON response", exchange);
+				EmptyMessage ack = EmptyMessage.newACK(response);
+				sendEmptyMessage(exchange, ack);
+			}
 		}
 
 		if (response.isDuplicate()) {
 			LOGGER.debug("{} ignoring duplicate response", exchange);
 		} else {
+			exchange.getCurrentRequest().setAcknowledged(true);
 			upper().receiveResponse(exchange, response);
 		}
 	}

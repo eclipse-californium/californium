@@ -57,6 +57,7 @@ import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.core.server.resources.ResourceObserver;
+import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
@@ -187,7 +188,8 @@ public class BenchmarkClient {
 	 * Benchmark timeout. If no messages are exchanged within this timeout, the
 	 * benchmark is stopped.
 	 */
-	private static final long DEFAULT_TIMEOUT_NANOS = TimeUnit.MILLISECONDS.toNanos(10000);
+	private static final long DEFAULT_TIMEOUT_SECONDS = TimeUnit.MILLISECONDS.toSeconds(10000);
+	private static final long DEFAULT_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(DEFAULT_TIMEOUT_SECONDS);
 	/**
 	 * Atomic down-counter for overall request.
 	 */
@@ -346,12 +348,13 @@ public class BenchmarkClient {
 	}
 
 	private class TestHandler implements CoapHandler {
-		
+
 		private final Request post;
-		
+
 		private TestHandler(final Request post) {
 			this.post = post;
 		}
+
 		@Override
 		public void onLoad(CoapResponse response) {
 			if (response.isSuccess()) {
@@ -361,7 +364,8 @@ public class BenchmarkClient {
 				long c = overallRequestsDownCounter.get();
 				LOGGER.info("Received response: {} {}", response.advanced(), c);
 			} else {
-				LOGGER.warn("Received error response: {}", response.advanced());
+				long c = requestsCounter.get();
+				LOGGER.warn("Received error response: {} {} ({} successful)", endpoint.getUri(), response.advanced(), c);
 				stop();
 			}
 		}
@@ -572,7 +576,7 @@ public class BenchmarkClient {
 					"  (Benchmark 500 clients each sending about 2000 request and the response should have 200 bytes payload.)");
 			System.out.println();
 			System.out.println("  " + BenchmarkClient.class.getSimpleName()
-					+ " coap://localhost:5783/reverse-observe?obs=25&res=feed-CON&rlen=400 50 2 x 500 2000");
+					+ " coap://localhost:5783/reverse-observe?obs=25&res=feed-CON&timeout=10&rlen=400 50 2 x 500 2000");
 			System.out.println(
 					"  (Reverse-observe benchmark using 50 clients each sending about 2 request and waiting for about 500 notifies each client.");
 			System.out.println("   The notifies are sent as CON every 2000ms and have 400 bytes payload.");
@@ -729,7 +733,7 @@ public class BenchmarkClient {
 			int numberOfClients = clientCounter.get();
 			long requestDifference = (lastRequestsCountDown - currentRequestsCountDown);
 			long currentOverallSentRequests = overallRequests - currentRequestsCountDown;
-			if ((lastRequestsCountDown == currentRequestsCountDown && currentRequestsCountDown < overallRequests)
+			if ((requestDifference == 0 && currentRequestsCountDown < overallRequests)
 					|| (numberOfClients == 0)) {
 				// no new requests, clients are stale, or no clients left
 				// adjust start time with timeout
@@ -747,7 +751,7 @@ public class BenchmarkClient {
 			lastRetransmissions = retransmissions;
 			lastTransmissionErrrors = transmissionErrors;
 			System.out.format("%d requests (%d reqs/s, %s, %s, %d clients)%n", currentOverallSentRequests,
-					requestDifference / TimeUnit.NANOSECONDS.toSeconds(DEFAULT_TIMEOUT_NANOS),
+					roundDiv(requestDifference, DEFAULT_TIMEOUT_SECONDS),
 					formatRetransmissions(retransmissionsDifference, requestDifference),
 					formatTransmissionErrors(transmissionErrorsDifference, requestDifference), numberOfClients);
 		}
@@ -758,6 +762,7 @@ public class BenchmarkClient {
 		long lastReverseResponsesCountDown = overallReverseResponsesDownCounter.getCount();
 		if (lastReverseResponsesCountDown > 0) {
 			System.out.println("Requests send.");
+			long lastChangeNanoRealtime = ClockUtil.nanoRealtime();
 			while (!overallReverseResponsesDownCounter.await(DEFAULT_TIMEOUT_NANOS, TimeUnit.NANOSECONDS)) {
 				long currentReverseResponsesCountDown = overallReverseResponsesDownCounter.getCount();
 				int numberOfClients = clientCounter.get();
@@ -767,11 +772,18 @@ public class BenchmarkClient {
 				if (overallObservationRegistrationCounter.get() > 0) {
 					observe = true;
 				}
-				if ((lastReverseResponsesCountDown == currentReverseResponsesCountDown
-						&& currentReverseResponsesCountDown < overallReverseResponses) || (numberOfClients == 0)) {
-					// no new notifies, clients are stale, or no clients left
+				long time = 0;
+				if (currentReverseResponsesCountDown < overallReverseResponses) {
+					if (reverseResponsesDifference == 0) {
+						time = ClockUtil.nanoRealtime() - lastChangeNanoRealtime;
+					} else {
+						lastChangeNanoRealtime = ClockUtil.nanoRealtime();
+					}
+				}
+				if ((intervalMax < TimeUnit.NANOSECONDS.toMillis(time - DEFAULT_TIMEOUT_NANOS)) || (numberOfClients == 0)) {
+					// no new notifies for interval max, clients are stale, or no clients left
 					// adjust start time with timeout
-					reverseResponseNanos += DEFAULT_TIMEOUT_NANOS;
+					reverseResponseNanos += time;
 					stale = true;
 					if (observe) {
 						System.out.format("%d notifies, stale (%d clients, %d observes)%n",
@@ -786,12 +798,12 @@ public class BenchmarkClient {
 				if (observe) {
 					System.out.format("%d notifies (%d notifies/s, %d clients, %d observes)%n",
 							currentOverallReverseResponses,
-							reverseResponsesDifference / TimeUnit.NANOSECONDS.toSeconds(DEFAULT_TIMEOUT_NANOS),
+							roundDiv(reverseResponsesDifference, DEFAULT_TIMEOUT_SECONDS),
 							numberOfClients, observers);
 				} else {
 					System.out.format("%d reverse-responses (%d reverse-responses/s, %d clients)%n",
 							currentOverallReverseResponses,
-							reverseResponsesDifference / TimeUnit.NANOSECONDS.toSeconds(DEFAULT_TIMEOUT_NANOS),
+							roundDiv(reverseResponsesDifference, DEFAULT_TIMEOUT_SECONDS),
 							numberOfClients);
 				}
 			}
@@ -952,7 +964,7 @@ public class BenchmarkClient {
 		long millis = TimeUnit.NANOSECONDS.toMillis(nanos);
 		if (millis > 0) {
 			try (Formatter formatter = new Formatter()) {
-				return formatter.format(", %d %s/s", (requests * 1000) / millis, units).toString();
+				return formatter.format(", %d %s/s", roundDiv(requests * 1000, millis), units).toString();
 			}
 		}
 		return "";
@@ -966,5 +978,9 @@ public class BenchmarkClient {
 			}
 			return formatter.format(" requests.").toString();
 		}
+	}
+
+	private static long roundDiv(long count, long div) {
+		return (count + (div/2)) / div;
 	}
 }

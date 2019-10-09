@@ -30,8 +30,9 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.Exchange.KeyMID;
+import org.eclipse.californium.core.network.KeyMID;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,6 +56,7 @@ public class CropRotation implements Deduplicator {
 	private volatile int second;
 
 	private final long period;
+	private final boolean replace;
 	private final Rotation rotation;
 	private ScheduledExecutorService executor;
 
@@ -77,13 +79,13 @@ public class CropRotation implements Deduplicator {
 		first = 0;
 		second = 1;
 		period = config.getLong(NetworkConfig.Keys.CROP_ROTATION_PERIOD);
+		replace = config.getBoolean(Keys.DEDUPLICATOR_AUTO_REPLACE);
 	}
 
 	@Override
 	public synchronized void start() {
 		if (jobStatus == null) {
-			jobStatus = executor.scheduleAtFixedRate(rotation, period, period,
-					TimeUnit.MILLISECONDS);
+			jobStatus = executor.scheduleAtFixedRate(rotation, period, period, TimeUnit.MILLISECONDS);
 		}
 	}
 
@@ -111,17 +113,33 @@ public class CropRotation implements Deduplicator {
 		if (prev != null || f == s)
 			return prev;
 		prev = maps[s].putIfAbsent(key, exchange);
+		if (replace && prev != null) {
+			if (prev.getOrigin() != exchange.getOrigin()) {
+				LOGGER.debug("replace exchange for {}", key);
+				if (maps[s].replace(key, prev, exchange)) {
+					prev = null;
+				} else {
+					prev = maps[s].putIfAbsent(key, exchange);
+				}
+			}
+		}
 		return prev;
+	}
+
+	@Override
+	public boolean replacePrevious(KeyMID key, Exchange previous, Exchange exchange) {
+		int s = second;
+		return maps[s].replace(key, previous, exchange) || maps[s].putIfAbsent(key, exchange) == null;
 	}
 
 	@Override
 	public Exchange find(KeyMID key) {
 		int f = first;
 		int s = second;
-		Exchange prev = maps[f].get(key);
+		Exchange prev = maps[s].get(key);
 		if (prev != null || f == s)
 			return prev;
-		prev = maps[s].get(key);
+		prev = maps[f].get(key);
 		return prev;
 	}
 

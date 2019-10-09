@@ -126,7 +126,7 @@ public class ProxyHttpClientResource extends ForwardingResource {
 				// translate the received http response in a coap response
 				try {
 					Response coapResponse = new HttpTranslator().getCoapResponse(result, incomingCoapRequest);
-					coapResponse.setTimestamp(timestamp);
+					coapResponse.setNanoTimestamp(timestamp);
 
 					future.complete(coapResponse);
 				} catch (InvalidFieldException e) {

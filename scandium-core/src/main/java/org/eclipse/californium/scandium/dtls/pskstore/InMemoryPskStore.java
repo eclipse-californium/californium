@@ -18,12 +18,14 @@
 package org.eclipse.californium.scandium.dtls.pskstore;
 
 import java.net.InetSocketAddress;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import javax.crypto.SecretKey;
+
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
+import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerName;
 import org.eclipse.californium.scandium.util.ServerName.NameType;
 import org.eclipse.californium.scandium.util.ServerNames;
@@ -56,15 +58,15 @@ public class InMemoryPskStore implements PskStore {
 	private static class Psk {
 
 		private final PskPublicInformation identity;
-		private final byte[] key;
+		private final SecretKey key;
 
 		private Psk(PskPublicInformation identity, byte[] key) {
 			this.identity = identity;
-			this.key = Arrays.copyOf(key, key.length);
+			this.key = SecretUtil.create(key, "PSK");
 		}
 
-		private byte[] getKey() {
-			return Arrays.copyOf(key, key.length);
+		private SecretKey getKey() {
+			return SecretUtil.create(key);
 		}
 	}
 
@@ -72,7 +74,7 @@ public class InMemoryPskStore implements PskStore {
 	private final Map<InetSocketAddress, Map<ServerName, PskPublicInformation>> scopedIdentities = new ConcurrentHashMap<>();
 
 	@Override
-	public byte[] getKey(final PskPublicInformation identity) {
+	public SecretKey getKey(final PskPublicInformation identity) {
 
 		if (identity == null) {
 			throw new NullPointerException("identity must not be null");
@@ -84,7 +86,7 @@ public class InMemoryPskStore implements PskStore {
 	}
 
 	@Override
-	public byte[] getKey(final ServerNames serverNames, final PskPublicInformation identity) {
+	public SecretKey getKey(final ServerNames serverNames, final PskPublicInformation identity) {
 
 		if (serverNames == null) {
 			return getKey(identity);
@@ -100,7 +102,7 @@ public class InMemoryPskStore implements PskStore {
 		}
 	}
 
-	private static byte[] getKeyFromMapAndNormalizeIdentity(final PskPublicInformation identity,
+	private static SecretKey getKeyFromMapAndNormalizeIdentity(final PskPublicInformation identity,
 			final Map<PskPublicInformation, Psk> keyMap) {
 
 		if (keyMap != null) {

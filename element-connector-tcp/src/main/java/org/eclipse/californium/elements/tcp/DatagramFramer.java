@@ -24,6 +24,7 @@ import io.netty.handler.codec.ByteToMessageDecoder;
 
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.elements.util.ClockUtil;
 
 import java.math.BigInteger;
 import java.util.List;
@@ -65,7 +66,7 @@ public class DatagramFramer extends ByteToMessageDecoder {
 			
 			Channel channel = ctx.channel();
 			EndpointContext endpointContext = contextUtil.buildEndpointContext(channel);
-			RawData rawData = RawData.inbound(data, endpointContext, false);
+			RawData rawData = RawData.inbound(data, endpointContext, false, ClockUtil.nanoRealtime());
 			out.add(rawData);
 		}
 	}

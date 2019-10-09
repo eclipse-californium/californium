@@ -26,6 +26,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Matchers.notNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -75,6 +76,7 @@ public class TcpMatcherTest {
 		endpointContextMatcher = mock(EndpointContextMatcher.class);
 		when(exchangeEndpointContext.getPeerAddress()).thenReturn(dest);
 		when(responseEndpointContext.getPeerAddress()).thenReturn(dest);
+		when(endpointContextMatcher.getEndpointIdentity((EndpointContext)notNull())).thenReturn(dest);
 	}
 
 	@Test

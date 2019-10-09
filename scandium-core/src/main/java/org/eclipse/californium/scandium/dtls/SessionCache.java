@@ -37,6 +37,9 @@ public interface SessionCache {
 	/**
 	 * Adds an established session to the cache.
 	 * 
+	 * If the session doesn't support resumption (session id is empty), it's not
+	 * added to the cache
+	 * 
 	 * @param session The session to add.
 	 */
 	void put(DTLSSession session);
@@ -52,8 +55,9 @@ public interface SessionCache {
 	 * expensive.
 	 * 
 	 * @param id The session identifier to look up.
-	 * @return The session with the given ID or {@code null} if the cache does
-	 *         not contain a session with the given ID.
+	 * @return a session ticker for the session with the given ID, or
+	 *         {@code null}, if the cache does not contain a session with the
+	 *         given ID. A returned ticket is destroyed after usage.
 	 */
 	SessionTicket get(SessionId id);
 

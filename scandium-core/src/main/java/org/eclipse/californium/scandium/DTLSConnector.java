@@ -204,6 +204,7 @@ import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.SessionListener;
 import org.eclipse.californium.scandium.dtls.SessionTicket;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
@@ -1289,7 +1290,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 					context = session.getConnectionWriteContext();
 				}
 				LOGGER.debug("Received APPLICATION_DATA for {}", context);
-				RawData receivedApplicationMessage = RawData.inbound(message.getData(), context, false);
+				RawData receivedApplicationMessage = RawData.inbound(message.getData(), context, false, record.getReceiveNanos());
 				channel.receiveData(receivedApplicationMessage);
 			}
 		} else if (ongoingHandshake != null) {
@@ -1707,6 +1708,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			} else {
 				ticket = previousConnection.getSessionTicket();
 			}
+			boolean ok = true;
 			if (ticket != null && config.isSniEnabled()) {
 				ServerNames serverNames1 = ticket.getServerNames();
 				ServerNames serverNames2 = null;
@@ -1715,14 +1717,15 @@ public class DTLSConnector implements Connector, RecordLayer {
 					serverNames2 = extension.getServerNames();
 				}
 				if (serverNames1 != null) {
-					if (!serverNames1.equals(serverNames2)) {
-						// invalidate ticket, server names mismatch
-						ticket = null;
-					}
+					ok = serverNames1.equals(serverNames2);
 				} else if (serverNames2 != null) {
 					// invalidate ticket, server names mismatch
-					ticket = null;
+					ok = false;
 				}
+			}
+			if (!ok && ticket != null) {
+				SecretUtil.destroy(ticket);
+				ticket = null;
 			}
 		}
 		if (ticket != null) {
@@ -1732,6 +1735,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			final Handshaker handshaker = new ResumingServerHandshaker(clientHello.getMessageSeq(), sessionToResume,
 					this, connection, config, maximumTransmissionUnit);
 			initializeHandshaker(handshaker);
+			SecretUtil.destroy(ticket);
 
 			if (previousConnection.hasEstablishedSession()) {
 				// client wants to resume a session that has been negotiated by this node
@@ -1962,10 +1966,11 @@ public class DTLSConnector implements Connector, RecordLayer {
 				Handshaker handshaker;
 				SessionId sessionId;
 				if (session != null) {
-					ticket = session.getSessionTicket();
 					sessionId = session.getSessionIdentifier();
+					ticket = session.getSessionTicket();
 					connectionStore.removeFromEstablishedSessions(session, connection);
 				} else {
+					// then ticket != null
 					sessionId = connection.getSessionIdentity();
 				}
 				connection.resetSession();
@@ -1979,6 +1984,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 					handshaker = new ClientHandshaker(newSession, this, connection, config, maximumTransmissionUnit);
 				} else {
 					DTLSSession resumableSession = new DTLSSession(sessionId, peerAddress, ticket, 0);
+					SecretUtil.destroy(ticket);
 					resumableSession.setVirtualHost(message.getEndpointContext().getVirtualHost());
 					handshaker = new ResumingClientHandshaker(resumableSession, this, connection, config,
 							maximumTransmissionUnit);

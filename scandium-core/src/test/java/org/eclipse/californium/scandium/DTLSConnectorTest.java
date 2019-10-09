@@ -61,6 +61,8 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import javax.crypto.SecretKey;
+
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
@@ -155,7 +157,7 @@ public class DTLSConnectorTest {
 		InMemoryPskStore pskStore = new InMemoryPskStore() {
 
 			@Override
-			public byte[] getKey(PskPublicInformation identity) {
+			public SecretKey getKey(PskPublicInformation identity) {
 				if (pskStoreLatency != 0) {
 					try {
 						Thread.sleep(pskStoreLatency);

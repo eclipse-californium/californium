@@ -30,7 +30,7 @@ import java.util.concurrent.CopyOnWriteArraySet;
 /**
  * Key set based endpoint context matcher.
  */
-public class KeySetEndpointContextMatcher implements EndpointContextMatcher {
+public abstract class KeySetEndpointContextMatcher implements EndpointContextMatcher {
 
 	/**
 	 * Name of matcher. Used for logging.
@@ -75,6 +75,11 @@ public class KeySetEndpointContextMatcher implements EndpointContextMatcher {
 	@Override
 	public String getName() {
 		return name;
+	}
+
+	@Override
+	public Object getEndpointIdentity(EndpointContext context) {
+		return context.getPeerAddress();
 	}
 
 	@Override

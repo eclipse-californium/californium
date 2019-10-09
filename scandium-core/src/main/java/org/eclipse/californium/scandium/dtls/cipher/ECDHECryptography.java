@@ -45,6 +45,7 @@ import java.util.List;
 import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.scandium.util.SecretUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,7 +74,6 @@ public final class ECDHECryptography {
 
 	private static final int PRIME = 1;
 	private static final int BINARY = 2;
-	
 
 	/**
 	 * Elliptic Curve Diffie-Hellman algorithm name. See also <a href=
@@ -83,10 +83,10 @@ public final class ECDHECryptography {
 	private static final String KEY_AGREEMENT_INSTANCE = "ECDH";
 
 	// Members ////////////////////////////////////////////////////////
-	
+
 	/** The ephemeral private key. */
 	private ECPrivateKey privateKey;
-	
+
 	/** The ephemeral public key. */
 	private ECPublicKey publicKey;
 
@@ -154,7 +154,7 @@ public final class ECDHECryptography {
 		privateKey = (ECPrivateKey) keyPair.getPrivate();
 		publicKey = (ECPublicKey) keyPair.getPublic();
 	}
-	
+
 	public PrivateKey getPrivateKey() {
 		return privateKey;
 	}
@@ -172,7 +172,7 @@ public final class ECDHECryptography {
 	 *            the client's public key (encoded)
 	 * @return the premaster secret
 	 */
-	public SecretKey getSecret(byte[] encodedPoint) {
+	public SecretKey generateSecret(byte[] encodedPoint) {
 		SecretKey secretKey = null;
 		try {
 			// extract public key
@@ -180,7 +180,7 @@ public final class ECDHECryptography {
 			DatagramReader reader = new DatagramReader(encodedPoint, false);
 			PublicKey peerPublicKey = Asn1DerDecoder.readEcPublicKey(reader, params);
 
-			secretKey = getSecret(peerPublicKey);
+			secretKey = generateSecret(peerPublicKey);
 
 		} catch (GeneralSecurityException e) {
 			LOGGER.error("Could not generate the premaster secret", e);
@@ -196,20 +196,22 @@ public final class ECDHECryptography {
 	 *            the peer's ephemeral public key.
 	 * @return the premaster secret.
 	 */
-	public SecretKey getSecret(PublicKey peerPublicKey) {
+	public SecretKey generateSecret(PublicKey peerPublicKey) {
 		SecretKey secretKey = null;
 		try {
 			KeyAgreement keyAgreement = KeyAgreement.getInstance(KEY_AGREEMENT_INSTANCE);
 			keyAgreement.init(privateKey);
 			keyAgreement.doPhase(peerPublicKey, true);
-			
-			secretKey = keyAgreement.generateSecret("TlsPremasterSecret");
+
+			byte[] secret = keyAgreement.generateSecret();
+			secretKey = SecretUtil.create(secret, "TlsPremasterSecret");
+			Bytes.clear(secret);
 		} catch (GeneralSecurityException e) {
 			LOGGER.error("Could not generate the premaster secret", e);
 		}
 		return secretKey;
 	}
-	
+
 	// Serialization //////////////////////////////////////////////////
 
 	/**
@@ -249,21 +251,21 @@ public final class ECDHECryptography {
 	public static byte[] encodePoint(ECPoint point, EllipticCurve curve) {
 		// get field size in bytes (rounding up)
 		int fieldSize = (curve.getField().getFieldSize() + 7) / 8;
-		
+
 		byte[] xb = trimZeroes(point.getAffineX().toByteArray());
 		byte[] yb = trimZeroes(point.getAffineY().toByteArray());
-		
+
 		if ((xb.length > fieldSize) || (yb.length > fieldSize)) {
 			LOGGER.error("Point coordinates do not match field size.");
 			return null;
 		}
-		
+
 		// 1 byte (compression state) + twice field size
 		byte[] encoded = new byte[1 + (fieldSize * 2)];
 		encoded[0] = 0x04; // uncompressed
 		System.arraycopy(xb, 0, encoded, fieldSize - xb.length + 1, xb.length);
 		System.arraycopy(yb, 0, encoded, encoded.length - yb.length, yb.length);
-		
+
 		return encoded;
 	}
 

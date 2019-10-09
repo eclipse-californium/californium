@@ -27,14 +27,17 @@ import java.security.cert.Certificate;
 import java.util.List;
 import java.util.Map;
 
+import javax.crypto.SecretKey;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSessionContext;
 
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
+import org.eclipse.californium.core.network.EndpointContextMatcherFactory.MatcherMode;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
+import org.eclipse.californium.elements.PrincipalEndpointContextMatcher;
 import org.eclipse.californium.elements.tcp.TcpServerConnector;
 import org.eclipse.californium.elements.tcp.TlsServerConnector;
 import org.eclipse.californium.elements.tcp.TlsServerConnector.ClientAuthMode;
@@ -46,6 +49,7 @@ import org.eclipse.californium.scandium.dtls.MultiNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.StringPskStore;
+import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
@@ -113,11 +117,11 @@ public abstract class AbstractTestServer extends CoapServer {
 	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
 	private static final String SERVER_NAME = "server";
 	private static final String PSK_IDENTITY_PREFIX = "cali.";
-	private static final byte[] PSK_SECRET = ".fornium".getBytes();
+	private static final SecretKey PSK_SECRET = SecretUtil.create(".fornium".getBytes(), "PSK");
 
 	// from ETSI Plugtest test spec
 	public static final String ETSI_PSK_IDENTITY = "password";
-	public static final byte[] ETSI_PSK_SECRET = "sesame".getBytes();
+	public static final SecretKey ETSI_PSK_SECRET = SecretUtil.create("sesame".getBytes(), "PSK");
 
 	private final NetworkConfig config;
 	private final Map<Select, NetworkConfig> selectConfig;
@@ -249,7 +253,7 @@ public abstract class AbstractTestServer extends CoapServer {
 			if (protocols.contains(Protocol.DTLS) || protocols.contains(Protocol.TLS)) {
 				InetSocketAddress bindToAddress = new InetSocketAddress(addr, coapsPort);
 				if (protocols.contains(Protocol.DTLS)) {
-					NetworkConfig dtlsConfig = getConfig(Protocol.TLS, interfaceType);
+					NetworkConfig dtlsConfig = getConfig(Protocol.DTLS, interfaceType);
 					int staleTimeout = dtlsConfig.getInt(Keys.MAX_PEER_INACTIVITY_PERIOD);
 					int dtlsThreads = dtlsConfig.getInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT);
 					int dtlsReceiverThreads = dtlsConfig.getInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT);
@@ -282,6 +286,9 @@ public abstract class AbstractTestServer extends CoapServer {
 					DTLSConnector connector = new DTLSConnector(dtlsConfigBuilder.build());
 					CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 					builder.setConnector(connector);
+					if (MatcherMode.PRINCIPAL.name().equals(dtlsConfig.getString(Keys.RESPONSE_MATCHING))) {
+						builder.setEndpointContextMatcher(new PrincipalEndpointContextMatcher(true));
+					}
 					builder.setNetworkConfig(dtlsConfig);
 					CoapEndpoint endpoint = builder.build();
 					addEndpoint(endpoint);
@@ -321,18 +328,18 @@ public abstract class AbstractTestServer extends CoapServer {
 	private static class PlugPskStore extends StringPskStore {
 
 		@Override
-		public byte[] getKey(String identity) {
+		public SecretKey getKey(String identity) {
 			if (identity.startsWith(PSK_IDENTITY_PREFIX)) {
-				return PSK_SECRET;
+				return SecretUtil.create(PSK_SECRET);
 			}
 			if (identity.equals(ETSI_PSK_IDENTITY)) {
-				return ETSI_PSK_SECRET;
+				return SecretUtil.create(ETSI_PSK_SECRET);
 			}
 			return null;
 		}
 
 		@Override
-		public byte[] getKey(ServerNames serverNames, String identity) {
+		public SecretKey getKey(ServerNames serverNames, String identity) {
 			return getKey(identity);
 		}
 

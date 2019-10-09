@@ -37,7 +37,7 @@ import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.observe.ObserveNotificationOrderer;
+import org.eclipse.californium.core.observe.NotificationOrder;
 
 /**
  * A tracker for the blockwise transfer of a response body.
@@ -55,7 +55,7 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 * block of the notification and we still need to remember it, when the
 	 * last block arrives.
 	 */
-	private ObserveNotificationOrderer orderer;
+	private NotificationOrder order;
 	/**
 	 * Starting exchange to stop deprecated transfers. 
 	 */
@@ -108,7 +108,7 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 		Integer observeCount = block.getOptions().getObserve();
 		if (observeCount != null && OptionSet.isValidObserveOption(observeCount)) {
 			// mark this tracker with the observe no of the block it has been created for
-			status.orderer = new ObserveNotificationOrderer(observeCount);
+			status.order = new NotificationOrder(observeCount);
 			exchange.setNotificationNumber(observeCount);
 		}
 		if (block.getOptions().getETagCount() > 0) {
@@ -160,7 +160,7 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 *                      the body of a notification.
 	 */
 	public final synchronized boolean isNotification() {
-		return orderer != null;
+		return order != null;
 	}
 
 	/**
@@ -169,7 +169,7 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 * @return The value.
 	 */
 	final synchronized Integer getObserve() {
-		return orderer == null ? null : orderer.getCurrent();
+		return order == null ? null : order.getObserve();
 	}
 
 	/**
@@ -189,7 +189,7 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 				// none observe exchanges are cleared on sending request
 				return false;
 			}
-			return orderer == null || orderer.isNew(response);
+			return order == null || order.isNew(response);
 		}
 	}
 
@@ -202,11 +202,10 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 */
 	public final synchronized boolean matchTransfer(Exchange exchange) {
 		Integer notification = exchange.getNotificationNumber();
-		if (notification != null && orderer != null) {
-			return orderer.getCurrent() == notification;
-		}
-		else {
-			return notification == null && orderer == null;
+		if (notification != null && order != null) {
+			return order.getObserve().equals(notification);
+		} else {
+			return notification == null && order == null;
 		}
 	}
 
@@ -409,11 +408,11 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 	@Override
 	public synchronized String toString() {
 		String result = super.toString();
-		if (orderer != null || response != null) {
+		if (order != null || response != null) {
 			StringBuilder builder = new StringBuilder(result);
-			if (orderer != null) {
+			if (order != null) {
 				builder.setLength(result.length() - 1);
-				builder.append(", observe=").append(orderer.getCurrent()).append("]");
+				builder.append(", observe=").append(order.getObserve()).append("]");
 			}
 			if (response != null) {
 				builder.append(", ").append(response);
