@@ -1390,11 +1390,10 @@ public class DTLSConnector implements Connector, RecordLayer {
 			case CLIENT_HELLO:
 				// We do not support re-negotiation as recommended in :
 				// https://tools.ietf.org/html/rfc7925#section-17
-				if (record.getEpoch() > 0) {
-					DTLSSession session = connection.getEstablishedSession();
-					send(new AlertMessage(AlertLevel.WARNING, AlertDescription.NO_RENEGOTIATION, record.getPeerAddress()),
-							session);
-				}
+				LOGGER.debug("Reject re-negociation from peer {}", record.getPeerAddress());
+				DTLSSession session = connection.getEstablishedSession();
+				send(new AlertMessage(AlertLevel.WARNING, AlertDescription.NO_RENEGOTIATION, record.getPeerAddress()),
+						session);
 				break;
 			case HELLO_REQUEST:
 				processHelloRequest(connection);
@@ -1805,6 +1804,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		} else {
 			try {
 				boolean useCid = session.getWriteEpoch() > 0;
+				LOGGER.debug("send ALERT {} for peer {}.", alert, session.getPeer());
 				sendRecord(new Record(ContentType.ALERT, session.getWriteEpoch(), session.getSequenceNumber(), alert,
 						session, useCid, TLS12_CID_PADDING));
 			} catch (IOException e) {
