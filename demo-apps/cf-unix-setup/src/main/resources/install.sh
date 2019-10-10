@@ -24,7 +24,7 @@
 # create non-su, non-login user
 sudo adduser --system --home /home/cali --disabled-login cali
 # move application from current folder
-sudo mv cf-plugtest-server-2.0.0-M16.jar /home/cali/
+sudo mv cf-plugtest-server-2.0.0-M18.jar /home/cali/
 # move service definition from current folder
 sudo mv cali.service /etc/systemd/system
 # reload service definitions
