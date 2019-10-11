@@ -96,9 +96,9 @@
 			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
 				<configuration>
-					<descriptors>
-						<descriptor>${project.parent.basedir}/enhanced-jar-with-licenses.xml</descriptor>
-					</descriptors>
+					<descriptorRefs>
+						<descriptorRef>enhanced-jar-with-licenses</descriptorRef>
+					</descriptorRefs>
 					<archive>
 						<manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
 					</archive>
