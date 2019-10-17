@@ -154,40 +154,38 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		this.connectionsByAddress = new ConcurrentHashMap<>();
 		this.sessionCache = sessionCache;
 
-		if (sessionCache != null) {
-			// make sure that session state for stale (evicted) connections is removed from second level cache
-			connections.addEvictionListener(new LeastRecentlyUsedCache.EvictionListener<Connection>() {
+		// make sure that session state for stale (evicted) connections is removed from second level cache
+		connections.addEvictionListener(new LeastRecentlyUsedCache.EvictionListener<Connection>() {
 
-				@Override
-				public void onEviction(final Connection staleConnection) {
-					Runnable remove = new Runnable() {
+			@Override
+			public void onEviction(final Connection staleConnection) {
+				Runnable remove = new Runnable() {
 
-						@Override
-						public void run() {
-							Handshaker handshaker = staleConnection.getOngoingHandshake();
-							if (handshaker != null) {
-								handshaker.handshakeFailed(new RuntimeException("Evicted!"));
-							}
-							synchronized (InMemoryConnectionStore.this) {
-								removeFromAddressConnections(staleConnection);
-								removeFromEstablishedSessions(staleConnection);
-								removeSessionFromCache(staleConnection);
-								ConnectionListener listener = connectionListener;
-								if (listener != null) {
-									listener.onConnectionRemoved(staleConnection);
-								}
+					@Override
+					public void run() {
+						Handshaker handshaker = staleConnection.getOngoingHandshake();
+						if (handshaker != null) {
+							handshaker.handshakeFailed(new RuntimeException("Evicted!"));
+						}
+						synchronized (InMemoryConnectionStore.this) {
+							removeFromAddressConnections(staleConnection);
+							removeFromEstablishedSessions(staleConnection);
+							removeSessionFromCache(staleConnection);
+							ConnectionListener listener = connectionListener;
+							if (listener != null) {
+								listener.onConnectionRemoved(staleConnection);
 							}
 						}
-					};
-					if (staleConnection.isExecuting()) {
-						staleConnection.getExecutor().execute(remove);
-					} else {
-						remove.run();
 					}
+				};
+				if (staleConnection.isExecuting()) {
+					staleConnection.getExecutor().execute(remove);
+				} else {
+					remove.run();
 				}
-			});
+			}
+		});
 
-		}
 		LOG.info("Created new InMemoryConnectionStore [capacity: {}, connection expiration threshold: {}s]",
 				capacity, threshold);
 	}
