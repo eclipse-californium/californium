@@ -92,6 +92,7 @@ public class ConnectorHelper {
 
 	static final String SERVERNAME							= "my.test.server";
 	static final String	SCOPED_CLIENT_IDENTITY				= "My_client_identity";
+	static final String	SCOPED_CLIENT_IDENTITY_SECRET		= "mySecretPSK";
 	static final String	CLIENT_IDENTITY						= "Client_identity";
 	static final String	CLIENT_IDENTITY_SECRET				= "secretPSK";
 	static final int	MAX_TIME_TO_WAIT_SECS				= 2;
@@ -153,7 +154,7 @@ public class ConnectorHelper {
 
 		InMemoryPskStore pskStore = new InMemoryPskStore();
 		pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
-		pskStore.setKey(SCOPED_CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME);
+		pskStore.setKey(SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME);
 
 		builder.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
 				.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509)
