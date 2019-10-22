@@ -64,7 +64,7 @@ public class PskUtilTest {
 
 		session = new DTLSSession(LOCALHOST);
 		sessionWithVirtualServer = new DTLSSession(LOCALHOST);
-		sessionWithVirtualServer.setVirtualHost(VIRTUAL_HOST);
+		sessionWithVirtualServer.setHostName(VIRTUAL_HOST);
 		sessionWithVirtualServer.setSniSupported(true);
 	}
 

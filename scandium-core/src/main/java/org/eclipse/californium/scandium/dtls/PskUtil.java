@@ -86,34 +86,30 @@ public class PskUtil implements Destroyable {
 			throw new NullPointerException("psk identity must not be null");
 		}
 		this.pskIdentity = pskIdentity;
-		String virtualHostName = session.getVirtualHost();
-		if (virtualHostName == null) {
-			LOGGER.debug("client [{}] uses PSK identity [{}]", session.getPeer(), pskIdentity);
-		} else {
+		String hostName = null;
+		ServerNames serverNames = session.getServerNames();
+		if (sniEnabled && serverNames != null) {
+			hostName = session.getHostName();
 			LOGGER.debug("client [{}] uses PSK identity [{}] for server [{}]", session.getPeer(), pskIdentity,
-					virtualHostName);
-		}
-		ServerNames virtualHost = session.getServerNames();
-		if (sniEnabled && virtualHost != null) {
-			pskSecret = pskStore.getKey(virtualHost, pskIdentity);
+					hostName);
+			pskSecret = pskStore.getKey(serverNames, pskIdentity);
 		} else {
+			LOGGER.debug("client [{}] uses PSK identity [{}]", session.getPeer(), pskIdentity);
 			pskSecret = pskStore.getKey(pskIdentity);
 		}
 		if (pskSecret == null) {
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_PSK_IDENTITY,
 					session.getPeer());
-			if (virtualHostName != null) {
-				throw new HandshakeException(
-						String.format("No pre-shared key found for [virtual host: %s, identity: %s]", virtualHostName,
-								pskIdentity),
-						alert);
+			if (hostName != null) {
+				throw new HandshakeException(String.format(
+						"No pre-shared key found for [virtual host: %s, identity: %s]", hostName, pskIdentity), alert);
 			} else {
 				throw new HandshakeException(String.format("No pre-shared key found for [identity: %s]", pskIdentity),
 						alert);
 			}
 		}
 		if (sniEnabled) {
-			this.pskPrincipal = new PreSharedKeyIdentity(virtualHostName, pskIdentity.getPublicInfoAsString());
+			this.pskPrincipal = new PreSharedKeyIdentity(hostName, pskIdentity.getPublicInfoAsString());
 		} else {
 			this.pskPrincipal = new PreSharedKeyIdentity(pskIdentity.getPublicInfoAsString());
 		}
@@ -140,19 +136,19 @@ public class PskUtil implements Destroyable {
 			throw new NullPointerException("psk store must not be null");
 		}
 		PskPublicInformation pskIdentity;
-		ServerNames virtualHost = session.getServerNames();
-		if (sniEnabled && virtualHost != null) {
+		ServerNames serverName = session.getServerNames();
+		if (sniEnabled && serverName != null) {
 			if (!session.isSniSupported()) {
 				LOGGER.warn(
 						"client is configured to use SNI but server does not support it, PSK authentication is likely to fail");
 			}
 			// look up identity in scope of virtual host
-			pskIdentity = pskStore.getIdentity(session.getPeer(), virtualHost);
+			pskIdentity = pskStore.getIdentity(session.getPeer(), serverName);
 			if (pskIdentity == null) {
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE,
 						session.getPeer());
 				throw new HandshakeException(String.format("No Identity found for peer [address: %s, virtual host: %s]",
-						session.getPeer(), session.getVirtualHost()), alert);
+						session.getPeer(), session.getHostName()), alert);
 			}
 		} else {
 			pskIdentity = pskStore.getIdentity(session.getPeer());

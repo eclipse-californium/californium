@@ -244,7 +244,7 @@ public class ClientHandshakerTest {
 		}
 		Connection connection = new Connection(peer, new SyncSerialExecutor());
 		DTLSSession session = new DTLSSession(peer);
-		session.setVirtualHost(virtualHost);
+		session.setHostName(virtualHost);
 		handshaker = new ClientHandshaker(
 				session,
 				recordLayer,
