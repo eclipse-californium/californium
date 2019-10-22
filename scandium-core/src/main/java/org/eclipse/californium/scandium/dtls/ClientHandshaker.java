@@ -694,9 +694,9 @@ public class ClientHandshaker extends Handshaker {
 
 	protected void addServerNameIndication(final ClientHello helloMessage) {
 
-		if (sniEnabled && session.getVirtualHost() != null) {
-			LOGGER.debug("adding SNI extension to CLIENT_HELLO message [{}]", session.getVirtualHost());
-			helloMessage.addExtension(ServerNameExtension.forHostName(session.getVirtualHost()));
+		if (sniEnabled && session.getServerNames() != null) {
+			LOGGER.debug("adding SNI extension to CLIENT_HELLO message [{}]", session.getHostName());
+			helloMessage.addExtension(ServerNameExtension.forServerNames(session.getServerNames()));
 		}
 	}
 }

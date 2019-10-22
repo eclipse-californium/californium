@@ -1934,7 +1934,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			Handshaker handshaker = connection.getOngoingHandshake();
 			if (handshaker == null) {
 				session = new DTLSSession(peerAddress);
-				session.setVirtualHost(message.getEndpointContext().getVirtualHost());
+				session.setHostName(message.getEndpointContext().getVirtualHost());
 				// no session with peer established nor handshaker started yet,
 				// create new empty session & start handshake
 				handshaker = new ClientHandshaker(session, this, connection, config, maximumTransmissionUnit);
@@ -1980,12 +1980,12 @@ public class DTLSConnector implements Connector, RecordLayer {
 					// that resumption is not supported
 					// https://tools.ietf.org/html/rfc5246#section-7.4.1.3
 					DTLSSession newSession = new DTLSSession(peerAddress);
-					newSession.setVirtualHost(message.getEndpointContext().getVirtualHost());
+					newSession.setHostName(message.getEndpointContext().getVirtualHost());
 					handshaker = new ClientHandshaker(newSession, this, connection, config, maximumTransmissionUnit);
 				} else {
 					DTLSSession resumableSession = new DTLSSession(sessionId, peerAddress, ticket, 0);
 					SecretUtil.destroy(ticket);
-					resumableSession.setVirtualHost(message.getEndpointContext().getVirtualHost());
+					resumableSession.setHostName(message.getEndpointContext().getVirtualHost());
 					handshaker = new ResumingClientHandshaker(resumableSession, this, connection, config,
 							maximumTransmissionUnit);
 				}

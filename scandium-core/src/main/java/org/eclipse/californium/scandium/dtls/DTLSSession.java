@@ -186,7 +186,7 @@ public final class DTLSSession implements Destroyable {
 	private volatile long receiveWindowLowerBoundary = 0;
 	private volatile long receivedRecordsVector = 0;
 	private long creationTime;
-	private String virtualHost;
+	private String hostName;
 	private ServerNames serverNames;
 	private boolean peerSupportsSni;
 
@@ -376,21 +376,23 @@ public final class DTLSSession implements Destroyable {
 	 * 
 	 * @return the host name or {@code null} if this session has not
 	 *         been established for a virtual host.
+	 * @see #getServerNames()
 	 */
-	public String getVirtualHost() {
-		return virtualHost;
+	public String getHostName() {
+		return hostName;
 	}
 
 	/**
 	 * Set the (virtual) host name for the server that this session has been
 	 * established for.
 	 * <p>
+	 * Sets the {@link #setServerNames(ServerNames)} accordingly.
 	 * 
 	 * @param hostname the virtual host name at the peer (may be {@code null}).
 	 */
-	public void setVirtualHost(String hostname) {
+	public void setHostName(String hostname) {
 		this.serverNames = null;
-		this.virtualHost = hostname;
+		this.hostName = hostname;
 		if (hostname != null) {
 			this.serverNames = ServerNames
 					.newInstance(ServerName.from(NameType.HOST_NAME, hostname.getBytes(ServerName.CHARSET)));
@@ -402,6 +404,7 @@ public final class DTLSSession implements Destroyable {
 	 * has been established for.
 	 * 
 	 * @return server names, or {@code null}, if not used.
+	 * @see #getHostName()
 	 */
 	public ServerNames getServerNames() {
 		return serverNames;
@@ -411,16 +414,17 @@ public final class DTLSSession implements Destroyable {
 	 * Set the server names for the server that this session has been
 	 * established for.
 	 * <p>
+	 * Sets the {@link #setHostName(String)} accordingly.
 	 * 
 	 * @param serverNames the server names (may be {@code null}).
 	 */
 	public void setServerNames(ServerNames serverNames) {
-		this.virtualHost = null;
+		this.hostName = null;
 		this.serverNames = serverNames;
 		if (serverNames != null) {
 			ServerName serverName = serverNames.getServerName(NameType.HOST_NAME);
 			if (serverName != null) {
-				virtualHost = serverName.getNameAsString();
+				hostName = serverName.getNameAsString();
 			}
 		}
 	}
@@ -443,13 +447,13 @@ public final class DTLSSession implements Destroyable {
 
 	public DtlsEndpointContext getConnectionWriteContext() {
 		String id = sessionIdentifier.isEmpty() ? "TIME:" + Long.toString(creationTime) : sessionIdentifier.toString();
-		return new DtlsEndpointContext(peer, virtualHost, peerIdentity, id, Integer.toString(writeEpoch),
+		return new DtlsEndpointContext(peer, hostName, peerIdentity, id, Integer.toString(writeEpoch),
 				cipherSuite.name(), handshakeTimeTag);
 	}
 
 	public DtlsEndpointContext getConnectionReadContext() {
 		String id = sessionIdentifier.isEmpty() ? "TIME:" + Long.toString(creationTime) : sessionIdentifier.toString();
-		return new DtlsEndpointContext(peer, virtualHost, peerIdentity, id, Integer.toString(readEpoch),
+		return new DtlsEndpointContext(peer, hostName, peerIdentity, id, Integer.toString(readEpoch),
 				cipherSuite.name(), handshakeTimeTag);
 	}
 

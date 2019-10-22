@@ -34,10 +34,16 @@ public class ServerName {
 
 	private final NameType type;
 	private final byte[] name;
+	private final int hashCode;
 
 	private ServerName(final NameType type, final byte[] name) {
+		if (type == null) {
+			throw new NullPointerException("Name type must be provided!");
+		}
 		this.type = type;
 		this.name = name;
+		this.hashCode = 31 * Arrays.hashCode(name) + type.hashCode();
+		
 	}
 
 	/**
@@ -113,11 +119,7 @@ public class ServerName {
 
 	@Override
 	public int hashCode() {
-		final int prime = 31;
-		int result = 1;
-		result = prime * result + Arrays.hashCode(name);
-		result = prime * result + ((type == null) ? 0 : type.hashCode());
-		return result;
+		return hashCode;
 	}
 
 	/**
@@ -164,7 +166,7 @@ public class ServerName {
 		 */
 		UNDEFINED((byte) 0xFF);
 
-		private byte code;
+		private final byte code;
 
 		private NameType(final byte code) {
 			this.code = code;

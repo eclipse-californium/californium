@@ -60,9 +60,23 @@ public final class ServerNames implements Iterable<ServerName> {
 	 */
 	public static ServerNames newInstance(final ServerName serverName) {
 		if (serverName == null) {
-			throw new NullPointerException("name must not be null");
+			throw new NullPointerException("server name must not be null");
 		} else {
 			return new ServerNames(serverName);
+		}
+	}
+
+	/**
+	 * Creates a new server name list from an initial host name.
+	 * 
+	 * @param hostName The host name to add as {@link NameType#HOST_NAME}.
+	 * @return The new instance.
+	 */
+	public static ServerNames newInstance(final String hostName) {
+		if (hostName == null) {
+			throw new NullPointerException("host name must not be null");
+		} else {
+			return new ServerNames(ServerName.from(NameType.HOST_NAME, hostName.getBytes(ServerName.CHARSET)));
 		}
 	}
 

@@ -95,7 +95,10 @@ public class InMemoryPskStore implements PskStore {
 		} else {
 			synchronized (scopedKeys) {
 				for (ServerName serverName : serverNames) {
-					return getKeyFromMapAndNormalizeIdentity(identity, scopedKeys.get(serverName));
+					SecretKey secretKey = getKeyFromMapAndNormalizeIdentity(identity, scopedKeys.get(serverName));
+					if (secretKey != null) {
+						return secretKey;
+					}
 				}
 				return null;
 			}
@@ -420,7 +423,7 @@ public class InMemoryPskStore implements PskStore {
 		} else if (peerAddress == null) {
 			throw new NullPointerException("address must not be null");
 		} else {
-			synchronized (scopedKeys) {
+			synchronized (scopedIdentities) {
 				for (ServerName serverName : virtualHost) {
 					PskPublicInformation identity = getIdentityFromMap(serverName, scopedIdentities.get(peerAddress));
 					if (identity != null) {

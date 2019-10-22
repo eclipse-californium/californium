@@ -26,6 +26,7 @@ import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.util.ServerName;
+import org.eclipse.californium.scandium.util.ServerNames;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -86,7 +87,7 @@ public class ServerNameExtensionTest {
 	public void testToByteArrayResultCanBeParsedIntoExtensionAgain() throws HandshakeException {
 
 		// GIVEN a serialized server name extension object
-		ServerNameExtension ext = ServerNameExtension.forHostName("iot.eclipse.org");
+		ServerNameExtension ext = ServerNameExtension.forServerNames(ServerNames.newInstance("iot.eclipse.org"));
 		ByteBuffer b = ByteBuffer.allocate(1024);
 		writeLength(ext.getLength(), b); //extension length
 		b.put(ext.toByteArray());

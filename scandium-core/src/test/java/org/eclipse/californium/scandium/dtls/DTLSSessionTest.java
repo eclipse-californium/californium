@@ -239,7 +239,7 @@ public class DTLSSessionTest {
 	public void testSessionWithServerNamesCanBeResumedFromSessionTicket() throws GeneralSecurityException {
 		// GIVEN a session ticket for an established server session
 		session = newEstablishedServerSession(PEER_ADDRESS, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, true);
-		session.setVirtualHost("test");
+		session.setHostName("test");
 		SessionTicket ticket = session.getSessionTicket();
 
 		// WHEN creating a new session to be resumed from the ticket
@@ -266,7 +266,7 @@ public class DTLSSessionTest {
 	public void testSessionWithServerNamesCanBeResumedFromSerializedSessionTicket() throws GeneralSecurityException {
 		// GIVEN a session ticket for an established server session
 		session = newEstablishedServerSession(PEER_ADDRESS, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, true);
-		session.setVirtualHost("test");
+		session.setHostName("test");
 		SessionTicket ticket = serialize(session.getSessionTicket());
 
 		// WHEN creating a new session to be resumed from the ticket
