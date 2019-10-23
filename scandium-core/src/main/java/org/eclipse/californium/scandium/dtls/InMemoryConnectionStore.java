@@ -85,7 +85,8 @@ import org.slf4j.LoggerFactory;
 public class InMemoryConnectionStore implements ResumptionSupportingConnectionStore {
 
 	private static final Logger LOG = LoggerFactory.getLogger(InMemoryConnectionStore.class.getName());
-	private static final int DEFAULT_EXTRA_CID_LENGTH = 2; // extra cid bytes additionally to required bytes for the capacity.
+	private static final int DEFAULT_SMALL_EXTRA_CID_LENGTH = 2; // extra cid bytes additionally to required bytes for small capacity.
+	private static final int DEFAULT_LARGE_EXTRA_CID_LENGTH = 3; // extra cid bytes additionally to required bytes for large capacity.
 	private static final int DEFAULT_CACHE_SIZE = 150000;
 	private static final long DEFAULT_EXPIRATION_THRESHOLD = 36 * 60 * 60; // 36h
 	private final SessionCache sessionCache;
@@ -235,11 +236,12 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		}
 		if (connectionIdGenerator == null || !connectionIdGenerator.useConnectionId()) {
 			int bits = Integer.SIZE - Integer.numberOfLeadingZeros(connections.getCapacity());
-			int cidLength = ((bits + 7) / 8) + DEFAULT_EXTRA_CID_LENGTH;
+			int cidLength = ((bits + 7) / 8); // required bytes for capacity
+			cidLength += (cidLength < 3) ? DEFAULT_SMALL_EXTRA_CID_LENGTH : DEFAULT_LARGE_EXTRA_CID_LENGTH;
 			this.connectionIdGenerator = new SingleNodeConnectionIdGenerator(cidLength);
 		} else {
 			this.connectionIdGenerator = connectionIdGenerator;
-		}	
+		}
 		if (sessionCache instanceof ClientSessionCache) {
 			ClientSessionCache clientCache = (ClientSessionCache) sessionCache;
 			LOG.debug("resume client sessions {}", clientCache);
