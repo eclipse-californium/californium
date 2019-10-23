@@ -29,7 +29,7 @@ import org.eclipse.californium.elements.util.StringUtil;
  */
 public class AddressEndpointContext implements EndpointContext {
 
-	protected static final int ID_TRUNC_LENGTH = 6;
+	protected static final int ID_TRUNC_LENGTH = 10;
 
 	private final InetSocketAddress peerAddress;
 
