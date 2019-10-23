@@ -266,5 +266,10 @@ public class UDPConnectorTest {
 			latchSendMatcher.await();
 		}
 
+		@Override
+		public String toRelevantState(EndpointContext context) {
+			return context == null ? "n.a." : context.toString();
+		}
+
 	}
 }

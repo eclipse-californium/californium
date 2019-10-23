@@ -2044,8 +2044,11 @@ public class DTLSConnector implements Connector, RecordLayer {
 	private boolean checkOutboundEndpointContext(final RawData message, final EndpointContext connectionContext) {
 		final EndpointContextMatcher endpointMatcher = getEndpointContextMatcher();
 		if (null != endpointMatcher && !endpointMatcher.isToBeSent(message.getEndpointContext(), connectionContext)) {
-			LOGGER.warn("DTLSConnector ({}) drops {} bytes, {} != {}", this, message.getSize(),
-					message.getEndpointContext(), connectionContext);
+			if (LOGGER.isWarnEnabled()) {
+				LOGGER.warn("DTLSConnector ({}) drops {} bytes, {} != {}", this, message.getSize(),
+						endpointMatcher.toRelevantState(message.getEndpointContext()),
+						endpointMatcher.toRelevantState(connectionContext));
+			}
 			message.onError(new EndpointMismatchException());
 			return false;
 		}

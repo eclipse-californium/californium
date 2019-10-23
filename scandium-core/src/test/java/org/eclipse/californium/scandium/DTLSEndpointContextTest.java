@@ -335,6 +335,11 @@ public class DTLSEndpointContextTest {
 			return current < count;
 		}
 
+		@Override
+		public String toRelevantState(EndpointContext context) {
+			return context == null ? "n.a." : context.toString();
+		}
+
 		public boolean await(long timeout, TimeUnit unit) throws InterruptedException {
 			return latchSendMatcher.await(timeout, unit);
 		}

@@ -83,6 +83,23 @@ public class PrincipalEndpointContextMatcher implements EndpointContextMatcher {
 		return true;
 	}
 
+	@Override
+	public String toRelevantState(EndpointContext context) {
+		if (context == null) {
+			return "n.a.";
+		} else {
+			StringBuilder builder = new StringBuilder();
+			builder.append("[");
+			builder.append(context.getPeerIdentity());
+			String cipher = context.get(DtlsEndpointContext.KEY_CIPHER);
+			if (cipher != null) {
+				builder.append(",").append(cipher);
+			}
+			builder.append("]");
+			return builder.toString();
+		}
+	}
+
 	/**
 	 * Match principals.
 	 * 
@@ -99,5 +116,4 @@ public class PrincipalEndpointContextMatcher implements EndpointContextMatcher {
 	protected boolean matchPrincipals(Principal requestedPrincipal, Principal availablePrincipal) {
 		return requestedPrincipal.equals(availablePrincipal);
 	}
-
 }

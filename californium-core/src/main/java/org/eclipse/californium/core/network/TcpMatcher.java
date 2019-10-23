@@ -205,10 +205,10 @@ public final class TcpMatcher extends BaseMatcher {
 							return;
 						}
 						receiver.receiveResponse(exchange, response);
-					} else {
+					} else if (LOGGER.isDebugEnabled()) {
 						LOGGER.debug(
 								"ignoring potentially forged response from [{}]: {} for {} with non-matching endpoint context",
-								response.getSourceContext(), response, exchange);
+								endpointContextMatcher.toRelevantState(response.getSourceContext()), response, exchange);
 					}
 				} catch (Exception ex) {
 					LOGGER.error("error receiving response from [{}]: {} for {}", response.getSourceContext(), response,
