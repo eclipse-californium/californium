@@ -26,6 +26,8 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
@@ -48,6 +50,7 @@ import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.elements.util.TestThreadFactory;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
@@ -162,7 +165,7 @@ public class DTLSConnectorResumeTest {
 		serverHelper.cleanUpServer();
 	}
 
-	private void autoResumeSetUp(long timeout) throws Exception {
+	private void autoResumeSetUp(Long timeout) throws Exception {
 		cleanUp();
 		serverHelper.serverSessionCache.establishedSessionCounter.set(0);
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
@@ -224,7 +227,7 @@ public class DTLSConnectorResumeTest {
 	@Test
 	public void testConnectorAutoResumesSession() throws Exception {
 
-		autoResumeSetUp(500);
+		autoResumeSetUp(500L);
 
 		// Do a first handshake
 		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, false);
@@ -259,7 +262,7 @@ public class DTLSConnectorResumeTest {
 	@Test
 	public void testConnectorNoAutoResumesSession() throws Exception {
 
-		autoResumeSetUp(1000);
+		autoResumeSetUp(1000L);
 
 		// Do a first handshake
 		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, false);
@@ -285,40 +288,8 @@ public class DTLSConnectorResumeTest {
 	}
 
 	@Test
-	public void testConnectorForceAutoResumesSession() throws Exception {
-		autoResumeSetUp(1000);
-
-		// Do a first handshake
-		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, false);
-
-		Connection connection = clientConnectionStore.get(serverHelper.serverEndpoint);
-		SessionId sessionId = connection.getSession().getSessionIdentifier();
-		assertThat(serverHelper.serverSessionCache.establishedSessionCounter.get(), is(1));
-
-		Thread.sleep(500);
-
-		// Prepare message sending
-		final String msg = "Hello Again";
-		clientRawDataChannel.setLatchCount(1);
-
-		// send message
-		EndpointContext context = new MapBasedEndpointContext(serverHelper.serverEndpoint, null, DtlsEndpointContext.KEY_RESUMPTION_TIMEOUT, "0");
-		RawData data = RawData.outbound(msg.getBytes(), context, null, false);
-		client.send(data);
-		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
-
-		// check we use the same session id
-		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
-		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(sessionId));
-		assertClientIdentity(RawPublicKeyIdentity.class);
-
-		// check, if session is established again
-		assertThat(serverHelper.serverSessionCache.establishedSessionCounter.get(), is(2));
-	}
-
-	@Test
 	public void testConnectorSupressAutoResumesSession() throws Exception {
-		autoResumeSetUp(500);
+		autoResumeSetUp(500L);
 
 		// Do a first handshake
 		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, false);
@@ -350,7 +321,7 @@ public class DTLSConnectorResumeTest {
 
 	@Test
 	public void testConnectorChangedAutoResumesSession() throws Exception {
-		autoResumeSetUp(500);
+		autoResumeSetUp(500L);
 
 		// Do a first handshake
 		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, false);
@@ -443,6 +414,72 @@ public class DTLSConnectorResumeTest {
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
 		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(sessionId));
 		assertClientIdentity(RawPublicKeyIdentity.class);
+	}
+
+	@Test
+	public void testConnectorForceResumeSession() throws Exception {
+		autoResumeSetUp(null);
+
+		// Do a first handshake
+		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, false);
+
+		Connection connection = clientConnectionStore.get(serverHelper.serverEndpoint);
+		SessionId sessionId = connection.getSession().getSessionIdentifier();
+		assertThat(serverHelper.serverSessionCache.establishedSessionCounter.get(), is(1));
+
+		Thread.sleep(500);
+
+		// Prepare message sending
+		final String msg = "Hello Again";
+		clientRawDataChannel.setLatchCount(1);
+
+		// send message
+		EndpointContext context = new MapBasedEndpointContext(serverHelper.serverEndpoint, null,
+				DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_FORCE);
+		RawData data = RawData.outbound(msg.getBytes(), context, null, false);
+		client.send(data);
+		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+		// check we use the same session id
+		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
+		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(sessionId));
+		assertClientIdentity(RawPublicKeyIdentity.class);
+
+		// check, if session is established again
+		assertThat(serverHelper.serverSessionCache.establishedSessionCounter.get(), is(2));
+	}
+
+	@Test
+	public void testConnectorForceFullHandshake() throws Exception {
+		autoResumeSetUp(null);
+
+		// Do a first handshake
+		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, false);
+
+		Connection connection = clientConnectionStore.get(serverHelper.serverEndpoint);
+		SessionId sessionId = connection.getSession().getSessionIdentifier();
+		assertThat(serverHelper.serverSessionCache.establishedSessionCounter.get(), is(1));
+
+		Thread.sleep(500);
+
+		// Prepare message sending
+		final String msg = "Hello Again";
+		clientRawDataChannel.setLatchCount(1);
+
+		// send message
+		EndpointContext context = new MapBasedEndpointContext(serverHelper.serverEndpoint, null,
+				DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_FORCE_FULL);
+		RawData data = RawData.outbound(msg.getBytes(), context, null, false);
+		client.send(data);
+		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+		// check we use the same session id
+		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
+		assertThat(connection.getEstablishedSession().getSessionIdentifier(), not(equalTo(sessionId)));
+		assertClientIdentity(RawPublicKeyIdentity.class);
+
+		// check, if session is established again
+		assertThat(serverHelper.serverSessionCache.establishedSessionCounter.get(), is(2));
 	}
 
 	@Test
@@ -544,6 +581,46 @@ public class DTLSConnectorResumeTest {
 		} finally {
 			serverWithoutSessionId.destroyServer();
 		}
+	}
+
+	@Test
+	public void testConnectorSupressHandshake() throws Exception {
+		autoResumeSetUp(null);
+
+		// suppress handshake
+		SimpleMessageCallback callback = new SimpleMessageCallback(1, false);
+		EndpointContext context = new MapBasedEndpointContext(serverHelper.serverEndpoint, null,
+				DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_NONE);
+		RawData raw = RawData.outbound("Hello World".getBytes(), context, callback, false);
+
+		client.start();
+		client.send(raw);
+		assertNotNull(callback.getError(TimeUnit.SECONDS.toMillis(MAX_TIME_TO_WAIT_SECS)));
+		Connection con = serverHelper.serverConnectionStore.get(client.getAddress());
+		assertNull(con);
+	}
+
+	@Test
+	public void testConnectorRequiresResumptionSupressHandshake() throws Exception {
+		// Do a first handshake
+		serverHelper.givenAnEstablishedSession(client);
+		SessionId sessionId = serverHelper.establishedServerSession.getSessionIdentifier();
+
+		// Force a resume session the next time we send data
+		client.forceResumeSessionFor(serverHelper.serverEndpoint);
+		Connection connection = clientConnectionStore.get(serverHelper.serverEndpoint);
+		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(sessionId));
+
+		// suppress handshake
+		SimpleMessageCallback callback = new SimpleMessageCallback(1, false);
+		EndpointContext context = new MapBasedEndpointContext(serverHelper.serverEndpoint, null,
+				DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_NONE);
+		RawData raw = RawData.outbound("Hello World".getBytes(), context, callback, false);
+		client.start();
+		client.send(raw);
+		assertNotNull(callback.getError(TimeUnit.SECONDS.toMillis(MAX_TIME_TO_WAIT_SECS)));
+		Connection con = serverHelper.serverConnectionStore.get(client.getAddress());
+		assertNull(con);
 	}
 
 	private void assertClientIdentity(final Class<?> principalType) {
