@@ -54,4 +54,12 @@ public interface EndpointContextMatcher extends EndpointIdentityResolver {
 	 */
 	boolean isToBeSent(EndpointContext messageContext, EndpointContext connectionContext);
 
+	/**
+	 * Returns the context's state relevant for this matcher as string.
+	 * 
+	 * @param context context with state
+	 * @return string containing the relevant state of the provided endpoint
+	 *         context for this matcher
+	 */
+	String toRelevantState(EndpointContext context);
 }

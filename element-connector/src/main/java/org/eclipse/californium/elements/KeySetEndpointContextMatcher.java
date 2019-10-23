@@ -105,6 +105,15 @@ public abstract class KeySetEndpointContextMatcher implements EndpointContextMat
 		return EndpointContextUtil.match(getName(), keys, requestedContext, availableContext);
 	}
 
+	@Override
+	public String toRelevantState(EndpointContext context) {
+		if (context == null) {
+			return "n.a.";
+		} else {
+			return context.toString();
+		}
+	}
+
 	/**
 	 * Create key set from keys.
 	 * 
