@@ -34,9 +34,9 @@ import org.eclipse.californium.elements.util.StringUtil;
  */
 public class TlsEndpointContext extends TcpEndpointContext {
 
-	public static final String KEY_SESSION_ID = "DTLS_SESSION_ID";
+	public static final String KEY_SESSION_ID = "TLS_SESSION_ID";
 
-	public static final String KEY_CIPHER = "CIPHER";
+	public static final String KEY_CIPHER = "TLS_CIPHER";
 
 	/**
 	 * Creates a new correlation context from TLS session parameters.

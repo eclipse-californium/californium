@@ -472,21 +472,16 @@ public final class Connection {
 	 * already required.
 	 * 
 	 * @param autoResumptionTimeoutMillis auto resumption timeout in
-	 *            milliseconds. {@code 0} milliseconds to force a resumption,
-	 *            {@code null}, if auto resumption is not used.
+	 *            milliseconds. {@code null}, if auto resumption is not used.
 	 * @return {@code true}, if the provided autoResumptionTimeoutMillis has
 	 *         expired without exchanging messages.
 	 */
 	public boolean isAutoResumptionRequired(Long autoResumptionTimeoutMillis) {
 		if (!resumptionRequired && autoResumptionTimeoutMillis != null && establishedSession != null) {
-			if (autoResumptionTimeoutMillis == 0) {
+			long now = ClockUtil.nanoRealtime();
+			long expires = lastMessageNanos + TimeUnit.MILLISECONDS.toNanos(autoResumptionTimeoutMillis);
+			if ((now - expires) > 0) {
 				setResumptionRequired(true);
-			} else {
-				long now = ClockUtil.nanoRealtime();
-				long expires = lastMessageNanos + TimeUnit.MILLISECONDS.toNanos(autoResumptionTimeoutMillis);
-				if ((now - expires) > 0) {
-					setResumptionRequired(true);
-				}
 			}
 		}
 		return resumptionRequired;
