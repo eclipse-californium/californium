@@ -617,6 +617,10 @@ public class DTLSConnector implements Connector, RecordLayer {
 		if (size != null) {
 			socket.setSendBufferSize(size);
 		}
+		// don't try to access the buffer sizes,
+		// when receive may already lock the socket!
+		int recvBuffer = socket.getReceiveBufferSize();
+		int sendBuffer = socket.getSendBufferSize();
 
 		socket.bind(bindAddress);
 		if (lastBindAddress != null && (!socket.getLocalAddress().equals(lastBindAddress.getAddress()) || socket.getLocalPort() != lastBindAddress.getPort())){
@@ -688,8 +692,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		}
 
 		LOGGER.info("DTLSConnector listening on {}, recv buf = {}, send buf = {}, recv packet size = {}, MTU = {}",
-				lastBindAddress, socket.getReceiveBufferSize(), socket.getSendBufferSize(), inboundDatagramBufferSize,
-				maximumTransmissionUnit);
+				lastBindAddress, recvBuffer, sendBuffer, inboundDatagramBufferSize, maximumTransmissionUnit);
 	}
 
 	/**
