@@ -221,6 +221,10 @@ public final class DtlsConnectorConfig {
 
 	private Integer receiverThreadCount;
 
+	private Integer socketReceiveBufferSize;
+
+	private Integer socketSendBufferSize;
+
 	/**
 	 * Automatic session resumption timeout. Triggers session resumption
 	 * automatically, if no messages are exchanged for this timeout. Intended to
@@ -701,6 +705,24 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * Gets size of the socket receive buffer.
+	 * 
+	 * @return the socket receive buffer in bytes, or {@code null}, to use the OS default.
+	 */
+	public Integer getSocketReceiveBufferSize() {
+		return socketReceiveBufferSize;
+	}
+
+	/**
+	 * Gets size of the socket send buffer.
+	 * 
+	 * @return the socket send buffer in bytes, or {@code null}, to use the OS default.
+	 */
+	public Integer getSocketSendBufferSize() {
+		return socketSendBufferSize;
+	}
+
+	/**
 	 * Get the timeout for automatic session resumption.
 	 * 
 	 * If no messages are exchanged for this timeout, the next message will
@@ -821,6 +843,8 @@ public final class DtlsConnectorConfig {
 		cloned.staleConnectionThreshold = staleConnectionThreshold;
 		cloned.connectionThreadCount = connectionThreadCount;
 		cloned.receiverThreadCount = receiverThreadCount;
+		cloned.socketReceiveBufferSize = socketReceiveBufferSize;
+		cloned.socketSendBufferSize = socketSendBufferSize;
 		cloned.autoResumptionTimeoutMillis = autoResumptionTimeoutMillis;
 		cloned.sniEnabled = sniEnabled;
 		cloned.verifyPeersOnResumptionThreshold = verifyPeersOnResumptionThreshold;
@@ -1022,6 +1046,30 @@ public final class DtlsConnectorConfig {
 		 */
 		public Builder setMaxFragmentedHandshakeMessageLength(Integer length) {
 			config.maxFragmentedHandshakeMessageLength = length;
+			return this;
+		}
+
+		/**
+		 * Set the size of the socket receive buffer.
+		 * 
+		 * @param size the socket receive buffer size in bytes, or {@code null},
+		 *            to use the OS default.
+		 * @return this builder for command chaining
+		 */
+		public Builder setSocketReceiveBufferSize(Integer size) {
+			config.socketReceiveBufferSize = size;
+			return this;
+		}
+
+		/**
+		 * Set the size of the socket send buffer.
+		 * 
+		 * @param size the socket send buffer size in bytes, or {@code null}, to
+		 *            use the OS default.
+		 * @return this builder for command chaining
+		 */
+		public Builder setSocketSendBufferSize(Integer size) {
+			config.socketSendBufferSize = size;
 			return this;
 		}
 
