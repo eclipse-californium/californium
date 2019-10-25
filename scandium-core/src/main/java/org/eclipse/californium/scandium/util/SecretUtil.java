@@ -63,9 +63,10 @@ public class SecretUtil {
 	}
 
 	/**
-	 * Check, if secret key was destroyed.
+	 * Checks if a secret key has already been destroyed.
 	 * 
-	 * @param key secret key to check. If {@code null}, {@code true} is returned.
+	 * @param key secret key to check (may be {@code null}).
+	 * @return {@code true} if the key either is {@code null} or has been destroyed.
 	 */
 	public static boolean isDestroyed(SecretKey key) {
 		if (key != null) {
@@ -79,43 +80,49 @@ public class SecretUtil {
 	}
 
 	/**
-	 * Check, if destroyable was destroyed.
+	 * Checks if a given destroyable has already been destroyed.
 	 * 
-	 * @param destroyable destroyable to check. If {@code null}, {@code true} is returned.
+	 * @param destroyable The destroyable to check (may be {@code null}).
+	 * @return {@code true} if the given object either is {@code null} or has been destroyed.
 	 */
 	public static boolean isDestroyed(Destroyable destroyable) {
 		return destroyable == null || destroyable.isDestroyed();
 	}
 
 	/**
-	 * Create secret key (with destroyable implementation).
+	 * Creates a secret key.
 	 * 
-	 * @param secret secret as byte array
-	 * @param algorithm algorithm the secret key is used for.
-	 * @return the secreate key
+	 * @param secret The key material.
+	 * @param algorithm The algorithm that the key is used for. The name
+	 *                  <em>PSK</em> should be used if the key is supposed to
+	 *                  be used with a PSK based TLS handshake.
+	 * @return The newly created key which also implements {@code javax.security.auth.Destroyable}.
 	 */
 	public static SecretKey create(byte[] secret, String algorithm) {
 		return new DestroyableSecretKeySpec(secret, algorithm);
 	}
 
 	/**
-	 * Create secret key (with destroyable implementation).
+	 * Create a secret key.
 	 * 
-	 * @param secret secret as byte array
-	 * @param offset offset of secret within the provided byte array
-	 * @param length length of secret
-	 * @param algorithm algorithm the secret key is used for.
-	 * @return the secreate key
+	 * @param secret The source to copy the key material from.
+	 * @param offset The start index from which the key material should be copied.
+	 * @param length The number of bytes to copy.
+	 * @param algorithm The algorithm that the key is used for. The name
+	 *                  <em>PSK</em> should be used if the key is supposed to
+	 *                  be used with a PSK based TLS handshake.
+	 * @return The newly created key which also implements {@code javax.security.auth.Destroyable}.
 	 */
 	public static SecretKey create(byte[] secret, int offset, int length, String algorithm) {
 		return new DestroyableSecretKeySpec(secret, offset, length, algorithm);
 	}
 
 	/**
-	 * Create a copy destroyable of the provided secret key.
+	 * Creates a copy of a secret key.
 	 * 
-	 * @param key key to create copy.
-	 * @return secret key, or {@code null}, if provided key was {@code null}
+	 * @param key The key to copy (may be {@code null}).
+	 * @return The newly created key or {@code null} if the provided key was {@code null}.
+	 *         The returned key also implements {@code javax.security.auth.Destroyable}.
 	 */
 	public static SecretKey create(SecretKey key) {
 		SecretKey result = null;
@@ -128,10 +135,10 @@ public class SecretUtil {
 	}
 
 	/**
-	 * Create a copy destroyable of the provided secret key.
+	 * Creates copy of a secret init vector.
 	 * 
-	 * @param key key to create copy.
-	 * @return secret key, or {@code null}, if provided key was {@code null}
+	 * @param iv The init vector to copy (may be {@code null}).
+	 * @return The newly created IV, or {@code null} if the provided IV was {@code null}.
 	 */
 	public static SecretIvParameterSpec createIv(SecretIvParameterSpec iv) {
 		SecretIvParameterSpec result = null;
