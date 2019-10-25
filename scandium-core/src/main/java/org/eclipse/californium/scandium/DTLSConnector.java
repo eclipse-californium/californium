@@ -687,7 +687,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			receiverThreads.add(receiver);
 		}
 
-		LOGGER.info("DTLSPConnector listening on {}, recv buf = {}, send buf = {}, recv packet size = {}, MTU = {}",
+		LOGGER.info("DTLSConnector listening on {}, recv buf = {}, send buf = {}, recv packet size = {}, MTU = {}",
 				lastBindAddress, socket.getReceiveBufferSize(), socket.getSendBufferSize(), inboundDatagramBufferSize,
 				maximumTransmissionUnit);
 	}
