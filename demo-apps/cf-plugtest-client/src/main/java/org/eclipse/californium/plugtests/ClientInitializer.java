@@ -40,7 +40,6 @@ import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
-import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.tcp.TcpClientConnector;
 import org.eclipse.californium.elements.tcp.TlsClientConnector;
@@ -164,7 +163,7 @@ public class ClientInitializer {
 	 */
 	public static CoapEndpoint createEndpoint(NetworkConfig config, Arguments arguments, ExecutorService executor,
 			boolean ephemeralPort) {
-		Connector connector = null;
+//		Connector connector = null;
 		int tcpThreads = config.getInt(NetworkConfig.Keys.TCP_WORKER_THREADS);
 		int tcpConnectTimeout = config.getInt(NetworkConfig.Keys.TCP_CONNECT_TIMEOUT);
 		int tlsHandshakeTimeout = config.getInt(NetworkConfig.Keys.TLS_HANDSHAKE_TIMEOUT);
@@ -175,7 +174,10 @@ public class ClientInitializer {
 		int senderThreads = config.getInt(NetworkConfig.Keys.NETWORK_STAGE_SENDER_THREAD_COUNT);
 		int receiverThreads = config.getInt(NetworkConfig.Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT);
 		Integer cidLength = config.getOptInteger(Keys.DTLS_CONNECTION_ID_LENGTH);
+		Integer recvBufferSize = config.getOptInteger(Keys.UDP_CONNECTOR_RECEIVE_BUFFER);
+		Integer sendBufferSize = config.getOptInteger(Keys.UDP_CONNECTOR_SEND_BUFFER);
 
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		if (arguments.uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME)) {
 			if (clientCredentials == null || trustedCertificates == null) {
 				try {
@@ -231,6 +233,8 @@ public class ClientInitializer {
 				if (cidLength != null) {
 					dtlsConfig.setConnectionIdGenerator(new SingleNodeConnectionIdGenerator(cidLength));
 				}
+				dtlsConfig.setSocketReceiveBufferSize(recvBufferSize); 
+				dtlsConfig.setSocketSendBufferSize(sendBufferSize); 
 				dtlsConfig.setClientOnly();
 				dtlsConfig.setMaxConnections(maxPeers);
 				dtlsConfig.setConnectionThreadCount(senderThreads);
@@ -241,20 +245,18 @@ public class ClientInitializer {
 				if (executor != null) {
 					dtlsConnector.setExecutor(executor);
 				}
-				connector = dtlsConnector;
+				builder.setConnector(dtlsConnector);
 			} else if (arguments.uri.startsWith(CoAP.COAP_SECURE_TCP_URI_SCHEME + "://")) {
-				connector = new TlsClientConnector(clientSslContext, tcpThreads, tcpConnectTimeout, tlsHandshakeTimeout,
-						tcpIdleTimeout);
+				builder.setConnector(new TlsClientConnector(clientSslContext, tcpThreads, tcpConnectTimeout, tlsHandshakeTimeout,
+						tcpIdleTimeout));
 			}
 		} else if (arguments.uri.startsWith(CoAP.COAP_TCP_URI_SCHEME + "://")) {
-			connector = new TcpClientConnector(tcpThreads, tcpConnectTimeout, tcpIdleTimeout);
+			builder.setConnector(new TcpClientConnector(tcpThreads, tcpConnectTimeout, tcpIdleTimeout));
 		} else if (arguments.uri.startsWith(CoAP.COAP_URI_SCHEME + "://")) {
 			int coapPort = ephemeralPort ? 0 : config.getInt(Keys.COAP_PORT);
-			connector = new UDPConnector(new InetSocketAddress(coapPort));
+			builder.setConnectorWithAutoConfiguration(new UDPConnector(new InetSocketAddress(coapPort)));
 		}
 
-		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setConnector(connector);
 		builder.setNetworkConfig(config);
 		CoapEndpoint endpoint = builder.build();
 		if (arguments.verbose) {

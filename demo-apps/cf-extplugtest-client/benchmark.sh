@@ -25,9 +25,24 @@ echo
 echo "you have a too fast CPU for the available amount of RAM :-)."
 echo "Try to adjust the \"-Xmx\" to a larger value than the 30%."
 echo
+echo "Depending on your OS and configuration, the maximum number of sockets or threads may be limited."
+echo "For linux, these maximum number may be increased, if the host has enough resources (RAM and CPU)"
+echo "to execute it. Please adjust the values \"DefaultLimitNOFILE\" in \"/etc/systemd/user.conf\" and"
+echo "\"/etc/systemd/user.conf\" accordingly to the number of wanted sockets, and uncomment it by removing"
+echo "the leading \"#\". For plain coap, currently more threads are requried. Adjust \"UserTasksMax\" in"
+echo "\"/etc/systemd/logind.conf\" to twice the number of sockets plus 500 more. With that, up to 10000"
+echo "clients my be used for the benchmark. It's not recommended to use that many clients from one process"
+echo "and it's even less recommended to use more!"
+echo
 echo "Note: sometimes the recommended default configuration is changed." 
 echo "      Please delete therefore the \"Californium???.properties\" to apply the changes." 
 echo
+
+# commands to check several limits
+# cat /proc/sys/kernel/threads-max
+# cat /proc/sys/kernel/pid_max
+# cat /proc/sys/vm/max_map_count
+# prlimit
 
 CF_JAR=cf-extplugtest-client-2.0.0-SNAPSHOT.jar
 CF_EXEC="org.eclipse.californium.extplugtests.BenchmarkClient"
@@ -61,8 +76,6 @@ elif [ ! -s ${CF_JAR} ] && [ -s ../${CF_JAR} ]  ; then
 fi
 
 START_BENCHMARK=`date +%s`
-ulimit -S -n 4096
-ulimit -S -n
 echo ${CF_JAR}
 
 benchmark_udp()
@@ -142,8 +155,6 @@ longterm()
 	benchmark_udp "reverse-observe?obs=2500000&res=feed-NON&timeout=${LONG_INTERVAL_TIMEOUT_S}&rlen=${PAYLOAD}" ${UDP_CLIENTS} 1 stop ${NOTIFIES} ${LONG_INTERVAL_MS}
 }
 
-benchmark_all
-benchmark_all
 benchmark_all
 benchmark_dtls_handshake 25
 #longterm

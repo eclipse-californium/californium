@@ -166,6 +166,8 @@ public class BenchmarkClient {
 			config.setInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, 1);
 			config.setInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, 1);
 			config.setInt(Keys.PROTOCOL_STAGE_THREAD_COUNT, 1);
+			config.setInt(Keys.UDP_CONNECTOR_RECEIVE_BUFFER, 8192);
+			config.setInt(Keys.UDP_CONNECTOR_SEND_BUFFER, 8192);
 			config.setInt(Keys.HEALTH_STATUS_INTERVAL, 0);
 			config.setInt(KEY_BENCHMARK_CLIENT_THREADS, 0);
 		}
