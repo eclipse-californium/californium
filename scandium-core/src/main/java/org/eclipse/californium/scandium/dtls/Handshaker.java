@@ -746,7 +746,13 @@ public abstract class Handshaker implements Destroyable {
 	 */
 	protected final void generateKeys(SecretKey premasterSecret) {
 		if (destroyed) {
-			throw new IllegalStateException("secrets destroyed!");
+			if (handshakeFailed) {
+				throw new IllegalStateException("secrets destroyed after failure!", cause);
+			} else if (sessionEstablished) {
+				throw new IllegalStateException("secrets destroyed after success!");
+			} else {
+				throw new IllegalStateException("secrets destroyed ???");
+			}
 		}
 		masterSecret = generateMasterSecret(premasterSecret);
 		calculateKeys(masterSecret);
