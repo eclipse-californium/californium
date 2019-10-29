@@ -28,7 +28,6 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.SecureRandom;
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.AlgorithmParameterSpec;
@@ -72,6 +71,8 @@ public final class ECDHECryptography {
 	 */
 	private static final String KEYPAIR_GENERATOR_ALGORITHM = "EC";
 
+	private static final ThreadLocalKeyPairGenerator KEYPAIR_GENERATOR = new ThreadLocalKeyPairGenerator(KEYPAIR_GENERATOR_ALGORITHM);
+
 	private static final int PRIME = 1;
 	private static final int BINARY = 2;
 
@@ -80,7 +81,9 @@ public final class ECDHECryptography {
 	 * "http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#KeyAgreement"
 	 * >KeyAgreement Algorithms</a>.
 	 */
-	private static final String KEY_AGREEMENT_INSTANCE = "ECDH";
+	private static final String KEY_AGREEMENT_ALGORITHM = "ECDH";
+
+	private static final ThreadLocalKeyAgreement KEY_AGREEMENT = new ThreadLocalKeyAgreement(KEY_AGREEMENT_ALGORITHM);
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -147,8 +150,8 @@ public final class ECDHECryptography {
 	}
 	
 	private void createKeys(AlgorithmParameterSpec params) throws GeneralSecurityException {
-		KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(KEYPAIR_GENERATOR_ALGORITHM);
-		keyPairGenerator.initialize(params, new SecureRandom());
+		KeyPairGenerator keyPairGenerator = KEYPAIR_GENERATOR.current();
+		keyPairGenerator.initialize(params, RandomManager.currentSecureRandom());
 
 		KeyPair keyPair = keyPairGenerator.generateKeyPair();
 		privateKey = (ECPrivateKey) keyPair.getPrivate();
@@ -199,7 +202,7 @@ public final class ECDHECryptography {
 	public SecretKey generateSecret(PublicKey peerPublicKey) {
 		SecretKey secretKey = null;
 		try {
-			KeyAgreement keyAgreement = KeyAgreement.getInstance(KEY_AGREEMENT_INSTANCE);
+			KeyAgreement keyAgreement = KEY_AGREEMENT.current();
 			keyAgreement.init(privateKey);
 			keyAgreement.doPhase(peerPublicKey, true);
 
@@ -426,7 +429,7 @@ public final class ECDHECryptography {
 			ECPoint g = new ECPoint(bi(x), bi(y));
 			this.params = new ECParameterSpec(curve, g, bi(n), h);
 			try {
-				KeyPairGenerator gen = KeyPairGenerator.getInstance(KEYPAIR_GENERATOR_ALGORITHM);
+				KeyPairGenerator gen = KEYPAIR_GENERATOR.current();
 				gen.initialize(new ECGenParameterSpec(name()));
 				usable = true;
 			} catch (GeneralSecurityException e) {
