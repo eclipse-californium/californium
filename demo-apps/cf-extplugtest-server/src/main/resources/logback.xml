@@ -50,11 +50,11 @@
 		<appender-ref ref="FILE" />
 	</logger>
 
-	<logger name="org.eclipse.californium.scandium.dtls.ServerHandshaker" level="DEBUG" additivity="false">
+	<logger name="org.eclipse.californium.scandium.dtls.ServerHandshaker" level="WARN" additivity="false">
 		<appender-ref ref="STDOUT" />
 		<appender-ref ref="ERROR_FILE" />
 	</logger>
-	<logger name="org.eclipse.californium.scandium.dtls.ClientHandshaker" level="DEBUG" additivity="false">
+	<logger name="org.eclipse.californium.scandium.dtls.ClientHandshaker" level="WARN" additivity="false">
 		<appender-ref ref="STDOUT" />
 		<appender-ref ref="ERROR_FILE" />
 	</logger>
