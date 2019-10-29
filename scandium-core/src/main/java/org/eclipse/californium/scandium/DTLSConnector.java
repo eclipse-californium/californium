@@ -131,7 +131,6 @@ import java.security.GeneralSecurityException;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -204,6 +203,7 @@ import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.SessionListener;
 import org.eclipse.californium.scandium.dtls.SessionTicket;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.util.MtuUtil;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 
@@ -637,17 +637,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 		if (config.getMaxTransmissionUnit() == null) {
 			InetAddress localInterfaceAddress = bindAddress.getAddress();
 			if (localInterfaceAddress.isAnyLocalAddress()) {
-				int mtu = MAX_MTU;
-				Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
-				while (interfaces.hasMoreElements()) {
-					NetworkInterface iface = interfaces.nextElement();
-					int ifaceMtu = iface.getMTU();
-					if (ifaceMtu > 0 && ifaceMtu < mtu) {
-						mtu = ifaceMtu;
-					}
-				}
-				LOGGER.info("multiple network interfaces, using smallest MTU [{}]", mtu);
-				this.maximumTransmissionUnit = mtu;
+				this.maximumTransmissionUnit = MtuUtil.getAnyMtu();
+				LOGGER.info("multiple network interfaces, using smallest MTU [{}]", this.maximumTransmissionUnit);
 			} else {
 				NetworkInterface ni = NetworkInterface.getByInetAddress(localInterfaceAddress);
 				if (ni != null && ni.getMTU() > 0) {
@@ -660,8 +651,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 					this.maximumTransmissionUnit = DEFAULT_IPV6_MTU;
 				}
 			}
-		}
-		else {
+		} else {
 			this.maximumTransmissionUnit = config.getMaxTransmissionUnit();
 		}
 
