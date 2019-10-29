@@ -610,12 +610,16 @@ public class DTLSConnector implements Connector, RecordLayer {
 		}
 
 		Integer size = config.getSocketReceiveBufferSize();
-		if (size != null) {
-			socket.setReceiveBufferSize(size);
-		}
-		size = config.getSocketSendBufferSize();
-		if (size != null) {
-			socket.setSendBufferSize(size);
+		try {
+			if (size != null && size != 0) {
+				socket.setReceiveBufferSize(size);
+			}
+			size = config.getSocketSendBufferSize();
+			if (size != null && size != 0) {
+				socket.setSendBufferSize(size);
+			}
+		} catch(IllegalArgumentException ex) {
+			LOGGER.error("failed to apply {}", size, ex);
 		}
 		// don't try to access the buffer sizes,
 		// when receive may already lock the socket!
