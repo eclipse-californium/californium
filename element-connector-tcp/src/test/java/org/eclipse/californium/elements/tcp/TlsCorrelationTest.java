@@ -23,6 +23,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.IsNull.notNullValue;
 import static org.hamcrest.text.IsEmptyString.isEmptyOrNullString;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.security.Principal;
 import java.util.ArrayList;
@@ -106,7 +108,7 @@ public class TlsCorrelationTest {
 		RawData msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
-		serverCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS);
+		assertTrue(serverCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS));
 
 		/* client context sent */
 		EndpointContext clientContext = clientCallback.getEndpointContext();
@@ -125,7 +127,7 @@ public class TlsCorrelationTest {
 		SimpleMessageCallback serverCallback = new SimpleMessageCallback();
 		msg = createMessage(serverCatcher.getMessage(0).getInetSocketAddress(), 10000, serverCallback);
 		server.send(msg);
-		clientCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS);
+		assertTrue(clientCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS));
 
 		/* server context sent, matching received context */
 		EndpointContext serverResponseContext = serverCallback.getEndpointContext();
@@ -184,7 +186,7 @@ public class TlsCorrelationTest {
 		RawData msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
-		serverCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS);
+		assertTrue(serverCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS));
 
 		EndpointContext serverContext = serverCatcher.getEndpointContext(0);
 		EndpointContext clientContext = clientCallback.getEndpointContext();
@@ -196,7 +198,7 @@ public class TlsCorrelationTest {
 		msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
-		serverCatcher.blockUntilSize(2, CATCHER_TIMEOUT_IN_MS);
+		assertTrue(serverCatcher.blockUntilSize(2, CATCHER_TIMEOUT_IN_MS));
 
 		EndpointContext clientContextAfterReconnect = clientCallback.getEndpointContext();
 		// new (different) client side connection
@@ -244,7 +246,7 @@ public class TlsCorrelationTest {
 		RawData msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
-		serverCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS);
+		assertTrue(serverCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS));
 
 		EndpointContext serverContext = serverCatcher.getEndpointContext(0);
 		EndpointContext clientContext = clientCallback.getEndpointContext();
@@ -340,7 +342,7 @@ public class TlsCorrelationTest {
 		clientCallback = new SimpleMessageCallback();
 		msg = createMessage(server.getAddress(), 100, clientCallback);
 		client.send(msg);
-		serverCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS);
+		assertTrue(serverCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS));
 
 		EndpointContext clientContext = clientCallback.getEndpointContext();
 		assertThat(clientContext.get(TcpEndpointContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
@@ -351,7 +353,7 @@ public class TlsCorrelationTest {
 		clientCallback = new SimpleMessageCallback();
 		msg = createMessage(100, clientContext, clientCallback);
 		client.send(msg);
-		serverCatcher.blockUntilSize(2, CATCHER_TIMEOUT_IN_MS);
+		assertTrue(serverCatcher.blockUntilSize(2, CATCHER_TIMEOUT_IN_MS));
 
 		// invalid message context with connector context => drop
 		clientCallback = new SimpleMessageCallback();
@@ -407,7 +409,7 @@ public class TlsCorrelationTest {
 		RawData msg = createMessage(server.getAddress(), 100, clientCallback);
 
 		client.send(msg);
-		serverCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS);
+		assertTrue(serverCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS));
 
 		RawData receivedMsg = serverCatcher.getMessage(0);
 		EndpointContext serverContext = serverCatcher.getEndpointContext(0);
@@ -419,13 +421,13 @@ public class TlsCorrelationTest {
 		msg = createMessage(100, serverContext, serverCallback);
 		server.send(msg);
 
-		clientCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS);
+		assertTrue(clientCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS));
 
 		serverCallback = new SimpleMessageCallback();
 		msg = createMessage(receivedMsg.getInetSocketAddress(), 100, serverCallback);
 		server.send(msg);
 
-		clientCatcher.blockUntilSize(2, CATCHER_TIMEOUT_IN_MS);
+		assertTrue(clientCatcher.blockUntilSize(2, CATCHER_TIMEOUT_IN_MS));
 
 		serverCallback = new SimpleMessageCallback();
 		EndpointContext invalidContext = new TlsEndpointContext(receivedMsg.getInetSocketAddress(), null, "n.a.", "n.a.", "n.a.");
@@ -459,7 +461,7 @@ public class TlsCorrelationTest {
 		RawData msg = createMessage(server.getAddress(), 100, null);
 
 		client.send(msg);
-		serverCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS);
+		assertTrue(serverCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS));
 		RawData receivedMessage = serverCatcher.getMessage(0);
 		assertThat(receivedMessage, is(notNullValue()));
 
@@ -500,7 +502,7 @@ public class TlsCorrelationTest {
 
 		client.send(msg);
 		serverCatcher.blockUntilSize(1, 2000);
-		assertThat(serverCatcher.hasMessage(0), is(false));
+		assertFalse(serverCatcher.hasMessage(0));
 	}
 
 	/**
@@ -526,7 +528,7 @@ public class TlsCorrelationTest {
 		RawData msg = createMessage(server.getAddress(), 100, null);
 
 		client.send(msg);
-		serverCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS);
+		assertTrue(serverCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS));
 
 		msg = createMessage(serverCatcher.getMessage(0).getInetSocketAddress(), 100, null);
 		server.send(msg);
