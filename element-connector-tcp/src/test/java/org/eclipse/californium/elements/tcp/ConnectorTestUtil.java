@@ -48,7 +48,7 @@ public class ConnectorTestUtil {
 	public static final int IDLE_TIMEOUT_RECONNECT_IN_S = 2;
 	public static final int CONTEXT_TIMEOUT_IN_MS = 1000;
 	public static final int CATCHER_TIMEOUT_IN_MS = 2000;
-	public static final int TEST_TIMEOUT_IN_MS = 20000;
+	public static final int TEST_TIMEOUT_IN_MS = 25000;
 
 	private static final Random random = new Random(0);
 
