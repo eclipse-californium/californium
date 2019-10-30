@@ -26,8 +26,18 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * {@link TokenGenerator} that uses random tokens and set bit 0 of byte
- * according the required scope of the provided request.
+ * TokenGenerator using random tokens and encodes the scope in the first two
+ * bits of the first byte.
+ * 
+ * <pre>
+ * 0b???????1 {@link Scope#LONG_TERM}, for observe tokens
+ * 0b??????10 {@link Scope#SHORT_TERM}, for multicast tokens
+ * 0b??????00 {@link Scope#SHORT_TERM_CLIENT_LOCAL}, for standard tokens
+ * </pre>
+ * 
+ * All generated tokens will have the configured {@link Keys#TOKEN_SIZE_LIMIT}.
+ * tokens with different size will be treated as
+ * {@link Scope#SHORT_TERM_CLIENT_LOCAL}.
  *
  * This implementation is thread-safe.
  */
@@ -78,6 +88,22 @@ public class RandomTokenGenerator implements TokenGenerator {
 		return Token.fromProvider(token);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * 
+	 * This generator encodes the scope in the first two bits of the first byte.
+	 * 
+	 * <pre>
+	 * 0b???????1 {@link Scope#LONG_TERM}, for observe tokens
+	 * 0b??????10 {@link Scope#SHORT_TERM}, for multicast tokens
+	 * 0b??????00 {@link Scope#SHORT_TERM_CLIENT_LOCAL}, for standard tokens
+	 * </pre>
+	 * 
+	 * All generated tokens will have the configured
+	 * {@link Keys#TOKEN_SIZE_LIMIT}. Tokens with different size will be treated
+	 * as {@link Scope#SHORT_TERM_CLIENT_LOCAL}.
+	 * 
+	 */
 	@Override
 	public Scope getScope(Token token) {
 		if (token.length() != tokenSize) {

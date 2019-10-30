@@ -16,6 +16,7 @@
  *******************************************************************************/
 package org.eclipse.californium.core.network;
 
+import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Token;
 
 /**
@@ -35,19 +36,26 @@ public interface TokenGenerator {
 	/**
 	 * Creates a token for the provided request.
 	 * 
-	 * Intended to generate tokens with separate scopes for standard- and
-	 * observe requests. Due to the potential long term nature of observe
-	 * tokens, these tokens are required to be maintained separated and
-	 * therefore such token must be generated in way, which ensures, that they
-	 * have different values as the other tokens for standard-requests.
+	 * Intended to generate tokens with separate scopes for standard-,
+	 * multicast- and observe requests. Due to the nature of multicast tokens,
+	 * these tokens must be unique not only per remote peer. And due to the
+	 * potential long term nature of observe tokens, these tokens are required
+	 * to be maintained separated. Therefore the tokens must be generated in
+	 * way, which ensures, that they have different values as the other tokens
+	 * for standard-requests.
 	 * 
 	 * One idea of implementation would therefore be to set the token length
 	 * different or to set bit 0 of byte 0 fix to 0 for standard and 1 for
 	 * observe requests.
 	 * 
-	 * The caller must take care to use only unique tokens. In cases where the
-	 * generated token is already in use, it's intended to create a next token
-	 * calling this method again.
+	 * The caller must take care to use only unique tokens within the provided
+	 * scope. In cases where the generated token is already in use, it's
+	 * intended to create a next token calling this method again.
+	 * 
+	 * Note: the application may provide own tokens by calling
+	 * {@link Request#setToken(Token)}. such tokens must also obey the scope
+	 * rules of this generator. And it must be ensured, that these tokens are
+	 * also unique according there scope.
 	 * 
 	 * @param scope {@code LONG_TERM} for observe request within the long-term
 	 *            scope, {@code SHORT_TERM} for multicast request with
