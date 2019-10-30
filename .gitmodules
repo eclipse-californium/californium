@@ -1,0 +1,3 @@
+[submodule "syna-theme"]
+	path = site/themes/syna
+	url = https://github.com/okkur/syna
