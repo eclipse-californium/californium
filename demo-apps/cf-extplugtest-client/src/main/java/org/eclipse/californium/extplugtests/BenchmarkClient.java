@@ -771,9 +771,9 @@ public class BenchmarkClient {
 		start.await();
 		startupNanos = System.nanoTime() - startupNanos;
 		if (clients == 1) {
-			System.out.format("Benchmark client created. %d s%n", TimeUnit.NANOSECONDS.toSeconds(startupNanos));
+			System.out.format("Benchmark client created. %s%n", formatTime(startupNanos));
 		} else {
-			System.out.format("Benchmark clients created. %d s%s%n", TimeUnit.NANOSECONDS.toSeconds(startupNanos),
+			System.out.format("Benchmark clients created. %s%s%n", formatTime(startupNanos),
 					formatPerSecond("clients", clients - 1, startupNanos));
 		}
 
@@ -1035,6 +1035,16 @@ public class BenchmarkClient {
 				return formatter.format("%d transmission errors (no response-messages received!)", transmissionErrors)
 						.toString();
 			}
+		}
+	}
+
+	private static String formatTime(long nanos) {
+		long millis = TimeUnit.NANOSECONDS.toMillis(nanos);
+		if (millis > 10000) {
+			long secs = TimeUnit.NANOSECONDS.toSeconds(nanos);
+			return secs + " s";
+		} else {
+			return millis + " ms";
 		}
 	}
 
