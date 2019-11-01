@@ -2654,6 +2654,6 @@ public class DTLSConnector implements Connector, RecordLayer {
 
 	@Override
 	public String toString() {
-		return getProtocol() + "-" + getAddress();
-	}	
+		return getProtocol() + "-" + StringUtil.toString(getAddress());
+	}
 }

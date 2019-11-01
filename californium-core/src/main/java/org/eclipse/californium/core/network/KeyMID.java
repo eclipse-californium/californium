@@ -18,6 +18,7 @@ package org.eclipse.californium.core.network;
 import java.net.InetSocketAddress;
 
 import org.eclipse.californium.core.coap.Message;
+import org.eclipse.californium.elements.util.StringUtil;
 
 /**
  * A CoAP message ID scoped to a remote endpoint.
@@ -82,6 +83,7 @@ public final class KeyMID {
 
 	@Override
 	public String toString() {
-		return new StringBuilder("KeyMID[").append(peer).append(", ").append(mid).append("]").toString();
+		String peerAsString = peer instanceof InetSocketAddress ? StringUtil.toString((InetSocketAddress)peer) : peer.toString();
+		return new StringBuilder("KeyMID[").append(peerAsString).append('-').append(mid).append(']').toString();
 	}
 }

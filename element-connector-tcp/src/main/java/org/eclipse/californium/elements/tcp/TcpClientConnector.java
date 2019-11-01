@@ -57,6 +57,7 @@ import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.exception.EndpointMismatchException;
 import org.eclipse.californium.elements.exception.MulticastNotSupportedException;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 
@@ -306,7 +307,7 @@ public class TcpClientConnector implements Connector {
 
 	@Override
 	public String toString() {
-		return getProtocol() + "-" + getAddress();
+		return getProtocol() + "-" + StringUtil.toString(getAddress());
 	}
 
 	private class MyChannelPoolHandler extends AbstractChannelPoolHandler {

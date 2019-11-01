@@ -18,6 +18,7 @@ package org.eclipse.californium.core.network;
 import java.net.InetSocketAddress;
 
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.elements.util.StringUtil;
 
 /**
  * Implementation of client-local and not client-local tokens.
@@ -106,9 +107,10 @@ public class KeyToken {
 	public String toString() {
 		StringBuilder builder = new StringBuilder("KeyToken[");
 		if (peer != null) {
-			builder.append(peer).append("-");
+			String peerAsString = peer instanceof InetSocketAddress ? StringUtil.toString((InetSocketAddress)peer) : peer.toString();
+			builder.append(peerAsString).append('-');
 		}
-		builder.append(token.getAsString()).append("]");
+		builder.append(token.getAsString()).append(']');
 		return builder.toString();
 	}
 }

@@ -51,6 +51,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import org.eclipse.californium.elements.exception.EndpointMismatchException;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -475,6 +476,6 @@ public class UDPConnector implements Connector {
 
 	@Override
 	public String toString() {
-		return getProtocol() + "-" + getAddress();
+		return getProtocol() + "-" + StringUtil.toString(getAddress());
 	}
 }
