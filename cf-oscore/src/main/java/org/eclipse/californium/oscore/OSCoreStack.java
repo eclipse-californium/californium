@@ -59,8 +59,9 @@ public class OSCoreStack extends BaseCoapStack {
 			reliabilityLayer = new ReliabilityLayer(config);
 		}
 
-		Layer layers[] = new Layer[] { new ExchangeCleanupLayer(config), new ObserveLayer(config), new BlockwiseLayer(config),
-				reliabilityLayer, new ObjectSecurityLayer(ctxDb), };
+		Layer layers[] = new Layer[] { new ObjectSecurityContextLayer(ctxDb), new ExchangeCleanupLayer(config),
+				new ObserveLayer(config), new BlockwiseLayer(config), reliabilityLayer,
+				new ObjectSecurityLayer(ctxDb), };
 		setLayers(layers);
 	}
 }
