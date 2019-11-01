@@ -181,6 +181,7 @@ public class ClientInitializer {
 		int staleTimeout = config.getInt(NetworkConfig.Keys.MAX_PEER_INACTIVITY_PERIOD);
 		int senderThreads = config.getInt(NetworkConfig.Keys.NETWORK_STAGE_SENDER_THREAD_COUNT);
 		int receiverThreads = config.getInt(NetworkConfig.Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT);
+		Integer healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL); // seconds
 		Integer cidLength = config.getOptInteger(Keys.DTLS_CONNECTION_ID_LENGTH);
 		Integer recvBufferSize = config.getOptInteger(Keys.UDP_CONNECTOR_RECEIVE_BUFFER);
 		Integer sendBufferSize = config.getOptInteger(Keys.UDP_CONNECTOR_SEND_BUFFER);
@@ -259,6 +260,7 @@ public class ClientInitializer {
 				dtlsConfig.setReceiverThreadCount(receiverThreads);
 				dtlsConfig.setStaleConnectionThreshold(staleTimeout);
 				dtlsConfig.setAddress(new InetSocketAddress(coapsPort));
+				dtlsConfig.setHealthStatusInterval(healthStatusInterval);
 				DTLSConnector dtlsConnector = new DTLSConnector(dtlsConfig.build());
 				if (executor != null) {
 					dtlsConnector.setExecutor(executor);

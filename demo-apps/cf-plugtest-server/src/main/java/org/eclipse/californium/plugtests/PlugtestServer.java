@@ -87,6 +87,8 @@ public class PlugtestServer extends AbstractTestServer {
 			config.setInt(Keys.NOTIFICATION_CHECK_INTERVAL_COUNT, 4);
 			config.setInt(Keys.NOTIFICATION_CHECK_INTERVAL_TIME, 30000);
 			config.setInt(Keys.HEALTH_STATUS_INTERVAL, 300);
+			config.setInt(Keys.UDP_CONNECTOR_RECEIVE_BUFFER, 0);
+			config.setInt(Keys.UDP_CONNECTOR_SEND_BUFFER, 0);
 		}
 	};
 

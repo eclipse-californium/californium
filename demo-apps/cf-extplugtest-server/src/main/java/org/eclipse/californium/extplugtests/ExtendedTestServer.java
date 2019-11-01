@@ -84,6 +84,8 @@ public class ExtendedTestServer extends AbstractTestServer {
 			config.setInt(Keys.TLS_HANDSHAKE_TIMEOUT, 60 * 1000); // 60s
 			config.setInt(Keys.SECURE_SESSION_TIMEOUT, 60 * 60 * 24); // 24h
 			config.setInt(Keys.HEALTH_STATUS_INTERVAL, 60); // 60s
+			config.setInt(Keys.UDP_CONNECTOR_RECEIVE_BUFFER, 0);
+			config.setInt(Keys.UDP_CONNECTOR_SEND_BUFFER, 0);
 			int processors = Runtime.getRuntime().availableProcessors();
 			config.setInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, processors > 3 ? 2 : 1);
 			config.setInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, processors);
