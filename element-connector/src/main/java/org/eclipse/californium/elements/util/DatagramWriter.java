@@ -93,25 +93,32 @@ public final class DatagramWriter {
 	 */
 	public void writeLong(final long data, final int numBits) {
 
-		if (numBits < 32 && data >= (1 << numBits)) {
+		if (numBits < 64 && data >= (1L << numBits)) {
 			throw new IllegalArgumentException(String.format("Truncating value %d to %d-bit integer", data, numBits));
 		}
 
-		for (int i = numBits - 1; i >= 0; i--) {
-
-			// test bit
-			boolean bit = (data >> i & 1) != 0;
-			if (bit) {
-				// set bit in current byte
-				currentByte |= (1 << currentBitIndex);
+		if ((numBits & 0x7) == 0 && !isBytePending()) {
+			// byte-wise, no maverick bits left
+			for (int i = numBits - 8; i >= 0; i -= 8) {
+				byteStream.write((byte)(data >> i));
 			}
+		} else {
+			for (int i = numBits - 1; i >= 0; i--) {
 
-			// decrease current bit index
-			--currentBitIndex;
+				// test bit
+				boolean bit = (data >> i & 1) != 0;
+				if (bit) {
+					// set bit in current byte
+					currentByte |= (1 << currentBitIndex);
+				}
 
-			// check if current byte can be written
-			if (currentBitIndex < 0) {
-				writeCurrentByte();
+				// decrease current bit index
+				--currentBitIndex;
+
+				// check if current byte can be written
+				if (currentBitIndex < 0) {
+					writeCurrentByte();
+				}
 			}
 		}
 	}
@@ -131,21 +138,28 @@ public final class DatagramWriter {
 			throw new IllegalArgumentException(String.format("Truncating value %d to %d-bit integer", data, numBits));
 		}
 
-		for (int i = numBits - 1; i >= 0; i--) {
-
-			// test bit
-			boolean bit = (data >> i & 1) != 0;
-			if (bit) {
-				// set bit in current byte
-				currentByte |= (1 << currentBitIndex);
+		if ((numBits & 0x7) == 0 && !isBytePending()) {
+			// byte-wise, no maverick bits left
+			for (int i = numBits - 8; i >= 0; i -= 8) {
+				byteStream.write((byte)(data >> i));
 			}
+		} else {
+			for (int i = numBits - 1; i >= 0; i--) {
 
-			// decrease current bit index
-			--currentBitIndex;
+				// test bit
+				boolean bit = (data >> i & 1) != 0;
+				if (bit) {
+					// set bit in current byte
+					currentByte |= (1 << currentBitIndex);
+				}
 
-			// check if current byte can be written
-			if (currentBitIndex < 0) {
-				writeCurrentByte();
+				// decrease current bit index
+				--currentBitIndex;
+
+				// check if current byte can be written
+				if (currentBitIndex < 0) {
+					writeCurrentByte();
+				}
 			}
 		}
 	}

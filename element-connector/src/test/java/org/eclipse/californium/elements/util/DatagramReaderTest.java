@@ -16,6 +16,7 @@
 package org.eclipse.californium.elements.util;
 
 import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import org.junit.Before;
@@ -127,6 +128,26 @@ public class DatagramReaderTest {
 		givenABuffer(new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05 });
 
 		reader.readLong(48);
+	}
+
+	@Test 
+	public void testReadLong() {
+		givenABuffer(new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09 });
+
+		long value = reader.readLong(24);
+		assertEquals(0x010203, value);
+		value = reader.readLong(40);
+		assertEquals(0x0405060708L, value);
+	}
+
+	@Test 
+	public void testReadInt() {
+		givenABuffer(new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09 });
+
+		int value = reader.read(24);
+		assertEquals(0x010203, value);
+		value = reader.read(16);
+		assertEquals(0x0405, value);
 	}
 
 	@Test (expected = IllegalArgumentException.class)
