@@ -46,7 +46,9 @@ import java.util.List;
 
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.util.SslContextUtil;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.ConnectionListener;
+import org.eclipse.californium.scandium.DtlsHealth;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
@@ -225,6 +227,8 @@ public final class DtlsConnectorConfig {
 
 	private Integer socketSendBufferSize;
 
+	private Integer healthStatusInterval;
+
 	/**
 	 * Automatic session resumption timeout. Triggers session resumption
 	 * automatically, if no messages are exchanged for this timeout. Intended to
@@ -314,6 +318,8 @@ public final class DtlsConnectorConfig {
 	private Boolean useHandshakeStateValidation;
 
 	private ConnectionListener connectionListener;
+
+	private DtlsHealth healthHandler;
 
 	private DtlsConnectorConfig() {
 		// empty
@@ -810,6 +816,24 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * Gets health status interval.
+	 * 
+	 * @return health status interval in seconds.
+	 */
+	public Integer getHealthStatusInterval() {
+		return healthStatusInterval;
+	}
+
+	/**
+	 * Gets health handler.
+	 * 
+	 * @return health handler.
+	 */
+	public DtlsHealth getHealthHandler() {
+		return healthHandler;
+	}
+
+	/**
 	 * @return a copy of this configuration
 	 */
 	@Override
@@ -845,6 +869,7 @@ public final class DtlsConnectorConfig {
 		cloned.receiverThreadCount = receiverThreadCount;
 		cloned.socketReceiveBufferSize = socketReceiveBufferSize;
 		cloned.socketSendBufferSize = socketSendBufferSize;
+		cloned.healthStatusInterval = healthStatusInterval;
 		cloned.autoResumptionTimeoutMillis = autoResumptionTimeoutMillis;
 		cloned.sniEnabled = sniEnabled;
 		cloned.verifyPeersOnResumptionThreshold = verifyPeersOnResumptionThreshold;
@@ -857,6 +882,7 @@ public final class DtlsConnectorConfig {
 		cloned.applicationLevelInfoSupplier = applicationLevelInfoSupplier;
 		cloned.useHandshakeStateValidation = useHandshakeStateValidation;
 		cloned.connectionListener = connectionListener;
+		cloned.healthHandler = healthHandler;
 		return cloned;
 	}
 
@@ -1070,6 +1096,29 @@ public final class DtlsConnectorConfig {
 		 */
 		public Builder setSocketSendBufferSize(Integer size) {
 			config.socketSendBufferSize = size;
+			return this;
+		}
+
+		/**
+		 * Set the health status interval.
+		 * 
+		 * @param healthStatusIntervalSeconds health status interval in seconds.
+		 *            {@code null} disable health status.
+		 * @return this builder for command chaining
+		 */
+		public Builder setHealthStatusInterval(Integer healthStatusIntervalSeconds) {
+			config.healthStatusInterval = healthStatusIntervalSeconds;
+			return this;
+		}
+
+		/**
+		 * Set the health handler.
+		 * 
+		 * @param healthHandler health handler.
+		 * @return this builder for command chaining
+		 */
+		public Builder setHealthHandler(DtlsHealth healthHandler) {
+			config.healthHandler = healthHandler;
 			return this;
 		}
 
@@ -1977,11 +2026,9 @@ public final class DtlsConnectorConfig {
 		 */
 		public DtlsConnectorConfig build() {
 			// set default values
+			config.loggingTag = StringUtil.normalizeLoggingTag(config.loggingTag);
 			if (config.address == null) {
 				config.address = new InetSocketAddress(0);
-			}
-			if (config.loggingTag == null) {
-				config.loggingTag = "";
 			}
 			if (config.enableReuseAddress == null) {
 				config.enableReuseAddress = Boolean.FALSE;

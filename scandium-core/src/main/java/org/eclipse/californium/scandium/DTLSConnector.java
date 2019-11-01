@@ -150,7 +150,6 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
@@ -259,7 +258,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 
 	private final int thresholdHandshakesWithoutVerifiedPeer;
 	private final AtomicInteger pendingHandshakesWithoutVerifiedPeer = new AtomicInteger();
-
+	private final DtlsHealth health;
+	
 	private final boolean serverOnly;
 	/**
 	 * Apply record filter only for records within the receive window.
@@ -287,6 +287,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * should not be supported.
 	 */
 	private final ConnectionIdGenerator connectionIdGenerator;
+
+	private ScheduledFuture<?> statusLogger;
 
 	private InetSocketAddress lastBindAddress;
 	private int maximumTransmissionUnit = DEFAULT_IPV4_MTU;
@@ -381,6 +383,15 @@ public class DTLSConnector implements Connector, RecordLayer {
 			this.connectionStore = connectionStore;
 			this.connectionStore.attach(connectionIdGenerator);
 			this.connectionStore.setConnectionListener(config.getConnectionListener());
+			Integer healthStatusInterval = config.getHealthStatusInterval();
+			// this is a useful health metric
+			// that could later be exported to some kind of monitoring interface
+			if (healthStatusInterval != null && healthStatusInterval > 0 && DtlsHealth.isEnabled()) {
+				DtlsHealth healthHandler = config.getHealthHandler();
+				this.health = healthHandler != null ? healthHandler : new DtlsHealth();
+			} else {
+				this.health = null;
+			}
 			this.sessionListener = new SessionAdapter() {
 
 				@Override
@@ -391,6 +402,10 @@ public class DTLSConnector implements Connector, RecordLayer {
 
 				@Override
 				public void handshakeCompleted(final Handshaker handshaker) {
+					if (health != null) {
+						health.succeededHandshakes.increment();
+						health.pendingHandshakes.decrementAndGet();
+					}
 					timer.schedule(new Runnable() {
 						@Override
 						public void run() {
@@ -401,6 +416,10 @@ public class DTLSConnector implements Connector, RecordLayer {
 
 				@Override
 				public void handshakeFailed(Handshaker handshaker, Throwable error) {
+					if (health != null) {
+						health.failedHandshakes.increment();
+						health.pendingHandshakes.decrementAndGet();
+					}
 					List<RawData> listOut = handshaker.takeDeferredApplicationData();
 					if (!listOut.isEmpty()) {
 						LOGGER.debug("Handshake with [{}] failed, report error to deferred {} messages",
@@ -491,6 +510,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 	private final void initializeHandshaker(final Handshaker handshaker) {
 		if (sessionListener != null) {
 			handshaker.addSessionListener(sessionListener);
+			if (health != null) {
+				health.pendingHandshakes.incrementAndGet();
+			}
 		}
 		onInitializeHandshaker(handshaker);
 	}
@@ -687,6 +709,20 @@ public class DTLSConnector implements Connector, RecordLayer {
 
 		LOGGER.info("DTLSConnector listening on {}, recv buf = {}, send buf = {}, recv packet size = {}, MTU = {}",
 				lastBindAddress, recvBuffer, sendBuffer, inboundDatagramBufferSize, maximumTransmissionUnit);
+
+		// this is a useful health metric
+		// that could later be exported to some kind of monitoring interface
+		if (health != null) {
+			final Integer healthStatusInterval = config.getHealthStatusInterval();
+			statusLogger = timer.scheduleAtFixedRate(new Runnable() {
+
+				@Override
+				public void run() {
+					health.dump(config.getLoggingTag(), config.getMaxConnections(), connectionStore.remainingCapacity(), pendingHandshakesWithoutVerifiedPeer.get());
+				}
+
+			}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
+		}
 	}
 
 	/**
@@ -734,6 +770,10 @@ public class DTLSConnector implements Connector, RecordLayer {
 		List<Runnable> pending = new ArrayList<>();
 		synchronized (this) {
 			if (running.compareAndSet(true, false)) {
+				if (statusLogger != null) {
+					statusLogger.cancel(false);
+					statusLogger = null;
+				}
 				LOGGER.info("Stopping DTLS connector on [{}]", lastBindAddress);
 				for (Thread t : receiverThreads) {
 					t.interrupt();
@@ -995,6 +1035,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 			// nothing to do
 			return;
 		}
+		if (health != null) {
+			health.records.increment();
+		}
 		long timestamp = ClockUtil.nanoRealtime();
 		InetSocketAddress peerAddress = new InetSocketAddress(packet.getAddress(), packet.getPort());
 
@@ -1029,6 +1072,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 		final Connection connection = getConnection(peerAddress, connectionId, false);
 
 		if (connection == null) {
+			if (health != null) {
+				health.droppedRecords.increment();
+			}
 			if (connectionId == null) {
 				LOGGER.debug("Discarding {} records from [{}] received without existing connection",
 						records.size(), peerAddress);
@@ -1083,6 +1129,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 				long delay = TimeUnit.NANOSECONDS.toMillis(ClockUtil.nanoRealtime() - record.getReceiveNanos());
 				LOGGER.warn("Drop record {}, connection changed address {} => {}! (shift {}ms)", record.getType(),
 						record.getPeerAddress(), connection.getPeerAddress(), delay);
+				if (health != null) {
+					health.droppedRecords.increment();
+				}
 				return;
 			}
 			int epoch = record.getEpoch();
@@ -1098,6 +1147,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 				} else {
 					LOGGER.debug("Discarding {} record received from peer [{}] without an active session for epoch {}",
 							record.getType(), record.getPeerAddress(), epoch);
+					if (health != null) {
+						health.droppedRecords.increment();
+					}
 				}
 				return;
 			}
@@ -1108,6 +1160,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 			if (useFilter && (session != null) && !session.isRecordProcessable(record.getEpoch(), record.getSequenceNumber(), useWindowFilter)) {
 				LOGGER.debug("Discarding duplicate {} record received from peer [{}]",
 						record.getType(), record.getPeerAddress());
+				if (health != null) {
+					health.droppedRecords.increment();
+				}
 				return;
 			}
 
@@ -1117,10 +1172,16 @@ public class DTLSConnector implements Connector, RecordLayer {
 				if (epoch == 0) {
 					LOGGER.debug("Discarding TLS_CID record received from peer [{}] during handshake",
 							record.getPeerAddress());
+					if (health != null) {
+						health.droppedRecords.increment();
+					}
 					return;
 				}
 			} else if (epoch > 0 && useCid && connection.expectCid()) {
 				LOGGER.debug("Discarding record received from peer [{}], CID required!", record.getPeerAddress());
+				if (health != null) {
+					health.droppedRecords.increment();
+				}
 				return;
 			}
 
@@ -1144,10 +1205,16 @@ public class DTLSConnector implements Connector, RecordLayer {
 					record.getType(), record.getPeerAddress());
 			}
 		} catch (RuntimeException e) {
+			if (health != null) {
+				health.droppedRecords.increment();
+			}
 			LOGGER.warn("Unexpected error occurred while processing record from peer [{}]",
 					record.getPeerAddress(), e);
 			terminateConnection(connection, e, AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
 		} catch (GeneralSecurityException e) {
+			if (health != null) {
+				health.droppedRecords.increment();
+			}
 			LOGGER.info("error occurred while processing record from peer [{}]",
 					record.getPeerAddress(), e);
 		} catch (HandshakeException e) {
@@ -2170,6 +2237,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 		DatagramSocket socket = getSocket();
 		if (socket != null && !socket.isClosed()) {
 			try {
+				if (health != null) {
+					health.records.increment();
+				}
 				socket.send(datagramPacket);
 				return;
 			} catch (IOException e) {
@@ -2634,7 +2704,10 @@ public class DTLSConnector implements Connector, RecordLayer {
 		terminateOngoingHandshake(connection, cause, description);
 	}
 
-	private static void discardRecord(final Record record, final Throwable cause) {
+	private void discardRecord(final Record record, final Throwable cause) {
+		if (health != null) {
+			health.droppedRecords.increment();
+		}
 		byte[] bytes = record.getFragmentBytes();
 		if (LOGGER.isTraceEnabled()) {
 			String hexString = StringUtil.byteArray2HexString(bytes, StringUtil.NO_SEPARATOR, 64);

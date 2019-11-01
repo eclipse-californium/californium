@@ -260,6 +260,9 @@ public abstract class AbstractTestServer extends CoapServer {
 					int maxPeers = dtlsConfig.getInt(Keys.MAX_ACTIVE_PEERS);
 					Integer cidLength = dtlsConfig.getOptInteger(Keys.DTLS_CONNECTION_ID_LENGTH);
 					Integer cidNode = dtlsConfig.getOptInteger(Keys.DTLS_CONNECTION_ID_NODE_ID);
+					Integer healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL); // seconds
+					Integer recvBufferSize = config.getOptInteger(Keys.UDP_CONNECTOR_RECEIVE_BUFFER);
+					Integer sendBufferSize = config.getOptInteger(Keys.UDP_CONNECTOR_SEND_BUFFER);
 					DtlsConnectorConfig.Builder dtlsConfigBuilder = new DtlsConnectorConfig.Builder();
 					if (cidLength != null) {
 						if (cidLength > 4 && cidNode != null) {
@@ -286,6 +289,9 @@ public abstract class AbstractTestServer extends CoapServer {
 					dtlsConfigBuilder.setStaleConnectionThreshold(staleTimeout);
 					dtlsConfigBuilder.setConnectionThreadCount(dtlsThreads);
 					dtlsConfigBuilder.setReceiverThreadCount(dtlsReceiverThreads);
+					dtlsConfigBuilder.setHealthStatusInterval(healthStatusInterval);
+					dtlsConfigBuilder.setSocketReceiveBufferSize(recvBufferSize); 
+					dtlsConfigBuilder.setSocketSendBufferSize(sendBufferSize); 
 					DTLSConnector connector = new DTLSConnector(dtlsConfigBuilder.build());
 					CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 					builder.setConnector(connector);

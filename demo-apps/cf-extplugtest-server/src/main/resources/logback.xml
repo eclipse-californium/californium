@@ -77,6 +77,9 @@
 	<logger name="org.eclipse.californium.core.network.CoapEndpoint.health" level="DEBUG" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>
+	<logger name="org.eclipse.californium.scandium.DTLSConnector.health" level="DEBUG" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
 	<logger name="org.eclipse.californium.extplugtests.statistics" level="INFO" additivity="false">
 		<appender-ref ref="STDOUT" />
 		<appender-ref ref="ERROR_FILE" />
