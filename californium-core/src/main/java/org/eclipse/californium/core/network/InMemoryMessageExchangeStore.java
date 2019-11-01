@@ -54,6 +54,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.eclipse.californium.core.coap.BlockOption;
@@ -68,6 +69,7 @@ import org.eclipse.californium.core.network.deduplication.Deduplicator;
 import org.eclipse.californium.core.network.deduplication.DeduplicatorFactory;
 import org.eclipse.californium.elements.EndpointIdentityResolver;
 import org.eclipse.californium.elements.UdpEndpointContextMatcher;
+import org.eclipse.californium.elements.util.StringUtil;
 
 /**
  * A {@code MessageExchangeStore} that manages all exchanges in local memory.
@@ -85,6 +87,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	private final NetworkConfig config;
 	private final TokenGenerator tokenGenerator;
 	private final EndpointIdentityResolver endpointIdentityResolver;
+	private final String tag;
 	private volatile boolean running = false;
 	private volatile Deduplicator deduplicator;
 	private volatile MessageIdProvider messageIdProvider;
@@ -98,9 +101,8 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	 * 
 	 * @throws NullPointerException if config is {@code null}
 	 */
-	public InMemoryMessageExchangeStore(final NetworkConfig config) {
-		this(config, new RandomTokenGenerator(config), new UdpEndpointContextMatcher());
-		LOGGER.debug("using default TokenProvider {}", RandomTokenGenerator.class.getName());
+	public InMemoryMessageExchangeStore(NetworkConfig config) {
+		this(null, config, new RandomTokenGenerator(config), new UdpEndpointContextMatcher());
 	}
 
 	/**
@@ -112,7 +114,12 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	 *            identity.
 	 * @throws NullPointerException if one or the parameter is {@code null}
 	 */
-	public InMemoryMessageExchangeStore(final NetworkConfig config, TokenGenerator tokenProvider,
+	public InMemoryMessageExchangeStore(NetworkConfig config, TokenGenerator tokenProvider,
+			EndpointIdentityResolver endpointResolver) {
+		this(null, config, tokenProvider, endpointResolver);
+	}
+
+	public InMemoryMessageExchangeStore(String tag, NetworkConfig config, TokenGenerator tokenProvider,
 			EndpointIdentityResolver endpointResolver) {
 		if (config == null) {
 			throw new NullPointerException("Configuration must not be null");
@@ -126,6 +133,8 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		this.tokenGenerator = tokenProvider;
 		this.endpointIdentityResolver = endpointResolver;
 		this.config = config;
+		this.tag = StringUtil.normalizeLoggingTag(tag);
+		LOGGER.debug("{}using TokenProvider {}", tag, tokenProvider.getClass().getName());
 	}
 
 	private void startStatusLogging() {
@@ -146,10 +155,11 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	}
 
 	private String dumpCurrentLoadLevels() {
-		StringBuilder b = new StringBuilder("MessageExchangeStore contents: ");
+		StringBuilder b = new StringBuilder(tag);
+		b.append("MessageExchangeStore contents: ");
 		b.append(exchangesByMID.size()).append(" exchanges by MID, ");
 		b.append(exchangesByToken.size()).append(" exchanges by token, ");
-		b.append(deduplicator.size()).append(" MIDs, ");
+		b.append(deduplicator.size()).append(" MIDs.");
 		return b.toString();
 	}
 
@@ -213,7 +223,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			InetSocketAddress dest = message.getDestinationContext().getPeerAddress();
 			mid = messageIdProvider.getNextMessageId(dest);
 			if (Message.NONE == mid) {
-				LOGGER.warn("cannot send message to {}, all MIDs are in use", dest);
+				LOGGER.warn("{}cannot send message to {}, all MIDs are in use", tag, dest);
 			} else {
 				message.setMID(mid);
 			}
@@ -235,7 +245,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 					throw new IllegalArgumentException(String.format(
 							"generated mid [%d] already in use, cannot register %s", mid, exchange));
 				}
-				LOGGER.debug("{} added with generated mid {}, {}", exchange, key, message);
+				LOGGER.debug("{}{} added with generated mid {}, {}", tag, exchange, key, message);
 			} else {
 				key = null;
 			}
@@ -252,7 +262,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 							mid, exchange));
 				}
 			} else {
-				LOGGER.debug("{} added with {}, {}", exchange, key, message);
+				LOGGER.debug("{}{} added with {}, {}", tag, exchange, key, message);
 			}
 		}
 		if (key != null) {
@@ -275,7 +285,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 				request.setToken(token);
 				key = tokenGenerator.getKeyToken(token, peer);
 			} while (exchangesByToken.putIfAbsent(key, exchange) != null);
-			LOGGER.debug("{} added with generated token {}, {}", exchange, key, request);
+			LOGGER.debug("{}{} added with generated token {}, {}", tag, exchange, key, request);
 		} else {
 			// ongoing requests may reuse token
 			if (token.isEmpty() && request.getCode() == null) {
@@ -287,20 +297,20 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			if (previous == null) {
 				BlockOption block2 = request.getOptions().getBlock2();
 				if (block2 != null) {
-					LOGGER.debug("block2 {} for block {} add with token {}", exchange, block2.getNum(), key);
+					LOGGER.debug("{}block2 {} for block {} add with token {}", tag, exchange, block2.getNum(), key);
 				} else {
-					LOGGER.debug("{} added with token {}, {}", exchange, key, request);
+					LOGGER.debug("{}{} added with token {}, {}", tag, exchange, key, request);
 				}
 			} else if (previous != exchange) {
 				if (exchange.getFailedTransmissionCount() == 0 && !request.getOptions().hasBlock1()
 						&& !request.getOptions().hasBlock2() && !request.getOptions().hasObserve()) {
-					LOGGER.warn("{} with manual token overrides existing {} with open request: {}", exchange, previous,
-							key);
+					LOGGER.warn("{}{} with manual token overrides existing {} with open request: {}", tag, exchange,
+							previous, key);
 				} else {
-					LOGGER.debug("{} replaced with token {}, {}", exchange, key, request);
+					LOGGER.debug("{}{} replaced with token {}, {}", tag, exchange, key, request);
 				}
 			} else {
-				LOGGER.debug("{} keep for {}, {}", exchange, key, request);
+				LOGGER.debug("{}{} keep for {}, {}", tag, exchange, key, request);
 			}
 		}
 		if (key != null) {
@@ -350,7 +360,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	public void remove(final KeyToken token, final Exchange exchange) {
 		boolean removed = exchangesByToken.remove(token, exchange);
 		if (removed) {
-			LOGGER.debug("removing {} for token {}", exchange, token);
+			LOGGER.debug("{}removing {} for token {}", tag, exchange, token);
 		}
 	}
 
@@ -365,7 +375,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			removedExchange = null;
 		}
 		if (null != removedExchange) {
-			LOGGER.debug("removing {} for MID {}", removedExchange, messageId);
+			LOGGER.debug("{}removing {} for MID {}", tag, removedExchange, messageId);
 		}
 		return removedExchange;
 	}
@@ -418,7 +428,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			this.deduplicator.setExecutor(executor);
 			this.deduplicator.start();
 			if (messageIdProvider == null) {
-				LOGGER.debug("no MessageIdProvider set, using default {}", InMemoryMessageIdProvider.class.getName());
+				LOGGER.debug("{}no MessageIdProvider set, using default {}", tag, InMemoryMessageIdProvider.class.getName());
 				messageIdProvider = new InMemoryMessageIdProvider(config);
 			}
 			running = true;
