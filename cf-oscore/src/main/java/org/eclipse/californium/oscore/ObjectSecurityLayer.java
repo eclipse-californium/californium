@@ -131,7 +131,7 @@ public class ObjectSecurityLayer extends AbstractLayer {
 
 				// Initiate context re-derivation procedure if flag is set
 				if (ctx.getContextRederivationPhase() == PHASE.CLIENT_INITIATE) {
-					ContextRederivation.setLostContext(ctxDb, uri);
+					throw new IllegalStateException("must be handled in ObjectSecurityContextLayer!");
 				}
 
 				/*

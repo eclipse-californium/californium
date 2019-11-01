@@ -19,8 +19,6 @@ package org.eclipse.californium.oscore;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import org.eclipse.californium.TestTools;
@@ -119,50 +117,33 @@ public class ContextRederivationTest {
 		// Set the context to be in the initiate phase
 		ctx.setContextRederivationPhase(PHASE.CLIENT_INITIATE);
 
-		// Now a send request to initiate the context re-derivation
-		String resource = "/rederive"; // Dummy resource for re-derivation
-		String URI = serverUri + resource;
-
-		CoapClient c = new CoapClient(URI);
+		CoapClient c = new CoapClient(serverUri + hello1);
 		Request r = new Request(Code.GET);
 		r.getOptions().setOscore(Bytes.EMPTY);
 		CoapResponse resp = c.advanced(r);
 
+		System.out.println((Utils.prettyPrint(resp)));
+
 		OSCoreCtx currCtx = dbClient.getContext(serverUri);
-		assertEquals(ContextRederivation.PHASE.CLIENT_PHASE_2, currCtx.getContextRederivationPhase()); // Phase
+		assertEquals(ContextRederivation.PHASE.INACTIVE, currCtx.getContextRederivationPhase()); // Phase
+		assertFalse(currCtx.getIncludeContextId()); // Do not include Context ID
 		int contextIDLen = currCtx.getIdContext().length;
 		// Length of Context ID in context
 		assertEquals(3 * SEGMENT_LENGTH, contextIDLen);
-		byte[] oscoreOption = resp.getOptions().getOscore();
+//		byte[] oscoreOption = resp.getOptions().getOscore();
 		// OSCORE option in response is 2 * SEGMENT_LENGTH (R2 as Context ID) +
 		// 2 additional bytes
-		assertEquals(2 * SEGMENT_LENGTH + 2, oscoreOption.length);
+//		assertEquals(2 * SEGMENT_LENGTH + 2, oscoreOption.length);
 
-		// Now proceed with a normal request from the client
-		c = new CoapClient(serverUri + hello1);
-		r = new Request(Code.GET);
-		r.getOptions().setOscore(new byte[0]);
-		System.out.println((Utils.prettyPrint(r)));
-
-		resp = c.advanced(r);
-		System.out.println((Utils.prettyPrint(resp)));
+		// Empty OSCORE option
+		assertArrayEquals(Bytes.EMPTY, resp.getOptions().getOscore());
 
 		assertEquals(ResponseCode.CONTENT, resp.getCode());
 		assertEquals(SERVER_RESPONSE, resp.getResponseText());
 
-		// Check current state of context after request/response
-		OSCoreCtx lastCtx = dbClient.getContext(serverUri);
-		contextIDLen = lastCtx.getIdContext().length;
-		assertNotNull(lastCtx.getUri());
-
-		assertEquals(3 * SEGMENT_LENGTH, contextIDLen);
-		assertEquals(ContextRederivation.PHASE.INACTIVE, lastCtx.getContextRederivationPhase());
-		assertFalse(lastCtx.getIncludeContextId()); // Do not include Context ID
-
-		// Empty OSCORE option
-		assertArrayEquals(new byte[0], resp.getOptions().getOscore());
-
 		// 2nd request for testing
+		r = new Request(Code.GET);
+		r.getOptions().setOscore(Bytes.EMPTY);
 		resp = c.advanced(r);
 		System.out.println((Utils.prettyPrint(resp)));
 
