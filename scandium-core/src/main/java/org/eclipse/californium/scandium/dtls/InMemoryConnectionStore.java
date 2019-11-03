@@ -42,6 +42,7 @@ import java.util.concurrent.ConcurrentMap;
 
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 import org.eclipse.californium.elements.util.SerialExecutor;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.ConnectionListener;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.slf4j.Logger;
@@ -198,11 +199,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	 * @return this connection store for calls chaining
 	 */
 	public synchronized InMemoryConnectionStore setTag(final String tag) {
-		if (tag.isEmpty() || tag.endsWith(" ")) {
-			this.tag = tag;
-		} else {
-			this.tag = tag + " ";
-		}
+		this.tag = StringUtil.normalizeLoggingTag(tag);
 		return this;
 	}
 
