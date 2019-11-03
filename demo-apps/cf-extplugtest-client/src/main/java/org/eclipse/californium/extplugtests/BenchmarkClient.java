@@ -694,6 +694,17 @@ public class BenchmarkClient {
 		long startupNanos = System.nanoTime();
 		final CountDownLatch start = new CountDownLatch(clients);
 		final ThreadLocalKeyPairGenerator keyPairGenerator = (secure && arguments.rpk) ? createKeyPairGenerator() : null;
+		if (secure && keyPairGenerator == null) {
+			if (arguments.rpk) {
+				System.out.println("Use RPK.");
+			} else if (arguments.x509) {
+				System.out.println("Use X509.");
+			} else if (arguments.ecdhe) {
+				System.out.println("Use PSK/ECDHE.");
+			} else {
+				System.out.println("Use PSK.");
+			}
+		}
 		// Create & start clients
 		final AtomicBoolean errors = new AtomicBoolean();
 		final NetworkConfig config = effectiveConfig;
@@ -1060,7 +1071,7 @@ public class BenchmarkClient {
 
 	private static String formatClientRequests(int statistic[], int index, int last) {
 		try (Formatter formatter = new Formatter()) {
-			formatter.format("%3d clients with %d", (index - last), statistic[last]);
+			formatter.format("%4d clients with %d", (index - last), statistic[last]);
 			if (statistic[index - 1] != statistic[last]) {
 				formatter.format(" to %d", statistic[index - 1]);
 			}
