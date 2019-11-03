@@ -129,6 +129,10 @@ public class ResourceAttributesTest {
 	private static class DummyEndpoint implements Endpoint {
 
 		@Override
+		public void dump() {
+		}
+
+		@Override
 		public void start() throws IOException {
 		}
 

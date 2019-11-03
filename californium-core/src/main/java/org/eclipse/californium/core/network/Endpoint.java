@@ -43,6 +43,10 @@ import org.eclipse.californium.core.server.MessageDeliverer;
  * in order for them to be requested over the network by clients.
  */
 public interface Endpoint {
+	/**
+	 * Dump states and statistics to health logger.
+	 */
+	void dump();
 
 	/**
 	 * Start this endpoint and all its components.. The starts its connector. If
