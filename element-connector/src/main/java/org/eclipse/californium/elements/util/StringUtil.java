@@ -286,5 +286,25 @@ public class StringUtil {
 			return HOSTNAME_PATTERN.matcher(name).matches();
 		}
 	}
+
+	/**
+	 * Normalize logging tag.
+	 * 
+	 * The normalized tag is either a empty string {@code ""}, or terminated by a
+	 * space {@code ' '}.
+	 * 
+	 * @param tag tag to be normalized. {@code null} will be normalized to a
+	 *            empty string {@code ""}.
+	 * @return normalized tag. Either a empty string {@code ""}, or terminated by
+	 *         a space {@code ' '}
+	 */
+	public static String normalizeLoggingTag(String tag) {
+		if (tag == null) {
+			tag = "";
+		} else if (!tag.isEmpty() && !tag.endsWith(" ")) {
+			tag += " ";
+		}
+		return tag;
+	}
 }
 
