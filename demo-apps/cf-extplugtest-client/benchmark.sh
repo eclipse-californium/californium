@@ -27,9 +27,9 @@ echo "Try to adjust the \"-Xmx\" to a larger value than the 30%."
 echo
 echo "Depending on your OS and configuration, the maximum number of sockets or threads may be limited."
 echo "For linux, these maximum number may be increased, if the host has enough resources (RAM and CPU)"
-echo "to execute it. Please adjust the values \"DefaultLimitNOFILE\" in \"/etc/systemd/user.conf\" and"
-echo "\"/etc/systemd/user.conf\" accordingly to the number of wanted sockets, and uncomment it by removing"
-echo "the leading \"#\". For plain coap, currently more threads are requried. Adjust \"UserTasksMax\" in"
+echo "to execute it. On Ubunut 18.04, please adjust the values \"DefaultLimitNOFILE\" in \"/etc/systemd/user.conf\""
+echo "and \"/etc/systemd/system.conf\" accordingly to the number of wanted sockets, and uncomment it by removing"
+echo "the leading \"#\". For plain coap, currently more threads are required. Adjust \"UserTasksMax\" in"
 echo "\"/etc/systemd/logind.conf\" to twice the number of sockets plus 500 more. With that, up to 10000"
 echo "clients my be used for the benchmark. It's not recommended to use that many clients from one process"
 echo "and it's even less recommended to use more!"
@@ -69,10 +69,14 @@ UDP_CLIENTS=$((200 * $CLIENTS_MULTIPLIER))
 TCP_CLIENTS=$((50 * $CLIENTS_MULTIPLIER))
 OBS_CLIENTS=$((50 * $CLIENTS_MULTIPLIER))
 
-if [ ! -s ${CF_JAR} ] && [ -s target/${CF_JAR} ]  ; then
-   CF_JAR=target/${CF_JAR}
-elif [ ! -s ${CF_JAR} ] && [ -s ../${CF_JAR} ]  ; then
-   CF_JAR=../${CF_JAR}
+if [ ! -s ${CF_JAR} ] ; then
+   if  [ -s target/${CF_JAR} ] ; then
+      CF_JAR=target/${CF_JAR}
+   elif [ -s ../${CF_JAR} ] ; then
+      CF_JAR=../${CF_JAR}
+   elif [ -s ../target/${CF_JAR} ] ; then
+      CF_JAR=../target/${CF_JAR}
+   fi
 fi
 
 START_BENCHMARK=`date +%s`
@@ -134,14 +138,18 @@ benchmark_all()
 benchmark_dtls_handshake()
 {
    if [ ${USE_SECURE} -ne 0 ] ; then 
+      START_HS=`date +%s`
       i=0
       while [ $i -lt $1 ] ; do
-	java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} -r "coaps://${CF_HOST}:5784/benchmark?rlen=${PAYLOAD}" ${UDP_CLIENTS} 10
+	java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} $2 "coaps://${CF_HOST}:5784/benchmark?rlen=${PAYLOAD}" ${UDP_CLIENTS} 10
 	if [ ! $? -eq 0 ] ; then exit $?; fi
 	sleep 2
 	i=$(($i + 1))
       done
-   fi   
+      END_HS=`date +%s`
+      TIME=$(($END_HS - $START_HS))
+      return $TIME	
+   fi 
 }
 
 longterm()
@@ -155,10 +163,21 @@ longterm()
 	benchmark_udp "reverse-observe?obs=2500000&res=feed-NON&timeout=${LONG_INTERVAL_TIMEOUT_S}&rlen=${PAYLOAD}" ${UDP_CLIENTS} 1 stop ${NOTIFIES} ${LONG_INTERVAL_MS}
 }
 
-benchmark_all
-benchmark_dtls_handshake 25
+#benchmark_all
+benchmark_dtls_handshake 10 
+TIME1=$?
+benchmark_dtls_handshake 10 -e
+TIME2=$?
+benchmark_dtls_handshake 10 -r
+TIME3=$?
+benchmark_dtls_handshake 10 -x
+TIME4=$?
 #longterm
+echo "PSK      :" $TIME1
+echo "PSK/ECDHE:" $TIME2
+echo "RPK      :" $TIME3
+echo "X509     :" $TIME4
 
 END_BENCHMARK=`date +%s`
 
-echo $(($END_BENCHMARK - $START_BENCHMARK))
+echo "ALL:" $(($END_BENCHMARK - $START_BENCHMARK))

@@ -28,6 +28,7 @@ import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
 import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 
 import javax.crypto.SecretKey;
@@ -50,6 +51,8 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.pskstore.StringPskStore;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
@@ -91,6 +94,7 @@ public class ClientInitializer {
 		boolean ping = true;
 		boolean rpk = false;
 		boolean x509 = false;
+		boolean ecdhe = false;
 		String id = null;
 		String secret = null;
 
@@ -115,7 +119,11 @@ public class ClientInitializer {
 		} else if (args[index].equals("-x")) {
 			++index;
 			x509 = true;
-		} else if (args[index].equals("-i")) {
+		} else if (args[index].equals("-e")) {
+			++index;
+			ecdhe = true;
+		} 
+		if (!rpk && !x509 && args[index].equals("-i")) {
 			++index;
 			id = args[index];
 			++index;
@@ -141,7 +149,7 @@ public class ClientInitializer {
 		ping = ping && !uri.startsWith(CoAP.COAP_TCP_URI_SCHEME + "://")
 				&& !uri.startsWith(CoAP.COAP_SECURE_TCP_URI_SCHEME + "://");
 		String[] leftArgs = Arrays.copyOfRange(args, index + 1, args.length);
-		Arguments arguments = new Arguments(uri, id, secret, rpk, x509, ping, verbose, json, cbor, null, null, leftArgs);
+		Arguments arguments = new Arguments(uri, id, secret, rpk, x509, ecdhe, ping, verbose, json, cbor, null, null, leftArgs);
 		CoapEndpoint coapEndpoint = createEndpoint(config, arguments, null, ephemeralPort);
 		coapEndpoint.start();
 		LOGGER.info("endpoint started at {}", coapEndpoint.getAddress());
@@ -209,6 +217,7 @@ public class ClientInitializer {
 			if (arguments.uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME + "://")) {
 				int coapsPort = ephemeralPort ? 0 : config.getInt(Keys.COAP_SECURE_PORT);
 				DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
+				KeyExchangeAlgorithm keyExchange = null;
 				if (arguments.rpk) {
 					if (arguments.privateKey != null && arguments.publicKey != null) {
 						dtlsConfig.setIdentity(arguments.privateKey, arguments.publicKey);
@@ -217,18 +226,27 @@ public class ClientInitializer {
 								clientCredentials.getCertificateChain(), CertificateType.RAW_PUBLIC_KEY);
 					}
 					dtlsConfig.setRpkTrustAll();
+					keyExchange = KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN;
 				} else if (arguments.x509) {
 					dtlsConfig.setIdentity(clientCredentials.getPrivateKey(), clientCredentials.getCertificateChain(),
 							CertificateType.X_509);
 					dtlsConfig.setTrustStore(trustedCertificates);
+					keyExchange = KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN;
 				} else if (arguments.id != null) {
 					byte[] secret = arguments.secret == null ? null : arguments.secret.getBytes();
 					dtlsConfig.setPskStore(new PlugPskStore(arguments.id, secret));
+					keyExchange = arguments.ecdhe ? KeyExchangeAlgorithm.ECDHE_PSK : KeyExchangeAlgorithm.PSK;
 				} else {
 					byte[] rid = new byte[8];
 					SecureRandom random = new SecureRandom();
 					random.nextBytes(rid);
 					dtlsConfig.setPskStore(new PlugPskStore(StringUtil.byteArray2Hex(rid)));
+					keyExchange = arguments.ecdhe ? KeyExchangeAlgorithm.ECDHE_PSK : KeyExchangeAlgorithm.PSK;
+				}
+				if (keyExchange != null) {
+					dtlsConfig.setRecommendedCipherSuitesOnly(false);
+					List<CipherSuite> list = CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(false, keyExchange);
+					dtlsConfig.setSupportedCipherSuites(list);
 				}
 				if (cidLength != null) {
 					dtlsConfig.setConnectionIdGenerator(new SingleNodeConnectionIdGenerator(cidLength));
@@ -317,6 +335,7 @@ public class ClientInitializer {
 		public final boolean cbor;
 		public final boolean rpk;
 		public final boolean x509;
+		public final boolean ecdhe;
 		public final String id;
 		public final String secret;
 		public final String uri;
@@ -345,13 +364,14 @@ public class ClientInitializer {
 		 *                otherwise
 		 * @param args    left arguments
 		 */
-		public Arguments(String uri, String id, String secret, boolean rpk, boolean x509, boolean ping, boolean verbose,
+		public Arguments(String uri, String id, String secret, boolean rpk, boolean x509, boolean ecdhe, boolean ping, boolean verbose,
 				boolean json, boolean cbor, PrivateKey privateKey, PublicKey publicKey, String[] args) {
 			this.uri = uri;
 			this.id = id;
 			this.secret = secret;
 			this.rpk = rpk;
 			this.x509 = x509;
+			this.ecdhe = ecdhe;
 			this.ping = ping;
 			this.verbose = verbose;
 			this.json = json;
@@ -371,7 +391,7 @@ public class ClientInitializer {
 		 * @return create arguments clone.
 		 */
 		public Arguments create(String id, String secret) {
-			return new Arguments(uri, id, secret, false, false, ping, verbose, json, cbor, privateKey, publicKey, args);
+			return new Arguments(uri, id, secret, false, false, ecdhe, ping, verbose, json, cbor, privateKey, publicKey, args);
 		}
 
 		/**
@@ -379,7 +399,7 @@ public class ClientInitializer {
 		 * @return create arguments clone.
 		 */
 		public Arguments create(PrivateKey privateKey, PublicKey publicKey) {
-			return new Arguments(uri, null, null, true, false, ping, verbose, json, cbor, privateKey, publicKey,args);
+			return new Arguments(uri, null, null, true, false, false, ping, verbose, json, cbor, privateKey, publicKey,args);
 		}
 	}
 }

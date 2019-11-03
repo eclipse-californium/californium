@@ -272,7 +272,10 @@ public abstract class AbstractTestServer extends CoapServer {
 					dtlsConfigBuilder.setAddress(bindToAddress);
 					dtlsConfigBuilder.setRecommendedCipherSuitesOnly(false);
 					dtlsConfigBuilder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
-							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256,
+							CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256,
+							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
+							CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256,
+							CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256,
 							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256);
 					dtlsConfigBuilder.setPskStore(new PlugPskStore());
 					dtlsConfigBuilder.setIdentity(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain(),
