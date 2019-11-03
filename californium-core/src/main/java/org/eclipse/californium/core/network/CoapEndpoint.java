@@ -85,6 +85,8 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -98,6 +100,7 @@ import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.EndpointManager.ClientMessageDeliverer;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.network.serialization.DataParser;
 import org.eclipse.californium.core.network.serialization.DataSerializer;
@@ -190,6 +193,7 @@ public class CoapEndpoint implements Endpoint {
 
 	/** the logger. */
 	private static final Logger LOGGER = LoggerFactory.getLogger(CoapEndpoint.class.getCanonicalName());
+	private static final Logger HEALTH_LOGGER = LoggerFactory.getLogger(LOGGER.getName() + ".health");
 
 	/** The stack of layers that make up the CoAP protocol */
 	protected final CoapStack coapstack;
@@ -228,6 +232,8 @@ public class CoapEndpoint implements Endpoint {
 
 	/** tag for logging */
 	private final String tag;
+	
+	private final CoapEndpointHealth health;
 
 	/** The executor to run tasks for this endpoint and its layers */
 	private ExecutorService executor;
@@ -247,11 +253,20 @@ public class CoapEndpoint implements Endpoint {
 	/** The list of Notification listener (use for CoAP observer relations) */
 	private List<NotificationListener> notificationListeners = new CopyOnWriteArrayList<>();
 
+	private ScheduledFuture<?> statusLogger;
+
 	private final EndpointReceiver endpointStackReceiver = new EndpointReceiver() {
 
 		@Override
 		public void receiveRequest(Exchange exchange, Request request) {
 			exchange.setEndpoint(CoapEndpoint.this);
+			if (health != null) {
+				if (request.isDuplicate()) {
+					health.duplicateRequests.increment();
+				} else {
+					health.receivedRequests.increment();
+				}
+			}
 			coapstack.receiveRequest(exchange, request);
 		}
 
@@ -259,6 +274,13 @@ public class CoapEndpoint implements Endpoint {
 		public void receiveResponse(Exchange exchange, Response response) {
 			exchange.setEndpoint(CoapEndpoint.this);
 			response.setRTT(exchange.calculateRTT());
+			if (health != null) {
+				if (response.isDuplicate()) {
+					health.duplicateResponses.increment();
+				} else {
+					health.receivedResponses.increment();
+				}
+			}
 			coapstack.receiveResponse(exchange, response);
 		}
 
@@ -309,7 +331,8 @@ public class CoapEndpoint implements Endpoint {
 	 */
 	protected CoapEndpoint(Connector connector, boolean applyConfiguration, NetworkConfig config,
 			TokenGenerator tokenGenerator, ObservationStore store, MessageExchangeStore exchangeStore,
-			EndpointContextMatcher endpointContextMatcher, String loggingTag, CoapStackFactory coapStackFactory, Object customStackArgument) {
+			EndpointContextMatcher endpointContextMatcher, String loggingTag, CoapEndpointHealth health,
+			CoapStackFactory coapStackFactory, Object customStackArgument) {
 		this.config = config;
 		this.connector = connector;
 		this.connector.setRawDataReceiver(new InboxImpl());
@@ -377,6 +400,14 @@ public class CoapEndpoint implements Endpoint {
 			this.serializer = new UdpDataSerializer();
 			this.parser = new UdpDataParser();
 		}
+		final int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, NetworkConfigDefaults.DEFAULT_HEALTH_STATUS_INTERVAL); // seconds
+		// this is a useful health metric
+		// that could later be exported to some kind of monitoring interface
+		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled()) {
+			this.health = health != null ? health : new CoapEndpointHealth();
+		} else {
+			this.health = null;
+		}
 	}
 
 	@Override
@@ -428,6 +459,20 @@ public class CoapEndpoint implements Endpoint {
 				obs.started(this);
 			}
 			LOGGER.info("{}Started endpoint at {}", tag, getUri());
+			if (health != null && secondaryExecutor != null) {
+				final int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL,
+						NetworkConfigDefaults.DEFAULT_HEALTH_STATUS_INTERVAL); // seconds
+				// this is a useful health metric
+				// that could later be exported to some kind of monitoring interface
+				statusLogger = secondaryExecutor.scheduleAtFixedRate(new Runnable() {
+
+					@Override
+					public void run() {
+						health.dump(tag);
+					}
+
+				}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
+			}
 		} catch (IOException e) {
 			// free partially acquired resources
 			stop();
@@ -442,6 +487,10 @@ public class CoapEndpoint implements Endpoint {
 		} else {
 			LOGGER.info("{}Stopping endpoint at {}", tag, getUri());
 			started = false;
+			if (statusLogger != null) {
+				statusLogger.cancel(false);
+				statusLogger = null;
+			}
 			connector.stop();
 			matcher.stop();
 			for (EndpointObserver obs : observers) {
@@ -565,6 +614,9 @@ public class CoapEndpoint implements Endpoint {
 			@Override
 			public void run() {
 				coapstack.sendRequest(exchange, request);
+				if (health != null) {
+					health.sentRequests.increment();
+				}
 			}
 		});
 	}
@@ -578,11 +630,17 @@ public class CoapEndpoint implements Endpoint {
 		if (exchange.checkOwner()) {
 			// send response while processing exchange.
 			coapstack.sendResponse(exchange, response);
+			if (health != null) {
+				health.sentResponses.increment();
+			}
 		} else {
 			exchange.execute(new Runnable() {
 				@Override
 				public void run() {
 					coapstack.sendResponse(exchange, response);
+					if (health != null) {
+						health.sentResponses.increment();
+					}
 				}
 			});
 		}
@@ -1128,6 +1186,10 @@ public class CoapEndpoint implements Endpoint {
 		 */
 		private String tag;
 		/**
+		 * Health counters.
+		 */
+		private CoapEndpointHealth health;
+		/**
 		 * Additional argument for custom coap stack.
 		 */
 		private Object customStackArgument;
@@ -1404,7 +1466,7 @@ public class CoapEndpoint implements Endpoint {
 				coapStackFactory = getDefaultCoapStackFactory();
 			}
 			return new CoapEndpoint(connector, applyConfiguration, config, tokenGenerator, observationStore,
-					exchangeStore, endpointContextMatcher, tag, coapStackFactory, customStackArgument);
+					exchangeStore, endpointContextMatcher, tag, health, coapStackFactory, customStackArgument);
 		}
 	}
 

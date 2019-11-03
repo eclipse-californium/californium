@@ -201,7 +201,7 @@ public class MessageExchangeStoreTool {
 				InMemoryObservationStore observationStore, InMemoryMessageExchangeStore exchangeStore,
 				EndpointContextMatcher matcher) {
 			super(connector, applyConfiguration, config, new RandomTokenGenerator(config), observationStore,
-					exchangeStore, matcher, null, COAP_STACK_TEST_FACTORY, null);
+					exchangeStore, matcher, null, null, COAP_STACK_TEST_FACTORY, null);
 			this.exchangeStore = exchangeStore;
 			this.observationStore = observationStore;
 			this.requestChecker = new RequestEventChecker();
