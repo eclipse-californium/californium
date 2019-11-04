@@ -193,7 +193,6 @@ public class CoapEndpoint implements Endpoint {
 
 	/** the logger. */
 	private static final Logger LOGGER = LoggerFactory.getLogger(CoapEndpoint.class.getCanonicalName());
-	private static final Logger HEALTH_LOGGER = LoggerFactory.getLogger(LOGGER.getName() + ".health");
 
 	/** The stack of layers that make up the CoAP protocol */
 	protected final CoapStack coapstack;
@@ -403,7 +402,7 @@ public class CoapEndpoint implements Endpoint {
 		final int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, NetworkConfigDefaults.DEFAULT_HEALTH_STATUS_INTERVAL); // seconds
 		// this is a useful health metric
 		// that could later be exported to some kind of monitoring interface
-		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled()) {
+		if (healthStatusInterval > 0 && CoapEndpointHealth.isEnabled()) {
 			this.health = health != null ? health : new CoapEndpointHealth();
 		} else {
 			this.health = null;

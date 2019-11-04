@@ -55,4 +55,8 @@ public class CoapEndpointHealth {
 			LOGGER.error("{}", tag, e);
 		}
 	}
+
+	public static boolean isEnabled() {
+		return LOGGER.isDebugEnabled();
+	}
 }
