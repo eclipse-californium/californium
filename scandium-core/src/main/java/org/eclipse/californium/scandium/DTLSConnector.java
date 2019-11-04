@@ -1012,20 +1012,20 @@ public class DTLSConnector implements Connector, RecordLayer {
 			return;
 		}
 
-		final Record fristRecord = records.get(0);
+		final Record firstRecord = records.get(0);
 
-		if (records.size() == 1 && fristRecord.isNewClientHello()) {
+		if (records.size() == 1 && firstRecord.isNewClientHello()) {
 			executorService.execute(new Runnable() {
 
 				@Override
 				public void run() {
-					processNewClientHello(fristRecord);
+					processNewClientHello(firstRecord);
 				}
 			});
 			return;
 		}
 
-		final ConnectionId connectionId = fristRecord.getConnectionId();
+		final ConnectionId connectionId = firstRecord.getConnectionId();
 		final Connection connection = getConnection(peerAddress, connectionId, false);
 
 		if (connection == null) {
