@@ -145,8 +145,7 @@ public final class UdpMatcher extends BaseMatcher {
 		boolean ready = true;
 		Response response = exchange.getCurrentResponse();
 		// ensure Token is set
-		response.setToken(exchange.getCurrentRequest().getToken());
-
+		response.ensureToken(exchange.getCurrentRequest().getToken());
 		// Insert CON to match ACKs and RSTs to the exchange.
 		// Do not insert ACKs and RSTs.
 		if (response.getType() == Type.CON) {

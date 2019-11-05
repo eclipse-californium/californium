@@ -59,7 +59,7 @@ public class MulticastCleanupMessageObserver extends CleanupMessageObserver {
 	}
 
 	@Override
-	public void onSent() {
+	public void onSent(boolean retransmission) {
 		cleanup = scheduledExecutor.schedule(new Runnable() {
 
 			@Override

@@ -333,25 +333,32 @@ public abstract class Message {
 	/**
 	 * Sets the 16-bit message identification.
 	 *
-	 * Reset {@link #bytes} to force new serialization.
-	 *
 	 * Provides a fluent API to chain setters.
 	 *
 	 * @param mid the new mid
 	 * @return this Message
+	 * @throws IllegalArgumentException if mid is out of range {@link #NONE} to
+	 *             {@link #MAX_MID}
+	 * @throws IllegalStateException if message is already serialized
+	 *             ({@link #setBytes(byte[]) has been called before)
 	 */
 	public Message setMID(int mid) {
 		// NONE is allowed as a temporary placeholder
 		if (mid > MAX_MID || mid < NONE) {
 			throw new IllegalArgumentException("The MID must be an unsigned 16-bit number but was " + mid);
 		}
+		if (bytes != null) {
+			throw new IllegalStateException("already serialized!");
+		}
 		this.mid = mid;
-		bytes = null;
 		return this;
 	}
 
 	/**
 	 * Clears this message's MID.
+	 * 
+	 * @throws IllegalStateException if message is already serialized
+	 *             ({@link #setBytes(byte[]) has been called before)
 	 */
 	public void removeMID() {
 		setMID(NONE);
@@ -403,13 +410,13 @@ public abstract class Message {
 	 * narrows the definition of RFC 7252, 5.3.1, from "client-local" to
 	 * "node-local", and "system-local" tokens.
 	 * 
-	 * Reset {@link #bytes} to force new serialization.
-	 * 
 	 * Provides a fluent API to chain setters.
 	 *
 	 * @param tokenBytes the new token bytes
 	 * @return this Message
 	 * @see #setToken(Token)
+	 * @throws IllegalStateException if message is already serialized
+	 *             ({@link #setBytes(byte[]) has been called before)
 	 */
 	public Message setToken(byte[] tokenBytes) {
 		Token token = null;
@@ -428,16 +435,18 @@ public abstract class Message {
 	 * narrows the definition of RFC 7252, 5.3.1, from "client-local" to
 	 * "node-local", and "system-local" tokens.
 	 * 
-	 * Reset {@link #bytes} to force new serialization.
-	 * 
 	 * Provides a fluent API to chain setters.
 	 *
 	 * @param token the new token
 	 * @return this Message
+	 * @throws IllegalStateException if message is already serialized
+	 *             ({@link #setBytes(byte[]) has been called before)
 	 */
 	public Message setToken(Token token) {
 		this.token = token;
-		bytes = null;
+		if (bytes != null) {
+			throw new IllegalStateException("already serialized!");
+		}
 		return this;
 	}
 
@@ -855,10 +864,11 @@ public abstract class Message {
 	 * @param sent if sent
 	 */
 	public void setSent(boolean sent) {
+		boolean retransmission = this.sent;
 		this.sent = sent;
 		if (sent) {
 			for (MessageObserver handler : getMessageObservers()) {
-				handler.onSent();
+				handler.onSent(retransmission);
 			}
 		}
 	}
@@ -969,7 +979,7 @@ public abstract class Message {
 	}
 
 	/**
-	 * Gets the serialized message as byte array or null if not serialized yet.
+	 * Gets the serialized message as byte array or {@code null}, if not serialized yet.
 	 *
 	 * @return the bytes of the serialized message or null
 	 */

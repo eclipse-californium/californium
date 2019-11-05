@@ -47,7 +47,7 @@ import org.eclipse.californium.elements.EndpointContext;
  * Not called, if the connection is already established or the connector doesn't
  * require to establish a connection.</li>
  * <li>{@link #onDtlsRetransmission(int)} when a dtls handshake flight is retransmitted.</li>
- * <li>{@link #onSent()} right after the message has been sent
+ * <li>{@link #onSent(boolean)} right after the message has been sent
  * (successfully)</li>
  * <li>{@link #onSendError(Throwable)} if the message cannot be sent</li>
  * </ul>
@@ -132,8 +132,12 @@ public interface MessageObserver {
 	 * Invoked right after the message has been sent.
 	 * <p>
 	 * Triggered, when the message was sent by a connector.
+	 * 
+	 * @param retransmission {@code true}, if the message is sent by
+	 *            retransmission, {@code false}, if the message is sent the
+	 *            first time.
 	 */
-	void onSent();
+	void onSent(boolean retransmission);
 
 	/**
 	 * Invoked when sending the message caused an error.

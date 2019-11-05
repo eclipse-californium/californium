@@ -186,9 +186,9 @@ public abstract class BlockwiseInterceptor {
 		}
 
 		@Override
-		public void onSent() {
+		public void onSent(boolean retransmission) {
 			try {
-				errorInjectorObserver.onSent();
+				errorInjectorObserver.onSent(retransmission);
 				log(null);
 			} catch (IntendedTestException exception) {
 				log(exception);

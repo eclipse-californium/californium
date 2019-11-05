@@ -116,7 +116,7 @@ public final class TcpMatcher extends BaseMatcher {
 		final ObserveRelation observeRelation = exchange.getRelation();
 
 		// ensure Token is set
-		response.setToken(exchange.getCurrentRequest().getToken());
+		response.ensureToken(exchange.getCurrentRequest().getToken());
 
 		if (observeRelation != null) {
 			response.addMessageObserver(new MessageObserverAdapter() {
