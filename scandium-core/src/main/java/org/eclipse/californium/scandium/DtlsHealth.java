@@ -15,56 +15,54 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
-import java.util.concurrent.atomic.AtomicInteger;
+/**
+ * Health interface for {@link DTLSConnector}.
+ */
+public interface DtlsHealth {
 
-import org.eclipse.californium.elements.util.SimpleCounterStatistic;
-import org.eclipse.californium.elements.util.StringUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+	/**
+	 * Dump health data.
+	 * 
+	 * @param tag logging tag
+	 * @param maxConnections maximum number of connections
+	 * @param remainingCapacity remaining capacity for connections
+	 * @param pendingWithoutVerify pending handshakes without verification
+	 */
+	void dump(String tag, int maxConnections, int remainingCapacity, int pendingWithoutVerify);
 
-public class DtlsHealth {
+	/**
+	 * Check, if collecting health data is enabled.
+	 * 
+	 * @return {@code true}, if health is enabled, {@code false}, otherwise.
+	 */
+	boolean isEnabled();
 
-	/** the logger. */
-	private static final Logger LOGGER = LoggerFactory.getLogger(DTLSConnector.class.getCanonicalName() + ".health");
+	/**
+	 * Report started handshake.
+	 */
+	void startHandshake();
 
-	public final AtomicInteger pendingHandshakes = new AtomicInteger();
+	/**
+	 * Report ended handshake.
+	 * 
+	 * @param success {@code true} for successful handshake, {@code false} for
+	 *            failed handshake.
+	 */
+	void endHandshake(boolean success);
 
-	private final SimpleCounterStatistic.AlignGroup align = new SimpleCounterStatistic.AlignGroup();
-	public final SimpleCounterStatistic succeededHandshakes = new SimpleCounterStatistic("handshakes succeeded", align);
-	public final SimpleCounterStatistic failedHandshakes = new SimpleCounterStatistic("handshakes failed", align);
-	public final SimpleCounterStatistic records = new SimpleCounterStatistic("records", align);
-	public final SimpleCounterStatistic droppedRecords = new SimpleCounterStatistic("dropped records", align);
+	/**
+	 * Report receiving record
+	 * 
+	 * @param drop {@code true}, if record is dropped, {@code false}, if record
+	 *            is received.
+	 */
+	void receivingRecord(boolean drop);
 
-	public void dump(String tag, int maxConnections, int remainingCapacity, int pendingWithoutVerify) {
-		try {
-			if (records.isUsed()) {
-				String eol = StringUtil.lineSeparator();
-				String head = "   " + tag;
-				String associations = "associations";
-				String handshakes = "handshakes pending";
-				align.add(associations);
-				align.add(handshakes);
-				StringBuilder log = new StringBuilder();
-				log.append(tag).append("statistic:").append(eol);
-				String msg = SimpleCounterStatistic.format(align.getAlign(), associations,
-						maxConnections - remainingCapacity);
-				log.append(head).append(msg);
-				log.append(" (").append(remainingCapacity).append(" remaining capacity).").append(eol);
-				msg = SimpleCounterStatistic.format(align.getAlign(), handshakes, pendingHandshakes.get());
-				log.append(head).append(msg);
-				log.append(" (").append(pendingWithoutVerify).append(" without verify).").append(eol);
-				log.append(head).append(succeededHandshakes).append(eol);
-				log.append(head).append(failedHandshakes).append(eol);
-				log.append(head).append(records).append(eol);
-				log.append(head).append(droppedRecords);
-				LOGGER.debug("{}", log);
-			}
-		} catch (Throwable e) {
-			LOGGER.error("{}", tag, e);
-		}
-	}
-
-	public static boolean isEnabled() {
-		return LOGGER.isDebugEnabled();
-	}
+	/**
+	 * Report sending record.
+	 * 
+	 * @param drop {@code true}, if record is dropped, {@code false}, if record
+	 *            is to be sent.
+	 */
+	void sendingRecord(boolean drop);
 }
