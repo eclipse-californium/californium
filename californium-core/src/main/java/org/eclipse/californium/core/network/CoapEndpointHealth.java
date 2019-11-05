@@ -15,48 +15,69 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
-import org.eclipse.californium.elements.util.SimpleCounterStatistic;
-import org.eclipse.californium.elements.util.StringUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+/**
+ * Health interface for {@link CoapEndpoint}
+ */
+public interface CoapEndpointHealth {
 
-public class CoapEndpointHealth {
+	/**
+	 * Dump health data.
+	 * 
+	 * @param tag logging tag
+	 */
+	void dump(String tag);
 
-	/** the logger. */
-	private static final Logger LOGGER = LoggerFactory.getLogger(CoapEndpoint.class.getCanonicalName() + ".health");
+	/**
+	 * Check, if collecting health data is enabled.
+	 * 
+	 * @return {@code true}, if health is enabled, {@code false}, otherwise.
+	 */
+	boolean isEnabled();
 
-	private final SimpleCounterStatistic.AlignGroup align = new SimpleCounterStatistic.AlignGroup();
-	public final SimpleCounterStatistic sentRequests = new SimpleCounterStatistic("requests", align);
-	public final SimpleCounterStatistic sentResponses = new SimpleCounterStatistic("responses", align);
-	public final SimpleCounterStatistic receivedRequests = new SimpleCounterStatistic("requests", align);
-	public final SimpleCounterStatistic receivedResponses = new SimpleCounterStatistic("responses", align);
-	public final SimpleCounterStatistic duplicateRequests = new SimpleCounterStatistic("duplicate requests", align);
-	public final SimpleCounterStatistic duplicateResponses = new SimpleCounterStatistic("duplicate responses", align);
+	/**
+	 * Report received request.
+	 * 
+	 * @param duplicate {@code true} for duplicates, {@code false} for new
+	 *            requests.
+	 */
+	void receivedRequest(boolean duplicate);
 
-	public void dump(String tag) {
-		try {
-			if (receivedRequests.isUsed() || receivedResponses.isUsed()) {
-				tag = StringUtil.normalizeLoggingTag(tag);
-				String eol = StringUtil.lineSeparator();
-				String head = "   " + tag;
-				StringBuilder log = new StringBuilder();
-				log.append(tag).append("endpoint statistic:").append(eol);
-				log.append(tag).append("send statistic:").append(eol);
-				log.append(head).append(sentRequests).append(eol);
-				log.append(head).append(sentResponses).append(eol);
-				log.append(tag).append("receive statistic:").append(eol);
-				log.append(head).append(receivedRequests).append(eol);
-				log.append(head).append(receivedResponses).append(eol);
-				log.append(head).append(duplicateRequests).append(eol);
-				log.append(head).append(duplicateResponses);
-				LOGGER.debug("{}", log);
-			}
-		} catch (Throwable e) {
-			LOGGER.error("{}", tag, e);
-		}
-	}
+	/**
+	 * Report received responses.
+	 * 
+	 * @param duplicate {@code true} for duplicates, {@code false} for new
+	 *            responses.
+	 */
+	void receivedResponse(boolean duplicate);
 
-	public static boolean isEnabled() {
-		return LOGGER.isDebugEnabled();
-	}
+	/**
+	 * Report received reject.
+	 */
+	void receivedReject();
+
+	/**
+	 * Report sent request.
+	 * 
+	 * @param retransmission {@code true} for retransmission, {@code false} for
+	 *            initial transmission.
+	 */
+	void sentRequest(boolean retransmission);
+
+	/**
+	 * Report sent response.
+	 * 
+	 * @param retransmission {@code true} for retransmission, {@code false} for
+	 *            initial transmission.
+	 */
+	void sentResponse(boolean retransmission);
+
+	/**
+	 * Report sent reject.
+	 */
+	void sentReject();
+
+	/**
+	 * Report send error.
+	 */
+	void sendError();
 }
