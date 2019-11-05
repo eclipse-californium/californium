@@ -94,6 +94,8 @@ import org.eclipse.californium.core.coap.CoAPMessageFormatException;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageFormatException;
+import org.eclipse.californium.core.coap.MessageObserver;
+import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
@@ -260,11 +262,7 @@ public class CoapEndpoint implements Endpoint {
 		public void receiveRequest(Exchange exchange, Request request) {
 			exchange.setEndpoint(CoapEndpoint.this);
 			if (health != null) {
-				if (request.isDuplicate()) {
-					health.duplicateRequests.increment();
-				} else {
-					health.receivedRequests.increment();
-				}
+				health.receivedRequest(request.isDuplicate());
 			}
 			coapstack.receiveRequest(exchange, request);
 		}
@@ -274,11 +272,7 @@ public class CoapEndpoint implements Endpoint {
 			exchange.setEndpoint(CoapEndpoint.this);
 			response.setRTT(exchange.calculateRTT());
 			if (health != null) {
-				if (response.isDuplicate()) {
-					health.duplicateResponses.increment();
-				} else {
-					health.receivedResponses.increment();
-				}
+				health.receivedResponse(response.isDuplicate());
 			}
 			coapstack.receiveResponse(exchange, response);
 		}
@@ -286,15 +280,27 @@ public class CoapEndpoint implements Endpoint {
 		@Override
 		public void receiveEmptyMessage(Exchange exchange, EmptyMessage message) {
 			exchange.setEndpoint(CoapEndpoint.this);
+			if (health != null && message.getType() == Type.RST) {
+				health.receivedReject();
+			}
 			coapstack.receiveEmptyMessage(exchange, message);
 		}
 
 		@Override
 		public void reject(final Message message) {
 			EmptyMessage rst = EmptyMessage.newRST(message);
+			if (rejectTransmission != null) {
+				rst.addMessageObserver(rejectTransmission);
+			}
 			coapstack.sendEmptyMessage(null, rst);
 		}
 	};
+
+	private final MessageObserver requestTransmission;
+
+	private final MessageObserver responseTransmission;
+
+	private final MessageObserver rejectTransmission;
 
 	/**
 	 * Creates a new endpoint for a connector, configuration, message exchange
@@ -402,10 +408,55 @@ public class CoapEndpoint implements Endpoint {
 		final int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, NetworkConfigDefaults.DEFAULT_HEALTH_STATUS_INTERVAL); // seconds
 		// this is a useful health metric
 		// that could later be exported to some kind of monitoring interface
-		if (healthStatusInterval > 0 && CoapEndpointHealth.isEnabled()) {
-			this.health = health != null ? health : new CoapEndpointHealth();
+		boolean enableHealth = false;
+		if (healthStatusInterval > 0) {
+			if (health == null) {
+				health = new CoapEndpointHealthLogger();
+			}
+			enableHealth = health.isEnabled();
+		}
+		if (enableHealth) {
+			this.health = health;
+			this.requestTransmission = new MessageObserverAdapter() {
+
+				@Override
+				public void  onSendError(Throwable error) {
+					CoapEndpoint.this.health.sendError();
+				}
+
+				@Override
+				public void onSent(boolean retransmission) {
+					CoapEndpoint.this.health.sentRequest(retransmission);
+				}
+			};
+
+			this.responseTransmission = new MessageObserverAdapter() {
+				@Override
+				public void  onSendError(Throwable error) {
+					CoapEndpoint.this.health.sendError();
+				}
+
+				@Override
+				public void onSent(boolean retransmission) {
+					CoapEndpoint.this.health.sentResponse(retransmission);
+				}
+			};
+			this.rejectTransmission = new MessageObserverAdapter() {
+				@Override
+				public void  onSendError(Throwable error) {
+					CoapEndpoint.this.health.sendError();
+				}
+
+				@Override
+				public void onSent(boolean retransmission) {
+					CoapEndpoint.this.health.sentReject();
+				}
+			};
 		} else {
 			this.health = null;
+			this.requestTransmission = null;
+			this.responseTransmission = null;
+			this.rejectTransmission = null;
 		}
 	}
 
@@ -612,10 +663,10 @@ public class CoapEndpoint implements Endpoint {
 
 			@Override
 			public void run() {
-				coapstack.sendRequest(exchange, request);
-				if (health != null) {
-					health.sentRequests.increment();
+				if (requestTransmission != null) {
+					request.addMessageObserver(requestTransmission);
 				}
+				coapstack.sendRequest(exchange, request);
 			}
 		});
 	}
@@ -626,20 +677,17 @@ public class CoapEndpoint implements Endpoint {
 			response.cancel();
 			return;
 		}
+		if (responseTransmission != null) {
+			response.addMessageObserver(responseTransmission);
+		}
 		if (exchange.checkOwner()) {
 			// send response while processing exchange.
 			coapstack.sendResponse(exchange, response);
-			if (health != null) {
-				health.sentResponses.increment();
-			}
 		} else {
 			exchange.execute(new Runnable() {
 				@Override
 				public void run() {
 					coapstack.sendResponse(exchange, response);
-					if (health != null) {
-						health.sentResponses.increment();
-					}
 				}
 			});
 		}
@@ -650,6 +698,9 @@ public class CoapEndpoint implements Endpoint {
 		if (!started) {
 			message.cancel();
 			return;
+		}
+		if (rejectTransmission != null && message.getType() == Type.RST) {
+			message.addMessageObserver(rejectTransmission);
 		}
 		if (exchange.checkOwner()) {
 			// send response while processing exchange.
@@ -934,6 +985,9 @@ public class CoapEndpoint implements Endpoint {
 			EmptyMessage rst = new EmptyMessage(Type.RST);
 			rst.setMID(cause.getMid());
 			rst.setDestinationContext(raw.getEndpointContext());
+			if (rejectTransmission != null) {
+				rst.addMessageObserver(rejectTransmission);
+			}
 
 			coapstack.sendEmptyMessage(null, rst);
 		}
