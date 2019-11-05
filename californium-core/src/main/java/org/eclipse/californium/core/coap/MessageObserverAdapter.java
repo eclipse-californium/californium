@@ -95,7 +95,7 @@ public abstract class MessageObserverAdapter implements MessageObserver {
 	}
 
 	@Override
-	public void onSent() {
+	public void onSent(boolean retransmission) {
 		// empty default implementation
 	}
 

@@ -29,7 +29,7 @@ public class CountingMessageObserver extends MessageObserverAdapter {
 	public AtomicInteger errorCalls = new AtomicInteger();
 
 	@Override
-	public void onSent() {
+	public void onSent(boolean retransmission) {
 		int counter;
 		synchronized (this) {
 			counter = sentCalls.incrementAndGet();

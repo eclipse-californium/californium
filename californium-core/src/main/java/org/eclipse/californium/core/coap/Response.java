@@ -121,6 +121,21 @@ public class Response extends Message {
 	}
 
 	/**
+	 * Ensure, that the response uses the provided token.
+	 * 
+	 * @param token token to ensure to be used by the response.
+	 * @throws IllegalArgumentException if token differs
+	 */
+	public void ensureToken(Token token) {
+		Token current = getToken();
+		if (current == null) {
+			setToken(token);
+		} else if (!current.equals(token)) {
+			throw new IllegalArgumentException("token mismatch! (" + current + "!=" + token + ")");
+		}
+	}
+
+	/**
 	 * Checks whether this response is a notification for
 	 * an observed resource.
 	 * 

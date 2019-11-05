@@ -62,7 +62,7 @@ public class ErrorInjector extends MessageInterceptorAdapter {
 		}
 
 		@Override
-		public void onSent() {
+		public void onSent(boolean retransmission) {
 			if (errorOnReadyToSend.compareAndSet(true, false)) {
 				throw new IntendedTestException("Simulate error on sent");
 			}

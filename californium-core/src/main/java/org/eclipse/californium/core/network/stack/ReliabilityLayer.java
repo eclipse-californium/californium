@@ -178,7 +178,7 @@ public class ReliabilityLayer extends AbstractLayer {
 		task.message.addMessageObserver(new MessageObserverAdapter() {
 
 			@Override
-			public void onSent() {
+			public void onSent(boolean retransmission) {
 				task.message.removeMessageObserver(this);
 				if (!exchange.isComplete()) {
 					exchange.execute(new Runnable() {

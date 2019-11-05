@@ -449,7 +449,7 @@ public class PlugtestChecker {
 			}
 
 			@Override
-			public void onSent() {
+			public void onSent(boolean retransmission) {
 				requestCounter.incrementAndGet();
 			}
 
