@@ -614,7 +614,7 @@ public class ConnectorHelper {
 							socket.receive(packet);
 							if (packet.getLength() > 0) {
 								// handle data
-								handler.handleData(address, Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getLength()));
+								handler.handleData((InetSocketAddress)packet.getSocketAddress(), Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getLength()));
 								packet.setLength(buf.length);
 							}
 						} catch (IOException e) {
