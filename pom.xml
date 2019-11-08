@@ -106,7 +106,7 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.build.javaVersion>1.7</project.build.javaVersion>
 		<snapshotDependencyAllowed>true</snapshotDependencyAllowed>
-		<cbor.version>3.0.3</cbor.version>
+		<cbor.version>4.0.0</cbor.version>
 		<slf4j.version>1.7.25</slf4j.version>
 		<logback.version>1.2.3</logback.version>
 		<junit.version>4.12</junit.version>
