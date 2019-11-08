@@ -13,28 +13,21 @@ Here is a (non-exclusive, non-prioritized) list of things you might be able to h
 
 In order to get you started as fast as possible we need to go through some organizational issues first, though.
 
-## Legal Requirements
+## Eclipse Contributor Agreement
 
-Californium is an [Eclipse IoT](https://iot.eclipse.org) project and as such is governed by the Eclipse Development process.
-This process helps us in creating great open source software within a safe legal framework.
+Before your contribution can be accepted by the project team contributors must
+electronically sign the Eclipse Contributor Agreement (ECA).
 
-For you as a contributor, the following preliminary steps are required in order for us to be able to accept your contribution:
+* http://www.eclipse.org/legal/ECA.php
 
-* Sign the [Eclipse Contributor Agreement](http://www.eclipse.org/legal/ECA.php).
-    In order to do so:
-  * Obtain an Eclipse Foundation user ID. Anyone who currently uses Eclipse Bugzilla or Gerrit systems already has one of those.
-If you don't already have an account simply [register on the Eclipse web site](https://dev.eclipse.org/site_login/createaccount.php).
-  * Once you have your account, log in to the [projects portal](https://projects.eclipse.org/), select *My Account* and then the *Eclipse ECA* tab.
+Commits that are provided by non-committers must have a Signed-off-by field in
+the footer indicating that the author is aware of the terms by which the
+contribution has been provided to the project. The non-committer must
+additionally have an Eclipse Foundation account and must have a signed Eclipse
+Contributor Agreement (ECA) on file.
 
-* Add your GiHub username to your Eclipse Foundation account. Log in to Eclipse and go to [Edit my account](https://dev.eclipse.org/site_login/myaccount.php).
-
-The easiest way to contribute code/patches/whatever is by creating a GitHub pull request (PR). When you do make sure that you *Sign-off* your commit records using the same email address used for your Eclipse account.
-
-You do this by adding the `-s` flag when you make the commit(s), e.g.
-
-    $> git commit -s -m "Shave the yak some more"
-
-You can find all the details in the [Contributing via Git](http://wiki.eclipse.org/Development_Resources/Contributing_via_Git) document on the Eclipse web site.
+For more information, please see the Eclipse Committer Handbook:
+https://www.eclipse.org/projects/handbook/#resources-commit
 
 ## Making your Changes
 
