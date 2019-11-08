@@ -30,7 +30,11 @@
  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-     
+ *
+ * Contributors:
+ *    Achim Kraus (Bosch Software Innovations GmbH) - update to cbor 4.0.0
+ *                                                    align with cose 1.0
+ *                                                    commit 629912b94ea80c4c6
  ******************************************************************************/
 package org.eclipse.californium.cose;
 
@@ -140,7 +144,7 @@ public class Attribute {
 
     public void addAttribute(CBORObject label, CBORObject value, int where) throws CoseException {
         removeAttribute(label);
-        if ((label.getType() != CBORType.Number) &&  (label.getType() != CBORType.TextString)) {
+        if ((label.getType() != CBORType.Integer) &&  (label.getType() != CBORType.TextString)) {
             throw new CoseException("Labels must be integers or strings");
         }
         switch (where) {

@@ -32,7 +32,11 @@
  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-     
+ * 
+ * Contributors:
+ *    Achim Kraus (Bosch Software Innovations GmbH) - update to cbor 4.0.0
+ *                                                    align with cose 1.0
+ *                                                    commit 629912b94ea80c4c6
  ******************************************************************************/
 package org.eclipse.californium.cose;
 
@@ -98,7 +102,7 @@ public abstract class Message extends Attribute {
         if (messageObject.getType() != CBORType.Array)  throw new CoseException("Message is not a COSE security Message");
         
         if (messageObject.isTagged()) {
-            if (messageObject.GetTags().length != 1) throw new CoseException("Malformed message - too many tags");
+            if (messageObject.getTagCount() != 1) throw new CoseException("Malformed message - too many tags");
             
             if (defaultTag == MessageTag.Unknown) {
                 defaultTag = MessageTag.FromInt(messageObject.getMostInnerTag().ToInt32Unchecked());
@@ -148,7 +152,7 @@ public abstract class Message extends Attribute {
      * Given a CBOR tree, parse the message.  This is an abstract function that is implemented for each different supported COSE message. 
      * 
      * @param messageObject CBORObject to be converted to a message.
-     * @throws CoseException 
+     * @throws CoseException Internal COSE Exception
      */
     
     protected abstract void DecodeFromCBORObject(CBORObject messageObject) throws CoseException;
@@ -158,7 +162,7 @@ public abstract class Message extends Attribute {
      * This is an internal function, as such it does not add the tag on the front and is implemented on a per message object.
      * 
      * @return CBORObject representing the message.
-     * @throws CoseException 
+     * @throws CoseException Internal COSE Exception
      */
     protected abstract CBORObject EncodeCBORObject() throws CoseException;
     
@@ -166,7 +170,7 @@ public abstract class Message extends Attribute {
      * Encode the COSE message object to a CBORObject tree.  This function call will force cryptographic operations to be executed as needed.
      * 
      * @return CBORObject representing the message.
-     * @throws CoseException 
+     * @throws CoseException Internal COSE Exception
      */
     public CBORObject EncodeToCBORObject() throws CoseException {
         CBORObject obj;

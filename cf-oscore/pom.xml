@@ -13,10 +13,6 @@
 	<name>Cf-OSCORE</name>
 	<description>Californium (Cf) OSCORE, Object Security for Constrained RESTful Environments</description>
 
-	<properties>
-		<numbers.version>1.0.2</numbers.version>
-	</properties>
-
 	<dependencies>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
@@ -33,11 +29,6 @@
 		<dependency>
 			<groupId>com.upokecenter</groupId>
 			<artifactId>cbor</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.github.peteroupc</groupId>
-			<artifactId>numbers</artifactId>
-			<version>${numbers.version}</version>
 		</dependency>
 		<!-- test dependencies -->
 		<dependency>
