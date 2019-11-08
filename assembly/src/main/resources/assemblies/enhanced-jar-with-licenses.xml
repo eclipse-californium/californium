@@ -44,9 +44,14 @@
 			<includes>
 				<include>org.eclipse.californium:californium-legal</include>
 			</includes>
-			<outputDirectory>/</outputDirectory>
+			<outputDirectory>/META-INF/legal</outputDirectory>
 			<useProjectArtifact>false</useProjectArtifact>
 			<unpack>true</unpack>
+			<unpackOptions>
+				<excludes>
+					<exclude>META-INF/**</exclude>
+				</excludes>
+			</unpackOptions>
 		</dependencySet>
 	</dependencySets>
 </assembly>

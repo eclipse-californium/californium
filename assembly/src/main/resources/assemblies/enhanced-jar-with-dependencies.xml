@@ -39,10 +39,31 @@
 	</fileSets>
 	<dependencySets>
 		<dependencySet>
+			<excludes>
+				<exclude>org.eclipse.californium:californium-legal</exclude>
+			</excludes>
 			<outputDirectory>/</outputDirectory>
 			<useProjectArtifact>false</useProjectArtifact>
 			<unpack>true</unpack>
+			<unpackOptions>
+				<excludes>
+					<exclude>META-INF/**</exclude>
+				</excludes>
+			</unpackOptions>
 			<scope>runtime</scope>
+		</dependencySet>
+		<dependencySet>
+			<includes>
+				<include>org.eclipse.californium:californium-legal</include>
+			</includes>
+			<outputDirectory>/META-INF/legal</outputDirectory>
+			<useProjectArtifact>false</useProjectArtifact>
+			<unpack>true</unpack>
+			<unpackOptions>
+				<excludes>
+					<exclude>META-INF/**</exclude>
+				</excludes>
+			</unpackOptions>
 		</dependencySet>
 	</dependencySets>
 </assembly>

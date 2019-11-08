@@ -23,13 +23,6 @@
 		<maven.javadoc.skip>false</maven.javadoc.skip>
 	</properties>
 
-	<dependencies>
-		<dependency>
-			<groupId>${project.groupId}</groupId>
-			<artifactId>californium-legal</artifactId>
-		</dependency>
-	</dependencies>
-
 	<build>
 		<plugins>
 			<plugin>

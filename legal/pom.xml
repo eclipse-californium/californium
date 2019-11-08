@@ -19,7 +19,7 @@
 		<resources>
 			<resource>
 				<directory>src/main/resources</directory>
-				<targetPath>.</targetPath>
+				<filtering>true</filtering>
 			</resource>
 		</resources>
 	</build>
