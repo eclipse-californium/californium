@@ -62,6 +62,7 @@ import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
@@ -119,7 +120,7 @@ public class LockstepEndpoint {
 		this.destination = destination;
 		this.storage = new HashMap<String, Object>();
 		this.incoming = new LinkedBlockingQueue<RawData>();
-		this.connector = new UDPConnector(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		this.connector = new UDPConnector(TestTools.LOCALHOST_EPHEMERAL);
 		this.connector.setRawDataReceiver(new RawDataChannel() {
 
 			public void receiveData(RawData raw) {

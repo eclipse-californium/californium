@@ -41,9 +41,9 @@ import static org.eclipse.californium.core.test.MessageExchangeStoreTool.*;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Large;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
@@ -121,7 +121,7 @@ public class BlockwiseServerSideTest {
 		testResource = new TestResource(RESOURCE_PATH);
 		testResource.setObservable(true);
 		// bind to loopback address using an ephemeral port
-		serverEndpoint = new CoapTestEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
+		serverEndpoint = new CoapTestEndpoint(TestTools.LOCALHOST_EPHEMERAL, config);
 		serverEndpoint.addInterceptor(serverInterceptor);
 		server = new CoapServer(config);
 		server.addEndpoint(serverEndpoint);

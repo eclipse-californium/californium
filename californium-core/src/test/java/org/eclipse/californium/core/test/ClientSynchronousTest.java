@@ -26,8 +26,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -183,7 +181,7 @@ public class ClientSynchronousTest {
 	public void testSynchronousPing() throws Exception {
 		final AtomicBoolean sent = new AtomicBoolean();
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
 		CoapEndpoint clientEndpoint = builder.build();
 		cleanup.add(clientEndpoint);
 		clientEndpoint.addInterceptor(new MessageInterceptorAdapter() {

@@ -32,6 +32,7 @@ import static org.junit.Assert.*;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -75,7 +76,7 @@ public class DeduplicationTest {
 			.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200) // client retransmits after 200 ms
 			.setInt(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
 		builder.setNetworkConfig(config);
 		client = builder.build();
 		cleanup.add(client);

@@ -29,8 +29,6 @@ import static org.eclipse.californium.core.coap.CoAP.Type.CON;
 import static org.eclipse.californium.core.coap.CoAP.Type.RST;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Medium;
@@ -92,7 +90,7 @@ public class ClusteringTest {
 
 		notificationListener1 = new SynchronousNotificationListener();
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
 		builder.setNetworkConfig(config);
 		builder.setObservationStore(store);
 		client1 = builder.build();
@@ -105,7 +103,7 @@ public class ClusteringTest {
 
 		notificationListener2 = new SynchronousNotificationListener();
 		builder = new CoapEndpoint.Builder();
-		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
 		builder.setNetworkConfig(config);
 		builder.setObservationStore(store);
 		client2 = builder.build();
