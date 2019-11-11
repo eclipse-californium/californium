@@ -18,6 +18,7 @@
 package org.eclipse.californium.core.test.lockstep;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.BlockOption;
@@ -167,7 +168,7 @@ public abstract class BlockwiseInterceptor {
 		errorInjector = null;
 	}
 
-	protected abstract class LoggingMessageObserver extends MessageObserverAdapter {
+	protected static abstract class LoggingMessageObserver extends MessageObserverAdapter {
 
 		private final MessageObserver errorInjectorObserver;
 
@@ -209,4 +210,25 @@ public abstract class BlockwiseInterceptor {
 		public abstract void log(IntendedTestException exception);
 	}
 
+	protected abstract class SendMessageObserver extends MessageObserverAdapter {
+
+		private final AtomicBoolean log = new AtomicBoolean();
+
+		@Override
+		public void failed() {
+			if (log.compareAndSet(false, true)) {
+				log("(drop)");
+			}
+		}
+
+		@Override
+		public void onSent(boolean retransmission) {
+			if (log.compareAndSet(false, true)) {
+				log(null);
+			}
+			super.onSent(retransmission);
+		}
+
+		public abstract void log(String qualifier);
+	}
 }
