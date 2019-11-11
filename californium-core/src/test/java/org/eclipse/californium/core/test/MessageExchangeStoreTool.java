@@ -21,6 +21,7 @@ package org.eclipse.californium.core.test;
 import static org.junit.Assert.assertTrue;
 
 import java.net.InetSocketAddress;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -45,9 +46,11 @@ import org.eclipse.californium.core.network.stack.Layer;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.UdpEndpointContextMatcher;
 import org.eclipse.californium.elements.rule.TestTimeRule;
+import org.eclipse.californium.elements.util.IntendedTestException;
 
 /**
  * Test tools for MessageExchangeStore.
@@ -195,6 +198,7 @@ public class MessageExchangeStoreTool {
 
 		private final InMemoryMessageExchangeStore exchangeStore;
 		private final InMemoryObservationStore observationStore;
+		private final UDPTestConnector testConnector;
 		private RequestEventChecker requestChecker;
 
 		private CoapTestEndpoint(Connector connector, boolean applyConfiguration, NetworkConfig config,
@@ -205,10 +209,16 @@ public class MessageExchangeStoreTool {
 			this.exchangeStore = exchangeStore;
 			this.observationStore = observationStore;
 			this.requestChecker = new RequestEventChecker();
+			this.testConnector = connector instanceof UDPTestConnector ? (UDPTestConnector) connector : null;
+		}
+
+		public CoapTestEndpoint(UDPTestConnector connector, NetworkConfig config, boolean checkAddress) {
+			this(connector, true, config, new InMemoryObservationStore(config),
+					new InMemoryMessageExchangeStore(config), new UdpEndpointContextMatcher(checkAddress));
 		}
 
 		public CoapTestEndpoint(InetSocketAddress bind, NetworkConfig config, boolean checkAddress) {
-			this(new UDPConnector(bind), true, config, new InMemoryObservationStore(config),
+			this(new UDPTestConnector(bind), true, config, new InMemoryObservationStore(config),
 					new InMemoryMessageExchangeStore(config), new UdpEndpointContextMatcher(checkAddress));
 		}
 
@@ -245,6 +255,20 @@ public class MessageExchangeStoreTool {
 
 		public RequestEventChecker getRequestChecker() {
 			return requestChecker;
+		}
+
+		/**
+		 * Set message to be dropped.
+		 * 
+		 * @param drops indexes of messages to be dropped.
+		 * @throws IllegalStateException if the used {@link Connector} is no
+		 *             {@link UDPTestConnector}.
+		 */
+		public void setDrops(int... drops) {
+			if (testConnector == null) {
+				throw new IllegalStateException("no test connector available!");
+			}
+			testConnector.setDrops(drops);
 		}
 	}
 
@@ -290,6 +314,37 @@ public class MessageExchangeStoreTool {
 
 		public Collection<Request> getUnterminatedRequests() {
 			return requests;
+		}
+	}
+
+	public static class UDPTestConnector extends UDPConnector {
+
+		private int counter;
+		private int[] drops;
+
+		public UDPTestConnector(InetSocketAddress address) {
+			super(address);
+		}
+
+		@Override
+		public void send(RawData msg) {
+			synchronized (this) {
+				if (drops != null && Arrays.binarySearch(drops, counter++) >= 0) {
+					msg.onError(new IntendedTestException("Intended test error on send!"));
+					return;
+				}
+			}
+			super.send(msg);
+		}
+
+		/**
+		 * Set message to be dropped.
+		 * 
+		 * @param drops indexes of messages to be dropped.
+		 */
+		public synchronized void setDrops(int... drops) {
+			this.drops = drops;
+			this.counter = 0;
 		}
 	}
 }

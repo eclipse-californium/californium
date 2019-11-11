@@ -21,9 +21,12 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.californium.core.coap.Message;
+import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.network.Endpoint;
 import org.hamcrest.Description;
 
@@ -142,6 +145,23 @@ public final class TestTools {
 			n++;
 		}
 		return buffer.toString();
+	}
+
+	/**
+	 * Remove all observer of the provided type from the message.
+	 * 
+	 * Cleanup for retransmitted messages.
+	 * 
+	 * @param message message to remove observer
+	 * @param clz type of observer to remove.
+	 */
+	public static void removeMessageObservers(Message message, Class<?> clz) {
+		List<MessageObserver> list = message.getMessageObservers();
+		for (MessageObserver observer : list) {
+			if (clz.isInstance(observer)) {
+				message.removeMessageObserver(observer);
+			}
+		}
 	}
 
 	/**

@@ -1,0 +1,180 @@
+/*******************************************************************************
+ * Copyright (c) 2018 Bosch Software Innovations GmbH and others.
+ *
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v1.0
+ * and Eclipse Distribution License v1.0 which accompany this distribution.
+ *
+ * The Eclipse Public License is available at
+ *    http://www.eclipse.org/legal/epl-v10.html
+ * and the Eclipse Distribution License is available at
+ *    http://www.eclipse.org/org/documents/edl-v10.html.
+ *
+ * Contributors:
+ *     Achim Kraus (Bosch Software Innovations GmbH) - initial implementation
+ *******************************************************************************/
+package org.eclipse.californium.core.test.lockstep;
+
+import static org.eclipse.californium.core.coap.CoAP.Code.GET;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
+import static org.eclipse.californium.core.coap.CoAP.Type.ACK;
+import static org.eclipse.californium.core.coap.CoAP.Type.CON;
+import static org.eclipse.californium.core.test.MessageExchangeStoreTool.assertAllExchangesAreCompleted;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
+import static org.junit.Assert.assertNull;
+
+import java.util.concurrent.TimeUnit;
+
+import org.eclipse.californium.TestTools;
+import org.eclipse.californium.category.Medium;
+import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.CoapServer;
+import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
+import org.eclipse.californium.core.test.MessageExchangeStoreTool.UDPTestConnector;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.elements.rule.TestTimeRule;
+import org.eclipse.californium.rule.CoapNetworkRule;
+import org.eclipse.californium.rule.CoapThreadsRule;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.ClassRule;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.experimental.categories.Category;
+
+/**
+ * This test checks for correct MID namespaces and deduplication.
+ */
+@Category(Medium.class)
+public class ResponseRetransmissionTest {
+
+	private static final String SEPARATE = "con";
+	private static final int TEST_EXCHANGE_LIFETIME = 247; // milliseconds
+	private static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 100; // milliseconds
+	private static final int TEST_ACK_TIMEOUT = 200; // milliseconds
+
+	@ClassRule
+	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT,
+			CoapNetworkRule.Mode.NATIVE);
+
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
+
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
+
+	@Rule
+	public TestTimeRule time = new TestTimeRule();
+
+	private int mid = 17000;
+	private LockstepEndpoint client;
+
+	private CoapServer server;
+	private CoapTestEndpoint serverEndpoint;
+	private UDPTestConnector serverConnector;
+	private ServerBlockwiseInterceptor serverInterceptor = new ServerBlockwiseInterceptor();
+
+	@Before
+	public void setup() throws Exception {
+		NetworkConfig config = network.createTestConfig()
+				// server retransmits after 200 ms
+				.setInt(NetworkConfig.Keys.ACK_TIMEOUT, TEST_ACK_TIMEOUT)
+				.setInt(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1).setInt(NetworkConfig.Keys.MAX_RETRANSMIT, 1)
+				.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL)
+				.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME);
+		serverConnector = new UDPTestConnector(TestTools.LOCALHOST_EPHEMERAL);
+		serverEndpoint = new CoapTestEndpoint(serverConnector, config, false);
+		serverEndpoint.addInterceptor(serverInterceptor);
+		server = new CoapServer(config);
+		server.addEndpoint(serverEndpoint);
+		server.add(new TestResource(SEPARATE, true));
+		server.start();
+		cleanup.add(server);
+
+		client = createLockstepEndpoint(serverEndpoint.getAddress());
+		cleanup.add(client);
+		System.out.println("Server binds to port " + serverEndpoint.getAddress().getPort());
+	}
+
+	@After
+	public void shutdown() {
+		try {
+			assertAllExchangesAreCompleted(serverEndpoint, time);
+		} finally {
+			printServerLog(serverInterceptor);
+		}
+	}
+
+	@Test
+	public void testGET() throws Exception {
+		Token tok = generateNextToken();
+
+		client.sendRequest(CON, GET, tok, ++mid).path(SEPARATE).go();
+		client.startMultiExpectation();
+		client.expectEmpty(ACK, mid).go();
+		client.expectResponse().type(CON).code(CONTENT).token(tok).storeMID("M").go();
+		client.goMultiExpectation();
+
+		client.sendEmpty(ACK).loadMID("M").go();
+	}
+
+	@Test
+	public void testGETResponseRetransmitted() throws Exception {
+		Token tok = generateNextToken();
+
+		client.sendRequest(CON, GET, tok, ++mid).path(SEPARATE).go();
+		client.startMultiExpectation();
+		client.expectEmpty(ACK, mid).go();
+		client.expectResponse().type(CON).code(CONTENT).token(tok).storeMID("M").go();
+		client.goMultiExpectation();
+
+		client.expectResponse().type(CON).code(CONTENT).token(tok).sameMID("M").go();
+
+		client.sendEmpty(ACK).loadMID("M").go();
+	}
+
+	@Test
+	public void testGETResponseTimeout() throws Exception {
+		Token tok = generateNextToken();
+
+		client.sendRequest(CON, GET, tok, ++mid).path(SEPARATE).go();
+		client.startMultiExpectation();
+		client.expectEmpty(ACK, mid).go();
+		client.expectResponse().type(CON).code(CONTENT).token(tok).storeMID("M").go();
+		client.goMultiExpectation();
+
+		client.expectResponse().type(CON).code(CONTENT).token(tok).sameMID("M").go();
+		assertNull(client.receiveNextMessage(TEST_ACK_TIMEOUT * 2, TimeUnit.MILLISECONDS));
+	}
+
+	@Test
+	public void testGETResponseSendError() throws Exception {
+		serverConnector.setDrops(1, 2);
+		Token tok = generateNextToken();
+
+		client.setVerbose(true);
+		client.sendRequest(CON, GET, tok, ++mid).path(SEPARATE).go();
+		client.expectEmpty(ACK, mid).go();
+		assertNull(client.receiveNextMessage(TEST_ACK_TIMEOUT * 2, TimeUnit.MILLISECONDS));
+	}
+
+	private class TestResource extends CoapResource {
+
+		private boolean separate;
+
+		public TestResource(String name, boolean separate) {
+			super(name);
+			this.separate = separate;
+		}
+
+		public void handleGET(final CoapExchange exchange) {
+			if (separate) {
+				exchange.accept();
+			}
+			exchange.respond("hi!");
+		}
+	}
+}
