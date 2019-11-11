@@ -695,6 +695,7 @@ public class LockstepEndpoint {
 			expectations.add(new Expectation<Message>() {
 
 				public void check(Message message) {
+					print("store " + var + ":=" + message.getMID());
 					storage.put(var, message.getMID());
 				}
 
@@ -709,6 +710,7 @@ public class LockstepEndpoint {
 			expectations.add(new Expectation<Message>() {
 
 				public void check(Message message) {
+					print("store " + var + ":=" + message.getToken());
 					storage.put(var, message.getToken());
 				}
 
@@ -722,10 +724,11 @@ public class LockstepEndpoint {
 		public MessageExpectation storeBoth(final String var) {
 			expectations.add(new Expectation<Message>() {
 
-				public void check(final Message request) {
+				public void check(final Message message) {
+					print("store " + var + ":=" + message.getToken() + "," + message.getMID());
 					Object[] pair = new Object[2];
-					pair[0] = request.getMID();
-					pair[1] = request.getToken();
+					pair[0] = message.getMID();
+					pair[1] = message.getToken();
 					storage.put(var, pair);
 				}
 			});
