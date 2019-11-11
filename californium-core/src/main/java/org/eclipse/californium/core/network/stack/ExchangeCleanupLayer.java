@@ -18,6 +18,7 @@
 package org.eclipse.californium.core.network.stack;
 
 
+import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
@@ -72,9 +73,12 @@ public class ExchangeCleanupLayer extends AbstractLayer {
 	 */
 	@Override
 	public void sendResponse(final Exchange exchange, final Response response) {
-
-		if (response.isConfirmable() && !response.isNotification()) {
-			response.addMessageObserver(new CleanupMessageObserver(exchange));
+		if (!response.isNotification()) {
+			Type type = response.getType();
+			if (type == null || type == Type.CON) {
+				// if type is set later, add the cleanup preventive
+				response.addMessageObserver(new CleanupMessageObserver(exchange));
+			}
 		}
 		super.sendResponse(exchange, response);
 	}
