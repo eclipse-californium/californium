@@ -20,11 +20,8 @@
  * explicit String concatenation
  * Joe Magerramov (Amazon Web Services) - CoAP over TCP support.
  * Achim Kraus (Bosch Software Innovations GmbH) - move common function to BaseCoapStack
-<<<<<<< HEAD
- * Pratheek Rai - BERT option changes.
-=======
  * Achim Kraus (Bosch Software Innovations GmbH) - add TcpExchangeCleanupLayer
->>>>>>> refs/heads/2.0.x
+ * Pratheek Rai - BERT option changes.
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
