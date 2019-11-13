@@ -2,11 +2,11 @@
  * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -43,6 +43,7 @@ import org.eclipse.californium.core.observe.InMemoryObservationStore;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.UdpEndpointContextMatcher;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
@@ -81,7 +82,7 @@ public class UdpMatcherTest {
 		scheduler = MatcherTestUtils.newScheduler();
 		cleanup.add(scheduler);
 		tokenProvider = new RandomTokenGenerator(config);
-		messageExchangeStore = new InMemoryMessageExchangeStore(config, tokenProvider);
+		messageExchangeStore = new InMemoryMessageExchangeStore(config, tokenProvider, new UdpEndpointContextMatcher());
 		observationStore =  new InMemoryObservationStore(config);
 		exchangeEndpointContext = mock(EndpointContext.class);
 		responseEndpointContext = mock(EndpointContext.class);
@@ -90,6 +91,7 @@ public class UdpMatcherTest {
 		endpointContextOperator = mock(EndpointContextOperator.class);
 		when(exchangeEndpointContext.getPeerAddress()).thenReturn(dest);
 		when(responseEndpointContext.getPeerAddress()).thenReturn(dest);
+		when(endpointContextMatcher.getEndpointIdentity((EndpointContext)notNull())).thenReturn(dest);
 		when(endpointContextOperator.apply(preEndpointContext)).thenReturn(exchangeEndpointContext);
 	}
 
@@ -144,8 +146,10 @@ public class UdpMatcherTest {
 		exchange.setComplete();
 
 		// THEN assert that token got released in both stores
-		Token token = exchange.getCurrentRequest().getToken();
-		assertThat(messageExchangeStore.get(token), is(nullValue()));
+		Request request = exchange.getCurrentRequest();
+		Token token = request.getToken();
+		KeyToken keyToken = tokenProvider.getKeyToken(token,  request.getDestinationContext().getPeerAddress());
+		assertThat(messageExchangeStore.get(keyToken), is(nullValue()));
 		assertThat(observationStore.get(token), is(nullValue()));
 	}
 
@@ -160,8 +164,10 @@ public class UdpMatcherTest {
 
 		// THEN assert that token got released in message exchange store
 		// THEN assert that token got not released in observation store
-		Token token = exchange.getCurrentRequest().getToken();
-		assertThat(messageExchangeStore.get(token), is(nullValue()));
+		Request request = exchange.getCurrentRequest();
+		Token token = request.getToken();
+		KeyToken keyToken = tokenProvider.getKeyToken(token,  request.getDestinationContext().getPeerAddress());
+		assertThat(messageExchangeStore.get(keyToken), is(nullValue()));
 		assertThat(observationStore.get(token), is(notNullValue()));
 	}
 
@@ -173,11 +179,13 @@ public class UdpMatcherTest {
 		Exchange exchange = sendObserveRequest(dest, matcher, exchangeEndpointContext);
 
 		// WHEN canceling any observe relations for the exchange's token
-		matcher.cancelObserve(exchange.getCurrentRequest().getToken());
+		matcher.cancelObserve(exchange.getRequest().getToken());
 
 		// THEN the token has been released for re-use
-		Token token = exchange.getCurrentRequest().getToken();
-		assertThat(messageExchangeStore.get(token), is(nullValue()));
+		Request request = exchange.getCurrentRequest();
+		Token token = request.getToken();
+		KeyToken keyToken = tokenProvider.getKeyToken(token,  request.getDestinationContext().getPeerAddress());
+		assertThat(messageExchangeStore.get(keyToken), is(nullValue()));
 		assertThat(observationStore.get(token), is(nullValue()));
 	}
 

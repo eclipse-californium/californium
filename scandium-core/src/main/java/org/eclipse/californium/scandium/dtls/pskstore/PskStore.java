@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2018 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -18,16 +18,21 @@ package org.eclipse.californium.scandium.dtls.pskstore;
 
 import java.net.InetSocketAddress;
 
+import javax.crypto.SecretKey;
+import javax.security.auth.Destroyable;
+
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
+import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
- * A service for resolving pre-shared key identities.
+ * A service for resolving pre-shared key identities. {@link SecretKey} maybe
+ * generated from byte arrays by {@link SecretUtil#create(byte[], String)}.
  */
 public interface PskStore {
 
 	/**
-	 * Gets the shared key for a given identity.
+	 * Gets the pre-shared key for a given identity.
 	 * <p>
 	 * A DTLS server can use this method to look up the pre-shared key for an
 	 * identity provided by the client as part of a PSK key exchange.
@@ -36,16 +41,18 @@ public interface PskStore {
 	 * The implementation is intended to normalize the identity by a matching
 	 * entry, if that entry is not UTF-8 compliant encoded.
 	 * </p>
+	 * The returned key is {@link SecretKey#destroy()}ed after usage.
 	 * 
 	 * @param identity The identity to look up the key for.
 	 * @return The key or {@code null} if the given identity is unknown.
 	 * @throws NullPointerException if identity is {@code null}.
 	 * @see PskPublicInformation#normalize(String)
 	 */
-	byte[] getKey(PskPublicInformation identity);
+	SecretKey getKey(PskPublicInformation identity);
 
 	/**
-	 * Gets the shared key for a given identity in the scope of a server name.
+	 * Gets the pre-shared key for a given identity in the scope of a server
+	 * name.
 	 * <p>
 	 * A DTLS server can use this method to look up the pre-shared key for an
 	 * identity provided by the client as part of a PSK key exchange.
@@ -59,6 +66,9 @@ public interface PskStore {
 	 * The implementation is intended to normalize the identity by a matching
 	 * entry, if that entry is not UTF-8 compliant encoded.
 	 * </p>
+	 * The returned key is intended to be be a copy. If the used
+	 * {@link SecretKey} implements {@link Destroyable}, it will be cleaned up
+	 * by {@link SecretKey#destroy()}ed after its usage.
 	 * 
 	 * @param serverName The name of the host that the client wants to connect
 	 *            to as provided in the <em>Server Name Indication</em> HELLO
@@ -71,7 +81,7 @@ public interface PskStore {
 	 * @throws NullPointerException if any of the parameters is {@code null}.
 	 * @see PskPublicInformation#normalize(String)
 	 */
-	byte[] getKey(ServerNames serverName, PskPublicInformation identity);
+	SecretKey getKey(ServerNames serverName, PskPublicInformation identity);
 
 	/**
 	 * Gets the <em>identity</em> to use for a PSK based handshake with a given

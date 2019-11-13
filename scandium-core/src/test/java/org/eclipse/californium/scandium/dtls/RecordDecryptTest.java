@@ -2,11 +2,11 @@
  * Copyright (c) 2019 Bosch Software Innovations GmbH and others.
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  *
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  *
@@ -27,7 +27,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import javax.crypto.SecretKey;
-import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.util.Bytes;
@@ -37,6 +36,7 @@ import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.ContentType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
+import org.eclipse.californium.scandium.util.SecretIvParameterSpec;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -92,14 +92,14 @@ public class RecordDecryptTest {
 		SecretKey encKey = new SecretKeySpec(Bytes.createBytes(secureRandom, encKeyLength), "AES");
 		SecretKey macKey = macKeyLength == 0 ? null
 				: new SecretKeySpec(Bytes.createBytes(secureRandom, macKeyLength), "AES");
-		IvParameterSpec iv = new IvParameterSpec(Bytes.createBytes(secureRandom, ivLength));
+		SecretIvParameterSpec iv = new SecretIvParameterSpec(Bytes.createBytes(secureRandom, ivLength));
 		payloadData = Bytes.createBytes(secureRandom, payloadLength);
 
 		session = new DTLSSession(new InetSocketAddress(InetAddress.getLoopbackAddress(), 7001));
-		DTLSConnectionState readState = new DTLSConnectionState(cipherSuite, CompressionMethod.NULL, encKey, iv,
+		DTLSConnectionState readState = DTLSConnectionState.create(cipherSuite, CompressionMethod.NULL, encKey, iv,
 				macKey);
 		session.setReadState(readState);
-		DTLSConnectionState writeState = new DTLSConnectionState(cipherSuite, CompressionMethod.NULL, encKey, iv,
+		DTLSConnectionState writeState = DTLSConnectionState.create(cipherSuite, CompressionMethod.NULL, encKey, iv,
 				macKey);
 		session.setWriteState(writeState);
 	}

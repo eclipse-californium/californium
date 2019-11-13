@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Wireless Networks Group, UPC Barcelona and i2CAT.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -22,7 +22,7 @@ import java.util.LinkedList;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.stack.ReliabilityLayerParameters;
 
 public class RemoteEndpoint {
 	
@@ -30,8 +30,10 @@ public class RemoteEndpoint {
 	private InetAddress Address;
 	// The port number of the remote endpoint
 	private int Port;
+	// Endpoint specific reliability layer parameters from the first message.
+	private final ReliabilityLayerParameters endpointReliabilityLayerParameters;
 	// A concurrent Hash Map that contains timestamp information for the exchanges
-	private ConcurrentHashMap<Exchange, exchangeInfo> exchangeInfoMap;
+	private ConcurrentHashMap<Exchange, ExchangeInfo> exchangeInfoMap;
 	
 	//Overall RTO, Strong RTO, Strong RTT, Strong RTTVAR, to be used to set the retransmission timeout.
 	private long[] overallRTO;
@@ -64,19 +66,18 @@ public class RemoteEndpoint {
 	public long[] RTT_sample = new long[2];
 	public long RTT_previous;
 	public long RTO_min;
-	
-	
+
 	private int currentArrayElement;
 	private int nonConfirmableCounter;
-	
+
 	private boolean usesBlindEstimator;
 	private boolean isBlindStrong; // As long as no weak RTT measurement has been carried out, the RTO timers are calculated differently
 	private boolean isBlindWeak; // As long as no weak RTT measurement has been carried out, the RTO timers are calculated differently
-	
+
 	private boolean processingNON;
-	
+
 	private final static int RTOARRAYSIZE 	= 1; 	// Amounts of elements in the RTO history length
-	
+
 	private final static int STRONGRTOTYPE = 1;
 	private final static int WEAKRTOTYPE = 2;
 	private final static int NOESTIMATOR = 3;
@@ -87,16 +88,17 @@ public class RemoteEndpoint {
 	/* A queue for non-confirmable exchanges that need to be rate-controlled */
 	private Queue<Exchange> nonConfirmableQueue; 
 	
-	public RemoteEndpoint(int remotePort, InetAddress remoteAddress, NetworkConfig config){
+	public RemoteEndpoint(int remotePort, InetAddress remoteAddress, ReliabilityLayerParameters reliabilityLayerParameters){
 		Address = remoteAddress;
 		Port = remotePort;
-		
+		this.endpointReliabilityLayerParameters = reliabilityLayerParameters;
+		int ackTimeout = reliabilityLayerParameters.getAckTimeout();
 		// Fill Array with initial values
 		overallRTO = new long[RTOARRAYSIZE];
 		for(int i=0; i < RTOARRAYSIZE; i++){
-			overallRTO[i] = config.getInt(NetworkConfig.Keys.ACK_TIMEOUT) ;
+			overallRTO[i] = ackTimeout;
 		}
-		currentRTO =  config.getInt(NetworkConfig.Keys.ACK_TIMEOUT);
+		currentRTO = ackTimeout;
 
 		xRTO = new long[3];
 		xRTT = new long[3];
@@ -104,10 +106,10 @@ public class RemoteEndpoint {
 		RTOupdateTimestamp = new long[3];	
 		
 		for(int i=0; i <= 2; i++){
-			setEstimatorValues(config.getInt(NetworkConfig.Keys.ACK_TIMEOUT), 0, 0, i);
+			setEstimatorValues(ackTimeout, 0, 0, i);
 			setRTOtimestamp(System.currentTimeMillis(), i);
 		}
-		meanOverallRTO = config.getInt(NetworkConfig.Keys.ACK_TIMEOUT);
+		meanOverallRTO = ackTimeout;
 		
 		currentArrayElement = 0;
 		nonConfirmableCounter = 7;
@@ -118,7 +120,7 @@ public class RemoteEndpoint {
 		
 		processingNON = false;
 		
-		exchangeInfoMap = new ConcurrentHashMap<Exchange, exchangeInfo>();
+		exchangeInfoMap = new ConcurrentHashMap<Exchange, ExchangeInfo>();
 
 		confirmableQueue = new LinkedList<Exchange>();
 	    nonConfirmableQueue = new LinkedList<Exchange>();
@@ -197,7 +199,11 @@ public class RemoteEndpoint {
 	public Queue<Exchange> getNonConfirmableQueue(){
 		return nonConfirmableQueue;
 	}
-	
+
+	public ReliabilityLayerParameters getReliabilityLayerParameters() {
+		return endpointReliabilityLayerParameters;
+	}
+
 	public Exchange pollConfirmableExchange(){
 		return confirmableQueue.poll();
 	}
@@ -315,7 +321,7 @@ public class RemoteEndpoint {
 	 * @param vbf the variable back-off factor
 	 */
 	public void registerExchange(Exchange exchange, double vbf){
-		exchangeInfo newExchange = new exchangeInfo(System.currentTimeMillis(), vbf);
+		ExchangeInfo newExchange = new ExchangeInfo(System.currentTimeMillis(), vbf);
 		exchangeInfoMap.put(exchange, newExchange);
 	}
 	
@@ -419,13 +425,13 @@ public class RemoteEndpoint {
 	 * 2.) Variable Backoff Factor
 	 * 3.) Estimator Type (weak/strong/none)
 	 */ 
-	private class exchangeInfo{
+	private class ExchangeInfo{
 		
 		private long timestamp;
 		private double vbf;
 		private int estimatorType;
 		
-		public exchangeInfo(long timestamp, double vbf){
+		public ExchangeInfo(long timestamp, double vbf){
 			this.timestamp = timestamp;
 			this.vbf = vbf;
 			estimatorType = STRONGRTOTYPE;

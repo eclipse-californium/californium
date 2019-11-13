@@ -2,11 +2,11 @@
  * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -21,8 +21,6 @@ import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
-import org.eclipse.californium.scandium.util.ServerName;
-import org.eclipse.californium.scandium.util.ServerName.NameType;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
@@ -66,22 +64,6 @@ public final class ServerNameExtension extends HelloExtension {
 	 */
 	public static ServerNameExtension emptyServerNameIndication() {
 		return new ServerNameExtension();
-	}
-
-	/**
-	 * Creates a new instance for a single server's host name.
-	 * <p>
-	 * This method should be used by a client that wants to include the <em>Server Name Indication</em>
-	 * extension in its <em>CLIENT_HELLO</em> handshake message.
-	 * 
-	 * @param hostName The host name of the server. NB: The host name MUST only contain ASCII characters,
-	 *                 non-ASCII characters will be replaced by {@code StandardCharsets.US_ASCII}'s default
-	 *                 replacement byte.
-	 * @return The new instance.
-	 * @throws NullPointerException if the host name is {@code null}.
-	 */
-	public static ServerNameExtension forHostName(final String hostName) {
-		return new ServerNameExtension(ServerNames.newInstance(ServerName.from(NameType.HOST_NAME, hostName.getBytes(ServerName.CHARSET))));
 	}
 
 	/**

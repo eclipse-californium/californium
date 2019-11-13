@@ -2,11 +2,11 @@
  * Copyright (c) 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -24,12 +24,32 @@ import java.security.Principal;
  */
 public class PrincipalEndpointContextMatcher implements EndpointContextMatcher {
 
+	private final boolean usePrincipalAsIdentity;
+
 	public PrincipalEndpointContextMatcher() {
+		this(false);
+	}
+
+	public PrincipalEndpointContextMatcher(boolean usePrincipalAsIdentity) {
+		this.usePrincipalAsIdentity = usePrincipalAsIdentity;
 	}
 
 	@Override
 	public String getName() {
 		return "principal correlation";
+	}
+
+	@Override
+	public Object getEndpointIdentity(EndpointContext context) {
+		if (usePrincipalAsIdentity) {
+			Principal identity = context.getPeerIdentity();
+			if (identity == null) {
+				throw new IllegalArgumentException("Principal identity missing in provided endpoint context!");
+			}
+			return identity;
+		} else {
+			return context.getPeerAddress();
+		}
 	}
 
 	@Override
@@ -61,6 +81,23 @@ public class PrincipalEndpointContextMatcher implements EndpointContextMatcher {
 			}
 		}
 		return true;
+	}
+
+	@Override
+	public String toRelevantState(EndpointContext context) {
+		if (context == null) {
+			return "n.a.";
+		} else {
+			StringBuilder builder = new StringBuilder();
+			builder.append("[");
+			builder.append(context.getPeerIdentity());
+			String cipher = context.get(DtlsEndpointContext.KEY_CIPHER);
+			if (cipher != null) {
+				builder.append(",").append(cipher);
+			}
+			builder.append("]");
+			return builder.toString();
+		}
 	}
 
 	/**

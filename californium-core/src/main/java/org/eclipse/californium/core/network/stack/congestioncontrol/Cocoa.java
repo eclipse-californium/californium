@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Wireless Networks Group, UPC Barcelona and i2CAT.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -117,16 +117,18 @@ public class Cocoa extends CongestionControlLayer {
 	 * CoCoA applies a variable backoff factor (VBF) to retransmissions, depending on the RTO value of the first transmission
 	 * of the CoAP request.
 	 * @param rto the initial RTO
+	 * @param endpoint The Remote Endpoint for which the backoff is calculated
 	 * @return the new VBF
 	 */
-	public double calculateVBF(long rto) {
+	@Override
+	protected double calculateVBF(long rto, final RemoteEndpoint endpoint) {
 		if (rto > UPPERVBFLIMIT) {
 			return VBFHIGH;
 		}
 		if (rto < LOWERVBFLIMIT) {
 			return VBFLOW;
 		}
-		return config.getFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE);
+		return endpoint.getReliabilityLayerParameters().getAckTimeoutScale();
 	}
 	
 	/**

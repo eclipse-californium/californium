@@ -2,11 +2,11 @@
  * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -25,21 +25,27 @@ import java.security.Principal;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
+import javax.crypto.SecretKey;
+import javax.security.auth.DestroyFailedException;
+import javax.security.auth.Destroyable;
+
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.auth.PrincipalSerializer;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
  * A container for a session's crypto parameters that are required for resuming the
  * session by means of an abbreviated handshake.
  */
-public final class SessionTicket {
+public final class SessionTicket implements Destroyable {
 
 	private final int hashCode;
 	private final ProtocolVersion protocolVersion;
-	private final byte[] masterSecret;
+	private final SecretKey masterSecret;
 	private final CipherSuite cipherSuite;
 	private final CompressionMethod compressionMethod;
 	private final ServerNames serverNames;
@@ -66,7 +72,7 @@ public final class SessionTicket {
 			final ProtocolVersion protocolVersion,
 			final CipherSuite cipherSuite,
 			final CompressionMethod compressionMethod,
-			final byte[] masterSecret,
+			final SecretKey masterSecret,
 			final ServerNames serverNames,
 			final Principal clientIdentity,
 			final long timestampMillis) {
@@ -81,7 +87,7 @@ public final class SessionTicket {
 			throw new NullPointerException("Master secret must not be null");
 		} else {
 			this.protocolVersion = protocolVersion;
-			this.masterSecret = masterSecret;
+			this.masterSecret = SecretUtil.create(masterSecret);
 			this.cipherSuite = cipherSuite;
 			this.compressionMethod = compressionMethod;
 			this.serverNames = serverNames;
@@ -89,7 +95,7 @@ public final class SessionTicket {
 			this.timestampMillis = timestampMillis;
 			// the master secret is intended to be unique
 			// therefore the hash code only consider that master secret
-			this.hashCode = Arrays.hashCode(masterSecret);
+			this.hashCode = this.masterSecret.hashCode();
 		}
 	}
 
@@ -135,7 +141,9 @@ public final class SessionTicket {
 		writer.write(compressionMethod.getCode(), CompressionMethod.COMPRESSION_METHOD_BITS);
 
 		// master_secret
-		writer.writeBytes(masterSecret);
+		byte[] secret = masterSecret.getEncoded();
+		writer.writeBytes(secret);
+		Bytes.clear(secret);
 
 		// client_identity
 		PrincipalSerializer.serialize(clientIdentity, writer);
@@ -187,7 +195,9 @@ public final class SessionTicket {
 		}
 
 		// master_secret
-		byte[] masterSecret = source.readBytes(48);
+		byte[] secret = source.readBytes(48);
+		SecretKey masterSecret = SecretUtil.create(secret, "MAC"); 
+		Bytes.clear(secret);
 
 		// client_identity
 		Principal identity = null;
@@ -211,7 +221,9 @@ public final class SessionTicket {
 		}
 
 		// assemble session
-		return new SessionTicket(ver, cipherSuite, compressionMethod, masterSecret, serverNames, identity, timestampMillis);
+		SessionTicket ticket = new SessionTicket(ver, cipherSuite, compressionMethod, masterSecret, serverNames, identity, timestampMillis);
+		SecretUtil.destroy(masterSecret);
+		return ticket;
 	}
 
 	@Override
@@ -231,9 +243,19 @@ public final class SessionTicket {
 		// the master secret is intended to be unique
 		// therefore check it first, the other compares
 		// are more or less for validation
-		if (!Arrays.equals(masterSecret, other.masterSecret)) {
+		if (hashCode != other.hashCode) {
 			return false;
 		}
+		// the SecretKeySpe equals seems to leak the others secret ;-(.
+		byte[] secret1 = masterSecret.getEncoded();
+		byte[] secret2 = other.masterSecret.getEncoded();
+		if (!Arrays.equals(secret1, secret2)) {
+			Bytes.clear(secret1);
+			Bytes.clear(secret2);
+			return false;
+		}
+		Bytes.clear(secret1);
+		Bytes.clear(secret2);
 		if (!protocolVersion.equals(other.protocolVersion)) {
 			return false;
 		}
@@ -247,6 +269,16 @@ public final class SessionTicket {
 			return false;
 		}
 		return timestampMillis == other.timestampMillis;
+	}
+
+	@Override
+	public void destroy() throws DestroyFailedException {
+		SecretUtil.destroy(masterSecret);
+	}
+
+	@Override
+	public boolean isDestroyed() {
+		return SecretUtil.isDestroyed(masterSecret);
 	}
 
 	/**
@@ -264,7 +296,7 @@ public final class SessionTicket {
 	 * 
 	 * @return the master secret
 	 */
-	public final byte[] getMasterSecret() {
+	public final SecretKey getMasterSecret() {
 		return masterSecret;
 	}
 

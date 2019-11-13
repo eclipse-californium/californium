@@ -2,11 +2,11 @@
  * Copyright (c) 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -76,7 +76,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
 			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
 			config.setInt(Keys.EXCHANGE_LIFETIME, 24700); // 24.7s instead of 247s
-			config.setInt(Keys.MAX_ACTIVE_PEERS, 20000);
+			config.setInt(Keys.MAX_ACTIVE_PEERS, 200000);
 			config.setInt(Keys.DTLS_AUTO_RESUME_TIMEOUT, 0);
 			config.setInt(Keys.DTLS_CONNECTION_ID_LENGTH, 6);
 			config.setInt(Keys.MAX_PEER_INACTIVITY_PERIOD, 60 * 60 * 24); // 24h
@@ -84,6 +84,8 @@ public class ExtendedTestServer extends AbstractTestServer {
 			config.setInt(Keys.TLS_HANDSHAKE_TIMEOUT, 60 * 1000); // 60s
 			config.setInt(Keys.SECURE_SESSION_TIMEOUT, 60 * 60 * 24); // 24h
 			config.setInt(Keys.HEALTH_STATUS_INTERVAL, 60); // 60s
+			config.setInt(Keys.UDP_CONNECTOR_RECEIVE_BUFFER, 0);
+			config.setInt(Keys.UDP_CONNECTOR_SEND_BUFFER, 0);
 			int processors = Runtime.getRuntime().availableProcessors();
 			config.setInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, processors > 3 ? 2 : 1);
 			config.setInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, processors);
@@ -103,6 +105,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 		System.out.println("  -noBenchmark : disable benchmark resource");
 		System.out.println("  -noPlugtest  : disable plugtest server");
 
+		STATISTIC_LOGGER.error("start!");
 		startManagamentStatistic();
 
 		boolean noPlugtest = args.length > 1 ? args[1].equalsIgnoreCase("-noPlugTest") : false;

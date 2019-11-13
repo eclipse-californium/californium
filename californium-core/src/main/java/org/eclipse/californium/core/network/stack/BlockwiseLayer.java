@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -67,6 +67,7 @@ package org.eclipse.californium.core.network.stack;
 import java.util.Iterator;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -157,6 +158,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	private static final Logger HEALTH_LOGGER = LoggerFactory.getLogger(LOGGER.getName() + ".health");
 	private final LeastRecentlyUsedCache<KeyUri, Block1BlockwiseStatus> block1Transfers;
 	private final LeastRecentlyUsedCache<KeyUri, Block2BlockwiseStatus> block2Transfers;
+	private final AtomicInteger ignoredBlock2 = new AtomicInteger();
 	private volatile boolean enableStatus;
 	private ScheduledFuture<?> statusLogger;
 	private int maxMessageSize;
@@ -218,12 +220,12 @@ public class BlockwiseLayer extends AbstractLayer {
 		block2Transfers = new LeastRecentlyUsedCache<>(maxActivePeers, TimeUnit.MILLISECONDS.toSeconds(blockTimeout));
 		block2Transfers.setEvictingOnReadAccess(false);
 		strictBlock2Option = config.getBoolean(NetworkConfig.Keys.BLOCKWISE_STRICT_BLOCK2_OPTION, NetworkConfigDefaults.DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION);
-		
-		LOGGER.info(
-			"BlockwiseLayer uses MAX_MESSAGE_SIZE={}, PREFERRED_BLOCK_SIZE={}, BLOCKWISE_STATUS_LIFETIME={}, MAX_RESOURCE_BODY_SIZE={}, BLOCKWISE_STRICT_BLOCK2_OPTION={}",
-			maxMessageSize, preferredBlockSize, blockTimeout, maxResourceBodySize, strictBlock2Option);
-		
+
 		healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
+
+		LOGGER.info(
+				"BlockwiseLayer uses MAX_MESSAGE_SIZE={}, PREFERRED_BLOCK_SIZE={}, BLOCKWISE_STATUS_LIFETIME={}, MAX_RESOURCE_BODY_SIZE={}, BLOCKWISE_STRICT_BLOCK2_OPTION={}",
+				 maxMessageSize, preferredBlockSize, blockTimeout, maxResourceBodySize, strictBlock2Option);
 	}
 
 	@Override
@@ -258,6 +260,7 @@ public class BlockwiseLayer extends AbstractLayer {
 								}
 							}
 						}
+						HEALTH_LOGGER.debug("{} block2 responses ignored", ignoredBlock2.get());
 					}
 				}
 			}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
@@ -663,37 +666,8 @@ public class BlockwiseLayer extends AbstractLayer {
 			}
 
 			KeyUri key = getKey(exchange, response);
-			BlockOption block = response.getOptions().getBlock2();
 			Block2BlockwiseStatus status = getBlock2Status(key);
-			if (status != null) {
-				// ongoing blockwise transfer
-				boolean starting = (block == null) || (block.getNum() == 0);
-				if (starting) {
-					if (status.isNew(response)) {
-						LOGGER.debug("discarding outdated block2 transfer {}, current is [{}]", status.getObserve(),
-								response);
-						clearBlock2Status(key, status);
-						status.completeOldTransfer(exchange);
-					} else {
-						LOGGER.debug("discarding old block2 transfer [{}], received during ongoing block2 transfer {}",
-								response, status.getObserve());
-						status.completeNewTranfer(exchange);
-						return;
-					}
-				}
-				else if (!status.matchTransfer(exchange)) {
-					LOGGER.debug(
-							"discarding outdate block2 response [{}, {}] received during ongoing block2 transfer {}",
-							exchange.getNotificationNumber(), response, status.getObserve());
-					status.completeNewTranfer(exchange);
-					return;
-				}
-			}
-			else if (block != null && block.getNum() != 0) {
-				LOGGER.debug(
-						"discarding stale block2 response [{}, {}] received without ongoing block2 transfer for {}",
-						exchange.getNotificationNumber(), response, key);
-				exchange.setComplete();
+			if (discardBlock2(key, status, exchange, response)) {
 				return;
 			}
 
@@ -839,6 +813,50 @@ public class BlockwiseLayer extends AbstractLayer {
 	}
 
 	/**
+	 * Check, if response is to be discarded caused by the block2 status. Clears
+	 * also the block status for new block transfers
+	 * 
+	 * @param key uri key for blocktransfer
+	 * @param status status of blocktransfer
+	 * @param exchange exchange of blocktransfer
+	 * @param response current response
+	 * @return {@code true}, if reponse is to be ignored, {@code false},
+	 *         otherwise
+	 */
+	private boolean discardBlock2(KeyUri key, Block2BlockwiseStatus status, Exchange exchange, Response response) {
+		BlockOption block = response.getOptions().getBlock2();
+		boolean starting = (block == null) || (block.getNum() == 0);
+		if (status != null) {
+			// ongoing blockwise transfer
+			if (starting) {
+				if (status.isNew(response)) {
+					LOGGER.debug("discarding outdated block2 transfer {}, current is [{}]", status.getObserve(),
+							response);
+					clearBlock2Status(key, status);
+					status.completeOldTransfer(exchange);
+				} else {
+					LOGGER.debug("discarding old block2 transfer [{}], received during ongoing block2 transfer {}",
+							response, status.getObserve());
+					status.completeNewTranfer(exchange);
+					return true;
+				}
+			} else if (!status.matchTransfer(exchange)) {
+				LOGGER.debug("discarding outdate block2 response [{}, {}] received during ongoing block2 transfer {}",
+						exchange.getNotificationNumber(), response, status.getObserve());
+				status.completeNewTranfer(exchange);
+				return true;
+			}
+		} else if (block != null && block.getNum() != 0) {
+			LOGGER.debug("discarding stale block2 response [{}, {}] received without ongoing block2 transfer for {}",
+					exchange.getNotificationNumber(), response, key);
+			exchange.setComplete();
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
 	 * Checks if a response contains a single block of a large payload only and
 	 * retrieves the remaining blocks if applicable.
 	 * 
@@ -873,12 +891,15 @@ public class BlockwiseLayer extends AbstractLayer {
 			exchange.getRequest().cancel();
 
 		} else {
-
-			Block2BlockwiseStatus status = getInboundBlock2Status(key, exchange, response);
-
-			if (block2.getNum() == status.getCurrentNum() && (block2.getNum() == 0 || response.getToken().equals(exchange.getCurrentRequest().getToken()))) {
-
-				// check token to avoid mixed blockwise transfers (possible with observe) 
+			Block2BlockwiseStatus status;
+			synchronized (block2Transfers) {
+				status = getBlock2Status(key);
+				if (discardBlock2(key, status, exchange, response)) {
+					return;
+				}
+				status = getInboundBlock2Status(key, exchange, response);
+			}
+			if (block2.getNum() == status.getCurrentNum()) {
 
 				// We got the block we expected :-)
 				LOGGER.debug("processing incoming block2 response [num={}]: {}", block2.getNum(), response);
@@ -926,9 +947,11 @@ public class BlockwiseLayer extends AbstractLayer {
 
 			} else {
 				// ERROR, wrong block number (server error)
-				// Canceling the request would interfere with Observe, so just ignore it
-				LOGGER.warn("ignoring block2 response with wrong block number {} (expected {}): {}", block2.getNum(),
-						status.getCurrentNum(), response);
+				// Canceling the request would interfere with Observe,
+				// so just ignore it
+				ignoredBlock2.incrementAndGet();
+				LOGGER.warn("ignoring block2 response with wrong block number {} (expected {}) - {}: {}",
+						block2.getNum(), status.getCurrentNum(), exchange.getCurrentRequest().getToken(), response);
 			}
 		}
 	}
@@ -988,10 +1011,14 @@ public class BlockwiseLayer extends AbstractLayer {
 
 			status.setCurrentNum(nextNum);
 
-			LOGGER.debug("requesting next Block2 [num={}]: {}", nextNum, block);
-			exchange.setCurrentRequest(block);
-			prepareBlock2Cleanup(status, key);
-			lower().sendRequest(exchange, block);
+			if (status.isComplete()) {
+				LOGGER.debug("stopped block2 transfer, droping response.");
+			} else {
+				LOGGER.debug("requesting next Block2 [num={}]: {}", nextNum, block);
+				exchange.setCurrentRequest(block);
+				prepareBlock2Cleanup(status, key);
+				lower().sendRequest(exchange, block);
+			}
 		} catch (RuntimeException ex) {
 			LOGGER.warn("cannot process next block request, aborting request!", ex);
 			block.setSendError(ex);
@@ -1103,14 +1130,15 @@ public class BlockwiseLayer extends AbstractLayer {
 	protected KeyUri addRandomAccessBlock2Status(final Exchange exchange, final Request request) {
 
 		KeyUri key = getKey(exchange, request);
+		int size;
 		Block2BlockwiseStatus status = Block2BlockwiseStatus.forRandomAccessRequest(exchange, request);
 		synchronized (block2Transfers) {
 			block2Transfers.put(key, status);
+			size = block1Transfers.size();
 		}
 		enableStatus = true;
 		addBlock2CleanUpObserver(request, key, status);
-		LOGGER.debug("created tracker for random access block2 retrieval {}, transfers in progress: {}", status,
-				block2Transfers.size());
+		LOGGER.debug("created tracker for random access block2 retrieval {}, transfers in progress: {}", status, size);
 		return key;
 	}
 

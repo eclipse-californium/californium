@@ -2,11 +2,11 @@
  * Copyright (c) 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -19,6 +19,10 @@ import java.net.InetSocketAddress;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+
+import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.scandium.util.SecretUtil;
 
 /**
  * A simple client session cache that stores {@code ClientSession} in a hash
@@ -49,7 +53,7 @@ public class InMemoryClientSessionCache implements ClientSessionCache {
 	@Override
 	public SessionTicket getSessionTicket(InetSocketAddress peer) {
 		ClientSession clientSession = connectionTickets.get(peer);
-		return clientSession == null ? null : clientSession.ticket;
+		return clientSession == null ? null : clientSession.getTicket();
 	}
 
 	@Override
@@ -66,12 +70,13 @@ public class InMemoryClientSessionCache implements ClientSessionCache {
 		final ClientSession clientSession = new ClientSession(peer, id, ticket);
 		connectionTickets.put(peer, clientSession);
 		sessionTickets.put(id, clientSession);
+		SecretUtil.destroy(ticket);
 	}
 
 	@Override
 	public SessionTicket get(SessionId id) {
 		ClientSession clientSession = sessionTickets.get(id);
-		return clientSession == null ? null : clientSession.ticket;
+		return clientSession == null ? null : clientSession.getTicket();
 	}
 
 	@Override
@@ -86,12 +91,19 @@ public class InMemoryClientSessionCache implements ClientSessionCache {
 
 		private final InetSocketAddress peer;
 		private final SessionId id;
-		private final SessionTicket ticket;
+		private final byte[] ticket;
 
 		private ClientSession(final InetSocketAddress peer, final SessionId id, final SessionTicket ticket) {
 			this.peer = peer;
 			this.id = id;
-			this.ticket = ticket;
+			DatagramWriter writer = new DatagramWriter();
+			ticket.encode(writer);
+			this.ticket = writer.toByteArray();
+			writer.close();
+		}
+
+		public SessionTicket getTicket() {
+			return SessionTicket.decode(new DatagramReader(ticket));
 		}
 	}
 }

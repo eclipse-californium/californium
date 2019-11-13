@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -42,7 +42,9 @@ import java.util.concurrent.ConcurrentMap;
 
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 import org.eclipse.californium.elements.util.SerialExecutor;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.ConnectionListener;
+import org.eclipse.californium.scandium.util.SecretUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,7 +86,8 @@ import org.slf4j.LoggerFactory;
 public class InMemoryConnectionStore implements ResumptionSupportingConnectionStore {
 
 	private static final Logger LOG = LoggerFactory.getLogger(InMemoryConnectionStore.class.getName());
-	private static final int DEFAULT_EXTRA_CID_LENGTH = 2; // extra cid bytes additionally to required bytes for the capacity.
+	private static final int DEFAULT_SMALL_EXTRA_CID_LENGTH = 2; // extra cid bytes additionally to required bytes for small capacity.
+	private static final int DEFAULT_LARGE_EXTRA_CID_LENGTH = 3; // extra cid bytes additionally to required bytes for large capacity.
 	private static final int DEFAULT_CACHE_SIZE = 150000;
 	private static final long DEFAULT_EXPIRATION_THRESHOLD = 36 * 60 * 60; // 36h
 	private final SessionCache sessionCache;
@@ -153,40 +156,38 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		this.connectionsByAddress = new ConcurrentHashMap<>();
 		this.sessionCache = sessionCache;
 
-		if (sessionCache != null) {
-			// make sure that session state for stale (evicted) connections is removed from second level cache
-			connections.addEvictionListener(new LeastRecentlyUsedCache.EvictionListener<Connection>() {
+		// make sure that session state for stale (evicted) connections is removed from second level cache
+		connections.addEvictionListener(new LeastRecentlyUsedCache.EvictionListener<Connection>() {
 
-				@Override
-				public void onEviction(final Connection staleConnection) {
-					Runnable remove = new Runnable() {
+			@Override
+			public void onEviction(final Connection staleConnection) {
+				Runnable remove = new Runnable() {
 
-						@Override
-						public void run() {
-							Handshaker handshaker = staleConnection.getOngoingHandshake();
-							if (handshaker != null) {
-								handshaker.handshakeFailed(new RuntimeException("Evicted!"));
-							}
-							synchronized (InMemoryConnectionStore.this) {
-								removeFromAddressConnections(staleConnection);
-								removeFromEstablishedSessions(staleConnection);
-								removeSessionFromCache(staleConnection);
-								ConnectionListener listener = connectionListener;
-								if (listener != null) {
-									listener.onConnectionRemoved(staleConnection);
-								}
+					@Override
+					public void run() {
+						Handshaker handshaker = staleConnection.getOngoingHandshake();
+						if (handshaker != null) {
+							handshaker.handshakeFailed(new RuntimeException("Evicted!"));
+						}
+						synchronized (InMemoryConnectionStore.this) {
+							removeFromAddressConnections(staleConnection);
+							removeFromEstablishedSessions(staleConnection);
+							removeSessionFromCache(staleConnection);
+							ConnectionListener listener = connectionListener;
+							if (listener != null) {
+								listener.onConnectionRemoved(staleConnection);
 							}
 						}
-					};
-					if (staleConnection.isExecuting()) {
-						staleConnection.getExecutor().execute(remove);
-					} else {
-						remove.run();
 					}
+				};
+				if (staleConnection.isExecuting()) {
+					staleConnection.getExecutor().execute(remove);
+				} else {
+					remove.run();
 				}
-			});
+			}
+		});
 
-		}
 		LOG.info("Created new InMemoryConnectionStore [capacity: {}, connection expiration threshold: {}s]",
 				capacity, threshold);
 	}
@@ -198,11 +199,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	 * @return this connection store for calls chaining
 	 */
 	public synchronized InMemoryConnectionStore setTag(final String tag) {
-		if (tag.isEmpty() || tag.endsWith(" ")) {
-			this.tag = tag;
-		} else {
-			this.tag = tag + " ";
-		}
+		this.tag = StringUtil.normalizeLoggingTag(tag);
 		return this;
 	}
 
@@ -236,11 +233,12 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		}
 		if (connectionIdGenerator == null || !connectionIdGenerator.useConnectionId()) {
 			int bits = Integer.SIZE - Integer.numberOfLeadingZeros(connections.getCapacity());
-			int cidLength = ((bits + 7) / 8) + DEFAULT_EXTRA_CID_LENGTH;
+			int cidLength = ((bits + 7) / 8); // required bytes for capacity
+			cidLength += (cidLength < 3) ? DEFAULT_SMALL_EXTRA_CID_LENGTH : DEFAULT_LARGE_EXTRA_CID_LENGTH;
 			this.connectionIdGenerator = new SingleNodeConnectionIdGenerator(cidLength);
 		} else {
 			this.connectionIdGenerator = connectionIdGenerator;
-		}	
+		}
 		if (sessionCache instanceof ClientSessionCache) {
 			ClientSessionCache clientCache = (ClientSessionCache) sessionCache;
 			LOG.debug("resume client sessions {}", clientCache);
@@ -315,7 +313,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 				}
 				return true;
 			} else {
-				LOG.info("{}connection store is full! {} max. entries.", tag, connections.getCapacity());
+				LOG.warn("{}connection store is full! {} max. entries.", tag, connections.getCapacity());
 				return false;
 			}
 		} else {
@@ -531,6 +529,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		if (establishedSession != null) {
 			SessionId sessionId = establishedSession.getSessionIdentifier();
 			connectionsByEstablishedSession.remove(sessionId, connection);
+			SecretUtil.destroy(establishedSession);
 		}
 	}
 

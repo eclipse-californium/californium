@@ -19,12 +19,12 @@
 	</organization>
 	<licenses>
 		<license>
-			<name>Eclipse Public License - Version 1.0</name>
-			<url>http://www.eclipse.org/org/documents/epl-v10.php</url>
+			<name>Eclipse Public License - Version 2.0</name>
+			<url>https://www.eclipse.org/org/documents/epl-2.0/EPL-2.0.txt</url>
 		</license>
 		<license>
 			<name>Eclipse Distribution License - Version 1.0</name>
-			<url>http://www.eclipse.org/org/documents/edl-v10.php</url>
+			<url>https://www.eclipse.org/org/documents/epl-1.0/EPL-1.0.txt</url>
 		</license>
 	</licenses>
 	<scm>
@@ -230,6 +230,8 @@
 	</dependencyManagement>
 
 	<modules>
+		<module>assembly</module>
+		<module>legal</module>
 		<module>element-connector</module>
 		<module>scandium-core</module>
 		<module>element-connector-tcp</module>
@@ -239,10 +241,9 @@
 		<module>californium-osgi</module>
 		<module>demo-apps</module>
 		<module>demo-certs</module>
-		<module>legal</module>
 		<module>cf-oscore</module>
-        <module>cf-pubsub</module>
-    </modules>
+		<module>cf-pubsub</module>
+	</modules>
 
 	<build>
 		<pluginManagement>
@@ -344,6 +345,13 @@
 					<artifactId>maven-assembly-plugin</artifactId>
 					<version>3.1.1</version>
 					<inherited>true</inherited>
+					<dependencies>
+						<dependency>
+							<groupId>${project.groupId}</groupId>
+							<artifactId>californium-assembly</artifactId>
+							<version>${project.version}</version>
+						</dependency>
+					</dependencies>
 					<configuration>
 						<appendAssemblyId>false</appendAssemblyId>
 						<attach>false</attach>
@@ -353,9 +361,9 @@
 								<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
 							</manifest>
 						</archive>
-						<descriptors>
-							<descriptor>enhanced-jar-with-dependencies.xml</descriptor>
-						</descriptors>
+						<descriptorRefs>
+							<descriptorRef>enhanced-jar-with-dependencies</descriptorRef>
+						</descriptorRefs>
 					</configuration>
 					<executions>
 						<execution>

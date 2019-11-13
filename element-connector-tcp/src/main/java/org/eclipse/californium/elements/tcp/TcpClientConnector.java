@@ -2,11 +2,11 @@
  * Copyright (c) 2016, 2017 Amazon Web Services and others.
  * <p>
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * <p>
  * The Eclipse Public License is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  * http://www.eclipse.org/org/documents/edl-v10.html.
  * <p>
@@ -46,6 +46,7 @@ import io.netty.channel.pool.AbstractChannelPoolHandler;
 import io.netty.channel.pool.AbstractChannelPoolMap;
 import io.netty.channel.pool.ChannelPool;
 import io.netty.channel.pool.FixedChannelPool;
+import io.netty.channel.pool.SimpleChannelPool;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.Future;
@@ -56,6 +57,7 @@ import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.exception.EndpointMismatchException;
 import org.eclipse.californium.elements.exception.MulticastNotSupportedException;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 
@@ -74,6 +76,7 @@ import org.slf4j.LoggerFactory;
  * accept new incoming connections.
  */
 public class TcpClientConnector implements Connector {
+	private static final boolean USE_FIXED_CONNECTION_POOL = false;
 
 	protected final Logger LOGGER = LoggerFactory.getLogger(getClass().getName());
 
@@ -132,7 +135,11 @@ public class TcpClientConnector implements Connector {
 				// We multiplex over the same TCP connection, so don't acquire
 				// more than one connection per endpoint.
 				// TODO: But perhaps we could make it a configurable property.
-				return new FixedChannelPool(bootstrap, new MyChannelPoolHandler(key), 1);
+				if (USE_FIXED_CONNECTION_POOL) {
+					return new FixedChannelPool(bootstrap, new MyChannelPoolHandler(key), 1);
+				} else {
+					return new SimpleChannelPool(bootstrap, new MyChannelPoolHandler(key));
+				}
 			}
 		};
 	}
@@ -300,7 +307,7 @@ public class TcpClientConnector implements Connector {
 
 	@Override
 	public String toString() {
-		return getProtocol() + "-" + getAddress();
+		return getProtocol() + "-" + StringUtil.toString(getAddress());
 	}
 
 	private class MyChannelPoolHandler extends AbstractChannelPoolHandler {
@@ -325,7 +332,7 @@ public class TcpClientConnector implements Connector {
 			// 6. Close connections on errors
 			ch.pipeline().addLast(new IdleStateHandler(0, 0, connectionIdleTimeoutSeconds));
 			ch.pipeline().addLast(new CloseOnIdleHandler());
-			ch.pipeline().addLast(new RemoveEmptyPoolHandler(key));
+			ch.pipeline().addLast(new RemoveEmptyPoolHandler(poolMap, key));
 			ch.pipeline().addLast(new DatagramFramer(contextUtil));
 			ch.pipeline().addLast(new DispatchHandler(rawDataChannel));
 			ch.pipeline().addLast(new CloseOnErrorHandler());
@@ -334,9 +341,11 @@ public class TcpClientConnector implements Connector {
 
 	private class RemoveEmptyPoolHandler extends ChannelDuplexHandler {
 
+		private final AbstractChannelPoolMap<SocketAddress, ChannelPool> poolMap;
 		private final SocketAddress key;
 
-		RemoveEmptyPoolHandler(SocketAddress key) {
+		RemoveEmptyPoolHandler(AbstractChannelPoolMap<SocketAddress, ChannelPool> poolMap, SocketAddress key) {
+			this.poolMap = poolMap;
 			this.key = key;
 		}
 
@@ -345,8 +354,16 @@ public class TcpClientConnector implements Connector {
 			// TODO: This only works with fixed sized pool with connection one.
 			// Otherwise it's not save to remove and
 			// close the pool as soon as a single channel is closed.
+			ChannelPool channelPool = poolMap.get(key);
+			if (channelPool instanceof FixedChannelPool) {
+				((FixedChannelPool)channelPool).closeAsync();
+				LOGGER.trace("closed fixed channel pool for {}", key);
+			} else {
+				channelPool.close();
+				LOGGER.trace("closed channel pool for {}", key);
+			}
 			if (poolMap.remove(key)) {
-				LOGGER.debug("closed channel to {}", key);
+				LOGGER.trace("removed channel pool for {}", key);
 			}
 		}
 	}

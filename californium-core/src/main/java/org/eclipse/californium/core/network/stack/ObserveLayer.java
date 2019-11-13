@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -119,14 +119,6 @@ public class ObserveLayer extends AbstractLayer {
 				relation.setNextControlNotification(null);
 			}
 
-			/*
-			 * The matcher must be able to find the NON notifications to remove
-			 * them from the exchangesByMID hashmap
-			 */
-			if (response.getType() == Type.NON) {
-				relation.addNotification(response);
-			}
-
 		} // else no observe was requested or the resource does not allow it
 		lower().sendResponse(exchange, response);
 	}
@@ -198,13 +190,6 @@ public class ObserveLayer extends AbstractLayer {
 			relation.setNextControlNotification(null);
 			if (next != null) {
 				LOGGER.debug("notification has been acknowledged, send the next one");
-				/*
-				 * The matcher must be able to find the NON notifications to
-				 * remove them from the exchangesByMID hashmap
-				 */
-				if (next.getType() == Type.NON) {
-					relation.addNotification(next);
-				}
 				// Create a new task for sending next response so that we
 				// can leave the sync-block
 				exchange.execute(new Runnable() {

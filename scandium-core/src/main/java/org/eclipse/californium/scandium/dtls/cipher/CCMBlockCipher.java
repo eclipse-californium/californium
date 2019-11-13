@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -285,8 +285,8 @@ public class CCMBlockCipher {
 	 * 
 	 * @param key the encryption key K.
 	 * @param nonce the nonce N.
-	 * @param a the additional authenticated data a.
-	 * @param c the encrypted and authenticated message c.
+	 * @param additionalData the additional authenticated data a.
+	 * @param crypted the encrypted and authenticated message c.
 	 * @param numAuthenticationBytes Number of octets in authentication field.
 	 * @return the decrypted message
 	 * 
@@ -294,19 +294,36 @@ public class CCMBlockCipher {
 	 *             e.g. because the ciphertext's block size is not correct
 	 * @throws InvalidMacException if the message could not be authenticated
 	 */
-	public final static byte[] decrypt(SecretKey key, byte[] nonce, byte[] a, byte[] c, int numAuthenticationBytes)
+	public final static byte[] decrypt(SecretKey key, byte[] nonce, byte[] additionalData, byte[] crypted, int numAuthenticationBytes)
 			throws GeneralSecurityException {
-		/*
-		 * http://tools.ietf.org/html/draft-mcgrew-tls-aes-ccm-04#section-6.1:
-		 * "AEAD_AES_128_CCM_8 ciphertext is exactly 8 octets longer than its
-		 * corresponding plaintext"
-		 */
+		return decrypt(key, nonce, additionalData, crypted, 0, crypted.length, numAuthenticationBytes);
+	}
+
+	/**
+	 * See <a href="http://tools.ietf.org/html/rfc3610#section-2.5">RFC 3610</a>
+	 * for details.
+	 * 
+	 * @param key the encryption key K.
+	 * @param nonce the nonce N.
+	 * @param additionalData the additional authenticated data a.
+	 * @param crypted the encrypted and authenticated message c.
+	 * @param cryptedOffset offset within crypted
+	 * @param cryptedLength length within crypted
+	 * @param numAuthenticationBytes Number of octets in authentication field.
+	 * @return the decrypted message
+	 * 
+	 * @throws GeneralSecurityException if the message could not be de-crypted,
+	 *             e.g. because the ciphertext's block size is not correct
+	 * @throws InvalidMacException if the message could not be authenticated
+	 */
+	public final static byte[] decrypt(SecretKey key, byte[] nonce, byte[] additionalData, byte[] crypted,
+			int cryptedOffset, int cryptedLength, int numAuthenticationBytes) throws GeneralSecurityException {
 
 		// instantiate the underlying block cipher
 		Cipher cipher = CIPHER.current();
 		cipher.init(Cipher.ENCRYPT_MODE, key);
 
-		int lengthM = c.length - numAuthenticationBytes;
+		int lengthM = cryptedLength - numAuthenticationBytes;
 		int blockSize = cipher.getBlockSize();
 
 		// decrypted data without MAC
@@ -318,8 +335,9 @@ public class CCMBlockCipher {
 		// block 0 for MAC
 		int blockNo = 0;
 		byte[] block = blockCiper.updateBlock(blockNo++);
+		int tOffset = cryptedOffset + lengthM;
 		for (int i = 0; i < numAuthenticationBytes; ++i) {
-			T[i] = (byte) (c[lengthM + i] ^ block[i]);
+			T[i] = (byte) (crypted[tOffset + i] ^ block[i]);
 		}
 
 		for (int i = 0; i < lengthM;) {
@@ -329,7 +347,7 @@ public class CCMBlockCipher {
 				blockEnd = lengthM;
 			}
 			for (int j = 0; i < blockEnd; ++i, ++j) {
-				decrypted[i] = (byte) (c[i] ^ block[j]);
+				decrypted[i] = (byte) (crypted[cryptedOffset + i] ^ block[j]);
 			}
 		}
 
@@ -337,7 +355,7 @@ public class CCMBlockCipher {
 		 * The message and additional authentication data is then used to
 		 * recompute the CBC-MAC value and check T.
 		 */
-		MacCipher macCipher = new MacCipher(cipher, nonce, a, decrypted, numAuthenticationBytes);
+		MacCipher macCipher = new MacCipher(cipher, nonce, additionalData, decrypted, numAuthenticationBytes);
 		byte[] mac = macCipher.getMac();
 
 		/*
@@ -351,7 +369,6 @@ public class CCMBlockCipher {
 		} else {
 			throw new InvalidMacException(mac, T);
 		}
-
 	}
 
 	/**
@@ -360,40 +377,61 @@ public class CCMBlockCipher {
 	 * 
 	 * @param key the encryption key K.
 	 * @param nonce the nonce N.
-	 * @param a the additional authenticated data a.
-	 * @param m the message to authenticate and encrypt.
+	 * @param additionalData the additional authenticated data a.
+	 * @param message the message to authenticate and encrypt.
 	 * @param numAuthenticationBytes Number of octets in authentication field.
 	 * @return the encrypted and authenticated message.
 	 * @throws GeneralSecurityException if the data could not be encrypted, e.g.
 	 *             because the JVM does not support the AES cipher algorithm
 	 */
-	public final static byte[] encrypt(SecretKey key, byte[] nonce, byte[] a, byte[] m, int numAuthenticationBytes)
-			throws GeneralSecurityException {
+	public final static byte[] encrypt(SecretKey key, byte[] nonce, byte[] additionalData, byte[] message,
+			int numAuthenticationBytes) throws GeneralSecurityException {
+		return encrypt(0, key, nonce, additionalData, message, numAuthenticationBytes);
+	}
+
+	/**
+	 * See <a href="http://tools.ietf.org/html/rfc3610#section-2.2">RFC 3610</a>
+	 * for details.
+	 * 
+	 * @param outputOffset offset of the encrypted message within the resulting byte
+	 *            array. Leaves space for the explicit nonce.
+	 * @param key the encryption key K.
+	 * @param nonce the nonce N.
+	 * @param additionalData the additional authenticated data a.
+	 * @param message the message to authenticate and encrypt.
+	 * @param numAuthenticationBytes Number of octets in authentication field.
+	 * @return the encrypted and authenticated message.
+	 * @throws GeneralSecurityException if the data could not be encrypted, e.g.
+	 *             because the JVM does not support the AES cipher algorithm
+	 */
+	public final static byte[] encrypt(int outputOffset, SecretKey key, byte[] nonce, byte[] additionalData, byte[] message,
+			int numAuthenticationBytes) throws GeneralSecurityException {
 
 		// instantiate the cipher
 		Cipher cipher = CIPHER.current();
 		cipher.init(Cipher.ENCRYPT_MODE, key);
 		int blockSize = cipher.getBlockSize();
-		int lengthM = m.length;
+		int lengthM = message.length;
 
 		/*
 		 * First, authentication: http://tools.ietf.org/html/rfc3610#section-2.2
 		 */
 		// compute the authentication field T
-		MacCipher macCipher = new MacCipher(cipher, nonce, a, m, numAuthenticationBytes);
+		MacCipher macCipher = new MacCipher(cipher, nonce, additionalData, message, numAuthenticationBytes);
 		byte[] mac = macCipher.getMac();
 
 		/*
 		 * Second, encryption http://tools.ietf.org/html/rfc3610#section-2.3
 		 */
 		// encrypted data with MAC
-		byte[] encrypted = new byte[lengthM + numAuthenticationBytes];
+		byte[] encrypted = new byte[outputOffset + lengthM + numAuthenticationBytes];
 		BlockCipher blockCiper = new BlockCipher(cipher, nonce);
 		// block 0 for MAC
 		int blockNo = 0;
 		byte[] block = blockCiper.updateBlock(blockNo++);
+		int tOffset = outputOffset + lengthM;
 		for (int i = 0; i < numAuthenticationBytes; ++i) {
-			encrypted[i + lengthM] = (byte) (mac[i] ^ block[i]);
+			encrypted[i + tOffset] = (byte) (mac[i] ^ block[i]);
 		}
 		for (int i = 0; i < lengthM;) {
 			block = blockCiper.updateBlock(blockNo++);
@@ -402,7 +440,7 @@ public class CCMBlockCipher {
 				blockEnd = lengthM;
 			}
 			for (int j = 0; i < blockEnd; ++i, ++j) {
-				encrypted[i] = (byte) (m[i] ^ block[j]);
+				encrypted[i + outputOffset] = (byte) (message[i] ^ block[j]);
 			}
 		}
 

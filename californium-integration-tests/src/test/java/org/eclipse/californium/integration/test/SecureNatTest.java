@@ -2,11 +2,11 @@
  * Copyright (c) 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -43,6 +43,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.PrincipalEndpointContextMatcher;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.examples.NatUtil;
@@ -87,6 +88,7 @@ public class SecureNatTest {
 	private DebugConnectionStore serverConnections;
 	private List<DebugConnectionStore> clientConnections = new ArrayList<DebugConnectionStore>();
 	private TestUtilPskStore pskStore;
+	private MatcherMode mode;
 	private NetworkConfig config;
 	private CoapEndpoint serverEndpoint;
 	private List<CoapEndpoint> clientEndpoints = new ArrayList<>();
@@ -393,6 +395,7 @@ public class SecureNatTest {
 	}
 
 	private void setupNetworkConfig(MatcherMode mode) {
+		this.mode = mode;
 		config = network.getStandardTestConfig()
 				// retransmit starting with 200 milliseconds
 				.setInt(Keys.ACK_TIMEOUT, 200)
@@ -426,6 +429,9 @@ public class SecureNatTest {
 		Connector serverConnector = new MyDtlsConnector(dtlsConfig, serverConnections);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setConnector(serverConnector);
+		if (mode == MatcherMode.PRINCIPAL) {
+			builder.setEndpointContextMatcher(new PrincipalEndpointContextMatcher(true));
+		}
 		builder.setNetworkConfig(config);
 		serverEndpoint = builder.build();
 

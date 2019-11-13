@@ -2,11 +2,11 @@
  * Copyright (c) 2019 RISE SICS and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -22,6 +22,8 @@ package org.eclipse.californium.oscore;
 import java.io.ByteArrayInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.upokecenter.cbor.CBORObject;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.OptionSet;
@@ -75,6 +77,21 @@ public class ResponseDecryptor extends Decryptor {
 		} else {
 			LOGGER.error(ErrorDescriptions.TOKEN_NULL);
 			throw new OSException(ErrorDescriptions.TOKEN_NULL);
+		}
+
+		// Retrieve Context ID (kid context)
+		CBORObject kidContext = enc.findAttribute(CBORObject.FromObject(10));
+		byte[] contextID = null;
+		if (kidContext != null) {
+			contextID = kidContext.GetByteString();
+		}
+
+		// Perform context re-derivation procedure if ongoing
+		try {
+			ctx = ContextRederivation.incomingResponse(db, ctx, contextID);
+		} catch (OSException e) {
+			LOGGER.error(ErrorDescriptions.CONTEXT_REGENERATION_FAILED);
+			throw new OSException(ErrorDescriptions.CONTEXT_REGENERATION_FAILED);
 		}
 
 		//Check if parsing of response plaintext succeeds

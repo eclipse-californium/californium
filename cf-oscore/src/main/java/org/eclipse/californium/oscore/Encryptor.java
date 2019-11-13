@@ -2,11 +2,11 @@
  * Copyright (c) 2018 RISE SICS and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -175,8 +175,8 @@ public abstract class Encryptor {
 
 			//Encode the Context ID length and value if to be included
 			if (ctx.getIncludeContextId()) {
-				bRes.write(ctx.getIdContext().length);
-				bRes.write(ctx.getIdContext());
+				bRes.write(ctx.getMessageIdContext().length);
+				bRes.write(ctx.getMessageIdContext());
 			}
 
 			//Encode Sender ID (KID)
@@ -221,8 +221,8 @@ public abstract class Encryptor {
 		//Encode the Context ID length and value if to be included
 		if (ctx.getIncludeContextId()) {
 			try {
-				bRes.write(ctx.getIdContext().length);
-				bRes.write(ctx.getIdContext());
+				bRes.write(ctx.getMessageIdContext().length);
+				bRes.write(ctx.getMessageIdContext());
 			} catch (IOException e) {
 				e.printStackTrace();
 			}

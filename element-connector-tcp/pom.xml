@@ -16,7 +16,7 @@
 	<description>Element connector implementation for TCP/TLS</description>
 	
 	<properties>
-		<netty.version>4.1.25.Final</netty.version>
+		<netty.version>4.1.42.Final</netty.version>
 		<netty.version.lowerbound>4.1</netty.version.lowerbound>
 		<netty.version.upperbound>5</netty.version.upperbound>
 	</properties>
@@ -124,9 +124,9 @@
 			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
 				<configuration>
-					<descriptors>
-						<descriptor>enhanced-jar-with-licenses.xml</descriptor>
-					</descriptors>
+					<descriptorRefs>
+						<descriptorRef>enhanced-jar-with-licenses</descriptorRef>
+					</descriptorRefs>
 					<archive>
 						<manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
 					</archive>

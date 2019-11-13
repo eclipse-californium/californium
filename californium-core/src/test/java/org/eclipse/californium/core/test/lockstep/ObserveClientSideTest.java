@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -50,7 +50,11 @@ import org.eclipse.californium.category.Large;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
+import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.test.CountingMessageObserver;
 import org.eclipse.californium.core.test.ErrorInjector;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
@@ -108,6 +112,20 @@ public class ObserveClientSideTest {
 		// don't check address, tests explicitly change it!
 		client = new CoapTestEndpoint(TestTools.LOCALHOST_EPHEMERAL, config, false);
 		client.addInterceptor(clientInterceptor);
+
+		client.setMessageDeliverer(new MessageDeliverer() {
+
+			@Override
+			public void deliverResponse(Exchange exchange, Response response) {
+				exchange.getRequest().setResponse(response);
+			}
+
+			@Override
+			public void deliverRequest(Exchange exchange) {
+				exchange.sendAccept();
+			}
+		});
+
 		client.start();
 		cleanup.add(client);
 		System.out.println("Client binds to port " + client.getAddress().getPort());
@@ -1469,6 +1487,34 @@ public class ObserveClientSideTest {
 		assertAllEndpointExchangesAreCompleted(client);
 	}
 
+	@Test
+	public void testNotifyRequestSameMID() throws Exception {
+		boolean replace = config.getBoolean(Keys.DEDUPLICATOR_AUTO_REPLACE);
+		System.out.println("Observe with lost ACKs:");
+		respPayload = generateRandomPayload(10);
+		String path = "test";
+		int obs = 100;
+
+		Request request = createRequest(GET, path, server);
+		SynchronousNotificationListener notificationListener = new SynchronousNotificationListener(request);
+		client.addNotificationListener(notificationListener);
+		request.setObserve();
+		client.sendRequest(request);
+
+		server.expectRequest(CON, GET, path).storeMID("A").storeToken("B").observe(0).go();
+		server.sendEmpty(ACK).loadMID("A").go();
+		Thread.sleep(50);
+		server.sendResponse(CON, CONTENT).loadToken("B").payload(respPayload).mid(++mid).observe(++obs).go();
+		Thread.sleep(10);
+		server.sendRequest(CON, GET, new Token(new byte[] {1,1}), mid).go();
+		server.expectEmpty(ACK, mid).go();
+		if (replace) {
+			server.expectEmpty(ACK, mid).go();
+		} else {
+			server.expectEmpty(RST, mid).go();
+		}
+		Thread.sleep(1000);
+	}
 	private void assertAllEndpointExchangesAreCompleted(final CoapTestEndpoint endpoint) {
 		assertAllExchangesAreCompleted(endpoint, time);
 	}

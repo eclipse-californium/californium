@@ -2,11 +2,11 @@
  * Copyright (c) 2018 RISE SICS and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -33,6 +33,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.RandomTokenGenerator;
 import org.eclipse.californium.core.network.TokenGenerator;
+import org.eclipse.californium.core.network.TokenGenerator.Scope;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.oscore.Encryptor;
 import org.eclipse.californium.oscore.HashMapCtxDB;
@@ -312,7 +313,7 @@ public class OSCoreTest {
 	public void testEncryptedNoOptionsNoPayload() {
 		Request request = Request.newGet().setURI("coap://localhost:5683");
 		try {
-			ObjectSecurityLayer.prepareSend(request, dbClient.getContext("coap://localhost:5683"));
+			ObjectSecurityLayer.prepareSend(dbClient, request);
 		} catch (OSException e) {
 			e.printStackTrace();
 			assertTrue(false);
@@ -332,7 +333,7 @@ public class OSCoreTest {
 		request.getOptions().addOption(new Option(OptionNumberRegistry.OSCORE));
 		assertEquals(2, request.getOptions().getLocationPathCount());
 		try {
-			request = ObjectSecurityLayer.prepareSend(request, dbClient.getContext("coap://localhost:5683"));
+			request = ObjectSecurityLayer.prepareSend(dbClient, request);
 		} catch (OSException e) {
 			e.printStackTrace();
 			assertTrue(false);
@@ -356,7 +357,7 @@ public class OSCoreTest {
 		request.setPayload("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
 		assertTrue("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".equals(request.getPayloadString()));
 		try {
-			request = ObjectSecurityLayer.prepareSend(request, dbClient.getContext("coap://localhost:5683"));
+			request = ObjectSecurityLayer.prepareSend(dbClient, request);
 		} catch (OSException e) {
 			e.printStackTrace();
 			assertTrue(false);
@@ -426,9 +427,9 @@ public class OSCoreTest {
 		request2.setToken(t2);
 		try {
 			// sending seq 0
-			request = ObjectSecurityLayer.prepareSend(request, dbClient.getContext("coap://localhost:5683"));
+			request = ObjectSecurityLayer.prepareSend(dbClient, request);
 			dbClient.getContext("coap://localhost:5683").setSenderSeq(0);
-			request2 = ObjectSecurityLayer.prepareSend(request2, dbClient.getContext("coap://localhost:5683"));
+			request2 = ObjectSecurityLayer.prepareSend(dbClient, request2);
 		} catch (OSException e) {
 			e.printStackTrace();
 			fail();
@@ -532,7 +533,7 @@ public class OSCoreTest {
 		db.addContext(token, ctx);
 		request.getOptions().addOption(new Option(OptionNumberRegistry.OSCORE));
 		db.addSeqByToken(token, ctx.getSenderSeq());
-		return ObjectSecurityLayer.prepareSend(request, ctx);
+		return ObjectSecurityLayer.prepareSend(db, request);
 	}
 
 	private boolean assertCtxState(OSCoreCtx ctx, int send, int receive) {
@@ -570,13 +571,13 @@ public class OSCoreTest {
 		response.getOptions().addOption(new Option(OptionNumberRegistry.OSCORE));
 		response.setToken(token);
 
-		return ObjectSecurityLayer.prepareSend(response, tid, false);
+		return ObjectSecurityLayer.prepareSend(null, response, tid, false);
 	}
 
 	public Token generateToken() {
 		Token token;
 		do {
-			token = tokenGenerator.createToken(false);
+			token = tokenGenerator.createToken(Scope.SHORT_TERM);
 		} while (tokenExist(token));
 		return token;
 	}

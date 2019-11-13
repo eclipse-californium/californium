@@ -2,11 +2,11 @@
  * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -18,6 +18,7 @@
 package org.eclipse.californium.core.test.lockstep;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.BlockOption;
@@ -167,7 +168,7 @@ public abstract class BlockwiseInterceptor {
 		errorInjector = null;
 	}
 
-	protected abstract class LoggingMessageObserver extends MessageObserverAdapter {
+	protected static abstract class LoggingMessageObserver extends MessageObserverAdapter {
 
 		private final MessageObserver errorInjectorObserver;
 
@@ -186,9 +187,9 @@ public abstract class BlockwiseInterceptor {
 		}
 
 		@Override
-		public void onSent() {
+		public void onSent(boolean retransmission) {
 			try {
-				errorInjectorObserver.onSent();
+				errorInjectorObserver.onSent(retransmission);
 				log(null);
 			} catch (IntendedTestException exception) {
 				log(exception);
@@ -209,4 +210,25 @@ public abstract class BlockwiseInterceptor {
 		public abstract void log(IntendedTestException exception);
 	}
 
+	protected abstract class SendMessageObserver extends MessageObserverAdapter {
+
+		private final AtomicBoolean log = new AtomicBoolean();
+
+		@Override
+		public void failed() {
+			if (log.compareAndSet(false, true)) {
+				log("(drop)");
+			}
+		}
+
+		@Override
+		public void onSent(boolean retransmission) {
+			if (log.compareAndSet(false, true)) {
+				log(null);
+			}
+			super.onSent(retransmission);
+		}
+
+		public abstract void log(String qualifier);
+	}
 }

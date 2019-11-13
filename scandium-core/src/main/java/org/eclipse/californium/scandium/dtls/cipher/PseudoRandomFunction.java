@@ -2,11 +2,11 @@
  * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -19,8 +19,8 @@ package org.eclipse.californium.scandium.dtls.cipher;
 import java.security.InvalidKeyException;
 
 import javax.crypto.Mac;
+import javax.crypto.SecretKey;
 import javax.crypto.ShortBufferException;
-import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.util.StandardCharsets;
 
@@ -73,10 +73,12 @@ public final class PseudoRandomFunction {
 		}
 	}
 
-	static byte[] doPRF(Mac hmac, byte[] secret, byte[] label, byte[] seed, int length) {
+	static byte[] doPRF(Mac hmac, SecretKey secret, byte[] label, byte[] seed, int length) {
 		try {
-			hmac.init(new SecretKeySpec(secret, "MAC"));
-			return doExpansion(hmac, label, seed, length);
+			hmac.init(secret);
+			byte[] prf = doExpansion(hmac, label, seed, length);
+			hmac.reset();
+			return prf;
 		} catch (InvalidKeyException e) {
 			// according to http://www.ietf.org/rfc/rfc2104 (HMAC) section 3
 			// keys can be of arbitrary length
@@ -95,7 +97,7 @@ public final class PseudoRandomFunction {
 	 * @param seed the seed to use for creating the original data
 	 * @return the expanded data
 	 */
-	public static final byte[] doPRF(Mac hmac, byte[] secret, Label label, byte[] seed) {
+	public static final byte[] doPRF(Mac hmac, SecretKey secret, Label label, byte[] seed) {
 		return doPRF(hmac, secret, label.getBytes(), seed, label.length());
 	}
 
@@ -110,7 +112,7 @@ public final class PseudoRandomFunction {
 	 * @param length the length of data to create
 	 * @return the expanded data
 	 */
-	public static final byte[] doPRF(Mac hmac, byte[] secret, Label label, byte[] seed, int length) {
+	public static final byte[] doPRF(Mac hmac, SecretKey secret, Label label, byte[] seed, int length) {
 		return doPRF(hmac, secret, label.getBytes(), seed, length);
 	}
 
@@ -124,7 +126,7 @@ public final class PseudoRandomFunction {
 	 * @param length the number of bytes to expand the data to.
 	 * @return the expanded data.
 	 */
-	public static final byte[] doExpansion(Mac hmac, byte[] label, byte[] seed, int length) {
+	static final byte[] doExpansion(Mac hmac, byte[] label, byte[] seed, int length) {
 		/*
 		 * RFC 5246, chapter 5, page 15
 		 * 

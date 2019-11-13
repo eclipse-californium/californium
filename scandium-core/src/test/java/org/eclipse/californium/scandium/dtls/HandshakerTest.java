@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2016 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -46,17 +46,21 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.rule.ThreadsRule;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
 import org.eclipse.californium.scandium.dtls.rpkstore.InMemoryRpkTrustStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
 import org.eclipse.californium.scandium.dtls.x509.StaticCertificateVerifier;
+import org.eclipse.californium.scandium.util.SecretUtil;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -145,6 +149,8 @@ public class HandshakerTest {
 
 		// GIVEN a handshaker not yet expecting the peer's ChangeCipherSpec message
 		TestHandshaker handshaker = new TestHandshaker(session, recordLayer, builder.build());
+		// create keys
+		handshaker.startHandshake();
 
 		// WHEN the peer sends its ChangeCipherSpec message
 		ChangeCipherSpecMessage ccs = new ChangeCipherSpecMessage(endpoint);
@@ -175,7 +181,7 @@ public class HandshakerTest {
 
 		// WHEN the peer's FINISHED message is received out-of-sequence before the ChangeCipherSpec message
 		Mac hmac = Mac.getInstance("HmacSHA256");
-		Finished finished = new Finished(hmac, new byte[]{0x00, 0x01}, true, new byte[]{0x00, 0x00}, endpoint);
+		Finished finished = new Finished(hmac, new SecretKeySpec(new byte[]{0x00, 0x01}, "MAC"), true, new byte[]{0x00, 0x00}, endpoint);
 		finished.setMessageSeq(0);
 		Record finishedRecord = getRecordForMessage(1, 0, finished);
 		handshaker.addRecordsForDeferredProcessing(finishedRecord);
@@ -425,6 +431,11 @@ public class HandshakerTest {
 
 		@Override
 		public void startHandshake() {
+			byte[] secret = Bytes.createBytes(RandomManager.currentSecureRandom(), 48);
+			masterSecret = SecretUtil.create(secret, "MAC");
+			clientRandom = new Random();
+			serverRandom = new Random();
+			calculateKeys(masterSecret);
 		}
 
 		@Override

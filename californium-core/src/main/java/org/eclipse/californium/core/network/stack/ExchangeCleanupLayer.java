@@ -2,11 +2,11 @@
  * Copyright (c) 2016, 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -18,6 +18,7 @@
 package org.eclipse.californium.core.network.stack;
 
 
+import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
@@ -72,9 +73,12 @@ public class ExchangeCleanupLayer extends AbstractLayer {
 	 */
 	@Override
 	public void sendResponse(final Exchange exchange, final Response response) {
-
-		if (response.isConfirmable() && !response.isNotification()) {
-			response.addMessageObserver(new CleanupMessageObserver(exchange));
+		if (!response.isNotification()) {
+			Type type = response.getType();
+			if (type == null || type == Type.CON) {
+				// if type is set later, add the cleanup preventive
+				response.addMessageObserver(new CleanupMessageObserver(exchange));
+			}
 		}
 		super.sendResponse(exchange, response);
 	}

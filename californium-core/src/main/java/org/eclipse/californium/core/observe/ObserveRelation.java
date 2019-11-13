@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -27,8 +27,6 @@
 package org.eclipse.californium.core.observe;
 
 import java.net.InetSocketAddress;
-import java.util.Iterator;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,9 +73,6 @@ public class ObserveRelation {
 	private long interestCheckTimer = System.currentTimeMillis();
 	private int interestCheckCounter = 1;
 
-	/** The notifications that have been sent, so they can be removed from the Matcher */
-	private ConcurrentLinkedQueue<Response> notifications = new ConcurrentLinkedQueue<Response>();
-	
 	/**
 	 * Constructs a new observe relation.
 	 * 
@@ -229,16 +224,7 @@ public class ObserveRelation {
 		}
 		this.nextControlNotification = nextControlNotification;
 	}
-	
-	public void addNotification(Response notification) {
-		notifications.add(notification);
-		LOGGER.trace("{} add notification MID {} (size {}).", resource.getURI(), notification.getMID(), notifications.size());
-	}
-	
-	public Iterator<Response> getNotificationIterator() {
-		return notifications.iterator();
-	}
-	
+
 	public String getKey() {
 		return this.key;
 	}

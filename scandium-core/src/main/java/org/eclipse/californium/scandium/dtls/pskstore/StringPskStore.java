@@ -2,11 +2,11 @@
  * Copyright (c) 2019 Bosch Software Innovations GmbH and others.
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  *
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  *
@@ -19,6 +19,8 @@ package org.eclipse.californium.scandium.dtls.pskstore;
 
 import java.net.InetSocketAddress;
 
+import javax.crypto.SecretKey;
+
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.util.ServerNames;
 
@@ -30,7 +32,7 @@ import org.eclipse.californium.scandium.util.ServerNames;
 public abstract class StringPskStore implements PskStore {
 
 	@Override
-	public byte[] getKey(final PskPublicInformation identity) {
+	public SecretKey getKey(final PskPublicInformation identity) {
 		if (identity.isCompliantEncoding()) {
 			return getKey(identity.getPublicInfoAsString());
 		}
@@ -38,7 +40,7 @@ public abstract class StringPskStore implements PskStore {
 	}
 
 	@Override
-	public byte[] getKey(final ServerNames serverNames, final PskPublicInformation identity) {
+	public SecretKey getKey(final ServerNames serverNames, final PskPublicInformation identity) {
 		if (identity.isCompliantEncoding()) {
 			return getKey(serverNames, identity.getPublicInfoAsString());
 		}
@@ -56,26 +58,30 @@ public abstract class StringPskStore implements PskStore {
 	}
 
 	/**
-	 * Gets the shared key for a given identity.
-	 * <p>
+	 * Gets the pre-shared key for a given identity.
+	 * <p/>
 	 * A DTLS server can use this method to look up the pre-shared key for an
 	 * identity provided by the client as part of a PSK key exchange.
+	 * <p/>
+	 * The returned key is {@link SecretKey#destroy()}ed after usage.
 	 * 
 	 * @param identity The identity to look up the key for.
 	 * @return The key or <code>null</code> if the given identity is unknown.
 	 * @throws NullPointerException if identity is {@code null}.
 	 */
-	public abstract byte[] getKey(String identity);
+	public abstract SecretKey getKey(String identity);
 
 	/**
-	 * Gets the shared key for a given identity in the scope of a server name.
-	 * <p>
+	 * Gets the pre-shared key for a given identity in the scope of a server name.
+	 * <p/>
 	 * A DTLS server can use this method to look up the pre-shared key for an
 	 * identity provided by the client as part of a PSK key exchange.
-	 * <p>
+	 * <p/>
 	 * The key is looked up in the context of the <em>virtual host</em> that the
 	 * client has provided in the <em>Server Name Indication</em> extension
 	 * contained in its <em>CLIENT_HELLO</em> message.
+	 * <p/>
+	 * The returned key is {@link SecretKey#destroy()}ed after usage.
 	 * 
 	 * @param serverName The name of the host that the client wants to connect
 	 *            to as provided in the <em>Server Name Indication</em> HELLO
@@ -87,7 +93,7 @@ public abstract class StringPskStore implements PskStore {
 	 *         registered for any of the server name types.
 	 * @throws NullPointerException if any of the parameters is {@code null}.
 	 */
-	public abstract byte[] getKey(ServerNames serverName, String identity);
+	public abstract SecretKey getKey(ServerNames serverName, String identity);
 
 	/**
 	 * Gets the <em>identity</em> to use for a PSK based handshake with a given

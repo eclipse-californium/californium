@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -23,7 +23,7 @@ package org.eclipse.californium.core.network.deduplication;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.Exchange.KeyMID;
+import org.eclipse.californium.core.network.KeyMID;
 
 
 /**
@@ -60,20 +60,34 @@ public interface Deduplicator {
 	 * exchange and otherwise associates the key with the exchange specified. 
 	 * This method can also be though of as 'put if absent'. This is equivalent 
 	 * to
-     * <pre>
-     *   if (!duplicator.containsKey(key))
-     *       return duplicator.put(key, value);
-     *   else
-     *       return duplicator.get(key);
-     * </pre>
-     * except that the action is performed atomically.
+	 * <pre>
+	 *   if (!duplicator.containsKey(key))
+	 *       return duplicator.put(key, value);
+	 *   else
+	 *       return duplicator.get(key);
+	 * </pre>
+	 * except that the action is performed atomically.
 	 * 
 	 * @param key the key
 	 * @param exchange the exchange
 	 * @return the previous exchange associated with the specified key, or
-     *         <tt>null</tt> if there was no mapping for the key.
+	 *         <tt>null</tt> if there was no mapping for the key.
 	 */
 	Exchange findPrevious(KeyMID key, Exchange exchange);
+
+	/**
+	 * Replace the previous exchange with the current.
+	 * 
+	 * In difference to the normal definition of this function, the current
+	 * exchange will be also added, if no exchange was registered with the key.
+	 * 
+	 * @param key the key
+	 * @param previous previous exchange
+	 * @param exchange current exchange
+	 * @return {@code true}, if the current exchange is registered,
+	 *         {@code false}, otherwise.
+	 */
+	boolean replacePrevious(KeyMID key, Exchange previous, Exchange exchange);
 
 	Exchange find(KeyMID key);
 

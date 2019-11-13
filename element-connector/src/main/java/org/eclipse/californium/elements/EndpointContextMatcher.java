@@ -2,11 +2,11 @@
  * Copyright (c) 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -24,7 +24,7 @@ package org.eclipse.californium.elements;
  * 
  * Enable implementor to flexible decide on endpoint context information.
  */
-public interface EndpointContextMatcher {
+public interface EndpointContextMatcher extends EndpointIdentityResolver {
 
 	/**
 	 * Return matcher name. Used for logging.
@@ -54,4 +54,12 @@ public interface EndpointContextMatcher {
 	 */
 	boolean isToBeSent(EndpointContext messageContext, EndpointContext connectionContext);
 
+	/**
+	 * Returns the context's state relevant for this matcher as string.
+	 * 
+	 * @param context context with state
+	 * @return string containing the relevant state of the provided endpoint
+	 *         context for this matcher
+	 */
+	String toRelevantState(EndpointContext context);
 }

@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -180,26 +180,35 @@ public final class DatagramReader {
 	 * @throws IllegalArgumentException if provided numBits exceeds available bytes
 	 */
 	public long readLong(final int numBits) {
-
+		if (numBits < 0 || numBits > Long.SIZE) {
+			throw new IllegalArgumentException("bits must be in range 0 ... 64!");
+		}
 		long bits = 0; // initialize all bits to zero
 
-		for (int i = numBits - 1; i >= 0; i--) {
-
-			// check whether new byte needs to be read
-			if (currentBitIndex < 0) {
-				readCurrentByte();
+		if (currentBitIndex < 0 && (numBits & 0x7) == 0) {
+			// byte-wise, no maverick bits left
+			for (int i = 0; i < numBits; i += 8) {
+				bits <<= 8;
+				bits |= readByte();
 			}
+		} else {
+			for (int i = numBits - 1; i >= 0; i--) {
 
-			// test current bit
-			boolean bit = (currentByte >> currentBitIndex & 1) != 0;
-			if (bit) {
-				// set bit at i-th position
-				bits |= (1L << i);
+				// check whether new byte needs to be read
+				if (currentBitIndex < 0) {
+					readCurrentByte();
+				}
+
+				// test current bit
+				boolean bit = (currentByte >> currentBitIndex & 1) != 0;
+				if (bit) {
+					// set bit at i-th position
+					bits |= (1L << i);
+				}
+
+				// decrease current bit index
+				--currentBitIndex;
 			}
-
-			// decrease current bit index
-			--currentBitIndex;
-
 		}
 
 		return bits;
@@ -215,26 +224,36 @@ public final class DatagramReader {
 	 * @throws IllegalArgumentException if provided numBits exceeds available bytes
 	 */
 	public int read(final int numBits) {
+		if (numBits < 0 || numBits > Integer.SIZE) {
+			throw new IllegalArgumentException("bits must be in range 0 ... 32!");
+		}
 
 		int bits = 0; // initialize all bits to zero
 
-		for (int i = numBits - 1; i >= 0; i--) {
-
-			// check whether new byte needs to be read
-			if (currentBitIndex < 0) {
-				readCurrentByte();
+		if (currentBitIndex < 0 && (numBits & 0x7) == 0) {
+			// byte-wise, no maverick bits left
+			for (int i = 0; i < numBits; i += 8) {
+				bits <<= 8;
+				bits |= readByte();
 			}
+		} else {
+			for (int i = numBits - 1; i >= 0; i--) {
 
-			// test current bit
-			boolean bit = (currentByte >> currentBitIndex & 1) != 0;
-			if (bit) {
-				// set bit at i-th position
-				bits |= (1 << i);
+				// check whether new byte needs to be read
+				if (currentBitIndex < 0) {
+					readCurrentByte();
+				}
+
+				// test current bit
+				boolean bit = (currentByte >> currentBitIndex & 1) != 0;
+				if (bit) {
+					// set bit at i-th position
+					bits |= (1 << i);
+				}
+
+				// decrease current bit index
+				--currentBitIndex;
 			}
-
-			// decrease current bit index
-			--currentBitIndex;
-
 		}
 
 		return bits;
@@ -397,5 +416,21 @@ public final class DatagramReader {
 
 		// reset current bit index
 		currentBitIndex = Byte.SIZE - 1;
+	}
+
+	/**
+	 * Reads new bits from the stream.
+	 * 
+	 * @throws IllegalArgumentException if no bytes are available
+	 */
+	private int readByte() {
+		// try to read from byte stream
+		int val = byteStream.read();
+
+		if (val < 0) {
+			// end of stream reached
+			throw new IllegalArgumentException("requested byte exceeds available bytes!");
+		}
+		return val;
 	}
 }

@@ -2,11 +2,11 @@
  * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -19,6 +19,8 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.*;
 
 import javax.crypto.Mac;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.util.StandardCharsets;
 import org.eclipse.californium.scandium.category.Small;
@@ -40,7 +42,7 @@ public class PseudoRandomFunctionTest {
 
 	@Test
 	public void testDoPrfProducesDataOfCorrectLength() {
-		byte[] secret = "secret".getBytes();
+		SecretKey secret = new SecretKeySpec("secret".getBytes(), "MAC");
 		byte[] seed = "seed".getBytes();
 		byte[] data = PseudoRandomFunction.doPRF(hmac, secret, Label.MASTER_SECRET_LABEL, seed);
 		assertThat(data.length, is(Label.MASTER_SECRET_LABEL.length()));
@@ -87,7 +89,7 @@ public class PseudoRandomFunctionTest {
 				(byte) 0x5a, (byte) 0x51, (byte) 0x10, (byte) 0xff, (byte) 0xf7, (byte) 0x01,
 				(byte) 0x87, (byte) 0x34, (byte) 0x7b, (byte) 0x66};
 
-		byte[] data = PseudoRandomFunction.doPRF(hmac, secret, label, seed, expectedOutput.length);
+		byte[] data = PseudoRandomFunction.doPRF(hmac, new SecretKeySpec(secret, "MAC"), label, seed, expectedOutput.length);
 		assertArrayEquals(expectedOutput, data);
 	}
 }

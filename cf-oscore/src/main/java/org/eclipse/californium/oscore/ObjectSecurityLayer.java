@@ -2,11 +2,11 @@
  * Copyright (c) 2019 RISE SICS and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -32,6 +32,7 @@ import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.stack.AbstractLayer;
 import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.oscore.ContextRederivation.PHASE;
 
 /**
  * 
@@ -58,14 +59,14 @@ public class ObjectSecurityLayer extends AbstractLayer {
 	 * Encrypt an outgoing request using the OSCore context.
 	 * 
 	 * @param message the message
-	 * @param ctx the OSCore context
+	 * @param ctxDb the context database used
 	 * 
 	 * @return the encrypted message
 	 * 
 	 * @throws OSException error while encrypting request
 	 */
-	public static Request prepareSend(Request message, OSCoreCtx ctx) throws OSException {
-		return RequestEncryptor.encrypt(message, ctx);
+	public static Request prepareSend(OSCoreCtxDB ctxDb, Request message) throws OSException {
+		return RequestEncryptor.encrypt(ctxDb, message);
 	}
 
 	/**
@@ -79,8 +80,8 @@ public class ObjectSecurityLayer extends AbstractLayer {
 	 * 
 	 * @throws OSException error while encrypting response
 	 */
-	public static Response prepareSend(Response message, OSCoreCtx ctx, final boolean newPartialIV) throws OSException {
-		return ResponseEncryptor.encrypt(message, ctx, newPartialIV);
+	public static Response prepareSend(OSCoreCtxDB ctxDb, Response message, OSCoreCtx ctx, final boolean newPartialIV) throws OSException {
+		return ResponseEncryptor.encrypt(ctxDb, message, ctx, newPartialIV);
 	}
 
 	/**
@@ -122,10 +123,15 @@ public class ObjectSecurityLayer extends AbstractLayer {
 					throw new OSException(ErrorDescriptions.URI_NULL);
 				}
 
-				final OSCoreCtx ctx = ctxDb.getContext(uri);
+				OSCoreCtx ctx = ctxDb.getContext(uri);
 				if (ctx == null) {
 					LOGGER.error(ErrorDescriptions.CTX_NULL);
 					throw new OSException(ErrorDescriptions.CTX_NULL);
+				}
+
+				// Initiate context re-derivation procedure if flag is set
+				if (ctx.getContextRederivationPhase() == PHASE.CLIENT_INITIATE) {
+					throw new IllegalStateException("must be handled in ObjectSecurityContextLayer!");
 				}
 
 				/*
@@ -138,13 +144,15 @@ public class ObjectSecurityLayer extends AbstractLayer {
 				exchange.setCryptographicContextID(ctx.getRecipientId());
 				final int seqByToken = ctx.getSenderSeq();
 
-				final Request preparedRequest = prepareSend(request, ctx);
+				final Request preparedRequest = prepareSend(ctxDb, request);
+				final OSCoreCtx finalCtx = ctxDb.getContext(uri);
+
 				preparedRequest.addMessageObserver(new MessageObserverAdapter() {
 
 					@Override
 					public void onReadyToSend() {
 						Token token = preparedRequest.getToken();
-						ctxDb.addContext(token, ctx);
+						ctxDb.addContext(token, finalCtx);
 						ctxDb.addSeqByToken(token, seqByToken);
 					}
 				});
@@ -174,7 +182,7 @@ public class ObjectSecurityLayer extends AbstractLayer {
 				OSCoreCtx ctx = ctxDb.getContext(exchange.getCryptographicContextID());
 				addPartialIV = ctx.getResponsesIncludePartialIV() || exchange.getRequest().getOptions().hasObserve();
 				
-				response = prepareSend(response, ctx, addPartialIV);
+				response = prepareSend(ctxDb, response, ctx, addPartialIV);
 				exchange.setResponse(response);
 			} catch (OSException e) {
 				LOGGER.error("Error sending response: " + e.getMessage());

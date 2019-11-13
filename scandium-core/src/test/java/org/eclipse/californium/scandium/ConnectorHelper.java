@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2019 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -92,6 +92,7 @@ public class ConnectorHelper {
 
 	static final String SERVERNAME							= "my.test.server";
 	static final String	SCOPED_CLIENT_IDENTITY				= "My_client_identity";
+	static final String	SCOPED_CLIENT_IDENTITY_SECRET		= "mySecretPSK";
 	static final String	CLIENT_IDENTITY						= "Client_identity";
 	static final String	CLIENT_IDENTITY_SECRET				= "secretPSK";
 	static final int	MAX_TIME_TO_WAIT_SECS				= 2;
@@ -153,7 +154,7 @@ public class ConnectorHelper {
 
 		InMemoryPskStore pskStore = new InMemoryPskStore();
 		pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
-		pskStore.setKey(SCOPED_CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME);
+		pskStore.setKey(SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME);
 
 		builder.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
 				.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509)
@@ -613,7 +614,7 @@ public class ConnectorHelper {
 							socket.receive(packet);
 							if (packet.getLength() > 0) {
 								// handle data
-								handler.handleData(address, Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getLength()));
+								handler.handleData((InetSocketAddress)packet.getSocketAddress(), Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getLength()));
 								packet.setLength(buf.length);
 							}
 						} catch (IOException e) {

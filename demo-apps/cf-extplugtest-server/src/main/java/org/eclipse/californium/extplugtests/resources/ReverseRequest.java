@@ -2,11 +2,11 @@
  * Copyright (c) 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -37,7 +37,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.exception.ConnectorException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -207,10 +207,11 @@ public class ReverseRequest extends CoapResource {
 
 	private class GetRequestObserver extends MessageObserverAdapter implements Runnable {
 
+		private final Endpoint endpoint;
 		private ScheduledFuture<?> job;
-		private Endpoint endpoint;
 		private Request outgoingRequest;
 		private int count;
+		private boolean failureLogged;
 
 		public GetRequestObserver(Endpoint endpoint, Request outgoingRequest, int count) {
 			this.endpoint = endpoint;
@@ -245,9 +246,20 @@ public class ReverseRequest extends CoapResource {
 		}
 
 		@Override
+		public void onSendError(Throwable error) {
+			if (error instanceof ConnectorException) {
+				LOGGER.warn("reverse get request failed! MID {}, pending: {}", outgoingRequest.getMID(), count);
+				failureLogged = true;
+			}
+			super.onSendError(error);
+		}
+
+		@Override
 		protected void failed() {
 			job.cancel(false);
-			LOGGER.info("get request failed! MID {}, pending: {}", outgoingRequest.getMID(), count);
+			if (!failureLogged) {
+				LOGGER.debug("reverse get request failed! MID {}, pending: {}", outgoingRequest.getMID(), count);
+			}
 			subtractPending(count);
 		}
 

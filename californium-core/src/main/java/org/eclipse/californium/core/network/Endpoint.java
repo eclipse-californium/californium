@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -206,9 +206,10 @@ public interface Endpoint {
 	/**
 	 * Cancel observation for this request.
 	 * 
-	 * @param token
-	 *            the token of the original request which establishes the
-	 *            observe relation to cancel.
+	 * @param token the token of the original request which establishes the
+	 *            observe relation to cancel. The token must have none
+	 *            client-local scope.
+	 * @throws IllegalArgumentException if the token has client-local scope.
 	 */
 	void cancelObservation(Token token);
 }

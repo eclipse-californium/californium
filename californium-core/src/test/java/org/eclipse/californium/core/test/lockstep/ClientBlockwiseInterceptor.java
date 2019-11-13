@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -19,6 +19,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -38,6 +39,7 @@ public final class ClientBlockwiseInterceptor extends BlockwiseInterceptor imple
 		appendRequestDetails(request);
 		if (errorInjector != null) {
 			buffer.append("    (should be dropped by error)");
+			TestTools.removeMessageObservers(request, LoggingMessageObserver.class);
 			request.addMessageObserver(new LoggingMessageObserver(errorInjector) {
 
 				@Override
@@ -46,15 +48,25 @@ public final class ClientBlockwiseInterceptor extends BlockwiseInterceptor imple
 					appendRequestDetails(request);
 					if (exception == null) {
 						buffer.append("    -----> (sent!)");
-					}
-					else {
+					} else {
 						buffer.append("    -----> (dropped)");
 					}
 				};
 			});
 		}
 		else {
-			buffer.append("    ----->");
+			TestTools.removeMessageObservers(request, SendMessageObserver.class);
+			request.addMessageObserver(new SendMessageObserver() {
+
+				@Override
+				public void log(String qualifier) {
+					if (qualifier == null) {
+						buffer.append("    ----->");
+					} else {
+						buffer.append("    -----> " + qualifier);
+					}
+				}
+			});
 		}
 	}
 

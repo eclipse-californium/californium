@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -29,7 +29,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import javax.crypto.SecretKey;
-import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.util.Bytes;
@@ -39,6 +38,7 @@ import org.eclipse.californium.scandium.dtls.ContentType;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.cipher.CCMBlockCipher;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.util.SecretIvParameterSpec;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -72,8 +72,8 @@ public class RecordTest {
 			payloadData[i] = 0x34;
 		}
 		session = new DTLSSession(new InetSocketAddress(InetAddress.getLoopbackAddress(), 7000));
-		DTLSConnectionState readState = new DTLSConnectionState(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
-				CompressionMethod.NULL, key, new IvParameterSpec(client_iv), null);
+		DTLSConnectionState readState = DTLSConnectionState.create(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
+				CompressionMethod.NULL, key, new SecretIvParameterSpec(client_iv), null);
 		session.setReadState(readState);
 	}
 
@@ -154,7 +154,7 @@ public class RecordTest {
 		Record record = new Record(ContentType.APPLICATION_DATA, protocolVer, EPOCH, SEQUENCE_NO, null, fragment, session.getPeer(), ClockUtil.nanoRealtime());
 		record.applySession(session);
 		
-		byte[] decryptedData = record.decryptAEAD(fragment);
+		byte[] decryptedData = record.getFragment().toByteArray();
 		assertTrue(Arrays.equals(decryptedData, payloadData));
 	}
 	

@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -52,19 +52,18 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
-import java.net.InetSocketAddress;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.ConcurrentModificationException;
-import java.util.Iterator;
+import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
@@ -201,6 +200,25 @@ public class Exchange {
 	 * Mark exchange as notification.
 	 */
 	private final boolean notification;
+	/**
+	 * The key mid for the current request.
+	 */
+	private KeyMID currentKeyMID;
+	/**
+	 * The key token for the original request, if {@link #keepRequestInStore} is
+	 * {@code true}. {@code null} otherwise.
+	 */
+	private KeyToken originalKeyToken;
+	/**
+	 * The key token for the current request.
+	 */
+	private KeyToken currentKeyToken;
+
+	/**
+	 * The realtime in nanoseconds, just before the last message of this
+	 * exchange was sent.
+	 */
+	private final AtomicLong sendNanoTimestamp = new AtomicLong();
 
 	/**
 	 * The actual request that caused this exchange. Layers below the
@@ -255,13 +273,17 @@ public class Exchange {
 	// The relation that the target resource has established with the source
 	private volatile ObserveRelation relation;
 
+	/** The notifications that have been sent, so they can be removed from the Matcher */
+	private volatile List<KeyMID> notifications;
+
 	private final AtomicReference<EndpointContext> endpointContext = new AtomicReference<EndpointContext>();
+
 	private volatile EndpointContextOperator endpointContextPreOperator;
 
 	//If object security option is used, the Cryptographic context identifier is stored here
-    // for request/response mapping of contexts
-    private byte[] cryptoContextId;
-	
+	// for request/response mapping of contexts
+	private byte[] cryptoContextId;
+
 	/**
 	 * Creates a new exchange with the specified request and origin.
 	 * 
@@ -271,7 +293,7 @@ public class Exchange {
 	 * @throws NullPointerException, if request is {@code null}
 	 */
 	public Exchange(Request request, Origin origin, Executor executor) {
-		this(request, origin, executor, null, request != null && request.isObserve(), false);
+		this(request, origin, executor, null, false);
 	}
 
 	/**
@@ -287,24 +309,6 @@ public class Exchange {
 	 * @throws NullPointerException, if request is {@code null}
 	 */
 	public Exchange(Request request, Origin origin, Executor executor, EndpointContext ctx, boolean notification) {
-		this(request, origin, executor, ctx, request != null && request.isObserve() && !notification, notification);
-	}
-
-	/**
-	 * Creates a new exchange with the specified request, origin and context.
-	 * 
-	 * @param request the request that starts the exchange
-	 * @param origin the origin of the request (LOCAL or REMOTE)
-	 * @param executor executor to be used for exchanges. Maybe {@code null} for unit tests.
-	 * @param ctx the endpoint context of this exchange
-	 * @param keepRequestInStore {@code true}, to keep the original request in
-	 *            store until completed, {@code false} otherwise.
-	 * @param notification {@code true} for notification exchange, {@code false}
-	 *            otherwise
-	 * @throws NullPointerException, if request is {@code null}
-	 */
-	private Exchange(Request request, Origin origin, Executor executor, EndpointContext ctx, boolean keepRequestInStore,
-			boolean notification) {
 		// might only be the first block of the whole request
 		if (request == null) {
 			throw new NullPointerException("request must not be null!");
@@ -315,7 +319,7 @@ public class Exchange {
 		this.request = request;
 		this.origin = origin;
 		this.endpointContext.set(ctx);
-		this.keepRequestInStore = keepRequestInStore;
+		this.keepRequestInStore = !notification && request.isObserve() && origin == Origin.LOCAL;
 		this.notification = notification;
 		this.nanoTimestamp = ClockUtil.nanoRealtime();
 	}
@@ -459,25 +463,7 @@ public class Exchange {
 		if (currentRequest != newCurrentRequest) {
 			setRetransmissionHandle(null);
 			failedTransmissionCount = 0;
-			Token token = currentRequest.getToken();
-			if (token != null) {
-				if (token.equals(newCurrentRequest.getToken())) {
-					token = null;
-				} else if (keepRequestInStore && token.equals(request.getToken())) {
-					token = null;
-				}
-			}
-			KeyMID key = null;
-			if (currentRequest.hasMID() && currentRequest.getMID() != newCurrentRequest.getMID()) {
-				key = KeyMID.fromOutboundMessage(currentRequest);
-			}
-			if (token != null || key != null) {
-				LOGGER.debug("{} replace {} by {}", this, currentRequest, newCurrentRequest);
-				RemoveHandler obs = this.removeHandler;
-				if (obs != null) {
-					obs.remove(this, token, key);
-				}
-			}
+			LOGGER.debug("{} replace {} by {}", this, currentRequest, newCurrentRequest);
 			currentRequest = newCurrentRequest;
 		}
 	}
@@ -528,14 +514,61 @@ public class Exchange {
 	public void setCurrentResponse(Response newCurrentResponse) {
 		assertOwner();
 		if (currentResponse != newCurrentResponse) {
-			if (currentResponse != null && currentResponse.getType() == Type.CON && currentResponse.hasMID()) {
-				RemoveHandler handler = this.removeHandler;
-				if (handler != null) {
-					KeyMID key = KeyMID.fromOutboundMessage(currentResponse);
-					handler.remove(this, null, key);
-				}
+			if (!isOfLocalOrigin() && currentKeyMID != null && currentResponse != null
+					&& currentResponse.getType() == Type.NON && currentResponse.isNotification()) {
+				// keep NON notifies in KeyMID store.
+				LOGGER.info("{} store NON notification: {}", this, currentKeyMID);
+				notifications.add(currentKeyMID);
+				currentKeyMID = null;
 			}
 			currentResponse = newCurrentResponse;
+		}
+	}
+
+	public KeyMID getKeyMID() {
+		return currentKeyMID;
+	}
+
+	/**
+	 * Set key mid used to register this exchange.
+	 * 
+	 * @param keyMID key mid.
+	 * @throws ConcurrentModificationException, if not executed within
+	 *             {@link #execute(Runnable)}.
+	 */
+	public void setKeyMID(KeyMID keyMID) {
+		assertOwner();
+		if (!keyMID.equals(currentKeyMID)) {
+			RemoveHandler handler = this.removeHandler;
+			if (handler != null && currentKeyMID != null) {
+				handler.remove(this, null, currentKeyMID);
+			}
+			currentKeyMID = keyMID;
+		}
+	}
+
+	/**
+	 * Set key token used to register this exchange.
+	 * 
+	 * @param keyToken key token
+	 * @throws ConcurrentModificationException, if not executed within
+	 *             {@link #execute(Runnable)}.
+	 */
+	public void setKeyToken(KeyToken keyToken) {
+		assertOwner();
+		if (!isOfLocalOrigin()) {
+			throw new IllegalStateException("Token is only supported for local exchanges!");
+		}
+		if (!keyToken.equals(currentKeyToken)) {
+			RemoveHandler handler = this.removeHandler;
+			if (handler != null && currentKeyToken != null && !currentKeyToken.equals(originalKeyToken)) {
+				handler.remove(this, currentKeyToken, null);
+			}
+			currentKeyToken = keyToken;
+			if (keepRequestInStore && originalKeyToken == null) {
+				// keep the original key token
+				originalKeyToken = keyToken;
+			}
 		}
 	}
 
@@ -743,7 +776,7 @@ public class Exchange {
 	 * <p>
 	 * This means that both request and response have been sent/received.
 	 * <p>
-	 * This method invokes the {@linkplain RemoveHandler#remove(Exchange, Token, KeyMID)
+	 * This method invokes the {@linkplain RemoveHandler#remove(Exchange, KeyToken, KeyMID)
 	 * remove} method on the observer registered on this exchange (if any).
 	 * <p>
 	 * Call this method to trigger a clean-up in the Matcher through its
@@ -774,35 +807,28 @@ public class Exchange {
 			RemoveHandler handler = this.removeHandler;
 			if (handler != null) {
 				if (origin == Origin.LOCAL) {
-					Request currrentRequest = getCurrentRequest();
-					Token token = currrentRequest.getToken();
-					KeyMID key = currrentRequest.hasMID() ? KeyMID.fromOutboundMessage(currrentRequest) : null;
-					if (token != null || key != null) {
-						handler.remove(this, token, key);
+					if (currentKeyToken != null || currentKeyMID != null) {
+						handler.remove(this, currentKeyToken, currentKeyMID);
 					}
-					Request request = getRequest();
-					if (keepRequestInStore) {
-						if (request != currrentRequest) {
-							token = request.getToken();
-							key = request.hasMID() ? KeyMID.fromOutboundMessage(request) : null;
-							if (token != null || key != null) {
-								handler.remove(this, token, key);
-							}
+					if (currentKeyToken != originalKeyToken) {
+						handler.remove(this, originalKeyToken, null);
+					}
+					if (LOGGER.isDebugEnabled()) {
+						Request currrentRequest = getCurrentRequest();
+						Request request = getRequest();
+						if (request == currrentRequest) {
+							LOGGER.debug("local {} completed {}!", this, request);
+						} else {
+							LOGGER.debug("local {} completed {} -/- {}!", this, request, currrentRequest);
 						}
-					}
-					if (request == currrentRequest) {
-						LOGGER.debug("local {} completed {}!", this, request);
-					} else {
-						LOGGER.debug("local {} completed {} -/- {}!", this, request, currrentRequest);
 					}
 				} else {
 					Response currentResponse = getCurrentResponse();
 					if (currentResponse == null) {
 						LOGGER.debug("remote {} rejected (without response)!", this);
 					} else {
-						if (currentResponse.getType() == Type.CON && currentResponse.hasMID()) {
-							KeyMID key = KeyMID.fromOutboundMessage(currentResponse);
-							handler.remove(this, null, key);
+						if (currentKeyMID != null) {
+							handler.remove(this, null, currentKeyMID);
 						}
 						removeNotifications();
 						Response response = getResponse();
@@ -860,6 +886,29 @@ public class Exchange {
 	}
 
 	/**
+	 * Get the realtime of the last sending of a message in nanoseconds.
+	 * 
+	 * The realtime is just before sending this message to ensure, that the
+	 * message wasn't sent up to this time. This will alos contain the realtime
+	 * for ACK or RST messages.
+	 * 
+	 * @return nano-time of last message sending.
+	 * @see ClockUtil#nanoRealtime()
+	 */
+	public long getSendNanoTimestamp() {
+		return sendNanoTimestamp.get();
+	}
+
+	/**
+	 * Set the realtime of the last sending of a message in nanoseconds.
+	 * 
+	 * @param nanoTimestamp realtime in nanoseconds
+	 */
+	public void setSendNanoTimestamp(long nanoTimestamp) {
+		sendNanoTimestamp.set(nanoTimestamp);
+	}
+
+	/**
 	 * Calculates the RTT (round trip time) of this exchange.
 	 * 
 	 * MUST be called on receiving the response.
@@ -883,9 +932,21 @@ public class Exchange {
 	 * Sets the observe relation this exchange has established.
 	 * 
 	 * @param relation the CoAP observe relation
+	 * @throws ConcurrentModificationException, if not executed within
+	 *             {@link #execute(Runnable)}.
+	 * @throws NullPointerException if relation is null
+	 * @throws IllegalStateException if relation was already set before
 	 */
 	public void setRelation(ObserveRelation relation) {
+		assertOwner();
+		if (relation == null) {
+			throw new NullPointerException("Observer relation must not be null!");
+		}
+		if (this.relation != null || notifications != null) {
+			throw new IllegalStateException("Observer relation already set!");
+		}
 		this.relation = relation;
+		notifications = new ArrayList<KeyMID>();
 	}
 
 	/**
@@ -900,29 +961,18 @@ public class Exchange {
 	 */
 	public void removeNotifications() {
 		assertOwner();
-		ObserveRelation relation = this.relation;
 		RemoveHandler handler = this.removeHandler;
-		if (relation != null) {
-			boolean removed = false;
-			for (Iterator<Response> iterator = relation.getNotificationIterator(); iterator.hasNext();) {
-				Response previous = iterator.next();
-				LOGGER.debug("{} removing NON notification: {}", this, previous);
+		if (notifications != null && !notifications.isEmpty()) {
+			for (KeyMID keyMid : notifications) {
+				LOGGER.info("{} removing NON notification: {}", this, keyMid);
 				// notifications are local MID namespace
-				if (previous.hasMID()) {
-					if (handler != null) {
-						KeyMID key = KeyMID.fromOutboundMessage(previous);
-						handler.remove(this, null, key);
-					}
-				} else {
-					previous.cancel();
+				if (handler != null) {
+					handler.remove(this, null, keyMid);
 				}
-				iterator.remove();
-				removed = true;
 			}
-			if (removed) {
-				LOGGER.debug("{} removing all remaining NON-notifications of observe relation with {}", this,
-						relation.getSource());
-			}
+			notifications.clear();
+			LOGGER.debug("{} removing all remaining NON-notifications of observe relation with {}", this,
+					relation.getSource());
 		}
 	}
 
@@ -1037,108 +1087,6 @@ public class Exchange {
 			return executor.checkOwner();
 		} else {
 			return true;
-		}
-	}
-
-	/**
-	 * A CoAP message ID scoped to a remote endpoint.
-	 * <p>
-	 * This class is used by the matcher to correlate messages by MID and
-	 * endpoint address.
-	 */
-	public static final class KeyMID {
-
-		private static final int MAX_PORT_NO = (1 << 16) - 1;
-		private final int MID;
-		private final byte[] address;
-		private final int port;
-		private final int hash;
-
-		/**
-		 * Creates a key based on a message ID and a remote endpoint address.
-		 * 
-		 * @param mid the message ID.
-		 * @param address the IP address of the remote endpoint.
-		 * @param port the port of the remote endpoint.
-		 * @throws NullPointerException if address or origin is {@code null}
-		 * @throws IllegalArgumentException if mid or port &lt; 0 or &gt; 65535.
-		 * 
-		 */
-		private KeyMID(final int mid, final byte[] address, final int port) {
-			if (mid < 0 || mid > Message.MAX_MID) {
-				throw new IllegalArgumentException("MID must be a 16 bit unsigned int: " + mid);
-			} else if (address == null) {
-				throw new NullPointerException("address must not be null");
-			} else if (port < 0 || port > MAX_PORT_NO) {
-				throw new IllegalArgumentException("Port must be a 16 bit unsigned int");
-			} else {
-				this.MID = mid;
-				this.address = address;
-				this.port = port;
-				this.hash = createHashCode();
-			}
-		}
-
-		@Override
-		public int hashCode() {
-			return hash;
-		}
-
-		private int createHashCode() {
-			final int prime = 31;
-			int result = 1;
-			result = prime * result + MID;
-			result = prime * result + Arrays.hashCode(address);
-			result = prime * result + port;
-			return result;
-		}
-
-		@Override
-		public boolean equals(Object obj) {
-			if (this == obj)
-				return true;
-			if (obj == null)
-				return false;
-			if (getClass() != obj.getClass())
-				return false;
-			KeyMID other = (KeyMID) obj;
-			if (MID != other.MID)
-				return false;
-			if (!Arrays.equals(address, other.address))
-				return false;
-			if (port != other.port)
-				return false;
-			return true;
-		}
-
-		@Override
-		public String toString() {
-			return new StringBuilder("KeyMID[").append(MID).append(", ").append(Utils.toHexString(address)).append(":")
-					.append(port).append("]").toString();
-		}
-
-		/**
-		 * Creates a key from an inbound CoAP message.
-		 * 
-		 * @param message the message.
-		 * @return the key derived from the message. The key's <em>mid</em> is
-		 *         scoped to the message's source address and port.
-		 */
-		public static KeyMID fromInboundMessage(Message message) {
-			InetSocketAddress address = message.getSourceContext().getPeerAddress();
-			return new KeyMID(message.getMID(), address.getAddress().getAddress(), address.getPort());
-		}
-
-		/**
-		 * Creates a key from an outbound CoAP message.
-		 * 
-		 * @param message the message.
-		 * @return the key derived from the message. The key's <em>mid</em> is
-		 *         scoped to the message's destination address and port.
-		 */
-		public static KeyMID fromOutboundMessage(Message message) {
-			InetSocketAddress address = message.getDestinationContext().getPeerAddress();
-			return new KeyMID(message.getMID(), address.getAddress().getAddress(), address.getPort());
 		}
 	}
 

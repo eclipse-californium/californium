@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -45,6 +45,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.SerialExecutor;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -471,21 +472,16 @@ public final class Connection {
 	 * already required.
 	 * 
 	 * @param autoResumptionTimeoutMillis auto resumption timeout in
-	 *            milliseconds. {@code 0} milliseconds to force a resumption,
-	 *            {@code null}, if auto resumption is not used.
+	 *            milliseconds. {@code null}, if auto resumption is not used.
 	 * @return {@code true}, if the provided autoResumptionTimeoutMillis has
 	 *         expired without exchanging messages.
 	 */
 	public boolean isAutoResumptionRequired(Long autoResumptionTimeoutMillis) {
 		if (!resumptionRequired && autoResumptionTimeoutMillis != null && establishedSession != null) {
-			if (autoResumptionTimeoutMillis == 0) {
+			long now = ClockUtil.nanoRealtime();
+			long expires = lastMessageNanos + TimeUnit.MILLISECONDS.toNanos(autoResumptionTimeoutMillis);
+			if ((now - expires) > 0) {
 				setResumptionRequired(true);
-			} else {
-				long now = ClockUtil.nanoRealtime();
-				long expires = lastMessageNanos + TimeUnit.MILLISECONDS.toNanos(autoResumptionTimeoutMillis);
-				if ((now - expires) > 0) {
-					setResumptionRequired(true);
-				}
 			}
 		}
 		return resumptionRequired;
@@ -521,16 +517,19 @@ public final class Connection {
 			if (getOngoingHandshake() != null) {
 				builder.append(", ongoing handshake ");
 				SessionId id = getOngoingHandshake().getSession().getSessionIdentifier();
-				if (id != null) {
+				if (id != null && !id.isEmpty()) {
 					// during handshake this may by not already set
-					builder.append(id.getAsString().substring(0,  8));
+					builder.append(StringUtil.byteArray2HexString(id.getBytes(), StringUtil.NO_SEPARATOR, 6));
 				}
 			}
 			if (isResumptionRequired()) {
 				builder.append(", resumption required");
 			} else if (hasEstablishedSession()) {
-				String id = getEstablishedSession().getSessionIdentifier().getAsString().substring(0,  8);
-				builder.append(", session established ").append(id);
+				builder.append(", session established ");
+				SessionId id = getEstablishedSession().getSessionIdentifier();
+				if (id != null && !id.isEmpty()) {
+					builder.append(StringUtil.byteArray2HexString(id.getBytes(), StringUtil.NO_SEPARATOR, 6));
+				}
 			}
 		}
 		if (sessionId != null) {

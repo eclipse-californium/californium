@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -21,14 +21,17 @@ package org.eclipse.californium.elements.util;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * This class describes the functionality to write raw network-ordered datagrams
  * on bit-level.
  */
 public final class DatagramWriter {
+	private static final Logger LOGGER = LoggerFactory.getLogger(DatagramWriter.class.getCanonicalName());
 
 	// Attributes //////////////////////////////////////////////////////////////
-
 	private final ByteArrayOutputStream byteStream;
 
 	private byte currentByte;
@@ -40,8 +43,25 @@ public final class DatagramWriter {
 	 * Creates a new empty writer.
 	 */
 	public DatagramWriter() {
+		this(false);
+	}
+
+	/**
+	 * Creates a new empty writer with provided {@link #close()} behaviour.
+	 * 
+	 * @param secureClose {@code true}, clear internal buffer on {@link
+	 *            #close()}, {@code false}, don't clear internal buffer.
+	 */
+	public DatagramWriter(boolean secureClose) {
 		// initialize underlying byte stream
-		byteStream = new ByteArrayOutputStream();
+		byteStream = secureClose ? new ByteArrayOutputStream() {
+
+			@Override
+			public void close() throws IOException {
+				Bytes.clear(buf);
+				super.close();
+			}
+		} : new ByteArrayOutputStream();
 
 		// initialize bit buffer
 		resetCurrentByte();
@@ -73,25 +93,32 @@ public final class DatagramWriter {
 	 */
 	public void writeLong(final long data, final int numBits) {
 
-		if (numBits < 32 && data >= (1 << numBits)) {
+		if (numBits < 64 && data >= (1L << numBits)) {
 			throw new IllegalArgumentException(String.format("Truncating value %d to %d-bit integer", data, numBits));
 		}
 
-		for (int i = numBits - 1; i >= 0; i--) {
-
-			// test bit
-			boolean bit = (data >> i & 1) != 0;
-			if (bit) {
-				// set bit in current byte
-				currentByte |= (1 << currentBitIndex);
+		if ((numBits & 0x7) == 0 && !isBytePending()) {
+			// byte-wise, no maverick bits left
+			for (int i = numBits - 8; i >= 0; i -= 8) {
+				byteStream.write((byte)(data >> i));
 			}
+		} else {
+			for (int i = numBits - 1; i >= 0; i--) {
 
-			// decrease current bit index
-			--currentBitIndex;
+				// test bit
+				boolean bit = (data >> i & 1) != 0;
+				if (bit) {
+					// set bit in current byte
+					currentByte |= (1 << currentBitIndex);
+				}
 
-			// check if current byte can be written
-			if (currentBitIndex < 0) {
-				writeCurrentByte();
+				// decrease current bit index
+				--currentBitIndex;
+
+				// check if current byte can be written
+				if (currentBitIndex < 0) {
+					writeCurrentByte();
+				}
 			}
 		}
 	}
@@ -111,21 +138,28 @@ public final class DatagramWriter {
 			throw new IllegalArgumentException(String.format("Truncating value %d to %d-bit integer", data, numBits));
 		}
 
-		for (int i = numBits - 1; i >= 0; i--) {
-
-			// test bit
-			boolean bit = (data >> i & 1) != 0;
-			if (bit) {
-				// set bit in current byte
-				currentByte |= (1 << currentBitIndex);
+		if ((numBits & 0x7) == 0 && !isBytePending()) {
+			// byte-wise, no maverick bits left
+			for (int i = numBits - 8; i >= 0; i -= 8) {
+				byteStream.write((byte)(data >> i));
 			}
+		} else {
+			for (int i = numBits - 1; i >= 0; i--) {
 
-			// decrease current bit index
-			--currentBitIndex;
+				// test bit
+				boolean bit = (data >> i & 1) != 0;
+				if (bit) {
+					// set bit in current byte
+					currentByte |= (1 << currentBitIndex);
+				}
 
-			// check if current byte can be written
-			if (currentBitIndex < 0) {
-				writeCurrentByte();
+				// decrease current bit index
+				--currentBitIndex;
+
+				// check if current byte can be written
+				if (currentBitIndex < 0) {
+					writeCurrentByte();
+				}
 			}
 		}
 	}
@@ -201,8 +235,26 @@ public final class DatagramWriter {
 		}
 	}
 
+	/**
+	 * Current size of written data.
+	 * @return number of currently written bytes.
+	 */
 	public int size() {
 		return byteStream.size();
+	}
+
+	/**
+	 * Close writer, release resources. If {@link #DatagramWriter(boolean)}
+	 * secure close is enabled, clear the related byte array before releasing
+	 * it.
+	 */
+	public void close() {
+		try {
+			byteStream.close();
+		} catch (IOException e) {
+			// Using ByteArrayOutputStream should not cause this
+			LOGGER.warn("{}.close() failed!", byteStream.getClass(), e);
+		}
 	}
 
 	/**

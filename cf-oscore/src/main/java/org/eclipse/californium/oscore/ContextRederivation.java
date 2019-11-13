@@ -2,11 +2,11 @@
  * Copyright (c) 2019 RISE SICS and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -18,86 +18,415 @@ package org.eclipse.californium.oscore;
 
 import java.io.IOException;
 import java.security.SecureRandom;
+import java.util.Arrays;
 
-import org.eclipse.californium.core.CoapClient;
-import org.eclipse.californium.core.CoapResponse;
-import org.eclipse.californium.core.Utils;
-import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.util.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Class that implements methods for dynamic re-generation of OSCORE contexts.
+ * Methods for perform re-derivation of contexts as detailed in Appendix B.2. It
+ * uses two message exchanges together with varying the Context ID field in the
+ * OSCORE option to securely generate a new shared context. The second exchange
+ * will be for the request the client actually wants to send.
+ * 
+ * Note that the implementation requires that no additional requests are sent
+ * without first getting the response to the pending request during the 2
+ * request/response exchanges of the procedure.
  *
- * See https://tools.ietf.org/html/draft-ietf-core-object-security-16#appendix-B.2
- *
+ * See https://tools.ietf.org/html/rfc8613#appendix-B.2
  */
 public class ContextRederivation {
-	
+
+	private static SecureRandom random = new SecureRandom();
+
+	private static final String SCHEME = "coap://";
+
+	/**
+	 * The different phases of the re-derivation procedure.
+	 *
+	 */
+	public static enum PHASE {
+		INACTIVE, CLIENT_INITIATE, SERVER_PHASE_1, SERVER_PHASE_2, SERVER_PHASE_3, CLIENT_PHASE_1, CLIENT_PHASE_2, CLIENT_PHASE_3;
+	}
+
+	/**
+	 * Length of each segment (ID1, S2 and R3) in the Context ID when performing
+	 * context re-derivation. R2 will be of length 2 segments since it is
+	 * actually composed of S2 || HMAC(S2).
+	 */
+	protected static int SEGMENT_LENGTH = 8;
+
 	/**
 	 * The logger
 	 */
-	private static final Logger LOGGER = LoggerFactory.getLogger(RequestDecryptor.class.getName());
-	
+	private static final Logger LOGGER = LoggerFactory.getLogger(ContextRederivation.class.getName());
+
 	/**
-	 * Method for an application to indicate that the mutable parts of an OSCORE context has been lost.
-	 * In such case the context re-derivation procedure is triggered.
+	 * Method to indicate that the mutable parts of an OSCORE context has been
+	 * lost. In such case the context re-derivation procedure is triggered.
 	 * 
-	 * @param uri the URI associated with the context information has been lost for
+	 * @param uri the URI associated with context information has been lost for
 	 * @throws CoapOSException if re-generation of the context fails
 	 */
 	public static void setLostContext(OSCoreCtxDB db, String uri) throws CoapOSException
 	{
 		try {
-			rederive(db, uri);
+			initiateRequest(db, uri);
 		} catch (ConnectorException | IOException | OSException e) {
 			LOGGER.error(ErrorDescriptions.CONTEXT_REGENERATION_FAILED);
 			throw new CoapOSException(ErrorDescriptions.CONTEXT_REGENERATION_FAILED, ResponseCode.BAD_REQUEST);
 		}
 	}
-	
+
+	/* Client side related methods below */
+
 	/**
-	 * Perform re-derivation of contexts as detailed in Appendix B.2.
-	 * Essentially it uses a message exchange together with the Context ID
-	 * field in the OSCORE option to securely generate a new shared context.
+	 * This method will be triggered by the client before sending a request that
+	 * initiates the context re-derivation procedure.
 	 * 
-	 * @throws IOException 
-	 * @throws ConnectorException 
-	 * @throws OSException 
+	 * @throws IOException
+	 * @throws ConnectorException
+	 * @throws OSException
 	 */
-	private static void rederive(OSCoreCtxDB db, String uri) throws ConnectorException, IOException, OSException {
-		//Generate a random 8 byte Context ID
-		SecureRandom random = new SecureRandom();
-		byte[] newContextId = new byte[8];
-		random.nextBytes(newContextId);
-		
-		//Retrieve the context for the target URI
-		OSCoreCtx oldCtx = db.getContext(uri);
-		
-		//Create new context with the generated Context ID
-		OSCoreCtx ctx = new OSCoreCtx(oldCtx.getMasterSecret(), true, oldCtx.getAlg(), oldCtx.getSenderId(),
-				oldCtx.getRecipientId(), oldCtx.getKdf(), oldCtx.getRecipientReplaySize(), oldCtx.getSalt(), newContextId);
-		ctx.setIncludeContextId(true);
-		db.addContext(uri, ctx);
-		
-		//Now send request using the new context
-		String resource = "/rederive"; //Dummy resource to access for context re-derivation
-		String URI = uri + resource;
-		System.out.println(URI);
-		
-		CoapClient c = new CoapClient(URI);
-		Request r = new Request(Code.GET);
-		r.getOptions().setOscore(Bytes.EMPTY);
-		System.out.println(Utils.prettyPrint(r));
-		
-		CoapResponse resp = null;
-		resp = c.advanced(r);
-		System.out.println(Utils.prettyPrint(resp));
-		c.shutdown();
+	private static void initiateRequest(OSCoreCtxDB db, String uri) throws ConnectorException, IOException, OSException {
+
+		// Retrieve the context for the target URI
+		OSCoreCtx ctx = db.getContext(uri);
+
+		printStateLogging(ctx);
+
+		// Generate a random Context ID (ID1)
+		byte[] contextID1 = Bytes.createBytes(random, SEGMENT_LENGTH);
+
+		// Create new context with the generated Context ID
+		OSCoreCtx newCtx = rederiveWithContextID(ctx, contextID1);
+		newCtx.setIncludeContextId(true);
+		newCtx.setContextRederivationPhase(ContextRederivation.PHASE.CLIENT_PHASE_1);
+		db.addContext(uri, newCtx);
 	}
-	
+
+	/**
+	 * Handle incoming response messages (for client).
+	 * 
+	 * @param db the context db
+	 * @param ctx the context
+	 * @param contextID the context ID in the incoming response
+	 * @return an updated context
+	 * @throws OSException if context re-derivation fails
+	 */
+	static OSCoreCtx incomingResponse(OSCoreCtxDB db, OSCoreCtx ctx, byte[] contextID) throws OSException {
+
+		// Handle client phase 3 operations
+		if (ctx.getContextRederivationPhase() == PHASE.CLIENT_PHASE_3) {
+
+			printStateLogging(ctx);
+
+			ctx.setIncludeContextId(false);
+			ctx.setContextRederivationPhase(PHASE.INACTIVE);
+			return ctx;
+		} else if (ctx.getContextRederivationPhase() == PHASE.CLIENT_PHASE_1) {
+
+			printStateLogging(ctx);
+
+			// Handle client phase 1 operations
+
+			// The Context ID in the incoming response is identified as R2
+			byte[] contextR2 = contextID;
+
+			// The Context ID of the original request in this exchange is ID1
+			byte[] contextID1 = ctx.getIdContext();
+
+			// Create Context ID to generate the new context with (R2 || ID1)
+			byte[] verifyContextID = Bytes.concatenate(contextR2, contextID1);
+
+			// Generate a new context with the concatenated Context ID
+			OSCoreCtx newCtx = rederiveWithContextID(ctx, verifyContextID);
+
+			// Add the new context to the context DB (replacing the old)
+			newCtx.setContextRederivationPhase(PHASE.CLIENT_PHASE_2);
+			db.addContext(SCHEME + ctx.getUri(), newCtx);
+			return newCtx;
+		}
+
+		return ctx;
+	}
+
+	/**
+	 * Handle outgoing request messages (for client).
+	 * 
+	 * @param db the context db
+	 * @param ctx the context
+	 * @return an updated context
+	 * @throws OSException if context re-derivation fails
+	 */
+	static OSCoreCtx outgoingRequest(OSCoreCtxDB db, OSCoreCtx ctx) throws OSException {
+
+		// Handle client phase 2 operations
+		if (ctx.getContextRederivationPhase() == PHASE.CLIENT_PHASE_2) {
+
+			printStateLogging(ctx);
+
+			// Extract the R2 Context ID value from the current context
+			// Currently the value will be R2 || ID1
+			byte[] currentContextID = ctx.getIdContext();
+			byte[] contextR2 = Arrays.copyOfRange(currentContextID, 0, currentContextID.length - SEGMENT_LENGTH);
+
+			// Now create the random Context ID value R3
+			byte[] contextR3 = Bytes.createBytes(random, SEGMENT_LENGTH);
+
+			// Concatenate R2 and R3 to get the Context ID to use
+			byte[] protectContextID = Bytes.concatenate(contextR2, contextR3);
+
+			// Generate a new context with the concatenated Context ID
+			OSCoreCtx newCtx = rederiveWithContextID(ctx, protectContextID);
+			newCtx.setReceiverSeq(0);
+
+			// In the outgoing request from this context, include the Context ID
+			newCtx.setIncludeContextId(true);
+
+			// Indicate that the context re-derivation procedure is ongoing
+			newCtx.setContextRederivationPhase(PHASE.CLIENT_PHASE_3);
+
+			// Add the new context to the context DB (replacing the old)
+			db.addContext(SCHEME + ctx.getUri(), newCtx);
+			return newCtx;
+		}
+
+		return ctx;
+	}
+
+	/* Server side related methods below */
+
+	/**
+	 * Handle incoming request messages (for server).
+	 * 
+	 * @param db db the context db
+	 * @param ctx the context
+	 * @param contextID the context ID in the incoming request
+	 * @return an updated context
+	 * @throws OSException if context re-derivation fails
+	 */
+	static OSCoreCtx incomingRequest(OSCoreCtxDB db, OSCoreCtx ctx, byte[] contextID) throws OSException {
+
+		// Handle server phase 2 operations
+		if (ctx.getContextRederivationPhase() == PHASE.SERVER_PHASE_2) {
+
+			printStateLogging(ctx);
+
+			/*
+			 * Verify the Context ID (R2) using S2 and an HMAC function. The
+			 * Context ID in this message is (R2 || R3). R2 in turn is composed
+			 * of S2 || HMAC output.
+			 */
+
+			// Extract S2 from the Context ID
+			byte[] contextS2 = Arrays.copyOfRange(ctx.getIdContext(), 0, SEGMENT_LENGTH);
+
+			// Generate HMAC output using S2
+			byte[] hmacOutput = performHMAC(ctx.getContextRederivationKey(), contextS2);
+
+			// Compare the HMAC output with the equivalent in the message
+			byte[] messageHmacOutput = Arrays.copyOfRange(ctx.getIdContext(), SEGMENT_LENGTH, SEGMENT_LENGTH * 2);
+			if (Arrays.equals(hmacOutput, messageHmacOutput) == false) {
+				throw new OSException(ErrorDescriptions.CONTEXT_REGENERATION_FAILED);
+			}
+
+			// Generate a new context with the received Context ID
+			OSCoreCtx newCtx = rederiveWithContextID(ctx, contextID);
+
+			// Set the next phase of the re-derivation procedure
+			newCtx.setContextRederivationPhase(PHASE.SERVER_PHASE_3);
+
+			// Add the new context to the context DB (replacing the old)
+			db.addContext(newCtx);
+
+			return newCtx;
+		} else if (ctx.getContextRederivationPhase() == PHASE.INACTIVE) {
+
+			printStateLogging(ctx);
+
+			// Handle initiation of re-derivation procedure
+
+			// The Context ID in the request is identified as ID1
+			byte[] contextID1 = contextID;
+
+			// Check if the received Context ID (ID1) matches the one in the
+			// context, if so do nothing. This means that this is a normal
+			// message and not meant to initiate context re-derivation.
+			if (contextID1 == null || Arrays.equals(contextID1, ctx.getIdContext())) {
+				return ctx;
+			}
+
+			// Generate a new context with the received Context ID
+			OSCoreCtx newCtx = rederiveWithContextID(ctx, contextID1);
+
+			// Set next phase of the re-derivation procedure
+			newCtx.setContextRederivationPhase(PHASE.SERVER_PHASE_1);
+
+			// Add the new context to the context DB (replacing the old)
+			db.addContext(newCtx);
+			return newCtx;
+		}
+
+		return ctx;
+	}
+
+	/**
+	 * Handle outgoing response messages (for server).
+	 * 
+	 * @param db the context db
+	 * @param ctx the context
+	 * @return an updated context
+	 * @throws OSException if context re-derivation fails
+	 */
+	static OSCoreCtx outgoingResponse(OSCoreCtxDB db, OSCoreCtx ctx) throws OSException {
+
+		// Handle server phase 3 operations
+		if (ctx.getContextRederivationPhase() == PHASE.SERVER_PHASE_3) {
+
+			printStateLogging(ctx);
+
+			ctx.setIncludeContextId(false);
+			ctx.setContextRederivationPhase(PHASE.INACTIVE);
+			return ctx;
+		} else if (ctx.getContextRederivationPhase() == PHASE.SERVER_PHASE_1) {
+
+			printStateLogging(ctx);
+
+			// Handle server phase 1 operations
+
+			// Set a random context re-derivation key
+			int keyLength = ctx.getSenderKey().length;
+			byte[] contextRederivationKey = Bytes.createBytes(random, keyLength);
+			ctx.setContextRederivationKey(contextRederivationKey);
+
+			// The Context ID in the original request is identified as ID1
+			byte[] contextID1 = ctx.getIdContext();
+
+			/*
+			 * Generate new Context ID (R2) with a byte array (S2) & an HMAC
+			 * function.
+			 */
+
+			// Generate S2
+			byte[] contextS2 = Bytes.createBytes(random, SEGMENT_LENGTH);
+
+			// Generate HMAC output using S2
+			byte[] hmacOutput = performHMAC(ctx.getContextRederivationKey(), contextS2);
+
+			// Create R2 by concatenating S2 and the HMAC output
+			byte[] contextR2 = Bytes.concatenate(contextS2, hmacOutput);
+
+			/* Create Context ID to generate the new context with (R2 || ID1) */
+
+			byte[] protectContextID = Bytes.concatenate(contextR2, contextID1);
+
+			// Generate a new context with the concatenated Context ID
+			OSCoreCtx newCtx = rederiveWithContextID(ctx, protectContextID);
+			newCtx.setReceiverSeq(0);
+
+			// In outgoing response from this context, only use R2 as
+			// Context ID (not concatenated one used to generate the
+			// context)
+			newCtx.setIncludeContextId(contextR2);
+
+			// Retain the context re-derivation key
+			newCtx.setContextRederivationKey(ctx.getContextRederivationKey());
+
+			// Respond with new partial IV
+			newCtx.setResponsesIncludePartialIV(true);
+
+			// Indicate that the context re-derivation procedure is ongoing
+			newCtx.setContextRederivationPhase(PHASE.SERVER_PHASE_2);
+
+			// Add the new context to the context DB (replacing the old)
+			db.addContext(newCtx);
+			return newCtx;
+		}
+
+		return ctx;
+	}
+
+	/**
+	 * Re-derive a context with the same input parameters except Context ID.
+	 * 
+	 * @param ctx the OSCORE context to re-derive
+	 * @param contextID the new context ID to use
+	 * @return the new re-derived context
+	 */
+	private static OSCoreCtx rederiveWithContextID(OSCoreCtx ctx, byte[] contextID) throws OSException {
+		return new OSCoreCtx(ctx.getMasterSecret(), true, ctx.getAlg(), ctx.getSenderId(), ctx.getRecipientId(),
+				ctx.getKdf(), ctx.getRecipientReplaySize(), ctx.getSalt(), contextID);
+	}
+
+	/**
+	 * Perform HMAC on input data with a key.
+	 * 
+	 * @param contextRederivationKey the context re-derivation key
+	 * @param input the input data
+	 * @return HMAC output
+	 * @throws OSException if performing the HMAC fails
+	 */
+	private static byte[] performHMAC(byte[] contextRederivationKey, byte[] input) throws OSException {
+		byte[] key = null;
+		try {
+			key = OSCoreCtx.deriveKey(contextRederivationKey, contextRederivationKey, SEGMENT_LENGTH, "SHA256", input);
+		} catch (CoseException e) {
+			throw new OSException(ErrorDescriptions.CONTEXT_REGENERATION_FAILED);
+		}
+		return key;
+	}
+
+	/**
+	 * Provides logging output indicating the current state. Uses debug level
+	 * output for the inactive state since that is the default for typical use.
+	 * 
+	 * @param ctx the OSCORE context in use
+	 */
+	private static void printStateLogging(OSCoreCtx ctx) {
+		PHASE currentPhase = ctx.getContextRederivationPhase();
+
+		String supplemental = "";
+		switch (currentPhase) {
+		case INACTIVE:
+			supplemental = "client/server context re-derivation inactive";
+			break;
+		case CLIENT_INITIATE:
+			supplemental = "client will initiate context re-derivation";
+			break;
+		case CLIENT_PHASE_1:
+			supplemental = "client has sent the first request in the procedure and is receving the response";
+			break;
+		case CLIENT_PHASE_2:
+			supplemental = "client is sending the second request in the procedure";
+			break;
+		case CLIENT_PHASE_3:
+			supplemental = "client has received the second response in the procedure and is concluding";
+			break;
+		case SERVER_PHASE_1:
+			supplemental = "server has received the first request in the procedure and is sending the response";
+			break;
+		case SERVER_PHASE_2:
+			supplemental = "server is receiving the second request in the procedure";
+			break;
+		case SERVER_PHASE_3:
+			supplemental = "server has sent the second response in the procedure and is concluding";
+			break;
+		default:
+			supplemental = "context re-derivation is in unknown state indicating a problem";
+			break;
+		}
+
+		String output = "Context re-derivation phase: " + currentPhase + " (" + supplemental + ")";
+		if (currentPhase == PHASE.INACTIVE) {
+			LOGGER.debug(output);
+		} else {
+			LOGGER.info(output);
+		}
+	}
+
 }

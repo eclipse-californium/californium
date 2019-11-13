@@ -70,9 +70,11 @@ export_pem() {
       openssl pkcs12 -in $SERVER_KEY_STORE_P12 -passin pass:$KEY_STORE_PWD -nodes -out $SERVER_KEY_STORE_PEM
       openssl pkcs12 -in $CLIENT_KEY_STORE_P12 -passin pass:$KEY_STORE_PWD -nodes -out $CLIENT_KEY_STORE_PEM
       openssl pkcs12 -in $TRUST_STORE_P12 -passin pass:$TRUST_STORE_PWD -nokeys -out $TRUST_STORE_PEM
+      openssl ecparam -genkey -name prime256v1 -noout -out ec_private.pem
+      openssl ec -in ec_private.pem -pubout -out ec_public.pem
    fi
 } 
 
-#create_keys
-#export_p12
+create_keys
+export_p12
 export_pem

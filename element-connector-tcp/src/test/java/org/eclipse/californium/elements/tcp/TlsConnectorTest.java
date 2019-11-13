@@ -2,11 +2,11 @@
  * Copyright (c) 2016 Amazon Web Services.
  * <p>
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * <p>
  * The Eclipse Public License is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  * http://www.eclipse.org/org/documents/edl-v10.html.
  * <p>
@@ -93,14 +93,14 @@ public class TlsConnectorTest {
 		RawData msg = createMessage(server.getAddress(), 100, null);
 
 		client.send(msg);
-		serverCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS);
+		assertTrue(serverCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS));
 		assertArrayEquals(msg.getBytes(), serverCatcher.getMessage(0).getBytes());
 
 		// Response message must go over the same connection client already
 		// opened
 		msg = createMessage(serverCatcher.getMessage(0).getInetSocketAddress(), 10000, null);
 		server.send(msg);
-		clientCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS);
+		assertTrue(clientCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS));
 		assertArrayEquals(msg.getBytes(), clientCatcher.getMessage(0).getBytes());
 	}
 
@@ -129,7 +129,7 @@ public class TlsConnectorTest {
 			client.send(msg);
 		}
 
-		serverCatcher.blockUntilSize(NUMBER_OF_CONNECTIONS, CATCHER_TIMEOUT_IN_MS * NUMBER_OF_CONNECTIONS);
+		assertTrue(serverCatcher.blockUntilSize(NUMBER_OF_CONNECTIONS, CATCHER_TIMEOUT_IN_MS * NUMBER_OF_CONNECTIONS));
 		for (int i = 0; i < NUMBER_OF_CONNECTIONS; i++) {
 			RawData received = serverCatcher.getMessage(i);
 
@@ -176,7 +176,7 @@ public class TlsConnectorTest {
 
 		for (RawData message : messages) {
 			Catcher catcher = servers.get(message.getInetSocketAddress());
-			catcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS);
+			assertTrue(catcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS));
 			assertArrayEquals(message.getBytes(), catcher.getMessage(0).getBytes());
 		}
 	}

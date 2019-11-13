@@ -2,11 +2,11 @@
  * Copyright (c) 2016, 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -76,6 +76,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange.Origin;
+import org.eclipse.californium.core.network.TokenGenerator.Scope;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.Observation;
@@ -181,7 +182,7 @@ public abstract class BaseMatcher implements Matcher {
 			Token token = request.getToken();
 			if (token == null) {
 				do {
-					token = tokenGenerator.createToken(true);
+					token = tokenGenerator.createToken(Scope.LONG_TERM);
 					request.setToken(token);
 				} while (observationStore.putIfAbsent(token, new Observation(request, null)) != null);
 			} else {
@@ -257,11 +258,11 @@ public abstract class BaseMatcher implements Matcher {
 	}
 
 	/**
+	 * {@inheritDoc}
+	 * 
 	 * Cancels all pending blockwise requests that have been induced by a
 	 * notification we have received indicating a blockwise transfer of the
 	 * resource.
-	 * 
-	 * @param token the token of the observation.
 	 */
 	@Override
 	public void cancelObserve(Token token) {

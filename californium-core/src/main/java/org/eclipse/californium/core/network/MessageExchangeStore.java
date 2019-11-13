@@ -2,11 +2,11 @@
  * Copyright (c) 2016 Sierra Wireless and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  *
@@ -29,7 +29,6 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Token;
-import org.eclipse.californium.core.network.Exchange.KeyMID;
 
 /**
  * A registry for keeping track of message exchanges with peers.
@@ -128,12 +127,12 @@ public interface MessageExchangeStore {
 	boolean registerOutboundResponse(Exchange exchange);
 
 	/**
-	 * Removes the exchange registered under a given token.
+	 * Removes the exchange registered under a given key token.
 	 * 
-	 * @param token the token of the exchange to remove.
-	 * @param exchange Exchange to be removed, if registered with provided token.
+	 * @param token the key token of the exchange to remove.
+	 * @param exchange Exchange to be removed, if registered with provided key token.
 	 */
-	void remove(Token token, Exchange exchange);
+	void remove(KeyToken token, Exchange exchange);
 
 	/**
 	 * Removes the exchange registered under a given message ID.
@@ -148,12 +147,12 @@ public interface MessageExchangeStore {
 	Exchange remove(KeyMID messageId, Exchange exchange);
 
 	/**
-	 * Gets the exchange registered under a given token.
+	 * Gets the exchange registered under a given key token.
 	 * 
-	 * @param token the token under which the exchange has been registered.
+	 * @param token the key token under which the exchange has been registered.
 	 * @return the exchange or {@code null} if no exchange exists for the given token.
 	 */
-	Exchange get(Token token);
+	Exchange get(KeyToken token);
 
 	/**
 	 * Gets the exchange registered under a given message ID.
@@ -184,6 +183,20 @@ public interface MessageExchangeStore {
 	Exchange findPrevious(KeyMID messageId, Exchange exchange);
 
 	/**
+	 * Replace the previous exchange with the current.
+	 * 
+	 * In difference to the normal definition of this function, the current
+	 * exchange will be also added, if no exchange was registered with the key.
+	 * 
+	 * @param key the key
+	 * @param previous previous exchange
+	 * @param exchange current exchange
+	 * @return {@code true}, if the current exchange is registered,
+	 *         {@code false}, otherwise.
+	 */
+	boolean replacePrevious(KeyMID key, Exchange previous, Exchange exchange);
+
+	/**
 	 * Checks if a message with a given ID has been processed already.
 	 * 
 	 * @param messageId the message ID.
@@ -204,8 +217,10 @@ public interface MessageExchangeStore {
 	 * Gets all message exchanges of local origin that contain a request
 	 * with a given token.
 	 * 
-	 * @param token the token to look for.
+	 * @param token token to find exchanges, which are started with.
+	 *            The token must not have client-local scope.
 	 * @return the exchanges.
+	 * @throws IllegalArgumentException if the token has client-local scope.
 	 */
 	List<Exchange> findByToken(Token token);
 

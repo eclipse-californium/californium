@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -29,9 +29,7 @@ import static org.eclipse.californium.core.coap.CoAP.Type.RST;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
 import static org.junit.Assert.*;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -39,6 +37,7 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
+import org.eclipse.californium.core.test.MessageExchangeStoreTool.UDPTestConnector;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
@@ -66,6 +65,7 @@ public class DeduplicationTest {
 	private LockstepEndpoint server;
 
 	private Endpoint client;
+	private UDPTestConnector clientConnector;
 
 	@Before
 	public void setup() throws Exception {
@@ -74,8 +74,9 @@ public class DeduplicationTest {
 			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 128)
 			.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200) // client retransmits after 200 ms
 			.setInt(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1);
+		clientConnector = new UDPTestConnector(TestTools.LOCALHOST_EPHEMERAL);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setConnector(clientConnector);
 		builder.setNetworkConfig(config);
 		client = builder.build();
 		cleanup.add(client);
@@ -118,6 +119,20 @@ public class DeduplicationTest {
 		assertResponseContainsExpectedPayload(response, CONTENT, payload);
 
 		response = request.waitForResponse(500);
+		assertNull("Client received duplicate", response);
+	}
+
+	@Test
+	public void testGETSendError() throws Exception {
+		clientConnector.setDrops(0);
+		System.out.println("Simple GET:");
+		String path = "test";
+
+		Request request = createRequest(GET, path, server);
+		request.setMID(1234);
+		client.sendRequest(request);
+
+		Response response = request.waitForResponse(500);
 		assertNull("Client received duplicate", response);
 	}
 }

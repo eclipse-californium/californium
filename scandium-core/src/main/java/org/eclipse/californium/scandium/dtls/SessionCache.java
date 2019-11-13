@@ -2,11 +2,11 @@
  * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -37,6 +37,9 @@ public interface SessionCache {
 	/**
 	 * Adds an established session to the cache.
 	 * 
+	 * If the session doesn't support resumption (session id is empty), it's not
+	 * added to the cache
+	 * 
 	 * @param session The session to add.
 	 */
 	void put(DTLSSession session);
@@ -52,8 +55,9 @@ public interface SessionCache {
 	 * expensive.
 	 * 
 	 * @param id The session identifier to look up.
-	 * @return The session with the given ID or {@code null} if the cache does
-	 *         not contain a session with the given ID.
+	 * @return a session ticker for the session with the given ID, or
+	 *         {@code null}, if the cache does not contain a session with the
+	 *         given ID. A returned ticket is destroyed after usage.
 	 */
 	SessionTicket get(SessionId id);
 

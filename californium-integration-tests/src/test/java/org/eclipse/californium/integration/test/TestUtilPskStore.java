@@ -2,11 +2,11 @@
  * Copyright (c) 2017, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -17,10 +17,12 @@
 package org.eclipse.californium.integration.test;
 
 import java.net.InetSocketAddress;
-import java.util.Arrays;
+
+import javax.crypto.SecretKey;
 
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.StringPskStore;
+import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
@@ -36,7 +38,7 @@ public class TestUtilPskStore extends StringPskStore {
 	/**
 	 * PSK secret key.
 	 */
-	private byte[] key;
+	private SecretKey key;
 
 	/**
 	 * Create simple store with initial credentials.
@@ -68,11 +70,11 @@ public class TestUtilPskStore extends StringPskStore {
 	 */
 	public synchronized void set(String identity, byte[] key) {
 		this.identity = identity;
-		this.key = Arrays.copyOf(key, key.length);
+		this.key = SecretUtil.create(key, "PSK");
 	}
 
 	@Override
-	public byte[] getKey(String identity) {
+	public SecretKey getKey(String identity) {
 		if (0 < delay) {
 			try {
 				Thread.sleep(delay);
@@ -80,12 +82,12 @@ public class TestUtilPskStore extends StringPskStore {
 			}
 		}
 		synchronized (this) {
-			return key;
+			return SecretUtil.create(key);
 		}
 	}
 
 	@Override
-	public byte[] getKey(ServerNames serverNames, String identity) {
+	public SecretKey getKey(ServerNames serverNames, String identity) {
 		return getKey(identity);
 	}
 

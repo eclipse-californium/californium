@@ -2,11 +2,11 @@
  * Copyright (c) 2018 Sierra Wireless and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -17,6 +17,7 @@ package org.eclipse.californium.core.test;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -34,6 +35,10 @@ public class ErrorInjector extends MessageInterceptorAdapter {
 		errorOnEstablishedContext.set(true);
 	}
 
+	/**
+	 * Cause error, when onSent is reported. The message is actually sent, but
+	 * the reporting causes errors!
+	 */
 	public void setErrorOnSent() {
 		errorOnSent.set(true);
 	}
@@ -44,11 +49,13 @@ public class ErrorInjector extends MessageInterceptorAdapter {
 
 	@Override
 	public void sendRequest(final Request request) {
+		TestTools.removeMessageObservers(request, ErrorInjectorMessageObserver.class);
 		request.addMessageObserver(new ErrorInjectorMessageObserver());
 	}
 
 	@Override
 	public void sendResponse(final Response response) {
+		TestTools.removeMessageObservers(response, ErrorInjectorMessageObserver.class);
 		response.addMessageObserver(new ErrorInjectorMessageObserver());
 	}
 
@@ -62,8 +69,8 @@ public class ErrorInjector extends MessageInterceptorAdapter {
 		}
 
 		@Override
-		public void onSent() {
-			if (errorOnReadyToSend.compareAndSet(true, false)) {
+		public void onSent(boolean retransmission) {
+			if (errorOnSent.compareAndSet(true, false)) {
 				throw new IntendedTestException("Simulate error on sent");
 			}
 		}
