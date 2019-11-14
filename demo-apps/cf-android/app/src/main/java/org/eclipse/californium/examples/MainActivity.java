@@ -20,6 +20,7 @@ import android.content.Intent;
 import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -109,8 +110,13 @@ public class MainActivity extends AppCompatActivity {
         }
 
         protected CoapResponse doInBackground(String... args) {
-            CoapClient client = new CoapClient(args[0]);
-            return client.get();
+            try {
+                CoapClient client = new CoapClient(args[0]);
+                return client.get();
+            } catch(Exception ex) {
+                Log.e("coap", ex.getMessage(), ex);
+                return null;
+            }
         }
 
         protected void onPostExecute(CoapResponse response) {

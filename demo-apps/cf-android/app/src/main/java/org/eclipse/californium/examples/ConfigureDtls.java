@@ -1,14 +1,23 @@
 /*******************************************************************************
  * Copyright (c) 2018 Vikram and others.
+ *
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v2.0
+ * and Eclipse Distribution License v1.0 which accompany this distribution.
+ *
+ * The Eclipse Public License is available at
+ *    http://www.eclipse.org/legal/epl-v20.html
+ * and the Eclipse Distribution License is available at
+ *    http://www.eclipse.org/org/documents/edl-v10.html.
+ *
  * Contributors:
  *    Vikram - Initial creation
  *    Achim Kraus (Bosch Software Innovations GmbH) - introduce configurable
  *                                                    key store type and
  *                                                    InputStreamFactory.
  ******************************************************************************/
-package org.eclipse.californium.examples;
 
-import android.content.Context;
+package org.eclipse.californium.examples;
 
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -38,7 +47,7 @@ public class ConfigureDtls {
     public static final String PSK_IDENTITY = "password";
     public static final byte[] PSK_SECRET = "sesame".getBytes();
     private static final String TRUST_NAME = null; // loads all the certificates
-    private static final String KEY_STORE_LOCATION = "certs/keyStore.p12";
+    private static final String KEY_STORE_LOCATION = "certs/client.p12";
     private static final String TRUST_STORE_LOCATION = "certs/trustStore.p12";
     private static final char[] TRUST_STORE_PASSWORD = "rootPass".toCharArray();
     private static final char[] KEY_STORE_PASSWORD = "endPass".toCharArray();
