@@ -26,7 +26,7 @@ import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.Connector;
-import org.eclipse.californium.elements.tcp.TcpServerConnector;
+import org.eclipse.californium.elements.tcp.netty.TcpServerConnector;
 
 import java.io.File;
 import java.net.InetSocketAddress;

@@ -27,7 +27,7 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.elements.tcp.TcpServerConnector;
+import org.eclipse.californium.elements.tcp.netty.TcpServerConnector;
 
 public class HelloWorldServer extends CoapServer {
 
