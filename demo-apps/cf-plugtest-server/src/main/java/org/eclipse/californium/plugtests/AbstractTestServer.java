@@ -38,9 +38,9 @@ import org.eclipse.californium.core.network.EndpointContextMatcherFactory.Matche
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.elements.PrincipalEndpointContextMatcher;
-import org.eclipse.californium.elements.tcp.TcpServerConnector;
-import org.eclipse.californium.elements.tcp.TlsServerConnector;
-import org.eclipse.californium.elements.tcp.TlsServerConnector.ClientAuthMode;
+import org.eclipse.californium.elements.tcp.netty.TcpServerConnector;
+import org.eclipse.californium.elements.tcp.netty.TlsServerConnector;
+import org.eclipse.californium.elements.tcp.netty.TlsServerConnector.ClientAuthMode;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;

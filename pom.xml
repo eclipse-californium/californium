@@ -150,7 +150,7 @@
 			</dependency>
 			<dependency>
 				<groupId>${project.groupId}</groupId>
-				<artifactId>element-connector-tcp</artifactId>
+				<artifactId>element-connector-tcp-netty</artifactId>
 				<version>${project.version}</version>
 			</dependency>
 			<dependency>
@@ -234,7 +234,7 @@
 		<module>legal</module>
 		<module>element-connector</module>
 		<module>scandium-core</module>
-		<module>element-connector-tcp</module>
+		<module>element-connector-tcp-netty</module>
 		<module>californium-core</module>
 		<module>californium-integration-tests</module>
 		<module>californium-proxy</module>

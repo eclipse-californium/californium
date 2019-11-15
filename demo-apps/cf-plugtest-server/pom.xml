@@ -26,7 +26,7 @@
 	<dependencies>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
-			<artifactId>element-connector-tcp</artifactId>
+			<artifactId>element-connector-tcp-netty</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>

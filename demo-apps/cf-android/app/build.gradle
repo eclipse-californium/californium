@@ -28,6 +28,7 @@ android {
         pickFirst 'about.html'
         pickFirst 'edl-v10.html'
         pickFirst 'epl-v10.html'
+        pickFirst 'epl-v20.html'
         pickFirst 'notice.html'
         pickFirst 'META-INF/INDEX.LIST'
         pickFirst 'META-INF/LICENSE'
