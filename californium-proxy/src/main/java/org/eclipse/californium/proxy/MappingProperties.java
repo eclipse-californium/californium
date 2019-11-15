@@ -240,24 +240,14 @@ public class MappingProperties extends java.util.Properties {
 		
 		/* Media types */
 		set("http.message.content-type.text/plain", MediaTypeRegistry.TEXT_PLAIN);
-		set("http.message.content-type.text/html", MediaTypeRegistry.TEXT_HTML);
 		set("http.message.content-type.application/link-format", MediaTypeRegistry.APPLICATION_LINK_FORMAT);
 		set("http.message.content-type.application/xml", MediaTypeRegistry.APPLICATION_XML);
 		set("http.message.content-type.application/json", MediaTypeRegistry.APPLICATION_JSON);
-		set("http.message.content-type.image/gif", MediaTypeRegistry.IMAGE_GIF);
-		set("http.message.content-type.image/jpeg", MediaTypeRegistry.IMAGE_JPEG);
-		set("http.message.content-type.image/png", MediaTypeRegistry.IMAGE_PNG);
-		set("http.message.content-type.image/tiff", MediaTypeRegistry.IMAGE_TIFF);
 		
 		set("coap.message.media."+MediaTypeRegistry.TEXT_PLAIN, "text/plain; charset=utf-8");
-		set("coap.message.media."+MediaTypeRegistry.TEXT_HTML, "text/html");
 		set("coap.message.media."+MediaTypeRegistry.APPLICATION_LINK_FORMAT, "application/link-format");
 		set("coap.message.media."+MediaTypeRegistry.APPLICATION_XML, "application/xml");
 		set("coap.message.media."+MediaTypeRegistry.APPLICATION_JSON, "application/json; charset=UTF-8");
-		set("coap.message.media."+MediaTypeRegistry.IMAGE_GIF, "image/gif");
-		set("coap.message.media."+MediaTypeRegistry.IMAGE_JPEG, "image/jpeg");
-		set("coap.message.media."+MediaTypeRegistry.IMAGE_PNG, "image/png");
-		set("coap.message.media."+MediaTypeRegistry.IMAGE_TIFF, "image/tiff");
 		
 	}
 
