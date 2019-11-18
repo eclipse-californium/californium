@@ -57,7 +57,6 @@
 				<configuration>
 					<instructions>
 						<Export-Package>
-							eu.javaspecialists.tjsn.concurrency.stripedexecutor,
 							org.eclipse.californium.elements*
 						</Export-Package>
 						<Import-Package>
