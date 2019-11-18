@@ -43,12 +43,10 @@
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>ch.qos.logback</groupId>
 			<artifactId>logback-classic</artifactId>
-			<scope>test</scope>
 		</dependency>
 	</dependencies>
 
@@ -81,6 +79,13 @@
 				<dependency>
 					<groupId>${project.groupId}</groupId>
 					<artifactId>californium-core</artifactId>
+					<classifier>tests</classifier>
+					<type>test-jar</type>
+				</dependency>
+				<dependency>
+					<groupId>${project.groupId}</groupId>
+					<artifactId>element-connector</artifactId>
+					<version>${project.version}</version>
 					<classifier>tests</classifier>
 					<type>test-jar</type>
 				</dependency>

@@ -38,19 +38,12 @@
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>ch.qos.logback</groupId>
-			<artifactId>logback-classic</artifactId>
-			<scope>test</scope>
 		</dependency>
 
 		<!-- runtime dependencies -->
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>demo-certs</artifactId>
-			<scope>runtime</scope>
 		</dependency>
 	</dependencies>
 
@@ -73,6 +66,12 @@
 					<classifier>tests</classifier>
 					<scope>test</scope>
 					<type>test-jar</type>
+				</dependency>
+				<dependency>
+						<groupId>${project.groupId}</groupId>
+						<artifactId>element-connector</artifactId>
+						<type>test-jar</type>
+						<classifier>tests</classifier>
 				</dependency>
 			</dependencies>
 		</profile>
