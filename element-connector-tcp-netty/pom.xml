@@ -101,7 +101,7 @@
 				<configuration>
 					<instructions>
 						<Export-Package>
-							org.eclipse.californium.elements.tcp
+							org.eclipse.californium.elements.tcp.netty
 						</Export-Package>
 						<Import-Package>
 							io.netty*; ${netty.version.spec},
