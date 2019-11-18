@@ -189,11 +189,13 @@
 				<groupId>${project.groupId}</groupId>
 				<artifactId>demo-certs</artifactId>
 				<version>${project.version}</version>
+				<scope>runtime</scope>
 			</dependency>
 			<dependency>
 				<groupId>ch.qos.logback</groupId>
 				<artifactId>logback-classic</artifactId>
 				<version>${logback.version}</version>
+				<scope>runtime</scope>
 			</dependency>
 
 			<!--  tests -->
@@ -203,6 +205,7 @@
 				<version>${project.version}</version>
 				<classifier>tests</classifier>
 				<type>test-jar</type>
+				<scope>test</scope>
 			</dependency>
 			<dependency>
 				<groupId>${project.groupId}</groupId>
@@ -210,21 +213,25 @@
 				<version>${project.version}</version>
 				<classifier>tests</classifier>
 				<type>test-jar</type>
+				<scope>test</scope>
 			</dependency>
 			<dependency>
 				<groupId>junit</groupId>
 				<artifactId>junit</artifactId>
 				<version>${junit.version}</version>
+				<scope>test</scope>
 			</dependency>
 			<dependency>
 				<groupId>org.mockito</groupId>
 				<artifactId>mockito-all</artifactId>
 				<version>${mockito.version}</version>
+				<scope>test</scope>
 			</dependency>
 			<dependency>
 				<groupId>org.hamcrest</groupId>
 				<artifactId>hamcrest-library</artifactId>
 				<version>${hamcrest.version}</version>
+				<scope>test</scope>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
