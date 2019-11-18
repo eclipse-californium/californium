@@ -17,8 +17,9 @@
 	
 	<properties>
 		<netty.version>4.1.42.Final</netty.version>
-		<netty.version.lowerbound>4.1</netty.version.lowerbound>
-		<netty.version.upperbound>5</netty.version.upperbound>
+		<netty.version.spec>
+			version="[${versionmask;==;${netty.version}},${versionmask;+;${netty.version}})"
+		</netty.version.spec>
 	</properties>
 
 	<dependencies>
@@ -103,7 +104,7 @@
 							org.eclipse.californium.elements.tcp
 						</Export-Package>
 						<Import-Package>
-							io.netty*; version="[${netty.version.lowerbound},${netty.version.upperbound})",
+							io.netty*; ${netty.version.spec},
 							*
 						</Import-Package>
 						<Bundle-SymbolicName>${project.groupId}.${project.artifactId}</Bundle-SymbolicName>
