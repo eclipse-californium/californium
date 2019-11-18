@@ -12,5 +12,5 @@ menu_title = "Eclipse Legal"
   url = "https://www.eclipse.org"
 
 [affiliation]
-  image = "eclipse_incubation_vertical_png-02.png"
+  image = "800px-Iot_logo_large_transparent.png"
 +++
