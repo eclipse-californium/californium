@@ -585,6 +585,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * Re-starts the connector binding to the same IP address and port as
 	 * on the previous start.
 	 * 
+	 * Note: intended for unit tests only!
+	 * 
 	 * @throws IOException if the connector cannot be bound to the previous
 	 *            IP address and port
 	 */
@@ -1025,7 +1027,16 @@ public class DTLSConnector implements Connector, RecordLayer {
 		}
 	}
 
-	private void receiveNextDatagramFromNetwork(DatagramPacket packet) throws IOException {
+	/**
+	 * Receive the next datagram from network.
+	 * 
+	 * Potentially called by multiple threads.
+	 * 
+	 * @param packet datagram the be read from network
+	 * @throws IOException if anio- error occurred
+	 * @see #processDatagram(DatagramPacket)
+	 */
+	protected void receiveNextDatagramFromNetwork(DatagramPacket packet) throws IOException {
 
 		DatagramSocket currentSocket = getSocket();
 		if (currentSocket == null) {
@@ -1039,6 +1050,19 @@ public class DTLSConnector implements Connector, RecordLayer {
 			// nothing to do
 			return;
 		}
+
+		processDatagram(packet);
+	}
+
+	/**
+	 * Process received datagram.
+	 * 
+	 * Potentially called by multiple threads.
+	 * 
+	 * @param packet datagram filled with the received data and source address.
+	 */
+	protected void processDatagram(DatagramPacket packet) {
+
 		if (health != null) {
 			health.receivingRecord(false);
 		}
