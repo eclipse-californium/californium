@@ -132,6 +132,9 @@
 			<id>eclipse_snapshots</id>
 			<name>Eclipse Snapshots</name>
 			<url>https://repo.eclipse.org/content/repositories/snapshots/</url>
+			<releases>
+				<enabled>false</enabled>
+			</releases>
 		</repository>
 	</repositories>
 
