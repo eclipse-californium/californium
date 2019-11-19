@@ -261,17 +261,16 @@ public class ServerHandshaker extends Handshaker {
 	private void receivedClientCertificate(final CertificateMessage message) throws HandshakeException {
 
 		clientCertificate = message;
+		clientPublicKey = message.getPublicKey();
 		if (clientAuthenticationRequired && message.getCertificateChain() != null
-				&& message.getPublicKey() == null) {
+				&& clientPublicKey == null) {
 			LOGGER.debug("Client authentication failed: missing certificate!");
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE,
 					session.getPeer());
 			throw new HandshakeException("Client Certificate required!", alert);
 		}
 		verifyCertificate(message);
-		clientPublicKey = message.getPublicKey();
-		// TODO why don't we also update the MessageDigest at this point?
-		if (message.getPublicKey() == null) {
+		if (clientPublicKey == null) {
 			states = EMPTY_CLIENT_CERTIFICATE;
 		}
 	}
