@@ -24,7 +24,7 @@
 		</license>
 		<license>
 			<name>Eclipse Distribution License - Version 1.0</name>
-			<url>https://www.eclipse.org/org/documents/epl-1.0/EPL-1.0.txt</url>
+			<url>https://www.eclipse.org/org/documents/edl-v10.html</url>
 		</license>
 	</licenses>
 	<scm>
@@ -33,8 +33,8 @@
 		<tag>HEAD</tag>
 	</scm>
 	<issueManagement>
-		<system>Bugzilla</system>
-		<url>https://bugs.eclipse.org/bugs/buglist.cgi?product=Californium</url>
+		<system>GitHub</system>
+		<url>https://github.com/eclipse/californium/issues</url>
 	</issueManagement>
 	<ciManagement>
 		<system>Jenkins</system>
