@@ -85,21 +85,15 @@ project has been copied into the header along with additional information regard
 The java source files `EncryptCommon.java`, `Encrypt0Message.java` and `Message.java` have been copied with
 modifications. The header was added as for the other unmodified files.
 
-com.github.peteroupc.numbers-1.0.2 (1.0.2)
+com.github.peteroupc.numbers (1.4.3)
 
-* License: CC-1.0
-* Project: https://github.com/peteroupc/Numbers-Java
-* Source:
-   http://repo1.maven.org/maven2/com/github/peteroupc/numbers/1.0.2/numbers-1.0.2-sources.jar
+* License: CC0-1.0
 
-com.upokecenter.cbor-3.0.3 (3.0.3)
+com.upokecenter.cbor (4.0.0)
 
-* License: CC-1.0
-* Project: https://github.com/peteroupc/CBOR-Java
-* Source:
-   http://repo1.maven.org/maven2/com/upokecenter/cbor/3.0.3/cbor-3.0.3-sources.jar
+* License: CC0-1.0
 
-commons-logging-1.2 (1.2)
+commons-logging (1.2)
 
 * License: Apache License, 2.0
 
@@ -115,13 +109,17 @@ httpcore (4.4.5)
 
 * License: Apache-2.0 
 
+javassist (3.22.0)
+
+* License: Apache-2.0
+
 Javax.annotation (1.2)
 
 * License: CDDL
 
 javax.servlet-api (3.1.0)
 
-* License: Apache-2.0 AND (CDDL-1.1 OR GPL-2.0 WITH Classpath-exception-2.0)
+* License: Apache-2.0 AND CDDL-1.1
 
 javax.websocket API (1.0)
 
@@ -135,9 +133,9 @@ Logback Core (1.2.3)
 
 * License: EPL-1.0
 
-logback-android:1.1.1-11 (1.1.1)
+logback-android (1.1.1)
 
-* License: EPL-1.0 OR LGPL-2.1
+* License: EPL-1.0
 * Project: https://github.com/tony19/logback-android
 * Source: https://github.com/tony19/logback-android/archive/master.zip
 
