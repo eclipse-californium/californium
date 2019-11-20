@@ -79,6 +79,7 @@
 			<organizationUrl>http://www.bosch-si.com</organizationUrl>
 			<roles>
 				<role>Committer</role>
+				<role>Lead</role>
 			</roles>
 		</developer>
 		<developer>
@@ -319,10 +320,6 @@
 					<configuration>
 						<useSystemClassLoader>false</useSystemClassLoader>
 						<systemPropertyVariables>
-							<!--
-								configures the logback logging framework to use a config file
-							-->
-							<logback.configurationFile>${project.basedir}/logback-test.xml</logback.configurationFile>
 							<org.eclipse.californium.junit.socketmode>DIRECT</org.eclipse.californium.junit.socketmode>
 						</systemPropertyVariables>
 						<excludes>
