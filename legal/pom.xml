@@ -7,7 +7,7 @@
 	</parent>
 
 	<artifactId>californium-legal</artifactId>
-	<name>Legal Documents</name>
+	<name>Californium (Cf) Legal Documents</name>
 	<description>The set of documents required to fulfill the attributions of Californium's dependencies.</description>
 
 	<properties>

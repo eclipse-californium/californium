@@ -7,7 +7,7 @@
 	</parent>
 
 	<artifactId>californium-assembly</artifactId>
-	<name>Custom Assembly Descriptors</name>
+	<name>Californium (Cf) Custom Assembly Descriptors</name>
 	<description>The set of custom assembly descriptors used for Californium.</description>
 
 </project>
