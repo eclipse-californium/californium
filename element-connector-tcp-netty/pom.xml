@@ -12,7 +12,7 @@
 	<artifactId>element-connector-tcp-netty</artifactId>
 	<packaging>bundle</packaging>
 
-	<name>element-connector-tcp</name>
+	<name>element-connector-tcp-netty</name>
 	<description>Element connector implementation for TCP/TLS using netty</description>
 	
 	<properties>
