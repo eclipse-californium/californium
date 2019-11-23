@@ -38,8 +38,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import org.eclipse.californium.elements.auth.X509CertPath;
+import javax.security.auth.x500.X500Principal;
+
 import org.eclipse.californium.elements.util.Asn1DerDecoder;
+import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -115,7 +117,38 @@ public final class CertificateMessage extends HandshakeMessage {
 	 * 
 	 */
 	public CertificateMessage(List<X509Certificate> certificateChain, InetSocketAddress peerAddress) {
-		this(X509CertPath.generateCertPath(false, certificateChain), peerAddress);
+		this(certificateChain, null, peerAddress);
+	}
+
+	/**
+	 * Creates a <em>CERTIFICATE</em> message containing a certificate chain.
+	 * 
+	 * @param certificateChain the certificate chain with the (first certificate
+	 *            must be the server's)
+	 * @param certificateAuthorities the certificate authorities to truncate
+	 *            chain. Maybe {@code null} or empty.
+	 * @param peerAddress the IP address and port of the peer this message has
+	 *            been received from or should be sent to
+	 * @throws NullPointerException if the certificate chain is
+	 *             <code>null</code> (use an array of length zero to create an
+	 *             <em>empty</em> message)
+	 * @throws IllegalArgumentException if the certificate chain contains any
+	 *             non-X.509 certificates or does not form a valid chain of
+	 *             certification.
+	 * 
+	 */
+	public CertificateMessage(List<X509Certificate> certificateChain, List<X500Principal> certificateAuthorities,
+			InetSocketAddress peerAddress) {
+		this(CertPathUtil.generateValidatableCertPath(certificateChain, certificateAuthorities), peerAddress);
+		if (LOGGER.isDebugEnabled()) {
+			int size = certPath.getCertificates().size();
+			if (size < certificateChain.size()) {
+				LOGGER.debug("created CERTIFICATE message with truncated certificate chain [length: {}]",
+						certPath.getCertificates().size());
+			} else {
+				LOGGER.debug("created CERTIFICATE message with certificate chain [length: {}]", size);
+			}
+		}
 	}
 
 	private CertificateMessage(CertPath peerCertChain, InetSocketAddress peerAddress) {

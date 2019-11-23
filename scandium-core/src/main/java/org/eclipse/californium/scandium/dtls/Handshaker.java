@@ -65,6 +65,8 @@ import java.security.MessageDigest;
 import java.security.Principal;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.cert.CertPath;
+import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -84,6 +86,7 @@ import org.eclipse.californium.elements.auth.AdditionalInfo;
 import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -97,6 +100,7 @@ import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
+import org.eclipse.californium.scandium.dtls.x509.AdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 import org.eclipse.californium.scandium.util.SecretIvParameterSpec;
 import org.eclipse.californium.scandium.util.SecretUtil;
@@ -219,6 +223,8 @@ public abstract class Handshaker implements Destroyable {
 
 	/** The chain of certificates asserting this handshaker's identity */
 	protected List<X509Certificate> certificateChain;
+	/** The certificate path of the other peer */
+	protected CertPath peerCertPath;
 
 	/**
 	 * Support Server Name Indication TLS extension.
@@ -228,6 +234,15 @@ public abstract class Handshaker implements Destroyable {
 	 * Use handshake state machine validation.
 	 */
 	protected boolean useStateValidation;
+
+	/**
+	 * Use key usage verification for x509.
+	 */
+	protected final boolean useKeyUsageVerification;
+	/**
+	 * Truncate certificate path for validation.
+	 */
+	protected final boolean useTruncatedCertificatePathForVerification;
 
 	private final Set<SessionListener> sessionListeners = new LinkedHashSet<>();
 	
@@ -291,6 +306,8 @@ public abstract class Handshaker implements Destroyable {
 		this.maxDeferredProcessedIncomingRecordsSize = config.getMaxDeferredProcessedIncomingRecordsSize();
 		this.sniEnabled = config.isSniEnabled();
 		this.useStateValidation = config.useHandshakeStateValidation();
+		this.useKeyUsageVerification = config.useKeyUsageVerification();
+		this.useTruncatedCertificatePathForVerification = config.useTruncatedCertificatePathForValidation();
 		this.privateKey = config.getPrivateKey();
 		this.publicKey = config.getPublicKey();
 		this.certificateChain = config.getCertificateChain();
@@ -1314,20 +1331,43 @@ public abstract class Handshaker implements Destroyable {
 	 * @throws HandshakeException if any of the checks fails
 	 */
 	public void verifyCertificate(CertificateMessage message) throws HandshakeException {
-		if (message.getCertificateChain() != null) {
-			if (isClient && message.getCertificateChain().getCertificates().isEmpty()) {
-				LOGGER.debug("Certificate validation failed: empty server certificate!");
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE,
-						session.getPeer());
-				throw new HandshakeException("Empty server certificate!", alert);
-			}
-			if (certificateVerifier != null) {
-				certificateVerifier.verifyCertificate(message, session);
-			} else {
+		CertPath certPath = message.getCertificateChain();
+		if (certPath != null) {
+			if (certificateVerifier == null) {
 				LOGGER.debug("Certificate validation failed: x509 could not be trusted!");
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE,
 						session.getPeer());
 				throw new HandshakeException("Trust is not possible!", alert);
+			}
+
+			List<? extends Certificate> certificates = certPath.getCertificates();
+			if (certificates.isEmpty()) {
+				if (isClient) {
+					LOGGER.debug("Certificate validation failed: empty server certificate!");
+					AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE,
+							session.getPeer());
+					throw new HandshakeException("Empty server certificate!", alert);
+				}
+			}
+
+			if (certificateVerifier instanceof AdvancedCertificateVerifier) {
+				Boolean clientUsage = useKeyUsageVerification ? !isClient : null;
+				peerCertPath = ((AdvancedCertificateVerifier) certificateVerifier).verifyCertificate(clientUsage,
+						useTruncatedCertificatePathForVerification, message, session);
+			} else {
+				if (useKeyUsageVerification && !certificates.isEmpty()) {
+					Certificate certificate = certificates.get(0);
+					if (certificate instanceof X509Certificate) {
+						if (!CertPathUtil.canBeUsedForAuthentication((X509Certificate) certificate, !isClient)) {
+							LOGGER.debug("Certificate validation failed: key usage doesn't match");
+							AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE,
+									session.getPeer());
+							throw new HandshakeException("Key Usage doesn't match!", alert);
+						}
+					}
+				}
+				certificateVerifier.verifyCertificate(message, session);
+				peerCertPath = certPath;
 			}
 		} else {
 			RawPublicKeyIdentity rpk = new RawPublicKeyIdentity(message.getPublicKey());
@@ -1335,7 +1375,7 @@ public abstract class Handshaker implements Destroyable {
 				LOGGER.debug("Certificate validation failed: Raw public key is not trusted");
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE,
 						session.getPeer());
-				throw new HandshakeException("Raw public key is not trusted", alert);
+				throw new HandshakeException("Raw public key is not trusted!", alert);
 			}
 		}
 	}

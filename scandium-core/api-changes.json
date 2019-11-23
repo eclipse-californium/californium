@@ -16,6 +16,28 @@
 					"oldArchive": "org.eclipse.californium:scandium:jar:2.0.0",
 					"newArchive": "org.eclipse.californium:scandium:jar:2.1.0-SNAPSHOT",
 					"elementKind": "field"
+				},
+				{
+					"code": "java.method.removed",
+					"old": "method boolean org.eclipse.californium.scandium.dtls.CertificateRequest::addCertificateAuthorities(java.security.cert.X509Certificate[])",
+					"justification": "not part of the public API - removed requires explicit ignore",
+					"package": "org.eclipse.californium.scandium.dtls",
+					"classQualifiedName": "org.eclipse.californium.scandium.dtls.CertificateRequest",
+					"classSimpleName": "CertificateRequest",
+					"methodName": "addCertificateAuthorities",
+					"oldArchive": "org.eclipse.californium:scandium:jar:2.0.0",
+					"elementKind": "method"
+				},
+				{
+					"code": "java.method.removed",
+					"old": "method java.util.List<java.security.cert.X509Certificate> org.eclipse.californium.scandium.dtls.CertificateRequest::removeTrustedCertificates(java.util.List<java.security.cert.X509Certificate>)",
+					"justification": "not part of the public API - removed requires explicit ignore",
+					"package": "org.eclipse.californium.scandium.dtls",
+					"classQualifiedName": "org.eclipse.californium.scandium.dtls.CertificateRequest",
+					"classSimpleName": "CertificateRequest",
+					"methodName": "removeTrustedCertificates",
+					"oldArchive": "org.eclipse.californium:scandium:jar:2.0.0",
+					"elementKind": "method"
 				}
 			]
 		}

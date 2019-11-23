@@ -114,6 +114,14 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 	}
 
 	@Test
+	public void testOpenSslServerFullTrustTrustAll() throws Exception {
+		String cipher = processUtil.startupServer(cipherSuite, AuthenticationMode.TRUST);
+
+		scandiumUtil.start(BIND, false, null, cipherSuite);
+		connect(cipher);
+	}
+
+	@Test
 	public void testOpenSslServerCertTrustCa() throws Exception {
 		String cipher = processUtil.startupServer(cipherSuite, AuthenticationMode.CERTIFICATE);
 
