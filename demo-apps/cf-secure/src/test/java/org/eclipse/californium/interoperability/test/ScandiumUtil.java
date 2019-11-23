@@ -126,12 +126,28 @@ public class ScandiumUtil {
 	 *                     provided bind address
 	 */
 	public void start(InetSocketAddress bind, String trust, CipherSuite... cipherSuites) throws IOException {
+		start(bind, true, trust, cipherSuites);
+	}
+
+	/**
+	 * Start connector.
+	 * 
+	 * @param bind         address to bind connector to
+	 * @param truncate     {@code true} truncate client certificate path, {@code false}, otherwise.
+	 * @param trust        alias of trusted certificate, or {@code null} to trust
+	 *                     all received certificates.
+	 * @param cipherSuites cipher suites to support.
+	 * @throws IOException if an error occurred starting the connector on the
+	 *                     provided bind address
+	 */
+	public void start(InetSocketAddress bind, boolean truncate, String trust, CipherSuite... cipherSuites) throws IOException {
 		List<CipherSuite> suites = Arrays.asList(cipherSuites);
 		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
 		dtlsBuilder.setAddress(bind);
 		dtlsBuilder.setRecommendedCipherSuitesOnly(false);
 		dtlsBuilder.setConnectionThreadCount(2);
 		dtlsBuilder.setReceiverThreadCount(2);
+		dtlsBuilder.setUseTruncatedCertificatePathForClientsCertificateMessage(truncate);
 		if (CipherSuite.containsPskBasedCipherSuite(suites)) {
 			dtlsBuilder.setPskStore(
 					new StaticPskStore(CredentialsUtil.OPEN_PSK_IDENTITY, CredentialsUtil.OPEN_PSK_SECRET));

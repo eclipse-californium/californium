@@ -77,7 +77,7 @@ public class HandshakerTest {
 
 	final int[] receivedMessages = new int[10];
 	InetSocketAddress endpoint = InetSocketAddress.createUnresolved("localhost", 10000);
-	TestHandshaker handshaker;
+	TestHandshaker handshakerWithoutAnchors;
 	TestHandshaker handshakerWithAnchors;
 	DTLSSession session;
 	X509Certificate[] certificateChain;
@@ -129,7 +129,7 @@ public class HandshakerTest {
 		builder.setCertificateVerifier(new StaticCertificateVerifier(null));
 		builder.setRpkTrustStore(rpkStore);
 
-		handshaker = new TestHandshaker(session, recordLayer, builder.build());
+		handshakerWithoutAnchors = new TestHandshaker(session, recordLayer, builder.build());
 
 		builder = new Builder();
 		builder.setClientOnly();
@@ -203,15 +203,15 @@ public class HandshakerTest {
 		Record record0 = createClientHelloRecord(session, 0, current, current);
 		Record record1 = createClientHelloRecord(session, 0, next, next);
 	
-		handshaker.decryptAndProcessMessage(record0);
+		handshakerWithoutAnchors.decryptAndProcessMessage(record0);
 		assertThat(receivedMessages[current], is(1));
 
 		// send record with same record sequence number again
-		handshaker.decryptAndProcessMessage(record0);
+		handshakerWithoutAnchors.decryptAndProcessMessage(record0);
 		assertThat(receivedMessages[current], is(1));
 
 		// send record with next record sequence number
-		handshaker.decryptAndProcessMessage(record1);
+		handshakerWithoutAnchors.decryptAndProcessMessage(record1);
 		assertThat(receivedMessages[next], is(1));
 	}
 
@@ -223,13 +223,13 @@ public class HandshakerTest {
 
 		// when processing the missing message with nextseqNo
 		Record record = getRecordForMessage(0, 0, createCertificateMessage(session, nextSeqNo, certificateChain));
-		handshaker.decryptAndProcessMessage(record);
+		handshakerWithoutAnchors.decryptAndProcessMessage(record);
 
 		// assert that all fragments have been re-assembled and the resulting message with
 		// the future sequence no has been processed
 		assertThat(receivedMessages[nextSeqNo], is(1));
 		assertThat(receivedMessages[futureSeqNo], is(1));
-		assertTrue(handshaker.isInboundMessageProcessed());
+		assertTrue(handshakerWithoutAnchors.isInboundMessageProcessed());
 	}
 
 	private void givenAHandshakerWithAQueuedFragmentedMessage(int seqNo) throws HandshakeException, GeneralSecurityException {
@@ -239,10 +239,10 @@ public class HandshakerTest {
 		int i = 1;
 		for (FragmentedHandshakeMessage fragment : handshakeMessageFragments) {
 			Record record = getRecordForMessage(0, i++, fragment);
-			handshaker.decryptAndProcessMessage(record);
+			handshakerWithoutAnchors.decryptAndProcessMessage(record);
 		}
 		assertThat(receivedMessages[seqNo], is(0));
-		assertFalse(handshaker.isInboundMessageProcessed());
+		assertFalse(handshakerWithoutAnchors.isInboundMessageProcessed());
 	}
 
 	@Test
@@ -250,7 +250,7 @@ public class HandshakerTest {
 		givenAFragmentedHandshakeMessage(certificateMessage);
 		HandshakeMessage result = null;
 		for (FragmentedHandshakeMessage fragment : handshakeMessageFragments) {
-			result = handshaker.handleFragmentation(fragment);
+			result = handshakerWithoutAnchors.handleFragmentation(fragment);
 		}
 		assertThatReassembledMessageEqualsOriginalMessage(result);
 	}
@@ -260,7 +260,7 @@ public class HandshakerTest {
 		givenAFragmentedHandshakeMessage(certificateMessage);
 		HandshakeMessage result = null;
 		for (int i = handshakeMessageFragments.length - 1; i >= 0; i--) {
-			result = handshaker.handleFragmentation(handshakeMessageFragments[i]);
+			result = handshakerWithoutAnchors.handleFragmentation(handshakeMessageFragments[i]);
 		}
 		assertThatReassembledMessageEqualsOriginalMessage(result);
 	}
@@ -270,7 +270,7 @@ public class HandshakerTest {
 		givenAFragmentedHandshakeMessage(certificateMessage, 250, 500);
 		HandshakeMessage result = null;
 		for (FragmentedHandshakeMessage fragment : handshakeMessageFragments) {
-			HandshakeMessage last = handshaker.handleFragmentation(fragment);
+			HandshakeMessage last = handshakerWithoutAnchors.handleFragmentation(fragment);
 			if (result == null) {
 				result = last;
 			}
@@ -283,7 +283,7 @@ public class HandshakerTest {
 		givenAMissFragmentedHandshakeMessage(certificateMessage, 100,  200);
 		HandshakeMessage result = null;
 		for (FragmentedHandshakeMessage fragment : handshakeMessageFragments) {
-			HandshakeMessage last = handshaker.handleFragmentation(fragment);
+			HandshakeMessage last = handshakerWithoutAnchors.handleFragmentation(fragment);
 			if (result == null) {
 				result = last;
 			}
@@ -384,7 +384,7 @@ public class HandshakerTest {
 
 	private void assertThatCertificateVerificationFails() {
 		try {
-			handshaker.verifyCertificate(message);
+			handshakerWithoutAnchors.verifyCertificate(message);
 			fail("Verification of certificate should have failed");
 		} catch (HandshakeException e) {
 			// all is well
@@ -393,7 +393,7 @@ public class HandshakerTest {
 
 	private void assertThatCertificateValidationFailsForEmptyTrustAnchor() {
 		try {
-			handshaker.verifyCertificate(message);
+			handshakerWithoutAnchors.verifyCertificate(message);
 			fail("Verification of certificate should have failed");
 		} catch (HandshakeException e) {
 			// all is well
@@ -405,7 +405,7 @@ public class HandshakerTest {
 		clientHello.setMessageSeq(messageSeqNo);
 		return getRecordForMessage(epoch, sequenceNo, clientHello);
 	}
-	
+
 	private static  CertificateMessage createCertificateMessage(DTLSSession session, int seqNo, X509Certificate[] chain) {
 		CertificateMessage result = new CertificateMessage(Arrays.asList(chain), session.getPeer());
 		result.setMessageSeq(seqNo);

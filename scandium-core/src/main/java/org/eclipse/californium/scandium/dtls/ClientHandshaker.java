@@ -48,17 +48,18 @@ package org.eclipse.californium.scandium.dtls;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.PublicKey;
-import java.security.cert.CertPath;
 import java.security.cert.X509Certificate;
 import java.security.interfaces.ECPublicKey;
 import java.util.Collections;
 import java.util.List;
 
 import javax.crypto.SecretKey;
+import javax.security.auth.x500.X500Principal;
 
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -75,6 +76,7 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * client. It is driven by handshake messages as delivered by the parent
  * {@link Handshaker} class.
  */
+@NoPublicAPI
 public class ClientHandshaker extends Handshaker {
 
 	protected static HandshakeState[] SEVER_CERTIFICATE = { new HandshakeState(HandshakeType.HELLO_VERIFY_REQUEST, true),
@@ -96,9 +98,6 @@ public class ClientHandshaker extends Handshaker {
 	/** The server's public key from its certificate */
 	private PublicKey serverPublicKey;
 
-	// The server's X.509 certificate chain.
-	private CertPath peerCertPath;
-
 	/** The server's ephemeral public key, used for key agreement */
 	protected ECPublicKey ephemeralServerPublicKey;
 
@@ -108,7 +107,8 @@ public class ClientHandshaker extends Handshaker {
 	/** the preferred cipher suites ordered by preference */
 	private final List<CipherSuite> preferredCipherSuites;
 
-	protected Integer maxFragmentLengthCode;
+	protected final Integer maxFragmentLengthCode;
+	protected final boolean truncateCertificatePath;
 
 	/**
 	 * The certificate types this peer supports for client authentication.
@@ -154,7 +154,7 @@ public class ClientHandshaker extends Handshaker {
 		super(true, 0, session, recordLayer, connection, config, maxTransmissionUnit);
 		this.preferredCipherSuites = config.getSupportedCipherSuites();
 		this.maxFragmentLengthCode = config.getMaxFragmentLengthCode();
-
+		this.truncateCertificatePath = config.useTruncatedCertificatePathForClientsCertificateMessage();
 		this.supportedServerCertificateTypes = config.getTrustCertificateTypes();
 		this.supportedClientCertificateTypes = config.getIdentityCertificateTypes();
 	}
@@ -385,7 +385,6 @@ public class ClientHandshaker extends Handshaker {
 	private void receivedServerCertificate(CertificateMessage message) throws HandshakeException {
 		verifyCertificate(message);
 		serverPublicKey = message.getPublicKey();
-		peerCertPath = message.getCertificateChain();
 	}
 
 	/**
@@ -567,10 +566,8 @@ public class ClientHandshaker extends Handshaker {
 				clientCertificate = new CertificateMessage(rawPublicKeyBytes, session.getPeer());
 			} else if (CertificateType.X_509 == session.sendCertificateType()) {
 				List<X509Certificate> clientChain = determineClientCertificateChain(certificateRequest);
-				// make sure we only send certs not part of the server's trust anchor
-				List<X509Certificate> truncatedChain = certificateRequest.removeTrustedCertificates(clientChain);
-				LOGGER.debug("sending CERTIFICATE message with client certificate chain [length: {}] to server", truncatedChain.size());
-				clientCertificate = new CertificateMessage(truncatedChain, session.getPeer());
+				List<X500Principal> authorities = truncateCertificatePath ? certificateRequest.getCertificateAuthorities() : null;
+				clientCertificate = new CertificateMessage(clientChain, authorities, session.getPeer());
 			} else {
 				throw new IllegalArgumentException("Certificate type " + session.sendCertificateType() + " not supported!");
 			}

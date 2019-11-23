@@ -45,12 +45,14 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.eclipse.californium.elements.DtlsEndpointContext;
+import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.ConnectionListener;
 import org.eclipse.californium.scandium.DtlsHealth;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.dtls.CertificateMessage;
+import org.eclipse.californium.scandium.dtls.CertificateRequest;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.SessionCache;
@@ -312,11 +314,23 @@ public final class DtlsConnectorConfig {
 
 	private ApplicationLevelInfoSupplier applicationLevelInfoSupplier;
 
-	
 	/**
 	 * Use the handshake state validation to verify valid handshakes.
 	 */
 	private Boolean useHandshakeStateValidation;
+
+	/**
+	 * Use verification of x509 key usage (extension).
+	 */
+	private Boolean useKeyUsageVerification;
+	/**
+	 * Use truncated certificate paths when sending the client's certificate message.
+	 */
+	private Boolean useTruncatedCertificatePathForClientsCertificateMessage;
+	/**
+	 * Use truncated certificate paths for verification.
+	 */
+	private Boolean useTruncatedCertificatePathForValidation;
 
 	private ConnectionListener connectionListener;
 
@@ -803,6 +817,42 @@ public final class DtlsConnectorConfig {
 		return useHandshakeStateValidation;
 	}
 
+	/**
+	 * Use key usage verification for x509.
+	 * 
+	 * @return {@code true}, if check of key usage (x509 extension) is enabled
+	 */
+	public Boolean useKeyUsageVerification() {
+		return useKeyUsageVerification;
+	}
+
+	/**
+	 * Use truncated certificate paths for client's certificate message.
+	 * 
+	 * Truncate certificate path according the received certificate
+	 * authorities in the {@link CertificateRequest} for the client's
+	 * {@link CertificateMessage}.
+	 * 
+	 * @return {@code true}, if path should be truncated for client's
+	 *         certificate message.
+	 */
+	public Boolean useTruncatedCertificatePathForClientsCertificateMessage() {
+		return useTruncatedCertificatePathForClientsCertificateMessage;
+	}
+
+	/**
+	 * Use truncated certificate paths for validation.
+	 * 
+	 * Truncate certificate path according the available trusted
+	 * certificates before validation.
+	 * 
+	 * @return {@code true}, if path should be truncated at available trust
+	 *         anchors for validation
+	 */
+	public Boolean useTruncatedCertificatePathForValidation() {
+		return useTruncatedCertificatePathForValidation;
+	}
+
 	public ConnectionListener getConnectionListener() {
 		return connectionListener;
 	}
@@ -882,6 +932,9 @@ public final class DtlsConnectorConfig {
 		cloned.connectionIdGenerator = connectionIdGenerator;
 		cloned.applicationLevelInfoSupplier = applicationLevelInfoSupplier;
 		cloned.useHandshakeStateValidation = useHandshakeStateValidation;
+		cloned.useTruncatedCertificatePathForClientsCertificateMessage = useTruncatedCertificatePathForClientsCertificateMessage;
+		cloned.useTruncatedCertificatePathForValidation = useTruncatedCertificatePathForValidation;
+		cloned.useKeyUsageVerification = useKeyUsageVerification;
 		cloned.connectionListener = connectionListener;
 		cloned.healthHandler = healthHandler;
 		return cloned;
@@ -1994,6 +2047,50 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
+		 * Use key usage verification for x509.
+		 * 
+		 * @param enable {@code true} to verify the key usage of x509
+		 *            certificates. Default {@code true}.
+		 * @return this builder for command chaining.
+		 */
+		public Builder setKeyUsageVerification(boolean enable) {
+			config.useKeyUsageVerification = enable;
+			return this;
+		}
+
+		/**
+		 * Use truncated certificate paths for client's certificate message.
+		 * 
+		 * Truncate certificate path according the received certificate
+		 * authorities in the {@link CertificateRequest} for the client's
+		 * {@link CertificateMessage}.
+		 * 
+		 * @param enable {@code true} to truncate the certificate path according
+		 *            the received certificate authorities. Default
+		 *            {@code true}.
+		 * @return this builder for command chaining.
+		 */
+		public Builder setUseTruncatedCertificatePathForClientsCertificateMessage(boolean enable) {
+			config.useTruncatedCertificatePathForClientsCertificateMessage = enable;
+			return this;
+		}
+
+		/**
+		 * Use truncated certificate paths for validation.
+		 * 
+		 * Truncate certificate path according the available trusted
+		 * certificates before validation.
+		 * 
+		 * @param enable {@code true} to truncate the certificate path according
+		 *            the available trusted certificates. Default {@code true}.
+		 * @return this builder for command chaining.
+		 */
+		public Builder setUseTruncatedCertificatePathForValidation(boolean enable) {
+			config.useTruncatedCertificatePathForValidation = enable;
+			return this;
+		}
+
+		/**
 		 * Set instance logging tag.
 		 * 
 		 * @param tag logging tag of configure instance
@@ -2056,6 +2153,15 @@ public final class DtlsConnectorConfig {
 			}
 			if (config.useHandshakeStateValidation == null) {
 				config.useHandshakeStateValidation = Boolean.TRUE;
+			}
+			if (config.useTruncatedCertificatePathForClientsCertificateMessage == null) {
+				config.useTruncatedCertificatePathForClientsCertificateMessage = Boolean.TRUE;
+			}
+			if (config.useTruncatedCertificatePathForValidation == null) {
+				config.useTruncatedCertificatePathForValidation = Boolean.TRUE;
+			}
+			if (config.useKeyUsageVerification == null) {
+				config.useKeyUsageVerification = Boolean.TRUE;
 			}
 			if (config.earlyStopRetransmission == null) {
 				config.earlyStopRetransmission = Boolean.TRUE;
@@ -2196,7 +2302,20 @@ public final class DtlsConnectorConfig {
 					throw new IllegalStateException("certificate trust set, but no certificate based cipher suite!");
 				}
 			}
-
+			if (config.certChain != null) {
+				boolean usage;
+				if (clientOnly) {
+					usage = CertPathUtil.canBeUsedForAuthentication(config.certChain.get(0), true);
+				} else if (config.serverOnly) {
+					usage = CertPathUtil.canBeUsedForAuthentication(config.certChain.get(0), false);
+				} else {
+					usage = CertPathUtil.canBeUsedForAuthentication(config.certChain.get(0), true);
+					usage = usage && CertPathUtil.canBeUsedForAuthentication(config.certChain.get(0), false);
+				}
+				if (!usage) {
+					throw new IllegalStateException("certificate has no proper key usage!");
+				}
+			}
 			config.trustCertificateTypes = ListUtils.init(config.trustCertificateTypes);
 			config.identityCertificateTypes = ListUtils.init(config.identityCertificateTypes);
 			config.supportedCipherSuites = ListUtils.init(config.supportedCipherSuites);

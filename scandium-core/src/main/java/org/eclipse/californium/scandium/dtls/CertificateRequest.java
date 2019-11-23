@@ -34,8 +34,10 @@ import java.util.List;
 
 import javax.security.auth.x500.X500Principal;
 
+import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,6 +51,7 @@ import org.slf4j.LoggerFactory;
  * 
  * @see <a href="http://tools.ietf.org/html/rfc5246#section-7.4.4">RFC 5246, 7.4.4. Certificate Request</a>
  */
+@NoPublicAPI
 public final class CertificateRequest extends HandshakeMessage {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(CertificateRequest.class.getName());
@@ -353,7 +356,7 @@ public final class CertificateRequest extends HandshakeMessage {
 		if (authority == null) {
 			throw new NullPointerException("authority must not be null");
 		}
-		int encodedAuthorityLength = 2 + // length field
+		int encodedAuthorityLength = (CERTIFICATE_AUTHORITY_LENGTH_BITS / Byte.SIZE) + // length field
 				authority.getEncoded().length;
 		if (certificateAuthoritiesEncodedLength + encodedAuthorityLength <= MAX_LENGTH_CERTIFICATE_AUTHORITIES) {
 			certificateAuthorities.add(authority);
@@ -362,21 +365,6 @@ public final class CertificateRequest extends HandshakeMessage {
 		} else {
 			return false;
 		}
-	}
-
-	private boolean addCerticiateAuthorities(List<X500Principal> authorities) {
-
-		int authoritiesAdded = 0;
-		for (X500Principal authority : authorities) {
-			if (!addCertificateAuthority(authority)) {
-				LOGGER.debug("could add only {} of {} certificate authorities, max length exceeded",
-						new Object[]{ authoritiesAdded, authorities.size() });
-				return false;
-			} else {
-				authoritiesAdded++;
-			}
-		}
-		return true;
 	}
 
 	/**
@@ -388,18 +376,16 @@ public final class CertificateRequest extends HandshakeMessage {
 	 *         maximum encoded length allowed for the certificate request message's
 	 *         certificate authorities vector (2^16 - 1 bytes).
 	 */
-	public boolean addCertificateAuthorities(X509Certificate[] trustedCas) {
+	public boolean addCerticiateAuthorities(List<X500Principal> authorities) {
 
-		if (trustedCas != null) {
-			int authoritiesAdded = 0;
-			for (X509Certificate certificate : trustedCas) {
-				if (!addCertificateAuthority(certificate.getSubjectX500Principal())) {
-					LOGGER.debug("could add only {} of {} certificate authorities, max length exceeded",
-							new Object[]{ authoritiesAdded, trustedCas.length });
-					return false;
-				} else {
-					authoritiesAdded++;
-				}
+		int authoritiesAdded = 0;
+		for (X500Principal authority : authorities) {
+			if (!addCertificateAuthority(authority)) {
+				LOGGER.debug("could add only {} of {} certificate authorities, max length exceeded", authoritiesAdded,
+						authorities.size());
+				return false;
+			} else {
+				authoritiesAdded++;
 			}
 		}
 		return true;
@@ -436,20 +422,33 @@ public final class CertificateRequest extends HandshakeMessage {
 	 * @return {@code true} if the certificate's public key is compatible.
 	 */
 	boolean isSupportedKeyType(X509Certificate cert) {
-
+		Boolean clientUsage = null;
 		for (ClientCertificateType type : certificateTypes) {
 			boolean isCompatibleType = type.isCompatibleWithKeyAlgorithm(cert.getPublicKey().getAlgorithm());
-			// KeyUsage is an optional extension which may be used to restrict the way the key can be used.
-			// https://tools.ietf.org/html/rfc5280#section-4.2.1.3
-			// If this extension is used, we check if digitalsignature usage is present.
-			// (For more details see : https://github.com/eclipse/californium/issues/748)
-			boolean meetsSigningRequirements = !type.requiresSigningCapability()
-					|| (cert.getKeyUsage() == null || cert.getKeyUsage()[0]);
-			LOGGER.debug("type: {}, isCompatibleWithKeyAlgorithm[{}]: {}, meetsSigningRequirements: {}", type,
-					cert.getPublicKey().getAlgorithm(), isCompatibleType, meetsSigningRequirements);
-			if (isCompatibleType && meetsSigningRequirements) {
-				return true;
+			if (!isCompatibleType) {
+				LOGGER.error("type: {}, is not compatible with KeyAlgorithm[{}]: {}", type,
+						cert.getPublicKey().getAlgorithm());
+				continue;
 			}
+			// KeyUsage is an optional extension which may be used to restrict
+			// the way the key can be used.
+			// https://tools.ietf.org/html/rfc5280#section-4.2.1.3
+			// If this extension is used, we check if digitalsignature usage is
+			// present.
+			// (For more details see :
+			// https://github.com/eclipse/californium/issues/748)
+			if (type.requiresSigningCapability()) {
+				if (clientUsage == null) {
+					clientUsage = CertPathUtil.canBeUsedForAuthentication(cert, true);
+				}
+				if (!clientUsage) {
+					LOGGER.error("type: {}, requires missing signing capability!", type);
+					continue;
+				}
+			}
+			LOGGER.debug("type: {}, is compatible with KeyAlgorithm[{}] and meets signing requirements", type,
+					cert.getPublicKey().getAlgorithm());
+			return true;
 		}
 		LOGGER.debug("certificate [{}] is not of any supported type", cert);
 		return false;
@@ -542,34 +541,6 @@ public final class CertificateRequest extends HandshakeMessage {
 			}
 		}
 		return null;
-	}
-
-	/**
-	 * Truncates a given certificate chain at the first certificate encountered having
-	 * a subject listed in <em>certificateAuthorities</em>.
-	 * 
-	 * @param chain The original certificate chain.
-	 * @return A (potentially) truncated copy of the original chain.
-	 * @throws NullPointerException if the given chain is {@code null}.
-	 */
-	public List<X509Certificate> removeTrustedCertificates(List<X509Certificate> chain) {
-		if (chain == null) {
-			throw new NullPointerException("certificate chain must not be null");
-		} else if (chain.size() > 1) {
-			List<X509Certificate> result = new ArrayList<>();
-			result.add(chain.get(0));
-			int i = 1;
-			for (; i < chain.size(); i++) {
-				X509Certificate x509Certificate = chain.get(i);
-				result.add(x509Certificate);
-				if (certificateAuthorities.contains(x509Certificate.getSubjectX500Principal())) {
-					break;
-				}
-			}
-			return Collections.unmodifiableList(result);
-		} else {
-			return chain;
-		}
 	}
 
 	/**
