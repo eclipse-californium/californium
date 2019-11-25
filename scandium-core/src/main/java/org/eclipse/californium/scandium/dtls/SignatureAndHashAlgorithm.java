@@ -117,17 +117,28 @@ public final class SignatureAndHashAlgorithm {
 
 	private final HashAlgorithm hash;
 	private final SignatureAlgorithm signature;
+	private final int hashAlgorithmCode;
+	private final int signatureAlgorithmCode;
 
 	/**
 	 * Creates an instance for a hash and signature algorithm.
 	 * 
 	 * @param hashAlgorithm The hash algorithm.
 	 * @param signatureAlgorithm The signature algorithm.
+	 * @throws NullPointerException if one of the provided arguments was
+	 *             {@code null}
 	 */
 	public SignatureAndHashAlgorithm(HashAlgorithm hashAlgorithm, SignatureAlgorithm signatureAlgorithm) {
-
-		this.signature = signatureAlgorithm;
+		if (hashAlgorithm == null) {
+			throw new NullPointerException("Hash Algorithm must not be null!");
+		}
+		if (signatureAlgorithm == null) {
+			throw new NullPointerException("Signature Algorithm must not be null!");
+		}
 		this.hash = hashAlgorithm;
+		this.signature = signatureAlgorithm;
+		this.hashAlgorithmCode = hashAlgorithm.getCode();
+		this.signatureAlgorithmCode = signatureAlgorithm.getCode();
 	}
 
 	/**
@@ -139,6 +150,8 @@ public final class SignatureAndHashAlgorithm {
 	 *            the signature algorithm's code.
 	 */
 	public SignatureAndHashAlgorithm(int hashAlgorithmCode, int signatureAlgorithmCode) {
+		this.hashAlgorithmCode = hashAlgorithmCode;
+		this.signatureAlgorithmCode = signatureAlgorithmCode;
 		this.signature = SignatureAlgorithm.getAlgorithmByCode(signatureAlgorithmCode);
 		this.hash = HashAlgorithm.getAlgorithmByCode(hashAlgorithmCode);
 	}
@@ -175,6 +188,18 @@ public final class SignatureAndHashAlgorithm {
 	 * @return The name.
 	 */
 	public String jcaName() {
-		return hash.toString() + "with" + signature.toString();
+		StringBuilder name = new StringBuilder();
+		if (hash != null) {
+			name.append(hash);
+		} else {
+			name.append(String.format("0x%02x", hashAlgorithmCode));
+		}
+		name.append("with");
+		if (signature != null) {
+			name.append(signature);
+		} else {
+			name.append(String.format("0x%02x", signatureAlgorithmCode));
+		}
+		return name.toString();
 	}
 }
