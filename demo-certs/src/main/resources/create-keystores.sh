@@ -7,11 +7,13 @@ TRUST_STORE_PWD=rootPass
 
 # android support - PKCS12
 TRUST_STORE_P12=trustStore.p12
+CA_TRUST_STORE_P12=caTrustStore.p12
 CLIENT_KEY_STORE_P12=client.p12
 SERVER_KEY_STORE_P12=server.p12
 
 # PEM 
 TRUST_STORE_PEM=trustStore.pem
+CA_TRUST_STORE_PEM=caTrustStore.pem
 CLIENT_KEY_STORE_PEM=client.pem
 SERVER_KEY_STORE_PEM=server.pem
 
@@ -58,6 +60,8 @@ export_p12() {
       -destkeystore $CLIENT_KEY_STORE_P12 -deststorepass $KEY_STORE_PWD -deststoretype PKCS12
    keytool -v -importkeystore -srckeystore $KEY_STORE -srcstorepass $KEY_STORE_PWD -alias server \
       -destkeystore $SERVER_KEY_STORE_P12 -deststorepass $KEY_STORE_PWD -deststoretype PKCS12
+   keytool -v -importkeystore -srckeystore $TRUST_STORE -srcstorepass $TRUST_STORE_PWD -alias ca \
+      -destkeystore $CA_TRUST_STORE_P12 -deststorepass $TRUST_STORE_PWD -deststoretype PKCS12
    keytool -v -importkeystore -srckeystore $TRUST_STORE -srcstorepass $TRUST_STORE_PWD \
       -destkeystore $TRUST_STORE_P12 -deststorepass $TRUST_STORE_PWD -deststoretype PKCS12
 }
@@ -69,6 +73,7 @@ export_pem() {
       echo "exporting keys into PEM format"
       openssl pkcs12 -in $SERVER_KEY_STORE_P12 -passin pass:$KEY_STORE_PWD -nodes -out $SERVER_KEY_STORE_PEM
       openssl pkcs12 -in $CLIENT_KEY_STORE_P12 -passin pass:$KEY_STORE_PWD -nodes -out $CLIENT_KEY_STORE_PEM
+      openssl pkcs12 -in $CA_TRUST_STORE_P12 -passin pass:$TRUST_STORE_PWD -nokeys -out $CA_TRUST_STORE_PEM
       openssl pkcs12 -in $TRUST_STORE_P12 -passin pass:$TRUST_STORE_PWD -nokeys -out $TRUST_STORE_PEM
       openssl ecparam -genkey -name prime256v1 -noout -out ec_private.pem
       openssl ec -in ec_private.pem -pubout -out ec_public.pem

@@ -21,12 +21,12 @@ import java.util.Map;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 
 /**
- * Utility for openssl.
- * Map of {@link CipherSuite} to openssl cipher suite name.
+ * Utility for openssl. Map of {@link CipherSuite} to openssl cipher suite name.
  */
 public class OpenSslUtil {
 
 	public static final Map<CipherSuite, String> CIPHERSUITES_MAP = new HashMap<CipherSuite, String>();
+
 	static {
 		CIPHERSUITES_MAP.put(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256, "ECDHE-PSK-AES128-CBC-SHA256");
 		CIPHERSUITES_MAP.put(CipherSuite.TLS_PSK_WITH_AES_128_GCM_SHA256, "PSK-AES128-GCM-SHA256");
