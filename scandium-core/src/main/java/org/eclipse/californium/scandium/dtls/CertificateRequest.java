@@ -37,11 +37,8 @@ import javax.security.auth.x500.X500Principal;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.HashAlgorithm;
-import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.SignatureAlgorithm;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 
 /**
  * A non-anonymous server can optionally request a certificate from the client,
@@ -219,8 +216,7 @@ public final class CertificateRequest extends HandshakeMessage {
 		while (rangeReader.bytesAvailable()) {
 			int codeHash = rangeReader.read(SUPPORTED_SIGNATURE_BITS);
 			int codeSignature = rangeReader.read(SUPPORTED_SIGNATURE_BITS);
-			supportedSignatureAlgorithms.add(new SignatureAndHashAlgorithm(HashAlgorithm.getAlgorithmByCode(codeHash),
-					SignatureAlgorithm.getAlgorithmByCode(codeSignature)));
+			supportedSignatureAlgorithms.add(new SignatureAndHashAlgorithm(codeHash, codeSignature));
 		}
 
 		List<X500Principal> certificateAuthorities = new ArrayList<>();

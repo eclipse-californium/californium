@@ -527,7 +527,7 @@ public class ServerHandshaker extends Handshaker {
 
 			// TODO make this variable, reasonable values
 			certificateRequest.addCertificateType(ClientCertificateType.ECDSA_SIGN);
-			certificateRequest.addSignatureAlgorithm(new SignatureAndHashAlgorithm(signatureAndHashAlgorithm.getHash(), signatureAndHashAlgorithm.getSignature()));
+			certificateRequest.addSignatureAlgorithm(signatureAndHashAlgorithm);
 			if (certificateVerifier != null) {
 				certificateRequest.addCertificateAuthorities(certificateVerifier.getAcceptedIssuers());
 			}
