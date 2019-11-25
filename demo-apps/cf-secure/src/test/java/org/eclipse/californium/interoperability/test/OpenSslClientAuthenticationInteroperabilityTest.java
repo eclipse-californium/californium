@@ -30,22 +30,16 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Parameterized.Parameter;
-import org.junit.runners.Parameterized.Parameters;
 
 /**
  * Test for interoperability with openssl client.
  * 
- * Test several different cipher suites.
- * 
- * @see OpenSslUtil
+ * Test several authentication modes.
  */
-@RunWith(Parameterized.class)
-public class OpenSslClientInteroperabilityTest {
+public class OpenSslClientAuthenticationInteroperabilityTest {
 
 	@Rule
 	public TestNameLoggerRule name = new TestNameLoggerRule();
@@ -56,6 +50,7 @@ public class OpenSslClientInteroperabilityTest {
 
 	private static OpenSslProcessUtil processUtil;
 	private static ScandiumUtil scandiumUtil;
+	private static CipherSuite cipherSuite;
 
 	@BeforeClass
 	public static void init() throws IOException, InterruptedException {
@@ -65,6 +60,7 @@ public class OpenSslClientInteroperabilityTest {
 		assumeNotNull(result);
 		assumeTrue(result.contains("OpenSSL 1\\.1\\."));
 		scandiumUtil = new ScandiumUtil(false);
+		cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
 	}
 
 	@AfterClass
@@ -78,17 +74,6 @@ public class OpenSslClientInteroperabilityTest {
 		}
 	}
 
-	@Parameter
-	public CipherSuite cipherSuite;
-
-	/**
-	 * @return List of cipher suites.
-	 */
-	@Parameters(name = "{0}")
-	public static Iterable<CipherSuite> cipherSuiteParams() {
-		return OpenSslUtil.CIPHERSUITES_MAP.keySet();
-	}
-
 	@After
 	public void stop() throws InterruptedException {
 		if (scandiumUtil != null) {
@@ -97,15 +82,82 @@ public class OpenSslClientInteroperabilityTest {
 		processUtil.shutdown();
 	}
 
-	/**
-	 * Establish a "connection" and send a message to the server and back to the
-	 * client.
-	 */
 	@Test
-	public void testOpenSslClient() throws Exception {
+	public void testOpenSslClientCertTrustAll() throws Exception {
 		scandiumUtil.start(BIND, null, cipherSuite);
 
 		String cipher = processUtil.startupClient(cipherSuite, AuthenticationMode.CERTIFICATE);
+		connect(cipher);
+	}
+
+	@Test
+	public void testOpenSslClientChainTrustAll() throws Exception {
+		scandiumUtil.start(BIND, null, cipherSuite);
+
+		String cipher = processUtil.startupClient(cipherSuite, AuthenticationMode.CHAIN);
+		connect(cipher);
+	}
+
+	@Test
+	public void testOpenSslClientTrustTrustAll() throws Exception {
+		scandiumUtil.start(BIND, null, cipherSuite);
+
+		String cipher = processUtil.startupClient(cipherSuite, AuthenticationMode.TRUST);
+		connect(cipher);
+	}
+
+	@Test
+	public void testOpenSslClientCertTrustCa() throws Exception {
+		scandiumUtil.start(BIND, ScandiumUtil.TRUST_CA, cipherSuite);
+
+		String cipher = processUtil.startupClient(cipherSuite, AuthenticationMode.CERTIFICATE);
+		connect(cipher);
+	}
+
+	@Test
+	@Ignore // intermediate certificate trust fails
+	public void testOpenSslClientChainTrustCa() throws Exception {
+		scandiumUtil.start(BIND, ScandiumUtil.TRUST_CA, cipherSuite);
+
+		String cipher = processUtil.startupClient(cipherSuite, AuthenticationMode.CHAIN);
+		connect(cipher);
+	}
+
+	@Test
+	@Ignore // intermediate certificate trust fails
+	public void testOpenSslClientTrustTrustCa() throws Exception {
+		scandiumUtil.start(BIND, ScandiumUtil.TRUST_CA, cipherSuite);
+
+		String cipher = processUtil.startupClient(cipherSuite, AuthenticationMode.TRUST);
+		connect(cipher);
+	}
+
+	@Test
+	@Ignore // certificate not trusted by root 
+	public void testOpenSslClientCertTrustRoot() throws Exception {
+		scandiumUtil.start(BIND, ScandiumUtil.TRUST_ROOT, cipherSuite);
+
+		String cipher = processUtil.startupClient(cipherSuite, AuthenticationMode.CERTIFICATE);
+		connect(cipher);
+	}
+
+	@Test
+	public void testOpenSslClientChainTrustRoot() throws Exception {
+		scandiumUtil.start(BIND, ScandiumUtil.TRUST_ROOT, cipherSuite);
+
+		String cipher = processUtil.startupClient(cipherSuite, AuthenticationMode.CHAIN);
+		connect(cipher);
+	}
+
+	@Test
+	public void testOpenSslClientTrustTrustRoot() throws Exception {
+		scandiumUtil.start(BIND, ScandiumUtil.TRUST_ROOT, cipherSuite);
+
+		String cipher = processUtil.startupClient(cipherSuite, AuthenticationMode.TRUST);
+		connect(cipher);
+	}
+
+	public void connect(String cipher) throws Exception {
 		assertTrue(processUtil.waitConsole("Cipher is " + cipher, TIMEOUT_MILLIS));
 
 		String message = "Hello Scandium!";
@@ -114,7 +166,7 @@ public class OpenSslClientInteroperabilityTest {
 		scandiumUtil.assertReceivedData(message, TIMEOUT_MILLIS);
 		scandiumUtil.response("ACK-" + message, TIMEOUT_MILLIS);
 
-		assertTrue(processUtil.waitConsole("ACK-" + message, TIMEOUT_MILLIS));
+		assertTrue("openssl is missing ACK!", processUtil.waitConsole("ACK-" + message, TIMEOUT_MILLIS));
 
 		processUtil.stop(TIMEOUT_MILLIS);
 	}
