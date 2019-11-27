@@ -130,7 +130,6 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 	}
 
 	@Test
-	@Ignore // intermediate certificate trust fails
 	public void testOpenSslServerChainTrustCa() throws Exception {
 		String cipher = processUtil.startupServer(cipherSuite, AuthenticationMode.CHAIN);
 
@@ -139,7 +138,6 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 	}
 
 	@Test
-	@Ignore // intermediate certificate trust fails
 	public void testOpenSslServerTrustTrustCa() throws Exception {
 		String cipher = processUtil.startupServer(cipherSuite, AuthenticationMode.TRUST);
 
