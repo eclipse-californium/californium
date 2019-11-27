@@ -50,6 +50,7 @@ import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.ConnectionListener;
 import org.eclipse.californium.scandium.DtlsHealth;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
+import org.eclipse.californium.scandium.dtls.CertificateMessage;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.SessionCache;
@@ -1436,12 +1437,19 @@ public final class DtlsConnectorConfig {
 		 * 
 		 * @param privateKey the private key used for creating signatures
 		 * @param certificateChain the chain of X.509 certificates asserting the
-		 *            private key subject's identity
+		 *            private key subject's identity. The endpoint's certificate
+		 *            must be at position 0, the certificate signed by a trusted
+		 *            CA must be at the highest position. A self-signed
+		 *            top-level certificate will be removed for outgoing
+		 *            {@link CertificateMessage}. If used for a client side
+		 *            {@link CertificateMessage}, the chain will be truncated to
+		 *            the first certificate of one of the received certificate
+		 *            authorities.
 		 * @param certificateTypes list of certificate types in the order of
 		 *            preference. Default is X_509. To support RAW_PUBLIC_KEY
 		 *            also, use X_509 and RAW_PUBLIC_KEY in the order of the
 		 *            preference. If only RAW_PUBLIC_KEY is used, the
-		 *            certificate chain will set to {@code null}.
+		 *            certificate chain will be set to {@code null}.
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given private key or certificate
 		 *             chain is <code>null</code>
@@ -1482,12 +1490,19 @@ public final class DtlsConnectorConfig {
 		 * 
 		 * @param privateKey the private key used for creating signatures
 		 * @param certificateChain the chain of X.509 certificates asserting the
-		 *            private key subject's identity
+		 *            private key subject's identity. The endpoint's certificate
+		 *            must be at position 0, the certificate signed by a trusted
+		 *            CA must be at the highest position. A self-signed
+		 *            top-level certificate will be removed for outgoing
+		 *            {@link CertificateMessage}. If used for a client side
+		 *            {@link CertificateMessage}, the chain will be truncated to
+		 *            the first certificate of one of the received certificate
+		 *            authorities.
 		 * @param certificateTypes list of certificate types in the order of
 		 *            preference. Default is X_509. To support RAW_PUBLIC_KEY
 		 *            also, use X_509 and RAW_PUBLIC_KEY in the order of the
 		 *            preference. If only RAW_PUBLIC_KEY is used, the
-		 *            certificate chain will set to {@code null}.
+		 *            certificate chain will be set to {@code null}.
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given private key or certificate
 		 *             chain is <code>null</code>
@@ -1543,11 +1558,17 @@ public final class DtlsConnectorConfig {
 		 * requesting a client certificate during the DTLS handshake.</li>
 		 * </ul>
 		 * 
+		 * When a RFC5250 compliant verification is required, use only
+		 * self-signed top-level certificates as root certificates. Using
+		 * intermediate CA certificates may fail, if the other peer send a
+		 * certificate chain, which doesn't end at one of the provided CAs.
+		 * 
 		 * This method must not be called, if
 		 * {@link #setCertificateVerifier(CertificateVerifier)} is already set.
 		 * 
 		 * @param trustedCerts the trusted root certificates. If empty (length
-		 *            of zero), trust all certificates.
+		 *            of zero), trust all certificates and don't execute a
+		 *            certificate verification.
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given array is <code>null</code>
 		 * @throws IllegalArgumentException if the array contains a non-X.509
