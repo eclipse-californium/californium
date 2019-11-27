@@ -21,15 +21,20 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 
 import java.io.IOException;
+import java.util.Arrays;
+
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.Utils;
+import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.oscore.ContextRederivation.PHASE;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
@@ -44,15 +49,16 @@ import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.cose.AlgorithmID;
+import org.eclipse.californium.cose.CoseException;
 
 /**
- * Class that implements test of functionality for re-derivation of contexts.
- * As detailed in Appendix B.2. of the OSCORE draft:
- * https://tools.ietf.org/html/draft-ietf-core-object-security-16#appendix-B.2
+ * Class that implements test of functionality for re-derivation of contexts. As
+ * detailed in Appendix B.2. of the OSCORE RFC:
+ * https://tools.ietf.org/html/rfc8613#appendix-B.2
  *
  * This can for instance be used when one device has lost power and information
- * about the mutable parts of a context (e.g. sequence number) but retains information
- * about static parts (e.g. master secret)
+ * about the mutable parts of a context (e.g. sequence number) but retains
+ * information about static parts (e.g. master secret)
  * 
  */
 public class ContextRederivationTest {
@@ -106,9 +112,10 @@ public class ContextRederivationTest {
 	 * @throws OSException
 	 * @throws ConnectorException
 	 * @throws IOException
+	 * @throws CoseException
 	 */
 	@Test
-	public void rederivationTest() throws OSException, ConnectorException, IOException {
+	public void rederivationTest() throws OSException, ConnectorException, IOException, CoseException {
 		
 		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, null);
 		String serverUri = serverEndpoint.getUri().toASCIIString();
@@ -120,6 +127,8 @@ public class ContextRederivationTest {
 		CoapClient c = new CoapClient(serverUri + hello1);
 		Request r = new Request(Code.GET);
 		r.getOptions().setOscore(Bytes.EMPTY);
+		RequestTestObserver requestTestObserver = new RequestTestObserver();
+		r.addMessageObserver(requestTestObserver);
 		CoapResponse resp = c.advanced(r);
 
 		System.out.println((Utils.prettyPrint(resp)));
@@ -127,15 +136,24 @@ public class ContextRederivationTest {
 		OSCoreCtx currCtx = dbClient.getContext(serverUri);
 		assertEquals(ContextRederivation.PHASE.INACTIVE, currCtx.getContextRederivationPhase()); // Phase
 		assertFalse(currCtx.getIncludeContextId()); // Do not include Context ID
-		int contextIDLen = currCtx.getIdContext().length;
-		// Length of Context ID in context
-		assertEquals(3 * SEGMENT_LENGTH, contextIDLen);
-//		byte[] oscoreOption = resp.getOptions().getOscore();
-		// OSCORE option in response is 2 * SEGMENT_LENGTH (R2 as Context ID) +
-		// 2 additional bytes
-//		assertEquals(2 * SEGMENT_LENGTH + 2, oscoreOption.length);
 
-		// Empty OSCORE option
+		// Length of Context ID in context
+		int contextIdLen = currCtx.getIdContext().length;
+		assertEquals(3 * SEGMENT_LENGTH, contextIdLen);
+		// Check length of Context ID in the request
+		assertEquals(3 * SEGMENT_LENGTH, requestTestObserver.requestIdContext.length);
+
+		// Check R2 value derived by server using its key with received one
+		// The R2 value is composed of S2 || HMAC(K_HMAC, S2).
+		OSCoreCtx serverCtx = dbServer.getContext(sid);
+		byte[] srvContextRederivationKey = serverCtx.getContextRederivationKey();
+		byte[] contextS2 = Arrays.copyOfRange(currCtx.getIdContext(), 0, SEGMENT_LENGTH);
+		byte[] hmacOutput = OSCoreCtx.deriveKey(srvContextRederivationKey, srvContextRederivationKey, SEGMENT_LENGTH,
+				"SHA256", contextS2);
+		byte[] messageHmacValue = Arrays.copyOfRange(currCtx.getIdContext(), SEGMENT_LENGTH, SEGMENT_LENGTH * 2);
+		assertArrayEquals(hmacOutput, messageHmacValue);
+
+		// Empty OSCORE option in response
 		assertArrayEquals(Bytes.EMPTY, resp.getOptions().getOscore());
 
 		assertEquals(ResponseCode.CONTENT, resp.getCode());
@@ -154,6 +172,22 @@ public class ContextRederivationTest {
 		System.out.println((Utils.prettyPrint(resp)));
 
 		c.shutdown();
+	}
+
+	/**
+	 * Message observer that will save the ID Context used in the outgoing
+	 * request from the client for comparison.
+	 *
+	 */
+	private static class RequestTestObserver extends MessageObserverAdapter {
+
+		public byte[] requestIdContext;
+
+		@Override
+		public void onContextEstablished(EndpointContext endpointContext) {
+			requestIdContext = StringUtil
+					.hex2ByteArray(endpointContext.get(OSCoreEndpointContextInfo.OSCORE_CONTEXT_ID));
+		}
 	}
 
 	/**
