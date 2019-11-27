@@ -115,7 +115,6 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 	}
 
 	@Test
-	@Ignore // intermediate certificate trust fails
 	public void testOpenSslClientChainTrustCa() throws Exception {
 		scandiumUtil.start(BIND, ScandiumUtil.TRUST_CA, cipherSuite);
 
@@ -124,7 +123,6 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 	}
 
 	@Test
-	@Ignore // intermediate certificate trust fails
 	public void testOpenSslClientTrustTrustCa() throws Exception {
 		scandiumUtil.start(BIND, ScandiumUtil.TRUST_CA, cipherSuite);
 
