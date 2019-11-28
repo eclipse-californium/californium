@@ -1304,6 +1304,12 @@ public abstract class Handshaker implements Destroyable {
 	 */
 	public void verifyCertificate(CertificateMessage message) throws HandshakeException {
 		if (message.getCertificateChain() != null) {
+			if (isClient && message.getCertificateChain().getCertificates().isEmpty()) {
+				LOGGER.debug("Certificate validation failed: empty server certificate!");
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE,
+						session.getPeer());
+				throw new HandshakeException("Empty server certificate!", alert);
+			}
 			if (certificateVerifier != null) {
 				certificateVerifier.verifyCertificate(message, session);
 			} else {
