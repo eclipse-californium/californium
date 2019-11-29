@@ -85,7 +85,6 @@ public class ContextRederivationTest {
 	private final static byte[] rid = new byte[] { 0x01 };
 
 	private static int SEGMENT_LENGTH = ContextRederivation.SEGMENT_LENGTH;
-	private static byte[] requestIdContext;
 
 	@Before
 	public void initLogger() {
@@ -141,8 +140,6 @@ public class ContextRederivationTest {
 		// Length of Context ID in context
 		int contextIdLen = currCtx.getIdContext().length;
 		assertEquals(3 * SEGMENT_LENGTH, contextIdLen);
-		// Length of Context ID in context in the request
-		assertEquals(3 * SEGMENT_LENGTH, requestIdContext.length);
 
 		// Check R2 value derived by server using its key with received one
 		// The R2 value is composed of S2 || HMAC(K_HMAC, S2).
@@ -184,8 +181,11 @@ public class ContextRederivationTest {
 
 		@Override
 		public void onContextEstablished(EndpointContext endpointContext) {
-			requestIdContext = StringUtil
+			byte[] requestIdContext = StringUtil
 					.hex2ByteArray(endpointContext.get(OSCoreEndpointContextInfo.OSCORE_CONTEXT_ID));
+
+			// Check length of Context ID in the request
+			assertEquals(3 * SEGMENT_LENGTH, requestIdContext.length);
 		}
 	}
 
