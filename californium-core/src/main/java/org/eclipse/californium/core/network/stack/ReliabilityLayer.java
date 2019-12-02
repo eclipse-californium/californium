@@ -219,7 +219,8 @@ public class ReliabilityLayer extends AbstractLayer {
 			exchange.retransmitResponse();
 			Response currentResponse = exchange.getCurrentResponse();
 			if (currentResponse != null) {
-				if (currentResponse.getType() == Type.NON || currentResponse.getType() == Type.CON) {
+				Type type = currentResponse.getType();
+				if (type == Type.NON || type == Type.CON) {
 					// separate response
 					if (request.isConfirmable()) {
 						// resend ACK,
@@ -227,14 +228,18 @@ public class ReliabilityLayer extends AbstractLayer {
 						EmptyMessage ack = EmptyMessage.newACK(request);
 						sendEmptyMessage(exchange, ack);
 					}
-					if (currentResponse.isConfirmable()) {
+					if (type == Type.CON) {
 						// retransmission cycle
-						int failedCount = exchange.getFailedTransmissionCount() + 1;
-						exchange.setFailedTransmissionCount(failedCount);
-						LOGGER.debug("{} request duplicate: retransmit response, failed: {}, response: {}", exchange,
-								failedCount, currentResponse);
-						currentResponse.retransmitting();
-						sendResponse(exchange, currentResponse);
+						if (currentResponse.isAcknowledged()) {
+							LOGGER.debug("{} request duplicate: ignore, response already acknowledged!", exchange);
+						} else {
+							int failedCount = exchange.getFailedTransmissionCount() + 1;
+							exchange.setFailedTransmissionCount(failedCount);
+							LOGGER.debug("{} request duplicate: retransmit response, failed: {}, response: {}",
+									exchange, failedCount, currentResponse);
+							currentResponse.retransmitting();
+							sendResponse(exchange, currentResponse);
+						}
 						return;
 					}
 				}
