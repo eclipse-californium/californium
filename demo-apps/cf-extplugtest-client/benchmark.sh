@@ -9,7 +9,7 @@ echo "Please check the available RAM (e.g.: on linux use \"free -m\") and"
 echo "adjust the \"-Xmx6g\" argument in \"CF_OPT\" to about 30% of the available RAM"
 echo
 echo "The required server may be started using:"
-echo "java -d64 -Xmx6g -XX:+UseG1GC -jar cf-extplugtest-server-2.0.0-SNAPSHOT.jar -onlyLoopback -noPlugtest"
+echo "java -d64 -Xmx6g -XX:+UseG1GC -jar cf-extplugtest-server-2.1.0-SNAPSHOT.jar -onlyLoopback -noPlugtest"
 echo "Adjust the \"-Xmx6g\" argument also to about 30% of the available RAM."
 echo "The benchmark is mainly used with the loopback interface (localhost), therefore -onlyLoopback is provided."
 echo "To use client and server on different hosts, provide -noLoopback."
@@ -44,13 +44,14 @@ echo
 # cat /proc/sys/vm/max_map_count
 # prlimit
 
-CF_JAR=cf-extplugtest-client-2.0.0-SNAPSHOT.jar
+CF_JAR=cf-extplugtest-client-2.1.0-SNAPSHOT.jar
 CF_EXEC="org.eclipse.californium.extplugtests.BenchmarkClient"
-CF_OPT="-d64 -XX:+UseG1GC -Xmx6g -Dcalifornium.statistic=M18"
+CF_OPT="-d64 -XX:+UseG1GC -Xmx6g -Dcalifornium.statistic=2.1.0"
 CF_HOST=localhost
 
 # adjust the multiplier according the speed of your CPU
-USE_TCP=0
+USE_TCP=1
+USE_UDP=0
 USE_PLAIN=1
 USE_SECURE=1
 MULTIPLIER=10
@@ -84,6 +85,7 @@ echo ${CF_JAR}
 
 benchmark_udp()
 {
+   if [ ${USE_UDP} -eq 0 ] ; then return; fi
    if [ ${USE_PLAIN} -ne 0 ] ; then 
       java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} coap://${CF_HOST}:5783/$@
       if [ ! $? -eq 0 ] ; then exit $?; fi
@@ -163,7 +165,7 @@ longterm()
 	benchmark_udp "reverse-observe?obs=2500000&res=feed-NON&timeout=${LONG_INTERVAL_TIMEOUT_S}&rlen=${PAYLOAD}" ${UDP_CLIENTS} 1 stop ${NOTIFIES} ${LONG_INTERVAL_MS}
 }
 
-#benchmark_all
+benchmark_all
 benchmark_dtls_handshake 10 
 TIME1=$?
 benchmark_dtls_handshake 10 -e
