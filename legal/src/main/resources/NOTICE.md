@@ -94,7 +94,7 @@ com.upokecenter.cbor (4.0.0)
 
 * License: CC-1.0
 * Project: https://github.com/peteroupc/CBOR-Java
-* Source: https://github.com/peteroupc/CBOR-Java/tree/v3.0.3
+* Source: https://github.com/peteroupc/CBOR-Java/tree/v4.0.0
 
 commons-logging (1.2)
 
