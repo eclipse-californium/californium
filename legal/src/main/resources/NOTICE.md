@@ -88,10 +88,13 @@ modifications. The header was added as for the other unmodified files.
 com.github.peteroupc.numbers (1.4.3)
 
 * License: CC0-1.0
+* Project & Source: https://github.com/peteroupc/Numbers-Java
 
 com.upokecenter.cbor (4.0.0)
 
-* License: CC0-1.0
+* License: CC-1.0
+* Project: https://github.com/peteroupc/CBOR-Java
+* Source: https://github.com/peteroupc/CBOR-Java/tree/v3.0.3
 
 commons-logging (1.2)
 
