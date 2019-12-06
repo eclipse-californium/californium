@@ -38,6 +38,8 @@ import org.junit.Test;
  * Test for interoperability with openssl client.
  * 
  * Test several authentication modes.
+ *  
+ * @see OpenSslUtil
  */
 public class OpenSslClientAuthenticationInteroperabilityTest {
 
