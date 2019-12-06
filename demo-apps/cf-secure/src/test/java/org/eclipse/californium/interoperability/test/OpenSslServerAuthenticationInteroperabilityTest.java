@@ -40,9 +40,11 @@ import org.junit.Test;
  * 
  * Test several authentication modes.
  * 
- * Note: the windows version 1.1.1a to 1.1.1c of the openssl s_server seems to
+ * Note: the windows version 1.1.1a to 1.1.1d of the openssl s_server seems to
  * be broken. It starts only to accept, when the first message is entered.
  * Therefore the test are skipped on windows.
+ * 
+ * @see OpenSslUtil
  */
 public class OpenSslServerAuthenticationInteroperabilityTest {
 
@@ -68,7 +70,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 		assumeTrue(result.contains("OpenSSL 1\\.1\\."));
 		String os = System.getProperty("os.name");
 		if (os.startsWith("Windows")) {
-			assumeFalse("Windows openssl server 1.1.1 seems to be broken!", result.contains("OpenSSL 1\\.1\\.1[abc]"));
+			assumeFalse("Windows openssl server 1.1.1 seems to be broken!", result.contains("OpenSSL 1\\.1\\.1[abcd]"));
 		}
 		scandiumUtil = new ScandiumUtil(true);
 		cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;

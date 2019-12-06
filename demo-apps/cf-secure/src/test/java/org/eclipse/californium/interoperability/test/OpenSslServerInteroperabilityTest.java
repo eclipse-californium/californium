@@ -42,7 +42,7 @@ import org.junit.runners.Parameterized.Parameters;
  * 
  * Test several different cipher suites.
  * 
- * Note: the windows version 1.1.1a to 1.1.1c of the openssl s_server seems to
+ * Note: the windows version 1.1.1a to 1.1.1d of the openssl s_server seems to
  * be broken. It starts only to accept, when the first message is entered.
  * Therefore the test are skipped on windows.
  * 
@@ -72,7 +72,7 @@ public class OpenSslServerInteroperabilityTest {
 		assumeTrue(result.contains("OpenSSL 1\\.1\\."));
 		String os = System.getProperty("os.name");
 		if (os.startsWith("Windows")) {
-			assumeFalse("Windows openssl server 1.1.1 seems to be broken!", result.contains("OpenSSL 1\\.1\\.1[abc]"));
+			assumeFalse("Windows openssl server 1.1.1 seems to be broken!", result.contains("OpenSSL 1\\.1\\.1[abcd]"));
 		}
 		scandiumUtil = new ScandiumUtil(true);
 	}

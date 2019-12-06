@@ -34,7 +34,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
  * "https://bintray.com/vszakats/generic/download_file?file_path=openssl-1.1.1c-win64-mingw.zip">OpenSsl
  * for Windows</a> and add that to your path.
  * 
- * Note: the windows version 1.1.1a to 1.1.1c of the openssl s_server seems to
+ * Note: the windows version 1.1.1a to 1.1.1d of the openssl s_server seems to
  * be broken. It starts only to accept, when the first message is entered.
  * Therefore the test are skipped on windows.
  */
