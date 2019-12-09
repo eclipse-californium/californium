@@ -2339,10 +2339,11 @@ public class DTLSConnector implements Connector, RecordLayer {
 			Handshaker handshaker = connection.getOngoingHandshake();
 			if (null != handshaker) {
 				Exception cause = null;
+				String message = "";
 				if (!connection.isExecuting() || !running.get()) {
-					cause = new Exception("Stopped by shutdown!");
+					message = " Stopped by shutdown!";
 				} else if (connectionStore.get(flight.getPeerAddress()) != connection) {
-					cause = new Exception("Stopped by address change!");
+					message = " Stopped by address change!";
 				} else {
 					// set DTLS retransmission maximum
 					final int max = config.getMaxRetransmissions();
@@ -2383,27 +2384,27 @@ public class DTLSConnector implements Connector, RecordLayer {
 						} catch (IOException e) {
 							// stop retransmission on IOExceptions
 							cause = e;
+							message = " " + e.getMessage();
 							LOGGER.info("Cannot retransmit flight to peer [{}]", flight.getPeerAddress(), e);
 						} catch (GeneralSecurityException e) {
 							LOGGER.info("Cannot retransmit flight to peer [{}]", flight.getPeerAddress(), e);
 							cause = e;
+							message = " " + e.getMessage();
 						}
 					} else if (tries > max) {
-						LOGGER.debug("Flight for [{}] has reached timeout, discarding ...",
-								flight.getPeerAddress());
-						cause = new Exception("handshake timeout with flight " + flight.getFlightNumber() + "!");
+						LOGGER.debug("Flight for [{}] has reached timeout, discarding ...", flight.getPeerAddress());
+						message = " Stopped by timeout!";
 					} else {
 						LOGGER.debug(
 								"Flight for [{}] has reached maximum no. [{}] of retransmissions, discarding ...",
 								flight.getPeerAddress(), max);
-						cause = new Exception("handshake flight " + flight.getFlightNumber() + " timeout after "
-								+ max + " retransmissions!");
+						message = " Stopped by timeout after " + max + " retransmissions!";
 					}
 				}
-				cause = new Exception("handshake flight " + flight.getFlightNumber() + " failed!", cause);
 
 				// inform handshaker
-				handshaker.handshakeFailed(cause);
+				handshaker.handshakeFailed(
+						new Exception("Handshake flight " + flight.getFlightNumber() + " failed!" + message, cause));
 			}
 		}
 	}
