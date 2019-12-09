@@ -2044,7 +2044,6 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 */
 	private void sendMessage(final long nanos, final RawData message, final Connection connection) throws HandshakeException {
 
-		InetSocketAddress peerAddress = message.getInetSocketAddress();
 		if (connection.getPeerAddress() == null) {
 			long delay = TimeUnit.NANOSECONDS.toMillis(ClockUtil.nanoRealtime() - nanos);
 			LOGGER.warn("Drop record with {} bytes, connection lost address {}! (shift {}ms)", message.getSize(),
@@ -2056,120 +2055,124 @@ public class DTLSConnector implements Connector, RecordLayer {
 			return;
 		}
 		LOGGER.debug("Sending application layer message to [{}]", message.getEndpointContext());
+		if (connection.isActive()) {
+			sendMessageWithSession(message, connection);
+		} else {
+			sendMessageWithoutSession(message, connection);
+		}
+	}
 
-		String handshakeMode = message.getEndpointContext().get(DtlsEndpointContext.KEY_HANDSHAKE_MODE);
-		boolean none = DtlsEndpointContext.HANDSHAKE_MODE_NONE.equals(handshakeMode);
-		DTLSSession session = connection.getEstablishedSession();
-		SessionTicket ticket = connection.getSessionTicket();
-		if (session == null && ticket == null) {
-			if (!checkOutboundEndpointContext(message, null)) {
+	/**
+	 * Send message without session.
+	 * 
+	 * Starts handshake, if not already pending, and queue message.
+	 * 
+	 * @param message message to send after handshake completes
+	 * @param connection connectin to send message
+	 * @throws HandshakeException If exception occure starting the handshake
+	 */
+	private void sendMessageWithoutSession(final RawData message, final Connection connection)
+			throws HandshakeException {
+
+		if (!checkOutboundEndpointContext(message, null)) {
+			return;
+		}
+		Handshaker handshaker = connection.getOngoingHandshake();
+		if (handshaker == null) {
+			if (serverOnly) {
+				message.onError(new EndpointUnconnectedException("server only, connection missing!"));
+				if (health != null) {
+					health.sendingRecord(true);
+				}
 				return;
 			}
-			Handshaker handshaker = connection.getOngoingHandshake();
-			if (handshaker == null) {
-				if (serverOnly) {
-					message.onError(new EndpointUnconnectedException("server only, connection missing!"));
-					if (health != null) {
-						health.sendingRecord(true);
-					}
-					return;
-				}
-				if (none) {
-					message.onError(new EndpointUnconnectedException("connection missing!"));
-					if (health != null) {
-						health.sendingRecord(true);
-					}
-					return;
-				}
-				session = new DTLSSession(peerAddress);
-				session.setHostName(message.getEndpointContext().getVirtualHost());
-				// no session with peer established nor handshaker started yet,
-				// create new empty session & start handshake
-				handshaker = new ClientHandshaker(session, this, connection, config, maximumTransmissionUnit);
-				initializeHandshaker(handshaker);
-				handshaker.startHandshake();
-			}
-			message.onConnecting();
-			handshaker.addApplicationDataForDeferredProcessing(message);
-		} else {
+			String handshakeMode = message.getEndpointContext().get(DtlsEndpointContext.KEY_HANDSHAKE_MODE);
+			boolean none = DtlsEndpointContext.HANDSHAKE_MODE_NONE.equals(handshakeMode);
 			if (none) {
-				if (connection.isResumptionRequired()) {
-					message.onError(new EndpointUnconnectedException("resumption required!"));
+				message.onError(new EndpointUnconnectedException("connection missing!"));
+				if (health != null) {
+					health.sendingRecord(true);
+				}
+				return;
+			}
+			DTLSSession session = new DTLSSession(message.getInetSocketAddress());
+			session.setHostName(message.getEndpointContext().getVirtualHost());
+			// no session with peer established nor handshaker started yet,
+			// create new empty session & start handshake
+			handshaker = new ClientHandshaker(session, this, connection, config, maximumTransmissionUnit);
+			initializeHandshaker(handshaker);
+			handshaker.startHandshake();
+		}
+		message.onConnecting();
+		handshaker.addApplicationDataForDeferredProcessing(message);
+	}
+
+	private void sendMessageWithSession(final RawData message, final Connection connection) throws HandshakeException {
+
+		DTLSSession session = connection.getEstablishedSession();
+		String handshakeMode = message.getEndpointContext().get(DtlsEndpointContext.KEY_HANDSHAKE_MODE);
+		boolean none = DtlsEndpointContext.HANDSHAKE_MODE_NONE.equals(handshakeMode);
+		if (none) {
+			if (connection.isResumptionRequired()) {
+				message.onError(new EndpointUnconnectedException("resumption required!"));
+				if (health != null) {
+					health.sendingRecord(true);
+				}
+				return;
+			}
+		} else {
+			boolean full = DtlsEndpointContext.HANDSHAKE_MODE_FORCE_FULL.equals(handshakeMode);
+			boolean force = full || DtlsEndpointContext.HANDSHAKE_MODE_FORCE.equals(handshakeMode);
+			if (force || connection.isAutoResumptionRequired(getAutResumptionTimeout(message))) {
+				// create the session to resume from the previous one.
+				if (serverOnly) {
+					message.onError(new EndpointUnconnectedException("server only, resumption requested failed!"));
 					if (health != null) {
 						health.sendingRecord(true);
 					}
 					return;
 				}
-			} else {
-				Long timeout = autoResumptionTimeoutMillis;
-				boolean full = DtlsEndpointContext.HANDSHAKE_MODE_FORCE_FULL.equals(handshakeMode);
-				boolean force = full || DtlsEndpointContext.HANDSHAKE_MODE_FORCE.equals(handshakeMode);
-				if (force) {
-					connection.setResumptionRequired(true);
+				message.onConnecting();
+				Handshaker previousHandshaker = connection.getOngoingHandshake();
+				SessionTicket ticket;
+				SessionId sessionId;
+				if (session != null) {
+					sessionId = session.getSessionIdentifier();
+					ticket = session.getSessionTicket();
+					connectionStore.removeFromEstablishedSessions(session, connection);
 				} else {
-					String contextTimeout = message.getEndpointContext()
-							.get(DtlsEndpointContext.KEY_RESUMPTION_TIMEOUT);
-					if (contextTimeout != null) {
-						if (contextTimeout.isEmpty()) {
-							timeout = null;
-						} else {
-							try {
-								timeout = Long.valueOf(contextTimeout);
-							} catch (NumberFormatException e) {
-							}
-						}
-					}
+					sessionId = connection.getSessionIdentity();
+					ticket = connection.getSessionTicket();
 				}
-				if (connection.isAutoResumptionRequired(timeout)) {
-					// create the session to resume from the previous one.
-					if (serverOnly) {
-						message.onError(new EndpointUnconnectedException("server only, resumption requested failed!"));
-						if (health != null) {
-							health.sendingRecord(true);
-						}
-						return;
-					}
-					message.onConnecting();
-					Handshaker handshaker;
-					SessionId sessionId;
-					if (session != null) {
-						sessionId = session.getSessionIdentifier();
-						ticket = session.getSessionTicket();
-						connectionStore.removeFromEstablishedSessions(session, connection);
-					} else {
-						// then ticket != null
-						sessionId = connection.getSessionIdentity();
-					}
-					connection.resetSession();
-					Handshaker previous = connection.getOngoingHandshake();
-					if (full || sessionId.isEmpty()) {
-						// server may use a empty session id to indicate,
-						// that resumption is not supported
-						// https://tools.ietf.org/html/rfc5246#section-7.4.1.3
-						DTLSSession newSession = new DTLSSession(peerAddress);
-						newSession.setHostName(message.getEndpointContext().getVirtualHost());
-						handshaker = new ClientHandshaker(newSession, this, connection, config,
-								maximumTransmissionUnit);
-					} else {
-						DTLSSession resumableSession = new DTLSSession(sessionId, peerAddress, ticket, 0);
-						SecretUtil.destroy(ticket);
-						resumableSession.setHostName(message.getEndpointContext().getVirtualHost());
-						handshaker = new ResumingClientHandshaker(resumableSession, this, connection, config,
-								maximumTransmissionUnit);
-					}
-					initializeHandshaker(handshaker);
-					if (previous != null) {
-						handshaker.takeDeferredApplicationData(previous);
-					}
-					handshaker.addApplicationDataForDeferredProcessing(message);
-					handshaker.startHandshake();
-					return;
+				connection.resetSession();
+				Handshaker newHandshaker;
+				if (full || sessionId.isEmpty()) {
+					// server may use a empty session id to indicate,
+					// that resumption is not supported
+					// https://tools.ietf.org/html/rfc5246#section-7.4.1.3
+					DTLSSession newSession = new DTLSSession(message.getInetSocketAddress());
+					newSession.setHostName(message.getEndpointContext().getVirtualHost());
+					newHandshaker = new ClientHandshaker(newSession, this, connection, config,
+							maximumTransmissionUnit);
+				} else {
+					DTLSSession resumableSession = new DTLSSession(sessionId, message.getInetSocketAddress(), ticket, 0);
+					SecretUtil.destroy(ticket);
+					resumableSession.setHostName(message.getEndpointContext().getVirtualHost());
+					newHandshaker = new ResumingClientHandshaker(resumableSession, this, connection, config,
+							maximumTransmissionUnit);
 				}
+				initializeHandshaker(newHandshaker);
+				if (previousHandshaker != null) {
+					newHandshaker.takeDeferredApplicationData(previousHandshaker);
+				}
+				newHandshaker.addApplicationDataForDeferredProcessing(message);
+				newHandshaker.startHandshake();
+				return;
 			}
-			// session with peer has already been established,
-			// use it to send encrypted message
-			sendMessage(message, connection, session);
 		}
+		// session with peer has already been established,
+		// use it to send encrypted message
+		sendMessage(message, connection, session);
 	}
 
 	private void sendMessage(final RawData message, final Connection connection, final DTLSSession session) {
@@ -2426,6 +2429,23 @@ public class DTLSConnector implements Connector, RecordLayer {
 			ScheduledFuture<?> f = timer.schedule(new TimeoutPeerTask(connection, flight), flight.getTimeout(), TimeUnit.MILLISECONDS);
 			flight.setTimeoutTask(f);
 		}
+	}
+
+	private Long getAutResumptionTimeout(RawData message) {
+		Long timeout = autoResumptionTimeoutMillis;
+		String contextTimeout = message.getEndpointContext()
+				.get(DtlsEndpointContext.KEY_RESUMPTION_TIMEOUT);
+		if (contextTimeout != null) {
+			if (contextTimeout.isEmpty()) {
+				timeout = null;
+			} else {
+				try {
+					timeout = Long.valueOf(contextTimeout);
+				} catch (NumberFormatException e) {
+				}
+			}
+		}
+		return timeout;
 	}
 
 	/**
