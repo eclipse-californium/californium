@@ -2038,9 +2038,10 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * deferred to after the handshake has been completed and a session is established.
 	 * </p>
 	 * 
+	 * @param nanos system nanoseconds of receiving the data
 	 * @param message the data to send to the peer
 	 * @param connection connection of the peer
-	 * @throws HandshakeException if starting a handshake fails
+	 * @throws HandshakeException if starting the handshake fails
 	 */
 	private void sendMessage(final long nanos, final RawData message, final Connection connection) throws HandshakeException {
 
@@ -2068,8 +2069,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * Starts handshake, if not already pending, and queue message.
 	 * 
 	 * @param message message to send after handshake completes
-	 * @param connection connectin to send message
-	 * @throws HandshakeException If exception occure starting the handshake
+	 * @param connection connection to send message
+	 * @throws HandshakeException If exception occurred starting the handshake
 	 */
 	private void sendMessageWithoutSession(final RawData message, final Connection connection)
 			throws HandshakeException {
@@ -2107,6 +2108,15 @@ public class DTLSConnector implements Connector, RecordLayer {
 		handshaker.addApplicationDataForDeferredProcessing(message);
 	}
 
+	/**
+	 * Send message with session.
+	 * 
+	 * Starts handshake, if requested by resumption or {@link DtlsEndpointContext#KEY_HANDSHAKE_MODE}.
+	 * 
+	 * @param message message to send
+	 * @param connection connection to send message
+	 * @throws HandshakeException If exception occurred starting the handshake
+	 */
 	private void sendMessageWithSession(final RawData message, final Connection connection) throws HandshakeException {
 
 		DTLSSession session = connection.getEstablishedSession();
@@ -2431,10 +2441,19 @@ public class DTLSConnector implements Connector, RecordLayer {
 		}
 	}
 
+	/**
+	 * Get auto resumption timeout.
+	 * 
+	 * Check, if {@link DtlsEndpointContext#KEY_RESUMPTION_TIMEOUT} is provided,
+	 * or use {@link #autoResumptionTimeoutMillis} as default.
+	 * 
+	 * @param message message to check for auto resumption timeout.
+	 * @return resulting timeout in milliseconds. {@code null} for no auto
+	 *         resumption.
+	 */
 	private Long getAutResumptionTimeout(RawData message) {
 		Long timeout = autoResumptionTimeoutMillis;
-		String contextTimeout = message.getEndpointContext()
-				.get(DtlsEndpointContext.KEY_RESUMPTION_TIMEOUT);
+		String contextTimeout = message.getEndpointContext().get(DtlsEndpointContext.KEY_RESUMPTION_TIMEOUT);
 		if (contextTimeout != null) {
 			if (contextTimeout.isEmpty()) {
 				timeout = null;
