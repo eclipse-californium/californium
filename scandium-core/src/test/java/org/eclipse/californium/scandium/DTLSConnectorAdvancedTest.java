@@ -42,6 +42,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.SerialExecutor;
@@ -103,6 +104,9 @@ public class DTLSConnectorAdvancedTest {
 
 	@Rule
 	public TestNameLoggerRule names = new TestNameLoggerRule();
+
+	@Rule
+	public TestTimeRule time = new TestTimeRule();
 
 	private static final int CLIENT_CONNECTION_STORE_CAPACITY = 5;
 	private static final int MAX_TIME_TO_WAIT_SECS = 2;
@@ -1050,6 +1054,61 @@ public class DTLSConnectorAdvancedTest {
 			int timeout = RETRANSMISSION_TIMEOUT_MS * (2 << (MAX_RETRANSMISSIONS + 2));
 			Throwable error = clientSessionListener.waitForSessionFailed(timeout, TimeUnit.MILLISECONDS);
 			assertNotNull("client handshake not failed", error);
+			assertTrue(error.getMessage(), error.getMessage().contains("timeout"));
+			assertThat(clientConnectionStore.remainingCapacity(), is(remain));
+		} finally {
+			rawServer.stop();
+		}
+	}
+
+	@Test
+	public void testClientExpires() throws Exception {
+		// Configure UDP connector we will use as Server
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(serverCidGenerator);
+		UdpConnector rawServer = new UdpConnector(0, collector);
+		int remain = clientConnectionStore.remainingCapacity();
+		int timeout = RETRANSMISSION_TIMEOUT_MS * (2 << (MAX_RETRANSMISSIONS + 2));
+
+		try {
+			// Start connector (Server)
+			rawServer.start();
+
+			// Start the client
+			client.start();
+			RawData data = RawData.outbound("Hello World".getBytes(),
+					new AddressEndpointContext(rawServer.getAddress()), null, false);
+			client.send(data);
+
+			// Create server handshaker
+			BasicRecordLayer serverRecordLayer = new BasicRecordLayer(rawServer);
+			LatchSessionListener sessionListener = new LatchSessionListener();
+			ServerHandshaker serverHandshaker = new ServerHandshaker(0, new DTLSSession(client.getAddress(), 1),
+					serverRecordLayer, createServerConnection(), serverHelper.serverConfig, 1280);
+			serverHandshaker.addSessionListener(sessionListener);
+
+			// Wait to receive response (should be CLIENT HELLO, flight 3)
+			List<Record> rs = waitForFlightReceived("flight 1", collector, 1);
+			// Handle and answer
+			// (CERTIFICATE, ... SERVER HELLO DONE, flight 4)
+			processAll(serverHandshaker, rs);
+
+			LatchSessionListener clientSessionListener = getSessionListenerForEndpoint("client", rawServer);
+
+			// Wait for transmission (CERTIFICATE, ... , FINISHED, flight 5)
+			rs = waitForFlightReceived("flight 3", collector, 5);
+			// Handle and answer (should be CCS, FINISHED (drop), flight 6)
+			time.addTestTimeShift(timeout * 2, TimeUnit.MILLISECONDS);
+			serverRecordLayer.setDrop(-1);
+			processAll(serverHandshaker, rs);
+
+			// Ensure handshake is successfully done
+			assertTrue("handshake failed",
+					sessionListener.waitForSessionEstablished(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+			// Ensure handshake failed before retransmissions timeout
+			Throwable error = clientSessionListener.waitForSessionFailed(RETRANSMISSION_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+			assertNotNull("client handshake not failed", error);
+			assertTrue(error.getMessage(), error.getMessage().contains("expired"));
+
 			assertThat(clientConnectionStore.remainingCapacity(), is(remain));
 		} finally {
 			rawServer.stop();

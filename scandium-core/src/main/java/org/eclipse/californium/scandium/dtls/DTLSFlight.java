@@ -208,14 +208,11 @@ public class DTLSFlight {
 	/**
 	 * Called, when the flight needs to be retransmitted. Increment the timeout,
 	 * here we double it. Limit the timeout to {@link #MAX_TIMEOUT_MILLIS}.
+	 * 
+	 * @see #incrementTimeout(int)
 	 */
 	public void incrementTimeout() {
-		if (this.timeout < MAX_TIMEOUT_MILLIS) {
-			this.timeout *= 2;
-			if (this.timeout > MAX_TIMEOUT_MILLIS) {
-				this.timeout = MAX_TIMEOUT_MILLIS;
-			}
-		}
+		this.timeout = incrementTimeout(this.timeout);
 	}
 
 	public boolean isRetransmissionNeeded() {
@@ -319,4 +316,21 @@ public class DTLSFlight {
 		}
 	}
 
+	/**
+	 * Increment the timeout, here we double it. Limit the timeout to
+	 * {@link #MAX_TIMEOUT_MILLIS}.
+	 * 
+	 * @param timeoutMillis timeout in milliseconds
+	 * @return doubled and limited timeout in milliseconds
+	 * @see #incrementTimeout()
+	 */
+	public static int incrementTimeout(int timeoutMillis) {
+		if (timeoutMillis < MAX_TIMEOUT_MILLIS) {
+			timeoutMillis *= 2;
+			if (timeoutMillis > MAX_TIMEOUT_MILLIS) {
+				timeoutMillis = MAX_TIMEOUT_MILLIS;
+			}
+		}
+		return timeoutMillis;
+	}
 }

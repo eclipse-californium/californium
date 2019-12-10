@@ -38,6 +38,17 @@
 					"methodName": "removeTrustedCertificates",
 					"oldArchive": "org.eclipse.californium:scandium:jar:2.0.0",
 					"elementKind": "method"
+				},
+				{
+					"code": "java.method.finalMethodAddedToNonFinalClass",
+					"new": "method void org.eclipse.californium.scandium.dtls.Handshaker::handshakeAborted(java.lang.Throwable)",
+					"justification": "keep API consistent with other similar functions. Handshaker is not intended to be extended by custom code.",
+					"package": "org.eclipse.californium.scandium.dtls",
+					"classQualifiedName": "org.eclipse.californium.scandium.dtls.Handshaker",
+					"classSimpleName": "Handshaker",
+					"methodName": "handshakeAborted",
+					"newArchive": "org.eclipse.californium:scandium:jar:2.1.0-SNAPSHOT",
+					"elementKind": "method"
 				}
 			]
 		}
