@@ -75,6 +75,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.crypto.SecretKey;
@@ -180,6 +181,12 @@ public abstract class Handshaker implements Destroyable {
 	/** Realtime nanoseconds of last sending a flight */
 	private long flightSendNanos;
 
+	/** Realtime nanoseconds when handshakes get's expired. */
+	private long nanosExpireTime;
+
+	/** Timeout in nanoseconds to expire handshakes. */
+	private final long nanosExpireTimeout;
+
 	/** The current flight number. */
 	protected int flightNumber = 0;
 
@@ -251,6 +258,7 @@ public abstract class Handshaker implements Destroyable {
 
 	private boolean changeCipherSuiteMessageExpected = false;
 	private boolean sessionEstablished = false;
+	private boolean handshakeAborted = false;
 	private boolean handshakeFailed = false;
 	private Throwable cause;
 	private ApplicationLevelInfoSupplier applicationLevelInfoSupplier;
@@ -317,7 +325,16 @@ public abstract class Handshaker implements Destroyable {
 		this.session.setMaxTransmissionUnit(maxTransmissionUnit);
 		this.applicationLevelInfoSupplier = config.getApplicationLevelInfoSupplier();
 		this.inboundMessageBuffer = new InboundMessageBuffer();
-
+		int max = config.getMaxRetransmissions();
+		int timeoutMillis = config.getRetransmissionTimeout();
+		// add all timeouts for retries and the initial timeout twice
+		// to get a short extra timespan for regular handshake timeouts
+		int expireTimeoutMillis = timeoutMillis * 2; 
+		for (int retry = 0; retry < max; ++retry) {
+			timeoutMillis = DTLSFlight.incrementTimeout(timeoutMillis);
+			expireTimeoutMillis += timeoutMillis;
+		}
+		this.nanosExpireTimeout = TimeUnit.MILLISECONDS.toNanos(expireTimeoutMillis);
 		addSessionListener(connection.getSessionListener());
 	}
 
@@ -1170,6 +1187,7 @@ public abstract class Handshaker implements Destroyable {
 		setPendingFlight(null);
 		try {
 			flightSendNanos = ClockUtil.nanoRealtime();
+			nanosExpireTime = nanosExpireTimeout + flightSendNanos;
 			recordLayer.sendFlight(flight, connection);
 			setPendingFlight(flight);
 		} catch (IOException e) {
@@ -1231,12 +1249,17 @@ public abstract class Handshaker implements Destroyable {
 	/**
 	 * Notifies all registered session listeners about a handshake failure.
 	 * 
+	 * Listeners are intended to remove the connection, if no session is
+	 * established.
+	 * 
 	 * If {@link #setFailureCause(Throwable)} was called before, only calls with
 	 * the same cause will notify the listeners. If
 	 * {@link #setFailureCause(Throwable)} wasn't called before, sets the
 	 * <em>cause</em> property to the given cause.
 	 * 
 	 * @param cause The reason for the failure.
+	 * @see #isRemovingConnection()
+	 * @see #handshakeAborted(Throwable)
 	 */
 	public final void handshakeFailed(Throwable cause) {
 		if (this.cause == null) {
@@ -1254,6 +1277,50 @@ public abstract class Handshaker implements Destroyable {
 		}
 		SecretUtil.destroy(session);
 		SecretUtil.destroy(this);
+	}
+
+	/**
+	 * Abort handshake.
+	 * 
+	 * Notifies all registered session listeners about a handshake failure.
+	 * Listeners are intended to keep the connection.
+	 * 
+	 * If {@link #setFailureCause(Throwable)} was called before, only calls with
+	 * the same cause will notify the listeners. If
+	 * {@link #setFailureCause(Throwable)} wasn't called before, sets the
+	 * <em>cause</em> property to the given cause.
+	 * 
+	 * @param cause The reason for the abort.
+	 * @see #handshakeFailed(Throwable)
+	 * @see #isRemovingConnection()
+	 */
+	public final void handshakeAborted(Throwable cause) {
+		this.handshakeAborted = true;
+		handshakeFailed(cause);
+	}
+
+	/**
+	 * Test, if handshake is expired according nano realtime.
+	 * 
+	 * Used to mitigate deep sleep during handhsakes.
+	 * 
+	 * @return {@code true}, if handshake is expired, mainly during deep sleep,
+	 *         {@code false}, if the handshake is still in time.
+	 */
+	public boolean isExpired() {
+		return pendingFlight.get() != null && nanosExpireTime < ClockUtil.nanoRealtime();
+	}
+
+	/**
+	 * Check, if the connection must be removed.
+	 * 
+	 * The connection must be removed, if {@link #handshakeFailed(Throwable)}
+	 * was called, and the connection has no established session.
+	 * 
+	 * @return {@code true}, remove the connection, {@code false}, keep it.
+	 */
+	public boolean isRemovingConnection() {
+		return !handshakeAborted && !connection.hasEstablishedSession();
 	}
 
 	/**
