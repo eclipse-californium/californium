@@ -430,6 +430,18 @@
 					<artifactId>license-maven-plugin</artifactId>
 					<version>1.16</version>
 				</plugin>
+				<plugin>
+					<groupId>org.revapi</groupId>
+					<artifactId>revapi-maven-plugin</artifactId>
+					<version>0.11.2</version>
+					<dependencies>
+						<dependency>
+							<groupId>org.revapi</groupId>
+							<artifactId>revapi-java</artifactId>
+							<version>0.20.0</version>
+						</dependency>
+					</dependencies>
+				</plugin>
 			</plugins>
 		</pluginManagement>
 
@@ -500,6 +512,51 @@
 					<nexusUrl>https://oss.sonatype.org/</nexusUrl>
 					<autoReleaseAfterClose>false</autoReleaseAfterClose>
 				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.revapi</groupId>
+				<artifactId>revapi-maven-plugin</artifactId>
+				<configuration>
+					<oldVersion>2.0.0</oldVersion>
+					<analysisConfiguration>
+						<revapi.semver.ignore>
+							<enabled>true</enabled>
+							<versionIncreaseAllows>
+								<major>breaking</major>
+								<minor>nonBreaking</minor>
+								<patch>equivalent</patch>
+							</versionIncreaseAllows>
+						</revapi.semver.ignore>
+						<revapi.java>
+							<checks>
+								<nonPublicPartOfAPI>
+									<reportUnchanged>false</reportUnchanged>
+								</nonPublicPartOfAPI>
+							</checks>
+							<filter>
+								<!--packages>
+									<regex>true</regex>
+									<exclude>
+										<item>org\.eclipse\.californium\.scandium\.dtls.*</item>
+									</exclude>
+								</packages-->
+								<!--classes>
+									<regex>false</regex>
+									<exclude>
+										<item>org.eclipse.californium.scandium.dtls.Handshaker</item>
+									</exclude>
+								</classes-->
+							</filter>
+						</revapi.java>
+					</analysisConfiguration>
+				</configuration>
+				<executions>
+					<execution>
+						<goals>
+							<goal>check</goal>
+						</goals>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>
