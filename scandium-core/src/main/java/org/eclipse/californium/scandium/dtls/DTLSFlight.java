@@ -77,6 +77,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
  */
 public class DTLSFlight {
 
+	private static final int MAX_TIMEOUT_MILLIS = 60 * 1000; // 60s
 	/**
 	 * The DTLS messages that belong to this flight and need to be sent, when
 	 * the timeout expires.
@@ -206,10 +207,15 @@ public class DTLSFlight {
 
 	/**
 	 * Called, when the flight needs to be retransmitted. Increment the timeout,
-	 * here we double it.
+	 * here we double it. Limit the timeout to {@link #MAX_TIMEOUT_MILLIS}.
 	 */
 	public void incrementTimeout() {
-		this.timeout *= 2;
+		if (this.timeout < MAX_TIMEOUT_MILLIS) {
+			this.timeout *= 2;
+			if (this.timeout > MAX_TIMEOUT_MILLIS) {
+				this.timeout = MAX_TIMEOUT_MILLIS;
+			}
+		}
 	}
 
 	public boolean isRetransmissionNeeded() {

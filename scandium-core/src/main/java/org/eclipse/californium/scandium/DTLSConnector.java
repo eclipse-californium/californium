@@ -2261,9 +2261,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 	@Override
 	public void sendFlight(DTLSFlight flight, Connection connection) throws IOException {
 		if (flight != null) {
-			if (flight.isRetransmissionNeeded()) {
-				scheduleRetransmission(flight, connection);
-			}
+			// use initial timeout
+			flight.setTimeout(config.getRetransmissionTimeout());
+			scheduleRetransmission(flight, connection);
 			sendFlightOverNetwork(flight);
 		}
 	}
@@ -2387,6 +2387,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 								flight.getPeerAddress(), max - tries - 1);
 						try {
 							flight.incrementTries();
+							flight.incrementTimeout();
 							flight.setNewSequenceNumbers();
 							sendFlightOverNetwork(flight);
 
@@ -2425,19 +2426,12 @@ public class DTLSConnector implements Connector, RecordLayer {
 	private void scheduleRetransmission(DTLSFlight flight, Connection connection) {
 
 		if (flight.isRetransmissionNeeded()) {
-
-			// calculate timeout using exponential back-off
-			if (flight.getTimeout() == 0) {
-				// use initial timeout
-				flight.setTimeout(config.getRetransmissionTimeout());
-			} else {
-				// double timeout
-				flight.incrementTimeout();
-			}
-
 			// schedule retransmission task
 			ScheduledFuture<?> f = timer.schedule(new TimeoutPeerTask(connection, flight), flight.getTimeout(), TimeUnit.MILLISECONDS);
 			flight.setTimeoutTask(f);
+			LOGGER.trace("handshake flight to peer {}, retransmission {} ms.", connection.getPeerAddress(), flight.getTimeout());
+		} else {
+			LOGGER.trace("handshake flight to peer {}, no retransmission!", connection.getPeerAddress());
 		}
 	}
 
