@@ -47,11 +47,16 @@ echo
 CF_JAR=cf-extplugtest-client-2.1.0-SNAPSHOT.jar
 CF_EXEC="org.eclipse.californium.extplugtests.BenchmarkClient"
 CF_OPT="-d64 -XX:+UseG1GC -Xmx6g -Dcalifornium.statistic=2.1.0"
-CF_HOST=localhost
+
+if [ -z "$1" ]  ; then
+     CF_HOST=localhost
+else 
+    CF_HOST=$1
+fi
 
 # adjust the multiplier according the speed of your CPU
-USE_TCP=1
-USE_UDP=0
+USE_TCP=0
+USE_UDP=1
 USE_PLAIN=1
 USE_SECURE=1
 MULTIPLIER=10
@@ -139,6 +144,7 @@ benchmark_all()
 
 benchmark_dtls_handshake()
 {
+   if [ ${USE_UDP} -eq 0 ] ; then return; fi
    if [ ${USE_SECURE} -ne 0 ] ; then 
       START_HS=`date +%s`
       i=0
@@ -174,7 +180,9 @@ benchmark_dtls_handshake 10 -r
 TIME3=$?
 benchmark_dtls_handshake 10 -x
 TIME4=$?
+
 #longterm
+
 echo "PSK      :" $TIME1
 echo "PSK/ECDHE:" $TIME2
 echo "RPK      :" $TIME3
