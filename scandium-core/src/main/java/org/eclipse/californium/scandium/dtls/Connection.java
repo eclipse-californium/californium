@@ -282,14 +282,17 @@ public final class Connection {
 			this.peerAddress = peerAddress;
 			if (establishedSession != null) {
 				establishedSession.setPeer(peerAddress);
-			} else if (peerAddress == null) {
+			} else if (peerAddress != null) {
+				throw new IllegalArgumentException("Address change without established sesson is not supported!");
+			}
+			if (peerAddress == null) {
 				final Handshaker pendingHandshaker = getOngoingHandshake();
 				if (pendingHandshaker != null) {
-					// this will only call the listener, if no other cause was set before!
-					pendingHandshaker.handshakeFailed(new IOException("address changed!"));
+					if (establishedSession == null || pendingHandshaker.getSession() != establishedSession) {
+						// this will only call the listener, if no other cause was set before!
+						pendingHandshaker.handshakeFailed(new IOException("address changed!"));
+					}
 				}
-			} else {
-				throw new IllegalArgumentException("Address change without established sesson is not supported!");
 			}
 		}
 	}

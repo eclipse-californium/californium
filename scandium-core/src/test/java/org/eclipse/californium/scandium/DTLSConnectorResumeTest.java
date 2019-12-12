@@ -461,6 +461,39 @@ public class DTLSConnectorResumeTest {
 		assertThat(remainingCapacity2, is(remainingCapacity - 1));
 	}
 
+	public void testConnectorResumesSessionFromClosedConnection() throws Exception {
+		// Do a first handshake
+		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, false);
+		SessionId sessionId = serverHelper.establishedServerSession.getSessionIdentifier();
+		Connection connection = clientConnectionStore.get(serverHelper.serverEndpoint);
+		String lastHandshakeTime = connection.getEstablishedSession().getLastHandshakeTime();
+		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(sessionId));
+
+		// send close notify, close connection
+		client.close(serverHelper.serverEndpoint);
+
+		// close is asynchronous, wait for execution completed.
+		for (int loop = 0; loop < 20 && !connection.isResumptionRequired(); ++loop) {
+			Thread.sleep(100);
+		}
+		assertThat(connection.isResumptionRequired(), is(true));
+
+		// Prepare message sending
+		final String msg = "Hello Again";
+		clientRawDataChannel.setLatchCount(1);
+
+		// send message
+		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
+		client.send(data);
+		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+		// check we use the same session id
+		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
+		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(sessionId));
+		assertClientIdentity(RawPublicKeyIdentity.class);
+		assertThat(lastHandshakeTime, is(not(connection.getEstablishedSession().getLastHandshakeTime())));
+	}
+
 	@Test
 	public void testConnectorForceResumeSession() throws Exception {
 		autoResumeSetUp(null);
