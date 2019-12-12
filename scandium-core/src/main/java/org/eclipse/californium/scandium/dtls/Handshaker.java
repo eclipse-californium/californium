@@ -1273,10 +1273,10 @@ public abstract class Handshaker implements Destroyable {
 				for (SessionListener sessionListener : sessionListeners) {
 					sessionListener.handshakeFailed(this, cause);
 				}
+				SecretUtil.destroy(session);
 			}
+			SecretUtil.destroy(this);
 		}
-		SecretUtil.destroy(session);
-		SecretUtil.destroy(this);
 	}
 
 	/**

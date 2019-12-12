@@ -83,7 +83,7 @@ import org.slf4j.LoggerFactory;
  * Storing and reading to/from the store is thread safe.
  * </p>
  */
-public class InMemoryConnectionStore implements ResumptionSupportingConnectionStore {
+public class InMemoryConnectionStore implements ResumptionSupportingConnectionStore, CloseSupportingConnectionStore {
 
 	private static final Logger LOG = LoggerFactory.getLogger(InMemoryConnectionStore.class.getName());
 	private static final int DEFAULT_SMALL_EXTRA_CID_LENGTH = 2; // extra cid bytes additionally to required bytes for small capacity.
@@ -345,6 +345,20 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 			LOG.debug("{}connection: {} - {} update failed!", tag, connection.getConnectionId(), newPeerAddress);
 			return false;
 		}
+	}
+
+	@Override
+	public synchronized boolean removeFromAddress(final Connection connection) {
+		if (connection != null) {
+			InetSocketAddress peerAddress = connection.getPeerAddress();
+			if (peerAddress != null) {
+				LOG.debug("{}connection: {} removed from address {}!", tag, connection.getConnectionId(), peerAddress);
+				connectionsByAddress.remove(peerAddress, connection);
+				connection.updatePeerAddress(null);
+				return true;
+			}
+		}
+		return false;
 	}
 
 	@Override

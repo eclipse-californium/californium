@@ -175,6 +175,7 @@ import org.eclipse.californium.scandium.dtls.ApplicationMessage;
 import org.eclipse.californium.scandium.dtls.AvailableConnections;
 import org.eclipse.californium.scandium.dtls.ClientHandshaker;
 import org.eclipse.californium.scandium.dtls.ClientHello;
+import org.eclipse.californium.scandium.dtls.CloseSupportingConnectionStore;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
@@ -1349,21 +1350,26 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * @param alert the message to send to the peer before terminating the connection (may be <code>null</code>)
 	 * @param session the parameters to encrypt the alert message with (may be <code>null</code> if alert is
 	 *           <code>null</code>)
+	 * @throws IllegalArgumentException if alert is provided, but session not.
 	 */
 	private void terminateConnection(Connection connection, AlertMessage alert, DTLSSession session) {
-		if (alert != null && session == null) {
-			throw new IllegalArgumentException("Session must not be NULL if alert message is to be sent");
-		}
-
 		if (alert == null) {
 			LOGGER.debug("Terminating connection with peer [{}]", connection.getPeerAddress());
 		} else {
+			if (session == null) {
+				throw new IllegalArgumentException("Session must not be null, if alert message is to be sent");
+			}
 			LOGGER.debug("Terminating connection with peer [{}], reason [{}]", connection.getPeerAddress(),
 					alert.getDescription());
 			send(alert, session);
 		}
-		// clear session & (pending) handshaker
-		connectionStore.remove(connection);
+		if (alert != null && alert.getLevel() == AlertLevel.WARNING && alert.getDescription() == AlertDescription.CLOSE_NOTIFY) {
+			// request resumption, keep connection and session
+			connection.setResumptionRequired(true);
+		} else {
+			// clear session & (pending) handshaker
+			connectionStore.remove(connection);
+		}
 	}
 
 	/**
@@ -1375,7 +1381,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	private void processApplicationDataRecord(final Record record, final Connection connection) {
 		final Handshaker ongoingHandshake = connection.getOngoingHandshake();
 		final DTLSSession session = connection.getEstablishedSession();
-		if (session != null) {
+		if (session != null && !connection.isResumptionRequired()) {
 			// APPLICATION_DATA can only be processed within the context of
 			// an established, i.e. fully negotiated, session
 			ApplicationMessage message = (ApplicationMessage) record.getFragment();
@@ -1446,10 +1452,16 @@ public class DTLSConnector implements Connector, RecordLayer {
 			if (handshaker != null) {
 				handshaker.setFailureCause(error);
 			}
-			terminateConnection(
-					connection,
-					new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY, alert.getPeer()),
-					session);
+			if (!connection.isResumptionRequired()) {
+				send(new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY, alert.getPeer()), session);
+				if (connectionStore instanceof CloseSupportingConnectionStore) {
+					// remove associated address, keep session
+					((CloseSupportingConnectionStore) connectionStore).removeFromAddress(connection);
+				} else {
+					// remove connection, keep session in cache (if used)
+					connectionStore.remove(connection, false);
+				}
+			}
 		} else if (AlertLevel.FATAL.equals(alert.getLevel())) {
 			// according to section 7.2 of the TLS 1.2 spec
 			// (http://tools.ietf.org/html/rfc5246#section-7.2)
