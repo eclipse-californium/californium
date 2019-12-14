@@ -102,7 +102,7 @@ public class ThreadLocalCrypto<CryptoFunction> {
 	/**
 	 * Factory to create instances of crypto functions.
 	 */
-	static interface Factory<CryptoFunction> {
+	public static interface Factory<CryptoFunction> {
 
 		/**
 		 * Create instance of crypto function.

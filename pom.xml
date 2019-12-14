@@ -530,7 +530,7 @@
 						<revapi.java>
 							<checks>
 								<nonPublicPartOfAPI>
-									<reportUnchanged>false</reportUnchanged>
+									<reportUnchanged>true</reportUnchanged>
 								</nonPublicPartOfAPI>
 							</checks>
 							<filter>
@@ -549,6 +549,15 @@
 							</filter>
 						</revapi.java>
 					</analysisConfiguration>
+					<failOnMissingConfigurationFiles>false</failOnMissingConfigurationFiles>
+					<analysisConfigurationFiles>
+						<configurationFile>
+							<path>api-changes.json</path>
+							<roots>
+								<root>${project.version}</root>
+							</roots>
+						</configurationFile>
+					</analysisConfigurationFiles>
 				</configuration>
 				<executions>
 					<execution>

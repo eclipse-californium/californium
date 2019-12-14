@@ -201,7 +201,8 @@ public abstract class Handshaker implements Destroyable {
 	private final Connection connection;
 
 	/** Buffer for received records that can not be processed immediately. */
-	protected InboundMessageBuffer inboundMessageBuffer;
+	private InboundMessageBuffer inboundMessageBuffer;
+
 	/** List of handshake messages */
 	protected final List<HandshakeMessage> handshakeMessages = new ArrayList<HandshakeMessage>();
 
@@ -306,7 +307,7 @@ public abstract class Handshaker implements Destroyable {
 	/**
 	 * A queue for buffering inbound handshake records.
 	 */
-	class InboundMessageBuffer {
+	private class InboundMessageBuffer {
 
 		private Record changeCipherSpec = null;
 
@@ -484,6 +485,16 @@ public abstract class Handshaker implements Destroyable {
 				return 0;
 			}
 		}
+	}
+
+	/**
+	 * Check, if inbound messages are all processed.
+	 * 
+	 * @return {@code true}, all inbound messages are processed, {@code false},
+	 *         some inbound messages are pending.
+	 */
+	public boolean isInboundMessageProcessed() {
+		return inboundMessageBuffer.isEmpty();
 	}
 
 	/**
