@@ -44,7 +44,7 @@ import org.eclipse.californium.scandium.util.SecretIvParameterSpec;
  * This class is immutable and thus only appropriate to reflect a <em>current</em> read or
  * write state whose properties have been negotiated/established already.
  */
-abstract class DTLSConnectionState implements Destroyable {
+public abstract class DTLSConnectionState implements Destroyable {
 
 	public static final DTLSConnectionState NULL = new DTLSConnectionState(CipherSuite.TLS_NULL_WITH_NULL_NULL,
 			CompressionMethod.NULL) {

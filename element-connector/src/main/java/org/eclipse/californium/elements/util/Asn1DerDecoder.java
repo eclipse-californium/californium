@@ -120,7 +120,7 @@ public class Asn1DerDecoder {
 	/**
 	 * ASN.1 entity definition for OID.
 	 */
-	public static final OidEntityDefinition OID = new OidEntityDefinition();
+	private static final OidEntityDefinition OID = new OidEntityDefinition();
 	/**
 	 * ASN.1 entity definition for INTEGER.
 	 */

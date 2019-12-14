@@ -229,7 +229,7 @@ public class HandshakerTest {
 		// the future sequence no has been processed
 		assertThat(receivedMessages[nextSeqNo], is(1));
 		assertThat(receivedMessages[futureSeqNo], is(1));
-		assertTrue(handshaker.inboundMessageBuffer.isEmpty());
+		assertTrue(handshaker.isInboundMessageProcessed());
 	}
 
 	private void givenAHandshakerWithAQueuedFragmentedMessage(int seqNo) throws HandshakeException, GeneralSecurityException {
@@ -242,7 +242,7 @@ public class HandshakerTest {
 			handshaker.decryptAndProcessMessage(record);
 		}
 		assertThat(receivedMessages[seqNo], is(0));
-		assertFalse(handshaker.inboundMessageBuffer.isEmpty());
+		assertFalse(handshaker.isInboundMessageProcessed());
 	}
 
 	@Test

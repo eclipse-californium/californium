@@ -1,0 +1,23 @@
+{
+	"2.1.0-SNAPSHOT": {
+		"revapi": {
+			"ignore": [
+				{
+					"code": "java.field.visibilityReduced",
+					"old": "field org.eclipse.californium.scandium.dtls.Handshaker.inboundMessageBuffer",
+					"new": "field org.eclipse.californium.scandium.dtls.Handshaker.inboundMessageBuffer",
+					"justification": "APIfix - protected scope was not intended and only used for unit test. Added isInboundMessageProcessed for unit tests instead.",
+					"oldVisibility": "protected",
+					"newVisibility": "private",
+					"package": "org.eclipse.californium.scandium.dtls",
+					"classQualifiedName": "org.eclipse.californium.scandium.dtls.Handshaker",
+					"classSimpleName": "Handshaker",
+					"fieldName": "inboundMessageBuffer",
+					"oldArchive": "org.eclipse.californium:scandium:jar:2.0.0",
+					"newArchive": "org.eclipse.californium:scandium:jar:2.1.0-SNAPSHOT",
+					"elementKind": "field"
+				}
+			]
+		}
+	}
+}
