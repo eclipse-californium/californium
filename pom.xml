@@ -559,13 +559,6 @@
 						</configurationFile>
 					</analysisConfigurationFiles>
 				</configuration>
-				<executions>
-					<execution>
-						<goals>
-							<goal>check</goal>
-						</goals>
-					</execution>
-				</executions>
 			</plugin>
 		</plugins>
 	</build>
@@ -633,6 +626,27 @@
 			<properties>
 				<javadoc.opts>-X-html4</javadoc.opts>
 			</properties>
+		</profile>
+		<profile>
+			<id>revapi</id>
+			<activation>
+				<jdk>[1.8,)</jdk>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+					<groupId>org.revapi</groupId>
+					<artifactId>revapi-maven-plugin</artifactId>
+					<executions>
+						<execution>
+							<goals>
+								<goal>check</goal>
+							</goals>
+						</execution>
+					</executions>
+					</plugin>
+				</plugins>
+			</build>
 		</profile>
 		<profile>
 			<!-- this profile signs artifacts so that they can be deployed to repo.eclipse.org -->
