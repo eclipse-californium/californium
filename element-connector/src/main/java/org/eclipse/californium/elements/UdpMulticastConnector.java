@@ -16,9 +16,17 @@
 package org.eclipse.californium.elements;
 
 import java.io.IOException;
+import java.net.Inet4Address;
+import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.MulticastSocket;
+import java.net.SocketException;
+
+import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
+import org.eclipse.californium.elements.util.StringUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * {@link Connector} which inherits functionality of {@link UDPConnector}
@@ -27,6 +35,7 @@ import java.net.MulticastSocket;
  * Protocol (CoAP) to the registered multicast group.
  */
 public class UdpMulticastConnector extends UDPConnector {
+	public static final Logger LOGGER = LoggerFactory.getLogger(UdpMulticastConnector.class.getName());
 
 	/**
 	 * Address of network interface to be used to receive multicast packets
@@ -75,20 +84,39 @@ public class UdpMulticastConnector extends UDPConnector {
 		if (this.running)
 			return;
 
+		InetAddress effectiveInterface = localAddr.getAddress();
 		// creates a multicast socket with the given port number
 		MulticastSocket socket = new MulticastSocket(localAddr);
 
 		// if an interface specified by a non-wildcard address was supplied we set it on the socket
 		if (intfAddress != null && !intfAddress.isAnyLocalAddress()) {
 			socket.setInterface(intfAddress);
+			effectiveInterface = intfAddress;
 		}
 
 		// add the multicast socket to the specified multicast group for
 		// listening to multicast requests
 		for (InetAddress group : multicastGroups) {
-			socket.joinGroup(group);
+			try {
+				socket.joinGroup(group);
+				LOGGER.info("joined group {}", StringUtil.toString(group));
+			} catch (SocketException ex) {
+				socket.close();
+				if (group instanceof Inet4Address) {
+					if ((effectiveInterface.isAnyLocalAddress() && !NetworkInterfacesUtil.isAnyIpv4())
+							|| (effectiveInterface instanceof Inet6Address)) {
+						throw new SocketException("IPv6 only interface doesn't support IPv4 multicast!");
+					}
+				} else if (group instanceof Inet6Address) {
+					if ((effectiveInterface.isAnyLocalAddress() && !NetworkInterfacesUtil.isAnyIpv6())
+							|| (effectiveInterface instanceof Inet4Address)) {
+						throw new SocketException("IPv4 only interface doesn't support IPv6 multicast!");
+					}
+				}
+				throw ex;
+			}
 		}
 		init(socket);
 	}
-
+	
 }

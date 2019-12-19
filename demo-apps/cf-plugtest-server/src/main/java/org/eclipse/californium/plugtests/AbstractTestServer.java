@@ -33,7 +33,6 @@ import javax.net.ssl.SSLSessionContext;
 
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.EndpointContextMatcherFactory.MatcherMode;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
@@ -41,6 +40,7 @@ import org.eclipse.californium.elements.PrincipalEndpointContextMatcher;
 import org.eclipse.californium.elements.tcp.netty.TcpServerConnector;
 import org.eclipse.californium.elements.tcp.netty.TlsServerConnector;
 import org.eclipse.californium.elements.tcp.netty.TlsServerConnector.ClientAuthMode;
+import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -197,7 +197,7 @@ public abstract class AbstractTestServer extends CoapServer {
 				e.printStackTrace();
 			}
 		}
-		for (InetAddress addr : EndpointManager.getEndpointManager().getNetworkInterfaces()) {
+		for (InetAddress addr : NetworkInterfacesUtil.getNetworkInterfaces()) {
 			if (interfaceTypes != null && !interfaceTypes.isEmpty()) {
 				if (addr.isLoopbackAddress()) {
 					if (!interfaceTypes.contains(InterfaceType.LOCAL)) {
