@@ -19,6 +19,7 @@
 package org.eclipse.californium.elements.util;
 
 import java.lang.reflect.Method;
+import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.regex.Pattern;
@@ -269,7 +270,11 @@ public class StringUtil {
 		} else {
 			host = toString(address.getAddress());
 		}
-		return host + ":" + address.getPort();
+		if (address.getAddress() instanceof Inet6Address) {
+			return "[" + host + "]:" + address.getPort();
+		} else {
+			return host + ":" + address.getPort();
+		}
 	}
 
 	/**

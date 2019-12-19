@@ -165,6 +165,7 @@ import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
+import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -203,7 +204,6 @@ import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.SessionListener;
 import org.eclipse.californium.scandium.dtls.SessionTicket;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.util.MtuUtil;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 
@@ -669,7 +669,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		if (config.getMaxTransmissionUnit() == null) {
 			InetAddress localInterfaceAddress = bindAddress.getAddress();
 			if (localInterfaceAddress.isAnyLocalAddress()) {
-				this.maximumTransmissionUnit = MtuUtil.getAnyMtu();
+				this.maximumTransmissionUnit = NetworkInterfacesUtil.getAnyMtu();
 				LOGGER.info("multiple network interfaces, using smallest MTU [{}]", this.maximumTransmissionUnit);
 			} else {
 				NetworkInterface ni = NetworkInterface.getByInetAddress(localInterfaceAddress);

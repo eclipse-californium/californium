@@ -28,11 +28,15 @@ import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.UdpMulticastConnector;
+import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Test server using {@link UdpMulticastConnector}.
  */
 public class MulticastTestServer {
+	private static final Logger LOGGER = LoggerFactory.getLogger(MulticastTestServer.class.getCanonicalName());
 
 	public static void main(String[] args) throws UnknownHostException {
 
@@ -47,7 +51,19 @@ public class MulticastTestServer {
 	private static CoapEndpoint createEndpoints(NetworkConfig config) throws UnknownHostException {
 		int port = config.getInt(Keys.COAP_PORT);
 		InetSocketAddress localAddress = new InetSocketAddress(port);
-		Connector connector = new UdpMulticastConnector(localAddress, CoAP.MULTICAST_IPV4);
+		Connector connector;
+		if (NetworkInterfacesUtil.isAnyIpv6() && NetworkInterfacesUtil.isAnyIpv4()) {
+			connector = new UdpMulticastConnector(localAddress, CoAP.MULTICAST_IPV4, CoAP.MULTICAST_IPV6_LINKLOCAL,
+					CoAP.MULTICAST_IPV6_SITELOCAL);
+			LOGGER.info("IPv4 & IPv6");
+		} else if (NetworkInterfacesUtil.isAnyIpv6()) {
+			connector = new UdpMulticastConnector(localAddress, CoAP.MULTICAST_IPV6_LINKLOCAL,
+					CoAP.MULTICAST_IPV6_SITELOCAL);
+			LOGGER.info("IPv6");
+		} else {
+			connector = new UdpMulticastConnector(localAddress, CoAP.MULTICAST_IPV4);
+			LOGGER.info("IPv4");
+		}
 		return new CoapEndpoint.Builder().setNetworkConfig(config).setConnector(connector).build();
 	}
 

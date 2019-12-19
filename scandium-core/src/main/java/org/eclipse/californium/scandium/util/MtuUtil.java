@@ -19,20 +19,22 @@ import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.util.Enumeration;
 
+import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
+
 /**
  * Utility class to determine MTU.
+ * 
+ * @deprecated use {@link NetworkInterfacesUtil} instead.
  */
+@Deprecated
 public class MtuUtil {
 
 	/**
 	 * Maximum UDP MTU.
+	 * 
+	 * @deprecated use {@link NetworkInterfacesUtil#MAX_MTU} instead.
 	 */
 	public static final int MAX_MTU = 65535;
-
-	/**
-	 * MTU for any interface.
-	 */
-	private static int anyMtu;
 
 	/**
 	 * Get MTU for any interface.
@@ -41,21 +43,9 @@ public class MtuUtil {
 	 * 
 	 * @return MTU in bytes
 	 * @throws SocketException if an i/o error occurred
+	 * @deprecated use {@link NetworkInterfacesUtil#getAnyMtu()} instead.
 	 */
-	public synchronized static int getAnyMtu() throws SocketException {
-		if (anyMtu == 0) {
-			int mtu = MAX_MTU;
-			Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
-			while (interfaces.hasMoreElements()) {
-				NetworkInterface iface = interfaces.nextElement();
-				int ifaceMtu = iface.getMTU();
-				if (ifaceMtu > 0 && ifaceMtu < mtu) {
-					mtu = ifaceMtu;
-				}
-			}
-			anyMtu = mtu;
-		}
-
-		return anyMtu;
+	public static int getAnyMtu() throws SocketException {
+		return NetworkInterfacesUtil.getAnyMtu();
 	}
 }
