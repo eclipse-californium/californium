@@ -49,6 +49,7 @@ import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
+import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
@@ -159,6 +160,7 @@ public class BenchmarkClient {
 			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
 			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
 			config.setInt(Keys.MAX_ACTIVE_PEERS, 10);
+			config.setInt(Keys.EXCHANGE_LIFETIME, 24700); // 24.7s instead of 247s
 			config.setInt(Keys.DTLS_AUTO_RESUME_TIMEOUT, 0);
 			config.setInt(Keys.DTLS_CONNECTION_ID_LENGTH, 0); // support it, but don't use it
 			config.setInt(Keys.MAX_PEER_INACTIVITY_PERIOD, 60 * 60 * 24); // 24h
@@ -188,8 +190,6 @@ public class BenchmarkClient {
 			DEFAULTS.applyDefaults(config);
 			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_REVERSE_SERVER_BLOCK_SIZE);
 			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_REVERSE_SERVER_BLOCK_SIZE);
-			// 24.7s instead of 247s
-			config.setInt(Keys.EXCHANGE_LIFETIME, 24700);
 		}
 	};
 
@@ -375,7 +375,12 @@ public class BenchmarkClient {
 					next();
 				}
 				long c = overallRequestsDownCounter.get();
-				LOGGER.info("Received response: {} {}", response.advanced(), c);
+				LOGGER.trace("Received response: {} {}", response.advanced(), c);
+			} else if (noneStop) {
+				long c = requestsCounter.get();
+				transmissionErrorCounter.incrementAndGet();
+				LOGGER.warn("Error after {} requests. {}", c, response.advanced());
+				next();
 			} else {
 				long c = requestsCounter.get();
 				LOGGER.warn("Received error response: {} {} ({} successful)", endpoint.getUri(), response.advanced(), c);
@@ -454,7 +459,6 @@ public class BenchmarkClient {
 		server.add(feed);
 		server.setExecutors(executorService, secondaryExecutor, true);
 		client.setExecutors(executorService, secondaryExecutor, true);
-		endpoint.setExecutors(executorService, secondaryExecutor);
 		this.endpoint = endpoint;
 	}
 
@@ -479,12 +483,14 @@ public class BenchmarkClient {
 			CoapResponse response = client.advanced(post);
 			if (response != null) {
 				if (response.isSuccess()) {
-					LOGGER.info("Received response: {}", response.advanced());
+					if (LOGGER.isInfoEnabled()) {
+						LOGGER.info("Received response: {}", Utils.prettyPrint(response));
+					}
 					clientCounter.incrementAndGet();
 					checkReady(true, true);
 					return true;
 				} else {
-					LOGGER.warn("Received error response: {} - {}", response.advanced().getCode(), response.advanced().getPayloadString());
+					LOGGER.warn("Received error response: {} - {}", response.getCode(), response.getResponseText());
 				}
 			} else {
 				LOGGER.warn("Received no response!");
@@ -677,7 +683,7 @@ public class BenchmarkClient {
 		final boolean secure = CoAP.isSecureScheme(uri.getScheme());
 
 		final ScheduledThreadPoolExecutor secondaryExecutor = new ScheduledThreadPoolExecutor(2,
-				new DaemonThreadFactory("CoapServer(secondary)#"));
+				new DaemonThreadFactory("Aux(secondary)#"));
 
 		System.out.format("Create %d %s%sbenchmark clients, expect to send %d request overall to %s%n", clients,
 				noneStop ? "none-stop " : "", secure ? "secure " : "", overallRequests, uri);
@@ -713,7 +719,7 @@ public class BenchmarkClient {
 		for (int index = 0; index < clients; ++index) {
 			final int currentIndex = index;
 			Runnable run = new Runnable() {
-				
+
 				@Override
 				public void run() {
 					if (errors.get()) {
@@ -774,7 +780,7 @@ public class BenchmarkClient {
 			if (index == 0) {
 				// first client, so test request
 				run.run();
-			} else if (!errors.get()){
+			} else if (!errors.get()) {
 				startupNanos = System.nanoTime();
 				executor.execute(run);
 			}

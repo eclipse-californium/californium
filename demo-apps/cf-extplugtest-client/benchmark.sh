@@ -46,7 +46,7 @@ echo
 
 CF_JAR=cf-extplugtest-client-2.1.0-SNAPSHOT.jar
 CF_EXEC="org.eclipse.californium.extplugtests.BenchmarkClient"
-CF_OPT="-d64 -XX:+UseG1GC -Xmx6g -Dcalifornium.statistic=2.1.0"
+CF_OPT="-d64 -XX:+UseG1GC -Xmx6g -Xverify:none -Dcalifornium.statistic=2.1.0"
 
 if [ -z "$1" ]  ; then
      CF_HOST=localhost
@@ -130,6 +130,9 @@ benchmark_all()
 	benchmark_udp "benchmark?rlen=${PAYLOAD}" ${UDP_CLIENTS} ${REQS}
 	benchmark_tcp "benchmark?rlen=${PAYLOAD}" ${TCP_CLIENTS} ${REQS}
 
+# GET with separate response
+	benchmark_udp "benchmark?rlen=${PAYLOAD}&ack" ${UDP_CLIENTS} ${REQS}
+
 # reverse GET
 	benchmark_udp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" ${UDP_CLIENTS} 2 stop ${REV_REQS}
 	benchmark_tcp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" ${TCP_CLIENTS} 2 stop ${REV_REQS}
@@ -138,8 +141,7 @@ benchmark_all()
 	benchmark "reverse-observe?obs=25000&res=feed-CON&rlen=${PAYLOAD_LARGE}" ${OBS_CLIENTS} 1 stop ${NOTIFIES} 20 100
 
 # observe NON
-	benchmark_udp "reverse-observe?obs=25000&res=feed-NON&rlen=${PAYLOAD_LARGE}" ${OBS_CLIENTS} 1 stop ${NOTIFIES} 20 100
-	
+	benchmark_udp "reverse-observe?obs=25000&res=feed-NON&rlen=${PAYLOAD_LARGE}" ${OBS_CLIENTS} 1 stop ${NOTIFIES} 20 100	
 }
 
 benchmark_dtls_handshake()
