@@ -21,6 +21,7 @@
 package org.eclipse.californium.core.server.resources;
 
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -84,6 +85,15 @@ public class CoapExchange {
 		} else {
 			queryParameters.put(param, Boolean.TRUE.toString());
 		}
+	}
+
+	/**
+	 * Gets the source socket address of the request.
+	 *
+	 * @return the source socket address
+	 */
+	public InetSocketAddress getSourceSocketAddress() {
+		return exchange.getRequest().getSourceContext().getPeerAddress();
 	}
 
 	/**
