@@ -51,9 +51,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.Endpoint;
@@ -117,12 +117,18 @@ import org.eclipse.californium.elements.util.StringUtil;
  * String response = post.send().waitForResponse().getPayloadString();
  * </pre>
  * 
+ * Note:</br>
+ * Using {@link #setDestination(InetAddress)} or
+ * {@link #setDestinationPort(int)} is deprecated since 2017-09. Using these
+ * functions may result in unexpected behavior, especially, if other
+ * destinations are used as in a provided URI.
+ * 
  * @see Response
  */
 public class Request extends Message {
 
 	private static final Pattern IP_PATTERN = Pattern
-			.compile("(\\[[0-9a-f:]+(%\\w+)?\\]|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})");
+			.compile("(\\[[0-9a-fA-F:]+(%\\w+)?\\]|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})");
 
 	/** The request code. */
 	private final CoAP.Code code;
@@ -133,7 +139,24 @@ public class Request extends Message {
 	/** The current response for the request. */
 	private Response response;
 
+	/**
+	 * Request's scheme.
+	 * 
+	 * @see CoAP#COAP_URI_SCHEME
+	 * @see CoAP#COAP_SECURE_URI_SCHEME
+	 * @see CoAP#COAP_TCP_URI_SCHEME
+	 * @see CoAP#COAP_SECURE_TCP_URI_SCHEME
+	 */
 	private String scheme;
+
+	/**
+	 * Indicates, that the URI is already set and parts of the URI are converted
+	 * into options. Though the usage of the
+	 * {@link OptionSet#setUriHost(String)} depends on the destination, it's not
+	 * intended to change the destination afterwards. This may be only useful,
+	 * if proxies are addressed.
+	 */
+	private boolean uri;
 
 	/** The destination address of this message. */
 	@Deprecated
@@ -237,6 +260,14 @@ public class Request extends Message {
 
 	/**
 	 * Sets this request's CoAP URI.
+	 * <p>
+	 * if the destination is not already set this method sets the
+	 * <em>destination</em> to the IP address that the host part of the URI has
+	 * been resolved to. Other parts of the URI are also used to populate the
+	 * request's options. If a different destination is required, that must be
+	 * set ahead. Calling {@link #setDestinationContext(EndpointContext)} after
+	 * this will throw an {@link IllegalStateException}.
+	 * </p>
 	 * 
 	 * @param uri A CoAP URI as specified by
 	 *            <a href="https://tools.ietf.org/html/rfc7252#section-6">
@@ -246,6 +277,7 @@ public class Request extends Message {
 	 * @throws IllegalArgumentException if the given string is not a valid CoAP
 	 *             URI, contains a non-resolvable host name, an unsupported
 	 *             scheme or a fragment.
+	 * @see #setURI(URI)
 	 */
 	public Request setURI(final String uri) {
 
@@ -268,10 +300,13 @@ public class Request extends Message {
 	/**
 	 * Sets the destination address and port and options from a given URI.
 	 * <p>
-	 * This method sets the <em>destination</em> to the IP address that the host
-	 * part of the URI has been resolved to and then delegates to the
-	 * {@link #setOptions(URI)} method in order to populate the request's
-	 * options.
+	 * if the destination is not already set this method sets the
+	 * <em>destination</em> to the IP address that the host part of the URI has
+	 * been resolved to. Other parts of the URI are also used to populate the
+	 * request's options. If a different destination is required, that must be
+	 * set ahead. Calling {@link #setDestinationContext(EndpointContext)} after
+	 * this will throw an {@link IllegalStateException}.
+	 * </p>
 	 * 
 	 * @param uri The target URI.
 	 * @return This request for command chaining.
@@ -280,29 +315,34 @@ public class Request extends Message {
 	 *             host name, an unsupported scheme or a fragment.
 	 */
 	public Request setURI(final URI uri) {
-
-		if (uri == null) {
-			throw new NullPointerException("URI must not be null");
-		}
+		checkURI(uri);
 
 		final String host = uri.getHost() == null ? "localhost" : uri.getHost();
+		final String uriScheme = uri.getScheme();
+		final boolean literalIp = IP_PATTERN.matcher(host).matches();
 
 		try {
-			if (getDestinationContext() == null) {
+			InetSocketAddress destinationAdress;
+			EndpointContext destinationContext = getDestinationContext();
+			if (destinationContext == null) {
+				final int port = uri.getPort();
 				InetAddress destAddress = InetAddress.getByName(host);
-				setDestinationContext(new AddressEndpointContext(new InetSocketAddress(destAddress, 0), null));
+				String destHost = literalIp ? null : host;
+				int destPort = port <= 0 ? CoAP.getDefaultPort(uriScheme) : port;
+				destinationAdress = new InetSocketAddress(destAddress, destPort);
+				destinationContext = new AddressEndpointContext(destinationAdress, destHost, null);
+			} else {
+				destinationAdress = destinationContext.getPeerAddress();
 			}
 
-			return setOptions(new URI(uri.getScheme(), uri.getUserInfo(), host, uri.getPort(), uri.getPath(), uri.getQuery(),
-					uri.getFragment()));
+			setOptionsInternal(uri, destinationAdress, literalIp);
+			setDestinationContext(destinationContext);
+			this.scheme = uriScheme.toLowerCase();
+			this.uri = true;
+			return this;
 
 		} catch (UnknownHostException e) {
 			throw new IllegalArgumentException("cannot resolve host name: " + host);
-		} catch (URISyntaxException e) {
-			// should not happen because we are creating the URI from an
-			// existing URI object
-			LOGGER.warn("cannot set URI on request", e);
-			throw new IllegalArgumentException(e);
 		}
 	}
 
@@ -315,7 +355,9 @@ public class Request extends Message {
 	 * it does not try to resolve a host name that is part of the given URI.
 	 * Therefore, this method can be used as an alternative to the
 	 * {@link #setURI(String)} and {@link #setURI(URI)} methods when DNS is not
-	 * available.
+	 * available. Calling {@link #setDestinationContext(EndpointContext)} after
+	 * this will throw an {@link IllegalStateException}.
+	 * </p>
 	 * 
 	 * @param uri The URI to set the options from.
 	 * @return This request for command chaining.
@@ -325,84 +367,133 @@ public class Request extends Message {
 	 * @throws IllegalStateException if the destination is not set.
 	 */
 	public Request setOptions(final URI uri) {
-		InetAddress destination = getDestination();
+		checkURI(uri);
+		EndpointContext destinationContext = getDestinationContext();
+		if (destinationContext == null) {
+			InetAddress destination = getDestination();
+			if (destination == null) {
+				throw new IllegalStateException("destination must be set ahead!");
+			}
+			destinationContext = new AddressEndpointContext(destination, destinationPort);
+		}
+		setOptionsInternal(uri, destinationContext.getPeerAddress(), IP_PATTERN.matcher(uri.getHost()).matches());
+		this.uri = true;
+		return this;
+	}
+
+	/**
+	 * Check URI.
+	 * 
+	 * @param uri URI to check
+	 * @throws NullPointerException if the URI is {@code null}.
+	 * @throws IllegalArgumentException if the URI contains an unsupported
+	 *             scheme or contains a fragment.
+	 */
+	private void checkURI(final URI uri) {
 		if (uri == null) {
 			throw new NullPointerException("URI must not be null");
 		} else if (!CoAP.isSupportedScheme(uri.getScheme())) {
-			throw new IllegalArgumentException("unsupported URI scheme: " + uri.getScheme());
+			throw new IllegalArgumentException("URI scheme '" + uri.getScheme() + "' is not supported!");
 		} else if (uri.getFragment() != null) {
 			throw new IllegalArgumentException("URI must not contain a fragment");
-		} else if (destination == null) {
-			throw new IllegalStateException("destination address must be set");
+		}
+	}
+
+	/**
+	 * Internal set options from URI.
+	 * 
+	 * @param uri The URI to set the options from.
+	 * @param destination The destination of the request.
+	 * @param literalIp {@code true}, if the host part of the URI is a literal
+	 *            address, {@code false}, if it's a DNS name.
+	 * @return This request for command chaining.
+	 * @throws NullPointerException if the destination is {@code null}
+	 * @throws IllegalArgumentException if the URI contains an unsupported
+	 *             scheme or contains a fragment. Also thrown, if a literal
+	 *             address doesn't match the provided destination.
+	 */
+	private void setOptionsInternal(URI uri, InetSocketAddress destination, boolean literalIp) {
+		if (destination == null) {
+			throw new NullPointerException("destination address must not be null!");
 		}
 
-		if (uri.getHost() != null) {
-			String host = uri.getHost().toLowerCase();
-			Matcher matcher = IP_PATTERN.matcher(host);
-			if (matcher.matches()) {
+		String host = uri.getHost();
+
+		if (host != null) {
+			if (literalIp) {
 				try {
 					// host is a literal IP address, so we should be able
 					// to "wrap" it without invoking the resolver
 					InetAddress hostAddress = InetAddress.getByName(host);
-					if (!hostAddress.equals(destination)) {
+					InetAddress destinationAddress = destination.getAddress();
+					if (!hostAddress.equals(destinationAddress)) {
 						throw new IllegalArgumentException("URI's literal host IP address '" + hostAddress
-								+ "' does not match request's destination address '" + destination + "'");
+								+ "' does not match request's destination address '" + destinationAddress + "'");
 					}
+					// literal IP => no Uri-Host option
+					host = null;
 				} catch (UnknownHostException e) {
 					// this should not happen because we do not need to resolve
 					// a host name
 					LOGGER.warn("could not parse IP address of URI despite successful IP address pattern matching");
 				}
 			} else {
-				// host contains a host name, put it into Uri-Host option to
-				// enable virtual hosts (multiple names, same IP address)
-				if (StringUtil.isValidHostName(host)) {
-					getOptions().setUriHost(host);
-				} else {
+				if (!StringUtil.isValidHostName(host)) {
 					throw new IllegalArgumentException("URI's hostname '" + host + "' is invalid!'");
 				}
+				// host contains a host name, keep it to put it into Uri-Host option
+				// to enable virtual hosts (multiple names, same IP address)
+				host = host.toLowerCase();
 			}
 		}
 
-		String uriScheme = uri.getScheme().toLowerCase();
 		// The Uri-Port is only for special cases where it differs from
 		// the UDP port, usually when Proxy-Scheme is used.
 		int port = uri.getPort();
 		if (port <= 0) {
-			port = CoAP.getDefaultPort(uriScheme);
+			port = CoAP.getDefaultPort(uri.getScheme());
+		}
+		int destPort = destination.getPort();
+		if (destPort != port) {
+			throw new IllegalArgumentException(
+					"URI's port '" + port + "' does not match request's destination port '" + destPort + "'");
 		}
 
-		EndpointContext destinationContext = getDestinationContext();
-		if (destinationContext != null) {
-			int destPort = destinationContext.getPeerAddress().getPort();
-			if (destPort == 0) {
-				destinationContext = null;
-			} else if (destPort != port) {
-				throw new IllegalArgumentException(
-						"URI's port '" + port + "' does not match request's destination port '" + destPort + "'");
-			}
+		OptionSet options = getOptions();
+		if (host != null) {
+			options.setUriHost(host);
 		}
-
-		if (destinationContext == null) {
-			setDestinationContext(new AddressEndpointContext(new InetSocketAddress(destination, port), getOptions().getUriHost(), null));
-		}
-		this.scheme = uriScheme;
-		// do not set the Uri-Port option unless it is used for proxying
-		// (setting Uri-Scheme option)
-
 		// set Uri-Path options
 		String path = uri.getPath();
 		if (path != null && path.length() > 1) {
-			getOptions().setUriPath(path);
+			options.setUriPath(path);
 		}
-
 		// set Uri-Query options
 		String query = uri.getQuery();
 		if (query != null) {
-			getOptions().setUriQuery(query);
+			options.setUriQuery(query);
 		}
+	}
 
-		return this;
+	/**
+	 * Set URI is applied.
+	 * 
+	 * Set {@link #uri} in order to prevent {@link CoapClient} to set the URI
+	 * and overwrite already directly set options via {@link #getOptions()}.
+	 * Only used for advanced use-cases, where special options may be required,
+	 * which are nor supported by the {@link #setURI} functions.
+	 */
+	public void setUriIsApplied() {
+		this.uri = true;
+	}
+
+	/**
+	 * Check, if URI has been set.
+	 * 
+	 * @return {@code true}, URI is set, {@code false}, if not.
+	 */
+	public boolean hasURI() {
+		return uri;
 	}
 
 	/**
@@ -420,8 +511,8 @@ public class Request extends Message {
 	 *             properties which cannot be parsed into a URI.
 	 */
 	public String getURI() {
-
 		String host = getOptions().getUriHost();
+		Integer port = getOptions().getUriPort();
 		if (host == null) {
 			if (getDestination() != null) {
 				host = getDestination().getHostAddress();
@@ -430,8 +521,6 @@ public class Request extends Message {
 				host = "localhost";
 			}
 		}
-
-		Integer port = getOptions().getUriPort();
 		if (port == null) {
 			port = getDestinationPort();
 		}
@@ -461,8 +550,9 @@ public class Request extends Message {
 	 * Gets the destination address.
 	 *
 	 * @return the destination
-	 * @deprecated
+	 * @deprecated use {@link #getDestinationContext()}.
 	 */
+	@Deprecated
 	public InetAddress getDestination() {
 		EndpointContext context = getDestinationContext();
 		if (context != null) {
@@ -483,6 +573,7 @@ public class Request extends Message {
 	 * Note: intended to be removed with {@link #setDestinationPort(int)} and 
 	 * {@link Request#prepareDestinationContext()}
 	 */
+	@Deprecated
 	public Message setDestination(InetAddress destination) {
 		if (getDestinationContext() != null) {
 			throw new IllegalStateException("destination context already set!");
@@ -496,8 +587,9 @@ public class Request extends Message {
 	 * Gets the destination port.
 	 *
 	 * @return the destination port
-	 * @deprecated
+	 * @deprecated use {@link #getDestinationContext()}.
 	 */
+	@Deprecated
 	public int getDestinationPort() {
 		EndpointContext context = getDestinationContext();
 		if (context != null) {
@@ -518,6 +610,7 @@ public class Request extends Message {
 	 * Note: intended to be removed with {@link #setDestination(InetAddress)} and 
 	 * {@link Request#prepareDestinationContext()}
 	 */
+	@Deprecated
 	public Message setDestinationPort(int destinationPort) {
 		if (getDestinationContext() != null) {
 			throw new IllegalStateException("destination context already set!");
@@ -526,15 +619,14 @@ public class Request extends Message {
 		return this;
 	}
 
-
 	/**
 	 * Gets the authenticated (remote) sender's identity.
 	 * 
 	 * @return the identity or {@code null} if the sender has not been
 	 *         authenticated
-	 * @see #getSourceContext()
-	 * @deprecated
+	 * @deprecated use {@link #getSourceContext()}
 	 */
+	@Deprecated
 	public Principal getSenderIdentity() {
 		return getSourceContext().getPeerIdentity();
 	}
@@ -545,9 +637,10 @@ public class Request extends Message {
 	 * 
 	 * @throws IllegalStateException if no destination endpoint context is
 	 *             available and the destination is missing
-	 * @deprecated intended to be removed with {@link #setDestination(InetAddress)} and 
-	 * {@link #setDestinationPort(int)}
+	 * @deprecated Removing with {@link #setDestination(InetAddress)} and
+	 *             {@link #setDestinationPort(int)} obsoletes this
 	 */
+	@Deprecated
 	public void prepareDestinationContext() {
 		EndpointContext context = getDestinationContext();
 		if (context == null) {
@@ -564,9 +657,17 @@ public class Request extends Message {
 	}
 
 	/**
-	 * {@inheritDoc}
+	 * Set destination endpoint context.
 	 * 
-	 * Check, if {@link #destination} is different.
+	 * Multicast addresses are supported. Assumed to be called before setting
+	 * the URI. The {@link OptionSet#setUriHost(String)} depends on the
+	 * destination. Setting the destination after the URI doesn't adjust the
+	 * option and is only useful, if proxies are addressed.
+	 * 
+	 * Provides a fluent API to chain setters.
+	 * 
+	 * @param peerContext destination endpoint context
+	 * @return this Request
 	 * 
 	 * @throws IllegalStateException if destination differs.
 	 */
