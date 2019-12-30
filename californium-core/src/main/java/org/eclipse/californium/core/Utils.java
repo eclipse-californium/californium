@@ -48,17 +48,11 @@ public final class Utils {
 	 * @return the hexadecimal code string
 	 */
 	public static String toHexString(byte[] bytes) {
-		StringBuilder sb = new StringBuilder();
 		if (bytes == null) {
-			sb.append("null");
+			return "null";
 		} else {
-			sb.append("[");
-			for(byte b : bytes) {
-				sb.append(String.format("%02x", b & 0xFF));
-			}
-			sb.append("]");
+			return "[" + StringUtil.byteArray2Hex(bytes) + "]";
 		}
-		return sb.toString();
 	}
 
 	/**
