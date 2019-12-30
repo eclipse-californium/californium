@@ -68,7 +68,7 @@ public class ReliabilityLayer extends AbstractLayer {
 	private final ReliabilityLayerParameters defaultReliabilityLayerParameters;
 
 	private final AtomicInteger counter = new AtomicInteger();
-	
+
 	/**
 	 * Constructs a new reliability layer. Changes to the configuration are
 	 * observed and automatically applied.
@@ -284,24 +284,55 @@ public class ReliabilityLayer extends AbstractLayer {
 		exchange.setFailedTransmissionCount(0);
 		exchange.setRetransmissionHandle(null);
 
-		if (response.getType() == Type.CON && !exchange.getRequest().isCanceled()) {
-			if (exchange.getSendNanoTimestamp() > response.getNanoTimestamp()) {
-				// received before ACK/RST was sent
-				int count = counter.incrementAndGet();
-				LOGGER.debug("{}: {} duplicate response {}, server sent ACK delayed, ignore response", count,
-						exchange, response);
-				return;
+		if (response.getType() == Type.CON) {
+			boolean ack = true;
+			if (response.isDuplicate()) {
+				if (response.getNanoTimestamp() < exchange.getSendNanoTimestamp()) {
+					// received response duplicate before ACK/RST
+					// or last request retransmission was sent
+					// => drop response
+					// Note: if the response is received the 1. time, no ACK nor RST was sent
+					// so far. Therefore the send timestamp is related to the request
+					// retransmission only. In that case always ACK/RST to try stopping future
+					// response retransmissions.
+					int count = counter.incrementAndGet();
+					LOGGER.info("{}: {} duplicate response {}, server sent ACK delayed, ignore response", count,
+							exchange, response);
+					return;
+				}
+				// resend last ack or rst, don't update, request state may have changed!
+				if (response.isRejected()) {
+					ack = false;
+					LOGGER.debug("{} reject duplicate CON response, request canceled.", exchange);
+				} else {
+					LOGGER.debug("{} acknowledging duplicate CON response", exchange);
+				}
 			} else {
-				LOGGER.debug("{} acknowledging CON response", exchange);
-				EmptyMessage ack = EmptyMessage.newACK(response);
-				sendEmptyMessage(exchange, ack);
+				if (exchange.getRequest().isCanceled()) {
+					ack = false;
+					LOGGER.debug("{} reject CON response, request canceled.", exchange);
+				} else {
+					LOGGER.debug("{} acknowledging CON response", exchange);
+				}
 			}
+			EmptyMessage empty;
+			if (ack) {
+				empty = EmptyMessage.newACK(response);
+				response.setAcknowledged(true);
+			} else {
+				empty = EmptyMessage.newRST(response);
+				response.setRejected(true);
+			}
+			sendEmptyMessage(exchange, empty);
 		}
 
 		if (response.isDuplicate()) {
-			LOGGER.debug("{} ignoring duplicate response", exchange);
+			if (response.getType() != Type.CON) {
+				LOGGER.debug("{} ignoring duplicate response", exchange);
+			}
 		} else {
 			exchange.getCurrentRequest().setAcknowledged(true);
+			exchange.setCurrentResponse(response);
 			upper().receiveResponse(exchange, response);
 		}
 	}

@@ -307,6 +307,10 @@ public final class UdpMatcher extends BaseMatcher {
 										response.getSourceContext())) {
 									LOGGER.trace("received response for already completed {}: {}", prev, response);
 									response.setDuplicate(true);
+									Response prevResponse = prev.getCurrentResponse();
+									if (prevResponse != null) {
+										response.setRejected(prevResponse.isRejected());
+									}
 									receiver.receiveResponse(prev, response);
 									return;
 								}
@@ -391,9 +395,14 @@ public final class UdpMatcher extends BaseMatcher {
 						// deduplication is relevant only for CON and NON messages
 						if (type == Type.CON || type == Type.NON) {
 							KeyMID idByMID = new KeyMID(response.getMID(), peer);
-							if (exchangeStore.findPrevious(idByMID, exchange) != null) {
+							Exchange prev = exchangeStore.findPrevious(idByMID, exchange);
+							if (prev != null) {
 								LOGGER.trace("received duplicate response for open {}: {}", exchange, response);
 								response.setDuplicate(true);
+								Response prevResponse = prev.getCurrentResponse();
+								if (prevResponse != null) {
+									response.setRejected(prevResponse.isRejected());
+								}
 							}
 						}
 						receiver.receiveResponse(exchange, response);
