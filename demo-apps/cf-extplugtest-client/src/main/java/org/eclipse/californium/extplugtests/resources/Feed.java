@@ -60,6 +60,10 @@ public class Feed extends CoapResource {
 	 */
 	private static final String URI_QUERY_OPTION_RESPONSE_LENGTH = "rlen";
 	/**
+	 * URI query parameter to specify ack and separate response.
+	 */
+	private static final String URI_QUERY_OPTION_ACK = "ack";
+	/**
 	 * Default interval for notifies in milliseconds.
 	 */
 	public static final int DEFAULT_FEED_INTERVAL_IN_MILLIS = 100;
@@ -155,6 +159,7 @@ public class Feed extends CoapResource {
 		}
 
 		List<String> uriQuery = request.getOptions().getUriQuery();
+		boolean ack = false;
 		int length = 0;
 		for (String query : uriQuery) {
 			String message = null;
@@ -170,6 +175,8 @@ public class Feed extends CoapResource {
 				} catch (NumberFormatException ex) {
 					message = "URI-query-option " + query + " is no number!";
 				}
+			} else if (query.startsWith(URI_QUERY_OPTION_ACK)) {
+				ack = true;
 			} else {
 				message = "URI-query-option " + query + " is not supported!";
 			}
@@ -227,6 +234,9 @@ public class Feed extends CoapResource {
 			}
 		} else {
 			LOGGER.info("client[{}] no observe {}!", id, request);
+			if (ack) {
+				exchange.accept();
+			}
 		}
 		response.addMessageObserver(new MessageCompletionObserver(timeout, interval));
 		exchange.respond(response);
