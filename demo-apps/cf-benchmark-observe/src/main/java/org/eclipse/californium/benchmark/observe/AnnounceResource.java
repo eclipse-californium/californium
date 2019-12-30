@@ -43,18 +43,18 @@ public class AnnounceResource extends CoapResource {
 			private AtomicBoolean testdump = new AtomicBoolean(false);
 			@Override public void onLoad(CoapResponse response) {
 				if (response.getCode() == ResponseCode.NOT_FOUND) {
-					CoapObserveRelation cor;
 					synchronized (relationStorage) {
 						if (!testdump.get()) {
 							testdump.set(true);
 							System.out.println("Used Memory: " + (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1024 + "kb (" + relationStorage.size() + " clients).");
 						}
-						if ((cor = relationStorage.get(new InetSocketAddress(response.advanced().getSource(), response.advanced().getSourcePort()))) != null) {
+						InetSocketAddress peerAddress = response.advanced().getSourceContext().getPeerAddress();
+						CoapObserveRelation cor = relationStorage.remove(peerAddress);
+						if (cor != null) {
 							cor.reactiveCancel();
-							relationStorage.remove(new InetSocketAddress(response.advanced().getSource(), response.advanced().getSourcePort()));
 							cor = null;
 						}
-						if (relationStorage.size() == 0)
+						if (relationStorage.isEmpty())
 							testdump.set(false);
 					}
 					return;
@@ -74,10 +74,9 @@ public class AnnounceResource extends CoapResource {
 	@Override
 	public void handlePOST(CoapExchange exchange) {
 		CoapClient client = this.createClient(exchange.getRequestText());
-		CoapObserveRelation relation;
-		relation = client.observe(handler);
+		CoapObserveRelation relation = client.observe(handler);
 		synchronized(relationStorage) {
-			relationStorage.put(new InetSocketAddress(exchange.getSourceAddress(), exchange.getSourcePort()), relation);
+			relationStorage.put(exchange.getSourceSocketAddress(), relation);
 		}
 		
 		Response response = new Response(ResponseCode.VALID);
