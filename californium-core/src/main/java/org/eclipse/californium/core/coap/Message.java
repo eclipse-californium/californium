@@ -671,14 +671,14 @@ public abstract class Message {
 	/**
 	 * Set destination endpoint context.
 	 * 
-	 * Multicast addresses are not supported.
+	 * Multicast addresses are only supported for {@link Request}s.
 	 * 
 	 * Provides a fluent API to chain setters.
 	 * 
 	 * @param peerContext destination endpoint context
 	 * @return this Message
 	 * @throws IllegalArgumentException if destination address is multicast
-	 *             address
+	 *             address, but message is no {@link Request}
 	 * @see #setRequestDestinationContext(EndpointContext)
 	 */
 	public Message setDestinationContext(EndpointContext peerContext) {
