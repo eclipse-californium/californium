@@ -23,11 +23,9 @@ import static org.eclipse.californium.elements.util.StandardCharsets.ISO_8859_1;
 import static org.eclipse.californium.elements.util.StandardCharsets.UTF_8;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLDecoder;
-import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
@@ -474,16 +472,6 @@ public final class HttpTranslator {
 				coapRequest.setURI(uriString);
 			}
 
-			// set the proxy as the sender to receive the response correctly
-			try {
-				// TODO check with multihomed hosts
-				InetAddress localHostAddress = InetAddress.getLocalHost();
-				coapRequest.setDestination(localHostAddress);
-				// TODO: setDestinationPort???
-			} catch (UnknownHostException e) {
-				LOGGER.warn("Cannot get the localhost address", e);
-				throw new TranslationException("Cannot get the localhost address: " + e.getMessage());
-			}
 		} else {
 			// if the uri does not contains the proxy resource, it means the
 			// request is local to the proxy and it shouldn't be forwarded
@@ -802,6 +790,9 @@ public final class HttpTranslator {
 		case POST: coapMethod = "POST"; break;
 		case PUT: coapMethod = "PUT"; break;
 		case DELETE: coapMethod = "DELETE"; break;
+		default:
+			LOGGER.warn("Method {} not supported!", coapRequest.getCode());
+			throw new TranslationException("Method " +  coapRequest.getCode() + " not supported!");
 		}
 
 		// get the proxy-uri
