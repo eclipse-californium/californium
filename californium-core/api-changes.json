@@ -1,0 +1,118 @@
+{
+	"2.1.0-SNAPSHOT": {
+		"revapi": {
+			"ignore": [
+				{
+					"code": "java.method.removed",
+					"old": "method java.net.InetAddress org.eclipse.californium.core.coap.Message::getDestination()",
+					"justification": "already deprecated - use getDestinationContext().getPeerAddress().getAddress()",
+					"package": "org.eclipse.californium.core.coap",
+					"classQualifiedName": "org.eclipse.californium.core.coap.Message",
+					"classSimpleName": "Message",
+					"methodName": "getDestination",
+					"oldArchive": "org.eclipse.californium:californium-core:jar:2.0.0",
+					"elementKind": "method"
+				},
+				{
+					"code": "java.method.removed",
+					"old": "method int org.eclipse.californium.core.coap.Message::getDestinationPort()",
+					"justification": "already deprecated - use getDestinationContext().getPeerAddress().getPort()",
+					"package": "org.eclipse.californium.core.coap",
+					"classQualifiedName": "org.eclipse.californium.core.coap.Message",
+					"classSimpleName": "Message",
+					"methodName": "getDestinationPort",
+					"oldArchive": "org.eclipse.californium:californium-core:jar:2.0.0",
+					"elementKind": "method"
+				},
+				{
+					"code": "java.method.removed",
+					"old": "method java.net.InetAddress org.eclipse.californium.core.coap.Message::getSource()",
+					"justification": "already deprecated - use getSourceContext().getPeerAddress().getAddress()",
+					"package": "org.eclipse.californium.core.coap",
+					"classQualifiedName": "org.eclipse.californium.core.coap.Message",
+					"classSimpleName": "Message",
+					"methodName": "getSource",
+					"oldArchive": "org.eclipse.californium:californium-core:jar:2.0.0",
+					"elementKind": "method"
+				},
+				{
+					"code": "java.method.removed",
+					"old": "method int org.eclipse.californium.core.coap.Message::getSourcePort()",
+					"justification": "already deprecated - use getSourceContext().getPeerAddress().getPort()",
+					"package": "org.eclipse.californium.core.coap",
+					"classQualifiedName": "org.eclipse.californium.core.coap.Message",
+					"classSimpleName": "Message",
+					"methodName": "getSourcePort",
+					"oldArchive": "org.eclipse.californium:californium-core:jar:2.0.0",
+					"elementKind": "method"
+				},
+				{
+					"code": "java.method.removed",
+					"old": "method java.net.InetAddress org.eclipse.californium.core.coap.Request::getDestination()",
+					"justification": "already deprecated - use getDestinationContext().getPeerAddress().getAddress()",
+					"package": "org.eclipse.californium.core.coap",
+					"classQualifiedName": "org.eclipse.californium.core.coap.Request",
+					"classSimpleName": "Request",
+					"methodName": "getDestination",
+					"oldArchive": "org.eclipse.californium:californium-core:jar:2.0.0",
+					"elementKind": "method"
+				},
+				{
+					"code": "java.method.removed",
+					"old": "method int org.eclipse.californium.core.coap.Request::getDestinationPort()",
+					"justification": "already deprecated - use getDestinationContext().getPeerAddress().getPort()",
+					"package": "org.eclipse.californium.core.coap",
+					"classQualifiedName": "org.eclipse.californium.core.coap.Request",
+					"classSimpleName": "Request",
+					"methodName": "getDestinationPort",
+					"oldArchive": "org.eclipse.californium:californium-core:jar:2.0.0",
+					"elementKind": "method"
+				},
+				{
+					"code": "java.method.removed",
+					"old": "method java.security.Principal org.eclipse.californium.core.coap.Request::getSenderIdentity()",
+					"justification": "already deprecated - use getSourceContext().getPeerIdentity()",
+					"package": "org.eclipse.californium.core.coap",
+					"classQualifiedName": "org.eclipse.californium.core.coap.Request",
+					"classSimpleName": "Request",
+					"methodName": "getSenderIdentity",
+					"oldArchive": "org.eclipse.californium:californium-core:jar:2.0.0",
+					"elementKind": "method"
+				},
+				{
+					"code": "java.method.removed",
+					"old": "method void org.eclipse.californium.core.coap.Request::prepareDestinationContext()",
+					"justification": "already deprecated - not longer required!",
+					"package": "org.eclipse.californium.core.coap",
+					"classQualifiedName": "org.eclipse.californium.core.coap.Request",
+					"classSimpleName": "Request",
+					"methodName": "prepareDestinationContext",
+					"oldArchive": "org.eclipse.californium:californium-core:jar:2.0.0",
+					"elementKind": "method"
+				},
+				{
+					"code": "java.method.removed",
+					"old": "method org.eclipse.californium.core.coap.Message org.eclipse.californium.core.coap.Request::setDestination(java.net.InetAddress)",
+					"justification": "already deprecated - use setDestinationContext()",
+					"package": "org.eclipse.californium.core.coap",
+					"classQualifiedName": "org.eclipse.californium.core.coap.Request",
+					"classSimpleName": "Request",
+					"methodName": "setDestination",
+					"oldArchive": "org.eclipse.californium:californium-core:jar:2.0.0",
+					"elementKind": "method"
+				},
+				{
+					"code": "java.method.removed",
+					"old": "method org.eclipse.californium.core.coap.Message org.eclipse.californium.core.coap.Request::setDestinationPort(int)",
+					"justification": "already deprecated - use setDestinationContext()",
+					"package": "org.eclipse.californium.core.coap",
+					"classQualifiedName": "org.eclipse.californium.core.coap.Request",
+					"classSimpleName": "Request",
+					"methodName": "setDestinationPort",
+					"oldArchive": "org.eclipse.californium:californium-core:jar:2.0.0",
+					"elementKind": "method"
+				}
+			]
+		}
+	}
+}

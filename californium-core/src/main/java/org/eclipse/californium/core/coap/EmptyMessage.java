@@ -23,6 +23,7 @@
 package org.eclipse.californium.core.coap;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.elements.EndpointContext;
 
 /**
  * EmptyMessage represents an empty CoAP message. An empty message has either
@@ -38,7 +39,27 @@ public class EmptyMessage extends Message {
 	public EmptyMessage(Type type) {
 		super(type);
 	}
-	
+
+	/**
+	 * Set destination endpoint context.
+	 * 
+	 * Multicast addresses are not supported.
+	 * 
+	 * Provides a fluent API to chain setters.
+	 * 
+	 * @param peerContext destination endpoint context
+	 * @return this EmptyMessage
+	 * @throws IllegalArgumentException if destination address is multicast
+	 *             address
+	 */
+	public Message setDestinationContext(EndpointContext peerContext) {
+		if (peerContext != null && peerContext.getPeerAddress().getAddress().isMulticastAddress()) {
+			throw new IllegalArgumentException("Multicast destination is not supported for empty messages!");
+		}
+		setInternalDestinationContext(peerContext);
+		return this;
+	}
+
 	/* (non-Javadoc)
 	 * @see java.lang.Object#toString()
 	 */

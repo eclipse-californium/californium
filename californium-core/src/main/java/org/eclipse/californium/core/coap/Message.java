@@ -43,7 +43,6 @@
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
-import java.net.InetAddress;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
@@ -593,62 +592,6 @@ public abstract class Message {
 	}
 
 	/**
-	 * Gets the destination address.
-	 *
-	 * @return the destination
-	 * @deprecated use {@link #getDestinationContext()}
-	 */
-	public InetAddress getDestination() {
-		EndpointContext destinationContext = this.destinationContext;
-		if (destinationContext == null) {
-			return null;
-		}
-		return destinationContext.getPeerAddress().getAddress();
-	}
-
-	/**
-	 * Gets the destination port.
-	 *
-	 * @return the destination port
-	 * @deprecated use {@link #getDestinationContext()}
-	 */
-	public int getDestinationPort() {
-		EndpointContext destinationContext = this.destinationContext;
-		if (destinationContext == null) {
-			return -1;
-		}
-		return destinationContext.getPeerAddress().getPort();
-	}
-
-	/**
-	 * Gets the source address.
-	 *
-	 * @return the source
-	 * @deprecated use {@link #getSourceContext()}
-	 */
-	public InetAddress getSource() {
-		EndpointContext sourceContext = this.sourceContext;
-		if (sourceContext == null) {
-			return null;
-		}
-		return sourceContext.getPeerAddress().getAddress();
-	}
-
-	/**
-	 * Gets the source port.
-	 *
-	 * @return the source port
-	 * @deprecated use {@link #getSourceContext()}
-	 */
-	public int getSourcePort() {
-		EndpointContext sourceContext = this.sourceContext;
-		if (sourceContext == null) {
-			return -1;
-		}
-		return sourceContext.getPeerAddress().getPort();
-	}
-
-	/**
 	 * Get destination endpoint context.
 	 * 
 	 * May be {@code null} for {@link Request} during it's construction.
@@ -671,24 +614,22 @@ public abstract class Message {
 	/**
 	 * Set destination endpoint context.
 	 * 
-	 * Multicast addresses are not supported.
+	 * Multicast addresses are only supported for {@link Request}s.
 	 * 
 	 * Provides a fluent API to chain setters.
 	 * 
 	 * @param peerContext destination endpoint context
 	 * @return this Message
 	 * @throws IllegalArgumentException if destination address is multicast
-	 *             address
+	 *             address, but message is no {@link Request}
 	 * @see #setRequestDestinationContext(EndpointContext)
+	 * @deprecated use {@link #setDestinationContext(EndpointContext)} of
+	 *             {@link Request}, {@link Response}, or {@link EmptyMessage}
+	 *             instead. The parameter validation depends too much on the
+	 *             context to use this function on the base-class.
 	 */
-	public Message setDestinationContext(EndpointContext peerContext) {
-		// requests calls setRequestDestinationContext instead
-		if (peerContext != null && peerContext.getPeerAddress().getAddress().isMulticastAddress()) {
-			throw new IllegalArgumentException("Multicast destination is only supported for request!");
-		}
-		this.destinationContext = peerContext;
-		return this;
-	}
+	@Deprecated
+	public abstract Message setDestinationContext(EndpointContext peerContext);
 
 	/**
 	 * Set destination endpoint context for requests.
@@ -696,8 +637,19 @@ public abstract class Message {
 	 * 
 	 * @param peerContext destination endpoint context
 	 * @see #setDestinationContext(EndpointContext)
+	 * @deprecated use {@link #setInternalDestinationContext(EndpointContext)}
 	 */
+	@Deprecated
 	protected void setRequestDestinationContext(EndpointContext peerContext) {
+		this.destinationContext = peerContext;
+	}
+
+	/**
+	 * Set destination endpoint context.
+	 * 
+	 * @param peerContext destination endpoint context
+	 */
+	protected void setInternalDestinationContext(EndpointContext peerContext) {
 		this.destinationContext = peerContext;
 	}
 

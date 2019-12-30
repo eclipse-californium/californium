@@ -30,6 +30,7 @@ package org.eclipse.californium.core.coap;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.Matcher;
 import org.eclipse.californium.core.network.stack.ReliabilityLayer;
+import org.eclipse.californium.elements.EndpointContext;
 
 /**
  * Response represents a CoAP response to a CoAP request.
@@ -133,6 +134,26 @@ public class Response extends Message {
 		} else if (!current.equals(token)) {
 			throw new IllegalArgumentException("token mismatch! (" + current + "!=" + token + ")");
 		}
+	}
+
+	/**
+	 * Set destination endpoint context.
+	 * 
+	 * Multicast addresses are not supported.
+	 * 
+	 * Provides a fluent API to chain setters.
+	 * 
+	 * @param peerContext destination endpoint context
+	 * @return this Response
+	 * @throws IllegalArgumentException if destination address is multicast
+	 *             address
+	 */
+	public Message setDestinationContext(EndpointContext peerContext) {
+		if (peerContext != null && peerContext.getPeerAddress().getAddress().isMulticastAddress()) {
+			throw new IllegalArgumentException("Multicast destination is not supported for responses!");
+		}
+		setInternalDestinationContext(peerContext);
+		return this;
 	}
 
 	/**

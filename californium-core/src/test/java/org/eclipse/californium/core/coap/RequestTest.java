@@ -31,6 +31,7 @@ import java.util.List;
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -69,12 +70,13 @@ public class RequestTest {
 				"coap://EXAMPLE.com/%7Esensors/temp.xml",
 				"coap://EXAMPLE.com:/%7esensors/temp.xml"
 		};
+		InetSocketAddress destination = new InetSocketAddress(InetAddress.getLoopbackAddress(), 5683);
 
 		for (String uriString : exampleUris) {
 			URI uri = new URI(uriString);
 			Request req = Request.newGet();
 			// explicitly set destination address so that we do not rely on working DNS
-			req.setDestination(InetAddress.getLoopbackAddress());
+			req.setDestinationContext(new AddressEndpointContext(destination));
 			req.setOptions(uri);
 			assertThat(req.getOptions().getUriHost(), is("example.com"));
 			assertThat(req.getDestinationContext().getPeerAddress().getPort(), is(5683));
@@ -246,9 +248,10 @@ public class RequestTest {
 
 	@Test
 	public void testSetOptionsSetsUriHostOption() {
+		InetSocketAddress destination = new InetSocketAddress(InetAddress.getLoopbackAddress(), 5683);
 
 		Request req = Request.newGet();
-		req.setDestination(InetAddress.getLoopbackAddress());
+		req.setDestinationContext(new AddressEndpointContext(destination));
 		req.setOptions(URI.create("coap://iot.eclipse.org"));
 		assertThat(req.getDestinationContext().getPeerAddress().getPort(), is(CoAP.DEFAULT_COAP_PORT));
 		assertThat(req.getOptions().getUriHost(), is("iot.eclipse.org"));

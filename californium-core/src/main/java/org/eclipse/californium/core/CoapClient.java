@@ -1359,7 +1359,7 @@ public class CoapClient {
 		if (context != null && request.getDestinationContext() == null) {
 			request.setDestinationContext(context);
 			request.setURI(uri);
-		} else if (request.getDestination() == null) {
+		} else if (!request.hasURI()) {
 			// request.getUri() is a computed getter and never returns null
 			// so destination is checked
 			request.setURI(uri);

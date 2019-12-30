@@ -724,8 +724,6 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors {
 			request.cancel();
 			return;
 		}
-		// create context, if not already set
-		request.prepareDestinationContext();
 
 		InetSocketAddress destinationAddress = request.getDestinationContext().getPeerAddress();
 		if (request.isMulticast()) {
