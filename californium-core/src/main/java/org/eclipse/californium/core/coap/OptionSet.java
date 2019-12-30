@@ -79,10 +79,10 @@ public final class OptionSet {
 	private Integer      size2;
 	private Integer      observe;
 	private byte[]		 oscore;
-	
+
 	// Arbitrary options
 	private List<Option> others;
-	
+
 	// TODO: When receiving, uri_host/port should be those from the sender 
 	/**
 	 * Creates an empty set of options.
@@ -110,8 +110,8 @@ public final class OptionSet {
 		size1               = null;
 		size2               = null;
 		observe             = null;
-		oscore				= null;
-		
+		oscore              = null;
+
 		others              = null; // new LinkedList<>();
 	}
 
@@ -138,12 +138,12 @@ public final class OptionSet {
 		location_query_list = copyList(origin.location_query_list);
 		proxy_uri           = origin.proxy_uri;
 		proxy_scheme        = origin.proxy_scheme;
-		
+
 		if (origin.block1 != null)
 			block1          = new BlockOption(origin.block1);
 		if (origin.block2 != null)
 			block2          = new BlockOption(origin.block2);
-		
+
 		size1 = origin.size1;
 		size2 = origin.size2;
 		observe = origin.observe;
@@ -236,10 +236,10 @@ public final class OptionSet {
 	 * @return true if ETag matches or message contains an empty If-Match option
 	 */
 	public boolean isIfMatch(byte[] check) {
-		
+
 		// if no If-Match option is present, conditional update is allowed
 		if (if_match_list==null) return true;
-		
+
 		for (byte[] etag:if_match_list) {
 			// an empty If-Match option checks for existence of the resource
 			if (etag.length==0) return true;
@@ -312,10 +312,7 @@ public final class OptionSet {
 	 * @return this OptionSet for a fluent API.
 	 */
 	public OptionSet setUriHost(String host) {
-		if (host==null)
-			throw new NullPointerException("URI-Host must not be null");
-		if (host.length() < 1 || 255 < host.length())
-			throw new IllegalArgumentException("URI-Host option's length must be between 1 and 255 inclusive");
+		checkOptionValue(host, 1, 255, "URI-Host");
 		this.uri_host = host;
 		return this;
 	}
@@ -527,10 +524,7 @@ public final class OptionSet {
 	 * @return this OptionSet for a fluent API.
 	 */
 	public OptionSet addLocationPath(String segment) {
-		if (segment == null)
-			throw new IllegalArgumentException("Location-Path option must not be null");
-		if (segment.getBytes(CoAP.UTF8_CHARSET).length > 255)
-			throw new IllegalArgumentException("Location-Path option must be smaller or euqal to 255 bytes (UTF-8 encoded): " + segment);
+		checkOptionValue(segment, 0, 255, "Location-Path");
 		getLocationPath().add(segment);
 		return this;
 	}
@@ -553,14 +547,14 @@ public final class OptionSet {
 	 */
 	public OptionSet setLocationPath(String path) {
 		final String slash = "/";
-		
+
 		// remove leading slash
 		if (path.startsWith(slash)) {
 			path = path.substring(slash.length());
 		}
-		
+
 		clearLocationPath();
-		
+
 		for (String segment : path.split(slash)) {
 			// empty path segments are allowed (e.g., /test vs /test/)
 			addLocationPath(segment);
@@ -609,7 +603,7 @@ public final class OptionSet {
 	public String getUriPathString() {
 		return getMultiOptionString(getUriPath(), '/');
 	}
-	
+
 	/**
 	 * Returns the number of Uri-Path options (i.e., path segments).
 	 * @return the count
@@ -617,7 +611,7 @@ public final class OptionSet {
 	public int getURIPathCount() {
 		return getUriPath().size();
 	}
-	
+
 	/**
 	 * Sets the complete relative Uri-Path.
 	 * 
@@ -626,14 +620,14 @@ public final class OptionSet {
 	 */
 	public OptionSet setUriPath(String path) {
 		final String slash = "/";
-		
+
 		// remove leading slash
 		if (path.startsWith(slash)) {
 			path = path.substring(slash.length());
 		}
-		
+
 		clearUriPath();
-		
+
 		for (String segment : path.split(slash)) {
 			// empty path segments are allowed (e.g., /test vs /test/)
 			addUriPath(segment);
@@ -648,10 +642,7 @@ public final class OptionSet {
 	 * @return this OptionSet for a fluent API.
 	 */
 	public OptionSet addUriPath(String segment) {
-		if (segment == null)
-			throw new IllegalArgumentException("URI path option must not be null");
-		if (segment.getBytes(CoAP.UTF8_CHARSET).length > 255)
-			throw new IllegalArgumentException("Uri-Path option must be smaller or euqal to 255 bytes (UTF-8 encoded): " + segment);
+		checkOptionValue(segment, 0, 255, "Uri-Path");
 		getUriPath().add(segment);
 		return this;
 	}
@@ -722,7 +713,7 @@ public final class OptionSet {
 		content_format = null;
 		return this;
 	}
-	
+
 	/**
 	 * Gets the value of the Max-Age option in seconds.
 	 * 
@@ -732,7 +723,7 @@ public final class OptionSet {
 		Long m = max_age;
 		return m != null ? m : OptionNumberRegistry.Defaults.MAX_AGE;
 	}
-	
+
 	/**
 	 * Checks if the Max-Age option is present.
 	 * <p>
@@ -743,7 +734,7 @@ public final class OptionSet {
 	public boolean hasMaxAge() {
 		return max_age != null;
 	}
-	
+
 	/**
 	 * Sets the Max-Age option.
 	 * 
@@ -756,7 +747,7 @@ public final class OptionSet {
 		max_age = age;
 		return this;
 	}
-	
+
 	/**
 	 * Removes the Max-Age option.
 	 * Returns the current OptionSet object for a fluent API.
@@ -808,9 +799,9 @@ public final class OptionSet {
 	 */
 	public OptionSet setUriQuery(String query) {
 		while (query.startsWith("?")) query = query.substring(1);
-		
+
 		clearUriQuery();
-		
+
 		for (String segment : query.split("&")) {
 			if (!segment.isEmpty()) {
 				addUriQuery(segment);
@@ -826,14 +817,11 @@ public final class OptionSet {
 	 * @return this OptionSet for a fluent API.
 	 */
 	public OptionSet addUriQuery(String argument) {
-		if (argument == null)
-			throw new NullPointerException("Uri-Query option must not be null");
-		if (argument.getBytes(CoAP.UTF8_CHARSET).length > 255)
-			throw new IllegalArgumentException("Uri-Query option must be smaller or euqal to 255 bytes (UTF-8 encoded): " + argument);
+		checkOptionValue(argument, 0, 255, "Uri-Query");
 		getUriQuery().add(argument);
 		return this;
 	}
-	
+
 	/**
 	 * Removes a specific argument from the Uri-Query options.
 	 * 
@@ -844,7 +832,7 @@ public final class OptionSet {
 		getUriQuery().remove(argument);
 		return this;
 	}
-	
+
 	/**
 	 * Removes all Uri-Query options.
 	 * 
@@ -854,7 +842,7 @@ public final class OptionSet {
 		getUriQuery().clear();
 		return this;
 	}
-	
+
 	/**
 	 * Gets the Content-Format Identifier of the Accept option (see
 	 * <a href="http://www.iana.org/assignments/core-parameters/core-parameters.xhtml#content-formats">IANA Registry</a>).
@@ -950,9 +938,9 @@ public final class OptionSet {
 	 */
 	public OptionSet setLocationQuery(String query) {
 		while (query.startsWith("?")) query = query.substring(1);
-		
+
 		clearLocationQuery();
-		
+
 		for (String segment : query.split("&")) {
 			if (!segment.isEmpty()) {
 				addLocationQuery(segment);
@@ -968,14 +956,11 @@ public final class OptionSet {
 	 * @return this OptionSet for a fluent API.
 	 */
 	public OptionSet addLocationQuery(String argument) {
-		if (argument == null)
-			throw new NullPointerException("Location-Query option must not be null");
-		if (argument.getBytes(CoAP.UTF8_CHARSET).length > 255)
-			throw new IllegalArgumentException("Location-Query option must be smaller or euqal to 255 bytes (UTF-8 encoded): " + argument);
+		checkOptionValue(argument, 0, 255, "Location-Query");
 		getLocationQuery().add(argument);
 		return this;
 	}
-	
+
 	/**
 	 * Removes a specific argument from the Location-Query options.
 	 * 
@@ -986,7 +971,7 @@ public final class OptionSet {
 		getLocationQuery().remove(argument);
 		return this;
 	}
-	
+
 	/**
 	 * Gets all Location-Query options.
 	 * 
@@ -1022,10 +1007,7 @@ public final class OptionSet {
 	 * @return this OptionSet for a fluent API.
 	 */
 	public OptionSet setProxyUri(String uri) {
-		if (uri == null)
-			throw new NullPointerException("Proxy-Uri option must not be null");
-		if (uri.getBytes(CoAP.UTF8_CHARSET).length < 1 || 1034 < uri.getBytes(CoAP.UTF8_CHARSET).length)
-			throw new IllegalArgumentException("Proxy-Uri option must be between 1 and 1034 bytes inclusive (UTF-8 encoded): " + uri);
+		checkOptionValue(uri, 1, 1034, "Proxy-Uri");
 		proxy_uri = uri;
 		return this;
 	}
@@ -1065,10 +1047,7 @@ public final class OptionSet {
 	 * @return this OptionSet for a fluent API.
 	 */
 	public OptionSet setProxyScheme(String scheme) {
-		if (scheme == null)
-			throw new NullPointerException("Proxy-Scheme option must not be null");
-		if (scheme.getBytes(CoAP.UTF8_CHARSET).length < 1 || 255 < scheme.getBytes(CoAP.UTF8_CHARSET).length)
-			throw new IllegalArgumentException("Proxy-Scheme option must be between 1 and 255 bytes inclusive (UTF-8 encoded): " + scheme);
+		checkOptionValue(scheme, 1, 255, "Proxy-Scheme");
 		proxy_scheme = scheme;
 		return this;
 	}
@@ -1341,7 +1320,7 @@ public final class OptionSet {
 	public static boolean isValidObserveOption(final int value) {
 		return value >= 0 && value <= MAX_OBSERVE_NO;
 	}
-	
+
 	/**
 	 * Gets the byte array value of the OSCore option.
 	 * 
@@ -1350,7 +1329,7 @@ public final class OptionSet {
 	public byte[] getOscore() {
 		return oscore;
 	}
-	
+
 	/**
 	 * Checks if the OSCore option is present.
 	 * 
@@ -1359,7 +1338,7 @@ public final class OptionSet {
 	public boolean hasOscore() {
 		return oscore != null;
 	}
-	
+
 	/**
 	 * Replaces the Oscore option with oscore.
 	 * 
@@ -1375,7 +1354,7 @@ public final class OptionSet {
 		}
 		return this;
 	}
-	
+
 	/**
 	 * Removes the OSCore options.
 	 * 
@@ -1385,7 +1364,7 @@ public final class OptionSet {
 		oscore = null;
 		return this;
 	}
-	
+
 	/**
 	 * Checks if an arbitrary option is present.
 	 * 
@@ -1427,7 +1406,7 @@ public final class OptionSet {
 	 */
 	public List<Option> asSortedList() {
 		ArrayList<Option> options = new ArrayList<Option>();
-		
+
 		if (if_match_list != null) for (byte[] value:if_match_list)
 			options.add(new Option(OptionNumberRegistry.IF_MATCH, value));
 		if (hasUriHost())
@@ -1456,10 +1435,10 @@ public final class OptionSet {
 			options.add(new Option(OptionNumberRegistry.PROXY_URI, getProxyUri()));
 		if (hasProxyScheme())
 			options.add(new Option(OptionNumberRegistry.PROXY_SCHEME, getProxyScheme()));
-		
+
 		if (hasObserve())
 			options.add(new Option(OptionNumberRegistry.OBSERVE, getObserve()));
-		
+
 		if (hasBlock1())
 			options.add(new Option(OptionNumberRegistry.BLOCK1, getBlock1().getValue()));
 		if (hasBlock2())
@@ -1470,10 +1449,10 @@ public final class OptionSet {
 			options.add(new Option(OptionNumberRegistry.SIZE2, getSize2()));
 		if(hasOscore())
 			options.add(new Option(OptionNumberRegistry.OSCORE, getOscore()));
-		
+
 		if (others != null)
 			options.addAll(others);
-		
+
 		Collections.sort(options);
 		return options;
 	}
@@ -1507,12 +1486,12 @@ public final class OptionSet {
 			case OptionNumberRegistry.SIZE1:          setSize1(option.getIntegerValue()); break;
 			case OptionNumberRegistry.SIZE2:          setSize2(option.getIntegerValue()); break;
 			case OptionNumberRegistry.OBSERVE:        setObserve(option.getIntegerValue()); break;
-			case OptionNumberRegistry.OSCORE:		  setOscore(option.getValue()); break;
+			case OptionNumberRegistry.OSCORE:         setOscore(option.getValue()); break;
 			default: getOthersInternal().add(option);
 		}
 		return this;
 	}
-	
+
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
@@ -1521,18 +1500,16 @@ public final class OptionSet {
 		boolean list = false;
 
 		sb.append('{');
-		
+
 		for (Option opt : asSortedList()) {
 			if (opt.getNumber()!=oldNr) {
 				if (oldNr!=-1) {
 					if (list) sbv.append(']');
-					sb.append(sbv.toString());
-					sbv = new StringBuilder();
-					sb.append(", ");
-				} else {
+					sb.append(sbv.toString()).append(", ");
+					sbv.setLength(0);
 				}
 				list = false;
-				
+
 				sb.append('"');
 				sb.append(OptionNumberRegistry.toString(opt.getNumber()));
 				sb.append('"');
@@ -1543,13 +1520,13 @@ public final class OptionSet {
 				sbv.append(",");
 			}
 			sbv.append(opt.toValueString());
-			
+
 			oldNr = opt.getNumber();
 		}
 		if (list) sbv.append(']');
 		sb.append(sbv.toString());
 		sb.append('}');
-		
+
 		return sb.toString();
 	}
 
@@ -1579,6 +1556,29 @@ public final class OptionSet {
 				builder.append(optionText).append(separator);
 			}
 			builder.setLength(builder.length() - 1);
+		}
+	}
+
+	/**
+	 * Check option value.
+	 * 
+	 * @param value value of option
+	 * @param min minimum inclusive length
+	 * @param max maximum inclusive length
+	 * @param optionName name of checked option
+	 * @throws NullPointerException if provided value is {@code null}
+	 * @throws IllegalArgumentException if provided value encoded in UTF-8 is
+	 *             out of the provided range.
+	 */
+	private static void checkOptionValue(String value, int min, int max, String optionName) {
+		if (value == null) {
+			throw new NullPointerException(optionName + " option must not be null!");
+		}
+		int length = value.getBytes(CoAP.UTF8_CHARSET).length;
+		if (length < min || length > max) {
+			String message = String.format("{} option's length {} must be between {} and {} inclusive!", optionName,
+					length, min, max);
+			throw new IllegalArgumentException(message);
 		}
 	}
 }
