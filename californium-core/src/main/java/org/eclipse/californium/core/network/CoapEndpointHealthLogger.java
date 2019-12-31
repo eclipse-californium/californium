@@ -32,6 +32,7 @@ public class CoapEndpointHealthLogger implements CoapEndpointHealth {
 	private final SimpleCounterStatistic sentRequests = new SimpleCounterStatistic("requests", align);
 	private final SimpleCounterStatistic sentResponses = new SimpleCounterStatistic("responses", align);
 	private final SimpleCounterStatistic sentRejects = new SimpleCounterStatistic("rejects", align);
+	private final SimpleCounterStatistic sentAcknowledges = new SimpleCounterStatistic("acks", align);
 	private final SimpleCounterStatistic resentRequests = new SimpleCounterStatistic("request retransmissions", align);
 	private final SimpleCounterStatistic resentResponses = new SimpleCounterStatistic("response retransmissions",
 			align);
@@ -39,6 +40,7 @@ public class CoapEndpointHealthLogger implements CoapEndpointHealth {
 	private final SimpleCounterStatistic receivedRequests = new SimpleCounterStatistic("requests", align);
 	private final SimpleCounterStatistic receivedResponses = new SimpleCounterStatistic("responses", align);
 	private final SimpleCounterStatistic receivedRejects = new SimpleCounterStatistic("rejects", align);
+	private final SimpleCounterStatistic receivedAcknowledges = new SimpleCounterStatistic("acks", align);
 	private final SimpleCounterStatistic duplicateRequests = new SimpleCounterStatistic("duplicate requests", align);
 	private final SimpleCounterStatistic duplicateResponses = new SimpleCounterStatistic("duplicate responses", align);
 
@@ -54,6 +56,7 @@ public class CoapEndpointHealthLogger implements CoapEndpointHealth {
 				log.append(tag).append("send statistic:").append(eol);
 				log.append(head).append(sentRequests).append(eol);
 				log.append(head).append(sentResponses).append(eol);
+				log.append(head).append(sentAcknowledges).append(eol);
 				log.append(head).append(sentRejects).append(eol);
 				log.append(head).append(resentRequests).append(eol);
 				log.append(head).append(resentResponses).append(eol);
@@ -61,6 +64,7 @@ public class CoapEndpointHealthLogger implements CoapEndpointHealth {
 				log.append(tag).append("receive statistic:").append(eol);
 				log.append(head).append(receivedRequests).append(eol);
 				log.append(head).append(receivedResponses).append(eol);
+				log.append(head).append(receivedAcknowledges).append(eol);
 				log.append(head).append(receivedRejects).append(eol);
 				log.append(head).append(duplicateRequests).append(eol);
 				log.append(head).append(duplicateResponses);
@@ -100,6 +104,11 @@ public class CoapEndpointHealthLogger implements CoapEndpointHealth {
 	}
 
 	@Override
+	public void receivedAcknowledge() {
+		receivedAcknowledges.increment();
+	}
+
+	@Override
 	public void sentRequest(boolean retransmission) {
 		if (retransmission) {
 			resentRequests.increment();
@@ -120,6 +129,11 @@ public class CoapEndpointHealthLogger implements CoapEndpointHealth {
 	@Override
 	public void sentReject() {
 		sentRejects.increment();
+	}
+
+	@Override
+	public void sentAcknowledge() {
+		sentAcknowledges.increment();
 	}
 
 	@Override

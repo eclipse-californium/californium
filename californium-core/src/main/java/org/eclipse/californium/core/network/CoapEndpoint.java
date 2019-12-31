@@ -130,6 +130,7 @@ import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.ExperimentalAPI;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -280,8 +281,12 @@ public class CoapEndpoint implements Endpoint {
 		@Override
 		public void receiveEmptyMessage(Exchange exchange, EmptyMessage message) {
 			exchange.setEndpoint(CoapEndpoint.this);
-			if (health != null && message.getType() == Type.RST) {
-				health.receivedReject();
+			if (health != null) {
+				if (message.getType() == Type.ACK) {
+					health.receivedAcknowledge();
+				} else if (message.getType() == Type.RST) {
+					health.receivedReject();
+				}
 			}
 			coapstack.receiveEmptyMessage(exchange, message);
 		}
@@ -299,6 +304,8 @@ public class CoapEndpoint implements Endpoint {
 	private final MessageObserver requestTransmission;
 
 	private final MessageObserver responseTransmission;
+
+	private final MessageObserver achnowledgeTransmission;
 
 	private final MessageObserver rejectTransmission;
 
@@ -326,6 +333,9 @@ public class CoapEndpoint implements Endpoint {
 	 * @param loggingTag logging tag.
 	 *            {@link StringUtil#normalizeLoggingTag(String)} is applied to
 	 *            the provided tag.
+	 * @param health custom coap health handler. Only used, 
+	 *            if {@code HEALTH_STATUS_INTERVAL} is configured with a
+	 *            value larger than {@code 0}.
 	 * @param coapStackFactory coap-stack-factory factory to create coap-stack
 	 * @param customStackArgument argument for custom stack, if required.
 	 *            {@code null} for standard stacks, or if the custom stack
@@ -420,7 +430,7 @@ public class CoapEndpoint implements Endpoint {
 			this.requestTransmission = new MessageObserverAdapter() {
 
 				@Override
-				public void  onSendError(Throwable error) {
+				public void onSendError(Throwable error) {
 					CoapEndpoint.this.health.sendError();
 				}
 
@@ -432,7 +442,7 @@ public class CoapEndpoint implements Endpoint {
 
 			this.responseTransmission = new MessageObserverAdapter() {
 				@Override
-				public void  onSendError(Throwable error) {
+				public void onSendError(Throwable error) {
 					CoapEndpoint.this.health.sendError();
 				}
 
@@ -441,9 +451,20 @@ public class CoapEndpoint implements Endpoint {
 					CoapEndpoint.this.health.sentResponse(retransmission);
 				}
 			};
+			this.achnowledgeTransmission = new MessageObserverAdapter() {
+				@Override
+				public void onSendError(Throwable error) {
+					CoapEndpoint.this.health.sendError();
+				}
+
+				@Override
+				public void onSent(boolean retransmission) {
+					CoapEndpoint.this.health.sentAcknowledge();
+				}
+			};
 			this.rejectTransmission = new MessageObserverAdapter() {
 				@Override
-				public void  onSendError(Throwable error) {
+				public void onSendError(Throwable error) {
 					CoapEndpoint.this.health.sendError();
 				}
 
@@ -456,6 +477,7 @@ public class CoapEndpoint implements Endpoint {
 			this.health = null;
 			this.requestTransmission = null;
 			this.responseTransmission = null;
+			this.achnowledgeTransmission = null;
 			this.rejectTransmission = null;
 		}
 	}
@@ -699,8 +721,14 @@ public class CoapEndpoint implements Endpoint {
 			message.cancel();
 			return;
 		}
-		if (rejectTransmission != null && message.getType() == Type.RST) {
-			message.addMessageObserver(rejectTransmission);
+		if (message.getType() == Type.ACK) {
+			if (achnowledgeTransmission != null) {
+				message.addMessageObserver(achnowledgeTransmission);
+			}
+		} else if (message.getType() == Type.RST) {
+			if (rejectTransmission != null) {
+				message.addMessageObserver(rejectTransmission);
+			}
 		}
 		if (exchange.checkOwner()) {
 			// send response while processing exchange.
@@ -1465,6 +1493,21 @@ public class CoapEndpoint implements Endpoint {
 		 */
 		public Builder setLoggingTag(String tag) {
 			this.tag = tag;
+			return this;
+		}
+
+		/**
+		 * Set custom health handler.
+		 * 
+		 * Only used, if {@code HEALTH_STATUS_INTERVAL} is configured with a
+		 * value larger than {@code 0}.
+		 * 
+		 * @param healthHandler health handler.
+		 * @return this
+		 */
+		@ExperimentalAPI
+		public Builder setCoapEndpointHealthHandler(CoapEndpointHealth healthHandler) {
+			this.health = healthHandler;
 			return this;
 		}
 

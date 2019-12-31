@@ -530,6 +530,7 @@
 						<revapi.java.filter.annotated>
 							<regex>false</regex>
 							<exclude>
+								<item>@org.eclipse.californium.elements.util.ExperimentalAPI</item>
 								<item>@org.eclipse.californium.elements.util.NoPublicAPI</item>
 								<item>@java.lang.Deprecated</item>
 							</exclude>

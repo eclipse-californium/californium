@@ -15,9 +15,12 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
+import org.eclipse.californium.elements.util.ExperimentalAPI;
+
 /**
  * Health interface for {@link CoapEndpoint}
  */
+@ExperimentalAPI
 public interface CoapEndpointHealth {
 
 	/**
@@ -56,6 +59,11 @@ public interface CoapEndpointHealth {
 	void receivedReject();
 
 	/**
+	 * Report received acknowledge.
+	 */
+	void receivedAcknowledge();
+
+	/**
 	 * Report sent request.
 	 * 
 	 * @param retransmission {@code true} for retransmission, {@code false} for
@@ -75,6 +83,11 @@ public interface CoapEndpointHealth {
 	 * Report sent reject.
 	 */
 	void sentReject();
+
+	/**
+	 * Report sent acknowledge.
+	 */
+	void sentAcknowledge();
 
 	/**
 	 * Report send error.
