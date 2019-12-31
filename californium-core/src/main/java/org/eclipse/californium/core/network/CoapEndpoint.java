@@ -103,6 +103,7 @@ import org.eclipse.californium.core.network.EndpointManager.ClientMessageDeliver
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
+import org.eclipse.californium.core.network.interceptors.MessagePostInterceptor;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.network.serialization.DataParser;
 import org.eclipse.californium.core.network.serialization.DataSerializer;
@@ -233,7 +234,11 @@ public class CoapEndpoint implements Endpoint {
 
 	/** tag for logging */
 	private final String tag;
-	
+
+	/**
+	 * @deprecated use {@link MessagePostInterceptor} instead.
+	 */
+	@Deprecated
 	private final CoapEndpointHealth health;
 
 	/** The executor to run tasks for this endpoint and its layers */
@@ -250,6 +255,9 @@ public class CoapEndpoint implements Endpoint {
 
 	/** The list of interceptors */
 	private List<MessageInterceptor> interceptors = new CopyOnWriteArrayList<>();
+
+	/** The list of post interceptors */
+	private List<MessagePostInterceptor> postInterceptors = new CopyOnWriteArrayList<>();
 
 	/** The list of Notification listener (use for CoAP observer relations) */
 	private List<NotificationListener> notificationListeners = new CopyOnWriteArrayList<>();
@@ -296,10 +304,22 @@ public class CoapEndpoint implements Endpoint {
 		}
 	};
 
+	/**
+	 * @deprecated use {@link MessagePostInterceptor} instead.
+	 */
+	@Deprecated
 	private final MessageObserver requestTransmission;
 
+	/**
+	 * @deprecated use {@link MessagePostInterceptor} instead.
+	 */
+	@Deprecated
 	private final MessageObserver responseTransmission;
 
+	/**
+	 * @deprecated use {@link MessagePostInterceptor} instead.
+	 */
+	@Deprecated
 	private final MessageObserver rejectTransmission;
 
 	/**
@@ -326,6 +346,7 @@ public class CoapEndpoint implements Endpoint {
 	 * @param loggingTag logging tag.
 	 *            {@link StringUtil#normalizeLoggingTag(String)} is applied to
 	 *            the provided tag.
+	 * @param health custom coap health handler. Ignored, see deprecation.
 	 * @param coapStackFactory coap-stack-factory factory to create coap-stack
 	 * @param customStackArgument argument for custom stack, if required.
 	 *            {@code null} for standard stacks, or if the custom stack
@@ -333,7 +354,9 @@ public class CoapEndpoint implements Endpoint {
 	 *            multiple arguments are required.
 	 * @throws IllegalArgumentException if applyConfiguration is {@code true},
 	 *             but the connector is not a {@link UDPConnector}
+	 * @deprecated use {@link #addInterceptor(MessageInterceptor)} with an {@link MessagePostInterceptor}.
 	 */
+	@Deprecated
 	protected CoapEndpoint(Connector connector, boolean applyConfiguration, NetworkConfig config,
 			TokenGenerator tokenGenerator, ObservationStore store, MessageExchangeStore exchangeStore,
 			EndpointContextMatcher endpointContextMatcher, String loggingTag, CoapEndpointHealth health,
@@ -458,6 +481,46 @@ public class CoapEndpoint implements Endpoint {
 			this.responseTransmission = null;
 			this.rejectTransmission = null;
 		}
+	}
+
+	/**
+	 * Creates a new endpoint for a connector, configuration, message exchange
+	 * and observation store.
+	 * <p>
+	 * Intended to be called either by the {@link Builder} or a subclass
+	 * constructor. The endpoint will support the connector's implemented scheme
+	 * and will bind to the IP address and port the connector is configured for.
+	 *
+	 * @param connector The connector to use.
+	 * @param applyConfiguration if {@code true}, apply network configuration to
+	 *            connector. Requires a {@link UDPConnector}.
+	 * @param config The configuration values to use.
+	 * @param tokenGenerator token generator.
+	 * @param store The store to use for keeping track of observations initiated
+	 *            by this endpoint.
+	 * @param exchangeStore The store to use for keeping track of message
+	 *            exchanges.
+	 * @param endpointContextMatcher endpoint context matcher for relating
+	 *            responses to requests. If <code>null</code>, the result of
+	 *            {@link EndpointContextMatcherFactory#create(Connector, NetworkConfig)}
+	 *            is used as matcher.
+	 * @param loggingTag logging tag.
+	 *            {@link StringUtil#normalizeLoggingTag(String)} is applied to
+	 *            the provided tag.
+	 * @param coapStackFactory coap-stack-factory factory to create coap-stack
+	 * @param customStackArgument argument for custom stack, if required.
+	 *            {@code null} for standard stacks, or if the custom stack
+	 *            doesn't require specific arguments. My be a {@link Map}, if
+	 *            multiple arguments are required.
+	 * @throws IllegalArgumentException if applyConfiguration is {@code true},
+	 *             but the connector is not a {@link UDPConnector}
+	 */
+	protected CoapEndpoint(Connector connector, boolean applyConfiguration, NetworkConfig config,
+			TokenGenerator tokenGenerator, ObservationStore store, MessageExchangeStore exchangeStore,
+			EndpointContextMatcher endpointContextMatcher, String loggingTag,
+			CoapStackFactory coapStackFactory, Object customStackArgument) {
+		this(connector, applyConfiguration, config, tokenGenerator, store, exchangeStore, endpointContextMatcher,
+				loggingTag, null, coapStackFactory, customStackArgument);
 	}
 
 	@Override
@@ -612,12 +675,20 @@ public class CoapEndpoint implements Endpoint {
 
 	@Override
 	public void addInterceptor(final MessageInterceptor interceptor) {
-		interceptors.add(interceptor);
+		if (interceptor instanceof MessagePostInterceptor) {
+			postInterceptors.add((MessagePostInterceptor) interceptor);
+		} else {
+			interceptors.add(interceptor);
+		}
 	}
 
 	@Override
 	public void removeInterceptor(final MessageInterceptor interceptor) {
-		interceptors.remove(interceptor);
+		if (interceptor instanceof MessagePostInterceptor) {
+			postInterceptors.remove((MessagePostInterceptor) interceptor);
+		} else {
+			interceptors.remove(interceptor);
+		}
 	}
 
 	@Override
@@ -1013,6 +1084,9 @@ public class CoapEndpoint implements Endpoint {
 			// MessageInterceptor might have canceled
 			if (!request.isCanceled()) {
 				matcher.receiveRequest(request, endpointStackReceiver);
+				for (MessageInterceptor interceptor : postInterceptors) {
+					interceptor.receiveRequest(request);
+				}
 			}
 		}
 
@@ -1030,6 +1104,9 @@ public class CoapEndpoint implements Endpoint {
 			// MessageInterceptor might have canceled
 			if (!response.isCanceled()) {
 				matcher.receiveResponse(response, endpointStackReceiver);
+				for (MessageInterceptor interceptor : postInterceptors) {
+					interceptor.receiveResponse(response);
+				}
 			}
 		}
 
@@ -1052,6 +1129,9 @@ public class CoapEndpoint implements Endpoint {
 					endpointStackReceiver.reject(message);
 				} else {
 					 matcher.receiveEmptyMessage(message, endpointStackReceiver);
+				}
+				for (MessageInterceptor interceptor : postInterceptors) {
+					interceptor.receiveEmptyMessage(message);
 				}
 			}
 		}
@@ -1100,12 +1180,24 @@ public class CoapEndpoint implements Endpoint {
 
 		@Override
 		public void onSent() {
+			for (MessagePostInterceptor interceptor : postInterceptors) {
+				if (message instanceof Request) {
+					interceptor.sendRequest((Request) message);
+				} else if (message instanceof Response) {
+					interceptor.sendResponse((Response) message);
+				} else if (message instanceof EmptyMessage) {
+					interceptor.sendEmptyMessage((EmptyMessage) message);
+				}
+			}
 			message.setSent(true);
 		}
 
 		@Override
 		public void onError(Throwable error) {
 			message.setSendError(error);
+			for (MessagePostInterceptor interceptor : postInterceptors) {
+				interceptor.sendError(message, error);
+			}
 		}
 
 		protected void onContextEstablished(EndpointContext context, long nanoTimestamp) {
@@ -1237,10 +1329,6 @@ public class CoapEndpoint implements Endpoint {
 		 * Logging tag.
 		 */
 		private String tag;
-		/**
-		 * Health counters.
-		 */
-		private CoapEndpointHealth health;
 		/**
 		 * Additional argument for custom coap stack.
 		 */
@@ -1518,7 +1606,7 @@ public class CoapEndpoint implements Endpoint {
 				coapStackFactory = getDefaultCoapStackFactory();
 			}
 			return new CoapEndpoint(connector, applyConfiguration, config, tokenGenerator, observationStore,
-					exchangeStore, endpointContextMatcher, tag, health, coapStackFactory, customStackArgument);
+					exchangeStore, endpointContextMatcher, tag, coapStackFactory, customStackArgument);
 		}
 	}
 
