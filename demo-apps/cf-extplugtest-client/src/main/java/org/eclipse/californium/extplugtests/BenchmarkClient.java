@@ -25,6 +25,7 @@ import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
 import java.lang.management.ThreadMXBean;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.GeneralSecurityException;
@@ -64,6 +65,7 @@ import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.core.server.resources.ResourceObserver;
+import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
@@ -88,7 +90,8 @@ public class BenchmarkClient {
 	/** The logger. */
 	private static final Logger LOGGER = LoggerFactory.getLogger(BenchmarkClient.class);
 
-	private static final Logger STATISTIC_LOGGER = LoggerFactory.getLogger("org.eclipse.californium.extplugtests.statistics");
+	private static final Logger STATISTIC_LOGGER = LoggerFactory
+			.getLogger("org.eclipse.californium.extplugtests.statistics");
 
 	/**
 	 * File name for network configuration.
@@ -163,7 +166,8 @@ public class BenchmarkClient {
 			config.setInt(Keys.MAX_ACTIVE_PEERS, 10);
 			config.setInt(Keys.EXCHANGE_LIFETIME, 24700); // 24.7s instead of 247s
 			config.setInt(Keys.DTLS_AUTO_RESUME_TIMEOUT, 0);
-			config.setInt(Keys.DTLS_CONNECTION_ID_LENGTH, 0); // support it, but don't use it
+			config.setInt(Keys.DTLS_CONNECTION_ID_LENGTH, 0); // support it, but
+																// don't use it
 			config.setInt(Keys.MAX_PEER_INACTIVITY_PERIOD, 60 * 60 * 24); // 24h
 			config.setInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT, 60 * 60 * 12); // 12h
 			config.setInt(Keys.TCP_CONNECT_TIMEOUT, 30 * 1000); // 20s
@@ -319,6 +323,15 @@ public class BenchmarkClient {
 	 */
 	private static boolean noneStop;
 	/**
+	 * Proxy address. {@code null}, don't use proxy.
+	 */
+	private static InetSocketAddress proxyAddress;
+	/**
+	 * Proxy scheme for forwarded request. {@code null}, use scheme of original
+	 * request.
+	 */
+	private static String proxyScheme;
+	/**
 	 * Shutdown executor.
 	 */
 	private final boolean shutdown;
@@ -326,6 +339,10 @@ public class BenchmarkClient {
 	 * Executor service for this client.
 	 */
 	private final ScheduledExecutorService executorService;
+	/**
+	 * Request URI.
+	 */
+	private final URI uri;
 	/**
 	 * Client to be used for benchmark.
 	 */
@@ -355,9 +372,30 @@ public class BenchmarkClient {
 
 	private final FeedObserver feedObserver = new FeedObserver();
 
-	private static Request prepareRequest(CoapClient client) {
+	private Request prepareRequest() {
 		Request post = Request.newPost();
-		post.setURI(client.getURI());
+		if (proxyAddress != null) {
+			post.setDestinationContext(new AddressEndpointContext(proxyAddress));
+			// escape the Request.setURI() checks, which are not compliant using proxyies.
+			post.setScheme(uri.getScheme());
+			post.getOptions().setUriHost(uri.getHost());
+			
+			if (uri.getPort() > 0) {
+				post.getOptions().setUriPort(uri.getPort());
+			}
+			String path = uri.getPath();
+			if (path != null && path.length() > 1) {
+				post.getOptions().setUriPath(path);
+			}
+			if (uri.getQuery() != null) {
+				post.getOptions().setUriQuery(uri.getQuery());
+			}
+			if (proxyScheme != null) {
+				post.getOptions().setProxyScheme(proxyScheme);
+			}
+		} else {
+			post.setURI(uri);
+		}
 		return post;
 	}
 
@@ -384,7 +422,8 @@ public class BenchmarkClient {
 				next();
 			} else {
 				long c = requestsCounter.get();
-				LOGGER.warn("Received error response: {} {} ({} successful)", endpoint.getUri(), response.advanced(), c);
+				LOGGER.warn("Received error response: {} {} ({} successful)", endpoint.getUri(), response.advanced(),
+						c);
 				checkReady(true, true);
 				stop();
 			}
@@ -417,7 +456,7 @@ public class BenchmarkClient {
 		public void next() {
 			if (!checkReady(true, true)) {
 				requestsCounter.incrementAndGet();
-				Request post = prepareRequest(client);
+				Request post = prepareRequest();
 				post.addMessageObserver(retransmissionDetector);
 				client.advanced(new TestHandler(post), post);
 			}
@@ -433,10 +472,12 @@ public class BenchmarkClient {
 	 * @param uri destination URI
 	 * @param endpoint local endpoint to exchange messages
 	 * @param executor
-	 * @param secondaryExecutor intended to be used for rare executing timers (e.g. cleanup tasks). 
+	 * @param secondaryExecutor intended to be used for rare executing timers
+	 *            (e.g. cleanup tasks).
 	 */
 	public BenchmarkClient(int index, int intervalMin, int intervalMax, URI uri, Endpoint endpoint,
 			ScheduledExecutorService executor, ScheduledThreadPoolExecutor secondaryExecutor) {
+		this.uri = uri;
 		int maxResourceSize = endpoint.getConfig().getInt(Keys.MAX_RESOURCE_BODY_SIZE);
 		if (executor == null) {
 			int threads = endpoint.getConfig().getInt(KEY_BENCHMARK_CLIENT_THREADS);
@@ -448,7 +489,7 @@ public class BenchmarkClient {
 		}
 		endpoint.addInterceptor(new MessageTracer());
 		endpoint.setExecutors(executorService, secondaryExecutor);
-		client = new CoapClient(uri);
+		client = new CoapClient();
 		server = new CoapServer(endpoint.getConfig());
 		Feed feed = new Feed(CoAP.Type.NON, index, maxResourceSize, intervalMin, intervalMax, executorService,
 				overallReverseResponsesDownCounter, notifiesCompleteTimeouts);
@@ -479,7 +520,7 @@ public class BenchmarkClient {
 	 * @return {@code true} on success, {@code false} on failure.
 	 */
 	public boolean test() {
-		Request post = prepareRequest(client);
+		Request post = prepareRequest();
 		try {
 			CoapResponse response = client.advanced(post);
 			if (response != null) {
@@ -513,7 +554,7 @@ public class BenchmarkClient {
 			if (requestsCounter.get() == 0) {
 				clientCounter.incrementAndGet();
 			}
-			Request post = prepareRequest(client);
+			Request post = prepareRequest();
 			post.addMessageObserver(retransmissionDetector);
 			client.advanced(new TestHandler(post), post);
 		}
@@ -621,6 +662,7 @@ public class BenchmarkClient {
 		}
 
 		startManagamentStatistic();
+		checkProxyConfiguration();
 
 		NetworkConfig effectiveConfig = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 		NetworkConfig serverConfig = NetworkConfig.createWithFile(REVERSE_SERVER_CONFIG_FILE,
@@ -680,14 +722,23 @@ public class BenchmarkClient {
 		ScheduledExecutorService executor = ExecutorsUtil
 				.newScheduledThreadPool(Runtime.getRuntime().availableProcessors(), new DaemonThreadFactory("Aux#"));
 
-		final ScheduledExecutorService connectorExecutor = effectiveConfig.getInt(KEY_BENCHMARK_CLIENT_THREADS) == 0 ? executor : null;
+		final ScheduledExecutorService connectorExecutor = effectiveConfig.getInt(KEY_BENCHMARK_CLIENT_THREADS) == 0
+				? executor
+				: null;
 		final boolean secure = CoAP.isSecureScheme(uri.getScheme());
 
 		final ScheduledThreadPoolExecutor secondaryExecutor = new ScheduledThreadPoolExecutor(2,
 				new DaemonThreadFactory("Aux(secondary)#"));
 
-		System.out.format("Create %d %s%sbenchmark clients, expect to send %d request overall to %s%n", clients,
-				noneStop ? "none-stop " : "", secure ? "secure " : "", overallRequests, uri);
+		String proxy = "";
+		if (proxyAddress != null) {
+			proxy = "via proxy " + StringUtil.toString(proxyAddress) + " ";
+			if (proxyScheme != null) {
+				proxy += "using " + proxyScheme + " ";
+			}
+		}
+		System.out.format("Create %d %s%sbenchmark clients, expect to send %d requests overall %sto %s%n", clients,
+				noneStop ? "none-stop " : "", secure ? "secure " : "", overallRequests, proxy, uri);
 
 		if (overallReverseResponses > 0) {
 			if (intervalMin == intervalMax) {
@@ -700,7 +751,8 @@ public class BenchmarkClient {
 		connectDownCounter.set(clients);
 		long startupNanos = System.nanoTime();
 		final CountDownLatch start = new CountDownLatch(clients);
-		final ThreadLocalKeyPairGenerator keyPairGenerator = (secure && arguments.rpk) ? createKeyPairGenerator() : null;
+		final ThreadLocalKeyPairGenerator keyPairGenerator = (secure && arguments.rpk) ? createKeyPairGenerator()
+				: null;
 		if (secure && keyPairGenerator == null) {
 			if (arguments.rpk) {
 				System.out.println("Use RPK.");
@@ -735,7 +787,8 @@ public class BenchmarkClient {
 							if (keyPairGenerator != null) {
 								try {
 									KeyPairGenerator generator = keyPairGenerator.current();
-									generator.initialize(new ECGenParameterSpec("secp256r1"), RandomManager.currentSecureRandom());
+									generator.initialize(new ECGenParameterSpec("secp256r1"),
+											RandomManager.currentSecureRandom());
 									KeyPair keyPair = generator.generateKeyPair();
 									connectionArgs = arguments.create(keyPair.getPrivate(), keyPair.getPublic());
 								} catch (GeneralSecurityException ex) {
@@ -820,14 +873,14 @@ public class BenchmarkClient {
 			int connectsPending = connectDownCounter.get();
 			long requestDifference = (lastRequestsCountDown - currentRequestsCountDown);
 			long currentOverallSentRequests = overallRequests - currentRequestsCountDown;
-			if ((requestDifference == 0 && currentRequestsCountDown < overallRequests)
-					|| (numberOfClients == 0)) {
+			if ((requestDifference == 0 && currentRequestsCountDown < overallRequests) || (numberOfClients == 0)) {
 				// no new requests, clients are stale, or no clients left
 				// adjust start time with timeout
 				requestNanos += DEFAULT_TIMEOUT_NANOS;
 				reverseResponseNanos = requestNanos;
 				stale = true;
-				System.out.format("%d requests, stale (%d clients, %d pending)%n", currentOverallSentRequests, numberOfClients, connectsPending);
+				System.out.format("%d requests, stale (%d clients, %d pending)%n", currentOverallSentRequests,
+						numberOfClients, connectsPending);
 				break;
 			}
 			long retransmissions = retransmissionCounter.get();
@@ -867,8 +920,10 @@ public class BenchmarkClient {
 						lastChangeNanoRealtime = ClockUtil.nanoRealtime();
 					}
 				}
-				if ((intervalMax < TimeUnit.NANOSECONDS.toMillis(time - DEFAULT_TIMEOUT_NANOS)) || (numberOfClients == 0)) {
-					// no new notifies for interval max, clients are stale, or no clients left
+				if ((intervalMax < TimeUnit.NANOSECONDS.toMillis(time - DEFAULT_TIMEOUT_NANOS))
+						|| (numberOfClients == 0)) {
+					// no new notifies for interval max, clients are stale, or
+					// no clients left
 					// adjust start time with timeout
 					reverseResponseNanos += time;
 					stale = true;
@@ -885,13 +940,11 @@ public class BenchmarkClient {
 				if (observe) {
 					System.out.format("%d notifies (%d notifies/s, %d clients, %d observes)%n",
 							currentOverallReverseResponses,
-							roundDiv(reverseResponsesDifference, DEFAULT_TIMEOUT_SECONDS),
-							numberOfClients, observers);
+							roundDiv(reverseResponsesDifference, DEFAULT_TIMEOUT_SECONDS), numberOfClients, observers);
 				} else {
 					System.out.format("%d reverse-responses (%d reverse-responses/s, %d clients)%n",
 							currentOverallReverseResponses,
-							roundDiv(reverseResponsesDifference, DEFAULT_TIMEOUT_SECONDS),
-							numberOfClients);
+							roundDiv(reverseResponsesDifference, DEFAULT_TIMEOUT_SECONDS), numberOfClients);
 				}
 			}
 		}
@@ -909,7 +962,8 @@ public class BenchmarkClient {
 		}
 		executor.shutdown();
 		statisticsLogger.info("{} requests sent, {} expected", overallSentRequests, overallRequests);
-		statisticsLogger.info("{} requests in {} ms{}", overallSentRequests, TimeUnit.NANOSECONDS.toMillis(requestNanos),
+		statisticsLogger.info("{} requests in {} ms{}", overallSentRequests,
+				TimeUnit.NANOSECONDS.toMillis(requestNanos),
 				formatPerSecond("reqs", overallSentRequests, requestNanos));
 		if (overallReverseResponses > 0) {
 			if (observe) {
@@ -1012,9 +1066,8 @@ public class BenchmarkClient {
 				}
 			}
 			long pTime = alltime / processors;
-			logger.info("cpu-time: {} ms (per-processor: {} ms, load: {}%)",
-					TimeUnit.NANOSECONDS.toMillis(alltime), TimeUnit.NANOSECONDS.toMillis(pTime),
-					(pTime * 100) / uptimeNanos);
+			logger.info("cpu-time: {} ms (per-processor: {} ms, load: {}%)", TimeUnit.NANOSECONDS.toMillis(alltime),
+					TimeUnit.NANOSECONDS.toMillis(pTime), (pTime * 100) / uptimeNanos);
 		}
 		long gcCount = 0;
 		long gcTime = 0;
@@ -1092,6 +1145,40 @@ public class BenchmarkClient {
 	}
 
 	private static long roundDiv(long count, long div) {
-		return (count + (div/2)) / div;
+		return (count + (div / 2)) / div;
+	}
+
+	private static void checkProxyConfiguration() {
+		String proxy = System.getenv("COAP_PROXY");
+		if (proxy != null && !proxy.isEmpty()) {
+			int index;
+			String config = proxy;
+			String host;
+			if (config.startsWith("[")) {
+				index = config.indexOf("]:");
+				if (index < 0) {
+					throw new IllegalArgumentException(proxy + " invalid proxy configuration!");
+				}
+				host = config.substring(0, index + 1);
+				config = config.substring(index + 2);
+			} else {
+				index = config.indexOf(":");
+				if (index < 0) {
+					throw new IllegalArgumentException(proxy + " invalid proxy configuration!");
+				}
+				host = config.substring(0, index);
+				config = config.substring(index + 1);
+			}
+			index = config.indexOf(":");
+			if (index > 0) {
+				proxyScheme = config.substring(index + 1);
+				config = config.substring(0, index);
+			}
+			try {
+				proxyAddress = new InetSocketAddress(host, Integer.parseInt(config));
+			}catch(Throwable ex) {
+				throw new IllegalArgumentException(proxy + " invalid proxy configuration!", ex);
+			}
+		}
 	}
 }

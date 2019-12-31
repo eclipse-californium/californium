@@ -18,10 +18,7 @@
  ******************************************************************************/
 package org.eclipse.californium.proxy;
 
-import java.io.UnsupportedEncodingException;
 import java.net.URI;
-import java.net.URISyntaxException;
-import java.net.URLDecoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,6 +70,7 @@ public final class CoapTranslator {
 		if (incomingRequest == null) {
 			throw new IllegalArgumentException("incomingRequest == null");
 		}
+		URI serverUri = UriTranslator.getDestinationURI(incomingRequest);
 
 		// get the code
 		Code code = incomingRequest.getCode();
@@ -88,24 +86,6 @@ public final class CoapTranslator {
 		byte[] payload = incomingRequest.getPayload();
 		outgoingRequest.setPayload(payload);
 
-		// get the uri address from the proxy-uri option
-		URI serverUri;
-		try {
-			/*
-			 * The new draft (14) only allows one proxy-uri option. Thus, this
-			 * code segment has changed.
-			 */
-			String proxyUriString = URLDecoder.decode(
-					incomingRequest.getOptions().getProxyUri(), "UTF-8");
-			serverUri = new URI(proxyUriString);
-		} catch (UnsupportedEncodingException e) {
-			LOGGER.warn("UTF-8 do not support this encoding", e);
-			throw new TranslationException("UTF-8 do not support this encoding", e);
-		} catch (URISyntaxException e) {
-			LOGGER.warn("Cannot translate the server uri", e);
-			throw new TranslationException("Cannot translate the server uri", e);
-		}
-
 		// copy every option from the original message
 		// do not copy the proxy-uri option because it is not necessary in
 		// the new message
@@ -116,17 +96,18 @@ public final class CoapTranslator {
 		// do not copy the uri-* options because they are already filled in
 		// the new message
 		OptionSet options = new OptionSet(incomingRequest.getOptions());
+		options.removeProxyScheme();
 		options.removeProxyUri();
 		options.removeBlock1();
 		options.removeBlock2();
+		options.removeUriHost();
+		options.removeUriPort();
 		options.clearUriPath();
 		options.clearUriQuery();
 		outgoingRequest.setOptions(options);
-		
+
 		// set the proxy-uri as the outgoing uri
-		if (serverUri != null) {
-			outgoingRequest.setURI(serverUri);
-		}
+		outgoingRequest.setURI(serverUri);
 
 		LOGGER.debug("Incoming request translated correctly");
 		return outgoingRequest;

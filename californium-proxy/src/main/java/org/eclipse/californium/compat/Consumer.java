@@ -16,10 +16,14 @@
 
 package org.eclipse.californium.compat;
 
+import org.eclipse.californium.core.network.Exchange;
+
 /**
  * Backport of the class java.util.function.Consumer<T>
  * @param <T> Type that the consumer will receives.
- */
+* @deprecated not required. {@link Exchange} already support asynchronous processing.
+*/
+@Deprecated
 public interface Consumer<T> {
     /**
      * Executed when a said action is sent to the consumer.

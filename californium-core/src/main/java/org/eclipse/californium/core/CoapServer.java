@@ -420,6 +420,15 @@ public class CoapServer implements ServerInterface {
 	}
 
 	/**
+	 * Get the network configuration of this server.
+	 * 
+	 * @return the network configuration
+	 */
+	public NetworkConfig getConfig() {
+		return config;
+	}
+
+	/**
 	 * Creates a root for this server. Can be overridden to create another root.
 	 *
 	 * @return the resource

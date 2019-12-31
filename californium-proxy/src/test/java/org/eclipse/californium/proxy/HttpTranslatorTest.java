@@ -21,6 +21,7 @@ import static org.junit.Assert.assertThat;
 import java.nio.charset.Charset;
 
 import org.apache.http.HttpEntity;
+import org.apache.http.HttpRequest;
 import org.apache.http.entity.ContentType;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
@@ -51,10 +52,26 @@ public class HttpTranslatorTest {
 		validateCharset(req, StandardCharsets.UTF_8);
 	}
 
+	@Test
+	public void testTranslatedHttpRequestUri() {
+		try {
+			Request coapRequest = new Request(Code.POST);
+			coapRequest.setPayload("payload");
+			coapRequest.setURI("coap://localhost:5683/coap2http");
+			coapRequest.getOptions().setProxyUri("http://localhost:8000/target");
+			coapRequest.setMID(7);
+			coapRequest.setToken(new byte[] { 11, 82, -91, 77, 3 });
+			coapRequest.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
+			HttpRequest httpRequest = new HttpTranslator().getHttpRequest(coapRequest);
+			assertThat(httpRequest.getRequestLine().getUri(), equalTo("http://localhost:8000/target"));
+		} catch (TranslationException e) {
+			e.printStackTrace();
+		}
+	}
+
 	private void validateCharset(Message request, Charset charset) throws TranslationException {
 		HttpEntity httpEntity = new HttpTranslator().getHttpEntity(request);
 		Charset httpEntityCharset = ContentType.parse(httpEntity.getContentType().getValue()).getCharset();
-
 		assertThat(httpEntityCharset, equalTo(charset));
 	}
 }

@@ -173,6 +173,23 @@ longterm()
 	benchmark_udp "reverse-observe?obs=2500000&res=feed-NON&timeout=${LONG_INTERVAL_TIMEOUT_S}&rlen=${PAYLOAD}" ${UDP_CLIENTS} 1 stop ${NOTIFIES} ${LONG_INTERVAL_MS}
 }
 
+proxy()
+{
+	if [ ${USE_UDP} -eq 0 ] ; then return; fi
+	if [ ${USE_PLAIN} -ne 0 ] ; then
+	      export COAP_PROXY="localhost:5685:http"
+	      java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} "coap://${CF_HOST}:8000/http-target" ${UDP_CLIENTS} ${REQS}
+	      if [ ! $? -eq 0 ] ; then exit $?; fi
+	      sleep 5
+	      export COAP_PROXY="localhost:5685:coap"
+	      java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} "coap://${CF_HOST}:5783/benchmark?rlen=${PAYLOAD}" ${UDP_CLIENTS} ${REQS}
+	      if [ ! $? -eq 0 ] ; then exit $?; fi
+	      export COAP_PROXY=""
+	      sleep 5
+	fi   
+}
+
+proxy
 benchmark_all
 benchmark_dtls_handshake 10 
 TIME1=$?

@@ -24,9 +24,11 @@ import java.util.Queue;
 
 /**
  * A pool of EndpointManagers to avoid concurrency issues across concurrent requests.
+ * @deprecated use {@link EndpointPool} instead.
  */
+@Deprecated
 public class EndPointManagerPool {
-	private static final int INIT_SIZE = 10;
+	private static final int INIT_SIZE = 1000;
 	private static final Queue<EndpointManager> managers = initManagerPool(INIT_SIZE);
 
 	 private static final Logger LOGGER = LoggerFactory.getLogger(EndPointManagerPool.class);
@@ -41,9 +43,9 @@ public class EndPointManagerPool {
 		return clients;
 	}
 
-    /**
-     * @return An EndpointManager that is not in use.
-     */
+	/**
+	 * @return An EndpointManager that is not in use.
+	 */
 	public static EndpointManager getManager() {
 		synchronized (managers) {
 			if (managers.size() > 0) {
@@ -60,10 +62,10 @@ public class EndPointManagerPool {
 		return new EndpointManager();
 	}
 
-    /**
-     * Puts back and EndpointManager so that other clients can use it.
-     * @param manager Manager to free.
-     */
+	/**
+	 * Puts back and EndpointManager so that other clients can use it.
+	 * @param manager Manager to free.
+	 */
 	public static void putClient(final EndpointManager manager) {
 		if (manager == null) return;
 		synchronized (managers) {

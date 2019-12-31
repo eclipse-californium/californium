@@ -23,10 +23,12 @@ import java.io.File;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
+import java.lang.management.RuntimeMXBean;
 import java.lang.management.ThreadMXBean;
 import java.net.SocketException;
 import java.net.URI;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -69,7 +71,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 	private static final int DEFAULT_MAX_RESOURCE_SIZE = 8192;
 	private static final int DEFAULT_BLOCK_SIZE = 1024;
 
-	private static NetworkConfigDefaultHandler DEFAULTS = new NetworkConfigDefaultHandler() {
+	private static final NetworkConfigDefaultHandler DEFAULTS = new NetworkConfigDefaultHandler() {
 
 		@Override
 		public void applyDefaults(NetworkConfig config) {
@@ -96,6 +98,8 @@ public class ExtendedTestServer extends AbstractTestServer {
 		}
 
 	};
+
+	private static String start;
 
 	public static void main(String[] args) {
 		System.out.println("\nCalifornium (Cf) Extended Plugtest Server");
@@ -255,13 +259,16 @@ public class ExtendedTestServer extends AbstractTestServer {
 		if (mxBean.isThreadCpuTimeSupported() && !mxBean.isThreadCpuTimeEnabled()) {
 			mxBean.setThreadCpuTimeEnabled(true);
 		}
+		RuntimeMXBean runtimeMXBean = ManagementFactory.getRuntimeMXBean();
+		start = new Date(runtimeMXBean.getStartTime()).toString();
 	}
 
 	private static void printManagamentStatistic() {
 		OperatingSystemMXBean osMxBean = ManagementFactory.getOperatingSystemMXBean();
 		int processors = osMxBean.getAvailableProcessors();
+		RuntimeMXBean runtimeMXBean = ManagementFactory.getRuntimeMXBean();
 		Logger logger = STATISTIC_LOGGER;
-		logger.info("{} processors", processors);
+		logger.info("{} processors, started {}, up {}", processors, start, formatTime(runtimeMXBean.getUptime()));
 		ThreadMXBean threadMxBean = ManagementFactory.getThreadMXBean();
 		if (threadMxBean.isThreadCpuTimeSupported() && threadMxBean.isThreadCpuTimeEnabled()) {
 			long alltime = 0;
@@ -292,6 +299,29 @@ public class ExtendedTestServer extends AbstractTestServer {
 		double loadAverage = osMxBean.getSystemLoadAverage();
 		if (!(loadAverage < 0.0d)) {
 			logger.info("average load: {}", String.format("%.2f", loadAverage));
+		}
+	}
+
+	private static String formatTime(long millis) {
+		long time = millis;
+		if (time < 10000) {
+			return time + " [ms]";
+		}
+		time /= 100; // 1/10s
+		if (time < 10000) {
+			return (time / 10) + "." + (time % 10) + " [s]";
+		}
+		time /= 10;
+		long seconds = time % 60;
+		time /= 60;
+		long minutes = time % 60;
+		time /= 60;
+		long hours = time % 24;
+		time /= 24; // days
+		if (time > 0) {
+			return String.format("%d:%02d:%02d:%02d [d:hh:mm:ss]", time, hours, minutes, seconds);
+		} else {
+			return String.format("%d:%02d:%02d [h:mm:ss]", hours, minutes, seconds);
 		}
 	}
 	

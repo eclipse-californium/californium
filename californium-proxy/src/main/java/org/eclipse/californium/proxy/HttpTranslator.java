@@ -21,10 +21,10 @@ package org.eclipse.californium.proxy;
 
 import static org.eclipse.californium.elements.util.StandardCharsets.ISO_8859_1;
 import static org.eclipse.californium.elements.util.StandardCharsets.UTF_8;
+
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URLDecoder;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
@@ -38,8 +38,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
@@ -72,6 +70,8 @@ import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.OptionNumberRegistry.optionFormats;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -462,10 +462,9 @@ public final class HttpTranslator {
 
 			if (proxyingEnabled) {
 				// if the uri hasn't the indication of the scheme, add it
-				if (!uriString.matches("^coaps?://.*")) {
+				if (!uriString.matches("^coaps?://.*") && !uriString.matches("^https?://.*")) {
 					uriString = "coap://" + uriString;
 				}
-
 				// the uri will be set as a proxy-uri option
 				coapRequest.getOptions().setProxyUri(uriString);
 			} else {
@@ -777,47 +776,37 @@ public final class HttpTranslator {
 	 * @return the http request * @throws TranslationException the translation
 	 *         exception * @throws URISyntaxException the uRI syntax exception
 	 */
-	public HttpRequest getHttpRequest(Request coapRequest) throws TranslationException {
-		if (coapRequest == null) {
-			throw new IllegalArgumentException("coapRequest == null");
+	public HttpRequest getHttpRequest(Request incomingRequest) throws TranslationException {
+		if (incomingRequest == null) {
+			throw new IllegalArgumentException("incomingRequest == null");
 		}
+		URI uri = UriTranslator.getDestinationURI(incomingRequest);
+		return getHttpRequest(uri, incomingRequest);
+	}
+
+	public HttpRequest getHttpRequest(URI uri, Request incomingRequest) throws TranslationException {
+			if (incomingRequest == null) {
+				throw new IllegalArgumentException("incomingRequest == null");
+			}
 
 		HttpRequest httpRequest = null;
 
 		String coapMethod = null;
-		switch (coapRequest.getCode()) {
+		switch (incomingRequest.getCode()) {
 		case GET: coapMethod = "GET"; break;
 		case POST: coapMethod = "POST"; break;
 		case PUT: coapMethod = "PUT"; break;
 		case DELETE: coapMethod = "DELETE"; break;
 		default:
-			LOGGER.warn("Method {} not supported!", coapRequest.getCode());
-			throw new TranslationException("Method " +  coapRequest.getCode() + " not supported!");
-		}
-
-		// get the proxy-uri
-		URI proxyUri;
-		try {
-			/*
-			 * The new draft (14) only allows one proxy-uri option. Thus, this
-			 * code segment has changed.
-			 */
-			String proxyUriString = URLDecoder.decode(
-					coapRequest.getOptions().getProxyUri(), "UTF-8");
-			proxyUri = new URI(proxyUriString);
-		} catch (UnsupportedEncodingException e) {
-			LOGGER.warn("UTF-8 do not support this encoding", e);
-			throw new TranslationException("UTF-8 do not support this encoding", e);
-		} catch (URISyntaxException e) {
-			LOGGER.warn("Cannot translate the server uri", e);
-			throw new InvalidFieldException("Cannot get the proxy-uri from the coap message", e);
+			LOGGER.warn("Method {} not supported!", incomingRequest.getCode());
+			throw new TranslationException("Method " +  incomingRequest.getCode() + " not supported!");
 		}
 
 		// create the requestLine
-		RequestLine requestLine = new BasicRequestLine(coapMethod, proxyUri.toString(), HttpVersion.HTTP_1_1);
+		RequestLine requestLine = new BasicRequestLine(coapMethod, uri.toASCIIString(), HttpVersion.HTTP_1_1);
 
 		// get the http entity
-		HttpEntity httpEntity = getHttpEntity(coapRequest);
+		HttpEntity httpEntity = getHttpEntity(incomingRequest);
 
 		// create the http request
 		if (httpEntity == null) {
@@ -832,7 +821,7 @@ public final class HttpTranslator {
 		}
 
 		// set the headers
-		Header[] headers = getHttpHeaders(coapRequest.getOptions().asSortedList());
+		Header[] headers = getHttpHeaders(incomingRequest.getOptions().asSortedList());
 		for (Header header : headers) {
 			httpRequest.addHeader(header);
 		}
