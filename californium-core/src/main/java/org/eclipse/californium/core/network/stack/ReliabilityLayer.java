@@ -296,7 +296,7 @@ public class ReliabilityLayer extends AbstractLayer {
 					// retransmission only. In that case always ACK/RST to try stopping future
 					// response retransmissions.
 					int count = counter.incrementAndGet();
-					LOGGER.info("{}: {} duplicate response {}, server sent ACK delayed, ignore response", count,
+					LOGGER.debug("{}: {} duplicate response {}, server sent ACK delayed, ignore response", count,
 							exchange, response);
 					return;
 				}
