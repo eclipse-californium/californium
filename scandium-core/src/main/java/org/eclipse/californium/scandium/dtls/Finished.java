@@ -48,7 +48,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class Finished extends HandshakeMessage {
 
-	private static final Logger LOG = LoggerFactory.getLogger(Finished.class.getName());
+	private static final Logger LOG = LoggerFactory.getLogger(Finished.class);
 
 	// Members ////////////////////////////////////////////////////////
 

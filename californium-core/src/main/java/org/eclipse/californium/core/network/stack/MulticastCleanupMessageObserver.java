@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
  */
 public class MulticastCleanupMessageObserver extends CleanupMessageObserver {
 
-	static final Logger LOGGER = LoggerFactory.getLogger(MulticastCleanupMessageObserver.class.getName());
+	static final Logger LOGGER = LoggerFactory.getLogger(MulticastCleanupMessageObserver.class);
 
 	/**
 	 * Scheduler for time based exchange completion.

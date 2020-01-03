@@ -121,7 +121,7 @@ import org.slf4j.LoggerFactory;
  */
 @Category(Medium.class)
 public class DTLSConnectorTest {
-	public static final Logger LOGGER = LoggerFactory.getLogger(DTLSConnectorTest.class.getName());
+	public static final Logger LOGGER = LoggerFactory.getLogger(DTLSConnectorTest.class);
 
 	@ClassRule
 	public static DtlsNetworkRule network = new DtlsNetworkRule(DtlsNetworkRule.Mode.DIRECT, DtlsNetworkRule.Mode.NATIVE);

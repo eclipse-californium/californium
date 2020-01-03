@@ -89,7 +89,7 @@ import org.eclipse.californium.elements.util.ClockUtil;
  */
 public abstract class Message {
 
-	protected final static Logger LOGGER = LoggerFactory.getLogger(Message.class.getCanonicalName());
+	protected final static Logger LOGGER = LoggerFactory.getLogger(Message.class);
 
 	/** The Constant NONE in case no MID has been set. */
 	public static final int NONE = -1;

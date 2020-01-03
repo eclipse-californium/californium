@@ -54,7 +54,7 @@ import org.slf4j.LoggerFactory;
 @NoPublicAPI
 public final class CertificateRequest extends HandshakeMessage {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(CertificateRequest.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(CertificateRequest.class);
 
 	// DTLS-specific constants ////////////////////////////////////////
 

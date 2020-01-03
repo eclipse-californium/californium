@@ -123,7 +123,7 @@ public enum CipherSuite {
 	public static final int CIPHER_SUITE_BITS = 16;
 
 	// Logging ////////////////////////////////////////////////////////
-	private static final Logger LOGGER = LoggerFactory.getLogger(CipherSuite.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(CipherSuite.class);
 
 	// Members ////////////////////////////////////////////////////////
 	private static int overallMaxCipherTextExpansion = 0;

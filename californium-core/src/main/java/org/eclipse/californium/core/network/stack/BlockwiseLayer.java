@@ -152,7 +152,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * matches the example in the draft.
 	 */
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(BlockwiseLayer.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(BlockwiseLayer.class);
 	private static final Logger HEALTH_LOGGER = LoggerFactory.getLogger(LOGGER.getName() + ".health");
 	private final LeastRecentlyUsedCache<KeyUri, Block1BlockwiseStatus> block1Transfers;
 	private final LeastRecentlyUsedCache<KeyUri, Block2BlockwiseStatus> block2Transfers;

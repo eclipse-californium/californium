@@ -35,7 +35,7 @@ import org.eclipse.californium.core.coap.OptionNumberRegistry;
  */
 public class MappingProperties extends java.util.Properties {
 
-	private static final Logger LOG = LoggerFactory.getLogger(MappingProperties.class.getName());
+	private static final Logger LOG = LoggerFactory.getLogger(MappingProperties.class);
 
 	/**
 	 * auto-generated to eliminate warning

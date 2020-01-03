@@ -73,7 +73,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ReverseRequest extends CoapResource {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(ReverseRequest.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(ReverseRequest.class);
 	private static final Logger HEALTH_LOGGER = LoggerFactory.getLogger(LOGGER.getName() + ".health");
 
 	private static final String RESOURCE_NAME = "reverse-request";

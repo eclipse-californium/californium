@@ -43,7 +43,7 @@ import org.eclipse.californium.core.network.Exchange;
  */
 public abstract class BlockwiseStatus {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(BlockwiseStatus.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(BlockwiseStatus.class);
 
 	private final int contentFormat;
 

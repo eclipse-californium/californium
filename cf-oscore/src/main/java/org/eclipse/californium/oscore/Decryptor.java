@@ -52,7 +52,7 @@ public abstract class Decryptor {
 	/**
 	 * The logger
 	 */
-	private static final Logger LOGGER = LoggerFactory.getLogger(Decryptor.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(Decryptor.class);
 
 	/**
 	 * Empty option set

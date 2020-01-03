@@ -127,7 +127,7 @@ import org.slf4j.LoggerFactory;
  */
 public class Exchange {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(Exchange.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(Exchange.class);
 	
 	static final boolean DEBUG = LOGGER.isTraceEnabled();
 

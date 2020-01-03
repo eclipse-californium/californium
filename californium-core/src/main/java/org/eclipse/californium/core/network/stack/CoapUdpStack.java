@@ -78,7 +78,7 @@ import org.eclipse.californium.elements.Connector;
 public class CoapUdpStack extends BaseCoapStack {
 
 	/** The LOGGER. */
-	private final static Logger LOGGER = LoggerFactory.getLogger(CoapStack.class.getCanonicalName());
+	private final static Logger LOGGER = LoggerFactory.getLogger(CoapStack.class);
 
 	/**
 	 * Creates a new stack for UDP as the transport.

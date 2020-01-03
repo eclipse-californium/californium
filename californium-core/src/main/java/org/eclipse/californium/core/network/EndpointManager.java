@@ -80,7 +80,7 @@ import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 public class EndpointManager {
 
 	/** The logger */
-	private static final Logger LOGGER = LoggerFactory.getLogger(EndpointManager.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(EndpointManager.class);
 
 	/** The singleton manager instance */
 	private static final EndpointManager manager = new EndpointManager();

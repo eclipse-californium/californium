@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
  */
 public class CountingCoapHandler implements CoapHandler {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(CountingCoapHandler.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(CountingCoapHandler.class);
 
 	/**
 	 * Current read index for {@link #waitOnLoad(long)}

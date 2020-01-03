@@ -115,7 +115,7 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class Handshaker implements Destroyable {
 
-	protected final Logger LOGGER = LoggerFactory.getLogger(getClass().getName());
+	protected final Logger LOGGER = LoggerFactory.getLogger(getClass());
 
 	/**
 	 * Indicates whether this handshaker performs the client or server part of

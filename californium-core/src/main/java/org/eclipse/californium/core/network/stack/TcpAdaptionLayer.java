@@ -29,7 +29,7 @@ import org.eclipse.californium.core.network.Exchange;
  */
 public class TcpAdaptionLayer extends AbstractLayer {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(TcpAdaptionLayer.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(TcpAdaptionLayer.class);
 
 	@Override
 	public void sendEmptyMessage(final Exchange exchange, final EmptyMessage message) {

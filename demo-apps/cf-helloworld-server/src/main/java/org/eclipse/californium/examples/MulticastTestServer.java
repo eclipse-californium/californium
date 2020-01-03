@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
  * Test server using {@link UdpMulticastConnector}.
  */
 public class MulticastTestServer {
-	private static final Logger LOGGER = LoggerFactory.getLogger(MulticastTestServer.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(MulticastTestServer.class);
 
 	public static void main(String[] args) throws UnknownHostException {
 

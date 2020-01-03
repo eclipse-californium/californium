@@ -38,7 +38,7 @@ import javax.net.ssl.SSLException;
  */
 class CloseOnErrorHandler extends ChannelHandlerAdapter {
 
-	private final static Logger LOGGER = LoggerFactory.getLogger(CloseOnErrorHandler.class.getName());
+	private final static Logger LOGGER = LoggerFactory.getLogger(CloseOnErrorHandler.class);
 
 	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {

@@ -228,7 +228,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	public static final int DEFAULT_IPV6_MTU = 1280;
 	public static final int DEFAULT_IPV4_MTU = 576;
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(DTLSConnector.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(DTLSConnector.class);
 	private static final int MAX_PLAINTEXT_FRAGMENT_LENGTH = 16384; // max. DTLSPlaintext.length (2^14 bytes)
 	private static final int MAX_CIPHERTEXT_EXPANSION = CipherSuite.getOverallMaxCiphertextExpansion();
 	private static final int MAX_DATAGRAM_BUFFER_SIZE = MAX_PLAINTEXT_FRAGMENT_LENGTH

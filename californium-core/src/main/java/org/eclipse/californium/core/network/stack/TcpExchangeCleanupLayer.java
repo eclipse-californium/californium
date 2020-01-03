@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
  */
 public class TcpExchangeCleanupLayer extends AbstractLayer {
 
-	static final Logger LOGGER = LoggerFactory.getLogger(TcpExchangeCleanupLayer.class.getName());
+	static final Logger LOGGER = LoggerFactory.getLogger(TcpExchangeCleanupLayer.class);
 
 	/**
 	 * Adds a message observer to the request to be sent which completes the

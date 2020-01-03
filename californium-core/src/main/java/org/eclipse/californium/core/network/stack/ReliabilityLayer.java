@@ -60,7 +60,7 @@ import org.slf4j.LoggerFactory;
 public class ReliabilityLayer extends AbstractLayer {
 
 	/** The logger. */
-	protected final static Logger LOGGER = LoggerFactory.getLogger(ReliabilityLayer.class.getCanonicalName());
+	protected final static Logger LOGGER = LoggerFactory.getLogger(ReliabilityLayer.class);
 
 	/** The random numbers generator for the back-off timer */
 	private final Random rand = new Random();

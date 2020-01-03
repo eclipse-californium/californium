@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
  */
 public class StaticCertificateVerifier implements AdvancedCertificateVerifier {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(StaticCertificateVerifier.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(StaticCertificateVerifier.class);
 
 	/**
 	 * Array of root certificates.

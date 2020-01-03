@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
  */
 public class EndpointContextUtil {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(EndpointContextUtil.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(EndpointContextUtil.class);
 
 	/**
 	 * Match endpoint contexts based on a set of keys.

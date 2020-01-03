@@ -87,7 +87,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ReverseObserve extends CoapResource implements NotificationListener {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(ReverseObserve.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(ReverseObserve.class);
 	private static final Logger HEALTH_LOGGER = LoggerFactory.getLogger(LOGGER.getName() + ".health");
 
 	private static final String RESOURCE_NAME = "reverse-observe";

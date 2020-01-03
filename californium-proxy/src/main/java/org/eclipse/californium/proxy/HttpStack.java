@@ -75,7 +75,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
  */
 public class HttpStack {
 	
-	private static final Logger LOGGER = LoggerFactory.getLogger(HttpStack.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(HttpStack.class);
 	
 	private static final Response Response_NULL = new Response(null); // instead of Response.NULL // TODO
 	

@@ -43,7 +43,7 @@ import org.slf4j.LoggerFactory;
 public final class HelloExtensions {
 	// Logging ////////////////////////////////////////////////////////
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(HelloExtensions.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(HelloExtensions.class);
 
 	// DTLS-specific constants ////////////////////////////////////////
 

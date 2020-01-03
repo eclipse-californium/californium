@@ -47,7 +47,7 @@ public class OSCoreCtx {
 	/**
 	 * The logger
 	 */
-	private static final Logger LOGGER = LoggerFactory.getLogger(OSCoreCtx.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(OSCoreCtx.class);
 
 	private AlgorithmID common_alg;
 	private byte[] common_master_secret;

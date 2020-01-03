@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
 public class ExecutorsUtil {
 
 	/** the logger. */
-	private static final Logger LOGGER = LoggerFactory.getLogger(ExecutorsUtil.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(ExecutorsUtil.class);
 
 	private static final Runnable WARMUP = new Runnable() {
 

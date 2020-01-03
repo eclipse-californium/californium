@@ -44,7 +44,7 @@ import org.eclipse.californium.proxy.resources.StatsResource;
  */
 public class ProxyHttpServer {
 
-	private final static Logger LOGGER = LoggerFactory.getLogger(ProxyHttpServer.class.getCanonicalName());
+	private final static Logger LOGGER = LoggerFactory.getLogger(ProxyHttpServer.class);
 	
 	private static final String PROXY_COAP_CLIENT = "proxy/coapClient";
 	private static final String PROXY_HTTP_CLIENT = "proxy/httpClient";

@@ -81,7 +81,7 @@ import org.junit.runners.model.Statement;
  */
 public class NetworkRule implements TestRule {
 
-	public static final Logger LOGGER = LoggerFactory.getLogger(NetworkRule.class.getName());
+	public static final Logger LOGGER = LoggerFactory.getLogger(NetworkRule.class);
 	/**
 	 * Name of configuration property. Supported values of property "NATIVE" and
 	 * "DIRECT".

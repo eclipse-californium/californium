@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ProxyProperties extends java.util.Properties {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(ProxyProperties.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(ProxyProperties.class);
 
 	/**
 	 * auto-generated to eliminate warning

@@ -43,7 +43,7 @@ public class ResponseDecryptor extends Decryptor {
 	/**
 	 * The logger
 	 */
-	private static final Logger LOGGER = LoggerFactory.getLogger(ResponseDecryptor.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(ResponseDecryptor.class);
 
 	/**
 	 * Decrypt the response.

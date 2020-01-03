@@ -40,7 +40,7 @@ import org.eclipse.californium.core.coap.Response;
 public final class CoapTranslator {
 
 	/** The Constant LOG. */
-	private static final Logger LOGGER = LoggerFactory.getLogger(CoapTranslator.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(CoapTranslator.class);
 
 	/**
 	 * Property file containing the mappings between coap messages and http

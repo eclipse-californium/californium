@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
  */
 class CloseOnIdleHandler extends ChannelDuplexHandler {
 
-	private final static Logger LOGGER = LoggerFactory.getLogger(CloseOnIdleHandler.class.getName());
+	private final static Logger LOGGER = LoggerFactory.getLogger(CloseOnIdleHandler.class);
 
 	@Override public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
 		if (evt instanceof IdleStateEvent) {

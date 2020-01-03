@@ -63,7 +63,7 @@ public class ContextRederivation {
 	/**
 	 * The logger
 	 */
-	private static final Logger LOGGER = LoggerFactory.getLogger(ContextRederivation.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(ContextRederivation.class);
 
 	/**
 	 * Method to indicate that the mutable parts of an OSCORE context has been

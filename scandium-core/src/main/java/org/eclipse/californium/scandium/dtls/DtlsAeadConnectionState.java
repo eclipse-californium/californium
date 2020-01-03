@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
  */
 public class DtlsAeadConnectionState extends DTLSConnectionState {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(DtlsAeadConnectionState.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(DtlsAeadConnectionState.class);
 
 	private final SecretKey encryptionKey;
 	private final SecretIvParameterSpec iv;

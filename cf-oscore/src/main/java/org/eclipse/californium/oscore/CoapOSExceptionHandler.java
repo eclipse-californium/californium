@@ -39,7 +39,7 @@ public class CoapOSExceptionHandler {
 	/**
 	 * The logger
 	 */
-	private static final Logger LOGGER = LoggerFactory.getLogger(CoapOSExceptionHandler.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(CoapOSExceptionHandler.class);
 
 	/**
 	 * 

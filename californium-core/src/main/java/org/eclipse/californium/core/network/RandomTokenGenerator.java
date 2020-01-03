@@ -43,7 +43,7 @@ import org.slf4j.LoggerFactory;
  */
 public class RandomTokenGenerator implements TokenGenerator {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(RandomTokenGenerator.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(RandomTokenGenerator.class);
 	private static final int DEFAULT_TOKEN_LENGTH = 8; // bytes
 
 	private final int tokenSize;
