@@ -48,7 +48,7 @@ import org.eclipse.californium.core.server.MessageDeliverer;
  */
 public abstract class BaseCoapStack implements CoapStack {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(BaseCoapStack.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(BaseCoapStack.class);
 
 	private List<Layer> layers;
 	private final Outbox outbox;

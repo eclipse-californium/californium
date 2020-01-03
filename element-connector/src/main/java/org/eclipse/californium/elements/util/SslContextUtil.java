@@ -104,7 +104,7 @@ import org.slf4j.LoggerFactory;
  * @see #configure(String, InputStreamFactory)
  */
 public class SslContextUtil {
-	public static final Logger LOGGER = LoggerFactory.getLogger(SslContextUtil.class.getName());
+	public static final Logger LOGGER = LoggerFactory.getLogger(SslContextUtil.class);
 
 	/**
 	 * Scheme for key store URI. Used to load the key stores from classpath.

@@ -54,7 +54,7 @@ import org.eclipse.californium.core.observe.ObserveRelation;
  */
 public class ObserveLayer extends AbstractLayer {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(ObserveLayer.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(ObserveLayer.class);
 
 	/**
 	 * Creates a new observe layer for a configuration.

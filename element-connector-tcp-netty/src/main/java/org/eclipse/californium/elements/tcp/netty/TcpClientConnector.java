@@ -78,7 +78,7 @@ import org.slf4j.LoggerFactory;
 public class TcpClientConnector implements Connector {
 	private static final boolean USE_FIXED_CONNECTION_POOL = false;
 
-	protected final Logger LOGGER = LoggerFactory.getLogger(getClass().getName());
+	protected final Logger LOGGER = LoggerFactory.getLogger(getClass());
 
 	private final int numberOfThreads;
 	private final int connectionIdleTimeoutSeconds;

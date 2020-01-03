@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
  * on bit-level.
  */
 public final class DatagramWriter {
-	private static final Logger LOGGER = LoggerFactory.getLogger(DatagramWriter.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(DatagramWriter.class);
 
 	// Attributes //////////////////////////////////////////////////////////////
 	private final ByteArrayOutputStream byteStream;

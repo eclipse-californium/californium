@@ -36,7 +36,7 @@ import org.osgi.service.io.ConnectionFactory;
  */
 public class SimpleServerEndpointFactory implements EndpointFactory {
 
-	private final Logger log = LoggerFactory.getLogger(SimpleServerEndpointFactory.class.getName());
+	private final Logger log = LoggerFactory.getLogger(SimpleServerEndpointFactory.class);
 
 	private ConnectorFactory secureConnectorFactory;
 

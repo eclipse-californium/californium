@@ -60,7 +60,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class Connection {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(Connection.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(Connection.class);
 
 	private final AtomicReference<Handshaker> ongoingHandshake = new AtomicReference<Handshaker>();
 	private final SessionListener sessionListener = new ConnectionSessionListener();

@@ -27,7 +27,7 @@ import org.eclipse.californium.proxy.resources.ForwardingResource;
 
 public class DirectProxyCoapResolver implements ProxyCoapResolver {
 
-	private final static Logger LOGGER = LoggerFactory.getLogger(DirectProxyCoapResolver.class.getCanonicalName());
+	private final static Logger LOGGER = LoggerFactory.getLogger(DirectProxyCoapResolver.class);
 	
 	private ForwardingResource proxyCoapClientResource;
 	

@@ -89,7 +89,7 @@ public final class DTLSSession implements Destroyable {
 								+ 36 // bytes optional IP options
 								+ 8 // bytes UDP headers
 								+ 20; // bytes IP headers
-	private static final Logger LOGGER = LoggerFactory.getLogger(DTLSSession.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(DTLSSession.class);
 	private static final long RECEIVE_WINDOW_SIZE = 64;
 	private static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1
 	private static final int MAX_FRAGMENT_LENGTH_DEFAULT = 16384; // 2^14 bytes as defined by DTLS 1.2 spec, Section 4.1

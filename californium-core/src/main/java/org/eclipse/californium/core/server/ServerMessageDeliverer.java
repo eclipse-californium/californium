@@ -46,7 +46,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ServerMessageDeliverer implements MessageDeliverer {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(ServerMessageDeliverer.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(ServerMessageDeliverer.class);
 
 	/* The root of all resources */
 	private final Resource root;

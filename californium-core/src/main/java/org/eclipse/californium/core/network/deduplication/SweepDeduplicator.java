@@ -56,7 +56,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class SweepDeduplicator implements Deduplicator {
 
-	private final static Logger LOGGER = LoggerFactory.getLogger(SweepDeduplicator.class.getName());
+	private final static Logger LOGGER = LoggerFactory.getLogger(SweepDeduplicator.class);
 
 	/**
 	 * Add timestamp for deduplication to Exchange.

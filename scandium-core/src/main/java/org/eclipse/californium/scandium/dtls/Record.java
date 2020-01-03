@@ -55,7 +55,7 @@ public class Record {
 
 	// Logging ////////////////////////////////////////////////////////
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(Record.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(Record.class);
 
 	// DTLS specific constants/////////////////////////////////////////
 

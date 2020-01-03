@@ -48,7 +48,7 @@ public abstract class Encryptor {
 	/**
 	 * The logger
 	 */
-	private static final Logger LOGGER = LoggerFactory.getLogger(Encryptor.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(Encryptor.class);
 
 	/**
 	 * Encrypt the COSE message using the OSCore context.

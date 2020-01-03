@@ -63,7 +63,7 @@ import org.slf4j.LoggerFactory;
  */
 public class TcpServerConnector implements Connector {
 
-	protected final Logger LOGGER = LoggerFactory.getLogger(getClass().getName());
+	protected final Logger LOGGER = LoggerFactory.getLogger(getClass());
 
 	private final int numberOfThreads;
 	private final int connectionIdleTimeoutSeconds;

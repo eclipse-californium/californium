@@ -85,7 +85,7 @@ import org.slf4j.LoggerFactory;
 public class BenchmarkClient {
 
 	/** The logger. */
-	private static final Logger LOGGER = LoggerFactory.getLogger(BenchmarkClient.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(BenchmarkClient.class);
 
 	private static final Logger STATISTIC_LOGGER = LoggerFactory.getLogger("org.eclipse.californium.extplugtests.statistics");
 

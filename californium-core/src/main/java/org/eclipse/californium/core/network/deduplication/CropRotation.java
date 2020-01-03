@@ -48,7 +48,7 @@ import org.slf4j.LoggerFactory;
  */
 public class CropRotation implements Deduplicator {
 
-	private final static Logger LOGGER = LoggerFactory.getLogger(CropRotation.class.getCanonicalName());
+	private final static Logger LOGGER = LoggerFactory.getLogger(CropRotation.class);
 	private volatile ScheduledFuture<?> jobStatus;
 
 	private final ExchangeMap maps[];

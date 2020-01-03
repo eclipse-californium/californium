@@ -85,7 +85,7 @@ import org.slf4j.LoggerFactory;
  */
 public class CertPathUtil {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(CertPathUtil.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(CertPathUtil.class);
 
 	private static final String TYPE_X509 = "X.509";
 

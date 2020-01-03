@@ -62,7 +62,7 @@ public final class CertificateMessage extends HandshakeMessage {
 
 	private static final String CERTIFICATE_TYPE_X509 = "X.509";
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(CertificateMessage.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(CertificateMessage.class);
 
 	// DTLS-specific constants ///////////////////////////////////////////
 

@@ -40,7 +40,7 @@ import io.netty.handler.ssl.SslHandler;
  */
 public class TlsContextUtil extends TcpContextUtil {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(TlsContextUtil.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(TlsContextUtil.class);
 
 	/**
 	 * Log warn messages, if remote peer's principal is not valid.

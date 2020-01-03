@@ -82,7 +82,7 @@ import org.eclipse.californium.elements.EndpointContextMatcher;
  */
 public final class UdpMatcher extends BaseMatcher {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(UdpMatcher.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(UdpMatcher.class);
 
 	private final RemoveHandler exchangeRemoveHandler = new RemoveHandlerImpl();
 	private final EndpointContextMatcher endpointContextMatcher;

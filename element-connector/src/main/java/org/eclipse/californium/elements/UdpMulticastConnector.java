@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
  * Protocol (CoAP) to the registered multicast group.
  */
 public class UdpMulticastConnector extends UDPConnector {
-	public static final Logger LOGGER = LoggerFactory.getLogger(UdpMulticastConnector.class.getName());
+	public static final Logger LOGGER = LoggerFactory.getLogger(UdpMulticastConnector.class);
 
 	/**
 	 * Address of network interface to be used to receive multicast packets

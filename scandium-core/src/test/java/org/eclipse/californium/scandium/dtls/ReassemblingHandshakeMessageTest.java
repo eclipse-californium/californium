@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
 @Category(Small.class)
 public class ReassemblingHandshakeMessageTest {
 
-	public static final Logger LOGGER = LoggerFactory.getLogger(ReassemblingHandshakeMessageTest.class.getName());
+	public static final Logger LOGGER = LoggerFactory.getLogger(ReassemblingHandshakeMessageTest.class);
 
 	private static final int MAX_FRAGMENT_SIZE = 100;
 	private static final int MESSAGE_SIZE = 3000;

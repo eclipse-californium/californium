@@ -97,7 +97,7 @@ import org.eclipse.californium.elements.util.NamedThreadFactory;
 public class CoapServer implements ServerInterface {
 
 	/** The logger. */
-	private static final Logger LOGGER = LoggerFactory.getLogger(CoapServer.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(CoapServer.class);
 
 	/** The root resource. */
 	private final Resource root;

@@ -26,7 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class PemReader {
-	public static final Logger LOGGER = LoggerFactory.getLogger(PemReader.class.getName());
+	public static final Logger LOGGER = LoggerFactory.getLogger(PemReader.class);
 
 	private static final Pattern BEGIN_PATTERN = Pattern.compile("^\\-+BEGIN\\s+([\\w\\s]+)\\-+$");
 

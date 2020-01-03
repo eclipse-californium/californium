@@ -51,7 +51,7 @@ public class RequestDecryptor extends Decryptor {
 	/**
 	 * The logger
 	 */
-	private static final Logger LOGGER = LoggerFactory.getLogger(RequestDecryptor.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(RequestDecryptor.class);
 
 	/**
 	 * @param db the context database used

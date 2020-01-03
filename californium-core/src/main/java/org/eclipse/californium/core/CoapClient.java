@@ -80,7 +80,7 @@ import org.eclipse.californium.elements.util.NamedThreadFactory;
 public class CoapClient {
 
 	/** The logger. */
-	private static final Logger LOGGER = LoggerFactory.getLogger(CoapClient.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(CoapClient.class);
 
 	/** The timeout. 
 	 * 

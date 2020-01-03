@@ -85,7 +85,7 @@ import org.slf4j.LoggerFactory;
  */
 public class InMemoryConnectionStore implements ResumptionSupportingConnectionStore, CloseSupportingConnectionStore {
 
-	private static final Logger LOG = LoggerFactory.getLogger(InMemoryConnectionStore.class.getName());
+	private static final Logger LOG = LoggerFactory.getLogger(InMemoryConnectionStore.class);
 	private static final int DEFAULT_SMALL_EXTRA_CID_LENGTH = 2; // extra cid bytes additionally to required bytes for small capacity.
 	private static final int DEFAULT_LARGE_EXTRA_CID_LENGTH = 3; // extra cid bytes additionally to required bytes for large capacity.
 	private static final int DEFAULT_CACHE_SIZE = 150000;

@@ -35,7 +35,7 @@ public class ResponseEncryptor extends Encryptor {
 	/**
 	 * The logger
 	 */
-	private static final Logger LOGGER = LoggerFactory.getLogger(ResponseEncryptor.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(ResponseEncryptor.class);
 
 	/**
 	 * @param response the response

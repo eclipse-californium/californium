@@ -60,7 +60,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class NetworkConfig {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConfig.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConfig.class);
 
 	/** The default name for the configuration. */
 	public static final String DEFAULT_FILE_NAME = "Californium.properties";

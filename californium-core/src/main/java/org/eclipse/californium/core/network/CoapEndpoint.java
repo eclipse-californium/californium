@@ -194,7 +194,7 @@ import org.slf4j.LoggerFactory;
 public class CoapEndpoint implements Endpoint {
 
 	/** the logger. */
-	private static final Logger LOGGER = LoggerFactory.getLogger(CoapEndpoint.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(CoapEndpoint.class);
 
 	/** The stack of layers that make up the CoAP protocol */
 	protected final CoapStack coapstack;

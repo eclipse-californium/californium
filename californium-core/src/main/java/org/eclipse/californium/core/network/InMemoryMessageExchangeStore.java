@@ -76,7 +76,7 @@ import org.eclipse.californium.elements.util.StringUtil;
  */
 public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(InMemoryMessageExchangeStore.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(InMemoryMessageExchangeStore.class);
 	private static final Logger HEALTH_LOGGER = LoggerFactory.getLogger(LOGGER.getName() + ".health");
 	// for all
 	private final ConcurrentMap<KeyMID, Exchange> exchangesByMID = new ConcurrentHashMap<>();

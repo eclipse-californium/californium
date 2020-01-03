@@ -44,7 +44,7 @@ public class ObjectSecurityLayer extends AbstractLayer {
 	/**
 	 * The logger
 	 */
-	private static final Logger LOGGER = LoggerFactory.getLogger(ObjectSecurityLayer.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(ObjectSecurityLayer.class);
 
 	private final OSCoreCtxDB ctxDb;
 

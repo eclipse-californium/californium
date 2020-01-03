@@ -46,7 +46,7 @@ public class OSSerializer {
 	/**
 	 * The logger
 	 */
-	private static final Logger LOGGER = LoggerFactory.getLogger(OSSerializer.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(OSSerializer.class);
 
 	/**
 	 * Prepare options and payload for encrypting.

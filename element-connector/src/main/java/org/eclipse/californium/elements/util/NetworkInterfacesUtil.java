@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
  */
 public class NetworkInterfacesUtil {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(NetworkInterfacesUtil.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(NetworkInterfacesUtil.class);
 
 	/**
 	 * Maximum UDP MTU.

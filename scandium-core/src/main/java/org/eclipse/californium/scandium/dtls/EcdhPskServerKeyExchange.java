@@ -41,7 +41,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class EcdhPskServerKeyExchange extends ServerKeyExchange {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(EcdhPskServerKeyExchange.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(EcdhPskServerKeyExchange.class);
 
 	private static final int IDENTITY_HINT_LENGTH_BITS = 16;
 	private static final String MSG_UNKNOWN_CURVE_TYPE = "Unknown curve type [{}]";

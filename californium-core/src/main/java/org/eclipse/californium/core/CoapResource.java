@@ -140,7 +140,7 @@ import org.eclipse.californium.core.server.resources.ResourceObserver;
 public  class CoapResource implements Resource {
 
 	/** The logger. */
-	protected final static Logger LOGGER = LoggerFactory.getLogger(CoapResource.class.getCanonicalName());
+	protected final static Logger LOGGER = LoggerFactory.getLogger(CoapResource.class);
 
 	/* The attributes of this resource. */
 	private final ResourceAttributes attributes;

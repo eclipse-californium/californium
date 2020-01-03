@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ThreadsRule implements TestRule {
 
-	public static final Logger LOGGER = LoggerFactory.getLogger(ThreadsRule.class.getName());
+	public static final Logger LOGGER = LoggerFactory.getLogger(ThreadsRule.class);
 
 	/**
 	 * Description of current test.

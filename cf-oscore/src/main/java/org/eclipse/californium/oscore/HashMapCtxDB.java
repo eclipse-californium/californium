@@ -44,7 +44,7 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 	/**
 	 * The logger
 	 */
-	private static final Logger LOGGER = LoggerFactory.getLogger(HashMapCtxDB.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(HashMapCtxDB.class);
 
 	private HashMap<ByteId, OSCoreCtx> ridMap;
 	private HashMap<Token, OSCoreCtx> tokenMap;

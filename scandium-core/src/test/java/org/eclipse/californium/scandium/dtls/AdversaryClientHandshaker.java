@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
  */
 public class AdversaryClientHandshaker extends ClientHandshaker {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(AdversaryClientHandshaker.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(AdversaryClientHandshaker.class);
 
 	// Constructors ///////////////////////////////////////////////////
 

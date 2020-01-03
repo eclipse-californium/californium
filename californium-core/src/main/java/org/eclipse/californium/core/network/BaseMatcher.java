@@ -89,7 +89,7 @@ import org.eclipse.californium.elements.EndpointContext;
  */
 public abstract class BaseMatcher implements Matcher {
 
-	private static final Logger LOG = LoggerFactory.getLogger(BaseMatcher.class.getName());
+	private static final Logger LOG = LoggerFactory.getLogger(BaseMatcher.class);
 	protected final NetworkConfig config;
 	protected final ObservationStore observationStore;
 	protected final MessageExchangeStore exchangeStore;

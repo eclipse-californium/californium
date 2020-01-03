@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
  * Intended to be used for unit tests.
  */
 public final class DebugConnectionStore extends InMemoryConnectionStore {
-	private static final Logger LOG = LoggerFactory.getLogger(DebugConnectionStore.class.getName());
+	private static final Logger LOG = LoggerFactory.getLogger(DebugConnectionStore.class);
 
 	/**
 	 * Creates a store based on given configuration parameters.

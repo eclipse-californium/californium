@@ -50,7 +50,7 @@ import org.slf4j.LoggerFactory;
  */
 public class Feed extends CoapResource {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(Feed.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(Feed.class);
 	/**
 	 * Resource name.
 	 */

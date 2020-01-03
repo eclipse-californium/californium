@@ -104,7 +104,7 @@ public final class HttpTranslator {
 	public static final int STATUS_URI_MALFORMED = HttpStatus.SC_BAD_REQUEST;
 	public static final int STATUS_WRONG_METHOD = HttpStatus.SC_NOT_IMPLEMENTED;
 
-	protected static final Logger LOGGER = LoggerFactory.getLogger(HttpTranslator.class.getName());
+	protected static final Logger LOGGER = LoggerFactory.getLogger(HttpTranslator.class);
 	
 	public HttpTranslator(String mappingPropertiesFileName) {
 		httpTranslationProperties = new MappingProperties(mappingPropertiesFileName);

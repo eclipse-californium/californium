@@ -48,7 +48,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class UDPConnectorTest {
-	public static final Logger LOGGER = LoggerFactory.getLogger(UDPConnectorTest.class.getName());
+	public static final Logger LOGGER = LoggerFactory.getLogger(UDPConnectorTest.class);
 
 	@ClassRule
 	public static NetworkRule network = new NetworkRule(NetworkRule.Mode.DIRECT, NetworkRule.Mode.NATIVE);

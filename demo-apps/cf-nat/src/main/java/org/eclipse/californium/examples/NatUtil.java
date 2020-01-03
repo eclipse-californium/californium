@@ -53,7 +53,7 @@ import org.slf4j.LoggerFactory;
  */
 public class NatUtil implements Runnable {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(NatUtil.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(NatUtil.class);
 	/**
 	 * Supported maximum message size.
 	 */

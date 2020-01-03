@@ -70,7 +70,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class TcpMatcher extends BaseMatcher {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(TcpMatcher.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(TcpMatcher.class);
 	private final RemoveHandler exchangeRemoveHandler = new RemoveHandlerImpl();
 	private final EndpointContextMatcher endpointContextMatcher;
 
