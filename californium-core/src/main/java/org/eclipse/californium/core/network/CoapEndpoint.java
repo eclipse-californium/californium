@@ -741,7 +741,6 @@ public class CoapEndpoint implements Endpoint {
 		URI uri = null;
 		try {
 			InetSocketAddress socketAddress = getAddress();
-			String scheme = CoAP.getSchemeForProtocol(connector.getProtocol());
 			String host = socketAddress.getAddress().getHostAddress();
 			try {
 				uri = new URI(scheme, null, host, socketAddress.getPort(), null, null, null);
