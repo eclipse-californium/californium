@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Health implementation using counter and logging for result.
  */
-public class HealthStatisticLogger implements MessagePostInterceptor {
+public class HealthStatisticLogger extends MessageInterceptorAdapter implements MessageInterceptor2 {
 
 	/** the logger. */
 	private static final Logger LOGGER = LoggerFactory.getLogger(HealthStatisticLogger.class);
@@ -183,7 +183,7 @@ public class HealthStatisticLogger implements MessagePostInterceptor {
 	}
 
 	@Override
-	public void sendRequest(Request request) {
+	public void requestSent(Request request) {
 		if (request.isSent()) {
 			resentRequests.increment();
 		} else {
@@ -192,7 +192,7 @@ public class HealthStatisticLogger implements MessagePostInterceptor {
 	}
 
 	@Override
-	public void sendResponse(Response response) {
+	public void responseSent(Response response) {
 		if (response.isSent()) {
 			resentResponses.increment();
 		} else {
@@ -201,7 +201,7 @@ public class HealthStatisticLogger implements MessagePostInterceptor {
 	}
 
 	@Override
-	public void sendEmptyMessage(EmptyMessage message) {
+	public void emptyMessageSent(EmptyMessage message) {
 		if (message.getType() == CoAP.Type.ACK) {
 			sentAcknowledges.increment();
 		} else {
@@ -210,7 +210,7 @@ public class HealthStatisticLogger implements MessagePostInterceptor {
 	}
 
 	@Override
-	public void receiveRequest(Request request) {
+	public void requestHandled(Request request) {
 		if (request.isDuplicate()) {
 			duplicateRequests.increment();
 		} else {
@@ -219,7 +219,7 @@ public class HealthStatisticLogger implements MessagePostInterceptor {
 	}
 
 	@Override
-	public void receiveResponse(Response response) {
+	public void responseHandled(Response response) {
 		if (response.isDuplicate()) {
 			duplicateResponses.increment();
 		} else {
@@ -228,7 +228,7 @@ public class HealthStatisticLogger implements MessagePostInterceptor {
 	}
 
 	@Override
-	public void receiveEmptyMessage(EmptyMessage message) {
+	public void emptyMessageHandled(EmptyMessage message) {
 		if (message.getType() == CoAP.Type.ACK) {
 			receivedAcknowledges.increment();
 		} else {
@@ -237,7 +237,7 @@ public class HealthStatisticLogger implements MessagePostInterceptor {
 	}
 
 	@Override
-	public void sendError(Message message, Throwable error) {
+	public void failedToSend(Message message, Throwable error) {
 		sendErrors.increment();
 	}
 }

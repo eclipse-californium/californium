@@ -15,12 +15,12 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
-import org.eclipse.californium.core.network.interceptors.MessagePostInterceptor;
+import org.eclipse.californium.core.network.interceptors.MessageInterceptor2;
 
 /**
  * Health interface for {@link CoapEndpoint}
  * 
- * @deprecated use {@link MessagePostInterceptor}
+ * @deprecated use {@link MessageInterceptor2}
  */
 @Deprecated
 public interface CoapEndpointHealth {

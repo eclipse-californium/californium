@@ -103,7 +103,7 @@ import org.eclipse.californium.core.network.EndpointManager.ClientMessageDeliver
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
-import org.eclipse.californium.core.network.interceptors.MessagePostInterceptor;
+import org.eclipse.californium.core.network.interceptors.MessageInterceptor2;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.network.serialization.DataParser;
 import org.eclipse.californium.core.network.serialization.DataSerializer;
@@ -236,7 +236,7 @@ public class CoapEndpoint implements Endpoint {
 	private final String tag;
 
 	/**
-	 * @deprecated use {@link MessagePostInterceptor} instead.
+	 * @deprecated use {@link MessageInterceptor2} instead.
 	 */
 	@Deprecated
 	private final CoapEndpointHealth health;
@@ -255,9 +255,6 @@ public class CoapEndpoint implements Endpoint {
 
 	/** The list of interceptors */
 	private List<MessageInterceptor> interceptors = new CopyOnWriteArrayList<>();
-
-	/** The list of post interceptors */
-	private List<MessagePostInterceptor> postInterceptors = new CopyOnWriteArrayList<>();
 
 	/** The list of Notification listener (use for CoAP observer relations) */
 	private List<NotificationListener> notificationListeners = new CopyOnWriteArrayList<>();
@@ -305,19 +302,19 @@ public class CoapEndpoint implements Endpoint {
 	};
 
 	/**
-	 * @deprecated use {@link MessagePostInterceptor} instead.
+	 * @deprecated use {@link MessageInterceptor2} instead.
 	 */
 	@Deprecated
 	private final MessageObserver requestTransmission;
 
 	/**
-	 * @deprecated use {@link MessagePostInterceptor} instead.
+	 * @deprecated use {@link MessageInterceptor2} instead.
 	 */
 	@Deprecated
 	private final MessageObserver responseTransmission;
 
 	/**
-	 * @deprecated use {@link MessagePostInterceptor} instead.
+	 * @deprecated use {@link MessageInterceptor2} instead.
 	 */
 	@Deprecated
 	private final MessageObserver rejectTransmission;
@@ -354,7 +351,7 @@ public class CoapEndpoint implements Endpoint {
 	 *            multiple arguments are required.
 	 * @throws IllegalArgumentException if applyConfiguration is {@code true},
 	 *             but the connector is not a {@link UDPConnector}
-	 * @deprecated use {@link #addInterceptor(MessageInterceptor)} with an {@link MessagePostInterceptor}.
+	 * @deprecated use {@link #addInterceptor(MessageInterceptor)} with an {@link MessageInterceptor2}.
 	 */
 	@Deprecated
 	protected CoapEndpoint(Connector connector, boolean applyConfiguration, NetworkConfig config,
@@ -675,20 +672,12 @@ public class CoapEndpoint implements Endpoint {
 
 	@Override
 	public void addInterceptor(final MessageInterceptor interceptor) {
-		if (interceptor instanceof MessagePostInterceptor) {
-			postInterceptors.add((MessagePostInterceptor) interceptor);
-		} else {
 			interceptors.add(interceptor);
-		}
 	}
 
 	@Override
 	public void removeInterceptor(final MessageInterceptor interceptor) {
-		if (interceptor instanceof MessagePostInterceptor) {
-			postInterceptors.remove((MessagePostInterceptor) interceptor);
-		} else {
-			interceptors.remove(interceptor);
-		}
+		interceptors.remove(interceptor);
 	}
 
 	@Override
@@ -1084,8 +1073,11 @@ public class CoapEndpoint implements Endpoint {
 			// MessageInterceptor might have canceled
 			if (!request.isCanceled()) {
 				matcher.receiveRequest(request, endpointStackReceiver);
-				for (MessageInterceptor interceptor : postInterceptors) {
-					interceptor.receiveRequest(request);
+				for (MessageInterceptor interceptor : interceptors) {
+					if (interceptor instanceof MessageInterceptor2) {
+						MessageInterceptor2 postInterceptor = (MessageInterceptor2) interceptor;
+						postInterceptor.requestHandled(request);
+					}
 				}
 			}
 		}
@@ -1104,8 +1096,11 @@ public class CoapEndpoint implements Endpoint {
 			// MessageInterceptor might have canceled
 			if (!response.isCanceled()) {
 				matcher.receiveResponse(response, endpointStackReceiver);
-				for (MessageInterceptor interceptor : postInterceptors) {
-					interceptor.receiveResponse(response);
+				for (MessageInterceptor interceptor : interceptors) {
+					if (interceptor instanceof MessageInterceptor2) {
+						MessageInterceptor2 postInterceptor = (MessageInterceptor2) interceptor;
+						postInterceptor.responseHandled(response);
+					}
 				}
 			}
 		}
@@ -1130,8 +1125,11 @@ public class CoapEndpoint implements Endpoint {
 				} else {
 					 matcher.receiveEmptyMessage(message, endpointStackReceiver);
 				}
-				for (MessageInterceptor interceptor : postInterceptors) {
-					interceptor.receiveEmptyMessage(message);
+				for (MessageInterceptor interceptor : interceptors) {
+					if (interceptor instanceof MessageInterceptor2) {
+						MessageInterceptor2 postInterceptor = (MessageInterceptor2) interceptor;
+						postInterceptor.emptyMessageHandled(message);
+					}
 				}
 			}
 		}
@@ -1180,13 +1178,16 @@ public class CoapEndpoint implements Endpoint {
 
 		@Override
 		public void onSent() {
-			for (MessagePostInterceptor interceptor : postInterceptors) {
-				if (message instanceof Request) {
-					interceptor.sendRequest((Request) message);
-				} else if (message instanceof Response) {
-					interceptor.sendResponse((Response) message);
-				} else if (message instanceof EmptyMessage) {
-					interceptor.sendEmptyMessage((EmptyMessage) message);
+			for (MessageInterceptor interceptor : interceptors) {
+				if (interceptor instanceof MessageInterceptor2) {
+					MessageInterceptor2 postInterceptor = (MessageInterceptor2) interceptor;
+					if (message instanceof Request) {
+						postInterceptor.requestSent((Request) message);
+					} else if (message instanceof Response) {
+						postInterceptor.receiveResponse((Response) message);
+					} else if (message instanceof EmptyMessage) {
+						postInterceptor.emptyMessageSent((EmptyMessage) message);
+					}
 				}
 			}
 			message.setSent(true);
@@ -1195,8 +1196,10 @@ public class CoapEndpoint implements Endpoint {
 		@Override
 		public void onError(Throwable error) {
 			message.setSendError(error);
-			for (MessagePostInterceptor interceptor : postInterceptors) {
-				interceptor.sendError(message, error);
+			for (MessageInterceptor interceptor : interceptors) {
+				if (interceptor instanceof MessageInterceptor2) {
+					((MessageInterceptor2) interceptor).failedToSend(message, error);
+				}
 			}
 		}
 
