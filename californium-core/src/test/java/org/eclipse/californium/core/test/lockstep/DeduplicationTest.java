@@ -26,7 +26,9 @@ import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.CoAP.Type.ACK;
 import static org.eclipse.californium.core.coap.CoAP.Type.CON;
 import static org.eclipse.californium.core.coap.CoAP.Type.RST;
+import static org.eclipse.californium.core.test.MessageExchangeStoreTool.assertAllExchangesAreCompleted;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
+import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
 
 import java.util.concurrent.TimeUnit;
@@ -39,6 +41,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.network.stack.ReliabilityLayerParameters;
 import org.eclipse.californium.core.network.stack.ReliabilityLayerParameters.Builder;
@@ -46,6 +49,7 @@ import org.eclipse.californium.core.test.MessageExchangeStoreTool.UDPTestConnect
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -72,27 +76,34 @@ public class DeduplicationTest {
 
 	private Endpoint client;
 	private UDPTestConnector clientConnector;
+	private ClientBlockwiseInterceptor clientInterceptor = new ClientBlockwiseInterceptor();
+	private HealthStatisticLogger health = new HealthStatisticLogger("client", true);
 
 	@Before
 	public void setup() throws Exception {
 		NetworkConfig config = network.createTestConfig().setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 128)
-				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 128).setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200) // client
-																													// retransmits
-																													// after
-																													// 200
-																													// ms
+				// client retransmits after 200 ms
+				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 128).setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200)
 				.setInt(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1);
 		clientConnector = new UDPTestConnector(TestTools.LOCALHOST_EPHEMERAL);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setConnector(clientConnector);
 		builder.setNetworkConfig(config);
-		client = builder.build();
+		CoapEndpoint coapEndpoint = builder.build();
+		coapEndpoint.addInterceptor(clientInterceptor);
+		coapEndpoint.addPostProcessInterceptor(health);
+		client = coapEndpoint;
 		cleanup.add(client);
 		client.addInterceptor(new MessageTracer());
 		client.start();
 		server = createLockstepEndpoint(client.getAddress());
 		cleanup.add(server);
 		System.out.println("Client binds to port " + client.getAddress().getPort());
+	}
+
+	@After
+	public void printLogs() {
+		printServerLog(clientInterceptor);
 	}
 
 	@Test
@@ -115,6 +126,16 @@ public class DeduplicationTest {
 		server.sendResponse(CON, CONTENT).loadToken("A").mid(42).payload("separate").go();
 		server.expectEmpty(RST, 42).go();
 
+		assertThat(health.getCounter("send-requests"), is(1L));
+		assertThat(health.getCounter("send-acks"), is(2L));
+		assertThat(health.getCounter("send-rejects"), is(1L));
+		assertThat(health.getCounter("send-errors"), is(0L));
+		assertThat(health.getCounter("recv-responses"), is(1L));
+		assertThat(health.getCounter("recv-duplicate responses"), is(1L));
+		assertThat(health.getCounter("recv-acks"), is(1L));
+		assertThat(health.getCounter("recv-ignored"), is(2L));
+		health.reset();
+
 		request = createRequest(GET, path, server);
 		request.setMID(4711);
 		client.sendRequest(request);
@@ -128,6 +149,15 @@ public class DeduplicationTest {
 
 		response = request.waitForResponse(500);
 		assertNull("Client received duplicate", response);
+
+		assertThat(health.getCounter("send-requests"), is(1L));
+		assertThat(health.getCounter("send-acks"), is(0L));
+		assertThat(health.getCounter("send-rejects"), is(0L));
+		assertThat(health.getCounter("send-errors"), is(0L));
+		assertThat(health.getCounter("recv-responses"), is(1L));
+		assertThat(health.getCounter("recv-acks"), is(0L));
+		assertThat(health.getCounter("recv-ignored"), is(1L));
+		health.reset();
 	}
 
 	@Test
@@ -150,6 +180,13 @@ public class DeduplicationTest {
 		Message message = server.receiveNextMessage(1000, TimeUnit.MILLISECONDS);
 		assertNull("received unexpected message", message);
 
+		assertThat(health.getCounter("send-requests"), is(1L));
+		assertThat(health.getCounter("send-request retransmissions"), is(2L));
+		assertThat(health.getCounter("send-errors"), is(0L));
+		assertThat(health.getCounter("recv-responses"), is(0L));
+		assertThat(health.getCounter("recv-ignored"), is(0L));
+		health.reset();
+
 		builder.maxRetransmit(1);
 		request = createRequest(GET, path, server);
 		request.setReliabilityLayerParameters(builder.build());
@@ -159,12 +196,19 @@ public class DeduplicationTest {
 		server.expectRequest(CON, GET, path).sameBoth("B").go();
 		message = server.receiveNextMessage(1000, TimeUnit.MILLISECONDS);
 		assertNull("received unexpected message", message);
+
+		assertThat(health.getCounter("send-requests"), is(1L));
+		assertThat(health.getCounter("send-request retransmissions"), is(1L));
+		assertThat(health.getCounter("send-errors"), is(0L));
+		assertThat(health.getCounter("recv-responses"), is(0L));
+		assertThat(health.getCounter("recv-ignored"), is(0L));
+		health.reset();
 	}
 
 	@Test
 	public void testGETSendError() throws Exception {
 		clientConnector.setDrops(0);
-		System.out.println("Simple GET:");
+		System.out.println("Simple GET (send error):");
 		String path = "test";
 
 		Request request = createRequest(GET, path, server);
@@ -172,6 +216,12 @@ public class DeduplicationTest {
 		client.sendRequest(request);
 
 		Response response = request.waitForResponse(500);
-		assertNull("Client received duplicate", response);
+		assertNull("Client received unexpected response", response);
+
+		assertThat(health.getCounter("send-requests"), is(0L));
+		assertThat(health.getCounter("send-request retransmissions"), is(0L));
+		assertThat(health.getCounter("send-errors"), is(1L));
+		assertThat(health.getCounter("recv-responses"), is(0L));
+		assertThat(health.getCounter("recv-ignored"), is(0L));
 	}
 }

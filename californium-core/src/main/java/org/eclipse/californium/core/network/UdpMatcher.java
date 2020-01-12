@@ -299,6 +299,7 @@ public final class UdpMatcher extends BaseMatcher {
 							if (prev.getCurrentRequest().isMulticast()) {
 								LOGGER.debug("Ignore delayed response {} to multicast request {}", response,
 										prev.getCurrentRequest().getDestinationContext().getPeerAddress());
+								cancel(response, receiver);
 								return;
 							}
 
@@ -326,6 +327,7 @@ public final class UdpMatcher extends BaseMatcher {
 			} else {
 				LOGGER.trace("discarding unmatchable piggy-backed response from [{}]: {}", response.getSourceContext(),
 						response);
+				cancel(response, receiver);
 			}
 			return;
 		}
@@ -340,12 +342,14 @@ public final class UdpMatcher extends BaseMatcher {
 					if (running) {
 						LOGGER.debug("ignoring response {}, exchange not longer matching!", response);
 					}
+					cancel(response, receiver);
 					return;
 				}
 
 				EndpointContext context = exchange.getEndpointContext();
 				if (context == null) {
 					LOGGER.debug("ignoring response {}, request pending to sent!", response);
+					cancel(response, receiver);
 					return;
 				}
 
@@ -365,6 +369,7 @@ public final class UdpMatcher extends BaseMatcher {
 								LOGGER.debug(
 										"ignoring response of type {} for multicast request with token [{}], from {}",
 										response.getType(), response.getTokenString(), response.getSourceContext().getPeerAddress());
+								cancel(response, receiver);
 								return;
 							}
 						} else if (type == Type.ACK && requestMid != response.getMID()) {
@@ -380,6 +385,7 @@ public final class UdpMatcher extends BaseMatcher {
 							// too early. Therefore don't return a exchange when the MID
 							// doesn't match.
 							// See issue #275
+							cancel(response, receiver);
 							return;
 						}
 						if (type != Type.ACK && !exchange.isNotification() && !currentRequest.isMulticast()
@@ -387,6 +393,7 @@ public final class UdpMatcher extends BaseMatcher {
 							// overlapping notification for observation cancel
 							// request
 							LOGGER.debug("ignoring notify for pending cancel {}!", response);
+							cancel(response, receiver);
 							return;
 						}
 						// we have received a Response matching the token of an ongoing
@@ -431,6 +438,7 @@ public final class UdpMatcher extends BaseMatcher {
 
 		if (exchange == null) {
 			LOGGER.debug("ignoring unmatchable empty message from {}: {}", message.getSourceContext(), message);
+			cancel(message, receiver);
 			return;
 		}
 
@@ -440,12 +448,14 @@ public final class UdpMatcher extends BaseMatcher {
 			public void run() {
 				if (exchange.getCurrentRequest().isMulticast()) {
 					LOGGER.debug("ignoring {} message for multicast request {}", message.getType(), idByMID);
+					cancel(message, receiver);
 					return;
 				}
 				if (exchangeStore.get(idByMID) != exchange) {
 					if (running) {
 						LOGGER.debug("ignoring ack/rst {}, not longer matching!", message);
 					}
+					cancel(message, receiver);
 					return;
 				}
 				try {
@@ -454,6 +464,7 @@ public final class UdpMatcher extends BaseMatcher {
 						exchangeStore.remove(idByMID, exchange);
 						LOGGER.debug("received expected reply for message {}", idByMID);
 						receiver.receiveEmptyMessage(exchange, message);
+						return;
 					} else {
 						LOGGER.debug(
 								"ignoring potentially forged reply for message {} with non-matching endpoint context",
@@ -462,6 +473,7 @@ public final class UdpMatcher extends BaseMatcher {
 				} catch (RuntimeException ex) {
 					LOGGER.warn("error receiving empty message {} for {}", message, exchange, ex);
 				}
+				cancel(message, receiver);
 			}
 		});
 	}
@@ -473,6 +485,17 @@ public final class UdpMatcher extends BaseMatcher {
 			LOGGER.debug("rejecting response from {}", response.getSourceContext());
 			receiver.reject(response);
 		}
+		cancel(response, receiver);
+	}
+
+	private void cancel(Response response, EndpointReceiver receiver) {
+		response.setCanceled(true);
+		receiver.receiveResponse(null, response);
+	}
+
+	private void cancel(EmptyMessage message, EndpointReceiver receiver) {
+		message.setCanceled(true);
+		receiver.receiveEmptyMessage(null, message);
 	}
 
 	private class RemoveHandlerImpl implements RemoveHandler {

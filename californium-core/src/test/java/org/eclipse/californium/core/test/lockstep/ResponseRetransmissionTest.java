@@ -21,7 +21,9 @@ import static org.eclipse.californium.core.coap.CoAP.Type.ACK;
 import static org.eclipse.californium.core.coap.CoAP.Type.CON;
 import static org.eclipse.californium.core.test.MessageExchangeStoreTool.assertAllExchangesAreCompleted;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
 
 import java.util.concurrent.TimeUnit;
 
@@ -31,6 +33,7 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.UDPTestConnector;
@@ -51,6 +54,7 @@ import org.junit.experimental.categories.Category;
 @Category(Medium.class)
 public class ResponseRetransmissionTest {
 
+	private static final String PIGGYBACKED = "ack";
 	private static final String SEPARATE = "con";
 	private static final int TEST_EXCHANGE_LIFETIME = 247; // milliseconds
 	private static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 100; // milliseconds
@@ -76,6 +80,7 @@ public class ResponseRetransmissionTest {
 	private CoapTestEndpoint serverEndpoint;
 	private UDPTestConnector serverConnector;
 	private ServerBlockwiseInterceptor serverInterceptor = new ServerBlockwiseInterceptor();
+	private HealthStatisticLogger health = new HealthStatisticLogger("server", true);
 
 	@Before
 	public void setup() throws Exception {
@@ -88,9 +93,11 @@ public class ResponseRetransmissionTest {
 		serverConnector = new UDPTestConnector(TestTools.LOCALHOST_EPHEMERAL);
 		serverEndpoint = new CoapTestEndpoint(serverConnector, config, false);
 		serverEndpoint.addInterceptor(serverInterceptor);
+		serverEndpoint.addPostProcessInterceptor(health);
 		server = new CoapServer(config);
 		server.addEndpoint(serverEndpoint);
 		server.add(new TestResource(SEPARATE, true));
+		server.add(new TestResource(PIGGYBACKED, false));
 		server.start();
 		cleanup.add(server);
 
@@ -119,6 +126,75 @@ public class ResponseRetransmissionTest {
 		client.goMultiExpectation();
 
 		client.sendEmpty(ACK).loadMID("M").go();
+
+		assertAllExchangesAreCompleted(serverEndpoint, time);
+
+		assertThat(health.getCounter("send-responses"), is(1L));
+		assertThat(health.getCounter("send-response retransmissions"), is(0L));
+		assertThat(health.getCounter("send-acks"), is(1L));
+		assertThat(health.getCounter("send-rejects"), is(0L));
+		assertThat(health.getCounter("send-errors"), is(0L));
+		assertThat(health.getCounter("recv-requests"), is(1L));
+		assertThat(health.getCounter("recv-duplicate requests"), is(0L));
+		assertThat(health.getCounter("recv-acks"), is(1L));
+		assertThat(health.getCounter("recv-rejects"), is(0L));
+		assertThat(health.getCounter("recv-ignored"), is(0L));
+	}
+
+	@Test
+	public void testGETRequestRetransmittedConResponse() throws Exception {
+		Token tok = generateNextToken();
+
+		client.sendRequest(CON, GET, tok, ++mid).path(SEPARATE).go();
+		client.startMultiExpectation();
+		client.expectEmpty(ACK, mid).go();
+		client.expectResponse().type(CON).code(CONTENT).token(tok).storeMID("M").go();
+		client.goMultiExpectation();
+
+		client.sendRequest(CON, GET, tok, mid).path(SEPARATE).go();
+		client.startMultiExpectation();
+		client.expectEmpty(ACK, mid).go();
+		client.expectResponse().type(CON).code(CONTENT).token(tok).sameMID("M").go();
+		client.goMultiExpectation();
+
+		client.sendEmpty(ACK).loadMID("M").go();
+
+		assertAllExchangesAreCompleted(serverEndpoint, time);
+
+		assertThat(health.getCounter("send-responses"), is(1L));
+		assertThat(health.getCounter("send-response retransmissions"), is(1L));
+		assertThat(health.getCounter("send-acks"), is(2L));
+		assertThat(health.getCounter("send-rejects"), is(0L));
+		assertThat(health.getCounter("send-errors"), is(0L));
+		assertThat(health.getCounter("recv-requests"), is(1L));
+		assertThat(health.getCounter("recv-duplicate requests"), is(1L));
+		assertThat(health.getCounter("recv-acks"), is(1L));
+		assertThat(health.getCounter("recv-rejects"), is(0L));
+		assertThat(health.getCounter("recv-ignored"), is(0L));
+	}
+
+	@Test
+	public void testGETRequestRetransmittedAckResponse() throws Exception {
+		Token tok = generateNextToken();
+
+		client.sendRequest(CON, GET, tok, ++mid).path(PIGGYBACKED).go();
+		client.expectResponse().type(ACK).code(CONTENT).token(tok).mid(mid).go();
+
+		client.sendRequest(CON, GET, tok, mid).path(PIGGYBACKED).go();
+		client.expectResponse().type(ACK).code(CONTENT).token(tok).mid(mid).go();
+
+		assertAllExchangesAreCompleted(serverEndpoint, time);
+
+		assertThat(health.getCounter("send-responses"), is(1L));
+		assertThat(health.getCounter("send-response retransmissions"), is(1L));
+		assertThat(health.getCounter("send-acks"), is(0L));
+		assertThat(health.getCounter("send-rejects"), is(0L));
+		assertThat(health.getCounter("send-errors"), is(0L));
+		assertThat(health.getCounter("recv-requests"), is(1L));
+		assertThat(health.getCounter("recv-duplicate requests"), is(1L));
+		assertThat(health.getCounter("recv-acks"), is(0L));
+		assertThat(health.getCounter("recv-rejects"), is(0L));
+		assertThat(health.getCounter("recv-ignored"), is(0L));
 	}
 
 	@Test
@@ -134,6 +210,19 @@ public class ResponseRetransmissionTest {
 		client.expectResponse().type(CON).code(CONTENT).token(tok).sameMID("M").go();
 
 		client.sendEmpty(ACK).loadMID("M").go();
+
+		assertAllExchangesAreCompleted(serverEndpoint, time);
+
+		assertThat(health.getCounter("send-responses"), is(1L));
+		assertThat(health.getCounter("send-response retransmissions"), is(1L));
+		assertThat(health.getCounter("send-acks"), is(1L));
+		assertThat(health.getCounter("send-rejects"), is(0L));
+		assertThat(health.getCounter("send-errors"), is(0L));
+		assertThat(health.getCounter("recv-requests"), is(1L));
+		assertThat(health.getCounter("recv-duplicate requests"), is(0L));
+		assertThat(health.getCounter("recv-acks"), is(1L));
+		assertThat(health.getCounter("recv-rejects"), is(0L));
+		assertThat(health.getCounter("recv-ignored"), is(0L));
 	}
 
 	@Test
@@ -148,6 +237,18 @@ public class ResponseRetransmissionTest {
 
 		client.expectResponse().type(CON).code(CONTENT).token(tok).sameMID("M").go();
 		assertNull(client.receiveNextMessage(TEST_ACK_TIMEOUT * 2, TimeUnit.MILLISECONDS));
+
+		assertAllExchangesAreCompleted(serverEndpoint, time);
+		assertThat(health.getCounter("send-responses"), is(1L));
+		assertThat(health.getCounter("send-response retransmissions"), is(1L));
+		assertThat(health.getCounter("send-acks"), is(1L));
+		assertThat(health.getCounter("send-rejects"), is(0L));
+		assertThat(health.getCounter("send-errors"), is(0L));
+		assertThat(health.getCounter("recv-requests"), is(1L));
+		assertThat(health.getCounter("recv-duplicate requests"), is(0L));
+		assertThat(health.getCounter("recv-acks"), is(0L));
+		assertThat(health.getCounter("recv-rejects"), is(0L));
+		assertThat(health.getCounter("recv-ignored"), is(0L));
 	}
 
 	@Test
@@ -159,6 +260,18 @@ public class ResponseRetransmissionTest {
 		client.sendRequest(CON, GET, tok, ++mid).path(SEPARATE).go();
 		client.expectEmpty(ACK, mid).go();
 		assertNull(client.receiveNextMessage(TEST_ACK_TIMEOUT * 2, TimeUnit.MILLISECONDS));
+
+		assertAllExchangesAreCompleted(serverEndpoint, time);
+		assertThat(health.getCounter("send-responses"), is(0L));
+		assertThat(health.getCounter("send-response retransmissions"), is(0L));
+		assertThat(health.getCounter("send-acks"), is(1L));
+		assertThat(health.getCounter("send-rejects"), is(0L));
+		assertThat(health.getCounter("send-errors"), is(1L));
+		assertThat(health.getCounter("recv-requests"), is(1L));
+		assertThat(health.getCounter("recv-duplicate requests"), is(0L));
+		assertThat(health.getCounter("recv-acks"), is(0L));
+		assertThat(health.getCounter("recv-rejects"), is(0L));
+		assertThat(health.getCounter("recv-ignored"), is(0L));
 	}
 
 	private class TestResource extends CoapResource {

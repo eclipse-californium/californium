@@ -15,6 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
+import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.elements.util.SimpleCounterStatistic;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
@@ -22,7 +23,10 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Health implementation using counter and logging for result.
+ * 
+ * @deprecated use {@link HealthStatisticLogger}
  */
+@Deprecated
 public class CoapEndpointHealthLogger implements CoapEndpointHealth {
 
 	/** the logger. */
