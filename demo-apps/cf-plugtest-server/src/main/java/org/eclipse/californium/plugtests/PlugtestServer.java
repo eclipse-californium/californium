@@ -26,14 +26,20 @@ import java.net.SocketException;
 import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.Endpoint;
+import org.eclipse.californium.core.network.EndpointObserver;
+import org.eclipse.californium.core.network.MessagePostProcessInterceptors;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.core.network.interceptors.AnonymizedOriginTracer;
+import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.plugtests.resources.Create;
 import org.eclipse.californium.plugtests.resources.DefaultTest;
 import org.eclipse.californium.plugtests.resources.Large;
@@ -99,8 +105,8 @@ public class PlugtestServer extends AbstractTestServer {
 		System.out.println("Usage: " + PlugtestServer.class.getSimpleName() + " [-noLoopback]");
 		System.out.println("  -noLoopback : no endpoints for loopback/localhost interfaces");
 		start(args);
-	}	
-	
+	}
+
 	public static void start(String[] args) {
 		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 
@@ -117,12 +123,40 @@ public class PlugtestServer extends AbstractTestServer {
 			server.addEndpoints(null, types, Arrays.asList(Protocol.UDP, Protocol.DTLS, Protocol.TCP, Protocol.TLS));
 			server.start();
 
+			ScheduledThreadPoolExecutor executor = ExecutorsUtil.newDefaultSecondaryScheduler("Health#");
+
 			// add special interceptor for message traces
 			for (Endpoint ep : server.getEndpoints()) {
 				URI uri = ep.getUri();
 				ep.addInterceptor(new MessageTracer());
 				// Anonymized IoT metrics for validation. On success, remove the OriginTracer.
 				ep.addInterceptor(new AnonymizedOriginTracer(uri.getPort() + "-" + uri.getScheme()));
+				if (ep instanceof MessagePostProcessInterceptors) {
+					int interval = ep.getConfig().getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL);
+					final HealthStatisticLogger healthLogger = new HealthStatisticLogger(uri.getScheme(),
+							!CoAP.isTcpScheme(uri.getScheme()), interval, executor);
+					if (healthLogger.isEnabled()) {
+						((MessagePostProcessInterceptors) ep).addPostProcessInterceptor(healthLogger);
+						ep.addObserver(new EndpointObserver() {
+
+							@Override
+							public void stopped(Endpoint endpoint) {
+								healthLogger.stop();
+							}
+
+							@Override
+							public void started(Endpoint endpoint) {
+								healthLogger.start();
+							}
+
+							@Override
+							public void destroyed(Endpoint endpoint) {
+								healthLogger.stop();
+							}
+						});
+						healthLogger.start();
+					}
+				}
 			}
 
 			System.out.println(PlugtestServer.class.getSimpleName() + " started ...");
@@ -139,7 +173,7 @@ public class PlugtestServer extends AbstractTestServer {
 
 	public PlugtestServer(NetworkConfig config) throws SocketException {
 		super(config, null);
-		
+
 		// add resources to the server
 		add(new DefaultTest());
 		add(new LongPath());
