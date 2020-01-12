@@ -42,7 +42,9 @@ public class SimpleCounterStatistic {
 	 */
 	private final AtomicLong currentCounter = new AtomicLong();
 	/**
-	 * Overall counter. Accumulates the transferred current counters.
+	 * Overall counter. Accumulates the transferred current counters. Note:
+	 * accessing both counter requires additional synchronisation using this
+	 * counter!
 	 */
 	private final AtomicLong overallCounter = new AtomicLong();
 
@@ -91,8 +93,12 @@ public class SimpleCounterStatistic {
 	 * @return statistic as text.
 	 */
 	public String dump(int align) {
-		long current = currentCounter.getAndSet(0);
-		long overall = overallCounter.addAndGet(current);
+		long current;
+		long overall;
+		synchronized (overallCounter) {
+			current = currentCounter.getAndSet(0);
+			overall = overallCounter.addAndGet(current);
+		}
 		return format(align, name, current) + String.format(" (%8d overall).", overall);
 	}
 
@@ -125,23 +131,38 @@ public class SimpleCounterStatistic {
 	}
 
 	/**
+	 * Get counter value.
+	 * 
+	 * @return counter value
+	 */
+	public long getCounter() {
+		synchronized (overallCounter) {
+			return overallCounter.get() + currentCounter.get();
+		}
+	}
+
+	/**
 	 * Rest counters.
 	 * 
 	 * @return reseted values of current and overall counter.
 	 */
 	public long reset() {
-		long current = currentCounter.getAndSet(0);
-		overallCounter.addAndGet(current);
-		return overallCounter.getAndSet(0);
+		synchronized (overallCounter) {
+			long current = currentCounter.getAndSet(0);
+			overallCounter.addAndGet(current);
+			return overallCounter.getAndSet(0);
+		}
 	}
 
 	/**
 	 * Check, if statistic is used.
 	 * 
-	 * @return {@code true}, if at lease one counter is larger thant 0.
+	 * @return {@code true}, if at least one counter is larger than 0.
 	 */
 	public boolean isUsed() {
-		return currentCounter.get() > 0 || overallCounter.get() > 0;
+		synchronized (overallCounter) {
+			return currentCounter.get() > 0 || overallCounter.get() > 0;
+		}
 	}
 
 	@Override

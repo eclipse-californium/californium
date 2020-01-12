@@ -555,6 +555,18 @@
 								</classes-->
 							</filter>
 						</revapi.java>
+						<revapi.ignore>
+							<item>
+								<regex>true</regex>
+								<code>java\.class\.externalClassExposedInAPI</code>
+								<package>org\.eclipse\.californium\..*</package>
+								<justification>
+									Californium uses classes of other californium modules very
+									frequently in the APIs. It's considered, that always all
+									used californium modules must have the same version!
+								</justification>
+							</item>
+						</revapi.ignore>
 					</analysisConfiguration>
 					<failOnMissingConfigurationFiles>false</failOnMissingConfigurationFiles>
 					<analysisConfigurationFiles>
