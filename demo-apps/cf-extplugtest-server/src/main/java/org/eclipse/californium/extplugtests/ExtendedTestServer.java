@@ -35,11 +35,15 @@ import org.eclipse.californium.elements.util.ExecutorsUtil;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.Endpoint;
+import org.eclipse.californium.core.network.EndpointObserver;
+import org.eclipse.californium.core.network.MessagePostProcessInterceptors;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.core.network.interceptors.AnonymizedOriginTracer;
+import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.extplugtests.resources.Benchmark;
@@ -141,9 +145,9 @@ public class ExtendedTestServer extends AbstractTestServer {
 			ScheduledExecutorService executor = ExecutorsUtil.newScheduledThreadPool(//
 					config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT), //
 					new NamedThreadFactory("CoapServer(main)#")); //$NON-NLS-1$
-
+			ScheduledExecutorService secondaryExecutor = ExecutorsUtil.newDefaultSecondaryScheduler("CoapServer(secondary)#");
 			ExtendedTestServer server = new ExtendedTestServer(config, protocolConfig, noBenchmark);
-			server.setExecutors(executor, ExecutorsUtil.newDefaultSecondaryScheduler("CoapServer(secondary)#"), false);
+			server.setExecutors(executor, secondaryExecutor, false);
 			server.add(new ReverseRequest(config, executor));
 			ReverseObserve reverseObserver = new ReverseObserve(config, executor);
 			server.add(reverseObserver);
@@ -155,11 +159,37 @@ public class ExtendedTestServer extends AbstractTestServer {
 
 			// add special interceptor for message traces
 			for (Endpoint ep : server.getEndpoints()) {
+				URI uri = ep.getUri();
 				if (noBenchmark) {
-					// Anonymized IoT metrics for validation. On success, remove the OriginTracer. 
-					URI uri = ep.getUri();
+					// Anonymized IoT metrics for validation.
 					ep.addInterceptor(new AnonymizedOriginTracer(uri.getPort() + "-" + uri.getScheme()));
 					ep.addInterceptor(new MessageTracer());
+				}
+				if (ep instanceof MessagePostProcessInterceptors) {
+					int interval = ep.getConfig().getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL);
+					final HealthStatisticLogger healthLogger = new HealthStatisticLogger(uri.getScheme(),
+							!CoAP.isTcpScheme(uri.getScheme()), interval, executor);
+					if (healthLogger.isEnabled()) {
+						((MessagePostProcessInterceptors) ep).addPostProcessInterceptor(healthLogger);
+						ep.addObserver(new EndpointObserver() {
+
+							@Override
+							public void stopped(Endpoint endpoint) {
+								healthLogger.stop();
+							}
+
+							@Override
+							public void started(Endpoint endpoint) {
+								healthLogger.start();
+							}
+
+							@Override
+							public void destroyed(Endpoint endpoint) {
+								healthLogger.stop();
+							}
+						});
+						healthLogger.start();
+					}
 				}
 			}
 

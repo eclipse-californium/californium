@@ -59,6 +59,7 @@ import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
+import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.server.resources.Resource;
@@ -484,7 +485,7 @@ public class BenchmarkClient {
 			if (response != null) {
 				if (response.isSuccess()) {
 					if (LOGGER.isInfoEnabled()) {
-						LOGGER.info("Received response: {}", Utils.prettyPrint(response));
+						LOGGER.info("Received response:{}{}", StringUtil.lineSeparator(), Utils.prettyPrint(response));
 					}
 					clientCounter.incrementAndGet();
 					checkReady(true, true);
@@ -714,6 +715,7 @@ public class BenchmarkClient {
 		// Create & start clients
 		final AtomicBoolean errors = new AtomicBoolean();
 		final NetworkConfig config = effectiveConfig;
+		final HealthStatisticLogger health = new HealthStatisticLogger(uri.getScheme(), !CoAP.isTcpScheme(uri.getScheme()));
 		final int min = intervalMin;
 		final int max = intervalMin;
 		for (int index = 0; index < clients; ++index) {
@@ -752,6 +754,9 @@ public class BenchmarkClient {
 						}
 					}
 					CoapEndpoint coapEndpoint = ClientInitializer.createEndpoint(config, connectionArgs, connectorExecutor, true);
+					if (health.isEnabled()) {
+						coapEndpoint.addPostProcessInterceptor(health);
+					}
 					BenchmarkClient client = new BenchmarkClient(currentIndex, min, max, uri,
 							coapEndpoint, connectorExecutor, secondaryExecutor);
 					clientList.add(client);
@@ -934,6 +939,7 @@ public class BenchmarkClient {
 			statisticsLogger.info("Stale at {} messages ({}%)", overallSentRequests,
 					(overallSentRequests * 100L) / overallRequests);
 		}
+		health.dump();
 
 		if (1 < clients) {
 			Arrays.sort(statistic);
