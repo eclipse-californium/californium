@@ -960,7 +960,9 @@ public abstract class Message {
 
 	/**
 	 * Checks if this message is a duplicate.
-	 *
+	 * 
+	 * Since 2.1 this also reflects, if the message is resent.
+	 * 
 	 * @return true, if is a duplicate
 	 */
 	public boolean isDuplicate() {

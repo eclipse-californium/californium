@@ -171,6 +171,7 @@ public final class TcpMatcher extends BaseMatcher {
 		if (tempExchange == null) {
 			// There is no exchange with the given token - ignore response
 			LOGGER.trace("discarding unmatchable response from [{}]: {}", response.getSourceContext(), response);
+			cancel(response, receiver);
 			return;
 		}
 
@@ -184,6 +185,7 @@ public final class TcpMatcher extends BaseMatcher {
 					if (running) {
 						LOGGER.debug("ignoring response {}, exchange not longer matching!", response);
 					}
+					cancel(response, receiver);
 					return;
 				}
 
@@ -192,6 +194,7 @@ public final class TcpMatcher extends BaseMatcher {
 					// ignore response
 					LOGGER.error("ignoring response from [{}]: {}, request pending to sent!",
 							response.getSourceContext(), response);
+					cancel(response, receiver);
 					return;
 				}
 				try {
@@ -202,9 +205,11 @@ public final class TcpMatcher extends BaseMatcher {
 							// overlapping notification for observation cancel
 							// request
 							LOGGER.debug("ignoring notify for pending cancel {}!", response);
+							cancel(response, receiver);
 							return;
 						}
 						receiver.receiveResponse(exchange, response);
+						return;
 					} else if (LOGGER.isDebugEnabled()) {
 						LOGGER.debug(
 								"ignoring potentially forged response from [{}]: {} for {} with non-matching endpoint context",
@@ -214,6 +219,7 @@ public final class TcpMatcher extends BaseMatcher {
 					LOGGER.error("error receiving response from [{}]: {} for {}", response.getSourceContext(), response,
 							exchange, ex);
 				}
+				cancel(response, receiver);
 			}
 		});
 	}
@@ -221,6 +227,11 @@ public final class TcpMatcher extends BaseMatcher {
 	@Override
 	public void receiveEmptyMessage(final EmptyMessage message, EndpointReceiver receiver) {
 		/* ignore received empty messages via tcp */
+	}
+
+	private void cancel(Response response, EndpointReceiver receiver) {
+		response.setCanceled(true);
+		receiver.receiveResponse(null, response);
 	}
 
 	private class RemoveHandlerImpl implements RemoveHandler {

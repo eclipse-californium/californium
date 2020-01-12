@@ -150,8 +150,9 @@ import org.slf4j.LoggerFactory;
  * layer to layer. An {@link Exchange} represents the known state about the
  * exchange between a request and one or more corresponding responses. The
  * matcher remembers outgoing messages and matches incoming responses, acks and
- * rsts to them. MessageInterceptors receive every incoming and outgoing
- * message. By default, only one interceptor is used to log messages.
+ * rsts to them. MessageInterceptors registered with
+ * {@link #addInterceptor(MessageInterceptor)} receive every incoming and
+ * outgoing message. By default, only one interceptor is used to log messages.
  * 
  * <pre>
  * +-----------------------+
@@ -191,7 +192,7 @@ import org.slf4j.LoggerFactory;
  * The endpoint and its layers use an {@link ScheduledExecutorService} to
  * execute tasks, e.g., when a request arrives.
  */
-public class CoapEndpoint implements Endpoint {
+public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors {
 
 	/** the logger. */
 	private static final Logger LOGGER = LoggerFactory.getLogger(CoapEndpoint.class);
@@ -233,7 +234,13 @@ public class CoapEndpoint implements Endpoint {
 
 	/** tag for logging */
 	private final String tag;
-	
+
+	/**
+	 * @deprecated use {@link MessageInterceptor} registered with
+	 *             {@link #addPostProcessInterceptor(MessageInterceptor)}
+	 *             instead.
+	 */
+	@Deprecated
 	private final CoapEndpointHealth health;
 
 	/** The executor to run tasks for this endpoint and its layers */
@@ -251,6 +258,9 @@ public class CoapEndpoint implements Endpoint {
 	/** The list of interceptors */
 	private List<MessageInterceptor> interceptors = new CopyOnWriteArrayList<>();
 
+	/** The list of post process interceptors */
+	private List<MessageInterceptor> postProcessInterceptors = new CopyOnWriteArrayList<>();
+
 	/** The list of Notification listener (use for CoAP observer relations) */
 	private List<NotificationListener> notificationListeners = new CopyOnWriteArrayList<>();
 
@@ -265,25 +275,32 @@ public class CoapEndpoint implements Endpoint {
 				health.receivedRequest(request.isDuplicate());
 			}
 			coapstack.receiveRequest(exchange, request);
+			notifyReceive(postProcessInterceptors, request);
 		}
 
 		@Override
 		public void receiveResponse(Exchange exchange, Response response) {
-			exchange.setEndpoint(CoapEndpoint.this);
-			response.setRTT(exchange.calculateRTT());
-			if (health != null) {
-				health.receivedResponse(response.isDuplicate());
+			if (exchange != null && !response.isCanceled()) {
+				exchange.setEndpoint(CoapEndpoint.this);
+				response.setRTT(exchange.calculateRTT());
+				if (health != null) {
+					health.receivedResponse(response.isDuplicate());
+				}
+				coapstack.receiveResponse(exchange, response);
 			}
-			coapstack.receiveResponse(exchange, response);
+			notifyReceive(postProcessInterceptors, response);
 		}
 
 		@Override
 		public void receiveEmptyMessage(Exchange exchange, EmptyMessage message) {
-			exchange.setEndpoint(CoapEndpoint.this);
-			if (health != null && message.getType() == Type.RST) {
-				health.receivedReject();
+			if (exchange != null && !message.isCanceled()) {
+				exchange.setEndpoint(CoapEndpoint.this);
+				if (health != null && message.getType() == Type.RST) {
+					health.receivedReject();
+				}
+				coapstack.receiveEmptyMessage(exchange, message);
 			}
-			coapstack.receiveEmptyMessage(exchange, message);
+			notifyReceive(postProcessInterceptors, message);
 		}
 
 		@Override
@@ -296,10 +313,28 @@ public class CoapEndpoint implements Endpoint {
 		}
 	};
 
+	/**
+	 * @deprecated use {@link MessageInterceptor} registered with
+	 *             {@link #addPostProcessInterceptor(MessageInterceptor)}
+	 *             instead.
+	 */
+	@Deprecated
 	private final MessageObserver requestTransmission;
 
+	/**
+	 * @deprecated use {@link MessageInterceptor} registered with
+	 *             {@link #addPostProcessInterceptor(MessageInterceptor)}
+	 *             instead.
+	 */
+	@Deprecated
 	private final MessageObserver responseTransmission;
 
+	/**
+	 * @deprecated use {@link MessageInterceptor} registered with
+	 *             {@link #addPostProcessInterceptor(MessageInterceptor)}
+	 *             instead.
+	 */
+	@Deprecated
 	private final MessageObserver rejectTransmission;
 
 	/**
@@ -326,6 +361,7 @@ public class CoapEndpoint implements Endpoint {
 	 * @param loggingTag logging tag.
 	 *            {@link StringUtil#normalizeLoggingTag(String)} is applied to
 	 *            the provided tag.
+	 * @param health custom coap health handler. Deprecated see below.
 	 * @param coapStackFactory coap-stack-factory factory to create coap-stack
 	 * @param customStackArgument argument for custom stack, if required.
 	 *            {@code null} for standard stacks, or if the custom stack
@@ -333,7 +369,9 @@ public class CoapEndpoint implements Endpoint {
 	 *            multiple arguments are required.
 	 * @throws IllegalArgumentException if applyConfiguration is {@code true},
 	 *             but the connector is not a {@link UDPConnector}
+	 * @deprecated use {@link #addPostProcessInterceptor(MessageInterceptor)}.
 	 */
+	@Deprecated
 	protected CoapEndpoint(Connector connector, boolean applyConfiguration, NetworkConfig config,
 			TokenGenerator tokenGenerator, ObservationStore store, MessageExchangeStore exchangeStore,
 			EndpointContextMatcher endpointContextMatcher, String loggingTag, CoapEndpointHealth health,
@@ -458,6 +496,46 @@ public class CoapEndpoint implements Endpoint {
 			this.responseTransmission = null;
 			this.rejectTransmission = null;
 		}
+	}
+
+	/**
+	 * Creates a new endpoint for a connector, configuration, message exchange
+	 * and observation store.
+	 * <p>
+	 * Intended to be called either by the {@link Builder} or a subclass
+	 * constructor. The endpoint will support the connector's implemented scheme
+	 * and will bind to the IP address and port the connector is configured for.
+	 *
+	 * @param connector The connector to use.
+	 * @param applyConfiguration if {@code true}, apply network configuration to
+	 *            connector. Requires a {@link UDPConnector}.
+	 * @param config The configuration values to use.
+	 * @param tokenGenerator token generator.
+	 * @param store The store to use for keeping track of observations initiated
+	 *            by this endpoint.
+	 * @param exchangeStore The store to use for keeping track of message
+	 *            exchanges.
+	 * @param endpointContextMatcher endpoint context matcher for relating
+	 *            responses to requests. If <code>null</code>, the result of
+	 *            {@link EndpointContextMatcherFactory#create(Connector, NetworkConfig)}
+	 *            is used as matcher.
+	 * @param loggingTag logging tag.
+	 *            {@link StringUtil#normalizeLoggingTag(String)} is applied to
+	 *            the provided tag.
+	 * @param coapStackFactory coap-stack-factory factory to create coap-stack
+	 * @param customStackArgument argument for custom stack, if required.
+	 *            {@code null} for standard stacks, or if the custom stack
+	 *            doesn't require specific arguments. My be a {@link Map}, if
+	 *            multiple arguments are required.
+	 * @throws IllegalArgumentException if applyConfiguration is {@code true},
+	 *             but the connector is not a {@link UDPConnector}
+	 */
+	protected CoapEndpoint(Connector connector, boolean applyConfiguration, NetworkConfig config,
+			TokenGenerator tokenGenerator, ObservationStore store, MessageExchangeStore exchangeStore,
+			EndpointContextMatcher endpointContextMatcher, String loggingTag,
+			CoapStackFactory coapStackFactory, Object customStackArgument) {
+		this(connector, applyConfiguration, config, tokenGenerator, store, exchangeStore, endpointContextMatcher,
+				loggingTag, null, coapStackFactory, customStackArgument);
 	}
 
 	@Override
@@ -626,6 +704,21 @@ public class CoapEndpoint implements Endpoint {
 	}
 
 	@Override
+	public void addPostProcessInterceptor(MessageInterceptor interceptor) {
+		postProcessInterceptors.add(interceptor);
+	}
+
+	@Override
+	public void removePostProcessInterceptor(MessageInterceptor interceptor) {
+		postProcessInterceptors.remove(interceptor);
+	}
+
+	@Override
+	public List<MessageInterceptor> getPostProcessInterceptors() {
+		return Collections.unmodifiableList(postProcessInterceptors);
+	}
+
+	@Override
 	public void sendRequest(final Request request) {
 		if (!started) {
 			request.cancel();
@@ -783,6 +876,42 @@ public class CoapEndpoint implements Endpoint {
 		}
 	}
 
+	private void notifySend(List<MessageInterceptor> list, Request request) {
+		for (MessageInterceptor interceptor : list) {
+			interceptor.sendRequest(request);
+		}
+	}
+
+	private void notifySend(List<MessageInterceptor> list, Response response) {
+		for (MessageInterceptor interceptor : list) {
+			interceptor.sendResponse(response);
+		}
+	}
+
+	private void notifySend(List<MessageInterceptor> list, EmptyMessage emptyMessage) {
+		for (MessageInterceptor interceptor : list) {
+			interceptor.sendEmptyMessage(emptyMessage);
+		}
+	}
+
+	private void notifyReceive(List<MessageInterceptor> list, Request request) {
+		for (MessageInterceptor interceptor : list) {
+			interceptor.receiveRequest(request);
+		}
+	}
+
+	private void notifyReceive(List<MessageInterceptor> list, Response response) {
+		for (MessageInterceptor interceptor : list) {
+			interceptor.receiveResponse(response);
+		}
+	}
+
+	private void notifyReceive(List<MessageInterceptor> list, EmptyMessage emptyMessage) {
+		for (MessageInterceptor interceptor : list) {
+			interceptor.receiveEmptyMessage(emptyMessage);
+		}
+	}
+
 	/**
 	 * The stack of layers uses this Outbox to send messages. The OutboxImpl
 	 * will then give them to the matcher, the interceptors, and finally send
@@ -802,12 +931,9 @@ public class CoapEndpoint implements Endpoint {
 			 * If necessary, add an interceptor that logs the messages,
 			 * e.g., the MessageTracer.
 			 */
-
-			for (MessageInterceptor messageInterceptor : interceptors) {
-				messageInterceptor.sendRequest(request);
-			}
-
+			notifySend(interceptors, request);
 			request.setReadyToSend();
+
 			if (!started) {
 				request.cancel();
 			}
@@ -825,7 +951,15 @@ public class CoapEndpoint implements Endpoint {
 				exchange.executeComplete();
 
 			} else {
-				RawData message = serializer.serializeRequest(request, new ExchangeCallback(exchange, request));
+				RawData message = serializer.serializeRequest(request,
+						new ExchangeCallback<Request>(exchange, request) {
+
+							@Override
+							protected void notifyPostProcess(Request request) {
+								notifySend(postProcessInterceptors, request);
+							}
+
+						});
 				connector.send(message);
 			}
 		}
@@ -842,9 +976,7 @@ public class CoapEndpoint implements Endpoint {
 			 * If necessary, add an interceptor that logs the messages,
 			 * e.g., the MessageTracer.
 			 */
-			for (MessageInterceptor interceptor : interceptors) {
-				interceptor.sendResponse(response);
-			}
+			notifySend(interceptors, response);
 			response.setReadyToSend();
 
 			if (!started) {
@@ -857,7 +989,15 @@ public class CoapEndpoint implements Endpoint {
 					exchange.executeComplete();
 				}
 			} else {
-				connector.send(serializer.serializeResponse(response, new ExchangeCallback(exchange, response)));
+				connector.send(
+						serializer.serializeResponse(response, new ExchangeCallback<Response>(exchange, response) {
+
+							@Override
+							protected void notifyPostProcess(Response response) {
+								notifySend(postProcessInterceptors, response);
+							}
+
+						}));
 			}
 		}
 
@@ -872,9 +1012,7 @@ public class CoapEndpoint implements Endpoint {
 			 * add an interceptor that logs the messages, e.g., the
 			 * MessageTracer.
 			 */
-			for (MessageInterceptor interceptor : interceptors) {
-				interceptor.sendEmptyMessage(message);
-			}
+			notifySend(interceptors, message);
 			message.setReadyToSend();
 
 			if (!started) {
@@ -887,9 +1025,22 @@ public class CoapEndpoint implements Endpoint {
 					exchange.executeComplete();
 				}
 			} else if (exchange != null) {
-				connector.send(serializer.serializeEmptyMessage(message, new ExchangeCallback(exchange, message)));
+				connector.send(serializer.serializeEmptyMessage(message,
+						new ExchangeCallback<EmptyMessage>(exchange, message) {
+
+							@Override
+							protected void notifyPostProcess(EmptyMessage message) {
+								notifySend(postProcessInterceptors, message);
+							}
+						}));
 			} else {
-				connector.send(serializer.serializeEmptyMessage(message, new SendingCallback(message)));
+				connector.send(serializer.serializeEmptyMessage(message, new SendingCallback<EmptyMessage>(message) {
+
+					@Override
+					protected void notifyPostProcess(EmptyMessage message) {
+						notifySend(postProcessInterceptors, message);
+					}
+				}));
 			}
 		}
 
@@ -1006,9 +1157,7 @@ public class CoapEndpoint implements Endpoint {
 			 * If necessary, add an interceptor that logs the messages,
 			 * e.g., the MessageTracer.
 			 */
-			for (MessageInterceptor interceptor : interceptors) {
-				interceptor.receiveRequest(request);
-			}
+			notifyReceive(interceptors, request);
 
 			// MessageInterceptor might have canceled
 			if (!request.isCanceled()) {
@@ -1023,9 +1172,7 @@ public class CoapEndpoint implements Endpoint {
 			 * If necessary, add an interceptor that logs the messages,
 			 * e.g., the MessageTracer.
 			 */
-			for (MessageInterceptor interceptor : interceptors) {
-				interceptor.receiveResponse(response);
-			}
+			notifyReceive(interceptors, response);
 
 			// MessageInterceptor might have canceled
 			if (!response.isCanceled()) {
@@ -1040,9 +1187,7 @@ public class CoapEndpoint implements Endpoint {
 			 * If necessary, add an interceptor that logs the messages,
 			 * e.g., the MessageTracer.
 			 */
-			for (MessageInterceptor interceptor : interceptors) {
-				interceptor.receiveEmptyMessage(message);
-			}
+			notifyReceive(interceptors, message);
 
 			// MessageInterceptor might have canceled
 			if (!message.isCanceled()) {
@@ -1061,12 +1206,12 @@ public class CoapEndpoint implements Endpoint {
 	 * Base message callback implementation. Forwards callbacks to
 	 * {@link Message}
 	 */
-	private class SendingCallback implements MessageCallback {
+	private static abstract class SendingCallback<T extends Message> implements MessageCallback {
 
 		/**
 		 * Related send message.
 		 */
-		private final Message message;
+		private final T message;
 
 		/**
 		 * Creates a new message callback.
@@ -1074,7 +1219,7 @@ public class CoapEndpoint implements Endpoint {
 		 * @param message related send message
 		 * @throws NullPointerException if message is {@code null}
 		 */
-		public SendingCallback(final Message message) {
+		public SendingCallback(final T message) {
 			if (null == message) {
 				throw new NullPointerException("message must not be null");
 			}
@@ -1100,13 +1245,20 @@ public class CoapEndpoint implements Endpoint {
 
 		@Override
 		public void onSent() {
+			if (message.isSent()) {
+				message.setDuplicate(true);
+			}
 			message.setSent(true);
+			notifyPostProcess(message);
 		}
 
 		@Override
 		public void onError(Throwable error) {
 			message.setSendError(error);
+			notifyPostProcess(message);
 		}
+
+		protected abstract void notifyPostProcess(T message);
 
 		protected void onContextEstablished(EndpointContext context, long nanoTimestamp) {
 		}
@@ -1116,7 +1268,7 @@ public class CoapEndpoint implements Endpoint {
 	 * Message callback for exchanges. Additional calls
 	 * {@link Exchange#setEndpointContext(EndpointContext)}.
 	 */
-	private class ExchangeCallback extends SendingCallback {
+	private static abstract class ExchangeCallback<T extends Message> extends SendingCallback<T> {
 
 		/**
 		 * Exchange of send message.
@@ -1130,7 +1282,7 @@ public class CoapEndpoint implements Endpoint {
 		 * @param message related message
 		 * @throws NullPointerException if exchange or request is {@code null}
 		 */
-		public ExchangeCallback(final Exchange exchange, final Message message) {
+		public ExchangeCallback(final Exchange exchange, final T message) {
 			super(message);
 			if (null == exchange) {
 				throw new NullPointerException("exchange must not be null");
@@ -1237,10 +1389,6 @@ public class CoapEndpoint implements Endpoint {
 		 * Logging tag.
 		 */
 		private String tag;
-		/**
-		 * Health counters.
-		 */
-		private CoapEndpointHealth health;
 		/**
 		 * Additional argument for custom coap stack.
 		 */
@@ -1518,7 +1666,7 @@ public class CoapEndpoint implements Endpoint {
 				coapStackFactory = getDefaultCoapStackFactory();
 			}
 			return new CoapEndpoint(connector, applyConfiguration, config, tokenGenerator, observationStore,
-					exchangeStore, endpointContextMatcher, tag, health, coapStackFactory, customStackArgument);
+					exchangeStore, endpointContextMatcher, tag, coapStackFactory, customStackArgument);
 		}
 	}
 
