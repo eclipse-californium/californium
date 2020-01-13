@@ -607,12 +607,30 @@ public class DTLSConnector implements Connector, RecordLayer {
 		return executorService;
 	}
 
-	private void start(final InetSocketAddress bindAddress) throws IOException {
-
+	/**
+	 * Start connector.
+	 * 
+	 * @param bindAddress address to bind socket.
+	 * @throws IOException I/O error
+	 */
+	protected void start(InetSocketAddress bindAddress) throws IOException {
 		if (running.get()) {
 			return;
 		}
+		init(bindAddress, new DatagramSocket(null), config.getMaxTransmissionUnit());
+	}
 
+	/**
+	 * Initialize socket ad start connector.
+	 * 
+	 * @param bindAddress address to bind socket
+	 * @param socket socket
+	 * @param mtu mtu of socket, or {@code null}, if socket implementation
+	 *            doesn't use a special mtu.
+	 * @throws IOException I/O error
+	 */
+	protected void init(InetSocketAddress bindAddress, DatagramSocket socket, Integer mtu) throws IOException {
+		this.socket = socket;
 		pendingOutboundMessagesCountdown.set(config.getOutboundMessageBufferSize());
 
 		if (executorService instanceof ScheduledExecutorService) {
@@ -632,7 +650,6 @@ public class DTLSConnector implements Connector, RecordLayer {
 			}
 			this.hasInternalExecutor = true;
 		}
-		socket = new DatagramSocket(null);
 		if (bindAddress.getPort() != 0 && config.isAddressReuseEnabled()) {
 			// make it easier to stop/start a server consecutively without delays
 			LOGGER.info("Enable address reuse for socket!");
@@ -667,7 +684,12 @@ public class DTLSConnector implements Connector, RecordLayer {
 				connectionStore.clear();
 			}
 		}
-		if (config.getMaxTransmissionUnit() == null) {
+
+		if (config.getMaxTransmissionUnit() != null) {
+			this.maximumTransmissionUnit = config.getMaxTransmissionUnit();
+		} else if (mtu != null) {
+			this.maximumTransmissionUnit = mtu;
+		} else {
 			InetAddress localInterfaceAddress = bindAddress.getAddress();
 			if (localInterfaceAddress.isAnyLocalAddress()) {
 				this.maximumTransmissionUnit = NetworkInterfacesUtil.getAnyMtu();
@@ -684,8 +706,6 @@ public class DTLSConnector implements Connector, RecordLayer {
 					this.maximumTransmissionUnit = DEFAULT_IPV6_MTU;
 				}
 			}
-		} else {
-			this.maximumTransmissionUnit = config.getMaxTransmissionUnit();
 		}
 
 		if (config.getMaxFragmentLengthCode() != null) {
@@ -2337,8 +2357,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 		if (flight != null) {
 			// use initial timeout
 			flight.setTimeout(config.getRetransmissionTimeout());
-			scheduleRetransmission(flight, connection);
 			sendFlightOverNetwork(flight);
+			scheduleRetransmission(flight, connection);
 		}
 	}
 
