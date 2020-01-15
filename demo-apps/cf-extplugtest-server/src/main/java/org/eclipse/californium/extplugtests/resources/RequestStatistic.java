@@ -137,6 +137,7 @@ public class RequestStatistic extends CoapResource {
 	private static final String URI_QUERY_OPTION_DEV_ID = "dev";
 	private static final String URI_QUERY_OPTION_REQUEST_ID = "rid";
 	private static final String URI_QUERY_OPTION_ENDPOINT = "ep";
+	private static final String URI_QUERY_OPTION_RESPONSE_LENGTH = "rlen";
 	private static final long START_TIME = System.currentTimeMillis();
 	/**
 	 * Maximum entries in the request history.
@@ -145,7 +146,7 @@ public class RequestStatistic extends CoapResource {
 	/**
 	 * Maximum payload length.
 	 */
-	private static final int MAX_PAYLOAD_LENGTH = 500;
+	private static final int DEFAULT_MAX_PAYLOAD_LENGTH = 500;
 
 	private final LeastRecentlyUsedCache<String, List<RequestInformation>> requests = new LeastRecentlyUsedCache<String, List<RequestInformation>>(
 			1024 * 16, 0);
@@ -166,49 +167,57 @@ public class RequestStatistic extends CoapResource {
 
 		List<String> uriQuery = request.getOptions().getUriQuery();
 
+		String error = null;
 		String rid = null;
 		String dev = null;
+		Integer rlen = null;
 		boolean endpoint = false;
 		for (String query : uriQuery) {
 			if (query.startsWith(URI_QUERY_OPTION_REQUEST_ID + "=")) {
 				rid = query.substring(4);
 				if (rid.contains(TEXT_SEPARATER)) {
-					Response response = Response.createResponse(request, BAD_OPTION);
-					response.setPayload(
-							"URI-query-option " + URI_QUERY_OPTION_REQUEST_ID + " contains " + TEXT_SEPARATER + "!");
-					exchange.respond(response);
-					return;
+					error = "URI-query-option " + URI_QUERY_OPTION_REQUEST_ID + " contains " + TEXT_SEPARATER + "!";
+					break;
 				}
 			} else if (query.startsWith(URI_QUERY_OPTION_DEV_ID + "=")) {
 				dev = query.substring(4);
+			} else if (query.startsWith(URI_QUERY_OPTION_RESPONSE_LENGTH + "=")) {
+				try {
+					rlen = Integer.valueOf(query.substring(5));
+					if (rlen < 1 || rlen > 1023) {
+						error = "URI-query-option " + URI_QUERY_OPTION_RESPONSE_LENGTH + " '" + query
+								+ "' is not in range [1-1023]!";
+						break;
+					}
+				} catch (NumberFormatException ex) {
+					error = "URI-query-option " + URI_QUERY_OPTION_RESPONSE_LENGTH + " in no number!";
+					break;
+				}
 			} else if (query.equals(URI_QUERY_OPTION_ENDPOINT)) {
 				endpoint = true;
 			} else {
-				Response response = Response.createResponse(request, BAD_OPTION);
-				response.setPayload("URI-query-option " + query + " is not supported!");
-				exchange.respond(response);
-				return;
+				error = "URI-query-option " + query + " is not supported!";
+				break;
 			}
 		}
 
-		if (rid == null && dev == null) {
+		if (error == null) {
+			if (rid == null && dev == null) {
+				error = "missing URI-query-options for " + URI_QUERY_OPTION_DEV_ID + " and "
+						+ URI_QUERY_OPTION_REQUEST_ID + "!";
+			} else if (rid == null) {
+				error = "missing URI-query-option for " + URI_QUERY_OPTION_REQUEST_ID + "!";
+			} else if (dev == null) {
+				error = "missing URI-query-option for " + URI_QUERY_OPTION_DEV_ID + "!";
+			}
+		}
+		if (error != null) {
 			Response response = Response.createResponse(request, BAD_OPTION);
-			response.setPayload("missing URI-query-options for " + URI_QUERY_OPTION_DEV_ID + " and "
-					+ URI_QUERY_OPTION_REQUEST_ID + "!");
-			exchange.respond(response);
-			return;
-		} else if (rid == null) {
-			Response response = Response.createResponse(request, BAD_OPTION);
-			response.setPayload("missing URI-query-option for " + URI_QUERY_OPTION_REQUEST_ID + "!");
-			exchange.respond(response);
-			return;
-		} else if (dev == null) {
-			Response response = Response.createResponse(request, BAD_OPTION);
-			response.setPayload("missing URI-query-option for " + URI_QUERY_OPTION_DEV_ID + "!");
+			response.setPayload(error);
 			exchange.respond(response);
 			return;
 		}
-
+	
 		List<RequestInformation> history;
 		synchronized (requests) {
 			history = requests.get(dev);
@@ -231,7 +240,7 @@ public class RequestStatistic extends CoapResource {
 		}
 
 		Response response = new Response(CONTENT);
-
+		int maxPayloadLength = rlen == null ? DEFAULT_MAX_PAYLOAD_LENGTH : rlen;
 		switch (exchange.getRequestOptions().getAccept()) {
 		case UNDEFINED:
 		case TEXT_PLAIN:
@@ -242,7 +251,7 @@ public class RequestStatistic extends CoapResource {
 			for (RequestInformation entry : history) {
 				builder.append(entry.requestId).append(":").append(entry.requestTime).append(System.lineSeparator());
 				int length = builder.length();
-				if (length > MAX_PAYLOAD_LENGTH) {
+				if (length > maxPayloadLength) {
 					break;
 				}
 				last = length;
@@ -253,12 +262,12 @@ public class RequestStatistic extends CoapResource {
 
 		case APPLICATION_JSON:
 			response.getOptions().setContentFormat(APPLICATION_JSON);
-			response.setPayload(toJson(history));
+			response.setPayload(toJson(history, maxPayloadLength));
 			break;
 
 		case APPLICATION_CBOR:
 			response.getOptions().setContentFormat(APPLICATION_CBOR);
-			response.setPayload(toCbor(history));
+			response.setPayload(toCbor(history, maxPayloadLength));
 			break;
 
 		default:
@@ -275,7 +284,7 @@ public class RequestStatistic extends CoapResource {
 	 * @param history history list.
 	 * @return JSON content
 	 */
-	public String toJson(List<RequestInformation> history) {
+	public String toJson(List<RequestInformation> history, int maxPayloadLength) {
 		JsonArray array = new JsonArray();
 		JsonObject element = new JsonObject();
 		element.addProperty("systemstart", START_TIME);
@@ -297,7 +306,7 @@ public class RequestStatistic extends CoapResource {
 			}
 			array.add(element);
 			String payload = gson.toJson(array);
-			if (payload.length() > MAX_PAYLOAD_LENGTH) {
+			if (payload.length() > maxPayloadLength) {
 				break;
 			}
 			response = payload;
@@ -311,7 +320,7 @@ public class RequestStatistic extends CoapResource {
 	 * @param history history list.
 	 * @return CBOR content
 	 */
-	public byte[] toCbor(List<RequestInformation> history) {
+	public byte[] toCbor(List<RequestInformation> history, int maxPayloadLength) {
 		CBORObject list = CBORObject.NewArray();
 		CBORObject map = CBORObject.NewMap();
 		map.set("systemstart", CBORObject.FromObject(START_TIME));
@@ -328,7 +337,7 @@ public class RequestStatistic extends CoapResource {
 			}
 			list.Add(map);
 			byte[] payload = list.EncodeToBytes();
-			if (payload.length > MAX_PAYLOAD_LENGTH) {
+			if (payload.length > maxPayloadLength) {
 				break;
 			}
 			response = payload;
