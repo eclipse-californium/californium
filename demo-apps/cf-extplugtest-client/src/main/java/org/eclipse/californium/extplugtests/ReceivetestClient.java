@@ -29,6 +29,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.net.BindException;
 import java.net.InetAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.text.SimpleDateFormat;
 import java.util.Properties;
 import java.util.UUID;
@@ -135,15 +137,32 @@ public class ReceivetestClient {
 		}
 
 		String uuid = getUUID();
-		CoapClient client = new CoapClient(arguments.uri);
+		String uri = null;
+		String query = null;
+		try {
+			URI aUri = new URI(arguments.uri);
+			query = aUri.getQuery();
+			aUri = new URI(aUri.getScheme(), null, aUri.getHost(), aUri.getPort(), null, null, null);
+			uri = aUri.toASCIIString();
+		} catch (URISyntaxException e) {
+			System.err.println("URI error: " + e.getMessage());
+			System.exit(-1);
+		}
+		CoapClient client = new CoapClient(uri);
 		Request request = Request.newPost();
 		if (arguments.json) {
 			request.getOptions().setAccept(APPLICATION_JSON);
 		} else if (arguments.cbor) {
 			request.getOptions().setAccept(APPLICATION_CBOR);
 		}
-		request.setURI(
-				arguments.uri + "/requests?dev=" + uuid + "&rid=" + REQUEST_ID_PREFIX + System.currentTimeMillis() + "&ep");
+		if (query == null) {
+			query = "";
+		} else {
+			System.out.println("extra: " + query);
+			query = "&" + query;
+		}
+		request.setURI(uri + "/requests?dev=" + uuid + "&rid=" + REQUEST_ID_PREFIX + System.currentTimeMillis() + "&ep"
+				+ query);
 		CoapResponse coapResponse = client.advanced(request);
 
 		if (coapResponse != null) {
@@ -151,28 +170,14 @@ public class ReceivetestClient {
 			int format = coapResponse.getOptions().getContentFormat();
 			if (CONTENT == code && format == APPLICATION_JSON) {
 				// JSON success
-				System.out.println();
 				Response response = coapResponse.advanced();
-				String payload = response.getPayloadString();
-				System.out.println("Payload: " + payload.length() + " bytes");
-				Long rtt = response.getRTT();
-				if (rtt != null) {
-					System.out.println("RTT: " + rtt + "ms");
-				}
-				System.out.println();
+				printHead(response);
 				String statistic = processJSON(response.getPayloadString(), "", arguments.verbose);
 				System.out.println(statistic);
 			} else if (CONTENT == code && format == APPLICATION_CBOR) {
 				// CBOR success
-				System.out.println();
 				Response response = coapResponse.advanced();
-				String payload = response.getPayloadString();
-				System.out.println("Payload: " + payload.length() + " bytes");
-				Long rtt = response.getRTT();
-				if (rtt != null) {
-					System.out.println("RTT: " + rtt + "ms");
-				}
-				System.out.println();
+				printHead(response);
 				String statistic = processCBOR(response.getPayload(), "", arguments.verbose);
 				System.out.println(statistic);
 			} else {
@@ -186,6 +191,16 @@ public class ReceivetestClient {
 		}
 		client.shutdown();
 		System.exit(0);
+	}
+
+	private static void printHead(Response response) {
+		System.out.println();
+		System.out.println("Payload: " + response.getPayloadSize() + " bytes");
+		Long rtt = response.getRTT();
+		if (rtt != null) {
+			System.out.println("RTT: " + rtt + "ms");
+		}
+		System.out.println();
 	}
 
 	/**
