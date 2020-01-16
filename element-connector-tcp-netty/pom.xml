@@ -16,7 +16,7 @@
 	<description>Element connector implementation for TCP/TLS using netty</description>
 	
 	<properties>
-		<netty.version>4.1.42.Final</netty.version>
+		<netty.version>4.1.44.Final</netty.version>
 		<netty.version.spec>
 			version="[${versionmask;==;${netty.version}},${versionmask;+;${netty.version}})"
 		</netty.version.spec>
