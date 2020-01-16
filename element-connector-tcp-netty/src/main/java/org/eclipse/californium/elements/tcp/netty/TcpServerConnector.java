@@ -43,6 +43,7 @@ import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.exception.EndpointMismatchException;
 import org.eclipse.californium.elements.exception.EndpointUnconnectedException;
 import org.eclipse.californium.elements.exception.MulticastNotSupportedException;
+import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
@@ -54,6 +55,8 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,6 +65,13 @@ import org.slf4j.LoggerFactory;
  * send and receive messages, but cannot initiated new outgoing connections.
  */
 public class TcpServerConnector implements Connector {
+
+	private static final AtomicInteger THREAD_COUNTER = new AtomicInteger();
+	private static final ThreadGroup TCP_THREAD_GROUP = new ThreadGroup("Californium/TCP-Server"); //$NON-NLS-1$
+
+	static {
+		TCP_THREAD_GROUP.setDaemon(false);
+	}
 
 	protected final Logger LOGGER = LoggerFactory.getLogger(getClass());
 
@@ -107,9 +117,10 @@ public class TcpServerConnector implements Connector {
 		if (workerGroup != null) {
 			throw new IllegalStateException("Connector already started");
 		}
-
-		bossGroup = new NioEventLoopGroup(1);
-		workerGroup = new NioEventLoopGroup(numberOfThreads);
+		int id = THREAD_COUNTER.incrementAndGet();
+		bossGroup = new NioEventLoopGroup(1, new DaemonThreadFactory("TCP-Server-" + id, TCP_THREAD_GROUP));
+		workerGroup = new NioEventLoopGroup(numberOfThreads,
+				new DaemonThreadFactory("TCP-Server-" + id + "#", TCP_THREAD_GROUP));
 
 		ServerBootstrap bootstrap = new ServerBootstrap();
 		// server socket 

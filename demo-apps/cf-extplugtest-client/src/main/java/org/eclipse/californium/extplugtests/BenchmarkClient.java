@@ -902,11 +902,26 @@ public class BenchmarkClient {
 		Logger statisticsLogger = printManagamentStatistic(args, reverseResponseNanos);
 
 		// stop and collect per client requests
-		int statistic[] = new int[clients];
+		final int statistic[] = new int[clients];
+		final CountDownLatch stop = new CountDownLatch(clients);
 		for (int index = 0; index < clients; ++index) {
-			BenchmarkClient client = clientList.get(index);
-			statistic[index] = client.destroy();
+			final int currentIndex = index;
+			Runnable run = new Runnable() {
+
+				@Override
+				public void run() {
+					BenchmarkClient client = clientList.get(currentIndex);
+					int requests = client.destroy();
+					synchronized (statistic) {
+						statistic[currentIndex] = requests;
+					}
+					stop.countDown();
+				}
+			};
+			executor.execute(run);
 		}
+		stop.await();
+		Thread.sleep(1000);
 		executor.shutdown();
 		statisticsLogger.info("{} requests sent, {} expected", overallSentRequests, overallRequests);
 		statisticsLogger.info("{} requests in {} ms{}", overallSentRequests, TimeUnit.NANOSECONDS.toMillis(requestNanos),
@@ -942,7 +957,9 @@ public class BenchmarkClient {
 		health.dump();
 
 		if (1 < clients) {
-			Arrays.sort(statistic);
+			synchronized (statistic) {
+				Arrays.sort(statistic);
+			}
 			int grouped = 10;
 			int last = 0;
 			if (overallRequests > 500000) {
