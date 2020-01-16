@@ -213,4 +213,35 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 		return new MapBasedEndpointContext(context.getPeerAddress(), context.getVirtualHost(),
 				context.getPeerIdentity(), entries);
 	}
+
+	/**
+	 * Remove entries from endpoint context.
+	 * 
+	 * @param context original endpoint context.
+	 * @param attributes list of key
+	 * @return new endpoint context with attributes removed.
+	 * @throws NullPointerException if the provided attributes is {@code null},
+	 *             or one of the attributes is {@code null}.
+	 * @throws IllegalArgumentException if provided attributes list is not
+	 *             contained in the original context.
+	 */
+	public static MapBasedEndpointContext removeEntries(EndpointContext context, String... attributes) {
+		if (attributes == null) {
+			throw new NullPointerException("attributes must not null!");
+		}
+		Map<String, String> entries = new HashMap<>(context.entries());
+		for (int index = 0; index < attributes.length; ++index) {
+			String key = attributes[index];
+			if (null == key) {
+				throw new NullPointerException(index + ". key is null");
+			} else if (key.isEmpty()) {
+				throw new IllegalArgumentException(index + ". key is empty");
+			}
+			if (entries.remove(key) == null) {
+				throw new IllegalArgumentException(index + ". key '" + key + "' is not contained");
+			}
+		}
+		return new MapBasedEndpointContext(context.getPeerAddress(), context.getVirtualHost(),
+				context.getPeerIdentity(), entries);
+	}
 }

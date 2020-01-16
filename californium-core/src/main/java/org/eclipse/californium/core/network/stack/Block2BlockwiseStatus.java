@@ -355,6 +355,7 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 			// stop old cleanup task
 			setBlockCleanupHandle(null);
 			this.exchange = null;
+			this.followUpEndpointContext = null;
 		}
 		if (oldExchange != null) {
 			if (newExchange != oldExchange) {
