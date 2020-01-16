@@ -16,15 +16,19 @@
 package org.eclipse.californium.examples;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
+import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.server.MessageDeliverer;
+import org.eclipse.californium.core.server.ServerMessageDeliverer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-
-import org.eclipse.californium.proxy.DirectProxyCoapResolver;
+import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.proxy.ProxyHttpServer;
-import org.eclipse.californium.proxy.resources.ForwardingResource;
 import org.eclipse.californium.proxy.resources.ProxyCoapClientResource;
 import org.eclipse.californium.proxy.resources.ProxyHttpClientResource;
 
@@ -44,43 +48,75 @@ public class ExampleCrossProxy {
 	
 	private static final int PORT = NetworkConfig.getStandard().getInt(NetworkConfig.Keys.COAP_PORT);
 
+	private static final String COAP2COAP = "coap2coap";
+	private static final String COAP2HTTP = "coap2http";
+
 	private CoapServer targetServerA;
-	
+
 	public ExampleCrossProxy() throws IOException {
-		ForwardingResource coap2coap = new ProxyCoapClientResource("coap2coap");
-		ForwardingResource coap2http = new ProxyHttpClientResource("coap2http");
-		
+		CoapResource coap2coap = new ProxyCoapClientResource(COAP2COAP);
+		CoapResource coap2http = new ProxyHttpClientResource(COAP2HTTP);
+
 		// Create CoAP Server on PORT with proxy resources form CoAP to CoAP and HTTP
 		targetServerA = new CoapServer(PORT);
 		targetServerA.add(coap2coap);
 		targetServerA.add(coap2http);
 		targetServerA.add(new TargetResource("target"));
+		MessageDeliverer local = targetServerA.getMessageDeliverer();
+		MessageDeliverer proxy = new ProxyMessageDeliverer(targetServerA.getRoot());
+		targetServerA.setMessageDeliverer(proxy);
 		targetServerA.start();
-		
+
 		ProxyHttpServer httpServer = new ProxyHttpServer(8080);
-		httpServer.setProxyCoapResolver(new DirectProxyCoapResolver(coap2coap));
-		
+		httpServer.setLocalCoapDeliverer(local);
+		httpServer.setProxyCoapDeliverer(proxy);
+
 		System.out.println("CoAP resource \"target\" available over HTTP at: http://localhost:8080/proxy/coap://localhost:PORT/target");
 	}
-	
+
+	private static class ProxyMessageDeliverer extends ServerMessageDeliverer {
+
+		private ProxyMessageDeliverer(Resource root) {
+			super(root);
+		}
+
+		@Override
+		protected Resource findResource(Request request) {
+			if (request.getOptions().hasProxyUri()) {
+				try {
+					URI uri = new URI(request.getOptions().getProxyUri());
+					String scheme = uri.getScheme();
+					scheme = scheme.toLowerCase();
+					if (scheme.equals("http") || scheme.equals("https")) {
+						return getRootResource().getChild(COAP2HTTP);
+					} else if (CoAP.isSupportedScheme(scheme)) {
+						return getRootResource().getChild(COAP2COAP);
+					}
+				} catch (URISyntaxException e) {
+				}
+			}
+			return super.findResource(request);
+		}
+	}
+
 	/**
 	 * A simple resource that responds to GET requests with a small response
 	 * containing the resource's name.
 	 */
 	private static class TargetResource extends CoapResource {
-		
+
 		private int counter = 0;
-		
+
 		public TargetResource(String name) {
 			super(name);
 		}
-		
+
 		@Override
 		public void handleGET(CoapExchange exchange) {
 			exchange.respond("Response "+(++counter)+" from resource " + getName());
 		}
 	}
-	
+
 	public static void main(String[] args) throws Exception {
 		new ExampleCrossProxy();
 	}
