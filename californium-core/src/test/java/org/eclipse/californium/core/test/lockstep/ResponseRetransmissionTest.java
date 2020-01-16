@@ -23,7 +23,6 @@ import static org.eclipse.californium.core.test.MessageExchangeStoreTool.assertA
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 
 import java.util.concurrent.TimeUnit;
 
@@ -41,6 +40,7 @@ import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
+import org.hamcrest.Matcher;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -129,16 +129,18 @@ public class ResponseRetransmissionTest {
 
 		assertAllExchangesAreCompleted(serverEndpoint, time);
 
-		assertThat(health.getCounter("send-responses"), is(1L));
-		assertThat(health.getCounter("send-response retransmissions"), is(0L));
-		assertThat(health.getCounter("send-acks"), is(1L));
-		assertThat(health.getCounter("send-rejects"), is(0L));
-		assertThat(health.getCounter("send-errors"), is(0L));
-		assertThat(health.getCounter("recv-requests"), is(1L));
-		assertThat(health.getCounter("recv-duplicate requests"), is(0L));
-		assertThat(health.getCounter("recv-acks"), is(1L));
-		assertThat(health.getCounter("recv-rejects"), is(0L));
-		assertThat(health.getCounter("recv-ignored"), is(0L));
+		// may be on the way
+		assertHealthCounter("recv-acks", is(1L), 1000);
+
+		assertHealthCounter("send-responses", is(1L));
+		assertHealthCounter("send-response retransmissions", is(0L));
+		assertHealthCounter("send-acks", is(1L));
+		assertHealthCounter("send-rejects", is(0L));
+		assertHealthCounter("send-errors", is(0L));
+		assertHealthCounter("recv-requests", is(1L));
+		assertHealthCounter("recv-duplicate requests", is(0L));
+		assertHealthCounter("recv-rejects", is(0L));
+		assertHealthCounter("recv-ignored", is(0L));
 	}
 
 	@Test
@@ -161,16 +163,18 @@ public class ResponseRetransmissionTest {
 
 		assertAllExchangesAreCompleted(serverEndpoint, time);
 
-		assertThat(health.getCounter("send-responses"), is(1L));
-		assertThat(health.getCounter("send-response retransmissions"), is(1L));
-		assertThat(health.getCounter("send-acks"), is(2L));
-		assertThat(health.getCounter("send-rejects"), is(0L));
-		assertThat(health.getCounter("send-errors"), is(0L));
-		assertThat(health.getCounter("recv-requests"), is(1L));
-		assertThat(health.getCounter("recv-duplicate requests"), is(1L));
-		assertThat(health.getCounter("recv-acks"), is(1L));
-		assertThat(health.getCounter("recv-rejects"), is(0L));
-		assertThat(health.getCounter("recv-ignored"), is(0L));
+		// may be on the way
+		assertHealthCounter("recv-acks", is(1L), 1000);
+
+		assertHealthCounter("send-responses", is(1L));
+		assertHealthCounter("send-response retransmissions", is(1L));
+		assertHealthCounter("send-acks", is(2L));
+		assertHealthCounter("send-rejects", is(0L));
+		assertHealthCounter("send-errors", is(0L));
+		assertHealthCounter("recv-requests", is(1L));
+		assertHealthCounter("recv-duplicate requests", is(1L));
+		assertHealthCounter("recv-rejects", is(0L));
+		assertHealthCounter("recv-ignored", is(0L));
 	}
 
 	@Test
@@ -185,16 +189,18 @@ public class ResponseRetransmissionTest {
 
 		assertAllExchangesAreCompleted(serverEndpoint, time);
 
-		assertThat(health.getCounter("send-responses"), is(1L));
-		assertThat(health.getCounter("send-response retransmissions"), is(1L));
-		assertThat(health.getCounter("send-acks"), is(0L));
-		assertThat(health.getCounter("send-rejects"), is(0L));
-		assertThat(health.getCounter("send-errors"), is(0L));
-		assertThat(health.getCounter("recv-requests"), is(1L));
-		assertThat(health.getCounter("recv-duplicate requests"), is(1L));
-		assertThat(health.getCounter("recv-acks"), is(0L));
-		assertThat(health.getCounter("recv-rejects"), is(0L));
-		assertThat(health.getCounter("recv-ignored"), is(0L));
+		// may be on the way
+		assertHealthCounter("recv-duplicate requests", is(1L), 1000);
+
+		assertHealthCounter("send-responses", is(1L));
+		assertHealthCounter("send-response retransmissions", is(1L));
+		assertHealthCounter("send-acks", is(0L));
+		assertHealthCounter("send-rejects", is(0L));
+		assertHealthCounter("send-errors", is(0L));
+		assertHealthCounter("recv-requests", is(1L));
+		assertHealthCounter("recv-acks", is(0L));
+		assertHealthCounter("recv-rejects", is(0L));
+		assertHealthCounter("recv-ignored", is(0L));
 	}
 
 	@Test
@@ -213,16 +219,18 @@ public class ResponseRetransmissionTest {
 
 		assertAllExchangesAreCompleted(serverEndpoint, time);
 
-		assertThat(health.getCounter("send-responses"), is(1L));
-		assertThat(health.getCounter("send-response retransmissions"), is(1L));
-		assertThat(health.getCounter("send-acks"), is(1L));
-		assertThat(health.getCounter("send-rejects"), is(0L));
-		assertThat(health.getCounter("send-errors"), is(0L));
-		assertThat(health.getCounter("recv-requests"), is(1L));
-		assertThat(health.getCounter("recv-duplicate requests"), is(0L));
-		assertThat(health.getCounter("recv-acks"), is(1L));
-		assertThat(health.getCounter("recv-rejects"), is(0L));
-		assertThat(health.getCounter("recv-ignored"), is(0L));
+		// may be on the way
+		assertHealthCounter("recv-acks", is(1L), 1000);
+
+		assertHealthCounter("send-responses", is(1L));
+		assertHealthCounter("send-response retransmissions", is(1L));
+		assertHealthCounter("send-acks", is(1L));
+		assertHealthCounter("send-rejects", is(0L));
+		assertHealthCounter("send-errors", is(0L));
+		assertHealthCounter("recv-requests", is(1L));
+		assertHealthCounter("recv-duplicate requests", is(0L));
+		assertHealthCounter("recv-rejects", is(0L));
+		assertHealthCounter("recv-ignored", is(0L));
 	}
 
 	@Test
@@ -239,16 +247,16 @@ public class ResponseRetransmissionTest {
 		assertNull(client.receiveNextMessage(TEST_ACK_TIMEOUT * 2, TimeUnit.MILLISECONDS));
 
 		assertAllExchangesAreCompleted(serverEndpoint, time);
-		assertThat(health.getCounter("send-responses"), is(1L));
-		assertThat(health.getCounter("send-response retransmissions"), is(1L));
-		assertThat(health.getCounter("send-acks"), is(1L));
-		assertThat(health.getCounter("send-rejects"), is(0L));
-		assertThat(health.getCounter("send-errors"), is(0L));
-		assertThat(health.getCounter("recv-requests"), is(1L));
-		assertThat(health.getCounter("recv-duplicate requests"), is(0L));
-		assertThat(health.getCounter("recv-acks"), is(0L));
-		assertThat(health.getCounter("recv-rejects"), is(0L));
-		assertThat(health.getCounter("recv-ignored"), is(0L));
+		assertHealthCounter("send-responses", is(1L));
+		assertHealthCounter("send-response retransmissions", is(1L));
+		assertHealthCounter("send-acks", is(1L));
+		assertHealthCounter("send-rejects", is(0L));
+		assertHealthCounter("send-errors", is(0L));
+		assertHealthCounter("recv-requests", is(1L));
+		assertHealthCounter("recv-duplicate requests", is(0L));
+		assertHealthCounter("recv-acks", is(0L));
+		assertHealthCounter("recv-rejects", is(0L));
+		assertHealthCounter("recv-ignored", is(0L));
 	}
 
 	@Test
@@ -262,16 +270,25 @@ public class ResponseRetransmissionTest {
 		assertNull(client.receiveNextMessage(TEST_ACK_TIMEOUT * 2, TimeUnit.MILLISECONDS));
 
 		assertAllExchangesAreCompleted(serverEndpoint, time);
-		assertThat(health.getCounter("send-responses"), is(0L));
-		assertThat(health.getCounter("send-response retransmissions"), is(0L));
-		assertThat(health.getCounter("send-acks"), is(1L));
-		assertThat(health.getCounter("send-rejects"), is(0L));
-		assertThat(health.getCounter("send-errors"), is(1L));
-		assertThat(health.getCounter("recv-requests"), is(1L));
-		assertThat(health.getCounter("recv-duplicate requests"), is(0L));
-		assertThat(health.getCounter("recv-acks"), is(0L));
-		assertThat(health.getCounter("recv-rejects"), is(0L));
-		assertThat(health.getCounter("recv-ignored"), is(0L));
+		assertHealthCounter("send-responses", is(0L));
+		assertHealthCounter("send-response retransmissions", is(0L));
+		assertHealthCounter("send-acks", is(1L));
+		assertHealthCounter("send-rejects", is(0L));
+		assertHealthCounter("send-errors", is(1L));
+		assertHealthCounter("recv-requests", is(1L));
+		assertHealthCounter("recv-duplicate requests", is(0L));
+		assertHealthCounter("recv-acks", is(0L));
+		assertHealthCounter("recv-rejects", is(0L));
+		assertHealthCounter("recv-ignored", is(0L));
+	}
+
+	private void assertHealthCounter(final String name, final Matcher<? super Long> matcher, long timeout)
+			throws InterruptedException {
+		TestTools.assertCounter(health, name, matcher, timeout);
+	}
+
+	private void assertHealthCounter(String name, Matcher<? super Long> matcher) {
+		TestTools.assertCounter(health, name, matcher);
 	}
 
 	private class TestResource extends CoapResource {

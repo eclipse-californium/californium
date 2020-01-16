@@ -17,6 +17,8 @@
  ******************************************************************************/
 package org.eclipse.californium;
 
+import static org.junit.Assert.assertThat;
+
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -28,7 +30,9 @@ import java.util.concurrent.TimeUnit;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.network.Endpoint;
+import org.eclipse.californium.elements.util.CounterStatisticManager;
 import org.hamcrest.Description;
+import org.hamcrest.Matcher;
 
 /**
  * A collection of utility methods for implementing tests.
@@ -253,5 +257,24 @@ public final class TestTools {
 			description.appendText(max.toString());
 			description.appendText(")");
 		}
+	}
+
+	public static void assertCounter(final CounterStatisticManager manager, final String name,
+			final Matcher<? super Long> matcher, long timeout) throws InterruptedException {
+		if (timeout > 0) {
+			TestTools.waitForCondition(timeout, timeout / 10l, TimeUnit.MILLISECONDS, new CheckCondition() {
+
+				@Override
+				public boolean isFulFilled() throws IllegalStateException {
+					return matcher.matches(manager.getCounter(name));
+				}
+			});
+		}
+		assertThat(name, manager.getCounter(name), matcher);
+	}
+
+	public static void assertCounter(CounterStatisticManager manager, String name,
+			Matcher<? super Long> matcher) {
+		assertThat(name, manager.getCounter(name), matcher);
 	}
 }
