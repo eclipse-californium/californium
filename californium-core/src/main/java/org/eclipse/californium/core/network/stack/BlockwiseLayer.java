@@ -338,7 +338,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			status = getOutboundBlock1Status(key, exchange, request);
 
 			final Request block = status.getNextRequestBlock();
-
+			block.setDestinationContext(request.getDestinationContext());
 			block.addMessageObserver(new MessageObserverAdapter() {
 
 				@Override
@@ -794,9 +794,9 @@ public class BlockwiseLayer extends AbstractLayer {
 			nextBlock = status.getNextRequestBlock(nextNum, newSzx);
 			// we use the same token to ease traceability
 			nextBlock.setToken(response.getToken());
-			nextBlock.setDestinationContext(response.getSourceContext());
+			nextBlock.setDestinationContext(status.getFollowUpEndpointContext(response.getSourceContext()));
 			addBlock1CleanUpObserver(nextBlock, key, status);
-	
+
 			exchange.setCurrentRequest(nextBlock);
 			prepareBlock1Cleanup(status, key);
 			lower().sendRequest(exchange, nextBlock);
@@ -977,7 +977,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		try {
 			// do not enforce CON, since NON could make sense over SMS or similar transports
 			block.setType(request.getType());
-			block.setDestinationContext(response.getSourceContext());
+			block.setDestinationContext(status.getFollowUpEndpointContext(response.getSourceContext()));
 
 			/*
 			 * WARNING:

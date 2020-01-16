@@ -23,7 +23,6 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 
-
 /**
  * A tracker for the blockwise transfer of a request body.
  *
@@ -75,15 +74,20 @@ public final class Block1BlockwiseStatus extends BlockwiseStatus {
 	/**
 	 * Gets a request or sending the next block of the body.
 	 * <p>
-	 * This method updates the <em>currentNum</em> and <em>currentSzx</em> properties
-	 * with the given block1 option's values and then invokes {@link #getNextRequestBlock()}.
+	 * This method updates the <em>currentNum</em> and <em>currentSzx</em>
+	 * properties with the given block1 option's values and then invokes
+	 * {@link #getNextRequestBlock()}. The resulting request requires an
+	 * destination endpoint-context to be set (see
+	 * {@link Request#setDestinationContext(org.eclipse.californium.elements.EndpointContext)}).
+	 * </p>
 	 * 
 	 * @param num The block number to update this tracker with before
-	 *               determining the response block.
+	 *            determining the response block.
 	 * @param szx The adapted block size to update this tracker with before
-	 *               determining the response block.
+	 *            determining the response block.
 	 * @return The request.
-	 * @throws IllegalStateException if this tracker does not contain a request body.
+	 * @throws IllegalStateException if this tracker does not contain a request
+	 *             body.
 	 */
 	public synchronized Request getNextRequestBlock(final int num, final int szx) {
 
@@ -99,11 +103,16 @@ public final class Block1BlockwiseStatus extends BlockwiseStatus {
 	/**
 	 * Gets a request or sending the next block of the body.
 	 * <p>
-	 * The returned request's payload is determined based on <em>currentNum</em>,
-	 * <em>currentSzx</em> and the original request's body.
+	 * The returned request's payload is determined based on
+	 * <em>currentNum</em>, <em>currentSzx</em> and the original request's body.
+	 * The resulting request requires an destination endpoint-context to be set
+	 * (see
+	 * {@link Request#setDestinationContext(org.eclipse.californium.elements.EndpointContext)}).
+	 * </p>
 	 * 
 	 * @return The request.
-	 * @throws IllegalStateException if this tracker does not contain a request body.
+	 * @throws IllegalStateException if this tracker does not contain a request
+	 *             body.
 	 */
 	public synchronized Request getNextRequestBlock() {
 
@@ -117,7 +126,7 @@ public final class Block1BlockwiseStatus extends BlockwiseStatus {
 		Request block = new Request(request.getCode());
 		// do not enforce CON, since NON could make sense over SMS or similar transports
 		block.setType(request.getType());
-		block.setDestinationContext(request.getDestinationContext());
+
 		// copy options
 		block.setOptions(new OptionSet(request.getOptions()));
 		// copy message observers so that a failing blockwise request
