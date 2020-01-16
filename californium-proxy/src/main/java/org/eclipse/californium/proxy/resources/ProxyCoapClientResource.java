@@ -24,6 +24,8 @@ import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.EndpointManager;
+import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.proxy.CoapTranslator;
 import org.eclipse.californium.proxy.EndPointManagerPool;
@@ -51,16 +53,15 @@ public class ProxyCoapClientResource extends ForwardingResource {
 	}
 
 	@Override
-	public CompletableFuture<Response> forwardRequest(Request incomingRequest) {
-		final CompletableFuture<Response> future = new CompletableFuture<>();
-
-		LOGGER.info("ProxyCoapClientResource forwards {}", incomingRequest);
+	public void handleRequest(final Exchange exchange) {
+		Request incomingRequest = exchange.getRequest();
+		LOGGER.debug("ProxyCoapClientResource forwards {}", incomingRequest);
 
 		// check the invariant: the request must have the proxy-uri set
 		if (!incomingRequest.getOptions().hasProxyUri()) {
-			LOGGER.warn("Proxy-uri option not set.");
-			future.complete(new Response(ResponseCode.BAD_OPTION));
-			return future;
+			LOGGER.debug("Proxy-uri option not set.");
+			exchange.sendResponse(new Response(ResponseCode.BAD_OPTION));
+			return;
 		}
 
 		// remove the fake uri-path
@@ -81,40 +82,41 @@ public class ProxyCoapClientResource extends ForwardingResource {
 				@Override
 				public void onResponse(Response incomingResponse) {
 					LOGGER.debug("ProxyCoapClientResource received {}", incomingResponse);
-					future.complete(CoapTranslator.getResponse(incomingResponse));
+					exchange.sendResponse(CoapTranslator.getResponse(incomingResponse));
 					EndPointManagerPool.putClient(endpointManager);
 				}
 
 				@Override
 				public void onReject() {
-					LOGGER.warn("Request rejected");
-					future.complete(new Response(ResponseCode.SERVICE_UNAVAILABLE));
-					EndPointManagerPool.putClient(endpointManager);
+					fail(ResponseCode.SERVICE_UNAVAILABLE);
+					LOGGER.debug("Request rejected");
 				}
 
 				@Override
 				public void onTimeout() {
-					LOGGER.warn("Request timed out.");
-					future.complete(new Response(ResponseCode.GATEWAY_TIMEOUT));
-					EndPointManagerPool.putClient(endpointManager);
+					fail(ResponseCode.GATEWAY_TIMEOUT);
+					LOGGER.debug("Request timed out.");
 				}
 
 				@Override
 				public void onCancel() {
-					LOGGER.warn("Request canceled");
-					future.complete(new Response(ResponseCode.SERVICE_UNAVAILABLE));
-					EndPointManagerPool.putClient(endpointManager);
+					fail(ResponseCode.SERVICE_UNAVAILABLE);
+					LOGGER.debug("Request canceled");
 				}
 
 				@Override
 				public void onSendError(Throwable e) {
-					future.complete(new Response(ResponseCode.SERVICE_UNAVAILABLE));
+					fail(ResponseCode.SERVICE_UNAVAILABLE);
 					LOGGER.warn("Send error", e);
-					EndPointManagerPool.putClient(endpointManager);
 				}
 
 				@Override
 				public void onContextEstablished(EndpointContext endpointContext) {
+				}
+
+				private void fail(ResponseCode response) {
+					exchange.sendResponse(new Response(response));
+					EndPointManagerPool.putClient(endpointManager);
 				}
 			});
 
@@ -122,20 +124,43 @@ public class ProxyCoapClientResource extends ForwardingResource {
 			LOGGER.debug("Sending proxied CoAP request.");
 
 			if (outgoingRequest.getDestinationContext() == null) {
+				exchange.sendResponse(new Response(ResponseCode.INTERNAL_SERVER_ERROR));
+				EndPointManagerPool.putClient(endpointManager);
 				throw new NullPointerException("Destination is null");
 			}
 
 			endpointManager.getDefaultEndpoint().sendRequest(outgoingRequest);
 		} catch (TranslationException e) {
-			LOGGER.warn("Proxy-uri option malformed: {}", e.getMessage());
-			future.complete(new Response(CoapTranslator.STATUS_FIELD_MALFORMED));
-			return future;
+			LOGGER.debug("Proxy-uri option malformed: {}", e.getMessage());
+			exchange.sendResponse(new Response(CoapTranslator.STATUS_FIELD_MALFORMED));
+			EndPointManagerPool.putClient(endpointManager);
 		} catch (Exception e) {
 			LOGGER.warn("Failed to execute request: {}", e.getMessage());
-			future.complete(new Response(ResponseCode.INTERNAL_SERVER_ERROR));
-			return future;
+			exchange.sendResponse(new Response(ResponseCode.INTERNAL_SERVER_ERROR));
+			EndPointManagerPool.putClient(endpointManager);
 		}
+	}
 
+	@Deprecated
+	@Override
+	public CompletableFuture<Response> forwardRequest(final Request incomingRequest) {
+		final CompletableFuture<Response> future = new CompletableFuture<>();
+		Exchange exchange = new Exchange(incomingRequest, Origin.REMOTE, null) {
+
+			@Override
+			public void sendAccept() {
+				// has no meaning for HTTP: do nothing
+			}
+			@Override
+			public void sendReject() {
+				future.complete(new Response(ResponseCode.SERVICE_UNAVAILABLE));
+			}
+			@Override
+			public void sendResponse(Response response) {
+				future.complete(response);
+			}
+		};
+		handleRequest(exchange);
 		return future;
 	}
 }
