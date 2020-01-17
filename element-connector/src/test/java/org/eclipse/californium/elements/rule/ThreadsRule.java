@@ -184,7 +184,7 @@ public class ThreadsRule implements TestRule {
 	 * @param list list of threads
 	 */
 	public void dump(String message, List<Thread> list) {
-		LOGGER.info("Threads {}: {} threads", message, list.size());
+		LOGGER.debug("Threads {}: {} threads", message, list.size());
 		for (Thread thread : list) {
 			ThreadGroup threadGroup = thread.getThreadGroup();
 			if (threadGroup != null) {

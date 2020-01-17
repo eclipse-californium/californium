@@ -29,6 +29,6 @@ public class TestNameLoggerRule extends TestWatcher {
 
 	@Override
 	protected void starting(Description description) {
-		LOGGER.info("Test {}", description.getMethodName());
+		LOGGER.debug("Test {}", description.getMethodName());
 	}
 }

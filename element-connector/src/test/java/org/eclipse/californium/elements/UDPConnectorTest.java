@@ -197,7 +197,7 @@ public class UDPConnectorTest {
 		EndpointContext context = new UdpEndpointContext(dest);
 
 		for (int loop = 0; loop < loops; ++loop) {
-			LOGGER.info("start/stop: {}/{} loops, {} msgs", loop, loops, pending);
+			LOGGER.severe("start/stop: {}/{} loops, {} msgs", loop, loops, pending);
 			TestEndpointContextMatcher matcher = new TestEndpointContextMatcher(pending, pending);
 			connector.setEndpointContextMatcher(matcher);
 

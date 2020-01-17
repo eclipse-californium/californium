@@ -191,7 +191,7 @@ public class OptionJuggle {
 	 * @return a new optionSet which have had the non-special e options removed
 	 */
 	public static OptionSet discardEOptions(OptionSet optionSet) {
-		LOGGER.info("Removing inner only E options from the outer options");
+		LOGGER.trace("Removing inner only E options from the outer options");
 		OptionSet result = new OptionSet();
 		
 		for (Option opt : optionSet.asSortedList()) {

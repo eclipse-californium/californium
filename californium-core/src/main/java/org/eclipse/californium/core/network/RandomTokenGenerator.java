@@ -63,7 +63,7 @@ public class RandomTokenGenerator implements TokenGenerator {
 		// trigger self-seeding of the PRNG, may "take a while"
 		this.rng.nextInt(10);
 		this.tokenSize = networkConfig.getInt(Keys.TOKEN_SIZE_LIMIT, DEFAULT_TOKEN_LENGTH);
-		LOGGER.info("using tokens of {} bytes in length", this.tokenSize);
+		LOGGER.trace("using tokens of {} bytes in length", this.tokenSize);
 	}
 
 	@Override

@@ -1076,7 +1076,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 
 		byte[] data = Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getLength());
 		List<Record> records = Record.fromByteArray(data, peerAddress, connectionIdGenerator, timestamp);
-		LOGGER.debug("Received {} DTLS records from {} using a {} byte datagram buffer",
+		LOGGER.trace("Received {} DTLS records from {} using a {} byte datagram buffer",
 				records.size(), peerAddress, inboundDatagramBufferSize);
 
 		if (records.isEmpty()) {

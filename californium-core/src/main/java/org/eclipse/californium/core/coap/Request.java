@@ -257,7 +257,7 @@ public class Request extends Message {
 			String coapUri = uri;
 			if (!uri.contains("://")) {
 				coapUri = "coap://" + uri;
-				LOGGER.warn("update your code to supply an RFC 7252 compliant URI including a scheme");
+				LOGGER.debug("update your code to supply an RFC 7252 compliant URI including a scheme");
 			}
 			return setURI(new URI(coapUri));
 		} catch (URISyntaxException e) {

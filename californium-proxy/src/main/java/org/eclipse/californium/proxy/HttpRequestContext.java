@@ -64,7 +64,7 @@ public final class HttpRequestContext {
 			// translate the coap response in an http response
 			new HttpTranslator().getHttpResponse(httpRequest, coapResponse, httpResponse);
 
-			LOGGER.debug("Outgoing http response: {}", httpResponse.getStatusLine());
+			LOGGER.trace("Outgoing http response: {}", httpResponse.getStatusLine());
 		} catch (TranslationException e) {
 			LOGGER.warn("Failed to translate coap response to http response: {}", e.getMessage());
 			sendSimpleHttpResponse(HttpTranslator.STATUS_TRANSLATION_ERROR);

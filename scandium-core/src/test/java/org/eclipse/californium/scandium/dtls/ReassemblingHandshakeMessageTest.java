@@ -96,7 +96,7 @@ public class ReassemblingHandshakeMessageTest {
 	}
 
 	private void log(FragmentedHandshakeMessage msg) {
-		LOGGER.info(" fragment [{}:{})", msg.getFragmentOffset(), msg.getFragmentOffset() + msg.getFragmentLength());
+		LOGGER.trace(" fragment [{}:{})", msg.getFragmentOffset(), msg.getFragmentOffset() + msg.getFragmentLength());
 	}
 
 	private void log() {
@@ -107,9 +107,9 @@ public class ReassemblingHandshakeMessageTest {
 
 	private void log(ReassemblingHandshakeMessage reassembledMessage) {
 		List<Object> ranges = reassembledMessage.getRanges();
-		LOGGER.info("{} ranges", ranges.size());
+		LOGGER.trace("{} ranges", ranges.size());
 		for (Object range : ranges) {
-			LOGGER.info("  {}", range);
+			LOGGER.trace("  {}", range);
 		}
 	}
 

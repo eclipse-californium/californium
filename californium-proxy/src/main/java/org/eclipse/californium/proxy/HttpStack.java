@@ -191,7 +191,7 @@ public class HttpStack {
 				// Create server-side I/O reactor
 				ioReactor = new DefaultListeningIOReactor();
 				// Listen of the given port
-				LOGGER.info("HttpStack listening on port {}", httpPort);
+				LOGGER.trace("HttpStack listening on port {}", httpPort);
 				ioReactor.listen(new InetSocketAddress(httpPort));
 
 				// create the listener thread
@@ -240,7 +240,7 @@ public class HttpStack {
 				httpResponse.setEntity(new StringEntity("Californium Proxy server"));
 
 //				if (Bench_Help.DO_LOG) 
-					LOGGER.debug("Root request handled");
+					LOGGER.trace("Root request handled");
 			}
 		}
 

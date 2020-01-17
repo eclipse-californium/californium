@@ -429,7 +429,7 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 		private void remove(ResponseCode code) {
 			String key = incomingExchange.getPeerKey();
 			observesByPeer.remove(key);
-			LOGGER.info("Removed observation for {}", key);
+			LOGGER.trace("Removed observation for {}", key);
 			incomingExchange.respond(code);
 		}
 	}

@@ -74,7 +74,7 @@ public class CountingCoapHandler implements CoapHandler {
 			}
 			notifyAll();
 		}
-		LOGGER.info("Received {}. Notification: {}", counter, response.advanced());
+		LOGGER.trace("Received {}. Notification: {}", counter, response.advanced());
 	}
 
 	/**

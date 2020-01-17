@@ -147,7 +147,7 @@ public final class DebugConnectionStore extends InMemoryConnectionStore {
 	private <K> void dump(ConcurrentMap<K, Connection> map) {
 		for (K key : map.keySet()) {
 			Connection connection = map.get(key);
-			LOG.warn("  {} connection: {} - {}", tag, key, connection);
+			LOG.debug("  {} connection: {} - {}", tag, key, connection);
 		}
 	}
 }

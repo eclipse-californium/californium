@@ -149,7 +149,7 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 				return block2.getSzx();
 			}
 		}
-		LOGGER.debug("using default preferred block size for response: {}", preferredBlockSize);
+		LOGGER.trace("using default preferred block size for response: {}", preferredBlockSize);
 		return BlockOption.size2Szx(preferredBlockSize);
 	}
 

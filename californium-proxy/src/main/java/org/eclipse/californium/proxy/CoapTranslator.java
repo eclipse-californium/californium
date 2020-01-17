@@ -128,7 +128,7 @@ public final class CoapTranslator {
 			outgoingRequest.setURI(serverUri);
 		}
 
-		LOGGER.debug("Incoming request translated correctly");
+		LOGGER.trace("Incoming request translated correctly");
 		return outgoingRequest;
 	}
 	
@@ -166,7 +166,7 @@ public final class CoapTranslator {
 		outgoingResponse.setOptions(new OptionSet(
 				incomingResponse.getOptions()));
 		
-		LOGGER.debug("Incoming response translated correctly");
+		LOGGER.trace("Incoming response translated correctly");
 		return outgoingResponse;
 	}
 

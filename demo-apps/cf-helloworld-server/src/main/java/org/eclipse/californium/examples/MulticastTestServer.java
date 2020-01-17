@@ -55,14 +55,14 @@ public class MulticastTestServer {
 		if (NetworkInterfacesUtil.isAnyIpv6() && NetworkInterfacesUtil.isAnyIpv4()) {
 			connector = new UdpMulticastConnector(localAddress, CoAP.MULTICAST_IPV4, CoAP.MULTICAST_IPV6_LINKLOCAL,
 					CoAP.MULTICAST_IPV6_SITELOCAL);
-			LOGGER.info("IPv4 & IPv6");
+			LOGGER.debug("IPv4 & IPv6");
 		} else if (NetworkInterfacesUtil.isAnyIpv6()) {
 			connector = new UdpMulticastConnector(localAddress, CoAP.MULTICAST_IPV6_LINKLOCAL,
 					CoAP.MULTICAST_IPV6_SITELOCAL);
-			LOGGER.info("IPv6");
+			LOGGER.debug("IPv6");
 		} else {
 			connector = new UdpMulticastConnector(localAddress, CoAP.MULTICAST_IPV4);
-			LOGGER.info("IPv4");
+			LOGGER.debug("IPv4");
 		}
 		return new CoapEndpoint.Builder().setNetworkConfig(config).setConnector(connector).build();
 	}

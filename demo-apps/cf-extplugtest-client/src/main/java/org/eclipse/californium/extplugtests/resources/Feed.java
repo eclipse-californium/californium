@@ -226,7 +226,7 @@ public class Feed extends CoapResource {
 							response.getToken());
 				} else {
 					timeout = 0;
-					LOGGER.info("client[{}] next change in {} ms, {} observer.", id, interval, observer);
+					LOGGER.trace("client[{}] next change in {} ms, {} observer.", id, interval, observer);
 					executorService.schedule(change, interval, TimeUnit.MILLISECONDS);
 				}
 			} else {

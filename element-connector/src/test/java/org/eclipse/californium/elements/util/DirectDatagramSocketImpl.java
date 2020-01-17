@@ -628,7 +628,7 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 		String message;
 		while ((message = logBuffer.poll()) != null) {
 			++counter;
-			LOGGER.info(String.format("--%02d--> %s", counter, message));
+			LOGGER.debug(String.format("--%02d--> %s", counter, message));
 		}
 	}
 

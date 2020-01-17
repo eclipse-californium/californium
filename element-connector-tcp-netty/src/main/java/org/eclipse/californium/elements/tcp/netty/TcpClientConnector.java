@@ -326,7 +326,7 @@ public class TcpClientConnector implements Connector {
 
 		@Override
 		public void channelCreated(Channel ch) throws Exception {
-			LOGGER.debug("new channel to {}", key);
+			LOGGER.trace("new channel to {}", key);
 			onNewChannelCreated(key, ch);
 
 			// Handler order:

@@ -275,7 +275,7 @@ public class NetworkRule implements TestRule {
 			RULES_STACK.push(this);
 			size = RULES_STACK.size();
 		}
-		LOGGER.info("{} rules active.", size);
+		LOGGER.debug("{} rules active.", size);
 		initNetwork(first);
 	}
 
@@ -297,7 +297,7 @@ public class NetworkRule implements TestRule {
 			activeRule = RULES_STACK.peek();
 			size = RULES_STACK.size();
 		}
-		LOGGER.info("{} rules active.", size);
+		LOGGER.debug("{} rules active.", size);
 		if (this != closedRule) {
 			throw new IllegalStateException("closed rule differs!");
 		}
@@ -422,7 +422,7 @@ public class NetworkRule implements TestRule {
 			size = RULES_STACK.size();
 			active = !RULES_STACK.isEmpty();
 		}
-		LOGGER.info("{} rules active.", size);
+		LOGGER.debug("{} rules active.", size);
 		return active;
 	}
 }

@@ -470,7 +470,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	@Override
 	public synchronized int remainingCapacity() {
 		int remaining = connections.remainingCapacity();
-		LOG.debug("{}connection: size {}, remaining {}!", tag, connections.size(), remaining);
+		LOG.trace("{}connection: size {}, remaining {}!", tag, connections.size(), remaining);
 		return remaining;
 	}
 

@@ -247,7 +247,7 @@ public class EndpointManager {
 
 		@Override
 		public void deliverRequest(Exchange exchange) {
-			LOGGER.error("Default endpoint without CoapServer has received a request.");
+			LOGGER.info("Default endpoint without CoapServer has received a request.");
 			exchange.sendReject();
 		}
 

@@ -185,8 +185,8 @@ public class ReverseRequest extends CoapResource {
 			if (overallSentRequests.getAndIncrement() == 0) {
 				LOGGER.info("start reverse requests!");
 			}
-			LOGGER.debug("{}", request);
-			LOGGER.info("{}/{}: {} reverse requests, {} overall.", request.getSourceContext().getPeerAddress(),
+			LOGGER.trace("{}", request);
+			LOGGER.trace("{}/{}: {} reverse requests, {} overall.", request.getSourceContext().getPeerAddress(),
 					resource, numberOfRequests, overall);
 			Endpoint endpoint = exchange.advanced().getEndpoint();
 			exchange.respond(CHANGED);

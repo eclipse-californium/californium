@@ -120,7 +120,7 @@ public class ProxyHttpServer {
 				request.setResponse(response);
 				responseProduced(request, response);
 				context.handleRequestForwarding(response);
-				LOGGER.debug("HTTP returned {}", response);
+				LOGGER.trace("HTTP returned {}", response);
 			}
 		};
 

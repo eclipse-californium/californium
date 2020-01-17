@@ -181,7 +181,7 @@ public class ProxyCoapClientResource extends ForwardingResource {
 
 		@Override
 		public void onResponse(Response incomingResponse) {
-			LOGGER.debug("ProxyCoapClientResource received {}", incomingResponse);
+			LOGGER.trace("ProxyCoapClientResource received {}", incomingResponse);
 			incomingExchange.sendResponse(CoapTranslator.getResponse(incomingResponse));
 			pool.release(outgoingEndpoint);
 		}

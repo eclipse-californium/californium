@@ -556,7 +556,7 @@ public class NatUtil implements Runnable {
 		} else {
 			forward = new MessageDropping("request", percent);
 			backward = new MessageDropping("responses", percent);
-			LOGGER.info("NAT message dropping {}%.", percent);
+			LOGGER.trace("NAT message dropping {}%.", percent);
 		}
 	}
 
@@ -577,7 +577,7 @@ public class NatUtil implements Runnable {
 			}
 		} else {
 			forward = new MessageDropping("request", percent);
-			LOGGER.info("NAT forward message dropping {}%.", percent);
+			LOGGER.trace("NAT forward message dropping {}%.", percent);
 		}
 	}
 
@@ -598,7 +598,7 @@ public class NatUtil implements Runnable {
 			}
 		} else {
 			backward = new MessageDropping("response", percent);
-			LOGGER.info("NAT backward message dropping {}%.", percent);
+			LOGGER.trace("NAT backward message dropping {}%.", percent);
 		}
 	}
 
@@ -624,7 +624,7 @@ public class NatUtil implements Runnable {
 			}
 		} else {
 			reorder = new MessageReordering("reordering", percent, delayMillis, randomDelayMillis);
-			LOGGER.info("NAT message reordering {}%.", percent);
+			LOGGER.trace("NAT message reordering {}%.", percent);
 		}
 	}
 
