@@ -18,6 +18,7 @@ package org.eclipse.californium.examples;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
@@ -28,6 +29,8 @@ import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.server.ServerMessageDeliverer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.util.DaemonThreadFactory;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.proxy.ProxyHttpServer;
 import org.eclipse.californium.proxy.resources.ProxyCoapClientResource;
 import org.eclipse.californium.proxy.resources.ProxyHttpClientResource;
@@ -54,11 +57,16 @@ public class ExampleCrossProxy {
 	private CoapServer targetServerA;
 
 	public ExampleCrossProxy() throws IOException {
-		CoapResource coap2coap = new ProxyCoapClientResource(COAP2COAP);
+		NetworkConfig config = NetworkConfig.getStandard();
+		int threads = config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT);
+		ScheduledExecutorService mainExecutor = ExecutorsUtil.newScheduledThreadPool(threads, new DaemonThreadFactory("Proxy#"));
+		ScheduledExecutorService secondaryExecutor = ExecutorsUtil.newDefaultSecondaryScheduler("ProxyTimer#");
+		CoapResource coap2coap = new ProxyCoapClientResource(config, COAP2COAP, mainExecutor, secondaryExecutor);
 		CoapResource coap2http = new ProxyHttpClientResource(COAP2HTTP);
 
 		// Create CoAP Server on PORT with proxy resources form CoAP to CoAP and HTTP
-		targetServerA = new CoapServer(PORT);
+		targetServerA = new CoapServer(config, PORT);
+		targetServerA.setExecutors(mainExecutor, secondaryExecutor, false);
 		targetServerA.add(coap2coap);
 		targetServerA.add(coap2http);
 		targetServerA.add(new TargetResource("target"));
