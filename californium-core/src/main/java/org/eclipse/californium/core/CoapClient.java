@@ -1359,7 +1359,7 @@ public class CoapClient {
 		if (context != null && request.getDestinationContext() == null) {
 			request.setDestinationContext(context);
 			request.setURI(uri);
-		} else if (!request.hasURI()) {
+		} else if (!request.hasURI() && !request.hasProxyURI()) {
 			request.setURI(uri);
 		}
 		return request;
