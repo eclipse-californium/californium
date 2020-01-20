@@ -131,7 +131,7 @@ public class ProxyCoapClientResource extends ForwardingResource {
 				pool.release(endpoint);
 				throw new NullPointerException("Destination is null");
 			}
-			LOGGER.debug("Sending proxied CoAP request.");
+			LOGGER.debug("Sending proxied CoAP request to {}", outgoingRequest.getDestinationContext());
 			endpoint.sendRequest(outgoingRequest);
 		} catch (TranslationException e) {
 			LOGGER.debug("Proxy-uri option malformed: {}", e.getMessage());

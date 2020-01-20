@@ -22,6 +22,7 @@ import java.io.IOException;
 
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
@@ -104,6 +105,7 @@ public class ProxyHttpServer {
 		if (!handlerRegistered) {
 			if (proxyCoapDeliverer != null || proxyCoapResolver != null) {
 				httpStack.registerProxyRequestHandler();
+				httpStack.registerHttpProxyRequestHandler();
 			}
 			if (localCoapDeliverer != null || proxyCoapResolver != null) {
 				httpStack.registerLocalRequestHandler();
@@ -205,8 +207,8 @@ public class ProxyHttpServer {
 	/**
 	 * Set deliverer for forward proxy.
 	 * 
-	 * Register {@link HttpStack#registerProxyRequestHandler()} on
-	 * {@link #start()}.
+	 * Register {@link HttpStack#registerProxyRequestHandler()} and
+	 * {@link HttpStack#registerHttpProxyRequestHandler()} on {@link #start()}.
 	 * 
 	 * @param deliverer mesage deliverer for proxy-requests
 	 */

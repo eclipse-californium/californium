@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
@@ -36,30 +37,40 @@ import org.eclipse.californium.proxy.resources.ProxyCoapClientResource;
 import org.eclipse.californium.proxy.resources.ProxyHttpClientResource;
 
 /**
- * Http2CoAP: Insert in browser:
- *     URI: http://localhost:8080/proxy/coap://localhost:PORT/target
+ * Http2CoAP: Insert in browser: 
+ * URI: http://localhost:8080/proxy/coap://localhost:PORT/target
  * 
- * CoAP2CoAP: Insert in Copper:
- *     URI: coap://localhost:PORT/coap2coap
- *     Proxy: coap://localhost:PORT/targetA
+ * Http2LocalCoAPResource: Insert in browser: 
+ * URI: http://localhost:8080/local/target
+ * 
+ * Http2CoAP: configure browser to use the proxy "localhost:8080". 
+ * Insert in browser: ("localhost" requests are not send to a proxy,
+ * so use the hostname or none-local-ip-address)
+ * URI: http://<hostname>:5683/target/coap:
+ * 
+ * CoAP2CoAP: Insert in Copper: 
+ * URI: coap://localhost:PORT/coap2coap 
+ * Proxy: coap://localhost:PORT/targetA
  *
- * CoAP2Http: Insert in Copper:
- *     URI: coap://localhost:PORT/coap2http
- *     Proxy: http://lantersoft.ch/robots.txt
+ * CoAP2Http: Insert in Copper: 
+ * URI: coap://localhost:PORT/coap2http
+ * Proxy: http://lantersoft.ch/robots.txt
  */
 public class ExampleCrossProxy {
-	
+
 	private static final int PORT = NetworkConfig.getStandard().getInt(NetworkConfig.Keys.COAP_PORT);
 
 	private static final String COAP2COAP = "coap2coap";
 	private static final String COAP2HTTP = "coap2http";
 
 	private CoapServer targetServerA;
+	private ProxyHttpServer httpServer;
 
 	public ExampleCrossProxy() throws IOException {
 		NetworkConfig config = NetworkConfig.getStandard();
 		int threads = config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT);
-		ScheduledExecutorService mainExecutor = ExecutorsUtil.newScheduledThreadPool(threads, new DaemonThreadFactory("Proxy#"));
+		ScheduledExecutorService mainExecutor = ExecutorsUtil.newScheduledThreadPool(threads,
+				new DaemonThreadFactory("Proxy#"));
 		ScheduledExecutorService secondaryExecutor = ExecutorsUtil.newDefaultSecondaryScheduler("ProxyTimer#");
 		CoapResource coap2coap = new ProxyCoapClientResource(config, COAP2COAP, mainExecutor, secondaryExecutor);
 		CoapResource coap2http = new ProxyHttpClientResource(COAP2HTTP);
@@ -75,11 +86,20 @@ public class ExampleCrossProxy {
 		targetServerA.setMessageDeliverer(proxy);
 		targetServerA.start();
 
-		ProxyHttpServer httpServer = new ProxyHttpServer(8080);
+		httpServer = new ProxyHttpServer(config, 8080);
 		httpServer.setLocalCoapDeliverer(local);
 		httpServer.setProxyCoapDeliverer(proxy);
+		httpServer.start();
 
-		System.out.println("CoAP resource \"target\" available over HTTP at: http://localhost:8080/proxy/coap://localhost:PORT/target");
+		System.out.println(
+				"CoAP resource \"target\" available over HTTP at: http://localhost:8080/proxy/coap://localhost:PORT/target");
+		System.out.println(
+				"CoAP resource \"target\" available over HTTP at: http://localhost:8080/local/target");
+	}
+
+	public void stop() {
+		httpServer.stop();
+		targetServerA.destroy();
 	}
 
 	private static class ProxyMessageDeliverer extends ServerMessageDeliverer {
@@ -113,7 +133,7 @@ public class ExampleCrossProxy {
 	 */
 	private static class TargetResource extends CoapResource {
 
-		private int counter = 0;
+		private final AtomicInteger counter = new AtomicInteger();
 
 		public TargetResource(String name) {
 			super(name);
@@ -121,7 +141,8 @@ public class ExampleCrossProxy {
 
 		@Override
 		public void handleGET(CoapExchange exchange) {
-			exchange.respond("Response "+(++counter)+" from resource " + getName());
+			int count = counter.incrementAndGet();
+			exchange.respond("Response " + count + " from resource " + getName());
 		}
 	}
 
