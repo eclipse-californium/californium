@@ -185,8 +185,11 @@ public final class DtlsConnectorConfig {
 	/** does the server require the client to authenticate */
 	private Boolean clientAuthenticationRequired;
 
-	/** does not start handshakes */
+	/** does not start handshakes at all. Ignore handshake modes! */
 	private Boolean serverOnly;
+
+	/** Default handshake mode. */
+	private String defaultHandshakeMode;
 
 	/** certificate types to be used to identify this peer */
 	private List<CertificateType> identityCertificateTypes;
@@ -652,6 +655,20 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * Get the default handshake mode.
+	 * 
+	 * Used, if no handshake mode is provided in the endpoint context, see
+	 * {@link DtlsEndpointContext#KEY_HANDSHAKE_MODE}.
+	 * 
+	 * @return default handshake mode.
+	 *         {@link DtlsEndpointContext#HANDSHAKE_MODE_NONE} or
+	 *         {@link DtlsEndpointContext#HANDSHAKE_MODE_AUTO} (default)
+	 */
+	public String getDefaultHandshakeMode() {
+		return defaultHandshakeMode;
+	}
+
+	/**
 	 * Gets the certificate types for the identity of this peer.
 	 * 
 	 * In the order of preference.
@@ -903,6 +920,7 @@ public final class DtlsConnectorConfig {
 		cloned.clientAuthenticationRequired = clientAuthenticationRequired;
 		cloned.clientAuthenticationWanted = clientAuthenticationWanted;
 		cloned.serverOnly = serverOnly;
+		cloned.defaultHandshakeMode = defaultHandshakeMode;
 		cloned.identityCertificateTypes = identityCertificateTypes;
 		cloned.trustCertificateTypes = trustCertificateTypes;
 		cloned.pskStore = pskStore;
@@ -1056,7 +1074,7 @@ public final class DtlsConnectorConfig {
 		public Builder setClientOnly() {
 			if (config.clientAuthenticationRequired != null || config.clientAuthenticationWanted != null) {
 				throw new IllegalStateException("client only is not support with server side client authentication!");
-			} else if (config.serverOnly != null) {
+			} else if (config.serverOnly != null && config.serverOnly) {
 				throw new IllegalStateException("client only is not support with server only!");
 			} else if (config.useNoServerSessionId != null && config.useNoServerSessionId.booleanValue()) {
 				throw new IllegalStateException("client only is not support with no server session id!");
@@ -1077,7 +1095,35 @@ public final class DtlsConnectorConfig {
 			if (clientOnly) {
 				throw new IllegalStateException("server only is not supported for client only!");
 			}
+			if (config.defaultHandshakeMode != null) {
+				throw new IllegalStateException("server only is not supported for default handshake mode '"
+						+ config.defaultHandshakeMode + "!");
+			}
 			config.serverOnly = enable;
+			return this;
+		}
+
+		/**
+		 * Set the <em>DTLSConnector</em> default handshake mode.
+		 * 
+		 * @param defaultHandshakeMode
+		 *            {@link DtlsEndpointContext#HANDSHAKE_MODE_AUTO} or
+		 *            {@link DtlsEndpointContext#HANDSHAKE_MODE_NONE}
+		 * @return this builder for command chaining
+		 */
+		public Builder setDefaultHandshakeMode(String defaultHandshakeMode) {
+			if (config.serverOnly != null && config.serverOnly) {
+				throw new IllegalStateException("default handshake modes are not supported for server only!");
+			}
+			if (defaultHandshakeMode != null) {
+				if (!defaultHandshakeMode.equals(DtlsEndpointContext.HANDSHAKE_MODE_AUTO)
+						&& !defaultHandshakeMode.equals(DtlsEndpointContext.HANDSHAKE_MODE_NONE)) {
+					throw new IllegalArgumentException(
+							"default handshake mode must be either \"" + DtlsEndpointContext.HANDSHAKE_MODE_AUTO
+									+ "\" or \"" + DtlsEndpointContext.HANDSHAKE_MODE_NONE + "\"!");
+				}
+			}
+			config.defaultHandshakeMode = defaultHandshakeMode;
 			return this;
 		}
 
@@ -2187,6 +2233,13 @@ public final class DtlsConnectorConfig {
 			}
 			if (config.serverOnly == null) {
 				config.serverOnly = Boolean.FALSE;
+			}
+			if (config.defaultHandshakeMode == null) {
+				if (config.serverOnly) {
+					config.defaultHandshakeMode = DtlsEndpointContext.HANDSHAKE_MODE_NONE;
+				} else {
+					config.defaultHandshakeMode = DtlsEndpointContext.HANDSHAKE_MODE_AUTO;
+				}
 			}
 			if (config.useNoServerSessionId == null) {
 				config.useNoServerSessionId = Boolean.FALSE;

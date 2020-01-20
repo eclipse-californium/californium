@@ -74,6 +74,10 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 */
 	public static final String HANDSHAKE_MODE_PROBE = "probe";
 	/**
+	 * Start a handshake, if no session is available.
+	 */
+	public static final String HANDSHAKE_MODE_AUTO = "auto";
+	/**
 	 * Don't start a handshake, even, if no session is available.
 	 */
 	public static final String HANDSHAKE_MODE_NONE = "none";
