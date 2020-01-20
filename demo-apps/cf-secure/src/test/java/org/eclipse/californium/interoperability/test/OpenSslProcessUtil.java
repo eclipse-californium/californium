@@ -49,51 +49,52 @@ public class OpenSslProcessUtil extends ProcessUtil {
 	public OpenSslProcessUtil() {
 	}
 
-	public String startupClient(CipherSuite cipher, AuthenticationMode authMode)
+	public String startupClient(String destination, CipherSuite cipher, AuthenticationMode authMode)
 			throws IOException, InterruptedException {
 		String openSslCipher = OpenSslUtil.CIPHERSUITES_MAP.get(cipher);
+
 		if (cipher.isPskBased()) {
-			startupPskClient(openSslCipher);
+			startupPskClient(destination, openSslCipher);
 		} else {
-			startupEcdsaClient(openSslCipher, authMode);
+			startupEcdsaClient(destination, openSslCipher, authMode);
 		}
 		return openSslCipher;
 	}
 
-	public void startupPskClient(String ciphers) throws IOException, InterruptedException {
-		execute("openssl", "s_client", "-dtls1_2", "-4", "-connect", "127.0.0.1:" + ScandiumUtil.PORT, "-no-CAfile",
-				"-cipher", ciphers, "-curves", "prime256v1", "-psk", "73656372657450534b");
+	public void startupPskClient(String destination, String ciphers) throws IOException, InterruptedException {
+		execute("openssl", "s_client", "-dtls1_2", "-4", "-connect", destination, "-no-CAfile", "-cipher", ciphers,
+				"-curves", "prime256v1", "-psk", "73656372657450534b");
 	}
 
-	public void startupEcdsaClient(String ciphers, AuthenticationMode authMode)
+	public void startupEcdsaClient(String destination, String ciphers, AuthenticationMode authMode)
 			throws IOException, InterruptedException {
 		List<String> args = new ArrayList<String>();
-		args.addAll(Arrays.asList("openssl", "s_client", "-dtls1_2", "-4", "-connect", "127.0.0.1:" + ScandiumUtil.PORT,
-				"-cipher", ciphers, "-curves", "prime256v1", "-cert", "client.pem"));
+		args.addAll(Arrays.asList("openssl", "s_client", "-dtls1_2", "-4", "-connect", destination, "-cipher", ciphers,
+				"-curves", "prime256v1", "-cert", "client.pem"));
 		startupEcdsa(args, authMode);
 	}
 
-	public String startupServer(CipherSuite cipher, AuthenticationMode authMode)
+	public String startupServer(String accept, CipherSuite cipher, AuthenticationMode authMode)
 			throws IOException, InterruptedException {
 		String openSslCipher = OpenSslUtil.CIPHERSUITES_MAP.get(cipher);
 		if (cipher.isPskBased()) {
-			startupPskServer(openSslCipher);
+			startupPskServer(accept, openSslCipher);
 		} else {
-			startupEcdsaServer(openSslCipher, authMode);
+			startupEcdsaServer(accept, openSslCipher, authMode);
 		}
 		return openSslCipher;
 	}
 
-	public void startupPskServer(String ciphers) throws IOException, InterruptedException {
-		execute("openssl", "s_server", "-4", "-dtls1_2", "-accept", "127.0.0.1:" + ScandiumUtil.PORT, "-listen",
-				"-no-CAfile", "-cipher", ciphers, "-psk", "73656372657450534b");
+	public void startupPskServer(String accept, String ciphers) throws IOException, InterruptedException {
+		execute("openssl", "s_server", "-4", "-dtls1_2", "-accept", accept, "-listen", "-no-CAfile", "-cipher", ciphers,
+				"-psk", "73656372657450534b");
 	}
 
-	public void startupEcdsaServer(String ciphers, AuthenticationMode authMode)
+	public void startupEcdsaServer(String accept, String ciphers, AuthenticationMode authMode)
 			throws IOException, InterruptedException {
 		List<String> args = new ArrayList<String>();
-		args.addAll(Arrays.asList("openssl", "s_server", "-4", "-dtls1_2", "-accept", "127.0.0.1:" + ScandiumUtil.PORT,
-				"-listen", "-verify", "5", "-cipher", ciphers, "-cert", "server.pem"));
+		args.addAll(Arrays.asList("openssl", "s_server", "-4", "-dtls1_2", "-accept", accept, "-listen", "-verify", "5",
+				"-cipher", ciphers, "-cert", "server.pem"));
 		startupEcdsa(args, authMode);
 	}
 

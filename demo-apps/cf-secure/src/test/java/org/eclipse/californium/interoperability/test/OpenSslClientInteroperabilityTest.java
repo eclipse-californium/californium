@@ -52,6 +52,7 @@ public class OpenSslClientInteroperabilityTest {
 
 	private static final InetSocketAddress BIND = new InetSocketAddress(InetAddress.getLoopbackAddress(),
 			ScandiumUtil.PORT);
+	private static final String DESTINATION = "127.0.0.1:" + ScandiumUtil.PORT;
 	private static final long TIMEOUT_MILLIS = 2000;
 
 	private static OpenSslProcessUtil processUtil;
@@ -105,7 +106,7 @@ public class OpenSslClientInteroperabilityTest {
 	public void testOpenSslClient() throws Exception {
 		scandiumUtil.start(BIND, null, cipherSuite);
 
-		String cipher = processUtil.startupClient(cipherSuite, AuthenticationMode.CERTIFICATE);
+		String cipher = processUtil.startupClient(DESTINATION, cipherSuite, AuthenticationMode.CERTIFICATE);
 		assertTrue(processUtil.waitConsole("Cipher is " + cipher, TIMEOUT_MILLIS));
 
 		String message = "Hello Scandium!";
