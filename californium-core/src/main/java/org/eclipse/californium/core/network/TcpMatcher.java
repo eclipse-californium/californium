@@ -107,7 +107,7 @@ public final class TcpMatcher extends BaseMatcher {
 		}
 		exchange.setRemoveHandler(exchangeRemoveHandler);
 		exchangeStore.registerOutboundRequestWithTokenOnly(exchange);
-		LOGGER.debug("tracking open request using {}", request.getTokenString());
+		LOGGER.debug("tracking open request using [{}]", exchange.getKeyToken());
 	}
 
 	@Override
@@ -170,7 +170,8 @@ public final class TcpMatcher extends BaseMatcher {
 
 		if (tempExchange == null) {
 			// There is no exchange with the given token - ignore response
-			LOGGER.trace("discarding unmatchable response from [{}]: {}", response.getSourceContext(), response);
+			LOGGER.trace("discarding by [{}] unmatchable response from [{}]: {}", idByToken,
+					response.getSourceContext(), response);
 			cancel(response, receiver);
 			return;
 		}

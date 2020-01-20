@@ -22,10 +22,13 @@
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
+import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
+
+import org.eclipse.californium.elements.util.StringUtil;
 
 /**
  * Key set based endpoint context matcher.
@@ -79,7 +82,11 @@ public abstract class KeySetEndpointContextMatcher implements EndpointContextMat
 
 	@Override
 	public Object getEndpointIdentity(EndpointContext context) {
-		return context.getPeerAddress();
+		InetSocketAddress address = context.getPeerAddress();
+		if (address.isUnresolved()) {
+			throw new IllegalArgumentException(StringUtil.toDisplayString(address) + " must be resolved!");
+		}
+		return address;
 	}
 
 	@Override

@@ -268,12 +268,44 @@ public class StringUtil {
 		if (SUPPORT_HOST_STRING) {
 			host = toHostString(address);
 		} else {
-			host = toString(address.getAddress());
+			InetAddress addr = address.getAddress();
+			if (addr != null) {
+				host = toString(addr);
+			} else {
+				host = "<unresolved>";
+			}
 		}
 		if (address.getAddress() instanceof Inet6Address) {
 			return "[" + host + "]:" + address.getPort();
 		} else {
 			return host + ":" + address.getPort();
+		}
+	}
+
+	/**
+	 * Get socket address as string for logging.
+	 * 
+	 * @param address socket address to be converted to string
+	 * @return the host string, if available, separated by "/", appended by the
+	 *         host address, ":" and the port. Or {@code null}, if address is
+	 *         {@code null}.
+	 */
+	public static String toDisplayString(InetSocketAddress address) {
+		if (address == null) {
+			return null;
+		}
+		String name = SUPPORT_HOST_STRING ? toHostString(address) : "";
+		InetAddress addr = address.getAddress();
+		String host = (addr != null) ? toString(addr) : "<unresolved>";
+		if (name.equals(host)) {
+			name = "";
+		} else {
+			name += "/";
+		}
+		if (address.getAddress() instanceof Inet6Address) {
+			return name + "[" + host + "]:" + address.getPort();
+		} else {
+			return name + host + ":" + address.getPort();
 		}
 	}
 

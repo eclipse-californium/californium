@@ -572,6 +572,10 @@ public class Exchange {
 		}
 	}
 
+	public KeyToken getKeyToken() {
+		return currentKeyToken;
+	}
+
 	/**
 	 * Returns the block option of the last block of a blockwise sent request.
 	 * When the server sends the response, this block option has to be
