@@ -130,6 +130,22 @@ public class HttpStack {
 	}
 
 	/**
+	 * Register http-proxy request handlers.
+	 * 
+	 * Enables to catch calls, if this http server is configures as http-proxy
+	 * for the client. In that case, the http-request contains the URI
+	 * (including destination host).
+	 * 
+	 * Handles proxy requests for
+	 * "http:/<destination>:<port>/<destination-uri>/<destination-scheme>:".
+	 */
+	void registerHttpProxyRequestHandler() {
+		UriHttpAsyncRequestHandlerMapper registry = server.getRequestHandlerMapper();
+		// register the handler for proxy coap resources
+		registry.register("http*", new ProxyAsyncRequestHandler(PROXY_RESOURCE_NAME, true));
+	}
+
+	/**
 	 * Start http server.
 	 * 
 	 * @throws IOException in case if a non-recoverable I/O error.
@@ -254,6 +270,9 @@ public class HttpStack {
 			} catch (TranslationException e) {
 				LOGGER.warn("Failed to translate the http request in a valid coap request", e);
 				httpRequestContext.sendSimpleHttpResponse(HttpTranslator.STATUS_TRANSLATION_ERROR, e.getMessage());
+			} catch (Throwable e) {
+				LOGGER.error("Unexpected error", e);
+				httpRequestContext.sendSimpleHttpResponse(HttpTranslator.STATUS_INTERNAL_SERVER_ERROR, e.getMessage());
 			}
 		}
 
