@@ -54,6 +54,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 	private static final InetSocketAddress BIND = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 	private static final InetSocketAddress DESTINATION = new InetSocketAddress(InetAddress.getLoopbackAddress(),
 			ScandiumUtil.PORT);
+	private static final String ACCEPT = "127.0.0.1:" + ScandiumUtil.PORT;
 
 	private static final long TIMEOUT_MILLIS = 2000;
 
@@ -93,7 +94,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslServerCertTrustAll() throws Exception {
-		String cipher = processUtil.startupServer(cipherSuite, AuthenticationMode.CERTIFICATE);
+		String cipher = processUtil.startupServer(ACCEPT, cipherSuite, AuthenticationMode.CERTIFICATE);
 
 		scandiumUtil.start(BIND, null, cipherSuite);
 		connect(cipher);
@@ -101,7 +102,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslServerChainTrustAll() throws Exception {
-		String cipher = processUtil.startupServer(cipherSuite, AuthenticationMode.CHAIN);
+		String cipher = processUtil.startupServer(ACCEPT, cipherSuite, AuthenticationMode.CHAIN);
 
 		scandiumUtil.start(BIND, null, cipherSuite);
 		connect(cipher);
@@ -109,7 +110,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslServerTrustTrustAll() throws Exception {
-		String cipher = processUtil.startupServer(cipherSuite, AuthenticationMode.TRUST);
+		String cipher = processUtil.startupServer(ACCEPT, cipherSuite, AuthenticationMode.TRUST);
 
 		scandiumUtil.start(BIND, null, cipherSuite);
 		connect(cipher);
@@ -117,7 +118,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslServerFullTrustTrustAll() throws Exception {
-		String cipher = processUtil.startupServer(cipherSuite, AuthenticationMode.TRUST);
+		String cipher = processUtil.startupServer(ACCEPT, cipherSuite, AuthenticationMode.TRUST);
 
 		scandiumUtil.start(BIND, false, null, cipherSuite);
 		connect(cipher);
@@ -125,7 +126,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslServerCertTrustCa() throws Exception {
-		String cipher = processUtil.startupServer(cipherSuite, AuthenticationMode.CERTIFICATE);
+		String cipher = processUtil.startupServer(ACCEPT, cipherSuite, AuthenticationMode.CERTIFICATE);
 
 		scandiumUtil.start(BIND, ScandiumUtil.TRUST_CA, cipherSuite);
 		connect(cipher);
@@ -133,7 +134,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslServerChainTrustCa() throws Exception {
-		String cipher = processUtil.startupServer(cipherSuite, AuthenticationMode.CHAIN);
+		String cipher = processUtil.startupServer(ACCEPT, cipherSuite, AuthenticationMode.CHAIN);
 
 		scandiumUtil.start(BIND, ScandiumUtil.TRUST_CA, cipherSuite);
 		connect(cipher);
@@ -141,7 +142,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslServerTrustTrustCa() throws Exception {
-		String cipher = processUtil.startupServer(cipherSuite, AuthenticationMode.TRUST);
+		String cipher = processUtil.startupServer(ACCEPT, cipherSuite, AuthenticationMode.TRUST);
 
 		scandiumUtil.start(BIND, ScandiumUtil.TRUST_CA, cipherSuite);
 		connect(cipher);
@@ -150,7 +151,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 	@Test
 	@Ignore // certificate not trusted by root 
 	public void testOpenSslServerCertTrustRoot() throws Exception {
-		String cipher = processUtil.startupServer(cipherSuite, AuthenticationMode.CERTIFICATE);
+		String cipher = processUtil.startupServer(ACCEPT, cipherSuite, AuthenticationMode.CERTIFICATE);
 
 		scandiumUtil.start(BIND, ScandiumUtil.TRUST_ROOT, cipherSuite);
 		connect(cipher);
@@ -158,7 +159,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslServerChainTrustRoot() throws Exception {
-		String cipher = processUtil.startupServer(cipherSuite, AuthenticationMode.CHAIN);
+		String cipher = processUtil.startupServer(ACCEPT, cipherSuite, AuthenticationMode.CHAIN);
 
 		scandiumUtil.start(BIND, ScandiumUtil.TRUST_ROOT, cipherSuite);
 		connect(cipher);
@@ -166,7 +167,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslServerTrustTrustRoot() throws Exception {
-		String cipher = processUtil.startupServer(cipherSuite, AuthenticationMode.TRUST);
+		String cipher = processUtil.startupServer(ACCEPT, cipherSuite, AuthenticationMode.TRUST);
 
 		scandiumUtil.start(BIND, ScandiumUtil.TRUST_ROOT, cipherSuite);
 		connect(cipher);

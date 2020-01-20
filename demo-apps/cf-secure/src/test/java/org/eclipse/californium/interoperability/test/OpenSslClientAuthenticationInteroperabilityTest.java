@@ -48,6 +48,7 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 
 	private static final InetSocketAddress BIND = new InetSocketAddress(InetAddress.getLoopbackAddress(),
 			ScandiumUtil.PORT);
+	private static final String DESTINATION = "127.0.0.1:" + ScandiumUtil.PORT;
 	private static final long TIMEOUT_MILLIS = 2000;
 
 	private static OpenSslProcessUtil processUtil;
@@ -88,7 +89,7 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 	public void testOpenSslClientCertTrustAll() throws Exception {
 		scandiumUtil.start(BIND, null, cipherSuite);
 
-		String cipher = processUtil.startupClient(cipherSuite, AuthenticationMode.CERTIFICATE);
+		String cipher = processUtil.startupClient(DESTINATION, cipherSuite, AuthenticationMode.CERTIFICATE);
 		connect(cipher);
 	}
 
@@ -96,7 +97,7 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 	public void testOpenSslClientChainTrustAll() throws Exception {
 		scandiumUtil.start(BIND, null, cipherSuite);
 
-		String cipher = processUtil.startupClient(cipherSuite, AuthenticationMode.CHAIN);
+		String cipher = processUtil.startupClient(DESTINATION, cipherSuite, AuthenticationMode.CHAIN);
 		connect(cipher);
 	}
 
@@ -104,7 +105,7 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 	public void testOpenSslClientTrustTrustAll() throws Exception {
 		scandiumUtil.start(BIND, null, cipherSuite);
 
-		String cipher = processUtil.startupClient(cipherSuite, AuthenticationMode.TRUST);
+		String cipher = processUtil.startupClient(DESTINATION, cipherSuite, AuthenticationMode.TRUST);
 		connect(cipher);
 	}
 
@@ -112,7 +113,7 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 	public void testOpenSslClientCertTrustCa() throws Exception {
 		scandiumUtil.start(BIND, ScandiumUtil.TRUST_CA, cipherSuite);
 
-		String cipher = processUtil.startupClient(cipherSuite, AuthenticationMode.CERTIFICATE);
+		String cipher = processUtil.startupClient(DESTINATION, cipherSuite, AuthenticationMode.CERTIFICATE);
 		connect(cipher);
 	}
 
@@ -120,7 +121,7 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 	public void testOpenSslClientChainTrustCa() throws Exception {
 		scandiumUtil.start(BIND, ScandiumUtil.TRUST_CA, cipherSuite);
 
-		String cipher = processUtil.startupClient(cipherSuite, AuthenticationMode.CHAIN);
+		String cipher = processUtil.startupClient(DESTINATION, cipherSuite, AuthenticationMode.CHAIN);
 		connect(cipher);
 	}
 
@@ -128,7 +129,7 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 	public void testOpenSslClientTrustTrustCa() throws Exception {
 		scandiumUtil.start(BIND, ScandiumUtil.TRUST_CA, cipherSuite);
 
-		String cipher = processUtil.startupClient(cipherSuite, AuthenticationMode.TRUST);
+		String cipher = processUtil.startupClient(DESTINATION, cipherSuite, AuthenticationMode.TRUST);
 		connect(cipher);
 	}
 
@@ -137,7 +138,7 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 	public void testOpenSslClientCertTrustRoot() throws Exception {
 		scandiumUtil.start(BIND, ScandiumUtil.TRUST_ROOT, cipherSuite);
 
-		String cipher = processUtil.startupClient(cipherSuite, AuthenticationMode.CERTIFICATE);
+		String cipher = processUtil.startupClient(DESTINATION, cipherSuite, AuthenticationMode.CERTIFICATE);
 		connect(cipher);
 	}
 
@@ -145,7 +146,7 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 	public void testOpenSslClientChainTrustRoot() throws Exception {
 		scandiumUtil.start(BIND, ScandiumUtil.TRUST_ROOT, cipherSuite);
 
-		String cipher = processUtil.startupClient(cipherSuite, AuthenticationMode.CHAIN);
+		String cipher = processUtil.startupClient(DESTINATION, cipherSuite, AuthenticationMode.CHAIN);
 		connect(cipher);
 	}
 
@@ -153,7 +154,7 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 	public void testOpenSslClientTrustTrustRoot() throws Exception {
 		scandiumUtil.start(BIND, ScandiumUtil.TRUST_ROOT, cipherSuite);
 
-		String cipher = processUtil.startupClient(cipherSuite, AuthenticationMode.TRUST);
+		String cipher = processUtil.startupClient(DESTINATION, cipherSuite, AuthenticationMode.TRUST);
 		connect(cipher);
 	}
 
