@@ -230,6 +230,7 @@ public  class CoapResource implements Resource {
 			case FETCH: handleFETCH(new CoapExchange(exchange, this)); break;
 			case PATCH: handlePATCH(new CoapExchange(exchange, this)); break;
 			case IPATCH: handleIPATCH(new CoapExchange(exchange, this)); break;
+			default: exchange.sendResponse(new Response(ResponseCode.METHOD_NOT_ALLOWED)); break;
 		}
 	}
 

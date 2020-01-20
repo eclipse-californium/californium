@@ -337,28 +337,61 @@ public class Exchange {
 	/**
 	 * Accept this exchange and therefore the request. Only if the request's
 	 * type was a <code>CON</code> and the request has not been acknowledged
-	 * yet, it sends an ACK to the client.
+	 * yet, it sends an ACK to the client. Use the source endpoint context of
+	 * the current request to send the ACK.
+	 * 
+	 * @see #sendAccept(EndpointContext)
 	 */
 	public void sendAccept() {
+		assert (origin == Origin.REMOTE);
+		sendAccept(currentRequest.getSourceContext());
+	}
+
+	/**
+	 * Accept this exchange and therefore the request. Only if the request's
+	 * type was a <code>CON</code> and the request has not been acknowledged
+	 * yet, it sends an ACK to the client.
+	 * 
+	 * @param context endpoint context to send ack
+	 * 
+	 * @see #sendAccept()
+	 */
+	public void sendAccept(EndpointContext context) {
 		assert (origin == Origin.REMOTE);
 		Request current = currentRequest;
 		if (current.getType() == Type.CON && current.hasMID() && !current.isAcknowledged()) {
 			current.setAcknowledged(true);
-			EmptyMessage ack = EmptyMessage.newACK(current);
+			EmptyMessage ack = EmptyMessage.newACK(current, context);
 			endpoint.sendEmptyMessage(this, ack);
 		}
 	}
 
 	/**
 	 * Reject this exchange and therefore the request. Sends an RST back to the
-	 * client.
+	 * client, if the request has not been already rejected. Use the source
+	 * endpoint context of the current request to send the RST.
+	 * 
+	 * @see #sendReject(EndpointContext)
 	 */
 	public void sendReject() {
+		assert (origin == Origin.REMOTE);
+		sendReject(currentRequest.getSourceContext());
+	}
+
+	/**
+	 * Reject this exchange and therefore the request. Sends an RST back to the
+	 * client, if the request has not been already rejected.
+	 * 
+	 * @param context endpoint context to send RST
+	 * 
+	 * @see #sendReject()
+	 */
+	public void sendReject(EndpointContext context) {
 		assert (origin == Origin.REMOTE);
 		Request current = currentRequest;
 		if (current.hasMID() && !current.isRejected()) {
 			current.setRejected(true);
-			EmptyMessage rst = EmptyMessage.newRST(current);
+			EmptyMessage rst = EmptyMessage.newRST(current, context);
 			endpoint.sendEmptyMessage(this, rst);
 		}
 	}
@@ -367,11 +400,15 @@ public class Exchange {
 	 * Sends the specified response over the same endpoint as the request has
 	 * arrived.
 	 * 
+	 * If no destination context is provided, use the source context of the
+	 * request.
+	 * 
 	 * @param response the response
 	 */
 	public void sendResponse(Response response) {
-		Request current = currentRequest;
-		response.setDestinationContext(current.getSourceContext());
+		if (response.getDestinationContext() == null) {
+			response.setDestinationContext(currentRequest.getSourceContext());
+		}
 		endpoint.sendResponse(this, response);
 	}
 
