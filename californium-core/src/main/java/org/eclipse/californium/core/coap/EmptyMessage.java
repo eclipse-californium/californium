@@ -23,6 +23,7 @@
 package org.eclipse.californium.core.coap;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.elements.EndpointContext;
 
 /**
  * EmptyMessage represents an empty CoAP message. An empty message has either
@@ -90,8 +91,19 @@ public class EmptyMessage extends Message {
 	 * @return the acknowledgment
 	 */
 	public static EmptyMessage newACK(Message message) {
+		return newACK(message, message.getSourceContext());
+
+	}
+	/**
+	 * Create a new acknowledgment for the specified message.
+	 *
+	 * @param message the message to acknowledge
+	 * @param destination destination context
+	 * @return the acknowledgment
+	 */
+	public static EmptyMessage newACK(Message message, EndpointContext destination) {
 		EmptyMessage ack = new EmptyMessage(Type.ACK);
-		ack.setDestinationContext(message.getSourceContext());
+		ack.setDestinationContext(destination);
 		ack.setMID(message.getMID());
 		return ack;
 	}
@@ -103,8 +115,19 @@ public class EmptyMessage extends Message {
 	 * @return the reset
 	 */
 	public static EmptyMessage newRST(Message message) {
+		return newRST(message, message.getSourceContext());
+	}
+
+	/**
+	 * Create a new reset message for the specified message.
+	 *
+	 * @param message the message to reject
+	 * @param destination destination context
+	 * @return the reset
+	 */
+	public static EmptyMessage newRST(Message message, EndpointContext destination) {
 		EmptyMessage rst = new EmptyMessage(Type.RST);
-		rst.setDestinationContext(message.getSourceContext());
+		rst.setDestinationContext(destination);
 		rst.setMID(message.getMID());
 		return rst;
 	}

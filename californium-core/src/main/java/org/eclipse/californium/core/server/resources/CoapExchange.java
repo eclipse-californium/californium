@@ -32,6 +32,9 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.elements.DtlsEndpointContext;
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.MapBasedEndpointContext;
 
 /**
  * The Class CoapExchange represents an exchange of a CoAP request and response
@@ -50,6 +53,7 @@ public class CoapExchange {
 	/* Response option values. */
 	private String locationPath = null;
 	private String locationQuery = null;
+	private String handshakeMode = null;
 	private long maxAge = 60;
 	private byte[] eTag = null;
 
@@ -174,7 +178,7 @@ public class CoapExchange {
 	 * might take some time and might trigger a timeout at the client.
 	 */
 	public void accept() {
-		exchange.sendAccept();
+		exchange.sendAccept(applyHandshakeMode());
 	}
 
 	/**
@@ -183,7 +187,7 @@ public class CoapExchange {
 	 * respond with an error response code to bad requests though.
 	 */
 	public void reject() {
-		exchange.sendReject();
+		exchange.sendReject(applyHandshakeMode());
 	}
 
 	/**
@@ -202,6 +206,23 @@ public class CoapExchange {
 	 */
 	public void setLocationQuery(String query) {
 		locationQuery = query;
+	}
+
+	/**
+	 * Set the handshake mode for the answer (response, ack or rst).
+	 * 
+	 * @param handshakeMode the handshake mode.
+	 *            {@link DtlsEndpointContext#HANDSHAKE_MODE_AUTO} or
+	 *            {@link DtlsEndpointContext#HANDSHAKE_MODE_NONE}
+	 */
+	public void setHandshakeMode(String handshakeMode) {
+		if (!handshakeMode.equals(DtlsEndpointContext.HANDSHAKE_MODE_AUTO)
+				&& !handshakeMode.equals(DtlsEndpointContext.HANDSHAKE_MODE_NONE)) {
+			throw new IllegalArgumentException(
+					"handshake mode must be either \"" + DtlsEndpointContext.HANDSHAKE_MODE_AUTO + "\" or \""
+							+ DtlsEndpointContext.HANDSHAKE_MODE_NONE + "\"!");
+		}
+		this.handshakeMode = handshakeMode;
 	}
 
 	/**
@@ -381,8 +402,19 @@ public class CoapExchange {
 		}
 
 		resource.checkObserveRelation(exchange, response);
-
+		if (response.getDestinationContext() == null) {
+			response.setDestinationContext(applyHandshakeMode());
+		}
 		exchange.sendResponse(response);
+	}
+
+	private EndpointContext applyHandshakeMode() {
+		EndpointContext context = exchange.getCurrentRequest().getSourceContext();
+		if (handshakeMode != null && context.get(DtlsEndpointContext.KEY_HANDSHAKE_MODE) == null) {
+			context = MapBasedEndpointContext.addEntries(context, DtlsEndpointContext.KEY_HANDSHAKE_MODE,
+					handshakeMode);
+		}
+		return context;
 	}
 
 	/**
