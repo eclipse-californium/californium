@@ -22,7 +22,6 @@ import java.io.IOException;
 
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
@@ -34,7 +33,6 @@ import org.eclipse.californium.proxy.resources.ProxyCacheResource;
 import org.eclipse.californium.proxy.resources.StatsResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 
 /**
  * The class represent the container of the resources and the layers used by the
@@ -51,6 +49,7 @@ public class ProxyHttpServer {
 	private ProxyCoapResolver proxyCoapResolver;
 	private MessageDeliverer proxyCoapDeliverer;
 	private MessageDeliverer localCoapDeliverer;
+	private boolean handlerRegistered;
 	private HttpStack httpStack;
 
 	/**
@@ -78,23 +77,47 @@ public class ProxyHttpServer {
 	/**
 	 * Instantiates a new proxy endpoint.
 	 * 
+	 * @param config network configuration
 	 * @param httpPort the http port
-	 * @param proxy enable proxy resource
-	 * @param local enable local resource
 	 * @throws IOException the socket exception
 	 */
-	public ProxyHttpServer(int httpPort, boolean proxy, boolean local) throws IOException {
-		this(new HttpStack(httpPort));
+	public ProxyHttpServer(NetworkConfig config, int httpPort) throws IOException {
+		this(new HttpStack(config, httpPort));
 	}
 
-
-	private ProxyHttpServer(HttpStack stack){
+	private ProxyHttpServer(HttpStack stack) {
 		this.httpStack = stack;
 		this.httpStack.setRequestHandler(new RequestHandler() {
+
 			public void handleRequest(Request request, HttpRequestContext context) {
 				ProxyHttpServer.this.handleRequest(request, context);
 			}
 		});
+	}
+
+	/**
+	 * Start http server.
+	 * 
+	 * @throws IOException in case if a non-recoverable I/O error.
+	 */
+	public void start() throws IOException {
+		if (!handlerRegistered) {
+			if (proxyCoapDeliverer != null || proxyCoapResolver != null) {
+				httpStack.registerProxyRequestHandler();
+			}
+			if (localCoapDeliverer != null || proxyCoapResolver != null) {
+				httpStack.registerLocalRequestHandler();
+			}
+			handlerRegistered = true;
+		}
+		httpStack.start();
+	}
+
+	/**
+	 * Stop http server.
+	 */
+	public void stop() {
+		httpStack.stop();
 	}
 
 	public void handleRequest(final Request request, final HttpRequestContext context) {
@@ -107,10 +130,12 @@ public class ProxyHttpServer {
 			public void sendAccept() {
 				// has no meaning for HTTP: do nothing
 			}
+
 			@Override
 			public void sendReject() {
 				context.handleRequestForwarding(null);
 			}
+
 			@Override
 			public void sendResponse(Response response) {
 				// Redirect the response to the HttpStack instead of a normal
@@ -127,12 +152,11 @@ public class ProxyHttpServer {
 		Response response = null;
 		// ignore the request if it is reset or acknowledge
 		// check if the proxy-uri is defined
-		if (request.getType() != Type.RST && request.getType() != Type.ACK 
-				&& request.getOptions().hasProxyUri()) {
+		if (request.getOptions().hasProxyUri()) {
 			// get the response from the cache
 			response = cacheResource.getResponse(request);
 
-				LOGGER.debug("Cache returned {}", response);
+			LOGGER.debug("Cache returned {}", response);
 
 			// update statistics
 			statsResource.updateStatistics(request, response != null);
@@ -166,11 +190,10 @@ public class ProxyHttpServer {
 			}
 
 			/*
-			 * Martin:
-			 * Originally, the request was delivered to the ProxyCoAP2Coap which was at the path
-			 * proxy/coapClient or to proxy/httpClient
-			 * This approach replaces this implicit fuzzy connection with an explicit
-			 * and dynamically changeable one.
+			 * Martin: Originally, the request was delivered to the
+			 * ProxyCoAP2Coap which was at the path proxy/coapClient or to
+			 * proxy/httpClient This approach replaces this implicit fuzzy
+			 * connection with an explicit and dynamically changeable one.
 			 */
 		}
 	}
@@ -179,27 +202,44 @@ public class ProxyHttpServer {
 		return statsResource;
 	}
 
-	public void setProxyCoapDeliverer(MessageDeliverer deliverer){
+	/**
+	 * Set deliverer for forward proxy.
+	 * 
+	 * Register {@link HttpStack#registerProxyRequestHandler()} on
+	 * {@link #start()}.
+	 * 
+	 * @param deliverer mesage deliverer for proxy-requests
+	 */
+	public void setProxyCoapDeliverer(MessageDeliverer deliverer) {
 		this.proxyCoapDeliverer = deliverer;
 	}
 
-	public void setLocalCoapDeliverer(MessageDeliverer deliverer){
+	/**
+	 * Set deliverer for local coap resources.
+	 * 
+	 * Register {@link HttpStack#registerLocalRequestHandler()} on
+	 * {@link #start()}.
+	 * 
+	 * @param deliverer mesage deliverer for local coap resources
+	 */
+	public void setLocalCoapDeliverer(MessageDeliverer deliverer) {
 		this.localCoapDeliverer = deliverer;
 	}
 
 	protected void responseProduced(Request request, Response response) {
 		// check if the proxy-uri is defined
 		if (request.getOptions().hasProxyUri()) {
-				LOGGER.info("Cache response");
+			LOGGER.info("Cache response");
 			// insert the response in the cache
 			cacheResource.cacheResponse(request, response);
 		} else {
-				LOGGER.info("Do not cache response");
+			LOGGER.info("Do not cache response");
 		}
 	}
 
 	/**
-	 * @deprecated use {@link MessageDeliverer} instead. This getter will be removed without replacement!
+	 * @deprecated use {@link MessageDeliverer} instead. This getter will be
+	 *             removed without replacement!
 	 */
 	@Deprecated
 	public ProxyCoapResolver getProxyCoapResolver() {
@@ -207,7 +247,8 @@ public class ProxyHttpServer {
 	}
 
 	/**
-	 * @deprecated use {@link #setProxyCoapDeliverer(MessageDeliverer)} or {@link #setLocalCoapDeliverer(MessageDeliverer)} instead.
+	 * @deprecated use {@link #setProxyCoapDeliverer(MessageDeliverer)} or
+	 *             {@link #setLocalCoapDeliverer(MessageDeliverer)} instead.
 	 */
 	@Deprecated
 	public void setProxyCoapResolver(ProxyCoapResolver proxyCoapResolver) {
