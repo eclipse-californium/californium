@@ -137,6 +137,6 @@ public class AddressEndpointContext implements EndpointContext {
 	}
 
 	protected final String getPeerAddressAsString() {
-		return StringUtil.toString(peerAddress);
+		return StringUtil.toDisplayString(peerAddress);
 	}
 }
