@@ -260,8 +260,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 	private final int thresholdHandshakesWithoutVerifiedPeer;
 	private final AtomicInteger pendingHandshakesWithoutVerifiedPeer = new AtomicInteger();
 	private final DtlsHealth health;
-	
+
 	private final boolean serverOnly;
+	private final String defaultHandshakeMode;
 	/**
 	 * Apply record filter only for records within the receive window.
 	 */
@@ -378,6 +379,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			this.pendingOutboundMessagesCountdown.set(config.getOutboundMessageBufferSize());
 			this.autoResumptionTimeoutMillis = config.getAutoResumptionTimeoutMillis();
 			this.serverOnly = config.isServerOnly();
+			this.defaultHandshakeMode = config.getDefaultHandshakeMode();
 			this.useWindowFilter = config.useWindowFilter();
 			this.useFilter = config.useAntiReplayFilter() || useWindowFilter;
 			this.useCidUpdateAddressOnNewerRecordFilter = config.useCidUpdateAddressOnNewerRecordFilter();
@@ -1992,8 +1994,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		} else {
 			boolean create = !serverOnly;
 			if (create) {
-				create = !DtlsEndpointContext.HANDSHAKE_MODE_NONE
-						.equals(message.getEndpointContext().get(DtlsEndpointContext.KEY_HANDSHAKE_MODE));
+				create = !getEffectiveHandshakeMode(message).equals(DtlsEndpointContext.HANDSHAKE_MODE_NONE);
 			}
 			connection = getConnection(message.getInetSocketAddress(), null, create);
 			if (connection == null) {
@@ -2147,8 +2148,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 				}
 				return;
 			}
-			String handshakeMode = message.getEndpointContext().get(DtlsEndpointContext.KEY_HANDSHAKE_MODE);
-			boolean none = DtlsEndpointContext.HANDSHAKE_MODE_NONE.equals(handshakeMode);
+			boolean none = getEffectiveHandshakeMode(message).contentEquals(DtlsEndpointContext.HANDSHAKE_MODE_NONE);
 			if (none) {
 				message.onError(new EndpointUnconnectedException("connection missing!"));
 				if (health != null) {
@@ -2180,7 +2180,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	private void sendMessageWithSession(final RawData message, final Connection connection) throws HandshakeException {
 
 		DTLSSession session = connection.getEstablishedSession();
-		String handshakeMode = message.getEndpointContext().get(DtlsEndpointContext.KEY_HANDSHAKE_MODE);
+		String handshakeMode = getEffectiveHandshakeMode(message);
 		boolean none = DtlsEndpointContext.HANDSHAKE_MODE_NONE.equals(handshakeMode);
 		if (none) {
 			if (connection.isResumptionRequired()) {
@@ -2851,6 +2851,25 @@ public class DTLSConnector implements Connector, RecordLayer {
 		return endpointContextMatcher;
 	}
 
+	/**
+	 * Get effective handshake mode.
+	 * 
+	 * Either the handshake mode provided in the message's endpoint-context, see
+	 * {@link DtlsEndpointContext#KEY_HANDSHAKE_MODE}, ot, if that is not
+	 * available, the default from the configuration
+	 * {@link DtlsConnectorConfig#getDefaultHandshakeMode()}.
+	 * 
+	 * @param message message to be sent
+	 * @return effective handshake mode.
+	 */
+	private String getEffectiveHandshakeMode(RawData message) {
+		String mode = message.getEndpointContext().get(DtlsEndpointContext.KEY_HANDSHAKE_MODE);
+		if (mode == null) {
+			mode = defaultHandshakeMode;
+		}
+		return mode;
+	}
+	
 	/**
 	 * Sets a handler to call back if an alert message is received from a peer.
 	 * <p>
