@@ -254,6 +254,7 @@ public abstract class AbstractTestServer extends CoapServer {
 				InetSocketAddress bindToAddress = new InetSocketAddress(addr, coapsPort);
 				if (protocols.contains(Protocol.DTLS)) {
 					NetworkConfig dtlsConfig = getConfig(Protocol.DTLS, interfaceType);
+					int retransmissionTimeout = dtlsConfig.getInt(Keys.ACK_TIMEOUT);
 					int staleTimeout = dtlsConfig.getInt(Keys.MAX_PEER_INACTIVITY_PERIOD);
 					int dtlsThreads = dtlsConfig.getInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT);
 					int dtlsReceiverThreads = dtlsConfig.getInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT);
@@ -292,6 +293,7 @@ public abstract class AbstractTestServer extends CoapServer {
 					dtlsConfigBuilder.setHealthStatusInterval(healthStatusInterval);
 					dtlsConfigBuilder.setSocketReceiveBufferSize(recvBufferSize); 
 					dtlsConfigBuilder.setSocketSendBufferSize(sendBufferSize); 
+					dtlsConfigBuilder.setRetransmissionTimeout(retransmissionTimeout);
 					DTLSConnector connector = new DTLSConnector(dtlsConfigBuilder.build());
 					CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 					builder.setConnector(connector);
