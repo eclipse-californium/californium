@@ -112,7 +112,7 @@ public class ObjectSecurityLayer extends AbstractLayer {
 	}
 
 	@Override
-	public void sendRequest(Exchange exchange, Request request) {
+	public void sendRequest(final Exchange exchange, final Request request) {
 		Request req = request;
 		if (shouldProtectRequest(request)) {
 			try {
@@ -147,11 +147,19 @@ public class ObjectSecurityLayer extends AbstractLayer {
 				final Request preparedRequest = prepareSend(ctxDb, request);
 				final OSCoreCtx finalCtx = ctxDb.getContext(uri);
 
-				preparedRequest.addMessageObserver(new MessageObserverAdapter() {
+				preparedRequest.addMessageObserver(0, new MessageObserverAdapter() {
 
 					@Override
 					public void onReadyToSend() {
 						Token token = preparedRequest.getToken();
+
+						// add at head of message observers to update
+						// the token of the original request first,
+						// before calling other message observers!
+						if (request.getToken() == null) {
+							request.setToken(token);
+						}
+
 						ctxDb.addContext(token, finalCtx);
 						ctxDb.addSeqByToken(token, seqByToken);
 					}
