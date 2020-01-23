@@ -34,7 +34,7 @@ import org.eclipse.californium.core.observe.ObserveRelation;
  */
 public class TcpObserveLayer extends AbstractLayer {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(TcpObserveLayer.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(TcpObserveLayer.class);
 
 	private static final Integer CANCEL = 1;
 

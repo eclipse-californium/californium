@@ -28,7 +28,11 @@
  * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
  * THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-     
+ *
+ * Contributors:
+ *    Achim Kraus (Bosch Software Innovations GmbH) - update to javadoc
+ *                                                    align with cose 1.0
+ *                                                    commit 629912b94ea80c4c6
  ******************************************************************************/
 package org.eclipse.californium.cose;
 
@@ -128,7 +132,7 @@ public class Encrypt0Message extends EncryptCommon {
 	 * 
 	 * @param rgbKey key for decryption
 	 * @return the decrypted content
-	 * @throws CoseException
+     * @throws CoseException - Error during decryption
 	 */
 	public byte[] decrypt(byte[] rgbKey) throws CoseException {
 		return super.decryptWithKey(rgbKey);
@@ -138,8 +142,8 @@ public class Encrypt0Message extends EncryptCommon {
 	 * Encrypt the message using the passed in key.
 	 * 
 	 * @param rgbKey key used for encryption
-	 * @throws CoseException
-	 * @throws IllegalStateException
+     * @throws CoseException - Error during decryption
+     * @throws IllegalStateException - Error during decryption
 	 */
 	public void encrypt(byte[] rgbKey) throws CoseException, IllegalStateException {
 		super.encryptWithKey(rgbKey);

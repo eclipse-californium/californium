@@ -19,11 +19,6 @@
 package org.eclipse.californium.proxy;
 
 import java.io.IOException;
-import java.net.SocketException;
-import java.net.URI;
-import java.net.URISyntaxException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -33,8 +28,12 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.server.MessageDeliverer;
+import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.proxy.resources.ProxyCacheResource;
 import org.eclipse.californium.proxy.resources.StatsResource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -44,38 +43,53 @@ import org.eclipse.californium.proxy.resources.StatsResource;
  */
 public class ProxyHttpServer {
 
-	private final static Logger LOGGER = LoggerFactory.getLogger(ProxyHttpServer.class.getCanonicalName());
-	
-	private static final String PROXY_COAP_CLIENT = "proxy/coapClient";
-	private static final String PROXY_HTTP_CLIENT = "proxy/httpClient";
+	private final static Logger LOGGER = LoggerFactory.getLogger(ProxyHttpServer.class);
 
 	private final ProxyCacheResource cacheResource = new ProxyCacheResource(true);
 	private final StatsResource statsResource = new StatsResource(cacheResource);
-	
+
 	private ProxyCoapResolver proxyCoapResolver;
+	private MessageDeliverer proxyCoapDeliverer;
+	private MessageDeliverer localCoapDeliverer;
 	private HttpStack httpStack;
 
 	/**
-	 * Instantiates a new proxy endpoint from the default ports.
+	 * Create http server to access local coap resources.
 	 * 
-	 * @throws SocketException
-	 *             the socket exception
+	 * @deprecated use {@link #setLocalCoapDeliverer(MessageDeliverer)} with
+	 *             {@link CoapServer#getMessageDeliverer()} instead.
 	 */
+	@Deprecated
 	public ProxyHttpServer(CoapServer server) throws IOException {
-		this(NetworkConfig.getStandard().getInt(NetworkConfig.Keys.HTTP_PORT));
+		this(new HttpStack(server.getConfig().getInt(NetworkConfig.Keys.HTTP_PORT)));
+		setLocalCoapDeliverer(server.getMessageDeliverer());
 	}
 
 	/**
 	 * Instantiates a new proxy endpoint.
 	 * 
-	 * @param httpPort
-	 *            the http port
-	 * @throws IOException
-	 *             the socket exception
+	 * @param httpPort the http port
+	 * @throws IOException the socket exception
 	 */
 	public ProxyHttpServer(int httpPort) throws IOException {
-	
-		this.httpStack = new HttpStack(httpPort);
+		this(new HttpStack(httpPort));
+	}
+
+	/**
+	 * Instantiates a new proxy endpoint.
+	 * 
+	 * @param httpPort the http port
+	 * @param proxy enable proxy resource
+	 * @param local enable local resource
+	 * @throws IOException the socket exception
+	 */
+	public ProxyHttpServer(int httpPort, boolean proxy, boolean local) throws IOException {
+		this(new HttpStack(httpPort));
+	}
+
+
+	private ProxyHttpServer(HttpStack stack){
+		this.httpStack = stack;
 		this.httpStack.setRequestHandler(new RequestHandler() {
 			public void handleRequest(Request request, HttpRequestContext context) {
 				ProxyHttpServer.this.handleRequest(request, context);
@@ -84,9 +98,9 @@ public class ProxyHttpServer {
 	}
 
 	public void handleRequest(final Request request, final HttpRequestContext context) {
-		
+
 		LOGGER.info("ProxyEndpoint handles request {}", request);
-		
+
 		Exchange exchange = new Exchange(request, Origin.REMOTE, null) {
 
 			@Override
@@ -95,7 +109,7 @@ public class ProxyHttpServer {
 			}
 			@Override
 			public void sendReject() {
-				// TODO: close the HTTP connection to signal rejection
+				context.handleRequestForwarding(null);
 			}
 			@Override
 			public void sendResponse(Response response) {
@@ -106,11 +120,10 @@ public class ProxyHttpServer {
 				request.setResponse(response);
 				responseProduced(request, response);
 				context.handleRequestForwarding(response);
-				LOGGER.info("HTTP returned {}", response);
+				LOGGER.debug("HTTP returned {}", response);
 			}
 		};
-		exchange.setRequest(request);
-		
+
 		Response response = null;
 		// ignore the request if it is reset or acknowledge
 		// check if the proxy-uri is defined
@@ -119,7 +132,7 @@ public class ProxyHttpServer {
 			// get the response from the cache
 			response = cacheResource.getResponse(request);
 
-				LOGGER.info("Cache returned {}", response);
+				LOGGER.debug("Cache returned {}", response);
 
 			// update statistics
 			statsResource.updateStatistics(request, response != null);
@@ -133,22 +146,25 @@ public class ProxyHttpServer {
 			return;
 		} else {
 
-			// edit the request to be correctly forwarded if the proxy-uri is
-			// set
 			if (request.getOptions().hasProxyUri()) {
-				try {
-					manageProxyUriRequest(request);
-					LOGGER.info("after manageProxyUriRequest: {}", request);
-
-				} catch (URISyntaxException e) {
-					LOGGER.warn(String.format("Proxy-uri malformed: %s", request.getOptions().getProxyUri()));
-
-					exchange.sendResponse(new Response(ResponseCode.BAD_OPTION));
+				// handle the request as usual
+				if (proxyCoapDeliverer != null) {
+					proxyCoapDeliverer.deliverRequest(exchange);
+				} else if (proxyCoapResolver != null) {
+					proxyCoapResolver.forwardRequest(exchange);
+				} else {
+					exchange.sendResponse(new Response(ResponseCode.PROXY_NOT_SUPPORTED));
+				}
+			} else {
+				if (localCoapDeliverer != null) {
+					localCoapDeliverer.deliverRequest(exchange);
+				} else if (proxyCoapResolver != null) {
+					proxyCoapResolver.forwardRequest(exchange);
+				} else {
+					exchange.sendResponse(new Response(ResponseCode.PROXY_NOT_SUPPORTED));
 				}
 			}
 
-			// handle the request as usual
-			proxyCoapResolver.forwardRequest(exchange);
 			/*
 			 * Martin:
 			 * Originally, the request was delivered to the ProxyCoAP2Coap which was at the path
@@ -159,36 +175,16 @@ public class ProxyHttpServer {
 		}
 	}
 
-	/**
-	 * Manage proxy uri request.
-	 * 
-	 * @param request
-	 *            the request
-	 * @throws URISyntaxException
-	 *             the uRI syntax exception
-	 */
-	private void manageProxyUriRequest(Request request) throws URISyntaxException {
-		// check which schema is requested
-		URI proxyUri = new URI(request.getOptions().getProxyUri());
+	public Resource getStatistics() {
+		return statsResource;
+	}
 
-		// the local resource that will abstract the client part of the
-		// proxy
-		String clientPath;
+	public void setProxyCoapDeliverer(MessageDeliverer deliverer){
+		this.proxyCoapDeliverer = deliverer;
+	}
 
-		// switch between the schema requested
-		if (proxyUri.getScheme() != null && proxyUri.getScheme().matches("^http.*")) {
-			// the local resource related to the http client
-			clientPath = PROXY_HTTP_CLIENT;
-		} else {
-			// the local resource related to the http client
-			clientPath = PROXY_COAP_CLIENT;
-		}
-
-		LOGGER.info("Chose {} as clientPath", clientPath);
-
-		// set the path in the request to be forwarded correctly
-		request.getOptions().setUriPath(clientPath);
-		
+	public void setLocalCoapDeliverer(MessageDeliverer deliverer){
+		this.localCoapDeliverer = deliverer;
 	}
 
 	protected void responseProduced(Request request, Response response) {
@@ -202,12 +198,19 @@ public class ProxyHttpServer {
 		}
 	}
 
+	/**
+	 * @deprecated use {@link MessageDeliverer} instead. This getter will be removed without replacement!
+	 */
+	@Deprecated
 	public ProxyCoapResolver getProxyCoapResolver() {
 		return proxyCoapResolver;
 	}
 
+	/**
+	 * @deprecated use {@link #setProxyCoapDeliverer(MessageDeliverer)} or {@link #setLocalCoapDeliverer(MessageDeliverer)} instead.
+	 */
+	@Deprecated
 	public void setProxyCoapResolver(ProxyCoapResolver proxyCoapResolver) {
 		this.proxyCoapResolver = proxyCoapResolver;
 	}
-	
 }

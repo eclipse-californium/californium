@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
  */
 public class TestTimeRule extends TestWatcher {
 
-	public static final Logger LOGGER = LoggerFactory.getLogger(TestTimeRule.class.getName());
+	public static final Logger LOGGER = LoggerFactory.getLogger(TestTimeRule.class);
 
 	/**
 	 * Realtime handler applying the {@link #timeShiftNanos}.

@@ -70,7 +70,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class TcpMatcher extends BaseMatcher {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(TcpMatcher.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(TcpMatcher.class);
 	private final RemoveHandler exchangeRemoveHandler = new RemoveHandlerImpl();
 	private final EndpointContextMatcher endpointContextMatcher;
 
@@ -107,7 +107,7 @@ public final class TcpMatcher extends BaseMatcher {
 		}
 		exchange.setRemoveHandler(exchangeRemoveHandler);
 		exchangeStore.registerOutboundRequestWithTokenOnly(exchange);
-		LOGGER.debug("tracking open request using {}", request.getTokenString());
+		LOGGER.debug("tracking open request using [{}]", exchange.getKeyToken());
 	}
 
 	@Override
@@ -170,7 +170,9 @@ public final class TcpMatcher extends BaseMatcher {
 
 		if (tempExchange == null) {
 			// There is no exchange with the given token - ignore response
-			LOGGER.trace("discarding unmatchable response from [{}]: {}", response.getSourceContext(), response);
+			LOGGER.trace("discarding by [{}] unmatchable response from [{}]: {}", idByToken,
+					response.getSourceContext(), response);
+			cancel(response, receiver);
 			return;
 		}
 
@@ -184,6 +186,7 @@ public final class TcpMatcher extends BaseMatcher {
 					if (running) {
 						LOGGER.debug("ignoring response {}, exchange not longer matching!", response);
 					}
+					cancel(response, receiver);
 					return;
 				}
 
@@ -192,6 +195,7 @@ public final class TcpMatcher extends BaseMatcher {
 					// ignore response
 					LOGGER.error("ignoring response from [{}]: {}, request pending to sent!",
 							response.getSourceContext(), response);
+					cancel(response, receiver);
 					return;
 				}
 				try {
@@ -202,9 +206,11 @@ public final class TcpMatcher extends BaseMatcher {
 							// overlapping notification for observation cancel
 							// request
 							LOGGER.debug("ignoring notify for pending cancel {}!", response);
+							cancel(response, receiver);
 							return;
 						}
 						receiver.receiveResponse(exchange, response);
+						return;
 					} else if (LOGGER.isDebugEnabled()) {
 						LOGGER.debug(
 								"ignoring potentially forged response from [{}]: {} for {} with non-matching endpoint context",
@@ -214,6 +220,7 @@ public final class TcpMatcher extends BaseMatcher {
 					LOGGER.error("error receiving response from [{}]: {} for {}", response.getSourceContext(), response,
 							exchange, ex);
 				}
+				cancel(response, receiver);
 			}
 		});
 	}
@@ -221,6 +228,11 @@ public final class TcpMatcher extends BaseMatcher {
 	@Override
 	public void receiveEmptyMessage(final EmptyMessage message, EndpointReceiver receiver) {
 		/* ignore received empty messages via tcp */
+	}
+
+	private void cancel(Response response, EndpointReceiver receiver) {
+		response.setCanceled(true);
+		receiver.receiveResponse(null, response);
 	}
 
 	private class RemoveHandlerImpl implements RemoveHandler {

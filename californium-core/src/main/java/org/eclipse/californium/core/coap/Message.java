@@ -89,7 +89,7 @@ import org.eclipse.californium.elements.util.ClockUtil;
  */
 public abstract class Message {
 
-	protected final static Logger LOGGER = LoggerFactory.getLogger(Message.class.getCanonicalName());
+	protected final static Logger LOGGER = LoggerFactory.getLogger(Message.class);
 
 	/** The Constant NONE in case no MID has been set. */
 	public static final int NONE = -1;
@@ -960,7 +960,9 @@ public abstract class Message {
 
 	/**
 	 * Checks if this message is a duplicate.
-	 *
+	 * 
+	 * Since 2.1 this also reflects, if the message is resent.
+	 * 
 	 * @return true, if is a duplicate
 	 */
 	public boolean isDuplicate() {
@@ -1088,6 +1090,20 @@ public abstract class Message {
 			throw new NullPointerException();
 		}
 		ensureMessageObserverList().add(observer);
+	}
+
+	/**
+	 * Adds the specified message observer.
+	 *
+	 * @param observer the observer
+     * @param index index at which the observer is to be inserted
+	 * @throws NullPointerException if the observer is {@code null}.
+	 */
+	public void addMessageObserver(int index, final MessageObserver observer) {
+		if (observer == null) {
+			throw new NullPointerException();
+		}
+		ensureMessageObserverList().add(index, observer);
 	}
 
 	/**

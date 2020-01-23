@@ -393,7 +393,7 @@ public class ServerHandshakerTest {
 		
 		assertThat(handshaker.handshakeMessages.size(), is(6));
 		assertFalse("Client's KEY_EXCHANGE message should have been queued",
-				handshaker.inboundMessageBuffer.isEmpty());
+				handshaker.isInboundMessageProcessed());
 
 		return certificateMsgRecord;
 	}
@@ -405,7 +405,7 @@ public class ServerHandshakerTest {
 		assertThat("Client's KEY_EXCHANGE message should have been processed",
 				getHandshakeMessage(7, HandshakeType.CLIENT_KEY_EXCHANGE), notNullValue());
 		assertTrue("All (processed) messages should have been removed from inbound messages queue",
-				handshaker.inboundMessageBuffer.isEmpty());
+				handshaker.isInboundMessageProcessed());
 
 	}
 

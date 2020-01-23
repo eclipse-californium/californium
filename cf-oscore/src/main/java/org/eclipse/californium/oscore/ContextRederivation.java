@@ -63,7 +63,7 @@ public class ContextRederivation {
 	/**
 	 * The logger
 	 */
-	private static final Logger LOGGER = LoggerFactory.getLogger(ContextRederivation.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(ContextRederivation.class);
 
 	/**
 	 * Method to indicate that the mutable parts of an OSCORE context has been
@@ -329,13 +329,9 @@ public class ContextRederivation {
 			OSCoreCtx newCtx = rederiveWithContextID(ctx, protectContextID);
 			newCtx.setReceiverSeq(0);
 
-			// In outgoing response from this context, only use R2 as
-			// Context ID (not concatenated one used to generate the
-			// context)
+			// Outgoing response from this context only uses R2 as
+			// Context ID (not concatenated one used to generate the context)
 			newCtx.setIncludeContextId(contextR2);
-
-			// Retain the context re-derivation key
-			newCtx.setContextRederivationKey(ctx.getContextRederivationKey());
 
 			// Respond with new partial IV
 			newCtx.setResponsesIncludePartialIV(true);
@@ -353,14 +349,17 @@ public class ContextRederivation {
 
 	/**
 	 * Re-derive a context with the same input parameters except Context ID.
+	 * Also retain the same context re-derivation key.
 	 * 
 	 * @param ctx the OSCORE context to re-derive
 	 * @param contextID the new context ID to use
 	 * @return the new re-derived context
 	 */
 	private static OSCoreCtx rederiveWithContextID(OSCoreCtx ctx, byte[] contextID) throws OSException {
-		return new OSCoreCtx(ctx.getMasterSecret(), true, ctx.getAlg(), ctx.getSenderId(), ctx.getRecipientId(),
-				ctx.getKdf(), ctx.getRecipientReplaySize(), ctx.getSalt(), contextID);
+		OSCoreCtx newCtx = new OSCoreCtx(ctx.getMasterSecret(), true, ctx.getAlg(), ctx.getSenderId(),
+				ctx.getRecipientId(), ctx.getKdf(), ctx.getRecipientReplaySize(), ctx.getSalt(), contextID);
+		newCtx.setContextRederivationKey(ctx.getContextRederivationKey());
+		return newCtx;
 	}
 
 	/**

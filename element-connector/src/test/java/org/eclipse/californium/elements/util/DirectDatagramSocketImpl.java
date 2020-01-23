@@ -105,7 +105,7 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 	 */
 	public static final int AUTO_PORT_RANGE_SIZE = AUTO_PORT_RANGE_MAX - AUTO_PORT_RANGE_MIN + 1;
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(DirectDatagramSocketImpl.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(DirectDatagramSocketImpl.class);
 
 	/**
 	 * Default factory, if {@code null} is provided for

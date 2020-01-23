@@ -65,6 +65,8 @@ import java.security.MessageDigest;
 import java.security.Principal;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.cert.CertPath;
+import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -73,6 +75,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.crypto.SecretKey;
@@ -84,6 +87,7 @@ import org.eclipse.californium.elements.auth.AdditionalInfo;
 import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -97,6 +101,7 @@ import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
+import org.eclipse.californium.scandium.dtls.x509.AdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 import org.eclipse.californium.scandium.util.SecretIvParameterSpec;
 import org.eclipse.californium.scandium.util.SecretUtil;
@@ -110,7 +115,7 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class Handshaker implements Destroyable {
 
-	protected final Logger LOGGER = LoggerFactory.getLogger(getClass().getName());
+	protected final Logger LOGGER = LoggerFactory.getLogger(getClass());
 
 	/**
 	 * Indicates whether this handshaker performs the client or server part of
@@ -176,6 +181,12 @@ public abstract class Handshaker implements Destroyable {
 	/** Realtime nanoseconds of last sending a flight */
 	private long flightSendNanos;
 
+	/** Realtime nanoseconds when handshakes get's expired. */
+	private long nanosExpireTime;
+
+	/** Timeout in nanoseconds to expire handshakes. */
+	private final long nanosExpireTimeout;
+
 	/** The current flight number. */
 	protected int flightNumber = 0;
 
@@ -201,7 +212,8 @@ public abstract class Handshaker implements Destroyable {
 	private final Connection connection;
 
 	/** Buffer for received records that can not be processed immediately. */
-	protected InboundMessageBuffer inboundMessageBuffer;
+	private InboundMessageBuffer inboundMessageBuffer;
+
 	/** List of handshake messages */
 	protected final List<HandshakeMessage> handshakeMessages = new ArrayList<HandshakeMessage>();
 
@@ -218,6 +230,8 @@ public abstract class Handshaker implements Destroyable {
 
 	/** The chain of certificates asserting this handshaker's identity */
 	protected List<X509Certificate> certificateChain;
+	/** The certificate path of the other peer */
+	protected CertPath peerCertPath;
 
 	/**
 	 * Support Server Name Indication TLS extension.
@@ -228,6 +242,15 @@ public abstract class Handshaker implements Destroyable {
 	 */
 	protected boolean useStateValidation;
 
+	/**
+	 * Use key usage verification for x509.
+	 */
+	protected final boolean useKeyUsageVerification;
+	/**
+	 * Truncate certificate path for validation.
+	 */
+	protected final boolean useTruncatedCertificatePathForVerification;
+
 	private final Set<SessionListener> sessionListeners = new LinkedHashSet<>();
 	
 	protected int statesIndex;
@@ -235,6 +258,7 @@ public abstract class Handshaker implements Destroyable {
 
 	private boolean changeCipherSuiteMessageExpected = false;
 	private boolean sessionEstablished = false;
+	private boolean handshakeAborted = false;
 	private boolean handshakeFailed = false;
 	private Throwable cause;
 	private ApplicationLevelInfoSupplier applicationLevelInfoSupplier;
@@ -290,6 +314,8 @@ public abstract class Handshaker implements Destroyable {
 		this.maxDeferredProcessedIncomingRecordsSize = config.getMaxDeferredProcessedIncomingRecordsSize();
 		this.sniEnabled = config.isSniEnabled();
 		this.useStateValidation = config.useHandshakeStateValidation();
+		this.useKeyUsageVerification = config.useKeyUsageVerification();
+		this.useTruncatedCertificatePathForVerification = config.useTruncatedCertificatePathForValidation();
 		this.privateKey = config.getPrivateKey();
 		this.publicKey = config.getPublicKey();
 		this.certificateChain = config.getCertificateChain();
@@ -299,14 +325,23 @@ public abstract class Handshaker implements Destroyable {
 		this.session.setMaxTransmissionUnit(maxTransmissionUnit);
 		this.applicationLevelInfoSupplier = config.getApplicationLevelInfoSupplier();
 		this.inboundMessageBuffer = new InboundMessageBuffer();
-
+		int max = config.getMaxRetransmissions();
+		int timeoutMillis = config.getRetransmissionTimeout();
+		// add all timeouts for retries and the initial timeout twice
+		// to get a short extra timespan for regular handshake timeouts
+		int expireTimeoutMillis = timeoutMillis * 2; 
+		for (int retry = 0; retry < max; ++retry) {
+			timeoutMillis = DTLSFlight.incrementTimeout(timeoutMillis);
+			expireTimeoutMillis += timeoutMillis;
+		}
+		this.nanosExpireTimeout = TimeUnit.MILLISECONDS.toNanos(expireTimeoutMillis);
 		addSessionListener(connection.getSessionListener());
 	}
 
 	/**
 	 * A queue for buffering inbound handshake records.
 	 */
-	class InboundMessageBuffer {
+	private class InboundMessageBuffer {
 
 		private Record changeCipherSpec = null;
 
@@ -484,6 +519,16 @@ public abstract class Handshaker implements Destroyable {
 				return 0;
 			}
 		}
+	}
+
+	/**
+	 * Check, if inbound messages are all processed.
+	 * 
+	 * @return {@code true}, all inbound messages are processed, {@code false},
+	 *         some inbound messages are pending.
+	 */
+	public boolean isInboundMessageProcessed() {
+		return inboundMessageBuffer.isEmpty();
 	}
 
 	/**
@@ -1142,6 +1187,7 @@ public abstract class Handshaker implements Destroyable {
 		setPendingFlight(null);
 		try {
 			flightSendNanos = ClockUtil.nanoRealtime();
+			nanosExpireTime = nanosExpireTimeout + flightSendNanos;
 			recordLayer.sendFlight(flight, connection);
 			setPendingFlight(flight);
 		} catch (IOException e) {
@@ -1203,12 +1249,17 @@ public abstract class Handshaker implements Destroyable {
 	/**
 	 * Notifies all registered session listeners about a handshake failure.
 	 * 
+	 * Listeners are intended to remove the connection, if no session is
+	 * established.
+	 * 
 	 * If {@link #setFailureCause(Throwable)} was called before, only calls with
 	 * the same cause will notify the listeners. If
 	 * {@link #setFailureCause(Throwable)} wasn't called before, sets the
 	 * <em>cause</em> property to the given cause.
 	 * 
 	 * @param cause The reason for the failure.
+	 * @see #isRemovingConnection()
+	 * @see #handshakeAborted(Throwable)
 	 */
 	public final void handshakeFailed(Throwable cause) {
 		if (this.cause == null) {
@@ -1222,10 +1273,79 @@ public abstract class Handshaker implements Destroyable {
 				for (SessionListener sessionListener : sessionListeners) {
 					sessionListener.handshakeFailed(this, cause);
 				}
+				SecretUtil.destroy(session);
 			}
+			SecretUtil.destroy(this);
 		}
-		SecretUtil.destroy(session);
-		SecretUtil.destroy(this);
+	}
+
+	/**
+	 * Abort handshake.
+	 * 
+	 * Notifies all registered session listeners about a handshake failure.
+	 * Listeners are intended to keep the connection.
+	 * 
+	 * If {@link #setFailureCause(Throwable)} was called before, only calls with
+	 * the same cause will notify the listeners. If
+	 * {@link #setFailureCause(Throwable)} wasn't called before, sets the
+	 * <em>cause</em> property to the given cause.
+	 * 
+	 * @param cause The reason for the abort.
+	 * @see #handshakeFailed(Throwable)
+	 * @see #isRemovingConnection()
+	 */
+	public final void handshakeAborted(Throwable cause) {
+		this.handshakeAborted = true;
+		handshakeFailed(cause);
+	}
+
+	/**
+	 * Test, if handshake was started in probing mode.
+	 * 
+	 * Usually a resuming client handshake removes the session from the
+	 * connection store with the start. Probing removes the session only with
+	 * the first data received back.
+	 * 
+	 * @return {@code true}, if handshake is in probing mode, {@code false},
+	 *         otherwise.
+	 * @see ResumingClientHandshaker
+	 */
+	public boolean isProbing() {
+		// intended to be overriden by the ResumingClientHandshaker
+		return false;
+	}
+
+	/**
+	 * Reset probing mode, when data is received during.
+	 * 
+	 * @see ResumingClientHandshaker
+	 */
+	public void resetProbing() {
+		// intended to be overriden by the ResumingClientHandshaker
+	}
+
+	/**
+	 * Test, if handshake is expired according nano realtime.
+	 * 
+	 * Used to mitigate deep sleep during handhsakes.
+	 * 
+	 * @return {@code true}, if handshake is expired, mainly during deep sleep,
+	 *         {@code false}, if the handshake is still in time.
+	 */
+	public boolean isExpired() {
+		return pendingFlight.get() != null && nanosExpireTime < ClockUtil.nanoRealtime();
+	}
+
+	/**
+	 * Check, if the connection must be removed.
+	 * 
+	 * The connection must be removed, if {@link #handshakeFailed(Throwable)}
+	 * was called, and the connection has no established session.
+	 * 
+	 * @return {@code true}, remove the connection, {@code false}, keep it.
+	 */
+	public boolean isRemovingConnection() {
+		return !handshakeAborted && !connection.hasEstablishedSession();
 	}
 
 	/**
@@ -1303,14 +1423,43 @@ public abstract class Handshaker implements Destroyable {
 	 * @throws HandshakeException if any of the checks fails
 	 */
 	public void verifyCertificate(CertificateMessage message) throws HandshakeException {
-		if (message.getCertificateChain() != null) {
-			if (certificateVerifier != null) {
-				certificateVerifier.verifyCertificate(message, session);
-			} else {
+		CertPath certPath = message.getCertificateChain();
+		if (certPath != null) {
+			if (certificateVerifier == null) {
 				LOGGER.debug("Certificate validation failed: x509 could not be trusted!");
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE,
 						session.getPeer());
 				throw new HandshakeException("Trust is not possible!", alert);
+			}
+
+			List<? extends Certificate> certificates = certPath.getCertificates();
+			if (certificates.isEmpty()) {
+				if (isClient) {
+					LOGGER.debug("Certificate validation failed: empty server certificate!");
+					AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE,
+							session.getPeer());
+					throw new HandshakeException("Empty server certificate!", alert);
+				}
+			}
+
+			if (certificateVerifier instanceof AdvancedCertificateVerifier) {
+				Boolean clientUsage = useKeyUsageVerification ? !isClient : null;
+				peerCertPath = ((AdvancedCertificateVerifier) certificateVerifier).verifyCertificate(clientUsage,
+						useTruncatedCertificatePathForVerification, message, session);
+			} else {
+				if (useKeyUsageVerification && !certificates.isEmpty()) {
+					Certificate certificate = certificates.get(0);
+					if (certificate instanceof X509Certificate) {
+						if (!CertPathUtil.canBeUsedForAuthentication((X509Certificate) certificate, !isClient)) {
+							LOGGER.debug("Certificate validation failed: key usage doesn't match");
+							AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE,
+									session.getPeer());
+							throw new HandshakeException("Key Usage doesn't match!", alert);
+						}
+					}
+				}
+				certificateVerifier.verifyCertificate(message, session);
+				peerCertPath = certPath;
 			}
 		} else {
 			RawPublicKeyIdentity rpk = new RawPublicKeyIdentity(message.getPublicKey());
@@ -1318,7 +1467,7 @@ public abstract class Handshaker implements Destroyable {
 				LOGGER.debug("Certificate validation failed: Raw public key is not trusted");
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE,
 						session.getPeer());
-				throw new HandshakeException("Raw public key is not trusted", alert);
+				throw new HandshakeException("Raw public key is not trusted!", alert);
 			}
 		}
 	}

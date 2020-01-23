@@ -49,6 +49,7 @@ import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
+import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
@@ -58,6 +59,7 @@ import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
+import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.server.resources.Resource;
@@ -84,7 +86,7 @@ import org.slf4j.LoggerFactory;
 public class BenchmarkClient {
 
 	/** The logger. */
-	private static final Logger LOGGER = LoggerFactory.getLogger(BenchmarkClient.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(BenchmarkClient.class);
 
 	private static final Logger STATISTIC_LOGGER = LoggerFactory.getLogger("org.eclipse.californium.extplugtests.statistics");
 
@@ -159,6 +161,7 @@ public class BenchmarkClient {
 			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
 			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
 			config.setInt(Keys.MAX_ACTIVE_PEERS, 10);
+			config.setInt(Keys.EXCHANGE_LIFETIME, 24700); // 24.7s instead of 247s
 			config.setInt(Keys.DTLS_AUTO_RESUME_TIMEOUT, 0);
 			config.setInt(Keys.DTLS_CONNECTION_ID_LENGTH, 0); // support it, but don't use it
 			config.setInt(Keys.MAX_PEER_INACTIVITY_PERIOD, 60 * 60 * 24); // 24h
@@ -188,8 +191,6 @@ public class BenchmarkClient {
 			DEFAULTS.applyDefaults(config);
 			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_REVERSE_SERVER_BLOCK_SIZE);
 			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_REVERSE_SERVER_BLOCK_SIZE);
-			// 24.7s instead of 247s
-			config.setInt(Keys.EXCHANGE_LIFETIME, 24700);
 		}
 	};
 
@@ -375,7 +376,12 @@ public class BenchmarkClient {
 					next();
 				}
 				long c = overallRequestsDownCounter.get();
-				LOGGER.info("Received response: {} {}", response.advanced(), c);
+				LOGGER.trace("Received response: {} {}", response.advanced(), c);
+			} else if (noneStop) {
+				long c = requestsCounter.get();
+				transmissionErrorCounter.incrementAndGet();
+				LOGGER.warn("Error after {} requests. {}", c, response.advanced());
+				next();
 			} else {
 				long c = requestsCounter.get();
 				LOGGER.warn("Received error response: {} {} ({} successful)", endpoint.getUri(), response.advanced(), c);
@@ -454,7 +460,6 @@ public class BenchmarkClient {
 		server.add(feed);
 		server.setExecutors(executorService, secondaryExecutor, true);
 		client.setExecutors(executorService, secondaryExecutor, true);
-		endpoint.setExecutors(executorService, secondaryExecutor);
 		this.endpoint = endpoint;
 	}
 
@@ -479,12 +484,14 @@ public class BenchmarkClient {
 			CoapResponse response = client.advanced(post);
 			if (response != null) {
 				if (response.isSuccess()) {
-					LOGGER.info("Received response: {}", response.advanced());
+					if (LOGGER.isInfoEnabled()) {
+						LOGGER.info("Received response:{}{}", StringUtil.lineSeparator(), Utils.prettyPrint(response));
+					}
 					clientCounter.incrementAndGet();
 					checkReady(true, true);
 					return true;
 				} else {
-					LOGGER.warn("Received error response: {} - {}", response.advanced().getCode(), response.advanced().getPayloadString());
+					LOGGER.warn("Received error response: {} - {}", response.getCode(), response.getResponseText());
 				}
 			} else {
 				LOGGER.warn("Received no response!");
@@ -677,7 +684,7 @@ public class BenchmarkClient {
 		final boolean secure = CoAP.isSecureScheme(uri.getScheme());
 
 		final ScheduledThreadPoolExecutor secondaryExecutor = new ScheduledThreadPoolExecutor(2,
-				new DaemonThreadFactory("CoapServer(secondary)#"));
+				new DaemonThreadFactory("Aux(secondary)#"));
 
 		System.out.format("Create %d %s%sbenchmark clients, expect to send %d request overall to %s%n", clients,
 				noneStop ? "none-stop " : "", secure ? "secure " : "", overallRequests, uri);
@@ -708,12 +715,13 @@ public class BenchmarkClient {
 		// Create & start clients
 		final AtomicBoolean errors = new AtomicBoolean();
 		final NetworkConfig config = effectiveConfig;
+		final HealthStatisticLogger health = new HealthStatisticLogger(uri.getScheme(), !CoAP.isTcpScheme(uri.getScheme()));
 		final int min = intervalMin;
 		final int max = intervalMin;
 		for (int index = 0; index < clients; ++index) {
 			final int currentIndex = index;
 			Runnable run = new Runnable() {
-				
+
 				@Override
 				public void run() {
 					if (errors.get()) {
@@ -746,6 +754,9 @@ public class BenchmarkClient {
 						}
 					}
 					CoapEndpoint coapEndpoint = ClientInitializer.createEndpoint(config, connectionArgs, connectorExecutor, true);
+					if (health.isEnabled()) {
+						coapEndpoint.addPostProcessInterceptor(health);
+					}
 					BenchmarkClient client = new BenchmarkClient(currentIndex, min, max, uri,
 							coapEndpoint, connectorExecutor, secondaryExecutor);
 					clientList.add(client);
@@ -774,7 +785,7 @@ public class BenchmarkClient {
 			if (index == 0) {
 				// first client, so test request
 				run.run();
-			} else if (!errors.get()){
+			} else if (!errors.get()) {
 				startupNanos = System.nanoTime();
 				executor.execute(run);
 			}
@@ -891,11 +902,26 @@ public class BenchmarkClient {
 		Logger statisticsLogger = printManagamentStatistic(args, reverseResponseNanos);
 
 		// stop and collect per client requests
-		int statistic[] = new int[clients];
+		final int statistic[] = new int[clients];
+		final CountDownLatch stop = new CountDownLatch(clients);
 		for (int index = 0; index < clients; ++index) {
-			BenchmarkClient client = clientList.get(index);
-			statistic[index] = client.destroy();
+			final int currentIndex = index;
+			Runnable run = new Runnable() {
+
+				@Override
+				public void run() {
+					BenchmarkClient client = clientList.get(currentIndex);
+					int requests = client.destroy();
+					synchronized (statistic) {
+						statistic[currentIndex] = requests;
+					}
+					stop.countDown();
+				}
+			};
+			executor.execute(run);
 		}
+		stop.await();
+		Thread.sleep(1000);
 		executor.shutdown();
 		statisticsLogger.info("{} requests sent, {} expected", overallSentRequests, overallRequests);
 		statisticsLogger.info("{} requests in {} ms{}", overallSentRequests, TimeUnit.NANOSECONDS.toMillis(requestNanos),
@@ -928,9 +954,12 @@ public class BenchmarkClient {
 			statisticsLogger.info("Stale at {} messages ({}%)", overallSentRequests,
 					(overallSentRequests * 100L) / overallRequests);
 		}
+		health.dump();
 
 		if (1 < clients) {
-			Arrays.sort(statistic);
+			synchronized (statistic) {
+				Arrays.sort(statistic);
+			}
 			int grouped = 10;
 			int last = 0;
 			if (overallRequests > 500000) {

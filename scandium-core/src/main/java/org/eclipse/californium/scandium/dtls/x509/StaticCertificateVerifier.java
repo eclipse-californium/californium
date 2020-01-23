@@ -17,13 +17,12 @@
 package org.eclipse.californium.scandium.dtls.x509;
 
 import java.security.GeneralSecurityException;
-import java.security.cert.CertPathValidator;
-import java.security.cert.PKIXParameters;
-import java.security.cert.TrustAnchor;
+import java.security.cert.CertPath;
+import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.List;
 
+import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -37,12 +36,23 @@ import org.slf4j.LoggerFactory;
  * This implementation uses a static set of trusted root certificates to
  * validate the chain.
  */
-public class StaticCertificateVerifier implements CertificateVerifier {
+public class StaticCertificateVerifier implements AdvancedCertificateVerifier {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(StaticCertificateVerifier.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(StaticCertificateVerifier.class);
 
+	/**
+	 * Array of root certificates.
+	 * 
+	 * @see #getAcceptedIssuers()
+	 */
 	private final X509Certificate[] rootCertificates;
 
+	/**
+	 * Create instance of static certificate verifier.
+	 * 
+	 * @param rootCertificates array with trusted root certificates.
+	 *            {@code null} trust none, empty trust all.
+	 */
 	public StaticCertificateVerifier(X509Certificate[] rootCertificates) {
 		this.rootCertificates = rootCertificates;
 	}
@@ -64,21 +74,8 @@ public class StaticCertificateVerifier implements CertificateVerifier {
 	@Override
 	public void verifyCertificate(CertificateMessage message, DTLSSession session) throws HandshakeException {
 
-		if (rootCertificates != null && rootCertificates.length == 0) {
-			// trust empty list of root certificates
-			return;
-		}
-
-		Set<TrustAnchor> trustAnchors = getTrustAnchors(rootCertificates);
-
 		try {
-			PKIXParameters params = new PKIXParameters(trustAnchors);
-			// TODO: implement alternative means of revocation checking
-			params.setRevocationEnabled(false);
-
-			CertPathValidator validator = CertPathValidator.getInstance("PKIX");
-			validator.validate(message.getCertificateChain(), params);
-
+			CertPathUtil.validateCertificatePath(false, message.getCertificateChain(), rootCertificates);
 		} catch (GeneralSecurityException e) {
 			if (LOGGER.isTraceEnabled()) {
 				LOGGER.trace("Certificate validation failed", e);
@@ -97,14 +94,36 @@ public class StaticCertificateVerifier implements CertificateVerifier {
 		return rootCertificates;
 	}
 
-	private static Set<TrustAnchor> getTrustAnchors(X509Certificate[] trustedCertificates) {
-		Set<TrustAnchor> result = new HashSet<>();
-		if (trustedCertificates != null) {
-			for (X509Certificate cert : trustedCertificates) {
-				result.add(new TrustAnchor((X509Certificate) cert, null));
+	@Override
+	public CertPath verifyCertificate(Boolean clientUsage, boolean truncateCertificatePath, CertificateMessage message,
+			DTLSSession session) throws HandshakeException {
+		try {
+			CertPath certPath = message.getCertificateChain();
+			if (clientUsage != null) {
+				List<? extends Certificate> certificates = certPath.getCertificates();
+				if (!certificates.isEmpty()) {
+					Certificate certificate = certificates.get(0);
+					if (certificate instanceof X509Certificate) {
+						if (!CertPathUtil.canBeUsedForAuthentication((X509Certificate) certificate, clientUsage)) {
+							LOGGER.debug("Certificate validation failed: key usage doesn't match");
+							AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE,
+									session.getPeer());
+							throw new HandshakeException("Key Usage doesn't match!", alert);
+						}
+					}
+				}
 			}
+			return CertPathUtil.validateCertificatePath(truncateCertificatePath, certPath, rootCertificates);
+		} catch (GeneralSecurityException e) {
+			if (LOGGER.isTraceEnabled()) {
+				LOGGER.trace("Certificate validation failed", e);
+			} else if (LOGGER.isDebugEnabled()) {
+				LOGGER.debug("Certificate validation failed due to {}", e.getMessage());
+			}
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE,
+					session.getPeer());
+			throw new HandshakeException("Certificate chain could not be validated", alert, e);
 		}
-		return result;
 	}
 
 }

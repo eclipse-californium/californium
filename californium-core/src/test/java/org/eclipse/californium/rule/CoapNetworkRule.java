@@ -86,7 +86,7 @@ import org.eclipse.californium.elements.util.DatagramFormatter;
  */
 public class CoapNetworkRule extends NetworkRule {
 
-	public static final Logger LOGGER = LoggerFactory.getLogger(CoapNetworkRule.class.getName());
+	public static final Logger LOGGER = LoggerFactory.getLogger(CoapNetworkRule.class);
 	private static final int DEFAULT_MESSAGE_THREADS = 1;
 	/**
 	 * CoAP datagram formatter. Used for logging.

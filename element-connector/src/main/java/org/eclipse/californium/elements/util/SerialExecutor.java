@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
  */
 public class SerialExecutor extends AbstractExecutorService {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(SerialExecutor.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(SerialExecutor.class);
 
 	/**
 	 * Target executor to execute job serially.

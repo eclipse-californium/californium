@@ -62,7 +62,7 @@ import org.osgi.util.tracker.ServiceTrackerCustomizer;
  */
 public class ManagedServer implements ManagedService, ServiceTrackerCustomizer<Resource, Resource>, ServerEndpointRegistry {
 
-	private final static Logger LOGGER = LoggerFactory.getLogger(ManagedServer.class.getCanonicalName());
+	private final static Logger LOGGER = LoggerFactory.getLogger(ManagedServer.class);
 	
 	private ServerInterface managedServer;
 	private boolean running = false;

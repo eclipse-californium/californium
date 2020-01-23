@@ -46,7 +46,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ServerMessageDeliverer implements MessageDeliverer {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(ServerMessageDeliverer.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(ServerMessageDeliverer.class);
 
 	/* The root of all resources */
 	private final Resource root;
@@ -90,8 +90,7 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 		boolean processed = preDeliverRequest(exchange);
 		if (!processed) {
 			Request request = exchange.getRequest();
-			List<String> path = request.getOptions().getUriPath();
-			final Resource resource = findResource(path);
+			final Resource resource = findResource(request);
 			if (resource != null) {
 				checkForObserveOption(exchange, resource);
 
@@ -108,8 +107,10 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 					resource.handleRequest(exchange);
 				}
 			} else {
-				LOGGER.info("did not find resource {} requested by {}", path,
-						request.getSourceContext().getPeerAddress());
+				if (LOGGER.isInfoEnabled()) {
+					LOGGER.info("did not find resource /{} requested by {}", request.getOptions().getUriPathString(),
+							request.getSourceContext().getPeerAddress());
+				}
 				exchange.sendResponse(new Response(ResponseCode.NOT_FOUND));
 			}
 		}
@@ -187,12 +188,24 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 	 * may accept requests to subresources, e.g., to allow addresses with
 	 * wildcards like <code>coap://example.com:5683/devices/*</code>
 	 * 
+	 * @param request request including the path of resource names
+	 * @return the resource or {@code null}, if not found
+	 */
+	protected Resource findResource(Request request) {
+		return findResource(request.getOptions().getUriPath());
+	}
+
+	/**
+	 * Searches in the resource tree for the specified path. A parent resource
+	 * may accept requests to subresources, e.g., to allow addresses with
+	 * wildcards like <code>coap://example.com:5683/devices/*</code>
+	 * 
 	 * @param list the path as list of resource names
-	 * @return the resource or null if not found
+	 * @return the resource or {@code null}, if not found
 	 */
 	protected Resource findResource(final List<String> list) {
 		Deque<String> path = new LinkedList<String>(list);
-		Resource current = root;
+		Resource current = getRootResource();
 		while (!path.isEmpty() && current != null) {
 			String name = path.removeFirst();
 			current = current.getChild(name);

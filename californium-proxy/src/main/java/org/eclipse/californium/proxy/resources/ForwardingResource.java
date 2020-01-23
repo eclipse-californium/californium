@@ -24,7 +24,11 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 
-
+/**
+ * @deprecated {@link Exchange} is already asynchronous. Use base-class
+ *             {@link CoapResource} instead.
+ */
+@Deprecated
 public abstract class ForwardingResource extends CoapResource {
 
 	public ForwardingResource(String resourceIdentifier) {

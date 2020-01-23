@@ -22,12 +22,25 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.proxy.resources.ForwardingResource;
+import org.eclipse.californium.proxy.resources.ProxyCoapClientResource;
+import org.eclipse.californium.proxy.resources.ProxyHttpClientResource;
 
 
+/**
+ * Resolver for request exchange using a {@link ForwardingResource}.
+ * 
+ * Supports only one {@link ForwardingResource}, either
+ * {@link ProxyCoapClientResource} or {@link ProxyHttpClientResource}. Using the
+ * {@link MessageDeliverer} supports to deliver request to both.
+ * 
+ * @deprecated use {@link MessageDeliverer} instead!
+ */
+@Deprecated
 public class DirectProxyCoapResolver implements ProxyCoapResolver {
 
-	private final static Logger LOGGER = LoggerFactory.getLogger(DirectProxyCoapResolver.class.getCanonicalName());
+	private final static Logger LOGGER = LoggerFactory.getLogger(DirectProxyCoapResolver.class);
 	
 	private ForwardingResource proxyCoapClientResource;
 	

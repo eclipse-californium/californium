@@ -8,13 +8,33 @@
 	<parent>
 		<groupId>org.eclipse.californium</groupId>
 		<artifactId>parent</artifactId>
-		<version>2.0.0-SNAPSHOT</version>
+		<version>2.1.0-SNAPSHOT</version>
 	</parent>
 	<artifactId>demo-apps</artifactId>
 	<packaging>pom</packaging>
 	
 	<name>Californium (Cf) Demo Applications</name>
 	<description>Demo applications illustrating Californium's features that can be run from the command line.</description>
+
+	<modules>
+		<module>cf-benchmark</module>
+		<module>cf-benchmark-observe</module>
+		<module>cf-cocoa</module>
+		<module>cf-extplugtest-client</module>
+		<module>cf-extplugtest-server</module>
+		<module>cf-helloworld-client</module>
+		<module>cf-helloworld-server</module>
+		<module>cf-nat</module>
+		<module>cf-plugtest-checker</module>
+		<module>cf-plugtest-client</module>
+		<module>cf-plugtest-server</module>
+		<module>cf-proxy</module>
+		<module>cf-secure</module>
+		<module>cf-simplefile-server</module>
+		<module>cf-unix-setup</module>
+		<module>sc-dtls-example-client</module>
+		<module>sc-dtls-example-server</module>
+	</modules>
 
 	<properties>
 		<!-- 
@@ -43,26 +63,25 @@
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
-	
-	<modules>
-		<module>sc-dtls-example-server</module>
-		<module>sc-dtls-example-client</module>
-		<module>cf-plugtest-client</module>
-		<module>cf-plugtest-checker</module>
-		<module>cf-plugtest-server</module>
-		<module>cf-extplugtest-client</module>
-		<module>cf-extplugtest-server</module>
-		<module>cf-helloworld-client</module>
-		<module>cf-helloworld-server</module>
-		<module>cf-simplefile-server</module>
-		<module>cf-cocoa</module>
-		<module>cf-secure</module>
-		<module>cf-nat</module>
-		<module>cf-proxy</module>
-		<module>cf-unix-setup</module>
-		<module>cf-benchmark</module>
-		<module>cf-benchmark-observe</module>
-	</modules>
+
+	<dependencies>
+		<!-- All demos depend on legal -->
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>californium-legal</artifactId>
+		</dependency>
+		<!-- All demos depend on logging framework -->
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+		</dependency>
+		<!-- runtime dependencies -->
+		<dependency>
+			<groupId>ch.qos.logback</groupId>
+			<artifactId>logback-classic</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+	</dependencies>
 
 	<build>
 		<plugins>
@@ -89,26 +108,22 @@
 					</execution>
 				</executions>
 			</plugin>
+			<plugin>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<configuration>
+					<descriptorRefs>
+						<descriptorRef>enhanced-jar-with-dependencies</descriptorRef>
+					</descriptorRefs>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.revapi</groupId>
+				<artifactId>revapi-maven-plugin</artifactId>
+				<configuration>
+					<skip>true</skip>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 
-	<dependencies>
-		<!-- All demos depends on legal -->
-		<dependency>
-			<groupId>${project.groupId}</groupId>
-			<artifactId>californium-legal</artifactId>
-			<scope>runtime</scope>
-		</dependency>
-		<!-- All demos depends of logging framework -->
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-api</artifactId>
-		</dependency>
-		<!-- runtime dependencies -->
-		<dependency>
-			<groupId>ch.qos.logback</groupId>
-			<artifactId>logback-classic</artifactId>
-			<scope>runtime</scope>
-		</dependency>
-	</dependencies>
 </project>

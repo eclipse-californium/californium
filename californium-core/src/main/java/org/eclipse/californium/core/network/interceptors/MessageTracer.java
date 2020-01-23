@@ -36,7 +36,7 @@ import org.eclipse.californium.core.coap.Response;
  */
 public class MessageTracer implements MessageInterceptor {
 
-	private final static Logger LOGGER = LoggerFactory.getLogger(MessageTracer.class.getCanonicalName());
+	private final static Logger LOGGER = LoggerFactory.getLogger(MessageTracer.class);
 
 	@Override
 	public void sendRequest(Request request) {

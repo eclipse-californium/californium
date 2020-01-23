@@ -86,6 +86,16 @@ public final class CoAP {
 
 	/** IPv4 multicast address for CoAP, RFC 7252, 12.8. */
 	public static final InetAddress MULTICAST_IPV4 = new InetSocketAddress("224.0.1.187", 0).getAddress();
+	/**
+	 * IPv6 multicast address for CoAP, RFC 7252, 12.8., FF0X::FD, link-local.
+	 * See <a href="https://tools.ietf.org/html/rfc7346#section-2">RFC7346, IPv6 Multicast Address Scopes</a> 
+	 */
+	public static final InetAddress MULTICAST_IPV6_LINKLOCAL = new InetSocketAddress("[FF02::FD]", 0).getAddress();
+	/**
+	 * IPv6 multicast address for CoAP, RFC 7252, 12.8., FF0X::FD, site-local.
+	 * See <a href="https://tools.ietf.org/html/rfc7346#section-2">RFC7346, IPv6 Multicast Address Scopes</a> 
+	 */
+	public static final InetAddress MULTICAST_IPV6_SITELOCAL = new InetSocketAddress("[FF05::FD]", 0).getAddress();
 
 	private CoAP() {
 		// prevent instantiation

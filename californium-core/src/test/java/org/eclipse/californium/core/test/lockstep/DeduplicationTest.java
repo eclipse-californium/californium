@@ -27,34 +27,45 @@ import static org.eclipse.californium.core.coap.CoAP.Type.ACK;
 import static org.eclipse.californium.core.coap.CoAP.Type.CON;
 import static org.eclipse.californium.core.coap.CoAP.Type.RST;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
+import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
+
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Medium;
+import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
+import org.eclipse.californium.core.network.stack.ReliabilityLayerParameters;
+import org.eclipse.californium.core.network.stack.ReliabilityLayerParameters.Builder;
+import org.eclipse.californium.core.test.CountingMessageObserver;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.UDPTestConnector;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
+import org.hamcrest.Matcher;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
-
 /**
  * This test checks for correct MID namespaces and deduplication.
  */
 @Category(Medium.class)
 public class DeduplicationTest {
+
 	@ClassRule
-	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
+	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT,
+			CoapNetworkRule.Mode.NATIVE);
 
 	@Rule
 	public CoapThreadsRule cleanup = new CoapThreadsRule();
@@ -66,25 +77,34 @@ public class DeduplicationTest {
 
 	private Endpoint client;
 	private UDPTestConnector clientConnector;
+	private ClientBlockwiseInterceptor clientInterceptor = new ClientBlockwiseInterceptor();
+	private HealthStatisticLogger health = new HealthStatisticLogger("client", true);
 
 	@Before
 	public void setup() throws Exception {
-		NetworkConfig config = network.createTestConfig()
-			.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 128)
-			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 128)
-			.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200) // client retransmits after 200 ms
-			.setInt(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1);
+		NetworkConfig config = network.createTestConfig().setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 128)
+				// client retransmits after 200 ms
+				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 128).setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200)
+				.setInt(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1);
 		clientConnector = new UDPTestConnector(TestTools.LOCALHOST_EPHEMERAL);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setConnector(clientConnector);
 		builder.setNetworkConfig(config);
-		client = builder.build();
+		CoapEndpoint coapEndpoint = builder.build();
+		coapEndpoint.addInterceptor(clientInterceptor);
+		coapEndpoint.addPostProcessInterceptor(health);
+		client = coapEndpoint;
 		cleanup.add(client);
 		client.addInterceptor(new MessageTracer());
 		client.start();
 		server = createLockstepEndpoint(client.getAddress());
 		cleanup.add(server);
 		System.out.println("Client binds to port " + client.getAddress().getPort());
+	}
+
+	@After
+	public void printLogs() {
+		printServerLog(clientInterceptor);
 	}
 
 	@Test
@@ -107,6 +127,17 @@ public class DeduplicationTest {
 		server.sendResponse(CON, CONTENT).loadToken("A").mid(42).payload("separate").go();
 		server.expectEmpty(RST, 42).go();
 
+		// may be on the way
+		assertHealthCounter("recv-ignored", is(2L), 1000);
+		assertHealthCounter("send-rejects", is(1L), 1000);
+		assertHealthCounter("send-requests", is(1L));
+		assertHealthCounter("send-acks", is(2L));
+		assertHealthCounter("send-errors", is(0L));
+		assertHealthCounter("recv-responses", is(1L));
+		assertHealthCounter("recv-duplicate responses", is(1L));
+		assertHealthCounter("recv-acks", is(1L));
+		health.reset();
+
 		request = createRequest(GET, path, server);
 		request.setMID(4711);
 		client.sendRequest(request);
@@ -120,19 +151,91 @@ public class DeduplicationTest {
 
 		response = request.waitForResponse(500);
 		assertNull("Client received duplicate", response);
+
+		// may be on the way
+		assertHealthCounter("recv-ignored", is(1L), 1000);
+		assertHealthCounter("send-requests", is(1L));
+		assertHealthCounter("send-acks", is(0L));
+		assertHealthCounter("send-rejects", is(0L));
+		assertHealthCounter("send-errors", is(0L));
+		assertHealthCounter("recv-responses", is(1L));
+		assertHealthCounter("recv-acks", is(0L));
+		health.reset();
+	}
+
+	@Test
+	public void testGETWithReliabilityLayerParameters() throws Exception {
+		System.out.println("Simple GET (with ReliabilityLayerParameters):");
+		String path = "test";
+
+		Builder builder = ReliabilityLayerParameters.builder().applyConfig(network.getStandardTestConfig());
+		builder.maxRetransmit(2);
+		builder.ackTimeout(100);
+		builder.ackTimeoutScale(1.0F);
+		builder.ackRandomFactor(1.0F);
+		Request request = createRequest(GET, path, server);
+		request.setReliabilityLayerParameters(builder.build());
+		client.sendRequest(request);
+
+		server.expectRequest(CON, GET, path).storeBoth("A").go();
+		server.expectRequest(CON, GET, path).sameBoth("A").go();
+		server.expectRequest(CON, GET, path).sameBoth("A").go();
+		Message message = server.receiveNextMessage(1000, TimeUnit.MILLISECONDS);
+		assertNull("received unexpected message", message);
+
+		assertHealthCounter("send-requests", is(1L));
+		assertHealthCounter("send-request retransmissions", is(2L), 1000);
+		assertHealthCounter("send-errors", is(0L));
+		assertHealthCounter("recv-responses", is(0L));
+		assertHealthCounter("recv-ignored", is(0L));
+		health.reset();
+
+		builder.maxRetransmit(1);
+		request = createRequest(GET, path, server);
+		request.setReliabilityLayerParameters(builder.build());
+		client.sendRequest(request);
+
+		server.expectRequest(CON, GET, path).storeBoth("B").go();
+		server.expectRequest(CON, GET, path).sameBoth("B").go();
+		message = server.receiveNextMessage(1000, TimeUnit.MILLISECONDS);
+		assertNull("received unexpected message", message);
+
+		assertHealthCounter("send-requests", is(1L));
+		assertHealthCounter("send-request retransmissions", is(1L), 1000);
+		assertHealthCounter("send-errors", is(0L));
+		assertHealthCounter("recv-responses", is(0L));
+		assertHealthCounter("recv-ignored", is(0L));
+		health.reset();
 	}
 
 	@Test
 	public void testGETSendError() throws Exception {
 		clientConnector.setDrops(0);
-		System.out.println("Simple GET:");
+		System.out.println("Simple GET (send error):");
 		String path = "test";
 
+		CountingMessageObserver observer = new CountingMessageObserver();
 		Request request = createRequest(GET, path, server);
 		request.setMID(1234);
+		request.addMessageObserver(observer);
 		client.sendRequest(request);
 
-		Response response = request.waitForResponse(500);
-		assertNull("Client received duplicate", response);
+		observer.waitForErrorCalls(1, 1000, TimeUnit.MILLISECONDS);
+		assertNull("Client received unexpected response", request.getResponse());
+
+		assertHealthCounter("send-errors", is(1L), 1000);
+		assertHealthCounter("send-requests", is(0L));
+		assertHealthCounter("send-request retransmissions", is(0L));
+		assertHealthCounter("recv-responses", is(0L));
+		assertHealthCounter("recv-ignored", is(0L));
+	}
+
+	private void assertHealthCounter(final String name, final Matcher<? super Long> matcher, long timeout)
+			throws InterruptedException {
+		TestTools.assertCounter(health, name, matcher, timeout);
+	}
+
+	private void assertHealthCounter(String name, Matcher<? super Long> matcher) {
+		TestTools.assertCounter(health, name, matcher);
 	}
 }

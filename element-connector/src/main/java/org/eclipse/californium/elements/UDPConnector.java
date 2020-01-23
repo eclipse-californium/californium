@@ -73,7 +73,7 @@ import org.slf4j.LoggerFactory;
  */
 public class UDPConnector implements Connector {
 
-	public static final Logger LOGGER = LoggerFactory.getLogger(UDPConnector.class.getName());
+	public static final Logger LOGGER = LoggerFactory.getLogger(UDPConnector.class);
 
 	public static final int UNDEFINED = 0;
 

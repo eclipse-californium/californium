@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
  */
 public class CoapThreadsRule extends ThreadsRule {
 
-	public static final Logger LOGGER = LoggerFactory.getLogger(CoapThreadsRule.class.getName());
+	public static final Logger LOGGER = LoggerFactory.getLogger(CoapThreadsRule.class);
 
 	/**
 	 * List of resource objects to cleanup.

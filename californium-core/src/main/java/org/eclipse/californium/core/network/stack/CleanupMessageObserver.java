@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
  */
 public class CleanupMessageObserver extends MessageObserverAdapter {
 
-	protected static final Logger LOGGER = LoggerFactory.getLogger(CleanupMessageObserver.class.getName());
+	protected static final Logger LOGGER = LoggerFactory.getLogger(CleanupMessageObserver.class);
 
 	protected final Exchange exchange;
 

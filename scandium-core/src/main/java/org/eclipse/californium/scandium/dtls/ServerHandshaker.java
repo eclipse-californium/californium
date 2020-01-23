@@ -57,14 +57,15 @@ package org.eclipse.californium.scandium.dtls;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.PublicKey;
-import java.security.cert.CertPath;
 import java.util.Arrays;
 import java.util.List;
 
 import javax.crypto.SecretKey;
+import javax.security.auth.x500.X500Principal;
 
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
+import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -261,17 +262,16 @@ public class ServerHandshaker extends Handshaker {
 	private void receivedClientCertificate(final CertificateMessage message) throws HandshakeException {
 
 		clientCertificate = message;
+		clientPublicKey = message.getPublicKey();
 		if (clientAuthenticationRequired && message.getCertificateChain() != null
-				&& message.getPublicKey() == null) {
+				&& clientPublicKey == null) {
 			LOGGER.debug("Client authentication failed: missing certificate!");
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE,
 					session.getPeer());
 			throw new HandshakeException("Client Certificate required!", alert);
 		}
 		verifyCertificate(message);
-		clientPublicKey = message.getPublicKey();
-		// TODO why don't we also update the MessageDigest at this point?
-		if (message.getPublicKey() == null) {
+		if (clientPublicKey == null) {
 			states = EMPTY_CLIENT_CERTIFICATE;
 		}
 	}
@@ -293,7 +293,6 @@ public class ServerHandshaker extends Handshaker {
 		// add CertificateVerify again
 		handshakeMessages.add(message);
 		// at this point we have successfully authenticated the client
-		CertPath peerCertPath = clientCertificate.getCertificateChain();
 		if (peerCertPath != null) {
 			session.setPeerIdentity(new X509CertPath(peerCertPath));
 		} else {
@@ -528,9 +527,10 @@ public class ServerHandshaker extends Handshaker {
 
 			// TODO make this variable, reasonable values
 			certificateRequest.addCertificateType(ClientCertificateType.ECDSA_SIGN);
-			certificateRequest.addSignatureAlgorithm(new SignatureAndHashAlgorithm(signatureAndHashAlgorithm.getHash(), signatureAndHashAlgorithm.getSignature()));
+			certificateRequest.addSignatureAlgorithm(signatureAndHashAlgorithm);
 			if (certificateVerifier != null) {
-				certificateRequest.addCertificateAuthorities(certificateVerifier.getAcceptedIssuers());
+				List<X500Principal> subjects = CertPathUtil.toSubjects(Arrays.asList(certificateVerifier.getAcceptedIssuers()));
+				certificateRequest.addCerticiateAuthorities(subjects);
 			}
 
 			wrapMessage(flight, certificateRequest);

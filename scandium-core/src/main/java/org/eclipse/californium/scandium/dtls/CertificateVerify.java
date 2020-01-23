@@ -49,7 +49,7 @@ public final class CertificateVerify extends HandshakeMessage {
 	
 	// Logging ///////////////////////////////////////////////////////////
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(CertificateVerify.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(CertificateVerify.class);
 
 	// DTLS-specific constants ////////////////////////////////////////
 

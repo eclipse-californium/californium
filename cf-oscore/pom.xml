@@ -4,7 +4,7 @@
 	<parent>
 		<groupId>org.eclipse.californium</groupId>
 		<artifactId>parent</artifactId>
-		<version>2.0.0-SNAPSHOT</version>
+		<version>2.1.0-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>cf-oscore</artifactId>
@@ -12,10 +12,6 @@
 
 	<name>Cf-OSCORE</name>
 	<description>Californium (Cf) OSCORE, Object Security for Constrained RESTful Environments</description>
-
-	<properties>
-		<numbers.version>1.0.2</numbers.version>
-	</properties>
 
 	<dependencies>
 		<dependency>
@@ -34,21 +30,14 @@
 			<groupId>com.upokecenter</groupId>
 			<artifactId>cbor</artifactId>
 		</dependency>
-		<dependency>
-			<groupId>com.github.peteroupc</groupId>
-			<artifactId>numbers</artifactId>
-			<version>${numbers.version}</version>
-		</dependency>
 		<!-- test dependencies -->
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
-			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>ch.qos.logback</groupId>
 			<artifactId>logback-classic</artifactId>
-			<scope>test</scope>
 		</dependency>
 	</dependencies>
 
@@ -81,6 +70,13 @@
 				<dependency>
 					<groupId>${project.groupId}</groupId>
 					<artifactId>californium-core</artifactId>
+					<classifier>tests</classifier>
+					<type>test-jar</type>
+				</dependency>
+				<dependency>
+					<groupId>${project.groupId}</groupId>
+					<artifactId>element-connector</artifactId>
+					<version>${project.version}</version>
 					<classifier>tests</classifier>
 					<type>test-jar</type>
 				</dependency>

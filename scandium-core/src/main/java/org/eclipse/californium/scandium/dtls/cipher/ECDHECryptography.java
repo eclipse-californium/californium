@@ -58,7 +58,7 @@ public final class ECDHECryptography {
 
 	// Logging ////////////////////////////////////////////////////////
 
-	protected static final Logger LOGGER = LoggerFactory.getLogger(ECDHECryptography.class.getCanonicalName());
+	protected static final Logger LOGGER = LoggerFactory.getLogger(ECDHECryptography.class);
 
 	// Static members /////////////////////////////////////////////////
 

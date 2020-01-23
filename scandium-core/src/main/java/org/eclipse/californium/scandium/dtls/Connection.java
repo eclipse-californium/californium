@@ -60,7 +60,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class Connection {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(Connection.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(Connection.class);
 
 	private final AtomicReference<Handshaker> ongoingHandshake = new AtomicReference<Handshaker>();
 	private final SessionListener sessionListener = new ConnectionSessionListener();
@@ -282,14 +282,17 @@ public final class Connection {
 			this.peerAddress = peerAddress;
 			if (establishedSession != null) {
 				establishedSession.setPeer(peerAddress);
-			} else if (peerAddress == null) {
+			} else if (peerAddress != null) {
+				throw new IllegalArgumentException("Address change without established sesson is not supported!");
+			}
+			if (peerAddress == null) {
 				final Handshaker pendingHandshaker = getOngoingHandshake();
 				if (pendingHandshaker != null) {
-					// this will only call the listener, if no other cause was set before!
-					pendingHandshaker.handshakeFailed(new IOException("address changed!"));
+					if (establishedSession == null || pendingHandshaker.getSession() != establishedSession) {
+						// this will only call the listener, if no other cause was set before!
+						pendingHandshaker.handshakeFailed(new IOException("address changed!"));
+					}
 				}
-			} else {
-				throw new IllegalArgumentException("Address change without established sesson is not supported!");
 			}
 		}
 	}

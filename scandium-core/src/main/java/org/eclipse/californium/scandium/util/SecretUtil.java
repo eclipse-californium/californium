@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
  * Utility to use {@link Destroyable} {@link SecretKey} for java before 1.8.
  */
 public class SecretUtil {
-	private static final Logger LOGGER = LoggerFactory.getLogger(SecretUtil.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(SecretUtil.class);
 
 	/**
 	 * Destroy secret key.

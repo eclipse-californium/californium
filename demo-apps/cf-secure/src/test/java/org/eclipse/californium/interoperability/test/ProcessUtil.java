@@ -22,6 +22,8 @@ import static org.junit.Assume.assumeNotNull;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -71,6 +73,16 @@ public class ProcessUtil {
 	 * @throws IOException if start fails.
 	 */
 	public void execute(String... args) throws IOException {
+		execute(Arrays.asList(args));
+	}
+
+	/**
+	 * Start external tool
+	 * 
+	 * @param args list of arguments to start the external tool
+	 * @throws IOException if start fails.
+	 */
+	public void execute(List<String> args) throws IOException {
 		ProcessBuilder builder = new ProcessBuilder(args);
 		builder.redirectErrorStream(true);
 		process = builder.start();

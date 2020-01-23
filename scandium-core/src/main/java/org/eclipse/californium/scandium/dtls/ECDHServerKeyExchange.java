@@ -51,7 +51,7 @@ import org.slf4j.LoggerFactory;
 public final class ECDHServerKeyExchange extends ServerKeyExchange {
 
 	private static final String MSG_UNKNOWN_CURVE_TYPE = "Unknown curve type [{}]";
-	private static final Logger LOGGER = LoggerFactory.getLogger(ECDHServerKeyExchange.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(ECDHServerKeyExchange.class);
 
 	// DTLS-specific constants ////////////////////////////////////////
 

@@ -34,6 +34,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.MessageDeliverer;
+import org.eclipse.californium.elements.Connector;
 
 /**
  * A communication endpoint multiplexing CoAP message exchanges between (potentially multiple) clients and servers.
@@ -129,7 +130,20 @@ public interface Endpoint {
 	void removeNotificationListener(NotificationListener lis);
 
 	/**
-	 * Adds a message interceptor to this endpoint.
+	 * Adds a message interceptor to this endpoint to be called, when messages
+	 * are passed between the {@link Connector} and this endpoint. When messages
+	 * arrive from the connector, the corresponding receive-method is called.
+	 * When a message is about to be sent over a connector, the corresponding
+	 * send method is called. The interceptor can be thought of being placed
+	 * inside an {@code CoapEndpoint} just between the message
+	 * {@code Serializer} and the {@code Matcher}.
+	 * <p>
+	 * A {@code MessageInterceptor} registered here can cancel a message to stop
+	 * it. If it is an outgoing message that traversed down through the
+	 * {@code CoapStack} to the {@code Matcher} and is now intercepted and
+	 * canceled, will not reach the {@code Connector}. If it is an incoming
+	 * message coming from the {@code Connector} to the {@code DataParser} and
+	 * is now intercepted and canceled, will not reach the {@code Matcher}.
 	 *
 	 * @param interceptor the interceptor
 	 */

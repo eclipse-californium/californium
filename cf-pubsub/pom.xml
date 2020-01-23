@@ -6,7 +6,7 @@
 	<parent>
 		<artifactId>parent</artifactId>
 		<groupId>org.eclipse.californium</groupId>
-		<version>2.0.0-SNAPSHOT</version>
+		<version>2.1.0-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>cf-pubsub</artifactId>
@@ -40,6 +40,14 @@
 					<descriptorRefs>
 						<descriptorRef>enhanced-jar-with-licenses</descriptorRef>
 					</descriptorRefs>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.revapi</groupId>
+				<artifactId>revapi-maven-plugin</artifactId>
+				<configuration>
+					<!-- not depolyed to repos -->
+					<skip>true</skip>
 				</configuration>
 			</plugin>
 		</plugins>

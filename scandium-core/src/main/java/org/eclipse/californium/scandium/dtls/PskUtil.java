@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
  */
 public class PskUtil implements Destroyable {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(PskUtil.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(PskUtil.class);
 
 	private final SecretKey pskSecret;
 

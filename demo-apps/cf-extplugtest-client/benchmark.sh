@@ -9,7 +9,7 @@ echo "Please check the available RAM (e.g.: on linux use \"free -m\") and"
 echo "adjust the \"-Xmx6g\" argument in \"CF_OPT\" to about 30% of the available RAM"
 echo
 echo "The required server may be started using:"
-echo "java -d64 -Xmx6g -XX:+UseG1GC -jar cf-extplugtest-server-2.0.0-SNAPSHOT.jar -onlyLoopback -noPlugtest"
+echo "java -d64 -Xmx6g -XX:+UseG1GC -jar cf-extplugtest-server-2.1.0-SNAPSHOT.jar -onlyLoopback -noPlugtest"
 echo "Adjust the \"-Xmx6g\" argument also to about 30% of the available RAM."
 echo "The benchmark is mainly used with the loopback interface (localhost), therefore -onlyLoopback is provided."
 echo "To use client and server on different hosts, provide -noLoopback."
@@ -44,13 +44,19 @@ echo
 # cat /proc/sys/vm/max_map_count
 # prlimit
 
-CF_JAR=cf-extplugtest-client-2.0.0-SNAPSHOT.jar
+CF_JAR=cf-extplugtest-client-2.1.0-SNAPSHOT.jar
 CF_EXEC="org.eclipse.californium.extplugtests.BenchmarkClient"
-CF_OPT="-d64 -XX:+UseG1GC -Xmx6g -Dcalifornium.statistic=M18"
-CF_HOST=localhost
+CF_OPT="-d64 -XX:+UseG1GC -Xmx6g -Xverify:none -Dcalifornium.statistic=2.1.0"
+
+if [ -z "$1" ]  ; then
+     CF_HOST=localhost
+else 
+    CF_HOST=$1
+fi
 
 # adjust the multiplier according the speed of your CPU
 USE_TCP=0
+USE_UDP=1
 USE_PLAIN=1
 USE_SECURE=1
 MULTIPLIER=10
@@ -84,6 +90,7 @@ echo ${CF_JAR}
 
 benchmark_udp()
 {
+   if [ ${USE_UDP} -eq 0 ] ; then return; fi
    if [ ${USE_PLAIN} -ne 0 ] ; then 
       java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} coap://${CF_HOST}:5783/$@
       if [ ! $? -eq 0 ] ; then exit $?; fi
@@ -123,6 +130,9 @@ benchmark_all()
 	benchmark_udp "benchmark?rlen=${PAYLOAD}" ${UDP_CLIENTS} ${REQS}
 	benchmark_tcp "benchmark?rlen=${PAYLOAD}" ${TCP_CLIENTS} ${REQS}
 
+# GET with separate response
+	benchmark_udp "benchmark?rlen=${PAYLOAD}&ack" ${UDP_CLIENTS} ${REQS}
+
 # reverse GET
 	benchmark_udp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" ${UDP_CLIENTS} 2 stop ${REV_REQS}
 	benchmark_tcp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" ${TCP_CLIENTS} 2 stop ${REV_REQS}
@@ -131,12 +141,12 @@ benchmark_all()
 	benchmark "reverse-observe?obs=25000&res=feed-CON&rlen=${PAYLOAD_LARGE}" ${OBS_CLIENTS} 1 stop ${NOTIFIES} 20 100
 
 # observe NON
-	benchmark_udp "reverse-observe?obs=25000&res=feed-NON&rlen=${PAYLOAD_LARGE}" ${OBS_CLIENTS} 1 stop ${NOTIFIES} 20 100
-	
+	benchmark_udp "reverse-observe?obs=25000&res=feed-NON&rlen=${PAYLOAD_LARGE}" ${OBS_CLIENTS} 1 stop ${NOTIFIES} 20 100	
 }
 
 benchmark_dtls_handshake()
 {
+   if [ ${USE_UDP} -eq 0 ] ; then return; fi
    if [ ${USE_SECURE} -ne 0 ] ; then 
       START_HS=`date +%s`
       i=0
@@ -163,7 +173,7 @@ longterm()
 	benchmark_udp "reverse-observe?obs=2500000&res=feed-NON&timeout=${LONG_INTERVAL_TIMEOUT_S}&rlen=${PAYLOAD}" ${UDP_CLIENTS} 1 stop ${NOTIFIES} ${LONG_INTERVAL_MS}
 }
 
-#benchmark_all
+benchmark_all
 benchmark_dtls_handshake 10 
 TIME1=$?
 benchmark_dtls_handshake 10 -e
@@ -172,7 +182,9 @@ benchmark_dtls_handshake 10 -r
 TIME3=$?
 benchmark_dtls_handshake 10 -x
 TIME4=$?
+
 #longterm
+
 echo "PSK      :" $TIME1
 echo "PSK/ECDHE:" $TIME2
 echo "RPK      :" $TIME3

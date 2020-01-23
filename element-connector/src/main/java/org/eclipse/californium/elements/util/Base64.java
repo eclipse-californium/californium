@@ -221,7 +221,7 @@ public class Base64
 	
 	/* ********  P R I V A T E   F I E L D S  ******** */  
 
-	private final static Logger LOG = LoggerFactory.getLogger(Base64.class.getName());
+	private final static Logger LOG = LoggerFactory.getLogger(Base64.class);
 
 	/** Maximum line length (76) of Base64 output. */
 	private final static int MAX_LINE_LENGTH = 76;

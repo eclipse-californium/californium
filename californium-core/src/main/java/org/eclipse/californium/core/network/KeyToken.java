@@ -107,8 +107,11 @@ public class KeyToken {
 	public String toString() {
 		StringBuilder builder = new StringBuilder("KeyToken[");
 		if (peer != null) {
-			String peerAsString = peer instanceof InetSocketAddress ? StringUtil.toString((InetSocketAddress)peer) : peer.toString();
-			builder.append(peerAsString).append('-');
+			Object peer = this.peer;
+			if (peer instanceof InetSocketAddress) {
+				peer = StringUtil.toDisplayString((InetSocketAddress) peer);
+			}
+			builder.append(peer).append('-');
 		}
 		builder.append(token.getAsString()).append(']');
 		return builder.toString();

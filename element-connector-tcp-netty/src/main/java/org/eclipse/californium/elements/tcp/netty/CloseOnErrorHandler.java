@@ -22,6 +22,8 @@ import io.netty.channel.ChannelHandlerAdapter;
 import io.netty.channel.ChannelHandlerContext;
 
 import java.security.GeneralSecurityException;
+import java.util.concurrent.RejectedExecutionException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,7 +40,7 @@ import javax.net.ssl.SSLException;
  */
 class CloseOnErrorHandler extends ChannelHandlerAdapter {
 
-	private final static Logger LOGGER = LoggerFactory.getLogger(CloseOnErrorHandler.class.getName());
+	private final static Logger LOGGER = LoggerFactory.getLogger(CloseOnErrorHandler.class);
 
 	@Override
 	public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
@@ -60,6 +62,9 @@ class CloseOnErrorHandler extends ChannelHandlerAdapter {
 					LOGGER.error("{} in channel handler chain for endpoint {}. Closing connection.", rootCause,
 							ctx.channel().remoteAddress());
 				}
+			} else if (!LOGGER.isDebugEnabled() && rootCause instanceof RejectedExecutionException) {
+				LOGGER.error("{} in channel handler chain for endpoint {}. Closing connection.", rootCause,
+						ctx.channel().remoteAddress());
 			} else {
 				LOGGER.error("Exception in channel handler chain for endpoint {}. Closing connection.",
 						ctx.channel().remoteAddress(), cause);

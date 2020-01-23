@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory;
  */
 public class TestNameLoggerRule extends TestWatcher {
 
-	public static final Logger LOGGER = LoggerFactory.getLogger(TestNameLoggerRule.class.getName());
+	public static final Logger LOGGER = LoggerFactory.getLogger(TestNameLoggerRule.class);
 
 	@Override
 	protected void starting(Description description) {

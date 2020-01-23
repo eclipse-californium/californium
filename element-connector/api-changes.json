@@ -1,0 +1,23 @@
+{
+	"2.1.0-SNAPSHOT": {
+		"revapi": {
+			"ignore": [
+				{
+					"code": "java.field.visibilityReduced",
+					"old": "field org.eclipse.californium.elements.util.Asn1DerDecoder.OID",
+					"new": "field org.eclipse.californium.elements.util.Asn1DerDecoder.OID",
+					"justification": "APIfix - public scope was not intended",
+					"oldVisibility": "public",
+					"newVisibility": "private",
+					"package": "org.eclipse.californium.elements.util",
+					"classQualifiedName": "org.eclipse.californium.elements.util.Asn1DerDecoder",
+					"classSimpleName": "Asn1DerDecoder",
+					"fieldName": "OID",
+					"oldArchive": "org.eclipse.californium:element-connector:jar:2.0.0",
+					"newArchive": "org.eclipse.californium:element-connector:jar:2.1.0-SNAPSHOT",
+					"elementKind": "field"
+				}
+			]
+		}
+	}
+}

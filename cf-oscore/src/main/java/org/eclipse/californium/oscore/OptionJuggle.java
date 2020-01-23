@@ -47,7 +47,7 @@ public class OptionJuggle {
 	/**
 	 * The logger
 	 */
-	private static final Logger LOGGER = LoggerFactory.getLogger(OptionJuggle.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(OptionJuggle.class);
 	
 	private static List<Integer> allEOptions = populateAllEOptions();
 

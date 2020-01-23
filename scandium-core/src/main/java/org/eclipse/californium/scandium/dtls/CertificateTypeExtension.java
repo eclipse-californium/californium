@@ -36,7 +36,7 @@ import org.eclipse.californium.scandium.util.ListUtils;
  */
 public abstract class CertificateTypeExtension extends HelloExtension {
 
-	private static final Logger LOG = LoggerFactory.getLogger(CertificateTypeExtension.class.getName());
+	private static final Logger LOG = LoggerFactory.getLogger(CertificateTypeExtension.class);
 	
 	// DTLS-specific constants ////////////////////////////////////////
 	

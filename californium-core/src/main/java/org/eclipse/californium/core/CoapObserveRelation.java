@@ -59,7 +59,7 @@ import org.slf4j.LoggerFactory;
 public class CoapObserveRelation {
 
 	/** The logger. */
-	private static final Logger LOGGER = LoggerFactory.getLogger(CoapObserveRelation.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(CoapObserveRelation.class);
 
 	/** A executor service to schedule re-registrations */
 	private final ScheduledThreadPoolExecutor scheduler;

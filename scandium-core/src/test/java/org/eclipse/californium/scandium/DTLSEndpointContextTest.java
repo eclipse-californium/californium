@@ -54,7 +54,6 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -160,7 +159,6 @@ public class DTLSEndpointContextTest {
 	 * and a second time after the DTLS session was established.
 	 */
 	@Test
-	@Ignore
 	public void testInitialSendingInvokesEndpointContextMatcher() throws Exception {
 		// GIVEN a EndpointContextMatcher
 		TestEndpointContextMatcher endpointMatcher = new TestEndpointContextMatcher(3);
@@ -211,7 +209,6 @@ public class DTLSEndpointContextTest {
 	 * Session.
 	 */
 	@Test
-	@Ignore
 	public void testSendingWhileResumingInvokesEndpointContextMatcher() throws Exception {
 
 		// GIVEN a EndpointContextMatcher
@@ -242,7 +239,6 @@ public class DTLSEndpointContextTest {
 	}
 
 	@Test
-	@Ignore
 	public void testConnectorAddsEndpointContextToReceivedApplicationMessage() throws Exception {
 		// GIVEN a message to be sent to the server
 		RawData outboundMessage = RawData.outbound(new byte[] { 0x01 },

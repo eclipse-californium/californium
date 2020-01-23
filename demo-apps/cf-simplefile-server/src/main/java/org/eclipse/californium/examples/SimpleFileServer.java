@@ -44,7 +44,7 @@ import org.eclipse.californium.plugtests.AbstractTestServer;
 
 public class SimpleFileServer extends AbstractTestServer {
 
-	private static final Logger LOG = LoggerFactory.getLogger(SimpleFileServer.class.getName());
+	private static final Logger LOG = LoggerFactory.getLogger(SimpleFileServer.class);
 
 	private static final File CONFIG_FILE = new File("Californium.properties");
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Fileserver";

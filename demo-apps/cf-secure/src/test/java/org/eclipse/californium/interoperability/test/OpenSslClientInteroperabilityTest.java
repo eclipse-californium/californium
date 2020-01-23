@@ -24,6 +24,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.interoperability.test.OpenSslProcessUtil.AuthenticationMode;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.junit.After;
@@ -37,16 +38,11 @@ import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
 /**
- * Test for openssl interoperability.
+ * Test for interoperability with openssl client.
  * 
- * Requires external openssl installation, otherwise the tests are skipped. On
- * linux install just the openssl package (version 1.1.1). On windows you may
- * install git for windows, <a href="https://git-scm.com/download/win">git</a>
- * and add the extra tools to your path ("Git/mingw64/bin", may also be done
- * using a installation option). Alternatively you may install openssl for
- * windows on it's own <a href=
- * "https://bintray.com/vszakats/generic/download_file?file_path=openssl-1.1.1c-win64-mingw.zip">OpenSsl
- * for Windows</a> and add that to your path.
+ * Test several different cipher suites.
+ * 
+ * @see OpenSslUtil
  */
 @RunWith(Parameterized.class)
 public class OpenSslClientInteroperabilityTest {
@@ -56,14 +52,15 @@ public class OpenSslClientInteroperabilityTest {
 
 	private static final InetSocketAddress BIND = new InetSocketAddress(InetAddress.getLoopbackAddress(),
 			ScandiumUtil.PORT);
+	private static final String DESTINATION = "127.0.0.1:" + ScandiumUtil.PORT;
 	private static final long TIMEOUT_MILLIS = 2000;
 
-	private static ProcessUtil processUtil;
+	private static OpenSslProcessUtil processUtil;
 	private static ScandiumUtil scandiumUtil;
 
 	@BeforeClass
 	public static void init() throws IOException, InterruptedException {
-		processUtil = new ProcessUtil();
+		processUtil = new OpenSslProcessUtil();
 		processUtil.execute("openssl", "version");
 		ProcessResult result = processUtil.waitResult(TIMEOUT_MILLIS);
 		assumeNotNull(result);
@@ -72,7 +69,7 @@ public class OpenSslClientInteroperabilityTest {
 	}
 
 	@AfterClass
-	public static void teardown() throws InterruptedException {
+	public static void shutdown() throws InterruptedException {
 		if (scandiumUtil != null) {
 			scandiumUtil.shutdown();
 			scandiumUtil = null;
@@ -88,13 +85,13 @@ public class OpenSslClientInteroperabilityTest {
 	/**
 	 * @return List of cipher suites.
 	 */
-	@Parameters(name = "ciphersuite = {0}")
+	@Parameters(name = "{0}")
 	public static Iterable<CipherSuite> cipherSuiteParams() {
 		return OpenSslUtil.CIPHERSUITES_MAP.keySet();
 	}
 
 	@After
-	public void shutdown() throws InterruptedException {
+	public void stop() throws InterruptedException {
 		if (scandiumUtil != null) {
 			scandiumUtil.shutdown();
 		}
@@ -107,9 +104,9 @@ public class OpenSslClientInteroperabilityTest {
 	 */
 	@Test
 	public void testOpenSslClient() throws Exception {
-		scandiumUtil.start(BIND, cipherSuite);
+		scandiumUtil.start(BIND, null, cipherSuite);
 
-		String cipher = startupClient(cipherSuite);
+		String cipher = processUtil.startupClient(DESTINATION, cipherSuite, AuthenticationMode.CERTIFICATE);
 		assertTrue(processUtil.waitConsole("Cipher is " + cipher, TIMEOUT_MILLIS));
 
 		String message = "Hello Scandium!";
@@ -120,31 +117,6 @@ public class OpenSslClientInteroperabilityTest {
 
 		assertTrue(processUtil.waitConsole("ACK-" + message, TIMEOUT_MILLIS));
 
-		stopClient();
-	}
-
-	private String startupClient(CipherSuite cipher) throws IOException, InterruptedException {
-		String openSslCipher = OpenSslUtil.CIPHERSUITES_MAP.get(cipher);
-		if (cipher.isPskBased()) {
-			startupPskClient(openSslCipher);
-		} else {
-			startupEcdsaClient(openSslCipher);
-		}
-		return openSslCipher;
-	}
-
-	private void startupPskClient(String ciphers) throws IOException, InterruptedException {
-		processUtil.execute("openssl", "s_client", "-dtls1_2", "-4", "-connect", "127.0.0.1:" + ScandiumUtil.PORT,
-				"-no-CAfile", "-cipher", ciphers, "-curves", "prime256v1", "-psk", "73656372657450534b");
-	}
-
-	private void startupEcdsaClient(String ciphers) throws IOException, InterruptedException {
-		processUtil.execute("openssl", "s_client", "-dtls1_2", "-4", "-connect", "127.0.0.1:" + ScandiumUtil.PORT,
-				"-no-CAfile", "-cipher", ciphers, "-curves", "prime256v1", "-cert", "client.pem");
-	}
-
-	private void stopClient() throws InterruptedException, IOException {
-		processUtil.sendln("Q");
-		processUtil.waitResult(TIMEOUT_MILLIS);
+		processUtil.stop(TIMEOUT_MILLIS);
 	}
 }

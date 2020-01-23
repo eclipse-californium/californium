@@ -44,7 +44,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class InMemoryObservationStore implements ObservationStore {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(InMemoryObservationStore.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(InMemoryObservationStore.class);
 	private static final Logger HEALTH_LOGGER = LoggerFactory.getLogger(LOGGER.getName() + ".health");
 	private final ConcurrentMap<Token, Observation> map = new ConcurrentHashMap<>();
 	private volatile boolean enableStatus;

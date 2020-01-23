@@ -36,7 +36,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 public class DeduplicatorFactory {
 
 	/** The logger. */
-	private static final Logger LOGGER = LoggerFactory.getLogger(DeduplicatorFactory.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(DeduplicatorFactory.class);
 
 	/** The factory. */
 	private static DeduplicatorFactory factory;

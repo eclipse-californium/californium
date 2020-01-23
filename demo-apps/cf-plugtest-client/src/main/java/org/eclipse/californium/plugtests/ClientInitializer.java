@@ -63,7 +63,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ClientInitializer {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(ClientInitializer.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(ClientInitializer.class);
 
 	public static final String PSK_IDENTITY_PREFIX = "cali.";
 

@@ -46,7 +46,6 @@ import io.netty.channel.pool.AbstractChannelPoolHandler;
 import io.netty.channel.pool.AbstractChannelPoolMap;
 import io.netty.channel.pool.ChannelPool;
 import io.netty.channel.pool.FixedChannelPool;
-import io.netty.channel.pool.SimpleChannelPool;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.concurrent.Future;
@@ -57,6 +56,7 @@ import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.exception.EndpointMismatchException;
 import org.eclipse.californium.elements.exception.MulticastNotSupportedException;
+import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
@@ -67,6 +67,8 @@ import java.net.SocketAddress;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,9 +78,15 @@ import org.slf4j.LoggerFactory;
  * accept new incoming connections.
  */
 public class TcpClientConnector implements Connector {
-	private static final boolean USE_FIXED_CONNECTION_POOL = false;
 
-	protected final Logger LOGGER = LoggerFactory.getLogger(getClass().getName());
+	private static final AtomicInteger THREAD_COUNTER = new AtomicInteger();
+	private static final ThreadGroup TCP_THREAD_GROUP = new ThreadGroup("Californium/TCP-Client"); //$NON-NLS-1$
+
+	static {
+		TCP_THREAD_GROUP.setDaemon(false);
+	}
+
+	protected final Logger LOGGER = LoggerFactory.getLogger(getClass());
 
 	private final int numberOfThreads;
 	private final int connectionIdleTimeoutSeconds;
@@ -119,7 +127,8 @@ public class TcpClientConnector implements Connector {
 			throw new IllegalStateException("Connector already started");
 		}
 
-		workerGroup = new NioEventLoopGroup(numberOfThreads);
+		workerGroup = new NioEventLoopGroup(numberOfThreads,
+				new DaemonThreadFactory("TCP-Client-" + THREAD_COUNTER.incrementAndGet() + "#", TCP_THREAD_GROUP));
 		poolMap = new AbstractChannelPoolMap<SocketAddress, ChannelPool>() {
 
 			@Override
@@ -135,11 +144,7 @@ public class TcpClientConnector implements Connector {
 				// We multiplex over the same TCP connection, so don't acquire
 				// more than one connection per endpoint.
 				// TODO: But perhaps we could make it a configurable property.
-				if (USE_FIXED_CONNECTION_POOL) {
-					return new FixedChannelPool(bootstrap, new MyChannelPoolHandler(key), 1);
-				} else {
-					return new SimpleChannelPool(bootstrap, new MyChannelPoolHandler(key));
-				}
+				return new FixedChannelPool(bootstrap, new MyChannelPoolHandler(key), 1);
 			}
 		};
 	}
@@ -150,7 +155,8 @@ public class TcpClientConnector implements Connector {
 			poolMap.close();
 		}
 		if (workerGroup != null) {
-			workerGroup.shutdownGracefully(0, 500, TimeUnit.MILLISECONDS).syncUninterruptibly();
+			// FixedChannelPool requires a quietPeriod be larger than 0
+			workerGroup.shutdownGracefully(50, 500, TimeUnit.MILLISECONDS).syncUninterruptibly();
 			workerGroup = null;
 		}
 	}
@@ -351,17 +357,6 @@ public class TcpClientConnector implements Connector {
 
 		@Override
 		public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-			// TODO: This only works with fixed sized pool with connection one.
-			// Otherwise it's not save to remove and
-			// close the pool as soon as a single channel is closed.
-			ChannelPool channelPool = poolMap.get(key);
-			if (channelPool instanceof FixedChannelPool) {
-				((FixedChannelPool)channelPool).closeAsync();
-				LOGGER.trace("closed fixed channel pool for {}", key);
-			} else {
-				channelPool.close();
-				LOGGER.trace("closed channel pool for {}", key);
-			}
 			if (poolMap.remove(key)) {
 				LOGGER.trace("removed channel pool for {}", key);
 			}

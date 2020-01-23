@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
  */
 public class UdpEndpointContextMatcher extends KeySetEndpointContextMatcher {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(UdpEndpointContextMatcher.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(UdpEndpointContextMatcher.class);
 
 	private static final String KEYS[] = { UdpEndpointContext.KEY_PLAIN };
 

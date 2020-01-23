@@ -24,10 +24,10 @@ import java.net.SocketException;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.tcp.netty.TcpServerConnector;
+import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 
 public class HelloWorldServer extends CoapServer {
 
@@ -67,7 +67,7 @@ public class HelloWorldServer extends CoapServer {
 	 */
 	private void addEndpoints(boolean udp, boolean tcp) {
 		NetworkConfig config = NetworkConfig.getStandard();
-		for (InetAddress addr : EndpointManager.getEndpointManager().getNetworkInterfaces()) {
+		for (InetAddress addr : NetworkInterfacesUtil.getNetworkInterfaces()) {
 			InetSocketAddress bindToAddress = new InetSocketAddress(addr, COAP_PORT);
 			if (udp) {
 				CoapEndpoint.Builder builder = new CoapEndpoint.Builder();

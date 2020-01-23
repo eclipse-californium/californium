@@ -121,7 +121,7 @@ import org.slf4j.LoggerFactory;
  */
 @Category(Medium.class)
 public class DTLSConnectorTest {
-	public static final Logger LOGGER = LoggerFactory.getLogger(DTLSConnectorTest.class.getName());
+	public static final Logger LOGGER = LoggerFactory.getLogger(DTLSConnectorTest.class);
 
 	@ClassRule
 	public static DtlsNetworkRule network = new DtlsNetworkRule(DtlsNetworkRule.Mode.DIRECT, DtlsNetworkRule.Mode.NATIVE);
@@ -855,13 +855,13 @@ public class DTLSConnectorTest {
 		assertThat("server side session listener missing", listener, is(notNullValue()));
 		Throwable cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
 		assertThat("server side handshake failure missing", cause, is(notNullValue()));
-		assertThat(cause.getMessage(), containsString("handshake flight"));
+		assertThat(cause.getMessage(), containsString("Handshake flight"));
 
 		listener = serverHelper.sessionListenerMap.get(serverHelper.serverEndpoint);
 		assertThat("client side session listener missing", listener, is(notNullValue()));
 		cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
 		assertThat("client side handshake failure missing", cause, is(notNullValue()));
-		assertThat(cause.getMessage(), containsString("handshake flight "));
+		assertThat(cause.getMessage(), containsString("Handshake flight "));
 	}
 
 	@Test

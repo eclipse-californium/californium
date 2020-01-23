@@ -34,7 +34,7 @@ import org.eclipse.californium.core.server.resources.Resource;
  */
 public class LinkParser {
 
-	protected static final Logger LOG = LoggerFactory.getLogger(LinkParser.class.getName());
+	protected static final Logger LOG = LoggerFactory.getLogger(LinkParser.class);
 	
 	public static Resource parseTree(String linkFormat) {
 

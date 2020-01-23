@@ -40,7 +40,7 @@ public class OSCoreStack extends BaseCoapStack {
 	/**
 	 * The logger
 	 */
-	private static final Logger LOGGER = LoggerFactory.getLogger(OSCoreStack.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(OSCoreStack.class);
 
 	/**
 	 * Creates a new stack for UDP as the transport.

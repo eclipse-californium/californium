@@ -83,7 +83,10 @@ public final class KeyMID {
 
 	@Override
 	public String toString() {
-		String peerAsString = peer instanceof InetSocketAddress ? StringUtil.toString((InetSocketAddress)peer) : peer.toString();
-		return new StringBuilder("KeyMID[").append(peerAsString).append('-').append(mid).append(']').toString();
+		Object peer = this.peer;
+		if (peer instanceof InetSocketAddress) {
+			peer = StringUtil.toDisplayString((InetSocketAddress) peer);
+		}
+		return new StringBuilder("KeyMID[").append(peer).append('-').append(mid).append(']').toString();
 	}
 }

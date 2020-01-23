@@ -32,12 +32,8 @@ package org.eclipse.californium.core.network;
 
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.net.SocketException;
 import java.net.URI;
 import java.util.Collection;
-import java.util.Enumeration;
-import java.util.LinkedList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
@@ -48,6 +44,7 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.server.MessageDeliverer;
+import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 
 /**
  * A manager and coap-factory for {@link Endpoint}s that can be used by clients for sending
@@ -83,7 +80,7 @@ import org.eclipse.californium.core.server.MessageDeliverer;
 public class EndpointManager {
 
 	/** The logger */
-	private static final Logger LOGGER = LoggerFactory.getLogger(EndpointManager.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(EndpointManager.class);
 
 	/** The singleton manager instance */
 	private static final EndpointManager manager = new EndpointManager();
@@ -203,20 +200,16 @@ public class EndpointManager {
 		return getDefaultEndpoint(CoAP.COAP_URI_SCHEME);
 	}
 
+	/**
+	 * Get collection of available local inet addresses of network interfaces.
+	 * 
+	 * @return collection of local inet addresses.
+	 * @deprecated use {@link NetworkInterfacesUtil#getNetworkInterfaces()}
+	 *             instead.
+	 */
+	@Deprecated
 	public Collection<InetAddress> getNetworkInterfaces() {
-		Collection<InetAddress> interfaces = new LinkedList<InetAddress>();
-		try {
-			Enumeration<NetworkInterface> nets = NetworkInterface.getNetworkInterfaces();
-			while (nets.hasMoreElements()) {
-				Enumeration<InetAddress> inetAddresses = nets.nextElement().getInetAddresses();
-				while (inetAddresses.hasMoreElements()) {
-					interfaces.add(inetAddresses.nextElement());
-				}
-			}
-		} catch (SocketException e) {
-			LOGGER.error("could not fetch all interface addresses", e);
-		}
-		return interfaces;
+		return NetworkInterfacesUtil.getNetworkInterfaces();
 	}
 
 	// Needed for JUnit Tests to remove state for deduplication

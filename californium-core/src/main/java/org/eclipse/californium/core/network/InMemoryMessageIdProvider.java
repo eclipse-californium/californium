@@ -41,7 +41,7 @@ import org.slf4j.LoggerFactory;
  */
 public class InMemoryMessageIdProvider implements MessageIdProvider {
 
-	private static final Logger LOG = LoggerFactory.getLogger(InMemoryMessageIdProvider.class.getName());
+	private static final Logger LOG = LoggerFactory.getLogger(InMemoryMessageIdProvider.class);
 
 	public enum TrackerMode {
 		NULL, GROUPED, MAPBASED

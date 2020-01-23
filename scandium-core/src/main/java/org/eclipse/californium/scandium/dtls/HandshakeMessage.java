@@ -63,7 +63,7 @@ public abstract class HandshakeMessage extends AbstractMessage {
 
 	// Logging ////////////////////////////////////////////////////////
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(HandshakeMessage.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(HandshakeMessage.class);
 
 	// Members ////////////////////////////////////////////////////////
 

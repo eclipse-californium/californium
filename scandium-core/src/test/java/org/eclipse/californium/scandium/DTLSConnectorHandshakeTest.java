@@ -49,7 +49,9 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.auth.AdditionalInfo;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
@@ -226,7 +228,7 @@ public class DTLSConnectorHandshakeTest {
 		ConnectorHelper.assertPrincipalHasAdditionalInfo(session.getPeerIdentity(), KEY_SERVER_NAME, ConnectorHelper.SERVERNAME);
 	}
 
-	private void startClientFailing(DtlsConnectorConfig.Builder builder) throws Exception {
+	private void startClientFailing(DtlsConnectorConfig.Builder builder, EndpointContext destination) throws Exception {
 		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		builder.setAddress(clientEndpoint)
 				.setLoggingTag("client")
@@ -239,8 +241,7 @@ public class DTLSConnectorHandshakeTest {
 		client = serverHelper.createClient(clientConfig);
 		client.start();
 		SimpleMessageCallback callback = new SimpleMessageCallback();
-		RawData raw = RawData.outbound("Hello World".getBytes(),
-				new AddressEndpointContext(serverHelper.serverEndpoint), callback, false);
+		RawData raw = RawData.outbound("Hello World".getBytes(), destination, callback, false);
 		client.send(raw);
 		Throwable error = callback.getError(TimeUnit.SECONDS.toMillis(MAX_TIME_TO_WAIT_SECS));
 		assertThat("client side error missing", error, is(notNullValue()));
@@ -827,7 +828,7 @@ public class DTLSConnectorHandshakeTest {
 				.setTrustStore(new Certificate[0])
 				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getServerCertificateChain());
 
-		startClientFailing(builder);
+		startClientFailing(builder, new AddressEndpointContext(serverHelper.serverEndpoint));
 
 		LatchSessionListener listener = serverHelper.sessionListenerMap.get(client.getAddress());
 		assertThat("server side session listener missing", listener, is(notNullValue()));
@@ -849,7 +850,7 @@ public class DTLSConnectorHandshakeTest {
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
 				.setTrustStore(new Certificate[0]);
 		
-		startClientFailing(builder);		
+		startClientFailing(builder, new AddressEndpointContext(serverHelper.serverEndpoint));
 
 		LatchSessionListener listener = serverHelper.sessionListenerMap.get(client.getAddress());
 		assertThat("server side session listener missing", listener, is(notNullValue()));
@@ -894,4 +895,49 @@ public class DTLSConnectorHandshakeTest {
 		future.get();
 		assertThat(serverHelper.serverConnectionStore.remainingCapacity(), is(remainingCapacity + 2));
 	}
+
+	@Test
+	public void testDefaultHandshakeModeNone() throws Exception {
+		startServer(false, false, true, null);
+
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+				.setDefaultHandshakeMode(DtlsEndpointContext.HANDSHAKE_MODE_NONE)
+				.setRpkTrustAll()
+				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientPublicKey());
+
+		EndpointContext endpointContext = new AddressEndpointContext(serverHelper.serverEndpoint);
+		startClientFailing(builder, endpointContext);
+
+		SimpleMessageCallback callback = new SimpleMessageCallback();
+		RawData raw = RawData.outbound(
+				"Hello World, 2!".getBytes(), MapBasedEndpointContext.addEntries(endpointContext,
+						DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_AUTO),
+				callback, false);
+		client.send(raw);
+
+		endpointContext = callback.getEndpointContext(TimeUnit.SECONDS.toMillis(MAX_TIME_TO_WAIT_SECS));
+		assertThat("client failed to send data", endpointContext, is(notNullValue()));
+	}
+
+	@Test
+	public void testDefaultHandshakeModeAuto() throws Exception {
+		startServer(false, false, true, null);
+
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+				.setDefaultHandshakeMode(DtlsEndpointContext.HANDSHAKE_MODE_AUTO)
+				.setRpkTrustAll()
+				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientPublicKey());
+
+		EndpointContext endpointContext = new AddressEndpointContext(serverHelper.serverEndpoint);
+		startClientFailing(builder, MapBasedEndpointContext.addEntries(endpointContext,
+				DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_NONE));
+
+		SimpleMessageCallback callback = new SimpleMessageCallback();
+		RawData raw = RawData.outbound("Hello World, 2!".getBytes(), endpointContext, callback, false);
+		client.send(raw);
+	
+		endpointContext = callback.getEndpointContext(TimeUnit.SECONDS.toMillis(MAX_TIME_TO_WAIT_SECS));
+		assertThat("client failed to send data", endpointContext, is(notNullValue()));
+	}
+
 }

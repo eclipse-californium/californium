@@ -40,6 +40,7 @@ package org.eclipse.californium.scandium.dtls;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 
+import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -48,14 +49,45 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
  * The resuming client handshaker executes a abbreviated handshake by adding a
  * valid session identifier into its ClientHello message. The message flow is
  * depicted in <a href="http://tools.ietf.org/html/rfc5246#section-7.3">Figure
- * 2</a>. The new keys will be generated from the master secret established from a
- * previous full handshake.
+ * 2</a>. The new keys will be generated from the master secret established from
+ * a previous full handshake.
+ * <p>
+ * This implementation offers a probing mode.
+ * 
+ * If a mobile peer doesn't get a ACK or response that may have two different
+ * causes:
+ * 
+ * <ol>
+ * <li>server has lost session (association)</li>
+ * <li>connectivity is lost</li>
+ * </ol>
+ * 
+ * The second is sometime hard to detect; the peer's state is connected, but
+ * effectively it's not working. In that case, after some retransmissions, the
+ * peer starts a handshake. Without the probing mode starting a handshake
+ * removes on the client the session. If the handshake timesout (though the
+ * connection is not working), the peer still requires a new handshake after the
+ * connectivity is established again.
+ * 
+ * With probing mode, the handshake starts without removing the session. If some
+ * data is received, the session is removed and the handshake gets completed. If
+ * no data is received, the peer assumes, that the connectivity is lost (even if
+ * it's own state indicates connectivity) and just timesout the request. if the
+ * connectivity is established again, just a new request could be send without a
+ * handshake.
+ * </p>
  */
+@NoPublicAPI
 public class ResumingClientHandshaker extends ClientHandshaker {
 
 	private static HandshakeState[] RESUME = { new HandshakeState(HandshakeType.HELLO_VERIFY_REQUEST, true),
 			new HandshakeState(HandshakeType.SERVER_HELLO), new HandshakeState(ContentType.CHANGE_CIPHER_SPEC),
 			new HandshakeState(HandshakeType.FINISHED) };
+
+	/**
+	 * Indicates probing for this handshake.
+	 */
+	private boolean probe;
 
 	// flag to indicate if we must do a full handshake or an abbreviated one
 	private boolean fullHandshake = false;
@@ -75,6 +107,8 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	 *            the DTLS configuration parameters to use for the handshake.
 	 * @param maxTransmissionUnit
 	 *            the MTU value reported by the network interface the record layer is bound to.
+	 * @param probe {@code true} enable probing for this resumption handshake,
+	 *            {@code false}, not probing handshake.
 	 * @throws IllegalArgumentException
 	 *            if the given session does not contain an identifier.
 	 * @throws IllegalStateException
@@ -83,11 +117,12 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	 *            if session, recordLayer or config is <code>null</code>
 	 */
 	public ResumingClientHandshaker(DTLSSession session, RecordLayer recordLayer, Connection connection,
-			DtlsConnectorConfig config, int maxTransmissionUnit) {
+			DtlsConnectorConfig config, int maxTransmissionUnit, boolean probe) {
 		super(session, recordLayer, connection, config, maxTransmissionUnit);
 		if (session.getSessionIdentifier() == null) {
 			throw new IllegalArgumentException("Session must contain the ID of the session to resume");
 		}
+		this.probe = probe;
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -241,4 +276,25 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		states = RESUME;
 		statesIndex = 0;
 	}
+
+	@Override
+	public boolean isProbing() {
+		return probe;
+	}
+
+	@Override
+	public void resetProbing() {
+		probe = false;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * 
+	 * Connections of probing handshakes are not intended to be removed.
+	 */
+	@Override
+	public boolean isRemovingConnection() {
+		return !probe && super.isRemovingConnection();
+	}
+
 }

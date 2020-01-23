@@ -24,6 +24,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.interoperability.test.OpenSslProcessUtil.AuthenticationMode;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.junit.After;
@@ -37,20 +38,15 @@ import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
 /**
- * Test for openssl interoperability.
+ * Test for interoperability with openssl server.
  * 
- * Requires external openssl installation, otherwise the tests are skipped. On
- * linux install just the openssl package (version 1.1.1). On windows you may
- * install git for windows, <a href="https://git-scm.com/download/win">git</a>
- * and add the extra tools to your path ("Git/mingw64/bin", may also be done
- * using a installation option). Alternatively you may install openssl for
- * windows on it's own <a href=
- * "https://bintray.com/vszakats/generic/download_file?file_path=openssl-1.1.1c-win64-mingw.zip">OpenSsl
- * for Windows</a> and add that to your path.
+ * Test several different cipher suites.
  * 
- * Note: version 1.1.1a to 1.1.1c the openssl s_server seems to be broken. It
- * starts only to accept, when the first message is entered. Therefore the test
- * are skipped on windows.
+ * Note: the windows version 1.1.1a to 1.1.1d of the openssl s_server seems to
+ * be broken. It starts only to accept, when the first message is entered.
+ * Therefore the test are skipped on windows.
+ * 
+ * @see OpenSslUtil
  */
 @RunWith(Parameterized.class)
 public class OpenSslServerInteroperabilityTest {
@@ -61,22 +57,23 @@ public class OpenSslServerInteroperabilityTest {
 	private static final InetSocketAddress BIND = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 	private static final InetSocketAddress DESTINATION = new InetSocketAddress(InetAddress.getLoopbackAddress(),
 			ScandiumUtil.PORT);
+	private static final String ACCEPT = "127.0.0.1:" + ScandiumUtil.PORT;
 
 	private static final long TIMEOUT_MILLIS = 2000;
 
-	private static ProcessUtil processUtil;
+	private static OpenSslProcessUtil processUtil;
 	private static ScandiumUtil scandiumUtil;
 
 	@BeforeClass
 	public static void init() throws IOException, InterruptedException {
-		processUtil = new ProcessUtil();
+		processUtil = new OpenSslProcessUtil();
 		processUtil.execute("openssl", "version");
 		ProcessResult result = processUtil.waitResult(TIMEOUT_MILLIS);
 		assumeNotNull(result);
 		assumeTrue(result.contains("OpenSSL 1\\.1\\."));
 		String os = System.getProperty("os.name");
 		if (os.startsWith("Windows")) {
-			assumeFalse("Windows openssl server 1.1.1 seems to be broken!", result.contains("OpenSSL 1\\.1\\.1[abc]"));
+			assumeFalse("Windows openssl server 1.1.1 seems to be broken!", result.contains("OpenSSL 1\\.1\\.1[abcd]"));
 		}
 		scandiumUtil = new ScandiumUtil(true);
 	}
@@ -94,13 +91,17 @@ public class OpenSslServerInteroperabilityTest {
 	/**
 	 * @return List of cipher suites.
 	 */
-	@Parameters(name = "ciphersuite = {0}")
+	@Parameters(name = "{0}")
 	public static Iterable<CipherSuite> cipherSuiteParams() {
+		System.out.println("params");
 		return OpenSslUtil.CIPHERSUITES_MAP.keySet();
 	}
 
 	@After
-	public void shutdownServer() throws InterruptedException {
+	public void stop() throws InterruptedException {
+		if (scandiumUtil != null) {
+			scandiumUtil.shutdown();
+		}
 		processUtil.shutdown();
 	}
 
@@ -110,9 +111,9 @@ public class OpenSslServerInteroperabilityTest {
 	 */
 	@Test
 	public void testOpenSslServer() throws Exception {
-		String cipher = startupServer(cipherSuite);
+		String cipher = processUtil.startupServer(ACCEPT, cipherSuite, AuthenticationMode.CERTIFICATE);
 
-		scandiumUtil.start(BIND, cipherSuite);
+		scandiumUtil.start(BIND, null, cipherSuite);
 
 		String message = "Hello OpenSSL!";
 		scandiumUtil.send(message, DESTINATION, TIMEOUT_MILLIS);
@@ -123,32 +124,6 @@ public class OpenSslServerInteroperabilityTest {
 
 		scandiumUtil.assertReceivedData("ACK-" + message, TIMEOUT_MILLIS);
 
-		stopServer();
+		processUtil.stop(TIMEOUT_MILLIS);
 	}
-
-	private String startupServer(CipherSuite cipher) throws IOException, InterruptedException {
-		String openSslCipher = OpenSslUtil.CIPHERSUITES_MAP.get(cipher);
-		if (cipher.isPskBased()) {
-			startupPskServer(openSslCipher);
-		} else {
-			startupEcdsaServer(openSslCipher);
-		}
-		return openSslCipher;
-	}
-
-	private void startupPskServer(String ciphers) throws IOException, InterruptedException {
-		processUtil.execute("openssl", "s_server", "-4", "-dtls1_2", "-accept", "127.0.0.1:" + ScandiumUtil.PORT,
-				"-listen", "-no-CAfile", "-cipher", ciphers, "-psk", "73656372657450534b");
-	}
-
-	private void startupEcdsaServer(String ciphers) throws IOException, InterruptedException {
-		processUtil.execute("openssl", "s_server", "-4", "-dtls1_2", "-accept", "127.0.0.1:" + ScandiumUtil.PORT,
-				"-listen", "-no-CAfile", "-cipher", ciphers, "-cert", "server.pem");
-	}
-
-	private void stopServer() throws InterruptedException, IOException {
-		processUtil.sendln("Q");
-		processUtil.waitResult(TIMEOUT_MILLIS);
-	}
-
 }

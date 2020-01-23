@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ThreadsRule implements TestRule {
 
-	public static final Logger LOGGER = LoggerFactory.getLogger(ThreadsRule.class.getName());
+	public static final Logger LOGGER = LoggerFactory.getLogger(ThreadsRule.class);
 
 	/**
 	 * Description of current test.
@@ -115,8 +115,10 @@ public class ThreadsRule implements TestRule {
 	 *             too fast.
 	 */
 	public List<Thread> getActiveThreads() {
-		for (int i = 0; i < 5; ++i) {
+		int[] counts = new int[5];
+		for (int i = 0; i < counts.length; ++i) {
 			int count = Thread.activeCount();
+			counts[i] = count;
 			Thread[] active = new Thread[count];
 			if (Thread.enumerate(active) == count) {
 				if (excludes == null || excludes.length == 0) {
@@ -139,7 +141,7 @@ public class ThreadsRule implements TestRule {
 				}
 			}
 		}
-		throw new IllegalStateException("Active threads unstable! " + Thread.activeCount());
+		throw new IllegalStateException("Active threads unstable! " + Arrays.toString(counts));
 	}
 
 	/**

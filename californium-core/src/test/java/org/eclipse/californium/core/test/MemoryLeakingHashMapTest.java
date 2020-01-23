@@ -114,7 +114,7 @@ public class MemoryLeakingHashMapTest {
 	// The name of the resource of the server
 	private static final String URI = "test";
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(MemoryLeakingHashMapTest.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(MemoryLeakingHashMapTest.class);
 	private static Endpoint serverEndpoint;
 
 	// The server endpoint that we test

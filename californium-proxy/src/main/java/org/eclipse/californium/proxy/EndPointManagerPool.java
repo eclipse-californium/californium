@@ -24,7 +24,9 @@ import java.util.Queue;
 
 /**
  * A pool of EndpointManagers to avoid concurrency issues across concurrent requests.
+ * @deprecated use {@link EndpointPool} instead.
  */
+@Deprecated
 public class EndPointManagerPool {
 	private static final int INIT_SIZE = 10;
 	private static final Queue<EndpointManager> managers = initManagerPool(INIT_SIZE);

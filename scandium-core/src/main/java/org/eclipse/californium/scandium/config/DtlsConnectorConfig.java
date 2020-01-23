@@ -45,11 +45,14 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.eclipse.californium.elements.DtlsEndpointContext;
+import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.ConnectionListener;
 import org.eclipse.californium.scandium.DtlsHealth;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
+import org.eclipse.californium.scandium.dtls.CertificateMessage;
+import org.eclipse.californium.scandium.dtls.CertificateRequest;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.SessionCache;
@@ -182,8 +185,11 @@ public final class DtlsConnectorConfig {
 	/** does the server require the client to authenticate */
 	private Boolean clientAuthenticationRequired;
 
-	/** does not start handshakes */
+	/** does not start handshakes at all. Ignore handshake modes! */
 	private Boolean serverOnly;
+
+	/** Default handshake mode. */
+	private String defaultHandshakeMode;
 
 	/** certificate types to be used to identify this peer */
 	private List<CertificateType> identityCertificateTypes;
@@ -311,11 +317,23 @@ public final class DtlsConnectorConfig {
 
 	private ApplicationLevelInfoSupplier applicationLevelInfoSupplier;
 
-	
 	/**
 	 * Use the handshake state validation to verify valid handshakes.
 	 */
 	private Boolean useHandshakeStateValidation;
+
+	/**
+	 * Use verification of x509 key usage (extension).
+	 */
+	private Boolean useKeyUsageVerification;
+	/**
+	 * Use truncated certificate paths when sending the client's certificate message.
+	 */
+	private Boolean useTruncatedCertificatePathForClientsCertificateMessage;
+	/**
+	 * Use truncated certificate paths for verification.
+	 */
+	private Boolean useTruncatedCertificatePathForValidation;
 
 	private ConnectionListener connectionListener;
 
@@ -637,6 +655,20 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * Get the default handshake mode.
+	 * 
+	 * Used, if no handshake mode is provided in the endpoint context, see
+	 * {@link DtlsEndpointContext#KEY_HANDSHAKE_MODE}.
+	 * 
+	 * @return default handshake mode.
+	 *         {@link DtlsEndpointContext#HANDSHAKE_MODE_NONE} or
+	 *         {@link DtlsEndpointContext#HANDSHAKE_MODE_AUTO} (default)
+	 */
+	public String getDefaultHandshakeMode() {
+		return defaultHandshakeMode;
+	}
+
+	/**
 	 * Gets the certificate types for the identity of this peer.
 	 * 
 	 * In the order of preference.
@@ -802,6 +834,42 @@ public final class DtlsConnectorConfig {
 		return useHandshakeStateValidation;
 	}
 
+	/**
+	 * Use key usage verification for x509.
+	 * 
+	 * @return {@code true}, if check of key usage (x509 extension) is enabled
+	 */
+	public Boolean useKeyUsageVerification() {
+		return useKeyUsageVerification;
+	}
+
+	/**
+	 * Use truncated certificate paths for client's certificate message.
+	 * 
+	 * Truncate certificate path according the received certificate
+	 * authorities in the {@link CertificateRequest} for the client's
+	 * {@link CertificateMessage}.
+	 * 
+	 * @return {@code true}, if path should be truncated for client's
+	 *         certificate message.
+	 */
+	public Boolean useTruncatedCertificatePathForClientsCertificateMessage() {
+		return useTruncatedCertificatePathForClientsCertificateMessage;
+	}
+
+	/**
+	 * Use truncated certificate paths for validation.
+	 * 
+	 * Truncate certificate path according the available trusted
+	 * certificates before validation.
+	 * 
+	 * @return {@code true}, if path should be truncated at available trust
+	 *         anchors for validation
+	 */
+	public Boolean useTruncatedCertificatePathForValidation() {
+		return useTruncatedCertificatePathForValidation;
+	}
+
 	public ConnectionListener getConnectionListener() {
 		return connectionListener;
 	}
@@ -852,6 +920,7 @@ public final class DtlsConnectorConfig {
 		cloned.clientAuthenticationRequired = clientAuthenticationRequired;
 		cloned.clientAuthenticationWanted = clientAuthenticationWanted;
 		cloned.serverOnly = serverOnly;
+		cloned.defaultHandshakeMode = defaultHandshakeMode;
 		cloned.identityCertificateTypes = identityCertificateTypes;
 		cloned.trustCertificateTypes = trustCertificateTypes;
 		cloned.pskStore = pskStore;
@@ -881,6 +950,9 @@ public final class DtlsConnectorConfig {
 		cloned.connectionIdGenerator = connectionIdGenerator;
 		cloned.applicationLevelInfoSupplier = applicationLevelInfoSupplier;
 		cloned.useHandshakeStateValidation = useHandshakeStateValidation;
+		cloned.useTruncatedCertificatePathForClientsCertificateMessage = useTruncatedCertificatePathForClientsCertificateMessage;
+		cloned.useTruncatedCertificatePathForValidation = useTruncatedCertificatePathForValidation;
+		cloned.useKeyUsageVerification = useKeyUsageVerification;
 		cloned.connectionListener = connectionListener;
 		cloned.healthHandler = healthHandler;
 		return cloned;
@@ -1002,7 +1074,7 @@ public final class DtlsConnectorConfig {
 		public Builder setClientOnly() {
 			if (config.clientAuthenticationRequired != null || config.clientAuthenticationWanted != null) {
 				throw new IllegalStateException("client only is not support with server side client authentication!");
-			} else if (config.serverOnly != null) {
+			} else if (config.serverOnly != null && config.serverOnly) {
 				throw new IllegalStateException("client only is not support with server only!");
 			} else if (config.useNoServerSessionId != null && config.useNoServerSessionId.booleanValue()) {
 				throw new IllegalStateException("client only is not support with no server session id!");
@@ -1023,7 +1095,35 @@ public final class DtlsConnectorConfig {
 			if (clientOnly) {
 				throw new IllegalStateException("server only is not supported for client only!");
 			}
+			if (config.defaultHandshakeMode != null) {
+				throw new IllegalStateException("server only is not supported for default handshake mode '"
+						+ config.defaultHandshakeMode + "!");
+			}
 			config.serverOnly = enable;
+			return this;
+		}
+
+		/**
+		 * Set the <em>DTLSConnector</em> default handshake mode.
+		 * 
+		 * @param defaultHandshakeMode
+		 *            {@link DtlsEndpointContext#HANDSHAKE_MODE_AUTO} or
+		 *            {@link DtlsEndpointContext#HANDSHAKE_MODE_NONE}
+		 * @return this builder for command chaining
+		 */
+		public Builder setDefaultHandshakeMode(String defaultHandshakeMode) {
+			if (config.serverOnly != null && config.serverOnly) {
+				throw new IllegalStateException("default handshake modes are not supported for server only!");
+			}
+			if (defaultHandshakeMode != null) {
+				if (!defaultHandshakeMode.equals(DtlsEndpointContext.HANDSHAKE_MODE_AUTO)
+						&& !defaultHandshakeMode.equals(DtlsEndpointContext.HANDSHAKE_MODE_NONE)) {
+					throw new IllegalArgumentException(
+							"default handshake mode must be either \"" + DtlsEndpointContext.HANDSHAKE_MODE_AUTO
+									+ "\" or \"" + DtlsEndpointContext.HANDSHAKE_MODE_NONE + "\"!");
+				}
+			}
+			config.defaultHandshakeMode = defaultHandshakeMode;
 			return this;
 		}
 
@@ -1436,12 +1536,19 @@ public final class DtlsConnectorConfig {
 		 * 
 		 * @param privateKey the private key used for creating signatures
 		 * @param certificateChain the chain of X.509 certificates asserting the
-		 *            private key subject's identity
+		 *            private key subject's identity. The endpoint's certificate
+		 *            must be at position 0, the certificate signed by a trusted
+		 *            CA must be at the highest position. A self-signed
+		 *            top-level certificate will be removed for outgoing
+		 *            {@link CertificateMessage}. If used for a client side
+		 *            {@link CertificateMessage}, the chain will be truncated to
+		 *            the first certificate of one of the received certificate
+		 *            authorities.
 		 * @param certificateTypes list of certificate types in the order of
 		 *            preference. Default is X_509. To support RAW_PUBLIC_KEY
 		 *            also, use X_509 and RAW_PUBLIC_KEY in the order of the
 		 *            preference. If only RAW_PUBLIC_KEY is used, the
-		 *            certificate chain will set to {@code null}.
+		 *            certificate chain will be set to {@code null}.
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given private key or certificate
 		 *             chain is <code>null</code>
@@ -1482,12 +1589,19 @@ public final class DtlsConnectorConfig {
 		 * 
 		 * @param privateKey the private key used for creating signatures
 		 * @param certificateChain the chain of X.509 certificates asserting the
-		 *            private key subject's identity
+		 *            private key subject's identity. The endpoint's certificate
+		 *            must be at position 0, the certificate signed by a trusted
+		 *            CA must be at the highest position. A self-signed
+		 *            top-level certificate will be removed for outgoing
+		 *            {@link CertificateMessage}. If used for a client side
+		 *            {@link CertificateMessage}, the chain will be truncated to
+		 *            the first certificate of one of the received certificate
+		 *            authorities.
 		 * @param certificateTypes list of certificate types in the order of
 		 *            preference. Default is X_509. To support RAW_PUBLIC_KEY
 		 *            also, use X_509 and RAW_PUBLIC_KEY in the order of the
 		 *            preference. If only RAW_PUBLIC_KEY is used, the
-		 *            certificate chain will set to {@code null}.
+		 *            certificate chain will be set to {@code null}.
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given private key or certificate
 		 *             chain is <code>null</code>
@@ -1543,11 +1657,17 @@ public final class DtlsConnectorConfig {
 		 * requesting a client certificate during the DTLS handshake.</li>
 		 * </ul>
 		 * 
+		 * When a RFC5250 compliant verification is required, use only
+		 * self-signed top-level certificates as root certificates. Using
+		 * intermediate CA certificates may fail, if the other peer send a
+		 * certificate chain, which doesn't end at one of the provided CAs.
+		 * 
 		 * This method must not be called, if
 		 * {@link #setCertificateVerifier(CertificateVerifier)} is already set.
 		 * 
 		 * @param trustedCerts the trusted root certificates. If empty (length
-		 *            of zero), trust all certificates.
+		 *            of zero), trust all certificates and don't execute a
+		 *            certificate verification.
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given array is <code>null</code>
 		 * @throws IllegalArgumentException if the array contains a non-X.509
@@ -1973,6 +2093,50 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
+		 * Use key usage verification for x509.
+		 * 
+		 * @param enable {@code true} to verify the key usage of x509
+		 *            certificates. Default {@code true}.
+		 * @return this builder for command chaining.
+		 */
+		public Builder setKeyUsageVerification(boolean enable) {
+			config.useKeyUsageVerification = enable;
+			return this;
+		}
+
+		/**
+		 * Use truncated certificate paths for client's certificate message.
+		 * 
+		 * Truncate certificate path according the received certificate
+		 * authorities in the {@link CertificateRequest} for the client's
+		 * {@link CertificateMessage}.
+		 * 
+		 * @param enable {@code true} to truncate the certificate path according
+		 *            the received certificate authorities. Default
+		 *            {@code true}.
+		 * @return this builder for command chaining.
+		 */
+		public Builder setUseTruncatedCertificatePathForClientsCertificateMessage(boolean enable) {
+			config.useTruncatedCertificatePathForClientsCertificateMessage = enable;
+			return this;
+		}
+
+		/**
+		 * Use truncated certificate paths for validation.
+		 * 
+		 * Truncate certificate path according the available trusted
+		 * certificates before validation.
+		 * 
+		 * @param enable {@code true} to truncate the certificate path according
+		 *            the available trusted certificates. Default {@code true}.
+		 * @return this builder for command chaining.
+		 */
+		public Builder setUseTruncatedCertificatePathForValidation(boolean enable) {
+			config.useTruncatedCertificatePathForValidation = enable;
+			return this;
+		}
+
+		/**
 		 * Set instance logging tag.
 		 * 
 		 * @param tag logging tag of configure instance
@@ -2036,6 +2200,15 @@ public final class DtlsConnectorConfig {
 			if (config.useHandshakeStateValidation == null) {
 				config.useHandshakeStateValidation = Boolean.TRUE;
 			}
+			if (config.useTruncatedCertificatePathForClientsCertificateMessage == null) {
+				config.useTruncatedCertificatePathForClientsCertificateMessage = Boolean.TRUE;
+			}
+			if (config.useTruncatedCertificatePathForValidation == null) {
+				config.useTruncatedCertificatePathForValidation = Boolean.TRUE;
+			}
+			if (config.useKeyUsageVerification == null) {
+				config.useKeyUsageVerification = Boolean.TRUE;
+			}
 			if (config.earlyStopRetransmission == null) {
 				config.earlyStopRetransmission = Boolean.TRUE;
 			}
@@ -2060,6 +2233,13 @@ public final class DtlsConnectorConfig {
 			}
 			if (config.serverOnly == null) {
 				config.serverOnly = Boolean.FALSE;
+			}
+			if (config.defaultHandshakeMode == null) {
+				if (config.serverOnly) {
+					config.defaultHandshakeMode = DtlsEndpointContext.HANDSHAKE_MODE_NONE;
+				} else {
+					config.defaultHandshakeMode = DtlsEndpointContext.HANDSHAKE_MODE_AUTO;
+				}
 			}
 			if (config.useNoServerSessionId == null) {
 				config.useNoServerSessionId = Boolean.FALSE;
@@ -2175,7 +2355,20 @@ public final class DtlsConnectorConfig {
 					throw new IllegalStateException("certificate trust set, but no certificate based cipher suite!");
 				}
 			}
-
+			if (config.certChain != null) {
+				boolean usage;
+				if (clientOnly) {
+					usage = CertPathUtil.canBeUsedForAuthentication(config.certChain.get(0), true);
+				} else if (config.serverOnly) {
+					usage = CertPathUtil.canBeUsedForAuthentication(config.certChain.get(0), false);
+				} else {
+					usage = CertPathUtil.canBeUsedForAuthentication(config.certChain.get(0), true);
+					usage = usage && CertPathUtil.canBeUsedForAuthentication(config.certChain.get(0), false);
+				}
+				if (!usage) {
+					throw new IllegalStateException("certificate has no proper key usage!");
+				}
+			}
 			config.trustCertificateTypes = ListUtils.init(config.trustCertificateTypes);
 			config.identityCertificateTypes = ListUtils.init(config.identityCertificateTypes);
 			config.supportedCipherSuites = ListUtils.init(config.supportedCipherSuites);

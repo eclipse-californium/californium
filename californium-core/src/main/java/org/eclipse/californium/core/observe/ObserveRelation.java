@@ -43,7 +43,7 @@ import org.eclipse.californium.core.server.resources.Resource;
 public class ObserveRelation {
 
 	/** The logger. */
-	private final static Logger LOGGER = LoggerFactory.getLogger(ObserveRelation.class.getCanonicalName());
+	private final static Logger LOGGER = LoggerFactory.getLogger(ObserveRelation.class);
 	
 	private final long checkIntervalTime;
 	private final int checkIntervalCount;

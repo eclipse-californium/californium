@@ -30,7 +30,7 @@ import io.netty.channel.Channel;
  */
 public class TcpContextUtil {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(TcpContextUtil.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(TcpContextUtil.class);
 
 	/**
 	 * Build endpoint context related to the provided channel.

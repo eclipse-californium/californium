@@ -32,7 +32,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ExchangeCleanupLayer extends AbstractLayer {
 
-	static final Logger LOGGER = LoggerFactory.getLogger(ExchangeCleanupLayer.class.getName());
+	static final Logger LOGGER = LoggerFactory.getLogger(ExchangeCleanupLayer.class);
 
 	/**
 	 * Multicast lifetime in milliseconds.

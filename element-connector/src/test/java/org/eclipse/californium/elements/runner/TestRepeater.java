@@ -38,7 +38,7 @@ import org.junit.runner.notification.RunNotifier;
  */
 public class TestRepeater {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(TestRepeater.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(TestRepeater.class);
 
 	/**
 	 * Final divisor for logging memory in mega bytes.

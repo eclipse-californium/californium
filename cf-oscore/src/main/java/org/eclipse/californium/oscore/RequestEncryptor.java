@@ -35,7 +35,7 @@ public class RequestEncryptor extends Encryptor {
 	/**
 	 * The logger
 	 */
-	private static final Logger LOGGER = LoggerFactory.getLogger(RequestEncryptor.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(RequestEncryptor.class);
 
 	/**
 	 * @param request the request

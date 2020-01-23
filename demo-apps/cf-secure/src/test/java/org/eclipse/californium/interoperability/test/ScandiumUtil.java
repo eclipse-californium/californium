@@ -54,8 +54,12 @@ public class ScandiumUtil {
 
 	private static final char[] KEY_STORE_PASSWORD = "endPass".toCharArray();
 	private static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
+	private static final char[] TRUST_STORE_PASSWORD = "rootPass".toCharArray();
+	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
 	private static final String CLIENT_NAME = "client";
 	private static final String SERVER_NAME = "server";
+	public static final String TRUST_CA = "ca";
+	public static final String TRUST_ROOT = "root";
 
 	/**
 	 * DTLS connector.
@@ -73,17 +77,25 @@ public class ScandiumUtil {
 	 * Credentials for ECDSA base cipher suites.
 	 */
 	private SslContextUtil.Credentials credentials;
+	private Certificate[] trustCa;
+	private Certificate[] trustRoot;
+	private Certificate[] trustAll;
 
 	/**
 	 * Create new utility instance.
 	 * 
 	 * @param client {@code true} to use client credentials, {@code false}, for
-	 *            server credentials.
+	 *               server credentials.
 	 */
 	public ScandiumUtil(boolean client) {
 		try {
 			credentials = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION,
 					client ? CLIENT_NAME : SERVER_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+			trustCa = SslContextUtil.loadTrustedCertificates(SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION,
+					TRUST_CA, TRUST_STORE_PASSWORD);
+			trustRoot = SslContextUtil.loadTrustedCertificates(SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION,
+					TRUST_ROOT, TRUST_STORE_PASSWORD);
+			trustAll = new Certificate[0];
 		} catch (GeneralSecurityException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
@@ -106,18 +118,36 @@ public class ScandiumUtil {
 	/**
 	 * Start connector.
 	 * 
-	 * @param bind address to bind connector to
+	 * @param bind         address to bind connector to
+	 * @param trust        alias of trusted certificate, or {@code null} to trust
+	 *                     all received certificates.
 	 * @param cipherSuites cipher suites to support.
 	 * @throws IOException if an error occurred starting the connector on the
-	 *             provided bind address
+	 *                     provided bind address
 	 */
-	public void start(InetSocketAddress bind, CipherSuite... cipherSuites) throws IOException {
+	public void start(InetSocketAddress bind, String trust, CipherSuite... cipherSuites) throws IOException {
+		start(bind, true, trust, cipherSuites);
+	}
+
+	/**
+	 * Start connector.
+	 * 
+	 * @param bind         address to bind connector to
+	 * @param truncate     {@code true} truncate client certificate path, {@code false}, otherwise.
+	 * @param trust        alias of trusted certificate, or {@code null} to trust
+	 *                     all received certificates.
+	 * @param cipherSuites cipher suites to support.
+	 * @throws IOException if an error occurred starting the connector on the
+	 *                     provided bind address
+	 */
+	public void start(InetSocketAddress bind, boolean truncate, String trust, CipherSuite... cipherSuites) throws IOException {
 		List<CipherSuite> suites = Arrays.asList(cipherSuites);
 		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
 		dtlsBuilder.setAddress(bind);
 		dtlsBuilder.setRecommendedCipherSuitesOnly(false);
 		dtlsBuilder.setConnectionThreadCount(2);
 		dtlsBuilder.setReceiverThreadCount(2);
+		dtlsBuilder.setUseTruncatedCertificatePathForClientsCertificateMessage(truncate);
 		if (CipherSuite.containsPskBasedCipherSuite(suites)) {
 			dtlsBuilder.setPskStore(
 					new StaticPskStore(CredentialsUtil.OPEN_PSK_IDENTITY, CredentialsUtil.OPEN_PSK_SECRET));
@@ -126,7 +156,13 @@ public class ScandiumUtil {
 			if (credentials != null) {
 				dtlsBuilder.setIdentity(credentials.getPrivateKey(), credentials.getCertificateChain(),
 						CertificateType.X_509, CertificateType.RAW_PUBLIC_KEY);
-				dtlsBuilder.setTrustStore(new Certificate[0]);
+				if (TRUST_CA.equals(trust)) {
+					dtlsBuilder.setTrustStore(trustCa);
+				} else if (TRUST_ROOT.equals(trust)) {
+					dtlsBuilder.setTrustStore(trustRoot);
+				} else {
+					dtlsBuilder.setTrustStore(trustAll);
+				}
 			}
 		}
 		dtlsBuilder.setSupportedCipherSuites(suites);
@@ -149,7 +185,7 @@ public class ScandiumUtil {
 	 * Wait for received data.
 	 * 
 	 * @param timeout timeout to wait for
-	 * @param unit time unit of timeout
+	 * @param unit    time unit of timeout
 	 * @return received data, or {@code null}, if no data is received in time.
 	 * @throws InterruptedException if interrupted during wait
 	 */
@@ -162,20 +198,20 @@ public class ScandiumUtil {
 	 * 
 	 * The message must be first received one.
 	 * 
-	 * @param message message the receiving is to be asserted
+	 * @param message       message the receiving is to be asserted
 	 * @param timeoutMillis timeout of message
 	 * @throws InterruptedException if interrupted during wait
 	 */
 	public void assertReceivedData(String message, long timeoutMillis) throws InterruptedException {
 		receivedData = channel.poll(timeoutMillis, TimeUnit.MILLISECONDS);
-		assertNotNull("message missing!", receivedData);
+		assertNotNull("scandium missing message '" + message + "'!", receivedData);
 		assertThat(new String(receivedData.getBytes()), is(message));
 	}
 
 	/**
 	 * Send message as response to the last received message.
 	 * 
-	 * @param message message to send
+	 * @param message       message to send
 	 * @param timeoutMillis timeout in millisecond.
 	 * @see #receivedData
 	 */
@@ -186,8 +222,8 @@ public class ScandiumUtil {
 	/**
 	 * Send message to destination.
 	 * 
-	 * @param message message to send
-	 * @param destination destination address
+	 * @param message       message to send
+	 * @param destination   destination address
 	 * @param timeoutMillis timeout in milliseconds
 	 */
 	public void send(String message, InetSocketAddress destination, long timeoutMillis) {
@@ -197,9 +233,9 @@ public class ScandiumUtil {
 		try {
 			boolean sent = callback.isSent(timeoutMillis);
 			EndpointContext context = callback.getEndpointContext();
-			assertNotNull(context);
-			assertNull(callback.getError());
-			assertTrue(sent);
+			assertNull("error", callback.getError());
+			assertNotNull("missing session", context);
+			assertTrue("message not sent!", sent);
 		} catch (InterruptedException ex) {
 			fail(ex.getMessage());
 		}

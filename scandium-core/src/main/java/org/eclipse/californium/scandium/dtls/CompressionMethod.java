@@ -48,7 +48,7 @@ public enum CompressionMethod {
 
 	// Logging ////////////////////////////////////////////////////////
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(CompressionMethod.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(CompressionMethod.class);
 
 	// Members ////////////////////////////////////////////////////////
 

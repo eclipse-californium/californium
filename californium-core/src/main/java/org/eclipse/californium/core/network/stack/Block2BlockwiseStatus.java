@@ -44,7 +44,7 @@ import org.eclipse.californium.core.observe.NotificationOrder;
  */
 public final class Block2BlockwiseStatus extends BlockwiseStatus {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(Block2BlockwiseStatus.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(Block2BlockwiseStatus.class);
 
 	/**
 	 * Order for notifications according RFC 7641, 4-4.
@@ -355,6 +355,7 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 			// stop old cleanup task
 			setBlockCleanupHandle(null);
 			this.exchange = null;
+			this.followUpEndpointContext = null;
 		}
 		if (oldExchange != null) {
 			if (newExchange != oldExchange) {

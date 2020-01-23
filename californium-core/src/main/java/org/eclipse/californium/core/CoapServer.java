@@ -97,7 +97,7 @@ import org.eclipse.californium.elements.util.NamedThreadFactory;
 public class CoapServer implements ServerInterface {
 
 	/** The logger. */
-	private static final Logger LOGGER = LoggerFactory.getLogger(CoapServer.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(CoapServer.class);
 
 	/** The root resource. */
 	private final Resource root;
@@ -417,6 +417,15 @@ public class CoapServer implements ServerInterface {
 	 */
 	public Resource getRoot() {
 		return root;
+	}
+
+	/**
+	 * Get the network configuration of this server.
+	 * 
+	 * @return the network configuration
+	 */
+	public NetworkConfig getConfig() {
+		return config;
 	}
 
 	/**

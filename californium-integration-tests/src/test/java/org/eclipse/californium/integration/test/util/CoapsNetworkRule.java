@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
  */
 public class CoapsNetworkRule extends CoapNetworkRule {
 
-	public static final Logger LOGGER = LoggerFactory.getLogger(CoapsNetworkRule.class.getName());
+	public static final Logger LOGGER = LoggerFactory.getLogger(CoapsNetworkRule.class);
 
 	/**
 	 * Null formatter, data is encrypted, so nothign useful for logging.

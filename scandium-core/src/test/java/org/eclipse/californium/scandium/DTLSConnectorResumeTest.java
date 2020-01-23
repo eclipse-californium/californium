@@ -84,7 +84,7 @@ import org.slf4j.LoggerFactory;
 @Category(Medium.class)
 public class DTLSConnectorResumeTest {
 
-	public static final Logger LOGGER = LoggerFactory.getLogger(DTLSConnectorResumeTest.class.getName());
+	public static final Logger LOGGER = LoggerFactory.getLogger(DTLSConnectorResumeTest.class);
 
 	@ClassRule
 	public static DtlsNetworkRule network = new DtlsNetworkRule(DtlsNetworkRule.Mode.DIRECT,
@@ -414,6 +414,84 @@ public class DTLSConnectorResumeTest {
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
 		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(sessionId));
 		assertClientIdentity(RawPublicKeyIdentity.class);
+	}
+
+	@Test
+	public void testConnectorResumesSessionFromHiddenConnection() throws Exception {
+		// Do a first handshake
+		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client);
+		InetSocketAddress clientAddress = clientRawDataChannel.getAddress();
+		SessionId sessionId = serverHelper.establishedServerSession.getSessionIdentifier();
+		int remainingCapacity = serverHelper.serverConnectionStore.remainingCapacity();
+
+		// second client with same address
+		InMemoryConnectionStore clientConnectionStore2 = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
+		clientConnectionStore2.setTag("client-2");
+		DtlsConnectorConfig.Builder builder2 = newStandardClientConfigBuilder(clientAddress)
+				.setSniEnabled(true)
+				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY);
+		DtlsConnectorConfig clientConfig2 = builder2.build();
+
+		DTLSConnector client2 = new DTLSConnector(clientConfig2, clientConnectionStore2);
+		client2.setExecutor(executor);
+		serverHelper.givenAnEstablishedSession(client2);
+		int remainingCapacity2 = serverHelper.serverConnectionStore.remainingCapacity();
+		assertThat(remainingCapacity2, is(remainingCapacity - 1));
+
+		// Force a resume session the next time we send data
+		client.forceResumeSessionFor(serverHelper.serverEndpoint);
+		Connection connection = clientConnectionStore.get(serverHelper.serverEndpoint);
+		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(sessionId));
+		client.start();
+
+		// Prepare message sending
+		final String msg = "Hello Again";
+		clientRawDataChannel.setLatchCount(1);
+
+		// send message
+		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
+		client.send(data);
+		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+		// check we use the same session id
+		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
+		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(sessionId));
+		assertClientIdentity(RawPublicKeyIdentity.class);
+		remainingCapacity2 = serverHelper.serverConnectionStore.remainingCapacity();
+		assertThat(remainingCapacity2, is(remainingCapacity - 1));
+	}
+
+	public void testConnectorResumesSessionFromClosedConnection() throws Exception {
+		// Do a first handshake
+		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, false);
+		SessionId sessionId = serverHelper.establishedServerSession.getSessionIdentifier();
+		Connection connection = clientConnectionStore.get(serverHelper.serverEndpoint);
+		String lastHandshakeTime = connection.getEstablishedSession().getLastHandshakeTime();
+		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(sessionId));
+
+		// send close notify, close connection
+		client.close(serverHelper.serverEndpoint);
+
+		// close is asynchronous, wait for execution completed.
+		for (int loop = 0; loop < 20 && !connection.isResumptionRequired(); ++loop) {
+			Thread.sleep(100);
+		}
+		assertThat(connection.isResumptionRequired(), is(true));
+
+		// Prepare message sending
+		final String msg = "Hello Again";
+		clientRawDataChannel.setLatchCount(1);
+
+		// send message
+		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
+		client.send(data);
+		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+		// check we use the same session id
+		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
+		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(sessionId));
+		assertClientIdentity(RawPublicKeyIdentity.class);
+		assertThat(lastHandshakeTime, is(not(connection.getEstablishedSession().getLastHandshakeTime())));
 	}
 
 	@Test

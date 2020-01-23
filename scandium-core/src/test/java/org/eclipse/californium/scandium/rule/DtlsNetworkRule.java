@@ -44,7 +44,7 @@ import org.eclipse.californium.scandium.dtls.Record;
  */
 public class DtlsNetworkRule extends NetworkRule {
 
-	public static final Logger LOGGER = LoggerFactory.getLogger(DtlsNetworkRule.class.getName());
+	public static final Logger LOGGER = LoggerFactory.getLogger(DtlsNetworkRule.class);
 
 	private static final InetSocketAddress ADDRESS = new InetSocketAddress(0) {
 
