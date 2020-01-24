@@ -32,6 +32,7 @@ import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.proxy.EndpointPool;
 import org.eclipse.californium.proxy.ProxyHttpServer;
 import org.eclipse.californium.proxy.resources.ProxyCoapClientResource;
 import org.eclipse.californium.proxy.resources.ProxyHttpClientResource;
@@ -72,7 +73,11 @@ public class ExampleCrossProxy {
 		ScheduledExecutorService mainExecutor = ExecutorsUtil.newScheduledThreadPool(threads,
 				new DaemonThreadFactory("Proxy#"));
 		ScheduledExecutorService secondaryExecutor = ExecutorsUtil.newDefaultSecondaryScheduler("ProxyTimer#");
-		CoapResource coap2coap = new ProxyCoapClientResource(config, COAP2COAP, mainExecutor, secondaryExecutor);
+		NetworkConfig outgoingConfig = new NetworkConfig(config);
+		outgoingConfig.setInt(NetworkConfig.Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, 1);
+		outgoingConfig.setInt(NetworkConfig.Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, 1);
+		EndpointPool pool = new EndpointPool(1000, 250, outgoingConfig, mainExecutor, secondaryExecutor);
+		CoapResource coap2coap = new ProxyCoapClientResource(COAP2COAP, pool);
 		CoapResource coap2http = new ProxyHttpClientResource(COAP2HTTP);
 
 		// Create CoAP Server on PORT with proxy resources form CoAP to CoAP and HTTP

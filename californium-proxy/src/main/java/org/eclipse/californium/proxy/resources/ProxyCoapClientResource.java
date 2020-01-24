@@ -18,7 +18,8 @@
  ******************************************************************************/
 package org.eclipse.californium.proxy.resources;
 
-import java.util.concurrent.ScheduledExecutorService;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.eclipse.californium.compat.CompletableFuture;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -28,16 +29,12 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.EndpointContext;
-import org.eclipse.californium.elements.util.DaemonThreadFactory;
-import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.proxy.CoapTranslator;
 import org.eclipse.californium.proxy.EndpointPool;
 import org.eclipse.californium.proxy.TranslationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 
 /**
  * Resource that forwards a coap request with the proxy-uri option set to the
@@ -47,55 +44,42 @@ public class ProxyCoapClientResource extends ForwardingResource {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(ProxyCoapClientResource.class);
 
-	private EndpointPool pool;
-	private ScheduledExecutorService mainExecutor;
-	private ScheduledExecutorService secondaryExecutor;
+	private boolean destroyPool;
+	/**
+	 * Maps scheme to endpoint pool.
+	 */
+	private Map<String, EndpointPool> mapSchemeToPool = new HashMap<>();
 
 	public ProxyCoapClientResource() {
-		this(NetworkConfig.getStandard(), "coapClient", null, null);
+		this("coapClient", new EndpointPool());
+		destroyPool = true;
 	}
 
 	public ProxyCoapClientResource(String name) {
-		this(NetworkConfig.getStandard(), name, null, null);
+		this(name, new EndpointPool());
+		destroyPool = true;
 	}
 
 	/**
 	 * Create proxy resource.
 	 * 
-	 * @param config network configuration to be used.
 	 * @param name name of the resource
-	 * @param mainExecutor main executor for outgoing endpoints. {@code null} to
-	 *            create a main executor based on values of the network config.
-	 * @param secondaryExecutor secondary executor for outgoing endpoints.
-	 *            {@code null} to create a secondary executor based on values of
-	 *            the network config.
+	 * @param pools list of endpoint pool for outgoing requests
 	 */
-	public ProxyCoapClientResource(NetworkConfig config, String name, ScheduledExecutorService mainExecutor,
-			ScheduledExecutorService secondaryExecutor) {
+	public ProxyCoapClientResource(String name, EndpointPool... pools) {
 		// set the resource hidden
 		super(name, true);
 		getAttributes().setTitle("Forward the requests to a CoAP server.");
-		int peers = config.getInt(NetworkConfig.Keys.MAX_ACTIVE_PEERS);
-		if (peers > 2000) {
-			peers = 2000;
+		for (EndpointPool pool : pools) {
+			this.mapSchemeToPool.put(pool.getScheme(), pool);
 		}
-		if (mainExecutor == null) {
-			int threads = config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT);
-			this.mainExecutor = ExecutorsUtil.newScheduledThreadPool(threads, new DaemonThreadFactory("Proxy#"));
-			this.secondaryExecutor = ExecutorsUtil.newDefaultSecondaryScheduler("ProxyTimer#");
-			mainExecutor = this.mainExecutor;
-			secondaryExecutor = this.secondaryExecutor;
-		}
-		pool = new EndpointPool(peers, peers / 4, mainExecutor, secondaryExecutor);
 	}
 
 	public void destroy() {
-		pool.destroy();
-		if (mainExecutor != null) {
-			ExecutorsUtil.shutdownExecutorGracefully(1000, mainExecutor);
-			ExecutorsUtil.shutdownExecutorGracefully(1000, secondaryExecutor);
-			mainExecutor = null;
-			secondaryExecutor = null;
+		if (destroyPool) {
+			for (EndpointPool pool : mapSchemeToPool.values()) {
+				pool.destroy();
+			}
 		}
 	}
 
@@ -115,12 +99,14 @@ public class ProxyCoapClientResource extends ForwardingResource {
 		// FIXME: HACK // TODO: why? still necessary in new Cf?
 		incomingRequest.getOptions().clearUriPath();
 
+		EndpointPool pool = null;
 		Endpoint endpoint = null;
 
 		try {
-			endpoint = pool.getEndpoint();
 			// create the new request from the original
 			Request outgoingRequest = CoapTranslator.getRequest(incomingRequest);
+			pool = mapSchemeToPool.get(outgoingRequest.getScheme());
+			endpoint = pool.getEndpoint();
 
 			// prepare to process the outcome
 			outgoingRequest.addMessageObserver(new ProxyMessageObserver(pool, exchange, endpoint));
@@ -136,11 +122,12 @@ public class ProxyCoapClientResource extends ForwardingResource {
 		} catch (TranslationException e) {
 			LOGGER.debug("Proxy-uri option malformed: {}", e.getMessage());
 			exchange.sendResponse(new Response(CoapTranslator.STATUS_FIELD_MALFORMED));
-			pool.release(endpoint);
 		} catch (Exception e) {
 			LOGGER.warn("Failed to execute request: {}", e.getMessage());
 			exchange.sendResponse(new Response(ResponseCode.INTERNAL_SERVER_ERROR));
-			pool.release(endpoint);
+			if (pool != null) {
+				pool.release(endpoint);
+			}
 		}
 	}
 
@@ -154,10 +141,12 @@ public class ProxyCoapClientResource extends ForwardingResource {
 			public void sendAccept() {
 				// has no meaning for HTTP: do nothing
 			}
+
 			@Override
 			public void sendReject() {
 				future.complete(new Response(ResponseCode.SERVICE_UNAVAILABLE));
 			}
+
 			@Override
 			public void sendResponse(Response response) {
 				future.complete(response);
