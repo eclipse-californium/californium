@@ -16,53 +16,53 @@
 package org.eclipse.californium.examples;
 
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
+import java.net.InetSocketAddress;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
-import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
-import org.eclipse.californium.core.server.ServerMessageDeliverer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.proxy.EndpointPool;
+import org.eclipse.californium.proxy.HttpTranslator;
+import org.eclipse.californium.proxy.Coap2CoapTranslator;
 import org.eclipse.californium.proxy.ProxyHttpServer;
-import org.eclipse.californium.proxy.resources.ProxyCoapClientResource;
-import org.eclipse.californium.proxy.resources.ProxyHttpClientResource;
+import org.eclipse.californium.proxy.resources.Proxy2CoapClientResource;
+import org.eclipse.californium.proxy.resources.Proxy2HttpClientResource;
+import org.eclipse.californium.proxy.resources.ProxyMessageDeliverer;
 
 /**
- * Http2CoAP: Insert in browser: 
- * URI: http://localhost:8080/proxy/coap://localhost:PORT/target
+ * Http2CoAP: Insert in browser: URI:
+ * http://localhost:8080/proxy/coap://localhost:PORT/target
  * 
- * Http2LocalCoAPResource: Insert in browser: 
- * URI: http://localhost:8080/local/target
+ * Http2LocalCoAPResource: Insert in browser: URI:
+ * http://localhost:8080/local/target
  * 
- * Http2CoAP: configure browser to use the proxy "localhost:8080". 
- * Insert in browser: ("localhost" requests are not send to a proxy,
- * so use the hostname or none-local-ip-address)
- * URI: http://<hostname>:5683/target/coap:
+ * Http2CoAP: configure browser to use the proxy "localhost:8080". Insert in
+ * browser: ("localhost" requests are not send to a proxy, so use the hostname
+ * or none-local-ip-address) URI: http://<hostname>:5683/target/coap:
  * 
- * CoAP2CoAP: Insert in Copper: 
- * URI: coap://localhost:PORT/coap2coap 
- * Proxy: coap://localhost:PORT/targetA
+ * CoAP2CoAP: Insert in Copper: URI: coap://localhost:PORT/coap2coap Proxy:
+ * coap://localhost:PORT/targetA
  *
- * CoAP2Http: Insert in Copper: 
- * URI: coap://localhost:PORT/coap2http
- * Proxy: http://lantersoft.ch/robots.txt
+ * CoAP2Http: Insert in Copper: URI: coap://localhost:PORT/coap2http Proxy:
+ * http://lantersoft.ch/robots.txt
  */
 public class ExampleCrossProxy {
 
 	private static final int PORT = NetworkConfig.getStandard().getInt(NetworkConfig.Keys.COAP_PORT);
 
-	private static final String COAP2COAP = "coap2coap";
-	private static final String COAP2HTTP = "coap2http";
+	static final String COAP2COAP = "coap2coap";
+	static final String COAP2HTTP = "coap2http";
 
 	private CoapServer targetServerA;
 	private ProxyHttpServer httpServer;
@@ -77,8 +77,9 @@ public class ExampleCrossProxy {
 		outgoingConfig.setInt(NetworkConfig.Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, 1);
 		outgoingConfig.setInt(NetworkConfig.Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, 1);
 		EndpointPool pool = new EndpointPool(1000, 250, outgoingConfig, mainExecutor, secondaryExecutor);
-		CoapResource coap2coap = new ProxyCoapClientResource(COAP2COAP, pool);
-		CoapResource coap2http = new ProxyHttpClientResource(COAP2HTTP);
+		Coap2CoapTranslator translater = new Coap2CoapTranslator();
+		CoapResource coap2coap = new Proxy2CoapClientResource(COAP2COAP, true, translater, pool);
+		CoapResource coap2http = new Proxy2HttpClientResource(COAP2HTTP, true, new HttpTranslator());
 
 		// Create CoAP Server on PORT with proxy resources form CoAP to CoAP and HTTP
 		targetServerA = new CoapServer(config, PORT);
@@ -87,7 +88,12 @@ public class ExampleCrossProxy {
 		targetServerA.add(coap2http);
 		targetServerA.add(new TargetResource("target"));
 		MessageDeliverer local = targetServerA.getMessageDeliverer();
-		MessageDeliverer proxy = new ProxyMessageDeliverer(targetServerA.getRoot());
+		Map<String, Resource> map = new ConcurrentHashMap<>();
+		map.put("http", coap2http);
+		map.put("https", coap2http);
+		map.put("coap", coap2coap);
+		map.put("coaps", coap2coap);
+		MessageDeliverer proxy = new ProxyMessageDeliverer(targetServerA.getRoot(), translater, map, new InetSocketAddress(PORT));
 		targetServerA.setMessageDeliverer(proxy);
 		targetServerA.start();
 
@@ -98,38 +104,12 @@ public class ExampleCrossProxy {
 
 		System.out.println(
 				"CoAP resource \"target\" available over HTTP at: http://localhost:8080/proxy/coap://localhost:PORT/target");
-		System.out.println(
-				"CoAP resource \"target\" available over HTTP at: http://localhost:8080/local/target");
+		System.out.println("CoAP resource \"target\" available over HTTP at: http://localhost:8080/local/target");
 	}
 
 	public void stop() {
 		httpServer.stop();
 		targetServerA.destroy();
-	}
-
-	private static class ProxyMessageDeliverer extends ServerMessageDeliverer {
-
-		private ProxyMessageDeliverer(Resource root) {
-			super(root);
-		}
-
-		@Override
-		protected Resource findResource(Request request) {
-			if (request.getOptions().hasProxyUri()) {
-				try {
-					URI uri = new URI(request.getOptions().getProxyUri());
-					String scheme = uri.getScheme();
-					scheme = scheme.toLowerCase();
-					if (scheme.equals("http") || scheme.equals("https")) {
-						return getRootResource().getChild(COAP2HTTP);
-					} else if (CoAP.isSupportedScheme(scheme)) {
-						return getRootResource().getChild(COAP2COAP);
-					}
-				} catch (URISyntaxException e) {
-				}
-			}
-			return super.findResource(request);
-		}
 	}
 
 	/**

@@ -19,7 +19,6 @@
 package org.eclipse.californium.proxy;
 
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Exchanger;
@@ -38,7 +37,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.AddressEndpointContext;
-import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -245,12 +244,12 @@ public class HttpStack {
 
 			HttpInetConnection connection = (HttpInetConnection) httpContext
 					.getAttribute(HttpCoreContext.HTTP_CONNECTION);
-			InetAddress sourceAddress = connection.getRemoteAddress();
-			int sourcePort = connection.getRemotePort();
-			EndpointContext source = new AddressEndpointContext(new InetSocketAddress(sourceAddress, sourcePort));
-	
+			InetSocketAddress endpoint = new InetSocketAddress(connection.getLocalAddress(),connection.getLocalPort());
+			InetSocketAddress source = new InetSocketAddress(connection.getRemoteAddress(), connection.getRemotePort());
+
 			LOGGER.debug("handler {}, proxy {}", resourceName, proxyingEnabled);
-			LOGGER.debug("Incoming http request: {} from {}", httpRequest.getRequestLine(), source);
+			LOGGER.debug("Incoming http request: on {} from {}{}   {}", endpoint, source, StringUtil.lineSeparator(),
+					httpRequest.getRequestLine());
 
 			final HttpRequestContext httpRequestContext = new HttpRequestContext(httpExchange);
 			try {
@@ -258,7 +257,8 @@ public class HttpStack {
 				Request coapRequest = new HttpTranslator().getCoapRequest(httpRequest, resourceName, proxyingEnabled);
 				// if (Bench_Help.DO_LOG)
 				LOGGER.info("Received HTTP request and translate to {}", coapRequest);
-				coapRequest.setSourceContext(source);
+				coapRequest.setSourceContext(new AddressEndpointContext(source));
+				coapRequest.setDestinationContext(new AddressEndpointContext(endpoint));
 				// handle the requset
 				doReceiveMessage(coapRequest, httpRequestContext);
 			} catch (InvalidMethodException e) {

@@ -22,10 +22,8 @@ package org.eclipse.californium.proxy;
 import static org.eclipse.californium.elements.util.StandardCharsets.ISO_8859_1;
 import static org.eclipse.californium.elements.util.StandardCharsets.UTF_8;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URLDecoder;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
@@ -78,7 +76,7 @@ import org.eclipse.californium.core.coap.Response;
  * Class providing the translations (mappings) from the HTTP message
  * representations to the CoAP message representations and vice versa.
  */
-public final class HttpTranslator {
+public class HttpTranslator extends CoapUriTranslator {
 
 	private static final String KEY_COAP_CODE = "coap.response.code.";
 	private static final String KEY_COAP_OPTION = "coap.message.option.";
@@ -819,6 +817,14 @@ public final class HttpTranslator {
 		if (coapRequest == null) {
 			throw new IllegalArgumentException("coapRequest == null");
 		}
+		URI uri = getDestinationURI(coapRequest, null);
+		return getHttpRequest(uri, coapRequest);
+	}
+
+	public HttpRequest getHttpRequest(URI uri, Request coapRequest) throws TranslationException {
+		if (coapRequest == null) {
+			throw new IllegalArgumentException("coapRequest == null");
+		}
 
 		HttpRequest httpRequest = null;
 
@@ -833,26 +839,8 @@ public final class HttpTranslator {
 			throw new TranslationException("Method " +  coapRequest.getCode() + " not supported!");
 		}
 
-		// get the proxy-uri
-		URI proxyUri;
-		try {
-			/*
-			 * The new draft (14) only allows one proxy-uri option. Thus, this
-			 * code segment has changed.
-			 */
-			String proxyUriString = URLDecoder.decode(
-					coapRequest.getOptions().getProxyUri(), "UTF-8");
-			proxyUri = new URI(proxyUriString);
-		} catch (UnsupportedEncodingException e) {
-			LOGGER.warn("UTF-8 do not support this encoding", e);
-			throw new TranslationException("UTF-8 do not support this encoding", e);
-		} catch (URISyntaxException e) {
-			LOGGER.warn("Cannot translate the server uri", e);
-			throw new InvalidFieldException("Cannot get the proxy-uri from the coap message", e);
-		}
-
 		// create the requestLine
-		RequestLine requestLine = new BasicRequestLine(coapMethod, proxyUri.toString(), HttpVersion.HTTP_1_1);
+		RequestLine requestLine = new BasicRequestLine(coapMethod, uri.toASCIIString(), HttpVersion.HTTP_1_1);
 
 		// get the http entity
 		HttpEntity httpEntity = getHttpEntity(coapRequest);
