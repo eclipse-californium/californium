@@ -52,6 +52,7 @@ public class HealthStatisticLogger extends CounterStatisticManager implements Me
 	private final SimpleCounterStatistic duplicateRequests = new SimpleCounterStatistic("duplicate requests", align);
 	private final SimpleCounterStatistic duplicateResponses = new SimpleCounterStatistic("duplicate responses", align);
 	private final SimpleCounterStatistic ignoredMessages = new SimpleCounterStatistic("ignored", align);
+	private final SimpleCounterStatistic offloadedMessages = new SimpleCounterStatistic("offloaded", align);
 
 	/**
 	 * {@code true} dump statistic for udp, {@code false}, dump statistic for
@@ -141,6 +142,7 @@ public class HealthStatisticLogger extends CounterStatisticManager implements Me
 					log.append(head).append(receivedRejects).append(eol);
 					log.append(head).append(duplicateRequests).append(eol);
 					log.append(head).append(duplicateResponses).append(eol);
+					log.append(head).append(offloadedMessages).append(eol);
 				}
 				log.append(head).append(ignoredMessages).append(eol);
 				long sent = getSentCounters();
@@ -179,6 +181,9 @@ public class HealthStatisticLogger extends CounterStatisticManager implements Me
 
 	@Override
 	public void sendResponse(Response response) {
+		if (response.getOffloadMode() != null) {
+			offloadedMessages.increment();
+		}
 		if (response.getSendError() != null) {
 			sendErrors.increment();
 		} else if (response.isDuplicate()) {

@@ -99,12 +99,16 @@ public final class Utils {
 		sb.append(String.format("Token  : %s", r.getTokenString())).append(StringUtil.lineSeparator());
 		sb.append(String.format("Type   : %s", r.getType().toString())).append(StringUtil.lineSeparator());
 		sb.append(String.format("Method : %s", r.getCode().toString())).append(StringUtil.lineSeparator());
-		sb.append(String.format("Options: %s", r.getOptions().toString())).append(StringUtil.lineSeparator());
-		sb.append(String.format("Payload: %d Bytes", r.getPayloadSize())).append(StringUtil.lineSeparator());
-		if (r.getPayloadSize() > 0 && MediaTypeRegistry.isPrintable(r.getOptions().getContentFormat())) {
-			sb.append("---------------------------------------------------------------").append(StringUtil.lineSeparator());
-			sb.append(r.getPayloadString());
-			sb.append(StringUtil.lineSeparator());
+		if (r.getOffloadMode() != null) {
+			sb.append("(offloaded)").append(StringUtil.lineSeparator());
+		} else {
+			sb.append(String.format("Options: %s", r.getOptions().toString())).append(StringUtil.lineSeparator());
+			sb.append(String.format("Payload: %d Bytes", r.getPayloadSize())).append(StringUtil.lineSeparator());
+			if (r.getPayloadSize() > 0 && MediaTypeRegistry.isPrintable(r.getOptions().getContentFormat())) {
+				sb.append("---------------------------------------------------------------").append(StringUtil.lineSeparator());
+				sb.append(r.getPayloadString());
+				sb.append(StringUtil.lineSeparator());
+			}
 		}
 		sb.append("===============================================================");
 
@@ -135,15 +139,22 @@ public final class Utils {
 		sb.append(String.format("Token  : %s", r.getTokenString())).append(StringUtil.lineSeparator());
 		sb.append(String.format("Type   : %s", r.getType().toString())).append(StringUtil.lineSeparator());
 		sb.append(String.format("Status : %s - %s", r.getCode().toString(), r.getCode().name())).append(StringUtil.lineSeparator());
-		sb.append(String.format("Options: %s", r.getOptions().toString())).append(StringUtil.lineSeparator());
-		if (r.getRTT() != null) {
-			sb.append(String.format("RTT    : %d ms", r.getRTT())).append(StringUtil.lineSeparator());
-		}
-		sb.append(String.format("Payload: %d Bytes", r.getPayloadSize())).append(StringUtil.lineSeparator());
-		if (r.getPayloadSize() > 0 && MediaTypeRegistry.isPrintable(r.getOptions().getContentFormat())) {
-			sb.append("---------------------------------------------------------------").append(StringUtil.lineSeparator());
-			sb.append(r.getPayloadString());
-			sb.append(StringUtil.lineSeparator());
+		if (r.getOffloadMode() != null) {
+			if (r.getRTT() != null) {
+				sb.append(String.format("RTT    : %d ms", r.getRTT())).append(StringUtil.lineSeparator());
+				sb.append("(offloaded)").append(StringUtil.lineSeparator());
+			}
+		} else {
+			sb.append(String.format("Options: %s", r.getOptions().toString())).append(StringUtil.lineSeparator());
+			if (r.getRTT() != null) {
+				sb.append(String.format("RTT    : %d ms", r.getRTT())).append(StringUtil.lineSeparator());
+			}
+			sb.append(String.format("Payload: %d Bytes", r.getPayloadSize())).append(StringUtil.lineSeparator());
+			if (r.getPayloadSize() > 0 && MediaTypeRegistry.isPrintable(r.getOptions().getContentFormat())) {
+				sb.append("---------------------------------------------------------------").append(StringUtil.lineSeparator());
+				sb.append(r.getPayloadString());
+				sb.append(StringUtil.lineSeparator());
+			}
 		}
 		sb.append("===============================================================");
 

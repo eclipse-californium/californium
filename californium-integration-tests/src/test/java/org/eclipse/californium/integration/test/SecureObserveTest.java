@@ -581,6 +581,7 @@ public class SecureObserveTest {
 			Response response = new Response(ResponseCode.CONTENT);
 			response.setPayload(currentResponsePayload);
 			response.setType(type);
+			response.setProtectFromOffload();
 			currentResponse = response;
 			exchange.respond(response);
 		}

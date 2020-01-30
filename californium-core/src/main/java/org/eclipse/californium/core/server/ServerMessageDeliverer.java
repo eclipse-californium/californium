@@ -158,6 +158,7 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 				ObserveRelation relation = new ObserveRelation(remote, resource, exchange);
 				remote.addObserveRelation(relation);
 				exchange.setRelation(relation);
+				request.setProtectFromOffload();
 				// all that's left is to add the relation to the resource which
 				// the resource must do itself if the response is successful
 

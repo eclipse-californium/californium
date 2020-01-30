@@ -38,8 +38,11 @@ public class EmptyMessage extends Message {
 	 */
 	public EmptyMessage(Type type) {
 		super(type);
+		// empty message are not considered to hav payload nor options
+		// offloading is therefore not useful for well-formed empty messages.
+		setProtectFromOffload();
 	}
-	
+
 	/* (non-Javadoc)
 	 * @see java.lang.Object#toString()
 	 */
