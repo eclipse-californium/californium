@@ -1,0 +1,170 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<project
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+	xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+	<modelVersion>4.0.0</modelVersion>
+	
+	<parent>
+		<groupId>org.eclipse.californium</groupId>
+		<artifactId>parent</artifactId>
+		<version>2.1.0-SNAPSHOT</version>
+	</parent>
+	<artifactId>californium-proxy2</artifactId>
+	<packaging>bundle</packaging>
+
+	<name>Californium (Cf) Proxy2</name>
+	<description>Cross-proxy2 module</description>
+
+	<properties>
+		<httpasyncclient.version>4.1.4</httpasyncclient.version>
+		<httpasyncclient.version.spec>
+			version="[${versionmask;==;${httpasyncclient.version}},${versionmask;+;${httpasyncclient.version}})"
+		</httpasyncclient.version.spec>
+		<httpclient.version>4.5.11</httpclient.version>
+		<httpclient.version.spec>version="[${versionmask;==;${httpclient.version}},${versionmask;+;${httpclient.version}})"</httpclient.version.spec>
+		<!-- use same version for httpcore and httpcore-nio -->
+		<httpcore.version>4.4.13</httpcore.version>
+		<httpcore.version.spec>version="[${versionmask;==;${httpcore.version}},${versionmask;+;${httpcore.version}})"</httpcore.version.spec>
+	</properties>
+
+	<dependencies>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>californium-legal</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>californium-core</artifactId>
+		</dependency>		
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>15.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpasyncclient</artifactId>
+			<version>${httpasyncclient.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpcore</artifactId>
+			<version>${httpcore.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpcore-nio</artifactId>
+			<version>${httpcore.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpclient</artifactId>
+			<version>${httpclient.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>commons-codec</groupId>
+					<artifactId>commons-codec</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<!-- test dependencies -->
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>ch.qos.logback</groupId>
+			<artifactId>logback-classic</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.revapi</groupId>
+				<artifactId>revapi-maven-plugin</artifactId>
+				<configuration>
+					<analysisConfiguration combine.children="append">
+						<revapi.ignore>
+							<item>
+								<regex>true</regex>
+								<code>java\.class\.externalClassExposedInAPI</code>
+								<package>org\.apache\.http(\..*)*</package>
+								<justification>
+								</justification>
+							</item>
+							<item>
+								<regex>true</regex>
+								<code>java\.class\.externalClassExposedInAPI</code>
+								<package>org\.slf4j</package>
+								<justification>
+								</justification>
+							</item>
+							<item>
+								<regex>true</regex>
+								<code>java\.class\.externalClassExposedInAPI</code>
+								<package>com\.google\.common(\..*)*</package>
+								<justification>
+								</justification>
+							</item>
+						</revapi.ignore>
+					</analysisConfiguration>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.felix</groupId>
+				<artifactId>maven-bundle-plugin</artifactId>
+				<extensions>true</extensions>
+				<configuration>
+					<instructions>
+						<Export-Package>
+							org.eclipse.californium.proxy2*
+						</Export-Package>
+						<Import-Package>
+							org.apache.http; ${httpcore.version.spec},
+							org.apache.http.client.*; ${httpclient.version.spec},
+							org.apache.http.concurrent; ${httpcore.version.spec},
+							org.apache.http.conn*; ${httpclient.version.spec},
+							org.apache.http.entity; ${httpcore.version.spec},
+							org.apache.http.impl; ${httpcore.version.spec},
+							org.apache.http.impl.client; ${httpclient.version.spec},
+							org.apache.http.impl.nio; ${httpcore.version.spec},
+							org.apache.http.impl.nio.client; ${httpasyncclient.version.spec},
+							org.apache.http.impl.nio.conn; ${httpasyncclient.version.spec},
+							org.apache.http.impl.nio.reactor; ${httpcore.version.spec},
+							org.apache.http.message; ${httpcore.version.spec},
+							org.apache.http.nio; ${httpcore.version.spec},
+							org.apache.http.nio.conn; ${httpasyncclient.version.spec},
+							org.apache.http.nio.protocol; ${httpcore.version.spec},
+							org.apache.http.nio.reactor; ${httpcore.version.spec},
+							org.apache.http.params; ${httpcore.version.spec},
+							org.apache.http.protocol; ${httpcore.version.spec},
+							org.apache.http.util; ${httpcore.version.spec},
+							*
+						</Import-Package>
+						<Bundle-SymbolicName>${project.groupId}.proxy2</Bundle-SymbolicName>
+					</instructions>
+				</configuration>
+			</plugin>
+			<plugin>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<configuration>
+					<descriptorRefs>
+						<descriptorRef>enhanced-jar-with-licenses</descriptorRef>
+					</descriptorRefs>
+					<archive>
+						<manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
+					</archive>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+</project>

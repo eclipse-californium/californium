@@ -176,6 +176,11 @@
 			</dependency>
 			<dependency>
 				<groupId>${project.groupId}</groupId>
+				<artifactId>californium-proxy2</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>${project.groupId}</groupId>
 				<artifactId>cf-nat</artifactId>
 				<version>${project.version}</version>
 			</dependency>
@@ -258,6 +263,7 @@
 		<module>californium-core</module>
 		<module>californium-integration-tests</module>
 		<module>californium-proxy</module>
+		<module>californium-proxy2</module>
 		<module>californium-osgi</module>
 		<module>demo-apps</module>
 		<module>demo-certs</module>

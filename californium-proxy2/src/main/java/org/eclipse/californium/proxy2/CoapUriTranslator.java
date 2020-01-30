@@ -1,0 +1,154 @@
+/*******************************************************************************
+ * Copyright (c) 2020 Bosch IO GmbH and others.
+ * 
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v2.0
+ * and Eclipse Distribution License v1.0 which accompany this distribution.
+ * 
+ * The Eclipse Public License is available at
+ *    http://www.eclipse.org/legal/epl-v20.html
+ * and the Eclipse Distribution License is available at
+ *    http://www.eclipse.org/org/documents/edl-v10.html.
+ * 
+ * Contributors:
+ *    Bosch IO GmbH - initial implementation
+ ******************************************************************************/
+
+package org.eclipse.californium.proxy2;
+
+import java.io.UnsupportedEncodingException;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.net.URLDecoder;
+
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.OptionSet;
+import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.elements.util.StringUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Static class that provides the translations between the messages from the
+ * internal CoAP nodes and external ones.
+ */
+public class CoapUriTranslator {
+
+	/** The Constant LOG. */
+	private static final Logger LOGGER = LoggerFactory.getLogger(CoapUriTranslator.class);
+
+	/**
+	 * Property file containing the mappings between coap messages and http
+	 * messages.
+	 */
+
+	// Error constants
+	public static final ResponseCode STATUS_FIELD_MALFORMED = ResponseCode.BAD_OPTION;
+	public static final ResponseCode STATUS_TIMEOUT = ResponseCode.GATEWAY_TIMEOUT;
+	public static final ResponseCode STATUS_TRANSLATION_ERROR = ResponseCode.BAD_GATEWAY;
+
+	/**
+	 * Get destination schem for request.
+	 * 
+	 * If a Proxy-URI is provided, that is used to determine the scheme.
+	 * Otherwise the {@link OptionSet#getProxyScheme()} is, if available, or the
+	 * scheme of the request in absence of the other schemes.
+	 * 
+	 * @param incomingRequest the original request
+	 * @return scheme destination scheme
+	 * @throws TranslationException the translation exception
+	 */
+	public String getDestinationScheme(Request incomingRequest) throws TranslationException {
+		if (incomingRequest == null) {
+			throw new NullPointerException("incomingRequest == null");
+		}
+		OptionSet options = incomingRequest.getOptions();
+		if (options.hasProxyUri()) {
+			try {
+				String proxyUriString = URLDecoder.decode(options.getProxyUri(), "UTF-8");
+				return new URI(proxyUriString).getScheme();
+			} catch (UnsupportedEncodingException e) {
+				LOGGER.warn("UTF-8 do not support this encoding", e);
+				throw new TranslationException("UTF-8 do not support this encoding", e);
+			} catch (URISyntaxException e) {
+				LOGGER.warn("Cannot translate the server uri", e);
+				throw new TranslationException("Cannot translate the server uri", e);
+			}
+		} else if (options.hasProxyScheme()) {
+			return options.getProxyScheme();
+		} else {
+			return incomingRequest.getScheme();
+		}
+	}
+
+	/**
+	 * Return the exposed interface the request is received with.
+	 * 
+	 * In container deployments the receiving local interface may differ from
+	 * the exposed one. That interface may be required, if the request doesn't
+	 * contain a uri-host- or uri-port-option. In that case, the interface is
+	 * used to fill in the missing information. This default implementation
+	 * returns {@code null}.
+	 * 
+	 * @param incomingRequest the received request.
+	 * @return exposed interface. {@code null}, if not available.
+	 */
+	public InetSocketAddress getExposedInterface(Request incomingRequest) {
+		return null;
+	}
+
+	/**
+	 * Get "final" destination URI from request.
+	 * 
+	 * If a Proxy-URI is provided, that is used. Otherwise the "final
+	 * destination" is constructed using the options
+	 * {@link OptionSet#getProxyScheme()}, {@link OptionSet#getUriHost()},
+	 * {@link OptionSet#getUriPort()}, {@link OptionSet#getUriPath()}, and
+	 * {@link OptionSet#getUriQuery()}.
+	 * 
+	 * @param incomingRequest the original request
+	 * @param exposed the exposed interface of this request. {@code null}, if
+	 *            unknown.
+	 * @return "final destination" URI
+	 * @throws TranslationException the translation exception
+	 */
+	public URI getDestinationURI(Request incomingRequest, InetSocketAddress exposed) throws TranslationException {
+		// check parameters
+		if (incomingRequest == null) {
+			throw new NullPointerException("incomingRequest == null");
+		}
+		try {
+			OptionSet options = incomingRequest.getOptions();
+			if (options.hasProxyUri()) {
+				String proxyUriString = URLDecoder.decode(options.getProxyUri(), "UTF-8");
+				return new URI(proxyUriString);
+			} else {
+				String scheme = options.hasProxyScheme() ? options.getProxyScheme() : incomingRequest.getScheme();
+				String host = options.getUriHost();
+				if (host == null) {
+					if (exposed == null) {
+						throw new TranslationException("Destination host missing!");
+					}
+					host = StringUtil.getUriHostname(exposed.getAddress());
+				}
+				Integer port = options.getUriPort();
+				if (port == null) {
+					if (exposed == null) {
+						throw new TranslationException("Destination port missing!");
+					}
+					port = exposed.getPort();
+				}
+				String path = "/" + options.getUriPathString();
+				String query = options.getURIQueryCount() > 0 ? options.getUriQueryString() : null;
+				return new URI(scheme, null, host, port, path, query, null);
+			}
+		} catch (UnsupportedEncodingException e) {
+			LOGGER.warn("UTF-8 do not support this encoding", e);
+			throw new TranslationException("UTF-8 do not support this encoding", e);
+		} catch (URISyntaxException e) {
+			LOGGER.warn("Cannot translate the server uri", e);
+			throw new TranslationException("Cannot translate the server uri", e);
+		}
+	}
+}

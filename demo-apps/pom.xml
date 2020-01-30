@@ -29,6 +29,7 @@
 		<module>cf-plugtest-client</module>
 		<module>cf-plugtest-server</module>
 		<module>cf-proxy</module>
+		<module>cf-proxy2</module>
 		<module>cf-secure</module>
 		<module>cf-simplefile-server</module>
 		<module>cf-unix-setup</module>
