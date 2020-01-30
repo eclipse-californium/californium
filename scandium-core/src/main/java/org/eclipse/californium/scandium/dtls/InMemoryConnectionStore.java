@@ -54,20 +54,20 @@ import org.slf4j.LoggerFactory;
  * based on a <em>least recently used</em> policy.
  * <p>
  * The store keeps track of the connections' last-access time automatically.
- * Every time a connection is read from or put to the store the access-time
- * is updated.
+ * Every time a connection is read from or put to the store the access-time is
+ * updated.
  * </p>
  * <p>
- * A connection can be successfully added to the store if any of the
- * following conditions is met:
+ * A connection can be successfully added to the store if any of the following
+ * conditions is met:
  * </p>
  * <ul>
  * <li>The store's remaining capacity is greater than zero.</li>
  * <li>The store contains at least one <em>stale</em> connection, i.e. a
  * connection that has not been accessed for at least the store's <em>
  * connection expiration threshold</em> period. In such a case the least
- * recently accessed stale connection gets evicted from the store to make
- * place for the new connection to be added.</li>
+ * recently accessed stale connection gets evicted from the store to make place
+ * for the new connection to be added.</li>
  * </ul>
  * <p>
  * This implementation uses three <code>java.util.HashMap</code>. One with a
@@ -76,11 +76,18 @@ import org.slf4j.LoggerFactory;
  * a doubly-linked list of the connections in access-time order.
  * </p>
  * <p>
- * Insertion, lookup and removal of connections is done in
- * <em>O(log n)</em>.
+ * Insertion, lookup and removal of connections is done in <em>O(log n)</em>.
  * </p>
  * <p>
  * Storing and reading to/from the store is thread safe.
+ * </p>
+ * <p>
+ * Supports also a {@link SessionCache} implementation to keep sessions for
+ * longer or in a distribute system. If this store evicts a connection in order
+ * to gain storage for new connections, the associated session remains in the
+ * cache. Therefore the cache requires a own, independent cleanup for stale
+ * sessions. If a connection is removed by a critical ALERT, the session get's
+ * removed also from the cache.
  * </p>
  */
 public class InMemoryConnectionStore implements ResumptionSupportingConnectionStore, CloseSupportingConnectionStore {
@@ -172,7 +179,6 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 						synchronized (InMemoryConnectionStore.this) {
 							removeFromAddressConnections(staleConnection);
 							removeFromEstablishedSessions(staleConnection);
-							removeSessionFromCache(staleConnection);
 							ConnectionListener listener = connectionListener;
 							if (listener != null) {
 								listener.onConnectionRemoved(staleConnection);
