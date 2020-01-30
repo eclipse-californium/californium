@@ -55,6 +55,7 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Message.OffloadMode;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
@@ -301,6 +302,10 @@ public class BenchmarkClient {
 	 */
 	private static final AtomicInteger overallObservationRegistrationCounter = new AtomicInteger();
 	/**
+	 * Offload messages.
+	 */
+	private static boolean offload;
+	/**
 	 * Don't stop client on transmission errors.
 	 */
 	private static boolean noneStop;
@@ -388,6 +393,10 @@ public class BenchmarkClient {
 				LOGGER.warn("Received error response: {} {} ({} successful)", endpoint.getUri(), response.advanced(), c);
 				checkReady(true, true);
 				stop();
+			}
+			if (offload) {
+				post.offload(OffloadMode.FULL);
+				response.advanced().offload(OffloadMode.PAYLOAD);
 			}
 		}
 
@@ -627,6 +636,7 @@ public class BenchmarkClient {
 		NetworkConfig effectiveConfig = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 		NetworkConfig serverConfig = NetworkConfig.createWithFile(REVERSE_SERVER_CONFIG_FILE,
 				REVERSE_SERVER_CONFIG_HEADER, REVERSE_DEFAULTS);
+		offload = effectiveConfig.getBoolean(Keys.USE_MESSAGE_OFFLOADING);
 		final Arguments arguments = ClientInitializer.init(effectiveConfig, args, true);
 		// random part of PSK identity
 		final SecureRandom random = new SecureRandom();

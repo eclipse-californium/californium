@@ -60,7 +60,7 @@ fi
 USE_TCP=1
 USE_UDP=1
 USE_PLAIN=1
-USE_SECURE=1
+USE_SECURE=0
 USE_HTTP=0
 MULTIPLIER=10
 REQS=$((500 * $MULTIPLIER))
@@ -134,17 +134,17 @@ benchmark_all()
 	benchmark_tcp "benchmark?rlen=${PAYLOAD}" ${TCP_CLIENTS} ${REQS}
 
 # GET with separate response
-	benchmark_udp "benchmark?rlen=${PAYLOAD}&ack" ${UDP_CLIENTS} ${REQS}
+#	benchmark_udp "benchmark?rlen=${PAYLOAD}&ack" ${UDP_CLIENTS} ${REQS}
 
 # reverse GET
-	benchmark_udp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" ${UDP_CLIENTS} 2 stop ${REV_REQS}
-	benchmark_tcp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" ${TCP_CLIENTS} 2 stop ${REV_REQS}
+#	benchmark_udp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" ${UDP_CLIENTS} 2 stop ${REV_REQS}
+#	benchmark_tcp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" ${TCP_CLIENTS} 2 stop ${REV_REQS}
 
 # observe CON 
-	benchmark "reverse-observe?obs=25000&res=feed-CON&rlen=${PAYLOAD_LARGE}" ${OBS_CLIENTS} 1 stop ${NOTIFIES} 20 100
+#	benchmark "reverse-observe?obs=25000&res=feed-CON&rlen=${PAYLOAD_LARGE}" ${OBS_CLIENTS} 1 stop ${NOTIFIES} 20 100
 
 # observe NON
-	benchmark_udp "reverse-observe?obs=25000&res=feed-NON&rlen=${PAYLOAD_LARGE}" ${OBS_CLIENTS} 1 stop ${NOTIFIES} 20 100	
+#	benchmark_udp "reverse-observe?obs=25000&res=feed-NON&rlen=${PAYLOAD_LARGE}" ${OBS_CLIENTS} 1 stop ${NOTIFIES} 20 100	
 }
 
 benchmark_dtls_handshake()
@@ -167,6 +167,23 @@ benchmark_dtls_handshake()
       export CALIFORNIUM_STATISTIC=$old
       return $TIME	
    fi 
+}
+
+benchmark_dtls_handshakes()
+{
+	benchmark_dtls_handshake 10 
+	TIME1=$?
+	benchmark_dtls_handshake 10 -e
+	TIME2=$?
+	benchmark_dtls_handshake 10 -r
+	TIME3=$?
+	benchmark_dtls_handshake 10 -x
+	TIME4=$?
+
+	echo "PSK      :" $TIME1
+	echo "PSK/ECDHE:" $TIME2
+	echo "RPK      :" $TIME3
+	echo "X509     :" $TIME4
 }
 
 longterm()
@@ -200,21 +217,6 @@ proxy()
 
 #proxy
 benchmark_all
-benchmark_dtls_handshake 10 
-TIME1=$?
-benchmark_dtls_handshake 10 -e
-TIME2=$?
-benchmark_dtls_handshake 10 -r
-TIME3=$?
-benchmark_dtls_handshake 10 -x
-TIME4=$?
-
-#longterm
-
-echo "PSK      :" $TIME1
-echo "PSK/ECDHE:" $TIME2
-echo "RPK      :" $TIME3
-echo "X509     :" $TIME4
 
 END_BENCHMARK=`date +%s`
 

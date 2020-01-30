@@ -63,6 +63,7 @@ import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.TokenGenerator;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.stack.ReliabilityLayerParameters;
 import org.eclipse.californium.core.observe.ObserveManager;
 import org.eclipse.californium.elements.EndpointContext;
@@ -91,6 +92,22 @@ import org.eclipse.californium.elements.util.ClockUtil;
 public abstract class Message {
 
 	protected final static Logger LOGGER = LoggerFactory.getLogger(Message.class);
+
+	/**
+	 * Offload mode.
+	 * 
+	 * @since 2.2
+	 */
+	public enum OffloadMode {
+		/**
+		 * Offload payload.
+		 */
+		PAYLOAD,
+		/**
+		 * Offload payload, options, serialized bytes.
+		 */
+		FULL
+	}
 
 	/** The Constant NONE in case no MID has been set. */
 	public static final int NONE = -1;
@@ -166,6 +183,12 @@ public abstract class Message {
 	/** The serialized message as byte array. */
 	private volatile byte[] bytes;
 
+	/** Offload message. remove payload, options and serialized bytes to reduce heap usage, when message is kept for deduplication. */
+	private volatile OffloadMode offload;
+
+	/** Protect message from being offloaded. */
+	private volatile boolean protectFromOffload;
+
 	/**
 	 * A list of all {@link ObserveManager} that should be notified when an
 	 * event for this message occurs. By default, this field is null
@@ -192,6 +215,34 @@ public abstract class Message {
 	 * Creates a new message with no specified message type.
 	 */
 	protected Message() {
+	}
+
+	/**
+	 * Get tracing string for message.
+	 * 
+	 * @param code code of message as text.
+	 * @return tracing string for message
+	 * @since 2.2
+	 */
+	protected String toTracingString(String code) {
+		String status = getStatusTracingString();
+		OffloadMode offload;
+		OptionSet options;
+		String payload = getPayloadTracingString();
+		synchronized (acknowledged) {
+			offload = this.offload;
+			options = this.options;
+		}
+		if (offload == OffloadMode.FULL) {
+			return String.format("%s-%-6s MID=%5d, Token=%s %s(offloaded!)", getType(), code, getMID(),
+					getTokenString(), status);
+		} else if (offload == OffloadMode.PAYLOAD) {
+			return String.format("%s-%-6s MID=%5d, Token=%s, OptionSet=%s, %s(offloaded!)", getType(), code, getMID(),
+					getTokenString(), options, status);
+		} else {
+			return String.format("%s-%-6s MID=%5d, Token=%s, OptionSet=%s, %s%s", getType(), code, getMID(),
+					getTokenString(), options, status, payload);
+		}
 	}
 
 	/**
@@ -456,12 +507,18 @@ public abstract class Message {
 	 * one. EmptyMessages should not have any options.
 	 * 
 	 * @return the options
+	 * @throws IllegalStateException if message was {@link #offload()}ed.
 	 */
 	public OptionSet getOptions() {
-		if (options == null) {
-			options = new OptionSet();
+		synchronized (acknowledged) {
+			if (offload == OffloadMode.FULL) {
+				throw new IllegalStateException("message " + offload + " offloaded! " + this);
+			}
+			if (options == null) {
+				options = new OptionSet();
+			}
+			return options;
 		}
-		return options;
 	}
 
 	/**
@@ -485,6 +542,7 @@ public abstract class Message {
 	 * @return the payload size
 	 */
 	public int getPayloadSize() {
+		byte[] payload = this.payload;
 		return payload == null ? 0 : payload.length;
 	}
 
@@ -492,8 +550,12 @@ public abstract class Message {
 	 * Gets the raw payload.
 	 *
 	 * @return the payload
+	 * @throws IllegalStateException if message was {@link #offload()}ed.
 	 */
 	public byte[] getPayload() {
+		if (offload != null) {
+			throw new IllegalStateException("message " + offload + " offloaded!");
+		}
 		return payload;
 	}
 
@@ -502,16 +564,22 @@ public abstract class Message {
 	 * payload is defined.
 	 * 
 	 * @return the payload as string
+	 * @throws IllegalStateException if message was {@link #offload()}ed.
 	 */
 	public String getPayloadString() {
+		if (offload != null) {
+			throw new IllegalStateException("message " + offload + " offloaded!");
+		}
+		byte[] payload = this.payload;
 		if (payload == null) {
 			return "";
+		} else {
+			return new String(payload, CoAP.UTF8_CHARSET);
 		}
-		return new String(payload, CoAP.UTF8_CHARSET);
 	}
 
 	protected String getPayloadTracingString() {
-
+		byte[] payload = this.payload;
 		if (null == payload || 0 == payload.length) {
 			return "no payload";
 		}
@@ -1021,8 +1089,12 @@ public abstract class Message {
 	 * Gets the serialized message as byte array or {@code null}, if not serialized yet.
 	 *
 	 * @return the bytes of the serialized message or null
+	 * @throws IllegalStateException if message was {@link #offload()}ed.
 	 */
 	public byte[] getBytes() {
+		if (offload == OffloadMode.FULL) {
+			throw new IllegalStateException("message offloaded!");
+		}
 		return bytes;
 	}
 
@@ -1101,6 +1173,69 @@ public abstract class Message {
 				LOGGER.error("Faulty MessageObserver for retransmitting events", e);
 			}
 		}
+	}
+
+	/**
+	 * Offload message. Remove payload, options and serialized bytes to reduce
+	 * heap usage, when message is kept for deduplication.
+	 * 
+	 * The server-side offloads message when sending the first response when
+	 * {@link Keys#USE_MESSAGE_OFFLOADING} is enabled. Requests are
+	 * {@link OffloadMode#FULL} offloaded, responses are
+	 * {@link OffloadMode#PAYLOAD} offloaded.
+	 * 
+	 * A client-side may also chose to offload requests and responses based on
+	 * {@link Keys#USE_MESSAGE_OFFLOADING}, when the request and responses are
+	 * not longer used by the client.
+	 * 
+	 * For messages with {@link #setProtectFromOffload()}, offloading is
+	 * ineffective.
+	 * 
+	 * @param mode {@link OffloadMode#PAYLOAD} to offload the payload,
+	 *            {@link OffloadMode#FULL} to offload the payload, the options,
+	 *            and the serialized bytes.
+	 * @since 2.2
+	 */
+	public void offload(OffloadMode mode) {
+		if (!protectFromOffload) {
+			synchronized (acknowledged) {
+				offload = mode;
+				if (mode != null) {
+					payload = null;
+					if (mode == OffloadMode.FULL) {
+						bytes = null;
+						if (options != null) {
+							options.clear();
+							options = null;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	/**
+	 * Gets the offload mode.
+	 * 
+	 * @return {@code null}, if message is not offloaded,
+	 *         {@link OffloadMode#PAYLOAD} if the payload is offloaded,
+	 *         {@link OffloadMode#FULL} if the payload, the options, and the
+	 *         serialized bytes are offloaded.
+	 * @since 2.2
+	 */
+	public OffloadMode getOffloadMode() {
+		return offload;
+	}
+
+	/**
+	 * Protect message from being offloaded.
+	 * 
+	 * Used to protect observe- and starting-blockwise-requests and empty
+	 * messages from being offloaded.
+	 * @since 2.2
+	 */
+	public void setProtectFromOffload() {
+		protectFromOffload = true;
 	}
 
 	/**

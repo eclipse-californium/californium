@@ -39,6 +39,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
 
+import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.elements.util.NotForAndroid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -122,6 +123,13 @@ public final class NetworkConfig {
 		public static final String NSTART = "NSTART";
 		public static final String LEISURE = "LEISURE";
 		public static final String PROBING_RATE = "PROBING_RATE";
+		/**
+		 * Configure message-offloading.
+		 * 
+		 * @see Message#offload(org.eclipse.californium.core.coap.Message.OffloadMode)
+		 * @since 2.2
+		 */
+		public static final String USE_MESSAGE_OFFLOADING = "USE_MESSAGE_OFFLOADING";
 
 		public static final String USE_RANDOM_MID_START = "USE_RANDOM_MID_START";
 		public static final String MID_TRACKER = "MID_TACKER";

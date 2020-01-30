@@ -100,6 +100,7 @@ public abstract class BlockwiseStatus {
 	 */
 	final synchronized void setFirst(final Message first) {
 		this.first = first;
+		this.first.setProtectFromOffload();
 	}
 	
 	/**

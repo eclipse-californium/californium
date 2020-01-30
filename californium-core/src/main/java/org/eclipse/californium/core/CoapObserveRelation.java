@@ -155,6 +155,7 @@ public class CoapObserveRelation {
 				.getLong(NetworkConfig.Keys.NOTIFICATION_REREGISTRATION_BACKOFF);
 		this.scheduler = executor;
 		this.request.addMessageObserver(pendingRequestObserver);
+		this.request.setProtectFromOffload();
 	}
 
 	/**

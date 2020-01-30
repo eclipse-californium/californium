@@ -98,9 +98,7 @@ public class Response extends Message {
 
 	@Override
 	public String toString() {
-		String payload = getPayloadTracingString();
-		String status = getStatusTracingString();
-		return String.format("%s-%-6s MID=%5d, Token=%s, OptionSet=%s, %s%s", getType(), getCode(), getMID(), getTokenString(), getOptions(), status, payload);
+		return toTracingString(getCode().toString());
 	}
 
 	/**

@@ -90,6 +90,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.coap.Message.OffloadMode;
 import org.eclipse.californium.core.coap.CoAPMessageFormatException;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.InternalMessageObserverAdapter;
@@ -211,6 +212,13 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors {
 	 * the range [0...base). 0 := disable multicast support.
 	 */
 	private final int multicastBaseMid;
+
+	/**
+	 * Offload incoming request on sending response.
+	 * 
+	 * @see Message#offload()
+	 */
+	private final boolean useRequestOffloading;
 
 	/** The configuration of this endpoint */
 	private final NetworkConfig config;
@@ -433,11 +441,13 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors {
 		this.coapstack = coapStackFactory.createCoapStack(connector.getProtocol(), config, new OutboxImpl(), customStackArgument);
 
 		if (CoAP.isTcpProtocol(connector.getProtocol())) {
+			this.useRequestOffloading = false; // no deduplication
 			this.matcher = new TcpMatcher(config, new NotificationDispatcher(), tokenGenerator, observationStore,
 					this.exchangeStore, exchangeExecutionHandler, endpointContextMatcher);
 			this.serializer = new TcpDataSerializer();
 			this.parser = new TcpDataParser();
 		} else {
+			this.useRequestOffloading = config.getBoolean(NetworkConfig.Keys.USE_MESSAGE_OFFLOADING);
 			this.matcher = new UdpMatcher(config, new NotificationDispatcher(), tokenGenerator, observationStore,
 					this.exchangeStore, exchangeExecutionHandler, endpointContextMatcher);
 			this.serializer = new UdpDataSerializer();
@@ -976,15 +986,20 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors {
 					exchange.executeComplete();
 				}
 			} else {
-				connector.send(
-						serializer.serializeResponse(response, new ExchangeCallback<Response>(exchange, response) {
+				RawData data = serializer.serializeResponse(response,
+						new ExchangeCallback<Response>(exchange, response) {
 
 							@Override
 							protected void notifyPostProcess(Response response) {
 								notifySend(postProcessInterceptors, response);
 							}
+						});
 
-						}));
+				if (useRequestOffloading) {
+					exchange.getCurrentRequest().offload(OffloadMode.FULL);
+					response.offload(OffloadMode.PAYLOAD);
+				}
+				connector.send(data);
 			}
 		}
 
@@ -1260,7 +1275,7 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors {
 		/**
 		 * Exchange of send message.
 		 */
-		private final Exchange exchange;
+		protected final Exchange exchange;
 
 		/**
 		 * Create a new instance.
