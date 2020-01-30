@@ -43,6 +43,7 @@ public interface ObservationStore {
 	 * @return the previous value associated with the specified key, or
 	 *         {@code null} if there was no mapping for the key.
 	 * @throws NullPointerException if token or observation is {@code null}.
+	 * @throws ObservationStoreException if observation isn't stored.
 	 */
 	Observation putIfAbsent(Token token, Observation obs);
 
@@ -56,6 +57,7 @@ public interface ObservationStore {
 	 * @return the previous value associated with the specified key, or
 	 *         {@code null} if there was no mapping for the key.
 	 * @throws NullPointerException if token or observation is {@code null}.
+	 * @throws ObservationStoreException if observation isn't stored.
 	 */
 	Observation put(Token token, Observation obs);
 

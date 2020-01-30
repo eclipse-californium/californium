@@ -40,6 +40,7 @@ import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.ExchangeCompleteException;
 import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.network.stack.Layer.TopDownBuilder;
+import org.eclipse.californium.core.observe.ObservationStoreException;
 import org.eclipse.californium.core.server.MessageDeliverer;
 
 /**
@@ -84,6 +85,9 @@ public abstract class BaseCoapStack implements CoapStack {
 		// delegate to top
 		try {
 			top.sendRequest(exchange, request);
+		} catch (ObservationStoreException ex) {
+			LOGGER.debug("error send request {} - {}", request, ex.getMessage());
+			request.setSendError(ex);
 		} catch (RuntimeException ex) {
 			LOGGER.warn("error send request {}", request, ex);
 			request.setSendError(ex);
