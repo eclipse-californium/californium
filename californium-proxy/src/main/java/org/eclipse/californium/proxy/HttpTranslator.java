@@ -23,9 +23,11 @@ import static org.eclipse.californium.elements.util.StandardCharsets.ISO_8859_1;
 import static org.eclipse.californium.elements.util.StandardCharsets.UTF_8;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URLDecoder;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
@@ -101,9 +103,8 @@ public final class HttpTranslator {
 	public static final int STATUS_TRANSLATION_ERROR = HttpStatus.SC_BAD_GATEWAY;
 	public static final int STATUS_URI_MALFORMED = HttpStatus.SC_BAD_REQUEST;
 	public static final int STATUS_WRONG_METHOD = HttpStatus.SC_NOT_IMPLEMENTED;
-	public static final int STATUS_INTERNAL_SERVER_ERROR = HttpStatus.SC_INTERNAL_SERVER_ERROR;
 
-	protected static final Logger LOGGER = LoggerFactory.getLogger(HttpTranslator.class);
+	protected static final Logger LOGGER = LoggerFactory.getLogger(HttpTranslator.class.getName());
 	
 	public HttpTranslator(String mappingPropertiesFileName) {
 		httpTranslationProperties = new MappingProperties(mappingPropertiesFileName);
@@ -379,7 +380,7 @@ public final class HttpTranslator {
 	 * Gets the coap request. Creates the CoAP request from the HTTP method and
 	 * mapping it through the properties file. The uri is translated using
 	 * regular expressions, the uri format expected is either the embedded
-	 * mapping (http://proxyname.domain:80/proxy/coap://coapserver:5683/resource
+	 * mapping (http://proxyname.domain:80/proxy/coapserver:5683/resource
 	 * converted in coap://coapserver:5683/resource) or the standard uri to
 	 * indicate a local request not to be forwarded. The method uses a decoder
 	 * to translate the application/x-www-form-urlencoded format of the uri. The
@@ -390,21 +391,22 @@ public final class HttpTranslator {
 	 * 
 	 * @param httpRequest
 	 *            the http request
-	 * @param httpResource
-	 *            the http resource, if present in the uri, indicates the need
+	 * @param proxyResource
+	 *            the proxy resource, if present in the uri, indicates the need
 	 *            of forwarding for the current request
 	 * @param proxyingEnabled
-	 *            {@code true} to forward the request using the sub-path as URI,
-	 *            {@code false} to access a local coap resource.
-	 * @return the coap request
-	 * @throws TranslationException the translation exception
+	 *            TODO
+	 * 
+	 * 
+	 * @return the coap request * @throws TranslationException the translation
+	 *         exception
 	 */
-	public Request getCoapRequest(HttpRequest httpRequest, String httpResource, boolean proxyingEnabled) throws TranslationException {
+	public Request getCoapRequest(HttpRequest httpRequest, String proxyResource, boolean proxyingEnabled) throws TranslationException {
 		if (httpRequest == null) {
-			throw new NullPointerException("httpRequest == null");
+			throw new IllegalArgumentException("httpRequest == null");
 		}
-		if (httpResource == null) {
-			throw new NullPointerException("httpResource == null");
+		if (proxyResource == null) {
+			throw new IllegalArgumentException("proxyResource == null");
 		}
 
 		// get the http method
@@ -428,19 +430,17 @@ public final class HttpTranslator {
 		Request coapRequest = new Request(Code.valueOf(coapMethod), Type.CON);
 
 		// get the uri
-		URI uri = null;
 		String uriString = httpRequest.getRequestLine().getUri();
-		LOGGER.debug("URI <= '{}'", uriString);
+		// remove the initial "/"
+		uriString = uriString.substring(1);
 
-		// decode the uri to translate the application/x-www-form-urlencoded format
+		// decode the uri to translate the application/x-www-form-urlencoded
+		// format
 		try {
-			uri = new URI(uriString);
-		} catch (URISyntaxException e) {
-			LOGGER.debug("Malformed uri", e);
-			throw new TranslationException("Malformed uri: " + e.getMessage());
-		} catch (IllegalArgumentException e) {
-			LOGGER.debug("Malformed uri", e);
-			throw new TranslationException("Malformed uri: " + e.getMessage());
+			uriString = URLDecoder.decode(uriString, "UTF-8");
+		} catch (UnsupportedEncodingException e) {
+			LOGGER.warn("Failed to decode the uri", e);
+			throw new TranslationException("Failed decoding the uri: " + e.getMessage());
 		} catch (Throwable e) {
 			LOGGER.warn("Malformed uri", e);
 			throw new InvalidFieldException("Malformed uri: " + e.getMessage());
@@ -450,77 +450,52 @@ public final class HttpTranslator {
 		// forwarded and it is needed to get the real requested coap server's
 		// uri
 		// e.g.:
-		// /proxy/coap://vslab-dhcp-17.inf.ethz.ch:5684/helloWorld
+		// /proxy/vslab-dhcp-17.inf.ethz.ch:5684/helloWorld
 		// proxy resource: /proxy
-		// coap server: coap://vslab-dhcp-17.inf.ethz.ch:5684
+		// coap server: vslab-dhcp-17.inf.ethz.ch:5684
 		// coap resource: helloWorld
-		String path = uri.getPath();
-		LOGGER.debug("URI path => '{}'", path);
-		if (path.startsWith("/" + httpResource + "/")) {
-			path = path.substring(httpResource.length() + 2);
-			if (uri.getQuery() != null) {
-				path += "?" + uri.getQuery();
-			}
-			try {
-				uri = new URI(path);
-				if (proxyingEnabled) {
-					// forwarding proxy
-					// if the uri hasn't the indication of the scheme, add it
-					if (uri.getScheme() == null) {
-						throw new InvalidFieldException(
-								"Malformed uri: destination scheme missing! Use http://<proxy-host>/" + httpResource
-										+ "/coap://<destination-host>/<path>");
-					}
-					// the uri will be set as a proxy-uri option
-					LOGGER.debug("URI destination => '{}'", path);
-					coapRequest.getOptions().setProxyUri(path);
-				} else {
-					if (uri.getScheme() != null) {
-						throw new InvalidFieldException(
-								"Malformed uri: local destination doesn't support scheme! Use http://<proxy-host>/"
-										+ httpResource + "/<path>");
-					}
-					// the uri will be set as a coap-uri
-					path = "coap://localhost/" + path;
-					LOGGER.debug("URI local => '{}'", path);
-					coapRequest.setURI(path);
+		if (uriString.matches(".?" + proxyResource + ".*")) {
+
+			// find the first occurrence of the proxy resource
+			int index = uriString.indexOf(proxyResource);
+			// delete the slash
+			index = uriString.indexOf('/', index);
+			uriString = uriString.substring(index + 1);
+
+			if (proxyingEnabled) {
+				// if the uri hasn't the indication of the scheme, add it
+				if (!uriString.matches("^coaps?://.*")) {
+					uriString = "coap://" + uriString;
 				}
-			} catch (URISyntaxException e) {
-				LOGGER.warn("Malformed destination uri", e);
-				throw new InvalidFieldException("Malformed destination uri: " + path + "!");
-			}
-		} else if (proxyingEnabled && uri.getScheme() != null) {
-			// http-server configured as http-proxy
-			int index = path.lastIndexOf('/');
-			if (0 < index) {
-				String scheme = path.substring(index + 1);
-				if (scheme.matches("\\w+:$")) {
-					scheme = scheme.substring(0, scheme.length() - 1);
-					path = path.substring(0, index);
-					try {
-						URI destination = new URI(scheme, null, uri.getHost(), uri.getPort(), path, uri.getQuery(), null);
-						coapRequest.getOptions().setProxyUri(destination.toASCIIString());
-					} catch (URISyntaxException e) {
-						LOGGER.debug("Malformed proxy uri", e);
-						throw new TranslationException("Malformed proxy uri: '" + uriString + "' " + e.getMessage());
-					}
-				} else {
-					throw new TranslationException(
-							"Malformed proxy uri: target scheme missing! Use http://<destination-host>/<path>/<target-scheme>:");
-				}
+
+				// the uri will be set as a proxy-uri option
+				coapRequest.getOptions().setProxyUri(uriString);
 			} else {
-				throw new TranslationException(
-						"Malformed proxy uri: target scheme missing! Use http://<destination-host>/<path>/<target-scheme>:");
+				coapRequest.setURI(uriString);
+			}
+
+			// set the proxy as the sender to receive the response correctly
+			try {
+				// TODO check with multihomed hosts
+				InetAddress localHostAddress = InetAddress.getLocalHost();
+				coapRequest.setDestination(localHostAddress);
+				// TODO: setDestinationPort???
+			} catch (UnknownHostException e) {
+				LOGGER.warn("Cannot get the localhost address", e);
+				throw new TranslationException("Cannot get the localhost address: " + e.getMessage());
 			}
 		} else {
-			throw new IllegalArgumentException("URI '" + uriString + "' doesn't match handler '" + httpResource + "'!");
+			// if the uri does not contains the proxy resource, it means the
+			// request is local to the proxy and it shouldn't be forwarded
+
+			// set the uri string as uri-path option
+			coapRequest.getOptions().setUriPath(uriString);
 		}
 
 		// translate the http headers in coap options
 		List<Option> coapOptions = getCoapOptions(httpRequest.getAllHeaders());
-		for (Option option:coapOptions) {
+		for (Option option:coapOptions)
 			coapRequest.getOptions().addOption(option);
-		}
 
 		// set the payload if the http entity is present
 		if (httpRequest instanceof HttpEntityEnclosingRequest) {
@@ -602,9 +577,8 @@ public final class HttpTranslator {
 		// translate the http headers in coap options
 		List<Option> coapOptions = getCoapOptions(httpResponse.getAllHeaders());
 
-		for (Option option:coapOptions) {
+		for (Option option:coapOptions)
 			coapResponse.getOptions().addOption(option);
-		}
 
 		// the response should indicate a max-age value (RFC 7252, Section 10.1.1)
 		if (!coapResponse.getOptions().hasMaxAge()) {
@@ -828,9 +802,6 @@ public final class HttpTranslator {
 		case POST: coapMethod = "POST"; break;
 		case PUT: coapMethod = "PUT"; break;
 		case DELETE: coapMethod = "DELETE"; break;
-		default:
-			LOGGER.warn("Method {} not supported!", coapRequest.getCode());
-			throw new TranslationException("Method " +  coapRequest.getCode() + " not supported!");
 		}
 
 		// get the proxy-uri
@@ -887,12 +858,14 @@ public final class HttpTranslator {
 	 * and the coap response has a payload, the entity and the content-type are
 	 * set in the http response.
 	 * 
-	 * @param httpRequest
-	 *            http-request
 	 * @param coapResponse
-	 *            the coap-response
+	 *            the coap response
 	 * @param httpResponse
-	 *            http-response to be filled with the coap-response
+	 * 
+	 * 
+	 * 
+	 * @param httpRequest
+	 *            HttpRequest
 	 * @throws TranslationException
 	 *             the translation exception
 	 */
@@ -935,7 +908,7 @@ public final class HttpTranslator {
 
 		// set max-age if not already set
 		if (!httpResponse.containsHeader("cache-control")) {
-			httpResponse.setHeader("cache-control", "max-age=" + OptionNumberRegistry.Defaults.MAX_AGE);
+			httpResponse.setHeader("cache-control", "max-age=" + Long.toString(OptionNumberRegistry.Defaults.MAX_AGE));
 		}
 
 		// get the http entity if the request was not HEAD
@@ -949,9 +922,6 @@ public final class HttpTranslator {
 					|| ResponseCode.isServerError(coapCode))) {
 				LOGGER.info("Set contenttype to TEXT_PLAIN");
 				coapResponse.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
-				if (coapResponse.getPayloadSize() == 0) {
-					coapResponse.setPayload(httpCode + ": "  + reason);
-				}
 			}
 
 			HttpEntity httpEntity = getHttpEntity(coapResponse);
@@ -964,7 +934,7 @@ public final class HttpTranslator {
 			}
 		}
 	}
-
+	
 	public Properties getHttpTranslationProperties() {
 		return httpTranslationProperties;
 	}
