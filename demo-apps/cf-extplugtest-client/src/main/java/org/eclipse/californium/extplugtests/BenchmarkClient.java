@@ -25,6 +25,7 @@ import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
 import java.lang.management.ThreadMXBean;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.GeneralSecurityException;
@@ -64,6 +65,7 @@ import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.core.server.resources.ResourceObserver;
+import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
@@ -319,6 +321,15 @@ public class BenchmarkClient {
 	 */
 	private static boolean noneStop;
 	/**
+	 * Proxy address. {@code null}, don't use proxy.
+	 */
+	private static InetSocketAddress proxyAddress;
+	/**
+	 * Proxy scheme for forwarded request. {@code null}, use scheme of original
+	 * request.
+	 */
+	private static String proxyScheme;
+	/**
 	 * Shutdown executor.
 	 */
 	private final boolean shutdown;
@@ -357,6 +368,12 @@ public class BenchmarkClient {
 
 	private static Request prepareRequest(CoapClient client) {
 		Request post = Request.newPost();
+		if (proxyAddress != null) {
+			post.setDestinationContext(new AddressEndpointContext(proxyAddress));
+			if (proxyScheme != null) {
+				post.getOptions().setProxyScheme(proxyScheme);
+			}
+		}
 		post.setURI(client.getURI());
 		return post;
 	}
@@ -621,6 +638,7 @@ public class BenchmarkClient {
 		}
 
 		startManagamentStatistic();
+		checkProxyConfiguration();
 
 		NetworkConfig effectiveConfig = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 		NetworkConfig serverConfig = NetworkConfig.createWithFile(REVERSE_SERVER_CONFIG_FILE,
@@ -686,8 +704,15 @@ public class BenchmarkClient {
 		final ScheduledThreadPoolExecutor secondaryExecutor = new ScheduledThreadPoolExecutor(2,
 				new DaemonThreadFactory("Aux(secondary)#"));
 
-		System.out.format("Create %d %s%sbenchmark clients, expect to send %d request overall to %s%n", clients,
-				noneStop ? "none-stop " : "", secure ? "secure " : "", overallRequests, uri);
+		String proxy = "";
+		if (proxyAddress != null) {
+			proxy = "via proxy " + StringUtil.toString(proxyAddress) + " ";
+			if (proxyScheme != null) {
+				proxy += "using " + proxyScheme + " ";
+			}
+		}
+		System.out.format("Create %d %s%sbenchmark clients, expect to send %d requests overall %sto %s%n", clients,
+				noneStop ? "none-stop " : "", secure ? "secure " : "", overallRequests, proxy, uri);
 
 		if (overallReverseResponses > 0) {
 			if (intervalMin == intervalMax) {
@@ -1029,9 +1054,8 @@ public class BenchmarkClient {
 				}
 			}
 			long pTime = alltime / processors;
-			logger.info("cpu-time: {} ms (per-processor: {} ms, load: {}%)",
-					TimeUnit.NANOSECONDS.toMillis(alltime), TimeUnit.NANOSECONDS.toMillis(pTime),
-					(pTime * 100) / uptimeNanos);
+			logger.info("cpu-time: {} ms (per-processor: {} ms, load: {}%)", TimeUnit.NANOSECONDS.toMillis(alltime),
+					TimeUnit.NANOSECONDS.toMillis(pTime), (pTime * 100) / uptimeNanos);
 		}
 		long gcCount = 0;
 		long gcTime = 0;
@@ -1109,6 +1133,40 @@ public class BenchmarkClient {
 	}
 
 	private static long roundDiv(long count, long div) {
-		return (count + (div/2)) / div;
+		return (count + (div / 2)) / div;
+	}
+
+	private static void checkProxyConfiguration() {
+		String proxy = System.getenv("COAP_PROXY");
+		if (proxy != null && !proxy.isEmpty()) {
+			int index;
+			String config = proxy;
+			String host;
+			if (config.startsWith("[")) {
+				index = config.indexOf("]:");
+				if (index < 0) {
+					throw new IllegalArgumentException(proxy + " invalid proxy configuration!");
+				}
+				host = config.substring(0, index + 1);
+				config = config.substring(index + 2);
+			} else {
+				index = config.indexOf(":");
+				if (index < 0) {
+					throw new IllegalArgumentException(proxy + " invalid proxy configuration!");
+				}
+				host = config.substring(0, index);
+				config = config.substring(index + 1);
+			}
+			index = config.indexOf(":");
+			if (index > 0) {
+				proxyScheme = config.substring(index + 1);
+				config = config.substring(0, index);
+			}
+			try {
+				proxyAddress = new InetSocketAddress(host, Integer.parseInt(config));
+			}catch(Throwable ex) {
+				throw new IllegalArgumentException(proxy + " invalid proxy configuration!", ex);
+			}
+		}
 	}
 }

@@ -46,7 +46,7 @@ echo
 
 CF_JAR=cf-extplugtest-client-2.1.0-SNAPSHOT.jar
 CF_EXEC="org.eclipse.californium.extplugtests.BenchmarkClient"
-CF_OPT="-d64 -XX:+UseG1GC -Xmx6g -Xverify:none -Dcalifornium.statistic=2.1.0"
+CF_OPT="-XX:+UseG1GC -Xmx6g -Xverify:none -Dcalifornium.statistic=2.1.0"
 
 if [ -z "$1" ]  ; then
      CF_HOST=localhost
@@ -59,6 +59,7 @@ USE_TCP=0
 USE_UDP=1
 USE_PLAIN=1
 USE_SECURE=1
+USE_HTTP=0
 MULTIPLIER=10
 REQS=$((500 * $MULTIPLIER))
 REQS_EXTRA=$(($REQS + ($REQS/10)))
@@ -173,6 +174,25 @@ longterm()
 	benchmark_udp "reverse-observe?obs=2500000&res=feed-NON&timeout=${LONG_INTERVAL_TIMEOUT_S}&rlen=${PAYLOAD}" ${UDP_CLIENTS} 1 stop ${NOTIFIES} ${LONG_INTERVAL_MS}
 }
 
+proxy()
+{
+	if [ ${USE_UDP} -eq 0 ] ; then return; fi
+	if [ ${USE_PLAIN} -ne 0 ] ; then
+		if [ ${USE_HTTP} -ne 0 ] ; then 
+			export COAP_PROXY="localhost:5683:http"
+			java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} "coap://${CF_HOST}:8000/http-target" ${UDP_CLIENTS} ${REQS}
+			if [ ! $? -eq 0 ] ; then exit $?; fi
+			sleep 5
+		fi
+ 	        export COAP_PROXY="localhost:5683:coap"
+	        java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} "coap://${CF_HOST}:5783/benchmark?rlen=${PAYLOAD}" ${UDP_CLIENTS} ${REQS}
+	        if [ ! $? -eq 0 ] ; then exit $?; fi
+	        export COAP_PROXY=""
+	        sleep 5
+	fi   
+}
+
+proxy
 benchmark_all
 benchmark_dtls_handshake 10 
 TIME1=$?
