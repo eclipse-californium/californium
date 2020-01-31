@@ -22,8 +22,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,13 +33,10 @@ import org.slf4j.LoggerFactory;
  * overridden by a user-defined .properties file. If the file does not exist
  * upon initialization, it will be created so that a valid configuration always
  * exists.
- * 
- * @deprecated use {@link NetworkConfig} to configure proxy functionality.
  */
-@Deprecated
 public class ProxyProperties extends java.util.Properties {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(ProxyProperties.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(ProxyProperties.class.getCanonicalName());
 
 	/**
 	 * auto-generated to eliminate warning

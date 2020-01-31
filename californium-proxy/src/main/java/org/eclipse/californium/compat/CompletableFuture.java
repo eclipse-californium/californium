@@ -16,15 +16,10 @@
 
 package org.eclipse.californium.compat;
 
-import org.eclipse.californium.core.network.Exchange;
-
 /**
  * Backport of the class introduced in Java java.util.concurrent.CompletableFuture<T>.
  * @param <T> Type of the result the future shall complete with.
- * 
- * @deprecated not required. {@link Exchange} already support asynchronous processing.
  */
-@Deprecated
 public class CompletableFuture<T> {
     private T result;
     private Consumer<T> consumer;

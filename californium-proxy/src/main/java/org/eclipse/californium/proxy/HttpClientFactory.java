@@ -28,15 +28,12 @@ import org.apache.http.nio.reactor.ConnectingIOReactor;
 import org.apache.http.nio.reactor.IOReactorException;
 import org.apache.http.protocol.*;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
-/**
- * Provide http clients using pooled connection management.
- */
 public class HttpClientFactory {
 	private static final int KEEP_ALIVE = 5000;
-	private static final Logger LOGGER = LoggerFactory.getLogger(HttpClientFactory.class);
+	private static final Logger LOGGER = Logger.getLogger(HttpClientFactory.class.getName());
 
 	private HttpClientFactory() {
 	}
@@ -51,7 +48,7 @@ public class HttpClientFactory {
 					.addInterceptorFirst(new RequestConnControl())
 					// .addInterceptorFirst(new RequestContent())
 					.addInterceptorFirst(new RequestDate())
-					.addInterceptorFirst(new RequestExpectContinue(true))
+					.addInterceptorFirst(new RequestExpectContinue())
 					.addInterceptorFirst(new RequestTargetHost())
 					.addInterceptorFirst(new RequestUserAgent())
 					.addInterceptorFirst(new ResponseContentEncoding())
@@ -72,7 +69,7 @@ public class HttpClientFactory {
 			client.start();
 			return client;
 		} catch (IOReactorException e) {
-			LOGGER.error("create http-client failed!", e);
+			LOGGER.log(Level.SEVERE, e.getMessage(), e);
 			return null;
 		}
 	}

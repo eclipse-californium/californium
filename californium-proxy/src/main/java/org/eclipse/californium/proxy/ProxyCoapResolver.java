@@ -18,14 +18,7 @@
 package org.eclipse.californium.proxy;
 
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.server.MessageDeliverer;
 
-/**
- * Resolver for request exchange.
- *
- * @deprecated use {@link MessageDeliverer} instead!
- */
-@Deprecated
 public interface ProxyCoapResolver {
 
 	public void forwardRequest(Exchange exchange);

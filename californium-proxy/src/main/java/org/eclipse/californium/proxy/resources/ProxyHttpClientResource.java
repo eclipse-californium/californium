@@ -34,8 +34,6 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.proxy.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,14 +65,15 @@ public class ProxyHttpClientResource extends ForwardingResource {
 	}
 
 	@Override
-	public void handleRequest(final Exchange exchange) {
-		final Request incomingCoapRequest = exchange.getRequest();
-
+	public CompletableFuture<Response> forwardRequest(Request request) {
+		final CompletableFuture<Response> future = new CompletableFuture<>();
+		final Request incomingCoapRequest = request;
+		
 		// check the invariant: the request must have the proxy-uri set
 		if (!incomingCoapRequest.getOptions().hasProxyUri()) {
-			LOGGER.debug("Proxy-uri option not set.");
-			exchange.sendResponse(new Response(ResponseCode.BAD_OPTION));
-			return;
+			LOGGER.warn("Proxy-uri option not set.");
+			future.complete(new Response(ResponseCode.BAD_OPTION));
+			return future;
 		}
 
 		// remove the fake uri-path // TODO: why? still necessary in new Cf?
@@ -87,13 +86,13 @@ public class ProxyHttpClientResource extends ForwardingResource {
 					incomingCoapRequest.getOptions().getProxyUri(), "UTF-8");
 			proxyUri = new URI(proxyUriString);
 		} catch (UnsupportedEncodingException e) {
-			LOGGER.debug("Proxy-uri option malformed: {}", e.getMessage());
-			exchange.sendResponse(new Response(CoapTranslator.STATUS_FIELD_MALFORMED));
-			return;
+			LOGGER.warn("Proxy-uri option malformed: {}", e.getMessage());
+			future.complete(new Response(CoapTranslator.STATUS_FIELD_MALFORMED));
+			return future;
 		} catch (URISyntaxException e) {
-			LOGGER.debug("Proxy-uri option malformed: {}", e.getMessage());
-			exchange.sendResponse(new Response(CoapTranslator.STATUS_FIELD_MALFORMED));
-			return;
+			LOGGER.warn("Proxy-uri option malformed: {}", e.getMessage());
+			future.complete(new Response(CoapTranslator.STATUS_FIELD_MALFORMED));
+			return future;
 		}
 
 		// get the requested host, if the port is not specified, the constructor
@@ -106,13 +105,13 @@ public class ProxyHttpClientResource extends ForwardingResource {
 			httpRequest = new HttpTranslator().getHttpRequest(incomingCoapRequest);
 			LOGGER.debug("Outgoing http request: {}", httpRequest.getRequestLine());
 		} catch (InvalidFieldException e) {
-			LOGGER.debug("Problems during the http/coap translation: {}", e.getMessage());
-			exchange.sendResponse(new Response(CoapTranslator.STATUS_FIELD_MALFORMED));
-			return;
+			LOGGER.warn("Problems during the http/coap translation: {}", e.getMessage());
+			future.complete(new Response(CoapTranslator.STATUS_FIELD_MALFORMED));
+			return future;
 		} catch (TranslationException e) {
-			LOGGER.debug("Problems during the http/coap translation: {}", e.getMessage());
-			exchange.sendResponse(new Response(CoapTranslator.STATUS_TRANSLATION_ERROR));
-			return;
+			LOGGER.warn("Problems during the http/coap translation: {}", e.getMessage());
+			future.complete(new Response(CoapTranslator.STATUS_TRANSLATION_ERROR));
+			return future;
 		}
 
 		asyncClient.execute(httpHost, httpRequest, new BasicHttpContext(), new FutureCallback<HttpResponse>() {
@@ -129,53 +128,29 @@ public class ProxyHttpClientResource extends ForwardingResource {
 					Response coapResponse = new HttpTranslator().getCoapResponse(result, incomingCoapRequest);
 					coapResponse.setNanoTimestamp(timestamp);
 
-					exchange.sendResponse(coapResponse);
+					future.complete(coapResponse);
 				} catch (InvalidFieldException e) {
-					LOGGER.debug("Problems during the http/coap translation: {}", e.getMessage());
-					exchange.sendResponse(new Response(CoapTranslator.STATUS_FIELD_MALFORMED));
+					LOGGER.warn("Problems during the http/coap translation: {}", e.getMessage());
+					future.complete(new Response(CoapTranslator.STATUS_FIELD_MALFORMED));
 				} catch (TranslationException e) {
-					LOGGER.debug("Problems during the http/coap translation: {}", e.getMessage());
-					exchange.sendResponse(new Response(CoapTranslator.STATUS_TRANSLATION_ERROR));
+					LOGGER.warn("Problems during the http/coap translation: {}", e.getMessage());
+					future.complete(new Response(CoapTranslator.STATUS_TRANSLATION_ERROR));
 				}
 			}
 
 			@Override
 			public void failed(Exception ex) {
-				LOGGER.debug("Failed to get the http response: {}", ex.getMessage());
-				exchange.sendResponse(new Response(ResponseCode.INTERNAL_SERVER_ERROR));
+				LOGGER.warn("Failed to get the http response: {}", ex.getMessage());
+				future.complete(new Response(ResponseCode.INTERNAL_SERVER_ERROR));
 			}
 
 			@Override
 			public void cancelled() {
-				LOGGER.debug("Request canceled");
-				exchange.sendResponse(new Response(ResponseCode.SERVICE_UNAVAILABLE));
+				LOGGER.warn("Request canceled");
+				future.complete(new Response(ResponseCode.SERVICE_UNAVAILABLE));
 			}
 		});
 
-	}
-
-	@Deprecated
-	@Override
-	public CompletableFuture<Response> forwardRequest(final Request incomingRequest) {
-		final CompletableFuture<Response> future = new CompletableFuture<>();
-		Exchange exchange = new Exchange(incomingRequest, Origin.REMOTE, null) {
-
-			@Override
-			public void sendAccept() {
-				// has no meaning for HTTP: do nothing
-			}
-
-			@Override
-			public void sendReject() {
-				future.complete(new Response(ResponseCode.SERVICE_UNAVAILABLE));
-			}
-
-			@Override
-			public void sendResponse(Response response) {
-				future.complete(response);
-			}
-		};
-		handleRequest(exchange);
 		return future;
 	}
 }
