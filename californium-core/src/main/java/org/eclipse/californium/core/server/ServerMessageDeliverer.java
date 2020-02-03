@@ -89,8 +89,7 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 		}
 		boolean processed = preDeliverRequest(exchange);
 		if (!processed) {
-			Request request = exchange.getRequest();
-			final Resource resource = findResource(request);
+			final Resource resource = findResource(exchange);
 			if (resource != null) {
 				checkForObserveOption(exchange, resource);
 
@@ -108,6 +107,7 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 				}
 			} else {
 				if (LOGGER.isInfoEnabled()) {
+					Request request = exchange.getRequest();
 					LOGGER.info("did not find resource /{} requested by {}", request.getOptions().getUriPathString(),
 							request.getSourceContext().getPeerAddress());
 				}
@@ -188,11 +188,13 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 	 * may accept requests to subresources, e.g., to allow addresses with
 	 * wildcards like <code>coap://example.com:5683/devices/*</code>
 	 * 
-	 * @param request request including the path of resource names
+	 * @param exchange The exchange containing the inbound request including the
+	 *            path of resource names
 	 * @return the resource or {@code null}, if not found
+	 * @since 2.1
 	 */
-	protected Resource findResource(Request request) {
-		return findResource(request.getOptions().getUriPath());
+	protected Resource findResource(Exchange exchange) {
+		return findResource(exchange.getRequest().getOptions().getUriPath());
 	}
 
 	/**
