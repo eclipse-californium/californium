@@ -831,27 +831,14 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors {
 
 	@Override
 	public URI getUri() {
-		URI uri = null;
 		try {
-			InetSocketAddress socketAddress = getAddress();
-			String host = socketAddress.getAddress().getHostAddress();
-			try {
-				uri = new URI(scheme, null, host, socketAddress.getPort(), null, null, null);
-			} catch (URISyntaxException e) {
-				try {
-					// workaround for openjdk bug JDK-8199396.
-					// some characters are not supported for the ipv6 scope.
-					host = host.replaceAll("[-._~]", "");
-					uri = new URI(scheme, null, host, socketAddress.getPort(), null, null, null);
-				} catch (URISyntaxException e2) {
-					// warn with the original violation
-					LOGGER.warn("{}URI", tag, e);
-				}
-			}
-		} catch (IllegalArgumentException e) {
+			InetSocketAddress address = getAddress();
+			String hostname = StringUtil.getUriHostname(address.getAddress());
+			return new URI(scheme, null, hostname, address.getPort(), null, null, null);
+		} catch (URISyntaxException e) {
 			LOGGER.warn("{}URI", tag, e);
 		}
-		return uri;
+		return null;
 	}
 
 	@Override

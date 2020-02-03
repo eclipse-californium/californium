@@ -22,6 +22,8 @@ import java.lang.reflect.Method;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.regex.Pattern;
 
 /**
@@ -322,6 +324,38 @@ public class StringUtil {
 		} else {
 			return HOSTNAME_PATTERN.matcher(name).matches();
 		}
+	}
+
+	/**
+	 * Get URI hostname from address.
+	 * 
+	 * Apply workaround for JDK-8199396.
+	 * 
+	 * @param address address
+	 * @return uri hostname
+	 * @throws NullPointerException if address is {@code null}.
+	 * @throws URISyntaxException if address could not be converted into
+	 *             URI hostname.
+	 */
+	public static String getUriHostname(InetAddress address) throws URISyntaxException {
+		if (address == null) {
+			throw new NullPointerException("address must not be null!");
+		}
+		String host = address.getHostAddress();
+		try {
+			new URI(null, null, host, -1, null, null, null);
+		} catch (URISyntaxException e) {
+			try {
+				// work-around for openjdk bug JDK-8199396.
+				// some characters are not supported for the ipv6 scope.
+				host = host.replaceAll("[-._~]", "");
+				new URI(null, null, host, -1, null, null, null);
+			} catch (URISyntaxException e2) {
+				// throw first exception before work-around
+				throw e;
+			}
+		}
+		return host;
 	}
 
 	/**
