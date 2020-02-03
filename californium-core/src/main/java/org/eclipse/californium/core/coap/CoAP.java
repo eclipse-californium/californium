@@ -31,6 +31,8 @@ import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.eclipse.californium.elements.util.StandardCharsets;
 
@@ -96,6 +98,9 @@ public final class CoAP {
 	 * See <a href="https://tools.ietf.org/html/rfc7346#section-2">RFC7346, IPv6 Multicast Address Scopes</a> 
 	 */
 	public static final InetAddress MULTICAST_IPV6_SITELOCAL = new InetSocketAddress("[FF05::FD]", 0).getAddress();
+
+	private static final Map<String, Code> codeMap = new HashMap<>();
+	private static final Map<String, ResponseCode> responseCodeMap = new HashMap<>();
 
 	private CoAP() {
 		// prevent instantiation
@@ -420,6 +425,11 @@ public final class CoAP {
 
 		/** The code value. */
 		public final int value;
+		/** 
+		 * The code value in textual format. "0.dd"
+		 * @since 2.1
+		 */
+		public final String text;
 
 		/**
 		 * Instantiates a new code with the specified code value.
@@ -428,6 +438,8 @@ public final class CoAP {
 		 */
 		private Code(final int value) {
 			this.value = value;
+			this.text = formatCode(getCodeClass(value), getCodeDetail(value));
+			codeMap.put(text, this);
 		}
 
 		/**
@@ -438,12 +450,12 @@ public final class CoAP {
 		 * @throws MessageFormatException if the integer value does not represent a valid request code.
 		 */
 		public static Code valueOf(final int value) {
-			int classCode = getCodeClass(value);
-			int detailCode = getCodeDetail(value);
-			if (classCode > 0) {
-				throw new MessageFormatException(String.format("Not a CoAP request code: %s", formatCode(classCode, detailCode)));
+			int codeClass = getCodeClass(value);
+			int codeDetail = getCodeDetail(value);
+			if (codeClass > 0) {
+				throw new MessageFormatException(String.format("Not a CoAP request code: %s", formatCode(codeClass, codeDetail)));
 			}
-			switch (detailCode) {
+			switch (codeDetail) {
 				case 1: return GET;
 				case 2: return POST;
 				case 3: return PUT;
@@ -452,9 +464,22 @@ public final class CoAP {
 				case 6: return PATCH;
 				case 7: return IPATCH;
 				case 30: return CUSTOM_30;
-				default: throw new MessageFormatException(String.format("Unknown CoAP request code: %s", formatCode(classCode, detailCode)));
+				default: throw new MessageFormatException(String.format("Unknown CoAP request code: %s", formatCode(codeClass, codeDetail)));
 			}
 		}
+
+		/**
+		 * Converts the specified textual value to a request code.
+		 *
+		 * @param value textual value of format "0.dd".
+		 * @return the request code. {@code null}, if textual value doesn't
+		 *         match a request code.
+		 * @since 2.1
+		 */
+		public static Code valueOfText(String value) {
+			return codeMap.get(value);
+		}
+
 	}
 
 	/**
@@ -499,6 +524,11 @@ public final class CoAP {
 		public final int value;
 		public final int codeClass;
 		public final int codeDetail;
+		/** 
+		 * The code value in textual format. "c.dd"
+		 * @since 2.1
+		 */
+		public final String text;
 
 		/**
 		 * Instantiates a new response code with the specified integer value.
@@ -509,6 +539,8 @@ public final class CoAP {
 			this.codeClass = codeClass.value;
 			this.codeDetail = codeDetail;
 			this.value = codeClass.value << 5 | codeDetail;
+			this.text = formatCode(codeClass.value, codeDetail);
+			responseCodeMap.put(text, this);
 		}
 
 		/**
@@ -531,6 +563,18 @@ public final class CoAP {
 			default:
 				throw new MessageFormatException(String.format("Not a CoAP response code: %s", formatCode(codeClass, codeDetail)));
 			}
+		}
+
+		/**
+		 * Converts the specified textual value to a response code.
+		 *
+		 * @param value textual value of format "c.dd".
+		 * @return the response code. {@code null}, if textual value doesn't
+		 *         match a response code.
+		 * @since 2.1
+		 */
+		public static ResponseCode valueOfText(String value) {
+			return responseCodeMap.get(value);
 		}
 
 		private static ResponseCode valueOfSuccessCode(final int codeDetail) {
@@ -582,7 +626,7 @@ public final class CoAP {
 
 		@Override
 		public String toString() {
-			return formatCode(codeClass, codeDetail);
+			return text;
 		}
 
 		/**
