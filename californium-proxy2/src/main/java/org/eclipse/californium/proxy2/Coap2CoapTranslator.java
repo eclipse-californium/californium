@@ -28,8 +28,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Static class that provides the translations between the messages from the
- * internal CoAP nodes and external ones.
+ * Provides the translations between the messages from the internal CoAP nodes
+ * and external ones.
  */
 public class Coap2CoapTranslator extends CoapUriTranslator {
 
@@ -38,8 +38,8 @@ public class Coap2CoapTranslator extends CoapUriTranslator {
 
 	/**
 	 * Starting from an external CoAP request, the method fills a new request
-	 * for the internal CaAP nodes. Translates the proxy-uri option in the uri
-	 * of the new request and simply copies the options and the payload from the
+	 * for the internal CoAP nodes. Prepares the new request using the provided
+	 * destination URI and simply copies the options and the payload from the
 	 * original request to the new one.
 	 * 
 	 * @param destination destination for outgoing request
@@ -71,14 +71,10 @@ public class Coap2CoapTranslator extends CoapUriTranslator {
 		outgoingRequest.setPayload(payload);
 
 		// copy every option from the original message
-		// do not copy the proxy-uri option because it is not necessary in
-		// the new message
-		// do not copy the token option because it is a local option and
-		// have to be assigned by the proper layer
-		// do not copy the block* option because it is a local option and
-		// have to be assigned by the proper layer
-		// do not copy the uri-* options because they are already filled in
-		// the new message
+		// do not copy the proxy-uri option because it is not necessary in the new message
+		// do not copy the token option because it is a local option and have to be assigned by the proper layer
+		// do not copy the block* option because it is a local option and have to be assigned by the proper layer
+		// do not copy the uri-* options because they are already filled in the new message
 		OptionSet options = new OptionSet(incomingRequest.getOptions());
 		options.removeProxyScheme();
 		options.removeProxyUri();

@@ -30,18 +30,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Static class that provides the translations between the messages from the
- * internal CoAP nodes and external ones.
+ * Basic destination translations for CoAP requests.
  */
 public class CoapUriTranslator {
 
 	/** The Constant LOG. */
 	private static final Logger LOGGER = LoggerFactory.getLogger(CoapUriTranslator.class);
-
-	/**
-	 * Property file containing the mappings between coap messages and http
-	 * messages.
-	 */
 
 	// Error constants
 	public static final ResponseCode STATUS_FIELD_MALFORMED = ResponseCode.BAD_OPTION;
