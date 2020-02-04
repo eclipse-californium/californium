@@ -23,7 +23,6 @@ import java.lang.management.OperatingSystemMXBean;
 import java.lang.management.RuntimeMXBean;
 import java.lang.management.ThreadMXBean;
 import java.net.InetSocketAddress;
-import java.net.URI;
 import java.util.Date;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -33,7 +32,6 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
-import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
@@ -41,12 +39,13 @@ import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.examples.translator.ReverseProxyCoap2CoapTranslator;
+import org.eclipse.californium.examples.translator.ReverseProxyCoap2HttpTranslator;
 import org.eclipse.californium.proxy2.Coap2CoapTranslator;
 import org.eclipse.californium.proxy2.Coap2HttpTranslator;
 import org.eclipse.californium.proxy2.EndpointPool;
 import org.eclipse.californium.proxy2.Http2CoapTranslator;
 import org.eclipse.californium.proxy2.ProxyHttpServer;
-import org.eclipse.californium.proxy2.TranslationException;
 import org.eclipse.californium.proxy2.resources.ProxyCoapClientResource;
 import org.eclipse.californium.proxy2.resources.ProxyCoapResource;
 import org.eclipse.californium.proxy2.resources.ProxyHttpClientResource;
@@ -186,18 +185,13 @@ public class CrossExampleProxy2 {
 			if (port != null) {
 				new ExampleCoapServer(config, port);
 
-				// reverse proxy: add a proxy resource with a translator returning a fixed destination URI
-				final URI uri = URI.create("coap://localhost:" + port + "/coap-target");
+				// reverse proxy: add a proxy resource with a translator
+				// returning a fixed destination URI
+				// don't add this to the ProxyMessageDeliverer
 				proxy.coapProxyServer.getRoot().getChild("targets")
-						.add(new ProxyCoapClientResource("destination1", true, true, new Coap2CoapTranslator() {
-
-							@Override
-							public URI getDestinationURI(Request incomingRequest, InetSocketAddress exposed)
-									throws TranslationException {
-								return uri;
-							}
-						}, proxy.pool));
-
+						.add(new ProxyCoapClientResource("destination1", true, true,
+								new ReverseProxyCoap2CoapTranslator("coap://localhost:" + port + "/coap-target"),
+								proxy.pool));
 				System.out.println("CoAP Proxy at: coap://localhost:" + proxy.coapPort
 						+ "/coap2coap and demo-server at coap://localhost:" + port + ExampleCoapServer.RESOURCE);
 				System.out.println("HTTP Proxy at: http://localhost:" + proxy.httpPort + "/proxy/coap://localhost:"
@@ -206,18 +200,12 @@ public class CrossExampleProxy2 {
 				port = parse(args[index], "http", ExampleHttpServer.DEFAULT_PORT, null, null);
 				if (port != null) {
 					new ExampleHttpServer(config, port);
-					// reverse proxy: add a proxy resource with a translator returning a fixed destination URI
-					final URI uri = URI.create("http://localhost:" + port + "/http-target");
+					// reverse proxy: add a proxy resource with a translator
+					// returning a fixed destination URI
+					// don't add this to the ProxyMessageDeliverer
 					proxy.coapProxyServer.getRoot().getChild("targets")
-							.add(new ProxyHttpClientResource("destination2", true, true, new Coap2HttpTranslator() {
-
-								@Override
-								public URI getDestinationURI(Request incomingRequest, InetSocketAddress exposed)
-										throws TranslationException {
-									return uri;
-								}
-							}));
-
+							.add(new ProxyHttpClientResource("destination2", true, true,
+									new ReverseProxyCoap2HttpTranslator("http://localhost:" + port + "/http-target")));
 					System.out.println("CoAP Proxy at: coap://localhost:" + proxy.coapPort
 							+ "/coap2http and demo server at http://localhost:" + port + ExampleHttpServer.RESOURCE);
 				}
