@@ -210,6 +210,8 @@ public class CoapObserveRelation {
 	 * GET with Observe=1.
 	 */
 	public void proactiveCancel() {
+		// stop reregistration
+		setCanceled(true);
 		sendCancelObserve();
 		// cancel observe relation
 		cancel();
