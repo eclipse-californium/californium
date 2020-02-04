@@ -35,8 +35,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Resource that forwards a coap request with the proxy-uri option set to the
- * desired coap server.
+ * Resource that forwards a coap request with the proxy-uri, proxy-scheme,
+ * URI-host, or URI-port option set to the desired coap server.
  */
 public class ProxyCoapClientResource extends ProxyCoapResource {
 
@@ -150,5 +150,5 @@ public class ProxyCoapClientResource extends ProxyCoapResource {
 		private void fail(ResponseCode response) {
 			incomingExchange.sendResponse(new Response(response));
 		}
-	}	
+	}
 }

@@ -106,10 +106,8 @@ public class Coap2HttpTranslator extends CoapUriTranslator {
 	 * 
 	 * @param httpResponse the http response
 	 * @param coapRequest
-	 * 
-	 * 
-	 * @return the coap response * @throws TranslationException the translation
-	 *         exception
+	 * @return the coap response
+	 * @throws TranslationException the translation exception
 	 */
 	public Response getCoapResponse(HttpResponse httpResponse, Request coapRequest) throws TranslationException {
 		if (httpResponse == null) {

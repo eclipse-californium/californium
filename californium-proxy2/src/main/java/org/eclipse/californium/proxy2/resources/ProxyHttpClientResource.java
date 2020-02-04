@@ -41,6 +41,10 @@ import org.eclipse.californium.proxy2.TranslationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Resource that forwards a coap request with the proxy-uri, proxy-scheme,
+ * URI-host, or URI-port option set to the desired http server.
+ */
 public class ProxyHttpClientResource extends ProxyCoapResource {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(ProxyHttpClientResource.class);

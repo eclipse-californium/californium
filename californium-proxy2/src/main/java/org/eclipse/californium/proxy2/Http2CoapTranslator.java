@@ -65,16 +65,18 @@ public class Http2CoapTranslator {
 
 	/**
 	 * Gets the coap request. Creates the CoAP request from the HTTP method and
-	 * mapping it through the properties file. The uri is translated using
-	 * regular expressions, the uri format expected is either the embedded
-	 * mapping (http://proxyname.domain:80/proxy/coap://coapserver:5683/resource
-	 * converted in coap://coapserver:5683/resource) or the standard uri to
-	 * indicate a local request not to be forwarded. The method uses a decoder
-	 * to translate the application/x-www-form-urlencoded format of the uri. The
-	 * CoAP options are set translating the headers. If the HTTP message has an
-	 * enclosing entity, it is converted to create the payload of the CoAP
-	 * message; finally the content-type is set accordingly to the header and to
-	 * the entity type.
+	 * mapping it through the properties file. The URI is translated by
+	 * extracting the part after the provided httpResource.
+	 * (http://proxyname.domain:80/proxy/coap://coapserver:5683/resource
+	 * converted in coap://coapserver:5683/resource.) It support proxy requests
+	 * or request mapped to a local coap-server. It also support http-request
+	 * send to this proxy using the http-proxy function itself. Though the
+	 * primary scheme maybe tested to be http/https, the destination scheme must
+	 * The method uses a decoder to translate the
+	 * application/x-www-form-urlencoded format of the uri. The CoAP options are
+	 * set translating the headers. If the HTTP message has an enclosing entity,
+	 * it is converted to create the payload of the CoAP message; finally the
+	 * content-type is set accordingly to the header and to the entity type.
 	 * 
 	 * @param httpRequest the http request
 	 * @param httpResource the http resource, if present in the uri, indicates
@@ -255,7 +257,7 @@ public class Http2CoapTranslator {
 	}
 
 	/**
-	 * Sets the parameters of the incoming http response from a CoAP response.
+	 * Sets the parameters of the outgoing http response from a CoAP response.
 	 * The status code is mapped through the properties file and is set through
 	 * the StatusLine. The options are translated to the corresponding headers
 	 * and the max-age (in the header cache-control) is set to the default value
