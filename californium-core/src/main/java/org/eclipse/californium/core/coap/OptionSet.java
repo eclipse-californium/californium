@@ -78,10 +78,17 @@ public final class OptionSet {
 	private Integer      size1;
 	private Integer      size2;
 	private Integer      observe;
-	private byte[]		 oscore;
+	private byte[]       oscore;
 
 	// Arbitrary options
 	private List<Option> others;
+
+	/**
+	 * {@code true} if URI-path or URI-query are set independent from
+	 * {@link Request#setURI}. Preserve them from being cleand up, if the URI
+	 * doesn't contain them.
+	 */
+	private boolean      explicitUriOptions;
 
 	// TODO: When receiving, uri_host/port should be those from the sender 
 	/**
@@ -454,7 +461,7 @@ public final class OptionSet {
 	public OptionSet setUriPort(int port) {
 		if (port < 0 || (1<<16)-1 < port)
 			throw new IllegalArgumentException("URI port option must be between 0 and "+((1<<16)-1)+" (2 bytes) inclusive but was "+port);
-		uri_port = port;
+		this.uri_port = port;
 		return this;
 	}
 
@@ -644,6 +651,7 @@ public final class OptionSet {
 	public OptionSet addUriPath(String segment) {
 		checkOptionValue(segment, 0, 255, "Uri-Path");
 		getUriPath().add(segment);
+		this.explicitUriOptions = true;
 		return this;
 	}
 
@@ -819,6 +827,7 @@ public final class OptionSet {
 	public OptionSet addUriQuery(String argument) {
 		checkOptionValue(argument, 0, 255, "Uri-Query");
 		getUriQuery().add(argument);
+		this.explicitUriOptions = true;
 		return this;
 	}
 
@@ -1455,6 +1464,14 @@ public final class OptionSet {
 
 		Collections.sort(options);
 		return options;
+	}
+
+	boolean hasExplicitUriOptions() {
+		return explicitUriOptions;
+	}
+
+	void resetExplicitUriOptions() {
+		explicitUriOptions = false;
 	}
 
 	/**

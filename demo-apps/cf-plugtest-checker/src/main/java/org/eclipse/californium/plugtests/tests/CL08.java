@@ -39,10 +39,8 @@ public class CL08 extends TestClientAbstract {
 
 		// create the request
 		Request request = new Request(Code.GET, Type.CON);
-		// set query
-		request.getOptions().addUriQuery(EXPECTED_HREF);
 		// set the parameters and execute the request
-		executeRequest(request, serverURI, RESOURCE_URI);
+		executeRequest(request, serverURI, RESOURCE_URI + "?" + EXPECTED_HREF);
 	}
 
 	protected boolean checkResponse(Request request, Response response) {
