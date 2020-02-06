@@ -15,6 +15,8 @@
  ******************************************************************************/
 package org.eclipse.californium.proxy2;
 
+import java.util.concurrent.atomic.AtomicReference;
+
 import org.apache.http.HttpResponse;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.protocol.RequestAcceptEncoding;
@@ -27,7 +29,8 @@ import org.apache.http.impl.nio.reactor.DefaultConnectingIOReactor;
 import org.apache.http.nio.reactor.ConnectingIOReactor;
 import org.apache.http.nio.reactor.IOReactorException;
 import org.apache.http.protocol.*;
-
+import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,27 +38,43 @@ import org.slf4j.LoggerFactory;
  * Provide http clients using pooled connection management.
  */
 public class HttpClientFactory {
+
 	private static final int KEEP_ALIVE = 5000;
 	private static final Logger LOGGER = LoggerFactory.getLogger(HttpClientFactory.class);
+	private static AtomicReference<NetworkConfig> config = new AtomicReference<NetworkConfig>();
 
 	private HttpClientFactory() {
 	}
 
+	public static NetworkConfig setNetworkConfig(NetworkConfig config) {
+		return HttpClientFactory.config.getAndSet(config);
+	}
+
+	public static NetworkConfig getNetworkConfig() {
+		NetworkConfig config = HttpClientFactory.config.get();
+		if (config == null) {
+			HttpClientFactory.config.compareAndSet(null, NetworkConfig.getStandard());
+			config = HttpClientFactory.config.get();
+		}
+		return config;
+	}
+
 	public static CloseableHttpAsyncClient createClient() {
+		return createClient(getNetworkConfig());
+	}
+
+	public static CloseableHttpAsyncClient createClient(NetworkConfig config) {
 		try {
-			final CloseableHttpAsyncClient client = HttpAsyncClientBuilder.create()
-					.disableCookieManagement()
-					.setDefaultRequestConfig(createCustomRequestConfig())
-					.setConnectionManager(createPoolingConnManager())
-					.addInterceptorFirst(new RequestAcceptEncoding())
+			final CloseableHttpAsyncClient client = HttpAsyncClientBuilder.create().disableCookieManagement()
+					.setDefaultRequestConfig(createCustomRequestConfig(config))
+					.setConnectionManager(createPoolingConnManager()).addInterceptorFirst(new RequestAcceptEncoding())
 					.addInterceptorFirst(new RequestConnControl())
 					// .addInterceptorFirst(new RequestContent())
-					.addInterceptorFirst(new RequestDate())
-					.addInterceptorFirst(new RequestExpectContinue(true))
-					.addInterceptorFirst(new RequestTargetHost())
-					.addInterceptorFirst(new RequestUserAgent())
+					.addInterceptorFirst(new RequestDate()).addInterceptorFirst(new RequestExpectContinue(true))
+					.addInterceptorFirst(new RequestTargetHost()).addInterceptorFirst(new RequestUserAgent())
 					.addInterceptorFirst(new ResponseContentEncoding())
 					.setKeepAliveStrategy(new DefaultConnectionKeepAliveStrategy() {
+
 						@Override
 						public long getKeepAliveDuration(HttpResponse response, HttpContext context) {
 							long keepAlive = super.getKeepAliveDuration(response, context);
@@ -67,8 +86,7 @@ public class HttpClientFactory {
 							return keepAlive;
 						}
 
-					})
-					.build();
+					}).build();
 			client.start();
 			return client;
 		} catch (IOReactorException e) {
@@ -77,18 +95,18 @@ public class HttpClientFactory {
 		}
 	}
 
-	private static RequestConfig createCustomRequestConfig() {
-		return RequestConfig.custom()
-				.setConnectionRequestTimeout(5000)
-				.setConnectTimeout(1000)
-				.setSocketTimeout(500).build();
+	private static RequestConfig createCustomRequestConfig(NetworkConfig config) {
+		int connecTimeoutMillis = config.getInt(Keys.TCP_CONNECT_TIMEOUT);
+		int socketTimeoutSecs = config.getInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT);
+		return RequestConfig.custom().setConnectionRequestTimeout(connecTimeoutMillis * 4)
+				.setConnectTimeout(connecTimeoutMillis).setSocketTimeout(socketTimeoutSecs * 1000).build();
 	}
 
 	private static PoolingNHttpClientConnectionManager createPoolingConnManager() throws IOReactorException {
 		ConnectingIOReactor ioReactor = new DefaultConnectingIOReactor();
 
 		PoolingNHttpClientConnectionManager cm = new PoolingNHttpClientConnectionManager(ioReactor);
-		cm.setMaxTotal(50);
+		cm.setMaxTotal(250);
 		cm.setDefaultMaxPerRoute(50);
 
 		return cm;

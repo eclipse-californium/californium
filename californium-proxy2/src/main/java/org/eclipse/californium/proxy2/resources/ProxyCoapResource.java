@@ -16,10 +16,18 @@
 
 package org.eclipse.californium.proxy2.resources;
 
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Set;
 
 import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.proxy2.Coap2CoapTranslator;
+import org.eclipse.californium.proxy2.Coap2HttpTranslator;
+import org.eclipse.californium.proxy2.EndpointPool;
+import org.eclipse.californium.proxy2.TranslationException;
 
 /**
  * Resource that forwards a coap request.
@@ -35,12 +43,12 @@ public abstract class ProxyCoapResource extends CoapResource {
 	 * Create proxy resource.
 	 * 
 	 * @param name name of the resource
-	 * @param visable visibility of the resource
+	 * @param visible visibility of the resource
 	 * @param accept accept CON request befor forwarding the request
 	 */
-	public ProxyCoapResource(String name, boolean visable, boolean accept) {
+	public ProxyCoapResource(String name, boolean visible, boolean accept) {
 		// set the resource hidden
-		super(name, visable);
+		super(name, visible);
 		this.accept = accept;
 	}
 
@@ -53,4 +61,63 @@ public abstract class ProxyCoapResource extends CoapResource {
 
 	@Override
 	public abstract void handleRequest(final Exchange exchange);
+
+	/**
+	 * Create reverse proxy for fixed destination.
+	 * 
+	 * @param name name of the resource
+	 * @param visible visibility of the resource
+	 * @param accept accept CON request befor forwarding the request
+	 * @param copyQuery {@code true} copy query parameter to destination,
+	 *            {@code false}, otherwise.
+	 * @param destination fixed destination
+	 * @param pools endpoint pools for coap2coap
+	 * @return coap resource, or {@code null}, if destination scheme is not
+	 *         supported.
+	 */
+	public static CoapResource createReverseProxy(String name, boolean visible, boolean accept, final boolean copyQuery,
+			final URI destination, EndpointPool... pools) {
+		String scheme = destination.getScheme();
+		for (EndpointPool pool : pools) {
+			if (pool.getScheme().equals(scheme)) {
+				Coap2CoapTranslator translator = new Coap2CoapTranslator() {
+
+					@Override
+					public URI getDestinationURI(Request incomingRequest, InetSocketAddress exposed)
+							throws TranslationException {
+						if (copyQuery && incomingRequest.getOptions().getURIQueryCount() > 0) {
+							String query = incomingRequest.getOptions().getUriQueryString();
+							try {
+								return new URI(destination.getScheme(), null, destination.getHost(),
+										destination.getPort(), destination.getPath(), query, null);
+							} catch (URISyntaxException e) {
+							}
+						}
+						return destination;
+					}
+				};
+				return new ProxyCoapClientResource(name, visible, accept, translator, pool);
+			}
+		}
+		if (scheme.equals("http") || scheme.equals("https")) {
+			Coap2HttpTranslator translator = new Coap2HttpTranslator() {
+
+				@Override
+				public URI getDestinationURI(Request incomingRequest, InetSocketAddress exposed)
+						throws TranslationException {
+					if (copyQuery && incomingRequest.getOptions().getURIQueryCount() > 0) {
+						String query = incomingRequest.getOptions().getUriQueryString();
+						try {
+							return new URI(destination.getScheme(), null, destination.getHost(), destination.getPort(),
+									destination.getPath(), query, null);
+						} catch (URISyntaxException e) {
+						}
+					}
+					return destination;
+				}
+			};
+			return new ProxyHttpClientResource(name, visible, accept, translator, scheme);
+		}
+		return null;
+	}
 }
