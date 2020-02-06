@@ -408,6 +408,15 @@ public class Request extends Message {
 	 * strict proxy/CoAP URI exclusion for backwards compatibility, set the
 	 * options directly in the optons-set using {@link #getOptions()}.
 	 * </p>
+	 * Note: if uri-path of uri-query option was set explicitly before, they are
+	 * not cleaned up, if the URI doesn't contain that part. e.g.
+	 * {@code request.getOptions().setUriQuery("param=2")} and
+	 * {@code request.setURI("coap://host/path")} results in
+	 * {@code "coap://host/path?param=2"}. But
+	 * {@code request.getOptions().setUriQuery("param=2")} and
+	 * {@code request.setURI("coap://host/path?mark")} results in
+	 * {@code "coap://host/path?mark"}. That will be removed in the next major
+	 * version! Don't set uri-path or uri-query options before the URI!
 	 * 
 	 * Provides a fluent API to chain setters.
 	 * 
@@ -450,6 +459,15 @@ public class Request extends Message {
 	 * strict proxy/CoAP URI exclusion for backwards compatibility, set the
 	 * options directly in the optons-set using {@link #getOptions()}.
 	 * </p>
+	 * Note: if uri-path of uri-query option was set explicitly before, they are
+	 * not cleaned up, if the URI doesn't contain that part. e.g.
+	 * {@code request.getOptions().setUriQuery("param=2")} and
+	 * {@code request.setURI("coap://host/path")} results in
+	 * {@code "coap://host/path?param=2"}. But
+	 * {@code request.getOptions().setUriQuery("param=2")} and
+	 * {@code request.setURI("coap://host/path?mark")} results in
+	 * {@code "coap://host/path?mark"}. That will be removed in the next major
+	 * version! Don't set uri-path or uri-query options before the URI!
 	 * 
 	 * Provides a fluent API to chain setters.
 	 * 
@@ -504,6 +522,15 @@ public class Request extends Message {
 	 * strict proxy/CoAP URI exclusion for backwards compatibility, set the
 	 * options directly in the optons-set using {@link #getOptions()}.
 	 * </p>
+	 * Note: if uri-path of uri-query option was set explicitly before, they are
+	 * not cleaned up, if the URI doesn't contain that part. e.g.
+	 * {@code request.getOptions().setUriQuery("param=2")} and
+	 * {@code request.setURI("coap://host/path")} results in
+	 * {@code "coap://host/path?param=2"}. But
+	 * {@code request.getOptions().setUriQuery("param=2")} and
+	 * {@code request.setURI("coap://host/path?mark")} results in
+	 * {@code "coap://host/path?mark"}. That will be removed in the next major
+	 * version! Don't set uri-path or uri-query options before the URI!
 	 * 
 	 * Provides a fluent API to chain setters.
 	 * 
@@ -579,6 +606,7 @@ public class Request extends Message {
 			throw new NullPointerException("destination address must not be null!");
 		}
 		OptionSet options = getOptions();
+		boolean explicitUriOption = options.hasExplicitUriOptions();
 		String host = uri.getHost();
 
 		if (host != null) {
@@ -628,15 +656,18 @@ public class Request extends Message {
 		String path = uri.getPath();
 		if (path != null && path.length() > 1) {
 			options.setUriPath(path);
-		} else {
+		} else if (!explicitUriOption) {
 			options.clearUriPath();
 		}
 		// set Uri-Query options
 		String query = uri.getQuery();
 		if (query != null) {
 			options.setUriQuery(query);
-		} else {
+		} else if (!explicitUriOption) {
 			options.clearUriQuery();
+		}
+		if (!explicitUriOption) {
+			options.resetExplicitUriOptions();
 		}
 	}
 

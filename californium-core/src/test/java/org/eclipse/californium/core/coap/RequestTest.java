@@ -241,6 +241,26 @@ public class RequestTest {
 		assertThat(req.getDestinationContext().getPeerAddress().getPort(), is(CoAP.DEFAULT_COAP_SECURE_PORT));
 	}
 
+	@Test
+	public void testSetURITwice() throws UnknownHostException {
+
+		Request req = Request.newGet();
+
+		req.setURI("coap://192.168.0.1/test?param");
+		assertThat(req.getOptions().getUriPathString(), is("test"));
+		assertThat(req.getOptions().getUriQueryString(), is("param"));
+
+		req.setURI("coap://192.168.0.1/test2");
+		assertThat(req.getOptions().getUriPathString(), is("test2"));
+		assertThat(req.getOptions().getURIQueryCount(), is(0));
+
+		// only for 2.x.y, in 3.x.y the uri-query option must be set after the URI  
+		req.getOptions().addUriQuery("param2");
+		req.setURI("coap://192.168.0.1/test2");
+		assertThat(req.getOptions().getUriPathString(), is("test2"));
+		assertThat(req.getOptions().getUriQueryString(), is("param2"));
+	}
+
 	@Test(expected = IllegalStateException.class)
 	public void testSetOptionsFailsIfDestinationIsNotSet() {
 		Request.newGet().setOptions(URI.create("coap://iot.eclipse.org"));
