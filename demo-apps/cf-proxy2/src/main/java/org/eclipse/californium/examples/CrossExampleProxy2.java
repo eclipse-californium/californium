@@ -23,6 +23,7 @@ import java.lang.management.OperatingSystemMXBean;
 import java.lang.management.RuntimeMXBean;
 import java.lang.management.ThreadMXBean;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.util.Date;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -39,12 +40,11 @@ import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
-import org.eclipse.californium.examples.translator.ReverseProxyCoap2CoapTranslator;
-import org.eclipse.californium.examples.translator.ReverseProxyCoap2HttpTranslator;
 import org.eclipse.californium.proxy2.Coap2CoapTranslator;
 import org.eclipse.californium.proxy2.Coap2HttpTranslator;
 import org.eclipse.californium.proxy2.EndpointPool;
 import org.eclipse.californium.proxy2.Http2CoapTranslator;
+import org.eclipse.californium.proxy2.HttpClientFactory;
 import org.eclipse.californium.proxy2.ProxyHttpServer;
 import org.eclipse.californium.proxy2.resources.ProxyCoapClientResource;
 import org.eclipse.californium.proxy2.resources.ProxyCoapResource;
@@ -104,12 +104,12 @@ public class CrossExampleProxy2 {
 			config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
 			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
 			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
-			config.setInt(Keys.EXCHANGE_LIFETIME, 24700); // 24.7s instead of
-															// 247s
+			// 24.7s instead of 247s
+			config.setInt(Keys.EXCHANGE_LIFETIME, 24700);
 			config.setInt(Keys.MAX_PEER_INACTIVITY_PERIOD, 60 * 60 * 24); // 24h
-			config.setInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT, 60 * 60 * 12); // 12h
-			config.setInt(Keys.TCP_CONNECT_TIMEOUT, 30 * 1000); // 20s
-			config.setInt(Keys.TLS_HANDSHAKE_TIMEOUT, 30 * 1000); // 20s
+			config.setInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT, 10); // 10s
+			config.setInt(Keys.TCP_CONNECT_TIMEOUT, 15 * 1000); // 15s
+			config.setInt(Keys.TLS_HANDSHAKE_TIMEOUT, 30 * 1000); // 30s
 			config.setInt(Keys.UDP_CONNECTOR_RECEIVE_BUFFER, 8192);
 			config.setInt(Keys.UDP_CONNECTOR_SEND_BUFFER, 8192);
 			config.setInt(Keys.HEALTH_STATUS_INTERVAL, 60);
@@ -129,6 +129,7 @@ public class CrossExampleProxy2 {
 	private int httpPort;
 
 	public CrossExampleProxy2(NetworkConfig config) throws IOException {
+		HttpClientFactory.setNetworkConfig(config);
 		coapPort = config.getInt(Keys.COAP_PORT);
 		httpPort = config.getInt(Keys.HTTP_PORT);
 		int threads = config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT);
@@ -188,10 +189,10 @@ public class CrossExampleProxy2 {
 				// reverse proxy: add a proxy resource with a translator
 				// returning a fixed destination URI
 				// don't add this to the ProxyMessageDeliverer
-				proxy.coapProxyServer.getRoot().getChild("targets")
-						.add(new ProxyCoapClientResource("destination1", true, true,
-								new ReverseProxyCoap2CoapTranslator("coap://localhost:" + port + "/coap-target"),
-								proxy.pool));
+				URI destination = URI.create("coap://localhost:" + port + "/coap-target");
+				CoapResource reverseProxy = ProxyCoapResource.createReverseProxy("destination1", true, true, true,
+						destination, proxy.pool);
+				proxy.coapProxyServer.getRoot().getChild("targets").add(reverseProxy);
 				System.out.println("CoAP Proxy at: coap://localhost:" + proxy.coapPort
 						+ "/coap2coap and demo-server at coap://localhost:" + port + ExampleCoapServer.RESOURCE);
 				System.out.println("HTTP Proxy at: http://localhost:" + proxy.httpPort + "/proxy/coap://localhost:"
@@ -203,9 +204,10 @@ public class CrossExampleProxy2 {
 					// reverse proxy: add a proxy resource with a translator
 					// returning a fixed destination URI
 					// don't add this to the ProxyMessageDeliverer
-					proxy.coapProxyServer.getRoot().getChild("targets")
-							.add(new ProxyHttpClientResource("destination2", true, true,
-									new ReverseProxyCoap2HttpTranslator("http://localhost:" + port + "/http-target")));
+					URI destination = URI.create("http://localhost:" + port + "/http-target");
+					CoapResource reverseProxy = ProxyCoapResource.createReverseProxy("destination2", true, true, true,
+							destination, proxy.pool);
+					proxy.coapProxyServer.getRoot().getChild("targets").add(reverseProxy);
 					System.out.println("CoAP Proxy at: coap://localhost:" + proxy.coapPort
 							+ "/coap2http and demo server at http://localhost:" + port + ExampleHttpServer.RESOURCE);
 				}

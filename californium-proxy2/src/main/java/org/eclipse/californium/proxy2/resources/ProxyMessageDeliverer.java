@@ -25,7 +25,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.Exchange;
@@ -73,6 +72,7 @@ public class ProxyMessageDeliverer extends ServerMessageDeliverer {
 	 * local ports.
 	 */
 	private final Set<Integer> exposedPorts;
+
 	/**
 	 * Create message deliverer with proxy support.
 	 * 
@@ -93,8 +93,9 @@ public class ProxyMessageDeliverer extends ServerMessageDeliverer {
 	 * 
 	 * @param exposed list of exposed interface addresses to suppress recursive
 	 *            proxy request. The exposed interfaces may differ from the
-	 *            localone, if containers are used. Maybe {@code null} or empty,
-	 *            if recursion suppression is not required.
+	 *            local one, if containers are used.
+	 * @throws NullPointerException if {@code null} is provided
+	 * @throws IllegalArgumentException if list is empty
 	 */
 	public ProxyMessageDeliverer addExposedServiceAddresses(InetSocketAddress... exposed) {
 		if (exposed == null) {
@@ -131,8 +132,11 @@ public class ProxyMessageDeliverer extends ServerMessageDeliverer {
 	}
 
 	/**
+	 * Add proxy coap resources for standard forward proxies.
 	 * 
 	 * @param proxies list of proxy resources.
+	 * @throws NullPointerException if {@code null} is provided
+	 * @throws IllegalArgumentException if list is empty
 	 */
 	public ProxyMessageDeliverer addProxyCoapResources(ProxyCoapResource... proxies) {
 		if (proxies == null) {
@@ -166,54 +170,49 @@ public class ProxyMessageDeliverer extends ServerMessageDeliverer {
 		boolean proxyOption = options.hasProxyUri() || options.hasProxyScheme();
 		boolean hostOption = options.hasUriHost() || options.hasUriPort();
 
+		if (hostOption && !proxyOption && !exposedServices.isEmpty()) {
+			// check, if proxy is destination.
+			Integer port = options.getUriPort();
+			String host = options.getUriHost();
+			if (host == null) {
+				if (exposedPorts.contains(port)) {
+					// proxy is destination
+					hostOption = false;
+				}
+			} else {
+				if (port == null) {
+					try {
+						InetAddress address = InetAddress.getByName(host);
+						if (exposedHosts.contains(address)) {
+							// proxy is destination
+							hostOption = false;
+						}
+					} catch (UnknownHostException e) {
+						// destination not reachable
+						hostOption = false;
+					}
+				} else {
+					InetSocketAddress destination = new InetSocketAddress(host, port);
+					if (destination.isUnresolved() || exposedServices.contains(destination)) {
+						// destination not reachable or proxy is destination
+						hostOption = false;
+					}
+				}
+			}
+		}
 		if (proxyOption || hostOption) {
 			try {
 				String scheme = translater.getDestinationScheme(request);
 				if (scheme != null) {
 					scheme = scheme.toLowerCase();
 					resource = scheme2resource.get(scheme);
-					if (!proxyOption && CoAP.isSupportedScheme(scheme) && !exposedServices.isEmpty()) {
-						if (resource != null) {
-							// check, if proxy is destination.
-							Integer port = options.getUriPort();
-							String host = options.getUriHost();
-							if (host == null) {
-								if (exposedPorts.contains(port)) {
-									// proxy is destination
-									resource = null;
-								}
-							} else {
-								if (port == null) {
-									try {
-										InetAddress address = InetAddress.getByName(host);
-										if (exposedHosts.contains(address)) {
-											// proxy is destination
-											resource = null;
-										}
-									} catch (UnknownHostException e) {
-										// destination not reachable
-										resource = null;
-									}
-								} else {
-									InetSocketAddress destination = new InetSocketAddress(host, port);
-									if (destination.isUnresolved() || exposedServices.contains(destination)) {
-										// destination not reachable
-										// or proxy is destination
-										resource = null;
-									}
-								}
-							}
-						}
-						if (resource == null) {
-							// proxy is destionation, try to find local resource
-							resource = super.findResource(exchange);
-						}
-					}
-			}
+				}
 			} catch (TranslationException e) {
 				LOGGER.debug("Bad proxy request", e);
 			}
-		} else {
+		}
+		if (resource == null) {
+			// try to find local resource
 			resource = super.findResource(exchange);
 		}
 		if (resource != null && request.getDestinationContext() == null) {

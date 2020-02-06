@@ -17,6 +17,7 @@
 package org.eclipse.californium.proxy2.resources;
 
 import java.net.InetSocketAddress;
+import java.net.SocketTimeoutException;
 import java.net.URI;
 import java.util.Collections;
 import java.util.HashSet;
@@ -59,7 +60,8 @@ public class ProxyHttpClientResource extends ProxyCoapResource {
 	 */
 	private static final CloseableHttpAsyncClient asyncClient = HttpClientFactory.createClient();
 
-	public ProxyHttpClientResource(String name, boolean visible, boolean accept, Coap2HttpTranslator translator, String... schemes) {
+	public ProxyHttpClientResource(String name, boolean visible, boolean accept, Coap2HttpTranslator translator,
+			String... schemes) {
 		// set the resource hidden
 		super(name, visible, accept);
 		getAttributes().setTitle("Forward the requests to a HTTP client.");
@@ -142,7 +144,11 @@ public class ProxyHttpClientResource extends ProxyCoapResource {
 			@Override
 			public void failed(Exception ex) {
 				LOGGER.debug("Failed to get the http response: {}", ex.getMessage());
-				exchange.sendResponse(new Response(ResponseCode.INTERNAL_SERVER_ERROR));
+				if (ex instanceof SocketTimeoutException) {
+					exchange.sendResponse(new Response(ResponseCode.GATEWAY_TIMEOUT));
+				} else {
+					exchange.sendResponse(new Response(ResponseCode.BAD_GATEWAY));
+				}
 			}
 
 			@Override
