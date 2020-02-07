@@ -77,6 +77,22 @@ public class ClientInitializer {
 	private static SslContextUtil.Credentials clientCredentials = null;
 	private static Certificate[] trustedCertificates = null;
 
+	private static String defaultIdentity;
+	private static String defaultSecret;
+
+	/**
+	 * Set default PSK credentials
+	 * 
+	 * @param identity default identity. If {@code null}, use
+	 *                 {@link #PSK_IDENTITY_PREFIX} as default.
+	 * @param secret   default secret. If {@code null}, use {@link #PSK_SECRET} as
+	 *                 default.
+	 */
+	public static void setDefaultPskCredentials(String identity, String secret) {
+		defaultIdentity = identity;
+		defaultSecret = secret;
+	}
+
 	/**
 	 * Initialize client.
 	 * 
@@ -95,8 +111,8 @@ public class ClientInitializer {
 		boolean rpk = false;
 		boolean x509 = false;
 		boolean ecdhe = false;
-		String id = null;
-		String secret = null;
+		String id = defaultIdentity;
+		String secret = defaultSecret;
 
 		if (args[index].equals("-s")) {
 			++index;
@@ -122,7 +138,7 @@ public class ClientInitializer {
 		} else if (args[index].equals("-e")) {
 			++index;
 			ecdhe = true;
-		} 
+		}
 		if (!rpk && !x509 && args[index].equals("-i")) {
 			++index;
 			id = args[index];
@@ -149,7 +165,8 @@ public class ClientInitializer {
 		ping = ping && !uri.startsWith(CoAP.COAP_TCP_URI_SCHEME + "://")
 				&& !uri.startsWith(CoAP.COAP_SECURE_TCP_URI_SCHEME + "://");
 		String[] leftArgs = Arrays.copyOfRange(args, index + 1, args.length);
-		Arguments arguments = new Arguments(uri, id, secret, rpk, x509, ecdhe, ping, verbose, json, cbor, null, null, leftArgs);
+		Arguments arguments = new Arguments(uri, id, secret, rpk, x509, ecdhe, ping, verbose, json, cbor, null, null,
+				leftArgs);
 		CoapEndpoint coapEndpoint = createEndpoint(config, arguments, null, ephemeralPort);
 		coapEndpoint.start();
 		LOGGER.info("endpoint started at {}", coapEndpoint.getAddress());
@@ -253,8 +270,8 @@ public class ClientInitializer {
 				if (cidLength != null) {
 					dtlsConfig.setConnectionIdGenerator(new SingleNodeConnectionIdGenerator(cidLength));
 				}
-				dtlsConfig.setSocketReceiveBufferSize(recvBufferSize); 
-				dtlsConfig.setSocketSendBufferSize(sendBufferSize); 
+				dtlsConfig.setSocketReceiveBufferSize(recvBufferSize);
+				dtlsConfig.setSocketSendBufferSize(sendBufferSize);
 				dtlsConfig.setClientOnly();
 				dtlsConfig.setRetransmissionTimeout(retransmissionTimeout);
 				dtlsConfig.setMaxConnections(maxPeers);
@@ -269,8 +286,8 @@ public class ClientInitializer {
 				}
 				builder.setConnector(dtlsConnector);
 			} else if (arguments.uri.startsWith(CoAP.COAP_SECURE_TCP_URI_SCHEME + "://")) {
-				builder.setConnector(new TlsClientConnector(clientSslContext, tcpThreads, tcpConnectTimeout, tlsHandshakeTimeout,
-						tcpIdleTimeout));
+				builder.setConnector(new TlsClientConnector(clientSslContext, tcpThreads, tcpConnectTimeout,
+						tlsHandshakeTimeout, tcpIdleTimeout));
 			}
 		} else if (arguments.uri.startsWith(CoAP.COAP_TCP_URI_SCHEME + "://")) {
 			builder.setConnector(new TcpClientConnector(tcpThreads, tcpConnectTimeout, tcpIdleTimeout));
@@ -294,7 +311,7 @@ public class ClientInitializer {
 
 		public PlugPskStore(String id, byte[] secret) {
 			this.identity = id;
-			this.secret = secret == null ? null : SecretUtil.create(secret, "PSK");
+			this.secret = secret == null ? PSK_SECRET : SecretUtil.create(secret, "PSK");
 			LOGGER.trace("DTLS-PSK-Identity: {}", identity);
 		}
 
@@ -368,8 +385,9 @@ public class ClientInitializer {
 		 *                otherwise
 		 * @param args    left arguments
 		 */
-		public Arguments(String uri, String id, String secret, boolean rpk, boolean x509, boolean ecdhe, boolean ping, boolean verbose,
-				boolean json, boolean cbor, PrivateKey privateKey, PublicKey publicKey, String[] args) {
+		public Arguments(String uri, String id, String secret, boolean rpk, boolean x509, boolean ecdhe, boolean ping,
+				boolean verbose, boolean json, boolean cbor, PrivateKey privateKey, PublicKey publicKey,
+				String[] args) {
 			this.uri = uri;
 			this.id = id;
 			this.secret = secret;
@@ -395,15 +413,18 @@ public class ClientInitializer {
 		 * @return create arguments clone.
 		 */
 		public Arguments create(String id, String secret) {
-			return new Arguments(uri, id, secret, false, false, ecdhe, ping, verbose, json, cbor, privateKey, publicKey, args);
+			return new Arguments(uri, id, secret, false, false, ecdhe, ping, verbose, json, cbor, privateKey, publicKey,
+					args);
 		}
 
 		/**
 		 * Create arguments clone with different ec key pair.
+		 * 
 		 * @return create arguments clone.
 		 */
 		public Arguments create(PrivateKey privateKey, PublicKey publicKey) {
-			return new Arguments(uri, null, null, true, false, false, ping, verbose, json, cbor, privateKey, publicKey,args);
+			return new Arguments(uri, null, null, true, false, false, ping, verbose, json, cbor, privateKey, publicKey,
+					args);
 		}
 	}
 }
