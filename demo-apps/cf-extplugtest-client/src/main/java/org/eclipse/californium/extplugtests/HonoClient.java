@@ -84,12 +84,14 @@ public class HonoClient {
 			System.out.println("  type      : type to send. Default \"CON\"");
 			System.out.println();
 			System.out.println("Example: " + HonoClient.class.getSimpleName()
-					+ " coaps://hono.eclipseprojects.io:30683/telemetry \"{\"temp\": 7}\"");
-			System.out.println("         (currently 01-2020, the hono sandbox doesn't provide the coap-adapter!)");
+					+ " coaps://hono.eclipseprojects.io/telemetry \"{\"temp\": 7}\"");
 			System.exit(-1);
 		}
 
 		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
+
+		// hono sandbox
+		ClientInitializer.setDefaultPskCredentials("sensor1@DEFAULT_TENANT", "hono-secret");
 
 		Arguments arguments = ClientInitializer.init(config, args, true);
 		String payload = "{\"temp\": %d}";
@@ -130,6 +132,7 @@ public class HonoClient {
 		if (coapResponse != null) {
 			System.out.println(coapResponse.getCode());
 			System.out.println(coapResponse.getOptions());
+			System.out.println(coapResponse.advanced().getBytes().length + " bytes.");
 			System.out.println();
 			System.out.println(Utils.prettyPrint(coapResponse));
 			if (coapResponse.isSuccess()) {
