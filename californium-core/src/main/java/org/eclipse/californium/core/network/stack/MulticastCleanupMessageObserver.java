@@ -21,12 +21,14 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Cleanup multicast exchange by time to enable request for multiple responses.
  */
+@NoPublicAPI
 public class MulticastCleanupMessageObserver extends CleanupMessageObserver {
 
 	static final Logger LOGGER = LoggerFactory.getLogger(MulticastCleanupMessageObserver.class);

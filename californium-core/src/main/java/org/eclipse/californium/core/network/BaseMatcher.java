@@ -70,8 +70,8 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.eclipse.californium.core.coap.InternalMessageObserverAdapter;
 import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
@@ -294,7 +294,7 @@ public abstract class BaseMatcher implements Matcher {
 	 * Message observer removing observations. May be shared by multiple (block)
 	 * request and will call {@link ObservationStore#remove(Token)} only once.
 	 */
-	private class ObservationObserverAdapter extends MessageObserverAdapter {
+	private class ObservationObserverAdapter extends InternalMessageObserverAdapter {
 
 		/**
 		 * Flag to suppress multiple observation store remove calls.

@@ -56,8 +56,10 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptorAdapter;
 import org.eclipse.californium.core.observe.Observation;
 import org.eclipse.californium.core.observe.ObservationStore;
@@ -129,7 +131,6 @@ public class ObserveTest {
 	private MyResource resourceX;
 	private MyResource resourceY;
 	private MyObservationStore observations;
-	private ClientMessageInterceptor interceptor;
 
 	private final CountDownLatch waitforit = new CountDownLatch(1);
 
@@ -143,13 +144,16 @@ public class ObserveTest {
 
 	@After
 	public void shutdownServer() {
-		EndpointManager.getEndpointManager().getDefaultEndpoint().removeInterceptor(interceptor);
+		Endpoint endpoint = EndpointManager.getEndpointManager().getDefaultEndpoint();
+		for (MessageInterceptor interceptor : endpoint.getInterceptors()) {
+			endpoint.removeInterceptor(interceptor);
+		}
 	}
 
 	@Test
 	public void testObserveLifecycle() throws Exception {
 
-		interceptor = new ClientMessageInterceptor();
+		ClientMessageInterceptor interceptor = new ClientMessageInterceptor();
 		EndpointManager.getEndpointManager().getDefaultEndpoint().addInterceptor(interceptor);
 
 		// setup observe relation to resource X and Y
@@ -251,6 +255,8 @@ public class ObserveTest {
 	@Test
 	public void testObserveClientReregister() throws Exception {
 		resourceX.setObserveType(Type.NON);
+		MessageObserverCounterMessageInterceptor interceptor = new MessageObserverCounterMessageInterceptor();
+		EndpointManager.getEndpointManager().getDefaultEndpoint().addInterceptor(interceptor);
 
 		CoapClient client = new CoapClient(uriX);
 		CountingCoapHandler handler = new CountingCoapHandler();
@@ -261,6 +267,7 @@ public class ObserveTest {
 		assertFalse("Response not received", rel.isCanceled());
 		assertNotNull("Response not received", rel.getCurrent());
 		assertEquals("\"resX says hi for the 1 time\"", rel.getCurrent().getResponseText());
+		int counter = interceptor.getMessageObserverCounter();
 
 		resourceX.changed("client");
 		// assert notify received
@@ -282,6 +289,9 @@ public class ObserveTest {
 		assertTrue(handler.waitOnLoadCalls(4, 1000, TimeUnit.MILLISECONDS));
 		assertEquals("\"resX says new client for the 3 time\"", rel.getCurrent().getResponseText());
 		assertEquals(1, resourceX.getObserverCount());
+
+		assertEquals("message observer leak", counter, interceptor.getMessageObserverCounter());
+
 		client.shutdown();
 	}
 
@@ -421,7 +431,7 @@ public class ObserveTest {
 		uriX = TestTools.getUri(serverEndpoint, TARGET_X);
 		uriY = TestTools.getUri(serverEndpoint, TARGET_Y);
 
-		observations = new MyObservationStore(config);
+		observations = new MyObservationStore();
 
 		// setup the client endpoint using the special observation store
 		builder = new CoapEndpoint.Builder();
@@ -507,6 +517,21 @@ public class ObserveTest {
 		}
 	}
 
+	private class MessageObserverCounterMessageInterceptor extends MessageInterceptorAdapter {
+
+		private int messageObserverCounter = 0;
+
+		private synchronized int getMessageObserverCounter() {
+			return messageObserverCounter;
+		}
+
+		@Override
+		public synchronized void sendRequest(Request request) {
+			messageObserverCounter = request.getMessageObservers().size();
+		}
+
+	}
+
 	private static class MyResource extends CoapResource {
 
 		private volatile Type type = Type.CON;
@@ -578,11 +603,9 @@ public class ObserveTest {
 	private static class MyObservationStore implements ObservationStore {
 
 		private final ConcurrentMap<Token, Observation> map = new ConcurrentHashMap<>();
-		private final NetworkConfig config;
 		private volatile AtomicReference<ObservationStoreException> exception = new AtomicReference<ObservationStoreException>();
 		
-		public MyObservationStore(NetworkConfig config) {
-			this.config = config;
+		public MyObservationStore() {
 		}
 
 		public void setStoreException(ObservationStoreException exception) {
@@ -640,22 +663,6 @@ public class ObserveTest {
 			if (token != null) {
 				map.remove(token);
 			}
-		}
-
-		/**
-		 * Gets the number of observations currently held in this store.
-		 * 
-		 * @return The number of observations.
-		 */
-		public int getSize() {
-			return map.size();
-		}
-
-		/**
-		 * Removes all observations from this store.
-		 */
-		public void clear() {
-			map.clear();
 		}
 
 		@Override
