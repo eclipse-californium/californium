@@ -71,12 +71,13 @@ public class CoapObserveRelation {
 	private final long reregistrationBackoff;
 
 	/**
-	 * Indicates, that an observe request is pending.
+	 * Indicates, that an observe request or a (proactive) cancel observe request is
+	 * pending.
 	 * 
-	 * {@ink #reregister()} is only effective, when no observe request is
-	 * already pending.
+	 * {@link #reregister()} is only effective, when no other request is already
+	 * pending.
 	 */
-	private final AtomicBoolean registrationPending = new AtomicBoolean(true);
+	private final AtomicBoolean requestPending = new AtomicBoolean(true);
 
 	/** The handle to re-register for Observe notifications */
 	private final AtomicReference<ScheduledFuture<?>> reregistrationHandle = new AtomicReference<ScheduledFuture<?>>();
@@ -86,6 +87,8 @@ public class CoapObserveRelation {
 
 	/** Indicates whether the relation has been canceled. */
 	private volatile boolean canceled = false;
+	/** Indicates whether a proactive cancel request is pending. */
+	private volatile boolean proactiveCancel = false;
 
 	/** The current notification. */
 	private volatile CoapResponse current = null;
@@ -144,7 +147,7 @@ public class CoapObserveRelation {
 		if (isCanceled()) {
 			throw new IllegalStateException("observe already canceled!");
 		}
-		if (registrationPending.compareAndSet(false, true)) {
+		if (requestPending.compareAndSet(false, true)) {
 			Request refresh = Request.newGet();
 			EndpointContext destinationContext = response != null ? response.advanced().getSourceContext()
 					: request.getDestinationContext();
@@ -177,24 +180,27 @@ public class CoapObserveRelation {
 	 * Send request with option "cancel observe" (GET with Observe=1).
 	 */
 	private void sendCancelObserve() {
-		CoapResponse response = current;
-		Request request = this.request;
-		EndpointContext destinationContext = response != null ? response.advanced().getSourceContext()
-				: request.getDestinationContext();
+		if (requestPending.compareAndSet(false, true)) {
+			proactiveCancel = false;
+			CoapResponse response = current;
+			Request request = this.request;
+			EndpointContext destinationContext = response != null ? response.advanced().getSourceContext()
+					: request.getDestinationContext();
 
-		Request cancel = Request.newGet();
-		cancel.setDestinationContext(destinationContext);
-		// use same Token
-		cancel.setToken(request.getToken());
-		// copy options
-		cancel.setOptions(request.getOptions());
-		// set Observe to cancel
-		cancel.setObserveCancel();
+			Request cancel = Request.newGet();
+			cancel.setDestinationContext(destinationContext);
+			// use same Token
+			cancel.setToken(request.getToken());
+			// copy options
+			cancel.setOptions(request.getOptions());
+			// set Observe to cancel
+			cancel.setObserveCancel();
 
-		// dispatch final response to the same message observers
-		cancel.addMessageObservers(request.getMessageObservers());
+			// dispatch final response to the same message observers
+			cancel.addMessageObservers(request.getMessageObservers());
 
-		endpoint.sendRequest(cancel);
+			endpoint.sendRequest(cancel);
+		}
 	}
 
 	/**
@@ -211,10 +217,10 @@ public class CoapObserveRelation {
 	 */
 	public void proactiveCancel() {
 		// stop reregistration
-		setCanceled(true);
+		cancel();
+		proactiveCancel = true;
 		sendCancelObserve();
 		// cancel observe relation
-		cancel();
 	}
 
 	/**
@@ -285,8 +291,15 @@ public class CoapObserveRelation {
 	protected boolean onResponse(CoapResponse response) {
 		if (null != response && orderer.isNew(response.advanced())) {
 			current = response;
-			prepareReregistration(response);
-			registrationPending.set(false);
+			requestPending.set(false);
+			boolean notify = response.getOptions().hasObserve();
+			if (isCanceled()) {
+				if (notify && proactiveCancel) {
+					sendCancelObserve();
+				}
+			} else if (notify) {
+				prepareReregistration(response);
+			}
 			return true;
 		} else {
 			return false;
@@ -305,10 +318,8 @@ public class CoapObserveRelation {
 	}
 
 	private void prepareReregistration(CoapResponse response) {
-		if (!isCanceled()) {
-			long timeout = response.getOptions().getMaxAge() * 1000 + this.reregistrationBackoff;
-			ScheduledFuture<?> f = scheduler.schedule(reregister, timeout, TimeUnit.MILLISECONDS);
-			setReregistrationHandle(f);
-		}
+		long timeout = response.getOptions().getMaxAge() * 1000 + this.reregistrationBackoff;
+		ScheduledFuture<?> f = scheduler.schedule(reregister, timeout, TimeUnit.MILLISECONDS);
+		setReregistrationHandle(f);
 	}
 }
