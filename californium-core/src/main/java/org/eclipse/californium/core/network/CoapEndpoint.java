@@ -92,10 +92,10 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.CoAPMessageFormatException;
 import org.eclipse.californium.core.coap.EmptyMessage;
+import org.eclipse.californium.core.coap.InternalMessageObserverAdapter;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageFormatException;
 import org.eclipse.californium.core.coap.MessageObserver;
-import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
@@ -455,7 +455,7 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors {
 		}
 		if (enableHealth) {
 			this.health = health;
-			this.requestTransmission = new MessageObserverAdapter() {
+			this.requestTransmission = new InternalMessageObserverAdapter() {
 
 				@Override
 				public void  onSendError(Throwable error) {
@@ -468,7 +468,7 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors {
 				}
 			};
 
-			this.responseTransmission = new MessageObserverAdapter() {
+			this.responseTransmission = new InternalMessageObserverAdapter() {
 				@Override
 				public void  onSendError(Throwable error) {
 					CoapEndpoint.this.health.sendError();
@@ -479,7 +479,7 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors {
 					CoapEndpoint.this.health.sentResponse(retransmission);
 				}
 			};
-			this.rejectTransmission = new MessageObserverAdapter() {
+			this.rejectTransmission = new InternalMessageObserverAdapter() {
 				@Override
 				public void  onSendError(Throwable error) {
 					CoapEndpoint.this.health.sendError();

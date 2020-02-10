@@ -19,10 +19,11 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
-import org.eclipse.californium.core.coap.MessageObserverAdapter;
+import org.eclipse.californium.core.coap.InternalMessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,7 +31,8 @@ import org.slf4j.LoggerFactory;
  * Cleanup exchange when user cancelled outgoing requests or messages which
  * failed to be send.
  */
-public class CleanupMessageObserver extends MessageObserverAdapter {
+@NoPublicAPI
+public class CleanupMessageObserver extends InternalMessageObserverAdapter {
 
 	protected static final Logger LOGGER = LoggerFactory.getLogger(CleanupMessageObserver.class);
 
@@ -38,6 +40,11 @@ public class CleanupMessageObserver extends MessageObserverAdapter {
 
 	protected CleanupMessageObserver(final Exchange exchange) {
 		this.exchange = exchange;
+	}
+
+	@Override
+	public boolean isInternal() {
+		return true;
 	}
 
 	@Override

@@ -39,6 +39,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.eclipse.californium.core.coap.InternalMessageObserver;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.Request;
@@ -158,9 +159,14 @@ public class CoapObserveRelation {
 			refresh.setOptions(request.getOptions());
 
 			// use same message observers
-			for (MessageObserver mo : request.getMessageObservers()) {
-				request.removeMessageObserver(mo);
-				refresh.addMessageObserver(mo);
+			for (MessageObserver observer : request.getMessageObservers()) {
+				if (observer instanceof InternalMessageObserver) {
+					if (((InternalMessageObserver) observer).isInternal()) {
+						continue;
+					}
+				}
+				request.removeMessageObserver(observer);
+				refresh.addMessageObserver(observer);
 			}
 
 			this.request = refresh;
