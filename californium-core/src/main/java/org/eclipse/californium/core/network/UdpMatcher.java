@@ -389,10 +389,9 @@ public final class UdpMatcher extends BaseMatcher {
 							cancel(response, receiver);
 							return;
 						}
-						if (type != Type.ACK && !exchange.isNotification() && !currentRequest.isMulticast()
-								&& response.isNotification() && currentRequest.isObserveCancel()) {
-							// overlapping notification for observation cancel
-							// request
+						if (type != Type.ACK && !exchange.isNotification() && response.isNotification()
+								&& currentRequest.isObserveCancel()) {
+							// overlapping notification and observation cancel request
 							LOGGER.debug("ignoring notify for pending cancel {}!", response);
 							cancel(response, receiver);
 							return;
