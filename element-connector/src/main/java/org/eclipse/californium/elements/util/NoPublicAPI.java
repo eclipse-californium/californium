@@ -18,6 +18,7 @@ package org.eclipse.californium.elements.util;
 /**
  * Methods or classes marked by this annotation are not intended to be part of
  * the public API. They may change without major version change!
+ * @since 2.1
  */
 public @interface NoPublicAPI {
 

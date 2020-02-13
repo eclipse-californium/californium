@@ -135,7 +135,7 @@ public final class CertificateMessage extends HandshakeMessage {
 	 * @throws IllegalArgumentException if the certificate chain contains any
 	 *             non-X.509 certificates or does not form a valid chain of
 	 *             certification.
-	 * 
+	 * @since 2.1
 	 */
 	public CertificateMessage(List<X509Certificate> certificateChain, List<X500Principal> certificateAuthorities,
 			InetSocketAddress peerAddress) {

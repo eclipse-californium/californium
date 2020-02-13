@@ -82,6 +82,7 @@ import org.slf4j.LoggerFactory;
  * procedure performed to obtain this sequence of certificates is outside the
  * scope of this specification".
  * </p>
+ * @since 2.1
  */
 public class CertPathUtil {
 

@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Utility class for NetworkInterfaces. Determine MTU, IPv4, IPv6 support.
+ * @since 2.1
  */
 public class NetworkInterfacesUtil {
 

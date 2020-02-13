@@ -630,6 +630,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * @param mtu mtu of socket, or {@code null}, if socket implementation
 	 *            doesn't use a special mtu.
 	 * @throws IOException I/O error
+	 * @since 2.1
 	 */
 	protected void init(InetSocketAddress bindAddress, DatagramSocket socket, Integer mtu) throws IOException {
 		this.socket = socket;
@@ -2152,6 +2153,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * @param message message to send after handshake completes
 	 * @param connection connection to send message
 	 * @throws HandshakeException If exception occurred starting the handshake
+	 * @since 2.1
 	 */
 	private void sendMessageWithoutSession(final RawData message, final Connection connection)
 			throws HandshakeException {
@@ -2196,6 +2198,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * @param message message to send
 	 * @param connection connection to send message
 	 * @throws HandshakeException If exception occurred starting the handshake
+	 * @since 2.1
 	 */
 	private void sendMessageWithSession(final RawData message, final Connection connection) throws HandshakeException {
 
@@ -2544,6 +2547,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * @param message message to check for auto resumption timeout.
 	 * @return resulting timeout in milliseconds. {@code null} for no auto
 	 *         resumption.
+	 * @since 2.1
 	 */
 	private Long getAutResumptionTimeout(RawData message) {
 		Long timeout = autoResumptionTimeoutMillis;
@@ -2881,6 +2885,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * 
 	 * @param message message to be sent
 	 * @return effective handshake mode.
+	 * @since 2.1
 	 */
 	private String getEffectiveHandshakeMode(RawData message) {
 		String mode = message.getEndpointContext().get(DtlsEndpointContext.KEY_HANDSHAKE_MODE);

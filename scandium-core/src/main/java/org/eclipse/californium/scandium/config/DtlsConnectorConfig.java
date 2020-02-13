@@ -324,14 +324,17 @@ public final class DtlsConnectorConfig {
 
 	/**
 	 * Use verification of x509 key usage (extension).
+	 * @since 2.1
 	 */
 	private Boolean useKeyUsageVerification;
 	/**
 	 * Use truncated certificate paths when sending the client's certificate message.
+	 * @since 2.1
 	 */
 	private Boolean useTruncatedCertificatePathForClientsCertificateMessage;
 	/**
 	 * Use truncated certificate paths for verification.
+	 * @since 2.1
 	 */
 	private Boolean useTruncatedCertificatePathForValidation;
 
@@ -663,6 +666,7 @@ public final class DtlsConnectorConfig {
 	 * @return default handshake mode.
 	 *         {@link DtlsEndpointContext#HANDSHAKE_MODE_NONE} or
 	 *         {@link DtlsEndpointContext#HANDSHAKE_MODE_AUTO} (default)
+	 * @since 2.1
 	 */
 	public String getDefaultHandshakeMode() {
 		return defaultHandshakeMode;
@@ -838,6 +842,7 @@ public final class DtlsConnectorConfig {
 	 * Use key usage verification for x509.
 	 * 
 	 * @return {@code true}, if check of key usage (x509 extension) is enabled
+	 * @since 2.1
 	 */
 	public Boolean useKeyUsageVerification() {
 		return useKeyUsageVerification;
@@ -852,6 +857,7 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * @return {@code true}, if path should be truncated for client's
 	 *         certificate message.
+	 * @since 2.1
 	 */
 	public Boolean useTruncatedCertificatePathForClientsCertificateMessage() {
 		return useTruncatedCertificatePathForClientsCertificateMessage;
@@ -865,6 +871,7 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * @return {@code true}, if path should be truncated at available trust
 	 *         anchors for validation
+	 * @since 2.1
 	 */
 	public Boolean useTruncatedCertificatePathForValidation() {
 		return useTruncatedCertificatePathForValidation;
@@ -1110,6 +1117,7 @@ public final class DtlsConnectorConfig {
 		 *            {@link DtlsEndpointContext#HANDSHAKE_MODE_AUTO} or
 		 *            {@link DtlsEndpointContext#HANDSHAKE_MODE_NONE}
 		 * @return this builder for command chaining
+		 * @since 2.1
 		 */
 		public Builder setDefaultHandshakeMode(String defaultHandshakeMode) {
 			if (config.serverOnly != null && config.serverOnly) {
@@ -2098,6 +2106,7 @@ public final class DtlsConnectorConfig {
 		 * @param enable {@code true} to verify the key usage of x509
 		 *            certificates. Default {@code true}.
 		 * @return this builder for command chaining.
+		 * @since 2.1
 		 */
 		public Builder setKeyUsageVerification(boolean enable) {
 			config.useKeyUsageVerification = enable;
@@ -2115,6 +2124,7 @@ public final class DtlsConnectorConfig {
 		 *            the received certificate authorities. Default
 		 *            {@code true}.
 		 * @return this builder for command chaining.
+		 * @since 2.1
 		 */
 		public Builder setUseTruncatedCertificatePathForClientsCertificateMessage(boolean enable) {
 			config.useTruncatedCertificatePathForClientsCertificateMessage = enable;
@@ -2130,6 +2140,7 @@ public final class DtlsConnectorConfig {
 		 * @param enable {@code true} to truncate the certificate path according
 		 *            the available trusted certificates. Default {@code true}.
 		 * @return this builder for command chaining.
+		 * @since 2.1
 		 */
 		public Builder setUseTruncatedCertificatePathForValidation(boolean enable) {
 			config.useTruncatedCertificatePathForValidation = enable;

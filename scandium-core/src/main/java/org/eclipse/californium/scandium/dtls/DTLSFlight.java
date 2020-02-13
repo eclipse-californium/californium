@@ -323,6 +323,7 @@ public class DTLSFlight {
 	 * @param timeoutMillis timeout in milliseconds
 	 * @return doubled and limited timeout in milliseconds
 	 * @see #incrementTimeout()
+	 * @since 2.1
 	 */
 	public static int incrementTimeout(int timeoutMillis) {
 		if (timeoutMillis < MAX_TIMEOUT_MILLIS) {

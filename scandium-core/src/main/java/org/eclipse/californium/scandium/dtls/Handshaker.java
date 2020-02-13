@@ -526,6 +526,7 @@ public abstract class Handshaker implements Destroyable {
 	 * 
 	 * @return {@code true}, all inbound messages are processed, {@code false},
 	 *         some inbound messages are pending.
+	 * @since 2.1
 	 */
 	public boolean isInboundMessageProcessed() {
 		return inboundMessageBuffer.isEmpty();
@@ -1293,6 +1294,7 @@ public abstract class Handshaker implements Destroyable {
 	 * @param cause The reason for the abort.
 	 * @see #handshakeFailed(Throwable)
 	 * @see #isRemovingConnection()
+	 * @since 2.1
 	 */
 	public final void handshakeAborted(Throwable cause) {
 		this.handshakeAborted = true;
@@ -1309,6 +1311,7 @@ public abstract class Handshaker implements Destroyable {
 	 * @return {@code true}, if handshake is in probing mode, {@code false},
 	 *         otherwise.
 	 * @see ResumingClientHandshaker
+	 * @since 2.1
 	 */
 	public boolean isProbing() {
 		// intended to be overriden by the ResumingClientHandshaker
@@ -1319,6 +1322,7 @@ public abstract class Handshaker implements Destroyable {
 	 * Reset probing mode, when data is received during.
 	 * 
 	 * @see ResumingClientHandshaker
+	 * @since 2.1
 	 */
 	public void resetProbing() {
 		// intended to be overriden by the ResumingClientHandshaker
@@ -1331,6 +1335,7 @@ public abstract class Handshaker implements Destroyable {
 	 * 
 	 * @return {@code true}, if handshake is expired, mainly during deep sleep,
 	 *         {@code false}, if the handshake is still in time.
+	 * @since 2.1
 	 */
 	public boolean isExpired() {
 		return pendingFlight.get() != null && nanosExpireTime < ClockUtil.nanoRealtime();
@@ -1343,6 +1348,7 @@ public abstract class Handshaker implements Destroyable {
 	 * was called, and the connection has no established session.
 	 * 
 	 * @return {@code true}, remove the connection, {@code false}, keep it.
+	 * @since 2.1
 	 */
 	public boolean isRemovingConnection() {
 		return !handshakeAborted && !connection.hasEstablishedSession();
