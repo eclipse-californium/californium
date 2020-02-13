@@ -100,6 +100,7 @@ public class EmptyMessage extends Message {
 	 * @param message the message to acknowledge
 	 * @param destination destination context
 	 * @return the acknowledgment
+	 * @since 2.1
 	 */
 	public static EmptyMessage newACK(Message message, EndpointContext destination) {
 		EmptyMessage ack = new EmptyMessage(Type.ACK);
@@ -124,6 +125,7 @@ public class EmptyMessage extends Message {
 	 * @param message the message to reject
 	 * @param destination destination context
 	 * @return the reset
+	 * @since 2.1
 	 */
 	public static EmptyMessage newRST(Message message, EndpointContext destination) {
 		EmptyMessage rst = new EmptyMessage(Type.RST);

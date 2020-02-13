@@ -19,6 +19,7 @@ package org.eclipse.californium.core.observe;
  * Exception indicating, that a observation could not be stored.
  * 
  * @see ObservationStore
+ * @since 2.1
  */
 public class ObservationStoreException extends RuntimeException {
 

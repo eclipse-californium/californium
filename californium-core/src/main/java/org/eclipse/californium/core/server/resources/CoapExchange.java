@@ -95,6 +95,7 @@ public class CoapExchange {
 	 * Gets the source socket address of the request.
 	 *
 	 * @return the source socket address
+	 * @since 2.1
 	 */
 	public InetSocketAddress getSourceSocketAddress() {
 		return exchange.getRequest().getSourceContext().getPeerAddress();
@@ -214,6 +215,7 @@ public class CoapExchange {
 	 * @param handshakeMode the handshake mode.
 	 *            {@link DtlsEndpointContext#HANDSHAKE_MODE_AUTO} or
 	 *            {@link DtlsEndpointContext#HANDSHAKE_MODE_NONE}
+	 * @since 2.1
 	 */
 	public void setHandshakeMode(String handshakeMode) {
 		if (!handshakeMode.equals(DtlsEndpointContext.HANDSHAKE_MODE_AUTO)

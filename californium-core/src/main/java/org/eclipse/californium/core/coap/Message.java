@@ -1111,8 +1111,9 @@ public abstract class Message {
 	 * Adds the specified message observer.
 	 *
 	 * @param observer the observer
-     * @param index index at which the observer is to be inserted
+	 * @param index index at which the observer is to be inserted
 	 * @throws NullPointerException if the observer is {@code null}.
+	 * @since 2.1
 	 */
 	public void addMessageObserver(int index, final MessageObserver observer) {
 		if (observer == null) {

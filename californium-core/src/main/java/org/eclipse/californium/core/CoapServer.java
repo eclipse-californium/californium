@@ -423,6 +423,7 @@ public class CoapServer implements ServerInterface {
 	 * Get the network configuration of this server.
 	 * 
 	 * @return the network configuration
+	 * @since 2.1
 	 */
 	public NetworkConfig getConfig() {
 		return config;

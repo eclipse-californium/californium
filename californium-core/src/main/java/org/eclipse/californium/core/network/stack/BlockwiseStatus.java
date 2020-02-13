@@ -246,6 +246,7 @@ public abstract class BlockwiseStatus {
 	 * @param blockContext endpoint-context to be used/adapted for follow-up
 	 *            requests.
 	 * @return endpoint-context for follow-up-requests
+	 * @since 2.1
 	 */
 	synchronized EndpointContext getFollowUpEndpointContext(EndpointContext blockContext) {
 		if (followUpEndpointContext == null
