@@ -75,7 +75,7 @@ public class CoapThreadsRule extends ThreadsRule {
 	protected void shutdown() {
 		for (Object resource : cleanup) {
 			try {
-				LOGGER.warn("shutdown");
+				LOGGER.debug("shutdown");
 				if (resource instanceof Endpoint) {
 					((Endpoint) resource).destroy();
 				} else if (resource instanceof CoapClient) {
