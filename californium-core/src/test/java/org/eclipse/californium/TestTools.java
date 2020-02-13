@@ -81,7 +81,6 @@ public final class TestTools {
 	public static String getUri(final Endpoint endpoint, final String path) {
 		URI uri = endpoint.getUri();
 		String resourcePath = normalizeRelativePath(path);
-		System.out.println(resourcePath);
 		if (!resourcePath.isEmpty()) {
 			try {
 				uri = new URI(uri.getScheme(), uri.getUserInfo(), uri.getHost(), uri.getPort(),
