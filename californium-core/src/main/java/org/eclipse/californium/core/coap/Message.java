@@ -980,6 +980,21 @@ public abstract class Message {
 		this.duplicate = duplicate;
 	}
 
+	protected String getStatusTracingString() {
+		if (canceled) {
+			return "canceled ";
+		} else if (sendError != null) {
+			return sendError.getMessage() + " ";
+		} else if (rejected) {
+			return "rejected ";
+		} else if (acknowledged) {
+			return "acked ";
+		} else if (timedOut) {
+			return "timeout ";
+		}
+		return "";
+	}
+
 	/**
 	 * Gets the serialized message as byte array or {@code null}, if not serialized yet.
 	 *
