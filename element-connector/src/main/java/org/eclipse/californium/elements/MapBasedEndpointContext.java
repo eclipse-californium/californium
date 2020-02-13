@@ -224,6 +224,7 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 	 *             or one of the attributes is {@code null}.
 	 * @throws IllegalArgumentException if provided attributes list is not
 	 *             contained in the original context.
+	 * @since 2.1
 	 */
 	public static MapBasedEndpointContext removeEntries(EndpointContext context, String... attributes) {
 		if (attributes == null) {

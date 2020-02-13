@@ -291,6 +291,7 @@ public class StringUtil {
 	 * @return the host string, if available, separated by "/", appended by the
 	 *         host address, ":" and the port. Or {@code null}, if address is
 	 *         {@code null}.
+	 * @since 2.1
 	 */
 	public static String toDisplayString(InetSocketAddress address) {
 		if (address == null) {
@@ -336,6 +337,7 @@ public class StringUtil {
 	 * @throws NullPointerException if address is {@code null}.
 	 * @throws URISyntaxException if address could not be converted into
 	 *             URI hostname.
+	 * @since 2.1
 	 */
 	public static String getUriHostname(InetAddress address) throws URISyntaxException {
 		if (address == null) {

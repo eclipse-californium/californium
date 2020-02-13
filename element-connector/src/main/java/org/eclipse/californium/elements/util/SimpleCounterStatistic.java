@@ -134,6 +134,7 @@ public class SimpleCounterStatistic {
 	 * Get counter value.
 	 * 
 	 * @return counter value
+	 * @since 2.1
 	 */
 	public long getCounter() {
 		synchronized (overallCounter) {

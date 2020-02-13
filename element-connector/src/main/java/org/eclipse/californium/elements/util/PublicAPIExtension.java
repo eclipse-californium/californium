@@ -20,6 +20,7 @@ package org.eclipse.californium.elements.util;
  * functions are intended to be merged into the public API interface with the
  * next major version. Migration will then be replace just the usage of this
  * interface with the public API interface.
+ * @since 2.1
  */
 public @interface PublicAPIExtension {
 

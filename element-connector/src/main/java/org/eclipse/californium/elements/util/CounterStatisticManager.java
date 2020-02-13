@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit;
  * 
  * Manage {@link SimpleCounterStatistic} and support timer interval based and
  * external triggered processing.
+ * @since 2.1
  */
 abstract public class CounterStatisticManager {
 

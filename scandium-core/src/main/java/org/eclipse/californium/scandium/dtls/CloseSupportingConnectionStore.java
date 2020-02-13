@@ -17,6 +17,7 @@ package org.eclipse.californium.scandium.dtls;
 
 /**
  * A connection store which adds support of close notify.
+ * @since 2.1
  */
 public interface CloseSupportingConnectionStore {
 
