@@ -27,6 +27,7 @@ import org.eclipse.californium.elements.util.PublicAPIExtension;
  * Extension interface for {@link Endpoint} to add {@link MessageInterceptor} to be
  * called, when the messages are fully processed. Will be merged into
  * {@link Endpoint} with the next major release.
+ * @since 2.1
  */
 @PublicAPIExtension(type = Endpoint.class)
 public interface MessagePostProcessInterceptors {

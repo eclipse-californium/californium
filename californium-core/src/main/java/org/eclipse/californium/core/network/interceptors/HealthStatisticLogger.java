@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Health implementation using counter and logging for result.
+ * @since 2.1
  */
 public class HealthStatisticLogger extends CounterStatisticManager implements MessageInterceptor {
 
