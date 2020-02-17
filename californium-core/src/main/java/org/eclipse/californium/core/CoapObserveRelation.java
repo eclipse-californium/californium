@@ -40,9 +40,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.core.coap.InternalMessageObserver;
+import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
@@ -111,6 +113,35 @@ public class CoapObserveRelation {
 	};
 
 	/**
+	 * Monitor pending request.
+	 */
+	private final MessageObserver pendingRequestObserver = new MessageObserverAdapter() {
+
+		@Override
+		public void onResponse(Response response) {
+			next();
+		}
+
+		@Override
+		public void onCancel() {
+			next();
+		}
+
+		@Override
+		protected void failed() {
+			next();
+		}
+
+		private void next() {
+			if (proactiveCancel) {
+				sendCancelObserve();
+			} else {
+				requestPending.set(false);
+			}
+		}
+	};
+
+	/**
 	 * Constructs a new CoapObserveRelation with the specified request.
 	 *
 	 * @param request the request
@@ -123,6 +154,7 @@ public class CoapObserveRelation {
 		this.reregistrationBackoff = endpoint.getConfig()
 				.getLong(NetworkConfig.Keys.NOTIFICATION_REREGISTRATION_BACKOFF);
 		this.scheduler = executor;
+		this.request.addMessageObserver(pendingRequestObserver);
 	}
 
 	/**
@@ -155,7 +187,7 @@ public class CoapObserveRelation {
 			refresh.setDestinationContext(destinationContext);
 			// use same Token
 			refresh.setToken(request.getToken());
-			// copy options, but set Observe to zero
+			// copy options
 			refresh.setOptions(request.getOptions());
 
 			// use same message observers
@@ -170,12 +202,13 @@ public class CoapObserveRelation {
 			}
 
 			this.request = refresh;
-			endpoint.sendRequest(refresh);
-
 			// update request in observe handle for correct cancellation
 			// reset orderer to accept any sequence number since server
 			// might have rebooted
 			this.orderer = new ObserveNotificationOrderer();
+
+			endpoint.sendRequest(refresh);
+
 			return true;
 		} else {
 			return false;
@@ -186,31 +219,38 @@ public class CoapObserveRelation {
 	 * Send request with option "cancel observe" (GET with Observe=1).
 	 */
 	private void sendCancelObserve() {
-		if (requestPending.compareAndSet(false, true)) {
-			proactiveCancel = false;
-			CoapResponse response = current;
-			Request request = this.request;
-			EndpointContext destinationContext = response != null ? response.advanced().getSourceContext()
-					: request.getDestinationContext();
+		proactiveCancel = false;
+		CoapResponse response = current;
+		Request request = this.request;
+		EndpointContext destinationContext = response != null ? response.advanced().getSourceContext()
+				: request.getDestinationContext();
 
-			Request cancel = Request.newGet();
-			cancel.setDestinationContext(destinationContext);
-			// use same Token
-			cancel.setToken(request.getToken());
-			// copy options
-			cancel.setOptions(request.getOptions());
-			// set Observe to cancel
-			cancel.setObserveCancel();
+		Request cancel = Request.newGet();
+		cancel.setDestinationContext(destinationContext);
+		// use same Token
+		cancel.setToken(request.getToken());
+		// copy options
+		cancel.setOptions(request.getOptions());
+		// set Observe to cancel
+		cancel.setObserveCancel();
 
-			// dispatch final response to the same message observers
-			cancel.addMessageObservers(request.getMessageObservers());
-
-			endpoint.sendRequest(cancel);
+		// use same message observers
+		for (MessageObserver observer : request.getMessageObservers()) {
+			if (observer instanceof InternalMessageObserver) {
+				if (((InternalMessageObserver) observer).isInternal()) {
+					continue;
+				}
+			}
+			request.removeMessageObserver(observer);
+			cancel.addMessageObserver(observer);
 		}
+
+		endpoint.sendRequest(cancel);
 	}
 
 	/**
-	 * Cancel observer.
+	 * Cancel observation.
+	 * Cancel pending request of this observation and stop reregistrations.
 	 */
 	private void cancel() {
 		endpoint.cancelObservation(request.getToken());
@@ -225,7 +265,9 @@ public class CoapObserveRelation {
 		// stop reregistration
 		cancel();
 		proactiveCancel = true;
-		sendCancelObserve();
+		if (requestPending.compareAndSet(false, true)) {
+			sendCancelObserve();
+		}
 		// cancel observe relation
 	}
 
@@ -297,13 +339,7 @@ public class CoapObserveRelation {
 	protected boolean onResponse(CoapResponse response) {
 		if (null != response && orderer.isNew(response.advanced())) {
 			current = response;
-			requestPending.set(false);
-			boolean notify = response.getOptions().hasObserve();
-			if (isCanceled()) {
-				if (notify && proactiveCancel) {
-					sendCancelObserve();
-				}
-			} else if (notify) {
+			if (response.getOptions().hasObserve() && !isCanceled()) {
 				prepareReregistration(response);
 			}
 			return true;
