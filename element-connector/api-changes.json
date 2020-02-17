@@ -1,5 +1,5 @@
 {
-	"2.1.0-SNAPSHOT": {
+	"2.1.0": {
 		"revapi": {
 			"ignore": [
 				{
@@ -14,7 +14,6 @@
 					"classSimpleName": "Asn1DerDecoder",
 					"fieldName": "OID",
 					"oldArchive": "org.eclipse.californium:element-connector:jar:2.0.0",
-					"newArchive": "org.eclipse.californium:element-connector:jar:2.1.0-SNAPSHOT",
 					"elementKind": "field"
 				}
 			]

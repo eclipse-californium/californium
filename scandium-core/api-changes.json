@@ -1,5 +1,5 @@
 {
-	"2.1.0-SNAPSHOT": {
+	"2.1.0": {
 		"revapi": {
 			"ignore": [
 				{
@@ -14,7 +14,6 @@
 					"classSimpleName": "Handshaker",
 					"fieldName": "inboundMessageBuffer",
 					"oldArchive": "org.eclipse.californium:scandium:jar:2.0.0",
-					"newArchive": "org.eclipse.californium:scandium:jar:2.1.0-SNAPSHOT",
 					"elementKind": "field"
 				},
 				{
@@ -47,7 +46,6 @@
 					"classQualifiedName": "org.eclipse.californium.scandium.dtls.Handshaker",
 					"classSimpleName": "Handshaker",
 					"methodName": "handshakeAborted",
-					"newArchive": "org.eclipse.californium:scandium:jar:2.1.0-SNAPSHOT",
 					"elementKind": "method"
 				}
 			]

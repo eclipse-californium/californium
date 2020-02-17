@@ -520,6 +520,19 @@
 				</configuration>
 			</plugin>
 			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>build-helper-maven-plugin</artifactId>
+				<version>3.0.0</version>
+				<executions>
+					<execution>
+						<id>parse-version</id>
+						<goals>
+							<goal>parse-version</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
 				<groupId>org.revapi</groupId>
 				<artifactId>revapi-maven-plugin</artifactId>
 				<configuration>
@@ -579,7 +592,7 @@
 						<configurationFile>
 							<path>api-changes.json</path>
 							<roots>
-								<root>${project.version}</root>
+								<root>${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}</root>
 							</roots>
 						</configurationFile>
 					</analysisConfigurationFiles>
@@ -655,7 +668,11 @@
 		<profile>
 			<id>revapi</id>
 			<activation>
+				<activeByDefault>false</activeByDefault>
 				<jdk>[1.8,)</jdk>
+				<property>
+					<name>!revapi.skip.check</name>
+				</property>
 			</activation>
 			<build>
 				<plugins>
