@@ -63,8 +63,7 @@ import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.observe.ObserveRelation;
-import org.eclipse.californium.core.server.resources.Resource;
-import org.eclipse.californium.core.server.resources.ResourceObserver;
+import org.eclipse.californium.core.server.resources.ResourceObserverAdapter;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
@@ -250,23 +249,7 @@ public class BenchmarkClient {
 	/**
 	 * 
 	 */
-	private static abstract class ResourceObserverAdapter implements ResourceObserver {
-
-		@Override
-		public void changedName(String old) {
-		}
-
-		@Override
-		public void changedPath(String old) {
-		}
-
-		@Override
-		public void addedChild(Resource child) {
-		}
-
-		@Override
-		public void removedChild(Resource child) {
-		}
+	private static abstract class MyResourceObserverAdapter extends ResourceObserverAdapter {
 
 		@Override
 		public void addedObserveRelation(ObserveRelation relation) {
@@ -287,7 +270,7 @@ public class BenchmarkClient {
 
 	};
 
-	private class FeedObserver extends ResourceObserverAdapter {
+	private class FeedObserver extends MyResourceObserverAdapter {
 
 		@Override
 		public void addedObserveRelation(ObserveRelation relation) {

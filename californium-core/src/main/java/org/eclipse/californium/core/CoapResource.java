@@ -63,6 +63,7 @@ import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.core.server.resources.ResourceAttributes;
 import org.eclipse.californium.core.server.resources.ResourceObserver;
+import org.eclipse.californium.core.server.resources.ResourceObserverAdapter;
 
 /**
  * CoapResource is a basic implementation of a resource. Extend this class to
@@ -341,20 +342,35 @@ public  class CoapResource implements Resource {
 		 * Remember that different paths might lead to this resource.
 		 */
 		
-		ObserveRelation relation = exchange.getRelation();
+		final ObserveRelation relation = exchange.getRelation();
 		if (relation == null || relation.isCanceled()) {
 			return; // because request did not try to establish a relation
 		}
 		if (CoAP.ResponseCode.isSuccess(response.getCode())) {
-			response.getOptions().setObserve(notificationOrderer.getCurrent());
-			
+
 			if (!relation.isEstablished()) {
 				relation.setEstablished();
+				// work-around for missing return value of addObserveRelation
+				// maybe replaced by next major version
+				ResourceObserver observer = new ResourceObserverAdapter() {
+
+					@Override
+					public void removedObserveRelation(ObserveRelation previous) {
+						if (previous.getKey().equals(relation.getKey())) {
+							// new observe number, if a old relation is
+							// replaced!
+							notificationOrderer.getNextObserveNumber();
+						}
+					}
+				};
+				addObserver(observer);
 				addObserveRelation(relation);
+				removeObserver(observer);
 			} else if (observeType != null) {
 				// The resource can control the message type of the notification
 				response.setType(observeType);
 			}
+			response.getOptions().setObserve(notificationOrderer.getCurrent());
 		} // ObserveLayer takes care of the else case
 	}
 
@@ -750,9 +766,13 @@ public  class CoapResource implements Resource {
 	 */
 	@Override
 	public void addObserveRelation(ObserveRelation relation) {
-		if (observeRelations.add(relation)) {
+		ObserveRelation previous = observeRelations.addAndGetPrevious(relation);
+		if (previous != null) {
 			LOGGER.info("replacing observe relation between {} and resource {} (new {}, size {})", relation.getKey(),
 					getURI(), relation.getExchange(), observeRelations.getSize());
+			for (ResourceObserver obs:observers) {
+				obs.removedObserveRelation(previous);
+			}
 		} else {
 			LOGGER.info("successfully established observe relation between {} and resource {} ({}, size {})",
 					relation.getKey(), getURI(), relation.getExchange(), observeRelations.getSize());
