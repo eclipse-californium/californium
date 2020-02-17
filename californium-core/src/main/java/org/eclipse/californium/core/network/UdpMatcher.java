@@ -307,7 +307,7 @@ public final class UdpMatcher extends BaseMatcher {
 							try {
 								if (endpointContextMatcher.isResponseRelatedToRequest(prev.getEndpointContext(),
 										response.getSourceContext())) {
-									LOGGER.trace("received response for already completed {}: {}", prev, response);
+									LOGGER.trace("received response {} for already completed {}", response, prev);
 									response.setDuplicate(true);
 									Response prevResponse = prev.getCurrentResponse();
 									if (prevResponse != null) {
@@ -315,6 +315,9 @@ public final class UdpMatcher extends BaseMatcher {
 									}
 									receiver.receiveResponse(prev, response);
 									return;
+								} else {
+									LOGGER.debug("ignoring potentially forged response {} for already completed {}",
+											response, prev);
 								}
 							} catch (RuntimeException ex) {
 								LOGGER.warn("error receiving response {} for {}", response, prev, ex);
@@ -323,6 +326,8 @@ public final class UdpMatcher extends BaseMatcher {
 						}
 					});
 				} else {
+					LOGGER.trace("discarding by [{}] unmatchable response from [{}]: {}", idByToken,
+							response.getSourceContext(), response);
 					reject(response, receiver);
 				}
 			} else {
@@ -437,7 +442,7 @@ public final class UdpMatcher extends BaseMatcher {
 		final Exchange exchange = exchangeStore.get(idByMID);
 
 		if (exchange == null) {
-			LOGGER.debug("ignoring by [{}] unmatchable empty message from {}: {}", idByMID, message.getSourceContext(), message);
+			LOGGER.debug("ignoring {} message unmatchable by {}", message.getType(), idByMID);
 			cancel(message, receiver);
 			return;
 		}
@@ -453,7 +458,7 @@ public final class UdpMatcher extends BaseMatcher {
 				}
 				if (exchangeStore.get(idByMID) != exchange) {
 					if (running) {
-						LOGGER.debug("ignoring ack/rst {}, not longer matching!", message);
+						LOGGER.debug("ignoring {} message not longer matching by {}", message.getType(), idByMID);
 					}
 					cancel(message, receiver);
 					return;
@@ -462,27 +467,25 @@ public final class UdpMatcher extends BaseMatcher {
 					if (endpointContextMatcher.isResponseRelatedToRequest(exchange.getEndpointContext(),
 							message.getSourceContext())) {
 						exchangeStore.remove(idByMID, exchange);
-						LOGGER.debug("received expected reply for message {}", idByMID);
+						LOGGER.debug("received expected {} reply for {}", message.getType(), idByMID);
 						receiver.receiveEmptyMessage(exchange, message);
 						return;
 					} else {
-						LOGGER.debug(
-								"ignoring potentially forged reply for message {} with non-matching endpoint context",
-								idByMID);
+						LOGGER.debug("ignoring potentially forged {} reply for {} with non-matching endpoint context",
+								message.getType(), idByMID);
 					}
 				} catch (RuntimeException ex) {
-					LOGGER.warn("error receiving empty message {} for {}", message, exchange, ex);
+					LOGGER.warn("error receiving {} message for {}", message.getType(), exchange, ex);
 				}
 				cancel(message, receiver);
 			}
 		});
 	}
 
-	private void reject(final Response response, final EndpointReceiver receiver) {
+	private void reject(Response response, EndpointReceiver receiver) {
 
 		if (response.getType() != Type.ACK && response.hasMID()) {
 			// reject only messages with MID, ignore for TCP
-			LOGGER.debug("rejecting response from {}", response.getSourceContext());
 			receiver.reject(response);
 		}
 		cancel(response, receiver);
