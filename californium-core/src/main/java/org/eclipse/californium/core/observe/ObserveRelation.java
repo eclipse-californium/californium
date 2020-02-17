@@ -34,6 +34,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.util.StringUtil;
 
 
 /**
@@ -59,7 +60,7 @@ public class ObserveRelation {
 	private Response recentControlNotification;
 	private Response nextControlNotification;
 	
-	private String key = null;
+	private final String key;
 
 	/*
 	 * This value is false at first and must be set to true by the resource if
@@ -93,8 +94,8 @@ public class ObserveRelation {
 		NetworkConfig config = exchange.getEndpoint().getConfig();
 		checkIntervalTime = config.getLong(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_TIME);
 		checkIntervalCount = config.getInt(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_COUNT);
-		
-		this.key = getSource().toString() + "#" + exchange.getRequest().getTokenString();
+
+		this.key = StringUtil.toString(getSource()) + "#" + exchange.getRequest().getTokenString();
 	}
 	
 	/**

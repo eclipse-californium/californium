@@ -35,17 +35,17 @@ import java.util.concurrent.ConcurrentHashMap;
  * endpoint could establish more than one observe relation to the same resource.
  */
 public class ObserveRelationContainer implements Iterable<ObserveRelation> {
-	
+
 	/** The set of observe relations */
 	private final ConcurrentHashMap<String, ObserveRelation> observeRelations;
-	
+
 	/**
 	 * Constructs a container for observe relations.
 	 */
 	public ObserveRelationContainer() {
 		this.observeRelations = new ConcurrentHashMap<String, ObserveRelation>();
 	}
-	
+
 	/**
 	 * Adds the specified observe relation.
 	 *
@@ -54,16 +54,27 @@ public class ObserveRelationContainer implements Iterable<ObserveRelation> {
 	 *         false, if the provided relation was added.
 	 */
 	public boolean add(ObserveRelation relation) {
+		return addAndGetPrevious(relation) != null;
+	}
+
+	/**
+	 * Adds the specified observe relation.
+	 *
+	 * @param relation the observe relation
+	 * @return canceled previous relation, or {@code null}, if not previous
+	 *         relation was available.
+	 * @since 2.1
+	 */
+	public ObserveRelation addAndGetPrevious(ObserveRelation relation) {
 		if (relation == null)
 			throw new NullPointerException();
 		ObserveRelation previous = observeRelations.put(relation.getKey(), relation);
 		if (null != previous) {
 			previous.cancel();
-			return true;
 		}
-		return false;
+		return previous;
 	}
-	
+
 	/**
 	 * Removes the specified observe relation.
 	 *
@@ -75,7 +86,7 @@ public class ObserveRelationContainer implements Iterable<ObserveRelation> {
 			throw new NullPointerException();
 		return observeRelations.remove(relation.getKey(), relation);
 	}
-	
+
 	/**
 	 * Gets the number of observe relations in this container.
 	 *
@@ -92,5 +103,5 @@ public class ObserveRelationContainer implements Iterable<ObserveRelation> {
 	public Iterator<ObserveRelation> iterator() {
 		return observeRelations.values().iterator();
 	}
-	
+
 }

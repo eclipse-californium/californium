@@ -643,6 +643,21 @@ public class LockstepEndpoint {
 			return this;
 		}
 
+		public MessageExpectation hasObserve() {
+			expectations.add(new Expectation<Message>() {
+
+				public void check(Message message) {
+					assertTrue("No observe option:", message.getOptions().hasObserve());
+					print("Has observe option");
+				}
+
+				public String toString() {
+					return "Expected observe option";
+				}
+			});
+			return this;
+		}
+
 		public MessageExpectation hasEtag(final byte[] etag) {
 
 			expectations.add(new Expectation<Message>() {
@@ -1048,6 +1063,12 @@ public class LockstepEndpoint {
 		}
 
 		@Override
+		public ResponseExpectation hasObserve() {
+			super.hasObserve();
+			return this;
+		}
+
+		@Override
 		public ResponseExpectation hasEtag(final byte[] etag) {
 			super.hasEtag(etag);
 			return this;
@@ -1159,7 +1180,19 @@ public class LockstepEndpoint {
 			return this;
 		}
 
+		/**
+		 * Check, if received observe is newer than the previous stored one.
+		 * 
+		 * @param key key of previous stored one
+		 * @return expectation for
+		 * @deprecated use {@link #newerObserve(String)}
+		 */
+		@Deprecated
 		public ResponseExpectation largerObserve(final String key) {
+			return newerObserve(key);
+		}
+
+		public ResponseExpectation newerObserve(final String key) {
 			expectations.add(new Expectation<Response>() {
 
 				public void check(Response response) {
@@ -1178,7 +1211,7 @@ public class LockstepEndpoint {
 		}
 
 		public ResponseExpectation checkObs(String former, String next) {
-			largerObserve(former);
+			newerObserve(former);
 			storeObserve(next);
 			return this;
 		}

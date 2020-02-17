@@ -844,7 +844,7 @@ public class BlockwiseServerSideTest {
 		System.out.println("Establish observe relation to " + RESOURCE_PATH);
 
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).observe(0).go();
-		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 128).size2(respPayload.length()).observe(0).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 128).size2(respPayload.length()).storeObserve("O1").block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
 
 		Token tok1 = generateNextToken();
 		client.sendRequest(CON, GET, tok1, ++mid).path(RESOURCE_PATH).block2(1, false, 128).go();
@@ -858,7 +858,7 @@ public class BlockwiseServerSideTest {
 		respPayload = generateRandomPayload(280);
 		testResource.changed();
 
-		client.expectResponse().type(CON, NON).storeType("T").code(CONTENT).token(tok).storeMID("A").size2(respPayload.length()).observe(1).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		client.expectResponse().type(CON, NON).storeType("T").code(CONTENT).token(tok).storeMID("A").size2(respPayload.length()).checkObs("O1", "O2").block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
 		if (client.get("T") == CON)
 			client.sendEmpty(ACK).loadMID("A").go();
 
@@ -874,7 +874,7 @@ public class BlockwiseServerSideTest {
 		respPayload = generateRandomPayload(290);
 		testResource.changed();
 
-		client.expectResponse().type(CON, NON).storeType("T").code(CONTENT).token(tok).storeMID("A").size2(respPayload.length()).observe(2).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		client.expectResponse().type(CON, NON).storeType("T").code(CONTENT).token(tok).storeMID("A").size2(respPayload.length()).checkObs("O2", "O3").block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
 		if (client.get("T") == CON)
 			client.sendEmpty(ACK).loadMID("A").go();
 
@@ -896,7 +896,7 @@ public class BlockwiseServerSideTest {
 		System.out.println("Establish observe relation to " + RESOURCE_PATH);
 
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).observe(0).block2(0, false, 64).go();
-		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 64).observe(0).size2(respPayload.length()).block2(0, true, 64).payload(respPayload.substring(0, 64)).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 64).storeObserve("O1").size2(respPayload.length()).block2(0, true, 64).payload(respPayload.substring(0, 64)).go();
 
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).block2(1, false, 64).go();
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(1, true, 64).noOption(OBSERVE).payload(respPayload.substring(64, 128)).go();
@@ -909,7 +909,7 @@ public class BlockwiseServerSideTest {
 		respPayload = generateRandomPayload(140);
 		testResource.changed(); // First notification
 
-		client.expectResponse().type(CON, NON).storeType("T").code(CONTENT).token(tok).storeMID("A").observe(1).size2(respPayload.length()).block2(0, true, 64).payload(respPayload.substring(0, 64)).go();
+		client.expectResponse().type(CON, NON).storeType("T").code(CONTENT).token(tok).storeMID("A").checkObs("O1", "O2").size2(respPayload.length()).block2(0, true, 64).payload(respPayload.substring(0, 64)).go();
 		if (client.get("T") == CON)
 			client.sendEmpty(ACK).loadMID("A").go();
 
@@ -925,7 +925,7 @@ public class BlockwiseServerSideTest {
 		respPayload = generateRandomPayload(145);
 		testResource.changed(); // Second notification
 
-		client.expectResponse().type(CON, NON).storeType("T").code(CONTENT).token(tok).storeMID("A").observe(2).size2(respPayload.length()).block2(0, true, 64).payload(respPayload.substring(0, 64)).go();
+		client.expectResponse().type(CON, NON).storeType("T").code(CONTENT).token(tok).storeMID("A").checkObs("O2", "O3").size2(respPayload.length()).block2(0, true, 64).payload(respPayload.substring(0, 64)).go();
 		if (client.get("T") == CON)
 			client.sendEmpty(ACK).loadMID("A").go();
 
