@@ -24,7 +24,7 @@ RequiresMountsFor=/home
 Type=simple
 User=cali
 WorkingDirectory=/home/cali
-Environment="JAR=/home/cali/cf-plugtest-server-2.0.0.jar"
+Environment="JAR=/home/cali/cf-plugtest-server-2.1.0.jar"
 Environment="ARGS=-noloopback"
 # Adapt the java heap configuration "-Xmx1600m" according your environment! 
 Environment="OPTS=-XX:+UseG1GC -Xmx1600m -Dlogback.configurationFile=./logback.xml"
