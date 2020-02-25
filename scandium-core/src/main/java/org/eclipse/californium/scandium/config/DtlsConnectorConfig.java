@@ -341,6 +341,10 @@ public final class DtlsConnectorConfig {
 	private ConnectionListener connectionListener;
 
 	private DtlsHealth healthHandler;
+	
+	private Boolean clientOnly;
+	
+	private Boolean recommendedCipherSuitesOnly;
 
 	private DtlsConnectorConfig() {
 		// empty
@@ -909,6 +913,24 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * Gets whether the connector acts only as client.
+	 * 
+	 * @return <code>true</code> if the connector acts only as client
+	 * @see Builder#setClientOnly()
+	 */
+	public Boolean isClientOnly() {
+		return clientOnly;
+	}
+
+	/**
+	 * @return <code>true</code> if only recommended cipher suites are used.
+	 * @see Builder#setRecommendedCipherSuitesOnly(boolean)
+	 */
+	public Boolean isRecommendedCipherSuitesOnly() {
+		return recommendedCipherSuitesOnly;
+	}
+
+	/**
 	 * @return a copy of this configuration
 	 */
 	@Override
@@ -962,6 +984,8 @@ public final class DtlsConnectorConfig {
 		cloned.useKeyUsageVerification = useKeyUsageVerification;
 		cloned.connectionListener = connectionListener;
 		cloned.healthHandler = healthHandler;
+		cloned.clientOnly = clientOnly;
+		cloned.recommendedCipherSuitesOnly = recommendedCipherSuitesOnly;
 		return cloned;
 	}
 
@@ -973,8 +997,6 @@ public final class DtlsConnectorConfig {
 	public static final class Builder {
 
 		private DtlsConnectorConfig config;
-		private boolean clientOnly;
-		private boolean recommendedCipherSuitesOnly = true;
 
 		/**
 		 * Creates a new instance for setting configuration options
@@ -1058,7 +1080,7 @@ public final class DtlsConnectorConfig {
 		 * @return this builder for command chaining
 		 */
 		public Builder setRecommendedCipherSuitesOnly(boolean recommendedCipherSuitesOnly) {
-			this.recommendedCipherSuitesOnly = recommendedCipherSuitesOnly;
+			config.recommendedCipherSuitesOnly = recommendedCipherSuitesOnly;
 			if (recommendedCipherSuitesOnly && config.supportedCipherSuites != null) {
 				verifyRecommendedCipherSuitesOnly(config.supportedCipherSuites);
 			}
@@ -1086,7 +1108,7 @@ public final class DtlsConnectorConfig {
 			} else if (config.useNoServerSessionId != null && config.useNoServerSessionId.booleanValue()) {
 				throw new IllegalStateException("client only is not support with no server session id!");
 			}
-			clientOnly = true;
+			config.clientOnly = true;
 			return this;
 		}
 
@@ -1099,7 +1121,7 @@ public final class DtlsConnectorConfig {
 		 * @return this builder for command chaining
 		 */
 		public Builder setServerOnly(boolean enable) {
-			if (clientOnly) {
+			if (Boolean.TRUE.equals(config.clientOnly)) {
 				throw new IllegalStateException("server only is not supported for client only!");
 			}
 			if (config.defaultHandshakeMode != null) {
@@ -1294,7 +1316,7 @@ public final class DtlsConnectorConfig {
 		 *             to {@code true} before.
 		 */
 		public Builder setClientAuthenticationWanted(boolean authWanted) {
-			if (clientOnly) {
+			if (Boolean.TRUE.equals(config.clientOnly)) {
 				throw new IllegalStateException("client authentication is not supported for client only!");
 			}
 			if (authWanted && Boolean.TRUE.equals(config.clientAuthenticationRequired)) {
@@ -1321,7 +1343,7 @@ public final class DtlsConnectorConfig {
 		 *             to {@code true} before.
 		 */
 		public Builder setClientAuthenticationRequired(boolean authRequired) {
-			if (clientOnly) {
+			if (Boolean.TRUE.equals(config.clientOnly)) {
 				throw new IllegalStateException("client authentication is not supported for client only!");
 			}
 			if (authRequired && Boolean.TRUE.equals(config.clientAuthenticationWanted)) {
@@ -1382,7 +1404,7 @@ public final class DtlsConnectorConfig {
 			if (cipherSuites.contains(CipherSuite.TLS_NULL_WITH_NULL_NULL)) {
 				throw new IllegalArgumentException("NULL Cipher Suite is not supported by connector");
 			}
-			if (recommendedCipherSuitesOnly) {
+			if (config.recommendedCipherSuitesOnly == null || config.recommendedCipherSuitesOnly) {
 				verifyRecommendedCipherSuitesOnly(cipherSuites);
 			}
 			for (CipherSuite cipherSuite : cipherSuites) {
@@ -2023,7 +2045,7 @@ public final class DtlsConnectorConfig {
 		 *             the configuration is for client only.
 		 */
 		public Builder setNoServerSessionId(boolean flag) {
-			if (clientOnly && flag) {
+			if (Boolean.TRUE.equals(config.clientOnly) && flag) {
 				throw new IllegalArgumentException("not applicable for client only!");
 			}
 			config.useNoServerSessionId = flag;
@@ -2235,8 +2257,14 @@ public final class DtlsConnectorConfig {
 			if (config.clientAuthenticationWanted == null) {
 				config.clientAuthenticationWanted = Boolean.FALSE;
 			}
+			if (config.clientOnly == null) {
+				config.clientOnly = Boolean.FALSE;
+			}
+			if (config.recommendedCipherSuitesOnly == null) {
+				config.recommendedCipherSuitesOnly = Boolean.TRUE;
+			}
 			if (config.clientAuthenticationRequired == null) {
-				if (clientOnly) {
+				if (config.clientOnly) {
 					config.clientAuthenticationRequired = Boolean.FALSE;
 				} else {
 					config.clientAuthenticationRequired = !config.clientAuthenticationWanted;
@@ -2368,7 +2396,7 @@ public final class DtlsConnectorConfig {
 			}
 			if (config.certChain != null) {
 				boolean usage;
-				if (clientOnly) {
+				if (config.clientOnly) {
 					usage = CertPathUtil.canBeUsedForAuthentication(config.certChain.get(0), true);
 				} else if (config.serverOnly) {
 					usage = CertPathUtil.canBeUsedForAuthentication(config.certChain.get(0), false);
@@ -2396,7 +2424,7 @@ public final class DtlsConnectorConfig {
 
 		private void verifyCertificateBasedCipherConfig(CipherSuite suite) {
 			if (config.privateKey == null || config.publicKey == null) {
-				if (!clientOnly) {
+				if (!config.clientOnly) {
 					throw new IllegalStateException("Identity must be set for configured " + suite.name());
 				}
 			} else {
@@ -2407,7 +2435,7 @@ public final class DtlsConnectorConfig {
 							"Keys must be " + algorithm + " capable for configured " + suite.name());
 				}
 			}
-			if (clientOnly || config.clientAuthenticationRequired || config.clientAuthenticationWanted) {
+			if (config.clientOnly || config.clientAuthenticationRequired || config.clientAuthenticationWanted) {
 				if (config.trustCertificateTypes == null) {
 					throw new IllegalStateException("trust must be set for configured " + suite.name());
 				}
@@ -2449,11 +2477,11 @@ public final class DtlsConnectorConfig {
 			boolean certificates = isConfiguredWithKeyPair() || config.trustCertificateTypes != null;
 			if (certificates) {
 				// currently only ECDSA is supported!
-				ciphers.addAll(CipherSuite.getEcdsaCipherSuites(recommendedCipherSuitesOnly));
+				ciphers.addAll(CipherSuite.getEcdsaCipherSuites(config.recommendedCipherSuitesOnly));
 			}
 
 			if (config.pskStore != null) {
-				ciphers.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(recommendedCipherSuitesOnly,
+				ciphers.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(config.recommendedCipherSuitesOnly,
 						KeyExchangeAlgorithm.ECDHE_PSK, KeyExchangeAlgorithm.PSK));
 			}
 
