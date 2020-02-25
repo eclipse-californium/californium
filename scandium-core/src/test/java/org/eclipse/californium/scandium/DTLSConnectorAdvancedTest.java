@@ -61,6 +61,7 @@ import org.eclipse.californium.scandium.dtls.ContentType;
 import org.eclipse.californium.scandium.dtls.DTLSFlight;
 import org.eclipse.californium.scandium.dtls.DTLSMessage;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
+import org.eclipse.californium.scandium.dtls.DtlsHandshakeTimeoutException;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.Handshaker;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
@@ -1133,6 +1134,7 @@ public class DTLSConnectorAdvancedTest {
 			int timeout = RETRANSMISSION_TIMEOUT_MS * (2 << (MAX_RETRANSMISSIONS + 1));
 			Throwable error = serverSessionListener.waitForSessionFailed(timeout, TimeUnit.MILLISECONDS);
 			assertNotNull("server handshake not failed", error);
+			assertThat(error, instanceOf(DtlsHandshakeTimeoutException.class));
 			assertThat(serverHelper.serverConnectionStore.remainingCapacity(), is(remain));
 		} finally {
 			rawClient.stop();
@@ -1186,6 +1188,7 @@ public class DTLSConnectorAdvancedTest {
 			int timeout = RETRANSMISSION_TIMEOUT_MS * (2 << (MAX_RETRANSMISSIONS + 2));
 			Throwable error = serverSessionListener.waitForSessionFailed(timeout, TimeUnit.MILLISECONDS);
 			assertNotNull("server handshake not failed", error);
+			assertThat(error, instanceOf(DtlsHandshakeTimeoutException.class));
 			assertThat(serverHelper.serverConnectionStore.remainingCapacity(), is(remain));
 		} finally {
 			rawClient.stop();
@@ -1261,6 +1264,7 @@ public class DTLSConnectorAdvancedTest {
 			int timeout = RETRANSMISSION_TIMEOUT_MS * (2 << (MAX_RETRANSMISSIONS + 2));
 			Throwable error = clientSessionListener.waitForSessionFailed(timeout, TimeUnit.MILLISECONDS);
 			assertNotNull("client handshake not failed", error);
+			assertThat(error, instanceOf(DtlsHandshakeTimeoutException.class));
 			assertThat(clientConnectionStore.remainingCapacity(), is(remain));
 		} finally {
 			rawServer.stop();
@@ -1312,7 +1316,7 @@ public class DTLSConnectorAdvancedTest {
 			int timeout = RETRANSMISSION_TIMEOUT_MS * (2 << (MAX_RETRANSMISSIONS + 2));
 			Throwable error = clientSessionListener.waitForSessionFailed(timeout, TimeUnit.MILLISECONDS);
 			assertNotNull("client handshake not failed", error);
-			assertTrue(error.getMessage(), error.getMessage().contains("timeout"));
+			assertThat(error, instanceOf(DtlsHandshakeTimeoutException.class));
 			assertThat(clientConnectionStore.remainingCapacity(), is(remain));
 		} finally {
 			rawServer.stop();

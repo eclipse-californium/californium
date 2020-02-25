@@ -183,7 +183,9 @@ import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.ContentType;
 import org.eclipse.californium.scandium.dtls.DTLSFlight;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
+import org.eclipse.californium.scandium.dtls.DtlsException;
 import org.eclipse.californium.scandium.dtls.DtlsHandshakeException;
+import org.eclipse.californium.scandium.dtls.DtlsHandshakeTimeoutException;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.HandshakeMessage;
 import org.eclipse.californium.scandium.dtls.Handshaker;
@@ -2453,6 +2455,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 				}
 				Exception cause = null;
 				String message = "";
+				boolean timeout=false;
 				if (!connection.isExecuting() || !running.get()) {
 					message = " Stopped by shutdown!";
 				} else if (connectionStore.get(flight.getPeerAddress()) != connection) {
@@ -2465,6 +2468,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 						// limit of retransmissions not reached
 						// but handshake expired during Android / OS "deep sleep"
 						message = " Stopped by expired realtime!";
+						timeout = true;
 					} else if (tries < max) {
 						// limit of retransmissions not reached
 						if (config.isEarlyStopRetransmission() && flight.isResponseStarted()) {
@@ -2511,17 +2515,26 @@ public class DTLSConnector implements Connector, RecordLayer {
 					} else if (tries > max) {
 						LOGGER.debug("Flight for [{}] has reached timeout, discarding ...", flight.getPeerAddress());
 						message = " Stopped by timeout!";
+						timeout = true;
 					} else {
 						LOGGER.debug(
 								"Flight for [{}] has reached maximum no. [{}] of retransmissions, discarding ...",
 								flight.getPeerAddress(), max);
 						message = " Stopped by timeout after " + max + " retransmissions!";
+						timeout = true;
 					}
 				}
 
 				// inform handshaker
-				handshaker.handshakeFailed(
-						new Exception("Handshake flight " + flight.getFlightNumber() + " failed!" + message, cause));
+				if (timeout) {
+					handshaker.handshakeFailed(new DtlsHandshakeTimeoutException(
+							"Handshake flight " + flight.getFlightNumber() + " failed!" + message,
+							flight.getPeerAddress(), flight.getFlightNumber()));
+				} else {
+					handshaker.handshakeFailed(
+							new DtlsException("Handshake flight " + flight.getFlightNumber() + " failed!" + message,
+									flight.getPeerAddress(), cause));
+				}
 			}
 		}
 	}

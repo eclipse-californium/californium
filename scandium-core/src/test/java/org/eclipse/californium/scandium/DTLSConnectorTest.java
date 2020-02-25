@@ -84,6 +84,7 @@ import org.eclipse.californium.scandium.dtls.CompressionMethod;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.ContentType;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
+import org.eclipse.californium.scandium.dtls.DtlsHandshakeTimeoutException;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.HandshakeMessage;
@@ -849,7 +850,7 @@ public class DTLSConnectorTest {
 		Throwable error = callback.getError(TimeUnit.SECONDS.toMillis(MAX_TIME_TO_WAIT_SECS * 5));
 		assertThat(error, is(notNullValue()));
 		// timeout is not reported with HandshakeException!
-		assertThat(error, not(instanceOf(HandshakeException.class)));
+		assertThat(error, instanceOf(DtlsHandshakeTimeoutException.class));
 
 		LatchSessionListener listener = serverHelper.sessionListenerMap.get(client.getAddress());
 		assertThat("server side session listener missing", listener, is(notNullValue()));
