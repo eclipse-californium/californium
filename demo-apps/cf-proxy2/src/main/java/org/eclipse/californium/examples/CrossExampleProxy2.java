@@ -49,7 +49,7 @@ import org.eclipse.californium.proxy2.ProxyHttpServer;
 import org.eclipse.californium.proxy2.resources.ProxyCoapClientResource;
 import org.eclipse.californium.proxy2.resources.ProxyCoapResource;
 import org.eclipse.californium.proxy2.resources.ProxyHttpClientResource;
-import org.eclipse.californium.proxy2.resources.ProxyMessageDeliverer;
+import org.eclipse.californium.proxy2.resources.ForwardProxyMessageDeliverer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -147,7 +147,7 @@ public class CrossExampleProxy2 {
 		// Forwards requests Coap to Coap or Coap to Http server
 		coapProxyServer = new CoapServer(config, coapPort);
 		MessageDeliverer local = coapProxyServer.getMessageDeliverer();
-		ProxyMessageDeliverer proxyMessageDeliverer = new ProxyMessageDeliverer(coapProxyServer.getRoot(), translater);
+		ForwardProxyMessageDeliverer proxyMessageDeliverer = new ForwardProxyMessageDeliverer(coapProxyServer.getRoot(), translater);
 		proxyMessageDeliverer.addProxyCoapResources(coap2coap, coap2http);
 		proxyMessageDeliverer.addExposedServiceAddresses(new InetSocketAddress(coapPort));
 		coapProxyServer.setMessageDeliverer(proxyMessageDeliverer);

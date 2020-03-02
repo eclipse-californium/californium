@@ -26,6 +26,7 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.proxy2.resources.ForwardProxyMessageDeliverer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,15 +44,17 @@ public class CoapUriTranslator {
 	public static final ResponseCode STATUS_TRANSLATION_ERROR = ResponseCode.BAD_GATEWAY;
 
 	/**
-	 * Get destination schem for request.
+	 * Get destination scheme of request for forward-proxy processing.
 	 * 
 	 * If a Proxy-URI is provided, that is used to determine the scheme.
 	 * Otherwise the {@link OptionSet#getProxyScheme()} is, if available, or the
 	 * scheme of the request in absence of the other schemes.
 	 * 
 	 * @param incomingRequest the original request
-	 * @return scheme destination scheme
+	 * @return destination scheme, or {@code null}, to bypass the forward-proxy
+	 *         processing.
 	 * @throws TranslationException the translation exception
+	 * @see ForwardProxyMessageDeliverer
 	 */
 	public String getDestinationScheme(Request incomingRequest) throws TranslationException {
 		if (incomingRequest == null) {
@@ -81,11 +84,13 @@ public class CoapUriTranslator {
 	 * 
 	 * In container deployments the receiving local interface may differ from
 	 * the exposed one. That interface may be required, if the request doesn't
-	 * contain a uri-host- or uri-port-option. In that case, the interface is
+	 * contain a uri-host or uri-port option. In that case, the interface is
 	 * used to fill in the missing information. This default implementation
-	 * returns {@code null}.
+	 * returns {@code null} and so requires, that the requests contains the
+	 * uri-host and uri-port option.
 	 * 
-	 * @param incomingRequest the received request.
+	 * @param incomingRequest the received request. The request's destination
+	 *            contains the address of the local receiving interface.
 	 * @return exposed interface. {@code null}, if not available.
 	 */
 	public InetSocketAddress getExposedInterface(Request incomingRequest) {

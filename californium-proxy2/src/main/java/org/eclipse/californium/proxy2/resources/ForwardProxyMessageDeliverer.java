@@ -38,14 +38,31 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Proxy message deliverer
+ * Forward proxy message deliverer
  * 
  * Delivers message either to proxy resources registered for the destination
  * scheme, or, to local resources using the requests path.
+ * 
+ * A request is considered for the forward-proxy, if either
+ * <ul>
+ * <li>a proxy-uri or a proxy-scheme option is contained, or,</li>
+ * <li>a uri-host and/or uri-port option is contained in the request, and the
+ * destination defined by this options is not contained in the exposed service
+ * addresses</li>
+ * </ul>
+ * For request considered for the forward-proxy, the destination scheme is
+ * determined by calling {@link CoapUriTranslator#getDestinationScheme(Request)}
+ * of the provided translator. If a {@link ProxyCoapResource} was added, which
+ * handles this destination scheme, the request delivered to that resource. For
+ * none-compliant proxies, the translater implementation may return {@code null}
+ * for special request to bypass the forward-proxy processing.
+ * 
+ * Requests not processed by the forward-proxy are processed as standard request
+ * by the coap-server.
  */
-public class ProxyMessageDeliverer extends ServerMessageDeliverer {
+public class ForwardProxyMessageDeliverer extends ServerMessageDeliverer {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(ProxyMessageDeliverer.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(ForwardProxyMessageDeliverer.class);
 
 	/**
 	 * Translator to determine destination scheme.
@@ -74,12 +91,16 @@ public class ProxyMessageDeliverer extends ServerMessageDeliverer {
 	private final Set<Integer> exposedPorts;
 
 	/**
-	 * Create message deliverer with proxy support.
+	 * Create message deliverer with forward-proxy support.
 	 * 
 	 * @param root root resource of coap-proxy-server
-	 * @param translater translator for coap-request-uri's
+	 * @param translater translator for destination-scheme.
+	 *            {@link CoapUriTranslator#getDestinationScheme(Request)} is
+	 *            used to determine this destination scheme for forward-proxy
+	 *            implementations. The translater may return {@code null} to
+	 *            bypass the forward-proxy processing for a request.
 	 */
-	public ProxyMessageDeliverer(Resource root, CoapUriTranslator translater) {
+	public ForwardProxyMessageDeliverer(Resource root, CoapUriTranslator translater) {
 		super(root);
 		this.translater = translater;
 		this.scheme2resource = new HashMap<String, Resource>();
@@ -97,7 +118,7 @@ public class ProxyMessageDeliverer extends ServerMessageDeliverer {
 	 * @throws NullPointerException if {@code null} is provided
 	 * @throws IllegalArgumentException if list is empty
 	 */
-	public ProxyMessageDeliverer addExposedServiceAddresses(InetSocketAddress... exposed) {
+	public ForwardProxyMessageDeliverer addExposedServiceAddresses(InetSocketAddress... exposed) {
 		if (exposed == null) {
 			throw new NullPointerException("exposed interfaces must not be null!");
 		}
@@ -132,13 +153,13 @@ public class ProxyMessageDeliverer extends ServerMessageDeliverer {
 	}
 
 	/**
-	 * Add proxy coap resources for standard forward proxies.
+	 * Add proxy coap resources as standard forward-proxies.
 	 * 
 	 * @param proxies list of proxy resources.
 	 * @throws NullPointerException if {@code null} is provided
 	 * @throws IllegalArgumentException if list is empty
 	 */
-	public ProxyMessageDeliverer addProxyCoapResources(ProxyCoapResource... proxies) {
+	public ForwardProxyMessageDeliverer addProxyCoapResources(ProxyCoapResource... proxies) {
 		if (proxies == null) {
 			throw new NullPointerException("proxies must not be null!");
 		}
@@ -169,15 +190,18 @@ public class ProxyMessageDeliverer extends ServerMessageDeliverer {
 		OptionSet options = request.getOptions();
 		boolean proxyOption = options.hasProxyUri() || options.hasProxyScheme();
 		boolean hostOption = options.hasUriHost() || options.hasUriPort();
+		boolean local = true;
 
-		if (hostOption && !proxyOption && !exposedServices.isEmpty()) {
-			// check, if proxy is destination.
+		if (hostOption && !exposedServices.isEmpty()) {
+			// check, if proxy is final destination.
 			Integer port = options.getUriPort();
 			String host = options.getUriHost();
 			if (host == null) {
 				if (exposedPorts.contains(port)) {
 					// proxy is destination
 					hostOption = false;
+				} else {
+					local = false;
 				}
 			} else {
 				if (port == null) {
@@ -186,6 +210,8 @@ public class ProxyMessageDeliverer extends ServerMessageDeliverer {
 						if (exposedHosts.contains(address)) {
 							// proxy is destination
 							hostOption = false;
+						} else {
+							local = false;
 						}
 					} catch (UnknownHostException e) {
 						// destination not reachable
@@ -196,31 +222,53 @@ public class ProxyMessageDeliverer extends ServerMessageDeliverer {
 					if (destination.isUnresolved() || exposedServices.contains(destination)) {
 						// destination not reachable or proxy is destination
 						hostOption = false;
+					} else {
+						local = false;
 					}
 				}
 			}
 		}
+
 		if (proxyOption || hostOption) {
 			try {
 				String scheme = translater.getDestinationScheme(request);
 				if (scheme != null) {
 					scheme = scheme.toLowerCase();
 					resource = scheme2resource.get(scheme);
+					if (resource != null && request.getDestinationContext() == null) {
+						preserveReceivingInterface(exchange);
+					}
+				} else {
+					local = true;
 				}
 			} catch (TranslationException e) {
 				LOGGER.debug("Bad proxy request", e);
 			}
 		}
-		if (resource == null) {
+		if (resource == null && local) {
 			// try to find local resource
 			resource = super.findResource(exchange);
 		}
-		if (resource != null && request.getDestinationContext() == null) {
-			if (exchange.getEndpoint() != null) {
-				// set local receiving addess as destination
-				request.setDestinationContext(new AddressEndpointContext(exchange.getEndpoint().getAddress()));
-			}
-		}
 		return resource;
+	}
+
+	/**
+	 * Preserve the address of the local receiving interface in the requests
+	 * destination.
+	 * 
+	 * The destination maybe required for forward-proxies, if uri-host or
+	 * uri-port options are missing. The
+	 * {@link CoapUriTranslator#getExposedInterface(Request)} is intended to
+	 * provide the mapping of local interfaces to exposed interfaces. If this
+	 * mapping s not possible, all request for the forward-proxy requires the
+	 * uri-host and uri-port option to be contained!
+	 * 
+	 * @param exchange exchange with request and receiving endpoint
+	 */
+	private void preserveReceivingInterface(Exchange exchange) {
+		if (exchange.getEndpoint() != null) {
+			exchange.getRequest()
+					.setDestinationContext(new AddressEndpointContext(exchange.getEndpoint().getAddress()));
+		}
 	}
 }
