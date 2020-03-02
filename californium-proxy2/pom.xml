@@ -92,6 +92,8 @@
 				<groupId>org.revapi</groupId>
 				<artifactId>revapi-maven-plugin</artifactId>
 				<configuration>
+					<!-- proxy2 is in development and doesn't grant a stable API! -->
+					<oldVersion>2.0.0</oldVersion>
 					<analysisConfiguration combine.children="append">
 						<revapi.ignore>
 							<item>

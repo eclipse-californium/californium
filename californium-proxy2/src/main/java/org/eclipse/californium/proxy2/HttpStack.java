@@ -230,8 +230,9 @@ public class HttpStack {
 				// if (Bench_Help.DO_LOG)
 				LOGGER.info("Received HTTP request and translate to {}", coapRequest);
 				coapRequest.setSourceContext(new AddressEndpointContext(source));
+				// use destination of incoming request to keep the receiving interface.
 				coapRequest.setDestinationContext(new AddressEndpointContext(endpoint));
-				// handle the requset
+				// handle the request
 				Exchange exchange = new Exchange(coapRequest, Origin.REMOTE, null) {
 
 					@Override

@@ -24,13 +24,49 @@ import java.util.Set;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.server.ServerMessageDeliverer;
 import org.eclipse.californium.proxy2.Coap2CoapTranslator;
 import org.eclipse.californium.proxy2.Coap2HttpTranslator;
 import org.eclipse.californium.proxy2.EndpointPool;
+import org.eclipse.californium.proxy2.Http2CoapTranslator;
 import org.eclipse.californium.proxy2.TranslationException;
 
 /**
  * Resource that forwards a coap request.
+ * 
+ * According <a href="https://tools.ietf.org/html/rfc7252#section-5.7">RFC 7252,
+ * 5.7 Proxying</a> proxies are classified into <a href=
+ * "https://tools.ietf.org/html/rfc7252#section-5.7.2">Forward-Proxies</a> and
+ * <a href=
+ * "https://tools.ietf.org/html/rfc7252#section-5.7.3">Reverse-Proxies</a>.
+ * 
+ * The forward-proxies operates in a generic way. The destination to sent the
+ * request by the proxy is contained in the request itself. It is provided in
+ * the coap-options (Uri-Host, Uri-Port, Uri-Path, Uri-Query, and Proxy-Scheme,
+ * or Proxy-Uri). This is very similar to a http proxy, where the http-request
+ * including the destination host, is sent to the http-proxy.
+ * 
+ * The reverse-proxies instead are specific. They don't use the above options to
+ * define the destination, instead this destination is defined by configuration
+ * or/and information in the request.
+ * 
+ * Over the time, it seems, that these two variants got mixed. One reason for
+ * that may be the fact, that the Proxy-URI is the only standard option, which
+ * may contain more than 255 bytes. That mix makes it hard to implement a proxy
+ * functionality, especially, if such none-compliant cases should be also
+ * considered.
+ * 
+ * This {@link ProxyCoapResource} supports both variants adapting the conversion
+ * using custom implementations of {@link Coap2CoapTranslator} or
+ * {@link Http2CoapTranslator}. Forward proxies are implemented replacing the
+ * default {@link ServerMessageDeliverer} by
+ * {@link ForwardProxyMessageDeliverer} and add {@link ProxyCoapClientResource}
+ * and/or {@link ProxyHttpClientResource} to this message-forwarded. Reverse
+ * proxies are implemented using
+ * {@link #createReverseProxy(String, boolean, boolean, boolean, URI, EndpointPool...)}.
+ * If a reverse proxy requires a customized conversion, add a customized
+ * {@link ProxyCoapClientResource} and/or {@link ProxyHttpClientResource} to the
+ * coap-server.
  */
 public abstract class ProxyCoapResource extends CoapResource {
 
@@ -53,9 +89,11 @@ public abstract class ProxyCoapResource extends CoapResource {
 	}
 
 	/**
-	 * Set of supported destination schemes.
+	 * Set of supported destination schemes for forward-proxy.
 	 * 
-	 * @return set of supported destination schemes.
+	 * @return set of supported destination schemes for forward-proxy.
+	 *         {@code null} for reverse-proxy.
+	 * @see ForwardProxyMessageDeliverer
 	 */
 	public abstract Set<String> getDestinationSchemes();
 
@@ -63,7 +101,7 @@ public abstract class ProxyCoapResource extends CoapResource {
 	public abstract void handleRequest(final Exchange exchange);
 
 	/**
-	 * Create reverse proxy for fixed destination.
+	 * Create reverse-proxy for fixed destination.
 	 * 
 	 * @param name name of the resource
 	 * @param visible visibility of the resource
