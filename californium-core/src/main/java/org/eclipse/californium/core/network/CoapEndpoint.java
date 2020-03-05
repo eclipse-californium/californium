@@ -1658,6 +1658,25 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors {
 	}
 
 	/**
+	 * Standard coap-stack-factory.
+	 * 
+	 * This will be also the default, if no other default gets provided with
+	 * {@link #setDefaultCoapStackFactory(CoapStackFactory)}. If an other
+	 * default factory is used, this one may be used to build a standard
+	 * coap-stack on demand.
+	 */
+	public static final CoapStackFactory STANDARD_COAP_STACK_FACTORY = new CoapStackFactory() {
+
+		public CoapStack createCoapStack(String protocol, NetworkConfig config, Outbox outbox, Object customStackArgument) {
+			if (CoAP.isTcpProtocol(protocol)) {
+				return new CoapTcpStack(config, outbox);
+			} else {
+				return new CoapUdpStack(config, outbox);
+			}
+		}
+	};
+
+	/**
 	 * Default coap-stack-factory. Intended to be set only once.
 	 */
 	private static CoapStackFactory defaultCoapStackFactory;
@@ -1670,17 +1689,7 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors {
 	 */
 	private static synchronized CoapStackFactory getDefaultCoapStackFactory() {
 		if (defaultCoapStackFactory == null) {
-			defaultCoapStackFactory = new CoapStackFactory() {
-
-				public CoapStack createCoapStack(String protocol, NetworkConfig config, Outbox outbox, Object customStackArgument) {
-					if (CoAP.isTcpProtocol(protocol)) {
-						return new CoapTcpStack(config, outbox);
-					} else {
-						return new CoapUdpStack(config, outbox);
-					}
-				}
-			};
-
+			defaultCoapStackFactory = STANDARD_COAP_STACK_FACTORY;
 		}
 		return defaultCoapStackFactory;
 	}
