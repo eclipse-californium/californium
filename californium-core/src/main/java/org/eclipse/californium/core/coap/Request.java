@@ -885,7 +885,8 @@ public class Request extends Message {
 			}
 		}
 		super.setRequestDestinationContext(peerContext);
-		multicast = peerContext != null && peerContext.getPeerAddress().getAddress().isMulticastAddress();
+		multicast = peerContext != null && !peerContext.getPeerAddress().isUnresolved()
+				&& peerContext.getPeerAddress().getAddress().isMulticastAddress();
 		return this;
 	}
 
