@@ -26,7 +26,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.Assert;
@@ -98,6 +97,7 @@ public class ClientSynchronousTest {
 
 		String uri = TestTools.getUri(serverEndpoint, TARGET);
 		CoapClient client = new CoapClient(uri).useExecutor();
+		cleanup.add(client);
 
 		// Check that we get the right content when calling get()
 		String resp1 = client.get().getResponseText();
@@ -121,23 +121,21 @@ public class ClientSynchronousTest {
 		assertNotNull("missing initial notification", response);
 		assertEquals(CONTENT_2, response.getResponseText());
 
-		Thread.sleep(100);
-		resource.changed();
-		response = handler.waitOnLoad(100);
-		assertNotNull("missing notification", response);
-		assertEquals(CONTENT_2, response.getResponseText());
-		Thread.sleep(100);
-		resource.changed();
-		response = handler.waitOnLoad(100);
-		assertNotNull("missing notification", response);
-		assertEquals(CONTENT_2, response.getResponseText());
-		Thread.sleep(100);
 		resource.changed();
 		response = handler.waitOnLoad(100);
 		assertNotNull("missing notification", response);
 		assertEquals(CONTENT_2, response.getResponseText());
 
-		Thread.sleep(100);
+		resource.changed();
+		response = handler.waitOnLoad(100);
+		assertNotNull("missing notification", response);
+		assertEquals(CONTENT_2, response.getResponseText());
+
+		resource.changed();
+		response = handler.waitOnLoad(100);
+		assertNotNull("missing notification", response);
+		assertEquals(CONTENT_2, response.getResponseText());
+
 		String resp5 = client.post(CONTENT_3, MediaTypeRegistry.TEXT_PLAIN).getResponseText();
 		Assert.assertEquals(CONTENT_2, resp5);
 
@@ -150,15 +148,12 @@ public class ClientSynchronousTest {
 		Assert.assertEquals(ResponseCode.METHOD_NOT_ALLOWED, code6);
 
 		// Cancel observe relation of obs1 and check that it does no longer receive notifications
-		Thread.sleep(100);
 		obs1.reactiveCancel();
-		Thread.sleep(100);
 		resource.changed();
 		response = handler.waitOnLoad(100);
 		assertNull("unexpected notification", response == null ? null : response.getResponseText());
 
 		// Make another post
-		Thread.sleep(100);
 		String resp7 = client.post(CONTENT_4, MediaTypeRegistry.TEXT_PLAIN).getResponseText();
 		Assert.assertEquals(CONTENT_3, resp7);
 
@@ -174,6 +169,7 @@ public class ClientSynchronousTest {
 		Thread.sleep(100);
 		Assert.assertEquals(5, handler.getOnLoadCalls());
 		Assert.assertEquals(0, handler.getOnErrorCalls());
+		client2.shutdown();
 		client.shutdown();
 	}
 
@@ -185,17 +181,18 @@ public class ClientSynchronousTest {
 		CoapEndpoint clientEndpoint = builder.build();
 		cleanup.add(clientEndpoint);
 		clientEndpoint.addInterceptor(new MessageInterceptorAdapter() {
-			
+
 			@Override
 			public void sendRequest(Request request) {
 				sent.set(true);
 			}
 		});
-		
+
 		String uri = TestTools.getUri(serverEndpoint, TARGET);
 		CoapClient client = new CoapClient(uri).useExecutor();
+		cleanup.add(client);
 		client.setEndpoint(clientEndpoint);
-		
+
 		// Check that we get the right content when calling get()
 		boolean ping = client.ping();
 		Assert.assertTrue(ping);
@@ -208,6 +205,7 @@ public class ClientSynchronousTest {
 
 		String uri = TestTools.getUri(serverEndpoint, TARGET);
 		CoapClient client = new CoapClient(uri).useExecutor();
+		cleanup.add(client);
 
 		// Set NONs but expecting CONs as specified in request
 		client.useNONs();
@@ -226,6 +224,7 @@ public class ClientSynchronousTest {
 
 		String nonExistingUri = TestTools.getUri(serverEndpoint, "non-existing");
 		CoapClient client = new CoapClient(nonExistingUri).useExecutor();
+		cleanup.add(client);
 
 		Request request = new Request(Code.GET, Type.CON);
 		String uri = TestTools.getUri(serverEndpoint, TARGET);
@@ -243,6 +242,7 @@ public class ClientSynchronousTest {
 
 		String uri = TestTools.getUri(serverEndpoint, TARGET);
 		CoapClient client = new CoapClient(uri).useExecutor();
+		cleanup.add(client);
 
 		CoapResponse resp = client.post(OVERLOAD, MediaTypeRegistry.TEXT_PLAIN);
 
@@ -280,12 +280,9 @@ public class ClientSynchronousTest {
 
 		@Override
 		public void handleGET(CoapExchange exchange) {
-			List<String> queries = exchange.getRequestOptions().getUriQuery();
 			String c = content;
-			for (String q:queries) {
-				if (QUERY_UPPER_CASE.equals(q)) {
-					c = content.toUpperCase();
-				}
+			if (exchange.getQueryParameter(QUERY_UPPER_CASE) != null) {
+				c = content.toUpperCase();
 			}
 			exchange.respond(ResponseCode.CONTENT, c);
 		}
