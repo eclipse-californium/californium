@@ -350,7 +350,8 @@ public class Exchange {
 	/**
 	 * Accept this exchange and therefore the request. Only if the request's
 	 * type was a <code>CON</code> and the request has not been acknowledged
-	 * yet, it sends an ACK to the client.
+	 * yet, it sends an ACK to the client and prepares to send the response as
+	 * separate response.
 	 * 
 	 * @param context endpoint context to send ack
 	 * 
@@ -359,8 +360,7 @@ public class Exchange {
 	public void sendAccept(EndpointContext context) {
 		assert (origin == Origin.REMOTE);
 		Request current = currentRequest;
-		if (current.getType() == Type.CON && current.hasMID() && !current.isAcknowledged()) {
-			current.setAcknowledged(true);
+		if (current.getType() == Type.CON && current.hasMID() && current.acknowledge()) {
 			EmptyMessage ack = EmptyMessage.newACK(current, context);
 			endpoint.sendEmptyMessage(this, ack);
 		}
