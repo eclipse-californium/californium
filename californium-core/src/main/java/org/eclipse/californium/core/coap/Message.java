@@ -54,6 +54,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -145,7 +146,7 @@ public abstract class Message {
 	private volatile boolean sent;
 
 	/** Indicates if the message has been acknowledged. */
-	private volatile boolean acknowledged;
+	private final AtomicBoolean acknowledged = new AtomicBoolean();
 
 	/** Indicates if the message has been rejected. */
 	private volatile boolean rejected;
@@ -720,7 +721,7 @@ public abstract class Message {
 	 * @return true, if is acknowledged
 	 */
 	public boolean isAcknowledged() {
-		return acknowledged;
+		return acknowledged.get();
 	}
 
 	/**
@@ -731,12 +732,33 @@ public abstract class Message {
 	 * @param acknowledged if acknowledged
 	 */
 	public void setAcknowledged(boolean acknowledged) {
-		this.acknowledged = acknowledged;
+		this.acknowledged.set(acknowledged);
 		if (acknowledged) {
 			for (MessageObserver handler : getMessageObservers()) {
 				handler.onAcknowledgement();
 			}
 		}
+	}
+
+	/**
+	 * Acknowledge a unacknowledged confirmable message.
+	 *
+	 * Checks and set {@link #acknowledged} atomically. Calls
+	 * {@link #setAcknowledged(boolean)}, if message was unacknowledged.
+	 * 
+	 * Not part of the fluent API.
+	 *
+	 * @return {@code true}, if message was unacknowledged and confirmable,
+	 *         {@code false}, if message was already acknowledged or is not
+	 *         confirmable
+	 * @since 2.2
+	 */
+	public boolean acknowledge() {
+		if (isConfirmable() && acknowledged.compareAndSet(false, true)) {
+			setAcknowledged(true);
+			return true;
+		}
+		return false;
 	}
 
 	/**
@@ -987,7 +1009,7 @@ public abstract class Message {
 			return sendError.getMessage() + " ";
 		} else if (rejected) {
 			return "rejected ";
-		} else if (acknowledged) {
+		} else if (acknowledged.get()) {
 			return "acked ";
 		} else if (timedOut) {
 			return "timeout ";
