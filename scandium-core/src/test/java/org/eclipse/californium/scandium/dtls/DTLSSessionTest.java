@@ -75,24 +75,6 @@ public class DTLSSessionTest {
 		assertAnyFragmentFitsIntoUnfragmentedDatagram(mtu);
 	}
 
-	@Test
-	public void testMaxFragmentLengthIsAdjustedToCipherSuite() {
-		// given a handshake over an ethernet connection (MTU 1500 bytes)
-		int mtu = 1500;
-		session.setMaxTransmissionUnit(mtu);
-		int initialMaxFragmentLength = session.getMaxFragmentLength();
-
-		// when negotiating a cipher suite introducing ciphertext expansion
-		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256;
-		DTLSConnectionState newWriteState = newConnectionState(cipherSuite);
-		session.setWriteState(newWriteState);
-
-		// then the maxFragmentLength is adjusted so that any fragment using
-		// current write state fits into a single unfragmented UDP datagram
-		assertAnyFragmentFitsIntoUnfragmentedDatagram(mtu);
-		assertTrue(session.getMaxFragmentLength() < initialMaxFragmentLength);
-	}
-
 	private void assertAnyFragmentFitsIntoUnfragmentedDatagram(int mtu) {
 		int datagramSize = session.getMaxFragmentLength()
 				+ session.getWriteState().getMaxCiphertextExpansion()

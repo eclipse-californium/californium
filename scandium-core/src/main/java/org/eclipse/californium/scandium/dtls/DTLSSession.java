@@ -48,8 +48,6 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 import java.security.Principal;
-import java.util.HashMap;
-import java.util.Map;
 
 import javax.crypto.SecretKey;
 import javax.security.auth.DestroyFailedException;
@@ -164,7 +162,8 @@ public final class DTLSSession implements Destroyable {
 	/**
 	 * The next record sequence number per epoch.
 	 */
-	private Map<Integer, Long> sequenceNumbers = new HashMap<>();
+	// We only need 2 values as we do not support DTLS re-negotiation.
+	private long[] sequenceNumbers = new long[2];
 
 	/**
 	 * Indicates the type of certificate to send to the peer in a CERTIFICATE message.
@@ -276,7 +275,7 @@ public final class DTLSSession implements Destroyable {
 			this.creationTime = creationTime;
 			this.handshakeTimeTag = Long.toString(System.currentTimeMillis());
 			this.peer = peerAddress;
-			this.sequenceNumbers.put(0, initialSequenceNo);
+			this.sequenceNumbers[0]= initialSequenceNo;
 		}
 	}
 
@@ -568,7 +567,7 @@ public final class DTLSSession implements Destroyable {
 		this.writeEpoch++;
 		// Sequence numbers are maintained separately for each epoch, with each
 		// sequence_number initially being 0 for each epoch.
-		this.sequenceNumbers.put(writeEpoch, 0L);
+		this.sequenceNumbers[writeEpoch] =  0L;
 	}
 
 	/**
@@ -594,9 +593,9 @@ public final class DTLSSession implements Destroyable {
 	 *     epoch has been reached (2^48 - 1)
 	 */
 	public long getSequenceNumber(int epoch) {
-		long sequenceNumber = this.sequenceNumbers.get(epoch);
+		long sequenceNumber = this.sequenceNumbers[epoch];
 		if (sequenceNumber < MAX_SEQUENCE_NO) {
-			this.sequenceNumbers.put(epoch, sequenceNumber + 1);
+			this.sequenceNumbers[epoch] =  sequenceNumber + 1;
 			return sequenceNumber;
 		} else {
 			// maximum sequence number has been reached
