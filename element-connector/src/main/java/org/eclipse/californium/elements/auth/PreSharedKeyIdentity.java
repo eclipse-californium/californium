@@ -73,8 +73,8 @@ public final class PreSharedKeyIdentity extends AbstractExtensiblePrincipal<PreS
 			throw new NullPointerException("Identity must not be null");
 		} else {
 			scopedIdentity = sni;
-			StringBuilder b = new StringBuilder();
 			if (sni) {
+				StringBuilder b = new StringBuilder();
 				if (virtualHost == null) {
 					this.virtualHost = null;
 				} else if (StringUtil.isValidHostName(virtualHost)) {
@@ -84,16 +84,16 @@ public final class PreSharedKeyIdentity extends AbstractExtensiblePrincipal<PreS
 					throw new IllegalArgumentException("virtual host is not a valid hostname");
 				}
 				b.append(":");
+				b.append(identity);
+				this.name = b.toString();
 			} else {
 				if (virtualHost != null) {
 					throw new IllegalArgumentException("virtual host is not supported, if sni is disabled");
 				}
 				this.virtualHost = null;
+				this.name = identity;
 			}
 			this.identity = identity;
-
-			b.append(identity);
-			this.name = b.toString();
 		}
 	}
 
