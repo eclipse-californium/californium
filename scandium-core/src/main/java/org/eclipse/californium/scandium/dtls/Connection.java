@@ -64,11 +64,14 @@ public final class Connection {
 
 	private final AtomicReference<Handshaker> ongoingHandshake = new AtomicReference<Handshaker>();
 	private final SessionListener sessionListener = new ConnectionSessionListener();
+
 	/**
 	 * Random used by client to start the handshake. Maybe {@code null}, for
 	 * client side connections. Note: used outside of serial-execution!
 	 */
-	private ClientHello startingClientHello;
+	private Random startingClientHelloRandom;
+	private int startingClientHelloMessageSeq;
+
 	/**
 	 * Expired real time nanoseconds of the last message send or received.
 	 */
@@ -365,9 +368,10 @@ public final class Connection {
 		if (clientHello == null) {
 			throw new NullPointerException("client hello must not be null!");
 		}
-		if (startingClientHello != null) {
-			if (startingClientHello.getRandom().equals(clientHello.getRandom())) {
-				if (startingClientHello.getMessageSeq() >= clientHello.getMessageSeq()) {
+		Random startingClientHelloRandom = this.startingClientHelloRandom;
+		if (startingClientHelloRandom != null) {
+			if (startingClientHelloRandom.equals(clientHello.getRandom())) {
+				if (startingClientHelloMessageSeq >= clientHello.getMessageSeq()) {
 					return true;
 				}
 			}
@@ -388,7 +392,12 @@ public final class Connection {
 	 * @see #isStartedByClientHello(ClientHello)
 	 */
 	public void startByClientHello(ClientHello clientHello) {
-		startingClientHello = clientHello;
+		if (clientHello == null) {
+			startingClientHelloRandom = null;
+		} else {
+			startingClientHelloMessageSeq = clientHello.getMessageSeq();
+			startingClientHelloRandom = clientHello.getRandom();
+		}
 	}
 
 	/**
@@ -568,7 +577,7 @@ public final class Connection {
 		@Override
 		public void handshakeFailed(Handshaker handshaker, Throwable error) {
 			if (ongoingHandshake.compareAndSet(handshaker, null)) {
-				startingClientHello = null;
+				startingClientHelloRandom = null;
 				LOGGER.debug("Handshake with [{}] has failed", handshaker.getPeerAddress());
 			}
 		}
