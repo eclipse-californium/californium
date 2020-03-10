@@ -416,10 +416,12 @@ public class DTLSConnector implements Connector, RecordLayer {
 					if (health != null) {
 						health.endHandshake(true);
 					}
+					final Connection connection = handshaker.getConnection();
 					timer.schedule(new Runnable() {
+
 						@Override
 						public void run() {
-							handshaker.getConnection().startByClientHello(null);
+							connection.startByClientHello(null);
 						}
 					}, CLIENT_HELLO_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
 				}
