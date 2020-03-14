@@ -34,6 +34,7 @@ import org.slf4j.LoggerFactory;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.OptionSet;
+import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
@@ -253,8 +254,12 @@ public abstract class BlockwiseStatus {
 				|| !followUpEndpointContext.getPeerAddress().equals(blockContext.getPeerAddress())) {
 			// considering notifies with address changes,
 			// use the response's endpoint-context to compensate that
-			EndpointContext context = exchange.getRequest().getDestinationContext();
-			String mode = context.get(DtlsEndpointContext.KEY_HANDSHAKE_MODE);
+			String mode = null;
+			if (exchange != null) {
+				Request request = exchange.getRequest();
+				EndpointContext context = request.getDestinationContext();
+				mode = context.get(DtlsEndpointContext.KEY_HANDSHAKE_MODE);
+			}
 			if (mode != null && mode.equals(DtlsEndpointContext.HANDSHAKE_MODE_NONE)) {
 				// restore handshake-mode "none"
 				followUpEndpointContext = MapBasedEndpointContext.addEntries(blockContext, DtlsEndpointContext.KEY_HANDSHAKE_MODE,

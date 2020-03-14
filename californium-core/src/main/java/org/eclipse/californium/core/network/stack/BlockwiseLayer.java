@@ -823,9 +823,9 @@ public class BlockwiseLayer extends AbstractLayer {
 	 */
 	private boolean discardBlock2(KeyUri key, Block2BlockwiseStatus status, Exchange exchange, Response response) {
 		BlockOption block = response.getOptions().getBlock2();
-		boolean starting = (block == null) || (block.getNum() == 0);
 		if (status != null) {
 			// ongoing blockwise transfer
+			boolean starting = (block == null) || (block.getNum() == 0);
 			if (starting) {
 				if (status.isNew(response)) {
 					LOGGER.debug("discarding outdated block2 transfer {}, current is [{}]", status.getObserve(),
