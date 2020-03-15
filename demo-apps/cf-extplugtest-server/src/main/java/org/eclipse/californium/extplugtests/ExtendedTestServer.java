@@ -53,6 +53,7 @@ import org.eclipse.californium.extplugtests.resources.ReverseObserve;
 import org.eclipse.californium.extplugtests.resources.ReverseRequest;
 import org.eclipse.californium.plugtests.AbstractTestServer;
 import org.eclipse.californium.plugtests.PlugtestServer;
+import org.eclipse.californium.unixhealth.NetStatLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -197,6 +198,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 			if (noBenchmark) {
 				System.out.println(ExtendedTestServer.class.getSimpleName() + " without benchmark started ...");
 			} else {
+				NetStatLogger netstat = new NetStatLogger("udp");
 				Runtime runtime = Runtime.getRuntime();
 				long max = runtime.maxMemory();
 				StringBuilder builder = new StringBuilder(ExtendedTestServer.class.getSimpleName());
@@ -231,6 +233,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 					if (lastGcCount < gcCount) {
 						printManagamentStatistic();
 						lastGcCount = gcCount;
+						netstat.dump();
 					}
 				}
 			}

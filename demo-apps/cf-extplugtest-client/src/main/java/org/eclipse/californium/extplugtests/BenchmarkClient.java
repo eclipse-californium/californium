@@ -75,6 +75,7 @@ import org.eclipse.californium.plugtests.ClientInitializer;
 import org.eclipse.californium.plugtests.ClientInitializer.Arguments;
 import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
 import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalKeyPairGenerator;
+import org.eclipse.californium.unixhealth.NetStatLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -724,6 +725,7 @@ public class BenchmarkClient {
 		final AtomicBoolean errors = new AtomicBoolean();
 		final NetworkConfig config = effectiveConfig;
 		final HealthStatisticLogger health = new HealthStatisticLogger(uri.getScheme(), !CoAP.isTcpScheme(uri.getScheme()));
+		final NetStatLogger netstat = new NetStatLogger("udp");
 		final int min = intervalMin;
 		final int max = intervalMin;
 		for (int index = 0; index < clients; ++index) {
@@ -963,7 +965,7 @@ public class BenchmarkClient {
 					(overallSentRequests * 100L) / overallRequests);
 		}
 		health.dump();
-
+		netstat.dump();
 		if (1 < clients) {
 			synchronized (statistic) {
 				Arrays.sort(statistic);

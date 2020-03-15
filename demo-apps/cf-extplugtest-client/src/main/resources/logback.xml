@@ -45,6 +45,10 @@
 		<appender-ref ref="STDOUT_SIMPLE" />
 	</logger>
 
+	<logger name="org.eclipse.californium.unixhealth.NetStatLogger" level="DEBUG" additivity="false">
+		<appender-ref ref="STDOUT_SIMPLE" />
+	</logger>
+
 	<logger name="org.eclipse.californium.plugtests.ClientInitializer" level="INFO" additivity="false" >
 		<appender-ref ref="STDOUT_SIMPLE" />
 	</logger>
