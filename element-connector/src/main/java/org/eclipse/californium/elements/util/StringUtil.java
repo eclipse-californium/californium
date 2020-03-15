@@ -379,5 +379,22 @@ public class StringUtil {
 		}
 		return tag;
 	}
-}
 
+	/**
+	 * Get configuration value. Try first {@link System#getenv(String)}, if that
+	 * returns {@code null} or an empty value, then return {@link System#getProperty(String)}.
+	 * 
+	 * @param name the name of the configuraiton value.
+	 * @return the value, or {@code null}, if neither
+	 *         {@link System#getenv(String)} nor
+	 *         {@link System#getProperty(String)} returns a value.
+	 * @since 2.2
+	 */
+	public static String getConfiguration(String name) {
+		String value = System.getenv(name);
+		if (value == null || value.isEmpty()) {
+			value = System.getProperty(name);
+		}
+		return value;
+	}
+}
