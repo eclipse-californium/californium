@@ -58,6 +58,13 @@ public class StringUtil {
 	public static final boolean SUPPORT_HOST_STRING;
 
 	/**
+	 * Californium version. {@code null}, if not available.
+	 * 
+	 * @since 2.2
+	 */
+	public static final String CALIFORNIUM_VERSION;
+
+	/**
 	 * Lookup table for hexadecimal digits.
 	 * 
 	 * @see #toHexString(byte[])
@@ -73,6 +80,7 @@ public class StringUtil {
 			// android before API 18
 		}
 		SUPPORT_HOST_STRING = support;
+		CALIFORNIUM_VERSION = StringUtil.class.getPackage().getImplementationVersion();
 	}
 
 	@NotForAndroid

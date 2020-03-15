@@ -46,6 +46,7 @@ import org.eclipse.californium.core.network.interceptors.AnonymizedOriginTracer;
 import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.extplugtests.resources.Benchmark;
 import org.eclipse.californium.extplugtests.resources.RequestStatistic;
 import org.eclipse.californium.extplugtests.resources.ReverseObserve;
@@ -198,8 +199,12 @@ public class ExtendedTestServer extends AbstractTestServer {
 			} else {
 				Runtime runtime = Runtime.getRuntime();
 				long max = runtime.maxMemory();
-				System.out.println(
-						ExtendedTestServer.class.getSimpleName() + " started (" + max / (1024 * 1024) + "MB heap) ...");
+				StringBuilder builder = new StringBuilder(ExtendedTestServer.class.getSimpleName());
+				if (StringUtil.CALIFORNIUM_VERSION != null) {
+					builder.append(", version ").append(StringUtil.CALIFORNIUM_VERSION);
+				}
+				builder.append(", ").append(max / (1024 * 1024)).append("MB heap.");
+				System.out.println(builder);
 				long lastGcCount = 0;
 				for (;;) {
 					try {
@@ -215,7 +220,6 @@ public class ExtendedTestServer extends AbstractTestServer {
 						System.out.println("Or consider to reduce the value of " + Keys.EXCHANGE_LIFETIME);
 						System.out.println("in \"" + CONFIG_FILE + "\" or set");
 						System.out.println(Keys.DEDUPLICATOR + " to " + Keys.NO_DEDUPLICATOR + " there.");
-						break;
 					}
 					long gcCount = 0;
 					for (GarbageCollectorMXBean gcMXBean : ManagementFactory.getGarbageCollectorMXBeans()) {
