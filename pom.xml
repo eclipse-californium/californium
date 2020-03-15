@@ -269,6 +269,7 @@
 		<module>demo-certs</module>
 		<module>cf-oscore</module>
 		<module>cf-pubsub</module>
+		<module>cf-unix-health</module>
 	</modules>
 
 	<build>
