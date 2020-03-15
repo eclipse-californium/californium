@@ -46,7 +46,9 @@ echo
 
 CF_JAR=cf-extplugtest-client-2.2.0-SNAPSHOT.jar
 CF_EXEC="org.eclipse.californium.extplugtests.BenchmarkClient"
-CF_OPT="-XX:+UseG1GC -Xmx6g -Xverify:none -Dcalifornium.statistic=2.2.0"
+CF_OPT="-XX:+UseG1GC -Xmx6g -Xverify:none"
+
+export CALIFORNIUM_STATISTIC="2.2.0"
 
 if [ -z "$1" ]  ; then
      CF_HOST=localhost
@@ -55,7 +57,7 @@ else
 fi
 
 # adjust the multiplier according the speed of your CPU
-USE_TCP=0
+USE_TCP=1
 USE_UDP=1
 USE_PLAIN=1
 USE_SECURE=1
@@ -151,6 +153,9 @@ benchmark_dtls_handshake()
    if [ ${USE_SECURE} -ne 0 ] ; then 
       START_HS=`date +%s`
       i=0
+      old=$CALIFORNIUM_STATISTIC
+      export CALIFORNIUM_STATISTIC=
+
       while [ $i -lt $1 ] ; do
 	java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} $2 "coaps://${CF_HOST}:5784/benchmark?rlen=${PAYLOAD}" ${UDP_CLIENTS} 10
 	if [ ! $? -eq 0 ] ; then exit $?; fi
@@ -159,6 +164,7 @@ benchmark_dtls_handshake()
       done
       END_HS=`date +%s`
       TIME=$(($END_HS - $START_HS))
+      export CALIFORNIUM_STATISTIC=$old
       return $TIME	
    fi 
 }
@@ -192,7 +198,7 @@ proxy()
 	fi   
 }
 
-proxy
+#proxy
 benchmark_all
 benchmark_dtls_handshake 10 
 TIME1=$?

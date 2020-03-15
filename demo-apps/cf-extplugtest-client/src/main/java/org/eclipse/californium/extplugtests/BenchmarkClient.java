@@ -1006,9 +1006,9 @@ public class BenchmarkClient {
 	private static Logger printManagamentStatistic(String[] args, long uptimeNanos) {
 		OperatingSystemMXBean osMxBean = ManagementFactory.getOperatingSystemMXBean();
 		int processors = osMxBean.getAvailableProcessors();
-		String tag = System.getProperty("californium.statistic");
+		String tag = StringUtil.getConfiguration("CALIFORNIUM_STATISTIC");
 		Logger logger = STATISTIC_LOGGER;
-		if (tag != null) {
+		if (tag != null && !tag.isEmpty()) {
 			// with tag, use file
 			logger = LoggerFactory.getLogger(logger.getName() + ".file");
 			logger.info("------- {} ------------------------------------------------", tag);
@@ -1120,7 +1120,7 @@ public class BenchmarkClient {
 	}
 
 	private static void checkProxyConfiguration() {
-		String proxy = System.getenv("COAP_PROXY");
+		String proxy = StringUtil.getConfiguration("COAP_PROXY");
 		if (proxy != null && !proxy.isEmpty()) {
 			int index;
 			String config = proxy;
