@@ -28,7 +28,7 @@
 	<appender name="ERROR_FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
 		<file>logs/error.log</file>
 		<filter class="ch.qos.logback.classic.filter.ThresholdFilter">
-			<level>ERROR</level>
+			<level>WARN</level>
 		</filter>
 		<rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
 			<!-- roll-over monthly, or if filesize exceeds -->

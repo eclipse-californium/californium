@@ -46,6 +46,7 @@ import org.eclipse.californium.core.server.resources.DiscoveryResource;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
+import org.eclipse.californium.elements.util.StringUtil;
 
 /**
  * An execution environment for CoAP {@link Resource}s.
@@ -444,25 +445,32 @@ public class CoapServer implements ServerInterface {
 	private class RootResource extends CoapResource {
 
 		// get version from Maven package
-		private static final String SPACE = "                                               "; // 47 until line end
-		private final String VERSION = CoapServer.class.getPackage().getImplementationVersion()!=null ?
-				"Cf "+CoapServer.class.getPackage().getImplementationVersion() : SPACE;
 		private final String msg;
 
 		public RootResource() {
 			super("");
 			String nodeId = config.getString(NetworkConfig.Keys.DTLS_CONNECTION_ID_NODE_ID);
+			String title = "CoAP RFC 7252";
+			if (StringUtil.CALIFORNIUM_VERSION != null) {
+				String version = "Cf " + StringUtil.CALIFORNIUM_VERSION;
+				title = String.format("%s %50s", title, version);
+			}
 			StringBuilder builder = new StringBuilder()
-					.append("************************************************************\n").append("CoAP RFC 7252")
-					.append(SPACE.substring(VERSION.length())).append(VERSION).append("\n")
-					.append("************************************************************\n")
+					.append("****************************************************************\n")
+					.append(title).append("\n")
+					.append("****************************************************************\n")
 					.append("This server is using the Eclipse Californium (Cf) CoAP framework\n")
-					.append("published under EPL+EDL: http://www.eclipse.org/californium/\n").append("\n");
+					.append("published under EPL+EDL: http://www.eclipse.org/californium/\n\n");
 			if (nodeId != null && !nodeId.isEmpty()) {
 				builder.append("node id = ").append(nodeId).append("\n\n");
 			}
-			msg = builder.append("(c) 2014, 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others\n")
-					.append("************************************************************").toString();
+			builder.append("(c) 2014-2020 Institute for Pervasive Computing, ETH Zurich and others\n");
+			String master = StringUtil.getConfiguration("COAP_ROOT_RESOURCE_FOOTER");
+			if (master != null) {
+				builder.append(master).append("\n");
+			}
+			builder.append("****************************************************************");
+			msg = builder.toString();
 		}
 
 		@Override
@@ -470,6 +478,7 @@ public class CoapServer implements ServerInterface {
 			exchange.respond(ResponseCode.CONTENT, msg);
 		}
 
+		@Override
 		public List<Endpoint> getEndpoints() {
 			return CoapServer.this.getEndpoints();
 		}
