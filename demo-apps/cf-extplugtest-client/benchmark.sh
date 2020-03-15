@@ -60,8 +60,10 @@ fi
 USE_TCP=1
 USE_UDP=1
 USE_PLAIN=1
-USE_SECURE=0
+USE_SECURE=1
 USE_HTTP=0
+USE_OBSERVE=1
+
 MULTIPLIER=10
 REQS=$((500 * $MULTIPLIER))
 REQS_EXTRA=$(($REQS + ($REQS/10)))
@@ -130,21 +132,23 @@ benchmark()
 benchmark_all()
 {
 # GET
-	benchmark_udp "benchmark?rlen=${PAYLOAD}" ${UDP_CLIENTS} ${REQS}
-	benchmark_tcp "benchmark?rlen=${PAYLOAD}" ${TCP_CLIENTS} ${REQS}
+   benchmark_udp "benchmark?rlen=${PAYLOAD}" ${UDP_CLIENTS} ${REQS}
+   benchmark_tcp "benchmark?rlen=${PAYLOAD}" ${TCP_CLIENTS} ${REQS}
 
 # GET with separate response
-#	benchmark_udp "benchmark?rlen=${PAYLOAD}&ack" ${UDP_CLIENTS} ${REQS}
+   benchmark_udp "benchmark?rlen=${PAYLOAD}&ack" ${UDP_CLIENTS} ${REQS}
 
 # reverse GET
-#	benchmark_udp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" ${UDP_CLIENTS} 2 stop ${REV_REQS}
-#	benchmark_tcp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" ${TCP_CLIENTS} 2 stop ${REV_REQS}
+  benchmark_udp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" ${UDP_CLIENTS} 2 stop ${REV_REQS}
+  benchmark_tcp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" ${TCP_CLIENTS} 2 stop ${REV_REQS}
 
+   if [ ${USE_OBSERVE} -eq 0 ] ; then return; fi
+   
 # observe CON 
-#	benchmark "reverse-observe?obs=25000&res=feed-CON&rlen=${PAYLOAD_LARGE}" ${OBS_CLIENTS} 1 stop ${NOTIFIES} 20 100
+   benchmark "reverse-observe?obs=25000&res=feed-CON&rlen=${PAYLOAD_LARGE}" ${OBS_CLIENTS} 1 stop ${NOTIFIES} 20 100
 
 # observe NON
-#	benchmark_udp "reverse-observe?obs=25000&res=feed-NON&rlen=${PAYLOAD_LARGE}" ${OBS_CLIENTS} 1 stop ${NOTIFIES} 20 100	
+   benchmark_udp "reverse-observe?obs=25000&res=feed-NON&rlen=${PAYLOAD_LARGE}" ${OBS_CLIENTS} 1 stop ${NOTIFIES} 20 100	
 }
 
 benchmark_dtls_handshake()
@@ -153,70 +157,72 @@ benchmark_dtls_handshake()
    if [ ${USE_SECURE} -ne 0 ] ; then 
       START_HS=`date +%s`
       i=0
-      old=$CALIFORNIUM_STATISTIC
-      export CALIFORNIUM_STATISTIC=
 
       while [ $i -lt $1 ] ; do
-	java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} $2 "coaps://${CF_HOST}:5784/benchmark?rlen=${PAYLOAD}" ${UDP_CLIENTS} 10
-	if [ ! $? -eq 0 ] ; then exit $?; fi
-	sleep 2
-	i=$(($i + 1))
+         java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} $2 "coaps://${CF_HOST}:5784/benchmark?rlen=${PAYLOAD}" ${UDP_CLIENTS} 10
+         if [ ! $? -eq 0 ] ; then exit $?; fi
+         sleep 2
+         i=$(($i + 1))
       done
       END_HS=`date +%s`
       TIME=$(($END_HS - $START_HS))
       export CALIFORNIUM_STATISTIC=$old
-      return $TIME	
+      return $TIME
    fi 
 }
 
 benchmark_dtls_handshakes()
 {
-	benchmark_dtls_handshake 10 
-	TIME1=$?
-	benchmark_dtls_handshake 10 -e
-	TIME2=$?
-	benchmark_dtls_handshake 10 -r
-	TIME3=$?
-	benchmark_dtls_handshake 10 -x
-	TIME4=$?
+   old=$CALIFORNIUM_STATISTIC
+   export CALIFORNIUM_STATISTIC=
 
-	echo "PSK      :" $TIME1
-	echo "PSK/ECDHE:" $TIME2
-	echo "RPK      :" $TIME3
-	echo "X509     :" $TIME4
+   benchmark_dtls_handshake 10 
+   TIME1=$?
+   benchmark_dtls_handshake 10 -e
+   TIME2=$?
+   benchmark_dtls_handshake 10 -r
+   TIME3=$?
+   benchmark_dtls_handshake 10 -x
+   TIME4=$?
+
+   echo "PSK      :" $TIME1
+   echo "PSK/ECDHE:" $TIME2
+   echo "RPK      :" $TIME3
+   echo "X509     :" $TIME4
 }
 
 longterm()
 {
 # in seconds
-	LONG_INTERVAL_S=$((60 * 5))
-	LONG_INTERVAL_MS=$(($LONG_INTERVAL_S * 1000))
-	LONG_INTERVAL_TIMEOUT_S=$(($LONG_INTERVAL_S + 30))
+   LONG_INTERVAL_S=$((60 * 5))
+   LONG_INTERVAL_MS=$(($LONG_INTERVAL_S * 1000))
+   LONG_INTERVAL_TIMEOUT_S=$(($LONG_INTERVAL_S + 30))
 
 # long term observe NON
-	benchmark_udp "reverse-observe?obs=2500000&res=feed-NON&timeout=${LONG_INTERVAL_TIMEOUT_S}&rlen=${PAYLOAD}" ${UDP_CLIENTS} 1 stop ${NOTIFIES} ${LONG_INTERVAL_MS}
+   benchmark_udp "reverse-observe?obs=2500000&res=feed-NON&timeout=${LONG_INTERVAL_TIMEOUT_S}&rlen=${PAYLOAD}" ${UDP_CLIENTS} 1 stop ${NOTIFIES} ${LONG_INTERVAL_MS}
 }
 
 proxy()
 {
-	if [ ${USE_UDP} -eq 0 ] ; then return; fi
-	if [ ${USE_PLAIN} -ne 0 ] ; then
-		if [ ${USE_HTTP} -ne 0 ] ; then 
-			export COAP_PROXY="localhost:5683:http"
-			java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} "coap://${CF_HOST}:8000/http-target" ${UDP_CLIENTS} ${REQS}
-			if [ ! $? -eq 0 ] ; then exit $?; fi
-			sleep 5
-		fi
- 	        export COAP_PROXY="localhost:5683:coap"
-	        java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} "coap://${CF_HOST}:5783/benchmark?rlen=${PAYLOAD}" ${UDP_CLIENTS} ${REQS}
-	        if [ ! $? -eq 0 ] ; then exit $?; fi
-	        export COAP_PROXY=""
-	        sleep 5
-	fi   
+   if [ ${USE_UDP} -eq 0 ] ; then return; fi
+   if [ ${USE_PLAIN} -ne 0 ] ; then
+      if [ ${USE_HTTP} -ne 0 ] ; then 
+         export COAP_PROXY="localhost:5683:http"
+         java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} "coap://${CF_HOST}:8000/http-target" ${UDP_CLIENTS} ${REQS}
+         if [ ! $? -eq 0 ] ; then exit $?; fi
+         sleep 5
+      fi
+      export COAP_PROXY="localhost:5683:coap"
+      java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} "coap://${CF_HOST}:5783/benchmark?rlen=${PAYLOAD}" ${UDP_CLIENTS} ${REQS}
+      if [ ! $? -eq 0 ] ; then exit $?; fi
+      export COAP_PROXY=""
+      sleep 5
+   fi 
 }
 
 #proxy
 benchmark_all
+benchmark_dtls_handshakes
 
 END_BENCHMARK=`date +%s`
 
