@@ -422,16 +422,6 @@
 					<groupId>org.codehaus.mojo</groupId>
 					<artifactId>animal-sniffer-maven-plugin</artifactId>
 					<version>1.18</version>
-					<configuration>
-						<signature>
-							<groupId>net.sf.androidscents.signature</groupId>
-							<artifactId>android-api-level-16</artifactId>
-							<version>4.1.2_r5</version>
-						</signature>
-						<annotations>
-							<annotation>org.eclipse.californium.elements.util.NotForAndroid</annotation>
-						</annotations>
-					</configuration>
 				</plugin>
 				<plugin>
 					<groupId>org.codehaus.mojo</groupId>
@@ -600,6 +590,20 @@
 					</analysisConfigurationFiles>
 				</configuration>
 			</plugin>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>animal-sniffer-maven-plugin</artifactId>
+				<configuration>
+					<signature>
+						<groupId>net.sf.androidscents.signature</groupId>
+						<artifactId>android-api-level-16</artifactId>
+						<version>4.1.2_r5</version>
+					</signature>
+					<annotations>
+						<annotation>org.eclipse.californium.elements.util.NotForAndroid</annotation>
+					</annotations>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 
@@ -668,12 +672,38 @@
 			</properties>
 		</profile>
 		<profile>
+			<id>animalsniffer</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+				<property>
+					<name>animal.sniffer.skip</name>
+					<value>!true</value>
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>animal-sniffer-maven-plugin</artifactId>
+						<executions>
+							<execution>
+								<goals>
+									<goal>check</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<profile>
 			<id>revapi</id>
 			<activation>
 				<activeByDefault>false</activeByDefault>
 				<jdk>[1.8,)</jdk>
 				<property>
-					<name>!revapi.skip.check</name>
+					<name>revapi.skip</name>
+					<value>!true</value>
 				</property>
 			</activation>
 			<build>

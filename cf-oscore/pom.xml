@@ -13,6 +13,10 @@
 	<name>Cf-OSCORE</name>
 	<description>Californium (Cf) OSCORE, Object Security for Constrained RESTful Environments</description>
 
+	<properties>
+		<revapi.skip>true</revapi.skip>
+	</properties>
+
 	<dependencies>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
@@ -55,17 +59,9 @@
 					</descriptorRefs>
 				</configuration>
 			</plugin>
-			<plugin>
-				<groupId>org.revapi</groupId>
-				<artifactId>revapi-maven-plugin</artifactId>
-				<configuration>
-					<!-- not depolyed to repos -->
-					<skip>true</skip>
-				</configuration>
-			</plugin>
 		</plugins>
 	</build>
-	
+
 	<profiles>
 		<profile>
 			<!-- maven compile would try to resolve test dependencies, 

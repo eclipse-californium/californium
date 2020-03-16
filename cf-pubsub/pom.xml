@@ -16,7 +16,7 @@
 	<description>Californium (Cf) PubSub, CoAP Publish-Subscribe implementation</description>
 
 	<properties>
-
+		<revapi.skip>true</revapi.skip>
 	</properties>
 
 	<dependencies>
@@ -40,14 +40,6 @@
 					<descriptorRefs>
 						<descriptorRef>enhanced-jar-with-licenses</descriptorRef>
 					</descriptorRefs>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.revapi</groupId>
-				<artifactId>revapi-maven-plugin</artifactId>
-				<configuration>
-					<!-- not depolyed to repos -->
-					<skip>true</skip>
 				</configuration>
 			</plugin>
 		</plugins>
