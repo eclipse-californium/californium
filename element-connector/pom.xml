@@ -14,7 +14,7 @@
 
 	<name>Californium (Cf) Element Connector</name>
 	<description>Java socket abstraction for datagram transports (UDP, DTLS, etc.)</description>
-	
+
 	<dependencies>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
@@ -73,17 +73,6 @@
 						<goals>
 							<!-- export NetworkRule and RepeatingTestRunner for tests -->
 							<goal>test-jar</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>animal-sniffer-maven-plugin</artifactId>
-				<executions>
-					<execution>
-						<goals>
-							<goal>check</goal>
 						</goals>
 					</execution>
 				</executions>

@@ -53,6 +53,8 @@
 		 -->
 		<maven.javadoc.skip>true</maven.javadoc.skip>
 		<gson.version>2.8.2</gson.version>
+		<animal.sniffer.skip>true</animal.sniffer.skip>
+		<revapi.skip>true</revapi.skip>
 	</properties>
 
 	<dependencyManagement>
@@ -115,13 +117,6 @@
 					<descriptorRefs>
 						<descriptorRef>enhanced-jar-with-dependencies</descriptorRef>
 					</descriptorRefs>
-				</configuration>
-			</plugin>
-			<plugin>
-				<groupId>org.revapi</groupId>
-				<artifactId>revapi-maven-plugin</artifactId>
-				<configuration>
-					<skip>true</skip>
 				</configuration>
 			</plugin>
 		</plugins>
