@@ -46,6 +46,10 @@ import org.eclipse.californium.core.network.stack.ReliabilityLayerParameters;
 import org.eclipse.californium.core.network.stack.ReliabilityLayerParameters.Builder;
 import org.eclipse.californium.core.test.CountingMessageObserver;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.UDPTestConnector;
+import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.DtlsEndpointContext;
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
@@ -228,6 +232,55 @@ public class DeduplicationTest {
 		assertHealthCounter("send-request retransmissions", is(0L));
 		assertHealthCounter("recv-responses", is(0L));
 		assertHealthCounter("recv-ignored", is(0L));
+	}
+
+	@Test
+	public void testGETWithRetransmissionAndDtlsHandshakeMode() throws Exception {
+		System.out.println("Simple GET with retransmission and dtls handshake mode:");
+		String path = "test";
+
+		Builder builder = ReliabilityLayerParameters.builder().applyConfig(network.getStandardTestConfig());
+		builder.maxRetransmit(1);
+		builder.ackTimeout(100);
+		builder.ackTimeoutScale(1.0F);
+		builder.ackRandomFactor(1.0F);
+
+		EndpointContext destination = new AddressEndpointContext(server.getSocketAddress());
+		destination = MapBasedEndpointContext.addEntries(destination, DtlsEndpointContext.KEY_HANDSHAKE_MODE,
+				DtlsEndpointContext.HANDSHAKE_MODE_NONE);
+		Request request = createRequest(GET, path, server);
+		request.setDestinationContext(destination);
+		request.setReliabilityLayerParameters(builder.build());
+		client.sendRequest(request);
+
+		server.expectRequest(CON, GET, path).storeBoth("A").go();
+		server.expectRequest(CON, GET, path).sameBoth("A").go();
+		Message message = server.receiveNextMessage(1000, TimeUnit.MILLISECONDS);
+		assertNull("received unexpected message", message);
+
+		assertThat(request.getDestinationContext().get(DtlsEndpointContext.KEY_HANDSHAKE_MODE), is(DtlsEndpointContext.HANDSHAKE_MODE_NONE));
+
+		destination = new AddressEndpointContext(server.getSocketAddress());
+		destination = MapBasedEndpointContext.addEntries(destination, DtlsEndpointContext.KEY_HANDSHAKE_MODE,
+				DtlsEndpointContext.HANDSHAKE_MODE_FORCE);
+		request = createRequest(GET, path, server);
+		request.setDestinationContext(destination);
+		request.setReliabilityLayerParameters(builder.build());
+		client.sendRequest(request);
+
+		server.expectRequest(CON, GET, path).storeBoth("A").go();
+		server.expectRequest(CON, GET, path).sameBoth("A").go();
+		message = server.receiveNextMessage(1000, TimeUnit.MILLISECONDS);
+		assertNull("received unexpected message", message);
+
+		assertThat(request.getDestinationContext().get(DtlsEndpointContext.KEY_HANDSHAKE_MODE), is(nullValue()));
+
+		assertHealthCounter("send-requests", is(2L));
+		assertHealthCounter("send-request retransmissions", is(2L), 1000);
+		assertHealthCounter("send-errors", is(0L));
+		assertHealthCounter("recv-responses", is(0L));
+		assertHealthCounter("recv-ignored", is(0L));
+		health.reset();
 	}
 
 	private void assertHealthCounter(final String name, final Matcher<? super Long> matcher, long timeout)
