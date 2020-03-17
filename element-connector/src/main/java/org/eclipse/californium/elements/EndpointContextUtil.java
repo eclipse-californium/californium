@@ -61,4 +61,32 @@ public class EndpointContextUtil {
 		}
 		return matchAll;
 	}
+
+	/**
+	 * Get follow-up endpoint context.
+	 * 
+	 * Using {@link DtlsEndpointContext#KEY_HANDSHAKE_MODE} requires to adjust
+	 * the reuse of the endpoint context in case of blockwise transfers or
+	 * retransmissions.
+	 * 
+	 * @param messageContext messages's endpoint context.
+	 * @param connectionContext the connection's endpoint context. Either
+	 *            reported with
+	 *            {@link RawData#onContextEstablished(EndpointContext)} or
+	 *            contained in a received message.
+	 * @return endpoint context to be used for follow-up messages.
+	 */
+	public static EndpointContext getFollowUpEndpointContext(EndpointContext messageContext,
+			EndpointContext connectionContext) {
+		EndpointContext followUpEndpointContext;
+		String mode = messageContext.get(DtlsEndpointContext.KEY_HANDSHAKE_MODE);
+		if (mode != null && mode.equals(DtlsEndpointContext.HANDSHAKE_MODE_NONE)) {
+			// restore handshake-mode "none"
+			followUpEndpointContext = MapBasedEndpointContext.addEntries(connectionContext,
+					DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_NONE);
+		} else {
+			followUpEndpointContext = connectionContext;
+		}
+		return followUpEndpointContext;
+	}
 }

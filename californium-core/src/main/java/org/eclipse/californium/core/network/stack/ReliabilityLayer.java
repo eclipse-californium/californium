@@ -51,6 +51,8 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.EndpointContextUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -480,6 +482,11 @@ public class ReliabilityLayer extends AbstractLayer {
 					return;
 				}
 				int failedCount = exchange.getFailedTransmissionCount() + 1;
+				if (failedCount == 1) {
+					EndpointContext context = EndpointContextUtil
+							.getFollowUpEndpointContext(message.getDestinationContext(), exchange.getEndpointContext());
+					message.setDestinationContext(context);
+				}
 				exchange.setFailedTransmissionCount(failedCount);
 
 				LOGGER.debug("Timeout: for {} retry {} of {}", exchange, failedCount, message);

@@ -16,6 +16,7 @@
 package org.eclipse.californium.elements;
 
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertThat;
 
 import java.net.InetSocketAddress;
@@ -71,6 +72,26 @@ public class EndpointContextUtilTest {
 				is(false));
 		assertThat(EndpointContextUtil.match("test-5", keys, unsecureMessageContext, unsecureMessageContext2),
 				is(false));
+	}
+
+	@Test
+	public void testFollowUpEndpointContextStartHandshake() {
+		EndpointContext messageContext = new AddressEndpointContext(ADDRESS);
+		messageContext = MapBasedEndpointContext.addEntries(messageContext, DtlsEndpointContext.KEY_HANDSHAKE_MODE,
+				DtlsEndpointContext.HANDSHAKE_MODE_FORCE);
+		EndpointContext connectionContext = new AddressEndpointContext(ADDRESS, "myserver", null);
+		EndpointContext followUp = EndpointContextUtil.getFollowUpEndpointContext(messageContext, connectionContext);
+		assertThat(followUp.get(DtlsEndpointContext.KEY_HANDSHAKE_MODE), is(nullValue()));
+	}
+
+	@Test
+	public void testFollowUpEndpointContextNoneHandshake() {
+		EndpointContext messageContext = new AddressEndpointContext(ADDRESS);
+		messageContext = MapBasedEndpointContext.addEntries(messageContext, DtlsEndpointContext.KEY_HANDSHAKE_MODE,
+				DtlsEndpointContext.HANDSHAKE_MODE_NONE);
+		EndpointContext connectionContext = new AddressEndpointContext(ADDRESS, "myserver", null);
+		EndpointContext followUp = EndpointContextUtil.getFollowUpEndpointContext(messageContext, connectionContext);
+		assertThat(followUp.get(DtlsEndpointContext.KEY_HANDSHAKE_MODE), is(DtlsEndpointContext.HANDSHAKE_MODE_NONE));
 	}
 
 }

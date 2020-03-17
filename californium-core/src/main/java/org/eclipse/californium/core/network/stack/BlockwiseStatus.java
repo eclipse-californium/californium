@@ -38,7 +38,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
-import org.eclipse.californium.elements.MapBasedEndpointContext;
+import org.eclipse.californium.elements.EndpointContextUtil;
 
 /**
  * A tracker for the status of a blockwise transfer of a request or response body.
@@ -255,16 +255,10 @@ public abstract class BlockwiseStatus {
 				|| !followUpEndpointContext.getPeerAddress().equals(blockContext.getPeerAddress())) {
 			// considering notifies with address changes,
 			// use the response's endpoint-context to compensate that
-			String mode = null;
 			if (exchange != null) {
 				Request request = exchange.getRequest();
-				EndpointContext context = request.getDestinationContext();
-				mode = context.get(DtlsEndpointContext.KEY_HANDSHAKE_MODE);
-			}
-			if (mode != null && mode.equals(DtlsEndpointContext.HANDSHAKE_MODE_NONE)) {
-				// restore handshake-mode "none"
-				followUpEndpointContext = MapBasedEndpointContext.addEntries(blockContext, DtlsEndpointContext.KEY_HANDSHAKE_MODE,
-						DtlsEndpointContext.HANDSHAKE_MODE_NONE);
+				EndpointContext messageContext = request.getDestinationContext();
+				followUpEndpointContext = EndpointContextUtil.getFollowUpEndpointContext(messageContext, blockContext);
 			} else {
 				followUpEndpointContext = blockContext;
 			}
