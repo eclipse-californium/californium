@@ -186,7 +186,7 @@ public final class UdpMatcher extends BaseMatcher {
 
 		if (message.getType() == Type.RST && exchange != null) {
 			// We have rejected the request or response
-			exchange.setComplete();
+			exchange.executeComplete();
 		}
 	}
 
