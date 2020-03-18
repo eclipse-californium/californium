@@ -50,7 +50,7 @@ public class ContextRederivation {
 	 *
 	 */
 	public static enum PHASE {
-		INACTIVE, CLIENT_INITIATE, SERVER_PHASE_1, SERVER_PHASE_2, SERVER_PHASE_3, CLIENT_PHASE_1, CLIENT_PHASE_2, CLIENT_PHASE_3;
+		INACTIVE, CLIENT_INITIATE, SERVER_INITIATE, SERVER_PHASE_1, SERVER_PHASE_2, SERVER_PHASE_3, CLIENT_PHASE_1, CLIENT_PHASE_2, CLIENT_PHASE_3;
 	}
 
 	/**
@@ -97,6 +97,12 @@ public class ContextRederivation {
 		// Retrieve the context for the target URI
 		OSCoreCtx ctx = db.getContext(uri);
 
+		// Check that context re-derivation is enabled for this context
+		if (ctx.getContextRederivationEnabled() == false) {
+			LOGGER.error("Context re-derivation is not enabled for this context.");
+			throw new IllegalStateException("Context re-derivation is not enabled for this context.");
+		}
+
 		printStateLogging(ctx);
 
 		// Generate a random Context ID (ID1)
@@ -120,6 +126,12 @@ public class ContextRederivation {
 	 */
 	static OSCoreCtx incomingResponse(OSCoreCtxDB db, OSCoreCtx ctx, byte[] contextID) throws OSException {
 
+		// Check if context re-derivation is enabled for this context
+		if (ctx.getContextRederivationEnabled() == false) {
+			LOGGER.debug("Context re-derivation not considered due to it being disabled for this context");
+			return ctx;
+		}
+
 		// Handle client phase 3 operations
 		if (ctx.getContextRederivationPhase() == PHASE.CLIENT_PHASE_3) {
 
@@ -133,6 +145,39 @@ public class ContextRederivation {
 			printStateLogging(ctx);
 
 			// Handle client phase 1 operations
+
+			// The Context ID in the incoming response is identified as R2
+			byte[] contextR2 = contextID;
+
+			// The Context ID of the original request in this exchange is ID1
+			byte[] contextID1 = ctx.getIdContext();
+
+			// Create Context ID to generate the new context with (R2 || ID1)
+			byte[] verifyContextID = Bytes.concatenate(contextR2, contextID1);
+
+			// Generate a new context with the concatenated Context ID
+			OSCoreCtx newCtx = rederiveWithContextID(ctx, verifyContextID);
+
+			// Add the new context to the context DB (replacing the old)
+			newCtx.setContextRederivationPhase(PHASE.CLIENT_PHASE_2);
+			db.addContext(SCHEME + ctx.getUri(), newCtx);
+			return newCtx;
+		} else if (ctx.getContextRederivationPhase() == PHASE.INACTIVE) {
+
+			printStateLogging(ctx);
+
+			// It may be that it was the server that lost the mutable parts of
+			// the context. In this case, if context re-derivation is explicitly
+			// enabled on the client, it should check if the response is in fact
+			// part of a context re-derivation procedure initiated by the
+			// server.
+
+			// For this to be a valid response #1 from the server it must have a
+			// contextID set and not match the one used in the client's context
+			// (ID1 is different from R2)
+			if (contextID == null || Arrays.equals(ctx.getIdContext(), contextID) == true) {
+				return ctx;
+			}
 
 			// The Context ID in the incoming response is identified as R2
 			byte[] contextR2 = contextID;
@@ -212,6 +257,12 @@ public class ContextRederivation {
 	 */
 	static OSCoreCtx incomingRequest(OSCoreCtxDB db, OSCoreCtx ctx, byte[] contextID) throws OSException {
 
+		 // Check if context re-derivation is enabled for this context
+		 if (ctx.getContextRederivationEnabled() == false) {
+			LOGGER.debug("Context re-derivation not initiated due to it being disabled for this context");
+			return ctx;
+		 }
+
 		// Handle server phase 2 operations
 		if (ctx.getContextRederivationPhase() == PHASE.SERVER_PHASE_2) {
 
@@ -260,6 +311,27 @@ public class ContextRederivation {
 			if (contextID1 == null || Arrays.equals(contextID1, ctx.getIdContext())) {
 				return ctx;
 			}
+
+			// Generate a new context with the received Context ID
+			OSCoreCtx newCtx = rederiveWithContextID(ctx, contextID1);
+
+			// Set next phase of the re-derivation procedure
+			newCtx.setContextRederivationPhase(PHASE.SERVER_PHASE_1);
+
+			// Add the new context to the context DB (replacing the old)
+			db.addContext(newCtx);
+			return newCtx;
+		} else if (ctx.getContextRederivationPhase() == PHASE.SERVER_INITIATE) {
+
+			printStateLogging(ctx);
+
+			// Handle initiation of re-derivation procedure
+			// In this case it is the server that initiates this procedure since
+			// it lost the mutable parts of the context
+
+			// The Context ID to use as ID1 is the same as the one used in the
+			// old context. The client may not include this in the request.
+			byte[] contextID1 = ctx.getIdContext();
 
 			// Generate a new context with the received Context ID
 			OSCoreCtx newCtx = rederiveWithContextID(ctx, contextID1);
@@ -359,6 +431,7 @@ public class ContextRederivation {
 		OSCoreCtx newCtx = new OSCoreCtx(ctx.getMasterSecret(), true, ctx.getAlg(), ctx.getSenderId(),
 				ctx.getRecipientId(), ctx.getKdf(), ctx.getRecipientReplaySize(), ctx.getSalt(), contextID);
 		newCtx.setContextRederivationKey(ctx.getContextRederivationKey());
+		newCtx.setContextRederivationEnabled(ctx.getContextRederivationEnabled());
 		return newCtx;
 	}
 
@@ -396,6 +469,9 @@ public class ContextRederivation {
 			break;
 		case CLIENT_INITIATE:
 			supplemental = "client will initiate context re-derivation";
+			break;
+		case SERVER_INITIATE:
+			supplemental = "server will initiate context re-derivation";
 			break;
 		case CLIENT_PHASE_1:
 			supplemental = "client has sent the first request in the procedure and is receving the response";
