@@ -50,10 +50,13 @@ public class StaticCertificateVerifier implements AdvancedCertificateVerifier {
 	/**
 	 * Create instance of static certificate verifier.
 	 * 
-	 * @param rootCertificates array with trusted root certificates.
-	 *            {@code null} trust none, empty trust all.
+	 * @param rootCertificates array with trusted root certificates, empty array
+	 *            to trust all.
 	 */
 	public StaticCertificateVerifier(X509Certificate[] rootCertificates) {
+		if (rootCertificates == null) {
+			throw new NullPointerException("root certificates must not be null!");
+		}
 		this.rootCertificates = rootCertificates;
 	}
 

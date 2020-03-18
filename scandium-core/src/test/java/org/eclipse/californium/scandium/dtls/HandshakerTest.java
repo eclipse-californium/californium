@@ -126,7 +126,6 @@ public class HandshakerTest {
 		rpkStore = new InMemoryRpkTrustStore(Collections.singleton(new RawPublicKeyIdentity(serverPublicKey)));
 		DtlsConnectorConfig.Builder builder = new Builder();
 		builder.setClientOnly();
-		builder.setCertificateVerifier(new StaticCertificateVerifier(null));
 		builder.setRpkTrustStore(rpkStore);
 
 		handshakerWithoutAnchors = new TestHandshaker(session, recordLayer, builder.build());

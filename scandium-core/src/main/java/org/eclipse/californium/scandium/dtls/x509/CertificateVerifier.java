@@ -42,7 +42,11 @@ public interface CertificateVerifier {
 	 * Return an array of certificate authority certificates which are trusted
 	 * for authenticating peers.
 	 * 
-	 * @return the trusted CA certificates (possibly <code>null</code>)
+	 * The javadoc of previous versions (2.1.0 and before) permits to use
+	 * {@code null}. This causes a failure, please adapt to use an empty array.
+	 * 
+	 * @return a non-null (possibly empty) array of acceptable CA issuer
+	 *         certificates.
 	 */
 	X509Certificate[] getAcceptedIssuers();
 
