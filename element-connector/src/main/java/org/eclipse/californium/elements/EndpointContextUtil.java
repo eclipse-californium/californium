@@ -75,6 +75,7 @@ public class EndpointContextUtil {
 	 *            {@link RawData#onContextEstablished(EndpointContext)} or
 	 *            contained in a received message.
 	 * @return endpoint context to be used for follow-up messages.
+	 * @since 2.3
 	 */
 	public static EndpointContext getFollowUpEndpointContext(EndpointContext messageContext,
 			EndpointContext connectionContext) {

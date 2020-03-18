@@ -127,7 +127,7 @@ public abstract class DataSerializer {
 		}
 		return RawData.outbound(
 						request.getBytes(),
-						request.getDestinationContext(),
+						request.getEffectiveDestinationContext(),
 						outboundCallback,
 						request.isMulticast());
 	}
@@ -160,7 +160,7 @@ public abstract class DataSerializer {
 		}
 		return RawData.outbound(
 				response.getBytes(),
-				response.getDestinationContext(),
+				response.getEffectiveDestinationContext(),
 				outboundCallback,
 				false);
 	}
@@ -193,7 +193,7 @@ public abstract class DataSerializer {
 		}
 		return RawData.outbound(
 				emptyMessage.getBytes(),
-				emptyMessage.getDestinationContext(),
+				emptyMessage.getEffectiveDestinationContext(),
 				outboundCallback,
 				false);
 	}

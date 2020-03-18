@@ -485,7 +485,7 @@ public class ReliabilityLayer extends AbstractLayer {
 				if (failedCount == 1) {
 					EndpointContext context = EndpointContextUtil
 							.getFollowUpEndpointContext(message.getDestinationContext(), exchange.getEndpointContext());
-					message.setDestinationContext(context);
+					message.setEffectiveDestinationContext(context);
 				}
 				exchange.setFailedTransmissionCount(failedCount);
 
