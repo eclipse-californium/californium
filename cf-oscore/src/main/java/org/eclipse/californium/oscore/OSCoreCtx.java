@@ -105,6 +105,14 @@ public class OSCoreCtx {
 	private boolean responsesIncludePartialIV;
 	
 	/**
+	 * Indicates if this client/server shall support the context re-derivation
+	 * procedure.
+	 * 
+	 * See https://tools.ietf.org/html/rfc8613#appendix-B.2
+	 */
+	private boolean contextRederivationEnabled;
+	
+	/**
 	 * URI this Context is associated with if any.
 	 *
 	 * That is what URI it is associated and stored under in the HashMapCtxDB.
@@ -233,10 +241,11 @@ public class OSCoreCtx {
 			this.context_id = null;
 		}
 
-		//Set default values for these two flags
+		// Set default values for these flags
 		//They can be set by the application using their setters
 		includeContextId = false;
 		responsesIncludePartialIV = false;
+		contextRederivationEnabled = false;
 
 		//Set string versions of sender ID, recipient ID and Context ID
 		contextIdString = toHex(this.context_id);
@@ -520,6 +529,26 @@ public class OSCoreCtx {
 	 */
 	public void setResponsesIncludePartialIV(boolean responsesIncludePartialIV) {
 		this.responsesIncludePartialIV = responsesIncludePartialIV;
+	}
+
+	/**
+	 * Get the flag controlling whether or not this context supports the context
+	 * re-derivation procedure.
+	 * 
+	 * @return the contextRederivationEnabled
+	 */
+	public boolean getContextRederivationEnabled() {
+		return contextRederivationEnabled;
+	}
+
+	/**
+	 * Set the flag controlling whether or not this context supports the context
+	 * re-derivation procedure.
+	 * 
+	 * @param contextRederivationEnabled the contextRederivationEnabled to set
+	 */
+	public void setContextRederivationEnabled(boolean contextRederivationEnabled) {
+		this.contextRederivationEnabled = contextRederivationEnabled;
 	}
 
 	/**
