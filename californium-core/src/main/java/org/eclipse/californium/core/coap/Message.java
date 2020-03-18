@@ -67,6 +67,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.stack.ReliabilityLayerParameters;
 import org.eclipse.californium.core.observe.ObserveManager;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.EndpointContextUtil;
 import org.eclipse.californium.elements.util.ClockUtil;
 
 /**
@@ -153,6 +154,15 @@ public abstract class Message {
 	 * Destination endpoint context. Used for outgoing messages.
 	 */
 	private volatile EndpointContext destinationContext;
+	/**
+	 * Effective destination endpoint context. May differ from
+	 * {@link #destinationContext} on retransmissions.
+	 * 
+	 * @see EndpointContextUtil#getFollowUpEndpointContext(EndpointContext,
+	 *      EndpointContext)
+	 * @since 2.3
+	 */
+	private volatile EndpointContext effectiveDestinationContext;
 
 	/**
 	 * Source endpoint context. Used for incoming messages.
@@ -729,6 +739,19 @@ public abstract class Message {
 	}
 
 	/**
+	 * Get the effective destination context. May differ from
+	 * {@link #getDestinationContext()} on retransmissions.
+	 * 
+	 * @return the effective destination context.
+	 * @see EndpointContextUtil#getFollowUpEndpointContext(EndpointContext,
+	 *      EndpointContext)
+	 * @since 2.3
+	 */
+	public EndpointContext getEffectiveDestinationContext() {
+		return effectiveDestinationContext;
+	}
+
+	/**
 	 * Get source endpoint context.
 	 * 
 	 * @return the source endpoint context.
@@ -756,7 +779,21 @@ public abstract class Message {
 			throw new IllegalArgumentException("Multicast destination is only supported for request!");
 		}
 		this.destinationContext = peerContext;
+		this.effectiveDestinationContext = peerContext;
 		return this;
+	}
+
+	/**
+	 * Set the effective destination context. Used to set a different
+	 * destination context for retransmissions.
+	 * 
+	 * @param peerContext destination context for retransmissions
+	 * @see EndpointContextUtil#getFollowUpEndpointContext(EndpointContext,
+	 *      EndpointContext)
+	 * @since 2.3
+	 */
+	public void setEffectiveDestinationContext(EndpointContext peerContext) {
+		this.effectiveDestinationContext = peerContext;
 	}
 
 	/**
@@ -768,6 +805,7 @@ public abstract class Message {
 	 */
 	protected void setRequestDestinationContext(EndpointContext peerContext) {
 		this.destinationContext = peerContext;
+		this.effectiveDestinationContext = peerContext;
 	}
 
 	/**
