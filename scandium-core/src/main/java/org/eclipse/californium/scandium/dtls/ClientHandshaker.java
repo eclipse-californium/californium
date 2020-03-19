@@ -114,6 +114,12 @@ public class ClientHandshaker extends Handshaker {
 	 * The certificate types this peer supports for client authentication.
 	 */
 	protected final List<CertificateType> supportedClientCertificateTypes;
+	
+	/**
+	 * The list of the signature and hash algorithms supported by the client
+	 */
+	protected final List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms;
+
 
 	/**
 	 * The certificate types this peer supports for server authentication.
@@ -157,6 +163,7 @@ public class ClientHandshaker extends Handshaker {
 		this.truncateCertificatePath = config.useTruncatedCertificatePathForClientsCertificateMessage();
 		this.supportedServerCertificateTypes = config.getTrustCertificateTypes();
 		this.supportedClientCertificateTypes = config.getIdentityCertificateTypes();
+		this.supportedSignatureAlgorithms = config.getSupportedSignatureAlgorithms();
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -640,9 +647,9 @@ public class ClientHandshaker extends Handshaker {
 
 		handshakeStarted();
 
-		ClientHello startMessage = new ClientHello(maxProtocolVersion, preferredCipherSuites,
+		ClientHello startMessage = new ClientHello(maxProtocolVersion, preferredCipherSuites, supportedSignatureAlgorithms,
 				supportedClientCertificateTypes, supportedServerCertificateTypes, session.getPeer());
-
+		
 		// store client random for later calculations
 		clientRandom = startMessage.getRandom();
 

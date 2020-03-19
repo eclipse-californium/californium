@@ -202,4 +202,21 @@ public final class SignatureAndHashAlgorithm {
 		}
 		return name.toString();
 	}
+	
+	@Override
+	public boolean equals(Object obj) {
+	    if (obj == null) return false;
+	    if (!(obj instanceof SignatureAndHashAlgorithm))
+	        return false;
+	    if (obj == this)
+	        return true;
+	    return this.getSignature().getCode() == ((SignatureAndHashAlgorithm) obj).getSignature().getCode() && 
+	    		this.getHash().getCode() == ((SignatureAndHashAlgorithm) obj).getHash().getCode();
+	}
+	
+
+	@Override
+	public int hashCode() {
+	    return this.hashAlgorithmCode*100 + this.signatureAlgorithmCode;
+	}
 }
