@@ -75,13 +75,16 @@ public class ObjectSecurityLayer extends AbstractLayer {
 	 * @param message the message
 	 * @param ctx the OSCore context
 	 * @param newPartialIV boolean to indicate whether to use a new partial IV or not
+	 * @param outerBlockwise boolean to indicate whether the block-wise options
+	 *            should be encrypted or not
 	 * 
 	 * @return the encrypted message
 	 * 
 	 * @throws OSException error while encrypting response
 	 */
-	public static Response prepareSend(OSCoreCtxDB ctxDb, Response message, OSCoreCtx ctx, final boolean newPartialIV) throws OSException {
-		return ResponseEncryptor.encrypt(ctxDb, message, ctx, newPartialIV);
+	public static Response prepareSend(OSCoreCtxDB ctxDb, Response message, OSCoreCtx ctx, final boolean newPartialIV,
+			boolean outerBlockwise) throws OSException {
+		return ResponseEncryptor.encrypt(ctxDb, message, ctx, newPartialIV, outerBlockwise);
 	}
 
 	/**
@@ -116,6 +119,16 @@ public class ObjectSecurityLayer extends AbstractLayer {
 		Request req = request;
 		if (shouldProtectRequest(request)) {
 			try {
+				// Handle outgoing requests for more data from a responder that
+				// is responding with outer block-wise. These requests should
+				// not be processed with OSCORE.
+				boolean outerBlockwise = request.getOptions().hasBlock2() && exchange.getCurrentResponse() != null
+						&& ctxDb.getContextByToken(exchange.getCurrentResponse().getToken()) != null;
+				if (outerBlockwise) {
+					super.sendRequest(exchange, req);
+					return;
+				}
+
 				String uri = request.getURI();
 
 				if (uri == null) {
@@ -185,12 +198,25 @@ public class ObjectSecurityLayer extends AbstractLayer {
 		 * A partial IV will also be added if the responsesIncludePartialIV flag is set in the context. */
 		boolean addPartialIV;
 		
+		/*
+		 * If the original request used outer block-wise options so should the
+		 * response. (They are not encrypted but external unprotected options.)
+		 */
+		boolean outerBlockwise;
+
 		if (shouldProtectResponse(exchange)) {
+			// If the current block-request still has a non-empty OSCORE option it
+			// means it was not unprotected by OSCORE as and individual request.
+			// Rather it was not processed by OSCORE until after being re-assembled
+			// by the block-wise layer. Thus the response should use outer block options.
+			outerBlockwise = exchange.getCurrentRequest().getOptions().hasOscore()
+					&& exchange.getCurrentRequest().getOptions().getOscore().length != 0;
+
 			try {
 				OSCoreCtx ctx = ctxDb.getContext(exchange.getCryptographicContextID());
 				addPartialIV = ctx.getResponsesIncludePartialIV() || exchange.getRequest().getOptions().hasObserve();
 				
-				response = prepareSend(ctxDb, response, ctx, addPartialIV);
+				response = prepareSend(ctxDb, response, ctx, addPartialIV, outerBlockwise);
 				exchange.setResponse(response);
 			} catch (OSException e) {
 				LOGGER.error("Error sending response: " + e.getMessage());
@@ -208,6 +234,14 @@ public class ObjectSecurityLayer extends AbstractLayer {
 	@Override
 	public void receiveRequest(Exchange exchange, Request request) {
 		if (isProtected(request)) {
+
+			// For OSCORE-protected requests with the outer block1-option let
+			// them pass through to be re-assembled by the block-wise layer
+			if (request.getOptions().hasBlock1()) {
+				super.receiveRequest(exchange, request);
+				return;
+			}
+
 			byte[] rid = null;
 			try {
 				request = prepareReceive(ctxDb, request);
@@ -243,6 +277,13 @@ public class ObjectSecurityLayer extends AbstractLayer {
 				LOGGER.warn("Incoming response is NOT OSCORE protected!");
 			} else if (isProtected(response)) {
 				LOGGER.info("Incoming response is OSCORE protected");
+			}
+
+			// For OSCORE-protected response with the outer block2-option let
+			// them pass through to be re-assembled by the block-wise layer
+			if (response.getOptions().hasBlock2()) {
+				super.receiveResponse(exchange, response);
+				return;
 			}
 
 			//If response is protected with OSCORE parse it first with prepareReceive

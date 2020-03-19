@@ -20,6 +20,8 @@ package org.eclipse.californium.oscore;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.eclipse.californium.core.coap.EmptyMessage;
+import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.OptionSet;
@@ -34,6 +36,10 @@ import org.eclipse.californium.oscore.ContextRederivation.PHASE;
 /**
  * 
  * Applies OSCORE mechanics at stack layer.
+ * 
+ * Handles functionality for context re-derivation and outer block-wise.
+ * https://tools.ietf.org/html/rfc8613#appendix-B.2
+ * https://tools.ietf.org/html/rfc8613#section-4.1.3.4.2
  *
  */
 public class ObjectSecurityContextLayer extends AbstractLayer {
@@ -50,6 +56,38 @@ public class ObjectSecurityContextLayer extends AbstractLayer {
 			throw new NullPointerException("OSCoreCtxDB must be provided!");
 		}
 		this.ctxDb = ctxDb;
+	}
+
+
+	@Override
+	public void receiveRequest(Exchange exchange, Request request) {
+
+		// Handle incoming OSCORE requests that have been re-assembled by the
+		// block-wise layer (for outer block-wise). If an incoming request has
+		// already been processed by OSCORE the option will be empty. If not it
+		// is a re-assembled request to be processed here.
+		boolean outerBlockwise = request.getOptions().hasOscore() && request.getOptions().getOscore().length != 0
+				&& exchange.getCurrentRequest() != null && exchange.getCurrentRequest().getOptions().hasBlock1();
+		if (isProtected(request) && outerBlockwise) {
+			LOGGER.debug("Incoming OSCORE request uses outer block-wise");
+			byte[] rid = null;
+			try {
+				request = RequestDecryptor.decrypt(ctxDb, request);
+				rid = request.getOptions().getOscore();
+				request.getOptions().setOscore(Bytes.EMPTY);
+				exchange.setRequest(request);
+			} catch (CoapOSException e) {
+				LOGGER.error("Error while receiving OSCore request: " + e.getMessage());
+				Response error;
+				error = CoapOSExceptionHandler.manageError(e, request);
+				if (error != null) {
+					super.sendResponse(exchange, error);
+				}
+				return;
+			}
+			exchange.setCryptographicContextID(rid);
+		}
+		super.receiveRequest(exchange, request);
 	}
 
 	@Override
@@ -165,8 +203,58 @@ public class ObjectSecurityContextLayer extends AbstractLayer {
 		super.sendRequest(exchange, request);
 	}
 
+	@Override
+	public void receiveResponse(Exchange exchange, Response response) {
+
+		// Handle incoming OSCORE responses that have been re-assembled by the
+		// block-wise layer (for outer block-wise). If a response was not
+		// processed by OSCORE in the ObjectSecurityLayer it will happen here.
+		boolean outerBlockwise = exchange.getCurrentResponse() != null
+				&& exchange.getCurrentResponse().getOptions().hasBlock2()
+				&& ctxDb.getContextByToken(exchange.getCurrentResponse().getToken()) != null;
+		if (outerBlockwise) {
+
+			LOGGER.debug("Incoming OSCORE response uses outer block-wise");
+
+			Request request = exchange.getCurrentRequest();
+			if (request == null) {
+				LOGGER.error("No request tied to this response");
+				return;
+			}
+			try {
+				// If response is protected with OSCORE parse it first with
+				// prepareReceive
+				if (isProtected(response)) {
+					response = ObjectSecurityLayer.prepareReceive(ctxDb, response);
+				}
+			} catch (OSException e) {
+				LOGGER.error("Error while receiving OSCore response: " + e.getMessage());
+				EmptyMessage error = CoapOSExceptionHandler.manageError(e, response);
+				if (error != null) {
+					sendEmptyMessage(exchange, error);
+				}
+				return;
+			}
+
+			// Remove token if this is a response to a Observe cancellation
+			// request
+			if (exchange.getRequest().isObserveCancel()) {
+				ctxDb.removeToken(response.getToken());
+			}
+
+			super.receiveResponse(exchange, response);
+		}
+
+		super.receiveResponse(exchange, response);
+	}
+
 	private static boolean shouldProtectRequest(Request request) {
 		OptionSet options = request.getOptions();
+		return options.hasOption(OptionNumberRegistry.OSCORE);
+	}
+
+	private static boolean isProtected(Message message) {
+		OptionSet options = message.getOptions();
 		return options.hasOption(OptionNumberRegistry.OSCORE);
 	}
 }

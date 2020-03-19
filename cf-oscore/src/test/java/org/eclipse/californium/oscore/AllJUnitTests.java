@@ -29,7 +29,7 @@ import org.junit.runners.Suite.SuiteClasses;
 @SuiteClasses({ ByteIdTest.class, HashMapCtxDBTest.class, OptionJuggleTest.class, OSCoreCtxTest.class, OSCoreTest.class,
 		OSSerializerTest.class, OSCoreServerClientTest.class, OSCoreObserveTest.class, EncryptorTest.class,
 		DecryptorTest.class, EndpointContextInfoTest.class, ContextRederivationTest.class,
-		OSCoreInnerBlockwiseTest.class })
+		OSCoreInnerBlockwiseTest.class, OSCoreOuterBlockwiseTest.class })
 public class AllJUnitTests {
 
 }

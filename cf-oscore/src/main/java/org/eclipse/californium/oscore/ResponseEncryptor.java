@@ -21,6 +21,7 @@ package org.eclipse.californium.oscore;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.cose.Encrypt0Message;
@@ -41,12 +42,14 @@ public class ResponseEncryptor extends Encryptor {
 	 * @param response the response
 	 * @param ctx the OSCore context
 	 * @param newPartialIV boolean to indicate whether to use a new partial IV or not
+	 * @param outerBlockwise boolean to indicate whether the block-wise options should be encrypted or not
 	 * 
 	 * @return the response with the encrypted OSCore option
 	 * 
 	 * @throws OSException when encryption fails
 	 */
-	public static Response encrypt(OSCoreCtxDB db, Response response, OSCoreCtx ctx, final boolean newPartialIV) throws OSException {
+	public static Response encrypt(OSCoreCtxDB db, Response response, OSCoreCtx ctx, final boolean newPartialIV,
+			boolean outerBlockwise) throws OSException {
 		if (ctx == null) {
 			LOGGER.error(ErrorDescriptions.CTX_NULL);
 			throw new OSException(ErrorDescriptions.CTX_NULL);
@@ -65,6 +68,13 @@ public class ResponseEncryptor extends Encryptor {
 
 		OptionSet options = response.getOptions();
 
+		// Save block1 option in the case of outer block-wise to re-add later
+		BlockOption block1Option = null;
+		if (outerBlockwise) {
+			block1Option = options.getBlock1();
+			options.removeBlock1();
+		}
+
 		byte[] confidential = OSSerializer.serializeConfidentialData(options, response.getPayload(), realCode);
 		Encrypt0Message enc = prepareCOSEStructure(confidential);
 		byte[] cipherText = encryptAndEncode(enc, ctx, response, newPartialIV);
@@ -72,6 +82,10 @@ public class ResponseEncryptor extends Encryptor {
 
 		options = response.getOptions();
 		response.setOptions(OptionJuggle.prepareUoptions(options));
+
+		if (outerBlockwise) {
+			response.setOptions(response.getOptions().setBlock1(block1Option));
+		}
 
 		//If new partial IV was generated for response increment sender seq nr.
 		if (newPartialIV) {
