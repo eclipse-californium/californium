@@ -119,7 +119,33 @@ public final class ClientHello extends HandshakeMessage {
 			List<CertificateType> supportedServerCertificateTypes,
 			InetSocketAddress peerAddress) {
 
-		this(version, null, supportedCipherSuites, supportedClientCertificateTypes,
+		this(version, null, supportedCipherSuites, null, supportedClientCertificateTypes,
+				supportedServerCertificateTypes, peerAddress);
+	}
+	
+	/**
+	 * Creates a <em>Client Hello</em> message to be sent to a server.
+	 * 
+	 * @param version the protocol version to use
+	 * @param supportedCipherSuites the list of the supported cipher suites in order of
+	 *            the client’s preference (favorite choice first)
+	 * @param supportedSignatureAndHashAlgorithms the list of the supported signature and hash algorithms
+	 * @param supportedClientCertificateTypes the list of certificate types
+	 *            supported by the client
+	 * @param supportedServerCertificateTypes the list of certificate types
+	 *            supported by the server
+	 * @param peerAddress the IP address and port of the peer this message has
+	 *            been received from or should be sent to
+	 */
+	public ClientHello(
+			ProtocolVersion version,
+			List<CipherSuite> supportedCipherSuites,
+			List<SignatureAndHashAlgorithm> supportedSignatureAndHashAlgorithms,
+			List<CertificateType> supportedClientCertificateTypes,
+			List<CertificateType> supportedServerCertificateTypes,
+			InetSocketAddress peerAddress) {
+
+		this(version, null, supportedCipherSuites, supportedSignatureAndHashAlgorithms, supportedClientCertificateTypes,
 				supportedServerCertificateTypes, peerAddress);
 	}
 
@@ -141,7 +167,7 @@ public final class ClientHello extends HandshakeMessage {
 			List<CertificateType> supportedServerCertificateTypes) {
 
 		this(version, session.getSessionIdentifier(),
-				Arrays.asList(session.getCipherSuite()), supportedClientCertificateTypes,
+				Arrays.asList(session.getCipherSuite()), null, supportedClientCertificateTypes,
 				supportedServerCertificateTypes, session.getPeer());
 		addCompressionMethod(session.getWriteState().getCompressionMethod());
 	}
@@ -150,6 +176,7 @@ public final class ClientHello extends HandshakeMessage {
 			ProtocolVersion version,
 			SessionId sessionId,
 			List<CipherSuite> supportedCipherSuites,
+			List<SignatureAndHashAlgorithm> supportedSignatureAndHashAlgorithms,
 			List<CertificateType> supportedClientCertificateTypes,
 			List<CertificateType> supportedServerCertificateTypes,
 			InetSocketAddress peerAddress) {
@@ -179,7 +206,11 @@ public final class ClientHello extends HandshakeMessage {
 			List<ECPointFormat> formats = Arrays.asList(ECPointFormat.UNCOMPRESSED);
 			this.extensions.addExtension(new SupportedPointFormatsExtension(formats));
 		}
-
+		
+		// the supported signature and hash algorithms
+		if (supportedSignatureAndHashAlgorithms != null) {
+			this.extensions.addExtension(new SignatureAlgorithmsExtension(supportedSignatureAndHashAlgorithms));
+		}
 		// the certificate types the client is able to provide to the server
 		if (useCertificateTypeExtension(supportedClientCertificateTypes)) {
 			CertificateTypeExtension clientCertificateType = new ClientCertificateTypeExtension(supportedClientCertificateTypes);

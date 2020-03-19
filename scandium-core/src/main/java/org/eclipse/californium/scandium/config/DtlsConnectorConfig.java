@@ -56,6 +56,7 @@ import org.eclipse.californium.scandium.dtls.CertificateRequest;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.SessionCache;
+import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
@@ -211,6 +212,9 @@ public final class DtlsConnectorConfig {
 
 	/** the supported cipher suites in order of preference */
 	private List<CipherSuite> supportedCipherSuites;
+	
+	/** the supported signature and hash algorithms */
+	private List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms;
 
 	/** the trust store for RPKs **/
 	private TrustedRpkStore trustedRPKs;
@@ -555,6 +559,16 @@ public final class DtlsConnectorConfig {
 	 */
 	public List<CipherSuite> getSupportedCipherSuites() {
 		return supportedCipherSuites;
+	}
+	
+	/**
+	 * Gets the signature algorithms the connector should advertise in a DTLS
+	 * handshake.
+	 * 
+	 * @return the supported signature algorithms (ordered by preference)
+	 */
+	public List<SignatureAndHashAlgorithm> getSupportedSignatureAlgorithms() {
+		return supportedSignatureAlgorithms;
 	}
 
 	/**
@@ -957,6 +971,7 @@ public final class DtlsConnectorConfig {
 		cloned.publicKey = publicKey;
 		cloned.certChain = certChain;
 		cloned.supportedCipherSuites = supportedCipherSuites;
+		cloned.supportedSignatureAlgorithms = supportedSignatureAlgorithms;
 		cloned.trustedRPKs = trustedRPKs;
 		cloned.outboundMessageBufferSize = outboundMessageBufferSize;
 		cloned.maxDeferredProcessedOutgoingApplicationDataMessages = maxDeferredProcessedOutgoingApplicationDataMessages;
@@ -1451,6 +1466,21 @@ public final class DtlsConnectorConfig {
 				}
 			}
 			return setSupportedCipherSuites(suites);
+		}
+		
+		/**
+		 * Sets the signature algorithms supported by the connector.
+		 * <p>
+		 * The connector will use these signature algorithms (in exactly the same
+		 * order) during the DTLS handshake.
+		 * 
+		 * @param supportedSignatureAlgorithms the supported signature algorithms in the order of
+		 *            preference
+		 * @return this builder for command chaining
+		 */
+		public Builder setSupportedSignatureAlgorithms(List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms) {
+			config.supportedSignatureAlgorithms = supportedSignatureAlgorithms;
+			return this;
 		}
 
 		/**
@@ -2412,7 +2442,7 @@ public final class DtlsConnectorConfig {
 			config.identityCertificateTypes = ListUtils.init(config.identityCertificateTypes);
 			config.supportedCipherSuites = ListUtils.init(config.supportedCipherSuites);
 			config.certChain = ListUtils.init(config.certChain);
-
+			config.supportedSignatureAlgorithms = ListUtils.init(config.supportedSignatureAlgorithms);
 			return config;
 		}
 
