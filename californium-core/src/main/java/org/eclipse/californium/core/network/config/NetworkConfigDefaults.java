@@ -198,7 +198,7 @@ public class NetworkConfigDefaults {
 		config.setInt(Keys.NSTART, 1);
 		config.setInt(Keys.LEISURE, 5000);
 		config.setFloat(Keys.PROBING_RATE, 1f);
-		config.setBoolean(Keys.USE_MESSAGE_OFFLOADING, true);
+		config.setBoolean(Keys.USE_MESSAGE_OFFLOADING, false);
 
 		config.setInt(Keys.MAX_LATENCY, 100 * 1000); //ms
 		config.setInt(Keys.MAX_SERVER_RESPONSE_DELAY, 250 * 1000); //ms
