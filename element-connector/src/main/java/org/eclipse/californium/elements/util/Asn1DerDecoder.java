@@ -448,7 +448,7 @@ public class Asn1DerDecoder {
 				int keySize = (ecParameterSpec.getCurve().getField().getFieldSize() + Byte.SIZE - 1) / Byte.SIZE;
 				if (privateKeyValue.length != keySize) {
 					throw new GeneralSecurityException(
-							"private key size " + privateKeyValue.length + " doesn't macth " + keySize);
+							"private key size " + privateKeyValue.length + " doesn't match " + keySize);
 				}
 				KeySpec privateKeySpec = new ECPrivateKeySpec(new BigInteger(1, privateKeyValue), ecParameterSpec);
 				keys = new Keys();
@@ -531,7 +531,7 @@ public class Asn1DerDecoder {
 	/**
 	 * Get EC parameter spec for named curve.
 	 * 
-	 * Creates key pair to access the resultinf EC parameter spec.
+	 * Creates key pair to access the resulting EC parameter spec.
 	 * 
 	 * @param oid oid name of curve
 	 * @return EC parameter spec
