@@ -73,10 +73,10 @@
 		<developer>
 			<id>khudalla</id>
 			<name>Kai Hudalla</name>
-			<email>kai.hudalla@bosch-si.com</email>
+			<email>kai.hudalla@bosch.io</email>
 			<url>https://github.com/sophokles73</url>
-			<organization>Bosch Software Innovations GmbH</organization>
-			<organizationUrl>http://www.bosch-si.com</organizationUrl>
+			<organization>Bosch.IO GmbH</organization>
+			<organizationUrl>http://www.bosch.io</organizationUrl>
 			<roles>
 				<role>Committer</role>
 				<role>Lead</role>
@@ -94,9 +94,10 @@
 		<developer>
 			<id>boaks</id>
 			<name>Achim Kraus</name>
-			<email>achim.kraus@bosch-si.com</email>
-			<organization>Bosch Software Innovations GmbH</organization>
-			<organizationUrl>http://www.bosch-si.com</organizationUrl>
+			<email>achim.kraus@bosch.io</email>
+			<url>https://github.com/boaks</url>
+			<organization>Bosch.IO GmbH</organization>
+			<organizationUrl>http://www.bosch.io</organizationUrl>
 			<roles>
 				<role>Committer</role>
 			</roles>
@@ -420,7 +421,7 @@
 				<plugin>
 					<groupId>org.codehaus.mojo</groupId>
 					<artifactId>animal-sniffer-maven-plugin</artifactId>
-					<version>1.17</version>
+					<version>1.18</version>
 					<configuration>
 						<signature>
 							<groupId>net.sf.androidscents.signature</groupId>
