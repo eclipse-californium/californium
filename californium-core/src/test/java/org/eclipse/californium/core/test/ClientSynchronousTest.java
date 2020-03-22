@@ -296,8 +296,10 @@ public class ClientSynchronousTest {
 			}
 			String old = this.content;
 			this.content = requestText;
-			exchange.respond(ResponseCode.CHANGED, old);
+			// call changed before response, otherwise there may be a race-condition
+			// if a future observe get processed before the changed().
 			changed();
+			exchange.respond(ResponseCode.CHANGED, old);
 		}
 
 		public void reset() {

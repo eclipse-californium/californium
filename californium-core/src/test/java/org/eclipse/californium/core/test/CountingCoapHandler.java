@@ -270,7 +270,7 @@ public class CountingCoapHandler implements CoapHandler {
 	 *             {@link #assertLoad(CoapResponse)}
 	 */
 	public synchronized CoapResponse waitOnLoad(long timeout) {
-		if (0 < timeout && !(readIndex < responses.size())) {
+		if (0 < timeout && responses.size() <= readIndex) {
 			try {
 				wait(timeout);
 			} catch (InterruptedException e) {
@@ -281,5 +281,16 @@ public class CountingCoapHandler implements CoapHandler {
 			return responses.get(readIndex++);
 		}
 		return null;
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder();
+		synchronized (this) {
+			builder.append("loads:").append(loadCalls.get());
+			builder.append(", read:").append(readIndex);
+			builder.append(", errs:").append(errorCalls.get());
+		}
+		return builder.toString();
 	}
 }
