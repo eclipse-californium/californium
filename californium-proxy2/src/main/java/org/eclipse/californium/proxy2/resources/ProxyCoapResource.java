@@ -27,6 +27,7 @@ import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.ServerMessageDeliverer;
 import org.eclipse.californium.proxy2.Coap2CoapTranslator;
 import org.eclipse.californium.proxy2.Coap2HttpTranslator;
+import org.eclipse.californium.proxy2.CoapUriTranslator;
 import org.eclipse.californium.proxy2.EndpointPool;
 import org.eclipse.californium.proxy2.Http2CoapTranslator;
 import org.eclipse.californium.proxy2.TranslationException;
@@ -58,15 +59,29 @@ import org.eclipse.californium.proxy2.TranslationException;
  * 
  * This {@link ProxyCoapResource} supports both variants adapting the conversion
  * using custom implementations of {@link Coap2CoapTranslator} or
- * {@link Http2CoapTranslator}. Forward proxies are implemented replacing the
- * default {@link ServerMessageDeliverer} by
- * {@link ForwardProxyMessageDeliverer} and add {@link ProxyCoapClientResource}
- * and/or {@link ProxyHttpClientResource} to this message-forwarded. Reverse
- * proxies are implemented using
+ * {@link Http2CoapTranslator}.
+ * 
+ * Forward proxies are implemented replacing the default
+ * {@link ServerMessageDeliverer} by {@link ForwardProxyMessageDeliverer} and
+ * add {@link ProxyCoapClientResource} and/or {@link ProxyHttpClientResource} to
+ * this message-forwarded.
+ * 
+ * Reverse proxies maybe implemented using
  * {@link #createReverseProxy(String, boolean, boolean, boolean, URI, EndpointPool...)}.
  * If a reverse proxy requires a customized conversion, add a customized
  * {@link ProxyCoapClientResource} and/or {@link ProxyHttpClientResource} to the
  * coap-server.
+ * 
+ * Mixed proxies maybe implemented using both approaches, the
+ * {@link ForwardProxyMessageDeliverer} and
+ * {@link #createReverseProxy(String, boolean, boolean, boolean, URI, EndpointPool...)}
+ * or customized {@link ProxyCoapClientResource} and/or
+ * {@link ProxyHttpClientResource}. In cases, where it is ambiguous, if the
+ * request should be processed by the forwarding-proxy or by a reverse-proxy
+ * resource, the {@link ForwardProxyMessageDeliverer} may use a customized
+ * {@link CoapUriTranslator}, which returns {@code null} in
+ * {@link CoapUriTranslator#getDestinationScheme(Request)} to bypass
+ * forwarding-proxy.
  */
 public abstract class ProxyCoapResource extends CoapResource {
 
