@@ -38,7 +38,7 @@ public interface CoapStackFactory {
 	 * @param outbox outbox to be used for this coap stack
 	 * @param customStackArgument argument for custom stack, if required.
 	 *            {@code null} for standard stacks, or if the custom stack
-	 *            doesn't require specific arguments. My be a {@link Map}, if
+	 *            doesn't require specific arguments. Maybe a {@link Map}, if
 	 *            multiple arguments are required.
 	 * @return create coap stack-
 	 * @throws NullPointerException if any parameter is {@code null}
