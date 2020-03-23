@@ -54,6 +54,14 @@ if [ -z "$1" ]  ; then
      CF_HOST=localhost
 else 
     CF_HOST=$1
+    shift
+fi
+
+if [ -z "$1" ]  ; then
+     CF_SEC=
+else 
+    CF_SEC=$1
+    shift
 fi
 
 # adjust the multiplier according the speed of your CPU
@@ -90,7 +98,6 @@ if [ ! -s ${CF_JAR} ] ; then
    fi
 fi
 
-START_BENCHMARK=`date +%s`
 echo ${CF_JAR}
 
 benchmark_udp()
@@ -102,7 +109,7 @@ benchmark_udp()
       sleep 5
    fi   
    if [ ${USE_SECURE} -ne 0 ] ; then 
-      java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} coaps://${CF_HOST}:5784/$@
+      java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} ${CF_SEC} coaps://${CF_HOST}:5784/$@
       if [ ! $? -eq 0 ] ; then exit $?; fi
       sleep 5
    fi   
@@ -165,8 +172,7 @@ benchmark_dtls_handshake()
          i=$(($i + 1))
       done
       END_HS=`date +%s`
-      TIME=$(($END_HS - $START_HS))
-      export CALIFORNIUM_STATISTIC=$old
+      TIME=$((${END_HS} - ${START_HS}))
       return $TIME
    fi 
 }
@@ -175,20 +181,23 @@ benchmark_dtls_handshakes()
 {
    old=$CALIFORNIUM_STATISTIC
    export CALIFORNIUM_STATISTIC=
+   LOOPS=10
 
-   benchmark_dtls_handshake 10 
+   benchmark_dtls_handshake $LOOPS 
    TIME1=$?
-   benchmark_dtls_handshake 10 -e
+   benchmark_dtls_handshake $LOOPS -e
    TIME2=$?
-   benchmark_dtls_handshake 10 -r
+   benchmark_dtls_handshake $LOOPS -r
    TIME3=$?
-   benchmark_dtls_handshake 10 -x
+   benchmark_dtls_handshake $LOOPS -x
    TIME4=$?
 
    echo "PSK      :" $TIME1
    echo "PSK/ECDHE:" $TIME2
    echo "RPK      :" $TIME3
    echo "X509     :" $TIME4
+
+   export CALIFORNIUM_STATISTIC=$old
 }
 
 longterm()
@@ -220,10 +229,12 @@ proxy()
    fi 
 }
 
+START_BENCHMARK=`date +%s`
+
 #proxy
 benchmark_all
 benchmark_dtls_handshakes
 
 END_BENCHMARK=`date +%s`
 
-echo "ALL:" $(($END_BENCHMARK - $START_BENCHMARK))
+echo "ALL:" $((${END_BENCHMARK} - ${START_BENCHMARK}))
