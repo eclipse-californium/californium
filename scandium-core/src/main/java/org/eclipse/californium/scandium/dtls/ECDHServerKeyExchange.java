@@ -36,6 +36,7 @@ import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
+import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalSignature;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -127,7 +128,8 @@ public final class ECDHServerKeyExchange extends ServerKeyExchange {
 		// See http://tools.ietf.org/html/rfc4492#section-2.2
 		// These parameters MUST be signed with ECDSA using the private key
 		// corresponding to the public key in the server's Certificate.
-		Signature signature = Signature.getInstance(this.signatureAndHashAlgorithm.jcaName());
+		ThreadLocalSignature localSignature = signatureAndHashAlgorithm.getThreadLocalSignature();
+		Signature signature = localSignature.currentWithCause();
 		signature.initSign(serverPrivateKey);
 
 		updateSignature(signature, clientRandom, serverRandom);
@@ -305,7 +307,8 @@ public final class ECDHServerKeyExchange extends ServerKeyExchange {
 		}
 		boolean verified = false;
 		try {
-			Signature signature = Signature.getInstance(signatureAndHashAlgorithm.jcaName());
+			ThreadLocalSignature localSignature = signatureAndHashAlgorithm.getThreadLocalSignature();
+			Signature signature = localSignature.currentWithCause();
 			signature.initVerify(serverPublicKey);
 
 			updateSignature(signature, clientRandom, serverRandom);

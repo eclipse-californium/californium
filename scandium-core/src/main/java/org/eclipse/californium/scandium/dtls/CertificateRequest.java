@@ -24,7 +24,6 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 import java.security.Signature;
 import java.security.cert.X509Certificate;
@@ -156,7 +155,7 @@ public final class CertificateRequest extends HandshakeMessage {
 		if (!supportedSignatureAlgorithms.isEmpty()) {
 			sb.append("\t\tSignature and hash algorithm:").append(StringUtil.lineSeparator());
 			for (SignatureAndHashAlgorithm algo : supportedSignatureAlgorithms) {
-				sb.append(THREE_TABS).append(algo.jcaName()).append(StringUtil.lineSeparator());
+				sb.append(THREE_TABS).append(algo).append(StringUtil.lineSeparator());
 			}
 		}
 		if (!certificateAuthorities.isEmpty()) {
@@ -530,14 +529,14 @@ public final class CertificateRequest extends HandshakeMessage {
 	}
 
 	SignatureAndHashAlgorithm getSupportedSignatureAlgorithm(PublicKey key) {
-
 		for (SignatureAndHashAlgorithm supportedAlgorithm : supportedSignatureAlgorithms) {
 			try {
-				Signature sign = Signature.getInstance(supportedAlgorithm.jcaName());
-				sign.initVerify(key);
-				return supportedAlgorithm;
-			} catch (NoSuchAlgorithmException | InvalidKeyException e) {
-				// nothing to do
+				Signature sign = supportedAlgorithm.getThreadLocalSignature().current();
+				if (sign != null) {
+					sign.initVerify(key);
+					return supportedAlgorithm;
+				}
+			} catch (InvalidKeyException e) {
 			}
 		}
 		return null;

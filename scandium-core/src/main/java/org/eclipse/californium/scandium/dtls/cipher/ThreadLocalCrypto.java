@@ -50,6 +50,8 @@ public class ThreadLocalCrypto<CryptoFunction> {
 				supportedfactory = factory;
 				threadLocalCipher = new ThreadLocal<CryptoFunction>();
 				threadLocalCipher.set(function);
+			} else {
+				exception = new GeneralSecurityException(factory.getClass().getSimpleName() + " not supported!");
 			}
 		} catch (GeneralSecurityException e) {
 			exception = e;
@@ -76,6 +78,25 @@ public class ThreadLocalCrypto<CryptoFunction> {
 				threadLocalFunction.set(function);
 			} catch (GeneralSecurityException e) {
 			}
+		}
+		return function;
+	}
+
+	/**
+	 * Get "thread local" instance of crypto function.
+	 * 
+	 * @return thread local crypto function.
+	 * @throws GeneralSecurityException if crypto function is not supported by
+	 *             the java-vm.
+	 */
+	public CryptoFunction currentWithCause() throws GeneralSecurityException {
+		if (exception != null) {
+			throw exception;
+		}
+		CryptoFunction function = threadLocalFunction.get();
+		if (function == null) {
+			function = factory.getInstance();
+			threadLocalFunction.set(function);
 		}
 		return function;
 	}
