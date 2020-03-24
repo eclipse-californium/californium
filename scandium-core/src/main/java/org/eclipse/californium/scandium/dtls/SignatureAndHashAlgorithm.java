@@ -16,6 +16,11 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+
+import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalSignature;
+
 /**
  * See <a href="http://tools.ietf.org/html/rfc5246#appendix-A.4.1">RFC 5246</a>
  * for details.
@@ -115,10 +120,26 @@ public final class SignatureAndHashAlgorithm {
 		}
 	}
 
+	private static final ConcurrentMap<String, ThreadLocalSignature> SIGNATURES = new ConcurrentHashMap<String, ThreadLocalSignature>();
+
+	public static ThreadLocalSignature getThreadLocalSignature(String algorithm) {
+		if (algorithm == null) {
+			algorithm = "UNKNOWN";
+		}
+		ThreadLocalSignature threadLocalSignature = SIGNATURES.get(algorithm);
+		if (threadLocalSignature == null) {
+			SIGNATURES.putIfAbsent(algorithm, new ThreadLocalSignature(algorithm));
+			threadLocalSignature = SIGNATURES.get(algorithm);
+		}
+		return threadLocalSignature;
+	}
+
+	private final String jcaName;
 	private final HashAlgorithm hash;
 	private final SignatureAlgorithm signature;
 	private final int hashAlgorithmCode;
 	private final int signatureAlgorithmCode;
+	private final boolean supported;
 
 	/**
 	 * Creates an instance for a hash and signature algorithm.
@@ -139,6 +160,8 @@ public final class SignatureAndHashAlgorithm {
 		this.signature = signatureAlgorithm;
 		this.hashAlgorithmCode = hashAlgorithm.getCode();
 		this.signatureAlgorithmCode = signatureAlgorithm.getCode();
+		this.jcaName = buildJcaName();
+		this.supported = jcaName != null && getThreadLocalSignature(jcaName) .current() != null;
 	}
 
 	/**
@@ -154,6 +177,19 @@ public final class SignatureAndHashAlgorithm {
 		this.signatureAlgorithmCode = signatureAlgorithmCode;
 		this.signature = SignatureAlgorithm.getAlgorithmByCode(signatureAlgorithmCode);
 		this.hash = HashAlgorithm.getAlgorithmByCode(hashAlgorithmCode);
+		this.jcaName = buildJcaName();
+		this.supported = jcaName != null && getThreadLocalSignature(jcaName) .current() != null;
+	}
+
+	private String buildJcaName() {
+		if (hash != null && signature != null) {
+			StringBuilder name = new StringBuilder();
+			name.append(hash);
+			name.append("with");
+			name.append(signature);
+			return name.toString();
+		}
+		return null;
 	}
 
 	// Getters and Setters ////////////////////////////////////////////
@@ -185,38 +221,74 @@ public final class SignatureAndHashAlgorithm {
 	 * Signature signature = Signature.newInstance(signatureAndHash.jcaName());
 	 * </pre>
 	 * 
-	 * @return The name.
+	 * @return The name, or {@code null}, if name is not available/not known by this implementation.
 	 */
-	public String jcaName() {
-		StringBuilder name = new StringBuilder();
-		if (hash != null) {
-			name.append(hash);
-		} else {
-			name.append(String.format("0x%02x", hashAlgorithmCode));
-		}
-		name.append("with");
-		if (signature != null) {
-			name.append(signature);
-		} else {
-			name.append(String.format("0x%02x", signatureAlgorithmCode));
-		}
-		return name.toString();
+	public String getJcaName() {
+		return jcaName;
 	}
-	
+
+	/**
+	 * Gets the <a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Signature">
+	 * JCA standard name</a> corresponding to this combination of hash and signature algorithm.
+	 * <p>
+	 * The name returned by this method can be used to instantiate a {@code java.security.Signature} object like this:
+	 * <pre>
+	 * Signature signature = Signature.newInstance(signatureAndHash.jcaName());
+	 * </pre>
+	 * 
+	 * @return The name, or {@code null}, if name is not available/not known by this implementation.
+	 * @deprecated use {@link #getJcaName()}.
+	 */
+	@Deprecated
+	public String jcaName() {
+		return jcaName;
+	}
+
+	public boolean isSupported() {
+		return supported;
+	}
+
+	@Override
+	public String toString() {
+		if (jcaName != null) {
+			return jcaName;
+		} else {
+			StringBuilder result = new StringBuilder();
+			if (hash != null) {
+				result.append(hash);
+			} else {
+				result.append(String.format("0x%02x", hashAlgorithmCode));
+			}
+			result.append("with");
+			if (signature != null) {
+				result.append(signature);
+			} else {
+				result.append(String.format("0x%02x", signatureAlgorithmCode));
+			}
+			return result.toString();
+		}
+	}
+
 	@Override
 	public boolean equals(Object obj) {
-	    if (obj == null) return false;
-	    if (!(obj instanceof SignatureAndHashAlgorithm))
-	        return false;
-	    if (obj == this)
-	        return true;
-	    return this.getSignature().getCode() == ((SignatureAndHashAlgorithm) obj).getSignature().getCode() && 
-	    		this.getHash().getCode() == ((SignatureAndHashAlgorithm) obj).getHash().getCode();
+		if (this == obj) {
+			return true;
+		} else if (obj == null) {
+			return false;
+		} else if (getClass() != obj.getClass()) {
+			return false;
+		}
+		SignatureAndHashAlgorithm other = (SignatureAndHashAlgorithm) obj;
+		return this.signatureAlgorithmCode == other.signatureAlgorithmCode
+				&& this.hashAlgorithmCode == other.hashAlgorithmCode;
 	}
-	
 
 	@Override
 	public int hashCode() {
-	    return this.hashAlgorithmCode*100 + this.signatureAlgorithmCode;
+		return this.hashAlgorithmCode * 100 + this.signatureAlgorithmCode;
+	}
+
+	public ThreadLocalSignature getThreadLocalSignature() {
+		return getThreadLocalSignature(getJcaName());
 	}
 }

@@ -19,12 +19,10 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
+import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Signature;
-import java.security.SignatureException;
 import java.util.Arrays;
 import java.util.List;
 
@@ -35,6 +33,7 @@ import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalSignature;
 
 
 /**
@@ -170,7 +169,8 @@ public final class CertificateVerify extends HandshakeMessage {
 		signatureBytes = Bytes.EMPTY;
 
 		try {
-			Signature signature = Signature.getInstance(signatureAndHashAlgorithm.jcaName());
+			ThreadLocalSignature localSignature = signatureAndHashAlgorithm.getThreadLocalSignature();
+			Signature signature = localSignature.currentWithCause();
 			signature.initSign(clientPrivateKey);
 			int index  = 0;
 			for (HandshakeMessage message : handshakeMessages) {
@@ -198,7 +198,8 @@ public final class CertificateVerify extends HandshakeMessage {
 	 */
 	public void verifySignature(PublicKey clientPublicKey, List<HandshakeMessage> handshakeMessages) throws HandshakeException {
 		try {
-			Signature signature = Signature.getInstance(signatureAndHashAlgorithm.jcaName());
+			ThreadLocalSignature localSignature = signatureAndHashAlgorithm.getThreadLocalSignature();
+			Signature signature = localSignature.currentWithCause();
 			signature.initVerify(clientPublicKey);
 			int index  = 0;
 			for (HandshakeMessage message : handshakeMessages) {
@@ -210,7 +211,7 @@ public final class CertificateVerify extends HandshakeMessage {
 				return;
 			}
 
-		} catch (SignatureException | InvalidKeyException | NoSuchAlgorithmException e) {
+		} catch (GeneralSecurityException e) {
 			LOGGER.error("Could not verify the client's signature.", e);
 		}
 		String message = "The client's CertificateVerify message could not be verified.";
