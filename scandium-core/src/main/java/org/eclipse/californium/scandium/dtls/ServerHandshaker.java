@@ -124,11 +124,26 @@ public class ServerHandshaker extends Handshaker {
 	 * The certificate types this server supports for server authentication.
 	 */
 	private final List<CertificateType> supportedServerCertificateTypes;
+	/**
+	 * The supported signature and hash algorithms.
+	 * 
+	 * @since 2.3
+	 */
+	private final List<SignatureAndHashAlgorithm> supportedSignatureAndHashAlgorithms;
 
 	private CertificateType negotiatedClientCertificateType;
 	private CertificateType negotiatedServerCertificateType;
 	private SupportedGroup negotiatedSupportedGroup;
-	private SignatureAndHashAlgorithm signatureAndHashAlgorithm;
+	/**
+	 * The negotiated signature and hash algorithms. 
+	 * 
+	 * Only set, if a cipher suite using signing is negotiated. 
+	 * 
+	 * subset of {@link #supportedSignatureAndHashAlgorithms}.
+	 * 
+	 * @since 2.3
+	 */
+	private List<SignatureAndHashAlgorithm> negotiatedSignatureAndHashAlgorithms;
 	/** All the handshake messages exchanged before the CertificateVerify message. */
 
 	/*
@@ -184,6 +199,12 @@ public class ServerHandshaker extends Handshaker {
 		// the server handshake uses the config with exchanged roles!
 		this.supportedClientCertificateTypes = config.getTrustCertificateTypes();
 		this.supportedServerCertificateTypes = config.getIdentityCertificateTypes();
+		List<SignatureAndHashAlgorithm> algorithms = config.getSupportedSignatureAlgorithms();
+		if (algorithms.isEmpty()) {
+			this.supportedSignatureAndHashAlgorithms = SignatureAndHashAlgorithm.DEFAULT;
+		} else {
+			this.supportedSignatureAndHashAlgorithms = algorithms;
+		}
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -473,11 +494,9 @@ public class ServerHandshaker extends Handshaker {
 		ServerKeyExchange serverKeyExchange = null;
 		switch (getKeyExchangeAlgorithm()) {
 		case EC_DIFFIE_HELLMAN:
-			// TODO SHA256withECDSA is default but should be configurable
-			signatureAndHashAlgorithm = new SignatureAndHashAlgorithm(SignatureAndHashAlgorithm.HashAlgorithm.SHA256, SignatureAndHashAlgorithm.SignatureAlgorithm.ECDSA);
 			try {
 				ecdhe = new ECDHECryptography(negotiatedSupportedGroup.getEcParams());
-				serverKeyExchange = new ECDHServerKeyExchange(signatureAndHashAlgorithm, ecdhe, privateKey, clientRandom, serverRandom,
+				serverKeyExchange = new ECDHServerKeyExchange(session.getSignatureAndHashAlgorithm(), ecdhe, privateKey, clientRandom, serverRandom,
 						negotiatedSupportedGroup.getId(), session.getPeer());
 				break;
 			} catch (GeneralSecurityException e) {
@@ -521,13 +540,16 @@ public class ServerHandshaker extends Handshaker {
 
 	private boolean createCertificateRequest(final ClientHello clientHello, final DTLSFlight flight) throws HandshakeException {
 
-		if ((clientAuthenticationWanted || clientAuthenticationRequired) && signatureAndHashAlgorithm != null) {
+		if ((clientAuthenticationWanted || clientAuthenticationRequired) && negotiatedSignatureAndHashAlgorithms != null) {
 
 			CertificateRequest certificateRequest = new CertificateRequest(session.getPeer());
 
 			// TODO make this variable, reasonable values
 			certificateRequest.addCertificateType(ClientCertificateType.ECDSA_SIGN);
-			certificateRequest.addSignatureAlgorithm(signatureAndHashAlgorithm);
+			// sort according the server supported signatures and hash algorithms
+			List<SignatureAndHashAlgorithm> serverOrdered = SignatureAndHashAlgorithm.getCommonSignatureAlgorithms(
+					supportedSignatureAndHashAlgorithms, negotiatedSignatureAndHashAlgorithms);
+			certificateRequest.addSignatureAlgorithms(serverOrdered);
 			if (certificateVerifier != null) {
 				List<X500Principal> subjects = CertPathUtil.toSubjects(Arrays.asList(certificateVerifier.getAcceptedIssuers()));
 				certificateRequest.addCerticiateAuthorities(subjects);
@@ -696,14 +718,19 @@ public class ServerHandshaker extends Handshaker {
 		CertificateType supportedServerCertType = getSupportedServerCertificateType(clientHello);
 		CertificateType supportedClientCertType = getSupportedClientCertificateType(clientHello);
 		SupportedGroup group = negotiateNamedCurve(clientHello);
+		List<SignatureAndHashAlgorithm> signatures = negotiateSignatureAndHashAlgorithms(clientHello);
 
 		for (CipherSuite cipherSuite : clientHello.getCipherSuites()) {
 			// NEVER negotiate NULL cipher suite
 			if (cipherSuite != CipherSuite.TLS_NULL_WITH_NULL_NULL && supportedCipherSuites.contains(cipherSuite)) {
-				if (isEligible(cipherSuite, supportedServerCertType, supportedClientCertType, group)) {
+				if (isEligible(cipherSuite, supportedServerCertType, supportedClientCertType, group, signatures)) {
 					negotiatedServerCertificateType = supportedServerCertType;
 					negotiatedClientCertificateType = supportedClientCertType;
 					negotiatedSupportedGroup = group;
+					if (cipherSuite.requiresServerCertificateMessage()) {
+						negotiatedSignatureAndHashAlgorithms = signatures;
+						session.setSignatureAndHashAlgorithm(signatures.get(0));
+					}
 					session.setCipherSuite(cipherSuite);
 					addServerHelloExtensions(cipherSuite, clientHello, serverHelloExtensions);
 					session.setParameterAvailable();
@@ -718,8 +745,8 @@ public class ServerHandshaker extends Handshaker {
 		throw new HandshakeException("Client proposed unsupported cipher suites only", alert);
 	}
 
-	private boolean isEligible(final CipherSuite cipher, final CertificateType supportedServerCertType,
-			final CertificateType supportedClientCertType, final SupportedGroup group) {
+	private boolean isEligible(CipherSuite cipher, CertificateType supportedServerCertType,
+			CertificateType supportedClientCertType, SupportedGroup group, List<SignatureAndHashAlgorithm> signatures) {
 		boolean result = true;
 		if (cipher.isEccBased()) {
 			// check for matching curve
@@ -731,6 +758,7 @@ public class ServerHandshaker extends Handshaker {
 			if (clientAuthenticationRequired || clientAuthenticationWanted) {
 				result &= supportedClientCertType != null;
 			}
+			result &= !signatures.isEmpty();
 		}
 		return result;
 	}
@@ -789,6 +817,27 @@ public class ServerHandshaker extends Handshaker {
 			}
 		}
 		return result;
+	}
+
+	/**
+	 * Determines the signature and hash algorithm to use during the EC based
+	 * handshake.
+	 * 
+	 * @param clientHello the peer's <em>CLIENT_HELLO</em> message containing
+	 *            its preferred signatures and hash algorithms
+	 * @return a list of common signatures and hash algorithms. Maybe empty, if
+	 *         server and client have no signature and hash algorithm in common
+	 * 
+	 * @since 2.3
+	 */
+	private List<SignatureAndHashAlgorithm> negotiateSignatureAndHashAlgorithms(ClientHello clientHello) {
+		SignatureAlgorithmsExtension extension = clientHello.getSupportedSignatureAlgorithms();
+		if (extension == null) {
+			return supportedSignatureAndHashAlgorithms;
+		} else {
+			return SignatureAndHashAlgorithm.getCommonSignatureAlgorithms(
+					extension.getSupportedSignatureAndHashAlgorithms(), supportedSignatureAndHashAlgorithms);
+		}
 	}
 
 	private CertificateType getSupportedClientCertificateType(final ClientHello clientHello) {

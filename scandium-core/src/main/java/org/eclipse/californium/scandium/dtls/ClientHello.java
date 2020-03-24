@@ -33,7 +33,6 @@ import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -119,8 +118,8 @@ public final class ClientHello extends HandshakeMessage {
 			List<CertificateType> supportedServerCertificateTypes,
 			InetSocketAddress peerAddress) {
 
-		this(version, null, supportedCipherSuites, null, supportedClientCertificateTypes,
-				supportedServerCertificateTypes, peerAddress);
+		this(version, null, supportedCipherSuites, Collections.<SignatureAndHashAlgorithm> emptyList(),
+				supportedClientCertificateTypes, supportedServerCertificateTypes, peerAddress);
 	}
 	
 	/**
@@ -136,6 +135,8 @@ public final class ClientHello extends HandshakeMessage {
 	 *            supported by the server
 	 * @param peerAddress the IP address and port of the peer this message has
 	 *            been received from or should be sent to
+	 * 
+	 * @since 2.3
 	 */
 	public ClientHello(
 			ProtocolVersion version,
@@ -166,8 +167,8 @@ public final class ClientHello extends HandshakeMessage {
 			List<CertificateType> supportedClientCertificateTypes,
 			List<CertificateType> supportedServerCertificateTypes) {
 
-		this(version, session.getSessionIdentifier(),
-				Arrays.asList(session.getCipherSuite()), null, supportedClientCertificateTypes,
+		this(version, session.getSessionIdentifier(), Arrays.asList(session.getCipherSuite()),
+				Collections.<SignatureAndHashAlgorithm> emptyList(), supportedClientCertificateTypes,
 				supportedServerCertificateTypes, session.getPeer());
 		addCompressionMethod(session.getWriteState().getCompressionMethod());
 	}
@@ -208,7 +209,7 @@ public final class ClientHello extends HandshakeMessage {
 		}
 		
 		// the supported signature and hash algorithms
-		if (supportedSignatureAndHashAlgorithms != null) {
+		if (!supportedSignatureAndHashAlgorithms.isEmpty()) {
 			this.extensions.addExtension(new SignatureAlgorithmsExtension(supportedSignatureAndHashAlgorithms));
 		}
 		// the certificate types the client is able to provide to the server
@@ -512,6 +513,22 @@ public final class ClientHello extends HandshakeMessage {
 	public ServerCertificateTypeExtension getServerCertificateTypeExtension() {
 		if (extensions != null) {
 			return (ServerCertificateTypeExtension) extensions.getExtension(ExtensionType.SERVER_CERT_TYPE);
+		} else {
+			return null;
+		}
+	}
+
+	/**
+	 * Gets the <em>Signature and Hash Algorithms</em> extension data from this message.
+	 * 
+	 * @return the extension data or <code>null</code> if this message does not contain the
+	 *          <em>SignatureAlgorithms</em> extension.
+	 * 
+	 * @since 2.3
+	 */
+	public SignatureAlgorithmsExtension getSupportedSignatureAlgorithms() {
+		if (extensions != null) {
+			return (SignatureAlgorithmsExtension) extensions.getExtension(ExtensionType.SIGNATURE_ALGORITHMS);
 		} else {
 			return null;
 		}

@@ -65,6 +65,7 @@ import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
+import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
@@ -818,6 +819,43 @@ public class DTLSConnectorHandshakeTest {
 				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256);
 		startClient(false,  null, builder);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256));
+	}
+
+	@Test
+	public void testX509HandshakeSignatureAlgorithmsExtensionSha256Ecdsa() throws Exception {
+		startServer(false, true, false, null);
+
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+				.setTrustStore(new Certificate[0])
+				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain())
+				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA)
+				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+
+		startClient(false, null, builder);
+		assertThat(serverHelper.establishedServerSession.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+		assertThat(serverHelper.establishedServerSession.getSignatureAndHashAlgorithm(), is(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA));
+	}
+
+	@Test
+	public void testX509HandshakeSignatureAlgorithmsExtensionSha384Ecdsa() throws Exception {
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+				.setClientAuthenticationRequired(true)
+				.setLoggingTag("server")
+				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA384_WITH_ECDSA,
+						SignatureAndHashAlgorithm.SHA256_WITH_ECDSA)
+				.setApplicationLevelInfoSupplier(clientInfoSupplier);
+		startServer(builder);
+
+		builder = new DtlsConnectorConfig.Builder()
+				.setTrustStore(new Certificate[0])
+				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain())
+				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA384_WITH_ECDSA,
+						SignatureAndHashAlgorithm.SHA256_WITH_ECDSA)
+				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+
+		startClient(false, null, builder);
+		assertThat(serverHelper.establishedServerSession.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+		assertThat(serverHelper.establishedServerSession.getSignatureAndHashAlgorithm(), is(SignatureAndHashAlgorithm.SHA384_WITH_ECDSA));
 	}
 
 	@Test

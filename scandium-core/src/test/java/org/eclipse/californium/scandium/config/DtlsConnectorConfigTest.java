@@ -35,20 +35,29 @@ import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
+import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
+import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.HashAlgorithm;
+import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.SignatureAlgorithm;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 
 @Category(Small.class)
 public class DtlsConnectorConfigTest {
+
+	@Rule
+	public ExpectedException exception = ExpectedException.none();
 
 	DtlsConnectorConfig.Builder builder;
 	InetSocketAddress endpoint;
@@ -232,6 +241,72 @@ public class DtlsConnectorConfigTest {
 	@Test(expected = IllegalStateException.class)
 	public void testBuildDetectsErrorForAnonymousClientWithoutTrust() {
 		builder.setClientOnly().setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8).build();
+	}
+
+	@Test
+	public void testSetNoSignatureAndHashAlgorithms() throws IOException, GeneralSecurityException {
+		DtlsConnectorConfig config = builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
+				.setRpkTrustAll()
+				.build();
+		assertNotNull(config.getSupportedSignatureAlgorithms());
+		assertTrue(config.getSupportedSignatureAlgorithms().isEmpty());
+	}
+
+	@Test
+	public void testSetNoneSignatureAndHashAlgorithms() throws IOException, GeneralSecurityException {
+		DtlsConnectorConfig config = builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
+				.setRpkTrustAll()
+				.setSupportedSignatureAlgorithms()
+				.build();
+		assertNotNull(config.getSupportedSignatureAlgorithms());
+		assertTrue(config.getSupportedSignatureAlgorithms().isEmpty());
+	}
+
+	@Test
+	public void testSetNullSignatureAndHashAlgorithms() throws IOException, GeneralSecurityException {
+		DtlsConnectorConfig config = builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
+				.setRpkTrustAll()
+				.setSupportedSignatureAlgorithms(Collections.<SignatureAndHashAlgorithm>emptyList())
+				.build();
+		assertNotNull(config.getSupportedSignatureAlgorithms());
+		assertTrue(config.getSupportedSignatureAlgorithms().isEmpty());
+	}
+
+	@Test
+	public void testBuildForSignatureAndHashAlgorithmsRpk() throws IOException, GeneralSecurityException {
+		builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
+				.setRpkTrustAll()
+				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA1_WITH_ECDSA)
+				.build();
+	}
+
+	@Test
+	public void testBuildSignatureAndHashAlgorithmsX509() throws IOException, GeneralSecurityException {
+		builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain())
+				.setTrustStore(new Certificate[0])
+				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA)
+				.build();
+	}
+
+	@Test
+	public void testBuildDetectsErrorForSignatureAndHashAlgorithmsRpk() throws IOException, GeneralSecurityException {
+		SignatureAndHashAlgorithm algo = new SignatureAndHashAlgorithm(HashAlgorithm.SHA256, SignatureAlgorithm.DSA);
+		exception.expect(IllegalStateException.class);
+		exception.expectMessage("supported signatures and algorithms doesn't match public key!");
+		builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
+				.setRpkTrustAll()
+				.setSupportedSignatureAlgorithms(algo)
+				.build();
+	}
+
+	@Test
+	public void testBuildDetectsErrorForSignatureAndHashAlgorithmsX509() throws IOException, GeneralSecurityException {
+		exception.expect(IllegalStateException.class);
+		exception.expectMessage("supported signatures and algorithms doesn't match certificate!");
+		builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain())
+				.setTrustStore(new Certificate[0])
+				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA1_WITH_ECDSA)
+				.build();
 	}
 
 	@Test

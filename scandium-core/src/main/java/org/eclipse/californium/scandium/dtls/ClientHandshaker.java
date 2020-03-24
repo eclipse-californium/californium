@@ -64,7 +64,6 @@ import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
-import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
@@ -167,10 +166,6 @@ public class ClientHandshaker extends Handshaker {
 	}
 
 	// Methods ////////////////////////////////////////////////////////
-
-	final SignatureAndHashAlgorithm getNegotiatedSignatureAndHashAlgorithm() {
-		return negotiatedSignatureAndHashAlgorithm;
-	}
 
 	@Override
 	protected void doProcessMessage(HandshakeMessage message) throws HandshakeException, GeneralSecurityException {
@@ -560,68 +555,40 @@ public class ClientHandshaker extends Handshaker {
 		 * First, if required by server, send Certificate.
 		 */
 		if (certificateRequest != null) {
+			List<SignatureAndHashAlgorithm> supported = supportedSignatureAlgorithms;
+			if (supported.isEmpty()) {
+				supported = SignatureAndHashAlgorithm.DEFAULT;
+			}
+			certificateRequest.selectSignatureAlgorithms(supported);
 			CertificateMessage clientCertificate;
 			if (CertificateType.RAW_PUBLIC_KEY == session.sendCertificateType()) {
+				// empty certificate, if no proper public key is available
 				byte[] rawPublicKeyBytes = Bytes.EMPTY;
-				PublicKey key = determineClientRawPublicKey(certificateRequest);
-				if (key != null) {
-					rawPublicKeyBytes = key.getEncoded();
+				if (publicKey != null) {
+					negotiatedSignatureAndHashAlgorithm = certificateRequest.getSignatureAndHashAlgorithm(publicKey);
+					if (negotiatedSignatureAndHashAlgorithm != null) {
+						rawPublicKeyBytes = publicKey.getEncoded();
+					}
 				}
 				if (LOGGER.isDebugEnabled()) {
 					LOGGER.debug("sending CERTIFICATE message with client RawPublicKey [{}] to server", StringUtil.byteArray2HexString(rawPublicKeyBytes));
 				}
 				clientCertificate = new CertificateMessage(rawPublicKeyBytes, session.getPeer());
 			} else if (CertificateType.X_509 == session.sendCertificateType()) {
-				List<X509Certificate> clientChain = determineClientCertificateChain(certificateRequest);
+				// empty certificate, if no proper certificate chain is available
+				List<X509Certificate> clientChain = Collections.emptyList();
+				if (certificateChain != null) {
+					negotiatedSignatureAndHashAlgorithm = certificateRequest.getSignatureAndHashAlgorithm(publicKey);
+					if (negotiatedSignatureAndHashAlgorithm != null) {
+						clientChain = certificateChain;
+					}
+				}
 				List<X500Principal> authorities = truncateCertificatePath ? certificateRequest.getCertificateAuthorities() : null;
 				clientCertificate = new CertificateMessage(clientChain, authorities, session.getPeer());
 			} else {
 				throw new IllegalArgumentException("Certificate type " + session.sendCertificateType() + " not supported!");
 			}
 			wrapMessage(flight, clientCertificate);
-		}
-	}
-
-	/**
-	 * Determines the public key to send to the server based on the constraints conveyed in the server's
-	 * <em>CERTIFICATE_REQUEST</em>.
-	 * 
-	 * @param certRequest The certificate request containing the constraints to match.
-	 * @return An appropriate key or {@code null} if this handshaker has not been configured with an appropriate key.
-	 */
-	PublicKey determineClientRawPublicKey(CertificateRequest certRequest) throws HandshakeException {
-
-		if (publicKey == null) {
-			return null;
-		} else {
-			negotiatedSignatureAndHashAlgorithm = certRequest.getSignatureAndHashAlgorithm(publicKey);
-			if (negotiatedSignatureAndHashAlgorithm == null) {
-				return null;
-			} else {
-				return publicKey;
-			}
-		}
-	}
-
-	/**
-	 * Determines the certificate chain to send to the server based on the constraints conveyed in the server's
-	 * <em>CERTIFICATE_REQUEST</em>.
-	 * 
-	 * @param certRequest The certificate request containing the constraints to match.
-	 * @return The certificate chain to send to the server. The chain will have length 0 if this handshaker has not been
-	 * configured with an appropriate certificate chain.
-	 */
-	List<X509Certificate> determineClientCertificateChain(CertificateRequest certRequest) throws HandshakeException {
-
-		if (certificateChain == null) {
-			return Collections.emptyList();
-		} else {
-			negotiatedSignatureAndHashAlgorithm = certRequest.getSignatureAndHashAlgorithm(certificateChain);
-			if (negotiatedSignatureAndHashAlgorithm == null) {
-				return Collections.emptyList();
-			} else {
-				return certificateChain;
-			}
 		}
 	}
 

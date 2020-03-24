@@ -16,6 +16,14 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.security.InvalidKeyException;
+import java.security.PublicKey;
+import java.security.Signature;
+import java.security.cert.X509Certificate;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -122,6 +130,43 @@ public final class SignatureAndHashAlgorithm {
 
 	private static final ConcurrentMap<String, ThreadLocalSignature> SIGNATURES = new ConcurrentHashMap<String, ThreadLocalSignature>();
 
+	/**
+	 * SHA1_with_Ecdsa.
+	 * 
+	 * @since 2.3
+	 */
+	public static SignatureAndHashAlgorithm SHA1_WITH_ECDSA = new SignatureAndHashAlgorithm(HashAlgorithm.SHA1,
+			SignatureAlgorithm.ECDSA);
+	/**
+	 * SHA256_with_Ecdsa.
+	 * 
+	 * @since 2.3
+	 */
+	public static SignatureAndHashAlgorithm SHA256_WITH_ECDSA = new SignatureAndHashAlgorithm(HashAlgorithm.SHA256,
+			SignatureAlgorithm.ECDSA);
+	/**
+	 * SHA384_with_Ecdsa.
+	 * 
+	 * @since 2.3
+	 */
+	public static SignatureAndHashAlgorithm SHA384_WITH_ECDSA = new SignatureAndHashAlgorithm(HashAlgorithm.SHA384,
+			SignatureAlgorithm.ECDSA);
+	/**
+	 * Default list of supported signature and hash algorithms. Contains only
+	 * SHA256_with_Ecdsa.
+	 * 
+	 * @since 2.3
+	 */
+	public static List<SignatureAndHashAlgorithm> DEFAULT = Collections
+			.unmodifiableList(Arrays.asList(SHA256_WITH_ECDSA));
+
+	/**
+	 * Get thread local signature.
+	 * 
+	 * @param algorithm name of signature algorithm
+	 * @return thread local signature.
+	 * @since 2.3
+	 */
 	public static ThreadLocalSignature getThreadLocalSignature(String algorithm) {
 		if (algorithm == null) {
 			algorithm = "UNKNOWN";
@@ -133,6 +178,128 @@ public final class SignatureAndHashAlgorithm {
 		}
 		return threadLocalSignature;
 	}
+
+	/**
+	 * Get the common signature and hash algorithms in the order of the proposed
+	 * list.
+	 * 
+	 * @param proposedSignatureAndHashAlgorithms proposed signature and hash
+	 *            algorithms, ordered
+	 * @param supportedSignatureAndHashAlgorithms supported signature and hash
+	 *            algorithms
+	 * @return list of common signature and hash algorithms in the order of the
+	 *         proposed list. empty, if no common signature and hash algorithm
+	 *         is found.
+	 * 
+	 * @since 2.3
+	 */
+	public static List<SignatureAndHashAlgorithm> getCommonSignatureAlgorithms(
+			List<SignatureAndHashAlgorithm> proposedSignatureAndHashAlgorithms,
+			List<SignatureAndHashAlgorithm> supportedSignatureAndHashAlgorithms) {
+		List<SignatureAndHashAlgorithm> result = new ArrayList<>();
+		for (SignatureAndHashAlgorithm algo : proposedSignatureAndHashAlgorithms) {
+			if (supportedSignatureAndHashAlgorithms.contains(algo)) {
+				result.add(algo);
+			}
+		}
+		return result;
+	}
+
+	/**
+	 * Gets a signature and hash algorithm that is compatible with a given
+	 * certificate chain.
+	 * 
+	 * @param supportedSignatureAlgorithms list of supported signature and hash
+	 *            algorithms.
+	 * @param chain The certificate chain.
+	 * @return A signature and hash algorithm that can be used with the key
+	 *         contained in the given chain's end entity certificate, or
+	 *         {@code null}, if any of the chain's certificates is not
+	 *         compatible with any of the supported signature and hash
+	 *         algorithms.
+	 * 
+	 * @since 2.3
+	 */
+	public static SignatureAndHashAlgorithm getSupportedSignatureAlgorithm(
+			List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms, List<X509Certificate> chain) {
+
+		if (isSignedWithSupportedAlgorithm(supportedSignatureAlgorithms, chain)) {
+			PublicKey key = chain.get(0).getPublicKey();
+			return getSupportedSignatureAlgorithm(supportedSignatureAlgorithms, key);
+		}
+		return null;
+	}
+
+	/**
+	 * Gets a signature and hash algorithm that is compatible with a given
+	 * public key.
+	 * 
+	 * @param supportedSignatureAlgorithms list of supported signature and hash
+	 *            algorithms.
+	 * @param key public key
+	 * @return A signature and hash algorithm that can be used with the provided
+	 *         public key, or {@code null}, if the public key is not compatible
+	 *         with any of the supported signature and hash algorithms.
+	 * 
+	 * @since 2.3
+	 */
+	public static SignatureAndHashAlgorithm getSupportedSignatureAlgorithm(
+			List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms, PublicKey key) {
+		for (SignatureAndHashAlgorithm supportedAlgorithm : supportedSignatureAlgorithms) {
+			try {
+				Signature sign = supportedAlgorithm.getThreadLocalSignature().current();
+				if (sign != null) {
+					sign.initVerify(key);
+					return supportedAlgorithm;
+				}
+			} catch (InvalidKeyException e) {
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Checks if all of a given certificate chain's certificates have been signed using one of the
+	 * algorithms supported by the server.
+	 * 
+	 * @param cert The certificate chain to test.
+	 * @return {@code true} if all certificates have been signed using one of the supported algorithms.
+	 * 
+	 * @since 2.3
+	 */
+	private static boolean isSignedWithSupportedAlgorithm(List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms, List<X509Certificate> chain) {
+		for (X509Certificate certificate : chain) {
+			if (!isSignedWithSupportedAlgorithm(supportedSignatureAlgorithms, certificate)) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * Checks if the given certificate have been signed using one of the
+	 * algorithms supported by the server.
+	 * 
+	 * @param certificate The certificate to test.
+	 * @return {@code true} if the certificate have been signed using one of the
+	 *         supported algorithms.
+	 * 
+	 * @since 2.3
+	 */
+	private static boolean isSignedWithSupportedAlgorithm(List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms,
+			X509Certificate certificate) {
+		String sigAlgName = certificate.getSigAlgName();
+		for (SignatureAndHashAlgorithm supportedAlgorithm : supportedSignatureAlgorithms) {
+			// android's certificate returns a upper case SigAlgName, e.g.
+			// "SHA256WITHECDSA", but the getJcaName returns a mixed case
+			// name, e.g. "SHA256withECDSA"
+			if (supportedAlgorithm.getJcaName().equalsIgnoreCase(sigAlgName)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
 
 	private final String jcaName;
 	private final HashAlgorithm hash;
@@ -222,6 +389,8 @@ public final class SignatureAndHashAlgorithm {
 	 * </pre>
 	 * 
 	 * @return The name, or {@code null}, if name is not available/not known by this implementation.
+	 * 
+	 * @since 2.3
 	 */
 	public String getJcaName() {
 		return jcaName;
@@ -244,10 +413,23 @@ public final class SignatureAndHashAlgorithm {
 		return jcaName;
 	}
 
+	/**
+	 * Check, if signature and hash algorithm is supported by JRE.
+	 * 
+	 * @return {@code true}, if supported by JRE, {@code false}, otherwise.
+	 * @since 2.3
+	 */
 	public boolean isSupported() {
 		return supported;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * 
+	 * Returns literal name, if signature or hash algortihm is unknown.
+	 * 
+	 * @since 2.3
+	 */
 	@Override
 	public String toString() {
 		if (jcaName != null) {
@@ -269,6 +451,11 @@ public final class SignatureAndHashAlgorithm {
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * 
+	 * @since 2.3
+	 */
 	@Override
 	public boolean equals(Object obj) {
 		if (this == obj) {
@@ -283,11 +470,22 @@ public final class SignatureAndHashAlgorithm {
 				&& this.hashAlgorithmCode == other.hashAlgorithmCode;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * 
+	 * @since 2.3
+	 */
 	@Override
 	public int hashCode() {
 		return this.hashAlgorithmCode * 100 + this.signatureAlgorithmCode;
 	}
 
+	/**
+	 * Get thread local signature for this signature and hash algorithm.
+	 * 
+	 * @return thread local signature.
+	 * @since 2.3
+	 */
 	public ThreadLocalSignature getThreadLocalSignature() {
 		return getThreadLocalSignature(getJcaName());
 	}

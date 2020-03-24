@@ -23,9 +23,7 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
-import java.security.InvalidKeyException;
 import java.security.PublicKey;
-import java.security.Signature;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -114,7 +112,7 @@ public final class CertificateRequest extends HandshakeMessage {
 		if (certificateTypes != null) {
 			this.certificateTypes.addAll(certificateTypes);
 		}
-		if (supportedSignatureAlgorithms != null) {
+		if (!supportedSignatureAlgorithms.isEmpty()) {
 			this.supportedSignatureAlgorithms.addAll(supportedSignatureAlgorithms);
 		}
 		if (certificateAuthorities != null) {
@@ -330,7 +328,7 @@ public final class CertificateRequest extends HandshakeMessage {
 	}
 
 	/**
-	 * Appends a signature algorithm to the end of the list of supported algorithms.
+	 * Appends a signature and hash algorithm to the end of the list of supported algorithms.
 	 * <p>
 	 * The algorithm's position in list indicates <em>least preference</em> to the
 	 * recipient (the DTLS client) of the message.
@@ -339,6 +337,39 @@ public final class CertificateRequest extends HandshakeMessage {
 	 */
 	public void addSignatureAlgorithm(SignatureAndHashAlgorithm signatureAndHashAlgorithm) {
 		supportedSignatureAlgorithms.add(signatureAndHashAlgorithm);
+	}
+
+	/**
+	 * Appends a list of signature and hash algorithms to the end of the list of supported algorithms.
+	 * <p>
+	 * The algorithm's position in list indicates <em>least preference</em> to the
+	 * recipient (the DTLS client) of the message.
+	 * 
+	 * @param signatureAndHashAlgorithms The algorithms to add.
+	 * @since 2.3
+	 */
+	public void addSignatureAlgorithms(List<SignatureAndHashAlgorithm> signatureAndHashAlgorithms) {
+		supportedSignatureAlgorithms.addAll(signatureAndHashAlgorithms);
+	}
+
+	/**
+	 * Select received supported signature and hash algorithms by the supported
+	 * signature and hash algorithms of this peer.
+	 * 
+	 * Ensure, that the other peer doesn't sent unsupported signature and hash
+	 * algorithms by this peer.
+	 * 
+	 * @param supportedSignatureAndHashAlgorithms supported signature and hash
+	 *            algorithms of this peer
+	 */
+	public void selectSignatureAlgorithms(List<SignatureAndHashAlgorithm> supportedSignatureAndHashAlgorithms) {
+		List<SignatureAndHashAlgorithm> removes = new ArrayList<>();
+		for (SignatureAndHashAlgorithm algo :this.supportedSignatureAlgorithms) {
+			if (!supportedSignatureAndHashAlgorithms.contains(algo)) {
+				removes.add(algo);
+			}
+		}
+		this.supportedSignatureAlgorithms.removeAll(removes);
 	}
 
 	/**
@@ -406,8 +437,9 @@ public final class CertificateRequest extends HandshakeMessage {
 	 * @return {@code true} if the key is compatible.
 	 */
 	boolean isSupportedKeyType(PublicKey key) {
+		String algorithm = key.getAlgorithm();
 		for (ClientCertificateType type : certificateTypes) {
-			if (type.isCompatibleWithKeyAlgorithm(key.getAlgorithm())) {
+			if (type.isCompatibleWithKeyAlgorithm(algorithm)) {
 				return true;
 			}
 		}
@@ -422,11 +454,10 @@ public final class CertificateRequest extends HandshakeMessage {
 	 */
 	boolean isSupportedKeyType(X509Certificate cert) {
 		Boolean clientUsage = null;
+		String algorithm = cert.getPublicKey().getAlgorithm();
 		for (ClientCertificateType type : certificateTypes) {
-			boolean isCompatibleType = type.isCompatibleWithKeyAlgorithm(cert.getPublicKey().getAlgorithm());
-			if (!isCompatibleType) {
-				LOGGER.error("type: {}, is not compatible with KeyAlgorithm[{}]: {}", type,
-						cert.getPublicKey().getAlgorithm());
+			if (!type.isCompatibleWithKeyAlgorithm(algorithm)) {
+				LOGGER.debug("type: {}, is not compatible with KeyAlgorithm[{}]: {}", type, algorithm);
 				continue;
 			}
 			// KeyUsage is an optional extension which may be used to restrict
@@ -446,7 +477,7 @@ public final class CertificateRequest extends HandshakeMessage {
 				}
 			}
 			LOGGER.debug("type: {}, is compatible with KeyAlgorithm[{}] and meets signing requirements", type,
-					cert.getPublicKey().getAlgorithm());
+					algorithm);
 			return true;
 		}
 		LOGGER.debug("certificate [{}] is not of any supported type", cert);
@@ -464,10 +495,9 @@ public final class CertificateRequest extends HandshakeMessage {
 	public SignatureAndHashAlgorithm getSignatureAndHashAlgorithm(PublicKey key) {
 
 		if (isSupportedKeyType(key)) {
-			return getSupportedSignatureAlgorithm(key);
-		} else {
-			return null;
-		}
+			return SignatureAndHashAlgorithm.getSupportedSignatureAlgorithm(supportedSignatureAlgorithms, key);
+		} 
+		return null;
 	}
 
 	/**
@@ -480,64 +510,8 @@ public final class CertificateRequest extends HandshakeMessage {
 	 */
 	public SignatureAndHashAlgorithm getSignatureAndHashAlgorithm(List<X509Certificate> chain) {
 
-		if (isSignedWithSupportedAlgorithm(chain)) {
-			X509Certificate x509Certificate = chain.get(0);
-			if (isSupportedKeyType(x509Certificate)) {
-				return getSupportedSignatureAlgorithm(x509Certificate.getPublicKey());
-			}
-		}
-		return null;
-	}
-
-	/**
-	 * Checks if all of a given certificate chain's certificates have been signed using one of the
-	 * algorithms supported by the server.
-	 * 
-	 * @param cert The certificate chain to test.
-	 * @return {@code true} if all certificates have been signed using one of the supported algorithms.
-	 */
-	boolean isSignedWithSupportedAlgorithm(List<X509Certificate> chain) {
-		for (X509Certificate certificate : chain) {
-			if (!isSignedWithSupportedAlgorithm(certificate)) {
-				LOGGER.debug("certificate chain is NOT signed with supported algorithm(s)");
-				return false;
-			}
-		}
-		LOGGER.debug("certificate chain is signed with supported algorithm(s)");
-		return true;
-	}
-
-	/**
-	 * Checks if the given certificate have been signed using one of the
-	 * algorithms supported by the server.
-	 * 
-	 * @param certificate The certificate to test.
-	 * @return {@code true} if the certificate have been signed using one of the
-	 *         supported algorithms.
-	 */
-	boolean isSignedWithSupportedAlgorithm(X509Certificate certificate) {
-		String sigAlgName = certificate.getSigAlgName();
-		for (SignatureAndHashAlgorithm supportedAlgorithm : supportedSignatureAlgorithms) {
-			// android's certificate returns a upper case SigAlgName, e.g. "SHA256WITHECDSA"
-			// But the jcaName returns a mixed case name, e.g. "SHA256withECDSA"
-			if (supportedAlgorithm.jcaName().equalsIgnoreCase(sigAlgName)) {
-				return true;
-			}
-		}
-		LOGGER.debug("certificate is NOT signed with supported algorithm(s)");
-		return false;
-	}
-
-	SignatureAndHashAlgorithm getSupportedSignatureAlgorithm(PublicKey key) {
-		for (SignatureAndHashAlgorithm supportedAlgorithm : supportedSignatureAlgorithms) {
-			try {
-				Signature sign = supportedAlgorithm.getThreadLocalSignature().current();
-				if (sign != null) {
-					sign.initVerify(key);
-					return supportedAlgorithm;
-				}
-			} catch (InvalidKeyException e) {
-			}
+		if (isSupportedKeyType(chain.get(0))) {
+			return SignatureAndHashAlgorithm.getSupportedSignatureAlgorithm(supportedSignatureAlgorithms, chain);
 		}
 		return null;
 	}
