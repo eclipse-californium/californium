@@ -144,6 +144,8 @@ public abstract class HelloExtension {
 				return SupportedEllipticCurvesExtension.fromExtensionDataReader(extensionDataReader);
 			case EC_POINT_FORMATS:
 				return SupportedPointFormatsExtension.fromExtensionDataReader(extensionDataReader);
+			case SIGNATURE_ALGORITHMS:
+				return SignatureAlgorithmsExtension.fromExtensionDataReader(extensionDataReader);
 			case CLIENT_CERT_TYPE:
 				return ClientCertificateTypeExtension.fromExtensionDataReaader(extensionDataReader);
 			case SERVER_CERT_TYPE:

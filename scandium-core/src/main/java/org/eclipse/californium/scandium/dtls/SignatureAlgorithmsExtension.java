@@ -23,6 +23,11 @@ import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
 
+/**
+ * Implements the hello extension for signature and hash algorithms.
+ * 
+ * @since 2.3
+ */
 public class SignatureAlgorithmsExtension extends HelloExtension {
 	// DTLS-specific constants ////////////////////////////////////////
 
@@ -78,6 +83,7 @@ public class SignatureAlgorithmsExtension extends HelloExtension {
 
 			signatureAndHashAlgorithms.add(new SignatureAndHashAlgorithm(hashId, signatureId));
 		}
+		signatureAndHashAlgorithms = Collections.unmodifiableList(signatureAndHashAlgorithms);
 		return new SignatureAlgorithmsExtension(signatureAndHashAlgorithms);
 	}
 
@@ -118,7 +124,7 @@ public class SignatureAlgorithmsExtension extends HelloExtension {
 		return sb.toString();
 	}
 
-	public List<SignatureAndHashAlgorithm> getSupportedSignatureAndHashAlgorithmIds() {
-		return Collections.unmodifiableList(signatureAndHashAlgorithms);
+	public List<SignatureAndHashAlgorithm> getSupportedSignatureAndHashAlgorithms() {
+		return signatureAndHashAlgorithms;
 	}
 }

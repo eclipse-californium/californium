@@ -127,6 +127,14 @@ public final class DTLSSession implements Destroyable {
 	 */
 	private CipherSuite cipherSuite = CipherSuite.TLS_NULL_WITH_NULL_NULL;
 
+	/**
+	 * Specifies the negotiated signature and hash algorithm to be used to sign
+	 * the server key exchange message.
+	 * 
+	 * @since 2.3
+	 */
+	private SignatureAndHashAlgorithm signatureAndHashAlgorithm;
+
 	private CompressionMethod compressionMethod = CompressionMethod.NULL;
 
 	/**
@@ -887,6 +895,30 @@ public final class DTLSSession implements Destroyable {
 
 	void setReceiveCertificateType(CertificateType receiveCertificateType) {
 		this.receiveCertificateType = receiveCertificateType;
+	}
+
+	/**
+	 * Gets the negotiated signature and hash algorithm to be used to sign the
+	 * server key exchange message.
+	 * 
+	 * @return negotiated signature and hash algorithm
+	 * 
+	 * @since 2.3
+	 */
+	public SignatureAndHashAlgorithm getSignatureAndHashAlgorithm() {
+		return signatureAndHashAlgorithm;
+	}
+
+	/**
+	 * Set the negotiated signature and hash algorithm to be used to sign the
+	 * server key exchange message.
+	 * 
+	 * @param signatureAndHashAlgorithm negotiated signature and hash algorithm
+	 * 
+	 * @since 2.3
+	 */
+	void setSignatureAndHashAlgorithm(SignatureAndHashAlgorithm signatureAndHashAlgorithm) {
+		this.signatureAndHashAlgorithm = signatureAndHashAlgorithm;
 	}
 
 	/**

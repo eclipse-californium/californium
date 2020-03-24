@@ -211,14 +211,16 @@ public final class CertificateMessage extends HandshakeMessage {
 			this.length = (CERTIFICATE_LENGTH_BITS / Byte.SIZE) + rawPublicKeyBytes.length;
 			// get server's public key from Raw Public Key
 			PublicKey publicKey = null;
-			try {
-				String keyAlgorithm = Asn1DerDecoder.readSubjectPublicKeyAlgorithm(rawPublicKeyBytes);
-				publicKey = KeyFactory.getInstance(keyAlgorithm)
-						.generatePublic(new X509EncodedKeySpec(rawPublicKeyBytes));
-			} catch (GeneralSecurityException e) {
-				LOGGER.warn("Could not reconstruct the peer's public key", e);
-			} catch (IllegalArgumentException e) {
-				LOGGER.warn("Could not reconstruct the peer's public key", e);
+			if (rawPublicKeyBytes.length > 0) {
+				try {
+					String keyAlgorithm = Asn1DerDecoder.readSubjectPublicKeyAlgorithm(rawPublicKeyBytes);
+					publicKey = KeyFactory.getInstance(keyAlgorithm)
+							.generatePublic(new X509EncodedKeySpec(rawPublicKeyBytes));
+				} catch (GeneralSecurityException e) {
+					LOGGER.warn("Could not reconstruct the peer's public key", e);
+				} catch (IllegalArgumentException e) {
+					LOGGER.warn("Could not reconstruct the peer's public key", e);
+				}
 			}
 			this.publicKey = publicKey;
 		}

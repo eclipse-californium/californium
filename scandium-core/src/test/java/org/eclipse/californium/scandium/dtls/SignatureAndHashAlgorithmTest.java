@@ -67,8 +67,7 @@ public class SignatureAndHashAlgorithmTest {
 		SignatureAndHashAlgorithm algo = new SignatureAndHashAlgorithm(80,  64);
 		assertEquals("0x50with0x40", algo.toString());
 		assertNull(algo.getJcaName());
-		SignatureAndHashAlgorithm knownAlgo = new SignatureAndHashAlgorithm(HashAlgorithm.SHA256,  SignatureAlgorithm.ECDSA);
-		assertNotEquals(knownAlgo, algo);
+		assertNotEquals(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA, algo);
 	}
 
 	@Test

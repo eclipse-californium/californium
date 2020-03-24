@@ -42,6 +42,7 @@ import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.eclipse.californium.elements.DtlsEndpointContext;
@@ -213,7 +214,10 @@ public final class DtlsConnectorConfig {
 	/** the supported cipher suites in order of preference */
 	private List<CipherSuite> supportedCipherSuites;
 	
-	/** the supported signature and hash algorithms */
+	/**
+	 * the supported signature and hash algorithms.
+	 * @since 2.3
+	 */
 	private List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms;
 
 	/** the trust store for RPKs **/
@@ -560,12 +564,17 @@ public final class DtlsConnectorConfig {
 	public List<CipherSuite> getSupportedCipherSuites() {
 		return supportedCipherSuites;
 	}
-	
+
 	/**
-	 * Gets the signature algorithms the connector should advertise in a DTLS
-	 * handshake.
+	 * Gets the supported signature and hash algorithms the connector should
+	 * advertise in a DTLS handshake.
 	 * 
-	 * @return the supported signature algorithms (ordered by preference)
+	 * @return the supported signature and hash algorithms (ordered by
+	 *         preference). If empty, the client does not advertise it's
+	 *         supported signature and hash algorithms, and the server assumes
+	 *         the {@link SignatureAndHashAlgorithm#DEFAULT} as list of
+	 *         supported signature and hash algorithms
+	 * @since 2.3
 	 */
 	public List<SignatureAndHashAlgorithm> getSupportedSignatureAlgorithms() {
 		return supportedSignatureAlgorithms;
@@ -1467,16 +1476,40 @@ public final class DtlsConnectorConfig {
 			}
 			return setSupportedCipherSuites(suites);
 		}
-		
+
 		/**
 		 * Sets the signature algorithms supported by the connector.
 		 * <p>
-		 * The connector will use these signature algorithms (in exactly the same
-		 * order) during the DTLS handshake.
+		 * The connector will use these signature algorithms (in exactly the
+		 * same order) during the DTLS handshake.
 		 * 
-		 * @param supportedSignatureAlgorithms the supported signature algorithms in the order of
-		 *            preference
+		 * @param supportedSignatureAlgorithms the supported signature
+		 *            algorithms in the order of preference. No arguments, if no
+		 *            specific extension is to be used for a client, and the
+		 *            server uses {@link SignatureAndHashAlgorithm#DEFAULT}.
 		 * @return this builder for command chaining
+		 * @since 2.3
+		 */
+		public Builder setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm... supportedSignatureAlgorithms) {
+			List<SignatureAndHashAlgorithm> list = null;
+			if (supportedSignatureAlgorithms != null) {
+				list = Arrays.asList(supportedSignatureAlgorithms);
+			}
+			return setSupportedSignatureAlgorithms(list);
+		}
+
+		/**
+		 * Sets the signature algorithms supported by the connector.
+		 * <p>
+		 * The connector will use these signature algorithms (in exactly the
+		 * same order) during the DTLS handshake.
+		 * 
+		 * @param supportedSignatureAlgorithms the list of supported signature
+		 *            algorithms in the order of preference. Empty, if no
+		 *            specific extension is to be used for a client, and the
+		 *            server uses {@link SignatureAndHashAlgorithm#DEFAULT}.
+		 * @return this builder for command chaining
+		 * @since 2.3
 		 */
 		public Builder setSupportedSignatureAlgorithms(List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms) {
 			config.supportedSignatureAlgorithms = supportedSignatureAlgorithms;
@@ -2416,6 +2449,9 @@ public final class DtlsConnectorConfig {
 				throw new IllegalStateException("PSK store set, but no PSK cipher suite!");
 			}
 
+			if (config.supportedSignatureAlgorithms == null) {
+				config.supportedSignatureAlgorithms = Collections.<SignatureAndHashAlgorithm>emptyList();
+			}
 			if (!certifacte) {
 				if (config.privateKey != null || config.publicKey != null) {
 					throw new IllegalStateException("Identity set, but no certificate based cipher suite!");
@@ -2423,6 +2459,11 @@ public final class DtlsConnectorConfig {
 				if (config.trustedRPKs != null || config.certificateVerifier != null) {
 					throw new IllegalStateException("certificate trust set, but no certificate based cipher suite!");
 				}
+				if (!config.supportedSignatureAlgorithms.isEmpty()) {
+					throw new IllegalStateException("supported signature and hash algorithms set, but no certificate based cipher suite!");
+				}
+			} else if (!config.supportedSignatureAlgorithms.isEmpty()){
+				verifySignatureAndHashAlgorithms();
 			}
 			if (config.certChain != null) {
 				boolean usage;
@@ -2516,6 +2557,20 @@ public final class DtlsConnectorConfig {
 			}
 
 			config.supportedCipherSuites = ciphers;
+		}
+
+		private void verifySignatureAndHashAlgorithms() {
+			if (config.certChain != null) {
+				if (SignatureAndHashAlgorithm.getSupportedSignatureAlgorithm(config.supportedSignatureAlgorithms,
+						config.certChain) == null) {
+					throw new IllegalStateException("supported signatures and algorithms doesn't match certificate!");
+				}
+			} else if (config.publicKey != null) {
+				if (SignatureAndHashAlgorithm.getSupportedSignatureAlgorithm(config.supportedSignatureAlgorithms,
+						config.publicKey) == null) {
+					throw new IllegalStateException("supported signatures and algorithms doesn't match public key!");
+				}
+			}
 		}
 	}
 }
