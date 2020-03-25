@@ -27,7 +27,10 @@ import java.net.InetSocketAddress;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.interoperability.test.OpenSslProcessUtil.AuthenticationMode;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -120,7 +123,9 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 	public void testOpenSslServerFullTrustTrustAll() throws Exception {
 		String cipher = processUtil.startupServer(ACCEPT, cipherSuite, AuthenticationMode.TRUST);
 
-		scandiumUtil.start(BIND, false, null, cipherSuite);
+		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
+		dtlsBuilder.setUseTruncatedCertificatePathForClientsCertificateMessage(false);
+		scandiumUtil.start(BIND, dtlsBuilder, null, cipherSuite);
 		connect(cipher);
 	}
 
@@ -173,11 +178,62 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 		connect(cipher);
 	}
 
-	public void connect(String cipher) throws Exception {
+	@Test
+	public void testOpenSslServerX25519() throws Exception {
+		assumeTrue("X25519 not support by JRE", XECDHECryptography.SupportedGroup.X25519.isUsable());
+		String cipher = processUtil.startupServer(ACCEPT, cipherSuite, AuthenticationMode.TRUST);
+
+		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
+		dtlsBuilder.setSupportedGroups(SupportedGroup.X25519, SupportedGroup.secp256r1);
+
+		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
+		connect(cipher, "Shared Elliptic groups: X25519");
+	}
+
+	@Test
+	public void testOpenSslServerX448() throws Exception {
+		assumeTrue("X448 not support by JRE", XECDHECryptography.SupportedGroup.X448.isUsable());
+		String cipher = processUtil.startupServer(ACCEPT, cipherSuite, AuthenticationMode.TRUST);
+
+		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
+		dtlsBuilder.setSupportedGroups(SupportedGroup.X448, SupportedGroup.secp256r1);
+
+		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
+		connect(cipher, "Shared Elliptic groups: X448");
+	}
+
+	@Test
+	public void testOpenSslServerPrime256v1() throws Exception {
+		String cipher = processUtil.startupServer(ACCEPT, cipherSuite, AuthenticationMode.TRUST);
+
+		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
+		dtlsBuilder.setSupportedGroups(SupportedGroup.secp256r1);
+
+		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
+		connect(cipher, "Shared Elliptic groups: P-256");
+	}
+
+	@Test
+	public void testOpenSslServerSecP384r1() throws Exception {
+		String cipher = processUtil.startupServer(ACCEPT, cipherSuite, AuthenticationMode.TRUST);
+
+		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
+		dtlsBuilder.setSupportedGroups(SupportedGroup.secp384r1, SupportedGroup.secp256r1);
+
+		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
+		connect(cipher, "Shared Elliptic groups: P-384");
+	}
+
+	public void connect(String cipher, String... misc) throws Exception {
 		String message = "Hello OpenSSL!";
 		scandiumUtil.send(message, DESTINATION, TIMEOUT_MILLIS);
 
 		assertTrue("openssl no handshake!", processUtil.waitConsole("CIPHER is " + cipher, TIMEOUT_MILLIS));
+		if (misc != null) {
+			for (String check : misc) {
+				assertTrue(processUtil.waitConsole(check, TIMEOUT_MILLIS));
+			}
+		}
 		assertTrue("openssl missing message!", processUtil.waitConsole(message, TIMEOUT_MILLIS));
 		processUtil.send("ACK-" + message);
 
