@@ -60,6 +60,13 @@ public class Asn1DerDecoder {
 	 */
 	public static final String ECv2 = "EC.v2";
 	/**
+	 * ECPoint uncompressed.
+	 * <a href="https://tools.ietf.org/html/rfc5480#section-2.2">RFC 5480, Section 2.2</a>
+	 * 
+	 * @since 2.3
+	 */
+	public static final int EC_PUBLIC_KEY_UNCOMPRESSED = 4;
+	/**
 	 * Maximum supported default length for ASN.1.
 	 */
 	private static final int MAX_DEFAULT_LENGTH = 0x10000;
@@ -493,7 +500,7 @@ public class Asn1DerDecoder {
 		// PUBLIC KEY, compression, 4 := uncompressed
 		int compress = reader.read(Byte.SIZE);
 		int left = reader.bitsLeft() / Byte.SIZE;
-		if (compress == 4 && left % 2 == 0) {
+		if (compress == EC_PUBLIC_KEY_UNCOMPRESSED && left % 2 == 0) {
 			left /= 2;
 			if (left == keySize) {
 				BigInteger x = new BigInteger(1, reader.readBytes(left));

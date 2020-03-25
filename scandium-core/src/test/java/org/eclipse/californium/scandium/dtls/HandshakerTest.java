@@ -57,6 +57,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.dtls.rpkstore.InMemoryRpkTrustStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
 import org.eclipse.californium.scandium.dtls.x509.StaticCertificateVerifier;
@@ -400,7 +401,7 @@ public class HandshakerTest {
 	}
 
 	private static Record createClientHelloRecord(DTLSSession session, int epoch, long sequenceNo, int messageSeqNo) throws GeneralSecurityException {
-		ClientHello clientHello = new ClientHello(new ProtocolVersion(), session, null, null);
+		ClientHello clientHello = new ClientHello(new ProtocolVersion(), session, Collections.<SignatureAndHashAlgorithm> emptyList(), null, null, SupportedGroup.getPreferredGroups());
 		clientHello.setMessageSeq(messageSeqNo);
 		return getRecordForMessage(epoch, sequenceNo, clientHello);
 	}

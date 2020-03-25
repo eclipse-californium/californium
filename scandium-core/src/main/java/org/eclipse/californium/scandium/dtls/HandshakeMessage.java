@@ -319,7 +319,7 @@ public abstract class HandshakeMessage extends AbstractMessage {
 			throws HandshakeException {
 		switch (keyExchange) {
 		case EC_DIFFIE_HELLMAN:
-			return ECDHServerKeyExchange.fromReader(reader, peerAddress);
+			return EcdhEcdsaServerKeyExchange.fromReader(reader, peerAddress);
 		case PSK:
 			return PSKServerKeyExchange.fromReader(reader, peerAddress);
 		case ECDHE_PSK:

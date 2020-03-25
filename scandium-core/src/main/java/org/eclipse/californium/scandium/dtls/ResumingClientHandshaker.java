@@ -256,8 +256,8 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	@Override
 	public void startHandshake() throws HandshakeException {
 		handshakeStarted();
-		ClientHello message = new ClientHello(new ProtocolVersion(), session,
-				supportedClientCertificateTypes, supportedServerCertificateTypes);
+		ClientHello message = new ClientHello(new ProtocolVersion(), session, supportedSignatureAlgorithms,
+				supportedClientCertificateTypes, supportedServerCertificateTypes, supportedGroups);
 
 		clientRandom = message.getRandom();
 

@@ -242,7 +242,7 @@ public class DTLSConnectorAdvancedTest {
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
 				.setRetransmissionTimeout(RETRANSMISSION_TIMEOUT_MS)
 				.setMaxRetransmissions(MAX_RETRANSMISSIONS)
-				.setMaxDeferredProcessedIncomingRecordsSize(128)
+				.setMaxDeferredProcessedIncomingRecordsSize(96)
 				.setConnectionIdGenerator(serverCidGenerator);
 		ConnectorHelper limitedServerHelper = new ConnectorHelper();
 

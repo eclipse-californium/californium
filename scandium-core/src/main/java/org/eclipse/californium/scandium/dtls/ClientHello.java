@@ -32,11 +32,11 @@ import java.util.List;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
-import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 
 /**
  * When a client first connects to a server, it is required to send the
@@ -45,6 +45,7 @@ import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedG
  * re-negotiate the security parameters in an existing connection. See
  * <a href="http://tools.ietf.org/html/rfc5246#section-7.4.1.2">RFC 5246</a>.
  */
+@NoPublicAPI
 public final class ClientHello extends HandshakeMessage {
 
 	// DTLS-specific constants ///////////////////////////////////////////
@@ -102,40 +103,18 @@ public final class ClientHello extends HandshakeMessage {
 	 * Creates a <em>Client Hello</em> message to be sent to a server.
 	 * 
 	 * @param version the protocol version to use
-	 * @param supportedCipherSuites the list of the supported cipher suites in order of
-	 *            the client’s preference (favorite choice first)
+	 * @param supportedCipherSuites the list of the supported cipher suites in
+	 *            order of the client’s preference (favorite choice first)
+	 * @param supportedSignatureAndHashAlgorithms the list of the supported
+	 *            signature and hash algorithms
 	 * @param supportedClientCertificateTypes the list of certificate types
 	 *            supported by the client
 	 * @param supportedServerCertificateTypes the list of certificate types
 	 *            supported by the server
-	 * @param peerAddress the IP address and port of the peer this message has
-	 *            been received from or should be sent to
-	 */
-	public ClientHello(
-			ProtocolVersion version,
-			List<CipherSuite> supportedCipherSuites,
-			List<CertificateType> supportedClientCertificateTypes,
-			List<CertificateType> supportedServerCertificateTypes,
-			InetSocketAddress peerAddress) {
-
-		this(version, null, supportedCipherSuites, Collections.<SignatureAndHashAlgorithm> emptyList(),
-				supportedClientCertificateTypes, supportedServerCertificateTypes, peerAddress);
-	}
-	
-	/**
-	 * Creates a <em>Client Hello</em> message to be sent to a server.
-	 * 
-	 * @param version the protocol version to use
-	 * @param supportedCipherSuites the list of the supported cipher suites in order of
+	 * @param supportedGroups the list of the supported groups (curves) in order of
 	 *            the client’s preference (favorite choice first)
-	 * @param supportedSignatureAndHashAlgorithms the list of the supported signature and hash algorithms
-	 * @param supportedClientCertificateTypes the list of certificate types
-	 *            supported by the client
-	 * @param supportedServerCertificateTypes the list of certificate types
-	 *            supported by the server
 	 * @param peerAddress the IP address and port of the peer this message has
 	 *            been received from or should be sent to
-	 * 
 	 * @since 2.3
 	 */
 	public ClientHello(
@@ -144,10 +123,11 @@ public final class ClientHello extends HandshakeMessage {
 			List<SignatureAndHashAlgorithm> supportedSignatureAndHashAlgorithms,
 			List<CertificateType> supportedClientCertificateTypes,
 			List<CertificateType> supportedServerCertificateTypes,
+			List<SupportedGroup> supportedGroups,
 			InetSocketAddress peerAddress) {
 
 		this(version, null, supportedCipherSuites, supportedSignatureAndHashAlgorithms, supportedClientCertificateTypes,
-				supportedServerCertificateTypes, peerAddress);
+				supportedServerCertificateTypes, supportedGroups, peerAddress);
 	}
 
 	/**
@@ -156,20 +136,27 @@ public final class ClientHello extends HandshakeMessage {
 	 * 
 	 * @param version the protocol version to use
 	 * @param session the (already existing) DTLS session to resume
+	 * @param supportedSignatureAndHashAlgorithms the list of the supported
+	 *            signature and hash algorithms
 	 * @param supportedClientCertificateTypes the list of certificate types
 	 *            supported by the client
 	 * @param supportedServerCertificateTypes the list of certificate types
 	 *            supported by the server
+	 * @param supportedGroups the list of the supported groups (curves) in order of
+	 *            the client’s preference (favorite choice first)
+	 * @since 2.3
 	 */
 	public ClientHello(
 			ProtocolVersion version,
 			DTLSSession session,
+			List<SignatureAndHashAlgorithm> supportedSignatureAndHashAlgorithms,
 			List<CertificateType> supportedClientCertificateTypes,
-			List<CertificateType> supportedServerCertificateTypes) {
+			List<CertificateType> supportedServerCertificateTypes,
+			List<SupportedGroup> supportedGroups) {
 
 		this(version, session.getSessionIdentifier(), Arrays.asList(session.getCipherSuite()),
-				Collections.<SignatureAndHashAlgorithm> emptyList(), supportedClientCertificateTypes,
-				supportedServerCertificateTypes, session.getPeer());
+				supportedSignatureAndHashAlgorithms, supportedClientCertificateTypes, supportedServerCertificateTypes,
+				supportedGroups, session.getPeer());
 		addCompressionMethod(session.getWriteState().getCompressionMethod());
 	}
 
@@ -180,6 +167,7 @@ public final class ClientHello extends HandshakeMessage {
 			List<SignatureAndHashAlgorithm> supportedSignatureAndHashAlgorithms,
 			List<CertificateType> supportedClientCertificateTypes,
 			List<CertificateType> supportedServerCertificateTypes,
+			List<SupportedGroup> supportedGroups,
 			InetSocketAddress peerAddress) {
 
 		this(peerAddress);
@@ -199,13 +187,10 @@ public final class ClientHello extends HandshakeMessage {
 		// if the client supports at least one ECC based cipher suite
 		if (CipherSuite.containsEccBasedCipherSuite(supportedCipherSuites)) {
 			// the supported groups
-			// TODO make list of supported groups configurable
-			SupportedGroup[] supportedGroups = SupportedGroup.getPreferredGroups().toArray(new SupportedGroup[] {});
 			this.extensions.addExtension(new SupportedEllipticCurvesExtension(supportedGroups));
 
 			// the supported point formats
-			List<ECPointFormat> formats = Arrays.asList(ECPointFormat.UNCOMPRESSED);
-			this.extensions.addExtension(new SupportedPointFormatsExtension(formats));
+			this.extensions.addExtension(SupportedPointFormatsExtension.DEFAULT_POINT_FORMATS_EXTENSION);
 		}
 		
 		// the supported signature and hash algorithms

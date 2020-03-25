@@ -18,24 +18,39 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.StringUtil;
 
 
 /**
- * The supported point formats extension. See <a href="http://tools.ietf.org/html/rfc4492#section-5.1.2">RFC 4492,
- * 5.1.2. Supported Point Formats Extension</a>.
+ * The supported point formats extension.
+ * 
+ * According <a href= "https://tools.ietf.org/html/rfc8422#section-5.1.1">RFC
+ * 8422, 5.1.1. Supported Elliptic Curves Extension</a> only only "UNCOMPRESSED"
+ * as point format is valid, the other formats have been deprecated.
  */
+@NoPublicAPI
 public class SupportedPointFormatsExtension extends HelloExtension {
 
 	// DTLS-specific constants ////////////////////////////////////////
-	
+
 	private static final int LIST_LENGTH_BITS = 8;
 
 	private static final int POINT_FORMAT_BITS = 8;
+
+	private static final List<ECPointFormat> EC_POINT_FORMATS = Collections.singletonList(ECPointFormat.UNCOMPRESSED);
+
+	/**
+	 * Default ec point format extension.
+	 * 
+	 * @since 2.3
+	 */
+	public static final SupportedPointFormatsExtension DEFAULT_POINT_FORMATS_EXTENSION = new SupportedPointFormatsExtension(EC_POINT_FORMATS);
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -47,16 +62,12 @@ public class SupportedPointFormatsExtension extends HelloExtension {
 
 	// Constructors ///////////////////////////////////////////////////
 
-	public SupportedPointFormatsExtension(List<ECPointFormat> ecPointFormatList) {
+	private SupportedPointFormatsExtension(List<ECPointFormat> ecPointFormatList) {
 		super(ExtensionType.EC_POINT_FORMATS);
 		this.ecPointFormatList = ecPointFormatList;
 	}
-	
+
 	// Methods ////////////////////////////////////////////////////////
-	
-	public void addECPointFormat(ECPointFormat format) {
-		ecPointFormatList.add(format);
-	}
 
 	public boolean contains(ECPointFormat format) {
 		return ecPointFormatList.contains(format);
@@ -68,7 +79,7 @@ public class SupportedPointFormatsExtension extends HelloExtension {
 		// variable: number of point formats
 		return 5 + ecPointFormatList.size();
 	}
-	
+
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder(super.toString());
@@ -84,7 +95,7 @@ public class SupportedPointFormatsExtension extends HelloExtension {
 	}
 
 	// Serialization //////////////////////////////////////////////////
-	
+
 	@Override
 	protected void addExtensionData(DatagramWriter writer) {
 		int listLength = ecPointFormatList.size();
@@ -104,10 +115,15 @@ public class SupportedPointFormatsExtension extends HelloExtension {
 		DatagramReader rangeReader = extensionDataReader.createRangeReader(listLength);
 		while (rangeReader.bytesAvailable()) {
 			ECPointFormat format = ECPointFormat.getECPointFormatById(rangeReader.read(POINT_FORMAT_BITS));
-			ecPointFormatList.add(format);
+			if (format != null) {
+				ecPointFormatList.add(format);
+			}
 		}
-
-		return new SupportedPointFormatsExtension(ecPointFormatList);
+		if (ecPointFormatList.size() == 1 && ecPointFormatList.contains(ECPointFormat.UNCOMPRESSED)) {
+			return DEFAULT_POINT_FORMATS_EXTENSION;
+		} else {
+			return new SupportedPointFormatsExtension(ecPointFormatList);
+		}
 	}
 
 	// EC point format Enum ///////////////////////////////////////////
@@ -142,7 +158,7 @@ public class SupportedPointFormatsExtension extends HelloExtension {
 				return "";
 			}
 		}
-		
+
 		public static ECPointFormat getECPointFormatById(int id) {
 			switch (id) {
 			case 0:

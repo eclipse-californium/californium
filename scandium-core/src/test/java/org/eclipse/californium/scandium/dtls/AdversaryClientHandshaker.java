@@ -23,6 +23,7 @@ import javax.crypto.SecretKey;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,10 +81,11 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 		ClientKeyExchange clientKeyExchange;
 		SecretKey premasterSecret;
 		PskUtil pskUtil = null;
+		XECDHECryptography ecdhe = serverKeyExchange == null ? null : new XECDHECryptography(serverKeyExchange.getSupportedGroup());
 		switch (getKeyExchangeAlgorithm()) {
 		case EC_DIFFIE_HELLMAN:
-			clientKeyExchange = new ECDHClientKeyExchange(ecdhe.getPublicKey(), session.getPeer());
-			premasterSecret = ecdhe.generateSecret(ephemeralServerPublicKey);
+			clientKeyExchange = new ECDHClientKeyExchange(ecdhe.getEncodedPoint(), session.getPeer());
+			premasterSecret = ecdhe.generateSecret(serverKeyExchange.getEncodedPoint());
 			break;
 		case PSK:
 			pskUtil = new PskUtil(sniEnabled, session, pskStore);
@@ -94,9 +96,9 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 		case ECDHE_PSK:
 			pskUtil = new PskUtil(sniEnabled, session, pskStore);
 			LOGGER.debug("Using PSK identity: {}", pskUtil.getPskPrincipal());
-			clientKeyExchange = new EcdhPskClientKeyExchange(pskUtil.getPskPublicIdentity(), ecdhe.getPublicKey(),
+			clientKeyExchange = new EcdhPskClientKeyExchange(pskUtil.getPskPublicIdentity(), ecdhe.getEncodedPoint(),
 					session.getPeer());
-			SecretKey eck = ecdhe.generateSecret(ephemeralServerPublicKey);
+			SecretKey eck = ecdhe.generateSecret(serverKeyExchange.getEncodedPoint());
 			premasterSecret = pskUtil.generatePremasterSecretFromPSK(eck);
 			SecretUtil.destroy(eck);
 			break;

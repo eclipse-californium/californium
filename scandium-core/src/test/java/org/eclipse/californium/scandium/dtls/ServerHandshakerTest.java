@@ -45,7 +45,8 @@ import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 import org.eclipse.californium.scandium.util.ServerName.NameType;
 import org.eclipse.californium.scandium.util.ServerNames;
@@ -382,7 +383,10 @@ public class ServerHandshakerTest {
 		Record certificateMsgRecord =  DtlsTestTools.getRecordForMessage(0, 1, certificateMsg, senderAddress);
 
 		// create client KEY_EXCHANGE msg
-		ECDHClientKeyExchange keyExchangeMsg = new ECDHClientKeyExchange(clientChain[0].getPublicKey(), endpoint);
+		SupportedGroup supportedGroup = XECDHECryptography.SupportedGroup.getPreferredGroups().get(0);
+		XECDHECryptography ecdhe = new XECDHECryptography(supportedGroup);
+		byte[] encoded = ecdhe.getEncodedPoint();
+		ECDHClientKeyExchange keyExchangeMsg = new ECDHClientKeyExchange(encoded, endpoint);
 		keyExchangeMsg.setMessageSeq(2);
 		Record keyExchangeRecord =  DtlsTestTools.getRecordForMessage(0, 2, keyExchangeMsg, senderAddress);
 

@@ -20,9 +20,9 @@ import static org.junit.Assert.*;
 import java.net.InetSocketAddress;
 
 import org.eclipse.californium.scandium.category.Small;
-import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
-import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -30,20 +30,19 @@ import org.junit.experimental.categories.Category;
 @Category(Small.class)
 public class ECDHServerKeyExchangeTest {
 
-	ECDHServerKeyExchange msg;
+	EcdhEcdsaServerKeyExchange msg;
 	InetSocketAddress peerAddress = new InetSocketAddress(5000);
 
 	@Before
 	public void setUp() throws Exception {
 
-		SupportedGroup usableGroup = SupportedGroup.getUsableGroups()[0];
-		msg = new ECDHServerKeyExchange(
+		SupportedGroup usableGroup = SupportedGroup.getUsableGroups().get(0);
+		msg = new EcdhEcdsaServerKeyExchange(
 				new SignatureAndHashAlgorithm(SignatureAndHashAlgorithm.HashAlgorithm.SHA256, SignatureAndHashAlgorithm.SignatureAlgorithm.ECDSA),
-				ECDHECryptography.fromNamedCurveId(usableGroup.getId()),
+				new XECDHECryptography(usableGroup),
 				DtlsTestTools.getPrivateKey(),
 				new Random(),
 				new Random(),
-				usableGroup.getId(),
 				peerAddress);
 	}
 

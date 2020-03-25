@@ -16,32 +16,32 @@
 package org.eclipse.californium.scandium.dtls.cipher;
 
 import java.security.GeneralSecurityException;
-import java.security.Signature;
+import java.security.KeyFactory;
 
 /**
- * Thread local Signature.
+ * Thread local KeyFactory.
  * 
  * Uses {@link ThreadLocal} to cache calls to
- * {@link Signature#getInstance(String)}.
+ * {@link KeyFactory#getInstance(String)}.
  * 
  * @since 2.3
  */
-public class ThreadLocalSignature extends ThreadLocalCrypto<Signature> {
+public class ThreadLocalKeyFactory extends ThreadLocalCrypto<KeyFactory> {
 
 	/**
-	 * {@inheritDoc} Create thread local Signature.
+	 * {@inheritDoc} Create thread local KeyFactory.
 	 * 
-	 * Try to instance the Signature for the provided algorithm.
+	 * Try to instance the KeyFactory for the provided algorithm.
 	 * 
 	 * @param algorithm algorithm. Passed to
-	 *            {@link Signature#getInstance(String)}.
+	 *            {@link KeyFactory#getInstance(String)}.
 	 */
-	public ThreadLocalSignature(final String algorithm) {
-		super(new Factory<Signature>() {
+	public ThreadLocalKeyFactory(final String algorithm) {
+		super(new Factory<KeyFactory>() {
 
 			@Override
-			public Signature getInstance() throws GeneralSecurityException {
-				return Signature.getInstance(algorithm);
+			public KeyFactory getInstance() throws GeneralSecurityException {
+				return KeyFactory.getInstance(algorithm);
 			}
 
 		});

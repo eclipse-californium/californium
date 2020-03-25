@@ -57,10 +57,12 @@ package org.eclipse.californium.scandium.dtls;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.PublicKey;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
 import javax.crypto.SecretKey;
+import javax.security.auth.DestroyFailedException;
 import javax.security.auth.x500.X500Principal;
 
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
@@ -72,9 +74,10 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.CertificateRequest.ClientCertificateType;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
-import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
-import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.util.SecretUtil;
 
 /**
@@ -117,6 +120,13 @@ public class ServerHandshaker extends Handshaker {
 	private List<CipherSuite> supportedCipherSuites;
 
 	/**
+	 * The supported groups (curves) ordered by preference.
+	 * 
+	 * @since 2.3
+	 */
+	protected final List<SupportedGroup> supportedGroups;
+
+	/**
 	 * The certificate types this server supports for client authentication.
 	 */
 	private final List<CertificateType> supportedClientCertificateTypes;
@@ -125,7 +135,7 @@ public class ServerHandshaker extends Handshaker {
 	 */
 	private final List<CertificateType> supportedServerCertificateTypes;
 	/**
-	 * The supported signature and hash algorithms.
+	 * The supported signature and hash algorithms ordered by preference.
 	 * 
 	 * @since 2.3
 	 */
@@ -133,12 +143,16 @@ public class ServerHandshaker extends Handshaker {
 
 	private CertificateType negotiatedClientCertificateType;
 	private CertificateType negotiatedServerCertificateType;
-	private SupportedGroup negotiatedSupportedGroup;
 	/**
-	 * The negotiated signature and hash algorithms. 
+	 * The negotiated "supported groups" (curves) ordered by preference.
 	 * 
-	 * Only set, if a cipher suite using signing is negotiated. 
+	 * @since 2.3
+	 */
+	private List<SupportedGroup> negotiatedSupportedGroups;
+	/**
+	 * The negotiated signature and hash algorithms ordered by preference.
 	 * 
+	 * Only set, if a cipher suite using signing is negotiated.
 	 * subset of {@link #supportedSignatureAndHashAlgorithms}.
 	 * 
 	 * @since 2.3
@@ -156,6 +170,13 @@ public class ServerHandshaker extends Handshaker {
 	private CertificateVerify certificateVerify = null;
 
 	private PskPublicInformation preSharedKeyIdentity;
+
+	/**
+	 * The helper class to execute the ECDHE key agreement and key generation.
+	 * 
+	 * @since 2.3
+	 */
+	private XECDHECryptography ecdhe;
 
 	// Constructors ///////////////////////////////////////////////////
 
@@ -191,6 +212,7 @@ public class ServerHandshaker extends Handshaker {
 		super(false, initialMessageSequenceNo, session, recordLayer, connection, config, maxTransmissionUnit);
 
 		this.supportedCipherSuites = config.getSupportedCipherSuites();
+		this.supportedGroups = config.getSupportedGroups();
 
 		this.clientAuthenticationWanted = config.isClientAuthenticationWanted();
 		this.clientAuthenticationRequired = config.isClientAuthenticationRequired();
@@ -480,7 +502,6 @@ public class ServerHandshaker extends Handshaker {
 			} else {
 				throw new IllegalArgumentException("Certificate type " + session.sendCertificateType() + " not supported!");
 			}
-
 			wrapMessage(flight, certificateMessage);
 		}
 	}
@@ -495,9 +516,9 @@ public class ServerHandshaker extends Handshaker {
 		switch (getKeyExchangeAlgorithm()) {
 		case EC_DIFFIE_HELLMAN:
 			try {
-				ecdhe = new ECDHECryptography(negotiatedSupportedGroup.getEcParams());
-				serverKeyExchange = new ECDHServerKeyExchange(session.getSignatureAndHashAlgorithm(), ecdhe, privateKey, clientRandom, serverRandom,
-						negotiatedSupportedGroup.getId(), session.getPeer());
+				ecdhe = new XECDHECryptography(negotiatedSupportedGroups.get(0));
+				serverKeyExchange = new EcdhEcdsaServerKeyExchange(session.getSignatureAndHashAlgorithm(), ecdhe, privateKey, clientRandom, serverRandom,
+						session.getPeer());
 				break;
 			} catch (GeneralSecurityException e) {
 				throw new HandshakeException(
@@ -514,20 +535,19 @@ public class ServerHandshaker extends Handshaker {
 			 */
 			// serverKeyExchange = new PSKServerKeyExchange("TODO");
 			break;
-		
+
 		case ECDHE_PSK:
-			
+
 			try {
-				ecdhe = new ECDHECryptography(negotiatedSupportedGroup.getEcParams());
-				serverKeyExchange = new EcdhPskServerKeyExchange(PskPublicInformation.EMPTY, ecdhe, clientRandom, serverRandom,
-						negotiatedSupportedGroup.getId(), session.getPeer());
+				ecdhe = new XECDHECryptography(negotiatedSupportedGroups.get(0));
+				serverKeyExchange = new EcdhPskServerKeyExchange(PskPublicInformation.EMPTY, ecdhe, session.getPeer());
 				break;
 			} catch (GeneralSecurityException e) {
 				throw new HandshakeException(
 						String.format("Error performing EC Diffie Hellman key exchange: %s", e.getMessage()),
 						new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, getPeerAddress()));
-			}			
-			
+			}
+
 		default:
 			// NULL does not require the server's key exchange message
 			break;
@@ -568,8 +588,9 @@ public class ServerHandshaker extends Handshaker {
 	 * @param message
 	 *            the client's key exchange message.
 	 * @return the premaster secret
+	 * @throws GeneralSecurityException 
 	 */
-	private SecretKey receivedClientKeyExchange(ECDHClientKeyExchange message) {
+	private SecretKey receivedClientKeyExchange(ECDHClientKeyExchange message) throws GeneralSecurityException {
 		return ecdhe.generateSecret(message.getEncodedPoint());
 	}
 
@@ -592,7 +613,7 @@ public class ServerHandshaker extends Handshaker {
 		return premaster;
 	}
 
-	private SecretKey receivedClientKeyExchange(final EcdhPskClientKeyExchange message) throws HandshakeException {
+	private SecretKey receivedClientKeyExchange(final EcdhPskClientKeyExchange message) throws HandshakeException, GeneralSecurityException {
 		// use the client's PSK identity to look up the pre-shared key
 		preSharedKeyIdentity = message.getIdentity();
 		PskUtil pskUtil = new PskUtil(sniEnabled, session, pskStore, preSharedKeyIdentity);
@@ -686,9 +707,10 @@ public class ServerHandshaker extends Handshaker {
 	 * <p>
 	 * If the client proposes an ECC based cipher suite this method also
 	 * tries to determine an appropriate <em>Supported Group</em> by means
-	 * of invoking the {@link #negotiateNamedCurve(ClientHello)} method.
-	 * If a group is found it will be stored in the {@link #negotiatedSupportedGroup}
-	 * field. 
+	 * of invoking the {@link #negotiateNamedCurves(ClientHello)} method.
+	 * If at least one group is found it will be stored in the {@link #negotiatedSupportedGroups}
+	 * list. A ECC based cipher suite will only be accepted, if a server
+	 * certificate with the used curve is available.
 	 * </p>
 	 * <p>
 	 * The selected cipher suite is set on the <em>session</em>  to be negotiated
@@ -717,16 +739,17 @@ public class ServerHandshaker extends Handshaker {
 
 		CertificateType supportedServerCertType = getSupportedServerCertificateType(clientHello);
 		CertificateType supportedClientCertType = getSupportedClientCertificateType(clientHello);
-		SupportedGroup group = negotiateNamedCurve(clientHello);
+		List<SupportedGroup> groups = negotiateNamedCurves(clientHello);
 		List<SignatureAndHashAlgorithm> signatures = negotiateSignatureAndHashAlgorithms(clientHello);
+		ECPointFormat format = negotiateECPointFormat(clientHello);
 
 		for (CipherSuite cipherSuite : clientHello.getCipherSuites()) {
 			// NEVER negotiate NULL cipher suite
 			if (cipherSuite != CipherSuite.TLS_NULL_WITH_NULL_NULL && supportedCipherSuites.contains(cipherSuite)) {
-				if (isEligible(cipherSuite, supportedServerCertType, supportedClientCertType, group, signatures)) {
+				if (isEligible(cipherSuite, supportedServerCertType, supportedClientCertType, groups, format, signatures)) {
 					negotiatedServerCertificateType = supportedServerCertType;
 					negotiatedClientCertificateType = supportedClientCertType;
-					negotiatedSupportedGroup = group;
+					negotiatedSupportedGroups = groups;
 					if (cipherSuite.requiresServerCertificateMessage()) {
 						negotiatedSignatureAndHashAlgorithms = signatures;
 						session.setSignatureAndHashAlgorithm(signatures.get(0));
@@ -745,22 +768,37 @@ public class ServerHandshaker extends Handshaker {
 		throw new HandshakeException("Client proposed unsupported cipher suites only", alert);
 	}
 
-	private boolean isEligible(CipherSuite cipher, CertificateType supportedServerCertType,
-			CertificateType supportedClientCertType, SupportedGroup group, List<SignatureAndHashAlgorithm> signatures) {
-		boolean result = true;
-		if (cipher.isEccBased()) {
-			// check for matching curve
-			result &= group != null;
+	private boolean isEligible(final CipherSuite cipher, final CertificateType supportedServerCertType,
+			final CertificateType supportedClientCertType, List<SupportedGroup> groups, ECPointFormat format, List<SignatureAndHashAlgorithm> signatures) {
+		if (cipher.isEccBased() && (groups.isEmpty() || format == null)) {
+			// no common supported group or format
+			return false;
 		}
 		if (cipher.requiresServerCertificateMessage()) {
 			// make sure that we support the client's proposed server cert types
-			result &= supportedServerCertType != null;
-			if (clientAuthenticationRequired || clientAuthenticationWanted) {
-				result &= supportedClientCertType != null;
+			if (supportedServerCertType == null) {
+				return false;
 			}
-			result &= !signatures.isEmpty();
+			if (clientAuthenticationRequired || clientAuthenticationWanted) {
+				if (supportedClientCertType == null) {
+					return false;
+				}
+			}
+			if (cipher.getCertificateKeyAlgorithm() == CertificateKeyAlgorithm.EC) {
+				// check for suported curve in certificate
+				SupportedGroup group = SupportedGroup.fromPublicKey(publicKey);
+				if (group == null || !groups.contains(group)) {
+					return false;
+				}
+				if (SignatureAndHashAlgorithm.getSupportedSignatureAlgorithm(signatures, publicKey) == null) {
+					return false;
+				}
+			} 
+			if (signatures.isEmpty()) {
+				return false;
+			}
 		}
-		return result;
+		return true;
 	}
 
 	private void addServerHelloExtensions(final CipherSuite negotiatedCipherSuite, final ClientHello clientHello, final HelloExtensions extensions) {
@@ -782,8 +820,7 @@ public class ServerHandshaker extends Handshaker {
 			if (clientHello.getSupportedPointFormatsExtension() != null) {
 				// if we chose a ECC cipher suite, the server should send the
 				// supported point formats extension in its ServerHello
-				List<ECPointFormat> formats = Arrays.asList(ECPointFormat.UNCOMPRESSED);
-				extensions.addExtension(new SupportedPointFormatsExtension(formats));
+				extensions.addExtension(SupportedPointFormatsExtension.DEFAULT_POINT_FORMATS_EXTENSION);
 			}
 		}
 	}
@@ -791,32 +828,42 @@ public class ServerHandshaker extends Handshaker {
 	/**
 	 * Determines the elliptic curve to use during the EC based DH key exchange.
 	 * 
-	 * @param clientHello
-	 *            the peer's <em>CLIENT_HELLO</em> message containing its
-	 *            preferred elliptic curves
-	 * @return the selected curve or {@code null} if server and client have no curves in common
+	 * @param clientHello the peer's <em>CLIENT_HELLO</em> message containing
+	 *            its preferred elliptic curves
+	 * @return a list of common supported curves. Maybe empty, if server and
+	 *         client have no curves in common
+	 * 
+	 * @since 2.3
 	 */
-	private static SupportedGroup negotiateNamedCurve(ClientHello clientHello) {
-		SupportedGroup result = null;
-		List<SupportedGroup> preferredGroups = SupportedGroup.getPreferredGroups();
+	private List<SupportedGroup> negotiateNamedCurves(ClientHello clientHello) {
+		List<SupportedGroup> groups = new ArrayList<>();
 		SupportedEllipticCurvesExtension extension = clientHello.getSupportedEllipticCurvesExtension();
 		if (extension == null) {
 			// according to RFC 4492, section 4 (https://tools.ietf.org/html/rfc4492#section-4)
 			// we are free to pick any curve in this case
-			if (!preferredGroups.isEmpty()) {
-				result = preferredGroups.get(0);
-			}
+			groups.addAll(supportedGroups);
 		} else {
-			for (Integer preferredGroupId : extension.getSupportedGroupIds()) {
+			for (SupportedGroup group : extension.getSupportedGroups()) {
 				// use first group proposed by client contained in list of server's preferred groups
-				SupportedGroup group = SupportedGroup.fromId(preferredGroupId);
-				if (group != null && group.isUsable() && preferredGroups.contains(group)) {
-					result = group;
-					break;
+				if (supportedGroups.contains(group)) {
+					groups.add(group);
 				}
 			}
 		}
-		return result;
+		return groups;
+	}
+
+	private ECPointFormat negotiateECPointFormat(ClientHello clientHello) {
+		SupportedPointFormatsExtension extension = clientHello.getSupportedPointFormatsExtension();
+		if (extension == null) {
+			// according to RFC 4492, section 4
+			// (https://tools.ietf.org/html/rfc4492#section-4)
+			// we are free to pick any format in this case
+			return ECPointFormat.UNCOMPRESSED;
+		} else if (extension.contains(ECPointFormat.UNCOMPRESSED)) {
+			return ECPointFormat.UNCOMPRESSED;
+		}
+		return null;
 	}
 
 	/**
@@ -884,6 +931,15 @@ public class ServerHandshaker extends Handshaker {
 	}
 
 	final SupportedGroup getNegotiatedSupportedGroup() {
-		return negotiatedSupportedGroup;
+		if (negotiatedSupportedGroups == null || negotiatedSupportedGroups.isEmpty()) {
+			return null;
+		}
+		return negotiatedSupportedGroups.get(0);
+	}
+
+	@Override
+	public void destroy() throws DestroyFailedException {
+		SecretUtil.destroy(ecdhe);
+		ecdhe = null;
 	}
 }

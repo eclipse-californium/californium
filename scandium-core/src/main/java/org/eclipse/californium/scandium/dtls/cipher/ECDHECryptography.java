@@ -53,7 +53,9 @@ import javax.crypto.SecretKey;
 
 /**
  * A helper class to execute the ECDHE key agreement and key generation.
+ * @deprecated use {@link XECDHECryptography} instead
  */
+@Deprecated
 public final class ECDHECryptography {
 
 	// Logging ////////////////////////////////////////////////////////

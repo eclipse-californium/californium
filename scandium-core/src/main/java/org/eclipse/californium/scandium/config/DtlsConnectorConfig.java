@@ -60,6 +60,7 @@ import org.eclipse.californium.scandium.dtls.SessionCache;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustAllRpks;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
@@ -228,10 +229,18 @@ public final class DtlsConnectorConfig {
 	private List<CipherSuite> supportedCipherSuites;
 	
 	/**
-	 * the supported signature and hash algorithms.
+	 * the supported signature and hash algorithms in order of preference.
+	 * 
 	 * @since 2.3
 	 */
 	private List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms;
+
+	/** 
+	 * the supported groups (curves) in order of preference.
+	 * 
+	 * @since 2.3
+	 */
+	private List<SupportedGroup> supportedGroups;
 
 	/** the trust store for RPKs **/
 	private TrustedRpkStore trustedRPKs;
@@ -366,6 +375,8 @@ public final class DtlsConnectorConfig {
 	private Boolean clientOnly;
 	
 	private Boolean recommendedCipherSuitesOnly;
+
+	private Boolean recommendedSupportedGroupsOnly;
 
 	private DtlsConnectorConfig() {
 		// empty
@@ -582,8 +593,11 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Gets the cipher suites the connector should advertise in a DTLS
-	 * handshake.
+	 * Gets the supported cipher suites.
+	 * 
+	 * On the client side the connector advertise these cipher suites in a DTLS
+	 * handshake. On the server side the connector limits the acceptable cipher
+	 * suites to this list.
 	 * 
 	 * @return the supported cipher suites (ordered by preference)
 	 */
@@ -604,6 +618,24 @@ public final class DtlsConnectorConfig {
 	 */
 	public List<SignatureAndHashAlgorithm> getSupportedSignatureAlgorithms() {
 		return supportedSignatureAlgorithms;
+	}
+
+	/**
+	 * Gets the supported groups (curves).
+	 * 
+	 * On the client side the connector advertise these supported groups
+	 * (curves) in a DTLS handshake. On the server side the connector limits the
+	 * acceptable supported groups (curves) to this list. According
+	 * <a href= "https://tools.ietf.org/html/rfc8422#page-11">RFC 8422, 5.1.
+	 * Client Hello Extensions, Actions of the receiver</a> This affects both,
+	 * curves for ECDH and the certificates for ECDSA.
+	 * 
+	 * @return the supported groups (curves, ordered by preference)
+	 * 
+	 * @since 2.3
+	 */
+	public List<SupportedGroup> getSupportedGroups() {
+		return supportedGroups;
 	}
 
 	/**
@@ -980,6 +1012,16 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * @return <code>true</code> if only recommended supported groups (curves) are used.
+	 * @see Builder#setRecommendedSupportedGroupsOnly(boolean)
+	 * 
+	 * @since 2.3
+	 */
+	public Boolean isRecommendedSupportedGroupsOnly() {
+		return recommendedSupportedGroupsOnly;
+	}
+
+	/**
 	 * @return a copy of this configuration
 	 */
 	@Override
@@ -1008,6 +1050,7 @@ public final class DtlsConnectorConfig {
 		cloned.certChain = certChain;
 		cloned.supportedCipherSuites = supportedCipherSuites;
 		cloned.supportedSignatureAlgorithms = supportedSignatureAlgorithms;
+		cloned.supportedGroups = supportedGroups;
 		cloned.trustedRPKs = trustedRPKs;
 		cloned.outboundMessageBufferSize = outboundMessageBufferSize;
 		cloned.maxDeferredProcessedOutgoingApplicationDataMessages = maxDeferredProcessedOutgoingApplicationDataMessages;
@@ -1037,6 +1080,7 @@ public final class DtlsConnectorConfig {
 		cloned.healthHandler = healthHandler;
 		cloned.clientOnly = clientOnly;
 		cloned.recommendedCipherSuitesOnly = recommendedCipherSuitesOnly;
+		cloned.recommendedSupportedGroupsOnly = recommendedSupportedGroupsOnly;
 		return cloned;
 	}
 
@@ -1134,6 +1178,24 @@ public final class DtlsConnectorConfig {
 			config.recommendedCipherSuitesOnly = recommendedCipherSuitesOnly;
 			if (recommendedCipherSuitesOnly && config.supportedCipherSuites != null) {
 				verifyRecommendedCipherSuitesOnly(config.supportedCipherSuites);
+			}
+			return this;
+		}
+
+		/**
+		 * Set usage of recommended supported groups (curves).
+		 * 
+		 * @param recommendedSupportedGroupsOnly {@code true} allow only
+		 *            recommended supported groups, {@code false}, also allow not
+		 *            recommended supported groups. Default value is {@code true}
+		 * @return this builder for command chaining
+		 * 
+		 * @since 2.3
+		 */
+		public Builder setRecommendedSupportedGroupsOnly(boolean recommendedSupportedGroupsOnly) {
+			config.recommendedSupportedGroupsOnly = recommendedSupportedGroupsOnly;
+			if (recommendedSupportedGroupsOnly && config.supportedGroups != null) {
+				verifyRecommendedSupportedGroupsOnly(config.supportedGroups);
 			}
 			return this;
 		}
@@ -1469,8 +1531,8 @@ public final class DtlsConnectorConfig {
 		 * @param cipherSuites the supported cipher suites in the order of
 		 *            preference
 		 * @return this builder for command chaining
-		 * @throws NullPointerException if the given array is <code>null</code>
-		 * @throws IllegalArgumentException if the given array is empty,
+		 * @throws NullPointerException if the given list is <code>null</code>
+		 * @throws IllegalArgumentException if the given list is empty,
 		 *             contains {@link CipherSuite#TLS_NULL_WITH_NULL_NULL},
 		 *             contains a cipher suite, not supported by the JVM, or
 		 *             violates the
@@ -1572,6 +1634,115 @@ public final class DtlsConnectorConfig {
 		public Builder setSupportedSignatureAlgorithms(List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms) {
 			config.supportedSignatureAlgorithms = supportedSignatureAlgorithms;
 			return this;
+		}
+
+		/**
+		 * Sets the groups (curves) supported by the connector.
+		 * <p>
+		 * The connector will use these supported groups (in exactly the same
+		 * order) during the DTLS handshake when negotiating a curve with a
+		 * peer. According
+		 * <a href= "https://tools.ietf.org/html/rfc8422#page-11">RFC 8422, 5.1.
+		 * Client Hello Extensions, Actions of the receiver</a> This affects
+		 * both, curves for ECDH and the certificates for ECDSA.
+		 * 
+		 * @param supportedGroups the supported groups (curves) in the order of
+		 *            preference
+		 * @return this builder for command chaining
+		 * @throws NullPointerException if the given array is {@code null}
+		 * @throws IllegalArgumentException if the given array is empty,
+		 *             contains a group (curve), not supported by the JVM, or
+		 *             violates the
+		 *             {@link #setRecommendedCipherSuitesOnly(boolean)} setting.
+		 * 
+		 * @since 2.3
+		 */
+		public Builder setSupportedGroups(SupportedGroup... supportedGroups) {
+			if (supportedGroups == null) {
+				throw new NullPointerException("Connector must support at least one group (curve)");
+			}
+			return setSupportedGroups(Arrays.asList(supportedGroups));
+		}
+
+		/**
+		 * Sets the groups (curves) supported by the connector.
+		 * <p>
+		 * The connector will use these supported groups (in exactly the same
+		 * order) during the DTLS handshake when negotiating a curve with a
+		 * peer. According
+		 * <a href= "https://tools.ietf.org/html/rfc8422#page-11">RFC 8422, 5.1.
+		 * Client Hello Extensions, Actions of the receiver</a> This affects
+		 * both, curves for ECDH and the certificates for ECDSA.
+		 * 
+		 * @param supportedGroups the supported groups (curves) in the order of
+		 *            preference
+		 * @return this builder for command chaining
+		 * @throws NullPointerException if the given list is {@code null}
+		 * @throws IllegalArgumentException if the given list is empty,
+		 *             contains a group (curve), not supported by the JVM, or
+		 *             violates the
+		 *             {@link #setRecommendedCipherSuitesOnly(boolean)} setting.
+		 * 
+		 * @since 2.3
+		 */
+		public Builder setSupportedGroups(List<SupportedGroup> supportedGroups) {
+			if (supportedGroups == null) {
+				throw new NullPointerException("Connector must support at least one group (curve)");
+			}
+			if (supportedGroups.isEmpty()) {
+				throw new IllegalArgumentException("Connector must support at least one group (curve)");
+			} 
+			if (config.recommendedSupportedGroupsOnly == null || config.recommendedSupportedGroupsOnly) {
+				verifyRecommendedSupportedGroupsOnly(supportedGroups);
+			}
+			for (SupportedGroup group : supportedGroups) {
+				if (!group.isUsable()) {
+					throw new IllegalArgumentException("curve " + group.name() + " is not supported by JVM!");
+				}
+			}
+			
+			config.supportedGroups = supportedGroups;
+			return this;
+		}
+
+		/**
+		 * Sets the groups (curves) supported by the connector.
+		 * <p>
+		 * The connector will use these supported groups (in exactly the same
+		 * order) during the DTLS handshake when negotiating a curve with a
+		 * peer. According
+		 * <a href= "https://tools.ietf.org/html/rfc8422#page-11">RFC 8422, 5.1.
+		 * Client Hello Extensions, Actions of the receiver</a> This affects
+		 * both, curves for ECDH and the certificates for ECDSA.
+		 * 
+		 * @param supportedGroups the names of supported groups (curves) in the
+		 *            order of preference (see <a href=
+		 *            "http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-8">
+		 *            IANA registry</a> for a list of supported group names)
+		 * @return this builder for command chaining
+		 * @throws NullPointerException if the given array is {@code null}
+		 * @throws IllegalArgumentException if the given array is empty,
+		 *             contains a group (curve), not supported by the JVM, or
+		 *             violates the
+		 *             {@link #setRecommendedCipherSuitesOnly(boolean)} setting.
+		 * 
+		 * @since 2.3
+		 */
+		public Builder setSupportedGroups(String... supportedGroups) {
+			if (supportedGroups == null) {
+				throw new NullPointerException("Connector must support at least one supported group (curve)");
+			}
+			List<SupportedGroup> groups = new ArrayList<>(supportedGroups.length);
+			for (int i = 0; i < supportedGroups.length; i++) {
+				SupportedGroup knownGroup = SupportedGroup.valueOf(supportedGroups[i]);
+				if (knownGroup != null) {
+					groups.add(knownGroup);
+				} else {
+					throw new IllegalArgumentException(
+							String.format("Group (curve) [%s] is not (yet) supported", supportedGroups[i]));
+				}
+			}
+			return setSupportedGroups(groups);
 		}
 
 		/**
@@ -2384,6 +2555,9 @@ public final class DtlsConnectorConfig {
 			if (config.recommendedCipherSuitesOnly == null) {
 				config.recommendedCipherSuitesOnly = Boolean.TRUE;
 			}
+			if (config.recommendedSupportedGroupsOnly == null) {
+				config.recommendedSupportedGroupsOnly = Boolean.TRUE;
+			}
 			if (config.clientAuthenticationRequired == null) {
 				if (config.clientOnly) {
 					config.clientAuthenticationRequired = Boolean.FALSE;
@@ -2468,6 +2642,10 @@ public final class DtlsConnectorConfig {
 				determineCipherSuitesFromConfig();
 			}
 
+			if (config.supportedGroups == null || config.supportedGroups.isEmpty()) {
+				config.supportedGroups = getDefaultSupportedGroups();
+			}
+
 			// check cipher consistency
 			if (config.supportedCipherSuites == null || config.supportedCipherSuites.isEmpty()) {
 				throw new IllegalStateException("Supported cipher suites must be set either " +
@@ -2540,9 +2718,11 @@ public final class DtlsConnectorConfig {
 					throw new IllegalStateException("certificate has no proper key usage!");
 				}
 			}
+			verifySupportedGroups(config.supportedGroups);
 			config.trustCertificateTypes = ListUtils.init(config.trustCertificateTypes);
 			config.identityCertificateTypes = ListUtils.init(config.identityCertificateTypes);
 			config.supportedCipherSuites = ListUtils.init(config.supportedCipherSuites);
+			config.supportedGroups = ListUtils.init(config.supportedGroups);
 			config.certChain = ListUtils.init(config.certChain);
 			config.supportedSignatureAlgorithms = ListUtils.init(config.supportedSignatureAlgorithms);
 			return config;
@@ -2602,6 +2782,22 @@ public final class DtlsConnectorConfig {
 			}
 		}
 
+		private void verifyRecommendedSupportedGroupsOnly(List<SupportedGroup> supportedGroups) {
+			StringBuilder message = new StringBuilder();
+			for (SupportedGroup group : supportedGroups) {
+				if (!group.isRecommended()) {
+					if (message.length() > 0) {
+						message.append(", ");
+					}
+					message.append(group.name());
+				}
+			}
+			if (message.length() > 0) {
+				throw new IllegalStateException("Not recommended supported groups (curves) " + message
+						+ " used! (Requires to set recommendedSupportedGroupsOnly to false.)");
+			}
+		}
+
 		private void determineCipherSuitesFromConfig() {
 			// user has not explicitly set cipher suites
 			// try to guess his intentions from properties he has set
@@ -2630,6 +2826,58 @@ public final class DtlsConnectorConfig {
 				if (SignatureAndHashAlgorithm.getSupportedSignatureAlgorithm(config.supportedSignatureAlgorithms,
 						config.publicKey) == null) {
 					throw new IllegalStateException("supported signatures and algorithms doesn't match public key!");
+				}
+			}
+		}
+
+		private List<SupportedGroup> getDefaultSupportedGroups() {
+			List<SupportedGroup> defaultGroups = new ArrayList<>(SupportedGroup.getPreferredGroups());
+			if (config.certChain != null) {
+				for (X509Certificate certificate : config.certChain) {
+					addSupportedGroups(defaultGroups, certificate.getPublicKey());
+				}
+			} else {
+				addSupportedGroups(defaultGroups, config.publicKey);
+			}
+			return defaultGroups;
+		}
+
+		private void addSupportedGroups(List<SupportedGroup> defaultGroups, PublicKey publicKey) {
+			if (publicKey != null) {
+				SupportedGroup group = SupportedGroup.fromPublicKey(publicKey);
+				if (group != null && group.isUsable() && !defaultGroups.contains(group)) {
+					if (!config.recommendedSupportedGroupsOnly || group.isRecommended()) {
+						defaultGroups.add(group);
+					}
+				}
+			}
+		}
+
+		private void verifySupportedGroups(List<SupportedGroup> list) {
+			if (config.certChain != null) {
+				for (X509Certificate certificate : config.certChain) {
+					verifySupportedGroups(list, certificate.getPublicKey());
+				}
+			} else {
+				verifySupportedGroups(list, config.publicKey);
+			}
+		}
+
+		private void verifySupportedGroups(List<SupportedGroup> list, PublicKey publicKey) {
+			if (publicKey != null) {
+				SupportedGroup group = SupportedGroup.fromPublicKey(publicKey);
+				if (group == null) {
+					throw new IllegalStateException("public key used with unknown group (curve)!");
+				}
+				if (!group.isUsable()) {
+					throw new IllegalStateException("public key used with unsupported group (curve) " + group.name() + "!");
+				}
+				if (!list.contains(group)) {
+					throw new IllegalStateException("public key used with not configured group (curve) " + group.name() + "!");
+				}
+				if (config.recommendedSupportedGroupsOnly && !group.isRecommended()) {
+					throw new IllegalStateException(
+							"public key used with unrecommended group (curve) " + group.name() + "!");
 				}
 			}
 		}

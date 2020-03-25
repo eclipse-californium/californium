@@ -887,7 +887,7 @@ public class DTLSConnectorHandshakeTest {
 
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
 				.setTrustStore(new Certificate[0]);
-		
+
 		startClientFailing(builder, new AddressEndpointContext(serverHelper.serverEndpoint));
 
 		LatchSessionListener listener = serverHelper.sessionListenerMap.get(client.getAddress());
@@ -895,6 +895,30 @@ public class DTLSConnectorHandshakeTest {
 		Throwable cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
 		assertThat("server side handshake failure missing", cause, is(notNullValue()));
 		assertThat(cause.getMessage(), containsString("Client Certificate required!"));
+
+		listener = serverHelper.sessionListenerMap.get(serverHelper.serverEndpoint);
+		assertThat("client side session listener missing", listener, is(notNullValue()));
+		cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
+		assertThat("client side handshake failure missing", cause, is(notNullValue()));
+		assertThat(cause.getMessage(), containsString("fatal alert"));
+	}
+
+	@Test
+	public void testX509HandshakeFailingNoCommonCurve() throws Exception {
+		startServer(false, false, false, null);
+
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+				.setTrustStore(new Certificate[0])
+				.setRecommendedSupportedGroupsOnly(false)
+				.setSupportedGroups("secp521r1");
+
+		startClientFailing(builder, new AddressEndpointContext(serverHelper.serverEndpoint));
+
+		LatchSessionListener listener = serverHelper.sessionListenerMap.get(client.getAddress());
+		assertThat("server side session listener missing", listener, is(notNullValue()));
+		Throwable cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
+		assertThat("server side handshake failure missing", cause, is(notNullValue()));
+		assertThat(cause.getMessage(), containsString("Client proposed unsupported cipher suites only"));
 
 		listener = serverHelper.sessionListenerMap.get(serverHelper.serverEndpoint);
 		assertThat("client side session listener missing", listener, is(notNullValue()));

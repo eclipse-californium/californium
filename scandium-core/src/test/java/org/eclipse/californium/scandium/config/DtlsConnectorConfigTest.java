@@ -153,6 +153,14 @@ public class DtlsConnectorConfigTest {
 	}
 
 	@Test(expected = IllegalStateException.class)
+	public void testBuilderDetectsNoCurveForCertificate() throws Exception {
+		builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
+				.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
+				.setSupportedGroups("secp384r1")
+				.setRpkTrustAll().build();
+	}
+
+	@Test(expected = IllegalStateException.class)
 	public void testBuilderDetectsMissingIdentity() {
 		builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8).setRpkTrustAll().build();
 	}
