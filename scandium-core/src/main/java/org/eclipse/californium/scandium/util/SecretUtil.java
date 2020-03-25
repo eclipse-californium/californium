@@ -55,7 +55,7 @@ public class SecretUtil {
 				destroyable.destroy();
 			} catch (DestroyFailedException e) {
 				// Using SecretIvParameterSpec or SecretKey created by this class
-				// should never throw whit. Using other Destroyable implementations
+				// should never throw it. Using other Destroyable implementations
 				// may throw it.
 				LOGGER.warn("Destroy on {} failed!", destroyable.getClass(), e);
 			}

@@ -1008,8 +1008,9 @@ public class DTLSConnectorTest {
 		if (cipherSuites != null && cipherSuites.length > 0) {
 			list = Arrays.asList(cipherSuites);
 		}
-		ClientHello hello = new ClientHello(new ProtocolVersion(), list,
-				clientConfig.getIdentityCertificateTypes(), clientConfig.getTrustCertificateTypes(), clientEndpoint);
+		ClientHello hello = new ClientHello(new ProtocolVersion(), list, clientConfig.getSupportedSignatureAlgorithms(),
+				clientConfig.getIdentityCertificateTypes(), clientConfig.getTrustCertificateTypes(),
+				clientConfig.getSupportedGroups(), clientEndpoint);
 		hello.addCompressionMethod(CompressionMethod.NULL);
 		hello.setMessageSeq(0);
 		return hello;

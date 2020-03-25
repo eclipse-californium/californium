@@ -49,7 +49,6 @@ import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.PublicKey;
 import java.security.cert.X509Certificate;
-import java.security.interfaces.ECPublicKey;
 import java.util.Collections;
 import java.util.List;
 
@@ -66,7 +65,8 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 
@@ -94,17 +94,37 @@ public class ClientHandshaker extends Handshaker {
 
 	private ProtocolVersion maxProtocolVersion = new ProtocolVersion();
 
-	/** The server's public key from its certificate */
+	/**
+	 * The server's public key from its certificate
+	 */
 	private PublicKey serverPublicKey;
 
-	/** The server's ephemeral public key, used for key agreement */
-	protected ECPublicKey ephemeralServerPublicKey;
+	/**
+	 * The server's key exchange message
+	 * 
+	 * @since 2.3
+	 */
+	protected ECDHServerKeyExchange serverKeyExchange;
 
-	/** The client's hello handshake message. Store it, to add the cookie in the second flight. */
+	/**
+	 * The client's hello handshake message. Store it, to add the cookie in the
+	 * second flight.
+	 */
 	protected ClientHello clientHello = null;
 
-	/** the preferred cipher suites ordered by preference */
-	private final List<CipherSuite> preferredCipherSuites;
+	/**
+	 * the supported cipher suites ordered by preference
+	 * 
+	 * @since 2.3
+	 */
+	private final List<CipherSuite> supportedCipherSuites;
+
+	/**
+	 * the supported groups (curves) ordered by preference
+	 * 
+	 * @since 2.3
+	 */
+	protected final List<SupportedGroup> supportedGroups;
 
 	protected final Integer maxFragmentLengthCode;
 	protected final boolean truncateCertificatePath;
@@ -113,12 +133,14 @@ public class ClientHandshaker extends Handshaker {
 	 * The certificate types this peer supports for client authentication.
 	 */
 	protected final List<CertificateType> supportedClientCertificateTypes;
-	
+
 	/**
 	 * The list of the signature and hash algorithms supported by the client
+	 * ordered by preference.
+	 * 
+	 * @since 2.3
 	 */
 	protected final List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms;
-
 
 	/**
 	 * The certificate types this peer supports for server authentication.
@@ -157,7 +179,8 @@ public class ClientHandshaker extends Handshaker {
 	public ClientHandshaker(DTLSSession session, RecordLayer recordLayer, Connection connection,
 			DtlsConnectorConfig config, int maxTransmissionUnit) {
 		super(true, 0, session, recordLayer, connection, config, maxTransmissionUnit);
-		this.preferredCipherSuites = config.getSupportedCipherSuites();
+		this.supportedCipherSuites = config.getSupportedCipherSuites();
+		this.supportedGroups = config.getSupportedGroups();
 		this.maxFragmentLengthCode = config.getMaxFragmentLengthCode();
 		this.truncateCertificatePath = config.useTruncatedCertificatePathForClientsCertificateMessage();
 		this.supportedServerCertificateTypes = config.getTrustCertificateTypes();
@@ -188,7 +211,7 @@ public class ClientHandshaker extends Handshaker {
 
 			switch (getKeyExchangeAlgorithm()) {
 			case EC_DIFFIE_HELLMAN:
-				receivedServerKeyExchange((ECDHServerKeyExchange) message);
+				receivedServerKeyExchange((EcdhEcdsaServerKeyExchange) message);
 				break;
 
 			case PSK:
@@ -196,7 +219,7 @@ public class ClientHandshaker extends Handshaker {
 				break;
 			
 			case ECDHE_PSK:
-				receivedServerKeyExchange((EcdhPskServerKeyExchange) message);
+				serverKeyExchange =(EcdhPskServerKeyExchange) message;
 				break;
 				
 			case NULL:
@@ -285,7 +308,7 @@ public class ClientHandshaker extends Handshaker {
 		serverRandom = message.getRandom();
 		session.setSessionIdentifier(message.getSessionId());
 		CipherSuite cipherSuite = message.getCipherSuite();
-		if (!preferredCipherSuites.contains(cipherSuite)) {
+		if (!supportedCipherSuites.contains(cipherSuite)) {
 			throw new HandshakeException(
 					"Server wants to use not supported cipher suite " + cipherSuite,
 					new AlertMessage(
@@ -339,7 +362,7 @@ public class ClientHandshaker extends Handshaker {
 		}
 
 		SupportedPointFormatsExtension pointFormatsExtension = message.getSupportedPointFormatsExtension();
-		if (pointFormatsExtension !=null && !pointFormatsExtension.contains(ECPointFormat.UNCOMPRESSED)) {
+		if (pointFormatsExtension != null && !pointFormatsExtension.contains(ECPointFormat.UNCOMPRESSED)) {
 			throw new HandshakeException(
 					"Server wants to use only not supported EC point formats!",
 					new AlertMessage(
@@ -400,7 +423,7 @@ public class ClientHandshaker extends Handshaker {
 	 *            the server's {@link ServerKeyExchange} message.
 	 * @throws HandshakeException if the message can't be verified
 	 */
-	private void receivedServerKeyExchange(ECDHServerKeyExchange message) throws HandshakeException {
+	private void receivedServerKeyExchange(EcdhEcdsaServerKeyExchange message) throws HandshakeException {
 		message.verifySignature(serverPublicKey, clientRandom, serverRandom);
 		// server identity has been proven
 		if (peerCertPath != null) {
@@ -408,36 +431,7 @@ public class ClientHandshaker extends Handshaker {
 		} else {
 			session.setPeerIdentity(new RawPublicKeyIdentity(serverPublicKey));
 		}
-		ephemeralServerPublicKey = message.getPublicKey();
-		try {
-			ecdhe = new ECDHECryptography(ephemeralServerPublicKey.getParams());
-		} catch (GeneralSecurityException e) {
-			throw new HandshakeException(
-				String.format(
-					"Cannot create ephemeral keys from domain params provided by server: %s",
-					e.getMessage()),
-				new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, getPeerAddress()));
-		}
-	}
-
-	/**
-	 * This method is called after receiving {@link ServerKeyExchange} message in ECDHE_PSK mode 
-	 * to extract the ServerDHEParams that includes the ephemeral public key.
-	 * 
-	 * @param message
-	 * @throws HandshakeException
-	 */
-	private void receivedServerKeyExchange(EcdhPskServerKeyExchange message) throws HandshakeException {
-		ephemeralServerPublicKey = message.getPublicKey();
-		try {
-			ecdhe = new ECDHECryptography(ephemeralServerPublicKey.getParams());
-		} catch (GeneralSecurityException e) {
-			throw new HandshakeException(
-				String.format(
-					"Cannot create ephemeral keys from domain params provided by server: %s",
-					e.getMessage()),
-				new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, getPeerAddress()));
-		}
+		serverKeyExchange = message;
 	}
 
 	/**
@@ -462,10 +456,11 @@ public class ClientHandshaker extends Handshaker {
 		ClientKeyExchange clientKeyExchange;
 		SecretKey premasterSecret;
 		PskUtil pskUtil = null;
+		XECDHECryptography ecdhe = serverKeyExchange == null ? null : new XECDHECryptography(serverKeyExchange.getSupportedGroup());
 		switch (getKeyExchangeAlgorithm()) {
 		case EC_DIFFIE_HELLMAN:
-			clientKeyExchange = new ECDHClientKeyExchange(ecdhe.getPublicKey(), session.getPeer());
-			premasterSecret = ecdhe.generateSecret(ephemeralServerPublicKey);
+			clientKeyExchange = new ECDHClientKeyExchange(ecdhe.getEncodedPoint(), session.getPeer());
+			premasterSecret = ecdhe.generateSecret(serverKeyExchange.getEncodedPoint());
 			break;
 		case PSK:
 			pskUtil = new PskUtil(sniEnabled, session, pskStore);
@@ -476,8 +471,8 @@ public class ClientHandshaker extends Handshaker {
 		case ECDHE_PSK:
 			pskUtil = new PskUtil(sniEnabled, session, pskStore);
 			LOGGER.debug("Using PSK identity: {}", pskUtil.getPskPrincipal());
-			clientKeyExchange = new EcdhPskClientKeyExchange(pskUtil.getPskPublicIdentity(), ecdhe.getPublicKey(), session.getPeer());
-			SecretKey eck = ecdhe.generateSecret(ephemeralServerPublicKey);
+			clientKeyExchange = new EcdhPskClientKeyExchange(pskUtil.getPskPublicIdentity(), ecdhe.getEncodedPoint(), session.getPeer());
+			SecretKey eck = ecdhe.generateSecret(serverKeyExchange.getEncodedPoint());
 			premasterSecret = pskUtil.generatePremasterSecretFromPSK(eck);
 			SecretUtil.destroy(eck);
 			break;
@@ -614,8 +609,8 @@ public class ClientHandshaker extends Handshaker {
 
 		handshakeStarted();
 
-		ClientHello startMessage = new ClientHello(maxProtocolVersion, preferredCipherSuites, supportedSignatureAlgorithms,
-				supportedClientCertificateTypes, supportedServerCertificateTypes, session.getPeer());
+		ClientHello startMessage = new ClientHello(maxProtocolVersion, supportedCipherSuites, supportedSignatureAlgorithms,
+				supportedClientCertificateTypes, supportedServerCertificateTypes, supportedGroups, session.getPeer());
 		
 		// store client random for later calculations
 		clientRandom = startMessage.getRandom();

@@ -96,7 +96,6 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
-import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
@@ -126,9 +125,6 @@ public abstract class Handshaker implements Destroyable {
 	protected ProtocolVersion usedProtocol;
 	protected Random clientRandom;
 	protected Random serverRandom;
-
-	/** The helper class to execute the ECDHE key agreement and key generation. */
-	protected ECDHECryptography ecdhe;
 
 	/**
 	 * The master secret for this handshake.

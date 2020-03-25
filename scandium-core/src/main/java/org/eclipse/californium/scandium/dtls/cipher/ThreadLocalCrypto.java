@@ -88,6 +88,8 @@ public class ThreadLocalCrypto<CryptoFunction> {
 	 * @return thread local crypto function.
 	 * @throws GeneralSecurityException if crypto function is not supported by
 	 *             the java-vm.
+	 * 
+	 * @since 2.3
 	 */
 	public CryptoFunction currentWithCause() throws GeneralSecurityException {
 		if (exception != null) {

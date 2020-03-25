@@ -23,8 +23,8 @@ import java.net.InetSocketAddress;
 
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
-import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
-import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -41,8 +41,8 @@ public class EcdhPskClientKeyExchangeTest {
 	public void setUp() throws Exception {
 
 		SupportedGroup usableGroup = SupportedGroup.secp256r1;
-		ECDHECryptography ecdhe = ECDHECryptography.fromNamedCurveId(usableGroup.getId());
-		msg = new EcdhPskClientKeyExchange(new PskPublicInformation("ID"), ecdhe.getPublicKey(), peerAddress);
+		XECDHECryptography ecdhe = new XECDHECryptography(usableGroup);
+		msg = new EcdhPskClientKeyExchange(new PskPublicInformation("ID"), ecdhe.getEncodedPoint(), peerAddress);
 		ephemeralKeyPointEncoded = msg.getEncodedPoint();
 		identity = msg.getIdentity();
 	}
