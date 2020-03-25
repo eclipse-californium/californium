@@ -26,7 +26,9 @@ import java.net.InetSocketAddress;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.interoperability.test.OpenSslProcessUtil.AuthenticationMode;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -158,8 +160,59 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 		connect(cipher);
 	}
 
-	public void connect(String cipher) throws Exception {
+	@Test
+	public void testOpenSslClientUnauthenticated() throws Exception {
+		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
+		dtlsBuilder.setClientAuthenticationRequired(false);
+		
+		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
+
+
+		String cipher = processUtil.startupClient(DESTINATION, cipherSuite, AuthenticationMode.TRUST);
+		connect(cipher);
+	}
+
+	@Test
+	public void testOpenSslClientX25519() throws Exception {
+		assumeTrue("X25519 not support by JRE", XECDHECryptography.SupportedGroup.X25519.isUsable());
+		scandiumUtil.start(BIND, ScandiumUtil.TRUST_ROOT, cipherSuite);
+
+		String cipher = processUtil.startupClient(DESTINATION, cipherSuite, "X25519:prime256v1", AuthenticationMode.TRUST);
+		connect(cipher, "X25519");
+	}
+
+	@Test
+	public void testOpenSslClientX448() throws Exception {
+		assumeTrue("X448 not support by JRE", XECDHECryptography.SupportedGroup.X448.isUsable());
+		scandiumUtil.start(BIND, ScandiumUtil.TRUST_ROOT, cipherSuite);
+
+		String cipher = processUtil.startupClient(DESTINATION, cipherSuite, "X448:prime256v1", AuthenticationMode.TRUST);
+		connect(cipher, "X448");
+	}
+
+	@Test
+	public void testOpenSslClientPrime256v1() throws Exception {
+		scandiumUtil.start(BIND, ScandiumUtil.TRUST_ROOT, cipherSuite);
+
+		String cipher = processUtil.startupClient(DESTINATION, cipherSuite, "prime256v1", AuthenticationMode.TRUST);
+		connect(cipher, "ECDH, P-256");
+	}
+
+	@Test
+	public void testOpenSslClientSecP384r1() throws Exception {
+		scandiumUtil.start(BIND, ScandiumUtil.TRUST_ROOT, cipherSuite);
+
+		String cipher = processUtil.startupClient(DESTINATION, cipherSuite, "secp384r1:prime256v1", AuthenticationMode.TRUST);
+		connect(cipher, "ECDH, P-384");
+	}
+
+	public void connect(String cipher, String... misc) throws Exception {
 		assertTrue(processUtil.waitConsole("Cipher is " + cipher, TIMEOUT_MILLIS));
+		if (misc != null) {
+			for (String check : misc) {
+				assertTrue(processUtil.waitConsole(check, TIMEOUT_MILLIS));
+			}
+		}
 
 		String message = "Hello Scandium!";
 		processUtil.send(message);
