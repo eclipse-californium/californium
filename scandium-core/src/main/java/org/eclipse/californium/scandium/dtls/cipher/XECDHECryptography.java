@@ -25,6 +25,7 @@ import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.cert.X509Certificate;
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.AlgorithmParameterSpec;
@@ -682,6 +683,49 @@ public final class XECDHECryptography implements Destroyable {
 			return null;
 		}
 
+		/**
+		 * Checks, if provided public key is a EC or XEC key.
+		 * 
+		 * @param publicKey the public key
+		 * @return {@code true}, if it's a EC of XEC key, {@code false},
+		 *         otherwise.
+		 */
+		public static boolean isEcPublicKey(PublicKey publicKey) {
+			if (publicKey instanceof ECPublicKey) {
+				return true;
+			} else if (XECPublicKeyClass != null && XECPublicKeyClass.isInstance(publicKey)) {
+				return true;
+			}
+			return false;
+		}
+
+		/**
+		 * Check, if all ECDSA certificates uses a supported group (curve) from
+		 * the provided list.
+		 * 
+		 * @param list list of supported groups
+		 * @param certificateChain certificate chain
+		 * @return {@code true}, if all ECDSA certificates uses supported group
+		 *         (curve) from the provided list, {@code false}, otherwise.
+		 */
+		public static boolean isSupported(List<SupportedGroup> list, List<X509Certificate> certificateChain) {
+			for (X509Certificate certificate : certificateChain) {
+				PublicKey publicKey = certificate.getPublicKey();
+				if (isEcPublicKey(publicKey)) {
+					SupportedGroup group = fromPublicKey(certificate.getPublicKey());
+					if (group == null || !group.isUsable() || !list.contains(group)) {
+						return false;
+					}
+				}
+			}
+			return true;
+		}
+
+		/**
+		 * Returns size of public key in bytes.
+		 * 
+		 * @return key size in bytes
+		 */
 		public int getKeySizeInBytes() {
 			return keySizeInBytes;
 		}

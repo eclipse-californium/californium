@@ -60,6 +60,8 @@ import org.eclipse.californium.scandium.dtls.SessionCache;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuiteSelector;
+import org.eclipse.californium.scandium.dtls.cipher.DefaultCipherSuiteSelector;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustAllRpks;
@@ -225,9 +227,16 @@ public final class DtlsConnectorConfig {
 	/** the certificate for X509 mode */
 	private List<X509Certificate> certChain;
 
+	/**
+	 * Cipher suite selector.
+	 * 
+	 * @since 2.3
+	 */
+	private CipherSuiteSelector cipherSuiteSelector;
+
 	/** the supported cipher suites in order of preference */
 	private List<CipherSuite> supportedCipherSuites;
-	
+
 	/**
 	 * the supported signature and hash algorithms in order of preference.
 	 * 
@@ -590,6 +599,17 @@ public final class DtlsConnectorConfig {
 	 */
 	public List<X509Certificate> getCertificateChain() {
 		return certChain;
+	}
+
+	/**
+	 * Get cipher suite selector.
+	 * 
+	 * @return cipher suite selector. Default
+	 *         {@link DefaultCipherSuiteSelector}.
+	 * @since 2.3
+	 */
+	public CipherSuiteSelector getCipherSuiteSelector() {
+		return cipherSuiteSelector;
 	}
 
 	/**
@@ -1048,6 +1068,7 @@ public final class DtlsConnectorConfig {
 		cloned.privateKey = privateKey;
 		cloned.publicKey = publicKey;
 		cloned.certChain = certChain;
+		cloned.cipherSuiteSelector = cipherSuiteSelector;
 		cloned.supportedCipherSuites = supportedCipherSuites;
 		cloned.supportedSignatureAlgorithms = supportedSignatureAlgorithms;
 		cloned.supportedGroups = supportedGroups;
@@ -1494,6 +1515,23 @@ public final class DtlsConnectorConfig {
 				throw new IllegalArgumentException("client authentication is already wanted!");
 			}
 			config.clientAuthenticationRequired = authRequired;
+			return this;
+		}
+
+		/**
+		 * Sets the cipher suite selector.
+		 * <p>
+		 * The connector will use these selector to determine the cipher suite
+		 * and parameters during the handshake.
+		 * 
+		 * @param cipherSuiteSelector the cipher suite selector. Default
+		 *            ({@link DefaultCipherSuiteSelector}.
+		 * @return this builder for command chaining
+		 * 
+		 * @since 2.3
+		 */
+		public Builder setCipherSuiteSelector(CipherSuiteSelector cipherSuiteSelector) {
+			config.cipherSuiteSelector = cipherSuiteSelector;
 			return this;
 		}
 
@@ -2646,6 +2684,10 @@ public final class DtlsConnectorConfig {
 				config.supportedGroups = getDefaultSupportedGroups();
 			}
 
+			if (config.cipherSuiteSelector == null && !config.clientOnly) {
+				config.cipherSuiteSelector = new DefaultCipherSuiteSelector();
+			}
+
 			// check cipher consistency
 			if (config.supportedCipherSuites == null || config.supportedCipherSuites.isEmpty()) {
 				throw new IllegalStateException("Supported cipher suites must be set either " +
@@ -2817,15 +2859,17 @@ public final class DtlsConnectorConfig {
 		}
 
 		private void verifySignatureAndHashAlgorithms() {
-			if (config.certChain != null) {
-				if (SignatureAndHashAlgorithm.getSupportedSignatureAlgorithm(config.supportedSignatureAlgorithms,
-						config.certChain) == null) {
-					throw new IllegalStateException("supported signatures and algorithms doesn't match certificate!");
-				}
-			} else if (config.publicKey != null) {
+			if (config.publicKey != null) {
 				if (SignatureAndHashAlgorithm.getSupportedSignatureAlgorithm(config.supportedSignatureAlgorithms,
 						config.publicKey) == null) {
-					throw new IllegalStateException("supported signatures and algorithms doesn't match public key!");
+					throw new IllegalStateException("supported signature and hash algorithms doesn't match the public key!");
+				}
+				if (config.certChain != null) {
+					if (!SignatureAndHashAlgorithm.isSignedWithSupportedAlgorithms(config.supportedSignatureAlgorithms,
+							config.certChain)) {
+						throw new IllegalStateException(
+								"supported signature and hash algorithms doesn't match the certificate chain!");
+					}
 				}
 			}
 		}
@@ -2856,7 +2900,10 @@ public final class DtlsConnectorConfig {
 		private void verifySupportedGroups(List<SupportedGroup> list) {
 			if (config.certChain != null) {
 				for (X509Certificate certificate : config.certChain) {
-					verifySupportedGroups(list, certificate.getPublicKey());
+					PublicKey publicKey = certificate.getPublicKey();
+					if (SupportedGroup.isEcPublicKey(publicKey)) {
+						verifySupportedGroups(list, publicKey);
+					}
 				}
 			} else {
 				verifySupportedGroups(list, config.publicKey);

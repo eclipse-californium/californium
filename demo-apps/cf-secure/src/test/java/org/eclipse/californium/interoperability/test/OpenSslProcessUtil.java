@@ -43,8 +43,8 @@ public class OpenSslProcessUtil extends ProcessUtil {
 		CERTIFICATE, CHAIN, TRUST
 	}
 
-	private static final String DEFAULT_CURVES = "X25519:prime256v1";
-	private static final String DEFAULT_SIGALGS = "ECDSA+SHA384:ECDSA+SHA256";
+	public static final String DEFAULT_CURVES = "X25519:prime256v1";
+	public static final String DEFAULT_SIGALGS = "ECDSA+SHA384:ECDSA+SHA256:RSA+SHA256";
 
 	/**
 	 * Create instance.
@@ -54,16 +54,16 @@ public class OpenSslProcessUtil extends ProcessUtil {
 
 	public String startupClient(String destination, CipherSuite cipher, AuthenticationMode authMode)
 			throws IOException, InterruptedException {
-		return startupClient(destination, cipher, DEFAULT_CURVES, DEFAULT_SIGALGS, authMode);
+		return startupClient(destination, cipher, DEFAULT_CURVES, null, authMode);
 	}
 
-	public String startupClient(String destination, CipherSuite cipher,  String curves, AuthenticationMode authMode)
+	public String startupClient(String destination, CipherSuite cipher, String curves, AuthenticationMode authMode)
 			throws IOException, InterruptedException {
-		return startupClient(destination, cipher, curves, DEFAULT_SIGALGS, authMode);
+		return startupClient(destination, cipher, curves, null, authMode);
 	}
 
-	public String startupClient(String destination, CipherSuite cipher, String curves, String sigAlgs, AuthenticationMode authMode)
-			throws IOException, InterruptedException {
+	public String startupClient(String destination, CipherSuite cipher, String curves, String sigAlgs,
+			AuthenticationMode authMode) throws IOException, InterruptedException {
 		String openSslCipher = OpenSslUtil.CIPHERSUITES_MAP.get(cipher);
 
 		if (cipher.isPskBased()) {
@@ -74,17 +74,30 @@ public class OpenSslProcessUtil extends ProcessUtil {
 		return openSslCipher;
 	}
 
-	public void startupPskClient(String destination, String ciphers, String curves) throws IOException, InterruptedException {
+	public void startupPskClient(String destination, String ciphers, String curves)
+			throws IOException, InterruptedException {
 		execute("openssl", "s_client", "-dtls1_2", "-4", "-connect", destination, "-no-CAfile", "-cipher", ciphers,
 				"-curves", curves, "-psk", "73656372657450534b");
 	}
 
-	public void startupEcdsaClient(String destination, String ciphers, String curves, String sigAlgs, AuthenticationMode authMode)
-			throws IOException, InterruptedException {
+	public void startupEcdsaClient(String destination, String ciphers, String curves, String sigAlgs,
+			AuthenticationMode authMode) throws IOException, InterruptedException {
 		List<String> args = new ArrayList<String>();
 		args.addAll(Arrays.asList("openssl", "s_client", "-dtls1_2", "-4", "-connect", destination, "-cipher", ciphers,
-				"-curves", curves, "-sigalgs", sigAlgs, "-cert", "client.pem"));
+				"-cert", "client.pem"));
+		add(args, curves, sigAlgs);
 		startupEcdsa(args, authMode);
+	}
+
+	public void add(List<String> args, String curves, String sigAlgs) throws IOException, InterruptedException {
+		if (curves != null) {
+			args.add("-curves");
+			args.add(curves);
+		}
+		if (sigAlgs != null) {
+			args.add("-sigalgs");
+			args.add(sigAlgs);
+		}
 	}
 
 	public String startupServer(String accept, CipherSuite cipher, AuthenticationMode authMode)
@@ -105,9 +118,15 @@ public class OpenSslProcessUtil extends ProcessUtil {
 
 	public void startupEcdsaServer(String accept, String ciphers, AuthenticationMode authMode)
 			throws IOException, InterruptedException {
+		startupEcdsaServer(accept, ciphers, null, null, authMode);
+	}
+
+	public void startupEcdsaServer(String accept, String ciphers, String curves, String sigAlgs,
+			AuthenticationMode authMode) throws IOException, InterruptedException {
 		List<String> args = new ArrayList<String>();
 		args.addAll(Arrays.asList("openssl", "s_server", "-4", "-dtls1_2", "-accept", accept, "-listen", "-verify", "5",
 				"-cipher", ciphers, "-cert", "server.pem"));
+		add(args, curves, sigAlgs);
 		startupEcdsa(args, authMode);
 	}
 

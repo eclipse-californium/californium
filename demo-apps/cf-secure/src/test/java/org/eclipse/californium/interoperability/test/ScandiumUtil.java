@@ -36,6 +36,7 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.elements.util.SimpleRawDataChannel;
 import org.eclipse.californium.elements.util.SslContextUtil;
+import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.eclipse.californium.examples.CredentialsUtil;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -58,6 +59,7 @@ public class ScandiumUtil {
 	private static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
 	private static final String CLIENT_NAME = "client";
 	private static final String SERVER_NAME = "server";
+	private static final String SERVER_RSA_NAME = "serverrsa";
 	public static final String TRUST_CA = "ca";
 	public static final String TRUST_ROOT = "root";
 
@@ -77,6 +79,10 @@ public class ScandiumUtil {
 	 * Credentials for ECDSA base cipher suites.
 	 */
 	private SslContextUtil.Credentials credentials;
+	/**
+	 * Credentials for ECDSA base cipher suites with RSA chain.
+	 */
+	private SslContextUtil.Credentials credentialsRsa;
 	private Certificate[] trustCa;
 	private Certificate[] trustRoot;
 	private Certificate[] trustAll;
@@ -91,6 +97,9 @@ public class ScandiumUtil {
 		try {
 			credentials = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION,
 					client ? CLIENT_NAME : SERVER_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+			credentialsRsa = client ? null
+					: SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION,
+							SERVER_RSA_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 			trustCa = SslContextUtil.loadTrustedCertificates(SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION,
 					TRUST_CA, TRUST_STORE_PASSWORD);
 			trustRoot = SslContextUtil.loadTrustedCertificates(SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION,
@@ -126,13 +135,14 @@ public class ScandiumUtil {
 	 *                     provided bind address
 	 */
 	public void start(InetSocketAddress bind, String trust, CipherSuite... cipherSuites) throws IOException {
-		start(bind, null, trust, cipherSuites);
+		start(bind, false, null, trust, cipherSuites);
 	}
 
 	/**
 	 * Start connector.
 	 * 
 	 * @param bind         address to bind connector to
+	 * @param rsa          use mixed certifcate path (includes RSA certificate). Server only!
 	 * @param dtlsBuilder  preconfigured dtls builder. Maybe {@link null}.
 	 * @param trust        alias of trusted certificate, or {@code null} to trust
 	 *                     all received certificates.
@@ -140,7 +150,8 @@ public class ScandiumUtil {
 	 * @throws IOException if an error occurred starting the connector on the
 	 *                     provided bind address
 	 */
-	public void start(InetSocketAddress bind, DtlsConnectorConfig.Builder dtlsBuilder, String trust, CipherSuite... cipherSuites) throws IOException {
+	public void start(InetSocketAddress bind, boolean rsa, DtlsConnectorConfig.Builder dtlsBuilder, String trust,
+			CipherSuite... cipherSuites) throws IOException {
 		List<CipherSuite> suites = Arrays.asList(cipherSuites);
 		if (dtlsBuilder == null) {
 			dtlsBuilder = new DtlsConnectorConfig.Builder();
@@ -154,7 +165,8 @@ public class ScandiumUtil {
 					new StaticPskStore(CredentialsUtil.OPEN_PSK_IDENTITY, CredentialsUtil.OPEN_PSK_SECRET));
 		}
 		if (CipherSuite.containsCipherSuiteRequiringCertExchange(suites)) {
-			if (credentials != null) {
+			if (credentials != null && dtlsBuilder.getIncompleteConfig().getPrivateKey() == null) {
+				Credentials credentials = rsa ? this.credentialsRsa : this.credentials;
 				dtlsBuilder.setIdentity(credentials.getPrivateKey(), credentials.getCertificateChain(),
 						CertificateType.X_509, CertificateType.RAW_PUBLIC_KEY);
 				if (TRUST_CA.equals(trust)) {

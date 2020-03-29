@@ -125,7 +125,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
 		dtlsBuilder.setUseTruncatedCertificatePathForClientsCertificateMessage(false);
-		scandiumUtil.start(BIND, dtlsBuilder, null, cipherSuite);
+		scandiumUtil.start(BIND, false, dtlsBuilder, null, cipherSuite);
 		connect(cipher);
 	}
 
@@ -186,7 +186,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
 		dtlsBuilder.setSupportedGroups(SupportedGroup.X25519, SupportedGroup.secp256r1);
 
-		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
+		scandiumUtil.start(BIND, false, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 		connect(cipher, "Shared Elliptic groups: X25519");
 	}
 
@@ -198,7 +198,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
 		dtlsBuilder.setSupportedGroups(SupportedGroup.X448, SupportedGroup.secp256r1);
 
-		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
+		scandiumUtil.start(BIND, false, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 		connect(cipher, "Shared Elliptic groups: X448");
 	}
 
@@ -209,7 +209,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
 		dtlsBuilder.setSupportedGroups(SupportedGroup.secp256r1);
 
-		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
+		scandiumUtil.start(BIND, false, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 		connect(cipher, "Shared Elliptic groups: P-256");
 	}
 
@@ -220,7 +220,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
 		dtlsBuilder.setSupportedGroups(SupportedGroup.secp384r1, SupportedGroup.secp256r1);
 
-		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
+		scandiumUtil.start(BIND, false, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 		connect(cipher, "Shared Elliptic groups: P-384");
 	}
 

@@ -300,7 +300,7 @@ public class DtlsConnectorConfigTest {
 	public void testBuildDetectsErrorForSignatureAndHashAlgorithmsRpk() throws IOException, GeneralSecurityException {
 		SignatureAndHashAlgorithm algo = new SignatureAndHashAlgorithm(HashAlgorithm.SHA256, SignatureAlgorithm.DSA);
 		exception.expect(IllegalStateException.class);
-		exception.expectMessage("supported signatures and algorithms doesn't match public key!");
+		exception.expectMessage("supported signature and hash algorithms doesn't match the public key!");
 		builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
 				.setRpkTrustAll()
 				.setSupportedSignatureAlgorithms(algo)
@@ -310,11 +310,21 @@ public class DtlsConnectorConfigTest {
 	@Test
 	public void testBuildDetectsErrorForSignatureAndHashAlgorithmsX509() throws IOException, GeneralSecurityException {
 		exception.expect(IllegalStateException.class);
-		exception.expectMessage("supported signatures and algorithms doesn't match certificate!");
+		exception.expectMessage("supported signature and hash algorithms doesn't match the certificate chain!");
 		builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain())
 				.setTrustStore(new Certificate[0])
 				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA1_WITH_ECDSA)
 				.build();
+	}
+
+	@Test
+	public void testSupportedGroupForMixedCertificateChain() throws IOException, GeneralSecurityException {
+		DtlsConnectorConfig config = builder
+				.setIdentity(DtlsTestTools.getServerRsPrivateKey(), DtlsTestTools.getServerRsaCertificateChain())
+				.setTrustStore(new Certificate[0])
+				.build();
+		assertNotNull(config.getSupportedGroups());
+		assertFalse(config.getSupportedGroups().isEmpty());
 	}
 
 	@Test

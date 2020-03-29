@@ -509,9 +509,14 @@ public final class CertificateRequest extends HandshakeMessage {
 	 *         compatible with any of the supported certificate types or any of the supported signature algorithms.
 	 */
 	public SignatureAndHashAlgorithm getSignatureAndHashAlgorithm(List<X509Certificate> chain) {
-
-		if (isSupportedKeyType(chain.get(0))) {
-			return SignatureAndHashAlgorithm.getSupportedSignatureAlgorithm(supportedSignatureAlgorithms, chain);
+		X509Certificate certificate = chain.get(0);
+		if (isSupportedKeyType(certificate)) {
+			SignatureAndHashAlgorithm signatureAndHashAlgorithm = SignatureAndHashAlgorithm
+					.getSupportedSignatureAlgorithm(supportedSignatureAlgorithms, certificate.getPublicKey());
+			if (signatureAndHashAlgorithm != null
+					&& SignatureAndHashAlgorithm.isSignedWithSupportedAlgorithms(supportedSignatureAlgorithms, chain)) {
+				return signatureAndHashAlgorithm;
+			}
 		}
 		return null;
 	}
