@@ -63,7 +63,6 @@ import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.core.server.resources.ResourceAttributes;
 import org.eclipse.californium.core.server.resources.ResourceObserver;
-import org.eclipse.californium.core.server.resources.ResourceObserverAdapter;
 
 /**
  * CoapResource is a basic implementation of a resource. Extend this class to
@@ -350,22 +349,7 @@ public  class CoapResource implements Resource {
 
 			if (!relation.isEstablished()) {
 				relation.setEstablished();
-				// work-around for missing return value of addObserveRelation
-				// maybe replaced by next major version
-				ResourceObserver observer = new ResourceObserverAdapter() {
-
-					@Override
-					public void removedObserveRelation(ObserveRelation previous) {
-						if (previous.getKey().equals(relation.getKey())) {
-							// new observe number, if a old relation is
-							// replaced!
-							notificationOrderer.getNextObserveNumber();
-						}
-					}
-				};
-				addObserver(observer);
 				addObserveRelation(relation);
-				removeObserver(observer);
 			} else if (observeType != null) {
 				// The resource can control the message type of the notification
 				response.setType(observeType);

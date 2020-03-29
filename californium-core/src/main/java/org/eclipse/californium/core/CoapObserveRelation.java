@@ -338,15 +338,24 @@ public class CoapObserveRelation {
 	 *         {@code false} otherwise.
 	 */
 	protected boolean onResponse(CoapResponse response) {
-		if (null != response && orderer.isNew(response.advanced())) {
-			current = response;
-			if (response.getOptions().hasObserve() && !isCanceled()) {
+		boolean isNew = false;
+		if (null != response) {
+			Integer observe = response.getOptions().getObserve();
+			// check, if observation is still ongoing
+			boolean prepareNext = observe != null && !isCanceled();
+			isNew = orderer.isNew(response.advanced());
+			if (isNew) {
+				current = response;
+			} else if (prepareNext) {
+				// renew preparation also for reregistration responses,
+				// which may still be unchanged
+				prepareNext = orderer.getCurrent() == observe;
+			}
+			if (prepareNext) {
 				prepareReregistration(response);
 			}
-			return true;
-		} else {
-			return false;
 		}
+		return isNew;
 	}
 
 	private void setReregistrationHandle(ScheduledFuture<?> reregistrationHandle) {
