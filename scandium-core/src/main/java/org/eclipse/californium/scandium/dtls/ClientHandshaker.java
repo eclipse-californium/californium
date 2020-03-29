@@ -573,7 +573,7 @@ public class ClientHandshaker extends Handshaker {
 				// empty certificate, if no proper certificate chain is available
 				List<X509Certificate> clientChain = Collections.emptyList();
 				if (certificateChain != null) {
-					negotiatedSignatureAndHashAlgorithm = certificateRequest.getSignatureAndHashAlgorithm(publicKey);
+					negotiatedSignatureAndHashAlgorithm = certificateRequest.getSignatureAndHashAlgorithm(certificateChain);
 					if (negotiatedSignatureAndHashAlgorithm != null) {
 						clientChain = certificateChain;
 					}

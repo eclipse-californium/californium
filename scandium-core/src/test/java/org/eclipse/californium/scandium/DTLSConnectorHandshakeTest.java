@@ -573,6 +573,21 @@ public class DTLSConnectorHandshakeTest {
 	}
 
 	@Test
+	public void testX509MixedCertificateChainHandshakeAuthWantedAnonymClient() throws Exception {
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+				.setClientAuthenticationWanted(true)
+				.setIdentity(DtlsTestTools.getServerRsPrivateKey(), DtlsTestTools.getServerRsaCertificateChain())
+				.setApplicationLevelInfoSupplier(clientInfoSupplier);
+		startServer(builder);
+		startAnonymClientX509(false, null);
+		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
+		Principal principal = endpointContext.getPeerIdentity();
+		assertThat(principal, is(nullValue()));
+		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		verify(clientInfoSupplier, never()).getInfo(any(Principal.class));
+	}
+
+	@Test
 	public void testPskHandshakeWithCid() throws Exception {
 		startServer(false, false, false, new SingleNodeConnectionIdGenerator(6));
 		startClientPsk(false, null, new SingleNodeConnectionIdGenerator(4), new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()));
@@ -639,7 +654,6 @@ public class DTLSConnectorHandshakeTest {
 				.setClientAuthenticationWanted(false)
 				.setSniEnabled(false)
 				.setNoServerSessionId(true)
-				.setLoggingTag("server")
 				.setApplicationLevelInfoSupplier(clientInfoSupplier);
 		startServer(builder);
 		startClientPsk(false, null, null, new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()));
@@ -840,7 +854,6 @@ public class DTLSConnectorHandshakeTest {
 	public void testX509HandshakeSignatureAlgorithmsExtensionSha384Ecdsa() throws Exception {
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
 				.setClientAuthenticationRequired(true)
-				.setLoggingTag("server")
 				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA384_WITH_ECDSA,
 						SignatureAndHashAlgorithm.SHA256_WITH_ECDSA)
 				.setApplicationLevelInfoSupplier(clientInfoSupplier);

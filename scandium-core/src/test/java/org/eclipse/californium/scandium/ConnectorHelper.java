@@ -157,7 +157,6 @@ public class ConnectorHelper {
 		pskStore.setKey(SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME);
 
 		builder.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
-				.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509)
 				.setPskStore(pskStore)
 				.setMaxConnections(SERVER_CONNECTION_STORE_CAPACITY)
 				.setMaxTransmissionUnit(1024)
@@ -165,6 +164,11 @@ public class ConnectorHelper {
 				.setConnectionThreadCount(2)
 				.setLoggingTag("server")
 				.setServerOnly(true);
+
+		if (builder.getIncompleteConfig().getPrivateKey() == null) {
+			builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(),
+					CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509);
+		}
 
 		if (builder.getIncompleteConfig().getSupportedCipherSuites() == null) {
 			List<CipherSuite> list = new ArrayList<>(CipherSuite.getEcdsaCipherSuites(false));

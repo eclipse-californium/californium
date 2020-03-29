@@ -165,7 +165,7 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
 		dtlsBuilder.setClientAuthenticationRequired(false);
 		
-		scandiumUtil.start(BIND, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
+		scandiumUtil.start(BIND, false, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 
 
 		String cipher = processUtil.startupClient(DESTINATION, cipherSuite, AuthenticationMode.TRUST);
@@ -204,6 +204,15 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 
 		String cipher = processUtil.startupClient(DESTINATION, cipherSuite, "secp384r1:prime256v1", AuthenticationMode.TRUST);
 		connect(cipher, "ECDH, P-384");
+	}
+
+	@Test
+	public void testOpenSslClientMixedCertificatChain() throws Exception {
+		scandiumUtil.start(BIND, true, null, ScandiumUtil.TRUST_ROOT, cipherSuite);
+
+		String cipher = processUtil.startupClient(DESTINATION, cipherSuite, OpenSslProcessUtil.DEFAULT_CURVES,
+				OpenSslProcessUtil.DEFAULT_SIGALGS, AuthenticationMode.TRUST);
+		connect(cipher);
 	}
 
 	public void connect(String cipher, String... misc) throws Exception {

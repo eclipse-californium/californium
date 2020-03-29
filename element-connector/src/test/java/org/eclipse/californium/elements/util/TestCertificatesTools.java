@@ -31,12 +31,20 @@ public class TestCertificatesTools {
 	public static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
 	public static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
 	public static final String SERVER_NAME = "server";
+	/**
+	 * Alias for mixed signed server certificate chain. Include ECDSA and RSA
+	 * certificates.
+	 * 
+	 * @since 2.3
+	 */
+	public static final String SERVER_RSA_NAME = "serverrsa";
 	public static final String CLIENT_NAME = "client";
 	public static final String ROOT_CA_ALIAS = "root";
 	public static final String CA_ALIAS = "ca";
 	public static final String NO_SIGNING_ALIAS = "nosigning";
 	private static SslContextUtil.Credentials clientCredentials;
 	private static SslContextUtil.Credentials serverCredentials;
+	private static SslContextUtil.Credentials serverRsaCredentials;
 	private static X509Certificate[] trustedCertificates;
 	private static X509Certificate rootCaCertificate;
 	private static X509Certificate caCertificate;
@@ -46,10 +54,13 @@ public class TestCertificatesTools {
 		try {
 			// load key stores once only
 			clientCredentials = SslContextUtil.loadCredentials(
-					SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, "client", KEY_STORE_PASSWORD,
+					SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, CLIENT_NAME, KEY_STORE_PASSWORD,
 					KEY_STORE_PASSWORD);
 			serverCredentials = SslContextUtil.loadCredentials(
-					SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, "server", KEY_STORE_PASSWORD,
+					SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, SERVER_NAME, KEY_STORE_PASSWORD,
+					KEY_STORE_PASSWORD);
+			serverRsaCredentials = SslContextUtil.loadCredentials(
+					SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, SERVER_RSA_NAME, KEY_STORE_PASSWORD,
 					KEY_STORE_PASSWORD);
 			Certificate[] certificates = SslContextUtil.loadTrustedCertificates(
 					SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, null, TRUST_STORE_PASSWORD);
@@ -77,6 +88,19 @@ public class TestCertificatesTools {
 		return Arrays.copyOf(certificateChain, certificateChain.length);
 	}
 
+	/**
+	 * Get mixed server certificate chain. Contains ECDSA and RSA certificates.
+	 * 
+	 * @return mixed server certificate chain
+	 * @throws IOException if the key store cannot be read
+	 * @throws GeneralSecurityException if the key cannot be found
+	 * @since 2.3
+	 */
+	public static X509Certificate[] getServerRsaCertificateChain()	throws IOException, GeneralSecurityException {
+		X509Certificate[] certificateChain = serverRsaCredentials.getCertificateChain();
+		return Arrays.copyOf(certificateChain, certificateChain.length);
+	}
+
 	public static X509Certificate[] getClientCertificateChain()	throws IOException, GeneralSecurityException {
 		X509Certificate[] certificateChain = clientCredentials.getCertificateChain();
 		return Arrays.copyOf(certificateChain, certificateChain.length);
@@ -91,6 +115,19 @@ public class TestCertificatesTools {
 	 */
 	public static PrivateKey getPrivateKey() throws IOException, GeneralSecurityException {
 		return serverCredentials.getPrivateKey();
+	}
+
+	/**
+	 * Gets the server's private key from the example key store. Use the server
+	 * with mixed certificate chain wiht ECDSA and RSA certificates.
+	 * 
+	 * @return the key
+	 * @throws IOException if the key store cannot be read
+	 * @throws GeneralSecurityException if the key cannot be found
+	 * @since 2.3
+	 */
+	public static PrivateKey getServerRsPrivateKey() throws IOException, GeneralSecurityException {
+		return serverRsaCredentials.getPrivateKey();
 	}
 
 	/**

@@ -180,6 +180,54 @@ public final class SignatureAndHashAlgorithm {
 	}
 
 	/**
+	 * Get signature and hash algorithm from JCA name.
+	 * 
+	 * @param jcaName name of signature and hash algorithm. e.g.
+	 *            "SHA256withECDSA".
+	 * @return signature and hash algorithm, or {@code null}, if signature or
+	 *         hash is unknown.
+	 * 
+	 * @since 2.3
+	 */
+	public static SignatureAndHashAlgorithm valueOf(String jcaName) {
+		int index = jcaName.indexOf("with");
+		if (index < 0) {
+			index = jcaName.indexOf("WITH");
+		}
+		if (0 < index) {
+			String hash = jcaName.substring(0, index);
+			String signature = jcaName.substring(index + 4, jcaName.length());
+			HashAlgorithm hashAlgorithm = HashAlgorithm.valueOf(hash);
+			SignatureAlgorithm signatureAlgorithm = SignatureAlgorithm.valueOf(signature);
+			if (hashAlgorithm != null && signatureAlgorithm != null) {
+				return new SignatureAndHashAlgorithm(hashAlgorithm, signatureAlgorithm);
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Get list of signature and hash algorithms from certificate chain.
+	 * 
+	 * @param certificateChain certificate chain
+	 * @return list list of signature and hash algorithms
+	 * 
+	 * @since 2.3
+	 */
+	public static List<SignatureAndHashAlgorithm> getSignatureAlgorithmsFromCertificateChain(
+			List<X509Certificate> certificateChain) {
+		List<SignatureAndHashAlgorithm> result = new ArrayList<>();
+		for (X509Certificate certificate : certificateChain) {
+			String sigAlgName = certificate.getSigAlgName();
+			SignatureAndHashAlgorithm signature = valueOf(sigAlgName);
+			if (signature != null && !result.contains(signature)) {
+				result.add(signature);
+			}
+		}
+		return result;
+	}
+
+	/**
 	 * Get the common signature and hash algorithms in the order of the proposed
 	 * list.
 	 * 
@@ -203,31 +251,6 @@ public final class SignatureAndHashAlgorithm {
 			}
 		}
 		return result;
-	}
-
-	/**
-	 * Gets a signature and hash algorithm that is compatible with a given
-	 * certificate chain.
-	 * 
-	 * @param supportedSignatureAlgorithms list of supported signature and hash
-	 *            algorithms.
-	 * @param chain The certificate chain.
-	 * @return A signature and hash algorithm that can be used with the key
-	 *         contained in the given chain's end entity certificate, or
-	 *         {@code null}, if any of the chain's certificates is not
-	 *         compatible with any of the supported signature and hash
-	 *         algorithms.
-	 * 
-	 * @since 2.3
-	 */
-	public static SignatureAndHashAlgorithm getSupportedSignatureAlgorithm(
-			List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms, List<X509Certificate> chain) {
-
-		if (isSignedWithSupportedAlgorithm(supportedSignatureAlgorithms, chain)) {
-			PublicKey key = chain.get(0).getPublicKey();
-			return getSupportedSignatureAlgorithm(supportedSignatureAlgorithms, key);
-		}
-		return null;
 	}
 
 	/**
@@ -259,16 +282,20 @@ public final class SignatureAndHashAlgorithm {
 	}
 
 	/**
-	 * Checks if all of a given certificate chain's certificates have been signed using one of the
-	 * algorithms supported by the server.
+	 * Checks if all of a given certificates in the chain have been signed using
+	 * a algorithm supported by the server.
 	 * 
-	 * @param cert The certificate chain to test.
-	 * @return {@code true} if all certificates have been signed using one of the supported algorithms.
+	 * @param supportedSignatureAlgorithms list of supported signature and hash
+	 *            algorithms.
+	 * @param certificateChain The certificate chain to test.
+	 * @return {@code true} if all certificates have been signed using a
+	 *         supported algorithm.
 	 * 
 	 * @since 2.3
 	 */
-	private static boolean isSignedWithSupportedAlgorithm(List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms, List<X509Certificate> chain) {
-		for (X509Certificate certificate : chain) {
+	public static boolean isSignedWithSupportedAlgorithms(List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms,
+			List<X509Certificate> certificateChain) {
+		for (X509Certificate certificate : certificateChain) {
 			if (!isSignedWithSupportedAlgorithm(supportedSignatureAlgorithms, certificate)) {
 				return false;
 			}
