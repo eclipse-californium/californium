@@ -21,8 +21,6 @@ import static org.junit.Assert.*;
 
 import java.util.Arrays;
 
-import org.eclipse.californium.oscore.OSCoreCtx;
-import org.eclipse.californium.oscore.OSException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;

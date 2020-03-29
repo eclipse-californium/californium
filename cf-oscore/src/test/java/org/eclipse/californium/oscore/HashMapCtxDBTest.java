@@ -19,9 +19,6 @@ package org.eclipse.californium.oscore;
 import static org.junit.Assert.*;
 
 import org.eclipse.californium.core.coap.Token;
-import org.eclipse.californium.oscore.HashMapCtxDB;
-import org.eclipse.californium.oscore.OSCoreCtx;
-import org.eclipse.californium.oscore.OSException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;

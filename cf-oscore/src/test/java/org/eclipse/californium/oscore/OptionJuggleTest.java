@@ -30,7 +30,6 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
-import org.eclipse.californium.oscore.OptionJuggle;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;

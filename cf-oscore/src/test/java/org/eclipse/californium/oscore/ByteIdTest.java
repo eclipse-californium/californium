@@ -20,7 +20,6 @@ import static org.junit.Assert.*;
 
 import java.util.Arrays;
 
-import org.eclipse.californium.oscore.ByteId;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
