@@ -83,10 +83,11 @@ public class ObserveNotificationOrderer {
 	}
 
 	/**
-	 * Returns true if the specified notification is newer than the current one.
+	 * Check, if the provided notification is newer than the current one.
 	 * 
 	 * @param response the notification
-	 * @return true if the notification is new
+	 * @return {@code true} if the notification is new, or the response is no
+	 *         notify
 	 */
 	public synchronized boolean isNew(Response response) {
 
