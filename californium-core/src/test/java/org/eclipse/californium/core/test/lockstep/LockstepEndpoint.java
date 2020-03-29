@@ -264,6 +264,10 @@ public class LockstepEndpoint {
 		return expectResponse().type(type).code(code).token(token).mid(mid);
 	}
 
+	public ResponseExpectation expectSeparateResponse(Type type, ResponseCode code, Token token) {
+		return expectResponse().type(type).code(code).token(token);
+	}
+
 	public EmptyMessageExpectation expectEmpty(Type type, int mid) {
 		return new EmptyMessageExpectation(type, mid);
 	}
@@ -1148,6 +1152,21 @@ public class LockstepEndpoint {
 				public void check(Response response) {
 					assertTrue("Has no observe option", response.getOptions().hasObserve());
 					storage.put(key, response.getOptions().getObserve());
+				}
+			});
+			return this;
+		}
+
+		public ResponseExpectation sameObserve(final String var) {
+			expectations.add(new Expectation<Response>() {
+
+				@Override
+				public void check(final Response response) {
+					assertTrue("Response has no observer", response.getOptions().hasObserve());
+					Object obj = storage.get(var);
+					assertThat("Object stored under " + var + " is not an observe option", obj, is(instanceOf(Integer.class)));
+					assertThat("Response contains wrong observe option", (Integer) obj,
+							is(response.getOptions().getObserve()));
 				}
 			});
 			return this;

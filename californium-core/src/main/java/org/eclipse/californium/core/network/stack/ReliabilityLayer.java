@@ -219,8 +219,10 @@ public class ReliabilityLayer extends AbstractLayer {
 					if (request.isConfirmable()) {
 						// resend ACK,
 						// comply to RFC 7252, 4.2, cross-layer behavior
-						EmptyMessage ack = EmptyMessage.newACK(request);
-						sendEmptyMessage(exchange, ack);
+						if (request.acknowledge()) {
+							EmptyMessage ack = EmptyMessage.newACK(request);
+							sendEmptyMessage(exchange, ack);
+						}
 					}
 					if (type == Type.CON) {
 						// retransmission cycle
@@ -235,6 +237,11 @@ public class ReliabilityLayer extends AbstractLayer {
 							sendResponse(exchange, currentResponse);
 						}
 						return;
+					} else if (currentResponse.isNotification()) {
+						// notifications are kept in the exchange store, so
+						// prepare retransmission counter for retransmission
+						int failedCount = exchange.getFailedTransmissionCount() + 1;
+						exchange.setFailedTransmissionCount(failedCount);
 					}
 				}
 				LOGGER.debug("{} respond with the current response to the duplicate request", exchange);
