@@ -40,8 +40,6 @@ import org.eclipse.californium.elements.TlsEndpointContextMatcher;
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
-import org.eclipse.californium.elements.tcp.netty.TlsClientConnector;
-import org.eclipse.californium.elements.tcp.netty.TlsServerConnector;
 import org.eclipse.californium.elements.tcp.netty.TlsConnectorTestUtil.SSLTestContext;
 import org.eclipse.californium.elements.tcp.netty.TlsServerConnector.ClientAuthMode;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
