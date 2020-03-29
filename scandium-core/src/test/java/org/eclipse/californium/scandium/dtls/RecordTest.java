@@ -34,8 +34,6 @@ import javax.crypto.spec.SecretKeySpec;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.scandium.category.Small;
-import org.eclipse.californium.scandium.dtls.ContentType;
-import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.cipher.CCMBlockCipher;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.SecretIvParameterSpec;

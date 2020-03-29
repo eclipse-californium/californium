@@ -33,7 +33,6 @@ import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
-import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.junit.Before;
 import org.junit.Test;

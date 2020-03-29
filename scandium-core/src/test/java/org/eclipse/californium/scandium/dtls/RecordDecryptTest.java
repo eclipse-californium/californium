@@ -33,7 +33,6 @@ import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.category.Small;
-import org.eclipse.californium.scandium.dtls.ContentType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
 import org.eclipse.californium.scandium.util.SecretIvParameterSpec;

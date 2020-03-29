@@ -37,7 +37,6 @@ import java.security.cert.Certificate;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
-import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
