@@ -145,9 +145,9 @@ public class CertPathUtilTest {
 
 	@Test
 	public void testCanBeUsedForClientAuthentication() throws Exception {
-		X509Certificate[] certificates = TestCertificatesTools.getTrustedCertificates();
+		X509Certificate caCertificate = TestCertificatesTools.getTrustedCA();
 		X509Certificate[] clientCertificates = TestCertificatesTools.getClientCertificateChain();
-		assertFalse(CertPathUtil.canBeUsedForAuthentication(certificates[0], true));
+		assertFalse(CertPathUtil.canBeUsedForAuthentication(caCertificate, true));
 		assertTrue(CertPathUtil.canBeUsedForAuthentication(clientCertificates[0], true));
 		assertTrue(CertPathUtil.canBeUsedForAuthentication(clientChainExtUsage[0], true));
 		assertTrue(CertPathUtil.canBeUsedForAuthentication(clientSelfsigned[0], true));
@@ -155,9 +155,9 @@ public class CertPathUtilTest {
 
 	@Test
 	public void testCanBeUsedForServerAuthentication() throws Exception {
-		X509Certificate[] certificates = TestCertificatesTools.getTrustedCertificates();
+		X509Certificate caCertificate = TestCertificatesTools.getTrustedCA();
 		X509Certificate[] serverCertificates = TestCertificatesTools.getServerCertificateChain();
-		assertFalse(CertPathUtil.canBeUsedForAuthentication(certificates[0], false));
+		assertFalse(CertPathUtil.canBeUsedForAuthentication(caCertificate, false));
 		assertTrue(CertPathUtil.canBeUsedForAuthentication(serverCertificates[0], false));
 		assertFalse(CertPathUtil.canBeUsedForAuthentication(clientChainExtUsage[0], false));
 		assertTrue(CertPathUtil.canBeUsedForAuthentication(clientSelfsigned[0], false));
