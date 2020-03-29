@@ -18,8 +18,6 @@ package org.eclipse.californium.elements.util;
 import java.util.Arrays;
 import java.util.Random;
 
-import org.eclipse.californium.elements.util.StringUtil;
-
 /**
  * Byte array as key.
  */

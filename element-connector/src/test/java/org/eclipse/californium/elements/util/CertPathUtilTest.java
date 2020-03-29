@@ -38,7 +38,6 @@ import java.util.List;
 
 import javax.security.auth.x500.X500Principal;
 
-import org.eclipse.californium.elements.util.SslContextUtil;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
