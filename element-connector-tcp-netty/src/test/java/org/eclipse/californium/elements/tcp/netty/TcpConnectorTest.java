@@ -35,8 +35,6 @@ import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
-import org.eclipse.californium.elements.tcp.netty.TcpClientConnector;
-import org.eclipse.californium.elements.tcp.netty.TcpServerConnector;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.junit.After;
 import org.junit.Rule;

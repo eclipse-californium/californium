@@ -43,8 +43,6 @@ import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
-import org.eclipse.californium.elements.tcp.netty.TlsClientConnector;
-import org.eclipse.californium.elements.tcp.netty.TlsServerConnector;
 import org.junit.After;
 import org.junit.BeforeClass;
 import org.junit.Rule;
