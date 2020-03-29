@@ -22,7 +22,6 @@ import static org.junit.Assert.*;
 import java.net.InetSocketAddress;
 
 import org.eclipse.californium.scandium.category.Small;
-import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.junit.Before;
 import org.junit.Test;

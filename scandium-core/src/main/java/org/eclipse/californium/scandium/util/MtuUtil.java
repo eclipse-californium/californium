@@ -15,9 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.util;
 
-import java.net.NetworkInterface;
 import java.net.SocketException;
-import java.util.Enumeration;
 
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 
