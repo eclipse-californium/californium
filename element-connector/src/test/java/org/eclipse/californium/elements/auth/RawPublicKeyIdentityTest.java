@@ -27,7 +27,6 @@ import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
 
-import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
