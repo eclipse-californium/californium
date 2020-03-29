@@ -122,6 +122,11 @@ public final class DtlsConnectorConfig {
 	 */
 	public static final int DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT = 30;
 	/**
+	 * The default value for the <em>maxTransmissionUnitLimit</em> property.
+	 * @since 2.3
+	 */
+	public static final int DEFAULT_MAX_TRANSMISSION_UNIT_LIMIT = 1500;
+	/**
 	 * The default size of the executor's thread pool which is used for processing records.
 	 * <p>
 	 * The value of this property is 6 * <em>#(CPU cores)</em>.
@@ -180,6 +185,14 @@ public final class DtlsConnectorConfig {
 	 * Maximum transmission unit.
 	 */
 	private Integer maxTransmissionUnit;
+
+	/**
+	 * Maximum transmission unit limit for auto detection. Default
+	 * {@value #DEFAULT_MAX_TRANSMISSION_UNIT_LIMIT}
+	 * 
+	 * @since 2.3
+	 */
+	private Integer maxTransmissionUnitLimit;
 
 	/** does the server want/request the client to authenticate */
 	private Boolean clientAuthenticationWanted;
@@ -435,6 +448,19 @@ public final class DtlsConnectorConfig {
 	 */
 	public Integer getMaxTransmissionUnit() {
 		return maxTransmissionUnit;
+	}
+
+	/**
+	 * Gets the maximum transmission unit limit for auto detection.
+	 * 
+	 * Limit Maximum number of bytes sent in one transmission.
+	 * 
+	 * @return maximum transmission unit limit. Default
+	 *         {@value #DEFAULT_MAX_TRANSMISSION_UNIT_LIMIT}.
+	 * @since 2.3
+	 */
+	public Integer getMaxTransmissionUnitLimit() {
+		return maxTransmissionUnitLimit;
 	}
 
 	/**
@@ -969,6 +995,7 @@ public final class DtlsConnectorConfig {
 		cloned.retransmissionTimeout = retransmissionTimeout;
 		cloned.maxRetransmissions = maxRetransmissions;
 		cloned.maxTransmissionUnit = maxTransmissionUnit;
+		cloned.maxTransmissionUnitLimit = maxTransmissionUnitLimit;
 		cloned.clientAuthenticationRequired = clientAuthenticationRequired;
 		cloned.clientAuthenticationWanted = clientAuthenticationWanted;
 		cloned.serverOnly = serverOnly;
@@ -1315,9 +1342,40 @@ public final class DtlsConnectorConfig {
 		 * 
 		 * @param mtu maximum transmission unit
 		 * @return this builder for command chaining
+		 * @throws IllegalArgumentException if
+		 *             {@link #setMaxTransmissionUnitLimit(int)} was already set
 		 */
 		public Builder setMaxTransmissionUnit(int mtu) {
+			if (config.maxTransmissionUnitLimit != null) {
+				throw new IllegalArgumentException("MTU limit already set!");
+			}
 			config.maxTransmissionUnit = mtu;
+			return this;
+		}
+
+		/**
+		 * Set maximum transmission unit limit for auto detection.
+		 * 
+		 * Limits maximum number of bytes sent in one transmission.
+		 *
+		 * Note: previous versions toke the local link MTU without limits. That
+		 * results in possibly larger MTU, e.g. for localhost or some cloud
+		 * nodes using "jumbo frames". If a larger MTU is required, please
+		 * adjsut this limit to the requires value or use
+		 * {@link #setMaxTransmissionUnit(int)}.
+		 * 
+		 * @param limit maximum transmission unit limit. Default
+		 *            {@value #DEFAULT_MAX_TRANSMISSION_UNIT_LIMIT}
+		 * @return this builder for command chaining
+		 * @throws IllegalArgumentException if
+		 *             {@link #setMaxTransmissionUnit(int)} was already set
+		 * @since 2.3
+		 */
+		public Builder setMaxTransmissionUnitLimit(int limit) {
+			if (config.maxTransmissionUnit != null) {
+				throw new IllegalArgumentException("MTU already set!");
+			}
+			config.maxTransmissionUnitLimit = limit;
 			return this;
 		}
 
@@ -2366,6 +2424,9 @@ public final class DtlsConnectorConfig {
 			}
 			if (config.staleConnectionThreshold == null) {
 				config.staleConnectionThreshold = DEFAULT_STALE_CONNECTION_TRESHOLD;
+			}
+			if (config.maxTransmissionUnitLimit == null){
+				config.maxTransmissionUnitLimit = DEFAULT_MAX_TRANSMISSION_UNIT_LIMIT;
 			}
 			if (config.sniEnabled == null) {
 				config.sniEnabled = Boolean.FALSE;

@@ -713,6 +713,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 					this.maximumTransmissionUnit = DEFAULT_IPV6_MTU;
 				}
 			}
+			if (this.maximumTransmissionUnit > config.getMaxTransmissionUnitLimit()) {
+				this.maximumTransmissionUnit = config.getMaxTransmissionUnitLimit();
+			}
 		}
 
 		if (config.getMaxFragmentLengthCode() != null) {
