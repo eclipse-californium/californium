@@ -42,6 +42,7 @@ public class SslContextUtilCredentialsTest {
 
 	public static final String SERVER_P12_LOCATION = SslContextUtil.CLASSPATH_SCHEME + "certs/server.p12";
 	public static final String SERVER_PEM_LOCATION = SslContextUtil.CLASSPATH_SCHEME + "certs/server.pem";
+	public static final String SERVER_LARGE_PEM_LOCATION = SslContextUtil.CLASSPATH_SCHEME + "certs/serverLarge.pem";
 	public static final String PUBLIC_KEY_PEM_LOCATION = SslContextUtil.CLASSPATH_SCHEME + "certs/ec_public.pem";
 
 	public static final String ALIAS_SERVER = "server";
@@ -252,6 +253,15 @@ public class SslContextUtilCredentialsTest {
 	@Test
 	public void testLoadPemKeyManager() throws IOException, GeneralSecurityException {
 		KeyManager[] manager = SslContextUtil.loadKeyManager(SERVER_PEM_LOCATION, null, null,
+				null);
+		assertThat(manager, is(notNullValue()));
+		assertThat(manager.length, is(greaterThan(0)));
+		assertThat(manager[0], is(instanceOf(X509KeyManager.class)));
+	}
+
+	@Test
+	public void testLoadLargePemKeyManager() throws IOException, GeneralSecurityException {
+		KeyManager[] manager = SslContextUtil.loadKeyManager(SERVER_LARGE_PEM_LOCATION, null, null,
 				null);
 		assertThat(manager, is(notNullValue()));
 		assertThat(manager.length, is(greaterThan(0)));

@@ -33,11 +33,13 @@ public class TestCertificatesTools {
 	public static final String SERVER_NAME = "server";
 	public static final String CLIENT_NAME = "client";
 	public static final String ROOT_CA_ALIAS = "root";
+	public static final String CA_ALIAS = "ca";
 	public static final String NO_SIGNING_ALIAS = "nosigning";
 	private static SslContextUtil.Credentials clientCredentials;
 	private static SslContextUtil.Credentials serverCredentials;
 	private static X509Certificate[] trustedCertificates;
 	private static X509Certificate rootCaCertificate;
+	private static X509Certificate caCertificate;
 	private static X509Certificate nosigningCertificate; // a certificate without digitalSignature value in keyusage
 
 	static {
@@ -56,6 +58,9 @@ public class TestCertificatesTools {
 			certificates = SslContextUtil.loadTrustedCertificates(
 					SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, ROOT_CA_ALIAS, TRUST_STORE_PASSWORD);
 			rootCaCertificate = (X509Certificate) certificates[0];
+			certificates = SslContextUtil.loadTrustedCertificates(
+					SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, CA_ALIAS, TRUST_STORE_PASSWORD);
+			caCertificate = (X509Certificate) certificates[0];
 			X509Certificate[] chain = SslContextUtil.loadCertificateChain(
 					SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, NO_SIGNING_ALIAS, KEY_STORE_PASSWORD);
 			nosigningCertificate = chain[0];
@@ -139,6 +144,15 @@ public class TestCertificatesTools {
 	 */
 	public static X509Certificate getTrustedRootCA() {
 		return rootCaCertificate;
+	}
+
+	/**
+	 * Gets the trusted CA certificate.
+	 * 
+	 * @return The certificate.
+	 */
+	public static X509Certificate getTrustedCA() {
+		return caCertificate;
 	}
 
 	/**
