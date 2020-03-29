@@ -26,7 +26,6 @@ import static org.junit.Assert.assertThat;
 
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.Utils;
-import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.junit.Rule;
 import org.junit.Test;
