@@ -42,7 +42,7 @@ package org.eclipse.californium.cose;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
-import java.nio.charset.StandardCharsets;
+import org.eclipse.californium.elements.util.StandardCharsets;
 
 /**
  * The Message class provides a common class that all of the COSE message classes
@@ -51,7 +51,6 @@ import java.nio.charset.StandardCharsets;
  * 
  * @author jimsch
  */
-
 public abstract class Message extends Attribute {
     /**
      * Is the tag identifying the message emitted?

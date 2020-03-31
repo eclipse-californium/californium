@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.elements.util.CounterStatisticManager;
+import org.eclipse.californium.elements.util.NotForAndroid;
 import org.eclipse.californium.elements.util.SimpleCounterStatistic;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
@@ -36,6 +37,7 @@ import org.slf4j.LoggerFactory;
  * 
  * @since 2.2
  */
+@NotForAndroid
 public class NetStatLogger extends CounterStatisticManager {
 
 	/** the logger. */
