@@ -181,8 +181,8 @@ public final class XECDHECryptography implements Destroyable {
 			cls = Class.forName("java.security.interfaces.XECPublicKey");
 			getU = cls.getMethod("getU");
 			getParams = cls.getMethod("getParams");
-		} catch (Exception e) {
-			LOGGER.info("X25519/X448 not supported!");
+		} catch (Throwable t) {
+			LOGGER.info("X25519/X448 not supported!", t);
 		}
 		XECPublicKeyClass = cls;
 		XECPublicKeyGetU = getU;
@@ -596,8 +596,9 @@ public final class XECDHECryptography implements Destroyable {
 				curve= apub.getParams().getCurve();
 				keySize = (curve.getField().getFieldSize() + Byte.SIZE - 1) / Byte.SIZE;
 				EC_CURVE_MAP_BY_CURVE.put(curve, this);
-			} catch (GeneralSecurityException e) {
+			} catch (Throwable e) {
 				LOGGER.trace("Group [{}] is not supported by JRE! {}", name(), e.getMessage());
+				curve = null;
 			}
 			this.keySizeInBytes = keySize;
 			this.usable = curve != null;
@@ -626,7 +627,7 @@ public final class XECDHECryptography implements Destroyable {
 				keyPairGenerator.initialize(params);
 				keyPairGenerator.generateKeyPair();
 				usable = true;
-			} catch (GeneralSecurityException e) {
+			} catch (Throwable e) {
 				LOGGER.trace("Group [{}] is not supported by JRE! {}", name(), e.getMessage());
 			}
 			this.usable = usable;
