@@ -75,6 +75,9 @@ import org.junit.experimental.categories.Category;
  * Block-Wise responses, Block-Wise requests with normal responses and normal
  * requests with Block-Wise responses.
  * 
+ * It also tests messages that use outer block-wise and their cumulative payload
+ * size exceeds the MAX_UNFRAGMENTED_SIZE meaning they should be rejected.
+ * 
  */
 @Category(Medium.class)
 public class OSCoreOuterBlockwiseTest {
@@ -374,6 +377,104 @@ public class OSCoreOuterBlockwiseTest {
 		assertFalse(response.getOptions().hasBlock2());
 		assertEquals(this.payload + payload, response.getResponseText());
 		assertEquals(this.payload + payload, resource.currentPayload);
+		assertEquals(1, resource.getCounter());
+		client.shutdown();
+	}
+
+	/**
+	 * Perform PUT request via proxy with large request payload that is
+	 * exceeding the configured MAX_UNFRAGMENTED_SIZE parameter. Since the
+	 * cumulative size of the request block messages exceed this limit and use
+	 * outer block-wise its reception should be rejected by the server and a
+	 * 4.13 response sent. The proxy->server request will be Block-Wise.
+	 * 
+	 * @throws Exception on test failure
+	 */
+	@Test
+	public void testOuterBlockwiseExceedMaxUnfragmentedSizeProxyServerBW() throws Exception {
+		NetworkConfig config = NetworkConfig.getStandard();
+		config.setInt(NetworkConfig.Keys.MAX_RETRANSMIT, 0); // Don't retransmit
+
+		startupServer(false);
+		startupProxy(true, false);
+		setClientContext(serverUri);
+
+		OSCoreCtx ctx = dbServer.getContext(Bytes.EMPTY);
+		// Set acceptable cumulative request size.
+		// The actual request will be DEFAULT_BLOCK_SIZE * 4
+		ctx.setMaxUnfragmentedSize(DEFAULT_BLOCK_SIZE * 2);
+
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+		builder.setCoapStackFactory(new OSCoreCoapStackFactory());
+		builder.setCustomCoapStackArgument(dbClient);
+		CoapEndpoint clientEndpoint = builder.build();
+
+		String payload = createRandomPayload(DEFAULT_BLOCK_SIZE * 4);
+		Request request = Request.newPut().setURI(proxyUri);
+		request.getOptions().setProxyUri(serverUri);
+		if (USE_OSCORE) {
+			request.getOptions().setOscore(Bytes.EMPTY);
+		}
+		request.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
+		request.getOptions().setAccept(MediaTypeRegistry.TEXT_PLAIN);
+		request.setPayload(payload);
+
+		CoapClient client = new CoapClient();
+		client.setEndpoint(clientEndpoint);
+		cleanup.add(clientEndpoint);
+		CoapResponse response = client.advanced(request);
+
+		System.out.println(Utils.prettyPrint(response));
+		assertNotNull(response);
+		assertEquals(response.getCode(), CoAP.ResponseCode.REQUEST_ENTITY_TOO_LARGE);
+		assertFalse(response.getOptions().hasSize2());
+		assertFalse(response.getOptions().hasBlock1());
+		assertEquals(0, resource.getCounter());
+		client.shutdown();
+	}
+
+	/**
+	 * Perform GET request via proxy with large response payload that is
+	 * exceeding the configured MAX_UNFRAGMENTED_SIZE parameter. Since the
+	 * cumulative size of the response block messages exceed this limit and use
+	 * outer block-wise its reception should be rejected by the client. The
+	 * proxy->client response will be Block-Wise.
+	 * 
+	 * @throws Exception on test failure
+	 */
+	@Test
+	public void testOuterBlockwiseExceedMaxUnfragmentedSizeProxyClientBW() throws Exception {
+		NetworkConfig config = NetworkConfig.getStandard();
+		config.setInt(NetworkConfig.Keys.MAX_RETRANSMIT, 0); // Don't retransmit
+
+		startupServer(false);
+		startupProxy(false, true);
+		setClientContext(serverUri);
+
+		OSCoreCtx ctx = dbClient.getContext(serverUri);
+
+		// Set acceptable cumulative response size.
+		// The actual response will be DEFAULT_BLOCK_SIZE * 4
+		ctx.setMaxUnfragmentedSize(DEFAULT_BLOCK_SIZE * 2);
+
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+		builder.setCoapStackFactory(new OSCoreCoapStackFactory());
+		builder.setCustomCoapStackArgument(dbClient);
+		CoapEndpoint clientEndpoint = builder.build();
+
+		Request request = Request.newGet().setURI(proxyUri);
+		request.getOptions().setProxyUri(serverUri);
+		if (USE_OSCORE) {
+			request.getOptions().setOscore(Bytes.EMPTY);
+		}
+
+		CoapClient client = new CoapClient();
+		client.setEndpoint(clientEndpoint);
+		cleanup.add(clientEndpoint);
+
+		CoapResponse response = client.advanced(request);
+
+		assertNull(response);
 		assertEquals(1, resource.getCounter());
 		client.shutdown();
 	}
