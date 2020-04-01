@@ -29,6 +29,8 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.core.coap.CoAP.Code;
+import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 
 import com.upokecenter.cbor.CBORObject;
 
@@ -111,7 +113,18 @@ public class OSCoreCtx {
 	 * See https://tools.ietf.org/html/rfc8613#appendix-B.2
 	 */
 	private boolean contextRederivationEnabled;
-	
+
+	/**
+	 * When using outer block-wise with OSCORE a proxy can maliciously inject
+	 * block fragments. To protect against this a message with size exceeding
+	 * this parameter should never be sent without inner block-wise. Likewise
+	 * when receiving a message using outer block-wise it should be discarded if
+	 * the cumulated size exceeds this parameter.
+	 * 
+	 * See https://tools.ietf.org/html/rfc8613#section-4.1.3.4.2
+	 */
+	private int maxUnfragmentedSize;
+
 	/**
 	 * URI this Context is associated with if any.
 	 *
@@ -258,6 +271,9 @@ public class OSCoreCtx {
 
 		overrideContextId = null;
 		contextRederivationPhase = ContextRederivation.PHASE.INACTIVE;
+
+		// Set default value of MAX_UNFRAGMENTED_SIZE
+		maxUnfragmentedSize = NetworkConfig.getStandard().getInt(Keys.MAX_RESOURCE_BODY_SIZE);
 
 		//Set digest value depending on HKDF
 		String digest = null;
@@ -549,6 +565,26 @@ public class OSCoreCtx {
 	 */
 	public void setContextRederivationEnabled(boolean contextRederivationEnabled) {
 		this.contextRederivationEnabled = contextRederivationEnabled;
+	}
+
+	/**
+	 * Gets the current value of the MAX_UNFRAGMENTED_SIZE parameter. It is used
+	 * to prevent malicious behaviour by a proxy when using block-wise.
+	 * 
+	 * @return the current value of MAX_UNFRAGMENTED_SIZE
+	 */
+	public int getMaxUnfragmentedSize() {
+		return maxUnfragmentedSize;
+	}
+
+	/**
+	 * Sets the current value of the MAX_UNFRAGMENTED_SIZE parameter. It is used
+	 * to prevent malicious behaviour by a proxy when using block-wise.
+	 * 
+	 * @param maxUnfragmentedSize the desired value of MAX_UNFRAGMENTED_SIZE
+	 */
+	public void setMaxUnfragmentedSize(int maxUnfragmentedSize) {
+		this.maxUnfragmentedSize = maxUnfragmentedSize;
 	}
 
 	/**

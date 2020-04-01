@@ -18,7 +18,12 @@
 package org.eclipse.californium.oscore;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+
+import java.io.IOException;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -50,6 +55,7 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 
 /**
  * Class for testing OSCORE together with Block-Wise requests and responses.
@@ -60,6 +66,9 @@ import org.junit.experimental.categories.Category;
  * The tests cover POST, PUT and GET methods. It tests Block-Wise requests with
  * Block-Wise responses, Block-Wise requests with normal responses and normal
  * requests with Block-Wise responses.
+ *
+ * It also tests the MAX_UNFRAGMENTED_SIZE parameter to ensure that messages
+ * exceeding it cannot be sent without inner block-wise.
  *
  */
 @Category(Medium.class)
@@ -124,30 +133,9 @@ public class OSCoreInnerBlockwiseTest {
 		CoapResponse response = client.advanced(request);
 		assertNotNull(response);
 		assertEquals(CoAP.ResponseCode.CONTENT, response.getCode());
+		assertTrue(response.getOptions().hasSize2());
+		assertFalse(response.getOptions().hasBlock1());
 		assertEquals(payload, response.getResponseText());
-		assertEquals(1, resource.getCounter());
-		client.shutdown();
-	}
-
-	/**
-	 * Perform PUT Block-Wise request with Block-Wise response.
-	 * 
-	 * @throws Exception on test failure
-	 */
-	@Test
-	public void testOscoreBlockwisePut() throws Exception {
-		setClientContext(uri);
-		String payload = createRandomPayload(DEFAULT_BLOCK_SIZE * 4);
-		Request request = Request.newPut().setURI(uri);
-		request.getOptions().setOscore(Bytes.EMPTY);
-		request.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
-		request.setPayload(payload);
-
-		CoapClient client = new CoapClient();
-		CoapResponse response = client.advanced(request);
-		assertNotNull(response);
-		assertEquals(CoAP.ResponseCode.CHANGED, response.getCode());
-		assertEquals(payload, resource.currentPayload);
 		assertEquals(1, resource.getCounter());
 		client.shutdown();
 	}
@@ -171,6 +159,8 @@ public class OSCoreInnerBlockwiseTest {
 		CoapResponse response = client.advanced(request);
 		assertNotNull(response);
 		assertEquals(response.getCode(), CoAP.ResponseCode.CONTENT);
+		assertTrue(response.getOptions().hasSize2());
+		assertFalse(response.getOptions().hasBlock1());
 		assertEquals(this.payload + payload, response.getResponseText());
 		assertEquals(this.payload + payload, resource.currentPayload);
 		assertEquals(1, resource.getCounter());
@@ -178,17 +168,15 @@ public class OSCoreInnerBlockwiseTest {
 	}
 
 	/**
-	 * Perform POST Block-Wise request with normal response.
+	 * Perform PUT Block-Wise request with normal response.
 	 * 
 	 * @throws Exception on test failure
 	 */
 	@Test
-	public void testOscoreBlockwisePostShort() throws Exception {
+	public void testOscoreBlockwisePut() throws Exception {
 		setClientContext(uri);
-		String responsePayload = "test";
-		resource.setPayload(responsePayload);
 		String payload = createRandomPayload(DEFAULT_BLOCK_SIZE * 4);
-		Request request = Request.newPost().setURI(uri);
+		Request request = Request.newPut().setURI(uri);
 		request.getOptions().setOscore(Bytes.EMPTY);
 		request.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
 		request.getOptions().setAccept(MediaTypeRegistry.TEXT_PLAIN);
@@ -197,10 +185,45 @@ public class OSCoreInnerBlockwiseTest {
 		CoapClient client = new CoapClient();
 		CoapResponse response = client.advanced(request);
 		assertNotNull(response);
-		assertEquals(response.getCode(), CoAP.ResponseCode.CONTENT);
-		assertEquals(responsePayload + payload, response.getResponseText());
-		assertEquals(responsePayload + payload, resource.currentPayload);
+		assertEquals(response.getCode(), CoAP.ResponseCode.CHANGED);
+		assertFalse(response.getOptions().hasSize2());
+		assertTrue(response.getOptions().hasBlock1());
+		assertNull(response.getPayload());
+		assertEquals(payload, resource.currentPayload);
 		assertEquals(1, resource.getCounter());
+		client.shutdown();
+	}
+
+	@Rule
+	public ExpectedException exceptionRule = ExpectedException.none();
+
+	/**
+	 * Perform a PUT request that is not sent with (inner) block-wise even
+	 * though it is exceeding the configured MAX_UNFRAGMENTED_SIZE parameter.
+	 * This means that transmission of the request should be rejected by the
+	 * Object Security Layer.
+	 * 
+	 * @throws Exception
+	 */
+	@Test
+	public void testOscoreExceedMaxUnfragmentedSize() throws Exception {
+		exceptionRule.expect(IOException.class);
+		exceptionRule.expectMessage(
+				"java.lang.IllegalStateException: outgoing request is exceeding the MAX_UNFRAGMENTED_SIZE!");
+
+		setClientContext(uri);
+		OSCoreCtx ctx = dbClient.getContext(uri);
+		ctx.setMaxUnfragmentedSize(DEFAULT_BLOCK_SIZE / 2); // Restrict size
+
+		String payload = createRandomPayload(DEFAULT_BLOCK_SIZE);
+		Request request = Request.newPut().setURI(uri);
+		request.getOptions().setOscore(Bytes.EMPTY);
+		request.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
+		request.getOptions().setAccept(MediaTypeRegistry.TEXT_PLAIN);
+		request.setPayload(payload);
+
+		CoapClient client = new CoapClient();
+		client.advanced(request);
 		client.shutdown();
 	}
 
