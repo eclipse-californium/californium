@@ -596,7 +596,7 @@ public class LeastRecentlyUsedCache<K, V> {
 	 * <p>
 	 * The iterator returned is backed by this cache's underlying
 	 * {@link ConcurrentHashMap#values()}. The iterator is a "weakly consistent"
-	 * iterator that will never throw {@link ConcurrentModificationException},
+	 * iterator that will never throw {@link java.util.ConcurrentModificationException},
 	 * and guarantees to traverse elements as they existed upon construction of
 	 * the iterator, and may (but is not guaranteed to) reflect any
 	 * modifications subsequent to construction.

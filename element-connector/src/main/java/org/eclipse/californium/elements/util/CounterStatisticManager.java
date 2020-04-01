@@ -177,7 +177,7 @@ abstract public class CounterStatisticManager {
 
 	/**
 	 * Dump statistic. Either called active, for
-	 * {@link #CounterStatisticLogger(String, int, ScheduledExecutorService)},
+	 * {@link #CounterStatisticManager(String, int, ScheduledExecutorService)},
 	 * or externally.
 	 */
 	public abstract void dump();

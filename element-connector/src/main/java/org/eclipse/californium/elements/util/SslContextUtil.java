@@ -131,7 +131,7 @@ public class SslContextUtil {
 	public static final String PKCS12_ENDING = ".p12";
 	/**
 	 * Ending for key stores with pseudo type {@link #PEM_TYPE}.
-	 * @see #PSEUDO_KEY_STORE_TYPES
+	 * @see #KEY_STORE_TYPES
 	 */
 	public static final String PEM_ENDING = ".pem";
 	/**
@@ -152,7 +152,7 @@ public class SslContextUtil {
 	public static final String PKCS12_TYPE = "PKCS12";
 	/**
 	 * Pseudo key store type PEM.
-	 * @see #PSEUDO_KEY_STORE_TYPES
+	 * @see #KEY_STORE_TYPES
 	 */
 	public static final String PEM_TYPE = "PEM";
 	/**
@@ -558,12 +558,12 @@ public class SslContextUtil {
 		KEY_STORE_TYPES.put(PKCS12_ENDING, PKCS12_TYPE);
 		KEY_STORE_TYPES.put(PEM_ENDING, PEM_TYPE);
 		KEY_STORE_TYPES.put(DEFAULT_ENDING, KeyStore.getDefaultType());
-		
+
 		KEY_STORE_CONFIGS.put(JKS_TYPE, new KeyStoreConfiguration(JKS_TYPE, null));
 		KEY_STORE_CONFIGS.put(BKS_TYPE, new KeyStoreConfiguration(BKS_TYPE, null));
 		KEY_STORE_CONFIGS.put(PKCS12_TYPE, new KeyStoreConfiguration(PKCS12_TYPE, null));
 		KEY_STORE_CONFIGS.put(PEM_TYPE, new KeyStoreConfiguration(PEM_TYPE, new SimpleKeyStore() {
-			
+
 			@Override
 			public Credentials load(InputStream inputStream) throws GeneralSecurityException, IOException {
 				return loadPemCredentials(inputStream);
@@ -1116,7 +1116,7 @@ public class SslContextUtil {
 		 * 
 		 * @param privateKey private key
 		 * @param publicKey public key
-		 * @param trustedChain certificate trustedChain
+		 * @param chain certificate chain
 		 * @throws IllegalArgumentException if public key and chain is provided,
 		 *             but the public key doesn't match the one of the
 		 *             certificates head

@@ -123,8 +123,8 @@ public final class RawData {
 	 * @throws NullPointerException if data or address is {@code null}.
 	 * @see ClockUtil#nanoRealtime()
 	 */
-	public static RawData inbound(byte[] data, EndpointContext peerEndpointContext, boolean isMulticast, long timestamp) {
-		return new RawData(data, peerEndpointContext, null, isMulticast, timestamp);
+	public static RawData inbound(byte[] data, EndpointContext peerEndpointContext, boolean isMulticast, long nanoTimestamp) {
+		return new RawData(data, peerEndpointContext, null, isMulticast, nanoTimestamp);
 	}
 
 	/**

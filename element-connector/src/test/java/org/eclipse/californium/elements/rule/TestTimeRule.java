@@ -27,7 +27,7 @@ import org.slf4j.LoggerFactory;
  * Rule to adjust the test time nanoseconds.
  * 
  * Only affects {@link ClockUtil#nanoRealtime()}, but not
- * {@link ScheduledExecutorService} nor {@link Thread#wait()}.
+ * {@link java.util.concurrent.ScheduledExecutorService} nor {@link Thread#wait()}.
  */
 public class TestTimeRule extends TestWatcher {
 
