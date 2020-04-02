@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2020 Bosch IO GmbH and others.
+ * Copyright (c) 2020 Bosch.IO GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -11,7 +11,7 @@
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
  * Contributors:
- *    Bosch IO GmbH - derived from org.eclipse.californium.proxy
+ *    Bosch.IO GmbH - derived from org.eclipse.californium.proxy
  ******************************************************************************/
 package org.eclipse.californium.extplugtests;
 
@@ -19,6 +19,9 @@ import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_JS
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -61,8 +64,8 @@ public class HonoClient {
 	 * Main entry point.
 	 * 
 	 * @param args the arguments
-	 * @throws IOException 
-	 * @throws ConnectorException 
+	 * @throws IOException
+	 * @throws ConnectorException
 	 */
 	public static void main(String[] args) throws IOException, ConnectorException {
 
@@ -94,30 +97,47 @@ public class HonoClient {
 		ClientInitializer.setDefaultPskCredentials("sensor1@DEFAULT_TENANT", "hono-secret");
 
 		Arguments arguments = ClientInitializer.init(config, args, true);
-		String payload = "{\"temp\": %d}";
+		
+		int payloadType = APPLICATION_JSON;
+		String payload = "{ \"temperature\": %d }";
+	
 		String method = "POST";
 		String type = "CON";
+		int requests = 2;
+
 		if (0 < arguments.args.length) {
-			payload = arguments.args[0];
-			System.out.println("> " + payload);
-			if (1 < arguments.args.length) {
-				method = arguments.args[1];
-				System.out.println("> " + method);
-				if (2 < arguments.args.length) {
-					type = arguments.args[2];
-					System.out.println("> " + type);
+			try {
+				requests = Integer.parseInt(arguments.args[0]);
+				System.out.println("> #reqs: " + requests);
+				if (1 < arguments.args.length) {
+					payload = arguments.args[1];
+					System.out.println("> payload: " + payload);
+					if (2 < arguments.args.length) {
+						method = arguments.args[2];
+						System.out.println("> method: " + method);
+						if (3 < arguments.args.length) {
+							type = arguments.args[3];
+							System.out.println("> type: " + type);
+						}
+					}
 				}
+			} catch (NumberFormatException e) {
 			}
 		}
 
 		Random rand = new Random();
-		System.out.println("> " + arguments.uri);
+		CorrelationId id = new CorrelationId(rand);
+		if (arguments.id == null) {
+			System.out.println("> " + arguments.uri);
+		} else {
+			System.out.println("> " + arguments.id + ", " + arguments.uri);
+		}
 		CoapClient client = new CoapClient(arguments.uri);
 		final Request request = (method.equalsIgnoreCase("PUT")) ? Request.newPut() : Request.newPost();
 		request.setConfirmable(type.equalsIgnoreCase("CON"));
-		request.getOptions().setAccept(APPLICATION_JSON);
-		request.getOptions().setContentFormat(APPLICATION_JSON);
-		request.setPayload(String.format(payload, rand.nextInt(100)));
+		request.getOptions().setAccept(payloadType);
+		request.getOptions().setContentFormat(payloadType);
+		request.setPayload(String.format(payload, rand.nextInt(100), id));
 		request.setURI(arguments.uri);
 		request.addMessageObserver(new MessageObserverAdapter() {
 
@@ -125,6 +145,11 @@ public class HonoClient {
 			public void onReadyToSend() {
 				System.out.println(Utils.prettyPrint(request));
 				System.out.println();
+			}
+
+			@Override
+			public void onAcknowledgement() {
+				System.out.println(">>> ACK <<<");
 			}
 		});
 		CoapResponse coapResponse = client.advanced(request);
@@ -135,19 +160,30 @@ public class HonoClient {
 			System.out.println(coapResponse.advanced().getBytes().length + " bytes.");
 			System.out.println();
 			System.out.println(Utils.prettyPrint(coapResponse));
-			if (coapResponse.isSuccess()) {
-				Request requests = null;
-				for (int index = 0; index < 200; ++index) {
-					requests = (method.equalsIgnoreCase("PUT")) ? Request.newPut() : Request.newPost();
-					requests.getOptions().setAccept(APPLICATION_JSON);
-					requests.getOptions().setContentFormat(APPLICATION_JSON);
-					requests.setPayload(String.format(payload, rand.nextInt(100)));
-					requests.setURI(arguments.uri);
-					coapResponse = client.advanced(requests);
+
+			String cmd = null;
+			List<String> queries = coapResponse.getOptions().getLocationQuery();
+			for (String query : queries) {
+				if (query.startsWith("hono-command=")) {
+					cmd = query.substring("hono-command=".length());
+					break;
+				}
+			}
+
+			if (cmd == null) {
+				Request followUpRequests = null;
+				for (int index = 0; index < requests; ++index) {
+					id.next();
+					followUpRequests = (method.equalsIgnoreCase("PUT")) ? Request.newPut() : Request.newPost();
+					followUpRequests.getOptions().setAccept(payloadType);
+					followUpRequests.getOptions().setContentFormat(payloadType);
+					followUpRequests.setPayload(String.format(payload, rand.nextInt(100), id));
+					followUpRequests.setURI(arguments.uri);
+					coapResponse = client.advanced(followUpRequests);
 					if (coapResponse == null) {
 						System.out.format("Stale at %d.%n", index);
 						break;
-					} else if (!coapResponse.isSuccess()){
+					} else if (!coapResponse.isSuccess()) {
 						if (coapResponse.getCode() == ResponseCode.SERVICE_UNAVAILABLE) {
 							long age = coapResponse.advanced().getOptions().getMaxAge();
 							long delay = TimeUnit.SECONDS.toMillis(age < 2 ? 2 : age);
@@ -158,15 +194,67 @@ public class HonoClient {
 						}
 					}
 				}
-				if (coapResponse != null) {
+				if (followUpRequests != null && coapResponse != null) {
 					System.out.println();
-					System.out.println(Utils.prettyPrint(requests));
+					System.out.println(Utils.prettyPrint(followUpRequests));
 					System.out.println();
 					System.out.println(Utils.prettyPrint(coapResponse));
+				}
+			} else {
+				List<String> location = coapResponse.getOptions().getLocationPath();
+				if (location.size() == 2 || location.size() == 4) {
+					System.out.println("cmd: " + cmd + ", " + location);
+					final Request cmdResponse = (method.equalsIgnoreCase("PUT")) ? Request.newPut()
+							: Request.newPost();
+					URI uri = URI.create(arguments.uri);
+					try {
+						uri = new URI(uri.getScheme(), null, uri.getHost(), uri.getPort(), null,
+								"hono-cmd-status=200", null);
+						cmdResponse.setURI(uri);
+						cmdResponse.getOptions().getUriPath().addAll(location);
+						cmdResponse.addMessageObserver(new MessageObserverAdapter() {
+
+							@Override
+							public void onReadyToSend() {
+								System.out.println(Utils.prettyPrint(cmdResponse));
+								System.out.println();
+							}
+						});
+						cmdResponse.setPayload("OK");
+						coapResponse = client.advanced(cmdResponse);
+						System.out.println(Utils.prettyPrint(coapResponse));
+					} catch (URISyntaxException e) {
+						System.out.println("c&c:" + e.getMessage());
+					}
+				} else {
+					System.out.println("cmd: " + cmd);
 				}
 			}
 		} else {
 			System.out.println("No response received.");
+		}
+	}
+
+	private static class CorrelationId {
+		private static final int MAX = 1000000;
+		private String id1;
+		private int id2;
+
+		private CorrelationId(Random rand) {
+			this.id1 = String.format("%06d", rand.nextInt(MAX));
+			this.id2 = rand.nextInt(MAX);
+			next();
+		}
+
+		private void next() {
+			++id2;
+			if (id2 < 0 || MAX <= id2) {
+				id2 = 0;
+			}
+		}
+
+		public String toString() {
+			return String.format("%s-%06d", id1, id2);
 		}
 	}
 }
