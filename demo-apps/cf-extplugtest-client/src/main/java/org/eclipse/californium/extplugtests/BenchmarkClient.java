@@ -19,6 +19,9 @@
 
 package org.eclipse.californium.extplugtests;
 
+import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_JSON;
+import static org.eclipse.californium.core.coap.MediaTypeRegistry.TEXT_PLAIN;
+
 import java.io.File;
 import java.io.IOException;
 import java.lang.management.GarbageCollectorMXBean;
@@ -52,6 +55,7 @@ import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
@@ -66,6 +70,9 @@ import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.server.resources.ResourceObserverAdapter;
 import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.DtlsEndpointContext;
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.TlsEndpointContext;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
@@ -74,6 +81,7 @@ import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.extplugtests.resources.Feed;
 import org.eclipse.californium.plugtests.ClientInitializer;
 import org.eclipse.californium.plugtests.ClientInitializer.Arguments;
+import org.eclipse.californium.plugtests.ClientInitializer.CredentialStore;
 import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
 import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalKeyPairGenerator;
 import org.eclipse.californium.unixhealth.NetStatLogger;
@@ -302,6 +310,10 @@ public class BenchmarkClient {
 	 */
 	private static final AtomicInteger overallObservationRegistrationCounter = new AtomicInteger();
 	/**
+	 * Overall service unavailable responses.
+	 */
+	private static final AtomicInteger overallServiceUnavailable = new AtomicInteger();
+	/**
 	 * Offload messages.
 	 */
 	private static boolean offload;
@@ -309,6 +321,8 @@ public class BenchmarkClient {
 	 * Don't stop client on transmission errors.
 	 */
 	private static boolean noneStop;
+
+	private static boolean honoMode;
 	/**
 	 * Proxy address. {@code null}, don't use proxy.
 	 */
@@ -318,6 +332,9 @@ public class BenchmarkClient {
 	 * request.
 	 */
 	private static String proxyScheme;
+
+	private static CredentialStore pskCredentials;
+
 	/**
 	 * Shutdown executor.
 	 */
@@ -355,16 +372,30 @@ public class BenchmarkClient {
 
 	private final FeedObserver feedObserver = new FeedObserver();
 
-	private static Request prepareRequest(CoapClient client) {
-		Request post = Request.newPost();
+	private final String id;
+
+	private final boolean secure;
+
+	private Request prepareRequest(CoapClient client, long c) {
+		Request request;
+		if (honoMode) {
+			request = secure ? Request.newPost() : Request.newPut();
+			request.getOptions().setAccept(APPLICATION_JSON);
+			request.getOptions().setContentFormat(APPLICATION_JSON);
+			request.setPayload("{\"temp\": " + c + "}");
+		} else {
+			request = Request.newPost();
+			request.getOptions().setAccept(TEXT_PLAIN);
+			request.getOptions().setContentFormat(TEXT_PLAIN);
+		}
 		if (proxyAddress != null) {
-			post.setDestinationContext(new AddressEndpointContext(proxyAddress));
+			request.setDestinationContext(new AddressEndpointContext(proxyAddress));
 			if (proxyScheme != null) {
-				post.getOptions().setProxyScheme(proxyScheme);
+				request.getOptions().setProxyScheme(proxyScheme);
 			}
 		}
-		post.setURI(client.getURI());
-		return post;
+		request.setURI(client.getURI());
+		return request;
 	}
 
 	private class TestHandler implements CoapHandler {
@@ -379,15 +410,21 @@ public class BenchmarkClient {
 		public void onLoad(CoapResponse response) {
 			if (response.isSuccess()) {
 				if (!stop.get()) {
-					next();
+					next(0);
 				}
 				long c = overallRequestsDownCounter.get();
 				LOGGER.trace("Received response: {} {}", response.advanced(), c);
+			} else if (response.getCode() == ResponseCode.SERVICE_UNAVAILABLE) {
+				long delay = TimeUnit.SECONDS.toMillis(response.getOptions().getMaxAge());
+				int unavailable = overallServiceUnavailable.incrementAndGet();
+				long c = overallRequestsDownCounter.get();
+				LOGGER.debug("{}: {}, Received error response: {} {}", id, unavailable, response.advanced(), c);
+				next(delay < 1000 ? 1000L : delay);
 			} else if (noneStop) {
 				long c = requestsCounter.get();
 				transmissionErrorCounter.incrementAndGet();
 				LOGGER.warn("Error after {} requests. {}", c, response.advanced());
-				next();
+				next(1000);
 			} else {
 				long c = requestsCounter.get();
 				LOGGER.warn("Received error response: {} {} ({} successful)", endpoint.getUri(), response.advanced(), c);
@@ -415,7 +452,7 @@ public class BenchmarkClient {
 				if (noneStop) {
 					transmissionErrorCounter.incrementAndGet();
 					LOGGER.info("Error after {} requests. {}", c, msg);
-					next();
+					next(1000);
 				} else {
 					LOGGER.error("failed after {} requests! {}", c, msg);
 					checkReady(true, false);
@@ -424,12 +461,22 @@ public class BenchmarkClient {
 			}
 		}
 
-		public void next() {
-			if (!checkReady(true, true)) {
+		public void next(long delayMillis) {
+			long c = checkOverallRequests(true, true);
+			if (c > 0) {
 				requestsCounter.incrementAndGet();
-				Request post = prepareRequest(client);
-				post.addMessageObserver(retransmissionDetector);
-				client.advanced(new TestHandler(post), post);
+				final Request request = prepareRequest(client, c);
+				request.addMessageObserver(retransmissionDetector);
+				if (delayMillis > 0) {
+					executorService.schedule(new Runnable() {
+						@Override
+						public void run() {
+							client.advanced(new TestHandler(request), request);
+						}
+					}, delayMillis, TimeUnit.MILLISECONDS);
+				} else {
+					client.advanced(new TestHandler(request), request);
+				}
 			}
 		}
 	}
@@ -447,6 +494,8 @@ public class BenchmarkClient {
 	 */
 	public BenchmarkClient(int index, int intervalMin, int intervalMax, URI uri, Endpoint endpoint,
 			ScheduledExecutorService executor, ScheduledThreadPoolExecutor secondaryExecutor) {
+		this.secure = CoAP.isSecureScheme(uri.getScheme());
+		this.id = "client-" + index;
 		int maxResourceSize = endpoint.getConfig().getInt(Keys.MAX_RESOURCE_BODY_SIZE);
 		if (executor == null) {
 			int threads = endpoint.getConfig().getInt(KEY_BENCHMARK_CLIENT_THREADS);
@@ -489,9 +538,58 @@ public class BenchmarkClient {
 	 * @return {@code true} on success, {@code false} on failure.
 	 */
 	public boolean test() {
-		Request post = prepareRequest(client);
+		final Request request = prepareRequest(client, 12);
 		try {
-			CoapResponse response = client.advanced(post);
+			request.addMessageObserver(new MessageObserverAdapter() {
+				private final AtomicInteger counter = new AtomicInteger();
+				private final AtomicBoolean context = new AtomicBoolean();
+
+				@Override
+				public void onReadyToSend() {
+					int count = counter.getAndIncrement();
+					if (count == 0) {
+						LOGGER.info("Request:{}{}", StringUtil.lineSeparator(), Utils.prettyPrint(request));
+					} else {
+						LOGGER.info("Request: {} retransmissions{}{}", count, StringUtil.lineSeparator(), Utils.prettyPrint(request));
+					}
+				}
+
+				@Override
+				public void onConnecting() {
+					LOGGER.info(">>> CONNECTING <<<");
+				}
+
+				@Override
+				public void onDtlsRetransmission(int flight) {
+					LOGGER.info(">>> DTLS retransmission, flight  {}", flight);
+				}
+
+				@Override
+				public void onContextEstablished(EndpointContext endpointContext) {
+					if (context.compareAndSet(false,  true)) {
+						LOGGER.info(">>> {}", endpointContext);
+						String cipher = endpointContext.get(DtlsEndpointContext.KEY_CIPHER);
+						if (cipher == null) {
+							cipher = endpointContext.get(TlsEndpointContext.KEY_CIPHER);
+						}
+						if (cipher != null) {
+							LOGGER.info(">>> {}", cipher);
+						}
+					}
+				}
+
+				@Override
+				public void onAcknowledgement() {
+					LOGGER.info(">>> ACK <<<");
+				}
+
+				@Override
+				public void onTimeout() {
+					LOGGER.info(">>> TIMEOUT <<<");
+				}
+			});
+
+			CoapResponse response = client.advanced(request);
 			if (response != null) {
 				if (response.isSuccess()) {
 					if (LOGGER.isInfoEnabled()) {
@@ -519,17 +617,22 @@ public class BenchmarkClient {
 	 * Must be called after {@link #start()}
 	 */
 	public void startBenchmark() {
-		if (!checkReady(false, false)) {
+		long c = checkOverallRequests(false, false);
+		if (c > 0) {
 			if (requestsCounter.get() == 0) {
 				clientCounter.incrementAndGet();
 			}
-			Request post = prepareRequest(client);
-			post.addMessageObserver(retransmissionDetector);
-			client.advanced(new TestHandler(post), post);
+			Request request = prepareRequest(client, c);
+			request.addMessageObserver(retransmissionDetector);
+			client.advanced(new TestHandler(request), request);
 		}
 	}
 
 	public boolean checkReady(boolean connected, boolean response) {
+		return checkOverallRequests(connected, response) == 0;
+	}
+
+	public long checkOverallRequests(boolean connected, boolean response) {
 		boolean allConnected = connectDownCounter.get() <= 0;
 		if (connected) {
 			if (requestsCounter.get() == 0) {
@@ -546,7 +649,7 @@ public class BenchmarkClient {
 				stop();
 			}
 		}
-		return c == 0;
+		return c;
 	}
 
 	/**
@@ -632,6 +735,8 @@ public class BenchmarkClient {
 
 		startManagamentStatistic();
 		checkProxyConfiguration();
+		checkHonoConfiguration();
+		checkPskCredentials();
 
 		NetworkConfig effectiveConfig = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 		NetworkConfig serverConfig = NetworkConfig.createWithFile(REVERSE_SERVER_CONFIG_FILE,
@@ -740,6 +845,22 @@ public class BenchmarkClient {
 		final int max = intervalMin;
 		for (int index = 0; index < clients; ++index) {
 			final int currentIndex = index;
+			final String identity;
+			final byte[] secret;
+			if (secure && !arguments.rpk && !arguments.x509) {
+				if (pskCredentials != null) {
+					int pskIndex = index % pskCredentials.size();
+					identity = pskCredentials.getIdentity(pskIndex);
+					secret = pskCredentials.getSecrets(pskIndex);
+				} else {
+					random.nextBytes(id);
+					identity= ClientInitializer.PSK_IDENTITY_PREFIX + StringUtil.byteArray2Hex(id);
+					secret = null;
+				}
+			} else {
+				identity = null;
+				secret = null;
+			}
 			Runnable run = new Runnable() {
 
 				@Override
@@ -768,9 +889,7 @@ public class BenchmarkClient {
 								}
 							}
 						} else if (!arguments.x509) {
-							random.nextBytes(id);
-							String name = ClientInitializer.PSK_IDENTITY_PREFIX + StringUtil.byteArray2Hex(id);
-							connectionArgs = arguments.create(name, null);
+							connectionArgs = arguments.create(identity, secret);
 						}
 					}
 					CoapEndpoint coapEndpoint = ClientInitializer.createEndpoint(config, connectionArgs, connectorExecutor, true);
@@ -802,8 +921,13 @@ public class BenchmarkClient {
 					}
 				}
 			};
-			if (index == 0) {
+			if (index == 0 && identity != null) {
 				// first client, so test request
+				if (secret == null) {
+					System.out.println("ID: " + identity);
+				} else {
+					System.out.println("ID: " + identity + ", " + new String(secret));
+				}
 				run.run();
 			} else if (!errors.get()) {
 				startupNanos = System.nanoTime();
@@ -826,6 +950,7 @@ public class BenchmarkClient {
 		long lastRequestsCountDown = overallRequestsDownCounter.get();
 		long lastRetransmissions = retransmissionCounter.get();
 		long lastTransmissionErrrors = transmissionErrorCounter.get();
+		int lastUnavailable = overallServiceUnavailable.get();
 
 		for (int index = clients - 1; index >= 0; --index) {
 			BenchmarkClient client = clientList.get(index);
@@ -854,13 +979,26 @@ public class BenchmarkClient {
 			long retransmissionsDifference = retransmissions - lastRetransmissions;
 			long transmissionErrors = transmissionErrorCounter.get();
 			long transmissionErrorsDifference = transmissionErrors - lastTransmissionErrrors;
+			int unavailable = overallServiceUnavailable.get();
+			int unavailableDifference = unavailable - lastUnavailable;
+
 			lastRequestsCountDown = currentRequestsCountDown;
 			lastRetransmissions = retransmissions;
 			lastTransmissionErrrors = transmissionErrors;
-			System.out.format("%d requests (%d reqs/s, %s, %s, %d clients)%n", currentOverallSentRequests,
-					roundDiv(requestDifference, DEFAULT_TIMEOUT_SECONDS),
-					formatRetransmissions(retransmissionsDifference, requestDifference),
-					formatTransmissionErrors(transmissionErrorsDifference, requestDifference), numberOfClients);
+			lastUnavailable = unavailable;
+			if (unavailable > 0) {
+				System.out.format("%d requests (%d reqs/s, %s, %s, %s, %d clients)%n", currentOverallSentRequests,
+						roundDiv(requestDifference, DEFAULT_TIMEOUT_SECONDS),
+						formatRetransmissions(retransmissionsDifference, requestDifference),
+						formatTransmissionErrors(transmissionErrorsDifference, requestDifference),
+						formatUnavailable(unavailableDifference, requestDifference),
+						numberOfClients);
+			} else {
+				System.out.format("%d requests (%d reqs/s, %s, %s, %d clients)%n", currentOverallSentRequests,
+						roundDiv(requestDifference, DEFAULT_TIMEOUT_SECONDS),
+						formatRetransmissions(retransmissionsDifference, requestDifference),
+						formatTransmissionErrors(transmissionErrorsDifference, requestDifference), numberOfClients);
+			}
 		}
 		long overallSentRequests = overallRequests - overallRequestsDownCounter.get();
 		requestNanos = System.nanoTime() - requestNanos;
@@ -974,6 +1112,15 @@ public class BenchmarkClient {
 			statisticsLogger.info("Stale at {} messages ({}%)", overallSentRequests,
 					(overallSentRequests * 100L) / overallRequests);
 		}
+		int unavailables = overallServiceUnavailable.get();
+		if (unavailables > 0) {
+			System.out.println(formatUnavailable(unavailables, overallSentRequests));
+			long successfullRequest = overallSentRequests - unavailables;
+			System.out.format("%d successful requests in %dms%s%n", successfullRequest,
+					TimeUnit.NANOSECONDS.toMillis(requestNanos),
+					formatPerSecond("reqs", successfullRequest, requestNanos));
+		}
+
 		health.dump();
 		netstat.dump();
 		if (1 < clients) {
@@ -1107,6 +1254,17 @@ public class BenchmarkClient {
 		}
 	}
 
+	private static String formatUnavailable(int unavailable, long requests) {
+		try (Formatter formatter = new Formatter()) {
+			if (requests > 0) {
+				return formatter.format("%d unavailables (%4.2f%%)", unavailable, ((unavailable * 100D) / requests))
+						.toString();
+			} else {
+				return formatter.format("%d unavailables (no response-messages received!)", unavailable).toString();
+			}
+		}
+	}
+
 	private static String formatPerSecond(String units, long counts, long nanos) {
 		long millis = TimeUnit.NANOSECONDS.toMillis(nanos);
 		if (millis > 0) {
@@ -1162,6 +1320,18 @@ public class BenchmarkClient {
 			}catch(Throwable ex) {
 				throw new IllegalArgumentException(proxy + " invalid proxy configuration!", ex);
 			}
+		}
+	}
+
+	private static void checkHonoConfiguration() {
+		String proxy = System.getenv("COAP_HONO");
+		honoMode = (proxy != null && Boolean.parseBoolean(proxy));
+	}
+
+	private static void checkPskCredentials() {
+		String file = System.getenv("PSK_CREDENTIALS");
+		if (file != null && !file.isEmpty()) {
+			pskCredentials = ClientInitializer.loadPskCredentials(file);
 		}
 	}
 }

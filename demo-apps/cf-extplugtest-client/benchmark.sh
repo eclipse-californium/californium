@@ -58,11 +58,19 @@ else
 fi
 
 if [ -z "$1" ]  ; then
+     CLIENTS_MULTIPLIER=10
+else 
+    CLIENTS_MULTIPLIER=$1
+    shift
+fi
+
+if [ -z "$1" ]  ; then
      CF_SEC=
 else 
     CF_SEC=$1
     shift
 fi
+
 
 # adjust the multiplier according the speed of your CPU
 USE_TCP=1
@@ -81,9 +89,6 @@ NOTIFIES=$((100 * $MULTIPLIER))
 PAYLOAD=40
 PAYLOAD_LARGE=400
 
-echo ${REV_REQS2}
-
-CLIENTS_MULTIPLIER=10
 UDP_CLIENTS=$((200 * $CLIENTS_MULTIPLIER))
 TCP_CLIENTS=$((50 * $CLIENTS_MULTIPLIER))
 OBS_CLIENTS=$((50 * $CLIENTS_MULTIPLIER))
