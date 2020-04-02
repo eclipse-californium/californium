@@ -20,7 +20,7 @@ Executable JARs of the examples with all dependencies can be found in the `demo-
 
 # Using Californium in Maven Projects
 
-We are publishing Californium's artifacts for milestones and releases to [Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:2.2.0).
+We are publishing Californium's artifacts for milestones and releases to [Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:2.2.1).
 To use the latest released version as a library in your projects, add the following dependency
 to your `pom.xml` (without the dots):
 
@@ -30,7 +30,7 @@ to your `pom.xml` (without the dots):
     <dependency>
             <groupId>org.eclipse.californium</groupId>
             <artifactId>californium-core</artifactId>
-            <version>2.2.0</version>
+            <version>2.2.1</version>
     </dependency>
     ...
   </dependencies>
