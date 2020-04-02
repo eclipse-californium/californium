@@ -18,6 +18,7 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
+import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -232,6 +233,45 @@ public class StringUtil {
 		} else {
 			return "--";
 		}
+	}
+
+	/**
+	 * Decode base 64 string into byte array.
+	 * 
+	 * Add padding, if missing.
+	 * 
+	 * @param base64 base64 string
+	 * @return byte array.
+	 * @since 2.3
+	 */
+	public static byte[] base64ToByteArray(String base64) {
+		int pad = base64.length() % 4;
+		if (pad > 0) {
+			pad = 4 - pad;
+			if (pad == 1) {
+				base64 += "=";
+			} else if (pad == 2) {
+				base64 += "==";
+			} else {
+				throw new IllegalArgumentException("'" + base64 + "' invalid base64!");
+			}
+		}
+		try {
+			return Base64.decode(base64);
+		} catch (IOException e) {
+			return Bytes.EMPTY;
+		}
+	}
+
+	/**
+	 * Encode byte array into base64 string.
+	 * 
+	 * @param bytes byte array
+	 * @return base64 string
+	 * @since 2.3
+	 */
+	public static String byteArrayToBase64(byte[] bytes) {
+		return Base64.encodeBytes(bytes);
 	}
 
 	/**

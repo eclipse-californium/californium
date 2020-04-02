@@ -20,6 +20,7 @@
  ******************************************************************************/
 package org.eclipse.californium.plugtests;
 
+import java.io.FileReader;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
@@ -27,8 +28,13 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Properties;
+import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 
 import javax.crypto.SecretKey;
@@ -165,7 +171,8 @@ public class ClientInitializer {
 		ping = ping && !uri.startsWith(CoAP.COAP_TCP_URI_SCHEME + "://")
 				&& !uri.startsWith(CoAP.COAP_SECURE_TCP_URI_SCHEME + "://");
 		String[] leftArgs = Arrays.copyOfRange(args, index + 1, args.length);
-		Arguments arguments = new Arguments(uri, id, secret, rpk, x509, ecdhe, ping, verbose, json, cbor, null, null,
+		byte[] secretBytes = secret == null ? null : secret.getBytes();
+		Arguments arguments = new Arguments(uri, id, secretBytes, rpk, x509, ecdhe, ping, verbose, json, cbor, null, null,
 				leftArgs);
 		CoapEndpoint coapEndpoint = createEndpoint(config, arguments, null, ephemeralPort);
 		coapEndpoint.start();
@@ -252,7 +259,7 @@ public class ClientInitializer {
 					dtlsConfig.setTrustStore(trustedCertificates);
 					keyExchange = KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN;
 				} else if (arguments.id != null) {
-					byte[] secret = arguments.secret == null ? null : arguments.secret.getBytes();
+					byte[] secret = arguments.secret;
 					dtlsConfig.setPskStore(new PlugPskStore(arguments.id, secret));
 					keyExchange = arguments.ecdhe ? KeyExchangeAlgorithm.ECDHE_PSK : KeyExchangeAlgorithm.PSK;
 				} else {
@@ -358,7 +365,7 @@ public class ClientInitializer {
 		public final boolean x509;
 		public final boolean ecdhe;
 		public final String id;
-		public final String secret;
+		public final byte[] secret;
 		public final String uri;
 		public final String[] args;
 		public final PrivateKey privateKey;
@@ -369,9 +376,9 @@ public class ClientInitializer {
 		 * 
 		 * @param uri     destination URI
 		 * @param id      client id
-		 * @param secret  client secret (PSK only). if {@code null} and
-		 *                {@link ClientInitializer#PSK_IDENTITY_PREFIX} is used, use
-		 *                {@link ClientInitializer#PSK_SECRET}
+		 * @param secret  client secret (PSK only). If {@code null} and
+		 *                {@link ClientInitializer#PSK_IDENTITY_PREFIX} is used as id, then
+		 *                {@link ClientInitializer#PSK_SECRET} is used as secret.
 		 * @param rpk     {@code true}, if raw public key is preferred, {@code false},
 		 *                otherwise
 		 * @param x509    {@code true}, if x.509 should be used, {@code false},
@@ -385,7 +392,7 @@ public class ClientInitializer {
 		 *                otherwise
 		 * @param args    left arguments
 		 */
-		public Arguments(String uri, String id, String secret, boolean rpk, boolean x509, boolean ecdhe, boolean ping,
+		public Arguments(String uri, String id, byte[] secret, boolean rpk, boolean x509, boolean ecdhe, boolean ping,
 				boolean verbose, boolean json, boolean cbor, PrivateKey privateKey, PublicKey publicKey,
 				String[] args) {
 			this.uri = uri;
@@ -412,7 +419,7 @@ public class ClientInitializer {
 		 *               {@link ClientInitializer#PSK_SECRET}
 		 * @return create arguments clone.
 		 */
-		public Arguments create(String id, String secret) {
+		public Arguments create(String id, byte[] secret) {
 			return new Arguments(uri, id, secret, false, false, ecdhe, ping, verbose, json, cbor, privateKey, publicKey,
 					args);
 		}
@@ -425,6 +432,53 @@ public class ClientInitializer {
 		public Arguments create(PrivateKey privateKey, PublicKey publicKey) {
 			return new Arguments(uri, null, null, true, false, false, ping, verbose, json, cbor, privateKey, publicKey,
 					args);
+		}
+	}
+
+	public static CredentialStore loadPskCredentials(String file) {
+		Properties credentials = new Properties();
+		try (FileReader reader = new FileReader(file)) {
+			credentials.load(reader);
+			Set<Object> keys = credentials.keySet();
+			SortedSet<String> sortedKeys = new TreeSet<>();
+			for (Object key : keys) {
+				if (key instanceof String) {
+					sortedKeys.add((String) key);
+				}
+			}
+			if (!sortedKeys.isEmpty()) {
+				CredentialStore pskCredentials = new CredentialStore();
+				for (String key : sortedKeys) {
+					String secret = credentials.getProperty(key);
+					byte[] secretBytes = StringUtil.base64ToByteArray(secret);
+					pskCredentials.add(key, secretBytes);
+				}
+				return pskCredentials;
+			}
+		} catch (IOException e) {
+		}
+		return null;
+	}
+
+	public static class CredentialStore {
+		private List<String> identities = new ArrayList<String>();
+		private List<byte[]> secrets = new ArrayList<byte[]>();
+
+		private void add(String identity, byte[] secret) {
+			identities.add(identity);
+			secrets.add(secret);
+		}
+
+		public String getIdentity(int index) {
+			return identities.get(index);
+		}
+
+		public byte[] getSecrets(int index) {
+			return secrets.get(index);
+		}
+
+		public int size() {
+			return secrets.size();
 		}
 	}
 }
