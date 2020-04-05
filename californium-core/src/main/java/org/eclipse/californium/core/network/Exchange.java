@@ -371,7 +371,12 @@ public class Exchange {
 	 * client, if the request has not been already rejected. Use the source
 	 * endpoint context of the current request to send the RST.
 	 * 
+	 * Note: since 2.3, rejects for multicast requests are not sent. (See
+	 * {@link MulticastReceivers#addMulticastReceiver(org.eclipse.californium.elements.Connector)
+	 * for receiving multicast requests}.
+	 * 
 	 * @see #sendReject(EndpointContext)
+	 * @since 2.3 rejects for multicast requests are not sent
 	 */
 	public void sendReject() {
 		assert (origin == Origin.REMOTE);
@@ -382,17 +387,24 @@ public class Exchange {
 	 * Reject this exchange and therefore the request. Sends an RST back to the
 	 * client, if the request has not been already rejected.
 	 * 
+	 * Note: since 2.3, rejects for multicast requests are not sent. (See
+	 * {@link MulticastReceivers#addMulticastReceiver(org.eclipse.californium.elements.Connector)
+	 * for receiving multicast requests}.
+	 * 
 	 * @param context endpoint context to send RST
 	 * 
 	 * @see #sendReject()
+	 * @since 2.3 rejects for multicast requests are not sent
 	 */
 	public void sendReject(EndpointContext context) {
 		assert (origin == Origin.REMOTE);
 		Request current = currentRequest;
 		if (current.hasMID() && !current.isRejected()) {
 			current.setRejected(true);
-			EmptyMessage rst = EmptyMessage.newRST(current, context);
-			endpoint.sendEmptyMessage(this, rst);
+			if (!current.isMulticast()) {
+				EmptyMessage rst = EmptyMessage.newRST(current, context);
+				endpoint.sendEmptyMessage(this, rst);
+			}
 		}
 	}
 
@@ -403,9 +415,18 @@ public class Exchange {
 	 * If no destination context is provided, use the source context of the
 	 * request.
 	 * 
+	 * Note: since 2.3, error responses for multicast requests are not sent. (See
+	 * {@link MulticastReceivers#addMulticastReceiver(org.eclipse.californium.elements.Connector)
+	 * for receiving multicast requests}.
+	 * 
 	 * @param response the response
+	 * @since 2.3 error responses for multicast requests are not sent
 	 */
 	public void sendResponse(Response response) {
+		Request current = currentRequest;
+		if (current.isMulticast() && response.isError()) {
+			return;
+		}
 		if (response.getDestinationContext() == null) {
 			response.setDestinationContext(currentRequest.getSourceContext());
 		}

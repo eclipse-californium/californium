@@ -66,6 +66,6 @@ public class UdpEndpointContextMatcherTest {
 		assertThat(matcher.isResponseRelatedToRequest(messageContext, changedAddressContext), is(false));
 		assertThat(matcher.isResponseRelatedToRequest(changedAddressContext, messageContext), is(false));
 		assertThat(matcher.isResponseRelatedToRequest(multicastContext, messageContext), is(true));
-		assertThat(matcher.isResponseRelatedToRequest(multicastContext, changedAddressContext), is(false));
+		assertThat(matcher.isResponseRelatedToRequest(multicastContext, changedAddressContext), is(true));
 	}
 }

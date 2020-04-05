@@ -67,13 +67,18 @@ public class UdpEndpointContextMatcher extends KeySetEndpointContextMatcher {
 		this.checkAddress = checkAddress;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * 
+	 * @since 2.3 a response matches a multicast requests even if the ports are
+	 *        different.
+	 */
 	@Override
 	public boolean isResponseRelatedToRequest(EndpointContext requestContext, EndpointContext responseContext) {
 		if (checkAddress) {
 			InetSocketAddress peerAddress1 = requestContext.getPeerAddress();
 			InetSocketAddress peerAddress2 = responseContext.getPeerAddress();
-			if (peerAddress1.getPort() != peerAddress2.getPort() || (!peerAddress1.getAddress().isMulticastAddress()
-					&& !peerAddress1.getAddress().equals(peerAddress2.getAddress()))) {
+			if (!peerAddress1.getAddress().isMulticastAddress() && !peerAddress1.equals(peerAddress2)) {
 				LOGGER.info("request {}:{} doesn't match {}:{}!", peerAddress1.getAddress().getHostAddress(),
 						peerAddress1.getPort(), peerAddress2.getAddress().getHostAddress(), peerAddress2.getPort());
 				return false;

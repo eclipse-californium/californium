@@ -32,6 +32,7 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.network.MulticastReceivers;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext;
@@ -120,6 +121,17 @@ public class CoapExchange {
 	}
 
 	/**
+	 * Check, if request is multicast request.
+	 * 
+	 * @return {@code true}, if request is multicast request, {@code false}, if
+	 *         request is unicast request.
+	 * @since 2.3
+	 */
+	public boolean isMulticastRequest() {
+		return exchange.getRequest().isMulticast();
+	}
+
+	/**
 	 * Gets the request code: <tt>GET</tt>, <tt>POST</tt>, <tt>PUT</tt> or
 	 * <tt>DELETE</tt>.
 	 * 
@@ -186,6 +198,13 @@ public class CoapExchange {
 	 * Reject the exchange if it is impossible to be processed, e.g. if it
 	 * carries an unknown critical option. In most cases, it is better to
 	 * respond with an error response code to bad requests though.
+	 * 
+	 * Note: since 2.3, rejects for multicast requests are not sent. (See
+	 * {@link MulticastReceivers#addMulticastReceiver(org.eclipse.californium.elements.Connector)
+	 * for receiving multicast requests}.
+	 * 
+	 * @see Exchange#sendReject(EndpointContext)
+	 * @since 2.3 rejects for multicast requests are not sent
 	 */
 	public void reject() {
 		exchange.sendReject(applyHandshakeMode());
@@ -251,8 +270,15 @@ public class CoapExchange {
 	 * Current implementation use 5.03. May be changed, if RFC
 	 * "https://draft-ietf-core-too-many-reqs" gets adopted.
 	 *
+	 * Note: since 2.3, error responses for multicast requests are not sent. (See
+	 * {@link MulticastReceivers#addMulticastReceiver(org.eclipse.californium.elements.Connector)
+	 * for receiving multicast requests}.
+	 * 
 	 * @param seconds estimated time in seconds after which the client may retry
 	 *            to send requests.
+	 * 
+	 * @see Exchange#sendResponse(Response)
+	 * @since 2.3 error responses for multicast requests are not sent
 	 */
 	public void respondOverload(int seconds) {
 		setMaxAge(seconds);
@@ -272,7 +298,14 @@ public class CoapExchange {
 	 * Fills in {@link #locationPath}, {@link #locationQuery}, {@link #maxAge},
 	 * and/or {@link #eTag}, if set before.
 	 *
+	 * Note: since 2.3, error responses for multicast requests are not sent. (See
+	 * {@link MulticastReceivers#addMulticastReceiver(org.eclipse.californium.elements.Connector)
+	 * for receiving multicast requests}.
+	 * 
 	 * @param code the response code
+	 * 
+	 * @see Exchange#sendResponse(Response)
+	 * @since 2.3 error responses for multicast requests are not sent
 	 */
 	public void respond(ResponseCode code) {
 		respond(new Response(code));
@@ -302,8 +335,15 @@ public class CoapExchange {
 	 * Fills in {@link #locationPath}, {@link #locationQuery}, {@link #maxAge},
 	 * and/or {@link #eTag}, if set before.
 	 * 
+	 * Note: since 2.3, error responses for multicast requests are not sent. (See
+	 * {@link MulticastReceivers#addMulticastReceiver(org.eclipse.californium.elements.Connector)
+	 * for receiving multicast requests}.
+	 * 
 	 * @param code the response code
 	 * @param payload the payload
+	 * 
+	 * @see Exchange#sendResponse(Response)
+	 * @since 2.3 error responses for multicast requests are not sent
 	 */
 	public void respond(ResponseCode code, String payload) {
 		Response response = new Response(code);
@@ -323,9 +363,16 @@ public class CoapExchange {
 	 *
 	 * Fills in {@link #locationPath}, {@link #locationQuery}, {@link #maxAge},
 	 * and/or {@link #eTag}, if set before.
+	 * 
+	 * Note: since 2.3, error responses for multicast requests are not sent. (See
+	 * {@link MulticastReceivers#addMulticastReceiver(org.eclipse.californium.elements.Connector)
+	 * for receiving multicast requests}.
 	 *
 	 * @param code the response code
 	 * @param payload the payload
+	 * 
+	 * @see Exchange#sendResponse(Response)
+	 * @since 2.3 error responses for multicast requests are not sent
 	 */
 	public void respond(ResponseCode code, byte[] payload) {
 		Response response = new Response(code);
@@ -345,9 +392,16 @@ public class CoapExchange {
 	 * Fills in {@link #locationPath}, {@link #locationQuery}, {@link #maxAge},
 	 * and/or {@link #eTag}, if set before.
 	 * 
+	 * Note: since 2.3, error responses for multicast requests are not sent. (See
+	 * {@link MulticastReceivers#addMulticastReceiver(org.eclipse.californium.elements.Connector)
+	 * for receiving multicast requests}.
+	 * 
 	 * @param code the response code
 	 * @param payload the payload
 	 * @param contentFormat the Content-Format of the payload
+	 * 
+	 * @see Exchange#sendResponse(Response)
+	 * @since 2.3 error responses for multicast requests are not sent
 	 */
 	public void respond(ResponseCode code, byte[] payload, int contentFormat) {
 		Response response = new Response(code);
@@ -368,9 +422,16 @@ public class CoapExchange {
 	 * Fills in {@link #locationPath}, {@link #locationQuery}, {@link #maxAge},
 	 * and/or {@link #eTag}, if set before.
 	 *
+	 * Note: since 2.3, error responses for multicast requests are not sent. (See
+	 * {@link MulticastReceivers#addMulticastReceiver(org.eclipse.californium.elements.Connector)
+	 * for receiving multicast requests}.
+	 *
 	 * @param code the response code
 	 * @param payload the payload
 	 * @param contentFormat the Content-Format of the payload
+	 * 
+	 * @see Exchange#sendResponse(Response)
+	 * @since 2.3 error responses for multicast requests are not sent
 	 */
 	public void respond(ResponseCode code, String payload, int contentFormat) {
 		Response response = new Response(code);
@@ -385,7 +446,14 @@ public class CoapExchange {
 	 * Fills in {@link #locationPath}, {@link #locationQuery}, {@link #maxAge},
 	 * and/or {@link #eTag}, if set before.
 	 * 
+	 * Note: since 2.3, error responses for multicast requests are not sent. (See
+	 * {@link MulticastReceivers#addMulticastReceiver(org.eclipse.californium.elements.Connector)
+	 * for receiving multicast requests}.
+	 * 
 	 * @param response the response
+	 * 
+	 * @see Exchange#sendResponse(Response)
+	 * @since 2.3 error responses for multicast requests are not sent
 	 */
 	public void respond(Response response) {
 		if (response == null)

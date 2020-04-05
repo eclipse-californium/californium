@@ -29,7 +29,10 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Utility class for NetworkInterfaces. Determine MTU, IPv4, IPv6 support.
+ * 
  * @since 2.1
+ * @since 2.3 use only "up" NetworkInterfaces (see
+ *        {@link NetworkInterface#isUp()}.
  */
 public class NetworkInterfacesUtil {
 
@@ -46,33 +49,78 @@ public class NetworkInterfacesUtil {
 	private static int anyMtu;
 
 	/**
-	 * One of the any interfaces supports IPv4.
+	 * One of any interfaces supports IPv4.
 	 */
 	private static boolean anyIpv4;
 
 	/**
-	 * One of the any interfaces supports IPv6.
+	 * One of any interfaces supports IPv6.
 	 */
 	private static boolean anyIpv6;
 
+	/**
+	 * A IPv4 address on a multicast supporting network interface, if available.
+	 * 
+	 * @since 2.3
+	 */
+	private static Inet4Address multicastInterfaceIpv4;
+	/**
+	 * A Pv6 address on a multicast supporting network interface, if available.
+	 * 
+	 * @since 2.3
+	 */
+	private static Inet6Address multicastInterfaceIpv6;
+	/**
+	 * A multicast supporting NetworkInterfaces.
+	 * 
+	 * @since 2.3
+	 */
+	private static NetworkInterface multicastInterface;
+
 	private synchronized static void initialize() {
 		if (anyMtu == 0) {
+			multicastInterfaceIpv4 = null;
+			multicastInterfaceIpv6 = null;
+			multicastInterface = null;
+			Inet4Address link4 = null;
+			Inet4Address site4 = null;
+			Inet6Address link6 = null;
+			Inet6Address site6 = null;
 			int mtu = MAX_MTU;
 			try {
 				Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
 				while (interfaces.hasMoreElements()) {
 					NetworkInterface iface = interfaces.nextElement();
-					int ifaceMtu = iface.getMTU();
-					if (ifaceMtu > 0 && ifaceMtu < mtu) {
-						mtu = ifaceMtu;
-					}
-					Enumeration<InetAddress> inetAddresses = iface.getInetAddresses();
-					while (inetAddresses.hasMoreElements()) {
-						InetAddress address = inetAddresses.nextElement();
-						if (address instanceof Inet4Address) {
-							anyIpv4 = true;
-						} else if (address instanceof Inet6Address) {
-							anyIpv6 = true;
+					if (iface.isUp()) {
+						int ifaceMtu = iface.getMTU();
+						if (ifaceMtu > 0 && ifaceMtu < mtu) {
+							mtu = ifaceMtu;
+						}
+						if (multicastInterface == null && iface.supportsMulticast()) {
+							multicastInterface = iface;
+						}
+						Enumeration<InetAddress> inetAddresses = iface.getInetAddresses();
+						while (inetAddresses.hasMoreElements()) {
+							InetAddress address = inetAddresses.nextElement();
+							if (address instanceof Inet4Address) {
+								anyIpv4 = true;
+								if (site4 == null && iface.supportsMulticast()) {
+									if (address.isSiteLocalAddress()) {
+										site4 = (Inet4Address) address;
+									} else if (link4 == null && address.isLinkLocalAddress()) {
+										link4 = (Inet4Address) address;
+									}
+								}
+							} else if (address instanceof Inet6Address) {
+								anyIpv6 = true;
+								if (site6 == null && iface.supportsMulticast()) {
+									if (address.isSiteLocalAddress()) {
+										site6 = (Inet6Address) address;
+									} else if (link4 == null && address.isLinkLocalAddress()) {
+										link6 = (Inet6Address) address;
+									}
+								}
+							}
 						}
 					}
 				}
@@ -81,6 +129,8 @@ public class NetworkInterfacesUtil {
 				anyIpv4 = true;
 				anyIpv6 = true;
 			}
+			multicastInterfaceIpv4 = site4 == null ? link4 : site4;
+			multicastInterfaceIpv6 = site6 == null ? link6 : site6;
 			anyMtu = mtu;
 		}
 	}
@@ -120,6 +170,40 @@ public class NetworkInterfacesUtil {
 	}
 
 	/**
+	 * Gets a IPv4 address on a multicast supporting network interface.
+	 * 
+	 * @return IPv4 address, or {@code null}, if not available
+	 * @since 2.3
+	 */
+	public static Inet4Address getMulticastInterfaceIpv4() {
+		initialize();
+		return multicastInterfaceIpv4;
+	}
+
+	/**
+	 * Gets a IPv6 address on a multicast supporting network interface.
+	 * 
+	 * @return IPv6 address, or {@code null}, if not available
+	 * @since 2.3
+	 */
+	public static Inet6Address getMulticastInterfaceIpv6() {
+		initialize();
+		return multicastInterfaceIpv6;
+	}
+
+	/**
+	 * Gets a multicast supporting network interface.
+	 * 
+	 * @return multicast supporting network interface, or {@code null}, if not
+	 *         available
+	 * @since 2.3
+	 */
+	public static NetworkInterface getMulticastInterface() {
+		initialize();
+		return multicastInterface;
+	}
+
+	/**
 	 * Get collection of available local inet addresses of network interfaces.
 	 * 
 	 * @return collection of local inet addresses.
@@ -129,9 +213,12 @@ public class NetworkInterfacesUtil {
 		try {
 			Enumeration<NetworkInterface> nets = NetworkInterface.getNetworkInterfaces();
 			while (nets.hasMoreElements()) {
-				Enumeration<InetAddress> inetAddresses = nets.nextElement().getInetAddresses();
-				while (inetAddresses.hasMoreElements()) {
-					interfaces.add(inetAddresses.nextElement());
+				NetworkInterface networkInterface = nets.nextElement();
+				if (networkInterface.isUp()) {
+					Enumeration<InetAddress> inetAddresses = networkInterface.getInetAddresses();
+					while (inetAddresses.hasMoreElements()) {
+						interfaces.add(inetAddresses.nextElement());
+					}
 				}
 			}
 		} catch (SocketException e) {

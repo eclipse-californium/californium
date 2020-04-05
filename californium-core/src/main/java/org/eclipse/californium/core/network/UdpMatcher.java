@@ -63,6 +63,7 @@ import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
 
+import java.net.InetSocketAddress;
 import java.util.concurrent.Executor;
 
 import org.eclipse.californium.core.coap.EmptyMessage;
@@ -76,6 +77,7 @@ import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.util.StringUtil;
 
 /**
  * A Matcher for CoAP messages transmitted over UDP.
@@ -229,6 +231,15 @@ public final class UdpMatcher extends BaseMatcher {
 				} else {
 					LOGGER.warn("new request {} could not be registered! Deduplication disabled!", request);
 				}
+			} else if (previousRequest.isMulticast() || request.isMulticast()) {
+				InetSocketAddress group = request.getDestinationContext() == null ? null
+						: request.getDestinationContext().getPeerAddress();
+				InetSocketAddress previousGroup = previousRequest.getDestinationContext() == null ? null
+						: previousRequest.getDestinationContext().getPeerAddress();
+				if (group != previousGroup && (group == null || !group.equals(previousGroup))) {
+					LOGGER.warn("received request {} via different multicast groups ({} != {})!", request,
+							StringUtil.toString(group), StringUtil.toString(previousGroup));
+				}
 			}
 		}
 
@@ -243,7 +254,9 @@ public final class UdpMatcher extends BaseMatcher {
 						receiver.receiveRequest(previous, request);
 					} catch (RuntimeException ex) {
 						LOGGER.warn("error receiving request {} again!", request, ex);
-						receiver.reject(request);
+						if (!request.isMulticast()) {
+							receiver.reject(request);
+						}
 					}
 				}
 			});
@@ -257,7 +270,9 @@ public final class UdpMatcher extends BaseMatcher {
 						receiver.receiveRequest(exchange, request);
 					} catch (RuntimeException ex) {
 						LOGGER.warn("error receiving request {}", request, ex);
-						receiver.reject(request);
+						if (!request.isMulticast()) {
+							receiver.reject(request);
+						}
 					}
 				}
 			});

@@ -16,6 +16,7 @@
 package org.eclipse.californium.elements;
 
 import java.io.IOException;
+import java.net.BindException;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
@@ -33,8 +34,64 @@ import org.slf4j.LoggerFactory;
  * replacing DatagramSocket with a MulticastSocket to receive multicast requests
  * in compliance to RFC7390 Group Communication for the Constrained Application
  * Protocol (CoAP) to the registered multicast group.
+ * <p>
+ * Note: since 2.3, a connector joining only one multicast group, maybe used as
+ * "mutlicast receiver". In that case the {@link #getAddress()} will return this
+ * multicast group.
+ * 
+ * This enables to setup systems, which listen on different ports for multicast
+ * than respond on unicast. It allows to host multiple coap-multicast-server to
+ * be hosted on the same peer.
+ * </p>
+ * <p>
+ * <a href=
+ * "https://mailarchive.ietf.org/arch/msg/core/7P8wrsahiuCriozrYc_fVyS6mzg/">
+ * Core - mailinglist - Klaus Hartke: Multicast CoAP</a>
+ *
+ * <pre>
+ * +---------------+                +-----------------+
+ * |               |    request    _|_                |
+ * |               |        .---> /   \   224.0.1.187 |
+ * |              _|_      /      \___/ --.   :9999   |
+ * | 192.168.0.1 /   \ ---´         |      \          |
+ * |   :54321    \___/ <---.       _|_     /  rewrite |
+ * |               |        \     /   \ <-´           |
+ * |               |         `--- \___/ 192.168.0.100 |
+ * |               |    response    |         :5683   |
+ * +---------------+                +-----------------+
+ *       Client                           Server
+ * </pre>
+ * </p>
+ * <p>
+ * To setup a system, which listens on the same port for unicast and multicast,
+ * and reliable distinguishs between them, seems to be not too easy with java.
+ * Generally try to omit to use the "any" address at any place. Neither for the
+ * unicast socket nor the multicast bind-address. For IPv6 - multicast with
+ * link-scope, this may fail caused by
+ * <a href="https://bugs.openjdk.java.net/browse/JDK-8210493">Bind to node- or
+ * linklocal ipv6 multicast address fails</a>. Please always check your server
+ * logs for messages of the pattern "received request {} via different multicast
+ * groups ({} != {})!". That indicates, that the multicast request is accidently
+ * received by multiple sockets and so unicast request may not be reliable
+ * distinguished.
+ * </p>
+ * <p>
+ * <a href=
+ * "https://stackoverflow.com/questions/19392173/multicastsocket-constructors-and-binding-to-port-or-socketaddress">
+ * Stackoverflow - MulticastSocket - Constructors binding to port or
+ * socketaddress</a>
+ * </p>
+ * <p>
+ * Note: using the multicast address as bind address may work as mention in the
+ * above article, or not :-). If intended to be used, please verify that it
+ * works on your environment.
+ * </p>
+ * 
+ * @since 2.3 {@link #getAddress()} will return the multicast group, if exactly
+ *        one multicast group is provided.
  */
 public class UdpMulticastConnector extends UDPConnector {
+
 	public static final Logger LOGGER = LoggerFactory.getLogger(UdpMulticastConnector.class);
 
 	/**
@@ -48,30 +105,50 @@ public class UdpMulticastConnector extends UDPConnector {
 	private InetAddress[] multicastGroups;
 
 	/**
-	 * Creates a connector bound to given multicast group and IP Port, using the specified network interface for
-	 * receiving multicast packets
+	 * {@code true}, to disable loopback mode, {@false}, otherwise.
+	 * 
+	 * @since 2.3
+	 */
+	private boolean loopbackDisable;
+
+	/**
+	 * Creates a connector bound to given multicast group and IP Port, using the
+	 * specified network interface for receiving multicast packets
 	 *
-	 * Note: This constructor that allows you to specify a network interface was added to mitigate the issue described
-	 * at https://github.com/eclipse/californium/issues/872. If you run into trouble using this approach, a own
-	 * {@link UdpMulticastConnector} implementation may be used with a proper initialisation of the {@link MulticastSocket}
-	 * in an overriden {@link #start()} method for that case.
+	 * Note: This constructor that allows you to specify a network interface was
+	 * added to mitigate the issue described at
+	 * https://github.com/eclipse/californium/issues/872. If you run into
+	 * trouble using this approach, a own {@link UdpMulticastConnector}
+	 * implementation may be used with a proper initialisation of the
+	 * {@link MulticastSocket} in an overriden {@link #start()} method for that
+	 * case.
 	 *
-	 * @param intfAddress address of interface to use to receive multicast packets
+	 * @param intfAddress address of interface to use to receive multicast
+	 *            packets
 	 * @param localAddress local socket address
 	 * @param multicastGroups multicast groups to join
 	 */
-	public UdpMulticastConnector(InetAddress intfAddress, InetSocketAddress localAddress, InetAddress... multicastGroups) {
+	public UdpMulticastConnector(InetAddress intfAddress, InetSocketAddress localAddress,
+			InetAddress... multicastGroups) {
 		super(localAddress);
+		setReuseAddress(true);
 		this.intfAddress = intfAddress;
 		this.multicastGroups = multicastGroups;
+		this.multicast = multicastGroups.length == 1;
+		if (multicast) {
+			this.effectiveAddr = new InetSocketAddress(multicastGroups[0],
+					localAddress != null ? localAddress.getPort() : 0);
+		}
 	}
 
 	/**
-	 * Creates a connector bound to given multicast group and IP Port, using the default (any) network interface for
-	 * receiving multicast packets
+	 * Creates a connector bound to given multicast group and IP Port, using the
+	 * default (any) network interface for receiving multicast packets
 	 *
-	 * Note: You might run into issues described at https://bugs.java.com/bugdatabase/view_bug.do?bug_id=4701650 if you
-	 * do not specify a network interface. See also https://github.com/eclipse/californium/issues/872.
+	 * Note: You might run into issues described at
+	 * https://bugs.java.com/bugdatabase/view_bug.do?bug_id=4701650 if you do
+	 * not specify a network interface. See also
+	 * https://github.com/eclipse/californium/issues/872.
 	 *
 	 * @param localAddress local socket address
 	 * @param multicastGroups multicast groups to join
@@ -80,18 +157,42 @@ public class UdpMulticastConnector extends UDPConnector {
 		this(null, localAddress, multicastGroups);
 	}
 
+	public void setLoopbackMode(boolean disable) {
+		this.loopbackDisable = disable;
+	}
+
 	public synchronized void start() throws IOException {
 		if (this.running)
 			return;
 
 		InetAddress effectiveInterface = localAddr.getAddress();
 		// creates a multicast socket with the given port number
-		MulticastSocket socket = new MulticastSocket(localAddr);
+		MulticastSocket socket = new MulticastSocket(null);
+		socket.setLoopbackMode(loopbackDisable);
+		try {
+			socket.bind(localAddr);
+			LOGGER.info("socket {}, loopback mode {}",
+					StringUtil.toString((InetSocketAddress) socket.getLocalSocketAddress()), socket.getLoopbackMode());
+		} catch (BindException ex) {
+			socket.close();
+			LOGGER.error("can't bind to {}", StringUtil.toString(localAddr));
+			throw ex;
+		} catch (SocketException ex) {
+			socket.close();
+			LOGGER.error("can't bind to {}", StringUtil.toString(localAddr));
+			throw ex;
+		}
 
-		// if an interface specified by a non-wildcard address was supplied we set it on the socket
+		// if an interface specified by a non-wildcard address was supplied we
+		// set it on the socket
 		if (intfAddress != null && !intfAddress.isAnyLocalAddress()) {
-			socket.setInterface(intfAddress);
-			effectiveInterface = intfAddress;
+			try {
+				socket.setInterface(intfAddress);
+				effectiveInterface = intfAddress;
+				LOGGER.info("interface {}", StringUtil.toString(intfAddress));
+			} catch (SocketException ex) {
+				LOGGER.error("error: multicast set interface", ex);
+			}
 		}
 
 		// add the multicast socket to the specified multicast group for
@@ -117,6 +218,8 @@ public class UdpMulticastConnector extends UDPConnector {
 			}
 		}
 		init(socket);
+		if (multicast) {
+			this.effectiveAddr = new InetSocketAddress(multicastGroups[0], socket.getLocalPort());
+		}
 	}
-	
 }
