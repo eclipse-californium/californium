@@ -8,6 +8,14 @@
 		</encoder>
 	</appender>
 
+	<logger name="org.eclipse.californium.elements.UDPConnector" level="DEBUG" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
+
+	<logger name="org.eclipse.californium.elements.UdpMulticastConnector" level="DEBUG" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
+
 	<!-- Strictly speaking, the level attribute is not necessary since -->
 	<!-- the level of the root level is set to DEBUG by default. -->
 	<root level="INFO">

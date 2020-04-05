@@ -103,7 +103,7 @@ public class UDPConnector implements Connector {
 
 	private volatile DatagramSocket socket;
 
-	private volatile InetSocketAddress effectiveAddr;
+	protected volatile InetSocketAddress effectiveAddr;
 
 	/**
 	 * Endpoint context matcher for outgoing messages.
@@ -122,6 +122,21 @@ public class UDPConnector implements Connector {
 	private int receiverCount = 1;
 
 	private int receiverPacketSize = 2048;
+
+	/**
+	 * {@code true}, if socket is reused, {@code false}, otherwise.
+	 * @since 2.3
+	 */
+	private boolean reuseAddress;
+
+	/**
+	 * {@code true}, if connector is a multicast receiver, {@code false},
+	 * otherwise. A multicast receiver is currently a
+	 * {@link UdpMulticastConnector}, if it joins only one multicast group.
+	 * 
+	 * @since 2.3
+	 */
+	protected boolean multicast;
 
 	/**
 	 * Creates a connector on the wildcard address listening on an ephemeral
@@ -160,8 +175,10 @@ public class UDPConnector implements Connector {
 			return;
 		}
 
-		// if localAddr is null or port is 0, the system decides
-		init(new DatagramSocket(localAddr.getPort(), localAddr.getAddress()));
+		DatagramSocket socket = new DatagramSocket(null);
+		socket.setReuseAddress(reuseAddress);
+		socket.bind(localAddr);
+		init(socket);
 	}
 
 	/**
@@ -265,6 +282,7 @@ public class UDPConnector implements Connector {
 	@Override
 	public void destroy() {
 		stop();
+		receiver = null;
 	}
 
 	@Override
@@ -364,21 +382,29 @@ public class UDPConnector implements Connector {
 			DatagramSocket currentSocket = socket;
 			if (currentSocket != null) {
 				currentSocket.receive(datagram);
+				RawDataChannel dataReceiver = receiver;
 				if (datagram.getLength() >= size) {
 					// too large datagram for our buffer! data could have been
 					// truncated, so we discard it.
 					LOGGER.debug(
 							"UDPConnector ({}) received truncated UDP datagram from {}:{}. Maximum size allowed {}. Discarding ...",
 							effectiveAddr, datagram.getAddress(), datagram.getPort(), size - 1);
+				} else if (dataReceiver == null) {
+					LOGGER.debug("UDPConnector ({}) received UDP datagram from {}:{} without receiver. Discarding ...",
+							effectiveAddr, datagram.getAddress(), datagram.getPort());
 				} else {
 					long timestamp = ClockUtil.nanoRealtime();
-					LOGGER.debug("UDPConnector ({}) received {} bytes from {}:{}", effectiveAddr, datagram.getLength(),
+					String local = StringUtil.toString(effectiveAddr);
+					if (multicast) {
+						local = "mc/" + local;
+					}
+					LOGGER.debug("UDPConnector ({}) received {} bytes from {}:{}", local, datagram.getLength(),
 							datagram.getAddress(), datagram.getPort());
 					byte[] bytes = Arrays.copyOfRange(datagram.getData(), datagram.getOffset(), datagram.getLength());
 					RawData msg = RawData.inbound(bytes,
 							new UdpEndpointContext(new InetSocketAddress(datagram.getAddress(), datagram.getPort())),
-							false, timestamp);
-					receiver.receiveData(msg);
+							multicast, timestamp);
+					dataReceiver.receiveData(msg);
 				}
 			}
 		}
@@ -427,6 +453,31 @@ public class UDPConnector implements Connector {
 				raw.onError(new IOException("socket already closed!"));
 			}
 		}
+	}
+
+	/**
+	 * Get reuse address.
+	 * 
+	 * @return {@code true}, if connector may reuse address, {@code false}
+	 *         otherwise.
+	 * 
+	 * @see DatagramSocket#getReuseAddress()
+	 * @since 2.3
+	 */
+	public boolean getReuseAddress() {
+		return reuseAddress;
+	}
+
+	/**
+	 * Set reuse address.
+	 * 
+	 * @param enable {@code true}, if connector may reuse address, {@code false}
+	 *            otherwise.
+	 * @see DatagramSocket#setReuseAddress(boolean)
+	 * @since 2.3
+	 */
+	public void setReuseAddress(boolean enable) {
+		this.reuseAddress = enable;
 	}
 
 	public void setReceiveBufferSize(int size) {

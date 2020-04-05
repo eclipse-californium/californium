@@ -121,6 +121,7 @@ import org.eclipse.californium.core.observe.InMemoryObservationStore;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.core.server.MessageDeliverer;
+import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
@@ -193,7 +194,7 @@ import org.slf4j.LoggerFactory;
  * The endpoint and its layers use an {@link ScheduledExecutorService} to
  * execute tasks, e.g., when a request arrives.
  */
-public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors {
+public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors, MulticastReceivers {
 
 	/** the logger. */
 	private static final Logger LOGGER = LoggerFactory.getLogger(CoapEndpoint.class);
@@ -271,6 +272,13 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors {
 
 	/** The list of Notification listener (use for CoAP observer relations) */
 	private List<NotificationListener> notificationListeners = new CopyOnWriteArrayList<>();
+
+	/**
+	 * The list of multicast receivers.
+	 * 
+	 * @since 2.3
+	 */
+	private List<Connector> multicastReceivers = new CopyOnWriteArrayList<>();
 
 	private ScheduledFuture<?> statusLogger;
 
@@ -589,10 +597,11 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors {
 		try {
 			LOGGER.debug("{}Starting endpoint at {}", tag, getUri());
 
-			started = true;
 			matcher.start();
+			startMulticastReceivers();
 			connector.start();
 			coapstack.start();
+			started = true;
 			for (EndpointObserver obs : observers) {
 				obs.started(this);
 			}
@@ -629,6 +638,9 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors {
 				statusLogger.cancel(false);
 				statusLogger = null;
 			}
+			for (Connector receiver : multicastReceivers) {
+				receiver.stop();
+			}
 			connector.stop();
 			matcher.stop();
 			for (EndpointObserver obs : observers) {
@@ -642,6 +654,9 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors {
 		LOGGER.info("{}Destroying endpoint at {}", tag, getUri());
 		if (started) {
 			stop();
+		}
+		for (Connector receiver : multicastReceivers) {
+			receiver.destroy();
 		}
 		connector.destroy();
 		coapstack.destroy();
@@ -726,6 +741,31 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors {
 	@Override
 	public List<MessageInterceptor> getPostProcessInterceptors() {
 		return Collections.unmodifiableList(postProcessInterceptors);
+	}
+
+	@Override
+	public void addMulticastReceiver(final Connector receiver) {
+		if (receiver == null) {
+			throw new NullPointerException("Connector must not be null!");
+		}
+		if (!receiver.getAddress().getAddress().isMulticastAddress()) {
+			throw new IllegalArgumentException("Connector is not a valid multicast receiver!");
+		}
+		multicastReceivers.add(receiver);
+		receiver.setRawDataReceiver(new MulticastReceiverInbox(receiver));
+	}
+
+	@Override
+	public void removeMulticastReceiver(Connector receiver) {
+		multicastReceivers.remove(receiver);
+		receiver.setRawDataReceiver(null);
+	}
+
+	@Override
+	public void startMulticastReceivers() throws IOException {
+		for (Connector receiver : multicastReceivers) {
+			receiver.start();
+		}
 	}
 
 	@Override
@@ -1200,6 +1240,117 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors {
 				} else {
 					 matcher.receiveEmptyMessage(message, endpointStackReceiver);
 				}
+			}
+		}
+	}
+
+	/**
+	 * A multicast receiver uses this channel to forward requests (in form of
+	 * {@link RawData}) to the endpoint. The endpoint creates a new task to
+	 * process the message. The multicast group is set as destionation of the
+	 * received request, {@link Request#isMulticast()} returns therfore
+	 * {@code true}. The task consists of invoking the matcher to look for an
+	 * associated exchange and then forwards the message with the exchange to
+	 * the stack of layers. Responses and empty messages are silently ignored.
+	 * 
+	 * @since 2.3
+	 */
+	private class MulticastReceiverInbox implements RawDataChannel {
+
+		private final Connector connector;
+		private final String scheme;
+
+		private MulticastReceiverInbox(Connector connector) {
+			this.connector = connector;
+			this.scheme = CoAP.getSchemeForProtocol(connector.getProtocol());
+		}
+
+		@Override
+		public void receiveData(final RawData raw) {
+			if (raw.getEndpointContext() == null) {
+				throw new IllegalArgumentException("multicast-receiver received message that does not have a endpoint context");
+			} else if (raw.getEndpointContext().getPeerAddress() == null) {
+				throw new IllegalArgumentException("multicast-receiver received message that does not have a source address");
+			} else if (raw.getEndpointContext().getPeerAddress().getPort() == 0) {
+				throw new IllegalArgumentException("multicast-receiver received message that does not have a source port");
+			} else if (!raw.isMulticast()) {
+				throw new IllegalArgumentException("multicast-receiver received message is not from multicast group");
+			} else {
+
+				// Create a new task to process this message
+				runInProtocolStage(new Runnable() {
+
+					@Override
+					public void run() {
+						receiveMessage(raw);
+					}
+				});
+			}
+		}
+
+		/*
+		 * The endpoint's executor executes this method to convert the raw bytes
+		 * into a message, look for an associated exchange and forward it to the
+		 * stack of layers. If the message is a CON and cannot be parsed, e.g.
+		 * because the message is malformed, an RST is sent back to the sender.
+		 */
+		private void receiveMessage(final RawData raw) {
+
+			Message msg = null;
+
+			try {
+				msg = parser.parseMessage(raw);
+
+				if (CoAP.isRequest(msg.getRawCode())) {
+
+					receiveRequest((Request) msg);
+
+				} else if (CoAP.isResponse(msg.getRawCode())) {
+
+					LOGGER.debug("{}multicast-receiver silently ignoring responses from {}", tag, raw.getEndpointContext());
+
+				} else if (CoAP.isEmptyMessage(msg.getRawCode())) {
+
+					LOGGER.debug("{}multicast-receiver silently ignoring empty messages from {}", tag, raw.getEndpointContext());
+
+				} else {
+					LOGGER.debug("{}multicast-receiver silently ignoring non-CoAP message from {}", tag, raw.getEndpointContext());
+				}
+
+			} catch (MessageFormatException e) {
+
+				// ignore erroneous messages that are not transmitted reliably
+				LOGGER.debug("{}multicast-receiver discarding malformed message from [{}]", tag, raw.getEndpointContext());
+			}
+		}
+
+		private void receiveRequest(final Request request) {
+
+			// set request attributes from raw data
+			request.setScheme(scheme);
+			InetSocketAddress in = connector.getAddress();
+			if (in.getAddress().isMulticastAddress()) {
+				request.setDestinationContext(new AddressEndpointContext(in));
+			} else {
+				LOGGER.warn("{}multicast-receiver is not in multicast group, drop request {}", tag, request);
+				return;
+			}
+
+			if (!started) {
+				LOGGER.debug("{}not running, drop request {}", tag, request);
+				return;
+			}
+
+			/*
+			 * Logging here causes significant performance loss. If necessary,
+			 * add an interceptor that logs the messages, e.g., the
+			 * MessageTracer.
+			 */
+			notifyReceive(interceptors, request);
+
+			// MessageInterceptor might have canceled
+			if (!request.isCanceled()) {
+				matcher.receiveRequest(request, endpointStackReceiver);
 			}
 		}
 	}

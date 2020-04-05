@@ -29,6 +29,7 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
+import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -37,6 +38,10 @@ import org.eclipse.californium.elements.util.StringUtil;
  * Test client configured to support multicast requests.
  */
 public class MulticastTestClient {
+
+	private enum MulticastMode {
+		IPv4, IPv6_LINK, Ipv6_SITE
+	}
 
 	/**
 	 * File name for network configuration.
@@ -58,8 +63,10 @@ public class MulticastTestClient {
 
 	};
 
-	private static void get(CoapClient client) throws ConnectorException, IOException {
-		client.setURI("coap://localhost:5683/helloWorld");
+	private static void get(CoapClient client, int port, String resourcePath) throws ConnectorException, IOException {
+		String uri = "coap://localhost:" + port + "/" + resourcePath;
+		System.out.println("GET " + uri);
+		client.setURI(uri);
 
 		Request request = Request.newGet();
 		request.setType(Type.CON);
@@ -67,28 +74,47 @@ public class MulticastTestClient {
 		// sends an uni-cast request
 		CoapResponse response = client.advanced(request);
 		if (response != null) {
+			System.out.println(StringUtil.toString(response.advanced().getSourceContext().getPeerAddress()));
 			System.out.println(Utils.prettyPrint(response));
 		} else {
 			System.out.println("No response received.");
 		}
 	}
 
-	private static void mget(CoapClient client, boolean ipv6) throws ConnectorException, IOException {
-		if (ipv6) {
-			if (NetworkInterfacesUtil.isAnyIpv6()) {
-				client.setURI("coap://[" + CoAP.MULTICAST_IPV6_SITELOCAL.getHostAddress() + "]/helloWorld");
-			} else {
-				System.err.print("IPv6 not supported!");
-				return;
-			}
-		} else {
+	private static void mget(CoapClient client, int port, String resourcePath, MulticastMode mode)
+			throws ConnectorException, IOException {
+		String uri;
+		switch (mode) {
+		default:
+		case IPv4:
 			if (NetworkInterfacesUtil.isAnyIpv4()) {
-				client.setURI("coap://" + CoAP.MULTICAST_IPV4.getHostAddress() + "/helloWorld");
+				uri = "coap://" + CoAP.MULTICAST_IPV4.getHostAddress() + ":" + port + "/" + resourcePath + "?4";
+				break;
 			} else {
 				System.err.print("IPv4 not supported!");
 				return;
 			}
+		case IPv6_LINK:
+			if (NetworkInterfacesUtil.isAnyIpv6()) {
+				uri = "coap://[" + CoAP.MULTICAST_IPV6_LINKLOCAL.getHostAddress() + "]:" + port + "/" + resourcePath
+						+ "?6L";
+				break;
+			} else {
+				System.err.print("IPv6 not supported!");
+				return;
+			}
+		case Ipv6_SITE:
+			if (NetworkInterfacesUtil.isAnyIpv6()) {
+				uri = "coap://[" + CoAP.MULTICAST_IPV6_SITELOCAL.getHostAddress() + "]:" + port + "/" + resourcePath
+						+ "?6SI";
+				break;
+			} else {
+				System.err.print("IPv6 not supported!");
+				return;
+			}
 		}
+		client.setURI(uri);
+		System.out.println("GET " + uri);
 		Request multicastRequest = Request.newGet();
 		multicastRequest.setType(Type.NON);
 		// sends a multicast request
@@ -100,21 +126,39 @@ public class MulticastTestClient {
 	public static void main(String args[]) {
 
 		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
+		int unicastPort = config.getInt(Keys.COAP_PORT);
+		int multicastPort = unicastPort;
+		switch (args.length) {
+		default:
+			System.out.println("usage: MulticastTestClient [unicast-port [multicast-port]]");
+		case 2:
+			multicastPort = Integer.parseInt(args[1]);
+		case 1:
+			unicastPort = Integer.parseInt(args[0]);
+		case 0:
+		}
+
+		HealthStatisticLogger health = new HealthStatisticLogger("multicast-client", true);
 		CoapEndpoint endpoint = new CoapEndpoint.Builder().setNetworkConfig(config).build();
+		endpoint.addPostProcessInterceptor(health);
 		CoapClient client = new CoapClient();
 		client.setEndpoint(endpoint);
-
+		String resourcePath = "helloWorld";
 		try {
 			// sends an uni-cast request
-			get(client);
+			get(client, unicastPort, resourcePath);
 			// sends a multicast IPv4 request
-			mget(client, false);
-			// sends a multicast IPv6 request
-			mget(client, true);
+			mget(client, multicastPort, resourcePath, MulticastMode.IPv4);
+			// https://bugs.openjdk.java.net/browse/JDK-8210493
+			// link-local multicast is broken
+			// sends a link-multicast IPv6 request
+			mget(client, multicastPort, resourcePath, MulticastMode.IPv6_LINK);
+			// sends a site-multicast IPv6 request
+			mget(client, multicastPort, resourcePath, MulticastMode.Ipv6_SITE);
 		} catch (ConnectorException | IOException e) {
 			System.err.println("Error occurred while sending request: " + e);
 		}
-
+		health.dump();
 		client.shutdown();
 	}
 

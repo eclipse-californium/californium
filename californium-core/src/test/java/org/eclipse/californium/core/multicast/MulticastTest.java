@@ -14,32 +14,42 @@
  *    Bosch Software Innovations GmbH - initial creation
  *    Achim Kraus (Bosch Software Innovations GmbH) - implement DIRECT processing,
  *                                                    though NON multicast shown
- *                                                     to be too unreliable.
+ *                                                    to be too unreliable.
  ******************************************************************************/
 package org.eclipse.californium.core.multicast;
 
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.assertThat;
 
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.CoapServer;
+import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.Endpoint;
+import org.eclipse.californium.core.network.MulticastReceivers;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.CountingCoapHandler;
-import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.UdpMulticastConnector;
+import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
+import org.hamcrest.Matcher;
+import org.junit.After;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -53,25 +63,41 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Small.class)
 public class MulticastTest {
+
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.NATIVE, CoapNetworkRule.Mode.DIRECT);
 
 	@ClassRule
 	public static CoapThreadsRule cleanup = new CoapThreadsRule();
 
-	private final static int TIMEOUT_MILLIS = 2000;
+	private final static long TIMEOUT_MILLIS = 2000;
 	private final static int PORT = CoAP.DEFAULT_COAP_PORT + 1000;
+	private final static int PORT2 = PORT + 1000;
+
+	private static final InetAddress MULTICAST_IPV4_2 = new InetSocketAddress("224.0.1.189", 0).getAddress();
 
 	private static NetworkConfig config;
+	private static InetSocketAddress unicast;
+	private static HealthStatisticLogger health = new HealthStatisticLogger("client", true);
 
 	@BeforeClass
 	public static void setupServer() {
 		config = network.getStandardTestConfig();
 		config.setInt(NetworkConfig.Keys.MULTICAST_BASE_MID, 20000);
+
 		CoapServer server1 = new CoapServer(config);
-		InetSocketAddress serverSocketAddress = new InetSocketAddress(PORT);
-		Connector connector = new UdpMulticastConnector(serverSocketAddress, CoAP.MULTICAST_IPV4);
+		InetAddress host = NetworkInterfacesUtil.getMulticastInterfaceIpv4();
+		if (host == null) {
+			host = InetAddress.getLoopbackAddress();
+		}
+		InetAddress multicastInterface = null;
+		UDPConnector connector = new UdpMulticastConnector(multicastInterface, new InetSocketAddress(PORT), CoAP.MULTICAST_IPV4);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+		builder.setNetworkConfig(config);
+		builder.setConnector(connector);
+		server1.addEndpoint(builder.build());
+		connector = new UdpMulticastConnector(multicastInterface, new InetSocketAddress(PORT), MULTICAST_IPV4_2);
+		builder = new CoapEndpoint.Builder();
 		builder.setNetworkConfig(config);
 		builder.setConnector(connector);
 		server1.addEndpoint(builder.build());
@@ -79,7 +105,9 @@ public class MulticastTest {
 
 			@Override
 			public void handleGET(CoapExchange exchange) {
-				exchange.respond(ResponseCode.CONTENT, "Hello World 1!");
+				Endpoint endpoint = exchange.advanced().getEndpoint();
+				String receiver = StringUtil.toString(endpoint.getAddress().getAddress());
+				exchange.respond(ResponseCode.CONTENT, "Hello Multicast-World 1! " + receiver);
 			}
 		});
 		server1.add(new CoapResource("no") {
@@ -93,7 +121,7 @@ public class MulticastTest {
 		cleanup.add(server1);
 
 		CoapServer server2 = new CoapServer();
-		connector = new UdpMulticastConnector(serverSocketAddress, CoAP.MULTICAST_IPV4);
+		connector = new UdpMulticastConnector(multicastInterface, new InetSocketAddress(PORT), CoAP.MULTICAST_IPV4);
 		builder = new CoapEndpoint.Builder();
 		builder.setNetworkConfig(config);
 		builder.setConnector(connector);
@@ -102,7 +130,7 @@ public class MulticastTest {
 
 			@Override
 			public void handleGET(CoapExchange exchange) {
-				exchange.respond(ResponseCode.CONTENT, "Hello World 2!");
+				exchange.respond(ResponseCode.CONTENT, "Hello Multicast-World 2!");
 			}
 		});
 		server2.add(new CoapResource("no") {
@@ -114,50 +142,255 @@ public class MulticastTest {
 		});
 		server2.start();
 		cleanup.add(server2);
+
+		unicast = new InetSocketAddress(host, PORT);
+		CoapServer server3 = new CoapServer(config);
+		connector = new UDPConnector(unicast);
+		connector.setReuseAddress(true);
+		builder = new CoapEndpoint.Builder();
+		builder.setNetworkConfig(config);
+		builder.setConnector(connector);
+		CoapEndpoint coapEndpoint = builder.build();
+		connector = new UdpMulticastConnector(multicastInterface, new InetSocketAddress(PORT), CoAP.MULTICAST_IPV4);
+		((MulticastReceivers)coapEndpoint).addMulticastReceiver(connector);
+		connector = new UdpMulticastConnector(multicastInterface, new InetSocketAddress(PORT2), CoAP.MULTICAST_IPV4);
+		((MulticastReceivers)coapEndpoint).addMulticastReceiver(connector);
+		server3.addEndpoint(coapEndpoint);
+
+		server3.add(new CoapResource("hello") {
+
+			@Override
+			public void handleGET(CoapExchange exchange) {
+				if (exchange.isMulticastRequest()) {
+					exchange.respond(ResponseCode.CONTENT, "Hello Multicast-Unicast-World!");
+				} else {
+					exchange.respond(ResponseCode.CONTENT, "Hello Unicast-World!");
+				}
+			}
+		});
+		server3.add(new CoapResource("no") {
+
+			@Override
+			public void handleGET(CoapExchange exchange) {
+				exchange.reject();
+			}
+		});
+		server3.start();
+		cleanup.add(server3);
+	}
+
+	@After
+	public void cleanup() {
+		health.reset();
 	}
 
 	@Test
-	public void clientMulticastCheckResponseText() {
+	public void clientMulticastCheckResponseText() throws InterruptedException {
+		String uri = "coap://" + CoAP.MULTICAST_IPV4.getHostAddress() + ":" + PORT + "/hello";
+		String receiver = StringUtil.toString(CoAP.MULTICAST_IPV4);
 		CountingCoapHandler handler = new CountingCoapHandler();
 		Request request = Request.newGet();
-		request.setURI("coap://" + CoAP.MULTICAST_IPV4.getHostAddress() + ":" + PORT + "/hello");
+		request.setURI(uri);
 		request.setType(Type.NON);
+		System.out.println("Multicast: " + uri);
+		System.out.println(Utils.prettyPrint(request));
 		CoapClient client = new CoapClient();
 		cleanup.add(client);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setNetworkConfig(config);
 		CoapEndpoint endpoint = builder.build();
 		cleanup.add(endpoint);
+		endpoint.addPostProcessInterceptor(health);
 		client.setEndpoint(endpoint);
 		client.advanced(handler, request);
 		CoapResponse response = handler.waitOnLoad(TIMEOUT_MILLIS);
-		assertThat(response, is(notNullValue()));
-		assertThat(response.getResponseText(), anyOf(is("Hello World 1!"), is("Hello World 2!")));
+		assertThat("missing 1. response", response, is(notNullValue()));
+		assertThat(response.getResponseText(),
+				anyOf(is("Hello Multicast-World 1! " + receiver), is("Hello Multicast-World 2!"), is("Hello Multicast-Unicast-World!")));
 		response = handler.waitOnLoad(TIMEOUT_MILLIS);
-		assertThat(response, is(notNullValue()));
-		assertThat(response.getResponseText(), anyOf(is("Hello World 1!"), is("Hello World 2!")));
+		assertThat("missing 2. response", response, is(notNullValue()));
+		assertThat(response.getResponseText(),
+				anyOf(is("Hello Multicast-World 1! " + receiver), is("Hello Multicast-World 2!"), is("Hello Multicast-Unicast-World!")));
+		assertThat("missing 3. response", response, is(notNullValue()));
+		assertThat(response.getResponseText(),
+				anyOf(is("Hello Multicast-World 1! " + receiver), is("Hello Multicast-World 2!"), is("Hello Multicast-Unicast-World!")));
+		assertHealthCounter("send-requests", is(1L), TIMEOUT_MILLIS);
+		assertHealthCounter("send-rejects", is(0L));
+		assertHealthCounter("send-request retransmissions", is(0L));
+		assertHealthCounter("recv-responses", is(3L), TIMEOUT_MILLIS);
+		assertHealthCounter("recv-duplicate responses", is(0L));
+		assertHealthCounter("recv-acks", is(0L));
+		assertHealthCounter("recv-rejects", is(0L));
 	}
 
 	@Test
-	public void clientMulticastCheckReject() {
+	public void clientAltMulticastCheckResponseText() throws InterruptedException {
+		String uri = "coap://" + MULTICAST_IPV4_2.getHostAddress() + ":" + PORT + "/hello";
+		String receiver = StringUtil.toString(MULTICAST_IPV4_2);
 		CountingCoapHandler handler = new CountingCoapHandler();
 		Request request = Request.newGet();
-		request.setURI("coap://" + CoAP.MULTICAST_IPV4.getHostAddress() + ":" + PORT + "/no");
+		request.setURI(uri);
 		request.setType(Type.NON);
+		System.out.println("Multicast: " + uri);
+		System.out.println(Utils.prettyPrint(request));
 		CoapClient client = new CoapClient();
 		cleanup.add(client);
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setNetworkConfig(config);
 		CoapEndpoint endpoint = builder.build();
 		cleanup.add(endpoint);
+		endpoint.addPostProcessInterceptor(health);
 		client.setEndpoint(endpoint);
 		client.advanced(handler, request);
 		CoapResponse response = handler.waitOnLoad(TIMEOUT_MILLIS);
+		assertThat("missing response", response, is(notNullValue()));
+		assertThat(response.getResponseText(), is("Hello Multicast-World 1! " + receiver));
+		response = handler.waitOnLoad(TIMEOUT_MILLIS);
+		assertThat(response, is(nullValue()));
+		assertHealthCounter("send-requests", is(1L), TIMEOUT_MILLIS);
+		assertHealthCounter("send-rejects", is(0L));
+		assertHealthCounter("send-request retransmissions", is(0L));
+		assertHealthCounter("recv-responses", is(1L), TIMEOUT_MILLIS);
+		assertHealthCounter("recv-duplicate responses", is(0L));
+		assertHealthCounter("recv-acks", is(0L));
+		assertHealthCounter("recv-rejects", is(0L));
+	}
+
+	@Test
+	public void clientMulticastChangePort() throws InterruptedException {
+		String uri = "coap://" + CoAP.MULTICAST_IPV4.getHostAddress() + ":" + PORT2 + "/hello";
+		CountingCoapHandler handler = new CountingCoapHandler();
+		Request request = Request.newGet();
+		request.setURI(uri);
+		request.setType(Type.NON);
+		System.out.println("Multicast: " + uri);
+		System.out.println(Utils.prettyPrint(request));
+		CoapClient client = new CoapClient();
+		cleanup.add(client);
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+		builder.setNetworkConfig(config);
+		CoapEndpoint endpoint = builder.build();
+		cleanup.add(endpoint);
+		endpoint.addPostProcessInterceptor(health);
+		client.setEndpoint(endpoint);
+		client.advanced(handler, request);
+		CoapResponse response = handler.waitOnLoad(TIMEOUT_MILLIS);
+		assertThat("missing response", response, is(notNullValue()));
+		assertThat(response.getResponseText(), is("Hello Multicast-Unicast-World!"));
+		assertHealthCounter("send-requests", is(1L), TIMEOUT_MILLIS);
+		assertHealthCounter("send-rejects", is(0L));
+		assertHealthCounter("send-request retransmissions", is(0L));
+		assertHealthCounter("recv-responses", is(1L), TIMEOUT_MILLIS);
+		assertHealthCounter("recv-duplicate responses", is(0L));
+		assertHealthCounter("recv-acks", is(0L));
+		assertHealthCounter("recv-rejects", is(0L));
+	}
+
+	@Test
+	public void clientUnicast() throws InterruptedException {
+		String uri = "coap://" + StringUtil.toString(unicast) + "/hello";
+		CoapClient client = new CoapClient();
+		cleanup.add(client);
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+		builder.setNetworkConfig(config);
+		CoapEndpoint endpoint = builder.build();
+		cleanup.add(endpoint);
+		endpoint.addPostProcessInterceptor(health);
+		client.setEndpoint(endpoint);
+		CountingCoapHandler handler = new CountingCoapHandler();
+		Request request = Request.newGet();
+		request.setURI(uri);
+		request.setType(Type.NON);
+		System.out.println("Unicast: " + uri);
+		System.out.println(Utils.prettyPrint(request));
+		client.advanced(handler, request);
+		CoapResponse response = handler.waitOnLoad(TIMEOUT_MILLIS);
 		assertThat(response, is(notNullValue()));
+		System.out.println(response.getResponseText());
+		assertThat(response.getResponseText(), is("Hello Unicast-World!"));
+		assertHealthCounter("send-requests", is(1L), TIMEOUT_MILLIS);
+		assertHealthCounter("send-rejects", is(0L));
+		assertHealthCounter("send-request retransmissions", is(0L));
+		assertHealthCounter("recv-responses", is(1L), TIMEOUT_MILLIS);
+		assertHealthCounter("recv-duplicate responses", is(0L));
+		assertHealthCounter("recv-acks", is(0L));
+		assertHealthCounter("recv-rejects", is(0L));
+		assertHealthCounter("recv-ignored", is(0L));
+	}
+
+	@Test
+	public void clientUnicastReject() throws InterruptedException {
+		String uri = "coap://" + StringUtil.toString(unicast) + "/no";
+		CoapClient client = new CoapClient();
+		cleanup.add(client);
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+		builder.setNetworkConfig(config);
+		CoapEndpoint endpoint = builder.build();
+		cleanup.add(endpoint);
+		endpoint.addPostProcessInterceptor(health);
+		client.setEndpoint(endpoint);
+		CountingCoapHandler handler = new CountingCoapHandler();
+		Request request = Request.newGet();
+		request.setURI(uri);
+		request.setType(Type.NON);
+		System.out.println("Unicast: " + uri);
+		System.out.println(Utils.prettyPrint(request));
+		client.advanced(handler, request);
+		CoapResponse response = handler.waitOnLoad(TIMEOUT_MILLIS);
+		assertThat(response, is(nullValue()));
+		assertThat(request.isRejected(), is(true));
+		assertHealthCounter("send-requests", is(1L), TIMEOUT_MILLIS);
+		assertHealthCounter("send-rejects", is(0L));
+		assertHealthCounter("send-request retransmissions", is(0L));
+		assertHealthCounter("recv-responses", is(0L));
+		assertHealthCounter("recv-duplicate responses", is(0L));
+		assertHealthCounter("recv-acks", is(0L));
+		assertHealthCounter("recv-rejects", is(1L), TIMEOUT_MILLIS);
+		assertHealthCounter("recv-ignored", is(0L));
+	}
+
+	@Test
+	public void clientMulticastCheckReject() throws InterruptedException {
+		String uri = "coap://" + CoAP.MULTICAST_IPV4.getHostAddress() + ":" + PORT + "/no";
+		CountingCoapHandler handler = new CountingCoapHandler();
+		Request request = Request.newGet();
+		request.setURI(uri);
+		request.setType(Type.NON);
+		System.out.println("Multicast: " + uri);
+		System.out.println(Utils.prettyPrint(request));
+		CoapClient client = new CoapClient();
+		cleanup.add(client);
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+		builder.setNetworkConfig(config);
+		CoapEndpoint endpoint = builder.build();
+		cleanup.add(endpoint);
+		endpoint.addPostProcessInterceptor(health);
+		client.setEndpoint(endpoint);
+		client.advanced(handler, request);
+		CoapResponse response = handler.waitOnLoad(TIMEOUT_MILLIS);
+		assertThat("missing response", response, is(notNullValue()));
 		assertThat(response.getResponseText(), is("no!"));
 
 		response = handler.waitOnLoad(TIMEOUT_MILLIS);
-		assertThat(response, is(nullValue()));
+		assertThat("unexpected response", response, is(nullValue()));
 		assertThat(request.isRejected(), is(false));
+
+		assertHealthCounter("send-requests", is(1L), TIMEOUT_MILLIS);
+		assertHealthCounter("send-rejects", is(0L));
+		assertHealthCounter("send-request retransmissions", is(0L));
+		assertHealthCounter("recv-responses", is(1L), TIMEOUT_MILLIS);
+		assertHealthCounter("recv-duplicate responses", is(0L));
+		assertHealthCounter("recv-acks", is(0L));
+		assertHealthCounter("recv-rejects", is(0L)); // multicast reject are ignored
+		assertHealthCounter("recv-ignored", is(1L), TIMEOUT_MILLIS); // server 3 blocks sending rejects 
+	}
+
+	private void assertHealthCounter(final String name, final Matcher<? super Long> matcher, long timeout)
+			throws InterruptedException {
+		TestTools.assertCounter(health, name, matcher, timeout);
+	}
+
+	private void assertHealthCounter(String name, Matcher<? super Long> matcher) {
+		TestTools.assertCounter(health, name, matcher);
 	}
 }

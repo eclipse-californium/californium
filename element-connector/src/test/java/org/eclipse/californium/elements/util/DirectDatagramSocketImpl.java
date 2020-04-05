@@ -530,8 +530,11 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 			synchronized (multicast) {
 				return multicast.contains(destination);
 			}
+		} else {
+			synchronized (multicast) {
+				return multicast.isEmpty();
+			}
 		}
-		return true;
 	}
 
 	/**

@@ -15,6 +15,11 @@
  ******************************************************************************/
 package org.eclipse.californium.examples;
 
+import java.io.IOException;
+import java.net.BindException;
+import java.net.Inet4Address;
+import java.net.Inet6Address;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.Random;
@@ -23,10 +28,11 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.MulticastReceivers;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.UdpMulticastConnector;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.slf4j.Logger;
@@ -37,34 +43,107 @@ import org.slf4j.LoggerFactory;
  */
 public class MulticastTestServer {
 	private static final Logger LOGGER = LoggerFactory.getLogger(MulticastTestServer.class);
+	private static final boolean LOOPBACK = false;
 
 	public static void main(String[] args) throws UnknownHostException {
-
 		NetworkConfig config = NetworkConfig.getStandard();
-		CoapEndpoint endpoint = createEndpoints(config);
+		int unicastPort = config.getInt(Keys.COAP_PORT);
+		int multicastPort = unicastPort;
+		switch (args.length) {
+		default:
+			System.out.println("usage: MulticastTestServer [unicast-port [multicast-port]]");
+		case 2:
+			multicastPort = Integer.parseInt(args[1]);
+		case 1:
+			unicastPort = Integer.parseInt(args[0]);
+		case 0:
+		}
 		CoapServer server = new CoapServer(config);
-		server.addEndpoint(endpoint);
+		createEndpoints(server, unicastPort, multicastPort, config);
 		server.add(new HelloWorldResource());
 		server.start();
 	}
 
-	private static CoapEndpoint createEndpoints(NetworkConfig config) throws UnknownHostException {
-		int port = config.getInt(Keys.COAP_PORT);
-		InetSocketAddress localAddress = new InetSocketAddress(port);
-		Connector connector;
-		if (NetworkInterfacesUtil.isAnyIpv6() && NetworkInterfacesUtil.isAnyIpv4()) {
-			connector = new UdpMulticastConnector(localAddress, CoAP.MULTICAST_IPV4, CoAP.MULTICAST_IPV6_LINKLOCAL,
-					CoAP.MULTICAST_IPV6_SITELOCAL);
-			LOGGER.info("IPv4 & IPv6");
-		} else if (NetworkInterfacesUtil.isAnyIpv6()) {
-			connector = new UdpMulticastConnector(localAddress, CoAP.MULTICAST_IPV6_LINKLOCAL,
-					CoAP.MULTICAST_IPV6_SITELOCAL);
-			LOGGER.info("IPv6");
-		} else {
-			connector = new UdpMulticastConnector(localAddress, CoAP.MULTICAST_IPV4);
-			LOGGER.info("IPv4");
+	private static void createEndpoints(CoapServer server, int unicastPort, int multicastPort, NetworkConfig config) {
+//		UDPConnector udpConnector = new UDPConnector(new InetSocketAddress(unicastPort));
+//		udpConnector.setReuseAddress(true);
+//		CoapEndpoint coapEndpoint = new CoapEndpoint.Builder().setNetworkConfig(config).setConnector(udpConnector).build();
+
+		if (NetworkInterfacesUtil.isAnyIpv6()) {
+			Inet6Address ipv6 = NetworkInterfacesUtil.getMulticastInterfaceIpv6();
+			UDPConnector udpConnector = new UDPConnector(new InetSocketAddress(ipv6, unicastPort));
+			udpConnector.setReuseAddress(true);
+			CoapEndpoint coapEndpoint = new CoapEndpoint.Builder().setNetworkConfig(config).setConnector(udpConnector).build();
+
+			UdpMulticastConnector connector = new UdpMulticastConnector(ipv6, new InetSocketAddress(CoAP.MULTICAST_IPV6_SITELOCAL, multicastPort), CoAP.MULTICAST_IPV6_SITELOCAL);
+			connector.setLoopbackMode(LOOPBACK);
+			try {
+				connector.start();
+			} catch(BindException ex) {
+				// binding to multicast seems to fail on windows
+				connector = new UdpMulticastConnector(ipv6, new InetSocketAddress(multicastPort), CoAP.MULTICAST_IPV6_SITELOCAL);
+				connector.setLoopbackMode(true);
+			} catch (IOException e) {
+				e.printStackTrace();
+				connector = null;
+			}
+			if (connector != null) {
+				((MulticastReceivers) coapEndpoint).addMulticastReceiver(connector);
+			}
+
+			/*
+			 * https://bugs.openjdk.java.net/browse/JDK-8210493
+			 * link-local multicast is broken
+			 */
+			connector = new UdpMulticastConnector(ipv6, new InetSocketAddress(CoAP.MULTICAST_IPV6_LINKLOCAL, multicastPort), CoAP.MULTICAST_IPV6_LINKLOCAL);
+			connector.setLoopbackMode(LOOPBACK);
+			try {
+				connector.start();
+			} catch(BindException ex) {
+				// binding to multicast seems to fail on windows
+				connector = new UdpMulticastConnector(ipv6, new InetSocketAddress(multicastPort), CoAP.MULTICAST_IPV6_LINKLOCAL);
+				connector.setLoopbackMode(true);
+			} catch (IOException e) {
+				e.printStackTrace();
+				connector = null;
+			}
+			if (connector != null) {
+				((MulticastReceivers) coapEndpoint).addMulticastReceiver(connector);
+			}
+
+			server.addEndpoint(coapEndpoint);
+			LOGGER.info("IPv6 - multicast");
 		}
-		return new CoapEndpoint.Builder().setNetworkConfig(config).setConnector(connector).build();
+		if (NetworkInterfacesUtil.isAnyIpv4()) {
+			Inet4Address ipv4 = NetworkInterfacesUtil.getMulticastInterfaceIpv4();
+			UDPConnector udpConnector = new UDPConnector(new InetSocketAddress(ipv4, unicastPort));
+			udpConnector.setReuseAddress(true);
+			CoapEndpoint coapEndpoint = new CoapEndpoint.Builder().setNetworkConfig(config).setConnector(udpConnector).build();
+
+			UdpMulticastConnector connector = new UdpMulticastConnector(ipv4, new InetSocketAddress(CoAP.MULTICAST_IPV4, multicastPort), CoAP.MULTICAST_IPV4);
+			connector.setLoopbackMode(LOOPBACK);
+			try {
+				connector.start();
+			} catch(BindException ex) {
+				// binding to multicast seems to fail on windows
+				connector = new UdpMulticastConnector(ipv4, new InetSocketAddress(multicastPort), CoAP.MULTICAST_IPV4);
+				connector.setLoopbackMode(true);
+			} catch (IOException e) {
+				e.printStackTrace();
+				connector = null;
+			}
+			if (connector != null) {
+				((MulticastReceivers) coapEndpoint).addMulticastReceiver(connector);
+			}
+
+			server.addEndpoint(coapEndpoint);
+			LOGGER.info("IPv4 - multicast");
+		}
+		UDPConnector udpConnector = new UDPConnector(new InetSocketAddress(InetAddress.getLoopbackAddress(), unicastPort));
+		udpConnector.setReuseAddress(true);
+		CoapEndpoint coapEndpoint = new CoapEndpoint.Builder().setNetworkConfig(config).setConnector(udpConnector).build();
+		server.addEndpoint(coapEndpoint);
+		LOGGER.info("loopback");
 	}
 
 	private static class HelloWorldResource extends CoapResource {
@@ -83,7 +162,11 @@ public class MulticastTestServer {
 		@Override
 		public void handleGET(CoapExchange exchange) {
 			// respond to the request
-			exchange.respond("Hello World! " + id);
+			if (exchange.isMulticastRequest()) {
+				exchange.respond("Hello Multicast-World! " + id);
+			} else {
+				exchange.respond("Hello Unicast-World! " + id);
+			}
 		}
 	}
 }
