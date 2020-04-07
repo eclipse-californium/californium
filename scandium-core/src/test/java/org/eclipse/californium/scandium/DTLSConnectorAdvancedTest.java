@@ -35,6 +35,7 @@ import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -1654,12 +1655,36 @@ public class DTLSConnectorAdvancedTest {
 		}
 	}
 
-	private void processAll(Handshaker handshaker, List<Record> records)
+	private void processAll(final Handshaker handshaker, final List<Record> records)
 			throws GeneralSecurityException, HandshakeException {
-		DTLSSession session = handshaker.getSession();
-		for (Record record : records) {
-			record.applySession(session);
-			handshaker.processMessage(record);
+		final CountDownLatch ready = new CountDownLatch(1);
+		Runnable run = new Runnable() {
+			
+			@Override
+			public void run() {
+				try {
+					DTLSSession session = handshaker.getSession();
+					for (Record record : records) {
+						record.applySession(session);
+						handshaker.processMessage(record);
+					}
+				} catch (Throwable t) {
+					LOGGER.error("process handshake", t);
+				}
+				ready.countDown();
+			}
+		};
+		SerialExecutor serialExecutor = handshaker.getConnection().getExecutor();
+		if (serialExecutor != null) {
+			serialExecutor.execute(run);
+			try {
+				// sometimes the flight is intended to be resend, 
+				// so the serialized execution must have finished.
+				ready.await();
+			} catch (InterruptedException e) {
+			}
+		} else {
+			run.run();
 		}
 	}
 
