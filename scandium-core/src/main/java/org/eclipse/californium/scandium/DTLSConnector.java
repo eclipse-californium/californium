@@ -445,10 +445,21 @@ public class DTLSConnector implements Connector, RecordLayer {
 					} else if (handshaker.isProbing()) {
 						LOGGER.debug("Handshake with [{}] failed within probe!", handshaker.getPeerAddress());
 					} else if (connection.getEstablishedSession() == handshaker.getSession()) {
-						// failure after established (last FINISH),
-						// but before completed (first data)
-						LOGGER.warn("Handshake with [{}] failed after session was established!",
-								handshaker.getPeerAddress());
+						if (error instanceof HandshakeException) {
+							AlertMessage alert = ((HandshakeException)error).getAlert();
+							if (alert != null && alert.getDescription() == AlertDescription.CLOSE_NOTIFY) {
+								LOGGER.debug("Handshake with [{}] closed after session was established!",
+										handshaker.getPeerAddress());
+							} else {
+								LOGGER.warn("Handshake with [{}] failed after session was established! {}",
+										handshaker.getPeerAddress(), alert);
+							}
+						} else {
+							// failure after established (last FINISH),
+							// but before completed (first data)
+							LOGGER.warn("Handshake with [{}] failed after session was established!",
+									handshaker.getPeerAddress(), error);
+						}
 					} else if (connection.hasEstablishedSession()) {
 						LOGGER.warn("Handshake with [{}] failed, but has an established session!",
 								handshaker.getPeerAddress());
@@ -1327,7 +1338,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * @param cause the exception that is the cause for terminating the handshake
 	 * @param description the reason to indicate in the message sent to the peer before terminating the handshake
 	 */
-	private void terminateOngoingHandshake(final Connection connection, final Throwable cause, final AlertDescription description) {
+	private void terminateOngoingHandshake(final Connection connection, final HandshakeException cause, final AlertDescription description) {
 
 		Handshaker handshaker = connection.getOngoingHandshake();
 		if (handshaker != null) {
@@ -1343,9 +1354,16 @@ public class DTLSConnector implements Connector, RecordLayer {
 				terminateConnection(connection, alert, session);
 			} else {
 				// keep established session intact and only terminate ongoing handshake
+				// failure after established (last FINISH), but before completed (first data)
 				if (connection.getEstablishedSession() == handshaker.getSession()) {
-					// failure after established (last FINISH), but before completed (first data)
-					LOGGER.warn("Handshake with [{}] failed after session was established!", handshaker.getPeerAddress());
+					AlertMessage causingAlert = cause.getAlert();
+					if (causingAlert != null && causingAlert.getDescription() == AlertDescription.CLOSE_NOTIFY) {
+						LOGGER.debug("Handshake with [{}] closed after session was established!",
+								handshaker.getPeerAddress());
+					} else {
+						LOGGER.warn("Handshake with [{}] failed after session was established! {}",
+								handshaker.getPeerAddress(), causingAlert);
+					}
 				} else {
 					LOGGER.warn("Handshake with [{}] failed, but has an established session!", handshaker.getPeerAddress());
 				}
@@ -2331,7 +2349,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		final EndpointContextMatcher endpointMatcher = getEndpointContextMatcher();
 		if (null != endpointMatcher && !endpointMatcher.isToBeSent(message.getEndpointContext(), connectionContext)) {
 			if (LOGGER.isWarnEnabled()) {
-				LOGGER.warn("DTLSConnector ({}) drops {} bytes, {} != {}", this, message.getSize(),
+				LOGGER.warn("DTLSConnector ({}) drops {} bytes outgoing, {} != {}", this, message.getSize(),
 						endpointMatcher.toRelevantState(message.getEndpointContext()),
 						endpointMatcher.toRelevantState(connectionContext));
 			}
