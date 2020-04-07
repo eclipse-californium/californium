@@ -565,6 +565,7 @@ public abstract class Handshaker implements Destroyable {
 			return;
 		}
 		try {
+			int counter = 0;
 			Record recordToProcess = inboundMessageBuffer.getNextRecord(record);
 			while (recordToProcess != null) {
 				DTLSMessage messageToProcess=recordToProcess.getFragment();
@@ -612,6 +613,17 @@ public abstract class Handshaker implements Destroyable {
 							handshakeMessage = genericMessage.getSpecificHandshakeMessage(parameter);
 						}
 						if (lastFlight) {
+							if (flight == null) {
+								if (cause != null) {
+									LOGGER.error("last flight missing, handshake already failed! {}", handshakeMessage,
+											cause);
+								} else if (counter == 0) {
+									LOGGER.error("last flight missing, resend failed! {}", handshakeMessage);
+								} else {
+									LOGGER.error("last flight missing, resend for buffered message {} failed! {}",
+											counter, handshakeMessage);
+								}
+							}
 							// we already sent the last flight (including our FINISHED message),
 							// but the other peer does not seem to have received it because we received
 							// its finished message again, so we simply retransmit our last flight
@@ -657,6 +669,7 @@ public abstract class Handshaker implements Destroyable {
 				session.markRecordAsRead(epoch, recordToProcess.getSequenceNumber());
 				inboundMessageBuffer.clean(recordToProcess.getSequenceNumber());
 				recordToProcess = inboundMessageBuffer.getNextRecord();
+				++counter;
 			}
 			if (session.getReadEpoch() > epoch) {
 				final SerialExecutor serialExecutor = connection.getExecutor();

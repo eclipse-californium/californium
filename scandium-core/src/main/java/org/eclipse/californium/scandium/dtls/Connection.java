@@ -40,6 +40,7 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.ConcurrentModificationException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -61,6 +62,7 @@ import org.slf4j.LoggerFactory;
 public final class Connection {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(Connection.class);
+	private static final Logger LOGGER_OWNER = LoggerFactory.getLogger(Connection.class + "owner");
 
 	private final AtomicReference<Handshaker> ongoingHandshake = new AtomicReference<Handshaker>();
 	private final SessionListener sessionListener = new ConnectionSessionListener();
@@ -569,6 +571,17 @@ public final class Connection {
 
 		@Override
 		public void handshakeCompleted(Handshaker handshaker) {
+			SerialExecutor executor = serialExecutor;
+			if (executor != null && !executor.isShutdown() && LOGGER_OWNER.isErrorEnabled()) {
+				try {
+					executor.assertOwner();
+				} catch (ConcurrentModificationException ex) {
+					LOGGER_OWNER.error("on handshake completed: connection {}", ex.getMessage(), ex);
+					if (LOGGER_OWNER.isDebugEnabled()) {
+						throw ex;
+					}
+				}
+			}
 			if (ongoingHandshake.compareAndSet(handshaker, null)) {
 				LOGGER.debug("Handshake with [{}] has been completed", handshaker.getPeerAddress());
 			}
@@ -576,6 +589,17 @@ public final class Connection {
 
 		@Override
 		public void handshakeFailed(Handshaker handshaker, Throwable error) {
+			SerialExecutor executor = serialExecutor;
+			if (executor != null && !executor.isShutdown() && LOGGER_OWNER.isErrorEnabled()) {
+				try {
+					executor.assertOwner();
+				} catch (ConcurrentModificationException ex) {
+					LOGGER_OWNER.error("on handshake failed: connection {}", ex.getMessage(), ex);
+					if (LOGGER_OWNER.isDebugEnabled()) {
+						throw ex;
+					}
+				}
+			}
 			if (ongoingHandshake.compareAndSet(handshaker, null)) {
 				startingClientHelloRandom = null;
 				LOGGER.debug("Handshake with [{}] has failed", handshaker.getPeerAddress());
