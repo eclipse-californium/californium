@@ -50,6 +50,10 @@
 		<appender-ref ref="FILE" />
 	</logger>
 
+	<logger name="org.eclipse.californium.scandium.dtls.Connection.owner" level="DEBUG" additivity="false">
+		<appender-ref ref="STDOUT" />
+		<appender-ref ref="ERROR_FILE" />
+	</logger>
 	<logger name="org.eclipse.californium.scandium.dtls.ServerHandshaker" level="WARN" additivity="false">
 		<appender-ref ref="STDOUT" />
 		<appender-ref ref="ERROR_FILE" />
