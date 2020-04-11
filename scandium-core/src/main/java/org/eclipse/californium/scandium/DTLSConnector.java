@@ -587,9 +587,11 @@ public class DTLSConnector implements Connector, RecordLayer {
 
 				@Override
 				public void run() {
-					terminateConnection(connection, 
-							new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY, connection.getPeerAddress()),
-							connection.getEstablishedSession());
+					DTLSSession session = connection.getEstablishedSession();
+					if (session != null) {
+						terminateConnection(connection, new AlertMessage(AlertLevel.WARNING,
+								AlertDescription.CLOSE_NOTIFY, connection.getPeerAddress()), session);
+					}
 				}
 			});
 		}
@@ -1504,12 +1506,33 @@ public class DTLSConnector implements Connector, RecordLayer {
 			// (http://tools.ietf.org/html/rfc5246#section-7.2.1)
 			// we need to respond with a CLOSE_NOTIFY alert and
 			// then close and remove the connection immediately
-			error = new HandshakeException("Received 'close notify'", alert);
-			if (handshaker != null) {
-				handshaker.setFailureCause(error);
+			if (connection.hasEstablishedSession()) {
+				InetSocketAddress newAddress = record.getPeerAddress();
+				if (connectionStore.get(newAddress) == connection) {
+					// no address update required!
+					newAddress = null;
+				}
+				// the fragment could be de-crypted, mark it
+				if (!session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber())
+						&& useCidUpdateAddressOnNewerRecordFilter) {
+					// suppress address update!
+					newAddress = null;
+				}
+				if (handshaker != null) {
+					handshaker.handshakeCompleted();
+				}
+				connection.refreshAutoResumptionTime();
+				connectionStore.update(connection, newAddress);
+			} else {
+				error = new HandshakeException("Received 'close notify'", alert);
+				if (handshaker != null) {
+					handshaker.setFailureCause(error);
+				}
 			}
 			if (!connection.isResumptionRequired()) {
-				send(new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY, alert.getPeer()), session);
+				if (session.getPeer() != null) {
+					send(new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY, alert.getPeer()), session);
+				}
 				if (connectionStore instanceof CloseSupportingConnectionStore) {
 					// remove associated address, keep session
 					((CloseSupportingConnectionStore) connectionStore).removeFromAddress(connection);
@@ -2146,7 +2169,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		LOGGER.debug("Sending application layer message to [{}]", message.getEndpointContext());
 
 		Handshaker handshaker = connection.getOngoingHandshake();
-		if (handshaker != null) {
+		if (handshaker != null && !handshaker.hasSessionEstablished()) {
 			if (handshaker.isExpired()) {
 				// handshake expired during Android / OS "deep sleep"
 				// on sending, abort, keep connection for new handshake
