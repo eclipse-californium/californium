@@ -623,6 +623,7 @@ public abstract class Handshaker implements Destroyable {
 									LOGGER.error("last flight missing, resend for buffered message {} failed! {}",
 											counter, handshakeMessage);
 								}
+								break;
 							}
 							// we already sent the last flight (including our FINISHED message),
 							// but the other peer does not seem to have received it because we received
@@ -1283,12 +1284,10 @@ public abstract class Handshaker implements Destroyable {
 			LOGGER.debug("handshake failed {}", connection, cause);
 			handshakeFailed = true;
 			setPendingFlight(null);
-			if (!sessionEstablished) {
-				for (SessionListener sessionListener : sessionListeners) {
-					sessionListener.handshakeFailed(this, cause);
-				}
-				SecretUtil.destroy(session);
+			for (SessionListener sessionListener : sessionListeners) {
+				sessionListener.handshakeFailed(this, cause);
 			}
+			SecretUtil.destroy(session);
 			SecretUtil.destroy(this);
 		}
 	}
@@ -1312,6 +1311,20 @@ public abstract class Handshaker implements Destroyable {
 	public final void handshakeAborted(Throwable cause) {
 		this.handshakeAborted = true;
 		handshakeFailed(cause);
+	}
+
+	/**
+	 * Checks, if the session is established.
+	 * 
+	 * Indicates, that the peer has send it's FINISH and is awaiting to receive
+	 * data or alerts in epoch 1.
+	 * 
+	 * @return {@code true}, if the session is established, {@code false},
+	 *         otherwise.
+	 * @since 2.3
+	 */
+	public boolean hasSessionEstablished() {
+		return sessionEstablished;
 	}
 
 	/**
@@ -1344,14 +1357,14 @@ public abstract class Handshaker implements Destroyable {
 	/**
 	 * Test, if handshake is expired according nano realtime.
 	 * 
-	 * Used to mitigate deep sleep during handhsakes.
+	 * Used to mitigate deep sleep during handshakes.
 	 * 
 	 * @return {@code true}, if handshake is expired, mainly during deep sleep,
 	 *         {@code false}, if the handshake is still in time.
 	 * @since 2.1
 	 */
 	public boolean isExpired() {
-		return pendingFlight.get() != null && nanosExpireTime < ClockUtil.nanoRealtime();
+		return !sessionEstablished && pendingFlight.get() != null && nanosExpireTime < ClockUtil.nanoRealtime();
 	}
 
 	/**
