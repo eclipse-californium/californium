@@ -195,18 +195,18 @@ public class ClientInitializer {
 	 */
 	public static CoapEndpoint createEndpoint(NetworkConfig config, Arguments arguments, ExecutorService executor,
 			boolean ephemeralPort) {
-//		Connector connector = null;
-		int tcpThreads = config.getInt(NetworkConfig.Keys.TCP_WORKER_THREADS);
-		int tcpConnectTimeout = config.getInt(NetworkConfig.Keys.TCP_CONNECT_TIMEOUT);
-		int tlsHandshakeTimeout = config.getInt(NetworkConfig.Keys.TLS_HANDSHAKE_TIMEOUT);
-		int tcpIdleTimeout = config.getInt(NetworkConfig.Keys.TCP_CONNECTION_IDLE_TIMEOUT);
+
+		int tcpThreads = config.getInt(Keys.TCP_WORKER_THREADS);
+		int tcpConnectTimeout = config.getInt(Keys.TCP_CONNECT_TIMEOUT);
+		int tlsHandshakeTimeout = config.getInt(Keys.TLS_HANDSHAKE_TIMEOUT);
+		int tcpIdleTimeout = config.getInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT);
 		int maxPeers = config.getInt(Keys.MAX_ACTIVE_PEERS);
 		int sessionTimeout = config.getInt(Keys.SECURE_SESSION_TIMEOUT);
-		int staleTimeout = config.getInt(NetworkConfig.Keys.MAX_PEER_INACTIVITY_PERIOD);
-		int senderThreads = config.getInt(NetworkConfig.Keys.NETWORK_STAGE_SENDER_THREAD_COUNT);
-		int receiverThreads = config.getInt(NetworkConfig.Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT);
+		int staleTimeout = config.getInt(Keys.MAX_PEER_INACTIVITY_PERIOD);
+		int senderThreads = config.getInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT);
+		int receiverThreads = config.getInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT);
 		int retransmissionTimeout = config.getInt(Keys.ACK_TIMEOUT);
-		Integer healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL); // seconds
+		Integer healthStatusInterval = config.getInt(Keys.HEALTH_STATUS_INTERVAL); // seconds
 		Integer cidLength = config.getOptInteger(Keys.DTLS_CONNECTION_ID_LENGTH);
 		Integer recvBufferSize = config.getOptInteger(Keys.UDP_CONNECTOR_RECEIVE_BUFFER);
 		Integer sendBufferSize = config.getOptInteger(Keys.UDP_CONNECTOR_SEND_BUFFER);
