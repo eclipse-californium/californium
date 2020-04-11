@@ -72,6 +72,7 @@ import org.eclipse.californium.core.server.resources.ResourceObserverAdapter;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.TlsEndpointContext;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
@@ -376,6 +377,8 @@ public class BenchmarkClient {
 
 	private final boolean secure;
 
+	private final long ackTimeout;
+
 	private Request prepareRequest(CoapClient client, long c) {
 		Request request;
 		if (honoMode) {
@@ -410,7 +413,7 @@ public class BenchmarkClient {
 		public void onLoad(CoapResponse response) {
 			if (response.isSuccess()) {
 				if (!stop.get()) {
-					next(0);
+					next(0, response.advanced().isConfirmable() ?  -ackTimeout * 2 : 0);
 				}
 				long c = overallRequestsDownCounter.get();
 				LOGGER.trace("Received response: {} {}", response.advanced(), c);
@@ -419,12 +422,16 @@ public class BenchmarkClient {
 				int unavailable = overallServiceUnavailable.incrementAndGet();
 				long c = overallRequestsDownCounter.get();
 				LOGGER.debug("{}: {}, Received error response: {} {}", id, unavailable, response.advanced(), c);
-				next(delay < 1000 ? 1000L : delay);
+				if (!stop.get()) {
+					next(delay < 1000L ? 1000L : delay, -ackTimeout * 2);
+				}
 			} else if (noneStop) {
 				long c = requestsCounter.get();
 				transmissionErrorCounter.incrementAndGet();
 				LOGGER.warn("Error after {} requests. {}", c, response.advanced());
-				next(1000);
+				if (!stop.get()) {
+					next(1000, -ackTimeout * 2);
+				}
 			} else {
 				long c = requestsCounter.get();
 				LOGGER.warn("Received error response: {} {} ({} successful)", endpoint.getUri(), response.advanced(), c);
@@ -452,7 +459,7 @@ public class BenchmarkClient {
 				if (noneStop) {
 					transmissionErrorCounter.incrementAndGet();
 					LOGGER.info("Error after {} requests. {}", c, msg);
-					next(1000);
+					next(1000, secure ? 1000 : 0);
 				} else {
 					LOGGER.error("failed after {} requests! {}", c, msg);
 					checkReady(true, false);
@@ -461,21 +468,35 @@ public class BenchmarkClient {
 			}
 		}
 
-		public void next(long delayMillis) {
-			long c = checkOverallRequests(true, true);
+		public void next(long delayMillis, long forceHandshake) {
+			final long c = checkOverallRequests(true, true);
 			if (c > 0) {
 				requestsCounter.incrementAndGet();
+				final boolean force = forceHandshake > 0;
 				final Request request = prepareRequest(client, c);
 				request.addMessageObserver(retransmissionDetector);
+				if (force) {
+					EndpointContext destinationContext = request.getDestinationContext();
+					client.setDestinationContext(null);
+					if (delayMillis < forceHandshake) {
+						delayMillis = forceHandshake;
+					}
+					destinationContext = MapBasedEndpointContext.addEntries(destinationContext,
+							DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_FORCE_FULL);
+					request.setDestinationContext(destinationContext);
+				}
+				final long delay = delayMillis;
 				if (delayMillis > 0) {
 					executorService.schedule(new Runnable() {
 						@Override
 						public void run() {
 							client.advanced(new TestHandler(request), request);
+							LOGGER.trace("sent request {} {} {}", c, delay, force);
 						}
 					}, delayMillis, TimeUnit.MILLISECONDS);
 				} else {
 					client.advanced(new TestHandler(request), request);
+					LOGGER.trace("sent request {} {} {}", c, delay, force);
 				}
 			}
 		}
@@ -499,26 +520,28 @@ public class BenchmarkClient {
 		int maxResourceSize = endpoint.getConfig().getInt(Keys.MAX_RESOURCE_BODY_SIZE);
 		if (executor == null) {
 			int threads = endpoint.getConfig().getInt(KEY_BENCHMARK_CLIENT_THREADS);
-			executorService = ExecutorsUtil.newScheduledThreadPool(threads, threadFactory);
-			shutdown = true;
+			this.executorService = ExecutorsUtil.newScheduledThreadPool(threads, threadFactory);
+			this.shutdown = true;
 		} else {
-			executorService = executor;
-			shutdown = false;
+			this.executorService = executor;
+			this.shutdown = false;
 		}
+		NetworkConfig config = endpoint.getConfig();
+		this.ackTimeout =  config.getLong(Keys.ACK_TIMEOUT);
 		endpoint.addInterceptor(new MessageTracer());
-		endpoint.setExecutors(executorService, secondaryExecutor);
-		client = new CoapClient(uri);
-		server = new CoapServer(endpoint.getConfig());
-		Feed feed = new Feed(CoAP.Type.NON, index, maxResourceSize, intervalMin, intervalMax, executorService,
+		endpoint.setExecutors(this.executorService, secondaryExecutor);
+		this.client = new CoapClient(uri);
+		this.server = new CoapServer(config);
+		Feed feed = new Feed(CoAP.Type.NON, index, maxResourceSize, intervalMin, intervalMax, this.executorService,
 				overallReverseResponsesDownCounter, notifiesCompleteTimeouts);
 		feed.addObserver(feedObserver);
-		server.add(feed);
-		feed = new Feed(CoAP.Type.CON, index, maxResourceSize, intervalMin, intervalMax, executorService,
+		this.server.add(feed);
+		feed = new Feed(CoAP.Type.CON, index, maxResourceSize, intervalMin, intervalMax, this.executorService,
 				overallReverseResponsesDownCounter, notifiesCompleteTimeouts);
 		feed.addObserver(feedObserver);
-		server.add(feed);
-		server.setExecutors(executorService, secondaryExecutor, true);
-		client.setExecutors(executorService, secondaryExecutor, true);
+		this.server.add(feed);
+		this.server.setExecutors(this.executorService, secondaryExecutor, true);
+		this.client.setExecutors(this.executorService, secondaryExecutor, true);
 		this.endpoint = endpoint;
 	}
 
@@ -921,12 +944,15 @@ public class BenchmarkClient {
 					}
 				}
 			};
-			if (index == 0 && identity != null) {
+			if (index == 0) {
 				// first client, so test request
-				if (secret == null) {
-					System.out.println("ID: " + identity);
-				} else {
-					System.out.println("ID: " + identity + ", " + new String(secret));
+				if (identity != null) {
+					// first client, so test request
+					if (secret == null) {
+						System.out.println("ID: " + identity);
+					} else {
+						System.out.println("ID: " + identity + ", " + new String(secret));
+					}
 				}
 				run.run();
 			} else if (!errors.get()) {
@@ -1024,6 +1050,9 @@ public class BenchmarkClient {
 					} else {
 						lastChangeNanoRealtime = ClockUtil.nanoRealtime();
 					}
+				} else {
+					// wait extra DEFAULT_TIMEOUT_NANOS for start of reverse responses.
+					time = ClockUtil.nanoRealtime() - lastChangeNanoRealtime - DEFAULT_TIMEOUT_NANOS;
 				}
 				if ((intervalMax < TimeUnit.NANOSECONDS.toMillis(time - DEFAULT_TIMEOUT_NANOS)) || (numberOfClients == 0)) {
 					// no new notifies for interval max, clients are stale, or no clients left

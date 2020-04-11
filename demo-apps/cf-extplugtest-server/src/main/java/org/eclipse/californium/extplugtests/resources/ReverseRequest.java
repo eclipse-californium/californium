@@ -17,7 +17,6 @@ package org.eclipse.californium.extplugtests.resources;
 
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.BAD_OPTION;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CHANGED;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_OCTET_STREAM;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.TEXT_PLAIN;
@@ -38,6 +37,7 @@ import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.elements.util.DatagramWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -143,7 +143,7 @@ public class ReverseRequest extends CoapResource {
 		Request request = exchange.advanced().getRequest();
 
 		int accept = request.getOptions().getAccept();
-		if (accept != UNDEFINED && accept != APPLICATION_OCTET_STREAM) {
+		if (accept != UNDEFINED && accept != TEXT_PLAIN && accept != APPLICATION_OCTET_STREAM) {
 			exchange.respond(NOT_ACCEPTABLE);
 			return;
 		}
@@ -199,9 +199,16 @@ public class ReverseRequest extends CoapResource {
 			GetRequestObserver requestObserver = new GetRequestObserver(endpoint, getRequest, numberOfRequests);
 			getRequest.addMessageObserver(requestObserver);
 			getRequest.send(endpoint);
-		} else {
-			exchange.respond(CONTENT, overallRequests.get() + " reverse-requests, " + overallSentRequests.get()
+		} else if (accept != APPLICATION_OCTET_STREAM){
+			exchange.respond(CHANGED, overallRequests.get() + " reverse-requests, " + overallSentRequests.get()
 					+ " sent, " + overallPendingRequests.get() + " pending.", TEXT_PLAIN);
+		} else {
+			DatagramWriter writer = new DatagramWriter(24);
+			writer.writeLong(overallRequests.get(),64);
+			writer.writeLong(overallSentRequests.get(),64);
+			writer.writeLong(overallPendingRequests.get(),64);
+			exchange.respond(CHANGED, writer.toByteArray(), APPLICATION_OCTET_STREAM);
+			writer.close();
 		}
 	}
 

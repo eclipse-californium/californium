@@ -17,7 +17,6 @@ package org.eclipse.californium.extplugtests.resources;
 
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.BAD_OPTION;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CHANGED;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.INTERNAL_SERVER_ERROR;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.SERVICE_UNAVAILABLE;
@@ -49,6 +48,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.elements.util.DatagramWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -167,7 +167,7 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 		Request request = exchange.advanced().getRequest();
 
 		int accept = request.getOptions().getAccept();
-		if (accept != UNDEFINED && accept != APPLICATION_OCTET_STREAM) {
+		if (accept != UNDEFINED && accept != TEXT_PLAIN && accept != APPLICATION_OCTET_STREAM) {
 			exchange.respond(NOT_ACCEPTABLE);
 			return;
 		}
@@ -219,9 +219,15 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 					}
 				}
 			}
-		} else {
-			exchange.respond(CONTENT,
+		} else if (request.getOptions().getAccept() != APPLICATION_OCTET_STREAM) {
+			exchange.respond(CHANGED,
 					observesByPeer.size() + " active observes, " + overallNotifies.get() + " notifies.", TEXT_PLAIN);
+		} else {
+			DatagramWriter writer = new DatagramWriter(12);
+			writer.writeLong(observesByPeer.size(),32);
+			writer.writeLong(overallNotifies.get(),64);
+			exchange.respond(CHANGED, writer.toByteArray(), APPLICATION_OCTET_STREAM);
+			writer.close();
 		}
 	}
 
@@ -245,6 +251,7 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 	private class IncomingExchange {
 
 		private final CoapExchange incomingExchange;
+		private final int accept;
 		private final String resource;
 		private final Integer observe;
 		private final Integer timeout;
@@ -254,6 +261,7 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 		private IncomingExchange(CoapExchange incomingExchange) {
 			this.incomingExchange = incomingExchange;
 			Request request = incomingExchange.advanced().getRequest();
+			this.accept = request.getOptions().getAccept();
 			List<String> uriQuery = request.getOptions().getUriQuery();
 			Integer timeout = 30;
 			Integer observe = null;
@@ -338,6 +346,10 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 			return processed.get();
 		}
 
+		private int getAccept() {
+			return accept;
+		}
+
 		private String getUriPath() {
 			return resource;
 		}
@@ -384,6 +396,7 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 
 		@Override
 		public void onResponse(final Response response) {
+			Token token = response.getToken();
 			if (response.isError()) {
 				LOGGER.info("Observation response error: {}", response.getCode());
 				remove(response.getCode());
@@ -391,7 +404,6 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 				if (registered.compareAndSet(false, true)) {
 					String key = incomingExchange.getPeerKey();
 					Endpoint endpoint = incomingExchange.getEndpoint();
-					Token token = outgoingObserveRequest.getToken();
 					ObservationRequest previous = observesByPeer.put(key,
 							new ObservationRequest(incomingExchange, token));
 					if (previous != null && !previous.getObservationToken().equals(Token.EMPTY)
@@ -401,7 +413,13 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 					}
 					peersByToken.put(token, key);
 					observesByToken.put(token, new Observation(incomingExchange, token, count));
-					incomingExchange.respond(CONTENT, token.getBytes(), APPLICATION_OCTET_STREAM);
+					if (!incomingExchange.isProcessed()) {
+						if (incomingExchange.getAccept() != APPLICATION_OCTET_STREAM) {
+							incomingExchange.respond(CHANGED, token.getAsString(), TEXT_PLAIN);
+						} else {
+							incomingExchange.respond(CHANGED, token.getBytes(), APPLICATION_OCTET_STREAM);
+						}
+					}
 				}
 			} else {
 				LOGGER.info("Observation {} not established!", outgoingObserveRequest.getToken());
