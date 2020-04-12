@@ -38,6 +38,7 @@ import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoi
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.UDPTestConnector;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
+import org.eclipse.californium.elements.util.TestConditionTools;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.hamcrest.Matcher;
@@ -284,11 +285,11 @@ public class ResponseRetransmissionTest {
 
 	private void assertHealthCounter(final String name, final Matcher<? super Long> matcher, long timeout)
 			throws InterruptedException {
-		TestTools.assertCounter(health, name, matcher, timeout);
+		TestConditionTools.assertStatisticCounter(health, name, matcher, timeout, TimeUnit.MILLISECONDS);
 	}
 
 	private void assertHealthCounter(String name, Matcher<? super Long> matcher) {
-		TestTools.assertCounter(health, name, matcher);
+		TestConditionTools.assertStatisticCounter(health, name, matcher);
 	}
 
 	private class TestResource extends CoapResource {

@@ -17,8 +17,6 @@
  ******************************************************************************/
 package org.eclipse.californium;
 
-import static org.junit.Assert.assertThat;
-
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -31,7 +29,8 @@ import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.elements.util.CounterStatisticManager;
-import org.hamcrest.Description;
+import org.eclipse.californium.elements.util.TestCondition;
+import org.eclipse.californium.elements.util.TestConditionTools;
 import org.hamcrest.Matcher;
 
 /**
@@ -179,32 +178,12 @@ public final class TestTools {
 	 * @return {@code true}, if the condition is fulfilled within timeout,
 	 *         {@code false} otherwise.
 	 * @throws InterruptedException if the Thread is interrupted.
+	 * @deprecated use {@link TestConditionTools#waitForCondition(long, long, TimeUnit, TestCondition)}
 	 */
-	public static boolean waitForCondition(long timeout, long interval, TimeUnit unit, CheckCondition check)
+	@Deprecated
+	public static boolean waitForCondition(long timeout, long interval, TimeUnit unit, TestCondition check)
 			throws InterruptedException {
-		if (0 >= timeout) {
-			throw new IllegalArgumentException("timeout must be greather than 0!");
-		}
-		if (0 >= interval || timeout < interval) {
-			throw new IllegalArgumentException("interval must be greather than 0, and not greather than timeout!");
-		}
-		if (null == check) {
-			throw new NullPointerException("check must be provided!");
-		}
-		long leftTimeInMilliseconds = unit.toMillis(timeout);
-		long sleepTimeInMilliseconds = unit.toMillis(interval);
-		long end = System.nanoTime() + unit.toNanos(timeout);
-		while (0 < leftTimeInMilliseconds) {
-			if (check.isFulFilled()) {
-				return true;
-			}
-			Thread.sleep(sleepTimeInMilliseconds);
-			leftTimeInMilliseconds = TimeUnit.NANOSECONDS.toMillis(end - System.nanoTime());
-			if (sleepTimeInMilliseconds > leftTimeInMilliseconds) {
-				sleepTimeInMilliseconds = leftTimeInMilliseconds;
-			}
-		}
-		return check.isFulFilled();
+		return TestConditionTools.waitForCondition(timeout, interval, unit, check);
 	}
 
 	/**
@@ -214,66 +193,42 @@ public final class TestTools {
 	 * @param min inclusive minimum value
 	 * @param max exclusive maximum value
 	 * @return matcher.
+	 * @deprecated use {@link TestConditionTools#inRange(Number, Number)}
 	 */
+	@Deprecated
 	public static <T extends Number> org.hamcrest.Matcher<T> inRange(T min, T max) {
-		return new InRange<T>(min, max);
+		return TestConditionTools.inRange(min, max);
 	}
 
 	/**
-	 * In range matcher.
+	 * Assert, that a statistic counter reaches the matcher's criterias within
+	 * the provided timeout.
 	 * 
-	 * @see TestTools#inRange(Number, Number)
+	 * @param manager statisitc manager
+	 * @param name name os statisitc.
+	 * @param matcher matcher for statistic counter value
+	 * @param timeout timeout in milliseconds to match
+	 * @throws InterruptedException if wait is interrupted.
+	 * @deprecated use
+	 *             {@link TestConditionTools#assertStatisticCounter(CounterStatisticManager, String, Matcher, long, TimeUnit)}
 	 */
-	private static class InRange<T extends Number> extends org.hamcrest.BaseMatcher<T> {
-
-		private final Number min;
-		private final Number max;
-
-		private InRange(Number min, Number max) {
-			this.min = min;
-			this.max = max;
-		}
-
-		@Override
-		public boolean matches(Object item) {
-			if (!min.getClass().equals(item.getClass())) {
-				throw new IllegalArgumentException("value type " + item.getClass().getSimpleName()
-						+ " doesn't match range type " + min.getClass().getSimpleName());
-			}
-			Number value = (Number) item;
-			if (item instanceof Float || item instanceof Double) {
-				return min.doubleValue() <= value.doubleValue() && value.doubleValue() < max.doubleValue();
-			} else {
-				return min.longValue() <= value.longValue() && value.longValue() < max.longValue();
-			}
-		}
-
-		@Override
-		public void describeTo(Description description) {
-			description.appendText("range[");
-			description.appendText(min.toString());
-			description.appendText("-");
-			description.appendText(max.toString());
-			description.appendText(")");
-		}
-	}
-
+	@Deprecated
 	public static void assertCounter(final CounterStatisticManager manager, final String name,
 			final Matcher<? super Long> matcher, long timeout) throws InterruptedException {
-		if (timeout > 0) {
-			TestTools.waitForCondition(timeout, timeout / 10l, TimeUnit.MILLISECONDS, new CheckCondition() {
-
-				@Override
-				public boolean isFulFilled() throws IllegalStateException {
-					return matcher.matches(manager.getCounter(name));
-				}
-			});
-		}
-		assertThat(name, manager.getCounter(name), matcher);
+		TestConditionTools.assertStatisticCounter(manager, name, matcher, timeout, TimeUnit.MILLISECONDS);
 	}
 
-	public static void assertCounter(CounterStatisticManager manager, String name,
-			Matcher<? super Long> matcher) {
-		assertThat(name, manager.getCounter(name), matcher);
+	/**
+	 * Assert, that a statistic counter matches the provided criterias.
+	 * 
+	 * @param manager statisitc manager
+	 * @param name name os statisitc.
+	 * @param matcher matcher for statistic counter value
+	 * @deprecated use
+	 *             {@link TestConditionTools#assertStatisticCounter(CounterStatisticManager, String, Matcher)}
+	 */
+	@Deprecated
+	public static void assertCounter(CounterStatisticManager manager, String name, Matcher<? super Long> matcher) {
+		TestConditionTools.assertStatisticCounter(manager, name, matcher);
 	}
 }

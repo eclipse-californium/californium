@@ -16,7 +16,7 @@
 package org.eclipse.californium.core.network;
 
 import static org.junit.Assert.*;
-import static org.eclipse.californium.TestTools.inRange;
+import static org.eclipse.californium.elements.util.TestConditionTools.inRange;
 import static org.hamcrest.CoreMatchers.*;
 import java.net.InetSocketAddress;
 
