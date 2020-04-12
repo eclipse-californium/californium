@@ -15,8 +15,11 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.eclipse.californium.elements.util.CounterStatisticManager;
+import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.SimpleCounterStatistic;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
@@ -25,7 +28,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Health implementation using counter and logging for result.
  */
-public class DtlsHealthLogger implements DtlsHealth {
+@NoPublicAPI
+public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHealth {
 
 	/** the logger. */
 	private static final Logger LOGGER = LoggerFactory.getLogger(DTLSConnector.class.getCanonicalName() + ".health");
@@ -42,6 +46,50 @@ public class DtlsHealthLogger implements DtlsHealth {
 	private final SimpleCounterStatistic sentRecords = new SimpleCounterStatistic("sending records", align);
 	private final SimpleCounterStatistic droppedSentRecords = new SimpleCounterStatistic("dropped sending records",
 			align);
+
+	public DtlsHealthLogger() {
+		this("");
+	}
+
+	public DtlsHealthLogger(String tag) {
+		super(tag);
+		init();
+	}
+
+	public DtlsHealthLogger(String tag, boolean udp, int interval, ScheduledExecutorService executor) {
+		super(tag, interval, executor);
+		init();
+	}
+
+	private void init() {
+		add(succeededHandshakes);
+		add(failedHandshakes);
+		add(receivedRecords);
+		add(droppedReceivedRecords);
+		add(sentRecords);
+		add(droppedSentRecords);
+	}
+
+	@Override
+	public void dump() {
+		try {
+			if (receivedRecords.isUsed() || sentRecords.isUsed()) {
+				String eol = StringUtil.lineSeparator();
+				String head = "   " + tag;
+				StringBuilder log = new StringBuilder();
+				log.append(tag).append("statistic:").append(eol);
+				log.append(head).append(succeededHandshakes).append(eol);
+				log.append(head).append(failedHandshakes).append(eol);
+				log.append(head).append(sentRecords).append(eol);
+				log.append(head).append(droppedSentRecords).append(eol);
+				log.append(head).append(receivedRecords).append(eol);
+				log.append(head).append(droppedReceivedRecords);
+				LOGGER.debug("{}", log);
+			}
+		} catch (Throwable e) {
+			LOGGER.error("{}", tag, e);
+		}
+	}
 
 	public void dump(String tag, int maxConnections, int remainingCapacity, int pendingWithoutVerify) {
 		try {
