@@ -17,7 +17,7 @@ package org.eclipse.californium.core.test;
 
 import static org.hamcrest.CoreMatchers.*;
 
-import static org.eclipse.californium.TestTools.inRange;
+import static org.eclipse.californium.elements.util.TestConditionTools.inRange;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;

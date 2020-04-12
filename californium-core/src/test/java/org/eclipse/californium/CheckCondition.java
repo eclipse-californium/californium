@@ -15,22 +15,14 @@
  ******************************************************************************/
 package org.eclipse.californium;
 
+import org.eclipse.californium.elements.util.TestCondition;
+
 /**
  * Interface to "poll" on conditions, where the API doesn't support a
  * notification.
+ * @deprecated use {@link TestCondition} instead
  */
-public interface CheckCondition {
+@Deprecated
+public interface CheckCondition extends TestCondition {
 
-	/**
-	 * Check, if the condition is fulfilled.
-	 * 
-	 * Intended to be implemented in a non blocking and very fast fashion!
-	 * 
-	 * @return {@code true}, if the condition is fulfilled, {@code false},
-	 *         otherwise
-	 * @throws IllegalStateException if the condition will not be fulfilled.
-	 *             Caused, if something occurs, which makes it impossible, that
-	 *             the condition is going to be fulfilled.
-	 */
-	boolean isFulFilled() throws IllegalStateException;
 }

@@ -27,8 +27,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.concurrent.TimeUnit;
 
-import org.eclipse.californium.CheckCondition;
-import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
@@ -51,6 +49,8 @@ import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.UdpEndpointContextMatcher;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.elements.util.IntendedTestException;
+import org.eclipse.californium.elements.util.TestCondition;
+import org.eclipse.californium.elements.util.TestConditionTools;
 
 /**
  * Test tools for MessageExchangeStore.
@@ -76,7 +76,7 @@ public class MessageExchangeStoreTool {
 		if (time != null) {
 			time.setTestTimeShift(exchangeLifetime + 1000, TimeUnit.MILLISECONDS);
 		}
-		waitUntilDeduplicatorShouldBeEmpty(exchangeLifetime, sweepInterval, new CheckCondition() {
+		waitUntilDeduplicatorShouldBeEmpty(exchangeLifetime, sweepInterval, new TestCondition() {
 
 			@Override
 			public boolean isFulFilled() throws IllegalStateException {
@@ -102,7 +102,7 @@ public class MessageExchangeStoreTool {
 		if (time != null) {
 			time.setTestTimeShift(exchangeLifetime + 1000, TimeUnit.MILLISECONDS);
 		}
-		waitUntilDeduplicatorShouldBeEmpty(exchangeLifetime, sweepInterval, new CheckCondition() {
+		waitUntilDeduplicatorShouldBeEmpty(exchangeLifetime, sweepInterval, new TestCondition() {
 
 			@Override
 			public boolean isFulFilled() throws IllegalStateException {
@@ -122,7 +122,7 @@ public class MessageExchangeStoreTool {
 		if (time != null) {
 			time.setTestTimeShift(exchangeLifetime + 1000, TimeUnit.MILLISECONDS);
 		}
-		waitUntilDeduplicatorShouldBeEmpty(exchangeLifetime, sweepInterval, new CheckCondition() {
+		waitUntilDeduplicatorShouldBeEmpty(exchangeLifetime, sweepInterval, new TestCondition() {
 
 			@Override
 			public boolean isFulFilled() throws IllegalStateException {
@@ -135,11 +135,11 @@ public class MessageExchangeStoreTool {
 	}
 
 	public static void waitUntilDeduplicatorShouldBeEmpty(final int exchangeLifetime, final int sweepInterval,
-			CheckCondition check) {
+			TestCondition check) {
 		try {
 			int timeToWait = exchangeLifetime + sweepInterval + 300; // milliseconds
 			System.out.println("Wait until deduplicator should be empty (" + timeToWait / 1000f + " seconds)");
-			TestTools.waitForCondition(timeToWait, timeToWait / 10, TimeUnit.MILLISECONDS, check);
+			TestConditionTools.waitForCondition(timeToWait, timeToWait / 10, TimeUnit.MILLISECONDS, check);
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 		}

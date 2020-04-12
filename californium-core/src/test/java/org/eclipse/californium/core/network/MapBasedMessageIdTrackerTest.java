@@ -21,14 +21,14 @@ package org.eclipse.californium.core.network;
 
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.*;
-import static org.eclipse.californium.TestTools.inRange;
+import static org.eclipse.californium.elements.util.TestConditionTools.inRange;
 import static org.eclipse.californium.core.network.MessageIdTracker.TOTAL_NO_OF_MIDS;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.eclipse.californium.CheckCondition;
-import org.eclipse.californium.TestTools;
+import org.eclipse.californium.elements.util.TestCondition;
+import org.eclipse.californium.elements.util.TestConditionTools;
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.rule.CoapNetworkRule;
@@ -104,7 +104,7 @@ public class MapBasedMessageIdTrackerTest {
 		// EXCHANGE_LIFETIME has expired
 		exchangeLifetime += (exchangeLifetime >> 1); // a little longer
 		final AtomicInteger mid = new AtomicInteger(-1);
-		TestTools.waitForCondition(exchangeLifetime, 10, TimeUnit.MILLISECONDS, new CheckCondition() {
+		TestConditionTools.waitForCondition(exchangeLifetime, 10, TimeUnit.MILLISECONDS, new TestCondition() {
 
 			@Override
 			public boolean isFulFilled() throws IllegalStateException {
