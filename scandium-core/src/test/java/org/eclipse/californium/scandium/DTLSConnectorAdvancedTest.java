@@ -77,6 +77,7 @@ import org.eclipse.californium.scandium.dtls.ServerHandshaker;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.dtls.ApplicationMessage;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -873,7 +874,7 @@ public class DTLSConnectorAdvancedTest {
 			serverHealth.reset();
 
 			AlertMessage close = new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY, serverHelper.serverEndpoint);
-			send(close, clientConnection, clientRecordLayer);
+			send(clientConnection, clientRecordLayer, close);
 			// Wait to receive response from server
 			// (CLOSE_NOTIFY, flight 8)
 			rs = waitForFlightReceived("flight 8", collector, 1);
@@ -886,6 +887,95 @@ public class DTLSConnectorAdvancedTest {
 			// Ensure handshake is successfully done
 			assertTrue("handshake failed",
 					sessionListener.waitForSessionEstablished(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		} finally {
+			rawClient.stop();
+		}
+	}
+
+	/**
+	 * Test processing close notify after session is established, but not completed.
+	 */
+	@Test
+	public void testServerDecodesAfterUnorderedClose() throws Exception {
+		// Configure and create UDP connector
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);
+		UdpConnector rawClient = new UdpConnector(0, collector);
+		BasicRecordLayer clientRecordLayer = new BasicRecordLayer(rawClient);
+		try {
+
+			// Start connector
+			rawClient.start();
+
+			// Create handshaker
+			Connection clientConnection = createClientConnection();
+			LatchSessionListener sessionListener = new LatchSessionListener();
+			ClientHandshaker clientHandshaker = new ClientHandshaker(new DTLSSession(serverHelper.serverEndpoint),
+					clientRecordLayer, clientConnection, clientConfig, 1280);
+			clientHandshaker.addSessionListener(sessionListener);
+
+			// Start handshake (Send CLIENT HELLO, flight 1)
+			clientHandshaker.startHandshake();
+
+			// Wait to receive response
+			// (HELLO VERIFY REQUEST, flight 2)
+			List<Record> rs = waitForFlightReceived("flight 2", collector, 1);
+			// Handle and answer (CLIENT HELLO with cookie, flight 3)
+			processAll(clientHandshaker, rs);
+
+			// Wait for response
+			// (SERVER_HELLO, CERTIFICATE, ... , SERVER_DONE, flight 4)
+			rs = waitForFlightReceived("flight 4", collector, 5);
+			// Handle and answer
+			// (CERTIFICATE, CHANGE CIPHER SPEC, ..., FINISHED, flight 5)
+			processAll(clientHandshaker, rs);
+
+			// Wait to receive response from server
+			// (CHANGE CIPHER SPEC, FINISHED, flight 6)
+			rs = waitForFlightReceived("flight 6", collector, 2);
+			processAll(clientHandshaker, rs);
+
+			serverHealth.reset();
+
+			ApplicationMessage app = new ApplicationMessage("hi".getBytes(), serverHelper.serverEndpoint);
+			send(clientConnection, clientRecordLayer, app);
+
+			// app response
+			rs = waitForFlightReceived("response", collector, 1);
+
+			assertTrue("handshake failed",
+					sessionListener.waitForSessionEstablished(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+			TestConditionTools.assertStatisticCounter(serverHealth, "sending records", is(1L), MAX_TIME_TO_WAIT_SECS,
+					TimeUnit.SECONDS);
+			TestConditionTools.assertStatisticCounter(serverHealth, "handshakes succeeded", is(1L));
+			TestConditionTools.assertStatisticCounter(serverHealth, "handshakes failed", is(0L));
+			TestConditionTools.assertStatisticCounter(serverHealth, "dropped sending records", is(0L));
+			TestConditionTools.assertStatisticCounter(serverHealth, "received records", is(1L));
+			TestConditionTools.assertStatisticCounter(serverHealth, "dropped received records", is(0L));
+
+			serverHealth.reset();
+
+			app = new ApplicationMessage("hi, again".getBytes(), serverHelper.serverEndpoint);
+			AlertMessage close = new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY, serverHelper.serverEndpoint);
+
+			sendReverse(clientConnection, clientRecordLayer, app, close);
+
+			// (CLOSE_NOTIFY)
+			rs = waitForFlightReceived("close", collector, 1);
+
+			TestConditionTools.assertStatisticCounter(serverHealth, "dropped sending records", is(1L), MAX_TIME_TO_WAIT_SECS,
+					TimeUnit.SECONDS);
+			TestConditionTools.assertStatisticCounter(serverHealth, "sending records", is(2L));
+			TestConditionTools.assertStatisticCounter(serverHealth, "received records", is(2L));
+			TestConditionTools.assertStatisticCounter(serverHealth, "dropped received records", is(0L));
+
+			app = new ApplicationMessage("bye".getBytes(), serverHelper.serverEndpoint);
+			send(clientConnection, clientRecordLayer, app);
+
+			TestConditionTools.assertStatisticCounter(serverHealth, "dropped received records", is(1L), MAX_TIME_TO_WAIT_SECS,
+					TimeUnit.SECONDS);
+			TestConditionTools.assertStatisticCounter(serverHealth, "received records", is(3L));
+
 		} finally {
 			rawClient.stop();
 		}
@@ -1056,7 +1146,7 @@ public class DTLSConnectorAdvancedTest {
 			clientHealth.reset();
 
 			AlertMessage close = new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY, client.getAddress());
-			send(close, serverConnection, serverRecordLayer);
+			send(serverConnection, serverRecordLayer, close);
 
 			// Wait to receive response from server
 			// (CLOSE_NOTIFY, flight 8)
@@ -1821,18 +1911,39 @@ public class DTLSConnectorAdvancedTest {
 		}
 	}
 
-	private void send(DTLSMessage message, Connection connection, BasicRecordLayer recordLayer)
+	private void send(Connection connection, BasicRecordLayer recordLayer, DTLSMessage... messages)
 			throws GeneralSecurityException, IOException {
+		List<Record> records = encode(connection, messages);
+		for (Record record : records) {
+			recordLayer.sendRecord(record);
+		}
+	}
+
+	private void sendReverse(Connection connection, BasicRecordLayer recordLayer, DTLSMessage... messages)
+			throws GeneralSecurityException, IOException {
+		List<Record> records = encode(connection, messages);
+		Collections.reverse(records);
+		for (Record record : records) {
+			recordLayer.sendRecord(record);
+		}
+	}
+
+	private List<Record> encode(Connection connection, DTLSMessage... messages)
+			throws GeneralSecurityException, IOException {
+		List<Record> records = new ArrayList<>();
 		DTLSSession session = connection.getEstablishedSession();
 		if (session == null && connection.hasOngoingHandshake()) {
 			session = connection.getOngoingHandshake().getSession();
 		}
-		Record record = new Record(
-				message.getContentType(), 
-				session.getWriteEpoch(), 
-				session.getSequenceNumber(),
-				message, session, true, 0);
-		recordLayer.sendRecord(record);
+		for (DTLSMessage message : messages) {
+			Record record = new Record(
+						message.getContentType(), 
+						session.getWriteEpoch(), 
+						session.getSequenceNumber(),
+						message, session, true, 0);
+			records.add(record);
+		}
+		return records;
 	}
 
 	private void processAll(final Handshaker handshaker, final List<Record> records)

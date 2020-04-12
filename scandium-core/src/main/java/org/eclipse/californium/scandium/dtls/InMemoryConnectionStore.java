@@ -353,6 +353,12 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		}
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * 
+	 * @deprecated since 2.3 obsolete, see {@link Connection#close(Record)}.
+	 */
+	@Deprecated
 	@Override
 	public synchronized boolean removeFromAddress(final Connection connection) {
 		if (connection != null) {
