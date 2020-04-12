@@ -389,15 +389,12 @@ public class DTLSConnector implements Connector, RecordLayer {
 			this.connectionStore.attach(connectionIdGenerator);
 			this.connectionStore.setConnectionListener(config.getConnectionListener());
 
-			DtlsHealth healthHandler = null;
+			DtlsHealth healthHandler = config.getHealthHandler();
 			Integer healthStatusInterval = config.getHealthStatusInterval();
 			// this is a useful health metric
 			// that could later be exported to some kind of monitoring interface
-			if (healthStatusInterval != null && healthStatusInterval > 0) {
-				healthHandler = config.getHealthHandler();
-				if (healthHandler == null) {
-					healthHandler = new DtlsHealthLogger();
-				}
+			if (healthHandler == null && healthStatusInterval != null && healthStatusInterval > 0) {
+				healthHandler = new DtlsHealthLogger(configuration.getLoggingTag());
 				if (!healthHandler.isEnabled()) {
 					healthHandler = null;
 				}
@@ -764,16 +761,18 @@ public class DTLSConnector implements Connector, RecordLayer {
 
 		// this is a useful health metric
 		// that could later be exported to some kind of monitoring interface
-		if (health != null) {
+		if (health != null && health.isEnabled()) {
 			final Integer healthStatusInterval = config.getHealthStatusInterval();
-			statusLogger = timer.scheduleAtFixedRate(new Runnable() {
-
-				@Override
-				public void run() {
-					health.dump(config.getLoggingTag(), config.getMaxConnections(), connectionStore.remainingCapacity(), pendingHandshakesWithoutVerifiedPeer.get());
-				}
-
-			}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
+			if (healthStatusInterval != null) {
+				statusLogger = timer.scheduleAtFixedRate(new Runnable() {
+	
+					@Override
+					public void run() {
+						health.dump(config.getLoggingTag(), config.getMaxConnections(), connectionStore.remainingCapacity(), pendingHandshakesWithoutVerifiedPeer.get());
+					}
+	
+				}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
+			}
 		}
 	}
 
