@@ -174,6 +174,13 @@ public final class DTLSSession implements Destroyable {
 	private long[] sequenceNumbers = new long[2];
 
 	/**
+	 * Save close_notify
+	 */
+	private int readEpochClosed;
+	private long readSequenceNumberClosed;
+	private boolean markedAsclosed;
+
+	/**
 	 * Indicates the type of certificate to send to the peer in a CERTIFICATE message.
 	 */
 	private CertificateType sendCertificateType = CertificateType.X_509;
@@ -966,6 +973,8 @@ public final class DTLSSession implements Destroyable {
 	 * <li>the record is from the same epoch as session's current read
 	 * epoch</li>
 	 * <li>the record has not been received before</li>
+	 * <li>if marked as closed, the record's sequence number is not after the
+	 * close notify's sequence number</li>
 	 * </ul>
 	 * 
 	 * @param epoch the record's epoch
@@ -974,6 +983,7 @@ public final class DTLSSession implements Destroyable {
 	 *            message too old for the message window {@code true} is
 	 *            returned.
 	 * @return {@code true} if the record satisfies the conditions above
+	 * @since 2.3 support marked as closed
 	 */
 	public boolean isRecordProcessable(long epoch, long sequenceNo, boolean useWindowOnly) {
 		if (epoch < getReadEpoch()) {
@@ -990,9 +1000,17 @@ public final class DTLSSession implements Destroyable {
 			// record lies out of receive window's "left" edge
 			// discard
 			return useWindowOnly;
-		} else {
-			return !isDuplicate(sequenceNo);
+		} else if (markedAsclosed) {
+			if (epoch > readEpochClosed) {
+				// record after close
+				return false;
+			} else if (epoch == readEpochClosed && sequenceNo >= readSequenceNumberClosed) {
+				// record after close
+				return false;
+			}
+			// otherwise, check for duplicate
 		}
+		return !isDuplicate(sequenceNo);
 	}
 
 	/**
@@ -1060,6 +1078,31 @@ public final class DTLSSession implements Destroyable {
 		} else {
 			return epoch > getReadEpoch();
 		}
+	}
+
+	/**
+	 * Session is marked as close.
+	 * 
+	 * @return {@code true}, if marked as closed, {@code false}, otherwise.
+	 * @since 2.3
+	 */
+	public boolean isMarkedAsClosed() {
+		return markedAsclosed;
+	}
+
+	/**
+	 * Mark as closed. If a session is makred as closed, no records should be
+	 * sent and no received newer records should be processed.
+	 * 
+	 * @param epoch epoch of close notify
+	 * @param sequenceNo sequence number of close notiy
+	 * @see #isMarkedAsClosed()
+	 * @since 2.3
+	 */
+	public void markCloseNotiy(int epoch, long sequenceNo) {
+		markedAsclosed = true;
+		readEpochClosed = epoch;
+		readSequenceNumberClosed = sequenceNo;
 	}
 
 	/**

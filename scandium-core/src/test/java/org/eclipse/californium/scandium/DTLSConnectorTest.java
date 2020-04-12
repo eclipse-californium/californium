@@ -305,7 +305,12 @@ public class DTLSConnectorTest {
 		// THEN assert that the server has removed all connection state with client
 		AlertMessage alert = alertCatcher.waitForFirstAlert(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 		assertNotNull(alert);
-		assertThat(serverHelper.serverConnectionStore.get(clientEndpoint), is(nullValue()));
+		if (alert.getDescription() == AlertDescription.CLOSE_NOTIFY) {
+			assertThat(serverHelper.serverConnectionStore.get(clientEndpoint), is(notNullValue()));
+			assertThat(serverHelper.serverConnectionStore.get(clientEndpoint).isClosed(), is(true));
+		} else {
+			assertThat(serverHelper.serverConnectionStore.get(clientEndpoint), is(nullValue()));
+		}
 	}
 
 	/**

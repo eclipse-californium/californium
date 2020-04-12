@@ -176,7 +176,6 @@ import org.eclipse.californium.scandium.dtls.ApplicationMessage;
 import org.eclipse.californium.scandium.dtls.AvailableConnections;
 import org.eclipse.californium.scandium.dtls.ClientHandshaker;
 import org.eclipse.californium.scandium.dtls.ClientHello;
-import org.eclipse.californium.scandium.dtls.CloseSupportingConnectionStore;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
@@ -1251,9 +1250,19 @@ public class DTLSConnector implements Connector, RecordLayer {
 			// The DTLS 1.2 spec (section 4.1.2.6) advises to do replay detection
 			// before MAC validation based on the record's sequence numbers
 			// see http://tools.ietf.org/html/rfc6347#section-4.1.2.6
-			if (useFilter && (session != null) && !session.isRecordProcessable(record.getEpoch(), record.getSequenceNumber(), useWindowFilter)) {
-				DROP_LOGGER.debug("Discarding duplicate {} record received from peer [{}]",
-						record.getType(), record.getPeerAddress());
+			boolean closed = connection.isClosed();
+			boolean discard = (useFilter || closed) && (session != null)
+					&& !session.isRecordProcessable(record.getEpoch(), record.getSequenceNumber(), useWindowFilter);
+			// closed and no session => discard it
+			discard |= (closed && session == null);
+			if (discard) {
+				if (closed) {
+					DROP_LOGGER.debug("Discarding {} record received from closed peer [{}]", record.getType(),
+							record.getPeerAddress());
+				} else {
+					DROP_LOGGER.debug("Discarding duplicate {} record received from peer [{}]",
+							record.getType(), record.getPeerAddress());
+				}
 				if (health != null) {
 					health.receivingRecord(true);
 				}
@@ -1536,13 +1545,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 				if (session.getPeer() != null) {
 					send(new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY, alert.getPeer()), session);
 				}
-				if (connectionStore instanceof CloseSupportingConnectionStore) {
-					// remove associated address, keep session
-					((CloseSupportingConnectionStore) connectionStore).removeFromAddress(connection);
-				} else {
-					// remove connection, keep session in cache (if used)
-					connectionStore.remove(connection, false);
-				}
+				connection.close(record);
 			}
 		} else if (AlertLevel.FATAL.equals(alert.getLevel())) {
 			// according to section 7.2 of the TLS 1.2 spec
@@ -2181,7 +2184,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			}
 		}
 
-		if (connection.isActive()) {
+		if (connection.isActive() && !connection.isClosed()) {
 			sendMessageWithSession(message, connection);
 		} else {
 			sendMessageWithoutSession(message, connection);
@@ -2246,10 +2249,11 @@ public class DTLSConnector implements Connector, RecordLayer {
 	private void sendMessageWithSession(final RawData message, final Connection connection) throws HandshakeException {
 
 		DTLSSession session = connection.getEstablishedSession();
+		boolean markedAsClosed = session != null && session.isMarkedAsClosed();
 		String handshakeMode = getEffectiveHandshakeMode(message);
 		boolean none = DtlsEndpointContext.HANDSHAKE_MODE_NONE.equals(handshakeMode);
 		if (none) {
-			if (connection.isResumptionRequired()) {
+			if (markedAsClosed || connection.isResumptionRequired()) {
 				message.onError(new EndpointUnconnectedException("resumption required!"));
 				if (health != null) {
 					health.sendingRecord(true);
@@ -2260,7 +2264,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			boolean probing = DtlsEndpointContext.HANDSHAKE_MODE_PROBE.equals(handshakeMode);
 			boolean full = DtlsEndpointContext.HANDSHAKE_MODE_FORCE_FULL.equals(handshakeMode);
 			boolean force = probing || full || DtlsEndpointContext.HANDSHAKE_MODE_FORCE.equals(handshakeMode);
-			if (force || connection.isAutoResumptionRequired(getAutResumptionTimeout(message))) {
+			if (force || markedAsClosed || connection.isAutoResumptionRequired(getAutResumptionTimeout(message))) {
 				// create the session to resume from the previous one.
 				if (serverOnly) {
 					message.onError(new EndpointUnconnectedException("server only, resumption requested failed!"));
@@ -2460,6 +2464,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 	}
 
 	protected void sendRecord(Record record) throws IOException {
+		if (health != null && record.getType() != ContentType.APPLICATION_DATA) {
+			health.sendingRecord(false);
+		}
 		byte[] recordBytes = record.toByteArray();
 		DatagramPacket datagram = new DatagramPacket(recordBytes, recordBytes.length, record.getPeerAddress());
 		sendNextDatagramOverNetwork(datagram);

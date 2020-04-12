@@ -472,6 +472,34 @@ public final class Connection {
 	}
 
 	/**
+	 * Check, if connection was closed.
+	 * 
+	 * @return {@code true}, if connection was closed, {@code false}, otherwise.
+	 * @since 2.3
+	 */
+	public boolean isClosed() {
+		DTLSSession session = establishedSession;
+		return session != null && session.isMarkedAsClosed();
+	}
+
+	/**
+	 * Close connection with record.
+	 * 
+	 * Mark session as closed. Received records with sequence numbers before
+	 * will still be processed, others are dropped. No message will be send
+	 * after this.
+	 * 
+	 * @param record received close notify record.
+	 * @since 2.3
+	 */
+	public void close(Record record) {
+		DTLSSession session = establishedSession;
+		if (session != null) {
+			session.markCloseNotiy(record.getEpoch(), record.getSequenceNumber());
+		}
+	}
+
+	/**
 	 * Check, if resumption is required.
 	 * 
 	 * @return true if an abbreviated handshake should be done next time a data
