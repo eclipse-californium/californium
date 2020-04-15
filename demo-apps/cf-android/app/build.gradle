@@ -25,18 +25,12 @@ android {
     }
 
     packagingOptions {
-        pickFirst 'about.html'
-        pickFirst 'edl-v10.html'
-        pickFirst 'epl-v10.html'
-        pickFirst 'epl-v20.html'
-        pickFirst 'notice.html'
         pickFirst 'META-INF/INDEX.LIST'
-        pickFirst 'META-INF/LICENSE'
         pickFirst 'META-INF/io.netty.versions.properties'
-        pickFirst 'LICENSE-2.0.txt'
-        pickFirst '3rd-party/*'
-        exclude   '**/*.jks'
+        pickFirst 'META-INF/legal/**'
+        exclude '**/*.jks'
     }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_7
         targetCompatibility JavaVersion.VERSION_1_7
@@ -46,9 +40,9 @@ android {
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation 'com.android.support:appcompat-v7:22.2.1'
-    implementation 'org.eclipse.californium:californium-core:2.0.0-SNAPSHOT'
-    implementation 'org.eclipse.californium:element-connector-tcp:2.0.0-SNAPSHOT'
-    implementation 'org.eclipse.californium:scandium:2.0.0-SNAPSHOT'
-    implementation 'org.eclipse.californium:demo-certs:2.0.0-SNAPSHOT'
+    implementation 'org.eclipse.californium:californium-core:2.2.1'
+    implementation 'org.eclipse.californium:element-connector:2.2.1'
+    implementation 'org.eclipse.californium:scandium:2.2.1'
+    implementation 'org.eclipse.californium:demo-certs:2.2.1'
     implementation 'com.github.tony19:logback-android:1.1.1-11'
 }
