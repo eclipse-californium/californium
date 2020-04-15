@@ -1,5 +1,5 @@
 #/*******************************************************************************
-# * Copyright (c) 2019 Bosch Software Innovations GmbH and others.
+# * Copyright (c) 2020 Bosch.IO GmbH and others.
 # * 
 # * All rights reserved. This program and the accompanying materials
 # * are made available under the terms of the Eclipse Public License v2.0
@@ -11,7 +11,7 @@
 # *    http://www.eclipse.org/org/documents/edl-v10.html.
 # * 
 # * Contributors:
-# *    Achim Kraus (Bosch Software Innovations GmbH) - initial configuration
+# *    Achim Kraus (Bosch.IO GmbH) - initial configuration
 # ******************************************************************************/
 
 [Unit]
@@ -24,7 +24,7 @@ RequiresMountsFor=/home
 Type=simple
 User=cali
 WorkingDirectory=/home/cali
-Environment="JAR=/home/cali/cf-plugtest-server-2.2.1.jar"
+Environment="JAR=/home/cali/cf-plugtest-server-2.2.2.jar"
 Environment="ARGS=-noloopback"
 # Adapt the java heap configuration "-Xmx1600m" according your environment! 
 Environment="OPTS=-XX:+UseG1GC -Xmx1600m -Dlogback.configurationFile=./logback.xml"

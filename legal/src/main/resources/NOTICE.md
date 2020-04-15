@@ -142,7 +142,7 @@ logback-android (1.1.1)
 * Project: https://github.com/tony19/logback-android
 * Source: https://github.com/tony19/logback-android/archive/master.zip
 
-Netty (4.1.42)
+Netty (4.1.45)
 
 * License: Apache-2.0 AND BSD-3-Clause AND MIT
 
