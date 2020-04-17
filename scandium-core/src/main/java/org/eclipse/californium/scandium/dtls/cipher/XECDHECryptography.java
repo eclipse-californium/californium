@@ -183,7 +183,7 @@ public final class XECDHECryptography implements Destroyable {
 			getU = cls.getMethod("getU");
 			getParams = cls.getMethod("getParams");
 		} catch (Throwable t) {
-			LOGGER.info("X25519/X448 not supported!", t);
+			LOGGER.info("X25519/X448 not supported!");
 		}
 		XECPublicKeyClass = cls;
 		XECPublicKeyGetU = getU;

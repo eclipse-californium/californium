@@ -264,7 +264,7 @@ public class DtlsConnectorConfigTest {
 	public void testSetNoneSignatureAndHashAlgorithms() throws IOException, GeneralSecurityException {
 		DtlsConnectorConfig config = builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
 				.setRpkTrustAll()
-				.setSupportedSignatureAlgorithms()
+				.setSupportedSignatureAlgorithms((String[]) null)
 				.build();
 		assertNotNull(config.getSupportedSignatureAlgorithms());
 		assertTrue(config.getSupportedSignatureAlgorithms().isEmpty());

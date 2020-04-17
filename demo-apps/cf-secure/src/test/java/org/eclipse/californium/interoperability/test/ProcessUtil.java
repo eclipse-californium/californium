@@ -42,7 +42,7 @@ public class ProcessUtil {
 	/**
 	 * Console output of external tool. Considered to be rather small.
 	 */
-	private String console;
+	private String console = "";
 	/**
 	 * Result of external tool. RC and console output.
 	 */
@@ -63,7 +63,17 @@ public class ProcessUtil {
 			ProcessResult result = waitResult(1000);
 			assumeNotNull(result);
 			process = null;
+			setConsole("");
 		}
+	}
+
+	public void print(List<String> args)
+	{
+		for (String arg : args) {
+			System.out.print(arg);
+			System.out.print(" ");
+		}
+		System.out.println();
 	}
 
 	/**
@@ -157,6 +167,8 @@ public class ProcessUtil {
 	/**
 	 * Wait for external tool to finish.
 	 * 
+	 * Clears {@link #console} as well. 
+	 * 
 	 * @param timeoutMillis timeout to wait in milliseconds
 	 * @return result of external tool, or {@code null}, if external tool hasn't
 	 *         finished.
@@ -175,6 +187,7 @@ public class ProcessUtil {
 			}
 			if (result != null) {
 				process = null;
+				setConsole("");
 			}
 		}
 		return result;

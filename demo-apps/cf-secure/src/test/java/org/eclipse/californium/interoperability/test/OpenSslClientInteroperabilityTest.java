@@ -24,7 +24,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
-import org.eclipse.californium.interoperability.test.OpenSslProcessUtil.AuthenticationMode;
+import org.eclipse.californium.interoperability.test.OpenSslUtil.AuthenticationMode;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.junit.After;
@@ -106,7 +106,7 @@ public class OpenSslClientInteroperabilityTest {
 	public void testOpenSslClient() throws Exception {
 		scandiumUtil.start(BIND, null, cipherSuite);
 
-		String cipher = processUtil.startupClient(DESTINATION, cipherSuite, AuthenticationMode.CERTIFICATE);
+		String cipher = processUtil.startupClient(DESTINATION, AuthenticationMode.CERTIFICATE, cipherSuite);
 		assertTrue(processUtil.waitConsole("Cipher is " + cipher, TIMEOUT_MILLIS));
 
 		String message = "Hello Scandium!";

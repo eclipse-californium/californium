@@ -20,6 +20,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.examples.CredentialsUtil;
+import org.eclipse.californium.interoperability.test.OpenSslUtil.AuthenticationMode;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 
 /**
@@ -39,12 +42,11 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
  * Therefore the test are skipped on windows.
  */
 public class OpenSslProcessUtil extends ProcessUtil {
-	public enum AuthenticationMode {
-		CERTIFICATE, CHAIN, TRUST
-	}
-
 	public static final String DEFAULT_CURVES = "X25519:prime256v1";
 	public static final String DEFAULT_SIGALGS = "ECDSA+SHA384:ECDSA+SHA256:RSA+SHA256";
+
+	public static final String SERVER_CERTIFICATE = "server.pem";
+	public static final String SERVER_RSA_CERTIFICATE = "serverRsa.pem";
 
 	/**
 	 * Create instance.
@@ -52,41 +54,60 @@ public class OpenSslProcessUtil extends ProcessUtil {
 	public OpenSslProcessUtil() {
 	}
 
-	public String startupClient(String destination, CipherSuite cipher, AuthenticationMode authMode)
+	public String startupClient(String destination, AuthenticationMode authMode, CipherSuite... ciphers)
 			throws IOException, InterruptedException {
-		return startupClient(destination, cipher, DEFAULT_CURVES, null, authMode);
+		return startupClient(destination, authMode, DEFAULT_CURVES, null, ciphers);
 	}
 
-	public String startupClient(String destination, CipherSuite cipher, String curves, AuthenticationMode authMode)
-			throws IOException, InterruptedException {
-		return startupClient(destination, cipher, curves, null, authMode);
-	}
-
-	public String startupClient(String destination, CipherSuite cipher, String curves, String sigAlgs,
-			AuthenticationMode authMode) throws IOException, InterruptedException {
-		String openSslCipher = OpenSslUtil.CIPHERSUITES_MAP.get(cipher);
-
-		if (cipher.isPskBased()) {
-			startupPskClient(destination, openSslCipher, curves);
-		} else {
-			startupEcdsaClient(destination, openSslCipher, curves, sigAlgs, authMode);
-		}
-		return openSslCipher;
-	}
-
-	public void startupPskClient(String destination, String ciphers, String curves)
-			throws IOException, InterruptedException {
-		execute("openssl", "s_client", "-dtls1_2", "-4", "-connect", destination, "-no-CAfile", "-cipher", ciphers,
-				"-curves", curves, "-psk", "73656372657450534b");
-	}
-
-	public void startupEcdsaClient(String destination, String ciphers, String curves, String sigAlgs,
-			AuthenticationMode authMode) throws IOException, InterruptedException {
+	public String startupClient(String destination, OpenSslUtil.AuthenticationMode authMode, String curves,
+			String sigAlgs, CipherSuite... ciphers) throws IOException, InterruptedException {
+		List<CipherSuite> list = Arrays.asList(ciphers);
 		List<String> args = new ArrayList<String>();
-		args.addAll(Arrays.asList("openssl", "s_client", "-dtls1_2", "-4", "-connect", destination, "-cipher", ciphers,
-				"-cert", "client.pem"));
+		String openSslCiphers = OpenSslUtil.getOpenSslCipherSuites(ciphers);
+		args.addAll(Arrays.asList("openssl", "s_client", "-dtls1_2", "-4", "-connect", destination, "-cipher",
+				openSslCiphers));
+		if (CipherSuite.containsPskBasedCipherSuite(list)) {
+			args.add("-psk");
+			args.add(StringUtil.byteArray2Hex(CredentialsUtil.OPEN_PSK_SECRET));
+		}
+		if (CipherSuite.containsCipherSuiteRequiringCertExchange(list)) {
+			args.add("-cert");
+			args.add("client.pem");
+			add(args, authMode, "caTrustStore.pem");
+		}
 		add(args, curves, sigAlgs);
-		startupEcdsa(args, authMode);
+		execute(args);
+		return "(" + openSslCiphers.replace(":", "|") + ")";
+	}
+
+	public String startupServer(String accept, OpenSslUtil.AuthenticationMode authMode, CipherSuite... ciphers)
+			throws IOException, InterruptedException {
+		return startupServer(accept, authMode, SERVER_CERTIFICATE, null, null, ciphers);
+	}
+
+	public String startupServer(String accept, OpenSslUtil.AuthenticationMode authMode, String serverCertificate,
+			String curves, String sigAlgs, CipherSuite... ciphers) throws IOException, InterruptedException {
+		List<CipherSuite> list = Arrays.asList(ciphers);
+		List<String> args = new ArrayList<String>();
+		String openSslCiphers = OpenSslUtil.getOpenSslCipherSuites(ciphers);
+		args.addAll(Arrays.asList("openssl", "s_server", "-4", "-dtls1_2", "-accept", accept, "-listen", "-verify", "5",
+				"-cipher", openSslCiphers));
+		if (CipherSuite.containsPskBasedCipherSuite(list)) {
+			args.add("-psk");
+			args.add(StringUtil.byteArray2Hex(CredentialsUtil.OPEN_PSK_SECRET));
+		}
+		if (CipherSuite.containsCipherSuiteRequiringCertExchange(list)) {
+			args.add("-cert");
+			args.add(serverCertificate);
+			String chain = "caTrustStore.pem";
+			if (SERVER_RSA_CERTIFICATE.equals(serverCertificate)) {
+				chain = "caRsaTrustStore.pem";
+			}
+			add(args, authMode, chain);
+		}
+		add(args, curves, sigAlgs);
+		execute(args);
+		return "(" + openSslCiphers.replace(":", "|") + ")";
 	}
 
 	public void add(List<String> args, String curves, String sigAlgs) throws IOException, InterruptedException {
@@ -100,37 +121,8 @@ public class OpenSslProcessUtil extends ProcessUtil {
 		}
 	}
 
-	public String startupServer(String accept, CipherSuite cipher, AuthenticationMode authMode)
+	public void add(List<String> args, OpenSslUtil.AuthenticationMode authMode, String chain)
 			throws IOException, InterruptedException {
-		String openSslCipher = OpenSslUtil.CIPHERSUITES_MAP.get(cipher);
-		if (cipher.isPskBased()) {
-			startupPskServer(accept, openSslCipher);
-		} else {
-			startupEcdsaServer(accept, openSslCipher, authMode);
-		}
-		return openSslCipher;
-	}
-
-	public void startupPskServer(String accept, String ciphers) throws IOException, InterruptedException {
-		execute("openssl", "s_server", "-4", "-dtls1_2", "-accept", accept, "-listen", "-no-CAfile", "-cipher", ciphers,
-				"-psk", "73656372657450534b");
-	}
-
-	public void startupEcdsaServer(String accept, String ciphers, AuthenticationMode authMode)
-			throws IOException, InterruptedException {
-		startupEcdsaServer(accept, ciphers, null, null, authMode);
-	}
-
-	public void startupEcdsaServer(String accept, String ciphers, String curves, String sigAlgs,
-			AuthenticationMode authMode) throws IOException, InterruptedException {
-		List<String> args = new ArrayList<String>();
-		args.addAll(Arrays.asList("openssl", "s_server", "-4", "-dtls1_2", "-accept", accept, "-listen", "-verify", "5",
-				"-cipher", ciphers, "-cert", "server.pem"));
-		add(args, curves, sigAlgs);
-		startupEcdsa(args, authMode);
-	}
-
-	public void startupEcdsa(List<String> args, AuthenticationMode authMode) throws IOException, InterruptedException {
 		switch (authMode) {
 		case CERTIFICATE:
 			args.add("-no-CAfile");
@@ -138,14 +130,14 @@ public class OpenSslProcessUtil extends ProcessUtil {
 		case CHAIN:
 			args.add("-no-CAfile");
 			args.add("-cert_chain");
-			args.add("caTrustStore.pem");
+			args.add(chain);
 			break;
 		case TRUST:
 			args.add("-CAfile");
 			args.add("trustStore.pem");
+			args.add("-build_chain");
 			break;
 		}
-		execute(args);
 	}
 
 	public void stop(long timeoutMillis) throws InterruptedException, IOException {
