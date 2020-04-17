@@ -19,6 +19,7 @@ CLIENT_EXT_CER=clientExt.cer
 # android support - PKCS12
 TRUST_STORE_P12=trustStore.p12
 CA_TRUST_STORE_P12=caTrustStore.p12
+CA_RSA_TRUST_STORE_P12=caRsaTrustStore.p12
 CLIENT_KEY_STORE_P12=client.p12
 SERVER_KEY_STORE_P12=server.p12
 SERVER_LARGE_KEY_STORE_P12=serverLarge.p12
@@ -27,6 +28,7 @@ SERVER_RSA_KEY_STORE_P12=serverRsa.p12
 # PEM 
 TRUST_STORE_PEM=trustStore.pem
 CA_TRUST_STORE_PEM=caTrustStore.pem
+CA_RSA_TRUST_STORE_PEM=caRsaTrustStore.pem
 CLIENT_KEY_STORE_PEM=client.pem
 SERVER_KEY_STORE_PEM=server.pem
 SERVER_LARGE_KEY_STORE_PEM=serverLarge.pem
@@ -39,8 +41,8 @@ VALIDITY=365
 remove_keys() {
 	rm -f $KEY_STORE $TRUST_STORE
 	rm -f $ROOT_CER $CA_CER $CA2_CER $CA_RSA_CER $SERVER_CER $SERVER_LARGE_CER $SERVER_RSA_CER $CLIENT_CER $CLIENT_EXT_CER
-	rm -f $CLIENT_KEY_STORE_P12 $SERVER_KEY_STORE_P12 $SERVER_LARGE_KEY_STORE_P12 $SERVER_RSA_KEY_STORE_P12 $TRUST_STORE_P12 $CA_TRUST_STORE_P12
-	rm -f $CLIENT_KEY_STORE_PEM $SERVER_KEY_STORE_PEM $SERVER_LARGE_KEY_STORE_PEM $SERVER_RSA_KEY_STORE_PEM $TRUST_STORE_PEM $EC_PUBLIC_KEY_PEM $EC_PRIVATE_KEY_PEM $CA_TRUST_STORE_PEM
+	rm -f $CLIENT_KEY_STORE_P12 $SERVER_KEY_STORE_P12 $SERVER_LARGE_KEY_STORE_P12 $SERVER_RSA_KEY_STORE_P12 $TRUST_STORE_P12 $CA_TRUST_STORE_P12 $CA_RSA_TRUST_STORE_P12
+	rm -f $CLIENT_KEY_STORE_PEM $SERVER_KEY_STORE_PEM $SERVER_LARGE_KEY_STORE_PEM $SERVER_RSA_KEY_STORE_PEM $TRUST_STORE_PEM $EC_PUBLIC_KEY_PEM $EC_PRIVATE_KEY_PEM $CA_TRUST_STORE_PEM $CA_RSA_TRUST_STORE_PEM
 }
 
 create_keys() {
@@ -136,6 +138,8 @@ export_p12() {
       -destkeystore $SERVER_RSA_KEY_STORE_P12 -deststorepass $KEY_STORE_PWD -deststoretype PKCS12
    keytool -v -importkeystore -srckeystore $TRUST_STORE -srcstorepass $TRUST_STORE_PWD -alias ca \
       -destkeystore $CA_TRUST_STORE_P12 -deststorepass $TRUST_STORE_PWD -deststoretype PKCS12
+   keytool -v -importkeystore -srckeystore $TRUST_STORE -srcstorepass $TRUST_STORE_PWD -alias carsa \
+      -destkeystore $CA_RSA_TRUST_STORE_P12 -deststorepass $TRUST_STORE_PWD -deststoretype PKCS12
    keytool -v -importkeystore -srckeystore $TRUST_STORE -srcstorepass $TRUST_STORE_PWD \
       -destkeystore $TRUST_STORE_P12 -deststorepass $TRUST_STORE_PWD -deststoretype PKCS12
 }
@@ -150,6 +154,7 @@ export_pem() {
       openssl pkcs12 -in $SERVER_RSA_KEY_STORE_P12 -passin pass:$KEY_STORE_PWD -nodes -out $SERVER_RSA_KEY_STORE_PEM
       openssl pkcs12 -in $CLIENT_KEY_STORE_P12 -passin pass:$KEY_STORE_PWD -nodes -out $CLIENT_KEY_STORE_PEM
       openssl pkcs12 -in $CA_TRUST_STORE_P12 -passin pass:$TRUST_STORE_PWD -nokeys -out $CA_TRUST_STORE_PEM
+      openssl pkcs12 -in $CA_RSA_TRUST_STORE_P12 -passin pass:$TRUST_STORE_PWD -nokeys -out $CA_RSA_TRUST_STORE_PEM
       openssl pkcs12 -in $TRUST_STORE_P12 -passin pass:$TRUST_STORE_PWD -nokeys -out $TRUST_STORE_PEM
       openssl ecparam -genkey -name prime256v1 -noout -out $EC_PRIVATE_KEY_PEM
       openssl ec -in ec_private.pem -pubout -out $EC_PUBLIC_KEY_PEM

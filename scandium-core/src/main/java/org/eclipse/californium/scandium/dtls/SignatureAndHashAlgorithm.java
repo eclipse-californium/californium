@@ -152,6 +152,13 @@ public final class SignatureAndHashAlgorithm {
 	public static SignatureAndHashAlgorithm SHA384_WITH_ECDSA = new SignatureAndHashAlgorithm(HashAlgorithm.SHA384,
 			SignatureAlgorithm.ECDSA);
 	/**
+	 * SHA256_with_Rsa.
+	 * 
+	 * @since 2.3
+	 */
+	public static SignatureAndHashAlgorithm SHA256_WITH_RSA = new SignatureAndHashAlgorithm(HashAlgorithm.SHA256,
+			SignatureAlgorithm.RSA);
+	/**
 	 * Default list of supported signature and hash algorithms. Contains only
 	 * SHA256_with_Ecdsa.
 	 * 

@@ -1675,6 +1675,39 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
+		 * Sets the signature algorithms supported by the connector.
+		 * <p>
+		 * The connector will use these signature algorithms (in exactly the
+		 * same order) during the DTLS handshake.
+		 * 
+		 * @param supportedSignatureAlgorithms the list of supported signature
+		 *            algorithm names in the order of preference. Empty, if no
+		 *            specific extension is to be used for a client, and the
+		 *            server uses {@link SignatureAndHashAlgorithm#DEFAULT}.
+		 * @return this builder for command chaining
+		 * @see SignatureAndHashAlgorithm#valueOf(String)
+		 * @since 2.3
+		 */
+		public Builder setSupportedSignatureAlgorithms(String... supportedSignatureAlgorithms) {
+			List<SignatureAndHashAlgorithm> list = null;
+			if (supportedSignatureAlgorithms != null) {
+				list = new ArrayList<SignatureAndHashAlgorithm>(supportedSignatureAlgorithms.length);
+				for (int i = 0; i < supportedSignatureAlgorithms.length; i++) {
+					SignatureAndHashAlgorithm signatureAndHashAlgorithm = SignatureAndHashAlgorithm
+							.valueOf(supportedSignatureAlgorithms[i]);
+					if (signatureAndHashAlgorithm != null) {
+						list.add(signatureAndHashAlgorithm);
+					} else {
+						throw new IllegalArgumentException(
+								String.format("Signature and hash algorithm [%s] is not (yet) supported",
+										supportedSignatureAlgorithms[i]));
+					}
+				}
+			}
+			return setSupportedSignatureAlgorithms(list);
+		}
+
+		/**
 		 * Sets the groups (curves) supported by the connector.
 		 * <p>
 		 * The connector will use these supported groups (in exactly the same
@@ -2680,8 +2713,11 @@ public final class DtlsConnectorConfig {
 				determineCipherSuitesFromConfig();
 			}
 
-			if (config.supportedGroups == null || config.supportedGroups.isEmpty()) {
-				config.supportedGroups = getDefaultSupportedGroups();
+			if (config.supportedGroups == null) {
+				config.supportedGroups = Collections.emptyList();
+			}
+			if (config.supportedSignatureAlgorithms == null) {
+				config.supportedSignatureAlgorithms = Collections.emptyList();
 			}
 
 			if (config.cipherSuiteSelector == null && !config.clientOnly) {
@@ -2715,6 +2751,7 @@ public final class DtlsConnectorConfig {
 			}
 
 			boolean certifacte = false;
+			boolean ecc = false;
 			boolean psk = false;
 			for (CipherSuite suite : config.supportedCipherSuites) {
 				if (suite.isPskBased()) {
@@ -2724,15 +2761,32 @@ public final class DtlsConnectorConfig {
 					verifyCertificateBasedCipherConfig(suite);
 					certifacte = true;
 				}
+				if (suite.isEccBased()) {
+					ecc = true;
+				}
 			}
 
 			if (!psk && config.pskStore != null) {
 				throw new IllegalStateException("PSK store set, but no PSK cipher suite!");
 			}
 
-			if (config.supportedSignatureAlgorithms == null) {
-				config.supportedSignatureAlgorithms = Collections.<SignatureAndHashAlgorithm>emptyList();
+			if (ecc) {
+				if (!config.supportedSignatureAlgorithms.isEmpty()) {
+					verifySignatureAndHashAlgorithms();
+				}
+				if (config.supportedGroups.isEmpty()) {
+					config.supportedGroups = getDefaultSupportedGroups();
+				}
+			} else {
+				if (!config.supportedSignatureAlgorithms.isEmpty()) {
+					throw new IllegalStateException(
+							"supported signature and hash algorithms set, but no ecdhe based cipher suite!");
+				}
+				if (!config.supportedGroups.isEmpty()) {
+					throw new IllegalStateException("supported groups set, but no ecdhe based cipher suite!");
+				}
 			}
+
 			if (!certifacte) {
 				if (config.privateKey != null || config.publicKey != null) {
 					throw new IllegalStateException("Identity set, but no certificate based cipher suite!");
@@ -2740,12 +2794,8 @@ public final class DtlsConnectorConfig {
 				if (config.trustedRPKs != null || config.certificateVerifier != null) {
 					throw new IllegalStateException("certificate trust set, but no certificate based cipher suite!");
 				}
-				if (!config.supportedSignatureAlgorithms.isEmpty()) {
-					throw new IllegalStateException("supported signature and hash algorithms set, but no certificate based cipher suite!");
-				}
-			} else if (!config.supportedSignatureAlgorithms.isEmpty()){
-				verifySignatureAndHashAlgorithms();
 			}
+
 			if (config.certChain != null) {
 				boolean usage;
 				if (config.clientOnly) {
