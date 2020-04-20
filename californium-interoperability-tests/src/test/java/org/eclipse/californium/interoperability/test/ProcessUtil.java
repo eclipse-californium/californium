@@ -48,6 +48,8 @@ public class ProcessUtil {
 	 */
 	private ProcessResult result;
 
+	private volatile boolean stopped;
+
 	/**
 	 * Create instance.
 	 */
@@ -67,8 +69,7 @@ public class ProcessUtil {
 		}
 	}
 
-	public void print(List<String> args)
-	{
+	public void print(List<String> args) {
 		for (String arg : args) {
 			System.out.print(arg);
 			System.out.print(" ");
@@ -93,6 +94,7 @@ public class ProcessUtil {
 	 * @throws IOException if start fails.
 	 */
 	public void execute(List<String> args) throws IOException {
+		setConsole("");
 		ProcessBuilder builder = new ProcessBuilder(args);
 		builder.redirectErrorStream(true);
 		process = builder.start();
@@ -167,7 +169,7 @@ public class ProcessUtil {
 	/**
 	 * Wait for external tool to finish.
 	 * 
-	 * Clears {@link #console} as well. 
+	 * Clears {@link #console} as well.
 	 * 
 	 * @param timeoutMillis timeout to wait in milliseconds
 	 * @return result of external tool, or {@code null}, if external tool hasn't
@@ -187,10 +189,21 @@ public class ProcessUtil {
 			}
 			if (result != null) {
 				process = null;
-				setConsole("");
 			}
 		}
 		return result;
+	}
+
+	/**
+	 * Stop the process.
+	 * 
+	 * @throws InterruptedException
+	 */
+	public void stop() throws InterruptedException {
+		if (process != null) {
+			stopped = true;
+			process.destroy();
+		}
 	}
 
 	/**
@@ -213,6 +226,9 @@ public class ProcessUtil {
 						char[] buffer = new char[2048];
 						int read;
 						while ((read = reader.read(buffer)) >= 0) {
+							if (stopped) {
+								break;
+							}
 							String out = new String(buffer, 0, read);
 							System.out.print(out);
 							System.out.flush();
@@ -220,7 +236,9 @@ public class ProcessUtil {
 							setConsole(console.toString());
 						}
 					} catch (IOException e) {
-						e.printStackTrace();
+						if (!stopped) {
+							e.printStackTrace();
+						}
 					} finally {
 						if (reader != null) {
 							try {

@@ -27,6 +27,10 @@ public class OpenSslUtil {
 
 	public enum AuthenticationMode {
 		/**
+		 * Use PSK.
+		 */
+		PSK,
+		/**
 		 * Send peer's certificate, trust all.
 		 */
 		CERTIFICATE,

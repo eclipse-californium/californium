@@ -48,6 +48,11 @@ public class OpenSslProcessUtil extends ProcessUtil {
 	public static final String SERVER_CERTIFICATE = "server.pem";
 	public static final String SERVER_RSA_CERTIFICATE = "serverRsa.pem";
 
+	public static final String CLIENT_CERTIFICATE = "client.pem";
+	public static final String CA_CERTIFICATES = "caTrustStore.pem";
+	public static final String CA_RSA_CERTIFICATES = "caRsaTrustStore.pem";
+	public static final String TRUSTSTORE = "trustStore.pem";
+
 	/**
 	 * Create instance.
 	 */
@@ -89,8 +94,8 @@ public class OpenSslProcessUtil extends ProcessUtil {
 		}
 		if (CipherSuite.containsCipherSuiteRequiringCertExchange(list)) {
 			args.add("-cert");
-			args.add("client.pem");
-			add(args, authMode, "caTrustStore.pem");
+			args.add(CLIENT_CERTIFICATE);
+			add(args, authMode, CA_CERTIFICATES);
 		}
 		add(args, curves, sigAlgs);
 		execute(args);
@@ -116,9 +121,9 @@ public class OpenSslProcessUtil extends ProcessUtil {
 		if (CipherSuite.containsCipherSuiteRequiringCertExchange(list)) {
 			args.add("-cert");
 			args.add(serverCertificate);
-			String chain = "caTrustStore.pem";
+			String chain = CA_CERTIFICATES;
 			if (SERVER_RSA_CERTIFICATE.equals(serverCertificate)) {
-				chain = "caRsaTrustStore.pem";
+				chain = CA_RSA_CERTIFICATES;
 			}
 			add(args, authMode, chain);
 		}
@@ -141,6 +146,8 @@ public class OpenSslProcessUtil extends ProcessUtil {
 	public void add(List<String> args, OpenSslUtil.AuthenticationMode authMode, String chain)
 			throws IOException, InterruptedException {
 		switch (authMode) {
+		case PSK:
+			break;
 		case CERTIFICATE:
 			args.add("-no-CAfile");
 			break;
@@ -151,15 +158,15 @@ public class OpenSslProcessUtil extends ProcessUtil {
 			break;
 		case TRUST:
 			args.add("-CAfile");
-			args.add("trustStore.pem");
+			args.add(TRUSTSTORE);
 			args.add("-build_chain");
 			break;
 		}
 	}
 
-	public void stop(long timeoutMillis) throws InterruptedException, IOException {
+	public ProcessResult stop(long timeoutMillis) throws InterruptedException, IOException {
 		sendln("Q");
-		waitResult(timeoutMillis);
+		return waitResult(timeoutMillis);
 	}
 
 }
