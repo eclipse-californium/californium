@@ -263,6 +263,7 @@
 		<module>element-connector-tcp-netty</module>
 		<module>californium-core</module>
 		<module>californium-integration-tests</module>
+		<module>californium-interoperability-tests</module>
 		<module>californium-proxy</module>
 		<module>californium-proxy2</module>
 		<module>californium-osgi</module>

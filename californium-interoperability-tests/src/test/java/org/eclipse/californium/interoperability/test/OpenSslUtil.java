@@ -40,6 +40,9 @@ public class OpenSslUtil {
 		TRUST
 	}
 
+	public static final String OPENSSL_PSK_IDENTITY = "Client_identity";
+	public static final byte[] OPENSSL_PSK_SECRET = "secretPSK".getBytes();
+
 	/**
 	 * Map of Californium's cipher suites to openssl names.
 	 */
