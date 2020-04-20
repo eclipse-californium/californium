@@ -177,6 +177,7 @@ import org.eclipse.californium.scandium.dtls.AvailableConnections;
 import org.eclipse.californium.scandium.dtls.ClientHandshaker;
 import org.eclipse.californium.scandium.dtls.ClientHello;
 import org.eclipse.californium.scandium.dtls.Connection;
+import org.eclipse.californium.scandium.dtls.ConnectionEvictedException;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.ContentType;
@@ -454,8 +455,13 @@ public class DTLSConnector implements Connector, RecordLayer {
 						} else {
 							// failure after established (last FINISH),
 							// but before completed (first data)
-							LOGGER.warn("Handshake with [{}] failed after session was established!",
-									handshaker.getPeerAddress(), error);
+							if (error instanceof ConnectionEvictedException) {
+								LOGGER.debug("Handshake with [{}] never get APPLICATION_DATA",
+										handshaker.getPeerAddress(), error);
+							} else {
+								LOGGER.warn("Handshake with [{}] failed after session was established!",
+										handshaker.getPeerAddress(), error);
+							}
 						}
 					} else if (connection.hasEstablishedSession()) {
 						LOGGER.warn("Handshake with [{}] failed, but has an established session!",
