@@ -21,7 +21,6 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.examples.CredentialsUtil;
 import org.eclipse.californium.interoperability.test.OpenSslUtil.AuthenticationMode;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 
@@ -68,7 +67,7 @@ public class OpenSslProcessUtil extends ProcessUtil {
 				openSslCiphers));
 		if (CipherSuite.containsPskBasedCipherSuite(list)) {
 			args.add("-psk");
-			args.add(StringUtil.byteArray2Hex(CredentialsUtil.OPEN_PSK_SECRET));
+			args.add(StringUtil.byteArray2Hex(OpenSslUtil.OPENSSL_PSK_SECRET));
 		}
 		if (CipherSuite.containsCipherSuiteRequiringCertExchange(list)) {
 			args.add("-cert");
@@ -94,7 +93,7 @@ public class OpenSslProcessUtil extends ProcessUtil {
 				"-cipher", openSslCiphers));
 		if (CipherSuite.containsPskBasedCipherSuite(list)) {
 			args.add("-psk");
-			args.add(StringUtil.byteArray2Hex(CredentialsUtil.OPEN_PSK_SECRET));
+			args.add(StringUtil.byteArray2Hex(OpenSslUtil.OPENSSL_PSK_SECRET));
 		}
 		if (CipherSuite.containsCipherSuiteRequiringCertExchange(list)) {
 			args.add("-cert");
