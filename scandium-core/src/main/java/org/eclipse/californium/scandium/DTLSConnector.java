@@ -458,8 +458,14 @@ public class DTLSConnector implements Connector, RecordLayer {
 						} else {
 							// failure after established (last FINISH),
 							// but before completed (first data)
-							LOGGER.warn("Handshake with [{}] failed after session was established!",
-									handshaker.getPeerAddress(), error);
+							// TODO a dedicated Exception should be created.
+							if (error instanceof RuntimeException && "Evicted!".equals(error.getMessage())) {
+								LOGGER.debug("Handshake with [{}] never get APPLICATION_DATA",
+										handshaker.getPeerAddress(), error);
+							} else {
+								LOGGER.warn("Handshake with [{}] failed after session was established!",
+										handshaker.getPeerAddress(), error);
+							}
 						}
 					} else if (connection.hasEstablishedSession()) {
 						LOGGER.warn("Handshake with [{}] failed, but has an established session!",
