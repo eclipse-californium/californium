@@ -69,8 +69,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 	@BeforeClass
 	public static void init() throws IOException, InterruptedException {
 		processUtil = new OpenSslProcessUtil();
-		processUtil.execute("openssl", "version");
-		ProcessResult result = processUtil.waitResult(TIMEOUT_MILLIS);
+		ProcessResult result = processUtil.getOpenSslVersion(TIMEOUT_MILLIS);
 		assumeNotNull(result);
 		assumeTrue(result.contains("OpenSSL 1\\.1\\."));
 		String os = System.getProperty("os.name");

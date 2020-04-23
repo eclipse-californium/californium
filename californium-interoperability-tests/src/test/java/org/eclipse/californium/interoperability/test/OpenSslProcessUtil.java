@@ -41,6 +41,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
  * Therefore the test are skipped on windows.
  */
 public class OpenSslProcessUtil extends ProcessUtil {
+
 	public static final String DEFAULT_CURVES = "X25519:prime256v1";
 	public static final String DEFAULT_SIGALGS = "ECDSA+SHA384:ECDSA+SHA256:RSA+SHA256";
 
@@ -51,6 +52,23 @@ public class OpenSslProcessUtil extends ProcessUtil {
 	 * Create instance.
 	 */
 	public OpenSslProcessUtil() {
+	}
+
+	/**
+	 * Get openssl version.
+	 * 
+	 * @param timeMillis timeout in milliseconds
+	 * @return result of version command. {@code null}, if not available.
+	 */
+	public ProcessResult getOpenSslVersion(long timeMillis) {
+		try {
+			execute("openssl", "version");
+			return waitResult(timeMillis);
+		} catch (InterruptedException ex) {
+			return null;
+		} catch (IOException ex) {
+			return null;
+		}
 	}
 
 	public String startupClient(String destination, AuthenticationMode authMode, CipherSuite... ciphers)
