@@ -555,11 +555,7 @@ public class ServerHandshaker extends Handshaker {
 				&& selectedCipherSuiteParameters.getSelectedClientCertificateType() != null) {
 			CertificateRequest certificateRequest = new CertificateRequest(session.getPeer());
 			certificateRequest.addCertificateType(ClientCertificateType.ECDSA_SIGN);
-			// sort according the order of the server's 
-			// supported signatures and hash algorithms
-			List<SignatureAndHashAlgorithm> serverOrdered = SignatureAndHashAlgorithm.getCommonSignatureAlgorithms(
-					supportedSignatureAndHashAlgorithms, selectedCipherSuiteParameters.getSignatures());
-			certificateRequest.addSignatureAlgorithms(serverOrdered);
+			certificateRequest.addSignatureAlgorithms(supportedSignatureAndHashAlgorithms);
 			if (certificateVerifier != null) {
 				List<X500Principal> subjects = CertPathUtil
 						.toSubjects(Arrays.asList(certificateVerifier.getAcceptedIssuers()));
