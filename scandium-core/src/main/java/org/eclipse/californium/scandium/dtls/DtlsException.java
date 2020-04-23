@@ -57,12 +57,18 @@ public class DtlsException extends RuntimeException {
 	/**
 	 * The IP and port of the peer of the DTLS connection.
 	 * <p>
-	 * This exception has occurred in the context of a connection with
-	 * the peer identified by the returned address.
+	 * This exception has occurred in the context of a connection with the peer
+	 * identified by the returned address.
 	 * </p>
+	 * Before 2.3, behavior about returning {@code null} was undefined.
+	 * <br>
+	 * Since 2.3, this method can return {@code null} because the attached
+	 * connection could have lost its peer address (E.g. the peer address is
+	 * assigned to another connection).
 	 * 
-	 * @return the address
-	 */	
+	 * @return the address or {@code null} if DTLS connection has no more
+	 *         peer address attached.
+	 */
 	public final InetSocketAddress getPeer() {
 		return peer;
 	}

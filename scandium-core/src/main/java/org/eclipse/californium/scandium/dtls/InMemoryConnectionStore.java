@@ -174,7 +174,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 					public void run() {
 						Handshaker handshaker = staleConnection.getOngoingHandshake();
 						if (handshaker != null) {
-							handshaker.handshakeFailed(new RuntimeException("Evicted!"));
+							handshaker.handshakeFailed(new ConnectionEvictedException("Evicted!", staleConnection.getPeerAddress()));
 						}
 						synchronized (InMemoryConnectionStore.this) {
 							removeFromAddressConnections(staleConnection);
