@@ -1877,28 +1877,10 @@ public class DTLSConnector implements Connector, RecordLayer {
 		DTLSSession newSession = new DTLSSession(record.getPeerAddress(), record.getSequenceNumber());
 		// initialize handshaker based on CLIENT_HELLO (this accounts
 		// for the case that multiple cookie exchanges have taken place)
-		Handshaker handshaker = getHandshaker(clientHello.getMessageSeq(), newSession,
-				this, connection, config, maximumTransmissionUnit);
+		Handshaker handshaker = new ServerHandshaker(clientHello.getMessageSeq(), newSession, this, connection, config,
+				maximumTransmissionUnit);
 		initializeHandshaker(handshaker);
 		handshaker.processMessage(record);
-	}
-	
-	/**
-	 * Gets a handshaker instance.  Default behaviour is to return a ServerHandshaker.
-	 * This getter allows subclasses to provide alternative handshaker implementations
-	 * 
-	 * @param messageSeq the message sequence from the CLIENT HELLO
-	 * @param dtlsSession the DTLS session being agreed
-	 * @param recordLayer the connector
-	 * @param connection connection to start handshake.
-	 * @param config the DTLSConnectorConfig
-	 * @param maximumTransmissionUnit the maximum transmission unit
-	 * @return
-	 */
-	protected Handshaker getHandshaker(final int messageSeq, final DTLSSession dtlsSession,
-			final RecordLayer recordLayer, final Connection connection, final DtlsConnectorConfig config,
-			final int maximumTransmissionUnit) {
-		return new ServerHandshaker(messageSeq, dtlsSession, recordLayer, connection, config, maximumTransmissionUnit);
 	}
 
 	/**
