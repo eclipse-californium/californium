@@ -56,6 +56,8 @@ import org.eclipse.californium.scandium.dtls.CertificateMessage;
 import org.eclipse.californium.scandium.dtls.CertificateRequest;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
+import org.eclipse.californium.scandium.dtls.InMemoryMasterSecretDeriver;
+import org.eclipse.californium.scandium.dtls.MasterSecretDeriver;
 import org.eclipse.californium.scandium.dtls.SessionCache;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -154,6 +156,11 @@ public final class DtlsConnectorConfig {
 	 * Certificate verifier for dynamic trust.
 	 */
 	private CertificateVerifier certificateVerifier;
+	
+	/**
+	 * Functionality to derive the Master Secret.
+	 */
+	private MasterSecretDeriver masterSecretDeriver;
 
 	/**
 	 * Experimental feature : Stop retransmission at message receipt
@@ -715,6 +722,16 @@ public final class DtlsConnectorConfig {
 	 */
 	public CertificateVerifier getCertificateVerifier() {
 		return certificateVerifier;
+	}
+	
+	/**
+	 * Gets the function in charge of deriving the Master Secret during the 
+	 * DTLS Handshake
+	 * 
+	 * @return the master secret deriver
+	 */
+	public MasterSecretDeriver getMasterSecretDeriver() {
+		return masterSecretDeriver;
 	}
 
 	/**
@@ -2114,6 +2131,14 @@ public final class DtlsConnectorConfig {
 			config.certificateVerifier = verifier;
 			return this;
 		}
+		
+		public Builder setMasterSecretDeriver(MasterSecretDeriver deriver) {
+			if(deriver == null) {
+				throw new NullPointerException("MasterSecretDeriver must not be null");
+			}
+			config.masterSecretDeriver = deriver;
+			return this;
+		}
 
 		/**
 		 * Sets a supplier of application level information for an authenticated peer's identity.
@@ -2722,6 +2747,10 @@ public final class DtlsConnectorConfig {
 
 			if (config.cipherSuiteSelector == null && !config.clientOnly) {
 				config.cipherSuiteSelector = new DefaultCipherSuiteSelector();
+			}
+			
+			if (config.masterSecretDeriver == null) {
+				config.masterSecretDeriver = new InMemoryMasterSecretDeriver();
 			}
 
 			// check cipher consistency
