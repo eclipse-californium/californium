@@ -885,11 +885,22 @@ public abstract class Handshaker implements Destroyable {
 	 */
 	private SecretKey generateMasterSecret(SecretKey premasterSecret) {
 		byte[] randomSeed = Bytes.concatenate(clientRandom, serverRandom);
-		byte[] secret = PseudoRandomFunction.doPRF(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(),
-				premasterSecret, Label.MASTER_SECRET_LABEL, randomSeed);
+		byte[] secret = deriveMasterSecret(premasterSecret, randomSeed);
 		SecretKey masterSecret = SecretUtil.create(secret, "MAC");
 		Bytes.clear(secret);
 		return masterSecret;
+	}
+	
+	/**
+	 * Derives the master secret from the premaster secret and the random seed.
+	 * 
+	 * @param premasterSecret the Pre Master Secret Key
+	 * @param randomSeed the random seed bytes
+	 * @return the derived master secret bytes
+	 */
+	protected byte[] deriveMasterSecret(SecretKey premasterSecret, byte[] randomSeed) {
+		return PseudoRandomFunction.doPRF(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(),
+				premasterSecret, Label.MASTER_SECRET_LABEL, randomSeed);
 	}
 
 	protected final void setCurrentReadState() {
