@@ -162,8 +162,18 @@ public abstract class DataParser {
 						Option option = new Option(currentOptionNumber);
 						option.setValue(reader.readBytes(optionLength));
 
-						// add option to message
-						message.getOptions().addOption(option);
+						if (currentOptionNumber == OptionNumberRegistry.CONTENT_FORMAT) {
+							// OptionSet.setContentFormat(int) API weird => cleanup on 3.0
+							int format = option.getIntegerValue();
+							message.getOptions().setContentFormat(format);
+							if (!message.getOptions().hasContentFormat()) {
+								throw new IllegalArgumentException(
+										"Content Format option must be between 0 and " + MediaTypeRegistry.MAX_TYPE + " (2 bytes) inclusive");
+							}
+						} else {
+							// add option to message
+							message.getOptions().addOption(option);
+						}
 					} catch (IllegalArgumentException ex) {
 						throw new CoAPMessageFormatException(ex.getMessage(), message.getToken(), message.getMID(), message.getRawCode(), message.isConfirmable());
 					}

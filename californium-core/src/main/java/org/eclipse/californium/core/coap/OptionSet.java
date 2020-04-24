@@ -263,6 +263,7 @@ public final class OptionSet {
 	 * 
 	 * @param etag the If-Match ETag to add
 	 * @return this OptionSet for a fluent API.
+	 * @throws IllegalArgumentException if the etag is {@code null} or has more than 8 bytes,
 	 */
 	public OptionSet addIfMatch(byte[] etag) {
 		if (etag==null)
@@ -457,10 +458,13 @@ public final class OptionSet {
 	 * 
 	 * @param port the Uri-Port value to set.
 	 * @return this OptionSet for a fluent API.
+	 * @throws IllegalArgumentException if port is not in valid range
 	 */
 	public OptionSet setUriPort(int port) {
-		if (port < 0 || (1<<16)-1 < port)
-			throw new IllegalArgumentException("URI port option must be between 0 and "+((1<<16)-1)+" (2 bytes) inclusive but was "+port);
+		if (port < 0 || (1 << 16) - 1 < port) {
+			throw new IllegalArgumentException("URI port option must be between 0 and " + ((1 << 16) - 1)
+					+ " (2 bytes) inclusive but was " + port);
+		}
 		this.uri_port = port;
 		return this;
 	}
@@ -699,16 +703,24 @@ public final class OptionSet {
 	}
 
 	/**
-	 * Sets the Content-Format ID of the Content-Format option (see
-	 * <a href="http://www.iana.org/assignments/core-parameters/core-parameters.xhtml#content-formats">IANA Registry</a>).
+	 * Sets the Content-Format ID of the Content-Format option (see <a href=
+	 * "http://www.iana.org/assignments/core-parameters/core-parameters.xhtml#content-formats">IANA
+	 * Registry</a>).
+	 * 
+	 * Note: if the value is out of range [0...65535], the content_format is
+	 * reset to {@code null}. In difference to other methods, no
+	 * {@link IllegalArgumentException} will be thrown.
 	 * 
 	 * @param format the Content-Format ID
 	 * @return this OptionSet for a fluent API.
 	 * @see MediaTypeRegistry
 	 */
 	public OptionSet setContentFormat(int format) {
-		if (format > MediaTypeRegistry.UNDEFINED) content_format = format;
-		else content_format = null;
+		if (format > MediaTypeRegistry.UNDEFINED && format <= MediaTypeRegistry.MAX_TYPE) {
+			content_format = format;
+		} else {
+			content_format = null;
+		}
 		return this;
 	}
 
@@ -882,16 +894,21 @@ public final class OptionSet {
 	}
 
 	/**
-	 * Sets the Content-Format ID of the Accept option (see
-	 * <a href="http://www.iana.org/assignments/core-parameters/core-parameters.xhtml#content-formats">IANA Registry</a>).
+	 * Sets the Content-Format ID of the Accept option (see <a href=
+	 * "http://www.iana.org/assignments/core-parameters/core-parameters.xhtml#content-formats">IANA
+	 * Registry</a>).
 	 * 
 	 * @param format the Content-Format ID
 	 * @return this OptionSet for a fluent API.
+	 * @throws IllegalArgumentException if value is out of range {@code 0} to
+	 *             {@link MediaTypeRegistry#MAX_TYPE}.
 	 * @see MediaTypeRegistry
 	 */
 	public OptionSet setAccept(int format) {
-		if (format < 0 || format > ((1<<16)-1))
-			throw new IllegalArgumentException("Accept option must be between 0 and "+((1<<16)-1)+" (2 bytes) inclusive");
+		if (format < 0 || format > MediaTypeRegistry.MAX_TYPE) {
+			throw new IllegalArgumentException(
+					"Accept option must be between 0 and " + MediaTypeRegistry.MAX_TYPE + " (2 bytes) inclusive");
+		}
 		accept = format;
 		return this;
 	}

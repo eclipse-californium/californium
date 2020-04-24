@@ -47,6 +47,7 @@ public class MediaTypeRegistry {
 	public static final int APPLICATION_SENML_CBOR = 112;
 	public static final int APPLICATION_VND_OMA_LWM2M_TLV = 11542;
 	public static final int APPLICATION_VND_OMA_LWM2M_JSON = 11543;
+	public static final int MAX_TYPE = 0xffff;
 	
 	// implementation specific
 	public static final int UNDEFINED = -1;
