@@ -25,7 +25,7 @@ package org.eclipse.californium.core.coap;
  */
 public final class OptionNumberRegistry {
 	public static final int UNKNOWN			= -1;
-	
+
 	// RFC 7252
 	public static final int RESERVED_0		= 0;
 	public static final int IF_MATCH		= 1;
@@ -55,7 +55,7 @@ public final class OptionNumberRegistry {
 	public static final int BLOCK2			= 23;
 	public static final int BLOCK1			= 27;
 	public static final int SIZE2			= 28;
-	
+
 	//TODO temporary assignment
 	public static final int OSCORE			= 9;
 
@@ -64,7 +64,7 @@ public final class OptionNumberRegistry {
 	 */
 	public static class Names {
 		public static final String Reserved 		= "Reserved";
-		
+
 		public static final String If_Match 		= "If-Match";
 		public static final String Uri_Host 		= "Uri-Host";
 		public static final String ETag 			= "ETag";
@@ -86,11 +86,10 @@ public final class OptionNumberRegistry {
 		public static final String Block2			= "Block2";
 		public static final String Block1			= "Block1";
 		public static final String Size2			= "Size2";
-		
+
 		public static final String Object_Security  = "Object-Security";
 	}
-	
-	
+
 	/**
 	 * Option default values.
 	 */
@@ -104,7 +103,7 @@ public final class OptionNumberRegistry {
 	 * The format types of CoAP options.
 	 */
 	public static enum optionFormats {
-		INTEGER, STRING, OPAQUE, UNKNOWN
+		INTEGER, STRING, OPAQUE, UNKNOWN, EMPTY
 	}
 
 	/**
@@ -124,9 +123,10 @@ public final class OptionNumberRegistry {
 		case BLOCK1:
 		case SIZE2:
 		case SIZE1:
-		case IF_NONE_MATCH:
 		case ACCEPT:
 			return optionFormats.INTEGER;
+		case IF_NONE_MATCH:
+			return optionFormats.EMPTY;
 		case URI_HOST:
 		case URI_PATH:
 		case URI_QUERY:
@@ -137,7 +137,7 @@ public final class OptionNumberRegistry {
 			return optionFormats.STRING;
 		case ETAG:
 		case IF_MATCH:
-	    case OSCORE:          
+		case OSCORE:
 			return optionFormats.OPAQUE;
 		default:
 			return optionFormats.UNKNOWN;
@@ -177,7 +177,7 @@ public final class OptionNumberRegistry {
 		// When bit 6 is 1, an option is Unsafe
 		return (optionNumber & 2) > 0;
 	}
-	
+
 	/**
 	 * Checks whether an option is safe.
 	 * 
@@ -204,7 +204,7 @@ public final class OptionNumberRegistry {
 		 */
 		return (optionNumber & 0x1E) == 0x1C;
 	}
-	
+
 	/**
 	 * Checks whether an option is a cache-key.
 	 * 
@@ -313,7 +313,7 @@ public final class OptionNumberRegistry {
 		case SIZE1:
 			return Names.Size1;
 		case OSCORE:
-            return Names.Object_Security;	
+			return Names.Object_Security;
 		default:
 			return String.format("Unknown (%d)", optionNumber);
 		}
@@ -322,21 +322,21 @@ public final class OptionNumberRegistry {
 	public static int toNumber(String name) {
 		if (Names.If_Match.equals(name))			return IF_MATCH;
 		else if (Names.Uri_Host.equals(name))		return URI_HOST;
-		else if (Names.ETag.equals(name)) 			return ETAG;
-		else if (Names.If_None_Match.equals(name)) return IF_NONE_MATCH;
+		else if (Names.ETag.equals(name))			return ETAG;
+		else if (Names.If_None_Match.equals(name))	return IF_NONE_MATCH;
 		else if (Names.Uri_Port.equals(name))		return URI_PORT;
 		else if (Names.Location_Path.equals(name))	return LOCATION_PATH;
 		else if (Names.Uri_Path.equals(name))		return URI_PATH;
-		else if (Names.Content_Format.equals(name))return CONTENT_FORMAT;
-		else if (Names.Max_Age.equals(name)) 		return MAX_AGE;
+		else if (Names.Content_Format.equals(name))	return CONTENT_FORMAT;
+		else if (Names.Max_Age.equals(name))		return MAX_AGE;
 		else if (Names.Uri_Query.equals(name))		return URI_QUERY;
-		else if (Names.Accept.equals(name))		return ACCEPT;
-		else if (Names.Location_Query.equals(name))return LOCATION_QUERY;
-		else if (Names.Proxy_Uri.equals(name)) 	return PROXY_URI;
-		else if (Names.Proxy_Scheme.equals(name)) 	return PROXY_SCHEME;
+		else if (Names.Accept.equals(name))			return ACCEPT;
+		else if (Names.Location_Query.equals(name))	return LOCATION_QUERY;
+		else if (Names.Proxy_Uri.equals(name))		return PROXY_URI;
+		else if (Names.Proxy_Scheme.equals(name))	return PROXY_SCHEME;
 		else if (Names.Observe.equals(name))		return OBSERVE;
-		else if (Names.Block2.equals(name))		return BLOCK2;
-		else if (Names.Block1.equals(name))		return BLOCK1;
+		else if (Names.Block2.equals(name))			return BLOCK2;
+		else if (Names.Block1.equals(name))			return BLOCK1;
 		else if (Names.Size2.equals(name))			return SIZE2;
 		else if (Names.Size1.equals(name))			return SIZE1;
 		else if (Names.Object_Security.equals(name)) return OSCORE;
