@@ -18,7 +18,7 @@ package org.eclipse.californium.scandium.dtls;
 import java.net.InetSocketAddress;
 
 /**
- * <code>DtlsException</code> is the superclass of those exceptions that can be thrown
+ * {@code DtlsException} is the superclass of those exceptions that can be thrown
  * in the context of a DTLS connection with a peer.
  */
 public class DtlsException extends RuntimeException {
@@ -29,7 +29,7 @@ public class DtlsException extends RuntimeException {
 	/**
 	 * Constructs a new DTLS exception with the specified detail message and peer address.
 	 * 
-	 * @param message the detail message (which is saved for later retrieval by the <code>Throwable.getMessage()</code> method).
+	 * @param message the detail message (which is saved for later retrieval by the {@code Throwable.getMessage()} method).
 	 * @param peer the IP address and port of the DTLS connection peer
 	 */
 	public DtlsException(String message, InetSocketAddress peer) {
@@ -40,14 +40,14 @@ public class DtlsException extends RuntimeException {
 	/**
 	 * Constructs a new DTLS exception with the specified detail message, peer address and cause.
 	 * <p>
-	 * Note that the detail message associated with <code>cause</code> is not automatically incorporated
+	 * Note that the detail message associated with {@code cause} is not automatically incorporated
 	 * in this DTLS exception's detail message.
 	 * </p>
 	 * 
-	 * @param message the detail message (which is saved for later retrieval by the <code>Throwable.getMessage()</code> method).
+	 * @param message the detail message (which is saved for later retrieval by the {@code Throwable.getMessage()} method).
 	 * @param peer the IP address and port of the DTLS connection peer
-	 * @param cause the cause (which is saved for later retrieval by the <code>Throwable.getCause()</code> method).
-	 *          (A <code>null</code> value is permitted, and indicates that the cause is nonexistent or unknown.)
+	 * @param cause the cause (which is saved for later retrieval by the {@code Throwable.getCause()} method).
+	 *          (A {@code null} value is permitted, and indicates that the cause is nonexistent or unknown.)
 	 */
 	public DtlsException(String message, InetSocketAddress peer, Throwable cause) {
 		super(message, cause);
