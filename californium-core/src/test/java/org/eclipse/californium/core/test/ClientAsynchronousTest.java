@@ -227,6 +227,7 @@ public class ClientAsynchronousTest {
 	private static CoapServer createServer() {
 		NetworkConfig config = network.getStandardTestConfig();
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+		builder.setNetworkConfig(config);
 		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
 		serverEndpoint = builder.build();
 

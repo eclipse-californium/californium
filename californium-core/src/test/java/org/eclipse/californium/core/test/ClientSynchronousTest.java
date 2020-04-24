@@ -23,12 +23,13 @@
 package org.eclipse.californium.core.test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import org.junit.Assert;
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapClient;
@@ -77,7 +78,6 @@ public class ClientSynchronousTest {
 	private static final int OVERLOAD_TIME = 123;
 
 	private static Endpoint serverEndpoint;
-	private static int serverPort;
 	private static StorageResource resource;
 
 	@BeforeClass
@@ -101,22 +101,22 @@ public class ClientSynchronousTest {
 
 		// Check that we get the right content when calling get()
 		String resp1 = client.get().getResponseText();
-		Assert.assertEquals(CONTENT_1, resp1);
+		assertEquals(CONTENT_1, resp1);
 
 		String resp2 = client.get().getResponseText();
-		Assert.assertEquals(CONTENT_1, resp2);
+		assertEquals(CONTENT_1, resp2);
 
 		// Change the content to "two" and check
 		String resp3 = client.post(CONTENT_2, MediaTypeRegistry.TEXT_PLAIN).getResponseText();
-		Assert.assertEquals(CONTENT_1, resp3);
+		assertEquals(CONTENT_1, resp3);
 
 		String resp4 = client.get().getResponseText();
-		Assert.assertEquals(CONTENT_2, resp4);
+		assertEquals(CONTENT_2, resp4);
 
 		CountingCoapHandler handler = new CountingCoapHandler();
 		// Observe the resource
 		CoapObserveRelation obs1 = client.observeAndWait(handler);
-		Assert.assertFalse(obs1.isCanceled());
+		assertFalse(obs1.isCanceled());
 		CoapResponse response = handler.waitOnLoad(100);
 		assertNotNull("missing initial notification", response);
 		assertEquals(CONTENT_2, response.getResponseText());
@@ -137,7 +137,7 @@ public class ClientSynchronousTest {
 		assertEquals(CONTENT_2, response.getResponseText());
 
 		String resp5 = client.post(CONTENT_3, MediaTypeRegistry.TEXT_PLAIN).getResponseText();
-		Assert.assertEquals(CONTENT_2, resp5);
+		assertEquals(CONTENT_2, resp5);
 
 		response = handler.waitOnLoad(100);
 		assertNotNull("missing notification", response);
@@ -145,7 +145,7 @@ public class ClientSynchronousTest {
 
 		// Try a put and receive a METHOD_NOT_ALLOWED
 		ResponseCode code6 = client.put(CONTENT_4, MediaTypeRegistry.TEXT_PLAIN).getCode();
-		Assert.assertEquals(ResponseCode.METHOD_NOT_ALLOWED, code6);
+		assertEquals(ResponseCode.METHOD_NOT_ALLOWED, code6);
 
 		// Cancel observe relation of obs1 and check that it does no longer receive notifications
 		obs1.reactiveCancel();
@@ -155,20 +155,20 @@ public class ClientSynchronousTest {
 
 		// Make another post
 		String resp7 = client.post(CONTENT_4, MediaTypeRegistry.TEXT_PLAIN).getResponseText();
-		Assert.assertEquals(CONTENT_3, resp7);
+		assertEquals(CONTENT_3, resp7);
 
 		// Try to use the builder and add a query
-		CoapClient client2 = new CoapClient.Builder("localhost", serverPort)
+		CoapClient client2 = new CoapClient.Builder("localhost", serverEndpoint.getAddress().getPort())
 			.scheme("coap").path(TARGET).query(QUERY_UPPER_CASE).create();
 		cleanup.add(client2);
 		String resp8 = client2.get().getResponseText();
-		Assert.assertEquals(CONTENT_4.toUpperCase(), resp8);
+		assertEquals(CONTENT_4.toUpperCase(), resp8);
 
 		// Check that we indeed received 5 notifications
 		// 1 from origin GET request, 3 x from changed(), 1 from post()
 		Thread.sleep(100);
-		Assert.assertEquals(5, handler.getOnLoadCalls());
-		Assert.assertEquals(0, handler.getOnErrorCalls());
+		assertEquals(5, handler.getOnLoadCalls());
+		assertEquals(0, handler.getOnErrorCalls());
 		client2.shutdown();
 		client.shutdown();
 	}
@@ -195,8 +195,8 @@ public class ClientSynchronousTest {
 
 		// Check that we get the right content when calling get()
 		boolean ping = client.ping();
-		Assert.assertTrue(ping);
-		Assert.assertTrue("Ping not sent using provided endpoint", sent.get());
+		assertTrue(ping);
+		assertTrue("Ping not sent using provided endpoint", sent.get());
 		client.shutdown();
 	}
 
@@ -214,8 +214,8 @@ public class ClientSynchronousTest {
 
 		CoapResponse resp = client.advanced(request);
 
-		Assert.assertEquals(Type.ACK, resp.advanced().getType());
-		Assert.assertEquals(CONTENT_1, resp.getResponseText());
+		assertEquals(Type.ACK, resp.advanced().getType());
+		assertEquals(CONTENT_1, resp.getResponseText());
 		client.shutdown();
 	}
 
@@ -232,8 +232,8 @@ public class ClientSynchronousTest {
 
 		CoapResponse resp = client.advanced(request);
 
-		Assert.assertEquals(Type.ACK, resp.advanced().getType());
-		Assert.assertEquals(CONTENT_1, resp.getResponseText());
+		assertEquals(Type.ACK, resp.advanced().getType());
+		assertEquals(CONTENT_1, resp.getResponseText());
 		client.shutdown();
 	}
 
@@ -246,23 +246,24 @@ public class ClientSynchronousTest {
 
 		CoapResponse resp = client.post(OVERLOAD, MediaTypeRegistry.TEXT_PLAIN);
 
-		Assert.assertEquals(ResponseCode.SERVICE_UNAVAILABLE, resp.getCode());
-		Assert.assertEquals(OVERLOAD_TIME, resp.getOptions().getMaxAge().intValue());
+		assertEquals(ResponseCode.SERVICE_UNAVAILABLE, resp.getCode());
+		assertEquals(OVERLOAD_TIME, resp.getOptions().getMaxAge().intValue());
 		client.shutdown();
 	}
 
 	private static CoapServer createServer() {
+		NetworkConfig config = network.getStandardTestConfig();
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
+		builder.setNetworkConfig(config);
 		serverEndpoint = builder.build();
 
 		resource = new StorageResource(TARGET, CONTENT_1);
-		CoapServer server = new CoapServer(network.getStandardTestConfig());
+		CoapServer server = new CoapServer(config);
 		server.add(resource);
 
 		server.addEndpoint(serverEndpoint);
 		server.start();
-		serverPort = serverEndpoint.getAddress().getPort();
 		return server;
 	}
 
