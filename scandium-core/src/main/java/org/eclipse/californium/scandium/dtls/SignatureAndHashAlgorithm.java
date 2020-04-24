@@ -165,7 +165,7 @@ public final class SignatureAndHashAlgorithm {
 	 * @since 2.3
 	 */
 	public static List<SignatureAndHashAlgorithm> DEFAULT = Collections
-			.unmodifiableList(Arrays.asList(SHA256_WITH_ECDSA));
+			.unmodifiableList(Arrays.asList(SHA256_WITH_ECDSA, SHA256_WITH_RSA));
 
 	/**
 	 * Get thread local signature.
@@ -214,21 +214,24 @@ public final class SignatureAndHashAlgorithm {
 	}
 
 	/**
-	 * Get list of signature and hash algorithms from certificate chain.
+	 * Get list of default signature and hash algorithms including the
+	 * algorithms used by the certificate chain.
 	 * 
-	 * @param certificateChain certificate chain
-	 * @return list list of signature and hash algorithms
+	 * @param certificateChain certificate chain. Maybe {@code null}.
+	 * @return list list of default signature and hash algorithms
 	 * 
 	 * @since 2.3
 	 */
-	public static List<SignatureAndHashAlgorithm> getSignatureAlgorithmsFromCertificateChain(
+	public static List<SignatureAndHashAlgorithm> getDefaultSignatureAlgorithms(
 			List<X509Certificate> certificateChain) {
-		List<SignatureAndHashAlgorithm> result = new ArrayList<>();
-		for (X509Certificate certificate : certificateChain) {
-			String sigAlgName = certificate.getSigAlgName();
-			SignatureAndHashAlgorithm signature = valueOf(sigAlgName);
-			if (signature != null && !result.contains(signature)) {
-				result.add(signature);
+		List<SignatureAndHashAlgorithm> result = new ArrayList<>(DEFAULT);
+		if (certificateChain != null) {
+			for (X509Certificate certificate : certificateChain) {
+				String sigAlgName = certificate.getSigAlgName();
+				SignatureAndHashAlgorithm signature = valueOf(sigAlgName);
+				if (signature != null && !result.contains(signature)) {
+					result.add(signature);
+				}
 			}
 		}
 		return result;
