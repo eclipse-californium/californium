@@ -1509,6 +1509,24 @@ public final class OptionSet {
 		return this;
 	}
 
+	/**
+	 * Add other option bypassing the validation check.
+	 * 
+	 * If standard options are added by this function, the validation check is
+	 * bypassed! That maybe used for tests, but will result in failing
+	 * communication, if used for something else. Please use
+	 * {@link #addOption(Option)} for all options, including others, which are
+	 * not intended for tests.
+	 * 
+	 * @param option the Option object to add
+	 * @return this OptionSet for a fluent API.
+	 * @since 2.3
+	 */
+	public OptionSet addOtherOption(Option option) {
+		getOthersInternal().add(option);
+		return this;
+	}
+
 	@Override
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
@@ -1593,7 +1611,7 @@ public final class OptionSet {
 		}
 		int length = value.getBytes(CoAP.UTF8_CHARSET).length;
 		if (length < min || length > max) {
-			String message = String.format("{} option's length {} must be between {} and {} inclusive!", optionName,
+			String message = String.format("%s option's length %d must be between %d and %d inclusive!", optionName,
 					length, min, max);
 			throw new IllegalArgumentException(message);
 		}

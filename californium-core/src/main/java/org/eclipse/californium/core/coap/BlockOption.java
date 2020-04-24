@@ -44,9 +44,9 @@ public final class BlockOption {
 	 */
 	public BlockOption(final int szx, final boolean m, final int num) {
 		if (szx < 0 || 7 < szx) {
-			throw new IllegalArgumentException("Block option's szx must be between 0 and 7 inclusive");
+			throw new IllegalArgumentException("Block option's szx "+ szx + " must be between 0 and 7 inclusive");
 		} else if (num < 0 || (1 << 20) - 1 < num) {
-			throw new IllegalArgumentException("Block option's num must be between 0 and " + (1 << 20 - 1) + " inclusive");
+			throw new IllegalArgumentException("Block option's num "+ num + " must be between 0 and " + (1 << 20 - 1) + " inclusive");
 		} else {
 			this.szx = szx;
 			this.m = m;
@@ -63,7 +63,7 @@ public final class BlockOption {
 	 */
 	public BlockOption(final BlockOption origin) {
 		if (origin == null) {
-			throw new NullPointerException();
+			throw new NullPointerException("origin must not be null");
 		} else {
 			this.szx = origin.getSzx();
 			this.m = origin.isM();
@@ -83,7 +83,7 @@ public final class BlockOption {
 		if (value == null) {
 			throw new NullPointerException();
 		} else if (value.length > 3) {
-			throw new IllegalArgumentException("Block option's length must at most 3 bytes inclusive");
+			throw new IllegalArgumentException("Block option's length " + value.length + " must be at most 3 bytes inclusive");
 		} else if (value.length == 0) {
 			this.szx = 0;
 			this.m = false;

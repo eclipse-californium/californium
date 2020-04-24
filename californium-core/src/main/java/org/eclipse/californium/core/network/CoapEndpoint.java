@@ -89,6 +89,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Message.OffloadMode;
 import org.eclipse.californium.core.coap.CoAPMessageFormatException;
@@ -167,6 +168,8 @@ import org.slf4j.LoggerFactory;
  * |           v A         |
  * | +---------v-+-------+ |
  * | | Stack Top         | |
+ * | +-------------------+ |
+ * | | {@link ExchangeCleanupLayer}      | |
  * | +-------------------+ |
  * | | {@link ObserveLayer}      | |
  * | +-------------------+ |
@@ -1032,13 +1035,13 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors, M
 							@Override
 							protected void notifyPostProcess(Response response) {
 								notifySend(postProcessInterceptors, response);
+								if (useRequestOffloading) {
+									exchange.getCurrentRequest().offload(OffloadMode.FULL);
+									response.offload(OffloadMode.PAYLOAD);
+								}
 							}
 						});
 
-				if (useRequestOffloading) {
-					exchange.getCurrentRequest().offload(OffloadMode.FULL);
-					response.offload(OffloadMode.PAYLOAD);
-				}
 				connector.send(data);
 			}
 		}
@@ -1155,11 +1158,19 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors, M
 			} catch (CoAPMessageFormatException e) {
 
 				if (e.isConfirmable() && e.hasMid()) {
-					// reject erroneous reliably transmitted message as mandated by CoAP spec
-					// https://tools.ietf.org/html/rfc7252#section-4.2
-					reject(raw, e);
-					LOGGER.debug("{}rejected malformed message from [{}], reason: {}",
-							tag, raw.getEndpointContext(), e.getMessage());
+					if (CoAP.isRequest(e.getCode()) && e.getToken() != null) {
+						// respond with BAD OPTION erroneous reliably transmitted request as mandated by CoAP spec
+						// https://tools.ietf.org/html/rfc7252#section-4.2
+						responseBadOption(raw, e);
+						LOGGER.debug("{}respond malformed request from [{}], reason: {}",
+								tag, raw.getEndpointContext(), e.getMessage());
+					} else {
+						// reject erroneous reliably transmitted message as mandated by CoAP spec
+						// https://tools.ietf.org/html/rfc7252#section-4.2
+						reject(raw, e);
+						LOGGER.debug("{}rejected malformed message from [{}], reason: {}",
+								tag, raw.getEndpointContext(), e.getMessage());
+					}
 				} else {
 					// ignore erroneous messages that are not transmitted reliably
 					LOGGER.debug("{}discarding malformed message from [{}]", tag, raw.getEndpointContext());
@@ -1169,6 +1180,40 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors, M
 				// ignore erroneous messages that are not transmitted reliably
 				LOGGER.debug("{}discarding malformed message from [{}]", tag, raw.getEndpointContext());
 			}
+		}
+
+		private void responseBadOption(final RawData raw, final CoAPMessageFormatException cause) {
+			Response response = new Response(ResponseCode.BAD_OPTION);
+			response.setDestinationContext(raw.getEndpointContext());
+			response.setToken(cause.getToken());
+			response.setMID(cause.getMid());
+			response.setType(Type.ACK);
+			response.setPayload(cause.getMessage());
+			if (responseTransmission != null) {
+				response.addMessageObserver(responseTransmission);
+			}
+			/*
+			 * Logging here causes significant performance loss.
+			 * If necessary, add an interceptor that logs the messages,
+			 * e.g., the MessageTracer.
+			 */
+			notifySend(interceptors, response);
+			response.setReadyToSend();
+
+			if (!started) {
+				response.cancel();
+			}
+
+			RawData data = serializer.serializeResponse(response,
+					new SendingCallback<Response>(response) {
+
+						@Override
+						protected void notifyPostProcess(Response response) {
+							notifySend(postProcessInterceptors, response);
+						}
+					});
+
+			connector.send(data);
 		}
 
 		private void reject(final RawData raw, final CoAPMessageFormatException cause) {

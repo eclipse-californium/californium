@@ -89,7 +89,7 @@ public abstract class DataParser {
 			/** use message to add CoAP message specific information */
 			errorMsg = e.getMessage();
 		}
-		throw new CoAPMessageFormatException(errorMsg, header.getMID(), header.getCode(), CoAP.Type.CON == header.getType());
+		throw new CoAPMessageFormatException(errorMsg, header.getToken(), header.getMID(), header.getCode(), CoAP.Type.CON == header.getType());
 	}
 
 	private static Message parseMessage(final DatagramReader source, final MessageHeader header, final Message target) {
@@ -158,16 +158,20 @@ public abstract class DataParser {
 
 				// read option
 				if (reader.bytesAvailable(optionLength)) {
-					Option option = new Option(currentOptionNumber);
-					option.setValue(reader.readBytes(optionLength));
+					try {
+						Option option = new Option(currentOptionNumber);
+						option.setValue(reader.readBytes(optionLength));
 
-					// add option to message
-					message.getOptions().addOption(option);
+						// add option to message
+						message.getOptions().addOption(option);
+					} catch (IllegalArgumentException ex) {
+						throw new CoAPMessageFormatException(ex.getMessage(), message.getToken(), message.getMID(), message.getRawCode(), message.isConfirmable());
+					}
 				} else {
 					String msg = String.format(
 							"Message contains option of length %d with only fewer bytes left in the message",
 							optionLength);
-					throw new CoAPMessageFormatException(msg, message.getMID(), message.getRawCode(), message.isConfirmable());
+					throw new CoAPMessageFormatException(msg, message.getToken(), message.getMID(), message.getRawCode(), message.isConfirmable());
 				}
 			} else
 				break;
@@ -178,7 +182,7 @@ public abstract class DataParser {
 			if (!reader.bytesAvailable()) {
 				throw new CoAPMessageFormatException(
 						"Found payload marker (0xFF) but message contains no payload",
-						message.getMID(), message.getRawCode(), message.isConfirmable());
+						message.getToken(), message.getMID(), message.getRawCode(), message.isConfirmable());
 			} else {
 				// get payload
 				if (!message.isIntendedPayload()) {
@@ -218,7 +222,7 @@ public abstract class DataParser {
 		} else {
 			throw new CoAPMessageFormatException(
 					"Message contains illegal option delta/length: " + delta,
-					message.getMID(), message.getRawCode(), message.isConfirmable());
+					message.getToken(), message.getMID(), message.getRawCode(), message.isConfirmable());
 		}
 	}
 }
