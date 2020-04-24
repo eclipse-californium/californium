@@ -257,7 +257,7 @@ public class DtlsConnectorConfigTest {
 				.setRpkTrustAll()
 				.build();
 		assertNotNull(config.getSupportedSignatureAlgorithms());
-		assertTrue(config.getSupportedSignatureAlgorithms().isEmpty());
+		assertThat(config.getSupportedSignatureAlgorithms(), is(SignatureAndHashAlgorithm.DEFAULT));
 	}
 
 	@Test
@@ -267,7 +267,7 @@ public class DtlsConnectorConfigTest {
 				.setSupportedSignatureAlgorithms((String[]) null)
 				.build();
 		assertNotNull(config.getSupportedSignatureAlgorithms());
-		assertTrue(config.getSupportedSignatureAlgorithms().isEmpty());
+		assertThat(config.getSupportedSignatureAlgorithms(), is(SignatureAndHashAlgorithm.DEFAULT));
 	}
 
 	@Test
@@ -277,7 +277,7 @@ public class DtlsConnectorConfigTest {
 				.setSupportedSignatureAlgorithms(Collections.<SignatureAndHashAlgorithm>emptyList())
 				.build();
 		assertNotNull(config.getSupportedSignatureAlgorithms());
-		assertTrue(config.getSupportedSignatureAlgorithms().isEmpty());
+		assertThat(config.getSupportedSignatureAlgorithms(), is(SignatureAndHashAlgorithm.DEFAULT));
 	}
 
 	@Test

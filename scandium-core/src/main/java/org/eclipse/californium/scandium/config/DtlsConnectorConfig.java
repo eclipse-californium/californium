@@ -2771,8 +2771,9 @@ public final class DtlsConnectorConfig {
 			}
 
 			if (ecc) {
-				if (!config.supportedSignatureAlgorithms.isEmpty()) {
-					verifySignatureAndHashAlgorithms();
+				if (config.supportedSignatureAlgorithms.isEmpty()) {
+					config.supportedSignatureAlgorithms = SignatureAndHashAlgorithm
+							.getDefaultSignatureAlgorithms(config.certChain);
 				}
 				if (config.supportedGroups.isEmpty()) {
 					config.supportedGroups = getDefaultSupportedGroups();
@@ -2810,6 +2811,7 @@ public final class DtlsConnectorConfig {
 					throw new IllegalStateException("certificate has no proper key usage!");
 				}
 			}
+			verifySignatureAndHashAlgorithms(config.supportedSignatureAlgorithms);
 			verifySupportedGroups(config.supportedGroups);
 			config.trustCertificateTypes = ListUtils.init(config.trustCertificateTypes);
 			config.identityCertificateTypes = ListUtils.init(config.identityCertificateTypes);
@@ -2908,15 +2910,13 @@ public final class DtlsConnectorConfig {
 			config.supportedCipherSuites = ciphers;
 		}
 
-		private void verifySignatureAndHashAlgorithms() {
+		private void verifySignatureAndHashAlgorithms(List<SignatureAndHashAlgorithm> list) {
 			if (config.publicKey != null) {
-				if (SignatureAndHashAlgorithm.getSupportedSignatureAlgorithm(config.supportedSignatureAlgorithms,
-						config.publicKey) == null) {
+				if (SignatureAndHashAlgorithm.getSupportedSignatureAlgorithm(list, config.publicKey) == null) {
 					throw new IllegalStateException("supported signature and hash algorithms doesn't match the public key!");
 				}
 				if (config.certChain != null) {
-					if (!SignatureAndHashAlgorithm.isSignedWithSupportedAlgorithms(config.supportedSignatureAlgorithms,
-							config.certChain)) {
+					if (!SignatureAndHashAlgorithm.isSignedWithSupportedAlgorithms(list, config.certChain)) {
 						throw new IllegalStateException(
 								"supported signature and hash algorithms doesn't match the certificate chain!");
 					}

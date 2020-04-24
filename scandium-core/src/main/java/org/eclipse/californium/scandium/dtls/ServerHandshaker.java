@@ -209,15 +209,7 @@ public class ServerHandshaker extends Handshaker {
 		// the server handshake uses the config with exchanged roles!
 		this.supportedClientCertificateTypes = config.getTrustCertificateTypes();
 		this.supportedServerCertificateTypes = config.getIdentityCertificateTypes();
-		List<SignatureAndHashAlgorithm> algorithms = config.getSupportedSignatureAlgorithms();
-		if (algorithms.isEmpty()) {
-			if (certificateChain == null) {
-				algorithms = SignatureAndHashAlgorithm.DEFAULT;
-			} else {
-				algorithms = SignatureAndHashAlgorithm.getSignatureAlgorithmsFromCertificateChain(certificateChain);
-			}
-		}
-		this.supportedSignatureAndHashAlgorithms = algorithms;
+		this.supportedSignatureAndHashAlgorithms = config.getSupportedSignatureAlgorithms();
 	}
 
 	// Methods ////////////////////////////////////////////////////////
