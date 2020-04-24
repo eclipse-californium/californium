@@ -24,6 +24,7 @@ import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.test.lockstep.LockstepEndpoint;
+import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.slf4j.Logger;
@@ -49,6 +50,10 @@ public class CoapThreadsRule extends ThreadsRule {
 	 */
 	public CoapThreadsRule() {
 		super();
+	}
+
+	public void add(Connector connector) {
+		cleanup.add(connector);
 	}
 
 	public void add(Endpoint endpoint) {
@@ -86,6 +91,8 @@ public class CoapThreadsRule extends ThreadsRule {
 					ExecutorsUtil.shutdownExecutorGracefully(1000, (ExecutorService) resource);
 				} else if (resource instanceof LockstepEndpoint) {
 					((LockstepEndpoint) resource).destroy();
+				} else if (resource instanceof Connector) {
+					((Connector) resource).destroy();
 				}
 			} catch (RuntimeException ex) {
 				LOGGER.warn("shutdown failed!", ex);

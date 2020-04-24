@@ -20,7 +20,7 @@ package org.eclipse.californium.core.coap;
  * message.
  * <p>
  * The <em>message</em> property contains a description of the problem
- * encountered. The other properties are parsed from the binary representation. 
+ * encountered. The other properties are parsed from the binary representation.
  * </p>
  */
 public class CoAPMessageFormatException extends MessageFormatException {
@@ -29,6 +29,7 @@ public class CoAPMessageFormatException extends MessageFormatException {
 	private static final int NO_MID = -1;
 	private final int mid;
 	private final int code;
+	private final Token token;
 	private final boolean confirmable;
 
 	/**
@@ -38,12 +39,42 @@ public class CoAPMessageFormatException extends MessageFormatException {
 	 * @param mid the message ID.
 	 * @param code the message code.
 	 * @param confirmable whether the message has been transferred reliably.
+	 * @deprecated use
+	 *             {@link CoAPMessageFormatException#CoAPMessageFormatException(String, Token, int, int, boolean)}
+	 *             instead.
 	 */
+	@Deprecated
 	public CoAPMessageFormatException(String description, int mid, int code, boolean confirmable) {
+		this(description, null, mid, code, confirmable);
+	}
+
+	/**
+	 * Creates an exception for a description and message properties.
+	 * 
+	 * @param description a description of the error cause.
+	 * @param token the Token of the message. Maybe {@code null}, if the message
+	 *            has no token (ACK or RST).
+	 * @param mid the message ID.
+	 * @param code the message code.
+	 * @param confirmable whether the message has been transferred reliably.
+	 * @since 2.3
+	 */
+	public CoAPMessageFormatException(String description, Token token, int mid, int code, boolean confirmable) {
 		super(description);
+		this.token = token;
 		this.mid = mid;
 		this.code = code;
 		this.confirmable = confirmable;
+	}
+
+	/**
+	 * Get token of message.
+	 * 
+	 * @return the token. Maybe {@code null}.
+	 * @since 2.3
+	 */
+	public Token getToken() {
+		return token;
 	}
 
 	/**
@@ -57,13 +88,17 @@ public class CoAPMessageFormatException extends MessageFormatException {
 	}
 
 	/**
-	 * @return the mid
+	 * Get the MID of the message.
+	 * 
+	 * @return the mid. {@code NO_MID}, if not available.
 	 */
 	public final int getMid() {
 		return mid;
 	}
 
 	/**
+	 * Get the code of the message.
+	 * 
 	 * @return the code
 	 */
 	public final int getCode() {
