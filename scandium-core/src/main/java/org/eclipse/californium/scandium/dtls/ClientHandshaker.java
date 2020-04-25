@@ -65,6 +65,7 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.util.SecretUtil;
@@ -105,6 +106,13 @@ public class ClientHandshaker extends Handshaker {
 	 * @since 2.3
 	 */
 	protected ECDHServerKeyExchange serverKeyExchange;
+
+	/**
+	 * The create client key exchange message.
+	 * 
+	 * @since 2.3
+	 */
+	protected ClientKeyExchange clientKeyExchange;
 
 	/**
 	 * The client's hello handshake message. Store it, to add the cookie in the
@@ -240,7 +248,6 @@ public class ClientHandshaker extends Handshaker {
 
 		case SERVER_HELLO_DONE:
 			receivedServerHelloDone((ServerHelloDone) message);
-			expectChangeCipherSpecMessage();
 			break;
 
 		case FINISHED:
@@ -436,45 +443,49 @@ public class ClientHandshaker extends Handshaker {
 
 	/**
 	 * The ServerHelloDone message is sent by the server to indicate the end of
-	 * the ServerHello and associated messages. The client prepares all
-	 * necessary messages (depending on server's previous flight) and returns
-	 * the next flight.
+	 * the ServerHello and associated messages. The client starts to fetch all required credentials.
+	 * If these credentails are available, the processing is continued with {@link #doProcessMasterSecretResult(PskSecretResult)}.
 	 * 
 	 * @throws HandshakeException
 	 * @throws GeneralSecurityException if the client's handshake records cannot be created
 	 */
-	protected void receivedServerHelloDone(ServerHelloDone message) throws HandshakeException, GeneralSecurityException {
+	private void receivedServerHelloDone(ServerHelloDone message) throws HandshakeException, GeneralSecurityException {
 		flightNumber += 2;
-		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
-
-		createCertificateMessage(flight);
 
 		/*
 		 * Second, send ClientKeyExchange as specified by the key exchange
 		 * algorithm.
 		 */
-		ClientKeyExchange clientKeyExchange;
-		SecretKey premasterSecret;
-		PskUtil pskUtil = null;
+		PskPublicInformation clientIdentity;
+		PskSecretResult masterSecretResult;
 		XECDHECryptography ecdhe = serverKeyExchange == null ? null : new XECDHECryptography(serverKeyExchange.getSupportedGroup());
 		switch (getKeyExchangeAlgorithm()) {
 		case EC_DIFFIE_HELLMAN:
 			clientKeyExchange = new ECDHClientKeyExchange(ecdhe.getEncodedPoint(), session.getPeer());
-			premasterSecret = ecdhe.generateSecret(serverKeyExchange.getEncodedPoint());
+			SecretKey premasterSecret = ecdhe.generateSecret(serverKeyExchange.getEncodedPoint());
+			SecretKey masterSecret = PseudoRandomFunction.generateMasterSecret(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), premasterSecret, generateRandomSeed());
+			SecretUtil.destroy(premasterSecret);
+			processMasterSecret(masterSecret);
 			break;
 		case PSK:
-			pskUtil = new PskUtil(sniEnabled, session, pskStore);
-			LOGGER.debug("Using PSK identity: {}", pskUtil.getPskPrincipal());
-			clientKeyExchange = new PSKClientKeyExchange(pskUtil.getPskPublicIdentity(), session.getPeer());
-			premasterSecret = pskUtil.generatePremasterSecretFromPSK(null);
+			clientIdentity = getPskClientIdentity();
+			LOGGER.trace("Using PSK identity: {}", clientIdentity);
+			clientKeyExchange = new PSKClientKeyExchange(clientIdentity, session.getPeer());
+			masterSecretResult = requestPskSecretResult(clientIdentity, null);
+			if (masterSecretResult != null) {
+				processPskSecretResult(masterSecretResult);
+			}
 			break;
 		case ECDHE_PSK:
-			pskUtil = new PskUtil(sniEnabled, session, pskStore);
-			LOGGER.debug("Using PSK identity: {}", pskUtil.getPskPrincipal());
-			clientKeyExchange = new EcdhPskClientKeyExchange(pskUtil.getPskPublicIdentity(), ecdhe.getEncodedPoint(), session.getPeer());
-			SecretKey eck = ecdhe.generateSecret(serverKeyExchange.getEncodedPoint());
-			premasterSecret = pskUtil.generatePremasterSecretFromPSK(eck);
-			SecretUtil.destroy(eck);
+			clientIdentity = getPskClientIdentity();
+			LOGGER.trace("Using ECDHE PSK identity: {}", clientIdentity);
+			clientKeyExchange = new EcdhPskClientKeyExchange(clientIdentity, ecdhe.getEncodedPoint(), session.getPeer());
+			SecretKey otherSecret = ecdhe.generateSecret(serverKeyExchange.getEncodedPoint());
+			masterSecretResult = requestPskSecretResult(clientIdentity, otherSecret);
+			SecretUtil.destroy(otherSecret);
+			if (masterSecretResult != null) {
+				processPskSecretResult(masterSecretResult);
+			}
 			break;
 
 		default:
@@ -482,11 +493,29 @@ public class ClientHandshaker extends Handshaker {
 					"Unknown key exchange algorithm: " + getKeyExchangeAlgorithm(),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer()));
 		}
-		SecretUtil.destroy(pskUtil);
-		if (premasterSecret != null) {
-			generateKeys(premasterSecret);
-			SecretUtil.destroy(premasterSecret);
-		}
+		SecretUtil.destroy(ecdhe);
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * 
+	 * Continues process of server hello done when all credentials are
+	 * available. Prepares all necessary messages (depending on server's
+	 * previous flight) and sends the next flight.
+	 * 
+	 * @since 2.3
+	 */
+	@Override
+	protected void processMasterSecret(SecretKey masterSecret) throws HandshakeException {
+
+		applyMasterSecret(masterSecret);
+		SecretUtil.destroy(masterSecret);
+		masterSecret = null;
+
+		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
+
+		createCertificateMessage(flight);
+
 		wrapMessage(flight, clientKeyExchange);
 
 		/*
@@ -500,7 +529,7 @@ public class ClientHandshaker extends Handshaker {
 						new AlertMessage(
 								AlertLevel.FATAL,
 								AlertDescription.ILLEGAL_PARAMETER,
-								message.getPeer()));
+								session.getPeer()));
 			}
 
 			// prepare handshake messages
@@ -531,10 +560,10 @@ public class ClientHandshaker extends Handshaker {
 			throw new HandshakeException(
 					"Cannot create FINISHED message",
 					new AlertMessage(
-							AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, message.getPeer()));
+							AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, session.getPeer()));
 		}
 
-		Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, isClient, md.digest(), session.getPeer());
+		Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), this.masterSecret, isClient, md.digest(), session.getPeer());
 		wrapMessage(flight, finished);
 
 		// compute handshake hash with client's finished message also
@@ -542,6 +571,8 @@ public class ClientHandshaker extends Handshaker {
 		mdWithClientFinished.update(finished.toByteArray());
 		handshakeHash = mdWithClientFinished.digest();
 		sendFlight(flight);
+
+		expectChangeCipherSpecMessage();
 	}
 
 	protected void createCertificateMessage(final DTLSFlight flight) throws HandshakeException {
@@ -595,7 +626,7 @@ public class ClientHandshaker extends Handshaker {
 	 *            {@code null}, only {@link CertificateType#X_509} is supported.
 	 * @return {@code true}, if supported, {@code false} otherwise.
 	 */
-	private static boolean isSupportedCertificateType(CertificateType certType,
+	protected static boolean isSupportedCertificateType(CertificateType certType,
 			List<CertificateType> supportedCertificateTypes) {
 		if (supportedCertificateTypes != null) {
 			return supportedCertificateTypes.contains(certType);
@@ -665,4 +696,37 @@ public class ClientHandshaker extends Handshaker {
 			helloMessage.addExtension(ServerNameExtension.forServerNames(session.getServerNames()));
 		}
 	}
+
+	/**
+	 * Get PSK client identity.
+	 * 
+	 * @return psk client identity associated with the destination
+	 *         {@link DTLSSession#getPeer()}
+	 * @throws HandshakeException if no identity is available for the
+	 *             destination
+	 * @since 2.3
+	 */
+	protected PskPublicInformation getPskClientIdentity() throws HandshakeException {
+
+		ServerNames serverName = sniEnabled ? session.getServerNames() : null;
+		if (serverName != null && !session.isSniSupported()) {
+			LOGGER.warn(
+					"client is configured to use SNI but server does not support it, PSK authentication is likely to fail");
+		}
+		PskPublicInformation pskIdentity = advancedPskStore.getIdentity(session.getPeer(), serverName);
+		// look up identity in scope of virtual host
+		if (pskIdentity == null) {
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE,
+					session.getPeer());
+			if (serverName != null) {
+				throw new HandshakeException(String.format("No Identity found for peer [address: %s, virtual host: %s]",
+						session.getPeer(), session.getHostName()), alert);
+			} else {
+				throw new HandshakeException(
+						String.format("No Identity found for peer [address: %s]", session.getPeer()), alert);
+			}
+		}
+		return pskIdentity;
+	}
+
 }

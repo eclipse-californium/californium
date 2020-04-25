@@ -77,6 +77,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuiteParameters;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuiteSelector;
+import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.util.SecretUtil;
@@ -231,18 +232,25 @@ public class ServerHandshaker extends Handshaker {
 			break;
 
 		case CLIENT_KEY_EXCHANGE:
-			SecretKey premasterSecret;
+			PskSecretResult masterSecretResult;
 			switch (getKeyExchangeAlgorithm()) {
 			case PSK:
-				premasterSecret = receivedClientKeyExchange((PSKClientKeyExchange) message);
+				masterSecretResult = receivedClientKeyExchange((PSKClientKeyExchange) message);
+				if (masterSecretResult != null) {
+					processPskSecretResult(masterSecretResult);
+				}
 				break;
 
 			case ECDHE_PSK:
-				premasterSecret = receivedClientKeyExchange((EcdhPskClientKeyExchange) message);
+				masterSecretResult = receivedClientKeyExchange((EcdhPskClientKeyExchange) message);
+				if (masterSecretResult != null) {
+					processPskSecretResult(masterSecretResult);
+				}
 				break;
 
 			case EC_DIFFIE_HELLMAN:
-				premasterSecret = receivedClientKeyExchange((ECDHClientKeyExchange) message);
+				SecretKey masterSecret = receivedClientKeyExchange((ECDHClientKeyExchange) message);
+				processMasterSecret(masterSecret);
 				break;
 
 			default:
@@ -250,19 +258,13 @@ public class ServerHandshaker extends Handshaker {
 						String.format("Unsupported key exchange algorithm %s", getKeyExchangeAlgorithm().name()),
 						new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, message.getPeer()));
 			}
-			if (premasterSecret != null) {
-				generateKeys(premasterSecret);
-				SecretUtil.destroy(premasterSecret);
-			}
-
-			if (!clientAuthenticationRequired || getKeyExchangeAlgorithm() != KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN) {
-				expectChangeCipherSpecMessage();
-			}
 			break;
 
 		case CERTIFICATE_VERIFY:
 			receivedCertificateVerify((CertificateVerify) message);
-			expectChangeCipherSpecMessage();
+			if (masterSecret != null) {
+				expectChangeCipherSpecMessage();
+			}
 			break;
 
 		case FINISHED:
@@ -273,6 +275,16 @@ public class ServerHandshaker extends Handshaker {
 			throw new HandshakeException(
 					String.format("Received unexpected %s message from peer %s", message.getMessageType(), message.getPeer()),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, message.getPeer()));
+		}
+	}
+
+	@Override
+	protected void processMasterSecret(SecretKey masterSecret) throws HandshakeException {
+		applyMasterSecret(masterSecret);
+		SecretUtil.destroy(masterSecret);
+		if (!clientAuthenticationRequired || getKeyExchangeAlgorithm() != KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN
+				|| certificateVerify != null) {
+			expectChangeCipherSpecMessage();
 		}
 	}
 
@@ -560,46 +572,46 @@ public class ServerHandshaker extends Handshaker {
 	}
 
 	/**
-	 * Generates the premaster secret by taking the client's public key and
+	 * Generates the master secret by taking the client's public ecdhe key and
 	 * running the ECDHE key agreement.
 	 * 
-	 * @param message
-	 *            the client's key exchange message.
-	 * @return the premaster secret
+	 * @param message the client's key exchange message.
+	 * @return the master secret.
 	 * @throws GeneralSecurityException
 	 */
 	private SecretKey receivedClientKeyExchange(ECDHClientKeyExchange message) throws GeneralSecurityException {
-		return ecdhe.generateSecret(message.getEncodedPoint());
+		SecretKey premasterSecret = ecdhe.generateSecret(message.getEncodedPoint());
+		SecretKey masterSecret = PseudoRandomFunction.generateMasterSecret(
+				session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), premasterSecret,
+				generateRandomSeed());
+		SecretUtil.destroy(premasterSecret);
+		return masterSecret;
 	}
 
 	/**
 	 * Retrieves the preshared key from the identity hint and then generates the
-	 * premaster secret.
+	 * master secret.
 	 * 
 	 * @param message
 	 *            the client's key exchange message.
-	 * @return the premaster secret
+	 * @return the master secret
 	 * @throws HandshakeException
 	 *             if no specified preshared key available.
 	 */
-	private SecretKey receivedClientKeyExchange(final PSKClientKeyExchange message) throws HandshakeException {
+	private PskSecretResult receivedClientKeyExchange(PSKClientKeyExchange message) throws HandshakeException {
 		// use the client's PSK identity to look up the pre-shared key
 		preSharedKeyIdentity = message.getIdentity();
-		PskUtil pskUtil = new PskUtil(sniEnabled, session, pskStore, preSharedKeyIdentity);
-		SecretKey premaster = pskUtil.generatePremasterSecretFromPSK(null);
-		SecretUtil.destroy(pskUtil);
-		return premaster;
+		return requestPskSecretResult(preSharedKeyIdentity, null);
 	}
 
-	private SecretKey receivedClientKeyExchange(final EcdhPskClientKeyExchange message) throws HandshakeException, GeneralSecurityException {
+	private PskSecretResult receivedClientKeyExchange(EcdhPskClientKeyExchange message)
+			throws HandshakeException, GeneralSecurityException {
 		// use the client's PSK identity to look up the pre-shared key
 		preSharedKeyIdentity = message.getIdentity();
-		PskUtil pskUtil = new PskUtil(sniEnabled, session, pskStore, preSharedKeyIdentity);
-		SecretKey eck = ecdhe.generateSecret(message.getEncodedPoint());
-		SecretKey premaster = pskUtil.generatePremasterSecretFromPSK(eck);
-		SecretUtil.destroy(pskUtil);
-		SecretUtil.destroy(eck);
-		return premaster;
+		SecretKey otherSecret = ecdhe.generateSecret(message.getEncodedPoint());
+		PskSecretResult masterSecretRequest = requestPskSecretResult(preSharedKeyIdentity, otherSecret);
+		SecretUtil.destroy(otherSecret);
+		return masterSecretRequest;
 	}
 
 	protected void processHelloExtensions(final ClientHello clientHello, final HelloExtensions serverHelloExtensions) {

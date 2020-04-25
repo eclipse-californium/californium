@@ -68,6 +68,7 @@ import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.pskstore.AsyncInMemoryPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
@@ -112,6 +113,7 @@ public class DTLSConnectorHandshakeTest {
 	InMemoryConnectionStore clientConnectionStore;
 	ApplicationLevelInfoSupplier clientInfoSupplier;
 	ApplicationLevelInfoSupplier serverInfoSupplier;
+	AsyncInMemoryPskStore asyncPskStore;
 
 	/**
 	 * Initializes static variables.
@@ -145,6 +147,10 @@ public class DTLSConnectorHandshakeTest {
 	 */
 	@After
 	public void cleanUp() {
+		if (asyncPskStore != null) {
+			asyncPskStore.shutdown();
+			asyncPskStore = null;
+		}
 		if (serverHelper != null) {
 			serverHelper.destroyServer();
 		}
@@ -657,6 +663,86 @@ public class DTLSConnectorHandshakeTest {
 				.setApplicationLevelInfoSupplier(clientInfoSupplier);
 		startServer(builder);
 		startClientPsk(false, null, null, new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()));
+		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
+		Principal principal = endpointContext.getPeerIdentity();
+		assertThat(principal, is(notNullValue()));
+		assertThat(principal.getName(), is(CLIENT_IDENTITY));
+		assertClientPrincipalHasAdditionalInfo(principal);
+	}
+
+	@Test
+	public void testPskHandshakeSyncPskSecret() throws Exception {
+		PskStore pskStore = new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
+		asyncPskStore = new AsyncInMemoryPskStore(pskStore).setDelay(0).setSecretMode(false);
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+				.setClientAuthenticationRequired(false)
+				.setClientAuthenticationWanted(false)
+				.setSniEnabled(false)
+				.setNoServerSessionId(true)
+				.setApplicationLevelInfoSupplier(clientInfoSupplier)
+				.setAdvancedPskStore(asyncPskStore);
+		startServer(builder);
+		startClientPsk(false, null, null, pskStore);
+		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
+		Principal principal = endpointContext.getPeerIdentity();
+		assertThat(principal, is(notNullValue()));
+		assertThat(principal.getName(), is(CLIENT_IDENTITY));
+		assertClientPrincipalHasAdditionalInfo(principal);
+	}
+
+	@Test
+	public void testPskHandshakeSyncMasterSecret() throws Exception {
+		PskStore pskStore = new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
+		asyncPskStore = new AsyncInMemoryPskStore(pskStore).setDelay(0).setSecretMode(true);
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+				.setClientAuthenticationRequired(false)
+				.setClientAuthenticationWanted(false)
+				.setSniEnabled(false)
+				.setNoServerSessionId(true)
+				.setApplicationLevelInfoSupplier(clientInfoSupplier)
+				.setAdvancedPskStore(asyncPskStore);
+		startServer(builder);
+		startClientPsk(false, null, null, pskStore);
+		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
+		Principal principal = endpointContext.getPeerIdentity();
+		assertThat(principal, is(notNullValue()));
+		assertThat(principal.getName(), is(CLIENT_IDENTITY));
+		assertClientPrincipalHasAdditionalInfo(principal);
+	}
+
+	@Test
+	public void testPskHandshakeAsyncPskSecret() throws Exception {
+		PskStore pskStore = new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
+		asyncPskStore = new AsyncInMemoryPskStore(pskStore).setDelay(1).setSecretMode(false);
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+				.setClientAuthenticationRequired(false)
+				.setClientAuthenticationWanted(false)
+				.setSniEnabled(false)
+				.setNoServerSessionId(true)
+				.setApplicationLevelInfoSupplier(clientInfoSupplier)
+				.setAdvancedPskStore(asyncPskStore);
+		startServer(builder);
+		startClientPsk(false, null, null, pskStore);
+		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
+		Principal principal = endpointContext.getPeerIdentity();
+		assertThat(principal, is(notNullValue()));
+		assertThat(principal.getName(), is(CLIENT_IDENTITY));
+		assertClientPrincipalHasAdditionalInfo(principal);
+	}
+
+	@Test
+	public void testPskHandshakeAsyncMasterSecret() throws Exception {
+		PskStore pskStore = new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
+		asyncPskStore = new AsyncInMemoryPskStore(pskStore).setDelay(1).setSecretMode(true);
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+				.setClientAuthenticationRequired(false)
+				.setClientAuthenticationWanted(false)
+				.setSniEnabled(false)
+				.setNoServerSessionId(true)
+				.setApplicationLevelInfoSupplier(clientInfoSupplier)
+				.setAdvancedPskStore(asyncPskStore);
+		startServer(builder);
+		startClientPsk(false, null, null, pskStore);
 		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(notNullValue()));

@@ -60,8 +60,6 @@ import org.eclipse.californium.scandium.dtls.CertificateMessage;
 import org.eclipse.californium.scandium.dtls.CertificateRequest;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
-import org.eclipse.californium.scandium.dtls.InMemoryMasterSecretDeriver;
-import org.eclipse.californium.scandium.dtls.MasterSecretDeriver;
 import org.eclipse.californium.scandium.dtls.SessionCache;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -69,6 +67,8 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgor
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuiteSelector;
 import org.eclipse.californium.scandium.dtls.cipher.DefaultCipherSuiteSelector;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedInMemoryPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustAllRpks;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
@@ -160,12 +160,6 @@ public final class DtlsConnectorConfig {
 	 * Certificate verifier for dynamic trust.
 	 */
 	private CertificateVerifier certificateVerifier;
-	
-	/**
-	 * Functionality to derive the Master Secret.
-	 */
-	private MasterSecretDeriver masterSecretDeriver;
-
 	/**
 	 * Experimental feature : Stop retransmission at message receipt
 	 */
@@ -226,8 +220,14 @@ public final class DtlsConnectorConfig {
 	/** certificate types to be used to trust the other peer */
 	private List<CertificateType> trustCertificateTypes;
 
-	/** store of the PSK */
+	/** store of the PSK. */
 	private PskStore pskStore;
+
+	/** 
+	 * advanced store of the PSK
+	 * @since 2.3
+	 */
+	private AdvancedPskStore advancedPskStore;
 
 	/** the private key for RPK and X509 mode, right now only EC type is supported */
 	private PrivateKey privateKey;
@@ -683,10 +683,28 @@ public final class DtlsConnectorConfig {
 	 * Gets the registry of <em>shared secrets</em> used for authenticating
 	 * clients during a DTLS handshake.
 	 * 
-	 * @return the registry
+	 * @return the registry. Maybe {@code null}, if a advanced psk store is
+	 *         provided to the builder.
+	 * @deprecated use {@link #getAdvancedPskStore()} instead
 	 */
+	@Deprecated
 	public PskStore getPskStore() {
 		return pskStore;
+	}
+
+	/**
+	 * Gets the advanced registry of <em>shared secrets</em> used for
+	 * authenticating clients during a DTLS handshake.
+	 * 
+	 * If a {@link PskStore} is provided to the builder using
+	 * {@link Builder#setPskStore(PskStore)}, a {@link AdvancedInMemoryPskStore}
+	 * is returned using that psk store after {@link Builder#build()} is called.
+	 * 
+	 * @return the registry
+	 * @since 2.3
+	 */
+	public AdvancedPskStore getAdvancedPskStore() {
+		return advancedPskStore;
 	}
 
 	/**
@@ -726,16 +744,6 @@ public final class DtlsConnectorConfig {
 	 */
 	public CertificateVerifier getCertificateVerifier() {
 		return certificateVerifier;
-	}
-	
-	/**
-	 * Gets the function in charge of deriving the Master Secret during the 
-	 * DTLS Handshake
-	 * 
-	 * @return the master secret deriver
-	 */
-	public MasterSecretDeriver getMasterSecretDeriver() {
-		return masterSecretDeriver;
 	}
 
 	/**
@@ -1086,6 +1094,7 @@ public final class DtlsConnectorConfig {
 		cloned.identityCertificateTypes = identityCertificateTypes;
 		cloned.trustCertificateTypes = trustCertificateTypes;
 		cloned.pskStore = pskStore;
+		cloned.advancedPskStore = advancedPskStore;
 		cloned.privateKey = privateKey;
 		cloned.publicKey = publicKey;
 		cloned.certChain = certChain;
@@ -1877,11 +1886,36 @@ public final class DtlsConnectorConfig {
 		 * change that, use {@link #setSupportedCipherSuites(CipherSuite...)} or
 		 * {@link #setSupportedCipherSuites(String...)}.
 		 * 
+		 * Resets {@link #setAdvancedPskStore(AdvancedPskStore)} to {@code null}.
+		 * 
 		 * @param pskStore the key store
 		 * @return this builder for command chaining
 		 */
 		public Builder setPskStore(PskStore pskStore) {
+			config.advancedPskStore = null;
 			config.pskStore = pskStore;
+			return this;
+		}
+
+		/**
+		 * Sets the advanced key store to use for authenticating clients based on a
+		 * pre-shared key.
+		 * 
+		 * If used together with {@link #setIdentity(PrivateKey, PublicKey)} or
+		 * {@link #setIdentity(PrivateKey, Certificate[], CertificateType...)}
+		 * the default preference uses the certificate based cipher suites. To
+		 * change that, use {@link #setSupportedCipherSuites(CipherSuite...)} or
+		 * {@link #setSupportedCipherSuites(String...)}.
+		 * 
+		 * Resets {@link #setPskStore(PskStore)} to {@code null}.
+		 * 
+		 * @param advancedPskStore the advanced key store
+		 * @return this builder for command chaining
+		 * @since 2.3
+		 */
+		public Builder setAdvancedPskStore(AdvancedPskStore advancedPskStore) {
+			config.pskStore = null;
+			config.advancedPskStore = advancedPskStore;
 			return this;
 		}
 
@@ -2139,14 +2173,6 @@ public final class DtlsConnectorConfig {
 				throw new IllegalStateException("CertificateVerifier must not be used after trust store is set!");
 			}
 			config.certificateVerifier = verifier;
-			return this;
-		}
-		
-		public Builder setMasterSecretDeriver(MasterSecretDeriver deriver) {
-			if(deriver == null) {
-				throw new NullPointerException("MasterSecretDeriver must not be null");
-			}
-			config.masterSecretDeriver = deriver;
 			return this;
 		}
 
@@ -2744,6 +2770,10 @@ public final class DtlsConnectorConfig {
 						"configured trusted certificates or certificate verifier are not used for disabled client authentication!");
 			}
 
+			if (config.pskStore != null && config.advancedPskStore == null) {
+				config.advancedPskStore = new AdvancedInMemoryPskStore(config.pskStore);
+			}
+
 			if (config.supportedCipherSuites == null || config.supportedCipherSuites.isEmpty()) {
 				determineCipherSuitesFromConfig();
 			}
@@ -2757,10 +2787,6 @@ public final class DtlsConnectorConfig {
 
 			if (config.cipherSuiteSelector == null && !config.clientOnly) {
 				config.cipherSuiteSelector = new DefaultCipherSuiteSelector();
-			}
-			
-			if (config.masterSecretDeriver == null) {
-				config.masterSecretDeriver = new InMemoryMasterSecretDeriver();
 			}
 
 			// check cipher consistency
@@ -2807,6 +2833,9 @@ public final class DtlsConnectorConfig {
 
 			if (!psk && config.pskStore != null) {
 				throw new IllegalStateException("PSK store set, but no PSK cipher suite!");
+			}
+			if (!psk && config.advancedPskStore != null) {
+				throw new IllegalStateException("Advanced PSK store set, but no PSK cipher suite!");
 			}
 
 			if (ecc) {
@@ -2862,8 +2891,11 @@ public final class DtlsConnectorConfig {
 		}
 
 		private void verifyPskBasedCipherConfig(CipherSuite suite) {
-			if (config.pskStore == null) {
+			if (config.advancedPskStore == null) {
 				throw new IllegalStateException("PSK store must be set for configured " + suite.name());
+			}
+			if (!config.advancedPskStore.hasEcdhePskSupported() && suite.isEccBased()) {
+				throw new IllegalStateException("PSK store doesn't support ECDHE! " + suite.name());
 			}
 		}
 
@@ -2941,9 +2973,13 @@ public final class DtlsConnectorConfig {
 				ciphers.addAll(CipherSuite.getEcdsaCipherSuites(config.recommendedCipherSuitesOnly));
 			}
 
-			if (config.pskStore != null) {
+			if (config.advancedPskStore != null) {
+				if (config.advancedPskStore.hasEcdhePskSupported()) {
+					ciphers.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(config.recommendedCipherSuitesOnly,
+							KeyExchangeAlgorithm.ECDHE_PSK));
+				}
 				ciphers.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(config.recommendedCipherSuitesOnly,
-						KeyExchangeAlgorithm.ECDHE_PSK, KeyExchangeAlgorithm.PSK));
+						KeyExchangeAlgorithm.PSK));
 			}
 
 			config.supportedCipherSuites = ciphers;

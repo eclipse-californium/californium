@@ -22,7 +22,10 @@ import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.crypto.ShortBufferException;
 
+import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StandardCharsets;
+import org.eclipse.californium.scandium.util.SecretUtil;
 
 /**
  * The Pseudo Random Function as defined in TLS 1.2.
@@ -180,5 +183,52 @@ public final class PseudoRandomFunction {
 			e.printStackTrace();
 		}
 		return expansion;
+	}
+
+	/**
+	 * Generate master secret.
+	 * 
+	 * @param hmac MAC algorithm. e.g. HmacSHA256
+	 * @param premasterSecret the secret to use for the secure hash function
+	 * @param seed the seed to use for creating the original data
+	 * @return the master secret
+	 */
+	public static SecretKey generateMasterSecret(Mac hmac, SecretKey premasterSecret, byte[] seed) {
+		byte[] secret = doPRF(hmac, premasterSecret, Label.MASTER_SECRET_LABEL, seed);
+		SecretKey masterSecret = SecretUtil.create(secret, "MAC");
+		Bytes.clear(secret);
+		return masterSecret;
+	}
+
+	/**
+	 * The premaster secret is formed as follows: if the PSK is N octets long,
+	 * concatenate a uint16 with the value N, N zero octets, a second uint16
+	 * with the value N, and the PSK itself.
+	 * 
+	 * @param otherSecret - either is zeroes (plain PSK case) or comes from the
+	 *            EC Diffie-Hellman exchange (ECDHE_PSK).
+	 * @see <a href="http://tools.ietf.org/html/rfc4279#section-2">RFC 4279</a>
+	 * @return byte array with generated premaster secret.
+	 */
+	public static SecretKey generatePremasterSecretFromPSK(SecretKey otherSecret, SecretKey pskSecret) {
+		/*
+		 * What we are building is the following with length fields in between:
+		 * struct { opaque other_secret<0..2^16-1>; opaque psk<0..2^16-1>; };
+		 */
+		byte[] pskBytes = pskSecret.getEncoded();
+		int pskLength = pskBytes.length;
+		byte[] otherBytes = otherSecret != null ? otherSecret.getEncoded() : new byte[pskLength];
+		DatagramWriter writer = new DatagramWriter(true);
+		writer.write(otherBytes.length, 16);
+		writer.writeBytes(otherBytes);
+		writer.write(pskLength, 16);
+		writer.writeBytes(pskBytes);
+		byte[] secret = writer.toByteArray();
+		writer.close();
+		SecretKey premaster = SecretUtil.create(secret, "MAC");
+		Bytes.clear(pskBytes);
+		Bytes.clear(otherBytes);
+		Bytes.clear(secret);
+		return premaster;
 	}
 }
