@@ -41,6 +41,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import javax.crypto.SecretKey;
+
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
@@ -60,6 +62,7 @@ import org.eclipse.californium.scandium.dtls.AdversaryClientHandshaker;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.ClientHandshaker;
 import org.eclipse.californium.scandium.dtls.Connection;
+import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.ContentType;
 import org.eclipse.californium.scandium.dtls.DTLSFlight;
@@ -69,6 +72,8 @@ import org.eclipse.californium.scandium.dtls.DtlsHandshakeTimeoutException;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.Handshaker;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
+import org.eclipse.californium.scandium.dtls.PskSecretResult;
+import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.RecordLayer;
 import org.eclipse.californium.scandium.dtls.ResumingClientHandshaker;
@@ -77,8 +82,12 @@ import org.eclipse.californium.scandium.dtls.ServerHandshaker;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.dtls.pskstore.AsyncInMemoryPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 import org.eclipse.californium.scandium.dtls.ApplicationMessage;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
+import org.eclipse.californium.scandium.util.ServerNames;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -125,6 +134,8 @@ public class DTLSConnectorAdvancedTest {
 	private static final int RETRANSMISSION_TIMEOUT_MS = 400;
 	private static final int MAX_RETRANSMISSIONS = 2;
 
+	static AsyncInMemoryPskStore aPskStore;
+	static int aPskStoreResponses = 1;
 	static ConnectorHelper serverHelper;
 	static DtlsHealthLogger serverHealth;
 	static DtlsHealthLogger clientHealth;
@@ -141,11 +152,27 @@ public class DTLSConnectorAdvancedTest {
 	public static void loadKeys() throws IOException, GeneralSecurityException {
 		serverHealth = new DtlsHealthLogger("server");
 		serverCidGenerator = new SingleNodeConnectionIdGenerator(6);
+		InMemoryPskStore pskStore = new InMemoryPskStore();
+		pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
+		pskStore.setKey(SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME);
+		aPskStore = new AsyncInMemoryPskStore(pskStore) {
+
+			@Override
+			public PskSecretResult requestPskSecretResult(final ConnectionId cid, final ServerNames serverNames,
+					final PskPublicInformation identity, final String hmacAlgorithm, SecretKey otherSecret,
+					byte[] seed) {
+				for (int index = 0; index < aPskStoreResponses; ++index) {
+					super.requestPskSecretResult(cid, serverNames, identity, hmacAlgorithm, otherSecret, seed);
+				}
+				return null;
+			}
+		};
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
 					.setRetransmissionTimeout(RETRANSMISSION_TIMEOUT_MS)
 					.setMaxRetransmissions(MAX_RETRANSMISSIONS)
 					.setConnectionIdGenerator(serverCidGenerator)
-					.setHealthHandler(serverHealth);
+					.setHealthHandler(serverHealth)
+					.setAdvancedPskStore(aPskStore);
 		serverHelper = new ConnectorHelper();
 		serverHelper.startServer(builder);
 		executor = ExecutorsUtil.newFixedThreadPool(2, new TestThreadFactory("DTLS-ADVANCED-"));
@@ -154,6 +181,10 @@ public class DTLSConnectorAdvancedTest {
 
 	@AfterClass
 	public static void tearDown() {
+		if (aPskStore != null) {
+			aPskStore.shutdown();
+			aPskStore = null;
+		}
 		serverHelper.destroyServer();
 		ExecutorsUtil.shutdownExecutorGracefully(100, executor);
 	}
@@ -184,6 +215,7 @@ public class DTLSConnectorAdvancedTest {
 
 	@Before
 	public void setUp() throws Exception {
+		aPskStoreResponses = 1;
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
 		clientConnectionStore.setTag("client");
 		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
@@ -1906,6 +1938,133 @@ public class DTLSConnectorAdvancedTest {
 			}
 			assertNotNull("server handshake not failed", error);
 			assertThat(serverHelper.serverConnectionStore.remainingCapacity(), is(remain));
+		} finally {
+			rawClient.stop();
+		}
+	}
+
+	/**
+	 * Test the server handshake fails, if the PSK secret result is not received
+	 * in time.
+	 * 
+	 * @throws Exception if the test fails
+	 */
+	@Test
+	public void testServerPskTimeout() throws Exception {
+		// Configure and create UDP connector
+		aPskStoreResponses = 0; // no psk response
+		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder().setLoggingTag("client")
+				.setAddress(clientEndpoint).setReceiverThreadCount(1).setConnectionThreadCount(2)
+				.setRetransmissionTimeout(RETRANSMISSION_TIMEOUT_MS).setMaxRetransmissions(MAX_RETRANSMISSIONS)
+				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY).setConnectionIdGenerator(clientCidGenerator)
+				.setPskStore(new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()))
+				.setHealthHandler(clientHealth);
+		DtlsConnectorConfig clientConfig = builder.build();
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);
+		UdpConnector rawClient = new UdpConnector(0, collector);
+		BasicRecordLayer clientRecordLayer = new BasicRecordLayer(rawClient);
+		int remain = serverHelper.serverConnectionStore.remainingCapacity();
+		try {
+
+			// Start connector
+			rawClient.start();
+
+			// Create handshaker
+			DTLSSession clientSession = new DTLSSession(serverHelper.serverEndpoint);
+			LatchSessionListener sessionListener = new LatchSessionListener();
+			ClientHandshaker clientHandshaker = new ClientHandshaker(clientSession, clientRecordLayer,
+					createClientConnection(), clientConfig, 1280);
+			clientHandshaker.addSessionListener(sessionListener);
+
+			// Start 1. handshake (Send CLIENT HELLO)
+			clientHandshaker.startHandshake();
+
+			// Wait to receive response (should be HELLO VERIFY REQUEST)
+			List<Record> rs = waitForFlightReceived("flight 2", collector, 1);
+			// Handle and answer (CLIENT HELLO with cookie)
+			processAll(clientHandshaker, rs);
+
+			// Wait for response (SERVER_HELLO, SERVER_KEY_EXCHANGE,
+			// SERVER_DONE)
+			rs = waitForFlightReceived("flight 4", collector, 3);
+
+			// create server session listener to ensure,
+			// that server finish also the handshake
+			LatchSessionListener serverSessionListener = getSessionListenerForEndpoint("server", rawClient);
+
+			// Handle and answer
+			// (CLIENT_KEY_EXCHANGE, CHANGE CIPHER SPEC, ..., FINISHED)
+			processAll(clientHandshaker, rs);
+
+			// Ensure handshake failed
+			int timeout = RETRANSMISSION_TIMEOUT_MS * (2 << (MAX_RETRANSMISSIONS + 2));
+			Throwable error = serverSessionListener.waitForSessionFailed(timeout, TimeUnit.MILLISECONDS);
+			assertNotNull("server handshake not failed", error);
+			assertThat(error, instanceOf(DtlsHandshakeTimeoutException.class));
+			assertThat(serverHelper.serverConnectionStore.remainingCapacity(), is(remain));
+		} finally {
+			rawClient.stop();
+		}
+	}
+
+	/**
+	 * Test the server handshake succeeds, if the PSK secret result is received
+	 * twice.
+	 * 
+	 * @throws Exception if the test fails
+	 */
+	@Test
+	public void testServerPskDoubleResponse() throws Exception {
+		// Configure and create UDP connector
+		aPskStoreResponses = 2; // two psk responses
+		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder().setLoggingTag("client")
+				.setAddress(clientEndpoint).setReceiverThreadCount(1).setConnectionThreadCount(2)
+				.setRetransmissionTimeout(RETRANSMISSION_TIMEOUT_MS).setMaxRetransmissions(MAX_RETRANSMISSIONS)
+				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY).setConnectionIdGenerator(clientCidGenerator)
+				.setPskStore(new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()))
+				.setHealthHandler(clientHealth);
+		DtlsConnectorConfig clientConfig = builder.build();
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);
+		UdpConnector rawClient = new UdpConnector(0, collector);
+		BasicRecordLayer clientRecordLayer = new BasicRecordLayer(rawClient);
+		try {
+
+			// Start connector
+			rawClient.start();
+
+			// Create handshaker
+			DTLSSession clientSession = new DTLSSession(serverHelper.serverEndpoint);
+			LatchSessionListener sessionListener = new LatchSessionListener();
+			ClientHandshaker clientHandshaker = new ClientHandshaker(clientSession, clientRecordLayer,
+					createClientConnection(), clientConfig, 1280);
+			clientHandshaker.addSessionListener(sessionListener);
+
+			// Start 1. handshake (Send CLIENT HELLO)
+			clientHandshaker.startHandshake();
+
+			// Wait to receive response (should be HELLO VERIFY REQUEST)
+			List<Record> rs = waitForFlightReceived("flight 2", collector, 1);
+			// Handle and answer (CLIENT HELLO with cookie)
+			processAll(clientHandshaker, rs);
+
+			// Wait for response (SERVER_HELLO, SERVER_KEY_EXCHANGE,
+			// SERVER_DONE)
+			rs = waitForFlightReceived("flight 4", collector, 3);
+
+			// create server session listener to ensure,
+			// that server finish also the handshake
+			LatchSessionListener serverSessionListener = getSessionListenerForEndpoint("server", rawClient);
+
+			// Handle and answer
+			// (CLIENT_KEY_EXCHANGE, CHANGE CIPHER SPEC, ..., FINISHED)
+			processAll(clientHandshaker, rs);
+
+			// Ensure handshake succeeded
+			int timeout = RETRANSMISSION_TIMEOUT_MS * (2 << (MAX_RETRANSMISSIONS + 2));
+			assertTrue("handshake failed",
+					serverSessionListener.waitForSessionEstablished(timeout, TimeUnit.MILLISECONDS));
 		} finally {
 			rawClient.stop();
 		}

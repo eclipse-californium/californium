@@ -790,7 +790,9 @@ public final class DTLSSession implements Destroyable {
 				if (masterSecret == null) {
 					throw new NullPointerException("Master secret must not be null");
 				}
+				// get length
 				byte[] secret = masterSecret.getEncoded();
+				// clear secret immediately, only length is required
 				Bytes.clear(secret);
 				if (secret.length != MASTER_SECRET_LENGTH) {
 					throw new IllegalArgumentException(

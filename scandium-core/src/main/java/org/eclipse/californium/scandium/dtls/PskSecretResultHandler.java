@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2020 Arm and others.
+ * Copyright (c) 2020 Bosch.IO GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -11,13 +11,22 @@
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
  * Contributors:
- *    Jaimie Whiteside (Arm) - initial creation
+ *    Bosch.IO GmbH - initial creation
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import javax.crypto.SecretKey;
+/**
+ * Handler for asynchronous PSK secret results.
+ * 
+ * The implementation must take care, that the calling thread is undefined.
+ */
+public interface PskSecretResultHandler {
 
-public interface MasterSecretDeriver {
+	/**
+	 * Apply PSK secret result.
+	 * 
+	 * @param secretRequest secret result
+	 */
+	void apply(PskSecretResult secretResult);
 
-	SecretKey derive(byte[] randomSeed, SecretKey premasterSecret, DTLSSession session);
 }

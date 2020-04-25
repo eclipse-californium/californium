@@ -77,7 +77,9 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantLock;
 
+import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.security.auth.DestroyFailedException;
 import javax.security.auth.Destroyable;
@@ -85,6 +87,7 @@ import javax.security.auth.Destroyable;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.auth.AdditionalInfo;
 import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
+import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.CertPathUtil;
@@ -98,12 +101,13 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
-import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
 import org.eclipse.californium.scandium.dtls.x509.AdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
 import org.eclipse.californium.scandium.util.SecretIvParameterSpec;
 import org.eclipse.californium.scandium.util.SecretUtil;
+import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -141,25 +145,20 @@ public abstract class Handshaker implements Destroyable {
 
 	private boolean destroyed;
 
-	protected final DTLSSession session;
+	private final ReentrantLock recursionProtection = new ReentrantLock();
 
-	/** 
-	 * The logic in charge of deriving the Master Secret 
-	 */
-	protected final MasterSecretDeriver masterSecretDeriver;
-	
+	protected final DTLSSession session;
 	/**
 	 * The logic in charge of verifying the chain of certificates asserting this
 	 * handshaker's identity
 	 */
 	protected final CertificateVerifier certificateVerifier;
-	
 
 	/** The trusted raw public keys */
 	protected final TrustedRpkStore rpkStore;
 
 	/** Used to retrieve identity/pre-shared-key for a given destination */
-	protected final PskStore pskStore;
+	protected final AdvancedPskStore advancedPskStore;
 
 	/**
 	 * The configured connection id length. {@code null}, not supported,
@@ -255,7 +254,7 @@ public abstract class Handshaker implements Destroyable {
 	protected final boolean useTruncatedCertificatePathForVerification;
 
 	private final Set<SessionListener> sessionListeners = new LinkedHashSet<>();
-	
+
 	protected int statesIndex;
 	protected HandshakeState[] states;
 
@@ -263,6 +262,13 @@ public abstract class Handshaker implements Destroyable {
 	private boolean sessionEstablished = false;
 	private boolean handshakeAborted = false;
 	private boolean handshakeFailed = false;
+	private boolean pskRequestPending = false;
+	/**
+	 * Other secret for ECDHE-PSK cipher suites.
+	 * <a href="https://tools.ietf.org/html/rfc5489#page-4"> RFC 5489, other
+	 * secret</a>
+	 */
+	private SecretKey otherSecret;
 	private Throwable cause;
 	private ApplicationLevelInfoSupplier applicationLevelInfoSupplier;
 
@@ -323,9 +329,8 @@ public abstract class Handshaker implements Destroyable {
 		this.publicKey = config.getPublicKey();
 		this.certificateChain = config.getCertificateChain();
 		this.certificateVerifier = config.getCertificateVerifier();
-		this.masterSecretDeriver = config.getMasterSecretDeriver();
 		this.rpkStore = config.getRpkTrustStore();
-		this.pskStore = config.getPskStore();
+		this.advancedPskStore = config.getAdvancedPskStore();
 		this.session.setMaxTransmissionUnit(maxTransmissionUnit);
 		this.applicationLevelInfoSupplier = config.getApplicationLevelInfoSupplier();
 		this.inboundMessageBuffer = new InboundMessageBuffer();
@@ -333,7 +338,7 @@ public abstract class Handshaker implements Destroyable {
 		int timeoutMillis = config.getRetransmissionTimeout();
 		// add all timeouts for retries and the initial timeout twice
 		// to get a short extra timespan for regular handshake timeouts
-		int expireTimeoutMillis = timeoutMillis * 2; 
+		int expireTimeoutMillis = timeoutMillis * 2;
 		for (int retry = 0; retry < max; ++retry) {
 			timeoutMillis = DTLSFlight.incrementTimeout(timeoutMillis);
 			expireTimeoutMillis += timeoutMillis;
@@ -568,13 +573,38 @@ public abstract class Handshaker implements Destroyable {
 					record.getType(), record.getPeerAddress(), StringUtil.lineSeparator(), record);
 			return;
 		}
+		Record recordToProcess = inboundMessageBuffer.getNextRecord(record);
+		if (recordToProcess != null) {
+			processNextMessages(recordToProcess);
+		}
+	}
+
+	/**
+	 * Process next messages.
+	 * 
+	 * Read next messages also from inbound message buffer. Protected against
+	 * recursion, returns immediately, if called from
+	 * {@link #doProcessMessage(HandshakeMessage)}.
+	 * 
+	 * @param record message to process. Maybe {@ocde null} to start with the
+	 *            first message from inbound message buffer.
+	 * @throws HandshakeException if an error occurs processing a message
+	 * @since 2.3
+	 */
+	private void processNextMessages(Record record) throws HandshakeException {
+		if (recursionProtection.isHeldByCurrentThread()) {
+			LOGGER.warn("Called from doProcessMessage, return immediately to process next message!",
+					new Throwable("recursion-protection"));
+			return;
+		}
 		try {
+			int epoch = session.getReadEpoch();
 			int counter = 0;
-			Record recordToProcess = inboundMessageBuffer.getNextRecord(record);
+			Record recordToProcess = record != null ? record : inboundMessageBuffer.getNextRecord();
 			while (recordToProcess != null) {
-				DTLSMessage messageToProcess=recordToProcess.getFragment();
+				DTLSMessage messageToProcess = recordToProcess.getFragment();
 				expectMessage(messageToProcess);
-				
+
 				if (messageToProcess.getContentType() == ContentType.CHANGE_CIPHER_SPEC) {
 					// is thrown during processing
 					LOGGER.debug("Processing {} message from peer [{}]", messageToProcess.getContentType(),
@@ -652,12 +682,17 @@ public abstract class Handshaker implements Destroyable {
 							if (epoch == 0) {
 								handshakeMessages.add(handshakeMessage);
 							}
-							doProcessMessage(handshakeMessage);
+							recursionProtection.lock();
+							try {
+								doProcessMessage(handshakeMessage);
+							} finally {
+								recursionProtection.unlock();
+							}
 							LOGGER.debug("Processed {} message from peer [{}]", handshakeMessage.getMessageType(),
 									handshakeMessage.getPeer());
 							if (!lastFlight) {
 								// last Flight may have changed processing
-								//  the handshake message
+								// the handshake message
 								++nextReceiveMessageSequence;
 								++statesIndex;
 							}
@@ -777,6 +812,99 @@ public abstract class Handshaker implements Destroyable {
 	 */
 	public abstract void startHandshake() throws HandshakeException;
 
+	/**
+	 * Process asynchronous PSK secret result.
+	 * 
+	 * MUST not be called from {@link #doProcessMessage(HandshakeMessage)}
+	 * implementations! If handshake expects the cipher change message, then
+	 * process the messages from the inbound buffer.
+	 * 
+	 * @param pskSecretResult PSK secret result.
+	 * @throws HandshakeException if an error occurs
+	 * @throws IllegalStateException if {@link #pskRequestPending} is not
+	 *             pending, or the handshaker {@link #isDestroyed()}.
+	 * @since 2.3
+	 */
+	public void processAsyncPskSecretResult(PskSecretResult pskSecretResult) throws HandshakeException {
+		processPskSecretResult(pskSecretResult);
+		if (changeCipherSuiteMessageExpected) {
+			processNextMessages(null);
+		}
+	}
+
+	/**
+	 * Process PSK secret result.
+	 * 
+	 * @param pskSecretResult PSK secret result.
+	 * @throws HandshakeException if an error occurs
+	 * @throws IllegalStateException if {@link #pskRequestPending} is not
+	 *             pending, or the handshaker {@link #isDestroyed()}.
+	 * @since 2.3
+	 */
+	protected void processPskSecretResult(PskSecretResult pskSecretResult) throws HandshakeException {
+		if (!pskRequestPending) {
+			throw new IllegalStateException("psk secret not pending!");
+		}
+		pskRequestPending = false;
+		try {
+			ensureUndestroyed();
+
+			String hostName = sniEnabled ? session.getHostName() : null;
+			PskPublicInformation pskIdentity = pskSecretResult.getPskPublicInformation();
+			SecretKey newPskSecret = pskSecretResult.getSecret();
+			if (newPskSecret != null) {
+				if (hostName != null) {
+					LOGGER.trace("client [{}] uses PSK identity [{}] for server [{}]", session.getPeer(), pskIdentity,
+							hostName);
+				} else {
+					LOGGER.trace("client [{}] uses PSK identity [{}]", session.getPeer(), pskIdentity);
+				}
+				PreSharedKeyIdentity pskPrincipal;
+				if (sniEnabled) {
+					pskPrincipal = new PreSharedKeyIdentity(hostName, pskIdentity.getPublicInfoAsString());
+				} else {
+					pskPrincipal = new PreSharedKeyIdentity(pskIdentity.getPublicInfoAsString());
+				}
+				session.setPeerIdentity(pskPrincipal);
+				if (PskSecretResult.ALGORITHM_PSK.equals(newPskSecret.getAlgorithm())) {
+					Mac hmac = session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac();
+					SecretKey premasterSecret = PseudoRandomFunction.generatePremasterSecretFromPSK(otherSecret,
+							newPskSecret);
+					SecretKey masterSecret = PseudoRandomFunction.generateMasterSecret(hmac, premasterSecret,
+							generateRandomSeed());
+					SecretUtil.destroy(premasterSecret);
+					SecretUtil.destroy(newPskSecret);
+					newPskSecret = masterSecret;
+				}
+				processMasterSecret(newPskSecret);
+			} else {
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_PSK_IDENTITY,
+						session.getPeer());
+				if (hostName != null) {
+					throw new HandshakeException(
+							String.format("No pre-shared key found for [virtual host: %s, identity: %s]", hostName,
+									pskIdentity),
+							alert);
+				} else {
+					throw new HandshakeException(
+							String.format("No pre-shared key found for [identity: %s]", pskIdentity), alert);
+				}
+			}
+		} finally {
+			SecretUtil.destroy(otherSecret);
+			otherSecret = null;
+		}
+	}
+
+	/**
+	 * Do the handshaker specific master secret processing
+	 * 
+	 * @param masterSecret master secret
+	 * @throws HandshakeException if an error occurs
+	 * @since 2.3
+	 */
+	protected abstract void processMasterSecret(SecretKey masterSecret) throws HandshakeException;
+
 	// Methods ////////////////////////////////////////////////////////
 
 	/**
@@ -797,28 +925,20 @@ public abstract class Handshaker implements Destroyable {
 	}
 
 	/**
-	 * Generates the master secret from the given premaster secret. Applying the
-	 * key expansion on the master secret generates a large key block to
-	 * generate the encryption, MAC and IV keys. Also set the master secret to
-	 * the session for resumption handshakes.
+	 * Applying the key expansion on the master secret generates a large key
+	 * block to generate the encryption, MAC and IV keys. Also set the master
+	 * secret to the session for resumption handshakes.
 	 * 
 	 * See <a href="http://tools.ietf.org/html/rfc5246#section-6.3">RFC5246</a>
 	 * for further details about the keys.
 	 * 
-	 * @param premasterSecret the shared premaster secret.
+	 * @param masterSecret the master secret.
 	 * @see #masterSecret
+	 * @since 2.3
 	 */
-	protected final void generateKeys(SecretKey premasterSecret) {
-		if (destroyed) {
-			if (handshakeFailed) {
-				throw new IllegalStateException("secrets destroyed after failure!", cause);
-			} else if (sessionEstablished) {
-				throw new IllegalStateException("secrets destroyed after success!");
-			} else {
-				throw new IllegalStateException("secrets destroyed ???");
-			}
-		}
-		masterSecret = generateMasterSecret(premasterSecret);
+	protected void applyMasterSecret(SecretKey masterSecret) {
+		ensureUndestroyed();
+		this.masterSecret = SecretUtil.create(masterSecret);
 		calculateKeys(masterSecret);
 		session.setMasterSecret(masterSecret);
 	}
@@ -831,9 +951,7 @@ public abstract class Handshaker implements Destroyable {
 	 *            the master secret.
 	 */
 	protected void calculateKeys(SecretKey masterSecret) {
-		if (destroyed) {
-			throw new IllegalStateException("secrets destroyed!");
-		}
+		ensureUndestroyed();
 		/*
 		 * Create keys as suggested in
 		 * http://tools.ietf.org/html/rfc5246#section-6.3:
@@ -878,22 +996,33 @@ public abstract class Handshaker implements Destroyable {
 	}
 
 	/**
-	 * Generates the master secret from a given shared premaster secret as
-	 * described in
-	 * <a href="http://tools.ietf.org/html/rfc5246#section-8.1">RFC5246</a>.
+	 * Generate random seed for master secret.
 	 * 
-	 * <pre>
-	 * master_secret = PRF(pre_master_secret, "master secret",
-	 * 	ClientHello.random + ServerHello.random) [0..47]
-	 * </pre>
-	 * 
-	 * @param premasterSecret
-	 *            the shared premaster secret.
-	 * @return the master secret.
+	 * @return random seed
+	 * @since 2.3
 	 */
-	private SecretKey generateMasterSecret(SecretKey premasterSecret) {
-		byte[] randomSeed = Bytes.concatenate(clientRandom, serverRandom);
-		return masterSecretDeriver.derive(randomSeed, premasterSecret, session);
+	protected byte[] generateRandomSeed() {
+		return Bytes.concatenate(clientRandom, serverRandom);
+	}
+
+	/**
+	 * Request psk secret result for PSK cipher suites.
+	 * 
+	 * Sets {@link #pskRequestPending}.
+	 * 
+	 * @param pskIdentity PSK identity
+	 * @param otherSecret others secret for ECHDE support. Maybe {@code null}.
+	 * @return psk secret result. {@code null}, if result is returned
+	 *         asynchrounous.
+	 * @since 2.3
+	 */
+	protected PskSecretResult requestPskSecretResult(PskPublicInformation pskIdentity, SecretKey otherSecret) {
+		ServerNames serverNames = sniEnabled ? session.getServerNames() : null;
+		String hmacAlgorithm = session.getCipherSuite().getPseudoRandomFunctionMacName();
+		pskRequestPending = true;
+		this.otherSecret = SecretUtil.create(otherSecret);
+		return advancedPskStore.requestPskSecretResult(connection.getConnectionId(), serverNames, pskIdentity,
+				hmacAlgorithm, otherSecret, generateRandomSeed());
 	}
 
 	protected final void setCurrentReadState() {
@@ -1368,6 +1497,16 @@ public abstract class Handshaker implements Destroyable {
 	}
 
 	/**
+	 * Check, if psk request is pending.
+	 * 
+	 * @return {@code true}, if psk request is pending, {@code false},
+	 *         otherwise.
+	 */
+	public boolean isPskRequestPending() {
+		return pskRequestPending;
+	}
+
+	/**
 	 * Check, if the connection must be removed.
 	 * 
 	 * The connection must be removed, if {@link #handshakeFailed(Throwable)}
@@ -1506,6 +1645,8 @@ public abstract class Handshaker implements Destroyable {
 
 	@Override
 	public void destroy() throws DestroyFailedException {
+		SecretUtil.destroy(otherSecret);
+		otherSecret = null;
 		SecretUtil.destroy(masterSecret);
 		masterSecret = null;
 		SecretUtil.destroy(clientWriteKey);
@@ -1526,6 +1667,23 @@ public abstract class Handshaker implements Destroyable {
 	@Override
 	public boolean isDestroyed() {
 		return destroyed;
+	}
+
+	/**
+	 * Check, if this handshaker has been destroyed.
+	 * 
+	 * @throws IllegalStateException if the handshake has been destroyed.
+	 */
+	protected void ensureUndestroyed() {
+		if (destroyed) {
+			if (handshakeFailed) {
+				throw new IllegalStateException("secrets destroyed after failure!", cause);
+			} else if (sessionEstablished) {
+				throw new IllegalStateException("secrets destroyed after success!");
+			} else {
+				throw new IllegalStateException("secrets destroyed ???");
+			}
+		}
 	}
 
 	/**

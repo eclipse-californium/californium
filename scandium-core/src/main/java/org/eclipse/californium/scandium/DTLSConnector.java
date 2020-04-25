@@ -191,6 +191,8 @@ import org.eclipse.californium.scandium.dtls.HandshakeMessage;
 import org.eclipse.californium.scandium.dtls.Handshaker;
 import org.eclipse.californium.scandium.dtls.HelloVerifyRequest;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
+import org.eclipse.californium.scandium.dtls.PskSecretResult;
+import org.eclipse.californium.scandium.dtls.PskSecretResultHandler;
 import org.eclipse.californium.scandium.dtls.MaxFragmentLengthExtension;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.Record;
@@ -206,6 +208,7 @@ import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.SessionListener;
 import org.eclipse.californium.scandium.dtls.SessionTicket;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 
@@ -389,7 +392,16 @@ public class DTLSConnector implements Connector, RecordLayer {
 			this.connectionStore = connectionStore;
 			this.connectionStore.attach(connectionIdGenerator);
 			this.connectionStore.setConnectionListener(config.getConnectionListener());
+			AdvancedPskStore advancedPskStore = config.getAdvancedPskStore();
+			if (advancedPskStore != null) {
+				advancedPskStore.setResultHandler(new PskSecretResultHandler() {
 
+					@Override
+					public void apply(PskSecretResult masterSecretResult) {
+						processAsyncPskSecretResult(masterSecretResult);
+					}
+				});
+			}
 			DtlsHealth healthHandler = config.getHealthHandler();
 			Integer healthStatusInterval = config.getHealthStatusInterval();
 			// this is a useful health metric
@@ -2505,6 +2517,52 @@ public class DTLSConnector implements Connector, RecordLayer {
 		throw new IOException("Socket closed.");
 	}
 
+	/**
+	 * Process psk secret result.
+	 * 
+	 * @param secretResult asynchronous psk secret result
+	 * @since 2.3
+	 */
+	private void processAsyncPskSecretResult(final PskSecretResult secretResult) {
+		final Connection connection = connectionStore.get(secretResult.getConnectionId());
+		if (connection != null && connection.hasOngoingHandshake()) {
+			SerialExecutor serialExecutor = connection.getExecutor();
+
+			try {
+
+				serialExecutor.execute(new Runnable() {
+
+					@Override
+					public void run() {
+						if (running.get()) {
+							Handshaker handshaker = connection.getOngoingHandshake();
+							if (handshaker != null) {
+								try {
+									handshaker.processAsyncPskSecretResult(secretResult);
+								} catch (HandshakeException e) {
+									handleExceptionDuringHandshake(e, e.getAlert().getLevel(), e.getAlert().getDescription(), connection, null);
+								} catch (IllegalStateException e) {
+									LOGGER.warn("Exception while processing psk secret result [{}]", connection, e);
+								}
+							} else {
+								LOGGER.debug("No ongoing handshake for psk secret result [{}]", connection);
+							}
+						} else {
+							LOGGER.debug("Execution stopped while processing psk secret result [{}]", connection);
+						}
+					}
+				});
+			} catch (RejectedExecutionException e) {
+				// dont't terminate connection on shutdown!
+				LOGGER.debug("Execution rejected while processing master secret result [{}]", connection, e);
+			} catch (RuntimeException e) {
+				LOGGER.warn("Unexpected error occurred while processing master secret result [{}]", connection, e);
+			}
+		} else {
+			LOGGER.debug("No connection or ongoing handshake for master secret result [{}]", connection);
+		}
+	}
+
 	private void handleTimeout(DTLSFlight flight, Connection connection) {
 
 		if (!flight.isResponseCompleted()) {
@@ -2992,10 +3050,23 @@ public class DTLSConnector implements Connector, RecordLayer {
 		}
 	}
 
+	/**
+	 * Handle a exception occuring during the handshake.
+	 * 
+	 * @param cause excaption
+	 * @param level alert level
+	 * @param description alert description
+	 * @param connection connection
+	 * @param record related receivid record. Since 2.3, this may be
+	 *            {@code null} in order to support exception during processing
+	 *            of a asynchronous master secret result.
+	 */
 	private void handleExceptionDuringHandshake(HandshakeException cause, AlertLevel level, AlertDescription description, Connection connection, Record record) {
 		// discard none fatal alert exception
 		if (!AlertLevel.FATAL.equals(level)) {
-			discardRecord(record, cause);
+			if (record != null) {
+				discardRecord(record, cause);
+			}
 			return;
 		}
 
@@ -3003,7 +3074,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 		// Generally "bad PSK" means invalid MAC on FINISHED message.
 		// In production both should be silently ignored : https://bugs.eclipse.org/bugs/show_bug.cgi?id=533258
 		if (AlertDescription.UNKNOWN_PSK_IDENTITY == description) {
-			discardRecord(record, cause);
+			if (record != null) {
+				discardRecord(record, cause);
+			}
 			return;
 		}
 

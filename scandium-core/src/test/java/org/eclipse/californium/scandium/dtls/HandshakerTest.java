@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.crypto.Mac;
+import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
@@ -452,6 +453,10 @@ public class HandshakerTest {
 			default:
 				break;
 			}
+		}
+
+		@Override
+		protected void processMasterSecret(SecretKey masterSecret) throws HandshakeException {
 		}
 
 		void decryptAndProcessMessage(Record record) throws HandshakeException, GeneralSecurityException {

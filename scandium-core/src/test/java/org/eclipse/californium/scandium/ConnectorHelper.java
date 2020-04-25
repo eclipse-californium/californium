@@ -81,6 +81,7 @@ import org.eclipse.californium.scandium.dtls.SessionAdapter;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
+import org.eclipse.californium.scandium.dtls.pskstore.AsyncInMemoryPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 
 /**
@@ -108,6 +109,7 @@ public class ConnectorHelper {
 	RawDataProcessor serverRawDataProcessor;
 	Map<InetSocketAddress, LatchSessionListener> sessionListenerMap = new ConcurrentHashMap<>();
 	DTLSSession establishedServerSession;
+	AsyncInMemoryPskStore aPskStore;
 
 	DtlsConnectorConfig serverConfig;
 
@@ -151,13 +153,7 @@ public class ConnectorHelper {
 	 * @throws GeneralSecurityException if the keys cannot be read.
 	 */
 	public void startServer(DtlsConnectorConfig.Builder builder) throws IOException, GeneralSecurityException {
-
-		InMemoryPskStore pskStore = new InMemoryPskStore();
-		pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
-		pskStore.setKey(SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME);
-
 		builder.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
-				.setPskStore(pskStore)
 				.setMaxConnections(SERVER_CONNECTION_STORE_CAPACITY)
 				.setMaxTransmissionUnit(1024)
 				.setReceiverThreadCount(1)
@@ -165,20 +161,30 @@ public class ConnectorHelper {
 				.setLoggingTag("server")
 				.setServerOnly(true);
 
-		if (builder.getIncompleteConfig().getPrivateKey() == null) {
+		DtlsConnectorConfig incompleteConfig = builder.getIncompleteConfig();
+
+		if (incompleteConfig.getAdvancedPskStore() == null && incompleteConfig.getPskStore() == null) {
+			InMemoryPskStore pskStore = new InMemoryPskStore();
+			pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
+			pskStore.setKey(SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME);
+			aPskStore = new AsyncInMemoryPskStore(pskStore);
+			builder.setAdvancedPskStore(aPskStore);
+		}
+
+		if (incompleteConfig.getPrivateKey() == null) {
 			builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(),
 					CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509);
 		}
 
-		if (builder.getIncompleteConfig().getSupportedCipherSuites() == null) {
+		if (incompleteConfig.getSupportedCipherSuites() == null) {
 			List<CipherSuite> list = new ArrayList<>(CipherSuite.getEcdsaCipherSuites(false));
 			list.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(false, KeyExchangeAlgorithm.ECDHE_PSK,
 					KeyExchangeAlgorithm.PSK));
 			builder.setRecommendedCipherSuitesOnly(false);
 			builder.setSupportedCipherSuites(list);
 		}
-		if (!Boolean.FALSE.equals(builder.getIncompleteConfig().isClientAuthenticationRequired()) ||
-				Boolean.TRUE.equals(builder.getIncompleteConfig().isClientAuthenticationWanted())) {
+		if (!Boolean.FALSE.equals(incompleteConfig.isClientAuthenticationRequired()) ||
+				Boolean.TRUE.equals(incompleteConfig.isClientAuthenticationWanted())) {
 			builder.setTrustStore(DtlsTestTools.getTrustedCertificates()).setRpkTrustAll();
 		}
 		serverConfig = builder.build();
@@ -199,6 +205,10 @@ public class ConnectorHelper {
 	 * Shuts down and destroys the encapsulated server side connector.
 	 */
 	public void destroyServer() {
+		if (aPskStore != null) {
+			aPskStore.shutdown();
+			aPskStore = null;
+		}
 		cleanUpServer();
 		server.destroy();
 	}
