@@ -127,6 +127,24 @@
 					"oldArchive": "org.eclipse.californium:scandium:jar:2.1.0"
 				},
 				{
+					"code": "java.field.removed",
+					"old": "field org.eclipse.californium.scandium.dtls.Handshaker.pskStore",
+					"justification": "not part of the public API - removed requires explicit ignore",
+					"oldArchive": "org.eclipse.californium:scandium:jar:2.1.0"
+				},
+				{
+					"code": "java.method.removed",
+					"old": "method void org.eclipse.californium.scandium.dtls.Handshaker::generateKeys(javax.crypto.SecretKey)",
+					"justification": "not part of the public API - removed requires explicit ignore",
+					"oldArchive": "org.eclipse.californium:scandium:jar:2.1.0"
+				},
+				{
+					"code": "java.method.abstractMethodAdded",
+					"new": "method void org.eclipse.californium.scandium.dtls.Handshaker::processMasterSecret(javax.crypto.SecretKey) throws org.eclipse.californium.scandium.dtls.HandshakeException",
+					"justification": "not part of the public API - add requires explicit ignore",
+					"oldArchive": "org.eclipse.californium:scandium:jar:2.1.0"
+				},
+				{
 					"code": "java.field.visibilityReduced",
 					"old": "field org.eclipse.californium.scandium.dtls.Handshaker.ecdhe @ org.eclipse.californium.scandium.dtls.ServerHandshaker",
 					"new": "field org.eclipse.californium.scandium.dtls.ServerHandshaker.ecdhe",
@@ -143,6 +161,12 @@
 					"code": "java.method.removed",
 					"old": "method void org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension::addECPointFormat(org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat)",
 					"justification": "not part of the public API - removed requires explicit ignore",
+					"oldArchive": "org.eclipse.californium:scandium:jar:2.1.0"
+				},
+				{
+					"code": "java.class.removed",
+					"old": "class org.eclipse.californium.scandium.dtls.PskUtil",
+					"justification": "not part of the public API - obsolete",
 					"oldArchive": "org.eclipse.californium:scandium:jar:2.1.0"
 				}
 			]
