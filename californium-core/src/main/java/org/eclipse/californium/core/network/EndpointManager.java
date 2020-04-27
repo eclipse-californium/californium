@@ -134,7 +134,7 @@ public class EndpointManager {
 			}
 			try {
 				endpoint.start();
-				LOGGER.info("created implicit endpoint {} for {}", new Object[] { endpoint.getUri(), uriScheme });
+				LOGGER.info("created implicit endpoint {} for {}", endpoint.getUri(), uriScheme);
 			} catch (IOException e) {
 				LOGGER.error("could not create {} endpoint", uriScheme, e);
 			}
