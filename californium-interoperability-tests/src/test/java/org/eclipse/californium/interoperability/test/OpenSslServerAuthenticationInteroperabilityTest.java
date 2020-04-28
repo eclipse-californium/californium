@@ -210,7 +210,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 		dtlsBuilder.setSupportedGroups(SupportedGroup.secp256r1);
 
 		scandiumUtil.start(BIND, false, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
-		connect(cipher, "Shared Elliptic groups: P-256");
+		connect(cipher, "Shared Elliptic (groups|curves): P-256");
 	}
 
 	@Test
@@ -221,7 +221,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 		dtlsBuilder.setSupportedGroups(SupportedGroup.secp384r1, SupportedGroup.secp256r1);
 
 		scandiumUtil.start(BIND, false, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
-		connect(cipher, "Shared Elliptic groups: P-384");
+		connect(cipher, "Shared Elliptic (groups|curves): P-384");
 	}
 
 	@Test
