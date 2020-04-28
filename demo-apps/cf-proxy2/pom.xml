@@ -17,7 +17,7 @@
 	<description>Californium (Cf) HTTP cross-proxy2 for testing californium-proxy2 module</description>
 
 	<properties>
-		<assembly.mainClass>org.eclipse.californium.examples.ExampleCrossProxy</assembly.mainClass>
+		<assembly.mainClass>org.eclipse.californium.examples.CrossExampleProxy2</assembly.mainClass>
 	</properties>
 
 	<dependencies>
