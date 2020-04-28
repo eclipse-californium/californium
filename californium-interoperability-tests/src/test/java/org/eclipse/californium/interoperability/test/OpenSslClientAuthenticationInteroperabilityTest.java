@@ -215,10 +215,11 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 	}
 
 	public void connect(String cipher, String... misc) throws Exception {
-		assertTrue(processUtil.waitConsole("Cipher is " + cipher, TIMEOUT_MILLIS));
+		assertTrue("handshake failed!", processUtil.waitConsole("Cipher is ", TIMEOUT_MILLIS));
+		assertTrue("wrong cipher suite!", processUtil.waitConsole("Cipher is " + cipher, TIMEOUT_MILLIS));
 		if (misc != null) {
 			for (String check : misc) {
-				assertTrue(processUtil.waitConsole(check, TIMEOUT_MILLIS));
+				assertTrue("missing " + check, processUtil.waitConsole(check, TIMEOUT_MILLIS));
 			}
 		}
 

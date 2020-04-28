@@ -252,10 +252,11 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 		String message = "Hello OpenSSL!";
 		scandiumUtil.send(message, DESTINATION, TIMEOUT_MILLIS);
 
-		assertTrue("openssl no handshake!", processUtil.waitConsole("CIPHER is " + cipher, TIMEOUT_MILLIS));
+		assertTrue("handshake failed!", processUtil.waitConsole("CIPHER is ", TIMEOUT_MILLIS));
+		assertTrue("wrong cipher suite!", processUtil.waitConsole("CIPHER is " + cipher, TIMEOUT_MILLIS));
 		if (misc != null) {
 			for (String check : misc) {
-				assertTrue(processUtil.waitConsole(check, TIMEOUT_MILLIS));
+				assertTrue("missing " + check, processUtil.waitConsole(check, TIMEOUT_MILLIS));
 			}
 		}
 		assertTrue("openssl missing message!", processUtil.waitConsole(message, TIMEOUT_MILLIS));
