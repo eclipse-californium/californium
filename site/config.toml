@@ -9,6 +9,9 @@ version = "0.15.2"
 # Google Analytics tracking
 googleAnalytics = ""
 
+[markup.goldmark.renderer]
+    unsafe = true
+
 [outputs]
   home = ["HTML", "JSON"]
 

@@ -1,0 +1,24 @@
+div.eclipsefdn-adopters {
+  margin-right: auto;
+  margin-left: auto;
+}
+
+ul.adopter_list {
+  margin-top: 40px;
+  display: flex;
+  flex-flow: row wrap;
+  padding: 0;
+}
+
+ul.adopter_list > li {
+  flex: 1 1 33%;
+  padding-bottom: 2em;
+  list-style: none;
+}
+
+ul.adopter_list img {
+  width: 100%;
+  max-width: 300px;
+  height: 80%;
+  vertical-align: middle;
+}
