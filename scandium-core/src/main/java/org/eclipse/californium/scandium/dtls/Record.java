@@ -719,7 +719,7 @@ public class Record {
 			break;
 
 		default:
-			LOGGER.warn("Cannot decrypt message of unsupported type [{}]", type);
+			LOGGER.debug("Cannot decrypt message of unsupported type [{}]", type);
 		}
 		type = actualType;
 	}
@@ -733,9 +733,9 @@ public class Record {
 		HandshakeParameter parameter = null;
 		if (incomingSession != null) {
 			parameter = incomingSession.getParameter();
-			LOGGER.debug("Parsing HANDSHAKE message plaintext with parameter [{}]", parameter);
+			LOGGER.trace("Parsing HANDSHAKE message plaintext with parameter [{}]", parameter);
 		} else {
-			LOGGER.debug("Parsing HANDSHAKE message without a session");
+			LOGGER.trace("Parsing HANDSHAKE message without a session");
 		}
 		return HandshakeMessage.fromByteArray(decryptedMessage, parameter, getPeerAddress());
 	}
