@@ -290,6 +290,7 @@ public class OptionJuggle {
 		List<MessageObserver> messageObservers = response.getMessageObservers();
 		int mid = response.getMID();
 		Type type = response.getType();
+		Long rtt = response.getRTT();
 
 		Response newResponse = new Response(code);
 
@@ -301,6 +302,9 @@ public class OptionJuggle {
 		newResponse.addMessageObservers(messageObservers);
 		newResponse.setMID(mid);
 		newResponse.setType(type);
+		if (rtt != null) {
+			newResponse.setRTT(rtt);
+		}
 
 		return newResponse;
 	}
