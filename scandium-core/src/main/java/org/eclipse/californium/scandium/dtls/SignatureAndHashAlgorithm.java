@@ -24,10 +24,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
+import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalCryptoMap;
 import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalSignature;
+import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalCryptoMap.Factory;
 
 /**
  * See <a href="http://tools.ietf.org/html/rfc5246#appendix-A.4.1">RFC 5246</a>
@@ -128,7 +128,12 @@ public final class SignatureAndHashAlgorithm {
 		}
 	}
 
-	private static final ConcurrentMap<String, ThreadLocalSignature> SIGNATURES = new ConcurrentHashMap<String, ThreadLocalSignature>();
+	private static final ThreadLocalCryptoMap<ThreadLocalSignature> SIGNATURES = new ThreadLocalCryptoMap<>( new Factory<ThreadLocalSignature>() {
+		@Override
+		public ThreadLocalSignature getInstance(String algorithm) {
+			return new ThreadLocalSignature(algorithm);
+		}
+	});
 
 	/**
 	 * SHA1_with_Ecdsa.
@@ -178,12 +183,7 @@ public final class SignatureAndHashAlgorithm {
 		if (algorithm == null) {
 			algorithm = "UNKNOWN";
 		}
-		ThreadLocalSignature threadLocalSignature = SIGNATURES.get(algorithm);
-		if (threadLocalSignature == null) {
-			SIGNATURES.putIfAbsent(algorithm, new ThreadLocalSignature(algorithm));
-			threadLocalSignature = SIGNATURES.get(algorithm);
-		}
-		return threadLocalSignature;
+		return SIGNATURES.get(algorithm);
 	}
 
 	/**
