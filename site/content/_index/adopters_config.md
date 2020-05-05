@@ -8,6 +8,6 @@ fragment = "config"
 
 [[config]]
   type = "js"
-  block = true # put script tag at the end of <body>
+  block = false # put script tag at the end of <body>
   resource = "https://iot.eclipse.org/assets/js/eclipsefdn.adopters.js"
 +++
