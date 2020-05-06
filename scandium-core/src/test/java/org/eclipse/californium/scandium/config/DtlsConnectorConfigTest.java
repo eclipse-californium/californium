@@ -339,4 +339,12 @@ public class DtlsConnectorConfigTest {
 		assertThat(config.useAntiReplayFilter(), is(false));
 		assertThat(config.useWindowFilter(), is(true));
 	}
+
+	@Test(expected = IllegalStateException.class)
+	public void testTrustStoreDoNotContainDuplicateSubject() {
+		X509Certificate[] trustedCertificates = new X509Certificate[2];
+		trustedCertificates[0] = DtlsTestTools.getTrustedRootCA();
+		trustedCertificates[1] = DtlsTestTools.getTrustedRootCA();
+		builder.setTrustStore(trustedCertificates);
+	}
 }
