@@ -42,7 +42,11 @@ import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+
+import javax.security.auth.x500.X500Principal;
 
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.util.CertPathUtil;
@@ -1692,6 +1696,10 @@ public final class DtlsConnectorConfig {
 		 * intermediate CA certificates may fail, if the other peer send a
 		 * certificate chain, which doesn't end at one of the provided CAs.
 		 * 
+		 * {@code trustedCerts} MUST NOT contain several certificates with same
+		 * subject. If you need that you should consider to use
+		 * {@link #setCertificateVerifier(CertificateVerifier)} instead.
+		 * 
 		 * This method must not be called, if
 		 * {@link #setCertificateVerifier(CertificateVerifier)} is already set.
 		 * 
@@ -1701,7 +1709,7 @@ public final class DtlsConnectorConfig {
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given array is <code>null</code>
 		 * @throws IllegalArgumentException if the array contains a non-X.509
-		 *             certificate
+		 *             certificate or several certificates with same subjects
 		 * @throws IllegalStateException if
 		 *             {@link #setCertificateVerifier(CertificateVerifier)} is
 		 *             already set.
@@ -1715,7 +1723,9 @@ public final class DtlsConnectorConfig {
 			} else if (config.certificateVerifier != null) {
 				throw new IllegalStateException("Trust store must not be used after certificate verifier is set!");
 			} else {
-				config.trustStore = SslContextUtil.asX509Certificates(trustedCerts);
+				X509Certificate[] certificates = SslContextUtil.asX509Certificates(trustedCerts);
+				checkTrustStore(certificates);
+				config.trustStore = certificates;
 			}
 			return this;
 		}
@@ -2486,6 +2496,18 @@ public final class DtlsConnectorConfig {
 			}
 
 			config.supportedCipherSuites = ciphers;
+		}
+
+		private void checkTrustStore(X509Certificate[] store) {
+			List<X500Principal> subjects = CertPathUtil.toSubjects(Arrays.asList(store));
+
+			// Search for duplicates
+			Set<X500Principal> set = new HashSet<>();
+			for (X500Principal subject : subjects) {
+				if (!set.add(subject)) {
+					throw new IllegalStateException("Truststore contains 2 certificates with same subject: " + subject);
+				}
+			}
 		}
 	}
 }
