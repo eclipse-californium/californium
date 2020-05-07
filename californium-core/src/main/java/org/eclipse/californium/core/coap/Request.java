@@ -1158,7 +1158,8 @@ public class Request extends Message {
 	 */
 	@Override
 	public String toString() {
-		return toTracingString(getCode().toString());
+		Code code = getCode();
+		return toTracingString(code == null ? "PING" : code.toString());
 	}
 
 	////////// Some static factory methods for convenience //////////
