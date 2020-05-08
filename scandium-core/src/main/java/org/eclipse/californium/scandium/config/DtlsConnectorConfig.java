@@ -1718,10 +1718,10 @@ public final class DtlsConnectorConfig {
 		public Builder setTrustStore(Certificate[] trustedCerts) {
 			if (trustedCerts == null) {
 				throw new NullPointerException("Trust store must not be null");
-			} else if (trustedCerts.length == 0) {
-				config.trustStore = new X509Certificate[0];
 			} else if (config.certificateVerifier != null) {
 				throw new IllegalStateException("Trust store must not be used after certificate verifier is set!");
+			} else if (trustedCerts.length == 0) {
+				config.trustStore = new X509Certificate[0];
 			} else {
 				X509Certificate[] certificates = SslContextUtil.asX509Certificates(trustedCerts);
 				checkTrustStore(certificates);
