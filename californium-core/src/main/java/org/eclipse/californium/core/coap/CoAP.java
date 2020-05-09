@@ -40,7 +40,7 @@ import org.eclipse.californium.elements.util.StandardCharsets;
  * CoAP defines several constants.
  * <ul>
  * <li>Message types: CON, NON, ACK, RST</li>
- * <li>Request codes: GET, POST, PUT, DELETE, FETCH, PATCH, IPATCH</li>
+ * <li>Request codes: GET, POST, PUT, DELETE, FETCH, PATCH, IPATCH, (CUSTOM_30)</li>
  * <li>Response codes</li>
  * <li>Option numbers</li>
  * <li>Message format</li>
@@ -386,7 +386,7 @@ public final class CoAP {
 	}
 
 	/**
-	 * The enumeration of request codes: GET, POST, PUT and DELETE.
+	 * The enumeration of request codes: GET, POST, PUT, DELETE, FETCH, PATCH, IPATCH, and CUSTOM_30.
 	 */
 	public enum Code {
 

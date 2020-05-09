@@ -24,9 +24,16 @@
  ******************************************************************************/
 package org.eclipse.californium.core;
 
+import java.security.Principal;
+
+import org.eclipse.californium.core.coap.CoAP.Code;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.elements.DtlsEndpointContext;
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.TlsEndpointContext;
 import org.eclipse.californium.elements.util.StringUtil;
 
 /**
@@ -92,22 +99,28 @@ public final class Utils {
 	 */
 	public static String prettyPrint(Request r) {
 
+		String nl = StringUtil.lineSeparator();
 		StringBuilder sb = new StringBuilder();
 
-		sb.append("==[ CoAP Request ]=============================================").append(StringUtil.lineSeparator());
-		sb.append(String.format("MID    : %d", r.getMID())).append(StringUtil.lineSeparator());
-		sb.append(String.format("Token  : %s", r.getTokenString())).append(StringUtil.lineSeparator());
-		sb.append(String.format("Type   : %s", r.getType().toString())).append(StringUtil.lineSeparator());
-		sb.append(String.format("Method : %s", r.getCode().toString())).append(StringUtil.lineSeparator());
-		if (r.getOffloadMode() != null) {
-			sb.append("(offloaded)").append(StringUtil.lineSeparator());
+		sb.append("==[ CoAP Request ]=============================================").append(nl);
+		sb.append(String.format("MID    : %d%n", r.getMID()));
+		sb.append(String.format("Token  : %s%n", r.getTokenString()));
+		sb.append(String.format("Type   : %s%n", r.getType()));
+		Code code = r.getCode();
+		if (code == null) {
+			sb.append("Method : 0.00 - PING").append(nl);
 		} else {
-			sb.append(String.format("Options: %s", r.getOptions().toString())).append(StringUtil.lineSeparator());
-			sb.append(String.format("Payload: %d Bytes", r.getPayloadSize())).append(StringUtil.lineSeparator());
+			sb.append(String.format("Method : %s - %s%n", code.text, code.name()));
+		}
+		if (r.getOffloadMode() != null) {
+			sb.append("(offloaded)").append(nl);
+		} else {
+			sb.append(String.format("Options: %s%n", r.getOptions()));
+			sb.append(String.format("Payload: %d Bytes%n", r.getPayloadSize()));
 			if (r.getPayloadSize() > 0 && MediaTypeRegistry.isPrintable(r.getOptions().getContentFormat())) {
-				sb.append("---------------------------------------------------------------").append(StringUtil.lineSeparator());
+				sb.append("---------------------------------------------------------------").append(nl);
 				sb.append(r.getPayloadString());
-				sb.append(StringUtil.lineSeparator());
+				sb.append(nl);
 			}
 		}
 		sb.append("===============================================================");
@@ -132,32 +145,60 @@ public final class Utils {
 	 * @return the pretty print
 	 */
 	public static String prettyPrint(Response r) {
+		String nl = StringUtil.lineSeparator();
 		StringBuilder sb = new StringBuilder();
 
-		sb.append("==[ CoAP Response ]============================================").append(StringUtil.lineSeparator());
-		sb.append(String.format("MID    : %d", r.getMID())).append(StringUtil.lineSeparator());
-		sb.append(String.format("Token  : %s", r.getTokenString())).append(StringUtil.lineSeparator());
-		sb.append(String.format("Type   : %s", r.getType().toString())).append(StringUtil.lineSeparator());
-		sb.append(String.format("Status : %s - %s", r.getCode().toString(), r.getCode().name())).append(StringUtil.lineSeparator());
+		sb.append("==[ CoAP Response ]============================================").append(nl);
+		sb.append(String.format("MID    : %d%n", r.getMID()));
+		sb.append(String.format("Token  : %s%n", r.getTokenString()));
+		sb.append(String.format("Type   : %s%n", r.getType()));
+		ResponseCode code = r.getCode();
+		sb.append(String.format("Status : %s - %s%n", code, code.name()));
 		if (r.getOffloadMode() != null) {
 			if (r.getRTT() != null) {
-				sb.append(String.format("RTT    : %d ms", r.getRTT())).append(StringUtil.lineSeparator());
-				sb.append("(offloaded)").append(StringUtil.lineSeparator());
+				sb.append(String.format("RTT    : %d ms%n", r.getRTT()));
+				sb.append("(offloaded)").append(nl);
 			}
 		} else {
-			sb.append(String.format("Options: %s", r.getOptions().toString())).append(StringUtil.lineSeparator());
+			sb.append(String.format("Options: %s%n", r.getOptions()));
 			if (r.getRTT() != null) {
-				sb.append(String.format("RTT    : %d ms", r.getRTT())).append(StringUtil.lineSeparator());
+				sb.append(String.format("RTT    : %d ms%n", r.getRTT()));
 			}
-			sb.append(String.format("Payload: %d Bytes", r.getPayloadSize())).append(StringUtil.lineSeparator());
+			sb.append(String.format("Payload: %d Bytes%n", r.getPayloadSize()));
 			if (r.getPayloadSize() > 0 && MediaTypeRegistry.isPrintable(r.getOptions().getContentFormat())) {
-				sb.append("---------------------------------------------------------------").append(StringUtil.lineSeparator());
+				sb.append("---------------------------------------------------------------").append(nl);
 				sb.append(r.getPayloadString());
-				sb.append(StringUtil.lineSeparator());
+				sb.append(nl);
 			}
 		}
 		sb.append("===============================================================");
 
+		return sb.toString();
+	}
+
+	/**
+	 * Formats a {@link EndpointContext} into a readable String representation. 
+	 * 
+	 * @param endpointContext the EndpointContext
+	 * @return the pretty print
+	 * @since 2.3
+	 */
+	public static String prettyPrint(EndpointContext endpointContext) {
+		String nl = StringUtil.lineSeparator();
+		StringBuilder sb = new StringBuilder();
+
+		sb.append(">>> ").append(endpointContext);
+		String cipher = endpointContext.get(DtlsEndpointContext.KEY_CIPHER);
+		if (cipher == null) {
+			cipher = endpointContext.get(TlsEndpointContext.KEY_CIPHER);
+		}
+		if (cipher != null) {
+			sb.append(nl).append(">>> ").append(cipher);
+		}
+		Principal principal = endpointContext.getPeerIdentity();
+		if (principal != null) {
+			sb.append(nl).append(">>> ").append(principal);
+		}
 		return sb.toString();
 	}
 }

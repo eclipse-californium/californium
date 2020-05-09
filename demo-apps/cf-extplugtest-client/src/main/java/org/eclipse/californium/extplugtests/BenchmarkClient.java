@@ -56,6 +56,7 @@ import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.EndpointContextTracer;
 import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
@@ -73,7 +74,6 @@ import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext;
-import org.eclipse.californium.elements.TlsEndpointContext;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
@@ -563,9 +563,8 @@ public class BenchmarkClient {
 	public boolean test() {
 		final Request request = prepareRequest(client, 12);
 		try {
-			request.addMessageObserver(new MessageObserverAdapter() {
+			request.addMessageObserver(new EndpointContextTracer() {
 				private final AtomicInteger counter = new AtomicInteger();
-				private final AtomicBoolean context = new AtomicBoolean();
 
 				@Override
 				public void onReadyToSend() {
@@ -588,17 +587,8 @@ public class BenchmarkClient {
 				}
 
 				@Override
-				public void onContextEstablished(EndpointContext endpointContext) {
-					if (context.compareAndSet(false,  true)) {
-						LOGGER.info(">>> {}", endpointContext);
-						String cipher = endpointContext.get(DtlsEndpointContext.KEY_CIPHER);
-						if (cipher == null) {
-							cipher = endpointContext.get(TlsEndpointContext.KEY_CIPHER);
-						}
-						if (cipher != null) {
-							LOGGER.info(">>> {}", cipher);
-						}
-					}
+				protected void onContextChanged(EndpointContext endpointContext) {
+					LOGGER.info("{}", Utils.prettyPrint(endpointContext));
 				}
 
 				@Override
