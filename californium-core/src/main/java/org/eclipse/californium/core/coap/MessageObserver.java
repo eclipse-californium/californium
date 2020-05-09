@@ -153,7 +153,7 @@ public interface MessageObserver {
 	 * Invoked when the resulting endpoint context is reported by the connector.
 	 * 
 	 * Note: usually this callback must be processed in a synchronous manner,
-	 * because if it returns, the message is sent. Therefore take special care
+	 * because on returning, the message is sent. Therefore take special care
 	 * in methods called on this callback.
 	 * 
 	 * @param endpointContext resulting endpoint context

@@ -245,6 +245,17 @@ public class CoapClient {
 	}
 
 	/**
+	 * Get destination endpoint context.
+	 * 
+	 * @return destination endpoint context. Maybe {@code null}, if not
+	 *         available.
+	 * @since 2.3
+	 */
+	public EndpointContext getDestinationContext() {
+		return this.destinationContext.get();
+	}
+
+	/**
 	 * Sets a single-threaded executor to this client.
 	 * 
 	 * All handlers will be invoked by this executor. Note that the client
@@ -1364,7 +1375,7 @@ public class CoapClient {
 		}
 		return request;
 	}
-	
+
 	private void setDestinationContextFromResponse(Response response) {
 		if (response != null) {
 			// use source context for further request
