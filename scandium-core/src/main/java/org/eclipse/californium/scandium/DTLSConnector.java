@@ -1551,7 +1551,11 @@ public class DTLSConnector implements Connector, RecordLayer {
 				if (session.getPeer() != null) {
 					send(new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY, alert.getPeer()), session);
 				}
-				connection.close(record);
+				if (connection.hasEstablishedSession()) {
+					connection.close(record);
+				} else {
+					terminateConnection(connection);
+				}
 			}
 		} else if (AlertLevel.FATAL.equals(alert.getLevel())) {
 			// according to section 7.2 of the TLS 1.2 spec

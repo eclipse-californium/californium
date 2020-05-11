@@ -283,12 +283,13 @@ public final class Connection {
 	 */
 	public void updatePeerAddress(InetSocketAddress peerAddress) {
 		if (!equalsPeerAddress(peerAddress)) {
+			if (establishedSession == null && peerAddress != null) {
+				throw new IllegalArgumentException("Address change without established sesson is not supported!");
+			}
 			this.lastPeerAddressNanos = ClockUtil.nanoRealtime();
 			this.peerAddress = peerAddress;
 			if (establishedSession != null) {
 				establishedSession.setPeer(peerAddress);
-			} else if (peerAddress != null) {
-				throw new IllegalArgumentException("Address change without established sesson is not supported!");
 			}
 			if (peerAddress == null) {
 				final Handshaker pendingHandshaker = getOngoingHandshake();
