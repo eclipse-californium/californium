@@ -56,6 +56,7 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
+import java.security.Principal;
 import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -725,7 +726,7 @@ public class ServerHandshaker extends Handshaker {
 	 *             if this server's configuration does not support any of the cipher suites
 	 *             proposed by the client.
 	 */
-	private void negotiateCipherSuite(final ClientHello clientHello, final HelloExtensions serverHelloExtensions)
+	protected void negotiateCipherSuite(final ClientHello clientHello, final HelloExtensions serverHelloExtensions)
 			throws HandshakeException {
 
 		List<CipherSuite> commonCipherSuites = getCommonCipherSuites(clientHello);
@@ -851,10 +852,16 @@ public class ServerHandshaker extends Handshaker {
 	}
 
 	private List<CipherSuite> getCommonCipherSuites(ClientHello clientHello) {
+		List<CipherSuite> supported = supportedCipherSuites;
+		CipherSuite sessionCipherSuite = session.getCipherSuite();
+		if (!sessionCipherSuite.equals(CipherSuite.TLS_NULL_WITH_NULL_NULL)) {
+			// resumption, limit handshake to use the same cipher suite
+			supported = Arrays.asList(sessionCipherSuite);
+		}
 		List<CipherSuite> common = new ArrayList<>();
 		for (CipherSuite cipherSuite : clientHello.getCipherSuites()) {
 			// NEVER negotiate NULL cipher suite
-			if (cipherSuite != CipherSuite.TLS_NULL_WITH_NULL_NULL && supportedCipherSuites.contains(cipherSuite)) {
+			if (cipherSuite != CipherSuite.TLS_NULL_WITH_NULL_NULL && supported.contains(cipherSuite)) {
 				common.add(cipherSuite);
 			}
 		}
@@ -862,8 +869,20 @@ public class ServerHandshaker extends Handshaker {
 	}
 
 	private List<CertificateType> getCommonClientCertificateTypes(final ClientHello clientHello) {
+		List<CertificateType> supported = supportedClientCertificateTypes;
+		Principal principal = session.getPeerIdentity();
+		if (principal != null) {
+			// resumption, reconstruct the certificate type
+			// including into SessionTicket requires a major release
+			supported = new ArrayList<CertificateType>();
+			if (principal instanceof RawPublicKeyIdentity) {
+				supported.add(CertificateType.RAW_PUBLIC_KEY);
+			} else if (principal instanceof X509CertPath) {
+				supported.add(CertificateType.X_509);
+			}
+		}
 		return getCommonCertificateTypes(clientHello.getClientCertificateTypeExtension(),
-				supportedClientCertificateTypes);
+				supported);
 	}
 
 	private List<CertificateType> getCommonServerCertificateTypes(final ClientHello clientHello) {
