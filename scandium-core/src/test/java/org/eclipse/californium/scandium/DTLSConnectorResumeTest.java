@@ -18,8 +18,11 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
-import static org.eclipse.californium.scandium.ConnectorHelper.newStandardClientConfig;
-import static org.eclipse.californium.scandium.ConnectorHelper.newStandardClientConfigBuilder;
+import static org.eclipse.californium.scandium.ConnectorHelper.SERVERNAME;
+import static org.eclipse.californium.scandium.ConnectorHelper.CLIENT_IDENTITY;
+import static org.eclipse.californium.scandium.ConnectorHelper.CLIENT_IDENTITY_SECRET;
+import static org.eclipse.californium.scandium.ConnectorHelper.SCOPED_CLIENT_IDENTITY;
+import static org.eclipse.californium.scandium.ConnectorHelper.SCOPED_CLIENT_IDENTITY_SECRET;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
@@ -34,6 +37,9 @@ import static org.junit.Assert.assertTrue;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.Principal;
+import java.security.PrivateKey;
+import java.security.cert.X509Certificate;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,7 +52,9 @@ import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.auth.AdditionalInfo;
+import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
@@ -56,13 +64,19 @@ import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawData
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ClientSessionCache;
 import org.eclipse.californium.scandium.dtls.Connection;
+import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.eclipse.californium.scandium.dtls.InMemoryClientSessionCache;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.SessionTicket;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.pskstore.AsyncInMemoryPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -72,6 +86,10 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.Parameterized.Parameters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,6 +99,7 @@ import org.slf4j.LoggerFactory;
  * Mainly contains integration test cases verifying the correct interaction
  * between a client and a server during resumption handshakes.
  */
+@RunWith(Parameterized.class)
 @Category(Medium.class)
 public class DTLSConnectorResumeTest {
 
@@ -94,20 +113,152 @@ public class DTLSConnectorResumeTest {
 	public static ThreadsRule cleanup = new ThreadsRule();
 
 	static ConnectorHelper serverHelper;
-
+	static AsyncInMemoryPskStore serverPskStore;
 	static ExecutorService executor;
+	static PrivateKey clientPrivateKey;
+	static X509Certificate[] clientCertificateChain;
+	static AsyncInMemoryPskStore clientPskStore;
+	static InMemoryPskStore clientInMemoryPskStore;
 
 	private static final int CLIENT_CONNECTION_STORE_CAPACITY = 5;
 	private static final int MAX_TIME_TO_WAIT_SECS = 2;
 	private static final String DEVICE_ID = "the-device";
 	private static final String KEY_DEVICE_ID = "device-id";
 
+	private static final String SERVERNAME_ALT = "other.test.server";
+
 	@Rule
 	public TestNameLoggerRule names = new TestNameLoggerRule();
 
+	Class<?> clientPrincipalType;
 	DTLSConnector client;
 	InMemoryConnectionStore clientConnectionStore;
 	List<Record> lastReceivedFlight;
+
+	/**
+	 * Actual DTLS Configuration Builder setup.
+	 */
+	@Parameter
+	public BuilderSetup builderSetup;
+
+	/**
+	 * @return List of cipher suites.
+	 */
+	@Parameters(name = "setup = {0}")
+	public static Iterable<BuilderSetup> cidParams() {
+		return Arrays.asList(new BuilderSetup() {
+
+			public String toString() {
+				return "PSK-sync-master";
+			}
+
+			@Override
+			public Class<?> setup(Builder builder) {
+				clientPskStore.setDelay(0);
+				serverPskStore.setDelay(0);
+				clientPskStore.setSecretMode(true);
+				serverPskStore.setSecretMode(true);
+				builder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
+						.setAdvancedPskStore(clientPskStore);
+				return PreSharedKeyIdentity.class;
+			}
+
+		}, new BuilderSetup() {
+
+			public String toString() {
+				return "PSK-async-master";
+			}
+
+			@Override
+			public Class<?> setup(Builder builder) {
+				clientPskStore.setDelay(100);
+				serverPskStore.setDelay(100);
+				clientPskStore.setSecretMode(true);
+				serverPskStore.setSecretMode(true);
+				builder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
+						.setAdvancedPskStore(clientPskStore);
+				return PreSharedKeyIdentity.class;
+			}
+
+		}, new BuilderSetup() {
+
+			public String toString() {
+				return "PSK-sync-key";
+			}
+
+			@Override
+			public Class<?> setup(Builder builder) {
+				clientPskStore.setDelay(0);
+				serverPskStore.setDelay(0);
+				clientPskStore.setSecretMode(false);
+				serverPskStore.setSecretMode(false);
+				builder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
+						.setAdvancedPskStore(clientPskStore);
+				return PreSharedKeyIdentity.class;
+			}
+
+		}, new BuilderSetup() {
+
+			public String toString() {
+				return "PSK-async-key";
+			}
+
+			@Override
+			public Class<?> setup(Builder builder) {
+				clientPskStore.setDelay(100);
+				serverPskStore.setDelay(100);
+				clientPskStore.setSecretMode(false);
+				serverPskStore.setSecretMode(false);
+				builder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
+						.setAdvancedPskStore(clientPskStore);
+				return PreSharedKeyIdentity.class;
+			}
+
+		}, new BuilderSetup() {
+
+			public String toString() {
+				return "PSK-ECDHE-async-master";
+			}
+
+			@Override
+			public Class<?> setup(Builder builder) {
+				clientPskStore.setDelay(100);
+				serverPskStore.setDelay(100);
+				clientPskStore.setSecretMode(true);
+				serverPskStore.setSecretMode(true);
+				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256)
+						.setAdvancedPskStore(clientPskStore);
+				return PreSharedKeyIdentity.class;
+			}
+
+		}, new BuilderSetup() {
+
+			public String toString() {
+				return "ECDSA-x509";
+			}
+
+			@Override
+			public Class<?> setup(Builder builder) {
+				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
+						.setIdentity(clientPrivateKey, clientCertificateChain, CertificateType.X_509)
+						.setTrustStore(DtlsTestTools.getTrustedCertificates());
+				return X509CertPath.class;
+			}
+		}, new BuilderSetup() {
+
+			public String toString() {
+				return "ECDSA-RPK";
+			}
+
+			@Override
+			public Class<?> setup(Builder builder) {
+				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
+						.setIdentity(clientPrivateKey, clientCertificateChain, CertificateType.RAW_PUBLIC_KEY)
+						.setRpkTrustAll();
+				return RawPublicKeyIdentity.class;
+			}
+		});
+	}
 
 	/**
 	 * Starts the server side DTLS connector.
@@ -128,16 +279,42 @@ public class DTLSConnectorResumeTest {
 				return applicationLevelInfo;
 			}
 		};
+
+		InMemoryPskStore pskStore = new InMemoryPskStore();
+		pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
+		pskStore.setKey(SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME);
+		pskStore.setKey(SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME_ALT);
+		serverPskStore = new AsyncInMemoryPskStore(pskStore);
+
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
 				.setSniEnabled(true)
 				.setApplicationLevelInfoSupplier(supplier);
+		builder.setAdvancedPskStore(serverPskStore);
+
 		serverHelper = new ConnectorHelper();
 		serverHelper.startServer(builder);
 		executor = ExecutorsUtil.newFixedThreadPool(2, new TestThreadFactory("DTLS-RESUME-"));
+		clientPrivateKey = DtlsTestTools.getClientPrivateKey();
+		clientCertificateChain = DtlsTestTools.getClientCertificateChain();
+
+		clientInMemoryPskStore = new InMemoryPskStore();
+		clientInMemoryPskStore.addKnownPeer(serverHelper.serverEndpoint, CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
+		clientInMemoryPskStore.addKnownPeer(serverHelper.serverEndpoint, SERVERNAME, SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes());
+		clientInMemoryPskStore.addKnownPeer(serverHelper.serverEndpoint, SERVERNAME_ALT, SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes());
+		clientPskStore = new AsyncInMemoryPskStore(clientInMemoryPskStore);
+
 	}
 
 	@AfterClass
 	public static void tearDown() {
+		if (clientPskStore != null) {
+			clientPskStore.shutdown();
+			clientPskStore = null;
+		}
+		if (serverPskStore != null) {
+			serverPskStore.shutdown();
+			serverPskStore = null;
+		}
 		serverHelper.destroyServer();
 		ExecutorsUtil.shutdownExecutorGracefully(100, executor);
 	}
@@ -145,11 +322,8 @@ public class DTLSConnectorResumeTest {
 	@Before
 	public void setUp() throws Exception {
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
-		clientConnectionStore.setTag("client");
-		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
-		DtlsConnectorConfig.Builder builder = newStandardClientConfigBuilder(clientEndpoint)
-				.setSniEnabled(true)
-				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY);
+
+		DtlsConnectorConfig.Builder builder = createClientConfigBuilder("client", null);
 		DtlsConnectorConfig clientConfig = builder.build();
 
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
@@ -169,22 +343,35 @@ public class DTLSConnectorResumeTest {
 		cleanUp();
 		serverHelper.serverSessionCache.establishedSessionCounter.set(0);
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
-		clientConnectionStore.setTag("client");
-		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
-		DtlsConnectorConfig.Builder clientConfigBuilder = newStandardClientConfigBuilder(clientEndpoint);
-		clientConfigBuilder.setAutoResumptionTimeoutMillis(timeout);
-		DtlsConnectorConfig clientConfig = clientConfigBuilder.build();
+
+		DtlsConnectorConfig.Builder builder = createClientConfigBuilder("client-auto-resume", null);
+		builder.setAutoResumptionTimeoutMillis(timeout);
+		DtlsConnectorConfig clientConfig = builder.build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		client.setExecutor(executor);
+	}
+
+	private DtlsConnectorConfig.Builder createClientConfigBuilder(String tag, InetSocketAddress clientEndpoint) {
+		if (clientEndpoint == null) {
+			clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
+		}
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+				.setLoggingTag(tag)
+				.setAddress(clientEndpoint)
+				.setSniEnabled(true)
+				.setReceiverThreadCount(1)
+				.setConnectionThreadCount(2)
+				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY);
+		clientPrincipalType = builderSetup.setup(builder);
+		return builder;
 	}
 
 	@Test
 	public void testConnectorResumesSessionFromNewConnection() throws Exception {
 		ClientSessionCache sessions = new InMemoryClientSessionCache();
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60, sessions);
-		clientConnectionStore.setTag("client-before");
 		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 10000);
-		DtlsConnectorConfig clientConfig = newStandardClientConfig(clientEndpoint);
+		DtlsConnectorConfig clientConfig = createClientConfigBuilder("client-before", clientEndpoint).build();
 
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		client.setExecutor(executor);
@@ -201,9 +388,8 @@ public class DTLSConnectorResumeTest {
 
 		// create a new client with different inetAddress but with the same session store.
 		clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 10001);
-		clientConfig = newStandardClientConfig(clientEndpoint);
+		clientConfig = createClientConfigBuilder("client-after", clientEndpoint).build();
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60, sessions);
-		clientConnectionStore.setTag("client-after");
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		LatchDecrementingRawDataChannel clientRawDataChannel = new LatchDecrementingRawDataChannel(1);
 		client.setRawDataReceiver(clientRawDataChannel);
@@ -221,7 +407,7 @@ public class DTLSConnectorResumeTest {
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
 		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(sessionId));
 		assertThat(time, is(connection.getEstablishedSession().getCreationTime()));
-		assertClientIdentity(RawPublicKeyIdentity.class);
+		assertClientIdentity(clientPrincipalType);
 	}
 
 	@Test
@@ -253,7 +439,7 @@ public class DTLSConnectorResumeTest {
 		// check we use the same session id
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
 		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(sessionId));
-		assertClientIdentity(RawPublicKeyIdentity.class);
+		assertClientIdentity(clientPrincipalType);
 
 		// check, if session is established again
 		assertThat(serverHelper.serverSessionCache.establishedSessionCounter.get(), is(2));
@@ -297,6 +483,7 @@ public class DTLSConnectorResumeTest {
 		Connection connection = clientConnectionStore.get(serverHelper.serverEndpoint);
 		SessionId sessionId = connection.getSession().getSessionIdentifier();
 		assertThat(serverHelper.serverSessionCache.establishedSessionCounter.get(), is(1));
+		assertClientIdentity(clientPrincipalType);
 
 		Thread.sleep(1000);
 
@@ -313,7 +500,7 @@ public class DTLSConnectorResumeTest {
 		// check we use the same session id
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
 		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(sessionId));
-		assertClientIdentity(RawPublicKeyIdentity.class);
+		assertClientIdentity(clientPrincipalType);
 
 		// check, if session is established again
 		assertThat(serverHelper.serverSessionCache.establishedSessionCounter.get(), is(1));
@@ -346,7 +533,7 @@ public class DTLSConnectorResumeTest {
 		// check we use the same session id
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
 		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(sessionId));
-		assertClientIdentity(RawPublicKeyIdentity.class);
+		assertClientIdentity(clientPrincipalType);
 
 		// check, if session is established again
 		assertThat(serverHelper.serverSessionCache.establishedSessionCounter.get(), is(1));
@@ -386,7 +573,7 @@ public class DTLSConnectorResumeTest {
 		// check we use the same session id
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
 		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(establishedSessionId));
-		assertClientIdentity(RawPublicKeyIdentity.class);
+		assertClientIdentity(clientPrincipalType);
 	}
 
 	@Test
@@ -413,7 +600,7 @@ public class DTLSConnectorResumeTest {
 		// check we use the same session id
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
 		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(sessionId));
-		assertClientIdentity(RawPublicKeyIdentity.class);
+		assertClientIdentity(clientPrincipalType);
 	}
 
 	@Test
@@ -426,8 +613,7 @@ public class DTLSConnectorResumeTest {
 
 		// second client with same address
 		InMemoryConnectionStore clientConnectionStore2 = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
-		clientConnectionStore2.setTag("client-2");
-		DtlsConnectorConfig.Builder builder2 = newStandardClientConfigBuilder(clientAddress)
+		DtlsConnectorConfig.Builder builder2 = createClientConfigBuilder("client-2", clientAddress)
 				.setSniEnabled(true)
 				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY);
 		DtlsConnectorConfig clientConfig2 = builder2.build();
@@ -456,7 +642,7 @@ public class DTLSConnectorResumeTest {
 		// check we use the same session id
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
 		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(sessionId));
-		assertClientIdentity(RawPublicKeyIdentity.class);
+		assertClientIdentity(clientPrincipalType);
 		remainingCapacity2 = serverHelper.serverConnectionStore.remainingCapacity();
 		assertThat(remainingCapacity2, is(remainingCapacity - 1));
 	}
@@ -490,7 +676,7 @@ public class DTLSConnectorResumeTest {
 		// check we use the same session id
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
 		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(sessionId));
-		assertClientIdentity(RawPublicKeyIdentity.class);
+		assertClientIdentity(clientPrincipalType);
 		assertThat(lastHandshakeTime, is(not(connection.getEstablishedSession().getLastHandshakeTime())));
 	}
 
@@ -521,7 +707,7 @@ public class DTLSConnectorResumeTest {
 		// check we use the same session id
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
 		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(sessionId));
-		assertClientIdentity(RawPublicKeyIdentity.class);
+		assertClientIdentity(clientPrincipalType);
 
 		// check, if session is established again
 		assertThat(serverHelper.serverSessionCache.establishedSessionCounter.get(), is(2));
@@ -554,7 +740,7 @@ public class DTLSConnectorResumeTest {
 		// check we use the same session id
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
 		assertThat(connection.getEstablishedSession().getSessionIdentifier(), not(equalTo(sessionId)));
-		assertClientIdentity(RawPublicKeyIdentity.class);
+		assertClientIdentity(clientPrincipalType);
 
 		// check, if session is established again
 		assertThat(serverHelper.serverSessionCache.establishedSessionCounter.get(), is(2));
@@ -588,13 +774,14 @@ public class DTLSConnectorResumeTest {
 		// check session id was not equals
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
 		assertThat(connection.getEstablishedSession().getSessionIdentifier(), not(equalTo(sessionId)));
-		assertClientIdentity(RawPublicKeyIdentity.class);
+		assertClientIdentity(clientPrincipalType);
 	}
 
 	@Test
 	public void testConnectorPerformsFullHandshakeWhenResumingWithDifferentSni() throws Exception {
+
 		// Do a first handshake
-		RawData raw = RawData.outbound("Hello World".getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint, "server.one", null), null, false);
+		RawData raw = RawData.outbound("Hello World".getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint, SERVERNAME, null), null, false);
 		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, raw, true);
 		SessionId sessionId = serverHelper.establishedServerSession.getSessionIdentifier();
 
@@ -609,32 +796,37 @@ public class DTLSConnectorResumeTest {
 		clientRawDataChannel.setLatchCount(1);
 
 		// send message
-		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint, "server.two", null), null, false);
+		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint, SERVERNAME_ALT, null), null, false);
 		client.send(data);
 		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
 		// check session id was not equals
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
 		assertThat(connection.getEstablishedSession().getSessionIdentifier(), not(equalTo(sessionId)));
-		assertClientIdentity(RawPublicKeyIdentity.class);
+		assertClientIdentity(clientPrincipalType);
 	}
 
 	@Test
 	public void testConnectorPerformsFullHandshakeWhenResumingWithEmptySessionId() throws Exception {
 		ConnectorHelper serverWithoutSessionId = new ConnectorHelper();
 		try {
-			DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
-			builder.setNoServerSessionId(true);
+			DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+					.setNoServerSessionId(true)
+					.setSniEnabled(true);
 			serverWithoutSessionId.startServer(builder);
+
+			clientInMemoryPskStore.addKnownPeer(serverWithoutSessionId.serverEndpoint, CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
+			clientInMemoryPskStore.addKnownPeer(serverWithoutSessionId.serverEndpoint, SERVERNAME, SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes());
+			clientInMemoryPskStore.addKnownPeer(serverWithoutSessionId.serverEndpoint, SERVERNAME_ALT, SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes());
 
 			// Do a first handshake
 			RawData raw = RawData.outbound("Hello World".getBytes(),
-					new AddressEndpointContext(serverWithoutSessionId.serverEndpoint, "server.no", null), null, false);
+					new AddressEndpointContext(serverWithoutSessionId.serverEndpoint, SERVERNAME, null), null, false);
 			LatchDecrementingRawDataChannel clientRawDataChannel = serverWithoutSessionId
 					.givenAnEstablishedSession(client, raw, true);
 			SessionId sessionId = serverWithoutSessionId.establishedServerSession.getSessionIdentifier();
 			assertTrue("session id must be empty", sessionId.isEmpty());
-			
+
 			// Force a resume session the next time we send data
 			client.forceResumeSessionFor(serverWithoutSessionId.serverEndpoint);
 			Connection connection = clientConnectionStore.get(serverWithoutSessionId.serverEndpoint);
@@ -648,7 +840,7 @@ public class DTLSConnectorResumeTest {
 
 			// send message
 			RawData data = RawData.outbound(msg.getBytes(),
-					new AddressEndpointContext(serverWithoutSessionId.serverEndpoint, "server.no", null), null, false);
+					new AddressEndpointContext(serverWithoutSessionId.serverEndpoint, SERVERNAME, null), null, false);
 			client.send(data);
 			assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
@@ -711,5 +903,9 @@ public class DTLSConnectorResumeTest {
 			assertThat(clientIdentity, instanceOf(principalType));
 			ConnectorHelper.assertPrincipalHasAdditionalInfo(clientIdentity, KEY_DEVICE_ID, DEVICE_ID);
 		}
+	}
+
+	static interface BuilderSetup {
+		Class<?> setup(DtlsConnectorConfig.Builder builder);
 	}
 }
