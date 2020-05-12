@@ -36,6 +36,7 @@ import java.security.MessageDigest;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 
 /**
  * The resuming server handshaker executes an abbreviated handshake when
@@ -137,14 +138,16 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 			clientRandom = clientHello.getRandom();
 			serverRandom = new Random();
 
+			CipherSuite cipherSuite = session.getCipherSuite();
 			HelloExtensions serverHelloExtensions = new HelloExtensions();
+			negotiateCipherSuite(clientHello, serverHelloExtensions);
 			processHelloExtensions(clientHello, serverHelloExtensions);
 
 			flightNumber += 2;
 			DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
 
 			ServerHello serverHello = new ServerHello(clientHello.getClientVersion(), serverRandom, session.getSessionIdentifier(),
-					session.getCipherSuite(), session.getCompressionMethod(), serverHelloExtensions, clientHello.getPeer());
+					cipherSuite, session.getCompressionMethod(), serverHelloExtensions, clientHello.getPeer());
 			wrapMessage(flight, serverHello);
 
 			ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage(clientHello.getPeer());
