@@ -31,7 +31,7 @@ import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
- * Simple asynchrounos test implementation of {@link AdvancedPskStore}.
+ * Simple asynchronous test implementation of {@link AdvancedPskStore}.
  */
 public class AsyncInMemoryPskStore extends AdvancedInMemoryPskStore {
 
@@ -92,14 +92,14 @@ public class AsyncInMemoryPskStore extends AdvancedInMemoryPskStore {
 	 *            or not used by the client.
 	 * @param identity psk identity. Maybe normalized
 	 * @param hmacAlgorithm HMAC algorithm name for PRF.
-	 * @param otherSecret other secert from ECDHE, or {@code null}. Must be
-	 *            cloned for asynchrounous use.
+	 * @param otherSecret other secert from ECDHE, or {@code null}.
 	 * @param seed seed for PRF.
 	 */
 	private void getSecretAsynchronous(ConnectionId cid, ServerNames serverNames, PskPublicInformation identity,
 			String hmacAlgorithm, SecretKey otherSecret, byte[] seed) {
 		PskSecretResult result = super.generateMasterSecret(cid, serverNames, identity, hmacAlgorithm, otherSecret,
 				seed);
+		SecretUtil.destroy(otherSecret);
 		resultHandler.apply(result);
 	}
 

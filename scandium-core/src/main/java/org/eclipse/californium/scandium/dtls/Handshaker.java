@@ -834,10 +834,10 @@ public abstract class Handshaker implements Destroyable {
 			SecretKey newPskSecret = pskSecretResult.getSecret();
 			if (newPskSecret != null) {
 				if (hostName != null) {
-					LOGGER.debug("client [{}] uses PSK identity [{}] for server [{}]", session.getPeer(), pskIdentity,
+					LOGGER.trace("client [{}] uses PSK identity [{}] for server [{}]", session.getPeer(), pskIdentity,
 							hostName);
 				} else {
-					LOGGER.debug("client [{}] uses PSK identity [{}]", session.getPeer(), pskIdentity);
+					LOGGER.trace("client [{}] uses PSK identity [{}]", session.getPeer(), pskIdentity);
 				}
 				PreSharedKeyIdentity pskPrincipal;
 				if (sniEnabled) {

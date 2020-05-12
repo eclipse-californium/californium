@@ -469,7 +469,7 @@ public class ClientHandshaker extends Handshaker {
 			break;
 		case PSK:
 			clientIdentity = getPskClientIdentity();
-			LOGGER.debug("Using PSK identity: {}", clientIdentity);
+			LOGGER.trace("Using PSK identity: {}", clientIdentity);
 			clientKeyExchange = new PSKClientKeyExchange(clientIdentity, session.getPeer());
 			masterSecretResult = requestPskSecretResult(clientIdentity, null);
 			if (masterSecretResult != null) {
@@ -478,7 +478,7 @@ public class ClientHandshaker extends Handshaker {
 			break;
 		case ECDHE_PSK:
 			clientIdentity = getPskClientIdentity();
-			LOGGER.debug("Using PSK identity: {}", clientIdentity);
+			LOGGER.trace("Using ECDHE PSK identity: {}", clientIdentity);
 			clientKeyExchange = new EcdhPskClientKeyExchange(clientIdentity, ecdhe.getEncodedPoint(), session.getPeer());
 			SecretKey otherSecret = ecdhe.generateSecret(serverKeyExchange.getEncodedPoint());
 			masterSecretResult = requestPskSecretResult(clientIdentity, otherSecret);

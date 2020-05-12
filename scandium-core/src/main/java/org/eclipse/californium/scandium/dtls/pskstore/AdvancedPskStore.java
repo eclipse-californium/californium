@@ -30,7 +30,8 @@ import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
- * New advanded PSK store with support for asynchrounous PSK store and HSM.
+ * Advanded PSK store with optional asynchrounous API which could also be used
+ * to delegate master secret generation to a HSM.
  * 
  * Returns psk secret result instead of PSK's secret key. The secret must either
  * be a master secret (algorithm "MAC"), or a PSK secret key (algorithm "PSK").
@@ -77,7 +78,7 @@ import org.eclipse.californium.scandium.util.ServerNames;
 public interface AdvancedPskStore {
 
 	/**
-	 * Check, if HSM supported ECDHE PSK cipher suites.
+	 * Check, if ECDHE PSK cipher suites are supported.
 	 * 
 	 * @return {@code true}, if ECDHE PSK cipher suites are supported,
 	 *         {@code false}, if not.
@@ -97,8 +98,8 @@ public interface AdvancedPskStore {
 	 *            or not used by the client.
 	 * @param identity psk identity. Maybe normalized
 	 * @param hmacAlgorithm HMAC algorithm name for PRF.
-	 * @param otherSecret other secert from ECDHE, or {@code null}. Must be
-	 *            cloned for asynchrounous use.
+	 * @param otherSecret other secret from ECDHE, or {@code null}. Must be
+	 *            cloned for asynchronous use.
 	 * @param seed seed for PRF.
 	 * @return master secret result, or {@code null}, if result is provided
 	 *         asynchronous.
@@ -126,11 +127,11 @@ public interface AdvancedPskStore {
 	PskPublicInformation getIdentity(InetSocketAddress peerAddress, ServerNames virtualHost);
 
 	/**
-	 * Set the handler for asynchrouns master secret results.
+	 * Set the handler for asynchronous master secret results.
 	 * 
 	 * Called during initialization of the {@link DTLSConnector}.
 	 * 
-	 * @param resultHandler handler for asynchrouns master secret results
+	 * @param resultHandler handler for asynchronous master secret results
 	 */
 	void setResultHandler(PskSecretResultHandler resultHandler);
 }
