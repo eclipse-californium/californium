@@ -593,10 +593,8 @@ public abstract class Handshaker implements Destroyable {
 	 */
 	private void processNextMessages(Record record) throws HandshakeException {
 		if (recursionProtection.isHeldByCurrentThread()) {
-			if (LOGGER.isTraceEnabled()) {
-				LOGGER.trace("Called from doProcessMessage, return to process next message!",
-						new Throwable("recursion-protection"));
-			}
+			LOGGER.warn("Called from doProcessMessage, return immediately to process next message!",
+					new Throwable("recursion-protection"));
 			return;
 		}
 		try {
@@ -815,10 +813,11 @@ public abstract class Handshaker implements Destroyable {
 	public abstract void startHandshake() throws HandshakeException;
 
 	/**
-	 * Process PSK secret result.
+	 * Process asynchronous PSK secret result.
 	 * 
-	 * If handshake expects the cipher change message, then process the messages
-	 * from the inbound buffer.
+	 * MUST not be called from {@link #doProcessMessage(HandshakeMessage)}
+	 * implementations! If handshake expects the cipher change message, then
+	 * process the messages from the inbound buffer.
 	 * 
 	 * @param pskSecretResult PSK secret result.
 	 * @throws HandshakeException if an error occurs
@@ -826,7 +825,23 @@ public abstract class Handshaker implements Destroyable {
 	 *             pending, or the handshaker {@link #isDestroyed()}.
 	 * @since 2.3
 	 */
-	public void processPskSecretResult(PskSecretResult pskSecretResult) throws HandshakeException {
+	public void processAsyncPskSecretResult(PskSecretResult pskSecretResult) throws HandshakeException {
+		processPskSecretResult(pskSecretResult);
+		if (changeCipherSuiteMessageExpected) {
+			processNextMessages(null);
+		}
+	}
+
+	/**
+	 * Process PSK secret result.
+	 * 
+	 * @param pskSecretResult PSK secret result.
+	 * @throws HandshakeException if an error occurs
+	 * @throws IllegalStateException if {@link #pskRequestPending} is not
+	 *             pending, or the handshaker {@link #isDestroyed()}.
+	 * @since 2.3
+	 */
+	protected void processPskSecretResult(PskSecretResult pskSecretResult) throws HandshakeException {
 		if (!pskRequestPending) {
 			throw new IllegalStateException("psk secret not pending!");
 		}

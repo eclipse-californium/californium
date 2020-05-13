@@ -398,7 +398,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 
 					@Override
 					public void apply(PskSecretResult masterSecretResult) {
-						processPskSecretResult(masterSecretResult);
+						processAsyncPskSecretResult(masterSecretResult);
 					}
 				});
 			}
@@ -2517,7 +2517,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * @param secretResult asynchronous psk secret result
 	 * @since 2.3
 	 */
-	private void processPskSecretResult(final PskSecretResult secretResult) {
+	private void processAsyncPskSecretResult(final PskSecretResult secretResult) {
 		final Connection connection = connectionStore.get(secretResult.getConnectionId());
 		if (connection != null && connection.hasOngoingHandshake()) {
 			SerialExecutor serialExecutor = connection.getExecutor();
@@ -2532,7 +2532,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 							Handshaker handshaker = connection.getOngoingHandshake();
 							if (handshaker != null) {
 								try {
-									handshaker.processPskSecretResult(secretResult);
+									handshaker.processAsyncPskSecretResult(secretResult);
 								} catch (HandshakeException e) {
 									handleExceptionDuringHandshake(e, e.getAlert().getLevel(), e.getAlert().getDescription(), connection, null);
 								} catch (IllegalStateException e) {
