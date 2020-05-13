@@ -155,7 +155,7 @@ public class DTLSConnectorAdvancedTest {
 		InMemoryPskStore pskStore = new InMemoryPskStore();
 		pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
 		pskStore.setKey(SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME);
-		aPskStore = new AsyncInMemoryPskStore(pskStore, 0) {
+		aPskStore = new AsyncInMemoryPskStore(pskStore) {
 
 			@Override
 			public PskSecretResult requestPskSecretResult(final ConnectionId cid, final ServerNames serverNames,

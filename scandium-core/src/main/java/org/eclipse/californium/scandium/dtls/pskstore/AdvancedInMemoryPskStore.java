@@ -47,7 +47,6 @@ public class AdvancedInMemoryPskStore implements AdvancedPskStore {
 			});
 
 	protected final PskStore pskStore;
-	protected final boolean master;
 
 	/**
 	 * Create an advanced pskstore from {@link PskStore}.
@@ -60,23 +59,6 @@ public class AdvancedInMemoryPskStore implements AdvancedPskStore {
 			throw new NullPointerException("PSK store must not be null!");
 		}
 		this.pskStore = pskStore;
-		this.master = true;
-	}
-
-	/**
-	 * Create an advanced pskstore from {@link PskStore}.
-	 * 
-	 * @param pskStore psk store
-	 * @param master {@code true}, return master secret, {@code false}, return
-	 *            PSK secret key.
-	 * @throws NullPointerException if store is {@code null}
-	 */
-	public AdvancedInMemoryPskStore(PskStore pskStore, boolean master) {
-		if (pskStore == null) {
-			throw new NullPointerException("PSK store must not be null!");
-		}
-		this.pskStore = pskStore;
-		this.master = master;
 	}
 
 	@Override
@@ -87,19 +69,13 @@ public class AdvancedInMemoryPskStore implements AdvancedPskStore {
 	@Override
 	public PskSecretResult requestPskSecretResult(ConnectionId cid, ServerNames serverNames,
 			PskPublicInformation identity, String hmacAlgorithm, SecretKey otherSecret, byte[] seed) {
-		PskSecretResult result;
-		SecretKey pskSecret = serverNames != null ? pskStore.getKey(serverNames, identity) : pskStore.getKey(identity);
-		if (master && pskSecret != null) {
-			ThreadLocalMac hmac = MAC.get(hmacAlgorithm);
-			SecretKey premasterSecret = PseudoRandomFunction.generatePremasterSecretFromPSK(otherSecret, pskSecret);
-			SecretKey masterSecret = PseudoRandomFunction.generateMasterSecret(hmac.current(), premasterSecret, seed);
-			SecretUtil.destroy(premasterSecret);
-			SecretUtil.destroy(pskSecret);
-			result = new PskSecretResult(cid, identity, masterSecret);
-		} else {
-			result = new PskSecretResult(cid, identity, pskSecret);
+		SecretKey secret = serverNames != null ? pskStore.getKey(serverNames, identity) : pskStore.getKey(identity);
+		if (secret != null) {
+			SecretKey masterSecret = generateMasterSecret(hmacAlgorithm, secret, otherSecret, seed);
+			SecretUtil.destroy(secret);
+			secret = masterSecret;
 		}
-		return result;
+		return new PskSecretResult(cid, identity, secret);
 	}
 
 	@Override
@@ -110,4 +86,14 @@ public class AdvancedInMemoryPskStore implements AdvancedPskStore {
 	@Override
 	public void setResultHandler(PskSecretResultHandler resultHandler) {
 	}
+
+	protected SecretKey generateMasterSecret(String hmacAlgorithm, SecretKey pskSecret, SecretKey otherSecret,
+			byte[] seed) {
+		ThreadLocalMac hmac = MAC.get(hmacAlgorithm);
+		SecretKey premasterSecret = PseudoRandomFunction.generatePremasterSecretFromPSK(otherSecret, pskSecret);
+		SecretKey masterSecret = PseudoRandomFunction.generateMasterSecret(hmac.current(), premasterSecret, seed);
+		SecretUtil.destroy(premasterSecret);
+		return masterSecret;
+	}
+
 }

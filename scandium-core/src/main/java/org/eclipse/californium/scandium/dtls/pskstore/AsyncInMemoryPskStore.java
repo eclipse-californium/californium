@@ -23,48 +23,103 @@ import javax.crypto.SecretKey;
 
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
+import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.PskSecretResult;
 import org.eclipse.californium.scandium.dtls.PskSecretResultHandler;
-import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * Simple asynchronous test implementation of {@link AdvancedPskStore}.
+ * Simple asynchrounos test implementation of {@link AdvancedPskStore}.
+ * 
+ * Use {@code 0} or negative delays for test with synchronous blocking
+ * behaviour. And positive delays for test with asynchronous none-blocking
+ * behaviour.
  */
 public class AsyncInMemoryPskStore extends AdvancedInMemoryPskStore {
 
-	private final int delayMillis;
+	private static final Logger LOGGER = LoggerFactory.getLogger(AsyncInMemoryPskStore.class);
+
+	/**
+	 * Thread factory.
+	 */
+	private static final NamedThreadFactory THREAD_FACTORY = new DaemonThreadFactory("AsyncPskStoreTimer#");
+	/**
+	 * Delay for psk result. {@code 0} or negative delays for test with
+	 * synchronous blocking behaviour. Positive delays for test with
+	 * asynchronous none-blocking behaviour.
+	 */
+	private volatile int delayMillis = 1;
+	/**
+	 * {@code true} to return generated master secret, {@code false} for PSK
+	 * secret key.
+	 */
+	private volatile boolean generateMasterSecret;
+	/**
+	 * Executor for asynchronous behaviour.
+	 */
 	private final ScheduledExecutorService executorService;
+	/**
+	 * Result handler set during initialization.
+	 * 
+	 * @see #setResultHandler(PskSecretResultHandler)
+	 */
 	private PskSecretResultHandler resultHandler;
 
 	/**
 	 * Create an advanced pskstore from {@link PskStore}.
 	 * 
+	 * A call to {@link #shutdown()} is required to cleanup the used resources
+	 * (executor).
+	 * 
 	 * @param pskStore psk store
-	 * @param delayMillis delay in milliseconds to report result
 	 * @throws NullPointerException if store is {@code null}
 	 */
-	public AsyncInMemoryPskStore(PskStore pskStore, int delayMillis) {
-		this(pskStore, true, delayMillis);
+	public AsyncInMemoryPskStore(PskStore pskStore) {
+		super(pskStore);
+		this.delayMillis = delayMillis;
+		executorService = ExecutorsUtil.newSingleThreadScheduledExecutor(THREAD_FACTORY); // $NON-NLS-1$
+		if (delayMillis > 0) {
+			LOGGER.warn("Asynchronous delayed PSK store {}ms.", delayMillis);
+		} else if (delayMillis < 0) {
+			LOGGER.warn("Synchronous delayed PSK store {}ms.", -delayMillis);
+		} else {
+			LOGGER.warn("Synchronous PSK store.");
+		}
 	}
 
 	/**
-	 * Create an advanced pskstore from {@link PskStore}.
+	 * Set secret mode.
 	 * 
-	 * @param pskStore psk store
-	 * @param master {@code true}, return master secret, {@code false} PSK
-	 *            secret key.
-	 * @param delayMillis delay in milliseconds to report result
-	 * @throws NullPointerException if store is {@code null}
+	 * @param enableGenerateMasterSecret {@code true} to return generated master
+	 *            secret, {@code false} for PSK secret key.
+	 * @return this psk store for command chaining
 	 */
-	public AsyncInMemoryPskStore(PskStore pskStore, boolean master, int delayMillis) {
-		super(pskStore, master);
-		this.delayMillis = delayMillis;
-		executorService = ExecutorsUtil.newSingleThreadScheduledExecutor(new DaemonThreadFactory("AsyncPskStoreTimer")); //$NON-NLS-1$
+	public AsyncInMemoryPskStore setSecretMode(boolean enableGenerateMasterSecret) {
+		this.generateMasterSecret = generateMasterSecret;
+		return this;
 	}
 
+	/**
+	 * Set delay.
+	 * 
+	 * @param delayMillis delay in milliseconds to report result. {@code 0} or
+	 *            negative delays using synchronous blocking behaviour. Positive
+	 *            delays using asynchronous none-blocking behaviour.
+	 * @return this psk store for command chaining
+	 */
+	public AsyncInMemoryPskStore setDelay(int delayMillis) {
+		this.delayMillis = delayMillis;
+		return this;
+	}
+
+	/**
+	 * Shutdown. Cleanup resouces.
+	 */
 	public void shutdown() {
 		executorService.shutdown();
 	}
@@ -72,16 +127,26 @@ public class AsyncInMemoryPskStore extends AdvancedInMemoryPskStore {
 	@Override
 	public PskSecretResult requestPskSecretResult(final ConnectionId cid, final ServerNames serverNames,
 			final PskPublicInformation identity, final String hmacAlgorithm, SecretKey otherSecret, byte[] seed) {
-		final byte[] randomSeed = Arrays.copyOf(seed, seed.length);
-		final SecretKey other = SecretUtil.create(otherSecret);
-		executorService.schedule(new Runnable() {
-
-			@Override
-			public void run() {
-				getSecretAsynchronous(cid, serverNames, identity, hmacAlgorithm, other, randomSeed);
+		if (delayMillis <= 0) {
+			if (delayMillis < 0) {
+				try {
+					Thread.sleep(-delayMillis);
+				} catch (InterruptedException e) {
+				}
 			}
-		}, delayMillis, TimeUnit.MILLISECONDS);
-		return null;
+			return getPskSecretResult(cid, serverNames, identity, hmacAlgorithm, otherSecret, seed);
+		} else {
+			final byte[] randomSeed = Arrays.copyOf(seed, seed.length);
+			final SecretKey other = SecretUtil.create(otherSecret);
+			executorService.schedule(new Runnable() {
+
+				@Override
+				public void run() {
+					getSecretAsynchronous(cid, serverNames, identity, hmacAlgorithm, other, randomSeed);
+				}
+			}, delayMillis, TimeUnit.MILLISECONDS);
+			return null;
+		}
 	}
 
 	/**
@@ -92,15 +157,41 @@ public class AsyncInMemoryPskStore extends AdvancedInMemoryPskStore {
 	 *            or not used by the client.
 	 * @param identity psk identity. Maybe normalized
 	 * @param hmacAlgorithm HMAC algorithm name for PRF.
-	 * @param otherSecret other secert from ECDHE, or {@code null}.
+	 * @param otherSecret other secert from ECDHE, or {@code null}. Must be
+	 *            cloned for asynchrounous use.
 	 * @param seed seed for PRF.
 	 */
 	private void getSecretAsynchronous(ConnectionId cid, ServerNames serverNames, PskPublicInformation identity,
 			String hmacAlgorithm, SecretKey otherSecret, byte[] seed) {
-		PskSecretResult result = super.requestPskSecretResult(cid, serverNames, identity, hmacAlgorithm, otherSecret,
-				seed);
-		SecretUtil.destroy(otherSecret);
+		PskSecretResult result = getPskSecretResult(cid, serverNames, identity, hmacAlgorithm, otherSecret, seed);
 		resultHandler.apply(result);
+	}
+
+	/**
+	 * Get psk secret result.
+	 * 
+	 * Depending on {@link #generateMasterSecret}, either the generated master
+	 * secret (algorithm "MAC"), or a PSK secret key (algorithm "PSK") is
+	 * included in the result.
+	 * 
+	 * @param cid connection id for stateless asynchronous implementations.
+	 * @param serverName server names. Maybe {@code null}, if SNI is not enabled
+	 *            or not used by the client.
+	 * @param identity psk identity. Maybe normalized
+	 * @param hmacAlgorithm HMAC algorithm name for PRF.
+	 * @param otherSecret other secert from ECDHE, or {@code null}.
+	 * @param seed seed for PRF.
+	 * @return psk secret result
+	 */
+	private PskSecretResult getPskSecretResult(ConnectionId cid, ServerNames serverNames, PskPublicInformation identity,
+			String hmacAlgorithm, SecretKey otherSecret, byte[] seed) {
+		SecretKey secret = serverNames != null ? pskStore.getKey(serverNames, identity) : pskStore.getKey(identity);
+		if (generateMasterSecret && secret != null) {
+			SecretKey masterSecret = generateMasterSecret(hmacAlgorithm, secret, otherSecret, seed);
+			SecretUtil.destroy(secret);
+			secret = masterSecret;
+		}
+		return new PskSecretResult(cid, identity, secret);
 	}
 
 	@Override

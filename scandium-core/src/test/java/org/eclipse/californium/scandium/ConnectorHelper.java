@@ -167,7 +167,7 @@ public class ConnectorHelper {
 			InMemoryPskStore pskStore = new InMemoryPskStore();
 			pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
 			pskStore.setKey(SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME);
-			aPskStore = new AsyncInMemoryPskStore(pskStore, 0);
+			aPskStore = new AsyncInMemoryPskStore(pskStore);
 			builder.setAdvancedPskStore(aPskStore);
 		}
 
