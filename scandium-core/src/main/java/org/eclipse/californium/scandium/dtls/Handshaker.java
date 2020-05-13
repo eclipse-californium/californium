@@ -263,6 +263,11 @@ public abstract class Handshaker implements Destroyable {
 	private boolean handshakeAborted = false;
 	private boolean handshakeFailed = false;
 	private boolean pskRequestPending = false;
+	/**
+	 * Other secret for ECDHE-PSK cipher suites.
+	 * <a href="https://tools.ietf.org/html/rfc5489#page-4"> RFC 5489, other
+	 * secret</a>
+	 */
 	private SecretKey otherSecret;
 	private Throwable cause;
 	private ApplicationLevelInfoSupplier applicationLevelInfoSupplier;
