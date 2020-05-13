@@ -2536,7 +2536,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 								} catch (HandshakeException e) {
 									handleExceptionDuringHandshake(e, e.getAlert().getLevel(), e.getAlert().getDescription(), connection, null);
 								} catch (IllegalStateException e) {
-									LOGGER.debug("Exception while processing psk secret result [{}]", connection, e);
+									LOGGER.warn("Exception while processing psk secret result [{}]", connection, e);
 								}
 							} else {
 								LOGGER.debug("No ongoing handshake for psk secret result [{}]", connection);
@@ -2550,7 +2550,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 				// dont't terminate connection on shutdown!
 				LOGGER.debug("Execution rejected while processing master secret result [{}]", connection, e);
 			} catch (RuntimeException e) {
-				LOGGER.debug("Unexpected error occurred while processing master secret result [{}]", connection, e);
+				LOGGER.warn("Unexpected error occurred while processing master secret result [{}]", connection, e);
 			}
 		} else {
 			LOGGER.debug("No connection or ongoing handshake for master secret result [{}]", connection);
