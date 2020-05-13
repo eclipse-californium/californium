@@ -656,23 +656,6 @@ public class DTLSConnector implements Connector, RecordLayer {
 		this.socket = socket;
 		pendingOutboundMessagesCountdown.set(config.getOutboundMessageBufferSize());
 
-		if (executorService instanceof ScheduledExecutorService) {
-			timer = (ScheduledExecutorService) executorService;
-		} else {
-			timer = ExecutorsUtil.newSingleThreadScheduledExecutor(
-					new DaemonThreadFactory("DTLS-Retransmit-Task-", NamedThreadFactory.SCANDIUM_THREAD_GROUP)); //$NON-NLS-1$
-		}
-
-		if (executorService == null) {
-			int threadCount = config.getConnectionThreadCount();
-			if (threadCount > 1) {
-				executorService = ExecutorsUtil.newFixedThreadPool(threadCount - 1,
-						new DaemonThreadFactory("DTLS-Connection-Handler-", NamedThreadFactory.SCANDIUM_THREAD_GROUP)); //$NON-NLS-1$
-			} else {
-				executorService = timer;
-			}
-			this.hasInternalExecutor = true;
-		}
 		if (bindAddress.getPort() != 0 && config.isAddressReuseEnabled()) {
 			// make it easier to stop/start a server consecutively without delays
 			LOGGER.info("Enable address reuse for socket!");
@@ -744,6 +727,25 @@ public class DTLSConnector implements Connector, RecordLayer {
 		}
 
 		lastBindAddress = new InetSocketAddress(socket.getLocalAddress(), socket.getLocalPort());
+
+		if (executorService instanceof ScheduledExecutorService) {
+			timer = (ScheduledExecutorService) executorService;
+		} else {
+			timer = ExecutorsUtil.newSingleThreadScheduledExecutor(new DaemonThreadFactory(
+					"DTLS-Timer-" + lastBindAddress + "#", NamedThreadFactory.SCANDIUM_THREAD_GROUP)); //$NON-NLS-1$
+		}
+
+		if (executorService == null) {
+			int threadCount = config.getConnectionThreadCount();
+			if (threadCount > 1) {
+				executorService = ExecutorsUtil.newFixedThreadPool(threadCount - 1, new DaemonThreadFactory(
+						"DTLS-Worker-" + lastBindAddress + "#", NamedThreadFactory.SCANDIUM_THREAD_GROUP)); //$NON-NLS-1$
+			} else {
+				executorService = timer;
+			}
+			this.hasInternalExecutor = true;
+		}
+
 		running.set(true);
 
 		int receiverThreadCount = config.getReceiverThreadCount();
@@ -773,12 +775,12 @@ public class DTLSConnector implements Connector, RecordLayer {
 			final Integer healthStatusInterval = config.getHealthStatusInterval();
 			if (healthStatusInterval != null) {
 				statusLogger = timer.scheduleAtFixedRate(new Runnable() {
-	
+
 					@Override
 					public void run() {
 						health.dump(config.getLoggingTag(), config.getMaxConnections(), connectionStore.remainingCapacity(), pendingHandshakesWithoutVerifiedPeer.get());
 					}
-	
+
 				}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
 			}
 		}
