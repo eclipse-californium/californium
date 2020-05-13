@@ -158,11 +158,11 @@ public class DTLSConnectorAdvancedTest {
 		aPskStore = new AsyncInMemoryPskStore(pskStore, 0) {
 
 			@Override
-			public PskSecretResult generateMasterSecret(final ConnectionId cid, final ServerNames serverNames,
+			public PskSecretResult requestPskSecretResult(final ConnectionId cid, final ServerNames serverNames,
 					final PskPublicInformation identity, final String hmacAlgorithm, SecretKey otherSecret,
 					byte[] seed) {
 				for (int index = 0; index < aPskStoreResponses; ++index) {
-					super.generateMasterSecret(cid, serverNames, identity, hmacAlgorithm, otherSecret, seed);
+					super.requestPskSecretResult(cid, serverNames, identity, hmacAlgorithm, otherSecret, seed);
 				}
 				return null;
 			}

@@ -85,7 +85,7 @@ public class AdvancedInMemoryPskStore implements AdvancedPskStore {
 	}
 
 	@Override
-	public PskSecretResult generateMasterSecret(ConnectionId cid, ServerNames serverNames,
+	public PskSecretResult requestPskSecretResult(ConnectionId cid, ServerNames serverNames,
 			PskPublicInformation identity, String hmacAlgorithm, SecretKey otherSecret, byte[] seed) {
 		PskSecretResult result;
 		SecretKey pskSecret = serverNames != null ? pskStore.getKey(serverNames, identity) : pskStore.getKey(identity);

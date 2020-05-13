@@ -70,7 +70,7 @@ public class AsyncInMemoryPskStore extends AdvancedInMemoryPskStore {
 	}
 
 	@Override
-	public PskSecretResult generateMasterSecret(final ConnectionId cid, final ServerNames serverNames,
+	public PskSecretResult requestPskSecretResult(final ConnectionId cid, final ServerNames serverNames,
 			final PskPublicInformation identity, final String hmacAlgorithm, SecretKey otherSecret, byte[] seed) {
 		final byte[] randomSeed = Arrays.copyOf(seed, seed.length);
 		final SecretKey other = SecretUtil.create(otherSecret);
@@ -97,7 +97,7 @@ public class AsyncInMemoryPskStore extends AdvancedInMemoryPskStore {
 	 */
 	private void getSecretAsynchronous(ConnectionId cid, ServerNames serverNames, PskPublicInformation identity,
 			String hmacAlgorithm, SecretKey otherSecret, byte[] seed) {
-		PskSecretResult result = super.generateMasterSecret(cid, serverNames, identity, hmacAlgorithm, otherSecret,
+		PskSecretResult result = super.requestPskSecretResult(cid, serverNames, identity, hmacAlgorithm, otherSecret,
 				seed);
 		SecretUtil.destroy(otherSecret);
 		resultHandler.apply(result);

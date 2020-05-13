@@ -86,25 +86,25 @@ public interface AdvancedPskStore {
 	boolean hasEcdhePskSupported();
 
 	/**
-	 * Generate master secret.
+	 * Request psk secret result.
 	 * 
 	 * Either return result, or {@code null} and return an asynchronous create
-	 * {@link PskSecretResult} with the CID and master secret calling the result
-	 * handler, provided during {@link DTLSConnector} initialization by
-	 * {@link #setResultHandler(PskSecretResultHandler)}.
+	 * {@link PskSecretResult} with the CID and master secret or PSK secret key
+	 * calling the result handler, provided during {@link DTLSConnector}
+	 * initialization by {@link #setResultHandler(PskSecretResultHandler)}.
 	 * 
 	 * @param cid connection id for stateless asynchronous implementations.
 	 * @param serverName server names. Maybe {@code null}, if SNI is not enabled
 	 *            or not used by the client.
-	 * @param identity psk identity. Maybe normalized
+	 * @param identity psk identity. Maybe normalized.
 	 * @param hmacAlgorithm HMAC algorithm name for PRF.
 	 * @param otherSecret other secret from ECDHE, or {@code null}. Must be
 	 *            cloned for asynchronous use.
 	 * @param seed seed for PRF.
-	 * @return master secret result, or {@code null}, if result is provided
+	 * @return psk secret result, or {@code null}, if result is provided
 	 *         asynchronous.
 	 */
-	PskSecretResult generateMasterSecret(ConnectionId cid, ServerNames serverName, PskPublicInformation identity,
+	PskSecretResult requestPskSecretResult(ConnectionId cid, ServerNames serverName, PskPublicInformation identity,
 			String hmacAlgorithm, SecretKey otherSecret, byte[] seed);
 
 	/**

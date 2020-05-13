@@ -1004,7 +1004,7 @@ public abstract class Handshaker implements Destroyable {
 		String hmacAlgorithm = session.getCipherSuite().getPseudoRandomFunctionMacName();
 		pskRequestPending = true;
 		this.otherSecret = SecretUtil.create(otherSecret);
-		return advancedPskStore.generateMasterSecret(connection.getConnectionId(), serverNames, pskIdentity,
+		return advancedPskStore.requestPskSecretResult(connection.getConnectionId(), serverNames, pskIdentity,
 				hmacAlgorithm, otherSecret, generateRandomSeed());
 	}
 
