@@ -696,8 +696,9 @@ public final class DtlsConnectorConfig {
 	 * Gets the advanced registry of <em>shared secrets</em> used for
 	 * authenticating clients during a DTLS handshake.
 	 * 
-	 * If a deprecated {@link PskStore} is provided to the builder, a
-	 * {@link AdvancedInMemoryPskStore} is returned using that psk store.
+	 * If a {@link PskStore} is provided to the builder using
+	 * {@link Builder#setPskStore(PskStore)}, a {@link AdvancedInMemoryPskStore}
+	 * is returned using that psk store after {@link Builder#build()} is called.
 	 * 
 	 * @return the registry
 	 * @since 2.3
