@@ -67,7 +67,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgor
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuiteSelector;
 import org.eclipse.californium.scandium.dtls.cipher.DefaultCipherSuiteSelector;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedInMemoryPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.SyncAdvancedPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustAllRpks;
@@ -697,7 +697,7 @@ public final class DtlsConnectorConfig {
 	 * authenticating clients during a DTLS handshake.
 	 * 
 	 * If a {@link PskStore} is provided to the builder using
-	 * {@link Builder#setPskStore(PskStore)}, a {@link AdvancedInMemoryPskStore}
+	 * {@link Builder#setPskStore(PskStore)}, a {@link SyncAdvancedPskStore}
 	 * is returned using that psk store after {@link Builder#build()} is called.
 	 * 
 	 * @return the registry
@@ -2771,7 +2771,7 @@ public final class DtlsConnectorConfig {
 			}
 
 			if (config.pskStore != null && config.advancedPskStore == null) {
-				config.advancedPskStore = new AdvancedInMemoryPskStore(config.pskStore);
+				config.advancedPskStore = new SyncAdvancedPskStore(config.pskStore);
 			}
 
 			if (config.supportedCipherSuites == null || config.supportedCipherSuites.isEmpty()) {

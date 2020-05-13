@@ -73,6 +73,7 @@ import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.Handshaker;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.PskSecretResult;
+import org.eclipse.californium.scandium.dtls.PskSecretResultHandler;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.RecordLayer;
@@ -158,11 +159,11 @@ public class DTLSConnectorAdvancedTest {
 		aPskStore = new AsyncInMemoryPskStore(pskStore) {
 
 			@Override
-			public PskSecretResult requestPskSecretResult(final ConnectionId cid, final ServerNames serverNames,
+			public PskSecretResult requestMasterSecret(final ConnectionId cid, final ServerNames serverNames,
 					final PskPublicInformation identity, final String hmacAlgorithm, SecretKey otherSecret,
-					byte[] seed) {
+					byte[] seed, PskSecretResultHandler callback) {
 				for (int index = 0; index < aPskStoreResponses; ++index) {
-					super.requestPskSecretResult(cid, serverNames, identity, hmacAlgorithm, otherSecret, seed);
+					super.requestMasterSecret(cid, serverNames, identity, hmacAlgorithm, otherSecret, seed, callback);
 				}
 				return null;
 			}

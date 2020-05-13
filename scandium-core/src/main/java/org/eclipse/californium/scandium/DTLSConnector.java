@@ -393,15 +393,6 @@ public class DTLSConnector implements Connector, RecordLayer {
 			this.connectionStore.attach(connectionIdGenerator);
 			this.connectionStore.setConnectionListener(config.getConnectionListener());
 			AdvancedPskStore advancedPskStore = config.getAdvancedPskStore();
-			if (advancedPskStore != null) {
-				advancedPskStore.setResultHandler(new PskSecretResultHandler() {
-
-					@Override
-					public void apply(PskSecretResult masterSecretResult) {
-						processAsyncPskSecretResult(masterSecretResult);
-					}
-				});
-			}
 			DtlsHealth healthHandler = config.getHealthHandler();
 			Integer healthStatusInterval = config.getHealthStatusInterval();
 			// this is a useful health metric
@@ -555,6 +546,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 				health.startHandshake();
 			}
 		}
+		applyResultHandler(handshaker);
 		onInitializeHandshaker(handshaker);
 	}
 
@@ -2509,6 +2501,16 @@ public class DTLSConnector implements Connector, RecordLayer {
 		}
 		DROP_LOGGER.debug("Socket [{}] is closed, discarding packet ...", address);
 		throw new IOException("Socket closed.");
+	}
+	
+	private void applyResultHandler(Handshaker handshaker) {
+		handshaker.setResultHandler(new PskSecretResultHandler() {
+
+			@Override
+			public void apply(PskSecretResult masterSecretResult) {
+				processAsyncPskSecretResult(masterSecretResult);
+			}
+		});
 	}
 
 	/**

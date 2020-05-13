@@ -208,6 +208,8 @@ public abstract class Handshaker implements Destroyable {
 	private final AtomicReference<DTLSFlight> pendingFlight = new AtomicReference<DTLSFlight>();
 
 	private final RecordLayer recordLayer;
+	private PskSecretResultHandler resultHandler;
+
 	/**
 	 * Associated connection for this handshaker.
 	 */
@@ -345,6 +347,10 @@ public abstract class Handshaker implements Destroyable {
 		}
 		this.nanosExpireTimeout = TimeUnit.MILLISECONDS.toNanos(expireTimeoutMillis);
 		addSessionListener(connection.getSessionListener());
+	}
+
+	public void setResultHandler(PskSecretResultHandler resultHandler) {
+		this.resultHandler = resultHandler;
 	}
 
 	/**
@@ -851,8 +857,8 @@ public abstract class Handshaker implements Destroyable {
 
 			String hostName = sniEnabled ? session.getHostName() : null;
 			PskPublicInformation pskIdentity = pskSecretResult.getPskPublicInformation();
-			SecretKey newPskSecret = pskSecretResult.getSecret();
-			if (newPskSecret != null) {
+			SecretKey masterSecret = pskSecretResult.getSecret();
+			if (masterSecret != null) {
 				if (hostName != null) {
 					LOGGER.trace("client [{}] uses PSK identity [{}] for server [{}]", session.getPeer(), pskIdentity,
 							hostName);
@@ -866,17 +872,7 @@ public abstract class Handshaker implements Destroyable {
 					pskPrincipal = new PreSharedKeyIdentity(pskIdentity.getPublicInfoAsString());
 				}
 				session.setPeerIdentity(pskPrincipal);
-				if (PskSecretResult.ALGORITHM_PSK.equals(newPskSecret.getAlgorithm())) {
-					Mac hmac = session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac();
-					SecretKey premasterSecret = PseudoRandomFunction.generatePremasterSecretFromPSK(otherSecret,
-							newPskSecret);
-					SecretKey masterSecret = PseudoRandomFunction.generateMasterSecret(hmac, premasterSecret,
-							generateRandomSeed());
-					SecretUtil.destroy(premasterSecret);
-					SecretUtil.destroy(newPskSecret);
-					newPskSecret = masterSecret;
-				}
-				processMasterSecret(newPskSecret);
+				processMasterSecret(masterSecret);
 			} else {
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_PSK_IDENTITY,
 						session.getPeer());
@@ -1021,8 +1017,8 @@ public abstract class Handshaker implements Destroyable {
 		String hmacAlgorithm = session.getCipherSuite().getPseudoRandomFunctionMacName();
 		pskRequestPending = true;
 		this.otherSecret = SecretUtil.create(otherSecret);
-		return advancedPskStore.requestPskSecretResult(connection.getConnectionId(), serverNames, pskIdentity,
-				hmacAlgorithm, otherSecret, generateRandomSeed());
+		return advancedPskStore.requestMasterSecret(connection.getConnectionId(), serverNames, pskIdentity,
+				hmacAlgorithm, otherSecret, generateRandomSeed(), resultHandler);
 	}
 
 	protected final void setCurrentReadState() {

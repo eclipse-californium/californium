@@ -106,8 +106,8 @@ public interface AdvancedPskStore {
 	 * @return psk secret result, or {@code null}, if result is provided
 	 *         asynchronous.
 	 */
-	PskSecretResult requestPskSecretResult(ConnectionId cid, ServerNames serverName, PskPublicInformation identity,
-			String hmacAlgorithm, SecretKey otherSecret, byte[] seed);
+	PskSecretResult requestMasterSecret(ConnectionId cid, ServerNames serverName, PskPublicInformation identity,
+			String hmacAlgorithm, SecretKey otherSecret, byte[] seed,PskSecretResultHandler callback);
 
 	/**
 	 * Gets the <em>identity</em> to use for a PSK based handshake with a given
@@ -127,13 +127,4 @@ public interface AdvancedPskStore {
 	 * @throws NullPointerException if address is {@code null}.
 	 */
 	PskPublicInformation getIdentity(InetSocketAddress peerAddress, ServerNames virtualHost);
-
-	/**
-	 * Set the handler for asynchronous master secret results.
-	 * 
-	 * Called during initialization of the {@link DTLSConnector}.
-	 * 
-	 * @param resultHandler handler for asynchronous master secret results
-	 */
-	void setResultHandler(PskSecretResultHandler resultHandler);
 }

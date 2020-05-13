@@ -40,7 +40,7 @@ public class PskSecretResult {
 	/**
 	 * Master secret (algorithm "MAC"), or PSK secret key (algorithm "PSK").
 	 */
-	private SecretKey secret;
+	private final SecretKey secret;
 
 	/**
 	 * Create result.
