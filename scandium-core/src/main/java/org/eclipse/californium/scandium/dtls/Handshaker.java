@@ -877,9 +877,6 @@ public abstract class Handshaker implements Destroyable {
 					newPskSecret = masterSecret;
 				}
 				processMasterSecret(newPskSecret);
-				if (changeCipherSuiteMessageExpected) {
-					processNextMessages(null);
-				}
 			} else {
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_PSK_IDENTITY,
 						session.getPeer());
