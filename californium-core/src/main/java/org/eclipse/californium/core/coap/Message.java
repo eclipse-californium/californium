@@ -145,6 +145,14 @@ public abstract class Message {
 	private boolean unintendedPayload;
 
 	/**
+	 * Maximum resource body size. For outgoing requests, this limits the size
+	 * of the response.
+	 * 
+	 * @since 2.3
+	 */
+	private int maxResourceBodySize;
+
+	/**
 	 * Message specific parameter. Overwrites then general ones from
 	 * {@link NetworkConfig}.
 	 */
@@ -543,6 +551,36 @@ public abstract class Message {
 	public Message setOptions(OptionSet options) {
 		this.options = new OptionSet(options);
 		return this;
+	}
+
+	/**
+	 * Get the maximum resource body size.
+	 * 
+	 * For incoming messages the protocol stack may set individual sizes. For
+	 * outgoing requests, this limits the size of the response.
+	 * 
+	 * @return maximum resource body size. {@code 0} to use the
+	 *         {@link NetworkConfig} value of
+	 *         {@link NetworkConfig#Keys#MAX_RESOURCE_BODY_SIZE}.
+	 * @since 2.3
+	 */
+	public int getMaxResourceBodySize() {
+		return maxResourceBodySize;
+	}
+
+	/**
+	 * Set the maximum resource body size.
+	 * 
+	 * For incoming messages the protocol stack may set individual sizes. For
+	 * outgoing requests, this limits the size of the response.
+	 * 
+	 * @param maxResourceBodySize maximum resouce body size. {@code 0} or
+	 *            default is defined by the {@link NetworkConfig} value of
+	 *            {@link NetworkConfig#Keys#MAX_RESOURCE_BODY_SIZE}.
+	 * @since 2.3
+	 */
+	public void setMaxResourceBodySize(int maxResourceBodySize) {
+		this.maxResourceBodySize = maxResourceBodySize;
 	}
 
 	/**

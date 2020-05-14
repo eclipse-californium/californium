@@ -140,6 +140,7 @@ public final class Block1BlockwiseStatus extends BlockwiseStatus {
 		if (request.isUnintendedPayload()) {
 			block.setUnintendedPayload();
 		}
+		block.setMaxResourceBodySize(request.getMaxResourceBodySize());
 
 		int currentSize = getCurrentSize();
 		int from = num * currentSize;
