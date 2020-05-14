@@ -18,7 +18,6 @@ package org.eclipse.californium.core.network.stack;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -40,10 +39,10 @@ public class TcpAdaptionLayer extends AbstractLayer {
 			lower().sendEmptyMessage(exchange, message);
 		} else if (exchange != null) {
 			// Empty messages don't make sense when running over TCP connector.
-			LOGGER.warn("attempting to send empty message (ACK/RST) in TCP mode {} - {}", message, exchange.getCurrentRequest(), new Throwable());
+			LOGGER.warn("attempting to send empty message ({}) in TCP mode {}", message, exchange, new Throwable());
 		} else {
 			// Empty messages don't make sense when running over TCP connector.
-			LOGGER.warn("attempting to send empty message (ACK/RST) in TCP mode {}", message, new Throwable());
+			LOGGER.warn("attempting to send empty message ({}) in TCP mode.", message, new Throwable());
 		}
 	}
 
