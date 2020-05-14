@@ -7,13 +7,20 @@
 
 	<parent>
 		<groupId>org.eclipse.californium</groupId>
-		<artifactId>parent</artifactId>
+		<artifactId>cf-bom</artifactId>
 		<version>2.3.0-SNAPSHOT</version>
+		<relativePath>../bom</relativePath>
 	</parent>
-	<artifactId>californium-interoperability-tests</artifactId>
+	<artifactId>californium-tests</artifactId>
+	<packaging>pom</packaging>
 
-	<name>Californium (Cf) Interoperability Tests</name>
-	<description>Communication tests with openssl and libcoap</description>
+	<name>Californium (Cf) Tests</name>
+	<description>Californium Tests.</description>
+
+	<modules>
+		<module>californium-integration-tests</module>
+		<module>californium-interoperability-tests</module>
+	</modules>
 
 	<properties>
 		<!-- 
@@ -36,18 +43,8 @@
 
 	<dependencies>
 		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.hamcrest</groupId>
-			<artifactId>hamcrest-library</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-api</artifactId>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>californium-legal</artifactId>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
@@ -65,48 +62,27 @@
 			<artifactId>scandium</artifactId>
 			<scope>test</scope>
 		</dependency>
-		<!-- runtime dependencies -->
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>demo-certs</artifactId>
-			<scope>runtime</scope>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>ch.qos.logback</groupId>
 			<artifactId>logback-classic</artifactId>
-			<scope>runtime</scope>
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
-
-	<profiles>
-		<profile>
-			<!-- maven compile would try to resolve test dependencies, 
-				even if tests are skipped. Therefore include this 
-				test dependency only, if tests are enabled -->
-			<id>tests</id>
-			<activation>
-				<property>
-					<name>maven.test.skip</name>
-					<value>!true</value>
-				</property>
-			</activation>
-			<dependencies>
-				<dependency>
-					<groupId>${project.groupId}</groupId>
-					<artifactId>element-connector</artifactId>
-					<classifier>tests</classifier>
-					<type>test-jar</type>
-				</dependency>
-				<dependency>
-					<groupId>${project.groupId}</groupId>
-					<artifactId>californium-core</artifactId>
-					<classifier>tests</classifier>
-					<scope>test</scope>
-					<type>test-jar</type>
-				</dependency>
-			</dependencies>
-		</profile>
-	</profiles>
 
 	<build>
 		<testResources>
@@ -127,14 +103,7 @@
 					<skipIfEmpty>true</skipIfEmpty>
 				</configuration>
 			</plugin>
-			<plugin>
-				<artifactId>maven-assembly-plugin</artifactId>
-				<configuration>
-					<descriptorRefs>
-						<descriptorRef>enhanced-jar-with-licenses</descriptorRef>
-					</descriptorRefs>
-				</configuration>
-			</plugin>
 		</plugins>
 	</build>
+
 </project>
