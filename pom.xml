@@ -108,12 +108,6 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.build.javaVersion>1.7</project.build.javaVersion>
 		<snapshotDependencyAllowed>true</snapshotDependencyAllowed>
-		<cbor.version>4.0.0</cbor.version>
-		<slf4j.version>1.7.25</slf4j.version>
-		<logback.version>1.2.3</logback.version>
-		<junit.version>4.12</junit.version>
-		<hamcrest.version>1.3</hamcrest.version>
-		<mockito.version>1.10.19</mockito.version>
 	</properties>
 
 	<distributionManagement>
@@ -148,122 +142,17 @@
 		</pluginRepository>
 	</pluginRepositories>
 
-	<dependencyManagement>
-		<dependencies>
-			<dependency>
-				<groupId>${project.groupId}</groupId>
-				<artifactId>element-connector</artifactId>
-				<version>${project.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>${project.groupId}</groupId>
-				<artifactId>element-connector-tcp-netty</artifactId>
-				<version>${project.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>${project.groupId}</groupId>
-				<artifactId>scandium</artifactId>
-				<version>${project.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>${project.groupId}</groupId>
-				<artifactId>californium-core</artifactId>
-				<version>${project.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>${project.groupId}</groupId>
-				<artifactId>californium-proxy</artifactId>
-				<version>${project.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>${project.groupId}</groupId>
-				<artifactId>californium-proxy2</artifactId>
-				<version>${project.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>${project.groupId}</groupId>
-				<artifactId>cf-nat</artifactId>
-				<version>${project.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>org.slf4j</groupId>
-				<artifactId>slf4j-api</artifactId>
-				<version>${slf4j.version}</version>
-			</dependency>
-			<dependency>
-				<groupId>com.upokecenter</groupId>
-				<artifactId>cbor</artifactId>
-				<version>${cbor.version}</version>
-			</dependency>
-
-			<!--  tests & runtime -->
-			<dependency>
-				<groupId>${project.groupId}</groupId>
-				<artifactId>demo-certs</artifactId>
-				<version>${project.version}</version>
-				<scope>runtime</scope>
-			</dependency>
-			<dependency>
-				<groupId>ch.qos.logback</groupId>
-				<artifactId>logback-classic</artifactId>
-				<version>${logback.version}</version>
-				<scope>runtime</scope>
-			</dependency>
-
-			<dependency>
-				<groupId>${project.groupId}</groupId>
-				<artifactId>californium-legal</artifactId>
-				<version>${project.version}</version>
-				<scope>provided</scope>
-			</dependency>
-
-			<!--  tests -->
-			<dependency>
-				<groupId>${project.groupId}</groupId>
-				<artifactId>element-connector</artifactId>
-				<version>${project.version}</version>
-				<classifier>tests</classifier>
-				<type>test-jar</type>
-				<scope>test</scope>
-			</dependency>
-			<dependency>
-				<groupId>${project.groupId}</groupId>
-				<artifactId>californium-core</artifactId>
-				<version>${project.version}</version>
-				<classifier>tests</classifier>
-				<type>test-jar</type>
-				<scope>test</scope>
-			</dependency>
-			<dependency>
-				<groupId>junit</groupId>
-				<artifactId>junit</artifactId>
-				<version>${junit.version}</version>
-				<scope>test</scope>
-			</dependency>
-			<dependency>
-				<groupId>org.mockito</groupId>
-				<artifactId>mockito-all</artifactId>
-				<version>${mockito.version}</version>
-				<scope>test</scope>
-			</dependency>
-			<dependency>
-				<groupId>org.hamcrest</groupId>
-				<artifactId>hamcrest-library</artifactId>
-				<version>${hamcrest.version}</version>
-				<scope>test</scope>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
-
 	<modules>
 		<module>assembly</module>
+		<module>bom</module>
 		<module>legal</module>
 		<module>element-connector</module>
 		<module>scandium-core</module>
 		<module>element-connector-tcp-netty</module>
 		<module>californium-core</module>
-		<module>californium-integration-tests</module>
-		<module>californium-interoperability-tests</module>
+		<module>cf-utils/cf-nat</module>
+		<module>cf-utils/cf-unix-health</module>
+		<module>californium-tests</module>
 		<module>californium-proxy</module>
 		<module>californium-proxy2</module>
 		<module>californium-osgi</module>
@@ -271,7 +160,6 @@
 		<module>demo-certs</module>
 		<module>cf-oscore</module>
 		<module>cf-pubsub</module>
-		<module>cf-unix-health</module>
 	</modules>
 
 	<build>

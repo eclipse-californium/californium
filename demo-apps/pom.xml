@@ -7,12 +7,13 @@
 
 	<parent>
 		<groupId>org.eclipse.californium</groupId>
-		<artifactId>parent</artifactId>
+		<artifactId>cf-bom</artifactId>
 		<version>2.3.0-SNAPSHOT</version>
+		<relativePath>../bom</relativePath>
 	</parent>
 	<artifactId>demo-apps</artifactId>
 	<packaging>pom</packaging>
-	
+
 	<name>Californium (Cf) Demo Applications</name>
 	<description>Demo applications illustrating Californium's features that can be run from the command line.</description>
 
@@ -24,7 +25,6 @@
 		<module>cf-extplugtest-server</module>
 		<module>cf-helloworld-client</module>
 		<module>cf-helloworld-server</module>
-		<module>cf-nat</module>
 		<module>cf-plugtest-checker</module>
 		<module>cf-plugtest-client</module>
 		<module>cf-plugtest-server</module>
@@ -52,20 +52,9 @@
 			never create JavaDoc for this module
 		 -->
 		<maven.javadoc.skip>true</maven.javadoc.skip>
-		<gson.version>2.8.2</gson.version>
 		<animal.sniffer.skip>true</animal.sniffer.skip>
 		<revapi.skip>true</revapi.skip>
 	</properties>
-
-	<dependencyManagement>
-		<dependencies>
-			<dependency>
-				<groupId>com.google.code.gson</groupId>
-				<artifactId>gson</artifactId>
-				<version>${gson.version}</version>
-			</dependency>
-		</dependencies>
-	</dependencyManagement>
 
 	<dependencies>
 		<!-- All demos depend on legal -->
