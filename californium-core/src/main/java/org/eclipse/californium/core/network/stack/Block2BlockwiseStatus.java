@@ -289,6 +289,7 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 		final Response block = new Response(response.getCode());
 		block.setDestinationContext(response.getDestinationContext());
 		block.setOptions(new OptionSet(response.getOptions()));
+		block.setMaxResourceBodySize(response.getMaxResourceBodySize());
 		block.addMessageObservers(response.getMessageObservers());
 		if (getCurrentNum() != 0) {
 			// observe option must only be included in first block

@@ -191,6 +191,12 @@ public class CoapObserveRelation {
 			// copy options
 			refresh.setOptions(request.getOptions());
 
+			refresh.setMaxResourceBodySize(request.getMaxResourceBodySize());
+			if (request.isUnintendedPayload()) {
+				refresh.setUnintendedPayload();
+				refresh.setPayload(request.getPayload());
+			}
+
 			// use same message observers
 			for (MessageObserver observer : request.getMessageObservers()) {
 				if (observer instanceof InternalMessageObserver) {
@@ -234,6 +240,12 @@ public class CoapObserveRelation {
 		cancel.setOptions(request.getOptions());
 		// set Observe to cancel
 		cancel.setObserveCancel();
+
+		cancel.setMaxResourceBodySize(request.getMaxResourceBodySize());
+		if (request.isUnintendedPayload()) {
+			cancel.setUnintendedPayload();
+			cancel.setPayload(request.getPayload());
+		}
 
 		// use same message observers
 		for (MessageObserver observer : request.getMessageObservers()) {

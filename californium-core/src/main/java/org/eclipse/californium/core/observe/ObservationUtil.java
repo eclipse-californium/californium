@@ -48,6 +48,7 @@ public final class ObservationUtil {
 		clonedRequest.setOptions(request.getOptions());
 		clonedRequest.setPayload(request.getPayload());
 		clonedRequest.setUserContext(request.getUserContext());
+		clonedRequest.setMaxResourceBodySize(request.getMaxResourceBodySize());
 		return new Observation(clonedRequest, observation.getContext());
 	}
 }
