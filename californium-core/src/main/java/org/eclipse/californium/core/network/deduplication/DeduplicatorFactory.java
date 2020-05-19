@@ -72,6 +72,8 @@ public class DeduplicatorFactory {
 
 		String type = config.getString(NetworkConfig.Keys.DEDUPLICATOR, NetworkConfig.Keys.NO_DEDUPLICATOR);
 		switch(type) {
+		case NetworkConfig.Keys.DEDUPLICATOR_PEERS_MARK_AND_SWEEP:
+			return new SweepPerPeerDeduplicator(config);
 		case NetworkConfig.Keys.DEDUPLICATOR_MARK_AND_SWEEP:
 			return new SweepDeduplicator(config);
 		case NetworkConfig.Keys.DEDUPLICATOR_CROP_ROTATION:

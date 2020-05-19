@@ -107,6 +107,12 @@ public class NetworkConfigDefaults {
 
 	public static final String DEFAULT_DEDUPLICATOR =  Keys.DEDUPLICATOR_MARK_AND_SWEEP;
 
+	/**
+	 * Default for message per peers mark and sweep.
+	 * @since 2.3 
+	 */
+	public static final int DEFAULT_PEERS_MARK_AND_SWEEP_MESSAGES = 64;
+
 	public static final long DEFAULT_MARK_AND_SWEEP_INTERVAL =  10 * 1000; // 10 secs
 
 	public static final int DEFAULT_CROP_ROTATION_PERIOD = (int) DEFAULT_EXCHANGE_LIFETIME;
@@ -233,6 +239,7 @@ public class NetworkConfigDefaults {
 
 		config.setString(Keys.DEDUPLICATOR, DEFAULT_DEDUPLICATOR);
 		config.setLong(Keys.MARK_AND_SWEEP_INTERVAL, DEFAULT_MARK_AND_SWEEP_INTERVAL);
+		config.setInt(Keys.PEERS_MARK_AND_SWEEP_MESSAGES, DEFAULT_PEERS_MARK_AND_SWEEP_MESSAGES);
 		config.setInt(Keys.CROP_ROTATION_PERIOD, DEFAULT_CROP_ROTATION_PERIOD);
 		config.setBoolean(Keys.DEDUPLICATOR_AUTO_REPLACE, DEFAULT_DEDUPLICATOR_AUTO_REPLACE);
 		config.setString(Keys.RESPONSE_MATCHING, DEFAULT_RESPONSE_MATCHING);
