@@ -68,6 +68,8 @@ import org.eclipse.californium.core.observe.ObservationStoreException;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
@@ -120,6 +122,8 @@ public class ObserveTest {
 	static final String TARGET_X = "resX";
 	static final String TARGET_Y = "resY";
 	static final String RESPONSE = "hi";
+
+	static final AtomicInteger counter = new AtomicInteger();
 
 	@Rule
 	public CoapThreadsRule cleanup = new CoapThreadsRule();
@@ -419,8 +423,12 @@ public class ObserveTest {
 		builder.setNetworkConfig(config);
 
 		serverEndpoint = builder.build();
-
+		int count = counter.incrementAndGet();
 		CoapServer server = new CoapServer(config);
+		server.setExecutors(ExecutorsUtil.newScheduledThreadPool(//
+				config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT),
+				new NamedThreadFactory("CoapServer(main):" + count + "#")), //$NON-NLS-1$
+				ExecutorsUtil.newDefaultSecondaryScheduler("CoapServer(secondary):" + count + "#"), false);
 		server.addEndpoint(serverEndpoint);
 		resourceX = new MyResource(TARGET_X);
 		resourceY = new MyResource(TARGET_Y);
@@ -554,6 +562,8 @@ public class ObserveTest {
 				try {
 					Thread.sleep(delay);
 				} catch (InterruptedException e) {
+					Thread.currentThread().interrupt();
+					return;
 				}
 			}
 			if (reject.compareAndSet(true, false)) {

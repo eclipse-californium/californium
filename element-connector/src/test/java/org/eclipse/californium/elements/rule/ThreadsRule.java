@@ -56,7 +56,7 @@ public class ThreadsRule implements TestRule {
 	 *            termination check
 	 */
 	public ThreadsRule(String... excludes) {
-		this.excludes = excludes;
+		this.excludes = excludes != null && excludes.length == 0 ? null : excludes;
 	}
 
 	@Override
@@ -115,30 +115,42 @@ public class ThreadsRule implements TestRule {
 	 *             too fast.
 	 */
 	public List<Thread> getActiveThreads() {
-		int[] counts = new int[5];
-		for (int i = 0; i < counts.length; ++i) {
+		int loops = 10;
+		int before = 0;
+		int[] counts = new int[loops * 2];
+		Thread[] active = null;
+		for (int i = 0; i < loops; ++i) {
 			int count = Thread.activeCount();
-			counts[i] = count;
-			Thread[] active = new Thread[count];
-			if (Thread.enumerate(active) == count) {
-				if (excludes == null || excludes.length == 0) {
-					return Arrays.asList(active);
-				} else {
-					List<Thread> threads = new ArrayList<Thread>();
-					for (Thread thread : active) {
+			counts[i * 2] = count;
+			if (active == null || active.length < count + 1) {
+				// one more to check for changes
+				active = new Thread[count + 1];
+			}
+			Arrays.fill(active, null);
+			int actual = Thread.enumerate(active);
+			counts[(i * 2) + 1] = actual;
+			if (actual == count || actual == before) {
+				List<Thread> threads = new ArrayList<Thread>(actual);
+				for (int index = 0; index < actual; ++index) {
+					Thread thread = active[index];
+					if (thread != null && thread.isAlive()) {
 						boolean skip = false;
-						for (String pattern : excludes) {
-							if (thread.getName().matches(pattern)) {
-								skip = true;
-								break;
+						if (excludes != null) {
+							for (String pattern : excludes) {
+								if (thread.getName().matches(pattern)) {
+									skip = true;
+									break;
+								}
 							}
 						}
 						if (!skip) {
 							threads.add(thread);
 						}
 					}
-					return threads;
 				}
+				return threads;
+			} else {
+				before = actual;
 			}
 		}
 		throw new IllegalStateException("Active threads unstable! " + Arrays.toString(counts));
@@ -156,25 +168,41 @@ public class ThreadsRule implements TestRule {
 	 *             too fast or new threads are still alive.
 	 */
 	public void checkThreadLeak(List<Thread> activeThreads, boolean reportLeakAsException) {
-		List<Thread> listAfter = new ArrayList<>(getActiveThreads());
+		List<Thread> listAfter = getJoinedThreadList(activeThreads);
+		if (!listAfter.isEmpty()) {
+			listAfter = getJoinedThreadList(activeThreads);
+			if (!listAfter.isEmpty()) {
+				int alive = 0;
+				for (Thread thread : listAfter) {
+					if (thread.isAlive()) {
+						++alive;
+						LOGGER.warn("Thread {} is still alive!", thread.getName());
+					}
+				}
+				if (alive > 0) {
+					dump("leaking " + description, listAfter);
+					if (reportLeakAsException) {
+						throw new IllegalStateException(
+								"Active threads differs by " + alive + "! (" + description + ")");
+					}
+				}
+			}
+		}
+	}
+
+	private List<Thread> getJoinedThreadList(List<Thread> activeThreads) {
+		List<Thread> listAfter = getActiveThreads();
 		listAfter.removeAll(activeThreads);
 		if (!listAfter.isEmpty()) {
 			for (Thread thread : listAfter) {
 				try {
 					thread.join(1000);
 				} catch (InterruptedException e) {
-				}
-			}
-			listAfter = new ArrayList<>(getActiveThreads());
-			listAfter.removeAll(activeThreads);
-			if (!listAfter.isEmpty()) {
-				dump("leaking " + description, listAfter);
-				if (reportLeakAsException) {
-					throw new IllegalStateException(
-							"Active threads differs by " + listAfter.size() + "! (" + description + ")");
+					LOGGER.warn("Interrupted while joining Thread {}!", thread.getName());
 				}
 			}
 		}
+		return listAfter;
 	}
 
 	/**
@@ -186,17 +214,35 @@ public class ThreadsRule implements TestRule {
 	public void dump(String message, List<Thread> list) {
 		LOGGER.info("Threads {}: {} threads", message, list.size());
 		for (Thread thread : list) {
-			ThreadGroup threadGroup = thread.getThreadGroup();
-			if (threadGroup != null) {
-				LOGGER.info("Threads {} : {}-{}", description, thread.getName(), threadGroup.getName());
-			} else {
-				LOGGER.info("Threads {} : {}", description, thread.getName());
-			}
-			if (LOGGER.isTraceEnabled()) {
-				StackTraceElement[] stackTrace = thread.getStackTrace();
-				for (StackTraceElement trace : stackTrace) {
-					LOGGER.trace("   {}", trace);
+			if (thread != null) {
+				ThreadGroup threadGroup = thread.getThreadGroup();
+				String mark = "";
+				if (thread.isInterrupted()) {
+					if (thread.isAlive()) {
+						mark = " interrupted alive";
+					} else {
+						mark = " interrupted died";
+					}
+				} else {
+					if (thread.isAlive()) {
+						mark = " alive";
+					} else {
+						mark = " died";
+					}
 				}
+				if (threadGroup != null) {
+					LOGGER.info("Threads {} : {}-{}{}", description, thread.getName(), threadGroup.getName(), mark);
+				} else {
+					LOGGER.info("Threads {} : {}{}", description, thread.getName(), mark);
+				}
+				if (LOGGER.isTraceEnabled()) {
+					StackTraceElement[] stackTrace = thread.getStackTrace();
+					for (StackTraceElement trace : stackTrace) {
+						LOGGER.trace("   {}", trace);
+					}
+				}
+			} else {
+				LOGGER.error("Threads {} : active threads list corrupted!", description);
 			}
 		}
 	}
