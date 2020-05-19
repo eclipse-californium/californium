@@ -20,6 +20,8 @@ import org.eclipse.californium.elements.util.PublicAPIExtension;
 /**
  * Additional interface for {@link MessageObserver}, to prevent a message
  * observer from being moved for reregistration.
+ * 
+ * @since 2.1
  */
 @PublicAPIExtension(type = MessageObserver.class)
 public interface InternalMessageObserver {

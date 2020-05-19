@@ -18,6 +18,8 @@ package org.eclipse.californium.core.coap;
 /**
  * InternalMessageObserverAdapter to prevent a message observer from being moved
  * for reregistration.
+ * 
+ * @since 21.
  */
 public abstract class InternalMessageObserverAdapter extends MessageObserverAdapter implements InternalMessageObserver {
 
