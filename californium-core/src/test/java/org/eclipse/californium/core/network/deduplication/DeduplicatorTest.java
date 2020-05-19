@@ -55,6 +55,7 @@ public class DeduplicatorTest {
 	@Parameters(name = "deduplicator = {0}")
 	public static Iterable<String> deduplicatorParams() {
 		return Arrays.asList(NetworkConfig.Keys.DEDUPLICATOR_MARK_AND_SWEEP,
+				NetworkConfig.Keys.DEDUPLICATOR_PEERS_MARK_AND_SWEEP,
 				NetworkConfig.Keys.DEDUPLICATOR_CROP_ROTATION);
 	}
 

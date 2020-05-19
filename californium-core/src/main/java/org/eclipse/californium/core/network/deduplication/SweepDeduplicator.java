@@ -51,17 +51,21 @@ import org.slf4j.LoggerFactory;
  * This deduplicator uses an in-memory map to store incoming messages.
  * <p>
  * The deduplicator periodically iterates through all entries and removes
- * messages (exchanges) that have been received before EXCHANGE_LIFETIME seconds.
+ * messages (exchanges) that have been received before EXCHANGE_LIFETIME
+ * seconds.
  * </p>
  */
-public final class SweepDeduplicator implements Deduplicator {
+public class SweepDeduplicator implements Deduplicator {
 
 	private final static Logger LOGGER = LoggerFactory.getLogger(SweepDeduplicator.class);
 
 	/**
-	 * Add timestamp for deduplication to Exchange.
+	 * Add timestamp for deduplication to Exchange. For special processing of
+	 * notifies, a notify exchange is stored for deduplication with multiple
+	 * MIDs, each represents a notify and its send time, but the exchange is
+	 * always the freshest.
 	 */
-	private static class DedupExchange {
+	static class DedupExchange {
 
 		/**
 		 * Nano-timestamp for deduplication of Exchange.
@@ -86,7 +90,7 @@ public final class SweepDeduplicator implements Deduplicator {
 		public int hashCode() {
 			return exchange.hashCode();
 		}
-	
+
 		@Override
 		public boolean equals(Object obj) {
 			if (this == obj) {
@@ -102,11 +106,12 @@ public final class SweepDeduplicator implements Deduplicator {
 	}
 
 	/** The hash map with all incoming messages. */
-	private final ConcurrentMap<KeyMID, DedupExchange> incomingMessages = new ConcurrentHashMap<>();
-	private final SweepAlgorithm algorithm;
+	final ConcurrentMap<KeyMID, DedupExchange> incomingMessages = new ConcurrentHashMap<>();
+	final long exchangeLifetime;
+	final boolean replace;
+	Runnable algorithm;
+
 	private final long sweepInterval;
-	private final long exchangeLifetime;
-	private final boolean replace;
 	private volatile ScheduledFuture<?> jobStatus;
 	private ScheduledExecutorService executor;
 
@@ -121,12 +126,13 @@ public final class SweepDeduplicator implements Deduplicator {
 	 * of milliseconds</li>
 	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#MARK_AND_SWEEP_INTERVAL} -
 	 * the interval at which to check for expired exchanges in milliseconds</li>
+	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#DEDUPLICATOR_AUTO_REPLACE} -
+	 * the flag to enable exchange replacing, if the new exchange differs from the already stored one.</li>
 	 * </ul>
 	 * 
 	 * @param config the configuration to use.
 	 */
-	public SweepDeduplicator(final NetworkConfig config) {
-		algorithm = new SweepAlgorithm();
+	public SweepDeduplicator(NetworkConfig config) {
 		sweepInterval = config.getLong(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL);
 		exchangeLifetime = config.getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME);
 		replace = config.getBoolean(Keys.DEDUPLICATOR_AUTO_REPLACE);
@@ -134,9 +140,11 @@ public final class SweepDeduplicator implements Deduplicator {
 
 	@Override
 	public synchronized void start() {
+		if (algorithm == null) {
+			algorithm = new SweepAlgorithm();
+		}
 		if (jobStatus == null) {
-			jobStatus = executor.scheduleAtFixedRate(algorithm, sweepInterval, sweepInterval,
-					TimeUnit.MILLISECONDS);
+			jobStatus = executor.scheduleAtFixedRate(algorithm, sweepInterval, sweepInterval, TimeUnit.MILLISECONDS);
 		}
 	}
 
@@ -162,31 +170,47 @@ public final class SweepDeduplicator implements Deduplicator {
 	 * KeyMID has not yet arrived, this method returns null, indicating that
 	 * the message with the KeyMID is not a duplicate. In this case, the
 	 * exchange is added to the deduplicator.
+	 * Calls {@link #onAdd(KeyMID, boolean)}, if exchange was added.
 	 */
 	@Override
 	public Exchange findPrevious(final KeyMID key, final Exchange exchange) {
 		DedupExchange current = new DedupExchange(exchange);
 		DedupExchange previous = incomingMessages.putIfAbsent(key, current);
-		if (replace && previous != null) {
-			if (previous.exchange.getOrigin() != exchange.getOrigin()) {
+
+		boolean replaced = false;
+		if (replace && previous != null && previous.exchange.getOrigin() != exchange.getOrigin()) {
+			if (incomingMessages.replace(key, previous, current)) {
 				LOGGER.debug("replace exchange for {}", key);
-				if (incomingMessages.replace(key, previous, current)) {
-					previous = null;
-				} else {
-					previous = incomingMessages.putIfAbsent(key, current);
-				}
+				previous = null;
+				replaced = true;
+			} else {
+				// previous has changed
+				previous = incomingMessages.putIfAbsent(key, current);
 			}
 		}
-		return null == previous ? null : previous.exchange;
+
+		if (previous == null) {
+			LOGGER.debug("add exchange for {}", key);
+			onAdd(key, replaced);
+			return null;
+		} else {
+			LOGGER.debug("found exchange for {}", key);
+			return previous.exchange;
+		}
 	}
 
 	@Override
 	public boolean replacePrevious(KeyMID key, Exchange previous, Exchange exchange) {
+		boolean replaced = true;
 		boolean result = true;
 		DedupExchange prev = new DedupExchange(previous);
 		DedupExchange current = new DedupExchange(exchange);
 		if (!incomingMessages.replace(key, prev, current)) {
+			replaced = false;
 			result = incomingMessages.putIfAbsent(key, current) == null;
+		}
+		if (result) {
+			onAdd(key, replaced);
 		}
 		return result;
 	}
@@ -210,6 +234,18 @@ public final class SweepDeduplicator implements Deduplicator {
 	@Override
 	public int size() {
 		return incomingMessages.size();
+	}
+
+	/**
+	 * Called when a MID key was added.
+	 * 
+	 * @param key added key
+	 * @param replace {@code true}, if the added key replaces a existing one,
+	 *            {@code false}, if not.
+	 * @since 2.3
+	 */
+	protected void onAdd(KeyMID key, boolean replace) {
+		// empty default implementation
 	}
 
 	/**
@@ -237,11 +273,11 @@ public final class SweepDeduplicator implements Deduplicator {
 		 * Iterate through all entries and remove the obsolete ones.
 		 */
 		private void sweep() {
-			
+
 			if (!incomingMessages.isEmpty()) {
 				final long start = ClockUtil.nanoRealtime();
 				final long oldestAllowed = start - TimeUnit.MILLISECONDS.toNanos(exchangeLifetime);
-	
+
 				// Notice that ConcurrentHashMap guarantees the correctness for this iteration.
 				for (Map.Entry<?, DedupExchange> entry : incomingMessages.entrySet()) {
 					DedupExchange exchange = entry.getValue();

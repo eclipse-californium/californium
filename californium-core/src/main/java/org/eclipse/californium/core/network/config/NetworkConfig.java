@@ -221,10 +221,23 @@ public final class NetworkConfig {
 		public static final String DEDUPLICATOR = "DEDUPLICATOR";
 		public static final String DEDUPLICATOR_MARK_AND_SWEEP = "DEDUPLICATOR_MARK_AND_SWEEP";
 		/**
+		 * Peers based deduplicator. Limits maxium messages kept per peer to
+		 * {@link #PEERS_MARK_AND_SWEEP_MESSAGES}. Removes messages, even if
+		 * exchange-lifetime is not expired.
+		 * 
+		 * @since 2.3
+		 */
+		public static final String DEDUPLICATOR_PEERS_MARK_AND_SWEEP = "DEDUPLICATOR_PEERS_MARK_AND_SWEEP";
+		/**
 		 * The interval after which the next sweep run should occur (in
 		 * MILLISECONDS).
 		 */
 		public static final String MARK_AND_SWEEP_INTERVAL = "MARK_AND_SWEEP_INTERVAL";
+		/**
+		 * The number of messages per peer kept for deduplication.
+		 * @since 2.3
+		 */
+		public static final String PEERS_MARK_AND_SWEEP_MESSAGES = "PEERS_MARK_AND_SWEEP_MESSAGES";
 		public static final String DEDUPLICATOR_CROP_ROTATION = "DEDUPLICATOR_CROP_ROTATION";
 		/**
 		 * The interval after which the next crop run should occur (in
@@ -693,9 +706,9 @@ public final class NetworkConfig {
 				LOGGER.warn("value for key [{}] is not a {0}, returning default value", key, defaultValue.getClass());
 			}
 		} else if (value == null) {
-			LOGGER.warn("key [{}] is undefined, returning default value", key);
+			LOGGER.debug("key [{}] is undefined, returning default value", key);
 		} else {
-			LOGGER.warn("key [{}] is empty, returning default value", key);
+			LOGGER.debug("key [{}] is empty, returning default value", key);
 		}
 		return result;
 	}
