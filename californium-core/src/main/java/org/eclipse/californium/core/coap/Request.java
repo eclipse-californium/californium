@@ -1175,6 +1175,17 @@ public class Request extends Message {
 	}
 
 	/**
+	 * Convenience factory method to construct a FETCH request and equivalent to
+	 * <code>new Request(Code.FETCH);</code>
+	 * 
+	 * @return a new FETCH request
+	 * @since 2.3
+	 */
+	public static Request newFetch() {
+		return new Request(Code.FETCH);
+	}
+
+	/**
 	 * Convenience factory method to construct a POST request and equivalent to
 	 * <code>new Request(Code.POST);</code>
 	 * 
@@ -1192,6 +1203,28 @@ public class Request extends Message {
 	 */
 	public static Request newPut() {
 		return new Request(Code.PUT);
+	}
+
+	/**
+	 * Convenience factory method to construct a PATCH request and equivalent to
+	 * <code>new Request(Code.PATCH);</code>
+	 * 
+	 * @return a new PATCH request
+	 * @since 2.3
+	 */
+	public static Request newPatch() {
+		return new Request(Code.PATCH);
+	}
+
+	/**
+	 * Convenience factory method to construct a IPATCH request and equivalent to
+	 * <code>new Request(Code.IPATCH);</code>
+	 * 
+	 * @return a new IPATCH request
+	 * @since 2.3
+	 */
+	public static Request newIPatch() {
+		return new Request(Code.IPATCH);
 	}
 
 	/**

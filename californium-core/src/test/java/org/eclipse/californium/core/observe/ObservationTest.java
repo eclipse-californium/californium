@@ -20,7 +20,6 @@
 package org.eclipse.californium.core.observe;
 
 import static org.hamcrest.core.Is.*;
-import static org.hamcrest.core.IsEqual.equalTo;
 import static org.hamcrest.core.IsNot.not;
 import static org.hamcrest.core.IsSame.theInstance;
 import static org.hamcrest.core.IsSame.sameInstance;
@@ -30,6 +29,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.eclipse.californium.category.Small;
+import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.rule.CoapThreadsRule;
@@ -79,16 +79,86 @@ public class ObservationTest {
 		});
 		Observation observation = new Observation(request, null);
 		request.cancel();
-		
+
 		Observation cloned = ObservationUtil.shallowClone(observation);
 		Request clonedRequest = cloned.getRequest();
 		assertThat(clonedRequest, is(not(theInstance(request))));
-		assertThat(clonedRequest.getURI(), is(equalTo(request.getURI())));
+		assertThat(clonedRequest.getCode(), is(Code.GET));
+		assertThat(clonedRequest.getURI(), is(request.getURI()));
 		assertThat(clonedRequest.getOptions().hasObserve(), is(true));
 		assertThat(clonedRequest.getOptions().getObserve(), is(0));
 		assertThat(clonedRequest.getToken(), is(sameInstance(request.getToken())));
-		assertThat(clonedRequest.getUserContext(), is(equalTo(request.getUserContext())));
+		assertThat(clonedRequest.getUserContext(), is(request.getUserContext()));
 		assertThat(clonedRequest.isCanceled(), is(false));
+		assertThat(clonedRequest.getMessageObservers().isEmpty(), is(true));
+
+		assertThat(request.isCanceled(), is(true));
+		assertThat(request.getMessageObservers().isEmpty(), is(false));
+
+	}
+
+	@Test
+	public void testShallowCloneIntendedPayload() {
+		Map<String,String> userContext = new HashMap<String,String>();
+		userContext.put("test", "only");
+		Request request = Request.newFetch();
+		request.setURI("coap://localhost/this");
+		request.setObserve();
+		request.setToken(new byte[] { 1, 2, 3 });
+		request.setUserContext(userContext);
+		request.setPayload("Hi!");
+		request.addMessageObserver(new MessageObserverAdapter() {
+		});
+		Observation observation = new Observation(request, null);
+		request.cancel();
+
+		Observation cloned = ObservationUtil.shallowClone(observation);
+		Request clonedRequest = cloned.getRequest();
+		assertThat(clonedRequest, is(not(theInstance(request))));
+		assertThat(clonedRequest.getCode(), is(Code.FETCH));
+		assertThat(clonedRequest.getURI(), is(request.getURI()));
+		assertThat(clonedRequest.getOptions().hasObserve(), is(true));
+		assertThat(clonedRequest.getOptions().getObserve(), is(0));
+		assertThat(clonedRequest.getToken(), is(sameInstance(request.getToken())));
+		assertThat(clonedRequest.getUserContext(), is(request.getUserContext()));
+		assertThat(clonedRequest.isCanceled(), is(false));
+		assertThat(clonedRequest.isUnintendedPayload(), is(false));
+		assertThat(clonedRequest.getPayloadString(), is("Hi!"));
+		assertThat(clonedRequest.getMessageObservers().isEmpty(), is(true));
+
+		assertThat(request.isCanceled(), is(true));
+		assertThat(request.getMessageObservers().isEmpty(), is(false));
+
+	}
+
+	@Test
+	public void testShallowCloneUnintendedPayload() {
+		Map<String,String> userContext = new HashMap<String,String>();
+		userContext.put("test", "only");
+		Request request = Request.newGet();
+		request.setURI("coap://localhost/this");
+		request.setObserve();
+		request.setToken(new byte[] { 1, 2, 3 });
+		request.setUserContext(userContext);
+		request.setUnintendedPayload();
+		request.setPayload("Hi!");
+		request.addMessageObserver(new MessageObserverAdapter() {
+		});
+		Observation observation = new Observation(request, null);
+		request.cancel();
+
+		Observation cloned = ObservationUtil.shallowClone(observation);
+		Request clonedRequest = cloned.getRequest();
+		assertThat(clonedRequest, is(not(theInstance(request))));
+		assertThat(clonedRequest.getCode(), is(Code.GET));
+		assertThat(clonedRequest.getURI(), is(request.getURI()));
+		assertThat(clonedRequest.getOptions().hasObserve(), is(true));
+		assertThat(clonedRequest.getOptions().getObserve(), is(0));
+		assertThat(clonedRequest.getToken(), is(sameInstance(request.getToken())));
+		assertThat(clonedRequest.getUserContext(), is(request.getUserContext()));
+		assertThat(clonedRequest.isCanceled(), is(false));
+		assertThat(clonedRequest.isUnintendedPayload(), is(true));
+		assertThat(clonedRequest.getPayloadString(), is("Hi!"));
 		assertThat(clonedRequest.getMessageObservers().isEmpty(), is(true));
 
 		assertThat(request.isCanceled(), is(true));
