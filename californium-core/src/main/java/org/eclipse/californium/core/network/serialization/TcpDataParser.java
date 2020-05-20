@@ -25,6 +25,7 @@ package org.eclipse.californium.core.network.serialization;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Message;
+import org.eclipse.californium.core.coap.MessageFormatException;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.elements.util.DatagramReader;
 
@@ -38,6 +39,10 @@ public final class TcpDataParser extends DataParser {
 
 	@Override
 	protected MessageHeader parseHeader(final DatagramReader reader) {
+		if (!reader.bytesAvailable(1)) {
+			throw new MessageFormatException(
+					"TCP Message too short! " + (reader.bitsLeft() / Byte.SIZE) + " must be at least 1 byte!");
+		}
 		int len = reader.read(LENGTH_NIBBLE_BITS);
 		int tokenLength = reader.read(TOKEN_LENGTH_BITS);
 		int lengthSize = 0;
@@ -49,6 +54,11 @@ public final class TcpDataParser extends DataParser {
 			lengthSize = 2;
 		} else if (len == 15) {
 			lengthSize = 4;
+		}
+		int size = lengthSize + 1 + tokenLength;
+		if (!reader.bytesAvailable(size)) {
+			throw new MessageFormatException(
+					"TCP Message too short! " + (reader.bitsLeft() / Byte.SIZE) + " must be at least " + size + " bytes!");
 		}
 		reader.readBytes(lengthSize);
 		int code = reader.read(CODE_BITS);

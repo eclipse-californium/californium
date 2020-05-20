@@ -24,6 +24,8 @@
 package org.eclipse.californium.core.network.serialization;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.net.InetAddress;
@@ -36,6 +38,7 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.CoAPMessageFormatException;
 import org.eclipse.californium.core.coap.Message;
+import org.eclipse.californium.core.coap.MessageFormatException;
 import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -65,18 +68,20 @@ public class DataParserTest {
 
 	private final DataSerializer serializer;
 	private final DataParser parser;
+	private final boolean tcp;
 	private final int expectedMid;
 
-	public DataParserTest(DataSerializer serializer, DataParser parser, int expectedMid) {
+	public DataParserTest(DataSerializer serializer, DataParser parser, boolean tcp) {
 		this.serializer = serializer;
 		this.parser = parser;
-		this.expectedMid = expectedMid;
+		this.tcp = tcp;
+		this.expectedMid = tcp ? Message.NONE : 13 ;
 	}
 
 	@Parameterized.Parameters public static List<Object[]> parameters() {
 		List<Object[]> parameters = new ArrayList<>();
-		parameters.add(new Object[] { new UdpDataSerializer(), new UdpDataParser(), 7 });
-		parameters.add(new Object[] { new TcpDataSerializer(), new TcpDataParser(), Message.NONE });
+		parameters.add(new Object[] { new UdpDataSerializer(), new UdpDataParser(), false });
+		parameters.add(new Object[] { new TcpDataSerializer(), new TcpDataParser(), true });
 		return parameters;
 	}
 
@@ -157,6 +162,31 @@ public class DataParserTest {
 			// THEN an exception is thrown by the parser
 			assertEquals(0b00000001, e.getCode());
 			assertEquals(true, e.isConfirmable());
+		}
+	}
+
+	@Test public void testParseMessageDetectsMalformedToken() {
+		// GIVEN a request with an option value shorter than specified
+		byte[] malformedGetRequest = new byte[] { 
+				0b01001000, // ver 1, CON, token length: 8
+				0b00000001, // code: 0.01 (GET request)
+				0x00, 0x10, // message ID
+				0x24, // option number 2, length: 4
+				0x01, 0x02, 0x03 // token value is one byte short
+		};
+
+		// WHEN parsing the request
+		try {
+			parser.parseMessage(malformedGetRequest);
+			fail("Parser should have detected malformed options");
+		} catch (CoAPMessageFormatException e) {
+			// THEN an exception is thrown by the udp parser
+			assertFalse(tcp);
+			assertEquals(0b00000001, e.getCode());
+			assertEquals(true, e.isConfirmable());
+		} catch (MessageFormatException e) {
+			// THEN an exception is thrown by the tcp parser
+			assertTrue(tcp);
 		}
 	}
 
