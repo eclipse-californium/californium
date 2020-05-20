@@ -1173,12 +1173,12 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors, M
 					}
 				} else {
 					// ignore erroneous messages that are not transmitted reliably
-					LOGGER.debug("{}discarding malformed message from [{}]", tag, raw.getEndpointContext());
+					LOGGER.debug("{}discarding malformed message from [{}]: {}", tag, raw.getEndpointContext(), e.getMessage());
 				}
 			} catch (MessageFormatException e) {
 
 				// ignore erroneous messages that are not transmitted reliably
-				LOGGER.debug("{}discarding malformed message from [{}]", tag, raw.getEndpointContext());
+				LOGGER.debug("{}discarding malformed message from [{}]: {}", tag, raw.getEndpointContext(), e.getMessage());
 			}
 		}
 
