@@ -46,6 +46,9 @@ public final class ObservationUtil {
 		clonedRequest.setMID(request.getMID());
 		clonedRequest.setToken(request.getToken());
 		clonedRequest.setOptions(request.getOptions());
+		if (request.isUnintendedPayload()) {
+			clonedRequest.setUnintendedPayload();
+		}
 		clonedRequest.setPayload(request.getPayload());
 		clonedRequest.setUserContext(request.getUserContext());
 		clonedRequest.setMaxResourceBodySize(request.getMaxResourceBodySize());
