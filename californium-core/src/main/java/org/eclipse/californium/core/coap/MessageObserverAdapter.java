@@ -47,7 +47,7 @@ import org.eclipse.californium.elements.EndpointContext;
  * An instance of the concrete message observer can then be registered with a
  * message using the message's <code>addMessageObserver</code> method.
  */
-public abstract class MessageObserverAdapter implements MessageObserver {
+public abstract class MessageObserverAdapter implements MessageObserver2 {
 
 	@Override
 	public void onRetransmission() {
@@ -101,6 +101,11 @@ public abstract class MessageObserverAdapter implements MessageObserver {
 
 	@Override
 	public void onSendError(Throwable error) {
+		failed();
+	}
+
+	@Override
+	public void onResponseHandlingError(Throwable error) {
 		failed();
 	}
 

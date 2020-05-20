@@ -156,6 +156,7 @@ public class BlockwiseClientSideTest {
 
 		request.waitForResponse(ERROR_TIMEOUT_IN_MS);
 		assertTrue("Request should have been cancelled", request.isCanceled());
+		assertNotNull("Request should have failed with error", request.getOnResponseError());
 	}
 
 	/**

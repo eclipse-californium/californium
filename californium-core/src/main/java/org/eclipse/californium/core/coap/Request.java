@@ -242,6 +242,13 @@ public class Request extends Message {
 	private Map<String, String> userContext;
 
 	/**
+	 * Indicates if handling the response caused an error.
+	 * 
+	 * @since 2.3
+	 */
+	private volatile Throwable responseHandlingError;
+
+	/**
 	 * Creates a request of type {@code CON} for a CoAP code.
 	 * 
 	 * @param code the request code.
@@ -1123,6 +1130,39 @@ public class Request extends Message {
 	public void setSendError(Throwable sendError) {
 		super.setSendError(sendError);
 		if (sendError != null) {
+			synchronized (this) {
+				notifyAll();
+			}
+		}
+	}
+
+	/**
+	 * Return the error which happened on response handling. 
+	 * 
+	 * @return a {@link Throwable} if an error happened or {@code null} is there was no error.
+	 * 
+	 * @since 2.3
+	 */
+	public Throwable getOnResponseError() {
+		return responseHandlingError;
+	}
+
+	/**
+	 * Mark this request as failing to handle the response.
+	 * 
+	 * @param cause the cause of the failure.
+	 * 
+	 * @since 2.3
+	 */
+	public void setOnResponseError(Throwable cause) {
+		this.responseHandlingError = cause;
+		if (responseHandlingError != null) {
+			for (MessageObserver handler : getMessageObservers()) {
+				if (handler instanceof MessageObserver2) {
+					((MessageObserver2) handler).onResponseHandlingError(responseHandlingError);
+				}
+			}
+
 			synchronized (this) {
 				notifyAll();
 			}
