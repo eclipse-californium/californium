@@ -127,6 +127,7 @@ import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
+import java.net.PortUnreachableException;
 import java.security.GeneralSecurityException;
 import java.security.Principal;
 import java.util.ArrayList;
@@ -2502,6 +2503,11 @@ public class DTLSConnector implements Connector, RecordLayer {
 			try {
 				socket.send(datagramPacket);
 				return;
+			} catch (PortUnreachableException e) {
+				if (!socket.isClosed()) {
+					LOGGER.warn("Could not send record, destination {} unreachable!",
+							StringUtil.toString((InetSocketAddress) datagramPacket.getSocketAddress()));
+				}
 			} catch (IOException e) {
 				if (!socket.isClosed()) {
 					LOGGER.warn("Could not send record", e);
