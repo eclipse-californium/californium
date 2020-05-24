@@ -23,6 +23,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.IOException;
+import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
@@ -110,7 +111,16 @@ public class ScandiumUtil extends ConnectorUtil {
 		Connector connector = getConnector();
 		channel = new SimpleRawDataChannel(1);
 		connector.setRawDataReceiver(channel);
-		connector.start();
+		try {
+			connector.start();
+		} catch (BindException e) {
+			try {
+				Thread.sleep(500);
+				connector.start();
+			} catch (InterruptedException e1) {
+				Thread.currentThread().interrupt();
+			}
+		}
 	}
 
 	/**
