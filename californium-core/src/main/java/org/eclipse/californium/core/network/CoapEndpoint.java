@@ -133,6 +133,7 @@ import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -751,7 +752,7 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors, M
 		if (receiver == null) {
 			throw new NullPointerException("Connector must not be null!");
 		}
-		if (!receiver.getAddress().getAddress().isMulticastAddress()) {
+		if (!NetworkInterfacesUtil.isMultiAddress(receiver.getAddress().getAddress())) {
 			throw new IllegalArgumentException("Connector is not a valid multicast receiver!");
 		}
 		multicastReceivers.add(receiver);
@@ -1374,7 +1375,7 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors, M
 			// set request attributes from raw data
 			request.setScheme(scheme);
 			InetSocketAddress in = connector.getAddress();
-			if (in.getAddress().isMulticastAddress()) {
+			if (NetworkInterfacesUtil.isMultiAddress(in.getAddress())) {
 				request.setDestinationContext(new AddressEndpointContext(in));
 			} else {
 				LOGGER.warn("{}multicast-receiver is not in multicast group, drop request {}", tag, request);

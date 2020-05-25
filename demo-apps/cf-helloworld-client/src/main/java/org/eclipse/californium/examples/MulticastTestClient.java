@@ -40,7 +40,7 @@ import org.eclipse.californium.elements.util.StringUtil;
 public class MulticastTestClient {
 
 	private enum MulticastMode {
-		IPv4, IPv6_LINK, Ipv6_SITE
+		IPv4, IPv4_BROADCAST, IPv6_LINK, Ipv6_SITE
 	}
 
 	/**
@@ -88,10 +88,19 @@ public class MulticastTestClient {
 		default:
 		case IPv4:
 			if (NetworkInterfacesUtil.isAnyIpv4()) {
-				uri = "coap://" + CoAP.MULTICAST_IPV4.getHostAddress() + ":" + port + "/" + resourcePath + "?4";
+				uri = "coap://" + CoAP.MULTICAST_IPV4.getHostAddress() + ":" + port + "/" + resourcePath;
 				break;
 			} else {
 				System.err.print("IPv4 not supported!");
+				return;
+			}
+		case IPv4_BROADCAST:
+			if (NetworkInterfacesUtil.isAnyIpv4() && NetworkInterfacesUtil.getBroadcastIpv4() != null) {
+				uri = "coap://" + NetworkInterfacesUtil.getBroadcastIpv4().getHostAddress() + ":" + port + "/"
+						+ resourcePath + "?B";
+				break;
+			} else {
+				System.err.print("IPv4 broadcast not supported!");
 				return;
 			}
 		case IPv6_LINK:
@@ -106,7 +115,7 @@ public class MulticastTestClient {
 		case Ipv6_SITE:
 			if (NetworkInterfacesUtil.isAnyIpv6()) {
 				uri = "coap://[" + CoAP.MULTICAST_IPV6_SITELOCAL.getHostAddress() + "]:" + port + "/" + resourcePath
-						+ "?6SI";
+						+ "?6SL";
 				break;
 			} else {
 				System.err.print("IPv6 not supported!");
@@ -149,6 +158,8 @@ public class MulticastTestClient {
 			get(client, unicastPort, resourcePath);
 			// sends a multicast IPv4 request
 			mget(client, multicastPort, resourcePath, MulticastMode.IPv4);
+			// sends a broadcast IPv4 request
+			mget(client, multicastPort, resourcePath, MulticastMode.IPv4_BROADCAST);
 			// https://bugs.openjdk.java.net/browse/JDK-8210493
 			// link-local multicast is broken
 			// sends a link-multicast IPv6 request

@@ -18,11 +18,14 @@ package org.eclipse.californium.elements.util;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
+import java.net.InterfaceAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.util.Collection;
 import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,13 +62,19 @@ public class NetworkInterfacesUtil {
 	private static boolean anyIpv6;
 
 	/**
-	 * A IPv4 address on a multicast supporting network interface, if available.
+	 * A IPv4 broadcast address on a multicast supporting network interface, if available.
+	 * 
+	 * @since 2.3
+	 */
+	private static Inet4Address broadcastIpv4;
+	/**
+	 * A IPv4 address of a multicast supporting network interface, if available.
 	 * 
 	 * @since 2.3
 	 */
 	private static Inet4Address multicastInterfaceIpv4;
 	/**
-	 * A Pv6 address on a multicast supporting network interface, if available.
+	 * A Pv6 address of a multicast supporting network interface, if available.
 	 * 
 	 * @since 2.3
 	 */
@@ -76,9 +85,17 @@ public class NetworkInterfacesUtil {
 	 * @since 2.3
 	 */
 	private static NetworkInterface multicastInterface;
+	/**
+	 * Set of detected broadcast addresses.
+	 * 
+	 * @since 2.3
+	 */
+	private static final Set<InetAddress> broadcastAddresses = new HashSet<InetAddress>();
 
 	private synchronized static void initialize() {
 		if (anyMtu == 0) {
+			broadcastAddresses.clear();
+			broadcastIpv4 = null;
 			multicastInterfaceIpv4 = null;
 			multicastInterfaceIpv6 = null;
 			multicastInterface = null;
@@ -91,7 +108,7 @@ public class NetworkInterfacesUtil {
 				Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
 				while (interfaces.hasMoreElements()) {
 					NetworkInterface iface = interfaces.nextElement();
-					if (iface.isUp()) {
+					if (iface.isUp() && !iface.isLoopback()) {
 						int ifaceMtu = iface.getMTU();
 						if (ifaceMtu > 0 && ifaceMtu < mtu) {
 							mtu = ifaceMtu;
@@ -122,12 +139,25 @@ public class NetworkInterfacesUtil {
 								}
 							}
 						}
+						for (InterfaceAddress interfaceAddress : iface.getInterfaceAddresses()) {
+							InetAddress broadcast = interfaceAddress.getBroadcast();
+							if (broadcast != null) {
+								broadcastAddresses.add(broadcast);
+								LOGGER.debug("Found broadcast address {}.", broadcast);
+								if (broadcastIpv4 == null) {
+									broadcastIpv4 = (Inet4Address) broadcast;
+								}
+							}
+						}
 					}
 				}
 			} catch (SocketException ex) {
-				LOGGER.warn("discover any interface failed!", ex);
+				LOGGER.warn("discover the <any> interface failed!", ex);
 				anyIpv4 = true;
 				anyIpv6 = true;
+			}
+			if (broadcastAddresses.isEmpty()) {
+				LOGGER.info("no broadcast address found!");
 			}
 			multicastInterfaceIpv4 = site4 == null ? link4 : site4;
 			multicastInterfaceIpv6 = site6 == null ? link6 : site6;
@@ -167,6 +197,17 @@ public class NetworkInterfacesUtil {
 	public static boolean isAnyIpv6() {
 		initialize();
 		return anyIpv6;
+	}
+
+	/**
+	 * Gets a IPv4 broadcast address.
+	 * 
+	 * @return IPv4 broadcast address, or {@code null}, if not available
+	 * @since 2.3
+	 */
+	public static Inet4Address getBroadcastIpv4() {
+		initialize();
+		return broadcastIpv4;
 	}
 
 	/**
@@ -225,5 +266,32 @@ public class NetworkInterfacesUtil {
 			LOGGER.error("could not fetch all interface addresses", e);
 		}
 		return interfaces;
+	}
+
+	/**
+	 * Check, if address is broadcast address of one of the network interfaces.
+	 * 
+	 * @param address address to check
+	 * @return {@code true}, if address is broadcast address of one of the
+	 *         network interfaces, {@code false}, otherwise.
+	 * @since 2.3
+	 */
+	public static boolean isBroadcastAddress(InetAddress address) {
+		initialize();
+		return broadcastAddresses.contains(address);
+	}
+
+	/**
+	 * Check, if address is a multicast or a broadcast address of one of the
+	 * network interfaces.
+	 * 
+	 * @param address address to check. May be {@code null}.
+	 * @return {@code true}, if address is a multicast or a broadcast address of
+	 *         one of the network interfaces, {@code false}, otherwise.
+	 * @since 2.3
+	 */
+	public static boolean isMultiAddress(InetAddress address) {
+		initialize();
+		return address != null && (address.isMulticastAddress() || broadcastAddresses.contains(address));
 	}
 }

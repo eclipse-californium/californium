@@ -61,6 +61,7 @@ import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.util.ClockUtil;
+import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 
 /**
@@ -783,7 +784,7 @@ public class Request extends Message {
 			throw new IllegalStateException("destination context already set!");
 		}
 		this.destination = destination;
-		multicast = destination != null && destination.isMulticastAddress();
+		multicast = NetworkInterfacesUtil.isMultiAddress(destination);
 		return this;
 	}
 
@@ -857,7 +858,7 @@ public class Request extends Message {
 					null);
 			super.setDestinationContext(context);
 		}
-		multicast = context.getPeerAddress().getAddress().isMulticastAddress();
+		multicast = NetworkInterfacesUtil.isMultiAddress(context.getPeerAddress().getAddress());
 	}
 
 	/**
@@ -886,7 +887,7 @@ public class Request extends Message {
 		}
 		super.setRequestDestinationContext(peerContext);
 		multicast = peerContext != null && !peerContext.getPeerAddress().isUnresolved()
-				&& peerContext.getPeerAddress().getAddress().isMulticastAddress();
+				&& NetworkInterfacesUtil.isMultiAddress(peerContext.getPeerAddress().getAddress());
 		return this;
 	}
 

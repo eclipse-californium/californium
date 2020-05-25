@@ -30,6 +30,7 @@ import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
+import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -148,7 +149,7 @@ public class InMemoryMessageIdProvider implements MessageIdProvider {
 		// destination sp
 		// => use special range 0 - 65000
 
-		if (destination.getAddress().isMulticastAddress()) {
+		if (NetworkInterfacesUtil.isMultiAddress(destination.getAddress())) {
 			if (multicastTracker == null) {
 				LOG.warn(
 						"Destination address {} is a multicast address, please configure NetworkConfig to support multicast messaging",
