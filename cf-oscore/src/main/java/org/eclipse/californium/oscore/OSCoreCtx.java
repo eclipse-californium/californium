@@ -20,6 +20,7 @@
 package org.eclipse.californium.oscore;
 
 import java.nio.ByteBuffer;
+import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import org.slf4j.Logger;
@@ -36,7 +37,9 @@ import com.upokecenter.cbor.CBORObject;
 
 import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.cose.CoseException;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.scandium.dtls.cipher.CCMBlockCipher;
 
 /**
  * 
@@ -338,6 +341,9 @@ public class OSCoreCtx {
 			LOGGER.error(e.getMessage());
 			throw new OSException(e.getMessage());
 		}
+
+		// Initialize cipher object
+		initializeCipher(common_alg);
 
 	}
 
@@ -899,4 +905,36 @@ public class OSCoreCtx {
 			this.CoAPCode = CoAPCode;
 		}
 	}
+
+	/**
+	 * Initializes the cipher object by calling CCMBlockCipher.encrypt with
+	 * dummy data. Doing this at creation of the OSCORE context reduces the
+	 * latency for the first request since it would otherwise happen then.
+	 * 
+	 * @param alg the encryption algorithm used
+	 */
+	private void initializeCipher(AlgorithmID alg) {
+		switch (alg) {
+		case AES_CCM_16_64_128:
+
+			byte[] key = { (byte) 0xEB, (byte) 0xDE, (byte) 0xBC, (byte) 0x51, (byte) 0xF1, (byte) 0x03,
+					(byte) 0x79, (byte) 0x14, (byte) 0x14, (byte) 0x4F, (byte) 0xC3, (byte) 0xAC, (byte) 0x40,
+					(byte) 0x14, (byte) 0xD2, (byte) 0x4C };
+			byte[] nonce = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
+
+			try {
+				CCMBlockCipher.encrypt(new SecretKeySpec(key, "AES"), nonce, Bytes.EMPTY,
+						Bytes.EMPTY, 0);
+			} catch (GeneralSecurityException e) {
+				LOGGER.error("Failed to initialize cipher.");
+				throw new RuntimeException("Failed to initialize cipher.");
+			}
+
+			break;
+
+		default:
+			break;
+		}
+	}
+
 }
