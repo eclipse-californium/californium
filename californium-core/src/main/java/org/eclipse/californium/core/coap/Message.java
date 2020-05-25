@@ -69,6 +69,7 @@ import org.eclipse.californium.core.observe.ObserveManager;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextUtil;
 import org.eclipse.californium.elements.util.ClockUtil;
+import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 
 /**
  * The class Message models the base class of all CoAP messages. CoAP messages
@@ -813,7 +814,7 @@ public abstract class Message {
 	 */
 	public Message setDestinationContext(EndpointContext peerContext) {
 		// requests calls setRequestDestinationContext instead
-		if (peerContext != null && peerContext.getPeerAddress().getAddress().isMulticastAddress()) {
+		if (peerContext != null && NetworkInterfacesUtil.isMultiAddress(peerContext.getPeerAddress().getAddress())) {
 			throw new IllegalArgumentException("Multicast destination is only supported for request!");
 		}
 		this.destinationContext = peerContext;

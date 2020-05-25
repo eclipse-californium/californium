@@ -75,7 +75,7 @@ public class MulticastTestServer {
 			udpConnector.setReuseAddress(true);
 			CoapEndpoint coapEndpoint = new CoapEndpoint.Builder().setNetworkConfig(config).setConnector(udpConnector).build();
 
-			UdpMulticastConnector connector = new UdpMulticastConnector(ipv6, new InetSocketAddress(CoAP.MULTICAST_IPV6_SITELOCAL, multicastPort), CoAP.MULTICAST_IPV6_SITELOCAL);
+			UdpMulticastConnector connector = new UdpMulticastConnector(ipv6, new InetSocketAddress(CoAP.MULTICAST_IPV6_SITELOCAL, multicastPort));
 			connector.setLoopbackMode(LOOPBACK);
 			try {
 				connector.start();
@@ -95,7 +95,7 @@ public class MulticastTestServer {
 			 * https://bugs.openjdk.java.net/browse/JDK-8210493
 			 * link-local multicast is broken
 			 */
-			connector = new UdpMulticastConnector(ipv6, new InetSocketAddress(CoAP.MULTICAST_IPV6_LINKLOCAL, multicastPort), CoAP.MULTICAST_IPV6_LINKLOCAL);
+			connector = new UdpMulticastConnector(ipv6, new InetSocketAddress(CoAP.MULTICAST_IPV6_LINKLOCAL, multicastPort));
 			connector.setLoopbackMode(LOOPBACK);
 			try {
 				connector.start();
@@ -120,7 +120,7 @@ public class MulticastTestServer {
 			udpConnector.setReuseAddress(true);
 			CoapEndpoint coapEndpoint = new CoapEndpoint.Builder().setNetworkConfig(config).setConnector(udpConnector).build();
 
-			UdpMulticastConnector connector = new UdpMulticastConnector(ipv4, new InetSocketAddress(CoAP.MULTICAST_IPV4, multicastPort), CoAP.MULTICAST_IPV4);
+			UdpMulticastConnector connector = new UdpMulticastConnector(ipv4, new InetSocketAddress(CoAP.MULTICAST_IPV4, multicastPort));
 			connector.setLoopbackMode(LOOPBACK);
 			try {
 				connector.start();
@@ -135,7 +135,11 @@ public class MulticastTestServer {
 			if (connector != null) {
 				((MulticastReceivers) coapEndpoint).addMulticastReceiver(connector);
 			}
-
+			Inet4Address broadcast = NetworkInterfacesUtil.getBroadcastIpv4();
+			if (broadcast != null) {
+				connector = new UdpMulticastConnector(new InetSocketAddress(broadcast, multicastPort));
+				((MulticastReceivers) coapEndpoint).addMulticastReceiver(connector);
+			}
 			server.addEndpoint(coapEndpoint);
 			LOGGER.info("IPv4 - multicast");
 		}

@@ -36,8 +36,9 @@ import org.slf4j.LoggerFactory;
  * Protocol (CoAP) to the registered multicast group.
  * <p>
  * Note: since 2.3, a connector joining only one multicast group, maybe used as
- * "mutlicast receiver". In that case the {@link #getAddress()} will return this
- * multicast group.
+ * "multicast receiver". In that case the {@link #getAddress()} will return this
+ * multicast group. If configured as broadcast receiver, it could also be used
+ * as "multicast receiver".
  * 
  * This enables to setup systems, which listen on different ports for multicast
  * than respond on unicast. It allows to host multiple coap-multicast-server to
@@ -125,8 +126,17 @@ public class UdpMulticastConnector extends UDPConnector {
 	 *
 	 * @param intfAddress address of interface to use to receive multicast
 	 *            packets
-	 * @param localAddress local socket address
-	 * @param multicastGroups multicast groups to join
+	 * @param localAddress local socket address. If a broadcast is used, and the
+	 *            multicastGroups are empty or {@code null}, this connector
+	 *            maybe used as "multicast receiver". If a multicast address is
+	 *            used and the multicastGroups are empty or {@code null}, the
+	 *            local address is also used as multicast griou to join.
+	 * @param multicastGroups multicast groups to join. If no broadcast nor
+	 *            multicast address is used as local address, this list must not
+	 *            be empty.
+	 * @throws IllegalArgumentException if local address is not a broadcast nor
+	 *             multicast address and the multicast groups are empty or
+	 *             {@code null}.
 	 */
 	public UdpMulticastConnector(InetAddress intfAddress, InetSocketAddress localAddress,
 			InetAddress... multicastGroups) {
@@ -134,10 +144,26 @@ public class UdpMulticastConnector extends UDPConnector {
 		setReuseAddress(true);
 		this.intfAddress = intfAddress;
 		this.multicastGroups = multicastGroups;
-		this.multicast = multicastGroups.length == 1;
-		if (multicast) {
-			this.effectiveAddr = new InetSocketAddress(multicastGroups[0],
-					localAddress != null ? localAddress.getPort() : 0);
+		boolean noGroups = multicastGroups == null || multicastGroups.length == 0;
+		if (NetworkInterfacesUtil.isBroadcastAddress(localAddress.getAddress())) {
+			this.multicast = noGroups;
+		} else {
+			if (noGroups && localAddress.getAddress().isMulticastAddress()) {
+				this.multicastGroups = new InetAddress[] { localAddress.getAddress() };
+				noGroups = false;
+			}
+			if (noGroups) {
+				if (localAddress.getAddress().isMulticastAddress()) {
+					this.multicastGroups = new InetAddress[] { localAddress.getAddress() };
+				} else {
+					throw new IllegalArgumentException("missing multicast address to join!");
+				}
+			}
+			this.multicast = this.multicastGroups.length == 1;
+			if (multicast) {
+				this.effectiveAddr = new InetSocketAddress(this.multicastGroups[0],
+						localAddress != null ? localAddress.getPort() : 0);
+			}
 		}
 	}
 
@@ -150,17 +176,35 @@ public class UdpMulticastConnector extends UDPConnector {
 	 * not specify a network interface. See also
 	 * https://github.com/eclipse/californium/issues/872.
 	 *
-	 * @param localAddress local socket address
-	 * @param multicastGroups multicast groups to join
+	 * @param localAddress local socket address. If a broadcast is used, and the
+	 *            multicastGroups are empty or {@code null}, this connector
+	 *            maybe used as "multicast receiver". If a multicast address is
+	 *            used and the multicastGroups are empty or {@code null}, the
+	 *            local address is also used as multicast griou to join.
+	 * @param multicastGroups multicast groups to join. If no broadcast nor
+	 *            multicast address is used as local address, this list must not
+	 *            be empty.
+	 * @throws IllegalArgumentException if local address is not a broadcast nor
+	 *             multicast address and the multicast groups are empty or
+	 *             {@code null}.
 	 */
 	public UdpMulticastConnector(InetSocketAddress localAddress, InetAddress... multicastGroups) {
 		this(null, localAddress, multicastGroups);
 	}
 
+	/**
+	 * Set loopback mode.
+	 * 
+	 * Applied on executing {@link #start()}.
+	 * 
+	 * @param disable passed to {@link MulticastSocket#setLoopbackMode(boolean)}
+	 *            on executing {@link #start()}.
+	 */
 	public void setLoopbackMode(boolean disable) {
 		this.loopbackDisable = disable;
 	}
 
+	@Override
 	public synchronized void start() throws IOException {
 		if (this.running)
 			return;
@@ -197,28 +241,30 @@ public class UdpMulticastConnector extends UDPConnector {
 
 		// add the multicast socket to the specified multicast group for
 		// listening to multicast requests
-		for (InetAddress group : multicastGroups) {
-			try {
-				socket.joinGroup(group);
-				LOGGER.info("joined group {}", StringUtil.toString(group));
-			} catch (SocketException ex) {
-				socket.close();
-				if (group instanceof Inet4Address) {
-					if ((effectiveInterface.isAnyLocalAddress() && !NetworkInterfacesUtil.isAnyIpv4())
-							|| (effectiveInterface instanceof Inet6Address)) {
-						throw new SocketException("IPv6 only interface doesn't support IPv4 multicast!");
+		if (multicastGroups != null) {
+			for (InetAddress group : multicastGroups) {
+				try {
+					socket.joinGroup(group);
+					LOGGER.info("joined group {}", StringUtil.toString(group));
+				} catch (SocketException ex) {
+					socket.close();
+					if (group instanceof Inet4Address) {
+						if ((effectiveInterface.isAnyLocalAddress() && !NetworkInterfacesUtil.isAnyIpv4())
+								|| (effectiveInterface instanceof Inet6Address)) {
+							throw new SocketException("IPv6 only interface doesn't support IPv4 multicast!");
+						}
+					} else if (group instanceof Inet6Address) {
+						if ((effectiveInterface.isAnyLocalAddress() && !NetworkInterfacesUtil.isAnyIpv6())
+								|| (effectiveInterface instanceof Inet4Address)) {
+							throw new SocketException("IPv4 only interface doesn't support IPv6 multicast!");
+						}
 					}
-				} else if (group instanceof Inet6Address) {
-					if ((effectiveInterface.isAnyLocalAddress() && !NetworkInterfacesUtil.isAnyIpv6())
-							|| (effectiveInterface instanceof Inet4Address)) {
-						throw new SocketException("IPv4 only interface doesn't support IPv6 multicast!");
-					}
+					throw ex;
 				}
-				throw ex;
 			}
 		}
 		init(socket);
-		if (multicast) {
+		if (multicast && multicastGroups != null && multicastGroups.length == 1) {
 			this.effectiveAddr = new InetSocketAddress(multicastGroups[0], socket.getLocalPort());
 		}
 	}

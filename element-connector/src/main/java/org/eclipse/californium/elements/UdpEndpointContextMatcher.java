@@ -29,6 +29,7 @@ package org.eclipse.californium.elements;
 
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,15 +71,15 @@ public class UdpEndpointContextMatcher extends KeySetEndpointContextMatcher {
 	/**
 	 * {@inheritDoc}
 	 * 
-	 * @since 2.3 a response matches a multicast requests even if the ports are
-	 *        different.
+	 * @since 2.3 a response matches a multicast request even if the ports are
+	 *        different and broadcast request are also supported.
 	 */
 	@Override
 	public boolean isResponseRelatedToRequest(EndpointContext requestContext, EndpointContext responseContext) {
 		if (checkAddress) {
 			InetSocketAddress peerAddress1 = requestContext.getPeerAddress();
 			InetSocketAddress peerAddress2 = responseContext.getPeerAddress();
-			if (!peerAddress1.getAddress().isMulticastAddress() && !peerAddress1.equals(peerAddress2)) {
+			if (!peerAddress1.equals(peerAddress2) && !NetworkInterfacesUtil.isMultiAddress(peerAddress1.getAddress())) {
 				LOGGER.info("request {}:{} doesn't match {}:{}!", peerAddress1.getAddress().getHostAddress(),
 						peerAddress1.getPort(), peerAddress2.getAddress().getHostAddress(), peerAddress2.getPort());
 				return false;
