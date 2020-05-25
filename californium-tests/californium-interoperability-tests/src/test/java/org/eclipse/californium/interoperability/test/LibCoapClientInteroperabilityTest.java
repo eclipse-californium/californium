@@ -58,9 +58,9 @@ public class LibCoapClientInteroperabilityTest {
 	@BeforeClass
 	public static void init() throws IOException, InterruptedException {
 		processUtil = new LibCoapProcessUtil();
-		ProcessResult result = processUtil.getLibCoapVersion(TIMEOUT_MILLIS);
+		ProcessResult result = processUtil.getLibCoapClientVersion(TIMEOUT_MILLIS);
 		assumeNotNull(result);
-		assumeTrue(result.contains("coap-client v4\\.2\\.1 "));
+		assumeTrue(result.contains(LibCoapProcessUtil.LIBCOAP_CLIENT + " v4\\.2\\.1 "));
 		assumeTrue(result.contains("OpenSSL - runtime 1\\.1\\.1,"));
 		californiumUtil = new CaliforniumUtil(false);
 	}

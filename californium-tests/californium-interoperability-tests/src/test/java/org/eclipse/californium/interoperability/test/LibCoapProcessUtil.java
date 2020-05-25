@@ -54,14 +54,32 @@ public class LibCoapProcessUtil extends ProcessUtil {
 	}
 
 	/**
-	 * Get libcoap version.
+	 * Get libcoap client version.
 	 * 
 	 * @param timeMillis timeout in milliseconds
 	 * @return result of coap-client command. {@code null}, if not available.
 	 */
-	public ProcessResult getLibCoapVersion(long timeMillis) {
+	public ProcessResult getLibCoapClientVersion(long timeMillis) {
 		try {
-			execute("coap-client");
+			execute(LIBCOAP_CLIENT);
+			return waitResult(timeMillis);
+		} catch (InterruptedException ex) {
+			return null;
+		} catch (IOException ex) {
+			return null;
+		}
+	}
+
+	/**
+	 * Get libcoap servert version.
+	 * 
+	 * @param timeMillis timeout in milliseconds
+	 * @return result of coap-server command. {@code null}, if not available.
+	 */
+	public ProcessResult getLibCoapServerVersion(long timeMillis) {
+		try {
+			// use not supported option -h to trigger the help message!
+			execute(LIBCOAP_SERVER, "-h");
 			return waitResult(timeMillis);
 		} catch (InterruptedException ex) {
 			return null;
