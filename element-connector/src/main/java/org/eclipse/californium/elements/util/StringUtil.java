@@ -445,4 +445,29 @@ public class StringUtil {
 		}
 		return value;
 	}
+
+	/**
+	 * Get long configuration value. Try first {@link System#getenv(String)}, if
+	 * that returns {@code null} or an empty value, then return
+	 * {@link System#getProperty(String)}.
+	 * 
+	 * @param name the name of the configuraiton value.
+	 * @return the long value, or {@code null}, if neither
+	 *         {@link System#getenv(String)} nor
+	 *         {@link System#getProperty(String)} returns a value.
+	 * @since 2.3
+	 */
+	public static Long getConfigurationLong(String name) {
+		String value = System.getenv(name);
+		if (value == null || value.isEmpty()) {
+			value = System.getProperty(name);
+		}
+		if (value != null && !value.isEmpty()) {
+			try {
+				return Long.valueOf(value);
+			} catch (NumberFormatException e) {
+			}
+		}
+		return null;
+	}
 }

@@ -22,11 +22,10 @@ import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.plugtests.TestClientAbstract;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
-
-import org.eclipse.californium.plugtests.PlugtestChecker.TestClientAbstract;
 
 /**
  * TD_COAP_CORE_23: Perform PUT transaction containing the If-None-Match
@@ -68,7 +67,8 @@ public class CC23 extends TestClientAbstract {
 		}
 
 		request.setURI(uri);
-		
+		addContextObserver(request);
+
 		// print request info
 		if (verbose) {
 			System.out.println("Request for test " + this.testName

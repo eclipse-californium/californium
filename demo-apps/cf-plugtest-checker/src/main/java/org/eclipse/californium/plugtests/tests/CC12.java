@@ -18,11 +18,10 @@ package org.eclipse.californium.plugtests.tests;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.plugtests.TestClientAbstract;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
-
-import org.eclipse.californium.plugtests.PlugtestChecker.TestClientAbstract;
 
 /**
  * TD_COAP_CORE_12: Perform GET transaction not containing Token option (CON
@@ -51,7 +50,7 @@ public class CC12 extends TestClientAbstract {
 		success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 		success &= hasNoToken(response);
 		success &= hasContentType(response);
-		success &= hasNonEmptyPalyoad(response);
+		success &= hasNonEmptyPayload(response);
 
 		return success;
 	}

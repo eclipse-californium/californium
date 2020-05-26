@@ -17,11 +17,10 @@ package org.eclipse.californium.plugtests.tests;
 
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.plugtests.TestClientAbstract;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
-
-import org.eclipse.californium.plugtests.PlugtestChecker.TestClientAbstract;
 
 /**
  * TD_COAP_CORE_14: Handle request containing several Uri-Query options.
@@ -52,7 +51,7 @@ public class CC14 extends TestClientAbstract {
 				response.getType());
 		success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 		success &= hasContentType(response);
-		success &= hasNonEmptyPalyoad(response);
+		success &= hasNonEmptyPayload(response);
 
 		return success;
 	}

@@ -17,11 +17,10 @@ package org.eclipse.californium.plugtests.tests;
 
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.plugtests.TestClientAbstract;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
-
-import org.eclipse.californium.plugtests.PlugtestChecker.TestClientAbstract;
 
 /**
  * TD_COAP_CORE_10: Handle request containing Token option.
@@ -50,7 +49,7 @@ public class CC10 extends TestClientAbstract {
 		success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 		success &= checkToken(request.getToken(), response.getToken());
 		success &= hasContentType(response);
-		success &= hasNonEmptyPalyoad(response);
+		success &= hasNonEmptyPayload(response);
 
 		return success;
 	}

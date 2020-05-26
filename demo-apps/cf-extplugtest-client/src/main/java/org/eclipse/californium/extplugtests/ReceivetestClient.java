@@ -35,6 +35,8 @@ import java.text.SimpleDateFormat;
 import java.util.Properties;
 import java.util.UUID;
 
+import org.eclipse.californium.cli.ClientConfig;
+import org.eclipse.californium.cli.ClientInitializer;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.Utils;
@@ -46,8 +48,6 @@ import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.plugtests.ClientInitializer;
-import org.eclipse.californium.plugtests.ClientInitializer.Arguments;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -58,6 +58,9 @@ import com.google.gson.JsonSyntaxException;
 import com.upokecenter.cbor.CBORException;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
+
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
 /**
  * The RecevietestClient uses the developer API of Californium to test the
@@ -90,6 +93,14 @@ public class ReceivetestClient {
 	 */
 	private static final int MAX_DIFF_TIME_IN_MILLIS = 30000;
 
+	@Command(name = "ReceivetestClient", version = "(c) 2018-2020, Bosch.IO GmbH and others.")
+	private static class Config extends ClientConfig {
+
+		@Option(names = "--reset-uuid", description = "reset UUID.")
+		public boolean resetUuid;
+
+	}
+
 	private static NetworkConfigDefaultHandler DEFAULTS = new NetworkConfigDefaultHandler() {
 
 		@Override
@@ -108,39 +119,28 @@ public class ReceivetestClient {
 	 */
 	public static void main(String[] args) throws ConnectorException, IOException {
 
-		if (args.length == 0) {
+		final Config clientConfig = new Config();
+		clientConfig.networkConfigHeader = CONFIG_HEADER;
+		clientConfig.networkConfigDefaultHandler = DEFAULTS;
+		clientConfig.networkConfigFile = CONFIG_FILE;
 
-			System.out.println("\nCalifornium (Cf) Receivetest Client");
-			System.out.println("(c) 2017, Bosch Software Innovations GmbH and others");
-			System.out.println();
-			System.out.println("Usage: " + ReceivetestClient.class.getSimpleName() + " [-v] [-j|-c] [-r|-x|-i id pw] URI");
-			System.out.println("  -v        : verbose. Enable message tracing.");
-			System.out.println("  -j        : use JSON format.");
-			System.out.println("  -c        : use CBOR format.");
-			System.out.println("  -r        : use raw public certificate. Default PSK.");
-			System.out.println("  -x        : use x.509 certificate");
-			System.out.println("  -i id pw  : use PSK with id and password");
-			System.out.println("  URI       : The CoAP URI of the extended Plugtest server to test (coap://<host>[:<port>])");
-			System.out.println();
-			System.out.println("Example: " + ReceivetestClient.class.getSimpleName() + " coap://californium.eclipse.org:5783");
-			System.exit(-1);
-		}
-
-		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
-
-		Arguments arguments;
 		try {
-			arguments = ClientInitializer.init(config, args, false);
+			ClientInitializer.init(args, clientConfig, false);
 		} catch (BindException ex) {
-			arguments = ClientInitializer.init(config, args, true);
+			ClientInitializer.init(args, clientConfig, true);
 			System.out.println("Default port not available, use ephemeral port!");
 		}
+		if (clientConfig.helpRequested) {
+			System.out.println(
+					"Example: " + ReceivetestClient.class.getSimpleName() + " coap://californium.eclipse.org:5783");
+			System.exit(0);
+		}
 
-		String uuid = getUUID();
+		String uuid = getUUID(clientConfig.resetUuid);
 		String uri = null;
 		String query = null;
 		try {
-			URI aUri = new URI(arguments.uri);
+			URI aUri = new URI(clientConfig.uri);
 			query = aUri.getQuery();
 			aUri = new URI(aUri.getScheme(), null, aUri.getHost(), aUri.getPort(), null, null, null);
 			uri = aUri.toASCIIString();
@@ -150,10 +150,8 @@ public class ReceivetestClient {
 		}
 		CoapClient client = new CoapClient(uri);
 		Request request = Request.newPost();
-		if (arguments.json) {
-			request.getOptions().setAccept(APPLICATION_JSON);
-		} else if (arguments.cbor) {
-			request.getOptions().setAccept(APPLICATION_CBOR);
+		if (clientConfig.contentType != null) {
+			request.getOptions().setAccept(clientConfig.contentType.contentType);
 		}
 		if (query == null) {
 			query = "";
@@ -172,13 +170,13 @@ public class ReceivetestClient {
 				// JSON success
 				Response response = coapResponse.advanced();
 				printHead(response);
-				String statistic = processJSON(response.getPayloadString(), "", arguments.verbose);
+				String statistic = processJSON(response.getPayloadString(), "", clientConfig.verbose);
 				System.out.println(statistic);
 			} else if (CONTENT == code && format == APPLICATION_CBOR) {
 				// CBOR success
 				Response response = coapResponse.advanced();
 				printHead(response);
-				String statistic = processCBOR(response.getPayload(), "", arguments.verbose);
+				String statistic = processCBOR(response.getPayload(), "", clientConfig.verbose);
 				System.out.println(statistic);
 			} else {
 				System.out.println(coapResponse.getCode());
@@ -373,17 +371,19 @@ public class ReceivetestClient {
 	 * 
 	 * @return UUID
 	 */
-	public static String getUUID() {
+	public static String getUUID(boolean reset) {
 		Properties props = new Properties();
-		try (FileReader reader = new FileReader(UUID_FILE)) {
-			props.load(reader);
-			String uid = props.getProperty(UUID_KEY);
-			if (uid == null) {
-				uid = "anonymous";
+		if (!reset) {
+			try (FileReader reader = new FileReader(UUID_FILE)) {
+				props.load(reader);
+				String uid = props.getProperty(UUID_KEY);
+				if (uid == null) {
+					uid = "anonymous";
+				}
+				return uid;
+			} catch (FileNotFoundException e) {
+			} catch (IOException e) {
 			}
-			return uid;
-		} catch (FileNotFoundException e) {
-		} catch (IOException e) {
 		}
 		try (FileWriter writer = new FileWriter(UUID_FILE)) {
 			String uid = UUID.randomUUID().toString();

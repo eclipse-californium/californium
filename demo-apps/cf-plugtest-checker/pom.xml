@@ -23,7 +23,7 @@
 	<dependencies>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
-			<artifactId>cf-plugtest-client</artifactId>
+			<artifactId>cf-cli</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		

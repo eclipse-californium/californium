@@ -7,16 +7,21 @@
 
 	<parent>
 		<groupId>org.eclipse.californium</groupId>
-		<artifactId>demo-apps</artifactId>
+		<artifactId>cf-bom</artifactId>
 		<version>2.3.0-SNAPSHOT</version>
+		<relativePath>../../bom</relativePath>
 	</parent>
-	<artifactId>cf-plugtest-client</artifactId>
 
-	<name>Cf-PlugtestClient</name>
-	<description>Californium (Cf) ETSI Plugtest client</description>
+	<artifactId>cf-cli</artifactId>
+	<packaging>bundle</packaging>
+
+	<name>Cf-command-line-interface</name>
+	<description>Californium (Cf) Command Line Interface</description>
 
 	<properties>
-		<assembly.mainClass>org.eclipse.californium.plugtests.PlugtestClient</assembly.mainClass>
+		<picocli.version>4.2.0</picocli.version>
+		<animal.sniffer.skip>true</animal.sniffer.skip>
+		<revapi.skip>true</revapi.skip>
 	</properties>
 
 	<dependencies>
@@ -33,10 +38,6 @@
 			<artifactId>scandium</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>${project.groupId}</groupId>
-			<artifactId>cf-cli</artifactId>
-		</dependency>
-		<dependency>
 			<groupId>com.upokecenter</groupId>
 			<artifactId>cbor</artifactId>
 		</dependency>
@@ -44,22 +45,42 @@
 			<groupId>com.google.code.gson</groupId>
 			<artifactId>gson</artifactId>
 		</dependency>
-
-		<!-- runtime dependencies -->
 		<dependency>
-			<groupId>${project.groupId}</groupId>
-			<artifactId>demo-certs</artifactId>
-			<scope>runtime</scope>
+			<groupId>info.picocli</groupId>
+			<artifactId>picocli</artifactId>
 		</dependency>
+
 	</dependencies>
 
 	<build>
 		<plugins>
 			<plugin>
+				<groupId>org.apache.felix</groupId>
+				<artifactId>maven-bundle-plugin</artifactId>
+				<extensions>true</extensions>
+				<configuration>
+					<instructions>
+						<Export-Package>
+							org.eclipse.californium.cli*
+						</Export-Package>
+						<Import-Package>
+							*
+						</Import-Package>
+						<Bundle-SymbolicName>${project.groupId}.cli</Bundle-SymbolicName>
+					</instructions>
+				</configuration>
+			</plugin>
+			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
-				<!-- inherit configuration from parent POM -->
+				<configuration>
+					<descriptorRefs>
+						<descriptorRef>enhanced-jar-with-licenses</descriptorRef>
+					</descriptorRefs>
+					<archive>
+						<manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
+					</archive>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>
-
 </project>

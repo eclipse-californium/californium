@@ -543,12 +543,51 @@ public enum CipherSuite {
 		} else if (keyExchangeAlgorithms.length == 0) {
 			throw new IllegalArgumentException("KeyExchangeAlgorithms must not be empty!");
 		}
-		List<KeyExchangeAlgorithm> keyExchanges = Arrays.asList(keyExchangeAlgorithms);
+		return getCipherSuitesByKeyExchangeAlgorithm(recommendedCipherSuitesOnly, false, Arrays.asList(keyExchangeAlgorithms));
+	}
+
+	/**
+	 * Get a list of all cipher suites using the provided key exchange
+	 * algorithms.
+	 * 
+	 * @param recommendedCipherSuitesOnly {@code true} use only recommended
+	 *            cipher suites
+	 * @param orderedByKeyExchangeAlgorithm {@code true} to order the cipher
+	 *            suites by order of key exchange algorithms, {@code false} to
+	 *            use the order by their definition above.
+	 * @param keyExchangeAlgorithms list of key exchange algorithms to select
+	 *            cipher suites
+	 * @return list of all cipher suites. Ordered as specified by the provided
+	 *         orderedByKeyExchangeAlgorithm.
+	 * @throws NullPointerException if keyExchangeAlgorithms is {@code null}
+	 * @throws IllegalArgumentException if keyExchangeAlgorithms is empty
+	 * @since 2.3
+	 */
+	public static List<CipherSuite> getCipherSuitesByKeyExchangeAlgorithm(boolean recommendedCipherSuitesOnly,
+			boolean orderedByKeyExchangeAlgorithm,
+			List<KeyExchangeAlgorithm> keyExchangeAlgorithms) {
+		if (keyExchangeAlgorithms == null) {
+			throw new NullPointerException("KeyExchangeAlgorithms must not be null!");
+		} else if (keyExchangeAlgorithms.isEmpty()) {
+			throw new IllegalArgumentException("KeyExchangeAlgorithms must not be empty!");
+		}
 		List<CipherSuite> list = new ArrayList<>();
-		for (CipherSuite suite : values()) {
-			if (!recommendedCipherSuitesOnly || suite.recommendedCipherSuite) {
-				if (suite.isSupported() && keyExchanges.contains(suite.keyExchange)) {
-					list.add(suite);
+		if (orderedByKeyExchangeAlgorithm) {
+			for (KeyExchangeAlgorithm keyExchange : keyExchangeAlgorithms) {
+				for (CipherSuite suite : values()) {
+					if (!recommendedCipherSuitesOnly || suite.recommendedCipherSuite) {
+						if (suite.isSupported() && keyExchange.equals(suite.keyExchange)) {
+							list.add(suite);
+						}
+					}
+				}
+			}
+		} else {
+			for (CipherSuite suite : values()) {
+				if (!recommendedCipherSuitesOnly || suite.recommendedCipherSuite) {
+					if (suite.isSupported() && keyExchangeAlgorithms.contains(suite.keyExchange)) {
+						list.add(suite);
+					}
 				}
 			}
 		}

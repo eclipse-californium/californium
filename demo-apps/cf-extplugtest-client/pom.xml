@@ -16,23 +16,19 @@
 	<description>Californium (Cf) extended ETSI Plugtest client</description>
 
 	<properties>
-		<assembly.mainClass>org.eclipse.californium.extplugtests.ReceivetestClient</assembly.mainClass>
+		<assembly.mainClass>org.eclipse.californium.extplugtests.Client</assembly.mainClass>
 	</properties>
 
 	<dependencies>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
-			<artifactId>cf-plugtest-client</artifactId>
+			<artifactId>cf-cli</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
 			<artifactId>cf-unix-health</artifactId>
 			<version>${project.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>com.google.code.gson</groupId>
-			<artifactId>gson</artifactId>
 		</dependency>
 		
 		<!-- runtime dependencies -->

@@ -18,6 +18,9 @@ package org.eclipse.californium.plugtests.tests;
 import java.net.URI;
 import java.net.URISyntaxException;
 
+import org.eclipse.californium.cli.decoder.CborDecoder;
+import org.eclipse.californium.cli.decoder.Decoder;
+import org.eclipse.californium.cli.decoder.JsonDecoder;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
@@ -25,11 +28,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
-
-import org.eclipse.californium.plugtests.PlugtestChecker.TestClientAbstract;
-import org.eclipse.californium.plugtests.util.CborDecoder;
-import org.eclipse.californium.plugtests.util.Decoder;
-import org.eclipse.californium.plugtests.util.JsonDecoder;
+import org.eclipse.californium.plugtests.TestClientAbstract;
 
 /**
  * TD_COAP_CORE_20: Perform GET transaction containing the Accept option
@@ -71,6 +70,7 @@ public class CC20 extends TestClientAbstract {
 		}
 
 		request.setURI(uri);
+		addContextObserver(request);
 
 		// print request info
 		if (verbose) {
@@ -154,7 +154,7 @@ public class CC20 extends TestClientAbstract {
 			success &= checkOption(contentType,
 					response.getOptions().getContentFormat(),
 					"Content-Format");
-			success &= hasNonEmptyPalyoad(response);
+			success &= hasNonEmptyPayload(response);
 			if (decoder != null) {
 				String decoded = decoder.decode(response.getPayload());
 				System.out.println("Response decoded: " + decoded);

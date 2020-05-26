@@ -21,7 +21,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 
 import org.eclipse.californium.plugtests.PlugtestChecker;
-import org.eclipse.californium.plugtests.PlugtestChecker.TestClientAbstract;
+import org.eclipse.californium.plugtests.TestClientAbstract;
 
 public class CB05 extends TestClientAbstract {
 
@@ -46,7 +46,7 @@ public class CB05 extends TestClientAbstract {
 		
 		success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 		success &= hasContentType(response);
-		success &= hasNonEmptyPalyoad(response);
+		success &= hasNonEmptyPayload(response);
 		
 		return success;
 	}

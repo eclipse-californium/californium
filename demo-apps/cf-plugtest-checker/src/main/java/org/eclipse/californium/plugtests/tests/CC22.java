@@ -22,11 +22,10 @@ import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.plugtests.TestClientAbstract;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
-
-import org.eclipse.californium.plugtests.PlugtestChecker.TestClientAbstract;
 
 /**
  * TD_COAP_CORE_22: Perform GET transaction with responses containing the
@@ -67,6 +66,7 @@ public class CC22 extends TestClientAbstract {
 		}
 
 		request.setURI(uri);
+		addContextObserver(request);
 
 		// print request info
 		if (verbose) {
@@ -101,7 +101,7 @@ public class CC22 extends TestClientAbstract {
 
 				success &= checkCode(EXPECTED_RESPONSE_CODE_PREAMBLE, response.getCode());
 				success &= hasEtag(response);
-				success &= hasNonEmptyPalyoad(response);
+				success &= hasNonEmptyPayload(response);
 				success &= hasContentType(response);
 
 				if (success) {
@@ -146,7 +146,7 @@ public class CC22 extends TestClientAbstract {
 
 							success &= checkCode(EXPECTED_RESPONSE_CODE_PREAMBLE, response.getCode());
 							success &= hasEtag(response);
-							success &= hasNonEmptyPalyoad(response);
+							success &= hasNonEmptyPayload(response);
 							success &= hasContentType(response);
 							success &= checkDifferentOption(etag1, etag2, "ETag");
 

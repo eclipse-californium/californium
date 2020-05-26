@@ -12,10 +12,27 @@
  * 
  * Contributors:
  *    Bosch Software Innovations GmbH - initial implementation
+ *    Achim Kraus (Bosch.IO GmbH)     - moved from cf-plugtest-client
  ******************************************************************************/
-package org.eclipse.californium.plugtests.util;
+package org.eclipse.californium.cli.decoder;
 
-public interface Decoder {
+import com.upokecenter.cbor.CBORException;
+import com.upokecenter.cbor.CBORObject;
 
-	String decode(byte[] payload);
+public class CborDecoder implements Decoder {
+
+	@Override
+	public String decode(byte[] payload) {
+		try {
+			CBORObject cborResponse = CBORObject.DecodeFromBytes(payload);
+			return cborResponse.toString();
+		} catch (CBORException ex) {
+			ex.printStackTrace();
+			throw ex;
+		} catch (NullPointerException ex) {
+			ex.printStackTrace();
+			throw ex;
+		}
+	}
+
 }
