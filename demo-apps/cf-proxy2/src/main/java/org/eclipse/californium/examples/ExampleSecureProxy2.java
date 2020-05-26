@@ -24,59 +24,38 @@ import java.lang.management.RuntimeMXBean;
 import java.lang.management.ThreadMXBean;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.security.GeneralSecurityException;
 import java.util.Date;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
-import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.coap.MediaTypeRegistry;
-import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
-import org.eclipse.californium.core.server.MessageDeliverer;
-import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
-import org.eclipse.californium.proxy2.ClientEndpoints;
-import org.eclipse.californium.proxy2.ClientSingleEndpoint;
+import org.eclipse.californium.examples.util.SecureEndpointPool;
 import org.eclipse.californium.proxy2.Coap2CoapTranslator;
-import org.eclipse.californium.proxy2.Coap2HttpTranslator;
 import org.eclipse.californium.proxy2.EndpointPool;
-import org.eclipse.californium.proxy2.Http2CoapTranslator;
-import org.eclipse.californium.proxy2.HttpClientFactory;
-import org.eclipse.californium.proxy2.ProxyHttpServer;
 import org.eclipse.californium.proxy2.resources.ProxyCoapClientResource;
 import org.eclipse.californium.proxy2.resources.ProxyCoapResource;
-import org.eclipse.californium.proxy2.resources.ProxyHttpClientResource;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.unixhealth.NetStatLogger;
 import org.eclipse.californium.proxy2.resources.ForwardProxyMessageDeliverer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Demonstrates the examples for cross proxy functionality of CoAP.
+ * Demonstrates the examples for a secure proxy functionality of CoAP.
  * 
- * Http2CoAP: Insert in browser: URI:
- * http://localhost:8080/proxy/coap://localhost:PORT/target
- * 
- * Http2LocalCoAPResource: Insert in browser: URI:
- * http://localhost:8080/local/target
- * 
- * Http2CoAP: configure browser to use the proxy "localhost:8080". Insert in
- * browser: ("localhost" requests are not send to a proxy, so use the hostname
- * or none-local-ip-address) URI: http://<hostname>:5683/target/coap:
- * 
- * CoAP2CoAP: Insert in Copper: URI: coap://localhost:PORT/coap2coap Proxy:
- * coap://localhost:PORT/targetA
+ * CoAP2CoAP: Insert in Copper: 
+ * URI: coap://localhost:PORT/coap2coap 
+ * Proxy: coaps://californium.eclipse.org:5684/test
  *
- * CoAP2Http: Insert in Copper: URI: coap://localhost:PORT/coap2http Proxy:
- * http://lantersoft.ch/robots.txt
  */
-public class CrossExampleProxy2 {
+public class ExampleSecureProxy2 {
 
 	private static final Logger STATISTIC_LOGGER = LoggerFactory.getLogger("org.eclipse.californium.proxy.statistics");
 
@@ -108,7 +87,8 @@ public class CrossExampleProxy2 {
 			config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
 			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
 			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
-			config.setString(Keys.DEDUPLICATOR, Keys.DEDUPLICATOR_PEERS_MARK_AND_SWEEP);
+			// 24.7s instead of 247s
+			config.setInt(Keys.EXCHANGE_LIFETIME, 24700);
 			config.setInt(Keys.MAX_PEER_INACTIVITY_PERIOD, 60 * 60 * 24); // 24h
 			config.setInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT, 10); // 10s
 			config.setInt(Keys.TCP_CONNECT_TIMEOUT, 15 * 1000); // 15s
@@ -121,78 +101,49 @@ public class CrossExampleProxy2 {
 	};
 
 	private static final String COAP2COAP = "coap2coap";
-	private static final String COAP2HTTP = "coap2http";
 
 	private static String start;
 
 	private CoapServer coapProxyServer;
-	private boolean useEndpointsPool;
-	private ClientEndpoints endpoints;
-	private ProxyHttpServer httpServer;
+	private EndpointPool pool;
 	private int coapPort;
-	private int httpPort;
 
-	public CrossExampleProxy2(NetworkConfig config) throws IOException {
-		HttpClientFactory.setNetworkConfig(config);
+	public ExampleSecureProxy2(NetworkConfig config) throws IOException, GeneralSecurityException {
 		coapPort = config.getInt(Keys.COAP_PORT);
-		httpPort = config.getInt(Keys.HTTP_PORT);
 		int threads = config.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT);
 		ScheduledExecutorService mainExecutor = ExecutorsUtil.newScheduledThreadPool(threads,
 				new DaemonThreadFactory("Proxy#"));
 		ScheduledExecutorService secondaryExecutor = ExecutorsUtil.newDefaultSecondaryScheduler("ProxyTimer#");
 		Coap2CoapTranslator translater = new Coap2CoapTranslator();
 		NetworkConfig outgoingConfig = new NetworkConfig(config);
-		if (useEndpointsPool) {
-			outgoingConfig.setInt(NetworkConfig.Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, 1);
-			outgoingConfig.setInt(NetworkConfig.Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, 1);
-			endpoints = new EndpointPool(1000, 250, outgoingConfig, mainExecutor, secondaryExecutor);
-		} else {
-			outgoingConfig.setString(Keys.MID_TRACKER, "NULL");
-			CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-			builder.setNetworkConfig(outgoingConfig);
-			endpoints = new ClientSingleEndpoint(builder.build());
-		}
-		boolean accept = false;
-		ProxyCoapResource coap2coap = new ProxyCoapClientResource(COAP2COAP, false, accept, translater, endpoints);
-		ProxyCoapResource coap2http = new ProxyHttpClientResource(COAP2HTTP, false, accept, new Coap2HttpTranslator());
+		outgoingConfig.setInt(NetworkConfig.Keys.MAX_ACTIVE_PEERS, 32);
+		outgoingConfig.setInt(NetworkConfig.Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, 1);
+		outgoingConfig.setInt(NetworkConfig.Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, 1);
+		DtlsConnectorConfig.Builder builder = SecureEndpointPool.setup(outgoingConfig);
+		pool = new SecureEndpointPool(1000, 250, outgoingConfig, mainExecutor, secondaryExecutor, builder.build());
+		ProxyCoapResource coap2coap = new ProxyCoapClientResource(COAP2COAP, false, false, translater, pool);
 
 		// Forwards requests Coap to Coap or Coap to Http server
 		coapProxyServer = new CoapServer(config, coapPort);
-		MessageDeliverer local = coapProxyServer.getMessageDeliverer();
-		ForwardProxyMessageDeliverer proxyMessageDeliverer = new ForwardProxyMessageDeliverer(coapProxyServer.getRoot(),
-				translater);
-		proxyMessageDeliverer.addProxyCoapResources(coap2coap, coap2http);
+		ForwardProxyMessageDeliverer proxyMessageDeliverer = new ForwardProxyMessageDeliverer(coapProxyServer.getRoot(), translater);
+		proxyMessageDeliverer.addProxyCoapResources(coap2coap);
 		proxyMessageDeliverer.addExposedServiceAddresses(new InetSocketAddress(coapPort));
 		coapProxyServer.setMessageDeliverer(proxyMessageDeliverer);
 		coapProxyServer.setExecutors(mainExecutor, secondaryExecutor, false);
-		coapProxyServer.add(coap2http);
 		coapProxyServer.add(coap2coap);
-		coapProxyServer.add(new SimpleCoapResource("target",
-				"Hi! I am the local coap server on port " + coapPort + ". Request %d."));
 
 		CoapResource targets = new CoapResource("targets");
 		coapProxyServer.add(targets);
 
 		// HTTP Proxy which forwards http request to coap server and forwards
 		// translated coap response back to http client
-		httpServer = new ProxyHttpServer(config, 8080);
-		httpServer.setHttpTranslator(new Http2CoapTranslator());
-		httpServer.setLocalCoapDeliverer(local);
-		httpServer.setProxyCoapDeliverer(proxyMessageDeliverer);
-		httpServer.start();
-		System.out.println("** HTTP Local at: http://localhost:" + httpPort + "/local/");
-		System.out.println("** HTTP Proxy at: http://localhost:" + httpPort + "/proxy/");
-
-		coapProxyServer.add(httpServer.getStatistics());
 		coapProxyServer.start();
-		System.out.println("** CoAP Proxy at: coap://localhost:" + coapPort + "/coap2http");
 		System.out.println("** CoAP Proxy at: coap://localhost:" + coapPort + "/coap2coap");
 	}
 
-	public static void main(String args[]) throws IOException {
+	public static void main(String args[]) throws IOException, GeneralSecurityException {
 		NetworkConfig proxyConfig = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
-		CrossExampleProxy2 proxy = new CrossExampleProxy2(proxyConfig);
-		ExampleHttpServer httpServer = null;
+		ExampleSecureProxy2 proxy = new ExampleSecureProxy2(proxyConfig);
 		NetworkConfig config = ExampleCoapServer.init();
 		for (int index = 0; index < args.length; ++index) {
 			Integer port = parse(args[index], "coap", ExampleCoapServer.DEFAULT_COAP_PORT, config,
@@ -205,33 +156,17 @@ public class CrossExampleProxy2 {
 				// don't add this to the ProxyMessageDeliverer
 				URI destination = URI.create("coap://localhost:" + port + "/coap-target");
 				CoapResource reverseProxy = ProxyCoapResource.createReverseProxy("destination1", true, true, true,
-						destination, proxy.endpoints);
+						destination, proxy.pool);
 				proxy.coapProxyServer.getRoot().getChild("targets").add(reverseProxy);
 				System.out.println("CoAP Proxy at: coap://localhost:" + proxy.coapPort
 						+ "/coap2coap and demo-server at coap://localhost:" + port + ExampleCoapServer.RESOURCE);
-				System.out.println("HTTP Proxy at: http://localhost:" + proxy.httpPort + "/proxy/coap://localhost:"
-						+ port + ExampleCoapServer.RESOURCE);
-			} else {
-				port = parse(args[index], "http", ExampleHttpServer.DEFAULT_PORT, null, null);
-				if (port != null) {
-					httpServer = new ExampleHttpServer(config, port);
-					// reverse proxy: add a proxy resource with a translator
-					// returning a fixed destination URI
-					// don't add this to the ProxyMessageDeliverer
-					URI destination = URI.create("http://localhost:" + port + "/http-target");
-					CoapResource reverseProxy = ProxyCoapResource.createReverseProxy("destination2", true, true, true,
-							destination, proxy.endpoints);
-					proxy.coapProxyServer.getRoot().getChild("targets").add(reverseProxy);
-					System.out.println("CoAP Proxy at: coap://localhost:" + proxy.coapPort
-							+ "/coap2http and demo server at http://localhost:" + port + ExampleHttpServer.RESOURCE);
-				}
 			}
 		}
 		startManagamentStatistic();
 		Runtime runtime = Runtime.getRuntime();
 		long max = runtime.maxMemory();
 		System.out.println(
-				CrossExampleProxy2.class.getSimpleName() + " started (" + max / (1024 * 1024) + "MB heap) ...");
+				ExampleSecureProxy2.class.getSimpleName() + " started (" + max / (1024 * 1024) + "MB heap) ...");
 		long lastGcCount = 0;
 		NetStatLogger netstat = new NetStatLogger("udp");
 		for (;;) {
@@ -248,7 +183,6 @@ public class CrossExampleProxy2 {
 				System.out.println("Or consider to reduce the value of " + Keys.EXCHANGE_LIFETIME);
 				System.out.println("in \"" + CONFIG_FILE + "\" or set");
 				System.out.println(Keys.DEDUPLICATOR + " to " + Keys.NO_DEDUPLICATOR + " there.");
-				break;
 			}
 			long gcCount = 0;
 			for (GarbageCollectorMXBean gcMXBean : ManagementFactory.getGarbageCollectorMXBeans()) {
@@ -261,9 +195,6 @@ public class CrossExampleProxy2 {
 				printManagamentStatistic();
 				lastGcCount = gcCount;
 				netstat.dump();
-				if (httpServer != null) {
-					httpServer.dumpStatistic();
-				}
 			}
 		}
 
@@ -285,26 +216,6 @@ public class CrossExampleProxy2 {
 			}
 		}
 		return result;
-	}
-
-	private static class SimpleCoapResource extends CoapResource {
-
-		private final String value;
-
-		private final AtomicInteger counter = new AtomicInteger();
-
-		public SimpleCoapResource(String name, String value) {
-			// set the resource hidden
-			super(name);
-			getAttributes().setTitle("Simple local coap resource.");
-			this.value = value;
-		}
-
-		public void handleGET(CoapExchange exchange) {
-			exchange.setMaxAge(0);
-			exchange.respond(ResponseCode.CONTENT, String.format(value, counter.incrementAndGet()),
-					MediaTypeRegistry.TEXT_PLAIN);
-		}
 	}
 
 	private static void startManagamentStatistic() {

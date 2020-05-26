@@ -16,11 +16,10 @@
 package org.eclipse.californium.proxy2;
 
 import java.io.IOException;
-import java.util.ArrayDeque;
 import java.util.Queue;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 
-import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -33,26 +32,22 @@ import org.slf4j.LoggerFactory;
 /**
  * A pool of Endpoints.
  */
-public class EndpointPool {
+public class EndpointPool implements ClientEndpoints {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(EndpointPool.class);
 
 	/**
 	 * Size of pool.
 	 */
-	private final int size;
+	protected final int size;
 	/**
 	 * Network configuration for new endpoints.
 	 */
 	protected final NetworkConfig config;
 	/**
-	 * Scheme of endpoints.
-	 */
-	private final String scheme;
-	/**
 	 * Pool of endpoints.
 	 */
-	private final Queue<Endpoint> pool;
+	protected final Queue<Endpoint> pool;
 	/**
 	 * Main executor for endpoints.
 	 * 
@@ -67,9 +62,14 @@ public class EndpointPool {
 	 *      ScheduledExecutorService)
 	 */
 	protected final ScheduledExecutorService secondaryExecutor;
+	/**
+	 * Scheme of endpoints.
+	 */
+	protected String scheme;
 
 	/**
-	 * Create endpoint pool with specific network configuration and executors.
+	 * Create endpoint pool with specific network configuration and executors
+	 * and initializes the pool.
 	 * 
 	 * @param size size of pool
 	 * @param init initial size of pool
@@ -79,15 +79,27 @@ public class EndpointPool {
 	 */
 	public EndpointPool(int size, int init, NetworkConfig config, ScheduledExecutorService mainExecutor,
 			ScheduledExecutorService secondaryExecutor) {
+		this(size, config, mainExecutor, secondaryExecutor);
+		this.scheme = init(init);
+	}
+
+	/**
+	 * Create endpoint pool with specific network configuration and executors.
+	 * 
+	 * Requries extra initialization of the pool calling {@link #init(int)}.
+	 * 
+	 * @param size size of pool
+	 * @param config network configuration to create endpoints.
+	 * @param mainExecutor main executor for endpoints
+	 * @param secondaryExecutor secondary executor for endpoints
+	 */
+	protected EndpointPool(int size, NetworkConfig config, ScheduledExecutorService mainExecutor,
+			ScheduledExecutorService secondaryExecutor) {
 		this.size = size;
-		this.pool = new ArrayDeque<>(size);
+		this.pool = new ArrayBlockingQueue<>(size);
 		this.config = config;
 		this.mainExecutor = mainExecutor;
 		this.secondaryExecutor = secondaryExecutor;
-		if (init > size) {
-			init = size;
-		}
-		this.scheme = init(init);
 	}
 
 	/**
@@ -96,14 +108,17 @@ public class EndpointPool {
 	 * @param init number of initial endpoints.
 	 * @return scheme of endpoints
 	 */
-	private String init(int init) {
+	protected String init(int init) {
+		if (init > size) {
+			init = size;
+		}
 		String scheme = null;
 		try {
 			Endpoint endpoint = createEndpoint();
 			scheme = endpoint.getUri().getScheme();
-			pool.add(endpoint);
+			release(endpoint);
 			for (int i = 1; i < init; i++) {
-				pool.add(createEndpoint());
+				release(createEndpoint());
 			}
 		} catch (IOException ex) {
 			LOGGER.warn("endpoint pool could not be filled!", ex);
@@ -111,36 +126,31 @@ public class EndpointPool {
 		return scheme;
 	}
 
-	/**
-	 * Returns scheme of endpoint.
-	 * 
-	 * @return scheme of endpoint
-	 */
+	@Override
 	public String getScheme() {
 		return scheme;
 	}
 
-	/**
-	 * @return An Endpoint that is not in use.
-	 * @throws IOException
-	 */
-	public Endpoint getEndpoint() throws IOException {
-		synchronized (pool) {
-			if (pool.size() > 0) {
-				return pool.remove();
-			}
-		}
-
-		LOGGER.warn("Out of endpoints, creating more");
-
-		return createEndpoint();
+	@Override
+	public void sendRequest(Request outgoingRequest) throws IOException {
+		Endpoint endpoint = getEndpoint();
+		outgoingRequest.addMessageObserver(new PoolMessageObserver(endpoint));
+		endpoint.sendRequest(outgoingRequest);
 	}
 
-	public void sendRequest(Request outgoingRequest, MessageObserver callback) throws IOException {
-		Endpoint outgoingEndpoint = getEndpoint();
-		outgoingRequest.addMessageObserver(new PoolMessageObserver(outgoingEndpoint));
-		outgoingRequest.addMessageObserver(callback);
-		outgoingEndpoint.sendRequest(outgoingRequest);
+	/**
+	 * Get endpoint from pool.
+	 * 
+	 * @return An Endpoint that is not in use.
+	 * @throws IOException if an i/o error occurrs creating a new endpoint.
+	 */
+	protected Endpoint getEndpoint() throws IOException {
+		Endpoint endpoint = pool.poll();
+		if (endpoint == null) {
+			LOGGER.warn("Out of endpoints, creating more");
+			endpoint = createEndpoint();
+		}
+		return endpoint;
 	}
 
 	/**
@@ -169,27 +179,29 @@ public class EndpointPool {
 	 * @param endpoint Endpoint to free. {@code null} will return without
 	 *            releasing it.
 	 */
-	public void release(final Endpoint endpoint) {
+	protected void release(Endpoint endpoint) {
 		if (endpoint == null) {
 			return;
 		}
-		synchronized (pool) {
-			if (pool.size() < size) {
-				pool.add(endpoint);
-				return;
-			}
+		if (isFull() || !pool.offer(endpoint)) {
+			endpoint.destroy();
 		}
-		endpoint.destroy();
 	}
 
 	/**
-	 * Destroy endpoints in pool.
+	 * Check, if pool has reached its size limit.
+	 * 
+	 * @return {@code true}, if limit is reached, {@code false}, otherwise.
 	 */
+	protected boolean isFull() {
+		return pool.size() >= size;
+	}
+
+	@Override
 	public void destroy() {
-		synchronized (pool) {
-			for (Endpoint endpoint : pool) {
-				endpoint.destroy();
-			}
+		Endpoint endpoint;
+		while ((endpoint = pool.poll()) != null) {
+			endpoint.destroy();
 		}
 	}
 
