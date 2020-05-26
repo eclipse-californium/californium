@@ -17,7 +17,7 @@
 	<description>Californium (Cf) HTTP cross-proxy2 for testing californium-proxy2 module</description>
 
 	<properties>
-		<assembly.mainClass>org.eclipse.californium.examples.CrossExampleProxy2</assembly.mainClass>
+		<assembly.mainClass>org.eclipse.californium.examples.Proxy2</assembly.mainClass>
 	</properties>
 
 	<dependencies>
@@ -27,7 +27,22 @@
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
+			<artifactId>scandium</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
 			<artifactId>californium-proxy2</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>cf-unix-health</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+		<!-- runtime dependencies -->
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>demo-certs</artifactId>
+			<scope>runtime</scope>
 		</dependency>
 	</dependencies>
 

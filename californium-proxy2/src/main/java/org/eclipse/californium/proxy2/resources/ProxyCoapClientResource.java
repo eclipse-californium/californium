@@ -28,8 +28,8 @@ import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.proxy2.ClientEndpoints;
 import org.eclipse.californium.proxy2.Coap2CoapTranslator;
-import org.eclipse.californium.proxy2.EndpointPool;
 import org.eclipse.californium.proxy2.TranslationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,9 +43,9 @@ public class ProxyCoapClientResource extends ProxyCoapResource {
 	static final Logger LOGGER = LoggerFactory.getLogger(ProxyCoapClientResource.class);
 
 	/**
-	 * Maps scheme to endpoint pool.
+	 * Maps scheme to client endpoints.
 	 */
-	private Map<String, EndpointPool> mapSchemeToPool = new HashMap<>();
+	private Map<String, ClientEndpoints> mapSchemeToEndpoints = new HashMap<>();
 	/**
 	 * Coap2Coap translator.
 	 */
@@ -59,16 +59,16 @@ public class ProxyCoapClientResource extends ProxyCoapResource {
 	 * @param accept accept CON request befor forwarding the request
 	 * @param translator translater for coap2coap messages. {@code null} to sue
 	 *            default implementation {@link Coap2CoapTranslator}.
-	 * @param pools list of endpoint pools for outgoing requests
+	 * @param endpointsList list of client endpoints for outgoing requests
 	 */
 	public ProxyCoapClientResource(String name, boolean visible, boolean accept, Coap2CoapTranslator translator,
-			EndpointPool... pools) {
+			ClientEndpoints... endpointsList) {
 		// set the resource hidden
 		super(name, visible, accept);
 		getAttributes().setTitle("Forward the requests to a CoAP server.");
 		this.translator = translator;
-		for (EndpointPool pool : pools) {
-			this.mapSchemeToPool.put(pool.getScheme(), pool);
+		for (ClientEndpoints endpoints : endpointsList) {
+			this.mapSchemeToEndpoints.put(endpoints.getScheme(), endpoints);
 		}
 	}
 
@@ -91,8 +91,9 @@ public class ProxyCoapClientResource extends ProxyCoapResource {
 			if (accept) {
 				exchange.sendAccept();
 			}
-			EndpointPool pool = mapSchemeToPool.get(outgoingRequest.getScheme());
-			pool.sendRequest(outgoingRequest, new ProxySendResponseMessageObserver(translator, exchange));
+			outgoingRequest.addMessageObserver(new ProxySendResponseMessageObserver(translator, exchange));
+			ClientEndpoints endpoints = mapSchemeToEndpoints.get(outgoingRequest.getScheme());
+			endpoints.sendRequest(outgoingRequest);
 		} catch (TranslationException e) {
 			LOGGER.debug("Proxy-uri option malformed: {}", e.getMessage());
 			exchange.sendResponse(new Response(Coap2CoapTranslator.STATUS_FIELD_MALFORMED));
@@ -104,7 +105,7 @@ public class ProxyCoapClientResource extends ProxyCoapResource {
 
 	@Override
 	public Set<String> getDestinationSchemes() {
-		return Collections.unmodifiableSet(mapSchemeToPool.keySet());
+		return Collections.unmodifiableSet(mapSchemeToEndpoints.keySet());
 	}
 
 	private static class ProxySendResponseMessageObserver extends MessageObserverAdapter {

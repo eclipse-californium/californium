@@ -25,10 +25,10 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.ServerMessageDeliverer;
+import org.eclipse.californium.proxy2.ClientEndpoints;
 import org.eclipse.californium.proxy2.Coap2CoapTranslator;
 import org.eclipse.californium.proxy2.Coap2HttpTranslator;
 import org.eclipse.californium.proxy2.CoapUriTranslator;
-import org.eclipse.californium.proxy2.EndpointPool;
 import org.eclipse.californium.proxy2.Http2CoapTranslator;
 import org.eclipse.californium.proxy2.TranslationException;
 
@@ -67,14 +67,14 @@ import org.eclipse.californium.proxy2.TranslationException;
  * this message-forwarded.
  * 
  * Reverse proxies maybe implemented using
- * {@link #createReverseProxy(String, boolean, boolean, boolean, URI, EndpointPool...)}.
+ * {@link #createReverseProxy(String, boolean, boolean, boolean, URI, ClientEndpoints...)}.
  * If a reverse proxy requires a customized conversion, add a customized
  * {@link ProxyCoapClientResource} and/or {@link ProxyHttpClientResource} to the
  * coap-server.
  * 
  * Mixed proxies maybe implemented using both approaches, the
  * {@link ForwardProxyMessageDeliverer} and
- * {@link #createReverseProxy(String, boolean, boolean, boolean, URI, EndpointPool...)}
+ * {@link #createReverseProxy(String, boolean, boolean, boolean, URI, ClientEndpoints...)}
  * or customized {@link ProxyCoapClientResource} and/or
  * {@link ProxyHttpClientResource}. In cases, where it is ambiguous, if the
  * request should be processed by the forwarding-proxy or by a reverse-proxy
@@ -124,15 +124,15 @@ public abstract class ProxyCoapResource extends CoapResource {
 	 * @param copyQuery {@code true} copy query parameter to destination,
 	 *            {@code false}, otherwise.
 	 * @param destination fixed destination
-	 * @param pools endpoint pools for coap2coap
+	 * @param endpointsList list of client endpoints for coap2coap
 	 * @return coap resource, or {@code null}, if destination scheme is not
 	 *         supported.
 	 */
 	public static CoapResource createReverseProxy(String name, boolean visible, boolean accept, final boolean copyQuery,
-			final URI destination, EndpointPool... pools) {
+			final URI destination, ClientEndpoints... endpointsList) {
 		String scheme = destination.getScheme();
-		for (EndpointPool pool : pools) {
-			if (pool.getScheme().equals(scheme)) {
+		for (ClientEndpoints endpoints : endpointsList) {
+			if (endpoints.getScheme().equals(scheme)) {
 				Coap2CoapTranslator translator = new Coap2CoapTranslator() {
 
 					@Override
@@ -149,7 +149,7 @@ public abstract class ProxyCoapResource extends CoapResource {
 						return destination;
 					}
 				};
-				return new ProxyCoapClientResource(name, visible, accept, translator, pool);
+				return new ProxyCoapClientResource(name, visible, accept, translator, endpoints);
 			}
 		}
 		if (scheme.equals("http") || scheme.equals("https")) {
