@@ -48,6 +48,7 @@ import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.MultiNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.pskstore.AsyncInMemoryPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.StringPskStore;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
@@ -122,6 +123,8 @@ public abstract class AbstractTestServer extends CoapServer {
 	// from ETSI Plugtest test spec
 	public static final String ETSI_PSK_IDENTITY = "password";
 	public static final SecretKey ETSI_PSK_SECRET = SecretUtil.create("sesame".getBytes(), "PSK");
+
+	public static final String KEY_DTLS_PSK_DELAY = "DTLS_PSK_STORE_DELAY";
 
 	private final NetworkConfig config;
 	private final Map<Select, NetworkConfig> selectConfig;
@@ -259,6 +262,7 @@ public abstract class AbstractTestServer extends CoapServer {
 					int dtlsThreads = dtlsConfig.getInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT);
 					int dtlsReceiverThreads = dtlsConfig.getInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT);
 					int maxPeers = dtlsConfig.getInt(Keys.MAX_ACTIVE_PEERS);
+					Integer pskStoreDelay = dtlsConfig.getOptInteger(KEY_DTLS_PSK_DELAY);
 					Integer cidLength = dtlsConfig.getOptInteger(Keys.DTLS_CONNECTION_ID_LENGTH);
 					Integer cidNode = dtlsConfig.getOptInteger(Keys.DTLS_CONNECTION_ID_NODE_ID);
 					Integer healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL); // seconds
@@ -273,6 +277,12 @@ public abstract class AbstractTestServer extends CoapServer {
 							dtlsConfigBuilder.setConnectionIdGenerator(new SingleNodeConnectionIdGenerator(cidLength));
 						}
 					}
+					if (pskStoreDelay != null) {
+						dtlsConfigBuilder.setAdvancedPskStore(
+								new AsyncInMemoryPskStore(new PlugPskStore()).setDelay(pskStoreDelay));
+					} else {
+						dtlsConfigBuilder.setPskStore(new PlugPskStore());
+					}
 					dtlsConfigBuilder.setAddress(bindToAddress);
 					dtlsConfigBuilder.setRecommendedCipherSuitesOnly(false);
 					dtlsConfigBuilder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
@@ -281,7 +291,6 @@ public abstract class AbstractTestServer extends CoapServer {
 							CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256,
 							CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256,
 							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256);
-					dtlsConfigBuilder.setPskStore(new PlugPskStore());
 					dtlsConfigBuilder.setIdentity(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain(),
 							CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509);
 					dtlsConfigBuilder.setTrustStore(trustedCertificates);
