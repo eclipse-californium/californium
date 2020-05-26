@@ -35,7 +35,7 @@
 			<groupId>com.google.code.gson</groupId>
 			<artifactId>gson</artifactId>
 		</dependency>
-		
+
 		<!-- runtime dependencies -->
 		<dependency>
 			<groupId>${project.groupId}</groupId>
