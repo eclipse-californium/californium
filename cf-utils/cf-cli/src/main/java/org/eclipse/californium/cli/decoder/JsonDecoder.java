@@ -12,23 +12,30 @@
  * 
  * Contributors:
  *    Bosch Software Innovations GmbH - initial implementation
+ *    Achim Kraus (Bosch.IO GmbH)     - moved from cf-plugtest-client
  ******************************************************************************/
-package org.eclipse.californium.plugtests.util;
+package org.eclipse.californium.cli.decoder;
 
-import com.upokecenter.cbor.CBORException;
-import com.upokecenter.cbor.CBORObject;
+import org.eclipse.californium.core.coap.CoAP;
 
-public class CborDecoder implements Decoder {
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonSyntaxException;
+
+public class JsonDecoder implements Decoder {
 
 	@Override
 	public String decode(byte[] payload) {
 		try {
-			CBORObject cborResponse = CBORObject.DecodeFromBytes(payload);
-			return cborResponse.toString();
-		} catch (CBORException ex) {
-			ex.printStackTrace();
-			throw ex;
-		} catch (NullPointerException ex) {
+			JsonParser parser = new JsonParser();
+			JsonElement	element = parser.parse(new String(payload, CoAP.UTF8_CHARSET));
+			GsonBuilder builder = new GsonBuilder();
+			builder.setPrettyPrinting();
+			Gson gson = builder.create();
+			return gson.toJson(element);
+		} catch (JsonSyntaxException ex) {
 			ex.printStackTrace();
 			throw ex;
 		}

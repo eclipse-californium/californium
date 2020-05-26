@@ -18,11 +18,10 @@ package org.eclipse.californium.plugtests.tests;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.plugtests.TestClientAbstract;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
-
-import org.eclipse.californium.plugtests.PlugtestChecker.TestClientAbstract;
 
 /**
  * TD_COAP_LINK_03: Handle empty prefix value strings
@@ -48,7 +47,7 @@ public class CL03 extends TestClientAbstract {
 		success &= checkType(Type.ACK, response.getType());
 		success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 		success &= checkOption(MediaTypeRegistry.APPLICATION_LINK_FORMAT, response.getOptions().getContentFormat(), "Content format");
-		success &= hasNonEmptyPalyoad(response);
+		success &= hasNonEmptyPayload(response);
 		success &= checkDiscoveryAttributes(EXPECTED_RT, response.getPayloadString());
 		
 		return success;

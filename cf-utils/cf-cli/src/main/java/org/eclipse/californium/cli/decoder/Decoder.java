@@ -12,32 +12,11 @@
  * 
  * Contributors:
  *    Bosch Software Innovations GmbH - initial implementation
+ *    Achim Kraus (Bosch.IO GmbH)     - moved from cf-plugtest-client
  ******************************************************************************/
-package org.eclipse.californium.plugtests.util;
+package org.eclipse.californium.cli.decoder;
 
-import org.eclipse.californium.core.coap.CoAP;
+public interface Decoder {
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonParser;
-import com.google.gson.JsonSyntaxException;
-
-public class JsonDecoder implements Decoder {
-
-	@Override
-	public String decode(byte[] payload) {
-		try {
-			JsonParser parser = new JsonParser();
-			JsonElement	element = parser.parse(new String(payload, CoAP.UTF8_CHARSET));
-			GsonBuilder builder = new GsonBuilder();
-			builder.setPrettyPrinting();
-			Gson gson = builder.create();
-			return gson.toJson(element);
-		} catch (JsonSyntaxException ex) {
-			ex.printStackTrace();
-			throw ex;
-		}
-	}
-
+	String decode(byte[] payload);
 }

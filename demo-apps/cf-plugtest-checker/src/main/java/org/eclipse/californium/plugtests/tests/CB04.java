@@ -22,7 +22,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 
 import org.eclipse.californium.plugtests.PlugtestChecker;
-import org.eclipse.californium.plugtests.PlugtestChecker.TestClientAbstract;
+import org.eclipse.californium.plugtests.TestClientAbstract;
 
 public class CB04 extends TestClientAbstract {
 

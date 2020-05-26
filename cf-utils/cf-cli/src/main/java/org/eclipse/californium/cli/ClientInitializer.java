@@ -17,30 +17,26 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add argument -i (identity)
  *    Achim Kraus (Bosch Software Innovations GmbH) - add createEndpoint to create
  *                                                    more client endpoints.
+ *    Achim Kraus (Bosch.IO GmbH)                   - moved from cf-plugtest-client
  ******************************************************************************/
-package org.eclipse.californium.plugtests;
+package org.eclipse.californium.cli;
 
-import java.io.FileReader;
 import java.io.IOException;
+import java.io.PrintStream;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Properties;
-import java.util.Set;
-import java.util.SortedSet;
-import java.util.TreeSet;
 import java.util.concurrent.ExecutorService;
 
 import javax.crypto.SecretKey;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSessionContext;
 
+import org.eclipse.californium.cli.ConnectorConfig.AuthenticationMode;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
@@ -55,14 +51,18 @@ import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
-import org.eclipse.californium.scandium.dtls.pskstore.StringPskStore;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
+import org.eclipse.californium.scandium.dtls.pskstore.StringPskStore;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import picocli.CommandLine;
+import picocli.CommandLine.ParameterException;
+import picocli.CommandLine.ParseResult;
 
 /**
  * Client initializer.
@@ -70,6 +70,8 @@ import org.slf4j.LoggerFactory;
 public class ClientInitializer {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(ClientInitializer.class);
+
+	public static final String KEY_DTLS_RETRANSMISSION_TIMEOUT = "DTLS_RETRANSMISSION_TIMEOUT";
 
 	public static final String PSK_IDENTITY_PREFIX = "cali.";
 
@@ -90,9 +92,9 @@ public class ClientInitializer {
 	 * Set default PSK credentials
 	 * 
 	 * @param identity default identity. If {@code null}, use
-	 *                 {@link #PSK_IDENTITY_PREFIX} as default.
-	 * @param secret   default secret. If {@code null}, use {@link #PSK_SECRET} as
-	 *                 default.
+	 *            {@link #PSK_IDENTITY_PREFIX} as default.
+	 * @param secret default secret. If {@code null}, use {@link #PSK_SECRET} as
+	 *            default.
 	 */
 	public static void setDefaultPskCredentials(String identity, String secret) {
 		defaultIdentity = identity;
@@ -102,100 +104,80 @@ public class ClientInitializer {
 	/**
 	 * Initialize client.
 	 * 
-	 * @param config        network configuration to use
-	 * @param args          the arguments
-	 * @param ephemeralPort {@code true}, use ephemeral port, {@code false} use port
-	 *                      from network configuration.
+	 * @param args the arguments
+	 * @param config command line configuration
+	 * @param ephemeralPort {@code true}, use ephemeral port, {@code false} use
+	 *            port from network configuration.
 	 * @throws IOException if an i/o error occurs
 	 */
-	public static Arguments init(NetworkConfig config, String[] args, boolean ephemeralPort) throws IOException {
-		int index = 0;
-		boolean json = false;
-		boolean cbor = false;
-		boolean verbose = false;
-		boolean ping = true;
-		boolean rpk = false;
-		boolean x509 = false;
-		boolean ecdhe = false;
-		String id = defaultIdentity;
-		String secret = defaultSecret;
+	public static void init(String[] args, ClientBaseConfig config, boolean ephemeralPort) throws IOException {
 
-		if (args[index].equals("-s")) {
-			++index;
-			ping = false;
-		}
-		if (args[index].equals("-v")) {
-			++index;
-			verbose = true;
-		}
-		if (args[index].equals("-j")) {
-			++index;
-			json = true;
-		} else if (args[index].equals("-c")) {
-			++index;
-			cbor = true;
-		}
-		if (args[index].equals("-r")) {
-			++index;
-			rpk = true;
-		} else if (args[index].equals("-x")) {
-			++index;
-			x509 = true;
-		} else if (args[index].equals("-e")) {
-			++index;
-			ecdhe = true;
-		}
-		if (!rpk && !x509 && args[index].equals("-i")) {
-			++index;
-			id = args[index];
-			++index;
-			secret = args[index];
-			++index;
+		CommandLine cmd = new CommandLine(config);
+		config.register(cmd);
+		try {
+			ParseResult result = cmd.parseArgs(args);
+			if (result.isVersionHelpRequested()) {
+				String version = StringUtil.CALIFORNIUM_VERSION == null ? "" : StringUtil.CALIFORNIUM_VERSION;
+				System.out.println("\nCalifornium (Cf) " + cmd.getCommandName() + " " + version);
+				cmd.printVersionHelp(System.out);
+				System.out.println();
+			}
+			config.defaults();
+			if (config.helpRequested) {
+				cmd.usage(System.out);
+				if (config.authHelpRequested) {
+					System.out.println();
+					System.out.println("   --auth: values");
+					print("      ", ConnectorConfig.MAX_WIDTH, Arrays.asList(AuthenticationMode.values()), System.out);
+				}
+				if (config.cipherHelpRequested) {
+					List<CipherSuite> list = new ArrayList<CipherSuite>();
+					for (CipherSuite cipherSuite : CipherSuite.values()) {
+						if (cipherSuite.isSupported() && !CipherSuite.TLS_NULL_WITH_NULL_NULL.equals(cipherSuite)) {
+							list.add(cipherSuite);
+						}
+					}
+					System.out.println();
+					System.out.println("   --cipher: values");
+					print("      ", ConnectorConfig.MAX_WIDTH, list, System.out);
+				}
+				return;
+			}
+		} catch (ParameterException ex) {
+			System.err.println(ex.getMessage());
+			System.err.println();
+			cmd.usage(System.err);
+			System.exit(-1);
 		}
 
-		String uri = args[index];
-
-		// allow quick hostname as argument
-
-		if (uri.indexOf("://") == -1) {
-			if (rpk || x509 || id != null) {
-				uri = CoAP.COAP_SECURE_URI_SCHEME + "://" + uri;
-			} else {
-				uri = CoAP.COAP_URI_SCHEME + "://" + uri;
+		if (config.secure && (config.identity == null && config.secret == null)) {
+			config.identity = defaultIdentity;
+			config.secret = new ConnectorConfig.Secret();
+			config.secret.text = defaultSecret;
+			if (config.authenticationModes.isEmpty()) {
+				config.authenticationModes.add(AuthenticationMode.PSK);
 			}
 		}
-		if (uri.endsWith("/")) {
-			uri = uri.substring(uri.length() - 1);
-		}
 
-		ping = ping && !uri.startsWith(CoAP.COAP_TCP_URI_SCHEME + "://")
-				&& !uri.startsWith(CoAP.COAP_SECURE_TCP_URI_SCHEME + "://");
-		String[] leftArgs = Arrays.copyOfRange(args, index + 1, args.length);
-		byte[] secretBytes = secret == null ? null : secret.getBytes();
-		Arguments arguments = new Arguments(uri, id, secretBytes, rpk, x509, ecdhe, ping, verbose, json, cbor, null, null,
-				leftArgs);
-		CoapEndpoint coapEndpoint = createEndpoint(config, arguments, null, ephemeralPort);
+		CoapEndpoint coapEndpoint = createEndpoint(config, null, ephemeralPort);
 		coapEndpoint.start();
 		LOGGER.info("endpoint started at {}", coapEndpoint.getAddress());
 		EndpointManager.getEndpointManager().setDefaultEndpoint(coapEndpoint);
-
-		return arguments;
 	}
 
 	/**
 	 * Create endpoint from arguments.
 	 * 
-	 * @param config        network configuration to use
-	 * @param arguments     arguments
-	 * @param executor      executor service. {@code null}, if no external executor
-	 *                      should be used.
-	 * @param ephemeralPort {@code true}, use ephemeral port, {@code false} use port
-	 *                      from network configuration.
+	 * @param arguments arguments
+	 * @param executor executor service. {@code null}, if no external executor
+	 *            should be used.
+	 * @param ephemeralPort {@code true}, use ephemeral port, {@code false} use
+	 *            port from network configuration.
 	 * @return created endpoint.
 	 */
-	public static CoapEndpoint createEndpoint(NetworkConfig config, Arguments arguments, ExecutorService executor,
+	public static CoapEndpoint createEndpoint(ClientBaseConfig clientConfig, ExecutorService executor,
 			boolean ephemeralPort) {
-
+		NetworkConfig config = clientConfig.networkConfig;
 		int tcpThreads = config.getInt(Keys.TCP_WORKER_THREADS);
 		int tcpConnectTimeout = config.getInt(Keys.TCP_CONNECT_TIMEOUT);
 		int tlsHandshakeTimeout = config.getInt(Keys.TLS_HANDSHAKE_TIMEOUT);
@@ -210,9 +192,13 @@ public class ClientInitializer {
 		Integer cidLength = config.getOptInteger(Keys.DTLS_CONNECTION_ID_LENGTH);
 		Integer recvBufferSize = config.getOptInteger(Keys.UDP_CONNECTOR_RECEIVE_BUFFER);
 		Integer sendBufferSize = config.getOptInteger(Keys.UDP_CONNECTOR_SEND_BUFFER);
+		Integer dtlsRetransmissionTimeout = config.getOptInteger(KEY_DTLS_RETRANSMISSION_TIMEOUT);
+		if (dtlsRetransmissionTimeout != null) {
+			retransmissionTimeout = dtlsRetransmissionTimeout;
+		}
 
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		if (arguments.uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME)) {
+		if (clientConfig.uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME)) {
 			if (clientCredentials == null || trustedCertificates == null) {
 				try {
 					clientCredentials = SslContextUtil.loadCredentials(
@@ -240,40 +226,67 @@ public class ClientInitializer {
 					e.printStackTrace();
 				}
 			}
-			if (arguments.uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME + "://")) {
+			if (clientConfig.uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME + "://")) {
 				int coapsPort = ephemeralPort ? 0 : config.getInt(Keys.COAP_SECURE_PORT);
 				DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
-				KeyExchangeAlgorithm keyExchange = null;
-				if (arguments.rpk) {
-					if (arguments.privateKey != null && arguments.publicKey != null) {
-						dtlsConfig.setIdentity(arguments.privateKey, arguments.publicKey);
-					} else {
-						dtlsConfig.setIdentity(clientCredentials.getPrivateKey(),
-								clientCredentials.getCertificateChain(), CertificateType.RAW_PUBLIC_KEY);
+				boolean psk = false;
+				List<KeyExchangeAlgorithm> keyExchangeAlgorithms = new ArrayList<KeyExchangeAlgorithm>();
+				List<CertificateType> certificateTypes = new ArrayList<CertificateType>();
+				for (ConnectorConfig.AuthenticationMode auth : clientConfig.authenticationModes) {
+					switch (auth) {
+					case NONE:
+						break;
+					case PSK:
+						psk = true;
+						keyExchangeAlgorithms.add(KeyExchangeAlgorithm.PSK);
+						break;
+					case RPK:
+						certificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
+						keyExchangeAlgorithms.add(KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN);
+						dtlsConfig.setRpkTrustAll();
+						break;
+					case X509:
+						certificateTypes.add(CertificateType.X_509);
+						dtlsConfig.setTrustStore(trustedCertificates);
+						keyExchangeAlgorithms.add(KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN);
+						break;
+					case ECDHE_PSK:
+						psk = true;
+						keyExchangeAlgorithms.add(KeyExchangeAlgorithm.ECDHE_PSK);
+						break;
 					}
-					dtlsConfig.setRpkTrustAll();
-					keyExchange = KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN;
-				} else if (arguments.x509) {
+				}
+
+				if (!certificateTypes.isEmpty()) {
 					dtlsConfig.setIdentity(clientCredentials.getPrivateKey(), clientCredentials.getCertificateChain(),
-							CertificateType.X_509);
-					dtlsConfig.setTrustStore(trustedCertificates);
-					keyExchange = KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN;
-				} else if (arguments.id != null) {
-					byte[] secret = arguments.secret;
-					dtlsConfig.setPskStore(new PlugPskStore(arguments.id, secret));
-					keyExchange = arguments.ecdhe ? KeyExchangeAlgorithm.ECDHE_PSK : KeyExchangeAlgorithm.PSK;
-				} else {
-					byte[] rid = new byte[8];
-					SecureRandom random = new SecureRandom();
-					random.nextBytes(rid);
-					dtlsConfig.setPskStore(new PlugPskStore(StringUtil.byteArray2Hex(rid)));
-					keyExchange = arguments.ecdhe ? KeyExchangeAlgorithm.ECDHE_PSK : KeyExchangeAlgorithm.PSK;
+							certificateTypes);
 				}
-				if (keyExchange != null) {
+
+				if (psk) {
+					if (clientConfig.identity != null) {
+						dtlsConfig.setPskStore(new PlugPskStore(clientConfig.identity, clientConfig.secretKey));
+					} else {
+						byte[] rid = new byte[8];
+						SecureRandom random = new SecureRandom();
+						random.nextBytes(rid);
+						dtlsConfig.setPskStore(new PlugPskStore(StringUtil.byteArray2Hex(rid)));
+					}
+				}
+				if (!keyExchangeAlgorithms.isEmpty()) {
+					if (clientConfig.cipherSuites == null || clientConfig.cipherSuites.isEmpty()) {
+						clientConfig.cipherSuites = CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(false, true,
+								keyExchangeAlgorithms);
+					}
+				}
+				if (clientConfig.cipherSuites != null && !clientConfig.cipherSuites.isEmpty()) {
 					dtlsConfig.setRecommendedCipherSuitesOnly(false);
-					List<CipherSuite> list = CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(false, keyExchange);
-					dtlsConfig.setSupportedCipherSuites(list);
+					dtlsConfig.setSupportedCipherSuites(clientConfig.cipherSuites);
+					if (clientConfig.verbose) {
+						System.out.println("cipher suites:");
+						print("   ", 50, clientConfig.cipherSuites, System.out);
+					}
 				}
+
 				if (cidLength != null) {
 					dtlsConfig.setConnectionIdGenerator(new SingleNodeConnectionIdGenerator(cidLength));
 				}
@@ -292,23 +305,37 @@ public class ClientInitializer {
 					dtlsConnector.setExecutor(executor);
 				}
 				builder.setConnector(dtlsConnector);
-			} else if (arguments.uri.startsWith(CoAP.COAP_SECURE_TCP_URI_SCHEME + "://")) {
+			} else if (clientConfig.uri.startsWith(CoAP.COAP_SECURE_TCP_URI_SCHEME + "://")) {
 				builder.setConnector(new TlsClientConnector(clientSslContext, tcpThreads, tcpConnectTimeout,
 						tlsHandshakeTimeout, tcpIdleTimeout));
 			}
-		} else if (arguments.uri.startsWith(CoAP.COAP_TCP_URI_SCHEME + "://")) {
+		} else if (clientConfig.uri.startsWith(CoAP.COAP_TCP_URI_SCHEME + "://")) {
 			builder.setConnector(new TcpClientConnector(tcpThreads, tcpConnectTimeout, tcpIdleTimeout));
-		} else if (arguments.uri.startsWith(CoAP.COAP_URI_SCHEME + "://")) {
+		} else if (clientConfig.uri.startsWith(CoAP.COAP_URI_SCHEME + "://")) {
 			int coapPort = ephemeralPort ? 0 : config.getInt(Keys.COAP_PORT);
 			builder.setConnectorWithAutoConfiguration(new UDPConnector(new InetSocketAddress(coapPort)));
 		}
 
 		builder.setNetworkConfig(config);
 		CoapEndpoint endpoint = builder.build();
-		if (arguments.verbose) {
+		if (clientConfig.verbose) {
 			endpoint.addInterceptor(new MessageTracer());
 		}
 		return endpoint;
+	}
+
+	public static void print(String tab, int width, List<?> values, PrintStream out) {
+		StringBuilder line = new StringBuilder();
+		line.append(tab);
+		for (Object value : values) {
+			String name = value.toString();
+			if (line.length() + name.length() > width) {
+				out.println(line);
+				line.setLength(tab.length());
+			}
+			line.append(name).append(" ");
+		}
+		out.println(line);
 	}
 
 	public static class PlugPskStore extends StringPskStore {
@@ -352,133 +379,6 @@ public class ClientInitializer {
 		@Override
 		public String getIdentityAsString(InetSocketAddress peerAddress, ServerNames virtualHost) {
 			return getIdentityAsString(peerAddress);
-		}
-	}
-
-	public static class Arguments {
-
-		public final boolean ping;
-		public final boolean verbose;
-		public final boolean json;
-		public final boolean cbor;
-		public final boolean rpk;
-		public final boolean x509;
-		public final boolean ecdhe;
-		public final String id;
-		public final byte[] secret;
-		public final String uri;
-		public final String[] args;
-		public final PrivateKey privateKey;
-		public final PublicKey publicKey;
-
-		/**
-		 * Create new arguments instance.
-		 * 
-		 * @param uri     destination URI
-		 * @param id      client id
-		 * @param secret  client secret (PSK only). If {@code null} and
-		 *                {@link ClientInitializer#PSK_IDENTITY_PREFIX} is used as id, then
-		 *                {@link ClientInitializer#PSK_SECRET} is used as secret.
-		 * @param rpk     {@code true}, if raw public key is preferred, {@code false},
-		 *                otherwise
-		 * @param x509    {@code true}, if x.509 should be used, {@code false},
-		 *                otherwise
-		 * @param ping    {@code true}, if client starts communication with ping,
-		 *                {@code false}, otherwise
-		 * @param verbose {@code true}, enable verbose mode, {@code false}, otherwise
-		 * @param json    {@code true}, json content should be used, {@code false},
-		 *                otherwise
-		 * @param cbor    {@code true}, cbor content should be used, {@code false},
-		 *                otherwise
-		 * @param args    left arguments
-		 */
-		public Arguments(String uri, String id, byte[] secret, boolean rpk, boolean x509, boolean ecdhe, boolean ping,
-				boolean verbose, boolean json, boolean cbor, PrivateKey privateKey, PublicKey publicKey,
-				String[] args) {
-			this.uri = uri;
-			this.id = id;
-			this.secret = secret;
-			this.rpk = rpk;
-			this.x509 = x509;
-			this.ecdhe = ecdhe;
-			this.ping = ping;
-			this.verbose = verbose;
-			this.json = json;
-			this.cbor = cbor;
-			this.args = args;
-			this.privateKey = null;
-			this.publicKey = null;
-		}
-
-		/**
-		 * Create arguments clone with different PSK identity and secret.
-		 * 
-		 * @param id     psk identity
-		 * @param secret secret (PSK only). if {@code null} and
-		 *               {@link ClientInitializer#PSK_IDENTITY_PREFIX} is used, use
-		 *               {@link ClientInitializer#PSK_SECRET}
-		 * @return create arguments clone.
-		 */
-		public Arguments create(String id, byte[] secret) {
-			return new Arguments(uri, id, secret, false, false, ecdhe, ping, verbose, json, cbor, privateKey, publicKey,
-					args);
-		}
-
-		/**
-		 * Create arguments clone with different ec key pair.
-		 * 
-		 * @return create arguments clone.
-		 */
-		public Arguments create(PrivateKey privateKey, PublicKey publicKey) {
-			return new Arguments(uri, null, null, true, false, false, ping, verbose, json, cbor, privateKey, publicKey,
-					args);
-		}
-	}
-
-	public static CredentialStore loadPskCredentials(String file) {
-		Properties credentials = new Properties();
-		try (FileReader reader = new FileReader(file)) {
-			credentials.load(reader);
-			Set<Object> keys = credentials.keySet();
-			SortedSet<String> sortedKeys = new TreeSet<>();
-			for (Object key : keys) {
-				if (key instanceof String) {
-					sortedKeys.add((String) key);
-				}
-			}
-			if (!sortedKeys.isEmpty()) {
-				CredentialStore pskCredentials = new CredentialStore();
-				for (String key : sortedKeys) {
-					String secret = credentials.getProperty(key);
-					byte[] secretBytes = StringUtil.base64ToByteArray(secret);
-					pskCredentials.add(key, secretBytes);
-				}
-				return pskCredentials;
-			}
-		} catch (IOException e) {
-		}
-		return null;
-	}
-
-	public static class CredentialStore {
-		private List<String> identities = new ArrayList<String>();
-		private List<byte[]> secrets = new ArrayList<byte[]>();
-
-		private void add(String identity, byte[] secret) {
-			identities.add(identity);
-			secrets.add(secret);
-		}
-
-		public String getIdentity(int index) {
-			return identities.get(index);
-		}
-
-		public byte[] getSecrets(int index) {
-			return secrets.get(index);
-		}
-
-		public int size() {
-			return secrets.size();
 		}
 	}
 }

@@ -18,10 +18,9 @@ package org.eclipse.californium.plugtests.tests;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.plugtests.TestClientAbstract;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
-
-import org.eclipse.californium.plugtests.PlugtestChecker.TestClientAbstract;
 
 public class CB06 extends TestClientAbstract {
 
@@ -52,7 +51,7 @@ public class CB06 extends TestClientAbstract {
 			success &= checkOption(new BlockOption(EXPECTED_BLOCK_SIZE,
 					false, maxNUM), response.getOptions().getBlock2(),
 					"Block2");
-			success &= hasNonEmptyPalyoad(response);
+			success &= hasNonEmptyPayload(response);
 			success &= hasContentType(response);
 		}
 		return success;

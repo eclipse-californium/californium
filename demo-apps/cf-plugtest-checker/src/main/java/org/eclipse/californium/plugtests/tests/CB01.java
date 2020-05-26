@@ -22,7 +22,7 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 
 import org.eclipse.californium.plugtests.PlugtestChecker;
-import org.eclipse.californium.plugtests.PlugtestChecker.TestClientAbstract;
+import org.eclipse.californium.plugtests.TestClientAbstract;
 
 public class CB01 extends TestClientAbstract {
 
@@ -52,7 +52,7 @@ public class CB01 extends TestClientAbstract {
 			success &= checkOption(new BlockOption(PlugtestChecker.PLUGTEST_BLOCK_SZX,
 					false, maxNUM), response.getOptions().getBlock2(),
 					"Block2");
-			success &= hasNonEmptyPalyoad(response);
+			success &= hasNonEmptyPayload(response);
 			success &= hasContentType(response);
 		}
 		return success;

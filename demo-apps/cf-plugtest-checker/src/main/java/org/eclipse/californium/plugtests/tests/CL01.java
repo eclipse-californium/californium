@@ -18,9 +18,8 @@ package org.eclipse.californium.plugtests.tests;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.plugtests.TestClientAbstract;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-
-import org.eclipse.californium.plugtests.PlugtestChecker.TestClientAbstract;
 
 /**
  * TD_COAP_LINK_01: Access to well-known interface for resource discovery.
@@ -45,7 +44,7 @@ public class CL01 extends TestClientAbstract {
 
 		success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 		success &= checkOption(MediaTypeRegistry.APPLICATION_LINK_FORMAT, response.getOptions().getContentFormat(), "Content-Format");
-		success &= hasNonEmptyPalyoad(response);
+		success &= hasNonEmptyPayload(response);
 
 		return success;
 	}

@@ -22,6 +22,7 @@ import java.net.URI;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Enumeration;
@@ -100,13 +101,14 @@ public class Catalog {
 		return catalog.get(name);
 	}
 
-	public List<Class<?>> getTestsClasses(String... names) {
-		if (names.length == 0) {
-			names = new String[] { ".*" };
+	public List<Class<?>> getTestsClasses(List<String> names) {
+		if (names == null || names.isEmpty()) {
+			names = Arrays.asList(".*");
 		} else {
-			String[] regexs = new String[names.length];
-			for (int index = 0; index < names.length; ++index) {
-				regexs[index] = names[index].replace("*", ".*");
+			List<String> regexs = new ArrayList<String>(names.size());
+			for (int index = 0; index < names.size(); ++index) {
+				String regex = names.get(index).replace("*", ".*");
+				regexs.add(regex);
 			}
 			names = regexs;
 		}

@@ -22,11 +22,10 @@ import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.plugtests.TestClientAbstract;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
-
-import org.eclipse.californium.plugtests.PlugtestChecker.TestClientAbstract;
 
 /**
  * TD_COAP_CORE_21: Perform GET transaction containing the ETag option (CON
@@ -67,6 +66,7 @@ public class CC21 extends TestClientAbstract {
 		}
 
 		request.setURI(uri);
+		addContextObserver(request);
 
 		// print request info
 		if (verbose) {
@@ -102,7 +102,7 @@ public class CC21 extends TestClientAbstract {
 				success &= checkType(Type.ACK, response.getType());
 				success &= checkCode(EXPECTED_RESPONSE_CODE_A, response.getCode());
 				success &= hasEtag(response);
-				success &= hasNonEmptyPalyoad(response);
+				success &= hasNonEmptyPayload(response);
 				etagStep3 = response.getOptions().getETags().get(0);
 
 				// Part B

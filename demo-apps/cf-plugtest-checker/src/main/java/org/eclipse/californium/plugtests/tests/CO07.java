@@ -25,11 +25,10 @@ import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.plugtests.TestClientAbstract;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
-
-import org.eclipse.californium.plugtests.PlugtestChecker.TestClientAbstract;
 
 /**
  * TD_COAP_OBS_07: Server cleans the observers list on DELETE
@@ -99,7 +98,7 @@ public class CO07 extends TestClientAbstract {
 				success &= checkType(Type.ACK, response.getType());
 				success &= checkToken(request.getToken(), response.getToken());
 				success &= hasContentType(response);
-				success &= hasNonEmptyPalyoad(response);
+				success &= hasNonEmptyPayload(response);
 				success &= hasObserve(response);
 
 				time = response.getOptions().getMaxAge() * 1000;
@@ -186,7 +185,7 @@ public class CO07 extends TestClientAbstract {
 		success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 		success &= checkToken(request.getToken(), response.getToken());
 		success &= hasContentType(response);
-		success &= hasNonEmptyPalyoad(response);
+		success &= hasNonEmptyPayload(response);
 		success &= hasObserve(response);
 
 		return success;

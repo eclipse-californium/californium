@@ -22,11 +22,10 @@ import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.plugtests.TestClientAbstract;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
-
-import org.eclipse.californium.plugtests.PlugtestChecker.TestClientAbstract;
 
 /**
  * TD_COAP_OBS_04: Client detection of deregistration (Max-Age).
@@ -93,7 +92,7 @@ public class CO04 extends TestClientAbstract {
 				success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 				success &= checkToken(request.getToken(), response.getToken());
 				success &= hasContentType(response);
-				success &= hasNonEmptyPalyoad(response);
+				success &= hasNonEmptyPayload(response);
 				success &= hasObserve(response);
 
 				if (success) {
@@ -168,7 +167,7 @@ public class CO04 extends TestClientAbstract {
 								success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 								success &= checkToken(request.getToken(), response.getToken());
 								success &= hasContentType(response);
-								success &= hasNonEmptyPalyoad(response);
+								success &= hasNonEmptyPayload(response);
 								success &= hasObserve(response);
 							} else {
 								System.out.println("FAIL: Re-registration failed");
@@ -240,7 +239,7 @@ public class CO04 extends TestClientAbstract {
 		success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
 		success &= checkToken(request.getToken(), response.getToken());
 		success &= hasContentType(response);
-		success &= hasNonEmptyPalyoad(response);
+		success &= hasNonEmptyPayload(response);
 		success &= hasObserve(response);
 
 		return success;

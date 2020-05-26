@@ -191,9 +191,9 @@ public class SslContextUtil {
 	/**
 	 * Load trusted certificates from key store.
 	 * 
-	 * @param trust trust definition keystore#hexstorepwd#aliaspattern. If no
-	 *            aliaspattern should be used, just leave it blank
-	 *            keystore#hexstorepwd#
+	 * @param trust trust definition keystore#hexstorepwd#aliaspattern or
+	 *            keystore.pem. If no aliaspattern should be used, just leave it
+	 *            blank keystore#hexstorepwd#
 	 * @return array with trusted certificates.
 	 * @throws IOException if key store could not be loaded.
 	 * @throws GeneralSecurityException if security setup failed.
@@ -208,6 +208,12 @@ public class SslContextUtil {
 			throw new NullPointerException("trust must be provided!");
 		}
 		String[] parameters = trust.split(PARAMETER_SEPARATOR, 3);
+		if (1 == parameters.length) {
+			KeyStoreConfiguration configuration = getKeyStoreConfigurationFromUri(parameters[0]);
+			if (configuration.simpleStore != null) {
+				return loadTrustedCertificates(parameters[0], null, null);
+			}
+		}
 		if (3 != parameters.length) {
 			throw new IllegalArgumentException("trust must comply the pattern <keystore" + PARAMETER_SEPARATOR
 					+ "hexstorepwd" + PARAMETER_SEPARATOR + "aliaspattern>");
@@ -219,7 +225,7 @@ public class SslContextUtil {
 	 * Load credentials from key store.
 	 * 
 	 * @param credentials credentials definition
-	 *            keystore#hexstorepwd#hexkeypwd#alias.
+	 *            keystore#hexstorepwd#hexkeypwd#alias or keystore.pem
 	 * @return credentials
 	 * @throws IOException if key store could not be loaded.
 	 * @throws GeneralSecurityException if security setup failed.
@@ -234,6 +240,12 @@ public class SslContextUtil {
 			throw new NullPointerException("credentials must be provided!");
 		}
 		String[] parameters = credentials.split(PARAMETER_SEPARATOR, 4);
+		if (1 == parameters.length) {
+			KeyStoreConfiguration configuration = getKeyStoreConfigurationFromUri(parameters[0]);
+			if (configuration.simpleStore != null) {
+				return loadCredentials(parameters[0], null, null, null);
+			}
+		}
 		if (4 != parameters.length) {
 			throw new IllegalArgumentException("credentials must comply the pattern <keystore" + PARAMETER_SEPARATOR
 					+ "hexstorepwd" + PARAMETER_SEPARATOR + "hexkeypwd" + PARAMETER_SEPARATOR + "alias>");
