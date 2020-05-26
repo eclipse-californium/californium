@@ -201,10 +201,9 @@ public final class TcpMatcher extends BaseMatcher {
 				try {
 					if (endpointContextMatcher.isResponseRelatedToRequest(context, response.getSourceContext())) {
 						Request currentRequest = exchange.getCurrentRequest();
-						if (exchange.isNotification() && !currentRequest.isMulticast()
-								&& response.isNotification() && currentRequest.isObserveCancel()) {
-							// overlapping notification for observation cancel
-							// request
+						if (exchange.isNotification() && response.isNotification()
+								&& currentRequest.isObserveCancel()) {
+							// overlapping notification for observation cancel request
 							LOGGER.debug("ignoring notify for pending cancel {}!", response);
 							cancel(response, receiver);
 							return;
