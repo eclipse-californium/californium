@@ -112,6 +112,7 @@ public class ContextRederivation {
 		OSCoreCtx newCtx = rederiveWithContextID(ctx, contextID1);
 		newCtx.setIncludeContextId(true);
 		newCtx.setContextRederivationPhase(ContextRederivation.PHASE.CLIENT_PHASE_1);
+		db.removeContext(ctx);
 		db.addContext(uri, newCtx);
 	}
 
@@ -160,6 +161,7 @@ public class ContextRederivation {
 
 			// Add the new context to the context DB (replacing the old)
 			newCtx.setContextRederivationPhase(PHASE.CLIENT_PHASE_2);
+			db.removeContext(ctx);
 			db.addContext(SCHEME + ctx.getUri(), newCtx);
 			return newCtx;
 		} else if (ctx.getContextRederivationPhase() == PHASE.INACTIVE) {
@@ -193,6 +195,7 @@ public class ContextRederivation {
 
 			// Add the new context to the context DB (replacing the old)
 			newCtx.setContextRederivationPhase(PHASE.CLIENT_PHASE_2);
+			db.removeContext(ctx);
 			db.addContext(SCHEME + ctx.getUri(), newCtx);
 			return newCtx;
 		}
@@ -237,6 +240,7 @@ public class ContextRederivation {
 			newCtx.setContextRederivationPhase(PHASE.CLIENT_PHASE_3);
 
 			// Add the new context to the context DB (replacing the old)
+			db.removeContext(ctx);
 			db.addContext(SCHEME + ctx.getUri(), newCtx);
 			return newCtx;
 		}
@@ -252,13 +256,26 @@ public class ContextRederivation {
 	 * @param db db the context db
 	 * @param ctx the context
 	 * @param contextID the context ID in the incoming request
+	 * @param RID the RID in the incoming request
 	 * @return an updated context
 	 * @throws OSException if context re-derivation fails
 	 */
-	static OSCoreCtx incomingRequest(OSCoreCtxDB db, OSCoreCtx ctx, byte[] contextID) throws OSException {
+	static OSCoreCtx incomingRequest(OSCoreCtxDB db, OSCoreCtx ctx, byte[] contextID, byte[] rid) throws OSException {
 
-		 // Check if context re-derivation is enabled for this context
-		 if (ctx.getContextRederivationEnabled() == false) {
+		// Try to retrieve the context based on the RID only if no context was
+		// found. Since the ID Context in the initial request will be a new one
+		// and not match existing contexts.
+		if (ctx == null) {
+			ctx = db.getContext(rid);
+		}
+
+		// No context found still
+		if (ctx == null) {
+			return null;
+		}
+
+		// Check if context re-derivation is enabled for this context
+		if (ctx.getContextRederivationEnabled() == false) {
 			LOGGER.debug("Context re-derivation not initiated due to it being disabled for this context");
 			return ctx;
 		 }
@@ -293,6 +310,7 @@ public class ContextRederivation {
 			newCtx.setContextRederivationPhase(PHASE.SERVER_PHASE_3);
 
 			// Add the new context to the context DB (replacing the old)
+			db.removeContext(ctx);
 			db.addContext(newCtx);
 
 			return newCtx;
@@ -319,6 +337,7 @@ public class ContextRederivation {
 			newCtx.setContextRederivationPhase(PHASE.SERVER_PHASE_1);
 
 			// Add the new context to the context DB (replacing the old)
+			db.removeContext(ctx);
 			db.addContext(newCtx);
 			return newCtx;
 		} else if (ctx.getContextRederivationPhase() == PHASE.SERVER_INITIATE) {
@@ -340,6 +359,7 @@ public class ContextRederivation {
 			newCtx.setContextRederivationPhase(PHASE.SERVER_PHASE_1);
 
 			// Add the new context to the context DB (replacing the old)
+			db.removeContext(ctx);
 			db.addContext(newCtx);
 			return newCtx;
 		}
@@ -412,6 +432,7 @@ public class ContextRederivation {
 			newCtx.setContextRederivationPhase(PHASE.SERVER_PHASE_2);
 
 			// Add the new context to the context DB (replacing the old)
+			db.removeContext(ctx);
 			db.addContext(newCtx);
 			return newCtx;
 		}

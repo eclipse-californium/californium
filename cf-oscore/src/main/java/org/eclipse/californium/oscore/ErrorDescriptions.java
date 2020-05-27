@@ -25,6 +25,7 @@ package org.eclipse.californium.oscore;
 public final class ErrorDescriptions {
 
 	public static final String CONTEXT_NOT_FOUND = "Security context not found";
+	public static final String CONTEXT_NOT_FOUND_IDCONTEXT = "Security context not found (resend with ID Context)";
 	public static final String FAILED_TO_DECODE_COSE = "Failed to decode COSE";
 	public static final String REPLAY_DETECT = "Replay detected";
 	public static final String DECRYPTION_FAILED = "Decryption failed";

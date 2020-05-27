@@ -58,7 +58,6 @@ public class ObjectSecurityContextLayer extends AbstractLayer {
 		this.ctxDb = ctxDb;
 	}
 
-
 	@Override
 	public void receiveRequest(Exchange exchange, Request request) {
 
@@ -69,10 +68,28 @@ public class ObjectSecurityContextLayer extends AbstractLayer {
 		boolean outerBlockwise = request.getOptions().hasOscore() && request.getOptions().getOscore().length != 0
 				&& exchange.getCurrentRequest() != null && exchange.getCurrentRequest().getOptions().hasBlock1();
 		if (isProtected(request) && outerBlockwise) {
+
 			LOGGER.debug("Incoming OSCORE request uses outer block-wise");
-			byte[] rid = null;
+
+			// Retrieve the OSCORE context for this RID and ID Context
+			byte[] rid = OptionJuggle.getRid(request.getOptions().getOscore());
+			byte[] IDContext = OptionJuggle.getIDContext(request.getOptions().getOscore());
+
+			OSCoreCtx ctx = null;
 			try {
-				request = RequestDecryptor.decrypt(ctxDb, request);
+				ctx = ctxDb.getContext(rid, IDContext);
+			} catch (CoapOSException e) {
+				LOGGER.error("Error while receiving OSCore request: " + e.getMessage());
+				Response error;
+				error = CoapOSExceptionHandler.manageError(e, request);
+				if (error != null) {
+					super.sendResponse(exchange, error);
+				}
+				return;
+			}
+
+			try {
+				request = RequestDecryptor.decrypt(ctxDb, request, ctx);
 				rid = request.getOptions().getOscore();
 				request.getOptions().setOscore(Bytes.EMPTY);
 				exchange.setRequest(request);

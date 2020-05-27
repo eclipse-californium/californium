@@ -26,13 +26,15 @@ import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.elements.util.Bytes;
 
 /**
  * 
@@ -46,7 +48,9 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 	 */
 	private static final Logger LOGGER = LoggerFactory.getLogger(HashMapCtxDB.class);
 
-	private HashMap<ByteId, OSCoreCtx> ridMap;
+	// The outer HashMap has RID as key and the inner ID Context
+	private HashMap<ByteId, HashMap<ByteId, OSCoreCtx>> contextMap;
+
 	private HashMap<Token, OSCoreCtx> tokenMap;
 	private HashMap<String, OSCoreCtx> uriMap;
 	private HashMap<Token, Integer> seqMap;
@@ -59,20 +63,66 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 	public HashMapCtxDB() {
 
 		this.tokenMap = new HashMap<>();
-		this.ridMap = new HashMap<>();
+		this.contextMap = new HashMap<>();
 		this.uriMap = new HashMap<>();
 		this.seqMap = new HashMap<>();
 		this.allTokens = new ArrayList<Token>();
 	}
 
+	/**
+	 * Retrieve context using RID and ID Context. If the provided ID Context is
+	 * null a result will be returned if there is only one unique context for
+	 * that RID.
+	 */
 	@Override
-	public synchronized OSCoreCtx getContext(byte[] rid) {
-		if (rid != null) {
-			return ridMap.get(new ByteId(rid));
-		} else {
+	public synchronized OSCoreCtx getContext(byte[] rid, byte[] IDContext) throws CoapOSException {
+		// Do not allow a null RID
+		if (rid == null) {
 			LOGGER.error(ErrorDescriptions.BYTE_ARRAY_NULL);
 			throw new NullPointerException(ErrorDescriptions.BYTE_ARRAY_NULL);
 		}
+
+		HashMap<ByteId, OSCoreCtx> matchingRidMap = contextMap.get(new ByteId(rid));
+
+		// No matching RID found at all
+		if (matchingRidMap == null) {
+			return null;
+		}
+
+		// If a RID was found get the specific context
+		if (IDContext == null) {
+			// If retrieving using only RID, there must be only 1 match maximum
+			if (matchingRidMap.size() > 1) {
+				throw new CoapOSException(ErrorDescriptions.CONTEXT_NOT_FOUND_IDCONTEXT, ResponseCode.UNAUTHORIZED);
+			} else {
+				// If only one entry return it
+				Map.Entry<ByteId, OSCoreCtx> first = matchingRidMap.entrySet().iterator().next();
+				return first.getValue();
+			}
+
+		} else {
+			// If retrieving using both RID and ID Context
+			return matchingRidMap.get(new ByteId(IDContext));
+		}
+	}
+
+	/**
+	 * Retrieve context using only RID when it is certain it is unique.
+	 */
+	@Override
+	public synchronized OSCoreCtx getContext(byte[] rid) {
+		HashMap<ByteId, OSCoreCtx> matchingRidMap = contextMap.get(new ByteId(rid));
+
+		if (matchingRidMap == null) {
+			return null;
+		}
+
+		if (matchingRidMap.size() > 1) {
+			throw new RuntimeException("Attempting to retrieve context with only non-unique RID.");
+		}
+
+		Map.Entry<ByteId, OSCoreCtx> first = matchingRidMap.entrySet().iterator().next();
+		return first.getValue();
 	}
 
 	@Override
@@ -119,7 +169,59 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 	@Override
 	public synchronized void addContext(OSCoreCtx ctx) {
 		if (ctx != null) {
-			ridMap.put(new ByteId(ctx.getRecipientId()), ctx);
+			
+			ByteId rid = new ByteId(ctx.getRecipientId());
+			HashMap<ByteId, OSCoreCtx> ridMap = contextMap.get(rid);
+
+			// If there is no existing map for this RID, create it
+			if (ridMap == null) {
+				ridMap = new HashMap<ByteId, OSCoreCtx>();
+			}
+
+			// Add the context to the RID map with ID context as key
+			byte[] IDContext = ctx.getIdContext();
+			if (IDContext == null) {
+				IDContext = Bytes.EMPTY;
+			}
+			ridMap.put(new ByteId(IDContext), ctx);
+
+			// Put the updated map for this RID in the context map
+			contextMap.put(rid, ridMap);
+
+		} else {
+			LOGGER.error(ErrorDescriptions.CONTEXT_NULL);
+			throw new NullPointerException(ErrorDescriptions.CONTEXT_NULL);
+		}
+	}
+
+	@Override
+	public synchronized void removeContext(OSCoreCtx ctx) {
+		if (ctx != null) {
+
+			ByteId rid = new ByteId(ctx.getRecipientId());
+			HashMap<ByteId, OSCoreCtx> ridMap = contextMap.get(rid);
+
+			// If there is no existing map for this RID return
+			if (ridMap == null) {
+				return;
+			}
+
+			// Remove the context from the RID map with ID context as key
+			byte[] IDContext = ctx.getIdContext();
+			if (IDContext == null) {
+				IDContext = Bytes.EMPTY;
+			}
+			ridMap.remove(new ByteId(IDContext));
+
+			if (ridMap.isEmpty()) {
+				// If the RID map is now empty, remove it
+				contextMap.remove(rid);
+			} else {
+
+				// Put the updated map for this RID in the context map
+				contextMap.put(rid, ridMap);
+			}
+
 		} else {
 			LOGGER.error(ErrorDescriptions.CONTEXT_NULL);
 			throw new NullPointerException(ErrorDescriptions.CONTEXT_NULL);
@@ -267,7 +369,7 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 	 */
 	@Override
 	public synchronized void purge() {
-		ridMap.clear();
+		contextMap.clear();
 		tokenMap.clear();
 		uriMap.clear();
 		seqMap.clear();

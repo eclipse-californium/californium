@@ -27,6 +27,7 @@ package org.eclipse.californium.oscore;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Medium;
@@ -42,6 +43,7 @@ import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.Before;
@@ -76,6 +78,7 @@ public class OSCoreServerClientTest {
 			0x0C, 0x0D, 0x0E, 0x0F, 0x10 };
 	private final static byte[] master_salt = { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22, (byte) 0x23,
 			(byte) 0x78, (byte) 0x63, (byte) 0x40 };
+	private final static byte[] context_id = { 0x74, 0x65, 0x73, 0x74, 0x74, 0x65, 0x73, 0x74 };
 	
 	@Before
 	public void initLogger() {
@@ -107,7 +110,7 @@ public class OSCoreServerClientTest {
 		//Set up OSCORE context information for request (client)
 		byte[] sid = new byte[0];
 		byte[] rid = new byte[] { 0x01 };
-		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, null);
+		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id);
 		dbClient.addContext("coap://" + serverEndpoint.getAddress().getAddress().getHostAddress(), ctx);
 		
 		// send request
@@ -141,7 +144,7 @@ public class OSCoreServerClientTest {
 		//Set up OSCORE context information for request (client)
 		byte[] sid = new byte[] { 0x77 }; //Modified sender ID to be incorrect
 		byte[] rid = new byte[] { 0x01 };
-		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, null);
+		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id);
 		dbClient.addContext("coap://" + serverEndpoint.getAddress().getAddress().getHostAddress(), ctx);
 		
 		// send request
@@ -165,11 +168,84 @@ public class OSCoreServerClientTest {
 		assertEquals(response.getMID(), requestMID); //Response MID matches Request MID
 	}
 	
+	/**
+	 * Tests OSCORE functionality when the server cannot find the correct
+	 * context due to the ID Context not being included in the request (since
+	 * many contexts match that RID). The server replies with a non-OSCORE CoAP
+	 * error message. The server will reply with an error message with a payload
+	 * describing the error.
+	 */
+	@Test
+	public void testIncludeContextIDResponse() throws Exception {	
+		createSimpleServer();
+
+		// Add one more context to the server context DB with duplicate RID.
+		// But different ID Context.
+		byte[] sid = new byte[] { 0x01 };
+		byte[] rid = new byte[0];
+		OSCoreCtx serverCtxDup = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, Bytes.EMPTY);
+		dbServer.addContext("coap://" + TestTools.LOCALHOST_EPHEMERAL.getAddress().getHostName(), serverCtxDup);
+
+		//Set up OSCORE context information for request (client)
+		sid = Bytes.EMPTY;
+		rid = new byte[] { 0x01 };
+		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id);
+		dbClient.addContext("coap://" + serverEndpoint.getAddress().getAddress().getHostAddress(), ctx);
+		
+		// send request
+		Request request = new Request(CoAP.Code.POST);
+		request.getOptions().setOscore(new byte[0]); //Use OSCORE
+		int requestMID = 10000;
+		request.setMID(requestMID);
+		request.setConfirmable(true);
+		request.setDestinationContext(new AddressEndpointContext(serverEndpoint.getAddress()));
+		request.setPayload("client says hi");
+		request.send();
+		System.out.println("client sent request");
+
+		// receive response and check (expect specific error message)
+		Response response = request.waitForResponse(1000);
+		assertNotNull("Client received no response", response);
+		System.out.println("client received response");
+		assertEquals(ErrorDescriptions.CONTEXT_NOT_FOUND_IDCONTEXT, response.getPayloadString());
+		assertEquals(response.getMID(), requestMID); //Response MID matches Request MID
+		assertNull(response.getOptions().getOscore()); // No OSCORE
+		
+		// Now resend with ID Context included
+		ctx.setIncludeContextId(true);
+		request = new Request(CoAP.Code.POST);
+		request.getOptions().setOscore(new byte[0]); //Use OSCORE
+		requestMID = 10001;
+		request.setMID(requestMID);
+		request.setConfirmable(true);
+		request.setDestinationContext(new AddressEndpointContext(serverEndpoint.getAddress()));
+		request.setPayload("client says hi");
+		request.send();
+		System.out.println("client sent request");
+
+		// receive response and check (server should respond correctly)
+		response = request.waitForResponse(1000);
+		assertNotNull("Client received no response", response);
+		System.out.println("client received response");
+		assertEquals(SERVER_RESPONSE, response.getPayloadString());
+		assertEquals(response.getMID(), requestMID); //Response MID matches Request MID
+		assertNotNull(response.getOptions().getOscore()); // OSCORE
+		ctx.setIncludeContextId(false);
+		dbServer.removeContext(serverCtxDup);
+		
+	}
+	
 	private void createSimpleServer() throws Exception {
+
+		// Don't start server if it is already running
+		if (server != null) {
+			return;
+		}
+
 		//Set up OSCORE context information for response (server)
 		byte[] sid = new byte[] { 0x01 };
 		byte[] rid = new byte[0];
-		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, null);
+		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id);
 		dbServer.addContext("coap://" + TestTools.LOCALHOST_EPHEMERAL.getAddress().getHostName(), ctx);
 
 		//Create server

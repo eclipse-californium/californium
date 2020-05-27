@@ -78,7 +78,7 @@ public class DecryptorTest {
 		}
 		
 		//Decrypt the request message
-		Request decrypted = RequestDecryptor.decrypt(db, r);
+		Request decrypted = RequestDecryptor.decrypt(db, r, ctx);
 		decrypted.getOptions().removeOscore();
 		
 		//Serialize the request message to byte array
