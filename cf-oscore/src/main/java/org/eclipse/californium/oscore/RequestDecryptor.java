@@ -53,13 +53,14 @@ public class RequestDecryptor extends Decryptor {
 	/**
 	 * @param db the context database used
 	 * @param request the request to decrypt
+	 * @param ctx the OSCore context
 	 * 
 	 * @return the decrypted request
 	 * 
 	 * @throws CoapOSException if decryption fails
 	 */
-	public static Request decrypt(OSCoreCtxDB db, Request request) throws CoapOSException {
-		
+	public static Request decrypt(OSCoreCtxDB db, Request request, OSCoreCtx ctx) throws CoapOSException {
+
 		LOGGER.info("Removes E options from outer options which are not allowed there");
 		discardEOptions(request);
 
@@ -86,20 +87,18 @@ public class RequestDecryptor extends Decryptor {
 		if (kidContext != null) {
 			contextID = kidContext.GetByteString();
 		}
-		
-		OSCoreCtx ctx = db.getContext(rid);
+
+		// Perform context re-derivation procedure if triggered or ongoing
+		try {
+			ctx = ContextRederivation.incomingRequest(db, ctx, contextID, rid);
+		} catch (OSException e) {
+			LOGGER.error(ErrorDescriptions.CONTEXT_REGENERATION_FAILED);
+			throw new CoapOSException(ErrorDescriptions.CONTEXT_REGENERATION_FAILED, ResponseCode.BAD_REQUEST);
+		}
 
 		if (ctx == null) {
 			LOGGER.error(ErrorDescriptions.CONTEXT_NOT_FOUND);
 			throw new CoapOSException(ErrorDescriptions.CONTEXT_NOT_FOUND, ResponseCode.UNAUTHORIZED);
-		}
-
-		// Perform context re-derivation procedure if triggered or ongoing
-		try {
-			ctx = ContextRederivation.incomingRequest(db, ctx, contextID);
-		} catch (OSException e) {
-			LOGGER.error(ErrorDescriptions.CONTEXT_REGENERATION_FAILED);
-			throw new CoapOSException(ErrorDescriptions.CONTEXT_REGENERATION_FAILED, ResponseCode.BAD_REQUEST);
 		}
 
 		byte[] plaintext;
@@ -134,6 +133,9 @@ public class RequestDecryptor extends Decryptor {
 
 		// We need the kid value on layer level
 		request.getOptions().setOscore(rid);
+
+		// Associate the Token with the context used
+		db.addContext(request.getToken(), ctx);
 
 		//Set information about the OSCORE context used in the endpoint context of this request
 		OSCoreEndpointContextInfo.receivingRequest(ctx, request);

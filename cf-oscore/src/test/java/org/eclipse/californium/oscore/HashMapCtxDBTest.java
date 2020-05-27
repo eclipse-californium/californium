@@ -38,8 +38,11 @@ public class HashMapCtxDBTest {
 			0x20, 0x21, 0x22, 0x23 };
 	private final AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
 	private final byte[] rid = new byte[] { 0x73, 0x65, 0x72, 0x76, 0x65, 0x72 };
+	private final byte[] rid_2 = new byte[] { 0x14, 0x15, 0x16, 0x17, 0x18, 0x19 };
 	private final byte[] sid = new byte[] { 0x63, 0x6C, 0x69, 0x65, 0x6E, 0x74 };
 	private final byte[] modifiedRid = new byte[] { 0x01, 0x65, 0x72, 0x76, 0x65, 0x72 };
+	private final byte[] context_id = { 0x74, 0x65, 0x73, 0x74, 0x74, 0x65, 0x73, 0x74 };
+	private final byte[] context_id_2 = {  0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x10, 0x11 };
 	private final Integer seq = 42;
 
 	@Rule
@@ -73,6 +76,125 @@ public class HashMapCtxDBTest {
 		assertNull(db.getContext(modifiedRid));
 		assertNull(db.getContext(uri));
 		assertNull(db.getContextByToken(token));
+	}
+
+	/**
+	 * Get a context using both RID and ID Context. Only a single context is
+	 * added to the context DB.
+	 * 
+	 * @throws OSException
+	 */
+	@Test
+	public void testAddGetContextRidIDContext() throws OSException {
+		HashMapCtxDB db = new HashMapCtxDB();
+		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, AlgorithmID.HKDF_HMAC_SHA_256, 32, null,
+				context_id);
+		db.addContext(ctx);
+
+		assertEquals(ctx, db.getContext(rid, ctx.getIdContext()));
+		assertNull(db.getContext(modifiedRid, context_id));
+		assertNull(db.getContext(uri));
+		assertNull(db.getContextByToken(token));
+	}
+
+	/**
+	 * Get a context using both RID and ID Context. Multiple contexts are added
+	 * to the context DB.
+	 * 
+	 * @throws OSException
+	 */
+	@Test
+	public void testAddGetContextRidIDContextMultiple() throws OSException {
+		HashMapCtxDB db = new HashMapCtxDB();
+		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, AlgorithmID.HKDF_HMAC_SHA_256, 32, null,
+				context_id);
+		OSCoreCtx ctx2 = new OSCoreCtx(master_secret, true, alg, sid, rid, AlgorithmID.HKDF_HMAC_SHA_256, 32, null,
+				context_id_2);
+		db.addContext(ctx);
+		db.addContext(ctx2);
+
+		assertEquals(ctx, db.getContext(rid, ctx.getIdContext()));
+		assertEquals(ctx2, db.getContext(rid, ctx2.getIdContext()));
+		assertNull(db.getContext(modifiedRid, context_id));
+		assertNull(db.getContext(uri));
+		assertNull(db.getContextByToken(token));
+	}
+
+	/**
+	 * Get a context using only RID. Multiple contexts are added to the context
+	 * DB. But since only one matches the RID it is returned.
+	 * 
+	 * @throws OSException
+	 */
+	@Test
+	public void testAddGetContextRidMultipleSuccess() throws OSException {
+		HashMapCtxDB db = new HashMapCtxDB();
+		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, AlgorithmID.HKDF_HMAC_SHA_256, 32, null,
+				context_id);
+		OSCoreCtx ctx2 = new OSCoreCtx(master_secret, true, alg, sid, rid_2, AlgorithmID.HKDF_HMAC_SHA_256, 32, null,
+				context_id_2);
+
+		db.addContext(ctx);
+		db.addContext(ctx2);
+
+		assertEquals(ctx, db.getContext(rid, null));
+		assertNull(db.getContext(modifiedRid, context_id));
+		assertNull(db.getContext(uri));
+		assertNull(db.getContextByToken(token));
+	}
+
+	@Rule
+	public ExpectedException exceptionRule = ExpectedException.none();
+
+	/**
+	 * Get a context using only RID. Multiple contexts are added to the context
+	 * DB. Since both of them have the same RID, the retrieval fails since it's
+	 * not unique and the ID Context is not used to disambiguate.
+	 * 
+	 * @throws OSException
+	 */
+	@Test
+	public void testAddGetContextRidMultipleFail() throws OSException {
+		exceptionRule.expect(CoapOSException.class);
+		exceptionRule.expectMessage(ErrorDescriptions.CONTEXT_NOT_FOUND_IDCONTEXT);
+
+		HashMapCtxDB db = new HashMapCtxDB();
+		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, AlgorithmID.HKDF_HMAC_SHA_256, 32, null,
+				context_id);
+		OSCoreCtx ctx2 = new OSCoreCtx(master_secret, true, alg, sid, rid, AlgorithmID.HKDF_HMAC_SHA_256, 32, null,
+				context_id_2);
+
+		db.addContext(ctx);
+		db.addContext(ctx2);
+
+		assertNull(db.getContext(rid, null));
+		assertNull(db.getContext(modifiedRid, context_id));
+		assertNull(db.getContext(uri));
+
+		assertNull(db.getContextByToken(token));
+	}
+
+	/**
+	 * Test retrieving a context using the getContext method that only takes a
+	 * RID. In such case this RID must be unique. If a RID is used that is not
+	 * unique an exception should be thrown.
+	 * 
+	 */
+	@Test
+	public void testRetrieveNonUniqueRID() throws OSException {
+		exceptionRule.expect(RuntimeException.class);
+		exceptionRule.expectMessage("Attempting to retrieve context with only non-unique RID.");
+
+		HashMapCtxDB db = new HashMapCtxDB();
+		OSCoreCtx ctx1 = new OSCoreCtx(master_secret, true, alg, sid, rid, AlgorithmID.HKDF_HMAC_SHA_256, 32, null,
+				context_id);
+		OSCoreCtx ctx2 = new OSCoreCtx(master_secret, true, alg, sid, rid, AlgorithmID.HKDF_HMAC_SHA_256, 32, null,
+				context_id_2);
+
+		db.addContext(ctx1);
+		db.addContext(ctx2);
+
+		db.getContext(rid);
 	}
 
 	@Test

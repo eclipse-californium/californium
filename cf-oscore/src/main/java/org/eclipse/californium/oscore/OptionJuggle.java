@@ -19,6 +19,7 @@
 package org.eclipse.californium.oscore;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -326,6 +327,75 @@ public class OptionJuggle {
 			}
 		}
 		return eOptions;
+	}
+
+	/**
+	 * Retrieve RID value from an OSCORE option.
+	 * 
+	 * @param oscoreOption the OSCORE option
+	 * @return the RID value
+	 */
+	static byte[] getRid(byte[] oscoreOption) {
+		if (oscoreOption.length == 0) {
+			return null;
+		}
+	
+		// Parse the flag byte
+		byte flagByte = oscoreOption[0];
+		int n = flagByte & 0x07;
+		int k = flagByte & 0x08;
+		int h = flagByte & 0x10;
+	
+		byte[] kid = null;
+		int index = 1;
+	
+		// Partial IV
+		index += n;
+	
+		// KID Context
+		if (h != 0) {
+			int s = oscoreOption[index];
+			index += s + 1;
+		}
+	
+		// KID
+		if (k != 0) {
+			kid = Arrays.copyOfRange(oscoreOption, index, oscoreOption.length);
+		}
+	
+		return kid;
+	}
+
+	/**
+	 * Retrieve ID Context value from an OSCORE option.
+	 * 
+	 * @param oscoreOption the OSCORE option
+	 * @return the ID Context value
+	 */
+	static byte[] getIDContext(byte[] oscoreOption) {
+		if (oscoreOption.length == 0) {
+			return null;
+		}
+
+		// Parse the flag byte
+		byte flagByte = oscoreOption[0];
+		int n = flagByte & 0x07;
+		int h = flagByte & 0x10;
+
+		byte[] kidContext = null;
+		int index = 1;
+
+		// Partial IV
+		index += n;
+
+		// KID Context
+		if (h != 0) {
+			int s = oscoreOption[index];
+			kidContext = Arrays.copyOfRange(oscoreOption, index + 1, index + 1 + s);
+			index += s + 1;
+		}
+
+		return kidContext;
 	}
 
 }

@@ -33,6 +33,17 @@ public interface OSCoreCtxDB {
 	public OSCoreCtx getContext(byte[] cid);
 
 	/**
+	 * Retrieve a context also using the ID Context
+	 * 
+	 * @param cid the context identifier
+	 * @param IDContext the ID context
+	 * @return the OSCore context
+	 * @throws CoapOSException when retrieving with RID only and multiple
+	 *             matching contexts are found
+	 */
+	public OSCoreCtx getContext(byte[] cid, byte[] IDContext) throws CoapOSException;
+
+	/**
 	 * @param token the token of the request
 	 * @return the OSCore context
 	 */
@@ -57,6 +68,13 @@ public interface OSCoreCtxDB {
 	 * @param ctx the OSCore context
 	 */
 	public void addContext(OSCoreCtx ctx);
+
+	/**
+	 * Remove a context
+	 * 
+	 * @param ctx the OSCore context
+	 */
+	void removeContext(OSCoreCtx ctx);
 
 	/**
 	 * @param uri the recipient's uri

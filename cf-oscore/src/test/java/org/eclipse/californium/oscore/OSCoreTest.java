@@ -48,6 +48,7 @@ import org.eclipse.californium.elements.util.Bytes;
 public class OSCoreTest {
 
 	private OSCoreCtxDB dbClient;
+	private OSCoreCtxDB dbServer;
 	private String uriId = "coap://localhost/";
 	private String uriFull = "coap://localhost:5683";
 	private byte[] key = { 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
@@ -64,6 +65,8 @@ public class OSCoreTest {
 		clientCtx = new OSCoreCtx(key, true);
 		dbClient.addContext(uriId, clientCtx);
 		serverCtx = new OSCoreCtx(key, false);
+		dbServer = new HashMapCtxDB();
+		dbServer.addContext(serverCtx);
 	}
 
 	@After
@@ -83,7 +86,7 @@ public class OSCoreTest {
 		try {
 			int seq = dbClient.getSeqByToken(token);
 			dbClientToServer();
-			ObjectSecurityLayer.prepareReceive(dbClient, request);
+			ObjectSecurityLayer.prepareReceive(dbServer, request, serverCtx);
 			Response response = sendResponse("it is thursday, citizen", serverCtx, token);
 			dbServerToClient(token, seq);
 			ObjectSecurityLayer.prepareReceive(dbClient, response);
@@ -336,7 +339,7 @@ public class OSCoreTest {
 		dbClientToServer();
 
 		try {
-			request = ObjectSecurityLayer.prepareReceive(dbClient, request);
+			request = ObjectSecurityLayer.prepareReceive(dbServer, request, serverCtx);
 		} catch (OSException e) {
 			e.printStackTrace();
 			assertTrue(false);
@@ -363,7 +366,7 @@ public class OSCoreTest {
 		dbClientToServer();
 
 		try {
-			ObjectSecurityLayer.prepareReceive(dbClient, request);
+			ObjectSecurityLayer.prepareReceive(dbServer, request, serverCtx);
 		} catch (OSException e) {
 			e.printStackTrace();
 			assertTrue(false);
@@ -390,7 +393,7 @@ public class OSCoreTest {
 		dbClientToServer();
 
 		try {
-			ObjectSecurityLayer.prepareReceive(dbClient, request1);
+			ObjectSecurityLayer.prepareReceive(dbServer, request1, serverCtx);
 			assertTrue("seq no:s incorrect", assertCtxState(serverCtx, 0, 0));
 			Response response1 = sendResponse("it is thursday, citizen", serverCtx, tokReq1);
 			assertTrue("seq no:s incorrect", assertCtxState(serverCtx, 0, 0));
@@ -432,8 +435,8 @@ public class OSCoreTest {
 
 		// receiving seq 0 twice
 		try {
-			ObjectSecurityLayer.prepareReceive(dbClient, request);
-			ObjectSecurityLayer.prepareReceive(dbClient, request2);
+			ObjectSecurityLayer.prepareReceive(dbServer, request, serverCtx);
+			ObjectSecurityLayer.prepareReceive(dbServer, request2, serverCtx);
 			fail("duplicate seq 0 not detected!");
 		} catch (OSException e) {
 		}
@@ -504,7 +507,7 @@ public class OSCoreTest {
 		// Test receive
 		boolean detectWrap = false;
 		try {
-			ObjectSecurityLayer.prepareReceive(dbClient, req);
+			ObjectSecurityLayer.prepareReceive(dbServer, req, serverCtx);
 		} catch (OSException e) {
 			detectWrap = true;
 		}

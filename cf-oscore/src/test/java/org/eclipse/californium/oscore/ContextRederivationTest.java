@@ -332,6 +332,10 @@ public class ContextRederivationTest {
 	 * @throws OSException
 	 */
 	public void createServer(boolean initiateRederivation) throws InterruptedException, OSException {
+
+		// Purge any old existing values from the server context database
+		dbServer.purge();
+
 		//Do not create server if it is already running
 		if(server != null) {
 			return;

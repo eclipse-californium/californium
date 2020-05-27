@@ -20,8 +20,6 @@ package org.eclipse.californium.oscore;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Arrays;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
@@ -94,13 +92,14 @@ public class ObjectSecurityLayer extends AbstractLayer {
 	 *
 	 * @param ctxDb the context database used
 	 * @param request the incoming request
+	 * @param ctx the OSCore context
 	 * 
 	 * @return the decrypted and verified request
 	 * 
 	 * @throws CoapOSException error while decrypting request
 	 */
-	public static Request prepareReceive(OSCoreCtxDB ctxDb, Request request) throws CoapOSException {
-		return RequestDecryptor.decrypt(ctxDb, request);
+	public static Request prepareReceive(OSCoreCtxDB ctxDb, Request request, OSCoreCtx ctx) throws CoapOSException {
+		return RequestDecryptor.decrypt(ctxDb, request, ctx);
 	}
 
 	/**
@@ -219,7 +218,7 @@ public class ObjectSecurityLayer extends AbstractLayer {
 					&& exchange.getCurrentRequest().getOptions().getOscore().length != 0;
 
 			try {
-				OSCoreCtx ctx = ctxDb.getContext(exchange.getCryptographicContextID());
+				OSCoreCtx ctx = ctxDb.getContextByToken(exchange.getCurrentRequest().getToken());
 				addPartialIV = ctx.getResponsesIncludePartialIV() || exchange.getRequest().getOptions().hasObserve();
 
 				Response preparedResponse = prepareSend(ctxDb, response, ctx, addPartialIV, outerBlockwise);
@@ -237,6 +236,13 @@ public class ObjectSecurityLayer extends AbstractLayer {
 				return;
 			}
 		}
+
+		// Remove token after response is transmitted, unless ongoing Observe.
+		// Takes token from corresponding request
+		if (response.getOptions().hasObserve() == false || exchange.getRequest().isObserveCancel()) {
+			ctxDb.removeToken(exchange.getCurrentRequest().getToken());
+		}
+
 		super.sendResponse(exchange, response);
 	}
 
@@ -249,12 +255,29 @@ public class ObjectSecurityLayer extends AbstractLayer {
 	public void receiveRequest(Exchange exchange, Request request) {
 		if (isProtected(request)) {
 
+			// Retrieve the OSCORE context associated with this RID and ID Context
+			byte[] rid = OptionJuggle.getRid(request.getOptions().getOscore());
+			byte[] IDContext = OptionJuggle.getIDContext(request.getOptions().getOscore());
+
+			OSCoreCtx ctx = null;
+			try {
+				ctx = ctxDb.getContext(rid, IDContext);
+			} catch (CoapOSException e) {
+				LOGGER.error("Error while receiving OSCore request: " + e.getMessage());
+				Response error;
+				error = CoapOSExceptionHandler.manageError(e, request);
+				if (error != null) {
+					super.sendResponse(exchange, error);
+				}
+				return;
+			}
+
 			// For OSCORE-protected requests with the outer block1-option let
 			// them pass through to be re-assembled by the block-wise layer
 			if (request.getOptions().hasBlock1()) {
 
 				if (request.getMaxResourceBodySize() == 0) {
-					int maxPayloadSize = getIncomingMaxUnfragSize(request, ctxDb);
+					int maxPayloadSize = getIncomingMaxUnfragSize(request, ctx);
 					request.setMaxResourceBodySize(maxPayloadSize);
 				}
 
@@ -262,9 +285,8 @@ public class ObjectSecurityLayer extends AbstractLayer {
 				return;
 			}
 
-			byte[] rid = null;
 			try {
-				request = prepareReceive(ctxDb, request);
+				request = prepareReceive(ctxDb, request, ctx);
 				rid = request.getOptions().getOscore();
 				request.getOptions().setOscore(Bytes.EMPTY);
 				exchange.setRequest(request);
@@ -326,7 +348,8 @@ public class ObjectSecurityLayer extends AbstractLayer {
 			return;
 		}
 		
-		//Remove token if this is a response to a Observe cancellation request
+		// Remove token if this is an incoming response to an Observe
+		// cancellation request
 		if (exchange.getRequest().isObserveCancel()) {
 			ctxDb.removeToken(response.getToken());
 		}
@@ -408,18 +431,11 @@ public class ObjectSecurityLayer extends AbstractLayer {
 	 * size exceeds this value will be aborted.
 	 * 
 	 * @param message the CoAP message
-	 * @param ctxDb the context database used
+	 * @param ctx the context used
 	 * 
 	 * @return the MAX_UNFRAGMENTED_SIZE value to be used
 	 */
-	private int getIncomingMaxUnfragSize(Message message, OSCoreCtxDB ctxDb) {
-
-		OSCoreCtx ctx = null;
-		if (message instanceof Request) {
-			ctx = ctxDb.getContext(getRid(message.getOptions().getOscore()));
-		} else {
-			ctx = ctxDb.getContextByToken(message.getToken());
-		}
+	private int getIncomingMaxUnfragSize(Message message, OSCoreCtx ctx) {
 
 		// No limit if no context is found. A null context will be handled later
 		if (ctx == null) {
@@ -431,40 +447,19 @@ public class ObjectSecurityLayer extends AbstractLayer {
 	}
 
 	/**
-	 * Retrieve RID value from an OSCORE option.
+	 * Separate version of method for handling responses.
 	 * 
-	 * @param oscoreOption the OSCORE option
-	 * @return the RID value
+	 * @param message the CoAP message
+	 * @param ctxDb the context database used
+	 * @return the MAX_UNFRAGMENTED_SIZE value to be used
 	 */
-	private byte[] getRid(byte[] oscoreOption) {
-		if (oscoreOption.length == 0) {
-			oscoreOption = new byte[] { 0x00 };
+	private int getIncomingMaxUnfragSize(Message message, OSCoreCtxDB ctxDb) {
+		OSCoreCtx ctx = null;
+		if (message instanceof Response) {
+			ctx = ctxDb.getContextByToken(message.getToken());
 		}
 
-		// Parse the flag byte
-		byte flagByte = oscoreOption[0];
-		int n = flagByte & 0x07;
-		int k = flagByte & 0x08;
-		int h = flagByte & 0x10;
-
-		byte[] kid = null;
-		int index = 1;
-
-		// Partial IV
-		index += n;
-
-		// KID Context
-		if (h != 0) {
-			int s = oscoreOption[index];
-			index += s + 1;
-		}
-
-		// KID
-		if (k != 0) {
-			kid = Arrays.copyOfRange(oscoreOption, index, oscoreOption.length);
-		}
-
-		return kid;
+		return getIncomingMaxUnfragSize(message, ctx);
 	}
 
 }
