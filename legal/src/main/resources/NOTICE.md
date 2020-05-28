@@ -164,6 +164,25 @@ slf4j-jdk14 (1.7.25)
 
 * License: MIT
 
+picocli (4.2.0)
+
+* License: Apache License, 2.0
+* Project: https://picocli.info
+* Source: https://github.com/remkop/picocli/archive/v4.2.0.zip
+
+openssl (1.1.1) used for interoperability tests only
+
+* License: Apache License, 2.0
+* Project: https://www.openssl.org/
+* Source:  https://github.com/openssl/openssl.git
+
+libcoap (4.2.1) used for interoperability tests only
+
+* License:  simplified BSD license - 
+            depending on OS; the examples may also contain "AT&T public domain source"
+* Project: https://libcoap.net/
+* Source:  https://github.com/obgm/libcoap/archive/release-4.2.1.zip
+
 ## Cryptography
 
 Content may contain encryption software. The country in which you are currently
