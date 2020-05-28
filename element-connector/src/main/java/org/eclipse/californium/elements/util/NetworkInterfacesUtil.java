@@ -26,6 +26,7 @@ import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,11 +105,17 @@ public class NetworkInterfacesUtil {
 			Inet6Address link6 = null;
 			Inet6Address site6 = null;
 			int mtu = MAX_MTU;
+			Pattern filter = null;
+			String regex = StringUtil.getConfiguration("COAP_NETWORK_INTERFACES");
+			if (regex != null && !regex.isEmpty()) {
+				filter = Pattern.compile(regex);
+			}
 			try {
 				Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
 				while (interfaces.hasMoreElements()) {
 					NetworkInterface iface = interfaces.nextElement();
-					if (iface.isUp() && !iface.isLoopback()) {
+					if (iface.isUp() && !iface.isLoopback() && 
+							(filter == null || filter.matcher(iface.getName()).matches())) {
 						int ifaceMtu = iface.getMTU();
 						if (ifaceMtu > 0 && ifaceMtu < mtu) {
 							mtu = ifaceMtu;
@@ -141,8 +148,9 @@ public class NetworkInterfacesUtil {
 						}
 						for (InterfaceAddress interfaceAddress : iface.getInterfaceAddresses()) {
 							InetAddress broadcast = interfaceAddress.getBroadcast();
-							if (broadcast != null) {
+							if (broadcast != null && !broadcast.isAnyLocalAddress()) {
 								broadcastAddresses.add(broadcast);
+								System.out.println("bc: " +broadcast +"," +iface.getName());
 								LOGGER.debug("Found broadcast address {}.", broadcast);
 								if (broadcastIpv4 == null) {
 									broadcastIpv4 = (Inet4Address) broadcast;
