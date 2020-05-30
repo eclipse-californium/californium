@@ -37,6 +37,7 @@ import com.upokecenter.cbor.CBORObject;
 
 import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.cose.CoseException;
+import org.eclipse.californium.cose.EncryptCommon;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.cipher.CCMBlockCipher;
@@ -689,14 +690,17 @@ public class OSCoreCtx {
 	 */
 	private void setLengths() {
 		if (common_alg != null) {
-			if (common_alg.equals(AlgorithmID.AES_CCM_16_64_128)) {
-				iv_length = ivLength(common_alg);
-				id_length = 7;
-				key_length = common_alg.getKeySize() / 8; // 16;
+
+			iv_length = EncryptCommon.ivLength(common_alg);
+			if (iv_length > 0) {
+				id_length = iv_length - 6; // RFC section 5.2
+				key_length = common_alg.getKeySize() / 8;
+
 			} else {
 				LOGGER.error("Unable to set lengths, since algorithm");
 				throw new RuntimeException("Unable to set lengths, since algorithm");
 			}
+
 		} else {
 			LOGGER.error("Common_alg has not yet been initiated.");
 			throw new RuntimeException("Common_alg has not yet been initiated.");
@@ -828,18 +832,6 @@ public class OSCoreCtx {
 		}
 	}
 
-	/**
-	 * Get IV length in bytes.
-	 */
-	private static int ivLength(AlgorithmID alg) {
-		switch (alg) {
-		case AES_CCM_16_64_128:
-			return 13;
-		default:
-			return -1;
-		}
-	}
-
 	protected static byte[] deriveKey(byte[] secret, byte[] salt, int cbitKey, String digest, byte[] rgbContext)
 			throws CoseException {
 
@@ -916,6 +908,9 @@ public class OSCoreCtx {
 	private void initializeCipher(AlgorithmID alg) {
 		switch (alg) {
 		case AES_CCM_16_64_128:
+		case AES_CCM_16_128_128:
+		case AES_CCM_64_64_128:
+		case AES_CCM_64_128_128:
 
 			byte[] key = { (byte) 0xEB, (byte) 0xDE, (byte) 0xBC, (byte) 0x51, (byte) 0xF1, (byte) 0x03,
 					(byte) 0x79, (byte) 0x14, (byte) 0x14, (byte) 0x4F, (byte) 0xC3, (byte) 0xAC, (byte) 0x40,

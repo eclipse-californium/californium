@@ -54,7 +54,8 @@ import org.eclipse.californium.scandium.dtls.cipher.CCMBlockCipher;
  */
 public abstract class EncryptCommon extends Message {
 
-	private final int AES_CCM_16_IV_LENGTH = 13;
+	private final static int AES_CCM_16_IV_LENGTH = 13;
+	private final static int AES_CCM_64_IV_LENGTH = 7;
 	protected String context;
 	protected byte[] rgbEncrypt;
 
@@ -65,14 +66,11 @@ public abstract class EncryptCommon extends Message {
 		if (rgbEncrypt == null)
 			throw new CoseException("No Encrypted Content Specified");
 
-		switch (alg) {
-		case AES_CCM_16_64_128:
-			AES_CCM_Decrypt(alg, rgbKey);
-			break;
-
-		default:
+		if (!isSupportedAesCcm(alg)) {
 			throw new CoseException("Unsupported Algorithm Specified");
 		}
+
+		AES_CCM_Decrypt(alg, rgbKey);
 
 		return rgbContent;
 	}
@@ -84,25 +82,13 @@ public abstract class EncryptCommon extends Message {
 		if (rgbContent == null)
 			throw new CoseException("No Content Specified");
 
-		switch (alg) {
-		case AES_CCM_16_64_128:
-			AES_CCM_Encrypt(alg, rgbKey);
-			break;
-
-		default:
+		if (!isSupportedAesCcm(alg)) {
 			throw new CoseException("Unsupported Algorithm Specified");
 		}
+
+		AES_CCM_Encrypt(alg, rgbKey);
 	}
 
-	private int getAES_CCM_IVSize(AlgorithmID alg) throws CoseException {
-		switch (alg) {
-		case AES_CCM_16_64_128:
-			return AES_CCM_16_IV_LENGTH;
-		default:
-			throw new CoseException("Unsupported Algorithm Specified");
-		}
-	}
-	
 	//Method taken from EncryptCommon in COSE. This will provide the full AAD / Encrypt0-structure.
     private byte[] getAADBytes() {
         CBORObject obj = CBORObject.NewArray();
@@ -127,7 +113,7 @@ public abstract class EncryptCommon extends Message {
 		}
 
 		// obtain and validate IV
-		final int ivLen = getAES_CCM_IVSize(alg);
+		final int ivLen = ivLength(alg);
 		CBORObject iv = findAttribute(HeaderKeys.IV);
 		if (iv == null) {
 			throw new CoseException("Missing IV during decryption");
@@ -140,11 +126,12 @@ public abstract class EncryptCommon extends Message {
 		}
 
 		//Modified to use the full AAD here rather than just the external AAD
-		//Tag length (last parameter) was also changed to 8 from 0
+		// Tag length (last parameter) was also included
 		byte[] aad = getAADBytes();
 		
 		try {
-			rgbContent = CCMBlockCipher.decrypt(new SecretKeySpec(rgbKey, "AES"), iv.GetByteString(), aad, getEncryptedContent(), 8);
+			rgbContent = CCMBlockCipher.decrypt(new SecretKeySpec(rgbKey, "AES"), iv.GetByteString(), aad,
+					getEncryptedContent(), alg.getTagSize() / 8);
 		} catch (NoSuchAlgorithmException ex) {
 			throw new CoseException("Algorithm not supported", ex);
 		} catch (InvalidKeyException ex) {
@@ -168,7 +155,7 @@ public abstract class EncryptCommon extends Message {
 
 		// obtain and validate iv
 		CBORObject iv = findAttribute(HeaderKeys.IV);
-		int ivLen = getAES_CCM_IVSize(alg);
+		int ivLen = ivLength(alg);
 		if (iv == null) {
 			byte[] tmp = new byte[ivLen];
 			random.nextBytes(tmp);
@@ -184,11 +171,12 @@ public abstract class EncryptCommon extends Message {
 		}
 		
 		//Modified to use the full AAD here rather than just the external AAD
-		//Tag length (last parameter) was also changed to 8 from 0
+		// Tag length (last parameter) was also included
 		byte[] aad = getAADBytes();
 		
 		try {
-			rgbEncrypt = CCMBlockCipher.encrypt(new SecretKeySpec(rgbKey, "AES"), iv.GetByteString(), aad, GetContent(), 8);
+			rgbEncrypt = CCMBlockCipher.encrypt(new SecretKeySpec(rgbKey, "AES"), iv.GetByteString(), aad, GetContent(),
+					alg.getTagSize() / 8);
 		} catch (NoSuchAlgorithmException ex) {
 			throw new CoseException("Algorithm not supported", ex);
 		} catch (Exception ex) {
@@ -217,5 +205,35 @@ public abstract class EncryptCommon extends Message {
 	 */
 	public void setEncryptedContent(byte[] rgb) {
 		rgbEncrypt = rgb;
+	}
+
+	/**
+	 * Get IV length in bytes.
+	 */
+	public static int ivLength(AlgorithmID alg) {
+		switch (alg) {
+		case AES_CCM_16_64_128:
+		case AES_CCM_16_128_128:
+			return AES_CCM_16_IV_LENGTH;
+		case AES_CCM_64_64_128:
+		case AES_CCM_64_128_128:
+			return AES_CCM_64_IV_LENGTH;
+		default:
+			return -1;
+		}
+	}
+
+	/**
+	 * Check if an algorithm is supported.
+	 * 
+	 * @param alg the algorithm
+	 * @return if it is supported
+	 */
+	public static boolean isSupportedAesCcm(AlgorithmID alg) throws CoseException {
+		if (ivLength(alg) == -1) {
+			return false;
+		} else {
+			return true;
+		}
 	}
 }
