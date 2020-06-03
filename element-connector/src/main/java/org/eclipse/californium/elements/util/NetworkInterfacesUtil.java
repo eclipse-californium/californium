@@ -150,8 +150,7 @@ public class NetworkInterfacesUtil {
 							InetAddress broadcast = interfaceAddress.getBroadcast();
 							if (broadcast != null && !broadcast.isAnyLocalAddress()) {
 								broadcastAddresses.add(broadcast);
-								System.out.println("bc: " +broadcast +"," +iface.getName());
-								LOGGER.debug("Found broadcast address {}.", broadcast);
+								LOGGER.debug("Found broadcast address {} - {}.", broadcast, iface.getName());
 								if (broadcastIpv4 == null) {
 									broadcastIpv4 = (Inet4Address) broadcast;
 								}
