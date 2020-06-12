@@ -163,7 +163,7 @@ public class ConnectorHelper {
 
 		DtlsConnectorConfig incompleteConfig = builder.getIncompleteConfig();
 
-		if (incompleteConfig.getAdvancedPskStore() == null && incompleteConfig.getPskStore() == null) {
+		if (incompleteConfig.getAdvancedPskStore() == null) {
 			InMemoryPskStore pskStore = new InMemoryPskStore();
 			pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
 			pskStore.setKey(SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME);

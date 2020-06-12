@@ -1263,14 +1263,18 @@ public final class DtlsConnectorConfig {
 		 * </ul>
 		 * 
 		 * @return this builder for command chaining
+		 * @throws IllegalStateException if client only is in contradiction to
+		 *             server side configuration
 		 */
 		public Builder setClientOnly() {
-			if (config.clientAuthenticationRequired != null || config.clientAuthenticationWanted != null) {
-				throw new IllegalStateException("client only is not support with server side client authentication!");
-			} else if (config.serverOnly != null && config.serverOnly) {
-				throw new IllegalStateException("client only is not support with server only!");
+			if (config.serverOnly != null && config.serverOnly) {
+				throw new IllegalStateException("client only is in contradiction to server only!");
+			} else if (config.clientAuthenticationRequired != null || config.clientAuthenticationWanted != null) {
+				throw new IllegalStateException(
+						"client only is in contradiction to server side client authentication!");
 			} else if (config.useNoServerSessionId != null && config.useNoServerSessionId.booleanValue()) {
-				throw new IllegalStateException("client only is not support with no server session id!");
+				throw new IllegalStateException(
+						"client only is in contradiction to server side 'no server session id'!");
 			}
 			config.clientOnly = true;
 			return this;
@@ -1283,14 +1287,18 @@ public final class DtlsConnectorConfig {
 		 * 
 		 * @param enable {@code true} if the connector acts only as server.
 		 * @return this builder for command chaining
+		 * @throws IllegalStateException if server only is enabled in
+		 *             contradiction to client side configuration
 		 */
 		public Builder setServerOnly(boolean enable) {
-			if (Boolean.TRUE.equals(config.clientOnly)) {
-				throw new IllegalStateException("server only is not supported for client only!");
-			}
-			if (config.defaultHandshakeMode != null) {
-				throw new IllegalStateException("server only is not supported for default handshake mode '"
-						+ config.defaultHandshakeMode + "!");
+			if (enable) {
+				if (Boolean.TRUE.equals(config.clientOnly)) {
+					throw new IllegalStateException("server only is in contradiction to client only!");
+				}
+				if (config.defaultHandshakeMode != null) {
+					throw new IllegalStateException("server only is in contradiction to default handshake mode '"
+							+ config.defaultHandshakeMode + "!");
+				}
 			}
 			config.serverOnly = enable;
 			return this;
@@ -1303,6 +1311,10 @@ public final class DtlsConnectorConfig {
 		 *            {@link DtlsEndpointContext#HANDSHAKE_MODE_AUTO} or
 		 *            {@link DtlsEndpointContext#HANDSHAKE_MODE_NONE}
 		 * @return this builder for command chaining
+		 * @throws IllegalStateException if configuration is server only
+		 * @throws IllegalArgumentException if mode is neither
+		 *             {@link DtlsEndpointContext#HANDSHAKE_MODE_AUTO} nor
+		 *             {@link DtlsEndpointContext#HANDSHAKE_MODE_NONE}
 		 * @since 2.1
 		 */
 		public Builder setDefaultHandshakeMode(String defaultHandshakeMode) {
@@ -1886,13 +1898,13 @@ public final class DtlsConnectorConfig {
 		 * change that, use {@link #setSupportedCipherSuites(CipherSuite...)} or
 		 * {@link #setSupportedCipherSuites(String...)}.
 		 * 
-		 * Resets {@link #setAdvancedPskStore(AdvancedPskStore)} to {@code null}.
+		 * Also set the advanced PSK store using {@link AdvancedInMemoryPskStore}.
 		 * 
 		 * @param pskStore the key store
 		 * @return this builder for command chaining
 		 */
 		public Builder setPskStore(PskStore pskStore) {
-			config.advancedPskStore = null;
+			config.advancedPskStore = pskStore == null ? null : new AdvancedInMemoryPskStore(pskStore);
 			config.pskStore = pskStore;
 			return this;
 		}
@@ -2768,10 +2780,6 @@ public final class DtlsConnectorConfig {
 					&& config.trustCertificateTypes != null) {
 				throw new IllegalStateException(
 						"configured trusted certificates or certificate verifier are not used for disabled client authentication!");
-			}
-
-			if (config.pskStore != null && config.advancedPskStore == null) {
-				config.advancedPskStore = new AdvancedInMemoryPskStore(config.pskStore);
 			}
 
 			if (config.supportedCipherSuites == null || config.supportedCipherSuites.isEmpty()) {
