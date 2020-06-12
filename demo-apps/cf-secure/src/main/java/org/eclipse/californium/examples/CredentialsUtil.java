@@ -249,7 +249,7 @@ public class CredentialsUtil {
 		boolean plainPsk = modes.contains(Mode.PSK);
 		boolean psk = ecdhePsk || plainPsk;
 
-		if (psk && config.getIncompleteConfig().getPskStore() == null) {
+		if (psk && config.getIncompleteConfig().getAdvancedPskStore() == null) {
 			// Pre-shared secret keys
 			InMemoryPskStore pskStore = new InMemoryPskStore();
 			pskStore.setKey(PSK_IDENTITY, PSK_SECRET);
