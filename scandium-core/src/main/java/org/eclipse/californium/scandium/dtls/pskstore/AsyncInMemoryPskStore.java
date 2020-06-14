@@ -34,11 +34,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Simple asynchrounos test implementation of {@link AdvancedPskStore}.
+ * Simple asynchronous test implementation of {@link AdvancedPskStore}.
  * 
  * Use {@code 0} or negative delays for test with synchronous blocking
  * behaviour. And positive delays for test with asynchronous none-blocking
  * behaviour.
+ * 
+ * @since 2.3
  */
 public class AsyncInMemoryPskStore extends AdvancedInMemoryPskStore {
 
@@ -156,8 +158,8 @@ public class AsyncInMemoryPskStore extends AdvancedInMemoryPskStore {
 	 *            or not used by the client.
 	 * @param identity psk identity. Maybe normalized
 	 * @param hmacAlgorithm HMAC algorithm name for PRF.
-	 * @param otherSecret other secert from ECDHE, or {@code null}. Must be
-	 *            cloned for asynchrounous use.
+	 * @param otherSecret other secret from ECDHE, or {@code null}. Must be
+	 *            cloned for asynchronous use.
 	 * @param seed seed for PRF.
 	 */
 	private void getSecretAsynchronous(ConnectionId cid, ServerNames serverNames, PskPublicInformation identity,
@@ -178,7 +180,7 @@ public class AsyncInMemoryPskStore extends AdvancedInMemoryPskStore {
 	 *            or not used by the client.
 	 * @param identity psk identity. Maybe normalized
 	 * @param hmacAlgorithm HMAC algorithm name for PRF.
-	 * @param otherSecret other secert from ECDHE, or {@code null}.
+	 * @param otherSecret other secret from ECDHE, or {@code null}.
 	 * @param seed seed for PRF.
 	 * @return psk secret result
 	 */

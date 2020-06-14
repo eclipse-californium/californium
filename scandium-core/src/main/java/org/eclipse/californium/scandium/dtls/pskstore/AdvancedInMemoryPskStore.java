@@ -34,6 +34,8 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * Simple in-memory example implementation of {@link AdvancedPskStore}.
  * 
  * Delegates calls to {@link PskStore}.
+ * 
+ * @since 2.3
  */
 public class AdvancedInMemoryPskStore implements AdvancedPskStore {
 

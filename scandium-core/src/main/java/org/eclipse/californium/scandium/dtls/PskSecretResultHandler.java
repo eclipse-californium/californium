@@ -19,6 +19,8 @@ package org.eclipse.californium.scandium.dtls;
  * Handler for asynchronous PSK secret results.
  * 
  * The implementation must take care, that the calling thread is undefined.
+ * 
+ * @since 2.3
  */
 public interface PskSecretResultHandler {
 

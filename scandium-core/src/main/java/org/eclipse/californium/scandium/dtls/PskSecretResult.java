@@ -23,6 +23,8 @@ import javax.crypto.SecretKey;
  * On success contains the secret and a normalized psk identity. If failed, only
  * psk identity is contained. The secret must either be a master secret
  * (algorithm "MAC"), or a PSK secret key (algorithm "PSK").
+ * 
+ * @since 2.3
  */
 public class PskSecretResult {
 
