@@ -29,12 +29,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
+import javax.crypto.SecretKey;
 
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.scandium.dtls.ClientHello;
 import org.eclipse.californium.scandium.dtls.CompressionMethod;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalMac;
+import org.eclipse.californium.scandium.util.SecretUtil;
 
 /**
  * Generates a cookie in such a way that they can be verified without retaining
@@ -47,79 +49,54 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
  * as suggested
  * <a href="http://tools.ietf.org/html/rfc6347#section-4.2.1">here</a>.
  *
+ * Note: redesigned in 2.3 to use {@link ThreadLocalMac} instead of
+ * {@link Mac#.clone()}.
  */
 public class CookieGenerator {
 
 	/**
 	 * Key lifetime in nanos.
 	 */
-	private static final long KEY_LIFE_TIME = TimeUnit.MINUTES.toNanos(5);
+	public static final long COOKIE_LIFE_TIME = TimeUnit.MINUTES.toNanos(5);
 
 	/**
 	 * Nanos of next key generation.
 	 */
 	private long nextKeyGenerationNanos;
 	/**
-	 * Last generated key.
+	 * Current secret key.
 	 */
-	private SecretKeySpec lastSecretKey;
+	private SecretKey currentSecretKey;
 	/**
-	 * Lock to protect {@link #hmac}, {@link #lastSecretKey} and
-	 * {@link #nextKeyGenerationNanos}
+	 * Past secret key.
+	 */
+	private SecretKey pastSecretKey;
+	/**
+	 * Lock to protect access to {@link #secretKeys}, {@link #randomBytes} and
+	 * {@link #randomGenerator}.
 	 */
 	private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
-	/**
-	 * Mac initialized with {@link #lastSecretKey}, if clonable.
-	 */
-	private Mac hmac;
 
 	// attributes used for random byte generation
-	private final SecureRandom rng = new SecureRandom();
-	byte[] rd = new byte[32];
+	private final SecureRandom randomGenerator = new SecureRandom();
+	private final byte[] randomBytes = new byte[32];
 
 	/**
-	 * Create HMAC.
+	 * Return the secret key for cookie generation.
 	 * 
-	 * Create HMAC cloning the master {@link #hmac}, if cloning is supported, or
-	 * create a new HAMC initialized with {@link #lastSecretKey}, if cloning is
-	 * not supported.
+	 * Secret key is refreshed every {@link #KEY_LIFE_TIME} nanoseconds.
 	 * 
-	 * MUST be called in read or write scope of {@link #lock}!
-	 * 
-	 * @return new HMAC
-	 * @throws GeneralSecurityException if an security related exception occurs
-	 *             when creating the HMAC.
+	 * @return secret key
+	 * @since 2.3
 	 */
-	private final Mac createHMAC() throws GeneralSecurityException {
-		if (hmac != null) {
-			// clone is supported
-			try {
-				return (Mac) hmac.clone();
-			} catch (CloneNotSupportedException e) {
-				throw new IllegalStateException("hmac doesn't support clone and MUST therefore be null!");
-			}
-		} else {
-			// clone is not supported
-			Mac hmac = Mac.getInstance("HmacSHA256");
-			hmac.init(lastSecretKey);
-			return hmac;
-		}
-	}
-
-	/**
-	 * Return a fresh HMAC algorithm instance.
-	 * 
-	 * @return fresh HMAC
-	 * @throws GeneralSecurityException if an security related exception occurs
-	 *             when refreshing the HMAC.
-	 */
-	private Mac getHMAC() throws GeneralSecurityException {
+	private SecretKey getSecretKey() {
 
 		lock.readLock().lock();
+		long now = ClockUtil.nanoRealtime();
 		try {
 			// check, if a secret key is already created and not expired
-			if (lastSecretKey != null && !isKeyExpired()) {
-				return createHMAC();
+			if (currentSecretKey != null && (now - nextKeyGenerationNanos) < 0) {
+				return currentSecretKey;
 			}
 		} finally {
 			lock.readLock().unlock();
@@ -128,49 +105,69 @@ public class CookieGenerator {
 		// if key expired or secret key not initialized;
 		lock.writeLock().lock();
 		try {
-			// Recheck state because another thread might have acquired
-			// write lock and changed state before we did.
-			if (lastSecretKey == null) {
-				// initialize
-				generateSecretKey();
-				hmac = Mac.getInstance("HmacSHA256");
-				hmac.init(lastSecretKey);
-				return (Mac) hmac.clone();
-			} else if (isKeyExpired()) {
-				generateSecretKey();
-			}
-			return createHMAC();
-		} catch (CloneNotSupportedException ex) {
-			// catch, if MacSpi is not cloneable (android)!
-			Mac hmac = this.hmac;
-			this.hmac = null;
-			return hmac;
+			randomGenerator.nextBytes(randomBytes);
+			nextKeyGenerationNanos = now + COOKIE_LIFE_TIME;
+			// shift secret keys
+			SecretUtil.destroy(pastSecretKey);
+			pastSecretKey = currentSecretKey;
+			currentSecretKey = SecretUtil.create(randomBytes, "MAC");
+			return currentSecretKey;
 		} finally {
 			lock.writeLock().unlock();
 		}
 	}
 
 	/**
-	 * check, if {@link #lastSecretKey} has expired.
+	 * Return the secret key of the past period.
 	 * 
-	 * MUST be called in read or write scope of {@link #lock}!
-	 * 
-	 * @return {@code true}, if key is expired, {@code false} otherwise.
+	 * @return past secret key
+	 * @since 2.3
 	 */
-	private boolean isKeyExpired() {
-		// consider sign wrap in longs (very optimistic about the uptime :-) )
-		return (ClockUtil.nanoRealtime() - nextKeyGenerationNanos) >= 0;
+	private SecretKey getPastSecretKey() {
+
+		lock.readLock().lock();
+		try {
+			return pastSecretKey;
+		} finally {
+			lock.readLock().unlock();
+		}
 	}
 
 	/**
-	 * Generate a new secret key for MAC algorithm.
-	 * 
-	 * MUST be called in write scope of {@link #lock}!
+	 * Generates a cookie in such a way that they can be verified without
+	 * retaining any per-client state on the server.
+	 *
+	 * <pre>
+	 * Cookie = HMAC(Secret, Client - IP, Client - Parameters)
+	 * </pre>
+	 *
+	 * as suggested
+	 * <a href="http://tools.ietf.org/html/rfc6347#section-4.2.1">here</a>.
+	 *
+	 * @param clientHello received client hello to generate a cookie for
+	 * @param secretKey to generate a cookie for
+	 * @return the cookie generated from the client's parameters
+	 * @throws GeneralSecurityException if the cookie cannot be computed
+	 * @since 2.3
 	 */
-	private void generateSecretKey() {
-		nextKeyGenerationNanos = ClockUtil.nanoRealtime() + KEY_LIFE_TIME;
-		rng.nextBytes(rd);
-		lastSecretKey = new SecretKeySpec(rd, "MAC");
+	private byte[] generateCookie(final ClientHello clientHello, SecretKey secretKey) throws GeneralSecurityException {
+		// Cookie = HMAC(Secret, Client-IP, Client-Parameters)
+		final Mac hmac = CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256.getThreadLocalMac();
+		hmac.init(secretKey);
+		// Client-IP
+		InetSocketAddress peer = clientHello.getPeer();
+		hmac.update(peer.getAddress().getAddress());
+		int port = peer.getPort();
+		hmac.update((byte) (port >>> 8));
+		hmac.update((byte) port);
+		// Client-Parameters
+		hmac.update((byte) clientHello.getClientVersion().getMajor());
+		hmac.update((byte) clientHello.getClientVersion().getMinor());
+		hmac.update(clientHello.getRandom().getBytes());
+		hmac.update(clientHello.getSessionId().getBytes());
+		hmac.update(CipherSuite.listToByteArray(clientHello.getCipherSuites()));
+		hmac.update(CompressionMethod.listToByteArray(clientHello.getCompressionMethods()));
+		return hmac.doFinal();
 	}
 
 	/**
@@ -189,21 +186,24 @@ public class CookieGenerator {
 	 * @throws GeneralSecurityException if the cookie cannot be computed
 	 */
 	public byte[] generateCookie(final ClientHello clientHello) throws GeneralSecurityException {
-		// Cookie = HMAC(Secret, Client-IP, Client-Parameters)
-		final Mac hmac = getHMAC();
-		// Client-IP
-		InetSocketAddress peer = clientHello.getPeer();
-		hmac.update(peer.getAddress().getAddress());
-		int port = peer.getPort();
-		hmac.update((byte) (port >>> 8));
-		hmac.update((byte) port);
-		// Client-Parameters
-		hmac.update((byte) clientHello.getClientVersion().getMajor());
-		hmac.update((byte) clientHello.getClientVersion().getMinor());
-		hmac.update(clientHello.getRandom().getBytes());
-		hmac.update(clientHello.getSessionId().getBytes());
-		hmac.update(CipherSuite.listToByteArray(clientHello.getCipherSuites()));
-		hmac.update(CompressionMethod.listToByteArray(clientHello.getCompressionMethods()));
-		return hmac.doFinal();
+		return generateCookie(clientHello, getSecretKey());
+	}
+
+	/**
+	 * Generates the cookie using the secret key of the past period.
+	 * 
+	 * @param clientHello received client hello to generate a cookie for
+	 * @return the cookie generated from the client's parameters. {@code null},
+	 *         if no secret key of the past period is available.
+	 * @throws GeneralSecurityException if the cookie cannot be computed
+	 * @since 2.3
+	 */
+	public byte[] generatePastCookie(final ClientHello clientHello) throws GeneralSecurityException {
+		SecretKey secretKey = getPastSecretKey();
+		if (secretKey != null) {
+			return generateCookie(clientHello, secretKey);
+		} else {
+			return null;
+		}
 	}
 }

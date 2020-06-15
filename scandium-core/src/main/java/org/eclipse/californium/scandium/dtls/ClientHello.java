@@ -276,7 +276,7 @@ public final class ClientHello extends HandshakeMessage {
 	 *             if any of the extensions included in the message is of an
 	 *             unsupported type
 	 */
-	public static HandshakeMessage fromReader(DatagramReader reader, InetSocketAddress peerAddress)
+	public static ClientHello fromReader(DatagramReader reader, InetSocketAddress peerAddress)
 			throws HandshakeException {
 		ClientHello result = new ClientHello(peerAddress);
 

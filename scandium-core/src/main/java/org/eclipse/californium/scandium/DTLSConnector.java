@@ -129,6 +129,7 @@ import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
 import java.net.PortUnreachableException;
 import java.security.GeneralSecurityException;
+import java.security.MessageDigest;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -1852,7 +1853,12 @@ public class DTLSConnector implements Connector, RecordLayer {
 			if (providedCookie.length > 0) {
 				expectedCookie = cookieGenerator.generateCookie(clientHello);
 				// if cookie is present, it must match
-				if (Arrays.equals(expectedCookie, providedCookie)) {
+				if (MessageDigest.isEqual(expectedCookie, providedCookie)) {
+					return true;
+				}
+				// check, if cookie of the past period matchs
+				byte[] pastCookie = cookieGenerator.generatePastCookie(clientHello);
+				if (MessageDigest.isEqual(pastCookie, providedCookie)) {
 					return true;
 				}
 				if (LOGGER.isDebugEnabled()) {
