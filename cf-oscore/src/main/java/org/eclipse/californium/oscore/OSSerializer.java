@@ -28,6 +28,7 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.network.serialization.DataSerializer;
 import org.eclipse.californium.cose.AlgorithmID;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramWriter;
 
 import com.upokecenter.cbor.CBORObject;
@@ -41,7 +42,6 @@ import com.upokecenter.cbor.CBORObject;
 public class OSSerializer {
 
 	private static final byte[] ONE_ZERO = new byte[] { 0x00 };
-	private static final byte[] EMPTY = new byte[0];
 
 	/**
 	 * The logger
@@ -107,7 +107,7 @@ public class OSSerializer {
 						aad.Add(processPartialIV(requestSeq));
 						
 						//I-class options (currently none)
-						aad.Add(CBORObject.FromObject(EMPTY));
+						aad.Add(CBORObject.FromObject(Bytes.EMPTY));
 						
 						return aad.EncodeToBytes();
 					} else {
@@ -234,7 +234,7 @@ public class OSSerializer {
 	public static byte[] stripZeroes(byte[] in) {
 		if (in != null) {
 			if (in.length == 0) {
-				return EMPTY;
+				return Bytes.EMPTY;
 			}
 			if (in.length == 1)
 				return in;

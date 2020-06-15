@@ -19,7 +19,6 @@
  ******************************************************************************/
 package org.eclipse.californium.oscore;
 
-import java.nio.ByteBuffer;
 import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
@@ -54,6 +53,9 @@ public class OSCoreCtx {
 	 * The logger
 	 */
 	private static final Logger LOGGER = LoggerFactory.getLogger(OSCoreCtx.class);
+
+	private static final byte ZERO = 0;
+	private static final byte ONE = 1;
 
 	private AlgorithmID common_alg;
 	private byte[] common_master_secret;
@@ -213,21 +215,13 @@ public class OSCoreCtx {
 			throw new NullPointerException("Input master secret is null");
 		}
 		if (sender_id == null || sender_id.length > this.id_length) {
-			if (client) {
-				this.sender_id = new byte[] { 0x00 };
-			} else {
-				this.sender_id = new byte[] { 0x01 };
-			}
+			this.sender_id = createByteArray(client ? ZERO : ONE);
 		} else {
 			this.sender_id = sender_id.clone();
 		}
 
 		if (recipient_id == null || recipient_id.length > this.id_length) {
-			if (client) {
-				this.recipient_id = new byte[] { 0x01 };
-			} else {
-				this.recipient_id = new byte[] { 0x00 };
-			}
+			this.recipient_id = createByteArray(client ? ONE : ZERO);
 		} else {
 			this.recipient_id = recipient_id.clone();
 		}
@@ -247,7 +241,7 @@ public class OSCoreCtx {
 
 		if (master_salt == null) {
 			// Default value. Automatically initialized with 0-es.
-			this.common_master_salt = new byte[this.kdf.getKeySize() / 8];
+			this.common_master_salt = new byte[this.kdf.getKeySize() / Byte.SIZE];
 		} else {
 			this.common_master_salt = master_salt.clone();
 		}
@@ -329,7 +323,7 @@ public class OSCoreCtx {
 
 		// Derive common_iv
 		info = CBORObject.NewArray();
-		info.Add(new byte[0]);
+		info.Add(Bytes.EMPTY);
 		info.Add(this.context_id);
 		info.Add(this.common_alg.AsCBOR());
 		info.Add(CBORObject.FromObject("IV"));
@@ -353,10 +347,7 @@ public class OSCoreCtx {
 	 */
 	@Override
 	public int hashCode() {
-		byte[] c = new byte[sender_id.length + recipient_id.length];
-		System.arraycopy(sender_id, 0, c, 0, sender_id.length);
-		System.arraycopy(recipient_id, 0, c, sender_id.length, recipient_id.length);
-		return ByteBuffer.wrap(c).hashCode();
+		return 31 * Arrays.hashCode(sender_id) + Arrays.hashCode(recipient_id);
 	}
 
 	/**
@@ -932,4 +923,13 @@ public class OSCoreCtx {
 		}
 	}
 
+	/**
+	 * Create byte array from values.
+	 * 
+	 * @param values bytes for byte array
+	 * @return initialized byte array
+	 */
+	private static byte[] createByteArray(byte... values) {
+		return values;
+	}
 }
