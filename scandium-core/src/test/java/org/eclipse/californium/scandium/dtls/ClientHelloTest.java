@@ -70,7 +70,7 @@ public class ClientHelloTest {
 
 		givenAClientHello(
 				Collections.singletonList(CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256),
-				Collections.<SignatureAndHashAlgorithm> emptyList(),
+				SignatureAndHashAlgorithm.DEFAULT,
 				Collections.<CertificateType> emptyList(),
 				Collections.<CertificateType> emptyList(),
 				Collections.singletonList(SupportedGroup.secp256r1));
@@ -91,7 +91,7 @@ public class ClientHelloTest {
 
 		givenAClientHello(
 				Collections.singletonList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256),
-				Collections.<SignatureAndHashAlgorithm> emptyList(),
+				SignatureAndHashAlgorithm.DEFAULT,
 				Collections.<CertificateType> emptyList(),
 				Collections.<CertificateType> emptyList(),
 				Collections.singletonList(SupportedGroup.secp256r1));
@@ -105,7 +105,7 @@ public class ClientHelloTest {
 
 	private void givenAClientHelloWithEmptyExtensions() {
 		clientHello = new ClientHello(new ProtocolVersion(), Collections.<CipherSuite> emptyList(),
-				Collections.<SignatureAndHashAlgorithm> emptyList(), null, null,
+				SignatureAndHashAlgorithm.DEFAULT, null, null,
 				Collections.<SupportedGroup> emptyList(), peerAddress);
 	}
 
@@ -114,8 +114,17 @@ public class ClientHelloTest {
 			List<CertificateType> supportedClientCertTypes, List<CertificateType> supportedServerCertTypes,
 			List<SupportedGroup> supportedGroups) {
 
-		clientHello = new ClientHello(new ProtocolVersion(), supportedCipherSuites, supportedSignatureAndHashAlgorithms,
-				null, null, supportedGroups, peerAddress);
+		clientHello = createClientHello(peerAddress, supportedCipherSuites, supportedSignatureAndHashAlgorithms,
+				supportedClientCertTypes, supportedServerCertTypes, supportedGroups);
 	}
-	
+
+	public static ClientHello createClientHello(InetSocketAddress address, List<CipherSuite> supportedCipherSuites,
+			List<SignatureAndHashAlgorithm> supportedSignatureAndHashAlgorithms,
+			List<CertificateType> supportedClientCertTypes, List<CertificateType> supportedServerCertTypes,
+			List<SupportedGroup> supportedGroups) {
+
+		return new ClientHello(new ProtocolVersion(), supportedCipherSuites, supportedSignatureAndHashAlgorithms,
+				supportedClientCertTypes, supportedServerCertTypes, supportedGroups, address);
+	}
+
 }
