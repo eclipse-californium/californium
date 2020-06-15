@@ -43,6 +43,7 @@ import java.security.SecureRandom;
 
 import javax.crypto.spec.SecretKeySpec;
 
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.scandium.dtls.cipher.CCMBlockCipher;
 
 /**
@@ -96,7 +97,7 @@ public abstract class EncryptCommon extends Message {
         obj.Add(context);
         
         if (objProtected.size() == 0) {
-        	obj.Add(CBORObject.FromObject(new byte[0]));
+        	obj.Add(CBORObject.FromObject(Bytes.EMPTY));
         } else {
         	obj.Add(objProtected.EncodeToBytes());
         }
@@ -108,7 +109,7 @@ public abstract class EncryptCommon extends Message {
 
 	private void AES_CCM_Decrypt(AlgorithmID alg, byte[] rgbKey) throws CoseException, IllegalStateException {
 		// validate key
-		if (rgbKey.length != alg.getKeySize() / 8) {
+		if (rgbKey.length != alg.getKeySize() / Byte.SIZE) {
 			throw new CoseException("Key Size is incorrect");
 		}
 
@@ -131,7 +132,7 @@ public abstract class EncryptCommon extends Message {
 		
 		try {
 			rgbContent = CCMBlockCipher.decrypt(new SecretKeySpec(rgbKey, "AES"), iv.GetByteString(), aad,
-					getEncryptedContent(), alg.getTagSize() / 8);
+					getEncryptedContent(), alg.getTagSize() / Byte.SIZE);
 		} catch (NoSuchAlgorithmException ex) {
 			throw new CoseException("Algorithm not supported", ex);
 		} catch (InvalidKeyException ex) {
@@ -149,7 +150,7 @@ public abstract class EncryptCommon extends Message {
 		SecureRandom random = new SecureRandom();
 
 		// validate key
-		if (rgbKey.length != alg.getKeySize() / 8) {
+		if (rgbKey.length != alg.getKeySize() / Byte.SIZE) {
 			throw new CoseException("Key Size is incorrect");
 		}
 
@@ -176,7 +177,7 @@ public abstract class EncryptCommon extends Message {
 		
 		try {
 			rgbEncrypt = CCMBlockCipher.encrypt(new SecretKeySpec(rgbKey, "AES"), iv.GetByteString(), aad, GetContent(),
-					alg.getTagSize() / 8);
+					alg.getTagSize() / Byte.SIZE);
 		} catch (NoSuchAlgorithmException ex) {
 			throw new CoseException("Algorithm not supported", ex);
 		} catch (Exception ex) {
