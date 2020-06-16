@@ -94,6 +94,7 @@ import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.scandium.auth.AdvancedApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -270,6 +271,12 @@ public abstract class Handshaker implements Destroyable {
 	 */
 	private SecretKey otherSecret;
 	private Throwable cause;
+	/**
+	 * Custom argument for {@link AdvancedApplicationLevelInfoSupplier}.
+	 * 
+	 * @since 2.3
+	 */
+	private Object customArgument;
 	private ApplicationLevelInfoSupplier applicationLevelInfoSupplier;
 
 	// Constructor ////////////////////////////////////////////////////
@@ -876,6 +883,7 @@ public abstract class Handshaker implements Destroyable {
 					SecretUtil.destroy(newPskSecret);
 					newPskSecret = masterSecret;
 				}
+				customArgument = pskSecretResult.getCustomArgument();
 				processMasterSecret(newPskSecret);
 			} else {
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_PSK_IDENTITY,
@@ -1704,6 +1712,8 @@ public abstract class Handshaker implements Destroyable {
 	private AdditionalInfo getAdditionalPeerInfo(Principal peerIdentity) {
 		if (applicationLevelInfoSupplier == null || peerIdentity == null) {
 			return AdditionalInfo.empty();
+		} else if (applicationLevelInfoSupplier instanceof AdvancedApplicationLevelInfoSupplier) {
+			return ((AdvancedApplicationLevelInfoSupplier)applicationLevelInfoSupplier).getInfo(peerIdentity, customArgument);
 		} else {
 			return applicationLevelInfoSupplier.getInfo(peerIdentity);
 		}
