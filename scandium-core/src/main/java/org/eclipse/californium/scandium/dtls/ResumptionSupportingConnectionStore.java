@@ -32,6 +32,17 @@ import org.eclipse.californium.scandium.ConnectionListener;
  * @since 1.1
  */
 public interface ResumptionSupportingConnectionStore {
+
+	interface ConnectionMapper {
+		/**
+		 * Maps a connection to a potentially different connection, or the same connection
+		 *
+		 * @param existingConnection may be null
+		 * @return the mapped connection.
+		 */
+
+		Connection remapConnection(Connection existingConnection);
+	}
 	void setConnectionListener(ConnectionListener listener);
 
 	/**
@@ -119,6 +130,23 @@ public interface ResumptionSupportingConnectionStore {
 	 *         exists for the given address
 	 */
 	Connection get(InetSocketAddress peerAddress);
+
+
+	/**
+	 * Get a connection for the provided peer address.
+	 * The stored connection (or null) is passed to the remapper and if the remapper returns a different connection,
+	 * that connection is persisted and returned
+	 *
+	 * The remapper execution is synchronized per peer address
+	 *
+	 * The behavior is similar to {@link java.util.Map#compute}
+	 *
+	 * Implementations are responsible for synchronizing access to the remapper
+	 *
+	 * @param peerAddress the peer address
+	 * @return the mapped connection or <code>null</code> if there is no mapped connection or the mapped connection was not stored
+	 */
+	Connection get(InetSocketAddress peerAddress, ConnectionMapper remapper);
 
 	/**
 	 * Gets a connection by its connection id.

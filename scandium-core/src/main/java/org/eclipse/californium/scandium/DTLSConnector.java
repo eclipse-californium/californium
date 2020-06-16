@@ -1063,36 +1063,43 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 *         exhausted or if the connection is not available and the provided
 	 *         parameter create is {@code false}.
 	 */
-	private final Connection getConnection(InetSocketAddress peerAddress, ConnectionId cid, boolean create) {
-		ExecutorService executor = getExecutorService();
-		synchronized (connectionStore) {
+	private final Connection getConnection(final InetSocketAddress peerAddress, final ConnectionId cid, final boolean create) {
+		final ExecutorService executor = getExecutorService();
 			Connection connection;
 			if (cid != null) {
 				connection = connectionStore.get(cid);
 			} else {
-				connection = connectionStore.get(peerAddress);
-				if (connection == null && create) {
-					LOGGER.trace("create new connection for {}", peerAddress);
-					Connection newConnection = new Connection(peerAddress, new SerialExecutor(executor));
-					if (running.get()) {
-						// only add, if connector is running!
-						if (!connectionStore.put(newConnection)) {
-							return null;
+				connection = connectionStore.get(peerAddress, new ResumptionSupportingConnectionStore.ConnectionMapper() {
+
+					@Override
+					public Connection remapConnection(Connection existingConnection) {
+						if (existingConnection == null) {
+							if (create) {
+								LOGGER.trace("create new connection for {}", peerAddress);
+								return new Connection(peerAddress, new SerialExecutor(executor));
+							} else {
+								return null;
+							}
+						} else {
+							return existingConnection;
 						}
 					}
-					return newConnection;
-				}
+
+				});
 			}
 			if (connection == null) {
 				LOGGER.trace("no connection available for {},{}", peerAddress, cid);
-			} else if (!connection.isExecuting() && running.get()) {
-				LOGGER.trace("revive connection for {},{}", peerAddress, cid);
-				connection.setExecutor(new SerialExecutor(executor));
 			} else {
-				LOGGER.trace("connection available for {},{}", peerAddress, cid);
+				synchronized (connection) {
+					if (!connection.isExecuting() && running.get()) {
+						LOGGER.trace("revive connection for {},{}", peerAddress, cid);
+						connection.setExecutor(new SerialExecutor(executor));
+					} else {
+						LOGGER.trace("connection available for {},{}", peerAddress, cid);
+					}
+				}
 			}
 			return connection;
-		}
 	}
 
 	/**
@@ -1694,7 +1701,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * @param record record of CLIENT_HELLO message
 	 */
 	private void processNewClientHello(final Record record) {
-		InetSocketAddress peerAddress = record.getPeerAddress();
+		final InetSocketAddress peerAddress = record.getPeerAddress();
 		if (LOGGER.isTraceEnabled()) {
 			StringBuilder msg = new StringBuilder("Processing new CLIENT_HELLO from peer [")
 					.append(peerAddress).append("]").append(":").append(StringUtil.lineSeparator()).append(record);
@@ -1710,31 +1717,33 @@ public class DTLSConnector implements Connector, RecordLayer {
 			// the IP address indicated in the client hello message
 			final AvailableConnections connections = new AvailableConnections();
 			if (isClientInControlOfSourceIpAddress(clientHello, record, connections)) {
-				boolean verify = false;
-				Connection connection;
-				synchronized (connectionStore) {
-					connection = connectionStore.get(peerAddress);
-					if (connection != null && !connection.isStartedByClientHello(clientHello)) {
-						Connection sessionConnection = connections.getConnectionBySessionId();
-						if (sessionConnection != null && sessionConnection != connection) {
-							// don't overwrite
-							verify = true;
-						} else {
-							if (sessionConnection != null && sessionConnection == connection) {
-								connections.setRemoveConnectionBySessionId(true);
+				final AtomicBoolean verify = new AtomicBoolean(false);
+				Connection connection = connectionStore.get(peerAddress, new ResumptionSupportingConnectionStore.ConnectionMapper() {
+
+					@Override
+					public Connection remapConnection(Connection existingConnection) {
+						if (existingConnection != null && !existingConnection.isStartedByClientHello(clientHello)) {
+							Connection sessionConnection = connections.getConnectionBySessionId();
+							if (sessionConnection != null && sessionConnection != existingConnection) {
+								// don't overwrite
+								verify.set(true);
+							} else {
+								if (sessionConnection != null) {
+									connections.setRemoveConnectionBySessionId(true);
+								}
+								existingConnection = null;
 							}
-							connection = null;
+						}
+						if (existingConnection == null) {
+							existingConnection = new Connection(peerAddress, new SerialExecutor(getExecutorService()));
+							existingConnection.startByClientHello(clientHello);
+							return existingConnection;
+						} else {
+							return existingConnection;
 						}
 					}
-					if (connection == null) {
-						connection = new Connection(peerAddress, new SerialExecutor(getExecutorService()));
-						connection.startByClientHello(clientHello);
-						if (!connectionStore.put(connection)) {
-							return;
-						}
-					}
-				}
-				if (verify) {
+				});
+				if (verify.get()) {
 					sendHelloVerify(clientHello, record, null);
 				} else {
 					connections.setConnectionByAddress(connection);

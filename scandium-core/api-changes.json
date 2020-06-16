@@ -168,6 +168,11 @@
 					"old": "class org.eclipse.californium.scandium.dtls.PskUtil",
 					"justification": "not part of the public API - obsolete",
 					"oldArchive": "org.eclipse.californium:scandium:jar:2.1.0"
+				},{
+					"code": "java.method.addedToInterface",
+					"new": "method org.eclipse.californium.scandium.dtls.Connection org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore::get(java.net.InetSocketAddress, org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore.ConnectionMapper)",
+					"oldArchive": "org.eclipse.californium:scandium:jar:2.1.0",
+					"justification": "Performance improvement. Cache is responsible now for all synchronization"
 				}
 			]
 		}
