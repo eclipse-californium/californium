@@ -82,6 +82,7 @@ import org.eclipse.californium.scandium.dtls.ServerHandshaker;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
 import org.eclipse.californium.scandium.dtls.pskstore.AsyncInMemoryPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
@@ -2234,10 +2235,15 @@ public class DTLSConnectorAdvancedTest {
 	}
 
 	private Connection createClientConnection() {
-		Connection connection = new Connection(serverHelper.serverEndpoint, new SerialExecutor(executor));
-		if (clientCidGenerator != null) {
-			connection.setConnectionId(clientCidGenerator.createConnectionId());
+		ConnectionId cid = clientCidGenerator != null ? clientCidGenerator.createConnectionId() : null;
+		if (cid == null) {
+			// dummy cid as used by connection store
+			byte[] cidBytes = new byte[4];
+			RandomManager.currentRandom().nextBytes(cidBytes);
+			cid = new ConnectionId(cidBytes);
 		}
+		Connection connection = new Connection(serverHelper.serverEndpoint, new SerialExecutor(executor));
+		connection.setConnectionId(cid);
 		return connection;
 	}
 
