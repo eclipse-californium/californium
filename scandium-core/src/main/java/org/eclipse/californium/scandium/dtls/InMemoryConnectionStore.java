@@ -204,7 +204,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	 * @param tag tag for logging
 	 * @return this connection store for calls chaining
 	 */
-	public synchronized InMemoryConnectionStore setTag(final String tag) {
+	public InMemoryConnectionStore setTag(final String tag) {
 		this.tag = StringUtil.normalizeLoggingTag(tag);
 		return this;
 	}
@@ -266,9 +266,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 				}
 			}
 		}
-		
 	}
-	
 
 	/**
 	 * {@inheritDoc}
@@ -374,7 +372,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	}
 
 	@Override
-	public synchronized void putEstablishedSession(final DTLSSession session, final Connection connection) {
+	public void putEstablishedSession(final DTLSSession session, final Connection connection) {
 		ConnectionListener listener = connectionListener;
 		if (listener != null) {
 			listener.onConnectionEstablished(connection);
@@ -403,7 +401,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	}
 
 	@Override
-	public synchronized void removeFromEstablishedSessions(final DTLSSession session, final Connection connection) {
+	public void removeFromEstablishedSessions(final DTLSSession session, final Connection connection) {
 		SessionId sessionId = session.getSessionIdentifier();
 		if (!sessionId.isEmpty()) {
 			connectionsByEstablishedSession.remove(sessionId, connection);
@@ -411,7 +409,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	}
 
 	@Override
-	public synchronized Connection find(final SessionId id) {
+	public Connection find(final SessionId id) {
 
 		if (id == null || id.isEmpty()) {
 			return null;
@@ -452,7 +450,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		}
 	}
 
-	private synchronized Connection findLocally(final SessionId id) {
+	private Connection findLocally(final SessionId id) {
 		Connection connection = connectionsByEstablishedSession.get(id);
 		if (connection != null) {
 			DTLSSession establishedSession = connection.getEstablishedSession();
@@ -464,7 +462,9 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 			} else {
 				LOG.warn("{}connection {} lost session {}!", tag, connection.getConnectionId(), id);
 			}
-			connections.update(connection.getConnectionId());
+			synchronized (connections) {
+				connections.update(connection.getConnectionId());
+			}
 		}
 		return connection;
 	}
@@ -480,14 +480,16 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	}
 
 	@Override
-	public synchronized int remainingCapacity() {
-		int remaining = connections.remainingCapacity();
-		LOG.debug("{}connection: size {}, remaining {}!", tag, connections.size(), remaining);
+	public int remainingCapacity() {
+		int size = connections.size();
+		int capacity = connections.getCapacity();
+		int remaining = Math.max(0, capacity - size);
+		LOG.debug("{}connection: size {}, remaining {}!", tag, size, remaining);
 		return remaining;
 	}
 
 	@Override
-	public synchronized Connection get(final InetSocketAddress peerAddress) {
+	public Connection get(final InetSocketAddress peerAddress) {
 		Connection connection = connectionsByAddress.get(peerAddress);
 		if (connection == null) {
 			LOG.debug("{}connection: missing connection for {}!", tag, peerAddress);
@@ -524,38 +526,45 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	}
 
 	@Override
-	public synchronized boolean remove(final Connection connection, final boolean removeFromSessionCache) {
-		boolean removed = connections.remove(connection.getConnectionId(), connection) == connection;
-		if (removed) {
-			List<Runnable> pendings = connection.getExecutor().shutdownNow();
-			if (LOG.isTraceEnabled()) {
-				LOG.trace("{}connection: remove {} (size {}, left jobs: {})", tag, connection, connections.size(),
-						pendings.size(), new Throwable("connection removed!"));
-			} else if (pendings.isEmpty()) {
-				LOG.debug("{}connection: remove {} (size {})", tag, connection, connections.size());
-			} else {
-				LOG.debug("{}connection: remove {} (size {}, left jobs: {})", tag, connection, connections.size(),
-						pendings.size());
+	public boolean remove(final Connection connection, final boolean removeFromSessionCache) {
+		SessionId sessionId = null;
+		boolean removed;
+		synchronized (this) {
+			removed = connections.remove(connection.getConnectionId(), connection) == connection;
+			if (removed) {
+				List<Runnable> pendings = connection.getExecutor().shutdownNow();
+				if (LOG.isTraceEnabled()) {
+					LOG.trace("{}connection: remove {} (size {}, left jobs: {})", tag, connection, connections.size(),
+							pendings.size(), new Throwable("connection removed!"));
+				} else if (pendings.isEmpty()) {
+					LOG.debug("{}connection: remove {} (size {})", tag, connection, connections.size());
+				} else {
+					LOG.debug("{}connection: remove {} (size {}, left jobs: {})", tag, connection, connections.size(),
+							pendings.size());
+				}
+				sessionId = removeFromEstablishedSessions(connection);
+				removeFromAddressConnections(connection);
+				ConnectionListener listener = connectionListener;
+				if (listener != null) {
+					listener.onConnectionRemoved(connection);
+				}
 			}
-			removeFromEstablishedSessions(connection);
-			removeFromAddressConnections(connection);
-			if (removeFromSessionCache) {
-				removeSessionFromCache(connection);
-			}
-			ConnectionListener listener = connectionListener;
-			if (listener != null) {
-				listener.onConnectionRemoved(connection);
-			}
+		}
+		if (removeFromSessionCache && sessionCache != null && sessionId != null) {
+			sessionCache.remove(sessionId);
 		}
 		return removed;
 	}
 
-	private void removeFromEstablishedSessions(Connection connection) {
+	private SessionId removeFromEstablishedSessions(Connection connection) {
 		DTLSSession establishedSession = connection.getEstablishedSession();
 		if (establishedSession != null) {
 			SessionId sessionId = establishedSession.getSessionIdentifier();
 			connectionsByEstablishedSession.remove(sessionId, connection);
 			SecretUtil.destroy(establishedSession);
+			return sessionId;
+		} else {
+			return null;
 		}
 	}
 
@@ -564,16 +573,6 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		if (peerAddress != null) {
 			connectionsByAddress.remove(peerAddress, connection);
 			connection.updatePeerAddress(null);
-		}
-	}
-
-	private synchronized void removeSessionFromCache(final Connection connection) {
-		if (sessionCache != null) {
-			DTLSSession establishedSession = connection.getEstablishedSession();
-			if (establishedSession != null) {
-				SessionId sessionId = establishedSession.getSessionIdentifier();
-				sessionCache.remove(sessionId);
-			}
 		}
 	}
 
