@@ -124,6 +124,10 @@ public abstract class AbstractTestServer extends CoapServer {
 	public static final String ETSI_PSK_IDENTITY = "password";
 	public static final SecretKey ETSI_PSK_SECRET = SecretUtil.create("sesame".getBytes(), "PSK");
 
+	// easier testing with openssl clients
+	public static final String OPENSSL_PSK_IDENTITY = "Client_identity";
+	public static final SecretKey OPENSSL_PSK_SECRET = SecretUtil.create("secretPSK".getBytes(), "PSK");
+
 	public static final String KEY_DTLS_PSK_DELAY = "DTLS_PSK_STORE_DELAY";
 
 	private final NetworkConfig config;
@@ -354,6 +358,9 @@ public abstract class AbstractTestServer extends CoapServer {
 			}
 			if (identity.equals(ETSI_PSK_IDENTITY)) {
 				return SecretUtil.create(ETSI_PSK_SECRET);
+			}
+			if (identity.equals(OPENSSL_PSK_IDENTITY)) {
+				return SecretUtil.create(OPENSSL_PSK_SECRET);
 			}
 			return null;
 		}
