@@ -18,7 +18,10 @@ package org.eclipse.californium.elements.util;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.ConcurrentModificationException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executor;
@@ -31,6 +34,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 /**
  * Serial executor.
@@ -75,6 +79,8 @@ public class SerialExecutor extends AbstractExecutorService {
 	 * Indicate shutdown.
 	 */
 	private boolean shutdown;
+	
+	private Map<String, String> mappedDiagnosticContext = new HashMap<>();
 
 	/**
 	 * Create serial executor
@@ -164,6 +170,24 @@ public class SerialExecutor extends AbstractExecutorService {
 			} else {
 				throw new ConcurrentModificationException(this + " owned by " + thread.getName() + ", clear failed!");
 			}
+		}
+	}
+
+	/**
+	 * Add all mdc key value pairs to the current thread context.
+	 */
+	private void setMappedDiagnosticContext() {
+		for (Entry<String, String> entry : mappedDiagnosticContext.entrySet()) {
+			MDC.put(entry.getKey(), entry.getValue());
+		}
+	}
+
+	/**
+	 * Remove all used mdc key value pairs to the current thread context.
+	 */
+	private void clearMappedDiagnosticContext() {
+		for (String key : mappedDiagnosticContext.keySet()) {
+			MDC.remove(key);
 		}
 	}
 
@@ -272,12 +296,14 @@ public class SerialExecutor extends AbstractExecutorService {
 					public void run() {
 						try {
 							setOwner();
+							setMappedDiagnosticContext();
 							try {
 								command.run();
 							} catch (Throwable t) {
 								LOGGER.error("unexpected error occurred:", t);
 							} finally {
 								clearOwner();
+								clearMappedDiagnosticContext();
 							}
 						} finally {
 							scheduleNextJob();
@@ -305,5 +331,24 @@ public class SerialExecutor extends AbstractExecutorService {
 			return new SerialExecutor(executor);
 		}
 		return null;
+	}
+
+	/**
+	 * Add a new entry to the mapped diagnostic context (MDC).
+	 *
+	 * @param key
+	 * @param value
+	 */
+	public void putMDCData(String key, String value) {
+		mappedDiagnosticContext.put(key, value);
+	}
+
+	/**
+	 * Remove an entry from the mapped diagnostic context (MDC).
+	 *
+	 * @param key
+	 */
+	public void removeMDCData(String key) {
+		mappedDiagnosticContext.remove(key);
 	}
 }
