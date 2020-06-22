@@ -109,6 +109,8 @@ public final class Connection {
 			this.serialExecutor = serialExecutor;
 			this.lastPeerAddressNanos = now;
 			this.lastMessageNanos = now;
+			
+			this.serialExecutor.putMDCData("PEER", peerAddress.toString());
 		}
 	}
 
@@ -153,6 +155,10 @@ public final class Connection {
 			throw new IllegalStateException("Serial executor already available!");
 		}
 		this.serialExecutor = serialExecutor;
+		this.serialExecutor.putMDCData("PEER", peerAddress.toString());
+		if (sessionId != null) {
+			this.serialExecutor.putMDCData("SESSION_ID", sessionId.toString());
+		}
 	}
 
 	/**
@@ -243,6 +249,13 @@ public final class Connection {
 	 */
 	public void  setConnectionId(ConnectionId cid) {
 		this.cid = cid;
+		if (serialExecutor != null) {
+			if (cid == null) {
+				serialExecutor.removeMDCData("CONNECTION_ID");
+			} else {
+				serialExecutor.putMDCData("CONNECTION_ID", cid.getAsString());
+			}
+		}
 	}
 
 	/**
@@ -470,6 +483,7 @@ public final class Connection {
 		sessionId = null;
 		ticket = null;
 		resumptionRequired = false;
+		serialExecutor.removeMDCData("SESSION_ID");
 	}
 
 	/**
@@ -595,6 +609,12 @@ public final class Connection {
 		@Override
 		public void sessionEstablished(Handshaker handshaker, DTLSSession session) throws HandshakeException {
 			establishedSession = session;
+			if (establishedSession.getWriteConnectionId() == null) {
+				serialExecutor.removeMDCData("WRITE_CONNECTION_ID");
+			} else {
+				serialExecutor
+					.putMDCData("WRITE_CONNECTION_ID", establishedSession.getWriteConnectionId().getAsString());
+			}
 			LOGGER.debug("Session with [{}] has been established", session.getPeer());
 		}
 
