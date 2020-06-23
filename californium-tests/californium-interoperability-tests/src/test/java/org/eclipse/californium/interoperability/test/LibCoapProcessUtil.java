@@ -37,11 +37,17 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
  * it locally, the sources are available at
  * <a href="https://github.com/obgm/libcoap">github -libcoap</a>.
  * 
+ * If tinydtls should be also tested, prepare a second configuration, build and installation
+ * <pre>
+ * ./configure --enable-dtls --with-tinydtls --disable-doxygen --disable-manpages --program-suffix=-tinydtls
+ * </pre>
+ * 
  * After {@code sudo make install}, execution of {@code sudo ldconfig} maybe
  * required on Ubuntu 18.04.
  */
 public class LibCoapProcessUtil extends ProcessUtil {
 
+	public static final String LIBCOAP_CLIENT_TINYDTLS = "coap-client-tinydtls";
 	public static final String LIBCOAP_CLIENT = "coap-client";
 	public static final String LIBCOAP_SERVER = "coap-server";
 
@@ -51,6 +57,23 @@ public class LibCoapProcessUtil extends ProcessUtil {
 	 * Create instance.
 	 */
 	public LibCoapProcessUtil() {
+	}
+
+	/**
+	 * Get libcoap client with tinydtls version.
+	 * 
+	 * @param timeMillis timeout in milliseconds
+	 * @return result of coap-client-tinydtls command. {@code null}, if not available.
+	 */
+	public ProcessResult getLibCoapClientTinyDtlsVersion(long timeMillis) {
+		try {
+			execute(LIBCOAP_CLIENT_TINYDTLS);
+			return waitResult(timeMillis);
+		} catch (InterruptedException ex) {
+			return null;
+		} catch (IOException ex) {
+			return null;
+		}
 	}
 
 	/**
@@ -90,6 +113,35 @@ public class LibCoapProcessUtil extends ProcessUtil {
 
 	public void setVerboseLevel(String level) {
 		this.verboseLevel = level;
+	}
+
+	public void startupClientTinyDtls(String destination, AuthenticationMode authMode, String message, CipherSuite... ciphers)
+			throws IOException, InterruptedException {
+		List<CipherSuite> list = Arrays.asList(ciphers);
+		List<String> args = new ArrayList<String>();
+		args.add(LIBCOAP_CLIENT_TINYDTLS);
+		if (verboseLevel != null) {
+			args.add("-v");
+			args.add(verboseLevel);
+		}
+		if (message != null) {
+			message = message.replace(" ", "%20");
+			args.addAll(Arrays.asList("-m", "POST", "-e", message));
+		} else {
+			args.addAll(Arrays.asList("-m", "GET"));
+		}
+		if (CipherSuite.containsPskBasedCipherSuite(list)) {
+			args.add("-u");
+			args.add(OpenSslUtil.OPENSSL_PSK_IDENTITY);
+			args.add("-k");
+			args.add(new String(OpenSslUtil.OPENSSL_PSK_SECRET));
+		}
+		if (CipherSuite.containsCipherSuiteRequiringCertExchange(list)) {
+			throw new IllegalArgumentException("TinyDTLS doesn't support x509!");
+		}
+		args.add(destination);
+		print(args);
+		execute(args);
 	}
 
 	public void startupClient(String destination, AuthenticationMode authMode, String message, CipherSuite... ciphers)
