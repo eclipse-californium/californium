@@ -46,7 +46,9 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.SerialExecutor;
+import org.eclipse.californium.elements.util.SerialExecutor.ExecutionListener;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.scandium.ConnectionExecutionListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,6 +90,8 @@ public final class Connection {
 	private volatile DTLSSession establishedSession;
 	// Used to know when an abbreviated handshake should be initiated
 	private volatile boolean resumptionRequired; 
+
+	private volatile ConnectionExecutionListener connectionExecutionListener;
 
 	/**
 	 * Creates a new connection to a given peer.
@@ -139,6 +143,36 @@ public final class Connection {
 		}
 	}
 
+	public void setExecutionListener(final ConnectionExecutionListener listener) {
+		this.connectionExecutionListener = listener;
+		SerialExecutor executor = this.serialExecutor;
+		if (executor != null) {
+			if (listener == null) {
+				executor.setExecutionListener(null);
+			} else {
+				executor.setExecutionListener(new ExecutionListener() {
+
+					@Override
+					public void beforeExecution() {
+						listener.beforeExecution(Connection.this);
+					}
+
+					@Override
+					public void afterExecution() {
+						listener.afterExecution(Connection.this);
+					}
+				});
+			}
+		}
+	}
+
+	public void updateConnectionState() {
+		ConnectionExecutionListener listener = this.connectionExecutionListener;
+		if (listener != null) {
+			listener.updateExecution(this);
+		}
+	}
+
 	/**
 	 * Set new executor to restart execution for stopped connection.
 	 * 
@@ -153,6 +187,7 @@ public final class Connection {
 			throw new IllegalStateException("Serial executor already available!");
 		}
 		this.serialExecutor = serialExecutor;
+		setExecutionListener(this.connectionExecutionListener);
 	}
 
 	/**
@@ -243,6 +278,7 @@ public final class Connection {
 	 */
 	public void  setConnectionId(ConnectionId cid) {
 		this.cid = cid;
+		updateConnectionState();
 	}
 
 	/**
@@ -299,6 +335,9 @@ public final class Connection {
 						pendingHandshaker.handshakeFailed(new IOException("address changed!"));
 					}
 				}
+			} else {
+				// only update mdc, if address is changed to new one.
+				updateConnectionState();
 			}
 		}
 	}
@@ -470,6 +509,7 @@ public final class Connection {
 		sessionId = null;
 		ticket = null;
 		resumptionRequired = false;
+		updateConnectionState();
 	}
 
 	/**

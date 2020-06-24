@@ -43,6 +43,7 @@ import org.eclipse.californium.elements.tcp.netty.TlsServerConnector.ClientAuthM
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.MdcConnectionListener;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.MultiNodeConnectionIdGenerator;
@@ -307,6 +308,7 @@ public abstract class AbstractTestServer extends CoapServer {
 					dtlsConfigBuilder.setSocketReceiveBufferSize(recvBufferSize); 
 					dtlsConfigBuilder.setSocketSendBufferSize(sendBufferSize); 
 					dtlsConfigBuilder.setRetransmissionTimeout(retransmissionTimeout);
+					dtlsConfigBuilder.setConnectionListener(new MdcConnectionListener());
 					DTLSConnector connector = new DTLSConnector(dtlsConfigBuilder.build());
 					CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 					builder.setConnector(connector);

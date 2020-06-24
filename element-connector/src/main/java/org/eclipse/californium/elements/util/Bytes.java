@@ -37,6 +37,15 @@ public class Bytes {
 	 */
 	private final int hash;
 	/**
+	 * Bytes as String.
+	 * 
+	 * Cache result of {@link #getAsString()}.
+	 * 
+	 * @since 2.4
+	 */
+	private String asString;
+
+	/**
 	 * Create bytes array.
 	 * 
 	 * @param bytes bytes (not copied!)
@@ -105,7 +114,10 @@ public class Bytes {
 	 * @return bytes as (hexadecimal) string
 	 */
 	public final String getAsString() {
-		return StringUtil.byteArray2Hex(bytes);
+		if (asString == null) {
+			asString = StringUtil.byteArray2Hex(bytes);
+		}
+		return asString;
 	}
 
 	/**
