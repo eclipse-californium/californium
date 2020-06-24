@@ -22,7 +22,6 @@
 package org.eclipse.californium.scandium.dtls;
 
 import org.eclipse.californium.elements.util.Bytes;
-import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
 
 /**
@@ -33,7 +32,6 @@ public final class SessionId extends Bytes {
 
 	// Members ////////////////////////////////////////////////////////
 	private static final SessionId EMPTY_SESSION_ID = new SessionId(Bytes.EMPTY);
-	private final String text; 
 	// Constructors ///////////////////////////////////////////////////
 
 	public SessionId() {
@@ -50,7 +48,6 @@ public final class SessionId extends Bytes {
 	 */
 	public SessionId(byte[] sessionId) {
 		super(sessionId);
-		text = StringUtil.byteArray2Hex(getBytes());
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -71,6 +68,6 @@ public final class SessionId extends Bytes {
 	 */
 	@Override
 	public String toString() {
-		return text;
+		return getAsString();
 	}
 }

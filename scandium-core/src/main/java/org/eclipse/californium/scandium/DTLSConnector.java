@@ -152,6 +152,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
@@ -328,6 +329,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	private RawDataChannel messageHandler;
 	private AlertHandler alertHandler;
 	private SessionListener sessionListener;
+	private ConnectionExecutionListener connectionExecutionListener;
 	private ExecutorService executorService;
 	private boolean hasInternalExecutor;
 
@@ -394,6 +396,10 @@ public class DTLSConnector implements Connector, RecordLayer {
 			this.connectionStore = connectionStore;
 			this.connectionStore.attach(connectionIdGenerator);
 			this.connectionStore.setConnectionListener(config.getConnectionListener());
+			ConnectionListener listener = config.getConnectionListener();
+			if (listener instanceof ConnectionExecutionListener) {
+				this.connectionExecutionListener = (ConnectionExecutionListener) listener;
+			}
 			AdvancedPskStore advancedPskStore = config.getAdvancedPskStore();
 			if (advancedPskStore != null) {
 				advancedPskStore.setResultHandler(new PskSecretResultHandler() {
@@ -784,6 +790,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 
 				@Override
 				public void doWork() throws Exception {
+					MDC.clear();
 					packet.setData(receiverBuffer);
 					receiveNextDatagramFromNetwork(packet);
 				}
@@ -1088,6 +1095,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 				if (connection == null && create) {
 					LOGGER.trace("create new connection for {}", peerAddress);
 					Connection newConnection = new Connection(peerAddress, new SerialExecutor(executor));
+					newConnection.setExecutionListener(connectionExecutionListener);
 					if (running.get()) {
 						// only add, if connector is running!
 						if (!connectionStore.put(newConnection)) {
@@ -1144,12 +1152,12 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * @param packet datagram filled with the received data and source address.
 	 */
 	protected void processDatagram(DatagramPacket packet) {
-
+		InetSocketAddress peerAddress = new InetSocketAddress(packet.getAddress(), packet.getPort());
+		MDC.put("PEER", StringUtil.toString(peerAddress));
 		if (health != null) {
 			health.receivingRecord(false);
 		}
 		long timestamp = ClockUtil.nanoRealtime();
-		InetSocketAddress peerAddress = new InetSocketAddress(packet.getAddress(), packet.getPort());
 
 		byte[] data = Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getLength());
 		List<Record> records = Record.fromByteArray(data, peerAddress, connectionIdGenerator, timestamp);
@@ -1172,7 +1180,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 
 				@Override
 				public void run() {
+					MDC.put("PEER", StringUtil.toString(firstRecord.getPeerAddress()));
 					processNewClientHello(firstRecord);
+					MDC.clear();
 				}
 			});
 			return;
@@ -1742,6 +1752,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 					}
 					if (connection == null) {
 						connection = new Connection(peerAddress, new SerialExecutor(getExecutorService()));
+						connection.setExecutionListener(connectionExecutionListener);
 						connection.startByClientHello(clientHello);
 						if (!connectionStore.put(connection)) {
 							return;

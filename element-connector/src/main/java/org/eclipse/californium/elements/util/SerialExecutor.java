@@ -52,6 +52,15 @@ public class SerialExecutor extends AbstractExecutorService {
 	private final AtomicReference<Thread> owner = new AtomicReference<Thread>();
 
 	/**
+	 * Execution listener.
+	 * 
+	 * Called before and after executing a task.
+	 * 
+	 * @since 2.4
+	 */
+	private final AtomicReference<ExecutionListener> listener = new AtomicReference<ExecutionListener>();
+
+	/**
 	 * Queue for serialized jobs.
 	 */
 	private final BlockingQueue<Runnable> tasks = new LinkedBlockingQueue<>();
@@ -272,11 +281,22 @@ public class SerialExecutor extends AbstractExecutorService {
 					public void run() {
 						try {
 							setOwner();
+							ExecutionListener current = listener.get();
 							try {
+								if (current != null) {
+									current.beforeExecution();
+								}
 								command.run();
 							} catch (Throwable t) {
 								LOGGER.error("unexpected error occurred:", t);
 							} finally {
+								try {
+									if (current != null) {
+										current.afterExecution();
+									}
+								} catch (Throwable t) {
+									LOGGER.error("unexpected error occurred:", t);
+								}
 								clearOwner();
 							}
 						} finally {
@@ -305,5 +325,32 @@ public class SerialExecutor extends AbstractExecutorService {
 			return new SerialExecutor(executor);
 		}
 		return null;
+	}
+
+	/**
+	 * Set execution listener.
+	 * 
+	 * Called before and after executing a task.
+	 * 
+	 * @param listener execution listener.
+	 * @return previous execution listener
+	 * @since 2.4
+	 */
+	public ExecutionListener setExecutionListener(ExecutionListener listener) {
+		return this.listener.getAndSet(listener);
+	}
+
+	/**
+	 * Execution listener.
+	 * 
+	 * Called before and after executing a task.
+	 * 
+	 * @since 2.4
+	 */
+	public interface ExecutionListener {
+
+		void beforeExecution();
+
+		void afterExecution();
 	}
 }
