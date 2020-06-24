@@ -42,8 +42,10 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -53,6 +55,7 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
+import javax.security.auth.x500.X500Principal;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -357,6 +360,7 @@ public class SslContextUtil {
 		if (null != aliasPattern && !aliasPattern.isEmpty()) {
 			pattern = Pattern.compile(aliasPattern);
 		}
+		Set<X500Principal> set = new HashSet<>();
 		List<Certificate> trustedCertificates = new ArrayList<Certificate>();
 		for (Enumeration<String> e = ks.aliases(); e.hasMoreElements();) {
 			String alias = e.nextElement();
@@ -367,8 +371,12 @@ public class SslContextUtil {
 				}
 			}
 			Certificate certificate = ks.getCertificate(alias);
-			if (null != certificate) {
-				trustedCertificates.add(certificate);
+			if (certificate instanceof X509Certificate) {
+				X509Certificate x509 = (X509Certificate) certificate;
+				if (set.add(x509.getSubjectX500Principal())) {
+					// .p12 has more than 1 alias for a certificate
+					trustedCertificates.add(certificate);
+				}
 			}
 		}
 		if (trustedCertificates.isEmpty()) {
