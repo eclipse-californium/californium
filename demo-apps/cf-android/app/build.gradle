@@ -40,9 +40,9 @@ android {
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation 'com.android.support:appcompat-v7:22.2.1'
-    implementation 'org.eclipse.californium:californium-core:2.2.1'
-    implementation 'org.eclipse.californium:element-connector:2.2.1'
-    implementation 'org.eclipse.californium:scandium:2.2.1'
-    implementation 'org.eclipse.californium:demo-certs:2.2.1'
+    implementation 'org.eclipse.californium:californium-core:2.4.0-SNAPSHOT'
+    implementation 'org.eclipse.californium:element-connector:2.4.0-SNAPSHOT'
+    implementation 'org.eclipse.californium:scandium:2.4.0-SNAPSHOT'
+    implementation 'org.eclipse.californium:demo-certs:2.4.0-SNAPSHOT'
     implementation 'com.github.tony19:logback-android:1.1.1-11'
 }
