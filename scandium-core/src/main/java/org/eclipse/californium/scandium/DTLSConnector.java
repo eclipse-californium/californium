@@ -429,13 +429,22 @@ public class DTLSConnector implements Connector, RecordLayer {
 						health.endHandshake(true);
 					}
 					final Connection connection = handshaker.getConnection();
-					timer.schedule(new Runnable() {
+					ScheduledExecutorService timer = DTLSConnector.this.timer;
+					if (timer != null) {
+						try {
+							timer.schedule(new Runnable() {
 
-						@Override
-						public void run() {
-							connection.startByClientHello(null);
+								@Override
+								public void run() {
+									connection.startByClientHello(null);
+								}
+							}, CLIENT_HELLO_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+							return;
+						} catch (RejectedExecutionException ex) {
+							LOGGER.debug("stopping.");
 						}
-					}, CLIENT_HELLO_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+					}
+					connection.startByClientHello(null);
 				}
 
 				@Override
@@ -498,38 +507,42 @@ public class DTLSConnector implements Connector, RecordLayer {
 
 	private final void sessionEstablished(Handshaker handshaker, final DTLSSession establishedSession)
 			throws HandshakeException {
-		final Connection connection = handshaker.getConnection();
-		connectionStore.putEstablishedSession(establishedSession, connection);
-		final SerialExecutor serialExecutor = connection.getExecutor();
-		List<RawData> listOut = handshaker.takeDeferredApplicationData();
-		if (!listOut.isEmpty()) {
-			LOGGER.trace("Session with [{}] established, now process deferred {} messages",
-					establishedSession.getPeer(), listOut.size());
-			for (RawData message : listOut) {
-				final RawData rawData = message;
-				serialExecutor.execute(new Runnable() {
+		try {
+			final Connection connection = handshaker.getConnection();
+			connectionStore.putEstablishedSession(establishedSession, connection);
+			final SerialExecutor serialExecutor = connection.getExecutor();
+			List<RawData> listOut = handshaker.takeDeferredApplicationData();
+			if (!listOut.isEmpty()) {
+				LOGGER.trace("Session with [{}] established, now process deferred {} messages",
+						establishedSession.getPeer(), listOut.size());
+				for (RawData message : listOut) {
+					final RawData rawData = message;
+					serialExecutor.execute(new Runnable() {
 
-					@Override
-					public void run() {
-						sendMessage(rawData, connection, establishedSession);
-					}
-				});
+						@Override
+						public void run() {
+							sendMessage(rawData, connection, establishedSession);
+						}
+					});
+				}
 			}
-		}
-		List<Record> listIn = handshaker.takeDeferredRecords();
-		if (!listIn.isEmpty()) {
-			LOGGER.trace("Session with [{}] established, now process deferred {} messages",
-					establishedSession.getPeer(), listIn.size());
-			for (Record message : listIn) {
-				final Record record = message;
-				serialExecutor.execute(new Runnable() {
+			List<Record> listIn = handshaker.takeDeferredRecords();
+			if (!listIn.isEmpty()) {
+				LOGGER.trace("Session with [{}] established, now process deferred {} messages",
+						establishedSession.getPeer(), listIn.size());
+				for (Record message : listIn) {
+					final Record record = message;
+					serialExecutor.execute(new Runnable() {
 
-					@Override
-					public void run() {
-						processRecord(record, connection);
-					}
-				});
+						@Override
+						public void run() {
+							processRecord(record, connection);
+						}
+					});
+				}
 			}
+		} catch (RejectedExecutionException ex) {
+			LOGGER.debug("stopping.");
 		}
 	}
 
@@ -2586,7 +2599,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 				Exception cause = null;
 				String message = "";
 				boolean timeout=false;
-				if (!connection.isExecuting() || !running.get()) {
+				ScheduledExecutorService timer = this.timer;
+				if (!connection.isExecuting() || !running.get() || timer == null) {
 					message = " Stopped by shutdown!";
 				} else if (connectionStore.get(flight.getPeerAddress()) != connection) {
 					message = " Stopped by address change!";
@@ -2670,8 +2684,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 	}
 
 	private void scheduleRetransmission(DTLSFlight flight, Connection connection) {
-
-		if (flight.isRetransmissionNeeded()) {
+		ScheduledExecutorService timer = this.timer;
+		if (flight.isRetransmissionNeeded() && timer != null) {
 			// schedule retransmission task
 			ScheduledFuture<?> f = timer.schedule(new TimeoutPeerTask(connection, flight), flight.getTimeout(), TimeUnit.MILLISECONDS);
 			flight.setTimeoutTask(f);
