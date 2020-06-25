@@ -15,7 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
-import static org.hamcrest.CoreMatchers.either;
+import static org.hamcrest.CoreMatchers.anyOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.instanceOf;
@@ -45,6 +45,8 @@ public class SslContextUtilTrustTest {
 	public static final String ALIAS_CA = "ca";
 	public static final String ALIAS_MISSING = "missing";
 	public static final String DN_CA = "C=CA, L=Ottawa, O=Eclipse IoT, OU=Californium, CN=cf-ca";
+	public static final String DN_CA2 = "C=CA, L=Ottawa, O=Eclipse IoT, OU=Californium, CN=cf-ca2";
+	public static final String DN_CA_RSA = "C=CA, L=Ottawa, O=Eclipse IoT, OU=Californium, CN=cf-ca-rsa";
 	public static final String DN_ROOT = "C=CA, L=Ottawa, O=Eclipse IoT, OU=Californium, CN=cf-root";
 
 	@Test
@@ -52,9 +54,11 @@ public class SslContextUtilTrustTest {
 		Certificate[] trustedCertificates = SslContextUtil.loadTrustedCertificates(TRUST_STORE_LOCATION, null,
 				TRUST_STORE_PASSWORD);
 		assertThat(trustedCertificates, is(notNullValue()));
-		assertThat(trustedCertificates.length, is(greaterThan(0)));
+		assertThat(trustedCertificates.length, is(4));
 		assertThat(trustedCertificates[0], is(instanceOf(X509Certificate.class)));
 		assertThat(trustedCertificates[0].getPublicKey(), is(notNullValue()));
+		X509Certificate x509 = (X509Certificate) trustedCertificates[0];
+		assertThat(x509.getSubjectDN().getName(), anyOf(is(DN_CA), is(DN_CA2), is(DN_CA_RSA), is(DN_ROOT)));
 	}
 
 	@Test
@@ -177,10 +181,10 @@ public class SslContextUtilTrustTest {
 	public void testLoadP12TrustedCertificates() throws IOException, GeneralSecurityException {
 		Certificate[] trustedCertificates = SslContextUtil.loadTrustedCertificates(TRUST_P12_LOCATION, null, TRUST_STORE_PASSWORD);
 		assertThat(trustedCertificates, is(notNullValue()));
-		assertThat(trustedCertificates.length, is(greaterThan(0)));
+		assertThat(trustedCertificates.length, is(4));
 		X509Certificate x509 = (X509Certificate) trustedCertificates[0];
 		assertThat(x509.getPublicKey(), is(notNullValue()));
-		assertThat(x509.getSubjectDN().getName(), either(is(DN_CA)).or(is(DN_ROOT)));
+		assertThat(x509.getSubjectDN().getName(), anyOf(is(DN_CA), is(DN_CA2), is(DN_CA_RSA), is(DN_ROOT)));
 	}
 
 	@Test
@@ -213,10 +217,10 @@ public class SslContextUtilTrustTest {
 	public void testLoadPemTrustedCertificates() throws IOException, GeneralSecurityException {
 		Certificate[] trustedCertificates = SslContextUtil.loadTrustedCertificates(TRUST_PEM_LOCATION, null, null);
 		assertThat(trustedCertificates, is(notNullValue()));
-		assertThat(trustedCertificates.length, is(greaterThan(0)));
+		assertThat(trustedCertificates.length, is(4));
 		X509Certificate x509 = (X509Certificate) trustedCertificates[0];
 		assertThat(x509.getPublicKey(), is(notNullValue()));
-		assertThat(x509.getSubjectDN().getName(), either(is(DN_CA)).or(is(DN_ROOT)));
+		assertThat(x509.getSubjectDN().getName(), anyOf(is(DN_CA), is(DN_CA2), is(DN_CA_RSA), is(DN_ROOT)));
 	}
 
 	@Test
