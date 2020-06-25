@@ -18,7 +18,7 @@
 	<description>Californium (Cf) NAT implementation for test related to address changes</description>
 
 	<properties>
-		<assembly.mainClass>org.eclipse.californium.examples.Nat</assembly.mainClass>
+		<assembly.mainClass>org.eclipse.californium.util.nat.Nat</assembly.mainClass>
 		<animal.sniffer.skip>true</animal.sniffer.skip>
 		<revapi.skip>true</revapi.skip>
 	</properties>

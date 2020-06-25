@@ -16,7 +16,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add message dropping.
  ******************************************************************************/
 
-package org.eclipse.californium.examples;
+package org.eclipse.californium.util.nat;
 
 import java.io.IOException;
 import java.io.InterruptedIOException;
