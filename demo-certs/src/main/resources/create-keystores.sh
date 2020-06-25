@@ -157,7 +157,7 @@ export_pem() {
       openssl pkcs12 -in $CA_RSA_TRUST_STORE_P12 -passin pass:$TRUST_STORE_PWD -nokeys -out $CA_RSA_TRUST_STORE_PEM
       openssl pkcs12 -in $TRUST_STORE_P12 -passin pass:$TRUST_STORE_PWD -nokeys -out $TRUST_STORE_PEM
       openssl ecparam -genkey -name prime256v1 -noout -out $EC_PRIVATE_KEY_PEM
-      openssl ec -in ec_private.pem -pubout -out $EC_PUBLIC_KEY_PEM
+      openssl ec -in $EC_PRIVATE_KEY_PEM -pubout -out $EC_PUBLIC_KEY_PEM
    fi
 } 
 
