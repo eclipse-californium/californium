@@ -44,14 +44,12 @@ echo
 # cat /proc/sys/vm/max_map_count
 # prlimit
 
-CF_JAR=cf-extplugtest-client-2.3.0-SNAPSHOT.jar
+CF_JAR=cf-extplugtest-client-2.4.0-SNAPSHOT.jar
+CF_JAR_FIND='cf-extplugtest-client-*.jar'
 CF_EXEC="org.eclipse.californium.extplugtests.BenchmarkClient"
 CF_OPT="-XX:+UseG1GC -Xmx6g -Xverify:none"
 
-export CALIFORNIUM_STATISTIC="2.3.0"
-#export COAPS_HANDSHAKES_FULL=128
-#export COAPS_HANDSHAKES_CLOSE=192
-#export COAPS_HANDSHAKES_BURST=32
+export CALIFORNIUM_STATISTIC="2.4.0"
 
 if [ -z "$1" ]  ; then
      CF_HOST=localhost
@@ -74,18 +72,17 @@ else
     shift
 fi
 
-
 # adjust the multiplier according the speed of your CPU
-USE_TCP=0
+USE_TCP=1
 USE_UDP=1
-USE_PLAIN=0
+USE_PLAIN=1
 USE_SECURE=1
 USE_HTTP=0
 USE_OBSERVE=1
 USE_NONESTOP=--no-stop
 
 MULTIPLIER=10
-REQS=$((5000 * $MULTIPLIER))
+REQS=$((500 * $MULTIPLIER))
 REQS_EXTRA=$(($REQS + ($REQS/10)))
 REV_REQS=$((2 * $REQS))
 NOTIFIES=$((100 * $MULTIPLIER))
@@ -98,13 +95,33 @@ TCP_CLIENTS=$((50 * $CLIENTS_MULTIPLIER))
 OBS_CLIENTS=$((50 * $CLIENTS_MULTIPLIER))
 
 if [ ! -s ${CF_JAR} ] ; then
-   if  [ -s target/${CF_JAR} ] ; then
-      CF_JAR=target/${CF_JAR}
-   elif [ -s ../${CF_JAR} ] ; then
-      CF_JAR=../${CF_JAR}
-   elif [ -s ../target/${CF_JAR} ] ; then
-      CF_JAR=../target/${CF_JAR}
+# search for given version
+   CF_JAR_TEST=`find -name ${CF_JAR} | head -n 1`
+   if  [ -z "${CF_JAR_TEST}" ] ; then
+     CF_JAR_TEST=`find .. -name ${CF_JAR} | head -n 1`
    fi
+   if  [ -n "${CF_JAR_TEST}" ] ; then
+      CF_JAR=${CF_JAR_TEST}
+  fi
+fi
+
+if [ ! -s ${CF_JAR} ] ; then
+# search for alternative available version
+   CF_JAR_TEST=`find -name ${CF_JAR_FIND} ! -name "*sources.jar" | head -n 1`
+   if  [ -z "${CF_JAR_TEST}" ] ; then
+     CF_JAR_TEST=`find .. -name ${CF_JAR_FIND} ! -name "*sources.jar" | head -n 1`
+   fi
+   if  [ -n "${CF_JAR_TEST}" ] ; then
+      echo "Found different version."
+      echo "Using   ${CF_JAR_TEST}"
+      echo "instead ${CF_JAR}"
+      CF_JAR=${CF_JAR_TEST}
+  fi
+fi
+
+if [ ! -s ${CF_JAR} ] ; then
+   echo "Missing ${CF_JAR}"
+   exit -1
 fi
 
 echo ${CF_JAR}
@@ -192,7 +209,7 @@ benchmark_dtls_handshakes()
    export CALIFORNIUM_STATISTIC=
    LOOPS=10
 
-   benchmark_dtls_handshake $LOOPS --auth=PSK
+   benchmark_dtls_handshake $LOOPS 
    TIME1=$?
    benchmark_dtls_handshake $LOOPS --auth=ECDHE_PSK
    TIME2=$?
