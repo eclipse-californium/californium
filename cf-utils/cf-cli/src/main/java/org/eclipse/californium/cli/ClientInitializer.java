@@ -106,11 +106,9 @@ public class ClientInitializer {
 	 * 
 	 * @param args the arguments
 	 * @param config command line configuration
-	 * @param ephemeralPort {@code true}, use ephemeral port, {@code false} use
-	 *            port from network configuration.
 	 * @throws IOException if an i/o error occurs
 	 */
-	public static void init(String[] args, ClientBaseConfig config, boolean ephemeralPort) throws IOException {
+	public static void init(String[] args, ClientBaseConfig config) throws IOException {
 
 		CommandLine cmd = new CommandLine(config);
 		config.register(cmd);
@@ -159,7 +157,7 @@ public class ClientInitializer {
 			}
 		}
 
-		CoapEndpoint coapEndpoint = createEndpoint(config, null, ephemeralPort);
+		CoapEndpoint coapEndpoint = createEndpoint(config, null);
 		coapEndpoint.start();
 		LOGGER.info("endpoint started at {}", coapEndpoint.getAddress());
 		EndpointManager.getEndpointManager().setDefaultEndpoint(coapEndpoint);
@@ -171,12 +169,9 @@ public class ClientInitializer {
 	 * @param arguments arguments
 	 * @param executor executor service. {@code null}, if no external executor
 	 *            should be used.
-	 * @param ephemeralPort {@code true}, use ephemeral port, {@code false} use
-	 *            port from network configuration.
 	 * @return created endpoint.
 	 */
-	public static CoapEndpoint createEndpoint(ClientBaseConfig clientConfig, ExecutorService executor,
-			boolean ephemeralPort) {
+	public static CoapEndpoint createEndpoint(ClientBaseConfig clientConfig, ExecutorService executor) {
 		NetworkConfig config = clientConfig.networkConfig;
 		int tcpThreads = config.getInt(Keys.TCP_WORKER_THREADS);
 		int tcpConnectTimeout = config.getInt(Keys.TCP_CONNECT_TIMEOUT);
@@ -196,6 +191,7 @@ public class ClientInitializer {
 		if (dtlsRetransmissionTimeout != null) {
 			retransmissionTimeout = dtlsRetransmissionTimeout;
 		}
+		int localPort = clientConfig.localPort == null ? 0 : clientConfig.localPort;
 
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		if (clientConfig.uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME)) {
@@ -227,7 +223,6 @@ public class ClientInitializer {
 				}
 			}
 			if (clientConfig.uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME + "://")) {
-				int coapsPort = ephemeralPort ? 0 : config.getInt(Keys.COAP_SECURE_PORT);
 				DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
 				boolean psk = false;
 				List<KeyExchangeAlgorithm> keyExchangeAlgorithms = new ArrayList<KeyExchangeAlgorithm>();
@@ -298,7 +293,7 @@ public class ClientInitializer {
 				dtlsConfig.setConnectionThreadCount(senderThreads);
 				dtlsConfig.setReceiverThreadCount(receiverThreads);
 				dtlsConfig.setStaleConnectionThreshold(staleTimeout);
-				dtlsConfig.setAddress(new InetSocketAddress(coapsPort));
+				dtlsConfig.setAddress(new InetSocketAddress(localPort));
 				dtlsConfig.setHealthStatusInterval(healthStatusInterval);
 				DTLSConnector dtlsConnector = new DTLSConnector(dtlsConfig.build());
 				if (executor != null) {
@@ -312,8 +307,7 @@ public class ClientInitializer {
 		} else if (clientConfig.uri.startsWith(CoAP.COAP_TCP_URI_SCHEME + "://")) {
 			builder.setConnector(new TcpClientConnector(tcpThreads, tcpConnectTimeout, tcpIdleTimeout));
 		} else if (clientConfig.uri.startsWith(CoAP.COAP_URI_SCHEME + "://")) {
-			int coapPort = ephemeralPort ? 0 : config.getInt(Keys.COAP_PORT);
-			builder.setConnectorWithAutoConfiguration(new UDPConnector(new InetSocketAddress(coapPort)));
+			builder.setConnectorWithAutoConfiguration(new UDPConnector(new InetSocketAddress(localPort)));
 		}
 
 		builder.setNetworkConfig(config);

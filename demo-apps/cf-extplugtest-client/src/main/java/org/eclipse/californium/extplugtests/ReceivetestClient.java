@@ -125,9 +125,10 @@ public class ReceivetestClient {
 		clientConfig.networkConfigFile = CONFIG_FILE;
 
 		try {
-			ClientInitializer.init(args, clientConfig, false);
+			ClientInitializer.init(args, clientConfig);
 		} catch (BindException ex) {
-			ClientInitializer.init(args, clientConfig, true);
+			clientConfig.localPort = null;
+			ClientInitializer.init(args, clientConfig);
 			System.out.println("Default port not available, use ephemeral port!");
 		}
 		if (clientConfig.helpRequested) {

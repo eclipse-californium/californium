@@ -53,6 +53,7 @@ import picocli.CommandLine.Option;
 
 public class HonoClient {
 
+	private static final String DEFAULT_HONO = "hono.eclipseprojects.io";
 	private static final File CONFIG_FILE = new File("CaliforniumHono.properties");
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Hono Client";
 	private static final int DEFAULT_MAX_RESOURCE_SIZE = 8192;
@@ -66,7 +67,7 @@ public class HonoClient {
 					"              a correlation-id string as second parameter",
 					"",
 					"Example:",
-					"  HonoClient coaps://hono.eclipseprojects.io/telemetry --json \\",
+					"  HonoClient coaps://" + DEFAULT_HONO + "/telemetry --json \\",
 					"     --payload \"{\"temp\": %%d}\"",
 					"  (Send a temperature in json as telemetry, %%d is replaced by a random number)",
 			})
@@ -188,10 +189,11 @@ public class HonoClient {
 		ClientInitializer.setDefaultPskCredentials("sensor1@DEFAULT_TENANT", "hono-secret");
 
 		final Config clientConfig = new Config();
+		clientConfig.defaultUri = "coaps://" + DEFAULT_HONO + "/telemetry";
 		clientConfig.networkConfigHeader = CONFIG_HEADER;
 		clientConfig.networkConfigDefaultHandler = DEFAULTS;
 		clientConfig.networkConfigFile = CONFIG_FILE;
-		ClientInitializer.init(args, clientConfig, true);
+		ClientInitializer.init(args, clientConfig);
 		if (clientConfig.helpRequested) {
 			System.exit(0);
 		}
@@ -327,7 +329,7 @@ public class HonoClient {
 			if (cmd != null) {
 				FileOutputStream out;
 				if (file == null) {
-					file = new File("response-"+coapResponse.advanced().getTokenString());
+					file = new File("response-" + coapResponse.advanced().getTokenString());
 					out = new FileOutputStream(file);
 				} else {
 					out = new FileOutputStream(file, true);

@@ -24,9 +24,12 @@ import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 
 import picocli.CommandLine;
+import picocli.CommandLine.IDefaultValueProvider;
 import picocli.CommandLine.ITypeConverter;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
+import picocli.CommandLine.Model.ArgSpec;
+import picocli.CommandLine.Model.PositionalParamSpec;
 
 /**
  * Client basic command line config
@@ -35,6 +38,12 @@ import picocli.CommandLine.Parameters;
  */
 public class ClientBaseConfig extends ConnectorConfig {
 
+	public static final String LABELT_URI  = "URI";
+
+	public static final String DEFAULT_URI  = "californium.eclipse.org";
+
+	public String defaultUri = DEFAULT_URI;
+
 	/**
 	 * Proxy configuration.
 	 */
@@ -42,9 +51,15 @@ public class ClientBaseConfig extends ConnectorConfig {
 	public ProxyConfiguration proxy;
 
 	/**
+	 * Local port.
+	 */
+	@Option(names = "--local-port", description = "local porty. Default ephemeral port.")
+	public Integer localPort;
+
+	/**
 	 * Destination URI.
 	 */
-	@Parameters(index = "0", paramLabel = "URI", arity = "0..1", defaultValue = "californium.eclipse.org", description = "destination URI. Default .")
+	@Parameters(index = "0", paramLabel = LABELT_URI, arity = "0..1", description = "destination URI. Default ${DEFAULT-VALUE}")
 	public String uri;
 
 	/**
@@ -60,6 +75,22 @@ public class ClientBaseConfig extends ConnectorConfig {
 	public void register(CommandLine cmd) {
 		super.register(cmd);
 		cmd.registerConverter(ProxyConfiguration.class, proxyReader);
+		final IDefaultValueProvider defaultValueProvider = cmd.getDefaultValueProvider();
+		IDefaultValueProvider newDefaultValueProvider = new IDefaultValueProvider() {
+
+			@Override
+			public String defaultValue(ArgSpec argSpec) throws Exception {
+				if (argSpec instanceof PositionalParamSpec) {
+					PositionalParamSpec spec = (PositionalParamSpec) argSpec;
+					if (LABELT_URI.contentEquals(spec.paramLabel())) {
+						return defaultUri;
+					}
+				}
+				return defaultValueProvider != null ? defaultValueProvider.defaultValue(argSpec) : null;
+			}
+
+		};
+		cmd.setDefaultValueProvider(newDefaultValueProvider);
 	}
 
 	@Override

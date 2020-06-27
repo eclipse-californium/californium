@@ -199,7 +199,7 @@ public class PlugtestChecker {
 		clientConfig.networkConfigHeader = CONFIG_HEADER;
 		clientConfig.networkConfigDefaultHandler = DEFAULTS;
 		clientConfig.networkConfigFile = CONFIG_FILE;
-		ClientInitializer.init(args, clientConfig, true);
+		ClientInitializer.init(args, clientConfig);
 
 		if (clientConfig.helpRequested) {
 			Catalog catalog = new Catalog();

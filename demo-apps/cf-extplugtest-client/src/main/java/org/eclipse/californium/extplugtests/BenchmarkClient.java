@@ -903,7 +903,7 @@ public class BenchmarkClient {
 		config.networkConfigHeader = CONFIG_HEADER;
 		config.networkConfigDefaultHandler = DEFAULTS;
 		config.networkConfigFile = CONFIG_FILE;
-		ClientInitializer.init(args, config, true);
+		ClientInitializer.init(args, config);
 
 		if (config.helpRequested) {
 			System.exit(0);
@@ -1055,7 +1055,7 @@ public class BenchmarkClient {
 							connectionConfig = connectionConfig.create(identity, secret);
 						}
 					}
-					CoapEndpoint coapEndpoint = ClientInitializer.createEndpoint(connectionConfig, connectorExecutor, true);
+					CoapEndpoint coapEndpoint = ClientInitializer.createEndpoint(connectionConfig, connectorExecutor);
 					if (health.isEnabled()) {
 						coapEndpoint.addPostProcessInterceptor(health);
 					}
@@ -1073,7 +1073,9 @@ public class BenchmarkClient {
 								System.out.format("Request %s POST failed, exit Benchmark.%n", uri);
 								System.exit(-1);
 							}
-						}
+							// ensure to use ephemeral port for other clients
+							config.localPort = null;
+						} 
 					} catch (RuntimeException e) {
 						if (!errors.getAndSet(true)) {
 							e.printStackTrace();
