@@ -183,7 +183,7 @@ public class ProxyHttpServer {
 	 * Register {@link HttpStack#registerProxyRequestHandler()} and
 	 * {@link HttpStack#registerHttpProxyRequestHandler()} on {@link #start()}.
 	 * 
-	 * @param deliverer mesage deliverer for proxy-requests
+	 * @param deliverer message deliverer for proxy-requests
 	 */
 	public void setProxyCoapDeliverer(MessageDeliverer deliverer) {
 		this.proxyCoapDeliverer = deliverer;
@@ -195,7 +195,7 @@ public class ProxyHttpServer {
 	 * Register {@link HttpStack#registerLocalRequestHandler()} on
 	 * {@link #start()}.
 	 * 
-	 * @param deliverer mesage deliverer for local coap resources
+	 * @param deliverer message deliverer for local coap resources
 	 */
 	public void setLocalCoapDeliverer(MessageDeliverer deliverer) {
 		this.localCoapDeliverer = deliverer;

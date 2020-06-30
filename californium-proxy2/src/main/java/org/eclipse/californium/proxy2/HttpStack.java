@@ -65,16 +65,17 @@ public class HttpStack {
 	/**
 	 * Resource associated with the proxying behavior. If a client requests
 	 * resource indicated by
-	 * http://proxy-address/PROXY_RESOURCE_NAME/coap-server, the proxying
-	 * handler will forward the request desired coap server.
+	 * http://proxy-address/{@value #PROXY_RESOURCE_NAME}/coap-server, the
+	 * proxying handler will forward the request to the desired coap server.
 	 */
 	private static final String PROXY_RESOURCE_NAME = "proxy";
 
 	/**
 	 * The resource associated with the local resources behavior. If a client
 	 * requests resource indicated by
-	 * http://proxy-address/LOCAL_RESOURCE_NAME/coap-resource, the proxying
-	 * handler will forward the request to the local resource requested.
+	 * http://proxy-address/{@value #LOCAL_RESOURCE_NAME}/coap-resource, the
+	 * proxying handler will forward the request to the local resource
+	 * requested.
 	 */
 	public static final String LOCAL_RESOURCE_NAME = "local";
 
@@ -115,8 +116,7 @@ public class HttpStack {
 	 * Register "local" request handler.
 	 *
 	 * Handles requests for
-	 * "http:/<proxy-host>:<proxy-port>/local/<local-coap-path>".
-	 * 
+	 * "http://<proxy-host>:<proxy-port>/local/<local-coap-path>".
 	 */
 	void registerLocalRequestHandler() {
 		UriHttpAsyncRequestHandlerMapper registry = server.getRequestHandlerMapper();
@@ -125,10 +125,10 @@ public class HttpStack {
 	}
 
 	/**
-	 * Register "porxy" request handlers.
+	 * Register "proxy" request handlers.
 	 *
 	 * Handles proxy requests for
-	 * "http:/<proxy-host>:<proxy-port>/proxy/<destination-uri>".
+	 * "http://<proxy-host>:<proxy-port>/proxy/<destination-uri>".
 	 */
 	void registerProxyRequestHandler() {
 		UriHttpAsyncRequestHandlerMapper registry = server.getRequestHandlerMapper();
@@ -144,10 +144,10 @@ public class HttpStack {
 	 * 
 	 * Enables to catch calls, if this http server is configures as http-proxy
 	 * for the client. In that case, the http-request contains the URI
-	 * (including destination host).
+	 * (including the destination host).
 	 * 
 	 * Handles proxy requests for
-	 * "http:/<destination>:<port>/<destination-uri>/<destination-scheme>:".
+	 * "http://<destination>:<port>/<destination-uri>/<destination-scheme>:".
 	 */
 	void registerHttpProxyRequestHandler() {
 		UriHttpAsyncRequestHandlerMapper registry = server.getRequestHandlerMapper();
