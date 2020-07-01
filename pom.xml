@@ -191,6 +191,10 @@
 					<version>3.1.1</version>
 				</plugin>
 				<plugin>
+					<artifactId>maven-toolchains-plugin</artifactId>
+					<version>3.0.0</version>
+				</plugin>
+				<plugin>
 					<artifactId>maven-compiler-plugin</artifactId>
 					<version>3.8.0</version>
 					<configuration>
@@ -600,6 +604,43 @@
 			<properties>
 				<javadoc.opts>-X-html4</javadoc.opts>
 			</properties>
+		</profile>
+		<profile>
+			<id>jdk8orGreater</id>
+			<activation>
+				<jdk>[1.8,)</jdk>
+			</activation>
+			<properties>
+				<jdk8orGreater>true</jdk8orGreater>
+			</properties>
+		</profile>
+		<profile>
+			<!-- This profile activate the usage of toolchain to compile using JDK 1.7-->
+			<id>useToolchain</id>
+			<properties>
+				<jdk8orGreater>false</jdk8orGreater>
+			</properties>
+			<build>
+				<plugins>
+					<plugin>
+						<artifactId>maven-toolchains-plugin</artifactId>
+						<executions>
+							<execution>
+								<goals>
+									<goal>toolchain</goal>
+								</goals>
+							</execution>
+						</executions>
+						<configuration>
+							<toolchains>
+								<jdk>
+									<version>1.7</version>
+								</jdk>
+							</toolchains>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
 		</profile>
 		<profile>
 			<id>animalsniffer</id>
