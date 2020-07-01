@@ -97,55 +97,6 @@
 			</plugin>
 			<plugin>
 				<artifactId>maven-surefire-plugin</artifactId>
-				<configuration>
-					<!-- 
-						Parallel test execution fails on OpenJDK 8 on linux :-(
-						For now, execute tests sequentially one by one.
-						We'll have to investigate this further ...
-					 -->
-					<!-- parallel>classes</parallel>
-					<threadCountClasses>8</threadCountClasses-->
-					<groups>org.eclipse.californium.elements.category.Small</groups>
-					<excludedGroups>org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.Large,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
-				</configuration>
-				<executions>
-					<execution>
-						<id>medium-tests</id>
-						<phase>test</phase>
-						<goals>
-							<goal>test</goal>
-						</goals>
-						<configuration>
-							<groups>org.eclipse.californium.elements.category.Medium</groups>
-							<excludedGroups>org.eclipse.californium.elements.category.Small,org.eclipse.californium.elements.category.Large,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
-						</configuration>
-					</execution>
-					<execution>
-						<id>large-tests</id>
-						<phase>integration-test</phase>
-						<goals>
-							<goal>test</goal>
-						</goals>
-						<configuration>
-							<groups>org.eclipse.californium.elements.category.Large</groups>
-							<excludedGroups>org.eclipse.californium.elements.category.Small,org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
-						</configuration>
-					</execution>
-					<execution>
-						<id>native-tests</id>
-						<phase>integration-test</phase>
-						<goals>
-							<goal>test</goal>
-						</goals>
-						<configuration>
-							<systemPropertyVariables>
-								<org.eclipse.californium.junit.socketmode>NATIVE</org.eclipse.californium.junit.socketmode>
-							</systemPropertyVariables>
-							<groups>org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</groups>
-							<excludedGroups>org.eclipse.californium.elements.category.Small,org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.Large</excludedGroups>
-						</configuration>
-					</execution>
-				</executions>
 			</plugin>
 			<plugin>
 				<artifactId>maven-jar-plugin</artifactId>
