@@ -15,8 +15,10 @@
  ******************************************************************************/
 package org.eclipse.californium.proxy2;
 
+import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.net.URLEncoder;
 import java.util.List;
 import java.util.Locale;
 
@@ -115,8 +117,17 @@ public class Http2CoapTranslator {
 		try {
 			uri = new URI(uriString);
 		} catch (URISyntaxException e) {
-			LOGGER.debug("Malformed uri", e);
-			throw new TranslationException("Malformed uri: " + e.getMessage());
+			try {
+				String encoded = URLEncoder.encode(uriString, "UTF-8");
+				uri = new URI(encoded);
+				uriString = encoded;
+			} catch (URISyntaxException ex) {
+				LOGGER.debug("Malformed uri", e);
+				throw new TranslationException("Malformed uri: " + e.getMessage());
+			} catch (UnsupportedEncodingException ex) {
+				LOGGER.debug("Malformed uri", e);
+				throw new TranslationException("Malformed uri: " + e.getMessage());
+			}
 		} catch (IllegalArgumentException e) {
 			LOGGER.debug("Malformed uri", e);
 			throw new TranslationException("Malformed uri: " + e.getMessage());
@@ -141,6 +152,15 @@ public class Http2CoapTranslator {
 			if (uri.getQuery() != null) {
 				target = path + "?" + uri.getQuery();
 			}
+			int index = target.indexOf(":/");
+			if (index > 0) {
+				// "coap://host" may have been normalized to "coap:/host"
+				index += 2;
+				if (target.charAt(index) != '/') {
+					// add /
+					target = target.substring(0, index) + "/" + target.substring(index);
+				}
+			}
 			try {
 				uri = new URI(target);
 				if (proxyingEnabled) {
@@ -150,12 +170,6 @@ public class Http2CoapTranslator {
 						throw new InvalidFieldException(
 								"Malformed uri: destination scheme missing! Use http://<proxy-host>/" + httpResource
 										+ "/coap://<destination-host>/<path>");
-					}
-					// "coap://host" may have been normalized to "coap:/host"
-					int index = uri.getScheme().length() + 2;
-					if (target.charAt(index) != '/') {
-						// add it
-						target = target.substring(0, index) + "/" + target.substring(index);
 					}
 					// the uri will be set as a proxy-uri option
 					LOGGER.debug("URI destination => '{}'", target);

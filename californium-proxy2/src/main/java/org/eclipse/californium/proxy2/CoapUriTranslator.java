@@ -16,11 +16,9 @@
 
 package org.eclipse.californium.proxy2;
 
-import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URLDecoder;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.OptionSet;
@@ -63,11 +61,7 @@ public class CoapUriTranslator {
 		OptionSet options = incomingRequest.getOptions();
 		if (options.hasProxyUri()) {
 			try {
-				String proxyUriString = URLDecoder.decode(options.getProxyUri(), "UTF-8");
-				return new URI(proxyUriString).getScheme();
-			} catch (UnsupportedEncodingException e) {
-				LOGGER.warn("UTF-8 do not support this encoding", e);
-				throw new TranslationException("UTF-8 do not support this encoding", e);
+				return new URI(options.getProxyUri()).getScheme();
 			} catch (URISyntaxException e) {
 				LOGGER.warn("Cannot translate the server uri", e);
 				throw new TranslationException("Cannot translate the server uri", e);
@@ -120,8 +114,7 @@ public class CoapUriTranslator {
 		try {
 			OptionSet options = incomingRequest.getOptions();
 			if (options.hasProxyUri()) {
-				String proxyUriString = URLDecoder.decode(options.getProxyUri(), "UTF-8");
-				return new URI(proxyUriString);
+				return new URI(options.getProxyUri());
 			} else {
 				String scheme = options.hasProxyScheme() ? options.getProxyScheme() : incomingRequest.getScheme();
 				String host = options.getUriHost();
@@ -142,9 +135,6 @@ public class CoapUriTranslator {
 				String query = options.getURIQueryCount() > 0 ? options.getUriQueryString() : null;
 				return new URI(scheme, null, host, port, path, query, null);
 			}
-		} catch (UnsupportedEncodingException e) {
-			LOGGER.warn("UTF-8 do not support this encoding", e);
-			throw new TranslationException("UTF-8 do not support this encoding", e);
 		} catch (URISyntaxException e) {
 			LOGGER.warn("Cannot translate the server uri", e);
 			throw new TranslationException("Cannot translate the server uri", e);
