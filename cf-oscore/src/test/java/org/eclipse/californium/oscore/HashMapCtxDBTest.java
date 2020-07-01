@@ -16,16 +16,18 @@
  ******************************************************************************/
 package org.eclipse.californium.oscore;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.cose.AlgorithmID;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-
-import org.eclipse.californium.cose.AlgorithmID;
 
 public class HashMapCtxDBTest {
 

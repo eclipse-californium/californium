@@ -15,14 +15,17 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
-import static org.junit.Assert.*;
 import static org.eclipse.californium.elements.util.TestConditionTools.inRange;
-import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
+
 import java.net.InetSocketAddress;
 
-import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.ClassRule;

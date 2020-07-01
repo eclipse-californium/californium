@@ -36,10 +36,10 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ScheduledExecutorService;
 
-import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.network.MatcherTestUtils.TestEndpointReceiver;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;

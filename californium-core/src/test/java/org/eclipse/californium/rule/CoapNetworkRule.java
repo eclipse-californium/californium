@@ -18,8 +18,6 @@
 package org.eclipse.californium.rule;
 
 import java.util.concurrent.atomic.AtomicInteger;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.network.EndpointManager;
@@ -28,6 +26,8 @@ import org.eclipse.californium.core.network.serialization.DataParser;
 import org.eclipse.californium.core.network.serialization.UdpDataParser;
 import org.eclipse.californium.elements.rule.NetworkRule;
 import org.eclipse.californium.elements.util.DatagramFormatter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * CoAP network rules for junit test using datagram sockets.

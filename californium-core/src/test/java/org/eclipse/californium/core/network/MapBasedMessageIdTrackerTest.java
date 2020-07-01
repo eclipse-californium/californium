@@ -19,18 +19,18 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
-import static org.eclipse.californium.elements.util.TestConditionTools.inRange;
 import static org.eclipse.californium.core.network.MessageIdTracker.TOTAL_NO_OF_MIDS;
+import static org.eclipse.californium.elements.util.TestConditionTools.inRange;
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertThat;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.util.TestCondition;
 import org.eclipse.californium.elements.util.TestConditionTools;
-import org.eclipse.californium.category.Small;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.ClassRule;

@@ -15,15 +15,15 @@
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertThat;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.junit.Rule;
 import org.junit.Test;

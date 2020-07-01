@@ -16,14 +16,15 @@
 package org.eclipse.californium.scandium.dtls.cipher;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertThat;
 
 import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.util.StandardCharsets;
-import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
 import org.junit.Before;
 import org.junit.Test;

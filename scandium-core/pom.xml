@@ -88,8 +88,8 @@
 					-->
 					<!-- parallel>classes</parallel>
 					<threadCount>8</threadCount-->
-					<groups>org.eclipse.californium.scandium.category.Small</groups>
-					<excludedGroups>org.eclipse.californium.scandium.category.Medium,org.eclipse.californium.scandium.category.Large</excludedGroups>
+					<groups>org.eclipse.californium.elements.category.Small</groups>
+					<excludedGroups>org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.Large</excludedGroups>
 				</configuration>
 				<executions>
 					<execution>
@@ -105,8 +105,8 @@
 							-->
 							<!--parallel>classes</parallel>
 							<threadCount>1</threadCount-->
-							<groups>org.eclipse.californium.scandium.category.Medium</groups>
-							<excludedGroups>org.eclipse.californium.scandium.category.Small,org.eclipse.californium.scandium.category.Large</excludedGroups>
+							<groups>org.eclipse.californium.elements.category.Medium</groups>
+							<excludedGroups>org.eclipse.californium.elements.Small,org.eclipse.californium.elements.Large</excludedGroups>
 						</configuration>
 					</execution>
 					<execution>
@@ -122,8 +122,8 @@
 							-->
 							<!-- parallel>classes</parallel>
 							<threadCount>1</threadCount-->
-							<groups>org.eclipse.californium.scandium.category.Large</groups>
-							<excludedGroups>org.eclipse.californium.scandium.category.Small,org.eclipse.californium.scandium.category.Medium</excludedGroups>
+							<groups>org.eclipse.californium.elements.category.Large</groups>
+							<excludedGroups>org.eclipse.californium.elements.Small,org.eclipse.californium.scandium.category.Medium</excludedGroups>
 						</configuration>
 					</execution>
 				</executions>

@@ -16,7 +16,8 @@
 package org.eclipse.californium.scandium.auth;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -29,9 +30,9 @@ import java.security.cert.Certificate;
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
-import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.junit.BeforeClass;
 import org.junit.Test;
