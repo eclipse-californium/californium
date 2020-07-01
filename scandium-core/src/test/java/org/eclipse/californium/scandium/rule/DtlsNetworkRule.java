@@ -17,8 +17,6 @@ package org.eclipse.californium.scandium.rule;
 
 import java.net.InetSocketAddress;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.elements.rule.NetworkRule;
 import org.eclipse.californium.elements.util.ClockUtil;
@@ -26,6 +24,8 @@ import org.eclipse.californium.elements.util.DatagramFormatter;
 import org.eclipse.californium.scandium.dtls.ContentType;
 import org.eclipse.californium.scandium.dtls.HandshakeType;
 import org.eclipse.californium.scandium.dtls.Record;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * DTLS network rules for junit test using datagram sockets.

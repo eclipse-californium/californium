@@ -26,9 +26,9 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.concurrent.TimeUnit;
 
-import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.category.Medium;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
 import org.junit.Rule;

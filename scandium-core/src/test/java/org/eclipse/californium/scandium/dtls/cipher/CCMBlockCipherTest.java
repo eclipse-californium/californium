@@ -27,8 +27,8 @@ import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.util.Bytes;
-import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.junit.Before;
 import org.junit.BeforeClass;

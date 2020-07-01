@@ -28,7 +28,6 @@ import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.TestTools;
-import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
@@ -45,6 +44,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.cose.AlgorithmID;
+import org.eclipse.californium.elements.category.Medium;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.rule.CoapNetworkRule;

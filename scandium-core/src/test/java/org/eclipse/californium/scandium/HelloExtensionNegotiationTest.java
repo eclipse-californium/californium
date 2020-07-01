@@ -28,7 +28,8 @@
 package org.eclipse.californium.scandium;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -37,8 +38,8 @@ import java.security.GeneralSecurityException;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.elements.category.Medium;
 import org.eclipse.californium.elements.rule.ThreadsRule;
-import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;

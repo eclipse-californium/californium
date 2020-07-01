@@ -32,7 +32,6 @@ import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -46,6 +45,7 @@ import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Rule;
 import org.junit.Test;

@@ -15,12 +15,12 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
-import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.server.resources.DiscoveryResource;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Assert;
 import org.junit.Before;

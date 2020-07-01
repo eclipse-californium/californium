@@ -17,7 +17,7 @@ package org.eclipse.californium.core.network.stack;
 
 import static org.mockito.Mockito.mock;
 
-import org.eclipse.californium.category.Small;
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Rule;
 import org.junit.Test;

@@ -15,7 +15,8 @@
  ******************************************************************************/
 package org.eclipse.californium.integration.test;
 
-import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
@@ -27,7 +28,6 @@ import java.util.List;
 import java.util.Random;
 
 import org.eclipse.californium.TestTools;
-import org.eclipse.californium.category.Large;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
@@ -44,6 +44,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.PrincipalEndpointContextMatcher;
+import org.eclipse.californium.elements.category.Large;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.integration.test.util.CoapsNetworkRule;

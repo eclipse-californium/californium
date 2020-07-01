@@ -19,11 +19,11 @@ import static org.eclipse.californium.TestTools.generateRandomPayload;
 import static org.eclipse.californium.core.network.MatcherTestUtils.receiveResponseFor;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 import java.net.InetAddress;
 
-import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -31,11 +31,12 @@ import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.MatcherTestUtils;
 import org.eclipse.californium.core.network.Exchange.Origin;
+import org.eclipse.californium.core.network.MatcherTestUtils;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Rule;
 import org.junit.Test;

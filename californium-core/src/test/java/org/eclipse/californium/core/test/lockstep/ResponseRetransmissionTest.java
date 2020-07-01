@@ -20,14 +20,15 @@ import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.CoAP.Type.ACK;
 import static org.eclipse.californium.core.coap.CoAP.Type.CON;
 import static org.eclipse.californium.core.test.MessageExchangeStoreTool.assertAllExchangesAreCompleted;
-import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createLockstepEndpoint;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.generateNextToken;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertNull;
 
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.TestTools;
-import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.Token;
@@ -36,6 +37,7 @@ import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.UDPTestConnector;
+import org.eclipse.californium.elements.category.Medium;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.elements.util.TestConditionTools;

@@ -16,15 +16,26 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
-import org.eclipse.californium.category.Small;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
+
+import java.net.InetAddress;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
+
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.MatcherTestUtils;
 import org.eclipse.californium.core.network.Outbox;
-import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.TestThreadFactory;
 import org.eclipse.californium.rule.CoapThreadsRule;
@@ -34,17 +45,6 @@ import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.mockito.ArgumentCaptor;
-
-import java.net.InetAddress;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ScheduledExecutorService;
-
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.mock;
 
 @Category(Small.class) @RunWith(Parameterized.class)
 public class CoapStackTest {

@@ -29,12 +29,12 @@ import static org.hamcrest.core.IsSame.sameInstance;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 
-import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;

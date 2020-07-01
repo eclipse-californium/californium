@@ -32,21 +32,34 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
-import static org.eclipse.californium.TestTools.*;
-import static org.eclipse.californium.core.coap.CoAP.Code.*;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.*;
-import static org.eclipse.californium.core.coap.CoAP.Type.*;
+import static org.eclipse.californium.TestTools.generateRandomPayload;
+import static org.eclipse.californium.core.coap.CoAP.Code.GET;
+import static org.eclipse.californium.core.coap.CoAP.Code.POST;
+import static org.eclipse.californium.core.coap.CoAP.Code.PUT;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CHANGED;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTINUE;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.REQUEST_ENTITY_INCOMPLETE;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.REQUEST_ENTITY_TOO_LARGE;
+import static org.eclipse.californium.core.coap.CoAP.Type.ACK;
+import static org.eclipse.californium.core.coap.CoAP.Type.CON;
 import static org.eclipse.californium.core.coap.OptionNumberRegistry.OBSERVE;
-import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
-import static org.eclipse.californium.core.test.MessageExchangeStoreTool.*;
-
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
+import static org.eclipse.californium.core.test.MessageExchangeStoreTool.assertAllExchangesAreCompleted;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.assertNumberOfReceivedNotifications;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.assertResponseContainsExpectedPayload;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createLockstepEndpoint;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createRequest;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.TestTools;
-import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Request;
@@ -56,6 +69,7 @@ import org.eclipse.californium.core.test.CountingCoapHandler;
 import org.eclipse.californium.core.test.CountingMessageObserver;
 import org.eclipse.californium.core.test.ErrorInjector;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
+import org.eclipse.californium.elements.category.Medium;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.rule.CoapNetworkRule;

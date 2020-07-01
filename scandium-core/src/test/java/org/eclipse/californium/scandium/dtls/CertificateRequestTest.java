@@ -29,7 +29,7 @@ import java.security.cert.X509Certificate;
 
 import javax.security.auth.x500.X500Principal;
 
-import org.eclipse.californium.scandium.category.Small;
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.scandium.dtls.CertificateRequest.ClientCertificateType;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.HashAlgorithm;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.SignatureAlgorithm;

@@ -16,15 +16,14 @@
  ******************************************************************************/
 package org.eclipse.californium.oscore;
 
+import java.io.IOException;
+
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.Request;
-
 import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.elements.exception.ConnectorException;
-
-import java.io.IOException;
 
 /**
  * 

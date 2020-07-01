@@ -20,18 +20,25 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
+import static org.eclipse.californium.core.network.MatcherTestUtils.receiveResponseFor;
+import static org.eclipse.californium.core.network.MatcherTestUtils.sendObserveRequest;
+import static org.eclipse.californium.core.network.MatcherTestUtils.sendRequest;
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
-import static org.eclipse.californium.core.network.MatcherTestUtils.*;
+import static org.hamcrest.CoreMatchers.nullValue;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
+import static org.mockito.Matchers.notNull;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ScheduledExecutorService;
 
-import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
@@ -44,6 +51,7 @@ import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.UdpEndpointContextMatcher;
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;

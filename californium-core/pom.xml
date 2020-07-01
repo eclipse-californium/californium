@@ -105,8 +105,8 @@
 					 -->
 					<!-- parallel>classes</parallel>
 					<threadCountClasses>8</threadCountClasses-->
-					<groups>org.eclipse.californium.category.Small</groups>
-					<excludedGroups>org.eclipse.californium.category.Medium,org.eclipse.californium.category.Large,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
+					<groups>org.eclipse.californium.elements.category.Small</groups>
+					<excludedGroups>org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.Large,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
 				</configuration>
 				<executions>
 					<execution>
@@ -116,8 +116,8 @@
 							<goal>test</goal>
 						</goals>
 						<configuration>
-							<groups>org.eclipse.californium.category.Medium</groups>
-							<excludedGroups>org.eclipse.californium.category.Small,org.eclipse.californium.category.Large,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
+							<groups>org.eclipse.californium.elements.category.Medium</groups>
+							<excludedGroups>org.eclipse.californium.elements.category.Small,org.eclipse.californium.elements.category.Large,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
 						</configuration>
 					</execution>
 					<execution>
@@ -127,8 +127,8 @@
 							<goal>test</goal>
 						</goals>
 						<configuration>
-							<groups>org.eclipse.californium.category.Large</groups>
-							<excludedGroups>org.eclipse.californium.category.Small,org.eclipse.californium.category.Medium,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
+							<groups>org.eclipse.californium.elements.category.Large</groups>
+							<excludedGroups>org.eclipse.californium.elements.category.Small,org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
 						</configuration>
 					</execution>
 					<execution>
@@ -142,7 +142,7 @@
 								<org.eclipse.californium.junit.socketmode>NATIVE</org.eclipse.californium.junit.socketmode>
 							</systemPropertyVariables>
 							<groups>org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</groups>
-							<excludedGroups>org.eclipse.californium.category.Small,org.eclipse.californium.category.Medium,org.eclipse.californium.category.Large</excludedGroups>
+							<excludedGroups>org.eclipse.californium.elements.category.Small,org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.Large</excludedGroups>
 						</configuration>
 					</execution>
 				</executions>

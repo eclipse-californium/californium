@@ -24,10 +24,10 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.scandium.CookieGenerator;
-import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.junit.Before;

@@ -18,15 +18,19 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.rule.ThreadsRule;
-import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.junit.Before;
 import org.junit.Rule;

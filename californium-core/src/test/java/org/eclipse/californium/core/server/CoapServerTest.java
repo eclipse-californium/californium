@@ -17,8 +17,8 @@ package org.eclipse.californium.core.server;
 
 import static org.junit.Assert.assertEquals;
 
-import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.CoapServer;
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.ClassRule;

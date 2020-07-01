@@ -19,14 +19,14 @@ package org.eclipse.californium.oscore;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
+import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.serialization.UdpDataParser;
 import org.eclipse.californium.core.network.serialization.UdpDataSerializer;
-import org.eclipse.californium.core.coap.Message;
+import org.eclipse.californium.cose.AlgorithmID;
 import org.junit.After;
 import org.junit.Test;
-import org.eclipse.californium.cose.AlgorithmID;
 
 /**
  * Tests the decryption of request and response messages.

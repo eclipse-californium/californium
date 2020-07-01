@@ -21,8 +21,9 @@
 package org.eclipse.californium.core.test.lockstep;
 
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThat;
 
 import java.net.InetSocketAddress;
 

@@ -15,13 +15,14 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.util.DatagramReader;
-import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;

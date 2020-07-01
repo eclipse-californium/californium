@@ -19,7 +19,11 @@
  ******************************************************************************/
 package org.eclipse.californium.oscore;
 
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
 
@@ -35,10 +39,10 @@ import org.eclipse.californium.core.network.RandomTokenGenerator;
 import org.eclipse.californium.core.network.TokenGenerator;
 import org.eclipse.californium.core.network.TokenGenerator.Scope;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.util.Bytes;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.eclipse.californium.elements.util.Bytes;
 
 /**
  * Tests various functionality of OSCORE message handling

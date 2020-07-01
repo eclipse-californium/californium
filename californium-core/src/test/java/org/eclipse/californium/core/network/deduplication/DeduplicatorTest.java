@@ -23,12 +23,12 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.Arrays;
 
-import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.KeyMID;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.category.Small;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;

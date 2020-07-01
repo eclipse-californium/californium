@@ -16,12 +16,12 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
-import static org.eclipse.californium.elements.util.TestConditionTools.inRange;
 import static org.eclipse.californium.core.network.MessageIdTracker.TOTAL_NO_OF_MIDS;
+import static org.eclipse.californium.elements.util.TestConditionTools.inRange;
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertThat;
 
-import org.eclipse.californium.category.Small;
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Rule;
 import org.junit.Test;

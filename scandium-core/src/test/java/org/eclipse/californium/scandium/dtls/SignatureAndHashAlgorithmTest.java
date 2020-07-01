@@ -15,17 +15,17 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.hamcrest.CoreMatchers.*;
 
 import java.security.GeneralSecurityException;
 import java.security.Signature;
 
-import org.eclipse.californium.scandium.category.Small;
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.HashAlgorithm;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.SignatureAlgorithm;
 import org.junit.Rule;

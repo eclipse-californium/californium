@@ -25,10 +25,10 @@ import java.net.InetAddress;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.TestTools;
-import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.TestThreadFactory;
 import org.eclipse.californium.rule.CoapThreadsRule;

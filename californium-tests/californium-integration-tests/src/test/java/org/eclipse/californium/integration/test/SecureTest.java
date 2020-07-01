@@ -16,8 +16,8 @@
 package org.eclipse.californium.integration.test;
 
 import static org.eclipse.californium.core.test.MessageExchangeStoreTool.assertAllExchangesAreCompleted;
-import static org.junit.Assert.fail;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 import java.net.DatagramSocket;
 import java.net.URI;
@@ -26,7 +26,6 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.TestTools;
-import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.Request;
@@ -38,6 +37,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.test.CountingCoapHandler;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
 import org.eclipse.californium.elements.StrictDtlsEndpointContextMatcher;
+import org.eclipse.californium.elements.category.Medium;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.integration.test.util.CoapsNetworkRule;

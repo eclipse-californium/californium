@@ -23,13 +23,12 @@ import java.util.Arrays;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.OptionSet;
+import org.eclipse.californium.cose.AlgorithmID;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-
-import org.eclipse.californium.cose.AlgorithmID;
 
 public class OSSerializerTest {
 

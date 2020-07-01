@@ -15,8 +15,11 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.cipher;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import java.security.GeneralSecurityException;
 import java.security.PublicKey;
@@ -24,8 +27,8 @@ import java.util.List;
 
 import javax.crypto.SecretKey;
 
+import org.eclipse.californium.elements.category.Medium;
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.scandium.category.Medium;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;

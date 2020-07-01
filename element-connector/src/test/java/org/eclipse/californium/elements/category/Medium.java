@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2020 Bosch.IO GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -11,15 +11,16 @@
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
  * Contributors:
- *    Bosch Software Innovations GmbH - Initial creation
+ *    Bosch.IO GmbH - moved from org.eclipse.californium.scandium.category and
+ *                    org.eclipse.californium.category
  ******************************************************************************/
-package org.eclipse.californium.category;
+package org.eclipse.californium.elements.category;
 
 /**
- * A marker interface for test cases that need a large amount of time to execute.
+ * A marker interface for test cases that need a medium amount of time to execute.
  * 
- * Typical tests falling in this category include end-to-end functional tests and
- * tests involving conversational state. 
+ * Typical tests include component test, e.g. testing of individual REST API resources.
+ * @since 2.4
  */
-public interface Large {
+public interface Medium {
 }

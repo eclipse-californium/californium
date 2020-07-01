@@ -17,18 +17,19 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
 import static org.eclipse.californium.core.network.MessageIdTracker.TOTAL_NO_OF_MIDS;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
+import static org.junit.Assert.assertThat;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
-import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.ClassRule;
