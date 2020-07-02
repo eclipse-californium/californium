@@ -53,6 +53,7 @@ import org.apache.http.protocol.ResponseDate;
 import org.apache.http.protocol.ResponseServer;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,7 +77,7 @@ public class HttpServer {
 	private final UriHttpAsyncRequestHandlerMapper registry;
 	private final IOEventDispatch ioEventDispatch;
 	private final IOReactorConfig ioReactorConfig;
-	private final int httpPort;
+	private final InetSocketAddress httpInterface;
 	private ThreadFactory threadFactory = new DaemonThreadFactory("Http#", HTTP_THREAD_GROUP);
 	private ListeningIOReactor ioReactor;
 
@@ -87,7 +88,22 @@ public class HttpServer {
 	 * @param httpPort port ot be used.
 	 */
 	public HttpServer(NetworkConfig config, int httpPort) {
-		this.httpPort = httpPort;
+		this(config, new InetSocketAddress(httpPort));
+	}
+
+	/**
+	 * Create http server.
+	 * 
+	 * @param config network configuration
+	 * @param httpInterface interface to be used.
+	 * @throws NullPointerException if interface is {@code null}
+	 * @since 2.4
+	 */
+	public HttpServer(NetworkConfig config, InetSocketAddress httpInterface) {
+		if (httpInterface == null) {
+			throw new NullPointerException("http interface must not be null!");
+		}
+		this.httpInterface = httpInterface;
 		// Create HTTP protocol processing chain
 		// Use standard server-side protocol interceptors
 		HttpRequestInterceptor[] requestInterceptors = new HttpRequestInterceptor[] { new RequestAcceptEncoding() };
@@ -128,7 +144,7 @@ public class HttpServer {
 	public void start() throws IOException {
 		ioReactor = new DefaultListeningIOReactor(ioReactorConfig, threadFactory);
 		// Listen of the given port
-		ioReactor.listen(new InetSocketAddress(httpPort));
+		ioReactor.listen(httpInterface);
 		// create the listener thread
 		Thread listener = new Thread("Http-Listener") {
 
@@ -145,7 +161,7 @@ public class HttpServer {
 		};
 		listener.setDaemon(false);
 		listener.start();
-		LOGGER.info("HttpServer listening on port {} started.", httpPort);
+		LOGGER.info("HttpServer listening on {} started.", StringUtil.toDisplayString(httpInterface));
 	}
 
 	/**
@@ -158,7 +174,7 @@ public class HttpServer {
 		} catch (IOException e) {
 			LOGGER.error("shutdown failed!", e);
 		}
-		LOGGER.info("HttpServer on port {} stopped.", httpPort);
+		LOGGER.info("HttpServer on {} stopped.", StringUtil.toDisplayString(httpInterface));
 	}
 
 	/**
@@ -172,8 +188,9 @@ public class HttpServer {
 	 * @param requestCounter counter for requests.
 	 */
 	public void setSimpleResource(String resource, String message, AtomicLong requestCounter) {
+		String name = StringUtil.toDisplayString(httpInterface);
 		registry.register(resource,
-				new BasicAsyncRequestHandler(new RequestCounterHandler(message, httpPort, requestCounter)));
+				new BasicAsyncRequestHandler(new RequestCounterHandler(message, name, requestCounter)));
 	}
 
 	/**
@@ -183,12 +200,12 @@ public class HttpServer {
 	private static class RequestCounterHandler implements HttpRequestHandler {
 
 		private final String message;
-		private final int httpPort;
+		private final String name;
 		private final AtomicLong requestCounter;
 
-		private RequestCounterHandler(String message, int httpPort, AtomicLong requestCounter) {
+		private RequestCounterHandler(String message, String name, AtomicLong requestCounter) {
 			this.message = message;
-			this.httpPort = httpPort;
+			this.name =  name;
 			this.requestCounter = requestCounter == null ? new AtomicLong() : requestCounter;
 		}
 
@@ -196,7 +213,7 @@ public class HttpServer {
 		public void handle(HttpRequest httpRequest, HttpResponse httpResponse, HttpContext httpContext)
 				throws HttpException, IOException {
 			long counter = requestCounter.incrementAndGet();
-			String payload = String.format(message, httpPort, counter);
+			String payload = String.format(message, name, counter);
 			httpResponse.setStatusCode(HttpStatus.SC_OK);
 			httpResponse.setEntity(new StringEntity(payload));
 			LOGGER.debug("{} request handled!", counter);

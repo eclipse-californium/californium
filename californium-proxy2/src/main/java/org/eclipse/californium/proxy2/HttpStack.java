@@ -94,10 +94,24 @@ public class HttpStack {
 	 * @throws IOException Signals that an I/O exception has occurred.
 	 */
 	public HttpStack(NetworkConfig config, int httpPort) throws IOException {
-		server = new HttpServer(config, httpPort);
+		this(config, new InetSocketAddress(httpPort));
+	}
+
+	/**
+	 * Instantiates a new http stack on the requested interface. It creates an
+	 * http listener thread on the interface and the handlers as provided.
+	 * 
+	 * @param config configuration with HTTP_SERVER_SOCKET_TIMEOUT and
+	 *            HTTP_SERVER_SOCKET_BUFFER_SIZE.
+	 * @param httpInterface the http interface
+	 * @throws IOException Signals that an I/O exception has occurred.
+	 * @since 2.4
+	 */
+	public HttpStack(NetworkConfig config, InetSocketAddress httpInterface) throws IOException {
+		server = new HttpServer(config, httpInterface);
 		// register the default handler for root URIs
 		// wrapping a common request handler with an async request handler
-		server.setSimpleResource("*", SERVER_NAME + " on port " + httpPort + ".", null);
+		server.setSimpleResource("*", SERVER_NAME + " on %s.", null);
 	}
 
 	/**
