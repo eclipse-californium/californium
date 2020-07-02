@@ -337,16 +337,20 @@ public class StringUtil {
 	 * 
 	 * @param address socket address to be converted to string
 	 * @return the host string, if available, separated by "/", appended by the
-	 *         host address, ":" and the port. Or {@code null}, if address is
-	 *         {@code null}.
+	 *         host address, ":" and the port. For "any addresses", "port #port"
+	 *         is returned. And {@code null}, if address is {@code null}.
 	 * @since 2.1
+	 * @since 2.4 special return value for "any addresses"
 	 */
 	public static String toDisplayString(InetSocketAddress address) {
 		if (address == null) {
 			return null;
 		}
-		String name = SUPPORT_HOST_STRING ? toHostString(address) : "";
 		InetAddress addr = address.getAddress();
+		if (addr != null && addr.isAnyLocalAddress()) {
+			return "port " + address.getPort();
+		}
+		String name = SUPPORT_HOST_STRING ? toHostString(address) : "";
 		String host = (addr != null) ? toString(addr) : "<unresolved>";
 		if (name.equals(host)) {
 			name = "";

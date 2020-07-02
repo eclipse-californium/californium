@@ -45,7 +45,7 @@ public class ExampleHttpServer {
 
 	public ExampleHttpServer(NetworkConfig config, final int httpPort) throws IOException {
 		HttpServer server = new HttpServer(config, httpPort);
-		server.setSimpleResource(RESOURCE, "Hi! I am the Http Server on port %d. Request %d.", requestCounter);
+		server.setSimpleResource(RESOURCE, "Hi! I am the Http Server on %s. Request %d.", requestCounter);
 		server.start();
 	}
 
