@@ -227,10 +227,20 @@
 						<excludes>
 							<exclude>**/*$*</exclude>
 						</excludes>
-					<groups>org.eclipse.californium.elements.category.Small</groups>
-					<excludedGroups>org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.Large,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
+						<excludedGroups>org.eclipse.californium.elements.category.Small,org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.Large,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
 					</configuration>
 				<executions>
+					<execution>
+						<id>small-tests</id>
+						<phase>test</phase>
+						<goals>
+							<goal>test</goal>
+						</goals>
+						<configuration>
+							<groups>org.eclipse.californium.elements.category.Small</groups>
+							<excludedGroups>org.eclipse.californium.elements.category.Medium,org.eclipse.californium.elements.category.Large,org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired</excludedGroups>
+						</configuration>
+					</execution>
 					<execution>
 						<id>medium-tests</id>
 						<phase>test</phase>
