@@ -35,6 +35,7 @@ import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
+import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.SignatureAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 
@@ -192,11 +193,22 @@ public final class ClientHello extends HandshakeMessage {
 			// the supported point formats
 			this.extensions.addExtension(SupportedPointFormatsExtension.DEFAULT_POINT_FORMATS_EXTENSION);
 		}
-		
+
 		// the supported signature and hash algorithms
 		if (!supportedSignatureAndHashAlgorithms.isEmpty()) {
+			if (useCertificateTypeRawPublicKeyOnly(supportedClientCertificateTypes)
+					&& useCertificateTypeRawPublicKeyOnly(supportedServerCertificateTypes)) {
+				List<SignatureAndHashAlgorithm> ecdsaSignatures = new ArrayList<SignatureAndHashAlgorithm>();
+				for (SignatureAndHashAlgorithm signature : supportedSignatureAndHashAlgorithms) {
+					if (SignatureAlgorithm.ECDSA.equals(signature.getSignature())) {
+						ecdsaSignatures.add(signature);
+					}
+				}
+				supportedSignatureAndHashAlgorithms = ecdsaSignatures;
+			}
 			this.extensions.addExtension(new SignatureAlgorithmsExtension(supportedSignatureAndHashAlgorithms));
 		}
+
 		// the certificate types the client is able to provide to the server
 		if (useCertificateTypeExtension(supportedClientCertificateTypes)) {
 			CertificateTypeExtension clientCertificateType = new ClientCertificateTypeExtension(supportedClientCertificateTypes);
@@ -209,6 +221,7 @@ public final class ClientHello extends HandshakeMessage {
 			CertificateTypeExtension serverCertificateType = new ServerCertificateTypeExtension(supportedServerCertificateTypes);
 			this.extensions.addExtension(serverCertificateType);
 		}
+		
 	}
 
 	/**
@@ -222,6 +235,20 @@ public final class ClientHello extends HandshakeMessage {
 	private boolean useCertificateTypeExtension(List<CertificateType> supportedCertificateTypes) {
 		if (supportedCertificateTypes != null && !supportedCertificateTypes.isEmpty()) {
 			return supportedCertificateTypes.size() > 1 || !supportedCertificateTypes.contains(CertificateType.X_509);
+		}
+		return false;
+	}
+
+	/**
+	 * Check, if only raw public key certificates are used.
+	 * 
+	 * @param supportedCertificateTypes list of certificate types
+	 * @return {@code true}, if only raw public key is used, {@code false},
+	 *         otherwise
+	 */
+	private boolean useCertificateTypeRawPublicKeyOnly(List<CertificateType> supportedCertificateTypes) {
+		if (supportedCertificateTypes != null && supportedCertificateTypes.size() == 1) {
+			return supportedCertificateTypes.contains(CertificateType.RAW_PUBLIC_KEY);
 		}
 		return false;
 	}
