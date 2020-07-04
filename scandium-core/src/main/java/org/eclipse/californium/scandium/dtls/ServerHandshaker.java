@@ -73,6 +73,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.CertificateRequest.ClientCertificateType;
+import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.SignatureAlgorithm;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
@@ -560,11 +561,21 @@ public class ServerHandshaker extends Handshaker {
 				&& selectedCipherSuiteParameters.getSelectedClientCertificateType() != null) {
 			CertificateRequest certificateRequest = new CertificateRequest(session.getPeer());
 			certificateRequest.addCertificateType(ClientCertificateType.ECDSA_SIGN);
-			certificateRequest.addSignatureAlgorithms(supportedSignatureAndHashAlgorithms);
-			if (certificateVerifier != null) {
-				List<X500Principal> subjects = CertPathUtil
-						.toSubjects(Arrays.asList(certificateVerifier.getAcceptedIssuers()));
-				certificateRequest.addCerticiateAuthorities(subjects);
+			if (session.receiveCertificateType() == CertificateType.X_509) {
+				certificateRequest.addSignatureAlgorithms(supportedSignatureAndHashAlgorithms);
+				if (certificateVerifier != null) {
+					List<X500Principal> subjects = CertPathUtil
+							.toSubjects(Arrays.asList(certificateVerifier.getAcceptedIssuers()));
+					certificateRequest.addCerticiateAuthorities(subjects);
+				}
+			} else if (session.receiveCertificateType() == CertificateType.RAW_PUBLIC_KEY) {
+				List<SignatureAndHashAlgorithm> ecdsaSignatures = new ArrayList<SignatureAndHashAlgorithm>();
+				for (SignatureAndHashAlgorithm signature : supportedSignatureAndHashAlgorithms) {
+					if (SignatureAlgorithm.ECDSA.equals(signature.getSignature())) {
+						ecdsaSignatures.add(signature); 
+					}
+				}
+				certificateRequest.addSignatureAlgorithms(ecdsaSignatures);
 			}
 			wrapMessage(flight, certificateRequest);
 			return true;
