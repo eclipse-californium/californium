@@ -616,20 +616,13 @@
 			</properties>
 		</profile>
 		<profile>
-			<id>jdk8orGreater</id>
-			<activation>
-				<jdk>[1.8,)</jdk>
-			</activation>
-			<properties>
-				<jdk8orGreater>true</jdk8orGreater>
-			</properties>
-		</profile>
-		<profile>
 			<!-- This profile activate the usage of toolchain to compile using JDK 1.7-->
 			<id>useToolchain</id>
-			<properties>
-				<jdk8orGreater>false</jdk8orGreater>
-			</properties>
+			<activation>
+				<property>
+					<name>use.toolchain</name>
+				</property>
+			</activation>
 			<build>
 				<plugins>
 					<plugin>
