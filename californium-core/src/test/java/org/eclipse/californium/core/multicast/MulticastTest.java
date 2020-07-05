@@ -26,8 +26,8 @@ import static org.junit.Assert.assertThat;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.concurrent.TimeUnit;
 
-import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
@@ -49,6 +49,7 @@ import org.eclipse.californium.elements.UdpMulticastConnector;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.elements.util.TestConditionTools;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.hamcrest.Matcher;
@@ -93,17 +94,24 @@ public class MulticastTest {
 		if (host == null) {
 			host = InetAddress.getLoopbackAddress();
 		}
-		InetAddress multicastInterface = null;
-		UDPConnector connector = new UdpMulticastConnector(multicastInterface, new InetSocketAddress(PORT), CoAP.MULTICAST_IPV4);
-		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setNetworkConfig(config);
-		builder.setConnector(connector);
-		server1.addEndpoint(builder.build());
-		connector = new UdpMulticastConnector(multicastInterface, new InetSocketAddress(PORT), MULTICAST_IPV4_2);
-		builder = new CoapEndpoint.Builder();
-		builder.setNetworkConfig(config);
-		builder.setConnector(connector);
-		server1.addEndpoint(builder.build());
+
+		UdpMulticastConnector.Builder multicastBuilder = new UdpMulticastConnector.Builder();
+		multicastBuilder.setLocalPort(PORT).addMulticastGroup(CoAP.MULTICAST_IPV4);
+		UDPConnector connector = multicastBuilder.build();
+
+		CoapEndpoint.Builder coapBuilder = new CoapEndpoint.Builder();
+		coapBuilder.setNetworkConfig(config);
+		coapBuilder.setConnector(connector);
+		server1.addEndpoint(coapBuilder.build());
+
+		multicastBuilder = new UdpMulticastConnector.Builder();
+		multicastBuilder.setLocalPort(PORT).addMulticastGroup(MULTICAST_IPV4_2);
+		connector = multicastBuilder.build();
+
+		coapBuilder = new CoapEndpoint.Builder();
+		coapBuilder.setNetworkConfig(config);
+		coapBuilder.setConnector(connector);
+		server1.addEndpoint(coapBuilder.build());
 		server1.add(new CoapResource("hello") {
 
 			@Override
@@ -124,11 +132,14 @@ public class MulticastTest {
 		cleanup.add(server1);
 
 		CoapServer server2 = new CoapServer();
-		connector = new UdpMulticastConnector(multicastInterface, new InetSocketAddress(PORT), CoAP.MULTICAST_IPV4);
-		builder = new CoapEndpoint.Builder();
-		builder.setNetworkConfig(config);
-		builder.setConnector(connector);
-		server2.addEndpoint(builder.build());
+		multicastBuilder = new UdpMulticastConnector.Builder();
+		multicastBuilder.setLocalPort(PORT).addMulticastGroup( CoAP.MULTICAST_IPV4);
+		connector = multicastBuilder.build();
+
+		coapBuilder = new CoapEndpoint.Builder();
+		coapBuilder.setNetworkConfig(config);
+		coapBuilder.setConnector(connector);
+		server2.addEndpoint(coapBuilder.build());
 		server2.add(new CoapResource("hello") {
 
 			@Override
@@ -150,13 +161,18 @@ public class MulticastTest {
 		CoapServer server3 = new CoapServer(config);
 		connector = new UDPConnector(unicast);
 		connector.setReuseAddress(true);
-		builder = new CoapEndpoint.Builder();
-		builder.setNetworkConfig(config);
-		builder.setConnector(connector);
-		CoapEndpoint coapEndpoint = builder.build();
-		connector = new UdpMulticastConnector(multicastInterface, new InetSocketAddress(PORT), CoAP.MULTICAST_IPV4);
+		coapBuilder = new CoapEndpoint.Builder();
+		coapBuilder.setNetworkConfig(config);
+		coapBuilder.setConnector(connector);
+		CoapEndpoint coapEndpoint = coapBuilder.build();
+
+		multicastBuilder = new UdpMulticastConnector.Builder();
+		multicastBuilder.setLocalPort(PORT).addMulticastGroup(CoAP.MULTICAST_IPV4);
+		connector = multicastBuilder.build();
 		((MulticastReceivers)coapEndpoint).addMulticastReceiver(connector);
-		connector = new UdpMulticastConnector(multicastInterface, new InetSocketAddress(PORT2), CoAP.MULTICAST_IPV4);
+		multicastBuilder = new UdpMulticastConnector.Builder();
+		multicastBuilder.setLocalPort(PORT2).addMulticastGroup(CoAP.MULTICAST_IPV4);
+		connector = multicastBuilder.build();
 		((MulticastReceivers)coapEndpoint).addMulticastReceiver(connector);
 		server3.addEndpoint(coapEndpoint);
 
@@ -390,10 +406,10 @@ public class MulticastTest {
 
 	private void assertHealthCounter(final String name, final Matcher<? super Long> matcher, long timeout)
 			throws InterruptedException {
-		TestTools.assertCounter(health, name, matcher, timeout);
+		TestConditionTools.assertStatisticCounter(health, name, matcher, timeout, TimeUnit.MILLISECONDS);
 	}
 
 	private void assertHealthCounter(String name, Matcher<? super Long> matcher) {
-		TestTools.assertCounter(health, name, matcher);
+		TestConditionTools.assertStatisticCounter(health, name, matcher);
 	}
 }

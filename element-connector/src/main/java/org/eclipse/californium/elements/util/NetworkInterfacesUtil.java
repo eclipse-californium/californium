@@ -63,7 +63,8 @@ public class NetworkInterfacesUtil {
 	private static boolean anyIpv6;
 
 	/**
-	 * A IPv4 broadcast address on a multicast supporting network interface, if available.
+	 * A IPv4 broadcast address on a multicast supporting network interface, if
+	 * available.
 	 * 
 	 * @since 2.3
 	 */
@@ -100,10 +101,6 @@ public class NetworkInterfacesUtil {
 			multicastInterfaceIpv4 = null;
 			multicastInterfaceIpv6 = null;
 			multicastInterface = null;
-			Inet4Address link4 = null;
-			Inet4Address site4 = null;
-			Inet6Address link6 = null;
-			Inet6Address site6 = null;
 			int mtu = MAX_MTU;
 			Pattern filter = null;
 			String regex = StringUtil.getConfiguration("COAP_NETWORK_INTERFACES");
@@ -114,45 +111,83 @@ public class NetworkInterfacesUtil {
 				Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
 				while (interfaces.hasMoreElements()) {
 					NetworkInterface iface = interfaces.nextElement();
-					if (iface.isUp() && !iface.isLoopback() && 
-							(filter == null || filter.matcher(iface.getName()).matches())) {
+					if (iface.isUp() && !iface.isLoopback()
+							&& (filter == null || filter.matcher(iface.getName()).matches())) {
 						int ifaceMtu = iface.getMTU();
 						if (ifaceMtu > 0 && ifaceMtu < mtu) {
 							mtu = ifaceMtu;
 						}
-						if (multicastInterface == null && iface.supportsMulticast()) {
-							multicastInterface = iface;
-						}
-						Enumeration<InetAddress> inetAddresses = iface.getInetAddresses();
-						while (inetAddresses.hasMoreElements()) {
-							InetAddress address = inetAddresses.nextElement();
-							if (address instanceof Inet4Address) {
-								anyIpv4 = true;
-								if (site4 == null && iface.supportsMulticast()) {
-									if (address.isSiteLocalAddress()) {
-										site4 = (Inet4Address) address;
-									} else if (link4 == null && address.isLinkLocalAddress()) {
-										link4 = (Inet4Address) address;
+						if (iface.supportsMulticast() && (multicastInterfaceIpv4 == null
+								|| multicastInterfaceIpv6 == null || broadcastIpv4 == null)) {
+							int count = 0;
+							Inet4Address broad4 = null;
+							Inet4Address link4 = null;
+							Inet4Address site4 = null;
+							Inet6Address link6 = null;
+							Inet6Address site6 = null;
+							if (broadcastIpv4 != null) {
+								--count;
+							}
+							if (multicastInterfaceIpv4 != null) {
+								--count;
+							}
+							if (multicastInterfaceIpv6 != null) {
+								--count;
+							}
+							Enumeration<InetAddress> inetAddresses = iface.getInetAddresses();
+							while (inetAddresses.hasMoreElements()) {
+								InetAddress address = inetAddresses.nextElement();
+								if (address instanceof Inet4Address) {
+									anyIpv4 = true;
+									if (site4 == null) {
+										if (address.isSiteLocalAddress()) {
+											site4 = (Inet4Address) address;
+										} else if (link4 == null && address.isLinkLocalAddress()) {
+											link4 = (Inet4Address) address;
+										}
 									}
-								}
-							} else if (address instanceof Inet6Address) {
-								anyIpv6 = true;
-								if (site6 == null && iface.supportsMulticast()) {
-									if (address.isSiteLocalAddress()) {
-										site6 = (Inet6Address) address;
-									} else if (link4 == null && address.isLinkLocalAddress()) {
-										link6 = (Inet6Address) address;
+								} else if (address instanceof Inet6Address) {
+									anyIpv6 = true;
+									if (site6 == null) {
+										if (address.isSiteLocalAddress()) {
+											site6 = (Inet6Address) address;
+										} else if (link4 == null && address.isLinkLocalAddress()) {
+											link6 = (Inet6Address) address;
+										}
 									}
 								}
 							}
-						}
-						for (InterfaceAddress interfaceAddress : iface.getInterfaceAddresses()) {
-							InetAddress broadcast = interfaceAddress.getBroadcast();
-							if (broadcast != null && !broadcast.isAnyLocalAddress()) {
-								broadcastAddresses.add(broadcast);
-								LOGGER.debug("Found broadcast address {} - {}.", broadcast, iface.getName());
-								if (broadcastIpv4 == null) {
-									broadcastIpv4 = (Inet4Address) broadcast;
+							for (InterfaceAddress interfaceAddress : iface.getInterfaceAddresses()) {
+								InetAddress broadcast = interfaceAddress.getBroadcast();
+								if (broadcast != null && !broadcast.isAnyLocalAddress()) {
+									broadcastAddresses.add(broadcast);
+									LOGGER.debug("Found broadcast address {} - {}.", broadcast, iface.getName());
+									if (broad4 == null) {
+										broad4 = (Inet4Address) broadcast;
+										++count;
+									}
+								}
+							}
+							if (link4 != null || site4 != null) {
+								++count;
+							}
+							if (link6 != null || site6 != null) {
+								++count;
+							}
+							if (count > 0) {
+								multicastInterface = iface;
+								broadcastIpv4 = broad4;
+								multicastInterfaceIpv4 = site4 == null ? link4 : site4;
+								multicastInterfaceIpv6 = site6 == null ? link6 : site6;
+							}
+						} else {
+							Enumeration<InetAddress> inetAddresses = iface.getInetAddresses();
+							while (inetAddresses.hasMoreElements()) {
+								InetAddress address = inetAddresses.nextElement();
+								if (address instanceof Inet4Address) {
+									anyIpv4 = true;
+								} else if (address instanceof Inet6Address) {
+									anyIpv6 = true;
 								}
 							}
 						}
@@ -166,8 +201,6 @@ public class NetworkInterfacesUtil {
 			if (broadcastAddresses.isEmpty()) {
 				LOGGER.info("no broadcast address found!");
 			}
-			multicastInterfaceIpv4 = site4 == null ? link4 : site4;
-			multicastInterfaceIpv6 = site6 == null ? link6 : site6;
 			anyMtu = mtu;
 		}
 	}

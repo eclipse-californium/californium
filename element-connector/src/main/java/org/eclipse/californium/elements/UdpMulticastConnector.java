@@ -22,7 +22,10 @@ import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.MulticastSocket;
+import java.net.NetworkInterface;
 import java.net.SocketException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -96,14 +99,27 @@ public class UdpMulticastConnector extends UDPConnector {
 	public static final Logger LOGGER = LoggerFactory.getLogger(UdpMulticastConnector.class);
 
 	/**
-	 * Address of network interface to be used to receive multicast packets
+	 * Network interface of socket for outgoing multicast traffic. May be
+	 * {@code null}. Alternative to {@link #outgoingAddress}.
+	 * 
+	 * @since 2.4
 	 */
-	private InetAddress intfAddress;
+	private NetworkInterface outgoingInterface;
 
 	/**
-	 * Multicast groups to join.
+	 * Address of network interface for outgoing multicast traffic. May be
+	 * {@code null}. Alternative to {@link #outgoingInterface}.
+	 * 
+	 * @since 2.4
 	 */
-	private InetAddress[] multicastGroups;
+	private InetAddress outgoingAddress;
+
+	/**
+	 * List of multicast groups and network interfaces to join.
+	 * 
+	 * @since 2.4
+	 */
+	private List<Join> groups = new ArrayList<Join>();
 
 	/**
 	 * {@code true}, to disable loopback mode, {@false}, otherwise.
@@ -114,7 +130,7 @@ public class UdpMulticastConnector extends UDPConnector {
 
 	/**
 	 * Creates a connector bound to given multicast group and IP Port, using the
-	 * specified network interface for receiving multicast packets
+	 * specified network interface for outgoing multicast packets
 	 *
 	 * Note: This constructor that allows you to specify a network interface was
 	 * added to mitigate the issue described at
@@ -124,7 +140,7 @@ public class UdpMulticastConnector extends UDPConnector {
 	 * {@link MulticastSocket} in an overriden {@link #start()} method for that
 	 * case.
 	 *
-	 * @param intfAddress address of interface to use to receive multicast
+	 * @param intfAddress address of network interface for outgoing multicast
 	 *            packets
 	 * @param localAddress local socket address. If a broadcast is used, and the
 	 *            multicastGroups are empty or {@code null}, this connector
@@ -137,34 +153,12 @@ public class UdpMulticastConnector extends UDPConnector {
 	 * @throws IllegalArgumentException if local address is not a broadcast nor
 	 *             multicast address and the multicast groups are empty or
 	 *             {@code null}.
+	 * @deprecated use {@link Builder} instead
 	 */
+	@Deprecated
 	public UdpMulticastConnector(InetAddress intfAddress, InetSocketAddress localAddress,
 			InetAddress... multicastGroups) {
-		super(localAddress);
-		setReuseAddress(true);
-		this.intfAddress = intfAddress;
-		this.multicastGroups = multicastGroups;
-		boolean noGroups = multicastGroups == null || multicastGroups.length == 0;
-		if (NetworkInterfacesUtil.isBroadcastAddress(localAddress.getAddress())) {
-			this.multicast = noGroups;
-		} else {
-			if (noGroups && localAddress.getAddress().isMulticastAddress()) {
-				this.multicastGroups = new InetAddress[] { localAddress.getAddress() };
-				noGroups = false;
-			}
-			if (noGroups) {
-				if (localAddress.getAddress().isMulticastAddress()) {
-					this.multicastGroups = new InetAddress[] { localAddress.getAddress() };
-				} else {
-					throw new IllegalArgumentException("missing multicast address to join!");
-				}
-			}
-			this.multicast = this.multicastGroups.length == 1;
-			if (multicast) {
-				this.effectiveAddr = new InetSocketAddress(this.multicastGroups[0],
-						localAddress != null ? localAddress.getPort() : 0);
-			}
-		}
+		this(localAddress, intfAddress, null, toList(multicastGroups));
 	}
 
 	/**
@@ -187,9 +181,60 @@ public class UdpMulticastConnector extends UDPConnector {
 	 * @throws IllegalArgumentException if local address is not a broadcast nor
 	 *             multicast address and the multicast groups are empty or
 	 *             {@code null}.
+	 * @deprecated use {@link Builder} instead
 	 */
+	@Deprecated
 	public UdpMulticastConnector(InetSocketAddress localAddress, InetAddress... multicastGroups) {
-		this(null, localAddress, multicastGroups);
+		this(localAddress, null, null, toList(multicastGroups));
+	}
+
+	/**
+	 * Creates a connector bound to given multicast group and IP Port.
+	 *
+	 * Note: You might run into issues described at
+	 * https://bugs.java.com/bugdatabase/view_bug.do?bug_id=4701650 if you do
+	 * not specify a network interface. See also
+	 * https://github.com/eclipse/californium/issues/872.
+	 * 
+	 * @param localSocketAddress local socket address. If a broadcast is used,
+	 *            and the groups are empty, this connector maybe used as
+	 *            "multicast receiver". If a multicast address is used and the
+	 *            multicastGroups are empty or {@code null}, the local address
+	 *            is also used as multicast group to join.
+	 * @param outgoingAddress address for outgoing multicast traffic, may be
+	 *            {@code null}. Alternative to outgoing interface.
+	 * @param outgoingInterface interface for outgoing multicast traffic, may be
+	 *            {@code null}. Alternative to outgoing address.
+	 * @param groups list of multicast groups and network interfaces to join. If
+	 *            no broadcast nor multicast address is used as local address,
+	 *            this list must not be empty.
+	 */
+	private UdpMulticastConnector(InetSocketAddress localSocketAddress, InetAddress outgoingAddress,
+			NetworkInterface outgoingInterface, List<Join> groups) {
+		super(localSocketAddress);
+		setReuseAddress(true);
+		this.outgoingInterface = outgoingInterface;
+		this.outgoingAddress = outgoingAddress;
+		this.groups.addAll(groups);
+		InetAddress localAddress = localSocketAddress.getAddress();
+		boolean noGroups = this.groups.isEmpty();
+		if (NetworkInterfacesUtil.isBroadcastAddress(localAddress)) {
+			this.multicast = noGroups;
+		} else {
+			if (noGroups) {
+				if (localAddress.isMulticastAddress()) {
+					this.groups.add(new Join(localAddress));
+					noGroups = false;
+				} else {
+					throw new IllegalArgumentException("missing multicast address to join!");
+				}
+			}
+			this.multicast = this.groups.size() == 1;
+			if (multicast) {
+				this.effectiveAddr = new InetSocketAddress(this.groups.get(0).multicastGroup,
+						localSocketAddress != null ? localSocketAddress.getPort() : 0);
+			}
+		}
 	}
 
 	/**
@@ -227,13 +272,20 @@ public class UdpMulticastConnector extends UDPConnector {
 			throw ex;
 		}
 
-		// if an interface specified by a non-wildcard address was supplied we
-		// set it on the socket
-		if (intfAddress != null && !intfAddress.isAnyLocalAddress()) {
+		// if an interface specified by a non-wildcard address was supplied
+		// we set it on the socket
+		if (outgoingAddress != null && !outgoingAddress.isAnyLocalAddress()) {
 			try {
-				socket.setInterface(intfAddress);
-				effectiveInterface = intfAddress;
-				LOGGER.info("interface {}", StringUtil.toString(intfAddress));
+				socket.setInterface(outgoingAddress);
+				effectiveInterface = outgoingAddress;
+				LOGGER.info("interface {}", StringUtil.toString(outgoingAddress));
+			} catch (SocketException ex) {
+				LOGGER.error("error: multicast set interface", ex);
+			}
+		} else if (outgoingInterface != null) {
+			try {
+				socket.setNetworkInterface(outgoingInterface);
+				LOGGER.info("interface {}", outgoingInterface.getDisplayName());
 			} catch (SocketException ex) {
 				LOGGER.error("error: multicast set interface", ex);
 			}
@@ -241,31 +293,218 @@ public class UdpMulticastConnector extends UDPConnector {
 
 		// add the multicast socket to the specified multicast group for
 		// listening to multicast requests
-		if (multicastGroups != null) {
-			for (InetAddress group : multicastGroups) {
-				try {
-					socket.joinGroup(group);
-					LOGGER.info("joined group {}", StringUtil.toString(group));
-				} catch (SocketException ex) {
-					socket.close();
-					if (group instanceof Inet4Address) {
-						if ((effectiveInterface.isAnyLocalAddress() && !NetworkInterfacesUtil.isAnyIpv4())
-								|| (effectiveInterface instanceof Inet6Address)) {
-							throw new SocketException("IPv6 only interface doesn't support IPv4 multicast!");
-						}
-					} else if (group instanceof Inet6Address) {
-						if ((effectiveInterface.isAnyLocalAddress() && !NetworkInterfacesUtil.isAnyIpv6())
-								|| (effectiveInterface instanceof Inet4Address)) {
-							throw new SocketException("IPv4 only interface doesn't support IPv6 multicast!");
-						}
+		for (Join join : groups) {
+			try {
+				boolean supportJoinWithInterface = true;
+				if (join.networkInterface != null) {
+					try {
+						socket.joinGroup(new InetSocketAddress(join.multicastGroup, 0), join.networkInterface);
+						LOGGER.info("joined group {} with {}", StringUtil.toString(join.multicastGroup),
+								join.networkInterface.getDisplayName());
+					} catch (UnsupportedOperationException ex) {
+						supportJoinWithInterface = false;
 					}
-					throw ex;
 				}
+				if (!supportJoinWithInterface || join.networkInterface == null) {
+					socket.joinGroup(join.multicastGroup);
+					LOGGER.info("joined group {}", StringUtil.toString(join.multicastGroup));
+				}
+			} catch (SocketException ex) {
+				socket.close();
+				if (join.multicastGroup instanceof Inet4Address) {
+					if ((effectiveInterface.isAnyLocalAddress() && !NetworkInterfacesUtil.isAnyIpv4())
+							|| (effectiveInterface instanceof Inet6Address)) {
+						throw new SocketException("IPv6 only interface doesn't support IPv4 multicast!");
+					}
+				} else if (join.multicastGroup instanceof Inet6Address) {
+					if ((effectiveInterface.isAnyLocalAddress() && !NetworkInterfacesUtil.isAnyIpv6())
+							|| (effectiveInterface instanceof Inet4Address)) {
+						throw new SocketException("IPv4 only interface doesn't support IPv6 multicast!");
+					}
+				}
+				throw ex;
 			}
 		}
 		init(socket);
-		if (multicast && multicastGroups != null && multicastGroups.length == 1) {
-			this.effectiveAddr = new InetSocketAddress(multicastGroups[0], socket.getLocalPort());
+		if (multicast && groups.size() == 1) {
+			this.effectiveAddr = new InetSocketAddress(groups.get(0).multicastGroup, socket.getLocalPort());
+		}
+	}
+
+	private static class Join {
+
+		private final InetAddress multicastGroup;
+		private final NetworkInterface networkInterface;
+
+		private Join(InetAddress multicastGroup) {
+			this.multicastGroup = multicastGroup;
+			this.networkInterface = null;
+		}
+
+		private Join(InetAddress multicastGroup, NetworkInterface networkInterface) {
+			this.multicastGroup = multicastGroup;
+			this.networkInterface = networkInterface;
+		}
+	}
+
+	/**
+	 * Convert array of multicast groups in list of {@link Join}s.
+	 * 
+	 * @param multicastGroups multicast groups
+	 * @return multicast groups as list of {@link Join}s.
+	 * @since 2.4
+	 */
+	private static List<Join> toList(InetAddress... multicastGroups) {
+		List<Join> groups = new ArrayList<Join>();
+		if (multicastGroups != null) {
+			for (InetAddress group : multicastGroups) {
+				groups.add(new Join(group));
+			}
+		}
+		return groups;
+	}
+
+	/**
+	 * Builder for {@link UdpMulticastConnector}.
+	 * 
+	 * @since 2.4
+	 */
+	public static class Builder {
+
+		private InetSocketAddress localSocketAddress;
+		private InetAddress outgoingAddress;
+		private NetworkInterface outgoingInterface;
+		private List<Join> groups = new ArrayList<Join>();
+
+		/**
+		 * Create Builder.
+		 */
+		public Builder() {
+
+		}
+
+		/**
+		 * Get local socket address.
+		 * 
+		 * @return local socket address.
+		 */
+		public InetSocketAddress getLocalAddress() {
+			return localSocketAddress;
+		}
+
+		/**
+		 * Set port and any-address to bind the connector.
+		 * 
+		 * @param port port to bind
+		 * @return this builder for command chaining
+		 */
+		public Builder setLocalPort(int port) {
+			this.localSocketAddress = new InetSocketAddress(port);
+			return this;
+		}
+
+		/**
+		 * Set address and port to bind the connector.
+		 * 
+		 * @param localAddress address and port ot bind. If a broadcast address
+		 *            is used without adding multicast group, this connector may
+		 *            be used as multicast receiver. if a multicast address is
+		 *            used without adding multicast group, the connector joins
+		 *            this group of the local address and may be used as
+		 *            multicast receiver.
+		 * @param port port to bind
+		 * @return this builder for command chaining
+		 * @throws NullPointerException if local socket address is {@code null}
+		 */
+		public Builder setLocalAddress(InetAddress localAddress, int port) {
+			if (localAddress == null) {
+				throw new NullPointerException("local address must not be null!");
+			}
+			this.localSocketAddress = new InetSocketAddress(localAddress, port);
+			return this;
+		}
+
+		/**
+		 * Set socket address to bind the connector.
+		 * 
+		 * @param localSocketAddress address and port ot bind. If a broadcast
+		 *            address is used without adding multicast group, this
+		 *            connector may be used as multicast receiver. if a
+		 *            multicast address is used without adding multicast group,
+		 *            the connector joins this group of the local address and
+		 *            may be used as multicast receiver.
+		 * @return this builder for command chaining
+		 * @throws NullPointerException if local socket address is {@code null}
+		 */
+		public Builder setLocalAddress(InetSocketAddress localSocketAddress) {
+			if (localSocketAddress == null) {
+				throw new NullPointerException("local socket address must not be null!");
+			}
+			this.localSocketAddress = localSocketAddress;
+			return this;
+		}
+
+		/**
+		 * Set address for outgoing multicast traffic.
+		 * 
+		 * Resets {@link #outgoingInterface} to {@code null}.
+		 * 
+		 * @param outgoingAddress outgoing address for multicast traffic.
+		 * @return this builder for command chaining
+		 */
+		public Builder setOutgoingMulticastInterface(InetAddress outgoingAddress) {
+			this.outgoingAddress = outgoingAddress;
+			this.outgoingInterface = null;
+			return this;
+		}
+
+		/**
+		 * Set address for outgoing multicast traffic.
+		 * 
+		 * Resets {@link #outgoingAddress} to {@code null}.
+		 * 
+		 * @param outgoingInterface outgoing interface for multicast traffic.
+		 * @return this builder for command chaining
+		 */
+		public Builder setOutgoingMulticastInterface(NetworkInterface outgoingInterface) {
+			this.outgoingAddress = null;
+			this.outgoingInterface = outgoingInterface;
+			return this;
+		}
+
+		/**
+		 * Add multicast group to join.
+		 * 
+		 * If only one multicast group is joined, the connector may be used as
+		 * multicast receiver.
+		 * 
+		 * @param multicastGroup multicast group to join.
+		 * @return this builder for command chaining
+		 */
+		public Builder addMulticastGroup(InetAddress multicastGroup) {
+			groups.add(new Join(multicastGroup));
+			return this;
+		}
+
+		/**
+		 * Add multicast group to join with provided network interface..
+		 * 
+		 * If only one multicast group is joined, the connector may be used as
+		 * multicast receiver.
+		 * 
+		 * @param multicastGroup multicast group to join.
+		 * @param networkInterface network interface to join. If no supported by
+		 *            the platform, the multicast group is joined without
+		 *            specific the network interface.
+		 * @return this builder for command chaining
+		 */
+		public Builder addMulticastGroup(InetAddress multicastGroup, NetworkInterface networkInterface) {
+			groups.add(new Join(multicastGroup, networkInterface));
+			return this;
+		}
+
+		public UdpMulticastConnector build() {
+			return new UdpMulticastConnector(localSocketAddress, outgoingAddress, outgoingInterface, groups);
 		}
 	}
 }

@@ -17,7 +17,7 @@
 	<description>Californium (Cf) simple server example</description>
 
 	<properties>
-		<assembly.mainClass>org.eclipse.californium.examples.HelloWorldServer</assembly.mainClass>
+		<assembly.mainClass>org.eclipse.californium.examples.Server</assembly.mainClass>
 	</properties>
 
 	<dependencies>
