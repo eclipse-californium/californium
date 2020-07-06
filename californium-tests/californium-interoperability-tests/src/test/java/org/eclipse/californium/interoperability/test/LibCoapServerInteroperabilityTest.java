@@ -91,7 +91,7 @@ public class LibCoapServerInteroperabilityTest {
 	}
 
 	@Test
-	public void testLibCoapServertPsk() throws Exception {
+	public void testLibCoapServerPsk() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
 		processUtil.startupServer(ACCEPT, AuthenticationMode.CERTIFICATE, cipherSuite);
 
