@@ -1295,7 +1295,7 @@ public final class DtlsConnectorConfig {
 				if (Boolean.TRUE.equals(config.clientOnly)) {
 					throw new IllegalStateException("server only is in contradiction to client only!");
 				}
-				if (config.defaultHandshakeMode != null) {
+				if (config.defaultHandshakeMode != null && !config.defaultHandshakeMode.equals(DtlsEndpointContext.HANDSHAKE_MODE_NONE)) {
 					throw new IllegalStateException("server only is in contradiction to default handshake mode '"
 							+ config.defaultHandshakeMode + "!");
 				}
@@ -1311,16 +1311,15 @@ public final class DtlsConnectorConfig {
 		 *            {@link DtlsEndpointContext#HANDSHAKE_MODE_AUTO} or
 		 *            {@link DtlsEndpointContext#HANDSHAKE_MODE_NONE}
 		 * @return this builder for command chaining
-		 * @throws IllegalStateException if configuration is server only
+		 * @throws IllegalStateException if configuration is server only and
+		 *             {@link DtlsEndpointContext#HANDSHAKE_MODE_AUTO} is
+		 *             provided
 		 * @throws IllegalArgumentException if mode is neither
 		 *             {@link DtlsEndpointContext#HANDSHAKE_MODE_AUTO} nor
 		 *             {@link DtlsEndpointContext#HANDSHAKE_MODE_NONE}
 		 * @since 2.1
 		 */
 		public Builder setDefaultHandshakeMode(String defaultHandshakeMode) {
-			if (config.serverOnly != null && config.serverOnly) {
-				throw new IllegalStateException("default handshake modes are not supported for server only!");
-			}
 			if (defaultHandshakeMode != null) {
 				if (!defaultHandshakeMode.equals(DtlsEndpointContext.HANDSHAKE_MODE_AUTO)
 						&& !defaultHandshakeMode.equals(DtlsEndpointContext.HANDSHAKE_MODE_NONE)) {
@@ -1328,6 +1327,10 @@ public final class DtlsConnectorConfig {
 							"default handshake mode must be either \"" + DtlsEndpointContext.HANDSHAKE_MODE_AUTO
 									+ "\" or \"" + DtlsEndpointContext.HANDSHAKE_MODE_NONE + "\"!");
 				}
+			}
+			if (config.serverOnly != null && config.serverOnly
+					&& defaultHandshakeMode != null && !defaultHandshakeMode.equals(DtlsEndpointContext.HANDSHAKE_MODE_NONE)) {
+				throw new IllegalStateException("default handshake modes are not supported for server only!");
 			}
 			config.defaultHandshakeMode = defaultHandshakeMode;
 			return this;
