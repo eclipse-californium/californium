@@ -39,6 +39,7 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
+import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -101,12 +102,12 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	 *            the session to resume.
 	 * @param recordLayer
 	 *            the object to use for sending flights to the peer.
+	 * @param timer
+	 *            scheduled executor for flight retransmission (since 2.4).
 	 * @param connection
 	 *            the connection related with the session.
 	 * @param config
 	 *            the DTLS configuration parameters to use for the handshake.
-	 * @param maxTransmissionUnit
-	 *            the MTU value reported by the network interface the record layer is bound to.
 	 * @param probe {@code true} enable probing for this resumption handshake,
 	 *            {@code false}, not probing handshake.
 	 * @throws IllegalArgumentException
@@ -116,9 +117,9 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	 * @throws NullPointerException
 	 *            if session, recordLayer or config is <code>null</code>
 	 */
-	public ResumingClientHandshaker(DTLSSession session, RecordLayer recordLayer, Connection connection,
-			DtlsConnectorConfig config, int maxTransmissionUnit, boolean probe) {
-		super(session, recordLayer, connection, config, maxTransmissionUnit);
+	public ResumingClientHandshaker(DTLSSession session, RecordLayer recordLayer, ScheduledExecutorService timer, Connection connection,
+			DtlsConnectorConfig config, boolean probe) {
+		super(session, recordLayer, timer, connection, config);
 		if (session.getSessionIdentifier() == null) {
 			throw new IllegalArgumentException("Session must contain the ID of the session to resume");
 		}

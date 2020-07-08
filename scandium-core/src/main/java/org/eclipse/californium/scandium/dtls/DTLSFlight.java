@@ -31,15 +31,25 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.net.DatagramPacket;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.MessageCallback;
+import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A container for a set of DTLS records that are to be (re-)transmitted as a
@@ -54,7 +64,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
  * details.
  * 
  * Scandium offers also the possibility to stop the retransmission with
- * receiving the first response message instead of the complete fight. That is
+ * receiving the first response message instead of the complete flight. That is
  * currently configurable using
  * {@link DtlsConnectorConfig#isEarlyStopRetransmission()}. Only for the flight
  * before the very last flight of a handshake, it must be ensured, that the
@@ -75,17 +85,28 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
  * @see "e-mail discussion IETF TLS mailarchive, 
  *       2017, May 31. - June 1., Simone Bernard and Raja Ashok"
  */
+@NoPublicAPI
 public class DTLSFlight {
 
-	private static final int MAX_TIMEOUT_MILLIS = 60 * 1000; // 60s
-	/**
-	 * The DTLS messages that belong to this flight and need to be sent, when
-	 * the timeout expires.
-	 */
-	private final List<Record> messages;
+	private static final Logger LOGGER = LoggerFactory.getLogger(DTLSFlight.class);
 
-	/** The peer's address. */
-	private final InetSocketAddress peerAddress;
+	/**
+	 * Maximum timeout according RFC 6347, Section 4.2.4.1, Timer Values.
+	 */
+	private static final int MAX_TIMEOUT_MILLIS = 60 * 1000; // 60s
+
+	/**
+	 * List of prepared records of flight.
+	 */
+	private final List<Record> records;
+
+	/**
+	 * The dtls messages together with their epoch that belong to this
+	 * flight.
+	 * 
+	 * @since 2.4
+	 */
+	private final List<EpochMessage> dtlsMessages;
 
 	/**
 	 * The current DTLS session with the peer. Needed to set the record sequence
@@ -110,9 +131,56 @@ public class DTLSFlight {
 	private int timeout = 0;
 
 	/**
-	 * Indicates, whether this flight needs retransmission.
-	 * The very last flight  (not every flight
-	 * needs retransmission, e.g. Alert).
+	 * Maximum datagram size.
+	 * 
+	 * @since 2.4
+	 */
+	private int maxDatagramSize;
+	/**
+	 * Maximum fragment size.
+	 * 
+	 * @since 2.4
+	 */
+	private int maxFragmentSize;
+	/**
+	 * Effective datagram size.
+	 * 
+	 * The smaller resulting datagram size of {@link #maxDatagramSize} and
+	 * {@link #maxFragmentSize}.
+	 * 
+	 * @since 2.4
+	 */
+	private int effectiveDatagramSize;
+
+	/**
+	 * Use dtls records with multiple handshake messages.
+	 * 
+	 * @since 2.4
+	 */
+	private boolean useMultiHandshakeMessageRecords;
+
+	/**
+	 * Epoch of current {@link MultiHandshakeMessage}.
+	 * 
+	 * @since 2.4
+	 */
+	private int multiEpoch;
+	/**
+	 * Use CID for the current {@link MultiHandshakeMessage}.
+	 * 
+	 * @since 2.4
+	 */
+	private boolean multiUseCid;
+	/**
+	 * Collect handshake messages for one dtls record.
+	 * 
+	 * @since 2.4
+	 */
+	private MultiHandshakeMessage multiHandshakeMessage;
+
+	/**
+	 * Indicates, whether this flight needs retransmission. The very last flight
+	 * (not every flight needs retransmission, e.g. Alert).
 	 */
 	private boolean retransmissionNeeded = false;
 
@@ -153,54 +221,358 @@ public class DTLSFlight {
 			throw new NullPointerException("Peer address must not be null");
 		}
 		this.session = session;
-		this.peerAddress = session.getPeer();
-		this.messages = new ArrayList<Record>();
+		this.records = new ArrayList<Record>();
+		this.dtlsMessages = new ArrayList<EpochMessage>();
 		this.retransmissionNeeded = true;
 		this.flightNumber = flightNumber;
 	}
 
 	/**
-	 * Adds a single message to this flight.
+	 * Adds a dtls message to this flight.
 	 * 
-	 * @param messageToAdd the message to add.
+	 * @param messageToAdd the dtls message to add.
+	 * @since 2.4
 	 */
-	public void addMessage(final Record messageToAdd) {
-		this.messages.add(messageToAdd);
+	public void addDtlsMessage(int epoch, DTLSMessage messageToAdd) {
+		if (messageToAdd == null) {
+			throw new NullPointerException("message must not be null!");
+		}
+		dtlsMessages.add(new EpochMessage(epoch, messageToAdd));
 	}
 
 	/**
-	 * Gets the messages to be sent as part of this flight.
+	 * Get number of dtls messages of this flight.
 	 * 
-	 * @return an unmodifiable list of the messages.
+	 * @return number of dtls messages
+	 * @since 2.4
 	 */
-	public List<Record> getMessages() {
-		return Collections.unmodifiableList(messages);
+	public int getNumberOfMessages() {
+		return dtlsMessages.size();
 	}
 
-	public InetSocketAddress getPeerAddress() {
-		return peerAddress;
+	/**
+	 * Wraps a DTLS message into (potentially multiple) DTLS records and add
+	 * them to the flight.
+	 * 
+	 * Sets the record's epoch, sequence number and handles fragmentation for
+	 * handshake messages.
+	 * 
+	 * @param epochMessage dtls message and epoch
+	 * @throws HandshakeException if the message could not be encrypted using
+	 *             the session's current security parameters
+	 * @since 2.4
+	 */
+	protected final void wrapMessage(EpochMessage epochMessage) throws HandshakeException {
+
+		try {
+			DTLSMessage message = epochMessage.message;
+			switch (message.getContentType()) {
+			case HANDSHAKE:
+				wrapHandshakeMessage(epochMessage);
+				break;
+			case CHANGE_CIPHER_SPEC:
+				flushMultiHandshakeMessages();
+				// CCS has only 1 byte payload and doesn't require fragmentation
+				records.add(new Record(message.getContentType(), epochMessage.epoch,
+						session.getSequenceNumber(epochMessage.epoch), message, session, false, 0));
+				LOGGER.debug("Add CCS message of {} bytes for [{}]",
+						message.size(), message.getPeer());
+				break;
+			default:
+				throw new HandshakeException("Cannot create " + message.getContentType() + " record for flight",
+						new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, session.getPeer()));
+			}
+		} catch (GeneralSecurityException e) {
+			throw new HandshakeException("Cannot create record",
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, session.getPeer()), e);
+		}
 	}
 
-	public DTLSSession getSession() {
-		return session;
+	/**
+	 * Wrap handshake messages into {@link MultiHandshakeMessage} or fragments,
+	 * if handshake message is too large.
+	 * 
+	 * @param epochMessage handshake message and epoch
+	 * @throws GeneralSecurityException if the message could not be encrypted
+	 *             using the session's current security parameters
+	 * @since 2.4
+	 */
+	private void wrapHandshakeMessage(EpochMessage epochMessage) throws GeneralSecurityException {
+		HandshakeMessage handshakeMessage = (HandshakeMessage) epochMessage.message;
+		int messageLength = handshakeMessage.getMessageLength();
+		int maxPayloadLength = maxDatagramSize - DTLSSession.DTLS_HEADER_LENGTH;
+		int effectiveMaxFragmentSize = maxFragmentSize;
+		boolean useCid = false;
+
+		if (epochMessage.epoch > 0) {
+			maxPayloadLength -= session.getMaxCiphertextExpansion();
+			ConnectionId connectionId = session.getWriteConnectionId();
+			if (connectionId != null && !connectionId.isEmpty()) {
+				useCid = true;
+				maxPayloadLength -= connectionId.length();
+			}
+		}
+
+		if (effectiveMaxFragmentSize > maxPayloadLength) {
+			effectiveMaxFragmentSize = maxPayloadLength;
+		} else {
+			effectiveDatagramSize = effectiveMaxFragmentSize + (maxDatagramSize - maxPayloadLength);
+		}
+
+		if (messageLength <= effectiveMaxFragmentSize) {
+			if (useMultiHandshakeMessageRecords) {
+				if (multiHandshakeMessage != null) {
+					if (multiEpoch == epochMessage.epoch && multiUseCid == useCid
+							&& multiHandshakeMessage.getMessageLength()
+									+ handshakeMessage.size() < effectiveMaxFragmentSize) {
+						multiHandshakeMessage.add(handshakeMessage);
+						LOGGER.debug("Add multi-handshake-message {} message of {} bytes for [{}]",
+								handshakeMessage.getMessageType(), messageLength, handshakeMessage.getPeer());
+						return;
+					}
+					flushMultiHandshakeMessages();
+				}
+				if (multiHandshakeMessage == null) {
+					if (messageLength + HandshakeMessage.MESSAGE_HEADER_LENGTH_BYTES < effectiveMaxFragmentSize) {
+						multiHandshakeMessage = new MultiHandshakeMessage(session.getPeer());
+						multiHandshakeMessage.add(handshakeMessage);
+						multiEpoch = epochMessage.epoch;
+						multiUseCid = useCid;
+						LOGGER.debug("Start multi-handshake-message with {} message of {} bytes for [{}]",
+								handshakeMessage.getMessageType(), messageLength, handshakeMessage.getPeer());
+						return;
+					}
+				}
+			}
+			records.add(new Record(ContentType.HANDSHAKE, epochMessage.epoch,
+					session.getSequenceNumber(epochMessage.epoch), handshakeMessage, session, useCid, 0));
+			LOGGER.debug("Add {} message of {} bytes for [{}]",
+					handshakeMessage.getMessageType(), messageLength, handshakeMessage.getPeer());
+			return;
+		}
+
+		flushMultiHandshakeMessages();
+
+		// message needs to be fragmented
+		LOGGER.debug("Splitting up {} message of {} bytes for [{}] into multiple fragments of max. {} bytes",
+				handshakeMessage.getMessageType(), messageLength, handshakeMessage.getPeer(), effectiveMaxFragmentSize);
+		// create N handshake messages, all with the
+		// same message_seq value as the original handshake message
+		byte[] messageBytes = handshakeMessage.fragmentToByteArray();
+		if (messageBytes.length != messageLength) {
+			throw new IllegalStateException(
+					"message length " + messageLength + " differs from message " + messageBytes.length + "!");
+		}
+		int messageSeq = handshakeMessage.getMessageSeq();
+		int offset = 0;
+		while (offset < messageLength) {
+			int fragmentLength = effectiveMaxFragmentSize;
+			if (offset + fragmentLength > messageLength) {
+				// the last fragment is normally shorter than the maximal size
+				fragmentLength = messageLength - offset;
+			}
+			byte[] fragmentBytes = new byte[fragmentLength];
+			System.arraycopy(messageBytes, offset, fragmentBytes, 0, fragmentLength);
+
+			FragmentedHandshakeMessage fragmentedMessage =
+					new FragmentedHandshakeMessage(
+							handshakeMessage.getMessageType(),
+							messageLength,
+							messageSeq,
+							offset,
+							fragmentBytes,
+							session.getPeer());
+
+			LOGGER.debug("fragment for offset {}, {} bytes", offset, fragmentedMessage.size());
+
+			offset += fragmentLength;
+
+			records.add(new Record(ContentType.HANDSHAKE, epochMessage.epoch, session.getSequenceNumber(epochMessage.epoch),
+					fragmentedMessage, session, false, 0));
+		}
 	}
 
+	/**
+	 * Wrap pending handshake messages in a dtls record.
+	 * 
+	 * @throws GeneralSecurityException if the message could not be encrypted
+	 *             using the session's current security parameters
+	 */
+	private void flushMultiHandshakeMessages() throws GeneralSecurityException {
+		if (multiHandshakeMessage != null) {
+			records.add(new Record(ContentType.HANDSHAKE, multiEpoch, session.getSequenceNumber(multiEpoch),
+					multiHandshakeMessage, session, multiUseCid, 0));
+			int count = multiHandshakeMessage.getNumberOfHandshakeMessages();
+			if (count > 1) {
+				LOGGER.info("Add {} multi handshake message, epoch {} of {} bytes for [{}]", count, multiEpoch,
+						multiHandshakeMessage.getMessageLength(), multiHandshakeMessage.getPeer());
+			} else {
+				LOGGER.debug("Add {} multi handshake message, epoch {} of {} bytes for [{}]", count, multiEpoch,
+						multiHandshakeMessage.getMessageLength(), multiHandshakeMessage.getPeer());
+			}
+			multiHandshakeMessage = null;
+			multiEpoch = 0;
+			multiUseCid = false;
+		}
+	}
+
+	/**
+	 * Get wrapped records for flight.
+	 * 
+	 * @param maxDatagramSize maximum datagram size
+	 * @param maxFragmentSize maximum fragment size
+	 * @param useMultiHandshakeMessageRecords enable to use dtls records with
+	 *            multiple handshake messages.
+	 * @return list of records
+	 * @throws HandshakeException if the message could not be encrypted using
+	 *             the session's current security parameters
+	 * @since 2.4
+	 */
+	public List<Record> getRecords(int maxDatagramSize, int maxFragmentSize, boolean useMultiHandshakeMessageRecords)
+			throws HandshakeException {
+		try {
+			if (this.maxDatagramSize == maxDatagramSize && this.maxFragmentSize == maxFragmentSize
+					&& this.useMultiHandshakeMessageRecords == useMultiHandshakeMessageRecords) {
+				for (int index = 0; index < records.size(); ++index) {
+					Record record = records.get(index);
+					int epoch = record.getEpoch();
+					DTLSMessage fragment = record.getFragment();
+					boolean useCid = record.useConnectionId();
+					records.set(index, new Record(record.getType(), epoch, session.getSequenceNumber(epoch), fragment,
+							session, useCid, 0));
+				}
+			} else {
+				this.effectiveDatagramSize = maxDatagramSize;
+				this.maxDatagramSize = maxDatagramSize;
+				this.maxFragmentSize = maxFragmentSize;
+				this.useMultiHandshakeMessageRecords = useMultiHandshakeMessageRecords;
+				records.clear();
+				for (EpochMessage message : dtlsMessages) {
+					wrapMessage(message);
+				}
+				flushMultiHandshakeMessages();
+			}
+		} catch (GeneralSecurityException e) {
+			records.clear();
+			throw new HandshakeException("Cannot create record",
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, session.getPeer()), e);
+		}
+		return records;
+	}
+
+	/**
+	 * List of datagrams to be sent for this flight.
+	 * 
+	 * @param maxDatagramSize maximum datagram size
+	 * @param maxFragmentSize maximum fragment size
+	 * @param useMultiHandshakeMessageRecords enable to use dtls records with
+	 *            multiple handshake messages.
+	 * @param useMultiRecordMessages use datagrams with multiple dtls records
+	 * @param bachOff send flight in back off mode.
+	 * @return list of datagrams
+	 * @throws HandshakeException if the message could not be encrypted using
+	 *             the session's current security parameters
+	 * @since 2.4
+	 */
+	public List<DatagramPacket> getDatagrams(int maxDatagramSize, int maxFragmentSize,
+			Boolean useMultiHandshakeMessageRecords, Boolean useMultiRecordMessages, boolean backOff) throws HandshakeException {
+
+		DatagramWriter writer = new DatagramWriter(maxDatagramSize);
+		List<DatagramPacket> datagrams = new ArrayList<DatagramPacket>();
+
+		boolean multiHandshakeMessages = Boolean.TRUE.equals(useMultiHandshakeMessageRecords);
+		boolean multiRecords = !Boolean.FALSE.equals(useMultiRecordMessages);
+
+		if (backOff) {
+			maxDatagramSize = Math.min(RecordLayer.DEFAULT_IPV4_MTU - RecordLayer.IPV4_HEADER_LENGTH, maxDatagramSize);
+		}
+
+		LOGGER.info("Prepare flight {}, using max. datagram size {}, max. fragment size {} [mhm={}, mr={}]",
+				flightNumber, maxDatagramSize, maxFragmentSize, multiHandshakeMessages,
+				multiRecords);
+
+		InetSocketAddress peer = session.getPeer();
+		List<Record> records = getRecords(maxDatagramSize, maxFragmentSize, multiHandshakeMessages);
+
+		LOGGER.info("Effective max. datagram size {}", effectiveDatagramSize);
+
+		for (int index = 0; index < records.size(); ++index) {
+			Record record = records.get(index);
+			byte[] recordBytes = record.toByteArray();
+			if (recordBytes.length > effectiveDatagramSize) {
+				LOGGER.error("{} record of {} bytes for peer [{}] exceeds max. datagram size [{}], discarding...",
+						record.getType(), recordBytes.length, peer, effectiveDatagramSize);
+				// TODO: inform application layer, e.g. using error handler
+				continue;
+			}
+			LOGGER.trace("Sending record of {} bytes to peer [{}]:\n{}", recordBytes.length, peer, record);
+			if (multiRecords && record.getType() == ContentType.CHANGE_CIPHER_SPEC) {
+				++index;
+				if (index < records.size()) {
+					Record finish = records.get(index);
+					recordBytes = Bytes.concatenate(recordBytes, finish.toByteArray());
+				}
+			}
+			int left = multiRecords && !(backOff && useMultiRecordMessages == null) ? effectiveDatagramSize - recordBytes.length : 0;
+			if (writer.size() > left) {
+				// current record does not fit into datagram anymore
+				// thus, send out current datagram and put record into new one
+				byte[] payload = writer.toByteArray();
+				DatagramPacket datagram = new DatagramPacket(payload, payload.length, peer.getAddress(), peer.getPort());
+				datagrams.add(datagram);
+				LOGGER.debug("Sending datagram of {} bytes to peer [{}]", payload.length, peer);
+			}
+
+			writer.writeBytes(recordBytes);
+		}
+
+		byte[] payload = writer.toByteArray();
+		DatagramPacket datagram = new DatagramPacket(payload, payload.length, peer.getAddress(), peer.getPort());
+		datagrams.add(datagram);
+		LOGGER.debug("Sending datagram of {} bytes to peer [{}]", payload.length, peer);
+		writer = null;
+		return datagrams;
+	}
+
+	/**
+	 * Get the flight number.
+	 * 
+	 * @return flight number
+	 */
 	public int getFlightNumber() {
 		return flightNumber;
 	}
 
+	/**
+	 * Get number of (re-)tries.
+	 * 
+	 * @return number of (re-)tries
+	 */
 	public int getTries() {
 		return tries;
 	}
 
+	/**
+	 * Increment number of (re-)tries.
+	 */
 	public void incrementTries() {
 		this.tries++;
 	}
 
+	/**
+	 * Get timeout.
+	 * 
+	 * @return timeout in milliseconds.
+	 */
 	public int getTimeout() {
 		return timeout;
 	}
 
+	/**
+	 * Set timeout
+	 * 
+	 * @param timeout timeout in milliseconds.
+	 */
 	public void setTimeout(int timeout) {
 		this.timeout = timeout;
 	}
@@ -215,10 +587,22 @@ public class DTLSFlight {
 		this.timeout = incrementTimeout(this.timeout);
 	}
 
+	/**
+	 * Indicate, if flight needs retransmission.
+	 * 
+	 * @return {@code true}, if flight needs retransmission, {@code false},
+	 *         otherwise.
+	 */
 	public boolean isRetransmissionNeeded() {
 		return retransmissionNeeded;
 	}
 
+	/**
+	 * Set retransmission needs.
+	 * 
+	 * @param needsRetransmission {@code true}, if flight needs retransmission,
+	 *            {@code false}, otherwise.
+	 */
 	public void setRetransmissionNeeded(boolean needsRetransmission) {
 		this.retransmissionNeeded = needsRetransmission;
 	}
@@ -270,49 +654,34 @@ public class DTLSFlight {
 	/**
 	 * Check, if retransmission was cancelled.
 	 * 
-	 * @return {@code true}, if retransmission was cancelled, {@code false}, otherwise.
+	 * @return {@code true}, if retransmission was cancelled, {@code false},
+	 *         otherwise.
 	 */
 	public boolean isResponseCompleted() {
 		return responseCompleted;
 	}
 
 	/**
-	 * Set scheduled task.
+	 * Schedule timeout or retransmission task.
 	 * 
-	 * Cancel a previous task, if not already done. If retransmission for this
-	 * flight is already cancelled, the new scheduled task will also be
-	 * cancelled. This prevents the flight from being retransmitted due to a
-	 * race condition of receiving a message and executing the retransmission
-	 * task in parallel.
-	 * 
-	 * @param timeoutTask new retransmit or timeout task.
+	 * @param timer timer to schedule task.
+	 * @param task task to be scheduled executed
+	 * @since 2.4
 	 */
-	public void setTimeoutTask(final ScheduledFuture<?> timeoutTask) {
-		if (responseCompleted) {
-			timeoutTask.cancel(true);
-		} else {
-			cancelTimeout();
-			this.timeoutTask = timeoutTask;
-		}
-	}
-
-	/**
-	 * Sets new sequence numbers on the records contained in this flight.
-	 * 
-	 * @throws GeneralSecurityException if setting a new sequence number on a record requires
-	 *          recalculation of the MAC and the calculation fails.
-	 * @throws IllegalStateException if this flight is not a retransmission (<code>tries == 0</code>)
-	 *          or the DTLS session is <code>null</code>.
-	 */
-	public void setNewSequenceNumbers() throws GeneralSecurityException {
-		if (getTries() > 0 && session != null) {
-			for (Record record : messages) {
-				// adjust the record sequence number
-				int epoch = record.getEpoch();
-				record.updateSequenceNumber(session.getSequenceNumber(epoch));
+	public void scheduleRetransmission(ScheduledExecutorService timer, Runnable task) {
+		if (!responseCompleted) {
+			if (isRetransmissionNeeded()) {
+				cancelTimeout();
+				// schedule retransmission task
+				try {
+					timeoutTask = timer.schedule(task, timeout, TimeUnit.MILLISECONDS);
+					LOGGER.trace("handshake flight to peer {}, retransmission {} ms.", session.getPeer(), timeout);
+				} catch (RejectedExecutionException ex) {
+					LOGGER.trace("handshake flight stopped by shutdown.");
+				}
+			} else {
+				LOGGER.trace("handshake flight to peer {}, no retransmission!", session.getPeer());
 			}
-		} else {
-			throw new IllegalStateException("Can only set new sequence numbers for retransmitted flight with session");
 		}
 	}
 
@@ -333,5 +702,33 @@ public class DTLSFlight {
 			}
 		}
 		return timeoutMillis;
+	}
+
+	/**
+	 * Dtls message and epoch.
+	 * 
+	 * @since 2.4
+	 */
+	private static class EpochMessage {
+
+		/**
+		 * Epoch of message.
+		 */
+		private final int epoch;
+		/**
+		 * Dtls message.
+		 */
+		private final DTLSMessage message;
+
+		/**
+		 * Create epoch message.
+		 * 
+		 * @param epoch epoch of message
+		 * @param message dtls message
+		 */
+		private EpochMessage(int epoch, DTLSMessage message) {
+			this.epoch = epoch;
+			this.message = message;
+		}
 	}
 }

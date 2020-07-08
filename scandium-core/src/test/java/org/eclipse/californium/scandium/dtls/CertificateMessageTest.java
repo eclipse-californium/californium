@@ -150,8 +150,7 @@ public class CertificateMessageTest {
 		PublicKey pk = message.getPublicKey();
 		assertNotNull(pk);
 		serializedMessage = message.toByteArray();
-		CertificateMessage msg = (CertificateMessage) HandshakeMessage.fromByteArray(
-				serializedMessage, parameter, peerAddress);
+		CertificateMessage msg = DtlsTestTools.fromByteArray(serializedMessage, parameter, peerAddress);
 		assertThat(msg.getPublicKey(), is(pk));
 	}
 
@@ -162,8 +161,8 @@ public class CertificateMessageTest {
 		PublicKey pk = message.getPublicKey();
 		assertNotNull(pk);
 		serializedMessage = message.toByteArray();
-		message = (CertificateMessage) HandshakeMessage.fromByteArray(serializedMessage, parameter, peerAddress);
-		assertThat(message.getPublicKey(), is(pk));
+		CertificateMessage msg = DtlsTestTools.fromByteArray(serializedMessage, parameter, peerAddress);
+		assertThat(msg.getPublicKey(), is(pk));
 	}
 
 	private void assertSerializedMessageLength(int length) {

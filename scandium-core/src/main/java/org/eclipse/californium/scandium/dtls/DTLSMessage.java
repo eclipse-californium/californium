@@ -20,11 +20,22 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.elements.util.NoPublicAPI;
 
 /**
  * The message contract as defined by the DTLS specification.
  */
+@NoPublicAPI
 public interface DTLSMessage {
+
+	/**
+	 * Gets the number of bytes representing this message as defined
+	 * by <a href="http://tools.ietf.org/html/rfc5246#appendix-A">TLS 1.2, Appendix A</a>.
+	 * 
+	 * @return number of bytes
+	 * @since 2.4
+	 */
+	int size();
 
 	/**
 	 * Gets the byte array representation of this message as defined
@@ -33,14 +44,14 @@ public interface DTLSMessage {
 	 * @return the byte array
 	 */
 	byte[] toByteArray();
-	
+
 	/**
 	 * Gets the message's content type.
 	 * 
 	 * @return the type
 	 */
 	ContentType getContentType();
-	
+
 	/**
 	 * Gets the IP address and port of the peer this message
 	 * has been received from or is to be sent to.

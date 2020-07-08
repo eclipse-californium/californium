@@ -51,6 +51,7 @@ import java.security.PublicKey;
 import java.security.cert.X509Certificate;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 
 import javax.crypto.SecretKey;
 import javax.security.auth.x500.X500Principal;
@@ -173,20 +174,20 @@ public class ClientHandshaker extends Handshaker {
 	 *            the session to negotiate with the server.
 	 * @param recordLayer
 	 *            the object to use for sending flights to the peer.
+	 * @param timer
+	 *            scheduled executor for flight retransmission (since 2.4).
 	 * @param connection
 	 *            the connection related with the session.
 	 * @param config
 	 *            the DTLS configuration.
-	 * @param maxTransmissionUnit
-	 *            the MTU value reported by the network interface the record layer is bound to.
 	 * @throws IllegalStateException
 	 *            if the message digest required for computing the FINISHED message hash cannot be instantiated.
 	 * @throws NullPointerException
-	 *            if session, recordLayer or config is <code>null</code>
+	 *            if session, recordLayer, timer or config is {@code null}
 	 */
-	public ClientHandshaker(DTLSSession session, RecordLayer recordLayer, Connection connection,
-			DtlsConnectorConfig config, int maxTransmissionUnit) {
-		super(true, 0, session, recordLayer, connection, config, maxTransmissionUnit);
+	public ClientHandshaker(DTLSSession session, RecordLayer recordLayer, ScheduledExecutorService timer, Connection connection,
+			DtlsConnectorConfig config) {
+		super(true, 0, session, recordLayer, timer, connection, config);
 		this.supportedCipherSuites = config.getSupportedCipherSuites();
 		this.supportedGroups = config.getSupportedGroups();
 		this.maxFragmentLengthCode = config.getMaxFragmentLengthCode();
@@ -217,7 +218,7 @@ public class ClientHandshaker extends Handshaker {
 
 		case SERVER_KEY_EXCHANGE:
 
-			switch (getKeyExchangeAlgorithm()) {
+			switch (session.getKeyExchange()) {
 			case EC_DIFFIE_HELLMAN:
 				receivedServerKeyExchange((EcdhEcdsaServerKeyExchange) message);
 				break;
@@ -236,7 +237,7 @@ public class ClientHandshaker extends Handshaker {
 
 			default:
 				throw new HandshakeException(
-						String.format("Unsupported key exchange algorithm %s", getKeyExchangeAlgorithm().name()),
+						String.format("Unsupported key exchange algorithm %s", session.getKeyExchange().name()),
 						new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, message.getPeer()));
 			}
 			break;
@@ -459,7 +460,7 @@ public class ClientHandshaker extends Handshaker {
 		PskPublicInformation clientIdentity;
 		PskSecretResult masterSecretResult;
 		XECDHECryptography ecdhe = serverKeyExchange == null ? null : new XECDHECryptography(serverKeyExchange.getSupportedGroup());
-		switch (getKeyExchangeAlgorithm()) {
+		switch (session.getKeyExchange()) {
 		case EC_DIFFIE_HELLMAN:
 			clientKeyExchange = new ECDHClientKeyExchange(ecdhe.getEncodedPoint(), session.getPeer());
 			SecretKey premasterSecret = ecdhe.generateSecret(serverKeyExchange.getEncodedPoint());
@@ -490,7 +491,7 @@ public class ClientHandshaker extends Handshaker {
 
 		default:
 			throw new HandshakeException(
-					"Unknown key exchange algorithm: " + getKeyExchangeAlgorithm(),
+					"Unknown key exchange algorithm: " + session.getKeyExchange(),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer()));
 		}
 		SecretUtil.destroy(ecdhe);

@@ -212,6 +212,11 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 
 	// Serialization //////////////////////////////////////////////////
 
+	@Override
+	public int size() {
+		return (2 * BITS) / Byte.SIZE;
+	}
+
 	/**
 	 * {@inheritDoc}
 	 */

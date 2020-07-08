@@ -47,10 +47,25 @@ public class NetworkInterfacesUtil {
 	 */
 	public static final int MAX_MTU = 65535;
 
+	public static final int DEFAULT_IPV6_MTU = 1280;
+	public static final int DEFAULT_IPV4_MTU = 576;
+
 	/**
 	 * MTU for any interface.
 	 */
 	private static int anyMtu;
+	/**
+	 * MTU for IPv4 interface.
+	 * 
+	 * @since 2.4
+	 */
+	private static int ipv4Mtu;
+	/**
+	 * MTU for IPv6 interface.
+	 * 
+	 * @since 2.4
+	 */
+	private static int ipv6Mtu;
 
 	/**
 	 * One of any interfaces supports IPv4.
@@ -102,6 +117,8 @@ public class NetworkInterfacesUtil {
 			multicastInterfaceIpv6 = null;
 			multicastInterface = null;
 			int mtu = MAX_MTU;
+			int ipv4mtu = MAX_MTU;
+			int ipv6mtu = MAX_MTU;
 			Pattern filter = null;
 			String regex = StringUtil.getConfiguration("COAP_NETWORK_INTERFACES");
 			if (regex != null && !regex.isEmpty()) {
@@ -139,6 +156,9 @@ public class NetworkInterfacesUtil {
 								InetAddress address = inetAddresses.nextElement();
 								if (address instanceof Inet4Address) {
 									anyIpv4 = true;
+									if (ifaceMtu > 0 && ifaceMtu < ipv4mtu) {
+										ipv4mtu = ifaceMtu;
+									}
 									if (site4 == null) {
 										if (address.isSiteLocalAddress()) {
 											site4 = (Inet4Address) address;
@@ -148,6 +168,9 @@ public class NetworkInterfacesUtil {
 									}
 								} else if (address instanceof Inet6Address) {
 									anyIpv6 = true;
+									if (ifaceMtu > 0 && ifaceMtu < ipv6mtu) {
+										ipv6mtu = ifaceMtu;
+									}
 									if (site6 == null) {
 										if (address.isSiteLocalAddress()) {
 											site6 = (Inet6Address) address;
@@ -186,8 +209,14 @@ public class NetworkInterfacesUtil {
 								InetAddress address = inetAddresses.nextElement();
 								if (address instanceof Inet4Address) {
 									anyIpv4 = true;
+									if (ifaceMtu > 0 && ifaceMtu < ipv4mtu) {
+										ipv4mtu = ifaceMtu;
+									}
 								} else if (address instanceof Inet6Address) {
 									anyIpv6 = true;
+									if (ifaceMtu > 0 && ifaceMtu < ipv6mtu) {
+										ipv6mtu = ifaceMtu;
+									}
 								}
 							}
 						}
@@ -201,7 +230,18 @@ public class NetworkInterfacesUtil {
 			if (broadcastAddresses.isEmpty()) {
 				LOGGER.info("no broadcast address found!");
 			}
-			anyMtu = mtu;
+			if (ipv4mtu == MAX_MTU) {
+				ipv4mtu = DEFAULT_IPV4_MTU;
+			}
+			if (ipv6mtu == MAX_MTU) {
+				ipv6mtu = DEFAULT_IPV6_MTU;
+			}
+			if (mtu == MAX_MTU) {
+				mtu = Math.min(ipv4mtu, ipv6mtu);
+			}
+			NetworkInterfacesUtil.ipv4Mtu = ipv4mtu;
+			NetworkInterfacesUtil.ipv6Mtu = ipv6mtu;
+			NetworkInterfacesUtil.anyMtu = mtu;
 		}
 	}
 
@@ -215,6 +255,32 @@ public class NetworkInterfacesUtil {
 	public static int getAnyMtu() {
 		initialize();
 		return anyMtu;
+	}
+
+	/**
+	 * Get MTU for IPv4 interface.
+	 * 
+	 * Determine the smallest MTU of all IPv4 network interfaces.
+	 * 
+	 * @return MTU in bytes
+	 * @since 2.4
+	 */
+	public static int getIPv4Mtu() {
+		initialize();
+		return ipv4Mtu;
+	}
+
+	/**
+	 * Get MTU for IPv6 interface.
+	 * 
+	 * Determine the smallest MTU of all IPv6 network interfaces.
+	 * 
+	 * @return MTU in bytes
+	 * @since 2.4
+	 */
+	public static int getIPv6Mtu() {
+		initialize();
+		return ipv6Mtu;
 	}
 
 	/**

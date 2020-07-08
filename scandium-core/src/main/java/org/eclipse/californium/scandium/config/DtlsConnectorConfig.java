@@ -60,6 +60,7 @@ import org.eclipse.californium.scandium.dtls.CertificateMessage;
 import org.eclipse.californium.scandium.dtls.CertificateRequest;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
+import org.eclipse.californium.scandium.dtls.RecordLayer;
 import org.eclipse.californium.scandium.dtls.SessionCache;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -134,7 +135,7 @@ public final class DtlsConnectorConfig {
 	 * The default value for the <em>maxTransmissionUnitLimit</em> property.
 	 * @since 2.3
 	 */
-	public static final int DEFAULT_MAX_TRANSMISSION_UNIT_LIMIT = 1500;
+	public static final int DEFAULT_MAX_TRANSMISSION_UNIT_LIMIT = RecordLayer.DEFAULT_ETH_MTU;
 	/**
 	 * The default size of the executor's thread pool which is used for processing records.
 	 * <p>
@@ -180,8 +181,45 @@ public final class DtlsConnectorConfig {
 	 */
 	private Integer maxFragmentedHandshakeMessageLength;
 
+	/**
+	 * Enable to use UDP messages with multiple dtls records.
+	 * 
+	 * @since 2.4
+	 */
+	private Boolean enableMultiRecordMessages;
+	/**
+	 * Enable to use dtls records with multiple handshake messages.
+	 * 
+	 * @since 2.4
+	 */
+	private Boolean enableMultiHandshakeMessageRecords;
+
 	/** The initial timer value for retransmission; rfc6347, section: 4.2.4.1 */
 	private Integer retransmissionTimeout;
+
+	/**
+	 * Number of retransmissions before the attempt to transmit a flight in
+	 * back-off mode.
+	 * 
+	 * <a href="https://tools.ietf.org/html/rfc6347#page-12>RFC 6347, Section
+	 * 4.1.1.1, Page 12</a>
+	 * 
+	 * In back-off mode, UDP datagrams of maximum 512 bytes are used. Each
+	 * handshake message is placed in one dtls record, or more dtls records, if
+	 * the handshake message is too large and must be fragmented. Beside of the
+	 * CCS and FINISH dtls records, which send together in one UDP datagram, all
+	 * other records are send in separate datagrams.
+	 * 
+	 * The {@link #useMultiHandshakeMessageRecords()} and
+	 * {@link #useMultiRecordMessages()} has precedence over the back-off
+	 * definition.
+	 * 
+	 * Value {@code 0}, to disable it, {@code null}, for default of
+	 * {@link #maxRetransmissions} / 2.
+	 * 
+	 * @since 2.4
+	 */
+	private Integer backOffRetransmission;
 
 	/**
 	 * Maximal number of retransmissions before the attempt to transmit a
@@ -430,6 +468,35 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * Gets enable to use UDP messages with multiple dtls records.
+	 * 
+	 * Default behavior enables the usage of multiple records, but disables it
+	 * as back off after two retransmissions.
+	 * 
+	 * @return {@code true}, if enabled, {@code false}, otherwise. {@code null}
+	 *         for default behavior.
+	 * @since 2.4
+	 */
+	public Boolean useMultiRecordMessages() {
+		return enableMultiRecordMessages;
+	}
+
+	/**
+	 * Enable to use dtls records with multiple handshake messages.
+	 * 
+	 * Default behavior disables the usage on the server side, and enables the
+	 * usage of multiple handshake messages on the client side, if the server
+	 * send such dtls records.
+	 * 
+	 * @return {@code true}, if enabled, {@code false}, otherwise. {@code null}
+	 *         for default behavior.
+	 * @since 2.4
+	 */
+	public Boolean useMultiHandshakeMessageRecords() {
+		return enableMultiHandshakeMessageRecords;
+	}
+
+	/**
 	 * Gets the (initial) time to wait before a handshake flight of messages gets re-transmitted.
 	 * 
 	 * This timeout gets adjusted during the course of repeated re-transmission of a flight.
@@ -458,6 +525,33 @@ public final class DtlsConnectorConfig {
 	 */
 	public Integer getMaxDeferredProcessedIncomingRecordsSize() {
 		return maxDeferredProcessedIncomingRecordsSize;
+	}
+
+	/**
+	 * Number of retransmissions before the attempt to transmit a flight in
+	 * back-off mode.
+	 * 
+	 * <a href="https://tools.ietf.org/html/rfc6347#page-12>RFC 6347, Section
+	 * 4.1.1.1, Page 12</a>
+	 * 
+	 * In back-off mode, UDP datagrams of maximum 512 bytes are used. Each
+	 * handshake message is placed in one dtls record, or more dtls records, if
+	 * the handshake message is too large and must be fragmented. Beside of the
+	 * CCS and FINISH dtls records, which send together in one UDP datagram, all
+	 * other records are send in separate datagrams.
+	 * 
+	 * The {@link #useMultiHandshakeMessageRecords()} and
+	 * {@link #useMultiRecordMessages()} has precedence over the back-off
+	 * definition.
+	 * 
+	 * Value {@code 0}, to disable it, default is value
+	 * {@link #maxRetransmissions} / 2.
+	 * 
+	 * @return the number of re-transmissions to use the back-off mode
+	 * @since 2.4
+	 */
+	public Integer getBackOffRetransmission() {
+		return backOffRetransmission;
 	}
 
 	/**
@@ -1083,6 +1177,8 @@ public final class DtlsConnectorConfig {
 		cloned.enableReuseAddress = enableReuseAddress;
 		cloned.maxFragmentLengthCode = maxFragmentLengthCode;
 		cloned.maxFragmentedHandshakeMessageLength = maxFragmentedHandshakeMessageLength;
+		cloned.enableMultiRecordMessages = enableMultiRecordMessages;
+		cloned.enableMultiHandshakeMessageRecords = enableMultiHandshakeMessageRecords;
 		cloned.retransmissionTimeout = retransmissionTimeout;
 		cloned.maxRetransmissions = maxRetransmissions;
 		cloned.maxTransmissionUnit = maxTransmissionUnit;
@@ -1385,6 +1481,30 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
+		 * Enable to use UDP messages with multiple dtls records.
+		 * 
+		 * @param enable {@code true}, to enabled, {@code false}, otherwise.
+		 * @return this builder for command chaining
+		 * @since 2.4
+		 */
+		public Builder setEnableMultiRecordMessages(boolean enable) {
+			config.enableMultiRecordMessages = enable;
+			return this;
+		}
+
+		/**
+		 * Enable to use dtls records with multiple handshake messages.
+		 * 
+		 * @param enable {@code true}, to enabled, {@code false}, otherwise.
+		 * @return this builder for command chaining
+		 * @since 2.4
+		 */
+		public Builder setEnableMultiHandshakeMessageRecords(boolean enable) {
+			config.enableMultiHandshakeMessageRecords = enable;
+			return this;
+		}
+
+		/**
 		 * Set the size of the socket receive buffer.
 		 * 
 		 * @param size the socket receive buffer size in bytes, or {@code null},
@@ -1446,6 +1566,37 @@ public final class DtlsConnectorConfig {
 				config.outboundMessageBufferSize = capacity;
 				return this;
 			}
+		}
+
+		/**
+		 * Number of retransmissions before the attempt to transmit a flight in
+		 * back-off mode.
+		 * 
+		 * <a href="https://tools.ietf.org/html/rfc6347#page-12>RFC 6347, Section
+		 * 4.1.1.1, Page 12</a>
+		 * 
+		 * In back-off mode, UDP datagrams of maximum 512 bytes are used. Each
+		 * handshake message is placed in one dtls record, or more dtls records, if
+		 * the handshake message is too large and must be fragmented. Beside of the
+		 * CCS and FINISH dtls records, which send together in one UDP datagram, all
+		 * other records are send in separate datagrams.
+		 * 
+		 * The {@link #useMultiHandshakeMessageRecords()} and
+		 * {@link #useMultiRecordMessages()} has precedence over the back-off
+		 * definition.
+		 * 
+		 * Value {@code 0}, to disable it, {@code null}, for default of
+		 * {@link #maxRetransmissions} / 2.
+		 * 
+		 * @param count the number of re-transmissions to use the back-off mode
+		 * @since 2.4
+		 */
+		public Builder setBackOffRetransmission(Integer count) {
+			if (count != null && count < 0) {
+				throw new IllegalArgumentException("number of retransmissions to back-off must not be negative");
+			}
+			config.backOffRetransmission = count;
+			return this;
 		}
 
 		/**
@@ -2689,6 +2840,9 @@ public final class DtlsConnectorConfig {
 			}
 			if (config.maxRetransmissions == null) {
 				config.maxRetransmissions = DEFAULT_MAX_RETRANSMISSIONS;
+			}
+			if (config.backOffRetransmission == null) {
+				config.backOffRetransmission = config.maxRetransmissions / 2;
 			}
 			if (config.maxFragmentedHandshakeMessageLength == null) {
 				config.maxFragmentedHandshakeMessageLength = DEFAULT_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH;

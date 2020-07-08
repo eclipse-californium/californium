@@ -123,7 +123,7 @@ import java.io.IOException;
 import java.io.InterruptedIOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.Inet4Address;
+import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
@@ -164,11 +164,11 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
-import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
+import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -184,11 +184,8 @@ import org.eclipse.californium.scandium.dtls.ConnectionEvictedException;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.ContentType;
-import org.eclipse.californium.scandium.dtls.DTLSFlight;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
-import org.eclipse.californium.scandium.dtls.DtlsException;
 import org.eclipse.californium.scandium.dtls.DtlsHandshakeException;
-import org.eclipse.californium.scandium.dtls.DtlsHandshakeTimeoutException;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.HandshakeMessage;
 import org.eclipse.californium.scandium.dtls.Handshaker;
@@ -228,21 +225,12 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 */
 	public static final String KEY_TLS_SERVER_HOST_NAME = "TLS_SERVER_HOST_NAME";
 
-	public static final int MAX_MTU = 65535;
-	/**
-	 * MTU values according 
-	 * <a href="https://en.wikipedia.org/wiki/Maximum_transmission_unit">MTU - Wikipedia</a>.
-	 */
-	public static final int DEFAULT_IPV6_MTU = 1280;
-	public static final int DEFAULT_IPV4_MTU = 576;
-
 	private static final Logger LOGGER = LoggerFactory.getLogger(DTLSConnector.class);
 	private static final Logger DROP_LOGGER = LoggerFactory.getLogger(LOGGER.getName() + ".drops");
 	private static final int MAX_PLAINTEXT_FRAGMENT_LENGTH = 16384; // max. DTLSPlaintext.length (2^14 bytes)
 	private static final int MAX_CIPHERTEXT_EXPANSION = CipherSuite.getOverallMaxCiphertextExpansion();
 	private static final int MAX_DATAGRAM_BUFFER_SIZE = MAX_PLAINTEXT_FRAGMENT_LENGTH
-			+ 12 // DTLS message headers
-			+ 13 // DTLS record headers
+			+ DTLSSession.DTLS_HEADER_LENGTH
 			+ MAX_CIPHERTEXT_EXPANSION;
 
 	/**
@@ -302,7 +290,20 @@ public class DTLSConnector implements Connector, RecordLayer {
 	private ScheduledFuture<?> statusLogger;
 
 	private InetSocketAddress lastBindAddress;
-	private int maximumTransmissionUnit = DEFAULT_IPV4_MTU;
+	/**
+	 * Provided or configured maximum transmission unit.
+	 */
+	private Integer maximumTransmissionUnit;
+	/**
+	 * IPv4 maximum transmission unit.
+	 * @since 2.4
+	 */
+	private int ipv4Mtu = DEFAULT_IPV4_MTU;
+	/**
+	 * IPv6 maximum transmission unit.
+	 * @since 2.4
+	 */
+	private int ipv6Mtu = DEFAULT_IPV6_MTU;
 	private int inboundDatagramBufferSize = MAX_DATAGRAM_BUFFER_SIZE;
 
 	private CookieGenerator cookieGenerator = new CookieGenerator();
@@ -450,6 +451,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 							LOGGER.debug("stopping.");
 						}
 					}
+					// fallback, if execution is rejected
 					connection.startByClientHello(null);
 				}
 
@@ -724,32 +726,6 @@ public class DTLSConnector implements Connector, RecordLayer {
 			}
 		}
 
-		if (config.getMaxTransmissionUnit() != null) {
-			this.maximumTransmissionUnit = config.getMaxTransmissionUnit();
-		} else if (mtu != null) {
-			this.maximumTransmissionUnit = mtu;
-		} else {
-			InetAddress localInterfaceAddress = bindAddress.getAddress();
-			if (localInterfaceAddress.isAnyLocalAddress()) {
-				this.maximumTransmissionUnit = NetworkInterfacesUtil.getAnyMtu();
-				LOGGER.info("multiple network interfaces, using smallest MTU [{}]", this.maximumTransmissionUnit);
-			} else {
-				NetworkInterface ni = NetworkInterface.getByInetAddress(localInterfaceAddress);
-				if (ni != null && ni.getMTU() > 0) {
-					this.maximumTransmissionUnit = ni.getMTU();
-				} else if (localInterfaceAddress instanceof Inet4Address) {
-					LOGGER.info("Cannot determine MTU of network interface, using minimum MTU [{}] of IPv4 instead", DEFAULT_IPV4_MTU);
-					this.maximumTransmissionUnit = DEFAULT_IPV4_MTU;
-				} else {
-					LOGGER.info("Cannot determine MTU of network interface, using minimum MTU [{}] of IPv6 instead", DEFAULT_IPV6_MTU);
-					this.maximumTransmissionUnit = DEFAULT_IPV6_MTU;
-				}
-			}
-			if (this.maximumTransmissionUnit > config.getMaxTransmissionUnitLimit()) {
-				this.maximumTransmissionUnit = config.getMaxTransmissionUnitLimit();
-			}
-		}
-
 		if (config.getMaxFragmentLengthCode() != null) {
 			MaxFragmentLengthExtension.Length lengthCode = MaxFragmentLengthExtension.Length.fromCode(
 					config.getMaxFragmentLengthCode());
@@ -757,6 +733,56 @@ public class DTLSConnector implements Connector, RecordLayer {
 			inboundDatagramBufferSize = lengthCode.length()
 					+ MAX_CIPHERTEXT_EXPANSION
 					+ 25; // 12 bytes DTLS message headers, 13 bytes DTLS record headers
+		}
+
+		if (config.getMaxTransmissionUnit() != null) {
+			this.maximumTransmissionUnit = config.getMaxTransmissionUnit();
+			LOGGER.info("Configured MTU [{}]", this.maximumTransmissionUnit);
+		} else if (mtu != null) {
+			this.maximumTransmissionUnit = mtu;
+			LOGGER.info("Forced MTU [{}]", this.maximumTransmissionUnit);
+		} else {
+			InetAddress localInterfaceAddress = bindAddress.getAddress();
+			if (localInterfaceAddress.isAnyLocalAddress()) {
+				ipv4Mtu = NetworkInterfacesUtil.getIPv4Mtu();
+				ipv6Mtu = NetworkInterfacesUtil.getIPv6Mtu();
+				LOGGER.info("multiple network interfaces, using smallest MTU [IPv4 {}, IPv6 {}]", ipv4Mtu, ipv6Mtu);
+			} else {
+				NetworkInterface ni = NetworkInterface.getByInetAddress(localInterfaceAddress);
+				boolean ipv6 = localInterfaceAddress instanceof Inet6Address;
+				if (ni != null && ni.getMTU() > 0) {
+					if (ipv6) {
+						ipv6Mtu = ni.getMTU();
+					} else {
+						ipv4Mtu = ni.getMTU();
+					}
+				} else if (ipv6) {
+					ipv6Mtu = NetworkInterfacesUtil.getIPv6Mtu();
+					LOGGER.info("Cannot determine MTU of network interface, using minimum MTU [{}] of IPv6 instead", ipv6Mtu);
+				} else {
+					ipv4Mtu = NetworkInterfacesUtil.getIPv4Mtu();
+					LOGGER.info("Cannot determine MTU of network interface, using minimum MTU [{}] of IPv4 instead", ipv4Mtu);
+				}
+			}
+			if (inboundDatagramBufferSize > config.getMaxTransmissionUnitLimit()) {
+				if (ipv4Mtu > config.getMaxTransmissionUnitLimit()) {
+					ipv4Mtu = config.getMaxTransmissionUnitLimit();
+					LOGGER.info("Limit MTU IPv4[{}]", ipv4Mtu);
+				}
+				if (ipv6Mtu > config.getMaxTransmissionUnitLimit()) {
+					ipv6Mtu = config.getMaxTransmissionUnitLimit();
+					LOGGER.info("Limit MTU IPv6[{}]", ipv6Mtu);
+				}
+			} else {
+				if (ipv4Mtu > inboundDatagramBufferSize) {
+					ipv4Mtu = inboundDatagramBufferSize;
+					LOGGER.info("Buffersize MTU IPv4[{}]", ipv4Mtu);
+				}
+				if (ipv6Mtu > inboundDatagramBufferSize) {
+					ipv6Mtu = inboundDatagramBufferSize;
+					LOGGER.info("Buffersize MTU IPv6[{}]", ipv6Mtu);
+				}
+			}
 		}
 
 		lastBindAddress = new InetSocketAddress(socket.getLocalAddress(), socket.getLocalPort());
@@ -800,8 +826,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 			receiverThreads.add(receiver);
 		}
 
+		String mtuDescription = maximumTransmissionUnit != null ? maximumTransmissionUnit.toString() : "IPv4 " + ipv4Mtu + " / IPv6 " + ipv6Mtu;
 		LOGGER.info("DTLSConnector listening on {}, recv buf = {}, send buf = {}, recv packet size = {}, MTU = {}",
-				lastBindAddress, recvBuffer, sendBuffer, inboundDatagramBufferSize, maximumTransmissionUnit);
+				lastBindAddress, recvBuffer, sendBuffer, inboundDatagramBufferSize, mtuDescription);
 
 		// this is a useful health metric
 		// that could later be exported to some kind of monitoring interface
@@ -877,7 +904,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 					socket.close();
 					socket = null;
 				}
-				maximumTransmissionUnit = 0;
+				maximumTransmissionUnit = null;
+				ipv4Mtu = DEFAULT_IPV4_MTU;
+				ipv6Mtu = DEFAULT_IPV6_MTU;
 				connectionStore.stop(pending);
 				if (executorService != timer) {
 					pending.addAll(timer.shutdownNow());
@@ -1256,7 +1285,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			}
 
 			int epoch = record.getEpoch();
-			LOGGER.trace("Received DTLS record of type [{}], length: {}, [epoche:{},reqn:{}]", 
+			LOGGER.trace("Received DTLS record of type [{}], length: {}, [epoche:{},rseqn:{}]", 
 					record.getType(), record.getFragmentLength(), epoch, record.getSequenceNumber());
 
 			Handshaker handshaker = connection.getOngoingHandshake();
@@ -1266,8 +1295,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 				handshaker.handshakeFailed(new Exception("handshake already expired!"));
 				if (connectionStore.get(connection.getConnectionId()) != connection) {
 					// connection removed, then drop record
-					DROP_LOGGER.debug("Discarding {} record received from peer [{}], handshake expired!",
-							record.getType(), record.getPeerAddress(), epoch);
+					DROP_LOGGER.debug("Discarding {} record [epoch {}, rseqn {}] received from peer [{}], handshake expired!",
+							record.getType(), epoch, record.getSequenceNumber(), record.getPeerAddress(), epoch);
 					if (health != null) {
 						health.receivingRecord(true);
 					}
@@ -1283,8 +1312,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 					// future records, apply session after handshake finished.
 					handshaker.addRecordsForDeferredProcessing(record);
 				} else {
-					DROP_LOGGER.debug("Discarding {} record received from peer [{}] without an active session for epoch {}",
-							record.getType(), record.getPeerAddress(), epoch);
+					DROP_LOGGER.debug("Discarding {} record [epoch {}, rseqn {}] received from peer [{}] without an active session",
+							record.getType(), epoch, record.getSequenceNumber(), record.getPeerAddress());
 					if (health != null) {
 						health.receivingRecord(true);
 					}
@@ -1297,16 +1326,16 @@ public class DTLSConnector implements Connector, RecordLayer {
 			// see http://tools.ietf.org/html/rfc6347#section-4.1.2.6
 			boolean closed = connection.isClosed();
 			boolean discard = (useFilter || closed) && (session != null)
-					&& !session.isRecordProcessable(record.getEpoch(), record.getSequenceNumber(), useWindowFilter);
+					&& !session.isRecordProcessable(epoch, record.getSequenceNumber(), useWindowFilter);
 			// closed and no session => discard it
 			discard |= (closed && session == null);
 			if (discard) {
 				if (closed) {
-					DROP_LOGGER.debug("Discarding {} record received from closed peer [{}]", record.getType(),
-							record.getPeerAddress());
+					DROP_LOGGER.debug("Discarding {} record [epoch {}, rseqn {}] received from closed peer [{}]", record.getType(),
+							epoch, record.getSequenceNumber(), record.getPeerAddress());
 				} else {
-					DROP_LOGGER.debug("Discarding duplicate {} record received from peer [{}]",
-							record.getType(), record.getPeerAddress());
+					DROP_LOGGER.debug("Discarding duplicate {} record [epoch {}, rseqn {}] received from peer [{}]",
+							record.getType(), epoch, record.getSequenceNumber(), record.getPeerAddress());
 				}
 				if (health != null) {
 					health.receivingRecord(true);
@@ -1786,7 +1815,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		} catch (HandshakeException e) {
 			LOGGER.debug("Processing new CLIENT_HELLO from peer [{}] failed!", record.getPeerAddress(), e);
 		} catch (GeneralSecurityException e) {
-			DROP_LOGGER.warn("Processing new CLIENT_HELLO from peer [{}] failed!", record.getPeerAddress(), e);
+			DROP_LOGGER.debug("Processing new CLIENT_HELLO from peer [{}] failed!", record.getPeerAddress(), e);
 		} catch (RuntimeException e) {
 			LOGGER.warn("Processing new CLIENT_HELLO from peer [{}] failed!", record.getPeerAddress(), e);
 		}
@@ -1935,8 +1964,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		DTLSSession newSession = new DTLSSession(record.getPeerAddress(), record.getSequenceNumber());
 		// initialize handshaker based on CLIENT_HELLO (this accounts
 		// for the case that multiple cookie exchanges have taken place)
-		Handshaker handshaker = new ServerHandshaker(clientHello.getMessageSeq(), newSession, this, connection, config,
-				maximumTransmissionUnit);
+		Handshaker handshaker = new ServerHandshaker(clientHello.getMessageSeq(), newSession, this, timer, connection, config);
 		initializeHandshaker(handshaker);
 		handshaker.processMessage(record);
 	}
@@ -2001,7 +2029,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			final DTLSSession sessionToResume = new DTLSSession(clientHello.getSessionId(), peerAddress, ticket,
 					record.getSequenceNumber());
 			final Handshaker handshaker = new ResumingServerHandshaker(clientHello.getMessageSeq(), sessionToResume,
-					this, connection, config, maximumTransmissionUnit);
+					this, timer, connection, config);
 			initializeHandshaker(handshaker);
 			SecretUtil.destroy(ticket);
 
@@ -2283,7 +2311,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			session.setHostName(message.getEndpointContext().getVirtualHost());
 			// no session with peer established nor handshaker started yet,
 			// create new empty session & start handshake
-			handshaker = new ClientHandshaker(session, this, connection, config, maximumTransmissionUnit);
+			handshaker = new ClientHandshaker(session, this, timer, connection, config);
 			initializeHandshaker(handshaker);
 			handshaker.startHandshake();
 		}
@@ -2359,14 +2387,12 @@ public class DTLSConnector implements Connector, RecordLayer {
 					// https://tools.ietf.org/html/rfc5246#section-7.4.1.3
 					DTLSSession newSession = new DTLSSession(message.getInetSocketAddress());
 					newSession.setHostName(message.getEndpointContext().getVirtualHost());
-					newHandshaker = new ClientHandshaker(newSession, this, connection, config,
-							maximumTransmissionUnit);
+					newHandshaker = new ClientHandshaker(newSession, this, timer, connection, config);
 				} else {
 					DTLSSession resumableSession = new DTLSSession(sessionId, message.getInetSocketAddress(), ticket, 0);
 					SecretUtil.destroy(ticket);
 					resumableSession.setHostName(message.getEndpointContext().getVirtualHost());
-					newHandshaker = new ResumingClientHandshaker(resumableSession, this, connection, config,
-							maximumTransmissionUnit, probing);
+					newHandshaker = new ResumingClientHandshaker(resumableSession, this, timer, connection, config, probing);
 				}
 				initializeHandshaker(newHandshaker);
 				if (previousHandshaker != null) {
@@ -2458,58 +2484,30 @@ public class DTLSConnector implements Connector, RecordLayer {
 	}
 
 	@Override
-	public void sendFlight(DTLSFlight flight, Connection connection) throws IOException {
-		if (flight != null) {
-			// use initial timeout
-			flight.setTimeout(config.getRetransmissionTimeout());
-			sendFlightOverNetwork(flight);
-			scheduleRetransmission(flight, connection);
+	public void dropReceivedRecord(Record record) {
+		DROP_LOGGER.debug("Discarding {} record [epoch {}, rseqn {}] dropped by handshaker for peer [{}]", record.getType(),
+				record.getEpoch(), record.getSequenceNumber(), record.getPeerAddress());
+		if (health != null) {
+			health.receivingRecord(true);
 		}
 	}
 
-	private void sendFlightOverNetwork(DTLSFlight flight) throws IOException {
-		int maxDatagramSize = flight.getSession().getMaxDatagramSize();
-		DatagramWriter writer = new DatagramWriter(maxDatagramSize);
-		// put as many records into one datagram as allowed by the max. payload size
-		List<DatagramPacket> datagrams = new ArrayList<DatagramPacket>();
-
-		for (Record record : flight.getMessages()) {
-			byte[] recordBytes = record.toByteArray();
-			if (recordBytes.length > maxDatagramSize) {
-				DROP_LOGGER.warn("{} record of {} bytes for peer [{}] exceeds max. datagram size [{}], discarding...",
-						record.getType(), recordBytes.length, record.getPeerAddress(), maxDatagramSize);
-				// TODO: inform application layer, e.g. using error handler
-				continue;
-			}
-			LOGGER.trace("Sending record of {} bytes to peer [{}]:\n{}", recordBytes.length, flight.getPeerAddress(),
-					record);
-
-			if (writer.size() + recordBytes.length > maxDatagramSize) {
-				// current record does not fit into datagram anymore
-				// thus, send out current datagram and put record into new one
-				byte[] payload = writer.toByteArray();
-				DatagramPacket datagram = new DatagramPacket(payload, payload.length,
-						flight.getPeerAddress().getAddress(), flight.getPeerAddress().getPort());
-				datagrams.add(datagram);
-				if (health != null) {
-					health.sendingRecord(false);
-				}
-			}
-
-			writer.writeBytes(recordBytes);
+	@Override
+	public int getMaxDatagramSize(boolean ipv6) {
+		int headerSize = ipv6 ? IPV6_HEADER_LENGTH : IPV4_HEADER_LENGTH;
+		int mtu = maximumTransmissionUnit != null ? maximumTransmissionUnit : (ipv6 ? ipv6Mtu : ipv4Mtu);
+		int size = mtu - headerSize;
+		if (size < 64) {
+			throw new IllegalStateException(
+					String.format("%s, datagram size %d, mtu %d", ipv6 ? "IPV6" : "IPv4", size, mtu));
 		}
+		return mtu - headerSize;
+	}
 
-		byte[] payload = writer.toByteArray();
-		DatagramPacket datagram = new DatagramPacket(payload, payload.length, flight.getPeerAddress().getAddress(),
-				flight.getPeerAddress().getPort());
-		datagrams.add(datagram);
-		if (health != null) {
-			health.sendingRecord(false);
-		}
-
+	@NoPublicAPI
+	@Override
+	public void sendFlight(List<DatagramPacket> datagrams) throws IOException {
 		// send it over the UDP socket
-		LOGGER.trace("Sending flight of {} message(s) to peer [{}] using {} datagram(s) of max. {} bytes",
-				flight.getMessages().size(), flight.getPeerAddress(), datagrams.size(), maxDatagramSize);
 		for (DatagramPacket datagramPacket : datagrams) {
 			if (health != null) {
 				health.sendingRecord(false);
@@ -2599,113 +2597,6 @@ public class DTLSConnector implements Connector, RecordLayer {
 		}
 	}
 
-	private void handleTimeout(DTLSFlight flight, Connection connection) {
-
-		if (!flight.isResponseCompleted()) {
-			Handshaker handshaker = connection.getOngoingHandshake();
-			if (null != handshaker) {
-				if (!handshaker.isProbing() && connection.hasEstablishedSession()) {
-					return;
-				}
-				Exception cause = null;
-				String message = "";
-				boolean timeout=false;
-				ScheduledExecutorService timer = this.timer;
-				if (!connection.isExecuting() || !running.get() || timer == null) {
-					message = " Stopped by shutdown!";
-				} else if (connectionStore.get(flight.getPeerAddress()) != connection) {
-					message = " Stopped by address change!";
-				} else {
-					// set DTLS retransmission maximum
-					final int max = config.getMaxRetransmissions();
-					int tries = flight.getTries();
-					if (tries < max && handshaker.isExpired()) {
-						// limit of retransmissions not reached
-						// but handshake expired during Android / OS "deep sleep"
-						message = " Stopped by expired realtime!";
-						timeout = true;
-					} else if (tries < max) {
-						// limit of retransmissions not reached
-						if (config.isEarlyStopRetransmission() && flight.isResponseStarted()) {
-							// don't retransmit, just schedule last timeout
-							while (tries < max) {
-								++tries;
-								flight.incrementTries();
-								flight.incrementTimeout();
-							}
-							// increment one more to indicate, that
-							// handshake times out without reaching
-							// the max retransmissions.
-							flight.incrementTries();
-							LOGGER.trace("schedule handshake timeout {}ms after flight {}", flight.getTimeout(),
-									flight.getFlightNumber());
-							ScheduledFuture<?> f = timer.schedule(new TimeoutPeerTask(connection, flight), flight.getTimeout(),
-									TimeUnit.MILLISECONDS);
-							flight.setTimeoutTask(f);
-							return;
-						}
-
-						LOGGER.trace("Re-transmitting flight for [{}], [{}] retransmissions left",
-								flight.getPeerAddress(), max - tries - 1);
-						try {
-							flight.incrementTries();
-							flight.incrementTimeout();
-							flight.setNewSequenceNumbers();
-							sendFlightOverNetwork(flight);
-
-							// schedule next retransmission
-							scheduleRetransmission(flight, connection);
-							handshaker.handshakeFlightRetransmitted(flight.getFlightNumber());
-							return;
-						} catch (IOException e) {
-							// stop retransmission on IOExceptions
-							cause = e;
-							message = " " + e.getMessage();
-							LOGGER.warn("Cannot retransmit flight to peer [{}]", flight.getPeerAddress(), e);
-						} catch (GeneralSecurityException e) {
-							DROP_LOGGER.warn("Cannot retransmit flight to peer [{}]", flight.getPeerAddress(), e);
-							cause = e;
-							message = " " + e.getMessage();
-						}
-					} else if (tries > max) {
-						LOGGER.debug("Flight for [{}] has reached timeout, discarding ...", flight.getPeerAddress());
-						message = " Stopped by timeout!";
-						timeout = true;
-					} else {
-						LOGGER.debug(
-								"Flight for [{}] has reached maximum no. [{}] of retransmissions, discarding ...",
-								flight.getPeerAddress(), max);
-						message = " Stopped by timeout after " + max + " retransmissions!";
-						timeout = true;
-					}
-				}
-
-				// inform handshaker
-				if (timeout) {
-					handshaker.handshakeFailed(new DtlsHandshakeTimeoutException(
-							"Handshake flight " + flight.getFlightNumber() + " failed!" + message,
-							flight.getPeerAddress(), flight.getFlightNumber()));
-				} else {
-					handshaker.handshakeFailed(
-							new DtlsException("Handshake flight " + flight.getFlightNumber() + " failed!" + message,
-									flight.getPeerAddress(), cause));
-				}
-			}
-		}
-	}
-
-	private void scheduleRetransmission(DTLSFlight flight, Connection connection) {
-		ScheduledExecutorService timer = this.timer;
-		if (flight.isRetransmissionNeeded() && timer != null) {
-			// schedule retransmission task
-			ScheduledFuture<?> f = timer.schedule(new TimeoutPeerTask(connection, flight), flight.getTimeout(), TimeUnit.MILLISECONDS);
-			flight.setTimeoutTask(f);
-			LOGGER.trace("handshake flight to peer {}, retransmission {} ms.", connection.getPeerAddress(), flight.getTimeout());
-		} else {
-			LOGGER.trace("handshake flight to peer {}, no retransmission!", connection.getPeerAddress());
-		}
-	}
-
 	/**
 	 * Get auto resumption timeout.
 	 * 
@@ -2743,7 +2634,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * this connector is bound to does not provide an MTU value.
 	 * 
 	 * @return the MTU provided by the network interface
+	 * @deprecated use {@link #getMaxDatagramSize(boolean)} instead
 	 */
+	@Deprecated
 	public final int getMaximumTransmissionUnit() {
 		return maximumTransmissionUnit;
 	}
@@ -2766,7 +2659,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * </p>
 	 * <pre>
 	 *   maxFragmentLength = network interface's <em>Maximum Transmission Unit</em>
-	 *                     - IP header length (20 bytes)
+	 *                     - IP header length (20 bytes IPv4, 120 IPv6)
 	 *                     - UDP header length (8 bytes)
 	 *                     - DTLS record header length (13 bytes)
 	 *                     - DTLS message header length (12 bytes)
@@ -2781,7 +2674,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		if (con != null && con.hasEstablishedSession()) {
 			return con.getEstablishedSession().getMaxFragmentLength();
 		} else {
-			return maximumTransmissionUnit - DTLSSession.HEADER_LENGTH;
+			return getMaxDatagramSize(peer.getAddress() instanceof Inet6Address) - DTLSSession.DTLS_HEADER_LENGTH;
 		}
 	}
 
@@ -2806,69 +2699,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * 
 	 * @return {@code true} if running.
 	 */
+	@Override
 	public final boolean isRunning() {
 		return running.get();
-	}
-
-	/**
-	 * Peer related task for executing in serial executor.
-	 */
-	private class ConnectionTask implements Runnable {
-		/**
-		 * Related peer.
-		 */
-		private final Connection connection;
-		/**
-		 * Task to execute in serial executor.
-		 */
-		private final Runnable task;
-		/**
-		 * Flag to force execution, if serial execution is exhausted or
-		 * shutdown. The task is then executed in the context of this
-		 * {@link Runnable}.
-		 */
-		private final boolean force;
-		/**
-		 * Create peer task.
-		 * 
-		 * @param connection connection for related peer
-		 * @param task task to be execute in serial executor
-		 * @param force flag indicating, that the task should be executed, even
-		 *            if the serial executors are exhausted or shutdown.
-		 */
-		private ConnectionTask(Connection connection, Runnable task, boolean force) {
-			this.connection = connection;
-			this.task = task;
-			this.force = force;
-		}
-
-		@Override
-		public void run() {
-			final SerialExecutor serialExecutor = connection.getExecutor();
-			try {
-				serialExecutor.execute(task);
-			} catch (RejectedExecutionException e) {
-				LOGGER.debug("Execution rejected while execute task of peer: {}", connection.getPeerAddress(), e);
-				if (force) {
-					task.run();
-				}
-			}
-		}
-	}
-
-	/**
-	 * Peer task calling the {@link #handleTimeout(DTLSFlight, Connection)}. 
-	 */
-	private class TimeoutPeerTask extends ConnectionTask {
-
-		private TimeoutPeerTask(final Connection connection, final DTLSFlight flight) {
-			super(connection, new Runnable() {
-				@Override
-				public void run() {
-					handleTimeout(flight, connection);
-				}
-			}, true);
-		}
 	}
 
 	/**

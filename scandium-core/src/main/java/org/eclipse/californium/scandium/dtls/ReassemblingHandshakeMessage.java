@@ -18,6 +18,7 @@ package org.eclipse.californium.scandium.dtls;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.StringUtil;
 
 /**
@@ -30,7 +31,8 @@ import org.eclipse.californium.elements.util.StringUtil;
  * optimized by early testing, if it contains a new data-range and merging of
  * adjacent ranges afterwards.
  */
-public final class ReassemblingHandshakeMessage extends HandshakeMessage {
+@NoPublicAPI
+public final class ReassemblingHandshakeMessage extends GenericHandshakeMessage {
 
 	/** The reassembled fragments handshake body. */
 	private final byte[] reassembledBytes;
@@ -118,7 +120,7 @@ public final class ReassemblingHandshakeMessage extends HandshakeMessage {
 	 * @param message starting fragmented message
 	 */
 	public ReassemblingHandshakeMessage(FragmentedHandshakeMessage message) {
-		super(message.getPeer());
+		super(message.getMessageType(), message.getPeer());
 		setMessageSeq(message.getMessageSeq());
 		this.type = message.getMessageType();
 		this.reassembledBytes = new byte[message.getMessageLength()];

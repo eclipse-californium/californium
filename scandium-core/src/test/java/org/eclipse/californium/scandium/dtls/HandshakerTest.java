@@ -47,6 +47,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.crypto.Mac;
@@ -58,6 +59,7 @@ import org.eclipse.californium.elements.category.Medium;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
+import org.eclipse.californium.elements.util.TestScheduledExecutorService;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -67,6 +69,7 @@ import org.eclipse.californium.scandium.dtls.rpkstore.InMemoryRpkTrustStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
 import org.eclipse.californium.scandium.dtls.x509.StaticCertificateVerifier;
 import org.eclipse.californium.scandium.util.SecretUtil;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -95,6 +98,7 @@ public class HandshakerTest {
 	InetSocketAddress peerAddress;
 	PublicKey serverPublicKey;
 	TrustedRpkStore rpkStore;
+	ScheduledExecutorService timer;
 
 	/**
 	 * Report failure during handshake and certification validation. Fail
@@ -116,6 +120,8 @@ public class HandshakerTest {
 
 	@Before
 	public void setUp() throws Exception {
+		timer = new TestScheduledExecutorService();
+
 		for (int i = 0; i < receivedMessages.length; i++) {
 			receivedMessages[i++] = 0;
 		}
@@ -142,6 +148,12 @@ public class HandshakerTest {
 		builder.setRpkTrustStore(rpkStore);
 
 		handshakerWithAnchors = new TestHandshaker(session, recordLayer, builder.build());
+	}
+
+	@After
+	public void tearDown() {
+		timer.shutdown();
+		timer = null;
 	}
 
 	@Test
@@ -206,17 +218,18 @@ public class HandshakerTest {
 		int current = 0;
 		int next = 1;
 		Record record0 = createClientHelloRecord(session, 0, current, current);
-		Record record1 = createClientHelloRecord(session, 0, next, next);
+		Record record1 = getRecordClone(record0);
+		Record record2 = createClientHelloRecord(session, 0, next, next);
 	
 		handshakerWithoutAnchors.decryptAndProcessMessage(record0);
 		assertThat(receivedMessages[current], is(1));
 
 		// send record with same record sequence number again
-		handshakerWithoutAnchors.decryptAndProcessMessage(record0);
+		handshakerWithoutAnchors.decryptAndProcessMessage(record1);
 		assertThat(receivedMessages[current], is(1));
 
 		// send record with next record sequence number
-		handshakerWithoutAnchors.decryptAndProcessMessage(record1);
+		handshakerWithoutAnchors.decryptAndProcessMessage(record2);
 		assertThat(receivedMessages[next], is(1));
 	}
 
@@ -255,7 +268,12 @@ public class HandshakerTest {
 		givenAFragmentedHandshakeMessage(certificateMessage);
 		HandshakeMessage result = null;
 		for (FragmentedHandshakeMessage fragment : handshakeMessageFragments) {
-			result = handshakerWithoutAnchors.handleFragmentation(fragment);
+			GenericHandshakeMessage last = handshakerWithoutAnchors.reassembleFragment(fragment);
+			if (last != null) {
+				result = HandshakeMessage.fromGenericHandshakeMessage(last, handshakerWithoutAnchors.getSession().getParameter());
+			} else {
+				result = null;
+			}
 		}
 		assertThatReassembledMessageEqualsOriginalMessage(result);
 	}
@@ -265,7 +283,12 @@ public class HandshakerTest {
 		givenAFragmentedHandshakeMessage(certificateMessage);
 		HandshakeMessage result = null;
 		for (int i = handshakeMessageFragments.length - 1; i >= 0; i--) {
-			result = handshakerWithoutAnchors.handleFragmentation(handshakeMessageFragments[i]);
+			GenericHandshakeMessage last = handshakerWithoutAnchors.reassembleFragment(handshakeMessageFragments[i]);
+			if (last != null) {
+				result = HandshakeMessage.fromGenericHandshakeMessage(last, handshakerWithoutAnchors.getSession().getParameter());
+			} else {
+				result = null;
+			}
 		}
 		assertThatReassembledMessageEqualsOriginalMessage(result);
 	}
@@ -275,9 +298,9 @@ public class HandshakerTest {
 		givenAFragmentedHandshakeMessage(certificateMessage, 250, 500);
 		HandshakeMessage result = null;
 		for (FragmentedHandshakeMessage fragment : handshakeMessageFragments) {
-			HandshakeMessage last = handshakerWithoutAnchors.handleFragmentation(fragment);
-			if (result == null) {
-				result = last;
+			GenericHandshakeMessage last = handshakerWithoutAnchors.reassembleFragment(fragment);
+			if (result == null && last != null) {
+				result = HandshakeMessage.fromGenericHandshakeMessage(last, handshakerWithoutAnchors.getSession().getParameter());
 			}
 		}
 		assertThatReassembledMessageEqualsOriginalMessage(result);
@@ -288,9 +311,9 @@ public class HandshakerTest {
 		givenAMissFragmentedHandshakeMessage(certificateMessage, 100,  200);
 		HandshakeMessage result = null;
 		for (FragmentedHandshakeMessage fragment : handshakeMessageFragments) {
-			HandshakeMessage last = handshakerWithoutAnchors.handleFragmentation(fragment);
-			if (result == null) {
-				result = last;
+			GenericHandshakeMessage last = handshakerWithoutAnchors.reassembleFragment(fragment);
+			if (result == null && last != null) {
+				result = HandshakeMessage.fromGenericHandshakeMessage(last, handshakerWithoutAnchors.getSession().getParameter());
 			}
 		}
 		assertThatReassembledMessageEqualsOriginalMessage(result);
@@ -423,6 +446,13 @@ public class HandshakerTest {
 		List<Record> list = Record.fromByteArray(dtlsRecord, msg.getPeer(), null, ClockUtil.nanoRealtime());
 		assertFalse("Should be able to deserialize DTLS Record from byte array", list.isEmpty());
 		return list.get(0);
+
+	}
+	private static Record getRecordClone(final Record record) {
+		byte[] dtlsRecord = record.toByteArray();
+		List<Record> list = Record.fromByteArray(dtlsRecord, record.getPeerAddress(), null, ClockUtil.nanoRealtime());
+		assertFalse("Should be able to deserialize DTLS Record from byte array", list.isEmpty());
+		return list.get(0);
 	}
 
 	private class TestHandshaker extends Handshaker {
@@ -430,8 +460,7 @@ public class HandshakerTest {
 		private AtomicBoolean finishedProcessed = new AtomicBoolean(false);
 
 		TestHandshaker(DTLSSession session, RecordLayer recordLayer, DtlsConnectorConfig config) {
-			super(false, 0, session, recordLayer, new Connection(session.getPeer(), new SyncSerialExecutor()), config,
-					1500);
+			super(false, 0, session, recordLayer, timer, new Connection(session.getPeer(), new SyncSerialExecutor()), config);
 		}
 
 		@Override

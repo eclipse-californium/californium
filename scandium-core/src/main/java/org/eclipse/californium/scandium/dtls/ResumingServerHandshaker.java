@@ -32,7 +32,9 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
+import java.util.concurrent.ScheduledExecutorService;
 
+import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -47,6 +49,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
  * The message flow is depicted in <a
  * href="http://tools.ietf.org/html/rfc5246#section-7.3">Figure 2</a>.
  */
+@NoPublicAPI
 public class ResumingServerHandshaker extends ServerHandshaker {
 
 	// Members ////////////////////////////////////////////////////////
@@ -68,12 +71,12 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	 *            the session to negotiate with the client.
 	 * @param recordLayer
 	 *            the object to use for sending flights to the peer.
+	 * @param timer
+	 *            scheduled executor for flight retransmission (since 2.4).
 	 * @param connection
 	 *            the connection related with the session.
 	 * @param config
 	 *            the DTLS configuration parameters to use for the handshake.
-	 * @param maxTransmissionUnit
-	 *            the MTU value reported by the network interface the record layer is bound to.
 	 * @throws IllegalArgumentException
 	 *            if the given session does not contain an identifier.
 	 * @throws IllegalStateException
@@ -81,8 +84,8 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	 * @throws NullPointerException
 	 *            if session, recordLayer or config is <code>null</code>
 	 */
-	public ResumingServerHandshaker(int sequenceNumber, DTLSSession session, RecordLayer recordLayer, Connection connection, DtlsConnectorConfig config, int maxTransmissionUnit) {
-		super(sequenceNumber, session, recordLayer, connection, config, maxTransmissionUnit);
+	public ResumingServerHandshaker(int sequenceNumber, DTLSSession session, RecordLayer recordLayer, ScheduledExecutorService timer, Connection connection, DtlsConnectorConfig config) {
+		super(sequenceNumber, session, recordLayer, timer, connection, config);
 	}
 
 	// Methods ////////////////////////////////////////////////////////

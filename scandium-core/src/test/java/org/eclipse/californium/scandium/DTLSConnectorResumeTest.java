@@ -61,6 +61,7 @@ import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.elements.util.TestThreadFactory;
+import org.eclipse.californium.scandium.ConnectorHelper.BuilderSetup;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -135,127 +136,163 @@ public class DTLSConnectorResumeTest {
 	InMemoryConnectionStore clientConnectionStore;
 	List<Record> lastReceivedFlight;
 
+	public static interface TypedBuilderSetup extends BuilderSetup {
+		Class<?> getPrincipalType();
+	}
+
 	/**
 	 * Actual DTLS Configuration Builder setup.
 	 */
 	@Parameter
-	public BuilderSetup builderSetup;
+	public TypedBuilderSetup builderSetup;
 
 	/**
-	 * @return List of cipher suites.
+	 * @return List of DTLS Configuration Builder setups.
 	 */
 	@Parameters(name = "setup = {0}")
-	public static Iterable<BuilderSetup> cidParams() {
-		return Arrays.asList(new BuilderSetup() {
+	public static Iterable<TypedBuilderSetup> builderSetups() {
+		return Arrays.asList(new TypedBuilderSetup() {
 
 			public String toString() {
 				return "PSK-sync-master";
 			}
 
 			@Override
-			public Class<?> setup(Builder builder) {
+			public Class<?> getPrincipalType() {
+				return PreSharedKeyIdentity.class;
+			}
+
+			@Override
+			public void setup(Builder builder) {
 				clientPskStore.setDelay(0);
 				serverPskStore.setDelay(0);
 				clientPskStore.setSecretMode(true);
 				serverPskStore.setSecretMode(true);
 				builder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
 						.setAdvancedPskStore(clientPskStore);
-				return PreSharedKeyIdentity.class;
 			}
 
-		}, new BuilderSetup() {
+		}, new TypedBuilderSetup() {
 
 			public String toString() {
 				return "PSK-async-master";
 			}
 
 			@Override
-			public Class<?> setup(Builder builder) {
+			public Class<?> getPrincipalType() {
+				return PreSharedKeyIdentity.class;
+			}
+
+			@Override
+			public void setup(Builder builder) {
 				clientPskStore.setDelay(100);
 				serverPskStore.setDelay(100);
 				clientPskStore.setSecretMode(true);
 				serverPskStore.setSecretMode(true);
 				builder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
+						.setEnableMultiHandshakeMessageRecords(true)
 						.setAdvancedPskStore(clientPskStore);
-				return PreSharedKeyIdentity.class;
 			}
 
-		}, new BuilderSetup() {
+		}, new TypedBuilderSetup() {
 
 			public String toString() {
 				return "PSK-sync-key";
 			}
 
 			@Override
-			public Class<?> setup(Builder builder) {
+			public Class<?> getPrincipalType() {
+				return PreSharedKeyIdentity.class;
+			}
+
+			@Override
+			public void setup(Builder builder) {
 				clientPskStore.setDelay(0);
 				serverPskStore.setDelay(0);
 				clientPskStore.setSecretMode(false);
 				serverPskStore.setSecretMode(false);
 				builder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
+						.setEnableMultiHandshakeMessageRecords(true)
 						.setAdvancedPskStore(clientPskStore);
-				return PreSharedKeyIdentity.class;
 			}
 
-		}, new BuilderSetup() {
+		}, new TypedBuilderSetup() {
 
 			public String toString() {
 				return "PSK-async-key";
 			}
 
 			@Override
-			public Class<?> setup(Builder builder) {
+			public Class<?> getPrincipalType() {
+				return PreSharedKeyIdentity.class;
+			}
+
+			@Override
+			public void setup(Builder builder) {
 				clientPskStore.setDelay(100);
 				serverPskStore.setDelay(100);
 				clientPskStore.setSecretMode(false);
 				serverPskStore.setSecretMode(false);
 				builder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
 						.setAdvancedPskStore(clientPskStore);
-				return PreSharedKeyIdentity.class;
 			}
 
-		}, new BuilderSetup() {
+		}, new TypedBuilderSetup() {
 
 			public String toString() {
 				return "PSK-ECDHE-async-master";
 			}
 
 			@Override
-			public Class<?> setup(Builder builder) {
+			public Class<?> getPrincipalType() {
+				return PreSharedKeyIdentity.class;
+			}
+
+			@Override
+			public void setup(Builder builder) {
 				clientPskStore.setDelay(100);
 				serverPskStore.setDelay(100);
 				clientPskStore.setSecretMode(true);
 				serverPskStore.setSecretMode(true);
 				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256)
+						.setEnableMultiHandshakeMessageRecords(true)
 						.setAdvancedPskStore(clientPskStore);
-				return PreSharedKeyIdentity.class;
 			}
 
-		}, new BuilderSetup() {
+		}, new TypedBuilderSetup() {
 
 			public String toString() {
 				return "ECDSA-x509";
 			}
 
 			@Override
-			public Class<?> setup(Builder builder) {
+			public Class<?> getPrincipalType() {
+				return X509CertPath.class;
+			}
+
+			@Override
+			public void setup(Builder builder) {
 				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
 						.setIdentity(clientPrivateKey, clientCertificateChain, CertificateType.X_509)
 						.setTrustStore(DtlsTestTools.getTrustedCertificates());
-				return X509CertPath.class;
 			}
-		}, new BuilderSetup() {
+		}, new TypedBuilderSetup() {
 
 			public String toString() {
 				return "ECDSA-RPK";
 			}
 
 			@Override
-			public Class<?> setup(Builder builder) {
+			public Class<?> getPrincipalType() {
+				return RawPublicKeyIdentity.class;
+			}
+
+			@Override
+			public void setup(Builder builder) {
 				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
 						.setIdentity(clientPrivateKey, clientCertificateChain, CertificateType.RAW_PUBLIC_KEY)
+						.setEnableMultiHandshakeMessageRecords(true)
 						.setRpkTrustAll();
-				return RawPublicKeyIdentity.class;
 			}
 		});
 	}
@@ -362,7 +399,8 @@ public class DTLSConnectorResumeTest {
 				.setReceiverThreadCount(1)
 				.setConnectionThreadCount(2)
 				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY);
-		clientPrincipalType = builderSetup.setup(builder);
+		clientPrincipalType = builderSetup.getPrincipalType();
+		builderSetup.setup(builder);
 		return builder;
 	}
 
@@ -905,7 +943,4 @@ public class DTLSConnectorResumeTest {
 		}
 	}
 
-	static interface BuilderSetup {
-		Class<?> setup(DtlsConnectorConfig.Builder builder);
-	}
 }

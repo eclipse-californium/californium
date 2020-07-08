@@ -210,32 +210,4 @@ public abstract class DTLSConnectionState implements Destroyable {
 	int getRecordIvLength() {
 		return cipherSuite.getRecordIvLength();
 	}
-
-	/**
-	 * Gets the maximum number of bytes a <em>DTLSPlaintext.fragment</em> gets expanded
-	 * by when transforming it to a <em>DTLSCiphertext.fragment</em> using the cipher
-	 * algorithm held in this session's <em>current write state</em>.
-	 * <p>
-	 * The amount of expansion introduced depends on multiple factors like the bulk cipher
-	 * algorithm's block size, the MAC length and other parameters determined by the cipher
-	 * suite.
-	 * <p>
-	 * Clients can use this information to determine an upper boundary for the required
-	 * size of a datagram to hold the overall <em>DTLSCiphertext</em> structure created for
-	 * a given <em>DTLSPlaintext</em> structure like this:
-	 * <p>
-	 * <pre>
-	 *    size(DTLSCiphertext) <= DTLSPlaintext.length // length of the DTLSPlaintext.fragment
-	 *                               + ciphertext_expansion
-	 *                               + 13 // record headers
-	 *                               + 12 // message headers
-	 *                               + 8 // UDP headers
-	 *                               + 20 // IP headers
-	 * </pre>
-	 * 
-	 * @return the number of bytes
-	 */
-	final int getMaxCiphertextExpansion() {
-		return cipherSuite.getMaxCiphertextExpansion();
-	}
 }

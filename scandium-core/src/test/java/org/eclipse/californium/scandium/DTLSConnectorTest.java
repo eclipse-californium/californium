@@ -912,18 +912,6 @@ public class DTLSConnectorTest {
 	}
 
 	@Test
-	public void testGetMaximumTransmissionUnitReturnsDefaultValue() {
-		// given a connector that has not been started yet
-		DTLSConnector connector = client;
-
-		// when retrieving the maximum transmission unit from the client
-		int mtu = connector.getMaximumTransmissionUnit();
-
-		// then the value is the IPv4 min. MTU
-		assertThat(mtu, is(DTLSConnector.DEFAULT_IPV4_MTU));
-	}
-
-	@Test
 	public void testGetMaximumFragmentLengthReturnsDefaultValueForUnknownPeer() {
 		// given an empty client side connection store
 		clientConnectionStore.clear();
@@ -933,7 +921,7 @@ public class DTLSConnectorTest {
 		int maxFragmentLength = client.getMaximumFragmentLength(unknownPeer);
 
 		// then the value is the minimum IPv4 MTU - DTLS/UDP/IP header overhead
-		assertThat(maxFragmentLength, is(DTLSConnector.DEFAULT_IPV4_MTU - DTLSSession.HEADER_LENGTH));
+		assertThat(maxFragmentLength, is(DTLSConnector.DEFAULT_IPV4_MTU - DTLSSession.DTLS_HEADER_LENGTH - DTLSConnector.IPV4_HEADER_LENGTH));
 	}
 
 	@Test

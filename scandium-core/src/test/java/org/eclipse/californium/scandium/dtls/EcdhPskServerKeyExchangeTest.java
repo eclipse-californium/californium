@@ -56,7 +56,7 @@ public class EcdhPskServerKeyExchangeTest {
 	public void testDeserializedMsg() throws HandshakeException {
 		byte[] serializedMsg = msg.toByteArray();
 		HandshakeParameter parameter = new HandshakeParameter(KeyExchangeAlgorithm.ECDHE_PSK, CertificateType.X_509);
-		EcdhPskServerKeyExchange handshakeMsg = (EcdhPskServerKeyExchange)HandshakeMessage.fromByteArray(serializedMsg, parameter, peerAddress);
+		EcdhPskServerKeyExchange handshakeMsg = DtlsTestTools.fromByteArray(serializedMsg, parameter, peerAddress);
 		assertEquals(handshakeMsg.getSupportedGroup().getId(), SupportedGroup.secp256r1.getId());
 		assertNotNull(ephemeralPubKey);
 		assertArrayEquals(handshakeMsg.getEncodedPoint(), ephemeralPubKey);

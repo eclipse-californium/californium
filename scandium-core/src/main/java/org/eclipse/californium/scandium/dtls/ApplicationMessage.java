@@ -47,9 +47,13 @@ public final class ApplicationMessage extends AbstractMessage {
 	 * @param data byte array with the application data.
 	 * @param peerAddress the IP address and port the message is to be sent to
 	 *            or has been received from
+	 * @throws NullPointerException if peer or data is {@code null}
 	 */
 	public ApplicationMessage(byte[] data, InetSocketAddress peerAddress) {
 		super(peerAddress);
+		if (data == null) {
+			throw new NullPointerException("data must not be null!");
+		}
 		this.data = data;
 	}
 
@@ -68,6 +72,11 @@ public final class ApplicationMessage extends AbstractMessage {
 	}
 
 	// Serialization //////////////////////////////////////////////////
+
+	@Override
+	public int size() {
+		return data.length;
+	}
 
 	@Override
 	public byte[] toByteArray() {

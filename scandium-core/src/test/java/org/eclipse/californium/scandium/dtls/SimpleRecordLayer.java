@@ -17,23 +17,48 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.net.DatagramPacket;
+import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import org.eclipse.californium.elements.util.ClockUtil;
 
 public class SimpleRecordLayer implements RecordLayer {
 
+	private final AtomicInteger droppedRecords = new AtomicInteger();
 	private volatile Handshaker handshaker;
-	private DTLSFlight sentFlight;
+	private List<Record> flight = new ArrayList<Record>();
 
 	public SimpleRecordLayer() {
 	}
 
 	@Override
-	public void sendFlight(DTLSFlight flight, Connection connection) {
-		sentFlight = flight;
+	public void sendFlight(List<DatagramPacket> datagrams) {
+		flight.clear();
+		long timestamp = ClockUtil.nanoRealtime();
+		for (DatagramPacket packet : datagrams) {
+			InetSocketAddress peerAddress = new InetSocketAddress(packet.getAddress(), packet.getPort());
+			byte[] data = Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getLength());
+			List<Record> records = Record.fromByteArray(data, peerAddress, handshaker.connectionIdGenerator, timestamp);
+			for (Record record : records) {
+				try {
+					record.applySession(handshaker.getSession());
+					flight.add(record);
+				} catch (GeneralSecurityException e) {
+					e.printStackTrace();
+				} catch (HandshakeException e) {
+					e.printStackTrace();
+				}
+			}
+		}
 	}
 
-	public DTLSFlight getSentFlight() {
-		return sentFlight;
+	public List<Record> getSentFlight() {
+		return flight;
 	}
 
 	@Override
@@ -55,5 +80,20 @@ public class SimpleRecordLayer implements RecordLayer {
 
 	public void setHandshaker(Handshaker handshaker) {
 		this.handshaker = handshaker;
+	}
+
+	@Override
+	public boolean isRunning() {
+		return true;
+	}
+
+	@Override
+	public int getMaxDatagramSize(boolean ipv6) {
+		return DEFAULT_ETH_MTU;
+	}
+
+	@Override
+	public void dropReceivedRecord(Record record) {
+		droppedRecords.incrementAndGet();
 	}
 }

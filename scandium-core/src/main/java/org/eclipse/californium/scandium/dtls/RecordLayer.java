@@ -18,25 +18,96 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.io.IOException;
+import java.net.DatagramPacket;
+import java.util.List;
+
+import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
+import org.eclipse.californium.elements.util.NoPublicAPI;
 
 /**
- * An abstraction of the DTLS record layer's capabilities for sending records to peers.
+ * An abstraction of the DTLS record layer's capabilities for sending records to
+ * peers. MTU values according
+ * <a href="https://en.wikipedia.org/wiki/Maximum_transmission_unit">MTU - Wikipedia</a>.
  */
+@NoPublicAPI
 public interface RecordLayer {
 
 	/**
-	 * Sends a set of records containing DTLS handshake messages to a peer.
+	 * Maximum MTU.
+	 * 
+	 * @since 2.4
+	 */
+	public final int MAX_MTU = NetworkInterfacesUtil.MAX_MTU;
+	/**
+	 * Default IPv6 MTU.
+	 * 
+	 * @since 2.4
+	 */
+	public final int DEFAULT_IPV6_MTU = NetworkInterfacesUtil.DEFAULT_IPV6_MTU;
+	/**
+	 * Default IPv4 MTU.
+	 * 
+	 * @since 2.4
+	 */
+	public final int DEFAULT_IPV4_MTU = NetworkInterfacesUtil.DEFAULT_IPV4_MTU;
+	/**
+	 * Default Ethernet MTU.
+	 * 
+	 * @since 2.4
+	 */
+	public final int DEFAULT_ETH_MTU = 1500;
+	/**
+	 * IPv4 header size.
+	 * 
+	 * @since 2.4
+	 */
+	public final int IPV4_HEADER_LENGTH = + 8 // bytes UDP headers
+			+ 20 // bytes IP headers
+			+ 36; // bytes optional IP options
+
+	/**
+	 * IPv6 header size.
+	 * 
+	 * @since 2.4
+	 */
+	public final int IPV6_HEADER_LENGTH = 128; // 1280 - 1152 bytes, assumption
+												// of RFC 7252, Section 4.6.,
+												// Message Size
+
+	/**
+	 * Returns execution state of record layer.
+	 * 
+	 * @return {@code true} if execution is running, {@code false}, otherwise.
+	 * 
+	 * @since 2.4
+	 */
+	boolean isRunning();
+
+	/**
+	 * Gets the maximum size of a UDP datagram that can be sent to this
+	 * session's peer without IP fragmentation.
+	 * 
+	 * @param ipv6 {@code true}, IPv6 destination, {@code false}, IPv4
+	 *            destination
+	 * @return the maximum datagram size in bytes
+	 * @since 2.4
+	 */
+	int getMaxDatagramSize(boolean ipv6);
+
+	/**
+	 * Sends a set of UDP datagrams containing DTLS records with handshake
+	 * messages to a peer.
 	 * <p>
-	 * The records are sent <em>as a whole</em>. In particular this means that all
-	 * records will be re-transmitted in case of a missing acknowledgement from the peer.
+	 * The set is sent <em>as a whole</em>. In particular this means that all
+	 * datagrams will be re-transmitted in case of a missing acknowledgement
+	 * from the peer.
 	 * </p>
 	 * 
-	 * @param flight the records to send. The properties of the flight are used to control the
-	 *                  timespan to wait between re-transmissions. 
-	 * @param connection to send the flight
+	 * @param datagrams list of UDP datagrams containing DTLS records to send.
 	 * @throws IOException if an io error occurs
+	 * @since 2.4
 	 */
-	void sendFlight(DTLSFlight flight, Connection connection) throws IOException;
+	void sendFlight(List<DatagramPacket> datagrams) throws IOException;
 
 	/**
 	 * Process received record.
@@ -45,4 +116,12 @@ public interface RecordLayer {
 	 * @param connection connection to process record.
 	 */
 	void processRecord(Record record, Connection connection);
+
+	/**
+	 * Report dropped record
+	 * 
+	 * @param record dropped record
+	 * @since 2.4
+	 */
+	void dropReceivedRecord(Record record);
 }
