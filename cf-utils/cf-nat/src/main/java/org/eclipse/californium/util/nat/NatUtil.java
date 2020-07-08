@@ -216,6 +216,54 @@ public class NatUtil implements Runnable {
 	}
 
 	/**
+	 * Message size limit configuration.
+	 * @since 2.4
+	 */
+	private static class MessageSizeLimit extends TransmissionManipulation {
+		private static enum Manipulation {
+			NONE, DROP, LIMIT
+		};
+
+		private final boolean drop;
+		private final int sizeLimit;
+
+		/**
+		 * Create instance.
+		 * 
+		 * @param title title for statistic dump
+		 * @param threshold threshold in percent
+		 * @param sizeLimit size limit. If exceeded, the message may be dropped
+		 *            or limited.
+		 * @param drop {@code true} to drop, {@code false}, to limit size
+		 */
+		public MessageSizeLimit(String title, int threshold, int sizeLimit, boolean drop) {
+			super(title + " size limit", threshold);
+			this.sizeLimit = sizeLimit;
+			this.drop = drop;
+		}
+
+		/**
+		 * Limit message size.
+		 * 
+		 * @param packet packet to limit size
+		 * @return applied manipulation.
+		 */
+		public Manipulation limitMessageSize(DatagramPacket packet) {
+			if (packet.getLength() > sizeLimit) {
+				if (manipulateMessage()) {
+					if (drop) {
+						return Manipulation.DROP;
+					} else {
+						packet.setLength(sizeLimit);
+						return Manipulation.LIMIT;
+					}
+				}
+			}
+			return Manipulation.NONE;
+		}
+	}
+
+	/**
 	 * Message dropping configuration.
 	 */
 	private static class MessageDropping extends TransmissionManipulation {
@@ -314,6 +362,18 @@ public class NatUtil implements Runnable {
 	 * Message dropping configuration for messages sent backwards.
 	 */
 	private volatile MessageDropping backward;
+	/**
+	 * Message size limit configuration for forwarded messages.
+	 * 
+	 * @since 2.4
+	 */
+	private volatile MessageSizeLimit forwardSizeLimit;
+	/**
+	 * Message size limit configuration for messages sent backwards.
+	 * 
+	 * @since 2.4
+	 */
+	private volatile MessageSizeLimit backwardSizeLimit;
 
 	private volatile MessageReordering reorder;
 
@@ -603,6 +663,82 @@ public class NatUtil implements Runnable {
 	}
 
 	/**
+	 * Set message size limit and level in percent.
+	 * 
+	 * Set both forward and backward size limit.
+	 * 
+	 * @param percent message dropping level in percent
+	 * @param sizeLimit message size limit
+	 * @param drop {@code true} to drop, {@code false}, to limit size
+	 * @throws IllegalArgumentException if percent is out of range 0 to 100.
+	 * @since 2.4
+	 */
+	public void setMessageSizeLimit(int percent, int sizeLimit, boolean drop) {
+		if (percent < 0 || percent > 100) {
+			throw new IllegalArgumentException("Message size limit " + percent + "% out of range [0...100]!");
+		}
+		if (percent == 0) {
+			if (forwardSizeLimit != null || backwardSizeLimit != null) {
+				forwardSizeLimit = null;
+				backwardSizeLimit = null;
+				LOGGER.info("NAT stops message size limit.");
+			}
+		} else {
+			forwardSizeLimit = new MessageSizeLimit("request", percent, sizeLimit, drop);
+			backwardSizeLimit = new MessageSizeLimit("responses", percent, sizeLimit, drop);
+			LOGGER.info("NAT message size limit {} bytes, {}%.", sizeLimit, percent);
+		}
+	}
+
+	/**
+	 * Set message size limit and level in percent for forwarded messages.
+	 * 
+	 * @param percent message dropping level in percent
+	 * @param sizeLimit message size limit
+	 * @param drop {@code true} to drop, {@code false}, to limit size
+	 * @throws IllegalArgumentException if percent is out of range 0 to 100.
+	 * @since 2.4
+	 */
+	public void setForwardMessageSizeLimit(int percent, int sizeLimit, boolean drop) {
+		if (percent < 0 || percent > 100) {
+			throw new IllegalArgumentException("Message size limit " + percent + "% out of range [0...100]!");
+		}
+		if (percent == 0) {
+			if (forwardSizeLimit != null) {
+				forwardSizeLimit = null;
+				LOGGER.info("NAT stops forward message size limit.");
+			}
+		} else {
+			forwardSizeLimit = new MessageSizeLimit("request", percent, sizeLimit, drop);
+			LOGGER.info("NAT forward message size limit {} bytes, {}%.", sizeLimit, percent);
+		}
+	}
+
+	/**
+	 * Set message size limit and level in percent for messages sent backwards.
+	 * 
+	 * @param percent message dropping level in percent
+	 * @param sizeLimit message size limit
+	 * @param drop {@code true} to drop, {@code false}, to limit size
+	 * @throws IllegalArgumentException if percent is out of range 0 to 100.
+	 * @since 2.4
+	 */
+	public void setBackwardMessageSizeLimit(int percent, int sizeLimit, boolean drop) {
+		if (percent < 0 || percent > 100) {
+			throw new IllegalArgumentException("Message size limit " + percent + "% out of range [0...100]!");
+		}
+		if (percent == 0) {
+			if (backwardSizeLimit != null) {
+				backwardSizeLimit = null;
+				LOGGER.info("NAT stops backward message size limit.");
+			}
+		} else {
+			backwardSizeLimit = new MessageSizeLimit("response", percent, sizeLimit, drop);
+			LOGGER.info("NAT backward message size limit {} bytes, {}%.", sizeLimit, percent);
+		}
+	}
+
+	/**
 	 * Set message reordering level in percent.
 	 * 
 	 * @param percent message reordering level in percent
@@ -633,11 +769,19 @@ public class NatUtil implements Runnable {
 	 */
 	public void dumpMessageDroppingStatistic() {
 		messageDroppingLogTime.set(System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(MESSAGE_DROPPING_LOG_INTERVAL_MS));
-		MessageDropping drops = this.forward;
+		TransmissionManipulation drops = this.forward;
 		if (drops != null) {
 			drops.dumpStatistic();
 		}
 		drops = this.backward;
+		if (drops != null) {
+			drops.dumpStatistic();
+		}
+		drops = this.forwardSizeLimit;
+		if (drops != null) {
+			drops.dumpStatistic();
+		}
+		drops = this.backwardSizeLimit;
 		if (drops != null) {
 			drops.dumpStatistic();
 		}
@@ -698,10 +842,26 @@ public class NatUtil implements Runnable {
 							LOGGER.info("backward drops {} bytes from {} to {} via {}", packet.getLength(),
 									destinationName, incomingName, natName);
 						} else {
-							LOGGER.info("backward {} bytes from {} to {} via {}", packet.getLength(), destinationName,
-									incomingName, natName);
-							proxySocket.send(packet);
-							backwardCounter.incrementAndGet();
+							MessageSizeLimit limit = backwardSizeLimit;
+							MessageSizeLimit.Manipulation manipulation = limit != null ?  limit.limitMessageSize(packet) : MessageSizeLimit.Manipulation.NONE;
+							switch(manipulation) {
+							case NONE:
+								LOGGER.info("backward {} bytes from {} to {} via {}", packet.getLength(),
+										destinationName, incomingName, natName);
+								break;
+							case DROP:
+								LOGGER.info("backward drops {} bytes from {} to {} via {}", packet.getLength(),
+										destinationName, incomingName, natName);
+								break;
+							case LIMIT:
+								LOGGER.info("backward limited {} bytes from {} to {} via {}", packet.getLength(),
+										destinationName, incomingName, natName);
+								break;
+							}
+							if (manipulation != MessageSizeLimit.Manipulation.DROP) {
+								proxySocket.send(packet);
+								backwardCounter.incrementAndGet();
+							}
 						}
 					} catch (SocketTimeoutException e) {
 						if (running) {
@@ -766,12 +926,29 @@ public class NatUtil implements Runnable {
 				LOGGER.info("forward drops {} bytes from {} to {} via {}", packet.getLength(), incomingName,
 						destinationName, natName);
 			} else {
-				LOGGER.info("forward {} bytes from {} to {} via {}", packet.getLength(), incomingName, destinationName,
-						natName);
-				packet.setSocketAddress(destination);
-				lastUsage.set(System.nanoTime());
-				outgoingSocket.send(packet);
-				forwardCounter.incrementAndGet();
+				
+				MessageSizeLimit limit = forwardSizeLimit;
+				MessageSizeLimit.Manipulation manipulation = limit != null ?  limit.limitMessageSize(packet) : MessageSizeLimit.Manipulation.NONE;
+				switch(manipulation) {
+				case NONE:
+					LOGGER.info("forward {} bytes from {} to {} via {}", packet.getLength(),
+							destinationName, incomingName, natName);
+					break;
+				case DROP:
+					LOGGER.info("forward drops {} bytes from {} to {} via {}", packet.getLength(),
+							destinationName, incomingName, natName);
+					break;
+				case LIMIT:
+					LOGGER.info("forward limited {} bytes from {} to {} via {}", packet.getLength(),
+							destinationName, incomingName, natName);
+					break;
+				}
+				if (manipulation != MessageSizeLimit.Manipulation.DROP) {
+					packet.setSocketAddress(destination);
+					lastUsage.set(System.nanoTime());
+					outgoingSocket.send(packet);
+					forwardCounter.incrementAndGet();
+				}
 			}
 		}
 	}

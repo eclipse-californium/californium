@@ -41,11 +41,12 @@ public class Nat {
 	public static void main(String[] args) {
 		if (args.length < 2 || args.length > 4) {
 			System.out.println(
-					"usage: [localinterface]:port destination:port [<messageDropping%>|-f<messageDropping%>|-b<messageDropping%>]");
+					"usage: [localinterface]:port destination:port [<messageDropping%>|-f<messageDropping%>|-b<messageDropping%>] [-s<sizeLimit>]");
 			System.out.println(
 					"       <messageDropping%>   : drops forward and backward messages with provided probability");
 			System.out.println("       -f<messageDropping%> : drops forward messages with provided probability");
 			System.out.println("       -b<messageDropping%> : drops backward messages with provided probability");
+			System.out.println("       -s<sizeLimit>        : limit message size to provided value");
 			System.out.println("       use -f and/or -b, if you want to test with different probabilities.");
 			return;
 		}
@@ -58,9 +59,10 @@ public class Nat {
 			util = new NatUtil(proxyAddress, destinationAddress);
 			if (args.length > 2) {
 				try {
+					int limit = 0;
 					String mode = "";
 					String dropping = args[2];
-					if (dropping.startsWith("-f") || dropping.startsWith("-b")) {
+					if (dropping.startsWith("-f") || dropping.startsWith("-b") || dropping.startsWith("-s")) {
 						mode = dropping.substring(0, 2);
 						dropping = dropping.substring(2);
 					}
@@ -71,6 +73,8 @@ public class Nat {
 					} else if (mode.equals("-b")) {
 						util.setBackwardMessageDropping(drops);
 						System.out.println("dropping " + drops + "% of backward messages.");
+					} else if (mode.equals("-s")) {
+						limit = drops;
 					} else {
 						util.setMessageDropping(drops);
 						System.out.println("dropping " + drops + "% of messages.");
@@ -78,7 +82,7 @@ public class Nat {
 					if (args.length > 3) {
 						String mode2 = "";
 						dropping = args[3];
-						if (dropping.startsWith("-f") || dropping.startsWith("-b")) {
+						if (dropping.startsWith("-f") || dropping.startsWith("-b") || dropping.startsWith("-s")) {
 							mode2 = dropping.substring(0, 2);
 							dropping = dropping.substring(2);
 						}
@@ -92,7 +96,24 @@ public class Nat {
 						} else if (mode2.equals("-b")) {
 							util.setBackwardMessageDropping(drops);
 							System.out.println("dropping " + drops + "% of backward messages.");
+						} else if (mode2.equals("-s")) {
+							limit = drops;
 						}
+						if (args.length > 4) {
+							mode2 = "";
+							dropping = args[4];
+							if (dropping.startsWith("-s")) {
+								mode2 = dropping.substring(0, 2);
+								dropping = dropping.substring(2);
+							}
+							drops = Integer.parseInt(dropping);
+							if (mode2.equals("-s")) {
+								limit = drops;
+							}
+						}
+					}
+					if (limit > 0) {
+						util.setMessageSizeLimit(100, limit, true);
 					}
 				} catch (NumberFormatException e) {
 					System.err.println("drops% " + args[2] + " is no valid number!");
