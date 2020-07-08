@@ -156,6 +156,8 @@ public abstract class HelloExtension {
 				return ServerNameExtension.fromExtensionDataReader(extensionDataReader, peerAddress);
 			case CONNECTION_ID:
 				return ConnectionIdExtension.fromExtensionDataReader(extensionDataReader, peerAddress);
+			case RECORD_SIZE_LIMIT:
+				return RecordSizeLimitExtension.fromExtensionDataReader(extensionDataReader, peerAddress);
 			default:
 				break;
 			}
@@ -251,7 +253,14 @@ public abstract class HelloExtension {
 		CONNECTION_ID(53, "Connection ID"),
 
 		/** See <a href="http://www.iana.org/go/rfc5746">RFC 5746</a> **/
-		RENEGOTIATION_INFO(65281, "renegotiation_info");
+		RENEGOTIATION_INFO(65281, "renegotiation_info"),
+
+		/**
+		 * See <a href="http://tools.ietf.org/html/rfc8449">RFC 8449</a>
+		 * 
+		 * @since 2.4
+		 **/
+		RECORD_SIZE_LIMIT(28, "record_size_limit");
 
 		private int id;
 		private String name;

@@ -30,6 +30,8 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.scandium.dtls.DTLSSession;
+import org.eclipse.californium.scandium.dtls.RecordLayer;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 
 import picocli.CommandLine;
@@ -78,6 +80,18 @@ public class ConnectorConfig implements Cloneable {
 	@Option(names = { "-N",
 			"--netconfig" }, paramLabel = "FILE", description = "network config file. Default ${DEFAULT-VALUE}.")
 	public File networkConfigFile;
+
+	/**
+	 * Use record-size-limit for DTLS handshake.
+	 */
+	@Option(names = "--record-size", description = "record size limit.")
+	public Integer recordSizeLimit;
+
+	/**
+	 * Use MTU.
+	 */
+	@Option(names = "--mtu", description = "MTU.")
+	public Integer mtu;
 
 	/**
 	 * X509 credentials loaded from store.
@@ -217,6 +231,14 @@ public class ConnectorConfig implements Cloneable {
 		}
 		networkConfig = NetworkConfig.createWithFile(networkConfigFile, networkConfigHeader,
 				networkConfigDefaultHandler);
+
+		int extra = RecordLayer.IPV4_HEADER_LENGTH + 20 - DTLSSession.DTLS_HEADER_LENGTH
+				- CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8.getMaxCiphertextExpansion();
+		if (mtu != null && recordSizeLimit == null) {
+			recordSizeLimit = mtu - extra;
+		} else if (mtu == null && recordSizeLimit != null) {
+			mtu = recordSizeLimit + extra;
+		}
 	}
 
 	/**

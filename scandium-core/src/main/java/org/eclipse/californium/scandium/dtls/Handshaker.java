@@ -204,6 +204,11 @@ public abstract class Handshaker implements Destroyable {
 
 	/** The current flight number. */
 	protected int flightNumber = 0;
+	/**
+	 * Record size limit. {@code null}, if not used.
+	 * @since 2.4
+	 */
+	protected Integer recordSizeLimit;
 
 	private int deferredRecordsSize;
 
@@ -399,6 +404,7 @@ public abstract class Handshaker implements Destroyable {
 		this.retransmissionTimeout = config.getRetransmissionTimeout();
 		this.backOffRetransmission = config.getBackOffRetransmission();
 		this.maxRetransmissions = config.getMaxRetransmissions();
+		this.recordSizeLimit = config.getRecordSizeLimit();
 		this.maxFragmentedHandshakeMessageLength = config.getMaxFragmentedHandshakeMessageLength();
 		this.useMultiRecordMessages = config.useMultiRecordMessages();
 		this.useMultiHandshakeMessagesRecord = config.useMultiHandshakeMessageRecords();
@@ -1456,7 +1462,7 @@ public abstract class Handshaker implements Destroyable {
 			flightSendNanos = ClockUtil.nanoRealtime();
 			nanosExpireTime = nanosExpireTimeout + flightSendNanos;
 			int maxDatagramSize = recordLayer.getMaxDatagramSize(ipv6);
-			int maxFragmentSize = session.getMaxFragmentLength();
+			int maxFragmentSize = session.getEffectiveFragmentLimit();
 			List<DatagramPacket> datagrams = flight.getDatagrams(maxDatagramSize, maxFragmentSize,
 					useMultiHandshakeMessagesRecord, useMultiRecordMessages, false);
 			LOGGER.trace("Sending flight of {} message(s) to peer [{}] using {} datagram(s) of max. {} bytes",
@@ -1530,7 +1536,7 @@ public abstract class Handshaker implements Destroyable {
 							flight.incrementTries();
 							flight.incrementTimeout();
 							int maxDatagramSize = recordLayer.getMaxDatagramSize(ipv6);
-							int maxFragmentSize = session.getMaxFragmentLength();
+							int maxFragmentSize = session.getEffectiveFragmentLimit();
 							boolean backOff = backOffRetransmission > 0 && (tries + 1) > backOffRetransmission;
 							List<DatagramPacket> datagrams = flight.getDatagrams(maxDatagramSize, maxFragmentSize,
 									useMultiHandshakeMessagesRecord, useMultiRecordMessages, backOff);

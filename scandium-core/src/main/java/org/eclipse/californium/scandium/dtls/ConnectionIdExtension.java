@@ -114,7 +114,7 @@ public final class ConnectionIdExtension extends HelloExtension {
 					"Connection id length too large! 255 max, but has " + (availableBytes - 1),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER, peerAddress));
 		}
-		int len = extensionDataReader.read(Byte.SIZE);
+		int len = extensionDataReader.read(CID_FIELD_LENGTH_BITS);
 		if (len != (availableBytes - 1)) {
 			throw new HandshakeException(
 					"Connection id length " + len + " doesn't match " + (availableBytes - 1) + "!",

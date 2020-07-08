@@ -342,6 +342,21 @@ public final class ServerHello extends HandshakeMessage {
 	}
 
 	/**
+	 * Gets the <em>RecordSizeLimit</em> extension data from this message.
+	 * 
+	 * @return the extension data or {@code null}, if this message does not contain the
+	 *          <em>RecordSizeLimit</em> extension.
+	 * @since 2.4
+	 */
+	RecordSizeLimitExtension getRecordSizeLimit() {
+		if (extensions != null) {
+			return (RecordSizeLimitExtension) extensions.getExtension(ExtensionType.RECORD_SIZE_LIMIT);
+		} else {
+			return null;
+		}
+	}
+
+	/**
 	 * Gets the <em>Point Formats</em> extension data from this message.
 	 * 
 	 * @return the extension data or <code>null</code> if this message does not contain the

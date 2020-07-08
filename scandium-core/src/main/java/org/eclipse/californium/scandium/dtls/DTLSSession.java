@@ -122,6 +122,13 @@ public final class DTLSSession implements Destroyable {
 	private Principal peerIdentity;
 
 	/**
+	 * Record size limit.
+	 * 
+	 * @since 2.4
+	 */
+	private Integer recordSizeLimit;
+
+	/**
 	 * Maximum used fragment length.
 	 */
 	private int maxFragmentLength = MAX_FRAGMENT_LENGTH_DEFAULT;
@@ -881,6 +888,45 @@ public final class DTLSSession implements Destroyable {
 	 */
 	public int getMaxFragmentLength() {
 		return this.maxFragmentLength;
+	}
+
+	/**
+	 * Sets the negotiated record size limit for this session.
+	 * 
+	 * @param limit record size limit
+	 * @throws IllegalArgumentException if the record size limit is not in range
+	 * @see RecordSizeLimitExtension#ensureInRange(int)
+	 * @since 2.4
+	 */
+	void setRecordSizeLimit(int limit) {
+		this.recordSizeLimit = RecordSizeLimitExtension.ensureInRange(limit);
+	}
+
+	/**
+	 * Gets the negotiated record size limit
+	 * 
+	 * @return negotiated record size limit, or {@code null}, if not negotiated
+	 * @since 2.4
+	 */
+	public Integer getRecordSizeLimit() {
+		return this.recordSizeLimit;
+	}
+
+	/**
+	 * Gets effective fragment limit.
+	 * 
+	 * Either {@link #recordSizeLimit}, if received, or
+	 * {@link #maxFragmentLength}.
+	 * 
+	 * @return effective fragment limit
+	 * @since 2.4
+	 */
+	public int getEffectiveFragmentLimit() {
+		if (this.recordSizeLimit != null) {
+			return this.recordSizeLimit;
+		} else {
+			return this.maxFragmentLength;
+		}
 	}
 
 	CertificateType sendCertificateType() {

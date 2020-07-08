@@ -181,6 +181,16 @@ public class DTLSConnectorHandshakeTest {
 		}, new BuilderSetup() {
 
 			public String toString() {
+				return "record-size-limit";
+			}
+
+			@Override
+			public void setup(Builder builder) {
+				builder.setRecordSizeLimit(270);
+			}
+		}, new BuilderSetup() {
+
+			public String toString() {
 				return "default-handshake-messages";
 			}
 
@@ -191,7 +201,7 @@ public class DTLSConnectorHandshakeTest {
 		List<BuilderSetup[]> combinations = new ArrayList<ConnectorHelper.BuilderSetup[]>();
 		for (BuilderSetup server : modes) {
 			for (BuilderSetup client : modes) {
-				combinations.add(new BuilderSetup[] {server,client});
+				combinations.add(new BuilderSetup[] {server, client});
 			}
 			
 		}

@@ -629,13 +629,23 @@ public class ServerHandshaker extends Handshaker {
 	}
 
 	protected void processHelloExtensions(final ClientHello clientHello, final HelloExtensions serverHelloExtensions) {
-		MaxFragmentLengthExtension maxFragmentLengthExt = clientHello.getMaxFragmentLengthExtension();
-		if (maxFragmentLengthExt != null) {
-			session.setMaxFragmentLength(maxFragmentLengthExt.getFragmentLength().length());
-			serverHelloExtensions.addExtension(maxFragmentLengthExt);
-			LOGGER.debug(
-					"Negotiated max. fragment length [{} bytes] with peer [{}]",
-					maxFragmentLengthExt.getFragmentLength().length(), clientHello.getPeer());
+
+		RecordSizeLimitExtension recordSizeLimitExt = clientHello.getRecordSizeLimitExtension();
+		if (recordSizeLimitExt != null) {
+			session.setRecordSizeLimit(recordSizeLimitExt.getRecordSizeLimit());
+			int limit = this.recordSizeLimit == null ? session.getMaxFragmentLength() : this.recordSizeLimit;
+			serverHelloExtensions.addExtension(new RecordSizeLimitExtension(limit));
+			LOGGER.debug("Received record size limit [{} bytes] from peer [{}]", limit, clientHello.getPeer());
+		}
+
+		if (recordSizeLimitExt == null) {
+			MaxFragmentLengthExtension maxFragmentLengthExt = clientHello.getMaxFragmentLengthExtension();
+			if (maxFragmentLengthExt != null) {
+				session.setMaxFragmentLength(maxFragmentLengthExt.getFragmentLength().length());
+				serverHelloExtensions.addExtension(maxFragmentLengthExt);
+				LOGGER.debug("Negotiated max. fragment length [{} bytes] with peer [{}]",
+						maxFragmentLengthExt.getFragmentLength().length(), clientHello.getPeer());
+			}
 		}
 
 		ServerNameExtension serverNameExt = clientHello.getServerNameExtension();

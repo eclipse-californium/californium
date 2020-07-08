@@ -192,6 +192,8 @@ public class ClientInitializer {
 			retransmissionTimeout = dtlsRetransmissionTimeout;
 		}
 		int localPort = clientConfig.localPort == null ? 0 : clientConfig.localPort;
+		Integer recordSizeLimit = clientConfig.recordSizeLimit;
+		Integer mtu = clientConfig.mtu;
 
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		if (clientConfig.uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME)) {
@@ -295,6 +297,10 @@ public class ClientInitializer {
 				dtlsConfig.setStaleConnectionThreshold(staleTimeout);
 				dtlsConfig.setAddress(new InetSocketAddress(localPort));
 				dtlsConfig.setHealthStatusInterval(healthStatusInterval);
+				dtlsConfig.setRecordSizeLimit(recordSizeLimit);
+				if (mtu != null) {
+					dtlsConfig.setMaxTransmissionUnit(mtu);
+				}
 				DTLSConnector dtlsConnector = new DTLSConnector(dtlsConfig.build());
 				if (executor != null) {
 					dtlsConnector.setExecutor(executor);
