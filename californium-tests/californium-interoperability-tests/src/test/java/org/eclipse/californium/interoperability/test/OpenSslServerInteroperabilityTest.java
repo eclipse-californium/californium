@@ -26,6 +26,7 @@ import java.net.InetSocketAddress;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.interoperability.test.OpenSslUtil.AuthenticationMode;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -113,6 +114,25 @@ public class OpenSslServerInteroperabilityTest {
 		String cipher = processUtil.startupServer(ACCEPT, AuthenticationMode.CERTIFICATE, cipherSuite);
 
 		scandiumUtil.start(BIND, null, cipherSuite);
+
+		String message = "Hello OpenSSL!";
+		scandiumUtil.send(message, DESTINATION, TIMEOUT_MILLIS);
+
+		processUtil.waitConsole("CIPHER is " + cipher, TIMEOUT_MILLIS);
+		processUtil.waitConsole(message, TIMEOUT_MILLIS);
+		processUtil.send("ACK-" + message);
+
+		scandiumUtil.assertReceivedData("ACK-" + message, TIMEOUT_MILLIS);
+
+		processUtil.stop(TIMEOUT_MILLIS);
+	}
+
+	@Test
+	public void testOpenSslServerMultiFragments() throws Exception {
+		String cipher = processUtil.startupServer(ACCEPT, AuthenticationMode.CERTIFICATE, cipherSuite);
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+		builder.setEnableMultiHandshakeMessageRecords(true);
+		scandiumUtil.start(BIND, false, builder, null, cipherSuite);
 
 		String message = "Hello OpenSSL!";
 		scandiumUtil.send(message, DESTINATION, TIMEOUT_MILLIS);

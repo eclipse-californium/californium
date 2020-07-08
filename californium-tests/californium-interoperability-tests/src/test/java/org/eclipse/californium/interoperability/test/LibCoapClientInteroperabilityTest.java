@@ -97,6 +97,18 @@ public class LibCoapClientInteroperabilityTest {
 	}
 
 	@Test
+	public void testLibCoapClientPskMultiFragment() throws Exception {
+		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+		builder.setEnableMultiHandshakeMessageRecords(true);
+		californiumUtil.start(BIND, false, builder, null, cipherSuite);
+
+		processUtil.startupClient(DESTINATION_URL + "test", AuthenticationMode.PSK, "Hello, CoAP!",
+				cipherSuite);
+		connect("Hello, CoAP!", "Greetings!");
+	}
+
+	@Test
 	public void testLibCoapClientPskNoSessionId() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
