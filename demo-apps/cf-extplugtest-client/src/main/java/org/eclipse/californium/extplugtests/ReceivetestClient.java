@@ -41,11 +41,13 @@ import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.EndpointContextTracer;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
+import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.util.StringUtil;
 
@@ -74,6 +76,8 @@ public class ReceivetestClient {
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Receivetest Client";
 	private static final int DEFAULT_MAX_RESOURCE_SIZE = 8192;
 	private static final int DEFAULT_BLOCK_SIZE = 1024;
+
+	private static final int RESPONSE_HEADER_SIZE = 16;
 
 	/**
 	 * Properties filename for device UUID.
@@ -150,11 +154,18 @@ public class ReceivetestClient {
 			System.exit(-1);
 		}
 		CoapClient client = new CoapClient(uri);
-		Request request = Request.newPost();
+		final Request request = Request.newPost();
 		if (clientConfig.contentType != null) {
 			request.getOptions().setAccept(clientConfig.contentType.contentType);
 		}
-		if (query == null) {
+		if (clientConfig.recordSizeLimit != null) {
+			if (query == null || query.isEmpty()) {
+				query = "rlen=" + (clientConfig.recordSizeLimit - RESPONSE_HEADER_SIZE);
+			} else if (!query.contains("rlen=")) {
+				query += "&rlen=" + (clientConfig.recordSizeLimit - RESPONSE_HEADER_SIZE);
+			}
+		}
+		if (query == null || query.isEmpty()) {
 			query = "";
 		} else {
 			System.out.println("extra: " + query);
@@ -162,6 +173,31 @@ public class ReceivetestClient {
 		}
 		request.setURI(uri + "/requests?dev=" + uuid + "&rid=" + REQUEST_ID_PREFIX + System.currentTimeMillis() + "&ep"
 				+ query);
+		if (clientConfig.verbose) {
+			request.addMessageObserver(new EndpointContextTracer() {
+
+				@Override
+				public void onReadyToSend() {
+					System.out.println(Utils.prettyPrint(request));
+					System.out.println();
+				}
+
+				@Override
+				public void onAcknowledgement() {
+					System.out.println(">>> ACK <<<");
+				}
+
+				@Override
+				public void onDtlsRetransmission(int flight) {
+					System.out.println(">>> DTLS retransmission, flight " + flight);
+				}
+
+				@Override
+				protected void onContextChanged(EndpointContext endpointContext) {
+					System.out.println(Utils.prettyPrint(endpointContext));
+				}
+			});
+		}
 		CoapResponse coapResponse = client.advanced(request);
 
 		if (coapResponse != null) {
@@ -194,7 +230,8 @@ public class ReceivetestClient {
 
 	private static void printHead(Response response) {
 		System.out.println();
-		System.out.println("Payload: " + response.getPayloadSize() + " bytes");
+		System.out.println(
+				"Response: " + response.getBytes().length + " bytes, Payload: " + response.getPayloadSize() + " bytes");
 		Long rtt = response.getRTT();
 		if (rtt != null) {
 			System.out.println("RTT: " + rtt + "ms");

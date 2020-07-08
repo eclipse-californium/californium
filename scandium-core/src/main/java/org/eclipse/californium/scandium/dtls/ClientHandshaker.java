@@ -378,8 +378,21 @@ public class ClientHandshaker extends Handshaker {
 							AlertDescription.ILLEGAL_PARAMETER,
 							message.getPeer()));
 		}
+		RecordSizeLimitExtension recordSizeLimitExt = message.getRecordSizeLimit();
+		if (recordSizeLimitExt != null) {
+			session.setRecordSizeLimit(recordSizeLimitExt.getRecordSizeLimit());
+		}
+
 		MaxFragmentLengthExtension maxFragmentLengthExtension = message.getMaxFragmentLength();
 		if (maxFragmentLengthExtension != null) {
+			if (recordSizeLimitExt != null) {
+				throw new HandshakeException(
+						"Server wants to use record size limit and max. fragment size",
+						new AlertMessage(
+								AlertLevel.FATAL,
+								AlertDescription.ILLEGAL_PARAMETER,
+								message.getPeer()));
+			}
 			MaxFragmentLengthExtension.Length maxFragmentLength = maxFragmentLengthExtension.getFragmentLength(); 
 			if (maxFragmentLength.code() == maxFragmentLengthCode) {
 				// immediately use negotiated max. fragment size
@@ -393,6 +406,7 @@ public class ClientHandshaker extends Handshaker {
 								message.getPeer()));
 			}
 		}
+
 		CertificateType serverCertificateType = message.getServerCertificateType();
 		if (!isSupportedCertificateType(serverCertificateType, supportedServerCertificateTypes)) {
 			throw new HandshakeException(
@@ -651,6 +665,8 @@ public class ClientHandshaker extends Handshaker {
 
 		addConnectionId(startMessage);
 
+		addRecordSizeLimit(startMessage);
+
 		addMaxFragmentLength(startMessage);
 
 		addServerNameIndication(startMessage);
@@ -663,6 +679,23 @@ public class ClientHandshaker extends Handshaker {
 		sendFlight(flight);
 		states = SEVER_CERTIFICATE;
 		statesIndex = 0;
+	}
+
+	/**
+	 * Add record size limit extension, if configured in
+	 * {@link DtlsConnectorConfig#getRecordSizeLimit()}.
+	 * 
+	 * @param helloMessage client hello to add {@link RecordSizeLimitExtension}.
+	 * @since 2.4
+	 */
+	protected void addRecordSizeLimit(final ClientHello helloMessage) {
+		if (recordSizeLimit != null) {
+			RecordSizeLimitExtension  ext = new RecordSizeLimitExtension(recordSizeLimit); 
+			helloMessage.addExtension(ext);
+			LOGGER.debug(
+					"Indicating record size limit [{}] to server [{}]",
+					recordSizeLimit, getPeerAddress());
+		}
 	}
 
 	protected void addMaxFragmentLength(final ClientHello helloMessage) {

@@ -265,6 +265,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		message.addCompressionMethod(session.getCompressionMethod());
 
 		addConnectionId(message);
+		addRecordSizeLimit(message);
 		addMaxFragmentLength(message);
 		addServerNameIndication(message);
 

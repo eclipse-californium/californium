@@ -172,6 +172,16 @@ public final class DtlsConnectorConfig {
 	private Boolean enableReuseAddress;
 
 	/**
+	 * The record size limit.
+	 * 
+	 * Included in the CLIENT_HELLO and SERVER_HELLO to negotiate the record
+	 * size limit.
+	 * 
+	 * @since 2.4
+	 */
+	private Integer recordSizeLimit;
+
+	/**
 	 * The maximum fragment length this connector can process at once.
 	 */
 	private Integer maxFragmentLengthCode;
@@ -438,6 +448,19 @@ public final class DtlsConnectorConfig {
 
 	private DtlsConnectorConfig() {
 		// empty
+	}
+
+	/**
+	 * Gets record size limit.
+	 * 
+	 * Included in the CLIENT_HELLO and SERVER_HELLO to negotiate the record
+	 * size limit.
+	 * 
+	 * @return record size limit, or {@code null}, if not used.
+	 * @since 2.4
+	 */
+	public Integer getRecordSizeLimit() {
+		return recordSizeLimit;
 	}
 
 	/**
@@ -1175,6 +1198,7 @@ public final class DtlsConnectorConfig {
 		cloned.certificateVerifier = certificateVerifier;
 		cloned.earlyStopRetransmission = earlyStopRetransmission;
 		cloned.enableReuseAddress = enableReuseAddress;
+		cloned.recordSizeLimit = recordSizeLimit;
 		cloned.maxFragmentLengthCode = maxFragmentLengthCode;
 		cloned.maxFragmentedHandshakeMessageLength = maxFragmentedHandshakeMessageLength;
 		cloned.enableMultiRecordMessages = enableMultiRecordMessages;
@@ -1429,6 +1453,28 @@ public final class DtlsConnectorConfig {
 				throw new IllegalStateException("default handshake modes are not supported for server only!");
 			}
 			config.defaultHandshakeMode = defaultHandshakeMode;
+			return this;
+		}
+
+		/**
+		 * Sets record size limit.
+		 * 
+		 * Included in the CLIENT_HELLO and SERVER_HELLO to negotiate the record
+		 * size limit.
+		 * 
+		 * @param recordSizeLimit the record size limit, betwee 64 and 65535. Or
+		 *            {@code null}, if not used.
+		 * @return this builder for command chaining
+		 * @since 2.4
+		 */
+		public Builder setRecordSizeLimit(Integer recordSizeLimit) {
+			if (recordSizeLimit != null) {
+				if (recordSizeLimit < 64 || recordSizeLimit > 65535) {
+					throw new IllegalArgumentException(
+							"Record size limit must be within [64...65535], not " + recordSizeLimit + "!");
+				}
+			}
+			config.recordSizeLimit = recordSizeLimit;
 			return this;
 		}
 
