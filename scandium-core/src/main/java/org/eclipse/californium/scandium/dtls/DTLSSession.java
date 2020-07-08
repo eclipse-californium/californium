@@ -72,26 +72,38 @@ import org.slf4j.LoggerFactory;
 public final class DTLSSession implements Destroyable {
 
 	/**
+	 * The payload length of all headers around a DTLS handshake message payload.
+	 * <ol>
+	 * <li>12 bytes DTLS message header</li>
+	 * <li>13 bytes DTLS record header</li>
+	 * </ol>
+	 * 25 bytes in total.
+	 * 
+	 * @since 2.5
+	 */
+	public static final int DTLS_HEADER_LENGTH = 
+								HandshakeMessage.MESSAGE_HEADER_LENGTH_BYTES // 12 bytes DTLS handshake message headers
+								+ Record.RECORD_HEADER_BYTES; // 13 bytes DTLS record headers
+
+	/**
 	 * The overall length of all headers around a DTLS handshake message payload.
 	 * <ol>
 	 * <li>12 bytes DTLS message header</li>
 	 * <li>13 bytes DTLS record header</li>
 	 * <li>8 bytes UDP header</li>
-	 * <li>20 bytes IP header</li>
+	 * <li>20 bytes IP header (Ipv4)</li>
 	 * <li>36 bytes optional IP options</li>
 	 * </ol>
-	 * 53 bytes in total.
+	 * 89 bytes in total (including 36 bytes optional).
+	 * @deprecated use {@link #DTLS_HEADER_LENGTH} and {@link RecordLayer#getMaxDatagramSize(boolean)} instead.
 	 */
-	public static final int HEADER_LENGTH = 12 // bytes DTLS message headers
-								+ 13 // bytes DTLS record headers
-								+ 36 // bytes optional IP options
-								+ 8 // bytes UDP headers
-								+ 20; // bytes IP headers
+	@Deprecated
+	public static final int HEADER_LENGTH = DTLS_HEADER_LENGTH + RecordLayer.IPV4_HEADER_LENGTH;
+
 	private static final Logger LOGGER = LoggerFactory.getLogger(DTLSSession.class);
 	private static final long RECEIVE_WINDOW_SIZE = 64;
 	private static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1
 	private static final int MAX_FRAGMENT_LENGTH_DEFAULT = 16384; // 2^14 bytes as defined by DTLS 1.2 spec, Section 4.1
-	private static final int MAX_TRANSMISSION_UNIT_DEFAULT = 1400; // a little less than standard ethernet MTU (1500)
 	private static final int MASTER_SECRET_LENGTH = 48; // bytes
 
 	/**
@@ -113,10 +125,6 @@ public final class DTLSSession implements Destroyable {
 	 * Maximum used fragment length.
 	 */
 	private int maxFragmentLength = MAX_FRAGMENT_LENGTH_DEFAULT;
-	/**
-	 * Maximum used raw ip message length.
-	 */
-	private int maxTransmissionUnit = MAX_TRANSMISSION_UNIT_DEFAULT;
 
 	/**
 	 * Specifies the pseudo-random function (PRF) used to generate keying
@@ -687,7 +695,22 @@ public final class DTLSSession implements Destroyable {
 	 * @return The current write state.
 	 */
 	DTLSConnectionState getWriteState() {
-		return writeState;
+		return getWriteState(writeEpoch);
+	}
+
+	/**
+	 * Get epoch specific write state.
+	 * 
+	 * @param epoch epoch of write state
+	 * @return write state of provided epoch. {@code null}, if not available.
+	 * @since 2.4
+	 */
+	DTLSConnectionState getWriteState(int epoch) {
+		if (epoch == 0) {
+			return DTLSConnectionState.NULL;
+		} else {
+			return writeState;
+		}
 	}
 
 	/**
@@ -715,8 +738,6 @@ public final class DTLSSession implements Destroyable {
 		SecretUtil.destroy(this.writeState);
 		this.writeState = writeState;
 		incrementWriteEpoch();
-		// re-calculate maximum fragment length based on cipher suite from updated write state
-		determineMaxFragmentLength(maxFragmentLength);
 		LOGGER.trace("Setting current write state to{}{}", StringUtil.lineSeparator(), writeState);
 	}
 
@@ -808,6 +829,20 @@ public final class DTLSSession implements Destroyable {
 	}
 
 	/**
+	 * Get maximum expansion of cipher suite.
+	 * 
+	 * @return maximum expansion of cipher suite.
+	 * @see CipherSuite#getMaxCiphertextExpansion()
+	 * @since 2.4
+	 */
+	public int getMaxCiphertextExpansion() {
+		if (cipherSuite == null) {
+			throw new IllegalStateException("Missing cipher suite.");
+		}
+		return cipherSuite.getMaxCiphertextExpansion();
+	}
+
+	/**
 	 * Sets the maximum amount of unencrypted payload data that can be received and processed by
 	 * this session's peer in a single DTLS record.
 	 * <p>
@@ -826,52 +861,10 @@ public final class DTLSSession implements Destroyable {
 	 */
 	void setMaxFragmentLength(int length) {
 		if (length < 0 || length > MAX_FRAGMENT_LENGTH_DEFAULT) {
-			throw new IllegalArgumentException("Max. fragment length must be > 0 and < " + MAX_FRAGMENT_LENGTH_DEFAULT);
+			throw new IllegalArgumentException("Max. fragment length must be in range [0..." + MAX_FRAGMENT_LENGTH_DEFAULT + "]");
 		} else {
-			determineMaxFragmentLength(length);
+			this.maxFragmentLength = length;
 		}
-	}
-
-	/**
-	 * Gets the maximum size of a UDP datagram that can be sent to this session's peer without IP fragmentation.
-	 *  
-	 * @return the maximum size in bytes
-	 */
-	public int getMaxDatagramSize() {
-		return this.maxFragmentLength + writeState.getMaxCiphertextExpansion() + HEADER_LENGTH;
-	}
-
-	/**
-	 * Sets the maximum size of an IP packet that can be transmitted unfragmented to this
-	 * session's peer (PMTU).
-	 * <p>
-	 * The given value is used to derive the maximum amount of unencrypted data that can
-	 * be sent to the peer in a single DTLS record.
-	 * 
-	 * @param mtu the maximum size in bytes
-	 * @throws IllegalArgumentException if the given value is &lt; 60
-	 * @see #getMaxFragmentLength()
-	 */
-	void setMaxTransmissionUnit(int mtu) {
-		if (mtu < 60) {
-			throw new IllegalArgumentException("MTU must be at least 60 bytes");
-		} else {
-			LOGGER.debug("Setting MTU for peer [{}] to {} bytes", peer, mtu);
-			this.maxTransmissionUnit = mtu;
-			// use mtu as fragment length will be detected as too large
-			// and is reduced to the maximum fragment length for this mtu
-			determineMaxFragmentLength(mtu);
-		}
-	}
-
-	private void determineMaxFragmentLength(int maxProcessableFragmentLength) {
-		int maxDatagramSize = maxProcessableFragmentLength + writeState.getMaxCiphertextExpansion() + HEADER_LENGTH;
-		if (maxDatagramSize <= maxTransmissionUnit) {
-			this.maxFragmentLength = maxProcessableFragmentLength;
-		} else {
-			this.maxFragmentLength = maxTransmissionUnit - HEADER_LENGTH - writeState.getMaxCiphertextExpansion();
-		}
-		LOGGER.debug("Setting maximum fragment length for peer [{}] to {} bytes", peer, this.maxFragmentLength);
 	}
 
 	/**
@@ -1129,7 +1122,8 @@ public final class DTLSSession implements Destroyable {
 	 *             connection state set yet.
 	 */
 	public SessionTicket getSessionTicket() {
-		if (!getWriteState().hasValidCipherSuite()) {
+		DTLSConnectionState writeState = getWriteState();
+		if (!writeState.hasValidCipherSuite()) {
 			throw new IllegalStateException("session has no valid crypto params, not fully negotiated yet?");
 		}
 		else if (sessionIdentifier.isEmpty()) {
@@ -1137,8 +1131,8 @@ public final class DTLSSession implements Destroyable {
 		}
 		return new SessionTicket(
 				new ProtocolVersion(),
-				getWriteState().getCipherSuite(),
-				getWriteState().getCompressionMethod(),
+				writeState.getCipherSuite(),
+				writeState.getCompressionMethod(),
 				masterSecret,
 				getServerNames(),
 				getPeerIdentity(),

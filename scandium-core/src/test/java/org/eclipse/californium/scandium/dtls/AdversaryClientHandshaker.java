@@ -17,6 +17,9 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 
 import javax.crypto.SecretKey;
 
@@ -39,18 +42,17 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 	 * 
 	 * @param session the session to negotiate with the server.
 	 * @param recordLayer the object to use for sending flights to the peer.
+	 * @param timer scheduled executor for flight retransmission (since 2.4).
 	 * @param connection the connection related with the session.
 	 * @param config the DTLS configuration.
-	 * @param maxTransmissionUnit the MTU value reported by the network
-	 *            interface the record layer is bound to.
 	 * @throws IllegalStateException if the message digest required for
 	 *             computing the FINISHED message hash cannot be instantiated.
 	 * @throws NullPointerException if session, recordLayer or config is
 	 *             <code>null</code>
 	 */
-	public AdversaryClientHandshaker(DTLSSession session, RecordLayer recordLayer, Connection connection,
-			DtlsConnectorConfig config, int maxTransmissionUnit) {
-		super(session, recordLayer, connection, config, maxTransmissionUnit);
+	public AdversaryClientHandshaker(DTLSSession session, RecordLayer recordLayer, ScheduledExecutorService timer, Connection connection,
+			DtlsConnectorConfig config) {
+		super(session, recordLayer, timer, connection, config);
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -121,11 +123,20 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 		expectChangeCipherSpecMessage();
 	}
 
-	public void sendApplicationData(byte[] data) throws GeneralSecurityException {
-		DTLSFlight flight = new DTLSFlight(getSession(), 100);
-		Record record = new Record(ContentType.APPLICATION_DATA, session.getWriteEpoch(), session.getSequenceNumber(),
-				new ApplicationMessage(data, session.getPeer()), session, true, 0);
-		flight.addMessage(record);
+	public void sendApplicationData(final byte[] data) {
+		DTLSFlight flight = new DTLSFlight(getSession(), 100) {
+			public List<Record> getRecords(int maxDatagramSize, int maxFragmentSize, boolean useMultiHandshakeMessageRecords)
+					throws HandshakeException {
+				try {
+					Record record = new Record(ContentType.APPLICATION_DATA, session.getWriteEpoch(), session.getSequenceNumber(),
+							new ApplicationMessage(data, session.getPeer()), session, true, 0);
+					return Arrays.asList(record);
+				} catch (GeneralSecurityException e) {
+					throw new HandshakeException("Cannot create record",
+							new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, session.getPeer()), e);
+				}
+			}
+		};
 		sendFlight(flight);
 	}
 }

@@ -61,6 +61,7 @@ import java.security.PublicKey;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 
 import javax.crypto.SecretKey;
 import javax.security.auth.DestroyFailedException;
@@ -69,6 +70,7 @@ import javax.security.auth.x500.X500Principal;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.util.CertPathUtil;
+import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -88,6 +90,7 @@ import org.eclipse.californium.scandium.util.SecretUtil;
  * Server handshaker does the protocol handshaking from the point of view of a
  * server. It is message-driven by the parent {@link Handshaker} class.
  */
+@NoPublicAPI
 public class ServerHandshaker extends Handshaker {
 
 	private static HandshakeState[] CLIENT_CERTIFICATE = { new HandshakeState(HandshakeType.CERTIFICATE),
@@ -183,13 +186,12 @@ public class ServerHandshaker extends Handshaker {
 	 *            the session to negotiate with the client.
 	 * @param recordLayer
 	 *            the object to use for sending flights to the peer.
+	 * @param timer
+	 *            scheduled executor for flight retransmission (since 2.4).
 	 * @param connection
 	 *            the connection related with the session.
 	 * @param config
 	 *            the DTLS configuration.
-	 * @param maxTransmissionUnit
-	 *            the MTU value reported by the network interface the record layer is bound to.
-	 *
 	 * @throws IllegalStateException
 	 *            if the message digest required for computing the FINISHED message hash cannot be instantiated.
 	 * @throws IllegalArgumentException
@@ -198,8 +200,8 @@ public class ServerHandshaker extends Handshaker {
 	 *            if session, recordLayer or config is <code>null</code>.
 	 */
 	public ServerHandshaker(int initialMessageSequenceNo, DTLSSession session, RecordLayer recordLayer,
-			Connection connection, DtlsConnectorConfig config, int maxTransmissionUnit) {
-		super(false, initialMessageSequenceNo, session, recordLayer, connection, config, maxTransmissionUnit);
+			ScheduledExecutorService timer, Connection connection, DtlsConnectorConfig config) {
+		super(false, initialMessageSequenceNo, session, recordLayer, timer, connection, config);
 
 		this.cipherSuiteSelector = config.getCipherSuiteSelector();
 		this.supportedCipherSuites = config.getSupportedCipherSuites();
@@ -235,7 +237,7 @@ public class ServerHandshaker extends Handshaker {
 
 		case CLIENT_KEY_EXCHANGE:
 			PskSecretResult masterSecretResult;
-			switch (getKeyExchangeAlgorithm()) {
+			switch (session.getKeyExchange()) {
 			case PSK:
 				masterSecretResult = receivedClientKeyExchange((PSKClientKeyExchange) message);
 				if (masterSecretResult != null) {
@@ -257,7 +259,7 @@ public class ServerHandshaker extends Handshaker {
 
 			default:
 				throw new HandshakeException(
-						String.format("Unsupported key exchange algorithm %s", getKeyExchangeAlgorithm().name()),
+						String.format("Unsupported key exchange algorithm %s", session.getKeyExchange().name()),
 						new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, message.getPeer()));
 			}
 			break;
@@ -284,7 +286,7 @@ public class ServerHandshaker extends Handshaker {
 	protected void processMasterSecret(SecretKey masterSecret) throws HandshakeException {
 		applyMasterSecret(masterSecret);
 		SecretUtil.destroy(masterSecret);
-		if (!clientAuthenticationRequired || getKeyExchangeAlgorithm() != KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN
+		if (!clientAuthenticationRequired || session.getKeyExchange() != KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN
 				|| certificateVerify != null) {
 			expectChangeCipherSpecMessage();
 		}
@@ -357,7 +359,7 @@ public class ServerHandshaker extends Handshaker {
 
 		// check if client sent all expected messages
 		// (i.e. ClientCertificate/CertificateVerify when server sent CertificateRequest)
-		if (CipherSuite.KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN.equals(getKeyExchangeAlgorithm()) && 
+		if (CipherSuite.KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN.equals(session.getKeyExchange()) && 
 				clientAuthenticationRequired && 
 				(clientCertificate == null || certificateVerify == null)) {
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
@@ -509,7 +511,7 @@ public class ServerHandshaker extends Handshaker {
 		 * algorithm)
 		 */
 		ServerKeyExchange serverKeyExchange = null;
-		switch (getKeyExchangeAlgorithm()) {
+		switch (session.getKeyExchange()) {
 		case EC_DIFFIE_HELLMAN:
 			try {
 				ecdhe = new XECDHECryptography(selectedCipherSuiteParameters.getSelectedSupportedGroup());

@@ -22,16 +22,12 @@ package org.eclipse.californium.scandium.dtls;
 import static org.junit.Assert.assertFalse;
 
 import java.net.InetSocketAddress;
-import java.security.GeneralSecurityException;
 import java.util.List;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.TestCertificatesTools;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.ServerName;
 
 public final class DtlsTestTools extends TestCertificatesTools {
@@ -42,8 +38,7 @@ public final class DtlsTestTools extends TestCertificatesTools {
 	}
 
 	public static Record getRecordForMessage(int epoch, int seqNo, DTLSMessage msg, InetSocketAddress peer) {
-		byte[] dtlsRecord = newDTLSRecord(msg.getContentType().getCode(), epoch,
-				seqNo, msg.toByteArray());
+		byte[] dtlsRecord = newDTLSRecord(msg.getContentType().getCode(), epoch, seqNo, msg.toByteArray());
 		List<Record> list = Record.fromByteArray(dtlsRecord, peer, null, ClockUtil.nanoRealtime());
 		assertFalse("Should be able to deserialize DTLS Record from byte array", list.isEmpty());
 		return list.get(0);
@@ -62,25 +57,6 @@ public final class DtlsTestTools extends TestCertificatesTools {
 		writer.write(fragment.length, 16);
 		writer.writeBytes(fragment);
 		return writer.toByteArray();
-	}
-
-	public static final byte[] generateCookie(InetSocketAddress endpointAddress, ClientHello clientHello)
-			throws GeneralSecurityException {
-		
-		// Cookie = HMAC(Secret, Client-IP, Client-Parameters)
-		Mac hmac = Mac.getInstance("HmacSHA256");
-		hmac.init(new SecretKeySpec("generate cookie".getBytes(), "Mac"));
-		// Client-IP
-		hmac.update(endpointAddress.toString().getBytes());
-
-		// Client-Parameters
-		hmac.update((byte) clientHello.getClientVersion().getMajor());
-		hmac.update((byte) clientHello.getClientVersion().getMinor());
-		hmac.update(clientHello.getRandom().getBytes());
-		hmac.update(clientHello.getSessionId().getBytes());
-		hmac.update(CipherSuite.listToByteArray(clientHello.getCipherSuites()));
-		hmac.update(CompressionMethod.listToByteArray(clientHello.getCompressionMethods()));
-		return hmac.doFinal();
 	}
 
 	public static byte[] newClientCertificateTypesExtension(int... types) {
@@ -111,14 +87,14 @@ public final class DtlsTestTools extends TestCertificatesTools {
 	}
 
 	public static byte[] newMaxFragmentLengthExtension(int lengthCode) {
-		return newHelloExtension(1, new byte[]{(byte) lengthCode});
+		return newHelloExtension(1, new byte[] { (byte) lengthCode });
 	}
 
 	public static byte[] newServerNameExtension(final String hostName) {
 
 		byte[] name = hostName.getBytes(ServerName.CHARSET);
 		DatagramWriter writer = new DatagramWriter();
-		writer.write(name.length + 3, 16); //server_name_list_length
+		writer.write(name.length + 3, 16); // server_name_list_length
 		writer.writeByte((byte) 0x00);
 		writer.write(name.length, 16);
 		writer.writeBytes(name);
@@ -131,5 +107,20 @@ public final class DtlsTestTools extends TestCertificatesTools {
 		writer.write(extensionBytes.length, 16);
 		writer.writeBytes(extensionBytes);
 		return writer.toByteArray();
+	}
+
+	public static <T extends HandshakeMessage> T fromByteArray(byte[] byteArray, HandshakeParameter parameter, InetSocketAddress peerAddress) throws HandshakeException {
+		HandshakeMessage hmsg = HandshakeMessage.fromByteArray(byteArray, peerAddress);
+		return fromHandshakeMessage(hmsg, parameter);
+	}
+
+	@SuppressWarnings("unchecked")
+	public static <T extends HandshakeMessage> T fromHandshakeMessage(HandshakeMessage message,
+			HandshakeParameter parameter) throws HandshakeException {
+		if (message instanceof GenericHandshakeMessage) {
+			return (T) HandshakeMessage.fromGenericHandshakeMessage((GenericHandshakeMessage) message, parameter);
+		} else {
+			return (T) message;
+		}
 	}
 }

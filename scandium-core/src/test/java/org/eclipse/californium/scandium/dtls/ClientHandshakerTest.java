@@ -37,14 +37,19 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.cert.Certificate;
+import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.rule.ThreadsRule;
+import org.eclipse.californium.elements.util.TestScheduledExecutorService;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.ServerName.NameType;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -66,6 +71,18 @@ public class ClientHandshakerTest {
 	final String serverName = "iot.eclipse.org";
 
 	ClientHandshaker handshaker;
+	ScheduledExecutorService timer;
+
+	@Before
+	public void setup() {
+		timer = new TestScheduledExecutorService();
+	}
+
+	@After
+	public void tearDown() {
+		timer.shutdown();
+		timer = null;
+	}
 
 	/**
 	 * Assert that the <em>CLIENT_HELLO</em> message created by the handshaker
@@ -251,9 +268,10 @@ public class ClientHandshakerTest {
 		handshaker = new ClientHandshaker(
 				session,
 				recordLayer,
+				timer,
 				connection,
-				builder.build(),
-				MAX_TRANSMISSION_UNIT);
+				builder.build());
+		recordLayer.setHandshaker(handshaker);
 	}
 
 	private static void assertPreferredServerCertificateExtension(final ClientHello msg, final CertificateType expectedType) {
@@ -273,8 +291,8 @@ public class ClientHandshakerTest {
 		assertThat(preferred, is(expectedType));
 	}
 
-	private static ClientHello getClientHello(final DTLSFlight flight) throws GeneralSecurityException, HandshakeException {
-		Record record = flight.getMessages().get(0);
+	private static ClientHello getClientHello(List<Record> flight) throws GeneralSecurityException, HandshakeException {
+		Record record = flight.get(0);
 		return (ClientHello) record.getFragment();
 	}
 }

@@ -52,17 +52,17 @@ public class RecordTest {
 	static final byte[] aesKey = new byte[]{(byte) 0xC9, 0x0E, 0x6A, (byte) 0xA2, (byte) 0xEF, 0x60, 0x34, (byte) 0x96,
 		(byte) 0x90, 0x54, (byte) 0xC4, (byte) 0x96, 0x65, (byte) 0xBA, 0x03, (byte) 0x9E};
 	SecretKey key;
-	
+
 	DTLSSession session;
 	byte[] payloadData;
 	int payloadLength = 50;
 	// salt: 32bit client write init vector (can be any four bytes)
 	byte[] client_iv = new byte[]{0x55, 0x23, 0x2F, (byte) 0xA3};
 	ProtocolVersion protocolVer;
-	
+
 	@Before
 	public void setUp() throws Exception {
-		
+
 		protocolVer = new ProtocolVersion();
 		key = new SecretKeySpec(aesKey, "AES");
 		payloadData = new byte[payloadLength];
@@ -92,29 +92,17 @@ public class RecordTest {
 			// all is well
 		}
 	}
-	
-	@Test
-	public void testSetSequenceNumberEnforcesMaxSequenceNo() throws GeneralSecurityException {
-		Record record = new Record(ContentType.HANDSHAKE, 0, 0, new HelloRequest(session.getPeer()), session, false, 0);
-		record.updateSequenceNumber(DtlsTestTools.MAX_SEQUENCE_NO);
-		try {
-			record.updateSequenceNumber(DtlsTestTools.MAX_SEQUENCE_NO + 1);
-			Assert.fail("Method should have rejected sequence no > 2^48 - 1");
-		} catch (IllegalArgumentException e) {
-			// all is well
-		}
-	}
-	
+
 	@Test
 	public void testFromByteArrayRejectsIllformattedRecord() {
 		byte[] illformattedRecord = new byte[]{TYPE_APPL_DATA};
 		List<Record> recordList = Record.fromByteArray(illformattedRecord, session.getPeer(), null, ClockUtil.nanoRealtime());
 		assertTrue("fromByteArray() should have detected malformed record", recordList.isEmpty());
 	}
-	
+
 	@Test
 	public void testFromByteArrayAcceptsKnownTypeCode() throws GeneralSecurityException {
-		
+
 		byte[] application_record = DtlsTestTools.newDTLSRecord(TYPE_APPL_DATA, EPOCH, SEQUENCE_NO, newGenericAEADCipherFragment());
 		List<Record> recordList = Record.fromByteArray(application_record, session.getPeer(), null, ClockUtil.nanoRealtime());
 		assertEquals(recordList.size(), 1);
@@ -125,18 +113,18 @@ public class RecordTest {
 		assertEquals(protocolVer.getMajor(), record.getVersion().getMajor());
 		assertEquals(protocolVer.getMinor(), record.getVersion().getMinor());
 	}
-	
+
 	@Test
 	public void testFromByteArrayRejectsUnknownTypeCode() throws GeneralSecurityException {
-		
+
 		byte[] application_record = DtlsTestTools.newDTLSRecord(TYPE_APPL_DATA, EPOCH, SEQUENCE_NO, newGenericAEADCipherFragment());
 		byte[] unsupported_dtls_record = DtlsTestTools.newDTLSRecord(55, EPOCH, SEQUENCE_NO, newGenericAEADCipherFragment());
-		
+
 		List<Record> recordList = Record.fromByteArray(Bytes.concatenate(unsupported_dtls_record, application_record), session.getPeer(), null, ClockUtil.nanoRealtime());
 		Assert.assertTrue(recordList.size() == 1);
 		Assert.assertEquals(ContentType.APPLICATION_DATA, recordList.get(0).getType());
 	}
-	
+
 	/**
 	 * Checks whether the {@link Record#decryptAEAD(byte[])} method uses the <em>explicit</em>
 	 * nonce part included in the <i>GenericAEADCipher</i> struct instead of deriving the
@@ -147,19 +135,19 @@ public class RecordTest {
 	 */
 	@Test
 	public void testDecryptAEADUsesExplicitNonceFromGenericAEADCipherStruct() throws Exception {
-		
+
 		byte[] fragment = newGenericAEADCipherFragment();
-		Record record = new Record(ContentType.APPLICATION_DATA, protocolVer, EPOCH, SEQUENCE_NO, null, fragment, session.getPeer(), ClockUtil.nanoRealtime());
+		Record record = new Record(ContentType.APPLICATION_DATA, protocolVer, EPOCH, SEQUENCE_NO, null, fragment, session.getPeer(), ClockUtil.nanoRealtime(), false);
 		record.applySession(session);
-		
+
 		byte[] decryptedData = record.getFragment().toByteArray();
 		assertTrue(Arrays.equals(decryptedData, payloadData));
 	}
-	
+
 	byte[] newGenericAEADCipherFragment() throws GeneralSecurityException {
 		// 64bit sequence number, consisting of 16bit epoch (0) + 48bit sequence number (5)
 		byte[] seq_num = new byte[]{0x00, (byte) EPOCH, 0x00, 0x00, 0x00, 0x00, 0x00, (byte) SEQUENCE_NO};
-		
+
 		// additional data based on sequence number, type (APPLICATION DATA) and protocol version
 		byte[] additionalData = new byte[]{TYPE_APPL_DATA, (byte) protocolVer.getMajor(), (byte) protocolVer.getMinor(), 0, (byte) payloadLength};
 		additionalData = Bytes.concatenate(seq_num, additionalData);
@@ -169,9 +157,9 @@ public class RecordTest {
 		byte[] explicitNonce = new byte[]{1, 2, 3, 4, 5, 6, 7, 8};
 		// nonce used for encryption, "implicit" part + "explicit" part
 		byte[] nonce = Bytes.concatenate(client_iv, explicitNonce);
-		
+
 		byte[] encryptedData = CCMBlockCipher.encrypt(key, nonce, additionalData, payloadData, 8);
-		
+
 		// prepend the "explicit" part of nonce to the encrypted data to form the GenericAEADCipher struct
 		return Bytes.concatenate(explicitNonce, encryptedData);
 	}

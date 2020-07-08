@@ -157,14 +157,15 @@ public class ConnectorHelper {
 	public void startServer(DtlsConnectorConfig.Builder builder) throws IOException, GeneralSecurityException {
 		builder.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
 				.setMaxConnections(SERVER_CONNECTION_STORE_CAPACITY)
-				.setMaxTransmissionUnit(1024)
 				.setReceiverThreadCount(1)
 				.setConnectionThreadCount(2)
 				.setLoggingTag("server")
 				.setServerOnly(true);
 
 		DtlsConnectorConfig incompleteConfig = builder.getIncompleteConfig();
-
+		if (incompleteConfig.getMaxTransmissionUnitLimit() == null) {
+			builder.setMaxTransmissionUnit(1024);
+		}
 		if (incompleteConfig.getAdvancedPskStore() == null) {
 			InMemoryPskStore pskStore = new InMemoryPskStore();
 			pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
@@ -187,7 +188,10 @@ public class ConnectorHelper {
 		}
 		if (!Boolean.FALSE.equals(incompleteConfig.isClientAuthenticationRequired()) ||
 				Boolean.TRUE.equals(incompleteConfig.isClientAuthenticationWanted())) {
-			builder.setTrustStore(DtlsTestTools.getTrustedCertificates()).setRpkTrustAll();
+			if (incompleteConfig.getCertificateVerifier() == null) {
+				builder.setTrustStore(DtlsTestTools.getTrustedCertificates());
+			}
+			builder.setRpkTrustAll();
 		}
 		serverConfig = builder.build();
 
@@ -539,35 +543,25 @@ public class ConnectorHelper {
 
 		public List<Record> waitForFlight(int size, long timeout, TimeUnit unit) throws InterruptedException {
 			long timeoutNanos = unit.toNanos(timeout);
-			long time = System.nanoTime();
+			long time = ClockUtil.nanoRealtime();
+			long end = time + timeoutNanos;
 			List<Record> received = waitForRecords(timeoutNanos, TimeUnit.NANOSECONDS);
 			if (null != received && received.size() < size) {
 				received = new ArrayList<Record>(received);
-				List<Record> next;
-				timeoutNanos -= (System.nanoTime() - time);
-				if (0 < timeoutNanos) {
-					if (null != (next = waitForRecords(timeoutNanos, TimeUnit.NANOSECONDS))) {
+				timeoutNanos = end - ClockUtil.nanoRealtime();
+				while (0 < timeoutNanos && received.size() < size) {
+					List<Record> next = waitForRecords(timeoutNanos, TimeUnit.NANOSECONDS);
+					if (next != null) {
 						received.addAll(next);
 					}
+					timeoutNanos = end - ClockUtil.nanoRealtime();
 				}
 			}
 			return received;
 		}
 
 		public List<Record> assertFlight(int size, long timeout, TimeUnit unit) throws InterruptedException {
-			long timeoutNanos = unit.toNanos(timeout);
-			long time = System.nanoTime();
-			List<Record> received = waitForRecords(timeoutNanos, TimeUnit.NANOSECONDS);
-			if (null != received && received.size() < size) {
-				received = new ArrayList<Record>(received);
-				List<Record> next;
-				timeoutNanos -= (System.nanoTime() - time);
-				if (0 < timeoutNanos) {
-					if (null != (next = waitForRecords(timeoutNanos, TimeUnit.NANOSECONDS))) {
-						received.addAll(next);
-					}
-				}
-			}
+			List<Record> received = waitForFlight(size, timeout, unit);
 			assertThat("timeout: flight not received", received, is(notNullValue()));
 			int left = Math.max(size - received.size(), 0);
 			assertThat("timeout: flight missing records", left, is(0));
@@ -660,12 +654,16 @@ public class ConnectorHelper {
 			}
 		}
 
-		public void sendRecord(InetSocketAddress peerAddress, byte[] record) throws IOException {
-			DatagramPacket datagram = new DatagramPacket(record, record.length, peerAddress.getAddress(), peerAddress.getPort());
+		public void send(DatagramPacket datagram) throws IOException {
 			DatagramSocket socket = getSocket();
 			if (!socket.isClosed()) {
 				socket.send(datagram);
 			}
+		}
+
+		public void sendRecord(InetSocketAddress peerAddress, byte[] record) throws IOException {
+			DatagramPacket datagram = new DatagramPacket(record, record.length, peerAddress.getAddress(), peerAddress.getPort());
+			send(datagram);
 		}
 
 		public final InetSocketAddress getAddress() {
@@ -697,5 +695,9 @@ public class ConnectorHelper {
 			handshaker.addSessionListener(listener);
 			sessionListenerMap.put(handshaker.getPeerAddress(), listener);
 		}
+	}
+
+	public static interface BuilderSetup {
+		void setup(DtlsConnectorConfig.Builder builder);
 	}
 }

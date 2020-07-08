@@ -70,23 +70,28 @@ public final class ChangeCipherSpecMessage extends AbstractMessage {
 			return code;
 		}
 	}
-	
+
 	// Methods ////////////////////////////////////////////////////////
 
 	@Override
 	public ContentType getContentType() {
 		return ContentType.CHANGE_CIPHER_SPEC;
 	}
-	
+
 	public CCSType getCCSProtocolType() {
 		return CCSProtocolType;
 	}
-	
+
 	@Override
 	public String toString() {
 		return "\tChange Cipher Spec Message\n";
 	}
-	
+
+	@Override
+	public int size() {
+		return CCS_BITS / Byte.SIZE;
+	}
+
 	// Serialization //////////////////////////////////////////////////
 
 	@Override

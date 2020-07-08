@@ -31,6 +31,7 @@ import java.util.Arrays;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -44,6 +45,7 @@ import org.slf4j.LoggerFactory;
  * href="http://tools.ietf.org/html/rfc6347#section-4.2.2">RFC 6347</a> for the
  * message format.
  */
+@NoPublicAPI
 public abstract class HandshakeMessage extends AbstractMessage {
 
 	// message header specific constants ////////////////////////////////////////
@@ -92,6 +94,14 @@ public abstract class HandshakeMessage extends AbstractMessage {
 	private byte[] byteArray;
 
 	/**
+	 * Next handshake message received with the dtls record. {¢ode null}, if no
+	 * additional handshake message is received.
+	 * 
+	 * @since 2.4
+	 */
+	private HandshakeMessage nextHandshakeMessage;
+
+	/**
 	 * Creates a new handshake message for a given peer.
 	 * 
 	 * @param peerAddress
@@ -103,6 +113,11 @@ public abstract class HandshakeMessage extends AbstractMessage {
 	}
 
 	// Abstract methods ///////////////////////////////////////////////
+
+	@Override
+	public int size() {
+		return getFragmentLength() + MESSAGE_HEADER_LENGTH_BYTES;
+	}
 
 	/**
 	 * Returns the type of the handshake message. See {@link HandshakeType}.
@@ -174,138 +189,149 @@ public abstract class HandshakeMessage extends AbstractMessage {
 			// create datagram writer to encode message data
 			int fragmentLength = getFragmentLength();
 			DatagramWriter writer = new DatagramWriter(fragmentLength + MESSAGE_HEADER_LENGTH_BYTES);
-
-			// write fixed-size handshake message header
-			writer.write(getMessageType().getCode(), MESSAGE_TYPE_BITS);
-			writer.write(getMessageLength(), MESSAGE_LENGTH_BITS);
-			writer.write(messageSeq, MESSAGE_SEQ_BITS);
-			writer.write(getFragmentOffset(), FRAGMENT_OFFSET_BITS);
-			writer.write(fragmentLength, FRAGMENT_LENGTH_BITS);
-			writer.writeBytes(fragmentToByteArray());
-
+			writeTo(writer);
 			byteArray = writer.toByteArray();
 		}
 		return byteArray;
 	}
 
 	/**
+	 * Write handshake message to writer.
+	 * 
+	 * @param writer writer to write handshake message.
+	 * @since 2.4
+	 */
+	protected void writeTo(DatagramWriter writer) {
+		// write fixed-size handshake message header
+		writer.write(getMessageType().getCode(), MESSAGE_TYPE_BITS);
+		writer.write(getMessageLength(), MESSAGE_LENGTH_BITS);
+		writer.write(messageSeq, MESSAGE_SEQ_BITS);
+		writer.write(getFragmentOffset(), FRAGMENT_OFFSET_BITS);
+		writer.write(getFragmentLength(), FRAGMENT_LENGTH_BITS);
+		writer.writeBytes(fragmentToByteArray());
+	}
+
+	/**
 	 * Reset the {@link #byteArray} in order to generate an outgoing raw message
-	 * with the changed payload / fragment. Only used by
-	 * {@link ClientHello#setCookie(byte[]).
+	 * with the changed payload / fragment.
+	 * 
+	 * Only used by {@link ClientHello#setCookie(byte[]).
 	 */
 	protected void fragmentChanged() {
 		byteArray = null;
 	}
 
-	public static HandshakeMessage fromByteArray(byte[] byteArray, HandshakeParameter parameter, InetSocketAddress peerAddress) throws HandshakeException {
+	/**
+	 * Read handshake message from (received) byte array.
+	 * 
+	 * Most handshake messages will be returned as specific subclass. Only a few
+	 * will be returned as {@link GenericHandshakeMessage} or
+	 * {@link FragmentedHandshakeMessage}. If multiple handshake messages are
+	 * contained, the returned handshake messages are chained by
+	 * {@link #getNextHandshakeMessage()}.
+	 * 
+	 * @param byteArray byte array containing the handshake message
+	 * @param peerAddress peer address of handshake message
+	 * @return created handshake message
+	 * @throws HandshakeException if handshake message could not be read.
+	 */
+	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress)
+			throws HandshakeException {
 		try {
+			int offset = 0;
+			HandshakeMessage first = null;
+			HandshakeMessage last = null;
 			DatagramReader reader = new DatagramReader(byteArray, false);
-			HandshakeType type = HandshakeType.getTypeByCode(reader.read(MESSAGE_TYPE_BITS));
-			LOGGER.trace("Parsing HANDSHAKE message of type [{}]", type);
-			int left = byteArray.length - MESSAGE_HEADER_LENGTH_BYTES;
-			int length = reader.read(MESSAGE_LENGTH_BITS);
+			do {
+				int code = reader.read(MESSAGE_TYPE_BITS);
+				HandshakeType type = HandshakeType.getTypeByCode(code);
+				if (type == null) {
+					throw new HandshakeException(String.format("Cannot parse unsupported message type %d", code),
+							new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, peerAddress));
+				}
+				LOGGER.trace("Parsing HANDSHAKE message of type [{}]", type);
+				int length = reader.read(MESSAGE_LENGTH_BITS);
+				int messageSeq = reader.read(MESSAGE_SEQ_BITS);
+				int fragmentOffset = reader.read(FRAGMENT_OFFSET_BITS);
+				int fragmentLength = reader.read(FRAGMENT_LENGTH_BITS);
 
-			int messageSeq = reader.read(MESSAGE_SEQ_BITS);
-
-			int fragmentOffset = reader.read(FRAGMENT_OFFSET_BITS);
-			int fragmentLength = reader.read(FRAGMENT_LENGTH_BITS);
-
-			if (fragmentLength != left) {
-				throw new HandshakeException(
-						String.format("Message %s fragment length %d doesn't match data %d", type, fragmentLength, left),
-						new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR, peerAddress));
-			} else if (length != fragmentLength) {
-				if (fragmentOffset + fragmentLength > length) {
+				int left = reader.bitsLeft() / Byte.SIZE;
+				if (fragmentLength > left) {
 					throw new HandshakeException(
-							String.format("Message %s fragment overflow %d > %d", type, fragmentOffset + fragmentLength,
-									length),
+							String.format("Message %s fragment length %d exceed available data %d", type, fragmentLength,
+									left),
 							new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR, peerAddress));
 				}
-				// fragmented message received
-				return new FragmentedHandshakeMessage(type, length, messageSeq, fragmentOffset, reader.readBytesLeft(), peerAddress);
-			} else if (fragmentOffset != 0) {
-				throw new HandshakeException(String.format("Message %s unexpected fragment offset", type),
-						new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR, peerAddress));
-			}
 
-			HandshakeMessage body;
-			switch (type) {
-			case HELLO_REQUEST:
-				body = new HelloRequest(peerAddress);
-				break;
-
-			case CLIENT_HELLO:
-				body = ClientHello.fromReader(reader, peerAddress);
-				break;
-
-			case SERVER_HELLO:
-				body = ServerHello.fromReader(reader, peerAddress);
-				break;
-
-			case HELLO_VERIFY_REQUEST:
-				body = HelloVerifyRequest.fromReader(reader, peerAddress);
-				break;
-
-			case CERTIFICATE:
-				if (parameter == null) {
-					reader.close();
-					body = GenericHandshakeMessage.fromByteArray(type, peerAddress);
+				DatagramReader fragmentReader = reader.createRangeReader(fragmentLength);
+				int start = offset;
+				offset = byteArray.length - (reader.bitsLeft() / Byte.SIZE);
+				HandshakeMessage body;
+				if (length != fragmentLength) {
+					if (fragmentOffset + fragmentLength > length) {
+						throw new HandshakeException(
+								String.format("Message %s fragment %d exceeds overall length %d", type,
+										fragmentOffset + fragmentLength, length),
+								new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR, peerAddress));
+					}
+					// fragmented message received
+					body = new FragmentedHandshakeMessage(type, length, messageSeq, fragmentOffset,
+							fragmentReader.readBytesLeft(), peerAddress);
+				} else if (fragmentOffset != 0) {
+					throw new HandshakeException(String.format("Message %s unexpected fragment offset", type),
+							new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR, peerAddress));
 				} else {
-					body = CertificateMessage.fromReader(reader, parameter.getCertificateType(), peerAddress);
+					try {
+						body = fromReader(type, fragmentReader, null, peerAddress);
+					} catch (MissingHandshakeParameterException ex) {
+						body = GenericHandshakeMessage.fromByteArray(type, peerAddress);
+					}
+					// keep the raw bytes for computation of handshake hash
+					body.rawMessage = Arrays.copyOfRange(byteArray, start, offset);
+					body.setMessageSeq(messageSeq);
 				}
-				break;
-
-			case SERVER_KEY_EXCHANGE:
-				if (parameter == null) {
-					reader.close();
-					body = GenericHandshakeMessage.fromByteArray(type, peerAddress);
+				if (first == null) {
+					first = body;
 				} else {
-					body = readServerKeyExchange(reader, parameter.getKeyExchangeAlgorithm(), peerAddress);
+					last.setNextHandshakeMessage(body);
 				}
-				break;
+				last = body;
+			} while (reader.bytesAvailable());
 
-			case CERTIFICATE_REQUEST:
-				body = CertificateRequest.fromReader(reader, peerAddress);
-				break;
+			return first;
+		} catch (IllegalArgumentException ex) {
+			LOGGER.debug("Handshake message from peer [{}] malformed", peerAddress, ex);
+			throw new HandshakeException("Handshake message malformed, " + ex.getMessage(),
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR, peerAddress));
+		}
+	}
 
-			case SERVER_HELLO_DONE:
-				body = new ServerHelloDone(peerAddress);
-				break;
+	/**
+	 * Create specific handshake from generic handshake message using the now
+	 * available handshake parameter.
+	 * 
+	 * @param message generic handshake message
+	 * @param parameter handshake parameter
+	 * @return specific handshake message.
+	 * @throws HandshakeException if specific handshake message could not be
+	 *             created.
+	 * @since 2.4
+	 */
+	public static HandshakeMessage fromGenericHandshakeMessage(GenericHandshakeMessage message,
+			HandshakeParameter parameter) throws HandshakeException {
+		InetSocketAddress peerAddress = message.getPeer();
+		try {
+			HandshakeType type = message.getMessageType();
+			LOGGER.trace("Parsing HANDSHAKE message of type [{}]", type);
+			byte[] byteArray = message.toByteArray();
+			DatagramReader reader = new DatagramReader(message.fragmentToByteArray(), false);
 
-			case CERTIFICATE_VERIFY:
-				body = CertificateVerify.fromReader(reader, peerAddress);
-				break;
+			HandshakeMessage body = fromReader(type, reader, parameter, peerAddress);
 
-			case CLIENT_KEY_EXCHANGE:
-				if (parameter == null) {
-					// handshake parameter are available after flight 4, so in flight 5 it's an error
-					throw new HandshakeException(
-							"Unexpected client key exchange message",
-							new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, peerAddress));
-				} else {
-					body = readClientKeyExchange(reader, parameter.getKeyExchangeAlgorithm(), peerAddress);
-				}
-				break;
-
-			case FINISHED:
-				body = Finished.fromReader(reader, peerAddress);
-				break;
-
-			default:
-				throw new HandshakeException(
-						String.format("Cannot parse unsupported message type %s", type),
-						new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, peerAddress));
-			}
-
-			if (reader.bytesAvailable()) {
-				byte[] bytesLeft = reader.readBytesLeft();
-				throw new HandshakeException(
-						String.format("Too many bytes, %d left, message not completely parsed! message type %s", bytesLeft.length, type),
-						new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR, peerAddress));
-			}
 			// keep the raw bytes for computation of handshake hash
-			body.rawMessage = Arrays.copyOf(byteArray, byteArray.length);
-			body.setMessageSeq(messageSeq);
+			body.rawMessage = byteArray;
+			body.setMessageSeq(message.getMessageSeq());
+			body.setNextHandshakeMessage(message.getNextHandshakeMessage());
 
 			return body;
 		} catch (IllegalArgumentException ex) {
@@ -315,6 +341,105 @@ public abstract class HandshakeMessage extends AbstractMessage {
 		}
 	}
 
+	/**
+	 * Create handshake message from reader.
+	 * 
+	 * If the handshake parameter are available, a specific handshake message is
+	 * returned. If not, a {@link GenericHandshakeMessage} or
+	 * {@link FragmentedHandshakeMessage} may be returned.
+	 * 
+	 * @param type type of handshake message
+	 * @param reader reader to read message
+	 * @param parameter handshake parameter
+	 * @param peerAddress peer's address
+	 * @return handshake message
+	 * @throws HandshakeException if handshake message could not be created.
+	 * @since 2.4
+	 */
+	private static HandshakeMessage fromReader(HandshakeType type, DatagramReader reader, HandshakeParameter parameter,
+			InetSocketAddress peerAddress) throws HandshakeException {
+
+		HandshakeMessage body;
+		switch (type) {
+		case HELLO_REQUEST:
+			body = new HelloRequest(peerAddress);
+			break;
+
+		case CLIENT_HELLO:
+			body = ClientHello.fromReader(reader, peerAddress);
+			break;
+
+		case SERVER_HELLO:
+			body = ServerHello.fromReader(reader, peerAddress);
+			break;
+
+		case HELLO_VERIFY_REQUEST:
+			body = HelloVerifyRequest.fromReader(reader, peerAddress);
+			break;
+
+		case CERTIFICATE:
+			if (parameter == null) {
+				throw new MissingHandshakeParameterException("HandshakeParameter must not be null!");
+			}
+			body = CertificateMessage.fromReader(reader, parameter.getCertificateType(), peerAddress);
+			break;
+
+		case SERVER_KEY_EXCHANGE:
+			if (parameter == null) {
+				throw new MissingHandshakeParameterException("HandshakeParameter must not be null!");
+			}
+			body = readServerKeyExchange(reader, parameter.getKeyExchangeAlgorithm(), peerAddress);
+			break;
+
+		case CERTIFICATE_REQUEST:
+			body = CertificateRequest.fromReader(reader, peerAddress);
+			break;
+
+		case SERVER_HELLO_DONE:
+			body = new ServerHelloDone(peerAddress);
+			break;
+
+		case CERTIFICATE_VERIFY:
+			body = CertificateVerify.fromReader(reader, peerAddress);
+			break;
+
+		case CLIENT_KEY_EXCHANGE:
+			if (parameter == null) {
+				throw new MissingHandshakeParameterException("HandshakeParameter must not be null!");
+			}
+			body = readClientKeyExchange(reader, parameter.getKeyExchangeAlgorithm(), peerAddress);
+			break;
+
+		case FINISHED:
+			body = Finished.fromReader(reader, peerAddress);
+			break;
+
+		default:
+			throw new HandshakeException(
+					String.format("Cannot parse unsupported message type %s", type),
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, peerAddress));
+		}
+
+		if (reader.bytesAvailable()) {
+			byte[] bytesLeft = reader.readBytesLeft();
+			throw new HandshakeException(
+					String.format("Too many bytes, %d left, message not completely parsed! message type %s", bytesLeft.length, type),
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR, peerAddress));
+		}
+
+		return body;
+	}
+
+	/**
+	 * Read server key exchange message.
+	 * 
+	 * @param reader reader with data
+	 * @param keyExchange key exchange algorithm
+	 * @param peerAddress peer's address
+	 * @return key exchange handshake message
+	 * @throws HandshakeException if handshake message could not be created.
+	 * @since 2.4
+	 */
 	private static HandshakeMessage readServerKeyExchange(DatagramReader reader, KeyExchangeAlgorithm keyExchange, InetSocketAddress peerAddress)
 			throws HandshakeException {
 		switch (keyExchange) {
@@ -332,6 +457,16 @@ public abstract class HandshakeMessage extends AbstractMessage {
 
 	}
 
+	/**
+	 * Read client key exchange message.
+	 * 
+	 * @param reader reader with data
+	 * @param keyExchange key exchange algorithm
+	 * @param peerAddress peer's address
+	 * @return key exchange handshake message
+	 * @throws HandshakeException if handshake message could not be created.
+	 * @since 2.4
+	 */
 	private static HandshakeMessage readClientKeyExchange(DatagramReader reader, KeyExchangeAlgorithm keyExchange, InetSocketAddress peerAddress)
 			throws HandshakeException {
 		switch (keyExchange) {
@@ -350,14 +485,29 @@ public abstract class HandshakeMessage extends AbstractMessage {
 
 	// Getters and Setters ////////////////////////////////////////////
 
+	/**
+	 * Get fragment offset.
+	 * 
+	 * @return fragment offset.
+	 */
 	public int getFragmentOffset() {
 		return 0;
 	}
 
+	/**
+	 * Get fragment length.
+	 * 
+	 * @return fragment length
+	 */
 	public int getFragmentLength() {
 		return getMessageLength();
 	}
 
+	/**
+	 * Get handshake message sequence number.
+	 * 
+	 * @return handshake message sequence number
+	 */
 	public int getMessageSeq() {
 		return messageSeq;
 	}
@@ -377,6 +527,25 @@ public abstract class HandshakeMessage extends AbstractMessage {
 	}
 
 	/**
+	 * Set next handshake message.
+	 * 
+	 * @param message next handshake message.
+	 */
+	public void setNextHandshakeMessage(HandshakeMessage message) {
+		nextHandshakeMessage = message;
+	}
+
+	/**
+	 * Get next handshake message.
+	 * 
+	 * @return next handshake message. {@code null}, if no next handshake
+	 *         message is available.
+	 */
+	public HandshakeMessage getNextHandshakeMessage() {
+		return nextHandshakeMessage;
+	}
+
+	/**
 	 * Gets the raw bytes of the message received from a client that this instance
 	 * has been created from.
 	 * The raw message is used for calculating the handshake hash sent in the
@@ -389,4 +558,17 @@ public abstract class HandshakeMessage extends AbstractMessage {
 		return rawMessage;
 	}
 
+	/**
+	 * Exception on missing {@link HandshakeParameter}.
+	 * 
+	 * @since 2.4
+	 */
+	private static class MissingHandshakeParameterException extends IllegalArgumentException {
+
+		private MissingHandshakeParameterException(String message) {
+			super(message);
+		}
+
+		private static final long serialVersionUID = -5365688530126068164L;
+	}
 }

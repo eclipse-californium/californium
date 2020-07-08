@@ -73,7 +73,7 @@ public final class Connection {
 	 * Random used by client to start the handshake. Maybe {@code null}, for
 	 * client side connections. Note: used outside of serial-execution!
 	 */
-	private Random startingClientHelloRandom;
+	private volatile Random startingClientHelloRandom;
 	private int startingClientHelloMessageSeq;
 
 	/**

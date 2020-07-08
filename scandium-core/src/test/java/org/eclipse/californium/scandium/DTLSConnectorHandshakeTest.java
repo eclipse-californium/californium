@@ -43,7 +43,10 @@ import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.Principal;
 import java.security.cert.Certificate;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -54,13 +57,15 @@ import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.auth.AdditionalInfo;
-import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.category.Large;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
+import org.eclipse.californium.scandium.ConnectorHelper.BuilderSetup;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchSessionListener;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
@@ -79,6 +84,10 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameter;
+import org.junit.runners.Parameterized.Parameters;
 
 /**
  * Verifies behavior of {@link DTLSConnector}.
@@ -86,7 +95,8 @@ import org.junit.experimental.categories.Category;
  * Mainly contains integration test cases verifying the correct interaction
  * between a client and a server during handshakes with and without SNI.
  */
-@Category(Medium.class)
+@RunWith(Parameterized.class)
+@Category(Large.class)
 public class DTLSConnectorHandshakeTest {
 
 	@ClassRule
@@ -128,6 +138,64 @@ public class DTLSConnectorHandshakeTest {
 		info.clear();
 		info.put(KEY_DEVICE_ID, DEVICE_ID);
 		additionalClientInfo = AdditionalInfo.from(info);
+	}
+
+	/**
+	 * Actual DTLS Configuration Builder setup for server.
+	 */
+	@Parameter(0)
+	public BuilderSetup serverBuilderSetup;
+
+	/**
+	 * Actual DTLS Configuration Builder setup for client.
+	 */
+	@Parameter(1)
+	public BuilderSetup clientBuilderSetup;
+
+	/**
+	 * @return List of DTLS Configuration Builder setup.
+	 */
+	@Parameters(name = "setup = serve {0} / client {1}")
+	public static Iterable<BuilderSetup[]> builderSetups() {
+		List<BuilderSetup> modes = Arrays.asList(new BuilderSetup() {
+
+			public String toString() {
+				return "multi-handshake-messages";
+			}
+
+			@Override
+			public void setup(Builder builder) {
+				builder.setEnableMultiHandshakeMessageRecords(true);
+			}
+
+		}, new BuilderSetup() {
+
+			public String toString() {
+				return "single-handshake-messages";
+			}
+
+			@Override
+			public void setup(Builder builder) {
+				builder.setEnableMultiHandshakeMessageRecords(false);
+			}
+		}, new BuilderSetup() {
+
+			public String toString() {
+				return "default-handshake-messages";
+			}
+
+			@Override
+			public void setup(Builder builder) {
+			}
+		});
+		List<BuilderSetup[]> combinations = new ArrayList<ConnectorHelper.BuilderSetup[]>();
+		for (BuilderSetup server : modes) {
+			for (BuilderSetup client : modes) {
+				combinations.add(new BuilderSetup[] {server,client});
+			}
+			
+		}
+		return combinations;
 	}
 
 	/**
@@ -177,6 +245,7 @@ public class DTLSConnectorHandshakeTest {
 
 	private void startServer(DtlsConnectorConfig.Builder builder)
 			throws IOException, GeneralSecurityException {
+		serverBuilderSetup.setup(builder);
 		serverHelper = new ConnectorHelper();
 		serverHelper.startServer(builder);
 	}
@@ -224,6 +293,7 @@ public class DTLSConnectorHandshakeTest {
 				.setClientOnly()
 				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY)
 				.setApplicationLevelInfoSupplier(serverInfoSupplier);
+		clientBuilderSetup.setup(builder);
 		DtlsConnectorConfig clientConfig = builder.build();
 
 		client = serverHelper.createClient(clientConfig);
@@ -243,6 +313,7 @@ public class DTLSConnectorHandshakeTest {
 				.setConnectionThreadCount(1)
 				.setClientOnly()
 				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY);
+		clientBuilderSetup.setup(builder);
 		DtlsConnectorConfig clientConfig = builder.build();
 
 		client = serverHelper.createClient(clientConfig);

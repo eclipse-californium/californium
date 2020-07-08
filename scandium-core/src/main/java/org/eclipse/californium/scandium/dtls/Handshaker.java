@@ -59,6 +59,8 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.Inet6Address;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
@@ -69,12 +71,15 @@ import java.security.cert.CertPath;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantLock;
@@ -92,6 +97,7 @@ import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.elements.util.ClockUtil;
+import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.auth.AdvancedApplicationLevelInfoSupplier;
@@ -99,7 +105,6 @@ import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
@@ -147,6 +152,13 @@ public abstract class Handshaker implements Destroyable {
 	private boolean destroyed;
 
 	private final ReentrantLock recursionProtection = new ReentrantLock();
+
+	/**
+	 * Communication over IPv6.
+	 * 
+	 * @since 2.4
+	 */
+	private final boolean ipv6;
 
 	protected final DTLSSession session;
 	/**
@@ -207,6 +219,19 @@ public abstract class Handshaker implements Destroyable {
 	private final List<Record> deferredRecords = new ArrayList<Record>();
 	/** Currently pending flight */
 	private final AtomicReference<DTLSFlight> pendingFlight = new AtomicReference<DTLSFlight>();
+	/**
+	 * Task to retransmit flight.
+	 * 
+	 * @since 2.4
+	 */
+	private Runnable retransmitFlight;
+
+	/**
+	 * Scheduler for flight timeout and retransmission.
+	 * 
+	 * @sine 2.4
+	 */
+	private final ScheduledExecutorService timer;
 
 	private final RecordLayer recordLayer;
 	/**
@@ -254,6 +279,44 @@ public abstract class Handshaker implements Destroyable {
 	 */
 	protected final boolean useTruncatedCertificatePathForVerification;
 
+	/**
+	 * Stop retransmission with receiving the first record of the answer flight.
+	 * 
+	 * @since 2.4
+	 */
+	private final boolean useEarlyStopRetransmission;
+
+	/**
+	 * Use datagrams with multiple dtls records.
+	 * 
+	 * @since 2.4
+	 */
+	private Boolean useMultiRecordMessages;
+	/**
+	 * Use dtls records with multiple handshake messages.
+	 * 
+	 * @since 2.4
+	 */
+	private Boolean useMultiHandshakeMessagesRecord;
+	/**
+	 * Back-off retransmission.
+	 * 
+	 * @since 2.4
+	 */
+	private final int backOffRetransmission;
+	/**
+	 * Maximum number of retransmissions.
+	 * 
+	 * @since 2.4
+	 */
+	private final int maxRetransmissions;
+	/**
+	 * Retransmission timeout.
+	 * 
+	 * @since 2.4
+	 */
+	private final int retransmissionTimeout;
+
 	private final Set<SessionListener> sessionListeners = new LinkedHashSet<>();
 
 	protected int statesIndex;
@@ -296,26 +359,33 @@ public abstract class Handshaker implements Destroyable {
 	 *            handshake starts.
 	 * @param session the session this handshaker is negotiating.
 	 * @param recordLayer the object to use for sending flights to the peer.
+	 * @param timer scheduled executor for flight retransmission (since 2.4).
 	 * @param connection the connection related to this handshaker.
 	 * @param config the dtls configuration
-	 * @param maxTransmissionUnit the MTU value reported by the network
-	 *            interface the record layer is bound to.
 	 * @throws NullPointerException if session, recordLayer, or config is
 	 *             <code>null</code>.
 	 * @throws IllegalArgumentException if the initial message sequence number
 	 *             is negative
 	 */
+	@NoPublicAPI
 	protected Handshaker(boolean isClient, int initialMessageSeq, DTLSSession session, RecordLayer recordLayer,
-			Connection connection, DtlsConnectorConfig config, int maxTransmissionUnit) {
+			ScheduledExecutorService timer, Connection connection, DtlsConnectorConfig config) {
 		if (session == null) {
 			throw new NullPointerException("DTLS Session must not be null");
-		} else if (recordLayer == null) {
+		}
+		if (recordLayer == null) {
 			throw new NullPointerException("Record layer must not be null");
-		} else if (connection == null) {
+		}
+		if (timer == null) {
+			throw new NullPointerException("Timer must not be null");
+		}
+		if (connection == null) {
 			throw new NullPointerException("Connection must not be null");
-		} else if (config == null) {
+		}
+		if (config == null) {
 			throw new NullPointerException("Dtls Connector Config must not be null");
-		} else if (initialMessageSeq < 0) {
+		}
+		if (initialMessageSeq < 0) {
 			throw new IllegalArgumentException("Initial message sequence number must not be negative");
 		}
 		this.isClient = isClient;
@@ -323,30 +393,36 @@ public abstract class Handshaker implements Destroyable {
 		this.nextReceiveMessageSequence = initialMessageSeq;
 		this.session = session;
 		this.recordLayer = recordLayer;
+		this.timer = timer;
 		this.connection = connection;
 		this.connectionIdGenerator = config.getConnectionIdGenerator();
+		this.retransmissionTimeout = config.getRetransmissionTimeout();
+		this.backOffRetransmission = config.getBackOffRetransmission();
+		this.maxRetransmissions = config.getMaxRetransmissions();
 		this.maxFragmentedHandshakeMessageLength = config.getMaxFragmentedHandshakeMessageLength();
+		this.useMultiRecordMessages = config.useMultiRecordMessages();
+		this.useMultiHandshakeMessagesRecord = config.useMultiHandshakeMessageRecords();
 		this.maxDeferredProcessedOutgoingApplicationDataMessages = config.getMaxDeferredProcessedOutgoingApplicationDataMessages();
 		this.maxDeferredProcessedIncomingRecordsSize = config.getMaxDeferredProcessedIncomingRecordsSize();
 		this.sniEnabled = config.isSniEnabled();
 		this.useStateValidation = config.useHandshakeStateValidation();
 		this.useKeyUsageVerification = config.useKeyUsageVerification();
 		this.useTruncatedCertificatePathForVerification = config.useTruncatedCertificatePathForValidation();
+		this.useEarlyStopRetransmission = config.isEarlyStopRetransmission();
 		this.privateKey = config.getPrivateKey();
 		this.publicKey = config.getPublicKey();
 		this.certificateChain = config.getCertificateChain();
 		this.certificateVerifier = config.getCertificateVerifier();
 		this.rpkStore = config.getRpkTrustStore();
 		this.advancedPskStore = config.getAdvancedPskStore();
-		this.session.setMaxTransmissionUnit(maxTransmissionUnit);
 		this.applicationLevelInfoSupplier = config.getApplicationLevelInfoSupplier();
 		this.inboundMessageBuffer = new InboundMessageBuffer();
-		int max = config.getMaxRetransmissions();
-		int timeoutMillis = config.getRetransmissionTimeout();
+		this.ipv6 = connection.getPeerAddress().getAddress() instanceof Inet6Address;
 		// add all timeouts for retries and the initial timeout twice
 		// to get a short extra timespan for regular handshake timeouts
+		int timeoutMillis = retransmissionTimeout;
 		int expireTimeoutMillis = timeoutMillis * 2;
-		for (int retry = 0; retry < max; ++retry) {
+		for (int retry = 0; retry < maxRetransmissions; ++retry) {
 			timeoutMillis = DTLSFlight.incrementTimeout(timeoutMillis);
 			expireTimeoutMillis += timeoutMillis;
 		}
@@ -393,8 +469,7 @@ public abstract class Handshaker implements Destroyable {
 					if (messageSeq > nextReceiveMessageSequence) {
 						break;
 					}
-					queue.remove(record);
-					removeDeferredProcessedRecord(record);
+					removeDeferredProcessedRecord(record, queue);
 					if (messageSeq == nextReceiveMessageSequence) {
 						result = record;
 						break;
@@ -467,10 +542,7 @@ public abstract class Handshaker implements Destroyable {
 								handshakeMessage.getMessageType(),
 								messageSeq,
 								nextReceiveMessageSequence);
-						if (addDeferredProcessedRecord(candidate)) {
-							queue.add(candidate);
-						}
-						// Dropped handshake messages are retransmitted by the other peer!
+						addDeferredProcessedRecord(candidate, queue);
 						return null;
 					} else {
 						LOGGER.debug("Discarding old {} message_seq [{}] < next_receive_seq [{}]",
@@ -499,8 +571,7 @@ public abstract class Handshaker implements Destroyable {
 			}
 			for (Record record : queue) {
 				if (record.getSequenceNumber() == recordSequenceNumber) {
-					queue.remove(record);
-					removeDeferredProcessedRecord(record);
+					removeDeferredProcessedRecord(record, queue);
 				}
 			}
 		}
@@ -589,7 +660,7 @@ public abstract class Handshaker implements Destroyable {
 	/**
 	 * Process next messages.
 	 * 
-	 * Read next messages also from inbound message buffer. Protected against
+	 * Read next messages also from inbound message buffer. To protect against
 	 * recursion, returns immediately, if called from
 	 * {@link #doProcessMessage(HandshakeMessage)}.
 	 * 
@@ -606,104 +677,26 @@ public abstract class Handshaker implements Destroyable {
 		}
 		try {
 			int epoch = session.getReadEpoch();
-			int counter = 0;
+			int bufferIndex = 0;
 			Record recordToProcess = record != null ? record : inboundMessageBuffer.getNextRecord();
 			while (recordToProcess != null) {
+				if (useMultiRecordMessages == null && recordToProcess.isFollowUpRecord()) {
+					useMultiRecordMessages = true;
+				}
 				DTLSMessage messageToProcess = recordToProcess.getFragment();
-				expectMessage(messageToProcess);
 
 				if (messageToProcess.getContentType() == ContentType.CHANGE_CIPHER_SPEC) {
+					expectMessage(messageToProcess);
 					// is thrown during processing
 					LOGGER.debug("Processing {} message from peer [{}]", messageToProcess.getContentType(),
 							messageToProcess.getPeer());
 					setCurrentReadState();
 					++statesIndex;
-					LOGGER.debug("Processed {} message from peer [{}]", messageToProcess.getContentType(),
+					LOGGER.info("Processed {} message from peer [{}]", messageToProcess.getContentType(),
 							messageToProcess.getPeer());
 				} else if (messageToProcess.getContentType() == ContentType.HANDSHAKE) {
-					HandshakeMessage handshakeMessage = (HandshakeMessage) messageToProcess;
-					if (handshakeMessage.getMessageType() == HandshakeType.FINISHED && epoch == 0) {
-						LOGGER.debug("FINISH with epoch 0 from peer [{}]!", getSession().getPeer());
-						AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE,
-								getSession().getPeer());
-						throw new HandshakeException("FINISH with epoch 0!", alert);
-					}
-					// only cancel on HANDSHAKE messages
-					// the very last flight CCS + FINISH
-					// must be not canceled before the FINISH
-					DTLSFlight flight = pendingFlight.get();
-					if (flight != null) {
-						LOGGER.debug("response for flight {} started", flight.getFlightNumber());
-						flight.setResponseStarted();
-					}
-					if (handshakeMessage instanceof FragmentedHandshakeMessage) {
-						handshakeMessage = handleFragmentation((FragmentedHandshakeMessage) handshakeMessage);
-					}
-					if (handshakeMessage != null) {
-						if (handshakeMessage instanceof GenericHandshakeMessage) {
-							GenericHandshakeMessage genericMessage = (GenericHandshakeMessage) handshakeMessage;
-							HandshakeParameter parameter = session.getParameter();
-							if (parameter == null) {
-								LOGGER.warn("Cannot process handshake {} message from peer [{}], parameter are required!",
-										genericMessage.getMessageType(), getSession().getPeer());
-								AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR,
-										session.getPeer());
-								throw new HandshakeException("Cannot process " + genericMessage.getMessageType()
-										+ " handshake message, parameter are required!", alert);
-							}
-							handshakeMessage = genericMessage.getSpecificHandshakeMessage(parameter);
-						}
-						if (lastFlight) {
-							if (flight == null) {
-								if (cause != null) {
-									LOGGER.error("last flight missing, handshake already failed! {}", handshakeMessage,
-											cause);
-								} else if (counter == 0) {
-									LOGGER.error("last flight missing, resend failed! {}", handshakeMessage);
-								} else {
-									LOGGER.error("last flight missing, resend for buffered message {} failed! {}",
-											counter, handshakeMessage);
-								}
-								break;
-							}
-							// we already sent the last flight (including our FINISHED message),
-							// but the other peer does not seem to have received it because we received
-							// its finished message again, so we simply retransmit our last flight
-							LOGGER.debug("Received ({}) FINISHED message again, retransmitting last flight...",
-									getPeerAddress());
-							flight.incrementTries();
-							flight.setNewSequenceNumbers();
-							sendFlight(flight);
-						} else {
-							// is thrown during processing
-							if (LOGGER.isDebugEnabled()) {
-								StringBuilder msg = new StringBuilder();
-								msg.append(String.format("Processing %s message from peer [%s], seqn: [%d]",
-										handshakeMessage.getMessageType(), handshakeMessage.getPeer(),
-										handshakeMessage.getMessageSeq()));
-								if (LOGGER.isTraceEnabled()) {
-									msg.append(":").append(StringUtil.lineSeparator()).append(handshakeMessage);
-								}
-								LOGGER.debug(msg.toString());
-							}
-							if (epoch == 0) {
-								handshakeMessages.add(handshakeMessage);
-							}
-							recursionProtection.lock();
-							try {
-								doProcessMessage(handshakeMessage);
-							} finally {
-								recursionProtection.unlock();
-							}
-							LOGGER.debug("Processed {} message from peer [{}]", handshakeMessage.getMessageType(),
-									handshakeMessage.getPeer());
-							if (!lastFlight) {
-								// last Flight may have changed processing
-								// the handshake message
-								++nextReceiveMessageSequence;
-								++statesIndex;
-							}
-						}
+					if (!processNextHandshakeMessages(epoch, bufferIndex, (HandshakeMessage) messageToProcess)) {
+						break;
 					}
 				} else {
 					throw new HandshakeException(
@@ -716,7 +709,7 @@ public abstract class Handshaker implements Destroyable {
 				session.markRecordAsRead(epoch, recordToProcess.getSequenceNumber());
 				inboundMessageBuffer.clean(recordToProcess.getSequenceNumber());
 				recordToProcess = inboundMessageBuffer.getNextRecord();
-				++counter;
+				++bufferIndex;
 			}
 			if (session.getReadEpoch() > epoch) {
 				final SerialExecutor serialExecutor = connection.getExecutor();
@@ -728,18 +721,23 @@ public abstract class Handshaker implements Destroyable {
 									record.getPeerAddress()));
 				}
 				for (Record deferredRecord : records) {
-					if (serialExecutor != null) {
+					if (serialExecutor != null && !serialExecutor.isShutdown()) {
 						final Record dRecord = deferredRecord;
-						serialExecutor.execute(new Runnable() {
+						try {
+							serialExecutor.execute(new Runnable() {
 
-							@Override
-							public void run() {
-								recordLayer.processRecord(dRecord, connection);
-							}
-						});
-					} else {
-						recordLayer.processRecord(deferredRecord, connection);
+								@Override
+								public void run() {
+									recordLayer.processRecord(dRecord, connection);
+								}
+							});
+							continue;
+						} catch (RejectedExecutionException ex) {
+							LOGGER.debug("Execution rejected while processing record [type: {}, peer: {}]",
+									record.getType(), record.getPeerAddress(), ex);
+						}
 					}
+					recordLayer.processRecord(deferredRecord, connection);
 				}
 			}
 		} catch (GeneralSecurityException e) {
@@ -749,6 +747,119 @@ public abstract class Handshaker implements Destroyable {
 					session.getPeer());
 			throw new HandshakeException("Cannot process handshake message", alert);
 		}
+	}
+
+	/**
+	 * Process next {@link HandshakeMessage}.
+	 * 
+	 * When {@link HandshakeMessage}s are chained, process all. To protected
+	 * against recursion, returns immediately, if called from
+	 * {@link #doProcessMessage(HandshakeMessage)}.
+	 * 
+	 * @param epoch epoch of the based record
+	 * @param bufferIndex index within buffered handshake message. Used only for
+	 *            logging.
+	 * @param handshakeMessage the handshake message.
+	 * @return {@code true}, continue processing record, {@code false}, stop
+	 *         processing records.
+	 * @throws HandshakeException if an error occurs processing a message
+	 * @throws GeneralSecurityException if an error occurs processing a message
+	 * @since 2.4
+	 */
+	private boolean processNextHandshakeMessages(int epoch, int bufferIndex, HandshakeMessage handshakeMessage)
+			throws HandshakeException, GeneralSecurityException {
+		if (recursionProtection.isHeldByCurrentThread()) {
+			LOGGER.warn("Called from doProcessMessage, return immediately to process next message!",
+					new Throwable("recursion-protection"));
+			return false;
+		}
+		// only cancel on HANDSHAKE messages
+		// the very last flight CCS + FINISH
+		// must not be canceled before the FINISH
+		DTLSFlight flight = pendingFlight.get();
+		if (flight != null) {
+			LOGGER.debug("response for flight {} started", flight.getFlightNumber());
+			flight.setResponseStarted();
+		}
+		while (handshakeMessage != null) {
+			expectMessage(handshakeMessage);
+			if (handshakeMessage.getMessageType() == HandshakeType.FINISHED && epoch == 0) {
+				LOGGER.debug("FINISH with epoch 0 from peer [{}]!", getSession().getPeer());
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE,
+						getSession().getPeer());
+				throw new HandshakeException("FINISH with epoch 0!", alert);
+			}
+			if (handshakeMessage instanceof FragmentedHandshakeMessage) {
+				handshakeMessage = reassembleFragment((FragmentedHandshakeMessage) handshakeMessage);
+				if (handshakeMessage == null) {
+					break;
+				}
+			}
+			if (handshakeMessage instanceof GenericHandshakeMessage) {
+				GenericHandshakeMessage genericMessage = (GenericHandshakeMessage) handshakeMessage;
+				HandshakeParameter parameter = session.getParameter();
+				handshakeMessage = HandshakeMessage.fromGenericHandshakeMessage(genericMessage, parameter);
+			}
+			if (lastFlight) {
+				if (flight == null) {
+					if (cause != null) {
+						LOGGER.error("last flight missing, handshake already failed! {}", handshakeMessage, cause);
+					} else if (bufferIndex == 0) {
+						LOGGER.error("last flight missing, resend failed! {}", handshakeMessage);
+					} else {
+						LOGGER.error("last flight missing, resend for buffered message {} failed! {}", bufferIndex,
+								handshakeMessage);
+					}
+					return false;
+				}
+				// we already sent the last flight (including our FINISHED
+				// message),
+				// but the other peer does not seem to have received it
+				// because we received
+				// its finished message again, so we simply retransmit our
+				// last flight
+				LOGGER.info("Received ({}) FINISHED message again, retransmitting last flight...",
+						getPeerAddress());
+				flight.incrementTries();
+				// retransmit CCS and FINISH, back-off not required!
+				sendFlight(flight);
+				return false;
+			} else {
+				// is thrown during processing
+				if (LOGGER.isDebugEnabled()) {
+					StringBuilder msg = new StringBuilder();
+					msg.append(String.format("Processing %s message from peer [%s], seqn: [%d]",
+							handshakeMessage.getMessageType(), handshakeMessage.getPeer(),
+							handshakeMessage.getMessageSeq()));
+					if (LOGGER.isTraceEnabled()) {
+						msg.append(":").append(StringUtil.lineSeparator()).append(handshakeMessage);
+					}
+					LOGGER.debug(msg.toString());
+				}
+				if (epoch == 0) {
+					handshakeMessages.add(handshakeMessage);
+				}
+				recursionProtection.lock();
+				try {
+					doProcessMessage(handshakeMessage);
+				} finally {
+					recursionProtection.unlock();
+				}
+				LOGGER.info("Processed {} message from peer [{}]", handshakeMessage.getMessageType(),
+						handshakeMessage.getPeer());
+				if (!lastFlight) {
+					// last Flight may have changed processing
+					// the handshake message
+					++nextReceiveMessageSequence;
+					++statesIndex;
+				}
+				handshakeMessage = handshakeMessage.getNextHandshakeMessage();
+				if (useMultiHandshakeMessagesRecord == null && handshakeMessage != null) {
+					useMultiHandshakeMessagesRecord = true;
+				}
+			}
+		}
+		return true;
 	}
 
 	/**
@@ -1021,7 +1132,7 @@ public abstract class Handshaker implements Destroyable {
 	 * @param pskIdentity PSK identity
 	 * @param otherSecret others secret for ECHDE support. Maybe {@code null}.
 	 * @return psk secret result. {@code null}, if result is returned
-	 *         asynchrounous.
+	 *         asynchronous.
 	 * @since 2.3
 	 */
 	protected PskSecretResult requestPskSecretResult(PskPublicInformation pskIdentity, SecretKey otherSecret) {
@@ -1067,105 +1178,47 @@ public abstract class Handshaker implements Destroyable {
 	 */
 	protected final void wrapMessage(DTLSFlight flight, DTLSMessage fragment) throws HandshakeException {
 
-		try {
-			switch (fragment.getContentType()) {
-			case HANDSHAKE:
-				wrapHandshakeMessage(flight, (HandshakeMessage) fragment);
-				break;
-			case CHANGE_CIPHER_SPEC:
-				// CCS has only 1 byte payload and doesn't require fragmentation
-				flight.addMessage(new Record(fragment.getContentType(), session.getWriteEpoch(),
-						session.getSequenceNumber(), fragment, session, false, 0));
-				break;
-			default:
-				throw new HandshakeException("Cannot create " + fragment.getContentType() + " record for flight",
-						new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, session.getPeer()));
+		switch (fragment.getContentType()) {
+		case HANDSHAKE:
+			HandshakeMessage handshakeMessage = (HandshakeMessage) fragment;
+			applySendMessageSequenceNumber(handshakeMessage);
+			if (session.getWriteEpoch() == 0) {
+				handshakeMessages.add(handshakeMessage);
 			}
-		} catch (GeneralSecurityException e) {
-			throw new HandshakeException("Cannot create record",
+			flight.addDtlsMessage(session.getWriteEpoch(), fragment);
+			break;
+		case CHANGE_CIPHER_SPEC:
+			// CCS has only 1 byte payload and doesn't require fragmentation
+			flight.addDtlsMessage(session.getWriteEpoch(), fragment);
+			break;
+		default:
+			throw new HandshakeException("Cannot create " + fragment.getContentType() + " record for flight",
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, session.getPeer()));
 		}
 	}
 
-	private void wrapHandshakeMessage(DTLSFlight flight, HandshakeMessage handshakeMessage) throws GeneralSecurityException {
-		applySendMessageSequenceNumber(handshakeMessage);
-		int messageLength = handshakeMessage.getMessageLength();
-		int maxFragmentLength = session.getMaxFragmentLength();
-
-		if (session.getWriteEpoch() == 0) {
-			handshakeMessages.add(handshakeMessage);
-		}
-
-		if (messageLength <= maxFragmentLength) {
-			boolean useCid = handshakeMessage.getMessageType() == HandshakeType.FINISHED;
-			flight.addMessage(new Record(ContentType.HANDSHAKE, session.getWriteEpoch(),
-					session.getSequenceNumber(), handshakeMessage, session, useCid, 0));
-			return;
-		}
-
-		// message needs to be fragmented
-		LOGGER.debug("Splitting up {} message for [{}] into multiple fragments of max {} bytes",
-				handshakeMessage.getMessageType(), handshakeMessage.getPeer(), maxFragmentLength);
-		// create N handshake messages, all with the
-		// same message_seq value as the original handshake message
-		byte[] messageBytes = handshakeMessage.fragmentToByteArray();
-		if (messageBytes.length != messageLength) {
-			throw new IllegalStateException(
-					"message length " + messageLength + " differs from message " + messageBytes.length + "!");
-		}
-		int messageSeq = handshakeMessage.getMessageSeq();
-		int offset = 0;
-		while (offset < messageLength) {
-			int fragmentLength = maxFragmentLength;
-			if (offset + fragmentLength > messageLength) {
-				// the last fragment is normally shorter than the maximal size
-				fragmentLength = messageLength - offset;
-			}
-			byte[] fragmentBytes = new byte[fragmentLength];
-			System.arraycopy(messageBytes, offset, fragmentBytes, 0, fragmentLength);
-
-			FragmentedHandshakeMessage fragmentedMessage =
-					new FragmentedHandshakeMessage(
-							handshakeMessage.getMessageType(),
-							messageLength,
-							messageSeq,
-							offset,
-							fragmentBytes,
-							session.getPeer());
-
-			offset += fragmentLength;
-
-			flight.addMessage(new Record(ContentType.HANDSHAKE, session.getWriteEpoch(), session.getSequenceNumber(),
-					fragmentedMessage, session, false, 0));
-		}
-	}
-
 	/**
-	 * Called when a fragmented handshake message is received. Checks if all
-	 * fragments already here to reassemble the handshake message and if so,
-	 * returns the whole handshake message.
+	 * Process a received fragmented handshake message. Checks, if all fragments
+	 * are available and reassemble the handshake message, if so.
 	 * 
-	 * @param fragment
-	 *            the fragmented handshake message.
-	 * @return the reassembled handshake message (if all fragments are available),
-	 *         <code>null</code> otherwise.
-	 * @throws HandshakeException
-	 *             if the reassembled fragments cannot be parsed into a valid <code>HandshakeMessage</code>
+	 * @param fragment the fragmented handshake message.
+	 * @return the reassembled generic handshake message (if all fragments are
+	 *         available), {@code null}, otherwise.
+	 * @throws HandshakeException if the reassembling fails
+	 * @since 2.4
 	 */
-	protected final HandshakeMessage handleFragmentation(FragmentedHandshakeMessage fragment)
+	protected GenericHandshakeMessage reassembleFragment(FragmentedHandshakeMessage fragment)
 			throws HandshakeException {
 
 		LOGGER.debug("Processing {} message fragment ...", fragment.getMessageType());
 
-		if (fragment.getMessageLength() > maxFragmentedHandshakeMessageLength) {
-			throw new HandshakeException(
-					"Fragmented message length exceeded (" + fragment.getMessageLength() + " > "
-							+ maxFragmentedHandshakeMessageLength + ")!",
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER, fragment.getPeer()));
-		}
-		int messageSeq = fragment.getMessageSeq();
-
 		try {
+			if (fragment.getMessageLength() > maxFragmentedHandshakeMessageLength) {
+				throw new IllegalArgumentException(
+						"Fragmented message length exceeded (" + fragment.getMessageLength() + " > "
+								+ maxFragmentedHandshakeMessageLength + ")!");
+			}
+			int messageSeq = fragment.getMessageSeq();
 			if (reassembledMessage == null) {
 				reassembledMessage = new ReassemblingHandshakeMessage(fragment);
 			} else {
@@ -1176,8 +1229,7 @@ public abstract class Handshaker implements Destroyable {
 				reassembledMessage.add(fragment);
 			}
 			if (reassembledMessage.isComplete()) {
-				HandshakeMessage message = HandshakeMessage.fromByteArray(reassembledMessage.toByteArray(),
-						session.getParameter(), reassembledMessage.getPeer());
+				GenericHandshakeMessage message = reassembledMessage;
 				LOGGER.debug("Successfully re-assembled {} message", message.getMessageType());
 				reassembledMessage = null;
 				return message;
@@ -1191,10 +1243,6 @@ public abstract class Handshaker implements Destroyable {
 	}
 
 	// Getters and Setters ////////////////////////////////////////////
-
-	protected final KeyExchangeAlgorithm getKeyExchangeAlgorithm() {
-		return session.getKeyExchange();
-	}
 
 	/**
 	 * Gets the session this handshaker is used to establish.
@@ -1255,61 +1303,112 @@ public abstract class Handshaker implements Destroyable {
 		sendMessageSequence++;
 	}
 
+	/**
+	 * Get the handshake message sequence number for received handshake
+	 * messages.
+	 * 
+	 * @return handshake message sequence number
+	 */
 	final int getNextReceiveMessageSequenceNumber() {
 		return nextReceiveMessageSequence;
 	}
 
+	/**
+	 * Add outgoing application data for deferred processing.
+	 * 
+	 * @param outgoingMessage outgoing application data
+	 */
 	public void addApplicationDataForDeferredProcessing(RawData outgoingMessage) {
 		if (deferredApplicationData.size() < maxDeferredProcessedOutgoingApplicationDataMessages) {
 			deferredApplicationData.add(outgoingMessage);
 		}
 	}
 
+	/**
+	 * Add incoming records for deferred processing.
+	 * 
+	 * @param incomingMessage incoming record.
+	 */
 	public void addRecordsForDeferredProcessing(Record incomingMessage) {
-		if (addDeferredProcessedRecord(incomingMessage)) {
-			deferredRecords.add(incomingMessage);
-		}
-		// At least, the dropped handshake messages are retransmitted by the other peer!
+		addDeferredProcessedRecord(incomingMessage, deferredRecords);
 	}
 
-	private boolean addDeferredProcessedRecord(Record incomingMessage) {
+	/**
+	 * Add record for deferred processing.
+	 * 
+	 * @param incomingMessage incoming record
+	 * @param collection collection to store the record.
+	 * @return {@code true}, if added, {@code false}, if
+	 *         {@link #maxDeferredProcessedIncomingRecordsSize} would be
+	 *         exceeded.
+	 */
+	private boolean addDeferredProcessedRecord(Record incomingMessage, Collection<Record> collection) {
 		int size = incomingMessage.size();
 		if (deferredRecordsSize + size < maxDeferredProcessedIncomingRecordsSize) {
 			deferredRecordsSize += size;
+			collection.add(incomingMessage);
 			return true;
 		} else {
 			LOGGER.debug("Dropped incoming record from peer [{}], limit of {} bytes exceeded by {}+{} bytes!",
 					incomingMessage.getPeerAddress(), maxDeferredProcessedIncomingRecordsSize, deferredRecordsSize, size);
+			recordLayer.dropReceivedRecord(incomingMessage);
 			return false;
 		}
 	}
 
-	private void removeDeferredProcessedRecord(Record incomingMessage) {
-		int size = incomingMessage.size();
-		if (deferredRecordsSize < size) {
-			LOGGER.warn(
-					"deferred processed incoming records corrupted for peer [{}]! Removing {} bytes exceeds available {} bytes!",
-					incomingMessage.getPeerAddress(), size, deferredRecordsSize);
-			throw new IllegalArgumentException("deferred processing of incoming records corrupted!");
+	/**
+	 * Remove record from deferred processing
+	 * 
+	 * @param incomingMessage incoming record to remove
+	 * @param collection collection to remove the record
+	 */
+	private void removeDeferredProcessedRecord(Record incomingMessage, Collection<Record> collection) {
+		if (collection.remove(incomingMessage)) {
+			int size = incomingMessage.size();
+			if (deferredRecordsSize < size) {
+				LOGGER.warn(
+						"deferred processed incoming records corrupted for peer [{}]! Removing {} bytes exceeds available {} bytes!",
+						incomingMessage.getPeerAddress(), size, deferredRecordsSize);
+				throw new IllegalArgumentException("deferred processing of incoming records corrupted!");
+			}
+			deferredRecordsSize -= size;
 		}
-		deferredRecordsSize -= size;
 	}
 
+	/**
+	 * Take deferred outgoing application data.
+	 * 
+	 * @return list of application data
+	 */
 	public List<RawData> takeDeferredApplicationData() {
 		List<RawData> applicationData = new ArrayList<RawData>(deferredApplicationData);
 		deferredApplicationData.clear();
 		return applicationData;
 	}
 
+	/**
+	 * Take deferred incoming records.
+	 * 
+	 * @return list if deferred incoming records
+	 */
 	public List<Record> takeDeferredRecords() {
 		List<Record> records = new ArrayList<Record>(deferredRecords);
-		deferredRecords.clear();
 		for (Record record : records) {
-			removeDeferredProcessedRecord(record);
+			removeDeferredProcessedRecord(record, deferredRecords);
+		}
+		if (!deferredRecords.isEmpty()) {
+			LOGGER.warn("{} left deferred records", deferredRecords.size());
+			deferredRecords.clear();
 		}
 		return records;
 	}
 
+	/**
+	 * Take deferred outgoing application data from provided handshaker.
+	 * 
+	 * @param replacedHandshaker replaced handshaker to take deferred outgoing
+	 *            application data
+	 */
 	public void takeDeferredApplicationData(Handshaker replacedHandshaker) {
 		deferredApplicationData.addAll(replacedHandshaker.takeDeferredApplicationData());
 	}
@@ -1322,28 +1421,228 @@ public abstract class Handshaker implements Destroyable {
 	 * 
 	 * @param pendingFlight the flight
 	 */
-	public void setPendingFlight(DTLSFlight pendingFlight) {
-		DTLSFlight flight = this.pendingFlight.getAndSet(pendingFlight);
-		if (flight != null && flight != pendingFlight) {
+	public void completePendingFlight() {
+		this.retransmitFlight = null;
+		DTLSFlight flight = this.pendingFlight.get();
+		if (flight != null) {
 			flight.setResponseCompleted();
 		}
 	}
 
+	/**
+	 * Send last flight.
+	 * 
+	 * The last flight doesn't need retransmission.
+	 * 
+	 * @param flight last flight to send
+	 * @see #sendFlight(DTLSFlight)
+	 */
 	public void sendLastFlight(DTLSFlight flight) {
 		lastFlight = true;
 		flight.setRetransmissionNeeded(false);
 		sendFlight(flight);
 	}
 
+	/**
+	 * Send flight.
+	 * 
+	 * @param flight flight to send
+	 * @see #sendFlight(DTLSFlight)
+	 */
 	public void sendFlight(DTLSFlight flight) {
-		setPendingFlight(null);
+		completePendingFlight();
 		try {
+			flight.setTimeout(retransmissionTimeout);
 			flightSendNanos = ClockUtil.nanoRealtime();
 			nanosExpireTime = nanosExpireTimeout + flightSendNanos;
-			recordLayer.sendFlight(flight, connection);
-			setPendingFlight(flight);
+			int maxDatagramSize = recordLayer.getMaxDatagramSize(ipv6);
+			int maxFragmentSize = session.getMaxFragmentLength();
+			List<DatagramPacket> datagrams = flight.getDatagrams(maxDatagramSize, maxFragmentSize,
+					useMultiHandshakeMessagesRecord, useMultiRecordMessages, false);
+			LOGGER.trace("Sending flight of {} message(s) to peer [{}] using {} datagram(s) of max. {} bytes",
+					flight.getNumberOfMessages(), session.getPeer(), datagrams.size(), maxDatagramSize);
+			recordLayer.sendFlight(datagrams);
+			pendingFlight.set(flight);
+			if (flight.isRetransmissionNeeded()) {
+				retransmitFlight = new TimeoutPeerTask(flight);
+				flight.scheduleRetransmission(timer, retransmitFlight);
+			}
+		} catch (HandshakeException e) {
+			handshakeFailed(new Exception("handshake flight " + flight.getFlightNumber() + " failed!", e));
 		} catch (IOException e) {
 			handshakeFailed(new Exception("handshake flight " + flight.getFlightNumber() + " failed!", e));
+		}
+	}
+
+	/**
+	 * Handle flight timeout.
+	 * 
+	 * @param flight affected flight
+	 * @since 2.4
+	 */
+	private void handleTimeout(DTLSFlight flight) {
+
+		if (!flight.isResponseCompleted()) {
+			Handshaker handshaker = connection.getOngoingHandshake();
+			if (null != handshaker) {
+				if (!handshaker.isProbing() && connection.hasEstablishedSession()) {
+					return;
+				}
+				Exception cause = null;
+				String message = "";
+				boolean timeout = false;
+				InetSocketAddress peer = session.getPeer();
+				if (!connection.isExecuting() || !recordLayer.isRunning()) {
+					message = " Stopped by shutdown!";
+				} else {
+					// set DTLS retransmission maximum
+					int tries = flight.getTries();
+					if (tries < maxRetransmissions && handshaker.isExpired()) {
+						// limit of retransmissions not reached
+						// but handshake expired during Android / OS "deep sleep"
+						message = " Stopped by expired realtime!";
+						timeout = true;
+					} else if (tries < maxRetransmissions) {
+						// limit of retransmissions not reached
+						if (useEarlyStopRetransmission && flight.isResponseStarted()) {
+							// don't retransmit, just schedule last timeout
+							while (tries < maxRetransmissions) {
+								++tries;
+								flight.incrementTries();
+								flight.incrementTimeout();
+							}
+							// increment one more to indicate, that
+							// handshake times out without reaching
+							// the max retransmissions.
+							flight.incrementTries();
+							LOGGER.trace("schedule handshake timeout {}ms after flight {}", flight.getTimeout(),
+									flight.getFlightNumber());
+							Runnable retransmit = retransmitFlight;
+							if (retransmit != null) {
+								flight.scheduleRetransmission(timer, retransmit);
+							}
+							return;
+						}
+
+						LOGGER.trace("Re-transmitting flight for [{}], [{}] retransmissions left",
+								session.getPeer(), maxRetransmissions - tries - 1);
+						try {
+							flight.incrementTries();
+							flight.incrementTimeout();
+							int maxDatagramSize = recordLayer.getMaxDatagramSize(ipv6);
+							int maxFragmentSize = session.getMaxFragmentLength();
+							boolean backOff = backOffRetransmission > 0 && (tries + 1) > backOffRetransmission;
+							List<DatagramPacket> datagrams = flight.getDatagrams(maxDatagramSize, maxFragmentSize,
+									useMultiHandshakeMessagesRecord, useMultiRecordMessages, backOff);
+							LOGGER.info(
+									"Resending flight {} of {} message(s) to peer [{}] using {} datagram(s) of max. {} bytes. Retransmission {} of {}.",
+									flight.getFlightNumber(), flight.getNumberOfMessages(), peer, datagrams.size(),
+									maxDatagramSize, tries + 1, maxRetransmissions);
+							recordLayer.sendFlight(datagrams);
+
+							// schedule next retransmission
+							Runnable retransmit = retransmitFlight;
+							if (retransmit != null) {
+								flight.scheduleRetransmission(timer, retransmit);
+							}
+							handshaker.handshakeFlightRetransmitted(flight.getFlightNumber());
+							return;
+						} catch (IOException e) {
+							// stop retransmission on IOExceptions
+							cause = e;
+							message = " " + e.getMessage();
+							LOGGER.warn("Cannot retransmit flight to peer [{}]", peer, e);
+						} catch (HandshakeException e) {
+							LOGGER.warn("Cannot retransmit flight to peer [{}]", peer, e);
+							cause = e;
+							message = " " + e.getMessage();
+						}
+					} else if (tries > maxRetransmissions) {
+						LOGGER.debug("Flight for [{}] has reached timeout, discarding ...", peer);
+						message = " Stopped by timeout!";
+						timeout = true;
+					} else {
+						LOGGER.debug(
+								"Flight for [{}] has reached maximum no. [{}] of retransmissions, discarding ...",
+								peer, maxRetransmissions);
+						message = " Stopped by timeout after " + maxRetransmissions + " retransmissions!";
+						timeout = true;
+					}
+				}
+				LOGGER.info("Flight {} of {} message(s) to peer [{}] failed, {}. Retransmission {} of {}.",
+						flight.getFlightNumber(), flight.getNumberOfMessages(), peer, message, flight.getTries(),
+						maxRetransmissions);
+
+				// inform handshaker
+				if (timeout) {
+					handshaker.handshakeFailed(new DtlsHandshakeTimeoutException(
+							"Handshake flight " + flight.getFlightNumber() + " failed!" + message,
+							peer, flight.getFlightNumber()));
+				} else {
+					handshaker.handshakeFailed(
+							new DtlsException("Handshake flight " + flight.getFlightNumber() + " failed!" + message,
+									peer, cause));
+				}
+			}
+		}
+	}
+
+	/**
+	 * Peer related task for executing in serial executor.
+	 * 
+	 * @since 2.4
+	 */
+	private class ConnectionTask implements Runnable {
+		/**
+		 * Task to execute in serial executor.
+		 */
+		private final Runnable task;
+		/**
+		 * Flag to force execution, if serial execution is exhausted or
+		 * shutdown. The task is then executed in the context of this
+		 * {@link Runnable}.
+		 */
+		private final boolean force;
+		/**
+		 * Create peer task.
+		 * 
+		 * @param task task to be execute in serial executor
+		 * @param force flag indicating, that the task should be executed, even
+		 *            if the serial executors are exhausted or shutdown.
+		 */
+		private ConnectionTask(Runnable task, boolean force) {
+			this.task = task;
+			this.force = force;
+		}
+
+		@Override
+		public void run() {
+			final SerialExecutor serialExecutor = connection.getExecutor();
+			try {
+				serialExecutor.execute(task);
+			} catch (RejectedExecutionException e) {
+				LOGGER.debug("Execution rejected while execute task of peer: {}", connection.getPeerAddress(), e);
+				if (force) {
+					task.run();
+				}
+			}
+		}
+	}
+
+	/**
+	 * Peer task calling the {@link #handleTimeout(DTLSFlight)}.
+	 * 
+	 * @since 2.4
+	 */
+	private class TimeoutPeerTask extends ConnectionTask {
+
+		private TimeoutPeerTask(final DTLSFlight flight) {
+			super(new Runnable() {
+				@Override
+				public void run() {
+					handleTimeout(flight);
+				}
+			}, true);
 		}
 	}
 
@@ -1371,6 +1670,11 @@ public abstract class Handshaker implements Destroyable {
 		}
 	}
 
+	/**
+	 * Forward handshake start to registered listeners.
+	 * 
+	 * @throws HandshakeException if thrown by listener
+	 */
 	protected final void handshakeStarted() throws HandshakeException {
 		LOGGER.debug("handshake started {}", connection);
 		for (SessionListener sessionListener : sessionListeners) {
@@ -1378,6 +1682,13 @@ public abstract class Handshaker implements Destroyable {
 		}
 	}
 
+	/**
+	 * Forward session established to registered listeners.
+	 * 
+	 * {@link #amendPeerPrincipal()}.
+	 * 
+	 * @throws HandshakeException if thrown by listener
+	 */
 	protected final void sessionEstablished() throws HandshakeException {
 		if (!sessionEstablished) {
 			LOGGER.debug("session established {}", connection);
@@ -1389,8 +1700,11 @@ public abstract class Handshaker implements Destroyable {
 		}
 	}
 
+	/**
+	 * Forward handshake completed to registered listeners.
+	 */
 	public final void handshakeCompleted() {
-		setPendingFlight(null);
+		completePendingFlight();
 		for (SessionListener sessionListener : sessionListeners) {
 			sessionListener.handshakeCompleted(this);
 		}
@@ -1420,7 +1734,7 @@ public abstract class Handshaker implements Destroyable {
 		if (!handshakeFailed && this.cause == cause) {
 			LOGGER.debug("handshake failed {}", connection, cause);
 			handshakeFailed = true;
-			setPendingFlight(null);
+			completePendingFlight();
 			for (SessionListener sessionListener : sessionListeners) {
 				sessionListener.handshakeFailed(this, cause);
 			}
@@ -1477,7 +1791,7 @@ public abstract class Handshaker implements Destroyable {
 	 * @since 2.1
 	 */
 	public boolean isProbing() {
-		// intended to be overriden by the ResumingClientHandshaker
+		// intended to be overridden by the ResumingClientHandshaker
 		return false;
 	}
 
@@ -1550,7 +1864,7 @@ public abstract class Handshaker implements Destroyable {
 	 * @see #getFailureCause()
 	 */
 	public void setFailureCause(Throwable cause) {
-		setPendingFlight(null);
+		completePendingFlight();
 		this.cause = cause;
 	}
 

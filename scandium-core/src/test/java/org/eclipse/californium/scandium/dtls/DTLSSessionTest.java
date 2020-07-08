@@ -63,27 +63,6 @@ public class DTLSSessionTest {
 	}
 
 	@Test
-	public void testMaxFragmentLengthIsAdjustedToMtu() {
-		// given an ethernet network interface
-		int mtu = 1500;
-
-		// when setting the session's maximumTransmissionUnit property
-		session.setMaxTransmissionUnit(mtu);
-
-		// then the maxFragmentLength is as adjusted so that a fragment
-		// fits into a single unfragmented UDP datagram
-		assertAnyFragmentFitsIntoUnfragmentedDatagram(mtu);
-	}
-
-	private void assertAnyFragmentFitsIntoUnfragmentedDatagram(int mtu) {
-		int datagramSize = session.getMaxFragmentLength()
-				+ session.getWriteState().getMaxCiphertextExpansion()
-				+ DTLSSession.HEADER_LENGTH;
-		assertTrue(datagramSize <= mtu);
-		assertThat(session.getMaxDatagramSize(), is(datagramSize));
-	}
-
-	@Test
 	public void testRecordFromPreviousEpochIsDiscarded() {
 		session.setReadEpoch(1);
 		assertFalse(session.isRecordProcessable(0, 15, false));

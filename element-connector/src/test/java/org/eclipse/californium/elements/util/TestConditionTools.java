@@ -130,8 +130,8 @@ public final class TestConditionTools {
 	 * Assert, that a statistic counter reaches the matcher's criterias within
 	 * the provided timeout.
 	 * 
-	 * @param manager statisitc manager
-	 * @param name name os statisitc.
+	 * @param manager statistic manager
+	 * @param name name of statistic.
 	 * @param matcher matcher for statistic counter value
 	 * @param timeout timeout to match
 	 * @param unit unit of timeout
@@ -155,14 +155,58 @@ public final class TestConditionTools {
 	}
 
 	/**
-	 * Assert, that a statistic counter matches the provided criterias.
+	 * Assert, that a statistic counter reaches the matcher's criteria within
+	 * the provided timeout.
 	 * 
-	 * @param manager statisitc manager
-	 * @param name name os statisitc.
+	 * @param message message prepended to name
+	 * @param manager statistic manager
+	 * @param name name of statistic.
+	 * @param matcher matcher for statistic counter value
+	 * @param timeout timeout to match
+	 * @param unit unit of timeout
+	 * @throws InterruptedException if wait is interrupted.
+	 * @see TestConditionTools#assertStatisticCounter(CounterStatisticManager,
+	 *      String, Matcher)
+	 * @since 2.4
+	 */
+	public static void assertStatisticCounter(String message, final CounterStatisticManager manager, final String name,
+			final Matcher<? super Long> matcher, long timeout, TimeUnit unit) throws InterruptedException {
+		if (timeout > 0) {
+			long timeoutMillis = unit.toMillis(timeout);
+			waitForCondition(timeoutMillis, timeoutMillis / 10l, TimeUnit.MILLISECONDS, new TestCondition() {
+
+				@Override
+				public boolean isFulFilled() throws IllegalStateException {
+					return matcher.matches(manager.getCounter(name));
+				}
+			});
+		}
+		assertThat(message + "-" + name, manager.getCounter(name), matcher);
+	}
+
+	/**
+	 * Assert, that a statistic counter matches the provided criteria.
+	 * 
+	 * @param manager statistic manager
+	 * @param name name of statistic.
 	 * @param matcher matcher for statistic counter value
 	 */
 	public static void assertStatisticCounter(CounterStatisticManager manager, String name,
 			Matcher<? super Long> matcher) {
 		assertThat(name, manager.getCounter(name), matcher);
+	}
+
+	/**
+	 * Assert, that a statistic counter matches the provided criteria.
+	 * 
+	 * @param message message prepended to name
+	 * @param manager statistic manager
+	 * @param name name of statistic.
+	 * @param matcher matcher for statistic counter value
+	 * @since 2.4
+	 */
+	public static void assertStatisticCounter(String message, CounterStatisticManager manager, String name,
+			Matcher<? super Long> matcher) {
+		assertThat(message +"-" +  name, manager.getCounter(name), matcher);
 	}
 }

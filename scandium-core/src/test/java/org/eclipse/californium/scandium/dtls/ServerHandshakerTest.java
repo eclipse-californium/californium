@@ -46,11 +46,13 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.elements.category.Medium;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.TestScheduledExecutorService;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
@@ -58,6 +60,7 @@ import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.Supported
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 import org.eclipse.californium.scandium.util.ServerName.NameType;
 import org.eclipse.californium.scandium.util.ServerNames;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -86,6 +89,7 @@ public class ServerHandshakerTest {
 	byte[] random;
 	byte[] clientHelloMsg;
 	SimpleRecordLayer recordLayer;
+	ScheduledExecutorService timer;
 
 	@BeforeClass
 	public static void loadKeys() throws IOException, GeneralSecurityException {
@@ -96,6 +100,7 @@ public class ServerHandshakerTest {
 
 	@Before
 	public void setup() throws Exception {
+		timer = new TestScheduledExecutorService();
 		endpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		session = new DTLSSession(endpoint);
 		recordLayer = new SimpleRecordLayer();
@@ -126,18 +131,10 @@ public class ServerHandshakerTest {
 				(byte) 0xC0, (byte) 0x23};// TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
 	}
 
-	@Test
-	public void testConstructorAdjustsMaxFragmentSize() throws HandshakeException {
-		// given a network interface with standard ethernet MTU (1500 bytes)
-		int networkMtu = ETHERNET_MTU;
-		Connection connection = new Connection(session.getPeer(), new SyncSerialExecutor());
-
-		// when instantiating a ServerHandshaker to negotiate a new session
-		handshaker = new ServerHandshaker(0, session, recordLayer, connection, config, networkMtu);
-
-		// then a fragment created under the session's current write state should
-		// fit into a single unfragmented UDP datagram
-		assertTrue(session.getMaxDatagramSize() <= networkMtu);
+	@After
+	public void tearDown() {
+		timer.shutdown();
+		timer = null;
 	}
 
 	@Test
@@ -156,7 +153,7 @@ public class ServerHandshakerTest {
 		// of 512 bytes
 		assertTrue(session.getMaxFragmentLength() <= 512);
 		assertThat(recordLayer.getSentFlight(), is(notNullValue()));
-		Record record = recordLayer.getSentFlight().getMessages().get(0);
+		Record record = recordLayer.getSentFlight().get(0);
 		ServerHello serverHello = (ServerHello) record.getFragment();
 		MaxFragmentLengthExtension ext = serverHello.getMaxFragmentLength(); 
 		assertThat(ext, is(notNullValue()));
@@ -376,7 +373,9 @@ public class ServerHandshakerTest {
 
 	private ServerHandshaker newHandshaker(final DtlsConnectorConfig config, final DTLSSession session) throws HandshakeException {
 		Connection connection = new Connection(session.getPeer(), new SyncSerialExecutor());
-		return new ServerHandshaker(0, session, recordLayer, connection, config, ETHERNET_MTU);
+		ServerHandshaker handshaker =  new ServerHandshaker(0, session, recordLayer, timer, connection, config);
+		recordLayer.setHandshaker(handshaker);
+		return handshaker;
 	}
 
 	private Record givenAHandshakerWithAQueuedMessage() throws Exception {

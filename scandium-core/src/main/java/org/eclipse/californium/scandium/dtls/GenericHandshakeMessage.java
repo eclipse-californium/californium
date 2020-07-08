@@ -16,6 +16,9 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
+import java.util.Arrays;
+
+import org.eclipse.californium.elements.util.NoPublicAPI;
 
 /**
  * Generic handshake message.
@@ -25,6 +28,7 @@ import java.net.InetSocketAddress;
  * later creation of specific handshake messages, if the handshake parameters
  * are available.
  */
+@NoPublicAPI
 public class GenericHandshakeMessage extends HandshakeMessage {
 
 	/**
@@ -38,7 +42,7 @@ public class GenericHandshakeMessage extends HandshakeMessage {
 	 * @param type handshake type
 	 * @param peerAddress address of peer
 	 */
-	private GenericHandshakeMessage(HandshakeType type, InetSocketAddress peerAddress) {
+	protected GenericHandshakeMessage(HandshakeType type, InetSocketAddress peerAddress) {
 		super(peerAddress);
 		this.type = type;
 	}
@@ -50,28 +54,13 @@ public class GenericHandshakeMessage extends HandshakeMessage {
 
 	@Override
 	public int getMessageLength() {
-		return getRawMessage().length;
+		return getRawMessage().length - MESSAGE_HEADER_LENGTH_BYTES;
 	}
 
 	@Override
 	public byte[] fragmentToByteArray() {
-		return getRawMessage();
-	}
-
-	/**
-	 * Get specific handshake message.
-	 * 
-	 * @param parameter handshake parameter
-	 * @return specific handshake message
-	 * @throws NullPointerException if handshake parameter is {@code null}
-	 * @throws HandshakeException if specific handshake message could not be
-	 *             created
-	 */
-	public HandshakeMessage getSpecificHandshakeMessage(HandshakeParameter parameter) throws HandshakeException {
-		if (parameter == null) {
-			throw new NullPointerException("HandshakeParameter must not be null!");
-		}
-		return HandshakeMessage.fromByteArray(getRawMessage(), parameter, getPeer());
+		byte[] rawMessage = getRawMessage();
+		return Arrays.copyOfRange(rawMessage, MESSAGE_HEADER_LENGTH_BYTES, rawMessage.length);
 	}
 
 	/**
@@ -84,5 +73,4 @@ public class GenericHandshakeMessage extends HandshakeMessage {
 	public static GenericHandshakeMessage fromByteArray(HandshakeType type, InetSocketAddress peerAddress) {
 		return new GenericHandshakeMessage(type, peerAddress);
 	}
-
 }
