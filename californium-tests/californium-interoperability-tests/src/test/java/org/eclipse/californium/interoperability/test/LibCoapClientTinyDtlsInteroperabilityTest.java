@@ -34,6 +34,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -90,6 +91,19 @@ public class LibCoapClientTinyDtlsInteroperabilityTest {
 	public void testLibCoapClientTinyDtlsPsk() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
 		californiumUtil.start(BIND, null, cipherSuite);
+
+		processUtil.startupClientTinyDtls(DESTINATION_URL + "test", AuthenticationMode.PSK, "Hello, CoAP!",
+				cipherSuite);
+		connect("Hello, CoAP!", "Greetings!");
+	}
+
+	@Ignore
+	@Test
+	public void testLibCoapClientTinyDtlsPskMultiFragment() throws Exception {
+		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
+		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+		builder.setEnableMultiHandshakeMessageRecords(true);
+		californiumUtil.start(BIND, false, builder, null, cipherSuite);
 
 		processUtil.startupClientTinyDtls(DESTINATION_URL + "test", AuthenticationMode.PSK, "Hello, CoAP!",
 				cipherSuite);
