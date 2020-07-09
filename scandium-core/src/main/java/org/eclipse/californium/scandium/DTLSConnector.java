@@ -2687,10 +2687,11 @@ public class DTLSConnector implements Connector, RecordLayer {
 	@Override
 	public final InetSocketAddress getAddress() {
 		DatagramSocket socket = getSocket();
-		if (socket == null) {
+		int localPort = socket == null ? -1 : socket.getLocalPort();
+		if (localPort < 0) {
 			return config.getAddress();
 		} else {
-			return new InetSocketAddress(socket.getLocalAddress(), socket.getLocalPort());
+			return new InetSocketAddress(socket.getLocalAddress(), localPort);
 		}
 	}
 
