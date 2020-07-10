@@ -37,6 +37,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.category.Medium;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.elements.util.TestScope;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
@@ -90,7 +91,11 @@ public class NotificationReregistrationBackoffTest {
 	 */
 	@Parameters(name = "notification re-registration backoff = {0}")
 	public static Iterable<Long> backoffParams() {
-		return Arrays.asList(500L, 2000L, 4000L);
+		if (TestScope.enableIntensiveTests()) {
+			return Arrays.asList(500L, 2000L, 4000L);
+		} else {
+			return Arrays.asList(500L);
+		}
 	}
 
 	/**

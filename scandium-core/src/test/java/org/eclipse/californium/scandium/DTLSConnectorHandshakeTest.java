@@ -61,6 +61,7 @@ import org.eclipse.californium.elements.category.Large;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
+import org.eclipse.californium.elements.util.TestScope;
 import org.eclipse.californium.scandium.ConnectorHelper.BuilderSetup;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchSessionListener;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
@@ -160,6 +161,15 @@ public class DTLSConnectorHandshakeTest {
 		List<BuilderSetup> modes = Arrays.asList(new BuilderSetup() {
 
 			public String toString() {
+				return "default-handshake-messages";
+			}
+
+			@Override
+			public void setup(Builder builder) {
+			}
+		}, new BuilderSetup() {
+
+			public String toString() {
 				return "multi-handshake-messages";
 			}
 
@@ -188,22 +198,18 @@ public class DTLSConnectorHandshakeTest {
 			public void setup(Builder builder) {
 				builder.setRecordSizeLimit(270);
 			}
-		}, new BuilderSetup() {
-
-			public String toString() {
-				return "default-handshake-messages";
-			}
-
-			@Override
-			public void setup(Builder builder) {
-			}
 		});
 		List<BuilderSetup[]> combinations = new ArrayList<ConnectorHelper.BuilderSetup[]>();
-		for (BuilderSetup server : modes) {
-			for (BuilderSetup client : modes) {
-				combinations.add(new BuilderSetup[] {server, client});
+		if (TestScope.enableIntensiveTests()) {
+			for (BuilderSetup server : modes) {
+				for (BuilderSetup client : modes) {
+					combinations.add(new BuilderSetup[] { server, client });
+				}
+
 			}
-			
+		} else {
+			BuilderSetup setup = modes.get(0);
+			combinations.add(new BuilderSetup[] { setup, setup });
 		}
 		return combinations;
 	}

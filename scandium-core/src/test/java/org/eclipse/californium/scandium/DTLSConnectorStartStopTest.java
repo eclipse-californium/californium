@@ -38,6 +38,7 @@ import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.elements.util.TestScope;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.DebugConnectionStore;
@@ -143,18 +144,30 @@ public class DTLSConnectorStartStopTest {
 	@Test
 	public void testStopCallsMessageCallbackOnError()
 			throws InterruptedException, IOException, GeneralSecurityException {
-		testStopCallsMessageCallbackOnError(100, 20, false);
+		if (TestScope.enableIntensiveTests()) {
+			testStopCallsMessageCallbackOnError(100, 20, false);
+		} else {
+			testStopCallsMessageCallbackOnError(20, 5, false);
+		}
 	}
 
 	@Test
 	public void testStopCallsMessageCallbackOnErrorCirtical()
 			throws InterruptedException, IOException, GeneralSecurityException {
-		testStopCallsMessageCallbackOnError(2, 20, false);
+		if (TestScope.enableIntensiveTests()) {
+			testStopCallsMessageCallbackOnError(2, 20, false);
+		} else {
+			testStopCallsMessageCallbackOnError(2, 10, false);
+		}
 	}
 
 	@Test
 	public void testRestartFromClientSessionCache() throws InterruptedException, IOException, GeneralSecurityException {
-		testStopCallsMessageCallbackOnError(10, 20, true);
+		if (TestScope.enableIntensiveTests()) {
+			testStopCallsMessageCallbackOnError(10, 20, true);
+		} else {
+			testStopCallsMessageCallbackOnError(4, 10, true);
+		}
 	}
 
 	private void testStopCallsMessageCallbackOnError(final int pending, final int loops, boolean restart)
