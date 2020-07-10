@@ -46,6 +46,7 @@ import org.eclipse.californium.elements.category.Large;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.elements.util.TestScope;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
@@ -155,8 +156,8 @@ public class LossyBlockwiseTransferTest {
 		middle.drop(5, 6, 8, 9, 15);
 
 		getResourceAndAssertPayload(coapclient, respPayload);
-
-		for (int i = 0; i < 5; i++) {
+		int loops = TestScope.enableIntensiveTests() ? 5 : 1;
+		for (int i = 0; i < loops; i++) {
 			int[] numbers = new int[10];
 			for (int j = 0; j < numbers.length; j++) {
 				numbers[j] = rand.nextInt(16);

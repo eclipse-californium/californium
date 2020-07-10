@@ -859,8 +859,8 @@ public class DTLSConnectorTest {
 			.setLoggingTag("client")
 			.setAddress(clientEndpoint)
 			.setPskStore(pskStoreWithBadCredentials)
-			.setRetransmissionTimeout(500)
-			.setMaxRetransmissions(2)
+			.setRetransmissionTimeout(250)
+			.setMaxRetransmissions(1)
 			.build();
 		client = serverHelper.createClient(clientConfig);
 		client.start();

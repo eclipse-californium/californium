@@ -69,6 +69,7 @@ import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.util.TestConditionTools;
 import org.eclipse.californium.elements.util.TestScheduledExecutorService;
+import org.eclipse.californium.elements.util.TestScope;
 import org.eclipse.californium.elements.util.TestThreadFactory;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchSessionListener;
 import org.eclipse.californium.scandium.ConnectorHelper.RecordCollectorDataHandler;
@@ -224,17 +225,22 @@ public class DTLSConnectorAdvancedTest {
 	 */
 	@Parameters(name = "cid = {0}")
 	public static Iterable<ConnectionIdGenerator> cidParams() {
-		return Arrays.asList((ConnectionIdGenerator) null, new SingleNodeConnectionIdGenerator(0) {
+		if (TestScope.enableIntensiveTests()) {
+			return Arrays.asList((ConnectionIdGenerator) null
+			, new SingleNodeConnectionIdGenerator(0) {
 
-			public String toString() {
-				return "cid supported";
-			}
-		}, new SingleNodeConnectionIdGenerator(5) {
+				public String toString() {
+					return "cid supported";
+				}
+			}, new SingleNodeConnectionIdGenerator(5) {
 
-			public String toString() {
-				return "cid used";
-			}
-		});
+				public String toString() {
+					return "cid used";
+				}
+			});
+		} else {
+			return Arrays.asList((ConnectionIdGenerator) null);
+		}
 	}
 
 	@Before

@@ -40,6 +40,7 @@ import org.eclipse.californium.elements.StrictDtlsEndpointContextMatcher;
 import org.eclipse.californium.elements.category.Medium;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
+import org.eclipse.californium.elements.util.TestScope;
 import org.eclipse.californium.integration.test.util.CoapsNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.eclipse.californium.scandium.DTLSConnector;
@@ -122,7 +123,8 @@ public class SecureTest {
 
 	@Test
 	public void testMultipleSecureHandshakes() throws Exception {
-		for (int i = 0; i < TEST_LOOPS; ++i) {
+		int loops = TestScope.enableIntensiveTests() ? TEST_LOOPS : 2;
+		for (int i = 0; i < loops; ++i) {
 			testSecureHandshakes(i);
 		}
 	}
@@ -146,7 +148,8 @@ public class SecureTest {
 		server.start();
 		URI uri = serverEndpoint.getUri();
 		List<CoapEndpoint> clientEndpoints = new ArrayList<>();
-		for (int i = 0; i < TEST_CLIENTS; ++i) {
+		int clients = TestScope.enableIntensiveTests() ? TEST_CLIENTS : 10;
+		for (int i = 0; i < clients; ++i) {
 			CoapEndpoint clientEndpoint = createEndpoint("client-" + i, TEST_EXCHANGE_LIFETIME, TEST_ACK_TIMEOUT,
 					TEST_DTLS_FAST_TIMEOUT, 0);
 			clientEndpoint.start();

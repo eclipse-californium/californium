@@ -47,6 +47,7 @@ import org.eclipse.californium.elements.PrincipalEndpointContextMatcher;
 import org.eclipse.californium.elements.category.Large;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.elements.util.TestScope;
 import org.eclipse.californium.integration.test.util.CoapsNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.eclipse.californium.scandium.DTLSConnector;
@@ -281,12 +282,16 @@ public class SecureNatTest {
 
 		assertNotNull("Response not received", coapResponse);
 
-		for (int count = 0; count < NUM_OF_CLIENTS; ++count) {
+		int clients = TestScope.enableIntensiveTests() ? NUM_OF_CLIENTS : 50;
+
+		for (int count = 0; count < clients; ++count) {
 			createClientEndpoint(new SingleNodeConnectionIdGenerator(4));
 		}
 		testMultipleSecureGet(0, overallResumes, resumeEndpoints);
 
-		for (int count = 1; count < NUM_OF_LOOPS; ++count) {
+		int loops = TestScope.enableIntensiveTests() ? NUM_OF_LOOPS : 10;
+
+		for (int count = 1; count < loops; ++count) {
 			nat.mixLocalAddresses();
 
 			coapResponse = client.get();

@@ -29,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
 import org.junit.Rule;
@@ -45,6 +46,9 @@ public class AnonymizedOriginTracerTest {
 
 	@Rule
 	public CoapThreadsRule cleanup = new CoapThreadsRule();
+
+	@Rule
+	public TestTimeRule time = new TestTimeRule();
 
 	private AnonymizedOriginTracer tracer;
 	private byte[] rawAddress;
@@ -120,7 +124,7 @@ public class AnonymizedOriginTracerTest {
 		// logging again within timeout is suppressed.
 		assertFalse(log(address1_2));
 		assertTrue(log(address3));
-		Thread.sleep(TimeUnit.SECONDS.toMillis(FILTER_TIMEOUT_IN_SECONDS) + 500);
+		time.addTestTimeShift(FILTER_TIMEOUT_IN_SECONDS + 1, TimeUnit.SECONDS);
 		// logging again after timeout
 		assertTrue(log(address1));
 	}

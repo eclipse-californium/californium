@@ -60,6 +60,7 @@ import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
+import org.eclipse.californium.elements.util.TestScope;
 import org.eclipse.californium.elements.util.TestThreadFactory;
 import org.eclipse.californium.scandium.ConnectorHelper.BuilderSetup;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
@@ -151,7 +152,7 @@ public class DTLSConnectorResumeTest {
 	 */
 	@Parameters(name = "setup = {0}")
 	public static Iterable<TypedBuilderSetup> builderSetups() {
-		return Arrays.asList(new TypedBuilderSetup() {
+		TypedBuilderSetup[] setups = { new TypedBuilderSetup() {
 
 			public String toString() {
 				return "PSK-sync-master";
@@ -190,8 +191,7 @@ public class DTLSConnectorResumeTest {
 				clientPskStore.setSecretMode(true);
 				serverPskStore.setSecretMode(true);
 				builder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
-						.setEnableMultiHandshakeMessageRecords(true)
-						.setAdvancedPskStore(clientPskStore);
+						.setEnableMultiHandshakeMessageRecords(true).setAdvancedPskStore(clientPskStore);
 			}
 
 		}, new TypedBuilderSetup() {
@@ -212,8 +212,7 @@ public class DTLSConnectorResumeTest {
 				clientPskStore.setSecretMode(false);
 				serverPskStore.setSecretMode(false);
 				builder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
-						.setEnableMultiHandshakeMessageRecords(true)
-						.setAdvancedPskStore(clientPskStore);
+						.setEnableMultiHandshakeMessageRecords(true).setAdvancedPskStore(clientPskStore);
 			}
 
 		}, new TypedBuilderSetup() {
@@ -255,8 +254,7 @@ public class DTLSConnectorResumeTest {
 				clientPskStore.setSecretMode(true);
 				serverPskStore.setSecretMode(true);
 				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256)
-						.setEnableMultiHandshakeMessageRecords(true)
-						.setAdvancedPskStore(clientPskStore);
+						.setEnableMultiHandshakeMessageRecords(true).setAdvancedPskStore(clientPskStore);
 			}
 
 		}, new TypedBuilderSetup() {
@@ -291,10 +289,15 @@ public class DTLSConnectorResumeTest {
 			public void setup(Builder builder) {
 				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
 						.setIdentity(clientPrivateKey, clientCertificateChain, CertificateType.RAW_PUBLIC_KEY)
-						.setEnableMultiHandshakeMessageRecords(true)
-						.setRpkTrustAll();
+						.setEnableMultiHandshakeMessageRecords(true).setRpkTrustAll();
 			}
-		});
+		} };
+
+		if (TestScope.enableIntensiveTests()) {
+			return Arrays.asList(setups);
+		} else {
+			return Arrays.asList(Arrays.copyOf(setups, 1));
+		}
 	}
 
 	/**

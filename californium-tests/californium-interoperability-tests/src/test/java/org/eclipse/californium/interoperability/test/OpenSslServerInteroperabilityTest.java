@@ -22,8 +22,10 @@ import static org.junit.Assume.assumeTrue;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.Arrays;
 
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.elements.util.TestScope;
 import org.eclipse.californium.interoperability.test.OpenSslUtil.AuthenticationMode;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -93,8 +95,13 @@ public class OpenSslServerInteroperabilityTest {
 	 */
 	@Parameters(name = "{0}")
 	public static Iterable<CipherSuite> cipherSuiteParams() {
-		System.out.println("params");
-		return OpenSslUtil.CIPHERSUITES_MAP.keySet();
+		if (TestScope.enableIntensiveTests()) {
+			return OpenSslUtil.CIPHERSUITES_MAP.keySet();
+		} else {
+			return Arrays.asList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
+					CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256,
+					CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256);
+		}
 	}
 
 	@After
