@@ -49,6 +49,7 @@ import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.extplugtests.resources.Benchmark;
+import org.eclipse.californium.extplugtests.resources.MyIp;
 import org.eclipse.californium.extplugtests.resources.RequestStatistic;
 import org.eclipse.californium.extplugtests.resources.ReverseObserve;
 import org.eclipse.californium.extplugtests.resources.ReverseRequest;
@@ -300,6 +301,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 		// add resources to the server
 		add(new RequestStatistic());
 		add(new Benchmark(noBenchmark, maxResourceSize));
+		add(new MyIp());
 	}
 
 	private static void startManagamentStatistic() {
