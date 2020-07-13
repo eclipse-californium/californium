@@ -2881,7 +2881,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * Get effective handshake mode.
 	 * 
 	 * Either the handshake mode provided in the message's endpoint-context, see
-	 * {@link DtlsEndpointContext#KEY_HANDSHAKE_MODE}, ot, if that is not
+	 * {@link DtlsEndpointContext#KEY_HANDSHAKE_MODE}, or, if that is not
 	 * available, the default from the configuration
 	 * {@link DtlsConnectorConfig#getDefaultHandshakeMode()}.
 	 * 
@@ -2922,13 +2922,13 @@ public class DTLSConnector implements Connector, RecordLayer {
 	}
 
 	/**
-	 * Handle a exception occuring during the handshake.
+	 * Handle a exception occurring during the handshake.
 	 * 
-	 * @param cause excaption
+	 * @param cause exception
 	 * @param level alert level
 	 * @param description alert description
 	 * @param connection connection
-	 * @param record related receivid record. Since 2.3, this may be
+	 * @param record related received record. Since 2.3, this may be
 	 *            {@code null} in order to support exception during processing
 	 *            of a asynchronous master secret result.
 	 */
@@ -2980,4 +2980,5 @@ public class DTLSConnector implements Connector, RecordLayer {
 	public String toString() {
 		return getProtocol() + "-" + StringUtil.toString(getAddress());
 	}
+	
 }
