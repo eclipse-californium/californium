@@ -67,6 +67,11 @@
 			</dependency>
 			<dependency>
 				<groupId>${project.groupId}</groupId>
+				<artifactId>cf-cli-netty-tcp</artifactId>
+				<version>${project.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>${project.groupId}</groupId>
 				<artifactId>cf-nat</artifactId>
 				<version>${project.version}</version>
 			</dependency>

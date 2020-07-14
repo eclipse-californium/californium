@@ -77,6 +77,13 @@ public final class CoAP {
 	/** The CoAPS URI scheme */
 	public static final String COAP_SECURE_URI_SCHEME = "coaps";
 
+	/**
+	 * The URI scheme separator
+	 * 
+	 * @since 2.4
+	 */
+	public static final String URI_SCHEME_SEPARATOR = "://";
+
 	/** The default CoAP port for normal CoAP communication (coap) */
 	public static final int DEFAULT_COAP_PORT = 5683;
 
@@ -141,17 +148,6 @@ public final class CoAP {
 	}
 
 	/**
-	 * Checks, if provided protocol is {@link #PROTOCOL_TCP} or {@link #PROTOCOL_TLS}.
-	 * 
-	 * @param protocol protocol to be checked
-	 * @return true, if the provided protocol matchs one of the list above, false, otherwise.
-	 */
-	public static boolean isTcpProtocol(final String protocol) {
-		return PROTOCOL_TCP.equalsIgnoreCase(protocol)
-				|| PROTOCOL_TLS.equalsIgnoreCase(protocol);
-	}
-
-	/**
 	 * Get scheme for protocol.
 	 * 
 	 * @param protocol protocol
@@ -169,6 +165,38 @@ public final class CoAP {
 			return COAP_SECURE_TCP_URI_SCHEME;
 		}
 		throw new IllegalArgumentException("Protocol " + protocol + " not supported!");
+	}
+
+	/**
+	 * Get protocol for scheme.
+	 * 
+	 * @param scheme scheme
+	 * @return protocol
+	 * @throws IllegalArgumentException if scheme is not supported
+	 * @since 2.4
+	 */
+	public static String getProtocolForScheme(final String scheme) {
+		if (COAP_URI_SCHEME.equalsIgnoreCase(scheme)) {
+			return PROTOCOL_UDP;
+		} else if (COAP_SECURE_URI_SCHEME.equalsIgnoreCase(scheme)) {
+			return PROTOCOL_DTLS;
+		} else if (COAP_TCP_URI_SCHEME.equalsIgnoreCase(scheme)) {
+			return PROTOCOL_TCP;
+		} else if (COAP_SECURE_TCP_URI_SCHEME.equalsIgnoreCase(scheme)) {
+			return PROTOCOL_TLS;
+		}
+		throw new IllegalArgumentException("Scheme " + scheme + " not supported!");
+	}
+
+	/**
+	 * Checks, if provided protocol is {@link #PROTOCOL_TCP} or {@link #PROTOCOL_TLS}.
+	 * 
+	 * @param protocol protocol to be checked
+	 * @return true, if the provided protocol matchs one of the list above, false, otherwise.
+	 */
+	public static boolean isTcpProtocol(final String protocol) {
+		return PROTOCOL_TCP.equalsIgnoreCase(protocol)
+				|| PROTOCOL_TLS.equalsIgnoreCase(protocol);
 	}
 
 	/**
@@ -242,6 +270,24 @@ public final class CoAP {
 			return DEFAULT_COAP_SECURE_PORT;
 		}
 		throw new IllegalArgumentException("URI scheme '" + uriScheme + "' is not supported!");
+	}
+
+	/**
+	 * Get scheme from URI.
+	 * 
+	 * Simple implementation searching for {@link #URI_SCHEME_SEPARATOR} and
+	 * returns the URI up to that, when found.
+	 * 
+	 * @param uri uri
+	 * @return scheme, or {@code null}, if not contained.
+	 * @since 2.4
+	 */
+	public static String getSchemeFromUri(final String uri) {
+		int index = uri.indexOf(URI_SCHEME_SEPARATOR);
+		if (index > 0) {
+			return uri.substring(0, index);
+		}
+		return null;
 	}
 
 	/**

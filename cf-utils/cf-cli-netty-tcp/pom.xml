@@ -12,11 +12,11 @@
 		<relativePath>../../bom</relativePath>
 	</parent>
 
-	<artifactId>cf-cli</artifactId>
+	<artifactId>cf-cli-netty-tcp</artifactId>
 	<packaging>bundle</packaging>
 
-	<name>Cf-command-line-interface</name>
-	<description>Californium (Cf) Command Line Interface</description>
+	<name>Cf-cli-netty-tcp</name>
+	<description>Californium (Cf) Command Line Interface support for netty TCP</description>
 
 	<properties>
 		<picocli.version>4.2.0</picocli.version>
@@ -27,25 +27,12 @@
 	<dependencies>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
-			<artifactId>californium-core</artifactId>
+			<artifactId>element-connector-tcp-netty</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
-			<artifactId>scandium</artifactId>
+			<artifactId>cf-cli</artifactId>
 		</dependency>
-		<dependency>
-			<groupId>com.upokecenter</groupId>
-			<artifactId>cbor</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.google.code.gson</groupId>
-			<artifactId>gson</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>info.picocli</groupId>
-			<artifactId>picocli</artifactId>
-		</dependency>
-
 	</dependencies>
 
 	<build>
@@ -57,7 +44,7 @@
 				<configuration>
 					<instructions>
 						<Export-Package>
-							org.eclipse.californium.cli*
+							org.eclipse.californium.cli.netty.tcp*
 						</Export-Package>
 						<Import-Package>
 							*
@@ -70,7 +57,7 @@
 				<artifactId>maven-assembly-plugin</artifactId>
 				<configuration>
 					<descriptorRefs>
-						<descriptorRef>enhanced-jar-with-licenses</descriptorRef>
+						<descriptorRef>enhanced-jar-with-netty-tcp</descriptorRef>
 					</descriptorRefs>
 					<archive>
 						<manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>

@@ -137,6 +137,29 @@ public class StringUtil {
 	}
 
 	/**
+	 * Character array to hexadecimal string.
+	 * 
+	 * @param charArray character array.
+	 * @return hexadecimal string, or {@code null}, if provided character array
+	 *         is {@code null}.
+	 * @since 2.4
+	 */
+	public static String charArray2hex(char[] charArray) {
+		if (charArray != null) {
+			int length = charArray.length;
+			StringBuilder builder = new StringBuilder(length * 2);
+			for (int index = 0; index < length; index++) {
+				int value = charArray[index] & 0xFF;
+				builder.append(BIN_TO_HEX_ARRAY[value >>> 4]);
+				builder.append(BIN_TO_HEX_ARRAY[value & 0x0F]);
+			}
+			return builder.toString();
+		} else {
+			return null;
+		}
+	}
+
+	/**
 	 * Convert hexadecimal String into decoded byte array.
 	 * 
 	 * @param hex hexadecimal string. e.g. "4130010A"
