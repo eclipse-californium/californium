@@ -16,7 +16,7 @@
 package org.eclipse.californium.extplugtests.resources;
 
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.BAD_OPTION;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CHANGED;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_IMPLEMENTED;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.TEXT_PLAIN;
@@ -132,6 +132,6 @@ public class Benchmark extends CoapResource {
 			}
 		}
 
-		exchange.respond(CONTENT, responsePayload, TEXT_PLAIN);
+		exchange.respond(CHANGED, responsePayload, TEXT_PLAIN);
 	}
 }
