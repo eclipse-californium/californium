@@ -15,13 +15,13 @@
  ******************************************************************************/
 package org.eclipse.californium.cli;
 
+
 import java.security.PrivateKey;
 import java.security.PublicKey;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
-import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 
 import picocli.CommandLine;
@@ -31,7 +31,7 @@ import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
 
 /**
- * Client command line config
+ * Client command line configuration.
  * 
  * @since 2.3
  */
@@ -173,43 +173,14 @@ public class ClientConfig extends ClientBaseConfig {
 		}
 	}
 
-	/**
-	 * Create client config clone with different PSK identity and secret.
-	 * 
-	 * @param id psk identity
-	 * @param secret secret. if {@code null} and
-	 *            {@link ClientInitializer#PSK_IDENTITY_PREFIX} is used, use
-	 *            {@link ClientInitializer#PSK_SECRET}
-	 * @return create client config clone.
-	 */
+	@Override
 	public ClientConfig create(String id, byte[] secret) {
-		ClientConfig clone = null;
-		try {
-			clone = (ClientConfig) clone();
-			clone.identity = id;
-			clone.secretKey = secret;
-		} catch (CloneNotSupportedException e) {
-			e.printStackTrace();
-		}
-		return clone;
+		return (ClientConfig) super.create(id, secret);
 	}
 
-	/**
-	 * Create client config clone with different ec key pair.
-	 * 
-	 * @param privateKey private key
-	 * @param publicKey public key
-	 * @return create client config clone.
-	 */
+	@Override
 	public ClientConfig create(PrivateKey privateKey, PublicKey publicKey) {
-		ClientConfig clone = null;
-		try {
-			clone = (ClientConfig) clone();
-			clone.credentials = new SslContextUtil.Credentials(privateKey, publicKey, null);
-		} catch (CloneNotSupportedException e) {
-			e.printStackTrace();
-		}
-		return clone;
+		return (ClientConfig) super.create(privateKey, publicKey);
 	}
 
 	/**

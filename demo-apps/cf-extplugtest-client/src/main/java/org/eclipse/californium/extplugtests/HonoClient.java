@@ -186,9 +186,8 @@ public class HonoClient {
 	 */
 	public static void main(String[] args) throws IOException, ConnectorException {
 		// hono sandbox
-		ClientInitializer.setDefaultPskCredentials("sensor1@DEFAULT_TENANT", "hono-secret");
-
 		final Config clientConfig = new Config();
+		clientConfig.setDefaultPskCredentials("sensor1@DEFAULT_TENANT", "hono-secret");
 		clientConfig.defaultUri = "coaps://" + DEFAULT_HONO + "/telemetry";
 		clientConfig.networkConfigHeader = CONFIG_HEADER;
 		clientConfig.networkConfigDefaultHandler = DEFAULTS;

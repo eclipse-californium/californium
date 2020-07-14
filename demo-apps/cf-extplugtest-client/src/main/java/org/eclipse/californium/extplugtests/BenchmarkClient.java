@@ -51,6 +51,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.eclipse.californium.cli.ClientConfig;
 import org.eclipse.californium.cli.ClientInitializer;
+import org.eclipse.californium.cli.ConnectorConfig;
 import org.eclipse.californium.cli.ConnectorConfig.AuthenticationMode;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
@@ -903,7 +904,7 @@ public class BenchmarkClient {
 		config.networkConfigHeader = CONFIG_HEADER;
 		config.networkConfigDefaultHandler = DEFAULTS;
 		config.networkConfigFile = CONFIG_FILE;
-		ClientInitializer.init(args, config);
+		ClientInitializer.init(args, config, false);
 
 		if (config.helpRequested) {
 			System.exit(0);
@@ -981,7 +982,7 @@ public class BenchmarkClient {
 		long startupNanos = System.nanoTime();
 		final AuthenticationMode authentication = config.authenticationModes.isEmpty() ? null : config.authenticationModes.get(0);
 		final CountDownLatch start = new CountDownLatch(clients);
-		if (secure) {
+		if (secure && authentication != null) {
 			switch(authentication) {
 			case NONE:
 				System.out.println("No authentication.");
@@ -1016,7 +1017,7 @@ public class BenchmarkClient {
 					secret = config.pskStore.getSecrets(pskIndex);
 				} else {
 					random.nextBytes(id);
-					identity= ClientInitializer.PSK_IDENTITY_PREFIX + StringUtil.byteArray2Hex(id);
+					identity= ConnectorConfig.PSK_IDENTITY_PREFIX + StringUtil.byteArray2Hex(id);
 					secret = null;
 				}
 			} else {

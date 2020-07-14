@@ -18,6 +18,7 @@ package org.eclipse.californium.cli;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.security.GeneralSecurityException;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,6 +27,8 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
+import javax.crypto.SecretKey;
+
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.elements.util.SslContextUtil;
@@ -33,6 +36,9 @@ import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.RecordLayer;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.util.SecretUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import picocli.CommandLine;
 import picocli.CommandLine.ArgGroup;
@@ -43,16 +49,27 @@ import picocli.CommandLine.Model.OptionSpec;
 import picocli.CommandLine.Option;
 
 /**
- * Connector command line config
+ * Connector command line configuration.
  * 
  * @since 2.3
  */
 public class ConnectorConfig implements Cloneable {
 
+	protected static final Logger LOGGER = LoggerFactory.getLogger(ConnectorConfig.class);
+
 	/**
-	 * Width for printing to the comand line console.
+	 * Width for printing to the command line console.
 	 */
 	public static final int MAX_WIDTH = 60;
+	/**
+	 * Dummy PSK identity for sandbox "californium.eclipse.org". All identities,
+	 * starting with this prefix, share the "not" secret {@link #PSK_SECRET}.
+	 */
+	public static final String PSK_IDENTITY_PREFIX = "cali.";
+	/**
+	 * Dummy secret for sandbox "californium.eclipse.org".
+	 */
+	public static final SecretKey PSK_SECRET = SecretUtil.create(".fornium".getBytes(), "PSK");
 
 	/**
 	 * Authentication modes.
@@ -60,6 +77,22 @@ public class ConnectorConfig implements Cloneable {
 	public static enum AuthenticationMode {
 		NONE, PSK, RPK, X509, ECDHE_PSK
 	}
+
+	/**
+	 * Default Ec credentials. Load Californium's client credentials from demo
+	 * keystore.
+	 * 
+	 * @since 2.4
+	 */
+	public String defaultEcCredentials = createDescriptor("certs/keyStore.jks", "endPass".toCharArray(),
+			"endPass".toCharArray(), "client");
+	/**
+	 * Default Ec trusts. Load Californium's trusted certificates from demo
+	 * truststore.
+	 * 
+	 * @since 2.4
+	 */
+	public String defaultEcTrusts = createDescriptor("certs/trustStore.jks", "rootPass".toCharArray(), null, null);
 
 	/**
 	 * Header for new network configuration files.
@@ -225,6 +258,28 @@ public class ConnectorConfig implements Cloneable {
 			if (credentials != null) {
 				authenticationModes.add(AuthenticationMode.X509);
 			}
+		} else {
+			if (authenticationModes.contains(AuthenticationMode.X509)
+					|| authenticationModes.contains(AuthenticationMode.RPK)) {
+				if (credentials == null) {
+					try {
+						credentials = SslContextUtil.loadCredentials(defaultEcCredentials);
+					} catch (GeneralSecurityException e) {
+						e.printStackTrace();
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+				if (trusts == null) {
+					try {
+						trusts = SslContextUtil.loadTrustedCertificates(defaultEcTrusts);
+					} catch (GeneralSecurityException e) {
+						e.printStackTrace();
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+			}
 		}
 		if (cipherHelpRequested || authHelpRequested) {
 			helpRequested = true;
@@ -241,8 +296,23 @@ public class ConnectorConfig implements Cloneable {
 		}
 	}
 
+	public static String createDescriptor(String store, char[] storePass, char[] keyPass, String alias) {
+		StringBuilder descriptor = new StringBuilder(SslContextUtil.CLASSPATH_SCHEME);
+		descriptor.append(store).append('#');
+		if (storePass != null) {
+			descriptor.append(StringUtil.charArray2hex(storePass)).append('#');
+		}
+		if (keyPass != null) {
+			descriptor.append(StringUtil.charArray2hex(keyPass)).append('#');
+		}
+		if (alias != null) {
+			descriptor.append(alias);
+		}
+		return descriptor.toString();
+	}
+
 	/**
-	 * Defaultvalue provider for --netconfig.
+	 * Default-value provider for --netconfig.
 	 */
 	protected IDefaultValueProvider defaultValueProvider = new IDefaultValueProvider() {
 
@@ -385,5 +455,4 @@ public class ConnectorConfig implements Cloneable {
 			return secrets.size();
 		}
 	}
-
 }

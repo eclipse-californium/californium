@@ -15,7 +15,9 @@
  ******************************************************************************/
 package org.eclipse.californium.cli;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 
@@ -32,17 +34,22 @@ import picocli.CommandLine.Model.ArgSpec;
 import picocli.CommandLine.Model.PositionalParamSpec;
 
 /**
- * Client basic command line config
+ * Client basic command line configuration.
  * 
  * @since 2.3
  */
 public class ClientBaseConfig extends ConnectorConfig {
 
-	public static final String LABELT_URI  = "URI";
+	public static final String LABELT_URI = "URI";
 
-	public static final String DEFAULT_URI  = "californium.eclipse.org";
+	public static final String DEFAULT_URI = "californium.eclipse.org";
 
 	public String defaultUri = DEFAULT_URI;
+	/**
+	 * 
+	 */
+	private String defaultIdentity;
+	private String defaultSecret;
 
 	/**
 	 * Proxy configuration.
@@ -106,7 +113,8 @@ public class ClientBaseConfig extends ConnectorConfig {
 			}
 		}
 		// allow quick hostname as argument
-		if (uri.indexOf("://") == -1) {
+		String scheme = CoAP.getSchemeFromUri(uri);
+		if (scheme == null) {
 			if (authenticationModes != null && !authenticationModes.isEmpty()) {
 				uri = CoAP.COAP_SECURE_URI_SCHEME + "://" + uri;
 				secure = true;
@@ -114,24 +122,57 @@ public class ClientBaseConfig extends ConnectorConfig {
 				uri = CoAP.COAP_URI_SCHEME + "://" + uri;
 			}
 		} else {
-			secure = uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME + "://")
-					|| uri.startsWith(CoAP.COAP_SECURE_TCP_URI_SCHEME + "://");
-			tcp = uri.startsWith(CoAP.COAP_TCP_URI_SCHEME + "://")
-					|| uri.startsWith(CoAP.COAP_SECURE_TCP_URI_SCHEME + "://");
+			secure = CoAP.isSecureScheme(scheme);
+			tcp = CoAP.isTcpScheme(scheme);
 		}
 		if (uri.endsWith("/")) {
 			uri = uri.substring(uri.length() - 1);
 		}
+		if (secure) {
+			if (tcp) {
+				if (credentials == null) {
+					try {
+						credentials = SslContextUtil.loadCredentials(defaultEcCredentials);
+					} catch (GeneralSecurityException e) {
+						e.printStackTrace();
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+				if (trusts == null) {
+					try {
+						trusts = SslContextUtil.loadTrustedCertificates(defaultEcTrusts);
+					} catch (GeneralSecurityException e) {
+						e.printStackTrace();
+					} catch (IOException e) {
+						e.printStackTrace();
+					}
+				}
+				if (authenticationModes.isEmpty()) {
+					authenticationModes.add(AuthenticationMode.X509);
+				}
+			} else if (authenticationModes.isEmpty() || authenticationModes.contains(AuthenticationMode.PSK)
+					|| authenticationModes.contains(AuthenticationMode.ECDHE_PSK)) {
+				if (identity == null && secret == null) {
+					identity = defaultIdentity;
+					secret = new ConnectorConfig.Secret();
+					secret.text = defaultSecret;
+					if (authenticationModes.isEmpty()) {
+						authenticationModes.add(AuthenticationMode.PSK);
+					}
+				}
+			}
+		}
 	}
 
 	/**
-	 * Create client config clone with different PSK identity and secret.
+	 * Create client configuration clone with different PSK identity and secret.
 	 * 
 	 * @param id psk identity
 	 * @param secret secret. if {@code null} and
 	 *            {@link ClientInitializer#PSK_IDENTITY_PREFIX} is used, use
 	 *            {@link ClientInitializer#PSK_SECRET}
-	 * @return create client config clone.
+	 * @return create client configuration clone.
 	 */
 	public ClientBaseConfig create(String id, byte[] secret) {
 		ClientBaseConfig clone = null;
@@ -146,11 +187,11 @@ public class ClientBaseConfig extends ConnectorConfig {
 	}
 
 	/**
-	 * Create client config clone with different ec key pair.
+	 * Create client configuration clone with different ec key pair.
 	 * 
 	 * @param privateKey private key
 	 * @param publicKey public key
-	 * @return create client config clone.
+	 * @return create client configuration clone.
 	 */
 	public ClientBaseConfig create(PrivateKey privateKey, PublicKey publicKey) {
 		ClientBaseConfig clone = null;
@@ -161,6 +202,31 @@ public class ClientBaseConfig extends ConnectorConfig {
 			e.printStackTrace();
 		}
 		return clone;
+	}
+
+	/**
+	 * Set default PSK credentials
+	 * 
+	 * @param identity default identity. If {@code null}, use
+	 *            {@link #PSK_IDENTITY_PREFIX} as default.
+	 * @param secret default secret. If {@code null}, use {@link #PSK_SECRET} as
+	 *            default.
+	 */
+	public void setDefaultPskCredentials(String identity, String secret) {
+		defaultIdentity = identity;
+		defaultSecret = secret;
+	}
+
+	/**
+	 * Set default PSK credentials
+	 * 
+	 * @param identity default identity. If {@code null}, use
+	 *            {@link #PSK_IDENTITY_PREFIX} as default.
+	 * @since 2.4
+	 */
+	public void setDefaultPskCredentials(String identity) {
+		defaultIdentity = PSK_IDENTITY_PREFIX + identity;
+		defaultSecret = null;
 	}
 
 	/**
@@ -233,5 +299,4 @@ public class ClientBaseConfig extends ConnectorConfig {
 		}
 
 	}
-
 }
