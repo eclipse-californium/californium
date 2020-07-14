@@ -16,7 +16,7 @@
 package org.eclipse.californium.extplugtests.resources;
 
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.BAD_OPTION;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CHANGED;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_CBOR;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_JSON;
@@ -239,7 +239,7 @@ public class RequestStatistic extends CoapResource {
 			}
 		}
 
-		Response response = new Response(CONTENT);
+		Response response = new Response(CHANGED);
 		int maxPayloadLength = rlen == null ? DEFAULT_MAX_PAYLOAD_LENGTH : rlen;
 		switch (exchange.getRequestOptions().getAccept()) {
 		case UNDEFINED:

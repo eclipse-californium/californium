@@ -18,6 +18,7 @@
 
 package org.eclipse.californium.extplugtests;
 
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CHANGED;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_JSON;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_CBOR;
@@ -203,13 +204,13 @@ public class ReceivetestClient {
 		if (coapResponse != null) {
 			ResponseCode code = coapResponse.getCode();
 			int format = coapResponse.getOptions().getContentFormat();
-			if (CONTENT == code && format == APPLICATION_JSON) {
+			if ((CONTENT == code || CHANGED == code) && format == APPLICATION_JSON) {
 				// JSON success
 				Response response = coapResponse.advanced();
 				printHead(response);
 				String statistic = processJSON(response.getPayloadString(), "", clientConfig.verbose);
 				System.out.println(statistic);
-			} else if (CONTENT == code && format == APPLICATION_CBOR) {
+			} else if ((CONTENT == code || CHANGED == code) && format == APPLICATION_CBOR) {
 				// CBOR success
 				Response response = coapResponse.advanced();
 				printHead(response);
