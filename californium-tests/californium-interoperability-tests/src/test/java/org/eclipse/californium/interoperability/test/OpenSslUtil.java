@@ -17,6 +17,8 @@ package org.eclipse.californium.interoperability.test;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 
@@ -70,6 +72,25 @@ public class OpenSslUtil {
 		CIPHERSUITES_MAP.put(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, "ECDHE-ECDSA-AES256-SHA");
 		CIPHERSUITES_MAP.put(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, "ECDHE-ECDSA-AES128-SHA256");
 		CIPHERSUITES_MAP.put(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384, "ECDHE-ECDSA-AES256-SHA384");
+	}
+
+	/**
+	 * Get cipher suites supported by the jvm.
+	 * 
+	 * The supported cipher suites depends on the jvm version. GCM is supported with
+	 * Java 8.
+	 * 
+	 * @return jvm supported cipher suites
+	 * @since 2.4
+	 */
+	public static Iterable<CipherSuite> getSupportedCipherSuites() {
+		Set<CipherSuite> supported = new TreeSet<>();
+		for (CipherSuite cipherSuite : CIPHERSUITES_MAP.keySet()) {
+			if (cipherSuite.isSupported()) {
+				supported.add(cipherSuite);
+			}
+		}
+		return supported;
 	}
 
 	/**
