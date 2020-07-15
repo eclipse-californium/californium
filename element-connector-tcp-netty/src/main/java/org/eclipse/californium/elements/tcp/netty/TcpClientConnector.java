@@ -219,7 +219,7 @@ public class TcpClientConnector implements Connector {
 				}
 				if (cause != null) {
 					if (cause instanceof ConnectTimeoutException) {
-						LOGGER.warn("{}", cause.getMessage());
+						LOGGER.debug("{}", cause.getMessage());
 					} else if (cause instanceof CancellationException) {
 						LOGGER.debug("{}", cause.getMessage());
 					} else {
