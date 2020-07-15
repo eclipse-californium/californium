@@ -651,9 +651,8 @@ public abstract class Handshaker implements Destroyable {
 			throw new IllegalArgumentException("processing record with wrong epoch! " + record.getEpoch() + " expected " + epoch);
 		}
 		if (record.getReceiveNanos() < flightSendNanos) {
-			// TODO reuse debug level after the M17. 
 			// (see https://github.com/eclipse/californium/issues/1034#issuecomment-526656943)
-			LOGGER.info("Discarding {} message received from peer [{}] before last flight was sent:{}{}",
+			LOGGER.debug("Discarding {} message received from peer [{}] before last flight was sent:{}{}",
 					record.getType(), record.getPeerAddress(), StringUtil.lineSeparator(), record);
 			return;
 		}
@@ -698,7 +697,7 @@ public abstract class Handshaker implements Destroyable {
 							messageToProcess.getPeer());
 					setCurrentReadState();
 					++statesIndex;
-					LOGGER.info("Processed {} message from peer [{}]", messageToProcess.getContentType(),
+					LOGGER.debug("Processed {} message from peer [{}]", messageToProcess.getContentType(),
 							messageToProcess.getPeer());
 				} else if (messageToProcess.getContentType() == ContentType.HANDSHAKE) {
 					if (!processNextHandshakeMessages(epoch, bufferIndex, (HandshakeMessage) messageToProcess)) {
@@ -824,7 +823,7 @@ public abstract class Handshaker implements Destroyable {
 				// because we received
 				// its finished message again, so we simply retransmit our
 				// last flight
-				LOGGER.info("Received ({}) FINISHED message again, retransmitting last flight...",
+				LOGGER.debug("Received ({}) FINISHED message again, retransmitting last flight...",
 						getPeerAddress());
 				flight.incrementTries();
 				// retransmit CCS and FINISH, back-off not required!
@@ -851,7 +850,7 @@ public abstract class Handshaker implements Destroyable {
 				} finally {
 					recursionProtection.unlock();
 				}
-				LOGGER.info("Processed {} message from peer [{}]", handshakeMessage.getMessageType(),
+				LOGGER.debug("Processed {} message from peer [{}]", handshakeMessage.getMessageType(),
 						handshakeMessage.getPeer());
 				if (!lastFlight) {
 					// last Flight may have changed processing
@@ -1540,7 +1539,7 @@ public abstract class Handshaker implements Destroyable {
 							boolean backOff = backOffRetransmission > 0 && (tries + 1) > backOffRetransmission;
 							List<DatagramPacket> datagrams = flight.getDatagrams(maxDatagramSize, maxFragmentSize,
 									useMultiHandshakeMessagesRecord, useMultiRecordMessages, backOff);
-							LOGGER.info(
+							LOGGER.debug(
 									"Resending flight {} of {} message(s) to peer [{}] using {} datagram(s) of max. {} bytes. Retransmission {} of {}.",
 									flight.getFlightNumber(), flight.getNumberOfMessages(), peer, datagrams.size(),
 									maxDatagramSize, tries + 1, maxRetransmissions);
@@ -1575,7 +1574,7 @@ public abstract class Handshaker implements Destroyable {
 						timeout = true;
 					}
 				}
-				LOGGER.info("Flight {} of {} message(s) to peer [{}] failed, {}. Retransmission {} of {}.",
+				LOGGER.debug("Flight {} of {} message(s) to peer [{}] failed, {}. Retransmission {} of {}.",
 						flight.getFlightNumber(), flight.getNumberOfMessages(), peer, message, flight.getTries(),
 						maxRetransmissions);
 
