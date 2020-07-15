@@ -309,7 +309,8 @@ public class DTLSFlight {
 			ConnectionId connectionId = session.getWriteConnectionId();
 			if (connectionId != null && !connectionId.isEmpty()) {
 				useCid = true;
-				maxPayloadLength -= connectionId.length();
+				// connection id + inner record type
+				maxPayloadLength -= (connectionId.length() + 1);
 			}
 		}
 
