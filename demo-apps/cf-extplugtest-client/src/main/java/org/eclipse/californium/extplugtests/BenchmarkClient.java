@@ -535,7 +535,7 @@ public class BenchmarkClient {
 						overallHonoCmds.incrementAndGet();
 						List<String> location = response.getOptions().getLocationPath();
 						if (location.size() == 2 || location.size() == 4) {
-							LOGGER.debug("cmd {}: {}", cmd, location);
+							LOGGER.debug("{}: cmd {}: {}", id, cmd, location);
 							final Request cmdResponse = post.getCode() == Code.PUT ? Request.newPut()
 									: Request.newPost();
 							try {
@@ -555,35 +555,35 @@ public class BenchmarkClient {
 									}
 								}, cmdResponse);
 							} catch (URISyntaxException e) {
-								LOGGER.warn("C&C {} response failed!", cmd, e);
+								LOGGER.warn("{}: C&C {} response failed!", id, cmd, e);
 							}
 						} else {
-							LOGGER.debug("cmd {}", cmd);
+							LOGGER.debug("{}: cmd {}", id, cmd);
 						}
 					}
-					next(config.interval, response.advanced().isConfirmable() ? -ackTimeout * 2 : 0);
+					next(config.interval, response.advanced().isConfirmable() ? -ackTimeout * 2 : 0, true, true);
 				}
 				long c = overallRequestsDownCounter.get();
-				LOGGER.trace("Received response: {} {}", response.advanced(), c);
+				LOGGER.trace("{}: Received response: {} {}", id, response.advanced(), c);
 			} else if (response.getCode() == ResponseCode.SERVICE_UNAVAILABLE) {
 				long delay = TimeUnit.SECONDS.toMillis(response.getOptions().getMaxAge());
 				int unavailable = overallServiceUnavailable.incrementAndGet();
 				long c = overallRequestsDownCounter.get();
 				LOGGER.debug("{}: {}, Received error response: {} {}", id, unavailable, response.advanced(), c);
 				if (!stop.get()) {
-					next(delay < 1000L ? 1000L : delay, -ackTimeout * 2);
+					next(delay < 1000L ? 1000L : delay, -ackTimeout * 2, true, true);
 				}
 			} else if (!config.stop) {
 				long c = requestsCounter.get();
 				transmissionErrorCounter.incrementAndGet();
-				LOGGER.warn("Error after {} requests. {} - {}", c, response.advanced().getCode(),
+				LOGGER.warn("{}: Error after {} requests. {} - {}", id, c, response.advanced().getCode(),
 						response.advanced().getPayloadString());
 				if (!stop.get()) {
-					next(1000, -ackTimeout * 2);
+					next(1000, -ackTimeout * 2, true, true);
 				}
 			} else {
 				long c = requestsCounter.get();
-				LOGGER.warn("Received error response: {} {} ({} successful)", endpoint.getUri(), response.advanced(), c);
+				LOGGER.warn("{}: Received error response: {} {} ({} successful)", id, endpoint.getUri(), response.advanced(), c);
 				checkReady(true, true);
 				stop();
 			}
@@ -607,20 +607,19 @@ public class BenchmarkClient {
 				}
 				if (!config.stop) {
 					transmissionErrorCounter.incrementAndGet();
-					LOGGER.info("Error after {} requests. {}", c, msg);
-					next(1000, secure ? 1000 : 0);
+					LOGGER.info("{}: Error after {} requests. {}", id, c, msg);
+					next(1000, secure ? 1000 : 0, requestsCounter.get() > 0, false);
 				} else {
-					LOGGER.error("failed after {} requests! {}", c, msg);
+					LOGGER.error("{}: failed after {} requests! {}", id, c, msg);
 					checkReady(true, false);
 					stop();
 				}
 			}
 		}
 
-		public void next(long delayMillis, long forceHandshake) {
-			final long c = checkOverallRequests(true, true);
+		public void next(long delayMillis, long forceHandshake, boolean connected, boolean response) {
+			final long c = checkOverallRequests(connected, response);
 			if (c > 0) {
-				requestsCounter.incrementAndGet();
 				boolean close = false;
 				boolean full = false;
 				boolean force = forceHandshake > 0;
@@ -660,7 +659,7 @@ public class BenchmarkClient {
 							@Override
 							public void run() {
 								dtlsConnector.close(destination);
-								LOGGER.trace("close {} {}", c, delay);
+								LOGGER.trace("{}: close {} {}", id, c, delay);
 							}
 						}, delayMillis, TimeUnit.MILLISECONDS);
 						if (delayMillis < 500) {
@@ -680,12 +679,12 @@ public class BenchmarkClient {
 						@Override
 						public void run() {
 							client.advanced(new TestHandler(request), request);
-							LOGGER.trace("sent request {} {} {}", c, delay, reconnect);
+							LOGGER.trace("{}: sent request {} {} {}", id, c, delay, reconnect);
 						}
 					}, delayMillis, TimeUnit.MILLISECONDS);
 				} else {
 					client.advanced(new TestHandler(request), request);
-					LOGGER.trace("sent request {} {} {}", c, delay, reconnect);
+					LOGGER.trace("{}: sent request {} {} {}", id, c, delay, reconnect);
 				}
 			}
 		}
@@ -1172,7 +1171,11 @@ public class BenchmarkClient {
 			if (honoCmds > 0) {
 				line.append(", ").append(formatHonoCmds(honoCmdsDifference, requestDifference));
 			}
-			line.append(String.format(", %d clients)", numberOfClients));
+			line.append(String.format(", %d clients", numberOfClients));
+			if (connectsPending > 0) {
+				line.append(String.format(", %d pending", connectsPending));
+			}
+			line.append(")");
 			System.out.println(line);
 		}
 		long overallSentRequests = overallRequests - overallRequestsDownCounter.get();
