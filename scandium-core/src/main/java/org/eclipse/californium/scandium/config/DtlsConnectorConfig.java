@@ -2330,8 +2330,8 @@ public final class DtlsConnectorConfig {
 		 * {@link #setCertificateVerifier(CertificateVerifier)} is already set.
 		 * 
 		 * @param trustedCerts the trusted root certificates. If empty (length
-		 *            of zero), trust all certificates and don't execute a
-		 *            certificate verification.
+		 *            of zero), trust all valid certificate chains without
+		 *            limiting the trust to specific trust anchors.
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given array is <code>null</code>
 		 * @throws IllegalArgumentException if the array contains a non-X.509

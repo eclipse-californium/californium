@@ -254,9 +254,10 @@ public class CertPathUtil {
 	 * Remove self-signed top-level root certificate and truncate certificate
 	 * path at intermediate certificates from certificate authorities.
 	 * 
-	 * @param certificateChain list with chain of x509 certificates. Maybe
+	 * @param certificateChain list with chain of x509 certificates. May be
 	 *            empty.
 	 * @param certificateAuthorities list of received certificate authorities.
+	 *            May be empty.
 	 * @return generated certificate path
 	 * @throws NullPointerException if provided certificateChain is {@code null}
 	 */
@@ -266,7 +267,7 @@ public class CertPathUtil {
 			throw new NullPointerException("Certificate chain must not be null!");
 		}
 		int size = certificateChain.size();
-		if (size > 1) {
+		if (size > 0) {
 			int truncate = size;
 			if (certificateAuthorities != null && !certificateAuthorities.isEmpty()) {
 				truncate = 0;
@@ -278,12 +279,12 @@ public class CertPathUtil {
 					}
 				}
 			}
-			if (truncate == size) {
+			if (size > 1 && truncate == size) {
 				int last = size - 1;
 				X509Certificate cert = certificateChain.get(last);
 				if (cert.getIssuerX500Principal().equals(cert.getSubjectX500Principal())) {
-					// a self-signed top-level root certificate => reduce size
-					// to remove it
+					// a self-signed top-level root certificate
+					// => reduce size to remove it
 					truncate = last;
 				}
 			}

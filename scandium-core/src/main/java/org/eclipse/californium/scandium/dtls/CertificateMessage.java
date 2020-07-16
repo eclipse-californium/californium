@@ -143,8 +143,8 @@ public final class CertificateMessage extends HandshakeMessage {
 		if (LOGGER.isDebugEnabled()) {
 			int size = certPath.getCertificates().size();
 			if (size < certificateChain.size()) {
-				LOGGER.debug("created CERTIFICATE message with truncated certificate chain [length: {}]",
-						certPath.getCertificates().size());
+				LOGGER.debug("created CERTIFICATE message with truncated certificate chain [length: {}, full-length: {}]",
+						size, certificateChain.size());
 			} else {
 				LOGGER.debug("created CERTIFICATE message with certificate chain [length: {}]", size);
 			}
