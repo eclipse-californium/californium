@@ -79,7 +79,7 @@ public class CertPathUtilTest {
 	@Test
 	public void testGenerateTruncatedCertPath() throws Exception {
 
-		List<X509Certificate> truncated = new ArrayList<X509Certificate>(clientChainExtUsageList);
+		List<X509Certificate> truncated = new ArrayList<>(clientChainExtUsageList);
 		truncated.remove(truncated.size() - 1);
 		truncated.remove(truncated.size() - 1);
 		CertPath generateCertPath = CertPathUtil.generateCertPath(clientChainExtUsageList,
@@ -243,7 +243,7 @@ public class CertPathUtilTest {
 	@Test
 	public void testGenerateValidationCertPath() throws Exception {
 
-		List<X509Certificate> truncated = new ArrayList<X509Certificate>(clientChainExtUsageList);
+		List<X509Certificate> truncated = new ArrayList<>(clientChainExtUsageList);
 		truncated.remove(truncated.size() - 1);
 
 		CertPath generateCertPath = CertPathUtil.generateValidatableCertPath(clientChainExtUsageList, null);
@@ -252,9 +252,9 @@ public class CertPathUtilTest {
 
 	@Test
 	public void testGenerateValidationCertPathForIssuer() throws Exception {
-		List<X500Principal> certificateAuthorities = new ArrayList<X500Principal>();
+		List<X500Principal> certificateAuthorities = new ArrayList<>();
 		certificateAuthorities.add(clientChainExtUsage[1].getSubjectX500Principal());
-		List<X509Certificate> truncated = new ArrayList<X509Certificate>(clientChainExtUsageList);
+		List<X509Certificate> truncated = new ArrayList<>(clientChainExtUsageList);
 		truncated.remove(truncated.size() - 1);
 		truncated.remove(truncated.size() - 1);
 
@@ -266,11 +266,22 @@ public class CertPathUtilTest {
 
 	@Test
 	public void testGenerateValidationCertPathForUnknownIssuer() throws Exception {
-		List<X500Principal> certificateAuthorities = new ArrayList<X500Principal>();
+		List<X500Principal> certificateAuthorities = new ArrayList<>();
 		certificateAuthorities.add(clientSelfsigned[0].getSubjectX500Principal());
 
 		CertPath generateCertPath = CertPathUtil.generateValidatableCertPath(clientChainExtUsageList,
 				certificateAuthorities);
+		assertEquals(0, generateCertPath.getCertificates().size());
+	}
+
+	@Test
+	public void testGenerateValidationCertPathForSingleCertificateAndUnknownIssuer() throws Exception {
+		List<X509Certificate> path = new ArrayList<>();
+		path.add(clientChainExtUsageList.get(0));
+		List<X500Principal> certificateAuthorities = new ArrayList<>();
+		certificateAuthorities.add(clientSelfsigned[0].getSubjectX500Principal());
+
+		CertPath generateCertPath = CertPathUtil.generateValidatableCertPath(path, certificateAuthorities);
 		assertEquals(0, generateCertPath.getCertificates().size());
 	}
 
