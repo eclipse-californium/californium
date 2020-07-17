@@ -275,6 +275,29 @@ public class BlockwiseServerSideTest {
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(2, false, 64).payload(respPayload, 128, 170).go();
 	}
 
+	@Test
+	public void testGETLateNegotiationInTheMiddle() throws Exception {
+		System.out.println("Blockwise GET with late negotiation in the middle:");
+		respPayload = generateRandomPayload(400);
+		Token tok = generateNextToken();
+
+		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, TEST_PREFERRED_BLOCK_SIZE).size2(respPayload.length())
+			.payload(respPayload.substring(0, TEST_PREFERRED_BLOCK_SIZE)).go();
+
+		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).block2(1, true, TEST_PREFERRED_BLOCK_SIZE).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(1, true, TEST_PREFERRED_BLOCK_SIZE).payload(respPayload, 128, 256).go();
+
+		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).block2(4, true, 64).go(); // late negotiation
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(4, true, 64).payload(respPayload, 256, 320).go();
+		
+		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).block2(5, true, 64).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(5, true, 64).payload(respPayload, 320, 384).go();
+		
+		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).block2(6, true, 64).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(6, false, 64).payload(respPayload, 384, 400).go();
+	}
+
 	/**
 	 * <pre>
 	 * CLIENT                                                     SERVER
