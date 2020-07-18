@@ -148,7 +148,7 @@ public class ClientConfig extends ClientBaseConfig {
 	 * Request method.
 	 */
 	@Option(names = { "-m", "--method" }, description = "use method. GET|PUT|POST|DELETE|FETCH|PATCH|IPATCH.")
-	public CoAP.Code code;
+	public CoAP.Code method;
 
 	@Override
 	public void register(CommandLine cmd) {

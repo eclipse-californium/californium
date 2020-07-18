@@ -205,7 +205,7 @@ public class HonoClient {
 			System.out.println("> " + clientConfig.identity + ", " + clientConfig.uri);
 		}
 		CoapClient client = new CoapClient(clientConfig.uri);
-		CoAP.Code code = clientConfig.code == null ? Code.POST : clientConfig.code;
+		CoAP.Code code = clientConfig.method == null ? Code.POST : clientConfig.method;
 		final Request request = new Request(code);
 		if (clientConfig.con != null) {
 			request.setConfirmable(clientConfig.con);

@@ -321,7 +321,11 @@ public class ConnectorConfig implements Cloneable {
 			if (argSpec instanceof OptionSpec) {
 				OptionSpec optionSpec = (OptionSpec) argSpec;
 				if ("--netconfig".equals(optionSpec.longestName())) {
-					return networkConfigFile.getPath();
+					if (networkConfigFile != null) {
+						return networkConfigFile.getPath();
+					} else {
+						return NetworkConfig.DEFAULT_FILE_NAME;
+					}
 				}
 			}
 			return null;

@@ -183,6 +183,7 @@ public class ClientInitializer {
 				return;
 			}
 		} catch (ParameterException ex) {
+			ex.printStackTrace();
 			System.err.println(ex.getMessage());
 			System.err.println();
 			cmd.usage(System.err);
