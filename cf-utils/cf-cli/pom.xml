@@ -46,6 +46,15 @@
 			<artifactId>picocli</artifactId>
 		</dependency>
 
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>demo-certs</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>californium-legal</artifactId>
+		</dependency>
+
 	</dependencies>
 
 	<build>

@@ -1137,8 +1137,12 @@ public class SslContextUtil {
 			if (chain != null) {
 				if (chain.length == 0) {
 					chain = null;
-				} else if (publicKey != null && !publicKey.equals(chain[0].getPublicKey())) {
-					throw new IllegalArgumentException("public key doesn't match certificate!");
+				} else if (publicKey != null) {
+					if (!publicKey.equals(chain[0].getPublicKey())) {
+						throw new IllegalArgumentException("public key doesn't match certificate!");
+					}
+				} else {
+					publicKey = chain[0].getPublicKey();
 				}
 			}
 			this.privateKey = privateKey;
