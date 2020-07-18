@@ -1092,7 +1092,7 @@ public class SslContextUtil {
 		@Override
 		public InputStream create(String uri) throws IOException {
 			String resource = uri.substring(CLASSPATH_SCHEME.length());
-			InputStream inStream = SslContextUtil.class.getClassLoader().getResourceAsStream(resource);
+			InputStream inStream = Thread.currentThread().getContextClassLoader().getResourceAsStream(resource);
 			if (null == inStream) {
 				throw new IOException("'" + uri + "' not found!");
 			}
@@ -1219,4 +1219,4 @@ public class SslContextUtil {
 			this.simpleStore = simpleStore;
 		}
 	}
-}
+		}
