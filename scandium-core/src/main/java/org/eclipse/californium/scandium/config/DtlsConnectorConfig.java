@@ -554,8 +554,8 @@ public final class DtlsConnectorConfig {
 	 * Number of retransmissions before the attempt to transmit a flight in
 	 * back-off mode.
 	 * 
-	 * <a href="https://tools.ietf.org/html/rfc6347#page-12>RFC 6347, Section
-	 * 4.1.1.1, Page 12</a>
+	 * <a href="https://tools.ietf.org/html/rfc6347#page-12">
+	 * RFC 6347, Section 4.1.1.1, Page 12</a>
 	 * 
 	 * In back-off mode, UDP datagrams of maximum 512 bytes are used. Each
 	 * handshake message is placed in one dtls record, or more dtls records, if
@@ -1618,8 +1618,8 @@ public final class DtlsConnectorConfig {
 		 * Number of retransmissions before the attempt to transmit a flight in
 		 * back-off mode.
 		 * 
-		 * <a href="https://tools.ietf.org/html/rfc6347#page-12>RFC 6347, Section
-		 * 4.1.1.1, Page 12</a>
+		 * <a href="https://tools.ietf.org/html/rfc6347#page-12">
+		 * RFC 6347, Section 4.1.1.1, Page 12</a>
 		 * 
 		 * In back-off mode, UDP datagrams of maximum 512 bytes are used. Each
 		 * handshake message is placed in one dtls record, or more dtls records, if
@@ -1635,6 +1635,7 @@ public final class DtlsConnectorConfig {
 		 * {@link #maxRetransmissions} / 2.
 		 * 
 		 * @param count the number of re-transmissions to use the back-off mode
+		 * @return this builder for command chaining
 		 * @since 2.4
 		 */
 		public Builder setBackOffRetransmission(Integer count) {
@@ -1690,7 +1691,7 @@ public final class DtlsConnectorConfig {
 		 * {@link #setMaxTransmissionUnit(int)}.
 		 * 
 		 * @param limit maximum transmission unit limit. Default
-		 *            {@value #DEFAULT_MAX_TRANSMISSION_UNIT_LIMIT}
+		 *            {@link DtlsConnectorConfig#DEFAULT_MAX_TRANSMISSION_UNIT_LIMIT}
 		 * @return this builder for command chaining
 		 * @throws IllegalArgumentException if
 		 *             {@link #setMaxTransmissionUnit(int)} was already set

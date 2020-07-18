@@ -104,9 +104,9 @@ import javax.security.auth.Destroyable;
  * 
  * </pre>
  * 
- * results in same secrets {@code secret1} and {@secret2}.
+ * results in same secrets {@code secret1} and {@code secret2}.
  * 
- * @see https://tools.ietf.org/html/rfc7748
+ * @see <a href="https://tools.ietf.org/html/rfc7748">RFC 7748</a>
  * @since 2.3
  */
 public final class XECDHECryptography implements Destroyable {
@@ -280,8 +280,6 @@ public final class XECDHECryptography implements Destroyable {
 	 * {@link PublicKey#getEncoded()} is not required.
 	 * 
 	 * @return encoded point to be sent to the other peer
-	 * @throws GeneralSecurityException if the public key could not be converted
-	 *             into a encoded point.
 	 */
 	public byte[] getEncodedPoint() {
 		return encodedPoint;

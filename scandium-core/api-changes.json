@@ -281,6 +281,12 @@
 					"old": "method int org.eclipse.californium.scandium.dtls.DTLSSession::getMaxDatagramSize()",
 					"justification": "not part of the public API - removed requires explicit ignore",
 					"oldArchive": "org.eclipse.californium:scandium:jar:2.3.0"
+				},
+				{
+					"code": "java.class.removed",
+					"old": "class org.eclipse.californium.scandium.dtls.DebugConnectionStore",
+					"justification": "not part of the public API - moved to test jar",
+					"oldArchive": "org.eclipse.californium:scandium:jar:2.3.0"
 				}
 			]
 		}

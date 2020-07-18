@@ -214,7 +214,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	 * 
 	 * @return connection id, or {@code null}, if no free connection id could
 	 *         created
-	 * @see #internalConnectionIdGenerator
+	 * @see #connectionIdGenerator
 	 * @see ConnectionIdGenerator
 	 */
 	private ConnectionId newConnectionId() {

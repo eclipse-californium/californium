@@ -47,7 +47,8 @@ public class ObserveNotificationOrderer {
 	/**
 	 * Creates a new notification orderer for a given notification.
 	 * 
-	 * @throws NullPointerException, if observe is {@code null}
+	 * @param observe value of observe option
+	 * @throws NullPointerException if observe is {@code null}
 	 */
 	public ObserveNotificationOrderer(Integer observe) {
 		if (observe == null) {
@@ -86,7 +87,7 @@ public class ObserveNotificationOrderer {
 	 * Check, if the provided notification is newer than the current one.
 	 * 
 	 * @param response the notification
-	 * @return {@code true} if the notification is new, or the response is no
+	 * @return {@code true}, if the notification is new, or the response is no
 	 *         notify
 	 */
 	public synchronized boolean isNew(Response response) {

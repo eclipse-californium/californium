@@ -22,6 +22,7 @@ import java.net.InetSocketAddress;
 import javax.crypto.SecretKey;
 
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
+import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
@@ -59,11 +60,13 @@ public abstract class StringPskStore implements PskStore {
 
 	/**
 	 * Gets the pre-shared key for a given identity.
-	 * <p/>
+	 * <p>
 	 * A DTLS server can use this method to look up the pre-shared key for an
 	 * identity provided by the client as part of a PSK key exchange.
-	 * <p/>
-	 * The returned key is {@link SecretKey#destroy()}ed after usage.
+	 * </p>
+	 * <p>
+	 * The returned key is {@link SecretUtil#destroy}ed after usage.
+	 * </p>
 	 * 
 	 * @param identity The identity to look up the key for.
 	 * @return The key or <code>null</code> if the given identity is unknown.
@@ -73,15 +76,16 @@ public abstract class StringPskStore implements PskStore {
 
 	/**
 	 * Gets the pre-shared key for a given identity in the scope of a server name.
-	 * <p/>
+	 * <p>
 	 * A DTLS server can use this method to look up the pre-shared key for an
 	 * identity provided by the client as part of a PSK key exchange.
-	 * <p/>
+	 * </p>
+	 * <p>
 	 * The key is looked up in the context of the <em>virtual host</em> that the
 	 * client has provided in the <em>Server Name Indication</em> extension
 	 * contained in its <em>CLIENT_HELLO</em> message.
-	 * <p/>
-	 * The returned key is {@link SecretKey#destroy()}ed after usage.
+	 * </p>
+	 * The returned key is {@link SecretUtil#destroy}ed after usage.
 	 * 
 	 * @param serverName The name of the host that the client wants to connect
 	 *            to as provided in the <em>Server Name Indication</em> HELLO
@@ -102,6 +106,7 @@ public abstract class StringPskStore implements PskStore {
 	 * A DTLS client uses this method to determine the identity to include in
 	 * its <em>CLIENT_KEY_EXCHANGE</em> message during a PSK based DTLS
 	 * handshake with the peer.
+	 * </p>
 	 * 
 	 * @param inetAddress The IP address of the peer to perform the handshake
 	 *            with.

@@ -36,6 +36,7 @@ public class CoapOSException extends OSException {
 	 * Constructor, sets the error message and sets the coapReponseCode
 	 * 
 	 * @param message the message
+	 * @param coapResponseCode response code
 	 */
 	public CoapOSException(String message, ResponseCode coapResponseCode) {
 		super(message);

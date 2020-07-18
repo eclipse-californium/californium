@@ -571,7 +571,7 @@ public class Asn1DerDecoder {
 		/**
 		 * Create empty keys.
 		 * 
-		 * The keys maybe {@link #add(Keys)} later.
+		 * The keys may be added later using {@link #add}.
 		 */
 		public Keys() {
 

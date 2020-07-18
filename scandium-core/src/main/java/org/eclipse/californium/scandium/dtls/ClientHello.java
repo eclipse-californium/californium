@@ -292,9 +292,7 @@ public final class ClientHello extends HandshakeMessage {
 	 * Creates a new ClientHello instance from its byte representation.
 	 * 
 	 * @param reader 
-	 *            reader for the binary encoding of the message.
-	 * @param byteArray
-	 *            the bytes representing the message
+	 *            reader with the binary encoding of the message.
 	 * @param peerAddress
 	 *            the IP address and port of the peer this message has been
 	 *            received from or should be sent to

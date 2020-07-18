@@ -26,6 +26,7 @@
 		<httpcore.version.spec>version="[${versionmask;==;${httpcore.version}},${versionmask;+;${httpcore.version}})"</httpcore.version.spec>
 		<httpclient.version>4.5.2</httpclient.version>
 		<httpclient.version.spec>version="[${versionmask;==;${httpclient.version}},${versionmask;+;${httpclient.version}})"</httpclient.version.spec>
+		<maven.javadoc.skip>true</maven.javadoc.skip>
 	</properties>
 
 	<dependencies>

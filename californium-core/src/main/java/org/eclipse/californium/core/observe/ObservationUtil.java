@@ -27,9 +27,10 @@ public final class ObservationUtil {
 	/**
 	 * Create shallow clone of observation and the contained request.
 	 * 
+	 * @param observation observation to clone
 	 * @return a cloned observation with a shallow clone of request, or null, if
 	 *         null was provided.
-	 * @throws IllegalArgumentException, if observation didn't contain a
+	 * @throws IllegalArgumentException if observation didn't contain a
 	 *             request.
 	 */
 	public static Observation shallowClone(Observation observation) {

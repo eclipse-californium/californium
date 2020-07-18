@@ -27,7 +27,7 @@ public interface PskSecretResultHandler {
 	/**
 	 * Apply PSK secret result.
 	 * 
-	 * @param secretRequest secret result
+	 * @param secretResult secret result
 	 */
 	void apply(PskSecretResult secretResult);
 

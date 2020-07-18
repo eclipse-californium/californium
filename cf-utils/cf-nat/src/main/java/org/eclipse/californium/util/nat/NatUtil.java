@@ -518,8 +518,6 @@ public class NatUtil implements Runnable {
 	 * Mix all local addresses of NAT entries.
 	 * 
 	 * Reuse the local addresses for different incoming addresses.
-	 * 
-	 * @throws SocketException
 	 */
 	public void mixLocalAddresses() {
 		Random random = new Random();

@@ -108,6 +108,7 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.build.javaVersion>1.7</project.build.javaVersion>
 		<snapshotDependencyAllowed>true</snapshotDependencyAllowed>
+		<javadoc.doclint>none</javadoc.doclint>
 	</properties>
 
 	<distributionManagement>
@@ -194,6 +195,20 @@
 				<plugin>
 					<artifactId>maven-toolchains-plugin</artifactId>
 					<version>3.0.0</version>
+					<executions>
+						<execution>
+							<goals>
+								<goal>toolchain</goal>
+							</goals>
+						</execution>
+					</executions>
+					<configuration>
+						<toolchains>
+							<jdk>
+								<version>${project.build.javaVersion}</version>
+							</jdk>
+						</toolchains>
+					</configuration>
 				</plugin>
 				<plugin>
 					<artifactId>maven-compiler-plugin</artifactId>
@@ -296,7 +311,7 @@
 				</plugin>
 				<plugin>
 					<artifactId>maven-javadoc-plugin</artifactId>
-					<version>3.0.1</version>
+					<version>3.2.0</version>
 					<executions>
 						<execution>
 							<id>attach-javadocs</id>
@@ -306,8 +321,7 @@
 						</execution>
 					</executions>
 					<configuration>
-						<doclint>none</doclint>
-						<additionalparam>${javadoc.opts}</additionalparam>
+						<source>${project.build.javaVersion}</source>
 					</configuration>
 				</plugin>
 				<plugin>
@@ -559,7 +573,6 @@
 			-->
 			<id>download-licenses</id>
 			<activation>
-				<activeByDefault>false</activeByDefault>
 				<property>
 					<name>downloadLicenses</name>
 				</property>
@@ -587,14 +600,11 @@
 			</build>
 		</profile>
 		<profile>
-			<!--
-				this profile generates javadoc to check integrity
-				sub-modules can set property maven.javadoc.skip=true in order to skip this
-				(e.g., the executable examples, which do not require Javadoc)
-			-->
-			<id>javadoc</id>
+			<id>java7-javadoc</id>
 			<activation>
 				<activeByDefault>false</activeByDefault>
+				<!-- jdk executing maven, not the jdk of the toolchain -->
+				<jdk>[,1.8)</jdk>
 				<property>
 					<name>createJavadoc</name>
 				</property>
@@ -608,40 +618,77 @@
 			</build>
 		</profile>
 		<profile>
-			<id>java11-html4</id>
+			<id>java8-javadoc</id>
 			<activation>
-				<jdk>[1.11,)</jdk>
+				<!-- jdk executing maven, not the jdk of the toolchain -->
+				<jdk>[1.8,1.11)</jdk>
+				<property>
+					<name>createJavadoc</name>
+				</property>
 			</activation>
-			<properties>
-				<javadoc.opts>-X-html4</javadoc.opts>
-			</properties>
+			<build>
+				<plugins>
+					<plugin>
+						<artifactId>maven-javadoc-plugin</artifactId>
+						<configuration>
+							<doclint>${javadoc.doclint}</doclint>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<profile>
+			<id>java11-javadoc</id>
+			<activation>
+				<!-- jdk executing maven, not the jdk of the toolchain -->
+				<jdk>[1.11,)</jdk>
+				<property>
+					<name>createJavadoc</name>
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<artifactId>maven-javadoc-plugin</artifactId>
+						<configuration>
+							<doclint>${javadoc.doclint}</doclint>
+							<additionalparam>-X-html4</additionalparam>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
 		</profile>
 		<profile>
 			<!-- This profile activate the usage of toolchain to compile using JDK 1.7-->
 			<id>useToolchain</id>
 			<activation>
 				<property>
-					<name>use.toolchain</name>
+					<name>useToolchain</name>
 				</property>
 			</activation>
 			<build>
 				<plugins>
 					<plugin>
 						<artifactId>maven-toolchains-plugin</artifactId>
-						<executions>
-							<execution>
-								<goals>
-									<goal>toolchain</goal>
-								</goals>
-							</execution>
-						</executions>
-						<configuration>
-							<toolchains>
-								<jdk>
-									<version>1.7</version>
-								</jdk>
-							</toolchains>
-						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+		<profile>
+			<!-- This profile activate the usage of toolchain to compile and javadoc using JDK 1.7-->
+			<id>toolchain-javadoc</id>
+			<activation>
+				<property>
+					<name>useToolchainJavadoc</name>
+				</property>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<artifactId>maven-toolchains-plugin</artifactId>
+					</plugin>
+					<plugin>
+						<artifactId>maven-javadoc-plugin</artifactId>
 					</plugin>
 				</plugins>
 			</build>
@@ -674,7 +721,6 @@
 		<profile>
 			<id>revapi</id>
 			<activation>
-				<activeByDefault>false</activeByDefault>
 				<jdk>[1.8,)</jdk>
 				<property>
 					<name>revapi.skip</name>

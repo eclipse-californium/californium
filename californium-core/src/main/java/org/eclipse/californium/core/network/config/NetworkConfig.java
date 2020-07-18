@@ -193,11 +193,17 @@ public final class NetworkConfig {
 		/**
 		 * Property to indicate if the response should always include the Block2 option when client request early blockwise negociation but the response can be sent on one packet.
 		 * <p>
-		 * The default value of this property is
-		 * {@link NetworkConfigDefaults#DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION}.
-		 * <p>
-		 * A value of {@code false} indicate that the server will respond without block2 option if no further blocks are required.<br/>
+		 * The default value of this property is {@link NetworkConfigDefaults#DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION}.
+		 * </p>
+		 * 
+		 * <ul>
+		 * <li>
+		 * A value of {@code false} indicate that the server will respond without block2 option if no further blocks are required.
+		 * </li>
+		 * <li>
 		 * A value of {@code true} indicate that the server will response with block2 option event if no further blocks are required.
+		 * </li>
+		 * </ul>
 		 *  
 		 */
 		public static final String BLOCKWISE_STRICT_BLOCK2_OPTION = "BLOCKWISE_STRICT_BLOCK2_OPTION";
@@ -275,7 +281,7 @@ public final class NetworkConfig {
 		/**
 		 * DTLS connection id length.
 		 * 
-		 * <a https://tools.ietf.org/html/draft-ietf-tls-dtls-connection-id-02>
+		 * <a href="https://tools.ietf.org/html/draft-ietf-tls-dtls-connection-id-02">
 		 * draft-ietf-tls-dtls-connection-id-02</a>
 		 * 
 		 * <ul>
@@ -433,8 +439,10 @@ public final class NetworkConfig {
 	}
 
 	/**
-	 * Instantiates a new network configuration and sets the values
-	 * from the provided configuration.
+	 * Instantiates a new network configuration and sets the values from the
+	 * provided configuration.
+	 * 
+	 * @param config network config to copy
 	 */
 	public NetworkConfig(NetworkConfig config) {
 		this.properties = new Properties();
@@ -469,6 +477,7 @@ public final class NetworkConfig {
 	 *
 	 * @param inStream the input stream
 	 * @throws NullPointerException if the inStream is {@code null}.
+	 * @throws IOException if an error occurred when reading from the input stream
 	 */
 	public void load(final InputStream inStream) throws IOException {
 		if (inStream == null) {

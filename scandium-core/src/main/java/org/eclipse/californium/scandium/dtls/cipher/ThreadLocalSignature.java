@@ -29,12 +29,13 @@ import java.security.Signature;
 public class ThreadLocalSignature extends ThreadLocalCrypto<Signature> {
 
 	/**
-	 * {@inheritDoc} Create thread local Signature.
+	 * Create thread local Signature.
 	 * 
 	 * Try to instance the Signature for the provided algorithm.
 	 * 
 	 * @param algorithm algorithm. Passed to
 	 *            {@link Signature#getInstance(String)}.
+	 * @see ThreadLocalCrypto
 	 */
 	public ThreadLocalSignature(final String algorithm) {
 		super(new Factory<Signature>() {

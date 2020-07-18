@@ -290,7 +290,7 @@ public class Exchange {
 	 * @param request the request that starts the exchange
 	 * @param origin the origin of the request (LOCAL or REMOTE)
 	 * @param executor executor to be used for exchanges. Maybe {@code null} for unit tests.
-	 * @throws NullPointerException, if request is {@code null}
+	 * @throws NullPointerException if request is {@code null}
 	 */
 	public Exchange(Request request, Origin origin, Executor executor) {
 		this(request, origin, executor, null, false);
@@ -306,7 +306,7 @@ public class Exchange {
 	 * @param ctx the endpoint context of this exchange
 	 * @param notification {@code true} for notification exchange, {@code false}
 	 *            otherwise
-	 * @throws NullPointerException, if request is {@code null}
+	 * @throws NullPointerException if request is {@code null}
 	 */
 	public Exchange(Request request, Origin origin, Executor executor, EndpointContext ctx, boolean notification) {
 		// might only be the first block of the whole request
@@ -478,7 +478,7 @@ public class Exchange {
 	 * Sets the request that this exchange is associated with.
 	 * 
 	 * @param newRequest the request
-	 * @throws ConcurrentModificationException, if not executed within
+	 * @throws ConcurrentModificationException if not executed within
 	 *             {@link #execute(Runnable)}.
 	 * @see #setCurrentRequest(Request)
 	 */
@@ -513,7 +513,7 @@ public class Exchange {
 	 * the origin request (equal to getRequest()) should be set.
 	 * 
 	 * @param newCurrentRequest the current request block
-	 * @throws ConcurrentModificationException, if not executed within
+	 * @throws ConcurrentModificationException if not executed within
 	 *             {@link #execute(Runnable)}.
 	 */
 	public void setCurrentRequest(Request newCurrentRequest) {
@@ -541,7 +541,7 @@ public class Exchange {
 	 * Sets the response.
 	 * 
 	 * @param response the response
-	 * @throws ConcurrentModificationException, if not executed within
+	 * @throws ConcurrentModificationException if not executed within
 	 *             {@link #execute(Runnable)}.
 	 */
 	public void setResponse(Response response) {
@@ -566,7 +566,7 @@ public class Exchange {
 	 * blockwise, the origin request (equal to getResponse()) should be set.
 	 * 
 	 * @param newCurrentResponse the current response block
-	 * @throws ConcurrentModificationException, if not executed within
+	 * @throws ConcurrentModificationException if not executed within
 	 *             {@link #execute(Runnable)}.
 	 */
 	public void setCurrentResponse(Response newCurrentResponse) {
@@ -591,7 +591,7 @@ public class Exchange {
 	 * Set key mid used to register this exchange.
 	 * 
 	 * @param keyMID key mid.
-	 * @throws ConcurrentModificationException, if not executed within
+	 * @throws ConcurrentModificationException if not executed within
 	 *             {@link #execute(Runnable)}.
 	 */
 	public void setKeyMID(KeyMID keyMID) {
@@ -609,7 +609,7 @@ public class Exchange {
 	 * Set key token used to register this exchange.
 	 * 
 	 * @param keyToken key token
-	 * @throws ConcurrentModificationException, if not executed within
+	 * @throws ConcurrentModificationException if not executed within
 	 *             {@link #execute(Runnable)}.
 	 */
 	public void setKeyToken(KeyToken keyToken) {
@@ -694,7 +694,7 @@ public class Exchange {
 	 * calls to the requests.
 	 * 
 	 * @param message message, which transmission has reached the timeout.
-	 * @throws ConcurrentModificationException, if not executed within
+	 * @throws ConcurrentModificationException if not executed within
 	 *             {@link #execute(Runnable)}.
 	 */
 	public void setTimedOut(Message message) {
@@ -736,7 +736,7 @@ public class Exchange {
 	 * Set retransmission handle.
 	 * 
 	 * @param newRetransmissionHandle
-	 * @throws ConcurrentModificationException, if not executed within
+	 * @throws ConcurrentModificationException if not executed within
 	 *             {@link #execute(Runnable)}.
 	 */
 	public void setRetransmissionHandle(ScheduledFuture<?> newRetransmissionHandle) {
@@ -755,7 +755,7 @@ public class Exchange {
 	 * Prepare exchange for retransmit a response.
 	 * 
 	 * @throws IllegalStateException if exchange is not a REMOTE exchange.
-	 * @throws ConcurrentModificationException, if not executed within
+	 * @throws ConcurrentModificationException if not executed within
 	 *             {@link #execute(Runnable)}.
 	 */
 	public void retransmitResponse() {
@@ -820,14 +820,16 @@ public class Exchange {
 	/**
 	 * Checks if this exchange has been marked as <em>completed</em>.
 	 * 
-	 * @return {@code true} if this exchange has been completed.
+	 * @return {@code true}, if this exchange has been completed.
 	 */
 	public boolean isComplete() {
 		return complete.get();
 	}
 
 	/**
-	 * Get caller
+	 * Get caller.
+	 * 
+	 * @return the caller's stacktrace.
 	 */
 	public Throwable getCaller() {
 		return caller;
@@ -848,8 +850,8 @@ public class Exchange {
 	 * 
 	 * @return {@code true}, if complete is set the first time, {@code false},
 	 *         if it is repeated.
-	 * @throws ExchangeCompleteException, if exchange was already completed.
-	 * @throws ConcurrentModificationException, if not executed within
+	 * @throws ExchangeCompleteException if exchange was already completed.
+	 * @throws ConcurrentModificationException if not executed within
 	 *             {@link #execute(Runnable)}.
 	 */
 	public boolean setComplete() {
@@ -994,9 +996,9 @@ public class Exchange {
 	 * Sets the observe relation this exchange has established.
 	 * 
 	 * @param relation the CoAP observe relation
-	 * @throws ConcurrentModificationException, if not executed within
+	 * @throws ConcurrentModificationException if not executed within
 	 *             {@link #execute(Runnable)}.
-	 * @throws NullPointerException if relation is null
+	 * @throws NullPointerException if provided relation is {@code null}
 	 * @throws IllegalStateException if relation was already set before
 	 */
 	public void setRelation(ObserveRelation relation) {
@@ -1018,7 +1020,7 @@ public class Exchange {
 	 * also kept in the message exchange store. This method removes the
 	 * notification message from the store.
 	 * 
-	 * @throws ConcurrentModificationException, if not executed within
+	 * @throws ConcurrentModificationException if not executed within
 	 *             {@link #execute(Runnable)}.
 	 */
 	public void removeNotifications() {
@@ -1115,9 +1117,9 @@ public class Exchange {
 	 * using this exchange.
 	 * 
 	 * @param message message to be send using this exchange.
-	 * @throws ConcurrentModificationException, if not executed within
+	 * @throws ConcurrentModificationException if not executed within
 	 *             {@link #execute(Runnable)}.
-	 * @throws ExchangeCompleteException, if exchange is already completed
+	 * @throws ExchangeCompleteException if exchange is already completed
 	 */
 	public void assertIncomplete(Object message) {
 		assertOwner();
@@ -1129,7 +1131,7 @@ public class Exchange {
 	/**
 	 * Assert, that the current thread owns this exchange.
 	 *
-	 * @throws ConcurrentModificationException, if not executed within
+	 * @throws ConcurrentModificationException if not executed within
 	 *             {@link #execute(Runnable)}.
 	 */
 	private void assertOwner() {
@@ -1163,9 +1165,11 @@ public class Exchange {
 	}
 
 	/**
-	 * Gets cryptoContextId
+	 * Gets cryptoContextId.
 	 * 
-	 * @return
+	 * Used by OSCORE.
+	 * 
+	 * @return byte array with crypto context id.
 	 */
 	public byte[] getCryptographicContextID() {
 		return this.cryptoContextId;

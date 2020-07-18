@@ -27,11 +27,12 @@ import javax.crypto.Mac;
 public class ThreadLocalMac extends ThreadLocalCrypto<Mac> {
 
 	/**
-	 * {@inheritDoc} Create thread local mac.
+	 * Create thread local mac.
 	 * 
 	 * Try to instance the mac for the provided algorithm.
 	 * 
 	 * @param algorithm algorithm. Passed to {@link Mac#getInstance(String)}.
+	 * @see ThreadLocalCrypto
 	 */
 	public ThreadLocalMac(final String algorithm) {
 		super(new Factory<Mac>() {

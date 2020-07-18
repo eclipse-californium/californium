@@ -219,6 +219,7 @@ public class OptionJuggle {
 	 * 
 	 * @param request the request that receives its real code
 	 * @param realCode the real code
+	 * @return request with real code.
 	 */
 	public static Request setRealCodeRequest(Request request, Code realCode) {
 		return requestWithNewCode(request, realCode);
@@ -237,8 +238,9 @@ public class OptionJuggle {
 	/**
 	 * Sets the realCode for a response
 	 * 
-	 * @param response
-	 * @param realCode
+	 * @param response response
+	 * @param realCode real code
+	 * @return response with real code
 	 */
 	public static Response setRealCodeResponse(Response response, ResponseCode realCode) {
 		return responseWithNewCode(response, realCode);

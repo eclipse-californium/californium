@@ -77,7 +77,7 @@ public class Topic {
      * Creates a sorted ArrayList of object Topic that includes all of
      * the parent Topics out of a given Set of WebLinks
      *
-     * @param swl Set<WebLink> a Set of WebLinks
+     * @param swl Set of WebLinks
      * @return a sorted ArrayList of Topics
      */
     public static ArrayList<Topic> makeArrayList(Set<WebLink> swl) {

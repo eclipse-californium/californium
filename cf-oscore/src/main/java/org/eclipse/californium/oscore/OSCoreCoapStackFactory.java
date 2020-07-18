@@ -51,7 +51,7 @@ public class OSCoreCoapStackFactory implements CoapStackFactory {
 	 * Note: the factory is only applied once with the first call, the
 	 * {@link #defaultCtxDb} is update on every call.
 	 * 
-	 * @param db default argument for {@link OSCoreStack}
+	 * @param defaultCtxDb default context DB. Passed in as default argument for {@link OSCoreStack}
 	 * 
 	 * @see CoapEndpoint#setDefaultCoapStackFactory(CoapStackFactory)
 	 */

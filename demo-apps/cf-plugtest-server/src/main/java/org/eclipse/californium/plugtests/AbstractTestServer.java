@@ -175,7 +175,7 @@ public abstract class AbstractTestServer extends CoapServer {
 	 * Add endpoints.
 	 * 
 	 * @param selectAddress regular expression to filter the endpoints by
-	 *            {@link InetAddress#getHostAddress())}. Maybe {@code null} or
+	 *            {@link InetAddress#getHostAddress()}. May be {@code null} or
 	 *            {@code ""}, if endpoints should not be filtered by their host
 	 *            address.
 	 * @param interfaceTypes list of type to filter the endpoints. Maybe

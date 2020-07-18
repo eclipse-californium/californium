@@ -26,19 +26,16 @@ import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 /**
  * Implementation of byte array based PSK public information (hint or identity).
  * 
- * Note: <a "https://tools.ietf.org/html/rfc4279#section-5.1">RFC 4279, Section
+ * Note: <a href="https://tools.ietf.org/html/rfc4279#section-5.1">RFC 4279, Section
  * 5.1</a> defines to use UTF-8 to encode the identities. However, some peers
  * seems to use non UTF-8 encoded identities. This byte array based
  * implementation allows to support such non-compliant clients. The string based
  * identity is used for {@link PreSharedKeyIdentity}, therefore it's required to
  * use {@link #PskPublicInformation(String, byte[])} to setup a proper name for
  * such non-compliant peers in the
- * {@link org.eclipse.californium.scandium.dtls.pskstore.BytesPskStore}. During
+ * {@link org.eclipse.californium.scandium.dtls.pskstore.PskStore}. During
  * the lookup of the secret key in the handshake, such a non-compliant identity
  * is normalized with the identity provided by the store.
- * 
- * <pre>
- * 
  */
 public final class PskPublicInformation extends Bytes {
 

@@ -28,12 +28,13 @@ import javax.crypto.KeyAgreement;
 public class ThreadLocalKeyAgreement extends ThreadLocalCrypto<KeyAgreement> {
 
 	/**
-	 * {@inheritDoc} Create thread local KeyAgreement.
+	 * Create thread local KeyAgreement.
 	 * 
 	 * Try to instance the KeyAgreement for the provided algorithm.
 	 * 
 	 * @param algorithm algorithm. Passed to
 	 *            {@link KeyAgreement#getInstance(String)}.
+	 * @see ThreadLocalCrypto
 	 */
 	public ThreadLocalKeyAgreement(final String algorithm) {
 		super(new Factory<KeyAgreement>() {

@@ -69,6 +69,7 @@ public class ContextRederivation {
 	 * Method to indicate that the mutable parts of an OSCORE context has been
 	 * lost. In such case the context re-derivation procedure is triggered.
 	 * 
+	 * @param db context DB
 	 * @param uri the URI associated with context information has been lost for
 	 * @throws CoapOSException if re-generation of the context fails
 	 */

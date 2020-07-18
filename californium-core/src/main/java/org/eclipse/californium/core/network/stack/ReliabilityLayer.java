@@ -384,7 +384,7 @@ public class ReliabilityLayer extends AbstractLayer {
 	 * follow-up retransmissions.
 	 * 
 	 * @param exchange exchange to update the current timeout
-	 * @param reliabilityLayerParameters
+	 * @param reliabilityLayerParameters reliability layer's parameter.
 	 * @see Exchange#getCurrentTimeout()
 	 * @see Exchange#setCurrentTimeout(int)
 	 * @see Exchange#getFailedTransmissionCount()

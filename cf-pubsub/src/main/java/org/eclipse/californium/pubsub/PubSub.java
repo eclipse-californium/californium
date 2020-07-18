@@ -72,7 +72,7 @@ public class PubSub {
      * Creates an instance of PubSub with specified parameters
      * @param host ip address of the broker as a String
      * @param port number of the broker
-     * @param timeout time the client waits for response (timeout = 0 -> waits indefinitely)
+     * @param timeout time the client waits for response (timeout = 0 -&gt; waits indefinitely)
      */
     public PubSub(String host, int port, long timeout) {
         this.host = host;
@@ -90,7 +90,7 @@ public class PubSub {
 
     /**
      * Sets the network configuration of the PubSub instance
-     * @param config
+     * @param config network configuration
      */
     public void setConfig(NetworkConfig config) {
         this.config = config;
@@ -239,6 +239,7 @@ public class PubSub {
      * Sends a synchronous DELETE request to the broker which removes the specified topic from the broker
      * If the topic is a parent topic, the broker removes all of its children
      * @param uri String or String[] is the path of the topic which should be removed
+     * @return response
      * @throws ConnectorException if an issue specific to the connector occurred
      * @throws IOException if any other issue (not specific to the connector) occurred
      */

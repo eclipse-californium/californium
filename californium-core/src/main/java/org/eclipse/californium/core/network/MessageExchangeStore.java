@@ -227,7 +227,7 @@ public interface MessageExchangeStore {
 	/**
 	 * Set a scheduler to execute rare periodic task.
 	 * 
-	 * @param executor
+	 * @param executor scheduled executor service
 	 */
 	void setExecutor(ScheduledExecutorService executor);
 }

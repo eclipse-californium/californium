@@ -114,13 +114,21 @@
 				<groupId>${project.groupId}</groupId>
 				<artifactId>californium-legal</artifactId>
 				<version>${project.version}</version>
-				<scope>provided</scope>
+				<scope>runtime</scope>
 			</dependency>
 
 			<!--  tests -->
 			<dependency>
 				<groupId>${project.groupId}</groupId>
 				<artifactId>element-connector</artifactId>
+				<version>${project.version}</version>
+				<classifier>tests</classifier>
+				<type>test-jar</type>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>${project.groupId}</groupId>
+				<artifactId>scandium</artifactId>
 				<version>${project.version}</version>
 				<classifier>tests</classifier>
 				<type>test-jar</type>

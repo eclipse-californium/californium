@@ -45,21 +45,21 @@ public class ObserveRelation {
 
 	/** The logger. */
 	private final static Logger LOGGER = LoggerFactory.getLogger(ObserveRelation.class);
-	
+
 	private final long checkIntervalTime;
 	private final int checkIntervalCount;
-	
+
 	private final ObservingEndpoint endpoint;
 
 	/** The resource that is observed */
 	private final Resource resource;
-	
+
 	/** The exchange that has established the observe relationship */
 	private final Exchange exchange;
-	
+
 	private Response recentControlNotification;
 	private Response nextControlNotification;
-	
+
 	private final String key;
 
 	/*
@@ -97,15 +97,17 @@ public class ObserveRelation {
 
 		this.key = StringUtil.toString(getSource()) + "#" + exchange.getRequest().getTokenString();
 	}
-	
+
 	/**
-	 * Returns true if this relation has been established.
-	 * @return true if this relation has been established
+	 * Returns his relation established state.
+	 * 
+	 * @return {@code true}, if this relation has been established,
+	 *         {@code false}, otherwise
 	 */
 	public boolean isEstablished() {
 		return established;
 	}
-	
+
 	/**
 	 * Sets the established field.
 	 * @throws IllegalStateException if the relation was already canceled.
@@ -126,11 +128,11 @@ public class ObserveRelation {
 	public boolean isCanceled() {
 		return canceled;
 	}
-	
+
 	/**
 	 * Cancel this observe relation. This methods invokes the cancel methods of
 	 * the resource and the endpoint.
-	 * @throws IllegalStateException, if relation wasn't established.
+	 * @throws IllegalStateException if relation wasn't established.
 	 */
 	public void cancel() {
 		if (!canceled) {
@@ -151,7 +153,7 @@ public class ObserveRelation {
 			exchange.executeComplete();
 		}
 	}
-	
+
 	/**
 	 * Cancel all observer relations that this server has established with this'
 	 * realtion's endpoint.
@@ -159,7 +161,7 @@ public class ObserveRelation {
 	public void cancelAll() {
 		endpoint.cancelAll();
 	}
-	
+
 	/**
 	 * Notifies the observing endpoint that the resource has been changed. This
 	 * method makes the resource process the same request again.
@@ -167,7 +169,7 @@ public class ObserveRelation {
 	public void notifyObservers() {
 		resource.handleRequest(exchange);
 	}
-	
+
 	/**
 	 * Gets the resource.
 	 *

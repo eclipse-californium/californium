@@ -149,9 +149,9 @@ public class EndpointManager {
 	 * endpoint, if not already started.
 	 *
 	 * @param newEndpoint new default endpoint.
-	 * @throws IllegalArgumentException, if the uri scheme of the provided new
+	 * @throws IllegalArgumentException if the uri scheme of the provided new
 	 *             endpoint is not supported.
-	 * @throws NullPointerException, if the provided new endpoint is null.
+	 * @throws NullPointerException if the provided new endpoint is null.
 	 * @see #getDefaultEndpoint()
 	 * @see #setDefaultEndpoint(Endpoint)
 	 * @see CoAP#isSupportedScheme

@@ -51,21 +51,20 @@ import org.slf4j.LoggerFactory;
  * <a href=
  * "https://mailarchive.ietf.org/arch/msg/core/7P8wrsahiuCriozrYc_fVyS6mzg/">
  * Core - mailinglist - Klaus Hartke: Multicast CoAP</a>
- *
+ * </p>
  * <pre>
  * +---------------+                +-----------------+
  * |               |    request    _|_                |
- * |               |        .---> /   \   224.0.1.187 |
+ * |               |        .---&gt; /   \   224.0.1.187 |
  * |              _|_      /      \___/ --.   :9999   |
  * | 192.168.0.1 /   \ ---´         |      \          |
- * |   :54321    \___/ <---.       _|_     /  rewrite |
- * |               |        \     /   \ <-´           |
+ * |   :54321    \___/ &lt;---.       _|_     /  rewrite |
+ * |               |        \     /   \ &lt;|
  * |               |         `--- \___/ 192.168.0.100 |
  * |               |    response    |         :5683   |
  * +---------------+                +-----------------+
  *       Client                           Server
  * </pre>
- * </p>
  * <p>
  * To setup a system, which listens on the same port for unicast and multicast,
  * and reliable distinguishs between them, seems to be not too easy with java.

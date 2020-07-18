@@ -52,17 +52,20 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
  * depicted in <a href="http://tools.ietf.org/html/rfc5246#section-7.3">Figure
  * 2</a>. The new keys will be generated from the master secret established from
  * a previous full handshake.
+ * 
  * <p>
  * This implementation offers a probing mode.
  * 
  * If a mobile peer doesn't get a ACK or response that may have two different
  * causes:
+ * </p>
  * 
  * <ol>
  * <li>server has lost session (association)</li>
  * <li>connectivity is lost</li>
  * </ol>
  * 
+ * <p>
  * The second is sometime hard to detect; the peer's state is connected, but
  * effectively it's not working. In that case, after some retransmissions, the
  * peer starts a handshake. Without the probing mode starting a handshake

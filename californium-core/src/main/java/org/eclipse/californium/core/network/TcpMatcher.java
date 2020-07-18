@@ -65,8 +65,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Matcher that runs over reliable TCP/TLS protocol. Based on
- * <a href="https://tools.ietf.org/html/draft-ietf-core-coap-tcp-tls-02"/>
+ * Matcher that runs over reliable TCP/TLS protocol.
+ * 
+ * Based on
+ * <a href="https://tools.ietf.org/html/draft-ietf-core-coap-tcp-tls-02">draft-ietf-core-coap-tcp-tls-02</a>.
  */
 public final class TcpMatcher extends BaseMatcher {
 

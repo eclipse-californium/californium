@@ -20,6 +20,7 @@ package org.eclipse.californium.core.network;
 import java.security.SecureRandom;
 
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.core.network.TokenGenerator.Scope;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.slf4j.Logger;

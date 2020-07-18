@@ -39,6 +39,7 @@ public class ResponseEncryptor extends Encryptor {
 	private static final Logger LOGGER = LoggerFactory.getLogger(ResponseEncryptor.class);
 
 	/**
+	 * @param db the context DB
 	 * @param response the response
 	 * @param ctx the OSCore context
 	 * @param newPartialIV boolean to indicate whether to use a new partial IV or not

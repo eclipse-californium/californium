@@ -747,7 +747,7 @@ public class OSCoreCtx {
 	/**
 	 * Set the phase of the context re-derivation process.
 	 * 
-	 * @param contextRederivationOngoing the contextRederivationPhase to set
+	 * @param contextRederivationPhase the contextRederivationPhase to set
 	 */
 	public void setContextRederivationPhase(ContextRederivation.PHASE contextRederivationPhase) {
 		this.contextRederivationPhase = contextRederivationPhase;
@@ -882,10 +882,12 @@ public class OSCoreCtx {
 
 	/**
 	 * Sets this CoAPCode to CoAPCode
+	 * 
+	 * @param coapCode coap code.
 	 */
-	public void setCoAPCode(Code CoAPCode) {
-		if (CoAPCode != null) {
-			this.CoAPCode = CoAPCode;
+	public void setCoAPCode(Code coapCode) {
+		if (coapCode != null) {
+			this.CoAPCode = coapCode;
 		}
 	}
 

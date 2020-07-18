@@ -255,9 +255,9 @@ public enum CipherSuite {
 	}
 
 	/**
-	 * Checks whether this cipher suite use <em>PSK<em> key exchange.
+	 * Checks whether this cipher suite use <em>PSK</em> key exchange.
 
-	 * @return {@code true} if <em>PSK<em> key exchange is used
+	 * @return {@code true} if <em>PSK</em> key exchange is used
 	 */
 	public boolean isPskBased() {
 		return KeyExchangeAlgorithm.PSK.equals(keyExchange) || KeyExchangeAlgorithm.ECDHE_PSK.equals(keyExchange);
@@ -503,6 +503,7 @@ public enum CipherSuite {
 	 * 
 	 * @param recommendedCipherSuitesOnly {@code true} use only recommended
 	 *            cipher suites
+	 * @param ecdhePsk {@code true} include ECDHE_PSK cipher suites
 	 * @return list of all supported PSK cipher suites. Ordered by their
 	 *         definition above.
 	 * @deprecated use

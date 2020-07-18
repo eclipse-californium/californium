@@ -117,7 +117,7 @@ public class ExecutorsUtil {
 	 * Create a scheduler with 2 threads in pools.
 	 * 
 	 * Intended to be used for rare executing timers (e.g. cleanup tasks).
-	 * 
+	 * @param namePrefix for thread names.
 	 * @return scheduled executor service
 	 */
 	public static ScheduledThreadPoolExecutor newDefaultSecondaryScheduler(String namePrefix) {
@@ -134,7 +134,7 @@ public class ExecutorsUtil {
 	 * @param timeMaxToWaitInMs max time to wait in milliseconds for task
 	 *            completions, after this time a more aggressive
 	 *            {@link ExecutorService#shutdownNow()} will be called.
-	 * @param executors
+	 * @param executors executors to shutdown
 	 */
 	public static void shutdownExecutorGracefully(long timeMaxToWaitInMs, ExecutorService... executors) {
 		if (executors.length == 0)

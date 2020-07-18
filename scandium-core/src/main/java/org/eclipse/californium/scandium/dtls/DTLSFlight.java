@@ -230,6 +230,7 @@ public class DTLSFlight {
 	/**
 	 * Adds a dtls message to this flight.
 	 * 
+	 * @param epoch the epoch of the dtls message.
 	 * @param messageToAdd the dtls message to add.
 	 * @since 2.4
 	 */
@@ -469,7 +470,7 @@ public class DTLSFlight {
 	 * @param useMultiHandshakeMessageRecords enable to use dtls records with
 	 *            multiple handshake messages.
 	 * @param useMultiRecordMessages use datagrams with multiple dtls records
-	 * @param bachOff send flight in back off mode.
+	 * @param backOff send flight in back off mode.
 	 * @return list of datagrams
 	 * @throws HandshakeException if the message could not be encrypted using
 	 *             the session's current security parameters
@@ -645,7 +646,7 @@ public class DTLSFlight {
 	 * Response flight is received completely.
 	 * 
 	 * Note: a already cancelled flight could not be restarted using
-	 * {@link #setTimeoutTask(ScheduledFuture)}.
+	 * {@link #scheduleRetransmission(ScheduledExecutorService, Runnable)}.
 	 */
 	public void setResponseCompleted() {
 		responseCompleted = true;

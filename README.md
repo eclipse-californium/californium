@@ -18,6 +18,45 @@ $ mvn clean install
 
 Executable JARs of the examples with all dependencies can be found in the `demo-apps/run` folder.
 
+The build-process is tested for jdk 7, jdk 8 and jdk 11. For jdk 7 the revapi maven-plugin is disabled,
+it requires at least java 8.
+
+To generate the javadocs, add "-DcreateJavadoc=true" to the command line and set the `JAVA_HOME`.
+
+```sh
+$ mvn clean install -DcreateJavadoc=true
+```
+
+Californium 2.x can be used with java 7 or newer. If you want to build it with a jdk 7, but use also plugins which are only supported for newer jdks, the toolchain plugin could be used. That requires a toolchains configuration in "toolchains.xml" in your maven ".m2" folder
+
+```xml
+<?xml version="1.0" encoding="UTF8"?>
+<toolchains>
+	<!-- JDK toolchains -->
+	<toolchain>
+		<type>jdk</type>
+		<provides>
+			<version>1.7</version>
+		</provides>
+		<configuration>
+			<jdkHome>path..to..jdk7...home</jdkHome>
+		</configuration>
+	</toolchain>
+</toolchains>
+```
+
+To use the jdk7 toolchain, add "-DuseToolchain=true" to the command line.
+
+```sh
+$ mvn clean install -DuseToolchain=true
+```
+
+To use the jdk7 toolchain and create javadocs, add "-DuseToolchainJavadoc=true" to the command line (`JAVA_HOME` is not required).
+
+```sh
+$ mvn clean install -DuseToolchainJavadoc=true
+```
+
 # Using Californium in Maven Projects
 
 We are publishing Californium's artifacts for milestones and releases to [Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:2.3.0).
