@@ -28,12 +28,13 @@ import javax.crypto.Cipher;
 public class ThreadLocalCipher extends ThreadLocalCrypto<Cipher> {
 
 	/**
-	 * {@inheritDoc} Create thread local cipher.
+	 * Create thread local cipher.
 	 * 
 	 * Try to instance the cipher for the provided transformation.
 	 * 
 	 * @param transformation transformation. Passed to
 	 *            {@link Cipher#getInstance(String)}.
+	 * @see ThreadLocalCrypto
 	 */
 	public ThreadLocalCipher(final String transformation) {
 		super(new Factory<Cipher>() {

@@ -40,7 +40,13 @@ public class MessageHeader {
 		this.bodyLength = bodyLength;
 	}
 
-	/** Options + payload marker + payload length. */
+	/**
+	 * Get length of the body.
+	 * 
+	 * Options + payload marker + payload length.
+	 * 
+	 * @return the body length
+	 */
 	public int getBodyLength() {
 		return bodyLength;
 	}

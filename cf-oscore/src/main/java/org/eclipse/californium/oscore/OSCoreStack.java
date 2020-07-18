@@ -48,6 +48,7 @@ public class OSCoreStack extends BaseCoapStack {
 	 * @param config The configuration values to use.
 	 * @param outbox The adapter for submitting outbound messages to the
 	 *            transport.
+	 * @param ctxDb context DB.
 	 */
 	public OSCoreStack(final NetworkConfig config, final Outbox outbox, final OSCoreCtxDB ctxDb) {
 		super(outbox);

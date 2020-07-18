@@ -32,7 +32,7 @@ import org.eclipse.californium.scandium.util.ServerNames;
 /**
  * Advanded PSK store with optional asynchronous API.
  * 
- * Ith could also be used to delegate the master secret generation to a HSM.
+ * It could also be used to delegate the master secret generation to a HSM.
  * 
  * Returns psk secret result instead of PSK's secret key. The secret must either
  * be a master secret (algorithm "MAC"), or a PSK secret key (algorithm "PSK").
@@ -41,6 +41,7 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * 
  * <p>
  * Synchronous example returning the PSK secret key:
+ * </p>
  * 
  * <pre>
  * &#64;Override
@@ -51,7 +52,9 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * }
  * </pre>
  *
+ * <p>
  * Asynchronous example returning the master secret:
+ * </p>
  * 
  * <pre>
  * &#64;Override
@@ -75,7 +78,6 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * 		resultHandler.apply(result);
  * }
  * </pre>
- * </p>
  * 
  * @since 2.3
  */

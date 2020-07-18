@@ -170,8 +170,8 @@ public class ClientBaseConfig extends ConnectorConfig {
 	 * 
 	 * @param id psk identity
 	 * @param secret secret. if {@code null} and
-	 *            {@link ClientInitializer#PSK_IDENTITY_PREFIX} is used, use
-	 *            {@link ClientInitializer#PSK_SECRET}
+	 *            {@link ConnectorConfig#PSK_IDENTITY_PREFIX} is used, use
+	 *            {@link ConnectorConfig#PSK_SECRET}
 	 * @return create client configuration clone.
 	 */
 	public ClientBaseConfig create(String id, byte[] secret) {

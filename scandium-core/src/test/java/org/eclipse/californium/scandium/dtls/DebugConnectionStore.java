@@ -59,6 +59,8 @@ public final class DebugConnectionStore extends InMemoryConnectionStore {
 
 	/**
 	 * Dump connections to logger. Intended to be used for unit tests.
+	 * 
+	 * @param address address of connection to dump
 	 */
 	public boolean dump(InetSocketAddress address) {
 		if (connections.size() == 0) {
@@ -77,6 +79,8 @@ public final class DebugConnectionStore extends InMemoryConnectionStore {
 
 	/**
 	 * Dump connection to logger. Intended to be used for unit tests.
+	 * 
+	 * @param connection connection to dump
 	 */
 	private void dump(Connection connection) {
 		if (connection.hasEstablishedSession()) {

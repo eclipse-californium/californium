@@ -198,9 +198,9 @@ public class ClientInitializer {
 	}
 
 	/**
-	 * Create endpoint from arguments.
+	 * Create endpoint from client's configarguments.
 	 * 
-	 * @param arguments arguments
+	 * @param clientConfig client's config
 	 * @param executor executor service. {@code null}, if no external executor
 	 *            should be used.
 	 * @return created endpoint.

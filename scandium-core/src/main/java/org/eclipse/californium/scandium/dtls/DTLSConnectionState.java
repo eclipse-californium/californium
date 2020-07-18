@@ -79,7 +79,7 @@ public abstract class DTLSConnectionState implements Destroyable {
 	};
 
 	/**
-	 * Initializes all fields with given values.
+	 * Create connection state and initializes all fields with given values.
 	 * 
 	 * @param cipherSuite the cipher and MAC algorithm to use for encrypting
 	 *            message content
@@ -89,6 +89,7 @@ public abstract class DTLSConnectionState implements Destroyable {
 	 * @param iv the initialization vector to use for encrypting message content
 	 * @param macKey the key to use for creating/verifying message
 	 *            authentication codes (MAC)
+	 * @return created connection state.
 	 * @throws NullPointerException if any of the parameter is {@code null}
 	 */
 	public static DTLSConnectionState create(CipherSuite cipherSuite, CompressionMethod compressionMethod,
@@ -165,9 +166,9 @@ public abstract class DTLSConnectionState implements Destroyable {
 	 * Decrypt fragment for provided record.
 	 * 
 	 * @param record record to decrypt fragment for
-	 * @param ciphertextFragmen encrypted fragment
+	 * @param ciphertextFragment encrypted fragment
 	 * @return fragment
-	 * @throws GeneralSecurityException if an error occured during decryption
+	 * @throws GeneralSecurityException if an error occurred during decryption
 	 */
 	public abstract byte[] decrypt(Record record, byte[] ciphertextFragment) throws GeneralSecurityException;
 

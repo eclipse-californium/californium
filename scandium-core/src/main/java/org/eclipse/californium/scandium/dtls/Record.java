@@ -227,7 +227,6 @@ public class Record {
 	 * Creates an outbound record representing a {@link DTLSMessage} as its payload.
 	 * 
 	 * The payload will be sent un-encrypted using epoch 0.
-	 * Using {@link #updateSequenceNumber(long)} is not supported for these records.
 	 * 
 	 * @param type the type of the record's payload. The new record type
 	 *            {@link ContentType#TLS12_CID} is not supported.
@@ -310,7 +309,7 @@ public class Record {
 	}
 
 	/**
-	 * Parses a sequence of <em>DTLSCiphertext</em> structures into {@code Record}> instances.
+	 * Parses a sequence of <em>DTLSCiphertext</em> structures into {@code Record} instances.
 	 * 
 	 * The binary representation is expected to comply with the <em>DTLSCiphertext</em> structure
 	 * defined in <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1">RFC6347, Section 4.3.1</a>.
@@ -437,6 +436,7 @@ public class Record {
 	 * 
 	 * with the connection_id_length encoded in one uint8 byte.
 	 * 
+	 * @param length length of the data to be authenticated
 	 * @return the additional authentication data.
 	 */
 	protected byte[] generateAdditionalData(int length) {

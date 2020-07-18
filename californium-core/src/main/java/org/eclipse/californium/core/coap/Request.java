@@ -172,12 +172,14 @@ import org.eclipse.californium.elements.util.StringUtil;
  * are required, set them via {@link #getOptions()}.
  * </p>
  * 
- * Note:</br>
+ * <p>
+ * Note:
  * Using {@link #setDestination(InetAddress)} or
  * {@link #setDestinationPort(int)} is deprecated since 2017-09. Using these
  * functions may result in unexpected behavior, especially, if other
  * destinations are used as in a provided URI. 
  * Don't use it in combination with the new proxy support of 2.1!
+ * </p>
  * 
  * @see Response
  */
@@ -1180,7 +1182,7 @@ public class Request extends Message {
 	/**
 	 * Set contextual information about this request.
 	 * 
-	 * @param userContext
+	 * @param userContext user context
 	 * @return this request
 	 */
 	public Request setUserContext(Map<String, String> userContext) {

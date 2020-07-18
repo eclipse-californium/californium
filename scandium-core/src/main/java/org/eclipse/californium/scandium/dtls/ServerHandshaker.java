@@ -719,12 +719,13 @@ public class ServerHandshaker extends Handshaker {
 	 * in the {@link #supportedCipherSuites}.
 	 * </p>
 	 * <p>
-	 * If the client proposes an ECC based cipher suite this method also
-	 * tries to determine an appropriate <em>Supported Group</em> by means
-	 * of invoking the {@link #getCommonSupportedGroups(ClientHello)} method.
-	 * If at least one group is found it will be stored in the {@link #negotiatedSupportedGroups}
-	 * list. A ECC based cipher suite will only be accepted, if a server
-	 * certificate with the used curve is available.
+	 * If the client proposes an ECC based cipher suite this method also tries
+	 * to determine an appropriate <em>Supported Group</em> by means of invoking
+	 * the {@link #getCommonSupportedGroups(ClientHello)} method. If at least
+	 * one group is found it will be stored in the
+	 * {@link #selectedCipherSuiteParameters} list. A ECC based cipher suite
+	 * will only be accepted, if a server certificate with the used curve is
+	 * available.
 	 * </p>
 	 * <p>
 	 * The selected cipher suite is set on the <em>session</em> to be negotiated

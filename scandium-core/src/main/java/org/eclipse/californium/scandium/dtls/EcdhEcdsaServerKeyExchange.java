@@ -88,7 +88,6 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 	 * @throws GeneralSecurityException if generating the signature providing prove of
 	 *            possession of the private key fails, e.g. due to an unsupported
 	 *            signature or hash algorithm or an invalid key
-	 * @throws HandshakeException 
 	 */
 	public EcdhEcdsaServerKeyExchange(SignatureAndHashAlgorithm signatureAndHashAlgorithm, XECDHECryptography ecdhe,
 			PrivateKey serverPrivateKey, Random clientRandom, Random serverRandom, InetSocketAddress peerAddress) throws GeneralSecurityException {

@@ -68,7 +68,7 @@ public class Converter {
      * renders an array out of a given Set of WebLinks
      * useful if you want to access a specific WebLink without casting to an ArrayList
      *
-     * @param webLinks Set<WebLink>
+     * @param webLinks Set of  WebLinks
      * @return an array of WebLinks
      */
     public static WebLink[] getArray(Set<WebLink> webLinks) {
@@ -80,7 +80,7 @@ public class Converter {
      * renders a WebLink for each available topic in the uris of the WebLinks in the given Set
      * This would include the node topics that have child/leaf topics in the returned Set
      *
-     * @param webLinks Set<WebLink>
+     * @param webLinks Set of WebLinks
      * @return a Set of WebLink
      */
     public static Set<WebLink> extractAllWebLinks(Set<WebLink> webLinks) {
@@ -198,7 +198,7 @@ public class Converter {
      * Searches given Set for WebLinks which are children/grand-children of given WebLinks
      *
      * @param webLink WebLink
-     * @param webLinks Set<WebLink>
+     * @param webLinks Set of WebLinks
      * @return a Set of WebLinks
      */
     public static Set<WebLink> getSubTopics(WebLink webLink, Set<WebLink> webLinks) {
@@ -248,7 +248,7 @@ public class Converter {
      * Searches given Set for WebLinks which have the given uri in their uri
      *
      * @param uri String
-     * @param webLinks Set<WebLink>
+     * @param webLinks Set of WebLinks
      * @return a Set of WebLinks
      */
     public static Set<WebLink> getSubTopics(String uri, Set<WebLink> webLinks) {

@@ -401,7 +401,7 @@ public final class CertificateRequest extends HandshakeMessage {
 	 * Takes a list of trusted certificates, extracts the subject principal and
 	 * adds the DER-encoded distinguished name to the certificate authorities.
 	 * 
-	 * @param trustedCas The trusted certificates to add.
+	 * @param authorities authorities of the trusted certificates to add.
 	 * @return {@code false} if not all certificates could not be added because it would exceed the
 	 *         maximum encoded length allowed for the certificate request message's
 	 *         certificate authorities vector (2^16 - 1 bytes).

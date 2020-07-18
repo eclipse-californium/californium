@@ -27,12 +27,13 @@ import java.security.KeyPairGenerator;
 public class ThreadLocalKeyPairGenerator extends ThreadLocalCrypto<KeyPairGenerator> {
 
 	/**
-	 * {@inheritDoc} Create thread local KeyPairGenerator.
+	 * Create thread local KeyPairGenerator.
 	 * 
 	 * Try to instance the KeyPairGenerator for the provided algorithm.
 	 * 
 	 * @param algorithm algorithm. Passed to
 	 *            {@link KeyPairGenerator#getInstance(String)}.
+	 * @see ThreadLocalCrypto
 	 */
 	public ThreadLocalKeyPairGenerator(final String algorithm) {
 		super(new Factory<KeyPairGenerator>() {

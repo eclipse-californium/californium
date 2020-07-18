@@ -72,6 +72,7 @@ public class ObjectSecurityLayer extends AbstractLayer {
 	/**
 	 * Encrypt an outgoing response using the OSCore context.
 	 * 
+	 * @param ctxDb the OSCore context DB
 	 * @param message the message
 	 * @param ctx the OSCore context
 	 * @param newPartialIV boolean to indicate whether to use a new partial IV or not

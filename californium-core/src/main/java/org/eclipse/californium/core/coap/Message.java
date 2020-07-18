@@ -411,7 +411,7 @@ public abstract class Message {
 	 * @throws IllegalArgumentException if mid is out of range {@link #NONE} to
 	 *             {@link #MAX_MID}
 	 * @throws IllegalStateException if message is already serialized
-	 *             ({@link #setBytes(byte[]) has been called before)
+	 *             ({@link #setBytes(byte[])} has been called before)
 	 */
 	public Message setMID(int mid) {
 		// NONE is allowed as a temporary placeholder
@@ -429,7 +429,7 @@ public abstract class Message {
 	 * Clears this message's MID.
 	 * 
 	 * @throws IllegalStateException if message is already serialized
-	 *             ({@link #setBytes(byte[]) has been called before)
+	 *             ({@link #setBytes(byte[])} has been called before)
 	 */
 	public void removeMID() {
 		setMID(NONE);
@@ -487,7 +487,7 @@ public abstract class Message {
 	 * @return this Message
 	 * @see #setToken(Token)
 	 * @throws IllegalStateException if message is already serialized
-	 *             ({@link #setBytes(byte[]) has been called before)
+	 *             ({@link #setBytes(byte[])} has been called before)
 	 */
 	public Message setToken(byte[] tokenBytes) {
 		Token token = null;
@@ -511,7 +511,7 @@ public abstract class Message {
 	 * @param token the new token
 	 * @return this Message
 	 * @throws IllegalStateException if message is already serialized
-	 *             ({@link #setBytes(byte[]) has been called before)
+	 *             ({@link #setBytes(byte[])} has been called before)
 	 */
 	public Message setToken(Token token) {
 		this.token = token;
@@ -526,7 +526,7 @@ public abstract class Message {
 	 * one. EmptyMessages should not have any options.
 	 * 
 	 * @return the options
-	 * @throws IllegalStateException if message was {@link #offload()}ed.
+	 * @throws IllegalStateException if message was {@link #offload}ed.
 	 */
 	public OptionSet getOptions() {
 		synchronized (acknowledged) {
@@ -562,7 +562,7 @@ public abstract class Message {
 	 * 
 	 * @return maximum resource body size. {@code 0} to use the
 	 *         {@link NetworkConfig} value of
-	 *         {@link NetworkConfig#Keys#MAX_RESOURCE_BODY_SIZE}.
+	 *         {@link Keys#MAX_RESOURCE_BODY_SIZE}.
 	 * @since 2.3
 	 */
 	public int getMaxResourceBodySize() {
@@ -575,9 +575,9 @@ public abstract class Message {
 	 * For incoming messages the protocol stack may set individual sizes. For
 	 * outgoing requests, this limits the size of the response.
 	 * 
-	 * @param maxResourceBodySize maximum resouce body size. {@code 0} or
+	 * @param maxResourceBodySize maximum resource body size. {@code 0} or
 	 *            default is defined by the {@link NetworkConfig} value of
-	 *            {@link NetworkConfig#Keys#MAX_RESOURCE_BODY_SIZE}.
+	 *            {@link Keys#MAX_RESOURCE_BODY_SIZE}.
 	 * @since 2.3
 	 */
 	public void setMaxResourceBodySize(int maxResourceBodySize) {
@@ -599,7 +599,7 @@ public abstract class Message {
 	 * Gets the raw payload.
 	 *
 	 * @return the payload
-	 * @throws IllegalStateException if message was {@link #offload()}ed.
+	 * @throws IllegalStateException if message was {@link #offload}ed.
 	 */
 	public byte[] getPayload() {
 		if (offload != null) {
@@ -613,7 +613,7 @@ public abstract class Message {
 	 * payload is defined.
 	 * 
 	 * @return the payload as string
-	 * @throws IllegalStateException if message was {@link #offload()}ed.
+	 * @throws IllegalStateException if message was {@link #offload}ed.
 	 */
 	public String getPayloadString() {
 		if (offload != null) {
@@ -1166,7 +1166,7 @@ public abstract class Message {
 	 * Gets the serialized message as byte array or {@code null}, if not serialized yet.
 	 *
 	 * @return the bytes of the serialized message or null
-	 * @throws IllegalStateException if message was {@link #offload()}ed.
+	 * @throws IllegalStateException if message was {@link #offload}ed.
 	 */
 	public byte[] getBytes() {
 		if (offload == OffloadMode.FULL) {

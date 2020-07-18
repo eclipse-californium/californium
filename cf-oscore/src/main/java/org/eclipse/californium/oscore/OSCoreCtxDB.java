@@ -96,13 +96,12 @@ public interface OSCoreCtxDB {
 	 * 
 	 * @param seq the sequence number
 	 * @param token the token
-	 * @throws OSException error while saving sequence number
 	 */
 	public void addSeqByToken(Token token, Integer seq);
 
 	/**
 	 * @param token the token
-	 * @return true if an association for this token exists, false otherwise
+	 * @return {@code true}, if an association for this token exists, {@code false}, otherwise
 	 */
 	public boolean tokenExist(Token token);
 
@@ -114,7 +113,6 @@ public interface OSCoreCtxDB {
 	/**
 	 * @param token the token
 	 * @param seq the sequence number
-	 * @throws OSException
 	 */
 	public void updateSeqByToken(Token token, Integer seq);
 
@@ -126,7 +124,7 @@ public interface OSCoreCtxDB {
 	/**
 	 * Removes associations for this token, except for the generator
 	 * 
-	 * @param token
+	 * @param token token to be removed
 	 */
 	public void removeToken(Token token);
 }

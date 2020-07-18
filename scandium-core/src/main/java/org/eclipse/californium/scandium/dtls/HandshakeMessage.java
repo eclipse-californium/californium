@@ -215,7 +215,7 @@ public abstract class HandshakeMessage extends AbstractMessage {
 	 * Reset the {@link #byteArray} in order to generate an outgoing raw message
 	 * with the changed payload / fragment.
 	 * 
-	 * Only used by {@link ClientHello#setCookie(byte[]).
+	 * Only used by {@link ClientHello#setCookie(byte[])}.
 	 */
 	protected void fragmentChanged() {
 		byteArray = null;

@@ -27,12 +27,13 @@ import java.security.MessageDigest;
 public class ThreadLocalMessageDigest extends ThreadLocalCrypto<MessageDigest> {
 
 	/**
-	 * {@inheritDoc} Create thread local MessageDigest.
+	 * Create thread local MessageDigest.
 	 * 
 	 * Try to instance the MessageDigest for the provided algorithm.
 	 * 
 	 * @param algorithm algorithm. Passed to
 	 *            {@link MessageDigest#getInstance(String)}.
+	 * @see ThreadLocalCrypto
 	 */
 	public ThreadLocalMessageDigest(final String algorithm) {
 		super(new Factory<MessageDigest>() {

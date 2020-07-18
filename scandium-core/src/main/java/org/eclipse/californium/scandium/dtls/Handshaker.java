@@ -629,7 +629,7 @@ public abstract class Handshaker implements Destroyable {
 	 * Processes a handshake record received from a peer based on the
 	 * handshake's current state.
 	 * 
-	 * This method passes the messages into the {@link InboundMessageBuffer} and
+	 * This method passes the messages into the {@link #inboundMessageBuffer} and
 	 * delegates processing of the ordered messages to the
 	 * {@link #doProcessMessage(HandshakeMessage)} method. If
 	 * {@link ChangeCipherSpecMessage} is processed, the
@@ -1423,8 +1423,6 @@ public abstract class Handshaker implements Destroyable {
 	 * yet in order to be able to cancel its re-transmission later once it has
 	 * been acknowledged. The retransmission of a different previous pending
 	 * flight will be cancelled also.
-	 * 
-	 * @param pendingFlight the flight
 	 */
 	public void completePendingFlight() {
 		this.retransmitFlight = null;

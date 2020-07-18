@@ -152,7 +152,6 @@ public interface Matcher {
 	 * 
 	 * @param token the token of the observation.
 	 *            The token must not have client-local scope.
-	 * @return the exchanges.
 	 * @throws IllegalArgumentException if the token has client-local scope.
 	 */
 	void cancelObserve(Token token);

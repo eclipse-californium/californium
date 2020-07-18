@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
  * Endpoint Context tracer.
  * 
  * Calls {@link #onContextChanged(EndpointContext)}, if the endpoint context
- * changes. The default implementation logs a pretty printed endpint context.
+ * changes. The default implementation logs a pretty printed endpoint context.
  * 
  * @since 2.3
  */
@@ -50,7 +50,7 @@ public class EndpointContextTracer extends MessageObserverAdapter {
 	 * because on returning, the message is sent. Therefore take special care in
 	 * methods called on this callback.
 	 * 
-	 * @param endpointContext
+	 * @param endpointContext changed endpoint context 
 	 */
 	protected void onContextChanged(EndpointContext endpointContext) {
 		if (LOGGER.isInfoEnabled()) {

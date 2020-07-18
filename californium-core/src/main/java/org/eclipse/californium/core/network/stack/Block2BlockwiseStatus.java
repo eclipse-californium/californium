@@ -175,7 +175,7 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 	/**
 	 * Check, if the provided response is newer than the current transfer.
 	 * 
-	 * Use {@link #orderer} to check according RFC7641, 4.4.
+	 * Use {@link #order} to check according RFC7641, 4.4.
 	 * 
 	 * @param response response to check.
 	 * @return {@code true}, if response is newer than the current transfer,
@@ -376,7 +376,10 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 	}
 
 	/**
-	 * Complete given new exchange only if this is not the one using by this current block status
+	 * Complete given new exchange only if this is not the one using by this
+	 * current block status
+	 * 
+	 * @param newExchange new exchange.
 	 */
 	public final void completeNewTranfer(Exchange newExchange) {
 		Exchange oldExchange;

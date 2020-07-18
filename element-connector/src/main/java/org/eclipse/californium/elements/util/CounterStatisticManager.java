@@ -135,7 +135,7 @@ abstract public class CounterStatisticManager {
 	 * Get {@link SimpleCounterStatistic} by name.
 	 * 
 	 * @param name name of counter statistic
-	 * @return the counter statistic, or {@link null}, if not availabel.
+	 * @return the counter statistic, or {@code null}, if not available.
 	 */
 	protected SimpleCounterStatistic get(String name) {
 		return statistics.get(name);

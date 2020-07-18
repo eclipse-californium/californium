@@ -10,4 +10,8 @@
 	<name>Californium (Cf) Custom Assembly Descriptors</name>
 	<description>The set of custom assembly descriptors used for Californium.</description>
 
+	<properties>
+		<maven.javadoc.skip>true</maven.javadoc.skip>
+	</properties>
+
 </project>

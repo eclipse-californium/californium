@@ -24,7 +24,7 @@ import javax.security.auth.Destroyable;
 import org.eclipse.californium.elements.util.Bytes;
 
 /**
- * Secure initial vector parameter specificaton.
+ * Secure initial vector parameter specification.
  * 
  * Additional {@link Destroyable} to clear the iv after usage.
  */
@@ -43,7 +43,7 @@ public class SecretIvParameterSpec implements AlgorithmParameterSpec, Destroyabl
 	private boolean destroyed;
 
 	/**
-	 * Create new secure iv paramteres.
+	 * Create new secure iv parameters.
 	 * 
 	 * @param iv byte array
 	 * @throws NullPointerException if iv is {@code null}
@@ -54,13 +54,11 @@ public class SecretIvParameterSpec implements AlgorithmParameterSpec, Destroyabl
 	}
 
 	/**
-	 * Create new iv paramters.
+	 * Create new iv parameters.
 	 * 
 	 * @param iv byte array with the iv.
 	 * @param offset offset of the iv within the byte array
 	 * @param length length of the iv within the byte array
-	 * @param expandedLength length to expand the iv, when {@link #getIV()} is
-	 *            called.
 	 * @throws NullPointerException if iv is {@code null}
 	 * @throws IllegalArgumentException if iv is empty, or length is negative or
 	 *             offset and length doesn't fit into iv.

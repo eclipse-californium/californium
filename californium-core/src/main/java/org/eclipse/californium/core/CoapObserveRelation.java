@@ -146,6 +146,7 @@ public class CoapObserveRelation {
 	 *
 	 * @param request the request
 	 * @param endpoint the endpoint
+	 * @param executor the executor to schedule the reregistration.
 	 */
 	protected CoapObserveRelation(Request request, Endpoint endpoint, ScheduledThreadPoolExecutor executor) {
 		this.request = request;

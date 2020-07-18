@@ -51,7 +51,8 @@ public class SignatureAlgorithmsExtension extends HelloExtension {
 	 * Creates an instance using the signature algorithms and the hash
 	 * algorithms codes
 	 * 
-	 * @param signatureAndHashAlgorithms
+	 * @param signatureAndHashAlgorithms list of signature algorithms and hash
+	 *            algorithms to be used by the extension.
 	 */
 	public SignatureAlgorithmsExtension(List<SignatureAndHashAlgorithm> signatureAndHashAlgorithms) {
 		super(ExtensionType.SIGNATURE_ALGORITHMS);

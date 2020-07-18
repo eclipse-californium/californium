@@ -16,7 +16,7 @@
 package org.eclipse.californium.scandium.dtls;
 
 import org.eclipse.californium.elements.util.DatagramReader;
-import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 
 /**
  * Connection id generator.
@@ -61,7 +61,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
  * </dl>
  * <p>
  * The behavior of a peer within the above rules could be configured using
- * {@link DtlsConnectorConfig.Builder#setConnectionIdGenerator(ConnectionIdGenerator)}.
+ * {@link Builder#setConnectionIdGenerator}.
  * <dl>
  * <dt>do not support it</dt>
  * <dd>use a {@code null} as connection id generator</dd>

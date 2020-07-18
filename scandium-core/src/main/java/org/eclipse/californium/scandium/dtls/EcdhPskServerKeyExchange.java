@@ -16,7 +16,6 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
-import java.security.GeneralSecurityException;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -53,7 +52,6 @@ public final class EcdhPskServerKeyExchange extends ECDHServerKeyExchange {
 	 * @param pskHint preshared key hint in clear text
 	 * @param ecdhe {@code XECDHECryptography} including the supported group and the peer's public key
 	 * @param peerAddress peer's address
-	 * @throws GeneralSecurityException 
 	 * @throws NullPointerException if the arguments pskHint or ecdhe are {@code null}
 	 */
 	public EcdhPskServerKeyExchange(PskPublicInformation pskHint, XECDHECryptography ecdhe,

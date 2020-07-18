@@ -210,6 +210,9 @@ public abstract class EncryptCommon extends Message {
 
 	/**
 	 * Get IV length in bytes.
+	 * 
+	 * @param alg algorithm ID:
+	 * @return iv length
 	 */
 	public static int ivLength(AlgorithmID alg) {
 		switch (alg) {
@@ -230,7 +233,7 @@ public abstract class EncryptCommon extends Message {
 	 * @param alg the algorithm
 	 * @return if it is supported
 	 */
-	public static boolean isSupportedAesCcm(AlgorithmID alg) throws CoseException {
+	public static boolean isSupportedAesCcm(AlgorithmID alg) {
 		if (ivLength(alg) == -1) {
 			return false;
 		} else {

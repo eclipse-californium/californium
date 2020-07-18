@@ -33,7 +33,7 @@ public class DefaultCipherSuiteSelector implements CipherSuiteSelector {
 	protected static final Logger LOGGER = LoggerFactory.getLogger(DefaultCipherSuiteSelector.class);
 
 	/**
-	 * {@code true} to check supporting certificate based ciperh suites,
+	 * {@code true} to check supporting certificate based cipher suites,
 	 * {@code false}, if the check already failed.
 	 */
 	private boolean checkCertificateSupport = true;
@@ -49,11 +49,12 @@ public class DefaultCipherSuiteSelector implements CipherSuiteSelector {
 	}
 
 	/**
-	 * Check, if provided cipher suite
+	 * Check, if provided cipher suite is supported by both peers.
 	 * 
-	 * @param cipherSuite
-	 * @param parameters
-	 * @return
+	 * @param cipherSuite cipher suite to check,
+	 * @param parameters parameters to be used to check
+	 * @return {@code true}, if cipher suite is supported by both peers,
+	 *         {@code false}, otherwise.
 	 */
 	protected boolean select(CipherSuite cipherSuite, CipherSuiteParameters parameters) {
 		if (cipherSuite.isEccBased() && (parameters.getSupportedGroups().isEmpty() || parameters.getFormat() == null)) {

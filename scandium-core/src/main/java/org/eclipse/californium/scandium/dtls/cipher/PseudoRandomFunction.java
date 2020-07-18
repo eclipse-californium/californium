@@ -205,10 +205,11 @@ public final class PseudoRandomFunction {
 	 * concatenate a uint16 with the value N, N zero octets, a second uint16
 	 * with the value N, and the PSK itself.
 	 * 
-	 * @param otherSecret - either is zeroes (plain PSK case) or comes from the
+	 * @param otherSecret either is zeroes (plain PSK case) or comes from the
 	 *            EC Diffie-Hellman exchange (ECDHE_PSK).
-	 * @see <a href="http://tools.ietf.org/html/rfc4279#section-2">RFC 4279</a>
+	 * @param pskSecret PSK secret.
 	 * @return byte array with generated premaster secret.
+	 * @see <a href="http://tools.ietf.org/html/rfc4279#section-2">RFC 4279</a>
 	 */
 	public static SecretKey generatePremasterSecretFromPSK(SecretKey otherSecret, SecretKey pskSecret) {
 		/*

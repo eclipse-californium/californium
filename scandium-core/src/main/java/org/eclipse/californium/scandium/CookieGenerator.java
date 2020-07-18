@@ -50,7 +50,7 @@ import org.eclipse.californium.scandium.util.SecretUtil;
  * <a href="http://tools.ietf.org/html/rfc6347#section-4.2.1">here</a>.
  *
  * Note: redesigned in 2.3 to use {@link ThreadLocalMac} instead of
- * {@link Mac#.clone()}.
+ * {@link Mac#clone()}.
  */
 public class CookieGenerator {
 

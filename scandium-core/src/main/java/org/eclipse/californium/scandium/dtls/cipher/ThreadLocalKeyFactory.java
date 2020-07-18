@@ -29,12 +29,13 @@ import java.security.KeyFactory;
 public class ThreadLocalKeyFactory extends ThreadLocalCrypto<KeyFactory> {
 
 	/**
-	 * {@inheritDoc} Create thread local KeyFactory.
+	 * Create thread local KeyFactory.
 	 * 
 	 * Try to instance the KeyFactory for the provided algorithm.
 	 * 
 	 * @param algorithm algorithm. Passed to
 	 *            {@link KeyFactory#getInstance(String)}.
+	 * @see ThreadLocalCrypto
 	 */
 	public ThreadLocalKeyFactory(final String algorithm) {
 		super(new Factory<KeyFactory>() {

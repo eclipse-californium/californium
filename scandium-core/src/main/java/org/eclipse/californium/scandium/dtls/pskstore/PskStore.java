@@ -41,7 +41,7 @@ public interface PskStore {
 	 * The implementation is intended to normalize the identity by a matching
 	 * entry, if that entry is not UTF-8 compliant encoded.
 	 * </p>
-	 * The returned key is {@link SecretKey#destroy()}ed after usage.
+	 * The returned key is {@link SecretUtil#destroy}ed after usage.
 	 * 
 	 * @param identity The identity to look up the key for.
 	 * @return The key or {@code null} if the given identity is unknown.
@@ -68,7 +68,7 @@ public interface PskStore {
 	 * </p>
 	 * The returned key is intended to be be a copy. If the used
 	 * {@link SecretKey} implements {@link Destroyable}, it will be cleaned up
-	 * by {@link SecretKey#destroy()}ed after its usage.
+	 * by {@link SecretUtil#destroy}ed after its usage.
 	 * 
 	 * @param serverName The name of the host that the client wants to connect
 	 *            to as provided in the <em>Server Name Indication</em> HELLO
