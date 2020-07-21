@@ -347,6 +347,40 @@ public class BlockwiseClientSideTest {
 	}
 
 	/**
+	 * Block1 late negotiation in the middle of the transfer.
+	 */
+	@Test
+	public void testLateNegotiationInTheMiddle() throws Exception {
+		System.out.println("Blockwise PUT with late negotiation in the middle");
+		reqtPayload = generateRandomPayload(290);
+		String path = "test";
+
+		Request request = createRequest(PUT, path, server);
+		request.setPayload(reqtPayload);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).size1(reqtPayload.length())
+				.payload(reqtPayload.substring(0, 128)).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("A").block1(0, true, 128).go();
+
+		server.expectRequest(CON, PUT, path).storeBoth("B").block1(1, true, 128).payload(reqtPayload.substring(128, 256)).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("B").block1(1, true, 32).go(); // late negotiation
+
+		server.expectRequest(CON, PUT, path).storeBoth("C").block1(8, true, 32).payload(reqtPayload.substring(256, 288)).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("C").block1(8, true, 32).go();
+
+		server.expectRequest(CON, PUT, path).storeBoth("D").block1(9, false, 32)
+				.payload(reqtPayload.substring(288, 290)).go();
+		server.sendResponse(ACK, CHANGED).loadBoth("D").block1(9, false, 32).go();
+
+		Response response = request.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
+		assertThat(response, is(notNullValue()));
+		assertThat(response.getPayloadSize(), is(0));
+		assertThat(response.getCode(), is(CHANGED));
+		assertThat(response.getToken(), is(request.getToken()));
+	}
+
+	/**
 	 * <pre>
 	 * CLIENT                                                     SERVER
      * |                                                          |
