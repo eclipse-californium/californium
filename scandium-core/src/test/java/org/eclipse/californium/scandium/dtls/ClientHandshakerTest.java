@@ -270,7 +270,8 @@ public class ClientHandshakerTest {
 				recordLayer,
 				timer,
 				connection,
-				builder.build());
+				builder.build(),
+				false);
 		recordLayer.setHandshaker(handshaker);
 	}
 

@@ -88,11 +88,6 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 			new HandshakeState(HandshakeType.SERVER_HELLO), new HandshakeState(ContentType.CHANGE_CIPHER_SPEC),
 			new HandshakeState(HandshakeType.FINISHED) };
 
-	/**
-	 * Indicates probing for this handshake.
-	 */
-	private boolean probe;
-
 	// flag to indicate if we must do a full handshake or an abbreviated one
 	private boolean fullHandshake = false;
 
@@ -122,11 +117,10 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	 */
 	public ResumingClientHandshaker(DTLSSession session, RecordLayer recordLayer, ScheduledExecutorService timer, Connection connection,
 			DtlsConnectorConfig config, boolean probe) {
-		super(session, recordLayer, timer, connection, config);
+		super(session, recordLayer, timer, connection, config, probe);
 		if (session.getSessionIdentifier() == null) {
 			throw new IllegalArgumentException("Session must contain the ID of the session to resume");
 		}
-		this.probe = probe;
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -281,25 +275,4 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		states = RESUME;
 		statesIndex = 0;
 	}
-
-	@Override
-	public boolean isProbing() {
-		return probe;
-	}
-
-	@Override
-	public void resetProbing() {
-		probe = false;
-	}
-
-	/**
-	 * {@inheritDoc}
-	 * 
-	 * Connections of probing handshakes are not intended to be removed.
-	 */
-	@Override
-	public boolean isRemovingConnection() {
-		return !probe && super.isRemovingConnection();
-	}
-
 }
