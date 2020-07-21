@@ -52,7 +52,7 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 	 */
 	public AdversaryClientHandshaker(DTLSSession session, RecordLayer recordLayer, ScheduledExecutorService timer, Connection connection,
 			DtlsConnectorConfig config) {
-		super(session, recordLayer, timer, connection, config);
+		super(session, recordLayer, timer, connection, config, false);
 	}
 
 	// Methods ////////////////////////////////////////////////////////

@@ -97,6 +97,11 @@ public class ClientHandshaker extends Handshaker {
 	private ProtocolVersion maxProtocolVersion = new ProtocolVersion();
 
 	/**
+	 * Indicates probing for this handshake.
+	 */
+	private boolean probe;
+
+	/**
 	 * The server's public key from its certificate
 	 */
 	private PublicKey serverPublicKey;
@@ -180,13 +185,15 @@ public class ClientHandshaker extends Handshaker {
 	 *            the connection related with the session.
 	 * @param config
 	 *            the DTLS configuration.
+	 * @param probe {@code true} enable probing for this handshake,
+	 *            {@code false}, not probing handshake.
 	 * @throws IllegalStateException
 	 *            if the message digest required for computing the FINISHED message hash cannot be instantiated.
 	 * @throws NullPointerException
 	 *            if session, recordLayer, timer or config is {@code null}
 	 */
 	public ClientHandshaker(DTLSSession session, RecordLayer recordLayer, ScheduledExecutorService timer, Connection connection,
-			DtlsConnectorConfig config) {
+			DtlsConnectorConfig config, boolean probe) {
 		super(true, 0, session, recordLayer, timer, connection, config);
 		this.supportedCipherSuites = config.getSupportedCipherSuites();
 		this.supportedGroups = config.getSupportedGroups();
@@ -195,6 +202,7 @@ public class ClientHandshaker extends Handshaker {
 		this.supportedServerCertificateTypes = config.getTrustCertificateTypes();
 		this.supportedClientCertificateTypes = config.getIdentityCertificateTypes();
 		this.supportedSignatureAlgorithms = config.getSupportedSignatureAlgorithms();
+		this.probe = probe;
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -761,6 +769,26 @@ public class ClientHandshaker extends Handshaker {
 			}
 		}
 		return pskIdentity;
+	}
+
+	@Override
+	public boolean isProbing() {
+		return probe;
+	}
+
+	@Override
+	public void resetProbing() {
+		probe = false;
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * 
+	 * Connections of probing handshakes are not intended to be removed.
+	 */
+	@Override
+	public boolean isRemovingConnection() {
+		return !probe && super.isRemovingConnection();
 	}
 
 }

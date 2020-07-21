@@ -2311,7 +2311,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			session.setHostName(message.getEndpointContext().getVirtualHost());
 			// no session with peer established nor handshaker started yet,
 			// create new empty session & start handshake
-			handshaker = new ClientHandshaker(session, this, timer, connection, config);
+			handshaker = new ClientHandshaker(session, this, timer, connection, config, false);
 			initializeHandshaker(handshaker);
 			handshaker.startHandshake();
 		}
@@ -2360,17 +2360,26 @@ public class DTLSConnector implements Connector, RecordLayer {
 				Handshaker previousHandshaker = connection.getOngoingHandshake();
 				SessionTicket ticket = null;
 				SessionId sessionId = null;
+				if (!full) {
+					if (session != null) {
+						sessionId = session.getSessionIdentifier();
+					} else {
+						sessionId = connection.getSessionIdentity();
+					}
+					full = sessionId.isEmpty();
+					if (!full) {
+						if (session != null) {
+							ticket = session.getSessionTicket();
+						} else {
+							ticket = connection.getSessionTicket();
+						}
+					}
+				}
 				if (session != null) {
-					sessionId = session.getSessionIdentifier();
-					ticket = session.getSessionTicket();
 					if (!probing) {
 						connectionStore.removeFromEstablishedSessions(session, connection);
 					}
 				} else {
-					if (!full) {
-						sessionId = connection.getSessionIdentity();
-						ticket = connection.getSessionTicket();
-					}
 					probing = false;
 				}
 				if (probing) {
@@ -2381,13 +2390,13 @@ public class DTLSConnector implements Connector, RecordLayer {
 					connection.resetSession();
 				}
 				Handshaker newHandshaker;
-				if (full || sessionId.isEmpty()) {
+				if (full) {
 					// server may use a empty session id to indicate,
 					// that resumption is not supported
 					// https://tools.ietf.org/html/rfc5246#section-7.4.1.3
 					DTLSSession newSession = new DTLSSession(message.getInetSocketAddress());
 					newSession.setHostName(message.getEndpointContext().getVirtualHost());
-					newHandshaker = new ClientHandshaker(newSession, this, timer, connection, config);
+					newHandshaker = new ClientHandshaker(newSession, this, timer, connection, config, probing);
 				} else {
 					DTLSSession resumableSession = new DTLSSession(sessionId, message.getInetSocketAddress(), ticket, 0);
 					SecretUtil.destroy(ticket);
