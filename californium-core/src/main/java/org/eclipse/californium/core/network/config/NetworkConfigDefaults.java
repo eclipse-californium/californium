@@ -71,7 +71,10 @@ public class NetworkConfigDefaults {
 	 * The default value is false, which indicate that the server will not include the Block2 option.
 	 */
 	public static final boolean DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION = false;
-	
+
+	/** @since 2.4 */
+	public static final boolean DEFAULT_BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER = true;
+
 	/**
 	 * The default value for {@link Keys#PREFERRED_BLOCK_SIZE}
 	 */
@@ -219,6 +222,7 @@ public class NetworkConfigDefaults {
 		config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_BODY_SIZE);
 		config.setInt(Keys.BLOCKWISE_STATUS_LIFETIME, DEFAULT_BLOCKWISE_STATUS_LIFETIME); // [ms]
 		config.setBoolean(Keys.BLOCKWISE_STRICT_BLOCK2_OPTION, DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION);
+		config.setBoolean(Keys.BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER, DEFAULT_BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER);
 
 		
 		config.setLong(Keys.NOTIFICATION_CHECK_INTERVAL_TIME, 24 * 60 * 60 * 1000); //24 [ms]

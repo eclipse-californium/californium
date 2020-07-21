@@ -76,6 +76,7 @@ import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
@@ -153,6 +154,10 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * matches the example in the draft.
 	 */
 
+	// Minimal block size : 2^4 bytes
+	// (see https://tools.ietf.org/html/rfc7959#section-2.2)
+	private static final int MINIMAL_BLOCK_SIZE = 16;
+
 	private static final Logger LOGGER = LoggerFactory.getLogger(BlockwiseLayer.class);
 	private static final Logger HEALTH_LOGGER = LoggerFactory.getLogger(LOGGER.getName() + ".health");
 	private final LeastRecentlyUsedCache<KeyUri, Block1BlockwiseStatus> block1Transfers;
@@ -167,6 +172,8 @@ public class BlockwiseLayer extends AbstractLayer {
 	private int maxResourceBodySize;
 	private boolean strictBlock2Option;
 	private int healthStatusInterval;
+	/* @since 2.4 */
+	private boolean enableAutoFailoverOn413;
 
 	/**
 	 * Creates a new blockwise layer for a configuration.
@@ -221,6 +228,9 @@ public class BlockwiseLayer extends AbstractLayer {
 		strictBlock2Option = config.getBoolean(NetworkConfig.Keys.BLOCKWISE_STRICT_BLOCK2_OPTION, NetworkConfigDefaults.DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION);
 
 		healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
+
+		enableAutoFailoverOn413 = config.getBoolean(NetworkConfig.Keys.BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER,
+				NetworkConfigDefaults.DEFAULT_BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER);
 
 		LOGGER.info(
 				"BlockwiseLayer uses MAX_MESSAGE_SIZE={}, PREFERRED_BLOCK_SIZE={}, BLOCKWISE_STATUS_LIFETIME={}, MAX_RESOURCE_BODY_SIZE={}, BLOCKWISE_STRICT_BLOCK2_OPTION={}",
@@ -314,7 +324,7 @@ public class BlockwiseLayer extends AbstractLayer {
 				
 				if (requiresBlockwise(request)) {
 					// This must be a large POST or PUT request
-					requestToSend = startBlockwiseUpload(exchange, request);
+					requestToSend = startBlockwiseUpload(exchange, request, preferredBlockSize);
 				}
 			}
 		}
@@ -323,7 +333,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		lower().sendRequest(exchange, requestToSend);
 	}
 
-	private Request startBlockwiseUpload(final Exchange exchange, final Request request) {
+	private Request startBlockwiseUpload(final Exchange exchange, final Request request, int blocksize) {
 
 		final KeyUri key = getKey(exchange, request);
 
@@ -336,10 +346,14 @@ public class BlockwiseLayer extends AbstractLayer {
 				status.cancelRequest();
 				clearBlock1Status(key, status);
 			}
-			status = getOutboundBlock1Status(key, exchange, request);
+			status = getOutboundBlock1Status(key, exchange, request, blocksize);
 
 			final Request block = status.getNextRequestBlock();
 			block.setDestinationContext(request.getDestinationContext());
+			Token token = request.getToken();
+			if (token != null) {
+				block.setToken(token);
+			}
 			block.addMessageObserver(new MessageObserverAdapter() {
 
 				@Override
@@ -630,6 +644,10 @@ public class BlockwiseLayer extends AbstractLayer {
 				case REQUEST_ENTITY_INCOMPLETE: // 4.08
 					// we seem to have uploaded blocks not in expected order
 				case REQUEST_ENTITY_TOO_LARGE: // 4.13
+					if (handleEntityTooLarge(exchange, response)) {
+						return;
+					}
+
 					// server is not able to process the payload we included
 					KeyUri key = getKey(exchange, exchange.getCurrentRequest());
 					Block1BlockwiseStatus status = getBlock1Status(key);
@@ -694,6 +712,84 @@ public class BlockwiseLayer extends AbstractLayer {
 			exchange.setResponse(response);
 			upper().receiveResponse(exchange, response);
 		}
+	}
+
+	/**
+	 * Handle 4.13 Entity Too Large error.
+	 * 
+	 * @param exchange current exchange
+	 * @param response the Entity Too Larger response.
+	 * @return {@code true} if the response is handled by auto failover
+	 */
+	private boolean handleEntityTooLarge(Exchange exchange, Response response) {
+		if (enableAutoFailoverOn413) {
+			if (response.getOptions().hasBlock1()) {
+
+				BlockOption block1 = response.getOptions().getBlock1();
+				final KeyUri key = getKey(exchange, exchange.getRequest());
+
+				synchronized (block1Transfers) {
+					Block1BlockwiseStatus status = getBlock1Status(key);
+					if (status == null) {
+						// We sent a request without using block1 and
+						// server give us hint it want it with block1
+						Request request = exchange.getRequest();
+						if (!exchange.getRequest().isCanceled() && block1.getNum() == 0
+								&& block1.getSize() < request.getPayloadSize()) {
+							// Start block1 transfer
+							Request blockRequest = startBlockwiseUpload(exchange, request,
+									Math.min(block1.getSize(), preferredBlockSize));
+							exchange.setCurrentRequest(blockRequest);
+							lower().sendRequest(exchange, blockRequest);
+							return true;
+						}
+					} else if (!status.hasMatchingToken(response)) {
+						// a concurrent block1 transfer has been started in
+						// the meantime which has "overwritten" the status
+						// object with the new (concurrent) request to we simply
+						// discard the response
+						LOGGER.debug("discarding obsolete block1 response: {}", response);
+						return true;
+					} else if (exchange.getRequest().isCanceled()) {
+						clearBlock1Status(key, status);
+						return true;
+					} else {
+						// we handle only Entity Too Large
+						// at begin of the transfer and
+						// if blocksize requested is smaller
+						if (status.getCurrentNum() == 0 && block1.getSize() < status.getCurrentSize()) {
+							// re-send first block with smaller size
+							sendBlock(exchange, response, key, status, 0, block1.getSzx());
+							return true;
+						}
+					}
+				}
+			} else if (!exchange.getRequest().isCanceled()
+					&& getBlock1Status(getKey(exchange, exchange.getRequest())) == null) {
+				// We sent a request without using block1 and
+				// server give us hint it want it with block1
+				Request request = exchange.getRequest();
+				// Try to guess the a block size to use
+				Integer maxSize = null;
+				if (response.getOptions().hasSize1() && response.getOptions().getSize1() >= MINIMAL_BLOCK_SIZE
+						&& response.getOptions().getSize1() < request.getPayloadSize()) {
+					maxSize = response.getOptions().getSize1();
+				} else if (request.getPayloadSize() > MINIMAL_BLOCK_SIZE) {
+					maxSize = request.getPayloadSize() - 1;
+				}
+
+				// Start blockwise if we guess a correct size
+				if (maxSize != null) {
+					int blocksize = Integer.highestOneBit(maxSize);
+					Request requestToSend = startBlockwiseUpload(exchange, request,
+							Math.min(blocksize, preferredBlockSize));
+					exchange.setCurrentRequest(requestToSend);
+					lower().sendRequest(exchange, requestToSend);
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -778,7 +874,8 @@ public class BlockwiseLayer extends AbstractLayer {
 		}
 	}
 
-	private void sendNextBlock(final Exchange exchange, final Response response, final KeyUri key, final Block1BlockwiseStatus status) {
+	private void sendNextBlock(final Exchange exchange, final Response response, final KeyUri key,
+			final Block1BlockwiseStatus status) {
 
 		BlockOption block1 = response.getOptions().getBlock1();
 		int currentSize = status.getCurrentSize();
@@ -792,10 +889,15 @@ public class BlockwiseLayer extends AbstractLayer {
 			newSzx = status.getCurrentSzx();
 		}
 		int nextNum = (status.getCurrentNum() + 1) * status.getCurrentSize() / newSize;
-		LOGGER.debug("sending next Block1 num={}", nextNum);
+		sendBlock(exchange, response, key, status, nextNum, newSzx);
+	}
+
+	private void sendBlock(final Exchange exchange, final Response response, final KeyUri key,
+			final Block1BlockwiseStatus status, int num, int szx) {
 		Request nextBlock = null;
+		LOGGER.trace("sending Block1 num={}", num);
 		try {
-			nextBlock = status.getNextRequestBlock(nextNum, newSzx);
+			nextBlock = status.getNextRequestBlock(num, szx);
 			// we use the same token to ease traceability
 			nextBlock.setToken(response.getToken());
 			nextBlock.setDestinationContext(status.getFollowUpEndpointContext(response.getSourceContext()));
@@ -1057,12 +1159,12 @@ public class BlockwiseLayer extends AbstractLayer {
 		}
 	}
 
-	private Block1BlockwiseStatus getOutboundBlock1Status(final KeyUri key, final Exchange exchange, final Request request) {
+	private Block1BlockwiseStatus getOutboundBlock1Status(final KeyUri key, final Exchange exchange, final Request request, int blocksize) {
 
 		synchronized (block1Transfers) {
 			Block1BlockwiseStatus status = block1Transfers.get(key);
 			if (status == null) {
-				status = Block1BlockwiseStatus.forOutboundRequest(exchange, request, preferredBlockSize);
+				status = Block1BlockwiseStatus.forOutboundRequest(exchange, request, blocksize);
 				block1Transfers.put(key, status);
 				enableStatus = true;
 				LOGGER.debug("created tracker for outbound block1 transfer {}, transfers in progress: {}", status,

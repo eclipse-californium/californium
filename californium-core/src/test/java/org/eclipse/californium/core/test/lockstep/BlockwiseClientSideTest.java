@@ -513,6 +513,284 @@ public class BlockwiseClientSideTest {
 	}
 
 	/**
+	 * Verifies that a block1 transfer with a 4.13 code at beginning with a smaller size1 option is retried with a smaller blocksize.
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testBlockwisePUTWithBegining413AndSmallerSZX() throws Exception {
+
+		System.out.println("Block1 with  REQUEST_ENTITY_TOO_LARGE negotiation");
+		reqtPayload = generateRandomPayload(128 + 10);
+		String path = "test";
+
+		Request request = createRequest(PUT, path, server);
+		request.setPayload(reqtPayload);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).size1(reqtPayload.length()).payload(reqtPayload, 0, 128).go();
+		server.sendResponse(ACK, REQUEST_ENTITY_TOO_LARGE).loadBoth("A").block1(0, false, 64).go();
+		server.expectRequest(CON, PUT, path).storeBoth("B").block1(0, true, 64).size1(reqtPayload.length()).payload(reqtPayload, 0, 64).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("B").block1(0, true, 64).go();
+		server.expectRequest(CON, PUT, path).storeBoth("C").block1(1, true, 64).payload(reqtPayload, 64, 128).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("C").block1(1, true, 64).go();
+		server.expectRequest(CON, PUT, path).storeBoth("D").block1(2, false, 64).payload(reqtPayload, 128, 138).go();
+		server.sendResponse(ACK, CHANGED).loadBoth("D").block1(2, false, 64).go();
+
+		Response response = request.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
+		assertThat(response, is(notNullValue()));
+		assertThat(response.getPayloadSize(), is(0));
+		assertThat(response.getCode(), is(CHANGED));
+		assertThat(response.getToken(), is(request.getToken()));
+	}
+
+	/**
+	 * Verifies that none block request will turn in block transfer if 4.13 code
+	 * is received at beginning with a smaller size1 option.
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testPUTWithBeginning413WithSize1TurnInBlockPUT() throws Exception {
+
+		System.out.println("REQUEST_ENTITY_TOO_LARGE with smaller size1 turn PUT in blockwise transfer");
+		reqtPayload = generateRandomPayload(128);
+		String path = "test";
+
+		Request request = createRequest(PUT, path, server);
+		request.setPayload(reqtPayload);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, PUT, path).storeBoth("A").payload(reqtPayload).go();
+		server.sendResponse(ACK, REQUEST_ENTITY_TOO_LARGE).loadBoth("A").size1(90).go();
+		server.expectRequest(CON, PUT, path).storeBoth("B").block1(0, true, 64).size1(reqtPayload.length()).payload(reqtPayload, 0, 64).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("B").block1(0, true, 64).go();
+		server.expectRequest(CON, PUT, path).storeBoth("C").block1(1, false, 64).payload(reqtPayload, 64, 128).go();
+		server.sendResponse(ACK, CHANGED).loadBoth("C").block1(1, false, 64).go();
+
+		Response response = request.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
+		assertThat(response, is(notNullValue()));
+		assertThat(response.getPayloadSize(), is(0));
+		assertThat(response.getCode(), is(CHANGED));
+		assertThat(response.getToken(), is(request.getToken()));
+	}
+
+	/**
+	 * Verifies that none block request will turn in block transfer if 4.13 code
+	 * is received at beginning with out option.
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testPUTWithBeginning413WithoutOptionTurnInBlockPUT() throws Exception {
+
+		System.out.println("REQUEST_ENTITY_TOO_LARGE without option turn PUT in blockwise transfer");
+		reqtPayload = generateRandomPayload(128);
+		String path = "test";
+
+		Request request = createRequest(PUT, path, server);
+		request.setPayload(reqtPayload);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, PUT, path).storeBoth("A").payload(reqtPayload).go();
+		server.sendResponse(ACK, REQUEST_ENTITY_TOO_LARGE).loadBoth("A").go();
+		server.expectRequest(CON, PUT, path).storeBoth("B").block1(0, true, 64).size1(reqtPayload.length()).payload(reqtPayload, 0, 64).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("B").block1(0, true, 64).go();
+		server.expectRequest(CON, PUT, path).storeBoth("C").block1(1, false, 64).payload(reqtPayload, 64, 128).go();
+		server.sendResponse(ACK, CHANGED).loadBoth("C").block1(1, false, 64).go();
+
+		Response response = request.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
+		assertThat(response, is(notNullValue()));
+		assertThat(response.getPayloadSize(), is(0));
+		assertThat(response.getCode(), is(CHANGED));
+		assertThat(response.getToken(), is(request.getToken()));
+	}
+
+	/**
+	 * Verifies that none block request will turn in block transfer if 4.13 code
+	 * is received at beginning with out option, then failed when another 4.13 is raised
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testPUTWithBegining413WithoutOptionTurnInBlockPUTWith413Again() throws Exception {
+
+		System.out.println("REQUEST_ENTITY_TOO_LARGE without option turn PUT in blockwise transfer, then REQUEST_ENTITY_TOO_LARGE again");
+		reqtPayload = generateRandomPayload(128);
+		String path = "test";
+
+		Request request = createRequest(PUT, path, server);
+		request.setPayload(reqtPayload);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, PUT, path).storeBoth("A").payload(reqtPayload).go();
+		server.sendResponse(ACK, REQUEST_ENTITY_TOO_LARGE).loadBoth("A").go();
+		server.expectRequest(CON, PUT, path).storeBoth("B").block1(0, true, 64).size1(reqtPayload.length()).payload(reqtPayload, 0, 64).go();
+		server.sendResponse(ACK, REQUEST_ENTITY_TOO_LARGE).loadBoth("B").go();
+
+		Response response = request.waitForResponse(ERROR_TIMEOUT_IN_MS);
+		assertThat(response, is(notNullValue()));
+		assertThat(response.getPayloadSize(), is(0));
+		assertThat(response.getCode(), is(REQUEST_ENTITY_TOO_LARGE));
+		assertThat(response.getToken(), is(request.getToken()));
+		assertThat(response.getMID(), is(request.getMID()));
+	}
+
+	/**
+	 * Verifies that none block request will turn in block transfer if 4.13 code
+	 * is received at beginning without option, then successfull size negotiation.
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testPUTWithBegining413WithoutOptionTurnInBlockPUTWith413BlockSizeNegotiation() throws Exception {
+
+		System.out.println(
+				"REQUEST_ENTITY_TOO_LARGE without option turn PUT in blockwise transfer, then REQUEST_ENTITY_TOO_LARGE with block size negotiation");
+		reqtPayload = generateRandomPayload(128);
+		String path = "test";
+
+		Request request = createRequest(PUT, path, server);
+		request.setPayload(reqtPayload);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, PUT, path).storeBoth("A").payload(reqtPayload).go();
+		server.sendResponse(ACK, REQUEST_ENTITY_TOO_LARGE).loadBoth("A").go();
+		server.expectRequest(CON, PUT, path).storeBoth("B").block1(0, true, 64).size1(reqtPayload.length()).payload(reqtPayload, 0, 64).go();
+		server.sendResponse(ACK, REQUEST_ENTITY_TOO_LARGE).loadBoth("B").block1(0, true, 32).go(); // size negotiation
+		server.expectRequest(CON, PUT, path).storeBoth("C").block1(0, true, 32).size1(reqtPayload.length()).payload(reqtPayload, 0, 32).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("C").block1(0, true, 32).go();
+		server.expectRequest(CON, PUT, path).storeBoth("D").block1(1, true, 32).payload(reqtPayload, 32, 64).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("D").block1(1, true, 32).go();
+		server.expectRequest(CON, PUT, path).storeBoth("E").block1(2, true, 32).payload(reqtPayload, 64, 96).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("E").block1(2, true, 32).go();
+		server.expectRequest(CON, PUT, path).storeBoth("F").block1(3, false, 32).payload(reqtPayload, 96, 128).go();
+		server.sendResponse(ACK, CHANGED).loadBoth("F").block1(3, false, 32).go();
+
+		Response response = request.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
+		assertThat(response, is(notNullValue()));
+		assertThat(response.getPayloadSize(), is(0));
+		assertThat(response.getCode(), is(CHANGED));
+		assertThat(response.getToken(), is(request.getToken()));
+	}
+
+	/**
+	 * Verifies that none block request will turn in block transfer if 4.13 code
+	 * is received at beginning with a smaller szx option.
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testPUTWithBegining413AndSmallerSZXTurnInBlockPUT() throws Exception {
+
+		System.out.println("REQUEST_ENTITY_TOO_LARGE with smaller block size turn PUT in blockwise transfer");
+		reqtPayload = generateRandomPayload(128);
+		String path = "test";
+
+		Request request = createRequest(PUT, path, server);
+		request.setPayload(reqtPayload);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, PUT, path).storeBoth("A").payload(reqtPayload).go();
+		server.sendResponse(ACK, REQUEST_ENTITY_TOO_LARGE).loadBoth("A").block1(0, false, 64).go();
+		server.expectRequest(CON, PUT, path).storeBoth("B").block1(0, true, 64).size1(reqtPayload.length()).payload(reqtPayload, 0, 64).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("B").block1(0, true, 64).go();
+		server.expectRequest(CON, PUT, path).storeBoth("C").block1(1, false, 64).payload(reqtPayload, 64, 128).go();
+		server.sendResponse(ACK, CHANGED).loadBoth("C").block1(1, false, 64).go();
+
+		Response response = request.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
+		assertThat(response, is(notNullValue()));
+		assertThat(response.getPayloadSize(), is(0));
+		assertThat(response.getCode(), is(CHANGED));
+		assertThat(response.getToken(), is(request.getToken()));
+	}
+
+	/**
+	 * Verifies that a block1 transfer with a 4.13 code in the middle with a smaller szx option is a failure.
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testBlockwisePUTWithMiddle413AndSmallerSZX() throws Exception {
+
+		System.out.println("REQUEST_ENTITY_TOO_LARGE with smaller block size received in the middle of block1");
+		reqtPayload = generateRandomPayload(260);
+		String path = "test";
+
+		Request request = createRequest(PUT, path, server);
+		request.setPayload(reqtPayload);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).size1(reqtPayload.length()).payload(reqtPayload, 0, 128).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("A").block1(0, false, 128).go();
+		server.expectRequest(CON, PUT, path).storeBoth("B").block1(1, true, 128).payload(reqtPayload, 128, 256).go();
+		server.sendResponse(ACK, REQUEST_ENTITY_TOO_LARGE).loadBoth("B").block1(1, false, 64).go();
+
+		Response response = request.waitForResponse(ERROR_TIMEOUT_IN_MS);
+		assertThat(response, is(notNullValue()));
+		assertThat(response.getPayloadSize(), is(0));
+		assertThat(response.getCode(), is(REQUEST_ENTITY_TOO_LARGE));
+		assertThat(response.getToken(), is(request.getToken()));
+		assertThat(response.getMID(), is(request.getMID()));
+	}
+
+	/**
+	 * Verifies that a block1 transfer with a 4.13 code in the end with a smaller szx option is a failure.
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testBlockwisePUTWithEnding413AndSmallerSZX() throws Exception {
+
+		System.out.println("REQUEST_ENTITY_TOO_LARGE with smaller block size received in the middle of block1");
+		reqtPayload = generateRandomPayload(250);
+		String path = "test";
+
+		Request request = createRequest(PUT, path, server);
+		request.setPayload(reqtPayload);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).size1(reqtPayload.length()).payload(reqtPayload, 0, 128).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("A").block1(0, false, 128).go();
+		server.expectRequest(CON, PUT, path).storeBoth("B").block1(1, false, 128).payload(reqtPayload, 128, 250).go();
+		server.sendResponse(ACK, REQUEST_ENTITY_TOO_LARGE).loadBoth("B").block1(1, false, 64).go();
+
+		Response response = request.waitForResponse(ERROR_TIMEOUT_IN_MS);
+		assertThat(response, is(notNullValue()));
+		assertThat(response.getPayloadSize(), is(0));
+		assertThat(response.getCode(), is(REQUEST_ENTITY_TOO_LARGE));
+		assertThat(response.getToken(), is(request.getToken()));
+		assertThat(response.getMID(), is(request.getMID()));
+	}
+	/**
+	 * Verifies that a block1 transfer with a 4.13 code with an equals szx option failed
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testBlockwisePUTWith413AndEqualsSZX() throws Exception {
+
+		System.out.println("REQUEST_ENTITY_TOO_LARGE with same block size");
+		reqtPayload = generateRandomPayload(128 + 10);
+		respPayload = generateRandomPayload(30);
+		String path = "test";
+
+		Request request = createRequest(PUT, path, server);
+		request.setPayload(reqtPayload);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).size1(reqtPayload.length()).payload(reqtPayload, 0, 128).go();
+		server.sendResponse(ACK, REQUEST_ENTITY_TOO_LARGE).loadBoth("A").block1(0, false, 128).go();
+		
+		Response response = request.waitForResponse(ERROR_TIMEOUT_IN_MS);
+		assertThat(response, is(notNullValue()));
+		assertThat(response.getPayloadSize(), is(0));
+		assertThat(response.getCode(), is(REQUEST_ENTITY_TOO_LARGE));
+		assertThat(response.getToken(), is(request.getToken()));
+		assertThat(response.getMID(), is(request.getMID()));
+	}
+
+	/**
 	 * Verifies that a block1 transfer fails with a 4.08 code if not all blocks are uploaded.
 	 * 
 	 * @throws Exception if the test fails.

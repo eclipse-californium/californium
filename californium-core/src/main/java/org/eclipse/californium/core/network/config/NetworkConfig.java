@@ -208,6 +208,24 @@ public final class NetworkConfig {
 		 */
 		public static final String BLOCKWISE_STRICT_BLOCK2_OPTION = "BLOCKWISE_STRICT_BLOCK2_OPTION";
 
+		/**
+		 * Property to automatically handle 4.13 Entity too large error with
+		 * transparent blockwise transfer.
+		 * <p>
+		 * The default value is :
+		 * {@link NetworkConfigDefaults#DEFAULT_BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER }.
+		 * <p>
+		 * When activated ({@code true}), CoAP client will try to use block mode
+		 * or adapt the block size when receiving a 4.13 Entity too large
+		 * response code.
+		 * <p>
+		 * See https://tools.ietf.org/html/rfc7959#section-2.9.3 for more
+		 * details.
+		 * 
+		 * @since 2.4
+		 */
+		public static final String BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER = "BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER";
+
 		public static final String NOTIFICATION_CHECK_INTERVAL_TIME = "NOTIFICATION_CHECK_INTERVAL";
 		public static final String NOTIFICATION_CHECK_INTERVAL_COUNT = "NOTIFICATION_CHECK_INTERVAL_COUNT";
 		public static final String NOTIFICATION_REREGISTRATION_BACKOFF = "NOTIFICATION_REREGISTRATION_BACKOFF";
