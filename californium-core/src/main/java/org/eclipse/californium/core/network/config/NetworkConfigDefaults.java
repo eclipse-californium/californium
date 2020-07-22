@@ -251,7 +251,7 @@ public class NetworkConfigDefaults {
 		config.setInt(Keys.HTTP_PORT, 8080);
 		config.setInt(Keys.HTTP_SERVER_SOCKET_TIMEOUT, 100000);
 		config.setInt(Keys.HTTP_SERVER_SOCKET_BUFFER_SIZE, 8192);
-		config.setInt(Keys.HTTP_CACHE_RESPONSE_MAX_AGE, 86400);
+		config.setInt(Keys.HTTP_CACHE_RESPONSE_MAX_AGE, 86400); // 24h
 		config.setInt(Keys.HTTP_CACHE_SIZE, 32);
 
 		config.setInt(Keys.HEALTH_STATUS_INTERVAL, DEFAULT_HEALTH_STATUS_INTERVAL); // s, 0 for disable

@@ -52,8 +52,11 @@ import org.eclipse.californium.proxy2.ProxyHttpServer;
 import org.eclipse.californium.proxy2.resources.ProxyCoapClientResource;
 import org.eclipse.californium.proxy2.resources.ProxyCoapResource;
 import org.eclipse.californium.proxy2.resources.ProxyHttpClientResource;
+import org.eclipse.californium.proxy2.resources.StatsResource;
 import org.eclipse.californium.unixhealth.NetStatLogger;
+import org.eclipse.californium.proxy2.resources.CacheResource;
 import org.eclipse.californium.proxy2.resources.ForwardProxyMessageDeliverer;
+import org.eclipse.californium.proxy2.resources.ProxyCacheResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -131,8 +134,9 @@ public class CrossExampleProxy2 {
 	private ProxyHttpServer httpServer;
 	private int coapPort;
 	private int httpPort;
+	private CacheResource cache;
 
-	public CrossExampleProxy2(NetworkConfig config) throws IOException {
+	public CrossExampleProxy2(NetworkConfig config, boolean accept, boolean cache) throws IOException {
 		HttpClientFactory.setNetworkConfig(config);
 		coapPort = config.getInt(Keys.COAP_PORT);
 		httpPort = config.getInt(Keys.HTTP_PORT);
@@ -152,10 +156,20 @@ public class CrossExampleProxy2 {
 			builder.setNetworkConfig(outgoingConfig);
 			endpoints = new ClientSingleEndpoint(builder.build());
 		}
-		boolean accept = false;
+		ProxyCacheResource cacheResource = null;
+		StatsResource statsResource = null;
+		if (cache) {
+			cacheResource = new ProxyCacheResource(true);
+			statsResource = new StatsResource(cacheResource);
+		}
 		ProxyCoapResource coap2coap = new ProxyCoapClientResource(COAP2COAP, false, accept, translater, endpoints);
 		ProxyCoapResource coap2http = new ProxyHttpClientResource(COAP2HTTP, false, accept, new Coap2HttpTranslator());
-
+		if (cache) {
+			coap2coap.setCache(cacheResource);
+			coap2coap.setStatsResource(statsResource);
+			coap2http.setCache(cacheResource);
+			coap2http.setStatsResource(statsResource);
+		}
 		// Forwards requests Coap to Coap or Coap to Http server
 		coapProxyServer = new CoapServer(config, coapPort);
 		MessageDeliverer local = coapProxyServer.getMessageDeliverer();
@@ -167,6 +181,9 @@ public class CrossExampleProxy2 {
 		coapProxyServer.setExecutors(mainExecutor, secondaryExecutor, false);
 		coapProxyServer.add(coap2http);
 		coapProxyServer.add(coap2coap);
+		if (cache) {
+			coapProxyServer.add(statsResource);
+		}
 		coapProxyServer.add(new SimpleCoapResource("target",
 				"Hi! I am the local coap server on port " + coapPort + ". Request %d."));
 
@@ -183,15 +200,15 @@ public class CrossExampleProxy2 {
 		System.out.println("** HTTP Local at: http://localhost:" + httpPort + "/local/");
 		System.out.println("** HTTP Proxy at: http://localhost:" + httpPort + "/proxy/");
 
-		coapProxyServer.add(httpServer.getStatistics());
 		coapProxyServer.start();
 		System.out.println("** CoAP Proxy at: coap://localhost:" + coapPort + "/coap2http");
 		System.out.println("** CoAP Proxy at: coap://localhost:" + coapPort + "/coap2coap");
+		this.cache = cacheResource;
 	}
 
 	public static void main(String args[]) throws IOException {
 		NetworkConfig proxyConfig = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
-		CrossExampleProxy2 proxy = new CrossExampleProxy2(proxyConfig);
+		CrossExampleProxy2 proxy = new CrossExampleProxy2(proxyConfig, false, true);
 		ExampleHttpServer httpServer = null;
 		NetworkConfig config = ExampleCoapServer.init();
 		for (int index = 0; index < args.length; ++index) {
@@ -204,8 +221,9 @@ public class CrossExampleProxy2 {
 				// returning a fixed destination URI
 				// don't add this to the ProxyMessageDeliverer
 				URI destination = URI.create("coap://localhost:" + port + "/coap-target");
-				CoapResource reverseProxy = ProxyCoapResource.createReverseProxy("destination1", true, true, true,
+				ProxyCoapResource reverseProxy = ProxyCoapResource.createReverseProxy("destination1", true, true, true,
 						destination, proxy.endpoints);
+				reverseProxy.setCache(proxy.cache);
 				proxy.coapProxyServer.getRoot().getChild("targets").add(reverseProxy);
 				System.out.println("CoAP Proxy at: coap://localhost:" + proxy.coapPort
 						+ "/coap2coap and demo-server at coap://localhost:" + port + ExampleCoapServer.RESOURCE);
@@ -219,8 +237,9 @@ public class CrossExampleProxy2 {
 					// returning a fixed destination URI
 					// don't add this to the ProxyMessageDeliverer
 					URI destination = URI.create("http://localhost:" + port + "/http-target");
-					CoapResource reverseProxy = ProxyCoapResource.createReverseProxy("destination2", true, true, true,
+					ProxyCoapResource reverseProxy = ProxyCoapResource.createReverseProxy("destination2", true, true, true,
 							destination, proxy.endpoints);
+					reverseProxy.setCache(proxy.cache);
 					proxy.coapProxyServer.getRoot().getChild("targets").add(reverseProxy);
 					System.out.println("CoAP Proxy at: coap://localhost:" + proxy.coapPort
 							+ "/coap2http and demo server at http://localhost:" + port + ExampleHttpServer.RESOURCE);

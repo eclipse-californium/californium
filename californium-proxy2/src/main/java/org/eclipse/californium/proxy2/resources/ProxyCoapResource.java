@@ -91,16 +91,70 @@ public abstract class ProxyCoapResource extends CoapResource {
 	protected final boolean accept;
 
 	/**
+	 * Cache resource.
+	 * 
+	 * @since 2.4
+	 */
+	private volatile CacheResource cache;
+
+	/**
+	 * Statistic resource.
+	 * 
+	 * @since 2.4
+	 */
+	private volatile StatsResource statsResource;
+
+	/**
 	 * Create proxy resource.
 	 * 
 	 * @param name name of the resource
 	 * @param visible visibility of the resource
-	 * @param accept accept CON request befor forwarding the request
+	 * @param accept accept CON request before forwarding the request
 	 */
 	public ProxyCoapResource(String name, boolean visible, boolean accept) {
 		// set the resource hidden
 		super(name, visible);
 		this.accept = accept;
+	}
+
+	/**
+	 * Get cache resource.
+	 * 
+	 * @return cache resource
+	 * @since 2.4
+	 */
+	public CacheResource getCache() {
+		return cache;
+	}
+
+	/**
+	 * Set cache resource.
+	 * 
+	 * @param cache cache resource
+	 * @since 2.4
+	 */
+	public void setCache(CacheResource cache) {
+		this.cache = cache;
+	}
+
+	/**
+	 * Get statistics resource.
+	 * 
+	 * @return statistic resource
+	 * @since 2.4
+	 */
+	public StatsResource getStatsResource() {
+		return statsResource;
+	}
+
+	/**
+	 * Set statistic resource.
+	 * 
+	 * @param statsResource statistic resource
+	 * @since 2.4
+	 */
+	public void setStatsResource(StatsResource statsResource) {
+		this.statsResource = statsResource;
 	}
 
 	/**
@@ -128,7 +182,7 @@ public abstract class ProxyCoapResource extends CoapResource {
 	 * @return coap resource, or {@code null}, if destination scheme is not
 	 *         supported.
 	 */
-	public static CoapResource createReverseProxy(String name, boolean visible, boolean accept, final boolean copyQuery,
+	public static ProxyCoapResource createReverseProxy(String name, boolean visible, boolean accept, final boolean copyQuery,
 			final URI destination, ClientEndpoints... endpointsList) {
 		String scheme = destination.getScheme();
 		for (ClientEndpoints endpoints : endpointsList) {

@@ -56,7 +56,7 @@ public class ProxyCoapClientResource extends ProxyCoapResource {
 	 * 
 	 * @param name name of the resource
 	 * @param visible visibility of the resource
-	 * @param accept accept CON request befor forwarding the request
+	 * @param accept accept CON request before forwarding the request
 	 * @param translator translater for coap2coap messages. {@code null} to sue
 	 *            default implementation {@link Coap2CoapTranslator}.
 	 * @param endpointsList list of client endpoints for outgoing requests
@@ -87,11 +87,27 @@ public class ProxyCoapClientResource extends ProxyCoapResource {
 				exchange.sendResponse(new Response(ResponseCode.INTERNAL_SERVER_ERROR));
 				throw new NullPointerException("Destination is null");
 			}
+			CacheKey cacheKey = null;
+			CacheResource cache = getCache();
+			if (cache != null) {
+				cacheKey = new CacheKey(outgoingRequest.getCode(), destination, outgoingRequest.getOptions().getAccept(), outgoingRequest.getPayload());
+				Response response = cache.getResponse(cacheKey);
+				StatsResource statsResource = getStatsResource();
+				if (statsResource != null) {
+					statsResource.updateStatistics(destination, response != null);
+				}
+				if (response != null) {
+					LOGGER.info("Cache returned {}", response);
+					exchange.sendResponse(response);
+					return;
+				}
+			}
 			LOGGER.debug("Sending proxied CoAP request to {}", outgoingRequest.getDestinationContext());
 			if (accept) {
 				exchange.sendAccept();
 			}
-			outgoingRequest.addMessageObserver(new ProxySendResponseMessageObserver(translator, exchange));
+			outgoingRequest.addMessageObserver(
+					new ProxySendResponseMessageObserver(translator, exchange, cacheKey, cache));
 			ClientEndpoints endpoints = mapSchemeToEndpoints.get(outgoingRequest.getScheme());
 			endpoints.sendRequest(outgoingRequest);
 		} catch (TranslationException e) {
@@ -112,14 +128,22 @@ public class ProxyCoapClientResource extends ProxyCoapResource {
 
 		private final Coap2CoapTranslator translator;
 		private final Exchange incomingExchange;
+		private final CacheKey cacheKey;
+		private final CacheResource cache;
 
-		private ProxySendResponseMessageObserver(Coap2CoapTranslator translator, Exchange incomingExchange) {
+		private ProxySendResponseMessageObserver(Coap2CoapTranslator translator, Exchange incomingExchange,
+				CacheKey cacheKey, CacheResource cache) {
 			this.translator = translator;
 			this.incomingExchange = incomingExchange;
+			this.cacheKey = cacheKey;
+			this.cache = cache;
 		}
 
 		@Override
 		public void onResponse(Response incomingResponse) {
+			if (cache != null) {
+				cache.cacheResponse(cacheKey, incomingResponse);
+			}
 			ProxyCoapClientResource.LOGGER.debug("ProxyCoapClientResource received {}", incomingResponse);
 			incomingExchange.sendResponse(translator.getResponse(incomingResponse));
 		}
