@@ -154,7 +154,7 @@
 		<module>cf-utils/cf-nat</module>
 		<module>cf-utils/cf-unix-health</module>
 		<module>cf-utils/cf-cli</module>
-		<module>cf-utils/cf-cli-netty-tcp</module>
+		<module>cf-utils/cf-cli-tcp-netty</module>
 		<module>californium-tests</module>
 		<module>californium-proxy</module>
 		<module>californium-proxy2</module>

@@ -17,9 +17,9 @@
 	 * Contributors:
 	 *    Bosch.IO GmbH - initial creation
 	-->
-	<id>jar-with-netty-tcp</id>
+	<id>jar-with-tcp-netty</id>
 
-	<!-- This descriptor includes all netty.io and californium-netty-tcp classes into one library -->
+	<!-- This descriptor includes all netty.io and californium-tcp-netty classes into one library -->
 	<formats>
 		<format>jar</format>
 	</formats>

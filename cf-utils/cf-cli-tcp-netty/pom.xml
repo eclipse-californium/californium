@@ -12,11 +12,11 @@
 		<relativePath>../../bom</relativePath>
 	</parent>
 
-	<artifactId>cf-cli-netty-tcp</artifactId>
+	<artifactId>cf-cli-tcp-netty</artifactId>
 	<packaging>bundle</packaging>
 
-	<name>Cf-cli-netty-tcp</name>
-	<description>Californium (Cf) Command Line Interface support for netty TCP</description>
+	<name>Cf-cli-tcp-netty</name>
+	<description>Californium (Cf) Command Line Interface support for TCP using netty.io</description>
 
 	<properties>
 		<picocli.version>4.2.0</picocli.version>
@@ -44,7 +44,7 @@
 				<configuration>
 					<instructions>
 						<Export-Package>
-							org.eclipse.californium.cli.netty.tcp*
+							org.eclipse.californium.cli.tcp.netty*
 						</Export-Package>
 						<Import-Package>
 							*
@@ -57,7 +57,7 @@
 				<artifactId>maven-assembly-plugin</artifactId>
 				<configuration>
 					<descriptorRefs>
-						<descriptorRef>enhanced-jar-with-netty-tcp</descriptorRef>
+						<descriptorRef>enhanced-jar-with-tcp-netty</descriptorRef>
 					</descriptorRefs>
 					<archive>
 						<manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
