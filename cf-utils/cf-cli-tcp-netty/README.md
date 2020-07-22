@@ -1,6 +1,6 @@
-# CLI-NETTY-TCP - Common Command Line Interface Netty TCP support
+# CLI-TCP-NETTY - Common Command Line Interface TCP Netty.IO support
 
-This module provides TCP support for the common command line interface.
+This module provides TCP support using netty.io for the common command line interface.
 
 If TCP is required, use it by copying the built library into the folder of the client's jar, either manually or by maven plugin in the client's pom:
 
@@ -18,7 +18,7 @@ If TCP is required, use it by copying the built library into the folder of the c
 					<artifactItems>
 						<artifactItem>
 							<groupId>${project.groupId}</groupId>
-							<artifactId>cf-cli-netty-tcp</artifactId>
+							<artifactId>cf-cli-tcp-netty</artifactId>
 							<version>${project.version}</version>
 							<type>${project.packaging}</type>
 						</artifactItem>
@@ -30,16 +30,33 @@ If TCP is required, use it by copying the built library into the folder of the c
 	</plugin>
 ```
 
-Alternatively adapt the dependency from "cf-cli" to "cf-cli-netty-tcp" in the client's pom.
+If the application is intended to be start by "java -jar xxx.jar", also a classpath entry in the manifest is required.
+
+```xml
+	<plugin>
+		<artifactId>maven-assembly-plugin</artifactId>
+		<configuration>
+			<archive>
+				<manifestEntries>
+					<!-- support tcp, if module library is available -->
+					<Class-Path>cf-cli-tcp-netty-${project.version}.jar</Class-Path>
+				</manifestEntries>
+			</archive>
+		</configuration>
+	</plugin>
+```
+
+Alternatively adapt the dependency from "cf-cli" to "cf-cli-tcp-netty" in the client's pom.
 
 ```xml
   <dependencies>
     ...
     <dependency>
             <groupId>org.eclipse.californium</groupId>
-            <artifactId>cf-cli-netty-tcp</artifactId>
+            <artifactId>cf-cli-tcp-netty</artifactId>
             <version>${project.version}</version>
     </dependency>
     ...
   </dependencies>
 ```
+

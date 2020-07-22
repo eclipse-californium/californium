@@ -13,7 +13,7 @@
  * Contributors:
  *    Bosch.IO GmbH - initial creation
  ******************************************************************************/
-package org.eclipse.californium.cli.netty.tcp;
+package org.eclipse.californium.cli.tcp.netty;
 
 import org.eclipse.californium.cli.ClientInitializer;
 import org.eclipse.californium.core.coap.CoAP;

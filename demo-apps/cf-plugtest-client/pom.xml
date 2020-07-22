@@ -58,7 +58,7 @@
 					<archive>
 						<manifestEntries>
 							<!-- support tcp, if module library is available -->
-							<Class-Path>cf-cli-netty-tcp-${project.version}.jar</Class-Path>
+							<Class-Path>cf-cli-tcp-netty-${project.version}.jar</Class-Path>
 						</manifestEntries>
 					</archive>
 				</configuration>
@@ -76,7 +76,7 @@
 							<artifactItems>
 								<artifactItem>
 									<groupId>${project.groupId}</groupId>
-									<artifactId>cf-cli-netty-tcp</artifactId>
+									<artifactId>cf-cli-tcp-netty</artifactId>
 									<version>${project.version}</version>
 									<type>${project.packaging}</type>
 								</artifactItem>

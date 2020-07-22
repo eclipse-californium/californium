@@ -13,7 +13,7 @@
  * Contributors:
  *    Bosch.IO GmbH - initial creation
  ******************************************************************************/
-package org.eclipse.californium.cli.netty.tcp;
+package org.eclipse.californium.cli.tcp.netty;
 
 import java.security.GeneralSecurityException;
 import java.util.concurrent.ExecutorService;

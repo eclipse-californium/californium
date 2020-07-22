@@ -78,7 +78,7 @@ public class ClientInitializer {
 	 * 
 	 * @since 2.4
 	 */
-	private static final String DEFAULT_TCP_MODULE = "org.eclipse.californium.cli.netty.tcp.Initialize";
+	private static final String DEFAULT_TCP_MODULE = "org.eclipse.californium.cli.tcp.netty.Initialize";
 
 	private static final List<String> loadErrors = new ArrayList<>();
 	private static final Map<String, CliConnectorFactory> connectorFactories = new ConcurrentHashMap<>();
