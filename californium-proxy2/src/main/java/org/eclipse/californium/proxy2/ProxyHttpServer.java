@@ -19,15 +19,11 @@ package org.eclipse.californium.proxy2;
 import java.io.IOException;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
-import org.eclipse.californium.core.server.resources.Resource;
-import org.eclipse.californium.proxy2.resources.ProxyCacheResource;
-import org.eclipse.californium.proxy2.resources.StatsResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,9 +35,6 @@ import org.slf4j.LoggerFactory;
 public class ProxyHttpServer {
 
 	private final static Logger LOGGER = LoggerFactory.getLogger(ProxyHttpServer.class);
-
-	private final ProxyCacheResource cacheResource = new ProxyCacheResource(true);
-	private final StatsResource statsResource = new StatsResource(cacheResource);
 
 	private MessageDeliverer proxyCoapDeliverer;
 	private MessageDeliverer localCoapDeliverer;
@@ -107,63 +100,21 @@ public class ProxyHttpServer {
 
 	public void handleRequest(final Exchange exchange) {
 		final Request request = exchange.getRequest();
-
 		LOGGER.info("ProxyEndpoint handles request {}", request);
-
-		Response response = null;
-		// ignore the request if it is reset or acknowledge
-		// check if the proxy-uri is defined
 		if (request.getOptions().hasProxyUri()) {
-			// get the response from the cache
-			response = cacheResource.getResponse(request);
-
-			LOGGER.debug("Cache returned {}", response);
-
-			// update statistics
-			statsResource.updateStatistics(request, response != null);
-		}
-
-		// check if the response is present in the cache
-		if (response != null) {
-			// link the retrieved response with the request to set the
-			// parameters request-specific (i.e., token, id, etc)
-			exchange.sendResponse(response);
-			return;
-		} else {
-
-			request.addMessageObserver(new MessageObserverAdapter() {
-				@Override
-				public void onResponse(final Response response) {
-					responseProduced(request, response);
-				}
-			});
-
-			if (request.getOptions().hasProxyUri()) {
-				// handle the request as usual
-				if (proxyCoapDeliverer != null) {
-					proxyCoapDeliverer.deliverRequest(exchange);
-				} else {
-					exchange.sendResponse(new Response(ResponseCode.PROXY_NOT_SUPPORTED));
-				}
+			// handle the request as usual
+			if (proxyCoapDeliverer != null) {
+				proxyCoapDeliverer.deliverRequest(exchange);
 			} else {
-				if (localCoapDeliverer != null) {
-					localCoapDeliverer.deliverRequest(exchange);
-				} else {
-					exchange.sendResponse(new Response(ResponseCode.PROXY_NOT_SUPPORTED));
-				}
+				exchange.sendResponse(new Response(ResponseCode.PROXY_NOT_SUPPORTED));
 			}
-
-			/*
-			 * Martin: Originally, the request was delivered to the
-			 * ProxyCoAP2Coap which was at the path proxy/coapClient or to
-			 * proxy/httpClient This approach replaces this implicit fuzzy
-			 * connection with an explicit and dynamically changeable one.
-			 */
+		} else {
+			if (localCoapDeliverer != null) {
+				localCoapDeliverer.deliverRequest(exchange);
+			} else {
+				exchange.sendResponse(new Response(ResponseCode.PROXY_NOT_SUPPORTED));
+			}
 		}
-	}
-
-	public Resource getStatistics() {
-		return statsResource;
 	}
 
 	/**
@@ -199,16 +150,5 @@ public class ProxyHttpServer {
 	 */
 	public void setLocalCoapDeliverer(MessageDeliverer deliverer) {
 		this.localCoapDeliverer = deliverer;
-	}
-
-	protected void responseProduced(Request request, Response response) {
-		// check if the proxy-uri is defined
-		if (request.getOptions().hasProxyUri()) {
-			LOGGER.info("Cache response {}", request.getOptions().getProxyUri());
-			// insert the response in the cache
-			cacheResource.cacheResponse(request, response);
-		} else {
-			LOGGER.info("Do not cache response");
-		}
 	}
 }

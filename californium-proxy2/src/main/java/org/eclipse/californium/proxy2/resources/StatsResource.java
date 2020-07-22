@@ -21,7 +21,6 @@ package org.eclipse.californium.proxy2.resources;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -30,24 +29,19 @@ import java.util.concurrent.TimeUnit;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
-import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.util.ClockUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.common.cache.CacheStats;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
-
+import com.google.common.io.CharSink;
 
 /**
  * Resource that encapsulate the proxy statistics.
  */
 public class StatsResource extends CoapResource {
-
-	private static final Logger LOGGER = LoggerFactory.getLogger(StatsResource.class);
 
 	private final Table<String, String, StatHelper> statsTable = HashBasedTable.create();
 
@@ -67,24 +61,13 @@ public class StatsResource extends CoapResource {
 		add(new ProxyStatResource("proxy"));
 	}
 
-	public void updateStatistics(Request request, boolean cachedResponse) {
-		URI proxyUri = null;
-		try {
-			proxyUri = new URI(request.getOptions().getProxyUri());
-		} catch (URISyntaxException e) {
-			LOGGER.warn("Proxy-uri malformed: {}", request.getOptions().getProxyUri());
-		}
-
-		if (proxyUri == null) {
-			// throw new IllegalArgumentException("proxyUri == null");
-			return;
-		}
+	public void updateStatistics(URI destination, boolean cachedResponse) {
 
 		// manage the address requester
-		String addressString = proxyUri.getHost();
+		String addressString = destination.getHost();
 		if (addressString != null) {
 			// manage the resource requested
-			String resourceString = proxyUri.getPath();
+			String resourceString = destination.getPath();
 			if (resourceString != null) {
 				// check if there is already an entry for the row/column
 				// association
@@ -111,7 +94,8 @@ public class StatsResource extends CoapResource {
 	private String getStatString() {
 		StringBuilder builder = new StringBuilder();
 
-		builder.append(String.format("Served %d addresses and %d resources\n", statsTable.rowKeySet().size(), statsTable.cellSet().size()));
+		builder.append(String.format("Served %d addresses and %d resources\n", statsTable.rowKeySet().size(),
+				statsTable.cellSet().size()));
 		builder.append("＿\n");
 		// iterate over every row (addresses)
 		for (String address : statsTable.rowKeySet()) {
@@ -125,9 +109,11 @@ public class StatsResource extends CoapResource {
 				StatHelper statHelper = statsTable.get(address, resource);
 				builder.append(String.format("|\t |------ total requests: %d\n", statHelper.getTotalCount()));
 				builder.append(String.format("|\t |------ total cached replies: %d\n", statHelper.getCachedCount()));
-				// builder.append(String.format("|\t |------ last period (%d sec) requests: %d\n",
+				// builder.append(String.format("|\t |------ last period (%d
+				// sec) requests: %d\n",
 				// PERIOD_SECONDS, statHelper.getLastPeriodCount()));
-				// builder.append(String.format("|\t |------ last period (%d sec) avg delay (nanosec): %d\n",
+				// builder.append(String.format("|\t |------ last period (%d
+				// sec) avg delay (nanosec): %d\n",
 				// PERIOD_SECONDS, statHelper.getLastPeriodAvgDelay()));
 				builder.append("|\t |\n");
 			}
@@ -140,6 +126,7 @@ public class StatsResource extends CoapResource {
 	}
 
 	private static final class CacheStatResource extends CoapResource {
+
 		private CacheStats relativeCacheStats;
 		private final CacheResource cacheResource;
 
@@ -149,8 +136,7 @@ public class StatsResource extends CoapResource {
 		/**
 		 * Instantiates a new debug resource.
 		 * 
-		 * @param resourceIdentifier
-		 *            the resource identifier
+		 * @param resourceIdentifier the resource identifier
 		 * @param cacheResource
 		 */
 		public CacheStatResource(String resourceIdentifier, CacheResource cacheResource) {
@@ -171,8 +157,10 @@ public class StatsResource extends CoapResource {
 
 			stringBuilder.append(String.format("Total successful loaded values: %d %n", cacheStats.loadSuccessCount()));
 			stringBuilder.append(String.format("Total requests: %d %n", cacheStats.requestCount()));
-			stringBuilder.append(String.format("Hits ratio: %d/%d - %.3f %n", cacheStats.hitCount(), cacheStats.missCount(), cacheStats.hitRate()));
-			stringBuilder.append(String.format("Average time spent loading new values (nanoseconds): %.3f %n", cacheStats.averageLoadPenalty()));
+			stringBuilder.append(String.format("Hits ratio: %d/%d - %.3f %n", cacheStats.hitCount(),
+					cacheStats.missCount(), cacheStats.hitRate()));
+			stringBuilder.append(String.format("Average time spent loading new values (nanoseconds): %.3f %n",
+					cacheStats.averageLoadPenalty()));
 			stringBuilder.append(String.format("Number of cache evictions: %d %n", cacheStats.evictionCount()));
 
 			return stringBuilder.toString();
@@ -208,27 +196,30 @@ public class StatsResource extends CoapResource {
 			// create the new file
 			String logName = ClockUtil.nanoRealtime() + CACHE_LOG_NAME;
 			final File cacheLog = new File(logName);
+			
 			try {
 				cacheLog.createNewFile();
-
+				final CharSink charSink = com.google.common.io.Files.asCharSink(cacheLog, Charset.defaultCharset());
 				// write the header
-				com.google.common.io.Files.write("hits%, avg. load, #evictions \n", cacheLog, Charset.defaultCharset());
+				charSink.write("hits%, avg. load, #evictions \n");
+
+				executor.scheduleWithFixedDelay(new Runnable() {
+
+					@Override
+					public void run() {
+						CacheStats cacheStats = cacheResource.getCacheStats().minus(relativeCacheStats);
+
+						String csvStats = String.format("%.3f, %.3f, %d %n", cacheStats.hitRate(),
+								cacheStats.averageLoadPenalty(), cacheStats.evictionCount());
+						try {
+							charSink.write(csvStats);
+						} catch (IOException e) {
+						}
+					}
+				}, 0, DEFAULT_LOGGING_DELAY, TimeUnit.SECONDS);
 			} catch (IOException e) {
 			}
 
-			executor.scheduleWithFixedDelay(new Runnable() {
-
-				@Override
-				public void run() {
-					CacheStats cacheStats = cacheResource.getCacheStats().minus(relativeCacheStats);
-
-					String csvStats = String.format("%.3f, %.3f, %d %n", cacheStats.hitRate(), cacheStats.averageLoadPenalty(), cacheStats.evictionCount());
-					try {
-						com.google.common.io.Files.append(csvStats, cacheLog, Charset.defaultCharset());
-					} catch (IOException e) {
-					}
-				}
-			}, 0, DEFAULT_LOGGING_DELAY, TimeUnit.SECONDS);
 
 			Response response = new Response(ResponseCode.CREATED);
 			response.setPayload("Creted log: " + logName);
@@ -266,13 +257,14 @@ public class StatsResource extends CoapResource {
 	 * The Class StatisticsHelper.
 	 */
 	private static class StatHelper {
+
 		private int totalCount = 0;
 		private int cachedCount = 0;
 
 		public int getCachedCount() {
 			return cachedCount;
 		}
-		
+
 		/**
 		 * @return the totalCount
 		 */

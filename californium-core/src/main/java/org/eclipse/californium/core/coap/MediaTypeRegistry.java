@@ -141,8 +141,11 @@ public class MediaTypeRegistry {
 	}
 
 	public static String toString(int mediaType) {
-		String texts[] = registry.get(mediaType);
+		if (mediaType == UNDEFINED){
+			return "undefined";
+		}
 
+		String texts[] = registry.get(mediaType);
 		if (texts != null) {
 			return texts[0];
 		} else {

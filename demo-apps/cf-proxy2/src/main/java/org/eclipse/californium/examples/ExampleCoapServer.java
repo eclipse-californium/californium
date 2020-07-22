@@ -73,7 +73,7 @@ public class ExampleCoapServer {
 
 			@Override
 			public void handleGET(CoapExchange exchange) {
-				exchange.setMaxAge(0);
+				exchange.setMaxAge(15);
 				exchange.respond(ResponseCode.CONTENT,
 						"Hi! I am the coap server on port " + port + ". Request " + counter.incrementAndGet() + ".",
 						MediaTypeRegistry.TEXT_PLAIN);
