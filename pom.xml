@@ -413,6 +413,7 @@
 						</goals>
 						<configuration>
 							<rules>
+								<dependencyConvergence/>
 								<requireMavenVersion>
 									<version>3.0.5</version>
 								</requireMavenVersion>
