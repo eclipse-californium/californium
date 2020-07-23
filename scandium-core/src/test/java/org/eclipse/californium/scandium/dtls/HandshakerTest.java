@@ -443,14 +443,14 @@ public class HandshakerTest {
 	private static Record getRecordForMessage(final int epoch, final long seqNo, final DTLSMessage msg) {
 		byte[] dtlsRecord = DtlsTestTools.newDTLSRecord(msg.getContentType().getCode(), epoch,
 				seqNo, msg.toByteArray());
-		List<Record> list = Record.fromByteArray(dtlsRecord, msg.getPeer(), null, ClockUtil.nanoRealtime());
+		List<Record> list = DtlsTestTools.fromByteArray(dtlsRecord, msg.getPeer(), null, ClockUtil.nanoRealtime());
 		assertFalse("Should be able to deserialize DTLS Record from byte array", list.isEmpty());
 		return list.get(0);
 
 	}
 	private static Record getRecordClone(final Record record) {
 		byte[] dtlsRecord = record.toByteArray();
-		List<Record> list = Record.fromByteArray(dtlsRecord, record.getPeerAddress(), null, ClockUtil.nanoRealtime());
+		List<Record> list = DtlsTestTools.fromByteArray(dtlsRecord, record.getPeerAddress(), null, ClockUtil.nanoRealtime());
 		assertFalse("Should be able to deserialize DTLS Record from byte array", list.isEmpty());
 		return list.get(0);
 	}

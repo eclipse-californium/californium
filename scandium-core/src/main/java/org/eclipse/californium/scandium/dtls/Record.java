@@ -321,7 +321,9 @@ public class Record {
 	 * @param receiveNanos uptime nanoseconds of receiving this record
 	 * @return the {@code Record} instances
 	 * @throws NullPointerException if either one of the byte array or peer address is {@code null}
+	 * @deprecated use {@link #fromReader(DatagramReader, InetSocketAddress, ConnectionIdGenerator, long)} instead.
 	 */
+	@Deprecated
 	public static List<Record> fromByteArray(byte[] byteArray, InetSocketAddress peerAddress, ConnectionIdGenerator cidGenerator, long receiveNanos) {
 		if (byteArray == null) {
 			throw new NullPointerException("Byte array must not be null");
@@ -329,9 +331,35 @@ public class Record {
 			throw new NullPointerException("Peer address must not be null");
 		}
 
-		List<Record> records = new ArrayList<Record>();
-
 		DatagramReader reader = new DatagramReader(byteArray, false);
+		return fromReader(reader, peerAddress, cidGenerator, receiveNanos);
+	}
+
+	/**
+	 * Parses a sequence of <em>DTLSCiphertext</em> structures into {@code Record} instances.
+	 * 
+	 * The binary representation is expected to comply with the <em>DTLSCiphertext</em> structure
+	 * defined in <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1">RFC6347, Section 4.3.1</a>.
+	 * 
+	 * @param reader a reader with the raw binary representation containing one or more DTLSCiphertext structures
+	 * @param peerAddress the IP address and port of the peer from which the bytes have been
+	 *           received
+	 * @param cidGenerator the connection id generator. May be {@code null}.
+	 * @param receiveNanos uptime nanoseconds of receiving this record
+	 * @return the {@code Record} instances
+	 * @throws NullPointerException if either one of the reader or peer address is {@code null}
+	 * @since 2.4
+	 */
+	public static List<Record> fromReader(DatagramReader reader, InetSocketAddress peerAddress, ConnectionIdGenerator cidGenerator, long receiveNanos) {
+		if (reader == null) {
+			throw new NullPointerException("Reader must not be null");
+		} else if (peerAddress == null) {
+			throw new NullPointerException("Peer address must not be null");
+		}
+
+		int datagramLength = reader.bitsLeft() / Byte.SIZE;
+
+		List<Record> records = new ArrayList<Record>();
 
 		while (reader.bytesAvailable()) {
 
@@ -374,7 +402,7 @@ public class Record {
 			if (left < length) {
 				LOGGER.debug(
 						"Received truncated DTLS record(s) ({} bytes, but only {} available). {} records, {} bytes. Discarding ...",
-						length, left, records.size(), byteArray.length);
+						length, left, records.size(), datagramLength);
 				return records;
 			}
 

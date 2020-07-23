@@ -132,7 +132,6 @@ import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.Principal;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -164,6 +163,7 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
+import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
@@ -817,7 +817,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 				@Override
 				public void doWork() throws Exception {
 					MDC.clear();
-					packet.setData(receiverBuffer);
+					packet.setLength(inboundDatagramBufferSize);
 					receiveNextDatagramFromNetwork(packet);
 				}
 			};
@@ -1188,8 +1188,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 		}
 		long timestamp = ClockUtil.nanoRealtime();
 
-		byte[] data = Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getLength());
-		List<Record> records = Record.fromByteArray(data, peerAddress, connectionIdGenerator, timestamp);
+		DatagramReader reader = new DatagramReader(packet.getData(), packet.getOffset(), packet.getLength());
+		List<Record> records = Record.fromReader(reader, peerAddress, connectionIdGenerator, timestamp);
 		LOGGER.trace("Received {} DTLS records from {} using a {} byte datagram buffer",
 				records.size(), peerAddress, inboundDatagramBufferSize);
 

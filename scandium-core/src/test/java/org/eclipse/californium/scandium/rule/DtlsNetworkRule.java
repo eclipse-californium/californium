@@ -22,6 +22,7 @@ import org.eclipse.californium.elements.rule.NetworkRule;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DatagramFormatter;
 import org.eclipse.californium.scandium.dtls.ContentType;
+import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.eclipse.californium.scandium.dtls.HandshakeType;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.slf4j.Logger;
@@ -69,7 +70,7 @@ public class DtlsNetworkRule extends NetworkRule {
 				return "[] (empty)";
 			}
 			try {
-				List<Record> records = Record.fromByteArray(data, ADDRESS, null, ClockUtil.nanoRealtime());
+				List<Record> records = DtlsTestTools.fromByteArray(data, ADDRESS, null, ClockUtil.nanoRealtime());
 				int max = records.size();
 				StringBuilder builder = new StringBuilder();
 				for (int index = 0; index < max;) {

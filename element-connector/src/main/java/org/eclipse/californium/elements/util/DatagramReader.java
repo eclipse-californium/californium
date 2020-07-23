@@ -116,6 +116,28 @@ public final class DatagramReader {
 	}
 
 	/**
+	 * Creates a new reader for a range within an array of bytes.
+	 * 
+	 * The array is used directly and is not copied. If a copy is required, copy
+	 * the range and provide that to {@link #DatagramReader(byte[])}.
+	 * 
+	 * @param byteArray The byte array to read from.
+	 * @param offset starting offset of the range.
+	 * @param length length of the range.
+	 * 
+	 * @since 2.4
+	 */
+	public DatagramReader(final byte[] byteArray, int offset, int length) {
+		byteStream = new RangeInputStream(byteArray, offset, length);
+
+		// initialize bit buffer
+		currentByte = 0;
+		currentBitIndex = -1; // indicates that no byte read yet
+		markByte = currentByte;
+		markBitIndex = currentBitIndex;
+	}
+
+	/**
 	 * Creates a new reader for an bytes stream.
 	 * 
 	 * @param byteStream The byte stream to read from.

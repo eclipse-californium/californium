@@ -21,11 +21,11 @@ import java.net.DatagramPacket;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.elements.util.ClockUtil;
+import org.eclipse.californium.elements.util.DatagramReader;
 
 public class SimpleRecordLayer implements RecordLayer {
 
@@ -42,8 +42,8 @@ public class SimpleRecordLayer implements RecordLayer {
 		long timestamp = ClockUtil.nanoRealtime();
 		for (DatagramPacket packet : datagrams) {
 			InetSocketAddress peerAddress = new InetSocketAddress(packet.getAddress(), packet.getPort());
-			byte[] data = Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getLength());
-			List<Record> records = Record.fromByteArray(data, peerAddress, handshaker.connectionIdGenerator, timestamp);
+			DatagramReader reader = new DatagramReader(packet.getData(), packet.getOffset(), packet.getLength());
+			List<Record> records = Record.fromReader(reader, peerAddress, handshaker.connectionIdGenerator, timestamp);
 			for (Record record : records) {
 				try {
 					record.applySession(handshaker.getSession());
