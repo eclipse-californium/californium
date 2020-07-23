@@ -129,7 +129,7 @@ public class RecordDecryptTest {
 		Record record = new Record(ContentType.APPLICATION_DATA, EPOCH, session.getSequenceNumber(EPOCH),
 				new ApplicationMessage(payload, session.getPeer()), session, true, 0);
 		byte[] raw = record.toByteArray();
-		List<Record> list = Record.fromByteArray(raw, session.getPeer(), null, ClockUtil.nanoRealtime());
+		List<Record> list = DtlsTestTools.fromByteArray(raw, session.getPeer(), null, ClockUtil.nanoRealtime());
 		assertFalse("failed to decode raw message", list.isEmpty());
 		for (Record recv : list) {
 			recv.applySession(session);
@@ -242,7 +242,7 @@ public class RecordDecryptTest {
 		byte[] raw = record.toByteArray();
 		byte[] jraw = juggler.juggle(raw);
 		dumpDiff(raw, jraw);
-		List<Record> list = Record.fromByteArray(jraw, session.getPeer(), null, ClockUtil.nanoRealtime());
+		List<Record> list = DtlsTestTools.fromByteArray(jraw, session.getPeer(), null, ClockUtil.nanoRealtime());
 		for (Record recv : list) {
 			if (recv.getEpoch() != EPOCH) {
 				// skip
@@ -288,7 +288,7 @@ public class RecordDecryptTest {
 		byte[] jfragment = juggler.juggle(fragment);
 		dumpDiff(fragment, jfragment);
 		byte[] raw = toByteArray(record, jfragment);
-		List<Record> list = Record.fromByteArray(raw, session.getPeer(), null, ClockUtil.nanoRealtime());
+		List<Record> list = DtlsTestTools.fromByteArray(raw, session.getPeer(), null, ClockUtil.nanoRealtime());
 		for (Record recv : list) {
 			recv.applySession(session);
 			recv.getFragment();

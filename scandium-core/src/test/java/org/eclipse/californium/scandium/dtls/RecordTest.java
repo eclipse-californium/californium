@@ -96,7 +96,7 @@ public class RecordTest {
 	@Test
 	public void testFromByteArrayRejectsIllformattedRecord() {
 		byte[] illformattedRecord = new byte[]{TYPE_APPL_DATA};
-		List<Record> recordList = Record.fromByteArray(illformattedRecord, session.getPeer(), null, ClockUtil.nanoRealtime());
+		List<Record> recordList = DtlsTestTools.fromByteArray(illformattedRecord, session.getPeer(), null, ClockUtil.nanoRealtime());
 		assertTrue("fromByteArray() should have detected malformed record", recordList.isEmpty());
 	}
 
@@ -104,7 +104,7 @@ public class RecordTest {
 	public void testFromByteArrayAcceptsKnownTypeCode() throws GeneralSecurityException {
 
 		byte[] application_record = DtlsTestTools.newDTLSRecord(TYPE_APPL_DATA, EPOCH, SEQUENCE_NO, newGenericAEADCipherFragment());
-		List<Record> recordList = Record.fromByteArray(application_record, session.getPeer(), null, ClockUtil.nanoRealtime());
+		List<Record> recordList = DtlsTestTools.fromByteArray(application_record, session.getPeer(), null, ClockUtil.nanoRealtime());
 		assertEquals(recordList.size(), 1);
 		Record record = recordList.get(0);
 		assertEquals(ContentType.APPLICATION_DATA, record.getType());
@@ -120,7 +120,7 @@ public class RecordTest {
 		byte[] application_record = DtlsTestTools.newDTLSRecord(TYPE_APPL_DATA, EPOCH, SEQUENCE_NO, newGenericAEADCipherFragment());
 		byte[] unsupported_dtls_record = DtlsTestTools.newDTLSRecord(55, EPOCH, SEQUENCE_NO, newGenericAEADCipherFragment());
 
-		List<Record> recordList = Record.fromByteArray(Bytes.concatenate(unsupported_dtls_record, application_record), session.getPeer(), null, ClockUtil.nanoRealtime());
+		List<Record> recordList = DtlsTestTools.fromByteArray(Bytes.concatenate(unsupported_dtls_record, application_record), session.getPeer(), null, ClockUtil.nanoRealtime());
 		Assert.assertTrue(recordList.size() == 1);
 		Assert.assertEquals(ContentType.APPLICATION_DATA, recordList.get(0).getType());
 	}

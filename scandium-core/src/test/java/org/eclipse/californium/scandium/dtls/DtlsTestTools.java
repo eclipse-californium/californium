@@ -26,6 +26,7 @@ import java.util.List;
 
 
 import org.eclipse.californium.elements.util.ClockUtil;
+import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.TestCertificatesTools;
 import org.eclipse.californium.scandium.util.ServerName;
@@ -39,7 +40,7 @@ public final class DtlsTestTools extends TestCertificatesTools {
 
 	public static Record getRecordForMessage(int epoch, int seqNo, DTLSMessage msg, InetSocketAddress peer) {
 		byte[] dtlsRecord = newDTLSRecord(msg.getContentType().getCode(), epoch, seqNo, msg.toByteArray());
-		List<Record> list = Record.fromByteArray(dtlsRecord, peer, null, ClockUtil.nanoRealtime());
+		List<Record> list = DtlsTestTools.fromByteArray(dtlsRecord, peer, null, ClockUtil.nanoRealtime());
 		assertFalse("Should be able to deserialize DTLS Record from byte array", list.isEmpty());
 		return list.get(0);
 	}
@@ -122,5 +123,30 @@ public final class DtlsTestTools extends TestCertificatesTools {
 		} else {
 			return (T) message;
 		}
+	}
+
+	/**
+	 * Parses a sequence of <em>DTLSCiphertext</em> structures into {@code Record} instances.
+	 * 
+	 * The binary representation is expected to comply with the <em>DTLSCiphertext</em> structure
+	 * defined in <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1">RFC6347, Section 4.3.1</a>.
+	 * 
+	 * @param byteArray the raw binary representation containing one or more DTLSCiphertext structures
+	 * @param peerAddress the IP address and port of the peer from which the bytes have been
+	 *           received
+	 * @param cidGenerator the connection id generator. May be {@code null}.
+	 * @param receiveNanos uptime nanoseconds of receiving this record
+	 * @return the {@code Record} instances
+	 * @throws NullPointerException if either one of the byte array or peer address is {@code null}
+	 */
+	public static List<Record> fromByteArray(byte[] byteArray, InetSocketAddress peerAddress, ConnectionIdGenerator cidGenerator, long receiveNanos) {
+		if (byteArray == null) {
+			throw new NullPointerException("Byte array must not be null");
+		} else if (peerAddress == null) {
+			throw new NullPointerException("Peer address must not be null");
+		}
+	
+		DatagramReader reader = new DatagramReader(byteArray, false);
+		return Record.fromReader(reader, peerAddress, cidGenerator, receiveNanos);
 	}
 }
