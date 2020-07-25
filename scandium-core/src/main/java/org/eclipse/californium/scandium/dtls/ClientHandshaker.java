@@ -94,7 +94,7 @@ public class ClientHandshaker extends Handshaker {
 
 	// Members ////////////////////////////////////////////////////////
 
-	private ProtocolVersion maxProtocolVersion = new ProtocolVersion();
+	private ProtocolVersion maxProtocolVersion = ProtocolVersion.VERSION_DTLS_1_2;
 
 	/**
 	 * Indicates probing for this handshake.

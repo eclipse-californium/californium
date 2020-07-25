@@ -70,12 +70,12 @@ public class ServerHelloTest {
 		if (clientType != null) {
 			ext.addExtension(new ClientCertificateTypeExtension(clientType));
 		}
-		serverHello = new ServerHello(new ProtocolVersion(), new Random(), new SessionId(),
+		serverHello = new ServerHello(ProtocolVersion.VERSION_DTLS_1_2, new Random(), new SessionId(),
 				CipherSuite.TLS_PSK_WITH_AES_128_CCM_8, CompressionMethod.NULL, ext, peerAddress);
 	}
 	
 	private void givenAServerHelloWithEmptyExtensions() {
-		serverHello = new ServerHello(new ProtocolVersion(), new Random(), new SessionId(),
+		serverHello = new ServerHello(ProtocolVersion.VERSION_DTLS_1_2, new Random(), new SessionId(),
 				CipherSuite.TLS_PSK_WITH_AES_128_CCM_8, CompressionMethod.NULL, new HelloExtensions(), peerAddress);
 	}
 }

@@ -204,7 +204,7 @@ public class Record {
 	 */
 	public Record(ContentType type, int epoch, long sequenceNumber, DTLSMessage fragment, DTLSSession session,
 			boolean cid, int pad) throws GeneralSecurityException {
-		this(new ProtocolVersion(), epoch, sequenceNumber, 0, session != null ? session.getPeer() : null, false);
+		this(ProtocolVersion.VERSION_DTLS_1_2, epoch, sequenceNumber, 0, session != null ? session.getPeer() : null, false);
 		if (fragment == null) {
 			throw new NullPointerException("Fragment must not be null");
 		} else if (session == null) {
@@ -241,7 +241,7 @@ public class Record {
 	 *             is {@code null}.
 	 */
 	public Record(ContentType type, long sequenceNumber, DTLSMessage fragment, InetSocketAddress peerAddress) {
-		this(new ProtocolVersion(), 0, sequenceNumber, 0, peerAddress, false);
+		this(ProtocolVersion.VERSION_DTLS_1_2, 0, sequenceNumber, 0, peerAddress, false);
 		if (fragment == null) {
 			throw new NullPointerException("Fragment must not be null");
 		} else if (peerAddress == null) {
@@ -371,7 +371,7 @@ public class Record {
 			int type = reader.read(CONTENT_TYPE_BITS);
 			int major = reader.read(VERSION_BITS);
 			int minor = reader.read(VERSION_BITS);
-			ProtocolVersion version = new ProtocolVersion(major, minor);
+			ProtocolVersion version = ProtocolVersion.valueOf(major, minor);
 
 			int epoch = reader.read(EPOCH_BITS);
 			long sequenceNumber = reader.readLong(SEQUENCE_NUMBER_BITS);

@@ -180,7 +180,7 @@ public final class SessionTicket implements Destroyable {
 		// protocol_version
 		int major = source.read(8);
 		int minor = source.read(8);
-		ProtocolVersion ver = new ProtocolVersion(major, minor);
+		ProtocolVersion ver = ProtocolVersion.valueOf(major, minor);
 
 		// cipher_suite
 		CipherSuite cipherSuite = CipherSuite.getTypeByCode(source.read(CipherSuite.CIPHER_SUITE_BITS));

@@ -63,7 +63,7 @@ public class RecordTest {
 	@Before
 	public void setUp() throws Exception {
 
-		protocolVer = new ProtocolVersion();
+		protocolVer = ProtocolVersion.VERSION_DTLS_1_2;
 		key = new SecretKeySpec(aesKey, "AES");
 		payloadData = new byte[payloadLength];
 		for ( int i = 0; i < payloadLength; i++) {

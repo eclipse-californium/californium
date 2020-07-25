@@ -2076,7 +2076,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		if (expectedCookie == null) {
 			expectedCookie = cookieGenerator.generateCookie(clientHello);
 		}
-		HelloVerifyRequest msg = new HelloVerifyRequest(new ProtocolVersion(), expectedCookie, record.getPeerAddress());
+		HelloVerifyRequest msg = new HelloVerifyRequest(ProtocolVersion.VERSION_DTLS_1_2, expectedCookie, record.getPeerAddress());
 		// because we do not have a handshaker in place yet that
 		// manages message_seq numbers, we need to set it explicitly
 		// use message_seq from CLIENT_HELLO in order to allow for

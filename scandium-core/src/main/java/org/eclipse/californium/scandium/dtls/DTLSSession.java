@@ -1176,7 +1176,7 @@ public final class DTLSSession implements Destroyable {
 			return null;
 		}
 		return new SessionTicket(
-				new ProtocolVersion(),
+				ProtocolVersion.VERSION_DTLS_1_2,
 				writeState.getCipherSuite(),
 				writeState.getCompressionMethod(),
 				masterSecret,

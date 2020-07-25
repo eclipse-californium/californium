@@ -106,7 +106,7 @@ public class ClientHelloTest {
 	}
 
 	private void givenAClientHelloWithEmptyExtensions() {
-		clientHello = new ClientHello(new ProtocolVersion(), Collections.<CipherSuite> emptyList(),
+		clientHello = new ClientHello(ProtocolVersion.VERSION_DTLS_1_2, Collections.<CipherSuite> emptyList(),
 				SignatureAndHashAlgorithm.DEFAULT, null, null,
 				Collections.<SupportedGroup> emptyList(), peerAddress);
 	}
@@ -125,7 +125,7 @@ public class ClientHelloTest {
 			List<CertificateType> supportedClientCertTypes, List<CertificateType> supportedServerCertTypes,
 			List<SupportedGroup> supportedGroups) {
 
-		return new ClientHello(new ProtocolVersion(), supportedCipherSuites, supportedSignatureAndHashAlgorithms,
+		return new ClientHello(ProtocolVersion.VERSION_DTLS_1_2, supportedCipherSuites, supportedSignatureAndHashAlgorithms,
 				supportedClientCertTypes, supportedServerCertTypes, supportedGroups, address);
 	}
 

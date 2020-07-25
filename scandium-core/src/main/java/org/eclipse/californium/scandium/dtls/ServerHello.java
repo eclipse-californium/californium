@@ -180,7 +180,7 @@ public final class ServerHello extends HandshakeMessage {
 
 		int major = reader.read(VERSION_BITS);
 		int minor = reader.read(VERSION_BITS);
-		ProtocolVersion version = new ProtocolVersion(major, minor);
+		ProtocolVersion version = ProtocolVersion.valueOf(major, minor);
 
 		Random random = new Random(reader.readBytes(RANDOM_BYTES));
 
