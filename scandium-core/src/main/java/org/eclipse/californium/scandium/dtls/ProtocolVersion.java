@@ -20,30 +20,54 @@ package org.eclipse.californium.scandium.dtls;
 /**
  * Represents the DTLS protocol version.
  * 
- * Note that the major and minor version numbers are represented
- * as the 1's complement of the corresponding DTLS version numbers,
- * e.g. DTLS version 1.2 is represented as bytes {254, 253}.
+ * Note that the major and minor version numbers are represented as the 1's
+ * complement of the corresponding DTLS version numbers, e.g. DTLS version 1.2
+ * is represented as bytes {254, 253}.
  * 
- * See <a href="http://tools.ietf.org/html/rfc6347#section-4.1">
- * Datagram Transport Layer Security Version 1.2 (RFC 6347), Section 4.1</a>
- * for details.
+ * See <a href="http://tools.ietf.org/html/rfc6347#section-4.1"> Datagram
+ * Transport Layer Security Version 1.2 (RFC 6347), Section 4.1</a> for details.
  */
 public class ProtocolVersion implements Comparable<ProtocolVersion> {
 
+	/**
+	 * Major version for DTLS 1.2.
+	 * 
+	 * @since 2.4
+	 */
+	public static final int MAJOR_1_2 = 254;
+
+	/**
+	 * Minor version for DTLS 1.2.
+	 * 
+	 * @since 2.4
+	 */
+	public static final int MINOR_1_2 = 253;
+
+	/**
+	 * Protocol version DTLS 1.2
+	 * 
+	 * @since 2.4
+	 */
+	public static final ProtocolVersion VERSION_DTLS_1_2 = new ProtocolVersion(MAJOR_1_2, MINOR_1_2);
+
 	/** The minor. */
-	private int minor;
+	private final int minor;
 
 	/** The major. */
-	private int major;
+	private final int major;
 
 	/**
 	 * Creates an instance representing DTLS version 1.2.
 	 * 
 	 * The version is represented as {254, 253} (1's complement of {1, 2}).
+	 * 
+	 * @deprecated use {@link #VERSION_DTLS_1_2} or {@link #valueOf(int, int)}
+	 *             instead.
 	 */
+	@Deprecated
 	public ProtocolVersion() {
-		this.major = 254;
-		this.minor = 253;
+		this.major = MAJOR_1_2;
+		this.minor = MINOR_1_2;
 	}
 
 	/**
@@ -51,7 +75,10 @@ public class ProtocolVersion implements Comparable<ProtocolVersion> {
 	 *
 	 * @param major the major
 	 * @param minor the minor
+	 * @deprecated intended to became private. Use {@link #valueOf(int, int)}
+	 *             instead.
 	 */
+	@Deprecated
 	public ProtocolVersion(int major, int minor) {
 		this.minor = minor;
 		this.major = major;
@@ -69,21 +96,27 @@ public class ProtocolVersion implements Comparable<ProtocolVersion> {
 	 * Compares this protocol version to another one.
 	 * 
 	 * Note that the comparison is done based on the <em>semantic</em> version,
-	 * i.e. DTLS protocol version 1.0 (represented as major 254, minor 255) is considered
-	 * <em>lower</em> than 1.2 (represented as major 254, minor 253) whereas the
-	 * byte values representing version 1.0 are actually larger.
+	 * i.e. DTLS protocol version 1.0 (represented as major 254, minor 255) is
+	 * considered <em>lower</em> than 1.2 (represented as major 254, minor 253)
+	 * whereas the byte values representing version 1.0 are actually larger.
 	 * 
 	 * @param o the protocol version to compare to
-	 * @return <em>0</em> if this version is exactly the same as the other version,
-	 *         <em>-1</em> if this version is lower than the other version or
-	 *         <em>1</em> if this version is higher than the other version
+	 * @return <em>0</em> if this version is exactly the same as the other
+	 *         version, <em>-1</em> if this version is lower than the other
+	 *         version or <em>1</em> if this version is higher than the other
+	 *         version
 	 */
 	@Override
 	public int compareTo(ProtocolVersion o) {
+
+		if (this == o) {
+			return 0;
+		}
+
 		/*
 		 * Example, version 1.0 (254,255) is smaller than version 1.2 (254,253)
 		 */
-		
+
 		if (major == o.getMajor()) {
 			if (minor < o.getMinor()) {
 				return 1;
@@ -119,6 +152,26 @@ public class ProtocolVersion implements Comparable<ProtocolVersion> {
 		} else {
 			ProtocolVersion other = (ProtocolVersion) obj;
 			return major == other.major && minor == other.minor;
+		}
+	}
+
+	@Override
+	public String toString() {
+		return Integer.toString(255 - major) + "." + Integer.toString(255 - minor);
+	}
+
+	/**
+	 * Get protocol version value of the provided versions.
+	 * 
+	 * @param major major version
+	 * @param minor minor version
+	 * @return protocol version
+	 */
+	public static ProtocolVersion valueOf(int major, int minor) {
+		if (major == MAJOR_1_2 && minor == MINOR_1_2) {
+			return VERSION_DTLS_1_2;
+		} else {
+			return new ProtocolVersion(major, minor);
 		}
 	}
 }

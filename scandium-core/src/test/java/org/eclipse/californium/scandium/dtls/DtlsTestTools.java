@@ -47,7 +47,7 @@ public final class DtlsTestTools extends TestCertificatesTools {
 
 	public static final byte[] newDTLSRecord(int typeCode, int epoch, long sequenceNo, byte[] fragment) {
 
-		ProtocolVersion protocolVer = new ProtocolVersion();
+		ProtocolVersion protocolVer = ProtocolVersion.VERSION_DTLS_1_2;
 		// the record header contains a type code, version, epoch, sequenceNo, length
 		DatagramWriter writer = new DatagramWriter();
 		writer.write(typeCode, 8);

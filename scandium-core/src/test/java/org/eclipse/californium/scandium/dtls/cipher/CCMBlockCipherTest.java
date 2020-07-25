@@ -96,7 +96,7 @@ public class CCMBlockCipherTest {
 	public void setUp() throws Exception {
 		// salt: 32bit client write init vector (can be any four bytes)
 		byte[] client_iv = new byte[]{0x55, 0x23, 0x2F, (byte) 0xA3};
-		ProtocolVersion protocolVer = new ProtocolVersion();
+		ProtocolVersion protocolVer = ProtocolVersion.VERSION_DTLS_1_2;
 		payloadData = new byte[payloadLength];
 		random = new Random(payloadLength);
 		random.nextBytes(payloadData);

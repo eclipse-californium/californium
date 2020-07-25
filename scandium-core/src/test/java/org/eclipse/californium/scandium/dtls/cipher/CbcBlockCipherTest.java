@@ -98,7 +98,7 @@ public class CbcBlockCipherTest {
 	@Before
 	public void setUp() throws Exception {
 		// salt: 32bit client write init vector (can be any four bytes)
-		ProtocolVersion protocolVer = new ProtocolVersion();
+		ProtocolVersion protocolVer = ProtocolVersion.VERSION_DTLS_1_2;
 		payloadData = Bytes.createBytes(random, payloadLength);
 
 		// 64bit sequence number, consisting of 16bit epoch (0) + 48bit sequence number (5)

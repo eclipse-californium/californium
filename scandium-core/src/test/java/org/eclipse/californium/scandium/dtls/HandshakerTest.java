@@ -429,7 +429,7 @@ public class HandshakerTest {
 	}
 
 	private static Record createClientHelloRecord(DTLSSession session, int epoch, long sequenceNo, int messageSeqNo) throws GeneralSecurityException {
-		ClientHello clientHello = new ClientHello(new ProtocolVersion(), session, Collections.<SignatureAndHashAlgorithm> emptyList(), null, null, SupportedGroup.getPreferredGroups());
+		ClientHello clientHello = new ClientHello(ProtocolVersion.VERSION_DTLS_1_2, session, Collections.<SignatureAndHashAlgorithm> emptyList(), null, null, SupportedGroup.getPreferredGroups());
 		clientHello.setMessageSeq(messageSeqNo);
 		return getRecordForMessage(epoch, sequenceNo, clientHello);
 	}

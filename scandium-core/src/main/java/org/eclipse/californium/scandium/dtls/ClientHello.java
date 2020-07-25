@@ -69,7 +69,7 @@ public final class ClientHello extends HandshakeMessage {
 	 * The version of the DTLS protocol by which the client wishes to
 	 * communicate during this session.
 	 */
-	private ProtocolVersion clientVersion = new ProtocolVersion();
+	private ProtocolVersion clientVersion;
 
 	/** A client-generated random structure. */
 	private Random random;
@@ -307,7 +307,7 @@ public final class ClientHello extends HandshakeMessage {
 
 		int major = reader.read(VERSION_BITS);
 		int minor = reader.read(VERSION_BITS);
-		result.clientVersion = new ProtocolVersion(major, minor);
+		result.clientVersion = ProtocolVersion.valueOf(major, minor);
 
 		result.random = new Random(reader.readBytes(RANDOM_BYTES));
 

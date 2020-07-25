@@ -76,7 +76,7 @@ public final class HelloVerifyRequest extends HandshakeMessage {
 
 		int major = reader.read(VERSION_BITS);
 		int minor = reader.read(VERSION_BITS);
-		ProtocolVersion version = new ProtocolVersion(major, minor);
+		ProtocolVersion version = ProtocolVersion.valueOf(major, minor);
 
 		int cookieLength = reader.read(COOKIE_LENGTH_BITS);
 		byte[] cookie = reader.readBytes(cookieLength);
