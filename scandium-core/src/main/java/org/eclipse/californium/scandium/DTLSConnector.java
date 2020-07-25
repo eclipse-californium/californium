@@ -1856,9 +1856,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 				if (MessageDigest.isEqual(expectedCookie, providedCookie)) {
 					return true;
 				}
-				// check, if cookie of the past period matchs
+				// check, if cookie of the past period matches
 				byte[] pastCookie = cookieGenerator.generatePastCookie(clientHello);
-				if (MessageDigest.isEqual(pastCookie, providedCookie)) {
+				if (pastCookie != null && MessageDigest.isEqual(pastCookie, providedCookie)) {
 					return true;
 				}
 				if (LOGGER.isDebugEnabled()) {
