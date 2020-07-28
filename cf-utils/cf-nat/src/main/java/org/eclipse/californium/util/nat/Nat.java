@@ -22,6 +22,9 @@ import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Simple test NAT.
@@ -31,7 +34,6 @@ import java.net.URISyntaxException;
 public class Nat {
 
 	static {
-		// Define a default logback.configurationFile
 		String property = System.getProperty("logback.configurationFile");
 		if (property == null) {
 			System.setProperty("logback.configurationFile", "logback-nat-config.xml");
@@ -39,7 +41,29 @@ public class Nat {
 	}
 
 	public static void main(String[] args) {
-		if (args.length < 2 || args.length > 4) {
+		String start = args.length > 0 ? args[0] : null;
+		if (start != null) {
+			String[] args2 = Arrays.copyOfRange(args, 1, args.length);
+			if ("NAT".equals(start)) {
+				execNAT(args2);
+				return;
+			} else if ("LB".equals(start)) {
+				execLB(args2);
+				return;
+			}
+		}
+		System.out.println("\nCalifornium (Cf) NAT-Starter");
+		System.out.println("(c) 2020, Bosch.IO GmbH and others");
+		System.out.println();
+		System.out.println("Usage: " + Nat.class.getSimpleName() + " (NAT|LB) ...");
+		if (start != null) {
+			System.out.println("   '" + start + "' is not supported!");
+		}
+		System.exit(-1);
+	}
+
+	public static void execNAT(String[] args) {
+		if (args.length < 2 || args.length > 5) {
 			System.out.println(
 					"usage: [localinterface]:port destination:port [<messageDropping%>|-f<messageDropping%>|-b<messageDropping%>] [-s<sizeLimit>]");
 			System.out.println(
@@ -53,15 +77,16 @@ public class Nat {
 		NatUtil util = null;
 		try {
 			String line = null;
-			InetSocketAddress proxyAddress = create(args[0]);
-			InetSocketAddress destinationAddress = create(args[1]);
+			int argsIndex = 0;
+			InetSocketAddress proxyAddress = create(args[argsIndex], true);
+			InetSocketAddress destinationAddress = create(args[++argsIndex], false);
 
 			util = new NatUtil(proxyAddress, destinationAddress);
-			if (args.length > 2) {
+			if (args.length > ++argsIndex) {
 				try {
 					int limit = 0;
 					String mode = "";
-					String dropping = args[2];
+					String dropping = args[argsIndex];
 					if (dropping.startsWith("-f") || dropping.startsWith("-b") || dropping.startsWith("-s")) {
 						mode = dropping.substring(0, 2);
 						dropping = dropping.substring(2);
@@ -79,15 +104,15 @@ public class Nat {
 						util.setMessageDropping(drops);
 						System.out.println("dropping " + drops + "% of messages.");
 					}
-					if (args.length > 3) {
+					if (args.length > ++argsIndex) {
 						String mode2 = "";
-						dropping = args[3];
+						dropping = args[argsIndex];
 						if (dropping.startsWith("-f") || dropping.startsWith("-b") || dropping.startsWith("-s")) {
 							mode2 = dropping.substring(0, 2);
 							dropping = dropping.substring(2);
 						}
 						if (mode.equals(mode2)) {
-							System.out.println(args[3] + " ignored, would overwrite " + args[2]);
+							System.out.println(args[argsIndex] + " ignored, would overwrite " + args[argsIndex - 1]);
 						}
 						drops = Integer.parseInt(dropping);
 						if (mode2.equals("-f")) {
@@ -99,9 +124,9 @@ public class Nat {
 						} else if (mode2.equals("-s")) {
 							limit = drops;
 						}
-						if (args.length > 4) {
+						if (args.length > ++argsIndex) {
 							mode2 = "";
-							dropping = args[4];
+							dropping = args[argsIndex];
 							if (dropping.startsWith("-s")) {
 								mode2 = dropping.substring(0, 2);
 								dropping = dropping.substring(2);
@@ -136,8 +161,49 @@ public class Nat {
 		}
 	}
 
-	private static InetSocketAddress create(String address) throws URISyntaxException {
+	public static void execLB(String[] args) {
+		if (args.length < 3) {
+			System.out.println(
+					"usage: [localinterface]:port destination1:port1 destination2:port2 [destination3:port3 ...]");
+			return;
+		}
+		NatUtil util = null;
+		try {
+			String line = null;
+			int argsIndex = 0;
+			InetSocketAddress proxyAddress = Nat.create(args[argsIndex++], true);
+			List<InetSocketAddress> destinations = new ArrayList<>();
+			for (; argsIndex < args.length; ++argsIndex) {
+				InetSocketAddress destinationAddress = Nat.create(args[argsIndex], false);
+				destinations.add(destinationAddress);
+			}
+			util = new NatUtil(proxyAddress, destinations);
+			util.setNatTimeoutMillis(30 * 1000);
+
+			BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
+			while ((line = in.readLine()) != null) {
+				if (line.equals("exit")) {
+					util.stop();
+					break;
+				}
+				int entries = util.getNumberOfEntries();
+				int count = util.reassignDestinationAddresses();
+				System.out.println("reassigned " + count + " destinations of " + entries + ".");
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			if (null != util) {
+				util.stop();
+			}
+		}
+	}
+
+	public static InetSocketAddress create(String address, boolean any) throws URISyntaxException {
 		if (address.startsWith(":")) {
+			if (!any) {
+				throw new URISyntaxException(address, "<any>: not allowed!");
+			}
 			// port only => any local address
 			int port = Integer.parseInt(address.substring(1));
 			System.out.println(address + " => <any>:" + port);
