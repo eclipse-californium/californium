@@ -24,7 +24,9 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
 
+import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
 
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.util.SslContextUtil;
@@ -106,6 +108,34 @@ public class TlsConnectorTestUtil {
 
 		SSLContext context = SslContextUtil.createSSLContext(null, privateCredentials.getPrivateKey(),
 				publicCredentials.getCertificateChain(), trustedCertificates);
+
+		return new SSLTestContext(context, subjectDN);
+	}
+
+	/**
+	 * Initialize a SSL context trusting all.
+	 * 
+	 * @param alias    alias for credentials.
+	 * @return ssl test context.
+	 * @throws Exception if an error occurred
+	 * @since 2.4
+	 */
+	public static SSLTestContext initializeTrustAllContext(String alias)
+			throws Exception {
+		Credentials credentials = SslContextUtil.loadCredentials(
+				SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, alias, KEY_STORE_PASSWORD,
+				KEY_STORE_PASSWORD);
+
+		Principal subjectDN = getSubjectDN(credentials);
+		log("keys ", credentials);
+
+		KeyManager[] keyManager = SslContextUtil.createKeyManager(alias,
+				credentials.getPrivateKey(),
+				credentials.getCertificateChain());
+		TrustManager[] trustManager = SslContextUtil.createTrustAllManager();
+
+		SSLContext context = SSLContext.getInstance(SslContextUtil.DEFAULT_SSL_PROTOCOL);
+		context.init(keyManager, trustManager, null);
 
 		return new SSLTestContext(context, subjectDN);
 	}

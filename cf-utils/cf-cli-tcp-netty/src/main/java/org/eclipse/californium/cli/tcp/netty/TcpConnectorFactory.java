@@ -24,6 +24,11 @@ import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.tcp.netty.TcpClientConnector;
 
+/**
+ * TCP connector factory for CLI.
+ * 
+ * @since 2.4
+ */
 public class TcpConnectorFactory implements CliConnectorFactory {
 
 	@Override

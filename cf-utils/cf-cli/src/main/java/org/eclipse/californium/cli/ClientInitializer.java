@@ -297,8 +297,12 @@ public class ClientInitializer {
 			int localPort = clientConfig.localPort == null ? 0 : clientConfig.localPort;
 			Integer recordSizeLimit = clientConfig.recordSizeLimit;
 			Integer mtu = clientConfig.mtu;
+			if (clientConfig.cidLength != null) {
+				cidLength = clientConfig.cidLength;
+			}
 
 			DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
+			dtlsConfig.setClientOnly();
 			boolean psk = false;
 			List<KeyExchangeAlgorithm> keyExchangeAlgorithms = new ArrayList<KeyExchangeAlgorithm>();
 			List<CertificateType> certificateTypes = new ArrayList<CertificateType>();
@@ -317,7 +321,7 @@ public class ClientInitializer {
 					break;
 				case X509:
 					certificateTypes.add(CertificateType.X_509);
-					dtlsConfig.setTrustStore(clientConfig.trusts);
+					dtlsConfig.setTrustStore(clientConfig.trust.trusts);
 					keyExchangeAlgorithms.add(KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN);
 					break;
 				case ECDHE_PSK:
@@ -327,12 +331,14 @@ public class ClientInitializer {
 				}
 			}
 
-			if (certificateTypes.contains(CertificateType.X_509)) {
-				dtlsConfig.setIdentity(clientConfig.credentials.getPrivateKey(),
-						clientConfig.credentials.getCertificateChain(), certificateTypes);
-			} else if (certificateTypes.contains(CertificateType.RAW_PUBLIC_KEY)) {
-				dtlsConfig.setIdentity(clientConfig.credentials.getPrivateKey(),
-						clientConfig.credentials.getPubicKey());
+			if (clientConfig.authentication != null && clientConfig.authentication.credentials != null) {
+				if (certificateTypes.contains(CertificateType.X_509)) {
+					dtlsConfig.setIdentity(clientConfig.authentication.credentials.getPrivateKey(),
+							clientConfig.authentication.credentials.getCertificateChain(), certificateTypes);
+				} else if (certificateTypes.contains(CertificateType.RAW_PUBLIC_KEY)) {
+					dtlsConfig.setIdentity(clientConfig.authentication.credentials.getPrivateKey(),
+							clientConfig.authentication.credentials.getPubicKey());
+				}
 			}
 
 			if (psk) {
@@ -364,7 +370,6 @@ public class ClientInitializer {
 			}
 			dtlsConfig.setSocketReceiveBufferSize(recvBufferSize);
 			dtlsConfig.setSocketSendBufferSize(sendBufferSize);
-			dtlsConfig.setClientOnly();
 			dtlsConfig.setRetransmissionTimeout(retransmissionTimeout);
 			dtlsConfig.setMaxConnections(maxPeers);
 			dtlsConfig.setConnectionThreadCount(senderThreads);

@@ -20,6 +20,7 @@ import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.cert.Certificate;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.elements.util.SslContextUtil;
@@ -46,9 +47,17 @@ public class ClientBaseConfig extends ConnectorConfig {
 
 	public String defaultUri = DEFAULT_URI;
 	/**
+	 * Default identity for PSK.
 	 * 
+	 * @see #setDefaultPskCredentials(String)
+	 * @see #setDefaultPskCredentials(String, String)
 	 */
 	private String defaultIdentity;
+	/**
+	 * Default secret for PSK:
+	 * 
+	 * @see #setDefaultPskCredentials(String, String)
+	 */
 	private String defaultSecret;
 
 	/**
@@ -130,18 +139,28 @@ public class ClientBaseConfig extends ConnectorConfig {
 		}
 		if (secure) {
 			if (tcp) {
-				if (credentials == null) {
-					try {
-						credentials = SslContextUtil.loadCredentials(defaultEcCredentials);
-					} catch (GeneralSecurityException e) {
-						e.printStackTrace();
-					} catch (IOException e) {
-						e.printStackTrace();
+				if (trust == null) {
+					trust = new Trust();
+				}
+				if (trust.trusts == null) {
+					if (trust.trustall) {
+						trust.trusts = new Certificate[0];
+					} else {
+						try {
+							trust.trusts = SslContextUtil.loadTrustedCertificates(defaultEcTrusts);
+						} catch (GeneralSecurityException e) {
+							e.printStackTrace();
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
 					}
 				}
-				if (trusts == null) {
+				if (authentication == null) {
+					authentication = new Authentication();
+				}
+				if (!authentication.anonymous && authentication.credentials == null) {
 					try {
-						trusts = SslContextUtil.loadTrustedCertificates(defaultEcTrusts);
+						authentication.credentials = SslContextUtil.loadCredentials(defaultEcCredentials);
 					} catch (GeneralSecurityException e) {
 						e.printStackTrace();
 					} catch (IOException e) {
@@ -197,7 +216,10 @@ public class ClientBaseConfig extends ConnectorConfig {
 		ClientBaseConfig clone = null;
 		try {
 			clone = (ClientBaseConfig) clone();
-			clone.credentials = new SslContextUtil.Credentials(privateKey, publicKey, null);
+			if (clone.authentication == null) {
+				clone.authentication = new Authentication();
+			}
+			clone.authentication.credentials = new SslContextUtil.Credentials(privateKey, publicKey, null);
 		} catch (CloneNotSupportedException e) {
 			e.printStackTrace();
 		}

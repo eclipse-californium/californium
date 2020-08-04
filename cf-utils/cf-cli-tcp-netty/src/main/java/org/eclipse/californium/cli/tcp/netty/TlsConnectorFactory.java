@@ -18,8 +18,10 @@ package org.eclipse.californium.cli.tcp.netty;
 import java.security.GeneralSecurityException;
 import java.util.concurrent.ExecutorService;
 
+import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSessionContext;
+import javax.net.ssl.TrustManager;
 
 import org.eclipse.californium.cli.CliConnectorFactory;
 import org.eclipse.californium.cli.ClientBaseConfig;
@@ -29,7 +31,14 @@ import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.tcp.netty.TlsClientConnector;
 import org.eclipse.californium.elements.util.SslContextUtil;
 
+/**
+ * TLS connector factory for CLI.
+ * 
+ * @since 2.4
+ */
 public class TlsConnectorFactory implements CliConnectorFactory {
+
+	private static final String ALIAS = "client";
 
 	@Override
 	public Connector create(ClientBaseConfig clientConfig, ExecutorService executor) {
@@ -43,8 +52,22 @@ public class TlsConnectorFactory implements CliConnectorFactory {
 
 		SSLContext clientSslContext = null;
 		try {
-			clientSslContext = SslContextUtil.createSSLContext("client", clientConfig.credentials.getPrivateKey(),
-					clientConfig.credentials.getCertificateChain(), clientConfig.trusts);
+			KeyManager[] keyManager;
+			if (clientConfig.authentication.anonymous) {
+				keyManager = SslContextUtil.createAnonymousKeyManager();
+			} else {
+				keyManager = SslContextUtil.createKeyManager(ALIAS,
+						clientConfig.authentication.credentials.getPrivateKey(),
+						clientConfig.authentication.credentials.getCertificateChain());
+			}
+			TrustManager[] trustManager;
+			if (clientConfig.trust.trustall) {
+				trustManager = SslContextUtil.createTrustAllManager();
+			} else {
+				trustManager = SslContextUtil.createTrustManager(ALIAS, clientConfig.trust.trusts);
+			}
+			clientSslContext = SSLContext.getInstance(SslContextUtil.DEFAULT_SSL_PROTOCOL);
+			clientSslContext.init(keyManager, trustManager, null);
 			SSLSessionContext clientSessionContext = clientSslContext.getClientSessionContext();
 			if (clientSessionContext != null) {
 				clientSessionContext.setSessionTimeout(sessionTimeout);

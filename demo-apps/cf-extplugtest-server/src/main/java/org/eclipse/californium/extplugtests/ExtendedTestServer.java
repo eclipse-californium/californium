@@ -161,8 +161,15 @@ public class ExtendedTestServer extends AbstractTestServer {
 
 		// create server
 		try {
-			List<Protocol> protocols = config.onlyDtls ? Arrays.asList(Protocol.DTLS)
-					: Arrays.asList(Protocol.UDP, Protocol.DTLS, Protocol.TCP, Protocol.TLS);
+			List<Protocol> protocols;
+			
+			if (config.onlyDtls) {
+				protocols = Arrays.asList(Protocol.DTLS);
+			} else if (config.tcp) {
+				protocols = Arrays.asList(Protocol.UDP, Protocol.DTLS, Protocol.TCP, Protocol.TLS);
+			} else {
+				protocols = Arrays.asList(Protocol.UDP, Protocol.DTLS);
+			}
 			List<InterfaceType> types = new ArrayList<InterfaceType>();
 			if (config.external) {
 				types.add(InterfaceType.EXTERNAL);
@@ -198,7 +205,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 			server.add(new ReverseRequest(netConfig, executor));
 			ReverseObserve reverseObserver = new ReverseObserve(netConfig, executor);
 			server.add(reverseObserver);
-			server.addEndpoints(pattern, types, protocols);
+			server.addEndpoints(pattern, types, protocols, config);
 			for (Endpoint ep : server.getEndpoints()) {
 				ep.addNotificationListener(reverseObserver);
 			}
