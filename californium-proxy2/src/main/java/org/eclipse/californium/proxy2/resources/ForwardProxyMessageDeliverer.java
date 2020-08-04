@@ -54,7 +54,7 @@ import org.slf4j.LoggerFactory;
  * determined by calling {@link CoapUriTranslator#getDestinationScheme(Request)}
  * of the provided translator. If a {@link ProxyCoapResource} was added, which
  * handles this destination scheme, the request delivered to that resource. For
- * none-compliant proxies, the translater implementation may return {@code null}
+ * none-compliant proxies, the translator implementation may return {@code null}
  * for special request to bypass the forward-proxy processing.
  * 
  * Requests not processed by the forward-proxy are processed as standard request
@@ -69,7 +69,7 @@ public class ForwardProxyMessageDeliverer extends ServerMessageDeliverer {
 	 * 
 	 * @see CoapUriTranslator#getDestinationScheme(Request)
 	 */
-	private final CoapUriTranslator translater;
+	private final CoapUriTranslator translator;
 	/**
 	 * Map schemes to proxy resources.
 	 */
@@ -93,20 +93,37 @@ public class ForwardProxyMessageDeliverer extends ServerMessageDeliverer {
 	/**
 	 * Create message deliverer with forward-proxy support.
 	 * 
-	 * @param root root resource of coap-proxy-server
-	 * @param translater translator for destination-scheme.
+	 * @param root root resource of coap-proxy-server. Used for mixed proxies or
+	 *            coap servers, if requests are intended to be also delivered
+	 *            according their uri-path. May be {@code null}, if only used
+	 *            for a forward proxy and requests are no intended to be
+	 *            delivered using their uri path.
+	 * @param translator translator for destination-scheme.
 	 *            {@link CoapUriTranslator#getDestinationScheme(Request)} is
 	 *            used to determine this destination scheme for forward-proxy
-	 *            implementations. The translater may return {@code null} to
+	 *            implementations. The translator may return {@code null} to
 	 *            bypass the forward-proxy processing for a request.
 	 */
-	public ForwardProxyMessageDeliverer(Resource root, CoapUriTranslator translater) {
+	public ForwardProxyMessageDeliverer(Resource root, CoapUriTranslator translator) {
 		super(root);
-		this.translater = translater;
+		this.translator = translator;
 		this.scheme2resource = new HashMap<String, Resource>();
 		this.exposedServices = new HashSet<>();
 		this.exposedPorts = new HashSet<>();
 		this.exposedHosts = new HashSet<>();
+	}
+
+	/**
+	 * Create message deliverer with forward-proxy support.
+	 * 
+	 * @param proxyCoapResource proxy-coap-resource. Use the resources
+	 *            {@link ProxyCoapResource#getUriTranslater()} to determine the
+	 *            destination scheme.
+	 * @since 2.4
+	 */
+	public ForwardProxyMessageDeliverer(ProxyCoapResource proxyCoapResource) {
+		this(null, proxyCoapResource.getUriTranslater());
+		addProxyCoapResources(proxyCoapResource);
 	}
 
 	/**
@@ -231,7 +248,7 @@ public class ForwardProxyMessageDeliverer extends ServerMessageDeliverer {
 
 		if (proxyOption || hostOption) {
 			try {
-				String scheme = translater.getDestinationScheme(request);
+				String scheme = translator.getDestinationScheme(request);
 				if (scheme != null) {
 					scheme = scheme.toLowerCase();
 					resource = scheme2resource.get(scheme);

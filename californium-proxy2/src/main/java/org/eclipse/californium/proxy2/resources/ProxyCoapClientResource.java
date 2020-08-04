@@ -30,6 +30,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.proxy2.ClientEndpoints;
 import org.eclipse.californium.proxy2.Coap2CoapTranslator;
+import org.eclipse.californium.proxy2.CoapUriTranslator;
 import org.eclipse.californium.proxy2.TranslationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,12 +53,12 @@ public class ProxyCoapClientResource extends ProxyCoapResource {
 	private Coap2CoapTranslator translator;
 
 	/**
-	 * Create proxy resource.
+	 * Create proxy resource for outgoing coap-requests.
 	 * 
 	 * @param name name of the resource
 	 * @param visible visibility of the resource
 	 * @param accept accept CON request before forwarding the request
-	 * @param translator translater for coap2coap messages. {@code null} to sue
+	 * @param translator translator for coap2coap messages. {@code null} to use
 	 *            default implementation {@link Coap2CoapTranslator}.
 	 * @param endpointsList list of client endpoints for outgoing requests
 	 */
@@ -66,7 +67,7 @@ public class ProxyCoapClientResource extends ProxyCoapResource {
 		// set the resource hidden
 		super(name, visible, accept);
 		getAttributes().setTitle("Forward the requests to a CoAP server.");
-		this.translator = translator;
+		this.translator = translator != null ? translator : new Coap2CoapTranslator();
 		for (ClientEndpoints endpoints : endpointsList) {
 			this.mapSchemeToEndpoints.put(endpoints.getScheme(), endpoints);
 		}
@@ -117,6 +118,11 @@ public class ProxyCoapClientResource extends ProxyCoapResource {
 			LOGGER.warn("Failed to execute request: {}", e.getMessage(), e);
 			exchange.sendResponse(new Response(ResponseCode.INTERNAL_SERVER_ERROR));
 		}
+	}
+
+	@Override
+	public CoapUriTranslator getUriTranslater() {
+		return translator;
 	}
 
 	@Override
