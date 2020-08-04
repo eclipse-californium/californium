@@ -36,6 +36,7 @@ import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.proxy2.Coap2CoapTranslator;
 import org.eclipse.californium.proxy2.Coap2HttpTranslator;
+import org.eclipse.californium.proxy2.CoapUriTranslator;
 import org.eclipse.californium.proxy2.HttpClientFactory;
 import org.eclipse.californium.proxy2.InvalidFieldException;
 import org.eclipse.californium.proxy2.TranslationException;
@@ -60,12 +61,23 @@ public class ProxyHttpClientResource extends ProxyCoapResource {
 	 */
 	private static final CloseableHttpAsyncClient asyncClient = HttpClientFactory.createClient();
 
+	/**
+	 * Create proxy resource for outgoing http-requests.
+	 * 
+	 * @param name name of the resource
+	 * @param visible visibility of the resource
+	 * @param accept accept CON request before forwarding the request
+	 * @param translator translator for coap2coap messages. {@code null} to use
+	 *            default implementation {@link Coap2HttpTranslator}.
+	 * @param schemes supported schemes. "http" or "https". If empty, "http" is
+	 *            used.
+	 */
 	public ProxyHttpClientResource(String name, boolean visible, boolean accept, Coap2HttpTranslator translator,
 			String... schemes) {
 		// set the resource hidden
 		super(name, visible, accept);
 		getAttributes().setTitle("Forward the requests to a HTTP client.");
-		this.translator = translator;
+		this.translator = translator != null ? translator : new Coap2HttpTranslator();
 		if (schemes == null || schemes.length == 0) {
 			this.schemes.add("http");
 		} else {
@@ -178,6 +190,11 @@ public class ProxyHttpClientResource extends ProxyCoapResource {
 			}
 		});
 
+	}
+
+	@Override
+	public CoapUriTranslator getUriTranslater() {
+		return translator;
 	}
 
 	@Override

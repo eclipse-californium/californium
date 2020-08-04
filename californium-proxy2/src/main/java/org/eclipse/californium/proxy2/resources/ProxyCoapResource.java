@@ -158,9 +158,18 @@ public abstract class ProxyCoapResource extends CoapResource {
 	}
 
 	/**
+	 * Get URI translator for forward-proxy.
+	 * 
+	 * @return URI translator. May be {@code null} for reverse-proxy.
+	 * @see ForwardProxyMessageDeliverer
+	 * @since 2.4
+	 */
+	public abstract CoapUriTranslator getUriTranslater();
+
+	/**
 	 * Set of supported destination schemes for forward-proxy.
 	 * 
-	 * @return set of supported destination schemes for forward-proxy.
+	 * @return set of supported destination schemes for forward-proxy. May be
 	 *         {@code null} for reverse-proxy.
 	 * @see ForwardProxyMessageDeliverer
 	 */

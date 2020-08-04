@@ -73,11 +73,17 @@ import org.slf4j.LoggerFactory;
  * browser: ("localhost" requests are not send to a proxy, so use the hostname
  * or none-local-ip-address) URI: http://<hostname>:5683/target/coap:
  * 
- * CoAP2CoAP: Insert in Copper: URI: coap://localhost:PORT/coap2coap Proxy:
- * coap://localhost:PORT/targetA
+ * CoAP2CoAP: Insert in Copper: 
+ * <pre>
+ * URI: coap://localhost:PORT/coap2coap 
+ * Proxy: coap://localhost:PORT/targetA
+ * </pre>
  *
- * CoAP2Http: Insert in Copper: URI: coap://localhost:PORT/coap2http Proxy:
- * http://lantersoft.ch/robots.txt
+ * CoAP2Http: Insert in Copper:
+ * <pre>
+ * URI: coap://localhost:PORT/coap2http 
+ * Proxy: http://lantersoft.ch/robots.txt
+ * </pre>
  */
 public class CrossExampleProxy2 {
 

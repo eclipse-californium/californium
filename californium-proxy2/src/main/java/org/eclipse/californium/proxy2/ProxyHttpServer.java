@@ -71,6 +71,10 @@ public class ProxyHttpServer {
 	/**
 	 * Start http server.
 	 * 
+	 * If no {@link Http2CoapTranslator} is provided with
+	 * {@link #setHttpTranslator(Http2CoapTranslator)},
+	 * {@link Http2CoapTranslator} is used as default implementation.
+	 * 
 	 * @throws IOException in case if a non-recoverable I/O error.
 	 */
 	public void start() throws IOException {
