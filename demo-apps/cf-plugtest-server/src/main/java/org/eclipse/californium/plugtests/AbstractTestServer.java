@@ -28,8 +28,10 @@ import java.util.List;
 import java.util.Map;
 
 import javax.crypto.SecretKey;
+import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLSessionContext;
+import javax.net.ssl.TrustManager;
 
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.network.CoapEndpoint;
@@ -39,9 +41,9 @@ import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.elements.PrincipalEndpointContextMatcher;
 import org.eclipse.californium.elements.tcp.netty.TcpServerConnector;
 import org.eclipse.californium.elements.tcp.netty.TlsServerConnector;
-import org.eclipse.californium.elements.tcp.netty.TlsServerConnector.ClientAuthMode;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.elements.util.SslContextUtil;
+import org.eclipse.californium.plugtests.PlugtestServer.BaseConfig;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.MdcConnectionListener;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -182,8 +184,10 @@ public abstract class AbstractTestServer extends CoapServer {
 	 *            {@code null} or empty, if endpoints should not be filtered by
 	 *            type.
 	 * @param protocols list of protocols to create endpoints for.
+	 * @param cliConfig client cli-config.
 	 */
-	public void addEndpoints(String selectAddress, List<InterfaceType> interfaceTypes, List<Protocol> protocols) {
+	public void addEndpoints(String selectAddress, List<InterfaceType> interfaceTypes, List<Protocol> protocols,
+			BaseConfig cliConfig) {
 		int coapPort = config.getInt(Keys.COAP_PORT);
 		int coapsPort = config.getInt(Keys.COAP_SECURE_PORT);
 
@@ -197,8 +201,20 @@ public abstract class AbstractTestServer extends CoapServer {
 						SERVER_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 				trustedCertificates = SslContextUtil.loadTrustedCertificates(
 						SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, null, TRUST_STORE_PASSWORD);
-				serverSslContext = SslContextUtil.createSSLContext(SERVER_NAME, serverCredentials.getPrivateKey(),
-						serverCredentials.getCertificateChain(), trustedCertificates);
+
+				KeyManager[] keyManager = SslContextUtil.createKeyManager(SERVER_NAME,
+							serverCredentials.getPrivateKey(),
+							serverCredentials.getCertificateChain());
+
+				TrustManager[] trustManager;
+				if (cliConfig.trustall) {
+					trustManager = SslContextUtil.createTrustAllManager();
+				} else {
+					trustManager = SslContextUtil.createTrustManager(SERVER_NAME, trustedCertificates);
+				}
+				serverSslContext = SSLContext.getInstance(SslContextUtil.DEFAULT_SSL_PROTOCOL);
+				serverSslContext.init(keyManager, trustManager, null);
+
 			} catch (GeneralSecurityException e) {
 				e.printStackTrace();
 			} catch (IOException e) {
@@ -298,7 +314,11 @@ public abstract class AbstractTestServer extends CoapServer {
 							CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256);
 					dtlsConfigBuilder.setIdentity(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain(),
 							CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509);
-					dtlsConfigBuilder.setTrustStore(trustedCertificates);
+					if (cliConfig.trustall) {
+						dtlsConfigBuilder.setTrustStore(new Certificate[0]);
+					} else {
+						dtlsConfigBuilder.setTrustStore(trustedCertificates);
+					}
 					dtlsConfigBuilder.setRpkTrustAll();
 					dtlsConfigBuilder.setMaxConnections(maxPeers);
 					dtlsConfigBuilder.setStaleConnectionThreshold(staleTimeout);
@@ -308,6 +328,17 @@ public abstract class AbstractTestServer extends CoapServer {
 					dtlsConfigBuilder.setSocketReceiveBufferSize(recvBufferSize); 
 					dtlsConfigBuilder.setSocketSendBufferSize(sendBufferSize); 
 					dtlsConfigBuilder.setRetransmissionTimeout(retransmissionTimeout);
+					switch(cliConfig.clientAuth) {
+					case NONE:
+						dtlsConfigBuilder.setClientAuthenticationRequired(false);
+						break;
+					case WANTED:
+						dtlsConfigBuilder.setClientAuthenticationWanted(true);
+						break;
+					case NEEDED:
+						dtlsConfigBuilder.setClientAuthenticationRequired(true);
+						break;
+					}
 					dtlsConfigBuilder.setConnectionListener(new MdcConnectionListener());
 					DTLSConnector connector = new DTLSConnector(dtlsConfigBuilder.build());
 					CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
@@ -332,7 +363,7 @@ public abstract class AbstractTestServer extends CoapServer {
 						serverSessionContext.setSessionTimeout(sessionTimeout);
 						serverSessionContext.setSessionCacheSize(maxPeers);
 					}
-					TlsServerConnector connector = new TlsServerConnector(serverSslContext, ClientAuthMode.WANTED,
+					TlsServerConnector connector = new TlsServerConnector(serverSslContext, cliConfig.clientAuth,
 							bindToAddress, tcpThreads, tlsHandshakeTimeout, tcpIdleTimeout);
 					CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 					builder.setConnector(connector);

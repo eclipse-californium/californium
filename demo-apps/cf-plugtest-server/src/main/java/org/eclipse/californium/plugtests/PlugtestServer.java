@@ -40,6 +40,7 @@ import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.core.network.interceptors.AnonymizedOriginTracer;
 import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
+import org.eclipse.californium.elements.tcp.netty.TlsServerConnector.ClientAuthMode;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.plugtests.resources.Create;
@@ -120,8 +121,17 @@ public class PlugtestServer extends AbstractTestServer {
 		@Option(names = "--no-ipv6", negatable = true, description = "enable endpoints for ipv6.")
 		public boolean ipv6 = true;
 
+		@Option(names = "--no-tcp", negatable = true, description = "enable endpoints for tcp.")
+		public boolean tcp = true;
+
 		@Option(names = "--dtls-only", description = "only dtls endpoints.")
 		public boolean onlyDtls;
+
+		@Option(names = "--trust-all", description = "trust all valid certificates.")
+		public boolean trustall;
+
+		@Option(names = "--client-auth", description = "client authentication.")
+		public ClientAuthMode clientAuth = ClientAuthMode.NEEDED;
 
 		@Option(names = "--interfaces", split = ",", description = "interfaces for endpoints.")
 		public List<String> interfaceNames;
@@ -167,8 +177,16 @@ public class PlugtestServer extends AbstractTestServer {
 
 		// create server
 		try {
-			List<Protocol> protocols = config.onlyDtls ? Arrays.asList(Protocol.DTLS)
-					: Arrays.asList(Protocol.UDP, Protocol.DTLS, Protocol.TCP, Protocol.TLS);
+			List<Protocol> protocols;
+			
+			if (config.onlyDtls) {
+				protocols = Arrays.asList(Protocol.DTLS);
+			} else if (config.tcp) {
+				protocols = Arrays.asList(Protocol.UDP, Protocol.DTLS, Protocol.TCP, Protocol.TLS);
+			} else {
+				protocols = Arrays.asList(Protocol.UDP, Protocol.DTLS);
+			}
+
 			List<InterfaceType> types = new ArrayList<InterfaceType>();
 			if (config.external) {
 				types.add(InterfaceType.EXTERNAL);
@@ -200,7 +218,7 @@ public class PlugtestServer extends AbstractTestServer {
 //			server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("127.0.0.1", port)));
 //			server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("2a01:c911:0:2010::10", port)));
 //			server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("10.200.1.2", port)));
-			server.addEndpoints(pattern, types, protocols);
+			server.addEndpoints(pattern, types, protocols, config);
 			server.start();
 
 			ScheduledThreadPoolExecutor executor = ExecutorsUtil.newDefaultSecondaryScheduler("Health#");

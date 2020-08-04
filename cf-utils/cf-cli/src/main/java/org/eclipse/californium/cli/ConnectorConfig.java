@@ -127,18 +127,54 @@ public class ConnectorConfig implements Cloneable {
 	public Integer mtu;
 
 	/**
-	 * X509 credentials loaded from store.
+	 * Use CID .
 	 */
-	@Option(names = { "-c",
-			"--cert" }, description = "certificate store. Format keystore#hexstorepwd#hexkeypwd#alias or keystore.pem")
-	public SslContextUtil.Credentials credentials;
+	@Option(names = "--cid-length", description = "Use cid with length. 0 to support cid only without using it.")
+	public Integer cidLength;
 
 	/**
-	 * X509 trusts loaded from store.
+	 * Authentication.
 	 */
-	@Option(names = { "-t",
-			"--trusts" }, description = "trusted certificates. Format keystore#hexstorepwd#alias or truststore.pem")
-	public Certificate[] trusts;
+	@ArgGroup(exclusive = true)
+	public Authentication authentication;
+
+	public static class Authentication {
+
+		/**
+		 * X509 credentials loaded from store.
+		 */
+		@Option(names = { "-c",
+				"--cert" }, description = "certificate store. Format keystore#hexstorepwd#hexkeypwd#alias or keystore.pem")
+		public SslContextUtil.Credentials credentials;
+
+		/**
+		 * X509 trusts all.
+		 */
+		@Option(names = "--anonymous", description = "anonymous, no certificate.")
+		public boolean anonymous;
+
+	}
+
+	/**
+	 * Trusts.
+	 */
+	@ArgGroup(exclusive = true)
+	public Trust trust;
+
+	public static class Trust {
+		/**
+		 * X509 trusts loaded from store.
+		 */
+		@Option(names = { "-t",
+				"--trusts" }, description = "trusted certificates. Format keystore#hexstorepwd#alias or truststore.pem")
+		public Certificate[] trusts;
+
+		/**
+		 * X509 trusts all.
+		 */
+		@Option(names = "--trust-all", description = "trust all valid certificates.")
+		public boolean trustall;
+	}
 
 	/**
 	 * PSK store file. Lines in format:
@@ -255,24 +291,34 @@ public class ConnectorConfig implements Cloneable {
 			if (identity != null || secretKey != null || pskStore != null) {
 				authenticationModes.add(AuthenticationMode.PSK);
 			}
-			if (credentials != null) {
+			if (authentication != null) {
 				authenticationModes.add(AuthenticationMode.X509);
 			}
 		} else {
 			if (authenticationModes.contains(AuthenticationMode.X509)
 					|| authenticationModes.contains(AuthenticationMode.RPK)) {
-				if (credentials == null) {
-					try {
-						credentials = SslContextUtil.loadCredentials(defaultEcCredentials);
-					} catch (GeneralSecurityException e) {
-						e.printStackTrace();
-					} catch (IOException e) {
-						e.printStackTrace();
+				if (trust == null) {
+					trust = new Trust();
+				}
+				if (trust.trusts == null) {
+					if (trust.trustall) {
+						trust.trusts = new Certificate[0];
+					} else {
+						try {
+							trust.trusts = SslContextUtil.loadTrustedCertificates(defaultEcTrusts);
+						} catch (GeneralSecurityException e) {
+							e.printStackTrace();
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
 					}
 				}
-				if (trusts == null) {
+				if (authentication == null) {
+					authentication = new Authentication();
+				}
+				if (!authentication.anonymous && authentication.credentials == null) {
 					try {
-						trusts = SslContextUtil.loadTrustedCertificates(defaultEcTrusts);
+						authentication.credentials = SslContextUtil.loadCredentials(defaultEcCredentials);
 					} catch (GeneralSecurityException e) {
 						e.printStackTrace();
 					} catch (IOException e) {

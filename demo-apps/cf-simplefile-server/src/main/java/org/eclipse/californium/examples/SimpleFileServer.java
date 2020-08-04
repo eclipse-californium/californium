@@ -29,6 +29,11 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.ParameterException;
+import picocli.CommandLine.ParseResult;
+
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
@@ -40,7 +45,9 @@ import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.plugtests.AbstractTestServer;
+import org.eclipse.californium.plugtests.PlugtestServer.BaseConfig;
 
 public class SimpleFileServer extends AbstractTestServer {
 
@@ -63,12 +70,40 @@ public class SimpleFileServer extends AbstractTestServer {
 
 	private static final String DEFAULT_PATH = "data";
 
+	@Command(name = "SimpleFileServer", version = "(c) 2017, Bosch Software Innovations GmbH and others.")
+	public static class Config extends BaseConfig {
+
+	}
+
+	private static final Config config = new Config();
+
 	/*
 	 * Application entry point.
 	 */
 	public static void main(String[] args) {
-		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
-		NetworkConfig udpConfig = new NetworkConfig(config);
+		CommandLine cmd = new CommandLine(config);
+		try {
+			ParseResult result = cmd.parseArgs(args);
+			if (result.isVersionHelpRequested()) {
+				String version = StringUtil.CALIFORNIUM_VERSION == null ? "" : StringUtil.CALIFORNIUM_VERSION;
+				System.out.println("\nCalifornium (Cf) " + cmd.getCommandName() + " " + version);
+				cmd.printVersionHelp(System.out);
+				System.out.println();
+			}
+			if (result.isUsageHelpRequested()) {
+				cmd.usage(System.out);
+				return;
+			}
+		} catch (ParameterException ex) {
+			System.err.println(ex.getMessage());
+			System.err.println();
+			cmd.usage(System.err);
+			System.exit(-1);
+		}
+		
+		
+		NetworkConfig netConfig = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
+		NetworkConfig udpConfig = new NetworkConfig(netConfig);
 		udpConfig.setInt(Keys.MAX_MESSAGE_SIZE, 64);
 		udpConfig.setInt(Keys.PREFERRED_BLOCK_SIZE, 64);
 		Map<Select, NetworkConfig> protocolConfig = new HashMap<>();
@@ -107,9 +142,9 @@ public class SimpleFileServer extends AbstractTestServer {
 				}
 			}
 			// create server
-			SimpleFileServer server = new SimpleFileServer(config, protocolConfig, coapRootPath, filesRoot);
+			SimpleFileServer server = new SimpleFileServer(netConfig, protocolConfig, coapRootPath, filesRoot);
 			// add endpoints on all IP addresses
-			server.addEndpoints(null, null, Arrays.asList(Protocol.UDP, Protocol.DTLS, Protocol.TCP, Protocol.TLS));
+			server.addEndpoints(null, null, Arrays.asList(Protocol.UDP, Protocol.DTLS, Protocol.TCP, Protocol.TLS), config);
 			server.start();
 
 		} catch (SocketException e) {

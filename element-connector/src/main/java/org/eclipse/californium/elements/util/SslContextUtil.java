@@ -28,9 +28,11 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.Socket;
 import java.net.URL;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
+import java.security.Principal;
 import java.security.KeyStore.Entry;
 import java.security.KeyStore.PrivateKeyEntry;
 import java.security.PrivateKey;
@@ -38,9 +40,11 @@ import java.security.PublicKey;
 import java.security.Security;
 import java.security.cert.CertPath;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
@@ -51,8 +55,11 @@ import java.util.regex.Pattern;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.X509ExtendedKeyManager;
+import javax.net.ssl.X509ExtendedTrustManager;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,6 +111,7 @@ import org.slf4j.LoggerFactory;
  * @see #configure(String, InputStreamFactory)
  */
 public class SslContextUtil {
+
 	public static final Logger LOGGER = LoggerFactory.getLogger(SslContextUtil.class);
 
 	/**
@@ -131,6 +139,7 @@ public class SslContextUtil {
 	public static final String PKCS12_ENDING = ".p12";
 	/**
 	 * Ending for key stores with pseudo type {@link #PEM_TYPE}.
+	 * 
 	 * @see #KEY_STORE_TYPES
 	 */
 	public static final String PEM_ENDING = ".pem";
@@ -152,11 +161,12 @@ public class SslContextUtil {
 	public static final String PKCS12_TYPE = "PKCS12";
 	/**
 	 * Pseudo key store type PEM.
+	 * 
 	 * @see #KEY_STORE_TYPES
 	 */
 	public static final String PEM_TYPE = "PEM";
 	/**
-	 * Default protocol used for 
+	 * Default protocol used for
 	 * {@link #createSSLContext(String, PrivateKey, X509Certificate[], Certificate[])}.
 	 */
 	public static final String DEFAULT_SSL_PROTOCOL = "TLSv1.2";
@@ -183,6 +193,21 @@ public class SslContextUtil {
 	 * @see #getInputStreamFactoryFromUri(String)
 	 */
 	private static final Map<String, InputStreamFactory> INPUT_STREAM_FACTORIES = new ConcurrentHashMap<>();
+
+	/**
+	 * Anonymous key manager.
+	 * 
+	 * @since 2.4
+	 */
+	private static final KeyManager ANONYMOUS = new AnonymousX509ExtendedKeyManager();
+
+	/**
+	 * TrustManager to trust all.
+	 * 
+	 * @since 2.4
+	 */
+	@NotForAndroid
+	private static final TrustManager TRUST_ALL = new X509ExtendedTrustAllManager();
 
 	static {
 		configureDefaults();
@@ -267,7 +292,8 @@ public class SslContextUtil {
 	 * @throws IOException if key store could not be loaded.
 	 * @throws GeneralSecurityException if security setup failed.
 	 * @throws IllegalArgumentException if no matching trusts are found
-	 * @throws NullPointerException if keyStoreUri or storePassword is {@code null}.
+	 * @throws NullPointerException if keyStoreUri or storePassword is
+	 *             {@code null}.
 	 */
 	public static TrustManager[] loadTrustManager(String keyStoreUri, String aliasPattern, char[] storePassword)
 			throws IOException, GeneralSecurityException {
@@ -337,7 +363,8 @@ public class SslContextUtil {
 	 * @throws IOException if key store could not be loaded.
 	 * @throws GeneralSecurityException if security setup failed.
 	 * @throws IllegalArgumentException if no matching certificates are found
-	 * @throws NullPointerException if keyStoreUri or storePassword is {@code null}.
+	 * @throws NullPointerException if keyStoreUri or storePassword is
+	 *             {@code null}.
 	 */
 	public static Certificate[] loadTrustedCertificates(String keyStoreUri, String aliasPattern, char[] storePassword)
 			throws IOException, GeneralSecurityException {
@@ -345,8 +372,7 @@ public class SslContextUtil {
 		if (configuration.simpleStore != null) {
 			Credentials credentials = loadSimpleKeyStore(keyStoreUri, configuration);
 			if (credentials.trusts == null) {
-				throw new IllegalArgumentException(
-						"no trusted x509 certificates found in '" + keyStoreUri + "'!");
+				throw new IllegalArgumentException("no trusted x509 certificates found in '" + keyStoreUri + "'!");
 			}
 			return credentials.trusts;
 		}
@@ -403,7 +429,8 @@ public class SslContextUtil {
 				throw new IllegalArgumentException("credentials missing! No private key found!");
 			}
 			if (credentials.chain == null && credentials.publicKey == null) {
-				throw new IllegalArgumentException("credentials missing! Neither certificate chain nor public key found!");
+				throw new IllegalArgumentException(
+						"credentials missing! Neither certificate chain nor public key found!");
 			}
 			return credentials;
 		}
@@ -672,7 +699,7 @@ public class SslContextUtil {
 	 *            used.
 	 * @return configured key store type for ending or default, if ending is not
 	 *         configured.
-	 * @throws GeneralSecurityException 
+	 * @throws GeneralSecurityException if configuration is not available
 	 * @see #configure(String, String)
 	 */
 	private static KeyStoreConfiguration getKeyStoreConfigurationFromUri(String uri) throws GeneralSecurityException {
@@ -921,8 +948,8 @@ public class SslContextUtil {
 	 * @param trusts trusted certificates.
 	 * @return created SSLContext.
 	 * @throws GeneralSecurityException if security setup failed.
-	 * @throws NullPointerException if private key, or the chain, or the trusts is
-	 *             {@code null}.
+	 * @throws NullPointerException if private key, or the chain, or the trusts
+	 *             is {@code null}.
 	 * @throws IllegalArgumentException if the chain or trusts is empty.
 	 */
 	public static SSLContext createSSLContext(String alias, PrivateKey privateKey, X509Certificate[] chain,
@@ -942,11 +969,12 @@ public class SslContextUtil {
 	 * @param privateKey private key
 	 * @param chain certificate trust chain related to private key.
 	 * @param trusts trusted certificates.
-	 * @param protocol specific protocol for SSLContext. See {@link SSLContext#getInstance(String)}.
+	 * @param protocol specific protocol for SSLContext. See
+	 *            {@link SSLContext#getInstance(String)}.
 	 * @return created SSLContext.
 	 * @throws GeneralSecurityException if security setup failed.
-	 * @throws NullPointerException if private key, or the chain, or the trusts is
-	 *             {@code null}.
+	 * @throws NullPointerException if private key, or the chain, or the trusts
+	 *             is {@code null}.
 	 * @throws IllegalArgumentException if the chain or trusts is empty.
 	 */
 	public static SSLContext createSSLContext(String alias, PrivateKey privateKey, X509Certificate[] chain,
@@ -970,8 +998,7 @@ public class SslContextUtil {
 	 * @param chain certificate chain.
 	 * @return key manager.
 	 * @throws GeneralSecurityException if security setup failed.
-	 * @throws NullPointerException if private key or the chain is
-	 *             {@code null}.
+	 * @throws NullPointerException if private key or the chain is {@code null}.
 	 * @throws IllegalArgumentException if the chain is empty.
 	 */
 	public static KeyManager[] createKeyManager(String alias, PrivateKey privateKey, X509Certificate[] chain)
@@ -1036,6 +1063,27 @@ public class SslContextUtil {
 		} catch (IOException e) {
 			throw new GeneralSecurityException(e.getMessage());
 		}
+	}
+
+	/**
+	 * Create anonymous key manager.
+	 * 
+	 * @return anonymous key manager
+	 * @since 2.4
+	 */
+	public static KeyManager[] createAnonymousKeyManager() {
+		return new KeyManager[] { ANONYMOUS };
+	}
+
+	/**
+	 * Create trust manager trusting all.
+	 * 
+	 * @return trust manager trusting all
+	 * @since 2.4
+	 */
+	@NotForAndroid
+	public static TrustManager[] createTrustAllManager() {
+		return new TrustManager[] { TRUST_ALL };
 	}
 
 	/**
@@ -1223,4 +1271,145 @@ public class SslContextUtil {
 			this.simpleStore = simpleStore;
 		}
 	}
+
+	/**
+	 * Anonymous key manager.
+	 * 
+	 * Never returns aliases nor credentials.
+	 * 
+	 * @since 2.4
+	 */
+	private static class AnonymousX509ExtendedKeyManager extends X509ExtendedKeyManager {
+
+		@Override
+		public String chooseEngineClientAlias(String[] keyType, Principal[] issuers, SSLEngine engine) {
+			return null;
 		}
+
+		@Override
+		public String chooseEngineServerAlias(String keyType, Principal[] issuers, SSLEngine engine) {
+			return null;
+		}
+
+		@Override
+		public String chooseClientAlias(String[] keyType, Principal[] issuers, Socket socket) {
+			return null;
+		}
+
+		@Override
+		public String chooseServerAlias(String keyType, Principal[] issuers, Socket socket) {
+			return null;
+		}
+
+		@Override
+		public X509Certificate[] getCertificateChain(String alias) {
+			return null;
+		}
+
+		@Override
+		public String[] getClientAliases(String keyType, Principal[] issuers) {
+			return null;
+		}
+
+		@Override
+		public PrivateKey getPrivateKey(String alias) {
+			return null;
+		}
+
+		@Override
+		public String[] getServerAliases(String keyType, Principal[] issuers) {
+			return null;
+		}
+	}
+
+	/**
+	 * Trust all manager.
+	 * 
+	 * Validate certificate chain trusting all chain roots.
+	 * {@link X509ExtendedTrustAllManager#getAcceptedIssuers()} returns an empty
+	 * array.
+	 * 
+	 * @since 2.4
+	 */
+	@NotForAndroid
+	private static class X509ExtendedTrustAllManager extends X509ExtendedTrustManager {
+
+		private static final X509Certificate[] NO_ISSUERS = new X509Certificate[0];
+
+		/**
+		 * Validate certificate chain trusting all chain roots.
+		 * 
+		 * @param chain chain to be validate
+		 * @param client {@code true} for client's chain, {@code false}, for
+		 *            server's chain.
+		 * @throws CertificateException if the validation fails.
+		 */
+		private void validateChain(X509Certificate[] chain, boolean client) throws CertificateException {
+			if (chain != null && chain.length > 0) {
+				LOGGER.debug("check certificate {} for {}", chain[0].getSubjectDN(), client ? "client" : "server");
+				if (!CertPathUtil.canBeUsedForAuthentication(chain[0], client)) {
+					LOGGER.debug("check certificate {} for {} failed on key-usage!", chain[0].getSubjectDN(),
+							client ? "client" : "server");
+					throw new CertificateException("Key usage not proper for " + (client ? "client" : "server"));
+				} else {
+					LOGGER.trace("check certificate {} for {} succeeded on key-usage!", chain[0].getSubjectDN(),
+							client ? "client" : "server");
+				}
+				CertPath path = CertPathUtil.generateValidatableCertPath(Arrays.asList(chain), null);
+				try {
+					CertPathUtil.validateCertificatePath(false, path, NO_ISSUERS);
+					LOGGER.trace("check certificate {}[{}] for {} validated!", chain[0].getSubjectDN(),
+							chain.length,
+							client ? "client" : "server");
+				} catch (GeneralSecurityException e) {
+					LOGGER.debug("check certificate {} for {} failed on {}!", chain[0].getSubjectDN(),
+							client ? "client" : "server", e.getMessage());
+					if (e instanceof CertificateException) {
+						throw (CertificateException) e;
+					} else {
+						throw new CertificateException(e);
+					}
+				}
+			}
+		}
+
+		@Override
+		public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+			validateChain(chain, true);
+		}
+
+		@Override
+		public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+			validateChain(chain, false);
+		}
+
+		@Override
+		public X509Certificate[] getAcceptedIssuers() {
+			return NO_ISSUERS;
+		}
+
+		@Override
+		public void checkClientTrusted(X509Certificate[] chain, String authType, Socket socket)
+				throws CertificateException {
+			validateChain(chain, true);
+		}
+
+		@Override
+		public void checkClientTrusted(X509Certificate[] chain, String authType, SSLEngine engine)
+				throws CertificateException {
+			validateChain(chain, true);
+		}
+
+		@Override
+		public void checkServerTrusted(X509Certificate[] chain, String authType, Socket socket)
+				throws CertificateException {
+			validateChain(chain, false);
+		}
+
+		@Override
+		public void checkServerTrusted(X509Certificate[] chain, String authType, SSLEngine engine)
+				throws CertificateException {
+			validateChain(chain, false);
+		}
+	}
+}

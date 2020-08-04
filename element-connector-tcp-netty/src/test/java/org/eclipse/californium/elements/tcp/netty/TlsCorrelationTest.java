@@ -23,13 +23,18 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
 import static org.hamcrest.core.IsNull.notNullValue;
 import static org.hamcrest.text.IsEmptyString.isEmptyOrNullString;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.security.Principal;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
 
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContext;
@@ -43,6 +48,8 @@ import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.tcp.netty.TlsConnectorTestUtil.SSLTestContext;
 import org.eclipse.californium.elements.tcp.netty.TlsServerConnector.ClientAuthMode;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
+import org.eclipse.californium.elements.util.SslContextUtil;
+import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.hamcrest.CoreMatchers;
 import org.junit.After;
 import org.junit.BeforeClass;
@@ -335,7 +342,11 @@ public class TlsCorrelationTest {
 		RawData msg = createMessage(100, invalidContext, clientCallback);
 
 		client.send(msg);
-		serverCatcher.blockUntilSize(1, 2000);
+
+		Throwable error = clientCallback.getError(CATCHER_TIMEOUT_IN_MS);
+		assertThat(error, is(notNullValue()));
+
+		serverCatcher.blockUntilSize(1, 100);
 		assertThat("Serverside received unexpected message", !serverCatcher.hasMessage(0));
 
 		// no message context without connector context => send
@@ -360,14 +371,17 @@ public class TlsCorrelationTest {
 		msg = createMessage(100, invalidContext, clientCallback);
 		client.send(msg);
 
-		serverCatcher.blockUntilSize(3, 2000);
+		error = clientCallback.getError(CATCHER_TIMEOUT_IN_MS);
+		assertThat(error, is(notNullValue()));
+
+		serverCatcher.blockUntilSize(3, 100);
 		assertThat("Serverside received unexpected message", !serverCatcher.hasMessage(3));
 
 		// no message context with connector context => send
 		clientCallback = new SimpleMessageCallback();
 		msg = createMessage(server.getAddress(), 100, clientCallback);
 		client.send(msg);
-		serverCatcher.blockUntilSize(3, CATCHER_TIMEOUT_IN_MS);
+		assertTrue(serverCatcher.blockUntilSize(3, CATCHER_TIMEOUT_IN_MS));
 	}
 
 	/**
@@ -434,7 +448,10 @@ public class TlsCorrelationTest {
 		msg = createMessage(100, invalidContext, serverCallback);
 		server.send(msg);
 
-		clientCatcher.blockUntilSize(3, 2000);
+		Throwable error = serverCallback.getError(CATCHER_TIMEOUT_IN_MS);
+		assertThat(error, is(notNullValue()));
+
+		clientCatcher.blockUntilSize(3, 100);
 		assertThat("Clientside received unexpected message", !clientCatcher.hasMessage(3));
 	}
 
@@ -498,11 +515,66 @@ public class TlsCorrelationTest {
 		server.start();
 		client.start();
 
+		SimpleMessageCallback callback = new SimpleMessageCallback(1, false);
+		RawData msg = createMessage(server.getAddress(), 100, callback);
+
+		client.send(msg);
+
+		Throwable error = callback.getError(2000);
+		assertThat(error, is(notNullValue()));
+	}
+
+	@Test
+	public void testServerSideTrustAllClientSelfSigned() throws Exception {
+		SSLTestContext serverContext = initializeTrustAllContext(SERVER_NAME);
+		SSLTestContext clientContext = initializeContext("self", "self", null);
+
+		TlsServerConnector server = new TlsServerConnector(serverContext.context, ClientAuthMode.NEEDED,
+				createServerAddress(0), NUMBER_OF_THREADS, IDLE_TIMEOUT_IN_S);
+		TlsClientConnector client = new TlsClientConnector(clientContext.context, NUMBER_OF_THREADS,
+				CONNECTION_TIMEOUT_IN_MS, IDLE_TIMEOUT_IN_S);
+
+		Catcher serverCatcher = new Catcher();
+		Catcher clientCatcher = new Catcher();
+		server.setRawDataReceiver(serverCatcher);
+		client.setRawDataReceiver(clientCatcher);
+		cleanup.add(server);
+		cleanup.add(client);
+		server.start();
+		client.start();
+
 		RawData msg = createMessage(server.getAddress(), 100, null);
 
 		client.send(msg);
-		serverCatcher.blockUntilSize(1, 2000);
-		assertFalse(serverCatcher.hasMessage(0));
+		serverCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS);
+		assertThat(serverCatcher.hasMessage(0), is(true));
+	}
+
+	@Test
+	public void testServerSideTrustAllClientWithNoneSigningCertificate() throws Exception {
+		SSLTestContext serverContext = initializeTrustAllContext(SERVER_NAME);
+		SSLTestContext clientContext = initializeContext("nosigning", "nosigning", null);
+
+		TlsServerConnector server = new TlsServerConnector(serverContext.context, ClientAuthMode.NEEDED,
+				createServerAddress(0), NUMBER_OF_THREADS, IDLE_TIMEOUT_IN_S);
+		TlsClientConnector client = new TlsClientConnector(clientContext.context, NUMBER_OF_THREADS,
+				CONNECTION_TIMEOUT_IN_MS, IDLE_TIMEOUT_IN_S);
+
+		Catcher serverCatcher = new Catcher();
+		Catcher clientCatcher = new Catcher();
+		server.setRawDataReceiver(serverCatcher);
+		client.setRawDataReceiver(clientCatcher);
+		cleanup.add(server);
+		cleanup.add(client);
+		server.start();
+		client.start();
+
+		SimpleMessageCallback callback = new SimpleMessageCallback(1, false);
+		RawData msg = createMessage(server.getAddress(), 100, callback);
+
+		client.send(msg);
+		Throwable error = callback.getError(CATCHER_TIMEOUT_IN_MS);
+		assertThat(error, is(notNullValue()));
 	}
 
 	/**
@@ -570,11 +642,143 @@ public class TlsCorrelationTest {
 		server.start();
 		client.start();
 
+		SimpleMessageCallback callback = new SimpleMessageCallback(1, false);
+		RawData msg = createMessage(server.getAddress(), 100, callback);
+
+		client.send(msg);
+
+		Throwable error = callback.getError(CATCHER_TIMEOUT_IN_MS);
+		assertThat(error, is(notNullValue()));
+	}
+
+	@Test
+	public void testClientSideTrustAllServerSelfSigned() throws Exception {
+
+		SSLTestContext clientContext = initializeTrustAllContext(CLIENT_NAME);
+		SSLTestContext serverContext = initializeContext("self", "self", null);
+
+		TlsServerConnector server = new TlsServerConnector(serverContext.context, ClientAuthMode.NEEDED,
+				createServerAddress(0), NUMBER_OF_THREADS, IDLE_TIMEOUT_IN_S);
+		TlsClientConnector client = new TlsClientConnector(clientContext.context, NUMBER_OF_THREADS,
+				CONNECTION_TIMEOUT_IN_MS, IDLE_TIMEOUT_IN_S);
+
+		Catcher serverCatcher = new Catcher();
+		Catcher clientCatcher = new Catcher();
+		server.setRawDataReceiver(serverCatcher);
+		client.setRawDataReceiver(clientCatcher);
+		cleanup.add(server);
+		cleanup.add(client);
+		server.start();
+		client.start();
+
 		RawData msg = createMessage(server.getAddress(), 100, null);
 
 		client.send(msg);
-		serverCatcher.blockUntilSize(1, 2000);
-		assertThat(serverCatcher.hasMessage(0), is(false));
+		serverCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS);
+		assertThat(serverCatcher.hasMessage(0), is(true));
+	}
+
+	@Test
+	public void testClientSideTrustAllServerWithNoneSigningCertificate() throws Exception {
+
+		SSLTestContext clientContext = initializeTrustAllContext(CLIENT_NAME);
+		SSLTestContext serverContext = initializeContext("nosigning", "nosigning", null);
+
+		TlsServerConnector server = new TlsServerConnector(serverContext.context, ClientAuthMode.NEEDED,
+				createServerAddress(0), NUMBER_OF_THREADS, IDLE_TIMEOUT_IN_S);
+		TlsClientConnector client = new TlsClientConnector(clientContext.context, NUMBER_OF_THREADS,
+				CONNECTION_TIMEOUT_IN_MS, IDLE_TIMEOUT_IN_S);
+
+		Catcher serverCatcher = new Catcher();
+		Catcher clientCatcher = new Catcher();
+		server.setRawDataReceiver(serverCatcher);
+		client.setRawDataReceiver(clientCatcher);
+		cleanup.add(server);
+		cleanup.add(client);
+		server.start();
+		client.start();
+
+		SimpleMessageCallback callback = new SimpleMessageCallback(1, false);
+		RawData msg = createMessage(server.getAddress(), 100, callback);
+
+		client.send(msg);
+
+		Throwable error = callback.getError(CATCHER_TIMEOUT_IN_MS);
+		assertThat(error, is(notNullValue()));
+	}
+
+	@Test
+	public void testClientSideTrustAllServerWithWrongKeyUsage() throws Exception {
+
+		SSLTestContext clientContext = initializeTrustAllContext(CLIENT_NAME);
+		SSLTestContext serverContext = initializeContext("clientext", "clientext", null);
+
+		TlsServerConnector server = new TlsServerConnector(serverContext.context, ClientAuthMode.NEEDED,
+				createServerAddress(0), NUMBER_OF_THREADS, IDLE_TIMEOUT_IN_S);
+		TlsClientConnector client = new TlsClientConnector(clientContext.context, NUMBER_OF_THREADS,
+				CONNECTION_TIMEOUT_IN_MS, IDLE_TIMEOUT_IN_S);
+
+		Catcher serverCatcher = new Catcher();
+		Catcher clientCatcher = new Catcher();
+		server.setRawDataReceiver(serverCatcher);
+		client.setRawDataReceiver(clientCatcher);
+		cleanup.add(server);
+		cleanup.add(client);
+		server.start();
+		client.start();
+
+		SimpleMessageCallback callback = new SimpleMessageCallback(1, false);
+		RawData msg = createMessage(server.getAddress(), 100, callback);
+
+		client.send(msg);
+
+		Throwable error = callback.getError(CATCHER_TIMEOUT_IN_MS);
+		assertThat(error, is(notNullValue()));
+	}
+
+	@Test
+	public void testClientSideTrustAllServerBrokenChain() throws Exception {
+
+		SSLTestContext clientContext = initializeTrustAllContext(CLIENT_NAME);
+		
+		Credentials credentials = SslContextUtil.loadCredentials(
+				SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, SERVER_NAME, KEY_STORE_PASSWORD,
+				KEY_STORE_PASSWORD);
+		// remove last before last certificate to break the chain
+		X509Certificate[] chain = credentials.getCertificateChain();
+		int brokenLength = chain.length - 1;
+		X509Certificate[] brokenChain = Arrays.copyOf(chain, brokenLength);
+		brokenChain[brokenLength-1] = chain[brokenLength];
+		
+		KeyManager[] keyManager = SslContextUtil.createKeyManager(SERVER_NAME,
+				credentials.getPrivateKey(),
+				brokenChain);
+		TrustManager[] trustManager = SslContextUtil.createTrustAllManager();
+
+		SSLContext serverContext = SSLContext.getInstance(SslContextUtil.DEFAULT_SSL_PROTOCOL);
+		serverContext.init(keyManager, trustManager, null);
+
+		TlsServerConnector server = new TlsServerConnector(serverContext, ClientAuthMode.NEEDED,
+				createServerAddress(0), NUMBER_OF_THREADS, IDLE_TIMEOUT_IN_S);
+		TlsClientConnector client = new TlsClientConnector(clientContext.context, NUMBER_OF_THREADS,
+				CONNECTION_TIMEOUT_IN_MS, IDLE_TIMEOUT_IN_S);
+
+		Catcher serverCatcher = new Catcher();
+		Catcher clientCatcher = new Catcher();
+		server.setRawDataReceiver(serverCatcher);
+		client.setRawDataReceiver(clientCatcher);
+		cleanup.add(server);
+		cleanup.add(client);
+		server.start();
+		client.start();
+
+		SimpleMessageCallback callback = new SimpleMessageCallback(1, false);
+		RawData msg = createMessage(server.getAddress(), 100, callback);
+
+		client.send(msg);
+
+		Throwable error = callback.getError(CATCHER_TIMEOUT_IN_MS);
+		assertThat(error, is(notNullValue()));
 	}
 
 }
