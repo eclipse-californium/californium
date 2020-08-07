@@ -15,12 +15,17 @@
  ******************************************************************************/
 package org.eclipse.californium.cli;
 
-
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.elements.util.StringUtil;
 
@@ -130,12 +135,29 @@ public class ClientConfig extends ClientBaseConfig {
 		 */
 		@Option(names = "--payload64", description = "payload, base64")
 		public String base64;
+
+		/**
+		 * Payload from file.
+		 * 
+		 * @since 2.4
+		 */
+		@Option(names = "--payload-file", description = "payload from file")
+		public String file;
 	}
 
 	/**
 	 * Payload in bytes.
 	 */
 	public byte[] payloadBytes;
+
+	/**
+	 * Apply {@link String#format(String, Object...)} to payload. The used
+	 * parameter depends on the client implementation.
+	 * 
+	 * @since 2.4
+	 */
+	@Option(names = "--payload-format", description = "apply format to payload.")
+	public boolean payloadFormat;
 
 	/**
 	 * Request type. {@code true} for {@link Type#CON}, {@code false} for
@@ -169,6 +191,39 @@ public class ClientConfig extends ClientBaseConfig {
 				payloadBytes = StringUtil.hex2ByteArray(payload.hex);
 			} else if (payload.base64 != null) {
 				payloadBytes = StringUtil.base64ToByteArray(payload.base64);
+			} else if (payload.file != null) {
+				int max = networkConfig.getInt(Keys.MAX_RESOURCE_BODY_SIZE);
+				File file = new File(payload.file);
+				if (file.canRead()) {
+					long length = file.length();
+					if (length <= max) {
+						payloadBytes = new byte[(int)length];
+						InputStream in = null;
+						try {
+							in = new FileInputStream(file);
+							int len = in.read(payloadBytes);
+							if (len != length) {
+								LOGGER.error("file {} with {} bytes, read {} bytes!", payload.file, length, len);
+							}
+						} catch (FileNotFoundException e) {
+							LOGGER.error("Missing file {}", payload.file, e);
+						} catch (IOException e) {
+							LOGGER.error("Error reading file {}", payload.file, e);
+						} finally {
+							if (in != null) {
+								try {
+									in.close();
+								} catch (IOException e) {
+									LOGGER.error("Error closing file {}", payload.file, e);
+								}
+							}
+						}
+					} else {
+						LOGGER.error("file {} with {} bytes is too large! (Maximum {} bytes.)", payload.file, length, max);
+					}
+				} else {
+					LOGGER.error("Can not read file {} ({})", payload.file, file.getAbsolutePath());
+				}
 			}
 		}
 	}
