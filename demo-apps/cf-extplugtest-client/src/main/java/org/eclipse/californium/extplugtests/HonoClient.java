@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
@@ -63,12 +64,13 @@ public class HonoClient {
 			footer = {
 					"",
 					"text payload: format is applied to the text payload with",
-					"              a random number [0..100) as first parameter and",
-					"              a correlation-id string as second parameter",
+					"              a random number [0..100) as 1. parameter,",
+					"              a timestamp of seconds since 1.1.1970 as 2.,",
+					"              and a correlation-id string as 3. parameter.",
 					"",
 					"Example:",
 					"  HonoClient coaps://" + DEFAULT_HONO + "/telemetry --json \\",
-					"     --payload \"{\"temp\": %%d}\"",
+					"     --payload \"{\"temp\": %%d}\" --payloadFormat",
 					"  (Send a temperature in json as telemetry, %%d is replaced by a random number)",
 			})
 	private static class Config extends ClientConfig {
@@ -78,6 +80,9 @@ public class HonoClient {
 
 		@Option(names = "--mode", defaultValue = "0", description = "precompiled payload. Default ${DEFAULT-VALUE}.")
 		public int mode;
+
+		@Option(names = { "-r", "--responses-directory" }, description = "directory to store responses.")
+		public String responses;
 
 	}
 
@@ -110,7 +115,7 @@ public class HonoClient {
 					"  \"value\": {\n" + 
 					"    \"status\": {\n" + 
 					"      \"value\": {\n" + 
-					"        \"currentMeasured\": %d\n" + 
+					"        \"currentMeasured\": %1$d\n" + 
 					"      }\n" + 
 					"    }\n" + 
 					"  }\n" + 
@@ -118,7 +123,7 @@ public class HonoClient {
 					"  \"topic\": \"${thing}/things/twin/commands/retrieve\",\n" + 
 					"  \"headers\": {\n" +
 					"    \"reply-to\": \"command/tpostmanserviceinstance\",\n" +
-					"    \"correlation-id\": \"%s\"\n" +
+					"    \"correlation-id\": \"%3$s\"\n" +
 					"  },\n" + 
 					"  \"path\": \"/features/temperature/properties\",\n" + 
 					"  \"value\": {}\n" +
@@ -132,7 +137,7 @@ public class HonoClient {
 					"  \"topic\": \"${thing}/things/twin/commands/retrieve\",\n" + 
 					"  \"headers\": {\n" +
 					"    \"reply-to\": \"command/tpostmanserviceinstance\",\n" +
-					"    \"correlation-id\": \"%d-%s\"\n" +
+					"    \"correlation-id\": \"%1$d-%3$s\"\n" +
 					"  },\n" + 
 					"  \"path\": \"/features/temperature/properties\",\n" + 
 					"  \"value\": {}\n" + 
@@ -150,7 +155,7 @@ public class HonoClient {
 					"  \"value\": {\n" + 
 					"    \"status\": {\n" + 
 					"      \"value\": {\n" + 
-					"        \"currentMeasured\": %d\n" + 
+					"        \"currentMeasured\": %1$d\n" + 
 					"      }\n" + 
 					"    }\n" + 
 					"  }\n" + 
@@ -160,8 +165,8 @@ public class HonoClient {
 		default:
 			request.getOptions().setContentFormat(TEXT_PLAIN);
 			request.setPayload(
-					"temperature|10\n" + 
-					"currentMeasured:%d\n" + 
+					"temperature|%2$d\n" + 
+					"currentMeasured:%1$d\n" + 
 					"minMeasured:-5\n" + 
 					"maxMeasured:124\n" + 
 					".");
@@ -170,8 +175,12 @@ public class HonoClient {
 	}
 
 	private static byte[] formatPayload(Config config, int value, CorrelationId id) {
-		if (config.payload.text != null) {
-			return String.format(config.payload.text, value, id).getBytes();
+		if (config.payloadFormat) {
+			String text = config.payload.text;
+			if (text == null) {
+				text = new String(config.payloadBytes, CoAP.UTF8_CHARSET);
+			}
+			return String.format(text, value, System.currentTimeMillis() / 1000, id).getBytes();
 		} else {
 			return config.payloadBytes;
 		}
@@ -215,10 +224,11 @@ public class HonoClient {
 			clientConfig.contentType.contentType = MediaTypeRegistry.TEXT_PLAIN;
 		}
 
-		if (clientConfig.payload == null && request.isIntendedPayload()) {
+		if (clientConfig.payloadBytes == null && request.isIntendedPayload()) {
 			applyPayload(clientConfig.mode, request);
 			clientConfig.payload = new Payload();
 			clientConfig.payload.text = request.getPayloadString();
+			clientConfig.payloadFormat = true;
 			clientConfig.contentType.contentType = request.getOptions().getContentFormat();
 		}
 
@@ -252,7 +262,7 @@ public class HonoClient {
 
 		long start = System.nanoTime();
 		List<Long> rtt = new ArrayList<Long>(clientConfig.requests);
-		CoapResponse coapResponse = exchange(client, request, true);
+		CoapResponse coapResponse = exchange(clientConfig, client, request, true);
 		if (coapResponse != null && getCommand(coapResponse) == null) {
 			rtt.add(coapResponse.advanced().getRTT());
 			Request followUpRequests = null;
@@ -263,7 +273,7 @@ public class HonoClient {
 				id.next();
 				followUpRequests.setPayload(formatPayload(clientConfig, rand.nextInt(100), id));
 				followUpRequests.setURI(clientConfig.uri);
-				coapResponse = exchange(client, followUpRequests, true);
+				coapResponse = exchange(clientConfig, client, followUpRequests, true);
 				if (coapResponse == null) { 
 					System.out.format("Stale at %d.%n", index);
 					break;
@@ -279,7 +289,7 @@ public class HonoClient {
 				}
 				rtt.add(coapResponse.advanced().getRTT());
 			}
-			start = System.nanoTime() -start;
+			start = System.nanoTime() - start;
 			if (followUpRequests != null && coapResponse != null) {
 				System.out.println();
 				System.out.println(Utils.prettyPrint(followUpRequests));
@@ -306,7 +316,8 @@ public class HonoClient {
 			if (0 < count) {
 				System.out.format("Average time: %d [ms] %n", average / count);
 				if (0 < overtimeCount) {
-					System.out.format("Overtime    : %d, %d [ms], avg %d [ms] %n", overtimeCount, overtime, overtime / overtimeCount);
+					System.out.format("Overtime    : %d, %d [ms], avg %d [ms] %n", overtimeCount, overtime,
+							overtime / overtimeCount);
 				}
 			}
 		}
@@ -314,7 +325,8 @@ public class HonoClient {
 
 	private static File file;
 
-	private static CoapResponse exchange(CoapClient client, Request request, boolean verbose) throws ConnectorException, IOException {
+	private static CoapResponse exchange(Config clientConfig, CoapClient client, Request request, boolean verbose)
+			throws ConnectorException, IOException {
 		CoapResponse coapResponse = client.advanced(request);
 
 		if (coapResponse != null) {
@@ -326,26 +338,37 @@ public class HonoClient {
 			String cmd = getCommand(coapResponse);
 
 			if (cmd != null) {
-				FileOutputStream out;
-				if (file == null) {
-					file = new File("response-" + coapResponse.advanced().getTokenString());
-					out = new FileOutputStream(file);
-				} else {
-					out = new FileOutputStream(file, true);
+				if (clientConfig.responses != null) {
+					FileOutputStream out;
+					if (file == null) {
+						File dir = new File(clientConfig.responses);
+						if (!dir.exists()) {
+							dir.mkdirs();
+						}
+						if (dir.isDirectory()) {
+							String name = String.format("response-%1$tj-%1$tT-%2$s", Calendar.getInstance(), coapResponse.advanced().getTokenString());
+							file = new File(clientConfig.responses, name);
+							out = new FileOutputStream(file);
+						} else {
+							System.err.println(dir + " is not a directory!");
+							return null;
+						}
+					} else {
+						out = new FileOutputStream(file, true);
+					}
+
+					byte[] download = coapResponse.getPayload();
+					out.write(download, 8, download.length - 8);
+					out.close();
 				}
-
-				byte[] download = coapResponse.getPayload();
-				out.write(download, 8, download.length - 8);
-				out.close();
-
 				List<String> location = coapResponse.getOptions().getLocationPath();
 				if (location.size() == 2 || location.size() == 4) {
 					System.out.println("cmd: " + cmd + ", " + location);
 					final Request cmdResponse = new Request(request.getCode());
 					URI uri = URI.create(request.getURI());
 					try {
-						uri = new URI(uri.getScheme(), null, uri.getHost(), uri.getPort(), null,
-								"hono-cmd-status=200", null);
+						uri = new URI(uri.getScheme(), null, uri.getHost(), uri.getPort(), null, "hono-cmd-status=200",
+								null);
 						cmdResponse.setURI(uri);
 						cmdResponse.getOptions().getUriPath().addAll(location);
 						cmdResponse.addMessageObserver(new MessageObserverAdapter() {
