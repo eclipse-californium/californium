@@ -325,9 +325,13 @@ public class BenchmarkClient {
 	private static final long DEFAULT_TIMEOUT_SECONDS = TimeUnit.MILLISECONDS.toSeconds(10000);
 	private static final long DEFAULT_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(DEFAULT_TIMEOUT_SECONDS);
 	/**
-	 * Atomic down-counter for overall request.
+	 * Atomic down-counter for overall requests.
 	 */
 	private static final AtomicLong overallRequestsDownCounter = new AtomicLong();
+	/**
+	 * Atomic down-counter for overall responses.
+	 */
+	private static final AtomicLong overallResponsesDownCounter = new AtomicLong();
 	/**
 	 * Done indicator for overall requests.
 	 */
@@ -405,7 +409,7 @@ public class BenchmarkClient {
 		public void removedObserveRelation(ObserveRelation relation) {
 			super.removedObserveRelation(relation);
 			int counter = observerCounter.decrementAndGet();
-			if (counter == 0 && overallRequestsDownCounter.get() == 0
+			if (counter == 0 && overallResponsesDownCounter.get() == 0
 					&& overallReverseResponsesDownCounter.getCount() == 0) {
 				stop();
 			}
@@ -490,6 +494,9 @@ public class BenchmarkClient {
 	private final long ackTimeout;
 
 	private Request prepareRequest(CoapClient client, long c) {
+		if (overallRequestsDownCounter.decrementAndGet() < 0) {
+			return null;
+		}
 		Request request;
 		int accept = TEXT_PLAIN;
 		byte[] payload = config.payloadBytes;
@@ -581,12 +588,12 @@ public class BenchmarkClient {
 					}
 					next(config.interval, response.advanced().isConfirmable() ? -ackTimeout * 2 : 0, true, true);
 				}
-				long c = overallRequestsDownCounter.get();
+				long c = overallResponsesDownCounter.get();
 				LOGGER.trace("{}: Received response: {} {}", id, response.advanced(), c);
 			} else if (response.getCode() == ResponseCode.SERVICE_UNAVAILABLE) {
 				long delay = TimeUnit.SECONDS.toMillis(response.getOptions().getMaxAge());
 				int unavailable = overallServiceUnavailable.incrementAndGet();
-				long c = overallRequestsDownCounter.get();
+				long c = overallResponsesDownCounter.get();
 				LOGGER.debug("{}: {}, Received error response: {} {}", id, unavailable, response.advanced(), c);
 				if (!stop.get()) {
 					next(delay < 1000L ? 1000L : delay, -ackTimeout * 2, true, true);
@@ -659,6 +666,9 @@ public class BenchmarkClient {
 				}
 				final boolean reconnect = dtlsConnector != null && (close || full || force);
 				final Request request = prepareRequest(client, c);
+				if (request == null) {
+					return;
+				}
 				request.addMessageObserver(retransmissionDetector);
 				if (reconnect) {
 					EndpointContext destinationContext = request.getDestinationContext();
@@ -847,8 +857,10 @@ public class BenchmarkClient {
 				clientCounter.incrementAndGet();
 			}
 			Request request = prepareRequest(client, c);
-			request.addMessageObserver(retransmissionDetector);
-			client.advanced(new TestHandler(request), request);
+			if (request != null) {
+				request.addMessageObserver(retransmissionDetector);
+				client.advanced(new TestHandler(request), request);
+			}
 		}
 	}
 
@@ -866,7 +878,7 @@ public class BenchmarkClient {
 				requestsCounter.getAndIncrement();
 			}
 		}
-		long c = response ? countDown(overallRequestsDownCounter) : overallRequestsDownCounter.get();
+		long c = response ? countDown(overallResponsesDownCounter) : overallResponsesDownCounter.get();
 		if (c == 0 && allConnected) {
 			overallRequestsDone.countDown();
 			if (overallReverseResponsesDownCounter.getCount() == 0) {
@@ -964,6 +976,7 @@ public class BenchmarkClient {
 			overallReverseResponses = Integer.MAX_VALUE;
 		}
 		overallRequestsDownCounter.set(overallRequests);
+		overallResponsesDownCounter.set(overallRequests);
 		overallReverseResponsesDownCounter = new CountDownLatch(overallReverseResponses);
 
 		final List<BenchmarkClient> clientList = Collections.synchronizedList(new ArrayList<BenchmarkClient>(clients));
@@ -1137,7 +1150,7 @@ public class BenchmarkClient {
 		boolean stale = false;
 		long requestNanos = System.nanoTime();
 		long reverseResponseNanos = requestNanos;
-		long lastRequestsCountDown = overallRequestsDownCounter.get();
+		long lastRequestsCountDown = overallResponsesDownCounter.get();
 		long lastRetransmissions = retransmissionCounter.get();
 		long lastTransmissionErrrors = transmissionErrorCounter.get();
 		int lastUnavailable = overallServiceUnavailable.get();
@@ -1151,7 +1164,7 @@ public class BenchmarkClient {
 
 		// Wait with timeout or all requests send.
 		while (!overallRequestsDone.await(DEFAULT_TIMEOUT_NANOS, TimeUnit.NANOSECONDS)) {
-			long currentRequestsCountDown = overallRequestsDownCounter.get();
+			long currentRequestsCountDown = overallResponsesDownCounter.get();
 			int numberOfClients = clientCounter.get();
 			int connectsPending = connectDownCounter.get();
 			long requestDifference = (lastRequestsCountDown - currentRequestsCountDown);
@@ -1200,7 +1213,7 @@ public class BenchmarkClient {
 			line.append(")");
 			System.out.println(line);
 		}
-		long overallSentRequests = overallRequests - overallRequestsDownCounter.get();
+		long overallSentRequests = overallRequests - overallResponsesDownCounter.get();
 		requestNanos = System.nanoTime() - requestNanos;
 
 		boolean observe = false;
