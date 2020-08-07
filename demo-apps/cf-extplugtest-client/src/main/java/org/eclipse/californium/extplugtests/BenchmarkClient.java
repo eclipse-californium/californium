@@ -491,15 +491,33 @@ public class BenchmarkClient {
 
 	private Request prepareRequest(CoapClient client, long c) {
 		Request request;
+		int accept = TEXT_PLAIN;
+		byte[] payload = config.payloadBytes;
 		if (config.hono) {
 			request = secure ? Request.newPost() : Request.newPut();
-			request.getOptions().setAccept(APPLICATION_JSON);
-			request.getOptions().setContentFormat(APPLICATION_JSON);
-			request.setPayload("{\"temp\": " + c + "}");
+			if (payload == null) {
+				accept = APPLICATION_JSON;
+				payload = "{\"temp\": %1$d }".getBytes();
+			}
 		} else {
 			request = Request.newPost();
-			request.getOptions().setAccept(TEXT_PLAIN);
-			request.getOptions().setContentFormat(TEXT_PLAIN);
+		}
+		if (config.contentType != null) {
+			accept = config.contentType.contentType;
+		}
+		request.getOptions().setAccept(accept);
+		request.getOptions().setContentFormat(accept);
+		if (config.con != null) {
+			request.setConfirmable(config.con);
+		}
+		if (payload != null) {
+			if (config.payloadFormat) {
+				String text = new String(payload, CoAP.UTF8_CHARSET);
+				text = String.format(text, c, System.currentTimeMillis() / 1000);
+				request.setPayload(text);
+			} else {
+				request.setPayload(payload);
+			}
 		}
 		if (config.proxy != null) {
 			request.setDestinationContext(new AddressEndpointContext(config.proxy.destination));
@@ -1005,15 +1023,19 @@ public class BenchmarkClient {
 		final AtomicBoolean errors = new AtomicBoolean();
 		final HealthStatisticLogger health = new HealthStatisticLogger(uri.getScheme(), !CoAP.isTcpScheme(uri.getScheme()));
 		final NetStatLogger netstat = new NetStatLogger("udp");
+		final int pskOffset = config.pskIndex != null ? config.pskIndex : 0;
 		for (int index = 0; index < clients; ++index) {
 			final int currentIndex = index;
 			final String identity;
 			final byte[] secret;
 			if (secure && psk) {
 				if (config.pskStore != null) {
-					int pskIndex = index % config.pskStore.size();
+					int pskIndex = (pskOffset + index) % config.pskStore.size();
 					identity = config.pskStore.getIdentity(pskIndex);
 					secret = config.pskStore.getSecrets(pskIndex);
+				} else if (index == 0){
+					identity = config.identity;
+					secret = config.secretKey;
 				} else {
 					random.nextBytes(id);
 					identity= ConnectorConfig.PSK_IDENTITY_PREFIX + StringUtil.byteArray2Hex(id);
