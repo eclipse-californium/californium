@@ -15,6 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.cli;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
@@ -22,10 +23,6 @@ import java.security.GeneralSecurityException;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
-import java.util.Set;
-import java.util.SortedSet;
-import java.util.TreeSet;
 
 import javax.crypto.SecretKey;
 
@@ -162,6 +159,7 @@ public class ConnectorConfig implements Cloneable {
 	public Trust trust;
 
 	public static class Trust {
+
 		/**
 		 * X509 trusts loaded from store.
 		 */
@@ -175,6 +173,14 @@ public class ConnectorConfig implements Cloneable {
 		@Option(names = "--trust-all", description = "trust all valid certificates.")
 		public boolean trustall;
 	}
+
+	/**
+	 * PSK store index.
+	 * 
+	 * @since 2.4
+	 */
+	@Option(names = "--psk-index", description = "Index of identity in PSK store. Starts at 0.")
+	public Integer pskIndex;
 
 	/**
 	 * PSK store file. Lines in format:
@@ -273,6 +279,11 @@ public class ConnectorConfig implements Cloneable {
 			if (identity != null || secret != null) {
 				System.err.println("Use either '--psk-store' or single psk credentials!");
 				helpRequested = true;
+			}
+			if (pskIndex != null) {
+				secret = new ConnectorConfig.Secret();
+				secret.hex = StringUtil.byteArray2Hex(pskStore.getSecrets(pskIndex));
+				identity = pskStore.getIdentity(pskIndex);
 			}
 		}
 		if (secret != null && secretKey == null) {
@@ -424,30 +435,43 @@ public class ConnectorConfig implements Cloneable {
 	 * identity = secret - key(base64)
 	 * </pre>
 	 * 
+	 * The identity must not contain a {@code =}! The created psk credentials
+	 * store keeps the order of the credentials in the file. Index {@code 0}
+	 * will contain the credential of the first line.
+	 * 
 	 * @param file filename of credentials store.
 	 * @return psk credentials store
 	 */
 	public static PskCredentialStore loadPskCredentials(String file) {
-		Properties credentials = new Properties();
+		boolean error = false;
+		BufferedReader lineReader = null;
 		try (FileReader reader = new FileReader(file)) {
-			credentials.load(reader);
-			Set<Object> keys = credentials.keySet();
-			SortedSet<String> sortedKeys = new TreeSet<>();
-			for (Object key : keys) {
-				if (key instanceof String) {
-					sortedKeys.add((String) key);
+			PskCredentialStore pskCredentials = new PskCredentialStore();
+			int lineNumber = 0;
+			String line;
+			lineReader = new BufferedReader(reader);
+			while ((line = lineReader.readLine()) != null) {
+				++lineNumber;
+				String[] entry = line.split("=", 2);
+				if (entry.length == 2) {
+					byte[] secretBytes = StringUtil.base64ToByteArray(entry[1]);
+					pskCredentials.add(entry[0], secretBytes);
+				} else {
+					error = true;
+					LOGGER.error("{}: '{}' invalid psk-line!", lineNumber, line);
 				}
 			}
-			if (!sortedKeys.isEmpty()) {
-				PskCredentialStore pskCredentials = new PskCredentialStore();
-				for (String key : sortedKeys) {
-					String secret = credentials.getProperty(key);
-					byte[] secretBytes = StringUtil.base64ToByteArray(secret);
-					pskCredentials.add(key, secretBytes);
-				}
+			if (!error) {
 				return pskCredentials;
 			}
 		} catch (IOException e) {
+		} finally {
+			if (lineReader != null) {
+				try {
+					lineReader.close();
+				} catch (IOException e) {
+				}
+			}
 		}
 		return null;
 	}
@@ -456,6 +480,7 @@ public class ConnectorConfig implements Cloneable {
 	 * PSK credentials store.
 	 */
 	public static class PskCredentialStore {
+
 		/**
 		 * Identities.
 		 */
@@ -469,7 +494,7 @@ public class ConnectorConfig implements Cloneable {
 		 * Add entry.
 		 * 
 		 * @param identity identity
-		 * @param secret   secret key
+		 * @param secret secret key
 		 */
 		private void add(String identity, byte[] secret) {
 			identities.add(identity);
