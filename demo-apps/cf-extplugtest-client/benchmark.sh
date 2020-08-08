@@ -34,6 +34,20 @@ echo "\"/etc/systemd/logind.conf\" to twice the number of sockets plus 500 more.
 echo "clients my be used for the benchmark. It's not recommended to use that many clients from one process"
 echo "and it's even less recommended to use more!"
 echo
+echo "Variables:"
+echo "   REQS"
+echo "   NOTIFIES"
+echo "   PAYLOAD"
+echo "   PAYLOAD_LARGE"
+echo "   UDP_CLIENTS"
+echo "   TCP_CLIENTS"
+echo "   OBS_CLIENTS"
+echo "   CALI_AUTH"
+echo
+echo "These variables maybe override in the calling shell by"
+echo
+echo "export REQS=10"
+echo
 echo "Note: sometimes the recommended default configuration is changed." 
 echo "      Please delete therefore the \"Californium???.properties\" to apply the changes." 
 echo
@@ -82,17 +96,20 @@ USE_OBSERVE=1
 USE_NONESTOP=--no-stop
 
 MULTIPLIER=10
-REQS=$((500 * $MULTIPLIER))
+: "${REQS:=$((500 * $MULTIPLIER))}"
 REQS_EXTRA=$(($REQS + ($REQS/10)))
 REV_REQS=$((2 * $REQS))
-NOTIFIES=$((100 * $MULTIPLIER))
+: "${NOTIFIES:=$((100 * $MULTIPLIER))}"
 
-PAYLOAD=40
-PAYLOAD_LARGE=400
+: "${PAYLOAD:=40}"
+: "${PAYLOAD_LARGE:=400}"
 
-UDP_CLIENTS=$((200 * $CLIENTS_MULTIPLIER))
-TCP_CLIENTS=$((50 * $CLIENTS_MULTIPLIER))
-OBS_CLIENTS=$((50 * $CLIENTS_MULTIPLIER))
+: "${UDP_CLIENTS:=$((200 * $CLIENTS_MULTIPLIER))}"
+: "${TCP_CLIENTS:=$((50 * $CLIENTS_MULTIPLIER))}"
+: "${OBS_CLIENTS:=$((50 * $CLIENTS_MULTIPLIER))}"
+
+: "${CALI_AUTH:=--psk-store cali.psk}"
+
 
 if [ ! -s ${CF_JAR} ] ; then
 # search for given version
@@ -135,7 +152,7 @@ benchmark_udp()
       sleep 5
    fi   
    if [ ${USE_SECURE} -ne 0 ] ; then 
-      java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} ${CF_SEC} coaps://${CF_HOST}:5784/$@
+      java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} ${CF_SEC} ${CALI_AUTH} coaps://${CF_HOST}:5784/$@
       if [ ! $? -eq 0 ] ; then exit $?; fi
       sleep 5
    fi   
@@ -172,8 +189,8 @@ benchmark_all()
    benchmark_udp "benchmark?rlen=${PAYLOAD}&ack" --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
 
 # reverse GET
-  benchmark_udp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests 2 ${USE_NONESTOP} --reverse ${REV_REQS}
-  benchmark_tcp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" --clients ${TCP_CLIENTS} --requests 2 ${USE_NONESTOP} --reverse ${REV_REQS}
+   benchmark_udp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests 2 ${USE_NONESTOP} --reverse ${REV_REQS}
+   benchmark_tcp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" --clients ${TCP_CLIENTS} --requests 2 ${USE_NONESTOP} --reverse ${REV_REQS}
 
    if [ ${USE_OBSERVE} -eq 0 ] ; then return; fi
    
