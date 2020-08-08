@@ -8,7 +8,7 @@ CoAP [RFC 7252](https://tools.ietf.org/html/rfc7252) specifies in [5.7 Proxying]
 
 A lot of specification, so start with the more common http and http proxies to get into it.
 
-## Basics: HTTP proxy
+## Basics: HTTP Proxy
 
 A http request is processed by opening a TCP connection to the destination host-service and sending a line containing the request.
 
@@ -19,7 +19,7 @@ wget http://destination:8000/http-target
 Http-request sent:
 
 ```
-GET /http-target HTTP/1.1 
+GET /http-target HTTP/1.1
 ```
 
 If a http proxy is used, that TCP connection is opened to the proxy-service instead of the destination host-service. The request is then sent to the proxy, that should process the request on its behalf. But the destination seems to be lost. Therefore, if the http-client sends a request to a proxy, the client adds the destination as well to the request line itself.
@@ -27,12 +27,12 @@ If a http proxy is used, that TCP connection is opened to the proxy-service inst
 Http-request sent via proxy:
 
 ```
-GET http://destination:8000/http-target HTTP/1.1 
+GET http://destination:8000/http-target HTTP/1.1
 ```
 
 That does the trick.
 
-## CoAP proxy
+## CoAP Proxy
 
 The same happens for coap.
 
@@ -52,7 +52,7 @@ Coap-request via proxy:
 CON, MID:18236, GET, TKN:80 e3 48 28 96 6a 8e 18, coap://destination/coap-target
 ```
 
-## CoAP Cross proxy
+## CoAP Cross Proxy
 
 If a proxy should only process coap-request on its behalf, then all would be as easy and simple as above, no real difference to http. If a coap-request should be translated into a http-request and vice versa, the processing may get a tick more complicated. The first question, which comes in mind, is, how should a coap-proxy know, that the coap-request it received, should be translated into http and then send to a http-server? The answer is the sames as with the destination service; that information is added to the request. CoAP offers for that a special [5.10.2 Proxy-Scheme](https://tools.ietf.org/html/rfc7252#section-5.10.2) option.
 
@@ -72,7 +72,7 @@ CON, MID:4121, GET, TKN:24 60 3f d0 3b 12 ef d0, coap.opt.proxy_uri: http://user
 
 It is intended to use either the proxy-uri or the other options uri-host, uri-port, uri-path, uri-query, and proxy-scheme.
 
-## Http2CoAP Cross proxy
+## Http2CoAP Cross Proxy
 
 Sometimes a http proxy is intended to send coap-requests. Basically that may just be done using a coap-url:
 
@@ -84,13 +84,32 @@ GET coap://destination:5683/coap-target
 
 Unfortunately, too many http-libraries doesn't support other schemes as http/https. Therefore [Guidelines for Mapping Implementations: http2coap](https://tools.ietf.org/html/rfc8075) describes several other variants instead.
 
-One variant, implemented in Californium's proxy2 is to put the destination scheme at the end.
+Californium's proxy2 offers two mappings from that specification:
+
+-  [5.3. Default Mapping](https://tools.ietf.org/html/rfc8075#section-5.3) with `proxy/{+tu}`
+-  [5.4. URI Mapping Template](https://tools.ietf.org/html/rfc8075#section-5.4) with `proxy?target_uri={+tu}`
+
+Http-requests without http-proxy enabled on http-client
+
+(no destination host at the begin in the URL):
+
+```
+GET /proxy/coap://destination:5683/coap-target HTTP/1.1
+GET /proxy?target_uri=coap://destination:5683/coap-target HTTP/1.1
+```
+
+Note: normalizing the http-path may replace the "coap://" by "coap:/", therefore 
+"/proxy/coap:/destination:5683/coap-target" is valid as well.
+
+Additionally a variant using the http-proxy enabled on the client-side and the destination scheme at the end of the path is also supported
+
+(destination host at the begin in the URL).
 
 ```
 GET http://destination:5683/coap-target/coap:
 ```
 
-# Implementing a CoAP proxy using Californium proxy2
+# Implementing a CoAP Proxy using Californium Proxy2
 
 Above it is described, that a proxy request contains just some more information about the destination service. But how is that processed with Californium?
 
@@ -105,7 +124,9 @@ To translate the incoming request in an outgoing request, the Proxy2 library com
 -  the [ProxyCoapClientResource](https://github.com/eclipse/californium/blob/master/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/resources/ProxyCoapClientResource.java), for outgoing coap-requests and 
 -  the [ProxyHttpClientResource](https://github.com/eclipse/californium/blob/master/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/resources/ProxyHttpClientResource.java) for outgoing http-requests.
 
-### Implementing coap2http forwarding proxy
+### Implementing coap2http Forwarding Cross Proxy
+
+To execute http-request, the californium proxy uses the `httpasyncclient` of [org.apache.httpcomponents](https://hc.apache.org/), currently in version 4.1.4.
 
 A coap2http forward proxy could be implemented by
 
@@ -118,7 +139,7 @@ A coap2http forward proxy could be implemented by
 
 That's it. See the [BasicForwardingProxy2](https://github.com/eclipse/californium/blob/master/demo-apps/cf-proxy2/src/main/java/org/eclipse/californium/examples/basic/BasicForwardingProxy2.java).
 
-### Implementing coap2coap forwarding proxy
+### Implementing coap2coap Forwarding proxy
 
 That's pretty much the same as for the coap2http-proxy. Instead of initializing the `HttpClientFactory` create a [ClientSingleEndpoint](https://github.com/eclipse/californium/blob/master/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/ClientSingleEndpoint.java) and use that for a `ProxyCoapClientResource` instead of a `ProxyHttpClientResource`.
 
@@ -151,15 +172,36 @@ That's it. See the e.g. [ProxyCoapClientResource.handleRequest()](https://github
 
 If the general processing in `ProxyCoapClientResource` works also for the special case, the simplest way would be to use a special `Coap2CoapTranslator` or `Coap2HttpTranslator`, which overrides the functions to adapt them.
 
-## Implementing a http2coap forwarding proxy
+## Implementing a Http Forwarding Cross Proxy
 
-A http2coap forward proxy could be implemented by
+Naturally this requires a http-server, which is aware of proxy requests. The californium proxy2 comes with [ProxyHttpServer](https://github.com/eclipse/californium/blob/master/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/ProxyHttpServer.java) implementation based on [org.apache.httpcomponents](https://hc.apache.org/). Currently the `httpcore` and `httpcore-nio` in version 4.4.10 is used.
 
--  initialize a `ClientSingleEndpoint` for outgoing request.
--  create a `ProxyHttpServer`.
--  create a `ProxyCoapClientResource` using the `ClientSingleEndpoint`.
+The [ProxyHttpServer](https://github.com/eclipse/californium/blob/master/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/ProxyHttpServer.java) uses a [HttpServer](https://github.com/eclipse/californium/blob/master/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/HttpServer.java) and the [HttpStack](https://github.com/eclipse/californium/blob/master/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/HttpStack.java), which adds the required http-request-handlers to it. These http-request-handler are using a [Http2CoapTranslator](https://github.com/eclipse/californium/blob/master/californium-proxy2/src/main/java/org/eclipse/californium/proxy2/Http2CoapTranslator.java) to translate the http-requests into coap-requests, which is then processed by the californium coap-stack using a coap2coap proxy.
+
+The implementation supports:
+
+Basic http-request without proxy enabled on the http-client:
+
+```
+GET /proxy/coap://destination/coap-target
+GET /proxy/coap:/destination/coap-target
+GET /proxy?traget_uri=coap://destination/coap-target
+```
+
+http-request with proxy enabled on the http-client:
+
+```
+GET http://destination:5683/coap-target/coap:
+```
+### Implementing http2coap Forwarding Cross Proxy
+
+A simple http2coap forward proxy could be implemented by
+
+-  initialize a `ClientSingleEndpoint`. That will be used for outgoing coap-requests.
+-  create a `ProxyHttpServer`. That is used for incoming http-request and translation of them into incoming coap-requests.
+-  create a `ProxyCoapClientResource` using the `ClientSingleEndpoint`. That is used to process the incoming coap-requests into outgoing coap-requests (`coap2coap` proxy functionality).
 -  create a `ForwardProxyMessageDeliverer` providing the created `ProxyCoapClientResource`.
--  replace the `MessageDeliverer` of the `CoapServer` by the `ForwardProxyMessageDeliverer`.
+-  set the `ForwardProxyMessageDeliverer` as `ProxyCoapDeliverer` to the `ProxyHttpServer`.
 -  start the `ProxyHttpServer`.
 
 See the [BasicHttpForwardingProxy2](https://github.com/eclipse/californium/blob/master/demo-apps/cf-proxy2/src/main/java/org/eclipse/californium/examples/basic/BasicHttpForwardingProxy2.java).
