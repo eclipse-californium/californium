@@ -165,6 +165,8 @@ public interface Endpoint {
 
 	/**
 	 * Send the specified request.
+	 * 
+	 * Failures are reported with {@link Request#setSendError(Throwable)}
 	 *
 	 * @param request the request
 	 */
