@@ -104,6 +104,7 @@ import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.EndpointManager.ClientMessageDeliverer;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.network.serialization.DataParser;
@@ -400,7 +401,7 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors, M
 		this.connector = connector;
 		this.connector.setRawDataReceiver(new InboxImpl());
 		this.scheme = CoAP.getSchemeForProtocol(connector.getProtocol());
-		this.multicastBaseMid = config.getInt(NetworkConfig.Keys.MULTICAST_BASE_MID);
+		this.multicastBaseMid = config.getInt(Keys.MULTICAST_BASE_MID);
 		this.tag = StringUtil.normalizeLoggingTag(loggingTag);
 
 		// when remove the deprecated constructors,
@@ -422,12 +423,12 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors, M
 		if (applyConfiguration) {
 			if (connector instanceof UDPConnector) {
 				UDPConnector udpConnector = (UDPConnector) connector;
-				udpConnector.setReceiverThreadCount(config.getInt(NetworkConfig.Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT));
-				udpConnector.setSenderThreadCount(config.getInt(NetworkConfig.Keys.NETWORK_STAGE_SENDER_THREAD_COUNT));
+				udpConnector.setReceiverThreadCount(config.getInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT));
+				udpConnector.setSenderThreadCount(config.getInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT));
 
-				udpConnector.setReceiveBufferSize(config.getInt(NetworkConfig.Keys.UDP_CONNECTOR_RECEIVE_BUFFER));
-				udpConnector.setSendBufferSize(config.getInt(NetworkConfig.Keys.UDP_CONNECTOR_SEND_BUFFER));
-				udpConnector.setReceiverPacketSize(config.getInt(NetworkConfig.Keys.UDP_CONNECTOR_DATAGRAM_SIZE));
+				udpConnector.setReceiveBufferSize(config.getInt(Keys.UDP_CONNECTOR_RECEIVE_BUFFER));
+				udpConnector.setSendBufferSize(config.getInt(Keys.UDP_CONNECTOR_SEND_BUFFER));
+				udpConnector.setReceiverPacketSize(config.getInt(Keys.UDP_CONNECTOR_DATAGRAM_SIZE));
 			} else {
 				throw new IllegalArgumentException("Connector must be a UDPConnector to use apply configuration!");
 			}
@@ -459,13 +460,13 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors, M
 			this.serializer = new TcpDataSerializer();
 			this.parser = new TcpDataParser();
 		} else {
-			this.useRequestOffloading = config.getBoolean(NetworkConfig.Keys.USE_MESSAGE_OFFLOADING);
+			this.useRequestOffloading = config.getBoolean(Keys.USE_MESSAGE_OFFLOADING);
 			this.matcher = new UdpMatcher(config, new NotificationDispatcher(), tokenGenerator, observationStore,
 					this.exchangeStore, exchangeExecutionHandler, endpointContextMatcher);
 			this.serializer = new UdpDataSerializer();
 			this.parser = new UdpDataParser();
 		}
-		final int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, NetworkConfigDefaults.DEFAULT_HEALTH_STATUS_INTERVAL); // seconds
+		final int healthStatusInterval = config.getInt(Keys.HEALTH_STATUS_INTERVAL, NetworkConfigDefaults.DEFAULT_HEALTH_STATUS_INTERVAL); // seconds
 		// this is a useful health metric
 		// that could later be exported to some kind of monitoring interface
 		boolean enableHealth = false;
@@ -611,7 +612,7 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors, M
 			}
 			LOGGER.info("{}Started endpoint at {}", tag, getUri());
 			if (health != null && secondaryExecutor != null) {
-				final int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL,
+				final int healthStatusInterval = config.getInt(Keys.HEALTH_STATUS_INTERVAL,
 						NetworkConfigDefaults.DEFAULT_HEALTH_STATUS_INTERVAL); // seconds
 				// this is a useful health metric
 				// that could later be exported to some kind of monitoring interface
@@ -784,24 +785,35 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors, M
 		InetSocketAddress destinationAddress = request.getDestinationContext().getPeerAddress();
 		if (request.isMulticast()) {
 			if (0 >= multicastBaseMid) {
-				LOGGER.warn(
-						"{}multicast messaging to destination {} is not enabled! Please enable it configuring \"MULTICAST_BASE_MID\" greater than 0",
-						tag, destinationAddress);
+				LOGGER.warn("{}multicast messaging to destination {} is not enabled! Please enable it configuring \""
+						+ Keys.MULTICAST_BASE_MID + "\" greater than 0", tag, destinationAddress);
+				request.setSendError(new IllegalArgumentException("multicast is not enabled!"));
 				return;
 			} else if (request.getType() == Type.CON) {
 				LOGGER.warn(
 						"{}CON request to multicast destination {} is not allowed, as per RFC 7252, 8.1, a client MUST use NON message type for multicast requests ",
 						tag, destinationAddress);
+				request.setSendError(new IllegalArgumentException("multicast is not supported for CON!"));
 				return;
 			} else if (request.hasMID() && request.getMID() < multicastBaseMid) {
 				LOGGER.warn(
 						"{}multicast request to group {} has mid {} which is not in the MULTICAST_MID range [{}-65535]",
 						tag, destinationAddress, request.getMID(), multicastBaseMid);
+				request.setSendError(
+						new IllegalArgumentException("multicast mid is not in range [" + multicastBaseMid + "-65535]"));
 				return;
 			}
 		} else if (0 < multicastBaseMid && request.getMID() >= multicastBaseMid) {
 			LOGGER.warn("{}request has mid {}, which is in the MULTICAST_MID range [{}-65535]", tag, destinationAddress,
 					request.getMID(), multicastBaseMid);
+			request.setSendError(
+					new IllegalArgumentException("unicast mid is in multicast range [" + multicastBaseMid + "-65535]"));
+			return;
+		}
+		if (destinationAddress.isUnresolved()) {
+			LOGGER.warn("{}request has unresolved destination address", tag, destinationAddress);
+			request.setSendError(
+					new IllegalArgumentException(destinationAddress + " is a unresolved address!"));
 			return;
 		}
 
