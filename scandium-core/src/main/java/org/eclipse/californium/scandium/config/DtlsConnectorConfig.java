@@ -2877,17 +2877,22 @@ public final class DtlsConnectorConfig {
 			}
 
 			if (config.certChain != null) {
-				boolean usage;
+				X509Certificate certificate = config.certChain.get(0);
 				if (config.clientOnly) {
-					usage = CertPathUtil.canBeUsedForAuthentication(config.certChain.get(0), true);
+					if (!CertPathUtil.canBeUsedForAuthentication(certificate, true)) {
+						throw new IllegalStateException("certificate has no proper key usage for clients!");
+					}
 				} else if (config.serverOnly) {
-					usage = CertPathUtil.canBeUsedForAuthentication(config.certChain.get(0), false);
+					if (!CertPathUtil.canBeUsedForAuthentication(certificate, false)) {
+						throw new IllegalStateException("certificate has no proper key usage for servers!");
+					}
 				} else {
-					usage = CertPathUtil.canBeUsedForAuthentication(config.certChain.get(0), true);
-					usage = usage && CertPathUtil.canBeUsedForAuthentication(config.certChain.get(0), false);
-				}
-				if (!usage) {
-					throw new IllegalStateException("certificate has no proper key usage!");
+					if (!CertPathUtil.canBeUsedForAuthentication(certificate, true)) {
+						throw new IllegalStateException("certificate has no proper key usage as clients!");
+					}
+					if (!CertPathUtil.canBeUsedForAuthentication(certificate, false)) {
+						throw new IllegalStateException("certificate has no proper key usage as servers!");
+					}
 				}
 			}
 			verifySignatureAndHashAlgorithms(config.supportedSignatureAlgorithms);
