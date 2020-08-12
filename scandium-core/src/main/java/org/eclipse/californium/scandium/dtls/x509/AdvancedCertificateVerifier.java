@@ -37,7 +37,7 @@ public interface AdvancedCertificateVerifier extends CertificateVerifier {
 	 *            don't check key usage, {@code true}, check key usage for
 	 *            client, {@code false} for server.
 	 * @param truncateCertificatePath {@code true} truncate certificate path at
-	 *            a trusted certificate before valiation.
+	 *            a trusted certificate before validation.
 	 * @param message certificate message to be validated
 	 * @param session dtls session to be used for validation
 	 * @return actually validated certificate path.
