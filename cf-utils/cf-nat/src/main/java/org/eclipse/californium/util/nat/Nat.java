@@ -167,7 +167,7 @@ public class Nat {
 					"usage: [localinterface]:port destination1:port1 destination2:port2 [destination3:port3 ...]");
 			return;
 		}
-		NatUtil util = null;
+		NioNatUtil util = null;
 		try {
 			String line = null;
 			int argsIndex = 0;
@@ -177,7 +177,7 @@ public class Nat {
 				InetSocketAddress destinationAddress = Nat.create(args[argsIndex], false);
 				destinations.add(destinationAddress);
 			}
-			util = new NatUtil(proxyAddress, destinations);
+			util = new NioNatUtil(proxyAddress, destinations);
 			util.setNatTimeoutMillis(30 * 1000);
 
 			BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
