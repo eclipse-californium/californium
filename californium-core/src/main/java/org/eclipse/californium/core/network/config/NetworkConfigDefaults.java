@@ -66,7 +66,7 @@ public class NetworkConfigDefaults {
 	public static final int DEFAULT_BLOCKWISE_STATUS_LIFETIME = 5 * 60 * 1000; // 5 mins [ms]
 	
 	/**
-	 * The default mode used to respond for early bockwise negociation when response can be sent on one packet.
+	 * The default mode used to respond for early blockwise negotiation when response can be sent on one packet.
 	 * <p>
 	 * The default value is false, which indicate that the server will not include the Block2 option.
 	 */
