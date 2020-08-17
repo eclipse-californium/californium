@@ -31,6 +31,7 @@ import java.util.List;
 
 import javax.security.auth.x500.X500Principal;
 
+import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -240,24 +241,24 @@ public final class CertificateRequest extends HandshakeMessage {
 	 */
 	public static enum ClientCertificateType {
 
-		RSA_SIGN(1, "RSA", true),
-		DSS_SIGN(2, "DSA", true),
-		RSA_FIXED_DH(3, "DH", false),
-		DSS_FIXED_DH(4, "DH", false),
-		RSA_EPHEMERAL_DH_RESERVED(5, "DH", false),
-		DSS_EPHEMERAL_DH_RESERVED(6, "DH", false),
-		FORTEZZA_DMS_RESERVED(20, "UNKNOWN", false),
-		ECDSA_SIGN(64, "EC", true),
-		RSA_FIXED_ECDH(65, "DH", false),
-		ECDSA_FIXED_ECDH(66, "DH", false);
+		RSA_SIGN(1, true, "RSA"),
+		DSS_SIGN(2, true, "DSA"),
+		RSA_FIXED_DH(3, false, "DH"),
+		DSS_FIXED_DH(4, false, "DH"),
+		RSA_EPHEMERAL_DH_RESERVED(5, false, "DH"),
+		DSS_EPHEMERAL_DH_RESERVED(6, false, "DH"),
+		FORTEZZA_DMS_RESERVED(20, false, "UNKNOWN"),
+		ECDSA_SIGN(64, true, "EC", Asn1DerDecoder.EDDSA, Asn1DerDecoder.OID_ED25519, Asn1DerDecoder.OID_ED448),
+		RSA_FIXED_ECDH(65, false, "DH"),
+		ECDSA_FIXED_ECDH(66, false, "DH");
 
 		private final int code;
-		private final String jcaAlgorithm;
 		private final boolean requiresSigningCapability;
+		private final String[] jcaAlgorithms;
 
-		private ClientCertificateType(int code, String algorithm, boolean requiresSigningCapability) {
+		private ClientCertificateType(int code, boolean requiresSigningCapability, String... algorithms) {
 			this.code = code;
-			this.jcaAlgorithm = algorithm;
+			this.jcaAlgorithms = algorithms;
 			this.requiresSigningCapability = requiresSigningCapability;
 		}
 
@@ -275,9 +276,11 @@ public final class CertificateRequest extends HandshakeMessage {
 		 * Gets the JCA standard key algorithm name this certificate type is compatible with.
 		 * 
 		 * @return The algorithm name.
+		 * @deprecated
 		 */
+		@Deprecated
 		public String getJcaAlgorithm() {
-			return jcaAlgorithm;
+			return jcaAlgorithms[0];
 		}
 
 		/**
@@ -296,7 +299,13 @@ public final class CertificateRequest extends HandshakeMessage {
 		 * @return {@code true} if this certificate type is compatible with the given key algorithm.
 		 */
 		public boolean isCompatibleWithKeyAlgorithm(String algorithm) {
-			return this.jcaAlgorithm.equals(algorithm);
+			algorithm = Asn1DerDecoder.getEdDsaStandardAlgorithmName(algorithm, algorithm);
+			for (String jcaAlgorithm : jcaAlgorithms) {
+				if (jcaAlgorithm.equalsIgnoreCase(algorithm)) {
+					return true;
+				}
+			}
+			return false;
 		}
 
 		/**
@@ -480,7 +489,7 @@ public final class CertificateRequest extends HandshakeMessage {
 					algorithm);
 			return true;
 		}
-		LOGGER.debug("certificate [{}] is not of any supported type", cert);
+		LOGGER.debug("certificate [{}] with public key {} is not of any supported type", cert, algorithm);
 		return false;
 	}
 

@@ -83,6 +83,11 @@ public class OpenSslProcessUtil extends ProcessUtil {
 
 	public String startupClient(String destination, OpenSslUtil.AuthenticationMode authMode, String curves,
 			String sigAlgs, CipherSuite... ciphers) throws IOException, InterruptedException {
+		return startupClient(destination, authMode, curves, sigAlgs, CLIENT_CERTIFICATE, ciphers);
+	}
+
+	public String startupClient(String destination, OpenSslUtil.AuthenticationMode authMode, String curves,
+			String sigAlgs, String clientCert, CipherSuite... ciphers) throws IOException, InterruptedException {
 		List<CipherSuite> list = Arrays.asList(ciphers);
 		List<String> args = new ArrayList<String>();
 		String openSslCiphers = OpenSslUtil.getOpenSslCipherSuites(ciphers);
@@ -94,7 +99,7 @@ public class OpenSslProcessUtil extends ProcessUtil {
 		}
 		if (CipherSuite.containsCipherSuiteRequiringCertExchange(list)) {
 			args.add("-cert");
-			args.add(CLIENT_CERTIFICATE);
+			args.add(clientCert);
 			add(args, authMode, CA_CERTIFICATES);
 		}
 		add(args, curves, sigAlgs);

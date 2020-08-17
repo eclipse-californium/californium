@@ -75,7 +75,6 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.CertificateRequest.ClientCertificateType;
-import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.SignatureAlgorithm;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
@@ -494,7 +493,7 @@ public class ServerHandshaker extends Handshaker {
 		CertificateMessage certificateMessage = null;
 		if (session.getCipherSuite().requiresServerCertificateMessage()) {
 			if (CertificateType.RAW_PUBLIC_KEY == session.sendCertificateType()) {
-				certificateMessage = new CertificateMessage(publicKey.getEncoded(), session.getPeer());
+				certificateMessage = new CertificateMessage(publicKey, session.getPeer());
 			} else if (CertificateType.X_509 == session.sendCertificateType()) {
 				certificateMessage = new CertificateMessage(certificateChain, session.getPeer());
 			} else {
@@ -571,12 +570,8 @@ public class ServerHandshaker extends Handshaker {
 					certificateRequest.addCerticiateAuthorities(subjects);
 				}
 			} else if (session.receiveCertificateType() == CertificateType.RAW_PUBLIC_KEY) {
-				List<SignatureAndHashAlgorithm> ecdsaSignatures = new ArrayList<SignatureAndHashAlgorithm>();
-				for (SignatureAndHashAlgorithm signature : supportedSignatureAndHashAlgorithms) {
-					if (SignatureAlgorithm.ECDSA.equals(signature.getSignature())) {
-						ecdsaSignatures.add(signature); 
-					}
-				}
+				List<SignatureAndHashAlgorithm> ecdsaSignatures = SignatureAndHashAlgorithm
+						.getEcdsaCompatibleSignatureAlgorithms(supportedSignatureAndHashAlgorithms);
 				certificateRequest.addSignatureAlgorithms(ecdsaSignatures);
 			}
 			wrapMessage(flight, certificateRequest);

@@ -26,6 +26,7 @@
 		<junit.version>4.12</junit.version>
 		<hamcrest.version>1.3</hamcrest.version>
 		<mockito.version>1.10.19</mockito.version>
+		<eddsa.version>0.3.0</eddsa.version>
 	</properties>
 
 	<dependencyManagement>
@@ -107,6 +108,12 @@
 				<groupId>ch.qos.logback</groupId>
 				<artifactId>logback-classic</artifactId>
 				<version>${logback.version}</version>
+				<scope>runtime</scope>
+			</dependency>
+			<dependency>
+				<groupId>net.i2p.crypto</groupId>
+				<artifactId>eddsa</artifactId>
+				<version>${eddsa.version}</version>
 				<scope>runtime</scope>
 			</dependency>
 

@@ -20,20 +20,28 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
+import java.security.InvalidKeyException;
+import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Signature;
+import java.security.spec.EncodedKeySpec;
+import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Arrays;
 import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalCryptoMap;
+import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalKeyFactory;
 import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalSignature;
+import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalCryptoMap.Factory;
 
 
 /**
@@ -45,7 +53,7 @@ import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalSignature;
  * href="http://tools.ietf.org/html/rfc5246#section-7.4.8">RFC 5246</a>.
  */
 public final class CertificateVerify extends HandshakeMessage {
-	
+
 	// Logging ///////////////////////////////////////////////////////////
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(CertificateVerify.class);
@@ -53,21 +61,30 @@ public final class CertificateVerify extends HandshakeMessage {
 	// DTLS-specific constants ////////////////////////////////////////
 
 	private static final int HASH_ALGORITHM_BITS = 8;
-	
+
 	private static final int SIGNATURE_ALGORITHM_BITS = 8;
 
 	private static final int SIGNATURE_LENGTH_BITS = 16;
-	
+
+	private static final ThreadLocalCryptoMap<ThreadLocalKeyFactory> KEY_FACTORIES = new ThreadLocalCryptoMap<>(
+			new Factory<ThreadLocalKeyFactory>() {
+
+				@Override
+				public ThreadLocalKeyFactory getInstance(String algorithm) {
+					return new ThreadLocalKeyFactory(algorithm);
+				}
+			});
+
 	// Members ////////////////////////////////////////////////////////
 
 	/** The digitally signed handshake messages. */
 	private byte[] signatureBytes;
-	
+
 	/** The signature and hash algorithm which must be included into the digitally-signed struct. */
 	private final SignatureAndHashAlgorithm signatureAndHashAlgorithm;
 
 	// Constructor ////////////////////////////////////////////////////
-	
+
 	/**
 	 * Called by client to create its CertificateVerify message.
 	 * 
@@ -153,9 +170,9 @@ public final class CertificateVerify extends HandshakeMessage {
 
 		return new CertificateVerify(signAndHash, signature, peerAddress);
 	}
-	
+
 	// Methods ////////////////////////////////////////////////////////
-	
+
 	/**
 	 * Creates the signature and signs it with the client's private key.
 	 * 
@@ -169,16 +186,35 @@ public final class CertificateVerify extends HandshakeMessage {
 		signatureBytes = Bytes.EMPTY;
 
 		try {
+			boolean init = false;
 			ThreadLocalSignature localSignature = signatureAndHashAlgorithm.getThreadLocalSignature();
 			Signature signature = localSignature.currentWithCause();
-			signature.initSign(clientPrivateKey);
-			int index  = 0;
-			for (HandshakeMessage message : handshakeMessages) {
-				signature.update(message.toByteArray());
-				LOGGER.trace("  [{}] - {}", index, message.getMessageType());
-				++index;
+			try {
+				signature.initSign(clientPrivateKey);
+				init = true;
+			} catch (InvalidKeyException e) {
+				String algorithm = Asn1DerDecoder.getEdDsaStandardAlgorithmName(clientPrivateKey.getAlgorithm(), null);
+				if (algorithm != null) {
+					KeyFactory factory = KEY_FACTORIES.get(algorithm).current();
+					if (factory != null) {
+						// re-encode EdDSA key
+						EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(clientPrivateKey.getEncoded());
+						signature.initSign(factory.generatePrivate(privateKeySpec));
+						init = true;
+					}
+				}
 			}
-			signatureBytes = signature.sign();
+			if (init) {
+				int index  = 0;
+				for (HandshakeMessage message : handshakeMessages) {
+					signature.update(message.toByteArray());
+					LOGGER.trace("  [{}] - {}", index, message.getMessageType());
+					++index;
+				}
+				signatureBytes = signature.sign();
+			} else {
+				LOGGER.error("Could not create signature for {}", clientPrivateKey.getAlgorithm());
+			}
 		} catch (Exception e) {
 			LOGGER.error("Could not create signature.", e);
 		}
@@ -218,5 +254,4 @@ public final class CertificateVerify extends HandshakeMessage {
 		AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, getPeer());
 		throw new HandshakeException(message, alert);
 	}
-
 }

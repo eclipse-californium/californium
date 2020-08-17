@@ -612,17 +612,18 @@ public class ClientHandshaker extends Handshaker {
 			CertificateMessage clientCertificate;
 			if (CertificateType.RAW_PUBLIC_KEY == session.sendCertificateType()) {
 				// empty certificate, if no proper public key is available
-				byte[] rawPublicKeyBytes = Bytes.EMPTY;
+				PublicKey publicKey = this.publicKey;
 				if (publicKey != null) {
 					negotiatedSignatureAndHashAlgorithm = certificateRequest.getSignatureAndHashAlgorithm(publicKey);
-					if (negotiatedSignatureAndHashAlgorithm != null) {
-						rawPublicKeyBytes = publicKey.getEncoded();
+					if (negotiatedSignatureAndHashAlgorithm == null) {
+						publicKey = null;
 					}
 				}
 				if (LOGGER.isDebugEnabled()) {
-					LOGGER.debug("sending CERTIFICATE message with client RawPublicKey [{}] to server", StringUtil.byteArray2HexString(rawPublicKeyBytes));
+					byte[] raw = publicKey == null ? Bytes.EMPTY : publicKey.getEncoded();
+					LOGGER.debug("sending CERTIFICATE message with client RawPublicKey [{}] to server", StringUtil.byteArray2HexString(raw));
 				}
-				clientCertificate = new CertificateMessage(rawPublicKeyBytes, session.getPeer());
+				clientCertificate = new CertificateMessage(publicKey, session.getPeer());
 			} else if (CertificateType.X_509 == session.sendCertificateType()) {
 				// empty certificate, if no proper certificate chain is available
 				List<X509Certificate> clientChain = Collections.emptyList();
