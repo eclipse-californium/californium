@@ -19,14 +19,19 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeNotNull;
 import static org.junit.Assume.assumeTrue;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.interoperability.test.OpenSslUtil.AuthenticationMode;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
 import org.junit.After;
@@ -163,7 +168,7 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 	public void testOpenSslClientUnauthenticated() throws Exception {
 		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
 		dtlsBuilder.setClientAuthenticationRequired(false);
-		
+
 		scandiumUtil.start(BIND, false, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
 
 
@@ -211,6 +216,24 @@ public class OpenSslClientAuthenticationInteroperabilityTest {
 
 		String cipher = processUtil.startupClient(DESTINATION, AuthenticationMode.TRUST, OpenSslProcessUtil.DEFAULT_CURVES,
 				OpenSslProcessUtil.DEFAULT_SIGALGS, cipherSuite);
+		connect(cipher);
+	}
+
+	@Test
+	public void testOpenSslClientEdDsaCertificatChain() throws Exception {
+		assumeTrue("X25519 not support by JRE", XECDHECryptography.SupportedGroup.X25519.isUsable());
+		assumeTrue("Ed25519 not support by JRE", Asn1DerDecoder.isSupported("Ed25519"));
+		assumeTrue("Ed25519 certificate missing", new File("clientEdDsa.pem").exists());
+
+		List<SignatureAndHashAlgorithm> defaults = new ArrayList<>(SignatureAndHashAlgorithm.DEFAULT);
+		defaults.add(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519);
+
+		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
+		dtlsBuilder.setSupportedSignatureAlgorithms(defaults);
+		scandiumUtil.start(BIND, false, dtlsBuilder, ScandiumUtil.TRUST_ROOT, cipherSuite);
+
+		String cipher = processUtil.startupClient(DESTINATION, AuthenticationMode.TRUST, OpenSslProcessUtil.DEFAULT_CURVES,
+				"ed25519:ECDSA+SHA256", "clientEdDsa.pem", cipherSuite);
 		connect(cipher);
 	}
 

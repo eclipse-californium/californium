@@ -50,6 +50,7 @@ import java.util.Set;
 import javax.security.auth.x500.X500Principal;
 
 import org.eclipse.californium.elements.DtlsEndpointContext;
+import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -3052,8 +3053,13 @@ public final class DtlsConnectorConfig {
 
 			if (ecc) {
 				if (config.supportedSignatureAlgorithms.isEmpty()) {
-					config.supportedSignatureAlgorithms = SignatureAndHashAlgorithm
-							.getDefaultSignatureAlgorithms(config.certChain);
+					if (config.certChain == null && config.publicKey != null) {
+						config.supportedSignatureAlgorithms = SignatureAndHashAlgorithm
+								.getDefaultSignatureAlgorithms(config.publicKey);
+					} else {
+						config.supportedSignatureAlgorithms = SignatureAndHashAlgorithm
+								.getDefaultSignatureAlgorithms(config.certChain);
+					}
 				}
 				if (config.supportedGroups.isEmpty()) {
 					config.supportedGroups = getDefaultSupportedGroups();
@@ -3125,8 +3131,12 @@ public final class DtlsConnectorConfig {
 				String algorithm = suite.getCertificateKeyAlgorithm().name();
 				if (!algorithm.equals(config.privateKey.getAlgorithm())
 						|| !algorithm.equals(config.publicKey.getAlgorithm())) {
-					throw new IllegalStateException(
-							"Keys must be " + algorithm + " capable for configured " + suite.name());
+					if (!algorithm.equals("EC")
+							|| !Asn1DerDecoder.isSupported(config.privateKey.getAlgorithm())
+							|| !Asn1DerDecoder.isSupported(config.publicKey.getAlgorithm())) {
+						throw new IllegalStateException(
+								"Keys must be " + algorithm + " capable for configured " + suite.name());
+					}
 				}
 			}
 			if (config.clientOnly || config.clientAuthenticationRequired || config.clientAuthenticationWanted) {

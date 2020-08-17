@@ -15,12 +15,14 @@ SERVER_LARGE_CER=serverLarge.cer
 SERVER_RSA_CER=serverRsa.cer
 CLIENT_CER=client.cer
 CLIENT_EXT_CER=clientExt.cer
+CLIENT_EDDSA_CER=clientEdDsa.cer
 
 # android support - PKCS12
 TRUST_STORE_P12=trustStore.p12
 CA_TRUST_STORE_P12=caTrustStore.p12
 CA_RSA_TRUST_STORE_P12=caRsaTrustStore.p12
 CLIENT_KEY_STORE_P12=client.p12
+CLIENT_EDDSA_KEY_STORE_P12=clientEdDsa.p12
 SERVER_KEY_STORE_P12=server.p12
 SERVER_LARGE_KEY_STORE_P12=serverLarge.p12
 SERVER_RSA_KEY_STORE_P12=serverRsa.p12
@@ -30,19 +32,25 @@ TRUST_STORE_PEM=trustStore.pem
 CA_TRUST_STORE_PEM=caTrustStore.pem
 CA_RSA_TRUST_STORE_PEM=caRsaTrustStore.pem
 CLIENT_KEY_STORE_PEM=client.pem
+CLIENT_EDDSA_KEY_STORE_PEM=clientEdDsa.pem
 SERVER_KEY_STORE_PEM=server.pem
 SERVER_LARGE_KEY_STORE_PEM=serverLarge.pem
 SERVER_RSA_KEY_STORE_PEM=serverRsa.pem
 EC_PUBLIC_KEY_PEM=ec_public.pem
 EC_PRIVATE_KEY_PEM=ec_private.pem
+ED25519_PUBLIC_KEY_PEM=ed25519_public.pem
+ED25519_PRIVATE_KEY_PEM=ed25519_private.pem
+ED448_PUBLIC_KEY_PEM=ed448_public.pem
+ED448_PRIVATE_KEY_PEM=ed448_private.pem
 
 VALIDITY=365
 
 remove_keys() {
 	rm -f $KEY_STORE $TRUST_STORE
-	rm -f $ROOT_CER $CA_CER $CA2_CER $CA_RSA_CER $SERVER_CER $SERVER_LARGE_CER $SERVER_RSA_CER $CLIENT_CER $CLIENT_EXT_CER
-	rm -f $CLIENT_KEY_STORE_P12 $SERVER_KEY_STORE_P12 $SERVER_LARGE_KEY_STORE_P12 $SERVER_RSA_KEY_STORE_P12 $TRUST_STORE_P12 $CA_TRUST_STORE_P12 $CA_RSA_TRUST_STORE_P12
-	rm -f $CLIENT_KEY_STORE_PEM $SERVER_KEY_STORE_PEM $SERVER_LARGE_KEY_STORE_PEM $SERVER_RSA_KEY_STORE_PEM $TRUST_STORE_PEM $EC_PUBLIC_KEY_PEM $EC_PRIVATE_KEY_PEM $CA_TRUST_STORE_PEM $CA_RSA_TRUST_STORE_PEM
+	rm -f $ROOT_CER $CA_CER $CA2_CER $CA_RSA_CER $SERVER_CER $SERVER_LARGE_CER $SERVER_RSA_CER $CLIENT_CER $CLIENT_EXT_CER $CLIENT_EDDSA_CER
+	rm -f $CLIENT_KEY_STORE_P12 $SERVER_KEY_STORE_P12 $SERVER_LARGE_KEY_STORE_P12 $SERVER_RSA_KEY_STORE_P12 $TRUST_STORE_P12 $CA_TRUST_STORE_P12 $CA_RSA_TRUST_STORE_P12 $CLIENT_EDDSA_KEY_STORE_P12
+	rm -f $CLIENT_KEY_STORE_PEM $SERVER_KEY_STORE_PEM $SERVER_LARGE_KEY_STORE_PEM $SERVER_RSA_KEY_STORE_PEM $TRUST_STORE_PEM $CA_TRUST_STORE_PEM $CA_RSA_TRUST_STORE_PEM $CLIENT_EDDSA_KEY_STORE_PEM
+	rm -f $EC_PUBLIC_KEY_PEM $EC_PRIVATE_KEY_PEM $ED25519_PUBLIC_KEY_PEM $ED25519_PRIVATE_KEY_PEM $ED448_PUBLIC_KEY_PEM $ED448_PRIVATE_KEY_PEM
 }
 
 create_keys() {
@@ -124,12 +132,21 @@ create_keys() {
    cat $ROOT_CER >> $CLIENT_EXT_CER  
    keytool -alias clientext -importcert -keystore $KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts -file $CLIENT_EXT_CER
 
+   echo "creating client eddsa key and certificate..."
+   keytool -genkeypair -alias clienteddsa -keyalg Ed25519 -dname 'C=CA,L=Ottawa,O=Eclipse IoT,OU=Californium,CN=cf-client-eddsa' \
+        -validity $VALIDITY -keypass $KEY_STORE_PWD -keystore $KEY_STORE -storepass $KEY_STORE_PWD
+   keytool -keystore $KEY_STORE -storepass $KEY_STORE_PWD -certreq -alias clienteddsa | \
+      keytool -keystore $TRUST_STORE -storepass $TRUST_STORE_PWD -alias ca -gencert -ext KU=dig -validity $VALIDITY -rfc > $CLIENT_EDDSA_CER
+   keytool -alias clienteddsa -importcert -keystore $KEY_STORE -storepass $KEY_STORE_PWD -trustcacerts -file $CLIENT_EDDSA_CER
+
 }
 
 export_p12() {
    echo "exporting keys into PKCS#12 format to support android"
    keytool -v -importkeystore -srckeystore $KEY_STORE -srcstorepass $KEY_STORE_PWD -alias client \
       -destkeystore $CLIENT_KEY_STORE_P12 -deststorepass $KEY_STORE_PWD -deststoretype PKCS12
+   keytool -v -importkeystore -srckeystore $KEY_STORE -srcstorepass $KEY_STORE_PWD -alias clienteddsa \
+      -destkeystore $CLIENT_EDDSA_KEY_STORE_P12 -deststorepass $KEY_STORE_PWD -deststoretype PKCS12
    keytool -v -importkeystore -srckeystore $KEY_STORE -srcstorepass $KEY_STORE_PWD -alias server \
       -destkeystore $SERVER_KEY_STORE_P12 -deststorepass $KEY_STORE_PWD -deststoretype PKCS12
    keytool -v -importkeystore -srckeystore $KEY_STORE -srcstorepass $KEY_STORE_PWD -alias serverlarge \
@@ -153,14 +170,18 @@ export_pem() {
       openssl pkcs12 -in $SERVER_LARGE_KEY_STORE_P12 -passin pass:$KEY_STORE_PWD -nodes -out $SERVER_LARGE_KEY_STORE_PEM
       openssl pkcs12 -in $SERVER_RSA_KEY_STORE_P12 -passin pass:$KEY_STORE_PWD -nodes -out $SERVER_RSA_KEY_STORE_PEM
       openssl pkcs12 -in $CLIENT_KEY_STORE_P12 -passin pass:$KEY_STORE_PWD -nodes -out $CLIENT_KEY_STORE_PEM
+      openssl pkcs12 -in $CLIENT_EDDSA_KEY_STORE_P12 -passin pass:$KEY_STORE_PWD -nodes -out $CLIENT_EDDSA_KEY_STORE_PEM
       openssl pkcs12 -in $CA_TRUST_STORE_P12 -passin pass:$TRUST_STORE_PWD -nokeys -out $CA_TRUST_STORE_PEM
       openssl pkcs12 -in $CA_RSA_TRUST_STORE_P12 -passin pass:$TRUST_STORE_PWD -nokeys -out $CA_RSA_TRUST_STORE_PEM
       openssl pkcs12 -in $TRUST_STORE_P12 -passin pass:$TRUST_STORE_PWD -nokeys -out $TRUST_STORE_PEM
       openssl ecparam -genkey -name prime256v1 -noout -out $EC_PRIVATE_KEY_PEM
       openssl ec -in $EC_PRIVATE_KEY_PEM -pubout -out $EC_PUBLIC_KEY_PEM
+      openssl genpkey -algorithm Ed25519 -out $ED25519_PRIVATE_KEY_PEM
+      openssl pkey -in $ED25519_PRIVATE_KEY_PEM -pubout -out $ED25519_PUBLIC_KEY_PEM
+      openssl genpkey -algorithm Ed448 -out $ED448_PRIVATE_KEY_PEM
+      openssl pkey -in $ED448_PRIVATE_KEY_PEM -pubout -out $ED448_PUBLIC_KEY_PEM
    fi
 } 
-
 jobs () {
   echo "$1"
   case $1 in

@@ -25,12 +25,10 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
-import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.cert.CertPath;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
-import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.security.spec.X509EncodedKeySpec;
@@ -41,12 +39,17 @@ import java.util.List;
 import javax.security.auth.x500.X500Principal;
 
 import org.eclipse.californium.elements.util.Asn1DerDecoder;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalCertificateFactory;
+import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalCryptoMap;
+import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalCryptoMap.Factory;
+import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalKeyFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -77,6 +80,24 @@ public final class CertificateMessage extends HandshakeMessage {
 	 * <code>ASN.1Cert certificate_list<0..2^24-1>;</code>
 	 */
 	private static final int CERTIFICATE_LIST_LENGTH_BITS = 24;
+
+	/**
+	 * @since 2.4
+	 */
+	private static final ThreadLocalCryptoMap<ThreadLocalKeyFactory> KEY_FACTORIES = new ThreadLocalCryptoMap<>(
+			new Factory<ThreadLocalKeyFactory>() {
+
+				@Override
+				public ThreadLocalKeyFactory getInstance(String algorithm) {
+					return new ThreadLocalKeyFactory(algorithm);
+				}
+			});
+
+	/**
+	 * @since 2.4
+	 */
+	private static final ThreadLocalCertificateFactory CERTIFICATE_FACTORY = new ThreadLocalCertificateFactory(
+			CERTIFICATE_TYPE_X509);
 
 	// Members ///////////////////////////////////////////////////////////
 
@@ -193,6 +214,24 @@ public final class CertificateMessage extends HandshakeMessage {
 	/**
 	 * Creates a <em>CERTIFICATE</em> message containing a raw public key.
 	 * 
+	 * @param publicKey
+	 *           the public key
+	 * @param peerAddress the IP address and port of the peer this
+	 *           message has been received from or should be sent to
+	 * @since 2.4
+	 */
+	public CertificateMessage(PublicKey publicKey, InetSocketAddress peerAddress) {
+		super(peerAddress);
+		this.certPath = null;
+		this.encodedChain = null;
+		this.rawPublicKeyBytes = publicKey == null ? Bytes.EMPTY : publicKey.getEncoded();
+		this.length = (CERTIFICATE_LENGTH_BITS / Byte.SIZE) + rawPublicKeyBytes.length;
+		this.publicKey = publicKey;
+	}
+
+	/**
+	 * Creates a <em>CERTIFICATE</em> message containing a raw public key.
+	 * 
 	 * @param rawPublicKeyBytes
 	 *           the raw public key (SubjectPublicKeyInfo)
 	 * @param peerAddress the IP address and port of the peer this
@@ -214,8 +253,15 @@ public final class CertificateMessage extends HandshakeMessage {
 			if (rawPublicKeyBytes.length > 0) {
 				try {
 					String keyAlgorithm = Asn1DerDecoder.readSubjectPublicKeyAlgorithm(rawPublicKeyBytes);
-					publicKey = KeyFactory.getInstance(keyAlgorithm)
-							.generatePublic(new X509EncodedKeySpec(rawPublicKeyBytes));
+					if (keyAlgorithm != null) {
+						ThreadLocalKeyFactory factory = KEY_FACTORIES.get(keyAlgorithm);
+						if (factory != null && factory.current() != null) {
+							publicKey = factory.current().generatePublic(new X509EncodedKeySpec(rawPublicKeyBytes));
+						}
+					} else {
+						LOGGER.info("Could not reconstruct the peer's public key [{}]",
+								StringUtil.byteArray2Hex(rawPublicKeyBytes));
+					}
 				} catch (GeneralSecurityException e) {
 					LOGGER.warn("Could not reconstruct the peer's public key", e);
 				} catch (IllegalArgumentException e) {
@@ -330,7 +376,7 @@ public final class CertificateMessage extends HandshakeMessage {
 		int certificateChainLength = reader.read(CERTIFICATE_LIST_LENGTH_BITS);
 		DatagramReader rangeReader = reader.createRangeReader(certificateChainLength);
 		try {
-			CertificateFactory factory = CertificateFactory.getInstance(CERTIFICATE_TYPE_X509);
+			CertificateFactory factory = CERTIFICATE_FACTORY.currentWithCause();
 
 			while (rangeReader.bytesAvailable()) {
 				int certificateLength = rangeReader.read(CERTIFICATE_LENGTH_BITS);
@@ -339,7 +385,7 @@ public final class CertificateMessage extends HandshakeMessage {
 
 			return new CertificateMessage(factory.generateCertPath(certs), peerAddress);
 
-		} catch (CertificateException e) {
+		} catch (GeneralSecurityException e) {
 			throw new HandshakeException(
 					"Cannot parse X.509 certificate chain provided by peer",
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE, peerAddress),

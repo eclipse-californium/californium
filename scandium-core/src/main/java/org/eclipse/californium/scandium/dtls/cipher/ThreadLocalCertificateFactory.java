@@ -16,43 +16,33 @@
 package org.eclipse.californium.scandium.dtls.cipher;
 
 import java.security.GeneralSecurityException;
-import java.security.Provider;
-import java.security.Signature;
-
-import org.eclipse.californium.elements.util.Asn1DerDecoder;
+import java.security.cert.CertificateFactory;
 
 /**
- * Thread local Signature.
+ * Thread local CertificateFactory.
  * 
  * Uses {@link ThreadLocal} to cache calls to
- * {@link Signature#getInstance(String)}.
+ * {@link CertificateFactory#getInstance(String)}.
  * 
- * @since 2.3
+ * @since 2.4
  */
-public class ThreadLocalSignature extends ThreadLocalCrypto<Signature> {
+public class ThreadLocalCertificateFactory extends ThreadLocalCrypto<CertificateFactory> {
 
 	/**
-	 * Create thread local Signature.
+	 * Create thread local CertificateFactory.
 	 * 
-	 * Try to instance the Signature for the provided algorithm.
+	 * Try to instance the CertificateFactory for the provided algorithm.
 	 * 
 	 * @param algorithm algorithm. Passed to
-	 *            {@link Signature#getInstance(String)}.
+	 *            {@link CertificateFactory#getInstance(String)}.
 	 * @see ThreadLocalCrypto
 	 */
-	public ThreadLocalSignature(final String algorithm) {
-		super(new Factory<Signature>() {
+	public ThreadLocalCertificateFactory(final String algorithm) {
+		super(new Factory<CertificateFactory>() {
 
 			@Override
-			public Signature getInstance() throws GeneralSecurityException {
-				String oid = Asn1DerDecoder.getEdDsaStandardAlgorithmName(algorithm, null);
-				if (oid != null) {
-					Provider provider = Asn1DerDecoder.getEdDsaProvider();
-					if (provider != null) {
-						return Signature.getInstance(oid, provider);
-					}
-				}
-				return Signature.getInstance(algorithm);
+			public CertificateFactory getInstance() throws GeneralSecurityException {
+				return CertificateFactory.getInstance(algorithm);
 			}
 
 		});

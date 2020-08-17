@@ -35,7 +35,6 @@ import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
-import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.SignatureAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 
@@ -198,13 +197,8 @@ public final class ClientHello extends HandshakeMessage {
 		if (!supportedSignatureAndHashAlgorithms.isEmpty()) {
 			if (useCertificateTypeRawPublicKeyOnly(supportedClientCertificateTypes)
 					&& useCertificateTypeRawPublicKeyOnly(supportedServerCertificateTypes)) {
-				List<SignatureAndHashAlgorithm> ecdsaSignatures = new ArrayList<SignatureAndHashAlgorithm>();
-				for (SignatureAndHashAlgorithm signature : supportedSignatureAndHashAlgorithms) {
-					if (SignatureAlgorithm.ECDSA.equals(signature.getSignature())) {
-						ecdsaSignatures.add(signature);
-					}
-				}
-				supportedSignatureAndHashAlgorithms = ecdsaSignatures;
+				supportedSignatureAndHashAlgorithms = SignatureAndHashAlgorithm
+						.getEcdsaCompatibleSignatureAlgorithms(supportedSignatureAndHashAlgorithms);
 			}
 			this.extensions.addExtension(new SignatureAlgorithmsExtension(supportedSignatureAndHashAlgorithms));
 		}

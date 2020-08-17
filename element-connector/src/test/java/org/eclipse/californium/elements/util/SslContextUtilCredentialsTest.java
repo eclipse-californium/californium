@@ -20,6 +20,7 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.core.IsNull.notNullValue;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assume.assumeTrue;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -292,6 +293,34 @@ public class SslContextUtilCredentialsTest {
 		assertThat(credentials, is(notNullValue()));
 		assertThat(credentials.getPrivateKey(), is(notNullValue()));
 		assertThat(credentials.getPubicKey(), is(notNullValue()));
+	}
+
+	@Test
+	public void testLoadPemPrivateKeyEd25519() throws IOException, GeneralSecurityException {
+		assumeTrue("ED25519 requires JVM support!", Asn1DerDecoder.isSupported("Ed25519"));
+		PrivateKey privateKey = SslContextUtil.loadPrivateKey(SslContextUtil.CLASSPATH_SCHEME + "certs/ed25519_private.pem", null, null, null);
+		assertThat(privateKey, is(notNullValue()));
+	}
+
+	@Test
+	public void testLoadPemPublicKeyEd25519() throws IOException, GeneralSecurityException {
+		assumeTrue("ED25519 requires JVM support!", Asn1DerDecoder.isSupported("Ed25519"));
+		PublicKey publicKey = SslContextUtil.loadPublicKey(SslContextUtil.CLASSPATH_SCHEME + "certs/ed25519_public.pem", null, null);
+		assertThat(publicKey, is(notNullValue()));
+	}
+
+	@Test
+	public void testLoadPemPrivateKeyEd448() throws IOException, GeneralSecurityException {
+		assumeTrue("ED448 requires JVM support!", Asn1DerDecoder.isSupported("Ed448"));
+		PrivateKey privateKey = SslContextUtil.loadPrivateKey(SslContextUtil.CLASSPATH_SCHEME + "certs/ed448_private.pem", null, null, null);
+		assertThat(privateKey, is(notNullValue()));
+	}
+
+	@Test
+	public void testLoadPemPublicKeyEd448() throws IOException, GeneralSecurityException {
+		assumeTrue("ED448 requires JVM support!", Asn1DerDecoder.isSupported("Ed448"));
+		PublicKey publicKey = SslContextUtil.loadPublicKey(SslContextUtil.CLASSPATH_SCHEME + "certs/ed448_public.pem", null, null);
+		assertThat(publicKey, is(notNullValue()));
 	}
 
 }

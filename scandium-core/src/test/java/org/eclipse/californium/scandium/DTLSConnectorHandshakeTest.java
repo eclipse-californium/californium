@@ -41,7 +41,10 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
+import java.security.KeyPair;
 import java.security.Principal;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -61,6 +64,9 @@ import org.eclipse.californium.elements.category.Large;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
+import org.eclipse.californium.elements.util.SslContextUtil;
+import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
+import org.eclipse.californium.elements.util.TestCertificatesTools;
 import org.eclipse.californium.elements.util.TestScope;
 import org.eclipse.californium.scandium.ConnectorHelper.BuilderSetup;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchSessionListener;
@@ -74,6 +80,8 @@ import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalKeyPairGenerator;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
 import org.eclipse.californium.scandium.dtls.pskstore.AsyncInMemoryPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
@@ -1006,6 +1014,116 @@ public class DTLSConnectorHandshakeTest {
 				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256);
 		startClient(false,  null, builder);
 		assertThat(serverHelper.establishedServerSession.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256));
+	}
+
+	@Test
+	public void testRpkEd25519Handshake() throws Exception {
+		assumeTrue("X25519 requires JVM support!", XECDHECryptography.SupportedGroup.X25519.isUsable());
+		assumeTrue("ED25519 requires JVM support!", SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519.isSupported());
+		List<SignatureAndHashAlgorithm> defaults = new ArrayList<>(SignatureAndHashAlgorithm.DEFAULT);
+		defaults.add(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519);
+		DtlsConnectorConfig.Builder builderServer = new DtlsConnectorConfig.Builder()
+				.setSupportedSignatureAlgorithms(defaults)
+				.setApplicationLevelInfoSupplier(clientInfoSupplier);
+		startServer(builderServer);
+		KeyPair keyPair = new ThreadLocalKeyPairGenerator("Ed25519").current().generateKeyPair();
+		DtlsConnectorConfig.Builder builderClient = new DtlsConnectorConfig.Builder()
+				.setRpkTrustAll()
+				.setIdentity(keyPair.getPrivate(), keyPair.getPublic())
+				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+		startClient(false, null, builderClient);
+		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
+				is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+	}
+
+	@Test
+	public void testRpkEd448Handshake() throws Exception {
+		assumeTrue("X448 requires JVM support!", XECDHECryptography.SupportedGroup.X448.isUsable());
+		assumeTrue("ED448 requires JVM support!", SignatureAndHashAlgorithm.INTRINSIC_WITH_ED448.isSupported());
+		List<SignatureAndHashAlgorithm> defaults = new ArrayList<>(SignatureAndHashAlgorithm.DEFAULT);
+		defaults.add(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED448);
+		DtlsConnectorConfig.Builder builderServer = new DtlsConnectorConfig.Builder()
+				.setSupportedSignatureAlgorithms(defaults)
+				.setApplicationLevelInfoSupplier(clientInfoSupplier);
+		startServer(builderServer);
+		KeyPair keyPair = new ThreadLocalKeyPairGenerator("Ed448").current().generateKeyPair();
+		DtlsConnectorConfig.Builder builderClient = new DtlsConnectorConfig.Builder()
+				.setRpkTrustAll()
+				.setIdentity(keyPair.getPrivate(), keyPair.getPublic())
+				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+		startClient(false, null, builderClient);
+		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
+				is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+	}
+
+	@Test
+	public void testRpkOpensslEd25519Handshake() throws Exception {
+		assumeTrue("X25519 requires JVM support!", XECDHECryptography.SupportedGroup.X25519.isUsable());
+		assumeTrue("ED25519 requires JVM support!", SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519.isSupported());
+		PrivateKey privateKey = SslContextUtil.loadPrivateKey(SslContextUtil.CLASSPATH_SCHEME + "certs/ed25519_private.pem", null, null, null);
+		assertThat(privateKey, is(notNullValue()));
+		PublicKey publicKey = SslContextUtil.loadPublicKey(SslContextUtil.CLASSPATH_SCHEME + "certs/ed25519_public.pem", null, null);
+		assertThat(publicKey, is(notNullValue()));
+
+		List<SignatureAndHashAlgorithm> defaults = new ArrayList<>(SignatureAndHashAlgorithm.DEFAULT);
+		defaults.add(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519);
+		DtlsConnectorConfig.Builder builderServer = new DtlsConnectorConfig.Builder()
+				.setSupportedSignatureAlgorithms(defaults)
+				.setApplicationLevelInfoSupplier(clientInfoSupplier);
+		startServer(builderServer);
+		DtlsConnectorConfig.Builder builderClient = new DtlsConnectorConfig.Builder()
+				.setRpkTrustAll()
+				.setIdentity(privateKey, publicKey)
+				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+		startClient(false, null, builderClient);
+		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
+				is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+	}
+
+	@Test
+	public void testRpkOpensslEd448Handshake() throws Exception {
+		assumeTrue("X448 requires JVM support!", XECDHECryptography.SupportedGroup.X448.isUsable());
+		assumeTrue("ED448 requires JVM support!", SignatureAndHashAlgorithm.INTRINSIC_WITH_ED448.isSupported());
+		PrivateKey privateKey = SslContextUtil.loadPrivateKey(SslContextUtil.CLASSPATH_SCHEME + "certs/ed448_private.pem", null, null, null);
+		assertThat(privateKey, is(notNullValue()));
+		PublicKey publicKey = SslContextUtil.loadPublicKey(SslContextUtil.CLASSPATH_SCHEME + "certs/ed448_public.pem", null, null);
+		assertThat(publicKey, is(notNullValue()));
+
+		List<SignatureAndHashAlgorithm> defaults = new ArrayList<>(SignatureAndHashAlgorithm.DEFAULT);
+		defaults.add(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED448);
+		DtlsConnectorConfig.Builder builderServer = new DtlsConnectorConfig.Builder()
+				.setSupportedSignatureAlgorithms(defaults)
+				.setApplicationLevelInfoSupplier(clientInfoSupplier);
+		startServer(builderServer);
+		DtlsConnectorConfig.Builder builderClient = new DtlsConnectorConfig.Builder()
+				.setRpkTrustAll()
+				.setIdentity(privateKey, publicKey)
+				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+		startClient(false, null, builderClient);
+		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
+				is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+	}
+
+	@Test
+	public void testX509Ed25519Handshake() throws Exception {
+		assumeTrue("X25519 requires JVM support!", XECDHECryptography.SupportedGroup.X25519.isUsable());
+		assumeTrue("ED25519 requires JVM support!", SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519.isSupported());
+
+		Credentials credentials = TestCertificatesTools.getCredentials("clienteddsa");
+
+		List<SignatureAndHashAlgorithm> defaults = new ArrayList<>(SignatureAndHashAlgorithm.DEFAULT);
+		defaults.add(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519);
+		DtlsConnectorConfig.Builder builderServer = new DtlsConnectorConfig.Builder()
+				.setSupportedSignatureAlgorithms(defaults)
+				.setApplicationLevelInfoSupplier(clientInfoSupplier);
+		startServer(builderServer);
+		DtlsConnectorConfig.Builder builderClient = new DtlsConnectorConfig.Builder()
+				.setTrustStore(new Certificate[0])
+				.setIdentity(credentials.getPrivateKey(), credentials.getCertificateChain())
+				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+		startClient(false, null, builderClient);
+		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
+				is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
 	}
 
 	@Test

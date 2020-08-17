@@ -30,20 +30,32 @@ import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalSignature;
 import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalCryptoMap.Factory;
 
 /**
- * See <a href="http://tools.ietf.org/html/rfc5246#appendix-A.4.1">RFC 5246</a>
+ * See <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1">RFC 5246</a>
  * for details.
+ * 
+ * Since 2.4: added support for 
+ * <a href="https://tools.ietf.org/html/rfc8422#section-5.1.3">RFC 8422</a>.
  */
 public final class SignatureAndHashAlgorithm {
 
 	/**
 	 * Hash algorithms as defined by
-	 * <a href="http://tools.ietf.org/html/rfc5246#appendix-A.4.1">RFC 5246</a>.
+	 * <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1">RFC 5246</a>.
 	 * <P>
 	 * Code is at most 255 (1 byte needed for representation).
+	 * 
+	 * Since 2.4: added {@link #INTRINSIC} defined by
+	 * <a href="https://tools.ietf.org/html/rfc8422#section-5.1.3">RFC 8422</a>.
 	 */
 	public static enum HashAlgorithm {
 
-		NONE(0), MD5(1), SHA1(2), SHA224(3), SHA256(4), SHA384(5), SHA512(6);
+		NONE(0), MD5(1), SHA1(2), SHA224(3), SHA256(4), SHA384(5), SHA512(6), 
+		/**
+		 * Do not hash before sign.
+		 * 
+		 * @since 2.4
+		 */
+		INTRINSIC(8);
 
 		private int code;
 
@@ -56,20 +68,37 @@ public final class SignatureAndHashAlgorithm {
 		 * 
 		 * @param code The algorithm's code.
 		 * @return The algorithm or {@code null} if no algorithm is defined for the given code by
-		 *         <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1">RFC 5246, Appendix A.4.1</a>.
+		 *         <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1">RFC 5246, Appendix A.4.1</a>, or
+		 *         <a href="https://tools.ietf.org/html/rfc8422#section-5.1.3">RFC 8422, Section 5.1.3</a>.
 		 */
 		public static HashAlgorithm getAlgorithmByCode(int code) {
-			for (HashAlgorithm algorithm : values()) {
-				if (algorithm.code == code) {
-					return algorithm;
-				}
+			switch (code) {
+			case 0:
+				return NONE;
+			case 1:
+				return MD5;
+			case 2:
+				return SHA1;
+			case 3:
+				return SHA224;
+			case 4:
+				return SHA256;
+			case 5:
+				return SHA384;
+			case 6:
+				return SHA512;
+			case 8:
+				return INTRINSIC;
+
+			default:
+				return null;
 			}
-			return null;
 		}
 
 		/**
 		 * Gets the code of this algorithm as defined by
-		 * <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1">RFC 5246, Appendix A.4.1</a>.
+		 * <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1">RFC 5246, Appendix A.4.1</a>, or
+		 * <a href="https://tools.ietf.org/html/rfc8422#section-5.1.3">RFC 8422, Section 5.1.3</a>.
 		 * 
 		 * @return The code.
 		 */
@@ -83,15 +112,32 @@ public final class SignatureAndHashAlgorithm {
 	 * <a href="http://tools.ietf.org/html/rfc5246#appendix-A.4.1">RFC 5246</a>.
 	 * <p>
 	 * Code is at most 255 (1 byte needed for representation).
+	 * 
+	 * Since 2.4: added {@link #ED25519} and {@link #ED448} defined by
+	 * <a href="http://tools.ietf.org/html/rfc8422#section-5.1.3">RFC 8422</a>.
 	 */
 	public static enum SignatureAlgorithm {
 
-		ANONYMOUS(0), RSA(1), DSA(2), ECDSA(3);
+		ANONYMOUS(0, false), RSA(1, false), DSA(2, false), ECDSA(3, true), 
+		/**
+		 * ED25519 signature.
+		 * 
+		 * @since 2.4
+		 */
+		ED25519(7, true),
+		/**
+		 * ED448 signature
+		 * 
+		 * @since 2.4
+		 */
+		ED448(8, true);
 
-		private int code;
+		private final int code;
+		private final boolean isEcdsaCompatible;
 
-		private SignatureAlgorithm(int code) {
+		private SignatureAlgorithm(int code, boolean ecdsa) {
 			this.code = code;
+			this.isEcdsaCompatible = ecdsa;
 		}
 
 		/**
@@ -99,7 +145,8 @@ public final class SignatureAndHashAlgorithm {
 		 * 
 		 * @param code The algorithm's code.
 		 * @return The algorithm or {@code null} if no algorithm is defined for the given code by
-		 *         <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1">RFC 5246, Appendix A.4.1</a>.
+		 *         <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1">RFC 5246, Appendix A.4.1</a>, or
+		 *         <a href="https://tools.ietf.org/html/rfc8422#section-5.1.3">RFC 8422, Section 5.1.3</a>.
 		 */
 		public static SignatureAlgorithm getAlgorithmByCode(int code) {
 			switch (code) {
@@ -111,6 +158,10 @@ public final class SignatureAndHashAlgorithm {
 				return DSA;
 			case 3:
 				return ECDSA;
+			case 7:
+				return ED25519;
+			case 8:
+				return ED448;
 
 			default:
 				return null;
@@ -119,12 +170,24 @@ public final class SignatureAndHashAlgorithm {
 
 		/**
 		 * Gets the code of this algorithm as defined by
-		 * <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1">RFC 5246, Appendix A.4.1</a>.
+		 * <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1">RFC 5246, Appendix A.4.1</a>, or
+		 * <a href="https://tools.ietf.org/html/rfc8422#section-5.1.3">RFC 8422, Section 5.1.3</a>.
 		 * 
 		 * @return The code.
 		 */
 		public int getCode() {
 			return code;
+		}
+
+		/**
+		 * Gets ECDSA compatibility.
+		 * 
+		 * @return {@code true}, for ECDSA compatible signature, {@code false},
+		 *         otherwise.
+		 * @since 2.4
+		 */
+		public boolean isEcdsaCompatible() {
+			return isEcdsaCompatible;
 		}
 	}
 
@@ -163,6 +226,20 @@ public final class SignatureAndHashAlgorithm {
 	 */
 	public static SignatureAndHashAlgorithm SHA256_WITH_RSA = new SignatureAndHashAlgorithm(HashAlgorithm.SHA256,
 			SignatureAlgorithm.RSA);
+	/**
+	 * INTRINSIC_WITH_ED25519.
+	 * 
+	 * @since 2.4
+	 */
+	public static SignatureAndHashAlgorithm INTRINSIC_WITH_ED25519 = new SignatureAndHashAlgorithm(
+			HashAlgorithm.INTRINSIC, SignatureAlgorithm.ED25519);
+	/**
+	 * INTRINSIC_WITH_ED448.
+	 * 
+	 * @since 2.4
+	 */
+	public static SignatureAndHashAlgorithm INTRINSIC_WITH_ED448 = new SignatureAndHashAlgorithm(
+			HashAlgorithm.INTRINSIC, SignatureAlgorithm.ED448);
 	/**
 	 * Default list of supported signature and hash algorithms. Contains only
 	 * SHA256_with_Ecdsa.
@@ -217,20 +294,59 @@ public final class SignatureAndHashAlgorithm {
 	 * Get list of default signature and hash algorithms including the
 	 * algorithms used by the certificate chain.
 	 * 
-	 * @param certificateChain certificate chain. Maybe {@code null}.
+	 * @param certificateChain certificate chain. May be {@code null}.
 	 * @return list list of default signature and hash algorithms
 	 * 
 	 * @since 2.3
 	 */
 	public static List<SignatureAndHashAlgorithm> getDefaultSignatureAlgorithms(
 			List<X509Certificate> certificateChain) {
-		List<SignatureAndHashAlgorithm> result = new ArrayList<>(DEFAULT);
-		if (certificateChain != null) {
+		if (certificateChain != null && certificateChain.size() > 0) {
+			PublicKey publicKey = certificateChain.get(0).getPublicKey();
+			List<SignatureAndHashAlgorithm> result = getDefaultSignatureAlgorithms(publicKey);
 			for (X509Certificate certificate : certificateChain) {
 				String sigAlgName = certificate.getSigAlgName();
 				SignatureAndHashAlgorithm signature = valueOf(sigAlgName);
 				if (signature != null && !result.contains(signature)) {
 					result.add(signature);
+				}
+			}
+			return result;
+		} else {
+			return new ArrayList<>(DEFAULT);
+		}
+	}
+
+	/**
+	 * Get list of default signature and hash algorithms including the
+	 * algorithms usable by the public key.
+	 * 
+	 * @param publicKey publicKey.  May be {@code null}.
+	 * @return list list of default signature and hash algorithms
+	 * 
+	 * @since 2.4
+	 */
+	public static List<SignatureAndHashAlgorithm> getDefaultSignatureAlgorithms(
+			PublicKey publicKey) {
+		List<SignatureAndHashAlgorithm> result = new ArrayList<>(DEFAULT);
+		if (publicKey != null && getSupportedSignatureAlgorithm(result, publicKey) == null) {
+			for (HashAlgorithm hashAlgorithm : HashAlgorithm.values()) {
+				if (!hashAlgorithm.equals(HashAlgorithm.NONE)) {
+					for (SignatureAlgorithm signatureAlgorithm : SignatureAlgorithm.values()) {
+						SignatureAndHashAlgorithm signAndHash = new SignatureAndHashAlgorithm(hashAlgorithm,
+								signatureAlgorithm);
+						Signature signature = signAndHash.getThreadLocalSignature().current();
+						if (signature != null) {
+							try {
+								signature.initVerify(publicKey);
+								if (!result.contains(signAndHash)) {
+									result.add(signAndHash);
+								}
+								return result;
+							} catch (InvalidKeyException e) {
+							}
+						}
+					}
 				}
 			}
 		}
@@ -273,11 +389,14 @@ public final class SignatureAndHashAlgorithm {
 	 * @return A signature and hash algorithm that can be used with the provided
 	 *         public key, or {@code null}, if the public key is not compatible
 	 *         with any of the supported signature and hash algorithms.
-	 * 
+	 * @throws NullPointerException if any parameter is {@code null}.
 	 * @since 2.3
 	 */
 	public static SignatureAndHashAlgorithm getSupportedSignatureAlgorithm(
 			List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms, PublicKey key) {
+		if (key == null) {
+			throw new NullPointerException("Public key must not be null!");
+		}
 		for (SignatureAndHashAlgorithm supportedAlgorithm : supportedSignatureAlgorithms) {
 			try {
 				Signature sign = supportedAlgorithm.getThreadLocalSignature().current();
@@ -289,6 +408,25 @@ public final class SignatureAndHashAlgorithm {
 			}
 		}
 		return null;
+	}
+
+	/**
+	 * Get ECDSA compatible signature and hash algorithms.
+	 * 
+	 * @param signatureAndHashAlgorithms list of signature and hash algorithms
+	 * @return ECDSA compatible signature and hash algorithms
+	 * @see #isEcdsaCompatible()
+	 * @since 2.4
+	 */
+	public static List<SignatureAndHashAlgorithm> getEcdsaCompatibleSignatureAlgorithms(
+			List<SignatureAndHashAlgorithm> signatureAndHashAlgorithms) {
+		List<SignatureAndHashAlgorithm> result = new ArrayList<>();
+		for (SignatureAndHashAlgorithm algo : signatureAndHashAlgorithms) {
+			if (algo.getSignature().isEcdsaCompatible()) {
+				result.add(algo);
+			}
+		}
+		return result;
 	}
 
 	/**
@@ -365,7 +503,7 @@ public final class SignatureAndHashAlgorithm {
 		this.hashAlgorithmCode = hashAlgorithm.getCode();
 		this.signatureAlgorithmCode = signatureAlgorithm.getCode();
 		this.jcaName = buildJcaName();
-		this.supported = jcaName != null && getThreadLocalSignature(jcaName) .current() != null;
+		this.supported = jcaName != null && getThreadLocalSignature(jcaName).current() != null;
 	}
 
 	/**
@@ -382,14 +520,16 @@ public final class SignatureAndHashAlgorithm {
 		this.signature = SignatureAlgorithm.getAlgorithmByCode(signatureAlgorithmCode);
 		this.hash = HashAlgorithm.getAlgorithmByCode(hashAlgorithmCode);
 		this.jcaName = buildJcaName();
-		this.supported = jcaName != null && getThreadLocalSignature(jcaName) .current() != null;
+		this.supported = jcaName != null && getThreadLocalSignature(jcaName).current() != null;
 	}
 
 	private String buildJcaName() {
 		if (hash != null && signature != null) {
 			StringBuilder name = new StringBuilder();
-			name.append(hash);
-			name.append("with");
+			if (hash != HashAlgorithm.INTRINSIC) {
+				name.append(hash);
+				name.append("with");
+			}
 			name.append(signature);
 			return name.toString();
 		}

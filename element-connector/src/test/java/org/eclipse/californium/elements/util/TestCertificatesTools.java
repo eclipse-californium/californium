@@ -18,6 +18,7 @@ package org.eclipse.californium.elements.util;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.Certificate;
@@ -83,7 +84,7 @@ public class TestCertificatesTools {
 	protected TestCertificatesTools() {
 	}
 
-	public static X509Certificate[] getServerCertificateChain()	throws IOException, GeneralSecurityException {
+	public static X509Certificate[] getServerCertificateChain() {
 		X509Certificate[] certificateChain = serverCredentials.getCertificateChain();
 		return Arrays.copyOf(certificateChain, certificateChain.length);
 	}
@@ -92,28 +93,50 @@ public class TestCertificatesTools {
 	 * Get mixed server certificate chain. Contains ECDSA and RSA certificates.
 	 * 
 	 * @return mixed server certificate chain
-	 * @throws IOException if the key store cannot be read
-	 * @throws GeneralSecurityException if the key cannot be found
 	 * @since 2.3
 	 */
-	public static X509Certificate[] getServerRsaCertificateChain()	throws IOException, GeneralSecurityException {
+	public static X509Certificate[] getServerRsaCertificateChain() {
 		X509Certificate[] certificateChain = serverRsaCredentials.getCertificateChain();
 		return Arrays.copyOf(certificateChain, certificateChain.length);
 	}
 
-	public static X509Certificate[] getClientCertificateChain()	throws IOException, GeneralSecurityException {
+	public static X509Certificate[] getClientCertificateChain() {
 		X509Certificate[] certificateChain = clientCredentials.getCertificateChain();
 		return Arrays.copyOf(certificateChain, certificateChain.length);
+	}
+
+	/**
+	 * Get credentials for alias.
+	 * 
+	 * @param alias alias for credentials
+	 * @return loaded credentials, or {@code null}, if not available.
+	 * @since 2.4
+	 */
+	public static SslContextUtil.Credentials getCredentials(String alias) {
+		try {
+			return SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, alias,
+					KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+		} catch (IOException | GeneralSecurityException e) {
+			return null;
+		}
+	}
+
+	/**
+	 * Get server's key pair.
+	 * 
+	 * @return server's key pair
+	 * @since 2.4
+	 */
+	public static KeyPair getServerKeyPair() {
+		return new KeyPair(serverCredentials.getPubicKey(), serverCredentials.getPrivateKey());
 	}
 
 	/**
 	 * Gets the server's private key from the example key store.
 	 * 
 	 * @return the key
-	 * @throws IOException if the key store cannot be read
-	 * @throws GeneralSecurityException if the key cannot be found
 	 */
-	public static PrivateKey getPrivateKey() throws IOException, GeneralSecurityException {
+	public static PrivateKey getPrivateKey() {
 		return serverCredentials.getPrivateKey();
 	}
 
@@ -122,11 +145,9 @@ public class TestCertificatesTools {
 	 * with mixed certificate chain wiht ECDSA and RSA certificates.
 	 * 
 	 * @return the key
-	 * @throws IOException if the key store cannot be read
-	 * @throws GeneralSecurityException if the key cannot be found
 	 * @since 2.3
 	 */
-	public static PrivateKey getServerRsPrivateKey() throws IOException, GeneralSecurityException {
+	public static PrivateKey getServerRsPrivateKey() {
 		return serverRsaCredentials.getPrivateKey();
 	}
 
@@ -134,10 +155,8 @@ public class TestCertificatesTools {
 	 * Gets the client's private key from the example key store.
 	 * 
 	 * @return the key
-	 * @throws IOException if the key store cannot be read
-	 * @throws GeneralSecurityException if the key cannot be found
 	 */
-	public static PrivateKey getClientPrivateKey() throws IOException, GeneralSecurityException {
+	public static PrivateKey getClientPrivateKey() {
 		return clientCredentials.getPrivateKey();
 	}
 
@@ -145,11 +164,8 @@ public class TestCertificatesTools {
 	 * Gets the server's public key from the example key store.
 	 * 
 	 * @return The key.
-	 * @throws IOException if the key store cannot be read
-	 * @throws GeneralSecurityException if the key cannot be found
-	 * @throws IllegalStateException if the key store does not contain a server certificate chain.
 	 */
-	public static PublicKey getPublicKey() throws IOException, GeneralSecurityException {
+	public static PublicKey getPublicKey() {
 		return serverCredentials.getCertificateChain()[0].getPublicKey();
 	}
 
@@ -157,11 +173,8 @@ public class TestCertificatesTools {
 	 * Gets the client's public key from the example key store.
 	 * 
 	 * @return The key.
-	 * @throws IOException if the key store cannot be read
-	 * @throws GeneralSecurityException if the key cannot be found
-	 * @throws IllegalStateException if the key store does not contain a client certificate chain.
 	 */
-	public static PublicKey getClientPublicKey() throws IOException, GeneralSecurityException {
+	public static PublicKey getClientPublicKey() {
 		return clientCredentials.getCertificateChain()[0].getPublicKey();
 	}
 

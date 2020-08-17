@@ -19,7 +19,9 @@ import java.math.BigInteger;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
+import java.security.Provider;
 import java.security.PublicKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECGenParameterSpec;
@@ -33,8 +35,26 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * ASN.1 DER decoder for SEQUENCEs and OIDs.
+ * 
+ * To support EdDSA, either java 15, or java 11 with <a href="https://github.com/str4d/ed25519-java">ed25519-java2</a>.
+ * If the `ed25519-java` should be used, please add
+ * 
+ * <pre>
+ * <dependency>
+ * 	<groupId>net.i2p.crypto</groupId>
+ * 	<artifactId>eddsa</artifactId>
+ * 	<version>0.3.0</version>
+ * 	<scope>runtime</scope>
+ * </dependency>
+ * </pre>
+ * 
+ * to your project pom, or add that jar to your classpath.
+ * (For 2.5 it is planned to add this by default.)
  */
 public class Asn1DerDecoder {
 	/**
@@ -59,6 +79,46 @@ public class Asn1DerDecoder {
 	 * @see #readEcPrivateKeyV2(byte[])
 	 */
 	public static final String ECv2 = "EC.v2";
+	/**
+	 * Key algorithm ED25519 (RFC 8422).
+	 * 
+	 * Used with {@link #getEdDsaProvider()}.
+	 * 
+	 * @since 2.4
+	 */
+	public static final String ED25519 = "ED25519";
+	/**
+	 * Key algorithm ED448 (RFC 8422).
+	 * 
+	 * Used with {@link #getEdDsaProvider()}.
+	 * 
+	 * @since 2.4
+	 */
+	public static final String ED448 = "ED448";
+	/**
+	 * OID key algorithm ED25519 (RFC 8422).
+	 * 
+	 * Used with {@link #getEdDsaProvider()}.
+	 * 
+	 * @since 2.4
+	 */
+	public static final String OID_ED25519 = "OID.1.3.101.112";
+	/**
+	 * OID key algorithm ED448 (RFC 8422).
+	 * 
+	 * Used with {@link #getEdDsaProvider()}.
+	 * 
+	 * @since 2.4
+	 */
+	public static final String OID_ED448 = "OID.1.3.101.113";
+	/**
+	 * Key algorithm EdDSA (RFC 8422).
+	 * 
+	 * Used with {@link #getEdDsaProvider()}.
+	 * 
+	 * @since 2.4
+	 */
+	public static final String EDDSA = "EdDSA";
 	/**
 	 * ECPoint uncompressed.
 	 * <a href="https://tools.ietf.org/html/rfc5480#section-2.2">RFC 5480, Section 2.2</a>
@@ -121,6 +181,18 @@ public class Asn1DerDecoder {
 	 */
 	private static final byte[] OID_EC_PUBLIC_KEY = { 0x2A, (byte) 0x86, 0x48, (byte) 0xCE, 0x3D, 0x02, 0x01 };
 	/**
+	 * ASN.1 OID for ED25519 public key.
+	 * 
+	 * @since 2.4
+	 */
+	private static final byte[] OID_ED25519_PUBLIC_KEY = { 0x2b, 0x65, 0x70 };
+	/**
+	 * ASN.1 OID for ED448 public key.
+	 * 
+	 * @since 2.4
+	 */
+	private static final byte[] OID_ED448_PUBLIC_KEY = { 0x2b, 0x65, 0x71 };
+	/**
 	 * ASN.1 entity definition for SEQUENCE.
 	 */
 	private static final EntityDefinition SEQUENCE = new EntityDefinition(TAG_SEQUENCE, MAX_DEFAULT_LENGTH, "SEQUENCE");
@@ -152,6 +224,105 @@ public class Asn1DerDecoder {
 	 */
 	private static final EntityDefinition CONTEXT_SPECIFIC_1 = new EntityDefinition(TAG_CONTEXT_1_SPECIFIC,
 			MAX_DEFAULT_LENGTH, "CONTEXT SPECIFIC 1");
+
+	private static final Logger LOGGER = LoggerFactory.getLogger(Asn1DerDecoder.class);
+
+	/**
+	 * Provider for EdDsa.
+	 * 
+	 * Either java 15 SunEC, or, for java version before, external java 7
+	 * <a href="https://github.com/str4d/ed25519-java">net.i2p.crypto.eddsa</a>.
+	 * 
+	 * @since 2.4
+	 */
+	private static final Provider EDDSA_PROVIDER;
+	private static final boolean ED25519_SUPPORT;
+	private static final boolean ED448_SUPPORT;
+
+	/**
+	 * Package name for external java 7 EdDSA provider.
+	 */
+	private static final String NET_I2P_CRYPTO_EDDSA = "net.i2p.crypto.eddsa";
+
+	static {
+		boolean ed25519 = false;
+		boolean ed448 = false;
+		Provider provider = null;
+		try {
+			KeyFactory factory = KeyFactory.getInstance("EdDSA");
+			provider = factory.getProvider();
+			ed25519 = true;
+			ed448 = true;
+			LOGGER.trace("EdDSA from jvm {}", provider.getName());
+		} catch (NoSuchAlgorithmException e) {
+			if (StringUtil.getConfigurationBoolean(NET_I2P_CRYPTO_EDDSA.replace('.', '_') + "_disable")) {
+				LOGGER.trace("EdDSA not available from jvm!", e);
+			} else {
+				Throwable cause = null;
+				try {
+					Class<?> clz = Class.forName(NET_I2P_CRYPTO_EDDSA + ".EdDSASecurityProvider");
+					if (clz != null) {
+						provider = (Provider) clz.newInstance();
+						ed25519 = true;
+						ed448 = false;
+						LOGGER.trace("EdDSA from {}", NET_I2P_CRYPTO_EDDSA);
+					}
+				} catch (ClassNotFoundException e2) {
+					cause = e2;
+				} catch (InstantiationException e2) {
+					cause = e2;
+				} catch (IllegalAccessException e2) {
+					cause = e2;
+				}
+				if (provider == null) {
+					LOGGER.trace("{} is not available!", NET_I2P_CRYPTO_EDDSA, cause);
+				}
+			}
+		}
+		EDDSA_PROVIDER = provider;
+		ED25519_SUPPORT = ed25519;
+		ED448_SUPPORT = ed448;
+	}
+
+	/**
+	 * Get EdDSA provider.
+	 * 
+	 * Either java 15 SunEC, or, for java version before, external java 7
+	 * <a href="https://github.com/str4d/ed25519-java">net.i2p.crypto.eddsa</a>.
+	 * 
+	 * To disable external java 7 EdDSA provider, set
+	 * "net_i2p_crypto_eddsa_disable" to true in environment or system
+	 * properties.
+	 * 
+	 * @return EdDSA provider, or {@code null}, if not available or disabled.
+	 * @since 2.4
+	 */
+	public static Provider getEdDsaProvider() {
+		return EDDSA_PROVIDER;
+	}
+
+	/**
+	 * Check, if key algorithm is supported.
+	 * 
+	 * @param algorithm key algorithm
+	 * @return {@code true}, if supported, {@code false}, otherwise.
+	 * @since 2.4
+	 */
+	public static boolean isSupported(String algorithm) {
+		if (EC.equalsIgnoreCase(algorithm)) {
+			return true;
+		} else {
+			String oid = getEdDsaStandardAlgorithmName(algorithm, null);
+			if ("OID.1.3.101.112".equals(oid)) {
+				return ED25519_SUPPORT;
+			} else if ("OID.1.3.101.113".equals(oid)) {
+				return ED448_SUPPORT;
+			} else if ("EdDSA".equalsIgnoreCase(algorithm)) {
+				return ED25519_SUPPORT || ED448_SUPPORT;
+			}
+		}
+		return false;
+	}
 
 	/**
 	 * Read entity of ASN.1 SEQUENCE into byte array.
@@ -251,6 +422,10 @@ public class Asn1DerDecoder {
 			algorithm = DSA;
 		} else if (Arrays.equals(value, OID_DH_PUBLIC_KEY)) {
 			algorithm = DH;
+		} else if (Arrays.equals(value, OID_ED25519_PUBLIC_KEY)) {
+			algorithm = ED25519;
+		} else if (Arrays.equals(value, OID_ED448_PUBLIC_KEY)) {
+			algorithm = ED448;
 		}
 		return algorithm;
 	}
@@ -286,8 +461,9 @@ public class Asn1DerDecoder {
 		PublicKey publicKey = null;
 		String algorithm = readSubjectPublicKeyAlgorithm(data);
 		if (algorithm != null) {
+			KeyFactory factory = getKeyFactory(algorithm);
 			EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(data);
-			publicKey = KeyFactory.getInstance(algorithm).generatePublic(publicKeySpec);
+			publicKey = factory.generatePublic(publicKeySpec);
 		}
 		return publicKey;
 	}
@@ -350,6 +526,10 @@ public class Asn1DerDecoder {
 				algorithm = DSA;
 			} else if (Arrays.equals(value, OID_DH_PUBLIC_KEY)) {
 				algorithm = DH;
+			} else if (Arrays.equals(value, OID_ED25519_PUBLIC_KEY)) {
+				algorithm = ED25519;
+			} else if (Arrays.equals(value, OID_ED448_PUBLIC_KEY)) {
+				algorithm = ED448;
 			}
 		} else if (version == 1) {
 			// RFC 5958
@@ -370,7 +550,6 @@ public class Asn1DerDecoder {
 			} catch (IllegalArgumentException e) {
 				// if oid byte array is invalid
 			}
-
 			if (algorithm == null) {
 				throw new IllegalArgumentException("OID " + oidAsString + " not supported!");
 			}
@@ -421,9 +600,10 @@ public class Asn1DerDecoder {
 			if (algorithm.equals(ECv2)) {
 				keys = readEcPrivateKeyV2(data);
 			} else {
+				KeyFactory factory = getKeyFactory(algorithm);
 				EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(data);
 				keys = new Keys();
-				keys.privateKey = KeyFactory.getInstance(algorithm).generatePrivate(privateKeySpec);
+				keys.privateKey = factory.generatePrivate(privateKeySpec);
 			}
 		}
 		return keys;
@@ -551,6 +731,50 @@ public class Asn1DerDecoder {
 		return apub.getParams();
 	}
 
+	/**
+	 * Get EdDSA standard algorithm name.
+	 * 
+	 * @param algorithm algorithm
+	 * @param def default algorithm
+	 * @return Either {@link #OID_ED25519}, {@link #OID_ED448}, {@link #EDDSA},
+	 *         or the provided default algorithm
+	 * @since 2.4
+	 */
+	public static String getEdDsaStandardAlgorithmName(String algorithm, String def) {
+		if (algorithm.equalsIgnoreCase(ED25519) || algorithm.equalsIgnoreCase("1.3.101.112")
+				|| algorithm.equalsIgnoreCase(OID_ED25519)) {
+			return OID_ED25519;
+		} else if (algorithm.equalsIgnoreCase(ED448) || algorithm.equalsIgnoreCase("1.3.101.113")
+				|| algorithm.equalsIgnoreCase(OID_ED448)) {
+			return OID_ED448;
+		} else if (algorithm.equalsIgnoreCase(EDDSA)) {
+			return EDDSA;
+		} else {
+			return def;
+		}
+	}
+
+	/**
+	 * Get KeyFactory for algorithm.
+	 * 
+	 * Uses {@link #EDDSA_PROVIDER} for EdDSA keys.
+	 * 
+	 * @param algorithm key algorithm
+	 * @return key factory
+	 * @throws NoSuchAlgorithmException if key algorithm is not supported
+	 * @since 2.4
+	 */
+	private static KeyFactory getKeyFactory(String algorithm) throws NoSuchAlgorithmException {
+		String oid = null;
+		if (EDDSA_PROVIDER != null) {
+			oid = getEdDsaStandardAlgorithmName(algorithm, null);
+		}
+		if (oid != null) {
+			return KeyFactory.getInstance(oid, EDDSA_PROVIDER);
+		} else {
+			return KeyFactory.getInstance(algorithm);
+		}
+	}
 
 	/**
 	 * Decoded keys.

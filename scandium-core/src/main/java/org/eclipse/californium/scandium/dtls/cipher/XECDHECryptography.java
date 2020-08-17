@@ -578,7 +578,7 @@ public final class XECDHECryptography implements Destroyable {
 		 * Create supported group.
 		 * 
 		 * @param code code according IANA
-		 * @param recommended {@code true}, for IANA recommeded curves,
+		 * @param recommended {@code true}, for IANA recommended curves,
 		 *            {@code false}, otherwise.
 		 */
 		private SupportedGroup(int code, boolean recommended) {
@@ -611,7 +611,7 @@ public final class XECDHECryptography implements Destroyable {
 		 * @param keySizeInBytes public key size in bytes
 		 * @param algorithmName JRE name of key pair generator algorithm.
 		 *            Currently only "XDH" is implemented!
-		 * @param recommended {@code true}, for IANA recommeded curves,
+		 * @param recommended {@code true}, for IANA recommended curves,
 		 *            {@code false}, otherwise.
 		 */
 		private SupportedGroup(int code, int keySizeInBytes, String algorithmName, boolean recommended) {
@@ -675,6 +675,17 @@ public final class XECDHECryptography implements Destroyable {
 						return SupportedGroup.valueOf(name);
 					} catch (GeneralSecurityException ex) {
 
+					}
+				} else {
+					// EdDsa work around ...
+					String algorithm = publicKey.getAlgorithm();
+					String oid = Asn1DerDecoder.getEdDsaStandardAlgorithmName(algorithm, null);
+					if (Asn1DerDecoder.OID_ED25519.equals(oid) || Asn1DerDecoder.EDDSA.equalsIgnoreCase(oid)) {
+						return X25519;
+					} else if (Asn1DerDecoder.OID_ED448.equals(oid)) {
+						return X448;
+					} else {
+						LOGGER.warn("No supported curve {}/{}", publicKey.getAlgorithm(), oid);
 					}
 				}
 			}
