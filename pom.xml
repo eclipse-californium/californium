@@ -7,7 +7,7 @@
 
 	<groupId>org.eclipse.californium</groupId>
 	<artifactId>parent</artifactId>
-	<version>2.3.0</version>
+	<version>2.3.1-SNAPSHOT</version>
 	<packaging>pom</packaging>
 
 	<name>Californium (Cf) Parent</name>
@@ -418,7 +418,7 @@
 				<groupId>org.revapi</groupId>
 				<artifactId>revapi-maven-plugin</artifactId>
 				<configuration>
-					<oldVersion>2.1.0</oldVersion>
+					<oldVersion>2.3.0</oldVersion>
 					<analysisConfiguration>
 						<revapi.semver.ignore>
 							<enabled>true</enabled>
