@@ -65,13 +65,13 @@ public class DTLSSessionTest {
 	@Test
 	public void testRecordFromPreviousEpochIsDiscarded() {
 		session.setReadEpoch(1);
-		assertFalse(session.isRecordProcessable(0, 15, false));
+		assertFalse(session.isRecordProcessable(0, 15, 0));
 	}
 
 	@Test
 	public void testRecordFromFutureEpochIsDiscarded() {
 		session.setReadEpoch(1);
-		assertFalse(session.isRecordProcessable(2, 15, false));
+		assertFalse(session.isRecordProcessable(2, 15, 0));
 	}
 
 	@Test
@@ -80,17 +80,17 @@ public class DTLSSessionTest {
 		session.setReadEpoch(epoch);
 		//session.markRecordAsRead(epoch, 0);
 		session.markRecordAsRead(epoch, 2);
-		assertTrue(session.isRecordProcessable(0, 0, false));
-		assertTrue(session.isRecordProcessable(0, 1, false));
-		assertFalse(session.isRecordProcessable(0, 2, false));
-		assertTrue(session.isRecordProcessable(0, 64, false));
+		assertTrue(session.isRecordProcessable(0, 0, 0));
+		assertTrue(session.isRecordProcessable(0, 1, 0));
+		assertFalse(session.isRecordProcessable(0, 2, 0));
+		assertTrue(session.isRecordProcessable(0, 64, 0));
 
 		// make a right shift by 1 position
 		session.markRecordAsRead(epoch, 64);
-		assertFalse(session.isRecordProcessable(0, 0, false));
-		assertTrue(session.isRecordProcessable(0, 1, false));
-		assertFalse(session.isRecordProcessable(0, 2, false));
-		assertFalse(session.isRecordProcessable(0, 64, false));
+		assertFalse(session.isRecordProcessable(0, 0, 0));
+		assertTrue(session.isRecordProcessable(0, 1, 0));
+		assertFalse(session.isRecordProcessable(0, 2, 0));
+		assertFalse(session.isRecordProcessable(0, 64, 0));
 	}
 
 	@Test
@@ -99,19 +99,42 @@ public class DTLSSessionTest {
 		session.setReadEpoch(epoch);
 		//session.markRecordAsRead(epoch, 0);
 		session.markRecordAsRead(epoch, 2);
-		assertTrue(session.isRecordProcessable(0, 0, true));
-		assertTrue(session.isRecordProcessable(0, 1, true));
-		assertFalse(session.isRecordProcessable(0, 2, true));
-		assertTrue(session.isRecordProcessable(0, 64, true));
-		assertTrue(session.isRecordProcessable(0, 100, true));
+		assertTrue(session.isRecordProcessable(0, 0, -1));
+		assertTrue(session.isRecordProcessable(0, 1, -1));
+		assertFalse(session.isRecordProcessable(0, 2, -1));
+		assertTrue(session.isRecordProcessable(0, 64, -1));
+		assertTrue(session.isRecordProcessable(0, 100, -1));
 
 		// make a right shift by 1 position
 		session.markRecordAsRead(epoch, 64);
-		assertTrue(session.isRecordProcessable(0, 0, true));
-		assertTrue(session.isRecordProcessable(0, 1, true));
-		assertFalse(session.isRecordProcessable(0, 2, true));
-		assertFalse(session.isRecordProcessable(0, 64, true));
-		assertTrue(session.isRecordProcessable(0, 100, true));
+		assertTrue(session.isRecordProcessable(0, 0, -1));
+		assertTrue(session.isRecordProcessable(0, 1, -1));
+		assertFalse(session.isRecordProcessable(0, 2, -1));
+		assertFalse(session.isRecordProcessable(0, 64, -1));
+		assertTrue(session.isRecordProcessable(0, 100, -1));
+	}
+
+	@Test
+	public void testRecordShiftsReceiveWindowUsingExtendedWindowFilter() {
+		int epoch = 0;
+		session.setReadEpoch(epoch);
+		//session.markRecordAsRead(epoch, 0);
+		session.markRecordAsRead(epoch, 2);
+		assertTrue(session.isRecordProcessable(0, 0, 8));
+		assertTrue(session.isRecordProcessable(0, 1, 8));
+		assertFalse(session.isRecordProcessable(0, 2, 8));
+		assertTrue(session.isRecordProcessable(0, 64, 8));
+		assertTrue(session.isRecordProcessable(0, 100, 8));
+
+		// make a right shift by 16 position
+		session.markRecordAsRead(epoch, 80);
+		assertFalse(session.isRecordProcessable(0, 0, 8));
+		assertFalse(session.isRecordProcessable(0, 1, 8));
+		assertFalse(session.isRecordProcessable(0, 2, 8));
+		assertFalse(session.isRecordProcessable(0, 12, 0));
+		assertTrue(session.isRecordProcessable(0, 12, 8));
+		assertFalse(session.isRecordProcessable(0, 80, 8));
+		assertTrue(session.isRecordProcessable(0, 100, 8));
 	}
 
 	@Test
@@ -120,12 +143,12 @@ public class DTLSSessionTest {
 		int epoch = session.getReadEpoch();
 		session.markRecordAsRead(epoch, 0);
 		session.markRecordAsRead(epoch, 2);
-		assertFalse(session.isRecordProcessable(session.getReadEpoch(), 0, false));
-		assertFalse(session.isRecordProcessable(session.getReadEpoch(), 2, false));
+		assertFalse(session.isRecordProcessable(session.getReadEpoch(), 0, 0));
+		assertFalse(session.isRecordProcessable(session.getReadEpoch(), 2, 0));
 
 		session.setReadState(session.getReadState()); // dummy invocation to provoke epoch switch
-		assertTrue(session.isRecordProcessable(session.getReadEpoch(), 0, false));
-		assertTrue(session.isRecordProcessable(session.getReadEpoch(), 2, false));
+		assertTrue(session.isRecordProcessable(session.getReadEpoch(), 0, 0));
+		assertTrue(session.isRecordProcessable(session.getReadEpoch(), 2, 0));
 	}
 
 	@Test
