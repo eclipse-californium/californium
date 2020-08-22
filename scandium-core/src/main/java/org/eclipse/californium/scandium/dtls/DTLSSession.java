@@ -1025,8 +1025,37 @@ public final class DTLSSession implements Destroyable {
 	 *            returned.
 	 * @return {@code true} if the record satisfies the conditions above
 	 * @since 2.3 support marked as closed
+	 * @deprecated use {@link #isRecordProcessable(long, long, int)} instead
 	 */
+	@Deprecated
 	public boolean isRecordProcessable(long epoch, long sequenceNo, boolean useWindowOnly) {
+		return isRecordProcessable(epoch, sequenceNo, useWindowOnly ? -1 : 0);
+	}
+
+	/**
+	 * Checks whether a given record can be processed within the context of this
+	 * session.
+	 * 
+	 * This is the case if
+	 * <ul>
+	 * <li>the record is from the same epoch as session's current read
+	 * epoch</li>
+	 * <li>the record has not been received before</li>
+	 * <li>if marked as closed, the record's sequence number is not after the
+	 * close notify's sequence number</li>
+	 * </ul>
+	 * 
+	 * @param epoch the record's epoch
+	 * @param sequenceNo the record's sequence number
+	 * @param useExtendedWindow this value will be subtracted from to lower
+	 *            receive window boundary. A value of {@code -1} will set that
+	 *            calculated value to {@code 0}. Messages between lower receive
+	 *            window boundary and that calculated value will pass the
+	 *            filter, for other messages the filter is applied.
+	 * @return {@code true} if the record satisfies the conditions above
+	 * @since 2.4
+	 */
+	public boolean isRecordProcessable(long epoch, long sequenceNo, int useExtendedWindow) {
 		if (epoch < getReadEpoch()) {
 			// record is from a previous epoch
 			// discard record as proposed in DTLS 1.2
@@ -1038,9 +1067,14 @@ public final class DTLSSession implements Destroyable {
 			// http://tools.ietf.org/html/rfc6347#section-4.1
 			return false;
 		} else if (sequenceNo < receiveWindowLowerBoundary) {
-			// record lies out of receive window's "left" edge
-			// discard
-			return useWindowOnly;
+			// record lies out of receive window's "left" edge discard
+			if (useExtendedWindow < 0) {
+				// within extended window => pass
+				return true;
+			} else {
+				// within extended window? => pass
+				return sequenceNo > receiveWindowLowerBoundary - useExtendedWindow;
+			}
 		} else if (markedAsclosed) {
 			if (epoch > readEpochClosed) {
 				// record after close
@@ -1132,11 +1166,11 @@ public final class DTLSSession implements Destroyable {
 	}
 
 	/**
-	 * Mark as closed. If a session is makred as closed, no records should be
+	 * Mark as closed. If a session is marked as closed, no records should be
 	 * sent and no received newer records should be processed.
 	 * 
 	 * @param epoch epoch of close notify
-	 * @param sequenceNo sequence number of close notiy
+	 * @param sequenceNo sequence number of close notify
 	 * @see #isMarkedAsClosed()
 	 * @since 2.3
 	 */

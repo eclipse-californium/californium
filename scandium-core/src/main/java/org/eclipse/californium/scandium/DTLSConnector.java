@@ -263,7 +263,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	/**
 	 * Apply record filter only for records within the receive window.
 	 */
-	private final boolean useWindowFilter;
+	private final int useExtendedWindowFilter;
 	/**
 	 * Apply record filter.
 	 */
@@ -391,8 +391,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 			this.autoResumptionTimeoutMillis = config.getAutoResumptionTimeoutMillis();
 			this.serverOnly = config.isServerOnly();
 			this.defaultHandshakeMode = config.getDefaultHandshakeMode();
-			this.useWindowFilter = config.useWindowFilter();
-			this.useFilter = config.useAntiReplayFilter() || useWindowFilter;
+			this.useExtendedWindowFilter = config.useExtendedWindowFilter();
+			this.useFilter = config.useAntiReplayFilter() || useExtendedWindowFilter != 0;
 			this.useCidUpdateAddressOnNewerRecordFilter = config.useCidUpdateAddressOnNewerRecordFilter();
 			this.connectionStore = connectionStore;
 			this.connectionStore.attach(connectionIdGenerator);
@@ -1194,6 +1194,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 				records.size(), peerAddress, inboundDatagramBufferSize);
 
 		if (records.isEmpty()) {
+			if (health != null) {
+				health.receivingRecord(true);
+			}
 			return;
 		}
 
@@ -1329,7 +1332,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			// see http://tools.ietf.org/html/rfc6347#section-4.1.2.6
 			boolean closed = connection.isClosed();
 			boolean discard = (useFilter || closed) && (session != null)
-					&& !session.isRecordProcessable(epoch, record.getSequenceNumber(), useWindowFilter);
+					&& !session.isRecordProcessable(epoch, record.getSequenceNumber(), useExtendedWindowFilter);
 			// closed and no session => discard it
 			discard |= (closed && session == null);
 			if (discard) {

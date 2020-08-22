@@ -382,13 +382,17 @@ public final class DtlsConnectorConfig {
 	private Boolean useAntiReplayFilter;
 
 	/**
-	 * Use filter for record in window only.
+	 * Use filter for record in window and before limit.
 	 * 
-	 * Messages too old for the filter window will pass the filter.
+	 * The value will be subtracted from to lower receive window boundary.
+	 * A value of {@code -1} will set that calculated value to {@code 0}.
+	 * Messages between lower receive window boundary and that calculated value
+	 * will pass the filter, for other messages the filter is applied.
 	 * 
 	 * @see "http://tools.ietf.org/html/rfc6347#section-4.1"
+	 * @since 2.4
 	 */
-	private Boolean useWindowFilter;
+	private Integer useExtendedWindowFilter;
 
 	/**
 	 * Use filter to update the ip-address from DTLS 1.2 CID
@@ -1057,9 +1061,28 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * @return {@code true}, apply window filter
 	 * @see "http://tools.ietf.org/html/rfc6347#section-4.1"
+	 * @deprecated use {@link #useExtendedWindowFilter()} instead.
 	 */
+	@Deprecated
 	public Boolean useWindowFilter() {
-		return useWindowFilter;
+		return useExtendedWindowFilter != null && useExtendedWindowFilter < 0;
+	}
+
+	/**
+	 * Use filter for records in window and before limit.
+	 * 
+	 * The value will be subtracted from to lower receive window boundary. A
+	 * value of {@code -1} will set that calculated value to {@code 0}. Messages
+	 * between lower receive window boundary and that calculated value will pass
+	 * the filter, for other messages the filter is applied.
+	 * 
+	 * @return value to extend lower receive window boundary, {@code -1}, to
+	 *         extend it to {@code 0}.
+	 * @see "http://tools.ietf.org/html/rfc6347#section-4.1"
+	 * @since 2.4
+	 */
+	public Integer useExtendedWindowFilter() {
+		return useExtendedWindowFilter;
 	}
 
 	/**
@@ -1239,7 +1262,7 @@ public final class DtlsConnectorConfig {
 		cloned.useNoServerSessionId = useNoServerSessionId;
 		cloned.loggingTag = loggingTag;
 		cloned.useAntiReplayFilter = useAntiReplayFilter;
-		cloned.useWindowFilter = useWindowFilter;
+		cloned.useExtendedWindowFilter = useExtendedWindowFilter;
 		cloned.useCidUpdateAddressOnNewerRecordFilter = useCidUpdateAddressOnNewerRecordFilter;
 		cloned.connectionIdGenerator = connectionIdGenerator;
 		cloned.applicationLevelInfoSupplier = applicationLevelInfoSupplier;
@@ -2698,7 +2721,7 @@ public final class DtlsConnectorConfig {
 		 * @see "http://tools.ietf.org/html/rfc6347#section-4.1"
 		 */
 		public Builder setUseAntiReplayFilter(boolean enable) {
-			if (enable && Boolean.TRUE.equals(config.useWindowFilter)) {
+			if (enable && config.useExtendedWindowFilter != null && config.useExtendedWindowFilter != 0) {
 				throw new IllegalArgumentException("Window filter is active!");
 			}
 			config.useAntiReplayFilter = enable;
@@ -2714,12 +2737,43 @@ public final class DtlsConnectorConfig {
 		 * @return this builder for command chaining.
 		 * @throws IllegalArgumentException if anti replay window filter is active.
 		 * @see "http://tools.ietf.org/html/rfc6347#section-4.1"
+		 * @deprecated use {@link #setUseExtendedWindowFilter(int)} instead.
 		 */
+		@Deprecated
 		public Builder setUseWindowFilter(boolean enable) {
 			if (enable && Boolean.TRUE.equals(config.useAntiReplayFilter)) {
 				throw new IllegalArgumentException("Anti replay filter is active!");
 			}
-			config.useWindowFilter = enable;
+			if (enable) {
+				config.useExtendedWindowFilter = -1;
+			} else {
+				config.useExtendedWindowFilter = 0;
+			}
+			return this;
+		}
+
+		/**
+		 * Use extended window filter.
+		 * 
+		 * The value will be subtracted from to lower receive window boundary. A
+		 * value of {@code -1} will set that calculated value to {@code 0}. Messages
+		 * between lower receive window boundary and that calculated value will pass
+		 * the filter, for other messages the filter is applied.
+		 * 
+		 * @return value to extend lower receive window boundary, {@code -1}, to
+		 *         extend it to {@code 0}.
+		 * 
+		 * @param level value to extend lower receive window boundary, {@code -1}, to
+		 *         extend it to {@code 0}. Default {@code 0}.
+		 * @return this builder for command chaining.
+		 * @throws IllegalArgumentException if anti replay window filter is active.
+		 * @see "http://tools.ietf.org/html/rfc6347#section-4.1"
+		 */
+		public Builder setUseExtendedWindowFilter(int level) {
+			if (level != 0 && Boolean.TRUE.equals(config.useAntiReplayFilter)) {
+				throw new IllegalArgumentException("Anti replay filter is active!");
+			}
+			config.useExtendedWindowFilter = level;
 			return this;
 		}
 
@@ -2953,11 +3007,11 @@ public final class DtlsConnectorConfig {
 			if (config.sniEnabled == null) {
 				config.sniEnabled = Boolean.FALSE;
 			}
-			if (config.useAntiReplayFilter == null) {
-				config.useAntiReplayFilter = !Boolean.TRUE.equals(config.useWindowFilter);
+			if (config.useExtendedWindowFilter == null) {
+				config.useExtendedWindowFilter = 0;
 			}
-			if (config.useWindowFilter == null) {
-				config.useWindowFilter = Boolean.FALSE;
+			if (config.useAntiReplayFilter == null) {
+				config.useAntiReplayFilter = config.useExtendedWindowFilter == 0;
 			}
 			if (config.useCidUpdateAddressOnNewerRecordFilter == null) {
 				config.useCidUpdateAddressOnNewerRecordFilter = Boolean.TRUE;
