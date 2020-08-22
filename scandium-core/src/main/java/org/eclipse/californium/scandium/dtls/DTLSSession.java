@@ -1163,7 +1163,7 @@ public final class DTLSSession implements Destroyable {
 	 * connection state.
 	 * 
 	 * @return The ticket. Or {@code null}, if the session id is empty and
-	 *         doesnt support resumption.
+	 *         doesn't support resumption.
 	 * @throws IllegalStateException if this session does not have its current
 	 *             connection state set yet.
 	 */

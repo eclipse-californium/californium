@@ -1694,11 +1694,16 @@ public abstract class Handshaker implements Destroyable {
 	 */
 	protected final void sessionEstablished() throws HandshakeException {
 		if (!sessionEstablished) {
-			LOGGER.debug("session established {}", connection);
-			amendPeerPrincipal();
-			sessionEstablished = true;
-			for (SessionListener sessionListener : sessionListeners) {
-				sessionListener.sessionEstablished(this, this.getSession());
+			if (this.getSession().getWriteState().hasValidCipherSuite()) {
+				LOGGER.debug("session established {}", connection);
+				amendPeerPrincipal();
+				sessionEstablished = true;
+				for (SessionListener sessionListener : sessionListeners) {
+					sessionListener.sessionEstablished(this, this.getSession());
+				}
+			} else {
+				handshakeFailed(
+						new DtlsException("Failed establishing a incomplete session.", connection.getPeerAddress()));
 			}
 		}
 	}

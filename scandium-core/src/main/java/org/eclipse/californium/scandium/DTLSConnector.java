@@ -2313,10 +2313,13 @@ public class DTLSConnector implements Connector, RecordLayer {
 			// create new empty session & start handshake
 			handshaker = new ClientHandshaker(session, this, timer, connection, config, false);
 			initializeHandshaker(handshaker);
-			handshaker.startHandshake();
+			message.onConnecting();
+			handshaker.addApplicationDataForDeferredProcessing(message);
+			handshaker.startHandshake(); // may fail with IOException!
+		} else {
+			message.onConnecting();
+			handshaker.addApplicationDataForDeferredProcessing(message);
 		}
-		message.onConnecting();
-		handshaker.addApplicationDataForDeferredProcessing(message);
 	}
 
 	/**
@@ -2369,7 +2372,11 @@ public class DTLSConnector implements Connector, RecordLayer {
 					full = sessionId.isEmpty();
 					if (!full) {
 						if (session != null) {
-							ticket = session.getSessionTicket();
+							try {
+								ticket = session.getSessionTicket();
+							} catch (IllegalStateException ex) {
+								LOGGER.debug("Not possible to resume incomplete session!");
+							}
 						} else {
 							ticket = connection.getSessionTicket();
 						}
@@ -2390,7 +2397,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 					connection.resetSession();
 				}
 				Handshaker newHandshaker;
-				if (full) {
+				if (ticket == null) {
 					// server may use a empty session id to indicate,
 					// that resumption is not supported
 					// https://tools.ietf.org/html/rfc5246#section-7.4.1.3
