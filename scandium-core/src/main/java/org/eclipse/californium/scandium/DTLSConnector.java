@@ -1199,6 +1199,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 
 		if (!running.get()) {
 			LOGGER.debug("Execution shutdown while processing incoming records from peer: {}", peerAddress);
+			if (health != null) {
+				health.receivingRecord(true);
+			}
 			return;
 		}
 
@@ -1399,6 +1402,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 					record.getPeerAddress(), e);
 			terminateConnection(connection, e, AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
 		} catch (GeneralSecurityException e) {
+			DROP_LOGGER.debug("Discarding record received from peer [{}] caused by {}",
+					record.getPeerAddress(), e.getMessage());
 			if (health != null) {
 				health.receivingRecord(true);
 			}
