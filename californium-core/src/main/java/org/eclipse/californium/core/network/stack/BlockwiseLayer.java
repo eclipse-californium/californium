@@ -37,6 +37,7 @@
  *                                                    received responses generally.
  *                                                    cleanup stale functions.
  *    Achim Kraus (Bosch Software Innovations GmbH) - use EndpointContext
+ *                                                    (after sending).
  *    Bosch Software Innovations GmbH - migrate to SLF4J
  *    Achim Kraus (Bosch Software Innovations GmbH) - keep original response, if
  *                                                    current request is the original
@@ -59,6 +60,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - extract requestNextBlock from 
  *                                                    tcp_experimental_features branch
  *                                                    for easier merging in the future.
+ *    Pratheek Rai - changes for BERT 
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
@@ -166,7 +168,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	private volatile boolean enableStatus;
 	private ScheduledFuture<?> statusLogger;
 	private int maxMessageSize;
-	private int preferredBlockSize;
+	protected int preferredBlockSize;
 	private int preferredBlockSzx;
 	private int blockTimeout;
 	private int maxResourceBodySize;
@@ -333,7 +335,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		lower().sendRequest(exchange, requestToSend);
 	}
 
-	private Request startBlockwiseUpload(final Exchange exchange, final Request request, int blocksize) {
+	protected Request startBlockwiseUpload(final Exchange exchange, final Request request, int blocksize) {
 
 		final KeyUri key = getKey(exchange, request);
 
@@ -420,7 +422,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		}
 	}
 
-	private void handleInboundBlockwiseUpload(final Exchange exchange, final Request request) {
+	protected void handleInboundBlockwiseUpload(final Exchange exchange, final Request request) {
 
 		if (requestExceedsMaxBodySize(request)) {
 			int maxResourceBodySize = getMaxResourceBodySize(request);
@@ -506,7 +508,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		}
 	}
 
-	private void sendBlock1ErrorResponse(KeyUri key, Block1BlockwiseStatus status, Exchange exchange, Request request,
+	protected void sendBlock1ErrorResponse(KeyUri key, Block1BlockwiseStatus status, Exchange exchange, Request request,
 			ResponseCode errorCode, String message) {
 
 		BlockOption block1 = request.getOptions().getBlock1();
@@ -518,7 +520,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		lower().sendResponse(exchange, error);
 	}
 
-	private void handleInboundRequestForNextBlock(final Exchange exchange, final Request request,
+	protected void handleInboundRequestForNextBlock(final Exchange exchange, final Request request,
 			final KeyUri key, final Block2BlockwiseStatus status) {
 
 		synchronized (status) {
@@ -874,7 +876,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		}
 	}
 
-	private void sendNextBlock(final Exchange exchange, final Response response, final KeyUri key,
+	protected void sendNextBlock(final Exchange exchange, final Response response, final KeyUri key,
 			final Block1BlockwiseStatus status) {
 
 		BlockOption block1 = response.getOptions().getBlock1();
@@ -1069,11 +1071,11 @@ public class BlockwiseLayer extends AbstractLayer {
 			}
 		}
 	}
-
+	
 	/**
 	 * Sends request for the next response block.
 	 */
-	private void requestNextBlock(final Exchange exchange, final Response response, final KeyUri key, final Block2BlockwiseStatus status) {
+	protected void requestNextBlock(final Exchange exchange, final Response response, final KeyUri key, final Block2BlockwiseStatus status) {
 		int currentSize = status.getCurrentSize();
 		// do late block size negotiation
 		int newSize, newSzx;
@@ -1141,7 +1143,7 @@ public class BlockwiseLayer extends AbstractLayer {
 
 	/////////// HELPER METHODS //////////
 
-	private static KeyUri getKey(final Exchange exchange, final Request request) {
+	protected static KeyUri getKey(final Exchange exchange, final Request request) {
 
 		if (exchange.isOfLocalOrigin()) {
 			return KeyUri.fromOutboundRequest(request);
@@ -1150,7 +1152,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		}
 	}
 
-	private static KeyUri getKey(final Exchange exchange, final Response response) {
+	protected static KeyUri getKey(final Exchange exchange, final Response response) {
 
 		if (exchange.isOfLocalOrigin()) {
 			return KeyUri.fromInboundResponse(exchange.getRequest(), response);
@@ -1174,7 +1176,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		}
 	}
 
-	private Block1BlockwiseStatus getInboundBlock1Status(final KeyUri key, final Exchange exchange, final Request request) {
+	protected Block1BlockwiseStatus getInboundBlock1Status(final KeyUri key, final Exchange exchange, final Request request) {
 		Block1BlockwiseStatus status;
 		int maxPayloadSize = getMaxResourceBodySize(request);
 		synchronized (block1Transfers) {
@@ -1192,7 +1194,8 @@ public class BlockwiseLayer extends AbstractLayer {
 		return status;
 	}
 
-	private Block1BlockwiseStatus resetInboundBlock1Status(final KeyUri key, final Exchange exchange, final Request request) {
+	protected Block1BlockwiseStatus resetInboundBlock1Status(final KeyUri key, final Exchange exchange, final Request request) {
+
 		Block1BlockwiseStatus removedStatus;
 		Block1BlockwiseStatus newStatus;
 		synchronized (block1Transfers) {
@@ -1208,7 +1211,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		return newStatus;
 	}
 
-	private Block2BlockwiseStatus getOutboundBlock2Status(final KeyUri key, final Exchange exchange, final Response response) {
+	protected Block2BlockwiseStatus getOutboundBlock2Status(final KeyUri key, final Exchange exchange, final Response response) {
 
 		Block2BlockwiseStatus status;
 		synchronized (block2Transfers) {
@@ -1241,7 +1244,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		}
 	}
 
-	private KeyUri addRandomAccessBlock2Status(final Exchange exchange, final Request request) {
+	protected KeyUri addRandomAccessBlock2Status(final Exchange exchange, final Request request) {
 
 		KeyUri key = getKey(exchange, request);
 		int size;
@@ -1256,7 +1259,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		return key;
 	}
 
-	private Block2BlockwiseStatus resetOutboundBlock2Status(KeyUri key, Exchange exchange, Response response) {
+	protected Block2BlockwiseStatus resetOutboundBlock2Status(KeyUri key, Exchange exchange, Response response) {
 		Block2BlockwiseStatus previousStatus;
 		Block2BlockwiseStatus newStatus;
 		synchronized (block2Transfers) {
@@ -1272,21 +1275,21 @@ public class BlockwiseLayer extends AbstractLayer {
 		return newStatus;
 	}
 
-	private Block1BlockwiseStatus getBlock1Status(final KeyUri key) {
+	protected Block1BlockwiseStatus getBlock1Status(final KeyUri key) {
 
 		synchronized (block1Transfers) {
 			return block1Transfers.get(key);
 		}
 	}
 
-	private Block2BlockwiseStatus getBlock2Status(final KeyUri key) {
+	protected Block2BlockwiseStatus getBlock2Status(final KeyUri key) {
 
 		synchronized (block2Transfers) {
 			return block2Transfers.get(key);
 		}
 	}
 
-	private Block1BlockwiseStatus clearBlock1Status(KeyUri key, Block1BlockwiseStatus status) {
+	protected Block1BlockwiseStatus clearBlock1Status(KeyUri key, Block1BlockwiseStatus status) {
 		int size;
 		Block1BlockwiseStatus removedTracker;
 		synchronized (block1Transfers) {
@@ -1300,7 +1303,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		return removedTracker;
 	}
 
-	private Block2BlockwiseStatus clearBlock2Status(KeyUri key, Block2BlockwiseStatus status) {
+	protected Block2BlockwiseStatus clearBlock2Status(KeyUri key, Block2BlockwiseStatus status) {
 		int size;
 		Block2BlockwiseStatus removedTracker;
 		synchronized (block2Transfers) {
@@ -1314,7 +1317,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		return removedTracker;
 	}
 
-	private boolean requiresBlockwise(final Request request) {
+	protected boolean requiresBlockwise(final Request request) {
 		boolean blockwiseRequired = request.getPayloadSize() > maxMessageSize;
 		if (blockwiseRequired) {
 			LOGGER.debug("request body [{}/{}] requires blockwise transfer", request.getPayloadSize(), maxMessageSize);
@@ -1322,7 +1325,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		return blockwiseRequired;
 	}
 
-	private boolean requiresBlockwise(final Exchange exchange, final Response response, final BlockOption requestBlock2) {
+	protected boolean requiresBlockwise(final Exchange exchange, final Response response, final BlockOption requestBlock2) {
 
 		boolean blockwiseRequired = response.getPayloadSize() > maxMessageSize;
 		if (requestBlock2 != null) {
@@ -1337,7 +1340,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		return blockwiseRequired;
 	}
 
-	private boolean isTransparentBlockwiseHandlingEnabled() {
+	protected boolean isTransparentBlockwiseHandlingEnabled() {
 		return maxResourceBodySize > 0;
 	}
 
@@ -1345,7 +1348,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		return response.getOptions().hasSize2() && response.getOptions().getSize2() > getMaxResourceBodySize(response);
 	}
 
-	private boolean requestExceedsMaxBodySize(final Request request) {
+	protected boolean requestExceedsMaxBodySize(final Request request) {
 		return request.getOptions().hasSize1() && request.getOptions().getSize1() > getMaxResourceBodySize(request);
 	}
 
@@ -1384,7 +1387,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		status.setBlockCleanupHandle(taskHandle);
 	}
 
-	private MessageObserver addBlock1CleanUpObserver(final Request message, final KeyUri key,
+	protected MessageObserver addBlock1CleanUpObserver(final Request message, final KeyUri key,
 			final Block1BlockwiseStatus status) {
 
 		MessageObserver observer = new MessageObserverAdapter() {
@@ -1403,7 +1406,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		return observer;
 	}
 
-	private MessageObserver addBlock2CleanUpObserver(final Request message, final KeyUri key,
+	protected MessageObserver addBlock2CleanUpObserver(final Request message, final KeyUri key,
 			final Block2BlockwiseStatus status) {
 
 		MessageObserver observer = new MessageObserverAdapter() {
