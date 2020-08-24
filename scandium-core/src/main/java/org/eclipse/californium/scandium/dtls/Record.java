@@ -230,6 +230,7 @@ public class Record {
 	 * 
 	 * @param type the type of the record's payload. The new record type
 	 *            {@link ContentType#TLS12_CID} is not supported.
+	 * @param version the version
 	 * @param sequenceNumber the 48-bit sequence number
 	 * @param fragment the payload to send
 	 * @param peerAddress the IP address and port of the peer this record should
@@ -240,8 +241,8 @@ public class Record {
 	 * @throws NullPointerException if the given type, fragment or peer address
 	 *             is {@code null}.
 	 */
-	public Record(ContentType type, long sequenceNumber, DTLSMessage fragment, InetSocketAddress peerAddress) {
-		this(ProtocolVersion.VERSION_DTLS_1_2, 0, sequenceNumber, 0, peerAddress, false);
+	public Record(ContentType type, ProtocolVersion version, long sequenceNumber, DTLSMessage fragment, InetSocketAddress peerAddress) {
+		this(version, 0, sequenceNumber, 0, peerAddress, false);
 		if (fragment == null) {
 			throw new NullPointerException("Fragment must not be null");
 		} else if (peerAddress == null) {

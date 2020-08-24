@@ -290,5 +290,18 @@
 				}
 			]
 		}
+	},
+	"2.5.0": {
+		"revapi": {
+			"ignore": [
+				{
+					"code": "java.method.numberOfParametersChanged",
+					"old": "method void org.eclipse.californium.scandium.dtls.Record::<init>(org.eclipse.californium.scandium.dtls.ContentType, long, org.eclipse.californium.scandium.dtls.DTLSMessage, java.net.InetSocketAddress)",
+					"new": "method void org.eclipse.californium.scandium.dtls.Record::<init>(org.eclipse.californium.scandium.dtls.ContentType, org.eclipse.californium.scandium.dtls.ProtocolVersion, long, org.eclipse.californium.scandium.dtls.DTLSMessage, java.net.InetSocketAddress)",
+					"justification": "not part of the public API",
+					"oldArchive": "org.eclipse.californium:scandium:jar:2.4.0"
+				}
+			]
+		}
 	}
 }
