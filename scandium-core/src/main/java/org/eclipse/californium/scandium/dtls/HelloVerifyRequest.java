@@ -109,8 +109,7 @@ public final class HelloVerifyRequest extends HandshakeMessage {
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
 		sb.append(super.toString());
-		sb.append("\t\tServer Version: ").append(serverVersion.getMajor()).append(", ").append(serverVersion.getMinor())
-			.append(StringUtil.lineSeparator());
+		sb.append("\t\tServer Version: ").append(serverVersion).append(StringUtil.lineSeparator());
 		sb.append("\t\tCookie Length: ").append(cookie.length).append(StringUtil.lineSeparator());
 		sb.append("\t\tCookie: ").append(StringUtil.byteArray2HexString(cookie)).append(StringUtil.lineSeparator());
 

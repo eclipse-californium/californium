@@ -30,25 +30,57 @@ package org.eclipse.californium.scandium.dtls;
 public class ProtocolVersion implements Comparable<ProtocolVersion> {
 
 	/**
+	 * Major version for DTLS 1.x.
+	 * 
+	 * @since 2.5
+	 */
+	public static final int MAJOR_1 = 254;
+
+	/**
+	 * Minor version for DTLS x.2.
+	 * 
+	 * @since 2.5
+	 */
+	public static final int MINOR_2 = 253;
+
+	/**
+	 * Minor version for DTLS x.0.
+	 * 
+	 * @since 2.5
+	 */
+	public static final int MINOR_0 = 255;
+
+	/**
 	 * Major version for DTLS 1.2.
 	 * 
 	 * @since 2.4
+	 * @deprecated use {@link #MAJOR_1}
 	 */
-	public static final int MAJOR_1_2 = 254;
+	@Deprecated
+	public static final int MAJOR_1_2 = MAJOR_1;
 
 	/**
 	 * Minor version for DTLS 1.2.
 	 * 
 	 * @since 2.4
+	 * @deprecated use {@link #MINOR_2}
 	 */
-	public static final int MINOR_1_2 = 253;
+	@Deprecated
+	public static final int MINOR_1_2 = MINOR_2;
 
 	/**
 	 * Protocol version DTLS 1.2
 	 * 
 	 * @since 2.4
 	 */
-	public static final ProtocolVersion VERSION_DTLS_1_2 = new ProtocolVersion(MAJOR_1_2, MINOR_1_2);
+	public static final ProtocolVersion VERSION_DTLS_1_2 = new ProtocolVersion(MAJOR_1, MINOR_2);
+
+	/**
+	 * Protocol version DTLS 1.0
+	 * 
+	 * @since 2.5
+	 */
+	public static final ProtocolVersion VERSION_DTLS_1_0 = new ProtocolVersion(MAJOR_1, MINOR_0);
 
 	/** The minor. */
 	private final int minor;
@@ -66,8 +98,8 @@ public class ProtocolVersion implements Comparable<ProtocolVersion> {
 	 */
 	@Deprecated
 	public ProtocolVersion() {
-		this.major = MAJOR_1_2;
-		this.minor = MINOR_1_2;
+		this.major = MAJOR_1;
+		this.minor = MINOR_2;
 	}
 
 	/**
@@ -168,8 +200,10 @@ public class ProtocolVersion implements Comparable<ProtocolVersion> {
 	 * @return protocol version
 	 */
 	public static ProtocolVersion valueOf(int major, int minor) {
-		if (major == MAJOR_1_2 && minor == MINOR_1_2) {
+		if (major == MAJOR_1 && minor == MINOR_2) {
 			return VERSION_DTLS_1_2;
+		} else if (major == MAJOR_1 && minor == MINOR_0) {
+			return VERSION_DTLS_1_0;
 		} else {
 			return new ProtocolVersion(major, minor);
 		}

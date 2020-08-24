@@ -61,6 +61,7 @@ import org.eclipse.californium.scandium.dtls.CertificateMessage;
 import org.eclipse.californium.scandium.dtls.CertificateRequest;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
+import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.RecordLayer;
 import org.eclipse.californium.scandium.dtls.SessionCache;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
@@ -204,6 +205,13 @@ public final class DtlsConnectorConfig {
 	 * @since 2.4
 	 */
 	private Boolean enableMultiHandshakeMessageRecords;
+	/**
+	 * Protocol version to use for sending a hello verify request. Default
+	 * {@link ProtocolVersion#VERSION_DTLS_1_0}.
+	 * 
+	 * @since 2.5
+	 */
+	private ProtocolVersion protocolVersionForHelloVerifyRequests;
 
 	/** The initial timer value for retransmission; rfc6347, section: 4.2.4.1 */
 	private Integer retransmissionTimeout;
@@ -522,6 +530,25 @@ public final class DtlsConnectorConfig {
 	 */
 	public Boolean useMultiHandshakeMessageRecords() {
 		return enableMultiHandshakeMessageRecords;
+	}
+
+	/**
+	 * Get protocol version for hello verify requests to send.
+	 * 
+	 * Before version 2.5.0, the protocol version 1.2 was used by Californium to
+	 * send hello verify requests. According
+	 * <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1">RFC 6347,
+	 * 4.2.1. Denial-of-Service Countermeasures</a>, that hello verify request
+	 * should be sent using protocol version 1.0. That's now the default. In
+	 * order to provide backwards compatibility, it's also possible to configure
+	 * to use protocol version 1.2.
+	 * 
+	 * @return protocol version. Default
+	 *         {@link ProtocolVersion#VERSION_DTLS_1_0}.
+	 * @since 2.5
+	 */
+	public ProtocolVersion getProtocolVersionForHelloVerifyRequests() {
+		return protocolVersionForHelloVerifyRequests;
 	}
 
 	/**
@@ -1227,6 +1254,7 @@ public final class DtlsConnectorConfig {
 		cloned.maxFragmentedHandshakeMessageLength = maxFragmentedHandshakeMessageLength;
 		cloned.enableMultiRecordMessages = enableMultiRecordMessages;
 		cloned.enableMultiHandshakeMessageRecords = enableMultiHandshakeMessageRecords;
+		cloned.protocolVersionForHelloVerifyRequests = protocolVersionForHelloVerifyRequests;
 		cloned.retransmissionTimeout = retransmissionTimeout;
 		cloned.maxRetransmissions = maxRetransmissions;
 		cloned.maxTransmissionUnit = maxTransmissionUnit;
@@ -1571,6 +1599,26 @@ public final class DtlsConnectorConfig {
 		 */
 		public Builder setEnableMultiHandshakeMessageRecords(boolean enable) {
 			config.enableMultiHandshakeMessageRecords = enable;
+			return this;
+		}
+
+		/**
+		 * Set the protocol version to be used to send hello verify requests.
+		 * 
+		 * Before version 2.5.0, the protocol version 1.2 was used by
+		 * Californium to send the hello verify request. According
+		 * <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1">RFC 6347,
+		 * 4.2.1. Denial-of-Service Countermeasures</a>, that hello verify
+		 * request should be sent using protocol version 1.0. That's now the
+		 * default. In order to provide backwards compatibility, it's also
+		 * possible to configure to use protocol version 1.2.
+		 * 
+		 * @param protocolVersion protocol version to send hello verify requests
+		 * @return this builder for command chaining
+		 * @since 2.5
+		 */
+		public Builder setProtocolVersionForHelloVerifyRequests(ProtocolVersion protocolVersion) {
+			config.protocolVersionForHelloVerifyRequests = protocolVersion;
 			return this;
 		}
 
@@ -2977,6 +3025,9 @@ public final class DtlsConnectorConfig {
 				} else {
 					config.defaultHandshakeMode = DtlsEndpointContext.HANDSHAKE_MODE_AUTO;
 				}
+			}
+			if (config.protocolVersionForHelloVerifyRequests == null) {
+				config.protocolVersionForHelloVerifyRequests = ProtocolVersion.VERSION_DTLS_1_0;
 			}
 			if (config.useNoServerSessionId == null) {
 				config.useNoServerSessionId = Boolean.FALSE;

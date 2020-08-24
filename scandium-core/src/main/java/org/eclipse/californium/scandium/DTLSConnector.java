@@ -286,6 +286,13 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * should not be supported.
 	 */
 	private final ConnectionIdGenerator connectionIdGenerator;
+	/**
+	 * Protocol version to use for sending a hello verify request. Default
+	 * {@link ProtocolVersion#VERSION_DTLS_1_0}.
+	 * 
+	 * @since 2.5
+	 */
+	private final ProtocolVersion protocolVersionForHelloVerifyRequests;
 
 	private ScheduledFuture<?> statusLogger;
 
@@ -385,8 +392,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 		} else if (connectionStore == null) {
 			throw new NullPointerException("Connection store must not be null");
 		} else {
-			this.connectionIdGenerator = configuration.getConnectionIdGenerator();
 			this.config = configuration;
+			this.connectionIdGenerator = config.getConnectionIdGenerator();
+			this.protocolVersionForHelloVerifyRequests = config.getProtocolVersionForHelloVerifyRequests();
 			this.pendingOutboundMessagesCountdown.set(config.getOutboundMessageBufferSize());
 			this.autoResumptionTimeoutMillis = config.getAutoResumptionTimeoutMillis();
 			this.serverOnly = config.isServerOnly();
@@ -416,7 +424,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			// this is a useful health metric
 			// that could later be exported to some kind of monitoring interface
 			if (healthHandler == null && healthStatusInterval != null && healthStatusInterval > 0) {
-				healthHandler = new DtlsHealthLogger(configuration.getLoggingTag());
+				healthHandler = new DtlsHealthLogger(config.getLoggingTag());
 				if (!healthHandler.isEnabled()) {
 					healthHandler = null;
 				}
@@ -502,7 +510,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 					}
 				}
 			};
-			int maxConnections = configuration.getMaxConnections();
+			int maxConnections = config.getMaxConnections();
 			// calculate absolute threshold from relative.
 			long thresholdInPercent = config.getVerifyPeersOnResumptionThreshold();
 			long threshold = (((long) maxConnections * thresholdInPercent) + 50L) / 100L;
@@ -2092,7 +2100,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 		if (expectedCookie == null) {
 			expectedCookie = cookieGenerator.generateCookie(clientHello);
 		}
-		HelloVerifyRequest msg = new HelloVerifyRequest(ProtocolVersion.VERSION_DTLS_1_2, expectedCookie, record.getPeerAddress());
+		// according RFC 6347, 4.2.1. Denial-of-Service Countermeasures, the HelloVerifyRequest should use version 1.0
+		HelloVerifyRequest msg = new HelloVerifyRequest(protocolVersionForHelloVerifyRequests, expectedCookie, record.getPeerAddress());
 		// because we do not have a handshaker in place yet that
 		// manages message_seq numbers, we need to set it explicitly
 		// use message_seq from CLIENT_HELLO in order to allow for
@@ -2101,7 +2110,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		// use epoch 0 and sequence no from CLIENT_HELLO record as
 		// mandated by section 4.2.1 of the DTLS 1.2 spec
 		// see http://tools.ietf.org/html/rfc6347#section-4.2.1
-		Record helloVerify = new Record(ContentType.HANDSHAKE, record.getSequenceNumber(), msg, record.getPeerAddress());
+		Record helloVerify = new Record(ContentType.HANDSHAKE, protocolVersionForHelloVerifyRequests, record.getSequenceNumber(), msg, record.getPeerAddress());
 		try {
 			sendRecord(helloVerify);
 		} catch (IOException e) {
