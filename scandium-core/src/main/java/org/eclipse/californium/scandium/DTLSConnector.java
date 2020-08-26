@@ -1405,8 +1405,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 					record.getPeerAddress(), e);
 			terminateConnection(connection, e, AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
 		} catch (GeneralSecurityException e) {
-			DROP_LOGGER.debug("Discarding record received from peer [{}] caused by {}",
-					record.getPeerAddress(), e.getMessage());
+			DROP_LOGGER.debug("Discarding {} received from peer [{}] caused by {}",
+					record.getType(), record.getPeerAddress(), e.getMessage());
 			if (health != null) {
 				health.receivingRecord(true);
 			}
