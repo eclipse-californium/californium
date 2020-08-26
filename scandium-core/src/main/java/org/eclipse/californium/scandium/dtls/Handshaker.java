@@ -750,7 +750,13 @@ public abstract class Handshaker implements Destroyable {
 					e.getMessage(), e);
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR,
 					session.getPeer());
-			throw new HandshakeException("Cannot process handshake message", alert);
+			throw new HandshakeException("Cannot process handshake message, caused by " + e.getMessage(), alert, e);
+		} catch (RuntimeException e) {
+			LOGGER.warn("Cannot process handshake message from peer [{}] due to [{}]", getSession().getPeer(),
+					e.getMessage(), e);
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR,
+					session.getPeer());
+			throw new HandshakeException("Cannot process handshake message, caused by " + e.getMessage(), alert, e);
 		}
 	}
 
