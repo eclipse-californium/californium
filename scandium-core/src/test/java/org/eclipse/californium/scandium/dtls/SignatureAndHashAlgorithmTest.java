@@ -63,13 +63,11 @@ public class SignatureAndHashAlgorithmTest {
 			KeyPairGenerator kpg = new ThreadLocalKeyPairGenerator("Ed25519").currentWithCause();
 			eddsa25519 = kpg.generateKeyPair();
 		} catch (GeneralSecurityException e) {
-			e.printStackTrace();
 		}
 		try {
 			KeyPairGenerator kpg = new ThreadLocalKeyPairGenerator("Ed448").currentWithCause();
 			eddsa448 = kpg.generateKeyPair();
 		} catch (GeneralSecurityException e) {
-			e.printStackTrace();
 		}
 	}
 
