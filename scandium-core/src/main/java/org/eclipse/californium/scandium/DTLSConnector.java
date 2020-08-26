@@ -1368,7 +1368,10 @@ public class DTLSConnector implements Connector, RecordLayer {
 				return;
 			}
 
-			record.applySession(session);
+			if (!record.isDecoded() || record.getType() != ContentType.APPLICATION_DATA) {
+				// application data may be deferred again until the session is really established
+				record.applySession(session);
+			}
 
 			if (handshaker != null && handshaker.isProbing()) {
 				// received record, probe successful
@@ -1575,6 +1578,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 			}
 		} else if (ongoingHandshake != null) {
 			// wait for FINISH
+			// the record is already decoded, so adding it for deferred processing
+			// requires to protect it from applying the session again in processRecord!
 			ongoingHandshake.addRecordsForDeferredProcessing(record);
 		} else {
 			DROP_LOGGER.debug("Discarding APPLICATION_DATA record received from peer [{}]",

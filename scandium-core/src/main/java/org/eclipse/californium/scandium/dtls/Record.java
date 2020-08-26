@@ -517,6 +517,16 @@ public class Record {
 		return handshakeType == HandshakeType.CLIENT_HELLO;
 	}
 
+	/**
+	 * Check, if record is decoded.
+	 * 
+	 * @return {@code true}, if records is decode, {@code false}, otherwise.
+	 * @since 2.4
+	 */
+	public boolean isDecoded() {
+		return fragment != null;
+	}
+
 	public ContentType getType() {
 		return type;
 	}
