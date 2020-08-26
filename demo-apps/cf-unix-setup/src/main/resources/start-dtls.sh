@@ -23,7 +23,8 @@
 # IPv6 layer, RFC 2460, "next header" => currently not supported :-)  
 # UDP layer, RFC 768, 8 bytes
 # DTLS 1.2 header first 3 bytes "14 - 19 fe fd"
-# check for "1? fe fd" and "?4-?9"
+# DTLS 1.0 header first 3 bytes "16 fe ff", Hello Verify Request
+# check for "1? fe f(d|f)" and "?4-?9"
 #
 # Requires su rights, execute with sudo!
 
@@ -37,7 +38,8 @@ echo "Create DTLS_FILTER"
 iptables -N DTLS_FILTER
 echo "Prepare DTLS_FILTER"
 iptables -F DTLS_FILTER
-iptables -A DTLS_FILTER -m u32 ! --u32 "0>>22&0x3C@ 7&0xF0FFFF=0x10FEFD && 0>>22&0x3C@ 5&0x0F=4:9" -j DROP
+iptables -A DTLS_FILTER -m u32 ! --u32 "0>>22&0x3C@ 7&0xF0FFFD=0x10FEFD && 0>>22&0x3C@ 5&0x0F=4:9" -j DROP
+
 
 echo "Remove INPUT to DTLS filter $1"
 iptables -D INPUT ${INTERFACE} -p udp --dport 5684 -j DTLS_FILTER
