@@ -502,6 +502,7 @@
 							<regex>false</regex>
 							<exclude>
 								<item>@org.eclipse.californium.elements.util.NoPublicAPI</item>
+								<item>@org.eclipse.californium.elements.util.WipAPI</item>
 								<item>@java.lang.Deprecated</item>
 							</exclude>
 						</revapi.java.filter.annotated>
