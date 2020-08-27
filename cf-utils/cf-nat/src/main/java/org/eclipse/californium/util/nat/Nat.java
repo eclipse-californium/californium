@@ -22,9 +22,6 @@ import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 
 /**
  * Simple test NAT.
@@ -41,154 +38,97 @@ public class Nat {
 	}
 
 	public static void main(String[] args) {
-		String start = args.length > 0 ? args[0] : null;
-		if (start != null) {
-			String[] args2 = Arrays.copyOfRange(args, 1, args.length);
-			if ("NAT".equals(start)) {
-				execNAT(args2);
-				return;
-			} else if ("LB".equals(start)) {
-				execLB(args2);
-				return;
-			}
-		}
-		System.out.println("\nCalifornium (Cf) NAT-Starter");
-		System.out.println("(c) 2020, Bosch.IO GmbH and others");
-		System.out.println();
-		System.out.println("Usage: " + Nat.class.getSimpleName() + " (NAT|LB) ...");
-		if (start != null) {
-			System.out.println("   '" + start + "' is not supported!");
-		}
-		System.exit(-1);
-	}
-
-	public static void execNAT(String[] args) {
-		if (args.length < 2 || args.length > 5) {
+		if (args.length < 2) {
 			System.out.println(
-					"usage: [localinterface]:port destination:port [<messageDropping%>|-f<messageDropping%>|-b<messageDropping%>] [-s<sizeLimit>]");
+					"usage: [localinterface]:port destination:port [destination:port...] [-d<messageDropping%>|[-f<messageDropping%>|-b<messageDropping%>]] [-s<sizeLimit:probability%>] [-a<size:amplification:probability%:cidlen>]");
 			System.out.println(
-					"       <messageDropping%>   : drops forward and backward messages with provided probability");
-			System.out.println("       -f<messageDropping%> : drops forward messages with provided probability");
-			System.out.println("       -b<messageDropping%> : drops backward messages with provided probability");
-			System.out.println("       -s<sizeLimit>        : limit message size to provided value");
+					"       <messageDropping%>                          : drops forward and backward messages with provided probability");
+			System.out.println(
+					"       -f<messageDropping%>                        : drops forward messages with provided probability");
+			System.out.println(
+					"       -b<messageDropping%>                        : drops backward messages with provided probability");
+			System.out.println(
+					"       -s<sizeLimit:probability%>                  : limit message size to provided value");
 			System.out.println("       use -f and/or -b, if you want to test with different probabilities.");
 			return;
 		}
-		NatUtil util = null;
-		try {
-			String line = null;
-			int argsIndex = 0;
-			InetSocketAddress proxyAddress = create(args[argsIndex], true);
-			InetSocketAddress destinationAddress = create(args[++argsIndex], false);
 
-			util = new NatUtil(proxyAddress, destinationAddress);
-			if (args.length > ++argsIndex) {
-				try {
-					int limit = 0;
-					String mode = "";
-					String dropping = args[argsIndex];
-					if (dropping.startsWith("-f") || dropping.startsWith("-b") || dropping.startsWith("-s")) {
-						mode = dropping.substring(0, 2);
-						dropping = dropping.substring(2);
-					}
-					int drops = Integer.parseInt(dropping);
-					if (mode.equals("-f")) {
-						util.setForwardMessageDropping(drops);
-						System.out.println("dropping " + drops + "% of forward messages.");
-					} else if (mode.equals("-b")) {
-						util.setBackwardMessageDropping(drops);
-						System.out.println("dropping " + drops + "% of backward messages.");
-					} else if (mode.equals("-s")) {
-						limit = drops;
-					} else {
-						util.setMessageDropping(drops);
-						System.out.println("dropping " + drops + "% of messages.");
-					}
-					if (args.length > ++argsIndex) {
-						String mode2 = "";
-						dropping = args[argsIndex];
-						if (dropping.startsWith("-f") || dropping.startsWith("-b") || dropping.startsWith("-s")) {
-							mode2 = dropping.substring(0, 2);
-							dropping = dropping.substring(2);
-						}
-						if (mode.equals(mode2)) {
-							System.out.println(args[argsIndex] + " ignored, would overwrite " + args[argsIndex - 1]);
-						}
-						drops = Integer.parseInt(dropping);
-						if (mode2.equals("-f")) {
-							util.setForwardMessageDropping(drops);
-							System.out.println("dropping " + drops + "% of forward messages.");
-						} else if (mode2.equals("-b")) {
-							util.setBackwardMessageDropping(drops);
-							System.out.println("dropping " + drops + "% of backward messages.");
-						} else if (mode2.equals("-s")) {
-							limit = drops;
-						}
-						if (args.length > ++argsIndex) {
-							mode2 = "";
-							dropping = args[argsIndex];
-							if (dropping.startsWith("-s")) {
-								mode2 = dropping.substring(0, 2);
-								dropping = dropping.substring(2);
-							}
-							drops = Integer.parseInt(dropping);
-							if (mode2.equals("-s")) {
-								limit = drops;
-							}
-						}
-					}
-					if (limit > 0) {
-						util.setMessageSizeLimit(100, limit, true);
-					}
-				} catch (NumberFormatException e) {
-					System.err.println("drops% " + args[2] + " is no valid number!");
-				}
-			}
-			BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
-			while ((line = in.readLine()) != null) {
-				if (line.equals("exit")) {
-					util.stop();
-					break;
-				}
-				util.reassignNewLocalAddresses();
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-		} finally {
-			if (null != util) {
-				util.stop();
-			}
-		}
-	}
-
-	public static void execLB(String[] args) {
-		if (args.length < 3) {
-			System.out.println(
-					"usage: [localinterface]:port destination1:port1 destination2:port2 [destination3:port3 ...]");
-			return;
-		}
 		NioNatUtil util = null;
 		try {
 			String line = null;
 			int argsIndex = 0;
-			InetSocketAddress proxyAddress = Nat.create(args[argsIndex++], true);
-			List<InetSocketAddress> destinations = new ArrayList<>();
-			for (; argsIndex < args.length; ++argsIndex) {
-				InetSocketAddress destinationAddress = Nat.create(args[argsIndex], false);
-				destinations.add(destinationAddress);
-			}
-			util = new NioNatUtil(proxyAddress, destinations);
-			util.setNatTimeoutMillis(30 * 1000);
+			int destinations = 1;
+			InetSocketAddress proxyAddress = create(args[argsIndex++], true);
+			InetSocketAddress destination = create(args[argsIndex++], false);
 
+			util = new NioNatUtil(proxyAddress, destination);
+			char droppingMode = 0;
+			while (argsIndex < args.length) {
+				int value;
+				int[] values;
+				String arg = args[argsIndex++];
+				if (arg.length() > 2 && arg.charAt(0) == '-') {
+					char option = arg.charAt(1);
+					switch (option) {
+					case 'd':
+						if (droppingMode != 0) {
+							System.out.println("dropping already provided!");
+							break;
+						}
+						droppingMode = option;
+						value = parse(2, arg)[0];
+						util.setMessageDropping(value);
+						System.out.println("dropping " + value + "% of messages.");
+						break;
+					case 'f':
+						if (droppingMode == 'd') {
+							System.out.println("dropping already provided!");
+							break;
+						}
+						droppingMode = option;
+						value = parse(2, arg)[0];
+						util.setForwardMessageDropping(value);
+						System.out.println("dropping " + value + "% of forward messages.");
+						break;
+					case 'b':
+						if (droppingMode == 'd') {
+							System.out.println("dropping already provided!");
+							break;
+						}
+						droppingMode = option;
+						value = parse(2, arg)[0];
+						util.setBackwardMessageDropping(value);
+						System.out.println("dropping " + value + "% of backwards messages.");
+						break;
+					case 's':
+						values = parse(2, arg, 0, 100);
+						util.setForwardMessageSizeLimit(values[1], values[0], true);
+						System.out.println("size limit " + values[0] + " bytes, " + values[1] + " %.");
+						break;
+					default:
+						System.out.println("option '" + arg + "' unknown!");
+						break;
+					}
+				} else {
+					InetSocketAddress destinationAddress = create(arg, false);
+					util.addDestination(destinationAddress);
+					++destinations;
+				}
+			}
 			BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
 			while ((line = in.readLine()) != null) {
 				if (line.equals("exit")) {
 					util.stop();
 					break;
 				}
-				int entries = util.getNumberOfEntries();
-				int count = util.reassignDestinationAddresses();
-				System.out.println("reassigned " + count + " destinations of " + entries + ".");
+
+				if (destinations > 1) {
+					int entries = util.getNumberOfEntries();
+					int count = util.reassignDestinationAddresses();
+					System.out.println("reassigned " + count + " destinations of " + entries + ".");
+				} else {
+					util.reassignNewLocalAddresses();
+				}
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -215,6 +155,35 @@ public class Nat {
 			int port = uri.getPort();
 			System.out.println(address + " => " + host + ":" + port);
 			return new InetSocketAddress(host, port);
+		}
+	}
+
+	/**
+	 * Parse argument.
+	 * 
+	 * @param pos position of value in argument
+	 * @param arg argument
+	 * @param defs default values
+	 * @return parsed values.
+	 * @since 2.5
+	 */
+	public static int[] parse(int pos, String arg, int... defs) {
+		int index = 0;
+		try {
+			String value = pos == 0 ? arg : arg.substring(pos);
+			String[] values = value.split(":");
+			int len = Math.max(values.length, defs.length);
+			int[] results = new int[len];
+			for (; index < len; ++index) {
+				if (index < values.length) {
+					results[index] = Integer.parseInt(values[index]);
+				} else {
+					results[index] = defs[index];
+				}
+			}
+			return results;
+		} catch (NumberFormatException e) {
+			throw new NumberFormatException(arg + "[" + index + "]: " + e.getMessage());
 		}
 	}
 }
