@@ -151,7 +151,18 @@ public class NioNatUtil implements Runnable {
 	 */
 	private AtomicLong backwardCounter = new AtomicLong();
 	/**
-	 * NAT timeout in milliseconds. Remove entry, if entry is inactive.
+	 * Counter for backwarded messages from wrong source.
+	 * @since 2.5
+	 */
+	private AtomicLong wrongRoutedCounter = new AtomicLong();
+	/**
+	 * Last counter for backwarded messages from wrong source.
+	 * used for logging.
+	 * @since 2.5
+	 */
+	private long lastWrongRoutedCounter;
+	/**
+	 * NAT timeout in milliseconds. Remove entry, if inactive.
 	 * 
 	 * @since 2.4
 	 */
@@ -460,6 +471,7 @@ public class NioNatUtil implements Runnable {
 					LOGGER.debug("Selected {} channels {} ready.", selector.keys().size(), keys.size());
 					for (SelectionKey key : keys) {
 						final NatEntry entry = (NatEntry) key.attachment();
+						((Buffer) proxyBuffer).clear();
 						if (entry != null) {
 							// backward message
 							if (entry.receive(proxyBuffer) > 0) {
@@ -467,7 +479,6 @@ public class NioNatUtil implements Runnable {
 							}
 						} else {
 							// forward message
-							((Buffer) proxyBuffer).clear();
 							SocketAddress source = proxyChannel.receive(proxyBuffer);
 							NatEntry newEntry = getNatEntry(source);
 							MessageReordering before = this.reorder;
@@ -910,6 +921,12 @@ public class NioNatUtil implements Runnable {
 		if (drops != null) {
 			drops.dumpStatistic();
 		}
+		long broken = wrongRoutedCounter.get();
+		if (lastWrongRoutedCounter < broken) {
+			LOGGER.warn("wrong routed messages {} (overall {}).", broken - lastWrongRoutedCounter,
+					lastWrongRoutedCounter);
+			lastWrongRoutedCounter = broken;
+		}
 	}
 
 	/**
@@ -1012,8 +1029,15 @@ public class NioNatUtil implements Runnable {
 		}
 
 		public int receive(ByteBuffer packet) throws IOException {
-			packet.clear();
-			outgoing.receive(packet);
+			InetSocketAddress destination;
+			synchronized (this) {
+				destination = this.destination;
+			}
+			SocketAddress source = outgoing.receive(packet);
+			if (!destination.equals(source)) {
+				wrongRoutedCounter.incrementAndGet();
+				((Buffer) packet).clear();
+			}
 			return packet.position();
 		}
 
