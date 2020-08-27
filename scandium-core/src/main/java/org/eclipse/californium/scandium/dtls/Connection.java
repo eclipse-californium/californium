@@ -318,7 +318,14 @@ public final class Connection {
 	 *             non-null value without an established session.
 	 */
 	public void updatePeerAddress(InetSocketAddress peerAddress) {
-		if (!equalsPeerAddress(peerAddress)) {
+		if (equalsPeerAddress(peerAddress)) {
+			// the router info of a RouterInetSocketAddress may have changed
+			this.peerAddress = peerAddress;
+			if (establishedSession != null) {
+				establishedSession.setPeer(peerAddress);
+			}
+			updateConnectionState();
+		} else {
 			if (establishedSession == null && peerAddress != null) {
 				throw new IllegalArgumentException("Address change without established sesson is not supported!");
 			}

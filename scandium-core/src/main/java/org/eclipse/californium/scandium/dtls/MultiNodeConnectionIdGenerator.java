@@ -25,7 +25,7 @@ import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
  * be unique in the cluster, to ensure, that other nodes of the cluster don't
  * generate the same connection id.
  */
-public class MultiNodeConnectionIdGenerator implements ConnectionIdGenerator {
+public class MultiNodeConnectionIdGenerator implements NodeConnectionIdGenerator {
 
 	/**
 	 * Node id. Must be unique in cluster.
@@ -81,8 +81,18 @@ public class MultiNodeConnectionIdGenerator implements ConnectionIdGenerator {
 	public ConnectionId read(DatagramReader reader) {
 		byte[] cidBytes = reader.readBytes(connectionIdLength);
 		if ((cidBytes[0] & 0xff) != nodeId) {
-			return null;
+//			return null;
 		}
 		return new ConnectionId(cidBytes);
+	}
+
+	@Override
+	public int getNodeId() {
+		return nodeId;
+	}
+
+	@Override
+	public int getNodeId(ConnectionId cid) {
+		return cid.getBytes()[0] & 0xff;
 	}
 }

@@ -26,7 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Health implementation using counter and logging for result.
+ * Health implementation using counter and logging for results.
  */
 @NoPublicAPI
 public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHealth {
@@ -36,7 +36,7 @@ public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHea
 
 	private final AtomicInteger pendingHandshakes = new AtomicInteger();
 
-	private final SimpleCounterStatistic.AlignGroup align = new SimpleCounterStatistic.AlignGroup();
+	protected final SimpleCounterStatistic.AlignGroup align = new SimpleCounterStatistic.AlignGroup();
 	private final SimpleCounterStatistic succeededHandshakes = new SimpleCounterStatistic("handshakes succeeded",
 			align);
 	private final SimpleCounterStatistic failedHandshakes = new SimpleCounterStatistic("handshakes failed", align);
@@ -47,16 +47,50 @@ public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHea
 	private final SimpleCounterStatistic droppedSentRecords = new SimpleCounterStatistic("dropped sending records",
 			align);
 
+	/**
+	 * Create passive dtls health logger.
+	 */
 	public DtlsHealthLogger() {
 		this("");
 	}
 
+	/**
+	 * Create passive dtls health logger with logging tag.
+	 * 
+	 * @param tag logging tag
+	 */
 	public DtlsHealthLogger(String tag) {
 		super(tag);
 		init();
 	}
 
+	/**
+	 * Create active dtls health logger with logging tag.
+	 * 
+	 * @param tag logging tag
+	 * @param udp not used
+	 * @param interval interval in seconds. {@code 0} to disable actively calling
+	 *            {@link #dump()}.
+	 * @param executor executor to schedule active calls of {@link #dump()}.
+	 * @deprecated use
+	 *             {@link #DtlsHealthLogger(String, int, ScheduledExecutorService)}
+	 *             instead.
+	 */
+	@Deprecated
 	public DtlsHealthLogger(String tag, boolean udp, int interval, ScheduledExecutorService executor) {
+		this(tag, interval, executor);
+	}
+
+	/**
+	 * Create active dtls health logger with logging tag.
+	 * 
+	 * @param tag logging tag
+	 * @param interval interval in seconds. {@code 0} to disable actively
+	 *            calling {@link #dump()}.
+	 * @param executor executor to schedule active calls of {@link #dump()}.
+	 * @since 2.5
+	 */
+	public DtlsHealthLogger(String tag, int interval, ScheduledExecutorService executor) {
 		super(tag, interval, executor);
 		init();
 	}
@@ -84,6 +118,7 @@ public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHea
 				log.append(head).append(droppedSentRecords).append(eol);
 				log.append(head).append(receivedRecords).append(eol);
 				log.append(head).append(droppedReceivedRecords);
+				dump(head, log);
 				LOGGER.debug("{}", log);
 			}
 		} catch (Throwable e) {
@@ -115,11 +150,25 @@ public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHea
 				log.append(head).append(droppedSentRecords).append(eol);
 				log.append(head).append(receivedRecords).append(eol);
 				log.append(head).append(droppedReceivedRecords);
+				dump(head, log);
 				LOGGER.debug("{}", log);
 			}
 		} catch (Throwable e) {
 			LOGGER.error("{}", tag, e);
 		}
+	}
+
+	/**
+	 * Dump additional health data.
+	 * 
+	 * Intended to be overridden by derived class.
+	 * 
+	 * @param head head for logging lines
+	 * @param log logging lines
+	 * @since 2.5
+	 */
+	protected void dump(String head, StringBuilder log) {
+		// empty default implementation
 	}
 
 	@Override

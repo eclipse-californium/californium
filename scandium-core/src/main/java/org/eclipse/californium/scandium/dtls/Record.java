@@ -422,6 +422,44 @@ public class Record {
 		return records;
 	}
 
+	/**
+	 * Read the connection id.
+	 * 
+	 * @param reader reader with the raw received record.
+	 * @param cidGenerator cid generator.
+	 * @return connection, or {@code null}, if not available.
+	 * @throws NullPointerException if either reader or cid generator is
+	 *             {@code null}.
+	 * @throws IllegalArgumentException if the cid generator doesn't use cid or
+	 *             the record is too short.
+	 * @since 2.5
+	 */
+	public static ConnectionId readConnectionIdFromReader(DatagramReader reader, ConnectionIdGenerator cidGenerator) {
+		if (reader == null) {
+			throw new NullPointerException("Reader must not be null");
+		} else if (cidGenerator == null) {
+			throw new NullPointerException("CID generator must not be null");
+		} else if (!cidGenerator.useConnectionId()) {
+			throw new IllegalArgumentException("CID generator must use CID");
+		} else if (reader.bitsLeft() < RECORD_HEADER_BITS) {
+			throw new IllegalArgumentException("Record too small for DTLS header");
+		}
+
+		int type = reader.read(CONTENT_TYPE_BITS);
+		if (type != ContentType.TLS12_CID.getCode()) {
+			return null;
+		}
+		reader.skip(VERSION_BITS + VERSION_BITS + EPOCH_BITS + SEQUENCE_NUMBER_BITS);
+		ConnectionId connectionId = cidGenerator.read(reader);
+		int length = reader.read(LENGTH_BITS);
+		int left = reader.bitsLeft() / Byte.SIZE;
+		if (left < length) {
+			throw new IllegalArgumentException("Record too small for DTLS length " + length);
+		}
+
+		return connectionId;
+	}
+
 	// Cryptography Helper Methods ////////////////////////////////////
 
 	/**

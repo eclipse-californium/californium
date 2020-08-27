@@ -333,9 +333,15 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 			return false;
 		}
 		if (connections.update(connection.getConnectionId())) {
-			if (newPeerAddress == null) {
+			InetSocketAddress effectiveNewPeerAddress = newPeerAddress;
+			if (effectiveNewPeerAddress != null && connectionsByAddress.get(effectiveNewPeerAddress) == connection) {
+				// update optional router address info
+				connection.updatePeerAddress(newPeerAddress);
+				effectiveNewPeerAddress = null;
+			}
+			if (effectiveNewPeerAddress == null) {
 				LOG.debug("{}connection: {} updated usage!", tag, connection.getConnectionId());
-			} else if (!connection.equalsPeerAddress(newPeerAddress)) {
+			} else {
 				InetSocketAddress oldPeerAddress = connection.getPeerAddress();
 				LOG.debug("{}connection: {} updated, address changed from {} to {}!", tag, connection.getConnectionId(),
 						oldPeerAddress, newPeerAddress);
@@ -343,7 +349,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 					connectionsByAddress.remove(oldPeerAddress, connection);
 					connection.updatePeerAddress(null);
 				}
-				connection.updatePeerAddress(newPeerAddress);
+				connection.updatePeerAddress(effectiveNewPeerAddress);
 				addToAddressConnections(connection);
 			}
 			return true;

@@ -109,6 +109,24 @@ public class DatagramReaderTest {
 		assertThat(bytes, is(new byte[] { 0x03, 0x04, 0x05, 0x06 }));
 	}
 
+	@Test
+	public void testSkipBytes() {
+		givenABuffer(new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 });
+
+		assertThat(reader.skip(8), is(8L));
+
+		int value = reader.read(Byte.SIZE);
+		assertThat(value, is(2));
+
+		assertThat(reader.skip(12), is(12L));
+
+		value = reader.read(Byte.SIZE);
+		assertThat(value, is(0x40));
+
+		assertThat(reader.skip(24), is(12L));
+
+	}
+
 	@Test (expected = IllegalArgumentException.class)
 	public void testReadBytesExceedsAvailableBytes() {
 		givenABuffer(new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 });
@@ -192,6 +210,26 @@ public class DatagramReaderTest {
 		assertThat(reader.bytesAvailable(), is(false));
 		assertThat(rangeReader.readNextByte(), is((byte)0x02));
 		rangeReader.readBytes(4);
+	}
+
+	@Test 
+	public void testCreateRangeDatagramReader() {
+		byte[] data = new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 };
+		DatagramReader reader = new DatagramReader(data, 2, 3);
+
+		assertThat(reader.readNextByte(), is((byte)0x03));
+		assertThat(reader.bytesAvailable(2), is(true));
+		assertThat(reader.bytesAvailable(3), is(false));
+	}
+
+	@Test (expected = IllegalArgumentException.class)
+	public void testCreateRangeDatagramReaderOffestOutOfRange() {
+		byte[] data = new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 };
+		DatagramReader reader = new DatagramReader(data, 8, 3);
+
+		assertThat(reader.bytesAvailable(1), is(false));
+		// fails with IllegalArgumentException
+		reader.readNextByte();
 	}
 
 	private void givenABuffer(byte[] buffer) {
