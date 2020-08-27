@@ -488,7 +488,7 @@
 				<groupId>org.revapi</groupId>
 				<artifactId>revapi-maven-plugin</artifactId>
 				<configuration>
-					<oldVersion>2.3.0</oldVersion>
+					<oldVersion>2.4.0</oldVersion>
 					<analysisConfiguration>
 						<revapi.semver.ignore>
 							<enabled>true</enabled>
