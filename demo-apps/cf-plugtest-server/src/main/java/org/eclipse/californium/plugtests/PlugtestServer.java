@@ -233,7 +233,7 @@ public class PlugtestServer extends AbstractTestServer {
 				ep.addInterceptor(new AnonymizedOriginTracer(uri.getPort() + "-" + uri.getScheme()));
 				if (ep instanceof MessagePostProcessInterceptors) {
 					int interval = ep.getConfig().getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL);
-					final HealthStatisticLogger healthLogger = new HealthStatisticLogger(uri.getScheme(),
+					final HealthStatisticLogger healthLogger = new HealthStatisticLogger(uri.toASCIIString(),
 							!CoAP.isTcpScheme(uri.getScheme()), interval, executor);
 					if (healthLogger.isEnabled()) {
 						((MessagePostProcessInterceptors) ep).addPostProcessInterceptor(healthLogger);

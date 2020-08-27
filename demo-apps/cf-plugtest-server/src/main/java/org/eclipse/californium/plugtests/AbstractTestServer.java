@@ -44,6 +44,7 @@ import org.eclipse.californium.elements.tcp.netty.TcpServerConnector;
 import org.eclipse.californium.elements.tcp.netty.TlsServerConnector;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.elements.util.SslContextUtil;
+import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.eclipse.californium.plugtests.PlugtestServer.BaseConfig;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.MdcConnectionListener;
@@ -140,6 +141,9 @@ public abstract class AbstractTestServer extends CoapServer {
 	private final NetworkConfig config;
 	private final Map<Select, NetworkConfig> selectConfig;
 
+	protected SslContextUtil.Credentials serverCredentials = null;
+	protected Certificate[] trustedCertificates = null;
+
 	protected AbstractTestServer(NetworkConfig config, Map<Select, NetworkConfig> selectConfig) {
 		super(config);
 		this.config = config;
@@ -178,6 +182,28 @@ public abstract class AbstractTestServer extends CoapServer {
 	}
 
 	/**
+	 * Initialize x509 credentials.
+	 * 
+	 * @since 2.5
+	 */
+	protected void initCredentials() {
+		if (serverCredentials == null) {
+			try {
+				serverCredentials = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION,
+						SERVER_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+				trustedCertificates = SslContextUtil.loadTrustedCertificates(
+						SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, null, TRUST_STORE_PASSWORD);
+				return;
+			} catch (GeneralSecurityException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+			serverCredentials = new Credentials(null);
+		}
+	}
+
+	/**
 	 * Add endpoints.
 	 * 
 	 * @param selectAddress regular expression to filter the endpoints by
@@ -195,17 +221,11 @@ public abstract class AbstractTestServer extends CoapServer {
 		int coapPort = config.getInt(Keys.COAP_PORT);
 		int coapsPort = config.getInt(Keys.COAP_SECURE_PORT);
 
-		SslContextUtil.Credentials serverCredentials = null;
-		Certificate[] trustedCertificates = null;
 		SSLContext serverSslContext = null;
 
 		if (protocols.contains(Protocol.DTLS) || protocols.contains(Protocol.TLS)) {
 			try {
-				serverCredentials = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION,
-						SERVER_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
-				trustedCertificates = SslContextUtil.loadTrustedCertificates(
-						SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, null, TRUST_STORE_PASSWORD);
-
+				initCredentials();
 				KeyManager[] keyManager = SslContextUtil.createKeyManager(SERVER_NAME,
 							serverCredentials.getPrivateKey(),
 							serverCredentials.getCertificateChain());
@@ -220,8 +240,6 @@ public abstract class AbstractTestServer extends CoapServer {
 				serverSslContext.init(keyManager, trustManager, null);
 
 			} catch (GeneralSecurityException e) {
-				e.printStackTrace();
-			} catch (IOException e) {
 				e.printStackTrace();
 			}
 		}
@@ -290,7 +308,7 @@ public abstract class AbstractTestServer extends CoapServer {
 					Integer pskStoreDelay = dtlsConfig.getOptInteger(KEY_DTLS_PSK_DELAY);
 					Integer cidLength = dtlsConfig.getOptInteger(Keys.DTLS_CONNECTION_ID_LENGTH);
 					Integer cidNode = dtlsConfig.getOptInteger(Keys.DTLS_CONNECTION_ID_NODE_ID);
-					Integer healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL); // seconds
+					Integer healthStatusInterval = config.getInt(Keys.HEALTH_STATUS_INTERVAL); // seconds
 					Integer recvBufferSize = config.getOptInteger(Keys.UDP_CONNECTOR_RECEIVE_BUFFER);
 					Integer sendBufferSize = config.getOptInteger(Keys.UDP_CONNECTOR_SEND_BUFFER);
 					DtlsConnectorConfig.Builder dtlsConfigBuilder = new DtlsConnectorConfig.Builder();
@@ -380,13 +398,13 @@ public abstract class AbstractTestServer extends CoapServer {
 		}
 	}
 
-	private void print(CoapEndpoint endpoint, InterfaceType interfaceType) {
+	protected void print(CoapEndpoint endpoint, InterfaceType interfaceType) {
 		System.out.println("listen on " + endpoint.getUri() + " (" + interfaceType + ") max msg size: "
 				+ endpoint.getConfig().getInt(Keys.MAX_MESSAGE_SIZE) + ", block: "
 				+ endpoint.getConfig().getInt(Keys.PREFERRED_BLOCK_SIZE));
 	}
 
-	private static class PlugPskStore extends StringPskStore {
+	public static class PlugPskStore extends StringPskStore {
 
 		@Override
 		public SecretKey getKey(String identity) {
