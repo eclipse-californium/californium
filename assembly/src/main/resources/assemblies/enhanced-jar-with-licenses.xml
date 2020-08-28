@@ -41,7 +41,7 @@
 	</fileSets>
 	<dependencySets>
 		<dependencySet>
-			<scope>provided</scope>
+			<scope>runtime</scope>
 			<includes>
 				<include>org.eclipse.californium:californium-legal</include>
 			</includes>

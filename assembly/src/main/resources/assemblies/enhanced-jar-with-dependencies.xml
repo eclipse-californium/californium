@@ -40,6 +40,9 @@
 	<dependencySets>
 		<dependencySet>
 			<scope>runtime</scope>
+			<excludes>
+				<exclude>org.eclipse.californium:californium-legal</exclude>
+			</excludes>
 			<outputDirectory>/</outputDirectory>
 			<useProjectArtifact>false</useProjectArtifact>
 			<unpack>true</unpack>
@@ -50,7 +53,7 @@
 			</unpackOptions>
 		</dependencySet>
 		<dependencySet>
-			<scope>provided</scope>
+			<scope>runtime</scope>
 			<includes>
 				<include>org.eclipse.californium:californium-legal</include>
 			</includes>
