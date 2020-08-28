@@ -26,6 +26,7 @@ import java.security.GeneralSecurityException;
 import java.security.cert.Certificate;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import javax.crypto.SecretKey;
 import javax.net.ssl.KeyManager;
@@ -132,6 +133,9 @@ public abstract class AbstractTestServer extends CoapServer {
 	public static final SecretKey OPENSSL_PSK_SECRET = SecretUtil.create("secretPSK".getBytes(), "PSK");
 
 	public static final String KEY_DTLS_PSK_DELAY = "DTLS_PSK_STORE_DELAY";
+
+	public static final Pattern HONO_IDENTITY_PATTERN = Pattern.compile("^[^@]{8,}@.{8,}$");
+	public static final SecretKey HONO_PSK_SECRET = SecretUtil.create("secret".getBytes(), "PSK");
 
 	private final NetworkConfig config;
 	private final Map<Select, NetworkConfig> selectConfig;
@@ -394,6 +398,9 @@ public abstract class AbstractTestServer extends CoapServer {
 			}
 			if (identity.equals(OPENSSL_PSK_IDENTITY)) {
 				return SecretUtil.create(OPENSSL_PSK_SECRET);
+			}
+			if (HONO_IDENTITY_PATTERN.matcher(identity).matches()) {
+				return SecretUtil.create(HONO_PSK_SECRET);
 			}
 			return null;
 		}

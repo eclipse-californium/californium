@@ -49,12 +49,12 @@ import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.extplugtests.resources.Benchmark;
-import org.eclipse.californium.extplugtests.resources.MyIp;
 import org.eclipse.californium.extplugtests.resources.RequestStatistic;
 import org.eclipse.californium.extplugtests.resources.ReverseObserve;
 import org.eclipse.californium.extplugtests.resources.ReverseRequest;
 import org.eclipse.californium.plugtests.AbstractTestServer;
 import org.eclipse.californium.plugtests.PlugtestServer;
+import org.eclipse.californium.plugtests.resources.MyIp;
 import org.eclipse.californium.unixhealth.NetStatLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -308,7 +308,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 		// add resources to the server
 		add(new RequestStatistic());
 		add(new Benchmark(noBenchmark, maxResourceSize));
-		add(new MyIp());
+		add(new MyIp(MyIp.RESOURCE_NAME, true));
 	}
 
 	private static void startManagamentStatistic() {

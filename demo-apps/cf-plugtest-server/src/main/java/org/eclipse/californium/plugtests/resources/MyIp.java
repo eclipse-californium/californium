@@ -13,40 +13,43 @@
  * Contributors:
  *    Bosch.IO GmbH - initial creation
  ******************************************************************************/
-package org.eclipse.californium.extplugtests.resources;
+package org.eclipse.californium.plugtests.resources;
 
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_CBOR;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_JSON;
+import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_XML;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.TEXT_PLAIN;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.UNDEFINED;
 
 import java.net.InetSocketAddress;
 
 import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.util.StringUtil;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonObject;
 import com.upokecenter.cbor.CBORObject;
 
 /**
- * My Ip resource.
+ * My IP resource.
+ * 
+ * @since 2.5
  */
 public class MyIp extends CoapResource {
 
-	private static final String RESOURCE_NAME = "myip";
+	public static final String RESOURCE_NAME = "myip";
 
-	public MyIp() {
-		super(RESOURCE_NAME);
+	public MyIp(String name, boolean visible) {
+		super(name, visible);
 		getAttributes().setTitle("MyIp");
 		getAttributes().addContentType(TEXT_PLAIN);
 		getAttributes().addContentType(APPLICATION_CBOR);
 		getAttributes().addContentType(APPLICATION_JSON);
+		getAttributes().addContentType(APPLICATION_XML);
 	}
 
 	@Override
@@ -59,50 +62,45 @@ public class MyIp extends CoapResource {
 		if (accept == UNDEFINED) {
 			accept = TEXT_PLAIN;
 		}
+
+		Response response = new Response(CONTENT);
+		response.getOptions().setContentFormat(accept);
+
+		byte[] payload = null;
 		switch (accept) {
-		case UNDEFINED:
-			handleGetText(exchange);
-			break;
 		case TEXT_PLAIN:
-			handleGetText(exchange);
+			payload = handleGetFormat(exchange, "ip:%s\nport:%d");
 			break;
 		case APPLICATION_CBOR:
-			handleGetCbor(exchange);
+			payload = handleGetCbor(exchange);
 			break;
 		case APPLICATION_JSON:
-			handleGetJson(exchange);
+			payload = handleGetFormat(exchange, "{ \"ip\" : \"%s\",\n \"port\" : %d }");
+			break;
+		case APPLICATION_XML:
+			payload = handleGetFormat(exchange, "<ip host=\"%s\" port=\"%d\" />");
 			break;
 		default:
-			exchange.respond(NOT_ACCEPTABLE);
-			break;
+			String ct = MediaTypeRegistry.toString(accept);
+			exchange.respond(NOT_ACCEPTABLE, "Type \"" + ct + "\" is not supported for this resource!", TEXT_PLAIN);
+			return;
 		}
+		response.setPayload(payload);
+		exchange.respond(response);
 	}
 
-	private void handleGetText(CoapExchange exchange) {
-		InetSocketAddress source = exchange.advanced().getRequest().getSourceContext().getPeerAddress();
-		StringBuilder builder = new StringBuilder();
-		builder.append("ip:").append(StringUtil.toString(source.getAddress())).append("\n");
-		builder.append("port:").append(source.getPort());
-		exchange.respond(builder.toString());
-	}
-
-	private void handleGetCbor(CoapExchange exchange) {
+	private byte[] handleGetCbor(CoapExchange exchange) {
 		InetSocketAddress source = exchange.advanced().getRequest().getSourceContext().getPeerAddress();
 
 		CBORObject map = CBORObject.NewMap();
 		map.set("ip", CBORObject.FromObject(StringUtil.toString(source.getAddress())));
 		map.set("port", CBORObject.FromObject(source.getPort()));
-		byte[] payload = map.EncodeToBytes();
-		exchange.respond(CONTENT, payload, APPLICATION_CBOR);
+		return map.EncodeToBytes();
 	}
 
-	private void handleGetJson(CoapExchange exchange) {
+	private byte[] handleGetFormat(CoapExchange exchange, String format) {
 		InetSocketAddress source = exchange.advanced().getRequest().getSourceContext().getPeerAddress();
-		JsonObject element = new JsonObject();
-		element.addProperty("ip", StringUtil.toString(source.getAddress()));
-		element.addProperty("port", source.getPort());
-		GsonBuilder builder = new GsonBuilder();
-		Gson gson = builder.create();
-		exchange.respond(CONTENT, gson.toJson(element), APPLICATION_JSON);
+		String host = StringUtil.toString(source.getAddress());
+		return String.format(format, host, source.getPort()).getBytes();
 	}
 }

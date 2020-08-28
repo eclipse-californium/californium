@@ -58,7 +58,7 @@ public class MultiFormat extends CoapResource {
 
 			case APPLICATION_XML:
 				response.getOptions().setContentFormat(APPLICATION_XML);
-				format = "<msg type=\"%s\" code=\"%s\" mid=%d accept=%d />"; // should fit 64 bytes
+				format = "<msg type=\"%s\" code=\"%s\" mid=\"%d\" accept=\"%d\" />"; // should fit 64 bytes
 				break;
 
 			case APPLICATION_JSON:
@@ -79,7 +79,7 @@ public class MultiFormat extends CoapResource {
 
 			default:
 				response = new Response(NOT_ACCEPTABLE);
-				format = "text/plain or application/xml only";
+				format = "text/plain, application/xml, application/json, or application/cbor only";
 				break;
 		}
 

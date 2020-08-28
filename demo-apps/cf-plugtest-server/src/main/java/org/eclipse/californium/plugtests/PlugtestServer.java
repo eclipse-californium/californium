@@ -45,6 +45,7 @@ import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.plugtests.resources.Create;
 import org.eclipse.californium.plugtests.resources.DefaultTest;
+import org.eclipse.californium.plugtests.resources.Hono;
 import org.eclipse.californium.plugtests.resources.Large;
 import org.eclipse.californium.plugtests.resources.LargeCreate;
 import org.eclipse.californium.plugtests.resources.LargePost;
@@ -56,6 +57,7 @@ import org.eclipse.californium.plugtests.resources.Link3;
 import org.eclipse.californium.plugtests.resources.LocationQuery;
 import org.eclipse.californium.plugtests.resources.LongPath;
 import org.eclipse.californium.plugtests.resources.MultiFormat;
+import org.eclipse.californium.plugtests.resources.MyIp;
 import org.eclipse.californium.plugtests.resources.Observe;
 import org.eclipse.californium.plugtests.resources.ObserveLarge;
 import org.eclipse.californium.plugtests.resources.ObserveNon;
@@ -297,5 +299,8 @@ public class PlugtestServer extends AbstractTestServer {
 		add(new Validate());
 		add(new Create());
 		add(new Shutdown());
+		add(new Hono("telemetry"));
+		add(new Hono("event"));
+		add(new MyIp(MyIp.RESOURCE_NAME, false));
 	}
 }
