@@ -570,10 +570,15 @@ public class ConnectorHelper {
 
 	};
 
-	static class LatchSessionListener extends SessionAdapter {
+	public static enum SessionState {
+		ESTABLISHED, COMPLETED, FAILED
+	}
 
+	public static class LatchSessionListener extends SessionAdapter {
+		
 		private CountDownLatch finished = new CountDownLatch(1);
 		private AtomicBoolean established = new AtomicBoolean();
+		private CountDownLatch completed = new CountDownLatch(1);
 		private AtomicReference<Throwable> error = new AtomicReference<Throwable>();
 
 		@Override
@@ -584,6 +589,11 @@ public class ConnectorHelper {
 		}
 
 		@Override
+		public void handshakeCompleted(Handshaker handshaker) {
+			completed.countDown();
+		}
+
+		@Override
 		public void handshakeFailed(Handshaker handshaker, Throwable error) {
 			this.error.set(error);
 			finished.countDown();
@@ -591,6 +601,13 @@ public class ConnectorHelper {
 
 		public boolean waitForSessionEstablished(long timeout, TimeUnit unit) throws InterruptedException {
 			return finished.await(timeout, unit) && established.get();
+		}
+
+		public boolean waitForSessionCompleted(long timeout, TimeUnit unit) throws InterruptedException {
+			if (waitForSessionEstablished(timeout, unit)) {
+				return completed.await(timeout, unit);
+			}
+			return false;
 		}
 
 		public Throwable waitForSessionFailed(long timeout, TimeUnit unit) throws InterruptedException {
