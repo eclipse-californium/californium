@@ -1194,6 +1194,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 				records.size(), peerAddress, inboundDatagramBufferSize);
 
 		if (records.isEmpty()) {
+			DROP_LOGGER.trace("Discarding {} malicious record with {} bytes from [{}]", packet.getLength(), peerAddress);
 			if (health != null) {
 				health.receivingRecord(true);
 			}
@@ -1201,6 +1202,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 		}
 
 		if (!running.get()) {
+			DROP_LOGGER.trace("Discarding {} records, startting with {} from [{}] on shutdown", records.size(),
+					records.get(0).getType(), peerAddress);
 			LOGGER.debug("Execution shutdown while processing incoming records from peer: {}", peerAddress);
 			if (health != null) {
 				health.receivingRecord(true);
@@ -1282,7 +1285,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			// and not changed by processing an other record before 
 			if (record.getConnectionId() == null && !connection.equalsPeerAddress(record.getPeerAddress())) {
 				long delay = TimeUnit.NANOSECONDS.toMillis(ClockUtil.nanoRealtime() - record.getReceiveNanos());
-				DROP_LOGGER.info("Drop received record {}, connection changed address {} => {}! (shift {}ms)", record.getType(),
+				DROP_LOGGER.debug("Drop received record {}, connection changed address {} => {}! (shift {}ms)", record.getType(),
 						record.getPeerAddress(), connection.getPeerAddress(), delay);
 				if (health != null) {
 					health.receivingRecord(true);
@@ -2169,6 +2172,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 					} else {
 						message.onError(new EndpointUnconnectedException("connection missing!"));
 					}
+					DROP_LOGGER.debug("DTLSConnector drops {} outgoing bytes to {}:{}, connection missing!", message.getSize(), message.getAddress(), message.getPort());
 					if (health != null) {
 						health.sendingRecord(true);
 					}
@@ -2177,6 +2181,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 			}
 		}
 		if (error != null) {
+			DROP_LOGGER.debug("DTLSConnector drops {} outgoing bytes to {}:{}, {}!", message.getSize(),
+					message.getAddress(), message.getPort(), error.getMessage());
 			message.onError(error);
 			if (health != null) {
 				health.sendingRecord(true);
@@ -2199,6 +2205,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 							if (running.get()) {
 								sendMessage(now, message, connection);
 							} else {
+								DROP_LOGGER.trace("DTLSConnector drops {} outgoing bytes to {}:{}, connector not running!", message.getSize(), message.getAddress(), message.getPort());
 								message.onError(new InterruptedIOException("Connector is not running."));
 								if (health != null) {
 									health.sendingRecord(true);
@@ -2209,6 +2216,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 								LOGGER.warn("Exception thrown by executor thread [{}]",
 										Thread.currentThread().getName(), e);
 							}
+							DROP_LOGGER.trace("DTLSConnector drops {} outgoing bytes to {}:{}, {}", message.getSize(), message.getAddress(), message.getPort(), e.getMessage());
 							if (health != null) {
 								health.sendingRecord(true);
 							}
@@ -2221,6 +2229,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			} catch (RejectedExecutionException e) {
 				LOGGER.debug("Execution rejected while sending application record [peer: {}]",
 						message.getInetSocketAddress(), e);
+				DROP_LOGGER.trace("DTLSConnector drops {} outgoing bytes to {}:{}, {}", message.getSize(), message.getAddress(), message.getPort(), e.getMessage());
 				message.onError(new InterruptedIOException("Connector is not running."));
 				if (health != null) {
 					health.sendingRecord(true);
@@ -2306,6 +2315,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		Handshaker handshaker = connection.getOngoingHandshake();
 		if (handshaker == null) {
 			if (serverOnly) {
+				DROP_LOGGER.trace("DTLSConnector drops {} outgoing bytes to {}:{}, server only, connection missing!", message.getSize(), message.getAddress(), message.getPort());
 				message.onError(new EndpointUnconnectedException("server only, connection missing!"));
 				if (health != null) {
 					health.sendingRecord(true);
@@ -2314,6 +2324,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			}
 			boolean none = getEffectiveHandshakeMode(message).contentEquals(DtlsEndpointContext.HANDSHAKE_MODE_NONE);
 			if (none) {
+				DROP_LOGGER.trace("DTLSConnector drops {} outgoing bytes to {}:{}, connection missing!", message.getSize(), message.getAddress(), message.getPort());
 				message.onError(new EndpointUnconnectedException("connection missing!"));
 				if (health != null) {
 					health.sendingRecord(true);
@@ -2353,6 +2364,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		boolean none = DtlsEndpointContext.HANDSHAKE_MODE_NONE.equals(handshakeMode);
 		if (none) {
 			if (markedAsClosed || connection.isResumptionRequired()) {
+				DROP_LOGGER.trace("DTLSConnector drops {} outgoing bytes to {}:{}, resumption required!", message.getSize(), message.getAddress(), message.getPort());
 				message.onError(new EndpointUnconnectedException("resumption required!"));
 				if (health != null) {
 					health.sendingRecord(true);
@@ -2366,6 +2378,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			if (force || markedAsClosed || connection.isAutoResumptionRequired(getAutResumptionTimeout(message))) {
 				// create the session to resume from the previous one.
 				if (serverOnly) {
+					DROP_LOGGER.trace("DTLSConnector drops {} outgoing bytes to {}:{}, server only, resumption requested failed!", message.getSize(), message.getAddress(), message.getPort());
 					message.onError(new EndpointUnconnectedException("server only, resumption requested failed!"));
 					if (health != null) {
 						health.sendingRecord(true);
