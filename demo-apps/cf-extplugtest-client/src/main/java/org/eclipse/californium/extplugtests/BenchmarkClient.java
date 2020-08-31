@@ -176,6 +176,7 @@ public class BenchmarkClient {
 			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
 			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
 			config.setInt(Keys.MAX_ACTIVE_PEERS, 10);
+			config.setInt(Keys.PEERS_MARK_AND_SWEEP_MESSAGES, 16);
 			config.setString(Keys.DEDUPLICATOR, Keys.DEDUPLICATOR_PEERS_MARK_AND_SWEEP);
 			config.setInt(Keys.DTLS_AUTO_RESUME_TIMEOUT, 0);
 			config.setInt(Keys.DTLS_CONNECTION_ID_LENGTH, 0); // support it, but don't use it
@@ -1052,7 +1053,7 @@ public class BenchmarkClient {
 				} else {
 					random.nextBytes(id);
 					identity= ConnectorConfig.PSK_IDENTITY_PREFIX + StringUtil.byteArray2Hex(id);
-					secret = null;
+					secret = config.secretKey;
 				}
 			} else {
 				identity = null;
