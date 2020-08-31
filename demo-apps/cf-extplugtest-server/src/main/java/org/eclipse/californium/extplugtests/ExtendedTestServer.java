@@ -91,6 +91,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 			config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
 			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
 			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
+			config.setInt(Keys.PEERS_MARK_AND_SWEEP_MESSAGES, 16);
 			config.setString(Keys.DEDUPLICATOR, Keys.DEDUPLICATOR_PEERS_MARK_AND_SWEEP);
 			config.setInt(Keys.MAX_ACTIVE_PEERS, 2000000);
 			config.setInt(Keys.DTLS_AUTO_RESUME_TIMEOUT, 0);
