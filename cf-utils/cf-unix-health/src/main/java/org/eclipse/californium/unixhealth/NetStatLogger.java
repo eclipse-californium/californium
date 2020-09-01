@@ -71,7 +71,9 @@ public class NetStatLogger extends CounterStatisticManager {
 	 */
 	public NetStatLogger(String tag) {
 		super(tag);
-		init();
+		if (isEnabled()) {
+			init();
+		}
 	}
 
 	/**
@@ -86,7 +88,9 @@ public class NetStatLogger extends CounterStatisticManager {
 	 */
 	public NetStatLogger(String tag, int interval, ScheduledExecutorService executor) {
 		super(tag, interval, executor);
-		init();
+		if (isEnabled()) {
+			init();
+		}
 	}
 
 	private void init() {
@@ -107,24 +111,26 @@ public class NetStatLogger extends CounterStatisticManager {
 
 	@Override
 	public void dump() {
-		try {
-			read(false);
-			if (sent.isUsed() || received.isUsed()) {
-				String eol = StringUtil.lineSeparator();
-				String head = "   " + tag;
-				StringBuilder log = new StringBuilder();
-				log.append(tag).append("network statistic:").append(eol);
-				log.append(head).append(sent).append(eol);
-				log.append(head).append(received).append(eol);
-				log.append(head).append(sendBufferErrors).append(eol);
-				log.append(head).append(receiveBufferErrors).append(eol);
-				log.append(head).append(inErrors).append(eol);
-				log.append(head).append(inChecksumErrors).append(eol);
-				log.append(head).append(noPorts);
-				LOGGER.debug("{}", log);
+		if (isEnabled()) {
+			try {
+				read(false);
+				if (sent.isUsed() || received.isUsed()) {
+					String eol = StringUtil.lineSeparator();
+					String head = "   " + tag;
+					StringBuilder log = new StringBuilder();
+					log.append(tag).append("network statistic:").append(eol);
+					log.append(head).append(sent).append(eol);
+					log.append(head).append(received).append(eol);
+					log.append(head).append(sendBufferErrors).append(eol);
+					log.append(head).append(receiveBufferErrors).append(eol);
+					log.append(head).append(inErrors).append(eol);
+					log.append(head).append(inChecksumErrors).append(eol);
+					log.append(head).append(noPorts);
+					LOGGER.debug("{}", log);
+				}
+			} catch (Throwable e) {
+				LOGGER.error("{}", tag, e);
 			}
-		} catch (Throwable e) {
-			LOGGER.error("{}", tag, e);
 		}
 	}
 
