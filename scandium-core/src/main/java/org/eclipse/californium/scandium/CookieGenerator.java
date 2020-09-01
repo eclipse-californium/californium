@@ -105,10 +105,13 @@ public class CookieGenerator {
 		// if key expired or secret key not initialized;
 		lock.writeLock().lock();
 		try {
+			// re-check, if a secret key is already created and not expired
+			if (currentSecretKey != null && (now - nextKeyGenerationNanos) < 0) {
+				return currentSecretKey;
+			}
 			randomGenerator.nextBytes(randomBytes);
 			nextKeyGenerationNanos = now + COOKIE_LIFE_TIME;
 			// shift secret keys
-			SecretUtil.destroy(pastSecretKey);
 			pastSecretKey = currentSecretKey;
 			currentSecretKey = SecretUtil.create(randomBytes, "MAC");
 			return currentSecretKey;
