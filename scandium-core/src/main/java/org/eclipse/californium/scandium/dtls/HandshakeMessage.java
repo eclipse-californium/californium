@@ -258,7 +258,7 @@ public abstract class HandshakeMessage extends AbstractMessage {
 				int left = reader.bitsLeft() / Byte.SIZE;
 				if (fragmentLength > left) {
 					throw new HandshakeException(
-							String.format("Message %s fragment length %d exceed available data %d", type, fragmentLength,
+							String.format("Message %s fragment length %d exceeds available data %d", type, fragmentLength,
 									left),
 							new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR, peerAddress));
 				}

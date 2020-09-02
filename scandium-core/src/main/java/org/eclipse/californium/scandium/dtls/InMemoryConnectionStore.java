@@ -90,6 +90,7 @@ import org.slf4j.LoggerFactory;
  * removed also from the cache.
  * </p>
  */
+@SuppressWarnings("deprecation")
 public class InMemoryConnectionStore implements ResumptionSupportingConnectionStore, CloseSupportingConnectionStore {
 
 	private static final Logger LOG = LoggerFactory.getLogger(InMemoryConnectionStore.class);

@@ -92,7 +92,7 @@ public class ScandiumUtil extends ConnectorUtil {
 	 * Start connector.
 	 * 
 	 * @param bind address to bind connector to
-	 * @param rsa use mixed certifcate path (includes RSA certificate). Server
+	 * @param rsa use mixed certificate path (includes RSA certificate). Server
 	 *            only!
 	 * @param dtlsBuilder preconfigured dtls builder. Maybe {@link null}.
 	 * @param trust alias of trusted certificate, or {@code null} to trust all

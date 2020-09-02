@@ -36,7 +36,6 @@ import static org.junit.Assert.fail;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
-import java.security.cert.Certificate;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -47,6 +46,8 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier.Builder;
 import org.eclipse.californium.scandium.util.ServerName.NameType;
 import org.junit.After;
 import org.junit.Before;
@@ -245,7 +246,7 @@ public class ClientHandshakerTest {
 			final boolean sniEnabled) throws Exception {
 
 		DtlsConnectorConfig.Builder builder = 
-				new DtlsConnectorConfig.Builder()
+				DtlsConnectorConfig.builder()
 					.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
 					.setIdentity(
 						DtlsTestTools.getClientPrivateKey(),
@@ -253,12 +254,13 @@ public class ClientHandshakerTest {
 						CertificateType.X_509)
 					.setSniEnabled(sniEnabled);
 
+		Builder verifierBuilder = StaticNewAdvancedCertificateVerifier.builder();
 		if (configureTrustStore) {
-			builder.setTrustStore(DtlsTestTools.getTrustedCertificates());
+			builder.setAdvancedCertificateVerifier(verifierBuilder.setTrustedCertificates(DtlsTestTools.getTrustedCertificates()).build());
 		} else if (configureEmptyTrustStore) {
-			builder.setTrustStore(new Certificate[0]);
+			builder.setAdvancedCertificateVerifier(verifierBuilder.setTrustAllCertificates().build());
 		} else if (configureRpkTrustAll) {
-			builder.setRpkTrustAll();
+			builder.setAdvancedCertificateVerifier(verifierBuilder.setTrustAllRPKs().build());
 		} else {
 			builder.setClientAuthenticationRequired(false);
 		}

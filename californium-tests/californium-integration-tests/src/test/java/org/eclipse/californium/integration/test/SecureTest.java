@@ -46,6 +46,8 @@ import org.eclipse.californium.rule.CoapThreadsRule;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AsyncAdvancedPskStore;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -75,7 +77,7 @@ public class SecureTest {
 	private static final int TEST_ACK_TIMEOUT = 5000; // milliseconds
 
 	private static final int TEST_CLIENTS = 50;
-	private static final int TEST_LOOPS = 5;
+	private static final int TEST_LOOPS = 10;
 
 	// DTLS config constants
 	private static final String PSK_IDENITITY = "client1";
@@ -90,6 +92,8 @@ public class SecureTest {
 	private static final int TEST_DTLS_PSK_DELAY = 50; // milliseconds
 
 	private CoapTestEndpoint coapTestEndpoint;
+
+	private List<AsyncAdvancedPskStore> pskStores = new ArrayList<>();
 
 	/**
 	 * Ensure there is no leak when we try to send a request to an absent peer
@@ -207,6 +211,10 @@ public class SecureTest {
 			}
 			fail(message.toString());
 		}
+		for (AsyncAdvancedPskStore pskStore : pskStores) {
+			pskStore.shutdown();
+		}
+		pskStores.clear();
 		System.gc();
 		Thread.sleep(200);
 	}
@@ -216,7 +224,7 @@ public class SecureTest {
 		Builder builder = new DtlsConnectorConfig.Builder()
 				.setAddress(TestTools.LOCALHOST_EPHEMERAL)
 				.setLoggingTag("client")
-				.setPskStore(new TestUtilPskStore(PSK_IDENITITY, PSK_KEY.getBytes()))
+				.setAdvancedPskStore(new AdvancedSinglePskStore(PSK_IDENITITY, PSK_KEY.getBytes()))
 				.setMaxRetransmissions(NB_RETRANSMISSION)
 				.setRetransmissionTimeout(RETRANSMISSION_TIMEOUT);
 		DtlsConnectorConfig dtlsConfig = builder.build();
@@ -238,10 +246,13 @@ public class SecureTest {
 	private CoapEndpoint createEndpoint(String tag, int exchangeTimeout, int coapTimeout, int dtlsTimeout,
 			int pskDelay) {
 		// setup DTLS Config
+		AsyncAdvancedPskStore pskStore = new AsyncAdvancedPskStore(new AdvancedSinglePskStore(PSK_IDENITITY, PSK_KEY.getBytes()));
+		pskStore.setDelay(-pskDelay);
+		pskStores.add(pskStore);
 		Builder builder = new DtlsConnectorConfig.Builder()
 				.setAddress(TestTools.LOCALHOST_EPHEMERAL)
 				.setLoggingTag(tag)
-				.setPskStore(new TestUtilPskStore(PSK_IDENITITY, PSK_KEY.getBytes(), pskDelay))
+				.setAdvancedPskStore(pskStore)
 				.setReceiverThreadCount(2)
 				.setConnectionThreadCount(2)
 				.setRetransmissionTimeout(dtlsTimeout)

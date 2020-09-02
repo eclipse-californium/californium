@@ -28,14 +28,10 @@ import org.eclipse.californium.scandium.auth.AdvancedApplicationLevelInfoSupplie
  * 
  * @since 2.3
  */
-public class PskSecretResult {
+public class PskSecretResult extends HandshakeResult {
 
 	public static final String ALGORITHM_PSK = "PSK";
 	public static final String ALGORITHM_MAC = "MAC";
-	/**
-	 * Connection id of the connection.
-	 */
-	private final ConnectionId cid;
 	/**
 	 * PSK identity. On success, the identity is
 	 * {@link PskPublicInformation#normalize(String)}d.
@@ -45,14 +41,6 @@ public class PskSecretResult {
 	 * Master secret (algorithm "MAC"), or PSK secret key (algorithm "PSK").
 	 */
 	private final SecretKey secret;
-	/**
-	 * Custom argument.
-	 * 
-	 * Passed to {@link AdvancedApplicationLevelInfoSupplier} by the
-	 * {@link Handshaker}, if a {@link AdvancedApplicationLevelInfoSupplier} is
-	 * available.
-	 */
-	private final Object customArgument;
 
 	/**
 	 * Create result.
@@ -85,9 +73,7 @@ public class PskSecretResult {
 	 */
 	public PskSecretResult(ConnectionId cid, PskPublicInformation pskIdentity, SecretKey secret,
 			Object customArgument) {
-		if (cid == null) {
-			throw new NullPointerException("cid must not be null!");
-		}
+		super(cid, customArgument);
 		if (pskIdentity == null) {
 			throw new NullPointerException("PSK identity must not be null!");
 		}
@@ -99,19 +85,8 @@ public class PskSecretResult {
 								+ "!");
 			}
 		}
-		this.cid = cid;
 		this.pskIdentity = pskIdentity;
 		this.secret = secret;
-		this.customArgument = customArgument;
-	}
-
-	/**
-	 * Get connection id.
-	 * 
-	 * @return connection id
-	 */
-	public ConnectionId getConnectionId() {
-		return cid;
 	}
 
 	/**
@@ -133,18 +108,4 @@ public class PskSecretResult {
 	public SecretKey getSecret() {
 		return secret;
 	}
-
-	/**
-	 * Get custom argument.
-	 * 
-	 * Passed to {@link AdvancedApplicationLevelInfoSupplier} by the
-	 * {@link Handshaker}, if a {@link AdvancedApplicationLevelInfoSupplier} is
-	 * available.
-	 * 
-	 * @return custom argument.
-	 */
-	public Object getCustomArgument() {
-		return customArgument;
-	}
-
 }

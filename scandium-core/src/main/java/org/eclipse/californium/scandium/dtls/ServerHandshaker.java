@@ -77,7 +77,6 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.CertificateRequest.ClientCertificateType;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuiteParameters;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuiteSelector;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
@@ -156,10 +155,8 @@ public class ServerHandshaker extends Handshaker {
 
 	private CipherSuiteParameters selectedCipherSuiteParameters;
 
-	/** The client's {@link CertificateMessage}. Optional. */
-	private CertificateMessage clientCertificate = null;
 	/** The client's {@link CertificateVerify}. Optional. */
-	private CertificateVerify certificateVerify = null;
+	private CertificateVerify certificateVerifyMessage = null;
 
 	private PskPublicInformation preSharedKeyIdentity;
 
@@ -265,7 +262,7 @@ public class ServerHandshaker extends Handshaker {
 
 		case CERTIFICATE_VERIFY:
 			receivedCertificateVerify((CertificateVerify) message);
-			if (masterSecret != null) {
+			if (masterSecret != null && certificateVerfied) {
 				expectChangeCipherSpecMessage();
 			}
 			break;
@@ -282,12 +279,27 @@ public class ServerHandshaker extends Handshaker {
 	}
 
 	@Override
-	protected void processMasterSecret(SecretKey masterSecret) throws HandshakeException {
+	protected void processMasterSecret(SecretKey masterSecret) {
 		applyMasterSecret(masterSecret);
 		SecretUtil.destroy(masterSecret);
-		if (!clientAuthenticationRequired || session.getKeyExchange() != KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN
-				|| certificateVerify != null) {
+		if (states == NO_CLIENT_CERTIFICATE || (states == EMPTY_CLIENT_CERTIFICATE && certificateVerfied)) {
 			expectChangeCipherSpecMessage();
+		}
+	}
+
+	@Override
+	protected void processCertificateVerified() {
+		if (certificateVerifyMessage != null) {
+			if (peerCertPath != null) {
+				session.setPeerIdentity(new X509CertPath(peerCertPath));
+			} else {
+				session.setPeerIdentity(new RawPublicKeyIdentity(clientPublicKey));
+			}
+		}
+		if (states == EMPTY_CLIENT_CERTIFICATE || certificateVerifyMessage != null) {
+			if (masterSecret != null) {
+				expectChangeCipherSpecMessage();
+			}
 		}
 	}
 
@@ -302,19 +314,17 @@ public class ServerHandshaker extends Handshaker {
 	 */
 	private void receivedClientCertificate(final CertificateMessage message) throws HandshakeException {
 
-		clientCertificate = message;
 		clientPublicKey = message.getPublicKey();
-		if (clientAuthenticationRequired && message.getCertificateChain() != null
-				&& clientPublicKey == null) {
+		if (clientAuthenticationRequired && clientPublicKey == null) {
 			LOGGER.debug("Client authentication failed: missing certificate!");
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE,
 					session.getPeer());
 			throw new HandshakeException("Client Certificate required!", alert);
 		}
-		verifyCertificate(message);
 		if (clientPublicKey == null) {
 			states = EMPTY_CLIENT_CERTIFICATE;
 		}
+		verifyCertificate(message);
 	}
 
 	/**
@@ -327,17 +337,19 @@ public class ServerHandshaker extends Handshaker {
 	 * @throws HandshakeException if verification of the signature fails.
 	 */
 	private void receivedCertificateVerify(CertificateVerify message) throws HandshakeException {
-		certificateVerify = message;
+		certificateVerifyMessage = message;
 		// remove last message - CertificateVerify itself
 		handshakeMessages.remove(handshakeMessages.size() - 1);
 		message.verifySignature(clientPublicKey, handshakeMessages);
 		// add CertificateVerify again
 		handshakeMessages.add(message);
 		// at this point we have successfully authenticated the client
-		if (peerCertPath != null) {
-			session.setPeerIdentity(new X509CertPath(peerCertPath));
-		} else {
-			session.setPeerIdentity(new RawPublicKeyIdentity(clientPublicKey));
+		if (certificateVerfied) {
+			if (peerCertPath != null) {
+				session.setPeerIdentity(new X509CertPath(peerCertPath));
+			} else {
+				session.setPeerIdentity(new RawPublicKeyIdentity(clientPublicKey));
+			}
 		}
 	}
 
@@ -358,9 +370,7 @@ public class ServerHandshaker extends Handshaker {
 
 		// check if client sent all expected messages
 		// (i.e. ClientCertificate/CertificateVerify when server sent CertificateRequest)
-		if (CipherSuite.KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN.equals(session.getKeyExchange()) && 
-				clientAuthenticationRequired && 
-				(clientCertificate == null || certificateVerify == null)) {
+		if (clientAuthenticationRequired && states == EMPTY_CLIENT_CERTIFICATE) {
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
 			throw new HandshakeException("Client did not send required authentication messages.", alert);
 		}
@@ -565,8 +575,7 @@ public class ServerHandshaker extends Handshaker {
 			if (session.receiveCertificateType() == CertificateType.X_509) {
 				certificateRequest.addSignatureAlgorithms(supportedSignatureAndHashAlgorithms);
 				if (certificateVerifier != null) {
-					List<X500Principal> subjects = CertPathUtil
-							.toSubjects(Arrays.asList(certificateVerifier.getAcceptedIssuers()));
+					List<X500Principal> subjects = CertPathUtil.toSubjects(certificateVerifier.getAcceptedIssuers());
 					certificateRequest.addCerticiateAuthorities(subjects);
 				}
 			} else if (session.receiveCertificateType() == CertificateType.RAW_PUBLIC_KEY) {

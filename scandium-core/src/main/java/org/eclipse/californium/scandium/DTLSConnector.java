@@ -183,6 +183,8 @@ import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.ConnectionEvictedException;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
+import org.eclipse.californium.scandium.dtls.HandshakeResult;
+import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.dtls.ContentType;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.DtlsHandshakeException;
@@ -192,7 +194,6 @@ import org.eclipse.californium.scandium.dtls.Handshaker;
 import org.eclipse.californium.scandium.dtls.HelloVerifyRequest;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.PskSecretResult;
-import org.eclipse.californium.scandium.dtls.PskSecretResultHandler;
 import org.eclipse.californium.scandium.dtls.MaxFragmentLengthExtension;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.Record;
@@ -209,6 +210,7 @@ import org.eclipse.californium.scandium.dtls.SessionListener;
 import org.eclipse.californium.scandium.dtls.SessionTicket;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 
@@ -409,15 +411,25 @@ public class DTLSConnector implements Connector, RecordLayer {
 			if (listener instanceof ConnectionExecutionListener) {
 				this.connectionExecutionListener = (ConnectionExecutionListener) listener;
 			}
+			HandshakeResultHandler handler = new HandshakeResultHandler() {
+
+				@Override
+				public void apply(PskSecretResult secretResult) {
+					processAsynchronousHandshakeResult(secretResult);
+				}
+
+				@Override
+				public void apply(HandshakeResult connectionResult) {
+					processAsynchronousHandshakeResult(connectionResult);
+				}
+			};
 			AdvancedPskStore advancedPskStore = config.getAdvancedPskStore();
 			if (advancedPskStore != null) {
-				advancedPskStore.setResultHandler(new PskSecretResultHandler() {
-
-					@Override
-					public void apply(PskSecretResult masterSecretResult) {
-						processAsyncPskSecretResult(masterSecretResult);
-					}
-				});
+				advancedPskStore.setResultHandler(handler);
+			}
+			NewAdvancedCertificateVerifier certificateVerifier = config.getAdvancedCertificateVerifier();
+			if (certificateVerifier != null) {
+				certificateVerifier.setResultHandler(handler);
 			}
 			DtlsHealth healthHandler = config.getHealthHandler();
 			Integer healthStatusInterval = config.getHealthStatusInterval();
@@ -2603,13 +2615,13 @@ public class DTLSConnector implements Connector, RecordLayer {
 	}
 
 	/**
-	 * Process psk secret result.
+	 * Process handshake result.
 	 * 
-	 * @param secretResult asynchronous psk secret result
-	 * @since 2.3
+	 * @param handshakeResult asynchronous handshake result
+	 * @since 2.5
 	 */
-	private void processAsyncPskSecretResult(final PskSecretResult secretResult) {
-		final Connection connection = connectionStore.get(secretResult.getConnectionId());
+	private void processAsynchronousHandshakeResult(final HandshakeResult handshakeResult) {
+		final Connection connection = connectionStore.get(handshakeResult.getConnectionId());
 		if (connection != null && connection.hasOngoingHandshake()) {
 			SerialExecutor serialExecutor = connection.getExecutor();
 
@@ -2623,28 +2635,28 @@ public class DTLSConnector implements Connector, RecordLayer {
 							Handshaker handshaker = connection.getOngoingHandshake();
 							if (handshaker != null) {
 								try {
-									handshaker.processAsyncPskSecretResult(secretResult);
+									handshaker.processAsyncHandshakeResult(handshakeResult);
 								} catch (HandshakeException e) {
 									handleExceptionDuringHandshake(e, e.getAlert().getLevel(), e.getAlert().getDescription(), connection, null);
 								} catch (IllegalStateException e) {
-									LOGGER.warn("Exception while processing psk secret result [{}]", connection, e);
+									LOGGER.warn("Exception while processing handshake result [{}]", connection, e);
 								}
 							} else {
-								LOGGER.debug("No ongoing handshake for psk secret result [{}]", connection);
+								LOGGER.debug("No ongoing handshake for result [{}]", connection);
 							}
 						} else {
-							LOGGER.debug("Execution stopped while processing psk secret result [{}]", connection);
+							LOGGER.debug("Execution stopped while processing handshake result [{}]", connection);
 						}
 					}
 				});
 			} catch (RejectedExecutionException e) {
 				// dont't terminate connection on shutdown!
-				LOGGER.debug("Execution rejected while processing master secret result [{}]", connection, e);
+				LOGGER.debug("Execution rejected while processing handshake result [{}]", connection, e);
 			} catch (RuntimeException e) {
-				LOGGER.warn("Unexpected error occurred while processing master secret result [{}]", connection, e);
+				LOGGER.warn("Unexpected error occurred while processing handshake result [{}]", connection, e);
 			}
 		} else {
-			LOGGER.debug("No connection or ongoing handshake for master secret result [{}]", connection);
+			LOGGER.debug("No connection or ongoing handshake for handshake result [{}]", connection);
 		}
 	}
 

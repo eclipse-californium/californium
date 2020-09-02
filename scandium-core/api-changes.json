@@ -300,6 +300,29 @@
 					"new": "method void org.eclipse.californium.scandium.dtls.Record::<init>(org.eclipse.californium.scandium.dtls.ContentType, org.eclipse.californium.scandium.dtls.ProtocolVersion, long, org.eclipse.californium.scandium.dtls.DTLSMessage, java.net.InetSocketAddress)",
 					"justification": "not part of the public API",
 					"oldArchive": "org.eclipse.californium:scandium:jar:2.4.0"
+				},
+				{
+					"code": "java.class.nonFinalClassInheritsFromNewClass",
+					"old": "class org.eclipse.californium.scandium.dtls.PskSecretResult",
+					"new": "class org.eclipse.californium.scandium.dtls.PskSecretResult",
+					"justification": "moving fields to ConnectionResult doesn't change the API"
+				},
+				{
+					"code": "java.field.typeChanged",
+					"fieldName": "certificateVerifier",
+					"justification": "not part of the public API",
+					"oldType": "org.eclipse.californium.scandium.dtls.x509.CertificateVerifier",
+					"newType": "org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier"
+				},
+				{
+					"code": "java.field.removed",
+					"old": "field org.eclipse.californium.scandium.dtls.Handshaker.rpkStore",
+					"justification": "not part of the public API"
+				},
+				{
+					"code": "java.method.abstractMethodAdded",
+					"new": "method void org.eclipse.californium.scandium.dtls.Handshaker::processCertificateVerified() throws org.eclipse.californium.scandium.dtls.HandshakeException",
+					"justification": "not part of the public API"
 				}
 			]
 		}

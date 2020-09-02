@@ -73,8 +73,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import javax.crypto.SecretKey;
-
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
@@ -115,9 +113,10 @@ import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
-import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
-import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
+import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -163,31 +162,17 @@ public class DTLSConnectorTest {
 	LatchDecrementingRawDataChannel clientRawDataChannel;
 	DTLSSession establishedClientSession;
 	InMemoryConnectionStore clientConnectionStore;
-	static int pskStoreLatency = 0; // in ms
 
 	@BeforeClass
 	public static void loadKeys() throws IOException, GeneralSecurityException {
 
 		executor = ExecutorsUtil.newFixedThreadPool(2, new TestThreadFactory("DTLS-"));
 
-		// load the key store
-		InMemoryPskStore pskStore = new InMemoryPskStore() {
+		AdvancedSinglePskStore pskStore = new AdvancedSinglePskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
 
-			@Override
-			public SecretKey getKey(PskPublicInformation identity) {
-				if (pskStoreLatency != 0) {
-					try {
-						Thread.sleep(pskStoreLatency);
-					} catch (InterruptedException e) {
-						throw new RuntimeException(e);
-					}
-				}
-				return super.getKey(identity);
-			}
-		};
-		pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
+		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustedCertificates(DtlsTestTools.getTrustedCertificates()).setTrustAllRPKs().build();
 
-		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
 			.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
 			.setRecommendedCipherSuitesOnly(false)
 			.setSupportedCipherSuites(
@@ -197,9 +182,8 @@ public class DTLSConnectorTest {
 						CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256,
 						CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256)
 			.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509)
-			.setTrustStore(DtlsTestTools.getTrustedCertificates())
-			.setRpkTrustAll()
-			.setPskStore(pskStore)
+			.setAdvancedCertificateVerifier(verifier)
+			.setAdvancedPskStore(pskStore)
 			.setClientAuthenticationRequired(true)
 			.setReceiverThreadCount(1)
 			.setServerOnly(true)
@@ -218,7 +202,6 @@ public class DTLSConnectorTest {
 
 	@Before
 	public void setUp() throws Exception {
-		pskStoreLatency = 0;
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
 		clientConnectionStore.setTag("client");
 		clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
@@ -243,14 +226,14 @@ public class DTLSConnectorTest {
 	}
 
 	private static DtlsConnectorConfig.Builder newStandardConfigBuilder(InetSocketAddress bindAddress)  throws Exception {
-		return new DtlsConnectorConfig.Builder()
+		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustedCertificates(DtlsTestTools.getTrustedCertificates()).setTrustAllRPKs().build();
+		return DtlsConnectorConfig.builder()
 				.setAddress(bindAddress)
 				.setLoggingTag("client")
 				.setReceiverThreadCount(1)
 				.setConnectionThreadCount(2)
 				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509)
-				.setTrustStore(DtlsTestTools.getTrustedCertificates())
-				.setRpkTrustAll();
+				.setAdvancedCertificateVerifier(verifier);
 	}
 
 	@Test
@@ -404,12 +387,9 @@ public class DTLSConnectorTest {
 	@Test
 	public void testNoRetransmissionIfMessageReceived() throws Exception {
 		// Configure UDP connector
-		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
-		collector.applySession(null);
-		UdpConnector rawClient = new UdpConnector(clientEndpoint.getPort(), collector);
-
-		// Add latency to PSK store
-		pskStoreLatency = 1000;
+		RecordCollectorDataHandler clientCollector = new RecordCollectorDataHandler();
+		clientCollector.applySession(null);
+		UdpConnector rawClient = new UdpConnector(clientEndpoint.getPort(), clientCollector);
 
 		try {
 			rawClient.start();
@@ -421,7 +401,7 @@ public class DTLSConnectorTest {
 					DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 0, clientHello.toByteArray()));
 
 			// Handle HELLO_VERIFY_REQUEST
-			List<Record> rs = collector.waitForRecords(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			List<Record> rs = clientCollector.waitForRecords(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 			assertNotNull("timeout", rs); // check there is no timeout
 			Record record = rs.get(0);
 			assertThat("Expected HANDSHAKE message from server", record.getType(), is(ContentType.HANDSHAKE));
@@ -440,7 +420,7 @@ public class DTLSConnectorTest {
 
 			// Handle SERVER HELLO
 			// assert that we have an ongoingHandshake for this connection
-			rs = collector.waitForRecords(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			rs = clientCollector.waitForRecords(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 			assertNotNull("timeout", rs); // check there is no timeout
 			con = serverHelper.serverConnectionStore.get(clientEndpoint);
 			assertNotNull(con);
@@ -458,7 +438,7 @@ public class DTLSConnectorTest {
 					DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 1, keyExchange.toByteArray()));
 
 			// Ensure there is no retransmission
-			assertNull(collector.waitForRecords((long) (serverHelper.serverConfig.getRetransmissionTimeout() * 1.1),
+			assertNull(clientCollector.waitForRecords((long) (serverHelper.serverConfig.getRetransmissionTimeout() * 1.1),
 					TimeUnit.MILLISECONDS));
 		} finally {
 			rawClient.stop();
@@ -840,7 +820,7 @@ public class DTLSConnectorTest {
 	 */
 	@Test
 	public void testConnectorIgnoresUnknownPskIdentity() throws Exception {
-		ensureConnectorIgnoresBadCredentials(new StaticPskStore("unknownIdentity", CLIENT_IDENTITY_SECRET.getBytes()));
+		ensureConnectorIgnoresBadCredentials(new AdvancedSinglePskStore("unknownIdentity", CLIENT_IDENTITY_SECRET.getBytes()));
 	}
 
 	/**
@@ -848,17 +828,17 @@ public class DTLSConnectorTest {
 	 */
 	@Test
 	public void testConnectorIgnoresBadPsk() throws Exception {
-		ensureConnectorIgnoresBadCredentials(new StaticPskStore(CLIENT_IDENTITY, "bad_psk".getBytes()));
+		ensureConnectorIgnoresBadCredentials(new AdvancedSinglePskStore(CLIENT_IDENTITY, "bad_psk".getBytes()));
 	}
 
-	private void ensureConnectorIgnoresBadCredentials(PskStore pskStoreWithBadCredentials) throws Exception {
+	private void ensureConnectorIgnoresBadCredentials(AdvancedPskStore pskStoreWithBadCredentials) throws Exception {
 		if (client != null) {
 			client.destroy();
 		}
-		clientConfig = new DtlsConnectorConfig.Builder()
+		clientConfig = DtlsConnectorConfig.builder()
 			.setLoggingTag("client")
 			.setAddress(clientEndpoint)
-			.setPskStore(pskStoreWithBadCredentials)
+			.setAdvancedPskStore(pskStoreWithBadCredentials)
 			.setRetransmissionTimeout(250)
 			.setMaxRetransmissions(1)
 			.build();
@@ -892,7 +872,7 @@ public class DTLSConnectorTest {
 		try {
 			// given an established session with a server that doesn't require
 			// clients to authenticate
-			DtlsConnectorConfig.Builder serverConfig = new DtlsConnectorConfig.Builder()
+			DtlsConnectorConfig.Builder serverConfig = DtlsConnectorConfig.builder()
 					.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
 					.setLoggingTag("server")
 					.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), CertificateType.RAW_PUBLIC_KEY)

@@ -29,6 +29,7 @@ import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
 import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalSignature;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
@@ -100,7 +101,7 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 		// corresponding to the public key in the server's Certificate.
 		ThreadLocalSignature localSignature = signatureAndHashAlgorithm.getThreadLocalSignature();
 		Signature signature = localSignature.currentWithCause();
-		signature.initSign(serverPrivateKey);
+		signature.initSign(serverPrivateKey, RandomManager.currentSecureRandom());
 
 		updateSignature(signature, clientRandom, serverRandom);
 

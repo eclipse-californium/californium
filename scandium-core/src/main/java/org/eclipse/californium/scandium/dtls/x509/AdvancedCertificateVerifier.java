@@ -26,7 +26,10 @@ import org.eclipse.californium.scandium.dtls.HandshakeException;
  * 
  * @see StaticCertificateVerifier
  * @since 2.1
+ * @deprecated use {@link NewAdvancedCertificateVerifier} instead, or
+ *             {@link BridgeCertificateVerifier} until migrated.
  */
+@Deprecated
 public interface AdvancedCertificateVerifier extends CertificateVerifier {
 
 	/**

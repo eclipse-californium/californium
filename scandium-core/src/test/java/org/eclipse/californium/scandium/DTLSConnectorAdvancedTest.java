@@ -28,7 +28,6 @@ import static org.eclipse.californium.scandium.ConnectorHelper.CLIENT_IDENTITY_S
 import static org.eclipse.californium.scandium.ConnectorHelper.SCOPED_CLIENT_IDENTITY;
 import static org.eclipse.californium.scandium.ConnectorHelper.SCOPED_CLIENT_IDENTITY_SECRET;
 import static org.eclipse.californium.scandium.ConnectorHelper.SERVERNAME;
-import static org.eclipse.californium.scandium.ConnectorHelper.newStandardClientConfigBuilder;
 import static org.hamcrest.CoreMatchers.anyOf;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
@@ -61,6 +60,7 @@ import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.category.Medium;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
@@ -82,6 +82,8 @@ import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.ApplicationMessage;
+import org.eclipse.californium.scandium.dtls.CertificateMessage;
+import org.eclipse.californium.scandium.dtls.CertificateVerificationResult;
 import org.eclipse.californium.scandium.dtls.ClientHandshaker;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
@@ -90,6 +92,7 @@ import org.eclipse.californium.scandium.dtls.ContentType;
 import org.eclipse.californium.scandium.dtls.DTLSMessage;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.DtlsHandshakeTimeoutException;
+import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.Handshaker;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
@@ -102,9 +105,11 @@ import org.eclipse.californium.scandium.dtls.ResumingServerHandshaker;
 import org.eclipse.californium.scandium.dtls.ServerHandshaker;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
-import org.eclipse.californium.scandium.dtls.pskstore.AsyncInMemoryPskStore;
-import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
-import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AsyncAdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.junit.After;
@@ -153,8 +158,9 @@ public class DTLSConnectorAdvancedTest {
 	private static final int RETRANSMISSION_TIMEOUT_MS = 400;
 	private static final int MAX_RETRANSMISSIONS = 2;
 
-	static AsyncInMemoryPskStore aPskStore;
-	static int aPskStoreResponses = 1;
+	static AsyncAdvancedPskStore serverPskStore;
+	static AsyncNewAdvancedCertificateVerifier serverCertificateVerifier;
+	static int aHandshakeResponses = 1;
 	static ConnectorHelper serverHelper;
 	static DtlsHealthLogger serverHealth;
 	static DtlsHealthLogger clientHealth;
@@ -165,6 +171,8 @@ public class DTLSConnectorAdvancedTest {
 	static DtlsConnectorConfig serverConfigSingleRecord;
 
 	ConnectorHelper alternativeServerHelper;
+	AsyncAdvancedPskStore clientPskStore;
+	AsyncNewAdvancedCertificateVerifier clientCertificateVerifier;
 	DtlsConnectorConfig clientConfig;
 	DtlsConnectorConfig clientConfigSingleRecord;
 	DTLSConnector client;
@@ -174,30 +182,73 @@ public class DTLSConnectorAdvancedTest {
 
 	@BeforeClass
 	public static void loadKeys() throws IOException, GeneralSecurityException {
+		serverHelper = new ConnectorHelper();
 		serverHealth = new DtlsHealthLogger("server");
 		serverCidGenerator = new SingleNodeConnectionIdGenerator(6);
-		InMemoryPskStore pskStore = new InMemoryPskStore();
+		AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
 		pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
 		pskStore.setKey(SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME);
-		aPskStore = new AsyncInMemoryPskStore(pskStore) {
+		serverPskStore = new AsyncAdvancedPskStore(pskStore) {
 
 			@Override
 			public PskSecretResult requestPskSecretResult(final ConnectionId cid, final ServerNames serverNames,
 					final PskPublicInformation identity, final String hmacAlgorithm, SecretKey otherSecret,
 					byte[] seed) {
-				for (int index = 0; index < aPskStoreResponses; ++index) {
-					super.requestPskSecretResult(cid, serverNames, identity, hmacAlgorithm, otherSecret, seed);
+				final int delay = getDelay();
+				try {
+					LOGGER.info("get PSK secrets");
+					PskSecretResult result = null;
+					for (int index = 0; index < aHandshakeResponses; ++index) {
+						PskSecretResult temp = super.requestPskSecretResult(cid, serverNames, identity, hmacAlgorithm,
+								otherSecret, seed);
+						if (index == 0) {
+							result = temp;
+						}
+						if (delay < 1) {
+							setDelay(1);
+						}
+					}
+					return result;
+				} finally {
+					setDelay(delay);
 				}
-				return null;
 			}
 		};
-		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+
+		serverCertificateVerifier = new AsyncNewAdvancedCertificateVerifier(DtlsTestTools.getTrustedCertificates(),  new RawPublicKeyIdentity[0], null) {
+
+			@Override
+			public CertificateVerificationResult verifyCertificate(final ConnectionId cid, final ServerNames serverName,
+					final Boolean clientUsage, final boolean truncateCertificatePath, final CertificateMessage message,
+					final DTLSSession session) {
+				final int delay = getDelay();
+				try {
+					LOGGER.info("verify certificate");
+					CertificateVerificationResult result = null;
+					for (int index = 0; index < aHandshakeResponses; ++index) {
+						CertificateVerificationResult temp = super.verifyCertificate(cid, serverName, clientUsage,
+								truncateCertificatePath, message, session);
+						if (index == 0) {
+							result = temp;
+						}
+						if (delay < 1) {
+							setDelay(1);
+						}
+					}
+					return result;
+				} finally {
+					setDelay(delay);
+				}
+			}
+		};
+
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
 				.setRetransmissionTimeout(RETRANSMISSION_TIMEOUT_MS)
 				.setMaxRetransmissions(MAX_RETRANSMISSIONS)
 				.setConnectionIdGenerator(serverCidGenerator)
 				.setHealthHandler(serverHealth)
-				.setAdvancedPskStore(aPskStore);
-		serverHelper = new ConnectorHelper();
+				.setAdvancedPskStore(serverPskStore)
+				.setAdvancedCertificateVerifier(serverCertificateVerifier);
 		serverHelper.startServer(builder);
 		serverConfigSingleRecord = new DtlsConnectorConfig.Builder(serverHelper.serverConfig)
 				.setEnableMultiRecordMessages(false).build();
@@ -208,9 +259,13 @@ public class DTLSConnectorAdvancedTest {
 
 	@AfterClass
 	public static void tearDown() {
-		if (aPskStore != null) {
-			aPskStore.shutdown();
-			aPskStore = null;
+		if (serverPskStore != null) {
+			serverPskStore.shutdown();
+			serverPskStore = null;
+		}
+		if (serverCertificateVerifier != null) {
+			serverCertificateVerifier.shutdown();
+			serverCertificateVerifier = null;
 		}
 		serverHelper.destroyServer();
 		timer.shutdown();
@@ -248,24 +303,30 @@ public class DTLSConnectorAdvancedTest {
 
 	@Before
 	public void setUp() throws Exception {
-		aPskStoreResponses = 1;
+		aHandshakeResponses = 1;
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
 		clientConnectionStore.setTag("client");
+		clientCertificateVerifier = (AsyncNewAdvancedCertificateVerifier)AsyncNewAdvancedCertificateVerifier.builder()
+				.setTrustedCertificates(DtlsTestTools.getTrustedCertificates())
+				.setTrustAllRPKs()
+				.build();
+		clientCertificateVerifier.setDelay(0);
 		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
-		DtlsConnectorConfig.Builder builder = newStandardClientConfigBuilder(clientEndpoint)
+		DtlsConnectorConfig.Builder builder = serverHelper.newStandardClientConfigBuilder(clientEndpoint)
 				.setRetransmissionTimeout(RETRANSMISSION_TIMEOUT_MS)
 				.setMaxRetransmissions(MAX_RETRANSMISSIONS)
 				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY)
 				.setConnectionIdGenerator(clientCidGenerator)
+				.setAdvancedCertificateVerifier(clientCertificateVerifier)
 				.setHealthHandler(clientHealth);
 		clientConfig = builder.build();
 		clientConfigSingleRecord = new DtlsConnectorConfig.Builder(clientConfig)
 				.setEnableMultiRecordMessages(false)
 				.setLoggingTag("client")
 				.build();
-		client = serverHelper.createClient(clientConfig, clientConnectionStore);
-		client.setExecutor(executor);
 		clientHealth.reset();
+		serverPskStore.setDelay(DtlsTestTools.DEFAULT_HANDSHAKE_RESULT_DELAY_MILLIS);
+		serverCertificateVerifier.setDelay(DtlsTestTools.DEFAULT_HANDSHAKE_RESULT_DELAY_MILLIS);
 	}
 
 	@After
@@ -273,6 +334,10 @@ public class DTLSConnectorAdvancedTest {
 		timer.cancelAll();
 		if (alternativeServerHelper != null) {
 			alternativeServerHelper.destroyServer();
+		}
+		if (clientCertificateVerifier != null) {
+			clientCertificateVerifier.shutdown();
+			clientCertificateVerifier = null;
 		}
 		if (client != null) {
 			client.destroy();
@@ -285,6 +350,15 @@ public class DTLSConnectorAdvancedTest {
 		TestConditionTools.assertStatisticCounter("client", clientHealth, "dropped sending records", is(0L));
 		clientHealth.reset();
 		serverHealth.reset();
+	}
+
+	private void startClient() throws IOException {
+		clientCertificateVerifier.setDelay(DtlsTestTools.DEFAULT_HANDSHAKE_RESULT_DELAY_MILLIS);
+		serverPskStore.setDelay(0);
+		serverCertificateVerifier.setDelay(0);
+		client = serverHelper.createClient(clientConfig, clientConnectionStore);
+		client.setExecutor(executor);
+		client.start();
 	}
 
 	@Test
@@ -336,14 +410,14 @@ public class DTLSConnectorAdvancedTest {
 	public void testLimitedServerReceivingMessagesInBadOrderDuringHandshake() throws Exception {
 		alternativeServerHelper = new ConnectorHelper();
 
-		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
 				.setRetransmissionTimeout(RETRANSMISSION_TIMEOUT_MS * 2)
 				.setMaxRetransmissions(MAX_RETRANSMISSIONS * 2)
 				.setMaxDeferredProcessedIncomingRecordsSize(96)
 				.setHealthHandler(serverHealth)
 				.setConnectionIdGenerator(serverCidGenerator);
 
-		DtlsConnectorConfig clientConfigSingleRecord = new DtlsConnectorConfig.Builder(this.clientConfigSingleRecord)
+		DtlsConnectorConfig clientConfigSingleRecord = DtlsConnectorConfig.builder(this.clientConfigSingleRecord)
 				.setMaxRetransmissions(MAX_RETRANSMISSIONS * 2).build();
 
 		// Configure and create UDP connector
@@ -427,7 +501,8 @@ public class DTLSConnectorAdvancedTest {
 			rawServer.start();
 
 			// Start the client
-			client.start();
+			startClient();
+
 			RawData data = RawData.outbound("Hello World".getBytes(),
 					new AddressEndpointContext(rawServer.getAddress()), null, false);
 			client.send(data);
@@ -549,7 +624,8 @@ public class DTLSConnectorAdvancedTest {
 			rawServer.start();
 
 			// Start the client
-			client.start();
+			startClient();
+
 			RawData data = RawData.outbound("Hello World".getBytes(),
 					new AddressEndpointContext(rawServer.getAddress()), null, false);
 			client.send(data);
@@ -642,7 +718,8 @@ public class DTLSConnectorAdvancedTest {
 			rawServer.start();
 
 			// Start the client
-			client.start();
+			startClient();
+
 			RawData data = RawData.outbound("Hello World".getBytes(),
 					new AddressEndpointContext(rawServer.getAddress()), null, false);
 			client.send(data);
@@ -737,7 +814,8 @@ public class DTLSConnectorAdvancedTest {
 			rawServer.start();
 
 			// Start the client
-			client.start();
+			startClient();
+
 			RawData data = RawData.outbound("Hello World".getBytes(),
 					new AddressEndpointContext(rawServer.getAddress()), null, false);
 			client.send(data);
@@ -808,7 +886,8 @@ public class DTLSConnectorAdvancedTest {
 			rawServer.start();
 
 			// Start the client
-			client.start();
+			startClient();
+
 			RawData data = RawData.outbound("Hello World".getBytes(),
 					new AddressEndpointContext(rawServer.getAddress()), null, false);
 			client.send(data);
@@ -917,7 +996,8 @@ public class DTLSConnectorAdvancedTest {
 			rawServer.start();
 
 			// Start the client
-			client.start();
+			startClient();
+
 			RawData data = RawData.outbound("Hello World".getBytes(),
 					new AddressEndpointContext(rawServer.getAddress()), null, false);
 			client.send(data);
@@ -1002,7 +1082,8 @@ public class DTLSConnectorAdvancedTest {
 			rawServer.start();
 
 			// Start the client
-			client.start();
+			startClient();
+
 			RawData data = RawData.outbound("Hello World".getBytes(),
 					new AddressEndpointContext(rawServer.getAddress()), null, false);
 			client.send(data);
@@ -1139,8 +1220,8 @@ public class DTLSConnectorAdvancedTest {
 
 			assertSessionState("server", rawClient, SessionState.ESTABLISHED, MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 
-		} finally {
 			TestConditionTools.assertStatisticCounter(serverHealth, "dropped received records", is(4L));
+		} finally {
 			rawClient.stop();
 			serverHealth.reset();
 		}
@@ -1164,7 +1245,7 @@ public class DTLSConnectorAdvancedTest {
 	public void testClientBackOffRetransmission() throws Exception {
 		alternativeServerHelper = new ConnectorHelper();
 
-		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
 				.setRetransmissionTimeout(RETRANSMISSION_TIMEOUT_MS * 2)
 				.setMaxRetransmissions(MAX_RETRANSMISSIONS * 2)
 				.setEnableMultiRecordMessages(false)
@@ -1245,8 +1326,8 @@ public class DTLSConnectorAdvancedTest {
 
 			assertSessionState("server", rawClient, SessionState.ESTABLISHED, MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 
-		} finally {
 			TestConditionTools.assertStatisticCounter(serverHealth, "dropped received records", is(8L));
+		} finally {
 			rawClient.stop();
 			alternativeServerHelper.destroyServer();
 			serverHealth.reset();
@@ -1278,7 +1359,8 @@ public class DTLSConnectorAdvancedTest {
 			rawServer.start();
 
 			// Start the client
-			client.start();
+			startClient();
+
 			RawData data = RawData.outbound("Hello World".getBytes(),
 					new AddressEndpointContext(rawServer.getAddress()), null, false);
 			client.send(data);
@@ -1519,7 +1601,8 @@ public class DTLSConnectorAdvancedTest {
 			rawServer.start();
 
 			// Start the client
-			client.start();
+			startClient();
+
 			RawData data = RawData.outbound("Hello World".getBytes(),
 					new AddressEndpointContext(rawServer.getAddress()), null, false);
 			client.send(data);
@@ -1609,7 +1692,8 @@ public class DTLSConnectorAdvancedTest {
 			rawServer.start();
 
 			// Start the client
-			client.start();
+			startClient();
+
 			RawData data = RawData.outbound("Hello World".getBytes(),
 					new AddressEndpointContext(rawServer.getAddress()), null, false);
 			client.send(data);
@@ -1717,7 +1801,8 @@ public class DTLSConnectorAdvancedTest {
 			rawServer.start();
 
 			// Start the client
-			client.start();
+			startClient();
+
 			RawData data = RawData.outbound("Hello World".getBytes(),
 					new AddressEndpointContext(rawServer.getAddress()), null, false);
 			client.send(data);
@@ -1997,7 +2082,8 @@ public class DTLSConnectorAdvancedTest {
 			rawServer.start();
 
 			// Start the client
-			client.start();
+			startClient();
+
 			RawData data = RawData.outbound("Hello World".getBytes(),
 					new AddressEndpointContext(rawServer.getAddress()), null, false);
 			client.send(data);
@@ -2072,7 +2158,8 @@ public class DTLSConnectorAdvancedTest {
 			rawServer.start();
 
 			// Start the client
-			client.start();
+			startClient();
+
 			RawData data = RawData.outbound("Hello World".getBytes(),
 					new AddressEndpointContext(rawServer.getAddress()), null, false);
 			client.send(data);
@@ -2125,7 +2212,8 @@ public class DTLSConnectorAdvancedTest {
 			rawServer.start();
 
 			// Start the client
-			client.start();
+			startClient();
+
 			RawData data = RawData.outbound("Hello World".getBytes(),
 					new AddressEndpointContext(rawServer.getAddress()), null, false);
 			client.send(data);
@@ -2341,7 +2429,8 @@ public class DTLSConnectorAdvancedTest {
 			rawServer.start();
 
 			// Start the client
-			client.start();
+			startClient();
+
 			RawData data = RawData.outbound("Hello World".getBytes(),
 					new AddressEndpointContext(rawServer.getAddress()), null, false);
 			client.send(data);
@@ -2455,15 +2544,20 @@ public class DTLSConnectorAdvancedTest {
 	@Test
 	public void testServerPskTimeout() throws Exception {
 		// Configure and create UDP connector
-		aPskStoreResponses = 0; // no psk response
+		aHandshakeResponses = 0; // no psk response
 		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
-		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder().setLoggingTag("client")
-				.setAddress(clientEndpoint).setReceiverThreadCount(1).setConnectionThreadCount(2)
-				.setRetransmissionTimeout(RETRANSMISSION_TIMEOUT_MS).setMaxRetransmissions(MAX_RETRANSMISSIONS)
-				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY).setConnectionIdGenerator(clientCidGenerator)
-				.setPskStore(new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()))
-				.setHealthHandler(clientHealth);
-		DtlsConnectorConfig clientConfig = builder.build();
+		DtlsConnectorConfig clientConfig = DtlsConnectorConfig.builder()
+				.setLoggingTag("client")
+				.setAddress(clientEndpoint)
+				.setReceiverThreadCount(1)
+				.setConnectionThreadCount(2)
+				.setRetransmissionTimeout(RETRANSMISSION_TIMEOUT_MS)
+				.setMaxRetransmissions(MAX_RETRANSMISSIONS)
+				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY)
+				.setConnectionIdGenerator(clientCidGenerator)
+				.setAdvancedPskStore(new AdvancedSinglePskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()))
+				.setHealthHandler(clientHealth)
+				.build();
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);
 		UdpConnector rawClient = new UdpConnector(0, collector);
 		TestRecordLayer clientRecordLayer = new TestRecordLayer(rawClient);
@@ -2520,15 +2614,20 @@ public class DTLSConnectorAdvancedTest {
 	@Test
 	public void testServerPskDoubleResponse() throws Exception {
 		// Configure and create UDP connector
-		aPskStoreResponses = 2; // two psk responses
+		aHandshakeResponses = 2; // two psk responses
 		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
-		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder().setLoggingTag("client")
-				.setAddress(clientEndpoint).setReceiverThreadCount(1).setConnectionThreadCount(2)
-				.setRetransmissionTimeout(RETRANSMISSION_TIMEOUT_MS).setMaxRetransmissions(MAX_RETRANSMISSIONS)
-				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY).setConnectionIdGenerator(clientCidGenerator)
-				.setPskStore(new StaticPskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()))
-				.setHealthHandler(clientHealth);
-		DtlsConnectorConfig clientConfig = builder.build();
+		DtlsConnectorConfig clientConfig = DtlsConnectorConfig.builder()
+				.setLoggingTag("client")
+				.setAddress(clientEndpoint)
+				.setReceiverThreadCount(1)
+				.setConnectionThreadCount(2)
+				.setRetransmissionTimeout(RETRANSMISSION_TIMEOUT_MS)
+				.setMaxRetransmissions(MAX_RETRANSMISSIONS)
+				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY)
+				.setConnectionIdGenerator(clientCidGenerator)
+				.setAdvancedPskStore(new AdvancedSinglePskStore(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes()))
+				.setHealthHandler(clientHealth)
+				.build();
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);
 		UdpConnector rawClient = new UdpConnector(0, collector);
 		TestRecordLayer clientRecordLayer = new TestRecordLayer(rawClient);
@@ -2555,6 +2654,141 @@ public class DTLSConnectorAdvancedTest {
 			// Wait for response (SERVER_HELLO, SERVER_KEY_EXCHANGE,
 			// SERVER_DONE)
 			rs = waitForFlightReceived("flight 4", collector, 3);
+
+			// Handle and answer
+			// (CLIENT_KEY_EXCHANGE, CHANGE CIPHER SPEC, ..., FINISHED)
+			processAll(clientHandshaker, rs);
+
+			// Ensure handshake succeeded
+			int timeout = RETRANSMISSION_TIMEOUT_MS * (2 << (MAX_RETRANSMISSIONS + 2));
+			assertSessionState("server", rawClient, SessionState.ESTABLISHED, timeout, TimeUnit.MILLISECONDS);
+		} finally {
+			rawClient.stop();
+		}
+	}
+
+	/**
+	 * Test the server handshake fails, if the x509 verification result is not received
+	 * in time.
+	 * 
+	 * @throws Exception if the test fails
+	 */
+	@Test
+	public void testServerx509Timeout() throws Exception {
+		// Configure and create UDP connector
+		aHandshakeResponses = 0; // no x509 verification response
+		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
+		DtlsConnectorConfig clientConfig = DtlsConnectorConfig.builder()
+				.setLoggingTag("client")
+				.setAddress(clientEndpoint)
+				.setReceiverThreadCount(1)
+				.setConnectionThreadCount(2)
+				.setRetransmissionTimeout(RETRANSMISSION_TIMEOUT_MS)
+				.setMaxRetransmissions(MAX_RETRANSMISSIONS)
+				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY)
+				.setConnectionIdGenerator(clientCidGenerator)
+				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain())
+				.setAdvancedCertificateVerifier(StaticNewAdvancedCertificateVerifier.builder()
+						.setTrustedCertificates(DtlsTestTools.getTrustedCertificates()).build())
+				.setHealthHandler(clientHealth).build();
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);
+		UdpConnector rawClient = new UdpConnector(0, collector);
+		TestRecordLayer clientRecordLayer = new TestRecordLayer(rawClient);
+		int remain = serverHelper.serverConnectionStore.remainingCapacity();
+		try {
+
+			// Start connector
+			rawClient.start();
+
+			// Create handshaker
+			DTLSSession clientSession = new DTLSSession(serverHelper.serverEndpoint);
+			LatchSessionListener sessionListener = new LatchSessionListener();
+			ClientHandshaker clientHandshaker = new ClientHandshaker(clientSession, clientRecordLayer, timer,
+					createClientConnection(), clientConfig, false);
+			clientHandshaker.addSessionListener(sessionListener);
+
+			// Start 1. handshake (Send CLIENT HELLO)
+			clientHandshaker.startHandshake();
+
+			// Wait to receive response (should be HELLO VERIFY REQUEST)
+			List<Record> rs = waitForFlightReceived("flight 2", collector, 1);
+			// Handle and answer (CLIENT HELLO with cookie)
+			processAll(clientHandshaker, rs);
+
+			// Wait for response (SERVER_HELLO, CERTIFICATE (2 fragments), SERVER_KEY_EXCHANGE,
+			// CERTIFICATE REQUEST, SERVER_DONE)
+			rs = waitForFlightReceived("flight 4", collector, 6);
+
+			// create server session listener to ensure,
+			// that server finish also the handshake
+			LatchSessionListener serverSessionListener = getSessionListenerForEndpoint("server", rawClient);
+
+			// Handle and answer
+			// (CLIENT_KEY_EXCHANGE, CHANGE CIPHER SPEC, ..., FINISHED)
+			processAll(clientHandshaker, rs);
+
+			// Ensure handshake failed
+			int timeout = RETRANSMISSION_TIMEOUT_MS * (2 << (MAX_RETRANSMISSIONS + 2));
+			Throwable error = serverSessionListener.waitForSessionFailed(timeout, TimeUnit.MILLISECONDS);
+			assertNotNull("server handshake not failed", error);
+			assertThat(error, instanceOf(DtlsHandshakeTimeoutException.class));
+			assertThat(serverHelper.serverConnectionStore.remainingCapacity(), is(remain));
+		} finally {
+			rawClient.stop();
+		}
+	}
+
+	/**
+	 * Test the server handshake succeeds, if the x509 verification result is received
+	 * twice.
+	 * 
+	 * @throws Exception if the test fails
+	 */
+	@Test
+	public void testServerx509DoubleResponse() throws Exception {
+		// Configure and create UDP connector
+		aHandshakeResponses = 2; // two x509 verification responses
+		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
+		DtlsConnectorConfig clientConfig = DtlsConnectorConfig.builder()
+				.setLoggingTag("client")
+				.setAddress(clientEndpoint)
+				.setReceiverThreadCount(1)
+				.setConnectionThreadCount(2)
+				.setRetransmissionTimeout(RETRANSMISSION_TIMEOUT_MS)
+				.setMaxRetransmissions(MAX_RETRANSMISSIONS)
+				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY)
+				.setConnectionIdGenerator(clientCidGenerator)
+				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain())
+				.setAdvancedCertificateVerifier(StaticNewAdvancedCertificateVerifier.builder()
+						.setTrustedCertificates(DtlsTestTools.getTrustedCertificates()).build())
+				.setHealthHandler(clientHealth)
+				.build();
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);
+		UdpConnector rawClient = new UdpConnector(0, collector);
+		TestRecordLayer clientRecordLayer = new TestRecordLayer(rawClient);
+		try {
+
+			// Start connector
+			rawClient.start();
+
+			// Create handshaker
+			DTLSSession clientSession = new DTLSSession(serverHelper.serverEndpoint);
+			LatchSessionListener sessionListener = new LatchSessionListener();
+			ClientHandshaker clientHandshaker = new ClientHandshaker(clientSession, clientRecordLayer, timer,
+					createClientConnection(), clientConfig, false);
+			clientHandshaker.addSessionListener(sessionListener);
+
+			// Start 1. handshake (Send CLIENT HELLO)
+			clientHandshaker.startHandshake();
+
+			// Wait to receive response (should be HELLO VERIFY REQUEST)
+			List<Record> rs = waitForFlightReceived("flight 2", collector, 1);
+			// Handle and answer (CLIENT HELLO with cookie)
+			processAll(clientHandshaker, rs);
+
+			// Wait for response (SERVER_HELLO, CERTIFICATE (2 fragments), SERVER_KEY_EXCHANGE,
+			// CERTIFICATE REQUEST, SERVER_DONE)
+			rs = waitForFlightReceived("flight 4", collector, 6);
 
 			// Handle and answer
 			// (CLIENT_KEY_EXCHANGE, CHANGE CIPHER SPEC, ..., FINISHED)

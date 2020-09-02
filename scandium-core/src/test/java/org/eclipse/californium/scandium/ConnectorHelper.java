@@ -46,6 +46,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.Principal;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -83,8 +84,13 @@ import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore
 import org.eclipse.californium.scandium.dtls.SessionAdapter;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
-import org.eclipse.californium.scandium.dtls.pskstore.AsyncInMemoryPskStore;
-import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
+import org.eclipse.californium.scandium.dtls.x509.BridgeCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.BridgeCertificateVerifier.Builder;
+import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 
 /**
  * A utility class for implementing DTLS integration tests.
@@ -93,7 +99,7 @@ import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
  */
 public class ConnectorHelper {
 
-	static final String SERVERNAME							= "my.test.server";
+	static final String	SERVERNAME							= "my.test.server";
 	static final String	SCOPED_CLIENT_IDENTITY				= "My_client_identity";
 	static final String	SCOPED_CLIENT_IDENTITY_SECRET		= "mySecretPSK";
 	static final String	CLIENT_IDENTITY						= "Client_identity";
@@ -111,7 +117,6 @@ public class ConnectorHelper {
 	RawDataProcessor serverRawDataProcessor;
 	Map<InetSocketAddress, LatchSessionListener> sessionListenerMap = new ConcurrentHashMap<>();
 	DTLSSession establishedServerSession;
-	AsyncInMemoryPskStore aPskStore;
 
 	DtlsConnectorConfig serverConfig;
 
@@ -133,7 +138,7 @@ public class ConnectorHelper {
 	 * @throws GeneralSecurityException if the keys cannot be read.
 	 */
 	public void startServer() throws IOException, GeneralSecurityException {
-		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder();
 		startServer(builder);
 	}
 
@@ -166,13 +171,8 @@ public class ConnectorHelper {
 		if (incompleteConfig.getMaxTransmissionUnitLimit() == null) {
 			builder.setMaxTransmissionUnit(1024);
 		}
-		if (incompleteConfig.getAdvancedPskStore() == null) {
-			InMemoryPskStore pskStore = new InMemoryPskStore();
-			pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
-			pskStore.setKey(SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME);
-			aPskStore = new AsyncInMemoryPskStore(pskStore);
-			builder.setAdvancedPskStore(aPskStore);
-		}
+
+		ensurePskStore(builder);
 
 		if (incompleteConfig.getPrivateKey() == null) {
 			builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(),
@@ -186,13 +186,9 @@ public class ConnectorHelper {
 			builder.setRecommendedCipherSuitesOnly(false);
 			builder.setSupportedCipherSuites(list);
 		}
-		if (!Boolean.FALSE.equals(incompleteConfig.isClientAuthenticationRequired()) ||
-				Boolean.TRUE.equals(incompleteConfig.isClientAuthenticationWanted())) {
-			if (incompleteConfig.getCertificateVerifier() == null) {
-				builder.setTrustStore(DtlsTestTools.getTrustedCertificates());
-			}
-			builder.setRpkTrustAll();
-		}
+
+		ensureTrusts(builder);
+
 		serverConfig = builder.build();
 
 		serverSessionCache = new InMemorySessionCache();
@@ -207,14 +203,54 @@ public class ConnectorHelper {
 		serverEndpoint = server.getAddress();
 	}
 
+	public AdvancedPskStore ensurePskStore(DtlsConnectorConfig.Builder builder) {
+		AdvancedPskStore result = null;
+		DtlsConnectorConfig incompleteConfig = builder.getIncompleteConfig();
+		if (incompleteConfig.getAdvancedPskStore() == null) {
+			AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
+			pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
+			pskStore.setKey(SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME);
+			result = pskStore;
+			builder.setAdvancedPskStore(result);
+		}
+		return result;
+	}
+
+	@SuppressWarnings("deprecation")
+	public NewAdvancedCertificateVerifier ensureTrusts(DtlsConnectorConfig.Builder builder) {
+		NewAdvancedCertificateVerifier result = null;
+		DtlsConnectorConfig incompleteConfig = builder.getIncompleteConfig();
+		if (!Boolean.FALSE.equals(incompleteConfig.isClientAuthenticationRequired())
+				|| Boolean.TRUE.equals(incompleteConfig.isClientAuthenticationWanted())) {
+			if (incompleteConfig.getAdvancedCertificateVerifier() == null) {
+				Builder verifierBuilder = BridgeCertificateVerifier.builder();
+				X509Certificate[] trustedCertificates = incompleteConfig.getTrustStore();
+				if (trustedCertificates == null) {
+					trustedCertificates = DtlsTestTools.getTrustedCertificates();
+				} else {
+					// reset trust store to use NewAdvancedCertificateVerifier
+					builder.setTrustStore(null);
+				}
+				verifierBuilder.setTrustedCertificates(trustedCertificates);
+				TrustedRpkStore rpks = incompleteConfig.getRpkTrustStore();
+				if (rpks == null) {
+					verifierBuilder.setTrustAllRPKs();
+				} else {
+					// reset trust store to use NewAdvancedCertificateVerifier
+					builder.setRpkTrustStore(null);
+					verifierBuilder.setTrustedRPKs(rpks);
+				}
+				result = verifierBuilder.build();
+				builder.setAdvancedCertificateVerifier(result);
+			}
+		}
+		return result;
+	}
+
 	/**
 	 * Shuts down and destroys the encapsulated server side connector.
 	 */
 	public void destroyServer() {
-		if (aPskStore != null) {
-			aPskStore.shutdown();
-			aPskStore = null;
-		}
 		cleanUpServer();
 		server.destroy();
 	}
@@ -260,19 +296,22 @@ public class ConnectorHelper {
 		return new DtlsTestConnector(configuration, connectionStore);
 	}
 
-	static DtlsConnectorConfig newStandardClientConfig(final InetSocketAddress bindAddress) throws IOException, GeneralSecurityException {
+	public DtlsConnectorConfig newStandardClientConfig(final InetSocketAddress bindAddress) throws IOException, GeneralSecurityException {
 		return newStandardClientConfigBuilder(bindAddress).build();
 	}
 
-	static DtlsConnectorConfig.Builder newStandardClientConfigBuilder(final InetSocketAddress bindAddress) throws IOException, GeneralSecurityException {
-		return new DtlsConnectorConfig.Builder()
+	public DtlsConnectorConfig.Builder newStandardClientConfigBuilder(final InetSocketAddress bindAddress) throws IOException, GeneralSecurityException {
+		NewAdvancedCertificateVerifier clientCertificateVerifier = StaticNewAdvancedCertificateVerifier.builder()
+				.setTrustedCertificates(DtlsTestTools.getTrustedCertificates())
+				.setTrustAllRPKs()
+				.build();
+		return DtlsConnectorConfig.builder()
 				.setLoggingTag("client")
 				.setAddress(bindAddress)
 				.setReceiverThreadCount(1)
 				.setConnectionThreadCount(2)
 				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509)
-				.setTrustStore(DtlsTestTools.getTrustedCertificates())
-				.setRpkTrustAll();
+				.setAdvancedCertificateVerifier(clientCertificateVerifier);
 	}
 
 	LatchDecrementingRawDataChannel givenAnEstablishedSession(DTLSConnector client) throws Exception {
@@ -717,4 +756,72 @@ public class ConnectorHelper {
 	public static interface BuilderSetup {
 		void setup(DtlsConnectorConfig.Builder builder);
 	}
+
+	public static class BuilderSetups extends ArrayList<BuilderSetup> implements BuilderSetup {
+
+		private static final long serialVersionUID = 8683452582211892189L;
+
+		public BuilderSetups() {
+		}
+
+		public BuilderSetups(BuilderSetup setup) {
+			add(setup);
+		}
+
+		public BuilderSetups(BuilderSetups setups, BuilderSetup setup) {
+			super(setups.size() + 1);
+			addAll(setups);
+			add(setup);
+		}
+
+		@Override
+		public void setup(DtlsConnectorConfig.Builder builder) {
+			for (BuilderSetup setup : this) {
+				setup.setup(builder);
+			}
+		}
+
+		@Override
+		public String toString() {
+			StringBuilder line = new StringBuilder();
+			for (BuilderSetup setup : this) {
+				line.append(setup).append(", ");
+			}
+			if (line.length() > 2) {
+				line.setLength(line.length() - 2);
+			}
+			return line.toString();
+		}
+	}
+
+	@SafeVarargs
+	public static BuilderSetup[] append(List<BuilderSetup>... modes) {
+		List<BuilderSetup> appended = new ArrayList<>();
+		for (List<BuilderSetup> list : modes) {
+			for (BuilderSetup mode : list) {
+				appended.add(mode);
+			}
+		}
+		return appended.toArray(new BuilderSetup[appended.size()]);
+	}
+
+	@SafeVarargs
+	public static BuilderSetup[] expand(List<BuilderSetup>... modes) {
+		return expand(0, modes);
+	}
+
+	private static BuilderSetups[] expand(int index, List<BuilderSetup>[] modes) {
+		if (index == modes.length) {
+			return new BuilderSetups[] { new BuilderSetups() };
+		}
+		List<BuilderSetups> expand = new ArrayList<>();
+		BuilderSetups[] temps = expand(index + 1, modes);
+		for (BuilderSetup mode : modes[index]) {
+			for (BuilderSetups temp : temps) {
+				expand.add(new BuilderSetups(temp, mode));
+			}
+		}
+		return expand.toArray(new BuilderSetups[expand.size()]);
+	}
+
 }

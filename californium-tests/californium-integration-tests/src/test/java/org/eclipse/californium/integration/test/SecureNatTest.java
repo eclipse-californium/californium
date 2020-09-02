@@ -57,6 +57,8 @@ import org.eclipse.californium.scandium.dtls.DebugConnectionStore;
 import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
 import org.eclipse.californium.util.nat.NatUtil;
 import org.junit.After;
 import org.junit.Before;
@@ -89,7 +91,7 @@ public class SecureNatTest {
 	private NatUtil nat;
 	private DebugConnectionStore serverConnections;
 	private List<DebugConnectionStore> clientConnections = new ArrayList<DebugConnectionStore>();
-	private TestUtilPskStore pskStore;
+	private AdvancedPskStore pskStore;
 	private MatcherMode mode;
 	private NetworkConfig config;
 	private CoapEndpoint serverEndpoint;
@@ -100,7 +102,7 @@ public class SecureNatTest {
 
 	@Before
 	public void setupPSK() {
-		pskStore = new TestUtilPskStore(IDENITITY, KEY.getBytes());
+		pskStore = new AdvancedSinglePskStore(IDENITITY, KEY.getBytes());
 	}
 
 	@After
@@ -424,7 +426,7 @@ public class SecureNatTest {
 				.setMaxRetransmissions(4)
 				.setRetransmissionTimeout(200)
 				.setVerifyPeersOnResumptionThreshold(100)
-				.setPskStore(pskStore).build();
+				.setAdvancedPskStore(pskStore).build();
 
 		serverConnections = new DebugConnectionStore(
 				dtlsConfig.getMaxConnections(),
@@ -476,7 +478,7 @@ public class SecureNatTest {
 				.setMaxRetransmissions(4)
 				.setRetransmissionTimeout(200)
 				.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
-				.setPskStore(pskStore).build();
+				.setAdvancedPskStore(pskStore).build();
 
 		DebugConnectionStore connections = new DebugConnectionStore(
 				clientdtlsConfig.getMaxConnections(),

@@ -36,7 +36,7 @@ import org.eclipse.californium.examples.CredentialsUtil.Mode;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
 
 public class SecureClient {
 
@@ -101,7 +101,7 @@ public class SecureClient {
 		builder.setRecommendedCipherSuitesOnly(false);
 		List<Mode> modes = CredentialsUtil.parse(args, CredentialsUtil.DEFAULT_CLIENT_MODES, SUPPORTED_MODES);
 		if (modes.contains(CredentialsUtil.Mode.PSK) || modes.contains(CredentialsUtil.Mode.ECDHE_PSK)) {
-			builder.setPskStore(new StaticPskStore(CredentialsUtil.OPEN_PSK_IDENTITY, CredentialsUtil.OPEN_PSK_SECRET));
+			builder.setAdvancedPskStore(new AdvancedSinglePskStore(CredentialsUtil.OPEN_PSK_IDENTITY, CredentialsUtil.OPEN_PSK_SECRET));
 		} else {
 			builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256);
 		}

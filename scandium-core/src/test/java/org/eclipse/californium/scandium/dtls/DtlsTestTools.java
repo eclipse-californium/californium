@@ -28,12 +28,20 @@ import java.util.List;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.util.TestCertificatesTools;
 import org.eclipse.californium.scandium.util.ServerName;
 
 public final class DtlsTestTools extends TestCertificatesTools {
 
 	public static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1
+
+	public static final int DEFAULT_HANDSHAKE_RESULT_DELAY_MILLIS;
+
+	static {
+		Long delay = StringUtil.getConfigurationLong("DEFAULT_HANDSHAKE_RESULT_DELAY_MILLIS");
+		DEFAULT_HANDSHAKE_RESULT_DELAY_MILLIS = delay == null ? 0 : delay.intValue();
+	}
 
 	private DtlsTestTools() {
 	}

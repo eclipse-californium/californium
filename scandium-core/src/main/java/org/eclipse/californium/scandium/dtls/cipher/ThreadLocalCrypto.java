@@ -95,12 +95,7 @@ public class ThreadLocalCrypto<CryptoFunction> {
 		if (exception != null) {
 			throw exception;
 		}
-		CryptoFunction function = threadLocalFunction.get();
-		if (function == null) {
-			function = factory.getInstance();
-			threadLocalFunction.set(function);
-		}
-		return function;
+		return current();
 	}
 
 	/**
@@ -109,7 +104,7 @@ public class ThreadLocalCrypto<CryptoFunction> {
 	 * @return {@code true}, if crypto function is supported by the java-vm.
 	 */
 	public final boolean isSupported() {
-		return factory != null;
+		return exception == null;
 	}
 
 	/**

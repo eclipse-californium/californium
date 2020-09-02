@@ -81,6 +81,7 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * 
  * @since 2.3
  */
+@SuppressWarnings("deprecation")
 public interface AdvancedPskStore {
 
 	/**
@@ -142,6 +143,8 @@ public interface AdvancedPskStore {
 	 * 
 	 * Called during initialization of the {@link DTLSConnector}. Synchronous
 	 * implementations may just ignore this using an empty implementation.
+	 * 
+	 * Note: the type of the handler will change to {@link HandshakeResultHandler} with 3.0.
 	 * 
 	 * @param resultHandler handler for asynchronous master secret results. This
 	 *            handler MUST NOT be called from the thread calling

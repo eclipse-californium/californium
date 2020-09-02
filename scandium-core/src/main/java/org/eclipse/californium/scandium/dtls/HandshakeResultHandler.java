@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017 RISE SICS.
+ * Copyright (c) 2020 Bosch.IO GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -11,26 +11,27 @@
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
  * Contributors:
- *    Ludwig Seitz (RISE SICS) - initial creation
+ *    Bosch.IO GmbH - initial creation
  ******************************************************************************/
-package org.eclipse.californium.scandium.dtls.rpkstore;
-
-import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
-import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
+package org.eclipse.californium.scandium.dtls;
 
 /**
- * A basic raw public key trust store that trusts all raw public keys.
+ * Handler for asynchronous handshake results.
  * 
- * @author Ludwig Seitz
- *
- * @deprecated use {@link StaticNewAdvancedCertificateVerifier} instead
+ * The implementation must take care, that the calling thread is undefined.
+ * 
+ * Note: the PskSecretResultHandler will be removed with 3.0
+ * 
+ * @since 2.5
  */
-@Deprecated
-public class TrustAllRpks implements TrustedRpkStore {
+@SuppressWarnings("deprecation")
+public interface HandshakeResultHandler extends PskSecretResultHandler {
 
-	@Override
-	public boolean isTrusted(RawPublicKeyIdentity id) {
-		return true;
-	}
+	/**
+	 * Apply handshake result.
+	 * 
+	 * @param handshakeResult handshake result
+	 */
+	void apply(HandshakeResult handshakeResult);
 
 }

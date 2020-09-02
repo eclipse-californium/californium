@@ -16,6 +16,8 @@
 package org.eclipse.californium.scandium.dtls.rpkstore;
 
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.scandium.dtls.x509.BridgeCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
 
 /**
  * An interface for trust stores that provide trusted raw public keys to the
@@ -23,7 +25,10 @@ import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
  * 
  * @author Ludwig Seitz
  *
+ * @deprecated use {@link NewAdvancedCertificateVerifier} instead, or
+ *             {@link BridgeCertificateVerifier} until migrated.
  */
+@Deprecated
 public interface TrustedRpkStore {
 
 	/**

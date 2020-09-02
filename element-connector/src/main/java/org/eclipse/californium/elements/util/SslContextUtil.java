@@ -46,8 +46,10 @@ import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -60,6 +62,7 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509ExtendedKeyManager;
 import javax.net.ssl.X509ExtendedTrustManager;
+import javax.security.auth.x500.X500Principal;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -930,6 +933,26 @@ public class SslContextUtil {
 			}
 		}
 		return x509Certificates;
+	}
+
+	/**
+	 * Ensure, that all certificates have a unique subjects.
+	 * 
+	 * @param certificates array of certificates.
+	 * @throws IllegalArgumentException if certificates doesn't have unique
+	 *             subjects
+	 * @since 2.5
+	 */
+	public static void ensureUniqueCertificates(X509Certificate[] certificates) {
+		List<X500Principal> subjects = CertPathUtil.toSubjects(Arrays.asList(certificates));
+
+		// Search for duplicates
+		Set<X500Principal> set = new HashSet<>();
+		for (X500Principal subject : subjects) {
+			if (!set.add(subject)) {
+				throw new IllegalArgumentException("Truststore contains 2 certificates with same subject: " + subject);
+			}
+		}
 	}
 
 	/**

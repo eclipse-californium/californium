@@ -29,7 +29,9 @@ import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
+import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier.Builder;
 
 /**
  * Connector utility.
@@ -64,7 +66,6 @@ public class ConnectorUtil {
 	private SslContextUtil.Credentials credentialsRsa;
 	private Certificate[] trustCa;
 	private Certificate[] trustRoot;
-	private Certificate[] trustAll;
 
 	/**
 	 * Create new utility instance.
@@ -83,7 +84,6 @@ public class ConnectorUtil {
 					TRUST_CA, TRUST_STORE_PASSWORD);
 			trustRoot = SslContextUtil.loadTrustedCertificates(SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION,
 					TRUST_ROOT, TRUST_STORE_PASSWORD);
-			trustAll = new Certificate[0];
 		} catch (GeneralSecurityException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
@@ -135,21 +135,23 @@ public class ConnectorUtil {
 		dtlsBuilder.setConnectionThreadCount(2);
 		dtlsBuilder.setReceiverThreadCount(2);
 		if (CipherSuite.containsPskBasedCipherSuite(suites)) {
-			dtlsBuilder
-					.setPskStore(new StaticPskStore(OpenSslUtil.OPENSSL_PSK_IDENTITY, OpenSslUtil.OPENSSL_PSK_SECRET));
+			dtlsBuilder.setAdvancedPskStore(
+					new AdvancedSinglePskStore(OpenSslUtil.OPENSSL_PSK_IDENTITY, OpenSslUtil.OPENSSL_PSK_SECRET));
 		}
 		if (CipherSuite.containsCipherSuiteRequiringCertExchange(suites)) {
 			if (credentials != null && dtlsBuilder.getIncompleteConfig().getPrivateKey() == null) {
 				Credentials credentials = rsa ? this.credentialsRsa : this.credentials;
 				dtlsBuilder.setIdentity(credentials.getPrivateKey(), credentials.getCertificateChain(),
 						CertificateType.X_509, CertificateType.RAW_PUBLIC_KEY);
+				Builder builder = StaticNewAdvancedCertificateVerifier.builder();
 				if (TRUST_CA.equals(trust)) {
-					dtlsBuilder.setTrustStore(trustCa);
+					builder.setTrustedCertificates(trustCa);
 				} else if (TRUST_ROOT.equals(trust)) {
-					dtlsBuilder.setTrustStore(trustRoot);
+					builder.setTrustedCertificates(trustRoot);
 				} else {
-					dtlsBuilder.setTrustStore(trustAll);
+					builder.setTrustAllCertificates();
 				}
+				dtlsBuilder.setAdvancedCertificateVerifier(builder.build());
 			}
 		}
 		dtlsBuilder.setSupportedCipherSuites(suites);

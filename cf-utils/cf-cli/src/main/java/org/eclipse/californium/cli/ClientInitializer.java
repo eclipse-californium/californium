@@ -48,10 +48,15 @@ import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.dtls.CertificateType;
+import org.eclipse.californium.scandium.dtls.ConnectionId;
+import org.eclipse.californium.scandium.dtls.PskPublicInformation;
+import org.eclipse.californium.scandium.dtls.PskSecretResult;
+import org.eclipse.californium.scandium.dtls.PskSecretResultHandler;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
-import org.eclipse.californium.scandium.dtls.pskstore.StringPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
@@ -64,6 +69,7 @@ import picocli.CommandLine.ParseResult;
 /**
  * Client initializer.
  */
+@SuppressWarnings("deprecation")
 public class ClientInitializer {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(ClientInitializer.class);
@@ -317,11 +323,13 @@ public class ClientInitializer {
 				case RPK:
 					certificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
 					keyExchangeAlgorithms.add(KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN);
-					dtlsConfig.setRpkTrustAll();
+					dtlsConfig.setAdvancedCertificateVerifier(
+							StaticNewAdvancedCertificateVerifier.builder().setTrustAllRPKs().build());
 					break;
 				case X509:
 					certificateTypes.add(CertificateType.X_509);
-					dtlsConfig.setTrustStore(clientConfig.trust.trusts);
+					dtlsConfig.setAdvancedCertificateVerifier(StaticNewAdvancedCertificateVerifier.builder()
+							.setTrustedCertificates(clientConfig.trust.trusts).build());
 					keyExchangeAlgorithms.add(KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN);
 					break;
 				case ECDHE_PSK:
@@ -343,12 +351,12 @@ public class ClientInitializer {
 
 			if (psk) {
 				if (clientConfig.identity != null) {
-					dtlsConfig.setPskStore(new PlugPskStore(clientConfig.identity, clientConfig.secretKey));
+					dtlsConfig.setAdvancedPskStore(new PlugPskStore(clientConfig.identity, clientConfig.secretKey));
 				} else {
 					byte[] rid = new byte[8];
 					SecureRandom random = new SecureRandom();
 					random.nextBytes(rid);
-					dtlsConfig.setPskStore(new PlugPskStore(StringUtil.byteArray2Hex(rid)));
+					dtlsConfig.setAdvancedPskStore(new PlugPskStore(StringUtil.byteArray2Hex(rid)));
 				}
 			}
 			if (!keyExchangeAlgorithms.isEmpty()) {
@@ -395,47 +403,51 @@ public class ClientInitializer {
 		}
 	}
 
-	public static class PlugPskStore extends StringPskStore {
+	public static class PlugPskStore implements AdvancedPskStore {
 
-		private final String identity;
+		private final PskPublicInformation identity;
 		private final SecretKey secret;
 
 		public PlugPskStore(String id, byte[] secret) {
-			this.identity = id;
+			this.identity = new PskPublicInformation(id);
 			this.secret = secret == null ? ConnectorConfig.PSK_SECRET : SecretUtil.create(secret, "PSK");
 			LOGGER.trace("DTLS-PSK-Identity: {}", identity);
 		}
 
 		public PlugPskStore(String id) {
-			identity = ConnectorConfig.PSK_IDENTITY_PREFIX + id;
+			identity = new PskPublicInformation(ConnectorConfig.PSK_IDENTITY_PREFIX + id);
 			secret = null;
 			LOGGER.trace("DTLS-PSK-Identity: {} ({} random bytes)", identity, (id.length() / 2));
 		}
 
 		@Override
-		public SecretKey getKey(String identity) {
-			if (secret != null) {
-				return SecretUtil.create(secret);
-			}
-			if (identity.startsWith(ConnectorConfig.PSK_IDENTITY_PREFIX)) {
-				return SecretUtil.create(ConnectorConfig.PSK_SECRET);
-			}
-			return null;
+		public boolean hasEcdhePskSupported() {
+			return true;
 		}
 
 		@Override
-		public SecretKey getKey(ServerNames serverNames, String identity) {
-			return getKey(identity);
+		public PskSecretResult requestPskSecretResult(ConnectionId cid, ServerNames serverName,
+				PskPublicInformation identity, String hmacAlgorithm, SecretKey otherSecret, byte[] seed) {
+
+			SecretKey secret = null;
+			if (this.identity.equals(identity)) {
+				if (this.secret == null
+						&& identity.getPublicInfoAsString().startsWith(ConnectorConfig.PSK_IDENTITY_PREFIX)) {
+					secret = SecretUtil.create(ConnectorConfig.PSK_SECRET);
+				} else {
+					secret = SecretUtil.create(this.secret);
+				}
+			}
+			return new PskSecretResult(cid, this.identity, secret);
 		}
 
 		@Override
-		public String getIdentityAsString(InetSocketAddress inetAddress) {
+		public PskPublicInformation getIdentity(InetSocketAddress peerAddress, ServerNames virtualHost) {
 			return identity;
 		}
 
 		@Override
-		public String getIdentityAsString(InetSocketAddress peerAddress, ServerNames virtualHost) {
-			return getIdentityAsString(peerAddress);
+		public void setResultHandler(PskSecretResultHandler resultHandler) {
 		}
 	}
 }

@@ -80,7 +80,7 @@ public class HelloExtensionNegotiationTest {
 	 */
 	@BeforeClass
 	public static void startServer() throws IOException, GeneralSecurityException {
-		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
 				.setSniEnabled(true);
 		serverHelper = new ConnectorHelper();
 		serverHelper.startServer(builder);
@@ -129,7 +129,7 @@ public class HelloExtensionNegotiationTest {
 	@Test
 	public void testConnectorNegotiatesMaxFragmentLength() throws Exception {
 		// given a constrained client that can only handle fragments of max. 512 bytes
-		clientConfig = ConnectorHelper.newStandardClientConfigBuilder(clientEndpoint)
+		clientConfig = serverHelper.newStandardClientConfigBuilder(clientEndpoint)
 				.setMaxFragmentLengthCode(1)
 				.setMaxTransmissionUnit(1024)
 				.build();
@@ -155,7 +155,7 @@ public class HelloExtensionNegotiationTest {
 	public void testConnectorIncludesServerNameIndication() throws Exception {
 
 		// given a client that indicates a virtual host to connect to using SNI
-		clientConfig = ConnectorHelper.newStandardClientConfigBuilder(clientEndpoint)
+		clientConfig = serverHelper.newStandardClientConfigBuilder(clientEndpoint)
 				.setSniEnabled(true)
 				.build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore);

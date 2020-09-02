@@ -25,7 +25,10 @@ import org.eclipse.californium.scandium.dtls.HandshakeException;
  * A class in charge of verifying a X.509 certificate chain provided by a peer.
  * 
  * @see StaticCertificateVerifier
+ * @deprecated use {@link NewAdvancedCertificateVerifier} instead, or
+ *             {@link BridgeCertificateVerifier} until migrated.
  */
+@Deprecated
 public interface CertificateVerifier {
 
 	/**

@@ -20,7 +20,6 @@ import java.security.GeneralSecurityException;
 import java.security.cert.CertPath;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
-import java.util.List;
 
 import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
@@ -35,7 +34,10 @@ import org.slf4j.LoggerFactory;
 /**
  * This implementation uses a static set of trusted root certificates to
  * validate the chain.
+ * 
+ * @deprecated use {@link StaticNewAdvancedCertificateVerifier} instead.
  */
+@Deprecated
 public class StaticCertificateVerifier implements AdvancedCertificateVerifier {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(StaticCertificateVerifier.class);
@@ -102,17 +104,14 @@ public class StaticCertificateVerifier implements AdvancedCertificateVerifier {
 			DTLSSession session) throws HandshakeException {
 		try {
 			CertPath certPath = message.getCertificateChain();
-			if (clientUsage != null) {
-				List<? extends Certificate> certificates = certPath.getCertificates();
-				if (!certificates.isEmpty()) {
-					Certificate certificate = certificates.get(0);
-					if (certificate instanceof X509Certificate) {
-						if (!CertPathUtil.canBeUsedForAuthentication((X509Certificate) certificate, clientUsage)) {
-							LOGGER.debug("Certificate validation failed: key usage doesn't match");
-							AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE,
-									session.getPeer());
-							throw new HandshakeException("Key Usage doesn't match!", alert);
-						}
+			if (clientUsage != null && !message.isEmpty()) {
+				Certificate certificate = certPath.getCertificates().get(0);
+				if (certificate instanceof X509Certificate) {
+					if (!CertPathUtil.canBeUsedForAuthentication((X509Certificate) certificate, clientUsage)) {
+						LOGGER.debug("Certificate validation failed: key usage doesn't match");
+						AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE,
+								session.getPeer());
+						throw new HandshakeException("Key Usage doesn't match!", alert);
 					}
 				}
 			}

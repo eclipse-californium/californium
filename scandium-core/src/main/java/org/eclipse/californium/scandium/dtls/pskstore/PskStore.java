@@ -28,7 +28,11 @@ import org.eclipse.californium.scandium.util.ServerNames;
 /**
  * A service for resolving pre-shared key identities. {@link SecretKey} maybe
  * generated from byte arrays by {@link SecretUtil#create(byte[], String)}.
+ * 
+ * @deprecated use {@link AdvancedPskStore} instead, or {@link BridgePskStore}
+ *             until migrated.
  */
+@Deprecated
 public interface PskStore {
 
 	/**
