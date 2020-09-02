@@ -38,6 +38,7 @@ import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
 import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalCryptoMap;
 import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalKeyFactory;
 import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalSignature;
@@ -190,7 +191,7 @@ public final class CertificateVerify extends HandshakeMessage {
 			ThreadLocalSignature localSignature = signatureAndHashAlgorithm.getThreadLocalSignature();
 			Signature signature = localSignature.currentWithCause();
 			try {
-				signature.initSign(clientPrivateKey);
+				signature.initSign(clientPrivateKey, RandomManager.currentSecureRandom());
 				init = true;
 			} catch (InvalidKeyException e) {
 				String algorithm = Asn1DerDecoder.getEdDsaStandardAlgorithmName(clientPrivateKey.getAlgorithm(), null);
@@ -199,7 +200,7 @@ public final class CertificateVerify extends HandshakeMessage {
 					if (factory != null) {
 						// re-encode EdDSA key
 						EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(clientPrivateKey.getEncoded());
-						signature.initSign(factory.generatePrivate(privateKeySpec));
+						signature.initSign(factory.generatePrivate(privateKeySpec), RandomManager.currentSecureRandom());
 						init = true;
 					}
 				}

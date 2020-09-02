@@ -60,13 +60,15 @@ public class ThreadLocalCryptoMap<TL extends ThreadLocalCrypto<?>> {
 	 * @return thread local crypto function
 	 */
 	public TL get(String algorithm) {
-		TL threadLocalSignature = FUNCTIONS.get(algorithm);
-		if (threadLocalSignature == null) {
+		TL threadLocalCryptFunction = FUNCTIONS.get(algorithm);
+		if (threadLocalCryptFunction == null) {
 			TL function = factory.getInstance(algorithm);
-			FUNCTIONS.putIfAbsent(algorithm, function);
-			threadLocalSignature = FUNCTIONS.get(algorithm);
+			threadLocalCryptFunction = FUNCTIONS.putIfAbsent(algorithm, function);
+			if (threadLocalCryptFunction == null) {
+				threadLocalCryptFunction = function;
+			}
 		}
-		return threadLocalSignature;
+		return threadLocalCryptFunction;
 	}
 
 	/**

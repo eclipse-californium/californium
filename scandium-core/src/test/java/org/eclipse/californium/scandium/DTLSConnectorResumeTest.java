@@ -77,8 +77,9 @@ import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.SessionTicket;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.pskstore.AsyncInMemoryPskStore;
-import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AsyncAdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -115,12 +116,14 @@ public class DTLSConnectorResumeTest {
 	public static ThreadsRule cleanup = new ThreadsRule();
 
 	static ConnectorHelper serverHelper;
-	static AsyncInMemoryPskStore serverPskStore;
+	static AsyncAdvancedPskStore serverPskStore;
+	static AsyncNewAdvancedCertificateVerifier serverCertificateVerifier;
 	static ExecutorService executor;
 	static PrivateKey clientPrivateKey;
 	static X509Certificate[] clientCertificateChain;
-	static AsyncInMemoryPskStore clientPskStore;
-	static InMemoryPskStore clientInMemoryPskStore;
+	static AsyncAdvancedPskStore clientPskStore;
+	static AsyncNewAdvancedCertificateVerifier clientCertificateVerifier;
+	static AdvancedMultiPskStore clientInMemoryPskStore;
 
 	private static final int CLIENT_CONNECTION_STORE_CAPACITY = 5;
 	private static final int MAX_TIME_TO_WAIT_SECS = 2;
@@ -256,6 +259,27 @@ public class DTLSConnectorResumeTest {
 				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256)
 						.setEnableMultiHandshakeMessageRecords(true).setAdvancedPskStore(clientPskStore);
 			}
+			
+		}, new TypedBuilderSetup() {
+
+			public String toString() {
+				return "PSK-ECDHE-sync-key";
+			}
+
+			@Override
+			public Class<?> getPrincipalType() {
+				return PreSharedKeyIdentity.class;
+			}
+
+			@Override
+			public void setup(Builder builder) {
+				clientPskStore.setDelay(0);
+				serverPskStore.setDelay(0);
+				clientPskStore.setSecretMode(false);
+				serverPskStore.setSecretMode(false);
+				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256)
+						.setAdvancedPskStore(clientPskStore);
+			}
 
 		}, new TypedBuilderSetup() {
 
@@ -270,14 +294,38 @@ public class DTLSConnectorResumeTest {
 
 			@Override
 			public void setup(Builder builder) {
+				clientCertificateVerifier.setDelay(0);
+				serverCertificateVerifier.setDelay(0);
 				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
 						.setIdentity(clientPrivateKey, clientCertificateChain, CertificateType.X_509)
-						.setTrustStore(DtlsTestTools.getTrustedCertificates());
+						.setAdvancedCertificateVerifier(clientCertificateVerifier)
+						.setTrustCertificateTypes(CertificateType.X_509);
 			}
 		}, new TypedBuilderSetup() {
 
 			public String toString() {
-				return "ECDSA-RPK";
+				return "ECDSA-x509-async";
+			}
+
+			@Override
+			public Class<?> getPrincipalType() {
+				return X509CertPath.class;
+			}
+
+			@Override
+			public void setup(Builder builder) {
+				clientCertificateVerifier.setDelay(100);
+				serverCertificateVerifier.setDelay(100);
+				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
+						.setEnableMultiHandshakeMessageRecords(true)
+						.setIdentity(clientPrivateKey, clientCertificateChain, CertificateType.X_509)
+						.setAdvancedCertificateVerifier(clientCertificateVerifier)
+						.setTrustCertificateTypes(CertificateType.X_509);
+			}
+		}, new TypedBuilderSetup() {
+
+			public String toString() {
+				return "ECDSA-RPK-sync";
 			}
 
 			@Override
@@ -289,7 +337,30 @@ public class DTLSConnectorResumeTest {
 			public void setup(Builder builder) {
 				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
 						.setIdentity(clientPrivateKey, clientCertificateChain, CertificateType.RAW_PUBLIC_KEY)
-						.setEnableMultiHandshakeMessageRecords(true).setRpkTrustAll();
+						.setTrustCertificateTypes(CertificateType.RAW_PUBLIC_KEY)
+						.setAdvancedCertificateVerifier(clientCertificateVerifier)
+						.setEnableMultiHandshakeMessageRecords(true);
+			}
+		}, new TypedBuilderSetup() {
+
+			public String toString() {
+				return "ECDSA-RPK-async";
+			}
+
+			@Override
+			public Class<?> getPrincipalType() {
+				return RawPublicKeyIdentity.class;
+			}
+
+			@Override
+			public void setup(Builder builder) {
+				clientCertificateVerifier.setDelay(100);
+				serverCertificateVerifier.setDelay(100);
+				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
+						.setIdentity(clientPrivateKey, clientCertificateChain, CertificateType.RAW_PUBLIC_KEY)
+						.setTrustCertificateTypes(CertificateType.RAW_PUBLIC_KEY)
+						.setAdvancedCertificateVerifier(clientCertificateVerifier)
+						.setEnableMultiHandshakeMessageRecords(true);
 			}
 		} };
 
@@ -320,16 +391,20 @@ public class DTLSConnectorResumeTest {
 			}
 		};
 
-		InMemoryPskStore pskStore = new InMemoryPskStore();
+		AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
 		pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
 		pskStore.setKey(SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME);
 		pskStore.setKey(SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME_ALT);
-		serverPskStore = new AsyncInMemoryPskStore(pskStore);
-
-		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+		serverPskStore = new AsyncAdvancedPskStore(pskStore);
+		serverCertificateVerifier = (AsyncNewAdvancedCertificateVerifier) AsyncNewAdvancedCertificateVerifier.builder()
+				.setTrustedCertificates(DtlsTestTools.getTrustedCertificates())
+				.setTrustAllRPKs()
+				.build();
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
 				.setSniEnabled(true)
-				.setApplicationLevelInfoSupplier(supplier);
-		builder.setAdvancedPskStore(serverPskStore);
+				.setApplicationLevelInfoSupplier(supplier)
+				.setAdvancedCertificateVerifier(serverCertificateVerifier)
+				.setAdvancedPskStore(serverPskStore);
 
 		serverHelper = new ConnectorHelper();
 		serverHelper.startServer(builder);
@@ -337,12 +412,15 @@ public class DTLSConnectorResumeTest {
 		clientPrivateKey = DtlsTestTools.getClientPrivateKey();
 		clientCertificateChain = DtlsTestTools.getClientCertificateChain();
 
-		clientInMemoryPskStore = new InMemoryPskStore();
+		clientInMemoryPskStore = new AdvancedMultiPskStore();
 		clientInMemoryPskStore.addKnownPeer(serverHelper.serverEndpoint, CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
 		clientInMemoryPskStore.addKnownPeer(serverHelper.serverEndpoint, SERVERNAME, SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes());
 		clientInMemoryPskStore.addKnownPeer(serverHelper.serverEndpoint, SERVERNAME_ALT, SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes());
-		clientPskStore = new AsyncInMemoryPskStore(clientInMemoryPskStore);
-
+		clientPskStore = new AsyncAdvancedPskStore(clientInMemoryPskStore);
+		clientCertificateVerifier = (AsyncNewAdvancedCertificateVerifier) AsyncNewAdvancedCertificateVerifier.builder()
+				.setTrustedCertificates(DtlsTestTools.getTrustedCertificates())
+				.setTrustAllRPKs()
+				.build();
 	}
 
 	@AfterClass
@@ -354,6 +432,14 @@ public class DTLSConnectorResumeTest {
 		if (serverPskStore != null) {
 			serverPskStore.shutdown();
 			serverPskStore = null;
+		}
+		if (clientCertificateVerifier != null) {
+			clientCertificateVerifier.shutdown();
+			clientCertificateVerifier = null;
+		}
+		if (serverCertificateVerifier != null) {
+			serverCertificateVerifier.shutdown();
+			serverCertificateVerifier = null;
 		}
 		serverHelper.destroyServer();
 		ExecutorsUtil.shutdownExecutorGracefully(100, executor);
@@ -395,13 +481,15 @@ public class DTLSConnectorResumeTest {
 		if (clientEndpoint == null) {
 			clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		}
-		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
 				.setLoggingTag(tag)
 				.setAddress(clientEndpoint)
 				.setSniEnabled(true)
 				.setReceiverThreadCount(1)
 				.setConnectionThreadCount(2)
 				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY);
+		clientPskStore.setResultHandler(null);
+		clientCertificateVerifier.setResultHandler(null);
 		clientPrincipalType = builderSetup.getPrincipalType();
 		builderSetup.setup(builder);
 		return builder;
@@ -851,7 +939,7 @@ public class DTLSConnectorResumeTest {
 	public void testConnectorPerformsFullHandshakeWhenResumingWithEmptySessionId() throws Exception {
 		ConnectorHelper serverWithoutSessionId = new ConnectorHelper();
 		try {
-			DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+			DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
 					.setNoServerSessionId(true)
 					.setSniEnabled(true);
 			serverWithoutSessionId.startServer(builder);

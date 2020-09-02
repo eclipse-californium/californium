@@ -19,13 +19,16 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 
 /**
  * A raw public key store that stores the trusted keys in memory.
  * 
  * @author Ludwig Seitz
  *
+ * @deprecated use {@link StaticNewAdvancedCertificateVerifier} instead
  */
+@Deprecated
 public class InMemoryRpkTrustStore implements TrustedRpkStore {
 
 	private final Set<RawPublicKeyIdentity> trustedRPKs;

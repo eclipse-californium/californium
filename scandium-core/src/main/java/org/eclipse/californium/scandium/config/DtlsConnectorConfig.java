@@ -43,11 +43,7 @@ import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
-
-import javax.security.auth.x500.X500Principal;
 
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.util.Asn1DerDecoder;
@@ -75,8 +71,9 @@ import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustAllRpks;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
+import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
-import org.eclipse.californium.scandium.dtls.x509.StaticCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.BridgeCertificateVerifier;
 import org.eclipse.californium.scandium.util.ListUtils;
 
 /**
@@ -98,6 +95,7 @@ import org.eclipse.californium.scandium.util.ListUtils;
  * ...
  * </pre>
  */
+@SuppressWarnings("deprecation")
 public final class DtlsConnectorConfig {
 
 	/**
@@ -157,12 +155,21 @@ public final class DtlsConnectorConfig {
 	private InetSocketAddress address;
 	/**
 	 * Truststore for trusted certificates  
+	 * @deprecated use {@link #advancedCertificateVerifier} instead.
 	 */
+	@Deprecated
 	private X509Certificate[] trustStore;
 	/**
 	 * Certificate verifier for dynamic trust.
+	 * @deprecated use {@link #advancedCertificateVerifier} instead.
 	 */
+	@Deprecated
 	private CertificateVerifier certificateVerifier;
+	/**
+	 * Advanced certificate verifier for non-blocking dynamic trust.
+	 * @since 2.5
+	 */
+	private NewAdvancedCertificateVerifier advancedCertificateVerifier;
 	/**
 	 * Experimental feature : Stop retransmission at message receipt
 	 */
@@ -277,11 +284,15 @@ public final class DtlsConnectorConfig {
 	/** certificate types to be used to trust the other peer */
 	private List<CertificateType> trustCertificateTypes;
 
-	/** store of the PSK. */
+	/** 
+	 * store of the PSK.
+	 * @deprecated use {@link #advancedPskStore} instead.
+	 */
+	@Deprecated
 	private PskStore pskStore;
 
 	/** 
-	 * advanced store of the PSK
+	 * Advanced store of PSK credentials.
 	 * @since 2.3
 	 */
 	private AdvancedPskStore advancedPskStore;
@@ -319,7 +330,12 @@ public final class DtlsConnectorConfig {
 	 */
 	private List<SupportedGroup> supportedGroups;
 
-	/** the trust store for RPKs **/
+	/** 
+	 * The trust store for RPKs
+	 * 
+	 * @deprecated use {@link #advancedCertificateVerifier} instead.
+	 */
+	@Deprecated
 	private TrustedRpkStore trustedRPKs;
 
 	private Integer outboundMessageBufferSize;
@@ -393,8 +409,8 @@ public final class DtlsConnectorConfig {
 	/**
 	 * Use filter for record in window and before limit.
 	 * 
-	 * The value will be subtracted from to lower receive window boundary.
-	 * A value of {@code -1} will set that calculated value to {@code 0}.
+	 * The value will be subtracted from to lower receive window boundary. A
+	 * value of {@code -1} will set that calculated lower boundary to {@code 0}.
 	 * Messages between lower receive window boundary and that calculated value
 	 * will pass the filter, for other messages the filter is applied.
 	 * 
@@ -875,8 +891,10 @@ public final class DtlsConnectorConfig {
 	 * @return the root certificates. If empty (length of zero), all
 	 *         certificates are trusted. If {@code null}, the trust may be
 	 *         implemented by a {@link CertificateVerifier}.
-	 * @see #getCertificateVerifier()
+	 * @deprecated will be replaced by {@link #getAdvancedCertificateVerifier()}
+	 *             in a future version.
 	 */
+	@Deprecated
 	public X509Certificate[] getTrustStore() {
 		if (trustStore == null) {
 			return null;
@@ -890,9 +908,22 @@ public final class DtlsConnectorConfig {
 	 * during the DTLS handshake.
 	 *
 	 * @return the certificate chain verifier
+	 * @deprecated use {@link #getAdvancedCertificateVerifier()} instead
 	 */
+	@Deprecated
 	public CertificateVerifier getCertificateVerifier() {
 		return certificateVerifier;
+	}
+
+	/**
+	 * Gets the new advanced certificate verifier to be used during the DTLS
+	 * handshake.
+	 * 
+	 * @@return the new advanced certificate verifier
+	 * @since 2.5
+	 */
+	public NewAdvancedCertificateVerifier getAdvancedCertificateVerifier() {
+		return advancedCertificateVerifier;
 	}
 
 	/**
@@ -1100,12 +1131,13 @@ public final class DtlsConnectorConfig {
 	 * Use filter for records in window and before limit.
 	 * 
 	 * The value will be subtracted from to lower receive window boundary. A
-	 * value of {@code -1} will set that calculated value to {@code 0}. Messages
-	 * between lower receive window boundary and that calculated value will pass
-	 * the filter, for other messages the filter is applied.
+	 * value of {@code -1} will set that calculated lower boundary to {@code 0}.
+	 * Messages between lower receive window boundary and that calculated value
+	 * will pass the filter, for other messages the filter is applied.
 	 * 
 	 * @return value to extend lower receive window boundary, {@code -1}, to
-	 *         extend it to {@code 0}.
+	 *         extend lower boundary to {@code 0}, {@code 0} to disable extended
+	 *         window filter.
 	 * @see "http://tools.ietf.org/html/rfc6347#section-4.1"
 	 * @since 2.4
 	 */
@@ -1126,7 +1158,10 @@ public final class DtlsConnectorConfig {
 	/**
 	 * @return The trust store for raw public keys verified out-of-band for
 	 *         DTLS-RPK handshakes
+	 * @deprecated will be replaced by {@link #getAdvancedCertificateVerifier()}
+	 *             in a future version.
 	 */
+	@Deprecated
 	public TrustedRpkStore getRpkTrustStore() {
 		return trustedRPKs;
 	}
@@ -1247,6 +1282,7 @@ public final class DtlsConnectorConfig {
 		cloned.address = address;
 		cloned.trustStore = trustStore;
 		cloned.certificateVerifier = certificateVerifier;
+		cloned.advancedCertificateVerifier = advancedCertificateVerifier;
 		cloned.earlyStopRetransmission = earlyStopRetransmission;
 		cloned.enableReuseAddress = enableReuseAddress;
 		cloned.recordSizeLimit = recordSizeLimit;
@@ -1305,6 +1341,27 @@ public final class DtlsConnectorConfig {
 		cloned.recommendedCipherSuitesOnly = recommendedCipherSuitesOnly;
 		cloned.recommendedSupportedGroupsOnly = recommendedSupportedGroupsOnly;
 		return cloned;
+	}
+
+	/**
+	 * Create new builder for DtlsConnectorConfig.
+	 * 
+	 * @return created builder
+	 * @since 2.5
+	 */
+	public static Builder builder() {
+		return new Builder();
+	}
+
+	/**
+	 * Create builder for DtlsConnectorConfig from provided DtlsConnectorConfig.
+	 * 
+	 * @param config DtlsConnectorConfig to clone
+	 * @return created builder
+	 * @since 2.5
+	 */
+	public static Builder builder(DtlsConnectorConfig config) {
+		return new Builder(config);
 	}
 
 	/**
@@ -2175,7 +2232,9 @@ public final class DtlsConnectorConfig {
 		 * 
 		 * @param pskStore the key store
 		 * @return this builder for command chaining
+		 * @deprecated use {@link #setAdvancedPskStore(AdvancedPskStore)} instead
 		 */
+		@Deprecated
 		public Builder setPskStore(PskStore pskStore) {
 			config.advancedPskStore = pskStore == null ? null : new AdvancedInMemoryPskStore(pskStore);
 			config.pskStore = pskStore;
@@ -2397,33 +2456,44 @@ public final class DtlsConnectorConfig {
 		 * 
 		 * {@code trustedCerts} MUST NOT contain several certificates with same
 		 * subject. If you need that you should consider to use
-		 * {@link #setCertificateVerifier(CertificateVerifier)} instead.
+		 * {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)}
+		 * instead.
 		 * 
 		 * This method must not be called, if
-		 * {@link #setCertificateVerifier(CertificateVerifier)} is already set.
+		 * {@link #setCertificateVerifier(CertificateVerifier)} or
+		 * {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)}
+		 * is already set.
+		 * 
+		 * Note: since 2.5 supports {@code null} to reset the trusted
+		 * certificates in order to use specific
+		 * {@link NewAdvancedCertificateVerifier} instead of the default
+		 * implementation.
 		 * 
 		 * @param trustedCerts the trusted root certificates. If empty (length
 		 *            of zero), trust all valid certificate chains without
-		 *            limiting the trust to specific trust anchors.
+		 *            limiting the trust to specific trust anchors. If
+		 *            {@code null}, reset trusted certificates.
 		 * @return this builder for command chaining
-		 * @throws NullPointerException if the given array is <code>null</code>
 		 * @throws IllegalArgumentException if the array contains a non-X.509
 		 *             certificate or several certificates with same subjects
 		 * @throws IllegalStateException if
-		 *             {@link #setCertificateVerifier(CertificateVerifier)} is
-		 *             already set.
+		 *             {@link #setCertificateVerifier(CertificateVerifier)} or
+		 *             {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)}
+		 *             is already set.
 		 * @see #setTrustCertificateTypes
+		 * @deprecated use {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)} instead. 
 		 */
+		@Deprecated
 		public Builder setTrustStore(Certificate[] trustedCerts) {
 			if (trustedCerts == null) {
-				throw new NullPointerException("Trust store must not be null");
-			} else if (config.certificateVerifier != null) {
+				config.trustStore = null;
+			} else if (config.advancedCertificateVerifier != null) {
 				throw new IllegalStateException("Trust store must not be used after certificate verifier is set!");
 			} else if (trustedCerts.length == 0) {
 				config.trustStore = new X509Certificate[0];
 			} else {
 				X509Certificate[] certificates = SslContextUtil.asX509Certificates(trustedCerts);
-				checkTrustStore(certificates);
+				SslContextUtil.ensureUniqueCertificates(certificates);
 				config.trustStore = certificates;
 			}
 			return this;
@@ -2450,7 +2520,9 @@ public final class DtlsConnectorConfig {
 		 * @throws IllegalStateException if
 		 *             {@link #setTrustStore(Certificate[])} is already set.
 		 * @see #setTrustCertificateTypes
+		 * @deprecated use {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)} instead. 
 		 */
+		@Deprecated
 		public Builder setCertificateVerifier(CertificateVerifier verifier) {
 			if (verifier == null) {
 				throw new NullPointerException("CertificateVerifier must not be null");
@@ -2458,6 +2530,42 @@ public final class DtlsConnectorConfig {
 				throw new IllegalStateException("CertificateVerifier must not be used after trust store is set!");
 			}
 			config.certificateVerifier = verifier;
+			config.advancedCertificateVerifier = BridgeCertificateVerifier.builder()
+					.setCertificateVerifier(verifier).build();
+			return this;
+		}
+
+		/**
+		 * Sets the logic in charge of validating a X.509 certificate chain.
+		 *
+		 * Here are a few use cases where a custom implementation would be
+		 * needed:
+		 * <ul>
+		 * <li>client certificate authentication based on a dynamic trusted CA
+		 * <li>revocation not provided by the default implementation (e.g. OCSP)
+		 * <li>cipher suites restriction per client
+		 * </ul>
+		 * 
+		 * This method must not be called, if
+		 * {@link #setTrustStore(Certificate[])} is already set.
+		 *
+		 * @param verifier new advanced certificate verifier
+		 * @return this builder for command chaining
+		 * @throws NullPointerException if the given certificate verifier is
+		 *             {@code null}
+		 * @throws IllegalStateException if
+		 *             {@link #setTrustStore(Certificate[])} is already set.
+		 * @see #setTrustCertificateTypes
+		 * @since 2.5
+		 */
+		public Builder setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier verifier) {
+			if (verifier == null) {
+				throw new NullPointerException("CertificateVerifier must not be null");
+			} else if (config.trustStore != null) {
+				throw new IllegalStateException("CertificateVerifier must not be used after trust store is set!");
+			}
+			config.certificateVerifier = null;
+			config.advancedCertificateVerifier = verifier;
 			return this;
 		}
 
@@ -2482,12 +2590,15 @@ public final class DtlsConnectorConfig {
 		 * @param store the raw public keys trust store
 		 * 
 		 * @return this builder for command chaining
-		 * @throws NullPointerException if the given store is {@code null}
 		 * @see #setTrustCertificateTypes
+		 * @deprecated use {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)} instead. 
 		 */
+		@Deprecated
 		public Builder setRpkTrustStore(TrustedRpkStore store) {
 			if (store == null) {
-				throw new IllegalStateException("Must provide a non-null rpk trust store");
+				config.trustedRPKs = store;
+			} else if (config.advancedCertificateVerifier != null) {
+				throw new IllegalStateException("RPK trust store must not be used after new certificate verifier is set!");
 			}
 			config.trustedRPKs = store;
 			return this;
@@ -2497,8 +2608,13 @@ public final class DtlsConnectorConfig {
 		 * Sets the store for trusted raw public key to trust all public keys.
 		 * 
 		 * @return this builder for command chaining
+		 * @deprecated use {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)} instead. 
 		 */
+		@Deprecated
 		public Builder setRpkTrustAll() {
+			if (config.advancedCertificateVerifier != null) {
+				throw new IllegalStateException("RPK trust store must not be used after new certificate verifier is set!");
+			}
 			config.trustedRPKs = new TrustAllRpks();
 			return this;
 		}
@@ -2805,18 +2921,19 @@ public final class DtlsConnectorConfig {
 		 * Use extended window filter.
 		 * 
 		 * The value will be subtracted from to lower receive window boundary. A
-		 * value of {@code -1} will set that calculated value to {@code 0}. Messages
-		 * between lower receive window boundary and that calculated value will pass
-		 * the filter, for other messages the filter is applied.
+		 * value of {@code -1} will set that calculated value to {@code 0}.
+		 * Messages between lower receive window boundary and that calculated
+		 * value will pass the filter, for other messages the filter is applied.
 		 * 
-		 * @return value to extend lower receive window boundary, {@code -1}, to
-		 *         extend it to {@code 0}.
-		 * 
-		 * @param level value to extend lower receive window boundary, {@code -1}, to
-		 *         extend it to {@code 0}. Default {@code 0}.
+		 * @param level value to extend lower receive window boundary,
+		 *            {@code -1}, to extend the lower boundary to {@code 0},
+		 *            {@code 0} to disable the extended lower boundary. Default
+		 *            {@code 0}.
 		 * @return this builder for command chaining.
-		 * @throws IllegalArgumentException if anti replay window filter is active.
+		 * @throws IllegalArgumentException if anti replay window filter is
+		 *             active.
 		 * @see "http://tools.ietf.org/html/rfc6347#section-4.1"
+		 * @since 2.4
 		 */
 		public Builder setUseExtendedWindowFilter(int level) {
 			if (level != 0 && Boolean.TRUE.equals(config.useAntiReplayFilter)) {
@@ -3071,19 +3188,15 @@ public final class DtlsConnectorConfig {
 			if (config.verifyPeersOnResumptionThreshold == null) {
 				config.verifyPeersOnResumptionThreshold = DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT;
 			}
-			if (config.certificateVerifier == null && config.trustStore != null) {
-				config.certificateVerifier = new StaticCertificateVerifier(config.trustStore);
+			if (config.advancedCertificateVerifier == null
+					&& (config.trustStore != null || config.trustedRPKs != null)) {
+				config.advancedCertificateVerifier = BridgeCertificateVerifier.builder()
+						.setTrustedCertificates(config.trustStore)
+						.setTrustedRPKs(config.trustedRPKs)
+						.build();
 			}
-			if (config.trustCertificateTypes == null) {
-				if (config.trustedRPKs != null || config.certificateVerifier != null) {
-					config.trustCertificateTypes = new ArrayList<>(2);
-					if (config.trustedRPKs != null) {
-						config.trustCertificateTypes.add(CertificateType.RAW_PUBLIC_KEY);
-					}
-					if (config.certificateVerifier != null) {
-						config.trustCertificateTypes.add(CertificateType.X_509);
-					}
-				}
+			if (config.trustCertificateTypes == null && config.advancedCertificateVerifier != null) {
+				config.trustCertificateTypes = config.advancedCertificateVerifier.getSupportedCertificateType();
 			} 
 
 			if (config.serverOnly && !config.clientAuthenticationRequired && !config.clientAuthenticationWanted
@@ -3119,16 +3232,15 @@ public final class DtlsConnectorConfig {
 			}
 
 			if (config.trustCertificateTypes != null) {
-				if (config.trustCertificateTypes.contains(CertificateType.RAW_PUBLIC_KEY)) {
-					if (config.trustedRPKs == null) {
-						throw new IllegalStateException(
-								"rpk trust must be set for trust certificate type RAW_PUBLIC_KEY");
-					}
+				if (config.advancedCertificateVerifier == null) {
+					throw new IllegalStateException(
+							"trusted certificates, trusted rpks, or certificate verifier must be set for trust certificates");
 				}
-				if (config.trustCertificateTypes.contains(CertificateType.X_509)) {
-					if (config.certificateVerifier == null) {
+				List<CertificateType> list = config.advancedCertificateVerifier.getSupportedCertificateType();
+				for (CertificateType type : config.trustCertificateTypes) {
+					if (!list.contains(type)) {
 						throw new IllegalStateException(
-								"trusted certificates or certificate verifier must be set for trust certificate type X_509");
+								type + " is not supported by certificate verifier");
 					}
 				}
 			}
@@ -3183,7 +3295,7 @@ public final class DtlsConnectorConfig {
 				if (config.privateKey != null || config.publicKey != null) {
 					throw new IllegalStateException("Identity set, but no certificate based cipher suite!");
 				}
-				if (config.trustedRPKs != null || config.certificateVerifier != null) {
+				if (config.advancedCertificateVerifier != null) {
 					throw new IllegalStateException("certificate trust set, but no certificate based cipher suite!");
 				}
 			}
@@ -3248,18 +3360,6 @@ public final class DtlsConnectorConfig {
 				if (config.trustCertificateTypes == null) {
 					throw new IllegalStateException("trust must be set for configured " + suite.name());
 				}
-				if (config.trustCertificateTypes.contains(CertificateType.RAW_PUBLIC_KEY)) {
-					if (config.trustedRPKs == null) {
-						throw new IllegalStateException(
-								"Raw public key trust must be set for configured " + suite.name());
-					}
-				}
-				if (config.trustCertificateTypes.contains(CertificateType.X_509)) {
-					if (config.certificateVerifier == null) {
-						throw new IllegalStateException(
-								"X509 certficate trust must be set for configured " + suite.name());
-					}
-				}
 			}
 		}
 
@@ -3274,7 +3374,7 @@ public final class DtlsConnectorConfig {
 				}
 			}
 			if (message.length() > 0) {
-				throw new IllegalStateException("Not recommended cipher suites " + message
+				throw new IllegalArgumentException("Not recommended cipher suites " + message
 						+ " used! (Requires to set recommendedCipherSuitesOnly to false.)");
 			}
 		}
@@ -3382,18 +3482,6 @@ public final class DtlsConnectorConfig {
 				if (config.recommendedSupportedGroupsOnly && !group.isRecommended()) {
 					throw new IllegalStateException(
 							"public key used with unrecommended group (curve) " + group.name() + "!");
-				}
-			}
-		}
-
-		private void checkTrustStore(X509Certificate[] store) {
-			List<X500Principal> subjects = CertPathUtil.toSubjects(Arrays.asList(store));
-
-			// Search for duplicates
-			Set<X500Principal> set = new HashSet<>();
-			for (X500Principal subject : subjects) {
-				if (!set.add(subject)) {
-					throw new IllegalStateException("Truststore contains 2 certificates with same subject: " + subject);
 				}
 			}
 		}

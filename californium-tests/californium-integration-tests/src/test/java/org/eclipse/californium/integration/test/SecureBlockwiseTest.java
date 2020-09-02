@@ -43,6 +43,8 @@ import org.eclipse.californium.integration.test.util.CoapsNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -119,13 +121,13 @@ public class SecureBlockwiseTest {
 	}
 
 	private void createSecureServer(MatcherMode mode) {
-		TestUtilPskStore pskStore = new TestUtilPskStore(IDENITITY, KEY.getBytes());
+		AdvancedPskStore pskStore = new AdvancedSinglePskStore(IDENITITY, KEY.getBytes());
 		DtlsConnectorConfig dtlsConfig = new DtlsConnectorConfig.Builder()
 				.setAddress(TestTools.LOCALHOST_EPHEMERAL)
 				.setLoggingTag("server")
 				.setReceiverThreadCount(2)
 				.setConnectionThreadCount(2)
-				.setPskStore(pskStore).build();
+				.setAdvancedPskStore(pskStore).build();
 		// retransmit constantly all 200 milliseconds
 		NetworkConfig config = network.createTestConfig().setInt(Keys.ACK_TIMEOUT, 200)
 				.setFloat(Keys.ACK_RANDOM_FACTOR, 1f).setFloat(Keys.ACK_TIMEOUT_SCALE, 1f)
@@ -154,7 +156,7 @@ public class SecureBlockwiseTest {
 				.setLoggingTag("client")
 				.setReceiverThreadCount(2)
 				.setConnectionThreadCount(2)
-				.setPskStore(pskStore).build();
+				.setAdvancedPskStore(pskStore).build();
 		DTLSConnector clientConnector = new DTLSConnector(clientdtlsConfig);
 		builder = new CoapEndpoint.Builder();
 		builder.setConnector(clientConnector);

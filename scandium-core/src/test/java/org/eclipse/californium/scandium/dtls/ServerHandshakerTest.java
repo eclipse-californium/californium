@@ -57,7 +57,9 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
-import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
+import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.util.ServerName.NameType;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.junit.After;
@@ -104,11 +106,12 @@ public class ServerHandshakerTest {
 		endpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		session = new DTLSSession(endpoint);
 		recordLayer = new SimpleRecordLayer();
-		config = new DtlsConnectorConfig.Builder()
+		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustedCertificates(trustedCertificates).build();
+		config = DtlsConnectorConfig.builder()
 				.setAddress(endpoint)
 				.setSniEnabled(true)
 				.setIdentity(privateKey, certificateChain, CertificateType.X_509)
-				.setTrustStore(trustedCertificates)
+				.setAdvancedCertificateVerifier(verifier)
 				.setSupportedCipherSuites(SERVER_CIPHER_SUITE)
 				.build();
 		handshaker = newHandshaker(config, session);
@@ -224,14 +227,15 @@ public class ServerHandshakerTest {
 
 		// GIVEN a server handshaker that supports a public key based cipher using RawPublicKeys
 		// only as well as a pre-shared key based cipher
-		config = new DtlsConnectorConfig.Builder()
+		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustAllRPKs().build();
+		config = DtlsConnectorConfig.builder()
 				.setAddress(endpoint)
 				.setIdentity(privateKey, DtlsTestTools.getPublicKey())
 				.setSupportedCipherSuites(
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
 						CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
-				.setPskStore(new StaticPskStore("client", "secret".getBytes()))
-				.setRpkTrustAll()
+				.setAdvancedPskStore(new AdvancedSinglePskStore("client", "secret".getBytes()))
+				.setAdvancedCertificateVerifier(verifier)
 				.build();
 		handshaker = newHandshaker(config, session);
 
@@ -373,6 +377,7 @@ public class ServerHandshakerTest {
 
 	private ServerHandshaker newHandshaker(final DtlsConnectorConfig config, final DTLSSession session) throws HandshakeException {
 		Connection connection = new Connection(session.getPeer(), new SyncSerialExecutor());
+		connection.setConnectionId(new ConnectionId(new byte[] { 1, 2, 3, 4 }));
 		ServerHandshaker handshaker =  new ServerHandshaker(0, session, recordLayer, timer, connection, config);
 		recordLayer.setHandshaker(handshaker);
 		return handshaker;

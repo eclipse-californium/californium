@@ -29,7 +29,9 @@ import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
-import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
+import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier.Builder;
 
 /**
  * Credentials utility for setup DTLS credentials.
@@ -209,16 +211,17 @@ public class CredentialsUtil {
 	 * Setup credentials for DTLS connector.
 	 * 
 	 * If PSK is provided and no PskStore is already set for the builder, a
-	 * {@link InMemoryPskStore} containing {@link #PSK_IDENTITY} assigned with
-	 * {@link #PSK_SECRET} is set. If PSK is provided with other mode(s) and
+	 * {@link AdvancedMultiPskStore} containing {@link #PSK_IDENTITY} assigned with
+	 * {@link #PSK_SECRET}, and {@link #OPEN_PSK_IDENTITY} assigned with
+	 * {@link #OPEN_PSK_SECRET} set. If PSK is provided with other mode(s) and
 	 * loading the certificates failed, this is just treated as warning and the
 	 * configuration is setup to use PSK only.
 	 * 
-	 * If RPK is provided, the certificates loaded for the provided alias and
-	 * this certificate is used as identity.
+	 * If RPK is provided, the certificates loaded for the provided alias and this
+	 * certificate is used as identity.
 	 * 
-	 * If X509 is provided, the trusts are also loaded an set additionally to
-	 * the credentials for the alias.
+	 * If X509 is provided, the trusts are also loaded an set additionally to the
+	 * credentials for the alias.
 	 * 
 	 * The Modes can be mixed. If RPK is before X509 in the list, RPK is set as
 	 * preferred.
@@ -231,17 +234,14 @@ public class CredentialsUtil {
 	 * PSK, X509, RPK setup for PSK, RPK and X509, prefer X509
 	 * </pre>
 	 * 
-	 * @param config
-	 *            DTLS configuration builder. May be already initialized with
-	 *            PskStore.
-	 * @param certificateAlias
-	 *            alias for certificate to load as credentials.
-	 * @param modes
-	 *            list of supported mode. If a RPK is in the list before X509,
-	 *            or RPK is provided but not X509, then the RPK is setup as
-	 *            preferred.
-	 * @throws IllegalArgumentException
-	 *             if loading the certificates fails for some reason
+	 * @param config           DTLS configuration builder. May be already
+	 *                         initialized with PskStore.
+	 * @param certificateAlias alias for certificate to load as credentials.
+	 * @param modes            list of supported mode. If a RPK is in the list
+	 *                         before X509, or RPK is provided but not X509, then
+	 *                         the RPK is setup as preferred.
+	 * @throws IllegalArgumentException if loading the certificates fails for some
+	 *                                  reason
 	 */
 	public static void setupCredentials(DtlsConnectorConfig.Builder config, String certificateAlias, List<Mode> modes) {
 
@@ -251,10 +251,10 @@ public class CredentialsUtil {
 
 		if (psk && config.getIncompleteConfig().getAdvancedPskStore() == null) {
 			// Pre-shared secret keys
-			InMemoryPskStore pskStore = new InMemoryPskStore();
+			AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
 			pskStore.setKey(PSK_IDENTITY, PSK_SECRET);
 			pskStore.setKey(OPEN_PSK_IDENTITY, OPEN_PSK_SECRET);
-			config.setPskStore(pskStore);
+			config.setAdvancedPskStore(pskStore);
 		}
 		boolean noAuth = modes.contains(Mode.NO_AUTH);
 		boolean x509Trust = modes.contains(Mode.X509_TRUST);
@@ -275,6 +275,7 @@ public class CredentialsUtil {
 			config.setClientAuthenticationWanted(true);
 		}
 
+		Builder trustBuilder = StaticNewAdvancedCertificateVerifier.builder();
 		if (x509 >= 0 || rpk >= 0) {
 			try {
 				// try to read certificates
@@ -286,10 +287,10 @@ public class CredentialsUtil {
 						Certificate[] trustedCertificates = SslContextUtil.loadTrustedCertificates(
 								SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, TRUST_NAME,
 								TRUST_STORE_PASSWORD);
-						config.setTrustStore(trustedCertificates);
+						trustBuilder.setTrustedCertificates(trustedCertificates);
 					}
 					if (rpk >= 0) {
-						config.setRpkTrustAll();
+						trustBuilder.setTrustAllRPKs();
 					}
 				}
 				if (x509 >= 0 || rpk >= 0) {
@@ -329,11 +330,14 @@ public class CredentialsUtil {
 		}
 		if (x509Trust) {
 			// trust all
-			config.setTrustStore(new Certificate[0]);
+			trustBuilder.setTrustAllCertificates();
 		}
 		if (rpkTrust) {
 			// trust all
-			config.setRpkTrustAll();
+			trustBuilder.setTrustAllRPKs();
+		}
+		if (trustBuilder.hasTrusts()) {
+			config.setAdvancedCertificateVerifier(trustBuilder.build());
 		}
 		if (psk && config.getIncompleteConfig().getSupportedCipherSuites() == null) {
 			List<CipherSuite> suites = new ArrayList<>();

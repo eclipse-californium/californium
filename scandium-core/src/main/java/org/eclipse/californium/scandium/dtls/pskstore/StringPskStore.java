@@ -29,7 +29,11 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * String based pre-shared-key store.
  * <p>
  * May be used for backwards compatibility.
+ * 
+ * @deprecated use {@link AdvancedPskStore} instead, or {@link BridgePskStore}
+ *             until migrated.
  */
+@Deprecated
 public abstract class StringPskStore implements PskStore {
 
 	@Override

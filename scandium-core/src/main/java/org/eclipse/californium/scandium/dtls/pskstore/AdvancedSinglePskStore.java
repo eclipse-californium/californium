@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017, 2018 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2020 Bosch.IO GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -11,53 +11,59 @@
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
  * Contributors:
- *    Achim Kraus (Bosch Software Innovations GmbH) - initial implementation.
+ *    Bosch.IO GmbH - initial creation
  ******************************************************************************/
-
-package org.eclipse.californium.integration.test;
+package org.eclipse.californium.scandium.dtls.pskstore;
 
 import java.net.InetSocketAddress;
 
 import javax.crypto.SecretKey;
+import javax.security.auth.DestroyFailedException;
+import javax.security.auth.Destroyable;
 
 import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.PskSecretResult;
 import org.eclipse.californium.scandium.dtls.PskSecretResultHandler;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
- * Simple {@link PskStore} implementation with exchangeable credentials.
+ * {@link AdvancedPskStore} implementation for clients to connect a single other
+ * peer.
+ * 
+ * @since 2.5
  */
 @SuppressWarnings("deprecation")
-public class TestUtilPskStore implements AdvancedPskStore {
+public class AdvancedSinglePskStore implements AdvancedPskStore, Destroyable {
 
 	/**
 	 * PSK identity.
 	 */
-	private PskPublicInformation identity;
+	private final PskPublicInformation identity;
 	/**
 	 * PSK secret key.
 	 */
-	private SecretKey secret;
+	private final SecretKey secret;
 
 	/**
-	 * Create simple store.
+	 * Create simple store with initial credentials.
+	 * 
+	 * @param identity PSK identity
+	 * @param key PSK secret key
 	 */
-	public TestUtilPskStore() {
+	public AdvancedSinglePskStore(String identity, byte[] key) {
+		this(new PskPublicInformation(identity), key);
 	}
 
 	/**
-	 * Exchange credentials.
+	 * Create simple store with initial credentials.
 	 * 
 	 * @param identity PSK identity
-	 * @param key      PSK secret key
+	 * @param key PSK secret key
 	 */
-	public synchronized void set(String identity, byte[] key) {
-		this.identity = new PskPublicInformation(identity);
-		SecretUtil.destroy(this.secret);
+	public AdvancedSinglePskStore(PskPublicInformation identity, byte[] key) {
+		this.identity = identity;
 		this.secret = SecretUtil.create(key, "PSK");
 	}
 
@@ -70,22 +76,34 @@ public class TestUtilPskStore implements AdvancedPskStore {
 	public PskSecretResult requestPskSecretResult(ConnectionId cid, ServerNames serverName,
 			PskPublicInformation identity, String hmacAlgorithm, SecretKey otherSecret, byte[] seed) {
 		SecretKey secret = null;
-		PskPublicInformation pskIdentity = identity;
-		synchronized (this) {
-			if (this.identity != null && this.identity.equals(identity)) {
-				pskIdentity = this.identity;
-				secret = SecretUtil.create(this.secret);
-			}
+		if (this.identity.equals(identity)) {
+			secret = SecretUtil.create(this.secret);
 		}
-		return new PskSecretResult(cid, pskIdentity, secret);
+		return new PskSecretResult(cid, this.identity, secret);
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * 
+	 * Ignores arguments, though only a single destination peers is supported.
+	 */
 	@Override
-	public synchronized PskPublicInformation getIdentity(InetSocketAddress peerAddress, ServerNames virtualHost) {
+	public PskPublicInformation getIdentity(InetSocketAddress peerAddress, ServerNames virtualHost) {
 		return identity;
 	}
 
 	@Override
 	public void setResultHandler(PskSecretResultHandler resultHandler) {
+		// empty implementation
+	}
+
+	@Override
+	public void destroy() throws DestroyFailedException {
+		SecretUtil.destroy(secret);
+	}
+
+	@Override
+	public boolean isDestroyed() {
+		return SecretUtil.isDestroyed(secret);
 	}
 }

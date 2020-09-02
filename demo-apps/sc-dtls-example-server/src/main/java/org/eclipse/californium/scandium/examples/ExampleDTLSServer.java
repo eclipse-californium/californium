@@ -29,7 +29,8 @@ import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
-import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
+import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +47,7 @@ public class ExampleDTLSServer {
 	private DTLSConnector dtlsConnector;
 
 	public ExampleDTLSServer() {
-		InMemoryPskStore pskStore = new InMemoryPskStore();
+		AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
 		// put in the PSK store the default identity/psk for tinydtls tests
 		pskStore.setKey("Client_identity", "secretPSK".getBytes());
 		try {
@@ -60,11 +61,11 @@ public class ExampleDTLSServer {
 			DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
 			builder.setRecommendedCipherSuitesOnly(false);
 			builder.setAddress(new InetSocketAddress(DEFAULT_PORT));
-			builder.setPskStore(pskStore);
+			builder.setAdvancedPskStore(pskStore);
 			builder.setIdentity(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain(),
 					CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509);
-			builder.setTrustStore(trustedCertificates);
-			builder.setRpkTrustAll();
+			builder.setAdvancedCertificateVerifier(StaticNewAdvancedCertificateVerifier.builder()
+					.setTrustedCertificates(trustedCertificates).setTrustAllRPKs().build());
 			dtlsConnector = new DTLSConnector(builder.build());
 			dtlsConnector
 					.setRawDataReceiver(new RawDataChannelImpl(dtlsConnector));

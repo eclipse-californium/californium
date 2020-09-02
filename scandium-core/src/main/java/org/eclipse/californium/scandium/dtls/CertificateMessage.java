@@ -180,35 +180,30 @@ public final class CertificateMessage extends HandshakeMessage {
 		this.rawPublicKeyBytes = null;
 		this.certPath = peerCertChain;
 
-		PublicKey publicKey = null;
 		List<? extends Certificate> certificates = peerCertChain.getCertificates();
-		List<byte[]> encodedChain = new ArrayList<byte[]>(certificates.size());
-		int length = CERTIFICATE_LENGTH_BITS / Byte.SIZE;
-		// the certificate chain length uses 3 bytes
-		// each certificate's length in the chain also uses 3 bytes
-		if (!certificates.isEmpty()) {
+		int size = certificates.size();
+		List<byte[]> encodedChain = new ArrayList<byte[]>(size);
+		int length = 0;
+		if (size > 0) {
 			try {
 				for (Certificate cert : certificates) {
-					if (publicKey == null) {
-						publicKey = cert.getPublicKey();
-					}
 					byte[] encoded = cert.getEncoded();
 					encodedChain.add(encoded);
 
-					// the length of the encoded certificate (3 bytes) plus the
-					// encoded bytes
+					// the length of the encoded certificate (3 bytes)
+					// plus the encoded bytes
 					length += (CERTIFICATE_LENGTH_BITS / Byte.SIZE) + encoded.length;
 				}
 			} catch (CertificateEncodingException e) {
 				encodedChain = null;
-				publicKey = null;
-				length = CERTIFICATE_LENGTH_BITS / Byte.SIZE;
+				length = 0;
 				LOGGER.warn("Could not encode certificate chain", e);
 			}
 		}
-		this.publicKey = publicKey;
+		this.publicKey = encodedChain == null || size == 0 ? null : certificates.get(0).getPublicKey();
 		this.encodedChain = encodedChain;
-		this.length = length;
+		// the certificate chain length uses 3 bytes
+		this.length = length + CERTIFICATE_LENGTH_BITS / Byte.SIZE;
 	}
 
 	/**
@@ -319,6 +314,20 @@ public final class CertificateMessage extends HandshakeMessage {
 		return certPath;
 	}
 
+	/**
+	 * Is empty certificate message.
+	 * 
+	 * If a server requests a client certificate, but the client has no proper
+	 * certificate, the client respond with an empty certificate message.
+	 * 
+	 * @return {@code true}, if certificate message contains no certificates,
+	 *         {@code false}, otherwise.
+	 * @since 2.5
+	 */
+	public boolean isEmpty() {
+		return encodedChain != null && encodedChain.isEmpty();
+	}
+
 	// Serialization //////////////////////////////////////////////////
 
 	@Override
@@ -372,11 +381,11 @@ public final class CertificateMessage extends HandshakeMessage {
 	private static CertificateMessage readX509CertificateMessage(final DatagramReader reader, final InetSocketAddress peerAddress) throws HandshakeException {
 
 		LOGGER.debug("Parsing X.509 CERTIFICATE message");
-		List<Certificate> certs = new ArrayList<>();
 		int certificateChainLength = reader.read(CERTIFICATE_LIST_LENGTH_BITS);
 		DatagramReader rangeReader = reader.createRangeReader(certificateChainLength);
 		try {
 			CertificateFactory factory = CERTIFICATE_FACTORY.currentWithCause();
+			List<Certificate> certs = new ArrayList<>();
 
 			while (rangeReader.bytesAvailable()) {
 				int certificateLength = rangeReader.read(CERTIFICATE_LENGTH_BITS);

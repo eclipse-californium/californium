@@ -186,7 +186,7 @@ public class SecretUtil {
 		/**
 		 * Indicates, that this instance has been {@link #destroy()}ed.
 		 */
-		private boolean destroyed;
+		private volatile boolean destroyed;
 
 		public DestroyableSecretKeySpec(byte[] key, String algorithm) {
 			this(key, 0, key == null ? 0 : key.length, algorithm);

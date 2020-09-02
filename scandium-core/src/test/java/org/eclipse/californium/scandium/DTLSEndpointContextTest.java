@@ -113,7 +113,7 @@ public class DTLSEndpointContextTest {
 	public void setUp() throws Exception {
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
 		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
-		clientConfig = ConnectorHelper.newStandardClientConfig(clientEndpoint);
+		clientConfig = serverHelper.newStandardClientConfig(clientEndpoint);
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 	}
 

@@ -15,6 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.pskstore;
 
+import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -28,30 +29,50 @@ import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.PskSecretResult;
 import org.eclipse.californium.scandium.dtls.PskSecretResultHandler;
+import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
+import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalCryptoMap;
+import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalCryptoMap.Factory;
+import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalMac;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Simple asynchronous test implementation of {@link AdvancedPskStore}.
+ * Asynchronous test implementation using a provided {@link AdvancedPskStore}.
  * 
  * Use {@code 0} or negative delays for test with synchronous blocking
  * behaviour. And positive delays for test with asynchronous none-blocking
  * behaviour.
  * 
- * @since 2.3
- * @deprecated use {@link AsyncAdvancedPskStore} instead
+ * @since 2.5
  */
-@Deprecated
-public class AsyncInMemoryPskStore extends AdvancedInMemoryPskStore {
+@SuppressWarnings("deprecation")
+public class AsyncAdvancedPskStore implements AdvancedPskStore {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(AsyncInMemoryPskStore.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(AsyncAdvancedPskStore.class);
+
+	protected static final ThreadLocalCryptoMap<ThreadLocalMac> MAC = new ThreadLocalCryptoMap<>(
+			new Factory<ThreadLocalMac>() {
+
+				@Override
+				public ThreadLocalMac getInstance(String algorithm) {
+					return new ThreadLocalMac(algorithm);
+				}
+			});
 
 	/**
 	 * Thread factory.
 	 */
 	private static final NamedThreadFactory THREAD_FACTORY = new DaemonThreadFactory("AsyncPskStoreTimer#");
+	/**
+	 * Executor for asynchronous behaviour.
+	 */
+	private final ScheduledExecutorService executorService;
+	/**
+	 * Advanced PSK store.
+	 */
+	private final AdvancedPskStore pskStore;
 	/**
 	 * Delay for psk result. {@code 0} or negative delays for test with
 	 * synchronous blocking behaviour. Positive delays for test with
@@ -64,27 +85,20 @@ public class AsyncInMemoryPskStore extends AdvancedInMemoryPskStore {
 	 */
 	private volatile boolean generateMasterSecret;
 	/**
-	 * Executor for asynchronous behaviour.
-	 */
-	private final ScheduledExecutorService executorService;
-	/**
 	 * Result handler set during initialization.
 	 * 
 	 * @see #setResultHandler(PskSecretResultHandler)
 	 */
-	private PskSecretResultHandler resultHandler;
+	private volatile PskSecretResultHandler resultHandler;
 
 	/**
-	 * Create an advanced pskstore from {@link PskStore}.
+	 * Create an asynchronous advanced pskstore from {@link PskStore}.
 	 * 
 	 * A call to {@link #shutdown()} is required to cleanup the used resources
 	 * (executor).
-	 * 
-	 * @param pskStore psk store
-	 * @throws NullPointerException if store is {@code null}
 	 */
-	public AsyncInMemoryPskStore(PskStore pskStore) {
-		super(pskStore);
+	public AsyncAdvancedPskStore(AdvancedPskStore pskStore) {
+		this.pskStore = pskStore;
 		executorService = ExecutorsUtil.newSingleThreadScheduledExecutor(THREAD_FACTORY); // $NON-NLS-1$
 	}
 
@@ -95,7 +109,7 @@ public class AsyncInMemoryPskStore extends AdvancedInMemoryPskStore {
 	 *            secret, {@code false} for PSK secret key.
 	 * @return this psk store for command chaining
 	 */
-	public AsyncInMemoryPskStore setSecretMode(boolean enableGenerateMasterSecret) {
+	public AsyncAdvancedPskStore setSecretMode(boolean enableGenerateMasterSecret) {
 		this.generateMasterSecret = generateMasterSecret;
 		return this;
 	}
@@ -108,7 +122,7 @@ public class AsyncInMemoryPskStore extends AdvancedInMemoryPskStore {
 	 *            delays using asynchronous none-blocking behaviour.
 	 * @return this psk store for command chaining
 	 */
-	public AsyncInMemoryPskStore setDelay(int delayMillis) {
+	public AsyncAdvancedPskStore setDelay(int delayMillis) {
 		this.delayMillis = delayMillis;
 		if (delayMillis > 0) {
 			LOGGER.info("Asynchronous delayed PSK store {}ms.", delayMillis);
@@ -200,13 +214,24 @@ public class AsyncInMemoryPskStore extends AdvancedInMemoryPskStore {
 	 */
 	private PskSecretResult getPskSecretResult(ConnectionId cid, ServerNames serverNames, PskPublicInformation identity,
 			String hmacAlgorithm, SecretKey otherSecret, byte[] seed) {
-		SecretKey secret = serverNames != null ? pskStore.getKey(serverNames, identity) : pskStore.getKey(identity);
-		if (generateMasterSecret && secret != null) {
-			SecretKey masterSecret = generateMasterSecret(hmacAlgorithm, secret, otherSecret, seed);
-			SecretUtil.destroy(secret);
-			secret = masterSecret;
+		PskSecretResult result = pskStore.requestPskSecretResult(cid, serverNames, identity, hmacAlgorithm, otherSecret,
+				seed);
+		if (generateMasterSecret && result.getSecret() != null
+				&& PskSecretResult.ALGORITHM_PSK.equals(result.getSecret().getAlgorithm())) {
+			SecretKey masterSecret = generateMasterSecret(hmacAlgorithm, result.getSecret(), otherSecret, seed);
+			SecretUtil.destroy(result.getSecret());
+			return new PskSecretResult(cid, result.getPskPublicInformation(), masterSecret);
 		}
-		return new PskSecretResult(cid, identity, secret);
+		return result;
+	}
+
+	protected SecretKey generateMasterSecret(String hmacAlgorithm, SecretKey pskSecret, SecretKey otherSecret,
+			byte[] seed) {
+		ThreadLocalMac hmac = MAC.get(hmacAlgorithm);
+		SecretKey premasterSecret = PseudoRandomFunction.generatePremasterSecretFromPSK(otherSecret, pskSecret);
+		SecretKey masterSecret = PseudoRandomFunction.generateMasterSecret(hmac.current(), premasterSecret, seed);
+		SecretUtil.destroy(premasterSecret);
+		return masterSecret;
 	}
 
 	@Override
@@ -215,5 +240,15 @@ public class AsyncInMemoryPskStore extends AdvancedInMemoryPskStore {
 			throw new IllegalStateException("handshake result handler already set!");
 		}
 		this.resultHandler = resultHandler;
+	}
+
+	@Override
+	public boolean hasEcdhePskSupported() {
+		return true;
+	}
+
+	@Override
+	public PskPublicInformation getIdentity(InetSocketAddress peerAddress, ServerNames virtualHost) {
+		return pskStore.getIdentity(peerAddress, virtualHost);
 	}
 }

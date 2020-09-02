@@ -438,6 +438,12 @@ public class ClientHandshaker extends Handshaker {
 	 *             if the certificate could not be verified.
 	 */
 	private void receivedServerCertificate(CertificateMessage message) throws HandshakeException {
+		if (message.isEmpty()) {
+			LOGGER.debug("Certificate validation failed: empty server certificate!");
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE,
+					session.getPeer());
+			throw new HandshakeException("Empty server certificate!", alert);
+		}
 		verifyCertificate(message);
 		serverPublicKey = message.getPublicKey();
 	}
@@ -467,7 +473,7 @@ public class ClientHandshaker extends Handshaker {
 	/**
 	 * The ServerHelloDone message is sent by the server to indicate the end of
 	 * the ServerHello and associated messages. The client starts to fetch all required credentials.
-	 * If these credentails are available, the processing is continued with {@link #doProcessMasterSecretResult(PskSecretResult)}.
+	 * If these credentials are available, the processing is continued with {@link #doProcessMasterSecretResult(PskSecretResult)}.
 	 * 
 	 * @throws HandshakeException
 	 * @throws GeneralSecurityException if the client's handshake records cannot be created
@@ -533,7 +539,36 @@ public class ClientHandshaker extends Handshaker {
 
 		applyMasterSecret(masterSecret);
 		SecretUtil.destroy(masterSecret);
-		masterSecret = null;
+		if (states != SEVER_CERTIFICATE || certificateVerfied) {
+			processServerHelloDone();
+		}
+	}
+
+	/**
+	 * {@inheritDoc}
+	 * 
+	 * Continues process of server's certificate when the verification result is
+	 * available. Prepares all necessary messages (depending on server's
+	 * previous flight) and sends the next flight.
+	 * 
+	 * @since 2.5
+	 */
+	@Override
+	protected void processCertificateVerified() throws HandshakeException {
+		if (masterSecret != null) {
+			processServerHelloDone();
+		}
+	}
+
+	/**
+	 * Process received server hello done, when PSK credentials are available or
+	 * the certificates are verified.
+	 * 
+	 * @throws HandshakeException if an exception occurred processing the server
+	 *             hello done
+	 * @since 2.5
+	 */
+	private void processServerHelloDone() throws HandshakeException {
 
 		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
 

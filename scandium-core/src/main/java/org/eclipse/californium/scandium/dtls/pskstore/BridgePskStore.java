@@ -20,35 +20,21 @@ import java.net.InetSocketAddress;
 import javax.crypto.SecretKey;
 
 import org.eclipse.californium.scandium.dtls.ConnectionId;
+import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.PskSecretResult;
 import org.eclipse.californium.scandium.dtls.PskSecretResultHandler;
-import org.eclipse.californium.scandium.dtls.PskPublicInformation;
-import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
-import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalCryptoMap;
-import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalCryptoMap.Factory;
-import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalMac;
-import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
- * Simple in-memory example implementation of {@link AdvancedPskStore}.
+ * Adapter to use custom implementations of the deprecated {@link PskStore}
+ * until having them migrated.
  * 
- * Delegates calls to {@link PskStore}.
+ * Delegates lookups to provided {@link PskStore}.
  * 
- * @since 2.3
- * @deprecated use {@link BridgePskStore} until migrated.
+ * @since 2.5
  */
-@Deprecated
-public class AdvancedInMemoryPskStore implements AdvancedPskStore {
-
-	protected static final ThreadLocalCryptoMap<ThreadLocalMac> MAC = new ThreadLocalCryptoMap<>(
-			new Factory<ThreadLocalMac>() {
-
-				@Override
-				public ThreadLocalMac getInstance(String algorithm) {
-					return new ThreadLocalMac(algorithm);
-				}
-			});
+@SuppressWarnings("deprecation")
+public class BridgePskStore implements AdvancedPskStore {
 
 	protected final PskStore pskStore;
 
@@ -58,7 +44,7 @@ public class AdvancedInMemoryPskStore implements AdvancedPskStore {
 	 * @param pskStore psk store
 	 * @throws NullPointerException if store is {@code null}
 	 */
-	public AdvancedInMemoryPskStore(PskStore pskStore) {
+	public BridgePskStore(PskStore pskStore) {
 		if (pskStore == null) {
 			throw new NullPointerException("PSK store must not be null!");
 		}
@@ -74,11 +60,6 @@ public class AdvancedInMemoryPskStore implements AdvancedPskStore {
 	public PskSecretResult requestPskSecretResult(ConnectionId cid, ServerNames serverNames,
 			PskPublicInformation identity, String hmacAlgorithm, SecretKey otherSecret, byte[] seed) {
 		SecretKey secret = serverNames != null ? pskStore.getKey(serverNames, identity) : pskStore.getKey(identity);
-		if (secret != null) {
-			SecretKey masterSecret = generateMasterSecret(hmacAlgorithm, secret, otherSecret, seed);
-			SecretUtil.destroy(secret);
-			secret = masterSecret;
-		}
 		return new PskSecretResult(cid, identity, secret);
 	}
 
@@ -91,14 +72,4 @@ public class AdvancedInMemoryPskStore implements AdvancedPskStore {
 	public void setResultHandler(PskSecretResultHandler resultHandler) {
 		// empty implementation
 	}
-
-	protected SecretKey generateMasterSecret(String hmacAlgorithm, SecretKey pskSecret, SecretKey otherSecret,
-			byte[] seed) {
-		ThreadLocalMac hmac = MAC.get(hmacAlgorithm);
-		SecretKey premasterSecret = PseudoRandomFunction.generatePremasterSecretFromPSK(otherSecret, pskSecret);
-		SecretKey masterSecret = PseudoRandomFunction.generateMasterSecret(hmac.current(), premasterSecret, seed);
-		SecretUtil.destroy(premasterSecret);
-		return masterSecret;
-	}
-
 }

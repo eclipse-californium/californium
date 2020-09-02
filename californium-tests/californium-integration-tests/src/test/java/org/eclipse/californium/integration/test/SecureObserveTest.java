@@ -95,7 +95,8 @@ public class SecureObserveTest {
 	static final String KEY = "key1";
 
 	private NatUtil nat;
-	private TestUtilPskStore pskStore;
+	private TestUtilPskStore clientPskStore;
+	private TestUtilPskStore serverPskStore;
 	private DTLSConnector serverConnector;
 	private DTLSConnector clientConnector;
 	private CoapEndpoint serverEndpoint;
@@ -480,7 +481,7 @@ public class SecureObserveTest {
 		nat.reassignNewLocalAddresses();
 		serverConnector.clearConnectionState();
 		// change principal
-		pskStore.set("stranger", "danger".getBytes());
+		setPskCredentials("stranger", "danger");
 		resource.changed("client");
 
 		assertFalse("Unexpected notifies after address and principal changed",
@@ -500,14 +501,14 @@ public class SecureObserveTest {
 	}
 
 	private void createSecureServer(MatcherMode mode, ConnectionIdGenerator cidGenerator) {
-		pskStore = new TestUtilPskStore(IDENITITY, KEY.getBytes());
+		serverPskStore = new TestUtilPskStore();
 		DtlsConnectorConfig dtlsConfig = new DtlsConnectorConfig.Builder()
 				.setAddress(TestTools.LOCALHOST_EPHEMERAL)
 				.setLoggingTag("server")
 				.setReceiverThreadCount(2)
 				.setConnectionThreadCount(2)
 				.setConnectionIdGenerator(cidGenerator)
-				.setPskStore(pskStore).build();
+				.setAdvancedPskStore(serverPskStore).build();
 
 		NetworkConfig config = network.createTestConfig()
 				// retransmit constantly all 200 milliseconds
@@ -536,21 +537,28 @@ public class SecureObserveTest {
 		uri = TestTools.getUri(serverEndpoint, TARGET);
 
 		// prepare secure client endpoint
+		clientPskStore = new TestUtilPskStore();
 		DtlsConnectorConfig clientdtlsConfig = new DtlsConnectorConfig.Builder()
 				.setAddress(TestTools.LOCALHOST_EPHEMERAL)
 				.setLoggingTag("client")
 				.setReceiverThreadCount(2)
 				.setConnectionThreadCount(2)
 				.setConnectionIdGenerator(cidGenerator)
-				.setPskStore(pskStore).build();
+				.setAdvancedPskStore(clientPskStore).build();
 		clientConnector = new DTLSConnector(clientdtlsConfig);
 		builder = new CoapEndpoint.Builder();
 		builder.setConnector(clientConnector);
 		builder.setNetworkConfig(config);
 		clientEndpoint = builder.build();
 		EndpointManager.getEndpointManager().setDefaultEndpoint(clientEndpoint);
+		setPskCredentials(IDENITITY, KEY);
 		System.out.println("coap-server " + uri);
 		System.out.println("coap-client " + clientEndpoint.getUri());
+	}
+
+	private void setPskCredentials(String identity, String key) {
+		clientPskStore.set(identity, key.getBytes());
+		serverPskStore.set(identity, key.getBytes());
 	}
 
 	private void createInverseNat() throws Exception {

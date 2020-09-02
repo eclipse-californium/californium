@@ -36,7 +36,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.rule.TestTimeRule;
-import org.eclipse.californium.elements.runner.RepeatingTestRunner;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
@@ -49,7 +48,6 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-import org.junit.runner.RunWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,7 +56,6 @@ import org.slf4j.LoggerFactory;
  *
  */
 @Category(Small.class)
-@RunWith(RepeatingTestRunner.class)
 public class CookieGeneratorTest {
 	private static final Logger LOGGER = LoggerFactory.getLogger(CookieGeneratorTest.class);
 

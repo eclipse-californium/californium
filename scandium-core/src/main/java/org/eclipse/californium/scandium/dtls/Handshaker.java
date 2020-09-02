@@ -68,7 +68,6 @@ import java.security.Principal;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.cert.CertPath;
-import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -93,9 +92,7 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.auth.AdditionalInfo;
 import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
-import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.util.Bytes;
-import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.SerialExecutor;
@@ -108,9 +105,7 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
-import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
-import org.eclipse.californium.scandium.dtls.x509.AdvancedCertificateVerifier;
-import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.util.SecretIvParameterSpec;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
@@ -165,10 +160,7 @@ public abstract class Handshaker implements Destroyable {
 	 * The logic in charge of verifying the chain of certificates asserting this
 	 * handshaker's identity
 	 */
-	protected final CertificateVerifier certificateVerifier;
-
-	/** The trusted raw public keys */
-	protected final TrustedRpkStore rpkStore;
+	protected final NewAdvancedCertificateVerifier certificateVerifier;
 
 	/** Used to retrieve identity/pre-shared-key for a given destination */
 	protected final AdvancedPskStore advancedPskStore;
@@ -265,6 +257,11 @@ public abstract class Handshaker implements Destroyable {
 	protected List<X509Certificate> certificateChain;
 	/** The certificate path of the other peer */
 	protected CertPath peerCertPath;
+	/**
+	 * Indicates, that the certificate or public key verification has finished.
+	 * @since 2.5
+	 */
+	protected boolean certificateVerfied;
 
 	/**
 	 * Support Server Name Indication TLS extension.
@@ -332,6 +329,7 @@ public abstract class Handshaker implements Destroyable {
 	private boolean handshakeAborted = false;
 	private boolean handshakeFailed = false;
 	private boolean pskRequestPending = false;
+	private boolean certificateVerificationPending = false;
 	/**
 	 * Other secret for ECDHE-PSK cipher suites.
 	 * <a href="https://tools.ietf.org/html/rfc5489#page-4"> RFC 5489, other
@@ -418,8 +416,7 @@ public abstract class Handshaker implements Destroyable {
 		this.privateKey = config.getPrivateKey();
 		this.publicKey = config.getPublicKey();
 		this.certificateChain = config.getCertificateChain();
-		this.certificateVerifier = config.getCertificateVerifier();
-		this.rpkStore = config.getRpkTrustStore();
+		this.certificateVerifier = config.getAdvancedCertificateVerifier();
 		this.advancedPskStore = config.getAdvancedPskStore();
 		this.applicationLevelInfoSupplier = config.getApplicationLevelInfoSupplier();
 		this.inboundMessageBuffer = new InboundMessageBuffer();
@@ -942,6 +939,31 @@ public abstract class Handshaker implements Destroyable {
 	public abstract void startHandshake() throws HandshakeException;
 
 	/**
+	 * Process asynchronous handshake result.
+	 * 
+	 * MUST not be called from {@link #doProcessMessage(HandshakeMessage)}
+	 * implementations! If handshake expects the cipher change message, then
+	 * process the messages from the inbound buffer.
+	 * 
+	 * @param handshakeResult asynchronous handshake result
+	 * @throws HandshakeException if an error occurs
+	 * @throws IllegalStateException if {@link #pskRequestPending} or
+	 *             {@link #certificateVerificationPending} is not pending, or
+	 *             the handshaker {@link #isDestroyed()}.
+	 * @since 2.5
+	 */
+	public void processAsyncHandshakeResult(HandshakeResult handshakeResult) throws HandshakeException {
+		if (handshakeResult instanceof PskSecretResult) {
+			processAsyncPskSecretResult((PskSecretResult) handshakeResult);
+		} else if (handshakeResult instanceof CertificateVerificationResult) {
+			processCertificateVerificationResult((CertificateVerificationResult) handshakeResult);
+			if (changeCipherSuiteMessageExpected) {
+				processNextMessages(null);
+			}
+		}
+	}
+
+	/**
 	 * Process asynchronous PSK secret result.
 	 * 
 	 * MUST not be called from {@link #doProcessMessage(HandshakeMessage)}
@@ -953,7 +975,9 @@ public abstract class Handshaker implements Destroyable {
 	 * @throws IllegalStateException if {@link #pskRequestPending} is not
 	 *             pending, or the handshaker {@link #isDestroyed()}.
 	 * @since 2.3
+	 * @deprecated use {@link #processAsyncHandshakeResult(HandshakeResult)} instead.
 	 */
+	@Deprecated
 	public void processAsyncPskSecretResult(PskSecretResult pskSecretResult) throws HandshakeException {
 		processPskSecretResult(pskSecretResult);
 		if (changeCipherSuiteMessageExpected) {
@@ -1034,6 +1058,49 @@ public abstract class Handshaker implements Destroyable {
 	 * @since 2.3
 	 */
 	protected abstract void processMasterSecret(SecretKey masterSecret) throws HandshakeException;
+
+	/**
+	 * Process certificate verification result.
+	 * 
+	 * @param certificateVerificationResult certificate verification result
+	 * @throws HandshakeException if an error occurred during processing
+	 * @throws IllegalStateException if {@link #certificateVerificationPending}
+	 *             is not pending, or the handshaker {@link #isDestroyed()}.
+	 * @since 2.5
+	 */
+	protected void processCertificateVerificationResult(CertificateVerificationResult certificateVerificationResult)
+			throws HandshakeException {
+		if (!certificateVerificationPending) {
+			throw new IllegalStateException("certificate verification not pending!");
+		}
+		ensureUndestroyed();
+		certificateVerificationPending = false;
+		LOGGER.info("Process result of certificate verification.");
+		if (certificateVerificationResult.getCertificatePath() != null) {
+			peerCertPath = certificateVerificationResult.getCertificatePath();
+			certificateVerfied = true;
+			customArgument = certificateVerificationResult.getCustomArgument();
+			processCertificateVerified();
+		} else if (certificateVerificationResult.getPublicKey() != null) {
+			certificateVerfied = true;
+			customArgument = certificateVerificationResult.getCustomArgument();
+			processCertificateVerified();
+		} else if (certificateVerificationResult.getException() != null) {
+			throw certificateVerificationResult.getException();
+		} else {
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE,
+					session.getPeer());
+			throw new HandshakeException("Bad Certificate", alert);
+		}
+	}
+
+	/**
+	 * Do the handshaker specific processing of successful verified certificates
+	 * 
+	 * @throws HandshakeException if an error occurs
+	 * @since 2.5
+	 */
+	protected abstract void processCertificateVerified() throws HandshakeException;
 
 	// Methods ////////////////////////////////////////////////////////
 
@@ -1930,52 +1997,18 @@ public abstract class Handshaker implements Destroyable {
 	 * @throws HandshakeException if any of the checks fails
 	 */
 	public void verifyCertificate(CertificateMessage message) throws HandshakeException {
-		CertPath certPath = message.getCertificateChain();
-		if (certPath != null) {
-			if (certificateVerifier == null) {
-				LOGGER.debug("Certificate validation failed: x509 could not be trusted!");
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE,
-						session.getPeer());
-				throw new HandshakeException("Trust is not possible!", alert);
-			}
-
-			List<? extends Certificate> certificates = certPath.getCertificates();
-			if (certificates.isEmpty()) {
-				if (isClient) {
-					LOGGER.debug("Certificate validation failed: empty server certificate!");
-					AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE,
-							session.getPeer());
-					throw new HandshakeException("Empty server certificate!", alert);
-				}
-			}
-
-			if (certificateVerifier instanceof AdvancedCertificateVerifier) {
-				Boolean clientUsage = useKeyUsageVerification ? !isClient : null;
-				peerCertPath = ((AdvancedCertificateVerifier) certificateVerifier).verifyCertificate(clientUsage,
-						useTruncatedCertificatePathForVerification, message, session);
-			} else {
-				if (useKeyUsageVerification && !certificates.isEmpty()) {
-					Certificate certificate = certificates.get(0);
-					if (certificate instanceof X509Certificate) {
-						if (!CertPathUtil.canBeUsedForAuthentication((X509Certificate) certificate, !isClient)) {
-							LOGGER.debug("Certificate validation failed: key usage doesn't match");
-							AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE,
-									session.getPeer());
-							throw new HandshakeException("Key Usage doesn't match!", alert);
-						}
-					}
-				}
-				certificateVerifier.verifyCertificate(message, session);
-				peerCertPath = certPath;
-			}
-		} else {
-			RawPublicKeyIdentity rpk = new RawPublicKeyIdentity(message.getPublicKey());
-			if (!rpkStore.isTrusted(rpk)) {
-				LOGGER.debug("Certificate validation failed: Raw public key is not trusted");
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE,
-						session.getPeer());
-				throw new HandshakeException("Raw public key is not trusted!", alert);
-			}
+		if (certificateVerifier == null) {
+			LOGGER.debug("Certificate validation failed: no verifier available!");
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE,
+					session.getPeer());
+			throw new HandshakeException("Trust is not possible!", alert);
+		}
+		Boolean clientUsage = useKeyUsageVerification ? !isClient : null;
+		LOGGER.info("Start certificate verification.");
+		certificateVerificationPending = true;
+		CertificateVerificationResult verificationResult = certificateVerifier.verifyCertificate(connection.getConnectionId(), null, clientUsage, useTruncatedCertificatePathForVerification, message, session);
+		if (verificationResult != null) {
+			processCertificateVerificationResult(verificationResult);
 		}
 	}
 

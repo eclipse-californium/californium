@@ -61,13 +61,11 @@ import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.TestScheduledExecutorService;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
-import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
-import org.eclipse.californium.scandium.dtls.rpkstore.InMemoryRpkTrustStore;
-import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
-import org.eclipse.californium.scandium.dtls.x509.StaticCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.junit.After;
 import org.junit.Before;
@@ -97,7 +95,6 @@ public class HandshakerTest {
 	CertificateMessage message;
 	InetSocketAddress peerAddress;
 	PublicKey serverPublicKey;
-	TrustedRpkStore rpkStore;
 	ScheduledExecutorService timer;
 
 	/**
@@ -135,17 +132,21 @@ public class HandshakerTest {
 		recordLayer = mock(RecordLayer.class);
 		serverPublicKey = DtlsTestTools.getPublicKey();
 		peerAddress = new InetSocketAddress(InetAddress.getLoopbackAddress(), 5684);
-		rpkStore = new InMemoryRpkTrustStore(Collections.singleton(new RawPublicKeyIdentity(serverPublicKey)));
-		DtlsConnectorConfig.Builder builder = new Builder();
+
+		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder()
+				.setTrustedRPKs(new RawPublicKeyIdentity(serverPublicKey)).build();
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder();
 		builder.setClientOnly();
-		builder.setRpkTrustStore(rpkStore);
+		builder.setAdvancedCertificateVerifier(verifier);
 
 		handshakerWithoutAnchors = new TestHandshaker(session, recordLayer, builder.build());
 
-		builder = new Builder();
+		verifier = StaticNewAdvancedCertificateVerifier.builder()
+				.setTrustedRPKs(new RawPublicKeyIdentity(serverPublicKey))
+				.setTrustedCertificates(trustAnchor).build();
+		builder = DtlsConnectorConfig.builder();
 		builder.setClientOnly();
-		builder.setCertificateVerifier(new StaticCertificateVerifier(trustAnchor));
-		builder.setRpkTrustStore(rpkStore);
+		builder.setAdvancedCertificateVerifier(verifier);
 
 		handshakerWithAnchors = new TestHandshaker(session, recordLayer, builder.build());
 	}
@@ -158,9 +159,9 @@ public class HandshakerTest {
 
 	@Test
 	public void testProcessMessageBuffersUnexpectedChangeCipherSpecMessage() throws Exception {
-		DtlsConnectorConfig.Builder builder = new Builder();
-		builder.setClientOnly();
-		builder.setRpkTrustStore(rpkStore);
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder().setClientOnly()
+				.setAdvancedCertificateVerifier(StaticNewAdvancedCertificateVerifier.builder()
+						.setTrustedRPKs(new RawPublicKeyIdentity(serverPublicKey)).build());
 
 		session.setCipherSuite(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
 
@@ -186,9 +187,9 @@ public class HandshakerTest {
 
 	@Test
 	public void testProcessMessageBuffersFinishedMessageUntilChangeCipherSpecIsReceived() throws Exception {
-		DtlsConnectorConfig.Builder builder = new Builder();
-		builder.setClientOnly();
-		builder.setRpkTrustStore(rpkStore);
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder().setClientOnly()
+				.setAdvancedCertificateVerifier(StaticNewAdvancedCertificateVerifier.builder()
+						.setTrustedRPKs(new RawPublicKeyIdentity(serverPublicKey)).build());
 
 		// GIVEN a handshaker expecting the peer's ChangeCipherSpec message
 		SimpleRecordLayer recordLayer = new SimpleRecordLayer();
@@ -412,7 +413,7 @@ public class HandshakerTest {
 
 	private void assertThatCertificateVerificationFails() {
 		try {
-			handshakerWithoutAnchors.verifyCertificate(message);
+			handshakerWithAnchors.verifyCertificate(message);
 			fail("Verification of certificate should have failed");
 		} catch (HandshakeException e) {
 			// all is well
@@ -460,7 +461,9 @@ public class HandshakerTest {
 		private AtomicBoolean finishedProcessed = new AtomicBoolean(false);
 
 		TestHandshaker(DTLSSession session, RecordLayer recordLayer, DtlsConnectorConfig config) {
-			super(false, 0, session, recordLayer, timer, new Connection(session.getPeer(), new SyncSerialExecutor()), config);
+			super(false, 0, session, recordLayer, timer, new Connection(session.getPeer(), new SyncSerialExecutor()),
+					config);
+			getConnection().setConnectionId(new ConnectionId(new byte[] { 1, 2, 3, 4 }));
 		}
 
 		@Override
@@ -489,7 +492,11 @@ public class HandshakerTest {
 		}
 
 		@Override
-		protected void processMasterSecret(SecretKey masterSecret) throws HandshakeException {
+		protected void processMasterSecret(SecretKey masterSecret) {
+		}
+
+		@Override
+		protected void processCertificateVerified() {
 		}
 
 		void decryptAndProcessMessage(Record record) throws HandshakeException, GeneralSecurityException {
