@@ -62,6 +62,7 @@ public class PskSecretResult {
 	 * @param secret secret, {@code null}, if generation failed. Algorithm must
 	 *            be "MAC" or "PSK".
 	 * @throws IllegalArgumentException if algorithm is neither "MAC" nor "PSK"
+	 * @throws NullPointerException if cid or pskIdentity is {@code null}
 	 */
 	public PskSecretResult(ConnectionId cid, PskPublicInformation pskIdentity, SecretKey secret) {
 		this(cid, pskIdentity, secret, null);
@@ -80,6 +81,7 @@ public class PskSecretResult {
 	 *            {@link Handshaker}, if a
 	 *            {@link AdvancedApplicationLevelInfoSupplier} is available.
 	 * @throws IllegalArgumentException if algorithm is neither "MAC" nor "PSK"
+	 * @throws NullPointerException if cid or pskIdentity is {@code null}
 	 */
 	public PskSecretResult(ConnectionId cid, PskPublicInformation pskIdentity, SecretKey secret,
 			Object customArgument) {
