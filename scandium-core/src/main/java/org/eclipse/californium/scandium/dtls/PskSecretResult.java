@@ -37,7 +37,7 @@ public class PskSecretResult {
 	 */
 	private final ConnectionId cid;
 	/**
-	 * PSK indentity. On success, the identity is
+	 * PSK identity. On success, the identity is
 	 * {@link PskPublicInformation#normalize(String)}d.
 	 */
 	private final PskPublicInformation pskIdentity;
@@ -68,7 +68,7 @@ public class PskSecretResult {
 	}
 
 	/**
-	 * Create result wiht custom argument for
+	 * Create result with custom argument for
 	 * {@link AdvancedApplicationLevelInfoSupplier}.
 	 * 
 	 * @param cid connection id
