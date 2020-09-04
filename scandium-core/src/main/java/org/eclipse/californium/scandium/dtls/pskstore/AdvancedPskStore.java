@@ -30,7 +30,7 @@ import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
- * Advanded PSK store with optional asynchronous API.
+ * Advanced PSK store with optional asynchronous API.
  * 
  * It could also be used to delegate the master secret generation to a HSM.
  * 

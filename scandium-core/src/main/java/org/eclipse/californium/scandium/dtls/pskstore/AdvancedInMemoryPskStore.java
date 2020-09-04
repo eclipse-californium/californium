@@ -87,6 +87,7 @@ public class AdvancedInMemoryPskStore implements AdvancedPskStore {
 
 	@Override
 	public void setResultHandler(PskSecretResultHandler resultHandler) {
+		// empty implementation
 	}
 
 	protected SecretKey generateMasterSecret(String hmacAlgorithm, SecretKey pskSecret, SecretKey otherSecret,

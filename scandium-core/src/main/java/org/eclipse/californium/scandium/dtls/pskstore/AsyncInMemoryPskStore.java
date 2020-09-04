@@ -119,7 +119,7 @@ public class AsyncInMemoryPskStore extends AdvancedInMemoryPskStore {
 	}
 
 	/**
-	 * Shutdown. Cleanup resouces.
+	 * Shutdown. Cleanup resources.
 	 */
 	public void shutdown() {
 		executorService.shutdown();
