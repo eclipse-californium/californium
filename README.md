@@ -18,8 +18,7 @@ $ mvn clean install
 
 Executable JARs of the examples with all dependencies can be found in the `demo-apps/run` folder.
 
-The build-process is tested for jdk 7, jdk 8 and jdk 11. For jdk 7 the revapi maven-plugin is disabled,
-it requires at least java 8.
+The build-process is tested for jdk 7, jdk 8 and jdk 11. For jdk 7 the revapi maven-plugin is disabled, it requires at least java 8.
 
 To generate the javadocs, add "-DcreateJavadoc=true" to the command line and set the `JAVA_HOME`.
 
@@ -59,7 +58,7 @@ $ mvn clean install -DuseToolchainJavadoc=true
 
 # Using Californium in Maven Projects
 
-We are publishing Californium's artifacts for milestones and releases to [Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:2.4.0).
+We are publishing Californium's artifacts for milestones and releases to [Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:2.4.1).
 To use the latest released version as a library in your projects, add the following dependency
 to your `pom.xml` (without the dots):
 
@@ -69,7 +68,7 @@ to your `pom.xml` (without the dots):
     <dependency>
             <groupId>org.eclipse.californium</groupId>
             <artifactId>californium-core</artifactId>
-            <version>2.4.0</version>
+            <version>2.4.1</version>
     </dependency>
     ...
   </dependencies>
@@ -94,7 +93,7 @@ You will therefore need to add the Eclipse Repository to your `pom.xml` first:
   </repositories>
 ```
 You can then simply depend on `2.5.0-SNAPSHOT`.
- 
+
 # Eclipse
 
 The project can be easily imported into a recent version of the Eclipse IDE.
@@ -115,7 +114,7 @@ In IntelliJ, choose *[File.. &raquo; Open]* then select the location of the clon
 # Interop Server
 
 A test server is running at <a href="coap://californium.eclipse.org:5683/">coap://californium.eclipse.org:5683/</a>.
-It is an instance of the [cf-plugtest-server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/2.4.0/cf-plugtest-server-2.4.0.jar) from the demo-apps.
+It is an instance of the [cf-plugtest-server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/2.4.1/cf-plugtest-server-2.4.1.jar) from the demo-apps.
 The root resource responds with its current version.
 More information can be found at [http://californium.eclipse.org/](http://californium.eclipse.org/).
 
