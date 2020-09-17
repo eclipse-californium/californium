@@ -693,6 +693,32 @@ public class Asn1DerDecoder {
 	}
 
 	/**
+	 * Ensure, that a EdDSA private key is created by the EdDSA provider.
+	 * 
+	 * @param privateKey private key
+	 * @return private key, or re-encoded EDDSA private key.
+	 * @see #getEdDsaProvider()
+	 * @since 2.5
+	 */
+	public static PrivateKey ensureEdDsaPrivateKeyProvider(PrivateKey privateKey) {
+		String algorithm = Asn1DerDecoder.getEdDsaStandardAlgorithmName(privateKey.getAlgorithm(), null);
+		if (algorithm != null) {
+			// EdDSA may require the private key to be created by the EdDSA provider
+			try {
+				Keys keys = Asn1DerDecoder.readPrivateKey(privateKey.getEncoded());
+				if (keys != null) {
+					PrivateKey newPrivateKey = keys.getPrivateKey();
+					if (!newPrivateKey.getClass().equals(privateKey.getClass())) {
+						return newPrivateKey;
+					}
+				}
+			} catch (GeneralSecurityException e) {
+			}
+		}
+		return privateKey;
+	}
+
+	/**
 	 * Check for equal key algorithm synonyms.
 	 * 
 	 * Currently on "DH" and "DiffieHellman" are supported synonyms.
