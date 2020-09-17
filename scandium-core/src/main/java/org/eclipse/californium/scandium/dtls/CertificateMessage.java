@@ -47,8 +47,6 @@ import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalCertificateFactory;
-import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalCryptoMap;
-import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalCryptoMap.Factory;
 import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalKeyFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -80,18 +78,6 @@ public final class CertificateMessage extends HandshakeMessage {
 	 * <code>ASN.1Cert certificate_list<0..2^24-1>;</code>
 	 */
 	private static final int CERTIFICATE_LIST_LENGTH_BITS = 24;
-
-	/**
-	 * @since 2.4
-	 */
-	private static final ThreadLocalCryptoMap<ThreadLocalKeyFactory> KEY_FACTORIES = new ThreadLocalCryptoMap<>(
-			new Factory<ThreadLocalKeyFactory>() {
-
-				@Override
-				public ThreadLocalKeyFactory getInstance(String algorithm) {
-					return new ThreadLocalKeyFactory(algorithm);
-				}
-			});
 
 	/**
 	 * @since 2.4
@@ -249,7 +235,7 @@ public final class CertificateMessage extends HandshakeMessage {
 				try {
 					String keyAlgorithm = Asn1DerDecoder.readSubjectPublicKeyAlgorithm(rawPublicKeyBytes);
 					if (keyAlgorithm != null) {
-						ThreadLocalKeyFactory factory = KEY_FACTORIES.get(keyAlgorithm);
+						ThreadLocalKeyFactory factory = ThreadLocalKeyFactory.KEY_FACTORIES.get(keyAlgorithm);
 						if (factory != null && factory.current() != null) {
 							publicKey = factory.current().generatePublic(new X509EncodedKeySpec(rawPublicKeyBytes));
 						}

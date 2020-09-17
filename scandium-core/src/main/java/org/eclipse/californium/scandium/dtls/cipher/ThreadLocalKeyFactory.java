@@ -58,4 +58,17 @@ public class ThreadLocalKeyFactory extends ThreadLocalCrypto<KeyFactory> {
 		});
 	}
 
+	/**
+	 * Map of thread local key factories.
+	 * 
+	 * @since 2.5
+	 */
+	public static final ThreadLocalCryptoMap<ThreadLocalKeyFactory> KEY_FACTORIES = new ThreadLocalCryptoMap<>(
+			new ThreadLocalCryptoMap.Factory<ThreadLocalKeyFactory>() {
+
+				@Override
+				public ThreadLocalKeyFactory getInstance(String algorithm) {
+					return new ThreadLocalKeyFactory(algorithm);
+				}
+			});
 }
