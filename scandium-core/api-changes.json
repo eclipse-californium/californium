@@ -303,7 +303,6 @@
 				},
 				{
 					"code": "java.class.nonFinalClassInheritsFromNewClass",
-					"old": "class org.eclipse.californium.scandium.dtls.PskSecretResult",
 					"new": "class org.eclipse.californium.scandium.dtls.PskSecretResult",
 					"justification": "moving fields to ConnectionResult doesn't change the API"
 				},
@@ -323,6 +322,24 @@
 					"code": "java.method.abstractMethodAdded",
 					"new": "method void org.eclipse.californium.scandium.dtls.Handshaker::processCertificateVerified() throws org.eclipse.californium.scandium.dtls.HandshakeException",
 					"justification": "not part of the public API"
+				},
+				{
+					"code": "java.field.nowFinal",
+					"new": "field org.eclipse.californium.scandium.dtls.Handshaker.privateKey",
+					"justification": "not part of the public API",
+					"newModifiers": "protected final"
+				},
+				{
+					"code": "java.field.nowFinal",
+					"new": "field org.eclipse.californium.scandium.dtls.Handshaker.publicKey",
+					"justification": "not part of the public API",
+					"newModifiers": "protected final"
+				},
+				{
+					"code": "java.field.nowFinal",
+					"new": "field org.eclipse.californium.scandium.dtls.Handshaker.certificateChain",
+					"justification": "not part of the public API",
+					"newModifiers": "protected final"
 				}
 			]
 		}

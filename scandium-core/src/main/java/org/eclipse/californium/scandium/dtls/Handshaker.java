@@ -248,13 +248,13 @@ public abstract class Handshaker implements Destroyable {
 	protected ReassemblingHandshakeMessage reassembledMessage;
 
 	/** The handshaker's private key. */
-	protected PrivateKey privateKey;
+	protected final PrivateKey privateKey;
 
 	/** The handshaker's public key. */
-	protected PublicKey publicKey;
+	protected final PublicKey publicKey;
 
 	/** The chain of certificates asserting this handshaker's identity */
-	protected List<X509Certificate> certificateChain;
+	protected final List<X509Certificate> certificateChain;
 	/** The certificate path of the other peer */
 	protected CertPath peerCertPath;
 	/**
