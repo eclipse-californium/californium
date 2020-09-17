@@ -86,7 +86,6 @@ import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalKeyPairGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
-import org.eclipse.californium.scandium.dtls.pskstore.AsyncInMemoryPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.AsyncAdvancedPskStore;
 import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
@@ -250,8 +249,8 @@ public class DTLSConnectorHandshakeTest {
 			@Override
 			public void setup(Builder builder) {
 				AdvancedPskStore pskStore = builder.getIncompleteConfig().getAdvancedPskStore();
-				if (pskStore instanceof AsyncInMemoryPskStore) {
-					((AsyncInMemoryPskStore) pskStore).setDelay(0);
+				if (pskStore instanceof AsyncAdvancedPskStore) {
+					((AsyncAdvancedPskStore) pskStore).setDelay(0);
 				}
 				NewAdvancedCertificateVerifier verifier = builder.getIncompleteConfig()
 						.getAdvancedCertificateVerifier();
@@ -269,8 +268,8 @@ public class DTLSConnectorHandshakeTest {
 			@Override
 			public void setup(Builder builder) {
 				AdvancedPskStore pskStore = builder.getIncompleteConfig().getAdvancedPskStore();
-				if (pskStore instanceof AsyncInMemoryPskStore) {
-					((AsyncInMemoryPskStore) pskStore).setDelay(1);
+				if (pskStore instanceof AsyncAdvancedPskStore) {
+					((AsyncAdvancedPskStore) pskStore).setDelay(1);
 				}
 				NewAdvancedCertificateVerifier verifier = builder.getIncompleteConfig()
 						.getAdvancedCertificateVerifier();
@@ -385,7 +384,6 @@ public class DTLSConnectorHandshakeTest {
 				serverVerifier.setDelay(DtlsTestTools.DEFAULT_HANDSHAKE_RESULT_DELAY_MILLIS);
 			}
 		}
-		
 		serverBuilderSetup.setup(builder);
 		serverHelper.startServer(builder);
 	}
@@ -439,8 +437,13 @@ public class DTLSConnectorHandshakeTest {
 
 	private void startClientX509(boolean enableSni, boolean anonymous, String hostname, CipherSuite cipherSuite)
 			throws Exception {
+		startClientX509(enableSni, anonymous, hostname, cipherSuite, new X509Certificate[0]);
+	}
+
+	private void startClientX509(boolean enableSni, boolean anonymous, String hostname, CipherSuite cipherSuite, X509Certificate... trusts)
+			throws Exception {
 		AsyncNewAdvancedCertificateVerifier clientCertificateVerifier = (AsyncNewAdvancedCertificateVerifier) AsyncNewAdvancedCertificateVerifier
-				.builder().setTrustAllCertificates().build();
+				.builder().setTrustedCertificates(trusts).build();
 		clientsCertificateVerifiers.add(clientCertificateVerifier);
 		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
 				.setAdvancedCertificateVerifier(clientCertificateVerifier);
@@ -830,6 +833,20 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal, is(nullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
 		verify(clientInfoSupplier, never()).getInfo(any(Principal.class));
+	}
+
+	@Test
+	public void testX509TrustServerCertificate() throws Exception {
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder().setClientAuthenticationWanted(true)
+				.setIdentity(DtlsTestTools.getServerRsPrivateKey(), DtlsTestTools.getServerRsaCertificateChain())
+				.setApplicationLevelInfoSupplier(clientInfoSupplier);
+		startServer(builder);
+		startClientX509(false, false, null, null, DtlsTestTools.getServerRsaCertificateChain()[0]);
+		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
+		Principal principal = endpointContext.getPeerIdentity();
+		assertThat(principal, is(notNullValue()));
+		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertClientPrincipalHasAdditionalInfo(principal);
 	}
 
 	@Test
