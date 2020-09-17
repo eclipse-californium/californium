@@ -216,9 +216,7 @@ public class ClientBaseConfig extends ConnectorConfig {
 		ClientBaseConfig clone = null;
 		try {
 			clone = (ClientBaseConfig) clone();
-			if (clone.authentication == null) {
-				clone.authentication = new Authentication();
-			}
+			clone.authentication = new Authentication();
 			clone.authentication.credentials = new SslContextUtil.Credentials(privateKey, publicKey, null);
 		} catch (CloneNotSupportedException e) {
 			e.printStackTrace();
