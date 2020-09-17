@@ -672,6 +672,29 @@ public enum CipherSuite {
 	}
 
 	/**
+	 * Gets a list of cipher suites by their (official) names.
+	 * 
+	 * @param names the cipher's <a href=
+	 *            "http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4">
+	 *            IANA assigned names</a>
+	 * @return the list of cipher suite
+	 * @throw IllegalArgumentException if at least one name is not available.
+	 * @since 2.5
+	 */
+	public static List<CipherSuite> getTypesByNames(String... names) {
+		List<CipherSuite> suites = new ArrayList<>(names.length);
+		for (int i = 0; i < names.length; i++) {
+			CipherSuite knownSuite = getTypeByName(names[i]);
+			if (knownSuite != null) {
+				suites.add(knownSuite);
+			} else {
+				throw new IllegalArgumentException(String.format("Cipher suite [%s] is not (yet) supported", names[i]));
+			}
+		}
+		return suites;
+	}
+
+	/**
 	 * Checks if a list of cipher suite contains an PSK based cipher.
 	 * 
 	 * @param cipherSuites The cipher suites to check.
