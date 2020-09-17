@@ -27,6 +27,7 @@ import java.security.cert.PKIXParameters;
 import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -325,20 +326,24 @@ public class CertPathUtil {
 		X509Certificate root = (X509Certificate) list.get(last);
 		Set<TrustAnchor> trustAnchors = new HashSet<TrustAnchor>();
 		CertPath verifyCertPath;
+		String mode;
 		if (trustedCertificates.length == 0) {
 			// trust all
 			if (last == 0) {
 				if (!root.getIssuerX500Principal().equals(root.getSubjectX500Principal())) {
 					// single certificate, not self signed => trust all ;-(.
+					LOGGER.debug("   trust all- single certificate {}", root.getSubjectX500Principal());
 					return certPath;
 				}
 				++last;
 			}
-			// verify certificate chain using the last certificate as trust
-			// anchor
+			// verify certificate chain using the
+			// last certificate as trust anchor
+			mode = "last";
 			trustAnchors.add(new TrustAnchor(root, null));
 			verifyCertPath = generateCertPath(chain, last);
 		} else if (truncateCertificatePath) {
+			mode = "anchor";
 			X509Certificate trust = null;
 			for (int index = 0; index < size; ++index) {
 				X509Certificate certificate = chain.get(index);
@@ -346,6 +351,22 @@ public class CertPathUtil {
 				if (trust != null) {
 					size = index + 1;
 					break;
+				}
+			}
+			if (trust == null) {
+				// check, if node's certificate itself is trusted.
+				X509Certificate node = chain.get(0);
+				X509Certificate self = search(node.getSubjectX500Principal(), trustedCertificates);
+				if (self != null && Arrays.equals(node.getEncoded(), self.getEncoded())) {
+					if (size > 1) {
+						// reverse trust => use issuer as anchor
+						mode = "node's issuer";
+						trust = chain.get(1);
+						size = 1;
+					} else {
+						LOGGER.debug("   trust node - single certificate {}", node.getSubjectX500Principal());
+						return certPath;
+					}
 				}
 			}
 			if (trust != null) {
@@ -360,7 +381,10 @@ public class CertPathUtil {
 			certPath = verifyCertPath;
 		} else {
 			X509Certificate trust = search(root.getIssuerX500Principal(), trustedCertificates);
-			if (trust == null) {
+			if (trust != null) {
+				mode = "top's issuer";
+			} else {
+				mode = "top's subject";
 				trust = search(root.getSubjectX500Principal(), trustedCertificates);
 			}
 			if (trust != null) {
@@ -374,11 +398,16 @@ public class CertPathUtil {
 		if (LOGGER.isDebugEnabled()) {
 			List<X509Certificate> validateChain = toX509CertificatesList(verifyCertPath.getCertificates());
 			LOGGER.debug("verify: certificate path {} (orig. {})", validateChain.size(), list.size());
+			X509Certificate top = null;
 			for (X509Certificate certificate : validateChain) {
-				LOGGER.debug("   cert: {}", certificate.getSubjectX500Principal());
+				LOGGER.debug("   cert : {}", certificate.getSubjectX500Principal());
+				top = certificate;
+			}
+			if (top != null) {
+				LOGGER.debug("   sign : {}", top.getIssuerX500Principal());
 			}
 			for (TrustAnchor anchor : trustAnchors) {
-				LOGGER.debug("   trust: {}", anchor.getTrustedCert().getIssuerX500Principal());
+				LOGGER.debug("   trust: {}, {}", mode, anchor.getTrustedCert().getSubjectX500Principal());
 			}
 		}
 		CertPathValidator validator = CertPathValidator.getInstance("PKIX");
