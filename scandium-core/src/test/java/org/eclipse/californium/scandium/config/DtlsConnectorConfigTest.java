@@ -24,7 +24,9 @@ package org.eclipse.californium.scandium.config;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.either;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.core.IsCollectionContaining.hasItems;
 import static org.hamcrest.core.IsCollectionContaining.hasItems;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -156,6 +158,22 @@ public class DtlsConnectorConfigTest {
 						CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
 						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256));
+	}
+
+	@Test
+	public void testBuilderSetsPreselectedCipherSuitesWhenKeysAndPskStoreAreSet() throws Exception {
+		DtlsConnectorConfig config = builder.setClientAuthenticationRequired(false)
+				.setRecommendedCipherSuitesOnly(false)
+				.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
+				.setAdvancedPskStore(new AdvancedSinglePskStore("ID", "KEY".getBytes()))
+				.setPreselectedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
+						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256)
+				.build();
+		List<CipherSuite> cipherSuites = config.getSupportedCipherSuites();
+		assertThat(cipherSuites,
+				hasItems(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256));
+		assertThat(cipherSuites, not(hasItems(CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256)));
+		assertThat(cipherSuites, not(hasItems(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)));
 	}
 
 	@Test

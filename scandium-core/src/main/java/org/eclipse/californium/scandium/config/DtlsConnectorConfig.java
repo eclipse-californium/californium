@@ -313,6 +313,21 @@ public final class DtlsConnectorConfig {
 	 */
 	private CipherSuiteSelector cipherSuiteSelector;
 
+	/**
+	 * Preselected cipher suites.
+	 * 
+	 * If no supported cipher suites are provided, consider only this subset of
+	 * {@link CipherSuite} to be automatically selected as supported cipher
+	 * suites depending on other setting (e.g. if settings allow only PSK, only
+	 * PSK compatible cipher suite from this list will be selected).
+	 * 
+	 * Not used, if supported cipher suites are provided.
+	 * 
+	 * @see #supportedCipherSuites
+	 * @since 2.5
+	 */
+	private List<CipherSuite> preselectedCipherSuites;
+
 	/** the supported cipher suites in order of preference */
 	private List<CipherSuite> supportedCipherSuites;
 
@@ -786,6 +801,24 @@ public final class DtlsConnectorConfig {
 	 */
 	public CipherSuiteSelector getCipherSuiteSelector() {
 		return cipherSuiteSelector;
+	}
+
+	/**
+	 * Gets the preselected cipher suites.
+	 * 
+	 * If no supported cipher suites are provided, consider only this subset of
+	 * {@link CipherSuite} to be automatically selected as supported cipher
+	 * suites depending on other setting (e.g. if settings allow only PSK, only
+	 * PSK compatible cipher suite from this list will be selected).
+	 * 
+	 * Not used, if supported cipher suites are provided.
+	 * 
+	 * @return the preselected cipher suites
+	 * @see #getSupportedCipherSuites()
+	 * @since 2.5
+	 */
+	public List<CipherSuite> getPreselectedCipherSuites() {
+		return preselectedCipherSuites;
 	}
 
 	/**
@@ -1307,6 +1340,7 @@ public final class DtlsConnectorConfig {
 		cloned.publicKey = publicKey;
 		cloned.certChain = certChain;
 		cloned.cipherSuiteSelector = cipherSuiteSelector;
+		cloned.preselectedCipherSuites = preselectedCipherSuites;
 		cloned.supportedCipherSuites = supportedCipherSuites;
 		cloned.supportedSignatureAlgorithms = supportedSignatureAlgorithms;
 		cloned.supportedGroups = supportedGroups;
@@ -1908,6 +1942,87 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
+		 * Sets the preselected cipher suites for the connector.
+		 * 
+		 * If no supported cipher suites are provided, consider only this subset
+		 * of {@link CipherSuite} to be automatically selected as supported
+		 * cipher suites depending on other setting (e.g. if settings allow only
+		 * PSK, only PSK compatible cipher suite from this list will be
+		 * selected).
+		 * 
+		 * Not used, if supported cipher suites are provided.
+		 * 
+		 * @param cipherSuites the preselected cipher suites
+		 * @return this builder for command chaining
+		 * @since 2.5
+		 */
+		public Builder setPreselectedCipherSuites(CipherSuite... cipherSuites) {
+			if (cipherSuites == null) {
+				config.preselectedCipherSuites = null;
+				return this;
+			} else {
+				return setPreselectedCipherSuites(Arrays.asList(cipherSuites));
+			}
+		}
+
+		/**
+		 * Sets the preselected cipher suites for the connector.
+		 * 
+		 * If no supported cipher suites are provided, consider only this subset
+		 * of {@link CipherSuite} to be automatically selected as supported
+		 * cipher suites depending on other setting (e.g. if settings allow only
+		 * PSK, only PSK compatible cipher suite from this list will be
+		 * selected).
+		 * 
+		 * Not used, if supported cipher suites are provided.
+		 * 
+		 * @param cipherSuites the preselected cipher suites
+		 * @return this builder for command chaining
+		 * @throw IllegalArgumentException if the list is empty, or
+		 *        "TLS_NULL_WITH_NULL_NULL" is contained.
+		 * @since 2.5
+		 */
+		public Builder setPreselectedCipherSuites(List<CipherSuite> cipherSuites) {
+			if (cipherSuites == null) {
+				config.preselectedCipherSuites = null;
+			} else if (cipherSuites.isEmpty()) {
+				throw new IllegalArgumentException("Connector must preselect at least one cipher suite");
+			} else if (cipherSuites.contains(CipherSuite.TLS_NULL_WITH_NULL_NULL)) {
+				throw new IllegalArgumentException("NULL Cipher Suite is not supported by connector");
+			} else {
+				config.preselectedCipherSuites = cipherSuites;
+			}
+			return this;
+		}
+
+		/**
+		 * Sets the preselected cipher suites for the connector.
+		 * 
+		 * If no supported cipher suites are provided, consider only this subset
+		 * of {@link CipherSuite} to be automatically selected as supported
+		 * cipher suites depending on other setting (e.g. if settings allow only
+		 * PSK, only PSK compatible cipher suite from this list will be
+		 * selected).
+		 * 
+		 * Not used, if supported cipher suites are provided.
+		 * 
+		 * @param cipherSuites the names of the preselected cipher suites
+		 * @return this builder for command chaining
+		 * @throw IllegalArgumentException if at least one name is not
+		 *        available, or "TLS_NULL_WITH_NULL_NULL" is contained.
+		 * @since 2.5
+		 */
+		public Builder setPreselectedCipherSuites(String... cipherSuites) {
+			if (cipherSuites == null) {
+				config.preselectedCipherSuites = null;
+				return this;
+			} else {
+				List<CipherSuite> suites = CipherSuite.getTypesByNames(cipherSuites);
+				return setPreselectedCipherSuites(suites);
+			}
+		}
+
+		/**
 		 * Sets the cipher suites supported by the connector.
 		 * <p>
 		 * The connector will use these cipher suites (in exactly the same
@@ -1994,16 +2109,7 @@ public final class DtlsConnectorConfig {
 			if (cipherSuites == null) {
 				throw new NullPointerException("Connector must support at least one cipher suite");
 			}
-			List<CipherSuite> suites = new ArrayList<>(cipherSuites.length);
-			for (int i = 0; i < cipherSuites.length; i++) {
-				CipherSuite knownSuite = CipherSuite.getTypeByName(cipherSuites[i]);
-				if (knownSuite != null) {
-					suites.add(knownSuite);
-				} else {
-					throw new IllegalArgumentException(
-							String.format("Cipher suite [%s] is not (yet) supported", cipherSuites[i]));
-				}
-			}
+			List<CipherSuite> suites = CipherSuite.getTypesByNames(cipherSuites);
 			return setSupportedCipherSuites(suites);
 		}
 
@@ -3413,7 +3519,15 @@ public final class DtlsConnectorConfig {
 				ciphers.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(config.recommendedCipherSuitesOnly,
 						KeyExchangeAlgorithm.PSK));
 			}
-
+			if (config.preselectedCipherSuites != null) {
+				List<CipherSuite> preselect = new ArrayList<>();
+				for (CipherSuite cipherSuite : config.preselectedCipherSuites) {
+					if (ciphers.contains(cipherSuite)) {
+						preselect.add(cipherSuite);
+					}
+				}
+				ciphers = preselect;
+			}
 			config.supportedCipherSuites = ciphers;
 		}
 
