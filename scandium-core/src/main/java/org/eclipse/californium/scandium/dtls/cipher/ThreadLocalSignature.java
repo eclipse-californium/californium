@@ -58,4 +58,18 @@ public class ThreadLocalSignature extends ThreadLocalCrypto<Signature> {
 		});
 	}
 
+	/**
+	 * Map of thread local key signatures.
+	 * 
+	 * @since 2.5
+	 */
+	public static final ThreadLocalCryptoMap<ThreadLocalSignature> SIGNATURES = new ThreadLocalCryptoMap<>(
+			new ThreadLocalCryptoMap.Factory<ThreadLocalSignature>() {
+
+				@Override
+				public ThreadLocalSignature getInstance(String algorithm) {
+					return new ThreadLocalSignature(algorithm);
+				}
+			});
+
 }

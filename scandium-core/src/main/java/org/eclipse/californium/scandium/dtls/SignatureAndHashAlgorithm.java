@@ -25,9 +25,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalCryptoMap;
 import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalSignature;
-import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalCryptoMap.Factory;
 
 /**
  * See <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1">RFC 5246</a>
@@ -191,13 +189,6 @@ public final class SignatureAndHashAlgorithm {
 		}
 	}
 
-	private static final ThreadLocalCryptoMap<ThreadLocalSignature> SIGNATURES = new ThreadLocalCryptoMap<>( new Factory<ThreadLocalSignature>() {
-		@Override
-		public ThreadLocalSignature getInstance(String algorithm) {
-			return new ThreadLocalSignature(algorithm);
-		}
-	});
-
 	/**
 	 * SHA1_with_Ecdsa.
 	 * 
@@ -260,7 +251,7 @@ public final class SignatureAndHashAlgorithm {
 		if (algorithm == null) {
 			algorithm = "UNKNOWN";
 		}
-		return SIGNATURES.get(algorithm);
+		return ThreadLocalSignature.SIGNATURES.get(algorithm);
 	}
 
 	/**
@@ -503,7 +494,7 @@ public final class SignatureAndHashAlgorithm {
 		this.hashAlgorithmCode = hashAlgorithm.getCode();
 		this.signatureAlgorithmCode = signatureAlgorithm.getCode();
 		this.jcaName = buildJcaName();
-		this.supported = jcaName != null && getThreadLocalSignature(jcaName).current() != null;
+		this.supported = jcaName != null && getThreadLocalSignature(jcaName).isSupported();
 	}
 
 	/**
@@ -520,7 +511,7 @@ public final class SignatureAndHashAlgorithm {
 		this.signature = SignatureAlgorithm.getAlgorithmByCode(signatureAlgorithmCode);
 		this.hash = HashAlgorithm.getAlgorithmByCode(hashAlgorithmCode);
 		this.jcaName = buildJcaName();
-		this.supported = jcaName != null && getThreadLocalSignature(jcaName).current() != null;
+		this.supported = jcaName != null && getThreadLocalSignature(jcaName).isSupported();
 	}
 
 	private String buildJcaName() {
