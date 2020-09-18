@@ -1665,7 +1665,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			// according to section 7.2 of the TLS 1.2 spec
 			// (http://tools.ietf.org/html/rfc5246#section-7.2)
 			// the connection needs to be terminated immediately
-			error = new HandshakeException("Received 'fatal alert'", alert);
+			error = new HandshakeException("Received 'fatal alert/" + alert.getDescription() + "'", alert);
 			if (handshaker != null) {
 				handshaker.setFailureCause(error);
 			}
