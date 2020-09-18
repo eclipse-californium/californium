@@ -64,7 +64,7 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 
 	// Members ////////////////////////////////////////////////////////
 
-	private byte[] signatureEncoded = null;
+	private final byte[] signatureEncoded;
 
 	/** The signature and hash algorithm which must be included into the digitally-signed struct. */
 	private final SignatureAndHashAlgorithm signatureAndHashAlgorithm;
@@ -92,8 +92,11 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 	 */
 	public EcdhEcdsaServerKeyExchange(SignatureAndHashAlgorithm signatureAndHashAlgorithm, XECDHECryptography ecdhe,
 			PrivateKey serverPrivateKey, Random clientRandom, Random serverRandom, InetSocketAddress peerAddress) throws GeneralSecurityException {
-
-		this(signatureAndHashAlgorithm, ecdhe.getSupportedGroup(), ecdhe.getEncodedPoint(), peerAddress);
+		super(ecdhe.getSupportedGroup(), ecdhe.getEncodedPoint(), peerAddress);
+		if (signatureAndHashAlgorithm == null) {
+			throw new NullPointerException("signature and hash algorithm cannot be null");
+		}
+		this.signatureAndHashAlgorithm = signatureAndHashAlgorithm;
 
 		// make signature
 		// See http://tools.ietf.org/html/rfc4492#section-2.2
@@ -126,16 +129,12 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 	 */
 	private EcdhEcdsaServerKeyExchange(SignatureAndHashAlgorithm signatureAndHashAlgorithm, SupportedGroup supportedGroup, byte[] encodedPoint,
 			byte[] signatureEncoded, InetSocketAddress peerAddress) {
-		this(signatureAndHashAlgorithm, supportedGroup, encodedPoint, peerAddress);
-		this.signatureEncoded = signatureEncoded;
-	}
-
-	private EcdhEcdsaServerKeyExchange(SignatureAndHashAlgorithm signatureAndHashAlgorithm, SupportedGroup supportedGroup, byte[] encodedPoint, InetSocketAddress peerAddress) {
 		super(supportedGroup, encodedPoint, peerAddress);
 		if (signatureAndHashAlgorithm == null) {
 			throw new NullPointerException("signature and hash algorithm cannot be null");
 		}
 		this.signatureAndHashAlgorithm = signatureAndHashAlgorithm;
+		this.signatureEncoded = signatureEncoded;
 	}
 
 	// Serialization //////////////////////////////////////////////////
