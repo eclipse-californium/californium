@@ -331,7 +331,7 @@ public class CertPathUtil {
 			// trust all
 			if (last == 0) {
 				if (!root.getIssuerX500Principal().equals(root.getSubjectX500Principal())) {
-					// single certificate, not self signed => trust all ;-(.
+					// single certificate, not self signed, but "trust all" ;-(.
 					LOGGER.debug("   trust all- single certificate {}", root.getSubjectX500Principal());
 					return certPath;
 				}
@@ -359,11 +359,12 @@ public class CertPathUtil {
 				X509Certificate self = search(node.getSubjectX500Principal(), trustedCertificates);
 				if (self != null && Arrays.equals(node.getEncoded(), self.getEncoded())) {
 					if (size > 1) {
-						// reverse trust => use issuer as anchor
+						// replace provided trust by issuer
 						mode = "node's issuer";
 						trust = chain.get(1);
 						size = 1;
 					} else {
+						// single certificate, not self signed, but directly trusted ;-(.
 						LOGGER.debug("   trust node - single certificate {}", node.getSubjectX500Principal());
 						return certPath;
 					}
@@ -410,7 +411,8 @@ public class CertPathUtil {
 				LOGGER.debug("   trust: {}, {}", mode, anchor.getTrustedCert().getSubjectX500Principal());
 			}
 		}
-		CertPathValidator validator = CertPathValidator.getInstance("PKIX");
+		String algorithm = CertPathValidator.getDefaultType();
+		CertPathValidator validator = CertPathValidator.getInstance(algorithm);
 		PKIXParameters params = new PKIXParameters(trustAnchors);
 		// TODO: implement alternative means of revocation checking
 		params.setRevocationEnabled(false);
