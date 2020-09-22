@@ -190,12 +190,54 @@ public class CertPathUtilTest {
 	}
 
 	@Test
-	public void testServerCertificateValidationWithThrust() throws Exception {
+	public void testServerCertificateValidationWithTrust() throws Exception {
 		X509Certificate[] certificates = TestCertificatesTools.getServerCertificateChain();
 		CertPath certPath = CertPathUtil.generateCertPath(Arrays.asList(certificates));
 		CertPath verifiedPath = CertPathUtil.validateCertificatePath(false, certPath,
 				TestCertificatesTools.getTrustedCertificates());
 		assertEquals(Arrays.asList(certificates), verifiedPath.getCertificates());
+	}
+
+	@Test
+	public void testServerCertificateValidationWithIntermediateTrustFails() throws Exception {
+		exception.expect(CertPathValidatorException.class);
+		exception.expectMessage("Path does not chain with any of the trust anchors");
+		X509Certificate[] certificates = TestCertificatesTools.getServerCertificateChain();
+		X509Certificate[] trusts = new X509Certificate[] {certificates[1]};
+		CertPath certPath = CertPathUtil.generateCertPath(Arrays.asList(certificates));
+		CertPath verifiedPath = CertPathUtil.validateCertificatePath(false, certPath, trusts);
+		assertEquals(Arrays.asList(certificates), verifiedPath.getCertificates());
+	}
+
+	@Test
+	public void testServerCertificateTruncatingValidationWithIntermediateTrust() throws Exception {
+		X509Certificate[] certificates = TestCertificatesTools.getServerCertificateChain();
+		X509Certificate[] trusts = new X509Certificate[] { certificates[1] };
+		X509Certificate[] verfied = new X509Certificate[] { certificates[0] };
+		CertPath certPath = CertPathUtil.generateCertPath(Arrays.asList(certificates));
+		CertPath verifiedPath = CertPathUtil.validateCertificatePath(true, certPath, trusts);
+		assertEquals(Arrays.asList(verfied), verifiedPath.getCertificates());
+	}
+
+	@Test
+	public void testServerCertificateValidationWithSelfTrustFails() throws Exception {
+		exception.expect(CertPathValidatorException.class);
+		exception.expectMessage("Path does not chain with any of the trust anchors");
+		X509Certificate[] certificates = TestCertificatesTools.getServerCertificateChain();
+		X509Certificate[] trusts = new X509Certificate[] {certificates[0]};
+		CertPath certPath = CertPathUtil.generateCertPath(Arrays.asList(certificates));
+		CertPath verifiedPath = CertPathUtil.validateCertificatePath(false, certPath, trusts);
+		assertEquals(Arrays.asList(certificates), verifiedPath.getCertificates());
+	}
+
+	@Test
+	public void testServerCertificateTruncatingValidationWithSelfTrust() throws Exception {
+		X509Certificate[] certificates = TestCertificatesTools.getServerCertificateChain();
+		X509Certificate[] trusts = new X509Certificate[] {certificates[0]};
+		X509Certificate[] verfied = new X509Certificate[] {certificates[0]};
+		CertPath certPath = CertPathUtil.generateCertPath(Arrays.asList(certificates));
+		CertPath verifiedPath = CertPathUtil.validateCertificatePath(true, certPath, trusts);
+		assertEquals(Arrays.asList(verfied), verifiedPath.getCertificates());
 	}
 
 	@Test
