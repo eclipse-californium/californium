@@ -678,7 +678,7 @@ public enum CipherSuite {
 	 *            "http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4">
 	 *            IANA assigned names</a>
 	 * @return the list of cipher suite
-	 * @throw IllegalArgumentException if at least one name is not available.
+	 * @throws IllegalArgumentException if at least one name is not available.
 	 * @since 2.5
 	 */
 	public static List<CipherSuite> getTypesByNames(String... names) {

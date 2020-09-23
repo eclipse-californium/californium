@@ -176,7 +176,7 @@ public class Record {
 	 * The given <em>fragment</em> is encoded into its binary representation and
 	 * encrypted according to the given session's current write state. In order
 	 * to create a <code>Record</code> containing an un-encrypted fragment, use
-	 * the {@link #Record(ContentType, long, DTLSMessage, InetSocketAddress)}
+	 * the {@link #Record(ContentType, ProtocolVersion, long, DTLSMessage, InetSocketAddress)}
 	 * constructor.
 	 * 
 	 * @param type the type of the record's payload. The new record type

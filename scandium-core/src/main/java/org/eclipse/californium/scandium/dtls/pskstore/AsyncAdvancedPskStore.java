@@ -140,7 +140,6 @@ public class AsyncAdvancedPskStore implements AdvancedPskStore {
 	 * @return delay milliseconds. {@code 0} or negative delays using
 	 *         synchronous blocking behaviour. Positive delays using
 	 *         asynchronous none-blocking behaviour.
-	 * @sine 2.5
 	 */
 	public int getDelay() {
 		return delayMillis;

@@ -952,7 +952,7 @@ public final class DtlsConnectorConfig {
 	 * Gets the new advanced certificate verifier to be used during the DTLS
 	 * handshake.
 	 * 
-	 * @@return the new advanced certificate verifier
+	 * @return the new advanced certificate verifier
 	 * @since 2.5
 	 */
 	public NewAdvancedCertificateVerifier getAdvancedCertificateVerifier() {
@@ -1978,7 +1978,7 @@ public final class DtlsConnectorConfig {
 		 * 
 		 * @param cipherSuites the preselected cipher suites
 		 * @return this builder for command chaining
-		 * @throw IllegalArgumentException if the list is empty, or
+		 * @throws IllegalArgumentException if the list is empty, or
 		 *        "TLS_NULL_WITH_NULL_NULL" is contained.
 		 * @since 2.5
 		 */
@@ -2008,7 +2008,7 @@ public final class DtlsConnectorConfig {
 		 * 
 		 * @param cipherSuites the names of the preselected cipher suites
 		 * @return this builder for command chaining
-		 * @throw IllegalArgumentException if at least one name is not
+		 * @throws IllegalArgumentException if at least one name is not
 		 *        available, or "TLS_NULL_WITH_NULL_NULL" is contained.
 		 * @since 2.5
 		 */

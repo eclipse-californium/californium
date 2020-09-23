@@ -1982,15 +1982,14 @@ public abstract class Handshaker implements Destroyable {
 	}
 
 	/**
-	 * Validates the X.509 certificate chain provided by the the peer as part of
-	 * this message, or the raw public key.
+	 * Start validating the X.509 certificate chain provided by the the peer as
+	 * part of this message, or the raw public key of the message.
 	 *
-	 * This method delegates the certificate chain validation to the
-	 * {@link CertificateVerifier}
-	 *
-	 * OR
-	 *
-	 * checks that the raw public key is in the raw public key trust store.
+	 * This method delegates both certificate validation to the
+	 * {@link NewAdvancedCertificateVerifier}. If a asynchronous implementation
+	 * of {@link NewAdvancedCertificateVerifier} is used, the result will be not
+	 * available after this call, but will be available after the callback of the
+	 * asynchronous implementation.
 	 *
 	 * @param message the certificate message
 	 *

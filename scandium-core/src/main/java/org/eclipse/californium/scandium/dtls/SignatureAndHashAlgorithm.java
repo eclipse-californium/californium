@@ -406,7 +406,7 @@ public final class SignatureAndHashAlgorithm {
 	 * 
 	 * @param signatureAndHashAlgorithms list of signature and hash algorithms
 	 * @return ECDSA compatible signature and hash algorithms
-	 * @see #isEcdsaCompatible()
+	 * @see SignatureAlgorithm#isEcdsaCompatible()
 	 * @since 2.4
 	 */
 	public static List<SignatureAndHashAlgorithm> getEcdsaCompatibleSignatureAlgorithms(

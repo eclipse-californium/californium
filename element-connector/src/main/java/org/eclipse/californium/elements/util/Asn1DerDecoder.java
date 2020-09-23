@@ -44,14 +44,14 @@ import org.slf4j.LoggerFactory;
  * To support EdDSA, either java 15, or java 11 with <a href="https://github.com/str4d/ed25519-java">ed25519-java2</a>.
  * If the `ed25519-java` should be used, please add
  * 
- * <pre>
+ * {@code
  * <dependency>
  * 	<groupId>net.i2p.crypto</groupId>
  * 	<artifactId>eddsa</artifactId>
  * 	<version>0.3.0</version>
  * 	<scope>runtime</scope>
  * </dependency>
- * </pre>
+ * }
  * 
  * to your project pom, or add that jar to your classpath.
  * (For 2.5 it is planned to add this by default.)

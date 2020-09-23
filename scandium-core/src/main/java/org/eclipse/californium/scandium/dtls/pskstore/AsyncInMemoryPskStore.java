@@ -126,7 +126,7 @@ public class AsyncInMemoryPskStore extends AdvancedInMemoryPskStore {
 	 * @return delay milliseconds. {@code 0} or negative delays using
 	 *         synchronous blocking behaviour. Positive delays using
 	 *         asynchronous none-blocking behaviour.
-	 * @sine 2.5
+	 * @since 2.5
 	 */
 	public int getDelay() {
 		return delayMillis;
