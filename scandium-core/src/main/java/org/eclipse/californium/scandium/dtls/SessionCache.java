@@ -20,11 +20,11 @@ package org.eclipse.californium.scandium.dtls;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 
 /**
- * A second level cache for current connection state of DTLS sessions.
+ * A second level cache for current state of DTLS sessions.
  * <p>
- * Connection state can be put to the cache and later retrieved by the DTLS
- * session's ID. The provided cache is required to be thread-safe because it
- * will be accessed concurrently.
+ * Session state can be put to the cache and later retrieved by the DTLS
+ * session's ID for resumption handshakes. The provided cache is required to be
+ * thread-safe because it will be accessed concurrently.
  * </p>
  * Note: {@link #get(SessionId)} is called to validate session ids, if
  * {@link DtlsConnectorConfig#getVerifyPeersOnResumptionThreshold()} is larger
@@ -57,7 +57,8 @@ public interface SessionCache {
 	 * @param id The session identifier to look up.
 	 * @return a session ticker for the session with the given ID, or
 	 *         {@code null}, if the cache does not contain a session with the
-	 *         given ID. A returned ticket is destroyed after usage.
+	 *         given ID. A returned ticket is to be destroyed after usage. The
+	 *         session ticket can only be used for resumption handshakes.
 	 */
 	SessionTicket get(SessionId id);
 

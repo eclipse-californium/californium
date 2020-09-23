@@ -19,11 +19,14 @@ import java.net.InetSocketAddress;
 import java.util.Iterator;
 
 /**
- * Client side second level cache for current connection state of DTLS sessions.
+ * Client side second level cache for current state of DTLS sessions including
+ * the last related ip-address..
  * <p>
- * Connection state can be put to the cache and is retrieved when (re-)constructing the
- * connection store. The provided cache is required to be thread-safe because it
- * will be accessed concurrently.
+ * The session state with the related ip-address can be put to the cache and is
+ * retrieved when (re-)constructing the connection store. The connection will
+ * only contain connections with session tickets, which can only be used for
+ * resumption handshakes. The provided cache is required to be thread-safe
+ * because it will be accessed concurrently.
  * </p>
  */
 public interface ClientSessionCache extends SessionCache, Iterable<InetSocketAddress> {
@@ -37,7 +40,8 @@ public interface ClientSessionCache extends SessionCache, Iterable<InetSocketAdd
 	 * @param peer socket address of peer.
 	 * @return The session ticket with the given peer address or {@code null} if
 	 *         the cache does not contain a session ticket with the given peer
-	 *         address.
+	 *         address. The session ticket can only be used for resumption
+	 *         handshakes.
 	 */
 	SessionTicket getSessionTicket(InetSocketAddress peer);
 
