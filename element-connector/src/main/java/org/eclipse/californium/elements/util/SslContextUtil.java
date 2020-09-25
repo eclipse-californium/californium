@@ -782,8 +782,7 @@ public class SslContextUtil {
 			} else {
 				throw new IOException("URI: " + keyStoreUri + ", file: " + file.getAbsolutePath() + errorMessage);
 			}
-		}
-		if (scheme != null) {
+		} else {
 			InputStreamFactory streamFactory = INPUT_STREAM_FACTORIES.get(scheme);
 			if (streamFactory != null) {
 				inStream = streamFactory.create(keyStoreUri);
