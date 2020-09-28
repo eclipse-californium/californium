@@ -44,7 +44,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.PrincipalEndpointContextMatcher;
-import org.eclipse.californium.elements.category.Large;
+import org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.util.TestScope;
@@ -58,21 +58,21 @@ import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
-import org.eclipse.californium.util.nat.NatUtil;
+import org.eclipse.californium.util.nat.NioNatUtil;
 import org.junit.After;
-import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
-@Category(Large.class)
+@Category(NativeDatagramSocketImplRequired.class)
 public class SecureNatTest {
+	private static final Logger LOGGER = LoggerFactory.getLogger(SecureNatTest.class);
 
 	@ClassRule
-	public static CoapsNetworkRule network = new CoapsNetworkRule(CoapsNetworkRule.Mode.DIRECT,
-			CoapsNetworkRule.Mode.NATIVE);
+	public static CoapsNetworkRule network = new CoapsNetworkRule(CoapsNetworkRule.Mode.NATIVE);
 
 	@Rule
 	public CoapThreadsRule cleanup = new CoapThreadsRule();
@@ -80,7 +80,7 @@ public class SecureNatTest {
 	@Rule
 	public TestNameLoggerRule name = new TestNameLoggerRule();
 
-	static final long RESPONSE_TIMEOUT = 10000L;
+	static final long RESPONSE_TIMEOUT = 10 * 1000L;
 	static final int NUM_OF_CLIENTS = 20;
 	static final int NUM_OF_LOOPS = 50;
 
@@ -88,10 +88,9 @@ public class SecureNatTest {
 	static final String IDENITITY = "client1";
 	static final String KEY = "key1";
 
-	private NatUtil nat;
+	private NioNatUtil nat;
 	private DebugConnectionStore serverConnections;
 	private List<DebugConnectionStore> clientConnections = new ArrayList<DebugConnectionStore>();
-	private AdvancedPskStore pskStore;
 	private MatcherMode mode;
 	private NetworkConfig config;
 	private CoapEndpoint serverEndpoint;
@@ -99,11 +98,6 @@ public class SecureNatTest {
 	private MyResource resource;
 
 	private String uri;
-
-	@Before
-	public void setupPSK() {
-		pskStore = new AdvancedSinglePskStore(IDENITITY, KEY.getBytes());
-	}
 
 	@After
 	public void shutdownServer() {
@@ -284,7 +278,7 @@ public class SecureNatTest {
 
 		assertNotNull("Response not received", coapResponse);
 
-		int clients = TestScope.enableIntensiveTests() ? NUM_OF_CLIENTS : 50;
+		int clients = TestScope.enableIntensiveTests() ? 50 : NUM_OF_CLIENTS;
 
 		for (int count = 0; count < clients; ++count) {
 			createClientEndpoint(new SingleNodeConnectionIdGenerator(4));
@@ -299,6 +293,7 @@ public class SecureNatTest {
 			coapResponse = client.get();
 			assertNotNull("Response not received", coapResponse);
 			testMultipleSecureGet(count, overallResumes, resumeEndpoints);
+			// stop previous reordered messages
 			nat.setMessageReordering(10, 500, 500);
 			forceResumption(resumeEndpoints, 20);
 			overallResumes += resumeEndpoints.size();
@@ -331,41 +326,39 @@ public class SecureNatTest {
 		}
 		if (!idOfErrors.isEmpty()) {
 			serverConnections.validate();
-			System.out.println(resumeEndpoints.size() + " resumptions, " + overallResumes + " at all.");
+			LOGGER.warn("{} resumptions, {} at all.", resumeEndpoints.size(), overallResumes);
 			for (Integer resume : resumeEndpoints) {
 				CoapEndpoint endpoint = clientEndpoints.get(resume);
-				int port = nat.getLocalPortForAddress(endpoint.getAddress());
-				String message ="resume: " + resume + ", " + endpoint.getUri() + " via " + port;
+				InetSocketAddress via = nat.getLocalAddressForAddress(endpoint.getAddress());
 				if (idOfErrors.contains(resume)) {
-					message += " may have failed!";
+					LOGGER.error("resume client {}, {} via {} has failed!", resume, endpoint.getUri(), via.getPort());
+				} else {
+					LOGGER.warn("resume client {}, {} via {}", resume, endpoint.getUri(), via.getPort());
 				}
-				System.out.println(message);
 			}
 			boolean dump = false;
 			StringBuilder failure = new StringBuilder();
 			for (Integer id : idOfErrors) {
 				Request request = requests.get(id - 1);
 				CoapEndpoint endpoint = clientEndpoints.get(id);
-				int port = nat.getLocalPortForAddress(endpoint.getAddress());
-				System.out.flush();
-				System.err.println("client: " + id + ", endpoint " + endpoint.getUri() + " via " + port + " failed!");
+				InetSocketAddress via = nat.getLocalAddressForAddress(endpoint.getAddress());
+				if (!resumeEndpoints.contains(id)) {
+					LOGGER.error("client {}, {} via {} has failed!", id, endpoint.getUri(), via.getPort());
+				}
 				if (!dumpClientConnections(id)) {
 					dump = true;
 				}
+				failure.append("loop ").append(loop).append(" / client ").append(id).append(": ");
 				if (request.getSendError() != null) {
-					failure.append("Received error ").append(loop).append("/").append(id).append(": ")
-							.append(request.getSendError());
+					failure.append("received error ").append(request.getSendError());
 				} else if (request.isCanceled()) {
-					failure.append("Request canceled ").append(loop).append("/").append(id).append(": ")
-							.append(request);
+					failure.append("request canceled ").append(request);
 				} else if (request.isRejected()) {
-					failure.append("Request rejected ").append(loop).append("/").append(id).append(": ")
-							.append(request);
+					failure.append("request rejected ").append(request);
 				} else if (request.isTimedOut()) {
-					failure.append("Request timedout ").append(loop).append("/").append(id).append(": ")
-							.append(request);
+					failure.append("request timedout ").append(request);
 				} else {
-					failure.append("Request failed ").append(loop).append("/").append(id).append(": ").append(request);
+					failure.append("request failed ").append(request);
 				}
 				failure.append(StringUtil.lineSeparator());
 			}
@@ -426,7 +419,7 @@ public class SecureNatTest {
 				.setMaxRetransmissions(4)
 				.setRetransmissionTimeout(200)
 				.setVerifyPeersOnResumptionThreshold(100)
-				.setAdvancedPskStore(pskStore).build();
+				.setAdvancedPskStore(new AdvancedSinglePskStore(IDENITITY, KEY.getBytes())).build();
 
 		serverConnections = new DebugConnectionStore(
 				dtlsConfig.getMaxConnections(),
@@ -478,7 +471,7 @@ public class SecureNatTest {
 				.setMaxRetransmissions(4)
 				.setRetransmissionTimeout(200)
 				.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
-				.setAdvancedPskStore(pskStore).build();
+				.setAdvancedPskStore(new AdvancedSinglePskStore(IDENITITY, KEY.getBytes())).build();
 
 		DebugConnectionStore connections = new DebugConnectionStore(
 				clientdtlsConfig.getMaxConnections(),
@@ -498,10 +491,10 @@ public class SecureNatTest {
 	}
 
 	private void createNat() throws Exception {
-		nat = new NatUtil(TestTools.LOCALHOST_EPHEMERAL, serverEndpoint.getAddress());
+		nat = new NioNatUtil(TestTools.LOCALHOST_EPHEMERAL, serverEndpoint.getAddress());
 		int port = nat.getProxySocketAddress().getPort();
 		String natURI = uri.replace(":" + serverEndpoint.getAddress().getPort() + "/", ":" + port + "/");
-		System.out.println("URI: change " + uri + " to " + natURI);
+		System.out.println("URI: NAT changes destination " + uri + " to " + natURI);
 		uri = natURI;
 	}
 

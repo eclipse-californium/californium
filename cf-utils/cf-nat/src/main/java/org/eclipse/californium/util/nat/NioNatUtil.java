@@ -106,7 +106,7 @@ public class NioNatUtil implements Runnable {
 	/**
 	 * Destination address.
 	 */
-	private final List<Destination> destinations;
+	private final List<NatAddress> destinations;
 	/**
 	 * Buffer for proxy.
 	 */
@@ -120,7 +120,9 @@ public class NioNatUtil implements Runnable {
 	 * the messages to the destination.
 	 */
 	private final ConcurrentMap<InetSocketAddress, NatEntry> nats = new ConcurrentHashMap<InetSocketAddress, NatEntry>();
-
+	/**
+	 * Selector for received messages.
+	 */
 	private final Selector selector = Selector.open();
 
 	/**
@@ -168,7 +170,9 @@ public class NioNatUtil implements Runnable {
 	 */
 	private AtomicLong wrongRoutedCounter = new AtomicLong();
 	/**
-	 * Last counter for backwarded messages from wrong source. used for logging.
+	 * Last counter for backwarded messages from wrong source.
+	 * 
+	 * Used for logging.
 	 * 
 	 * @since 2.5
 	 */
@@ -184,43 +188,113 @@ public class NioNatUtil implements Runnable {
 	 * 
 	 * @since 2.5
 	 */
-	private AtomicInteger lbTimeoutMillis = new AtomicInteger(LB_TIMEOUT_MS);
+	private AtomicInteger loadBalancerTimeoutMillis = new AtomicInteger(LB_TIMEOUT_MS);
 
-	private static class Destination {
+	/**
+	 * NAT address.
+	 * 
+	 * Address, display name, and usage times.
+	 * 
+	 * @since 2.5
+	 */
+	public static class NatAddress {
 
-		private final InetSocketAddress destination;
-		private final String name;
-		private long lastSend;
+		/**
+		 * Address.
+		 */
+		public final InetSocketAddress address;
+		/**
+		 * Address as name
+		 */
+		public final String name;
+		/**
+		 * Counter for usage in NatEntries.
+		 */
+		private final AtomicInteger usageCounter = new AtomicInteger();
+		/**
+		 * Nanoseconds of last usage.
+		 * 
+		 * If used for {@link #updateSend()} and {@link #updateReceive()}, it
+		 * contains the timestamp of the last sent message, and {@code -1}, if a
+		 * messages is received back from that address.
+		 */
+		private long lastNanos;
+		/**
+		 * Indicates, that the address is expired according
+		 * {@link #updateUsage()} or {@link #updateSend()} and
+		 * {@link #updateReceive()}. Expiring is sticky, once expired, the
+		 * {@link #lastNanos} gets never updated again.
+		 */
 		private boolean expired;
 
-		private Destination(InetSocketAddress destination) {
-			this.destination = destination;
-			this.name = destination.getHostString() + ":" + destination.getPort();
+		/**
+		 * Create new NAT address.
+		 * 
+		 * @param address address
+		 */
+		private NatAddress(InetSocketAddress address) {
+			this.address = address;
+			this.name = address.getHostString() + ":" + address.getPort();
 			updateReceive();
 		}
 
+		/**
+		 * Update usage.
+		 * 
+		 * Records any usage in {@link #lastNanos}. Intended to be frequently
+		 * update on any usage in order to prevent address from expiring.
+		 * 
+		 * @see #expires(long)
+		 */
+		private synchronized void updateUsage() {
+			if (!expired) {
+				this.lastNanos = System.nanoTime();
+			}
+		}
+
+		/**
+		 * Update send usage.
+		 * 
+		 * Records sending a message in {@link #lastNanos}. Expires only, if no
+		 * received message is reported with {@link #updateReceive()}.
+		 * 
+		 * @see #expires(long)
+		 */
 		private synchronized void updateSend() {
 			if (!expired) {
-				if (lastSend < 0) {
-					this.lastSend = System.nanoTime();
+				if (lastNanos < 0) {
+					this.lastNanos = System.nanoTime();
 				}
 			}
 		}
 
+		/**
+		 * Update receive.
+		 * 
+		 * Stops expiring until next {@link #updateSend()}.
+		 * 
+		 * @see #expires(long)
+		 */
 		private synchronized void updateReceive() {
-			this.lastSend = -1;
+			this.lastNanos = -1;
 		}
 
+		/**
+		 * Check, if NAT address is expired.
+		 * 
+		 * @param expireNanos nanoseconds of expiration (now - timeout).
+		 * @return {@code true}, if expired, {@code false}, otherwise.
+		 */
 		private synchronized boolean expires(long expireNanos) {
 			if (!expired) {
-				expired = (lastSend > 0) && (expireNanos - lastSend) > 0;
+				expired = (lastNanos > 0) && (expireNanos - lastNanos) > 0;
 			}
 			return expired;
 		}
 
 		@Override
 		public int hashCode() {
-			return destination.hashCode();
+			return address.hashCode();
 		}
 
 		@Override
@@ -231,8 +305,12 @@ public class NioNatUtil implements Runnable {
 				return false;
 			if (getClass() != obj.getClass())
 				return false;
-			Destination other = (Destination) obj;
-			return destination.equals(other.destination);
+			NatAddress other = (NatAddress) obj;
+			return address.equals(other.address);
+		}
+
+		public int usageCounter() {
+			return usageCounter.get();
 		}
 	}
 
@@ -400,9 +478,14 @@ public class NioNatUtil implements Runnable {
 			this.randomDelayMillis = randomDelayMillis;
 		}
 
-		public void forward(final SocketAddress source, final NatEntry entry, ByteBuffer data) throws IOException {
+		public void forward(final InetSocketAddress source, NatEntry entry, ByteBuffer data) throws IOException {
+			if (!isRunning()) {
+				return;
+			}
 			if (manipulateMessage()) {
-				final ByteBuffer clone = data.duplicate();
+				((Buffer) data).flip();
+				final ByteBuffer clone = ByteBuffer.allocate(data.limit());
+				clone.put(data);
 				final long delay = delayMillis + random.nextInt(randomDelayMillis);
 				scheduler.schedule(new Runnable() {
 
@@ -412,7 +495,10 @@ public class NioNatUtil implements Runnable {
 							try {
 								LOGGER.info("deliver message {} bytes, delayed {}ms for {}", clone.position(), delay,
 										source);
-								entry.forward(clone);
+								NatEntry entry = nats.get(source);
+								if (entry != null) {
+									entry.forward(clone);
+								}
 							} catch (IOException ex) {
 								LOGGER.info("delayed forward failed!", ex);
 							}
@@ -485,31 +571,44 @@ public class NioNatUtil implements Runnable {
 	 * Add destination.
 	 * 
 	 * @param destination additional destination
+	 * @return {@code true}, if the destination was added, {@code false},
+	 *         otherwise.
 	 * @since 2.5
 	 */
 	public boolean addDestination(InetSocketAddress destination) {
-		Destination dest = new Destination(destination);
-		synchronized (destinations) {
-			if (!destinations.contains(dest)) {
-				destinations.add(dest);
-				return true;
-			} else {
-				return false;
+		if (destination != null) {
+			NatAddress dest = new NatAddress(destination);
+			synchronized (destinations) {
+				if (!destinations.contains(dest)) {
+					destinations.add(dest);
+					return true;
+				}
 			}
 		}
+		return false;
 	}
 
 	/**
 	 * Remove destination
 	 * 
 	 * @param destination destination to remove
+	 * @return {@code true}, if the destination was removed, {@code false},
+	 *         otherwise.
 	 * @since 2.5
 	 */
 	public boolean removeDestination(InetSocketAddress destination) {
-		Destination dest = new Destination(destination);
-		synchronized (destinations) {
-			return destinations.remove(dest);
+		if (destination != null) {
+			synchronized (destinations) {
+				for (NatAddress address : destinations) {
+					if (address.address.equals(destination)) {
+						destinations.remove(address);
+						address.expired = true;
+						return true;
+					}
+				}
+			}
 		}
+		return false;
 	}
 
 	@Override
@@ -543,7 +642,7 @@ public class NioNatUtil implements Runnable {
 							}
 						} else if (!destinations.isEmpty()) {
 							// forward message
-							SocketAddress source = proxyChannel.receive(proxyBuffer);
+							InetSocketAddress source = (InetSocketAddress) proxyChannel.receive(proxyBuffer);
 							NatEntry newEntry = getNatEntry(source);
 							MessageReordering before = this.reorder;
 							if (before != null) {
@@ -556,21 +655,26 @@ public class NioNatUtil implements Runnable {
 					keys.clear();
 				}
 				long now = System.nanoTime();
-				long timeoutCheckMillis = TimeUnit.NANOSECONDS.toMillis(now - lastTimeoutCheck);
-				if (timeoutCheckMillis > natTimeoutMillis.get() / 4) {
-					lastTimeoutCheck = now;
-					for (NatEntry entry : nats.values()) {
-						entry.timeout(now);
-					}
-				}
-				long expireNanos = now - TimeUnit.MILLISECONDS.toNanos(lbTimeoutMillis.get());
+				long expireNanos = now - TimeUnit.MILLISECONDS.toNanos(loadBalancerTimeoutMillis.get());
 				synchronized (destinations) {
-					Iterator<Destination> iterator = destinations.iterator();
+					Iterator<NatAddress> iterator = destinations.iterator();
 					while (iterator.hasNext()) {
-						Destination dest = iterator.next();
+						NatAddress dest = iterator.next();
 						if (dest.expires(expireNanos)) {
 							iterator.remove();
 							LOGGER.warn("expires {}", dest.name);
+						}
+					}
+				}
+				long timeoutCheckMillis = TimeUnit.NANOSECONDS.toMillis(now - lastTimeoutCheck);
+				if (timeoutCheckMillis > natTimeoutMillis.get() / 4) {
+					lastTimeoutCheck = now;
+					expireNanos = now - TimeUnit.MILLISECONDS.toNanos(natTimeoutMillis.get());
+					Iterator<NatEntry> iterator = nats.values().iterator();
+					while (iterator.hasNext()) {
+						NatEntry entry = iterator.next();
+						if (entry.expires(expireNanos)) {
+							iterator.remove();
 						}
 					}
 				}
@@ -588,13 +692,12 @@ public class NioNatUtil implements Runnable {
 		}
 	}
 
-	private NatEntry getNatEntry(SocketAddress source) throws IOException {
-		InetSocketAddress incoming = (InetSocketAddress) source;
-		NatEntry entry = nats.get(incoming);
+	private NatEntry getNatEntry(InetSocketAddress source) throws IOException {
+		NatEntry entry = nats.get(source);
 		if (entry == null) {
 
-			entry = new NatEntry(incoming, selector);
-			NatEntry previousEntry = nats.putIfAbsent(incoming, entry);
+			entry = new NatEntry(source, selector);
+			NatEntry previousEntry = nats.putIfAbsent(source, entry);
 			if (previousEntry != null) {
 				entry.stop();
 				entry = previousEntry;
@@ -620,6 +723,9 @@ public class NioNatUtil implements Runnable {
 	 * Stop the NAT.
 	 */
 	public void stop() {
+		if (reorder != null) {
+			reorder.stop();
+		}
 		running = false;
 		try {
 			proxyChannel.close();
@@ -645,16 +751,26 @@ public class NioNatUtil implements Runnable {
 
 	/**
 	 * Stop all NAT entries in {@link #nats} and clear that map.
+	 * 
+	 * @return number of stopped NAT entries.
 	 */
-	public void stopAllNatEntries() {
-		for (NatEntry entry : nats.values()) {
+	public int stopAllNatEntries() {
+		int counter = 0;
+		Iterator<NatEntry> iterator = nats.values().iterator();
+		while (iterator.hasNext()) {
+			NatEntry entry = iterator.next();
+			iterator.remove();
 			entry.stop();
+			++counter;
 		}
-		nats.clear();
+		return counter;
 	}
 
 	/**
 	 * Set NAT timeout milliseconds.
+	 * 
+	 * A NAT entry without received nor send messages within that timeout is
+	 * expired and removed.
 	 * 
 	 * @param natTimeoutMillis timeout in milliseconds
 	 * @since 2.4
@@ -664,23 +780,53 @@ public class NioNatUtil implements Runnable {
 	}
 
 	/**
-	 * Set LB timeout milliseconds.
+	 * Set the load-balancer timeout milliseconds.
 	 * 
-	 * @param lbTimeoutMillis timeout in milliseconds
+	 * If a message is sent to a load-balancer destination and no message is
+	 * received back, it's considered that the destination is not longer
+	 * available and so expired and removed.
+	 * 
+	 * @param loadBalancerTimeoutMillis timeout in milliseconds
 	 * @since 2.5
 	 */
-	public void setLbTimeoutMillis(int lbTimeoutMillis) {
-		this.lbTimeoutMillis.set(lbTimeoutMillis);
+	public void setLoadBalancerTimeoutMillis(int loadBalancerTimeoutMillis) {
+		this.loadBalancerTimeoutMillis.set(loadBalancerTimeoutMillis);
 	}
 
 	/**
-	 * Gets number of entries.
+	 * Gets number of entries in this NAT.
 	 * 
-	 * @return number fo entries
+	 * @return number of entries
 	 * @since 2.4
 	 */
 	public int getNumberOfEntries() {
 		return nats.size();
+	}
+
+	/**
+	 * Get number of destinations.
+	 * 
+	 * @return number of destinations
+	 * @since 2.5
+	 */
+	public int getNumberOfDestinations() {
+		return destinations.size();
+	}
+
+	/**
+	 * Get list of destinations.
+	 * 
+	 * @return list of destinations
+	 * @since 2.5
+	 */
+	public List<NatAddress> getDestinations() {
+		List<NatAddress> result = new ArrayList<>();
+		synchronized (destinations) {
+			for (NatAddress address : destinations) {
+				result.add(address);
+			}
+		}
+		return result;
 	}
 
 	/**
@@ -719,13 +865,25 @@ public class NioNatUtil implements Runnable {
 			} catch (InterruptedException e) {
 			}
 		} else {
+			List<NatEntry> olds = new ArrayList<>(nats.size());
 			Set<InetSocketAddress> keys = new HashSet<InetSocketAddress>(nats.keySet());
 			for (InetSocketAddress incoming : keys) {
 				try {
-					assignLocalAddress(incoming);
+					NatEntry entry = new NatEntry(incoming, selector);
+					NatEntry old = nats.put(incoming, entry);
+					if (null != old) {
+						old.setIncoming(null);
+						olds.add(old);
+						LOGGER.info("changed NAT for {} from {} to {}.", incoming, old.getPort(), entry.getPort());
+					} else {
+						LOGGER.info("add NAT for {} to {}.", incoming, entry.getPort());
+					}
 				} catch (IOException e) {
 					LOGGER.error("Failed to reassing NAT entry for {}.", incoming, e);
 				}
+			}
+			for (NatEntry old : olds) {
+				old.stop();
 			}
 		}
 	}
@@ -789,13 +947,17 @@ public class NioNatUtil implements Runnable {
 		Set<InetSocketAddress> keys = new HashSet<InetSocketAddress>(nats.keySet());
 		for (InetSocketAddress incoming : keys) {
 			NatEntry entry = nats.remove(incoming);
+			entry.setIncoming(null);
 			destinations.add(entry);
 		}
 		for (InetSocketAddress incoming : keys) {
 			int index = random.nextInt(destinations.size());
 			NatEntry entry = destinations.remove(index);
 			entry.setIncoming(incoming);
-			nats.put(incoming, entry);
+			NatEntry temp = nats.put(incoming, entry);
+			if (temp != null && temp != entry) {
+				temp.stop();
+			}
 		}
 	}
 
@@ -1063,7 +1225,7 @@ public class NioNatUtil implements Runnable {
 	 * @return random selected destination
 	 * @since 2.4
 	 */
-	public Destination getRandomDestination() {
+	public NatAddress getRandomDestination() {
 		if (destinations.isEmpty()) {
 			return null;
 		} else {
@@ -1116,52 +1278,66 @@ public class NioNatUtil implements Runnable {
 
 		private final DatagramChannel outgoing;
 		private final String natName;
-		private final AtomicLong lastUsage = new AtomicLong(System.nanoTime());
 		private final InetSocketAddress local;
-		private String incomingName;
-		private InetSocketAddress incoming;
-		private Destination destination;
+		private NatAddress incoming;
+		private NatAddress destination;
 
 		public NatEntry(InetSocketAddress incoming, Selector selector) throws IOException {
-			setIncoming(incoming);
 			setDestination(getRandomDestination());
 			this.outgoing = DatagramChannel.open();
 			this.outgoing.configureBlocking(false);
 			this.outgoing.bind(null);
 			this.local = (InetSocketAddress) this.outgoing.getLocalAddress();
-			this.outgoing.register(selector, SelectionKey.OP_READ, this);
 			this.natName = Integer.toString(this.local.getPort());
+			setIncoming(incoming);
+			this.outgoing.register(selector, SelectionKey.OP_READ, this);
 		}
 
-		public synchronized boolean setDestination(Destination destination) {
-			if (this.destination == null || !this.destination.equals(destination)) {
-				this.destination = destination;
-				return true;
-			} else {
+		public synchronized boolean setDestination(NatAddress destination) {
+			if (this.destination == destination) {
 				return false;
+			} else if (this.destination != null) {
+				if (this.destination.equals(destination)) {
+					return false;
+				}
+				this.destination.usageCounter.decrementAndGet();
 			}
+			this.destination = destination;
+			if (this.destination != null) {
+				this.destination.usageCounter.incrementAndGet();
+			}
+			return true;
 		}
 
 		public synchronized void setIncoming(InetSocketAddress incoming) {
-			this.incoming = incoming;
-			this.incomingName = incoming.getHostString() + ":" + incoming.getPort();
+			if (incoming != null) {
+				this.incoming = new NatAddress(incoming);
+			} else {
+				this.incoming = null;
+			}
 		}
 
-		public void timeout(long now) {
-			long quietPeriodMillis = TimeUnit.NANOSECONDS.toMillis(now - lastUsage.get());
-			if (quietPeriodMillis > natTimeoutMillis.get()) {
-				String incomingName;
-				synchronized (this) {
-					incomingName = this.incomingName;
-				}
-				LOGGER.info("expired listen on {} for incoming {}", natName, incomingName);
-				stop();
-				nats.remove(incoming, this);
+		public boolean expires(long expireNanos) {
+			NatAddress incoming;
+			synchronized (this) {
+				incoming = this.incoming;
 			}
+			if (incoming == null) {
+				return true;
+			}
+			if (incoming.expires(expireNanos)) {
+				stop();
+				LOGGER.info("expired listen on {} for incoming {}", natName, incoming.name);
+				return true;
+			}
+			return false;
 		}
 
 		public void stop() {
 			try {
+				if (destination != null) {
+					destination.usageCounter.decrementAndGet();
+				}
 				outgoing.close();
 			} catch (IOException e) {
 				LOGGER.error("IO-error on closing", e);
@@ -1177,34 +1353,39 @@ public class NioNatUtil implements Runnable {
 		}
 
 		public int receive(ByteBuffer packet) throws IOException {
-			Destination destination;
+			NatAddress destination;
 			synchronized (this) {
 				destination = this.destination;
 			}
-			SocketAddress source = outgoing.receive(packet);
-			if (destination.destination.equals(source)) {
-				destination.updateReceive();
-			} else {
-				wrongRoutedCounter.incrementAndGet();
-				((Buffer) packet).clear();
+			try {
+				SocketAddress source = outgoing.receive(packet);
+				if (destination.address.equals(source)) {
+					destination.updateReceive();
+				} else {
+					wrongRoutedCounter.incrementAndGet();
+					((Buffer) packet).clear();
+				}
+				return packet.position();
+			} catch (IOException ex) {
+				return -1;
 			}
-			return packet.position();
 		}
 
 		public void backward(ByteBuffer packet) throws IOException {
-			lastUsage.set(System.nanoTime());
-			InetSocketAddress incoming;
-			String incomingName;
-			Destination destination;
+			NatAddress incoming;
+			NatAddress destination;
 			synchronized (this) {
 				incoming = this.incoming;
-				incomingName = this.incomingName;
 				destination = this.destination;
 			}
+			if (incoming == null) {
+				return;
+			}
+			incoming.updateUsage();
 			MessageDropping dropping = backward;
 			if (dropping != null && dropping.dropMessage()) {
 				LOGGER.debug("backward drops {} bytes from {} to {} via {}", packet.position(), destination.name,
-						incomingName, natName);
+						incoming.name, natName);
 			} else {
 				MessageSizeLimit limit = backwardSizeLimit;
 				MessageSizeLimit.Manipulation manipulation = limit != null ? limit.limitMessageSize(packet)
@@ -1212,22 +1393,22 @@ public class NioNatUtil implements Runnable {
 				switch (manipulation) {
 				case NONE:
 					LOGGER.debug("backward {} bytes from {} to {} via {}", packet.position(), destination.name,
-							incomingName, natName);
+							incoming.name, natName);
 					break;
 				case DROP:
 					LOGGER.debug("backward drops {} bytes from {} to {} via {}", packet.position(), destination.name,
-							incomingName, natName);
+							incoming.name, natName);
 					break;
 				case LIMIT:
 					LOGGER.debug("backward limited {} bytes from {} to {} via {}", packet.position(), destination.name,
-							incomingName, natName);
+							incoming.name, natName);
 					break;
 				}
 				if (manipulation != MessageSizeLimit.Manipulation.DROP) {
 					((Buffer) packet).flip();
-					if (proxyChannel.send(packet, incoming) == 0) {
+					if (proxyChannel.send(packet, incoming.address) == 0) {
 						LOGGER.debug("backward overloaded {} bytes from {} to {} via {}", packet.position(),
-								destination.name, incomingName, natName);
+								destination.name, incoming.name, natName);
 					} else {
 						backwardCounter.incrementAndGet();
 					}
@@ -1236,22 +1417,27 @@ public class NioNatUtil implements Runnable {
 		}
 
 		public boolean forward(ByteBuffer packet) throws IOException {
-			lastUsage.set(System.nanoTime());
-			String incomingName;
-			Destination destination;
+			NatAddress incoming;
+			NatAddress destination;
 			synchronized (this) {
-				incomingName = this.incomingName;
+				incoming = this.incoming;
 				destination = this.destination;
 			}
+			if (incoming == null) {
+				return false;
+			}
+			incoming.updateUsage();
 			if (destination.expired) {
+				destination.usageCounter.decrementAndGet();
 				destination = getRandomDestination();
+				destination.usageCounter.incrementAndGet();
 				synchronized (this) {
 					this.destination = destination;
 				}
 			}
 			MessageDropping dropping = forward;
 			if (dropping != null && dropping.dropMessage()) {
-				LOGGER.debug("forward drops {} bytes from {} to {} via {}", packet.position(), incomingName,
+				LOGGER.debug("forward drops {} bytes from {} to {} via {}", packet.position(), incoming.name,
 						destination.name, natName);
 			} else {
 
@@ -1260,22 +1446,22 @@ public class NioNatUtil implements Runnable {
 						: MessageSizeLimit.Manipulation.NONE;
 				switch (manipulation) {
 				case NONE:
-					LOGGER.debug("forward {} bytes from {} to {} via {}", packet.position(), incomingName,
+					LOGGER.debug("forward {} bytes from {} to {} via {}", packet.position(), incoming.name,
 							destination.name, natName);
 					break;
 				case DROP:
-					LOGGER.debug("forward drops {} bytes from {} to {} via {}", packet.position(), incomingName,
+					LOGGER.debug("forward drops {} bytes from {} to {} via {}", packet.position(), incoming.name,
 							destination.name, natName);
 					break;
 				case LIMIT:
-					LOGGER.debug("forward limited {} bytes from {} to {} via {}", packet.position(), incomingName,
+					LOGGER.debug("forward limited {} bytes from {} to {} via {}", packet.position(), incoming.name,
 							destination.name, natName);
 					break;
 				}
 				if (manipulation != MessageSizeLimit.Manipulation.DROP) {
 					((Buffer) packet).flip();
-					if (outgoing.send(packet, destination.destination) == 0) {
-						LOGGER.info("forward overloaded {} bytes from {} to {} via {}", packet.limit(), incomingName,
+					if (outgoing.send(packet, destination.address) == 0) {
+						LOGGER.info("forward overloaded {} bytes from {} to {} via {}", packet.limit(), incoming.name,
 								destination.name, natName);
 						return false;
 					} else {

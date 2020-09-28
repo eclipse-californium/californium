@@ -57,7 +57,7 @@ import org.eclipse.californium.core.test.CountingCoapHandler;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.PrincipalEndpointContextMatcher;
-import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.category.NativeDatagramSocketImplRequired;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.exception.EndpointMismatchException;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
@@ -67,19 +67,18 @@ import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
-import org.eclipse.californium.util.nat.NatUtil;
+import org.eclipse.californium.util.nat.NioNatUtil;
 import org.junit.After;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
-@Category(Medium.class)
+@Category(NativeDatagramSocketImplRequired.class)
 public class SecureObserveTest {
 
 	@ClassRule
-	public static CoapsNetworkRule network = new CoapsNetworkRule(CoapsNetworkRule.Mode.DIRECT,
-			CoapsNetworkRule.Mode.NATIVE);
+	public static CoapsNetworkRule network = new CoapsNetworkRule(CoapsNetworkRule.Mode.NATIVE);
 
 	@Rule
 	public CoapThreadsRule cleanup = new CoapThreadsRule();
@@ -94,7 +93,7 @@ public class SecureObserveTest {
 	static final String IDENITITY = "client1";
 	static final String KEY = "key1";
 
-	private NatUtil nat;
+	private NioNatUtil nat;
 	private TestUtilPskStore clientPskStore;
 	private TestUtilPskStore serverPskStore;
 	private DTLSConnector serverConnector;
@@ -562,7 +561,7 @@ public class SecureObserveTest {
 	}
 
 	private void createInverseNat() throws Exception {
-		nat = new NatUtil(TestTools.LOCALHOST_EPHEMERAL, clientEndpoint.getAddress());
+		nat = new NioNatUtil(TestTools.LOCALHOST_EPHEMERAL, clientEndpoint.getAddress());
 		InetSocketAddress address = serverEndpoint.getAddress();
 		int port = nat.assignLocalAddress(address);
 		String natURI = uri.replace(":" + address.getPort() + "/", ":" + port + "/");

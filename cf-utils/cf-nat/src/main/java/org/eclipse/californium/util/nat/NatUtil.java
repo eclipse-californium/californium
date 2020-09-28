@@ -50,7 +50,9 @@ import org.slf4j.LoggerFactory;
  * 
  * @see #assignLocalAddress(InetSocketAddress)
  * @see #reassignNewLocalAddresses()
+ * @deprecated please use {@link NioNatUtil}.
  */
+@Deprecated
 public class NatUtil implements Runnable {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(NatUtil.class);
