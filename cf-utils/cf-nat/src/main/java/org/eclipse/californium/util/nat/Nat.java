@@ -22,6 +22,7 @@ import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.List;
 
 /**
  * Simple test NAT.
@@ -57,7 +58,6 @@ public class Nat {
 		try {
 			String line = null;
 			int argsIndex = 0;
-			int destinations = 1;
 			InetSocketAddress proxyAddress = create(args[argsIndex++], true);
 			InetSocketAddress destination = create(args[argsIndex++], false);
 
@@ -112,7 +112,6 @@ public class Nat {
 				} else {
 					InetSocketAddress destinationAddress = create(arg, false);
 					util.addDestination(destinationAddress);
-					++destinations;
 				}
 			}
 			BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
@@ -120,20 +119,24 @@ public class Nat {
 				if (line.equals("exit")) {
 					util.stop();
 					break;
-				} else if (line.isEmpty()) {
-					if (destinations > 1) {
-						int entries = util.getNumberOfEntries();
-						int count = util.reassignDestinationAddresses();
-						System.out.println("reassigned " + count + " destinations of " + entries + ".");
-					} else {
-						util.reassignNewLocalAddresses();
-					}
 				} else if (line.equals("help")) {
 					System.out.println("help - print this help");
-					System.out.println("reassign - reassign mapped addresses");
-					System.out.println("rebalance - reassign destinations for outgoing traffic");
+					System.out.println("info or <empty line> - list number of NAT entries and destinations");
+					System.out.println("clear - drop all NAT entries");
+					System.out.println("reassign - reassign incoming addresses");
+					System.out.println("rebalance - reassign outgoing addresses");
 					System.out.println("add <host:port> - add new destination to load balancer");
-					System.out.println("rebalance <host:port> - remove destination from load balancer");
+					System.out.println("remove <host:port> - remove destination from load balancer");
+				} else if (line.isEmpty() || line.equals("info")) {
+					System.out.println(util.getNumberOfEntries() + " NAT entries, " + util.getNumberOfDestinations()
+							+ " destinations.");
+					List<NioNatUtil.NatAddress> destinations = util.getDestinations();
+					for (NioNatUtil.NatAddress address : destinations) {
+						System.out.println("Destination: " + address.name + ", usage: " + address.usageCounter());
+					}
+				} else if (line.equals("clear")) {
+					int num = util.stopAllNatEntries();
+					System.out.println(num + " - NAT entries dropped.");
 				} else if (line.equals("reassign")) {
 					util.reassignNewLocalAddresses();
 				} else if (line.equals("rebalance")) {
@@ -190,7 +193,13 @@ public class Nat {
 			String host = uri.getHost();
 			int port = uri.getPort();
 			System.out.println(address + " => " + host + ":" + port);
-			return new InetSocketAddress(host, port);
+			InetSocketAddress result = new InetSocketAddress(host, port);
+			result.getAddress();
+			if (result.isUnresolved()) {
+				System.err.println("Address: " + address + " is unresolved!");
+				return null;
+			}
+			return result;
 		}
 	}
 
