@@ -78,7 +78,7 @@ abstract public class CounterStatisticManager {
 	 * {@link #dump()} is called repeated with configurable interval.
 	 * 
 	 * @param tag describing information
-	 * @param interval interval in seconds. {@code 0} to disable active calling
+	 * @param interval interval in seconds. {@code 0} to disable actively calling
 	 *            {@link #dump()}.
 	 * @param executor executor to schedule active calls of {@link #dump()}.
 	 * @throws NullPointerException if executor is {@code null}

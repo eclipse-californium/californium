@@ -24,6 +24,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * Default cipher suite selector.
+ * 
+ * Select cipher suite matching the available security parameters and algorithms.
+ * 
  * @since 2.3
  */
 public class DefaultCipherSuiteSelector implements CipherSuiteSelector {
@@ -77,7 +81,7 @@ public class DefaultCipherSuiteSelector implements CipherSuiteSelector {
 	}
 
 	protected boolean selectForCertificate(CipherSuiteParameters parameters, CipherSuite cipherSuite) {
-		// make sure that we support the client's proposed server cert types
+		// make sure that we support the client's proposed server certificate types
 		if (parameters.getServerCertTypes().isEmpty()) {
 			return false;
 		}
@@ -90,7 +94,7 @@ public class DefaultCipherSuiteSelector implements CipherSuiteSelector {
 			return false;
 		}
 		if (cipherSuite.getCertificateKeyAlgorithm() == CertificateKeyAlgorithm.EC) {
-			// check for suported curve in certificate
+			// check for supported curve in certificate
 			SupportedGroup group = SupportedGroup.fromPublicKey(parameters.getPublicKey());
 			if (group == null || !parameters.getSupportedGroups().contains(group)) {
 				return false;
@@ -113,8 +117,8 @@ public class DefaultCipherSuiteSelector implements CipherSuiteSelector {
 							parameters.getCertificateChain());
 				}
 				if (!supported) {
-					// x509 is not supported, because the certificat chain
-					// contains unsupported signature hashs algorithms or groups
+					// x509 is not supported, because the certificate chain
+					// contains unsupported signature hash algorithms or groups
 					// (curves).
 					if (parameters.getServerCertTypes().contains(CertificateType.RAW_PUBLIC_KEY)) {
 						certificateType = CertificateType.RAW_PUBLIC_KEY;
