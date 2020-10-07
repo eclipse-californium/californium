@@ -67,6 +67,27 @@ public class AdvancedSinglePskStore implements AdvancedPskStore, Destroyable {
 		this.secret = SecretUtil.create(key, "PSK");
 	}
 
+	/**
+	 * Create simple store with initial credentials.
+	 * 
+	 * @param identity PSK identity
+	 * @param key PSK secret key
+	 */
+	public AdvancedSinglePskStore(String identity,SecretKey key) {
+		this(new PskPublicInformation(identity), key);
+	}
+
+	/**
+	 * Create simple store with initial credentials.
+	 * 
+	 * @param identity PSK identity
+	 * @param key PSK secret key
+	 */
+	public AdvancedSinglePskStore(PskPublicInformation identity, SecretKey key) {
+		this.identity = identity;
+		this.secret = SecretUtil.create(key);
+	}
+
 	@Override
 	public boolean hasEcdhePskSupported() {
 		return true;

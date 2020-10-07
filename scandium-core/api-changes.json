@@ -302,6 +302,13 @@
 					"oldArchive": "org.eclipse.californium:scandium:jar:2.4.0"
 				},
 				{
+					"code": "java.method.numberOfParametersChanged",
+					"old": "method java.util.List<org.eclipse.californium.scandium.dtls.Record> org.eclipse.californium.scandium.dtls.Record::fromReader(org.eclipse.californium.elements.util.DatagramReader, java.net.InetSocketAddress, org.eclipse.californium.scandium.dtls.ConnectionIdGenerator, long)",
+					"new": "method java.util.List<org.eclipse.californium.scandium.dtls.Record> org.eclipse.californium.scandium.dtls.Record::fromReader(org.eclipse.californium.elements.util.DatagramReader, java.net.InetSocketAddress, java.net.InetSocketAddress, org.eclipse.californium.scandium.dtls.ConnectionIdGenerator, long)",
+					"justification": "not part of the public API",
+					"oldArchive": "org.eclipse.californium:scandium:jar:2.4.0"
+				},
+				{
 					"code": "java.class.nonFinalClassInheritsFromNewClass",
 					"new": "class org.eclipse.californium.scandium.dtls.PskSecretResult",
 					"justification": "moving fields to ConnectionResult doesn't change the API"

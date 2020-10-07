@@ -155,6 +155,6 @@ public final class DtlsTestTools extends TestCertificatesTools {
 		}
 	
 		DatagramReader reader = new DatagramReader(byteArray, false);
-		return Record.fromReader(reader, peerAddress, cidGenerator, receiveNanos);
+		return Record.fromReader(reader, peerAddress, null, cidGenerator, receiveNanos);
 	}
 }

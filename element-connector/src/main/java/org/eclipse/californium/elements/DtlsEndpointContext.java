@@ -34,13 +34,13 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 */
 	public static final String KEY_SESSION_ID = "DTLS_SESSION_ID";
 	/**
-	 * The name of the attribute that contains the <em>epoch</em> of the
-	 * DTLS session.
+	 * The name of the attribute that contains the <em>epoch</em> of the DTLS
+	 * session.
 	 */
 	public static final String KEY_EPOCH = "DTLS_EPOCH";
 	/**
-	 * The name of the attribute that contains the cipher suite used with
-	 * the DTLS session.
+	 * The name of the attribute that contains the cipher suite used with the
+	 * DTLS session.
 	 */
 	public static final String KEY_CIPHER = "DTLS_CIPHER";
 	/**
@@ -62,6 +62,13 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 * @since 2.5
 	 */
 	public static final String KEY_WRITE_CONNECTION_ID = "DTLS_WRITE_CONNECTION_ID";
+	/**
+	 * The name of the attribute that indicates, that the record is received via
+	 * a DTLS_CID router.
+	 * 
+	 * @since 2.5
+	 */
+	public static final String KEY_VIA_ROUTER = KEY_PREFIX_NONE_CRITICAL + "DTLS_VIA_ROUTER";
 	/**
 	 * The name of the attribute that contains a handshake mode. Values see
 	 * {@link #HANDSHAKE_MODE_FORCE_FULL}, {@link #HANDSHAKE_MODE_FORCE}, and
@@ -116,8 +123,8 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 * @throws NullPointerException if any of the parameters other than
 	 *             peerIdentity are {@code null}.
 	 */
-	public DtlsEndpointContext(InetSocketAddress peerAddress, Principal peerIdentity,
-			String sessionId, String epoch, String cipher, String timestamp) {
+	public DtlsEndpointContext(InetSocketAddress peerAddress, Principal peerIdentity, String sessionId, String epoch,
+			String cipher, String timestamp) {
 
 		this(peerAddress, null, peerIdentity, sessionId, epoch, cipher, timestamp);
 	}
@@ -156,14 +163,17 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 *            {@link System#currentTimeMillis()}.
 	 * @param writeCid dtls connection id for outgoing records.
 	 * @param readCid dtls connection id for incoming records.
+	 * @param via via router tag.
 	 * @throws NullPointerException if any of the parameters other than
 	 *             peerIdentity or virtualHost are {@code null}.
 	 * @since 2.5
 	 */
 	public DtlsEndpointContext(InetSocketAddress peerAddress, String virtualHost, Principal peerIdentity,
-			String sessionId, String epoch, String cipher, String timestamp, String writeCid, String readCid) {
+			String sessionId, String epoch, String cipher, String timestamp, String writeCid, String readCid,
+			String via) {
 		super(peerAddress, virtualHost, peerIdentity, KEY_SESSION_ID, sessionId, KEY_CIPHER, cipher, KEY_EPOCH, epoch,
-				KEY_HANDSHAKE_TIMESTAMP, timestamp, KEY_WRITE_CONNECTION_ID, writeCid, KEY_READ_CONNECTION_ID, readCid);
+				KEY_HANDSHAKE_TIMESTAMP, timestamp, KEY_WRITE_CONNECTION_ID, writeCid, KEY_READ_CONNECTION_ID, readCid,
+				KEY_VIA_ROUTER, via);
 	}
 
 	/**

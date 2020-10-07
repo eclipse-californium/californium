@@ -83,8 +83,8 @@ public class UDPConnector implements Connector {
 		ELEMENTS_THREAD_GROUP.setDaemon(false);
 	}
 
-	/** 
-	 * Provided local address. 
+	/**
+	 * Provided local address.
 	 */
 	protected final InetSocketAddress localAddr;
 	/**
@@ -125,6 +125,7 @@ public class UDPConnector implements Connector {
 
 	/**
 	 * {@code true}, if socket is reused, {@code false}, otherwise.
+	 * 
 	 * @since 2.3
 	 */
 	private boolean reuseAddress;
@@ -185,7 +186,7 @@ public class UDPConnector implements Connector {
 	 * Initialize connector using the provided socket.
 	 * 
 	 * @param socket datagram socket for communication
-	 * @throws IOException  if there is an error in the datagram socket calls.
+	 * @throws IOException if there is an error in the datagram socket calls.
 	 */
 	protected void init(DatagramSocket socket) throws IOException {
 		this.socket = socket;
@@ -242,7 +243,7 @@ public class UDPConnector implements Connector {
 				return;
 			}
 			running = false;
-			
+
 			// stop all threads
 			for (Thread t : senderThreads) {
 				t.interrupt();
@@ -382,30 +383,7 @@ public class UDPConnector implements Connector {
 			DatagramSocket currentSocket = socket;
 			if (currentSocket != null) {
 				currentSocket.receive(datagram);
-				RawDataChannel dataReceiver = receiver;
-				if (datagram.getLength() >= size) {
-					// too large datagram for our buffer! data could have been
-					// truncated, so we discard it.
-					LOGGER.debug(
-							"UDPConnector ({}) received truncated UDP datagram from {}:{}. Maximum size allowed {}. Discarding ...",
-							effectiveAddr, datagram.getAddress(), datagram.getPort(), size - 1);
-				} else if (dataReceiver == null) {
-					LOGGER.debug("UDPConnector ({}) received UDP datagram from {}:{} without receiver. Discarding ...",
-							effectiveAddr, datagram.getAddress(), datagram.getPort());
-				} else {
-					long timestamp = ClockUtil.nanoRealtime();
-					String local = StringUtil.toString(effectiveAddr);
-					if (multicast) {
-						local = "mc/" + local;
-					}
-					LOGGER.debug("UDPConnector ({}) received {} bytes from {}:{}", local, datagram.getLength(),
-							datagram.getAddress(), datagram.getPort());
-					byte[] bytes = Arrays.copyOfRange(datagram.getData(), datagram.getOffset(), datagram.getLength());
-					RawData msg = RawData.inbound(bytes,
-							new UdpEndpointContext(new InetSocketAddress(datagram.getAddress(), datagram.getPort())),
-							multicast, timestamp);
-					dataReceiver.receiveData(msg);
-				}
+				processDatagram(datagram);
 			}
 		}
 	}
@@ -452,6 +430,42 @@ public class UDPConnector implements Connector {
 			} else {
 				raw.onError(new IOException("socket already closed!"));
 			}
+		}
+	}
+
+	/**
+	 * Process received datagram.
+	 * 
+	 * Convert {@link DatagramPacket} into {@link RawData} and pass it to the
+	 * {@link RawDataChannel}.
+	 * 
+	 * @param datagram received datagram.
+	 * @since 2.5
+	 */
+	protected void processDatagram(DatagramPacket datagram) {
+		RawDataChannel dataReceiver = receiver;
+		if (datagram.getLength() > receiverPacketSize) {
+			// too large datagram for our buffer! data could have been
+			// truncated, so we discard it.
+			LOGGER.debug(
+					"UDPConnector ({}) received truncated UDP datagram from {}:{}. Maximum size allowed {}. Discarding ...",
+					effectiveAddr, datagram.getAddress(), datagram.getPort(), receiverPacketSize);
+		} else if (dataReceiver == null) {
+			LOGGER.debug("UDPConnector ({}) received UDP datagram from {}:{} without receiver. Discarding ...",
+					effectiveAddr, datagram.getAddress(), datagram.getPort());
+		} else {
+			long timestamp = ClockUtil.nanoRealtime();
+			String local = StringUtil.toString(effectiveAddr);
+			if (multicast) {
+				local = "mc/" + local;
+			}
+			LOGGER.debug("UDPConnector ({}) received {} bytes from {}:{}", local, datagram.getLength(),
+					datagram.getAddress(), datagram.getPort());
+			byte[] bytes = Arrays.copyOfRange(datagram.getData(), datagram.getOffset(), datagram.getLength());
+			RawData msg = RawData.inbound(bytes,
+					new UdpEndpointContext(new InetSocketAddress(datagram.getAddress(), datagram.getPort())), multicast,
+					timestamp);
+			dataReceiver.receiveData(msg);
 		}
 	}
 

@@ -247,7 +247,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	private static final long CLIENT_HELLO_TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(60);
 
 	/** all the configuration options for the DTLS connector */ 
-	private final DtlsConnectorConfig config;
+	protected final DtlsConnectorConfig config;
 
 	private final ResumptionSupportingConnectionStore connectionStore;
 
@@ -259,7 +259,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 
 	private final int thresholdHandshakesWithoutVerifiedPeer;
 	private final AtomicInteger pendingHandshakesWithoutVerifiedPeer = new AtomicInteger();
-	private final DtlsHealth health;
+	protected final DtlsHealth health;
 
 	private final boolean serverOnly;
 	private final String defaultHandshakeMode;
@@ -282,13 +282,13 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 */
 	private final AtomicInteger pendingOutboundMessagesCountdown = new AtomicInteger();
 
-	private final List<Thread> receiverThreads = new LinkedList<Thread>();
+	protected final List<Thread> receiverThreads = new LinkedList<Thread>();
 
 	/**
 	 * Configure connection id generator. May be {@code null}, if connection id
 	 * should not be supported.
 	 */
-	private final ConnectionIdGenerator connectionIdGenerator;
+	protected final ConnectionIdGenerator connectionIdGenerator;
 	/**
 	 * Protocol version to use for sending a hello verify request. Default
 	 * {@link ProtocolVersion#VERSION_DTLS_1_0}.
@@ -314,7 +314,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * @since 2.4
 	 */
 	private int ipv6Mtu = DEFAULT_IPV6_MTU;
-	private int inboundDatagramBufferSize = MAX_DATAGRAM_BUFFER_SIZE;
+	protected int inboundDatagramBufferSize = MAX_DATAGRAM_BUFFER_SIZE;
 
 	private CookieGenerator cookieGenerator = new CookieGenerator();
 	private Object alertHandlerLock= new Object();
@@ -322,7 +322,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	private volatile DatagramSocket socket;
 
 	/** The timer daemon to schedule retransmissions. */
-	private ScheduledExecutorService timer;
+	protected ScheduledExecutorService timer;
 
 	/** Indicates whether the connector has started and not stopped yet */
 	private AtomicBoolean running = new AtomicBoolean(false);
@@ -437,7 +437,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			// this is a useful health metric
 			// that could later be exported to some kind of monitoring interface
 			if (healthHandler == null && healthStatusInterval != null && healthStatusInterval > 0) {
-				healthHandler = new DtlsHealthLogger(config.getLoggingTag());
+				healthHandler = createDefaultHealthHandler(config);
 				if (!healthHandler.isEnabled()) {
 					healthHandler = null;
 				}
@@ -532,6 +532,17 @@ public class DTLSConnector implements Connector, RecordLayer {
 			}
 			this.thresholdHandshakesWithoutVerifiedPeer = (int) threshold;
 		}
+	}
+
+	/**
+	 * Create default health handler.
+	 * 
+	 * @param configuration configuration
+	 * @return default health handler.
+	 * @since 2.5
+	 */
+	protected DtlsHealth createDefaultHealthHandler(DtlsConnectorConfig configuration) {
+		return new DtlsHealthLogger(configuration.getLoggingTag());
 	}
 
 	private final void sessionEstablished(Handshaker handshaker, final DTLSSession establishedSession)
@@ -730,7 +741,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			if (size != null && size != 0) {
 				socket.setSendBufferSize(size);
 			}
-		} catch(IllegalArgumentException ex) {
+		} catch (IllegalArgumentException ex) {
 			LOGGER.error("failed to apply {}", size, ex);
 		}
 		// don't try to access the buffer sizes,
@@ -738,7 +749,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 		int recvBuffer = socket.getReceiveBufferSize();
 		int sendBuffer = socket.getSendBufferSize();
 
-		socket.bind(bindAddress);
+		if (!socket.isBound()) {
+			socket.bind(bindAddress);
+		}
 		if (lastBindAddress != null && (!socket.getLocalAddress().equals(lastBindAddress.getAddress()) || socket.getLocalPort() != lastBindAddress.getPort())){
 			if (connectionStore instanceof ResumptionSupportingConnectionStore) {
 				((ResumptionSupportingConnectionStore) connectionStore).markAllAsResumptionRequired();
@@ -753,7 +766,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			// reduce inbound buffer size accordingly
 			inboundDatagramBufferSize = lengthCode.length()
 					+ MAX_CIPHERTEXT_EXPANSION
-					+ 25; // 12 bytes DTLS message headers, 13 bytes DTLS record headers
+					+ DTLSSession.DTLS_HEADER_LENGTH; // 12 bytes DTLS message headers, 13 bytes DTLS record headers
 		}
 
 		if (config.getMaxTransmissionUnit() != null) {
@@ -838,7 +851,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 				@Override
 				public void doWork() throws Exception {
 					MDC.clear();
-					packet.setLength(inboundDatagramBufferSize);
+					packet.setData(receiverBuffer);
 					receiveNextDatagramFromNetwork(packet);
 				}
 			};
@@ -907,7 +920,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	}
 
 	@Override
-	public final void stop() {
+	public void stop() {
 		ExecutorService shutdownTimer = null;
 		ExecutorService shutdown = null;
 		List<Runnable> pending = new ArrayList<>();
@@ -1191,6 +1204,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			return;
 		}
 
+		// TODO: when deprecated function is removed, call the new one.
 		processDatagram(packet);
 	}
 
@@ -1200,9 +1214,24 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * Potentially called by multiple threads.
 	 * 
 	 * @param packet datagram filled with the received data and source address.
+	 * @deprecated use {@link #processDatagram(DatagramPacket, InetSocketAddress)}
 	 */
+	@Deprecated
 	protected void processDatagram(DatagramPacket packet) {
-		InetSocketAddress peerAddress = new InetSocketAddress(packet.getAddress(), packet.getPort());
+		processDatagram(packet, null);
+	}
+
+	/**
+	 * Process received datagram.
+	 * 
+	 * Potentially called by multiple threads.
+	 * 
+	 * @param packet received message
+	 * @param router router address, {@code null}, if no router is used.
+	 * @since 2.5
+	 */
+	protected void processDatagram(DatagramPacket packet, InetSocketAddress router) {
+		InetSocketAddress peerAddress = (InetSocketAddress) packet.getSocketAddress();
 		MDC.put("PEER", StringUtil.toString(peerAddress));
 		if (health != null) {
 			health.receivingRecord(false);
@@ -1210,7 +1239,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		long timestamp = ClockUtil.nanoRealtime();
 
 		DatagramReader reader = new DatagramReader(packet.getData(), packet.getOffset(), packet.getLength());
-		List<Record> records = Record.fromReader(reader, peerAddress, connectionIdGenerator, timestamp);
+		List<Record> records = Record.fromReader(reader, peerAddress, router, connectionIdGenerator, timestamp);
 		LOGGER.trace("Received {} DTLS records from {} using a {} byte datagram buffer",
 				records.size(), peerAddress, inboundDatagramBufferSize);
 
@@ -1564,23 +1593,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 			// APPLICATION_DATA can only be processed within the context of
 			// an established, i.e. fully negotiated, session
 			ApplicationMessage message = (ApplicationMessage) record.getFragment();
-			InetSocketAddress newAddress = record.getPeerAddress();
-			if (connectionStore.get(newAddress) == connection) {
-				// no address update required!
-				newAddress = null;
-			}
-			// the fragment could be de-crypted, mark it
-			if (!session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber())
-					&& useCidUpdateAddressOnNewerRecordFilter) {
-				// suppress address update!
-				newAddress = null;
-			}
-			if (ongoingHandshake != null) {
-				// the handshake has been completed successfully
-				ongoingHandshake.handshakeCompleted();
-			}
-			connection.refreshAutoResumptionTime();
-			connectionStore.update(connection, newAddress);
+
+			updateConnectionAddress(record, connection, session);
 
 			final RawDataChannel channel = messageHandler;
 			// finally, forward de-crypted message to application layer
@@ -1634,22 +1648,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			// we need to respond with a CLOSE_NOTIFY alert and
 			// then close and remove the connection immediately
 			if (connection.hasEstablishedSession()) {
-				InetSocketAddress newAddress = record.getPeerAddress();
-				if (connectionStore.get(newAddress) == connection) {
-					// no address update required!
-					newAddress = null;
-				}
-				// the fragment could be de-crypted, mark it
-				if (!session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber())
-						&& useCidUpdateAddressOnNewerRecordFilter) {
-					// suppress address update!
-					newAddress = null;
-				}
-				if (handshaker != null) {
-					handshaker.handshakeCompleted();
-				}
-				connection.refreshAutoResumptionTime();
-				connectionStore.update(connection, newAddress);
+				updateConnectionAddress(record, connection, session);
 			} else {
 				error = new HandshakeException("Received 'close notify'", alert);
 				if (handshaker != null) {
@@ -1686,6 +1685,31 @@ public class DTLSConnector implements Connector, RecordLayer {
 		}
 		if (null != error && null != handshaker) {
 			handshaker.handshakeFailed(error);
+		}
+	}
+
+	/**
+	 * Update connection address.
+	 * 
+	 * @param record received record.
+	 * @param connection connection of received record
+	 * @param session session of received record
+	 * @since 2.5
+	 */
+	private void updateConnectionAddress(Record record, Connection connection, DTLSSession session) {
+		InetSocketAddress newAddress = null;
+		if (session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber())
+				|| !useCidUpdateAddressOnNewerRecordFilter) {
+			// address update, it's a newer record!
+			connection.setRouter(record.getRouter());
+			newAddress = record.getPeerAddress();
+		}
+		connection.refreshAutoResumptionTime();
+		connectionStore.update(connection, newAddress);
+		final Handshaker ongoingHandshake = connection.getOngoingHandshake();
+		if (ongoingHandshake != null) {
+			// the handshake has been completed successfully
+			ongoingHandshake.handshakeCompleted();
 		}
 	}
 
@@ -2177,7 +2201,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public final void send(final RawData message) {
+	public void send(final RawData message) {
 		if (message == null) {
 			throw new NullPointerException("Message must not be null");
 		}
@@ -2795,7 +2819,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	/**
 	 * A worker thread for continuously doing repetitive tasks.
 	 */
-	private abstract class Worker extends Thread {
+	protected abstract class Worker extends Thread {
 		/**
 		 * Instantiates a new worker.
 		 *

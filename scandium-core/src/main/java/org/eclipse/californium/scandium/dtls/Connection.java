@@ -83,6 +83,7 @@ public final class Connection {
 	private long lastPeerAddressNanos;
 	private SerialExecutor serialExecutor;
 	private InetSocketAddress peerAddress;
+	private InetSocketAddress router;
 	private ConnectionId cid;
 	private SessionTicket ticket;
 	private SessionId sessionId;
@@ -356,6 +357,32 @@ public final class Connection {
 			return false;
 		}
 		return this.peerAddress.equals(peerAddress);
+	}
+
+	/**
+	 * Gets the address of this connection's router.
+	 * 
+	 * @return the address of the router
+	 * @since 2.5
+	 */
+	public InetSocketAddress getRouter() {
+		return router;
+	}
+
+	/**
+	 * Sets the address of this connection's router.
+	 * 
+	 * @param router the address of the router
+	 * @since 2.5
+	 */
+	public void setRouter(InetSocketAddress router) {
+		if (this.router != router && (this.router == null || !this.router.equals(router))) {
+			this.router = router;
+			if (establishedSession != null) {
+				establishedSession.setRouter(router);
+			}
+			updateConnectionState();
+		}
 	}
 
 	/**

@@ -125,7 +125,7 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 	 *            value_1, key_2, value_2 ...)
 	 * @return create map
 	 * @throws NullPointerException if the provided attributes is {@code null},
-	 *             or one of the attributes is {@code null}.
+	 *             or one of the critical attributes is {@code null}.
 	 * @throws IllegalArgumentException if provided attributes list has odd size
 	 *             or contains a duplicate key.
 	 */
@@ -145,7 +145,11 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 			} else if (key.isEmpty()) {
 				throw new IllegalArgumentException((index / 2) + ". key is empty");
 			} else if (null == value) {
-				throw new NullPointerException((index / 2) + ". value is null");
+				if (key.startsWith(KEY_PREFIX_NONE_CRITICAL)) {
+					continue;
+				} else {
+					throw new NullPointerException((index / 2) + ". value is null");
+				}
 			}
 			String old = entries.put(key, value);
 			if (null != old) {

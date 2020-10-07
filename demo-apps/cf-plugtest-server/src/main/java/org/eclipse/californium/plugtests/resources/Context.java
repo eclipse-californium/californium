@@ -131,6 +131,10 @@ public class Context extends CoapResource {
 		if (cid != null) {
 			formatter.add("write-cid", cid);
 		}
+		String via = context.get(DtlsEndpointContext.KEY_VIA_ROUTER);
+		if (via != null) {
+			formatter.add("via", via);
+		}
 		if (StringUtil.CALIFORNIUM_VERSION != null) {
 			formatter.add("server", "Cf " + StringUtil.CALIFORNIUM_VERSION);
 		}
