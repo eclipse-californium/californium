@@ -131,6 +131,9 @@ public class Record {
 	/** The peer address. */
 	private final InetSocketAddress peerAddress;
 
+	/** The router address. */
+	private final InetSocketAddress router;
+
 	// Constructors ///////////////////////////////////////////////////
 
 	/**
@@ -147,6 +150,7 @@ public class Record {
 	 * @param connectionId the connection id
 	 * @param fragmentBytes the encrypted data
 	 * @param peerAddress peer address
+	 * @param router router address, {@code null}, if not used.
 	 * @param receiveNanos uptime nanoseconds of receiving this record
 	 * @param followUpRecord record follows up other record in same datagram
 	 * @throws IllegalArgumentException if the given sequence number is longer
@@ -155,8 +159,8 @@ public class Record {
 	 *             fragment bytes or peer address is {@code null}.
 	 */
 	Record(ContentType type, ProtocolVersion version, int epoch, long sequenceNumber, ConnectionId connectionId,
-			byte[] fragmentBytes, InetSocketAddress peerAddress, long receiveNanos, boolean followUpRecord) {
-		this(version, epoch, sequenceNumber, receiveNanos, peerAddress, followUpRecord);
+			byte[] fragmentBytes, InetSocketAddress peerAddress, InetSocketAddress router, long receiveNanos, boolean followUpRecord) {
+		this(version, epoch, sequenceNumber, receiveNanos, peerAddress, router, followUpRecord);
 		if (type == null) {
 			throw new NullPointerException("Type must not be null");
 		} else if (fragmentBytes == null) {
@@ -204,7 +208,8 @@ public class Record {
 	 */
 	public Record(ContentType type, int epoch, long sequenceNumber, DTLSMessage fragment, DTLSSession session,
 			boolean cid, int pad) throws GeneralSecurityException {
-		this(ProtocolVersion.VERSION_DTLS_1_2, epoch, sequenceNumber, 0, session != null ? session.getPeer() : null, false);
+		this(ProtocolVersion.VERSION_DTLS_1_2, epoch, sequenceNumber, 0, session != null ? session.getPeer() : null,
+				session != null ? session.getRouter() : null, false);
 		if (fragment == null) {
 			throw new NullPointerException("Fragment must not be null");
 		} else if (session == null) {
@@ -242,7 +247,7 @@ public class Record {
 	 *             is {@code null}.
 	 */
 	public Record(ContentType type, ProtocolVersion version, long sequenceNumber, DTLSMessage fragment, InetSocketAddress peerAddress) {
-		this(version, 0, sequenceNumber, 0, peerAddress, false);
+		this(version, 0, sequenceNumber, 0, peerAddress, null, false);
 		if (fragment == null) {
 			throw new NullPointerException("Fragment must not be null");
 		} else if (peerAddress == null) {
@@ -256,7 +261,8 @@ public class Record {
 		}
 	}
 
-	private Record(ProtocolVersion version, int epoch, long sequenceNumber, long receiveNanos, InetSocketAddress peer, boolean followUpRecord) {
+	private Record(ProtocolVersion version, int epoch, long sequenceNumber, long receiveNanos, InetSocketAddress peer,
+			InetSocketAddress router, boolean followUpRecord) {
 		if (sequenceNumber > MAX_SEQUENCE_NO) {
 			throw new IllegalArgumentException("Sequence number must be 48 bits only! " + sequenceNumber);
 		} else if (sequenceNumber < 0) {
@@ -272,6 +278,7 @@ public class Record {
 		this.receiveNanos = receiveNanos;
 		this.followUpRecord = followUpRecord;
 		this.peerAddress = peer;
+		this.router = router;
 	}
 
 	// Serialization //////////////////////////////////////////////////
@@ -322,7 +329,7 @@ public class Record {
 	 * @param receiveNanos uptime nanoseconds of receiving this record
 	 * @return the {@code Record} instances
 	 * @throws NullPointerException if either one of the byte array or peer address is {@code null}
-	 * @deprecated use {@link #fromReader(DatagramReader, InetSocketAddress, ConnectionIdGenerator, long)} instead.
+	 * @deprecated use {@link #fromReader(DatagramReader, InetSocketAddress, InetSocketAddress, ConnectionIdGenerator, long)} instead.
 	 */
 	@Deprecated
 	public static List<Record> fromByteArray(byte[] byteArray, InetSocketAddress peerAddress, ConnectionIdGenerator cidGenerator, long receiveNanos) {
@@ -333,7 +340,7 @@ public class Record {
 		}
 
 		DatagramReader reader = new DatagramReader(byteArray, false);
-		return fromReader(reader, peerAddress, cidGenerator, receiveNanos);
+		return fromReader(reader, peerAddress, null, cidGenerator, receiveNanos);
 	}
 
 	/**
@@ -345,13 +352,14 @@ public class Record {
 	 * @param reader a reader with the raw binary representation containing one or more DTLSCiphertext structures
 	 * @param peerAddress the IP address and port of the peer from which the bytes have been
 	 *           received
+	 * @param router router address, {@code null}, if not used.
 	 * @param cidGenerator the connection id generator. May be {@code null}.
 	 * @param receiveNanos uptime nanoseconds of receiving this record
 	 * @return the {@code Record} instances
 	 * @throws NullPointerException if either one of the reader or peer address is {@code null}
 	 * @since 2.4
 	 */
-	public static List<Record> fromReader(DatagramReader reader, InetSocketAddress peerAddress, ConnectionIdGenerator cidGenerator, long receiveNanos) {
+	public static List<Record> fromReader(DatagramReader reader, InetSocketAddress peerAddress, InetSocketAddress router, ConnectionIdGenerator cidGenerator, long receiveNanos) {
 		if (reader == null) {
 			throw new NullPointerException("Reader must not be null");
 		} else if (peerAddress == null) {
@@ -415,11 +423,49 @@ public class Record {
 				LOGGER.debug("Received DTLS record of unsupported type [{}]. Discarding ...", type);
 			} else {
 				records.add(new Record(contentType, version, epoch, sequenceNumber, connectionId, fragmentBytes,
-						peerAddress, receiveNanos, !records.isEmpty()));
+						peerAddress, router, receiveNanos, !records.isEmpty()));
 			}
 		}
 
 		return records;
+	}
+
+	/**
+	 * Read the connection id.
+	 * 
+	 * @param reader reader with the raw received record.
+	 * @param cidGenerator cid generator.
+	 * @return connection, or {@code null}, if not available.
+	 * @throws NullPointerException if either reader or cid generator is
+	 *             {@code null}.
+	 * @throws IllegalArgumentException if the cid generator doesn't use cid or
+	 *             the record is too short.
+	 * @since 2.5
+	 */
+	public static ConnectionId readConnectionIdFromReader(DatagramReader reader, ConnectionIdGenerator cidGenerator) {
+		if (reader == null) {
+			throw new NullPointerException("Reader must not be null");
+		} else if (cidGenerator == null) {
+			throw new NullPointerException("CID generator must not be null");
+		} else if (!cidGenerator.useConnectionId()) {
+			throw new IllegalArgumentException("CID generator must use CID");
+		} else if (reader.bitsLeft() < RECORD_HEADER_BITS) {
+			throw new IllegalArgumentException("Record too small for DTLS header");
+		}
+
+		int type = reader.read(CONTENT_TYPE_BITS);
+		if (type != ContentType.TLS12_CID.getCode()) {
+			return null;
+		}
+		reader.skip(VERSION_BITS + VERSION_BITS + EPOCH_BITS + SEQUENCE_NUMBER_BITS);
+		ConnectionId connectionId = cidGenerator.read(reader);
+		int length = reader.read(LENGTH_BITS);
+		int left = reader.bitsLeft() / Byte.SIZE;
+		if (left < length) {
+			throw new IllegalArgumentException("Record too small for DTLS length " + length);
+		}
+
+		return connectionId;
 	}
 
 	// Cryptography Helper Methods ////////////////////////////////////
@@ -585,10 +631,16 @@ public class Record {
 	 * @return peer address
 	 */
 	public InetSocketAddress getPeerAddress() {
-		if (peerAddress == null) {
-			throw new NullPointerException("missing peer address!");
-		}
 		return peerAddress;
+	}
+
+	/**
+	 * Get router address.
+	 * 
+	 * @return router address. {@code null}, if no router is used.
+	 */
+	public InetSocketAddress getRouter() {
+		return router;
 	}
 
 	/**

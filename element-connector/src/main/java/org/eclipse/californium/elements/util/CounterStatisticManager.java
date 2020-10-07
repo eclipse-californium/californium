@@ -202,4 +202,14 @@ abstract public class CounterStatisticManager {
 	public long getCounter(String name) {
 		return get(name).getCounter();
 	}
+
+	/**
+	 * Get logging tag.
+	 * 
+	 * @return logging tag.
+	 * @since 2.5
+	 */
+	public String getTag() {
+		return tag;
+	}
 }

@@ -344,10 +344,10 @@ public class DTLSConnectorAdvancedTest {
 		}
 		lastReceivedFlight = null;
 		serverHelper.cleanUpServer();
-		TestConditionTools.assertStatisticCounter("server", serverHealth, "dropped received records", is(0L));
-		TestConditionTools.assertStatisticCounter("server", serverHealth, "dropped sending records", is(0L));
-		TestConditionTools.assertStatisticCounter("client", clientHealth, "dropped received records", is(0L));
-		TestConditionTools.assertStatisticCounter("client", clientHealth, "dropped sending records", is(0L));
+		TestConditionTools.assertStatisticCounter(serverHealth, "dropped received records", is(0L));
+		TestConditionTools.assertStatisticCounter(serverHealth, "dropped sending records", is(0L));
+		TestConditionTools.assertStatisticCounter(clientHealth, "dropped received records", is(0L));
+		TestConditionTools.assertStatisticCounter(clientHealth, "dropped sending records", is(0L));
 		clientHealth.reset();
 		serverHealth.reset();
 	}

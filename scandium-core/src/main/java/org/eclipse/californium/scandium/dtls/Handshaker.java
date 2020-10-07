@@ -144,6 +144,8 @@ public abstract class Handshaker implements Destroyable {
 	private SecretIvParameterSpec clientWriteIV;
 	private SecretIvParameterSpec serverWriteIV;
 
+	private volatile boolean generateClusterMacKeys;
+
 	private boolean destroyed;
 
 	private final ReentrantLock recursionProtection = new ReentrantLock();
@@ -905,7 +907,7 @@ public abstract class Handshaker implements Destroyable {
 				// some cloud deployments may get easily mixed up
 				DTLSFlight flight = pendingFlight.get();
 				if (flight != null && flight.contains(message)) {
-					LOGGER.debug("Cannot process {} message from same peer [{}]!",
+					LOGGER.debug("Cannot process {} message from itself [{}]!",
 							HandshakeState.toString(message), getSession().getPeer());
 				} else {
 					LOGGER.debug("Cannot process {} message from peer [{}], {} expected!",
@@ -1166,12 +1168,19 @@ public abstract class Handshaker implements Destroyable {
 		 * server_write_key[SecurityParameters.enc_key_length]
 		 * client_write_IV[SecurityParameters.fixed_iv_length]
 		 * server_write_IV[SecurityParameters.fixed_iv_length]
+		 * 
+		 * To protect cluster internal forwarded and backwarded messages,
+		 * create two cluster key additionally with enc_key_length.
+		 * 
+		 * client_cluster_MAC_key[SecurityParameters.enc_key_length]
+		 * server_cluster_MAC_key[SecurityParameters.enc_key_length]
 		 */
 
 		int macKeyLength = session.getCipherSuite().getMacKeyLength();
 		int encKeyLength = session.getCipherSuite().getEncKeyLength();
 		int fixedIvLength = session.getCipherSuite().getFixedIvLength();
-		int totalLength = (macKeyLength + encKeyLength + fixedIvLength) * 2;
+		int clusterMacKeyLength = generateClusterMacKeys ? encKeyLength : 0;
+		int totalLength = (macKeyLength + encKeyLength + fixedIvLength + clusterMacKeyLength) * 2;
 		// See http://tools.ietf.org/html/rfc5246#section-6.3:
 		//      key_block = PRF(SecurityParameters.master_secret, "key expansion",
 		//                      SecurityParameters.server_random + SecurityParameters.client_random);
@@ -1197,6 +1206,20 @@ public abstract class Handshaker implements Destroyable {
 		index += length;
 		serverWriteIV = SecretUtil.createIv(data, index, length);
 
+		if (generateClusterMacKeys) {
+			length = clusterMacKeyLength;
+			SecretKey clusterClientMacKey = SecretUtil.create(data, index, length, "Mac");
+			index += length;
+			SecretKey clusterServerMacKey = SecretUtil.create(data, index, length, "Mac");
+			index += length;
+			if (isClient) {
+				session.setClusterMacKeys(clusterClientMacKey, clusterServerMacKey);
+			} else {
+				session.setClusterMacKeys(clusterServerMacKey, clusterClientMacKey);
+			}
+			SecretUtil.destroy(clusterClientMacKey);
+			SecretUtil.destroy(clusterServerMacKey);
+		}
 		Bytes.clear(data);
 	}
 
@@ -1986,6 +2009,17 @@ public abstract class Handshaker implements Destroyable {
 	public void setFailureCause(Throwable cause) {
 		completePendingFlight();
 		this.cause = cause;
+	}
+
+	/**
+	 * Enable to generate keys for cluster MAC.
+	 * 
+	 * @param enable {@code true}, generate keys for cluster MAC, {@code false},
+	 *            otherwise.
+	 * @since 2.5
+	 */
+	public void setGenerateClusterMacKeys(boolean enable) {
+		generateClusterMacKeys = enable;
 	}
 
 	/**

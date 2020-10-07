@@ -151,7 +151,7 @@ public final class TestConditionTools {
 				}
 			});
 		}
-		assertThat(name, manager.getCounter(name), matcher);
+		assertThat(prepareMessaga(null, name, manager), manager.getCounter(name), matcher);
 	}
 
 	/**
@@ -181,7 +181,7 @@ public final class TestConditionTools {
 				}
 			});
 		}
-		assertThat(message + "-" + name, manager.getCounter(name), matcher);
+		assertThat(prepareMessaga(message, name, manager), manager.getCounter(name), matcher);
 	}
 
 	/**
@@ -193,7 +193,7 @@ public final class TestConditionTools {
 	 */
 	public static void assertStatisticCounter(CounterStatisticManager manager, String name,
 			Matcher<? super Long> matcher) {
-		assertThat(name, manager.getCounter(name), matcher);
+		assertThat(prepareMessaga(null, name, manager), manager.getCounter(name), matcher);
 	}
 
 	/**
@@ -207,6 +207,28 @@ public final class TestConditionTools {
 	 */
 	public static void assertStatisticCounter(String message, CounterStatisticManager manager, String name,
 			Matcher<? super Long> matcher) {
-		assertThat(message +"-" +  name, manager.getCounter(name), matcher);
+		assertThat(prepareMessaga(message, name, manager), manager.getCounter(name), matcher);
+	}
+
+	/**
+	 * Prepare assert message.
+	 * 
+	 * @param message passed in message
+	 * @param name name of statistic
+	 * @param manager statistic manager
+	 * @return prepared message with format "[message-][tag-]name".
+	 * @since 2.5
+	 */
+	private static String prepareMessaga(String message, String name, CounterStatisticManager manager) {
+		StringBuilder builder = new StringBuilder();
+		if (message != null && !message.isEmpty()) {
+			builder.append(message).append("-");
+		}
+		String tag = manager.getTag().trim();
+		if (tag != null && !tag.isEmpty() && !tag.equals(message)) {
+			builder.append(tag).append("-");
+		}
+		builder.append(name);
+		return builder.toString();
 	}
 }

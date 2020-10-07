@@ -96,6 +96,8 @@ public class AsyncAdvancedPskStore implements AdvancedPskStore {
 	 * 
 	 * A call to {@link #shutdown()} is required to cleanup the used resources
 	 * (executor).
+	 * 
+	 * @param pskStore advanced psk store
 	 */
 	public AsyncAdvancedPskStore(AdvancedPskStore pskStore) {
 		this.pskStore = pskStore;
