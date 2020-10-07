@@ -43,7 +43,7 @@ public class SimpleRecordLayer implements RecordLayer {
 		for (DatagramPacket packet : datagrams) {
 			InetSocketAddress peerAddress = new InetSocketAddress(packet.getAddress(), packet.getPort());
 			DatagramReader reader = new DatagramReader(packet.getData(), packet.getOffset(), packet.getLength());
-			List<Record> records = Record.fromReader(reader, peerAddress, handshaker.connectionIdGenerator, timestamp);
+			List<Record> records = Record.fromReader(reader, peerAddress, null, handshaker.connectionIdGenerator, timestamp);
 			for (Record record : records) {
 				try {
 					record.applySession(handshaker.getSession());

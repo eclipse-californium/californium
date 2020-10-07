@@ -137,7 +137,7 @@ public class RecordTest {
 	public void testDecryptAEADUsesExplicitNonceFromGenericAEADCipherStruct() throws Exception {
 
 		byte[] fragment = newGenericAEADCipherFragment();
-		Record record = new Record(ContentType.APPLICATION_DATA, protocolVer, EPOCH, SEQUENCE_NO, null, fragment, session.getPeer(), ClockUtil.nanoRealtime(), false);
+		Record record = new Record(ContentType.APPLICATION_DATA, protocolVer, EPOCH, SEQUENCE_NO, null, fragment, session.getPeer(), null, ClockUtil.nanoRealtime(), false);
 		record.applySession(session);
 
 		byte[] decryptedData = record.getFragment().toByteArray();

@@ -106,13 +106,7 @@ public final class DatagramReader {
 	 *            directly.
 	 */
 	public DatagramReader(final byte[] byteArray, boolean copy) {
-		byteStream = new RangeInputStream(copy ? Arrays.copyOf(byteArray, byteArray.length) : byteArray);
-
-		// initialize bit buffer
-		currentByte = 0;
-		currentBitIndex = -1; // indicates that no byte read yet
-		markByte = currentByte;
-		markBitIndex = currentBitIndex;
+		this(copy ? Arrays.copyOf(byteArray, byteArray.length) : byteArray, 0, byteArray.length);
 	}
 
 	/**
@@ -189,6 +183,34 @@ public final class DatagramReader {
 		byteStream.skip(byteStream.available());
 		currentByte = 0;
 		currentBitIndex = -1; // indicates that no byte read yet
+	}
+
+	/**
+	 * Skip bits.
+	 * 
+	 * @param numBits number of bits to skip
+	 * @return actual number of skipped bits
+	 * @since 2.5
+	 */
+	public long skip(long numBits) {
+		int skipped = 0;
+		if (currentBitIndex >= 0) {
+			skipped = currentBitIndex + 1;
+			numBits -= skipped;
+			currentBitIndex = -1;
+		}
+		int left = (int) (numBits & 0x07);
+		numBits = byteStream.skip(numBits / Byte.SIZE) * Byte.SIZE;
+		if (left > 0) {
+			if (byteStream.available() > 0) {
+				readCurrentByte();
+				currentBitIndex -= left;
+			} else {
+				left = 0;
+			}
+		}
+
+		return numBits + left + skipped;
 	}
 
 	/**

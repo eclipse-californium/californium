@@ -47,8 +47,10 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
+import java.security.InvalidKeyException;
 import java.security.Principal;
 
+import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.security.auth.DestroyFailedException;
 import javax.security.auth.Destroyable;
@@ -110,6 +112,7 @@ public final class DTLSSession implements Destroyable {
 	 * This session's peer's IP address and port.
 	 */
 	private InetSocketAddress peer;
+	private InetSocketAddress router;
 
 	/**
 	 * An arbitrary byte sequence chosen by the server to identify this session.
@@ -178,6 +181,9 @@ public final class DTLSSession implements Destroyable {
 	 * The <em>current write state</em> used for processing all outbound records.
 	 */
 	private DTLSConnectionState writeState = DTLSConnectionState.NULL;
+
+	private SecretKey clusterWriteMacKey = null;
+	private SecretKey clusterReadMacKey = null;
 
 	/**
 	 * The current read epoch, incremented with every CHANGE_CIPHER_SPEC message received
@@ -321,6 +327,10 @@ public final class DTLSSession implements Destroyable {
 	public void destroy() throws DestroyFailedException {
 		SecretUtil.destroy(masterSecret);
 		masterSecret = null;
+		SecretUtil.destroy(clusterWriteMacKey);
+		clusterWriteMacKey = null;
+		SecretUtil.destroy(clusterReadMacKey);
+		clusterReadMacKey = null;
 		if (readState != DTLSConnectionState.NULL) {
 			readState.destroy();
 			readState = DTLSConnectionState.NULL;
@@ -363,6 +373,10 @@ public final class DTLSSession implements Destroyable {
 			// reset master secret
 			SecretUtil.destroy(this.masterSecret);
 			this.masterSecret = null;
+			SecretUtil.destroy(clusterWriteMacKey);
+			clusterWriteMacKey = null;
+			SecretUtil.destroy(clusterReadMacKey);
+			clusterReadMacKey = null;
 			this.sessionIdentifier = sessionIdentifier;
 		}
 	}
@@ -405,6 +419,37 @@ public final class DTLSSession implements Destroyable {
 	 */
 	void setReadConnectionId(ConnectionId connectionId) {
 		this.readConnectionId = connectionId;
+	}
+
+	void setClusterMacKeys(SecretKey clusterWriteMacKey, SecretKey clusterReadMacKey  ) {
+		this.clusterWriteMacKey = SecretUtil.create(clusterWriteMacKey);
+		this.clusterReadMacKey = SecretUtil.create(clusterReadMacKey);
+	}
+
+	public Mac getThreadLocalClusterWriteMac() {
+		if (clusterWriteMacKey != null) {
+			try {
+				Mac mac = cipherSuite.getThreadLocalPseudoRandomFunctionMac();
+				mac.init(clusterWriteMacKey);
+				return mac;
+			} catch (InvalidKeyException e) {
+				LOGGER.info("cluster write MAC failed!", e);
+			}
+		}
+		return null;
+	}
+
+	public Mac getThreadLocalClusterReadMac() {
+		if (clusterReadMacKey != null) {
+			try {
+				Mac mac = cipherSuite.getThreadLocalPseudoRandomFunctionMac();
+				mac.init(clusterReadMacKey);
+				return mac;
+			} catch (InvalidKeyException e) {
+				LOGGER.info("cluster read MAC failed!", e);
+			}
+		}
+		return null;
 	}
 
 	/**
@@ -512,8 +557,13 @@ public final class DTLSSession implements Destroyable {
 	private DtlsEndpointContext getConnectionContext(String epoch) {
 		String id = sessionIdentifier.isEmpty() ? "TIME:" + Long.toString(creationTime) : sessionIdentifier.toString();
 		if (writeConnectionId != null && readConnectionId != null) {
-			return new DtlsEndpointContext(peer, hostName, peerIdentity, id, epoch, cipherSuite.name(),
-					handshakeTimeTag, writeConnectionId.getAsString(), readConnectionId.getAsString());
+			if (router != null) {
+				return new DtlsEndpointContext(peer, hostName, peerIdentity, id, epoch, cipherSuite.name(),
+						handshakeTimeTag, writeConnectionId.getAsString(), readConnectionId.getAsString(), "dtls-cid-router");
+			} else {
+				return new DtlsEndpointContext(peer, hostName, peerIdentity, id, epoch, cipherSuite.name(),
+						handshakeTimeTag, writeConnectionId.getAsString(), readConnectionId.getAsString(), null);
+			}
 		} else {
 			return new DtlsEndpointContext(peer, hostName, peerIdentity, id, epoch, cipherSuite.name(),
 					handshakeTimeTag);
@@ -1014,6 +1064,26 @@ public final class DTLSSession implements Destroyable {
 
 	public void setPeer(InetSocketAddress peer) {
 		this.peer = peer;
+	}
+
+	/**
+	 * Get router address.
+	 * 
+	 * @return router address. {@code null}, if no router is used.
+	 * @since 2.5
+	 */
+	public InetSocketAddress getRouter() {
+		return router;
+	}
+
+	/**
+	 * Set router address.
+	 * 
+	 * @param router router address
+	 * @since 2.5
+	 */
+	public void setRouter(InetSocketAddress router) {
+		this.router = router;
 	}
 
 	/**
