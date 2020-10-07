@@ -137,6 +137,14 @@ public class Nat {
 				} else if (line.equals("clear")) {
 					int num = util.stopAllNatEntries();
 					System.out.println(num + " - NAT entries dropped.");
+				} else if (line.startsWith("clear ")) {
+					try {
+						int num = parse("clear ", line);
+						num = util.stopNatEntries(num);
+						System.out.println(num + " - NAT entries dropped.");
+					} catch (NumberFormatException ex) {
+						
+					}
 				} else if (line.equals("reassign")) {
 					util.reassignNewLocalAddresses();
 				} else if (line.equals("rebalance")) {
@@ -172,6 +180,10 @@ public class Nat {
 				util.stop();
 			}
 		}
+	}
+
+	public static int parse(String head, String line) {
+		return Integer.parseInt(line.substring(head.length()));
 	}
 
 	public static InetSocketAddress create(String head, String line) throws URISyntaxException {

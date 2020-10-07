@@ -755,12 +755,23 @@ public class NioNatUtil implements Runnable {
 	 * @return number of stopped NAT entries.
 	 */
 	public int stopAllNatEntries() {
+		return stopNatEntries(nats.size());
+	}
+
+	/**
+	 * Stop NAT entries in {@link #nats}.
+	 * 
+	 * @param num number of NAT entries to stop.
+	 * @return number of effectively stopped NAT entries.
+	 */
+	public int stopNatEntries(int num) {
 		int counter = 0;
 		Iterator<NatEntry> iterator = nats.values().iterator();
-		while (iterator.hasNext()) {
+		while (num > 0 && iterator.hasNext()) {
 			NatEntry entry = iterator.next();
 			iterator.remove();
 			entry.stop();
+			--num;
 			++counter;
 		}
 		return counter;
