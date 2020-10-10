@@ -35,12 +35,14 @@ import java.net.URISyntaxException;
 import java.text.SimpleDateFormat;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.cli.ClientConfig;
 import org.eclipse.californium.cli.ClientInitializer;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.Utils;
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.EndpointContextTracer;
 import org.eclipse.californium.core.coap.Request;
@@ -152,14 +154,22 @@ public class ReceivetestClient {
 		String query = null;
 		try {
 			URI aUri = new URI(clientConfig.uri);
+			String host = aUri.getHost();
+			String scheme = aUri.getScheme();
+			int port = aUri.getPort();
+			if (port < 0 && host.equals(Config.DEFAULT_URI)) {
+				// receive test is hosted on extend-plugtest-server
+				port = CoAP.isSecureScheme(scheme) ? 5784 : 5783;
+			}
 			query = aUri.getQuery();
-			aUri = new URI(aUri.getScheme(), null, aUri.getHost(), aUri.getPort(), null, null, null);
+			aUri = new URI(scheme, null, host, port, null, null, null);
 			uri = aUri.toASCIIString();
 		} catch (URISyntaxException e) {
 			System.err.println("URI error: " + e.getMessage());
 			System.exit(-1);
 		}
 		CoapClient client = new CoapClient(uri);
+		final AtomicInteger receivedData = new AtomicInteger();
 		final Request request = Request.newPost();
 		if (clientConfig.contentType != null) {
 			request.getOptions().setAccept(clientConfig.contentType.contentType);
@@ -181,6 +191,14 @@ public class ReceivetestClient {
 				+ query);
 		if (clientConfig.verbose) {
 			request.addMessageObserver(new EndpointContextTracer() {
+
+				@Override
+				public void onResponse(final Response response) {
+					byte[] raw = response.getBytes();
+					if (raw != null) {
+						receivedData.addAndGet(raw.length);
+					}
+				}
 
 				@Override
 				public void onReadyToSend() {
@@ -236,8 +254,12 @@ public class ReceivetestClient {
 
 	private static void printHead(Response response) {
 		System.out.println();
-		System.out.println(
-				"Response: " + response.getBytes().length + " bytes, Payload: " + response.getPayloadSize() + " bytes");
+		byte[] raw = response.getBytes();
+		if (raw == null) {
+			System.out.println("Response: Payload: " + response.getPayloadSize() + " bytes");
+		} else {
+			System.out.println("Response: " + raw.length + " bytes, Payload: " + response.getPayloadSize() + " bytes");
+		}
 		Long rtt = response.getRTT();
 		if (rtt != null) {
 			System.out.println("RTT: " + rtt + "ms");
