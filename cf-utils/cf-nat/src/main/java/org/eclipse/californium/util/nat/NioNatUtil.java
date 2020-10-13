@@ -657,12 +657,17 @@ public class NioNatUtil implements Runnable {
 				long now = System.nanoTime();
 				long expireNanos = now - TimeUnit.MILLISECONDS.toNanos(loadBalancerTimeoutMillis.get());
 				synchronized (destinations) {
-					Iterator<NatAddress> iterator = destinations.iterator();
-					while (iterator.hasNext()) {
-						NatAddress dest = iterator.next();
-						if (dest.expires(expireNanos)) {
-							iterator.remove();
-							LOGGER.warn("expires {}", dest.name);
+					if (destinations.size() > 1) {
+						Iterator<NatAddress> iterator = destinations.iterator();
+						while (iterator.hasNext()) {
+							NatAddress dest = iterator.next();
+							if (dest.expires(expireNanos)) {
+								iterator.remove();
+								LOGGER.warn("expires {}", dest.name);
+								if (destinations.size() < 1) {
+									break;
+								}
+							}
 						}
 					}
 				}
