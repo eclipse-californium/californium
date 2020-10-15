@@ -52,6 +52,10 @@ echo "clients my be used for the benchmark. It's not recommended to use that man
 echo "and it's even less recommended to use more!"
 echo
 echo "Variables:"
+echo "   USE_TCP"
+echo "   USE_UDP"
+echo "   USE_PLAIN"
+echo "   USE_SECURE"
 echo "   REQS"
 echo "   NOTIFIES"
 echo "   PAYLOAD"
@@ -63,6 +67,7 @@ echo "   CALI_AUTH"
 echo
 echo "These variables maybe override in the calling shell by"
 echo
+echo "export USE_TCP=0"
 echo "export REQS=10"
 echo
 echo "Note: sometimes the recommended default configuration is changed." 
@@ -104,10 +109,11 @@ else
 fi
 
 # adjust the multiplier according the speed of your CPU
-USE_TCP=1
-USE_UDP=1
-USE_PLAIN=1
-USE_SECURE=1
+: "${USE_TCP:=1}"
+: "${USE_UDP:=1}"
+: "${USE_PLAIN:=1}"
+: "${USE_SECURE:=1}"
+
 USE_HTTP=0
 USE_REVERSE=1
 USE_OBSERVE=1
