@@ -162,6 +162,12 @@ public final class DTLSSession implements Destroyable {
 	 * Connection id used for all outbound records.
 	 */
 	private ConnectionId writeConnectionId = null;
+	/**
+	 * Connection id used for all inbound records.
+	 * 
+	 * @since 2.5
+	 */
+	private ConnectionId readConnectionId = null;
 
 	/**
 	 * The <em>current read state</em> used for processing all inbound records.
@@ -381,6 +387,27 @@ public final class DTLSSession implements Destroyable {
 	}
 
 	/**
+	 * Get connection id for inbound records.
+	 * 
+	 * @return connection id for inbound records. {@code null}, if connection
+	 *         id is not used for other peer
+	 * @since 2.5
+	 */
+	public ConnectionId getReadConnectionId() {
+		return readConnectionId;
+	}
+
+	/**
+	 * Set connection id for inbound records.
+	 * 
+	 * @param connectionId connection id for inbound records
+	 * @since 2.5
+	 */
+	void setReadConnectionId(ConnectionId connectionId) {
+		this.readConnectionId = connectionId;
+	}
+
+	/**
 	 * System time of session creation in milliseconds.
 	 * 
 	 * @return session creation system time in milliseconds
@@ -475,15 +502,22 @@ public final class DTLSSession implements Destroyable {
 	}
 
 	public DtlsEndpointContext getConnectionWriteContext() {
-		String id = sessionIdentifier.isEmpty() ? "TIME:" + Long.toString(creationTime) : sessionIdentifier.toString();
-		return new DtlsEndpointContext(peer, hostName, peerIdentity, id, Integer.toString(writeEpoch),
-				cipherSuite.name(), handshakeTimeTag);
+		return getConnectionContext(Integer.toString(writeEpoch));
 	}
 
 	public DtlsEndpointContext getConnectionReadContext() {
+		return getConnectionContext(Integer.toString(readEpoch));
+	}
+
+	private DtlsEndpointContext getConnectionContext(String epoch) {
 		String id = sessionIdentifier.isEmpty() ? "TIME:" + Long.toString(creationTime) : sessionIdentifier.toString();
-		return new DtlsEndpointContext(peer, hostName, peerIdentity, id, Integer.toString(readEpoch),
-				cipherSuite.name(), handshakeTimeTag);
+		if (writeConnectionId != null && readConnectionId != null) {
+			return new DtlsEndpointContext(peer, hostName, peerIdentity, id, epoch, cipherSuite.name(),
+					handshakeTimeTag, writeConnectionId.getAsString(), readConnectionId.getAsString());
+		} else {
+			return new DtlsEndpointContext(peer, hostName, peerIdentity, id, epoch, cipherSuite.name(),
+					handshakeTimeTag);
+		}
 	}
 
 	/**

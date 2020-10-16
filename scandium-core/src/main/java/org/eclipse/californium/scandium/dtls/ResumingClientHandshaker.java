@@ -195,6 +195,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 				if (extension != null) {
 					ConnectionId connectionId = extension.getConnectionId();
 					session.setWriteConnectionId(connectionId);
+					session.setReadConnectionId(getReadConnectionId());
 				}
 			}
 			expectChangeCipherSpecMessage();

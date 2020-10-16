@@ -49,6 +49,20 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 */
 	public static final String KEY_HANDSHAKE_TIMESTAMP = "DTLS_HANDSHAKE_TIMESTAMP";
 	/**
+	 * The name of the attribute that contains the DTLS Connection ID of the
+	 * other peer, if used.
+	 * 
+	 * @since 2.5
+	 */
+	public static final String KEY_READ_CONNECTION_ID = "DTLS_READ_CONNECTION_ID";
+	/**
+	 * The name of the attribute that contains the DTLS Connection ID of the
+	 * other peer, if used.
+	 * 
+	 * @since 2.5
+	 */
+	public static final String KEY_WRITE_CONNECTION_ID = "DTLS_WRITE_CONNECTION_ID";
+	/**
 	 * The name of the attribute that contains a handshake mode. Values see
 	 * {@link #HANDSHAKE_MODE_FORCE_FULL}, {@link #HANDSHAKE_MODE_FORCE}, and
 	 * {@link #HANDSHAKE_MODE_NONE}. Only considered, if endpoint is not
@@ -120,13 +134,36 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 * @param timestamp the timestamp in milliseconds of the last handshake. See
 	 *            {@link System#currentTimeMillis()}.
 	 * @throws NullPointerException if any of the parameters other than
-	 *             peerIdentity are {@code null}.
+	 *             peerIdentity or virtualHost are {@code null}.
 	 */
 	public DtlsEndpointContext(InetSocketAddress peerAddress, String virtualHost, Principal peerIdentity,
 			String sessionId, String epoch, String cipher, String timestamp) {
 
 		super(peerAddress, virtualHost, peerIdentity, KEY_SESSION_ID, sessionId, KEY_CIPHER, cipher, KEY_EPOCH, epoch,
 				KEY_HANDSHAKE_TIMESTAMP, timestamp);
+	}
+
+	/**
+	 * Creates a context for DTLS session parameters.
+	 * 
+	 * @param peerAddress peer address of endpoint context
+	 * @param virtualHost the name of the virtual host at the peer
+	 * @param peerIdentity peer identity of endpoint context
+	 * @param sessionId the session's ID.
+	 * @param epoch the session's current read/write epoch.
+	 * @param cipher the cipher suite of the session's current read/write state.
+	 * @param timestamp the timestamp in milliseconds of the last handshake. See
+	 *            {@link System#currentTimeMillis()}.
+	 * @param writeCid dtls connection id for outgoing records.
+	 * @param readCid dtls connection id for incoming records.
+	 * @throws NullPointerException if any of the parameters other than
+	 *             peerIdentity or virtualHost are {@code null}.
+	 * @since 2.5
+	 */
+	public DtlsEndpointContext(InetSocketAddress peerAddress, String virtualHost, Principal peerIdentity,
+			String sessionId, String epoch, String cipher, String timestamp, String writeCid, String readCid) {
+		super(peerAddress, virtualHost, peerIdentity, KEY_SESSION_ID, sessionId, KEY_CIPHER, cipher, KEY_EPOCH, epoch,
+				KEY_HANDSHAKE_TIMESTAMP, timestamp, KEY_WRITE_CONNECTION_ID, writeCid, KEY_READ_CONNECTION_ID, readCid);
 	}
 
 	/**

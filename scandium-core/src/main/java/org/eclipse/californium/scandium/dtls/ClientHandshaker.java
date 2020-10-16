@@ -349,6 +349,7 @@ public class ClientHandshaker extends Handshaker {
 			if (extension != null) {
 				ConnectionId connectionId = extension.getConnectionId();
 				session.setWriteConnectionId(connectionId);
+				session.setReadConnectionId(getReadConnectionId());
 			}
 		}
 		session.setSendCertificateType(message.getClientCertificateType());
