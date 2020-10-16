@@ -1584,19 +1584,23 @@ public class DTLSConnector implements Connector, RecordLayer {
 			final RawDataChannel channel = messageHandler;
 			// finally, forward de-crypted message to application layer
 			if (channel != null) {
-				// create application message.
-				DtlsEndpointContext context;
-				if (session.getPeer() == null) {
+				// context
+				InetSocketAddress peer = session.getPeer();
+				if (peer == null) {
+					// set peer
 					// endpoint context would fail ...
 					session.setPeer(record.getPeerAddress());
-					context = session.getConnectionWriteContext();
+				}
+				// create application message.
+				DtlsEndpointContext context = session.getConnectionReadContext();
+				if (peer == null) {
+					// reset peer
 					session.setPeer(null);
-					LOGGER.warn("Received APPLICATION_DATA from deprecated {}", record.getPeerAddress());
-				} else {
-					context = session.getConnectionWriteContext();
+					LOGGER.debug("Received APPLICATION_DATA from deprecated {}", record.getPeerAddress());
 				}
 				LOGGER.trace("Received APPLICATION_DATA for {}", context);
-				RawData receivedApplicationMessage = RawData.inbound(message.getData(), context, false, record.getReceiveNanos());
+				RawData receivedApplicationMessage = RawData.inbound(message.getData(), context, false,
+						record.getReceiveNanos());
 				channel.receiveData(receivedApplicationMessage);
 			}
 		} else if (ongoingHandshake != null) {

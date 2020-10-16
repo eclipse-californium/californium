@@ -675,14 +675,8 @@ public class ServerHandshaker extends Handshaker {
 			ConnectionIdExtension connectionIdExtension = clientHello.getConnectionIdExtension();
 			if (connectionIdExtension != null) {
 				session.setWriteConnectionId(connectionIdExtension.getConnectionId());
-				final ConnectionId connectionId;
-				if (connectionIdGenerator.useConnectionId()) {
-					// use the already created unique cid
-					connectionId = getConnection().getConnectionId();
-				} else {
-					// use empty cid
-					connectionId = ConnectionId.EMPTY;
-				}
+				final ConnectionId connectionId = getReadConnectionId();
+				session.setReadConnectionId(connectionId);
 				ConnectionIdExtension extension = ConnectionIdExtension.fromConnectionId(connectionId);
 				serverHelloExtensions.addExtension(extension);
 			}

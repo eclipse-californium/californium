@@ -26,8 +26,6 @@ import java.lang.management.OperatingSystemMXBean;
 import java.lang.management.ThreadMXBean;
 import java.net.SocketException;
 import java.net.URI;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +52,7 @@ import org.eclipse.californium.extplugtests.resources.ReverseObserve;
 import org.eclipse.californium.extplugtests.resources.ReverseRequest;
 import org.eclipse.californium.plugtests.AbstractTestServer;
 import org.eclipse.californium.plugtests.PlugtestServer;
+import org.eclipse.californium.plugtests.resources.Context;
 import org.eclipse.californium.plugtests.resources.MyIp;
 import org.eclipse.californium.unixhealth.NetStatLogger;
 import org.slf4j.Logger;
@@ -162,36 +161,10 @@ public class ExtendedTestServer extends AbstractTestServer {
 
 		// create server
 		try {
-			List<Protocol> protocols;
-			
-			if (config.onlyDtls) {
-				protocols = Arrays.asList(Protocol.DTLS);
-			} else if (config.tcp) {
-				protocols = Arrays.asList(Protocol.UDP, Protocol.DTLS, Protocol.TCP, Protocol.TLS);
-			} else {
-				protocols = Arrays.asList(Protocol.UDP, Protocol.DTLS);
-			}
-			List<InterfaceType> types = new ArrayList<InterfaceType>();
-			if (config.external) {
-				types.add(InterfaceType.EXTERNAL);
-			}
-			if (config.loopback) {
-				types.add(InterfaceType.LOCAL);
-			}
-			int s = types.size();
-			if (s == 0) {
-				System.err.println("Either --loopback or --external must be enabled!");
-				System.exit(1);
-			}
-			if (config.ipv6) {
-				types.add(InterfaceType.IPV6);
-			}
-			if (config.ipv4) {
-				types.add(InterfaceType.IPV4);
-			}
-			if (s == types.size()) {
-				System.err.println("Either --ipv4 or --ipv6 must be enabled!");
-			}
+			List<Protocol> protocols = config.getProtocols();
+
+			List<InterfaceType> types = config.getInterfaceTypes();
+
 			String pattern = config.interfacePatterns != null && !config.interfacePatterns.isEmpty()
 					? config.interfacePatterns.get(0)
 					: null;
@@ -222,7 +195,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 				}
 				if (ep instanceof MessagePostProcessInterceptors) {
 					int interval = ep.getConfig().getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL);
-					final HealthStatisticLogger healthLogger = new HealthStatisticLogger(uri.getScheme(),
+					final HealthStatisticLogger healthLogger = new HealthStatisticLogger(uri.toASCIIString(),
 							!CoAP.isTcpScheme(uri.getScheme()), interval, executor);
 					if (healthLogger.isEnabled()) {
 						((MessagePostProcessInterceptors) ep).addPostProcessInterceptor(healthLogger);
@@ -310,6 +283,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 		add(new RequestStatistic());
 		add(new Benchmark(noBenchmark, maxResourceSize));
 		add(new MyIp(MyIp.RESOURCE_NAME, true));
+		add(new Context(Context.RESOURCE_NAME, true));
 	}
 
 	private static void startManagamentStatistic() {
