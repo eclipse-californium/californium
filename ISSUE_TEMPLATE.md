@@ -1,4 +1,4 @@
-# Please providing basic issue information
+# Please provide basic issue information
 
 Issues may be answered much faster, if you provide more details ahead!
 
@@ -12,3 +12,4 @@ Issues may be answered much faster, if you provide more details ahead!
 * If you have logs, please provide them
 * If you have tcpdump captures (wireshark), please provide them.
 
+(See https://github.com/eclipse/californium/wiki/Logs-and-IP-Capturing-%E2%80%90-How-To-Provide-The-Right-Information .)
