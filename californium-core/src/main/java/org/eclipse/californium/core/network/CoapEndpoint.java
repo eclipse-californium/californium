@@ -700,13 +700,13 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors, M
 	}
 
 	@Override
-	public void addNotificationListener(final NotificationListener lis) {
-		notificationListeners.add(lis);
+	public void addNotificationListener(final NotificationListener listener) {
+		notificationListeners.add(listener);
 	}
 
 	@Override
-	public void removeNotificationListener(final NotificationListener lis) {
-		notificationListeners.remove(lis);
+	public void removeNotificationListener(final NotificationListener listener) {
+		notificationListeners.remove(listener);
 	}
 
 	@Override

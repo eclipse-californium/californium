@@ -27,6 +27,7 @@
 		<httpclient.version>4.5.2</httpclient.version>
 		<httpclient.version.spec>version="[${versionmask;==;${httpclient.version}},${versionmask;+;${httpclient.version}})"</httpclient.version.spec>
 		<maven.javadoc.skip>true</maven.javadoc.skip>
+		<revapi.skip>true</revapi.skip>
 	</properties>
 
 	<dependencies>

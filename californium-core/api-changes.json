@@ -1,0 +1,15 @@
+{
+	"2.5.0": {
+		"revapi": {
+			"ignore": [
+				{
+					"code": "java.class.nonFinalClassInheritsFromNewClass",
+					"old": "class org.eclipse.californium.core.CoapObserveRelation",
+					"new": "class org.eclipse.californium.core.CoapObserveRelation",
+					"superClass": "org.eclipse.californium.core.coap.ClientObserveRelation",
+					"justification": "CoapObserveRelation is not intended to be extended in custom code."
+				}
+			]
+		}
+	}
+}
