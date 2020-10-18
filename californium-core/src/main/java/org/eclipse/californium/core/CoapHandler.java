@@ -19,8 +19,6 @@
  ******************************************************************************/
 package org.eclipse.californium.core;
 
-import org.eclipse.californium.core.CoapResponse;
-
 /**
  * A CoapHandler can be used to asynchronously react to responses from a CoAP
  * client. When a response or in case of a CoAP observe relation a notification

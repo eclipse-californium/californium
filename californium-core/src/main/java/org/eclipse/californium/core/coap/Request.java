@@ -908,8 +908,7 @@ public class Request extends Message {
 	 * @throws NullPointerException if this request has no destination set.
 	 */
 	public Request send() {
-		validateBeforeSending();
-		EndpointManager.getEndpointManager().getDefaultEndpoint(getScheme()).sendRequest(this);
+		send(EndpointManager.getEndpointManager().getDefaultEndpoint(getScheme()));
 		return this;
 	}
 

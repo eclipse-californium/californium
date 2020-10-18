@@ -1199,7 +1199,7 @@ public class CoapClient {
 			ObserveMessageObserverImpl messageObserver = new ObserveMessageObserverImpl(handler, request.isMulticast(), relation);
 			request.addMessageObserver(messageObserver);
 			// add notification listener to all notification
-			NotificationListener notificationListener = new Adapter(messageObserver, request);
+			NotificationListener notificationListener = new Adapter(messageObserver, relation);
 			outEndpoint.addNotificationListener(notificationListener);
 			// relation should remove this listener when the request is cancelled
 			relation.setNotificationListener(notificationListener);
@@ -1234,7 +1234,7 @@ public class CoapClient {
 			ObserveMessageObserverImpl messageObserver = new ObserveMessageObserverImpl(handler, request.isMulticast(), relation);
 			request.addMessageObserver(messageObserver);
 			// add notification listener to all notification
-			NotificationListener notificationListener = new Adapter(messageObserver, request);
+			NotificationListener notificationListener = new Adapter(messageObserver, relation);
 			outEndpoint.addNotificationListener(notificationListener);
 			// relation should remove this listener when the request is cancelled
 			relation.setNotificationListener(notificationListener);
@@ -1388,18 +1388,18 @@ public class CoapClient {
 	 */
 	private class Adapter implements NotificationListener {
 
-		private MessageObserver obs;
-		private Request req;
+		private final MessageObserver observer;
+		private final CoapObserveRelation relation;
 
-		public Adapter(MessageObserver observer, Request request) {
-			obs = observer;
-			req = request;
+		public Adapter(MessageObserver observer, CoapObserveRelation relation) {
+			this.observer = observer;
+			this.relation = relation;
 		}
 
 		@Override
 		public void onNotification(Request request, Response response) {
-			if (request.getToken().equals(req.getToken())) {
-				obs.onResponse(response);
+			if (relation.matchRequest(request)) {
+				observer.onResponse(response);
 			}
 		}
 	}
