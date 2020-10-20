@@ -86,7 +86,7 @@ public class Context extends CoapResource {
 			payload = handleGet(exchange, new Json());
 			break;
 		case APPLICATION_XML:
-			payload = handleGet(exchange, new Xml());
+			payload = handleGet(exchange, new Xml("context"));
 			break;
 		default:
 			String ct = MediaTypeRegistry.toString(accept);
@@ -207,7 +207,11 @@ public class Context extends CoapResource {
 	}
 
 	private static class Xml implements Formatter {
-		private StringBuilder payload = new StringBuilder("<ip ");
+		private StringBuilder payload = new StringBuilder();
+
+		Xml(String element) {
+			payload.append("<").append(element).append(" ");
+		}
 
 		@Override
 		public void add(String name, String value) {
