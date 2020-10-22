@@ -122,6 +122,13 @@ Another interop server with a different implementation can be found at
 [coap://coap.me:5683/](coap://coap.me:5683/).
 More information can be found at [http://coap.me/](http://coap.me/).
 
+# Adapter Selection
+
+For some systems (particularly when multicasting), it may be necessary to specify/restrict californium to a particular network interface, or interfaces. This can be
+ achieved by setting the `COAP_NETWORK_INTERFACES` JVM parameter to a suitable regex, for example:
+ 
+`java -DCOAP_NETWORK_INTERFACES='.*wpan0' -jar target/cf-helloworld-server-2.5.0-SNAPSHOT.jar MulticastTestServer`
+
 # Contact
 
 A bug, an idea, an issue? Join the [Mailing list](https://dev.eclipse.org/mailman/listinfo/cf-dev)
