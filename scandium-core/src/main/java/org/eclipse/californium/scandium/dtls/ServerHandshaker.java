@@ -376,7 +376,7 @@ public class ServerHandshaker extends Handshaker {
 		}
 
 		flightNumber += 2;
-		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
+		DTLSFlight flight = createFlight();
 
 		// create handshake hash
 		MessageDigest md = getHandshakeMessageDigest();
@@ -440,7 +440,7 @@ public class ServerHandshaker extends Handshaker {
 		byte[] cookie = clientHello.getCookie();
 		flightNumber = (cookie != null && cookie.length > 0) ? 4 : 2;
 
-		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
+		DTLSFlight flight = createFlight();
 
 		createServerHello(clientHello, flight);
 

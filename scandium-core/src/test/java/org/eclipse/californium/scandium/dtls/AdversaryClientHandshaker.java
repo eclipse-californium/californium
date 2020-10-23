@@ -59,7 +59,7 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 
 	@Override
 	protected void processMasterSecret(SecretKey masterSecret) throws HandshakeException {
-		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
+		DTLSFlight flight = createFlight();
 
 		applyMasterSecret(masterSecret);
 

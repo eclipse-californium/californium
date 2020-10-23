@@ -1351,6 +1351,17 @@ public abstract class Handshaker implements Destroyable {
 	}
 
 	/**
+	 * Create new flight with the current {@link #getSession()} and the current
+	 * {@link #flightNumber}.
+	 * 
+	 * @return new flight
+	 * @since 2.5
+	 */
+	public DTLSFlight createFlight() {
+		return new DTLSFlight(session, flightNumber);
+	}
+
+	/**
 	 * Get read connection ID for inbound records
 	 * 
 	 * @return connection ID for inbound records. {@code null}, if connection ID

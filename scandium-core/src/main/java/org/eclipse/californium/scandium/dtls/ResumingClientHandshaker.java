@@ -217,7 +217,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	private void receivedServerFinished(Finished message) throws HandshakeException {
 
 		flightNumber += 2;
-		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
+		DTLSFlight flight = createFlight();
 
 		// update the handshake hash
 		MessageDigest md = getHandshakeMessageDigest();
@@ -270,7 +270,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		clientHello = message;
 
 		flightNumber = 1;
-		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
+		DTLSFlight flight = createFlight();
 		wrapMessage(flight, message);
 		sendFlight(flight);
 		states = RESUME;

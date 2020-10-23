@@ -303,7 +303,7 @@ public class ClientHandshaker extends Handshaker {
 		clientHello.setCookie(message.getCookie());
 
 		flightNumber = 3;
-		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
+		DTLSFlight flight = createFlight();
 		wrapMessage(flight, clientHello);
 		sendFlight(flight);
 		// the cookie may have changed
@@ -571,7 +571,7 @@ public class ClientHandshaker extends Handshaker {
 	 */
 	private void processServerHelloDone() throws HandshakeException {
 
-		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
+		DTLSFlight flight = createFlight();
 
 		createCertificateMessage(flight);
 
@@ -719,7 +719,7 @@ public class ClientHandshaker extends Handshaker {
 		// store for later calculations
 		flightNumber = 1;
 		clientHello = startMessage;
-		DTLSFlight flight = new DTLSFlight(session, flightNumber);
+		DTLSFlight flight = createFlight();
 		wrapMessage(flight, startMessage);
 		sendFlight(flight);
 		states = SEVER_CERTIFICATE;

@@ -147,7 +147,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 			processHelloExtensions(clientHello, serverHelloExtensions);
 
 			flightNumber += 2;
-			DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
+			DTLSFlight flight = createFlight();
 
 			ServerHello serverHello = new ServerHello(clientHello.getClientVersion(), serverRandom, session.getSessionIdentifier(),
 					cipherSuite, session.getCompressionMethod(), serverHelloExtensions, clientHello.getPeer());
