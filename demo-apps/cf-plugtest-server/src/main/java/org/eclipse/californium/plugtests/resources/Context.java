@@ -125,7 +125,14 @@ public class Context extends CoapResource {
 		}
 		String cid = context.get(DtlsEndpointContext.KEY_READ_CONNECTION_ID);
 		if (cid != null) {
-			formatter.add("cid", cid);
+			formatter.add("read-cid", cid);
+		}
+		cid = context.get(DtlsEndpointContext.KEY_WRITE_CONNECTION_ID);
+		if (cid != null) {
+			formatter.add("write-cid", cid);
+		}
+		if (StringUtil.CALIFORNIUM_VERSION != null) {
+			formatter.add("server", "Cf " + StringUtil.CALIFORNIUM_VERSION);
 		}
 		return formatter.getPayload();
 	}
