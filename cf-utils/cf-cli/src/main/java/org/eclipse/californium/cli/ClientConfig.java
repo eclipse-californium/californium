@@ -160,11 +160,26 @@ public class ClientConfig extends ClientBaseConfig {
 	public boolean payloadFormat;
 
 	/**
-	 * Request type. {@code true} for {@link Type#CON}, {@code false} for
-	 * {@link Type#NON}, and {@code null}, if not defined.
+	 * Message type.
+	 * 
+	 * @since 2.5
 	 */
-	@Option(names = "--con", description = "send request confirmed or non-confirmed. Default confirmed.")
-	public Boolean con;
+	@ArgGroup(exclusive = true)
+	public MessageType messageType;
+
+	public static class MessageType {
+
+		/**
+		 * Request type. {@code true} for {@link Type#CON}.
+		 */
+		@Option(names = "--con", description = "send request confirmed.")
+		public boolean con;
+		/**
+		 * Request type. {@code true} for {@link Type#NON}.
+		 */
+		@Option(names = "--non", description = "send request non-confirmed.")
+		public boolean non;
+	}
 
 	/**
 	 * Request method.
