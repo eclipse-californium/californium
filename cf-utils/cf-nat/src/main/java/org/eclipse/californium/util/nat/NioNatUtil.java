@@ -41,6 +41,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -178,6 +179,20 @@ public class NioNatUtil implements Runnable {
 	 */
 	private long lastWrongRoutedCounter;
 	/**
+	 * Counter for timedout NAT entries.
+	 * 
+	 * @since 2.5
+	 */
+	private AtomicLong timedoutEntriesCounter = new AtomicLong();
+	/**
+	 * Last counter for timedout NAT entries.
+	 * 
+	 * Used for logging.
+	 * 
+	 * @since 2.5
+	 */
+	private long lastTimedoutEntriesCounter;
+	/**
 	 * NAT timeout in milliseconds. Remove entry, if inactive.
 	 * 
 	 * @since 2.4
@@ -189,6 +204,16 @@ public class NioNatUtil implements Runnable {
 	 * @since 2.5
 	 */
 	private AtomicInteger loadBalancerTimeoutMillis = new AtomicInteger(LB_TIMEOUT_MS);
+
+	/**
+	 * Enable reverse NAT updates.
+	 * 
+	 * Update destination address, if backwards message is received from
+	 * different source.
+	 * 
+	 * @since 2.5
+	 */
+	private AtomicBoolean reverseNatUpdate = new AtomicBoolean();
 
 	/**
 	 * NAT address.
@@ -210,7 +235,7 @@ public class NioNatUtil implements Runnable {
 		/**
 		 * Counter for usage in NatEntries.
 		 */
-		private final AtomicInteger usageCounter = new AtomicInteger();
+		private final AtomicInteger usageCounter;
 		/**
 		 * Nanoseconds of last usage.
 		 * 
@@ -235,6 +260,7 @@ public class NioNatUtil implements Runnable {
 		private NatAddress(InetSocketAddress address) {
 			this.address = address;
 			this.name = address.getHostString() + ":" + address.getPort();
+			this.usageCounter = new AtomicInteger();
 			updateReceive();
 		}
 
@@ -664,7 +690,7 @@ public class NioNatUtil implements Runnable {
 							if (dest.expires(expireNanos)) {
 								iterator.remove();
 								LOGGER.warn("expires {}", dest.name);
-								if (destinations.size() < 1) {
+								if (destinations.size() < 2) {
 									break;
 								}
 							}
@@ -680,6 +706,7 @@ public class NioNatUtil implements Runnable {
 						NatEntry entry = iterator.next();
 						if (entry.expires(expireNanos)) {
 							iterator.remove();
+							timedoutEntriesCounter.incrementAndGet();
 						}
 					}
 				}
@@ -1207,6 +1234,19 @@ public class NioNatUtil implements Runnable {
 	}
 
 	/**
+	 * Enable reverse address update of NAT entries.
+	 * 
+	 * Update destination address, if backwards message is received from
+	 * different source.
+	 * 
+	 * @param reverseUpdate {@code true}, enable reverse update, {@code false},
+	 *            disable it.
+	 */
+	public void setReverseNatUpdate(boolean reverseUpdate) {
+		reverseNatUpdate.set(reverseUpdate);
+	}
+
+	/**
 	 * Dump message dropping statistics to log.
 	 */
 	public void dumpMessageDroppingStatistic() {
@@ -1227,11 +1267,17 @@ public class NioNatUtil implements Runnable {
 		if (drops != null) {
 			drops.dumpStatistic();
 		}
-		long broken = wrongRoutedCounter.get();
-		if (lastWrongRoutedCounter < broken) {
-			LOGGER.warn("wrong routed messages {} (overall {}).", broken - lastWrongRoutedCounter,
+		long current = wrongRoutedCounter.get();
+		if (lastWrongRoutedCounter < current) {
+			LOGGER.warn("wrong routed messages {} (overall {}).", current - lastWrongRoutedCounter,
 					lastWrongRoutedCounter);
-			lastWrongRoutedCounter = broken;
+			lastWrongRoutedCounter = current;
+		}
+		current = timedoutEntriesCounter.get();
+		if (lastTimedoutEntriesCounter < current) {
+			LOGGER.warn("timed out NAT entries {} (overall {}).", current - lastTimedoutEntriesCounter,
+					lastTimedoutEntriesCounter);
+			lastTimedoutEntriesCounter = current;
 		}
 	}
 
@@ -1255,6 +1301,26 @@ public class NioNatUtil implements Runnable {
 				}
 			}
 		}
+	}
+
+	/**
+	 * Get destination by address.
+	 * 
+	 * @param destination address of destination.
+	 * @return nat address of destination.
+	 * @since 2.5
+	 */
+	public NatAddress getDestination(InetSocketAddress destination) {
+		if (destination != null) {
+			synchronized (destinations) {
+				for (NatAddress address : destinations) {
+					if (address.address.equals(destination)) {
+						return address;
+					}
+				}
+			}
+		}
+		return null;
 	}
 
 	private String getDestinationForLogging() {
@@ -1379,7 +1445,12 @@ public class NioNatUtil implements Runnable {
 					destination.updateReceive();
 				} else {
 					wrongRoutedCounter.incrementAndGet();
-					((Buffer) packet).clear();
+					if (reverseNatUpdate.get()) {
+						NatAddress newDestination = getDestination((InetSocketAddress) source);
+						setDestination(newDestination);
+					} else {
+						((Buffer) packet).clear();
+					}
 				}
 				return packet.position();
 			} catch (IOException ex) {
