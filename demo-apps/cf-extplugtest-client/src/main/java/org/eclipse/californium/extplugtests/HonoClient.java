@@ -219,8 +219,8 @@ public class HonoClient {
 		CoapClient client = new CoapClient(clientConfig.uri);
 		CoAP.Code code = clientConfig.method == null ? Code.POST : clientConfig.method;
 		final Request request = new Request(code);
-		if (clientConfig.con != null) {
-			request.setConfirmable(clientConfig.con);
+		if (clientConfig.messageType != null) {
+			request.setConfirmable(clientConfig.messageType.con);
 		}
 		if (clientConfig.contentType == null) {
 			clientConfig.contentType = new ContentType();

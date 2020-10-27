@@ -515,8 +515,8 @@ public class BenchmarkClient {
 		}
 		request.getOptions().setAccept(accept);
 		request.getOptions().setContentFormat(accept);
-		if (config.con != null) {
-			request.setConfirmable(config.con);
+		if (config.messageType != null) {
+			request.setConfirmable(config.messageType.con);
 		}
 		if (payload != null) {
 			if (config.payloadFormat) {
