@@ -1678,12 +1678,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		} else {
 			// non-fatal alerts do not require any special handling
 		}
-
-		synchronized (alertHandlerLock) {
-			if (alertHandler != null) {
-				alertHandler.onAlert(alert.getPeer(), alert);
-			}
-		}
+		handleAlertInternal(alert.getPeer(), alert, connection);
 		if (null != error && null != handshaker) {
 			handshaker.handshakeFailed(error);
 		}
@@ -1702,7 +1697,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			try {
 				ongoingHandshaker.processMessage(record);
 			} catch (HandshakeException e) {
-				handleExceptionDuringHandshake(e, e.getAlert().getLevel(), e.getAlert().getDescription(), connection, record);
+				handleExceptionDuringHandshake(e, connection, record);
 			}
 		} else {
 			// change cipher spec can only be processed within the
@@ -1748,7 +1743,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 				break;
 			}
 		} catch (HandshakeException e) {
-			handleExceptionDuringHandshake(e, e.getAlert().getLevel(), e.getAlert().getDescription(), connection, record);
+			handleExceptionDuringHandshake(e, connection, record);
 		}
 	}
 
@@ -1920,7 +1915,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 				startNewHandshake(clientHello, record, connection);
 			}
 		} catch (HandshakeException e) {
-			handleExceptionDuringHandshake(e, e.getAlert().getLevel(), e.getAlert().getDescription(), connection, record);
+			handleExceptionDuringHandshake(e, connection, record);
 		}
 	}
 
@@ -2661,7 +2656,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 								try {
 									handshaker.processAsyncHandshakeResult(handshakeResult);
 								} catch (HandshakeException e) {
-									handleExceptionDuringHandshake(e, e.getAlert().getLevel(), e.getAlert().getDescription(), connection, null);
+									handleExceptionDuringHandshake(e, connection, null);
 								} catch (IllegalStateException e) {
 									LOGGER.warn("Exception while processing handshake result [{}]", connection, e);
 								}
@@ -3019,27 +3014,54 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 *            {@code null} in order to support exception during processing
 	 *            of a asynchronous master secret result.
 	 */
-	private void handleExceptionDuringHandshake(HandshakeException cause, AlertLevel level, AlertDescription description, Connection connection, Record record) {
+	private void handleExceptionDuringHandshake(HandshakeException cause, Connection connection, Record record) {
+		AlertMessage alert = cause.getAlert();
 		// discard none fatal alert exception
-		if (!AlertLevel.FATAL.equals(level)) {
+		if (!AlertLevel.FATAL.equals(alert.getLevel())) {
 			if (record != null) {
 				discardRecord(record, cause);
 			}
+			handleAlertInternal(alert.getPeer(), alert, connection);
 			return;
 		}
 
 		// "Unknown identity" and "bad PSK" should be both handled in a same way.
 		// Generally "bad PSK" means invalid MAC on FINISHED message.
 		// In production both should be silently ignored : https://bugs.eclipse.org/bugs/show_bug.cgi?id=533258
-		if (AlertDescription.UNKNOWN_PSK_IDENTITY == description) {
+		if (AlertDescription.UNKNOWN_PSK_IDENTITY.equals(alert.getDescription())) {
 			if (record != null) {
 				discardRecord(record, cause);
 			}
+			handleAlertInternal(alert.getPeer(), alert, connection);
 			return;
 		}
 
 		// in other cases terminate handshake
-		terminateOngoingHandshake(connection, cause, description);
+		terminateOngoingHandshake(connection, cause, alert.getDescription());
+	}
+
+	/**
+	 * Handle alert internally.
+	 * 
+	 * Keeps first reported alert as root cause and reports that to the
+	 * {@link AlertHandler}, if available.
+	 * 
+	 * @param peer pper's address
+	 * @param alert received alert or detected alert
+	 * @param connection connection affected by that alert
+	 * @since 2.5
+	 */
+	private void handleAlertInternal(InetSocketAddress peer, AlertMessage alert, Connection connection) {
+		if (connection.getRootCauseAlert() == null) {
+			connection.setRootCause(alert);
+			AlertHandler handler;
+			synchronized (alertHandlerLock) {
+				handler = alertHandler;
+			}
+			if (handler != null) {
+				handler.onAlert(peer, alert);
+			}
+		}
 	}
 
 	private void discardRecord(final Record record, final Throwable cause) {
