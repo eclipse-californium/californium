@@ -820,7 +820,12 @@ public class DTLSConnectorTest {
 	 */
 	@Test
 	public void testConnectorIgnoresUnknownPskIdentity() throws Exception {
+		SingleAlertCatcher alertCatcher = new SingleAlertCatcher();
+		serverHelper.server.setAlertHandler(alertCatcher);
 		ensureConnectorIgnoresBadCredentials(new AdvancedSinglePskStore("unknownIdentity", CLIENT_IDENTITY_SECRET.getBytes()));
+		AlertMessage alert = alertCatcher.waitForFirstAlert(2, TimeUnit.SECONDS);
+		assertNotNull("server side internal alert missing", alert);
+		assertThat(alert.getDescription(), is(AlertDescription.UNKNOWN_PSK_IDENTITY));
 	}
 
 	/**

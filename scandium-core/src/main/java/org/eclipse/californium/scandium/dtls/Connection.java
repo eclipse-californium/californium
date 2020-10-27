@@ -87,6 +87,17 @@ public final class Connection {
 	private SessionTicket ticket;
 	private SessionId sessionId;
 
+	/**
+	 * Root cause of alert.
+	 * 
+	 * For some case, the root cause may be hidden and replaced by a general
+	 * cause when sending an alert message. This keeps the root cause for
+	 * internal analysis.
+	 * 
+	 * @since 2.5
+	 */
+	private AlertMessage rootCause;
+
 	private volatile DTLSSession establishedSession;
 	// Used to know when an abbreviated handshake should be initiated
 	private volatile boolean resumptionRequired; 
@@ -542,9 +553,37 @@ public final class Connection {
 	}
 
 	/**
+	 * Gets the root cause alert.
+	 * 
+	 * For some case, the root cause may be hidden and replaced by a general
+	 * cause when sending an alert message. This keeps the root cause for
+	 * internal analysis.
+	 * 
+	 * @return root cause alert.
+	 * @since 2.5
+	 */
+	public AlertMessage getRootCauseAlert() {
+		return rootCause;
+	}
+
+	/**
+	 * Sets root cause alert.
+	 * 
+	 * For some case, the root cause may be hidden and replaced by a general
+	 * cause when sending an alert message. This keeps the root cause for
+	 * internal analysis.
+	 * 
+	 * @param rootCause root cause alert
+	 * @since 2.5
+	 */
+	public void setRootCause(AlertMessage rootCause) {
+		this.rootCause = rootCause;
+	}
+
+	/**
 	 * Check, if resumption is required.
 	 * 
-	 * @return true if an abbreviated handshake should be done next time a data
+	 * @return {@code true}, if an abbreviated handshake should be done next time a data
 	 *         will be sent on this connection.
 	 */
 	public boolean isResumptionRequired() {
