@@ -41,7 +41,9 @@ public class Nat {
 	public static void main(String[] args) {
 		if (args.length < 2) {
 			System.out.println(
-					"usage: [localinterface]:port destination:port [destination:port...] [-d<messageDropping%>|[-f<messageDropping%>][-b<messageDropping%>]] [-s<sizeLimit:probability%>]");
+					"usage: [localinterface]:port destination:port [destination:port...] [-r] [-d<messageDropping%>|[-f<messageDropping%>][-b<messageDropping%>]] [-s<sizeLimit:probability%>]");
+			System.out.println(
+					"       -r                                          : enable reverse destination address update");
 			System.out.println(
 					"       -d<messageDropping%>                        : drops forward and backward messages with provided probability");
 			System.out.println(
@@ -67,9 +69,12 @@ public class Nat {
 				int value;
 				int[] values;
 				String arg = args[argsIndex++];
-				if (arg.length() > 2 && arg.charAt(0) == '-') {
+				if (arg.length() > 1 && arg.charAt(0) == '-') {
 					char option = arg.charAt(1);
 					switch (option) {
+					case 'r':
+						util.setReverseNatUpdate(true);
+						break;
 					case 'd':
 						if (droppingMode != 0) {
 							System.out.println("dropping already provided!");
