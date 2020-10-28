@@ -323,6 +323,7 @@ public final class Connection {
 				throw new IllegalArgumentException("Address change without established sesson is not supported!");
 			}
 			this.lastPeerAddressNanos = ClockUtil.nanoRealtime();
+			InetSocketAddress previous = this.peerAddress;
 			this.peerAddress = peerAddress;
 			if (establishedSession != null) {
 				establishedSession.setPeer(peerAddress);
@@ -332,7 +333,7 @@ public final class Connection {
 				if (pendingHandshaker != null) {
 					if (establishedSession == null || pendingHandshaker.getSession() != establishedSession) {
 						// this will only call the listener, if no other cause was set before!
-						pendingHandshaker.handshakeFailed(new IOException("address changed!"));
+						pendingHandshaker.handshakeFailed(new IOException(previous + " address changed!"));
 					}
 				}
 			} else {
