@@ -98,6 +98,8 @@ public class NioNatUtil implements Runnable {
 	private final Thread proxyThread;
 	/**
 	 * Runnables to be executed by the selector's {@link #proxyThread}.
+	 * 
+	 * @since 2.5
 	 */
 	private final Queue<Runnable> jobs = new ConcurrentLinkedQueue<>();
 	/**
@@ -105,9 +107,15 @@ public class NioNatUtil implements Runnable {
 	 */
 	private final String proxyName;
 	/**
-	 * Destination address.
+	 * Destination addresses.
 	 */
 	private final List<NatAddress> destinations;
+	/**
+	 * Stale destination addresses.
+	 * 
+	 * @since 2.5
+	 */
+	private final List<NatAddress> staleDestinations;
 	/**
 	 * Buffer for proxy.
 	 */
@@ -261,6 +269,14 @@ public class NioNatUtil implements Runnable {
 			this.address = address;
 			this.name = address.getHostString() + ":" + address.getPort();
 			this.usageCounter = new AtomicInteger();
+			updateReceive();
+		}
+
+		/**
+		 * Reset expired address.
+		 */
+		private void reset() {
+			expired = false;
 			updateReceive();
 		}
 
@@ -581,6 +597,7 @@ public class NioNatUtil implements Runnable {
 	 */
 	public NioNatUtil(final InetSocketAddress bindAddress, final InetSocketAddress destination) throws Exception {
 		this.destinations = new ArrayList<>();
+		this.staleDestinations = new ArrayList<>();
 		addDestination(destination);
 		this.proxyBuffer = ByteBuffer.allocateDirect(DATAGRAM_SIZE);
 		this.proxyChannel = DatagramChannel.open();
@@ -637,6 +654,27 @@ public class NioNatUtil implements Runnable {
 		return false;
 	}
 
+	/**
+	 * Add stale destinations back to destinations.
+	 * 
+	 * @return {@code true}, if stale destinations are added, {@ocde false}, if
+	 *         not.
+	 * @since 2.5
+	 */
+	public boolean addStaleDestinations() {
+		boolean added = false;
+		synchronized (destinations) {
+			for (NatAddress address : staleDestinations) {
+				address.reset();
+				if (destinations.add(address)) {
+					added = true;
+				}
+			}
+			staleDestinations.clear();
+		}
+		return added;
+	}
+
 	@Override
 	public void run() {
 		messageDroppingLogTime.set(System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(MESSAGE_DROPPING_LOG_INTERVAL_MS));
@@ -689,6 +727,7 @@ public class NioNatUtil implements Runnable {
 							NatAddress dest = iterator.next();
 							if (dest.expires(expireNanos)) {
 								iterator.remove();
+								staleDestinations.add(dest);
 								LOGGER.warn("expires {}", dest.name);
 								if (destinations.size() < 2) {
 									break;
@@ -795,6 +834,7 @@ public class NioNatUtil implements Runnable {
 	 * 
 	 * @param num number of NAT entries to stop.
 	 * @return number of effectively stopped NAT entries.
+	 * @since 2.5
 	 */
 	public int stopNatEntries(int num) {
 		int counter = 0;
@@ -854,6 +894,16 @@ public class NioNatUtil implements Runnable {
 	 */
 	public int getNumberOfDestinations() {
 		return destinations.size();
+	}
+
+	/**
+	 * Get number of stale destinations.
+	 * 
+	 * @return number of stale destinations
+	 * @since 2.5
+	 */
+	public int getNumberOfStaleDestinations() {
+		return staleDestinations.size();
 	}
 
 	/**
@@ -1241,9 +1291,21 @@ public class NioNatUtil implements Runnable {
 	 * 
 	 * @param reverseUpdate {@code true}, enable reverse update, {@code false},
 	 *            disable it.
+	 * @since 2.5
 	 */
 	public void setReverseNatUpdate(boolean reverseUpdate) {
 		reverseNatUpdate.set(reverseUpdate);
+	}
+
+	/**
+	 * Check, if reverse address update is enabled.
+	 * 
+	 * @return {@code true}, if reverse update is enabled, {@code false},
+	 *         otherwise.
+	 * @since 2.5
+	 */
+	public boolean useReverseNatUpdate() {
+		return reverseNatUpdate.get();
 	}
 
 	/**
@@ -1323,6 +1385,11 @@ public class NioNatUtil implements Runnable {
 		return null;
 	}
 
+	/**
+	 * Get logging string for destinations.
+	 * 
+	 * @since 2.5
+	 */
 	private String getDestinationForLogging() {
 		if (destinations.isEmpty()) {
 			return "---";

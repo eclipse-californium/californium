@@ -121,24 +121,21 @@ public class Nat {
 			}
 			BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
 			while ((line = in.readLine()) != null) {
-				if (line.equals("exit")) {
+				if (line.equals("exit") || line.equals("quit")) {
 					util.stop();
 					break;
 				} else if (line.equals("help")) {
 					System.out.println("help - print this help");
 					System.out.println("info or <empty line> - list number of NAT entries and destinations");
-					System.out.println("clear - drop all NAT entries");
+					System.out.println("exit or quit - stop and exit");
+					System.out.println("clear [n] - drop all NAT entries, or drop n NAT entries");
 					System.out.println("reassign - reassign incoming addresses");
 					System.out.println("rebalance - reassign outgoing addresses");
 					System.out.println("add <host:port> - add new destination to load balancer");
 					System.out.println("remove <host:port> - remove destination from load balancer");
+					System.out.println("reverse (on|off) - enable/disable reverse address updates.");
 				} else if (line.isEmpty() || line.equals("info")) {
-					System.out.println(util.getNumberOfEntries() + " NAT entries, " + util.getNumberOfDestinations()
-							+ " destinations.");
-					List<NioNatUtil.NatAddress> destinations = util.getDestinations();
-					for (NioNatUtil.NatAddress address : destinations) {
-						System.out.println("Destination: " + address.name + ", usage: " + address.usageCounter());
-					}
+					printInfo(util);
 				} else if (line.equals("clear")) {
 					int num = util.stopAllNatEntries();
 					System.out.println(num + " - NAT entries dropped.");
@@ -148,11 +145,11 @@ public class Nat {
 						num = util.stopNatEntries(num);
 						System.out.println(num + " - NAT entries dropped.");
 					} catch (NumberFormatException ex) {
-						
 					}
 				} else if (line.equals("reassign")) {
 					util.reassignNewLocalAddresses();
 				} else if (line.equals("rebalance")) {
+					util.addStaleDestinations();
 					int entries = util.getNumberOfEntries();
 					int count = util.reassignDestinationAddresses();
 					System.out.println("reassigned " + count + " destinations of " + entries + ".");
@@ -176,6 +173,12 @@ public class Nat {
 						System.err.println(line);
 						e.printStackTrace(System.err);
 					}
+				} else if (line.equals("reverse on")) {
+					util.setReverseNatUpdate(true);
+					printInfo(util);
+				} else if (line.equals("reverse off")) {
+					util.setReverseNatUpdate(false);
+					printInfo(util);
 				}
 			}
 		} catch (Exception e) {
@@ -184,6 +187,21 @@ public class Nat {
 			if (null != util) {
 				util.stop();
 			}
+		}
+	}
+
+	private static void printInfo(NioNatUtil util) {
+		System.out.println(util.getNumberOfEntries() + " NAT entries, reverse address update "
+				+ (util.useReverseNatUpdate() ? "enabled." : "disabled."));
+		int stale = util.getNumberOfStaleDestinations();
+		if (stale == 0) {
+			System.out.println(util.getNumberOfDestinations() + " destinations.");
+		} else {
+			System.out.println(util.getNumberOfDestinations() + " destinations, " + stale + " stale destinations.");
+		}
+		List<NioNatUtil.NatAddress> destinations = util.getDestinations();
+		for (NioNatUtil.NatAddress address : destinations) {
+			System.out.println("Destination: " + address.name + ", usage: " + address.usageCounter());
 		}
 	}
 

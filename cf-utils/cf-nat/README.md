@@ -5,13 +5,13 @@ In order to test NAT and LoadBalancer specific situations, this module contains 
 Usage:
 
 ```shell
-java -jar cf-nat-<version>.jar [localinterface]:port destination:port [destination2:port2 ...] [-d<messageDropping%>|[-f<messageDropping%>][-b<messageDropping%>]] [-s<sizeLimit>]
+java -jar cf-nat-<version>.jar [localinterface]:port destination:port [destination2:port2 ...] [-r] [-d<messageDropping%>|[-f<messageDropping%>][-b<messageDropping%>]] [-s<sizeLimit>]
 ```
 
 The (s)NAT receives UDP messages on the local interface and port, creates outgoing sockets for each source endpoint of the received messages, and forwards the message using the new outgoing socket (source-NAT). If the outgoing socket receives a message back, that is the "backwarded" using the local-interface and port.
 
 If more than one destination is given, the load-balancer is activated.
-The load-balancer receives UDP messages on the local interface and port, creates outgoing sockets for each source endpoint of the received messages and selects a destination randomly from the provided ones, and forwards the message using the new outgoing socket (source-NAT). If the outgoing socket receives a message back, that is the "backwarded" using the local-interface and port.
+The load-balancer receives UDP messages on the local interface and port, creates outgoing sockets for each source endpoint of the received messages and selects a destination randomly from the provided ones, and forwards the message using the new outgoing socket (source-NAT). If the outgoing socket receives a message back, that is the "backwarded" using the local-interface and port. If the source the backwarded message is different from the destination of this NAT entry, such violations are counted. With "reverse address update" (parameter `-r`, or NAT console command `reverse (on|off)`) it is also possible, to adapt the NAT entry to that different destination.
 
 ```sh
 java -jar cf-nat-2.5.0.jar :5684 node1.coap.cluster:5684 node2.coap.cluster:5684 node2.coap.cluster:5784
@@ -32,8 +32,10 @@ Additionally these commands are supported:
 
 - help - print this help
 - info or <empty line> - list number of NAT entries and destinations
-- clear - drop all NAT entries
+- exit or quit - stop and exit
+- clear ``[n]``- drop all NAT entries, or  or drop `n` NAT entries
 - reassign - reassign incoming addresses
 - rebalance - reassign outgoing addresses
 - add ``<host:port>`` - add new destination to load-balancer, e.g. "add node1.coaps.cluster:5684"
 - remove ``<host:port>`` - remove destination from load-balancer
+- reverse ``(on|off)`` - enable/disable reverse address updates.
