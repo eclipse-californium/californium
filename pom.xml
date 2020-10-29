@@ -153,6 +153,7 @@
 		<module>californium-core</module>
 		<module>cf-utils/cf-nat</module>
 		<module>cf-utils/cf-unix-health</module>
+		<module>cf-utils/cf-cluster</module>
 		<module>cf-utils/cf-cli</module>
 		<module>cf-utils/cf-cli-tcp-netty</module>
 		<module>californium-tests</module>
@@ -536,6 +537,14 @@
 									Californium uses classes of other californium modules very
 									frequently in the APIs. It's considered, that always all
 									used californium modules must have the same version!
+								</justification>
+							</item>
+							<item>
+								<regex>true</regex>
+								<code>java\.class\.externalClassExposedInAPI</code>
+								<package>org\.slf4j</package>
+								<justification>
+									Californium uses classes of slf4j in some case with scope protected.
 								</justification>
 							</item>
 						</revapi.ignore>
