@@ -108,13 +108,13 @@ public class CoapClient {
 	private ExecutorService executor;
 
 	/** Scheduled executor intended to be used for rare executing timers (e.g. cleanup tasks). */
-	private ScheduledThreadPoolExecutor secondaryExecutor;
+	private volatile ScheduledThreadPoolExecutor secondaryExecutor;
 
 	/**
 	 * Indicate, it the client-specific executor service is detached, or
 	 * shutdown with this client.
 	 */
-	private boolean detachExecutor;
+	private volatile boolean detachExecutor;
 
 	/** The endpoint. */
 	private Endpoint endpoint;
@@ -327,16 +327,15 @@ public class CoapClient {
 		return this;
 	}
 
-	private ScheduledThreadPoolExecutor getSecondaryExecutor() {
+	private synchronized ScheduledThreadPoolExecutor getSecondaryExecutor() {
+		// Warning there is maybe a performance issue here, see : 
+		// - https://en.wikipedia.org/wiki/Double-checked_locking#Usage_in_Java
+		// - https://github.com/eclipse/californium/issues/1420
 		if (secondaryExecutor == null) {
-			synchronized (this) {
-				if (secondaryExecutor == null) {
-					secondaryExecutor = new ScheduledThreadPoolExecutor(1,
-							new NamedThreadFactory("CoapClient(secondary)#"));
-				}
-				this.detachExecutor = false;
-			}
+			secondaryExecutor = new ScheduledThreadPoolExecutor(1, new NamedThreadFactory("CoapClient(secondary)#"));
 		}
+		this.detachExecutor = false;
+
 		return secondaryExecutor;
 	}
 
