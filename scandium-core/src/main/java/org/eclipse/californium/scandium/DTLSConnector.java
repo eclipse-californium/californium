@@ -187,6 +187,7 @@ import org.eclipse.californium.scandium.dtls.HandshakeResult;
 import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.dtls.ContentType;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
+import org.eclipse.californium.scandium.dtls.DtlsException;
 import org.eclipse.californium.scandium.dtls.DtlsHandshakeException;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.HandshakeMessage;
@@ -1815,6 +1816,25 @@ public class DTLSConnector implements Connector, RecordLayer {
 						} else {
 							if (sessionConnection != null && sessionConnection == connection) {
 								connections.setRemoveConnectionBySessionId(true);
+							}
+							final Handshaker handshaker = connection.getOngoingHandshake();
+							if (handshaker != null) {
+								DTLSSession establishedSession = connection.getEstablishedSession();
+								if (establishedSession == null || handshaker.getSession() != establishedSession) {
+									final DtlsException cause = new DtlsException(
+											"Received new CLIENT_HELLO from " + StringUtil.toDisplayString(peerAddress),
+											peerAddress);
+									handshaker.setFailureCause(cause);
+									connection.getExecutor().execute(new Runnable() {
+
+										@Override
+										public void run() {
+											if (running.get()) {
+												handshaker.handshakeFailed(cause);
+											}
+										}
+									});
+								}
 							}
 							connection = null;
 						}
