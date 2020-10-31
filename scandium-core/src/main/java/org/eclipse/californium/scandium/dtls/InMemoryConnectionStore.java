@@ -338,8 +338,14 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 				LOG.debug("{}connection: {} updated usage!", tag, connection.getConnectionId());
 			} else if (!connection.equalsPeerAddress(newPeerAddress)) {
 				InetSocketAddress oldPeerAddress = connection.getPeerAddress();
-				LOG.debug("{}connection: {} updated, address changed from {} to {}!", tag, connection.getConnectionId(),
-						oldPeerAddress, newPeerAddress);
+				if (LOG.isTraceEnabled()) {
+					LOG.trace("{}connection: {} updated, address changed from {} to {}!", tag,
+							connection.getConnectionId(), oldPeerAddress, newPeerAddress,
+							new Throwable("connection updated!"));
+				} else {
+					LOG.debug("{}connection: {} updated, address changed from {} to {}!", tag,
+							connection.getConnectionId(), oldPeerAddress, newPeerAddress);
+				}
 				if (oldPeerAddress != null) {
 					connectionsByAddress.remove(oldPeerAddress, connection);
 					connection.updatePeerAddress(null);

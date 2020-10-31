@@ -901,8 +901,16 @@ public abstract class Handshaker implements Destroyable {
 			}
 
 			if (!expected) {
-				LOGGER.warn("Cannot process {} message from peer [{}], {} expected!", HandshakeState.toString(message),
-						getSession().getPeer(), expectedState);
+				// check for self addressed messages
+				// some cloud deployments may get easily mixed up
+				DTLSFlight flight = pendingFlight.get();
+				if (flight != null && flight.contains(message)) {
+					LOGGER.debug("Cannot process {} message from same peer [{}]!",
+							HandshakeState.toString(message), getSession().getPeer());
+				} else {
+					LOGGER.debug("Cannot process {} message from peer [{}], {} expected!",
+							HandshakeState.toString(message), getSession().getPeer(), expectedState);
+				}
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR,
 						session.getPeer());
 				throw new HandshakeException("Cannot process " + HandshakeState.toString(message)

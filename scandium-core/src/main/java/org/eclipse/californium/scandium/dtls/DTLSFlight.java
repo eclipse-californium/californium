@@ -35,6 +35,7 @@ import java.net.DatagramPacket;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
@@ -249,6 +250,22 @@ public class DTLSFlight {
 	 */
 	public int getNumberOfMessages() {
 		return dtlsMessages.size();
+	}
+
+	/**
+	 * Check, if the provided message is contained in this flight.
+	 * 
+	 * @param message message to check
+	 * @return {@code true}, if message is contained, {@code false}, if not.
+	 * @since 2.5
+	 */
+	public boolean contains(DTLSMessage message) {
+		for (EpochMessage epochMessage : dtlsMessages) {
+			if (Arrays.equals(message.toByteArray(), epochMessage.message.toByteArray())) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

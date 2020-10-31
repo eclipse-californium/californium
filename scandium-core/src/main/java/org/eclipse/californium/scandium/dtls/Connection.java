@@ -333,7 +333,7 @@ public final class Connection {
 				if (pendingHandshaker != null) {
 					if (establishedSession == null || pendingHandshaker.getSession() != establishedSession) {
 						// this will only call the listener, if no other cause was set before!
-						pendingHandshaker.handshakeFailed(new IOException(previous + " address changed!"));
+						pendingHandshaker.handshakeFailed(new IOException(previous + " address reused during handshake!"));
 					}
 				}
 			} else {
