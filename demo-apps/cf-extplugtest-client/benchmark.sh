@@ -64,6 +64,8 @@ echo "   UDP_CLIENTS"
 echo "   TCP_CLIENTS"
 echo "   OBS_CLIENTS"
 echo "   CALI_AUTH"
+echo "   PLAIN_PORT"
+echo "   SECURE_PORT"
 echo
 echo "These variables maybe override in the calling shell by"
 echo
@@ -107,6 +109,9 @@ else
     CF_SEC=$1
     shift
 fi
+
+: "${PLAIN_PORT:=5783}"
+: "${SECURE_PORT:=5784}"
 
 # adjust the multiplier according the speed of your CPU
 : "${USE_TCP:=1}"
@@ -171,12 +176,12 @@ benchmark_udp()
 {
    if [ ${USE_UDP} -eq 0 ] ; then return; fi
    if [ ${USE_PLAIN} -ne 0 ] ; then 
-      java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} coap://${CF_HOST}:5783/$@
+      java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} coap://${CF_HOST}:${PLAIN_PORT}/$@
       if [ ! $? -eq 0 ] ; then exit $?; fi
       sleep 5
    fi   
    if [ ${USE_SECURE} -ne 0 ] ; then 
-      java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} ${CF_SEC} ${CALI_AUTH} coaps://${CF_HOST}:5784/$@
+      java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} ${CF_SEC} ${CALI_AUTH} coaps://${CF_HOST}:${SECURE_PORT}/$@
       if [ ! $? -eq 0 ] ; then exit $?; fi
       sleep 5
    fi   
@@ -186,12 +191,12 @@ benchmark_tcp()
 {
    if [ ${USE_TCP} -eq 0 ] ; then return; fi
    if [ ${USE_PLAIN} -ne 0 ] ; then 
-      java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} coap+tcp://${CF_HOST}:5783/$@
+      java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} coap+tcp://${CF_HOST}:${PLAIN_PORT}/$@
       if [ ! $? -eq 0 ] ; then exit $?; fi
       sleep 5
    fi
    if [ ${USE_SECURE} -ne 0 ] ; then 
-      java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} coaps+tcp://${CF_HOST}:5784/$@
+      java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} coaps+tcp://${CF_HOST}:${SECURE_PORT}/$@
       if [ ! $? -eq 0 ] ; then exit $?; fi
       sleep 5
    fi
@@ -236,7 +241,7 @@ benchmark_dtls_handshake()
       i=0
 
       while [ $i -lt $1 ] ; do
-         java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} $2 "coaps://${CF_HOST}:5784/benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests 10 ${USE_NONESTOP} 
+         java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} $2 "coaps://${CF_HOST}:${SECURE_PORT}/benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests 10 ${USE_NONESTOP} 
          if [ ! $? -eq 0 ] ; then exit $?; fi
          sleep 2
          i=$(($i + 1))
@@ -290,12 +295,12 @@ proxy()
          if [ ! $? -eq 0 ] ; then exit $?; fi
          sleep 5
       fi
-      java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} "coap://${CF_HOST}:5783/benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS} --proxy "localhost:5683:coap"
+      java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} "coap://${CF_HOST}:${PLAIN_PORT}/benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS} --proxy "localhost:5683:coap"
       if [ ! $? -eq 0 ] ; then exit $?; fi
       sleep 5
    fi 
    if [ ${USE_SECURE} -ne 0 ] ; then
-      java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} "coap://${CF_HOST}:5784/benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS} --proxy "localhost:5683:coaps"
+      java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} "coap://${CF_HOST}:${SECURE_PORT}/benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS} --proxy "localhost:5683:coaps"
       if [ ! $? -eq 0 ] ; then exit $?; fi
       sleep 5
    fi 
