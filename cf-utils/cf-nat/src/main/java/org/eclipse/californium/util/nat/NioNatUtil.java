@@ -657,7 +657,7 @@ public class NioNatUtil implements Runnable {
 	/**
 	 * Add stale destinations back to destinations.
 	 * 
-	 * @return {@code true}, if stale destinations are added, {@ocde false}, if
+	 * @return {@code true}, if stale destinations are added, {@code false}, if
 	 *         not.
 	 * @since 2.5
 	 */
@@ -925,6 +925,7 @@ public class NioNatUtil implements Runnable {
 	/**
 	 * Reassign new destination addresses to all NAT entries.
 	 * 
+	 * @return number of reassigned NAT entries.
 	 * @since 2.4
 	 */
 	public int reassignDestinationAddresses() {
@@ -984,10 +985,9 @@ public class NioNatUtil implements Runnable {
 	/**
 	 * Assign local addresses for incoming address.
 	 * 
-	 * @param incoming incoming address a local address is to be
-	 *            assigned @return port number of the assigned local
-	 *            address @throws IOException if reassign failed opening the new
-	 *            local socket @throws
+	 * @param incoming incoming address a local address is to be assigned
+	 * @return port number of the assigned local address
+	 * @throws IOException if reassign failed opening the new local socket
 	 */
 	public int assignLocalAddress(final InetSocketAddress incoming) throws IOException {
 		if (Thread.currentThread() != proxyThread) {

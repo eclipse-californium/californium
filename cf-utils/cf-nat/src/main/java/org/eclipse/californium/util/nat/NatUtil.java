@@ -576,6 +576,7 @@ public class NatUtil implements Runnable {
 	/**
 	 * Reassign new destination addresses to all NAT entries.
 	 * 
+	 * @return number of reassigned NAT entries.
 	 * @since 2.4
 	 */
 	public int reassignDestinationAddresses() {
