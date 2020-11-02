@@ -13,7 +13,7 @@
 	<artifactId>cf-bom</artifactId>
  	<packaging>pom</packaging>
 
-	<name>Cf-bom</name>
+	<name>Californium (Cf) BOM</name>
 	<description>Californium (Cf) Bill Of Materials</description>
 
 	<properties>
