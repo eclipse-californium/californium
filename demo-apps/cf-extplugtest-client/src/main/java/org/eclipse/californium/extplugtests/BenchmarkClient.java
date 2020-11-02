@@ -323,8 +323,9 @@ public class BenchmarkClient {
 	 * Benchmark timeout. If no messages are exchanged within this timeout, the
 	 * benchmark is stopped.
 	 */
-	private static final long DEFAULT_TIMEOUT_SECONDS = TimeUnit.MILLISECONDS.toSeconds(10000);
+	private static final long DEFAULT_TIMEOUT_SECONDS = 10;
 	private static final long DEFAULT_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(DEFAULT_TIMEOUT_SECONDS);
+	private static final long DTLS_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(120);
 	/**
 	 * Atomic down-counter for overall requests.
 	 */
@@ -986,6 +987,7 @@ public class BenchmarkClient {
 
 		final ScheduledExecutorService connectorExecutor = config.networkConfig.getInt(KEY_BENCHMARK_CLIENT_THREADS) == 0 ? executor : null;
 		final boolean secure = CoAP.isSecureScheme(uri.getScheme());
+		final boolean dtls = secure && !CoAP.isTcpScheme(uri.getScheme());
 
 		final ScheduledThreadPoolExecutor secondaryExecutor = new ScheduledThreadPoolExecutor(2,
 				new DaemonThreadFactory("Aux(secondary)#"));
@@ -1163,6 +1165,7 @@ public class BenchmarkClient {
 		}
 		System.out.println("Benchmark started.");
 
+		long dtlsTime = System.nanoTime();
 		// Wait with timeout or all requests send.
 		while (!overallRequestsDone.await(DEFAULT_TIMEOUT_NANOS, TimeUnit.NANOSECONDS)) {
 			long currentRequestsCountDown = overallResponsesDownCounter.get();
@@ -1174,11 +1177,21 @@ public class BenchmarkClient {
 					|| (numberOfClients == 0)) {
 				// no new requests, clients are stale, or no clients left
 				// adjust start time with timeout
-				requestNanos += DEFAULT_TIMEOUT_NANOS;
-				reverseResponseNanos = requestNanos;
-				stale = true;
-				System.out.format("%d requests, stale (%d clients, %d pending)%n", currentOverallSentRequests, numberOfClients, connectsPending);
-				break;
+				long dtlsTimeout = System.nanoTime() - dtlsTime;
+				if (!dtls || (dtlsTimeout - DTLS_TIMEOUT_NANOS) > 0) {
+					if (dtls) {
+						requestNanos += dtlsTimeout;
+					} else {
+						requestNanos += DEFAULT_TIMEOUT_NANOS;
+					}
+					reverseResponseNanos = requestNanos;
+					stale = true;
+					System.out.format("%d requests, stale (%d clients, %d pending)%n", currentOverallSentRequests,
+							numberOfClients, connectsPending);
+					break;
+				}
+			} else {
+				dtlsTime = System.nanoTime();
 			}
 			long retransmissions = retransmissionCounter.get();
 			long retransmissionsDifference = retransmissions - lastRetransmissions;
