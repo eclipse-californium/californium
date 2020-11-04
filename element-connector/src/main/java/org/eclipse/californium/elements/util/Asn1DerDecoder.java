@@ -40,21 +40,17 @@ import org.slf4j.LoggerFactory;
 
 /**
  * ASN.1 DER decoder for SEQUENCEs and OIDs.
- * 
- * To support EdDSA, either java 15, or java 11 with <a href="https://github.com/str4d/ed25519-java">ed25519-java2</a>.
- * If the `ed25519-java` should be used, please add
- * 
- * {@code
- * <dependency>
- * 	<groupId>net.i2p.crypto</groupId>
- * 	<artifactId>eddsa</artifactId>
- * 	<version>0.3.0</version>
- * 	<scope>runtime</scope>
- * </dependency>
- * }
- * 
- * to your project pom, or add that jar to your classpath.
- * (For 2.5 it is planned to add this by default.)
+ * <p>
+ * To support EdDSA, either java 15, or java 11 with
+ * <a href="https://github.com/str4d/ed25519-java">ed25519-java</a> is required
+ * at runtime. Using java 15 to build Californium, leaves out {@code ed25519-java}, using
+ * java 11 for building, includes {@code ed25519-java} by default. If
+ * {@code ed25519-java} should <b>NOT</b> be included into the Californium's
+ * jars, add {@code -Dno.net.i2p.crypto.eddsa=true} to maven's arguments. In
+ * that case, it's still possible to use {@code ed25519-java}, if the <a href=
+ * "https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar">eddsa-0.3.0.jar</a>
+ * is provided to the classpath separately.
+ * </p>
  */
 public class Asn1DerDecoder {
 	/**

@@ -623,7 +623,7 @@
 			<id>java8-javadoc</id>
 			<activation>
 				<!-- jdk executing maven, not the jdk of the toolchain -->
-				<jdk>[1.8,1.11)</jdk>
+				<jdk>[1.8,11)</jdk>
 				<property>
 					<name>createJavadoc</name>
 				</property>
@@ -643,7 +643,7 @@
 			<id>java11-javadoc</id>
 			<activation>
 				<!-- jdk executing maven, not the jdk of the toolchain -->
-				<jdk>[1.11,)</jdk>
+				<jdk>[11,)</jdk>
 				<property>
 					<name>createJavadoc</name>
 				</property>

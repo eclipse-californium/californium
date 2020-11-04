@@ -26,6 +26,8 @@ To generate the javadocs, add "-DcreateJavadoc=true" to the command line and set
 $ mvn clean install -DcreateJavadoc=true
 ```
 
+## Build jdk7 compliant
+
 Californium 2.x can be used with java 7 or newer. If you want to build it with a jdk 7, but use also plugins which are only supported for newer jdks, the toolchain plugin could be used. That requires a toolchains configuration in "toolchains.xml" in your maven ".m2" folder
 
 ```xml
@@ -55,6 +57,17 @@ To use the jdk7 toolchain and create javadocs, add "-DuseToolchainJavadoc=true" 
 ```sh
 $ mvn clean install -DuseToolchainJavadoc=true
 ```
+
+## Build with jdk11 and EdDSA support
+
+To support EdDSA, either java 15, or java 11 with [ed25519-java](https://github.com/str4d/ed25519-java) is required at runtime. Using java 15 to build Californium, leaves out `ed25519-java`, 
+using java 11 for building, includes `ed25519-java` by default. If `ed25519-java` should **NOT** be included into the californium's jars, add `-Dno.net.i2p.crypto.eddsa=true` to maven's arguments.
+
+```sh
+$ mvn clean install -Dno.net.i2p.crypto.eddsa=true
+```
+
+In that case, it's still possible to use `ed25519-java`, if the [eddsa-0.3.0.jar](https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar) is provided to the classpath separately.
 
 # Using Californium in Maven Projects
 
