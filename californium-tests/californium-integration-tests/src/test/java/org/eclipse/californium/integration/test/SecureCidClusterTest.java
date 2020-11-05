@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2020 Bosch.IO GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
@@ -11,11 +11,11 @@
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
  * Contributors:
- *    Achim Kraus (Bosch Software Innovations GmbH) - initial implementation.
+ *    Bosch IO.GmbH - initial creation
  ******************************************************************************/
 package org.eclipse.californium.integration.test;
 
-import static org.eclipse.californium.integration.test.NatTestHelper.USE_CID_4;
+import static org.eclipse.californium.integration.test.NatTestHelper.SUPPORT_CID;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
@@ -30,7 +30,7 @@ import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.TestScope;
 import org.eclipse.californium.integration.test.util.CoapsNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
-import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
+import org.eclipse.californium.scandium.dtls.MultiNodeConnectionIdGenerator;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -39,7 +39,7 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 @Category(NativeDatagramSocketImplRequired.class)
-public class SecureNatTest {
+public class SecureCidClusterTest {
 
 	@ClassRule
 	public static CoapsNetworkRule network = new CoapsNetworkRule(CoapsNetworkRule.Mode.NATIVE);
@@ -72,7 +72,7 @@ public class SecureNatTest {
 	@Test
 	public void testSecureGet() throws Exception {
 		helper.setupNetworkConfig(MatcherMode.STRICT, ACK_TIMEOUT);
-		helper.createSecureServer((ConnectionIdGenerator) null);
+		helper.createSecureServer(null, null);
 		helper.createDefaultClientEndpoint(null);
 
 		CoapClient client = new CoapClient(helper.uri);
@@ -90,8 +90,8 @@ public class SecureNatTest {
 	@Test
 	public void testSecureGetWithCID() throws Exception {
 		helper.setupNetworkConfig(MatcherMode.STRICT, ACK_TIMEOUT);
-		helper.createSecureServer(USE_CID_4);
-		helper.createDefaultClientEndpoint(USE_CID_4);
+		helper.createSecureServer(new MultiNodeConnectionIdGenerator(1, 5), new MultiNodeConnectionIdGenerator(2, 5));
+		helper.createDefaultClientEndpoint(SUPPORT_CID);
 
 		CoapClient client = new CoapClient(helper.uri);
 		CoapResponse coapResponse = client.get();
@@ -102,14 +102,14 @@ public class SecureNatTest {
 
 		coapResponse = client.get();
 
-		assertNotNull("Response not received", coapResponse);
+		assertNotNull("Response still received", coapResponse);
 	}
 
 	@Test
 	public void testMultipleSecureGetWithCID() throws Exception {
 		helper.setupNetworkConfig(MatcherMode.STRICT, ACK_TIMEOUT);
-		helper.createSecureServer(USE_CID_4);
-		helper.createDefaultClientEndpoint(USE_CID_4);
+		helper.createSecureServer(new MultiNodeConnectionIdGenerator(1, 5), new MultiNodeConnectionIdGenerator(2, 5));
+		helper.createDefaultClientEndpoint(SUPPORT_CID);
 
 		CoapClient client = new CoapClient(helper.uri);
 		CoapResponse coapResponse = client.get();
@@ -117,7 +117,7 @@ public class SecureNatTest {
 		assertNotNull("Response not received", coapResponse);
 
 		for (int count = 0; count < NUM_OF_CLIENTS; ++count) {
-			helper.createClientEndpoint(USE_CID_4);
+			helper.createClientEndpoint(SUPPORT_CID);
 		}
 		helper.testMultipleSecureGet(0, 0, null);
 
@@ -133,9 +133,10 @@ public class SecureNatTest {
 
 	@Test
 	public void testMultipleSecureGetWithCIDAndResumption() throws Exception {
-		helper.setupNetworkConfig(MatcherMode.STRICT, ACK_TIMEOUT);
-		helper.createSecureServer(USE_CID_4);
-		helper.createDefaultClientEndpoint(USE_CID_4);
+		// resumption in cluster isn't strict!
+		helper.setupNetworkConfig(MatcherMode.PRINCIPAL, ACK_TIMEOUT);
+		helper.createSecureServer(new MultiNodeConnectionIdGenerator(1, 5), new MultiNodeConnectionIdGenerator(2, 5));
+		helper.createDefaultClientEndpoint(SUPPORT_CID);
 
 		int overallResumes = 0;
 		List<Integer> resumeEndpoints = new ArrayList<>();
@@ -146,7 +147,7 @@ public class SecureNatTest {
 		assertNotNull("Response not received", coapResponse);
 
 		for (int count = 0; count < NUM_OF_CLIENTS; ++count) {
-			helper.createClientEndpoint(USE_CID_4);
+			helper.createClientEndpoint(SUPPORT_CID);
 		}
 		helper.testMultipleSecureGet(0, overallResumes, resumeEndpoints);
 
@@ -165,8 +166,8 @@ public class SecureNatTest {
 	@Test
 	public void testSecureGetWithMixedAddressesAndCID() throws Exception {
 		helper.setupNetworkConfig(MatcherMode.STRICT, ACK_TIMEOUT);
-		helper.createSecureServer(USE_CID_4);
-		helper.createDefaultClientEndpoint(USE_CID_4);
+		helper.createSecureServer(new MultiNodeConnectionIdGenerator(1, 5), new MultiNodeConnectionIdGenerator(2, 5));
+		helper.createDefaultClientEndpoint(SUPPORT_CID);
 
 		CoapClient client = new CoapClient(helper.uri);
 		CoapResponse coapResponse = client.get();
@@ -174,7 +175,7 @@ public class SecureNatTest {
 		assertNotNull("Response not received", coapResponse);
 
 		for (int count = 0; count < NUM_OF_CLIENTS; ++count) {
-			helper.createClientEndpoint(USE_CID_4);
+			helper.createClientEndpoint(SUPPORT_CID);
 		}
 		helper.testMultipleSecureGet(0, 0, null);
 
@@ -190,9 +191,10 @@ public class SecureNatTest {
 
 	@Test
 	public void testSecureGetWithMixedAddressesCIDAndResumption() throws Exception {
-		helper.setupNetworkConfig(MatcherMode.STRICT, ACK_TIMEOUT);
-		helper.createSecureServer(USE_CID_4);
-		helper.createDefaultClientEndpoint(USE_CID_4);
+		// resumption in cluster isn't strict!
+		helper.setupNetworkConfig(MatcherMode.PRINCIPAL, ACK_TIMEOUT);
+		helper.createSecureServer(new MultiNodeConnectionIdGenerator(1, 5), new MultiNodeConnectionIdGenerator(2, 5));
+		helper.createDefaultClientEndpoint(SUPPORT_CID);
 
 		int overallResumes = 0;
 		List<Integer> resumeEndpoints = new ArrayList<>();
@@ -203,7 +205,7 @@ public class SecureNatTest {
 		assertNotNull("Response not received", coapResponse);
 
 		for (int count = 0; count < NUM_OF_CLIENTS; ++count) {
-			helper.createClientEndpoint(USE_CID_4);
+			helper.createClientEndpoint(SUPPORT_CID);
 		}
 		helper.testMultipleSecureGet(0, overallResumes, resumeEndpoints);
 
@@ -227,9 +229,10 @@ public class SecureNatTest {
 	 */
 	@Test
 	public void testSecureGetWithMixedAddressesCIDReordered() throws Exception {
-		helper.setupNetworkConfig(MatcherMode.STRICT, ACK_TIMEOUT);
-		helper.createSecureServer(USE_CID_4);
-		helper.createDefaultClientEndpoint(USE_CID_4);
+		// resumption in cluster isn't strict!
+		helper.setupNetworkConfig(MatcherMode.PRINCIPAL, ACK_TIMEOUT);
+		helper.createSecureServer(new MultiNodeConnectionIdGenerator(1, 5), new MultiNodeConnectionIdGenerator(2, 5));
+		helper.createDefaultClientEndpoint(SUPPORT_CID);
 		helper.nat.setMessageReordering(10, 500, 500);
 
 		int overallResumes = 0;
@@ -243,7 +246,7 @@ public class SecureNatTest {
 		int clients = TestScope.enableIntensiveTests() ? 50 : NUM_OF_CLIENTS;
 
 		for (int count = 0; count < clients; ++count) {
-			helper.createClientEndpoint(USE_CID_4);
+			helper.createClientEndpoint(SUPPORT_CID);
 		}
 		helper.testMultipleSecureGet(0, overallResumes, resumeEndpoints);
 

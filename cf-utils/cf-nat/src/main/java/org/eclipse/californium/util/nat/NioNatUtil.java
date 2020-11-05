@@ -593,9 +593,9 @@ public class NioNatUtil implements Runnable {
 	 *            used
 	 * @param destination destination address to forward the messages using a
 	 *            local port
-	 * @throws Exception if an error occurred
+	 * @throws IOException if an error occurred
 	 */
-	public NioNatUtil(final InetSocketAddress bindAddress, final InetSocketAddress destination) throws Exception {
+	public NioNatUtil(final InetSocketAddress bindAddress, final InetSocketAddress destination) throws IOException {
 		this.destinations = new ArrayList<>();
 		this.staleDestinations = new ArrayList<>();
 		addDestination(destination);
@@ -680,6 +680,7 @@ public class NioNatUtil implements Runnable {
 		messageDroppingLogTime.set(System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(MESSAGE_DROPPING_LOG_INTERVAL_MS));
 		LOGGER.info("starting NAT {}.", proxyName);
 		long lastTimeoutCheck = System.nanoTime();
+		long lastLoadBalancerCheck = System.nanoTime();
 		while (running) {
 			try {
 				if (messageDroppingLogTime.get() - System.nanoTime() < 0) {
@@ -689,10 +690,11 @@ public class NioNatUtil implements Runnable {
 				while ((job = jobs.poll()) != null) {
 					job.run();
 				}
-				long timeout = getSocketTimeout();
-				LOGGER.debug("Select {}ms, {} channels {} ready.", timeout, selector.keys().size(),
+				long timeout = natTimeoutMillis.get();
+				long socketTimeout = timeout > 0 ? timeout / 2 : 1000;
+				LOGGER.debug("Select {}ms, {} channels {} ready.", socketTimeout, selector.keys().size(),
 						selector.selectedKeys().size());
-				int num = selector.select(timeout);
+				int num = selector.select(socketTimeout);
 				if (num > 0) {
 					Set<SelectionKey> keys = selector.selectedKeys();
 					LOGGER.debug("Selected {} channels {} ready.", selector.keys().size(), keys.size());
@@ -719,33 +721,42 @@ public class NioNatUtil implements Runnable {
 					keys.clear();
 				}
 				long now = System.nanoTime();
-				long expireNanos = now - TimeUnit.MILLISECONDS.toNanos(loadBalancerTimeoutMillis.get());
-				synchronized (destinations) {
-					if (destinations.size() > 1) {
-						Iterator<NatAddress> iterator = destinations.iterator();
-						while (iterator.hasNext()) {
-							NatAddress dest = iterator.next();
-							if (dest.expires(expireNanos)) {
-								iterator.remove();
-								staleDestinations.add(dest);
-								LOGGER.warn("expires {}", dest.name);
-								if (destinations.size() < 2) {
-									break;
+				long balancerTimeout = loadBalancerTimeoutMillis.get();
+				if (balancerTimeout > 0) {
+					long timeoutCheckMillis = TimeUnit.NANOSECONDS.toMillis(now - lastLoadBalancerCheck);
+					if (timeoutCheckMillis > balancerTimeout / 4) {
+						lastLoadBalancerCheck = now;
+						long expireNanos = now - TimeUnit.MILLISECONDS.toNanos(balancerTimeout);
+						synchronized (destinations) {
+							if (destinations.size() > 1) {
+								Iterator<NatAddress> iterator = destinations.iterator();
+								while (iterator.hasNext()) {
+									NatAddress dest = iterator.next();
+									if (dest.expires(expireNanos)) {
+										iterator.remove();
+										staleDestinations.add(dest);
+										LOGGER.warn("expires {}", dest.name);
+										if (destinations.size() < 2) {
+											break;
+										}
+									}
 								}
 							}
 						}
 					}
 				}
-				long timeoutCheckMillis = TimeUnit.NANOSECONDS.toMillis(now - lastTimeoutCheck);
-				if (timeoutCheckMillis > natTimeoutMillis.get() / 4) {
-					lastTimeoutCheck = now;
-					expireNanos = now - TimeUnit.MILLISECONDS.toNanos(natTimeoutMillis.get());
-					Iterator<NatEntry> iterator = nats.values().iterator();
-					while (iterator.hasNext()) {
-						NatEntry entry = iterator.next();
-						if (entry.expires(expireNanos)) {
-							iterator.remove();
-							timedoutEntriesCounter.incrementAndGet();
+				if (timeout > 0) {
+					long timeoutCheckMillis = TimeUnit.NANOSECONDS.toMillis(now - lastTimeoutCheck);
+					if (timeoutCheckMillis > timeout / 4) {
+						lastTimeoutCheck = now;
+						long expireNanos = now - TimeUnit.MILLISECONDS.toNanos(timeout);
+						Iterator<NatEntry> iterator = nats.values().iterator();
+						while (iterator.hasNext()) {
+							NatEntry entry = iterator.next();
+							if (entry.expires(expireNanos)) {
+								iterator.remove();
+								timedoutEntriesCounter.incrementAndGet();
+							}
 						}
 					}
 				}
@@ -1403,19 +1414,6 @@ public class NioNatUtil implements Runnable {
 				}
 			}
 		}
-	}
-
-	/**
-	 * Get socket timeout in milliseconds.
-	 * 
-	 * Half of the NAT timeout value.
-	 * 
-	 * @return socket timeout in milliseconds
-	 * @since 2.4
-	 * @see #natTimeoutMillis
-	 */
-	private int getSocketTimeout() {
-		return natTimeoutMillis.get() / 2;
 	}
 
 	/**

@@ -18,6 +18,7 @@ package org.eclipse.californium.scandium.dtls;
 import java.net.InetSocketAddress;
 import java.util.concurrent.ConcurrentMap;
 
+import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,6 +52,7 @@ public final class DebugConnectionStore extends InMemoryConnectionStore {
 		if (connections.size() == 0) {
 			LOG.info("  {}connections empty!", tag);
 		} else {
+			LOG.info("  {}connections: {}", tag, connections.size());
 			for (Connection connection : connections.values()) {
 				dump(connection);
 			}
@@ -68,10 +70,13 @@ public final class DebugConnectionStore extends InMemoryConnectionStore {
 		} else {
 			Connection connection = get(address);
 			if (connection == null) {
-				LOG.info("  {}connection: {} - not available!", tag, address);
-			} else {
+				LOG.info("  {}connection: {} - not available!", tag, StringUtil.toString(address));
+			} else if (connection.equalsPeerAddress(address)) {
 				dump(connection);
 				return true;
+			} else {
+				dump(connection);
+				LOG.info("  {}connection: {} - wrong assigned!", tag, StringUtil.toString(address));
 			}
 		}
 		return false;
