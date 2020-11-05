@@ -29,11 +29,17 @@ import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
- * Simple {@link PskStore} implementation with exchangeable credentials.
+ * Simple {@link PskStore} implementation with exchangeable credentials and
+ * catch all function.
  */
 @SuppressWarnings("deprecation")
 public class TestUtilPskStore implements AdvancedPskStore {
-
+	/**
+	 * Returns secret for all identities.
+	 * 
+	 * @since 2.5
+	 */
+	private boolean catchAll;
 	/**
 	 * PSK identity.
 	 */
@@ -61,6 +67,18 @@ public class TestUtilPskStore implements AdvancedPskStore {
 		this.secret = SecretUtil.create(key, "PSK");
 	}
 
+	/**
+	 * Set catch all identities.
+	 * 
+	 * Returns always the secret regardless of the identity.
+	 * 
+	 * @param all {@code true}, enable catch all, {@code false}, disable it
+	 * @since 2.5
+	 */
+	public synchronized void setCatchAll(boolean all) {
+		this.catchAll = all;
+	}
+
 	@Override
 	public boolean hasEcdhePskSupported() {
 		return true;
@@ -74,6 +92,8 @@ public class TestUtilPskStore implements AdvancedPskStore {
 		synchronized (this) {
 			if (this.identity != null && this.identity.equals(identity)) {
 				pskIdentity = this.identity;
+				secret = SecretUtil.create(this.secret);
+			} else if (this.catchAll) {
 				secret = SecretUtil.create(this.secret);
 			}
 		}

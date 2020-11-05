@@ -19,7 +19,19 @@
 	<logger name="org.eclipse.californium.core.network.interceptors.MessageTracer" level="TRACE" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>
+	<logger name="org.eclipse.californium.core.network.interceptors.HealthStatisticLogger" level="DEBUG" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
+	<logger name="org.eclipse.californium.scandium.DTLSConnector.health" level="DEBUG" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
+	<logger name="org.eclipse.californium.scandium.DTLSConnector.drops" level="WARN" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
 	<logger name="org.eclipse.californium.scandium.dtls.DebugConnectionStore" level="DEBUG" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
+	<logger name="org.eclipse.californium.integration.test.SecureCidClusterTest" level="WARN" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>
 
