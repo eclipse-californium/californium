@@ -54,7 +54,7 @@ public class SslContextUtilTrustTest {
 		Certificate[] trustedCertificates = SslContextUtil.loadTrustedCertificates(TRUST_STORE_LOCATION, null,
 				TRUST_STORE_PASSWORD);
 		assertThat(trustedCertificates, is(notNullValue()));
-		assertThat(trustedCertificates.length, is(4));
+		assertThat(trustedCertificates.length, is(5));
 		assertThat(trustedCertificates[0], is(instanceOf(X509Certificate.class)));
 		assertThat(trustedCertificates[0].getPublicKey(), is(notNullValue()));
 		X509Certificate x509 = (X509Certificate) trustedCertificates[0];
@@ -181,7 +181,7 @@ public class SslContextUtilTrustTest {
 	public void testLoadP12TrustedCertificates() throws IOException, GeneralSecurityException {
 		Certificate[] trustedCertificates = SslContextUtil.loadTrustedCertificates(TRUST_P12_LOCATION, null, TRUST_STORE_PASSWORD);
 		assertThat(trustedCertificates, is(notNullValue()));
-		assertThat(trustedCertificates.length, is(4));
+		assertThat(trustedCertificates.length, is(5));
 		X509Certificate x509 = (X509Certificate) trustedCertificates[0];
 		assertThat(x509.getPublicKey(), is(notNullValue()));
 		assertThat(x509.getSubjectDN().getName(), anyOf(is(DN_CA), is(DN_CA2), is(DN_CA_RSA), is(DN_ROOT)));
@@ -217,7 +217,7 @@ public class SslContextUtilTrustTest {
 	public void testLoadPemTrustedCertificates() throws IOException, GeneralSecurityException {
 		Certificate[] trustedCertificates = SslContextUtil.loadTrustedCertificates(TRUST_PEM_LOCATION, null, null);
 		assertThat(trustedCertificates, is(notNullValue()));
-		assertThat(trustedCertificates.length, is(4));
+		assertThat(trustedCertificates.length, is(5));
 		X509Certificate x509 = (X509Certificate) trustedCertificates[0];
 		assertThat(x509.getPublicKey(), is(notNullValue()));
 		assertThat(x509.getSubjectDN().getName(), anyOf(is(DN_CA), is(DN_CA2), is(DN_CA_RSA), is(DN_ROOT)));
