@@ -18,7 +18,9 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.tcp.netty;
 
+import java.net.Socket;
 import java.security.Principal;
+import java.security.PrivateKey;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
@@ -26,7 +28,9 @@ import java.util.Arrays;
 
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
 import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509ExtendedKeyManager;
 
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.util.SslContextUtil;
@@ -202,4 +206,62 @@ public class TlsConnectorTestUtil {
 			this.subjectDN = subjectDN;
 		}
 	}
+
+	/**
+	 * Key manager to test invalid credentials.
+	 * 
+	 * @since 2.5
+	 */
+	public static class BrokenX509ExtendedKeyManager extends X509ExtendedKeyManager {
+		private final String alias;
+		private final PrivateKey privateKey;
+		private final X509Certificate[] chain;
+
+		public BrokenX509ExtendedKeyManager(String alias, PrivateKey privateKey, X509Certificate[] chain) {
+			this.alias = alias;
+			this.privateKey = privateKey;
+			this.chain = chain;
+		}
+
+		@Override
+		public String chooseEngineClientAlias(String[] keyType, Principal[] issuers, SSLEngine engine) {
+			return alias;
+		}
+
+		@Override
+		public String chooseEngineServerAlias(String keyType, Principal[] issuers, SSLEngine engine) {
+			return alias;
+		}
+
+		@Override
+		public String chooseClientAlias(String[] keyType, Principal[] issuers, Socket socket) {
+			return alias;
+		}
+
+		@Override
+		public String chooseServerAlias(String keyType, Principal[] issuers, Socket socket) {
+			return alias;
+		}
+
+		@Override
+		public X509Certificate[] getCertificateChain(String alias) {
+			return chain;
+		}
+
+		@Override
+		public String[] getClientAliases(String keyType, Principal[] issuers) {
+			return new String[] { alias };
+		}
+
+		@Override
+		public PrivateKey getPrivateKey(String alias) {
+			return privateKey;
+		}
+
+		@Override
+		public String[] getServerAliases(String keyType, Principal[] issuers) {
+			return new String[] { alias };
+		}
+	}
+
 }
