@@ -20,6 +20,7 @@ import java.security.cert.CertPath;
 import java.security.cert.CertPathValidator;
 import java.security.cert.CertPathValidatorException;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.CertificateParsingException;
@@ -27,7 +28,6 @@ import java.security.cert.PKIXParameters;
 import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -41,7 +41,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Certificate Path Utility.
  * <p>
- * Generates certificate path, Check intended certificates usage and verify
+ * Generates certificate path, check intended certificates usage and verify
  * certificate paths.
  * 
  * This implementation considers the below listed RFC's by:
@@ -307,8 +307,50 @@ public class CertPathUtil {
 	 *            empty for trust all.
 	 * @return certificate path actually used certificate path for validation
 	 * @throws GeneralSecurityException if verification fails
+	 * @deprecated use {@link #validateCertificatePathWithIssuer(boolean, CertPath, X509Certificate[])} instead.
 	 */
 	public static CertPath validateCertificatePath(boolean truncateCertificatePath, CertPath certPath,
+			X509Certificate[] trustedCertificates) throws GeneralSecurityException {
+		CertPath result = validateCertificatePathWithIssuer(truncateCertificatePath, certPath, trustedCertificates);
+		if (trustedCertificates.length == 0) {
+			return certPath;
+		} else if (truncateCertificatePath) {
+			List<? extends Certificate> list = result.getCertificates();
+			int size = list.size();
+			if (size > 1) {
+				List<X509Certificate> chain = toX509CertificatesList(list);
+				return generateCertPath(chain, size - 1);
+			} else {
+				return result;
+			}
+		} else {
+			return certPath;
+		}
+	}
+
+	/**
+	 * Validate certificate path with issuer.
+	 * 
+	 * Use provided trusted certificates as trust anchor. Optionally truncate
+	 * the provided certificate path to intermediate authority certificate. Add
+	 * authority certificate as last certificate in the path.
+	 * 
+	 * The certificate path is validate using a "PKIX" {@link CertPathValidator}
+	 * with the selected trusted certificate and disabled CRL. For other
+	 * required setups, please implement a custom Scandium
+	 * NewAdvancedCertificateVerifier.
+	 * 
+	 * @param truncateCertificatePath truncate certificate path at trusted
+	 *            certificate
+	 * @param certPath certificate path
+	 * @param trustedCertificates trust certificates. {@code null}, no trusts,
+	 *            empty for trust all.
+	 * @return certificate path actually used certificate path for validation
+	 *         with the authority certificate as last certificate
+	 * @throws GeneralSecurityException if verification fails
+	 * @since 2.5
+	 */
+	public static CertPath validateCertificatePathWithIssuer(boolean truncateCertificatePath, CertPath certPath,
 			X509Certificate[] trustedCertificates) throws GeneralSecurityException {
 		if (trustedCertificates == null) {
 			// trust none
@@ -320,12 +362,13 @@ public class CertPathUtil {
 			return certPath;
 		}
 		List<X509Certificate> chain = toX509CertificatesList(list);
-		int size = chain.size();
+		final int size = chain.size();
 		int last = size - 1;
 		// root of certificate path
-		X509Certificate root = (X509Certificate) list.get(last);
-		Set<TrustAnchor> trustAnchors = new HashSet<TrustAnchor>();
-		CertPath verifyCertPath;
+		final X509Certificate root = (X509Certificate) list.get(last);
+		X509Certificate trust = null;
+		boolean add = false;
+		boolean truncated = false;
 		String mode;
 		if (trustedCertificates.length == 0) {
 			// trust all
@@ -340,65 +383,69 @@ public class CertPathUtil {
 			// verify certificate chain using the
 			// last certificate as trust anchor
 			mode = "last";
-			trustAnchors.add(new TrustAnchor(root, null));
-			verifyCertPath = generateCertPath(chain, last);
+			trust = root;
 		} else if (truncateCertificatePath) {
 			mode = "anchor";
-			X509Certificate trust = null;
-			for (int index = 0; index < size; ++index) {
+			for (int index = 1; index < size; ++index) {
 				X509Certificate certificate = chain.get(index);
-				trust = search(certificate.getIssuerX500Principal(), trustedCertificates);
-				if (trust != null) {
-					size = index + 1;
+				if (contains(certificate, trustedCertificates)) {
+					// verify certificate chain using a trusted
+					// intermediate certificate as trust anchor
+					trust = certificate;
+					if (last > index) {
+						last = index;
+						truncated = true;
+						add = true;
+					}
 					break;
+				}
+			}
+			if (trust == null) {
+				last = size;
+				trust = searchIssuer(root, trustedCertificates);
+				if (trust != null) {
+					add = !root.equals(trust);
 				}
 			}
 			if (trust == null) {
 				// check, if node's certificate itself is trusted.
 				X509Certificate node = chain.get(0);
-				X509Certificate self = search(node.getSubjectX500Principal(), trustedCertificates);
-				if (self != null && Arrays.equals(node.getEncoded(), self.getEncoded())) {
+				if (contains(node, trustedCertificates)) {
 					if (size > 1) {
 						// replace provided trust by issuer
 						mode = "node's issuer";
-						trust = chain.get(1);
-						size = 1;
+						last = 1;
+						truncated = true;
+						trust = chain.get(last);
 					} else {
-						// single certificate, not self signed, but directly trusted ;-(.
+						// single certificate, not self signed,
+						// but directly trusted ;-(.
 						LOGGER.debug("   trust node - single certificate {}", node.getSubjectX500Principal());
 						return certPath;
 					}
 				}
 			}
-			if (trust != null) {
-				trustAnchors.add(new TrustAnchor(trust, null));
-			} else {
-				// prepare to fail :-)
-				trustAnchors.add(new TrustAnchor(trustedCertificates[0], null));
-			}
-			// verify certificate chain using a trusted intermediate certificate
-			// as trust anchor
-			verifyCertPath = generateCertPath(chain, size);
-			certPath = verifyCertPath;
 		} else {
-			X509Certificate trust = search(root.getIssuerX500Principal(), trustedCertificates);
-			if (trust != null) {
-				mode = "top's issuer";
+			trust = searchIssuer(root, trustedCertificates);
+			if (trust == null && contains(root, trustedCertificates)) {
+				mode = "last's subject";
+				trust = root;
 			} else {
-				mode = "top's subject";
-				trust = search(root.getSubjectX500Principal(), trustedCertificates);
+				mode = "last's issuer";
+				add = !root.equals(trust);
 			}
-			if (trust != null) {
-				trustAnchors.add(new TrustAnchor(trust, null));
-			} else {
-				// prepare to fail :-)
-				trustAnchors.add(new TrustAnchor(trustedCertificates[0], null));
-			}
-			verifyCertPath = generateCertPath(chain, size);
+			last = size;
 		}
+		CertPath verifyCertPath = generateCertPath(chain, last);
+		Set<TrustAnchor> trustAnchors = new HashSet<TrustAnchor>();
+		if (trust == null) {
+			// prepare to fail :-)
+			trust = trustedCertificates[0];
+		}
+		trustAnchors.add(new TrustAnchor(trust, null));
 		if (LOGGER.isDebugEnabled()) {
 			List<X509Certificate> validateChain = toX509CertificatesList(verifyCertPath.getCertificates());
-			LOGGER.debug("verify: certificate path {} (orig. {})", validateChain.size(), list.size());
+			LOGGER.debug("verify: certificate path {} (orig. {})", last, size);
 			X509Certificate top = null;
 			for (X509Certificate certificate : validateChain) {
 				LOGGER.debug("   cert : {}", certificate.getSubjectX500Principal());
@@ -417,7 +464,17 @@ public class CertPathUtil {
 		// TODO: implement alternative means of revocation checking
 		params.setRevocationEnabled(false);
 		validator.validate(verifyCertPath, params);
-		return certPath;
+		if (truncated || add) {
+			if (add) {
+				if (!truncated) {
+					chain.add(trust);
+				}
+				verifyCertPath = generateCertPath(chain, last + 1);
+			}
+			return verifyCertPath;
+		} else {
+			return certPath;
+		}
 	}
 
 	/**
@@ -445,17 +502,22 @@ public class CertPathUtil {
 	}
 
 	/**
-	 * Create list of subject from certificates.
+	 * Create list of subjects from certificates.
+	 * 
+	 * Since 2.5 duplicates are filtered out.
 	 * 
 	 * @param certificates list of certificates. Maybe {@code null}.
-	 * @return list of subjects of provided certificates. maybe empty, if
+	 * @return list of subjects of provided certificates. May be empty, if
 	 *         provided list was empty or {@code null}.
 	 */
 	public static List<X500Principal> toSubjects(List<X509Certificate> certificates) {
-		if (certificates != null) {
+		if (certificates != null && !certificates.isEmpty()) {
 			List<X500Principal> subjects = new ArrayList<X500Principal>(certificates.size());
 			for (X509Certificate certificate : certificates) {
-				subjects.add(certificate.getSubjectX500Principal());
+				X500Principal subject = certificate.getSubjectX500Principal();
+				if (!subjects.contains(subject)) {
+					subjects.add(subject);
+				}
 			}
 			return subjects;
 		} else {
@@ -464,20 +526,74 @@ public class CertPathUtil {
 	}
 
 	/**
-	 * Search certificate by subject.
+	 * Search issuer certificate by subject.
+	 * 
+	 * If more than one trusted certificates with that subject are available,
+	 * then check, if one of them is valid and signed the provided certificate.
+	 * If such a valid issuer is found, return that. Otherwise return any
+	 * certificate with that subject. The final check is then left to PKIX
+	 * {@link CertPathValidator}.
 	 * 
 	 * @param subject subject to search
 	 * @param certificates to search
-	 * @return certificate with provided subject, or {@ocde null}, if no one was
-	 *         found.
+	 * @return certificate with provided subject, or {@code null}, if no one was
+	 *         found. It's only granted, that the returned certificate has that
+	 *         subject. The final check is left to PKIX
+	 *         {@link CertPathValidator}.
+	 * @since 2.5
 	 */
-	private static X509Certificate search(X500Principal subject, X509Certificate[] certificates) {
+	private static X509Certificate searchIssuer(X509Certificate certificate, X509Certificate[] certificates) {
+		X500Principal subject = certificate.getIssuerX500Principal();
+		X509Certificate anchor = null;
 		for (int index = 0; index < certificates.length; ++index) {
 			X509Certificate trust = certificates[index];
 			if (trust != null && subject.equals(trust.getSubjectX500Principal())) {
-				return trust;
+				if (anchor != null && verifySignature(certificate, anchor)) {
+					// verified anchor
+					return anchor;
+				} else {
+					anchor = trust;
+				}
 			}
 		}
-		return null;
+		return anchor;
+	}
+
+	/**
+	 * Verify validity and signature of certificate by CA certificate.
+	 * 
+	 * @param certificate signed certificate
+	 * @param caCertificate signing certificate
+	 * @return {@code true}, if valid, {@code false}, otherwise.
+	 * @since 2.5
+	 */
+	private static boolean verifySignature(X509Certificate certificate, X509Certificate caCertificate) {
+		try {
+			caCertificate.checkValidity();
+			certificate.verify(caCertificate.getPublicKey());
+			return true;
+		} catch (GeneralSecurityException e) {
+			return false;
+		}
+	}
+
+	/**
+	 * Search certificate in trusts.
+	 * 
+	 * @param certificate certificate to search
+	 * @param certificates to search
+	 * @return {@code true}, if certificate is contained, {@code false},
+	 *         otherwise.
+	 * @throws CertificateEncodingException if encoding a certificate failed!
+	 * @since 2.5
+	 */
+	private static boolean contains(X509Certificate certificate, X509Certificate[] certificates)
+			throws CertificateEncodingException {
+		for (X509Certificate trust : certificates) {
+			if (certificate.equals(trust)) {
+				return true;
+			}
+		}
+		return false;
 	}
 }

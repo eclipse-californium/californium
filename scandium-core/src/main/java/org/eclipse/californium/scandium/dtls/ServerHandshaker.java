@@ -65,11 +65,9 @@ import java.util.concurrent.ScheduledExecutorService;
 
 import javax.crypto.SecretKey;
 import javax.security.auth.DestroyFailedException;
-import javax.security.auth.x500.X500Principal;
 
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
-import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -575,8 +573,7 @@ public class ServerHandshaker extends Handshaker {
 			if (session.receiveCertificateType() == CertificateType.X_509) {
 				certificateRequest.addSignatureAlgorithms(supportedSignatureAndHashAlgorithms);
 				if (certificateVerifier != null) {
-					List<X500Principal> subjects = CertPathUtil.toSubjects(certificateVerifier.getAcceptedIssuers());
-					certificateRequest.addCerticiateAuthorities(subjects);
+					certificateRequest.addCerticiateAuthorities(certificateVerifier.getAcceptedIssuers());
 				}
 			} else if (session.receiveCertificateType() == CertificateType.RAW_PUBLIC_KEY) {
 				List<SignatureAndHashAlgorithm> ecdsaSignatures = SignatureAndHashAlgorithm
