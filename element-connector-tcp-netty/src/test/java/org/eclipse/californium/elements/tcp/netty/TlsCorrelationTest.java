@@ -749,10 +749,9 @@ public class TlsCorrelationTest {
 		int brokenLength = chain.length - 1;
 		X509Certificate[] brokenChain = Arrays.copyOf(chain, brokenLength);
 		brokenChain[brokenLength-1] = chain[brokenLength];
-		
-		KeyManager[] keyManager = SslContextUtil.createKeyManager(SERVER_NAME,
-				credentials.getPrivateKey(),
-				brokenChain);
+		BrokenX509ExtendedKeyManager manager = new BrokenX509ExtendedKeyManager(SERVER_NAME,
+				credentials.getPrivateKey(), brokenChain);
+		KeyManager[] keyManager = new KeyManager[] { manager };
 		TrustManager[] trustManager = SslContextUtil.createTrustAllManager();
 
 		SSLContext serverContext = SSLContext.getInstance(SslContextUtil.DEFAULT_SSL_PROTOCOL);
