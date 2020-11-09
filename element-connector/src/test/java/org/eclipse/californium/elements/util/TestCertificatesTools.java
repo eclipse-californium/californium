@@ -30,6 +30,7 @@ public class TestCertificatesTools {
 	public static final char[] TRUST_STORE_PASSWORD = "rootPass".toCharArray();
 	public static final char[] KEY_STORE_PASSWORD = "endPass".toCharArray();
 	public static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
+	public static final String EDDSA_KEY_STORE_LOCATION = "certs/eddsaKeyStore.jks";
 	public static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
 	public static final String SERVER_NAME = "server";
 	/**
@@ -114,8 +115,13 @@ public class TestCertificatesTools {
 	 */
 	public static SslContextUtil.Credentials getCredentials(String alias) {
 		try {
-			return SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, alias,
-					KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+			try {
+				return SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, alias,
+						KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+			} catch (IllegalArgumentException ex) {
+				return SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + EDDSA_KEY_STORE_LOCATION, alias,
+						KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+			}
 		} catch (IOException | GeneralSecurityException e) {
 			return null;
 		}

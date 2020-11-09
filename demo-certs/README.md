@@ -1,7 +1,7 @@
 # Demo Certificates for Californium
 
-Californium's security module *Scandium (Sc)* is an implementation of _Datagram Transport Layer Security 1.2_, also
-known as [RFC 6347](http://tools.ietf.org/html/rfc6347). Scandium's test cases and many of Californium's examples that use security require some private and public keys for configuring DTLS.
+Californium's security module *Scandium (Sc)* is an implementation of *Datagram Transport Layer Security 1.2*, also
+known as [RFC 6347](https://tools.ietf.org/html/rfc6347). Scandium's test cases and many of Californium's examples that use security require some private and public keys for configuring DTLS.
 
 This module provides some example Java key stores containing public/private key pairs and certificate chains to be used for configuring DTLS at the client and server side. 
 
@@ -12,39 +12,67 @@ the `src/main/resources` folder.
 
 We use a multi-level chain of trust as follows:
 
-1. A pair of private/public EC keys along with a self signed certificate which together represent the root CA identity.
-2. A pair of private/public EC keys along with a certificate signed with the root CA's key which together represent an intermediary CA identity.
-3. A pair of private/public EC keys along with a certificate signed with the intermediary CA's key which together assert the identity of a *server*.
-4. A pair of private/public EC keys along with a certificate signed with the intermediary CA's key which together assert the identity of a *client*.
+1. A pair of private/public EC keys along with a self signed certificate which together represent the root CA identity (alias "root").
+2. A pair of private/public EC keys along with a certificate signed with the root CA's key which together represent an intermediary CA identity (alias "ca").
+3. A pair of private/public EC keys along with a certificate signed with the intermediary CA's key which together assert the identity of a *server* (alias "server").
+4. A pair of private/public EC keys along with a certificate signed with the intermediary CA's key which together assert the identity of a *client* (alias "client").
 
 For extended tests, 
-5. A pair of private/public EC keys along with a certificate signed with the intermediary CA's key which together represent an second intermediary CA identity.
-6. A pair of private/public EC keys along with a certificate signed with the second intermediary CA's key which together assert the identity of a *server* (large certificate).
-7. A pair of private/public RSA keys along with a certificate signed with the root CA's key which together represent an intermediary RSA-CA identity.
-8. A pair of private/public EC keys along with a certificate signed with the intermediary RSA-CA's key which together assert the identity of a *server*.
-9. A pair of private/public EC keys along with a self signed certificate.
-10. A pair of private/public EC keys along with a certificate using extended key usage for clientAuth, signed with the intermediary CA's key which together assert the identity of a *client*.
-11. A pair of private/public EdDSA keys along with a certificate signed with the intermediary CA's key which together assert the identity of a *client* (requires java 15).
+5. A pair of private/public EC keys along with a certificate signed with the intermediary CA's key which together represent an second intermediary CA identity (alias "ca2").
+6. A pair of private/public EC keys along with a certificate signed with the second intermediary CA's key which together assert the identity of a *server* (large certificate, alias "serverlarge").
+7. A pair of private/public RSA keys along with a certificate signed with the root CA's key which together represent an intermediary RSA-CA identity (alias "carsa").
+8. A pair of private/public EC keys along with a certificate signed with the intermediary RSA-CA's key which together assert the identity of a *server* (alias "serverrsa").
+9. A pair of private/public EC keys along with a self signed certificate (alias "self").
+10. A pair of private/public EC keys along with a certificate using extended key usage for clientAuth, signed with the intermediary CA's key which together assert the identity of a *client* (alias "clientext").
+11. A pair of private/public EC keys along with a self signed certificate without signing usage (alias "nosigning").
+12. A pair of private/public EdDSA keys along with a certificate signed with the intermediary CA's key which together assert the identity of a *client* (requires java 15, alias "clienteddsa").
+13. A pair of private/public EC keys along with a certificate signed with the root CA's key which together represent an intermediary CA identity, same DN as 2., but with a different key-pair (alias "caalt").
 
 **Trust Store**
 
 The `trustStore.jks` contains the self-signed certificate for the root CA (alias `root`) as well as the certificate chain for the intermediary CAs
-(alias `ca` and `carsa`). And a second intermediary CA (alias `ca2`). These certificates are used as the *trust anchors* in Scandium's examples and test cases.
+(alias `ca`, `carsa`, and `caalt`). And a second intermediary CA (alias `ca2`). These certificates are used as the *trust anchors* in Scandium's examples and test cases.
 
 The password for accessing the trust store is `rootPass` by default.
 
 For platforms without jks support, a p12 trust stores is also generated.
-`trustStore.p12`, `caTrustStore.p12`, `caRsatrustStore.p12`.
+`trustStore.p12`, `rootTrustStore.p12`, `caTrustStore.p12`, `caRsatrustStore.p12`.
 
 **Key Store**
 
-The `keyStore.jks` contains the keys and certificate chains for the *client* (alias `client`, `clientext`, and `clienteddsa` ) and
-*server* (alias `server`, `serverlarge`, and `serverrsa`) identities.
+The `keyStore.jks` contains the keys and certificate chains for the *client* (alias `client`, and `clientext`) and *server* (alias `server`, `serverlarge`, and `serverrsa`) identities.
+
+The `eddsaKeyStore.jks` contains the keys and certificate chains for the *client* (alias `clienteddsa`) identity.
 
 The password for accessing the key store is `endPass` by default.
 
 For platforms without jks support, a p12 trust stores is also generated.
 `client.p12`, `clientEdDsa.p12`, `server.p12`, `serverLarge.p12`, and `serverRsa.p12`.
+
+### Tree of Certificates
+
+(`alias (CN)`)
+
+```sh
+                 +-- caalt (cf-ca)
+                 |
+                 |
+root (cf-root) --+-- carsa (cf-ca-rsa) --+-- serverrsa (cf-server-rsa)
+                 |
+                 |
+                 |                       +-- ca2 (cf-ca2) --+-- serverlarge (cf-serverlarge)
+                 |                       |
+                 +-- ca (cf-ca) ---------+-- server (cf-server)
+                                         |
+                                         +-- client (cf-client)
+                                         |
+                                         +-- clientext (cf-clientext)
+
+self (cf-self)
+
+nosigning (cf-nosigning)
+
+```
 
 ### Creating the Keys and Certificates
 
@@ -60,7 +88,8 @@ The script supports a list of tasks as arguments. The supported tasks are:
 -  remove remove all created files
 -  create create keys an jks
 -  export export p12 and pem
+-  copy copy pem files to `californium-tests/californium-interoperability-tests`
 
-If no argument is provided "remove create export" is used.
+If no argument is provided "remove create export copy" is used.
 
 Note: to create EdDSA certificates, it's required to use java 15. If previous java version are used, this client certificate is missing and the corresponding interoperability test is skipped.

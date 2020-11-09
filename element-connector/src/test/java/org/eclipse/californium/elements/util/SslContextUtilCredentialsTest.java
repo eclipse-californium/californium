@@ -39,6 +39,8 @@ public class SslContextUtilCredentialsTest {
 	public static final char[] KEY_STORE_PASSWORD = "endPass".toCharArray();
 	public static final String KEY_STORE_PASSWORD_HEX = "656E6450617373";
 	public static final String KEY_STORE_LOCATION = SslContextUtil.CLASSPATH_SCHEME + "certs/keyStore.jks";
+	public static final String EDDSA_KEY_STORE_LOCATION = SslContextUtil.CLASSPATH_SCHEME + "certs/eddsaKeyStore.jks";
+
 	public static final char[] TRUST_STORE_PASSWORD = "rootPass".toCharArray();
 
 	public static final String SERVER_P12_LOCATION = SslContextUtil.CLASSPATH_SCHEME + "certs/server.p12";
@@ -293,6 +295,16 @@ public class SslContextUtilCredentialsTest {
 		assertThat(credentials, is(notNullValue()));
 		assertThat(credentials.getPrivateKey(), is(notNullValue()));
 		assertThat(credentials.getPubicKey(), is(notNullValue()));
+	}
+
+	@Test
+	public void testLoadEdDsaCertificateCahin() throws IOException, GeneralSecurityException {
+		assumeTrue("ED25519 requires JVM support!", Asn1DerDecoder.isSupported("Ed25519"));
+		X509Certificate[] chain = SslContextUtil.loadCertificateChain(EDDSA_KEY_STORE_LOCATION, "clienteddsa",
+				KEY_STORE_PASSWORD);
+		assertThat(chain, is(notNullValue()));
+		assertThat(chain.length, is(greaterThan(0)));
+		assertThat(chain[0].getPublicKey(), is(notNullValue()));
 	}
 
 	@Test
