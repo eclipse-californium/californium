@@ -49,6 +49,7 @@ public class ThreadLocalSignature extends ThreadLocalCrypto<Signature> {
 				if (oid != null) {
 					Provider provider = Asn1DerDecoder.getEdDsaProvider();
 					if (provider != null) {
+						// signature still requires specific EdDSA provider
 						return Signature.getInstance(oid, provider);
 					}
 				}

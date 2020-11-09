@@ -23,6 +23,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.Provider;
 import java.security.PublicKey;
+import java.security.Security;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.ECParameterSpec;
@@ -251,28 +252,25 @@ public class Asn1DerDecoder {
 			ed448 = true;
 			LOGGER.trace("EdDSA from jvm {}", provider.getName());
 		} catch (NoSuchAlgorithmException e) {
-			if (StringUtil.getConfigurationBoolean(NET_I2P_CRYPTO_EDDSA.replace('.', '_') + "_disable")) {
-				LOGGER.trace("EdDSA not available from jvm!", e);
-			} else {
-				Throwable cause = null;
-				try {
-					Class<?> clz = Class.forName(NET_I2P_CRYPTO_EDDSA + ".EdDSASecurityProvider");
-					if (clz != null) {
-						provider = (Provider) clz.newInstance();
-						ed25519 = true;
-						ed448 = false;
-						LOGGER.trace("EdDSA from {}", NET_I2P_CRYPTO_EDDSA);
-					}
-				} catch (ClassNotFoundException e2) {
-					cause = e2;
-				} catch (InstantiationException e2) {
-					cause = e2;
-				} catch (IllegalAccessException e2) {
-					cause = e2;
+			Throwable cause = null;
+			try {
+				Class<?> clz = Class.forName(NET_I2P_CRYPTO_EDDSA + ".EdDSASecurityProvider");
+				if (clz != null) {
+					provider = (Provider) clz.newInstance();
+					Security.addProvider(provider);
+					ed25519 = true;
+					ed448 = false;
+					LOGGER.trace("EdDSA from {}", NET_I2P_CRYPTO_EDDSA);
 				}
-				if (provider == null) {
-					LOGGER.trace("{} is not available!", NET_I2P_CRYPTO_EDDSA, cause);
-				}
+			} catch (ClassNotFoundException e2) {
+				cause = e2;
+			} catch (InstantiationException e2) {
+				cause = e2;
+			} catch (IllegalAccessException e2) {
+				cause = e2;
+			}
+			if (provider == null) {
+				LOGGER.trace("{} is not available!", NET_I2P_CRYPTO_EDDSA, cause);
 			}
 		}
 		EDDSA_PROVIDER = provider;
@@ -686,32 +684,6 @@ public class Asn1DerDecoder {
 			}
 		}
 		return null;
-	}
-
-	/**
-	 * Ensure, that a EdDSA private key is created by the EdDSA provider.
-	 * 
-	 * @param privateKey private key
-	 * @return private key, or re-encoded EDDSA private key.
-	 * @see #getEdDsaProvider()
-	 * @since 2.5
-	 */
-	public static PrivateKey ensureEdDsaPrivateKeyProvider(PrivateKey privateKey) {
-		String algorithm = Asn1DerDecoder.getEdDsaStandardAlgorithmName(privateKey.getAlgorithm(), null);
-		if (algorithm != null) {
-			// EdDSA may require the private key to be created by the EdDSA provider
-			try {
-				Keys keys = Asn1DerDecoder.readPrivateKey(privateKey.getEncoded());
-				if (keys != null) {
-					PrivateKey newPrivateKey = keys.getPrivateKey();
-					if (!newPrivateKey.getClass().equals(privateKey.getClass())) {
-						return newPrivateKey;
-					}
-				}
-			} catch (GeneralSecurityException e) {
-			}
-		}
-		return privateKey;
 	}
 
 	/**

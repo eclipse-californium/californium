@@ -17,7 +17,6 @@ package org.eclipse.californium.scandium.dtls.cipher;
 
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
-import java.security.Provider;
 
 import org.eclipse.californium.elements.util.Asn1DerDecoder;
 
@@ -45,14 +44,8 @@ public class ThreadLocalKeyFactory extends ThreadLocalCrypto<KeyFactory> {
 
 			@Override
 			public KeyFactory getInstance() throws GeneralSecurityException {
-				String oid = Asn1DerDecoder.getEdDsaStandardAlgorithmName(algorithm, null);
-				if (oid != null) {
-					Provider provider = Asn1DerDecoder.getEdDsaProvider();
-					if (provider != null) {
-						return KeyFactory.getInstance(oid, provider);
-					}
-				}
-				return KeyFactory.getInstance(algorithm);
+				String oid = Asn1DerDecoder.getEdDsaStandardAlgorithmName(algorithm, algorithm);
+				return KeyFactory.getInstance(oid);
 			}
 
 		});

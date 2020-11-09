@@ -17,7 +17,6 @@ package org.eclipse.californium.scandium.dtls.cipher;
 
 import java.security.GeneralSecurityException;
 import java.security.KeyPairGenerator;
-import java.security.Provider;
 
 import org.eclipse.californium.elements.util.Asn1DerDecoder;
 
@@ -43,14 +42,8 @@ public class ThreadLocalKeyPairGenerator extends ThreadLocalCrypto<KeyPairGenera
 
 			@Override
 			public KeyPairGenerator getInstance() throws GeneralSecurityException {
-				String oid = Asn1DerDecoder.getEdDsaStandardAlgorithmName(algorithm, null);
-				if (oid != null) {
-					Provider provider = Asn1DerDecoder.getEdDsaProvider();
-					if (provider != null) {
-						return KeyPairGenerator.getInstance(oid, provider);
-					}
-				}
-				return KeyPairGenerator.getInstance(algorithm);
+				String oid = Asn1DerDecoder.getEdDsaStandardAlgorithmName(algorithm, algorithm);
+				return KeyPairGenerator.getInstance(oid);
 			}
 
 		});
