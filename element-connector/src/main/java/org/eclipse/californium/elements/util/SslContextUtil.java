@@ -453,7 +453,7 @@ public class SslContextUtil {
 				PrivateKeyEntry pkEntry = (PrivateKeyEntry) entry;
 				Certificate[] chain = pkEntry.getCertificateChain();
 				X509Certificate[] x509Chain = asX509Certificates(chain);
-				return new Credentials(Asn1DerDecoder.ensureEdDsaPrivateKeyProvider(pkEntry.getPrivateKey()), null, x509Chain);
+				return new Credentials(pkEntry.getPrivateKey(), null, x509Chain);
 			}
 		}
 		throw new IllegalArgumentException("no credentials found for '" + alias + "' in '" + keyStoreUri + "'!");
@@ -498,7 +498,7 @@ public class SslContextUtil {
 				Entry entry = ks.getEntry(alias, new KeyStore.PasswordProtection(keyPassword));
 				if (entry instanceof PrivateKeyEntry) {
 					PrivateKeyEntry pkEntry = (PrivateKeyEntry) entry;
-					return Asn1DerDecoder.ensureEdDsaPrivateKeyProvider(pkEntry.getPrivateKey());
+					return pkEntry.getPrivateKey();
 				}
 			}
 		}
