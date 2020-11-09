@@ -27,6 +27,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import javax.security.auth.x500.X500Principal;
+
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.elements.util.SslContextUtil;
@@ -157,7 +159,7 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 							}
 						}
 					}
-					certChain = CertPathUtil.validateCertificatePath(truncateCertificatePath, certPath,
+					certChain = CertPathUtil.validateCertificatePathWithIssuer(truncateCertificatePath, certPath,
 							trustedCertificates);
 					return new CertificateVerificationResult(cid, certChain, null);
 				} catch (GeneralSecurityException e) {
@@ -178,8 +180,12 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 	}
 
 	@Override
-	public List<X509Certificate> getAcceptedIssuers() {
-		return Arrays.asList(trustedCertificates);
+	public List<X500Principal> getAcceptedIssuers() {
+		if (trustedCertificates != null) {
+			return CertPathUtil.toSubjects(Arrays.asList(trustedCertificates));
+		} else {
+			return CertPathUtil.toSubjects(null);
+		}
 	}
 
 	@Override

@@ -25,6 +25,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
+import javax.security.auth.x500.X500Principal;
+
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.elements.util.SslContextUtil;
@@ -154,8 +156,13 @@ public class BridgeCertificateVerifier implements NewAdvancedCertificateVerifier
 	}
 
 	@Override
-	public List<X509Certificate> getAcceptedIssuers() {
-		return Arrays.asList(x509verifier.getAcceptedIssuers());
+	public List<X500Principal> getAcceptedIssuers() {
+		X509Certificate[] issuers = x509verifier.getAcceptedIssuers();
+		if (issuers != null) {
+			return CertPathUtil.toSubjects(Arrays.asList(issuers));
+		} else {
+			return CertPathUtil.toSubjects(null);
+		}
 	}
 
 	@Override

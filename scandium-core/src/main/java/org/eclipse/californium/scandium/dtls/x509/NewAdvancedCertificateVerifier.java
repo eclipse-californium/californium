@@ -15,8 +15,9 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.x509;
 
-import java.security.cert.X509Certificate;
 import java.util.List;
+
+import javax.security.auth.x500.X500Principal;
 
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.dtls.CertificateMessage;
@@ -105,13 +106,12 @@ public interface NewAdvancedCertificateVerifier {
 			boolean truncateCertificatePath, CertificateMessage message, DTLSSession session);
 
 	/**
-	 * Return an list of certificate authority certificates which are trusted
+	 * Return an list of certificate authorities which are trusted
 	 * for authenticating peers.
 	 * 
-	 * @return a non-null (possibly empty) list of accepted CA issuer
-	 *         certificates.
+	 * @return a non-null (possibly empty) list of accepted CA issuers.
 	 */
-	List<X509Certificate> getAcceptedIssuers();
+	List<X500Principal> getAcceptedIssuers();
 
 	/**
 	 * Set the handler for asynchronous handshake results.

@@ -27,7 +27,6 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.core.IsCollectionContaining.hasItems;
-import static org.hamcrest.core.IsCollectionContaining.hasItems;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
@@ -516,7 +515,7 @@ public class DtlsConnectorConfigTest {
 	@Test
 	public void testTrustStoreDoNotContainDuplicateSubject() {
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage(containsString("2 certificates with same subject"));
+		exception.expectMessage(containsString("contains certificates duplicates"));
 		X509Certificate[] trustedCertificates = new X509Certificate[2];
 		trustedCertificates[0] = DtlsTestTools.getTrustedRootCA();
 		trustedCertificates[1] = DtlsTestTools.getTrustedRootCA();

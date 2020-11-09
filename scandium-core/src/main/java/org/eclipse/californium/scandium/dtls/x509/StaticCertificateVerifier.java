@@ -80,7 +80,7 @@ public class StaticCertificateVerifier implements AdvancedCertificateVerifier {
 	public void verifyCertificate(CertificateMessage message, DTLSSession session) throws HandshakeException {
 
 		try {
-			CertPathUtil.validateCertificatePath(false, message.getCertificateChain(), rootCertificates);
+			CertPathUtil.validateCertificatePathWithIssuer(false, message.getCertificateChain(), rootCertificates);
 		} catch (GeneralSecurityException e) {
 			if (LOGGER.isTraceEnabled()) {
 				LOGGER.trace("Certificate validation failed", e);
@@ -115,7 +115,7 @@ public class StaticCertificateVerifier implements AdvancedCertificateVerifier {
 					}
 				}
 			}
-			return CertPathUtil.validateCertificatePath(truncateCertificatePath, certPath, rootCertificates);
+			return CertPathUtil.validateCertificatePathWithIssuer(truncateCertificatePath, certPath, rootCertificates);
 		} catch (GeneralSecurityException e) {
 			if (LOGGER.isTraceEnabled()) {
 				LOGGER.trace("Certificate validation failed", e);

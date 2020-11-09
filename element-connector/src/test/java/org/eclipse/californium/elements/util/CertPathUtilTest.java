@@ -15,9 +15,11 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeThat;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -44,30 +46,65 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 /**
- * Test cases verifying the cert path generator.
+ * Test cases verifying the cert path generator and validator.
+ * 
+ * <pre>
+ *                  +-- caalt (cf-ca)
+ *                  |
+ *                  |
+ * root (cf-root) --+-- carsa (cf-ca-rsa) --+-- serverrsa (cf-server-rsa)
+ *                  |
+ *                  |
+ *                  |                       +-- ca2 (cf-ca2) --+-- serverlarge (cf-serverlarge)
+ *                  |                       |
+ *                  +-- ca (cf-ca) ---------+-- server (cf-server)
+ *                                          |
+ *                                          +-- client (cf-client)
+ *                                          |
+ *                                          +-- clientext (cf-clientext)
+ * 
+ * self (cf-self)
+ * 
+ * nosigning (cf-nosigning)
+ * 
+ * </pre>
  */
 public class CertPathUtilTest {
 
 	private static final char[] KEY_STORE_PASSWORD = "endPass".toCharArray();
 	private static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
 
+	private static final X509Certificate[] ALL = new X509Certificate[0];
+
 	@Rule
 	public ExpectedException exception = ExpectedException.none();
 
 	private X509Certificate[] clientChainExtUsage;
 	private X509Certificate[] clientSelfsigned;
+	private X509Certificate[] serverLarge;
 
 	private List<X509Certificate> clientChainExtUsageList;
 	private List<X509Certificate> clientSelfsignedList;
+	private List<X509Certificate> serverLargeList;
 
 	@Before
 	public void init() throws IOException, GeneralSecurityException {
+		// includes root!
 		clientChainExtUsage = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION,
 				"clientext", KEY_STORE_PASSWORD, KEY_STORE_PASSWORD).getCertificateChain();
+		assumeThat(clientChainExtUsage.length, is(3));
+
 		clientSelfsigned = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, "self",
 				KEY_STORE_PASSWORD, KEY_STORE_PASSWORD).getCertificateChain();
+		assumeThat(clientSelfsigned.length, is(1));
+
+		serverLarge = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, "serverlarge",
+				KEY_STORE_PASSWORD, KEY_STORE_PASSWORD).getCertificateChain();
+		assumeThat(serverLarge.length, is(3));
+
 		clientChainExtUsageList = Arrays.asList(clientChainExtUsage);
 		clientSelfsignedList = Arrays.asList(clientSelfsigned);
+		serverLargeList = Arrays.asList(serverLarge);
 	}
 
 	@Test
@@ -169,56 +206,216 @@ public class CertPathUtilTest {
 		exception.expectMessage("certificates are not trusted!");
 		List<X509Certificate> path = Arrays.asList(TestCertificatesTools.getServerCertificateChain());
 		CertPath certPath = CertPathUtil.generateCertPath(path);
-		CertPathUtil.validateCertificatePath(false, certPath, null);
+		CertPathUtil.validateCertificatePathWithIssuer(false, certPath, null);
 	}
 
+	/**
+	 * Certificate-path: server, ca
+	 * Trust: "all"
+	 * Expected result: pass => server, ca
+	 * @throws Exception if an unexpected error occurs
+	 */
 	@Test
 	public void testServerCertificateValidation() throws Exception {
-		X509Certificate[] certificates = TestCertificatesTools.getServerCertificateChain();
-		CertPath certPath = CertPathUtil.generateCertPath(Arrays.asList(certificates));
-		CertPath verifiedPath = CertPathUtil.validateCertificatePath(false, certPath, new X509Certificate[0]);
-		assertEquals(Arrays.asList(certificates), verifiedPath.getCertificates());
+		List<X509Certificate> certificates = TestCertificatesTools.getServerCertificateChainAsList();
+		CertPath certPath = CertPathUtil.generateCertPath(certificates);
+		CertPath verifiedPath = CertPathUtil.validateCertificatePathWithIssuer(false, certPath, ALL);
+		TestCertificatesTools.assertEquals(certificates, verifiedPath.getCertificates());
 	}
 
+	/**
+	 * Certificate-path: server, ca
+	 * Trust: self
+	 * Expected result: fail
+	 * @throws Exception if an unexpected error occurs
+	 */
 	@Test
 	public void testServerCertificateValidationUnknownTrust() throws Exception {
 		exception.expect(CertPathValidatorException.class);
 		exception.expectMessage("Path does not chain with any of the trust anchors");
-		X509Certificate[] serverCertificates = TestCertificatesTools.getServerCertificateChain();
-		CertPath certPath = CertPathUtil.generateCertPath(Arrays.asList(serverCertificates));
-		CertPathUtil.validateCertificatePath(false, certPath, clientSelfsigned);
+		List<X509Certificate> serverCertificates = TestCertificatesTools.getServerCertificateChainAsList();
+		CertPath certPath = CertPathUtil.generateCertPath(serverCertificates);
+		CertPathUtil.validateCertificatePathWithIssuer(false, certPath, clientSelfsigned);
 	}
 
+	/**
+	 * Certificate-path: server, ca
+	 * Trust: root, ca, caalt, carsa, ca2
+	 * Expected result: pass => server, ca, root
+	 * @throws Exception if an unexpected error occurs
+	 */
 	@Test
 	public void testServerCertificateValidationWithTrust() throws Exception {
-		X509Certificate[] certificates = TestCertificatesTools.getServerCertificateChain();
-		CertPath certPath = CertPathUtil.generateCertPath(Arrays.asList(certificates));
-		CertPath verifiedPath = CertPathUtil.validateCertificatePath(false, certPath,
+		List<X509Certificate> certificates = TestCertificatesTools.getServerCertificateChainAsList();
+		List<X509Certificate> verified = new ArrayList<>(certificates);
+		verified.add(TestCertificatesTools.getTrustedRootCA());
+		CertPath certPath = CertPathUtil.generateCertPath(certificates);
+		CertPath verifiedPath = CertPathUtil.validateCertificatePathWithIssuer(false, certPath,
 				TestCertificatesTools.getTrustedCertificates());
-		assertEquals(Arrays.asList(certificates), verifiedPath.getCertificates());
+		TestCertificatesTools.assertEquals(verified, verifiedPath.getCertificates());
 	}
 
+	/**
+	 * Certificate-path: server, ca
+	 * Trust: "first match", root, ca, caalt, carsa, ca2
+	 * Expected result: pass => server, ca
+	 * @throws Exception if an unexpected error occurs
+	 */
+	@Test
+	public void testServerCertificateValidationTruncatedWithTrust() throws Exception {
+		List<X509Certificate> certificates = TestCertificatesTools.getServerCertificateChainAsList();
+		CertPath certPath = CertPathUtil.generateCertPath(certificates);
+		CertPath verifiedPath = CertPathUtil.validateCertificatePathWithIssuer(true, certPath,
+				TestCertificatesTools.getTrustedCertificates());
+		TestCertificatesTools.assertEquals(certificates, verifiedPath.getCertificates());
+	}
+
+	/**
+	 * Certificate-path: serverlarge, ca2, ca
+	 * Trust: root, ca, caalt, carsa, ca2
+	 * Expected result: pass => serverlarge, ca2, ca, root
+	 * @throws Exception if an unexpected error occurs
+	 */
+	@Test
+	public void testServerLargeCertificateValidationWithTrust() throws Exception {
+		List<X509Certificate> verified = new ArrayList<>(serverLargeList);
+		verified.add(TestCertificatesTools.getTrustedRootCA());
+		CertPath certPath = CertPathUtil.generateCertPath(serverLargeList);
+		CertPath verifiedPath = CertPathUtil.validateCertificatePathWithIssuer(false, certPath,
+				TestCertificatesTools.getTrustedCertificates());
+		TestCertificatesTools.assertEquals(verified, verifiedPath.getCertificates());
+	}
+
+	/**
+	 * Certificate-path: serverlarge, ca2, ca
+	 * Trust: "first match", root, ca, caalt, carsa, ca2
+	 * Expected result: pass => serverlarge, ca2
+	 * @throws Exception if an unexpected error occurs
+	 */
+	@Test
+	public void testServerLargeCertificateValidationTruncatedWithTrust() throws Exception {
+		List<X509Certificate> verified = new ArrayList<>();
+		verified.add(serverLarge[0]);
+		verified.add(serverLarge[1]);
+		CertPath certPath = CertPathUtil.generateCertPath(serverLargeList);
+		CertPath verifiedPath = CertPathUtil.validateCertificatePathWithIssuer(true, certPath,
+				TestCertificatesTools.getTrustedCertificates());
+		TestCertificatesTools.assertEquals(verified, verifiedPath.getCertificates());
+	}
+
+	/**
+	 * Certificate-path: serverlarge, ca2
+	 * 1.
+	 * Trust: "first match", ca, caalt
+	 * Expected result: pass => serverlarge, ca2, ca
+	 * 2.
+	 * Trust: "first match", caalt, ca
+	 * Expected result: pass => serverlarge, ca2, ca
+	 * @throws Exception if an unexpected error occurs
+	 */
+	@Test
+	public void testServerLargeCertificateValidationTruncatedWithAmbiguousTrust() throws Exception {
+		X509Certificate ca = TestCertificatesTools.getTrustedCA();
+		X509Certificate caalt = TestCertificatesTools.getAlternativeCA();
+		List<X509Certificate> path = new ArrayList<>();
+		path.add(serverLarge[0]);
+		path.add(serverLarge[1]);
+		List<X509Certificate> verified = new ArrayList<>();
+		verified.add(serverLarge[0]);
+		verified.add(serverLarge[1]);
+		verified.add(ca);
+		X509Certificate[] trusts = new X509Certificate[] { ca, caalt };
+		CertPath certPath = CertPathUtil.generateCertPath(path);
+		CertPath verifiedPath = CertPathUtil.validateCertificatePathWithIssuer(true, certPath, trusts);
+		TestCertificatesTools.assertEquals(verified, verifiedPath.getCertificates());
+
+		trusts = new X509Certificate[] { caalt, ca };
+		verifiedPath = CertPathUtil.validateCertificatePathWithIssuer(true, certPath, trusts);
+		TestCertificatesTools.assertEquals(verified, verifiedPath.getCertificates());
+	}
+
+	/**
+	 * Certificate-path: server, ca
+	 * Trust: "first match", root
+	 * Expected result: pass => server, ca, root
+	 * @throws Exception if an unexpected error occurs
+	 */
+	@Test
+	public void testServerCertificateValidationWithRootTrust() throws Exception {
+		X509Certificate root = TestCertificatesTools.getTrustedRootCA();
+		List<X509Certificate> certificates = TestCertificatesTools.getServerCertificateChainAsList();
+		X509Certificate[] trusts = new X509Certificate[] { root };
+		List<X509Certificate> verified = new ArrayList<>(certificates);
+		verified.add(root);
+		CertPath certPath = CertPathUtil.generateCertPath(certificates);
+		CertPath verifiedPath = CertPathUtil.validateCertificatePathWithIssuer(true, certPath, trusts);
+		TestCertificatesTools.assertEquals(verified, verifiedPath.getCertificates());
+	}
+
+	/**
+	 * Certificate-path: server, ca
+	 * Trust: ca
+	 * Expected result: fail (ca is not self-signed)
+	 * @throws Exception if an unexpected error occurs
+	 */
 	@Test
 	public void testServerCertificateValidationWithIntermediateTrustFails() throws Exception {
 		exception.expect(CertPathValidatorException.class);
 		exception.expectMessage("Path does not chain with any of the trust anchors");
-		X509Certificate[] certificates = TestCertificatesTools.getServerCertificateChain();
-		X509Certificate[] trusts = new X509Certificate[] {certificates[1]};
-		CertPath certPath = CertPathUtil.generateCertPath(Arrays.asList(certificates));
-		CertPath verifiedPath = CertPathUtil.validateCertificatePath(false, certPath, trusts);
-		assertEquals(Arrays.asList(certificates), verifiedPath.getCertificates());
+		List<X509Certificate> certificates = TestCertificatesTools.getServerCertificateChainAsList();
+		X509Certificate[] trusts = new X509Certificate[] { TestCertificatesTools.getTrustedCA() };
+		CertPath certPath = CertPathUtil.generateCertPath(certificates);
+		CertPathUtil.validateCertificatePathWithIssuer(false, certPath, trusts);
 	}
 
+	/**
+	 * Certificate-path: server, ca
+	 * Trust: "first match", ca
+	 * Expected result: pass => server ca
+	 * @throws Exception if an unexpected error occurs
+	 */
 	@Test
 	public void testServerCertificateTruncatingValidationWithIntermediateTrust() throws Exception {
-		X509Certificate[] certificates = TestCertificatesTools.getServerCertificateChain();
-		X509Certificate[] trusts = new X509Certificate[] { certificates[1] };
-		X509Certificate[] verfied = new X509Certificate[] { certificates[0] };
-		CertPath certPath = CertPathUtil.generateCertPath(Arrays.asList(certificates));
-		CertPath verifiedPath = CertPathUtil.validateCertificatePath(true, certPath, trusts);
-		assertEquals(Arrays.asList(verfied), verifiedPath.getCertificates());
+		List<X509Certificate> certificates = TestCertificatesTools.getServerCertificateChainAsList();
+		X509Certificate[] trusts = new X509Certificate[] { TestCertificatesTools.getTrustedCA() };
+		CertPath certPath = CertPathUtil.generateCertPath(certificates);
+		CertPath verifiedPath = CertPathUtil.validateCertificatePathWithIssuer(true, certPath, trusts);
+		TestCertificatesTools.assertEquals(certificates, verifiedPath.getCertificates());
 	}
 
+	/**
+	 * Certificate-path: server
+	 * 1.
+	 * Trust: ca, caalt
+	 * Expected result: pass => server, ca
+	 * 2.
+	 * Trust: caalt, ca
+	 * Expected result: pass => server, ca
+	 * @throws Exception if an unexpected error occurs
+	 */
+	@Test
+	public void testServerCertificateTruncatingValidationWithAmbiguousTrust() throws Exception {
+		X509Certificate server = TestCertificatesTools.getServerCertificateChain()[0];
+		X509Certificate ca = TestCertificatesTools.getTrustedCA();
+		X509Certificate caalt = TestCertificatesTools.getAlternativeCA();
+		X509Certificate[] path = new X509Certificate[] { server };
+		X509Certificate[] trusts = new X509Certificate[] { ca, caalt };
+		X509Certificate[] verfied = new X509Certificate[] { server, ca };
+		CertPath certPath = CertPathUtil.generateCertPath(Arrays.asList(path));
+		CertPath verifiedPath = CertPathUtil.validateCertificatePathWithIssuer(false, certPath, trusts);
+		TestCertificatesTools.assertEquals(verfied, verifiedPath.getCertificates());
+
+		X509Certificate[] trusts2 = new X509Certificate[] { caalt, ca };
+		verifiedPath = CertPathUtil.validateCertificatePathWithIssuer(false, certPath, trusts2);
+		TestCertificatesTools.assertEquals(verfied, verifiedPath.getCertificates());
+	}
+
+	/**
+	 * Certificate-path: server, ca
+	 * Trust: server
+	 * Expected result: fail (server is not self-signed)
+	 * @throws Exception if an unexpected error occurs
+	 */
 	@Test
 	public void testServerCertificateValidationWithSelfTrustFails() throws Exception {
 		exception.expect(CertPathValidatorException.class);
@@ -226,28 +423,47 @@ public class CertPathUtilTest {
 		X509Certificate[] certificates = TestCertificatesTools.getServerCertificateChain();
 		X509Certificate[] trusts = new X509Certificate[] {certificates[0]};
 		CertPath certPath = CertPathUtil.generateCertPath(Arrays.asList(certificates));
-		CertPath verifiedPath = CertPathUtil.validateCertificatePath(false, certPath, trusts);
-		assertEquals(Arrays.asList(certificates), verifiedPath.getCertificates());
+		CertPathUtil.validateCertificatePathWithIssuer(false, certPath, trusts);
 	}
 
+	/**
+	 * Certificate-path: server, ca
+	 * Trust:  "first match", server
+	 * Expected result: pass => server
+	 * @throws Exception if an unexpected error occurs
+	 */
 	@Test
 	public void testServerCertificateTruncatingValidationWithSelfTrust() throws Exception {
 		X509Certificate[] certificates = TestCertificatesTools.getServerCertificateChain();
 		X509Certificate[] trusts = new X509Certificate[] {certificates[0]};
 		X509Certificate[] verfied = new X509Certificate[] {certificates[0]};
 		CertPath certPath = CertPathUtil.generateCertPath(Arrays.asList(certificates));
-		CertPath verifiedPath = CertPathUtil.validateCertificatePath(true, certPath, trusts);
-		assertEquals(Arrays.asList(verfied), verifiedPath.getCertificates());
+		CertPath verifiedPath = CertPathUtil.validateCertificatePathWithIssuer(true, certPath, trusts);
+		TestCertificatesTools.assertEquals(verfied, verifiedPath.getCertificates());
 	}
 
+	/**
+	 * Certificate-path: clientext, ca, root
+	 * Trust: root, ca, caalt, carsa, ca2
+	 * Expected result: pass => clientext, ca, root
+	 * 
+	 * (clientext-chain includes root!)
+	 * @throws Exception if an unexpected error occurs
+	 */
 	@Test
-	public void testClientExtCertificateValidationWithThrust() throws Exception {
+	public void testClientExtCertificateValidationWithTrust() throws Exception {
 		CertPath certPath = CertPathUtil.generateCertPath(clientChainExtUsageList);
-		CertPath verifiedPath = CertPathUtil.validateCertificatePath(false, certPath,
+		CertPath verifiedPath = CertPathUtil.validateCertificatePathWithIssuer(false, certPath,
 				TestCertificatesTools.getTrustedCertificates());
-		assertEquals(clientChainExtUsage.length, verifiedPath.getCertificates().size());
+		TestCertificatesTools.assertEquals(clientChainExtUsageList, verifiedPath.getCertificates());
 	}
 
+	/**
+	 * Certificate-path: server, clientext
+	 * Trust: root, ca, caalt, carsa, ca2
+	 * Expected result: fail
+	 * @throws Exception if an unexpected error occurs
+	 */
 	@Test
 	public void testServerCertificateInvalidPath() throws Exception {
 		exception.expect(IllegalArgumentException.class);
@@ -255,9 +471,15 @@ public class CertPathUtilTest {
 		X509Certificate[] certificates = TestCertificatesTools.getServerCertificateChain();
 		certificates[1] = clientChainExtUsage[0];
 		CertPath certPath = CertPathUtil.generateCertPath(Arrays.asList(certificates));
-		CertPathUtil.validateCertificatePath(false, certPath, TestCertificatesTools.getTrustedCertificates());
+		CertPathUtil.validateCertificatePathWithIssuer(false, certPath, TestCertificatesTools.getTrustedCertificates());
 	}
 
+	/**
+	 * Certificate-path: self, ca
+	 * Trust: root, ca, caalt, carsa, ca2
+	 * Expected result: fail
+	 * @throws Exception if an unexpected error occurs
+	 */
 	@Test
 	public void testServerCertificateInvalidPath2() throws Exception {
 		exception.expect(IllegalArgumentException.class);
@@ -265,21 +487,46 @@ public class CertPathUtilTest {
 		X509Certificate[] certificates = TestCertificatesTools.getServerCertificateChain();
 		certificates[0] = clientSelfsigned[0];
 		CertPath certPath = CertPathUtil.generateCertPath(Arrays.asList(certificates));
-		CertPathUtil.validateCertificatePath(false, certPath, TestCertificatesTools.getTrustedCertificates());
+		CertPathUtil.validateCertificatePathWithIssuer(false, certPath, TestCertificatesTools.getTrustedCertificates());
 	}
 
+	/**
+	 * Certificate-path: self
+	 * Trust: all
+	 * Expected result: pass => self
+	 * @throws Exception if an unexpected error occurs
+	 */
 	@Test
 	public void testSelfSignedValidation() throws Exception {
 		CertPath certPath = CertPathUtil.generateCertPath(clientSelfsignedList);
-		CertPath verifiedPath = CertPathUtil.validateCertificatePath(false, certPath, new X509Certificate[0]);
-		assertEquals(clientSelfsignedList, verifiedPath.getCertificates());
+		CertPath verifiedPath = CertPathUtil.validateCertificatePathWithIssuer(false, certPath, ALL);
+		TestCertificatesTools.assertEquals(clientSelfsignedList, verifiedPath.getCertificates());
 	}
 
+	/**
+	 * Certificate-path: self
+	 * Trust: self
+	 * Expected result: pass => self
+	 * @throws Exception if an unexpected error occurs
+	 */
 	@Test
-	public void testSelfSignedValidationThrust() throws Exception {
+	public void testSelfSignedValidationTrust() throws Exception {
 		CertPath certPath = CertPathUtil.generateCertPath(clientSelfsignedList);
-		CertPath verifiedPath = CertPathUtil.validateCertificatePath(false, certPath, clientSelfsigned);
-		assertEquals(clientSelfsignedList, verifiedPath.getCertificates());
+		CertPath verifiedPath = CertPathUtil.validateCertificatePathWithIssuer(false, certPath, clientSelfsigned);
+		TestCertificatesTools.assertEquals(clientSelfsignedList, verifiedPath.getCertificates());
+	}
+
+	/**
+	 * Certificate-path: self
+	 * Trust: "first match", self
+	 * Expected result: pass => self
+	 * @throws Exception if an unexpected error occurs
+	 */
+	@Test
+	public void testSelfSignedValidationTruncatedTrust() throws Exception {
+		CertPath certPath = CertPathUtil.generateCertPath(clientSelfsignedList);
+		CertPath verifiedPath = CertPathUtil.validateCertificatePathWithIssuer(true, certPath, clientSelfsigned);
+		TestCertificatesTools.assertEquals(clientSelfsignedList, verifiedPath.getCertificates());
 	}
 
 	@Test
@@ -289,7 +536,7 @@ public class CertPathUtilTest {
 		truncated.remove(truncated.size() - 1);
 
 		CertPath generateCertPath = CertPathUtil.generateValidatableCertPath(clientChainExtUsageList, null);
-		assertEquals(truncated, generateCertPath.getCertificates());
+		TestCertificatesTools.assertEquals(truncated, generateCertPath.getCertificates());
 	}
 
 	@Test
@@ -302,8 +549,7 @@ public class CertPathUtilTest {
 
 		CertPath generateCertPath = CertPathUtil.generateValidatableCertPath(clientChainExtUsageList,
 				certificateAuthorities);
-		assertEquals(truncated.size(), generateCertPath.getCertificates().size());
-		assertEquals(truncated, generateCertPath.getCertificates());
+		TestCertificatesTools.assertEquals(truncated, generateCertPath.getCertificates());
 	}
 
 	@Test
@@ -319,7 +565,7 @@ public class CertPathUtilTest {
 	@Test
 	public void testGenerateValidationCertPathForSingleCertificateAndUnknownIssuer() throws Exception {
 		List<X509Certificate> path = new ArrayList<>();
-		path.add(clientChainExtUsageList.get(0));
+		path.add(clientChainExtUsage[0]);
 		List<X500Principal> certificateAuthorities = new ArrayList<>();
 		certificateAuthorities.add(clientSelfsigned[0].getSubjectX500Principal());
 

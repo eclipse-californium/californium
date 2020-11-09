@@ -16,6 +16,8 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
+import static org.junit.Assert.fail;
+
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
@@ -24,6 +26,9 @@ import java.security.PublicKey;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
+import java.util.List;
+
+import javax.security.auth.x500.X500Principal;
 
 public class TestCertificatesTools {
 
@@ -43,6 +48,7 @@ public class TestCertificatesTools {
 	public static final String CLIENT_NAME = "client";
 	public static final String ROOT_CA_ALIAS = "root";
 	public static final String CA_ALIAS = "ca";
+	public static final String CA_ALT_ALIAS = "caalt";
 	public static final String NO_SIGNING_ALIAS = "nosigning";
 	private static SslContextUtil.Credentials clientCredentials;
 	private static SslContextUtil.Credentials serverCredentials;
@@ -50,20 +56,21 @@ public class TestCertificatesTools {
 	private static X509Certificate[] trustedCertificates;
 	private static X509Certificate rootCaCertificate;
 	private static X509Certificate caCertificate;
-	private static X509Certificate nosigningCertificate; // a certificate without digitalSignature value in keyusage
+	private static X509Certificate caAlternativeCertificate;
+	private static X509Certificate nosigningCertificate; // a certificate
+															// without
+															// digitalSignature
+															// value in keyusage
 
 	static {
 		try {
 			// load key stores once only
-			clientCredentials = SslContextUtil.loadCredentials(
-					SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, CLIENT_NAME, KEY_STORE_PASSWORD,
-					KEY_STORE_PASSWORD);
-			serverCredentials = SslContextUtil.loadCredentials(
-					SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, SERVER_NAME, KEY_STORE_PASSWORD,
-					KEY_STORE_PASSWORD);
-			serverRsaCredentials = SslContextUtil.loadCredentials(
-					SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, SERVER_RSA_NAME, KEY_STORE_PASSWORD,
-					KEY_STORE_PASSWORD);
+			clientCredentials = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION,
+					CLIENT_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+			serverCredentials = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION,
+					SERVER_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+			serverRsaCredentials = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION,
+					SERVER_RSA_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 			Certificate[] certificates = SslContextUtil.loadTrustedCertificates(
 					SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, null, TRUST_STORE_PASSWORD);
 
@@ -74,6 +81,9 @@ public class TestCertificatesTools {
 			certificates = SslContextUtil.loadTrustedCertificates(
 					SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, CA_ALIAS, TRUST_STORE_PASSWORD);
 			caCertificate = (X509Certificate) certificates[0];
+			certificates = SslContextUtil.loadTrustedCertificates(
+					SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, CA_ALT_ALIAS, TRUST_STORE_PASSWORD);
+			caAlternativeCertificate = (X509Certificate) certificates[0];
 			X509Certificate[] chain = SslContextUtil.loadCertificateChain(
 					SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, NO_SIGNING_ALIAS, KEY_STORE_PASSWORD);
 			nosigningCertificate = chain[0];
@@ -90,6 +100,11 @@ public class TestCertificatesTools {
 		return Arrays.copyOf(certificateChain, certificateChain.length);
 	}
 
+	public static List<X509Certificate> getServerCertificateChainAsList() {
+		X509Certificate[] certificateChain = serverCredentials.getCertificateChain();
+		return Arrays.asList(certificateChain);
+	}
+
 	/**
 	 * Get mixed server certificate chain. Contains ECDSA and RSA certificates.
 	 * 
@@ -101,9 +116,25 @@ public class TestCertificatesTools {
 		return Arrays.copyOf(certificateChain, certificateChain.length);
 	}
 
+	/**
+	 * Get mixed server certificate chain. Contains ECDSA and RSA certificates.
+	 * 
+	 * @return mixed server certificate chain
+	 * @since 2.5
+	 */
+	public static List<X509Certificate> getServerRsaCertificateChainAsList() {
+		X509Certificate[] certificateChain = serverRsaCredentials.getCertificateChain();
+		return Arrays.asList(certificateChain);
+	}
+
 	public static X509Certificate[] getClientCertificateChain() {
 		X509Certificate[] certificateChain = clientCredentials.getCertificateChain();
 		return Arrays.copyOf(certificateChain, certificateChain.length);
+	}
+
+	public static List<X509Certificate> getClientCertificateChainAsList() {
+		X509Certificate[] certificateChain = clientCredentials.getCertificateChain();
+		return Arrays.asList(certificateChain);
 	}
 
 	/**
@@ -212,9 +243,100 @@ public class TestCertificatesTools {
 	}
 
 	/**
+	 * Gets the alternative CA certificate.
+	 * 
+	 * This certificate has the same DN as {@link #getTrustedCA()}, but uses a
+	 * different key-pair and is not used to sign other certificates.
+	 * 
+	 * @return The certificate.
+	 */
+	public static X509Certificate getAlternativeCA() {
+		return caAlternativeCertificate;
+	}
+
+	/**
 	 * @return a certificate without digitalSignature in keyusage extension
 	 */
 	public static X509Certificate getNoSigningCertificate() {
 		return nosigningCertificate;
 	}
+
+	public static void assertEquals(List<? extends Certificate> list1, List<? extends Certificate> list2) {
+		assertEquals("", list1, list2);
+	}
+
+	public static void assertEquals(String message, List<? extends Certificate> list1,
+			List<? extends Certificate> list2) {
+		String diff = diff(list1, list2);
+		if (!diff.isEmpty()) {
+			fail(message + diff);
+		}
+	}
+
+	public static void assertEquals(X509Certificate[] list1, X509Certificate[] list2) {
+		assertEquals(Arrays.asList(list1), Arrays.asList(list2));
+	}
+
+	public static void assertEquals(String message, X509Certificate[] list1, X509Certificate[] list2) {
+		assertEquals(message, Arrays.asList(list1), Arrays.asList(list2));
+	}
+
+	public static void assertEquals(X509Certificate[] list1, List<? extends Certificate> list2) {
+		assertEquals(Arrays.asList(list1), list2);
+	}
+
+	public static void assertEquals(String message, X509Certificate[] list1, List<? extends Certificate> list2) {
+		assertEquals(message, Arrays.asList(list1), list2);
+	}
+
+	private static String diff(List<? extends Certificate> list1, List<? extends Certificate> list2) {
+		boolean found = false;
+		StringBuilder diff = new StringBuilder();
+		int size1 = list1.size();
+		int size2 = list2.size();
+		int size = Math.min(size1, size2);
+		if (size1 != size2) {
+			diff.append("size ").append(size1).append("!=").append(size2).append(", ");
+		}
+		for (int index = 0; index < size; ++index) {
+			Certificate cert1 = list1.get(index);
+			Certificate cert2 = list2.get(index);
+			if (!cert1.equals(cert2)) {
+				found = true;
+				if (cert1 instanceof X509Certificate && cert2 instanceof X509Certificate) {
+					X500Principal dn1 = ((X509Certificate) cert1).getSubjectX500Principal();
+					X500Principal dn2 = ((X509Certificate) cert2).getSubjectX500Principal();
+					if (!dn1.equals(dn2)) {
+						diff.append("DN [").append(index).append("] ").append(dn1).append("!=").append(dn2)
+								.append(", ");
+						break;
+					}
+				}
+				diff.append("cert [").append(index).append("] ").append(cert1).append("!=").append(cert2).append(", ");
+				break;
+			}
+		}
+		if (!found && size1 != size2) {
+			String tag;
+			Certificate cert;
+			if (size1 < size2) {
+				tag = "list-2";
+				cert = list2.get(size);
+			} else {
+				tag = "list-1";
+				cert = list1.get(size);
+			}
+			if (cert instanceof X509Certificate) {
+				X500Principal dn = ((X509Certificate)cert).getSubjectX500Principal();
+				diff.append(tag).append(" additional DN [").append(size).append("] ").append(dn).append(", ");
+			} else {
+				diff.append(tag).append(" additional cert [").append(size).append("] ").append(cert).append(", ");
+			}
+		}
+		if (diff.length() > 0) {
+			diff.setLength(diff.length() - 2);
+		}
+		return diff.toString();
+	}
+
 }

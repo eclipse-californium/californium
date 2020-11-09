@@ -62,7 +62,6 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509ExtendedKeyManager;
 import javax.net.ssl.X509ExtendedTrustManager;
-import javax.security.auth.x500.X500Principal;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -213,6 +212,7 @@ public class SslContextUtil {
 	private static final TrustManager TRUST_ALL = new X509ExtendedTrustAllManager();
 
 	static {
+		Asn1DerDecoder.getEdDsaProvider();
 		configureDefaults();
 	}
 
@@ -935,21 +935,19 @@ public class SslContextUtil {
 	}
 
 	/**
-	 * Ensure, that all certificates have a unique subjects.
+	 * Ensure, that all certificates are unique.
 	 * 
 	 * @param certificates array of certificates.
-	 * @throws IllegalArgumentException if certificates doesn't have unique
-	 *             subjects
+	 * @throws IllegalArgumentException if certificates contains duplicates
 	 * @since 2.5
 	 */
 	public static void ensureUniqueCertificates(X509Certificate[] certificates) {
-		List<X500Principal> subjects = CertPathUtil.toSubjects(Arrays.asList(certificates));
 
 		// Search for duplicates
-		Set<X500Principal> set = new HashSet<>();
-		for (X500Principal subject : subjects) {
-			if (!set.add(subject)) {
-				throw new IllegalArgumentException("Truststore contains 2 certificates with same subject: " + subject);
+		Set<X509Certificate> set = new HashSet<>();
+		for (X509Certificate certificate: certificates) {
+			if (!set.add(certificate)) {
+				throw new IllegalArgumentException("Truststore contains certificates duplicates with subject: " + certificate.getSubjectX500Principal());
 			}
 		}
 	}
@@ -1379,7 +1377,7 @@ public class SslContextUtil {
 				}
 				CertPath path = CertPathUtil.generateValidatableCertPath(Arrays.asList(chain), null);
 				try {
-					CertPathUtil.validateCertificatePath(false, path, NO_ISSUERS);
+					CertPathUtil.validateCertificatePathWithIssuer(false, path, NO_ISSUERS);
 					LOGGER.trace("check certificate {}[{}] for {} validated!", chain[0].getSubjectDN(),
 							chain.length,
 							client ? "client" : "server");
