@@ -41,9 +41,27 @@ import org.slf4j.LoggerFactory;
 
 /**
  * DTLS cluster connector.
- * 
- * Forwards foreign cid records to other connectors based on the passed in
- * {@link ClusterNodesProvider}.
+ * <p>
+ * Forwards foreign cid records (tls_cid) to other connectors based on the
+ * passed in {@link ClusterNodesProvider}. Requires a
+ * {@link NodeConnectionIdGenerator} in {@link DtlsConnectorConfig} in order to
+ * extract the node-id from the record's CID and to retrieve the own node-id.
+ * </p>
+ * <p>
+ * In order to preserve the original source address, the forwarded records are
+ * prepended by a header, which contains that original address. The forwarded
+ * records are exchange using a separate endpoint (port) to easier separate the
+ * cluster internal traffic from external record traffic. That additional
+ * endpoint is configured using {@link DtlsClusterConnectorConfig}.
+ * </p>
+ * <p>
+ * Generally, if a forwarded tls_cid record is processed and a message is sent
+ * back by that final destination connector, that sent message is backwarded to
+ * the original receiving connector. That is required for the most network setup
+ * in order to keep all NATs and load-balancers working. If your network permits
+ * to send outgoing messages also from other endpoints,
+ * {@link DtlsClusterConnectorConfig} can be used to configure that.
+ * </p>
  * 
  * @since 2.5
  */
@@ -144,6 +162,10 @@ public class DtlsClusterConnector extends DTLSConnector {
 	 * @param configuration dtls configuration
 	 * @param clusterConfiguration cluster internal connector configuration
 	 * @param nodes nodes provider
+	 * @throws IllegalArgumentException if the configuration doesn't provide a
+	 *             cid generator, or the cid generator only supports, but
+	 *             doesn't use cids, or the cid generator is no
+	 *             {@link NodeConnectionIdGenerator}.
 	 */
 	public DtlsClusterConnector(DtlsConnectorConfig configuration, DtlsClusterConnectorConfig clusterConfiguration,
 			ClusterNodesProvider nodes) {
@@ -156,7 +178,11 @@ public class DtlsClusterConnector extends DTLSConnector {
 	 * @param configuration dtls configuration
 	 * @param clusterConfiguration cluster internal connector configuration
 	 * @param nodes nodes provider
-	 * @param sessionCache session cache
+	 * @param sessionCache session cache. May be {@code null}.
+	 * @throws IllegalArgumentException if the configuration doesn't provide a
+	 *             cid generator, or the cid generator only supports, but
+	 *             doesn't use cids, or the cid generator is no
+	 *             {@link NodeConnectionIdGenerator}.
 	 */
 	public DtlsClusterConnector(DtlsConnectorConfig configuration, DtlsClusterConnectorConfig clusterConfiguration,
 			ClusterNodesProvider nodes, SessionCache sessionCache) {
@@ -174,6 +200,10 @@ public class DtlsClusterConnector extends DTLSConnector {
 	 *            internal communication on
 	 *            {@link #init(InetSocketAddress, DatagramSocket, Integer)},
 	 *            {@code false}, otherwise.
+	 * @throws IllegalArgumentException if the configuration doesn't provide a
+	 *             cid generator, or the cid generator only supports, but
+	 *             doesn't use cids, or the cid generator is no
+	 *             {@link NodeConnectionIdGenerator}.
 	 */
 	protected DtlsClusterConnector(DtlsConnectorConfig configuration, DtlsClusterConnectorConfig clusterConfiguration,
 			ResumptionSupportingConnectionStore connectionStore, boolean startReceiver) {
@@ -316,7 +346,7 @@ public class DtlsClusterConnector extends DTLSConnector {
 	}
 
 	/**
-	 * Get node-id.
+	 * Get connector's node-id.
 	 * 
 	 * @return node-id.
 	 */
@@ -342,6 +372,16 @@ public class DtlsClusterConnector extends DTLSConnector {
 		return null;
 	}
 
+	/**
+	 * Ensure, that the packet is large enough for a valid cluster internal
+	 * message.
+	 * 
+	 * @param type {@link #RECORD_TYPE_INCOMING} or
+	 *            {@link #RECORD_TYPE_OUTGOING}.
+	 * @param clusterPacket the cluster internal message.
+	 * @return {@code true}, if the cluster internal message is large enough,
+	 *         {@code false}, if it is too short.
+	 */
 	protected boolean ensureLength(Byte type, DatagramPacket clusterPacket) {
 		int length = clusterPacket.getLength();
 		if (length < (CLUSTER_ADDRESS_OFFSET + MIN_ADDRESS_LENGTH + DTLSSession.DTLS_HEADER_LENGTH)) {
@@ -388,6 +428,14 @@ public class DtlsClusterConnector extends DTLSConnector {
 		}
 	}
 
+	/**
+	 * Process cluster internal management message.
+	 * 
+	 * Not used for forwarded or backwarded tls_cid records.
+	 * 
+	 * @param clusterPacket cluster internal management message.
+	 * @throws IOException if an i/o-error occurred
+	 */
 	protected void processManagementDatagramFromClusterNetwork(DatagramPacket clusterPacket) throws IOException {
 		// empty default implementation
 	}
@@ -395,8 +443,10 @@ public class DtlsClusterConnector extends DTLSConnector {
 	/**
 	 * Send cluster internal message.
 	 * 
+	 * Used for forwarded or backwarded tls_cid records.
+	 * 
 	 * @param clusterPacket cluster internal message
-	 * @throws IOException if an io-error occurred.
+	 * @throws IOException if an i/o-error occurred.
 	 */
 	protected void sendDatagramToClusterNetwork(DatagramPacket clusterPacket) throws IOException {
 		clusterInternalSocket.send(clusterPacket);
@@ -405,7 +455,8 @@ public class DtlsClusterConnector extends DTLSConnector {
 	/**
 	 * {@inheritDoc}
 	 * 
-	 * Test for CID records and forward foreign records to other nodes.
+	 * Test for CID records and forward foreign records to other nodes, based on
+	 * the returned node-id of the {@link NodeConnectionIdGenerator}.
 	 */
 	@Override
 	protected void processDatagram(DatagramPacket packet, InetSocketAddress router) {
@@ -585,6 +636,8 @@ public class DtlsClusterConnector extends DTLSConnector {
 
 	/**
 	 * Cluster nodes provider. Maintaining internal addresses of nodes.
+	 * 
+	 * It extremely performance critical to immediately return results!
 	 */
 	public static interface ClusterNodesProvider {
 

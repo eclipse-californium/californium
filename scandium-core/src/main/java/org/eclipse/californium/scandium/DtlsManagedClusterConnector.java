@@ -33,6 +33,7 @@ import org.eclipse.californium.scandium.config.DtlsClusterConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.Handshaker;
+import org.eclipse.californium.scandium.dtls.NodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
 import org.eclipse.californium.scandium.dtls.SessionCache;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
@@ -41,9 +42,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * DTLS dynamic cluster connector.
+ * DTLS managed cluster connector.
  * 
- * Discover and update cluster cid nodes associations dynamically.
+ * Enables access to the cluster internal communication to exchange additional
+ * management messages and enable encryption for that internal communication.
+ * 
+ * If encryption is enabled, that header for the forwarded tls-cid records maybe
+ * protected by a MAC, see {@link DtlsClusterConnectorConfig}.
  * 
  * @since 2.5
  */
@@ -51,28 +56,57 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(DtlsManagedClusterConnector.class);
 
+	/**
+	 * Protocol identifier for plain UDP management communication.
+	 * 
+	 * @see #protocol
+	 * @see #getManagementProtocol()
+	 */
 	public static final String PROTOCOL_MANAGEMENT_UDP = "mgmt-udp";
+	/**
+	 * Protocol identifier for DTLS management communication. The additional
+	 * source header for forwarded tls_cid records is not protected by a MAC.
+	 * 
+	 * @see #protocol
+	 * @see #getManagementProtocol()
+	 */
 	public static final String PROTOCOL_MANAGEMENT_DTLS = "mgmt-dtls";
+	/**
+	 * Protocol identifier for DTLS management communication. The additional
+	 * source header for forwarded tls_cid records is protected by a MAC.
+	 * 
+	 * @see #protocol
+	 * @see #getManagementProtocol()
+	 */
 	public static final String PROTOCOL_MANAGEMENT_DTLS_MAC = "mgmt-dtls-mac";
 
 	/**
-	 * Protocol for cluster management.
+	 * Protocol for cluster management. {@link #PROTOCOL_MANAGEMENT_UDP},
+	 * {@link #PROTOCOL_MANAGEMENT_DTLS}, or
+	 * {@link #PROTOCOL_MANAGEMENT_DTLS_MAC}.
+	 * 
+	 * @see #getManagementProtocol()
 	 */
 	private final String protocol;
 	/**
-	 * Send messages back to original receiving dtls connector.
+	 * Use MAC to protect source header for forwarded tls_cid records.
 	 */
 	private final boolean useClusterMac;
 	/**
-	 * Connector for cluster management.
+	 * Connector for cluster management. Also used to forward and backward
+	 * tls_cid records.
 	 */
 	private final ExtendedConnector clusterManagementConnector;
 
 	/**
-	 * Create dtls connector with dynamic cluster support.
+	 * Create dtls connector with cluster management communication.
 	 * 
 	 * @param configuration dtls configuration
 	 * @param clusterConfiguration cluster internal connector configuration
+	 * @throws IllegalArgumentException if the configuration doesn't provide a
+	 *             cid generator, or the cid generator only supports, but
+	 *             doesn't use cids, or the cid generator is no
+	 *             {@link NodeConnectionIdGenerator}.
 	 */
 	public DtlsManagedClusterConnector(DtlsConnectorConfig configuration,
 			DtlsClusterConnectorConfig clusterConfiguration) {
@@ -84,7 +118,11 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 	 * 
 	 * @param configuration dtls configuration
 	 * @param clusterConfiguration cluster internal connector configuration
-	 * @param sessionCache session cache
+	 * @param sessionCache session cache. May be {@code null}.
+	 * @throws IllegalArgumentException if the configuration doesn't provide a
+	 *             cid generator, or the cid generator only supports, but
+	 *             doesn't use cids, or the cid generator is no
+	 *             {@link NodeConnectionIdGenerator}.
 	 */
 	public DtlsManagedClusterConnector(DtlsConnectorConfig configuration,
 			DtlsClusterConnectorConfig clusterConfiguration, SessionCache sessionCache) {
@@ -96,14 +134,18 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 	 * 
 	 * @param configuration dtls configuration
 	 * @param clusterConfiguration cluster internal connector configuration
-	 * @param connectionStore session cache
+	 * @param connectionStore connection store
+	 * @throws IllegalArgumentException if the configuration doesn't provide a
+	 *             cid generator, or the cid generator only supports, but
+	 *             doesn't use cids, or the cid generator is no
+	 *             {@link NodeConnectionIdGenerator}.
 	 */
 	protected DtlsManagedClusterConnector(DtlsConnectorConfig configuration,
 			DtlsClusterConnectorConfig clusterConfiguration, ResumptionSupportingConnectionStore connectionStore) {
 		super(configuration, clusterConfiguration, connectionStore, false);
 		String identity = clusterConfiguration.getSecureIdentity();
-		Integer mgmtReceiveBuffer = add(config.getSocketReceiveBufferSize(), MAX_DATAGRAM_OFFSET);
-		Integer mgmtSendBuffer = add(config.getSocketSendBufferSize(), MAX_DATAGRAM_OFFSET);
+		Integer mgmtReceiveBuffer = addConditionally(config.getSocketReceiveBufferSize(), MAX_DATAGRAM_OFFSET);
+		Integer mgmtSendBuffer = addConditionally(config.getSocketSendBufferSize(), MAX_DATAGRAM_OFFSET);
 		if (identity != null) {
 			SecretKey secretkey = clusterConfiguration.getSecretKey();
 			DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
@@ -174,6 +216,7 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 	 * @return {@link #PROTOCOL_MANAGEMENT_UDP},
 	 *         {@link #PROTOCOL_MANAGEMENT_DTLS}, or
 	 *         {@link #PROTOCOL_MANAGEMENT_DTLS_MAC}.
+	 * @see #protocol
 	 */
 	public String getManagementProtocol() {
 		return protocol;
@@ -191,7 +234,8 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 	/**
 	 * {@inheritDoc}
 	 * 
-	 * Check cluster MAC, if {@link #useClusterMac}.
+	 * Check cluster MAC for source header of forwarded or backwarded tls_cid
+	 * records, if {@link #useClusterMac} is enabled.
 	 */
 	@Override
 	protected void processDatagramFromClusterNetwork(Byte type, DatagramPacket clusterPacket) throws IOException {
@@ -237,7 +281,8 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 	/**
 	 * {@inheritDoc}
 	 * 
-	 * Fill in cluster MAC, if {@link #useClusterMac}.
+	 * Fill in cluster MAC for source header of forwarded or backwarded tls_cid
+	 * records, if {@link #useClusterMac} is enabled.
 	 */
 	@Override
 	protected void sendDatagramToClusterNetwork(DatagramPacket clusterPacket) throws IOException {
@@ -338,14 +383,14 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 	}
 
 	/**
-	 * Add two values.
+	 * Add two values conditionally.
 	 * 
 	 * @param value value, if {@code null} or {@code 0}, don't add the second
 	 *            value.
 	 * @param add additional value.
 	 * @return added value
 	 */
-	private static Integer add(Integer value, int add) {
+	private static Integer addConditionally(Integer value, int add) {
 		if (value != null && value != 0) {
 			return value + add;
 		} else {
