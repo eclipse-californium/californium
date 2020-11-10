@@ -166,9 +166,10 @@ A simple mapping would associate the first with the cluster node `01` and the se
 ```sh
     +-----------------------------------+
     | Type:      in/out      (1 byte )  |
-    | IP-Length: n           (1 byte )  | 
-    | Port:      port        (2 bytes)  | 
-    | IP:        addr        (n bytes)  | 
+    | IP-Length: n           (1 byte )  |
+    | Port:      port        (2 bytes)  |
+    | IP:        addr        (n bytes)  |
+    | (MAC:      mac         (8 bytes)) | *
     +-----------------------------------+
     | (original dtls-cid-record)        |
     | content-type: tls12_cid (1 byte)  |
@@ -176,6 +177,8 @@ A simple mapping would associate the first with the cluster node `01` and the se
     | ...                               |
     +-----------------------------------+
 ```
+
+> (* optional, if encryption is enabled for cluster-management)
 
 The receiving `DTLSConnector` (node 2) is then decoding that cluster-management-record and start to process it, as it would have been received by itself. If outgoing response-messages are to be sent by this `DTLSConnector` (node 2), the message is prepended again by that cluster-management-header and send back to the original receiving `DTLSConnector` (node 1, as "router"). That finally forwards the dtls-record to the addressed peer.
 

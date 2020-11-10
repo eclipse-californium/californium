@@ -45,7 +45,16 @@ import org.slf4j.LoggerFactory;
 /**
  * DTLS cluster manager.
  * 
- * Discover and update cluster cid nodes associations dynamically.
+ * Discover and update cluster cid nodes associations dynamically. The manager
+ * requires the cluster management connector
+ * {@link DtlsManagedClusterConnector#getClusterManagementConnector()} in order
+ * to exchange cluster management messages with other nodes.
+ * 
+ * The manager refreshes all other available nodes using a short interval.
+ * Discovering new nodes by sending a message probe to such potential nodes is
+ * done less frequently. If a node receives a ping, that node gets also
+ * refreshed and the receiving node will not send a ping message to refresh that
+ * node until the refresh interval expires.
  * 
  * @since 2.5
  */
@@ -275,6 +284,9 @@ public class DtlsClusterManager {
 
 		/**
 		 * List of addresses of other nodes in the cluster.
+		 * 
+		 * This is called less frequently, short delay may be accepted, e.g. 1s
+		 * for a k8s API http-request.
 		 * 
 		 * @return list of other nodes.
 		 */
