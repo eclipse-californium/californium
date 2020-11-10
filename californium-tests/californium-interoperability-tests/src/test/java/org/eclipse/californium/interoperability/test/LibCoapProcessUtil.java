@@ -168,7 +168,7 @@ public class LibCoapProcessUtil extends ProcessUtil {
 		if (CipherSuite.containsCipherSuiteRequiringCertExchange(list)) {
 			args.add("-c");
 			args.add(OpenSslProcessUtil.CLIENT_CERTIFICATE);
-			add(args, authMode, OpenSslProcessUtil.TRUSTSTORE);
+			add(args, authMode, OpenSslProcessUtil.ROOT_CERTIFICATE, OpenSslProcessUtil.TRUSTSTORE);
 		}
 		args.add(destination);
 		print(args);
@@ -196,17 +196,13 @@ public class LibCoapProcessUtil extends ProcessUtil {
 		if (CipherSuite.containsCipherSuiteRequiringCertExchange(list)) {
 			args.add("-c");
 			args.add(serverCertificate);
-			String chain = OpenSslProcessUtil.CA_CERTIFICATES;
-			if (OpenSslProcessUtil.SERVER_RSA_CERTIFICATE.equals(serverCertificate)) {
-				chain = OpenSslProcessUtil.CA_RSA_CERTIFICATES;
-			}
-			add(args, authMode, chain);
+			add(args, authMode, OpenSslProcessUtil.ROOT_CERTIFICATE, OpenSslProcessUtil.TRUSTSTORE);
 		}
 		print(args);
 		execute(args);
 	}
 
-	public void add(List<String> args, OpenSslUtil.AuthenticationMode authMode, String chain)
+	public void add(List<String> args, OpenSslUtil.AuthenticationMode authMode, String commonCa, String trusts)
 			throws IOException, InterruptedException {
 		switch (authMode) {
 		case PSK:
@@ -214,13 +210,13 @@ public class LibCoapProcessUtil extends ProcessUtil {
 		case CERTIFICATE:
 		case CHAIN:
 			args.add("-R");
-			args.add(chain);
+			args.add(trusts);
 			break;
 		case TRUST:
 			args.add("-R");
-			args.add(chain);
+			args.add(trusts);
 			args.add("-C");
-			args.add(chain);
+			args.add(commonCa);
 			break;
 		}
 	}
