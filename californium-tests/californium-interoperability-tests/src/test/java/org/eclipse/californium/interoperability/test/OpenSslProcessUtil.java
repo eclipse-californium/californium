@@ -49,6 +49,7 @@ public class OpenSslProcessUtil extends ProcessUtil {
 	public static final String SERVER_RSA_CERTIFICATE = "serverRsa.pem";
 
 	public static final String CLIENT_CERTIFICATE = "client.pem";
+	public static final String ROOT_CERTIFICATE = "rootTrustStore.pem";
 	public static final String CA_CERTIFICATES = "caTrustStore.pem";
 	public static final String CA_RSA_CERTIFICATES = "caRsaTrustStore.pem";
 	public static final String TRUSTSTORE = "trustStore.pem";
