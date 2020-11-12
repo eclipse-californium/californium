@@ -17,7 +17,7 @@
 FROM docker.io/openjdk:11-jre-slim
 
 RUN mkdir /opt/app
-COPY ./CaliforniumReceivetest.properties ./target/cf-extplugtest-server-2.5.0-SNAPSHOT.jar /opt/app/
+COPY ./CaliforniumReceivetest.properties ./target/cf-extplugtest-server-2.6.0-SNAPSHOT.jar /opt/app/
 #COPY ./CaliforniumPlugtest.properties /opt/app
 
 #EXPOSE 5683/udp
@@ -30,4 +30,4 @@ EXPOSE 5784/udp
 #EXPOSE 5784/tcp
 EXPOSE 5884/udp
 
-CMD ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75", "-jar", "/opt/app/cf-extplugtest-server-2.5.0-SNAPSHOT.jar", "--no-plugtest", "--no-tcp", "--benchmark", "--k8s-dtls-cluster", ":5784;:5884;5884"]
+CMD ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75", "-jar", "/opt/app/cf-extplugtest-server-2.6.0-SNAPSHOT.jar", "--no-plugtest", "--no-tcp", "--benchmark", "--k8s-dtls-cluster", ":5784;:5884;5884"]
