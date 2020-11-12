@@ -406,7 +406,7 @@ remove <host:port> - remove destination from load balancer
 reverse (on|off) - enable/disable reverse address updates.
 ```
 
-Start two [cf-browser-2.4.1](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-browser/2.4.1/cf-browser-2.4.1.jar) instances (Note: the current 2.5.0-SNAPSHOT version of that tool comes with more details about the local connection endpoint). Enter as destination `coaps://<nat-host>:5784/context` and execute a `GET` in both clients. Do they show different `node-ids`? If not, restart one as long as you get two different `node-id`s. Also check, if the line with `read-cid` is missing. If so, the DTLS Connection ID support is not enabled. Check, if `DTLS_CONNECTION_ID_LENGTH` is set in "Californium.properties" to a number. Even `0` will enable it. But a empty value disables the DTLS Connection ID support!
+Start two [cf-browser-2.5.0](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-browser/2.5.0/cf-browser-2.5.0.jar) instances. Enter as destination `coaps://<nat-host>:5784/context` and execute a `GET` in both clients. Do they show different `node-ids`? If not, restart one as long as you get two different `node-id`s. Also check, if the line with `read-cid` is missing. If so, the DTLS Connection ID support is not enabled. Check, if `DTLS_CONNECTION_ID_LENGTH` is set in "Californium.properties" to a number. Even `0` will enable it. But a empty value disables the DTLS Connection ID support!
 
 ```sh
 ip: ?.?.?.?
@@ -444,7 +444,7 @@ peer: Client_identity
 cipher-suite: TLS_PSK_WITH_AES_128_CCM_8
 read-cid: 023F2640E574
 write-cid: 
-server: Cf 2.5.0-SNAPSHOT
+server: Cf 2.5.0
 ```
 
 You may retry that, you should see the same ip-address/port (5-tuple), if you retry it within the NATs timeout (30s).
@@ -462,7 +462,7 @@ peer: Client_identity
 cipher-suite: TLS_PSK_WITH_AES_128_CCM_8
 read-cid: 023F2640E574
 write-cid: 
-server: Cf 2.5.0-SNAPSHOT
+server: Cf 2.5.0
 ```
 
 You may even restart the NAT, the coaps communication will still work.
