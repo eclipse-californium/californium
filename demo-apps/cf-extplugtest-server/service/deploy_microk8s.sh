@@ -31,7 +31,7 @@ CONTAINER=cf-extserver-jdk11-slim:2.5.0
 
 if [ "$1" = "install" ]  ; then
 	echo "install ${CONTAINER} to microk8s using namespace cali"
-	echo "1" > cf-extserver-update
+	echo "1" > ${VERSION_FILE}
 elif [ "$1" = "update" ]  ; then
 	if [ -z "$2" ]  ; then
 	     UPDATE_VERSION=$(tail -1 ${VERSION_FILE})	
