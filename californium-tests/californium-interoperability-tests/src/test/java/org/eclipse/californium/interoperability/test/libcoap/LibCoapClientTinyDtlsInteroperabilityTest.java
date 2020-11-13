@@ -13,22 +13,23 @@
  * Contributors:
  *    Achim Kraus (Bosch.IO GmbH) - initial implementation.
  ******************************************************************************/
-package org.eclipse.californium.interoperability.test;
+package org.eclipse.californium.interoperability.test.libcoap;
 
-import static org.junit.Assert.assertThat;
+import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.PSK;
+import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.RPK;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeNotNull;
-import static org.junit.Assume.assumeTrue;
-import static org.hamcrest.CoreMatchers.*;
-import static org.hamcrest.number.OrderingComparison.greaterThan;
 
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
-import org.eclipse.californium.interoperability.test.OpenSslUtil.AuthenticationMode;
+import org.eclipse.californium.interoperability.test.CaliforniumUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
+import org.eclipse.californium.interoperability.test.ScandiumUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.junit.After;
@@ -39,7 +40,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /**
- * Test for interoperability with libcoap client.
+ * Test for interoperability with libcoap client using tinydtls.
  * 
  * @see LibCoapProcessUtil
  */
@@ -60,10 +61,10 @@ public class LibCoapClientTinyDtlsInteroperabilityTest {
 	@BeforeClass
 	public static void init() throws IOException, InterruptedException {
 		processUtil = new LibCoapProcessUtil();
-		ProcessResult result = processUtil.getLibCoapClientTinyDtlsVersion(TIMEOUT_MILLIS);
+		ProcessResult result = processUtil.prepareLibCoapClientTinyDtls(TIMEOUT_MILLIS);
 		assumeNotNull(result);
-		assumeTrue(result.contains(LibCoapProcessUtil.LIBCOAP_CLIENT_TINYDTLS + " v4\\.2\\.1 "));
-		assumeTrue(result.contains("TinyDTLS - runtime 0\\.8\\.6,"));
+		processUtil.assumeMinVersion("4.2.1");
+		processUtil.assumeMinDtlsVersion("0.8.6");
 		californiumUtil = new CaliforniumUtil(false);
 	}
 
@@ -84,7 +85,6 @@ public class LibCoapClientTinyDtlsInteroperabilityTest {
 			californiumUtil.shutdown();
 		}
 		processUtil.shutdown();
-		processUtil.setVerboseLevel(null);
 	}
 
 	@Test
@@ -92,9 +92,9 @@ public class LibCoapClientTinyDtlsInteroperabilityTest {
 		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
 		californiumUtil.start(BIND, null, cipherSuite);
 
-		processUtil.startupClientTinyDtls(DESTINATION_URL + "test", AuthenticationMode.PSK, "Hello, CoAP!",
-				cipherSuite);
+		processUtil.startupClient(DESTINATION_URL + "test", PSK, "Hello, CoAP!", cipherSuite);
 		connect("Hello, CoAP!", "Greetings!");
+		californiumUtil.assertPrincipalType(PreSharedKeyIdentity.class);
 	}
 
 	@Ignore
@@ -105,9 +105,9 @@ public class LibCoapClientTinyDtlsInteroperabilityTest {
 		builder.setEnableMultiHandshakeMessageRecords(true);
 		californiumUtil.start(BIND, false, builder, null, cipherSuite);
 
-		processUtil.startupClientTinyDtls(DESTINATION_URL + "test", AuthenticationMode.PSK, "Hello, CoAP!",
-				cipherSuite);
+		processUtil.startupClient(DESTINATION_URL + "test", PSK, "Hello, CoAP!", cipherSuite);
 		connect("Hello, CoAP!", "Greetings!");
+		californiumUtil.assertPrincipalType(PreSharedKeyIdentity.class);
 	}
 
 	@Test
@@ -117,37 +117,22 @@ public class LibCoapClientTinyDtlsInteroperabilityTest {
 		builder.setNoServerSessionId(true);
 		californiumUtil.start(BIND, false, builder, null, cipherSuite);
 
-		processUtil.startupClientTinyDtls(DESTINATION_URL + "test", AuthenticationMode.PSK, "Hello, CoAP!",
-				cipherSuite);
+		processUtil.startupClient(DESTINATION_URL + "test", PSK, "Hello, CoAP!", cipherSuite);
 		connect("Hello, CoAP!", "Greetings!");
+		californiumUtil.assertPrincipalType(PreSharedKeyIdentity.class);
 	}
 
 	@Test
-	public void testLibCoapClientTinyDtlsPsk1k() throws Exception {
-		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
+	public void testLibCoapClientTinyDtlsRpk() throws Exception {
+		processUtil.assumeMinVersion("4.3.0");
+		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
 		californiumUtil.start(BIND, null, cipherSuite);
 
-		processUtil.startupClientTinyDtls(DESTINATION_URL + "large", AuthenticationMode.PSK, "Hello, CoAP!",
-				cipherSuite);
-		ProcessResult result = connect("Hello, CoAP!",
-				"###############################################################");
-		assertThat(result, is(notNullValue()));
-		assertThat(result.console, is(notNullValue()));
-		assertThat(result.console.length(), is(greaterThan(1024)));
-	}
-
-	@Test
-	public void testLibCoapClientTinyDtlsPsk4k() throws Exception {
-		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
-		californiumUtil.start(BIND, null, cipherSuite);
-
-		processUtil.startupClientTinyDtls(DESTINATION_URL + "large?size=4096", AuthenticationMode.PSK, "Hello, CoAP!",
-				cipherSuite);
-		ProcessResult result = connect("Hello, CoAP!",
-				"###############################################################");
-		assertThat(result, is(notNullValue()));
-		assertThat(result.console, is(notNullValue()));
-		assertThat(result.console.length(), is(greaterThan(4096)));
+		processUtil.startupClient(DESTINATION_URL + "test", RPK, "Hello, CoAP!", cipherSuite);
+		ProcessResult result = connect("Hello, CoAP!", "Greetings!");
+		assertTrue(result.contains("certificate \\(11\\)"));
+		assertTrue(result.contains("certificate_verify \\(15\\)"));
+		californiumUtil.assertPrincipalType(RawPublicKeyIdentity.class);
 	}
 
 	public ProcessResult connect(String sendMessage, String... patterns) throws Exception {

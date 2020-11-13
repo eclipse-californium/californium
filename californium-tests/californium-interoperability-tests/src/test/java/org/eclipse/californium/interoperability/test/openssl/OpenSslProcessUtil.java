@@ -13,7 +13,14 @@
  * Contributors:
  *    Achim Kraus (Bosch Software Innovations GmbH) - initial implementation.
  ******************************************************************************/
-package org.eclipse.californium.interoperability.test;
+package org.eclipse.californium.interoperability.test.openssl;
+
+import static org.eclipse.californium.interoperability.test.OpenSslUtil.CA_CERTIFICATES;
+import static org.eclipse.californium.interoperability.test.OpenSslUtil.CA_RSA_CERTIFICATES;
+import static org.eclipse.californium.interoperability.test.OpenSslUtil.CLIENT_CERTIFICATE;
+import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_CERTIFICATE;
+import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_RSA_CERTIFICATE;
+import static org.eclipse.californium.interoperability.test.OpenSslUtil.TRUSTSTORE;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -21,7 +28,8 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.interoperability.test.OpenSslUtil.AuthenticationMode;
+import org.eclipse.californium.interoperability.test.OpenSslUtil;
+import org.eclipse.californium.interoperability.test.ProcessUtil;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 
 /**
@@ -42,17 +50,27 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
  */
 public class OpenSslProcessUtil extends ProcessUtil {
 
+	public enum AuthenticationMode {
+		/**
+		 * Use PSK.
+		 */
+		PSK,
+		/**
+		 * Send peer's certificate, trust all.
+		 */
+		CERTIFICATE,
+		/**
+		 * Send peer's certificate-chain, trust all.
+		 */
+		CHAIN,
+		/**
+		 * Send peer's certificate-chain, trust provided CAs.
+		 */
+		TRUST
+	}
+
 	public static final String DEFAULT_CURVES = "X25519:prime256v1";
 	public static final String DEFAULT_SIGALGS = "ECDSA+SHA384:ECDSA+SHA256:RSA+SHA256";
-
-	public static final String SERVER_CERTIFICATE = "server.pem";
-	public static final String SERVER_RSA_CERTIFICATE = "serverRsa.pem";
-
-	public static final String CLIENT_CERTIFICATE = "client.pem";
-	public static final String ROOT_CERTIFICATE = "rootTrustStore.pem";
-	public static final String CA_CERTIFICATES = "caTrustStore.pem";
-	public static final String CA_RSA_CERTIFICATES = "caRsaTrustStore.pem";
-	public static final String TRUSTSTORE = "trustStore.pem";
 
 	/**
 	 * Create instance.
@@ -77,17 +95,17 @@ public class OpenSslProcessUtil extends ProcessUtil {
 		}
 	}
 
-	public String startupClient(String destination, AuthenticationMode authMode, CipherSuite... ciphers)
-			throws IOException, InterruptedException {
+	public String startupClient(String destination, OpenSslProcessUtil.AuthenticationMode authMode,
+			CipherSuite... ciphers) throws IOException, InterruptedException {
 		return startupClient(destination, authMode, DEFAULT_CURVES, null, ciphers);
 	}
 
-	public String startupClient(String destination, OpenSslUtil.AuthenticationMode authMode, String curves,
+	public String startupClient(String destination, OpenSslProcessUtil.AuthenticationMode authMode, String curves,
 			String sigAlgs, CipherSuite... ciphers) throws IOException, InterruptedException {
 		return startupClient(destination, authMode, curves, sigAlgs, CLIENT_CERTIFICATE, ciphers);
 	}
 
-	public String startupClient(String destination, OpenSslUtil.AuthenticationMode authMode, String curves,
+	public String startupClient(String destination, OpenSslProcessUtil.AuthenticationMode authMode, String curves,
 			String sigAlgs, String clientCert, CipherSuite... ciphers) throws IOException, InterruptedException {
 		List<CipherSuite> list = Arrays.asList(ciphers);
 		List<String> args = new ArrayList<String>();
@@ -108,12 +126,12 @@ public class OpenSslProcessUtil extends ProcessUtil {
 		return "(" + openSslCiphers.replace(":", "|") + ")";
 	}
 
-	public String startupServer(String accept, OpenSslUtil.AuthenticationMode authMode, CipherSuite... ciphers)
+	public String startupServer(String accept, OpenSslProcessUtil.AuthenticationMode authMode, CipherSuite... ciphers)
 			throws IOException, InterruptedException {
 		return startupServer(accept, authMode, SERVER_CERTIFICATE, null, null, ciphers);
 	}
 
-	public String startupServer(String accept, OpenSslUtil.AuthenticationMode authMode, String serverCertificate,
+	public String startupServer(String accept, OpenSslProcessUtil.AuthenticationMode authMode, String serverCertificate,
 			String curves, String sigAlgs, CipherSuite... ciphers) throws IOException, InterruptedException {
 		List<CipherSuite> list = Arrays.asList(ciphers);
 		List<String> args = new ArrayList<String>();
@@ -149,7 +167,7 @@ public class OpenSslProcessUtil extends ProcessUtil {
 		}
 	}
 
-	public void add(List<String> args, OpenSslUtil.AuthenticationMode authMode, String chain)
+	public void add(List<String> args, OpenSslProcessUtil.AuthenticationMode authMode, String chain)
 			throws IOException, InterruptedException {
 		switch (authMode) {
 		case PSK:
