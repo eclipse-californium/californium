@@ -19,11 +19,13 @@ import java.security.GeneralSecurityException;
 import java.security.cert.CertPath;
 import java.security.cert.CertPathValidator;
 import java.security.cert.CertPathValidatorException;
+import java.security.cert.CertPathValidatorResult;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.CertificateFactory;
 import java.security.cert.CertificateParsingException;
+import java.security.cert.PKIXCertPathValidatorResult;
 import java.security.cert.PKIXParameters;
 import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
@@ -442,7 +444,10 @@ public class CertPathUtil {
 			// prepare to fail :-)
 			trust = trustedCertificates[0];
 		}
-		trustAnchors.add(new TrustAnchor(trust, null));
+		//trustAnchors.add(new TrustAnchor(trust, null));
+		for (X509Certificate cert : trustedCertificates) {
+			trustAnchors.add(new TrustAnchor(cert, null));
+		}
 		if (LOGGER.isDebugEnabled()) {
 			List<X509Certificate> validateChain = toX509CertificatesList(verifyCertPath.getCertificates());
 			LOGGER.debug("verify: certificate path {} (orig. {})", last, size);
@@ -463,7 +468,9 @@ public class CertPathUtil {
 		PKIXParameters params = new PKIXParameters(trustAnchors);
 		// TODO: implement alternative means of revocation checking
 		params.setRevocationEnabled(false);
-		validator.validate(verifyCertPath, params);
+		//validator.validate(verifyCertPath, params);
+		CertPathValidatorResult result = validator.validate(verifyCertPath, params);
+		trust = ((PKIXCertPathValidatorResult)result).getTrustAnchor().getTrustedCert();
 		if (truncated || add) {
 			if (add) {
 				if (!truncated) {
