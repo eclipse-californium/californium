@@ -78,7 +78,7 @@ public class ProcessUtil {
 	}
 
 	/**
-	 * Start external tool
+	 * Start external tool.
 	 * 
 	 * @param args list of arguments to start the external tool
 	 * @throws IOException if start fails.
@@ -88,13 +88,14 @@ public class ProcessUtil {
 	}
 
 	/**
-	 * Start external tool
+	 * Start external tool.
 	 * 
 	 * @param args list of arguments to start the external tool
 	 * @throws IOException if start fails.
 	 */
 	public void execute(List<String> args) throws IOException {
 		setConsole("");
+		stopped = false;
 		ProcessBuilder builder = new ProcessBuilder(args);
 		builder.redirectErrorStream(true);
 		process = builder.start();
@@ -315,9 +316,24 @@ public class ProcessUtil {
 		 *         otherwise.
 		 */
 		public boolean contains(String regex) {
+			return match(regex) != null;
+		}
+
+		/**
+		 * Check, if console output contains a match of the regular expression.
+		 * 
+		 * @param regex regular expression
+		 * @return matcher to read groups, {@code null}, if the expression is
+		 *         not contained.
+		 */
+		public Matcher match(String regex) {
 			Pattern pattern = Pattern.compile(regex);
 			Matcher matcher = pattern.matcher(console);
-			return matcher.find();
+			if (matcher.find()) {
+				return matcher;
+			} else {
+				return null;
+			}
 		}
 	}
 }

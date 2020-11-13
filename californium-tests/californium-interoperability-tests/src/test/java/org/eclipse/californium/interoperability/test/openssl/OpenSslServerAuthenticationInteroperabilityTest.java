@@ -13,8 +13,12 @@
  * Contributors:
  *    Achim Kraus (Bosch Software Innovations GmbH) - initial implementation.
  ******************************************************************************/
-package org.eclipse.californium.interoperability.test;
+package org.eclipse.californium.interoperability.test.openssl;
 
+import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_RSA_CERTIFICATE;
+import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.CERTIFICATE;
+import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.CHAIN;
+import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.TRUST;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeNotNull;
@@ -25,8 +29,9 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
-import org.eclipse.californium.interoperability.test.OpenSslUtil.AuthenticationMode;
+import org.eclipse.californium.interoperability.test.OpenSslUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
+import org.eclipse.californium.interoperability.test.ScandiumUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -97,7 +102,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslServerCertTrustAll() throws Exception {
-		String cipher = processUtil.startupServer(ACCEPT, AuthenticationMode.CERTIFICATE, cipherSuite);
+		String cipher = processUtil.startupServer(ACCEPT, CERTIFICATE, cipherSuite);
 
 		scandiumUtil.start(BIND, null, cipherSuite);
 		connect(cipher);
@@ -105,7 +110,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslServerChainTrustAll() throws Exception {
-		String cipher = processUtil.startupServer(ACCEPT, AuthenticationMode.CHAIN, cipherSuite);
+		String cipher = processUtil.startupServer(ACCEPT, CHAIN, cipherSuite);
 
 		scandiumUtil.start(BIND, null, cipherSuite);
 		connect(cipher);
@@ -113,7 +118,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslServerTrustTrustAll() throws Exception {
-		String cipher = processUtil.startupServer(ACCEPT, AuthenticationMode.TRUST, cipherSuite);
+		String cipher = processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
 		scandiumUtil.start(BIND, null, cipherSuite);
 		connect(cipher);
@@ -121,7 +126,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslServerFullTrustTrustAll() throws Exception {
-		String cipher = processUtil.startupServer(ACCEPT, AuthenticationMode.TRUST, cipherSuite);
+		String cipher = processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
 		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
 		dtlsBuilder.setUseTruncatedCertificatePathForClientsCertificateMessage(false);
@@ -131,7 +136,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslServerCertTrustCa() throws Exception {
-		String cipher = processUtil.startupServer(ACCEPT, AuthenticationMode.CERTIFICATE, cipherSuite);
+		String cipher = processUtil.startupServer(ACCEPT, CERTIFICATE, cipherSuite);
 
 		scandiumUtil.start(BIND, ScandiumUtil.TRUST_CA, cipherSuite);
 		connect(cipher);
@@ -139,7 +144,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslServerChainTrustCa() throws Exception {
-		String cipher = processUtil.startupServer(ACCEPT, AuthenticationMode.CHAIN, cipherSuite);
+		String cipher = processUtil.startupServer(ACCEPT, CHAIN, cipherSuite);
 
 		scandiumUtil.start(BIND, ScandiumUtil.TRUST_CA, cipherSuite);
 		connect(cipher);
@@ -147,16 +152,16 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslServerTrustTrustCa() throws Exception {
-		String cipher = processUtil.startupServer(ACCEPT, AuthenticationMode.TRUST, cipherSuite);
+		String cipher = processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
 		scandiumUtil.start(BIND, ScandiumUtil.TRUST_CA, cipherSuite);
 		connect(cipher);
 	}
 
 	@Test
-	@Ignore // certificate not trusted by root 
+	@Ignore // certificate not trusted by root
 	public void testOpenSslServerCertTrustRoot() throws Exception {
-		String cipher = processUtil.startupServer(ACCEPT, AuthenticationMode.CERTIFICATE, cipherSuite);
+		String cipher = processUtil.startupServer(ACCEPT, CERTIFICATE, cipherSuite);
 
 		scandiumUtil.start(BIND, ScandiumUtil.TRUST_ROOT, cipherSuite);
 		connect(cipher);
@@ -164,7 +169,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslServerChainTrustRoot() throws Exception {
-		String cipher = processUtil.startupServer(ACCEPT, AuthenticationMode.CHAIN, cipherSuite);
+		String cipher = processUtil.startupServer(ACCEPT, CHAIN, cipherSuite);
 
 		scandiumUtil.start(BIND, ScandiumUtil.TRUST_ROOT, cipherSuite);
 		connect(cipher);
@@ -172,7 +177,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslServerTrustTrustRoot() throws Exception {
-		String cipher = processUtil.startupServer(ACCEPT, AuthenticationMode.TRUST, cipherSuite);
+		String cipher = processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
 		scandiumUtil.start(BIND, ScandiumUtil.TRUST_ROOT, cipherSuite);
 		connect(cipher);
@@ -181,7 +186,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 	@Test
 	public void testOpenSslServerX25519() throws Exception {
 		assumeTrue("X25519 not support by JRE", XECDHECryptography.SupportedGroup.X25519.isUsable());
-		String cipher = processUtil.startupServer(ACCEPT, AuthenticationMode.TRUST, cipherSuite);
+		String cipher = processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
 		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
 		dtlsBuilder.setSupportedGroups(SupportedGroup.X25519, SupportedGroup.secp256r1);
@@ -193,7 +198,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 	@Test
 	public void testOpenSslServerX448() throws Exception {
 		assumeTrue("X448 not support by JRE", XECDHECryptography.SupportedGroup.X448.isUsable());
-		String cipher = processUtil.startupServer(ACCEPT, AuthenticationMode.TRUST, cipherSuite);
+		String cipher = processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
 		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
 		dtlsBuilder.setSupportedGroups(SupportedGroup.X448, SupportedGroup.secp256r1);
@@ -204,7 +209,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslServerPrime256v1() throws Exception {
-		String cipher = processUtil.startupServer(ACCEPT, AuthenticationMode.TRUST, cipherSuite);
+		String cipher = processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
 		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
 		dtlsBuilder.setSupportedGroups(SupportedGroup.secp256r1);
@@ -215,7 +220,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslServerSecP384r1() throws Exception {
-		String cipher = processUtil.startupServer(ACCEPT, AuthenticationMode.TRUST, cipherSuite);
+		String cipher = processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
 		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
 		dtlsBuilder.setSupportedGroups(SupportedGroup.secp384r1, SupportedGroup.secp256r1);
@@ -226,9 +231,8 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslServerRsaTrustTrustRoot() throws Exception {
-		String cipher = processUtil.startupServer(ACCEPT, AuthenticationMode.TRUST,
-				OpenSslProcessUtil.SERVER_RSA_CERTIFICATE, OpenSslProcessUtil.DEFAULT_CURVES,
-				OpenSslProcessUtil.DEFAULT_SIGALGS, cipherSuite);
+		String cipher = processUtil.startupServer(ACCEPT, TRUST, SERVER_RSA_CERTIFICATE,
+				OpenSslProcessUtil.DEFAULT_CURVES, OpenSslProcessUtil.DEFAULT_SIGALGS, cipherSuite);
 
 		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
 		dtlsBuilder.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA,
@@ -239,11 +243,13 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 
 	@Test
 	public void testOpenSslServerRsaChainTrustRoot() throws Exception {
-		CipherSuite[] ciphers =  {CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8};
-		String cipher = processUtil.startupServer(ACCEPT, AuthenticationMode.CHAIN, OpenSslProcessUtil.SERVER_RSA_CERTIFICATE, null, null, ciphers);
+		CipherSuite[] ciphers = { CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
+				CipherSuite.TLS_PSK_WITH_AES_128_CCM_8 };
+		String cipher = processUtil.startupServer(ACCEPT, CHAIN, SERVER_RSA_CERTIFICATE, null, null, ciphers);
 
 		DtlsConnectorConfig.Builder dtlsBuilder = new DtlsConnectorConfig.Builder();
-		dtlsBuilder.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA, SignatureAndHashAlgorithm.SHA256_WITH_RSA);
+		dtlsBuilder.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA256_WITH_ECDSA,
+				SignatureAndHashAlgorithm.SHA256_WITH_RSA);
 		scandiumUtil.start(BIND, false, dtlsBuilder, ScandiumUtil.TRUST_ROOT, ciphers);
 		connect(cipher);
 	}

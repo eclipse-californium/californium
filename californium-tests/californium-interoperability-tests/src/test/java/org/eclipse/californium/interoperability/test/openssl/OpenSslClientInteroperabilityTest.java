@@ -13,9 +13,9 @@
  * Contributors:
  *    Achim Kraus (Bosch Software Innovations GmbH) - initial implementation.
  ******************************************************************************/
-package org.eclipse.californium.interoperability.test;
+package org.eclipse.californium.interoperability.test.openssl;
 
-import static org.junit.Assume.assumeFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeNotNull;
 import static org.junit.Assume.assumeTrue;
 
@@ -26,8 +26,9 @@ import java.util.Arrays;
 
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.TestScope;
-import org.eclipse.californium.interoperability.test.OpenSslUtil.AuthenticationMode;
+import org.eclipse.californium.interoperability.test.OpenSslUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
+import org.eclipse.californium.interoperability.test.ScandiumUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.junit.After;
@@ -41,27 +42,21 @@ import org.junit.runners.Parameterized.Parameter;
 import org.junit.runners.Parameterized.Parameters;
 
 /**
- * Test for interoperability with openssl server.
+ * Test for interoperability with openssl client.
  * 
  * Test several different cipher suites.
- * 
- * Note: the windows version 1.1.1a to 1.1.1d of the openssl s_server seems to
- * be broken. It starts only to accept, when the first message is entered.
- * Therefore the test are skipped on windows.
  * 
  * @see OpenSslUtil
  */
 @RunWith(Parameterized.class)
-public class OpenSslServerInteroperabilityTest {
+public class OpenSslClientInteroperabilityTest {
 
 	@Rule
 	public TestNameLoggerRule name = new TestNameLoggerRule();
 
-	private static final InetSocketAddress BIND = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
-	private static final InetSocketAddress DESTINATION = new InetSocketAddress(InetAddress.getLoopbackAddress(),
+	private static final InetSocketAddress BIND = new InetSocketAddress(InetAddress.getLoopbackAddress(),
 			ScandiumUtil.PORT);
-	private static final String ACCEPT = "127.0.0.1:" + ScandiumUtil.PORT;
-
+	private static final String DESTINATION = "127.0.0.1:" + ScandiumUtil.PORT;
 	private static final long TIMEOUT_MILLIS = 2000;
 
 	private static OpenSslProcessUtil processUtil;
@@ -73,15 +68,15 @@ public class OpenSslServerInteroperabilityTest {
 		ProcessResult result = processUtil.getOpenSslVersion(TIMEOUT_MILLIS);
 		assumeNotNull(result);
 		assumeTrue(result.contains("OpenSSL 1\\.1\\."));
-		String os = System.getProperty("os.name");
-		if (os.startsWith("Windows")) {
-			assumeFalse("Windows openssl server 1.1.1 seems to be broken!", result.contains("OpenSSL 1\\.1\\.1[abcd]"));
-		}
-		scandiumUtil = new ScandiumUtil(true);
+		scandiumUtil = new ScandiumUtil(false);
 	}
 
 	@AfterClass
 	public static void shutdown() throws InterruptedException {
+		if (scandiumUtil != null) {
+			scandiumUtil.shutdown();
+			scandiumUtil = null;
+		}
 		if (processUtil != null) {
 			processUtil.shutdown();
 		}
@@ -123,38 +118,45 @@ public class OpenSslServerInteroperabilityTest {
 	 * client.
 	 */
 	@Test
-	public void testOpenSslServer() throws Exception {
-		String cipher = processUtil.startupServer(ACCEPT, AuthenticationMode.CERTIFICATE, cipherSuite);
-
+	public void testOpenSslClient() throws Exception {
 		scandiumUtil.start(BIND, null, cipherSuite);
 
-		String message = "Hello OpenSSL!";
-		scandiumUtil.send(message, DESTINATION, TIMEOUT_MILLIS);
+		String cipher = processUtil.startupClient(DESTINATION, OpenSslProcessUtil.AuthenticationMode.CERTIFICATE,
+				cipherSuite);
+		assertTrue(processUtil.waitConsole("Cipher is " + cipher, TIMEOUT_MILLIS));
 
-		processUtil.waitConsole("CIPHER is " + cipher, TIMEOUT_MILLIS);
-		processUtil.waitConsole(message, TIMEOUT_MILLIS);
-		processUtil.send("ACK-" + message);
+		String message = "Hello Scandium!";
+		processUtil.send(message);
 
-		scandiumUtil.assertReceivedData("ACK-" + message, TIMEOUT_MILLIS);
+		scandiumUtil.assertReceivedData(message, TIMEOUT_MILLIS);
+		scandiumUtil.response("ACK-" + message, TIMEOUT_MILLIS);
+
+		assertTrue(processUtil.waitConsole("ACK-" + message, TIMEOUT_MILLIS));
 
 		processUtil.stop(TIMEOUT_MILLIS);
 	}
 
+	/**
+	 * Establish a "connection" and send a message to the server and back to the
+	 * client.
+	 */
 	@Test
-	public void testOpenSslServerMultiFragments() throws Exception {
-		String cipher = processUtil.startupServer(ACCEPT, AuthenticationMode.CERTIFICATE, cipherSuite);
+	public void testOpenSslClientMultiFragments() throws Exception {
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
 		builder.setEnableMultiHandshakeMessageRecords(true);
 		scandiumUtil.start(BIND, false, builder, null, cipherSuite);
 
-		String message = "Hello OpenSSL!";
-		scandiumUtil.send(message, DESTINATION, TIMEOUT_MILLIS);
+		String cipher = processUtil.startupClient(DESTINATION, OpenSslProcessUtil.AuthenticationMode.CERTIFICATE,
+				cipherSuite);
+		assertTrue(processUtil.waitConsole("Cipher is " + cipher, TIMEOUT_MILLIS));
 
-		processUtil.waitConsole("CIPHER is " + cipher, TIMEOUT_MILLIS);
-		processUtil.waitConsole(message, TIMEOUT_MILLIS);
-		processUtil.send("ACK-" + message);
+		String message = "Hello Scandium!";
+		processUtil.send(message);
 
-		scandiumUtil.assertReceivedData("ACK-" + message, TIMEOUT_MILLIS);
+		scandiumUtil.assertReceivedData(message, TIMEOUT_MILLIS);
+		scandiumUtil.response("ACK-" + message, TIMEOUT_MILLIS);
+
+		assertTrue(processUtil.waitConsole("ACK-" + message, TIMEOUT_MILLIS));
 
 		processUtil.stop(TIMEOUT_MILLIS);
 	}

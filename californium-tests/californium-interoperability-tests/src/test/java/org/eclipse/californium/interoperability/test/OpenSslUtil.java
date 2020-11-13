@@ -27,24 +27,14 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
  */
 public class OpenSslUtil {
 
-	public enum AuthenticationMode {
-		/**
-		 * Use PSK.
-		 */
-		PSK,
-		/**
-		 * Send peer's certificate, trust all.
-		 */
-		CERTIFICATE,
-		/**
-		 * Send peer's certificate-chain, trust all.
-		 */
-		CHAIN,
-		/**
-		 * Send peer's certificate-chain, trust provided CAs.
-		 */
-		TRUST
-	}
+	public static final String SERVER_CERTIFICATE = "server.pem";
+	public static final String SERVER_RSA_CERTIFICATE = "serverRsa.pem";
+
+	public static final String CLIENT_CERTIFICATE = "client.pem";
+	public static final String ROOT_CERTIFICATE = "rootTrustStore.pem";
+	public static final String CA_CERTIFICATES = "caTrustStore.pem";
+	public static final String CA_RSA_CERTIFICATES = "caRsaTrustStore.pem";
+	public static final String TRUSTSTORE = "trustStore.pem";
 
 	public static final String OPENSSL_PSK_IDENTITY = "Client_identity";
 	public static final byte[] OPENSSL_PSK_SECRET = "secretPSK".getBytes();
@@ -77,8 +67,8 @@ public class OpenSslUtil {
 	/**
 	 * Get cipher suites supported by the jvm.
 	 * 
-	 * The supported cipher suites depends on the jvm version. GCM is supported with
-	 * Java 8.
+	 * The supported cipher suites depends on the jvm version. GCM is supported
+	 * with Java 8.
 	 * 
 	 * @return jvm supported cipher suites
 	 * @since 2.4
@@ -98,8 +88,8 @@ public class OpenSslUtil {
 	 * 
 	 * @param ciphers Californium cipher suites.
 	 * @return list of openssl cipher suite names separated by {@code ":"}.
-	 * @throws IllegalArgumentException if cipher suite is provided, which is not
-	 *                                  included in {@link #CIPHERSUITES_MAP}.
+	 * @throws IllegalArgumentException if cipher suite is provided, which is
+	 *             not included in {@link #CIPHERSUITES_MAP}.
 	 */
 	public static String getOpenSslCipherSuites(CipherSuite... ciphers) {
 		StringBuilder result = new StringBuilder();
@@ -145,8 +135,8 @@ public class OpenSslUtil {
 	 * 
 	 * @param jcaNamed JCA named. e.g. "SHA256withECDSA", "SHA256withRSA"
 	 * @return openssl name. e.g. "ECDSA+SHA256:RSA+SHA256"
-	 * @throws IllegalArgumentException if one of the jcaNames does not contain a
-	 *                                  "with"
+	 * @throws IllegalArgumentException if one of the jcaNames does not contain
+	 *             a "with"
 	 * @since 2.3
 	 */
 	public static String getOpenSslSignatureAndHashAlgorithms(String... jcaNames) {

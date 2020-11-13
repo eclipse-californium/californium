@@ -72,6 +72,9 @@ ED25519_PRIVATE_KEY_PEM=ed25519_private.pem
 ED448_PUBLIC_KEY_PEM=ed448_public.pem
 ED448_PRIVATE_KEY_PEM=ed448_private.pem
 
+CLIENT_KEY_STORE_DER=client.der
+TRUST_STORE_DER=trustStore.der
+
 VALIDITY=365
 
 remove_keys() {
@@ -220,6 +223,7 @@ export_pem() {
       openssl pkey -in $ED25519_PRIVATE_KEY_PEM -pubout -out $ED25519_PUBLIC_KEY_PEM
       openssl genpkey -algorithm Ed448 -out $ED448_PRIVATE_KEY_PEM
       openssl pkey -in $ED448_PRIVATE_KEY_PEM -pubout -out $ED448_PUBLIC_KEY_PEM
+      openssl x509 -inform PEM -in $CLIENT_KEY_STORE_PEM -outform DER -out $CLIENT_KEY_STORE_DER
    fi
 } 
 
@@ -234,6 +238,7 @@ copy_pem() {
   cp $SERVER_KEY_STORE_PEM $DESTINATION_DIR
   cp $SERVER_LARGE_KEY_STORE_PEM $DESTINATION_DIR
   cp $SERVER_RSA_KEY_STORE_PEM $DESTINATION_DIR
+  cp $EC_PRIVATE_KEY_PEM $DESTINATION_DIR
 }
 
 jobs () {
@@ -254,6 +259,11 @@ jobs () {
 	;;
   esac
 }
+
+openssl x509 -inform PEM -in $ROOT_TRUST_STORE_PEM -outform DER -out root.der
+openssl x509 -inform PEM -in $CA_TRUST_STORE_PEM -outform DER -out ca.der
+openssl x509 -inform PEM -in $CLIENT_KEY_STORE_PEM -outform DER -out $CLIENT_KEY_STORE_DER
+exit 1
 
 if [ -z "$1" ]  ; then
      echo "default: remove create export copy"
