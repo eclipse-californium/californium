@@ -65,6 +65,7 @@ import org.eclipse.californium.core.coap.EndpointContextTracer;
 import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.ResponseTimeout;
 import org.eclipse.californium.core.coap.Message.OffloadMode;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
@@ -178,6 +179,7 @@ public class BenchmarkClient {
 			config.setInt(Keys.MAX_ACTIVE_PEERS, 10);
 			config.setInt(Keys.PEERS_MARK_AND_SWEEP_MESSAGES, 16);
 			config.setString(Keys.DEDUPLICATOR, Keys.DEDUPLICATOR_PEERS_MARK_AND_SWEEP);
+			config.setInt(Keys.NON_LIFETIME, 15 * 1000); // lifetime / timeout for non-requests
 			config.setInt(Keys.DTLS_AUTO_RESUME_TIMEOUT, 0);
 			config.setInt(Keys.DTLS_CONNECTION_ID_LENGTH, 0); // support it, but don't use it
 			config.setInt(Keys.MAX_PEER_INACTIVITY_PERIOD, 60 * 60 * 24); // 24h
@@ -193,6 +195,7 @@ public class BenchmarkClient {
 			config.setInt(Keys.HEALTH_STATUS_INTERVAL, 0);
 			config.setInt(KEY_BENCHMARK_CLIENT_THREADS, 0);
 			config.setInt(ClientInitializer.KEY_DTLS_RETRANSMISSION_TIMEOUT, 2000);
+			config.setInt(ClientInitializer.KEY_DTLS_RETRANSMISSION_MAX, 2);
 		}
 
 	};
@@ -238,6 +241,9 @@ public class BenchmarkClient {
 
 		@Option(names = "--requests", defaultValue = DEFAULT_REQUESTS, description = "number of requests. Default ${DEFAULT-VALUE}.")
 		public int requests;
+
+		@Option(names = "--timeout", description = "timeout of requests in milliseconds.")
+		public Integer timeout;
 
 		@Option(names = "--no-stop", negatable = true, description = "stop on errors. Default ${DEFAULT-VALUE}.")
 		public boolean stop = true;
@@ -494,6 +500,7 @@ public class BenchmarkClient {
 	private final DTLSConnector dtlsConnector;
 
 	private final long ackTimeout;
+	private final long nonTimeout;
 
 	private Request prepareRequest(CoapClient client, long c) {
 		if (overallRequestsDownCounter.decrementAndGet() < 0) {
@@ -535,6 +542,9 @@ public class BenchmarkClient {
 			}
 		}
 		request.setURI(client.getURI());
+		ResponseTimeout timeout = new ResponseTimeout(request, request.isConfirmable() ? nonTimeout : nonTimeout,
+				executorService);
+		request.addMessageObserver(timeout);
 		return request;
 	}
 
@@ -623,18 +633,24 @@ public class BenchmarkClient {
 		@Override
 		public void onError() {
 			if (!stop.get()) {
+				boolean non = false;
 				long c = requestsCounter.get();
 				String msg = "";
 				if (post.getSendError() != null) {
 					msg = post.getSendError().getMessage();
 				} else if (post.isTimedOut()) {
+					non = !post.isConfirmable();
 					msg = "timeout";
 				} else if (post.isRejected()) {
 					msg = "rejected";
 				}
-				if (!config.stop) {
+				if (!config.stop || non) {
 					transmissionErrorCounter.incrementAndGet();
-					LOGGER.info("{}: Error after {} requests. {}", id, c, msg);
+					if (non) {
+						LOGGER.debug("{}: Error after {} requests. {}", id, c, msg);
+					} else {
+						LOGGER.info("{}: Error after {} requests. {}", id, c, msg);
+					}
 					next(1000, secure ? 1000 : 0, requestsCounter.get() > 0, false);
 				} else {
 					LOGGER.error("{}: failed after {} requests! {}", id, c, msg);
@@ -703,18 +719,19 @@ public class BenchmarkClient {
 						request.setDestinationContext(destinationContext);
 					}
 				}
-				final long delay = delayMillis;
 				if (delayMillis > 0) {
+					int r = RandomManager.currentRandom().nextInt(500);
+					final long delay = delayMillis + r;
 					executorService.schedule(new Runnable() {
 						@Override
 						public void run() {
 							client.advanced(new TestHandler(request), request);
 							LOGGER.trace("{}: sent request {} {} {}", id, c, delay, reconnect);
 						}
-					}, delayMillis, TimeUnit.MILLISECONDS);
+					}, delay, TimeUnit.MILLISECONDS);
 				} else {
 					client.advanced(new TestHandler(request), request);
-					LOGGER.trace("{}: sent request {} {} {}", id, c, delay, reconnect);
+					LOGGER.trace("{}: sent request {} {} {}", id, c, delayMillis, reconnect);
 				}
 			}
 		}
@@ -749,6 +766,7 @@ public class BenchmarkClient {
 		}
 		NetworkConfig config = endpoint.getConfig();
 		this.ackTimeout =  config.getLong(Keys.ACK_TIMEOUT);
+		this.nonTimeout =  config.getLong(Keys.NON_LIFETIME);
 		endpoint.addInterceptor(new MessageTracer());
 		endpoint.setExecutors(this.executorService, secondaryExecutor);
 		this.client = new CoapClient(uri);
@@ -953,6 +971,10 @@ public class BenchmarkClient {
 			config.networkConfig = NetworkConfig.createWithFile(REVERSE_SERVER_CONFIG_FILE,
 					REVERSE_SERVER_CONFIG_HEADER, REVERSE_DEFAULTS);
 			reverseResponses = config.reverse.responses;
+		}
+
+		if (config.timeout != null) {
+			config.networkConfig.setLong(Keys.NON_LIFETIME, config.timeout);
 		}
 
 		offload = config.networkConfig.getBoolean(Keys.USE_MESSAGE_OFFLOADING);

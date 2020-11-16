@@ -78,6 +78,12 @@ public class ClientInitializer {
 	 * Specify the initial DTLS retransmission timeout.
 	 */
 	public static final String KEY_DTLS_RETRANSMISSION_TIMEOUT = "DTLS_RETRANSMISSION_TIMEOUT";
+	/**
+	 * Specify the maximum number of DTLS retransmissions.
+	 * 
+	 * @since 2.6
+	 */
+	public static final String KEY_DTLS_RETRANSMISSION_MAX = "DTLS_RETRANSMISSION_MAX";
 
 	/**
 	 * TCP module initializer class.
@@ -297,6 +303,7 @@ public class ClientInitializer {
 			Integer recvBufferSize = config.getOptInteger(Keys.UDP_CONNECTOR_RECEIVE_BUFFER);
 			Integer sendBufferSize = config.getOptInteger(Keys.UDP_CONNECTOR_SEND_BUFFER);
 			Integer dtlsRetransmissionTimeout = config.getOptInteger(KEY_DTLS_RETRANSMISSION_TIMEOUT);
+			Integer dtlsRetransmissionMax = config.getOptInteger(KEY_DTLS_RETRANSMISSION_MAX);
 			if (dtlsRetransmissionTimeout != null) {
 				retransmissionTimeout = dtlsRetransmissionTimeout;
 			}
@@ -379,6 +386,9 @@ public class ClientInitializer {
 			dtlsConfig.setSocketReceiveBufferSize(recvBufferSize);
 			dtlsConfig.setSocketSendBufferSize(sendBufferSize);
 			dtlsConfig.setRetransmissionTimeout(retransmissionTimeout);
+			if (dtlsRetransmissionMax != null) {
+				dtlsConfig.setMaxRetransmissions(dtlsRetransmissionMax);
+			}
 			dtlsConfig.setMaxConnections(maxPeers);
 			dtlsConfig.setConnectionThreadCount(senderThreads);
 			dtlsConfig.setReceiverThreadCount(receiverThreads);
