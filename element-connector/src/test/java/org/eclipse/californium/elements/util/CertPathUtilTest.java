@@ -394,7 +394,7 @@ public class CertPathUtilTest {
 	 * @throws Exception if an unexpected error occurs
 	 */
 	@Test
-	public void testServerCertificateTruncatingValidationWithAmbiguousTrust() throws Exception {
+	public void testServerCertificateValidationWithAmbiguousTrust() throws Exception {
 		X509Certificate server = TestCertificatesTools.getServerCertificateChain()[0];
 		X509Certificate ca = TestCertificatesTools.getTrustedCA();
 		X509Certificate caalt = TestCertificatesTools.getAlternativeCA();
@@ -407,6 +407,33 @@ public class CertPathUtilTest {
 
 		X509Certificate[] trusts2 = new X509Certificate[] { caalt, ca };
 		verifiedPath = CertPathUtil.validateCertificatePathWithIssuer(false, certPath, trusts2);
+		TestCertificatesTools.assertEquals(verfied, verifiedPath.getCertificates());
+	}
+
+	/**
+	 * Certificate-path: server
+	 * 1.
+	 * Trust: "first match", ca, caalt
+	 * Expected result: pass => server, ca
+	 * 2.
+	 * Trust: caalt, ca
+	 * Expected result: pass => server, ca
+	 * @throws Exception if an unexpected error occurs
+	 */
+	@Test
+	public void testServerCertificateTruncatingValidationWithTruncatedAmbiguousTrust() throws Exception {
+		X509Certificate server = TestCertificatesTools.getServerCertificateChain()[0];
+		X509Certificate ca = TestCertificatesTools.getTrustedCA();
+		X509Certificate caalt = TestCertificatesTools.getAlternativeCA();
+		X509Certificate[] path = new X509Certificate[] { server };
+		X509Certificate[] trusts = new X509Certificate[] { ca, caalt };
+		X509Certificate[] verfied = new X509Certificate[] { server, ca };
+		CertPath certPath = CertPathUtil.generateCertPath(Arrays.asList(path));
+		CertPath verifiedPath = CertPathUtil.validateCertificatePathWithIssuer(true, certPath, trusts);
+		TestCertificatesTools.assertEquals(verfied, verifiedPath.getCertificates());
+
+		X509Certificate[] trusts2 = new X509Certificate[] { caalt, ca };
+		verifiedPath = CertPathUtil.validateCertificatePathWithIssuer(true, certPath, trusts2);
 		TestCertificatesTools.assertEquals(verfied, verifiedPath.getCertificates());
 	}
 
