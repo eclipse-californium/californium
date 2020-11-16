@@ -35,10 +35,8 @@ echo "clients my be used for the benchmark. It's not recommended to use that man
 echo "and it's even less recommended to use more!"
 echo
 echo "Variables:"
-echo "   USE_INTERVAL"
-echo "   REQS"
-echo "   UDP_CLIENTS"
-echo "   HONO_AUTH"
+echo "   USE_INTERVAL, REQS, UDP_CLIENTS, HONO_AUTH"
+echo "   USE_TELEMETRY, USE_EVENT, USE_CON, USE_NON, USE_CAC, USE_NO_CAC"
 echo
 echo "These variables maybe override in the calling shell by"
 echo
@@ -110,13 +108,15 @@ fi
 # adjust the multiplier according the speed of your CPU
 USE_PLAIN=0      # currently not implemented in benchmark!
 USE_SECURE=1
-USE_CAC=1
-USE_NO_CAC=1
-USE_EVENT=1
-USE_TELEMETRY=1
+: "${USE_CAC:=1}"
+: "${USE_NO_CAC:=1}"
+: "${USE_EVENT:=1}"
+: "${USE_TELEMETRY:=1}"
+: "${USE_CON:=1}"
+: "${USE_NON:=1}"
 
 USE_NONESTOP=--no-stop
-: "${USE_INTERVAL:=--interval 50}"
+: "${USE_INTERVAL:=--interval 100}"
 MULTIPLIER=10
 : "${REQS:=$((5 * $MULTIPLIER))}"
 : "${UDP_CLIENTS:=$((1 * $CLIENTS_MULTIPLIER))}"
@@ -170,20 +170,30 @@ benchmark_udp()
 
 benchmark_all()
 {
-   if [ ${USE_NO_CAC} -ne 0 ] ; then 
+   if [ ${USE_NO_CAC} -ne 0 ]  && [ ${USE_CON} -ne 0 ]  ; then 
       if [ ${USE_TELEMETRY} -ne 0 ] ; then 
          benchmark_udp "telemetry"  --hono --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP} ${USE_INTERVAL}
       fi
       if [ ${USE_EVENT} -ne 0 ] ; then 
-         benchmark_udp "event"  --hono --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP} ${USE_INTERVAL}
+         benchmark_udp "event"  --hono --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP} ${USE_INTERVAL} --
       fi
    fi
-   if [ ${USE_CAC} -ne 0 ] ; then 
+   if [ ${USE_NO_CAC} -ne 0 ]  && [ ${USE_NON} -ne 0 ]  ; then 
+      if [ ${USE_TELEMETRY} -ne 0 ] ; then 
+         benchmark_udp "telemetry"  --hono --clients ${UDP_CLIENTS} --non --requests ${REQS} ${USE_NONESTOP} ${USE_INTERVAL}
+      fi
+   fi
+   if [ ${USE_CAC} -ne 0 ]  && [ ${USE_CON} -ne 0 ]; then 
       if [ ${USE_TELEMETRY} -ne 0 ] ; then 
          benchmark_udp "telemetry?hono-ttd=10"  --hono --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP} ${USE_INTERVAL}
       fi
       if [ ${USE_EVENT} -ne 0 ] ; then 
          benchmark_udp "event?hono-ttd=10"  --hono --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP} ${USE_INTERVAL}
+      fi
+   fi
+   if [ ${USE_CAC} -ne 0 ]  && [ ${USE_NON} -ne 0 ]; then 
+      if [ ${USE_TELEMETRY} -ne 0 ] ; then 
+         benchmark_udp "telemetry?hono-ttd=10"  --hono --clients ${UDP_CLIENTS} --non --requests ${REQS} ${USE_NONESTOP} ${USE_INTERVAL}
       fi
    fi
 }
@@ -226,7 +236,7 @@ benchmark_dtls_handshakes()
 START_BENCHMARK=`date +%s`
 
 benchmark_all
-benchmark_dtls_handshakes
+#benchmark_dtls_handshakes
 
 END_BENCHMARK=`date +%s`
 

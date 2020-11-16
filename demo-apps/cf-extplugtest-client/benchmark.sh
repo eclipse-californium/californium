@@ -52,20 +52,11 @@ echo "clients my be used for the benchmark. It's not recommended to use that man
 echo "and it's even less recommended to use more!"
 echo
 echo "Variables:"
-echo "   USE_TCP"
-echo "   USE_UDP"
-echo "   USE_PLAIN"
-echo "   USE_SECURE"
-echo "   REQS"
-echo "   NOTIFIES"
-echo "   PAYLOAD"
-echo "   PAYLOAD_LARGE"
-echo "   UDP_CLIENTS"
-echo "   TCP_CLIENTS"
-echo "   OBS_CLIENTS"
-echo "   CALI_AUTH"
-echo "   PLAIN_PORT"
-echo "   SECURE_PORT"
+echo "   USE_TCP, USE_UDP, USE_PLAIN, USE_SECURE, USE_CON, USE_NON"
+echo "   UDP_CLIENTS, TCP_CLIENTS, OBS_CLIENTS"
+echo "   PLAIN_PORT, SECURE_PORT"
+echo "   REQS, NOTIFIES"
+echo "   PAYLOAD, PAYLOAD_LARGE, CALI_AUTH"
 echo
 echo "These variables maybe override in the calling shell by"
 echo
@@ -118,6 +109,8 @@ fi
 : "${USE_UDP:=1}"
 : "${USE_PLAIN:=1}"
 : "${USE_SECURE:=1}"
+: "${USE_CON:=1}"
+: "${USE_NON:=1}"
 
 USE_HTTP=0
 USE_REVERSE=1
@@ -211,15 +204,29 @@ benchmark()
 benchmark_all()
 {
 # GET
-   benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
-   benchmark_tcp "benchmark?rlen=${PAYLOAD}" --clients ${TCP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
+   if [ ${USE_CON} -ne 0 ] ; then 
+      benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
+   fi
 
+   if [ ${USE_NON} -ne 0 ] ; then 
+      benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --non --requests ${REQS} ${USE_NONESTOP}
+   fi
+
+   benchmark_tcp "benchmark?rlen=${PAYLOAD}" --clients ${TCP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
+   
+   if [ ${USE_CON} -ne 0 ] ; then 
 # GET with separate response
-   benchmark_udp "benchmark?rlen=${PAYLOAD}&ack" --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
+      benchmark_udp "benchmark?rlen=${PAYLOAD}&ack" --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
+   fi
 
    if [ ${USE_OBSERVE} -eq 1 ] ; then
 # reverse GET
-      benchmark_udp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests 2 ${USE_NONESTOP} --reverse ${REV_REQS}
+      if [ ${USE_CON} -ne 0 ] ; then 
+         benchmark_udp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests 2 ${USE_NONESTOP} --reverse ${REV_REQS}
+      fi
+      if [ ${USE_NON} -ne 0 ] ; then 
+         benchmark_udp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --non --requests 2 ${USE_NONESTOP} --reverse ${REV_REQS}
+      fi
       benchmark_tcp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" --clients ${TCP_CLIENTS} --requests 2 ${USE_NONESTOP} --reverse ${REV_REQS}
    fi
    
