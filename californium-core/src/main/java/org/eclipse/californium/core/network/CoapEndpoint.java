@@ -380,6 +380,8 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors, M
 	 *            responses to requests. If <code>null</code>, the result of
 	 *            {@link EndpointContextMatcherFactory#create(Connector, NetworkConfig)}
 	 *            is used as matcher.
+	 * @param serializer message serializer. May be {@code null}.
+	 * @param parser message parser. May be {@code null}.
 	 * @param loggingTag logging tag.
 	 *            {@link StringUtil#normalizeLoggingTag(String)} is applied to
 	 *            the provided tag.
@@ -391,13 +393,16 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors, M
 	 *            multiple arguments are required.
 	 * @throws IllegalArgumentException if applyConfiguration is {@code true},
 	 *             but the connector is not a {@link UDPConnector}
-	 * @deprecated use {@link #addPostProcessInterceptor(MessageInterceptor)}.
+	 * @deprecated use
+	 *             {@link #CoapEndpoint(Connector, boolean, NetworkConfig, TokenGenerator, ObservationStore, MessageExchangeStore, EndpointContextMatcher, DataSerializer, DataParser, String, CoapStackFactory, Object)}
+	 *             and {@link #addPostProcessInterceptor(MessageInterceptor)} instead.
 	 */
 	@Deprecated
 	protected CoapEndpoint(Connector connector, boolean applyConfiguration, NetworkConfig config,
 			TokenGenerator tokenGenerator, ObservationStore store, MessageExchangeStore exchangeStore,
-			EndpointContextMatcher endpointContextMatcher, String loggingTag, CoapEndpointHealth health,
-			CoapStackFactory coapStackFactory, Object customStackArgument) {
+			EndpointContextMatcher endpointContextMatcher, DataSerializer serializer, DataParser parser,
+			String loggingTag, CoapEndpointHealth health, CoapStackFactory coapStackFactory,
+			Object customStackArgument) {
 		this.config = config;
 		this.connector = connector;
 		this.connector.setRawDataReceiver(new InboxImpl());
@@ -458,14 +463,14 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors, M
 			this.useRequestOffloading = false; // no deduplication
 			this.matcher = new TcpMatcher(config, new NotificationDispatcher(), tokenGenerator, observationStore,
 					this.exchangeStore, exchangeExecutionHandler, endpointContextMatcher);
-			this.serializer = new TcpDataSerializer();
-			this.parser = new TcpDataParser();
+			this.serializer = serializer != null ? serializer : new TcpDataSerializer();
+			this.parser = parser != null ? parser : new TcpDataParser();
 		} else {
 			this.useRequestOffloading = config.getBoolean(Keys.USE_MESSAGE_OFFLOADING);
 			this.matcher = new UdpMatcher(config, new NotificationDispatcher(), tokenGenerator, observationStore,
 					this.exchangeStore, exchangeExecutionHandler, endpointContextMatcher);
-			this.serializer = new UdpDataSerializer();
-			this.parser = new UdpDataParser();
+			this.serializer = serializer != null ? serializer : new UdpDataSerializer();
+			this.parser = parser != null ? parser : new UdpDataParser();
 		}
 		final int healthStatusInterval = config.getInt(Keys.HEALTH_STATUS_INTERVAL, NetworkConfigDefaults.DEFAULT_HEALTH_STATUS_INTERVAL); // seconds
 		// this is a useful health metric
@@ -553,13 +558,60 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors, M
 	 *            multiple arguments are required.
 	 * @throws IllegalArgumentException if applyConfiguration is {@code true},
 	 *             but the connector is not a {@link UDPConnector}
+	 * @deprecated use
+	 *             {@link #CoapEndpoint(Connector, boolean, NetworkConfig, TokenGenerator, ObservationStore, MessageExchangeStore, EndpointContextMatcher, DataSerializer, DataParser, String, CoapStackFactory, Object)}
+	 *             instead.
+	 */
+	@Deprecated
+	protected CoapEndpoint(Connector connector, boolean applyConfiguration, NetworkConfig config,
+			TokenGenerator tokenGenerator, ObservationStore store, MessageExchangeStore exchangeStore,
+			EndpointContextMatcher endpointContextMatcher, 
+			String loggingTag, CoapStackFactory coapStackFactory, Object customStackArgument) {
+		this(connector, applyConfiguration, config, tokenGenerator, store, exchangeStore, endpointContextMatcher,
+				null, null, loggingTag, null, coapStackFactory, customStackArgument);
+	}
+
+	/**
+	 * Creates a new endpoint for a connector, configuration, message exchange
+	 * and observation store.
+	 * <p>
+	 * Intended to be called either by the {@link Builder} or a subclass
+	 * constructor. The endpoint will support the connector's implemented scheme
+	 * and will bind to the IP address and port the connector is configured for.
+	 *
+	 * @param connector The connector to use.
+	 * @param applyConfiguration if {@code true}, apply network configuration to
+	 *            connector. Requires a {@link UDPConnector}.
+	 * @param config The configuration values to use.
+	 * @param tokenGenerator token generator.
+	 * @param store The store to use for keeping track of observations initiated
+	 *            by this endpoint.
+	 * @param exchangeStore The store to use for keeping track of message
+	 *            exchanges.
+	 * @param endpointContextMatcher endpoint context matcher for relating
+	 *            responses to requests. If <code>null</code>, the result of
+	 *            {@link EndpointContextMatcherFactory#create(Connector, NetworkConfig)}
+	 *            is used as matcher.
+	 * @param serializer message serializer. May be {@code null}.
+	 * @param parser message parser. May be {@code null}.
+	 * @param loggingTag logging tag.
+	 *            {@link StringUtil#normalizeLoggingTag(String)} is applied to
+	 *            the provided tag.
+	 * @param coapStackFactory coap-stack-factory factory to create coap-stack
+	 * @param customStackArgument argument for custom stack, if required.
+	 *            {@code null} for standard stacks, or if the custom stack
+	 *            doesn't require specific arguments. My be a {@link Map}, if
+	 *            multiple arguments are required.
+	 * @throws IllegalArgumentException if applyConfiguration is {@code true},
+	 *             but the connector is not a {@link UDPConnector}
+	 * @since 2.6
 	 */
 	protected CoapEndpoint(Connector connector, boolean applyConfiguration, NetworkConfig config,
 			TokenGenerator tokenGenerator, ObservationStore store, MessageExchangeStore exchangeStore,
-			EndpointContextMatcher endpointContextMatcher, String loggingTag,
-			CoapStackFactory coapStackFactory, Object customStackArgument) {
+			EndpointContextMatcher endpointContextMatcher, DataSerializer serializer, DataParser parser,
+			String loggingTag, CoapStackFactory coapStackFactory, Object customStackArgument) {
 		this(connector, applyConfiguration, config, tokenGenerator, store, exchangeStore, endpointContextMatcher,
-				loggingTag, null, coapStackFactory, customStackArgument);
+				serializer, parser, loggingTag, null, coapStackFactory, customStackArgument);
 	}
 
 	@Override
@@ -1598,6 +1650,14 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors, M
 		 */
 		private CoapStackFactory coapStackFactory;
 		/**
+		 * Serializer to convert messages to datagrams.
+		 */
+		private DataSerializer serializer;
+		/**
+		 * Parser to convert datagrams to messages.
+		 */
+		private DataParser parser;
+		/**
 		 * Logging tag.
 		 */
 		private String tag;
@@ -1817,6 +1877,20 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors, M
 		}
 
 		/**
+		 * Set custom data serializer and parser.
+		 * 
+		 * @param serializer custom data serializer
+		 * @param parser custom data parser
+		 * @return this
+		 * @since 2.6
+		 */
+		public Builder setDataSerializerAndParser(DataSerializer serializer, DataParser parser) {
+			this.serializer = serializer;
+			this.parser = parser;
+			return this;
+		}
+
+		/**
 		 * Set logging tag.
 		 * 
 		 * @param tag logging tag. Defautls to connector's scheme.
@@ -1878,7 +1952,7 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors, M
 				coapStackFactory = getDefaultCoapStackFactory();
 			}
 			return new CoapEndpoint(connector, applyConfiguration, config, tokenGenerator, observationStore,
-					exchangeStore, endpointContextMatcher, tag, coapStackFactory, customStackArgument);
+					exchangeStore, endpointContextMatcher, serializer, parser, tag, coapStackFactory, customStackArgument);
 		}
 	}
 
