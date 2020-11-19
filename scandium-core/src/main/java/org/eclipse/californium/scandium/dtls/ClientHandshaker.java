@@ -164,6 +164,16 @@ public class ClientHandshaker extends Handshaker {
 	/** The server's {@link CertificateRequest}. Optional. */
 	protected CertificateRequest certificateRequest = null;
 
+	/**
+	 * Indicates, that a none-empty client certificate is sent.
+	 * 
+	 * If no matching client certificate is available for the request, an empty
+	 * certificate is sent. That case doesn't use a certificate verify message.
+	 * 
+	 * @since 2.6
+	 */
+	protected boolean sentClientCertificate;
+
 	/** The hash of all received handshake messages sent in the finished message. */
 	protected byte[] handshakeHash = null;
 
@@ -580,7 +590,7 @@ public class ClientHandshaker extends Handshaker {
 		/*
 		 * Third, send CertificateVerify message if necessary.
 		 */
-		if (certificateRequest != null && negotiatedSignatureAndHashAlgorithm != null) {
+		if (sentClientCertificate && certificateRequest != null && negotiatedSignatureAndHashAlgorithm != null) {
 			CertificateType clientCertificateType = session.sendCertificateType();
 			if (!isSupportedCertificateType(clientCertificateType, supportedClientCertificateTypes)) {
 				throw new HandshakeException(
@@ -674,6 +684,7 @@ public class ClientHandshaker extends Handshaker {
 			} else {
 				throw new IllegalArgumentException("Certificate type " + session.sendCertificateType() + " not supported!");
 			}
+			sentClientCertificate = clientCertificate.getMessageLength() > 3;
 			wrapMessage(flight, clientCertificate);
 		}
 	}

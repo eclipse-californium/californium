@@ -252,7 +252,9 @@ public class ConnectorHelper {
 	 */
 	public void destroyServer() {
 		cleanUpServer();
-		server.destroy();
+		if (server != null) {
+			server.destroy();
+		}
 	}
 
 	/**
@@ -266,10 +268,18 @@ public class ConnectorHelper {
 	 * </ul>
 	 */
 	public void cleanUpServer() {
-		serverConnectionStore.clear();
-		serverRawDataProcessor.clear();
-		serverRawDataChannel.setProcessor(serverRawDataProcessor);
-		server.setAlertHandler(null);
+		if (serverConnectionStore != null) {
+			serverConnectionStore.clear();
+		}
+		if (serverRawDataProcessor != null) {
+			serverRawDataProcessor.clear();
+		}
+		if (serverRawDataChannel != null) {
+			serverRawDataChannel.setProcessor(serverRawDataProcessor);
+		}
+		if (server != null) {
+			server.setAlertHandler(null);
+		}
 		sessionListenerMap.clear();
 	}
 
