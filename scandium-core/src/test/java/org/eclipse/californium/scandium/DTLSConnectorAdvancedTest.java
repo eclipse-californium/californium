@@ -33,6 +33,7 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.number.OrderingComparison.greaterThan;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
@@ -52,6 +53,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import javax.crypto.SecretKey;
 
@@ -83,6 +85,7 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.ApplicationMessage;
 import org.eclipse.californium.scandium.dtls.CertificateMessage;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.CertificateVerificationResult;
 import org.eclipse.californium.scandium.dtls.ClientHandshaker;
 import org.eclipse.californium.scandium.dtls.Connection;
@@ -109,6 +112,7 @@ import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.AsyncAdvancedPskStore;
 import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.eclipse.californium.scandium.util.ServerNames;
@@ -2802,6 +2806,73 @@ public class DTLSConnectorAdvancedTest {
 		}
 	}
 
+	@Test
+	public void testClientX509WithoutMatchingCertificate() throws Exception {
+
+		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder()
+				.setTrustedCertificates(DtlsTestTools.getServerRsaCertificateChain()).build();
+
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
+				.setRetransmissionTimeout(RETRANSMISSION_TIMEOUT_MS * 2)
+				.setMaxRetransmissions(MAX_RETRANSMISSIONS * 2)
+				.setEnableMultiRecordMessages(false)
+				.setHealthHandler(serverHealth)
+				.setAdvancedCertificateVerifier(verifier)
+				.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), CertificateType.X_509)
+				.setConnectionIdGenerator(serverCidGenerator);
+
+		// Configure UDP connector we will use as Server
+		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(serverCidGenerator);
+		UdpConnector rawServer = new UdpConnector(0, collector);
+		int remain = clientConnectionStore.remainingCapacity();
+
+		try {
+			// Start connector (Server)
+			rawServer.start();
+
+			// Start the client
+			startClient();
+
+			RawData data = RawData.outbound("Hello World".getBytes(),
+					new AddressEndpointContext(rawServer.getAddress()), null, false);
+			client.send(data);
+
+			// Create server handshaker
+			TestRecordLayer serverRecordLayer = new TestRecordLayer(rawServer);
+			LatchSessionListener sessionListener = new LatchSessionListener();
+			ServerHandshaker serverHandshaker = new ServerHandshaker(0, new DTLSSession(client.getAddress(), 1),
+					serverRecordLayer, timer, createServerConnection(), builder.build());
+			serverHandshaker.addSessionListener(sessionListener);
+
+			// Wait to receive response (should be CLIENT HELLO, flight 3)
+			List<Record> rs = waitForFlightReceived("flight 1", collector, 1);
+			// Handle and answer
+			// (CERTIFICATE, ... SERVER HELLO DONE, flight 4)
+			processAll(serverHandshaker, rs);
+
+			LatchSessionListener clientSessionListener = getSessionListenerForEndpoint("client", rawServer);
+
+			// Wait for transmission (CERTIFICATE, CLIENT_KEY_EXCHANGE, CCS, FINISHED, flight 5)
+			rs = waitForFlightReceived("flight 3", collector, 4);
+			// Handle and answer (should be CCS, FINISHED, flight 6)
+			HandshakeException handshakeException = processAll(serverHandshaker, rs);
+
+			assertNotNull(handshakeException);
+
+			// Ensure handshake failed
+			assertFalse("server handshake not failed",
+					sessionListener.waitForSessionEstablished(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+			// Ensure handshake failed
+			int timeout = RETRANSMISSION_TIMEOUT_MS * (2 << (MAX_RETRANSMISSIONS + 2));
+			Throwable error = clientSessionListener.waitForSessionFailed(timeout, TimeUnit.MILLISECONDS);
+			assertNotNull("client handshake not failed", error);
+			assertThat(error, instanceOf(DtlsHandshakeTimeoutException.class));
+			assertThat(clientConnectionStore.remainingCapacity(), is(remain));
+		} finally {
+			rawServer.stop();
+		}
+	}
+
 	private void send(Connection connection, TestRecordLayer recordLayer, DTLSMessage... messages)
 			throws GeneralSecurityException, IOException {
 		List<DatagramPacket> datagrams = encode(connection, messages);
@@ -2827,8 +2898,9 @@ public class DTLSConnectorAdvancedTest {
 		return datagrams;
 	}
 
-	private void processAll(final Handshaker handshaker, final List<Record> records)
+	private HandshakeException processAll(final Handshaker handshaker, final List<Record> records)
 			throws GeneralSecurityException, HandshakeException {
+		final AtomicReference<HandshakeException> cause = new AtomicReference<>();
 		final CountDownLatch ready = new CountDownLatch(1);
 		Runnable run = new Runnable() {
 
@@ -2840,6 +2912,9 @@ public class DTLSConnectorAdvancedTest {
 						record.applySession(session);
 						handshaker.processMessage(record);
 					}
+				} catch (HandshakeException t) {
+					LOGGER.error("process handshake", t);
+					cause.set(t);
 				} catch (Throwable t) {
 					LOGGER.error("process handshake", t);
 				}
@@ -2858,6 +2933,7 @@ public class DTLSConnectorAdvancedTest {
 		} else {
 			run.run();
 		}
+		return cause.get();
 	}
 
 	private List<Record> waitForFlightReceived(String description, RecordCollectorDataHandler collector, int records)
