@@ -294,10 +294,6 @@ public class ExtendedTestServer extends AbstractTestServer {
 
 			List<InterfaceType> types = config.getInterfaceTypes();
 
-			String pattern = config.interfacePatterns != null && !config.interfacePatterns.isEmpty()
-					? config.interfacePatterns.get(0)
-					: null;
-
 			ScheduledExecutorService executor = ExecutorsUtil.newScheduledThreadPool(//
 					netConfig.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT), //
 					new NamedThreadFactory("CoapServer(main)#")); //$NON-NLS-1$
@@ -348,7 +344,11 @@ public class ExtendedTestServer extends AbstractTestServer {
 					}
 				}
 			}
-			server.addEndpoints(pattern, types, protocols, config);
+			server.addEndpoints(config.interfacePatterns, types, protocols, config);
+			if (server.getEndpoints().isEmpty()) {
+				System.err.println("no endpoint available!");
+				System.exit(PlugtestServer.ERR_INIT_FAILED);
+			}
 			for (Endpoint ep : server.getEndpoints()) {
 				ep.addNotificationListener(reverseObserver);
 			}
