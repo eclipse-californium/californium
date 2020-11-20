@@ -138,10 +138,7 @@ public class PlugtestServer extends AbstractTestServer {
 		@Option(names = "--client-auth", defaultValue = "NEEDED", description = "client authentication. Values ${COMPLETION-CANDIDATES}, default ${DEFAULT-VALUE}.")
 		public ClientAuthMode clientAuth;
 
-		@Option(names = "--interfaces", split = ",", description = "interfaces for endpoints.")
-		public List<String> interfaceNames;
-
-		@Option(names = "--interfaces-pattern", split = ",", description = "interface patterns for endpoints.")
+		@Option(names = "--interfaces-pattern", split = ",", description = "interface regex patterns for endpoints.")
 		public List<String> interfacePatterns;
 
 		public List<Protocol> getProtocols() {
@@ -224,10 +221,6 @@ public class PlugtestServer extends AbstractTestServer {
 			List<Protocol> protocols = config.getProtocols();
 
 			List<InterfaceType> types = config.getInterfaceTypes();
-			
-			String pattern = config.interfacePatterns != null && !config.interfacePatterns.isEmpty()
-					? config.interfacePatterns.get(0)
-					: null;
 
 			PlugtestServer server = new PlugtestServer(netconfig);
 			// ETSI Plugtest environment
@@ -235,7 +228,11 @@ public class PlugtestServer extends AbstractTestServer {
 //			server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("127.0.0.1", port)));
 //			server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("2a01:c911:0:2010::10", port)));
 //			server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("10.200.1.2", port)));
-			server.addEndpoints(pattern, types, protocols, config);
+			server.addEndpoints(config.interfacePatterns, types, protocols, config);
+			if (server.getEndpoints().isEmpty()) {
+				System.err.println("no endpoint available!");
+				System.exit(ERR_INIT_FAILED);
+			}
 			server.start();
 
 			ScheduledThreadPoolExecutor executor = ExecutorsUtil.newDefaultSecondaryScheduler("Health#");

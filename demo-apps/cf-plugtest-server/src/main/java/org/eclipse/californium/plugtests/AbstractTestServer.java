@@ -24,8 +24,10 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.cert.Certificate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import javax.crypto.SecretKey;
@@ -144,6 +146,8 @@ public abstract class AbstractTestServer extends CoapServer {
 	public static final Pattern HONO_IDENTITY_PATTERN = Pattern.compile("^[^@]{8,}@.{8,}$");
 	public static final SecretKey HONO_PSK_SECRET = SecretUtil.create("secret".getBytes(), "PSK");
 
+	public static final Pattern IPV6_SCOPE = Pattern.compile("^([0-9a-fA-F:]+)(%\\w+)?$");
+
 	private final NetworkConfig config;
 	private final Map<Select, NetworkConfig> selectConfig;
 
@@ -212,17 +216,17 @@ public abstract class AbstractTestServer extends CoapServer {
 	/**
 	 * Add endpoints.
 	 * 
-	 * @param selectAddress  regular expression to filter the endpoints by
+	 * @param selectAddress  list of regular expression to filter the endpoints by
 	 *                       {@link InetAddress#getHostAddress()}. May be
-	 *                       {@code null} or {@code ""}, if endpoints should not be
-	 *                       filtered by their host address.
+	 *                       {@code null} or {@code empty}, if endpoints should not
+	 *                       be filtered by their host address.
 	 * @param interfaceTypes list of type to filter the endpoints. Maybe
 	 *                       {@code null} or empty, if endpoints should not be
 	 *                       filtered by type.
 	 * @param protocols      list of protocols to create endpoints for.
 	 * @param cliConfig      client cli-config.
 	 */
-	public void addEndpoints(String selectAddress, List<InterfaceType> interfaceTypes, List<Protocol> protocols,
+	public void addEndpoints(List<String> selectAddress, List<InterfaceType> interfaceTypes, List<Protocol> protocols,
 			BaseConfig cliConfig) {
 		int coapPort = config.getInt(Keys.COAP_PORT);
 		int coapsPort = config.getInt(Keys.COAP_SECURE_PORT);
@@ -248,7 +252,11 @@ public abstract class AbstractTestServer extends CoapServer {
 				e.printStackTrace();
 			}
 		}
+		List<InetAddress> used = new ArrayList<>();
 		for (InetAddress addr : NetworkInterfacesUtil.getNetworkInterfaces()) {
+			if (used.contains(addr)) {
+				continue;
+			}
 			if (interfaceTypes != null && !interfaceTypes.isEmpty()) {
 				if (addr.isLoopbackAddress()) {
 					if (!interfaceTypes.contains(InterfaceType.LOCAL)) {
@@ -270,10 +278,32 @@ public abstract class AbstractTestServer extends CoapServer {
 				}
 			}
 			if (selectAddress != null && !selectAddress.isEmpty()) {
-				if (!addr.getHostAddress().matches(selectAddress)) {
+				boolean found = false;
+				String name = addr.getHostAddress();
+				for (String filter : selectAddress) {
+					if (name.matches(filter)) {
+						found = true;
+						break;
+					}
+				}
+				if (!found && addr instanceof Inet6Address) {
+					Matcher matcher = IPV6_SCOPE.matcher(name);
+					if (matcher.matches()) {
+						// apply filter also on interface name
+						name = matcher.group(1) + "%" + ((Inet6Address)addr).getScopedInterface().getName();
+						for (String filter : selectAddress) {
+							if (name.matches(filter)) {
+								found = true;
+								break;
+							}
+						}
+					}
+				}
+				if (!found) {
 					continue;
 				}
 			}
+			used.add(addr);
 
 			InterfaceType interfaceType = addr.isLoopbackAddress() ? InterfaceType.LOCAL : InterfaceType.EXTERNAL;
 
