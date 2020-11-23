@@ -118,7 +118,7 @@ USE_OBSERVE=1
 USE_NONESTOP=--no-stop
 
 MULTIPLIER=10
-: "${REQS:=$((500 * $MULTIPLIER))}"
+: "${REQS:=$((300 * $MULTIPLIER))}"
 REQS_EXTRA=$(($REQS + ($REQS/10)))
 REV_REQS=$((2 * $REQS))
 : "${NOTIFIES:=$((100 * $MULTIPLIER))}"
@@ -219,7 +219,7 @@ benchmark_all()
       benchmark_udp "benchmark?rlen=${PAYLOAD}&ack" --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
    fi
 
-   if [ ${USE_OBSERVE} -eq 1 ] ; then
+   if [ ${USE_REVERSE} -eq 1 ] ; then
 # reverse GET
       if [ ${USE_CON} -ne 0 ] ; then 
          benchmark_udp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests 2 ${USE_NONESTOP} --reverse ${REV_REQS}
@@ -233,10 +233,14 @@ benchmark_all()
    if [ ${USE_OBSERVE} -eq 1 ] ; then
    
 # observe CON 
-      benchmark "reverse-observe?obs=25000&res=feed-CON&rlen=${PAYLOAD_LARGE}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --reverse ${NOTIFIES} --min 20 --max 100
-
+      if [ ${USE_CON} -ne 0 ] ; then 
+          benchmark_udp "reverse-observe?obs=25000&res=feed-CON&rlen=${PAYLOAD_LARGE}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --reverse ${NOTIFIES} --min 20 --max 100
+      fi      
 # observe NON
-      benchmark_udp "reverse-observe?obs=25000&res=feed-NON&rlen=${PAYLOAD_LARGE}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --reverse ${NOTIFIES} --min 20 --max 100	
+      if [ ${USE_CON} -ne 0 ] ; then 
+         benchmark_udp "reverse-observe?obs=25000&res=feed-NON&rlen=${PAYLOAD_LARGE}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --reverse ${NOTIFIES} --min 20 --max 100
+      fi
+      benchmark_tcp "reverse-observe?obs=25000&res=feed-CON&rlen=${PAYLOAD_LARGE}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --reverse ${NOTIFIES} --min 20 --max 100
    fi
 }
 
