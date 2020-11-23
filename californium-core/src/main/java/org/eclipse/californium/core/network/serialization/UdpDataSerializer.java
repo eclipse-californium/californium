@@ -24,6 +24,8 @@ package org.eclipse.californium.core.network.serialization;
 
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
 
+import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.elements.util.DatagramWriter;
 
 /**
@@ -31,7 +33,25 @@ import org.eclipse.californium.elements.util.DatagramWriter;
  */
 public final class UdpDataSerializer extends DataSerializer {
 
-	@Override protected void serializeHeader(final DatagramWriter writer, final MessageHeader header) {
+	/**
+	 * {@inheritDoc}
+	 * 
+	 * The serialized length is not relevant for UDP. Therefore write message
+	 * direct to writer.
+	 * 
+	 * @since 2.6
+	 */
+	@Override
+	protected void serializeMessage(DatagramWriter writer, Message message) {
+		MessageHeader header = new MessageHeader(CoAP.VERSION, message.getType(), message.getToken(),
+				message.getRawCode(), message.getMID(), -1);
+		serializeHeader(writer, header);
+		writer.writeCurrentByte();
+		serializeOptionsAndPayload(writer, message.getOptions(), message.getPayload());
+	}
+
+	@Override 
+	protected void serializeHeader(final DatagramWriter writer, final MessageHeader header) {
 		writer.write(VERSION, VERSION_BITS);
 		writer.write(header.getType().value, TYPE_BITS);
 		writer.write(header.getToken().length(), TOKEN_LENGTH_BITS);
