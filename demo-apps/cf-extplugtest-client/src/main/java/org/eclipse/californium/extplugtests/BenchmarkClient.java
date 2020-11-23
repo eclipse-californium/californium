@@ -503,9 +503,10 @@ public class BenchmarkClient {
 	private final long nonTimeout;
 
 	private Request prepareRequest(CoapClient client, long c) {
-		if (overallRequestsDownCounter.decrementAndGet() < 0) {
+		if (overallRequestsDownCounter.get() == 0) {
 			return null;
 		}
+		countDown(overallRequestsDownCounter);
 		Request request;
 		int accept = TEXT_PLAIN;
 		byte[] payload = config.payloadBytes;
@@ -645,13 +646,18 @@ public class BenchmarkClient {
 					msg = "rejected";
 				}
 				if (!config.stop || non) {
-					transmissionErrorCounter.incrementAndGet();
 					if (non) {
+						overallRequestsDownCounter.incrementAndGet();
+						retransmissionCounter.incrementAndGet();
 						LOGGER.debug("{}: Error after {} requests. {}", id, c, msg);
 					} else {
+						transmissionErrorCounter.incrementAndGet();
 						LOGGER.info("{}: Error after {} requests. {}", id, c, msg);
 					}
-					next(1000, secure ? 1000 : 0, requestsCounter.get() > 0, false);
+					if (!next(1000, secure && !non ? 1000 : 0, c > 0, false)) {
+						LOGGER.warn("{}: stopped by error after {} requests. {}", id, c, msg);
+						stop();
+					}
 				} else {
 					LOGGER.error("{}: failed after {} requests! {}", id, c, msg);
 					checkReady(true, false);
@@ -660,80 +666,83 @@ public class BenchmarkClient {
 			}
 		}
 
-		public void next(long delayMillis, long forceHandshake, boolean connected, boolean response) {
+		public boolean next(long delayMillis, long forceHandshake, boolean connected, boolean response) {
 			final long c = checkOverallRequests(connected, response);
-			if (c > 0) {
-				boolean close = false;
-				boolean full = false;
-				boolean force = forceHandshake > 0;
-				if (!force) {
-					close = (config.closes != 0 && (c % config.closes == 0));
-					full = (config.handshakes != 0 && (c % config.handshakes == 0));
-					if (config.bursts > 0) {
-						if (close) {
-							handshakeCloseBursts.compareAndSet(0, config.bursts);
-						} else {
-							close = countDown(handshakeCloseBursts) > 0;
-						}
-						if (full) {
-							handshakeFullBursts.compareAndSet(0, config.bursts);
-						} else {
-							full = countDown(handshakeFullBursts) > 0;
-						}
-					}
-				}
-				final boolean reconnect = dtlsConnector != null && (close || full || force);
-				final Request request = prepareRequest(client, c);
-				if (request == null) {
-					return;
-				}
-				request.addMessageObserver(retransmissionDetector);
-				if (reconnect) {
-					EndpointContext destinationContext = request.getDestinationContext();
-					client.setDestinationContext(null);
-					if (forceHandshake < 0) {
-						forceHandshake = -forceHandshake;
-					}
-					if (delayMillis < forceHandshake) {
-						delayMillis = forceHandshake;
-					}
+			if (c == 0) {
+				return false;
+			}
+			boolean close = false;
+			boolean full = false;
+			boolean force = forceHandshake > 0;
+			if (!force) {
+				close = (config.closes != 0 && (c % config.closes == 0));
+				full = (config.handshakes != 0 && (c % config.handshakes == 0));
+				if (config.bursts > 0) {
 					if (close) {
-						final InetSocketAddress destination = destinationContext.getPeerAddress();
-						final long delay = delayMillis;
-						executorService.schedule(new Runnable() {
-
-							@Override
-							public void run() {
-								dtlsConnector.close(destination);
-								LOGGER.trace("{}: close {} {}", id, c, delay);
-							}
-						}, delayMillis, TimeUnit.MILLISECONDS);
-						if (delayMillis < 500) {
-							delayMillis = 1000;
-						} else {
-							delayMillis *= 2;
-						}
+						handshakeCloseBursts.compareAndSet(0, config.bursts);
 					} else {
-						destinationContext = MapBasedEndpointContext.addEntries(destinationContext,
-								DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_FORCE_FULL);
-						request.setDestinationContext(destinationContext);
+						close = countDown(handshakeCloseBursts) > 0;
 					}
-				}
-				if (delayMillis > 0) {
-					int r = RandomManager.currentRandom().nextInt(500);
-					final long delay = delayMillis + r;
-					executorService.schedule(new Runnable() {
-						@Override
-						public void run() {
-							client.advanced(new TestHandler(request), request);
-							LOGGER.trace("{}: sent request {} {} {}", id, c, delay, reconnect);
-						}
-					}, delay, TimeUnit.MILLISECONDS);
-				} else {
-					client.advanced(new TestHandler(request), request);
-					LOGGER.trace("{}: sent request {} {} {}", id, c, delayMillis, reconnect);
+					if (full) {
+						handshakeFullBursts.compareAndSet(0, config.bursts);
+					} else {
+						full = countDown(handshakeFullBursts) > 0;
+					}
 				}
 			}
+			final boolean reconnect = dtlsConnector != null && (close || full || force);
+			final Request request = prepareRequest(client, c);
+			if (request == null) {
+				return false;
+			}
+			request.addMessageObserver(retransmissionDetector);
+			if (reconnect) {
+				EndpointContext destinationContext = request.getDestinationContext();
+				client.setDestinationContext(null);
+				if (forceHandshake < 0) {
+					forceHandshake = -forceHandshake;
+				}
+				if (delayMillis < forceHandshake) {
+					delayMillis = forceHandshake;
+				}
+				if (close) {
+					final InetSocketAddress destination = destinationContext.getPeerAddress();
+					final long delay = delayMillis;
+					executorService.schedule(new Runnable() {
+
+						@Override
+						public void run() {
+							dtlsConnector.close(destination);
+							LOGGER.trace("{}: close {} {}", id, c, delay);
+						}
+					}, delayMillis, TimeUnit.MILLISECONDS);
+					if (delayMillis < 500) {
+						delayMillis = 1000;
+					} else {
+						delayMillis *= 2;
+					}
+				} else {
+					destinationContext = MapBasedEndpointContext.addEntries(destinationContext,
+							DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_FORCE_FULL);
+					request.setDestinationContext(destinationContext);
+				}
+			}
+			if (delayMillis > 0) {
+				int r = RandomManager.currentRandom().nextInt(500);
+				final long delay = delayMillis + r;
+				executorService.schedule(new Runnable() {
+
+					@Override
+					public void run() {
+						client.advanced(new TestHandler(request), request);
+						LOGGER.trace("{}: sent request {} {} {}", id, c, delay, reconnect);
+					}
+				}, delay, TimeUnit.MILLISECONDS);
+			} else {
+				client.advanced(new TestHandler(request), request);
+				LOGGER.trace("{}: sent request {} {} {}", id, c, delayMillis, reconnect);
+			}
+			return true;
 		}
 	}
 
