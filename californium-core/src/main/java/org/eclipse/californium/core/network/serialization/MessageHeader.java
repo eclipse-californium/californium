@@ -46,8 +46,12 @@ public class MessageHeader {
 	 * Options + payload marker + payload length.
 	 * 
 	 * @return the body length
+	 * @throws IllegalStateException if length is not available (value is less than 0).
 	 */
 	public int getBodyLength() {
+		if (bodyLength < 0) {
+			throw new IllegalStateException("body length not available!");
+		}
 		return bodyLength;
 	}
 

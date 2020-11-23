@@ -92,12 +92,22 @@ public abstract class DataParser {
 		throw new CoAPMessageFormatException(errorMsg, header.getToken(), header.getMID(), header.getCode(), CoAP.Type.CON == header.getType());
 	}
 
-	private static Message parseMessage(final DatagramReader source, final MessageHeader header, final Message target) {
+	/**
+	 * Parse message after header.
+	 * 
+	 * @param reader for reading the byte array to parse.
+	 * @param header already read message header
+	 * @param target target message.
+	 * @return read and completed message.
+	 * @see #parseOptionsAndPayload(DatagramReader, Message)
+	 * @since 2.6
+	 */
+	protected Message parseMessage(DatagramReader reader, MessageHeader header, Message target) {
 		target.setMID(header.getMID());
 		target.setType(header.getType());
 		target.setToken(header.getToken());
 
-		parseOptionsAndPayload(source, target);
+		parseOptionsAndPayload(reader, target);
 		return target;
 	}
 
@@ -109,6 +119,7 @@ public abstract class DataParser {
 	 * 
 	 * @param reader for reading the byte array to parse.
 	 * @return the message header the array has been parsed into.
+	 * @see #parseMessage(DatagramReader, MessageHeader, Message)
 	 */
 	protected abstract MessageHeader parseHeader(DatagramReader reader);
 

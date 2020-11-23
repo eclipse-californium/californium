@@ -53,12 +53,13 @@ public abstract class DataSerializer {
 	 * @throws NullPointerException if message is {@code null}
 	 * @throws IllegalArgumentException if a NON empty-message is provided, or a
 	 *             empty-message uses a none-empty-token.
+	 * @see #serializeEmpytMessage(DatagramWriter, Message)
+	 * @see #serializeMessage(DatagramWriter, Message)
 	 */
 	public final byte[] getByteArray(final Message message) {
 		if (message == null) {
 			throw new NullPointerException("message must not be null!");
 		}
-		DatagramWriter messageWriter = new DatagramWriter();
 		if (message.getRawCode() == 0) {
 			// simple serialization for empty message.
 			// https://tools.ietf.org/html/rfc7252#section-4.1
@@ -69,23 +70,14 @@ public abstract class DataSerializer {
 			} else if (message.getPayloadSize() > 0) {
 				throw new IllegalArgumentException("Empty messages must not contain payload!");
 			}
-			MessageHeader header = new MessageHeader(CoAP.VERSION, message.getType(), message.getToken(), 0,
-					message.getMID(), 0);
-			serializeHeader(messageWriter, header);
-			messageWriter.writeCurrentByte();
+			DatagramWriter messageWriter = new DatagramWriter(4);
+			serializeEmpytMessage(messageWriter, message);
+			return messageWriter.toByteArray();
 		} else {
-			DatagramWriter optionsAndPayloadWriter = new DatagramWriter();
-			serializeOptionsAndPayload(optionsAndPayloadWriter, message.getOptions(), message.getPayload());
-			optionsAndPayloadWriter.writeCurrentByte();
-
-			MessageHeader header = new MessageHeader(CoAP.VERSION, message.getType(), message.getToken(),
-					message.getRawCode(), message.getMID(), optionsAndPayloadWriter.size());
-
-			serializeHeader(messageWriter, header);
-			messageWriter.writeCurrentByte();
-			messageWriter.write(optionsAndPayloadWriter);
+			DatagramWriter messageWriter = new DatagramWriter();
+			serializeMessage(messageWriter, message);
+			return messageWriter.toByteArray();
 		}
-		return messageWriter.toByteArray();
 	}
 
 	/**
@@ -196,6 +188,50 @@ public abstract class DataSerializer {
 				emptyMessage.getEffectiveDestinationContext(),
 				outboundCallback,
 				false);
+	}
+
+	/**
+	 * Serialize empty message (code 0).
+	 * 
+	 * Used to serialize empty messages without token, options and payload.
+	 * 
+	 * @param writer The writer to serialize the values to.
+	 * @param message the message to serialize.
+	 * @see #serializeHeader(DatagramWriter, MessageHeader)
+	 * @see #serializeMessage(DatagramWriter, Message)
+	 * @since 2.6
+	 */
+	protected void serializeEmpytMessage(DatagramWriter writer, Message message) {
+		MessageHeader header = new MessageHeader(CoAP.VERSION, message.getType(), message.getToken(), 0,
+				message.getMID(), 0);
+		serializeHeader(writer, header);
+		writer.writeCurrentByte();
+	}
+
+	/**
+	 * Serialize message.
+	 * 
+	 * Used to serialize non empty messages. Serializes first the option and
+	 * payload in order to determine the serialized length for the header.
+	 * 
+	 * @param writer The writer to serialize the values to.
+	 * @param message the message to serialize.
+	 * @see #serializeOptionsAndPayload(DatagramWriter, OptionSet, byte[])
+	 * @see #serializeHeader(DatagramWriter, MessageHeader)
+	 * @see #serializeEmpytMessage(DatagramWriter, Message)
+	 * @since 2.6
+	 */
+	protected void serializeMessage(DatagramWriter writer, Message message) {
+		DatagramWriter optionsAndPayloadWriter = new DatagramWriter();
+		serializeOptionsAndPayload(optionsAndPayloadWriter, message.getOptions(), message.getPayload());
+		optionsAndPayloadWriter.writeCurrentByte();
+
+		MessageHeader header = new MessageHeader(CoAP.VERSION, message.getType(), message.getToken(),
+				message.getRawCode(), message.getMID(), optionsAndPayloadWriter.size());
+
+		serializeHeader(writer, header);
+		writer.writeCurrentByte();
+		writer.write(optionsAndPayloadWriter);
 	}
 
 	/**
