@@ -67,7 +67,10 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuiteSelector;
 import org.eclipse.californium.scandium.dtls.cipher.DefaultCipherSuiteSelector;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedInMemoryPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.BridgePskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustAllRpks;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
@@ -2334,11 +2337,18 @@ public final class DtlsConnectorConfig {
 		 * change that, use {@link #setSupportedCipherSuites(CipherSuite...)} or
 		 * {@link #setSupportedCipherSuites(String...)}.
 		 * 
-		 * Also set the advanced PSK store using {@link AdvancedInMemoryPskStore}.
+		 * Also set the advanced PSK store using
+		 * {@link AdvancedInMemoryPskStore}.
 		 * 
 		 * @param pskStore the key store
 		 * @return this builder for command chaining
-		 * @deprecated use {@link #setAdvancedPskStore(AdvancedPskStore)} instead
+		 * @deprecated use {@link #setAdvancedPskStore(AdvancedPskStore)}
+		 *             instead. {@link AdvancedSinglePskStore} and
+		 *             {@link AdvancedMultiPskStore} may be used for simple
+		 *             setups. More complex ones may require a custom
+		 *             implementation. During migration you may also use the
+		 *             {@link BridgePskStore} in order to use old
+		 *             implementations for that period.
 		 */
 		@Deprecated
 		public Builder setPskStore(PskStore pskStore) {
@@ -2587,7 +2597,13 @@ public final class DtlsConnectorConfig {
 		 *             {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)}
 		 *             is already set.
 		 * @see #setTrustCertificateTypes
-		 * @deprecated use {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)} instead. 
+		 * @deprecated use
+		 *             {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)}
+		 *             instead. {@link StaticNewAdvancedCertificateVerifier} may
+		 *             be used for simple setups. More complex ones may require a
+		 *             custom implementation. During migration you may also use
+		 *             the {@link BridgeCertificateVerifier} in order to use old
+		 *             implementations for that period.
 		 */
 		@Deprecated
 		public Builder setTrustStore(Certificate[] trustedCerts) {
@@ -2626,7 +2642,13 @@ public final class DtlsConnectorConfig {
 		 * @throws IllegalStateException if
 		 *             {@link #setTrustStore(Certificate[])} is already set.
 		 * @see #setTrustCertificateTypes
-		 * @deprecated use {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)} instead. 
+		 * @deprecated use
+		 *             {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)}
+		 *             instead. {@link StaticNewAdvancedCertificateVerifier} may
+		 *             be used for simple setups. More complex ones may require a
+		 *             custom implementation. During migration you may also use
+		 *             the {@link BridgeCertificateVerifier} in order to use old
+		 *             implementations for that period.
 		 */
 		@Deprecated
 		public Builder setCertificateVerifier(CertificateVerifier verifier) {
@@ -2697,7 +2719,13 @@ public final class DtlsConnectorConfig {
 		 * 
 		 * @return this builder for command chaining
 		 * @see #setTrustCertificateTypes
-		 * @deprecated use {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)} instead. 
+		 * @deprecated use
+		 *             {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)}
+		 *             instead. {@link StaticNewAdvancedCertificateVerifier} may
+		 *             be used for simple setups. More complex ones may require a
+		 *             custom implementation. During migration you may also use
+		 *             the {@link BridgeCertificateVerifier} in order to use old
+		 *             implementations for that period.
 		 */
 		@Deprecated
 		public Builder setRpkTrustStore(TrustedRpkStore store) {
@@ -2714,7 +2742,13 @@ public final class DtlsConnectorConfig {
 		 * Sets the store for trusted raw public key to trust all public keys.
 		 * 
 		 * @return this builder for command chaining
-		 * @deprecated use {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)} instead. 
+		 * @deprecated use
+		 *             {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)}
+		 *             instead. {@link StaticNewAdvancedCertificateVerifier} may
+		 *             be used for simple setups. More complex ones may require a
+		 *             custom implementation. During migration you may also use
+		 *             the {@link BridgeCertificateVerifier} in order to use old
+		 *             implementations for that period.
 		 */
 		@Deprecated
 		public Builder setRpkTrustAll() {
@@ -3006,9 +3040,11 @@ public final class DtlsConnectorConfig {
 		 * 
 		 * @param enable {@code true} to enable filter. Default {@code false}.
 		 * @return this builder for command chaining.
-		 * @throws IllegalArgumentException if anti replay window filter is active.
+		 * @throws IllegalArgumentException if anti replay window filter is
+		 *             active.
 		 * @see "http://tools.ietf.org/html/rfc6347#section-4.1"
-		 * @deprecated use {@link #setUseExtendedWindowFilter(int)} instead.
+		 * @deprecated use {@link #setUseExtendedWindowFilter(int)} with
+		 *             {@code -1}, instead.
 		 */
 		@Deprecated
 		public Builder setUseWindowFilter(boolean enable) {
@@ -3031,10 +3067,10 @@ public final class DtlsConnectorConfig {
 		 * Messages between lower receive window boundary and that calculated
 		 * value will pass the filter, for other messages the filter is applied.
 		 * 
-		 * @param level value to extend lower receive window boundary,
-		 *            {@code -1}, to extend the lower boundary to {@code 0},
-		 *            {@code 0} to disable the extended lower boundary. Default
-		 *            {@code 0}.
+		 * @param level value to extend lower receive window boundary, {@code 0}
+		 *            to disable the extended lower boundary. For backwards
+		 *            compatibility use {@code -1}, to extend the lower boundary
+		 *            down to {@code 0}, Default {@code 0} for disabled.
 		 * @return this builder for command chaining.
 		 * @throws IllegalArgumentException if anti replay window filter is
 		 *             active.
