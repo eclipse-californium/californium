@@ -53,10 +53,17 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 	/** The description of the alert. */
 	private final AlertDescription description;
 
+	/**
+	 * The record protocol version to send.
+	 * 
+	 * @since 2.6
+	 */
+	private transient final ProtocolVersion protocolVersion;
+
 	// Constructors ///////////////////////////////////////////////////
 
 	protected AlertMessage() {
-		this(null, null, null);
+		this(null, null, null, null);
 	}
 
 	/**
@@ -70,16 +77,40 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 	 *             {@code null}
 	 */
 	public AlertMessage(AlertLevel level, AlertDescription description, InetSocketAddress peerAddress) {
+		this(level, description, null, peerAddress);
+	}
+
+	/**
+	 * Create new instance of alert message.
+	 * 
+	 * @param level the alert level
+	 * @param description the alert description
+	 * @param protocolVersion protocol version of record to send. Only possible
+	 *            for {@link AlertDescription#PROTOCOL_VERSION} alerts!
+	 * @param peerAddress the IP address and port of the peer this message has
+	 *            been received from or is to be sent to
+	 * @throws NullPointerException if one of the provided parameter is
+	 *             {@code null}
+	 * @throws IllegalArgumentException if a protocol version is provided, but
+	 *             the description is not
+	 *             {@link AlertDescription#PROTOCOL_VERSION}
+	 * @since 2.6
+	 */
+	public AlertMessage(AlertLevel level, AlertDescription description, ProtocolVersion protocolVersion,
+			InetSocketAddress peerAddress) {
 		if (level == null) {
 			throw new NullPointerException("Level must not be null");
 		} else if (description == null) {
 			throw new NullPointerException("Description must not be null");
 		} else if (peerAddress == null) {
 			throw new NullPointerException("Peer address must not be null");
+		} else if (protocolVersion != null && description != AlertDescription.PROTOCOL_VERSION) {
+			throw new IllegalArgumentException("Protocol version is only supported for that specific alert!");
 		}
 		this.peerAddress = peerAddress;
 		this.level = level;
 		this.description = description;
+		this.protocolVersion = protocolVersion;
 	}
 
 	// Alert Level Enum ///////////////////////////////////////////////
@@ -206,7 +237,9 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 		sb.append("\tAlert Protocol").append(StringUtil.lineSeparator());
 		sb.append("\tLevel: ").append(level).append(StringUtil.lineSeparator());
 		sb.append("\tDescription: ").append(description).append(StringUtil.lineSeparator());
-
+		if (protocolVersion != null) {
+			sb.append("\tProtocol Version: ").append(protocolVersion).append(StringUtil.lineSeparator());
+		}
 		return sb.toString();
 	}
 
@@ -247,6 +280,16 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 		} else {
 			return new AlertMessage(level, description, peerAddress);
 		}
+	}
+
+	/**
+	 * Get protocol version to use for the record on sending.
+	 * 
+	 * @return protocol version, or {@code null}, for fixed or negotiated
+	 *         version.
+	 */
+	public ProtocolVersion getProtocolVersion() {
+		return protocolVersion;
 	}
 
 	public AlertLevel getLevel() {

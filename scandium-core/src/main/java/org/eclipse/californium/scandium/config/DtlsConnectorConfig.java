@@ -57,6 +57,7 @@ import org.eclipse.californium.scandium.dtls.CertificateMessage;
 import org.eclipse.californium.scandium.dtls.CertificateRequest;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
+import org.eclipse.californium.scandium.dtls.HelloVerifyRequest;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.RecordLayer;
 import org.eclipse.californium.scandium.dtls.SessionCache;
@@ -218,7 +219,7 @@ public final class DtlsConnectorConfig {
 	private Boolean enableMultiHandshakeMessageRecords;
 	/**
 	 * Protocol version to use for sending a hello verify request. Default
-	 * {@link ProtocolVersion#VERSION_DTLS_1_0}.
+	 * {@code null} to reply the clients version.
 	 * 
 	 * @since 2.5
 	 */
@@ -570,16 +571,25 @@ public final class DtlsConnectorConfig {
 	/**
 	 * Get protocol version for hello verify requests to send.
 	 * 
-	 * Before version 2.5.0, the protocol version 1.2 was used by Californium to
-	 * send hello verify requests. According
+	 * Before version 2.5.0, Californium used fixed the protocol version DTLS
+	 * 1.2 to send the HelloVerifyRequest. According
 	 * <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1">RFC 6347,
-	 * 4.2.1. Denial-of-Service Countermeasures</a>, that hello verify request
-	 * should be sent using protocol version 1.0. That's now the default. In
-	 * order to provide backwards compatibility, it's also possible to configure
-	 * to use protocol version 1.2.
+	 * 4.2.1. Denial-of-Service Countermeasures</a>, that HelloVerifyRequest
+	 * SHOULD be sent using protocol version DTLS 1.0. But that found to be
+	 * ambiguous, because it's also requested that "The server MUST use the same
+	 * version number in the HelloVerifyRequest that it would use when sending a
+	 * ServerHello." With that, Californium from 2.6.0 on will, by default,
+	 * reply the version the client sent in the HelloVerifyRequest, and will
+	 * postpone the version negotiation until the client has verified it's
+	 * endpoint ownership. If that client version is below DTLS 1.0, a DTLS 1.0
+	 * will be used. If a different behavior is wanted, you may use the related
+	 * setter to provide a fixed version for the HelloVerifyRequest. In order to
+	 * provide backwards compatibility to version before 2.5.0 , configure to
+	 * use protocol version DTLS 1.2.
 	 * 
-	 * @return protocol version. Default
-	 *         {@link ProtocolVersion#VERSION_DTLS_1_0}.
+	 * @return fixed protocol version, or {@code null}, to reply the clients
+	 *         version. Default is {@code null}.
+	 * @see HelloVerifyRequest
 	 * @since 2.5
 	 */
 	public ProtocolVersion getProtocolVersionForHelloVerifyRequests() {
@@ -1698,16 +1708,26 @@ public final class DtlsConnectorConfig {
 		/**
 		 * Set the protocol version to be used to send hello verify requests.
 		 * 
-		 * Before version 2.5.0, the protocol version 1.2 was used by
-		 * Californium to send the hello verify request. According
+		 * Before version 2.5.0, Californium used fixed the protocol version
+		 * DTLS 1.2 to send the HelloVerifyRequest. According
 		 * <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1">RFC 6347,
-		 * 4.2.1. Denial-of-Service Countermeasures</a>, that hello verify
-		 * request should be sent using protocol version 1.0. That's now the
-		 * default. In order to provide backwards compatibility, it's also
-		 * possible to configure to use protocol version 1.2.
+		 * 4.2.1. Denial-of-Service Countermeasures</a>, that HelloVerifyRequest
+		 * SHOULD be sent using protocol version DTLS 1.0. But that found to be
+		 * ambiguous, because it's also requested that "The server MUST use the
+		 * same version number in the HelloVerifyRequest that it would use when
+		 * sending a ServerHello." With that, Californium from 2.6.0 on will, by
+		 * default, reply the version the client sent in the HelloVerifyRequest,
+		 * and will postpone the version negotiation until the client has
+		 * verified it's endpoint ownership. If that client version is below
+		 * DTLS 1.0, a DTLS 1.0 will be used. If a different behavior is wanted,
+		 * you may use this setter to provide a fixed version for the
+		 * HelloVerifyRequest. In order to provide backwards compatibility to
+		 * version before 2.5.0 , configure to use protocol version DTLS 1.2.
 		 * 
-		 * @param protocolVersion protocol version to send hello verify requests
+		 * @param protocolVersion fixed protocol version to send hello verify
+		 *            requests. {@code null} to reply the client's version.
 		 * @return this builder for command chaining
+		 * @see HelloVerifyRequest
 		 * @since 2.5
 		 */
 		public Builder setProtocolVersionForHelloVerifyRequests(ProtocolVersion protocolVersion) {
@@ -3286,9 +3306,6 @@ public final class DtlsConnectorConfig {
 				} else {
 					config.defaultHandshakeMode = DtlsEndpointContext.HANDSHAKE_MODE_AUTO;
 				}
-			}
-			if (config.protocolVersionForHelloVerifyRequests == null) {
-				config.protocolVersionForHelloVerifyRequests = ProtocolVersion.VERSION_DTLS_1_0;
 			}
 			if (config.useNoServerSessionId == null) {
 				config.useNoServerSessionId = Boolean.FALSE;

@@ -755,11 +755,10 @@ public class DTLSConnectorTest {
 
 	@Test
 	public void testConnectorSendsHelloVerifyRequestWithoutCreatingSession() throws Exception {
-
-		InetSocketAddress endpoint = new InetSocketAddress(12000);
+		int capacity = serverHelper.serverConnectionStore.remainingCapacity();
 		RecordCollectorDataHandler handler = new RecordCollectorDataHandler();
 		handler.applySession(null);
-		UdpConnector rawClient = new UdpConnector(endpoint.getPort(), handler);
+		UdpConnector rawClient = new UdpConnector(12000, handler);
 
 		try{
 			rawClient.start();
@@ -778,8 +777,148 @@ public class DTLSConnectorTest {
 			HandshakeMessage handshake = (HandshakeMessage) record.getFragment();
 			Assert.assertThat("Expected HELLO_VERIFY_REQUEST from server",
 					handshake.getMessageType(), is(HandshakeType.HELLO_VERIFY_REQUEST));
-			Assert.assertNull("Server should not have created session for CLIENT_HELLO containging no cookie",
-					serverHelper.serverConnectionStore.get(endpoint));
+			Assert.assertThat("Server should not have created session for CLIENT_HELLO containging no cookie", capacity,
+					is(serverHelper.serverConnectionStore.remainingCapacity()));
+		} finally {
+			rawClient.stop();
+		}
+	}
+
+	/**
+	 * Using version DTLS 1.0 in CLIENT_HELLO triggers first a
+	 * HELLO_VERIFY_REQUEST and then an ALERT, both with version DTLS 1.0.
+	 */
+	@Test
+	public void testConnectorSendsHelloVerifyRequestAlsoForLowerVersion() throws Exception {
+
+		RecordCollectorDataHandler handler = new RecordCollectorDataHandler();
+		handler.applySession(null);
+		UdpConnector rawClient = new UdpConnector(12000, handler);
+		ProtocolVersion version = ProtocolVersion.VERSION_DTLS_1_0;
+		try {
+			rawClient.start();
+
+			// send a CLIENT_HELLO without cookie
+			ClientHello clientHello = createClientHello(version);
+
+			rawClient.sendRecord(serverHelper.serverEndpoint, DtlsTestTools
+					.newDTLSRecord(ContentType.HANDSHAKE.getCode(), version, 0, 0, clientHello.toByteArray()));
+
+			List<Record> flight = handler.assertFlight(1, MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			Record record = flight.get(0);
+
+			Assert.assertThat("Expected HANDSHAKE message from server", record.getType(), is(ContentType.HANDSHAKE));
+			HandshakeMessage handshake = (HandshakeMessage) record.getFragment();
+			Assert.assertThat("Expected HELLO_VERIFY_REQUEST from server", handshake.getMessageType(),
+					is(HandshakeType.HELLO_VERIFY_REQUEST));
+			Assert.assertThat("Expected protocol version from server", record.getVersion(), is(version));
+
+			clientHello.setCookie(((HelloVerifyRequest) handshake).getCookie());
+			clientHello.setMessageSeq(clientHello.getMessageSeq() + 1);
+
+			rawClient.sendRecord(serverHelper.serverEndpoint, DtlsTestTools
+					.newDTLSRecord(ContentType.HANDSHAKE.getCode(), version, 0, 1, clientHello.toByteArray()));
+
+			flight = handler.assertFlight(1, MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			record = flight.get(0);
+			Assert.assertThat("Expected ALERT message from server", record.getType(), is(ContentType.ALERT));
+			Assert.assertThat("Expected protocol version from server", record.getVersion(), is(version));
+
+		} finally {
+			rawClient.stop();
+		}
+	}
+
+	/**
+	 * Using a invalid version DTLS 0.9 in CLIENT_HELLO triggers first a
+	 * HELLO_VERIFY_REQUEST and then an SERVER_HELLO, both with version DTLS
+	 * 1.0.
+	 */
+	@Test
+	public void testConnectorSendsHelloVerifyRequestAlsoForTooLowVersion() throws Exception {
+
+		RecordCollectorDataHandler handler = new RecordCollectorDataHandler();
+		handler.applySession(null);
+		UdpConnector rawClient = new UdpConnector(12000, handler);
+		ProtocolVersion version = ProtocolVersion.valueOf("0.9");
+		try {
+			rawClient.start();
+
+			// send a CLIENT_HELLO without cookie
+			ClientHello clientHello = createClientHello(version);
+
+			rawClient.sendRecord(serverHelper.serverEndpoint, DtlsTestTools
+					.newDTLSRecord(ContentType.HANDSHAKE.getCode(), version, 0, 0, clientHello.toByteArray()));
+
+			List<Record> flight = handler.assertFlight(1, MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			Record record = flight.get(0);
+
+			Assert.assertThat("Expected HANDSHAKE message from server", record.getType(), is(ContentType.HANDSHAKE));
+			HandshakeMessage handshake = (HandshakeMessage) record.getFragment();
+			Assert.assertThat("Expected HELLO_VERIFY_REQUEST from server", handshake.getMessageType(),
+					is(HandshakeType.HELLO_VERIFY_REQUEST));
+			Assert.assertThat("Expected protocol version from server", record.getVersion(),
+					is(ProtocolVersion.VERSION_DTLS_1_0));
+
+			clientHello.setCookie(((HelloVerifyRequest) handshake).getCookie());
+			clientHello.setMessageSeq(clientHello.getMessageSeq() + 1);
+
+			rawClient.sendRecord(serverHelper.serverEndpoint, DtlsTestTools
+					.newDTLSRecord(ContentType.HANDSHAKE.getCode(), version, 0, 1, clientHello.toByteArray()));
+
+			flight = handler.assertFlight(1, MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			record = flight.get(0);
+			Assert.assertThat("Expected Handshake message from server", record.getType(), is(ContentType.ALERT));
+			Assert.assertThat("Expected protocol version from server", record.getVersion(),
+					is(ProtocolVersion.VERSION_DTLS_1_0));
+
+		} finally {
+			rawClient.stop();
+		}
+	}
+
+	/**
+	 * Using version DTLS 1.3 in CLIENT_HELLO triggers first a
+	 * HELLO_VERIFY_REQUEST and then an SERVER_HELLO, both with version DTLS 1.2.
+	 */
+	@Test
+	public void testConnectorSendsHelloVerifyRequestAlsoForHigherVersion() throws Exception {
+
+		RecordCollectorDataHandler handler = new RecordCollectorDataHandler();
+		handler.applySession(null);
+		UdpConnector rawClient = new UdpConnector(12000, handler);
+		ProtocolVersion version = ProtocolVersion.valueOf("1.3");
+		try {
+			rawClient.start();
+
+			// send a CLIENT_HELLO without cookie
+			ClientHello clientHello = createClientHello(version);
+
+			rawClient.sendRecord(serverHelper.serverEndpoint, DtlsTestTools
+					.newDTLSRecord(ContentType.HANDSHAKE.getCode(), version, 0, 0, clientHello.toByteArray()));
+
+			List<Record> flight = handler.assertFlight(1, MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			Record record = flight.get(0);
+
+			Assert.assertThat("Expected HANDSHAKE message from server", record.getType(), is(ContentType.HANDSHAKE));
+			HandshakeMessage handshake = (HandshakeMessage) record.getFragment();
+			Assert.assertThat("Expected HELLO_VERIFY_REQUEST from server", handshake.getMessageType(),
+					is(HandshakeType.HELLO_VERIFY_REQUEST));
+			Assert.assertThat("Expected protocol version from server", record.getVersion(),
+					is(ProtocolVersion.VERSION_DTLS_1_2));
+
+			clientHello.setCookie(((HelloVerifyRequest) handshake).getCookie());
+			clientHello.setMessageSeq(clientHello.getMessageSeq() + 1);
+
+			rawClient.sendRecord(serverHelper.serverEndpoint, DtlsTestTools
+					.newDTLSRecord(ContentType.HANDSHAKE.getCode(), version, 0, 1, clientHello.toByteArray()));
+
+			flight = handler.assertFlight(1, MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			record = flight.get(0);
+			Assert.assertThat("Expected Handshake message from server", record.getType(), is(ContentType.HANDSHAKE));
+			Assert.assertThat("Expected protocol version from server", record.getVersion(),
+					is(ProtocolVersion.VERSION_DTLS_1_2));
+
 		} finally {
 			rawClient.stop();
 		}
@@ -998,11 +1137,15 @@ public class DTLSConnectorTest {
 	}
 
 	private ClientHello createClientHello(CipherSuite... cipherSuites) {
+		return createClientHello(ProtocolVersion.VERSION_DTLS_1_2, cipherSuites);
+	}
+
+	private ClientHello createClientHello(ProtocolVersion version, CipherSuite... cipherSuites) {
 		List<CipherSuite> list = clientConfig.getSupportedCipherSuites();
 		if (cipherSuites != null && cipherSuites.length > 0) {
 			list = Arrays.asList(cipherSuites);
 		}
-		ClientHello hello = new ClientHello(ProtocolVersion.VERSION_DTLS_1_2, list, clientConfig.getSupportedSignatureAlgorithms(),
+		ClientHello hello = new ClientHello(version, list, clientConfig.getSupportedSignatureAlgorithms(),
 				clientConfig.getIdentityCertificateTypes(), clientConfig.getTrustCertificateTypes(),
 				clientConfig.getSupportedGroups(), clientEndpoint);
 		hello.addCompressionMethod(CompressionMethod.NULL);
