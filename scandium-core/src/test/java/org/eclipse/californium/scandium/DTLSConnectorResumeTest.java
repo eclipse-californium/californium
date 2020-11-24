@@ -30,6 +30,7 @@ import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -63,20 +64,25 @@ import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.elements.util.TestScope;
 import org.eclipse.californium.elements.util.TestThreadFactory;
+import org.eclipse.californium.scandium.ConnectorHelper.AlertCatcher;
 import org.eclipse.californium.scandium.ConnectorHelper.BuilderSetup;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
+import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ClientSessionCache;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
+import org.eclipse.californium.scandium.dtls.ExtendedMasterSecretMode;
 import org.eclipse.californium.scandium.dtls.InMemoryClientSessionCache;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.SessionTicket;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.AsyncAdvancedPskStore;
@@ -980,6 +986,104 @@ public class DTLSConnectorResumeTest {
 			assertThat(time, is(not(connection.getEstablishedSession().getCreationTime())));
 		} finally {
 			serverWithoutSessionId.destroyServer();
+		}
+	}
+
+	@Test
+	public void testConnectorFailsWhenResumingWithoutExtendedMasterSecret() throws Exception {
+		client.destroy();
+
+		DtlsConnectorConfig.Builder builder = createClientConfigBuilder("client", null);
+		builder.setExtendedMasterSecretMode(ExtendedMasterSecretMode.NONE);
+		DtlsConnectorConfig clientConfig = builder.build();
+
+		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
+		client = new DTLSConnector(clientConfig, clientConnectionStore);
+		client.setExecutor(executor);
+		AlertCatcher clientAlertCatcher = new AlertCatcher();
+		client.setAlertHandler(clientAlertCatcher);
+
+		// Do a first handshake
+		RawData raw = RawData.outbound("Hello World".getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint, SERVERNAME, null), null, false);
+		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, raw, true);
+		SessionId sessionId = serverHelper.establishedServerSession.getSessionIdentifier();
+
+		// Force a resume session the next time we send data
+		client.forceResumeSessionFor(serverHelper.serverEndpoint);
+		Connection connection = clientConnectionStore.get(serverHelper.serverEndpoint);
+		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(sessionId));
+		client.start();
+
+		// Prepare message sending
+		final String msg = "Hello Again";
+		clientRawDataChannel.setLatchCount(1);
+
+		// send message
+		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint, SERVERNAME, null), null, false);
+		client.send(data);
+
+		AlertMessage alert = serverHelper.serverAlertCatcher.waitForAlert(4000, TimeUnit.MILLISECONDS);
+		assertThat("server side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER)));
+
+		alert = clientAlertCatcher.waitForAlert(4000, TimeUnit.MILLISECONDS);
+		assertThat("client side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER)));
+	}
+
+	@Test
+	public void testConnectorPerformsFullHandshakeWhenResumingWithExtendedMasterSecret() throws Exception {
+		client.destroy();
+
+		DtlsConnectorConfig.Builder clientBuilder = createClientConfigBuilder("client", null);
+		clientBuilder.setExtendedMasterSecretMode(ExtendedMasterSecretMode.ENABLED);
+		DtlsConnectorConfig clientConfig = clientBuilder.build();
+
+		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
+		client = new DTLSConnector(clientConfig, clientConnectionStore);
+		client.setExecutor(executor);
+
+		ConnectorHelper serverWithoutExtendedMasterSecret = new ConnectorHelper();
+		try {
+			DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
+					.setSniEnabled(true)
+					.setExtendedMasterSecretMode(ExtendedMasterSecretMode.NONE);
+			serverWithoutExtendedMasterSecret.startServer(builder);
+
+			clientInMemoryPskStore.addKnownPeer(serverWithoutExtendedMasterSecret.serverEndpoint, CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
+			clientInMemoryPskStore.addKnownPeer(serverWithoutExtendedMasterSecret.serverEndpoint, SERVERNAME, SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes());
+			clientInMemoryPskStore.addKnownPeer(serverWithoutExtendedMasterSecret.serverEndpoint, SERVERNAME_ALT, SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes());
+
+			// Do a first handshake
+			RawData raw = RawData.outbound("Hello World".getBytes(),
+					new AddressEndpointContext(serverWithoutExtendedMasterSecret.serverEndpoint, SERVERNAME, null), null, false);
+			LatchDecrementingRawDataChannel clientRawDataChannel = serverWithoutExtendedMasterSecret
+					.givenAnEstablishedSession(client, raw, true);
+			SessionId sessionId = serverWithoutExtendedMasterSecret.establishedServerSession.getSessionIdentifier();
+			assertThat("session id must not be empty", sessionId.isEmpty(), is(false));
+
+			// Force a resume session the next time we send data
+			client.forceResumeSessionFor(serverWithoutExtendedMasterSecret.serverEndpoint);
+			Connection connection = clientConnectionStore.get(serverWithoutExtendedMasterSecret.serverEndpoint);
+			assertFalse(connection.getEstablishedSession().getSessionIdentifier().isEmpty());
+			long time = connection.getEstablishedSession().getCreationTime();
+			client.start();
+
+			// Prepare message sending
+			final String msg = "Hello Again";
+			clientRawDataChannel.setLatchCount(1);
+
+			// send message
+			RawData data = RawData.outbound(msg.getBytes(),
+					new AddressEndpointContext(serverWithoutExtendedMasterSecret.serverEndpoint, SERVERNAME, null), null, false);
+			client.send(data);
+			assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+			// check session id was not equals
+			connection = clientConnectionStore.get(serverWithoutExtendedMasterSecret.serverEndpoint);
+			assertFalse(connection.getEstablishedSession().getSessionIdentifier().isEmpty());
+			assertThat(time, is(not(connection.getEstablishedSession().getCreationTime())));
+			assertThat(sessionId, is(not(connection.getEstablishedSession().getSessionIdentifier())));
+		} finally {
+			serverWithoutExtendedMasterSecret.destroyServer();
 		}
 	}
 

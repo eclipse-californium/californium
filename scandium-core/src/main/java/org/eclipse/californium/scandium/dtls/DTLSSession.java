@@ -78,13 +78,8 @@ import org.eclipse.californium.scandium.util.ServerNames;
  */
 public final class DTLSSession implements Destroyable {
 
-	private static final int MAX_FRAGMENT_LENGTH_DEFAULT = 16384; // 2^14 bytes
-																	// as
-																	// defined
-																	// by DTLS
-																	// 1.2 spec,
-																	// Section
-																	// 4.1
+	// 2^14 bytes as defined by DTLS 1.2 spec, Section 4.1
+	private static final int MAX_FRAGMENT_LENGTH_DEFAULT = 16384;
 
 	/**
 	 * An arbitrary byte sequence chosen by the server to identify this session.
@@ -126,6 +121,15 @@ public final class DTLSSession implements Destroyable {
 	private SignatureAndHashAlgorithm signatureAndHashAlgorithm;
 
 	private CompressionMethod compressionMethod = CompressionMethod.NULL;
+
+	/**
+	 * Use extended master secret.
+	 * 
+	 * See <a href="https://tools.ietf.org/html/rfc7627">RFC 7627</a>.
+	 * 
+	 * @since 3.0
+	 */
+	private boolean extendedMasterSecret;
 
 	/**
 	 * The 48-byte master secret shared by client and server to derive key
@@ -197,6 +201,7 @@ public final class DTLSSession implements Destroyable {
 		peerIdentity = ticket.getClientIdentity();
 		cipherSuite = ticket.getCipherSuite();
 		compressionMethod = ticket.getCompressionMethod();
+		extendedMasterSecret = ticket.useExtendedMasterSecret();
 		setServerNames(ticket.getServerNames());
 	}
 
@@ -213,6 +218,7 @@ public final class DTLSSession implements Destroyable {
 		peerIdentity = session.getPeerIdentity();
 		cipherSuite = session.getCipherSuite();
 		compressionMethod = session.getCompressionMethod();
+		extendedMasterSecret = session.useExtendedMasterSecret();
 		setServerNames(session.getServerNames());
 	}
 
@@ -404,7 +410,7 @@ public final class DTLSSession implements Destroyable {
 	 * 
 	 * @return the algorithm identifier
 	 */
-	CompressionMethod getCompressionMethod() {
+	public CompressionMethod getCompressionMethod() {
 		return compressionMethod;
 	}
 
@@ -453,6 +459,33 @@ public final class DTLSSession implements Destroyable {
 		} else {
 			return cipherSuite.getKeyExchange();
 		}
+	}
+
+	/**
+	 * Set use extended master secret.
+	 * 
+	 * See <a href="https://tools.ietf.org/html/rfc7627">RFC 7627</a>.
+	 * 
+	 * @param enable {@code true}, to enable the use of the extended master
+	 *            secret, {@code false}, if the master secret (RFC 5246) is
+	 *            used.
+	 * @since 3.0
+	 */
+	public void setExtendedMasterSecret(boolean enable) {
+		extendedMasterSecret = enable;
+	}
+
+	/**
+	 * Gets use extended master secret.
+	 * 
+	 * See <a href="https://tools.ietf.org/html/rfc7627">RFC 7627</a>.
+	 * 
+	 * @return {@code true}, to enable the use of the extended master secret,
+	 *         {@code false}, if the master secret (RFC 5246) is used.
+	 * @since 3.0
+	 */
+	public boolean useExtendedMasterSecret() {
+		return extendedMasterSecret;
 	}
 
 	/**
@@ -684,8 +717,8 @@ public final class DTLSSession implements Destroyable {
 		} else if (sessionIdentifier.isEmpty()) {
 			return null;
 		}
-		return new SessionTicket(ProtocolVersion.VERSION_DTLS_1_2, cipherSuite, compressionMethod, masterSecret,
-				getServerNames(), getPeerIdentity(), creationTime);
+		return new SessionTicket(ProtocolVersion.VERSION_DTLS_1_2, cipherSuite, compressionMethod, extendedMasterSecret,
+				masterSecret, getServerNames(), getPeerIdentity(), creationTime);
 	}
 
 	/**
@@ -721,6 +754,7 @@ public final class DTLSSession implements Destroyable {
 		writer.writeVarBytes(sessionIdentifier, Byte.SIZE);
 		writer.write(cipherSuite.getCode(), Short.SIZE);
 		writer.write(compressionMethod.getCode(), Byte.SIZE);
+		writer.write(extendedMasterSecret ? 1 : 0, Byte.SIZE);
 		SecretSerializationUtil.write(writer, masterSecret);
 		if (peerIdentity == null) {
 			writer.write(0, Byte.SIZE);
@@ -786,6 +820,7 @@ public final class DTLSSession implements Destroyable {
 		cipherSuite = CipherSuite.getTypeByCode(code);
 		code = reader.read(Byte.SIZE);
 		compressionMethod = CompressionMethod.getMethodByCode(code);
+		extendedMasterSecret = (reader.read(Byte.SIZE) == 1);
 		masterSecret = SecretSerializationUtil.readSecretKey(reader);
 		if (reader.readNextByte() == 1) {
 			try {

@@ -108,6 +108,7 @@ public class ServerHandshakerTest {
 				.setIdentity(privateKey, certificateChain, CertificateType.X_509)
 				.setAdvancedCertificateVerifier(verifier)
 				.setSupportedCipherSuites(SERVER_CIPHER_SUITE)
+				.setExtendedMasterSecretMode(ExtendedMasterSecretMode.ENABLED)
 				.build();
 		handshaker = newHandshaker(config, session);
 
@@ -230,6 +231,7 @@ public class ServerHandshakerTest {
 						CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
 				.setAdvancedPskStore(new AdvancedSinglePskStore("client", "secret".getBytes()))
 				.setAdvancedCertificateVerifier(verifier)
+				.setExtendedMasterSecretMode(ExtendedMasterSecretMode.ENABLED)
 				.build();
 		handshaker = newHandshaker(config, session);
 

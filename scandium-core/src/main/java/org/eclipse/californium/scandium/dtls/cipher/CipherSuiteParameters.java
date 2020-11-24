@@ -52,14 +52,14 @@ public class CipherSuiteParameters {
 	 * @param publicKey peer's public key. Maybe {@code null}.
 	 * @param certificateChain peer's certificate chain. Maybe {@code null}.
 	 * @param clientAuthenticationRequired {@code true}, if client
-	 *            authentication is required, {@code false} otherwise.
+	 *            authentication is required, {@code false}, otherwise.
 	 * @param clientAuthenticationWanted {@code true}, if client authentication
-	 *            is wanted, {@code false} otherwise.
+	 *            is wanted, {@code false}, otherwise.
 	 * @param cipherSuites list of common cipher suites
 	 * @param serverCertTypes list of common server certificate types.
 	 * @param clientCertTypes list of common client certificate types.
 	 * @param supportedGroups list of common supported groups (curves)
-	 * @param signatures list of common signtaures and algorithms.
+	 * @param signatures list of common signatures and algorithms.
 	 * @param format common ec point format. Only
 	 *            {@link ECPointFormat#UNCOMPRESSED} is supported.
 	 */

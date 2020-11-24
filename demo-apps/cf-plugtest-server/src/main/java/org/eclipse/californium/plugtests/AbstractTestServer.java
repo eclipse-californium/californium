@@ -467,7 +467,7 @@ public abstract class AbstractTestServer extends CoapServer {
 
 		@Override
 		public PskSecretResult requestPskSecretResult(ConnectionId cid, ServerNames serverName,
-				PskPublicInformation identity, String hmacAlgorithm, SecretKey otherSecret, byte[] seed) {
+				PskPublicInformation identity, String hmacAlgorithm, SecretKey otherSecret, byte[] seed, boolean useExtendedMasterSecret) {
 			SecretKey key = getKey(identity.getPublicInfoAsString());
 			return new PskSecretResult(cid, identity, key);
 		}

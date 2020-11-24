@@ -155,7 +155,7 @@ public class AsyncAdvancedPskStore implements AdvancedPskStore {
 
 	@Override
 	public PskSecretResult requestPskSecretResult(final ConnectionId cid, final ServerNames serverNames,
-			final PskPublicInformation identity, final String hmacAlgorithm, SecretKey otherSecret, byte[] seed) {
+			final PskPublicInformation identity, final String hmacAlgorithm, SecretKey otherSecret, byte[] seed, final boolean useExtendedMasterSecret) {
 		if (delayMillis <= 0) {
 			if (delayMillis < 0) {
 				try {
@@ -163,7 +163,7 @@ public class AsyncAdvancedPskStore implements AdvancedPskStore {
 				} catch (InterruptedException e) {
 				}
 			}
-			return getPskSecretResult(cid, serverNames, identity, hmacAlgorithm, otherSecret, seed);
+			return getPskSecretResult(cid, serverNames, identity, hmacAlgorithm, otherSecret, seed, useExtendedMasterSecret);
 		} else {
 			final byte[] randomSeed = Arrays.copyOf(seed, seed.length);
 			final SecretKey other = SecretUtil.create(otherSecret);
@@ -171,7 +171,7 @@ public class AsyncAdvancedPskStore implements AdvancedPskStore {
 
 				@Override
 				public void run() {
-					getSecretAsynchronous(cid, serverNames, identity, hmacAlgorithm, other, randomSeed);
+					getSecretAsynchronous(cid, serverNames, identity, hmacAlgorithm, other, randomSeed, useExtendedMasterSecret);
 				}
 			}, delayMillis, TimeUnit.MILLISECONDS);
 			return null;
@@ -189,10 +189,11 @@ public class AsyncAdvancedPskStore implements AdvancedPskStore {
 	 * @param otherSecret other secret from ECDHE, or {@code null}. Must be
 	 *            cloned for asynchronous use.
 	 * @param seed seed for PRF.
+	 * @param useExtendedMasterSecret  {@code true}, if the extended master secret (RFC 7627) is to be used, {@code false}, if the master secret (RFC 5246) is to be used.
 	 */
 	private void getSecretAsynchronous(ConnectionId cid, ServerNames serverNames, PskPublicInformation identity,
-			String hmacAlgorithm, SecretKey otherSecret, byte[] seed) {
-		PskSecretResult result = getPskSecretResult(cid, serverNames, identity, hmacAlgorithm, otherSecret, seed);
+			String hmacAlgorithm, SecretKey otherSecret, byte[] seed, boolean useExtendedMasterSecret) {
+		PskSecretResult result = getPskSecretResult(cid, serverNames, identity, hmacAlgorithm, otherSecret, seed, useExtendedMasterSecret);
 		resultHandler.apply(result);
 	}
 
@@ -210,15 +211,16 @@ public class AsyncAdvancedPskStore implements AdvancedPskStore {
 	 * @param hmacAlgorithm HMAC algorithm name for PRF.
 	 * @param otherSecret other secret from ECDHE, or {@code null}.
 	 * @param seed seed for PRF.
+	 * @param useExtendedMasterSecret  {@code true}, if the extended master secret (RFC 7627) is to be used, {@code false}, if the master secret (RFC 5246) is to be used.
 	 * @return psk secret result
 	 */
 	private PskSecretResult getPskSecretResult(ConnectionId cid, ServerNames serverNames, PskPublicInformation identity,
-			String hmacAlgorithm, SecretKey otherSecret, byte[] seed) {
+			String hmacAlgorithm, SecretKey otherSecret, byte[] seed, boolean useExtendedMasterSecret) {
 		PskSecretResult result = pskStore.requestPskSecretResult(cid, serverNames, identity, hmacAlgorithm, otherSecret,
-				seed);
+				seed, useExtendedMasterSecret);
 		if (generateMasterSecret && result.getSecret() != null
 				&& PskSecretResult.ALGORITHM_PSK.equals(result.getSecret().getAlgorithm())) {
-			SecretKey masterSecret = generateMasterSecret(hmacAlgorithm, result.getSecret(), otherSecret, seed);
+			SecretKey masterSecret = generateMasterSecret(hmacAlgorithm, result.getSecret(), otherSecret, seed, useExtendedMasterSecret);
 			SecretUtil.destroy(result.getSecret());
 			return new PskSecretResult(cid, result.getPskPublicInformation(), masterSecret);
 		}
@@ -226,10 +228,10 @@ public class AsyncAdvancedPskStore implements AdvancedPskStore {
 	}
 
 	protected SecretKey generateMasterSecret(String hmacAlgorithm, SecretKey pskSecret, SecretKey otherSecret,
-			byte[] seed) {
+			byte[] seed, boolean useExtendedMasterSecret) {
 		ThreadLocalMac hmac = MAC.get(hmacAlgorithm);
 		SecretKey premasterSecret = PseudoRandomFunction.generatePremasterSecretFromPSK(otherSecret, pskSecret);
-		SecretKey masterSecret = PseudoRandomFunction.generateMasterSecret(hmac.current(), premasterSecret, seed);
+		SecretKey masterSecret = PseudoRandomFunction.generateMasterSecret(hmac.current(), premasterSecret, seed, useExtendedMasterSecret);
 		SecretUtil.destroy(premasterSecret);
 		return masterSecret;
 	}

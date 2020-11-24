@@ -39,16 +39,22 @@ import org.eclipse.californium.scandium.util.SecretSerializationUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
- * A container for a session's crypto parameters that are required for resuming the
- * session by means of an abbreviated handshake.
+ * A container for a session's crypto parameters that are required for resuming
+ * the session by means of an abbreviated handshake.
  */
 public final class SessionTicket implements Destroyable {
+
+	/**
+	 * Version number for serialization.
+	 */
+	private static final int VERSION = 2;
 
 	private final int hashCode;
 	private final ProtocolVersion protocolVersion;
 	private final SecretKey masterSecret;
 	private final CipherSuite cipherSuite;
 	private final CompressionMethod compressionMethod;
+	private final boolean extendedMasterSecret;
 	private final ServerNames serverNames;
 	private final Principal clientIdentity;
 	private final long timestampMillis;
@@ -59,6 +65,8 @@ public final class SessionTicket implements Destroyable {
 	 * @param protocolVersion protocol version. Must not be {@code null}.
 	 * @param cipherSuite cipher suite. Must not be {@code null}.
 	 * @param compressionMethod compression mode. Must not be {@code null}.
+	 * @param extendedMasterSecret {@code true}, if the extended master secret
+	 *            is used, {@code false}, otherwise.
 	 * @param masterSecret master secret. Must not be {@code null}.
 	 * @param serverNames server names. May be {@code null}, if no server name
 	 *            is provided, or SNI is not used.
@@ -68,15 +76,11 @@ public final class SessionTicket implements Destroyable {
 	 *            since 1970.1.1 0:00 (@link System#currentTimeMillis()}.
 	 * @throws NullPointerException if one of the mandatory parameter is
 	 *             {@code null}
+	 * @since 3.0 (added parameter extendedMasterSecret)
 	 */
-	SessionTicket(
-			final ProtocolVersion protocolVersion,
-			final CipherSuite cipherSuite,
-			final CompressionMethod compressionMethod,
-			final SecretKey masterSecret,
-			final ServerNames serverNames,
-			final Principal clientIdentity,
-			final long timestampMillis) {
+	SessionTicket(ProtocolVersion protocolVersion, CipherSuite cipherSuite, CompressionMethod compressionMethod,
+			boolean extendedMasterSecret, SecretKey masterSecret, ServerNames serverNames, Principal clientIdentity,
+			long timestampMillis) {
 
 		if (protocolVersion == null) {
 			throw new NullPointerException("Protcol version must not be null");
@@ -88,6 +92,7 @@ public final class SessionTicket implements Destroyable {
 			throw new NullPointerException("Master secret must not be null");
 		} else {
 			this.protocolVersion = protocolVersion;
+			this.extendedMasterSecret = extendedMasterSecret;
 			this.masterSecret = SecretUtil.create(masterSecret);
 			this.cipherSuite = cipherSuite;
 			this.compressionMethod = compressionMethod;
@@ -102,14 +107,16 @@ public final class SessionTicket implements Destroyable {
 
 	/**
 	 * Serializes this session into a plain text <em>session ticket</em>
-	 * following the structure defined in
+	 * similar to the structure defined in
 	 * <a href="https://tools.ietf.org/html/rfc5077">RFC 5077</a>.
 	 * 
 	 * <pre>
 	 * struct {
+	 *   uint8 VERSION;
 	 *   ProtocolVersion protocol_version;
 	 *   CipherSuite cipher_suite;
 	 *   CompressionMethod compression_method;
+	 *   uint8 extendedMasterSecret;
 	 *   opaque master_secret[48];
 	 *   ClientIdentity client_identity;
 	 *   uint32 timestamp;
@@ -131,15 +138,18 @@ public final class SessionTicket implements Destroyable {
 	 * @param writer The writer to serialize to.
 	 */
 	public void encode(final DatagramWriter writer) {
-
-		writer.write(protocolVersion.getMajor(), 8);
-		writer.write(protocolVersion.getMinor(), 8);
+		writer.write(VERSION, Byte.SIZE);
+		writer.write(protocolVersion.getMajor(), Byte.SIZE);
+		writer.write(protocolVersion.getMinor(), Byte.SIZE);
 
 		// cipher_suite
 		writer.write(cipherSuite.getCode(), CipherSuite.CIPHER_SUITE_BITS);
 
 		// compression_method
 		writer.write(compressionMethod.getCode(), CompressionMethod.COMPRESSION_METHOD_BITS);
+
+		// extended master secret
+		writer.write(extendedMasterSecret ? 1 : 0, Byte.SIZE);
 
 		// master_secret
 		SecretSerializationUtil.write(writer, masterSecret);
@@ -157,18 +167,23 @@ public final class SessionTicket implements Destroyable {
 	}
 
 	/**
-	 * Creates a session from a byte array containing the binary encoding of a plain text <em>session ticket</em>
-	 * that has been created by {@link #encode(DatagramWriter)}.
+	 * Creates a session from a byte array containing the binary encoding of a
+	 * plain text <em>session ticket</em> that has been created by
+	 * {@link #encode(DatagramWriter)}.
 	 * <p>
-	 * This method is useful for e.g. sharing the write state with other nodes by means
-	 * of a cache server or database so that a client can resume a session on another
-	 * node if this node fails.
+	 * This method is useful for e.g. sharing the write state with other nodes
+	 * by means of a cache server or database so that a client can resume a
+	 * session on another node if this node fails.
 	 * 
 	 * @param source The encoded session ticket.
-	 * @return The session object created from the ticket. Note that the session contains <em>pending</em>
-	 *         state information only and thus requires an abbreviated handshake to take place in order to
-	 *         create <em>current</em> read and write state. Returns {@code null} if the  session ticket is
-	 *         not encoded according to the structure defined by {@link #encode(DatagramWriter)}.
+	 * @return The session object created from the ticket. Note that the session
+	 *         contains <em>pending</em> state information only and thus
+	 *         requires an abbreviated handshake to take place in order to
+	 *         create <em>current</em> read and write state. Returns
+	 *         {@code null} if the session ticket is not encoded according to
+	 *         the structure defined by {@link #encode(DatagramWriter)}.
+	 * @throws NullPointerException if source is {@code null}
+	 * @throws IllegalArgumentException if read data version doesn't match
 	 */
 	public static SessionTicket decode(final DatagramReader source) {
 
@@ -176,9 +191,14 @@ public final class SessionTicket implements Destroyable {
 			throw new NullPointerException("reader must not be null");
 		}
 
+		int version = source.read(Byte.SIZE);
+		if (version != VERSION) {
+			throw new IllegalArgumentException("Version mismatch! " + VERSION + " is required, not " + version);
+		}
+
 		// protocol_version
-		int major = source.read(8);
-		int minor = source.read(8);
+		int major = source.read(Byte.SIZE);
+		int minor = source.read(Byte.SIZE);
 		ProtocolVersion ver = ProtocolVersion.valueOf(major, minor);
 
 		// cipher_suite
@@ -188,10 +208,13 @@ public final class SessionTicket implements Destroyable {
 		}
 
 		// compression_method
-		CompressionMethod compressionMethod = CompressionMethod.getMethodByCode(source.read(CompressionMethod.COMPRESSION_METHOD_BITS));
+		CompressionMethod compressionMethod = CompressionMethod
+				.getMethodByCode(source.read(CompressionMethod.COMPRESSION_METHOD_BITS));
 		if (compressionMethod == null) {
 			return null;
 		}
+
+		boolean extendedMasterSecret = (source.read(Byte.SIZE) == 1);
 
 		// master_secret
 		SecretKey masterSecret = SecretSerializationUtil.readSecretKey(source);
@@ -218,7 +241,8 @@ public final class SessionTicket implements Destroyable {
 		}
 
 		// assemble session
-		SessionTicket ticket = new SessionTicket(ver, cipherSuite, compressionMethod, masterSecret, serverNames, identity, timestampMillis);
+		SessionTicket ticket = new SessionTicket(ver, cipherSuite, compressionMethod, extendedMasterSecret,
+				masterSecret, serverNames, identity, timestampMillis);
 		SecretUtil.destroy(masterSecret);
 		return ticket;
 	}
@@ -287,7 +311,6 @@ public final class SessionTicket implements Destroyable {
 		return protocolVersion;
 	}
 
-	
 	/**
 	 * Gets the master secret.
 	 * 
@@ -297,7 +320,6 @@ public final class SessionTicket implements Destroyable {
 		return masterSecret;
 	}
 
-	
 	/**
 	 * Gets the cipher suite.
 	 * 
@@ -314,6 +336,16 @@ public final class SessionTicket implements Destroyable {
 	 */
 	public final CompressionMethod getCompressionMethod() {
 		return compressionMethod;
+	}
+
+	/**
+	 * Gets the extended master secret usage.
+	 * 
+	 * @return the extended master secret usage.
+	 * @since 3.0
+	 */
+	public final boolean useExtendedMasterSecret() {
+		return extendedMasterSecret;
 	}
 
 	/**

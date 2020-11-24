@@ -201,6 +201,7 @@ import org.eclipse.californium.scandium.dtls.DTLSContext;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.DtlsException;
 import org.eclipse.californium.scandium.dtls.DtlsHandshakeException;
+import org.eclipse.californium.scandium.dtls.ExtendedMasterSecretMode;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.HandshakeMessage;
 import org.eclipse.californium.scandium.dtls.Handshaker;
@@ -2165,8 +2166,8 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 				session = previousConnection.getResumeSession();
 				destroy = true;
 			}
-			boolean ok = true;
-			if (session != null && config.isSniEnabled()) {
+			boolean ok = session != null;
+			if (ok && config.isSniEnabled()) {
 				ServerNames serverNames1 = session.getServerNames();
 				ServerNames serverNames2 = null;
 				ServerNameExtension extension = clientHello.getServerNameExtension();
@@ -2179,6 +2180,19 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 					// invalidate ticket, server names mismatch
 					ok = false;
 				}
+			}
+			if (ok && config.getExtendedMasterSecretMode() != ExtendedMasterSecretMode.NONE) {
+				// https://tools.ietf.org/html/rfc7627#section-5.3
+				if (!session.useExtendedMasterSecret() && clientHello.getExtendedMasterSecret() != null) {
+					// If the original session did not use the
+					// "extended_master_secret" extension but the new
+					// ClientHello contains the extension, then the
+					// server MUST NOT perform the abbreviated handshake.
+					// Instead, it SHOULD continue with a full handshake (as
+					// described in Section 5.2) to negotiate a new session.
+					ok = false;
+				}
+				// aborting handshakes is done in ResumingServerHandshaker
 			}
 			if (ok) {
 				newSession = new DTLSSession(session);
@@ -2671,6 +2685,15 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 						destroy = true;
 					}
 					full = resume.getSessionIdentifier().isEmpty();
+					if (!full && config.getExtendedMasterSecretMode().ordinal()
+							>= ExtendedMasterSecretMode.ENABLED.ordinal()) {
+						// https://tools.ietf.org/html/rfc7627#section-5.3
+						// The client SHOULD NOT offer an abbreviated handshake
+						// to resume a session that does not use an extended
+						// master secret. Instead, it SHOULD offer a full
+						// handshake.
+						full = !resume.useExtendedMasterSecret();
+					}
 					if (!full) {
 						newSession = new DTLSSession(resume);
 						newSession.setHostName(hostname);

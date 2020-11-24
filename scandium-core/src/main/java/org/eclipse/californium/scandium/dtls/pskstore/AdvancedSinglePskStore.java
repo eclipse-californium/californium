@@ -94,7 +94,7 @@ public class AdvancedSinglePskStore implements AdvancedPskStore, Destroyable {
 
 	@Override
 	public PskSecretResult requestPskSecretResult(ConnectionId cid, ServerNames serverName,
-			PskPublicInformation identity, String hmacAlgorithm, SecretKey otherSecret, byte[] seed) {
+			PskPublicInformation identity, String hmacAlgorithm, SecretKey otherSecret, byte[] seed, boolean useExtendedMasterSecret) {
 		SecretKey secret = null;
 		if (this.identity.equals(identity)) {
 			secret = SecretUtil.create(this.secret);

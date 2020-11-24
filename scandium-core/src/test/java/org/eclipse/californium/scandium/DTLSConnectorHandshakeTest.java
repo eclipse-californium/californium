@@ -82,6 +82,7 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
+import org.eclipse.californium.scandium.dtls.ExtendedMasterSecretMode;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
@@ -915,6 +916,134 @@ public class DTLSConnectorHandshakeTest {
 		assertThat(principal.getName(), is(CLIENT_IDENTITY));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
 		assertClientPrincipalHasAdditionalInfo(principal);
+	}
+
+	@Test
+	public void testPskHandshakeWithRequiredExtendedMasterSecret() throws Exception {
+		DtlsConnectorConfig.Builder serverBuilder = DtlsConnectorConfig.builder()
+				.setExtendedMasterSecretMode(ExtendedMasterSecretMode.REQUIRED)
+				.setApplicationLevelInfoSupplier(clientInfoSupplier);
+		startServer(serverBuilder);
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
+				.setExtendedMasterSecretMode(ExtendedMasterSecretMode.REQUIRED)
+				.setAdvancedPskStore(PSK_STORE);
+		startClient(false, null, builder);
+		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
+		Principal principal = endpointContext.getPeerIdentity();
+		assertThat(principal, is(notNullValue()));
+		assertThat(principal.getName(), is(CLIENT_IDENTITY));
+		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertClientPrincipalHasAdditionalInfo(principal);
+	}
+
+	@Test
+	public void testPskHandshakeWithoutExtendedMasterSecret() throws Exception {
+		DtlsConnectorConfig.Builder serverBuilder = DtlsConnectorConfig.builder()
+				.setExtendedMasterSecretMode(ExtendedMasterSecretMode.NONE)
+				.setApplicationLevelInfoSupplier(clientInfoSupplier);
+		startServer(serverBuilder);
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
+				.setExtendedMasterSecretMode(ExtendedMasterSecretMode.NONE)
+				.setAdvancedPskStore(PSK_STORE);
+		startClient(false, null, builder);
+		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
+		Principal principal = endpointContext.getPeerIdentity();
+		assertThat(principal, is(notNullValue()));
+		assertThat(principal.getName(), is(CLIENT_IDENTITY));
+		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertClientPrincipalHasAdditionalInfo(principal);
+	}
+
+	@Test
+	public void testPskHandshakeWithoutExtendedMasterSecretByClient() throws Exception {
+		DtlsConnectorConfig.Builder serverBuilder = DtlsConnectorConfig.builder()
+				.setExtendedMasterSecretMode(ExtendedMasterSecretMode.ENABLED)
+				.setApplicationLevelInfoSupplier(clientInfoSupplier);
+		startServer(serverBuilder);
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
+				.setExtendedMasterSecretMode(ExtendedMasterSecretMode.NONE)
+				.setAdvancedPskStore(PSK_STORE);
+		startClient(false, null, builder);
+		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
+		Principal principal = endpointContext.getPeerIdentity();
+		assertThat(principal, is(notNullValue()));
+		assertThat(principal.getName(), is(CLIENT_IDENTITY));
+		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertClientPrincipalHasAdditionalInfo(principal);
+	}
+
+	@Test
+	public void testPskHandshakeWithoutExtendedMasterSecretByServer() throws Exception {
+		DtlsConnectorConfig.Builder serverBuilder = DtlsConnectorConfig.builder()
+				.setExtendedMasterSecretMode(ExtendedMasterSecretMode.NONE)
+				.setApplicationLevelInfoSupplier(clientInfoSupplier);
+		startServer(serverBuilder);
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
+				.setExtendedMasterSecretMode(ExtendedMasterSecretMode.ENABLED)
+				.setAdvancedPskStore(PSK_STORE);
+		startClient(false, null, builder);
+		EndpointContext endpointContext = serverHelper.serverRawDataProcessor.getClientEndpointContext();
+		Principal principal = endpointContext.getPeerIdentity();
+		assertThat(principal, is(notNullValue()));
+		assertThat(principal.getName(), is(CLIENT_IDENTITY));
+		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
+		assertClientPrincipalHasAdditionalInfo(principal);
+	}
+
+	@Test
+	public void testPskHandshakeWithoutExtendedMasterSecretByClientRequiredByServer() throws Exception {
+		DtlsConnectorConfig.Builder serverBuilder = DtlsConnectorConfig.builder()
+				.setExtendedMasterSecretMode(ExtendedMasterSecretMode.REQUIRED)
+				.setApplicationLevelInfoSupplier(clientInfoSupplier);
+		startServer(serverBuilder);
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
+				.setExtendedMasterSecretMode(ExtendedMasterSecretMode.NONE)
+				.setAdvancedPskStore(PSK_STORE);
+		startClientFailing(builder, new AddressEndpointContext(serverHelper.serverEndpoint));
+
+		LatchSessionListener listener = serverHelper.sessionListenerMap.get(client.getAddress());
+		assertThat("server side session listener missing", listener, is(notNullValue()));
+		Throwable cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
+		assertThat("server side handshake failure missing", cause, is(notNullValue()));
+
+		AlertMessage alert = serverHelper.serverAlertCatcher.getAlert();
+		assertThat("server side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE)));
+
+		listener = serverHelper.sessionListenerMap.get(serverHelper.serverEndpoint);
+		assertThat("client side session listener missing", listener, is(notNullValue()));
+		cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
+		assertThat("client side handshake failure missing", cause, is(notNullValue()));
+
+		alert = clientAlertCatcher.getAlert();
+		assertThat("client side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE)));
+	}
+
+	@Test
+	public void testPskHandshakeWithoutExtendedMasterSecretByServerRequiredByClient() throws Exception {
+		DtlsConnectorConfig.Builder serverBuilder = DtlsConnectorConfig.builder()
+				.setExtendedMasterSecretMode(ExtendedMasterSecretMode.NONE)
+				.setApplicationLevelInfoSupplier(clientInfoSupplier);
+		startServer(serverBuilder);
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
+				.setExtendedMasterSecretMode(ExtendedMasterSecretMode.REQUIRED)
+				.setAdvancedPskStore(PSK_STORE);
+		startClientFailing(builder, new AddressEndpointContext(serverHelper.serverEndpoint));
+
+		LatchSessionListener listener = serverHelper.sessionListenerMap.get(client.getAddress());
+		assertThat("server side session listener missing", listener, is(notNullValue()));
+		Throwable cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
+		assertThat("server side handshake failure missing", cause, is(notNullValue()));
+
+		AlertMessage alert = serverHelper.serverAlertCatcher.getAlert();
+		assertThat("server side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE)));
+
+		listener = serverHelper.sessionListenerMap.get(serverHelper.serverEndpoint);
+		assertThat("client side session listener missing", listener, is(notNullValue()));
+		cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
+		assertThat("client side handshake failure missing", cause, is(notNullValue()));
+
+		alert = clientAlertCatcher.getAlert();
+		assertThat("client side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE)));
 	}
 
 	@Test

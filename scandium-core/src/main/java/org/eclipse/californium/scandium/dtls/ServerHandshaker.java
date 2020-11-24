@@ -624,10 +624,12 @@ public class ServerHandshaker extends Handshaker {
 	 */
 	private SecretKey receivedClientKeyExchange(ECDHClientKeyExchange message) throws HandshakeException {
 		try {
+			DTLSSession session = getSession();
 			SecretKey premasterSecret = ecdhe.generateSecret(message.getEncodedPoint());
+			byte[] seed = generateMasterSecretSeed();
 			SecretKey masterSecret = PseudoRandomFunction.generateMasterSecret(
-					getSession().getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), premasterSecret,
-					generateRandomSeed());
+					session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), premasterSecret,
+					seed, session.useExtendedMasterSecret());
 			SecretUtil.destroy(premasterSecret);
 			return masterSecret;
 		} catch (GeneralSecurityException ex) {
@@ -647,7 +649,8 @@ public class ServerHandshaker extends Handshaker {
 	private PskSecretResult receivedClientKeyExchange(PSKClientKeyExchange message) {
 		// use the client's PSK identity to look up the pre-shared key
 		preSharedKeyIdentity = message.getIdentity();
-		return requestPskSecretResult(preSharedKeyIdentity, null);
+		byte[] seed = generateMasterSecretSeed();
+		return requestPskSecretResult(preSharedKeyIdentity, null, seed);
 	}
 
 	private PskSecretResult receivedClientKeyExchange(EcdhPskClientKeyExchange message) throws HandshakeException {
@@ -655,7 +658,8 @@ public class ServerHandshaker extends Handshaker {
 			// use the client's PSK identity to look up the pre-shared key
 			preSharedKeyIdentity = message.getIdentity();
 			SecretKey otherSecret = ecdhe.generateSecret(message.getEncodedPoint());
-			PskSecretResult masterSecretRequest = requestPskSecretResult(preSharedKeyIdentity, otherSecret);
+			byte[] seed = generateMasterSecretSeed();
+			PskSecretResult masterSecretRequest = requestPskSecretResult(preSharedKeyIdentity, otherSecret, seed);
 			SecretUtil.destroy(otherSecret);
 			return masterSecretRequest;
 		} catch (GeneralSecurityException ex) {
@@ -664,7 +668,8 @@ public class ServerHandshaker extends Handshaker {
 		}
 	}
 
-	protected void processHelloExtensions(final ClientHello clientHello, final HelloExtensions serverHelloExtensions) {
+	protected void processHelloExtensions(final ClientHello clientHello, final HelloExtensions serverHelloExtensions)
+			throws HandshakeException {
 
 		DTLSSession session = getSession();
 		RecordSizeLimitExtension recordSizeLimitExt = clientHello.getRecordSizeLimitExtension();
@@ -688,19 +693,17 @@ public class ServerHandshaker extends Handshaker {
 		ServerNameExtension serverNameExt = clientHello.getServerNameExtension();
 		if (serverNameExt != null) {
 			if (sniEnabled) {
-				// store the names indicated by peer for later reference during key exchange
+				// store the names indicated by peer for later reference during
+				// key exchange
 				session.setServerNames(serverNameExt.getServerNames());
 				// RFC6066, section 3 requires the server to respond with
 				// an empty SNI extension if it might make use of the value(s)
 				// provided by the client
 				serverHelloExtensions.addExtension(ServerNameExtension.emptyServerNameIndication());
 				session.setSniSupported(true);
-				LOGGER.debug(
-						"using server name indication received from peer [{}]",
-						peerToLog);
+				LOGGER.debug("using server name indication received from peer [{}]", peerToLog);
 			} else {
-				LOGGER.debug("client [{}] included SNI in HELLO but SNI support is disabled",
-						peerToLog);
+				LOGGER.debug("client [{}] included SNI in HELLO but SNI support is disabled", peerToLog);
 			}
 		}
 
@@ -713,6 +716,16 @@ public class ServerHandshaker extends Handshaker {
 				ConnectionIdExtension extension = ConnectionIdExtension.fromConnectionId(connectionId);
 				serverHelloExtensions.addExtension(extension);
 			}
+		}
+
+		if (clientHello.getExtendedMasterSecret() != null) {
+			if (extendedMasterSecretMode != ExtendedMasterSecretMode.NONE) {
+				session.setExtendedMasterSecret(true);
+				serverHelloExtensions.addExtension(ExtendedMasterSecretExtension.INSTANCE);
+			}
+		} else if (extendedMasterSecretMode == ExtendedMasterSecretMode.REQUIRED) {
+			throw new HandshakeException("Extended Master Secret required!",
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
 		}
 	}
 
