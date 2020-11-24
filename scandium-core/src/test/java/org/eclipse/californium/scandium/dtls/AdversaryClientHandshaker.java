@@ -59,13 +59,8 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 
 	@Override
 	protected void processMasterSecret(SecretKey masterSecret) throws HandshakeException {
-		DTLSFlight flight = createFlight();
 
 		applyMasterSecret(masterSecret);
-
-		createCertificateMessage(flight);
-
-		wrapMessage(flight, clientKeyExchange);
 
 		/*
 		 * Third, send CertificateVerify message if necessary.
@@ -84,7 +79,7 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 
 			CertificateVerify certificateVerify = new CertificateVerify(negotiatedSignatureAndHashAlgorithm, privateKey, handshakeMessages);
 
-			wrapMessage(flight, certificateVerify);
+			wrapMessage(flight5, certificateVerify);
 		}
 
 		/*
@@ -112,13 +107,13 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 		}
 
 		Finished finished = new Finished(getSession().getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, isClient(), md.digest());
-		wrapMessage(flight, finished);
+		wrapMessage(flight5, finished);
 
 		// compute handshake hash with client's finished message also
 		// included, used for server's finished message
 		mdWithClientFinished.update(finished.toByteArray());
 		handshakeHash = mdWithClientFinished.digest();
-		sendFlight(flight);
+		sendFlight(flight5);
 		expectChangeCipherSpecMessage();
 	}
 

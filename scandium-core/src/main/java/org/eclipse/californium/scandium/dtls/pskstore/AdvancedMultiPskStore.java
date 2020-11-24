@@ -66,7 +66,7 @@ public class AdvancedMultiPskStore implements AdvancedPskStore, Destroyable {
 
 	@Override
 	public PskSecretResult requestPskSecretResult(ConnectionId cid, ServerNames serverNames,
-			PskPublicInformation identity, String hmacAlgorithm, SecretKey otherSecret, byte[] seed) {
+			PskPublicInformation identity, String hmacAlgorithm, SecretKey otherSecret, byte[] seed, boolean useExtendedMasterSecret) {
 
 		PskCredentials credentials = null;
 

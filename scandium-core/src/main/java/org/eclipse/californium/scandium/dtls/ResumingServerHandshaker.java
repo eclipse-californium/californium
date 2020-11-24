@@ -139,6 +139,40 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 					new AlertMessage(
 							AlertLevel.FATAL,
 							AlertDescription.ILLEGAL_PARAMETER));
+		} else if (extendedMasterSecretMode.ordinal() >= ExtendedMasterSecretMode.ENABLED.ordinal()
+				&& clientHello.getExtendedMasterSecret() == null) {
+			// https://tools.ietf.org/html/rfc7627#section-5.3
+			//
+			// If the original session used the
+			// "extended_master_secret" extension but the new
+			// ClientHello does not contain it, the server
+			// MUST abort the abbreviated handshake
+			//
+			// If neither the original session nor the new
+			// ClientHello uses the extension, the server SHOULD
+			// abort the handshake. If it continues with an
+			// abbreviated handshake in order to support legacy
+			// insecure resumption, the connection is no longer
+			// protected by the mechanisms in this document, and the
+			// server should follow the guidelines in Section 5.4.
+			throw new HandshakeException(
+					"Client wants to resume without extended master secret",
+					new AlertMessage(
+							AlertLevel.FATAL,
+							AlertDescription.ILLEGAL_PARAMETER));
+		} else if (extendedMasterSecretMode == ExtendedMasterSecretMode.OPTIONAL
+				&& session.useExtendedMasterSecret() && clientHello.getExtendedMasterSecret() == null) {
+			// https://tools.ietf.org/html/rfc7627#section-5.3
+			//
+			// If the original session used the
+			// "extended_master_secret" extension but the new
+			// ClientHello does not contain it, the server
+			// MUST abort the abbreviated handshake
+			throw new HandshakeException(
+					"Client wants to resume without extended master secret",
+					new AlertMessage(
+							AlertLevel.FATAL,
+							AlertDescription.ILLEGAL_PARAMETER));
 		} else {
 			clientRandom = clientHello.getRandom();
 			serverRandom = new Random();

@@ -199,14 +199,14 @@ public class DTLSConnectorAdvancedTest {
 			@Override
 			public PskSecretResult requestPskSecretResult(final ConnectionId cid, final ServerNames serverNames,
 					final PskPublicInformation identity, final String hmacAlgorithm, SecretKey otherSecret,
-					byte[] seed) {
+					byte[] seed, boolean useExtendedMasterSecret) {
 				final int delay = getDelay();
 				try {
 					LOGGER.info("get PSK secrets");
 					PskSecretResult result = null;
 					for (int index = 0; index < aHandshakeResponses; ++index) {
 						PskSecretResult temp = super.requestPskSecretResult(cid, serverNames, identity, hmacAlgorithm,
-								otherSecret, seed);
+								otherSecret, seed, useExtendedMasterSecret);
 						if (index == 0) {
 							result = temp;
 						}

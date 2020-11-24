@@ -600,4 +600,20 @@ public final class ClientHello extends HandshakeMessage {
 			return null;
 		}
 	}
+
+	/**
+	 * Gets the <em>ExtendedMasterSecret</em> extension data from this message.
+	 * 
+	 * @return the extension data or {@code null}, if this message does not contain the
+	 *          <em>ExtendedMasterSecret</em> extension.
+	 * @since 3.0
+	 */
+	public ExtendedMasterSecretExtension getExtendedMasterSecret() {
+		if (extensions != null) {
+			return (ExtendedMasterSecretExtension) extensions.getExtension(ExtensionType.EXTENDED_MASTER_SECRET);
+		} else {
+			return null;
+		}
+	}
+
 }

@@ -27,7 +27,8 @@ Since 3.0 the sub-class may be ignored, depending on the provided value of the `
 
 ### Scandium:
 
-Redesigned, may cause also unaware changes!
+Redesigned! May cause also unaware changes! If you detect one, please create an issue on 
+[Eclipse/Californium](https://github.com/eclipse/californium/issues).
 
 The Alert during the handshakes are adapted (more) towards the definitions in 
 [RFC 5246, Section 7.2, Alert Protocol](https://tools.ietf.org/html/rfc5246#section-7.2).
@@ -37,6 +38,8 @@ During the `CLIENT_HELLO` / `SERVER_HELLO` cipher suite and parameter negotiatio
 If in later messages unsupported parameters are used, a `ILLEGAL_PARAMETER` is sent.
 For unexpected certificate types a `UNSUPPORTED_CERTIFICATE` is sent.
 If certificate verification fails, a `DECRYPT_ERROR` is sent.
+
+The encoding of the `SessionTicket` has changed.
 
 ### Californium-Core:
 

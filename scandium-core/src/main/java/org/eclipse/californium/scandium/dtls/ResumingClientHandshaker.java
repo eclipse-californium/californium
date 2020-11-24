@@ -188,6 +188,12 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 					new AlertMessage(
 							AlertLevel.FATAL,
 							AlertDescription.ILLEGAL_PARAMETER));
+		} else if (session.useExtendedMasterSecret() && message.getExtendedMasterSecret() == null) {
+			throw new HandshakeException(
+					"Server wants to change extended master secret in resumed session",
+					new AlertMessage(
+							AlertLevel.FATAL,
+							AlertDescription.ILLEGAL_PARAMETER));
 		} else {
 			verifyServerHelloExtensions(message);
 			serverRandom = message.getRandom();
@@ -256,10 +262,20 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	@Override
 	public void startHandshake() throws HandshakeException {
 		handshakeStarted();
-		ClientHello message = new ClientHello(ProtocolVersion.VERSION_DTLS_1_2, getSession(), supportedSignatureAlgorithms,
+		DTLSSession session = getSession();
+		ClientHello message = new ClientHello(ProtocolVersion.VERSION_DTLS_1_2, session, supportedSignatureAlgorithms,
 				supportedClientCertificateTypes, supportedServerCertificateTypes, supportedGroups);
 
 		clientRandom = message.getRandom();
+
+		if (session.useExtendedMasterSecret()) {
+			// https://tools.ietf.org/html/rfc7627#section-5.3
+			// "When offering an abbreviated handshake, the client
+			// MUST send the "extended_master_secret" extension in
+			// its ClientHello."
+			// For "MUST", configure extended master secret required
+			message.addExtension(ExtendedMasterSecretExtension.INSTANCE);
+		}
 
 		addConnectionId(message);
 		addRecordSizeLimit(message);

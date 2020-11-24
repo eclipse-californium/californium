@@ -103,6 +103,7 @@ import org.eclipse.californium.scandium.dtls.ContentType;
 import org.eclipse.californium.scandium.dtls.DTLSContext;
 import org.eclipse.californium.scandium.dtls.DtlsHandshakeTimeoutException;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
+import org.eclipse.californium.scandium.dtls.ExtendedMasterSecretMode;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.HandshakeMessage;
 import org.eclipse.californium.scandium.dtls.HandshakeType;
@@ -187,6 +188,7 @@ public class DTLSConnectorTest {
 			.setAdvancedCertificateVerifier(verifier)
 			.setAdvancedPskStore(pskStore)
 			.setClientAuthenticationRequired(true)
+			.setExtendedMasterSecretMode(ExtendedMasterSecretMode.ENABLED)
 			.setReceiverThreadCount(1)
 			.setServerOnly(true)
 			.setLoggingTag("server")

@@ -125,6 +125,13 @@ public abstract class Handshaker implements Destroyable {
 	protected Random serverRandom;
 
 	/**
+	 * Seed for master secret.
+	 * 
+	 * @since 3.0
+	 */
+	private byte[] masterSecretSeed;
+
+	/**
 	 * The master secret for this handshake.
 	 */
 	protected SecretKey masterSecret;
@@ -281,6 +288,13 @@ public abstract class Handshaker implements Destroyable {
 	protected boolean sniEnabled;
 
 	/**
+	 * Send the extended master secret extension.
+	 * 
+	 * @since 3.0
+	 */
+	protected final ExtendedMasterSecretMode extendedMasterSecretMode;
+
+	/**
 	 * Truncate certificate path for validation.
 	 */
 	protected final boolean useTruncatedCertificatePathForVerification;
@@ -413,6 +427,7 @@ public abstract class Handshaker implements Destroyable {
 		this.maxDeferredProcessedOutgoingApplicationDataMessages = config.getMaxDeferredProcessedOutgoingApplicationDataMessages();
 		this.maxDeferredProcessedIncomingRecordsSize = config.getMaxDeferredProcessedIncomingRecordsSize();
 		this.sniEnabled = config.isSniEnabled();
+		this.extendedMasterSecretMode = config.getExtendedMasterSecretMode();
 		this.useTruncatedCertificatePathForVerification = config.useTruncatedCertificatePathForValidation();
 		this.useEarlyStopRetransmission = config.isEarlyStopRetransmission();
 		this.privateKey = config.getPrivateKey();
@@ -982,7 +997,7 @@ public abstract class Handshaker implements Destroyable {
 					SecretKey premasterSecret = PseudoRandomFunction.generatePremasterSecretFromPSK(otherSecret,
 							newPskSecret);
 					SecretKey masterSecret = PseudoRandomFunction.generateMasterSecret(hmac, premasterSecret,
-							generateRandomSeed());
+							masterSecretSeed, session.useExtendedMasterSecret());
 					SecretUtil.destroy(premasterSecret);
 					SecretUtil.destroy(newPskSecret);
 					newPskSecret = masterSecret;
@@ -1170,13 +1185,26 @@ public abstract class Handshaker implements Destroyable {
 	}
 
 	/**
-	 * Generate random seed for master secret.
+	 * Generate seed for (extended) master secret.
 	 * 
-	 * @return random seed
-	 * @since 2.3
+	 * @return seed
+	 * @since 3.0
 	 */
-	protected byte[] generateRandomSeed() {
-		return Bytes.concatenate(clientRandom, serverRandom);
+	protected byte[] generateMasterSecretSeed() {
+		if (getSession().useExtendedMasterSecret()) {
+			MessageDigest md = getSession().getCipherSuite().getThreadLocalPseudoRandomFunctionMessageDigest();
+			int index = 0;
+			for (HandshakeMessage handshakeMessage : handshakeMessages) {
+				md.update(handshakeMessage.toByteArray());
+				LOGGER.trace("  [{}] - {}", index++, handshakeMessage.getMessageType());
+				if (handshakeMessage.getMessageType() == HandshakeType.CLIENT_KEY_EXCHANGE) {
+					return md.digest();
+				}
+			}
+			throw new IllegalArgumentException("client key exchange missing!");
+		} else {
+			return Bytes.concatenate(clientRandom, serverRandom);
+		}
 	}
 
 	/**
@@ -1186,18 +1214,24 @@ public abstract class Handshaker implements Destroyable {
 	 * 
 	 * @param pskIdentity PSK identity
 	 * @param otherSecret others secret for ECHDE support. Maybe {@code null}.
+	 * @param seed seed to be used for (extended) master secret.
 	 * @return psk secret result. {@code null}, if result is returned
 	 *         asynchronous.
-	 * @since 2.3
+	 * @throws NullPointerException if seed is {@code null}
+	 * @since 3.0 (added parameter seed)
 	 */
-	protected PskSecretResult requestPskSecretResult(PskPublicInformation pskIdentity, SecretKey otherSecret) {
+	protected PskSecretResult requestPskSecretResult(PskPublicInformation pskIdentity, SecretKey otherSecret, byte[] seed) {
+		if (seed == null) {
+			throw new NullPointerException("seed must not be null!");
+		}
 		DTLSSession session = getSession();
 		ServerNames serverNames = sniEnabled ? session.getServerNames() : null;
 		String hmacAlgorithm = session.getCipherSuite().getPseudoRandomFunctionMacName();
 		pskRequestPending = true;
+		masterSecretSeed = seed;
 		this.otherSecret = SecretUtil.create(otherSecret);
 		return advancedPskStore.requestPskSecretResult(connection.getConnectionId(), serverNames, pskIdentity,
-				hmacAlgorithm, otherSecret, generateRandomSeed());
+				hmacAlgorithm, otherSecret, masterSecretSeed, session.useExtendedMasterSecret());
 	}
 
 	protected final void setCurrentReadState() {

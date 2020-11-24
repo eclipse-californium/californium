@@ -128,6 +128,12 @@ public class ClientHandshaker extends Handshaker {
 	protected ClientHello clientHello = null;
 
 	/**
+	 * The client's flight 5.
+	 * @since 3.0
+	 */
+	protected DTLSFlight flight5;
+
+	/**
 	 * the supported cipher suites ordered by preference
 	 * 
 	 * @since 2.3
@@ -378,6 +384,12 @@ public class ClientHandshaker extends Handshaker {
 				context.setReadConnectionId(getReadConnectionId());
 			}
 		}
+		if (message.getExtendedMasterSecret() != null) {
+			session.setExtendedMasterSecret(true);
+		} else if (extendedMasterSecretMode == ExtendedMasterSecretMode.REQUIRED) {
+			throw new HandshakeException("Extended Master Secret required!",
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
+		}
 		session.setSendCertificateType(message.getClientCertificateType());
 		session.setSniSupported(message.hasServerNameExtension());
 		session.setParameterAvailable();
@@ -507,6 +519,10 @@ public class ClientHandshaker extends Handshaker {
 	private void receivedServerHelloDone(ServerHelloDone message) throws HandshakeException {
 		flightNumber += 2;
 
+		flight5 = createFlight();
+
+		createCertificateMessage(flight5);
+
 		/*
 		 * Second, send ClientKeyExchange as specified by the key exchange
 		 * algorithm.
@@ -531,19 +547,24 @@ public class ClientHandshaker extends Handshaker {
 						ex);
 			}
 		}
+		byte[] seed;
 		switch (keyExchangeAlgorithm) {
 		case EC_DIFFIE_HELLMAN:
 			clientKeyExchange = new ECDHClientKeyExchange(encodedPoint);
+			wrapMessage(flight5, clientKeyExchange);
+			seed = generateMasterSecretSeed();
 			SecretKey masterSecret = PseudoRandomFunction.generateMasterSecret(
 					session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), ecdheSecret,
-					generateRandomSeed());
+					seed, session.useExtendedMasterSecret());
 			processMasterSecret(masterSecret);
 			break;
 		case PSK:
 			clientIdentity = getPskClientIdentity();
 			LOGGER.trace("Using PSK identity: {}", clientIdentity);
 			clientKeyExchange = new PSKClientKeyExchange(clientIdentity);
-			masterSecretResult = requestPskSecretResult(clientIdentity, null);
+			wrapMessage(flight5, clientKeyExchange);
+			seed = generateMasterSecretSeed();
+			masterSecretResult = requestPskSecretResult(clientIdentity, null, seed);
 			if (masterSecretResult != null) {
 				processPskSecretResult(masterSecretResult);
 			}
@@ -552,7 +573,9 @@ public class ClientHandshaker extends Handshaker {
 			clientIdentity = getPskClientIdentity();
 			LOGGER.trace("Using ECDHE PSK identity: {}", clientIdentity);
 			clientKeyExchange = new EcdhPskClientKeyExchange(clientIdentity, encodedPoint);
-			masterSecretResult = requestPskSecretResult(clientIdentity, ecdheSecret);
+			wrapMessage(flight5, clientKeyExchange);
+			seed = generateMasterSecretSeed();
+			masterSecretResult = requestPskSecretResult(clientIdentity, ecdheSecret, seed);
 			if (masterSecretResult != null) {
 				processPskSecretResult(masterSecretResult);
 			}
@@ -611,12 +634,6 @@ public class ClientHandshaker extends Handshaker {
 	 */
 	private void processServerHelloDone() throws HandshakeException {
 
-		DTLSFlight flight = createFlight();
-
-		createCertificateMessage(flight);
-
-		wrapMessage(flight, clientKeyExchange);
-
 		/*
 		 * Third, send CertificateVerify message if necessary.
 		 */
@@ -634,14 +651,14 @@ public class ClientHandshaker extends Handshaker {
 
 			CertificateVerify certificateVerify = new CertificateVerify(negotiatedSignatureAndHashAlgorithm, privateKey, handshakeMessages);
 
-			wrapMessage(flight, certificateVerify);
+			wrapMessage(flight5, certificateVerify);
 		}
 
 		/*
 		 * Fourth, send ChangeCipherSpec
 		 */
 		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage();
-		wrapMessage(flight, changeCipherSpecMessage);
+		wrapMessage(flight5, changeCipherSpecMessage);
 		setCurrentWriteState();
 
 		/*
@@ -662,13 +679,13 @@ public class ClientHandshaker extends Handshaker {
 		}
 
 		Finished finished = new Finished(getSession().getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), this.masterSecret, true, md.digest());
-		wrapMessage(flight, finished);
+		wrapMessage(flight5, finished);
 
 		// compute handshake hash with client's finished message also
 		// included, used for server's finished message
 		mdWithClientFinished.update(finished.toByteArray());
 		handshakeHash = mdWithClientFinished.digest();
-		sendFlight(flight);
+		sendFlight(flight5);
 
 		expectChangeCipherSpecMessage();
 	}
@@ -746,6 +763,10 @@ public class ClientHandshaker extends Handshaker {
 		clientRandom = startMessage.getRandom();
 
 		startMessage.addCompressionMethod(CompressionMethod.NULL);
+
+		if (extendedMasterSecretMode != ExtendedMasterSecretMode.NONE) {
+			startMessage.addExtension(ExtendedMasterSecretExtension.INSTANCE);
+		}
 
 		addConnectionId(startMessage);
 
