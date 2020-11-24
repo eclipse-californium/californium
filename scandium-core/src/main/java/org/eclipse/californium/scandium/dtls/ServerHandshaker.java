@@ -690,18 +690,22 @@ public class ServerHandshaker extends Handshaker {
 	 * suggested by the client in the client hello and the highest supported by
 	 * the server.
 	 * 
-	 * @param clientVersion
-	 *            the suggested version by the client.
+	 * @param clientVersion the suggested version by the client.
 	 * @return the version to be used in the handshake.
-	 * @throws HandshakeException
-	 *             if the client's version is smaller than DTLS 1.2
+	 * @throws HandshakeException if the client's version is smaller than DTLS
+	 *             1.2
 	 */
 	private ProtocolVersion negotiateProtocolVersion(ProtocolVersion clientVersion) throws HandshakeException {
 		if (clientVersion.compareTo(ProtocolVersion.VERSION_DTLS_1_2) >= 0) {
 			return ProtocolVersion.VERSION_DTLS_1_2;
 		} else {
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.PROTOCOL_VERSION, session.getPeer());
-			throw new HandshakeException("The server only supports DTLS v1.2", alert);
+			ProtocolVersion version = clientVersion;
+			if (version.compareTo(ProtocolVersion.VERSION_DTLS_1_0) < 0) {
+				version = ProtocolVersion.VERSION_DTLS_1_0;
+			}
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.PROTOCOL_VERSION, version,
+					session.getPeer());
+			throw new HandshakeException("The server only supports DTLS v1.2, not " + clientVersion + "!", alert);
 		}
 	}
 

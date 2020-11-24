@@ -25,13 +25,34 @@ public class HandshakeException extends Exception {
 
 	private final AlertMessage alert;
 
+	/**
+	 * Create handshake exception.
+	 * 
+	 * @param message message
+	 * @param alert related alert
+	 * @throws NullPointerException if alert is {@code null}
+	 */
 	public HandshakeException(String message, AlertMessage alert) {
 		super(message);
+		if (alert == null) {
+			throw new NullPointerException("Alert must not be null!");
+		}
 		this.alert = alert;
 	}
 
+	/**
+	 * Create handshake exception with cause.
+	 * 
+	 * @param message message
+	 * @param alert related alert
+	 * @param cause root cause
+	 * @throws NullPointerException if alert is {@code null}
+	 */
 	public HandshakeException(String message, AlertMessage alert, Throwable cause) {
 		super(message, cause);
+		if (alert == null) {
+			throw new NullPointerException("Alert must not be null!");
+		}
 		this.alert = alert;
 	}
 

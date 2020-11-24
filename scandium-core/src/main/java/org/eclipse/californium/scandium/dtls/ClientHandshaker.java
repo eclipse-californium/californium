@@ -330,7 +330,13 @@ public class ClientHandshaker extends Handshaker {
 	 */
 	protected void receivedServerHello(ServerHello message) throws HandshakeException {
 		// store the negotiated values
+
 		usedProtocol = message.getServerVersion();
+		if (usedProtocol.compareTo(ProtocolVersion.VERSION_DTLS_1_2) != 0) {
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.PROTOCOL_VERSION, session.getPeer());
+			throw new HandshakeException("The client only supports DTLS v1.2, not " + usedProtocol + "!", alert);
+		}
+
 		serverRandom = message.getRandom();
 		session.setSessionIdentifier(message.getSessionId());
 		CipherSuite cipherSuite = message.getCipherSuite();

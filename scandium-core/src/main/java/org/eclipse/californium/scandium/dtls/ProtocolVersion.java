@@ -208,4 +208,18 @@ public class ProtocolVersion implements Comparable<ProtocolVersion> {
 			return new ProtocolVersion(major, minor);
 		}
 	}
+
+	/**
+	 * Get protocol version value of the provided versions.
+	 * 
+	 * @param version textual version. e.g. "1.2".
+	 * @return protocol version
+	 * @since 2.6
+	 */
+	public static ProtocolVersion valueOf(String version) {
+		String[] split = version.split("\\.");
+		int major = 255 - Integer.parseInt(split[0]);
+		int minor = 255 - Integer.parseInt(split[1]);
+		return valueOf(major, minor);
+	}
 }

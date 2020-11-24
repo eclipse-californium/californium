@@ -291,7 +291,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	protected final ConnectionIdGenerator connectionIdGenerator;
 	/**
 	 * Protocol version to use for sending a hello verify request. Default
-	 * {@link ProtocolVersion#VERSION_DTLS_1_0}.
+	 * {@code null} to reply the client's version.
 	 * 
 	 * @since 2.5
 	 */
@@ -1536,9 +1536,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * 
 	 * @param connection the peer to terminate the handshake with
 	 * @param cause the exception that is the cause for terminating the handshake
-	 * @param description the reason to indicate in the message sent to the peer before terminating the handshake
 	 */
-	private void terminateOngoingHandshake(final Connection connection, final HandshakeException cause, final AlertDescription description) {
+	private void terminateOngoingHandshake(final Connection connection, final HandshakeException cause) {
 
 		Handshaker handshaker = connection.getOngoingHandshake();
 		if (handshaker != null) {
@@ -1548,16 +1547,15 @@ public class DTLSConnector implements Connector, RecordLayer {
 				LOGGER.debug("Aborting handshake with peer [{}]: {}", connection.getPeerAddress(), cause.getMessage());
 			}
 			handshaker.setFailureCause(cause);
+			AlertMessage causingAlert = cause.getAlert();
 			DTLSSession session = handshaker.getSession();
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, description, connection.getPeerAddress());
 			if (!connection.hasEstablishedSession()) {
-				terminateConnection(connection, alert, session);
+				terminateConnection(connection, causingAlert, session);
 			} else {
 				// keep established session intact and only terminate ongoing handshake
 				// failure after established (last FINISH), but before completed (first data)
 				if (connection.getEstablishedSession() == handshaker.getSession()) {
-					AlertMessage causingAlert = cause.getAlert();
-					if (causingAlert != null && causingAlert.getDescription() == AlertDescription.CLOSE_NOTIFY) {
+					if (causingAlert.getDescription() == AlertDescription.CLOSE_NOTIFY) {
 						LOGGER.debug("Handshake with [{}] closed after session was established!",
 								handshaker.getPeerAddress());
 					} else {
@@ -1567,16 +1565,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 				} else {
 					LOGGER.warn("Handshake with [{}] failed, but has an established session!", handshaker.getPeerAddress());
 				}
-				send(alert, session);
+				send(causingAlert, session);
 			}
 			handshaker.handshakeFailed(cause);
-		}
-	}
-
-	private void terminateConnection(Connection connection) {
-		if (connection != null) {
-			// clear session & (pending) handshaker
-			connectionStore.remove(connection);
 		}
 	}
 
@@ -1713,7 +1704,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 				if (connection.hasEstablishedSession()) {
 					connection.close(record);
 				} else {
-					terminateConnection(connection);
+					connectionStore.remove(connection);
 				}
 			}
 		} else if (AlertLevel.FATAL.equals(alert.getLevel())) {
@@ -1724,7 +1715,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			if (handshaker != null) {
 				handshaker.setFailureCause(error);
 			}
-			terminateConnection(connection);
+			connectionStore.remove(connection);
 		} else {
 			// non-fatal alerts do not require any special handling
 		}
@@ -2206,8 +2197,18 @@ public class DTLSConnector implements Connector, RecordLayer {
 		if (expectedCookie == null) {
 			expectedCookie = cookieGenerator.generateCookie(clientHello);
 		}
+		ProtocolVersion version = protocolVersionForHelloVerifyRequests;
+		if (version == null) {
+			// no fixed version configured, reply the client's version.
+			version = clientHello.getClientVersion();
+			if (version.compareTo(ProtocolVersion.VERSION_DTLS_1_0) < 0) {
+				version = ProtocolVersion.VERSION_DTLS_1_0;
+			} else if (version.compareTo(ProtocolVersion.VERSION_DTLS_1_2) > 0) {
+				version = ProtocolVersion.VERSION_DTLS_1_2;
+			}
+		}
 		// according RFC 6347, 4.2.1. Denial-of-Service Countermeasures, the HelloVerifyRequest should use version 1.0
-		HelloVerifyRequest msg = new HelloVerifyRequest(protocolVersionForHelloVerifyRequests, expectedCookie, record.getPeerAddress());
+		HelloVerifyRequest msg = new HelloVerifyRequest(version, expectedCookie, record.getPeerAddress());
 		// because we do not have a handshaker in place yet that
 		// manages message_seq numbers, we need to set it explicitly
 		// use message_seq from CLIENT_HELLO in order to allow for
@@ -2216,7 +2217,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		// use epoch 0 and sequence no from CLIENT_HELLO record as
 		// mandated by section 4.2.1 of the DTLS 1.2 spec
 		// see http://tools.ietf.org/html/rfc6347#section-4.2.1
-		Record helloVerify = new Record(ContentType.HANDSHAKE, protocolVersionForHelloVerifyRequests, record.getSequenceNumber(), msg, record.getPeerAddress());
+		Record helloVerify = new Record(ContentType.HANDSHAKE, version, record.getSequenceNumber(), msg, record.getPeerAddress());
 		try {
 			sendRecord(helloVerify);
 		} catch (IOException e) {
@@ -2231,10 +2232,17 @@ public class DTLSConnector implements Connector, RecordLayer {
 			throw new IllegalArgumentException("Session must not be NULL");
 		} else {
 			try {
-				boolean useCid = session.getWriteEpoch() > 0;
 				LOGGER.trace("send ALERT {} for peer {}.", alert, session.getPeer());
-				sendRecord(new Record(ContentType.ALERT, session.getWriteEpoch(), session.getSequenceNumber(), alert,
-						session, useCid, TLS12_CID_PADDING));
+				Record record;
+				boolean useCid = session.getWriteEpoch() > 0;
+				if (useCid || alert.getProtocolVersion() == null) {
+					record = new Record(ContentType.ALERT, session.getWriteEpoch(), session.getSequenceNumber(), alert,
+						session, useCid, TLS12_CID_PADDING);
+				} else {
+					record = new Record(ContentType.ALERT, alert.getProtocolVersion(), session.getSequenceNumber(), alert,
+							session.getPeer());
+				}
+				sendRecord(record);
 			} catch (IOException e) {
 				// already logged ...
 			} catch (GeneralSecurityException e) {
@@ -3118,7 +3126,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		}
 
 		// in other cases terminate handshake
-		terminateOngoingHandshake(connection, cause, alert.getDescription());
+		terminateOngoingHandshake(connection, cause);
 	}
 
 	/**
