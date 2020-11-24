@@ -2638,7 +2638,9 @@ public final class DtlsConnectorConfig {
 		 * @throws NullPointerException if the given certificate verifier is
 		 *             {@code null}
 		 * @throws IllegalStateException if
-		 *             {@link #setTrustStore(Certificate[])} is already set.
+		 *             {@link #setTrustStore(Certificate[])} or
+		 *             {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)}
+		 *             is already set.
 		 * @see #setTrustCertificateTypes
 		 * @deprecated use
 		 *             {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)}
@@ -2654,10 +2656,11 @@ public final class DtlsConnectorConfig {
 				throw new NullPointerException("CertificateVerifier must not be null");
 			} else if (config.trustStore != null) {
 				throw new IllegalStateException("CertificateVerifier must not be used after trust store is set!");
+			} else if (config.advancedCertificateVerifier != null) {
+				throw new IllegalStateException(
+						"CertificateVerifier must not be used after new certificate verifier is set!");
 			}
 			config.certificateVerifier = verifier;
-			config.advancedCertificateVerifier = BridgeCertificateVerifier.builder()
-					.setCertificateVerifier(verifier).build();
 			return this;
 		}
 
@@ -3328,12 +3331,18 @@ public final class DtlsConnectorConfig {
 			if (config.verifyPeersOnResumptionThreshold == null) {
 				config.verifyPeersOnResumptionThreshold = DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT;
 			}
-			if (config.advancedCertificateVerifier == null
-					&& (config.trustStore != null || config.trustedRPKs != null)) {
-				config.advancedCertificateVerifier = BridgeCertificateVerifier.builder()
-						.setTrustedCertificates(config.trustStore)
-						.setTrustedRPKs(config.trustedRPKs)
-						.build();
+			if (config.advancedCertificateVerifier == null && (config.trustStore != null || config.trustedRPKs != null
+					|| config.certificateVerifier != null)) {
+				BridgeCertificateVerifier.Builder builder = BridgeCertificateVerifier.builder();
+				if (config.trustStore != null) {
+					builder.setTrustedCertificates(config.trustStore);
+				} else if (config.certificateVerifier != null) {
+					builder.setCertificateVerifier(config.certificateVerifier);
+				}
+				if (config.trustedRPKs != null) {
+					builder.setTrustedRPKs(config.trustedRPKs);
+				}
+				config.advancedCertificateVerifier = builder.build();
 			}
 			if (config.trustCertificateTypes == null && config.advancedCertificateVerifier != null) {
 				config.trustCertificateTypes = config.advancedCertificateVerifier.getSupportedCertificateType();
