@@ -924,13 +924,12 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * Only valid, if {@link Builder#setTrustStore(Certificate[])} is used.
 	 * 
+	 * Note: the upcoming next major version 3.0 will remove this method.
+	 * 
 	 * @return the root certificates. If empty (length of zero), all
 	 *         certificates are trusted. If {@code null}, the trust may be
 	 *         implemented by a {@link CertificateVerifier}.
-	 * @deprecated will be replaced by {@link #getAdvancedCertificateVerifier()}
-	 *             in a future version.
 	 */
-	@Deprecated
 	public X509Certificate[] getTrustStore() {
 		if (trustStore == null) {
 			return null;
@@ -942,11 +941,11 @@ public final class DtlsConnectorConfig {
 	/**
 	 * Gets the verifier in charge of validating the peer's certificate chain
 	 * during the DTLS handshake.
-	 *
+	 * 
+	 * Note: the upcoming next major version 3.0 will remove this method.
+	 * 
 	 * @return the certificate chain verifier
-	 * @deprecated use {@link #getAdvancedCertificateVerifier()} instead
 	 */
-	@Deprecated
 	public CertificateVerifier getCertificateVerifier() {
 		return certificateVerifier;
 	}
@@ -1192,12 +1191,11 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * Note: the upcoming next major version 3.0 will remove this method.
+	 * 
 	 * @return The trust store for raw public keys verified out-of-band for
 	 *         DTLS-RPK handshakes
-	 * @deprecated will be replaced by {@link #getAdvancedCertificateVerifier()}
-	 *             in a future version.
 	 */
-	@Deprecated
 	public TrustedRpkStore getRpkTrustStore() {
 		return trustedRPKs;
 	}
