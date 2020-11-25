@@ -1057,15 +1057,41 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * principals of all connections.
 	 * 
 	 * Note: if {@link SessionCache} is used, it's not possible to remove a
+	 * cache entry, if no related connection is in the connection store. All
+	 * available connections will be removed from that session cache as well.
+	 * 
+	 * @param principalHandler handler to be called within the serial execution
+	 *            of the related connection. If {@code true} is returned, the
+	 *            related connection is terminated and the session is removed
+	 *            from the session cache.
+	 * @return future to cancel or wait for completion
+	 * @see #startTerminateConnectionsForPrincipal(org.eclipse.californium.elements.util.LeastRecentlyUsedCache.Predicate,
+	 *      boolean)
+	 */
+	public Future<Void> startTerminateConnectionsForPrincipal(
+			LeastRecentlyUsedCache.Predicate<Principal> principalHandler) {
+		return startTerminateConnectionsForPrincipal(principalHandler, true);
+	}
+
+	/**
+	 * Start to terminate connections applying the provided handler to the
+	 * principals of all connections.
+	 * 
+	 * Note: if {@link SessionCache} is used, it's not possible to remove a
 	 * cache entry, if no related connection is in the connection store.
 	 * 
 	 * @param principalHandler handler to be called within the serial execution
 	 *            of the related connection. If {@code true} is returned, the
 	 *            related connection is terminated
+	 * @param removeFromSessionCache {@code true} if the session of the
+	 *            connection should be removed from the session cache,
+	 *            {@code false}, otherwise
 	 * @return future to cancel or wait for completion
+	 * @see #startTerminateConnectionsForPrincipal(org.eclipse.californium.elements.util.LeastRecentlyUsedCache.Predicate)
+	 * @since 2.6
 	 */
 	public Future<Void> startTerminateConnectionsForPrincipal(
-			final LeastRecentlyUsedCache.Predicate<Principal> principalHandler) {
+			final LeastRecentlyUsedCache.Predicate<Principal> principalHandler, final boolean removeFromSessionCache) {
 		if (principalHandler == null) {
 			throw new NullPointerException("principal handler must not be null!");
 		}
@@ -1084,7 +1110,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 					}
 				}
 				if (peer != null && principalHandler.accept(peer)) {
-					connectionStore.remove(connection, true);
+					connectionStore.remove(connection, removeFromSessionCache);
 				}
 				return false;
 			}
