@@ -85,15 +85,18 @@ public final class DatagramWriter {
 	/**
 	 * Writes a sequence of bits to the stream.
 	 * 
-	 * @param data
-	 *            A Long containing the bits to write.
-	 * 
-	 * @param numBits
-	 *            The number of bits to write.
+	 * @param data A Long containing the bits to write.
+	 * @param numBits The number of bits to write. 1 to 64.
+	 * @throws IllegalArgumentException if the number of bits is not in range
+	 *             1..64, or the provided data contains more bits than that
+	 *             number.
 	 */
 	public void writeLong(final long data, final int numBits) {
 
-		if (numBits < 64 && data >= (1L << numBits)) {
+		if (numBits < 0 || numBits > 64) {
+			throw new IllegalArgumentException(String.format("Number of bits must be 1 to 64, not %d", numBits));
+		}
+		if (numBits < 64 && (data >> numBits) != 0) {
 			throw new IllegalArgumentException(String.format("Truncating value %d to %d-bit integer", data, numBits));
 		}
 
@@ -126,15 +129,17 @@ public final class DatagramWriter {
 	/**
 	 * Writes a sequence of bits to the stream.
 	 * 
-	 * @param data
-	 *            An integer containing the bits to write.
-	 * 
-	 * @param numBits
-	 *            The number of bits to write.
+	 * @param data An integer containing the bits to write.
+	 * @param numBits The number of bits to write. 1 to 32.
+	 * @throws IllegalArgumentException if the number of bits is not in range
+	 *             1..32, or the provided data contains more bits than that
+	 *             number.
 	 */
 	public void write(final int data, final int numBits) {
-
-		if (numBits < 32 && data >= (1 << numBits)) {
+		if (numBits < 0 || numBits > 32) {
+			throw new IllegalArgumentException(String.format("Number of bits must be 1 to 32, not %d", numBits));
+		}
+		if (numBits < 32 && (data >> numBits) != 0) {
 			throw new IllegalArgumentException(String.format("Truncating value %d to %d-bit integer", data, numBits));
 		}
 
@@ -180,7 +185,7 @@ public final class DatagramWriter {
 		if (isBytePending()) {
 
 			for (int i = 0; i < bytes.length; i++) {
-				write(bytes[i], Byte.SIZE);
+				write(bytes[i] & 0xff, Byte.SIZE);
 			}
 
 		} else {
@@ -199,7 +204,7 @@ public final class DatagramWriter {
 	 */
 	public void writeByte(final byte b) {
 		if (isBytePending()) {
-			writeBytes(new byte[] { b });
+			write(b & 0xff, Byte.SIZE);
 		} else {
 			byteStream.write(b);
 		}
