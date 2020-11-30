@@ -89,6 +89,7 @@ public class DataSerializerTest {
 		Request req = Request.newGet();
 		req.setToken(new byte[] { 0x00 });
 		req.getOptions().setObserve(0);
+		req.setMID(1);
 
 		// WHEN serializing the request to a byte array
 		serializer.getByteArray(req);
@@ -107,6 +108,7 @@ public class DataSerializerTest {
 		Request req = Request.newGet();
 		req.setToken(new byte[] { 0x00 });
 		req.getOptions().setObserve(0);
+		req.setMID(1);
 		req.setDestinationContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), CoAP.DEFAULT_COAP_PORT));
 
 		// WHEN serializing the request to a RawData object
