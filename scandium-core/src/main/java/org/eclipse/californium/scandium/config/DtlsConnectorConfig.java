@@ -1469,6 +1469,14 @@ public final class DtlsConnectorConfig {
 		/**
 		 * Sets the IP address and port the connector should bind to
 		 * 
+		 * Note: using IPv6 interfaces with multiple addresses including
+		 * permanent and temporary (with potentially several different prefixes)
+		 * currently causes issues on the server side. The outgoing traffic in
+		 * response to incoming may select a different source address than the
+		 * incoming destination address. To overcome this, please ensure that
+		 * the 'any address' is not used on the server side and a separate
+		 * Connector is created for each address to receive incoming traffic.
+		 * 
 		 * @param address the IP address and port the connector should bind to
 		 * @return this builder for command chaining
 		 * @throws IllegalArgumentException if the given address is unresolved

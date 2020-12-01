@@ -219,6 +219,14 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * A {@link Connector} using <em>Datagram TLS</em> (DTLS) as specified in
  * <a href="http://tools.ietf.org/html/rfc6347">RFC 6347</a> for securing data
  * exchanged between networked clients and a server application.
+ * 
+ * Note: using IPv6 interfaces with multiple addresses including permanent and
+ * temporary (with potentially several different prefixes) currently causes
+ * issues on the server side. The outgoing traffic in response to incoming may
+ * select a different source address than the incoming destination address. To
+ * overcome this, please ensure that the 'any address' is not used on the server
+ * side and a separate Connector is created for each address to receive incoming
+ * traffic.
  */
 public class DTLSConnector implements Connector, RecordLayer {
 
