@@ -199,6 +199,16 @@ import org.slf4j.LoggerFactory;
  * <p>
  * The endpoint and its layers use an {@link ScheduledExecutorService} to
  * execute tasks, e.g., when a request arrives.
+ * </p>
+ * 
+ * Note: using IPv6 interfaces with multiple addresses including permanent and
+ * temporary (with potentially several different prefixes) currently causes
+ * issues on the server side. The outgoing traffic in response to incoming may
+ * select a different source address than the incoming destination address. To
+ * overcome this, please ensure that the 'any address' is not used on the server
+ * side and a separate CoapEndpoint is created for each address to receive
+ * incoming traffic.
+ * 
  */
 public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors, MulticastReceivers {
 
@@ -1699,6 +1709,9 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors, M
 		 * {@link #setConnectorWithAutoConfiguration(UDPConnector)} could be
 		 * used.
 		 * 
+		 * Not recommended for the server side on IPv6 systems with multiple
+		 * addresses assigned to single network interfaces.
+		 * 
 		 * Provides a fluent API to chain setters.
 		 * 
 		 * @param port port number for socket. A port number of {@code 0} will
@@ -1727,6 +1740,14 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors, M
 		 * {@link #setConnector(Connector)}, or
 		 * {@link #setConnectorWithAutoConfiguration(UDPConnector)} could be
 		 * used.
+		 * 
+		 * Note: using IPv6 interfaces with multiple addresses including
+		 * permanent and temporary (with potentially several different prefixes)
+		 * currently causes issues on the server side. The outgoing traffic in
+		 * response to incoming may select a different source address than the
+		 * incoming destination address. To overcome this, please ensure that
+		 * the 'any address' is not used on the server side and a separate
+		 * CoapEndpoint is created for each address to receive incoming traffic.
 		 * 
 		 * Provides a fluent API to chain setters.
 		 * 

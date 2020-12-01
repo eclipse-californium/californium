@@ -66,6 +66,14 @@ import org.slf4j.LoggerFactory;
  * connected clients can be achieved by means of the {@link #send(RawData)}
  * method.
  * 
+ * Note: using IPv6 interfaces with multiple addresses including permanent and
+ * temporary (with potentially several different prefixes) currently causes
+ * issues on the server side. The outgoing traffic in response to incoming may
+ * select a different source address than the incoming destination address. To
+ * overcome this, please ensure that the 'any address' is not used on the server
+ * side and a separate Connector is created for each address to receive incoming
+ * traffic.
+ * 
  * UDP broadcast is allowed.
  * 
  * The number of threads can be set through {@link #setReceiverThreadCount(int)}
@@ -143,6 +151,9 @@ public class UDPConnector implements Connector {
 	 * Creates a connector on the wildcard address listening on an ephemeral
 	 * port, i.e. a port chosen by the system.
 	 * 
+	 * Not recommended for the server side on IPv6 systems with multiple
+	 * addresses assigned to single network interfaces.
+	 * 
 	 * The effect of this constructor is the same as invoking
 	 * <code>UDPConnector(null)</code>.
 	 */
@@ -152,6 +163,14 @@ public class UDPConnector implements Connector {
 
 	/**
 	 * Creates a connector bound to a given IP address and port.
+	 * 
+	 * Note: using IPv6 interfaces with multiple addresses including permanent
+	 * and temporary (with potentially several different prefixes) currently
+	 * causes issues on the server side. The outgoing traffic in response to
+	 * incoming may select a different source address than the incoming
+	 * destination address. To overcome this, please ensure that the 'any
+	 * address' is not used on the server side and a separate Connector is
+	 * created for each address to receive incoming traffic.
 	 * 
 	 * @param address the IP address and port, if <code>null</code> the
 	 *            connector is bound to an ephemeral port on the wildcard
