@@ -13,6 +13,17 @@
 # * Contributors:
 # *    Achim Kraus (Bosch.IO GmbH) - initial configuration
 # ******************************************************************************/
+#
+# To install, cp <file> to /etc/systemd/system
+#
+# The value of "TasksMax" is increasing with the numbers of connectors 
+# according the used networkconfig.
+#
+# Use
+#   top -H
+#
+# to see the number of threads
+#
 
 [Unit]
 Description=Californium Test Server
@@ -22,9 +33,10 @@ RequiresMountsFor=/home
 
 [Service]
 Type=simple
+TasksMax=256
 User=cali
 WorkingDirectory=/home/cali
-Environment="JAR=/home/cali/cf-plugtest-server-2.5.0.jar"
+Environment="JAR=/home/cali/cf-plugtest-server-2.6.0.jar"
 Environment="ARGS=-noloopback"
 # Adapt the java heap configuration "-Xmx1600m" according your environment! 
 Environment="OPTS=-XX:+UseG1GC -Xmx1600m -Dlogback.configurationFile=./logback.xml"
