@@ -295,40 +295,6 @@ public class CertPathUtil {
 	}
 
 	/**
-	 * Validate certificate path.
-	 * 
-	 * Use provided trusted certificates as trust anchor. Optionally truncate
-	 * provided certificate path to intermediate authority certificate.
-	 * 
-	 * @param truncateCertificatePath truncate certificate path at trusted
-	 *            certificate
-	 * @param certPath certificate path
-	 * @param trustedCertificates trust certificates. {@code null}, no trusts,
-	 *            empty for trust all.
-	 * @return certificate path actually used certificate path for validation
-	 * @throws GeneralSecurityException if verification fails
-	 * @deprecated use {@link #validateCertificatePathWithIssuer(boolean, CertPath, X509Certificate[])} instead.
-	 */
-	public static CertPath validateCertificatePath(boolean truncateCertificatePath, CertPath certPath,
-			X509Certificate[] trustedCertificates) throws GeneralSecurityException {
-		CertPath result = validateCertificatePathWithIssuer(truncateCertificatePath, certPath, trustedCertificates);
-		if (trustedCertificates.length == 0) {
-			return certPath;
-		} else if (truncateCertificatePath) {
-			List<? extends Certificate> list = result.getCertificates();
-			int size = list.size();
-			if (size > 1) {
-				List<X509Certificate> chain = toX509CertificatesList(list);
-				return generateCertPath(chain, size - 1);
-			} else {
-				return result;
-			}
-		} else {
-			return certPath;
-		}
-	}
-
-	/**
 	 * Validate certificate path with issuer.
 	 * 
 	 * Use provided trusted certificates as trust anchor. Optionally truncate
