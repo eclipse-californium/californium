@@ -46,7 +46,6 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
-import java.security.Principal;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -172,15 +171,6 @@ import org.eclipse.californium.elements.util.StringUtil;
  * are required, set them via {@link #getOptions()}.
  * </p>
  * 
- * <p>
- * Note:
- * Using {@link #setDestination(InetAddress)} or
- * {@link #setDestinationPort(int)} is deprecated since 2017-09. Using these
- * functions may result in unexpected behavior, especially, if other
- * destinations are used as in a provided URI. 
- * Don't use it in combination with the new proxy support of 2.1!
- * </p>
- * 
  * @see Response
  */
 public class Request extends Message {
@@ -231,14 +221,6 @@ public class Request extends Message {
 	 * <a href="https://tools.ietf.org/html/rfc7252#section-5.10.2">Proxy-URI</a>
 	 */
 	private boolean proxyScheme;
-
-	/** The destination address of this message. */
-	@Deprecated
-	private InetAddress destination;
-
-	/** The destination port of this message. */
-	@Deprecated
-	private int destinationPort;
 
 	/** Contextual information about this request */
 	private Map<String, String> userContext;
@@ -555,11 +537,7 @@ public class Request extends Message {
 		checkURI(uri);
 		EndpointContext destinationContext = getDestinationContext();
 		if (destinationContext == null) {
-			InetAddress destination = getDestination();
-			if (destination == null) {
-				throw new IllegalStateException("destination must be set ahead!");
-			}
-			destinationContext = new AddressEndpointContext(destination, destinationPort);
+			throw new IllegalStateException("destination must be set ahead!");
 		}
 		setOptionsInternal(uri, destinationContext.getPeerAddress(), IP_PATTERN.matcher(uri.getHost()).matches());
 		this.uri = true;
@@ -728,15 +706,19 @@ public class Request extends Message {
 		String host = options.getUriHost();
 		Integer port = options.getUriPort();
 		if (host == null) {
-			if (getDestination() != null) {
-				host = getDestination().getHostAddress();
+			if (getDestinationContext() != null) {
+				host = getDestinationContext().getPeerAddress().getAddress().getHostAddress();
 			} else {
 				// used during construction or when receiving
 				host = "localhost";
 			}
 		}
 		if (port == null) {
-			port = getDestinationPort();
+			if (getDestinationContext() != null) {
+				port = getDestinationContext().getPeerAddress().getPort();
+			} else {
+				port = -1;
+			}
 		}
 		if (port > 0) {
 			if (CoAP.isSupportedScheme(getScheme())) {
@@ -761,116 +743,6 @@ public class Request extends Message {
 	}
 
 	/**
-	 * Gets the destination address.
-	 *
-	 * @return the destination
-	 * @deprecated use {@link #getDestinationContext()}.
-	 */
-	@Deprecated
-	public InetAddress getDestination() {
-		EndpointContext context = getDestinationContext();
-		if (context != null) {
-			return context.getPeerAddress().getAddress();
-		}
-		return destination;
-	}
-
-	/**
-	 * Sets the destination address.
-	 *
-	 * Provides a fluent API to chain setters.
-	 *
-	 * @param destination the new destination
-	 * @return this Message
-	 * @throws IllegalStateException if destination context is already set.
-	 * @deprecated
-	 * Note: intended to be removed with {@link #setDestinationPort(int)} and 
-	 * {@link Request#prepareDestinationContext()}
-	 */
-	@Deprecated
-	public Message setDestination(InetAddress destination) {
-		if (getDestinationContext() != null) {
-			throw new IllegalStateException("destination context already set!");
-		}
-		this.destination = destination;
-		multicast = NetworkInterfacesUtil.isMultiAddress(destination);
-		return this;
-	}
-
-	/**
-	 * Gets the destination port.
-	 *
-	 * @return the destination port
-	 * @deprecated use {@link #getDestinationContext()}.
-	 */
-	@Deprecated
-	public int getDestinationPort() {
-		EndpointContext context = getDestinationContext();
-		if (context != null) {
-			return context.getPeerAddress().getPort();
-		}
-		return destinationPort;
-	}
-
-	/**
-	 * Sets the destination port.
-	 *
-	 * Provides a fluent API to chain setters.
-	 *
-	 * @param destinationPort the new destination port
-	 * @return this Message
-	 * @throws IllegalStateException if destination context is already set.
-	 * @deprecated
-	 * Note: intended to be removed with {@link #setDestination(InetAddress)} and 
-	 * {@link Request#prepareDestinationContext()}
-	 */
-	@Deprecated
-	public Message setDestinationPort(int destinationPort) {
-		if (getDestinationContext() != null) {
-			throw new IllegalStateException("destination context already set!");
-		}
-		this.destinationPort = destinationPort;
-		return this;
-	}
-
-	/**
-	 * Gets the authenticated (remote) sender's identity.
-	 * 
-	 * @return the identity or {@code null} if the sender has not been
-	 *         authenticated
-	 * @deprecated use {@link #getSourceContext()}
-	 */
-	@Deprecated
-	public Principal getSenderIdentity() {
-		return getSourceContext().getPeerIdentity();
-	}
-
-	/**
-	 * Prepare destination endpoint context. If not already available, create it
-	 * from the {@link #destination} and {@link #destinationPort}.
-	 * 
-	 * @throws IllegalStateException if no destination endpoint context is
-	 *             available and the destination is missing
-	 * @deprecated Removing with {@link #setDestination(InetAddress)} and
-	 *             {@link #setDestinationPort(int)} obsoletes this
-	 */
-	@Deprecated
-	public void prepareDestinationContext() {
-		EndpointContext context = getDestinationContext();
-		if (context == null) {
-			if (destination == null) {
-				throw new IllegalStateException("missing destination!");
-			}
-			context = new AddressEndpointContext(
-					new InetSocketAddress(destination, destinationPort),
-					getOptions().getUriHost(),
-					null);
-			super.setDestinationContext(context);
-		}
-		multicast = NetworkInterfacesUtil.isMultiAddress(context.getPeerAddress().getAddress());
-	}
-
-	/**
 	 * Set destination endpoint context.
 	 * 
 	 * Multicast addresses are supported. Assumed to be called before setting
@@ -885,15 +757,9 @@ public class Request extends Message {
 	 * @param peerContext destination endpoint context
 	 * @return this Request
 	 * 
-	 * @throws IllegalStateException if destination differs.
 	 */
 	@Override
 	public Request setDestinationContext(EndpointContext peerContext) {
-		if (destination != null) {
-			if (!destination.equals(peerContext.getPeerAddress().getAddress())) {
-				throw new IllegalStateException("different destination!");
-			}
-		}
 		super.setRequestDestinationContext(peerContext);
 		multicast = peerContext != null && !peerContext.getPeerAddress().isUnresolved()
 				&& NetworkInterfacesUtil.isMultiAddress(peerContext.getPeerAddress().getAddress());
@@ -930,10 +796,10 @@ public class Request extends Message {
 	 * Validate before sending that there is a destination set.
 	 */
 	private void validateBeforeSending() {
-		if (getDestination() == null) {
+		if (getDestinationContext().getPeerAddress().getAddress() == null) {
 			throw new NullPointerException("Destination is null");
 		}
-		if (getDestinationPort() == 0) {
+		if (getDestinationContext().getPeerAddress().getPort() == 0) {
 			throw new NullPointerException("Destination port is 0");
 		}
 	}

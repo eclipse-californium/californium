@@ -74,6 +74,7 @@ import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.OptionNumberRegistry.optionFormats;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.elements.AddressEndpointContext;
 
 
 /**
@@ -478,8 +479,7 @@ public final class HttpTranslator {
 			try {
 				// TODO check with multihomed hosts
 				InetAddress localHostAddress = InetAddress.getLocalHost();
-				coapRequest.setDestination(localHostAddress);
-				// TODO: setDestinationPort???
+				coapRequest.setDestinationContext(new AddressEndpointContext(localHostAddress, 5683));
 			} catch (UnknownHostException e) {
 				LOGGER.warn("Cannot get the localhost address", e);
 				throw new TranslationException("Cannot get the localhost address: " + e.getMessage());
