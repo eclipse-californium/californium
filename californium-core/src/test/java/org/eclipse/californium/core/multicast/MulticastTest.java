@@ -39,7 +39,6 @@ import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.MulticastReceivers;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -169,11 +168,11 @@ public class MulticastTest {
 		multicastBuilder = new UdpMulticastConnector.Builder();
 		multicastBuilder.setLocalPort(PORT).addMulticastGroup(CoAP.MULTICAST_IPV4);
 		connector = multicastBuilder.build();
-		((MulticastReceivers)coapEndpoint).addMulticastReceiver(connector);
+		coapEndpoint.addMulticastReceiver(connector);
 		multicastBuilder = new UdpMulticastConnector.Builder();
 		multicastBuilder.setLocalPort(PORT2).addMulticastGroup(CoAP.MULTICAST_IPV4);
 		connector = multicastBuilder.build();
-		((MulticastReceivers)coapEndpoint).addMulticastReceiver(connector);
+		coapEndpoint.addMulticastReceiver(connector);
 		server3.addEndpoint(coapEndpoint);
 
 		server3.add(new CoapResource("hello") {

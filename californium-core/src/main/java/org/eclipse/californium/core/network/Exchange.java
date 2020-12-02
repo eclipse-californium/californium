@@ -372,7 +372,7 @@ public class Exchange {
 	 * endpoint context of the current request to send the RST.
 	 * 
 	 * Note: since 2.3, rejects for multicast requests are not sent. (See
-	 * {@link MulticastReceivers#addMulticastReceiver(org.eclipse.californium.elements.Connector)
+	 * {@link Endpoint#addMulticastReceiver(org.eclipse.californium.elements.Connector)
 	 * for receiving multicast requests}.
 	 * 
 	 * @see #sendReject(EndpointContext)
@@ -388,7 +388,7 @@ public class Exchange {
 	 * client, if the request has not been already rejected.
 	 * 
 	 * Note: since 2.3, rejects for multicast requests are not sent. (See
-	 * {@link MulticastReceivers#addMulticastReceiver(org.eclipse.californium.elements.Connector)
+	 * {@link Endpoint#addMulticastReceiver(org.eclipse.californium.elements.Connector)
 	 * for receiving multicast requests}.
 	 * 
 	 * @param context endpoint context to send RST
@@ -416,7 +416,7 @@ public class Exchange {
 	 * request.
 	 * 
 	 * Note: since 2.3, error responses for multicast requests are not sent. (See
-	 * {@link MulticastReceivers#addMulticastReceiver(org.eclipse.californium.elements.Connector)
+	 * {@link Endpoint#addMulticastReceiver(org.eclipse.californium.elements.Connector)
 	 * for receiving multicast requests}.
 	 * 
 	 * @param response the response
@@ -735,7 +735,7 @@ public class Exchange {
 	/**
 	 * Set retransmission handle.
 	 * 
-	 * @param newRetransmissionHandle
+	 * @param newRetransmissionHandle new retransmission handle
 	 * @throws ConcurrentModificationException if not executed within
 	 *             {@link #execute(Runnable)}.
 	 */

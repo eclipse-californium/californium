@@ -44,6 +44,7 @@ import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.server.resources.DiscoveryResource;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.junit.Assert;
@@ -216,6 +217,31 @@ public class ResourceAttributesTest {
 
 		@Override
 		public void cancelObservation(Token token) {
+		}
+
+		@Override
+		public void addPostProcessInterceptor(MessageInterceptor interceptor) {
+		}
+
+		@Override
+		public void removePostProcessInterceptor(MessageInterceptor interceptor) {
+		}
+
+		@Override
+		public List<MessageInterceptor> getPostProcessInterceptors() {
+			return null;
+		}
+
+		@Override
+		public void addMulticastReceiver(Connector receiver) {
+		}
+
+		@Override
+		public void removeMulticastReceiver(Connector receiver) {
+		}
+
+		@Override
+		public void startMulticastReceivers() throws IOException {
 		}
 		
 	}
