@@ -189,6 +189,11 @@ public class UDPConnector implements Connector {
 	}
 
 	@Override
+	public boolean isRunning() {
+		return running;
+	}
+
+	@Override
 	public synchronized void start() throws IOException {
 
 		if (running) {
@@ -461,7 +466,8 @@ public class UDPConnector implements Connector {
 	 * @param datagram received datagram.
 	 * @since 2.5
 	 */
-	protected void processDatagram(DatagramPacket datagram) {
+	@Override
+	public void processDatagram(DatagramPacket datagram) {
 		RawDataChannel dataReceiver = receiver;
 		if (datagram.getLength() > receiverPacketSize) {
 			// too large datagram for our buffer! data could have been

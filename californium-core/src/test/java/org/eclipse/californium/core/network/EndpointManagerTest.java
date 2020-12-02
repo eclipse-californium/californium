@@ -27,6 +27,7 @@ import static org.hamcrest.core.IsNull.notNullValue;
 import static org.hamcrest.core.IsSame.sameInstance;
 
 import java.io.IOException;
+import java.net.DatagramPacket;
 import java.net.InetSocketAddress;
 
 import org.eclipse.californium.core.coap.CoAP;
@@ -171,6 +172,11 @@ public class EndpointManagerTest {
 		}
 
 		@Override
+		public boolean isRunning() {
+			return true;
+		}
+
+		@Override
 		public void start() throws IOException {
 		}
 
@@ -180,6 +186,10 @@ public class EndpointManagerTest {
 
 		@Override
 		public void destroy() {
+		}
+
+		@Override
+		public void processDatagram(DatagramPacket datagram) {
 		}
 
 		@Override

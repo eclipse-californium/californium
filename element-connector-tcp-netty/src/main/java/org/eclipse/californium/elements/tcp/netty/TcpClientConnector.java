@@ -62,6 +62,7 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 
 import java.io.IOException;
+import java.net.DatagramPacket;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.concurrent.CancellationException;
@@ -100,6 +101,9 @@ public class TcpClientConnector implements Connector {
 	 * @see #getEndpointContextMatcher()
 	 */
 	private volatile EndpointContextMatcher endpointContextMatcher;
+
+	protected volatile boolean running;
+
 	private EventLoopGroup workerGroup;
 	private RawDataChannel rawDataChannel;
 	private AbstractChannelPoolMap<SocketAddress, ChannelPool> poolMap;
@@ -118,15 +122,19 @@ public class TcpClientConnector implements Connector {
 	}
 
 	@Override
+	public boolean isRunning() {
+		return running;
+	}
+
+	@Override
 	public synchronized void start() throws IOException {
 		if (rawDataChannel == null) {
 			throw new IllegalStateException("Cannot start without message handler.");
 		}
-
-		if (workerGroup != null) {
+		if (running || workerGroup != null) {
 			throw new IllegalStateException("Connector already started");
 		}
-
+		running = true;
 		workerGroup = new NioEventLoopGroup(numberOfThreads,
 				new DaemonThreadFactory("TCP-Client-" + THREAD_COUNTER.incrementAndGet() + "#", TCP_THREAD_GROUP));
 		poolMap = new AbstractChannelPoolMap<SocketAddress, ChannelPool>() {
@@ -151,6 +159,7 @@ public class TcpClientConnector implements Connector {
 
 	@Override
 	public synchronized void stop() {
+		running = false;
 		if (poolMap != null) {
 			poolMap.close();
 		}
@@ -164,6 +173,10 @@ public class TcpClientConnector implements Connector {
 	@Override
 	public void destroy() {
 		stop();
+	}
+
+	@Override
+	public void processDatagram(DatagramPacket datagram) {
 	}
 
 	@Override

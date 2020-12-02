@@ -49,6 +49,7 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 
 import java.io.IOException;
+import java.net.DatagramPacket;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.concurrent.CancellationException;
@@ -90,6 +91,8 @@ public class TcpServerConnector implements Connector {
 	private volatile EndpointContextMatcher endpointContextMatcher;
 	private volatile InetSocketAddress effectiveLocalAddress;
 
+	protected volatile boolean running;
+
 	private RawDataChannel rawDataChannel;
 	private EventLoopGroup bossGroup;
 	private EventLoopGroup workerGroup;
@@ -107,16 +110,19 @@ public class TcpServerConnector implements Connector {
 	}
 
 	@Override
+	public boolean isRunning() {
+		return running;
+	}
+
+	@Override
 	public synchronized void start() throws IOException {
 		if (rawDataChannel == null) {
 			throw new IllegalStateException("Cannot start without message handler.");
 		}
-		if (bossGroup != null) {
+		if (running || bossGroup != null || workerGroup != null) {
 			throw new IllegalStateException("Connector already started");
 		}
-		if (workerGroup != null) {
-			throw new IllegalStateException("Connector already started");
-		}
+		running = true;
 		int id = THREAD_COUNTER.incrementAndGet();
 		bossGroup = new NioEventLoopGroup(1, new DaemonThreadFactory("TCP-Server-" + id, TCP_THREAD_GROUP));
 		workerGroup = new NioEventLoopGroup(numberOfThreads,
@@ -142,6 +148,7 @@ public class TcpServerConnector implements Connector {
 
 	@Override
 	public synchronized void stop() {
+		running = false;
 		if (null != bossGroup) {
 			bossGroup.shutdownGracefully(0, 500, TimeUnit.MILLISECONDS).syncUninterruptibly();
 			bossGroup = null;
@@ -156,6 +163,10 @@ public class TcpServerConnector implements Connector {
 	@Override
 	public void destroy() {
 		stop();
+	}
+
+	@Override
+	public void processDatagram(DatagramPacket datagram) {
 	}
 
 	@Override

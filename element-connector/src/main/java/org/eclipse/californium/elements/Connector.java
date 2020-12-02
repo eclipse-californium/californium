@@ -21,6 +21,7 @@
 package org.eclipse.californium.elements;
 
 import java.io.IOException;
+import java.net.DatagramPacket;
 import java.net.InetSocketAddress;
 
 /**
@@ -130,5 +131,19 @@ public interface Connector {
 	 * @return protocol e.g. {@code "UDP"}, {@code "DTLS"}, {@code "TCP"}, or {@code "TLS"}
 	 */
 	String getProtocol();
+
+	/**
+	 * Connector is running.
+	 * 
+	 * @return {@code true}, if running, {@code false}, otherwise.
+	 */
+	boolean isRunning();
+
+	/**
+	 * Process datagram.
+	 * 
+	 * @param datagram datagram to process
+	 */
+	void processDatagram(DatagramPacket datagram);
 
 }
