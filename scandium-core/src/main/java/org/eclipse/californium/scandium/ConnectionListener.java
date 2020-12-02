@@ -36,4 +36,26 @@ public interface ConnectionListener {
 	 *            store
 	 */
 	void onConnectionRemoved(Connection connection);
+
+	/**
+	 * Callback, when a executor begin processing a connection.
+	 * 
+	 * @param connection connection
+	 */
+	void beforeExecution(Connection connection);
+
+	/**
+	 * Callback, when a connection changed its state.
+	 * 
+	 * @param connection connection
+	 */
+	void updateExecution(Connection connection);
+
+	/**
+	 * Callback, after a executor processed a connection.
+	 * 
+	 * @param connection connection
+	 */
+	void afterExecution(Connection connection);
+	
 }

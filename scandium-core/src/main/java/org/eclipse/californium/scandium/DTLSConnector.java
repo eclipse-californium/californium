@@ -347,7 +347,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	private volatile RawDataChannel messageHandler;
 	private AlertHandler alertHandler;
 	private SessionListener sessionListener;
-	private ConnectionExecutionListener connectionExecutionListener;
+	private ConnectionListener connectionListener;
 	private ExecutorService executorService;
 	private boolean hasInternalExecutor;
 
@@ -439,10 +439,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			this.connectionStore = connectionStore;
 			this.connectionStore.attach(connectionIdGenerator);
 			this.connectionStore.setConnectionListener(config.getConnectionListener());
-			ConnectionListener listener = config.getConnectionListener();
-			if (listener instanceof ConnectionExecutionListener) {
-				this.connectionExecutionListener = (ConnectionExecutionListener) listener;
-			}
+			this.connectionListener = config.getConnectionListener();
 			HandshakeResultHandler handler = new HandshakeResultHandler() {
 
 				@Override
@@ -1211,7 +1208,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 				if (connection == null && create) {
 					LOGGER.trace("create new connection for {}", peerAddress);
 					Connection newConnection = new Connection(peerAddress, new SerialExecutor(executor));
-					newConnection.setExecutionListener(connectionExecutionListener);
+					newConnection.setExecutionListener(connectionListener);
 					if (running.get()) {
 						// only add, if connector is running!
 						if (!connectionStore.put(newConnection)) {
@@ -1895,7 +1892,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 					}
 					if (connection == null) {
 						connection = new Connection(peerAddress, new SerialExecutor(getExecutorService()));
-						connection.setExecutionListener(connectionExecutionListener);
+						connection.setExecutionListener(connectionListener);
 						connection.startByClientHello(clientHello);
 						if (!connectionStore.put(connection)) {
 							return;

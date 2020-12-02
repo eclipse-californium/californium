@@ -48,7 +48,7 @@ import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.SerialExecutor.ExecutionListener;
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.scandium.ConnectionExecutionListener;
+import org.eclipse.californium.scandium.ConnectionListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -103,7 +103,7 @@ public final class Connection {
 	// Used to know when an abbreviated handshake should be initiated
 	private volatile boolean resumptionRequired; 
 
-	private volatile ConnectionExecutionListener connectionExecutionListener;
+	private volatile ConnectionListener connectionListener;
 
 	/**
 	 * Creates a new connection to a given peer.
@@ -155,8 +155,8 @@ public final class Connection {
 		}
 	}
 
-	public void setExecutionListener(final ConnectionExecutionListener listener) {
-		this.connectionExecutionListener = listener;
+	public void setExecutionListener(final ConnectionListener listener) {
+		this.connectionListener = listener;
 		SerialExecutor executor = this.serialExecutor;
 		if (executor != null) {
 			if (listener == null) {
@@ -179,7 +179,7 @@ public final class Connection {
 	}
 
 	public void updateConnectionState() {
-		ConnectionExecutionListener listener = this.connectionExecutionListener;
+		ConnectionListener listener = this.connectionListener;
 		if (listener != null) {
 			listener.updateExecution(this);
 		}
@@ -199,7 +199,7 @@ public final class Connection {
 			throw new IllegalStateException("Serial executor already available!");
 		}
 		this.serialExecutor = serialExecutor;
-		setExecutionListener(this.connectionExecutionListener);
+		setExecutionListener(this.connectionListener);
 	}
 
 	/**
