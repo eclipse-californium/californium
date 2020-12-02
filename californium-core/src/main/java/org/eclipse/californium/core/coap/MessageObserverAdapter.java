@@ -47,7 +47,34 @@ import org.eclipse.californium.elements.EndpointContext;
  * An instance of the concrete message observer can then be registered with a
  * message using the message's <code>addMessageObserver</code> method.
  */
-public abstract class MessageObserverAdapter implements MessageObserver2 {
+public abstract class MessageObserverAdapter implements MessageObserver {
+
+	/**
+	 * Indicates, that the observer is used for internal purpose.
+	 * @since 3.0
+	 */
+	private final boolean isInternal;
+
+	/**
+	 * Create none-internal instance.
+	 */
+	protected MessageObserverAdapter() {
+		this(false);
+	}
+
+	/**
+	 * Create instance.
+	 * 
+	 * @param isInternal {@code true}, for internal instances, {@code false}, otherwise.
+	 */
+	protected MessageObserverAdapter(boolean isInternal) {
+		this.isInternal = isInternal;
+	}
+
+	@Override
+	public boolean isInternal() {
+		return isInternal;
+	}
 
 	@Override
 	public void onRetransmission() {

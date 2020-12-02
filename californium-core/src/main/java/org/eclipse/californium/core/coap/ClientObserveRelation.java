@@ -176,10 +176,8 @@ public class ClientObserveRelation {
 
 			// use same message observers
 			for (MessageObserver observer : request.getMessageObservers()) {
-				if (observer instanceof InternalMessageObserver) {
-					if (((InternalMessageObserver) observer).isInternal()) {
-						continue;
-					}
+				if (observer.isInternal()) {
+					continue;
 				}
 				request.removeMessageObserver(observer);
 				refresh.addMessageObserver(observer);
@@ -226,10 +224,8 @@ public class ClientObserveRelation {
 
 		// use same message observers
 		for (MessageObserver observer : request.getMessageObservers()) {
-			if (observer instanceof InternalMessageObserver) {
-				if (((InternalMessageObserver) observer).isInternal()) {
-					continue;
-				}
+			if (observer.isInternal()) {
+				continue;
 			}
 			request.removeMessageObserver(observer);
 			cancel.addMessageObserver(observer);

@@ -1025,9 +1025,7 @@ public class Request extends Message {
 		this.responseHandlingError = cause;
 		if (responseHandlingError != null) {
 			for (MessageObserver handler : getMessageObservers()) {
-				if (handler instanceof MessageObserver2) {
-					((MessageObserver2) handler).onResponseHandlingError(responseHandlingError);
-				}
+				handler.onResponseHandlingError(responseHandlingError);
 			}
 
 			synchronized (this) {

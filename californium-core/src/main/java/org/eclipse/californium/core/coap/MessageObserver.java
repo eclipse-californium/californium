@@ -67,6 +67,12 @@ import org.eclipse.californium.elements.EndpointContext;
  * {@link #onResponse(Response)} can be used to react to each such notification.
  */
 public interface MessageObserver {
+	/**
+	 * Check, if observer is internal and is not intended to be cloned.
+	 * 
+	 * @return {@code true}, internal, {@code false}, maybe cloned.
+	 */
+	boolean isInternal();
 
 	/**
 	 * Invoked when a message is about to be re-transmitted.
@@ -148,6 +154,13 @@ public interface MessageObserver {
 	 * @param error The cause of the failure to send the message.
 	 */
 	void onSendError(Throwable error);
+
+	/**
+	 * Invoked when an error happens during response handling.
+	 * 
+	 * @param cause The cause of the failure.
+	 */
+	void onResponseHandlingError(Throwable cause);
 
 	/**
 	 * Invoked when the resulting endpoint context is reported by the connector.

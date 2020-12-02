@@ -19,7 +19,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.stack;
 
-import org.eclipse.californium.core.coap.InternalMessageObserverAdapter;
+import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
@@ -32,13 +32,14 @@ import org.slf4j.LoggerFactory;
  * failed to be send.
  */
 @NoPublicAPI
-public class CleanupMessageObserver extends InternalMessageObserverAdapter {
+public class CleanupMessageObserver extends MessageObserverAdapter {
 
 	protected static final Logger LOGGER = LoggerFactory.getLogger(CleanupMessageObserver.class);
 
 	protected final Exchange exchange;
 
 	protected CleanupMessageObserver(final Exchange exchange) {
+		super(true);
 		this.exchange = exchange;
 	}
 
