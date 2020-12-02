@@ -142,27 +142,6 @@ public class X509CertPath extends AbstractExtensiblePrincipal<X509CertPath> {
 	}
 
 	/**
-	 * Create certificate path from x509 certificates chain.
-	 * 
-	 * @param includeRoot {@code true}, to include the root certificate in the
-	 *            path, {@code false} otherwise.
-	 * @param certificateChain list with chain of x509 certificates
-	 * @return created certificate path
-	 * @deprecated use {@link CertPathUtil}
-	 */
-	@Deprecated
-	public static CertPath generateCertPath(boolean includeRoot, List<X509Certificate> certificateChain) {
-		if (certificateChain == null) {
-			throw new NullPointerException("Certificate chain must not be null!");
-		}
-		if (includeRoot) {
-			return CertPathUtil.generateCertPath(certificateChain);
-		} else {
-			return CertPathUtil.generateValidatableCertPath(certificateChain, null);
-		}
-	}
-
-	/**
 	 * Gets a binary representation of this certificate chain using the
 	 * <em>PkiPath</em> encoding.
 	 * 

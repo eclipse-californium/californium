@@ -128,66 +128,6 @@ public class UdpMulticastConnector extends UDPConnector {
 	private boolean loopbackDisable;
 
 	/**
-	 * Creates a connector bound to given multicast group and IP Port, using the
-	 * specified network interface for outgoing multicast packets
-	 *
-	 * Note: This constructor that allows you to specify a network interface was
-	 * added to mitigate the issue described at
-	 * https://github.com/eclipse/californium/issues/872. If you run into
-	 * trouble using this approach, a own {@link UdpMulticastConnector}
-	 * implementation may be used with a proper initialisation of the
-	 * {@link MulticastSocket} in an overriden {@link #start()} method for that
-	 * case.
-	 *
-	 * @param intfAddress address of network interface for outgoing multicast
-	 *            packets
-	 * @param localAddress local socket address. If a broadcast is used, and the
-	 *            multicastGroups are empty or {@code null}, this connector
-	 *            maybe used as "multicast receiver". If a multicast address is
-	 *            used and the multicastGroups are empty or {@code null}, the
-	 *            local address is also used as multicast griou to join.
-	 * @param multicastGroups multicast groups to join. If no broadcast nor
-	 *            multicast address is used as local address, this list must not
-	 *            be empty.
-	 * @throws IllegalArgumentException if local address is not a broadcast nor
-	 *             multicast address and the multicast groups are empty or
-	 *             {@code null}.
-	 * @deprecated use {@link Builder} instead
-	 */
-	@Deprecated
-	public UdpMulticastConnector(InetAddress intfAddress, InetSocketAddress localAddress,
-			InetAddress... multicastGroups) {
-		this(localAddress, intfAddress, null, toList(multicastGroups));
-	}
-
-	/**
-	 * Creates a connector bound to given multicast group and IP Port, using the
-	 * default (any) network interface for receiving multicast packets
-	 *
-	 * Note: You might run into issues described at
-	 * https://bugs.java.com/bugdatabase/view_bug.do?bug_id=4701650 if you do
-	 * not specify a network interface. See also
-	 * https://github.com/eclipse/californium/issues/872.
-	 *
-	 * @param localAddress local socket address. If a broadcast is used, and the
-	 *            multicastGroups are empty or {@code null}, this connector
-	 *            maybe used as "multicast receiver". If a multicast address is
-	 *            used and the multicastGroups are empty or {@code null}, the
-	 *            local address is also used as multicast griou to join.
-	 * @param multicastGroups multicast groups to join. If no broadcast nor
-	 *            multicast address is used as local address, this list must not
-	 *            be empty.
-	 * @throws IllegalArgumentException if local address is not a broadcast nor
-	 *             multicast address and the multicast groups are empty or
-	 *             {@code null}.
-	 * @deprecated use {@link Builder} instead
-	 */
-	@Deprecated
-	public UdpMulticastConnector(InetSocketAddress localAddress, InetAddress... multicastGroups) {
-		this(localAddress, null, null, toList(multicastGroups));
-	}
-
-	/**
 	 * Creates a connector bound to given multicast group and IP Port.
 	 *
 	 * Note: You might run into issues described at
@@ -344,23 +284,6 @@ public class UdpMulticastConnector extends UDPConnector {
 			this.multicastGroup = multicastGroup;
 			this.networkInterface = networkInterface;
 		}
-	}
-
-	/**
-	 * Convert array of multicast groups in list of {@link Join}s.
-	 * 
-	 * @param multicastGroups multicast groups
-	 * @return multicast groups as list of {@link Join}s.
-	 * @since 2.4
-	 */
-	private static List<Join> toList(InetAddress... multicastGroups) {
-		List<Join> groups = new ArrayList<Join>();
-		if (multicastGroups != null) {
-			for (InetAddress group : multicastGroups) {
-				groups.add(new Join(group));
-			}
-		}
-		return groups;
 	}
 
 	/**
