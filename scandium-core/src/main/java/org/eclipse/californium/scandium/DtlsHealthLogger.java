@@ -68,23 +68,6 @@ public class DtlsHealthLogger extends CounterStatisticManager implements DtlsHea
 	 * Create active dtls health logger with logging tag.
 	 * 
 	 * @param tag logging tag
-	 * @param udp not used
-	 * @param interval interval in seconds. {@code 0} to disable actively calling
-	 *            {@link #dump()}.
-	 * @param executor executor to schedule active calls of {@link #dump()}.
-	 * @deprecated use
-	 *             {@link #DtlsHealthLogger(String, int, ScheduledExecutorService)}
-	 *             instead.
-	 */
-	@Deprecated
-	public DtlsHealthLogger(String tag, boolean udp, int interval, ScheduledExecutorService executor) {
-		this(tag, interval, executor);
-	}
-
-	/**
-	 * Create active dtls health logger with logging tag.
-	 * 
-	 * @param tag logging tag
 	 * @param interval interval in seconds. {@code 0} to disable actively
 	 *            calling {@link #dump()}.
 	 * @param executor executor to schedule active calls of {@link #dump()}.

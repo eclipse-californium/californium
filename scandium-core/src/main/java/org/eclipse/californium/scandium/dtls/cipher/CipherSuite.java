@@ -499,33 +499,6 @@ public enum CipherSuite {
 	}
 
 	/**
-	 * Get a list of all supported PSK cipher suites.
-	 * 
-	 * @param recommendedCipherSuitesOnly {@code true} use only recommended
-	 *            cipher suites
-	 * @param ecdhePsk {@code true} include ECDHE_PSK cipher suites
-	 * @return list of all supported PSK cipher suites. Ordered by their
-	 *         definition above.
-	 * @deprecated use
-	 *             {@link #getCipherSuitesByKeyExchangeAlgorithm(boolean, KeyExchangeAlgorithm...)}
-	 */
-	@Deprecated
-	public static List<CipherSuite> getPskCipherSuites(boolean recommendedCipherSuitesOnly, boolean ecdhePsk) {
-		List<CipherSuite> list = new ArrayList<>();
-		for (CipherSuite suite : values()) {
-			if (suite.isSupported()) {
-				if (KeyExchangeAlgorithm.PSK.equals(suite.keyExchange)
-						|| (ecdhePsk && KeyExchangeAlgorithm.ECDHE_PSK.equals(suite.keyExchange))) {
-					if (!recommendedCipherSuitesOnly || suite.recommendedCipherSuite) {
-						list.add(suite);
-					}
-				}
-			}
-		}
-		return list;
-	}
-
-	/**
 	 * Get a list of all cipher suites using the provided key exchange
 	 * algorithms.
 	 * 
@@ -769,25 +742,6 @@ public enum CipherSuite {
 		}
 
 		return writer.toByteArray();
-	}
-
-	/**
-	 * Decode cipher suite list from byte array.
-	 * 
-	 * @param byteArray byte array with encoded cipher suites
-	 * @param numElements number of encoded cipher suites
-	 * @return list of cipher suites
-	 * @throws IllegalArgumentException if provided number of cipher suites
-	 *             doesn't macht the provided byte array
-	 * @deprecated use {@link #listFromReader(DatagramReader)}
-	 */
-	@Deprecated
-	public static List<CipherSuite> listFromByteArray(byte[] byteArray, int numElements) {
-		List<CipherSuite> cipherSuites = listFromReader(new DatagramReader(byteArray, false));
-		if (cipherSuites.size() != numElements) {
-			throw new IllegalArgumentException("");
-		}
-		return cipherSuites;
 	}
 
 	/**

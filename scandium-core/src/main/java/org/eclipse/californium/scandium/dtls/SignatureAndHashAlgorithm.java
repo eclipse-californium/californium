@@ -565,23 +565,6 @@ public final class SignatureAndHashAlgorithm {
 	}
 
 	/**
-	 * Gets the <a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Signature">
-	 * JCA standard name</a> corresponding to this combination of hash and signature algorithm.
-	 * <p>
-	 * The name returned by this method can be used to instantiate a {@code java.security.Signature} object like this:
-	 * <pre>
-	 * Signature signature = Signature.newInstance(signatureAndHash.jcaName());
-	 * </pre>
-	 * 
-	 * @return The name, or {@code null}, if name is not available/not known by this implementation.
-	 * @deprecated use {@link #getJcaName()}.
-	 */
-	@Deprecated
-	public String jcaName() {
-		return jcaName;
-	}
-
-	/**
 	 * Check, if signature and hash algorithm is supported by JRE.
 	 * 
 	 * @return {@code true}, if supported by JRE, {@code false}, otherwise.

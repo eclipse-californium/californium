@@ -87,21 +87,6 @@ public final class DTLSSession implements Destroyable {
 								HandshakeMessage.MESSAGE_HEADER_LENGTH_BYTES // 12 bytes DTLS handshake message headers
 								+ Record.RECORD_HEADER_BYTES; // 13 bytes DTLS record headers
 
-	/**
-	 * The overall length of all headers around a DTLS handshake message payload.
-	 * <ol>
-	 * <li>12 bytes DTLS message header</li>
-	 * <li>13 bytes DTLS record header</li>
-	 * <li>8 bytes UDP header</li>
-	 * <li>20 bytes IP header (Ipv4)</li>
-	 * <li>36 bytes optional IP options</li>
-	 * </ol>
-	 * 89 bytes in total (including 36 bytes optional).
-	 * @deprecated use {@link #DTLS_HEADER_LENGTH} and {@link RecordLayer#getMaxDatagramSize(boolean)} instead.
-	 */
-	@Deprecated
-	public static final int HEADER_LENGTH = DTLS_HEADER_LENGTH + RecordLayer.IPV4_HEADER_LENGTH;
-
 	private static final Logger LOGGER = LoggerFactory.getLogger(DTLSSession.class);
 	private static final long RECEIVE_WINDOW_SIZE = 64;
 	private static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1
@@ -1107,33 +1092,6 @@ public final class DTLSSession implements Destroyable {
 			throw new NullPointerException("Peer identity must not be null");
 		}
 		this.peerIdentity = peerIdentity;
-	}
-
-	/**
-	 * Checks whether a given record can be processed within the context of this
-	 * session.
-	 * 
-	 * This is the case if
-	 * <ul>
-	 * <li>the record is from the same epoch as session's current read
-	 * epoch</li>
-	 * <li>the record has not been received before</li>
-	 * <li>if marked as closed, the record's sequence number is not after the
-	 * close notify's sequence number</li>
-	 * </ul>
-	 * 
-	 * @param epoch the record's epoch
-	 * @param sequenceNo the record's sequence number
-	 * @param useWindowOnly {@code true} use only message window for filter. For
-	 *            message too old for the message window {@code true} is
-	 *            returned.
-	 * @return {@code true} if the record satisfies the conditions above
-	 * @since 2.3 support marked as closed
-	 * @deprecated use {@link #isRecordProcessable(long, long, int)} instead
-	 */
-	@Deprecated
-	public boolean isRecordProcessable(long epoch, long sequenceNo, boolean useWindowOnly) {
-		return isRecordProcessable(epoch, sequenceNo, useWindowOnly ? -1 : 0);
 	}
 
 	/**

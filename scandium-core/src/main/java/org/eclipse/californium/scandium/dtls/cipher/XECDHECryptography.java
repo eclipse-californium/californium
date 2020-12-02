@@ -54,8 +54,7 @@ import javax.security.auth.Destroyable;
 
 /**
  * A helper class to execute the XDH and ECDHE key agreement and key generation.
- * Support X25519 and X448 with java 11. The API is simplified compared to the
- * previous API of the deprecated {@link ECDHECryptography}.
+ * Support X25519 and X448 with java 11.
  * 
  * A ECDHE key exchange starts with negotiating a curve. The possible curves are
  * listed at <a href=

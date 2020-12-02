@@ -322,33 +322,6 @@ public class Record {
 	 * The binary representation is expected to comply with the <em>DTLSCiphertext</em> structure
 	 * defined in <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1">RFC6347, Section 4.3.1</a>.
 	 * 
-	 * @param byteArray the raw binary representation containing one or more DTLSCiphertext structures
-	 * @param peerAddress the IP address and port of the peer from which the bytes have been
-	 *           received
-	 * @param cidGenerator the connection id generator. May be {@code null}.
-	 * @param receiveNanos uptime nanoseconds of receiving this record
-	 * @return the {@code Record} instances
-	 * @throws NullPointerException if either one of the byte array or peer address is {@code null}
-	 * @deprecated use {@link #fromReader(DatagramReader, InetSocketAddress, InetSocketAddress, ConnectionIdGenerator, long)} instead.
-	 */
-	@Deprecated
-	public static List<Record> fromByteArray(byte[] byteArray, InetSocketAddress peerAddress, ConnectionIdGenerator cidGenerator, long receiveNanos) {
-		if (byteArray == null) {
-			throw new NullPointerException("Byte array must not be null");
-		} else if (peerAddress == null) {
-			throw new NullPointerException("Peer address must not be null");
-		}
-
-		DatagramReader reader = new DatagramReader(byteArray, false);
-		return fromReader(reader, peerAddress, null, cidGenerator, receiveNanos);
-	}
-
-	/**
-	 * Parses a sequence of <em>DTLSCiphertext</em> structures into {@code Record} instances.
-	 * 
-	 * The binary representation is expected to comply with the <em>DTLSCiphertext</em> structure
-	 * defined in <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1">RFC6347, Section 4.3.1</a>.
-	 * 
 	 * @param reader a reader with the raw binary representation containing one or more DTLSCiphertext structures
 	 * @param peerAddress the IP address and port of the peer from which the bytes have been
 	 *           received

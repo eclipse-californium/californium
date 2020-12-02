@@ -54,9 +54,9 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.MultiNodeConnectionIdGenerator;
+import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.PskSecretResult;
-import org.eclipse.californium.scandium.dtls.PskSecretResultHandler;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
@@ -68,7 +68,6 @@ import org.eclipse.californium.scandium.util.ServerNames;
 /**
  * Base for test servers.
  */
-@SuppressWarnings("deprecation")
 public abstract class AbstractTestServer extends CoapServer {
 
 	public enum Protocol {
@@ -479,7 +478,7 @@ public abstract class AbstractTestServer extends CoapServer {
 		}
 
 		@Override
-		public void setResultHandler(PskSecretResultHandler resultHandler) {
+		public void setResultHandler(HandshakeResultHandler resultHandler) {
 			// 
 		}
 	}
