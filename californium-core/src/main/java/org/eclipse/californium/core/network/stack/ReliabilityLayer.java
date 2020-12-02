@@ -45,7 +45,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
-import org.eclipse.californium.core.coap.InternalMessageObserverAdapter;
+import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -171,7 +171,7 @@ public class ReliabilityLayer extends AbstractLayer {
 		exchange.setRetransmissionHandle(null); // cancel before reschedule
 		updateRetransmissionTimeout(exchange, task.getReliabilityLayerParameters());
 
-		task.message.addMessageObserver(new InternalMessageObserverAdapter() {
+		task.message.addMessageObserver(new MessageObserverAdapter(true) {
 
 			@Override
 			public void onSent(boolean retransmission) {
