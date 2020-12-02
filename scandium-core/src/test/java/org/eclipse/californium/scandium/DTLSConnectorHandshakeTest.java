@@ -319,9 +319,9 @@ public class DTLSConnectorHandshakeTest {
 	public void setUp() {
 
 		serverInfoSupplier = mock(ApplicationLevelInfoSupplier.class);
-		when(serverInfoSupplier.getInfo(any(Principal.class))).thenReturn(additionalServerInfo);
+		when(serverInfoSupplier.getInfo(any(Principal.class), any())).thenReturn(additionalServerInfo);
 		clientInfoSupplier = mock(ApplicationLevelInfoSupplier.class);
-		when(clientInfoSupplier.getInfo(any(Principal.class))).thenReturn(additionalClientInfo);
+		when(clientInfoSupplier.getInfo(any(Principal.class), any())).thenReturn(additionalClientInfo);
 	}
 
 	/**
@@ -697,7 +697,7 @@ public class DTLSConnectorHandshakeTest {
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(nullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
-		verify(clientInfoSupplier, never()).getInfo(any(Principal.class));
+		verify(clientInfoSupplier, never()).getInfo(any(Principal.class), any());
 	}
 
 	@Test
@@ -708,7 +708,7 @@ public class DTLSConnectorHandshakeTest {
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(nullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
-		verify(clientInfoSupplier, never()).getInfo(any(Principal.class));
+		verify(clientInfoSupplier, never()).getInfo(any(Principal.class), any());
 	}
 
 	@Test
@@ -719,7 +719,7 @@ public class DTLSConnectorHandshakeTest {
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(nullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(SERVERNAME));
-		verify(clientInfoSupplier, never()).getInfo(any(Principal.class));
+		verify(clientInfoSupplier, never()).getInfo(any(Principal.class), any());
 	}
 
 	@Test
@@ -730,7 +730,7 @@ public class DTLSConnectorHandshakeTest {
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(nullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
-		verify(clientInfoSupplier, never()).getInfo(any(Principal.class));
+		verify(clientInfoSupplier, never()).getInfo(any(Principal.class), any());
 	}
 
 	@Test
@@ -741,7 +741,7 @@ public class DTLSConnectorHandshakeTest {
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(nullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
-		verify(clientInfoSupplier, never()).getInfo(any(Principal.class));
+		verify(clientInfoSupplier, never()).getInfo(any(Principal.class), any());
 	}
 
 	@Test
@@ -752,7 +752,7 @@ public class DTLSConnectorHandshakeTest {
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(nullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
-		verify(clientInfoSupplier, never()).getInfo(any(Principal.class));
+		verify(clientInfoSupplier, never()).getInfo(any(Principal.class), any());
 	}
 
 	@Test
@@ -763,7 +763,7 @@ public class DTLSConnectorHandshakeTest {
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(nullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(SERVERNAME));
-		verify(clientInfoSupplier, never()).getInfo(any(Principal.class));
+		verify(clientInfoSupplier, never()).getInfo(any(Principal.class), any());
 	}
 
 	@Test
@@ -774,7 +774,7 @@ public class DTLSConnectorHandshakeTest {
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(nullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
-		verify(clientInfoSupplier, never()).getInfo(any(Principal.class));
+		verify(clientInfoSupplier, never()).getInfo(any(Principal.class), any());
 	}
 
 	@Test
@@ -796,7 +796,7 @@ public class DTLSConnectorHandshakeTest {
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(nullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
-		verify(clientInfoSupplier, never()).getInfo(any(Principal.class));
+		verify(clientInfoSupplier, never()).getInfo(any(Principal.class), any());
 	}
 
 	@Test
@@ -818,7 +818,7 @@ public class DTLSConnectorHandshakeTest {
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(nullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
-		verify(clientInfoSupplier, never()).getInfo(any(Principal.class));
+		verify(clientInfoSupplier, never()).getInfo(any(Principal.class), any());
 	}
 
 	@Test
@@ -832,7 +832,7 @@ public class DTLSConnectorHandshakeTest {
 		Principal principal = endpointContext.getPeerIdentity();
 		assertThat(principal, is(nullValue()));
 		assertThat(endpointContext.getVirtualHost(), is(nullValue()));
-		verify(clientInfoSupplier, never()).getInfo(any(Principal.class));
+		verify(clientInfoSupplier, never()).getInfo(any(Principal.class), any());
 	}
 
 	@Test

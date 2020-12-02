@@ -18,7 +18,7 @@ package org.eclipse.californium.scandium.dtls;
 import java.security.PublicKey;
 import java.security.cert.CertPath;
 
-import org.eclipse.californium.scandium.auth.AdvancedApplicationLevelInfoSupplier;
+import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
 
 /**
@@ -56,9 +56,9 @@ public final class CertificateVerificationResult extends HandshakeResult {
 	 * @param certificatePath verified certificate path for x509. {@code null},
 	 *            if certificate path could not be verified.
 	 * @param customArgument custom argument. May be {@code null}. Passed to
-	 *            {@link AdvancedApplicationLevelInfoSupplier} by the
+	 *            {@link ApplicationLevelInfoSupplier} by the
 	 *            {@link Handshaker}, if a
-	 *            {@link AdvancedApplicationLevelInfoSupplier} is available.
+	 *            {@link ApplicationLevelInfoSupplier} is available.
 	 * @throws NullPointerException if cid is {@code null}.
 	 */
 	public CertificateVerificationResult(ConnectionId cid, CertPath certificatePath, Object customArgument) {
@@ -75,9 +75,9 @@ public final class CertificateVerificationResult extends HandshakeResult {
 	 * @param publicKey verified public key for RPK. {@code null}, if public key
 	 *            could not be verified.
 	 * @param customArgument custom argument. May be {@code null}. Passed to
-	 *            {@link AdvancedApplicationLevelInfoSupplier} by the
+	 *            {@link ApplicationLevelInfoSupplier} by the
 	 *            {@link Handshaker}, if a
-	 *            {@link AdvancedApplicationLevelInfoSupplier} is available.
+	 *            {@link ApplicationLevelInfoSupplier} is available.
 	 * @throws NullPointerException if cid is {@code null}.
 	 */
 	public CertificateVerificationResult(ConnectionId cid, PublicKey publicKey, Object customArgument) {
@@ -93,9 +93,9 @@ public final class CertificateVerificationResult extends HandshakeResult {
 	 * @param cid connection id
 	 * @param exception handshake exception.
 	 * @param customArgument custom argument. May be {@code null}. Passed to
-	 *            {@link AdvancedApplicationLevelInfoSupplier} by the
+	 *            {@link ApplicationLevelInfoSupplier} by the
 	 *            {@link Handshaker}, if a
-	 *            {@link AdvancedApplicationLevelInfoSupplier} is available.
+	 *            {@link ApplicationLevelInfoSupplier} is available.
 	 * @throws NullPointerException if cid or exception is {@code null}.
 	 */
 	public CertificateVerificationResult(ConnectionId cid, HandshakeException exception, Object customArgument) {
