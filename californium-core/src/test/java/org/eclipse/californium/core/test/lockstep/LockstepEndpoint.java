@@ -1206,18 +1206,6 @@ public class LockstepEndpoint {
 			return this;
 		}
 
-		/**
-		 * Check, if received observe is newer than the previous stored one.
-		 * 
-		 * @param key key of previous stored one
-		 * @return expectation for
-		 * @deprecated use {@link #newerObserve(String)}
-		 */
-		@Deprecated
-		public ResponseExpectation largerObserve(final String key) {
-			return newerObserve(key);
-		}
-
 		public ResponseExpectation newerObserve(final String key) {
 			expectations.add(new Expectation<Response>() {
 

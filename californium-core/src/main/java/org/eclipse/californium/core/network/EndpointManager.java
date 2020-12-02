@@ -31,9 +31,7 @@
 package org.eclipse.californium.core.network;
 
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.URI;
-import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
@@ -44,7 +42,6 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.server.MessageDeliverer;
-import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 
 /**
  * A manager and coap-factory for {@link Endpoint}s that can be used by clients for sending
@@ -198,18 +195,6 @@ public class EndpointManager {
 	 */
 	public Endpoint getDefaultEndpoint() {
 		return getDefaultEndpoint(CoAP.COAP_URI_SCHEME);
-	}
-
-	/**
-	 * Get collection of available local inet addresses of network interfaces.
-	 * 
-	 * @return collection of local inet addresses.
-	 * @deprecated use {@link NetworkInterfacesUtil#getNetworkInterfaces()}
-	 *             instead.
-	 */
-	@Deprecated
-	public Collection<InetAddress> getNetworkInterfaces() {
-		return NetworkInterfacesUtil.getNetworkInterfaces();
 	}
 
 	// Needed for JUnit Tests to remove state for deduplication

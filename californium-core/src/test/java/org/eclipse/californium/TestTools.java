@@ -23,15 +23,10 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Random;
-import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.elements.util.CounterStatisticManager;
-import org.eclipse.californium.elements.util.TestCondition;
-import org.eclipse.californium.elements.util.TestConditionTools;
-import org.hamcrest.Matcher;
 
 /**
  * A collection of utility methods for implementing tests.
@@ -164,71 +159,5 @@ public final class TestTools {
 				message.removeMessageObserver(observer);
 			}
 		}
-	}
-
-	/**
-	 * Wait for condition to come {@code true}.
-	 * 
-	 * Used for none notifying conditions, which must be polled.
-	 * 
-	 * @param timeout timeout in {@code unit}
-	 * @param interval interval of condition check in {@code unit}
-	 * @param unit time units for {@code timeout} and {@code interval}
-	 * @param check callback for condition check
-	 * @return {@code true}, if the condition is fulfilled within timeout,
-	 *         {@code false} otherwise.
-	 * @throws InterruptedException if the Thread is interrupted.
-	 * @deprecated use {@link TestConditionTools#waitForCondition(long, long, TimeUnit, TestCondition)}
-	 */
-	@Deprecated
-	public static boolean waitForCondition(long timeout, long interval, TimeUnit unit, TestCondition check)
-			throws InterruptedException {
-		return TestConditionTools.waitForCondition(timeout, interval, unit, check);
-	}
-
-	/**
-	 * Get in range matcher.
-	 * 
-	 * @param <T> type of values.
-	 * @param min inclusive minimum value
-	 * @param max exclusive maximum value
-	 * @return matcher.
-	 * @deprecated use {@link TestConditionTools#inRange(Number, Number)}
-	 */
-	@Deprecated
-	public static <T extends Number> org.hamcrest.Matcher<T> inRange(T min, T max) {
-		return TestConditionTools.inRange(min, max);
-	}
-
-	/**
-	 * Assert, that a statistic counter reaches the matcher's criterias within
-	 * the provided timeout.
-	 * 
-	 * @param manager statisitc manager
-	 * @param name name os statisitc.
-	 * @param matcher matcher for statistic counter value
-	 * @param timeout timeout in milliseconds to match
-	 * @throws InterruptedException if wait is interrupted.
-	 * @deprecated use
-	 *             {@link TestConditionTools#assertStatisticCounter(CounterStatisticManager, String, Matcher, long, TimeUnit)}
-	 */
-	@Deprecated
-	public static void assertCounter(final CounterStatisticManager manager, final String name,
-			final Matcher<? super Long> matcher, long timeout) throws InterruptedException {
-		TestConditionTools.assertStatisticCounter(manager, name, matcher, timeout, TimeUnit.MILLISECONDS);
-	}
-
-	/**
-	 * Assert, that a statistic counter matches the provided criterias.
-	 * 
-	 * @param manager statisitc manager
-	 * @param name name os statisitc.
-	 * @param matcher matcher for statistic counter value
-	 * @deprecated use
-	 *             {@link TestConditionTools#assertStatisticCounter(CounterStatisticManager, String, Matcher)}
-	 */
-	@Deprecated
-	public static void assertCounter(CounterStatisticManager manager, String name, Matcher<? super Long> matcher) {
-		TestConditionTools.assertStatisticCounter(manager, name, matcher);
 	}
 }

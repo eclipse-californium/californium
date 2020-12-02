@@ -121,10 +121,10 @@ public class ProxyCoapClientResource extends ForwardingResource {
 			// execute the request
 			LOGGER.debug("Sending proxied CoAP request.");
 
-			if (outgoingRequest.getDestination() == null) {
+			if (outgoingRequest.getDestinationContext() == null) {
 				throw new NullPointerException("Destination is null");
 			}
-			if (outgoingRequest.getDestinationPort() == 0) {
+			if (outgoingRequest.getDestinationContext().getPeerAddress().getPort() == 0) {
 				throw new NullPointerException("Destination port is 0");
 			}
 

@@ -36,22 +36,6 @@ public class CoAPMessageFormatException extends MessageFormatException {
 	 * Creates an exception for a description and message properties.
 	 * 
 	 * @param description a description of the error cause.
-	 * @param mid the message ID.
-	 * @param code the message code.
-	 * @param confirmable whether the message has been transferred reliably.
-	 * @deprecated use
-	 *             {@link CoAPMessageFormatException#CoAPMessageFormatException(String, Token, int, int, boolean)}
-	 *             instead.
-	 */
-	@Deprecated
-	public CoAPMessageFormatException(String description, int mid, int code, boolean confirmable) {
-		this(description, null, mid, code, confirmable);
-	}
-
-	/**
-	 * Creates an exception for a description and message properties.
-	 * 
-	 * @param description a description of the error cause.
 	 * @param token the Token of the message. Maybe {@code null}, if the message
 	 *            has no token (ACK or RST).
 	 * @param mid the message ID.

@@ -43,7 +43,6 @@
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
-import java.net.InetAddress;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
@@ -708,62 +707,6 @@ public abstract class Message {
 		}
 		this.payload = payload;
 		return this;
-	}
-
-	/**
-	 * Gets the destination address.
-	 *
-	 * @return the destination
-	 * @deprecated use {@link #getDestinationContext()}
-	 */
-	public InetAddress getDestination() {
-		EndpointContext destinationContext = this.destinationContext;
-		if (destinationContext == null) {
-			return null;
-		}
-		return destinationContext.getPeerAddress().getAddress();
-	}
-
-	/**
-	 * Gets the destination port.
-	 *
-	 * @return the destination port
-	 * @deprecated use {@link #getDestinationContext()}
-	 */
-	public int getDestinationPort() {
-		EndpointContext destinationContext = this.destinationContext;
-		if (destinationContext == null) {
-			return -1;
-		}
-		return destinationContext.getPeerAddress().getPort();
-	}
-
-	/**
-	 * Gets the source address.
-	 *
-	 * @return the source
-	 * @deprecated use {@link #getSourceContext()}
-	 */
-	public InetAddress getSource() {
-		EndpointContext sourceContext = this.sourceContext;
-		if (sourceContext == null) {
-			return null;
-		}
-		return sourceContext.getPeerAddress().getAddress();
-	}
-
-	/**
-	 * Gets the source port.
-	 *
-	 * @return the source port
-	 * @deprecated use {@link #getSourceContext()}
-	 */
-	public int getSourcePort() {
-		EndpointContext sourceContext = this.sourceContext;
-		if (sourceContext == null) {
-			return -1;
-		}
-		return sourceContext.getPeerAddress().getPort();
 	}
 
 	/**
