@@ -964,32 +964,10 @@ public abstract class Handshaker implements Destroyable {
 	 */
 	public void processAsyncHandshakeResult(HandshakeResult handshakeResult) throws HandshakeException {
 		if (handshakeResult instanceof PskSecretResult) {
-			processAsyncPskSecretResult((PskSecretResult) handshakeResult);
+			processPskSecretResult((PskSecretResult) handshakeResult);
 		} else if (handshakeResult instanceof CertificateVerificationResult) {
 			processCertificateVerificationResult((CertificateVerificationResult) handshakeResult);
-			if (changeCipherSuiteMessageExpected) {
-				processNextMessages(null);
-			}
 		}
-	}
-
-	/**
-	 * Process asynchronous PSK secret result.
-	 * 
-	 * MUST not be called from {@link #doProcessMessage(HandshakeMessage)}
-	 * implementations! If handshake expects the cipher change message, then
-	 * process the messages from the inbound buffer.
-	 * 
-	 * @param pskSecretResult PSK secret result.
-	 * @throws HandshakeException if an error occurs
-	 * @throws IllegalStateException if {@link #pskRequestPending} is not
-	 *             pending, or the handshaker {@link #isDestroyed()}.
-	 * @since 2.3
-	 * @deprecated use {@link #processAsyncHandshakeResult(HandshakeResult)} instead.
-	 */
-	@Deprecated
-	public void processAsyncPskSecretResult(PskSecretResult pskSecretResult) throws HandshakeException {
-		processPskSecretResult(pskSecretResult);
 		if (changeCipherSuiteMessageExpected) {
 			processNextMessages(null);
 		}

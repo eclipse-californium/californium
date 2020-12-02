@@ -33,6 +33,8 @@ import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
+import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier.Builder;
 
 /**
  * A pool of secure Endpoints.
@@ -103,8 +105,11 @@ public class SecureEndpointPool extends EndpointPool {
 		DtlsConnectorConfig.Builder dtlsConfig = new DtlsConnectorConfig.Builder();
 		dtlsConfig.setIdentity(clientCredentials.getPrivateKey(), clientCredentials.getCertificateChain(),
 				CertificateType.X_509, CertificateType.RAW_PUBLIC_KEY);
-		dtlsConfig.setTrustStore(trustedCertificates);
-		dtlsConfig.setRpkTrustAll();
+		Builder verifierBuilder = StaticNewAdvancedCertificateVerifier.builder();
+		verifierBuilder.setTrustedCertificates(trustedCertificates);
+		verifierBuilder.setTrustAllRPKs();
+		dtlsConfig.setAdvancedCertificateVerifier(verifierBuilder.build());
+
 		List<CipherSuite> list = CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(true,
 				KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN);
 		dtlsConfig.setSupportedCipherSuites(list);

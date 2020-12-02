@@ -51,6 +51,7 @@ import org.eclipse.californium.elements.util.CertPathUtil;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.ConnectionListener;
+import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.DtlsHealth;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.dtls.CertificateMessage;
@@ -67,31 +68,21 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgor
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuiteSelector;
 import org.eclipse.californium.scandium.dtls.cipher.DefaultCipherSuiteSelector;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedInMemoryPskStore;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
-import org.eclipse.californium.scandium.dtls.pskstore.BridgePskStore;
-import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
-import org.eclipse.californium.scandium.dtls.rpkstore.TrustAllRpks;
-import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
 import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
-import org.eclipse.californium.scandium.dtls.x509.CertificateVerifier;
-import org.eclipse.californium.scandium.dtls.x509.BridgeCertificateVerifier;
-import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.util.ListUtils;
 
 /**
- * A container for all configuration options of a <code>DTLSConnector</code>.
+ * A container for all configuration options of a {@link DTLSConnector}.
  * <p>
  * Instances of this class are immutable and can only be created by means of
  * the {@link Builder}, e.g.
  * </p>
  * <pre>
- * InetSocketAddress bindToAddress = new InetSocketAddress("localhost", 0); // use ephemeral port
+ * InetSocketAddress bindToAddress = new InetSocketAddress(0); // use ephemeral port
  * DtlsConnectorConfig config = new DtlsConnectorConfig.Builder()
  *    .setAddress(bindToAddress)
- *    .setPskStore(new StaticPskStore("identity", "secret".getBytes()))
+ *    .setAdvancedPskStore(new AdvancedSinglePskStore("identity", "secret".getBytes()))
  *    .set... // additional configuration
  *    .build();
  * 
@@ -100,44 +91,43 @@ import org.eclipse.californium.scandium.util.ListUtils;
  * ...
  * </pre>
  */
-@SuppressWarnings("deprecation")
 public final class DtlsConnectorConfig {
 
 	/**
-	 * The default value for the <em>maxDeferredProcessedApplicationDataMessages</em> property.
+	 * The default value for the {@link #maxDeferredProcessedOutgoingApplicationDataMessages} property.
 	 */
 	public static final int DEFAULT_MAX_DEFERRED_PROCESSED_APPLICATION_DATA_MESSAGES = 10;
 	/**
-	 * The default value for the <em>maxConncetions</em> property.
+	 * The default value for the {@link #maxConnections} property.
 	 */
 	public static final int DEFAULT_MAX_CONNECTIONS = 150000;
 	/**
-	 * The default value for the <em>maxFragmentedHandshakeMessageLength</em> property.
+	 * The default value for the {@link #maxFragmentedHandshakeMessageLength} property.
 	 */
 	public static final int DEFAULT_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH = 8192;
 	/**
-	 * The default value for the <em>maxDeferredProcessedHandshakeRecordsSize</em> property.
+	 * The default value for the {@link #maxDeferredProcessedIncomingRecordsSize} property.
 	 */
-	public static final int DEFAULT_MAX_DEFERRED_PROCESSED_HANDSHAKE_RECORDS_SIZE = 8192;
+	public static final int DEFAULT_MAX_DEFERRED_PROCESSED_INCOMING_RECORDS_SIZE = 8192;
 	/**
-	 * The default value for the <em>staleConnectionThreshold</em> property.
+	 * The default value for the {@link #staleConnectionThreshold} property in seconds.
 	 */
 	public static final long DEFAULT_STALE_CONNECTION_TRESHOLD = 30 * 60; // 30 minutes
 	/**
-	 * The default value for the <em>retransmissionTimeout</em> property.
+	 * The default value for the {@link #retransmissionTimeout} property in milliseconds.
 	 */
 	public static final int DEFAULT_RETRANSMISSION_TIMEOUT_MS = 1000;
 	/**
-	 * The default value for the <em>maxRetransmissions</em> property.
+	 * The default value for the {@link #maxRetransmissions} property.
 	 */
 	public static final int DEFAULT_MAX_RETRANSMISSIONS = 4;
 	/**
-	 * The default value for the <em>verifyPeersOnResumptionThreshold</em>
-	 * property.
+	 * The default value for the {@link #verifyPeersOnResumptionThreshold}
+	 * property in percent.
 	 */
 	public static final int DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT = 30;
 	/**
-	 * The default value for the <em>maxTransmissionUnitLimit</em> property.
+	 * The default value for the {@link #maxTransmissionUnitLimit} property.
 	 * @since 2.3
 	 */
 	public static final int DEFAULT_MAX_TRANSMISSION_UNIT_LIMIT = RecordLayer.DEFAULT_ETH_MTU;
@@ -159,24 +149,12 @@ public final class DtlsConnectorConfig {
 	 */
 	private InetSocketAddress address;
 	/**
-	 * Truststore for trusted certificates  
-	 * @deprecated use {@link #advancedCertificateVerifier} instead.
-	 */
-	@Deprecated
-	private X509Certificate[] trustStore;
-	/**
-	 * Certificate verifier for dynamic trust.
-	 * @deprecated use {@link #advancedCertificateVerifier} instead.
-	 */
-	@Deprecated
-	private CertificateVerifier certificateVerifier;
-	/**
 	 * Advanced certificate verifier for non-blocking dynamic trust.
 	 * @since 2.5
 	 */
 	private NewAdvancedCertificateVerifier advancedCertificateVerifier;
 	/**
-	 * Experimental feature : Stop retransmission at message receipt
+	 * Stop retransmission at message receipt
 	 */
 	private Boolean earlyStopRetransmission;
 
@@ -271,10 +249,10 @@ public final class DtlsConnectorConfig {
 	 */
 	private Integer maxTransmissionUnitLimit;
 
-	/** does the server want/request the client to authenticate */
+	/** does the server want/request the client to authenticate, when x509/RPK is used. */
 	private Boolean clientAuthenticationWanted;
 
-	/** does the server require the client to authenticate */
+	/** does the server require the client to authenticate, when x509/RPK is used. */
 	private Boolean clientAuthenticationRequired;
 
 	/** does not start handshakes at all. Ignore handshake modes! */
@@ -289,15 +267,9 @@ public final class DtlsConnectorConfig {
 	/** certificate types to be used to trust the other peer */
 	private List<CertificateType> trustCertificateTypes;
 
-	/** 
-	 * store of the PSK.
-	 * @deprecated use {@link #advancedPskStore} instead.
-	 */
-	@Deprecated
-	private PskStore pskStore;
-
-	/** 
+	/**
 	 * Advanced store of PSK credentials.
+	 * 
 	 * @since 2.3
 	 */
 	private AdvancedPskStore advancedPskStore;
@@ -349,14 +321,6 @@ public final class DtlsConnectorConfig {
 	 * @since 2.3
 	 */
 	private List<SupportedGroup> supportedGroups;
-
-	/** 
-	 * The trust store for RPKs
-	 * 
-	 * @deprecated use {@link #advancedCertificateVerifier} instead.
-	 */
-	@Deprecated
-	private TrustedRpkStore trustedRPKs;
 
 	private Integer outboundMessageBufferSize;
 
@@ -516,7 +480,7 @@ public final class DtlsConnectorConfig {
 	 * Gets the maximum amount of message payload data that this connector can receive in a
 	 * single DTLS record.
 	 * <p>
-	 * The code returned is either <code>null</code> or one of the following:
+	 * The code returned is either {@code null} or one of the following:
 	 * <ul>
 	 * <li>1 - 2^9 bytes</li>
 	 * <li>2 - 2^10 bytes</li>
@@ -524,7 +488,7 @@ public final class DtlsConnectorConfig {
 	 * <li>4 - 2^12 bytes</li>
 	 * </ul>
 	 * 
-	 * @return the code indicating the maximum payload length
+	 * @return the code indicating the maximum payload length, or {@code null}.
 	 */
 	public Integer getMaxFragmentLengthCode() {
 		return maxFragmentLengthCode;
@@ -533,7 +497,7 @@ public final class DtlsConnectorConfig {
 	/**
 	 * Gets the maximum length of a reassembled fragmented handshake message.
 	 * 
-	 * @return maximum length
+	 * @return maximum length, or {@code null}.
 	 */
 	public Integer getMaxFragmentedHandshakeMessageLength() {
 		return maxFragmentedHandshakeMessageLength;
@@ -631,14 +595,15 @@ public final class DtlsConnectorConfig {
 	 * Number of retransmissions before the attempt to transmit a flight in
 	 * back-off mode.
 	 * 
-	 * <a href="https://tools.ietf.org/html/rfc6347#page-12">
-	 * RFC 6347, Section 4.1.1.1, Page 12</a>
+	 * <a href="https://tools.ietf.org/html/rfc6347#page-12"> RFC 6347, Section
+	 * 4.1.1.1, Page 12</a>
 	 * 
-	 * In back-off mode, UDP datagrams of maximum 512 bytes are used. Each
-	 * handshake message is placed in one dtls record, or more dtls records, if
-	 * the handshake message is too large and must be fragmented. Beside of the
-	 * CCS and FINISH dtls records, which send together in one UDP datagram, all
-	 * other records are send in separate datagrams.
+	 * In back-off mode, UDP datagrams of maximum 512 bytes, or the negotiated
+	 * records size, if that is smaller, are used. Each handshake message is
+	 * placed in one dtls record, or more dtls records, if the handshake message
+	 * is too large and must be fragmented. Beside of the CCS and FINISH dtls
+	 * records, which send together in one UDP datagram, all other records are
+	 * send in separate datagrams.
 	 * 
 	 * The {@link #useMultiHandshakeMessageRecords()} and
 	 * {@link #useMultiRecordMessages()} has precedence over the back-off
@@ -892,25 +857,8 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Gets the registry of <em>shared secrets</em> used for authenticating
-	 * clients during a DTLS handshake.
-	 * 
-	 * @return the registry. Maybe {@code null}, if a advanced psk store is
-	 *         provided to the builder.
-	 * @deprecated use {@link #getAdvancedPskStore()} instead
-	 */
-	@Deprecated
-	public PskStore getPskStore() {
-		return pskStore;
-	}
-
-	/**
 	 * Gets the advanced registry of <em>shared secrets</em> used for
 	 * authenticating clients during a DTLS handshake.
-	 * 
-	 * If a {@link PskStore} is provided to the builder using
-	 * {@link Builder#setPskStore(PskStore)}, a {@link AdvancedInMemoryPskStore}
-	 * is returned using that psk store after {@link Builder#build()} is called.
 	 * 
 	 * @return the registry
 	 * @since 2.3
@@ -927,38 +875,6 @@ public final class DtlsConnectorConfig {
 	 */
 	public PublicKey getPublicKey() {
 		return publicKey;
-	}
-
-	/**
-	 * Gets the trusted root certificates to use when verifying a peer's
-	 * certificate during authentication.
-	 * 
-	 * Only valid, if {@link Builder#setTrustStore(Certificate[])} is used.
-	 * 
-	 * Note: the upcoming next major version 3.0 will remove this method.
-	 * 
-	 * @return the root certificates. If empty (length of zero), all
-	 *         certificates are trusted. If {@code null}, the trust may be
-	 *         implemented by a {@link CertificateVerifier}.
-	 */
-	public X509Certificate[] getTrustStore() {
-		if (trustStore == null) {
-			return null;
-		} else {
-			return Arrays.copyOf(trustStore, trustStore.length);
-		}
-	}
-
-	/**
-	 * Gets the verifier in charge of validating the peer's certificate chain
-	 * during the DTLS handshake.
-	 * 
-	 * Note: the upcoming next major version 3.0 will remove this method.
-	 * 
-	 * @return the certificate chain verifier
-	 */
-	public CertificateVerifier getCertificateVerifier() {
-		return certificateVerifier;
 	}
 
 	/**
@@ -982,13 +898,13 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Gets whether the connector wants (requests) DTLS clients to authenticate
-	 * during the handshake. The handshake doesn't fail, if the client didn't
-	 * authenticate itself during the handshake. That mostly requires the client
-	 * to use a proprietary mechanism to authenticate itself on the application
-	 * layer (e.g. username/password). It's mainly used, if the implementation
-	 * of the other peer has no PSK cipher suite and client certificate should
-	 * not be used for some reason.
+	 * Gets whether the connector wants (requests) DTLS x509/RPK clients to
+	 * authenticate during the handshake. The handshake doesn't fail, if the
+	 * client didn't authenticate itself during the handshake. That mostly
+	 * requires the client to use a proprietary mechanism to authenticate itself
+	 * on the application layer (e.g. username/password). It's mainly used, if
+	 * the implementation of the other peer has no PSK cipher suite and client
+	 * certificate should not be used for some reason.
 	 * 
 	 * Only used by the DTLS server side.
 	 * 
@@ -999,8 +915,8 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Gets whether the connector requires DTLS clients to authenticate during
-	 * the handshake. Only used by the DTLS server side.
+	 * Gets whether the connector requires DTLS x509/RPK clients to authenticate
+	 * during the handshake. Only used by the DTLS server side.
 	 * 
 	 * @return <code>true</code> if clients need to authenticate
 	 */
@@ -1160,20 +1076,6 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Use window filter.
-	 * 
-	 * Messages too old for the filter window will pass the filter.
-	 * 
-	 * @return {@code true}, apply window filter
-	 * @see "http://tools.ietf.org/html/rfc6347#section-4.1"
-	 * @deprecated use {@link #useExtendedWindowFilter()} instead.
-	 */
-	@Deprecated
-	public Boolean useWindowFilter() {
-		return useExtendedWindowFilter != null && useExtendedWindowFilter < 0;
-	}
-
-	/**
 	 * Use filter for records in window and before limit.
 	 * 
 	 * The value will be subtracted from to lower receive window boundary. A
@@ -1199,16 +1101,6 @@ public final class DtlsConnectorConfig {
 	 */
 	public Boolean useCidUpdateAddressOnNewerRecordFilter() {
 		return useCidUpdateAddressOnNewerRecordFilter;
-	}
-
-	/**
-	 * Note: the upcoming next major version 3.0 will remove this method.
-	 * 
-	 * @return The trust store for raw public keys verified out-of-band for
-	 *         DTLS-RPK handshakes
-	 */
-	public TrustedRpkStore getRpkTrustStore() {
-		return trustedRPKs;
 	}
 
 	/**
@@ -1325,8 +1217,6 @@ public final class DtlsConnectorConfig {
 	protected Object clone() {
 		DtlsConnectorConfig cloned = new DtlsConnectorConfig();
 		cloned.address = address;
-		cloned.trustStore = trustStore;
-		cloned.certificateVerifier = certificateVerifier;
 		cloned.advancedCertificateVerifier = advancedCertificateVerifier;
 		cloned.earlyStopRetransmission = earlyStopRetransmission;
 		cloned.enableReuseAddress = enableReuseAddress;
@@ -1346,7 +1236,6 @@ public final class DtlsConnectorConfig {
 		cloned.defaultHandshakeMode = defaultHandshakeMode;
 		cloned.identityCertificateTypes = identityCertificateTypes;
 		cloned.trustCertificateTypes = trustCertificateTypes;
-		cloned.pskStore = pskStore;
 		cloned.advancedPskStore = advancedPskStore;
 		cloned.privateKey = privateKey;
 		cloned.publicKey = publicKey;
@@ -1356,7 +1245,6 @@ public final class DtlsConnectorConfig {
 		cloned.supportedCipherSuites = supportedCipherSuites;
 		cloned.supportedSignatureAlgorithms = supportedSignatureAlgorithms;
 		cloned.supportedGroups = supportedGroups;
-		cloned.trustedRPKs = trustedRPKs;
 		cloned.outboundMessageBufferSize = outboundMessageBufferSize;
 		cloned.maxDeferredProcessedOutgoingApplicationDataMessages = maxDeferredProcessedOutgoingApplicationDataMessages;
 		cloned.maxDeferredProcessedIncomingRecordsSize = maxDeferredProcessedIncomingRecordsSize;
@@ -1441,7 +1329,7 @@ public final class DtlsConnectorConfig {
 		 * <li><em>trustStore</em>: empty array</li>
 		 * </ul>
 		 * 
-		 * Note that when keeping the default values, at least one of the {@link #setPskStore(PskStore)}
+		 * Note that when keeping the default values, at least one of the {@link #setAdvancedPskStore(AdvancedPskStore)}
 		 * or {@link #setIdentity(PrivateKey, PublicKey)} methods need to be used to 
 		 * get a working configuration for a <code>DTLSConnector</code> that can be used
 		 * as a client and server.
@@ -1650,7 +1538,7 @@ public final class DtlsConnectorConfig {
 		 * It is also used to determine the amount of memory that will be allocated for receiving UDP datagrams
 		 * sent by peers from the network interface.
 		 * </p>
-		 * The code must be either <code>null</code> or one of the following:
+		 * The code must be either {@code null} or one of the following:
 		 * <ul>
 		 * <li>1 - 2^9 bytes</li>
 		 * <li>2 - 2^10 bytes</li>
@@ -1658,13 +1546,13 @@ public final class DtlsConnectorConfig {
 		 * <li>4 - 2^12 bytes</li>
 		 * </ul>
 		 * <p>
-		 * If this property is set to <code>null</code>, the <code>DTLSConnector</code> will
+		 * If this property is set to {@code null}, the {@link DTLSConnector} will
 		 * derive its value from the network interface's <em>Maximum Transmission Unit</em>.
 		 * This means that it will set it to a value small enough to make sure that inbound
 		 * messages fit into a UDP datagram having a size less or equal to the MTU.
 		 * </p>
 		 * 
-		 * @param lengthCode the code indicating the maximum length or <code>null</code> to determine
+		 * @param lengthCode the code indicating the maximum length or {@code null} to determine
 		 *                   the maximum fragment length based on the network interface's MTU
 		 * @return this builder for command chaining
 		 * @throws IllegalArgumentException if the code is not one of {1, 2, 3, 4} 
@@ -1730,7 +1618,7 @@ public final class DtlsConnectorConfig {
 		 * DTLS 1.0, a DTLS 1.0 will be used. If a different behavior is wanted,
 		 * you may use this setter to provide a fixed version for the
 		 * HelloVerifyRequest. In order to provide backwards compatibility to
-		 * version before 2.5.0 , configure to use protocol version DTLS 1.2.
+		 * version before 2.5.0, configure to use protocol version DTLS 1.2.
 		 * 
 		 * @param protocolVersion fixed protocol version to send hello verify
 		 *            requests. {@code null} to reply the client's version.
@@ -1811,14 +1699,15 @@ public final class DtlsConnectorConfig {
 		 * Number of retransmissions before the attempt to transmit a flight in
 		 * back-off mode.
 		 * 
-		 * <a href="https://tools.ietf.org/html/rfc6347#page-12">
-		 * RFC 6347, Section 4.1.1.1, Page 12</a>
+		 * <a href="https://tools.ietf.org/html/rfc6347#page-12"> RFC 6347,
+		 * Section 4.1.1.1, Page 12</a>
 		 * 
-		 * In back-off mode, UDP datagrams of maximum 512 bytes are used. Each
-		 * handshake message is placed in one dtls record, or more dtls records, if
-		 * the handshake message is too large and must be fragmented. Beside of the
-		 * CCS and FINISH dtls records, which send together in one UDP datagram, all
-		 * other records are send in separate datagrams.
+		 * In back-off mode, UDP datagrams of maximum 512 bytes or the
+		 * negotiated records size, if that is smaller, are used. Each handshake
+		 * message is placed in one dtls record, or more dtls records, if the
+		 * handshake message is too large and must be fragmented. Beside of the
+		 * CCS and FINISH dtls records, which send together in one UDP datagram,
+		 * all other records are send in separate datagrams.
 		 * 
 		 * The {@link #useMultiHandshakeMessageRecords()} and
 		 * {@link #useMultiRecordMessages()} has precedence over the back-off
@@ -1877,10 +1766,10 @@ public final class DtlsConnectorConfig {
 		 * 
 		 * Limits maximum number of bytes sent in one transmission.
 		 *
-		 * Note: previous versions toke the local link MTU without limits. That
+		 * Note: previous versions took the local link MTU without limits. That
 		 * results in possibly larger MTU, e.g. for localhost or some cloud
 		 * nodes using "jumbo frames". If a larger MTU is required, please
-		 * adjsut this limit to the requires value or use
+		 * adjust this limit to the requires value or use
 		 * {@link #setMaxTransmissionUnit(int)}.
 		 * 
 		 * @param limit maximum transmission unit limit. Default
@@ -1909,7 +1798,7 @@ public final class DtlsConnectorConfig {
 		 * 
 		 * The default is {@code false}. Only used by the DTLS server side.
 		 * 
-		 * @param authWanted <code>true</code> if clients wanted to authenticate
+		 * @param authWanted {@code true} if clients wanted to authenticate
 		 * @return this builder for command chaining
 		 * @throws IllegalStateException if configuration is for client only
 		 * @throws IllegalArgumentException if authWanted is {@code true}, but
@@ -1936,7 +1825,7 @@ public final class DtlsConnectorConfig {
 		 * {@code true}, the default is {@code false}. Only used by the DTLS
 		 * server side.
 		 * 
-		 * @param authRequired <code>true</code> if clients need to authenticate
+		 * @param authRequired {@code true}, if clients need to authenticate
 		 * @return this builder for command chaining
 		 * @throws IllegalStateException if configuration is for client only
 		 * @throws IllegalArgumentException if authWanted is {@code true}, but
@@ -2062,7 +1951,7 @@ public final class DtlsConnectorConfig {
 		 * @param cipherSuites the supported cipher suites in the order of
 		 *            preference
 		 * @return this builder for command chaining
-		 * @throws NullPointerException if the given array is <code>null</code>
+		 * @throws NullPointerException if the given array is {@code null}
 		 * @throws IllegalArgumentException if the given array is empty,
 		 *             contains {@link CipherSuite#TLS_NULL_WITH_NULL_NULL},
 		 *             contains a cipher suite, not supported by the JVM, or
@@ -2086,7 +1975,7 @@ public final class DtlsConnectorConfig {
 		 * @param cipherSuites the supported cipher suites in the order of
 		 *            preference
 		 * @return this builder for command chaining
-		 * @throws NullPointerException if the given list is <code>null</code>
+		 * @throws NullPointerException if the given list is {@code null}
 		 * @throws IllegalArgumentException if the given list is empty,
 		 *             contains {@link CipherSuite#TLS_NULL_WITH_NULL_NULL},
 		 *             contains a cipher suite, not supported by the JVM, or
@@ -2128,7 +2017,7 @@ public final class DtlsConnectorConfig {
 		 *            "http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4">
 		 *            IANA registry</a> for a list of cipher suite names)
 		 * @return this builder for command chaining
-		 * @throws NullPointerException if the given array is <code>null</code>
+		 * @throws NullPointerException if the given array is {@code null}
 		 * @throws IllegalArgumentException if the given array is empty,
 		 *             contains {@link CipherSuite#TLS_NULL_WITH_NULL_NULL},
 		 *             contains a cipher suite, not supported by the JVM,
@@ -2355,36 +2244,6 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Sets the key store to use for authenticating clients based on a
-		 * pre-shared key.
-		 * 
-		 * If used together with {@link #setIdentity(PrivateKey, PublicKey)} or
-		 * {@link #setIdentity(PrivateKey, Certificate[], CertificateType...)}
-		 * the default preference uses the certificate based cipher suites. To
-		 * change that, use {@link #setSupportedCipherSuites(CipherSuite...)} or
-		 * {@link #setSupportedCipherSuites(String...)}.
-		 * 
-		 * Also set the advanced PSK store using
-		 * {@link AdvancedInMemoryPskStore}.
-		 * 
-		 * @param pskStore the key store
-		 * @return this builder for command chaining
-		 * @deprecated use {@link #setAdvancedPskStore(AdvancedPskStore)}
-		 *             instead. {@link AdvancedSinglePskStore} and
-		 *             {@link AdvancedMultiPskStore} may be used for simple
-		 *             setups. More complex ones may require a custom
-		 *             implementation. During migration you may also use the
-		 *             {@link BridgePskStore} in order to use old
-		 *             implementations for that period.
-		 */
-		@Deprecated
-		public Builder setPskStore(PskStore pskStore) {
-			config.advancedPskStore = pskStore == null ? null : new AdvancedInMemoryPskStore(pskStore);
-			config.pskStore = pskStore;
-			return this;
-		}
-
-		/**
 		 * Sets the advanced key store to use for authenticating clients based on a
 		 * pre-shared key.
 		 * 
@@ -2394,14 +2253,11 @@ public final class DtlsConnectorConfig {
 		 * change that, use {@link #setSupportedCipherSuites(CipherSuite...)} or
 		 * {@link #setSupportedCipherSuites(String...)}.
 		 * 
-		 * Resets {@link #setPskStore(PskStore)} to {@code null}.
-		 * 
 		 * @param advancedPskStore the advanced key store
 		 * @return this builder for command chaining
 		 * @since 2.3
 		 */
 		public Builder setAdvancedPskStore(AdvancedPskStore advancedPskStore) {
-			config.pskStore = null;
 			config.advancedPskStore = advancedPskStore;
 			return this;
 		}
@@ -2411,10 +2267,10 @@ public final class DtlsConnectorConfig {
 		 * public key pair.
 		 * <p>
 		 * Using this method implies that the connector <em>only</em> supports
-		 * <em>RawPublicKey</em> mode for authenticating to a peer. Please ensure,
-		 * that you setup {@link #setRpkTrustStore(TrustedRpkStore)}, or
-		 * {@link #setRpkTrustAll()}, if you want to trust the other peer using
-		 * RAW_PUBLIC_KEY also.
+		 * <em>RawPublicKey</em> mode for authenticating to a peer. Please
+		 * ensure, that you setup
+		 * {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)},
+		 * if you want to trust the other peer using RAW_PUBLIC_KEY also.
 		 * 
 		 * If X_509 is intended to be supported together with RAW_PUBLIC_KEY,
 		 * please use
@@ -2422,9 +2278,9 @@ public final class DtlsConnectorConfig {
 		 * instead and provide RAW_PUBLIC_KEY together with X_509 in the wanted
 		 * preference order.
 		 *
-		 * If used together with {@link #setPskStore(PskStore)}, the default
-		 * preference uses this certificate based cipher suites. To change that,
-		 * use {@link #setSupportedCipherSuites(CipherSuite...)} or
+		 * If used together with {@link #setAdvancedPskStore(AdvancedPskStore)},
+		 * the default preference uses this certificate based cipher suites. To
+		 * change that, use {@link #setSupportedCipherSuites(CipherSuite...)} or
 		 * {@link #setSupportedCipherSuites(String...)}.
 		 * 
 		 * @param privateKey the private key used for creating signatures
@@ -2432,9 +2288,8 @@ public final class DtlsConnectorConfig {
 		 *            of the private key
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if any of the given keys is
-		 *             <code>null</code>
-		 * @see #setRpkTrustAll()
-		 * @see #setRpkTrustStore(TrustedRpkStore)
+		 *             {@code null}
+		 * @see #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)
 		 */
 		public Builder setIdentity(PrivateKey privateKey, PublicKey publicKey) {
 			if (privateKey == null) {
@@ -2458,13 +2313,11 @@ public final class DtlsConnectorConfig {
 		 * In server mode the key and certificates are used to prove the
 		 * server's identity to the client. In client mode the key and
 		 * certificates are used to prove the client's identity to the server.
-		 * Please ensure, that you setup either
-		 * {@link #setCertificateVerifier(CertificateVerifier)},
-		 * {@link #setTrustStore(Certificate[])}, {@link #setRpkTrustAll()},
-		 * {@link #setRpkTrustStore(TrustedRpkStore)}, if you want to trust the
-		 * other peer also using certificates.
+		 * Please ensure, that you setup
+		 * {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)},
+		 * if you want to trust the other peer also using certificates.
 		 * 
-		 * If used together with {@link #setPskStore(PskStore)}, the default
+		 * If used together with {@link #setAdvancedPskStore(AdvancedPskStore)}, the default
 		 * preference uses this certificate based cipher suites. To change that,
 		 * use {@link #setSupportedCipherSuites(CipherSuite...)} or
 		 * {@link #setSupportedCipherSuites(String...)}.
@@ -2486,14 +2339,11 @@ public final class DtlsConnectorConfig {
 		 *            certificate chain will be set to {@code null}.
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given private key or certificate
-		 *             chain is <code>null</code>
+		 *             chain is {@code null}
 		 * @throws IllegalArgumentException if the certificate chain does not
 		 *             contain any certificates, or contains a non-X.509
 		 *             certificate
-		 * @see #setTrustStore(Certificate[])
-		 * @see #setCertificateVerifier(CertificateVerifier)
-		 * @see #setRpkTrustAll()
-		 * @see #setRpkTrustStore(TrustedRpkStore)
+		 * @see #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)
 		 */
 		public Builder setIdentity(PrivateKey privateKey, Certificate[] certificateChain,
 				CertificateType... certificateTypes) {
@@ -2512,12 +2362,10 @@ public final class DtlsConnectorConfig {
 		 * server's identity to the client. In client mode the key and
 		 * certificates are used to prove the client's identity to the server.
 		 * Please ensure, that you setup either
-		 * {@link #setCertificateVerifier(CertificateVerifier)},
-		 * {@link #setTrustStore(Certificate[])}, {@link #setRpkTrustAll()},
-		 * {@link #setRpkTrustStore(TrustedRpkStore)}, if you want to trust the
-		 * other peer also using certificates.
+		 * {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)},
+		 * if you want to trust the other peer also using certificates.
 		 * 
-		 * If used together with {@link #setPskStore(PskStore)}, the default
+		 * If used together with {@link #setAdvancedPskStore(AdvancedPskStore)}, the default
 		 * preference uses this certificate based cipher suites. To change that,
 		 * use {@link #setSupportedCipherSuites(CipherSuite...)} or
 		 * {@link #setSupportedCipherSuites(String...)}.
@@ -2539,14 +2387,11 @@ public final class DtlsConnectorConfig {
 		 *            certificate chain will be set to {@code null}.
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given private key or certificate
-		 *             chain is <code>null</code>
+		 *             chain is {@code null}
 		 * @throws IllegalArgumentException if the certificate chain does not
 		 *             contain any certificates, or contains a non-X.509
 		 *             certificate. Or the provide certificateTypes is empty.
-		 * @see #setTrustStore(Certificate[])
-		 * @see #setCertificateVerifier(CertificateVerifier)
-		 * @see #setRpkTrustAll()
-		 * @see #setRpkTrustStore(TrustedRpkStore)
+		 * @see #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)
 		 */
 		public Builder setIdentity(PrivateKey privateKey, Certificate[] certificateChain,
 				List<CertificateType> certificateTypes) {
@@ -2582,73 +2427,6 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Sets the root certificates the connector should use:
-		 * <ul>
-		 * <li>as the trust anchor when verifying a peer's identity based on an
-		 * X.509 certificate chain. This is default behavior, which can be
-		 * overridden when passing a custom {@link CertificateVerifier} to this
-		 * builder.</li>
-		 * <li>as the list of certificate authorities when the server is
-		 * requesting a client certificate during the DTLS handshake.</li>
-		 * </ul>
-		 * 
-		 * When a RFC5250 compliant verification is required, use only
-		 * self-signed top-level certificates as root certificates. Using
-		 * intermediate CA certificates may fail, if the other peer send a
-		 * certificate chain, which doesn't end at one of the provided CAs.
-		 * 
-		 * {@code trustedCerts} MUST NOT contain several certificates with same
-		 * subject. If you need that you should consider to use
-		 * {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)}
-		 * instead.
-		 * 
-		 * This method must not be called, if
-		 * {@link #setCertificateVerifier(CertificateVerifier)} or
-		 * {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)}
-		 * is already set.
-		 * 
-		 * Note: since 2.5 supports {@code null} to reset the trusted
-		 * certificates in order to use specific
-		 * {@link NewAdvancedCertificateVerifier} instead of the default
-		 * implementation.
-		 * 
-		 * @param trustedCerts the trusted root certificates. If empty (length
-		 *            of zero), trust all valid certificate chains without
-		 *            limiting the trust to specific trust anchors. If
-		 *            {@code null}, reset trusted certificates.
-		 * @return this builder for command chaining
-		 * @throws IllegalArgumentException if the array contains a non-X.509
-		 *             certificate or several certificates with same subjects
-		 * @throws IllegalStateException if
-		 *             {@link #setCertificateVerifier(CertificateVerifier)} or
-		 *             {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)}
-		 *             is already set.
-		 * @see #setTrustCertificateTypes
-		 * @deprecated use
-		 *             {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)}
-		 *             instead. {@link StaticNewAdvancedCertificateVerifier} may
-		 *             be used for simple setups. More complex ones may require a
-		 *             custom implementation. During migration you may also use
-		 *             the {@link BridgeCertificateVerifier} in order to use old
-		 *             implementations for that period.
-		 */
-		@Deprecated
-		public Builder setTrustStore(Certificate[] trustedCerts) {
-			if (trustedCerts == null) {
-				config.trustStore = null;
-			} else if (config.advancedCertificateVerifier != null) {
-				throw new IllegalStateException("Trust store must not be used after certificate verifier is set!");
-			} else if (trustedCerts.length == 0) {
-				config.trustStore = new X509Certificate[0];
-			} else {
-				X509Certificate[] certificates = SslContextUtil.asX509Certificates(trustedCerts);
-				SslContextUtil.ensureUniqueCertificates(certificates);
-				config.trustStore = certificates;
-			}
-			return this;
-		}
-
-		/**
 		 * Sets the logic in charge of validating a X.509 certificate chain.
 		 *
 		 * Here are a few use cases where a custom implementation would be
@@ -2659,70 +2437,17 @@ public final class DtlsConnectorConfig {
 		 * <li>cipher suites restriction per client
 		 * </ul>
 		 * 
-		 * This method must not be called, if
-		 * {@link #setTrustStore(Certificate[])} is already set.
-		 *
-		 * @param verifier certificate verifier
-		 * @return this builder for command chaining
-		 * @throws NullPointerException if the given certificate verifier is
-		 *             {@code null}
-		 * @throws IllegalStateException if
-		 *             {@link #setTrustStore(Certificate[])} or
-		 *             {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)}
-		 *             is already set.
-		 * @see #setTrustCertificateTypes
-		 * @deprecated use
-		 *             {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)}
-		 *             instead. {@link StaticNewAdvancedCertificateVerifier} may
-		 *             be used for simple setups. More complex ones may require a
-		 *             custom implementation. During migration you may also use
-		 *             the {@link BridgeCertificateVerifier} in order to use old
-		 *             implementations for that period.
-		 */
-		@Deprecated
-		public Builder setCertificateVerifier(CertificateVerifier verifier) {
-			if (verifier == null) {
-				throw new NullPointerException("CertificateVerifier must not be null");
-			} else if (config.trustStore != null) {
-				throw new IllegalStateException("CertificateVerifier must not be used after trust store is set!");
-			} else if (config.advancedCertificateVerifier != null) {
-				throw new IllegalStateException(
-						"CertificateVerifier must not be used after new certificate verifier is set!");
-			}
-			config.certificateVerifier = verifier;
-			return this;
-		}
-
-		/**
-		 * Sets the logic in charge of validating a X.509 certificate chain.
-		 *
-		 * Here are a few use cases where a custom implementation would be
-		 * needed:
-		 * <ul>
-		 * <li>client certificate authentication based on a dynamic trusted CA
-		 * <li>revocation not provided by the default implementation (e.g. OCSP)
-		 * <li>cipher suites restriction per client
-		 * </ul>
-		 * 
-		 * This method must not be called, if
-		 * {@link #setTrustStore(Certificate[])} is already set.
-		 *
 		 * @param verifier new advanced certificate verifier
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given certificate verifier is
 		 *             {@code null}
-		 * @throws IllegalStateException if
-		 *             {@link #setTrustStore(Certificate[])} is already set.
 		 * @see #setTrustCertificateTypes
 		 * @since 2.5
 		 */
 		public Builder setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier verifier) {
 			if (verifier == null) {
 				throw new NullPointerException("CertificateVerifier must not be null");
-			} else if (config.trustStore != null) {
-				throw new IllegalStateException("CertificateVerifier must not be used after trust store is set!");
 			}
-			config.certificateVerifier = null;
 			config.advancedCertificateVerifier = verifier;
 			return this;
 		}
@@ -2743,53 +2468,6 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Sets the store for trusted raw public keys.
-		 * 
-		 * @param store the raw public keys trust store
-		 * 
-		 * @return this builder for command chaining
-		 * @see #setTrustCertificateTypes
-		 * @deprecated use
-		 *             {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)}
-		 *             instead. {@link StaticNewAdvancedCertificateVerifier} may
-		 *             be used for simple setups. More complex ones may require a
-		 *             custom implementation. During migration you may also use
-		 *             the {@link BridgeCertificateVerifier} in order to use old
-		 *             implementations for that period.
-		 */
-		@Deprecated
-		public Builder setRpkTrustStore(TrustedRpkStore store) {
-			if (store == null) {
-				config.trustedRPKs = store;
-			} else if (config.advancedCertificateVerifier != null) {
-				throw new IllegalStateException("RPK trust store must not be used after new certificate verifier is set!");
-			}
-			config.trustedRPKs = store;
-			return this;
-		}
-
-		/**
-		 * Sets the store for trusted raw public key to trust all public keys.
-		 * 
-		 * @return this builder for command chaining
-		 * @deprecated use
-		 *             {@link #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)}
-		 *             instead. {@link StaticNewAdvancedCertificateVerifier} may
-		 *             be used for simple setups. More complex ones may require a
-		 *             custom implementation. During migration you may also use
-		 *             the {@link BridgeCertificateVerifier} in order to use old
-		 *             implementations for that period.
-		 */
-		@Deprecated
-		public Builder setRpkTrustAll() {
-			if (config.advancedCertificateVerifier != null) {
-				throw new IllegalStateException("RPK trust store must not be used after new certificate verifier is set!");
-			}
-			config.trustedRPKs = new TrustAllRpks();
-			return this;
-		}
-
-		/**
 		 * Sets the certificate types for the trust of the other peer.
 		 * 
 		 * In the order of preference.
@@ -2806,10 +2484,7 @@ public final class DtlsConnectorConfig {
 		 * @throws NullPointerException if the given certificate types is
 		 *             {@code null}
 		 * @throws IllegalArgumentException if the certificate types are empty
-		 * @see #setRpkTrustAll()
-		 * @see #setRpkTrustStore(TrustedRpkStore)
-		 * @see #setCertificateVerifier(CertificateVerifier)
-		 * @see #setTrustStore(Certificate[])
+		 * @see #setAdvancedCertificateVerifier(NewAdvancedCertificateVerifier)
 		 */
 		public Builder setTrustCertificateTypes(CertificateType... certificateTypes) {
 			if (certificateTypes == null) {
@@ -3064,32 +2739,6 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Use window filter.
-		 * 
-		 * Messages too old for the filter window will pass the filter.
-		 * 
-		 * @param enable {@code true} to enable filter. Default {@code false}.
-		 * @return this builder for command chaining.
-		 * @throws IllegalArgumentException if anti replay window filter is
-		 *             active.
-		 * @see "http://tools.ietf.org/html/rfc6347#section-4.1"
-		 * @deprecated use {@link #setUseExtendedWindowFilter(int)} with
-		 *             {@code -1}, instead.
-		 */
-		@Deprecated
-		public Builder setUseWindowFilter(boolean enable) {
-			if (enable && Boolean.TRUE.equals(config.useAntiReplayFilter)) {
-				throw new IllegalArgumentException("Anti replay filter is active!");
-			}
-			if (enable) {
-				config.useExtendedWindowFilter = -1;
-			} else {
-				config.useExtendedWindowFilter = 0;
-			}
-			return this;
-		}
-
-		/**
 		 * Use extended window filter.
 		 * 
 		 * The value will be subtracted from to lower receive window boundary. A
@@ -3325,7 +2974,7 @@ public final class DtlsConnectorConfig {
 				config.maxDeferredProcessedOutgoingApplicationDataMessages = DEFAULT_MAX_DEFERRED_PROCESSED_APPLICATION_DATA_MESSAGES;
 			}
 			if (config.maxDeferredProcessedIncomingRecordsSize == null){
-				config.maxDeferredProcessedIncomingRecordsSize = DEFAULT_MAX_DEFERRED_PROCESSED_HANDSHAKE_RECORDS_SIZE;
+				config.maxDeferredProcessedIncomingRecordsSize = DEFAULT_MAX_DEFERRED_PROCESSED_INCOMING_RECORDS_SIZE;
 			}
 			if (config.maxConnections == null){
 				config.maxConnections = DEFAULT_MAX_CONNECTIONS;
@@ -3356,19 +3005,6 @@ public final class DtlsConnectorConfig {
 			}
 			if (config.verifyPeersOnResumptionThreshold == null) {
 				config.verifyPeersOnResumptionThreshold = DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT;
-			}
-			if (config.advancedCertificateVerifier == null && (config.trustStore != null || config.trustedRPKs != null
-					|| config.certificateVerifier != null)) {
-				BridgeCertificateVerifier.Builder builder = BridgeCertificateVerifier.builder();
-				if (config.trustStore != null) {
-					builder.setTrustedCertificates(config.trustStore);
-				} else if (config.certificateVerifier != null) {
-					builder.setCertificateVerifier(config.certificateVerifier);
-				}
-				if (config.trustedRPKs != null) {
-					builder.setTrustedRPKs(config.trustedRPKs);
-				}
-				config.advancedCertificateVerifier = builder.build();
 			}
 			if (config.trustCertificateTypes == null && config.advancedCertificateVerifier != null) {
 				config.trustCertificateTypes = config.advancedCertificateVerifier.getSupportedCertificateType();
@@ -3436,9 +3072,6 @@ public final class DtlsConnectorConfig {
 				}
 			}
 
-			if (!psk && config.pskStore != null) {
-				throw new IllegalStateException("PSK store set, but no PSK cipher suite!");
-			}
 			if (!psk && config.advancedPskStore != null) {
 				throw new IllegalStateException("Advanced PSK store set, but no PSK cipher suite!");
 			}

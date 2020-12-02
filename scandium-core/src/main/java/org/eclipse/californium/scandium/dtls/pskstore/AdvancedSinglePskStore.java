@@ -22,9 +22,9 @@ import javax.security.auth.DestroyFailedException;
 import javax.security.auth.Destroyable;
 
 import org.eclipse.californium.scandium.dtls.ConnectionId;
+import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.PskSecretResult;
-import org.eclipse.californium.scandium.dtls.PskSecretResultHandler;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 
@@ -34,7 +34,6 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * 
  * @since 2.5
  */
-@SuppressWarnings("deprecation")
 public class AdvancedSinglePskStore implements AdvancedPskStore, Destroyable {
 
 	/**
@@ -114,7 +113,7 @@ public class AdvancedSinglePskStore implements AdvancedPskStore, Destroyable {
 	}
 
 	@Override
-	public void setResultHandler(PskSecretResultHandler resultHandler) {
+	public void setResultHandler(HandshakeResultHandler resultHandler) {
 		// empty implementation
 	}
 

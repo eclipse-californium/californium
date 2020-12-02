@@ -86,11 +86,9 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
-import org.eclipse.californium.scandium.dtls.rpkstore.TrustedRpkStore;
-import org.eclipse.californium.scandium.dtls.x509.BridgeCertificateVerifier;
-import org.eclipse.californium.scandium.dtls.x509.BridgeCertificateVerifier.Builder;
 import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier.Builder;
 
 /**
  * A utility class for implementing DTLS integration tests.
@@ -216,30 +214,16 @@ public class ConnectorHelper {
 		return result;
 	}
 
-	@SuppressWarnings("deprecation")
 	public NewAdvancedCertificateVerifier ensureTrusts(DtlsConnectorConfig.Builder builder) {
 		NewAdvancedCertificateVerifier result = null;
 		DtlsConnectorConfig incompleteConfig = builder.getIncompleteConfig();
 		if (!Boolean.FALSE.equals(incompleteConfig.isClientAuthenticationRequired())
 				|| Boolean.TRUE.equals(incompleteConfig.isClientAuthenticationWanted())) {
 			if (incompleteConfig.getAdvancedCertificateVerifier() == null) {
-				Builder verifierBuilder = BridgeCertificateVerifier.builder();
-				X509Certificate[] trustedCertificates = incompleteConfig.getTrustStore();
-				if (trustedCertificates == null) {
-					trustedCertificates = DtlsTestTools.getTrustedCertificates();
-				} else {
-					// reset trust store to use NewAdvancedCertificateVerifier
-					builder.setTrustStore(null);
-				}
+				Builder verifierBuilder = StaticNewAdvancedCertificateVerifier.builder();
+				X509Certificate[] trustedCertificates =  DtlsTestTools.getTrustedCertificates();
 				verifierBuilder.setTrustedCertificates(trustedCertificates);
-				TrustedRpkStore rpks = incompleteConfig.getRpkTrustStore();
-				if (rpks == null) {
-					verifierBuilder.setTrustAllRPKs();
-				} else {
-					// reset trust store to use NewAdvancedCertificateVerifier
-					builder.setRpkTrustStore(null);
-					verifierBuilder.setTrustedRPKs(rpks);
-				}
+				verifierBuilder.setTrustAllRPKs();
 				result = verifierBuilder.build();
 				builder.setAdvancedCertificateVerifier(result);
 			}

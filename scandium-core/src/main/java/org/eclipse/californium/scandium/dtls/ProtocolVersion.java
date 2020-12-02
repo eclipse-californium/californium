@@ -51,24 +51,6 @@ public class ProtocolVersion implements Comparable<ProtocolVersion> {
 	public static final int MINOR_0 = 255;
 
 	/**
-	 * Major version for DTLS 1.2.
-	 * 
-	 * @since 2.4
-	 * @deprecated use {@link #MAJOR_1}
-	 */
-	@Deprecated
-	public static final int MAJOR_1_2 = MAJOR_1;
-
-	/**
-	 * Minor version for DTLS 1.2.
-	 * 
-	 * @since 2.4
-	 * @deprecated use {@link #MINOR_2}
-	 */
-	@Deprecated
-	public static final int MINOR_1_2 = MINOR_2;
-
-	/**
 	 * Protocol version DTLS 1.2
 	 * 
 	 * @since 2.4
@@ -89,29 +71,12 @@ public class ProtocolVersion implements Comparable<ProtocolVersion> {
 	private final int major;
 
 	/**
-	 * Creates an instance representing DTLS version 1.2.
-	 * 
-	 * The version is represented as {254, 253} (1's complement of {1, 2}).
-	 * 
-	 * @deprecated use {@link #VERSION_DTLS_1_2} or {@link #valueOf(int, int)}
-	 *             instead.
-	 */
-	@Deprecated
-	public ProtocolVersion() {
-		this.major = MAJOR_1;
-		this.minor = MINOR_2;
-	}
-
-	/**
 	 * Instantiates a new protocol version.
 	 *
 	 * @param major the major
 	 * @param minor the minor
-	 * @deprecated intended to became private. Use {@link #valueOf(int, int)}
-	 *             instead.
 	 */
-	@Deprecated
-	public ProtocolVersion(int major, int minor) {
+	private ProtocolVersion(int major, int minor) {
 		this.minor = minor;
 		this.major = major;
 	}

@@ -90,8 +90,7 @@ import org.slf4j.LoggerFactory;
  * removed also from the cache.
  * </p>
  */
-@SuppressWarnings("deprecation")
-public class InMemoryConnectionStore implements ResumptionSupportingConnectionStore, CloseSupportingConnectionStore {
+public class InMemoryConnectionStore implements ResumptionSupportingConnectionStore {
 
 	private static final Logger LOG = LoggerFactory.getLogger(InMemoryConnectionStore.class);
 	private static final int DEFAULT_SMALL_EXTRA_CID_LENGTH = 2; // extra cid bytes additionally to required bytes for small capacity.
@@ -358,26 +357,6 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 			LOG.debug("{}connection: {} - {} update failed!", tag, connection.getConnectionId(), newPeerAddress);
 			return false;
 		}
-	}
-
-	/**
-	 * {@inheritDoc}
-	 * 
-	 * @deprecated since 2.3 obsolete, see {@link Connection#close(Record)}.
-	 */
-	@Deprecated
-	@Override
-	public synchronized boolean removeFromAddress(final Connection connection) {
-		if (connection != null) {
-			InetSocketAddress peerAddress = connection.getPeerAddress();
-			if (peerAddress != null) {
-				LOG.debug("{}connection: {} removed from address {}!", tag, connection.getConnectionId(), peerAddress);
-				connectionsByAddress.remove(peerAddress, connection);
-				connection.updatePeerAddress(null);
-				return true;
-			}
-		}
-		return false;
 	}
 
 	@Override

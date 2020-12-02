@@ -26,9 +26,9 @@ import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
+import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.PskSecretResult;
-import org.eclipse.californium.scandium.dtls.PskSecretResultHandler;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalCryptoMap;
 import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalCryptoMap.Factory;
@@ -42,12 +42,11 @@ import org.slf4j.LoggerFactory;
  * Asynchronous test implementation using a provided {@link AdvancedPskStore}.
  * 
  * Use {@code 0} or negative delays for test with synchronous blocking
- * behaviour. And positive delays for test with asynchronous none-blocking
- * behaviour.
+ * behavior. And positive delays for test with asynchronous none-blocking
+ * behavior.
  * 
  * @since 2.5
  */
-@SuppressWarnings("deprecation")
 public class AsyncAdvancedPskStore implements AdvancedPskStore {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(AsyncAdvancedPskStore.class);
@@ -87,12 +86,12 @@ public class AsyncAdvancedPskStore implements AdvancedPskStore {
 	/**
 	 * Result handler set during initialization.
 	 * 
-	 * @see #setResultHandler(PskSecretResultHandler)
+	 * @see #setResultHandler(HandshakeResultHandler)
 	 */
-	private volatile PskSecretResultHandler resultHandler;
+	private volatile HandshakeResultHandler resultHandler;
 
 	/**
-	 * Create an asynchronous advanced pskstore from {@link PskStore}.
+	 * Create an asynchronous advanced pskstore from {@link AdvancedPskStore}.
 	 * 
 	 * A call to {@link #shutdown()} is required to cleanup the used resources
 	 * (executor).
@@ -236,7 +235,7 @@ public class AsyncAdvancedPskStore implements AdvancedPskStore {
 	}
 
 	@Override
-	public void setResultHandler(PskSecretResultHandler resultHandler) {
+	public void setResultHandler(HandshakeResultHandler resultHandler) {
 		if (this.resultHandler != null && resultHandler != null && this.resultHandler != resultHandler) {
 			throw new IllegalStateException("handshake result handler already set!");
 		}

@@ -273,17 +273,6 @@ public final class CertificateRequest extends HandshakeMessage {
 		}
 
 		/**
-		 * Gets the JCA standard key algorithm name this certificate type is compatible with.
-		 * 
-		 * @return The algorithm name.
-		 * @deprecated
-		 */
-		@Deprecated
-		public String getJcaAlgorithm() {
-			return jcaAlgorithms[0];
-		}
-
-		/**
 		 * Indicates whether this certificate type requires the key to allow being used for signing.
 		 * 
 		 * @return {@code true} if signing capability is required.

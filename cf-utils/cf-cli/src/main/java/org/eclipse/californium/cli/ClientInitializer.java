@@ -49,9 +49,9 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
+import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.PskSecretResult;
-import org.eclipse.californium.scandium.dtls.PskSecretResultHandler;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
@@ -69,7 +69,6 @@ import picocli.CommandLine.ParseResult;
 /**
  * Client initializer.
  */
-@SuppressWarnings("deprecation")
 public class ClientInitializer {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(ClientInitializer.class);
@@ -457,7 +456,7 @@ public class ClientInitializer {
 		}
 
 		@Override
-		public void setResultHandler(PskSecretResultHandler resultHandler) {
+		public void setResultHandler(HandshakeResultHandler resultHandler) {
 		}
 	}
 }

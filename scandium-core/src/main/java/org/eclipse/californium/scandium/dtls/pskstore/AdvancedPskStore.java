@@ -26,7 +26,6 @@ import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.dtls.PskSecretResult;
-import org.eclipse.californium.scandium.dtls.PskSecretResultHandler;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.util.ServerNames;
 
@@ -38,7 +37,7 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * Returns psk secret result instead of PSK's secret key. The secret must either
  * be a master secret (algorithm "MAC"), or a PSK secret key (algorithm "PSK").
  * If required, the psk secret result maybe returned asynchronously using a
- * {@link PskSecretResultHandler}.
+ * {@link HandshakeResultHandler}.
  * 
  * <p>
  * Synchronous example returning the PSK secret key:
@@ -68,7 +67,7 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * }
  * 
  * &#64;Override
- * public void setResultHandler(PskSecretResultHandler resultHandler) {
+ * public void setResultHandler(HandshakeResultHandler resultHandler) {
  * 		this.resultHandler = resultHandler;
  * }
  * 
@@ -82,7 +81,6 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * 
  * @since 2.3
  */
-@SuppressWarnings("deprecation")
 public interface AdvancedPskStore {
 
 	/**
@@ -101,7 +99,7 @@ public interface AdvancedPskStore {
 	 * normalized identity and master secret or PSK secret key, if available. If
 	 * the result is not returned, it is passed asynchronously to the result
 	 * handler, provided during {@link DTLSConnector} initialization by
-	 * {@link #setResultHandler(PskSecretResultHandler)}.
+	 * {@link #setResultHandler(HandshakeResultHandler)}.
 	 * 
 	 * @param cid connection id for stateless asynchronous implementations.
 	 * @param serverName server names. Maybe {@code null}, if SNI is not enabled
@@ -145,12 +143,10 @@ public interface AdvancedPskStore {
 	 * Called during initialization of the {@link DTLSConnector}. Synchronous
 	 * implementations may just ignore this using an empty implementation.
 	 * 
-	 * Note: the type of the handler will change to {@link HandshakeResultHandler} with 3.0.
-	 * 
 	 * @param resultHandler handler for asynchronous master secret results. This
 	 *            handler MUST NOT be called from the thread calling
 	 *            {@link #requestPskSecretResult(ConnectionId, ServerNames, PskPublicInformation, String, SecretKey, byte[])},
 	 *            instead just return the result there.
 	 */
-	void setResultHandler(PskSecretResultHandler resultHandler);
+	void setResultHandler(HandshakeResultHandler resultHandler);
 }

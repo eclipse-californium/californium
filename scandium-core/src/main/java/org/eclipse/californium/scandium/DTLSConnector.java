@@ -194,7 +194,6 @@ import org.eclipse.californium.scandium.dtls.HandshakeMessage;
 import org.eclipse.californium.scandium.dtls.Handshaker;
 import org.eclipse.californium.scandium.dtls.HelloVerifyRequest;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
-import org.eclipse.californium.scandium.dtls.PskSecretResult;
 import org.eclipse.californium.scandium.dtls.MaxFragmentLengthExtension;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.Record;
@@ -445,11 +444,6 @@ public class DTLSConnector implements Connector, RecordLayer {
 				this.connectionExecutionListener = (ConnectionExecutionListener) listener;
 			}
 			HandshakeResultHandler handler = new HandshakeResultHandler() {
-
-				@Override
-				public void apply(PskSecretResult secretResult) {
-					processAsynchronousHandshakeResult(secretResult);
-				}
 
 				@Override
 				public void apply(HandshakeResult connectionResult) {
@@ -1246,7 +1240,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * 
 	 * @param packet datagram the be read from network
 	 * @throws IOException if anio- error occurred
-	 * @see #processDatagram(DatagramPacket)
+	 * @see #processDatagram(DatagramPacket, InetSocketAddress)
 	 */
 	protected void receiveNextDatagramFromNetwork(DatagramPacket packet) throws IOException {
 
@@ -1263,20 +1257,6 @@ public class DTLSConnector implements Connector, RecordLayer {
 			return;
 		}
 
-		// TODO: when deprecated function is removed, call the new one.
-		processDatagram(packet);
-	}
-
-	/**
-	 * Process received datagram.
-	 * 
-	 * Potentially called by multiple threads.
-	 * 
-	 * @param packet datagram filled with the received data and source address.
-	 * @deprecated use {@link #processDatagram(DatagramPacket, InetSocketAddress)}
-	 */
-	@Deprecated
-	protected void processDatagram(DatagramPacket packet) {
 		processDatagram(packet, null);
 	}
 
@@ -2795,23 +2775,6 @@ public class DTLSConnector implements Connector, RecordLayer {
 			}
 		}
 		return timeout;
-	}
-
-	/**
-	 * Gets the MTU value of the network interface this connector is bound to.
-	 * <p>
-	 * Applications may use this property to determine the maximum length of application
-	 * layer data that can be sent using this connector without requiring IP fragmentation.
-	 * <p> 
-	 * The value returned will be 0 if this connector is not running or the network interface
-	 * this connector is bound to does not provide an MTU value.
-	 * 
-	 * @return the MTU provided by the network interface
-	 * @deprecated use {@link #getMaxDatagramSize(boolean)} instead
-	 */
-	@Deprecated
-	public final int getMaximumTransmissionUnit() {
-		return maximumTransmissionUnit;
 	}
 
 	/**
