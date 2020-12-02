@@ -1260,6 +1260,11 @@ public class DTLSConnector implements Connector, RecordLayer {
 		processDatagram(packet, null);
 	}
 
+	@Override
+	public void processDatagram(DatagramPacket datagram) {
+		processDatagram(datagram, null);
+	}
+
 	/**
 	 * Process received datagram.
 	 * 

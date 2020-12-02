@@ -24,7 +24,7 @@ import java.util.Arrays;
 import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 
-import org.eclipse.californium.elements.ExtendedConnector;
+import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.UDPConnector;
@@ -96,7 +96,7 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 	 * Connector for cluster management. Also used to forward and backward
 	 * tls_cid records.
 	 */
-	private final ExtendedConnector clusterManagementConnector;
+	private final Connector clusterManagementConnector;
 
 	/**
 	 * Create dtls connector with cluster management communication.
@@ -227,7 +227,7 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 	 * 
 	 * @return cluster management connector
 	 */
-	public ExtendedConnector getClusterManagementConnector() {
+	public Connector getClusterManagementConnector() {
 		return clusterManagementConnector;
 	}
 
@@ -401,7 +401,7 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 	/**
 	 * Cluster management connector using UDP.
 	 */
-	private class ClusterManagementUdpConnector extends UDPConnector implements ExtendedConnector {
+	private class ClusterManagementUdpConnector extends UDPConnector {
 
 		public ClusterManagementUdpConnector(InetSocketAddress bindAddress) {
 			super(bindAddress);
@@ -412,11 +412,6 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 			if (isRunning())
 				return;
 			init(clusterInternalSocket);
-		}
-
-		@Override
-		public boolean isRunning() {
-			return running;
 		}
 
 		@Override
@@ -440,7 +435,7 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 	/**
 	 * Cluster management connector using DTLS.
 	 */
-	private class ClusterManagementDtlsConnector extends DTLSConnector implements ExtendedConnector {
+	private class ClusterManagementDtlsConnector extends DTLSConnector  {
 
 		public ClusterManagementDtlsConnector(DtlsConnectorConfig configuration) {
 			super(configuration);
@@ -473,11 +468,6 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 					}
 				}
 			});
-		}
-
-		@Override
-		public void processDatagram(DatagramPacket datagram) {
-			super.processDatagram(datagram, null);
 		}
 
 		@Override

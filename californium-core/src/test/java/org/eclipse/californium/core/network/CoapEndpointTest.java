@@ -27,6 +27,7 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
+import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -232,6 +233,11 @@ public class CoapEndpointTest {
 		}
 
 		@Override
+		public boolean isRunning() {
+			return true;
+		}
+
+		@Override
 		public void start() throws IOException {
 		}
 
@@ -241,6 +247,10 @@ public class CoapEndpointTest {
 
 		@Override
 		public void destroy() {
+		}
+
+		@Override
+		public void processDatagram(DatagramPacket datagram) {
 		}
 
 		@Override
