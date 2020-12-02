@@ -32,7 +32,6 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointObserver;
-import org.eclipse.californium.core.network.MessagePostProcessInterceptors;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
@@ -243,31 +242,29 @@ public class PlugtestServer extends AbstractTestServer {
 				ep.addInterceptor(new MessageTracer());
 				// Anonymized IoT metrics for validation. On success, remove the OriginTracer.
 				ep.addInterceptor(new AnonymizedOriginTracer(uri.getPort() + "-" + uri.getScheme()));
-				if (ep instanceof MessagePostProcessInterceptors) {
-					int interval = ep.getConfig().getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL);
-					final HealthStatisticLogger healthLogger = new HealthStatisticLogger(uri.toASCIIString(),
-							!CoAP.isTcpScheme(uri.getScheme()), interval, executor);
-					if (healthLogger.isEnabled()) {
-						((MessagePostProcessInterceptors) ep).addPostProcessInterceptor(healthLogger);
-						ep.addObserver(new EndpointObserver() {
+				int interval = ep.getConfig().getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL);
+				final HealthStatisticLogger healthLogger = new HealthStatisticLogger(uri.toASCIIString(),
+						!CoAP.isTcpScheme(uri.getScheme()), interval, executor);
+				if (healthLogger.isEnabled()) {
+					ep.addPostProcessInterceptor(healthLogger);
+					ep.addObserver(new EndpointObserver() {
 
-							@Override
-							public void stopped(Endpoint endpoint) {
-								healthLogger.stop();
-							}
+						@Override
+						public void stopped(Endpoint endpoint) {
+							healthLogger.stop();
+						}
 
-							@Override
-							public void started(Endpoint endpoint) {
-								healthLogger.start();
-							}
+						@Override
+						public void started(Endpoint endpoint) {
+							healthLogger.start();
+						}
 
-							@Override
-							public void destroyed(Endpoint endpoint) {
-								healthLogger.stop();
-							}
-						});
-						healthLogger.start();
-					}
+						@Override
+						public void destroyed(Endpoint endpoint) {
+							healthLogger.stop();
+						}
+					});
+					healthLogger.start();
 				}
 			}
 

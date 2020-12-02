@@ -206,7 +206,7 @@ import org.slf4j.LoggerFactory;
  * incoming traffic.
  * 
  */
-public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors, MulticastReceivers {
+public class CoapEndpoint implements Endpoint {
 
 	/** the logger. */
 	private static final Logger LOGGER = LoggerFactory.getLogger(CoapEndpoint.class);

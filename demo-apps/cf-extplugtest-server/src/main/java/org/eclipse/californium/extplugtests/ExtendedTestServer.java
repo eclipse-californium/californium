@@ -45,7 +45,6 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointContextMatcherFactory.MatcherMode;
 import org.eclipse.californium.core.network.EndpointObserver;
-import org.eclipse.californium.core.network.MessagePostProcessInterceptors;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
@@ -362,32 +361,30 @@ public class ExtendedTestServer extends AbstractTestServer {
 					ep.addInterceptor(new AnonymizedOriginTracer(uri.getPort() + "-" + uri.getScheme()));
 					ep.addInterceptor(new MessageTracer());
 				}
-				if (ep instanceof MessagePostProcessInterceptors) {
-					if (((MessagePostProcessInterceptors) ep).getPostProcessInterceptors().isEmpty()) {
-						int interval = ep.getConfig().getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL);
-						final HealthStatisticLogger healthLogger = new HealthStatisticLogger(uri.toASCIIString(),
-								!CoAP.isTcpScheme(uri.getScheme()), interval, executor);
-						if (healthLogger.isEnabled()) {
-							((MessagePostProcessInterceptors) ep).addPostProcessInterceptor(healthLogger);
-							ep.addObserver(new EndpointObserver() {
+				if (ep.getPostProcessInterceptors().isEmpty()) {
+					int interval = ep.getConfig().getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL);
+					final HealthStatisticLogger healthLogger = new HealthStatisticLogger(uri.toASCIIString(),
+							!CoAP.isTcpScheme(uri.getScheme()), interval, executor);
+					if (healthLogger.isEnabled()) {
+						ep.addPostProcessInterceptor(healthLogger);
+						ep.addObserver(new EndpointObserver() {
 
-								@Override
-								public void stopped(Endpoint endpoint) {
-									healthLogger.stop();
-								}
+							@Override
+							public void stopped(Endpoint endpoint) {
+								healthLogger.stop();
+							}
 
-								@Override
-								public void started(Endpoint endpoint) {
-									healthLogger.start();
-								}
+							@Override
+							public void started(Endpoint endpoint) {
+								healthLogger.start();
+							}
 
-								@Override
-								public void destroyed(Endpoint endpoint) {
-									healthLogger.stop();
-								}
-							});
-							healthLogger.start();
-						}
+							@Override
+							public void destroyed(Endpoint endpoint) {
+								healthLogger.stop();
+							}
+						});
+						healthLogger.start();
 					}
 				}
 			}
@@ -590,13 +587,13 @@ public class ExtendedTestServer extends AbstractTestServer {
 		}
 		builder.setNetworkConfig(netConfig);
 		CoapEndpoint endpoint = builder.build();
-		if (healthStatusInterval != null && endpoint instanceof MessagePostProcessInterceptors) {
+		if (healthStatusInterval != null) {
 			String tag = CoAP.COAP_SECURE_URI_SCHEME;
 			tag += "-" + nodeId;
 			final HealthStatisticLogger healthLogger = new HealthStatisticLogger(tag, true, healthStatusInterval,
 					secondaryExecutor);
 			if (healthLogger.isEnabled()) {
-				((MessagePostProcessInterceptors) endpoint).addPostProcessInterceptor(healthLogger);
+				endpoint.addPostProcessInterceptor(healthLogger);
 				endpoint.addObserver(new EndpointObserver() {
 
 					@Override

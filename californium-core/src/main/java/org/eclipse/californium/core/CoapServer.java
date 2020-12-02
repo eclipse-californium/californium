@@ -37,7 +37,6 @@ import org.slf4j.LoggerFactory;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.MulticastReceivers;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.server.ServerInterface;
@@ -250,12 +249,10 @@ public class CoapServer implements ServerInterface {
 
 		int started = 0;
 		for (Endpoint ep : endpoints) {
-			if (ep instanceof MulticastReceivers) {
-				try {
-					((MulticastReceivers)ep).startMulticastReceivers();
-				} catch (IOException e) {
-					LOGGER.error("cannot start server multicast receiver [{}]", ep.getAddress(), e);
-				}
+			try {
+				ep.startMulticastReceivers();
+			} catch (IOException e) {
+				LOGGER.error("cannot start server multicast receiver [{}]", ep.getAddress(), e);
 			}
 		}
 		for (Endpoint ep : endpoints) {

@@ -32,7 +32,7 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.MulticastReceivers;
+import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext;
@@ -200,7 +200,7 @@ public class CoapExchange {
 	 * respond with an error response code to bad requests though.
 	 * 
 	 * Note: since 2.3, rejects for multicast requests are not sent. (See
-	 * {@link MulticastReceivers#addMulticastReceiver(org.eclipse.californium.elements.Connector)
+	 * {@link Endpoint#addMulticastReceiver(org.eclipse.californium.elements.Connector)
 	 * for receiving multicast requests}.
 	 * 
 	 * @see Exchange#sendReject(EndpointContext)
@@ -271,7 +271,7 @@ public class CoapExchange {
 	 * "https://draft-ietf-core-too-many-reqs" gets adopted.
 	 *
 	 * Note: since 2.3, error responses for multicast requests are not sent. (See
-	 * {@link MulticastReceivers#addMulticastReceiver(org.eclipse.californium.elements.Connector)
+	 * {@link Endpoint#addMulticastReceiver(org.eclipse.californium.elements.Connector)
 	 * for receiving multicast requests}.
 	 * 
 	 * @param seconds estimated time in seconds after which the client may retry
@@ -299,7 +299,7 @@ public class CoapExchange {
 	 * and/or {@link #eTag}, if set before.
 	 *
 	 * Note: since 2.3, error responses for multicast requests are not sent. (See
-	 * {@link MulticastReceivers#addMulticastReceiver(org.eclipse.californium.elements.Connector)
+	 * {@link Endpoint#addMulticastReceiver(org.eclipse.californium.elements.Connector)
 	 * for receiving multicast requests}.
 	 * 
 	 * @param code the response code
@@ -336,7 +336,7 @@ public class CoapExchange {
 	 * and/or {@link #eTag}, if set before.
 	 * 
 	 * Note: since 2.3, error responses for multicast requests are not sent. (See
-	 * {@link MulticastReceivers#addMulticastReceiver(org.eclipse.californium.elements.Connector)
+	 * {@link Endpoint#addMulticastReceiver(org.eclipse.californium.elements.Connector)
 	 * for receiving multicast requests}.
 	 * 
 	 * @param code the response code
@@ -365,7 +365,7 @@ public class CoapExchange {
 	 * and/or {@link #eTag}, if set before.
 	 * 
 	 * Note: since 2.3, error responses for multicast requests are not sent. (See
-	 * {@link MulticastReceivers#addMulticastReceiver(org.eclipse.californium.elements.Connector)
+	 * {@link Endpoint#addMulticastReceiver(org.eclipse.californium.elements.Connector)
 	 * for receiving multicast requests}.
 	 *
 	 * @param code the response code
@@ -393,7 +393,7 @@ public class CoapExchange {
 	 * and/or {@link #eTag}, if set before.
 	 * 
 	 * Note: since 2.3, error responses for multicast requests are not sent. (See
-	 * {@link MulticastReceivers#addMulticastReceiver(org.eclipse.californium.elements.Connector)
+	 * {@link Endpoint#addMulticastReceiver(org.eclipse.californium.elements.Connector)
 	 * for receiving multicast requests}.
 	 * 
 	 * @param code the response code
@@ -423,7 +423,7 @@ public class CoapExchange {
 	 * and/or {@link #eTag}, if set before.
 	 *
 	 * Note: since 2.3, error responses for multicast requests are not sent. (See
-	 * {@link MulticastReceivers#addMulticastReceiver(org.eclipse.californium.elements.Connector)
+	 * {@link Endpoint#addMulticastReceiver(org.eclipse.californium.elements.Connector)
 	 * for receiving multicast requests}.
 	 *
 	 * @param code the response code
@@ -447,7 +447,7 @@ public class CoapExchange {
 	 * and/or {@link #eTag}, if set before.
 	 * 
 	 * Note: since 2.3, error responses for multicast requests are not sent. (See
-	 * {@link MulticastReceivers#addMulticastReceiver(org.eclipse.californium.elements.Connector)
+	 * {@link Endpoint#addMulticastReceiver(org.eclipse.californium.elements.Connector)
 	 * for receiving multicast requests}.
 	 * 
 	 * @param response the response

@@ -27,14 +27,17 @@ import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.coap.EmptyMessage;
+import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
+import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.UdpMulticastConnector;
 
 /**
  * A communication endpoint multiplexing CoAP message exchanges between (potentially multiple) clients and servers.
@@ -162,6 +165,64 @@ public interface Endpoint {
 	 * @return an immutable list of the registered interceptors.
 	 */
 	List<MessageInterceptor> getInterceptors();
+
+	/**
+	 * Adds a message interceptor to this endpoint to be called, when messages
+	 * are fully processed. The send methods are called, when a {@link Message}
+	 * was successful sent by the {@link Connector}, or the sending failed. The
+	 * receive methods are called, when the message, received by the
+	 * {@link Connector}, was fully processed by the {@link Matcher} and the
+	 * {@link CoapStack}.
+	 * <p>
+	 * A {@code MessageInterceptor} registered here must not cancel the message.
+	 * </p>
+	 *
+	 * @param interceptor the interceptor
+	 */
+	void addPostProcessInterceptor(MessageInterceptor interceptor);
+
+	/**
+	 * Removes the interceptor.
+	 *
+	 * @param interceptor the interceptor
+	 */
+	void removePostProcessInterceptor(MessageInterceptor interceptor);
+
+	/**
+	 * Gets all registered message post process interceptor.
+	 *
+	 * @return an immutable list of the registered message post process interceptors.
+	 */
+	List<MessageInterceptor> getPostProcessInterceptors();
+
+	/**
+	 * Add connector as multicast receiver.
+	 * 
+	 * A multicast receiver must return a multicast address on
+	 * {@link Connector#getAddress()}. A {@link UdpMulticastConnector} maybe
+	 * used as multicast receiver, if it joins only one multicast group.
+	 * 
+	 * @param receiver multicast receiver to add
+	 * @throws NullPointerException if receiver is {@code null}
+	 * @throws IllegalArgumentException if receiver doesn't return a multicast
+	 *             address on {@link Connector#getAddress()}
+	 */
+	void addMulticastReceiver(Connector receiver);
+
+	/**
+	 * Remove connector from multicast receivers.
+	 * 
+	 * @param receiver multicast receiver to remove
+	 */
+	void removeMulticastReceiver(Connector receiver);
+
+	/**
+	 * Start multicast receivers to ensure, that all unicast connectors are
+	 * started afterwards.
+	 * 
+	 * @throws IOException if an i/o error occurred.
+	 */
+	void startMulticastReceivers() throws IOException;
 
 	/**
 	 * Send the specified request.
