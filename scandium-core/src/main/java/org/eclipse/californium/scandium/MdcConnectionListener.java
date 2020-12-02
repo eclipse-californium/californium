@@ -36,7 +36,7 @@ import org.slf4j.MDC;
  * 
  * @since 2.4
  */
-public class MdcConnectionListener implements ConnectionExecutionListener, ConnectionListener {
+public class MdcConnectionListener implements ConnectionListener {
 
 	@Override
 	public void onConnectionEstablished(Connection connection) {
