@@ -386,7 +386,7 @@ public class DTLSConnectorResumeTest {
 		ApplicationLevelInfoSupplier supplier = new ApplicationLevelInfoSupplier() {
 
 			@Override
-			public AdditionalInfo getInfo(Principal clientIdentity) {
+			public AdditionalInfo getInfo(Principal clientIdentity, Object customArgument) {
 				return applicationLevelInfo;
 			}
 		};

@@ -14,7 +14,6 @@
  *    Bosch Software Innovations GmbH - initial creation
  *******************************************************************************/
 
-
 package org.eclipse.californium.scandium.auth;
 
 import java.security.Principal;
@@ -22,15 +21,18 @@ import java.security.Principal;
 import org.eclipse.californium.elements.auth.AdditionalInfo;
 
 /**
- * A strategy for retrieving additional (application level) information about an authenticated peer.
+ * A strategy for retrieving additional (application level) information about an
+ * authenticated peer.
  */
 public interface ApplicationLevelInfoSupplier {
 
-    /**
-     * Gets additional information about an authenticated peer.
-     * 
-     * @param peerIdentity The peer identity.
-     * @return The additional information about the peer.
-     */
-	AdditionalInfo getInfo(Principal peerIdentity);
+	/**
+	 * Gets additional information about an authenticated peer.
+	 * 
+	 * @param peerIdentity The peer identity.
+	 * @param customArgument a custom argument.
+	 * @return The additional information about the peer.
+	 */
+	AdditionalInfo getInfo(Principal peerIdentity, Object customArgument);
+
 }
