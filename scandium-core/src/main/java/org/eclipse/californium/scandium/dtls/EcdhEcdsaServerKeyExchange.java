@@ -157,9 +157,8 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 			// signature algorithm must also be included
 			writer.write(signatureAndHashAlgorithm.getHash().getCode(), HASH_ALGORITHM_BITS);
 			writer.write(signatureAndHashAlgorithm.getSignature().getCode(), SIGNATURE_ALGORITHM_BITS);
-			
-			writer.write(signatureEncoded.length, SIGNATURE_LENGTH_BITS);
-			writer.writeBytes(signatureEncoded);
+
+			writer.writeVarBytes(signatureEncoded, SIGNATURE_LENGTH_BITS);
 		}
 		return writer.toByteArray();
 	}
@@ -174,8 +173,7 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 			int hashAlgorithm = reader.read(HASH_ALGORITHM_BITS);
 			int signatureAlgorithm = reader.read(SIGNATURE_ALGORITHM_BITS);
 			signAndHash = new SignatureAndHashAlgorithm(hashAlgorithm, signatureAlgorithm);
-			int length = reader.read(SIGNATURE_LENGTH_BITS);
-			signatureEncoded = reader.readBytes(length);
+			signatureEncoded = reader.readVarBytes(SIGNATURE_LENGTH_BITS);
 		}
 		return new EcdhEcdsaServerKeyExchange(signAndHash, ecdhData.supportedGroup, ecdhData.encodedPoint, signatureEncoded, peerAddress);
 	}

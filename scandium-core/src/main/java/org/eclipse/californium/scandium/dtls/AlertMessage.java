@@ -255,7 +255,7 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 	 */
 	@Override
 	public byte[] toByteArray() {
-		DatagramWriter writer = new DatagramWriter();
+		DatagramWriter writer = new DatagramWriter(2);
 
 		writer.write(level.getCode(), BITS);
 		writer.write(description.getCode(), BITS);

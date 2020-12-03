@@ -71,8 +71,7 @@ public final class EcdhPskServerKeyExchange extends ECDHServerKeyExchange {
 	@Override
 	public byte[] fragmentToByteArray() {
 		DatagramWriter writer = new DatagramWriter();
-		writer.write(hint.length(), IDENTITY_HINT_LENGTH_BITS);
-		writer.writeBytes(hint.getBytes());
+		writer.writeVarBytes(hint, IDENTITY_HINT_LENGTH_BITS);
 		writeNamedCurve(writer);
 		return writer.toByteArray();
 	}
@@ -90,8 +89,7 @@ public final class EcdhPskServerKeyExchange extends ECDHServerKeyExchange {
 		if (peerAddress == null) {
 			throw new NullPointerException("peer address cannot be null");
 		}
-		int hintLength = reader.read(IDENTITY_HINT_LENGTH_BITS);
-		byte[] hintEncoded = reader.readBytes(hintLength);
+		byte[] hintEncoded = reader.readVarBytes(IDENTITY_HINT_LENGTH_BITS);
 		EcdhData ecdhData = readNamedCurve(reader, peerAddress);
 		return new EcdhPskServerKeyExchange(hintEncoded, ecdhData.supportedGroup, ecdhData.encodedPoint, peerAddress);
 	}

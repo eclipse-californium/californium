@@ -75,19 +75,17 @@ public final class PSKServerKeyExchange extends ServerKeyExchange {
 
 	@Override
 	public byte[] fragmentToByteArray() {
-		DatagramWriter writer = new DatagramWriter();
-		
-		writer.write(hint.length(), IDENTITY_HINT_LENGTH_BITS);
-		writer.writeBytes(hint.getBytes());
-		
+		DatagramWriter writer = new DatagramWriter(hint.length() + 2);
+
+		writer.writeVarBytes(hint, IDENTITY_HINT_LENGTH_BITS);
+
 		return writer.toByteArray();
 	}
 	
 	public static HandshakeMessage fromReader(DatagramReader reader, InetSocketAddress peerAddress) {
-		
-		int length = reader.read(IDENTITY_HINT_LENGTH_BITS);
-		byte[] hintEncoded = reader.readBytes(length);
-		
+
+		byte[] hintEncoded = reader.readVarBytes(IDENTITY_HINT_LENGTH_BITS);
+
 		return new PSKServerKeyExchange(hintEncoded, peerAddress);
 	}
 	

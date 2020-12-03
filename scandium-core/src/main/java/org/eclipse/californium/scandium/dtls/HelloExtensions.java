@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -119,7 +120,7 @@ public final class HelloExtensions {
 
 	public byte[] toByteArray() {
 		if (extensions.isEmpty()) {
-			return new byte[]{};
+			return Bytes.EMPTY;
 		} else {
 			DatagramWriter writer = new DatagramWriter();
 

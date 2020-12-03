@@ -161,6 +161,44 @@ public class DatagramWriterTest {
 	}
 
 	@Test
+	public void testWritePosition() {
+		byte[] data = bin("ab12def671223344556677890a");
+		writer.writeBytes(data);
+		writer.writeAt(2, 0x123456, 24);
+		byte[] wdata = writer.toByteArray();
+		assertEquals("AB12123456223344556677890A", hex(wdata));
+
+	}
+
+	@Test
+	public void testWritePositionAppend() {
+		byte[] data = bin("ab12def671223344556677890a");
+		writer.writeBytes(data);
+		writer.writeAt(11, 0x123456, 24);
+		byte[] wdata = writer.toByteArray();
+		assertEquals("AB12DEF671223344556677123456", hex(wdata));
+	}
+
+	@Test
+	public void testWriteLongPosition() {
+		byte[] data = bin("ab12def671223344556677890a");
+		writer.writeBytes(data);
+		writer.writeLongAt(2, 0x12345678abL, 40);
+		byte[] wdata = writer.toByteArray();
+		assertEquals("AB1212345678AB44556677890A", hex(wdata));
+
+	}
+
+	@Test
+	public void testWriteLongPositionAppend() {
+		byte[] data = bin("ab12def671223344556677890a");
+		writer.writeBytes(data);
+		writer.writeLongAt(10, 0x12345678abL, 40);
+		byte[] wdata = writer.toByteArray();
+		assertEquals("AB12DEF671223344556612345678AB", hex(wdata));
+	}
+
+	@Test
 	public void testWriteDatagramWriter() {
 		writer.writeBytes(bin("1234"));
 		DatagramWriter writer2 = new DatagramWriter(16);

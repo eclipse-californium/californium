@@ -91,7 +91,7 @@ public class RecordDecryptTest {
 		SecretKey encKey = new SecretKeySpec(Bytes.createBytes(secureRandom, encKeyLength), "AES");
 		SecretKey macKey = macKeyLength == 0 ? null
 				: new SecretKeySpec(Bytes.createBytes(secureRandom, macKeyLength), "AES");
-		SecretIvParameterSpec iv = new SecretIvParameterSpec(Bytes.createBytes(secureRandom, ivLength));
+		SecretIvParameterSpec iv = ivLength > 0 ? new SecretIvParameterSpec(Bytes.createBytes(secureRandom, ivLength)) : null;
 		payloadData = Bytes.createBytes(secureRandom, payloadLength);
 
 		session = new DTLSSession(new InetSocketAddress(InetAddress.getLoopbackAddress(), 7001));

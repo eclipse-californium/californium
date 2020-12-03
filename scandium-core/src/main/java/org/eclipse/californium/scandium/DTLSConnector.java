@@ -120,7 +120,9 @@
 package org.eclipse.californium.scandium;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InterruptedIOException;
+import java.io.OutputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.Inet6Address;
@@ -164,6 +166,7 @@ import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
@@ -171,6 +174,7 @@ import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.elements.util.WipAPI;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -1026,6 +1030,62 @@ public class DTLSConnector implements Connector, RecordLayer {
 		stop();
 		connectionStore.clear();
 		messageHandler = null;
+	}
+
+	/**
+	 * Save state of connections.
+	 * 
+	 * Clear connection store afterwards.
+	 * 
+	 * Note: the stream will contain not encrypted critical credentials. It is
+	 * only intended to be used for PoC, e.g. graceful shutdown. The encoding of
+	 * the content may also change in the future.
+	 * 
+	 * @param out stream to write connections
+	 * @return number of written connections
+	 * @throws IOException if io-error occurred.
+	 * @since 3.0
+	 */
+	@WipAPI
+	public int save(OutputStream out) throws IOException {
+		if (isRunning()) {
+			throw new IllegalStateException("Connector is running, save not possible!");
+		}
+		int count = 0;
+		DatagramWriter writer = new DatagramWriter(1024);
+		Iterator<Connection> iterator = connectionStore.iterator();
+		while (iterator.hasNext()) {
+			Connection connection = iterator.next();
+			if (connection.write(writer)) {
+				writer.writeTo(out);
+				++count;
+			}
+		}
+		connectionStore.clear();
+		return count;
+	}
+
+	/**
+	 * Load state for connections.
+	 * 
+	 * Note: the stream will contain not encrypted critical credentials. It is
+	 * only intended to be used for PoC, e.g. graceful shutdown. The encoding of
+	 * the content may also change in the future.
+	 * 
+	 * @param in stream to read connections.
+	 * @return number of read connections.
+	 * @since 3.0
+	 */
+	@WipAPI
+	public int load(InputStream in) {
+		int count = 0;
+		DatagramReader reader = new DatagramReader(in);
+		while (reader.bytesAvailable()) {
+			Connection connection = Connection.fromReader(reader);
+			connectionStore.put(connection);
+			++count;
+		}
+		return count;
 	}
 
 	/**

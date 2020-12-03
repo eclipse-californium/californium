@@ -318,20 +318,16 @@ public final class CertificateMessage extends HandshakeMessage {
 
 	@Override
 	public byte[] fragmentToByteArray() {
-		DatagramWriter writer = new DatagramWriter();
+		DatagramWriter writer = new DatagramWriter(getMessageLength());
 
 		if (rawPublicKeyBytes == null) {
 			writer.write(getMessageLength() - (CERTIFICATE_LENGTH_BITS / Byte.SIZE), CERTIFICATE_LIST_LENGTH_BITS);
 			// the size of the certificate chain
 			for (byte[] encoded : encodedChain) {
-				// the size of the current certificate
-				writer.write(encoded.length, CERTIFICATE_LENGTH_BITS);
-				// the encoded current certificate
-				writer.writeBytes(encoded);
+				writer.writeVarBytes(encoded, CERTIFICATE_LENGTH_BITS);
 			}
 		} else {
-			writer.write(rawPublicKeyBytes.length, CERTIFICATE_LENGTH_BITS);
-			writer.writeBytes(rawPublicKeyBytes);
+			writer.writeVarBytes(rawPublicKeyBytes, CERTIFICATE_LENGTH_BITS);
 		}
 
 		return writer.toByteArray();
@@ -354,8 +350,7 @@ public final class CertificateMessage extends HandshakeMessage {
 
 		if (CertificateType.RAW_PUBLIC_KEY == certificateType) {
 			LOGGER.debug("Parsing RawPublicKey CERTIFICATE message");
-			int certificateLength = reader.read(CERTIFICATE_LENGTH_BITS);
-			byte[] rawPublicKey = reader.readBytes(certificateLength);
+			byte[] rawPublicKey = reader.readVarBytes(CERTIFICATE_LENGTH_BITS, Bytes.EMPTY);
 			return new CertificateMessage(rawPublicKey, peerAddress);
 		} else if (CertificateType.X_509 == certificateType) {
 			return readX509CertificateMessage(reader, peerAddress);

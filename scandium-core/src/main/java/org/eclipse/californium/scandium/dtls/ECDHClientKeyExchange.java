@@ -87,8 +87,7 @@ public class ECDHClientKeyExchange extends ClientKeyExchange {
 	 * @param writer writer
 	 */
 	protected void writeFragment(DatagramWriter writer) {
-		writer.write(encodedPoint.length, LENGTH_BITS);
-		writer.writeBytes(encodedPoint);
+		writer.writeVarBytes(encodedPoint, LENGTH_BITS);
 	}
 
 	/**
@@ -98,8 +97,7 @@ public class ECDHClientKeyExchange extends ClientKeyExchange {
 	 * @return encoded point
 	 */
 	protected static byte[] readEncodedPoint(DatagramReader reader) {
-		int length = reader.read(LENGTH_BITS);
-		return reader.readBytes(length);
+		return reader.readVarBytes(LENGTH_BITS);
 	}
 
 	public static HandshakeMessage fromReader(DatagramReader reader, InetSocketAddress peerAddress) {

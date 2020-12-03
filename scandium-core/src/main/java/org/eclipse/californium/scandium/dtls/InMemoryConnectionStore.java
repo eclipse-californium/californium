@@ -288,9 +288,6 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	public synchronized boolean put(final Connection connection) {
 
 		if (connection != null) {
-			if (!connection.isExecuting()) {
-				throw new IllegalStateException("Connection is not executing!");
-			}
 			ConnectionId connectionId = connection.getConnectionId();
 			if (connectionId == null) {
 				if (connectionIdGenerator == null) {

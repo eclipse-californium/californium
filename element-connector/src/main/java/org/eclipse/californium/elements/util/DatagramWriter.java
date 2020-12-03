@@ -18,24 +18,30 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.io.OutputStream;
+import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * This class describes the functionality to write raw network-ordered datagrams
  * on bit-level.
  */
 public final class DatagramWriter {
-	private static final Logger LOGGER = LoggerFactory.getLogger(DatagramWriter.class);
+
+	private static final int DEFAULT_ARRAY_SIZE = 32;
+	private static final int MAX_ARRAY_SIZE = Integer.MAX_VALUE >> 1;
+
+	public static final AtomicLong COPIES = new AtomicLong();
+	public static final AtomicLong TAKES = new AtomicLong();
 
 	// Attributes //////////////////////////////////////////////////////////////
-	private final ByteArrayOutputStream byteStream;
+	private byte[] buffer;
+	private int count;
 
 	private byte currentByte;
 	private int currentBitIndex;
+	private final boolean secureClose;
 
 	// Constructors ////////////////////////////////////////////////////////////
 
@@ -43,28 +49,17 @@ public final class DatagramWriter {
 	 * Creates a new empty writer.
 	 */
 	public DatagramWriter() {
-		this(false);
+		this(DEFAULT_ARRAY_SIZE, false);
 	}
 
 	/**
 	 * Creates a new empty writer with provided {@link #close()} behaviour.
 	 * 
-	 * @param secureClose {@code true}, clear internal buffer on {@link
-	 *            #close()}, {@code false}, don't clear internal buffer.
+	 * @param secureClose {@code true}, clear internal buffer on
+	 *            {@link #close()}, {@code false}, don't clear internal buffer.
 	 */
 	public DatagramWriter(boolean secureClose) {
-		// initialize underlying byte stream
-		byteStream = secureClose ? new ByteArrayOutputStream() {
-
-			@Override
-			public void close() throws IOException {
-				Bytes.clear(buf);
-				super.close();
-			}
-		} : new ByteArrayOutputStream();
-
-		// initialize bit buffer
-		resetCurrentByte();
+		this(DEFAULT_ARRAY_SIZE, secureClose);
 	}
 
 	/**
@@ -73,9 +68,20 @@ public final class DatagramWriter {
 	 * @param size initial size
 	 */
 	public DatagramWriter(int size) {
-		// initialize underlying byte stream
-		byteStream = new ByteArrayOutputStream(size);
+		this(size, false);
+	}
 
+	/**
+	 * Creates a new empty writer with provided initial size.
+	 * 
+	 * @param size initial size
+	 * @param secureClose {@code true}, clear internal buffer on
+	 *            {@link #close()}, {@code false}, don't clear internal buffer.
+	 */
+	public DatagramWriter(int size, boolean secureClose) {
+		// initialize underlying byte stream
+		this.secureClose = secureClose;
+		buffer = new byte[size];
 		// initialize bit buffer
 		resetCurrentByte();
 	}
@@ -100,12 +106,16 @@ public final class DatagramWriter {
 			throw new IllegalArgumentException(String.format("Truncating value %d to %d-bit integer", data, numBits));
 		}
 
+		int additional = (numBits + 7) / 8;
+
 		if ((numBits & 0x7) == 0 && !isBytePending()) {
 			// byte-wise, no maverick bits left
+			ensureBufferSize(additional);
 			for (int i = numBits - 8; i >= 0; i -= 8) {
-				byteStream.write((byte)(data >> i));
+				write((byte) (data >> i));
 			}
 		} else {
+			ensureBufferSize(additional + 1);
 			for (int i = numBits - 1; i >= 0; i--) {
 
 				// test bit
@@ -123,6 +133,35 @@ public final class DatagramWriter {
 					writeCurrentByte();
 				}
 			}
+		}
+	}
+
+	/**
+	 * Writes a sequence of bits to the stream at provided position.
+	 * 
+	 * @param position position to write.
+	 * @param data A Long containing the bits to write.
+	 * @param numBits The number of bits to write. 1 to 64.
+	 * @throws IllegalArgumentException if the number of bits is not in range
+	 *             1..64, or the provided data contains more bits than that
+	 *             number.
+	 * @since 3.0
+	 */
+	public void writeLongAt(int position, final long data, final int numBits) {
+		int additional = (numBits + 7) / 8;
+		if (position + additional > count) {
+			ensureBufferSize(position + additional - count);
+		}
+		int lastCount = count;
+		int lastBitIndex = currentBitIndex;
+		byte lastByte = currentByte;
+		resetCurrentByte();
+		count = position;
+		writeLong(data, numBits);
+		if (count < lastCount) {
+			count = lastCount;
+			currentByte = lastByte;
+			currentBitIndex = lastBitIndex;
 		}
 	}
 
@@ -143,12 +182,16 @@ public final class DatagramWriter {
 			throw new IllegalArgumentException(String.format("Truncating value %d to %d-bit integer", data, numBits));
 		}
 
+		int additional = (numBits + 7) / 8;
+
 		if ((numBits & 0x7) == 0 && !isBytePending()) {
 			// byte-wise, no maverick bits left
+			ensureBufferSize(additional);
 			for (int i = numBits - 8; i >= 0; i -= 8) {
-				byteStream.write((byte)(data >> i));
+				write((byte) (data >> i));
 			}
 		} else {
+			ensureBufferSize(additional + 1);
 			for (int i = numBits - 1; i >= 0; i--) {
 
 				// test bit
@@ -170,10 +213,38 @@ public final class DatagramWriter {
 	}
 
 	/**
+	 * Writes a sequence of bits to the stream at provided position.
+	 * 
+	 * @param position position to write.
+	 * @param data An integer containing the bits to write.
+	 * @param numBits The number of bits to write. 1 to 32.
+	 * @throws IllegalArgumentException if the number of bits is not in range
+	 *             1..32, or the provided data contains more bits than that
+	 *             number.
+	 * @since 3.0
+	 */
+	public void writeAt(int position, final int data, final int numBits) {
+		int additional = (numBits + 7) / 8;
+		if (position + additional > count) {
+			ensureBufferSize(position + additional - count);
+		}
+		int lastCount = count;
+		int lastBitIndex = currentBitIndex;
+		byte lastByte = currentByte;
+		resetCurrentByte();
+		count = position;
+		write(data, numBits);
+		if (count < lastCount) {
+			count = lastCount;
+			currentByte = lastByte;
+			currentBitIndex = lastBitIndex;
+		}
+	}
+
+	/**
 	 * Writes a sequence of bytes to the stream.
 	 * 
-	 * @param bytes
-	 *            The sequence of bytes to write.
+	 * @param bytes The sequence of bytes to write.
 	 */
 	public void writeBytes(final byte[] bytes) {
 
@@ -181,36 +252,106 @@ public final class DatagramWriter {
 		if (bytes == null)
 			return;
 
+		writeBytes(bytes, 0, bytes.length);
+	}
+
+	/**
+	 * Writes a sequence of bytes to the stream.
+	 * 
+	 * @param bytes The sequence of bytes to write.
+	 * @since 3.0
+	 */
+	public void writeBytes(final byte[] bytes, int offset, int length) {
+
+		// check if anything to do at all
+		if (bytes == null || length == 0)
+			return;
+
 		// are there bits left to write in buffer?
 		if (isBytePending()) {
 
-			for (int i = 0; i < bytes.length; i++) {
-				write(bytes[i] & 0xff, Byte.SIZE);
+			for (int i = 0; i < length; i++) {
+				write(bytes[i + offset] & 0xff, Byte.SIZE);
 			}
 
 		} else {
 
 			// if bit buffer is empty, call can be delegated
 			// to byte stream to increase
-			byteStream.write(bytes, 0, bytes.length);
+			write(bytes, offset, length);
 		}
 	}
 
 	/**
 	 * Writes one byte to the stream.
 	 * 
-	 * @param b
-	 *            The byte to be written.
+	 * @param b The byte to be written.
 	 */
 	public void writeByte(final byte b) {
 		if (isBytePending()) {
 			write(b & 0xff, Byte.SIZE);
 		} else {
-			byteStream.write(b);
+			ensureBufferSize(1);
+			write(b);
 		}
 	}
 
-	// Functions ///////////////////////////////////////////////////////////////
+	/**
+	 * Write variable bytes with length.
+	 * 
+	 * @param bytes bytes to write
+	 * @param numBits number of bits for encoding the length.
+	 * @since 3.0
+	 */
+	public void writeVarBytes(byte[] bytes, int numBits) {
+		if (bytes == null) {
+			write(0, numBits);
+		} else {
+			write(bytes.length, numBits);
+			writeBytes(bytes);
+		}
+	}
+
+	/**
+	 * Write Bytes with length.
+	 * 
+	 * @param bytes bytes to write
+	 * @param numBits number of bits for encoding the length.
+	 * @since 3.0
+	 */
+	public void writeVarBytes(Bytes bytes, int numBits) {
+		if (bytes == null) {
+			write(0, numBits);
+		} else {
+			write(bytes.length(), numBits);
+			writeBytes(bytes.getBytes());
+		}
+	}
+
+	/**
+	 * Create/reserve space in output.
+	 * 
+	 * @param numBits number of bits to reserve
+	 * @return position of created space.
+	 * @throws IllegalArgumentException if number of bits doesn't align to bytes
+	 *             (multiple of 8).
+	 * @throws IllegalStateException if left bits are pending to be written.
+	 * @since 3.0
+	 */
+	public int space(int numBits) {
+		if (numBits % Byte.SIZE != 0) {
+			throw new IllegalArgumentException(
+					"Number of bits must be multiple of " + Byte.SIZE + ", not " + numBits + "!");
+		}
+		if (isBytePending()) {
+			throw new IllegalStateException("bits are pending!");
+		}
+		int position = count;
+		int bytes = numBits / Byte.SIZE;
+		ensureBufferSize(bytes);
+		count += bytes;
+		return position;
+	}
 
 	/**
 	 * Returns a byte array containing the sequence of bits written.
@@ -222,30 +363,93 @@ public final class DatagramWriter {
 		// write any bits left in the buffer to the stream
 		writeCurrentByte();
 
-		// retrieve the byte array from the stream
-		byte[] byteArray = byteStream.toByteArray();
+		byte[] byteArray;
+		if (buffer.length == count) {
+			byteArray = buffer;
+			buffer = Bytes.EMPTY;
+			TAKES.incrementAndGet();
+		} else {
+			// retrieve the byte array from the stream
+			byteArray = Arrays.copyOf(buffer, count);
+			if (secureClose) {
+				Arrays.fill(buffer, 0, count, (byte) 0);
+			}
+			COPIES.incrementAndGet();
+		}
 
 		// reset stream for the sake of consistency
-		byteStream.reset();
+		count = 0;
 
 		// return the byte array
 		return byteArray;
 	}
 
+	/**
+	 * Write content of provided writer.
+	 * 
+	 * @param data writer with content to write
+	 */
 	public void write(DatagramWriter data) {
-		try {
-			data.writeCurrentByte();
-			data.byteStream.writeTo(byteStream);
-		} catch (IOException e) {
+		data.writeCurrentByte();
+		write(data.buffer, 0, data.count);
+	}
+
+	/**
+	 * Write content to provided stream.
+	 * 
+	 * @param out stream to write
+	 * @throws IOException if an i/o-error occurred
+	 * @since 3.0
+	 */
+	public void writeTo(OutputStream out) throws IOException {
+		writeCurrentByte();
+		out.write(buffer, 0, count);
+		count = 0;
+	}
+
+	/**
+	 * Write size at the provided position.
+	 * 
+	 * This size includes all bytes after the size-field up to the current end.
+	 * Intended for fast and simple length encoding.
+	 * 
+	 * <pre>
+	 * writer.writeByte(type);
+	 * int position = writer.space(Short.SIZE);
+	 * writer.write ... n-bytes
+	 * ...
+	 * writer.writeSize(position, Short.SIZE);
+	 * </pre>
+	 * 
+	 * Results is.
+	 * 
+	 * <pre>
+	 *  type, n (Short, 16bit), n-bytes
+	 * </pre>
+	 * 
+	 * @param position byte position of size. Maybe return value of
+	 *            {@link #space(int)}.
+	 * @param numBits number of bits used for the size.
+	 * @throws IllegalArgumentException if number of bits doesn't align to bytes
+	 *             (multiple of 8).
+	 * @since 3.0
+	 */
+	public void writeSize(int position, int numBits) {
+		if (numBits % Byte.SIZE != 0) {
+			throw new IllegalArgumentException(
+					"Number of bits must be multiple of " + Byte.SIZE + ", not " + numBits + "!");
 		}
+		int size = count - position - (numBits / Byte.SIZE);
+		writeAt(position, size, numBits);
 	}
 
 	/**
 	 * Current size of written data.
+	 * 
 	 * @return number of currently written bytes.
 	 */
 	public int size() {
-		return byteStream.size();
+		return count;
 	}
 
 	/**
@@ -254,12 +458,11 @@ public final class DatagramWriter {
 	 * it.
 	 */
 	public void close() {
-		try {
-			byteStream.close();
-		} catch (IOException e) {
-			// Using ByteArrayOutputStream should not cause this
-			LOGGER.warn("{}.close() failed!", byteStream.getClass(), e);
+		if (secureClose) {
+			Arrays.fill(buffer, 0, count, (byte) 0);
 		}
+		buffer = Bytes.EMPTY;
+		count = 0;
 	}
 
 	/**
@@ -267,25 +470,116 @@ public final class DatagramWriter {
 	 */
 	public void writeCurrentByte() {
 		if (isBytePending()) {
-			byteStream.write(currentByte);
+			ensureBufferSize(1);
+			write(currentByte);
 			resetCurrentByte();
 		}
 	}
 
+	/**
+	 * Check, if a incomplete byte pending.
+	 * @return {@code true}, if bits are pending, {@code false}, otherwise.
+	 */
 	public final boolean isBytePending() {
 		return currentBitIndex < Byte.SIZE - 1;
 	}
 
+	/**
+	 * Reset the current pending byte.
+	 */
 	private final void resetCurrentByte() {
 		currentByte = 0;
 		currentBitIndex = Byte.SIZE - 1;
+	}
+
+	/**
+	 * Write bytes array (internal).
+	 * 
+	 * Calls {@link #ensureBufferSize(int)}.
+	 * 
+	 * @param b bytes to write
+	 * @param offset offset of bytes to write
+	 * @param length length of bytes to write
+	 * @since 3.0
+	 */
+	private final void write(byte[] b, int offset, int length) {
+		if (b != null && length > 0) {
+			ensureBufferSize(length);
+			System.arraycopy(b, offset, buffer, count, length);
+			count += length;
+		}
+	}
+
+	/**
+	 * Write byte (internal).
+	 * 
+	 * Doesn't call {@link #ensureBufferSize(int)}, that must be called ahead!
+	 * 
+	 * @param b byte to write
+	 * @since 3.0
+	 */
+	private final void write(byte b) {
+		buffer[count++] = b;
+	}
+
+	/**
+	 * Ensure buffer size.
+	 * 
+	 * Enlarge buffer, if additional size exceed the current allocated buffer.
+	 * 
+	 * @param add additional bytes
+	 * @since 3.0
+	 */
+	private final void ensureBufferSize(int add) {
+		int size = count + add;
+		if (size > buffer.length) {
+			int newSize = calculateBufferSize(size);
+			setBufferSize(newSize);
+		}
+	}
+
+	/**
+	 * Set new buffer size.
+	 * 
+	 * Increase buffer size, copy already written data.
+	 * 
+	 * @param size new buffer size.
+	 * @since 3.0
+	 */
+	private final void setBufferSize(int size) {
+		byte[] newBuffer = new byte[size];
+		System.arraycopy(buffer, 0, newBuffer, 0, count);
+		if (secureClose) {
+			Arrays.fill(buffer, 0, count, (byte) 0);
+		}
+		buffer = newBuffer;
+	}
+
+	/**
+	 * Calculate new buffer size.
+	 * 
+	 * @param size new desired size
+	 * @return new calculated size
+	 * @since 3.0
+	 */
+	private final int calculateBufferSize(int size) {
+		int newSize = buffer.length;
+		if (newSize == 0) {
+			newSize = DEFAULT_ARRAY_SIZE;
+		}
+		if (newSize < size) {
+			newSize = size;
+		} else if (newSize > MAX_ARRAY_SIZE) {
+			newSize = MAX_ARRAY_SIZE;
+		}
+		return newSize;
 	}
 
 	// Utilities ///////////////////////////////////////////////////////////////
 
 	@Override
 	public String toString() {
-		byte[] byteArray = byteStream.toByteArray();
+		byte[] byteArray = Arrays.copyOf(buffer, count);
 		if (byteArray != null && byteArray.length != 0) {
 
 			StringBuilder builder = new StringBuilder(byteArray.length * 3);

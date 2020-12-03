@@ -728,20 +728,16 @@ public enum CipherSuite {
 	// Serialization //////////////////////////////////////////////////
 
 	/**
-	 * Transform a list of cipher suites into the appropriate bit-format.
+	 * Write a list of cipher suites.
 	 * 
-	 * @param cipherSuites
-	 *            the cipher suites
-	 * @return the byte[]
+	 * @param writer writer to write to
+	 * @param cipherSuites the cipher suites
+	 * @since 3.0
 	 */
-	public static byte[] listToByteArray(List<CipherSuite> cipherSuites) {
-
-		DatagramWriter writer = new DatagramWriter();
+	public static void listToWriter(DatagramWriter writer, List<CipherSuite> cipherSuites) {
 		for (CipherSuite cipherSuite : cipherSuites) {
 			writer.write(cipherSuite.getCode(), CIPHER_SUITE_BITS);
 		}
-
-		return writer.toByteArray();
 	}
 
 	/**
@@ -920,9 +916,9 @@ public enum CipherSuite {
 		// key_length & record_iv_length as documented in RFC 5426, Appendix C
 		// see http://tools.ietf.org/html/rfc5246#appendix-C
 		NULL("NULL", CipherType.NULL, 0, 0, 0),
-		B_3DES_EDE_CBC("DESede/CBC/NoPadding", CipherType.BLOCK, 24, 4, 8), // don't know
-		AES_128_CBC("AES/CBC/NoPadding", CipherType.BLOCK, 16, 4, 16), // http://www.ietf.org/mail-archive/web/tls/current/msg08445.html
-		AES_256_CBC("AES/CBC/NoPadding", CipherType.BLOCK, 32, 4, 16),
+		B_3DES_EDE_CBC("DESede/CBC/NoPadding", CipherType.BLOCK, 24, 0, 8), // don't know
+		AES_128_CBC("AES/CBC/NoPadding", CipherType.BLOCK, 16, 0, 16), // http://www.ietf.org/mail-archive/web/tls/current/msg08445.html
+		AES_256_CBC("AES/CBC/NoPadding", CipherType.BLOCK, 32, 0, 16),
 		AES_128_CCM_8(AeadBlockCipher.AES_CCM, CipherType.AEAD, 16, 4, 8, 8), // explicit nonce (record IV) length = 8
 		AES_256_CCM_8(AeadBlockCipher.AES_CCM, CipherType.AEAD, 32, 4, 8, 8), // explicit nonce (record IV) length = 8
 		AES_128_CCM(AeadBlockCipher.AES_CCM, CipherType.AEAD, 16, 4, 8, 16), // explicit nonce (record IV) length = 8

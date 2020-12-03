@@ -33,7 +33,6 @@ import javax.crypto.SecretKey;
 
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.scandium.dtls.ClientHello;
-import org.eclipse.californium.scandium.dtls.CompressionMethod;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalMac;
 import org.eclipse.californium.scandium.util.SecretUtil;
@@ -164,12 +163,7 @@ public class CookieGenerator {
 		hmac.update((byte) (port >>> 8));
 		hmac.update((byte) port);
 		// Client-Parameters
-		hmac.update((byte) clientHello.getClientVersion().getMajor());
-		hmac.update((byte) clientHello.getClientVersion().getMinor());
-		hmac.update(clientHello.getRandom().getBytes());
-		hmac.update(clientHello.getSessionId().getBytes());
-		hmac.update(CipherSuite.listToByteArray(clientHello.getCipherSuites()));
-		hmac.update(CompressionMethod.listToByteArray(clientHello.getCompressionMethods()));
+		clientHello.updateForCookie(hmac);
 		return hmac.doFinal();
 	}
 

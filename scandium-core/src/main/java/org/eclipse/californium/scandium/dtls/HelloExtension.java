@@ -147,7 +147,7 @@ public abstract class HelloExtension {
 			case SIGNATURE_ALGORITHMS:
 				return SignatureAlgorithmsExtension.fromExtensionDataReader(extensionDataReader);
 			case CLIENT_CERT_TYPE:
-				return ClientCertificateTypeExtension.fromExtensionDataReaader(extensionDataReader);
+				return ClientCertificateTypeExtension.fromExtensionDataReader(extensionDataReader);
 			case SERVER_CERT_TYPE:
 				return ServerCertificateTypeExtension.fromExtensionDataReader(extensionDataReader);
 			case MAX_FRAGMENT_LENGTH:

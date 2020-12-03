@@ -102,6 +102,48 @@ Benchmark started.
 
 (Server Intel Pentium Silver J5005 , 16 GB RAM, Ubuntu 18.04)
 
+## Benchmarks - Graceful Shutdown
+
+(3.0.0-SNAPSHOT)
+
+The benchmark server is now extended to "save" the connection state (into memory) and "restore" it. For demonstration, type
+
+```sh
+save
+```
+
+into the console of the server.
+
+```sh
+> save
+12 ms, 2000 connections, 436893 bytes
+```
+
+The connections will be saved and removed from the connector. The benchmark client will show a significant smaller number of requests. Now load the connections again, type
+
+```sh
+load
+```
+
+into the console of the server.
+
+```sh
+> load
+20 ms, 2000 connections, 436893 bytes
+```
+
+Benchmark client console:
+
+```sh
+780558 requests (42278 reqs/s, 4234 retransmissions (1,00%), 0 transmission errors (0,00%), 2000 clients)
+1189306 requests (40875 reqs/s, 4581 retransmissions (1,12%), 0 transmission errors (0,00%), 2000 clients)
+1414566 requests (22526 reqs/s, 4309 retransmissions (1,91%), 0 transmission errors (0,00%), 2000 clients)
+1855305 requests (44074 reqs/s, 3376 retransmissions (0,77%), 0 transmission errors (0,00%), 2000 clients)
+2305364 requests (45006 reqs/s, 4398 retransmissions (0,98%), 0 transmission errors (0,00%), 2000 clients)
+```
+
+Note: if it takes too long between "save" and "load", the clients will detect a timeout and trigger new handshakes. So just pause a small couple of seconds!
+
 ## Receive Test
 
 A service, which uses requests with a device UUID to record these requests along with the source-ip and report them in a response. A client then analyze, if requests or responses may get lost. Used for long term communication tests. An example client is contained in "cf-extplugtest-client".

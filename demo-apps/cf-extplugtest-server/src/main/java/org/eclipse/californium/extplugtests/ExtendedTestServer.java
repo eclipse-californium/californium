@@ -19,7 +19,12 @@
  ******************************************************************************/
 package org.eclipse.californium.extplugtests;
 
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
@@ -30,6 +35,8 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -51,7 +58,9 @@ import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.core.network.interceptors.AnonymizedOriginTracer;
 import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
+import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.PrincipalEndpointContextMatcher;
+import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -64,6 +73,7 @@ import org.eclipse.californium.plugtests.PlugtestServer;
 import org.eclipse.californium.plugtests.PlugtestServer.BaseConfig;
 import org.eclipse.californium.plugtests.resources.Context;
 import org.eclipse.californium.plugtests.resources.MyIp;
+import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.DtlsClusterConnector;
 import org.eclipse.californium.scandium.DtlsClusterConnector.ClusterNodesProvider;
 import org.eclipse.californium.scandium.DtlsManagedClusterConnector;
@@ -401,10 +411,21 @@ public class ExtendedTestServer extends AbstractTestServer {
 				}
 				builder.append(", ").append(max / (1024 * 1024)).append("MB heap.");
 				System.out.println(builder);
+				ActiveInputReader reader = new ActiveInputReader();
 				long lastGcCount = 0;
 				for (;;) {
 					try {
-						Thread.sleep(15000);
+						String line = reader.getLine(15000);
+						if (line != null) {
+							System.out.println("> " + line);
+							if (line.equals("save")) {
+								server.save();
+							} else if (line.equals("load")) {
+								server.load();
+							}
+						}
+					} catch (RuntimeException e) {
+						e.printStackTrace();
 					} catch (InterruptedException e) {
 						break;
 					}
@@ -428,6 +449,12 @@ public class ExtendedTestServer extends AbstractTestServer {
 						printManagamentStatistic();
 						lastGcCount = gcCount;
 						netstat.dump();
+						long clones = DatagramWriter.COPIES.get();
+						long takes = DatagramWriter.TAKES.get();
+						if (clones + takes > 0) {
+							STATISTIC_LOGGER.info("DatagramWriter {} clones, {} takes, {}%", clones, takes,
+									(takes * 100L) / (takes + clones));
+						}
 					}
 				}
 			}
@@ -443,6 +470,8 @@ public class ExtendedTestServer extends AbstractTestServer {
 
 	}
 
+	private Map<DTLSConnector, byte[]> map = new HashMap<>();
+
 	public ExtendedTestServer(NetworkConfig config, Map<Select, NetworkConfig> protocolConfig, boolean noBenchmark)
 			throws SocketException {
 		super(config, protocolConfig);
@@ -452,6 +481,43 @@ public class ExtendedTestServer extends AbstractTestServer {
 		add(new Benchmark(noBenchmark, maxResourceSize));
 		add(new MyIp(MyIp.RESOURCE_NAME, true));
 		add(new Context(Context.RESOURCE_NAME, true));
+	}
+
+	private void save() {
+		stop();
+		int count = 0;
+		long size = 0;
+		long start = System.nanoTime();
+		for (Endpoint endpoint : getEndpoints()) {
+			if (endpoint instanceof CoapEndpoint) {
+				Connector connector = ((CoapEndpoint) endpoint).getConnector();
+				if (connector instanceof DTLSConnector) {
+					try {
+						ByteArrayOutputStream out = new ByteArrayOutputStream();
+						count += ((DTLSConnector)connector).save(out);
+						size += out.size();
+						map.put((DTLSConnector)connector, out.toByteArray());
+					} catch (IOException e) {
+					}
+				}
+			}
+		}
+		long time = System.nanoTime() -start;
+		System.out.format("%d ms, %d connections, %d bytes%n", TimeUnit.NANOSECONDS.toMillis(time), count, size);
+	}
+
+	private void load() {
+		int count = 0;
+		long size = 0;
+		long start = System.nanoTime();
+		for (DTLSConnector connector : map.keySet()) {
+			byte[] data = map.get(connector);
+			size += data.length;
+			count += connector.load(new ByteArrayInputStream(data));
+		}
+		long time = System.nanoTime() -start;
+		System.out.format("%d ms, %d connections, %d bytes%n", TimeUnit.NANOSECONDS.toMillis(time), count, size);
+		start();
 	}
 
 	private static void startManagamentStatistic() {
@@ -712,4 +778,45 @@ public class ExtendedTestServer extends AbstractTestServer {
 		}
 	};
 
+	private static class ActiveInputReader {
+
+		BufferedReader in;
+		Queue<String> buffer;
+		Thread thread;
+
+		ActiveInputReader() {
+			in = new BufferedReader(new InputStreamReader(System.in));
+			buffer = new ConcurrentLinkedQueue<>();
+			thread = new Thread(new Runnable() {
+				
+				@Override
+				public void run() {
+					read();
+				}
+			}, "INPUT");
+			thread.start();
+		}
+
+		public void read() {
+			String line = null;
+			try {
+				while ((line = in.readLine()) != null) {
+					buffer.add(line);
+					synchronized (buffer) {
+						buffer.notify();
+					}
+				}
+			} catch (IOException e) {
+			}
+		}
+
+		String getLine(long timeout) throws InterruptedException {
+			if (timeout >= 0) {
+				synchronized (buffer) {
+					buffer.wait(timeout);
+				}
+			}
+			return buffer.poll();
+		}
+	}
 }

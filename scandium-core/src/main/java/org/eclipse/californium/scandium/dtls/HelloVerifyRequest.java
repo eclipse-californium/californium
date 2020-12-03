@@ -18,7 +18,6 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
-import java.util.Arrays;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -110,20 +109,19 @@ public final class HelloVerifyRequest extends HandshakeMessage {
 	public HelloVerifyRequest(ProtocolVersion version, byte[] cookie, InetSocketAddress peerAddress) {
 		super(peerAddress);
 		this.serverVersion = version;
-		this.cookie = Arrays.copyOf(cookie, cookie.length);
+		this.cookie = cookie;
 	}
 
 	// Serialization //////////////////////////////////////////////////
 
 	@Override
 	public byte[] fragmentToByteArray() {
-		DatagramWriter writer = new DatagramWriter();
+		DatagramWriter writer = new DatagramWriter(cookie.length + 3);
 
 		writer.write(serverVersion.getMajor(), VERSION_BITS);
 		writer.write(serverVersion.getMinor(), VERSION_BITS);
 
-		writer.write(cookie.length, COOKIE_LENGTH_BITS);
-		writer.writeBytes(cookie);
+		writer.writeVarBytes(cookie, COOKIE_LENGTH_BITS);
 
 		return writer.toByteArray();
 	}
@@ -134,8 +132,7 @@ public final class HelloVerifyRequest extends HandshakeMessage {
 		int minor = reader.read(VERSION_BITS);
 		ProtocolVersion version = ProtocolVersion.valueOf(major, minor);
 
-		int cookieLength = reader.read(COOKIE_LENGTH_BITS);
-		byte[] cookie = reader.readBytes(cookieLength);
+		byte[] cookie = reader.readVarBytes(COOKIE_LENGTH_BITS);
 
 		return new HelloVerifyRequest(version, cookie, peerAddress);
 	}

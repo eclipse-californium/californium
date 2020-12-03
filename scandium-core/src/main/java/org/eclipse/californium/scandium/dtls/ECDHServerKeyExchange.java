@@ -97,8 +97,7 @@ public abstract class ECDHServerKeyExchange extends ServerKeyExchange {
 		// http://tools.ietf.org/html/rfc4492#section-5.4
 		writer.write(NAMED_CURVE, CURVE_TYPE_BITS);
 		writer.write(supportedGroup.getId(), NAMED_CURVE_BITS);
-		writer.write(encodedPoint.length, PUBLIC_LENGTH_BITS);
-		writer.writeBytes(encodedPoint);
+		writer.writeVarBytes(encodedPoint, PUBLIC_LENGTH_BITS);
 	}
 
 	protected static EcdhData readNamedCurve(final DatagramReader reader, final InetSocketAddress peerAddress) throws HandshakeException {
@@ -117,8 +116,7 @@ public abstract class ECDHServerKeyExchange extends ServerKeyExchange {
 				String.format("Server used unsupported elliptic curve (%d) for ECDH", curveId),
 				new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, peerAddress));
 		}
-		int length = reader.read(PUBLIC_LENGTH_BITS);
-		byte[] encodedPoint = reader.readBytes(length);
+		byte[] encodedPoint = reader.readVarBytes(PUBLIC_LENGTH_BITS);
 		return new EcdhData(group, encodedPoint);
 	}
 

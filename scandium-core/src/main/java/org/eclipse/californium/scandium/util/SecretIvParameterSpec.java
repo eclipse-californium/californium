@@ -22,6 +22,7 @@ import javax.security.auth.DestroyFailedException;
 import javax.security.auth.Destroyable;
 
 import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.DatagramWriter;
 
 /**
  * Secure initial vector parameter specification.
@@ -54,6 +55,20 @@ public class SecretIvParameterSpec implements AlgorithmParameterSpec, Destroyabl
 	}
 
 	/**
+	 * Create new secure iv parameters.
+	 * 
+	 * @param iv byte array
+	 * @throws NullPointerException if iv is {@code null}
+	 * @since 3.0
+	 */
+	public SecretIvParameterSpec(SecretIvParameterSpec iv) {
+		if (iv == null) {
+			throw new NullPointerException("IV missing");
+		}
+		this.iv = Arrays.copyOf(iv.iv, iv.iv.length);
+	}
+
+	/**
 	 * Create new iv parameters.
 	 * 
 	 * @param iv byte array with the iv.
@@ -80,63 +95,23 @@ public class SecretIvParameterSpec implements AlgorithmParameterSpec, Destroyabl
 	}
 
 	/**
-	 * Get copy of IV.
+	 * Get size of iv.
 	 * 
-	 * @return copy of iv.
-	 * @throws IllegalStateException if instance was already destroyed
+	 * @return size of iv
+	 * @since 3.0
 	 */
-	public byte[] getIV() {
-		if (destroyed) {
-			throw new IllegalStateException("secret destroyed!");
-		}
-		return Arrays.copyOf(iv, iv.length);
+	public int size() {
+		return iv.length;
 	}
 
 	/**
-	 * Get iv extended by the explicit nonce.
+	 * Write iv to writer.
 	 * 
-	 * @param explicitNonce byte array of explicit nonce.
-	 * @return iv extended by explicit nonce
-	 * @throws NullPointerException if explicit nonce is {@code null}
-	 * @throws IllegalArgumentException explicit nonce iv is empty
-	 * @throws IllegalStateException if instance was already destroyed
+	 * @param writer to write iv to
+	 * @since 3.0
 	 */
-	public byte[] getIV(byte[] explicitNonce) {
-		return getIV(explicitNonce, 0, explicitNonce.length);
-	}
-
-	/**
-	 * Get iv extended by the explicit nonce.
-	 * 
-	 * @param explicitNonce byte array of explicit nonce.
-	 * @param offset offset within byte array
-	 * @param length length within byte array
-	 * @return iv extended by explicit nonce
-	 * @throws NullPointerException if explicit nonce is {@code null}
-	 * @throws IllegalArgumentException explicit nonce iv is empty, or length is
-	 *             negative or offset and length doesn't fit into explicit
-	 *             nonce.
-	 * @throws IllegalStateException if instance was already destroyed
-	 */
-	public byte[] getIV(byte[] explicitNonce, int offset, int length) {
-		if (destroyed) {
-			throw new IllegalStateException("secret destroyed!");
-		}
-		if (explicitNonce == null) {
-			throw new NullPointerException("explicit nonce missing");
-		}
-		if (explicitNonce.length == 0) {
-			throw new IllegalArgumentException("IV key");
-		}
-		if (length < 0) {
-			throw new ArrayIndexOutOfBoundsException("len is negative");
-		}
-		if (explicitNonce.length - offset < length) {
-			throw new IllegalArgumentException("Invalid offset/length combination");
-		}
-		byte[] result = Arrays.copyOf(iv, iv.length + length);
-		System.arraycopy(explicitNonce, offset, result, iv.length, length);
-		return result;
+	public void writeTo(DatagramWriter writer) {
+		writer.writeBytes(iv);
 	}
 
 	/**
