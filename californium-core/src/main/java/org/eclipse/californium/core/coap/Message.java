@@ -815,24 +815,25 @@ public abstract class Message {
 	/**
 	 * Marks this message as acknowledged.
 	 *
+	 * Since 3.0 doesn't longer call
+	 * {@link MessageObserver#onAcknowledgement()}. Use {@link #acknowledge()}
+	 * instead.
+	 * 
 	 * Not part of the fluent API.
 	 *
 	 * @param acknowledged if acknowledged
 	 */
 	public void setAcknowledged(boolean acknowledged) {
 		this.acknowledged.set(acknowledged);
-		if (acknowledged) {
-			for (MessageObserver handler : getMessageObservers()) {
-				handler.onAcknowledgement();
-			}
-		}
 	}
 
 	/**
 	 * Acknowledge a unacknowledged confirmable message.
 	 *
 	 * Checks and set {@link #acknowledged} atomically. Calls
-	 * {@link #setAcknowledged(boolean)}, if message was unacknowledged.
+	 * {@link #setAcknowledged(boolean)} and
+	 * {@link MessageObserver#onAcknowledgement()}, if message was
+	 * unacknowledged.
 	 * 
 	 * Not part of the fluent API.
 	 *
@@ -844,6 +845,9 @@ public abstract class Message {
 	public boolean acknowledge() {
 		if (isConfirmable() && acknowledged.compareAndSet(false, true)) {
 			setAcknowledged(true);
+			for (MessageObserver handler : getMessageObservers()) {
+				handler.onAcknowledgement();
+			}
 			return true;
 		}
 		return false;

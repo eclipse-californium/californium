@@ -365,7 +365,7 @@ public class ReliabilityLayer extends AbstractLayer {
 		if (message.getType() == Type.ACK) {
 			LOGGER.debug("{} acknowledge {} for {} {} ({} msg observer)", exchange, message, type, currentMessage,
 					observer);
-			currentMessage.setAcknowledged(true);
+			currentMessage.acknowledge();
 		} else if (message.getType() == Type.RST) {
 			LOGGER.debug("{} reject {} for {} {} ({} msg observer)", exchange, message, type, currentMessage, observer);
 			currentMessage.setRejected(true);
