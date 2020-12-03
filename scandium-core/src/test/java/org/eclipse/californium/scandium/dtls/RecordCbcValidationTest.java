@@ -300,7 +300,7 @@ public class RecordCbcValidationTest {
 	@Ignore
 	public void testBenchmarkMac() throws GeneralSecurityException {
 		hmac.init(state.getMacKey());
-		byte[] mac = new byte[state.getMacLength()];
+		byte[] mac = new byte[cipherSuite.getMacLength()];
 		hmac.update(payloadData, 0, minMacPayloadLength);
 		hmac.doFinal(mac, 0);
 		int count = benchmarkMac(minMacPayloadLength, mac);
@@ -336,7 +336,7 @@ public class RecordCbcValidationTest {
 	@Test
 	@Ignore
 	public void testBenchmarkHash() throws GeneralSecurityException {
-		byte[] mac = new byte[state.getMacLength()];
+		byte[] mac = new byte[cipherSuite.getMacLength()];
 		int count = 0;
 		md.update(payloadData, 0, minMacPayloadLength);
 		md.digest(mac, 0, mac.length);
@@ -519,8 +519,8 @@ public class RecordCbcValidationTest {
 				state.getMacKey(), additionalData, payload, payload.length));
 
 		// determine padding length
-		int ciphertextLength = payload.length + state.getMacLength() + 1;
-		int blocksize = state.getRecordIvLength();
+		int ciphertextLength = payload.length + cipherSuite.getMacLength() + 1;
+		int blocksize = cipherSuite.getRecordIvLength();
 		int lastBlockBytes = ciphertextLength % blocksize;
 		int paddingLength = lastBlockBytes > 0 ? blocksize - lastBlockBytes : 0;
 		if (additionalPadding % blocksize != 0) {
@@ -559,7 +559,7 @@ public class RecordCbcValidationTest {
 		 * See http://tools.ietf.org/html/rfc5246#section-6.2.3.2 for
 		 * explanation
 		 */
-		int macLength = currentReadState.getMacLength();
+		int macLength = currentReadState.getCipherSuite().getMacLength();
 		// last byte contains padding length
 		int paddingLength = plaintextOversized[plaintextLength - 1] & 0xff;
 		// -1 := padding length byte
@@ -631,7 +631,7 @@ public class RecordCbcValidationTest {
 		// last byte contains padding length
 		int paddingLength = plaintext[plaintext.length - 1] & 0xff;
 		int fragmentLength = plaintext.length - 1 // paddingLength byte
-				- paddingLength - currentReadState.getMacLength();
+				- paddingLength - currentReadState.getCipherSuite().getMacLength();
 		if (0 > fragmentLength) {
 			throw new InvalidMacException();
 		}

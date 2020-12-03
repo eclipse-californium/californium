@@ -68,8 +68,7 @@ public final class EcdhPskClientKeyExchange extends ECDHClientKeyExchange {
 	 */
 	@Override
 	protected void writeFragment(DatagramWriter writer) {
-		writer.write(identity.length(), IDENTITY_LENGTH_BITS);
-		writer.writeBytes(identity.getBytes());
+		writer.writeVarBytes(identity, IDENTITY_LENGTH_BITS);
 		super.writeFragment(writer);
 	}
 
@@ -85,8 +84,7 @@ public final class EcdhPskClientKeyExchange extends ECDHClientKeyExchange {
 		if (peerAddress == null) {
 			throw new NullPointerException("peer address cannot be null");
 		}
-		int identityLength = reader.read(IDENTITY_LENGTH_BITS);
-		byte[] identityEncoded = reader.readBytes(identityLength);
+		byte[] identityEncoded = reader.readVarBytes(IDENTITY_LENGTH_BITS);
 		PskPublicInformation identity = PskPublicInformation.fromByteArray(identityEncoded);
 		byte[] pointEncoded = readEncodedPoint(reader);
 		return new EcdhPskClientKeyExchange(identity, pointEncoded, peerAddress);

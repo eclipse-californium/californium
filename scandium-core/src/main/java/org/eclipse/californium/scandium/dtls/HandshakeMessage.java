@@ -421,9 +421,9 @@ public abstract class HandshakeMessage extends AbstractMessage {
 		}
 
 		if (reader.bytesAvailable()) {
-			byte[] bytesLeft = reader.readBytesLeft();
+			int bytesLeft = reader.bitsLeft() / Byte.SIZE;
 			throw new HandshakeException(
-					String.format("Too many bytes, %d left, message not completely parsed! message type %s", bytesLeft.length, type),
+					String.format("Too many bytes, %d left, message not completely parsed! message type %s", bytesLeft, type),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR, peerAddress));
 		}
 

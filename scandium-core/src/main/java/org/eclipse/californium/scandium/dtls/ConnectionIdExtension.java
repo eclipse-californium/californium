@@ -73,8 +73,7 @@ public final class ConnectionIdExtension extends HelloExtension {
 	protected void addExtensionData(final DatagramWriter writer) {
 		int length = id.length();
 		writer.write(1 + length, LENGTH_BITS);
-		writer.write(length, CID_FIELD_LENGTH_BITS);
-		writer.writeBytes(id.getBytes());
+		writer.writeVarBytes(id, CID_FIELD_LENGTH_BITS);
 	}
 
 	/**

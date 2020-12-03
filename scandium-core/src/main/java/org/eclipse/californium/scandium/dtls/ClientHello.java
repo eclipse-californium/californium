@@ -29,6 +29,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import javax.crypto.Mac;
+
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -263,17 +265,15 @@ public final class ClientHello extends HandshakeMessage {
 
 		writer.writeBytes(random.getBytes());
 
-		writer.write(sessionId.length(), SESSION_ID_LENGTH_BITS);
-		writer.writeBytes(sessionId.getBytes());
+		writer.writeVarBytes(sessionId, SESSION_ID_LENGTH_BITS);
 
-		writer.write(cookie.length, COOKIE_LENGTH);
-		writer.writeBytes(cookie);
+		writer.writeVarBytes(cookie, COOKIE_LENGTH);
 
 		writer.write(supportedCipherSuites.size() * 2, CIPHER_SUITS_LENGTH_BITS);
-		writer.writeBytes(CipherSuite.listToByteArray(supportedCipherSuites));
+		CipherSuite.listToWriter(writer, supportedCipherSuites);
 
 		writer.write(compressionMethods.size(), COMPRESSION_METHODS_LENGTH_BITS);
-		writer.writeBytes(CompressionMethod.listToByteArray(compressionMethods));
+		CompressionMethod.listToWriter(writer, compressionMethods);
 
 		if (extensions != null) {
 			writer.writeBytes(extensions.toByteArray());
@@ -305,11 +305,9 @@ public final class ClientHello extends HandshakeMessage {
 
 		result.random = new Random(reader.readBytes(RANDOM_BYTES));
 
-		int sessionIdLength = reader.read(SESSION_ID_LENGTH_BITS);
-		result.sessionId = new SessionId(reader.readBytes(sessionIdLength));
+		result.sessionId = new SessionId(reader.readVarBytes(SESSION_ID_LENGTH_BITS, Bytes.EMPTY));
 
-		int cookieLength = reader.read(COOKIE_LENGTH);
-		result.cookie = reader.readBytes(cookieLength);
+		result.cookie = reader.readVarBytes(COOKIE_LENGTH, Bytes.EMPTY);
 
 		int cipherSuitesLength = reader.read(CIPHER_SUITS_LENGTH_BITS);
 		DatagramReader rangeReader = reader.createRangeReader(cipherSuitesLength);
@@ -432,6 +430,24 @@ public final class ClientHello extends HandshakeMessage {
 		}
 		this.cookie = Arrays.copyOf(cookie, cookie.length);
 		fragmentChanged();
+	}
+
+	/**
+	 * Update hmac for cookie generation.
+	 * 
+	 * @param hmac initialized hmac
+	 * @since 3.0
+	 */
+	public void updateForCookie(Mac hmac) {
+		byte[] rawMessage = toByteArray();
+		int head = sessionId.length() + RANDOM_BYTES
+				+ (VERSION_BITS + VERSION_BITS + SESSION_ID_LENGTH_BITS) / Byte.SIZE;
+		int tail = head + 1 + MESSAGE_HEADER_LENGTH_BYTES;
+		if (cookie != null) {
+			tail += cookie.length;
+		}
+		hmac.update(rawMessage, MESSAGE_HEADER_LENGTH_BYTES, head);
+		hmac.update(rawMessage, tail, rawMessage.length - tail);
 	}
 
 	public List<CipherSuite> getCipherSuites() {

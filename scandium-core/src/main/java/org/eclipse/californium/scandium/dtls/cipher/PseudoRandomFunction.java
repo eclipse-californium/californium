@@ -219,11 +219,9 @@ public final class PseudoRandomFunction {
 		byte[] pskBytes = pskSecret.getEncoded();
 		int pskLength = pskBytes.length;
 		byte[] otherBytes = otherSecret != null ? otherSecret.getEncoded() : new byte[pskLength];
-		DatagramWriter writer = new DatagramWriter(true);
-		writer.write(otherBytes.length, 16);
-		writer.writeBytes(otherBytes);
-		writer.write(pskLength, 16);
-		writer.writeBytes(pskBytes);
+		DatagramWriter writer = new DatagramWriter(otherBytes.length + pskLength + 4, true);
+		writer.writeVarBytes(otherBytes, 16);
+		writer.writeVarBytes(pskBytes, 16);
 		byte[] secret = writer.toByteArray();
 		writer.close();
 		SecretKey premaster = SecretUtil.create(secret, "MAC");

@@ -143,26 +143,36 @@ public class SecretUtil {
 	public static SecretIvParameterSpec createIv(SecretIvParameterSpec iv) {
 		SecretIvParameterSpec result = null;
 		if (iv != null) {
-			byte[] secret = iv.getIV();
-			result = new SecretIvParameterSpec(secret, 0, secret.length);
-			Bytes.clear(secret);
+			result = new SecretIvParameterSpec(iv);
 		}
 		return result;
 	}
 
 	/**
-	 * Create secret iv paramter (with destroyable implementation).
+	 * Create secret iv parameter (with destroyable implementation).
 	 * 
 	 * @param iv as byte array
 	 * @param offset offset of iv within the provided byte array
 	 * @param length length of iv
-	 * @return the secreate iv
+	 * @return the secret iv
 	 * @throws NullPointerException if iv is {@code null}
-	 * @throws IllegalArgumentException if iv is empty, or len is negative or
+	 * @throws IllegalArgumentException if iv is empty, or length is negative or
 	 *             offset and length doesn't fit into iv.
 	 */
 	public static SecretIvParameterSpec createIv(byte[] iv, int offset, int length) {
 		return new SecretIvParameterSpec(iv, offset, length);
+	}
+
+	/**
+	 * Create secret iv parameter (with destroyable implementation).
+	 * 
+	 * @param iv as byte array
+	 * @return the secret iv
+	 * @throws NullPointerException if iv is {@code null}
+	 * @since 2.6
+	 */
+	public static SecretIvParameterSpec createIv(byte[] iv) {
+		return new SecretIvParameterSpec(iv, 0, iv.length);
 	}
 
 	private static class DestroyableSecretKeySpec implements KeySpec, SecretKey, Destroyable {

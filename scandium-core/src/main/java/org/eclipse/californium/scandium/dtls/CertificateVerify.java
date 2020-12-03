@@ -124,15 +124,14 @@ public final class CertificateVerify extends HandshakeMessage {
 
 	@Override
 	public byte[] fragmentToByteArray() {
-		DatagramWriter writer = new DatagramWriter();
+		DatagramWriter writer = new DatagramWriter(signatureBytes.length + 4);
 
 		// according to http://tools.ietf.org/html/rfc5246#section-4.7 the
 		// signature algorithm must also be included
 		writer.write(signatureAndHashAlgorithm.getHash().getCode(), HASH_ALGORITHM_BITS);
 		writer.write(signatureAndHashAlgorithm.getSignature().getCode(), SIGNATURE_ALGORITHM_BITS);
 
-		writer.write(signatureBytes.length, SIGNATURE_LENGTH_BITS);
-		writer.writeBytes(signatureBytes);
+		writer.writeVarBytes(signatureBytes, SIGNATURE_LENGTH_BITS);
 
 		return writer.toByteArray();
 	}
@@ -145,8 +144,7 @@ public final class CertificateVerify extends HandshakeMessage {
 		int signatureAlgorithm = reader.read(SIGNATURE_ALGORITHM_BITS);
 		SignatureAndHashAlgorithm signAndHash = new SignatureAndHashAlgorithm(hashAlgorithm, signatureAlgorithm);
 
-		int length = reader.read(SIGNATURE_LENGTH_BITS);
-		byte[] signature = reader.readBytes(length);
+		byte[] signature = reader.readVarBytes(SIGNATURE_LENGTH_BITS);
 
 		return new CertificateVerify(signAndHash, signature, peerAddress);
 	}

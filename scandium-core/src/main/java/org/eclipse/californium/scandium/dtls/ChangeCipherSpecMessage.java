@@ -96,7 +96,7 @@ public final class ChangeCipherSpecMessage extends AbstractMessage {
 
 	@Override
 	public byte[] toByteArray() {
-		DatagramWriter writer = new DatagramWriter();
+		DatagramWriter writer = new DatagramWriter(1);
 		writer.write(CCSProtocolType.getCode(), CCS_BITS);
 
 		return writer.toByteArray();

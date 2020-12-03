@@ -47,6 +47,7 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
+import java.security.GeneralSecurityException;
 import java.security.InvalidKeyException;
 import java.security.Principal;
 
@@ -57,10 +58,15 @@ import javax.security.auth.Destroyable;
 
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.elements.util.WipAPI;
+import org.eclipse.californium.scandium.auth.PrincipalSerializer;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.util.SecretUtil;
+import org.eclipse.californium.scandium.util.SerializationUtil;
 import org.eclipse.californium.scandium.util.ServerName;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.eclipse.californium.scandium.util.ServerName.NameType;
@@ -76,7 +82,7 @@ public final class DTLSSession implements Destroyable {
 	/**
 	 * The payload length of all headers around a DTLS handshake message payload.
 	 * <ol>
-	 * <li>12 bytes DTLS message header</li>
+	 * <li>12 bytes DTLS handshake message header</li>
 	 * <li>13 bytes DTLS record header</li>
 	 * </ol>
 	 * 25 bytes in total.
@@ -84,8 +90,8 @@ public final class DTLSSession implements Destroyable {
 	 * @since 2.5
 	 */
 	public static final int DTLS_HEADER_LENGTH = 
-								HandshakeMessage.MESSAGE_HEADER_LENGTH_BYTES // 12 bytes DTLS handshake message headers
-								+ Record.RECORD_HEADER_BYTES; // 13 bytes DTLS record headers
+								HandshakeMessage.MESSAGE_HEADER_LENGTH_BYTES
+								+ Record.RECORD_HEADER_BYTES;
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(DTLSSession.class);
 	private static final long RECEIVE_WINDOW_SIZE = 64;
@@ -1267,8 +1273,7 @@ public final class DTLSSession implements Destroyable {
 		DTLSConnectionState writeState = getWriteState();
 		if (!writeState.hasValidCipherSuite()) {
 			throw new IllegalStateException("session has no valid crypto params, not fully negotiated yet?");
-		}
-		else if (sessionIdentifier.isEmpty()) {
+		} else if (sessionIdentifier.isEmpty()) {
 			return null;
 		}
 		return new SessionTicket(
@@ -1279,5 +1284,155 @@ public final class DTLSSession implements Destroyable {
 				getServerNames(),
 				getPeerIdentity(),
 				creationTime);
+	}
+
+	/**
+	 * Version number for serialization.
+	 */
+	private static final int VERSION = 2;
+
+	/**
+	 * Write dtls session state.
+	 * 
+	 * Note: the stream will contain not encrypted critical credentials. It is
+	 * only intended to be used for PoC, e.g. graceful shutdown. The encoding of
+	 * the content may also change in the future.
+	 * 
+	 * @param writer writer for dtls session state
+	 * @since 3.0
+	 */
+	@WipAPI
+	public void write(DatagramWriter writer) {
+		writer.writeByte((byte) VERSION);
+		int position = writer.space(Short.SIZE);
+
+		SerializationUtil.write(writer, handshakeTimeTag, Byte.SIZE);
+		SerializationUtil.write(writer, hostName, Byte.SIZE);
+		if (serverNames == null) {
+			writer.write(0, Byte.SIZE);
+		} else {
+			writer.write(1, Byte.SIZE);
+			serverNames.encode(writer);
+		}
+		if (recordSizeLimit != null) {
+			writer.write(recordSizeLimit, Short.SIZE);
+		} else {
+			writer.write(0xffff, Short.SIZE);
+		}
+		writer.write(maxFragmentLength, Short.SIZE);
+		writer.writeVarBytes(sessionIdentifier, Byte.SIZE);
+		writer.write(cipherSuite.getCode(), Short.SIZE);
+		writer.write(compressionMethod.getCode(), Byte.SIZE);
+		writer.writeLong(sequenceNumbers[writeEpoch], 48);
+		writer.writeLong(receiveWindowLowerBoundary, 48);
+		writer.writeLong(receivedRecordsVector, 64);
+		writer.write(readEpoch, Byte.SIZE);
+		if (readEpoch > 0) {
+			getReadState().write(writer);
+		}
+		writer.write(writeEpoch, Byte.SIZE);
+		if (writeEpoch > 0) {
+			getWriteState().write(writer);
+		}
+		writer.writeVarBytes(writeConnectionId, Byte.SIZE);
+		SerializationUtil.write(writer, masterSecret);
+		if (peerIdentity == null) {
+			writer.write(0, Byte.SIZE);
+		} else {
+			writer.write(1, Byte.SIZE);
+			PrincipalSerializer.serialize(peerIdentity, writer);
+		}
+		writer.writeSize(position, Short.SIZE);
+	}
+
+	/**
+	 * Read dtls session state.
+	 * 
+	 * Note: the stream will contain not encrypted critical credentials. It is
+	 * only intended to be used for PoC, e.g. graceful shutdown. The encoding of
+	 * the content may also change in the future.
+	 * 
+	 * @param reader reader with dtls session state.
+	 * @return read dtls session.
+	 * @throws IllegalArgumentException if version differs.
+	 * @since 3.0
+	 */
+	@WipAPI
+	public static DTLSSession fromReader(DatagramReader reader) {
+		int version = reader.readNextByte() & 0xff;
+		if (version != VERSION) {
+			throw new IllegalArgumentException("Version " + VERSION + " is required! Not " + version);
+		}
+		int length = reader.read(Short.SIZE);
+		DatagramReader rangeReader = reader.createRangeReader(length);
+		return new DTLSSession(rangeReader);
+	}
+
+	/**
+	 * Create instance from reader.
+	 * 
+	 * @param reader reader with dtls session state.
+	 * @since 3.0
+	 */
+	private DTLSSession(DatagramReader reader) {
+		handshakeTimeTag = SerializationUtil.readString(reader, Byte.SIZE);
+		hostName = SerializationUtil.readString(reader, Byte.SIZE);
+		if (reader.readNextByte() == 1) {
+			serverNames = ServerNames.newInstance();
+			try {
+				serverNames.decode(reader);
+			} catch (IllegalArgumentException e) {
+				serverNames = null;
+			}
+		}
+		int size = reader.read(Short.SIZE);
+		if (size < 0xffff) {
+			recordSizeLimit = size;
+		}
+		size = reader.read(Short.SIZE);
+		maxFragmentLength = size;
+		byte[] data = reader.readVarBytes(Byte.SIZE);
+		if (data != null) {
+			sessionIdentifier = new SessionId(data);
+		}
+		int code = reader.read(Short.SIZE);
+		cipherSuite = CipherSuite.getTypeByCode(code);
+		code = reader.read(Byte.SIZE);
+		compressionMethod = CompressionMethod.getMethodByCode(code);
+		long sequenceNumbers = reader.readLong(48);
+		receiveWindowLowerBoundary = reader.readLong(48);
+		receivedRecordsVector = reader.readLong(64);
+		receiveWindowUpperCurrent = receiveWindowLowerBoundary;
+		long vector = receivedRecordsVector;
+		if (vector < 0) {
+			receiveWindowUpperCurrent += Long.SIZE;
+		} else {
+			while (vector != 0) {
+				vector >>>= 1;
+				receiveWindowUpperCurrent++;
+			}
+		}
+		readEpoch = reader.read(Byte.SIZE);
+		if (readEpoch > 0) {
+			readState = DTLSConnectionState.fromReader(cipherSuite, compressionMethod, reader);
+		}
+		writeEpoch = reader.read(Byte.SIZE);
+		if (writeEpoch > 0) {
+			writeState = DTLSConnectionState.fromReader(cipherSuite, compressionMethod, reader);
+		}
+		this.sequenceNumbers[writeEpoch] = sequenceNumbers;
+		data = reader.readVarBytes(Byte.SIZE);
+		if (data != null) {
+			writeConnectionId = new ConnectionId(data);
+		}
+		masterSecret = SerializationUtil.readSecretKey(reader);
+		if (reader.readNextByte() == 1) {
+			try {
+				peerIdentity = PrincipalSerializer.deserialize(reader);
+			} catch (GeneralSecurityException e) {
+				throw new IllegalArgumentException("principal failure", e);
+			}
+		}
+		reader.assertFinished("dtls-session");
 	}
 }

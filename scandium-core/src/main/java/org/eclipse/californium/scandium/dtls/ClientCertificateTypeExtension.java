@@ -72,7 +72,7 @@ public class ClientCertificateTypeExtension extends CertificateTypeExtension {
 	 * @throws NullPointerException if extension data is {@code null}
 	 * @throws IllegalArgumentException if extension data is empty
 	 */
-	public static ClientCertificateTypeExtension fromExtensionDataReaader(DatagramReader extensionDataReader) {
+	public static ClientCertificateTypeExtension fromExtensionDataReader(DatagramReader extensionDataReader) {
 		return new ClientCertificateTypeExtension(extensionDataReader);
 	}
 }

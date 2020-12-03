@@ -45,10 +45,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.elements.util.ClockUtil;
+import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.SerialExecutor.ExecutionListener;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.elements.util.WipAPI;
 import org.eclipse.californium.scandium.ConnectionListener;
+import org.eclipse.californium.scandium.util.SerializationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -693,8 +697,9 @@ public final class Connection {
 	}
 
 	private class ConnectionSessionListener implements SessionListener {
+
 		@Override
-		public void handshakeStarted(Handshaker handshaker)	throws HandshakeException {
+		public void handshakeStarted(Handshaker handshaker) throws HandshakeException {
 			ongoingHandshake.set(handshaker);
 			LOGGER.debug("Handshake with [{}] has been started", handshaker.getPeerAddress());
 		}
@@ -745,5 +750,87 @@ public final class Connection {
 		@Override
 		public void handshakeFlightRetransmitted(Handshaker handshaker, int flight) {
 		}
+	}
+
+	/**
+	 * Version number for serialization.
+	 */
+	private static final int VERSION = 1;
+
+	/**
+	 * Write connection state.
+	 * 
+	 * Note: the stream will contain not encrypted critical credentials. It is
+	 * only intended to be used for PoC, e.g. graceful shutdown. The encoding of
+	 * the content may also change in the future.
+	 * 
+	 * @param writer writer for connection state
+	 * @return {@code true}, if connection is written, {@code false}, if not.
+	 * @since 3.0
+	 */
+	@WipAPI
+	public boolean write(DatagramWriter writer) {
+		if (establishedSession != null) {
+			writer.writeByte((byte) VERSION);
+			int position = writer.space(Short.SIZE);
+
+			writer.writeByte(resumptionRequired ? (byte) 1 : (byte) 0);
+			writer.writeVarBytes(cid, Byte.SIZE);
+			SerializationUtil.write(writer, peerAddress);
+
+			establishedSession.write(writer);
+			writer.writeByte(cid != null && cid.equals(establishedSession.getReadConnectionId()) ? (byte) 1 : (byte) 0);
+			// TODO: 
+			// startingClientHelloRandom + startingClientHelloMessageSeq
+			// Requires timeout independent from scheduler!
+			writer.writeSize(position, Short.SIZE);
+			return true;
+		} else {
+			return false;
+		}
+	}
+
+	/**
+	 * Read connection state.
+	 * 
+	 * Note: the stream will contain not encrypted critical credentials. It is
+	 * only intended to be used for PoC, e.g. graceful shutdown. The encoding of
+	 * the content may also change in the future.
+	 * 
+	 * @param reader reader with connection state.
+	 * @return read connection.
+	 * @throws IllegalArgumentException if version differs.
+	 * @since 3.0
+	 */
+	@WipAPI
+	public static Connection fromReader(DatagramReader reader) {
+		int version = reader.readNextByte() & 0xff;
+		if (version != VERSION) {
+			throw new IllegalArgumentException("Version " + VERSION + " is required! Not " + version);
+		}
+		int length = reader.read(Short.SIZE);
+		DatagramReader rangeReader = reader.createRangeReader(length);
+		return new Connection(rangeReader);
+	}
+
+	/**
+	 * Create instance from reader.
+	 * 
+	 * @param reader reader with connection state.
+	 * @since 3.0
+	 */
+	private Connection(DatagramReader reader) {
+		resumptionRequired = reader.readNextByte() == 1;
+		byte[] data = reader.readVarBytes(Byte.SIZE);
+		if (data != null) {
+			cid = new ConnectionId(data);
+		}
+		peerAddress = SerializationUtil.readAddress(reader);
+		establishedSession = DTLSSession.fromReader(reader);
+		establishedSession.setPeer(peerAddress);
+		if (reader.readNextByte() == 1) {
+			establishedSession.setReadConnectionId(cid);
+		}
+		reader.assertFinished("connection");
 	}
 }

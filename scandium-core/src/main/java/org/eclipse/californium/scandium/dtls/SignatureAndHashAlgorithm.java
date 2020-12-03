@@ -628,7 +628,7 @@ public final class SignatureAndHashAlgorithm {
 	 */
 	@Override
 	public int hashCode() {
-		return this.hashAlgorithmCode * 100 + this.signatureAlgorithmCode;
+		return this.hashAlgorithmCode * 256 + this.signatureAlgorithmCode;
 	}
 
 	/**

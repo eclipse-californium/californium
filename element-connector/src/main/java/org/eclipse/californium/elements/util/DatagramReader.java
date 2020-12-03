@@ -20,6 +20,8 @@
 package org.eclipse.californium.elements.util;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Arrays;
 
 /**
@@ -73,7 +75,7 @@ public final class DatagramReader {
 	}
 	// Attributes //////////////////////////////////////////////////////////////
 
-	private final ByteArrayInputStream byteStream;
+	private final InputStream byteStream;
 
 	private byte currentByte;
 	private int currentBitIndex;
@@ -122,13 +124,7 @@ public final class DatagramReader {
 	 * @since 2.4
 	 */
 	public DatagramReader(final byte[] byteArray, int offset, int length) {
-		byteStream = new RangeInputStream(byteArray, offset, length);
-
-		// initialize bit buffer
-		currentByte = 0;
-		currentBitIndex = -1; // indicates that no byte read yet
-		markByte = currentByte;
-		markBitIndex = currentBitIndex;
+		this(new RangeInputStream(byteArray, offset, length));
 	}
 
 	/**
@@ -137,7 +133,7 @@ public final class DatagramReader {
 	 * @param byteStream The byte stream to read from.
 	 * @throws NullPointerException if byte stream is {@code null}
 	 */
-	public DatagramReader(final ByteArrayInputStream byteStream) {
+	public DatagramReader(final InputStream byteStream) {
 		if (byteStream == null) {
 			throw new NullPointerException("byte stream must not be null!");
 		}
@@ -170,7 +166,10 @@ public final class DatagramReader {
 	 * @see #mark()
 	 */
 	public void reset() {
-		byteStream.reset();
+		try {
+			byteStream.reset();
+		} catch (IOException e) {
+		}
 		currentByte = markByte;
 		currentBitIndex = markBitIndex;
 	}
@@ -180,7 +179,7 @@ public final class DatagramReader {
 	 * Free resource and clear left bytes.
 	 */
 	public void close() {
-		byteStream.skip(byteStream.available());
+		skipBytes(available());
 		currentByte = 0;
 		currentBitIndex = -1; // indicates that no byte read yet
 	}
@@ -200,9 +199,9 @@ public final class DatagramReader {
 			currentBitIndex = -1;
 		}
 		int left = (int) (numBits & 0x07);
-		numBits = byteStream.skip(numBits / Byte.SIZE) * Byte.SIZE;
+		numBits = skipBytes(numBits / Byte.SIZE) * Byte.SIZE;
 		if (left > 0) {
-			if (byteStream.available() > 0) {
+			if (available() > 0) {
 				readCurrentByte();
 				currentBitIndex -= left;
 			} else {
@@ -314,7 +313,7 @@ public final class DatagramReader {
 	 */
 	public byte[] readBytes(final int count) {
 
-		int available = byteStream.available();
+		int available = available();
 		int bytesToRead = count;
 
 		// for negative count values, read all bytes left
@@ -323,6 +322,10 @@ public final class DatagramReader {
 		} else if (bytesToRead > available) {
 			throw new IllegalArgumentException(
 					"requested " + count + " bytes exceeds available " + available + " bytes.");
+		}
+
+		if (bytesToRead == 0) {
+			return Bytes.EMPTY;
 		}
 
 		// allocate byte array
@@ -339,7 +342,7 @@ public final class DatagramReader {
 
 			// if bit buffer is empty, call can be delegated
 			// to byte stream to increase performance
-			byteStream.read(bytes, 0, bytes.length);
+			readBytes(bytes, 0, bytes.length);
 		}
 
 		return bytes;
@@ -352,9 +355,11 @@ public final class DatagramReader {
 	 * @throws IllegalArgumentException if no bytes are available
 	 */
 	public byte readNextByte() {
-		byte[] bytes = readBytes(1);
-
-		return bytes[0];
+		if (currentBitIndex >= 0) {
+			return (byte) read(Byte.SIZE);
+		} else {
+			return (byte) readByte();
+		}
 	}
 
 	/**
@@ -367,24 +372,67 @@ public final class DatagramReader {
 	}
 
 	/**
+	 * Read variable length byte arrays.
+	 * 
+	 * @param numBits number of bits used for the size.
+	 * @return read byte array, or {@code null}, if length is {@code 0}
+	 * @since 3.0
+	 */
+	public byte[] readVarBytes(int numBits) {
+		return readVarBytes(numBits, null);
+	}
+
+	/**
+	 * Read variable length byte arrays.
+	 * 
+	 * @param numBits number of bits used for the size.
+	 * @param empty number of bits used for the size.
+	 * @return read byte array, may be empty.
+	 * @since 3.0
+	 */
+	public byte[] readVarBytes(int numBits, byte[] empty) {
+		int len = read(numBits);
+		if (len > 0) {
+			return readBytes(len);
+		} else {
+			return empty;
+		}
+	}
+
+	/**
+	 * Assert, that all data is read.
+	 * 
+	 * @param message message to include in {@link IllegalStateException}
+	 *            message.
+	 * @throws IllegalStateException if bits are left unread
+	 * @since 3.0
+	 */
+	public void assertFinished(String message) {
+		int left = bitsLeft();
+		if (left > 0) {
+			throw new IllegalStateException(message + " not finised! " + left + " bits left.");
+		}
+	}
+
+	/**
 	 * Checks if there are any more bytes available on the stream.
 	 * 
-	 * @return <code>true</code> if there are bytes left to read,
-	 *         <code>false</code> otherwise.
+	 * @return {@code true}, if there are bytes left to read, {@code false},
+	 *         otherwise.
 	 */
 	public boolean bytesAvailable() {
-		return byteStream.available() > 0;
+		return available() > 0;
 	}
 
 	/**
 	 * Checks whether a given number of bytes can be read.
 	 * 
-	 * @param expectedBytes the number of bytes. 
-	 * @return {@code true} if the remaining number of bytes in the buffer is at least
-	 *         <em>expectedBytes</em>.
+	 * @param expectedBytes the number of bytes.
+	 * @return {@code true} if the remaining number of bytes in the buffer is at
+	 *         least <em>expectedBytes</em>. {@code false}, otherwise.
 	 */
 	public boolean bytesAvailable(final int expectedBytes) {
-		int bytesLeft = byteStream.available();
+		int bytesLeft = available();
 		return bytesLeft >= expectedBytes;
 	}
 
@@ -394,7 +442,7 @@ public final class DatagramReader {
 	 * @return the number of bits
 	 */
 	public int bitsLeft() {
-		return (byteStream.available() * Byte.SIZE) + (currentBitIndex + 1);
+		return (available() * Byte.SIZE) + (currentBitIndex + 1);
 	}
 
 	/**
@@ -423,7 +471,7 @@ public final class DatagramReader {
 		if (currentBitIndex > 0) {
 			throw new IllegalStateException(currentBitIndex + " bits unread!");
 		}
-		int available = byteStream.available();
+		int available = available();
 		if (available < count) {
 			throw new IllegalArgumentException(
 					"requested " + count + " bytes exceeds available " + available + " bytes.");
@@ -433,7 +481,7 @@ public final class DatagramReader {
 			return range.range(count);
 		} else {
 			byte[] range = new byte[count];
-			byteStream.read(range, 0, count);
+			readBytes(range, 0, count);
 			return new RangeInputStream(range);
 		}
 	}
@@ -441,23 +489,42 @@ public final class DatagramReader {
 	// Utilities ///////////////////////////////////////////////////////////////
 
 	/**
+	 * Get available bytes from {@link #byteStream}.
+	 * 
+	 * @return available bytes, or {@code -1}, if an error occurred.
+	 * @since 3.0
+	 */
+	private int available() {
+		try {
+			return byteStream.available();
+		} catch (IOException e) {
+			return -1;
+		}
+	}
+
+	/**
+	 * Skip bytes in {@link #byteStream}.
+	 * 
+	 * @param skip number of bytes to skip
+	 * @return actually skipped bytes, or {@code -1}, if an error occurred.
+	 * @since 3.0
+	 */
+	private long skipBytes(long skip) {
+		try {
+			return byteStream.skip(skip);
+		} catch (IOException e) {
+			return -1;
+		}
+	}
+
+	/**
 	 * Reads new bits from the stream.
 	 * 
 	 * @throws IllegalArgumentException if no bytes are available
 	 */
 	private void readCurrentByte() {
-
 		// try to read from byte stream
-		int val = byteStream.read();
-
-		if (val >= 0) {
-			// byte successfully read
-			currentByte = (byte) val;
-		} else {
-			// end of stream reached
-			throw new IllegalArgumentException("requested byte exceeds available bytes!");
-		}
-
+		currentByte = (byte) readByte();
 		// reset current bit index
 		currentBitIndex = Byte.SIZE - 1;
 	}
@@ -468,13 +535,35 @@ public final class DatagramReader {
 	 * @throws IllegalArgumentException if no bytes are available
 	 */
 	private int readByte() {
-		// try to read from byte stream
-		int val = byteStream.read();
+		try {
+			// try to read from byte stream
+			int val = byteStream.read();
 
-		if (val < 0) {
-			// end of stream reached
-			throw new IllegalArgumentException("requested byte exceeds available bytes!");
+			if (val < 0) {
+				// end of stream reached
+				throw new IllegalArgumentException("requested byte exceeds available bytes!");
+			}
+			return val;
+		} catch (IOException e) {
+			throw new IllegalArgumentException("request byte fails!");
 		}
-		return val;
+	}
+
+	/**
+	 * Read bytes from stream.
+	 * 
+	 * @param buffer buffer to read bytes in
+	 * @param offset offset in buffer to start to read bytes in
+	 * @param length number of bytes to read
+	 * @return number of actual read bytes.
+	 * @throws IllegalArgumentException if no bytes are available
+	 * @since 3.0
+	 */
+	private int readBytes(byte[] buffer, int offset, int length) {
+		try {
+			return byteStream.read(buffer, offset, length);
+		} catch (IOException e) {
+			throw new IllegalArgumentException("request bytes fails!");
+		}
 	}
 }

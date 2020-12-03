@@ -289,7 +289,11 @@ public class Record {
 	 * @return a byte array containing the <em>DTLSCiphertext</em> structure
 	 */
 	public byte[] toByteArray() {
-		DatagramWriter writer = new DatagramWriter();
+		int length = fragmentBytes.length + RECORD_HEADER_BYTES;
+		if (useConnectionId()) {
+			length += connectionId.length();
+		}
+		DatagramWriter writer = new DatagramWriter(length);
 
 		if (useConnectionId()) {
 			writer.write(ContentType.TLS12_CID.getCode(), CONTENT_TYPE_BITS);
@@ -450,17 +454,12 @@ public class Record {
 	 * encourages the use of the session's 16bit epoch value concatenated
 	 * with a monotonically increasing 48bit sequence number as the explicit nonce. 
 	 * 
-	 * @return the 64-bit explicit nonce constructed from the epoch and sequence number
+	 * @param writer writer for nonce
 	 */
-	protected byte[] generateExplicitNonce() {
-		
+	protected void writeExplicitNonce(DatagramWriter writer) {
 		//TODO: re-factor to use simple byte array manipulation instead of using bit-based DatagramWriter
-		DatagramWriter writer = new DatagramWriter();
-		
 		writer.write(epoch, EPOCH_BITS);
 		writer.writeLong(sequenceNumber, SEQUENCE_NUMBER_BITS);
-		
-		return writer.toByteArray();
 	}
 
 	/**
@@ -488,8 +487,12 @@ public class Record {
 	 * @return the additional authentication data.
 	 */
 	protected byte[] generateAdditionalData(int length) {
-		DatagramWriter writer = new DatagramWriter();
-		
+		int additionDataLength = RECORD_HEADER_BYTES;
+		if (useConnectionId()) {
+			additionDataLength += (connectionId.length() + 1);
+		}
+		DatagramWriter writer = new DatagramWriter(additionDataLength);
+
 		writer.write(epoch, EPOCH_BITS);
 		writer.writeLong(sequenceNumber, SEQUENCE_NUMBER_BITS);
 

@@ -79,6 +79,8 @@ import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.category.Medium;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
+import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
@@ -733,6 +735,43 @@ public class DTLSConnectorTest {
 		client.stop();
 		Connection connection = clientConnectionStore.get(serverHelper.serverEndpoint);
 		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getBytes());
+
+		// Restart it
+		client.restart();
+		assertEquals(firstAddress, client.getAddress());
+
+		// Prepare message sending
+		final String msg = "Hello Again";
+		clientRawDataChannel.setLatchCount(1);
+
+		// send message
+		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint), null, false);
+		client.send(data);
+		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+
+		// check we use the same session id
+		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
+		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getBytes());
+		assertClientIdentity(RawPublicKeyIdentity.class);
+	}
+
+	@Test
+	public void testStartStopWithSameAddressPersistent() throws Exception {
+		// Do a first handshake
+		givenAnEstablishedSession(false);
+		byte[] sessionId = serverHelper.establishedServerSession.getSessionIdentifier().getBytes();
+		InetSocketAddress firstAddress = client.getAddress();
+
+		// Stop the client
+		client.stop();
+		Connection connection = clientConnectionStore.get(serverHelper.serverEndpoint);
+		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getBytes());
+		DatagramWriter writer = new DatagramWriter(128);
+		connection.write(writer);
+		DatagramReader reader = new DatagramReader(writer.toByteArray());
+		Connection connection2 = Connection.fromReader(reader);
+		clientConnectionStore.remove(connection);
+		clientConnectionStore.put(connection2);
 
 		// Restart it
 		client.restart();

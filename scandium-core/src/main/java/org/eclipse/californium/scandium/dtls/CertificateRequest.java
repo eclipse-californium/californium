@@ -187,8 +187,7 @@ public final class CertificateRequest extends HandshakeMessage {
 		for (X500Principal distinguishedName : certificateAuthorities) {
 			// since a distinguished name has variable length, we need to write length field for each name as well, has influence on total length!
 			byte[] encoded = distinguishedName.getEncoded();
-			writer.write(encoded.length, CERTIFICATE_AUTHORITY_LENGTH_BITS);
-			writer.writeBytes(encoded);
+			writer.writeVarBytes(encoded, CERTIFICATE_AUTHORITY_LENGTH_BITS);
 		}
 
 		return writer.toByteArray();
@@ -224,8 +223,7 @@ public final class CertificateRequest extends HandshakeMessage {
 		length = reader.read(CERTIFICATE_AUTHORITIES_LENGTH_BITS);
 		rangeReader = reader.createRangeReader(length);
 		while (rangeReader.bytesAvailable()) {
-			int nameLength = rangeReader.read(CERTIFICATE_AUTHORITY_LENGTH_BITS);
-			byte[] name = rangeReader.readBytes(nameLength);
+			byte[] name = rangeReader.readVarBytes(CERTIFICATE_AUTHORITY_LENGTH_BITS);
 			certificateAuthorities.add(new X500Principal(name));
 		}
 
