@@ -28,7 +28,7 @@ See [Californium Project Plan](https://projects.eclipse.org/projects/iot.califor
     <dependency>
             <groupId>org.eclipse.californium</groupId>
             <artifactId>scandium</artifactId>
-            <version>2.5.0-SNAPSHOT</version>
+            <version>2.6.0</version>
     </dependency>
     ...
   </dependencies>

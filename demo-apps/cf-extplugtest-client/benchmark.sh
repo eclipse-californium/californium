@@ -26,7 +26,7 @@ echo "Please check the available RAM (e.g.: on linux use \"free -m\") and"
 echo "adjust the \"-Xmx6g\" argument in \"CF_OPT\" to about 30% of the available RAM"
 echo
 echo "The required server may be started using:"
-echo "java -d64 -Xmx6g -XX:+UseG1GC -jar cf-extplugtest-server-2.2.0-SNAPSHOT.jar -onlyLoopback -noPlugtest"
+echo "java -d64 -Xmx6g -XX:+UseG1GC -jar cf-extplugtest-server-3.0.0-SNAPSHOT.jar -onlyLoopback -noPlugtest"
 echo "Adjust the \"-Xmx6g\" argument also to about 30% of the available RAM."
 echo "The benchmark is mainly used with the loopback interface (localhost), therefore -onlyLoopback is provided."
 echo "To use client and server on different hosts, provide -noLoopback."
@@ -55,8 +55,10 @@ echo "Variables:"
 echo "   USE_TCP, USE_UDP, USE_PLAIN, USE_SECURE, USE_CON, USE_NON"
 echo "   UDP_CLIENTS, TCP_CLIENTS, OBS_CLIENTS"
 echo "   PLAIN_PORT, SECURE_PORT"
+echo "   USE_REVERSE, USE_OBSERVE"
 echo "   REQS, NOTIFIES"
 echo "   PAYLOAD, PAYLOAD_LARGE, CALI_AUTH"
+echo "   USE_HTTP (coap2http proxy only!)"
 echo
 echo "These variables maybe override in the calling shell by"
 echo
@@ -73,12 +75,12 @@ echo
 # cat /proc/sys/vm/max_map_count
 # prlimit
 
-CF_JAR=cf-extplugtest-client-2.6.0-SNAPSHOT.jar
+CF_JAR=cf-extplugtest-client-3.0.0-SNAPSHOT.jar
 CF_JAR_FIND='cf-extplugtest-client-*.jar'
 CF_EXEC="org.eclipse.californium.extplugtests.BenchmarkClient"
 CF_OPT="-XX:+UseG1GC -Xmx6g -Xverify:none"
 
-export CALIFORNIUM_STATISTIC="2.6.0"
+export CALIFORNIUM_STATISTIC="3.0.0"
 
 if [ -z "$1" ]  ; then
      CF_HOST=localhost
@@ -112,9 +114,10 @@ fi
 : "${USE_CON:=1}"
 : "${USE_NON:=1}"
 
-USE_HTTP=0
-USE_REVERSE=1
-USE_OBSERVE=1
+: "${USE_HTTP:=0}"
+: "${USE_REVERSE:=1}"
+: "${USE_OBSERVE:=1}"
+
 USE_NONESTOP=--no-stop
 
 MULTIPLIER=10

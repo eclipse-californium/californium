@@ -73,7 +73,7 @@ In that case, it's still possible to use `ed25519-java`, if the [eddsa-0.3.0.jar
 
 # Using Californium in Maven Projects
 
-We are publishing Californium's artifacts for milestones and releases to [Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:2.5.0).
+We are publishing Californium's artifacts for milestones and releases to [Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:2.6.0).
 To use the latest released version as a library in your projects, add the following dependency
 to your `pom.xml` (without the dots):
 
@@ -83,7 +83,7 @@ to your `pom.xml` (without the dots):
     <dependency>
             <groupId>org.eclipse.californium</groupId>
             <artifactId>californium-core</artifactId>
-            <version>2.5.0</version>
+            <version>2.6.0</version>
     </dependency>
     ...
   </dependencies>
@@ -107,7 +107,7 @@ You will therefore need to add the Eclipse Repository to your `pom.xml` first:
     ...
   </repositories>
 ```
-You can then simply depend on `2.6.0-SNAPSHOT`.
+You can then simply depend on `3.0.0-SNAPSHOT`.
 
 # Eclipse
 
@@ -129,7 +129,7 @@ In IntelliJ, choose *[File.. &raquo; Open]* then select the location of the clon
 # Interop Server
 
 A test server is running at <a href="coap://californium.eclipse.org:5683/">coap://californium.eclipse.org:5683/</a>.
-It is an instance of the [cf-plugtest-server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/2.5.0/cf-plugtest-server-2.5.0.jar) from the demo-apps.
+It is an instance of the [cf-plugtest-server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/2.6.0/cf-plugtest-server-2.6.0.jar) from the demo-apps.
 The root resource responds with its current version.
 More information can be found at [http://californium.eclipse.org/](http://californium.eclipse.org/).
 
@@ -142,7 +142,7 @@ More information can be found at [http://coap.me/](http://coap.me/).
 For some systems (particularly when multicasting), it may be necessary to specify/restrict californium to a particular network interface, or interfaces. This can be
  achieved by setting the `COAP_NETWORK_INTERFACES` JVM parameter to a suitable regex, for example:
  
-`java -DCOAP_NETWORK_INTERFACES='.*wpan0' -jar target/cf-helloworld-server-2.5.0.jar MulticastTestServer`
+`java -DCOAP_NETWORK_INTERFACES='.*wpan0' -jar target/cf-helloworld-server-2.6.0.jar MulticastTestServer`
 
 # Contact
 
