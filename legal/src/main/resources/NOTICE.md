@@ -37,11 +37,11 @@ The project maintains the following source code repositories:
 
 This project leverages the following third party content.
 
-Apache HttpClient (4.5.2)
+Apache HttpClient (4.5.6)
 
 * License: Apache-2.0 
 
-Apache HttpComponents AsyncClient (4.1.2)
+Apache HttpComponents AsyncClient (4.1.4)
 
 * License: Apache-2.0
 
@@ -49,11 +49,15 @@ Apache HttpComponents Client (4.2.5)
 
 * License: Apache License 2.0
 
-Apache HttpComponents Core (4.2.5)
+Apache HttpComponents Core (4.4.10)
 
 * License: Apache License 2.0
 
-Apache HttpComponents HttpCore NIO (4.4.5)
+Apache HttpComponents HttpCore NIO (4.4.10)
+
+* License: Apache-2.0 
+
+httpcore (4.4.10)
 
 * License: Apache-2.0 
 
@@ -85,30 +89,26 @@ project has been copied into the header along with additional information regard
 The java source files `EncryptCommon.java`, `Encrypt0Message.java` and `Message.java` have been copied with
 modifications. The header was added as for the other unmodified files.
 
-com.github.peteroupc.numbers (1.4.3)
+com.github.peteroupc.numbers (1.7.2)
 
 * License: CC0-1.0
 * Project & Source: https://github.com/peteroupc/Numbers-Java
 
-com.upokecenter.cbor (4.0.0)
+com.upokecenter.cbor (4.2.0)
 
 * License: CC-1.0
 * Project: https://github.com/peteroupc/CBOR-Java
-* Source: https://github.com/peteroupc/CBOR-Java/tree/v4.0.0
+* Source: https://github.com/peteroupc/CBOR-Java/tree/v4.2.0
 
 commons-logging (1.2)
 
 * License: Apache License, 2.0
 
-Google Guava (15.0.0)
+Google Guava (28.2-android)
 
 * License: Apache License, 2.0
 
-gson (2.8.2)
-
-* License: Apache-2.0 
-
-httpcore (4.4.5)
+gson (2.8.6)
 
 * License: Apache-2.0 
 
@@ -142,7 +142,7 @@ logback-android (1.1.1)
 * Project: https://github.com/tony19/logback-android
 * Source: https://github.com/tony19/logback-android/archive/master.zip
 
-Netty (4.1.45)
+Netty (4.1.54)
 
 * License: Apache-2.0 AND BSD-3-Clause AND MIT
 
@@ -156,19 +156,19 @@ OSGi Service Platform Core Companion Code (4.3.1)
 * License: Apache License, 2.0
 * Project: http://www.osgi.org
 
-slf4j-api (1.7.25)
+slf4j-api (1.7.30)
 
 * License: MIT
 
-slf4j-jdk14 (1.7.25)
+slf4j-jdk14 (1.7.30)
 
 * License: MIT
 
-picocli (4.2.0)
+picocli (4.5.2)
 
 * License: Apache License, 2.0
 * Project: https://picocli.info
-* Source: https://github.com/remkop/picocli/archive/v4.2.0.zip
+* Source: https://github.com/remkop/picocli/archive/v4.5.2.zip
 
 openssl (1.1.1) used for interoperability tests only
 
@@ -176,12 +176,14 @@ openssl (1.1.1) used for interoperability tests only
 * Project: https://www.openssl.org/
 * Source:  https://github.com/openssl/openssl.git
 
-libcoap (4.2.1) used for interoperability tests only
+libcoap (4.3.0) used for interoperability tests only
 
 * License:  simplified BSD license - 
             depending on OS; the examples may also contain "AT&T public domain source"
 * Project: https://libcoap.net/
 * Source:  https://github.com/obgm/libcoap/archive/release-4.2.1.zip
+
+(tinyDtls, openssl, mbedtls, and gnutls bindings for libcoap.)
 
 ## Cryptography
 
