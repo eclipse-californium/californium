@@ -30,6 +30,7 @@ import java.security.KeyPairGenerator;
 import java.security.Signature;
 
 import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.util.ExpectedExceptionWrapper;
 import org.eclipse.californium.elements.util.TestCertificatesTools;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.HashAlgorithm;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.SignatureAlgorithm;
@@ -45,7 +46,7 @@ import org.junit.rules.ExpectedException;
 public class SignatureAndHashAlgorithmTest {
 
 	@Rule
-	public ExpectedException exception = ExpectedException.none();
+	public ExpectedException exception = ExpectedExceptionWrapper.none();
 
 	private static KeyPair ecdsa;
 	private static KeyPair eddsa25519;
