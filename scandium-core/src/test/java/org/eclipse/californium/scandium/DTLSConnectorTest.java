@@ -54,13 +54,13 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -122,7 +122,6 @@ import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVe
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -813,12 +812,12 @@ public class DTLSConnectorTest {
 			List<Record> flight = handler.assertFlight(1, MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 			Record record = flight.get(0);
 
-			Assert.assertThat("Expected HANDSHAKE message from server",
+			assertThat("Expected HANDSHAKE message from server",
 					record.getType(), is(ContentType.HANDSHAKE));
 			HandshakeMessage handshake = (HandshakeMessage) record.getFragment();
-			Assert.assertThat("Expected HELLO_VERIFY_REQUEST from server",
+			assertThat("Expected HELLO_VERIFY_REQUEST from server",
 					handshake.getMessageType(), is(HandshakeType.HELLO_VERIFY_REQUEST));
-			Assert.assertThat("Server should not have created session for CLIENT_HELLO containging no cookie", capacity,
+			assertThat("Server should not have created session for CLIENT_HELLO containging no cookie", capacity,
 					is(serverHelper.serverConnectionStore.remainingCapacity()));
 		} finally {
 			rawClient.stop();
@@ -848,11 +847,11 @@ public class DTLSConnectorTest {
 			List<Record> flight = handler.assertFlight(1, MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 			Record record = flight.get(0);
 
-			Assert.assertThat("Expected HANDSHAKE message from server", record.getType(), is(ContentType.HANDSHAKE));
+			assertThat("Expected HANDSHAKE message from server", record.getType(), is(ContentType.HANDSHAKE));
 			HandshakeMessage handshake = (HandshakeMessage) record.getFragment();
-			Assert.assertThat("Expected HELLO_VERIFY_REQUEST from server", handshake.getMessageType(),
+			assertThat("Expected HELLO_VERIFY_REQUEST from server", handshake.getMessageType(),
 					is(HandshakeType.HELLO_VERIFY_REQUEST));
-			Assert.assertThat("Expected protocol version from server", record.getVersion(), is(version));
+			assertThat("Expected protocol version from server", record.getVersion(), is(version));
 
 			clientHello.setCookie(((HelloVerifyRequest) handshake).getCookie());
 			clientHello.setMessageSeq(clientHello.getMessageSeq() + 1);
@@ -862,8 +861,8 @@ public class DTLSConnectorTest {
 
 			flight = handler.assertFlight(1, MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 			record = flight.get(0);
-			Assert.assertThat("Expected ALERT message from server", record.getType(), is(ContentType.ALERT));
-			Assert.assertThat("Expected protocol version from server", record.getVersion(), is(version));
+			assertThat("Expected ALERT message from server", record.getType(), is(ContentType.ALERT));
+			assertThat("Expected protocol version from server", record.getVersion(), is(version));
 
 		} finally {
 			rawClient.stop();
@@ -894,11 +893,11 @@ public class DTLSConnectorTest {
 			List<Record> flight = handler.assertFlight(1, MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 			Record record = flight.get(0);
 
-			Assert.assertThat("Expected HANDSHAKE message from server", record.getType(), is(ContentType.HANDSHAKE));
+			assertThat("Expected HANDSHAKE message from server", record.getType(), is(ContentType.HANDSHAKE));
 			HandshakeMessage handshake = (HandshakeMessage) record.getFragment();
-			Assert.assertThat("Expected HELLO_VERIFY_REQUEST from server", handshake.getMessageType(),
+			assertThat("Expected HELLO_VERIFY_REQUEST from server", handshake.getMessageType(),
 					is(HandshakeType.HELLO_VERIFY_REQUEST));
-			Assert.assertThat("Expected protocol version from server", record.getVersion(),
+			assertThat("Expected protocol version from server", record.getVersion(),
 					is(ProtocolVersion.VERSION_DTLS_1_0));
 
 			clientHello.setCookie(((HelloVerifyRequest) handshake).getCookie());
@@ -909,8 +908,8 @@ public class DTLSConnectorTest {
 
 			flight = handler.assertFlight(1, MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 			record = flight.get(0);
-			Assert.assertThat("Expected Handshake message from server", record.getType(), is(ContentType.ALERT));
-			Assert.assertThat("Expected protocol version from server", record.getVersion(),
+			assertThat("Expected Handshake message from server", record.getType(), is(ContentType.ALERT));
+			assertThat("Expected protocol version from server", record.getVersion(),
 					is(ProtocolVersion.VERSION_DTLS_1_0));
 
 		} finally {

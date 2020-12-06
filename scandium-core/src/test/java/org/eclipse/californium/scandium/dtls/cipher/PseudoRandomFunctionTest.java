@@ -16,8 +16,8 @@
 package org.eclipse.californium.scandium.dtls.cipher;
 
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertThat;
 
 import javax.crypto.Mac;
 import javax.crypto.SecretKey;
