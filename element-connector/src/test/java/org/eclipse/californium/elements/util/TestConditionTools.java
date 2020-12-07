@@ -17,7 +17,7 @@
 
 package org.eclipse.californium.elements.util;
 
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.util.concurrent.TimeUnit;
 

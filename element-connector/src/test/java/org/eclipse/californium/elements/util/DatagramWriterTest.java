@@ -25,7 +25,7 @@ import org.junit.rules.ExpectedException;
 public class DatagramWriterTest {
 
 	@Rule
-	public ExpectedException exception = ExpectedException.none();
+	public ExpectedException exception = ExpectedExceptionWrapper.none();
 
 	DatagramWriter writer;
 
