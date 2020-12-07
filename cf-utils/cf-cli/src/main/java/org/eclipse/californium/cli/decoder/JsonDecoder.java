@@ -29,8 +29,7 @@ public class JsonDecoder implements Decoder {
 	@Override
 	public String decode(byte[] payload) {
 		try {
-			JsonParser parser = new JsonParser();
-			JsonElement	element = parser.parse(new String(payload, CoAP.UTF8_CHARSET));
+			JsonElement element = JsonParser.parseString(new String(payload, CoAP.UTF8_CHARSET));
 			GsonBuilder builder = new GsonBuilder();
 			builder.setPrettyPrinting();
 			Gson gson = builder.create();
