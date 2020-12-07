@@ -77,7 +77,7 @@ public class CertPathUtilTest {
 	private static final X509Certificate[] ALL = new X509Certificate[0];
 
 	@Rule
-	public ExpectedException exception = ExpectedException.none();
+	public ExpectedException exception = ExpectedExceptionWrapper.none();
 
 	private X509Certificate[] clientChainExtUsage;
 	private X509Certificate[] clientSelfsigned;
