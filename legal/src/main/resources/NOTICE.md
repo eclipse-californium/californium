@@ -89,16 +89,16 @@ project has been copied into the header along with additional information regard
 The java source files `EncryptCommon.java`, `Encrypt0Message.java` and `Message.java` have been copied with
 modifications. The header was added as for the other unmodified files.
 
-com.github.peteroupc.numbers (1.7.2)
+com.github.peteroupc.numbers (1.7.4)
 
 * License: CC0-1.0
 * Project & Source: https://github.com/peteroupc/Numbers-Java
 
-com.upokecenter.cbor (4.2.0)
+com.upokecenter.cbor (4.3.0)
 
 * License: CC-1.0
 * Project: https://github.com/peteroupc/CBOR-Java
-* Source: https://github.com/peteroupc/CBOR-Java/tree/v4.2.0
+* Source: https://github.com/peteroupc/CBOR-Java/tree/v4.3.0
 
 commons-logging (1.2)
 
