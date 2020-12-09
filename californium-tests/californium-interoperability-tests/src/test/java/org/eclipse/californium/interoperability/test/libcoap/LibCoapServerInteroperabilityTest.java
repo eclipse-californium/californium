@@ -170,6 +170,7 @@ public class LibCoapServerInteroperabilityTest {
 
 	@Test
 	public void testLibCoapServerEcdsaTrustFails() throws Exception {
+		processUtil.assumeMinVersion("4.3.0");
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
 		processUtil.setTrusts(SERVER_RSA_CERTIFICATE);
 		processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
