@@ -128,10 +128,14 @@ In IntelliJ, choose *[File.. &raquo; Open]* then select the location of the clon
 
 # Interop Server
 
-A test server is running at <a href="coap://californium.eclipse.org:5683/">coap://californium.eclipse.org:5683/</a>.
+A test server is running at <a href="coap://californium.eclipseprojects.io:5683/">coap://californium.eclipseprojects.io:5683/</a>
+
+(Note: that changed from "californium.eclipse.org" on the 9th. December 2020. All 2.x demo- and plugtest-clients must therefore use the new destination "californium.eclipseprojects.io" explicitly!)
+
 It is an instance of the [cf-plugtest-server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/2.6.0/cf-plugtest-server-2.6.0.jar) from the demo-apps.
 The root resource responds with its current version.
-More information can be found at [http://californium.eclipse.org/](http://californium.eclipse.org/).
+
+More information can be found at [http://www.eclipse.org/californium](http://www.eclipse.org/californium) and technical details at [https://projects.eclipse.org/projects/iot.californium](https://projects.eclipse.org/projects/iot.californium).
 
 Another interop server with a different implementation can be found at
 [coap://coap.me:5683/](coap://coap.me:5683/).
