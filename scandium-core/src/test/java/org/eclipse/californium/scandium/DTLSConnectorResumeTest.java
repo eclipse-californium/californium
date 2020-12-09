@@ -50,6 +50,7 @@ import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext;
+import org.eclipse.californium.elements.MapBasedEndpointContext.Attributes;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.auth.AdditionalInfo;
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
@@ -621,7 +622,7 @@ public class DTLSConnectorResumeTest {
 		clientRawDataChannel.setLatchCount(1);
 
 		// send message
-		EndpointContext context = new MapBasedEndpointContext(serverHelper.serverEndpoint, null, DtlsEndpointContext.KEY_RESUMPTION_TIMEOUT, "");
+		EndpointContext context = new MapBasedEndpointContext(serverHelper.serverEndpoint, null, new Attributes().add(DtlsEndpointContext.KEY_RESUMPTION_TIMEOUT, -1));
 		RawData data = RawData.outbound(msg.getBytes(), context, null, false);
 		client.send(data);
 		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
@@ -654,7 +655,7 @@ public class DTLSConnectorResumeTest {
 		clientRawDataChannel.setLatchCount(1);
 
 		// send message
-		EndpointContext context = new MapBasedEndpointContext(serverHelper.serverEndpoint, null, DtlsEndpointContext.KEY_RESUMPTION_TIMEOUT, "10000");
+		EndpointContext context = new MapBasedEndpointContext(serverHelper.serverEndpoint, null, new Attributes().add(DtlsEndpointContext.KEY_RESUMPTION_TIMEOUT, 10000));
 		RawData data = RawData.outbound(msg.getBytes(), context, null, false);
 		client.send(data);
 		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
@@ -781,7 +782,7 @@ public class DTLSConnectorResumeTest {
 		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, false);
 		SessionId sessionId = serverHelper.establishedServerSession.getSessionIdentifier();
 		Connection connection = clientConnectionStore.get(serverHelper.serverEndpoint);
-		String lastHandshakeTime = connection.getEstablishedSession().getLastHandshakeTime();
+		long lastHandshakeTime = connection.getEstablishedSession().getLastHandshakeTime();
 		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(sessionId));
 
 		// send close notify, close connection

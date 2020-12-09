@@ -188,9 +188,9 @@ public final class Utils {
 		StringBuilder sb = new StringBuilder();
 
 		sb.append(">>> ").append(endpointContext);
-		String cipher = endpointContext.get(DtlsEndpointContext.KEY_CIPHER);
+		String cipher = endpointContext.getString(DtlsEndpointContext.KEY_CIPHER);
 		if (cipher == null) {
-			cipher = endpointContext.get(TlsEndpointContext.KEY_CIPHER);
+			cipher = endpointContext.getString(TlsEndpointContext.KEY_CIPHER);
 		}
 		if (cipher != null) {
 			sb.append(nl).append(">>> ").append(cipher);

@@ -318,7 +318,7 @@ public class ContextRederivationTest {
 		@Override
 		public void onContextEstablished(EndpointContext endpointContext) {
 			requestIdContext = StringUtil
-					.hex2ByteArray(endpointContext.get(OSCoreEndpointContextInfo.OSCORE_CONTEXT_ID));
+					.hex2ByteArray(endpointContext.getString(OSCoreEndpointContextInfo.OSCORE_CONTEXT_ID));
 		}
 	}
 

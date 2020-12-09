@@ -21,6 +21,7 @@ import static org.junit.Assert.assertThat;
 import java.net.InetSocketAddress;
 import java.security.Principal;
 
+import org.eclipse.californium.elements.util.Bytes;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -39,11 +40,12 @@ public class PrincipalEndpointContextMatcherTest {
 
 	@Before
 	public void setup() {
+		Bytes session = new Bytes("session".getBytes());
 		principal1 = new TestPrincipal("P1");
 		principal2 = new TestPrincipal("P1"); // intended to have the same name as principal1
 		principal3 = new TestPrincipal("P3");
 		
-		connectionContext = new DtlsEndpointContext(ADDRESS, principal1, "session", "1", "CIPHER", "100");
+		connectionContext = new DtlsEndpointContext(ADDRESS, null, principal1, session, 1, "CIPHER", 100);
 		messageContext = new AddressEndpointContext(ADDRESS, principal2);
 		differentMessageContext = new AddressEndpointContext(ADDRESS, principal3);
 		unsecureMessageContext = new AddressEndpointContext(ADDRESS, null);

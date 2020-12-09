@@ -119,15 +119,15 @@ public class TlsCorrelationTest {
 
 		/* client context sent */
 		EndpointContext clientContext = clientCallback.getEndpointContext();
-		assertThat(clientContext.get(TcpEndpointContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
-		assertThat(clientContext.get(TlsEndpointContext.KEY_SESSION_ID), is(not(isEmptyOrNullString())));
-		assertThat(clientContext.get(TlsEndpointContext.KEY_CIPHER), is(not(isEmptyOrNullString())));
+		assertThat(clientContext.getString(TcpEndpointContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
+		assertThat(clientContext.getString(TlsEndpointContext.KEY_SESSION_ID), is(not(isEmptyOrNullString())));
+		assertThat(clientContext.getString(TlsEndpointContext.KEY_CIPHER), is(not(isEmptyOrNullString())));
 
 		/* server context received, matching client TLS context */
 		EndpointContext serverContext = serverCatcher.getEndpointContext(0);
-		assertThat(serverContext.get(TcpEndpointContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
-		assertThat(serverContext.get(TlsEndpointContext.KEY_SESSION_ID), is(clientContext.get(TlsEndpointContext.KEY_SESSION_ID)));
-		assertThat(serverContext.get(TlsEndpointContext.KEY_CIPHER), is(clientContext.get(TlsEndpointContext.KEY_CIPHER)));
+		assertThat(serverContext.getString(TcpEndpointContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
+		assertThat(serverContext.getString(TlsEndpointContext.KEY_SESSION_ID), is(clientContext.get(TlsEndpointContext.KEY_SESSION_ID)));
+		assertThat(serverContext.getString(TlsEndpointContext.KEY_CIPHER), is(clientContext.get(TlsEndpointContext.KEY_CIPHER)));
 
 		// Response message must go over the same connection the client already
 		// opened
@@ -356,9 +356,9 @@ public class TlsCorrelationTest {
 		assertTrue(serverCatcher.blockUntilSize(1, CATCHER_TIMEOUT_IN_MS));
 
 		EndpointContext clientContext = clientCallback.getEndpointContext();
-		assertThat(clientContext.get(TcpEndpointContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
-		assertThat(clientContext.get(TlsEndpointContext.KEY_SESSION_ID), is(not(isEmptyOrNullString())));
-		assertThat(clientContext.get(TlsEndpointContext.KEY_CIPHER), is(not(isEmptyOrNullString())));
+		assertThat(clientContext.getString(TcpEndpointContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
+		assertThat(clientContext.getString(TlsEndpointContext.KEY_SESSION_ID), is(not(isEmptyOrNullString())));
+		assertThat(clientContext.getString(TlsEndpointContext.KEY_CIPHER), is(not(isEmptyOrNullString())));
 
 		// message context with matching connector context => send
 		clientCallback = new SimpleMessageCallback();
@@ -427,9 +427,9 @@ public class TlsCorrelationTest {
 
 		RawData receivedMsg = serverCatcher.getMessage(0);
 		EndpointContext serverContext = serverCatcher.getEndpointContext(0);
-		assertThat(serverContext.get(TcpEndpointContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
-		assertThat(serverContext.get(TlsEndpointContext.KEY_SESSION_ID), is(not(isEmptyOrNullString())));
-		assertThat(serverContext.get(TlsEndpointContext.KEY_CIPHER), is(not(isEmptyOrNullString())));
+		assertThat(serverContext.getString(TcpEndpointContext.KEY_CONNECTION_ID), is(not(isEmptyOrNullString())));
+		assertThat(serverContext.getString(TlsEndpointContext.KEY_SESSION_ID), is(not(isEmptyOrNullString())));
+		assertThat(serverContext.getString(TlsEndpointContext.KEY_CIPHER), is(not(isEmptyOrNullString())));
 
 		SimpleMessageCallback serverCallback = new SimpleMessageCallback();
 		msg = createMessage(100, serverContext, serverCallback);

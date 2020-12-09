@@ -20,6 +20,7 @@ import static org.junit.Assert.assertThat;
 
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.elements.util.Bytes;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -39,12 +40,13 @@ public class UdpEndpointContextMatcherTest {
 
 	@Before
 	public void setup() {
+		Bytes session = new Bytes("session".getBytes());
 		connectorContext = new UdpEndpointContext(ADDRESS);
 		addressContext = new AddressEndpointContext(ADDRESS);
 		messageContext = new UdpEndpointContext(ADDRESS);
 		multicastContext = new UdpEndpointContext(MULTICAST_ADDRESS);
 		changedAddressContext = new UdpEndpointContext(CHANGED_ADDRESS);
-		secureMessageContext = new DtlsEndpointContext(ADDRESS, null, "session", "1", "CIPHER", "100");
+		secureMessageContext = new DtlsEndpointContext(ADDRESS, null, null, session, 1, "CIPHER", 100);
 		matcher = new UdpEndpointContextMatcher(true);
 	}
 

@@ -259,6 +259,8 @@ public final class DatagramWriter {
 	 * Writes a sequence of bytes to the stream.
 	 * 
 	 * @param bytes The sequence of bytes to write.
+	 * @param offset offset of bytes to write
+	 * @param length length of bytes to write
 	 * @since 3.0
 	 */
 	public void writeBytes(final byte[] bytes, int offset, int length) {

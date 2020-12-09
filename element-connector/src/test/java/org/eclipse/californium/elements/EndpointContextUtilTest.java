@@ -22,6 +22,7 @@ import static org.junit.Assert.assertThat;
 import java.net.InetSocketAddress;
 import java.util.Set;
 
+import org.eclipse.californium.elements.util.Bytes;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -38,10 +39,12 @@ public class EndpointContextUtilTest {
 
 	@Before
 	public void setup() {
-		connectorContext = new DtlsEndpointContext(ADDRESS, null, "session", "1", "CIPHER", "100");
-		relaxedMessageContext = new DtlsEndpointContext(ADDRESS, null, "session", "2", "CIPHER", "200");
-		strictMessageContext = new DtlsEndpointContext(ADDRESS, null, "session", "1", "CIPHER", "100");
-		differentMessageContext = new DtlsEndpointContext(ADDRESS, null, "new session", "1", "CIPHER", "100");
+		Bytes session = new Bytes("session".getBytes());
+		Bytes newSession = new Bytes("new-session".getBytes());
+		connectorContext = new DtlsEndpointContext(ADDRESS, null, null, session, 1, "CIPHER", 100);
+		relaxedMessageContext = new DtlsEndpointContext(ADDRESS, null, null, session, 2, "CIPHER", 200);
+		strictMessageContext = new DtlsEndpointContext(ADDRESS, null, null, session, 1, "CIPHER", 100);
+		differentMessageContext = new DtlsEndpointContext(ADDRESS, null, null, newSession, 1, "CIPHER", 100);
 		MapBasedEndpointContext mapBasedContext = new MapBasedEndpointContext(ADDRESS, null, "ID", "session", "UNKNOWN", "secret");
 		unsecureMessageContext = mapBasedContext;
 		mapBasedContext = new MapBasedEndpointContext(ADDRESS, null, "ID", "session", "UNKNOWN", "topsecret");
@@ -91,7 +94,7 @@ public class EndpointContextUtilTest {
 				DtlsEndpointContext.HANDSHAKE_MODE_NONE);
 		EndpointContext connectionContext = new AddressEndpointContext(ADDRESS, "myserver", null);
 		EndpointContext followUp = EndpointContextUtil.getFollowUpEndpointContext(messageContext, connectionContext);
-		assertThat(followUp.get(DtlsEndpointContext.KEY_HANDSHAKE_MODE), is(DtlsEndpointContext.HANDSHAKE_MODE_NONE));
+		assertThat(followUp.getString(DtlsEndpointContext.KEY_HANDSHAKE_MODE), is(DtlsEndpointContext.HANDSHAKE_MODE_NONE));
 	}
 
 }

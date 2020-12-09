@@ -42,6 +42,7 @@ import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.category.Medium;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -257,8 +258,8 @@ public class DTLSEndpointContextTest {
 		DtlsEndpointContext context = (DtlsEndpointContext) serverHelper.serverRawDataProcessor
 				.getLatestInboundMessage().getEndpointContext();
 		assertThat(context, is(notNullValue()));
-		assertThat(context.getSessionId(), is(establishedClientSession.getSessionIdentifier().toString()));
-		assertThat(context.getEpoch(), is(Integer.toString(establishedClientSession.getReadEpoch())));
+		assertThat(context.getSessionId(), is((Bytes)establishedClientSession.getSessionIdentifier()));
+		assertThat(context.getEpoch().intValue(), is(establishedClientSession.getReadEpoch()));
 		assertThat(context.getCipher(), is(establishedClientSession.getReadStateCipher()));
 	}
 
