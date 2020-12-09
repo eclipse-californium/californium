@@ -2825,15 +2825,12 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 */
 	private Long getAutResumptionTimeout(RawData message) {
 		Long timeout = autoResumptionTimeoutMillis;
-		String contextTimeout = message.getEndpointContext().get(DtlsEndpointContext.KEY_RESUMPTION_TIMEOUT);
+		Number contextTimeout = message.getEndpointContext().getNumber(DtlsEndpointContext.KEY_RESUMPTION_TIMEOUT);
 		if (contextTimeout != null) {
-			if (contextTimeout.isEmpty()) {
-				timeout = null;
+			if (contextTimeout.longValue() >= 0) {
+				timeout = contextTimeout.longValue();
 			} else {
-				try {
-					timeout = Long.valueOf(contextTimeout);
-				} catch (NumberFormatException e) {
-				}
+				timeout = null;
 			}
 		}
 		return timeout;
@@ -3094,7 +3091,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * @since 2.1
 	 */
 	private String getEffectiveHandshakeMode(RawData message) {
-		String mode = message.getEndpointContext().get(DtlsEndpointContext.KEY_HANDSHAKE_MODE);
+		String mode = message.getEndpointContext().getString(DtlsEndpointContext.KEY_HANDSHAKE_MODE);
 		if (mode == null) {
 			mode = defaultHandshakeMode;
 		}

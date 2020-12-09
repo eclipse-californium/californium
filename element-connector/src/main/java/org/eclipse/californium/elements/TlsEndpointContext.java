@@ -55,11 +55,11 @@ public class TlsEndpointContext extends TcpEndpointContext {
 	}
 
 	public String getSessionId() {
-		return get(KEY_SESSION_ID);
+		return getString(KEY_SESSION_ID);
 	}
 
 	public String getCipher() {
-		return get(KEY_CIPHER);
+		return getString(KEY_CIPHER);
 	}
 
 	@Override

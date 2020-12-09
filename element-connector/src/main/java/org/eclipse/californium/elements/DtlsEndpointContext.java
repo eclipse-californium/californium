@@ -22,6 +22,7 @@ package org.eclipse.californium.elements;
 import java.net.InetSocketAddress;
 import java.security.Principal;
 
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.StringUtil;
 
 /**
@@ -30,34 +31,34 @@ import org.eclipse.californium.elements.util.StringUtil;
 public class DtlsEndpointContext extends MapBasedEndpointContext {
 
 	/**
-	 * The name of the attribute that contains the DTLS session ID.
+	 * The name of the attribute that contains the DTLS session ID as {@link Bytes}.
 	 */
 	public static final String KEY_SESSION_ID = "DTLS_SESSION_ID";
 	/**
 	 * The name of the attribute that contains the <em>epoch</em> of the DTLS
-	 * session.
+	 * session as {@link Number}.
 	 */
 	public static final String KEY_EPOCH = "DTLS_EPOCH";
 	/**
 	 * The name of the attribute that contains the cipher suite used with the
-	 * DTLS session.
+	 * DTLS session as {@link String}.
 	 */
 	public static final String KEY_CIPHER = "DTLS_CIPHER";
 	/**
 	 * The name of the attribute that contains the timestamp of the last
-	 * handshake of the DTLS session.
+	 * handshake of the DTLS session as {@link Number}.
 	 */
 	public static final String KEY_HANDSHAKE_TIMESTAMP = "DTLS_HANDSHAKE_TIMESTAMP";
 	/**
 	 * The name of the attribute that contains the DTLS Connection ID of the
-	 * other peer, if used.
+	 * other peer as {@link Bytes}, if used.
 	 * 
 	 * @since 2.5
 	 */
 	public static final String KEY_READ_CONNECTION_ID = "DTLS_READ_CONNECTION_ID";
 	/**
 	 * The name of the attribute that contains the DTLS Connection ID of the
-	 * other peer, if used.
+	 * other peer as {@link Bytes}, if used.
 	 * 
 	 * @since 2.5
 	 */
@@ -105,29 +106,10 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 
 	/**
 	 * The name of the attribute that contains a auto session resumption timeout
-	 * in milliseconds. {@code ""}, disable auto session resumption. None
+	 * in milliseconds as number. {@code -1}, disable auto session resumption. None
 	 * critical attribute, not considered for matching.
 	 */
 	public static final String KEY_RESUMPTION_TIMEOUT = KEY_PREFIX_NONE_CRITICAL + "DTLS_RESUMPTION_TIMEOUT";
-
-	/**
-	 * Creates a context for DTLS session parameters.
-	 * 
-	 * @param peerAddress peer address of endpoint context
-	 * @param peerIdentity peer identity of endpoint context
-	 * @param sessionId the session's ID.
-	 * @param epoch the session's current read/write epoch.
-	 * @param cipher the cipher suite of the session's current read/write state.
-	 * @param timestamp the timestamp in milliseconds of the last handshake. See
-	 *            {@link System#currentTimeMillis()}.
-	 * @throws NullPointerException if any of the parameters other than
-	 *             peerIdentity are {@code null}.
-	 */
-	public DtlsEndpointContext(InetSocketAddress peerAddress, Principal peerIdentity, String sessionId, String epoch,
-			String cipher, String timestamp) {
-
-		this(peerAddress, null, peerIdentity, sessionId, epoch, cipher, timestamp);
-	}
 
 	/**
 	 * Creates a context for DTLS session parameters.
@@ -144,10 +126,10 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 *             peerIdentity or virtualHost are {@code null}.
 	 */
 	public DtlsEndpointContext(InetSocketAddress peerAddress, String virtualHost, Principal peerIdentity,
-			String sessionId, String epoch, String cipher, String timestamp) {
+			Bytes sessionId, int epoch, String cipher, long timestamp) {
 
-		super(peerAddress, virtualHost, peerIdentity, KEY_SESSION_ID, sessionId, KEY_CIPHER, cipher, KEY_EPOCH, epoch,
-				KEY_HANDSHAKE_TIMESTAMP, timestamp);
+		super(peerAddress, virtualHost, peerIdentity, new Attributes().add(KEY_SESSION_ID, sessionId)
+				.add(KEY_CIPHER, cipher).add(KEY_EPOCH, epoch).add(KEY_HANDSHAKE_TIMESTAMP, timestamp));
 	}
 
 	/**
@@ -169,11 +151,26 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 * @since 2.5
 	 */
 	public DtlsEndpointContext(InetSocketAddress peerAddress, String virtualHost, Principal peerIdentity,
-			String sessionId, String epoch, String cipher, String timestamp, String writeCid, String readCid,
+			Bytes sessionId, int epoch, String cipher, long timestamp, Bytes writeCid, Bytes readCid,
 			String via) {
-		super(peerAddress, virtualHost, peerIdentity, KEY_SESSION_ID, sessionId, KEY_CIPHER, cipher, KEY_EPOCH, epoch,
-				KEY_HANDSHAKE_TIMESTAMP, timestamp, KEY_WRITE_CONNECTION_ID, writeCid, KEY_READ_CONNECTION_ID, readCid,
-				KEY_VIA_ROUTER, via);
+		super(peerAddress, virtualHost, peerIdentity,
+				new Attributes().add(KEY_SESSION_ID, sessionId).add(KEY_CIPHER, cipher).add(KEY_EPOCH, epoch)
+						.add(KEY_HANDSHAKE_TIMESTAMP, timestamp).add(KEY_WRITE_CONNECTION_ID, writeCid)
+						.add(KEY_READ_CONNECTION_ID, readCid).add(KEY_VIA_ROUTER, via));
+	}
+
+	/**
+	 * Creates a context for DTLS session parameters.
+	 * 
+	 * @param peerAddress peer address of endpoint context
+	 * @param virtualHost the name of the virtual host at the peer
+	 * @param peerIdentity peer identity of endpoint context
+	 * @param attributes attributes for dtls context.
+	 * @since 3.0
+	 */
+	public DtlsEndpointContext(InetSocketAddress peerAddress, String virtualHost, Principal peerIdentity,
+			Attributes attributes) {
+		super(peerAddress, virtualHost, peerIdentity, attributes);
 	}
 
 	/**
@@ -181,8 +178,8 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 * 
 	 * @return The identifier.
 	 */
-	public final String getSessionId() {
-		return get(KEY_SESSION_ID);
+	public final Bytes getSessionId() {
+		return getBytes(KEY_SESSION_ID);
 	}
 
 	/**
@@ -190,8 +187,8 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 * 
 	 * @return The epoch number.
 	 */
-	public final String getEpoch() {
-		return get(KEY_EPOCH);
+	public final Number getEpoch() {
+		return getNumber(KEY_EPOCH);
 	}
 
 	/**
@@ -200,7 +197,7 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 * @return The name.
 	 */
 	public final String getCipher() {
-		return get(KEY_CIPHER);
+		return getString(KEY_CIPHER);
 	}
 
 	/**
@@ -210,13 +207,13 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	 * 
 	 * @see System#currentTimeMillis()
 	 */
-	public final String getHandshakeTimestamp() {
-		return get(KEY_HANDSHAKE_TIMESTAMP);
+	public final Number getHandshakeTimestamp() {
+		return getNumber(KEY_HANDSHAKE_TIMESTAMP);
 	}
 
 	@Override
 	public String toString() {
 		return String.format("DTLS(%s,ID:%s)", getPeerAddressAsString(),
-				StringUtil.trunc(getSessionId(), ID_TRUNC_LENGTH));
+				StringUtil.trunc(getSessionId().getAsString(), ID_TRUNC_LENGTH));
 	}
 }

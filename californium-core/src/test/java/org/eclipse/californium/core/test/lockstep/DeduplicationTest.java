@@ -264,7 +264,7 @@ public class DeduplicationTest {
 		Message message = server.receiveNextMessage(1000, TimeUnit.MILLISECONDS);
 		assertNull("received unexpected message", message);
 
-		assertThat(request.getEffectiveDestinationContext().get(DtlsEndpointContext.KEY_HANDSHAKE_MODE), is(DtlsEndpointContext.HANDSHAKE_MODE_NONE));
+		assertThat(request.getEffectiveDestinationContext().getString(DtlsEndpointContext.KEY_HANDSHAKE_MODE), is(DtlsEndpointContext.HANDSHAKE_MODE_NONE));
 
 		destination = new AddressEndpointContext(server.getSocketAddress());
 		destination = MapBasedEndpointContext.addEntries(destination, DtlsEndpointContext.KEY_HANDSHAKE_MODE,

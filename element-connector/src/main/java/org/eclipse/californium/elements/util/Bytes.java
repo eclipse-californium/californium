@@ -22,6 +22,7 @@ import java.util.Random;
  * Byte array as key.
  */
 public class Bytes {
+
 	/**
 	 * Empty byte array.
 	 */
@@ -36,6 +37,9 @@ public class Bytes {
 	 * @see #hashCode()
 	 */
 	private final int hash;
+
+	private final boolean useClassInEquals;
+
 	/**
 	 * Bytes as String.
 	 * 
@@ -61,17 +65,36 @@ public class Bytes {
 	 * 
 	 * @param bytes bytes
 	 * @param maxLength maximum length of bytes
-	 * @param copy {@code true} to copy bytes, {@code false} to use the provided bytes
+	 * @param copy {@code true} to copy bytes, {@code false} to use the provided
+	 *            bytes
 	 * @throws NullPointerException if bytes is {@code null}
 	 * @throws IllegalArgumentException if bytes length is larger than maxLength
 	 */
 	public Bytes(byte[] bytes, int maxLength, boolean copy) {
+		this(bytes, maxLength, copy, false);
+	}
+
+	/**
+	 * Create bytes array.
+	 * 
+	 * @param bytes bytes
+	 * @param maxLength maximum length of bytes
+	 * @param copy {@code true} to copy bytes, {@code false} to use the provided
+	 *            bytes
+	 * @param useClassInEquals {@code true} to check the class, {@code false},
+	 *            if equals checks only for {@link Bytes}
+	 * @throws NullPointerException if bytes is {@code null}
+	 * @throws IllegalArgumentException if bytes length is larger than maxLength
+	 * @since 3.0
+	 */
+	public Bytes(byte[] bytes, int maxLength, boolean copy, boolean useClassInEquals) {
 		if (bytes == null) {
 			throw new NullPointerException("bytes must not be null");
 		} else if (bytes.length > maxLength) {
 			throw new IllegalArgumentException("bytes length must be between 0 and " + maxLength + " inclusive");
 		}
-		this.bytes = copy ? Arrays.copyOf(bytes,  bytes.length) : bytes;
+		this.useClassInEquals = useClassInEquals;
+		this.bytes = copy ? Arrays.copyOf(bytes, bytes.length) : bytes;
 		this.hash = Arrays.hashCode(bytes);
 	}
 
@@ -87,16 +110,22 @@ public class Bytes {
 
 	@Override
 	public final boolean equals(Object obj) {
-		if (this == obj)
+		if (this == obj) {
 			return true;
-		if (obj == null)
+		} else if (obj == null) {
 			return false;
-		if (getClass() != obj.getClass())
+		}
+		if (useClassInEquals && getClass() != obj.getClass()) {
 			return false;
-		Bytes other = (Bytes) obj;
-		if (hash != other.hash)
-			return false;
-		return Arrays.equals(bytes, other.bytes);
+		}
+		if (obj instanceof Bytes) {
+			Bytes other = (Bytes) obj;
+			if (hash != other.hash) {
+				return false;
+			}
+			return Arrays.equals(bytes, other.bytes);
+		}
+		return false;
 	}
 
 	/**
@@ -155,10 +184,8 @@ public class Bytes {
 	/**
 	 * Concatenates two Bytes.
 	 * 
-	 * @param a
-	 *            the first Bytes.
-	 * @param b
-	 *            the second Bytes.
+	 * @param a the first Bytes.
+	 * @param b the second Bytes.
 	 * @return the concatenated array.
 	 * @see #concatenate(byte[], byte[])
 	 */
@@ -169,10 +196,8 @@ public class Bytes {
 	/**
 	 * Concatenates two byte arrays.
 	 * 
-	 * @param a
-	 *            the first array.
-	 * @param b
-	 *            the second array.
+	 * @param a the first array.
+	 * @param b the second array.
 	 * @return the concatenated array.
 	 * @see #concatenate(Bytes, Bytes)
 	 */

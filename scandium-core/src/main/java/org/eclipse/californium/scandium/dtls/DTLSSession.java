@@ -222,7 +222,7 @@ public final class DTLSSession implements Destroyable {
 	private ServerNames serverNames;
 	private boolean peerSupportsSni;
 
-	private final String handshakeTimeTag;
+	private final long handshakeTime;
 
 	// Constructor ////////////////////////////////////////////////////
 
@@ -306,7 +306,7 @@ public final class DTLSSession implements Destroyable {
 			throw new IllegalArgumentException("Initial sequence number must be greater than 0 and less than 2^48");
 		} else {
 			this.creationTime = creationTime;
-			this.handshakeTimeTag = Long.toString(System.currentTimeMillis());
+			this.handshakeTime = System.currentTimeMillis();
 			this.peer = peerAddress;
 			this.sequenceNumbers[0]= initialSequenceNo;
 		}
@@ -458,8 +458,8 @@ public final class DTLSSession implements Destroyable {
 	 * 
 	 * @return system time in milliseconds as string of the last handshake
 	 */
-	public String getLastHandshakeTime() {
-		return handshakeTimeTag;
+	public long getLastHandshakeTime() {
+		return handshakeTime;
 	}
 
 	/**
@@ -538,26 +538,26 @@ public final class DTLSSession implements Destroyable {
 	}
 
 	public DtlsEndpointContext getConnectionWriteContext() {
-		return getConnectionContext(Integer.toString(writeEpoch));
+		return getConnectionContext(writeEpoch);
 	}
 
 	public DtlsEndpointContext getConnectionReadContext() {
-		return getConnectionContext(Integer.toString(readEpoch));
+		return getConnectionContext(readEpoch);
 	}
 
-	private DtlsEndpointContext getConnectionContext(String epoch) {
-		String id = sessionIdentifier.isEmpty() ? "TIME:" + Long.toString(creationTime) : sessionIdentifier.toString();
+	private DtlsEndpointContext getConnectionContext(int epoch) {
+		Bytes id = sessionIdentifier.isEmpty() ? new Bytes(("TIME:" + Long.toString(creationTime)).getBytes()) : sessionIdentifier;
 		if (writeConnectionId != null && readConnectionId != null) {
 			if (router != null) {
 				return new DtlsEndpointContext(peer, hostName, peerIdentity, id, epoch, cipherSuite.name(),
-						handshakeTimeTag, writeConnectionId.getAsString(), readConnectionId.getAsString(), "dtls-cid-router");
+						handshakeTime, writeConnectionId, readConnectionId, "dtls-cid-router");
 			} else {
 				return new DtlsEndpointContext(peer, hostName, peerIdentity, id, epoch, cipherSuite.name(),
-						handshakeTimeTag, writeConnectionId.getAsString(), readConnectionId.getAsString(), null);
+						handshakeTime, writeConnectionId, readConnectionId, null);
 			}
 		} else {
 			return new DtlsEndpointContext(peer, hostName, peerIdentity, id, epoch, cipherSuite.name(),
-					handshakeTimeTag);
+					handshakeTime);
 		}
 	}
 
@@ -1305,8 +1305,7 @@ public final class DTLSSession implements Destroyable {
 	public void write(DatagramWriter writer) {
 		writer.writeByte((byte) VERSION);
 		int position = writer.space(Short.SIZE);
-
-		SerializationUtil.write(writer, handshakeTimeTag, Byte.SIZE);
+		writer.writeLong(handshakeTime, Long.SIZE);
 		SerializationUtil.write(writer, hostName, Byte.SIZE);
 		if (serverNames == null) {
 			writer.write(0, Byte.SIZE);
@@ -1375,7 +1374,7 @@ public final class DTLSSession implements Destroyable {
 	 * @since 3.0
 	 */
 	private DTLSSession(DatagramReader reader) {
-		handshakeTimeTag = SerializationUtil.readString(reader, Byte.SIZE);
+		handshakeTime = reader.readLong(Long.SIZE);
 		hostName = SerializationUtil.readString(reader, Byte.SIZE);
 		if (reader.readNextByte() == 1) {
 			serverNames = ServerNames.newInstance();

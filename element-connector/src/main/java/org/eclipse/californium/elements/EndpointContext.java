@@ -23,6 +23,8 @@ import java.net.InetSocketAddress;
 import java.security.Principal;
 import java.util.Map;
 
+import org.eclipse.californium.elements.util.Bytes;
+
 /**
  * A container for storing transport specific information about the context in
  * which a message has been sent or received.
@@ -51,6 +53,10 @@ import java.util.Map;
  * <td>With new or resumed DTLS session not long-term-stable</td>
  * </tr>
  * </table>
+ * 
+ * Note: with 3.0 the implementation is enhanced to support not only
+ * {@link String} as attributes value. With 3.0 also {@link Number} and
+ * {@link Bytes} are supported.
  */
 public interface EndpointContext {
 
@@ -58,10 +64,45 @@ public interface EndpointContext {
 	 * Gets a value from this context.
 	 * 
 	 * @param key the key to retrieve the value for.
-	 * @return the value or {@code null} if this context does not contain a
+	 * @return the value, or {@code null} if, this context does not contain a
 	 *         value for the given key.
+	 * @since 3.0
 	 */
-	String get(String key);
+	Object get(String key);
+
+	/**
+	 * Gets a {@link String} value from this context.
+	 * 
+	 * @param key the key to retrieve the value for.
+	 * @return the value as {@link String}, or {@code null}, if this context
+	 *         does not contain a value for the given key. If the value is a
+	 *         {@link Number} or {@link Bytes}, their {@link Object#toString()}
+	 *         result will be returned.
+	 * @since 3.0
+	 */
+	String getString(String key);
+
+	/**
+	 * Gets a {@link Number} value from this context.
+	 * 
+	 * @param key the key to retrieve the value for.
+	 * @return the {@link Number} value, or {@code null}, if this context does
+	 *         not contain a value for the given key.
+	 * @throws ClassCastException if the value is not a {@link Number}
+	 * @since 3.0
+	 */
+	Number getNumber(String key);
+
+	/**
+	 * Gets a {@link Bytes} value from this context.
+	 * 
+	 * @param key the key to retrieve the value for.
+	 * @return the {@link Bytes} value, or {@code null}, if this context does
+	 *         not contain a value for the given key.
+	 * @throws ClassCastException if the value is not a {@link Bytes}
+	 * @since 3.0
+	 */
+	Bytes getBytes(String key);
 
 	/**
 	 * Gets a Set of a Map.Entry which contains the key-value pair of the
@@ -71,7 +112,7 @@ public interface EndpointContext {
 	 *
 	 * @return A set of a map entry containing the key value pair.
 	 */
-	Map<String, String> entries();
+	Map<String, Object> entries();
 
 	/**
 	 * Check, if the correlation information contained, contains critical
@@ -100,8 +141,7 @@ public interface EndpointContext {
 	InetSocketAddress getPeerAddress();
 
 	/**
-	 * Gets the name of the virtual host that this endpoint
-	 * is scoped to.
+	 * Gets the name of the virtual host that this endpoint is scoped to.
 	 * 
 	 * @return the name or {@code null} if no virtual host is set.
 	 */

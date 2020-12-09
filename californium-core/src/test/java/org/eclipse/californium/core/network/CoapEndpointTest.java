@@ -53,6 +53,7 @@ import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
 import org.junit.Before;
@@ -184,8 +185,8 @@ public class CoapEndpointTest {
 		endpoint.setMessageDeliverer(deliverer);
 		endpoint.start();
 		cleanup.add(endpoint);
-		
-		EndpointContext secureCtx = new DtlsEndpointContext(SOURCE_ADDRESS, null, "session", "1", "CIPHER", "100");
+		Bytes session = new Bytes("session".getBytes());
+		EndpointContext secureCtx = new DtlsEndpointContext(SOURCE_ADDRESS, null, null, session, 1, "CIPHER", 100);
 		RawData inboundRequest = RawData.inbound(getSerializedRequest(), secureCtx, false, System.nanoTime());
 		connector.receiveMessage(inboundRequest);
 		assertTrue(latch.await(2, TimeUnit.SECONDS));

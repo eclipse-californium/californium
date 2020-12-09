@@ -116,22 +116,22 @@ public class Context extends CoapResource {
 		if (peerIdentity != null) {
 			formatter.add("peer", peerIdentity.getName());
 		}
-		String cipherSuite = context.get(DtlsEndpointContext.KEY_CIPHER);
+		String cipherSuite = context.getString(DtlsEndpointContext.KEY_CIPHER);
 		if (cipherSuite == null) {
-			cipherSuite = context.get(TlsEndpointContext.KEY_CIPHER);
+			cipherSuite = context.getString(TlsEndpointContext.KEY_CIPHER);
 		}
 		if (cipherSuite != null) {
 			formatter.add("cipher-suite", cipherSuite);
 		}
-		String cid = context.get(DtlsEndpointContext.KEY_READ_CONNECTION_ID);
+		String cid = context.getString(DtlsEndpointContext.KEY_READ_CONNECTION_ID);
 		if (cid != null) {
 			formatter.add("read-cid", cid);
 		}
-		cid = context.get(DtlsEndpointContext.KEY_WRITE_CONNECTION_ID);
+		cid = context.getString(DtlsEndpointContext.KEY_WRITE_CONNECTION_ID);
 		if (cid != null) {
 			formatter.add("write-cid", cid);
 		}
-		String via = context.get(DtlsEndpointContext.KEY_VIA_ROUTER);
+		String via = context.getString(DtlsEndpointContext.KEY_VIA_ROUTER);
 		if (via != null) {
 			formatter.add("via", via);
 		}

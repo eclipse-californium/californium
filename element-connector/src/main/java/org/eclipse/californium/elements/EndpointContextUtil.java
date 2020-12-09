@@ -43,8 +43,8 @@ public class EndpointContextUtil {
 		boolean trace = LOGGER.isTraceEnabled();
 		boolean matchAll = true;
 		for (String key : keys) {
-			String value1 = context1.get(key);
-			String value2 = context2.get(key);
+			Object value1 = context1.get(key);
+			Object value2 = context2.get(key);
 			boolean match = (value1 == value2) || (null != value1 && value1.equals(value2));
 			if (!match && !warn) {
 				/* no warnings => fast return */
@@ -80,7 +80,7 @@ public class EndpointContextUtil {
 	public static EndpointContext getFollowUpEndpointContext(EndpointContext messageContext,
 			EndpointContext connectionContext) {
 		EndpointContext followUpEndpointContext;
-		String mode = messageContext.get(DtlsEndpointContext.KEY_HANDSHAKE_MODE);
+		String mode = messageContext.getString(DtlsEndpointContext.KEY_HANDSHAKE_MODE);
 		if (mode != null && mode.equals(DtlsEndpointContext.HANDSHAKE_MODE_NONE)) {
 			// restore handshake-mode "none"
 			followUpEndpointContext = MapBasedEndpointContext.addEntries(connectionContext,

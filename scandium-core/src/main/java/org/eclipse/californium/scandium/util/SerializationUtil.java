@@ -38,7 +38,7 @@ public class SerializationUtil {
 	 * Write {@link String} using {@link StandardCharsets#UTF_8}.
 	 * 
 	 * @param writer writer to write to.
-	 * @param String value to write.
+	 * @param value value to write.
 	 * @param numBits number of bits for encoding the length.
 	 */
 	public static void write(DatagramWriter writer, String value, int numBits) {

@@ -30,8 +30,7 @@ import org.eclipse.californium.elements.util.StringUtil;
 public class TcpEndpointContext extends MapBasedEndpointContext {
 
 	/**
-	 * Key for TCP connection ID.
-	 * 
+	 * Key for TCP connection ID as {@link String}.
 	 */
 	public static final String KEY_CONNECTION_ID = "CONNECTION_ID";
 
@@ -69,7 +68,7 @@ public class TcpEndpointContext extends MapBasedEndpointContext {
 	}
 
 	public String getConnectionId() {
-		return get(KEY_CONNECTION_ID);
+		return getString(KEY_CONNECTION_ID);
 	}
 
 	@Override

@@ -74,9 +74,9 @@ public class PrincipalEndpointContextMatcher implements EndpointContextMatcher {
 				return false;
 			}
 		}
-		String cipher = requestedContext.get(DtlsEndpointContext.KEY_CIPHER);
+		String cipher = requestedContext.getString(DtlsEndpointContext.KEY_CIPHER);
 		if (cipher != null) {
-			if (!cipher.equals(availableContext.get(DtlsEndpointContext.KEY_CIPHER))) {
+			if (!cipher.equals(availableContext.getString(DtlsEndpointContext.KEY_CIPHER))) {
 				return false;
 			}
 		}
@@ -91,7 +91,7 @@ public class PrincipalEndpointContextMatcher implements EndpointContextMatcher {
 			StringBuilder builder = new StringBuilder();
 			builder.append("[");
 			builder.append(context.getPeerIdentity());
-			String cipher = context.get(DtlsEndpointContext.KEY_CIPHER);
+			String cipher = context.getString(DtlsEndpointContext.KEY_CIPHER);
 			if (cipher != null) {
 				builder.append(",").append(cipher);
 			}

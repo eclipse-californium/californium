@@ -230,8 +230,8 @@ public class DtlsClusterConnectorTest {
 
 		EndpointContext endpointContext = callback.getEndpointContext();
 		EndpointContext endpointContext2 = callback2.getEndpointContext();
-		String cid1 = endpointContext.get(DtlsEndpointContext.KEY_WRITE_CONNECTION_ID);
-		String cid2 = endpointContext2.get(DtlsEndpointContext.KEY_WRITE_CONNECTION_ID);
+		String cid1 = endpointContext.getString(DtlsEndpointContext.KEY_WRITE_CONNECTION_ID);
+		String cid2 = endpointContext2.getString(DtlsEndpointContext.KEY_WRITE_CONNECTION_ID);
 		assertNotNull(cid1);
 		assertNotNull(cid2);
 		assertEquals(cid1, cid2);
