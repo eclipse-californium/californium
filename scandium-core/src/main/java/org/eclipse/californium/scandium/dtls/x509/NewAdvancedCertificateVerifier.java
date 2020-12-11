@@ -24,7 +24,6 @@ import org.eclipse.californium.scandium.dtls.CertificateMessage;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.CertificateVerificationResult;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
-import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.util.ServerNames;
 
@@ -42,7 +41,7 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * <pre>
  * &#64;Override
  * public CertificateVerificationResult verifyCertificate(ConnectionId cid, ServerNames serverName,
- *		Boolean clientUsage, boolean truncateCertificatePath, CertificateMessage message, DTLSSession session) {
+ *		Boolean clientUsage, boolean truncateCertificatePath, CertificateMessage message) {
  * 	CertPath verifiedCertificate = ... verify certificate ...;
  * 	return new CertificateVerificationResult(cid, verifiedCertificate, null);
  * }
@@ -55,7 +54,7 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * <pre>
  * &#64;Override
  * public CertificateVerificationResult verifyCertificate(ConnectionId cid, ServerNames serverName,
- *		Boolean clientUsage, boolean truncateCertificatePath, CertificateMessage message, DTLSSession session) {
+ *		Boolean clientUsage, boolean truncateCertificatePath, CertificateMessage message) {
  * 	
  * 		start ... verify certificate ... 
  * 			// calls processResult with verified certificate path asynchronous;
@@ -68,7 +67,7 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * }
  * 
  * 	private void verifyCertificateAsynchronous(ConnectionId cid, ServerNames serverName, Boolean clientUsage,
- * 			boolean truncateCertificatePath, CertificateMessage message, DTLSSession session) {
+ * 			boolean truncateCertificatePath, CertificateMessage message) {
  * 		// executed by different thread!
  * 		CertificateVerificationResult result = ... verify certificate ...
  * 		resultHandler.apply(result);
@@ -98,12 +97,11 @@ public interface NewAdvancedCertificateVerifier {
 	 * @param truncateCertificatePath {@code true} truncate certificate path at
 	 *            a trusted certificate before validation.
 	 * @param message certificate message to be validated
-	 * @param session dtls session to be used for validation
 	 * @return certificate verification result, or {@code null}, if result is
 	 *         provided asynchronous.
 	 */
 	CertificateVerificationResult verifyCertificate(ConnectionId cid, ServerNames serverName, Boolean clientUsage,
-			boolean truncateCertificatePath, CertificateMessage message, DTLSSession session);
+			boolean truncateCertificatePath, CertificateMessage message);
 
 	/**
 	 * Return an list of certificate authorities which are trusted
@@ -121,7 +119,7 @@ public interface NewAdvancedCertificateVerifier {
 	 * 
 	 * @param resultHandler handler for asynchronous master secret results. This
 	 *            handler MUST NOT be called from the thread calling
-	 *            {@link #verifyCertificate(ConnectionId, ServerNames, Boolean, boolean, CertificateMessage, DTLSSession)},
+	 *            {@link #verifyCertificate(ConnectionId, ServerNames, Boolean, boolean, CertificateMessage)},
 	 *            instead just return the result there.
 	 */
 	void setResultHandler(HandshakeResultHandler resultHandler);

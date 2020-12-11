@@ -77,13 +77,12 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 						"Server wants to use not supported client certificate type " + clientCertificateType,
 						new AlertMessage(
 								AlertLevel.FATAL,
-								AlertDescription.ILLEGAL_PARAMETER,
-								session.getPeer()));
+								AlertDescription.ILLEGAL_PARAMETER));
 			}
 
 			// prepare handshake messages
 
-			CertificateVerify certificateVerify = new CertificateVerify(negotiatedSignatureAndHashAlgorithm, privateKey, handshakeMessages, session.getPeer());
+			CertificateVerify certificateVerify = new CertificateVerify(negotiatedSignatureAndHashAlgorithm, privateKey, handshakeMessages);
 
 			wrapMessage(flight, certificateVerify);
 		}
@@ -109,10 +108,10 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 			throw new HandshakeException(
 					"Cannot create FINISHED message",
 					new AlertMessage(
-							AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, session.getPeer()));
+							AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
 		}
 
-		Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, isClient, md.digest(), session.getPeer());
+		Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, isClient, md.digest());
 		wrapMessage(flight, finished);
 
 		// compute handshake hash with client's finished message also
@@ -124,16 +123,16 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 	}
 
 	public void sendApplicationData(final byte[] data) {
-		DTLSFlight flight = new DTLSFlight(getSession(), 100) {
+		DTLSFlight flight = new DTLSFlight(getSession(), 100, getPeerAddress()) {
 			public List<Record> getRecords(int maxDatagramSize, int maxFragmentSize, boolean useMultiHandshakeMessageRecords)
 					throws HandshakeException {
 				try {
 					Record record = new Record(ContentType.APPLICATION_DATA, session.getWriteEpoch(), session.getSequenceNumber(),
-							new ApplicationMessage(data, session.getPeer()), session, true, 0);
+							new ApplicationMessage(data), session, true, 0);
 					return Arrays.asList(record);
 				} catch (GeneralSecurityException e) {
 					throw new HandshakeException("Cannot create record",
-							new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, session.getPeer()), e);
+							new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR), e);
 				}
 			}
 		};

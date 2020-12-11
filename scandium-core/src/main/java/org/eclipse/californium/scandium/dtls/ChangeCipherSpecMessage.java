@@ -18,8 +18,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.net.InetSocketAddress;
-
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -34,7 +32,7 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
  * negotiated CipherSpec and keys. For further details see <a
  * href="http://tools.ietf.org/html/rfc5246#section-7.1">RFC 5246</a>.
  */
-public final class ChangeCipherSpecMessage extends AbstractMessage {
+public final class ChangeCipherSpecMessage implements DTLSMessage {
 
 	// DTLS-specific constants ////////////////////////////////////////
 
@@ -46,8 +44,7 @@ public final class ChangeCipherSpecMessage extends AbstractMessage {
 
 	// Constructor ////////////////////////////////////////////////////
 
-	public ChangeCipherSpecMessage(InetSocketAddress peerAddress) {
-		super(peerAddress);
+	public ChangeCipherSpecMessage() {
 		CCSProtocolType = CCSType.CHANGE_CIPHER_SPEC;
 	}
 
@@ -102,14 +99,14 @@ public final class ChangeCipherSpecMessage extends AbstractMessage {
 		return writer.toByteArray();
 	}
 
-	public static DTLSMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) throws HandshakeException {
+	public static DTLSMessage fromByteArray(byte[] byteArray) throws HandshakeException {
 		DatagramReader reader = new DatagramReader(byteArray);
 		int code = reader.read(CCS_BITS);
 		if (code == CCSType.CHANGE_CIPHER_SPEC.getCode()) {
-			return new ChangeCipherSpecMessage(peerAddress);
+			return new ChangeCipherSpecMessage();
 		} else {
 			String message = "Unknown Change Cipher Spec code received: " + code;
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, peerAddress);
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
 			throw new HandshakeException(message, alert);
 		}
 	}

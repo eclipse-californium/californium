@@ -551,7 +551,7 @@ public class ConnectorHelper {
 		@Override
 		public void handleData(InetSocketAddress endpoint, byte[] data) {
 			try {
-				records.put(DtlsTestTools.fromByteArray(data, endpoint, cidGenerator, ClockUtil.nanoRealtime()));
+				records.put(DtlsTestTools.fromByteArray(data, cidGenerator, ClockUtil.nanoRealtime()));
 			} catch (InterruptedException e) {
 			}
 		}

@@ -15,8 +15,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.net.InetSocketAddress;
-
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -95,11 +93,10 @@ public final class ServerNameExtension extends HelloExtension {
 	 * Creates a new instance from its byte representation.
 	 * 
 	 * @param extensionDataReader The byte representation.
-	 * @param peerAddress The IP address and port that the extension has been received from.
 	 * @return The instance.
 	 * @throws HandshakeException if the byte representation could not be parsed.
 	 */
-	public static ServerNameExtension fromExtensionDataReader(DatagramReader extensionDataReader, final InetSocketAddress peerAddress) throws HandshakeException {
+	public static ServerNameExtension fromExtensionDataReader(DatagramReader extensionDataReader) throws HandshakeException {
 		if (extensionDataReader == null || !extensionDataReader.bytesAvailable()) {
 			// this is an "empty" Server Name Indication received in a SERVER_HELLO
 			return ServerNameExtension.emptyServerNameIndication();
@@ -110,10 +107,10 @@ public final class ServerNameExtension extends HelloExtension {
 			} catch (IllegalArgumentException e) {
 				if (e.getCause() instanceof IllegalArgumentException) {
 					throw new HandshakeException("Server Name Indication extension contains unknown name_type",
-							new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER, peerAddress));
+							new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER));
 				}
 				throw new HandshakeException("malformed Server Name Indication extension",
-						new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR, peerAddress));
+						new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR));
 			}
 			return new ServerNameExtension(serverNames);
 		}

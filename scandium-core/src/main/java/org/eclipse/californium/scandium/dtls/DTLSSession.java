@@ -46,7 +46,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.InvalidKeyException;
 import java.security.Principal;
@@ -57,6 +56,7 @@ import javax.security.auth.DestroyFailedException;
 import javax.security.auth.Destroyable;
 
 import org.eclipse.californium.elements.DtlsEndpointContext;
+import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -65,6 +65,7 @@ import org.eclipse.californium.elements.util.WipAPI;
 import org.eclipse.californium.scandium.auth.PrincipalSerializer;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
+import org.eclipse.californium.scandium.util.SecretIvParameterSpec;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.SerializationUtil;
 import org.eclipse.californium.scandium.util.ServerName;
@@ -98,12 +99,6 @@ public final class DTLSSession implements Destroyable {
 	private static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1
 	private static final int MAX_FRAGMENT_LENGTH_DEFAULT = 16384; // 2^14 bytes as defined by DTLS 1.2 spec, Section 4.1
 	private static final int MASTER_SECRET_LENGTH = 48; // bytes
-
-	/**
-	 * This session's peer's IP address and port.
-	 */
-	private InetSocketAddress peer;
-	private InetSocketAddress router;
 
 	/**
 	 * An arbitrary byte sequence chosen by the server to identify this session.
@@ -228,12 +223,9 @@ public final class DTLSSession implements Destroyable {
 
 	/**
 	 * Creates a session using default values for all fields.
-	 *
-	 * @param peerAddress
-	 *            the remote address
 	 */
-	public DTLSSession(InetSocketAddress peerAddress) {
-		this(peerAddress, 0, System.currentTimeMillis());
+	public DTLSSession() {
+		this(0, System.currentTimeMillis());
 	}
 
 	/**
@@ -245,8 +237,6 @@ public final class DTLSSession implements Destroyable {
 	 * used to resume the session.
 	 *
 	 * @param id The identifier of the session to be resumed.
-	 * @param peerAddress
-	 *            The IP address and port of the client that wants to resume the session.
 	 * @param ticket
 	 *            The crypto params to use for the abbreviated handshake
 	 * @param initialSequenceNo
@@ -258,8 +248,8 @@ public final class DTLSSession implements Destroyable {
 	 *            (see <a href="http://tools.ietf.org/html/rfc6347#section-4.2.1">
 	 *            section 4.2.1 of RFC 6347 (DTLS 1.2)</a> for details)
 	 */
-	public DTLSSession(SessionId id, InetSocketAddress peerAddress, SessionTicket ticket, long initialSequenceNo) {
-		this(peerAddress, initialSequenceNo, ticket.getTimestamp());
+	public DTLSSession(SessionId id, SessionTicket ticket, long initialSequenceNo) {
+		this(initialSequenceNo, ticket.getTimestamp());
 		sessionIdentifier = id;
 		masterSecret = SecretUtil.create(ticket.getMasterSecret());
 		peerIdentity = ticket.getClientIdentity();
@@ -271,8 +261,6 @@ public final class DTLSSession implements Destroyable {
 	/**
 	 * Creates a new session initialized with a given sequence number.
 	 *
-	 * @param peerAddress
-	 *            the IP address and port of the peer this session is established with
 	 * @param initialSequenceNo the initial record sequence number to start from
 	 *            in epoch 0. When starting a new handshake with a client that
 	 *            has successfully exchanged a cookie with the server, the
@@ -281,15 +269,13 @@ public final class DTLSSession implements Destroyable {
 	 *            (see <a href="http://tools.ietf.org/html/rfc6347#section-4.2.1">
 	 *            section 4.2.1 of RFC 6347 (DTLS 1.2)</a> for details)
 	 */
-	public DTLSSession(InetSocketAddress peerAddress, long initialSequenceNo) {
-		this(peerAddress, initialSequenceNo, System.currentTimeMillis());
+	public DTLSSession(long initialSequenceNo) {
+		this(initialSequenceNo, System.currentTimeMillis());
 	}
 
 	/**
 	 * Creates a new session initialized with a given sequence number.
 	 *
-	 * @param peerAddress
-	 *            the IP address and port of the peer this session is established with
 	 * @param initialSequenceNo the initial record sequence number to start from
 	 *            in epoch 0. When starting a new handshake with a client that
 	 *            has successfully exchanged a cookie with the server, the
@@ -299,15 +285,12 @@ public final class DTLSSession implements Destroyable {
 	 *            section 4.2.1 of RFC 6347 (DTLS 1.2)</a> for details)
 	 * @param creationTime creation time of session. Maybe from previous session on resumption.
 	 */
-	public DTLSSession(InetSocketAddress peerAddress, long initialSequenceNo, long creationTime) {
-		if (peerAddress == null) {
-			throw new NullPointerException("Peer address must not be null");
-		} else if (initialSequenceNo < 0 || initialSequenceNo > MAX_SEQUENCE_NO) {
+	public DTLSSession(long initialSequenceNo, long creationTime) {
+		if (initialSequenceNo < 0 || initialSequenceNo > MAX_SEQUENCE_NO) {
 			throw new IllegalArgumentException("Initial sequence number must be greater than 0 and less than 2^48");
 		} else {
 			this.creationTime = creationTime;
 			this.handshakeTime = System.currentTimeMillis();
-			this.peer = peerAddress;
 			this.sequenceNumbers[0]= initialSequenceNo;
 		}
 	}
@@ -537,28 +520,27 @@ public final class DTLSSession implements Destroyable {
 		this.peerSupportsSni = flag;
 	}
 
-	public DtlsEndpointContext getConnectionWriteContext() {
-		return getConnectionContext(writeEpoch);
+	public MapBasedEndpointContext.Attributes getConnectionWriteContextAttributes() {
+		return getConnectionContextAttributes(writeEpoch);
 	}
 
-	public DtlsEndpointContext getConnectionReadContext() {
-		return getConnectionContext(readEpoch);
+	public MapBasedEndpointContext.Attributes getConnectionReadContextAttributes() {
+		return getConnectionContextAttributes(readEpoch);
 	}
 
-	private DtlsEndpointContext getConnectionContext(int epoch) {
+	private MapBasedEndpointContext.Attributes getConnectionContextAttributes(int epoch) {
+		MapBasedEndpointContext.Attributes attributes = new MapBasedEndpointContext.Attributes();
 		Bytes id = sessionIdentifier.isEmpty() ? new Bytes(("TIME:" + Long.toString(creationTime)).getBytes()) : sessionIdentifier;
+		attributes.add(DtlsEndpointContext.KEY_SESSION_ID, id);
+		attributes.add(DtlsEndpointContext.KEY_EPOCH, epoch);
+		attributes.add(DtlsEndpointContext.KEY_CIPHER, cipherSuite.name());
+		attributes.add(DtlsEndpointContext.KEY_HANDSHAKE_TIMESTAMP, handshakeTime);
+
 		if (writeConnectionId != null && readConnectionId != null) {
-			if (router != null) {
-				return new DtlsEndpointContext(peer, hostName, peerIdentity, id, epoch, cipherSuite.name(),
-						handshakeTime, writeConnectionId, readConnectionId, "dtls-cid-router");
-			} else {
-				return new DtlsEndpointContext(peer, hostName, peerIdentity, id, epoch, cipherSuite.name(),
-						handshakeTime, writeConnectionId, readConnectionId, null);
-			}
-		} else {
-			return new DtlsEndpointContext(peer, hostName, peerIdentity, id, epoch, cipherSuite.name(),
-					handshakeTime);
+			attributes.add(DtlsEndpointContext.KEY_READ_CONNECTION_ID, readConnectionId);
+			attributes.add(DtlsEndpointContext.KEY_WRITE_CONNECTION_ID, writeConnectionId);
 		}
+		return attributes;
 	}
 
 	/**
@@ -567,8 +549,8 @@ public final class DTLSSession implements Destroyable {
 	 * The value returned is part of the <em>pending connection state</em> which
 	 * has been negotiated with the peer. This means that it is not in effect
 	 * until the <em>pending</em> state becomes the <em>current</em> state using
-	 * one of the {@link #setReadState(DTLSConnectionState)}
-	 * or {@link #setWriteState(DTLSConnectionState)} methods.
+	 * one of the {@link #createReadState(SecretKey, SecretIvParameterSpec, SecretKey)}
+	 * or {@link #createWriteState(SecretKey, SecretIvParameterSpec, SecretKey)} methods.
 	 * 
 	 * @return the algorithms to be used
 	 */
@@ -581,8 +563,8 @@ public final class DTLSSession implements Destroyable {
 	 * <p>
 	 * The value set using this method becomes part of the <em>pending connection state</em>.
 	 * This means that it will not be in effect until the <em>pending</em> state becomes the
-	 * <em>current</em> state using one of the {@link #setReadState(DTLSConnectionState)}
-	 * or {@link #setWriteState(DTLSConnectionState)} methods.
+	 * <em>current</em> state using one of the {@link #createReadState(SecretKey, SecretIvParameterSpec, SecretKey)}
+	 * or {@link #createWriteState(SecretKey, SecretIvParameterSpec, SecretKey)} methods.
 	 * 
 	 * @param cipherSuite the algorithms to be used
 	 * @throws IllegalArgumentException if the given cipher suite is <code>null</code>
@@ -603,8 +585,8 @@ public final class DTLSSession implements Destroyable {
 	 * The value returned is part of the <em>pending connection state</em> which
 	 * has been negotiated with the peer. This means that it is not in effect
 	 * until the <em>pending</em> state becomes the <em>current</em> state using
-	 * one of the {@link #setReadState(DTLSConnectionState)}
-	 * or {@link #setWriteState(DTLSConnectionState)} methods.
+	 * one of the {@link #createReadState(SecretKey, SecretIvParameterSpec, SecretKey)}
+	 * or {@link #createWriteState(SecretKey, SecretIvParameterSpec, SecretKey)} methods.
 	 * 
 	 * @return the algorithm identifier
 	 */
@@ -618,8 +600,8 @@ public final class DTLSSession implements Destroyable {
 	 * <p>
 	 * The value set using this method becomes part of the <em>pending connection state</em>.
 	 * This means that it will not be in effect until the <em>pending</em> state becomes the
-	 * <em>current</em> state using one of the {@link #setReadState(DTLSConnectionState)}
-	 * or {@link #setWriteState(DTLSConnectionState)} methods.
+	 * <em>current</em> state using one of the {@link #createReadState(SecretKey, SecretIvParameterSpec, SecretKey)}
+	 * or {@link #createWriteState(SecretKey, SecretIvParameterSpec, SecretKey)} methods.
 	 * 
 	 * @param compressionMethod the algorithm identifier
 	 */
@@ -663,7 +645,7 @@ public final class DTLSSession implements Destroyable {
 		}
 	}
 
-	private void incrementReadEpoch() {
+	void incrementReadEpoch() {
 		resetReceiveWindow();
 		this.readEpoch++;
 	}
@@ -728,26 +710,29 @@ public final class DTLSSession implements Destroyable {
 	}
 
 	/**
-	 * Sets the current read state of the connection.
+	 * Create the current read state of the connection.
 	 * 
-	 * The information in the current read state is used to de-crypt
-	 * messages received from a peer.
-	 * See <a href="http://tools.ietf.org/html/rfc5246#section-6.1">
-	 * RFC 5246 (TLS 1.2)</a> for details.
+	 * The information in the current read state is used to de-crypt messages
+	 * received from a peer. See
+	 * <a href="http://tools.ietf.org/html/rfc5246#section-6.1"> RFC 5246 (TLS
+	 * 1.2)</a> for details.
 	 * 
-	 * The <em>pending</em> read state becomes the <em>current</em>
-	 * read state whenever a <em>CHANGE_CIPHER_SPEC</em> message is
-	 * received from a peer during a handshake.
+	 * The <em>pending</em> read state becomes the <em>current</em> read state
+	 * whenever a <em>CHANGE_CIPHER_SPEC</em> message is received from a peer
+	 * during a handshake.
 	 * 
 	 * This method also increments the read epoch.
 	 * 
-	 * @param readState the current read state
-	 * @throws NullPointerException if the given state is <code>null</code>
+	 * @param encryptionKey the secret key to use for decrypting message content
+	 * @param iv the initialization vector to use for decrypting message content
+	 * @param macKey the key to use for verifying message authentication codes
+	 *            (MAC)
+	 * @throws NullPointerException if any of the parameter used by the provided
+	 *             cipher suite is {@code null}
 	 */
-	void setReadState(DTLSConnectionState readState) {
-		if (readState == null) {
-			throw new NullPointerException("Read state must not be null");
-		}
+	public void createReadState(SecretKey encryptionKey, SecretIvParameterSpec iv, SecretKey macKey) {
+		DTLSConnectionState readState = DTLSConnectionState.create(cipherSuite, compressionMethod, encryptionKey, iv,
+				macKey);
 		SecretUtil.destroy(this.readState);
 		this.readState = readState;
 		incrementReadEpoch();
@@ -796,27 +781,30 @@ public final class DTLSSession implements Destroyable {
 	}
 
 	/**
-	 * Sets the current write state of the connection.
+	 * Create the current write state of the connection.
 	 * 
-	 * The information in the current write state is used to en-crypt
-	 * messages sent to a peer.
-	 * See <a href="http://tools.ietf.org/html/rfc5246#section-6.1">
-	 * RFC 5246 (TLS 1.2)</a> for details.
+	 * The information in the current write state is used to en-crypt messages
+	 * sent to a peer. See
+	 * <a href="http://tools.ietf.org/html/rfc5246#section-6.1"> RFC 5246 (TLS
+	 * 1.2)</a> for details.
 	 * 
-	 * The <em>pending</em> write state becomes the <em>current</em>
-	 * write state whenever a <em>CHANGE_CIPHER_SPEC</em> message is
-	 * received from a peer during a handshake.
+	 * The <em>pending</em> write state becomes the <em>current</em> write state
+	 * whenever a <em>CHANGE_CIPHER_SPEC</em> message is sent to a peer
+	 * during a handshake.
 	 * 
 	 * This method also increments the write epoch and resets the session's
 	 * sequence number counter to zero.
 	 * 
-	 * @param writeState the current write state
-	 * @throws NullPointerException if the given state is <code>null</code>
+	 * @param encryptionKey the secret key to use for encrypting message content
+	 * @param iv the initialization vector to use for encrypting message content
+	 * @param macKey the key to use for creating message authentication codes
+	 *            (MAC)
+	 * @throws NullPointerException if any of the parameter used by the provided
+	 *             cipher suite is {@code null}
 	 */
-	void setWriteState(DTLSConnectionState writeState) {
-		if (writeState == null) {
-			throw new NullPointerException("Write state must not be null");
-		}
+	public void createWriteState(SecretKey encryptionKey, SecretIvParameterSpec iv, SecretKey macKey) {
+		DTLSConnectionState writeState = DTLSConnectionState.create(cipherSuite, compressionMethod, encryptionKey, iv,
+				macKey);
 		SecretUtil.destroy(this.writeState);
 		this.writeState = writeState;
 		incrementWriteEpoch();
@@ -1042,39 +1030,6 @@ public final class DTLSSession implements Destroyable {
 	 */
 	void setSignatureAndHashAlgorithm(SignatureAndHashAlgorithm signatureAndHashAlgorithm) {
 		this.signatureAndHashAlgorithm = signatureAndHashAlgorithm;
-	}
-
-	/**
-	 * Gets the IP address and socket of this session's peer.
-	 * 
-	 * @return The peer's address.
-	 */
-	public InetSocketAddress getPeer() {
-		return peer;
-	}
-
-	public void setPeer(InetSocketAddress peer) {
-		this.peer = peer;
-	}
-
-	/**
-	 * Get router address.
-	 * 
-	 * @return router address. {@code null}, if no router is used.
-	 * @since 2.5
-	 */
-	public InetSocketAddress getRouter() {
-		return router;
-	}
-
-	/**
-	 * Set router address.
-	 * 
-	 * @param router router address
-	 * @since 2.5
-	 */
-	public void setRouter(InetSocketAddress router) {
-		this.router = router;
 	}
 
 	/**

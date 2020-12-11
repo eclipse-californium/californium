@@ -146,18 +146,18 @@ public class CookieGenerator {
 	 * as suggested
 	 * <a href="http://tools.ietf.org/html/rfc6347#section-4.2.1">here</a>.
 	 *
+	 * @param peer address of the peer
 	 * @param clientHello received client hello to generate a cookie for
 	 * @param secretKey to generate a cookie for
 	 * @return the cookie generated from the client's parameters
 	 * @throws GeneralSecurityException if the cookie cannot be computed
 	 * @since 2.3
 	 */
-	private byte[] generateCookie(final ClientHello clientHello, SecretKey secretKey) throws GeneralSecurityException {
+	private byte[] generateCookie(InetSocketAddress peer, ClientHello clientHello, SecretKey secretKey) throws GeneralSecurityException {
 		// Cookie = HMAC(Secret, Client-IP, Client-Parameters)
 		final Mac hmac = CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256.getThreadLocalMac();
 		hmac.init(secretKey);
 		// Client-IP
-		InetSocketAddress peer = clientHello.getPeer();
 		hmac.update(peer.getAddress().getAddress());
 		int port = peer.getPort();
 		hmac.update((byte) (port >>> 8));
@@ -178,27 +178,29 @@ public class CookieGenerator {
 	 * as suggested
 	 * <a href="http://tools.ietf.org/html/rfc6347#section-4.2.1">here</a>.
 	 *
+	 * @param peer address of the peer
 	 * @param clientHello received client hello to generate a cookie for
 	 * @return the cookie generated from the client's parameters
 	 * @throws GeneralSecurityException if the cookie cannot be computed
 	 */
-	public byte[] generateCookie(final ClientHello clientHello) throws GeneralSecurityException {
-		return generateCookie(clientHello, getSecretKey());
+	public byte[] generateCookie(InetSocketAddress peer, ClientHello clientHello) throws GeneralSecurityException {
+		return generateCookie(peer, clientHello, getSecretKey());
 	}
 
 	/**
 	 * Generates the cookie using the secret key of the past period.
 	 * 
+	 * @param peer address of the peer
 	 * @param clientHello received client hello to generate a cookie for
 	 * @return the cookie generated from the client's parameters. {@code null},
 	 *         if no secret key of the past period is available.
 	 * @throws GeneralSecurityException if the cookie cannot be computed
 	 * @since 2.3
 	 */
-	public byte[] generatePastCookie(final ClientHello clientHello) throws GeneralSecurityException {
+	public byte[] generatePastCookie(InetSocketAddress peer, ClientHello clientHello) throws GeneralSecurityException {
 		SecretKey secretKey = getPastSecretKey();
 		if (secretKey != null) {
-			return generateCookie(clientHello, secretKey);
+			return generateCookie(peer, clientHello, secretKey);
 		} else {
 			return null;
 		}

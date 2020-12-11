@@ -64,7 +64,11 @@ public class InMemoryClientSessionCache implements ClientSessionCache {
 
 	@Override
 	public void put(DTLSSession session) {
-		final InetSocketAddress peer = session.getPeer();
+		throw new RuntimeException("Not supported!");
+	}
+
+	@Override
+	public void put(InetSocketAddress peer, DTLSSession session) {
 		final SessionTicket ticket = session.getSessionTicket();
 		final SessionId id = session.getSessionIdentifier();
 		final ClientSession clientSession = new ClientSession(peer, id, ticket);

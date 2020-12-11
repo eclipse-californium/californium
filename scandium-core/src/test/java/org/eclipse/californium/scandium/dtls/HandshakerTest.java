@@ -36,8 +36,6 @@ import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.PublicKey;
 import java.security.cert.CertPathValidatorException;
@@ -83,7 +81,6 @@ public class HandshakerTest {
 	public ThreadsRule cleanup = new ThreadsRule();
 
 	final int[] receivedMessages = new int[10];
-	InetSocketAddress endpoint = InetSocketAddress.createUnresolved("localhost", 10000);
 	TestHandshaker handshakerWithoutAnchors;
 	TestHandshaker handshakerWithAnchors;
 	DTLSSession session;
@@ -93,7 +90,7 @@ public class HandshakerTest {
 	FragmentedHandshakeMessage[] handshakeMessageFragments;
 	RecordLayer recordLayer;
 	CertificateMessage message;
-	InetSocketAddress peerAddress;
+	// TODO: check usage
 	PublicKey serverPublicKey;
 	ScheduledExecutorService timer;
 
@@ -123,7 +120,7 @@ public class HandshakerTest {
 			receivedMessages[i++] = 0;
 		}
 
-		session = new DTLSSession(endpoint);
+		session = new DTLSSession();
 		session.setReceiveCertificateType(CertificateType.X_509);
 		session.setParameterAvailable();
 		certificateChain = DtlsTestTools.getServerCertificateChain();
@@ -131,7 +128,6 @@ public class HandshakerTest {
 		certificateMessage = createCertificateMessage(session, 1, certificateChain);
 		recordLayer = mock(RecordLayer.class);
 		serverPublicKey = DtlsTestTools.getPublicKey();
-		peerAddress = new InetSocketAddress(InetAddress.getLoopbackAddress(), 5684);
 
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder()
 				.setTrustedRPKs(new RawPublicKeyIdentity(serverPublicKey)).build();
@@ -171,14 +167,14 @@ public class HandshakerTest {
 		handshaker.startHandshake();
 
 		// WHEN the peer sends its ChangeCipherSpec message
-		ChangeCipherSpecMessage ccs = new ChangeCipherSpecMessage(endpoint);
+		ChangeCipherSpecMessage ccs = new ChangeCipherSpecMessage();
 		Record ccsRecord = getRecordForMessage(0, 5, ccs);
 		handshaker.decryptAndProcessMessage(ccsRecord);
 
 		// THEN the ChangeCipherSpec message is not processed until the missing message arrives
 		assertThat(handshaker.getSession().getReadEpoch(), is(0));
 		handshaker.expectChangeCipherSpecMessage();
-		PSKClientKeyExchange msg = new PSKClientKeyExchange(new PskPublicInformation("id"), endpoint);
+		PSKClientKeyExchange msg = new PSKClientKeyExchange(new PskPublicInformation("id"));
 		msg.setMessageSeq(0);
 		Record keyExchangeRecord = getRecordForMessage(0, 6, msg);
 		handshaker.decryptAndProcessMessage(keyExchangeRecord);
@@ -199,7 +195,7 @@ public class HandshakerTest {
 
 		// WHEN the peer's FINISHED message is received out-of-sequence before the ChangeCipherSpec message
 		Mac hmac = Mac.getInstance("HmacSHA256");
-		Finished finished = new Finished(hmac, new SecretKeySpec(new byte[]{0x00, 0x01}, "MAC"), true, new byte[]{0x00, 0x00}, endpoint);
+		Finished finished = new Finished(hmac, new SecretKeySpec(new byte[]{0x00, 0x01}, "MAC"), true, new byte[]{0x00, 0x00});
 		finished.setMessageSeq(0);
 		Record finishedRecord = getRecordForMessage(1, 0, finished);
 		handshaker.addRecordsForDeferredProcessing(finishedRecord);
@@ -207,7 +203,7 @@ public class HandshakerTest {
 		// THEN the FINISHED message is not processed until the missing CHANGE_CIPHER_SPEC message has been
 		// received and processed
 		assertFalse(handshaker.finishedProcessed.get());
-		ChangeCipherSpecMessage ccs = new ChangeCipherSpecMessage(endpoint);
+		ChangeCipherSpecMessage ccs = new ChangeCipherSpecMessage();
 		Record ccsRecord = getRecordForMessage(0, 5, ccs);
 		handshaker.decryptAndProcessMessage(ccsRecord);
 		assertThat(handshaker.getSession().getReadEpoch(), is(1));
@@ -361,7 +357,7 @@ public class HandshakerTest {
 			byte[] fragment = new byte[fragmentLength];
 			System.arraycopy(serializedMsg, fragmentOffset, fragment, 0, fragmentLength);
 			FragmentedHandshakeMessage msg = new FragmentedHandshakeMessage(message.getMessageType(),
-					serializedMsg.length, message.getMessageSeq(), fragmentOffset, fragment, endpoint);
+					serializedMsg.length, message.getMessageSeq(), fragmentOffset, fragment);
 			fragments.add(msg);
 			if (fragmentOffset + fragmentLength == serializedMsg.length) {
 				fragmentOffset += fragmentLength;
@@ -385,14 +381,14 @@ public class HandshakerTest {
 	private void givenACertificateMessage(X509Certificate[] chain, boolean useRawPublicKey)
 			throws IOException, GeneralSecurityException {
 		if (useRawPublicKey) {
-			message = new CertificateMessage(chain[0].getPublicKey().getEncoded(), peerAddress);
+			message = new CertificateMessage(chain[0].getPublicKey().getEncoded());
 		} else {
-			message = new CertificateMessage(Arrays.asList(chain), peerAddress);
+			message = new CertificateMessage(Arrays.asList(chain));
 		}
 	}
 
 	private void givenARawPublicKeyCertificateMessage(PublicKey publicKey) {
-		message = new CertificateMessage(publicKey.getEncoded(), peerAddress);
+		message = new CertificateMessage(publicKey.getEncoded());
 	}
 
 	private void assertThatReassembledMessageEqualsOriginalMessage(HandshakeMessage result) {
@@ -436,22 +432,22 @@ public class HandshakerTest {
 	}
 
 	private static  CertificateMessage createCertificateMessage(DTLSSession session, int seqNo, X509Certificate[] chain) {
-		CertificateMessage result = new CertificateMessage(Arrays.asList(chain), session.getPeer());
+		CertificateMessage result = new CertificateMessage(Arrays.asList(chain));
 		result.setMessageSeq(seqNo);
 		return result;
 	}
 
-	private static Record getRecordForMessage(final int epoch, final long seqNo, final DTLSMessage msg) {
+	private static Record getRecordForMessage(int epoch, long seqNo, DTLSMessage msg) {
 		byte[] dtlsRecord = DtlsTestTools.newDTLSRecord(msg.getContentType().getCode(), epoch,
 				seqNo, msg.toByteArray());
-		List<Record> list = DtlsTestTools.fromByteArray(dtlsRecord, msg.getPeer(), null, ClockUtil.nanoRealtime());
+		List<Record> list = DtlsTestTools.fromByteArray(dtlsRecord, null, ClockUtil.nanoRealtime());
 		assertFalse("Should be able to deserialize DTLS Record from byte array", list.isEmpty());
 		return list.get(0);
-
 	}
+
 	private static Record getRecordClone(final Record record) {
 		byte[] dtlsRecord = record.toByteArray();
-		List<Record> list = DtlsTestTools.fromByteArray(dtlsRecord, record.getPeerAddress(), null, ClockUtil.nanoRealtime());
+		List<Record> list = DtlsTestTools.fromByteArray(dtlsRecord, null, ClockUtil.nanoRealtime());
 		assertFalse("Should be able to deserialize DTLS Record from byte array", list.isEmpty());
 		return list.get(0);
 	}
@@ -461,7 +457,7 @@ public class HandshakerTest {
 		private AtomicBoolean finishedProcessed = new AtomicBoolean(false);
 
 		TestHandshaker(DTLSSession session, RecordLayer recordLayer, DtlsConnectorConfig config) {
-			super(false, 0, session, recordLayer, timer, new Connection(session.getPeer(), new SyncSerialExecutor()),
+			super(false, 0, session, recordLayer, timer, new Connection(config.getAddress(), new SyncSerialExecutor()),
 					config);
 			getConnection().setConnectionId(new ConnectionId(new byte[] { 1, 2, 3, 4 }));
 		}

@@ -17,8 +17,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.net.InetSocketAddress;
-
 import org.eclipse.californium.elements.util.Bytes;
 
 
@@ -33,8 +31,7 @@ import org.eclipse.californium.elements.util.Bytes;
  */
 public final class HelloRequest extends HandshakeMessage {
 
-	public HelloRequest(InetSocketAddress peerAddress) {
-		super(peerAddress);
+	public HelloRequest() {
 	}
 
 	@Override

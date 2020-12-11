@@ -15,7 +15,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.rule;
 
-import java.net.InetSocketAddress;
 import java.util.List;
 
 import org.eclipse.californium.elements.rule.NetworkRule;
@@ -47,16 +46,6 @@ public class DtlsNetworkRule extends NetworkRule {
 
 	public static final Logger LOGGER = LoggerFactory.getLogger(DtlsNetworkRule.class);
 
-	private static final InetSocketAddress ADDRESS = new InetSocketAddress(0) {
-
-		private static final long serialVersionUID = 3463123750760014012L;
-
-		@Override
-		public String toString() {
-			return "";
-		}
-	};
-
 	/**
 	 * CoAP datagram formatter. Used for logging.
 	 */
@@ -70,7 +59,7 @@ public class DtlsNetworkRule extends NetworkRule {
 				return "[] (empty)";
 			}
 			try {
-				List<Record> records = DtlsTestTools.fromByteArray(data, ADDRESS, null, ClockUtil.nanoRealtime());
+				List<Record> records = DtlsTestTools.fromByteArray(data, null, ClockUtil.nanoRealtime());
 				int max = records.size();
 				StringBuilder builder = new StringBuilder();
 				for (int index = 0; index < max;) {

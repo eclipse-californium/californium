@@ -15,8 +15,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.net.InetSocketAddress;
-
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -62,12 +60,10 @@ public class MaxFragmentLengthExtension extends HelloExtension {
 	 * in <a href="http://tools.ietf.org/html/rfc6066#section-4">RFC 6066, Section 4</a>.
 	 * 
 	 * @param extensionDataReader the extension data struct containing the length code
-	 * @param peerAddress the IP address and port of the peer that sent the extension
 	 * @return the extension object
 	 * @throws HandshakeException if the extension data contains an unknown code
 	 */
-	static final MaxFragmentLengthExtension fromExtensionDataReader(DatagramReader extensionDataReader,
-			InetSocketAddress peerAddress) throws HandshakeException {
+	static final MaxFragmentLengthExtension fromExtensionDataReader(DatagramReader extensionDataReader) throws HandshakeException {
 		int code = extensionDataReader.read(CODE_BITS);
 		Length length = Length.fromCode(code);
 		if (length != null) {
@@ -79,8 +75,7 @@ public class MaxFragmentLengthExtension extends HelloExtension {
 							code, ExtensionType.MAX_FRAGMENT_LENGTH.name()),
 					new AlertMessage(
 							AlertLevel.FATAL,
-							AlertDescription.ILLEGAL_PARAMETER,
-							peerAddress));
+							AlertDescription.ILLEGAL_PARAMETER));
 		}
 	}
 

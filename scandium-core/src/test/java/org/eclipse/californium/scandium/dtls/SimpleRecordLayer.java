@@ -18,7 +18,6 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.DatagramPacket;
-import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
@@ -41,9 +40,8 @@ public class SimpleRecordLayer implements RecordLayer {
 		flight.clear();
 		long timestamp = ClockUtil.nanoRealtime();
 		for (DatagramPacket packet : datagrams) {
-			InetSocketAddress peerAddress = new InetSocketAddress(packet.getAddress(), packet.getPort());
 			DatagramReader reader = new DatagramReader(packet.getData(), packet.getOffset(), packet.getLength());
-			List<Record> records = Record.fromReader(reader, peerAddress, null, handshaker.connectionIdGenerator, timestamp);
+			List<Record> records = Record.fromReader(reader, handshaker.connectionIdGenerator, timestamp);
 			for (Record record : records) {
 				try {
 					record.applySession(handshaker.getSession());

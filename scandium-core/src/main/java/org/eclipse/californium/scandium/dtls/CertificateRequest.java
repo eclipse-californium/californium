@@ -22,7 +22,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.net.InetSocketAddress;
 import java.security.PublicKey;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -85,12 +84,8 @@ public final class CertificateRequest extends HandshakeMessage {
 
 	/**
 	 * Initializes an empty certificate request.
-	 * 
-	 * @param peerAddress the IP address and port of the peer this
-	 *           message has been received from or should be sent to
 	 */
-	public CertificateRequest(InetSocketAddress peerAddress) {
-		super(peerAddress);
+	public CertificateRequest() {
 	}
 
 	/**
@@ -101,15 +96,11 @@ public final class CertificateRequest extends HandshakeMessage {
 	 *            the list of supported signature and hash algorithms.
 	 * @param certificateAuthorities
 	 *            the list of allowed certificate authorities.
-	 * @param peerAddress the IP address and port of the peer this
-	 *            message has been received from or should be sent to
 	 */
 	public CertificateRequest(
 			List<ClientCertificateType> certificateTypes,
 			List<SignatureAndHashAlgorithm> supportedSignatureAlgorithms,
-			List<X500Principal> certificateAuthorities,
-			InetSocketAddress peerAddress) {
-		super(peerAddress);
+			List<X500Principal> certificateAuthorities) {
 		if (certificateTypes != null) {
 			this.certificateTypes.addAll(certificateTypes);
 		}
@@ -197,10 +188,9 @@ public final class CertificateRequest extends HandshakeMessage {
 	 * Parses a certificate request message from its binary encoding.
 	 * 
 	 * @param reader reader for the binary encoding of the message.
-	 * @param peerAddress The origin address of the message.
 	 * @return The parsed instance.
 	 */
-	public static HandshakeMessage fromReader(DatagramReader reader, InetSocketAddress peerAddress) {
+	public static HandshakeMessage fromReader(DatagramReader reader) {
 
 		List<ClientCertificateType> certificateTypes = new ArrayList<>();
 		int length = reader.read(CERTIFICATE_TYPES_LENGTH_BITS);
@@ -227,7 +217,7 @@ public final class CertificateRequest extends HandshakeMessage {
 			certificateAuthorities.add(new X500Principal(name));
 		}
 
-		return new CertificateRequest(certificateTypes, supportedSignatureAlgorithms, certificateAuthorities, peerAddress);
+		return new CertificateRequest(certificateTypes, supportedSignatureAlgorithms, certificateAuthorities);
 	}
 
 	// Enums //////////////////////////////////////////////////////////

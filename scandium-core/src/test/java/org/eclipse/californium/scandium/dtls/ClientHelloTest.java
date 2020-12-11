@@ -23,14 +23,12 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThat;
 
-import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.List;
 
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -42,15 +40,6 @@ import org.junit.experimental.categories.Category;
 public class ClientHelloTest {
 
 	ClientHello clientHello;
-	InetSocketAddress peerAddress;
-
-	/**
-	 * Sets up fixture.
-	 */
-	@Before
-	public void setUp() {
-		peerAddress = new InetSocketAddress("localhost", 5684);
-	}
 
 	/**
 	 * Verifies that the calculated message length is the same as the length
@@ -108,7 +97,7 @@ public class ClientHelloTest {
 	private void givenAClientHelloWithEmptyExtensions() {
 		clientHello = new ClientHello(ProtocolVersion.VERSION_DTLS_1_2, Collections.<CipherSuite> emptyList(),
 				SignatureAndHashAlgorithm.DEFAULT, null, null,
-				Collections.<SupportedGroup> emptyList(), peerAddress);
+				Collections.<SupportedGroup> emptyList());
 	}
 
 	private void givenAClientHello(List<CipherSuite> supportedCipherSuites,
@@ -116,17 +105,17 @@ public class ClientHelloTest {
 			List<CertificateType> supportedClientCertTypes, List<CertificateType> supportedServerCertTypes,
 			List<SupportedGroup> supportedGroups) {
 
-		clientHello = createClientHello(peerAddress, supportedCipherSuites, supportedSignatureAndHashAlgorithms,
+		clientHello = createClientHello(supportedCipherSuites, supportedSignatureAndHashAlgorithms,
 				supportedClientCertTypes, supportedServerCertTypes, supportedGroups);
 	}
 
-	public static ClientHello createClientHello(InetSocketAddress address, List<CipherSuite> supportedCipherSuites,
+	public static ClientHello createClientHello(List<CipherSuite> supportedCipherSuites,
 			List<SignatureAndHashAlgorithm> supportedSignatureAndHashAlgorithms,
 			List<CertificateType> supportedClientCertTypes, List<CertificateType> supportedServerCertTypes,
 			List<SupportedGroup> supportedGroups) {
 
 		return new ClientHello(ProtocolVersion.VERSION_DTLS_1_2, supportedCipherSuites, supportedSignatureAndHashAlgorithms,
-				supportedClientCertTypes, supportedServerCertTypes, supportedGroups, address);
+				supportedClientCertTypes, supportedServerCertTypes, supportedGroups);
 	}
 
 }

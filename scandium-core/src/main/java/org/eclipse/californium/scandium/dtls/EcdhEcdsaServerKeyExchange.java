@@ -16,7 +16,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
@@ -84,15 +83,13 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 	 *            the client's random (used for signature)
 	 * @param serverRandom
 	 *            the server's random (used for signature)
-	 * @param peerAddress the IP address and port of the peer this
-	 *            message has been received from or should be sent to
 	 * @throws GeneralSecurityException if generating the signature providing prove of
 	 *            possession of the private key fails, e.g. due to an unsupported
 	 *            signature or hash algorithm or an invalid key
 	 */
 	public EcdhEcdsaServerKeyExchange(SignatureAndHashAlgorithm signatureAndHashAlgorithm, XECDHECryptography ecdhe,
-			PrivateKey serverPrivateKey, Random clientRandom, Random serverRandom, InetSocketAddress peerAddress) throws GeneralSecurityException {
-		super(ecdhe.getSupportedGroup(), ecdhe.getEncodedPoint(), peerAddress);
+			PrivateKey serverPrivateKey, Random clientRandom, Random serverRandom) throws GeneralSecurityException {
+		super(ecdhe.getSupportedGroup(), ecdhe.getEncodedPoint());
 		if (signatureAndHashAlgorithm == null) {
 			throw new NullPointerException("signature and hash algorithm cannot be null");
 		}
@@ -122,14 +119,12 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 	 *            the encoded point of the other peeer (public key)
 	 * @param signatureEncoded
 	 *            the signature (encoded)
-	 * @param peerAddress the IP address and port of the peer this
-	 *            message has been received from or should be sent to
 	 * @throws HandshakeException if the server's public key could not be re-constructed
 	 *            from the parameters contained in the message
 	 */
 	private EcdhEcdsaServerKeyExchange(SignatureAndHashAlgorithm signatureAndHashAlgorithm, SupportedGroup supportedGroup, byte[] encodedPoint,
-			byte[] signatureEncoded, InetSocketAddress peerAddress) {
-		super(supportedGroup, encodedPoint, peerAddress);
+			byte[] signatureEncoded) {
+		super(supportedGroup, encodedPoint);
 		if (signatureAndHashAlgorithm == null) {
 			throw new NullPointerException("signature and hash algorithm cannot be null");
 		}
@@ -163,8 +158,8 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 		return writer.toByteArray();
 	}
 
-	public static HandshakeMessage fromReader(DatagramReader reader, InetSocketAddress peerAddress) throws HandshakeException {
-		EcdhData ecdhData = readNamedCurve(reader, peerAddress);
+	public static HandshakeMessage fromReader(DatagramReader reader) throws HandshakeException {
+		EcdhData ecdhData = readNamedCurve(reader);
 		// default is SHA256withECDSA
 		SignatureAndHashAlgorithm signAndHash = new SignatureAndHashAlgorithm(SignatureAndHashAlgorithm.HashAlgorithm.SHA256, SignatureAndHashAlgorithm.SignatureAlgorithm.ECDSA);
 
@@ -175,7 +170,7 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 			signAndHash = new SignatureAndHashAlgorithm(hashAlgorithm, signatureAlgorithm);
 			signatureEncoded = reader.readVarBytes(SIGNATURE_LENGTH_BITS);
 		}
-		return new EcdhEcdsaServerKeyExchange(signAndHash, ecdhData.supportedGroup, ecdhData.encodedPoint, signatureEncoded, peerAddress);
+		return new EcdhEcdsaServerKeyExchange(signAndHash, ecdhData.supportedGroup, ecdhData.encodedPoint, signatureEncoded);
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -214,7 +209,7 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 
 		if (!verified) {
 			String message = "The server's ECDHE key exchange message's signature could not be verified.";
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, getPeer());
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
 			throw new HandshakeException(message, alert);
 		}
 	}

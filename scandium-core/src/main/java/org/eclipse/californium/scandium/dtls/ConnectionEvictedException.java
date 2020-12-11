@@ -13,8 +13,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.net.InetSocketAddress;
-
 /**
  * Raised when a connection is evicted from
  * {@link ResumptionSupportingConnectionStore}
@@ -25,7 +23,7 @@ public class ConnectionEvictedException extends DtlsException {
 
 	private static final long serialVersionUID = 1L;
 
-	public ConnectionEvictedException(String message, InetSocketAddress peer) {
-		super(message, peer);
+	public ConnectionEvictedException(String message) {
+		super(message);
 	}
 }

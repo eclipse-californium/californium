@@ -15,8 +15,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.net.InetSocketAddress;
-
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.NoPublicAPI;
@@ -50,11 +48,10 @@ public final class EcdhPskClientKeyExchange extends ECDHClientKeyExchange {
 	 * 
 	 * @param identity PSK identity as public information
 	 * @param encodedPoint ephemeral public key as encoded point
-	 * @param peerAddress peer's address
 	 * @throws NullPointerException if either identity or clietPublicKey are {@code null}
 	 */
-	public EcdhPskClientKeyExchange(PskPublicInformation identity, byte[] encodedPoint, InetSocketAddress peerAddress) {
-		super(encodedPoint, peerAddress);
+	public EcdhPskClientKeyExchange(PskPublicInformation identity, byte[] encodedPoint) {
+		super(encodedPoint);
 		if (identity == null) {
 			throw new NullPointerException("identity cannot be null");
 		}
@@ -76,18 +73,13 @@ public final class EcdhPskClientKeyExchange extends ECDHClientKeyExchange {
 	 * Creates a new client key exchange instance from its byte representation.
 	 * 
 	 * @param reader reader for the binary encoding of the message.
-	 * @param peerAddress peer address
 	 * @return created client key exchange message
-	 * @throws NullPointerException if peerAddress is {@code null}
 	 */
-	public static HandshakeMessage fromReader(DatagramReader reader, InetSocketAddress peerAddress) {
-		if (peerAddress == null) {
-			throw new NullPointerException("peer address cannot be null");
-		}
+	public static HandshakeMessage fromReader(DatagramReader reader) {
 		byte[] identityEncoded = reader.readVarBytes(IDENTITY_LENGTH_BITS);
 		PskPublicInformation identity = PskPublicInformation.fromByteArray(identityEncoded);
 		byte[] pointEncoded = readEncodedPoint(reader);
-		return new EcdhPskClientKeyExchange(identity, pointEncoded, peerAddress);
+		return new EcdhPskClientKeyExchange(identity, pointEncoded);
 	}
 
 	@Override

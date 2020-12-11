@@ -23,7 +23,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -115,8 +114,6 @@ public final class ClientHello extends HandshakeMessage {
 	 *            supported by the server
 	 * @param supportedGroups the list of the supported groups (curves) in order of
 	 *            the client’s preference (favorite choice first)
-	 * @param peerAddress the IP address and port of the peer this message has
-	 *            been received from or should be sent to
 	 * @since 2.3
 	 */
 	public ClientHello(
@@ -125,11 +122,10 @@ public final class ClientHello extends HandshakeMessage {
 			List<SignatureAndHashAlgorithm> supportedSignatureAndHashAlgorithms,
 			List<CertificateType> supportedClientCertificateTypes,
 			List<CertificateType> supportedServerCertificateTypes,
-			List<SupportedGroup> supportedGroups,
-			InetSocketAddress peerAddress) {
+			List<SupportedGroup> supportedGroups) {
 
 		this(version, null, supportedCipherSuites, supportedSignatureAndHashAlgorithms, supportedClientCertificateTypes,
-				supportedServerCertificateTypes, supportedGroups, peerAddress);
+				supportedServerCertificateTypes, supportedGroups);
 	}
 
 	/**
@@ -158,7 +154,7 @@ public final class ClientHello extends HandshakeMessage {
 
 		this(version, session.getSessionIdentifier(), Arrays.asList(session.getCipherSuite()),
 				supportedSignatureAndHashAlgorithms, supportedClientCertificateTypes, supportedServerCertificateTypes,
-				supportedGroups, session.getPeer());
+				supportedGroups);
 		addCompressionMethod(session.getWriteState().getCompressionMethod());
 	}
 
@@ -169,10 +165,8 @@ public final class ClientHello extends HandshakeMessage {
 			List<SignatureAndHashAlgorithm> supportedSignatureAndHashAlgorithms,
 			List<CertificateType> supportedClientCertificateTypes,
 			List<CertificateType> supportedServerCertificateTypes,
-			List<SupportedGroup> supportedGroups,
-			InetSocketAddress peerAddress) {
+			List<SupportedGroup> supportedGroups) {
 
-		this(peerAddress);
 		this.clientVersion = version;
 		this.random = new Random();
 		this.cookie = Bytes.EMPTY;
@@ -220,6 +214,9 @@ public final class ClientHello extends HandshakeMessage {
 		
 	}
 
+	private ClientHello() {
+	}
+
 	/**
 	 * Check, if certificate type extension is used.
 	 * 
@@ -247,10 +244,6 @@ public final class ClientHello extends HandshakeMessage {
 			return supportedCertificateTypes.contains(CertificateType.RAW_PUBLIC_KEY);
 		}
 		return false;
-	}
-
-	private ClientHello(InetSocketAddress peerAddress) {
-		super(peerAddress);
 	}
 
 	// Serialization //////////////////////////////////////////////////
@@ -287,17 +280,14 @@ public final class ClientHello extends HandshakeMessage {
 	 * 
 	 * @param reader 
 	 *            reader with the binary encoding of the message.
-	 * @param peerAddress
-	 *            the IP address and port of the peer this message has been
-	 *            received from or should be sent to
 	 * @return the ClientHello object
 	 * @throws HandshakeException
 	 *             if any of the extensions included in the message is of an
 	 *             unsupported type
 	 */
-	public static ClientHello fromReader(DatagramReader reader, InetSocketAddress peerAddress)
+	public static ClientHello fromReader(DatagramReader reader)
 			throws HandshakeException {
-		ClientHello result = new ClientHello(peerAddress);
+		ClientHello result = new ClientHello();
 
 		int major = reader.read(VERSION_BITS);
 		int minor = reader.read(VERSION_BITS);
@@ -318,7 +308,7 @@ public final class ClientHello extends HandshakeMessage {
 		result.compressionMethods = CompressionMethod.listFromReader(rangeReader);
 
 		if (reader.bytesAvailable()) {
-			result.extensions = HelloExtensions.fromReader(reader, peerAddress);
+			result.extensions = HelloExtensions.fromReader(reader);
 		}
 		return result;
 

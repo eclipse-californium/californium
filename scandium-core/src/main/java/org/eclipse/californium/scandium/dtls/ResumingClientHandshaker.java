@@ -150,8 +150,8 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 
 		default:
 			throw new HandshakeException(
-					String.format("Received unexpected handshake message [%s] from peer %s", message.getMessageType(), message.getPeer()),
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, message.getPeer()));
+					String.format("Received unexpected handshake message [%s] from peer %s", message.getMessageType(), getPeerAddress()),
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE));
 		}
 	}
 
@@ -168,7 +168,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		{
 			LOGGER.debug(
 					"Server [{}] refuses to resume session [{}], performing full handshake instead...",
-					message.getPeer(), session.getSessionIdentifier());
+					getPeerAddress(), session.getSessionIdentifier());
 			// Server refuse to resume the session, go for a full handshake
 			fullHandshake  = true;
 			states = SEVER_CERTIFICATE;
@@ -178,15 +178,13 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 					"Server wants to change compression method in resumed session",
 					new AlertMessage(
 							AlertLevel.FATAL,
-							AlertDescription.ILLEGAL_PARAMETER,
-							message.getPeer()));
+							AlertDescription.ILLEGAL_PARAMETER));
 		} else if (!message.getCipherSuite().equals(session.getCipherSuite())) {
 			throw new HandshakeException(
 					"Server wants to change cipher suite in resumed session",
 					new AlertMessage(
 							AlertLevel.FATAL,
-							AlertDescription.ILLEGAL_PARAMETER,
-							message.getPeer()));
+							AlertDescription.ILLEGAL_PARAMETER));
 		} else {
 			verifyServerHelloExtensions(message);
 			serverRandom = message.getRandom();
@@ -232,21 +230,20 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 					"Cannot create FINISHED message hash",
 					new AlertMessage(
 							AlertLevel.FATAL,
-							AlertDescription.INTERNAL_ERROR,
-							message.getPeer()));
+							AlertDescription.INTERNAL_ERROR));
 		}
 
 		// the handshake hash to check the server's verify_data (without the
 		// server's finished message included)
 		message.verifyData(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, false, md.digest());
 
-		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage(message.getPeer());
+		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage();
 		wrapMessage(flight, changeCipherSpecMessage);
 		setCurrentWriteState();
 
 		mdWithServerFinish.update(message.getRawMessage());
 		handshakeHash = mdWithServerFinish.digest();
-		Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, isClient, handshakeHash, message.getPeer());
+		Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, isClient, handshakeHash);
 		wrapMessage(flight, finished);
 		sendLastFlight(flight);
 		sessionEstablished();

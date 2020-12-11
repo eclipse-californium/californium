@@ -17,8 +17,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.net.InetSocketAddress;
-
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -44,13 +42,11 @@ public final class PSKServerKeyExchange extends ServerKeyExchange {
 
 	// Constructors ///////////////////////////////////////////////////
 	
-	public PSKServerKeyExchange(PskPublicInformation hint, InetSocketAddress peerAddress) {
-		super(peerAddress);
+	public PSKServerKeyExchange(PskPublicInformation hint) {
 		this.hint = hint;
 	}
-	
-	private PSKServerKeyExchange(byte[] hintEncoded, InetSocketAddress peerAddress) {
-		super(peerAddress);
+
+	private PSKServerKeyExchange(byte[] hintEncoded) {
 		this.hint = PskPublicInformation.fromByteArray(hintEncoded);
 	}
 
@@ -82,11 +78,11 @@ public final class PSKServerKeyExchange extends ServerKeyExchange {
 		return writer.toByteArray();
 	}
 	
-	public static HandshakeMessage fromReader(DatagramReader reader, InetSocketAddress peerAddress) {
+	public static HandshakeMessage fromReader(DatagramReader reader) {
 
 		byte[] hintEncoded = reader.readVarBytes(IDENTITY_HINT_LENGTH_BITS);
 
-		return new PSKServerKeyExchange(hintEncoded, peerAddress);
+		return new PSKServerKeyExchange(hintEncoded);
 	}
 	
 	// Getters and Setters ////////////////////////////////////////////

@@ -174,7 +174,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 					public void run() {
 						Handshaker handshaker = staleConnection.getOngoingHandshake();
 						if (handshaker != null) {
-							handshaker.handshakeFailed(new ConnectionEvictedException("Evicted!", staleConnection.getPeerAddress()));
+							handshaker.handshakeFailed(new ConnectionEvictedException("Evicted!"));
 						}
 						synchronized (InMemoryConnectionStore.this) {
 							removeFromAddressConnections(staleConnection);
@@ -365,7 +365,11 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		SessionId sessionId = session.getSessionIdentifier();
 		if (!sessionId.isEmpty()) {
 			if (sessionCache != null) {
-				sessionCache.put(session);
+				if (sessionCache instanceof ClientSessionCache) {
+					((ClientSessionCache)sessionCache).put(connection.getPeerAddress(), session);
+				} else {
+					sessionCache.put(session);
+				}
 			}
 			final Connection previous = connectionsByEstablishedSession.put(sessionId, connection);
 			if (previous != null && previous != connection) {

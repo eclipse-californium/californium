@@ -30,7 +30,6 @@ import org.eclipse.californium.scandium.dtls.CertificateMessage;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.CertificateVerificationResult;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
-import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.util.ServerNames;
 
@@ -113,8 +112,7 @@ public class AsyncNewAdvancedCertificateVerifier extends StaticNewAdvancedCertif
 
 	@Override
 	public CertificateVerificationResult verifyCertificate(final ConnectionId cid, final ServerNames serverName,
-			final Boolean clientUsage, final boolean truncateCertificatePath, final CertificateMessage message,
-			final DTLSSession session) {
+			final Boolean clientUsage, final boolean truncateCertificatePath, final CertificateMessage message) {
 		if (delayMillis <= 0) {
 			if (delayMillis < 0) {
 				try {
@@ -122,14 +120,13 @@ public class AsyncNewAdvancedCertificateVerifier extends StaticNewAdvancedCertif
 				} catch (InterruptedException e) {
 				}
 			}
-			return super.verifyCertificate(cid, serverName, clientUsage, truncateCertificatePath, message, session);
+			return super.verifyCertificate(cid, serverName, clientUsage, truncateCertificatePath, message);
 		} else {
 			executorService.schedule(new Runnable() {
 
 				@Override
 				public void run() {
-					verifyCertificateAsynchronous(cid, serverName, clientUsage, truncateCertificatePath, message,
-							session);
+					verifyCertificateAsynchronous(cid, serverName, clientUsage, truncateCertificatePath, message);
 				}
 			}, delayMillis, TimeUnit.MILLISECONDS);
 			return null;
@@ -137,9 +134,9 @@ public class AsyncNewAdvancedCertificateVerifier extends StaticNewAdvancedCertif
 	}
 
 	private void verifyCertificateAsynchronous(ConnectionId cid, ServerNames serverName, Boolean clientUsage,
-			boolean truncateCertificatePath, CertificateMessage message, DTLSSession session) {
+			boolean truncateCertificatePath, CertificateMessage message) {
 		CertificateVerificationResult result = super.verifyCertificate(cid, serverName, clientUsage,
-				truncateCertificatePath, message, session);
+				truncateCertificatePath, message);
 		CertPath certPath = result.getCertificatePath();
 		PublicKey publicKey = result.getPublicKey();
 		if (certPath == null && publicKey == null) {

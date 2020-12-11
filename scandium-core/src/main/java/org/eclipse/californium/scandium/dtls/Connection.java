@@ -44,6 +44,8 @@ import java.util.ConcurrentModificationException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.eclipse.californium.elements.DtlsEndpointContext;
+import org.eclipse.californium.elements.MapBasedEndpointContext.Attributes;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -341,9 +343,6 @@ public final class Connection {
 			this.lastPeerAddressNanos = ClockUtil.nanoRealtime();
 			InetSocketAddress previous = this.peerAddress;
 			this.peerAddress = peerAddress;
-			if (establishedSession != null) {
-				establishedSession.setPeer(peerAddress);
-			}
 			if (peerAddress == null) {
 				final Handshaker pendingHandshaker = getOngoingHandshake();
 				if (pendingHandshaker != null) {
@@ -393,11 +392,36 @@ public final class Connection {
 	public void setRouter(InetSocketAddress router) {
 		if (this.router != router && (this.router == null || !this.router.equals(router))) {
 			this.router = router;
-			if (establishedSession != null) {
-				establishedSession.setRouter(router);
-			}
 			updateConnectionState();
 		}
+	}
+
+	/**
+	 * Get endpoint context for writing messages.
+	 * 
+	 * @return endpoint context for writing messages.
+	 */
+	public DtlsEndpointContext getWriteContext() {
+		DTLSSession session = getSession();
+		Attributes attributes = session.getConnectionWriteContextAttributes();
+		if (router != null) {
+			attributes.add(DtlsEndpointContext.KEY_VIA_ROUTER, "dtls-cid-router");
+		}
+		return new DtlsEndpointContext(peerAddress, session.getHostName(), session.getPeerIdentity(), attributes);
+	}
+
+	/**
+	 * Get endpoint context for reading messages.
+	 * 
+	 * @return endpoint context for reading messages.
+	 */
+	public DtlsEndpointContext getReadContext() {
+		DTLSSession session = getSession();
+		Attributes attributes = session.getConnectionReadContextAttributes();
+		if (router != null) {
+			attributes.add(DtlsEndpointContext.KEY_VIA_ROUTER, "dtls-cid-router");
+		}
+		return new DtlsEndpointContext(peerAddress, session.getHostName(), session.getPeerIdentity(), attributes);
 	}
 
 	/**
@@ -707,7 +731,7 @@ public final class Connection {
 		@Override
 		public void sessionEstablished(Handshaker handshaker, DTLSSession session) throws HandshakeException {
 			establishedSession = session;
-			LOGGER.debug("Session with [{}] has been established", session.getPeer());
+			LOGGER.debug("Session with [{}] has been established", peerAddress);
 		}
 
 		@Override
@@ -827,7 +851,6 @@ public final class Connection {
 		}
 		peerAddress = SerializationUtil.readAddress(reader);
 		establishedSession = DTLSSession.fromReader(reader);
-		establishedSession.setPeer(peerAddress);
 		if (reader.readNextByte() == 1) {
 			establishedSession.setReadConnectionId(cid);
 		}

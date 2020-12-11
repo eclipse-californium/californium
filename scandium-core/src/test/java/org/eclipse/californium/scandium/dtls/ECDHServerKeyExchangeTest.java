@@ -17,8 +17,6 @@ package org.eclipse.californium.scandium.dtls;
 
 import static org.junit.Assert.assertNotNull;
 
-import java.net.InetSocketAddress;
-
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
@@ -31,7 +29,6 @@ import org.junit.experimental.categories.Category;
 public class ECDHServerKeyExchangeTest {
 
 	EcdhEcdsaServerKeyExchange msg;
-	InetSocketAddress peerAddress = new InetSocketAddress(5000);
 
 	@Before
 	public void setUp() throws Exception {
@@ -42,8 +39,7 @@ public class ECDHServerKeyExchangeTest {
 				new XECDHECryptography(usableGroup),
 				DtlsTestTools.getPrivateKey(),
 				new Random(),
-				new Random(),
-				peerAddress);
+				new Random());
 	}
 
 	@Test
@@ -57,7 +53,7 @@ public class ECDHServerKeyExchangeTest {
 		byte[] serializedMsg = msg.toByteArray();
 		HandshakeParameter parameter = new HandshakeParameter(KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN, CertificateType.RAW_PUBLIC_KEY);
 
-		HandshakeMessage handshakeMsg = DtlsTestTools.fromByteArray(serializedMsg, parameter, peerAddress);
+		HandshakeMessage handshakeMsg = DtlsTestTools.fromByteArray(serializedMsg, parameter);
 
 		assertNotNull(handshakeMsg.toString());
 	}

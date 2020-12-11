@@ -105,8 +105,8 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 
 		default:
 			throw new HandshakeException(
-					String.format("Received unexpected handshake message [%s] from peer %s", message.getMessageType(), message.getPeer()),
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, message.getPeer()));
+					String.format("Received unexpected handshake message [%s] from peer %s", message.getMessageType(), getPeerAddress()),
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE));
 		}
 
 	}
@@ -128,15 +128,13 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 					"Client wants to change cipher suite in resumed session",
 					new AlertMessage(
 							AlertLevel.FATAL,
-							AlertDescription.ILLEGAL_PARAMETER,
-							clientHello.getPeer()));
+							AlertDescription.ILLEGAL_PARAMETER));
 		} else if (!clientHello.getCompressionMethods().contains(session.getCompressionMethod())) {
 			throw new HandshakeException(
 					"Client wants to change compression method in resumed session",
 					new AlertMessage(
 							AlertLevel.FATAL,
-							AlertDescription.ILLEGAL_PARAMETER,
-							clientHello.getPeer()));
+							AlertDescription.ILLEGAL_PARAMETER));
 		} else {
 			clientRandom = clientHello.getRandom();
 			serverRandom = new Random();
@@ -150,10 +148,10 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 			DTLSFlight flight = createFlight();
 
 			ServerHello serverHello = new ServerHello(clientHello.getClientVersion(), serverRandom, session.getSessionIdentifier(),
-					cipherSuite, session.getCompressionMethod(), serverHelloExtensions, clientHello.getPeer());
+					cipherSuite, session.getCompressionMethod(), serverHelloExtensions);
 			wrapMessage(flight, serverHello);
 
-			ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage(clientHello.getPeer());
+			ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage();
 			wrapMessage(flight, changeCipherSpecMessage);
 
 			MessageDigest md = getHandshakeMessageDigest();
@@ -166,8 +164,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 						"Cannot create FINISHED message hash",
 						new AlertMessage(
 								AlertLevel.FATAL,
-								AlertDescription.INTERNAL_ERROR,
-								clientHello.getPeer()));
+								AlertDescription.INTERNAL_ERROR));
 			}
 
 			masterSecret = session.getMasterSecret();
@@ -175,7 +172,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 
 			setCurrentWriteState();
 
-			Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, false, md.digest(), clientHello.getPeer());
+			Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, false, md.digest());
 			wrapMessage(flight, finished);
 
 			mdWithServerFinished.update(finished.toByteArray());

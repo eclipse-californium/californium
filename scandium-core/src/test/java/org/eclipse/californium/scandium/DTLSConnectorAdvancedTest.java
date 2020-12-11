@@ -223,15 +223,14 @@ public class DTLSConnectorAdvancedTest {
 
 			@Override
 			public CertificateVerificationResult verifyCertificate(final ConnectionId cid, final ServerNames serverName,
-					final Boolean clientUsage, final boolean truncateCertificatePath, final CertificateMessage message,
-					final DTLSSession session) {
+					final Boolean clientUsage, final boolean truncateCertificatePath, final CertificateMessage message) {
 				final int delay = getDelay();
 				try {
 					LOGGER.info("verify certificate");
 					CertificateVerificationResult result = null;
 					for (int index = 0; index < aHandshakeResponses; ++index) {
 						CertificateVerificationResult temp = super.verifyCertificate(cid, serverName, clientUsage,
-								truncateCertificatePath, message, session);
+								truncateCertificatePath, message);
 						if (index == 0) {
 							result = temp;
 						}
@@ -378,7 +377,7 @@ public class DTLSConnectorAdvancedTest {
 			// Create handshaker with ReverseRecordLayer
 			// to send message in bad order.
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ClientHandshaker clientHandshaker = new ClientHandshaker(new DTLSSession(serverHelper.serverEndpoint),
+			ClientHandshaker clientHandshaker = new ClientHandshaker(new DTLSSession(),
 					new TestRecordLayer(rawClient, true), timer, createClientConnection(), clientConfigSingleRecord,
 					false);
 			clientHandshaker.addSessionListener(sessionListener);
@@ -439,7 +438,7 @@ public class DTLSConnectorAdvancedTest {
 			// to send message in bad order.
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			ClientHandshaker clientHandshaker = new ClientHandshaker(
-					new DTLSSession(alternativeServerHelper.serverEndpoint), recordLayer, timer, createClientConnection(),
+					new DTLSSession(), recordLayer, timer, createConnection(clientCidGenerator, alternativeServerHelper.serverEndpoint),
 					clientConfigSingleRecord, false);
 			clientHandshaker.addSessionListener(sessionListener);
 			// Start handshake (Send CLIENT HELLO)
@@ -513,7 +512,7 @@ public class DTLSConnectorAdvancedTest {
 
 			// Create server handshaker
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ServerHandshaker serverHandshaker = new ServerHandshaker(0, new DTLSSession(client.getAddress(), 1),
+			ServerHandshaker serverHandshaker = new ServerHandshaker(0, new DTLSSession(1),
 					new TestRecordLayer(rawServer, true), timer, createServerConnection(), serverConfigSingleRecord);
 			serverHandshaker.addSessionListener(sessionListener);
 
@@ -553,7 +552,7 @@ public class DTLSConnectorAdvancedTest {
 
 			// Create handshaker
 			Connection clientConnection = createClientConnection();
-			DTLSSession clientSession = new DTLSSession(serverHelper.serverEndpoint);
+			DTLSSession clientSession = new DTLSSession();
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			ClientHandshaker clientHandshaker = new ClientHandshaker(clientSession, clientRecordLayer, timer,
 					clientConnection, clientConfigSingleRecord, false);
@@ -586,7 +585,7 @@ public class DTLSConnectorAdvancedTest {
 			// Create resume handshaker
 			sessionListener = new LatchSessionListener();
 			DTLSSession resumableSession = new DTLSSession(clientSession.getSessionIdentifier(),
-					serverHelper.serverEndpoint, clientSession.getSessionTicket(), 0);
+					clientSession.getSessionTicket(), 0);
 			ResumingClientHandshaker resumingClientHandshaker = new ResumingClientHandshaker(resumableSession,
 					clientRecordLayer, timer, clientConnection, clientConfigSingleRecord, false);
 			resumingClientHandshaker.addSessionListener(sessionListener);
@@ -635,7 +634,7 @@ public class DTLSConnectorAdvancedTest {
 			client.send(data);
 
 			// Create server handshaker
-			DTLSSession serverSession = new DTLSSession(client.getAddress(), 1);
+			DTLSSession serverSession = new DTLSSession(1);
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			ServerHandshaker serverHandshaker = new ServerHandshaker(0, serverSession, serverRecordLayer, timer,
 					createServerConnection(), serverConfigSingleRecord);
@@ -662,7 +661,7 @@ public class DTLSConnectorAdvancedTest {
 			rs = waitForFlightReceived("app data", collector, 1);
 
 			sessionListener = new LatchSessionListener();
-			DTLSSession resumableSession = new DTLSSession(serverSession.getSessionIdentifier(), client.getAddress(),
+			DTLSSession resumableSession = new DTLSSession(serverSession.getSessionIdentifier(),
 					serverSession.getSessionTicket(), 0);
 			ResumingServerHandshaker resumingServerHandshaker = new ResumingServerHandshaker(0, resumableSession,
 					serverRecordLayer, timer, createServerConnection(), serverConfigSingleRecord);
@@ -729,7 +728,7 @@ public class DTLSConnectorAdvancedTest {
 			client.send(data);
 
 			// Create server handshaker
-			DTLSSession serverSession = new DTLSSession(client.getAddress(), 1);
+			DTLSSession serverSession = new DTLSSession(1);
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			ServerHandshaker serverHandshaker = new ServerHandshaker(0, serverSession, serverRecordLayer, timer,
 					createServerConnection(), serverHelper.serverConfig);
@@ -754,7 +753,7 @@ public class DTLSConnectorAdvancedTest {
 			rs = waitForFlightReceived("app data", collector, 1);
 
 			sessionListener = new LatchSessionListener();
-			DTLSSession resumableSession = new DTLSSession(serverSession.getSessionIdentifier(), client.getAddress(),
+			DTLSSession resumableSession = new DTLSSession(serverSession.getSessionIdentifier(),
 					serverSession.getSessionTicket(), 0);
 			ResumingServerHandshaker resumingServerHandshaker = new ResumingServerHandshaker(0, resumableSession,
 					serverRecordLayer, timer, createServerConnection(), serverHelper.serverConfig);
@@ -825,7 +824,7 @@ public class DTLSConnectorAdvancedTest {
 			client.send(data);
 
 			// Create server handshaker
-			DTLSSession serverSession = new DTLSSession(client.getAddress(), 1);
+			DTLSSession serverSession = new DTLSSession(1);
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			ServerHandshaker serverHandshaker = new ServerHandshaker(0, serverSession, serverRecordLayer, timer,
 					createServerConnection(), serverConfig);
@@ -849,7 +848,7 @@ public class DTLSConnectorAdvancedTest {
 			rs = waitForFlightReceived("app data", collector, 1);
 
 			sessionListener = new LatchSessionListener();
-			DTLSSession newSession = new DTLSSession(client.getAddress(), 1);
+			DTLSSession newSession = new DTLSSession(1);
 			ServerHandshaker resumingServerHandshaker = new ServerHandshaker(0, newSession,
 					serverRecordLayer, timer, createServerConnection(), serverConfig);
 			resumingServerHandshaker.addSessionListener(sessionListener);
@@ -897,7 +896,7 @@ public class DTLSConnectorAdvancedTest {
 			client.send(data);
 
 			// Create server handshaker
-			DTLSSession serverSession = new DTLSSession(client.getAddress(), 1);
+			DTLSSession serverSession = new DTLSSession(1);
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			ServerHandshaker serverHandshaker = new ServerHandshaker(0, serverSession, serverRecordLayer, timer,
 					createServerConnection(), serverConfigSingleRecord);
@@ -924,7 +923,7 @@ public class DTLSConnectorAdvancedTest {
 			TestConditionTools.assertStatisticCounter(clientHealth, "dropped received records", is(0L));
 
 			sessionListener = new LatchSessionListener();
-			DTLSSession resumableSession = new DTLSSession(serverSession.getSessionIdentifier(), client.getAddress(),
+			DTLSSession resumableSession = new DTLSSession(serverSession.getSessionIdentifier(),
 					serverSession.getSessionTicket(), 0);
 			ResumingServerHandshaker resumingServerHandshaker = new ResumingServerHandshaker(0, resumableSession,
 					serverRecordLayer, timer, createServerConnection(), serverConfigSingleRecord);
@@ -1007,7 +1006,7 @@ public class DTLSConnectorAdvancedTest {
 			client.send(data);
 
 			// Create server handshaker
-			DTLSSession serverSession = new DTLSSession(client.getAddress(), 1);
+			DTLSSession serverSession = new DTLSSession(1);
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			ServerHandshaker serverHandshaker = new ServerHandshaker(0, serverSession, serverRecordLayer, timer,
 					createServerConnection(), serverHelper.serverConfig);
@@ -1032,7 +1031,7 @@ public class DTLSConnectorAdvancedTest {
 			rs = waitForFlightReceived("app data", collector, 1);
 
 			sessionListener = new LatchSessionListener();
-			DTLSSession resumableSession = new DTLSSession(serverSession.getSessionIdentifier(), client.getAddress(),
+			DTLSSession resumableSession = new DTLSSession(serverSession.getSessionIdentifier(),
 					serverSession.getSessionTicket(), 0);
 			ResumingServerHandshaker resumingServerHandshaker = new ResumingServerHandshaker(0, resumableSession,
 					serverRecordLayer, timer, createServerConnection(), serverHelper.serverConfig);
@@ -1093,7 +1092,7 @@ public class DTLSConnectorAdvancedTest {
 			client.send(data);
 
 			// Create server handshaker
-			DTLSSession serverSession = new DTLSSession(client.getAddress(), 1);
+			DTLSSession serverSession = new DTLSSession(1);
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			ServerHandshaker serverHandshaker = new ServerHandshaker(0, serverSession, serverRecordLayer, timer,
 					createServerConnection(), serverConfig);
@@ -1117,7 +1116,7 @@ public class DTLSConnectorAdvancedTest {
 			rs = waitForFlightReceived("app data", collector, 1);
 
 			sessionListener = new LatchSessionListener();
-			DTLSSession newSession = new DTLSSession(client.getAddress(), 1);
+			DTLSSession newSession = new DTLSSession(1);
 			ServerHandshaker resumingServerHandshaker = new ServerHandshaker(0, newSession,
 					serverRecordLayer, timer, createServerConnection(), serverConfig);
 			resumingServerHandshaker.addSessionListener(sessionListener);
@@ -1180,7 +1179,7 @@ public class DTLSConnectorAdvancedTest {
 
 			// Create handshaker
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ClientHandshaker clientHandshaker = new ClientHandshaker(new DTLSSession(serverHelper.serverEndpoint),
+			ClientHandshaker clientHandshaker = new ClientHandshaker(new DTLSSession(),
 					clientRecordLayer, timer, createClientConnection(), clientConfig, false);
 			clientHandshaker.addSessionListener(sessionListener);
 
@@ -1270,8 +1269,8 @@ public class DTLSConnectorAdvancedTest {
 
 			// Create handshaker
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ClientHandshaker clientHandshaker = new ClientHandshaker(new DTLSSession(alternativeServerHelper.serverEndpoint),
-					clientRecordLayer, timer, createClientConnection(), clientConfig, false);
+			ClientHandshaker clientHandshaker = new ClientHandshaker(new DTLSSession(),
+					clientRecordLayer, timer, createConnection(clientCidGenerator, alternativeServerHelper.serverEndpoint), clientConfig, false);
 			clientHandshaker.addSessionListener(sessionListener);
 
 			// Start handshake (Send CLIENT HELLO, flight 1)
@@ -1372,7 +1371,7 @@ public class DTLSConnectorAdvancedTest {
 			// Create server handshaker
 			TestRecordLayer serverRecordLayer = new TestRecordLayer(rawServer);
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ServerHandshaker serverHandshaker = new ServerHandshaker(0, new DTLSSession(client.getAddress(), 1),
+			ServerHandshaker serverHandshaker = new ServerHandshaker(0, new DTLSSession(1),
 					serverRecordLayer, timer, createServerConnection(), serverHelper.serverConfig);
 			serverHandshaker.addSessionListener(sessionListener);
 
@@ -1435,7 +1434,7 @@ public class DTLSConnectorAdvancedTest {
 			// Create handshaker
 			Connection clientConnection = createClientConnection();
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ClientHandshaker clientHandshaker = new ClientHandshaker(new DTLSSession(serverHelper.serverEndpoint),
+			ClientHandshaker clientHandshaker = new ClientHandshaker(new DTLSSession(),
 					clientRecordLayer, timer, clientConnection, clientConfig, false);
 			clientHandshaker.addSessionListener(sessionListener);
 
@@ -1462,8 +1461,7 @@ public class DTLSConnectorAdvancedTest {
 
 			serverHealth.reset();
 
-			AlertMessage close = new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY,
-					serverHelper.serverEndpoint);
+			AlertMessage close = new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY);
 			send(clientConnection, clientRecordLayer, close);
 			// Wait to receive response from server
 			// (CLOSE_NOTIFY, flight 8)
@@ -1505,7 +1503,7 @@ public class DTLSConnectorAdvancedTest {
 			// Create handshaker
 			Connection clientConnection = createClientConnection();
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ClientHandshaker clientHandshaker = new ClientHandshaker(new DTLSSession(serverHelper.serverEndpoint),
+			ClientHandshaker clientHandshaker = new ClientHandshaker(new DTLSSession(),
 					clientRecordLayer, timer, clientConnection, clientConfig, false);
 			clientHandshaker.addSessionListener(sessionListener);
 
@@ -1532,7 +1530,7 @@ public class DTLSConnectorAdvancedTest {
 
 			serverHealth.reset();
 
-			ApplicationMessage app = new ApplicationMessage("hi".getBytes(), serverHelper.serverEndpoint);
+			ApplicationMessage app = new ApplicationMessage("hi".getBytes());
 			send(clientConnection, clientRecordLayer, app);
 
 			// app response
@@ -1551,9 +1549,8 @@ public class DTLSConnectorAdvancedTest {
 
 			serverHealth.reset();
 
-			app = new ApplicationMessage("hi, again".getBytes(), serverHelper.serverEndpoint);
-			AlertMessage close = new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY,
-					serverHelper.serverEndpoint);
+			app = new ApplicationMessage("hi, again".getBytes());
+			AlertMessage close = new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY);
 
 			clientRecordLayer.setReverse(true);
 			send(clientConnection, clientRecordLayer, app, close);
@@ -1567,7 +1564,7 @@ public class DTLSConnectorAdvancedTest {
 			TestConditionTools.assertStatisticCounter(serverHealth, "received records", is(2L));
 			TestConditionTools.assertStatisticCounter(serverHealth, "dropped received records", is(0L));
 
-			app = new ApplicationMessage("bye".getBytes(), serverHelper.serverEndpoint);
+			app = new ApplicationMessage("bye".getBytes());
 			send(clientConnection, clientRecordLayer, app);
 
 			TestConditionTools.assertStatisticCounter(serverHealth, "dropped received records", is(1L),
@@ -1612,7 +1609,7 @@ public class DTLSConnectorAdvancedTest {
 			client.send(data);
 
 			// Create server handshaker
-			DTLSSession serverSession = new DTLSSession(client.getAddress(), 1);
+			DTLSSession serverSession = new DTLSSession(1);
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			ServerHandshaker serverHandshaker = new ServerHandshaker(0, serverSession, serverRecordLayer, timer,
 					createServerConnection(), serverHelper.serverConfig);
@@ -1636,7 +1633,7 @@ public class DTLSConnectorAdvancedTest {
 			rs = waitForFlightReceived("app data", collector, 1);
 
 			sessionListener = new LatchSessionListener();
-			DTLSSession resumableSession = new DTLSSession(serverSession.getSessionIdentifier(), client.getAddress(),
+			DTLSSession resumableSession = new DTLSSession(serverSession.getSessionIdentifier(),
 					serverSession.getSessionTicket(), 0);
 			ResumingServerHandshaker resumingServerHandshaker = new ResumingServerHandshaker(0, resumableSession,
 					serverRecordLayer, timer, createServerConnection(), serverHelper.serverConfig);
@@ -1703,7 +1700,7 @@ public class DTLSConnectorAdvancedTest {
 			client.send(data);
 
 			// Create server handshaker
-			DTLSSession serverSession = new DTLSSession(client.getAddress(), 1);
+			DTLSSession serverSession = new DTLSSession(1);
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			ServerHandshaker serverHandshaker = new ServerHandshaker(0, serverSession, serverRecordLayer, timer,
 					createServerConnection(), serverHelper.serverConfig);
@@ -1728,7 +1725,7 @@ public class DTLSConnectorAdvancedTest {
 
 			sessionListener = new LatchSessionListener();
 			Connection serverConnection = createServerConnection();
-			DTLSSession resumableSession = new DTLSSession(serverSession.getSessionIdentifier(), client.getAddress(),
+			DTLSSession resumableSession = new DTLSSession(serverSession.getSessionIdentifier(),
 					serverSession.getSessionTicket(), 0);
 			ResumingServerHandshaker resumingServerHandshaker = new ResumingServerHandshaker(0, resumableSession,
 					serverRecordLayer, timer, serverConnection, serverHelper.serverConfig);
@@ -1756,8 +1753,7 @@ public class DTLSConnectorAdvancedTest {
 
 			clientHealth.reset();
 
-			AlertMessage close = new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY,
-					client.getAddress());
+			AlertMessage close = new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY);
 			send(serverConnection, serverRecordLayer, close);
 
 			// Wait to receive response from server
@@ -1813,7 +1809,7 @@ public class DTLSConnectorAdvancedTest {
 
 			// Create server handshaker
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ServerHandshaker serverHandshaker = new ServerHandshaker(0, new DTLSSession(client.getAddress(), 1),
+			ServerHandshaker serverHandshaker = new ServerHandshaker(0, new DTLSSession(1),
 					new TestRecordLayer(rawServer), timer, createServerConnection(), serverHelper.serverConfig);
 			serverHandshaker.addSessionListener(sessionListener);
 
@@ -1869,7 +1865,7 @@ public class DTLSConnectorAdvancedTest {
 
 			// Create handshaker
 			Connection clientConnection = createClientConnection();
-			DTLSSession clientSession = new DTLSSession(serverHelper.serverEndpoint);
+			DTLSSession clientSession = new DTLSSession();
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			ClientHandshaker clientHandshaker = new ClientHandshaker(clientSession, clientRecordLayer, timer,
 					clientConnection, clientConfig, false);
@@ -1902,7 +1898,7 @@ public class DTLSConnectorAdvancedTest {
 			// Create resume handshaker
 			sessionListener = new LatchSessionListener();
 			DTLSSession resumableSession = new DTLSSession(clientSession.getSessionIdentifier(),
-					serverHelper.serverEndpoint, clientSession.getSessionTicket(), 0);
+					clientSession.getSessionTicket(), 0);
 			ResumingClientHandshaker resumingClientHandshaker = new ResumingClientHandshaker(resumableSession,
 					clientRecordLayer, timer, clientConnection, clientConfig, false);
 			resumingClientHandshaker.addSessionListener(sessionListener);
@@ -1951,7 +1947,7 @@ public class DTLSConnectorAdvancedTest {
 
 			// Create handshaker
 			Connection clientConnection = createClientConnection();
-			DTLSSession clientSession = new DTLSSession(serverHelper.serverEndpoint);
+			DTLSSession clientSession = new DTLSSession();
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			ClientHandshaker clientHandshaker = new ClientHandshaker(clientSession, clientRecordLayer, timer,
 					clientConnection, clientConfig, false);
@@ -1984,7 +1980,7 @@ public class DTLSConnectorAdvancedTest {
 			// Create resume handshaker
 			sessionListener = new LatchSessionListener();
 			DTLSSession resumableSession = new DTLSSession(clientSession.getSessionIdentifier(),
-					serverHelper.serverEndpoint, clientSession.getSessionTicket(), 0);
+					clientSession.getSessionTicket(), 0);
 			ResumingClientHandshaker resumingClientHandshaker = new ResumingClientHandshaker(resumableSession,
 					clientRecordLayer, timer, clientConnection, clientConfigSingleRecord, false);
 			resumingClientHandshaker.addSessionListener(sessionListener);
@@ -2036,7 +2032,7 @@ public class DTLSConnectorAdvancedTest {
 			rawClient.start();
 
 			// Create handshaker
-			DTLSSession clientSession = new DTLSSession(serverHelper.serverEndpoint);
+			DTLSSession clientSession = new DTLSSession();
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			ClientHandshaker clientHandshaker = new ClientHandshaker(clientSession, clientRecordLayer, timer,
 					createClientConnection(), clientConfigSingleRecord, false);
@@ -2093,7 +2089,7 @@ public class DTLSConnectorAdvancedTest {
 			client.send(data);
 
 			// Create server handshaker
-			DTLSSession serverSession = new DTLSSession(client.getAddress(), 1);
+			DTLSSession serverSession = new DTLSSession(1);
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			ServerHandshaker serverHandshaker = new ServerHandshaker(0, serverSession, serverRecordLayer, timer,
 					createServerConnection(), serverHelper.serverConfig);
@@ -2117,7 +2113,7 @@ public class DTLSConnectorAdvancedTest {
 			rs = waitForFlightReceived("app data", collector, 1);
 
 			sessionListener = new LatchSessionListener();
-			DTLSSession resumableSession = new DTLSSession(serverSession.getSessionIdentifier(), client.getAddress(),
+			DTLSSession resumableSession = new DTLSSession(serverSession.getSessionIdentifier(),
 					serverSession.getSessionTicket(), 0);
 			ResumingServerHandshaker resumingServerHandshaker = new ResumingServerHandshaker(0, resumableSession,
 					serverRecordLayer, timer, createServerConnection(), serverConfigSingleRecord);
@@ -2171,7 +2167,7 @@ public class DTLSConnectorAdvancedTest {
 			// Create server handshaker
 			TestRecordLayer serverRecordLayer = new TestRecordLayer(rawServer);
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ServerHandshaker serverHandshaker = new ServerHandshaker(0, new DTLSSession(client.getAddress(), 1),
+			ServerHandshaker serverHandshaker = new ServerHandshaker(0, new DTLSSession(1),
 					serverRecordLayer, timer, createServerConnection(), serverConfigSingleRecord);
 			serverHandshaker.addSessionListener(sessionListener);
 
@@ -2225,7 +2221,7 @@ public class DTLSConnectorAdvancedTest {
 			// Create server handshaker
 			TestRecordLayer serverRecordLayer = new TestRecordLayer(rawServer);
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ServerHandshaker serverHandshaker = new ServerHandshaker(0, new DTLSSession(client.getAddress(), 1),
+			ServerHandshaker serverHandshaker = new ServerHandshaker(0, new DTLSSession(1),
 					serverRecordLayer, timer, createServerConnection(), serverConfigSingleRecord);
 			serverHandshaker.addSessionListener(sessionListener);
 
@@ -2279,7 +2275,7 @@ public class DTLSConnectorAdvancedTest {
 		RecordCollectorDataHandler alt2Collector = new RecordCollectorDataHandler(clientCidGenerator);
 		UdpConnector rawAlt2Client = new UdpConnector(0, alt2Collector);
 
-		DTLSSession clientSession = new DTLSSession(serverHelper.serverEndpoint);
+		DTLSSession clientSession = new DTLSSession();
 		try {
 			// Start connector
 			rawClient.start();
@@ -2319,7 +2315,7 @@ public class DTLSConnectorAdvancedTest {
 			rawAlt1Client.start();
 			LatchSessionListener alt1SessionListener = new LatchSessionListener();
 			DTLSSession resumableSession = new DTLSSession(clientSession.getSessionIdentifier(),
-					serverHelper.serverEndpoint, clientSession.getSessionTicket(), 0);
+					clientSession.getSessionTicket(), 0);
 			ResumingClientHandshaker resumingClientHandshaker = new ResumingClientHandshaker(resumableSession,
 					new TestRecordLayer(rawAlt1Client), timer, clientConnection, clientConfig, false);
 			resumingClientHandshaker.addSessionListener(alt1SessionListener);
@@ -2334,7 +2330,7 @@ public class DTLSConnectorAdvancedTest {
 			// Create 2. resume handshaker
 			rawAlt2Client.start();
 			LatchSessionListener alt2SessionListener = new LatchSessionListener();
-			resumableSession = new DTLSSession(clientSession.getSessionIdentifier(), serverHelper.serverEndpoint,
+			resumableSession = new DTLSSession(clientSession.getSessionIdentifier(),
 					clientSession.getSessionTicket(), 0);
 			resumingClientHandshaker = new ResumingClientHandshaker(resumableSession,
 					new TestRecordLayer(rawAlt2Client), timer, clientConnection, clientConfig, false);
@@ -2388,7 +2384,7 @@ public class DTLSConnectorAdvancedTest {
 			rawClient.start();
 
 			// Create handshaker
-			DTLSSession clientSession = new DTLSSession(serverHelper.serverEndpoint);
+			DTLSSession clientSession = new DTLSSession();
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			ClientHandshaker clientHandshaker = new ClientHandshaker(clientSession, clientRecordLayer, timer,
 					createClientConnection(), clientConfigSingleRecord, false);
@@ -2442,7 +2438,7 @@ public class DTLSConnectorAdvancedTest {
 			// Create server handshaker
 			TestRecordLayer serverRecordLayer = new TestRecordLayer(rawServer);
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ServerHandshaker serverHandshaker = new ServerHandshaker(0, new DTLSSession(client.getAddress(), 1),
+			ServerHandshaker serverHandshaker = new ServerHandshaker(0, new DTLSSession(1),
 					serverRecordLayer, timer, createServerConnection(), serverConfigSingleRecord);
 			serverHandshaker.addSessionListener(sessionListener);
 
@@ -2483,7 +2479,7 @@ public class DTLSConnectorAdvancedTest {
 			rawClient.start();
 
 			// Create handshaker
-			DTLSSession clientSession = new DTLSSession(serverHelper.serverEndpoint);
+			DTLSSession clientSession = new DTLSSession();
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			AdversaryClientHandshaker clientHandshaker = new AdversaryClientHandshaker(clientSession, clientRecordLayer,
 					timer, createClientConnection(), clientConfig);
@@ -2572,7 +2568,7 @@ public class DTLSConnectorAdvancedTest {
 			rawClient.start();
 
 			// Create handshaker
-			DTLSSession clientSession = new DTLSSession(serverHelper.serverEndpoint);
+			DTLSSession clientSession = new DTLSSession();
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			ClientHandshaker clientHandshaker = new ClientHandshaker(clientSession, clientRecordLayer, timer,
 					createClientConnection(), clientConfig, false);
@@ -2641,7 +2637,7 @@ public class DTLSConnectorAdvancedTest {
 			rawClient.start();
 
 			// Create handshaker
-			DTLSSession clientSession = new DTLSSession(serverHelper.serverEndpoint);
+			DTLSSession clientSession = new DTLSSession();
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			ClientHandshaker clientHandshaker = new ClientHandshaker(clientSession, clientRecordLayer, timer,
 					createClientConnection(), clientConfig, false);
@@ -2705,7 +2701,7 @@ public class DTLSConnectorAdvancedTest {
 			rawClient.start();
 
 			// Create handshaker
-			DTLSSession clientSession = new DTLSSession(serverHelper.serverEndpoint);
+			DTLSSession clientSession = new DTLSSession();
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			ClientHandshaker clientHandshaker = new ClientHandshaker(clientSession, clientRecordLayer, timer,
 					createClientConnection(), clientConfig, false);
@@ -2776,7 +2772,7 @@ public class DTLSConnectorAdvancedTest {
 			rawClient.start();
 
 			// Create handshaker
-			DTLSSession clientSession = new DTLSSession(serverHelper.serverEndpoint);
+			DTLSSession clientSession = new DTLSSession();
 			LatchSessionListener sessionListener = new LatchSessionListener();
 			ClientHandshaker clientHandshaker = new ClientHandshaker(clientSession, clientRecordLayer, timer,
 					createClientConnection(), clientConfig, false);
@@ -2840,7 +2836,7 @@ public class DTLSConnectorAdvancedTest {
 			// Create server handshaker
 			TestRecordLayer serverRecordLayer = new TestRecordLayer(rawServer);
 			LatchSessionListener sessionListener = new LatchSessionListener();
-			ServerHandshaker serverHandshaker = new ServerHandshaker(0, new DTLSSession(client.getAddress(), 1),
+			ServerHandshaker serverHandshaker = new ServerHandshaker(0, new DTLSSession(1),
 					serverRecordLayer, timer, createServerConnection(), builder.build());
 			serverHandshaker.addSessionListener(sessionListener);
 
@@ -2886,7 +2882,7 @@ public class DTLSConnectorAdvancedTest {
 		if (session == null && connection.hasOngoingHandshake()) {
 			session = connection.getOngoingHandshake().getSession();
 		}
-		InetSocketAddress peerAddress = session.getPeer();
+		InetSocketAddress peerAddress = connection.getPeerAddress();
 		for (DTLSMessage message : messages) {
 			Record record = new Record(message.getContentType(), session.getWriteEpoch(), session.getSequenceNumber(),
 					message, session, true, 0);
@@ -3049,20 +3045,22 @@ public class DTLSConnectorAdvancedTest {
 	}
 
 	private Connection createServerConnection() {
-		Connection connection = new Connection(client.getAddress(), new SerialExecutor(executor));
-		connection.setConnectionId(serverCidGenerator.createConnectionId());
-		return connection;
+		return createConnection(serverCidGenerator, client.getAddress());
 	}
 
 	private Connection createClientConnection() {
-		ConnectionId cid = clientCidGenerator != null ? clientCidGenerator.createConnectionId() : null;
+		return createConnection(clientCidGenerator, serverHelper.serverEndpoint);
+	}
+
+	private Connection createConnection(ConnectionIdGenerator cidGenerator, InetSocketAddress peer) {
+		ConnectionId cid = cidGenerator != null ? cidGenerator.createConnectionId() : null;
 		if (cid == null) {
 			// dummy cid as used by connection store
 			byte[] cidBytes = new byte[4];
 			RandomManager.currentRandom().nextBytes(cidBytes);
 			cid = new ConnectionId(cidBytes);
 		}
-		Connection connection = new Connection(serverHelper.serverEndpoint, new SerialExecutor(executor));
+		Connection connection = new Connection(peer, new SerialExecutor(executor));
 		connection.setConnectionId(cid);
 		return connection;
 	}
