@@ -88,6 +88,9 @@ public interface MessageObserver {
 
 	/**
 	 * Invoked when the message has been acknowledged by the remote endpoint.
+	 * 
+	 * Note: since 3.0 this is only called for separate ACKs, not longer for
+	 * piggy-backed responses.
 	 */
 	void onAcknowledgement();
 
