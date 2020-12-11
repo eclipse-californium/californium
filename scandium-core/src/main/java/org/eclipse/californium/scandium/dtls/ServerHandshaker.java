@@ -254,7 +254,7 @@ public class ServerHandshaker extends Handshaker {
 			default:
 				throw new HandshakeException(
 						String.format("Unsupported key exchange algorithm %s", session.getKeyExchange().name()),
-						new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, message.getPeer()));
+						new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
 			}
 			break;
 
@@ -271,8 +271,8 @@ public class ServerHandshaker extends Handshaker {
 
 		default:
 			throw new HandshakeException(
-					String.format("Received unexpected %s message from peer %s", message.getMessageType(), message.getPeer()),
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, message.getPeer()));
+					String.format("Received unexpected %s message from peer %s", message.getMessageType(), getPeerAddress()),
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE));
 		}
 	}
 
@@ -315,8 +315,7 @@ public class ServerHandshaker extends Handshaker {
 		clientPublicKey = message.getPublicKey();
 		if (clientAuthenticationRequired && clientPublicKey == null) {
 			LOGGER.debug("Client authentication failed: missing certificate!");
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE,
-					session.getPeer());
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
 			throw new HandshakeException("Client Certificate required!", alert);
 		}
 		if (clientPublicKey == null) {
@@ -369,7 +368,7 @@ public class ServerHandshaker extends Handshaker {
 		// check if client sent all expected messages
 		// (i.e. ClientCertificate/CertificateVerify when server sent CertificateRequest)
 		if (clientAuthenticationRequired && states == EMPTY_CLIENT_CERTIFICATE) {
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, session.getPeer());
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
 			throw new HandshakeException("Client did not send required authentication messages.", alert);
 		}
 
@@ -393,8 +392,7 @@ public class ServerHandshaker extends Handshaker {
 					"Cannot create FINISHED message hash",
 					new AlertMessage(
 							AlertLevel.FATAL,
-							AlertDescription.INTERNAL_ERROR,
-							message.getPeer()));
+							AlertDescription.INTERNAL_ERROR));
 //			LOGGER.error("Cannot compute digest for server's Finish handshake message", e);
 		}
 
@@ -404,7 +402,7 @@ public class ServerHandshaker extends Handshaker {
 		/*
 		 * First, send ChangeCipherSpec
 		 */
-		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage(session.getPeer());
+		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage();
 		wrapMessage(flight, changeCipherSpecMessage);
 		setCurrentWriteState();
 
@@ -412,7 +410,7 @@ public class ServerHandshaker extends Handshaker {
 		 * Second, send Finished message
 		 */
 		mdWithClientFinished.update(message.toByteArray());
-		Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, isClient, mdWithClientFinished.digest(), session.getPeer());
+		Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, isClient, mdWithClientFinished.digest());
 		wrapMessage(flight, finished);
 		sendLastFlight(flight);
 		sessionEstablished();
@@ -458,7 +456,7 @@ public class ServerHandshaker extends Handshaker {
 		/*
 		 * Last, send ServerHelloDone (mandatory)
 		 */
-		ServerHelloDone serverHelloDone = new ServerHelloDone(session.getPeer());
+		ServerHelloDone serverHelloDone = new ServerHelloDone();
 		wrapMessage(flight, serverHelloDone);
 		sendFlight(flight);
 	}
@@ -481,8 +479,7 @@ public class ServerHandshaker extends Handshaker {
 					"Client does not support NULL compression method",
 					new AlertMessage(
 							AlertLevel.FATAL,
-							AlertDescription.HANDSHAKE_FAILURE,
-							clientHello.getPeer()));
+							AlertDescription.HANDSHAKE_FAILURE));
 		} else {
 			session.setCompressionMethod(CompressionMethod.NULL);
 		}
@@ -492,7 +489,7 @@ public class ServerHandshaker extends Handshaker {
 		processHelloExtensions(clientHello, serverHelloExtensions);
 
 		ServerHello serverHello = new ServerHello(serverVersion, serverRandom, sessionId,
-				session.getCipherSuite(), session.getCompressionMethod(), serverHelloExtensions, session.getPeer());
+				session.getCipherSuite(), session.getCompressionMethod(), serverHelloExtensions);
 		wrapMessage(flight, serverHello);
 	}
 
@@ -501,9 +498,9 @@ public class ServerHandshaker extends Handshaker {
 		CertificateMessage certificateMessage = null;
 		if (session.getCipherSuite().requiresServerCertificateMessage()) {
 			if (CertificateType.RAW_PUBLIC_KEY == session.sendCertificateType()) {
-				certificateMessage = new CertificateMessage(publicKey, session.getPeer());
+				certificateMessage = new CertificateMessage(publicKey);
 			} else if (CertificateType.X_509 == session.sendCertificateType()) {
-				certificateMessage = new CertificateMessage(certificateChain, session.getPeer());
+				certificateMessage = new CertificateMessage(certificateChain);
 			} else {
 				throw new IllegalArgumentException("Certificate type " + session.sendCertificateType() + " not supported!");
 			}
@@ -522,13 +519,12 @@ public class ServerHandshaker extends Handshaker {
 		case EC_DIFFIE_HELLMAN:
 			try {
 				ecdhe = new XECDHECryptography(selectedCipherSuiteParameters.getSelectedSupportedGroup());
-				serverKeyExchange = new EcdhEcdsaServerKeyExchange(session.getSignatureAndHashAlgorithm(), ecdhe, privateKey, clientRandom, serverRandom,
-						session.getPeer());
+				serverKeyExchange = new EcdhEcdsaServerKeyExchange(session.getSignatureAndHashAlgorithm(), ecdhe, privateKey, clientRandom, serverRandom);
 				break;
 			} catch (GeneralSecurityException e) {
 				throw new HandshakeException(
 						String.format("Error performing EC Diffie Hellman key exchange: %s", e.getMessage()),
-						new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, getPeerAddress()));
+						new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
 			}
 
 		case PSK:
@@ -545,12 +541,12 @@ public class ServerHandshaker extends Handshaker {
 
 			try {
 				ecdhe = new XECDHECryptography(selectedCipherSuiteParameters.getSelectedSupportedGroup());
-				serverKeyExchange = new EcdhPskServerKeyExchange(PskPublicInformation.EMPTY, ecdhe, session.getPeer());
+				serverKeyExchange = new EcdhPskServerKeyExchange(PskPublicInformation.EMPTY, ecdhe);
 				break;
 			} catch (GeneralSecurityException e) {
 				throw new HandshakeException(
 						String.format("Error performing EC Diffie Hellman key exchange: %s", e.getMessage()),
-						new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, getPeerAddress()));
+						new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
 			}
 
 		default:
@@ -568,7 +564,7 @@ public class ServerHandshaker extends Handshaker {
 		if ((clientAuthenticationWanted || clientAuthenticationRequired)
 				&& session.getCipherSuite().requiresServerCertificateMessage()
 				&& selectedCipherSuiteParameters.getSelectedClientCertificateType() != null) {
-			CertificateRequest certificateRequest = new CertificateRequest(session.getPeer());
+			CertificateRequest certificateRequest = new CertificateRequest();
 			certificateRequest.addCertificateType(ClientCertificateType.ECDSA_SIGN);
 			if (session.receiveCertificateType() == CertificateType.X_509) {
 				certificateRequest.addSignatureAlgorithms(supportedSignatureAndHashAlgorithms);
@@ -636,7 +632,7 @@ public class ServerHandshaker extends Handshaker {
 			session.setRecordSizeLimit(recordSizeLimitExt.getRecordSizeLimit());
 			int limit = this.recordSizeLimit == null ? session.getMaxFragmentLength() : this.recordSizeLimit;
 			serverHelloExtensions.addExtension(new RecordSizeLimitExtension(limit));
-			LOGGER.debug("Received record size limit [{} bytes] from peer [{}]", limit, clientHello.getPeer());
+			LOGGER.debug("Received record size limit [{} bytes] from peer [{}]", limit, getPeerAddress());
 		}
 
 		if (recordSizeLimitExt == null) {
@@ -645,7 +641,7 @@ public class ServerHandshaker extends Handshaker {
 				session.setMaxFragmentLength(maxFragmentLengthExt.getFragmentLength().length());
 				serverHelloExtensions.addExtension(maxFragmentLengthExt);
 				LOGGER.debug("Negotiated max. fragment length [{} bytes] with peer [{}]",
-						maxFragmentLengthExt.getFragmentLength().length(), clientHello.getPeer());
+						maxFragmentLengthExt.getFragmentLength().length(), getPeerAddress());
 			}
 		}
 
@@ -661,10 +657,10 @@ public class ServerHandshaker extends Handshaker {
 				session.setSniSupported(true);
 				LOGGER.debug(
 						"using server name indication received from peer [{}]",
-						clientHello.getPeer());
+						getPeerAddress());
 			} else {
 				LOGGER.debug("client [{}] included SNI in HELLO but SNI support is disabled",
-						clientHello.getPeer());
+						getPeerAddress());
 			}
 		}
 
@@ -703,8 +699,7 @@ public class ServerHandshaker extends Handshaker {
 			if (version.compareTo(ProtocolVersion.VERSION_DTLS_1_0) < 0) {
 				version = ProtocolVersion.VERSION_DTLS_1_0;
 			}
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.PROTOCOL_VERSION, version,
-					session.getPeer());
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.PROTOCOL_VERSION, version);
 			throw new HandshakeException("The server only supports DTLS v1.2, not " + clientVersion + "!", alert);
 		}
 	}
@@ -779,8 +774,7 @@ public class ServerHandshaker extends Handshaker {
 		} else {
 			// if none of the client's proposed cipher suites matches
 			// throw exception
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE,
-					session.getPeer());
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
 			throw new HandshakeException("Client proposed unsupported cipher suites only", alert);
 		}
 	}

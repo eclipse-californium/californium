@@ -54,4 +54,13 @@ public interface ClientSessionCache extends SessionCache, Iterable<InetSocketAdd
 	 *         peer address.
 	 */
 	SessionId getSessionIdentity(InetSocketAddress peer);
+
+	/**
+	 * Put session together with the corresponding address into the cache.
+	 * 
+	 * @param peer peer's address
+	 * @param session session to store
+	 * @since 3.0
+	 */
+	void put(InetSocketAddress peer, DTLSSession session);
 }

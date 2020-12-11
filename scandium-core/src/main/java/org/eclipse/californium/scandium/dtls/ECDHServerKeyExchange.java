@@ -19,7 +19,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.net.InetSocketAddress;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.util.Arrays;
@@ -75,11 +74,8 @@ public abstract class ECDHServerKeyExchange extends ServerKeyExchange {
 	 *            supported group (named curve)
 	 * @param encodedPoint
 	 *            the encoded point on the curve (public key). 
-	 * @param peerAddress the IP address and port of the peer this
-	 *            message has been received from or should be sent to
 	 */
-	protected ECDHServerKeyExchange(SupportedGroup supportedGroup, byte[] encodedPoint, InetSocketAddress peerAddress) {
-		super(peerAddress);
+	protected ECDHServerKeyExchange(SupportedGroup supportedGroup, byte[] encodedPoint) {
 		if (encodedPoint == null) {
 			throw new NullPointerException("encoded point cannot be null!");
 		}
@@ -100,21 +96,21 @@ public abstract class ECDHServerKeyExchange extends ServerKeyExchange {
 		writer.writeVarBytes(encodedPoint, PUBLIC_LENGTH_BITS);
 	}
 
-	protected static EcdhData readNamedCurve(final DatagramReader reader, final InetSocketAddress peerAddress) throws HandshakeException {
+	protected static EcdhData readNamedCurve(final DatagramReader reader) throws HandshakeException {
 		int curveType = reader.read(CURVE_TYPE_BITS);
 		if (curveType != NAMED_CURVE) {
 		throw new HandshakeException(
 				String.format(
-						"Curve type [%s] received in ServerKeyExchange message from peer [%s] is unsupported",
-						curveType, peerAddress),
-				new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, peerAddress));
+						"Curve type [%s] received in ServerKeyExchange message is unsupported",
+						curveType),
+				new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
 		}
 		int curveId = reader.read(NAMED_CURVE_BITS);
 		SupportedGroup group = SupportedGroup.fromId(curveId);
 		if (group == null || !group.isUsable()) {
 			throw new HandshakeException(
 				String.format("Server used unsupported elliptic curve (%d) for ECDH", curveId),
-				new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, peerAddress));
+				new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
 		}
 		byte[] encodedPoint = reader.readVarBytes(PUBLIC_LENGTH_BITS);
 		return new EcdhData(group, encodedPoint);

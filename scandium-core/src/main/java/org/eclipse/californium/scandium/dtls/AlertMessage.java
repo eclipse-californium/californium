@@ -19,7 +19,6 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.io.Serializable;
-import java.net.InetSocketAddress;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -45,8 +44,6 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 
 	// Members ////////////////////////////////////////////////////////
 
-	private final InetSocketAddress peerAddress;
-
 	/** The level of the alert (warning or fatal). */
 	private final AlertLevel level;
 
@@ -63,7 +60,7 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 	// Constructors ///////////////////////////////////////////////////
 
 	protected AlertMessage() {
-		this(null, null, null, null);
+		this(null, null, null);
 	}
 
 	/**
@@ -71,13 +68,11 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 	 * 
 	 * @param level the alert level
 	 * @param description the alert description
-	 * @param peerAddress the IP address and port of the peer this message has
-	 *            been received from or is to be sent to
 	 * @throws NullPointerException if one of the provided parameter is
 	 *             {@code null}
 	 */
-	public AlertMessage(AlertLevel level, AlertDescription description, InetSocketAddress peerAddress) {
-		this(level, description, null, peerAddress);
+	public AlertMessage(AlertLevel level, AlertDescription description) {
+		this(level, description, null);
 	}
 
 	/**
@@ -87,8 +82,6 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 	 * @param description the alert description
 	 * @param protocolVersion protocol version of record to send. Only possible
 	 *            for {@link AlertDescription#PROTOCOL_VERSION} alerts!
-	 * @param peerAddress the IP address and port of the peer this message has
-	 *            been received from or is to be sent to
 	 * @throws NullPointerException if one of the provided parameter is
 	 *             {@code null}
 	 * @throws IllegalArgumentException if a protocol version is provided, but
@@ -96,18 +89,14 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 	 *             {@link AlertDescription#PROTOCOL_VERSION}
 	 * @since 2.6
 	 */
-	public AlertMessage(AlertLevel level, AlertDescription description, ProtocolVersion protocolVersion,
-			InetSocketAddress peerAddress) {
+	public AlertMessage(AlertLevel level, AlertDescription description, ProtocolVersion protocolVersion) {
 		if (level == null) {
 			throw new NullPointerException("Level must not be null");
 		} else if (description == null) {
 			throw new NullPointerException("Description must not be null");
-		} else if (peerAddress == null) {
-			throw new NullPointerException("Peer address must not be null");
 		} else if (protocolVersion != null && description != AlertDescription.PROTOCOL_VERSION) {
 			throw new IllegalArgumentException("Protocol version is only supported for that specific alert!");
 		}
-		this.peerAddress = peerAddress;
 		this.level = level;
 		this.description = description;
 		this.protocolVersion = protocolVersion;
@@ -222,11 +211,6 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 	// Methods ////////////////////////////////////////////////////////
 
 	@Override
-	public final InetSocketAddress getPeer() {
-		return peerAddress;
-	}
-
-	@Override
 	public ContentType getContentType() {
 		return ContentType.ALERT;
 	}
@@ -263,7 +247,7 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 		return writer.toByteArray();
 	}
 
-	public static AlertMessage fromByteArray(final byte[] byteArray, final InetSocketAddress peerAddress) throws HandshakeException {
+	public static AlertMessage fromByteArray(final byte[] byteArray) throws HandshakeException {
 		DatagramReader reader = new DatagramReader(byteArray);
 		byte levelCode = reader.readNextByte();
 		byte descCode = reader.readNextByte();
@@ -272,13 +256,13 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 		if (level == null) {
 			throw new HandshakeException(
 					String.format("Unknown alert level code [%d]", levelCode),
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR, peerAddress));
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR));
 		} else if (description == null) {
 			throw new HandshakeException(
 					String.format("Unknown alert description code [%d]", descCode),
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR, peerAddress));
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR));
 		} else {
-			return new AlertMessage(level, description, peerAddress);
+			return new AlertMessage(level, description);
 		}
 	}
 

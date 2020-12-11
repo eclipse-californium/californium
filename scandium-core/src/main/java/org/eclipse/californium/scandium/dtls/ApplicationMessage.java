@@ -19,8 +19,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.net.InetSocketAddress;
-
 import org.eclipse.californium.elements.util.StringUtil;
 
 /**
@@ -28,7 +26,7 @@ import org.eclipse.californium.elements.util.StringUtil;
  * compressed, and encrypted based on the current connection state. The messages
  * are treated as transparent data to the record layer.
  */
-public final class ApplicationMessage extends AbstractMessage {
+public final class ApplicationMessage implements DTLSMessage {
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -45,12 +43,9 @@ public final class ApplicationMessage extends AbstractMessage {
 	 * message's payload.
 	 * 
 	 * @param data byte array with the application data.
-	 * @param peerAddress the IP address and port the message is to be sent to
-	 *            or has been received from
 	 * @throws NullPointerException if peer or data is {@code null}
 	 */
-	public ApplicationMessage(byte[] data, InetSocketAddress peerAddress) {
-		super(peerAddress);
+	public ApplicationMessage(byte[] data) {
 		if (data == null) {
 			throw new NullPointerException("data must not be null!");
 		}
@@ -91,12 +86,11 @@ public final class ApplicationMessage extends AbstractMessage {
 	 * message's payload.
 	 * 
 	 * @param byteArray byte array with the application data.
-	 * @param peerAddress peer's address
 	 * @return created message
-	 * @see #ApplicationMessage(byte[], InetSocketAddress)
+	 * @see #ApplicationMessage(byte[])
 	 */
-	public static DTLSMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) {
-		return new ApplicationMessage(byteArray, peerAddress);
+	public static DTLSMessage fromByteArray(byte[] byteArray) {
+		return new ApplicationMessage(byteArray);
 	}
 
 	// Getters and Setters ////////////////////////////////////////////

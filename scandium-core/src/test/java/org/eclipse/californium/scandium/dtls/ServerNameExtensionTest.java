@@ -21,7 +21,6 @@ import static org.hamcrest.CoreMatchers.nullValue;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-import java.net.InetSocketAddress;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 
@@ -176,7 +175,7 @@ public class ServerNameExtensionTest {
 	}
 
 	private void whenParsingTheExtensionStruct() throws HandshakeException {
-		HelloExtensions helloExtensions = HelloExtensions.fromReader(new DatagramReader(serverNameStructure), new InetSocketAddress(0));
+		HelloExtensions helloExtensions = HelloExtensions.fromReader(new DatagramReader(serverNameStructure));
 		extension = (ServerNameExtension) helloExtensions.getExtension(ExtensionType.SERVER_NAME);
 	}
 

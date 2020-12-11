@@ -19,8 +19,6 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
-import java.net.InetSocketAddress;
-
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
@@ -92,8 +90,8 @@ public class MaxFragmentLengthExtensionTest {
 	}
 
 	private void whenParsingTheExtensionStruct() throws HandshakeException {
-		HelloExtensions helloExtions = HelloExtensions.fromReader(new DatagramReader(maxFragmentLengthStructure), new InetSocketAddress(0));
-		extension = (MaxFragmentLengthExtension) 
+		HelloExtensions helloExtions = HelloExtensions.fromReader(new DatagramReader(maxFragmentLengthStructure));
+		extension = (MaxFragmentLengthExtension)
 				helloExtions.getExtension(ExtensionType.MAX_FRAGMENT_LENGTH);
 	}
 }

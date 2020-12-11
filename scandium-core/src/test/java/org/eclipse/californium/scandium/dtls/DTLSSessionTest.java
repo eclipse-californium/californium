@@ -21,8 +21,6 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.util.Random;
 
@@ -44,19 +42,18 @@ import org.junit.experimental.categories.Category;
 public class DTLSSessionTest {
 
 	static final int DEFAULT_MAX_FRAGMENT_LENGTH = 16384; //2^14 as defined in DTLS 1.2 spec
-	static final InetSocketAddress PEER_ADDRESS = new InetSocketAddress(InetAddress.getLoopbackAddress(), 10000);
 	private static final Random RANDOM = new Random();
 	DTLSSession session;
 
 	@Before
 	public void setUp() throws Exception {
-		session = newEstablishedServerSession(PEER_ADDRESS, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, false);
+		session = newEstablishedServerSession(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, false);
 	}
 
 	@Test
 	public void testDefaultMaxFragmentLengthCompliesWithSpec() {
 		// when instantiating a default server session
-		session = new DTLSSession(PEER_ADDRESS);
+		session = new DTLSSession();
 
 		// then the max fragment size is as specified in DTLS spec
 		assertThat(session.getMaxFragmentLength(), is(DEFAULT_MAX_FRAGMENT_LENGTH));
@@ -146,7 +143,7 @@ public class DTLSSessionTest {
 		assertFalse(session.isRecordProcessable(session.getReadEpoch(), 0, 0));
 		assertFalse(session.isRecordProcessable(session.getReadEpoch(), 2, 0));
 
-		session.setReadState(session.getReadState()); // dummy invocation to provoke epoch switch
+		session.incrementReadEpoch();
 		assertTrue(session.isRecordProcessable(session.getReadEpoch(), 0, 0));
 		assertTrue(session.isRecordProcessable(session.getReadEpoch(), 2, 0));
 	}
@@ -191,9 +188,9 @@ public class DTLSSessionTest {
 
 	@Test
 	public void testConstructorEnforcesMaxSequenceNo() {
-		session = new DTLSSession(PEER_ADDRESS, DtlsTestTools.MAX_SEQUENCE_NO); // should succeed
+		session = new DTLSSession(DtlsTestTools.MAX_SEQUENCE_NO); // should succeed
 		try {
-			session = new DTLSSession(PEER_ADDRESS, DtlsTestTools.MAX_SEQUENCE_NO + 1); // should fail
+			session = new DTLSSession(DtlsTestTools.MAX_SEQUENCE_NO + 1); // should fail
 			fail("DTLSSession constructor should have refused initial sequence number > 2^48 - 1");
 		} catch (IllegalArgumentException e) {
 			// ok
@@ -202,18 +199,18 @@ public class DTLSSessionTest {
 
 	@Test(expected = IllegalStateException.class)
 	public void testGetSequenceNumberEnforcesMaxSequenceNo() {
-		session = new DTLSSession(PEER_ADDRESS, DtlsTestTools.MAX_SEQUENCE_NO);
+		session = new DTLSSession(DtlsTestTools.MAX_SEQUENCE_NO);
 		session.getSequenceNumber(); // should throw exception
 	}
 
 	@Test
 	public void testSessionCanBeResumedFromSessionTicket() throws GeneralSecurityException {
 		// GIVEN a session ticket for an established server session
-		session = newEstablishedServerSession(PEER_ADDRESS, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, true);
+		session = newEstablishedServerSession(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, true);
 		SessionTicket ticket = session.getSessionTicket();
 
 		// WHEN creating a new session to be resumed from the ticket
-		DTLSSession sessionToResume = new DTLSSession(session.getSessionIdentifier(), session.getPeer(), ticket, 1);
+		DTLSSession sessionToResume = new DTLSSession(session.getSessionIdentifier(), ticket, 1);
 
 		// THEN the new session contains all relevant pending state to perform an abbreviated handshake
 		assertThatSessionsHaveSameRelevantPropertiesForResumption(sessionToResume, session);
@@ -222,12 +219,12 @@ public class DTLSSessionTest {
 	@Test
 	public void testSessionWithServerNamesCanBeResumedFromSessionTicket() throws GeneralSecurityException {
 		// GIVEN a session ticket for an established server session
-		session = newEstablishedServerSession(PEER_ADDRESS, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, true);
+		session = newEstablishedServerSession(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, true);
 		session.setHostName("test");
 		SessionTicket ticket = session.getSessionTicket();
 
 		// WHEN creating a new session to be resumed from the ticket
-		DTLSSession sessionToResume = new DTLSSession(session.getSessionIdentifier(), session.getPeer(), ticket, 1);
+		DTLSSession sessionToResume = new DTLSSession(session.getSessionIdentifier(), ticket, 1);
 
 		// THEN the new session contains all relevant pending state to perform an abbreviated handshake
 		assertThatSessionsHaveSameRelevantPropertiesForResumption(sessionToResume, session);
@@ -236,11 +233,11 @@ public class DTLSSessionTest {
 	@Test
 	public void testSessionCanBeResumedFromSerializedSessionTicket() throws GeneralSecurityException {
 		// GIVEN a session ticket for an established server session
-		session = newEstablishedServerSession(PEER_ADDRESS, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, true);
+		session = newEstablishedServerSession(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, true);
 		SessionTicket ticket = serialize(session.getSessionTicket());
 
 		// WHEN creating a new session to be resumed from the ticket
-		DTLSSession sessionToResume = new DTLSSession(session.getSessionIdentifier(), session.getPeer(), ticket, 1);
+		DTLSSession sessionToResume = new DTLSSession(session.getSessionIdentifier(), ticket, 1);
 
 		// THEN the new session contains all relevant pending state to perform an abbreviated handshake
 		assertThatSessionsHaveSameRelevantPropertiesForResumption(sessionToResume, session);
@@ -249,12 +246,12 @@ public class DTLSSessionTest {
 	@Test
 	public void testSessionWithServerNamesCanBeResumedFromSerializedSessionTicket() throws GeneralSecurityException {
 		// GIVEN a session ticket for an established server session
-		session = newEstablishedServerSession(PEER_ADDRESS, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, true);
+		session = newEstablishedServerSession(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, true);
 		session.setHostName("test");
 		SessionTicket ticket = serialize(session.getSessionTicket());
 
 		// WHEN creating a new session to be resumed from the ticket
-		DTLSSession sessionToResume = new DTLSSession(session.getSessionIdentifier(), session.getPeer(), ticket, 1);
+		DTLSSession sessionToResume = new DTLSSession(session.getSessionIdentifier(), ticket, 1);
 
 		// THEN the new session contains all relevant pending state to perform an abbreviated handshake
 		assertThatSessionsHaveSameRelevantPropertiesForResumption(sessionToResume, session);
@@ -269,28 +266,26 @@ public class DTLSSessionTest {
 		assertThat(sessionToResume.getServerNames(), is(establishedSession.getServerNames()));
 	}
 
-	public static DTLSSession newEstablishedServerSession(InetSocketAddress peerAddress, CipherSuite cipherSuite, boolean useRawPublicKeys) {
-		CertificateType type = useRawPublicKeys ? CertificateType.RAW_PUBLIC_KEY : CertificateType.X_509;
-		DTLSSession session = new DTLSSession(peerAddress);
-		DTLSConnectionState currentState = newConnectionState(cipherSuite);
-		session.setSessionIdentifier(new SessionId());
-		session.setReadState(currentState);
-		session.setWriteState(currentState);
-		session.setReceiveCertificateType(type);
-		session.setSendCertificateType(type);
-		session.setMasterSecret(new SecretKeySpec(getRandomBytes(48), "MAC"));
-		session.setPeerIdentity(new PreSharedKeyIdentity("client_identity"));
-		return session;
-	}
-
-	private static DTLSConnectionState newConnectionState(CipherSuite cipherSuite) {
+	public static DTLSSession newEstablishedServerSession(CipherSuite cipherSuite, boolean useRawPublicKeys) {
 		SecretKey macKey = null;
 		if (cipherSuite.getMacKeyLength() > 0) {
 			macKey = new SecretKeySpec(getRandomBytes(cipherSuite.getMacKeyLength()), "AES");
 		}
 		SecretKey encryptionKey = new SecretKeySpec(getRandomBytes(cipherSuite.getEncKeyLength()), "AES");
 		SecretIvParameterSpec iv = new SecretIvParameterSpec(getRandomBytes(cipherSuite.getFixedIvLength()));
-		return DTLSConnectionState.create(cipherSuite, CompressionMethod.NULL, encryptionKey, iv, macKey);
+
+		CertificateType type = useRawPublicKeys ? CertificateType.RAW_PUBLIC_KEY : CertificateType.X_509;
+		DTLSSession session = new DTLSSession();
+		session.setSessionIdentifier(new SessionId());
+		session.setCipherSuite(cipherSuite);
+		session .setCompressionMethod(CompressionMethod.NULL);
+		session.createReadState(encryptionKey, iv, macKey);
+		session.createWriteState(encryptionKey, iv, macKey);
+		session.setReceiveCertificateType(type);
+		session.setSendCertificateType(type);
+		session.setMasterSecret(new SecretKeySpec(getRandomBytes(48), "MAC"));
+		session.setPeerIdentity(new PreSharedKeyIdentity("client_identity"));
+		return session;
 	}
 
 	private static byte[] getRandomBytes(int length) {

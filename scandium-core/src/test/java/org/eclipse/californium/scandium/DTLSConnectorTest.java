@@ -273,7 +273,7 @@ public class DTLSConnectorTest {
 	public void testConnectorTerminatesConnectionOnReceivingCloseNotify() throws Exception {
 
 		// GIVEN a CLOSE_NOTIFY alert
-		AlertMessage alert = new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY, serverHelper.serverEndpoint);
+		AlertMessage alert = new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY);
 
 		assertConnectionTerminatedOnAlert(alert);
 	}
@@ -288,7 +288,7 @@ public class DTLSConnectorTest {
 	public void testConnectorTerminatesConnectionOnReceivingFatalAlert() throws Exception {
 
 		// GIVEN a FATAL alert
-		AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, serverHelper.serverEndpoint);
+		AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
 
 		assertConnectionTerminatedOnAlert(alert);
 	}
@@ -300,8 +300,10 @@ public class DTLSConnectorTest {
 
 		givenAnEstablishedSession(false);
 
+		Connection connection = clientConnectionStore.get(serverHelper.serverEndpoint);
+		assertNotNull("missing connection", connection);
 		// WHEN sending a CLOSE_NOTIFY alert to the server
-		client.send(alertToSend, establishedClientSession);
+		client.send(alertToSend, establishedClientSession, connection);
 
 		// THEN assert that the server has removed all connection state with client
 		AlertMessage alert = alertCatcher.waitForFirstAlert(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
@@ -434,7 +436,7 @@ public class DTLSConnectorTest {
 			assertThat("Expected SERVER_HELLO from server", msg.getMessageType(), is(HandshakeType.SERVER_HELLO));
 
 			// Send CLIENT_KEY_EXCHANGE
-			ClientKeyExchange keyExchange = new PSKClientKeyExchange(CLIENT_IDENTITY, serverHelper.serverEndpoint);
+			ClientKeyExchange keyExchange = new PSKClientKeyExchange(CLIENT_IDENTITY);
 			keyExchange.setMessageSeq(clientHello.getMessageSeq() + 1);
 			rawClient.sendRecord(serverHelper.serverEndpoint,
 					DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 1, keyExchange.toByteArray()));
@@ -597,7 +599,7 @@ public class DTLSConnectorTest {
 			assertNotNull(ongoingHandshake);
 
 			// send CLIENT_KEY_EXCHANGE
-			ClientKeyExchange keyExchange = new PSKClientKeyExchange(CLIENT_IDENTITY, serverHelper.serverEndpoint);
+			ClientKeyExchange keyExchange = new PSKClientKeyExchange(CLIENT_IDENTITY);
 			rawClient.sendRecord(serverHelper.serverEndpoint,
 							DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 1, keyExchange.toByteArray()));
 			handler.assertFlight(1, MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
@@ -608,7 +610,7 @@ public class DTLSConnectorTest {
 					DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 0, clientHello.toByteArray()));
 
 			// send Alert to receive an answer even
-			AlertMessage closeNotify = new AlertMessage(AlertLevel.FATAL, AlertDescription.CLOSE_NOTIFY, serverHelper.serverEndpoint);
+			AlertMessage closeNotify = new AlertMessage(AlertLevel.FATAL, AlertDescription.CLOSE_NOTIFY);
 			rawClient.sendRecord(serverHelper.serverEndpoint, DtlsTestTools.newDTLSRecord(ContentType.ALERT.getCode(), 0, 2, closeNotify.toByteArray()));
 
 			// check that we don't get a response for this CLIENT_HELLO, it must be ignore
@@ -939,11 +941,11 @@ public class DTLSConnectorTest {
 			List<Record> flight = handler.assertFlight(1, MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 			Record record = flight.get(0);
 
-			Assert.assertThat("Expected HANDSHAKE message from server", record.getType(), is(ContentType.HANDSHAKE));
+			assertThat("Expected HANDSHAKE message from server", record.getType(), is(ContentType.HANDSHAKE));
 			HandshakeMessage handshake = (HandshakeMessage) record.getFragment();
-			Assert.assertThat("Expected HELLO_VERIFY_REQUEST from server", handshake.getMessageType(),
+			assertThat("Expected HELLO_VERIFY_REQUEST from server", handshake.getMessageType(),
 					is(HandshakeType.HELLO_VERIFY_REQUEST));
-			Assert.assertThat("Expected protocol version from server", record.getVersion(),
+			assertThat("Expected protocol version from server", record.getVersion(),
 					is(ProtocolVersion.VERSION_DTLS_1_2));
 
 			clientHello.setCookie(((HelloVerifyRequest) handshake).getCookie());
@@ -954,8 +956,8 @@ public class DTLSConnectorTest {
 
 			flight = handler.assertFlight(1, MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 			record = flight.get(0);
-			Assert.assertThat("Expected Handshake message from server", record.getType(), is(ContentType.HANDSHAKE));
-			Assert.assertThat("Expected protocol version from server", record.getVersion(),
+			assertThat("Expected Handshake message from server", record.getType(), is(ContentType.HANDSHAKE));
+			assertThat("Expected protocol version from server", record.getVersion(),
 					is(ProtocolVersion.VERSION_DTLS_1_2));
 
 		} finally {
@@ -971,7 +973,9 @@ public class DTLSConnectorTest {
 		// ignore the HELLO_VERIFY_REQUEST (i.e. assume the request is lost)
 		// and try to establish a fresh session
 		givenAnEstablishedSession();
-		Assert.assertThat(serverHelper.establishedServerSession.getPeer(), is(clientEndpoint));
+		Connection connection = serverHelper.serverConnectionStore.get(clientEndpoint);
+		assertNotNull(connection);
+		assertThat(connection.hasEstablishedSession(), is(true));
 	}
 
 	@Test
@@ -1110,9 +1114,11 @@ public class DTLSConnectorTest {
 		client.setAlertHandler(alertCatcher);
 		
 		// send a CLIENT_HELLO message to the server to renegotiation connection
-		client.sendRecord(new Record(ContentType.HANDSHAKE, establishedClientSession.getWriteEpoch(),
+		Record record  = new Record(ContentType.HANDSHAKE, establishedClientSession.getWriteEpoch(),
 				establishedClientSession.getSequenceNumber(), createClientHello(),
-				establishedClientSession, false, 0));
+				establishedClientSession, false, 0);
+		record.setAddress(serverHelper.serverEndpoint, null);
+		client.sendRecord(record);
 
 		// ensure server answer with a NO_RENOGIATION alert
 		AlertMessage alert = alertCatcher.waitForFirstAlert(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
@@ -1128,11 +1134,13 @@ public class DTLSConnectorTest {
 		// Catch alert receive by the server
 		SingleAlertCatcher alertCatcher = new SingleAlertCatcher();
 		serverHelper.server.setAlertHandler(alertCatcher);
-		
+
 		// send a HELLO_REQUEST message to the client
-		serverHelper.server.sendRecord(new Record(ContentType.HANDSHAKE, serverHelper.establishedServerSession.getWriteEpoch(),
-				serverHelper.establishedServerSession.getSequenceNumber(), new HelloRequest(clientEndpoint),
-				serverHelper.establishedServerSession, false, 0));
+		Record record = new Record(ContentType.HANDSHAKE, serverHelper.establishedServerSession.getWriteEpoch(),
+				serverHelper.establishedServerSession.getSequenceNumber(), new HelloRequest(),
+				serverHelper.establishedServerSession, false, 0);
+		record.setAddress(clientEndpoint, null);
+		serverHelper.server.sendRecord(record);
 
 		// ensure client answer with a NO_RENOGIATION alert
 		AlertMessage alert = alertCatcher.waitForFirstAlert(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
@@ -1186,7 +1194,7 @@ public class DTLSConnectorTest {
 		}
 		ClientHello hello = new ClientHello(version, list, clientConfig.getSupportedSignatureAlgorithms(),
 				clientConfig.getIdentityCertificateTypes(), clientConfig.getTrustCertificateTypes(),
-				clientConfig.getSupportedGroups(), clientEndpoint);
+				clientConfig.getSupportedGroups());
 		hello.addCompressionMethod(CompressionMethod.NULL);
 		hello.setMessageSeq(0);
 		return hello;

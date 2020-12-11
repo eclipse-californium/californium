@@ -22,7 +22,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -133,7 +132,7 @@ public final class HelloExtensions {
 		}
 	}
 
-	public static HelloExtensions fromReader(DatagramReader reader, InetSocketAddress peerAddress)
+	public static HelloExtensions fromReader(DatagramReader reader)
 			throws HandshakeException {
 		try {
 			List<HelloExtension> extensions = new ArrayList<HelloExtension>();
@@ -144,14 +143,13 @@ public final class HelloExtensions {
 				int typeId = rangeReader.read(HelloExtension.TYPE_BITS);
 				int extensionLength = rangeReader.read(HelloExtension.LENGTH_BITS);
 				DatagramReader extensionDataReader = rangeReader.createRangeReader(extensionLength);
-				HelloExtension extension = HelloExtension.fromExtensionDataReader(typeId, extensionDataReader,
-						peerAddress);
+				HelloExtension extension = HelloExtension.fromExtensionDataReader(typeId, extensionDataReader);
 				if (extensionDataReader.bytesAvailable()) {
 					byte[] bytesLeft = extensionDataReader.readBytesLeft();
 					throw new HandshakeException(String.format(
 							"Too many bytes, %d left, hello extension not completely parsed! hello extension type %d",
 							bytesLeft.length, typeId),
-							new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR, peerAddress));
+							new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR));
 				}
 				if (extension != null) {
 					if (getExtension(extensions, extension.getType()) == null) {
@@ -159,7 +157,7 @@ public final class HelloExtensions {
 					} else {
 						throw new HandshakeException(
 								"Hello message contains extension " + extension.getType() + " more than once!",
-								new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR, peerAddress));
+								new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR));
 					}
 				} else {
 					LOGGER.debug("Peer included an unknown extension type code [{}] in its Hello message", typeId);
@@ -169,7 +167,7 @@ public final class HelloExtensions {
 			return new HelloExtensions(extensions);
 		} catch (IllegalArgumentException ex) {
 			throw new HandshakeException("Hello message contained malformed extensions, " + ex.getMessage(),
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR, peerAddress));
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR));
 		}
 	}
 

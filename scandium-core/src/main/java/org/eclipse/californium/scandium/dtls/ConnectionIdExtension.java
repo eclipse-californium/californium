@@ -15,8 +15,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.net.InetSocketAddress;
-
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -94,30 +92,28 @@ public final class ConnectionIdExtension extends HelloExtension {
 	 * Create connection id extension from extensions data bytes.
 	 * 
 	 * @param extensionDataReader extension data bytes
-	 * @param peerAddress peer address
 	 * @return created connection id extension
 	 * @throws NullPointerException if extensionData is {@code null}
 	 * @throws HandshakeException if the extension data could not be decoded
 	 */
-	public static ConnectionIdExtension fromExtensionDataReader(DatagramReader extensionDataReader,
-			final InetSocketAddress peerAddress) throws HandshakeException {
+	public static ConnectionIdExtension fromExtensionDataReader(DatagramReader extensionDataReader) throws HandshakeException {
 		if (extensionDataReader == null) {
 			throw new NullPointerException("cid must not be null!");
 		} 
 		int availableBytes = extensionDataReader.bitsLeft() / Byte.SIZE;
 		if (availableBytes == 0) {
 			throw new HandshakeException("Connection id length must be provided!",
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER, peerAddress));
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER));
 		} else if (availableBytes > 256) {
 			throw new HandshakeException(
 					"Connection id length too large! 255 max, but has " + (availableBytes - 1),
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER, peerAddress));
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER));
 		}
 		int len = extensionDataReader.read(CID_FIELD_LENGTH_BITS);
 		if (len != (availableBytes - 1)) {
 			throw new HandshakeException(
 					"Connection id length " + len + " doesn't match " + (availableBytes - 1) + "!",
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER, peerAddress));
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER));
 		}
 		if (len == 0) {
 			return new ConnectionIdExtension(ConnectionId.EMPTY);

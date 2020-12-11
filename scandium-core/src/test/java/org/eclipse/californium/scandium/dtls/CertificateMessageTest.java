@@ -29,8 +29,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.PublicKey;
 import java.security.cert.CertPath;
@@ -57,13 +55,11 @@ public class CertificateMessageTest {
 	CertificateMessage message;
 	X509Certificate[] certificateChain;
 	X509Certificate[] trustAnchor;
-	InetSocketAddress peerAddress;
 	byte[] serializedMessage;
 	PublicKey serverPublicKey;
 
 	@Before
 	public void setUp() throws Exception {
-		peerAddress = new InetSocketAddress(InetAddress.getLoopbackAddress(), 5684);
 		certificateChain = DtlsTestTools.getServerCertificateChain();
 		serverPublicKey = DtlsTestTools.getPublicKey();
 		trustAnchor = DtlsTestTools.getTrustedCertificates();
@@ -104,11 +100,11 @@ public class CertificateMessageTest {
 	public void testFromByteArrayHandlesEmptyMessageCorrectly() throws HandshakeException {
 		serializedMessage = new byte[]{0x00, 0x00, 0x00}; // length = 0 (empty message)
 		// parse expecting X.509 payload
-		message = CertificateMessage.fromReader(new DatagramReader(serializedMessage), CertificateType.X_509, peerAddress);
+		message = CertificateMessage.fromReader(new DatagramReader(serializedMessage), CertificateType.X_509);
 		assertSerializedMessageLength(3);
 
 		// parse expecting RawPublicKey payload
-		message = CertificateMessage.fromReader(new DatagramReader(serializedMessage), CertificateType.RAW_PUBLIC_KEY, peerAddress);
+		message = CertificateMessage.fromReader(new DatagramReader(serializedMessage), CertificateType.RAW_PUBLIC_KEY);
 		assertSerializedMessageLength(3);
 	}
 
@@ -119,7 +115,7 @@ public class CertificateMessageTest {
 	@Test
 	public void testFromByteArrayCompliesWithRfc7250() throws Exception {
 		givenASerializedRawPublicKeyCertificateMessage(serverPublicKey);
-		message = CertificateMessage.fromReader(new DatagramReader(serializedMessage), CertificateType.RAW_PUBLIC_KEY, peerAddress);
+		message = CertificateMessage.fromReader(new DatagramReader(serializedMessage), CertificateType.RAW_PUBLIC_KEY);
 		assertThat(message.getPublicKey(), is(serverPublicKey));
 	}
 
@@ -150,7 +146,7 @@ public class CertificateMessageTest {
 		PublicKey pk = message.getPublicKey();
 		assertNotNull(pk);
 		serializedMessage = message.toByteArray();
-		CertificateMessage msg = DtlsTestTools.fromByteArray(serializedMessage, parameter, peerAddress);
+		CertificateMessage msg = DtlsTestTools.fromByteArray(serializedMessage, parameter);
 		assertThat(msg.getPublicKey(), is(pk));
 	}
 
@@ -161,7 +157,7 @@ public class CertificateMessageTest {
 		PublicKey pk = message.getPublicKey();
 		assertNotNull(pk);
 		serializedMessage = message.toByteArray();
-		CertificateMessage msg = DtlsTestTools.fromByteArray(serializedMessage, parameter, peerAddress);
+		CertificateMessage msg = DtlsTestTools.fromByteArray(serializedMessage, parameter);
 		assertThat(msg.getPublicKey(), is(pk));
 	}
 
@@ -174,14 +170,14 @@ public class CertificateMessageTest {
 	private void givenACertificateMessage(X509Certificate[] chain, boolean useRawPublicKey) throws IOException, GeneralSecurityException {
 		certificateChain = chain;
 		if (useRawPublicKey) {
-			message = new CertificateMessage(chain[0].getPublicKey().getEncoded(), peerAddress);
+			message = new CertificateMessage(chain[0].getPublicKey().getEncoded());
 		} else {
-			message = new CertificateMessage(Arrays.asList(chain), peerAddress);
+			message = new CertificateMessage(Arrays.asList(chain));
 		}
 	}
 
 	private void givenARawPublicKeyCertificateMessage(PublicKey publicKey) {
-		message = new CertificateMessage(publicKey.getEncoded(), peerAddress);
+		message = new CertificateMessage(publicKey.getEncoded());
 	}
 
 	private void givenASerializedRawPublicKeyCertificateMessage(PublicKey publicKey) throws IOException, GeneralSecurityException {
@@ -194,10 +190,10 @@ public class CertificateMessageTest {
 
 	private void givenAnEmptyCertificateMessage() {
 		List<X509Certificate> certPath = Collections.emptyList();
-		message = new CertificateMessage(certPath, peerAddress);
+		message = new CertificateMessage(certPath);
 	}
 
 	private void givenAnEmptyRawPublicKeyCertificateMessage() {
-		message = new CertificateMessage(Bytes.EMPTY, peerAddress);
+		message = new CertificateMessage(Bytes.EMPTY);
 	}
 }

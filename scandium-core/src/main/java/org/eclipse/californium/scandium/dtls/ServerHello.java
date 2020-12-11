@@ -19,8 +19,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.net.InetSocketAddress;
-
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -110,14 +108,10 @@ public final class ServerHello extends HandshakeMessage {
 	 *            the negotiated compression method.
 	 * @param extensions
 	 *            a list of extensions supported by the client (may be <code>null</code>).
-	 * @param peerAddress the IP address and port of the peer this
-	 *            message has been received from or should be sent to
 	 * @throws NullPointerException if any of the mandatory parameters is <code>null</code>
 	 */
 	public ServerHello(ProtocolVersion version, Random random, SessionId sessionId,
-			CipherSuite cipherSuite, CompressionMethod compressionMethod, HelloExtensions extensions,
-			InetSocketAddress peerAddress) {
-		super(peerAddress);
+			CipherSuite cipherSuite, CompressionMethod compressionMethod, HelloExtensions extensions) {
 		if (version == null) {
 			throw new NullPointerException("Negotiated protocol version must not be null");
 		}
@@ -169,14 +163,12 @@ public final class ServerHello extends HandshakeMessage {
 	 * the wire.
 	 * 
 	 * @param reader reader for the binary encoding of the message.
-	 * @param peerAddress the IP address and port of the peer this
-	 *           message has been received from or should be sent to
 	 * @return the object representation
 	 * @throws HandshakeException if the cipher suite code selected by the server is either
 	 *           unknown, i.e. not defined in {@link CipherSuite} at all, or
 	 *           {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}
 	 */
-	public static HandshakeMessage fromReader(DatagramReader reader, InetSocketAddress peerAddress) throws HandshakeException {
+	public static HandshakeMessage fromReader(DatagramReader reader) throws HandshakeException {
 
 		int major = reader.read(VERSION_BITS);
 		int minor = reader.read(VERSION_BITS);
@@ -191,19 +183,19 @@ public final class ServerHello extends HandshakeMessage {
 		if (cipherSuite == null) {
 			throw new HandshakeException(
 					String.format("Server selected unknown cipher suite [%s]", Integer.toHexString(code)),
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, peerAddress));
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
 		} else if ( cipherSuite == CipherSuite.TLS_NULL_WITH_NULL_NULL) {
 			throw new HandshakeException("Server tries to negotiate NULL cipher suite",
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, peerAddress));
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
 		}
 		CompressionMethod compressionMethod = CompressionMethod.getMethodByCode(reader.read(COMPRESSION_METHOD_BITS));
 
 		HelloExtensions extensions = null;
 		if (reader.bytesAvailable()) {
-			extensions = HelloExtensions.fromReader(reader, peerAddress);
+			extensions = HelloExtensions.fromReader(reader);
 		}
 
-		return new ServerHello(version, random, sessionId, cipherSuite, compressionMethod, extensions, peerAddress);
+		return new ServerHello(version, random, sessionId, cipherSuite, compressionMethod, extensions);
 	}
 
 	// Methods ////////////////////////////////////////////////////////

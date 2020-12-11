@@ -17,7 +17,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.net.InetSocketAddress;
 import java.util.Arrays;
 
 import org.eclipse.californium.elements.util.DatagramReader;
@@ -59,11 +58,9 @@ public class ECDHClientKeyExchange extends ClientKeyExchange {
 	 * 
 	 * @param encodedPoint
 	 *            the client's ephemeral public key (as encoded point).
-	 * @param peerAddress the IP address and port of the peer this
-	 *            message has been received from or should be sent to
 	 */
-	public ECDHClientKeyExchange(byte[] encodedPoint, InetSocketAddress peerAddress) {
-		super(peerAddress);
+	public ECDHClientKeyExchange(byte[] encodedPoint) {
+		super();
 		if (encodedPoint == null) {
 			throw new NullPointerException("encoded point cannot be null");
 		}
@@ -100,9 +97,9 @@ public class ECDHClientKeyExchange extends ClientKeyExchange {
 		return reader.readVarBytes(LENGTH_BITS);
 	}
 
-	public static HandshakeMessage fromReader(DatagramReader reader, InetSocketAddress peerAddress) {
+	public static HandshakeMessage fromReader(DatagramReader reader) {
 		byte[] pointEncoded = readEncodedPoint(reader);
-		return new ECDHClientKeyExchange(pointEncoded, peerAddress);
+		return new ECDHClientKeyExchange(pointEncoded);
 	}
 
 	// Methods ////////////////////////////////////////////////////////

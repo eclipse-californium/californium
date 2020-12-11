@@ -20,7 +20,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.net.InetSocketAddress;
 import java.security.MessageDigest;
 
 import javax.crypto.Mac;
@@ -69,11 +68,8 @@ public final class Finished extends HandshakeMessage {
 	 *            to determine the finished_label
 	 * @param handshakeHash
 	 *            the hash
-	 * @param peerAddress the IP address and port of the peer this
-	 *            message has been received from or should be sent to
 	 */
-	public Finished(Mac hmac, SecretKey masterSecret, boolean isClient, byte[] handshakeHash, InetSocketAddress peerAddress) {
-		super(peerAddress);
+	public Finished(Mac hmac, SecretKey masterSecret, boolean isClient, byte[] handshakeHash) {
 		verifyData = generateVerifyData(hmac, masterSecret, isClient, handshakeHash);
 	}
 
@@ -81,11 +77,8 @@ public final class Finished extends HandshakeMessage {
 	 * Called when reconstructing byteArray.
 	 * 
 	 * @param verifyData the raw verify data
-	 * @param peerAddress the IP address and port of the peer this
-	 *            message has been received from or should be sent to
 	 */
-	private Finished(DatagramReader reader, InetSocketAddress peerAddress) {
-		super(peerAddress);
+	private Finished(DatagramReader reader) {
 		this.verifyData = reader.readBytesLeft();
 	}
 
@@ -113,14 +106,13 @@ public final class Finished extends HandshakeMessage {
 		byte[] myVerifyData = generateVerifyData(hmac, masterSecret, isClient, handshakeHash);
 
 		if (!MessageDigest.isEqual(myVerifyData, verifyData)) {
-			StringBuilder msg = new StringBuilder("Verification of peer's [").append(getPeer())
-					.append("] FINISHED message failed");
+			StringBuilder msg = new StringBuilder("Verification of FINISHED message failed");
 			if (LOG.isTraceEnabled()) {
 				msg.append(StringUtil.lineSeparator()).append("Expected: ").append(StringUtil.byteArray2HexString(myVerifyData));
 				msg.append(StringUtil.lineSeparator()).append("Received: ").append(StringUtil.byteArray2HexString(verifyData));
 			}
 			LOG.debug(msg.toString());
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, getPeer());
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
 			throw new HandshakeException("Verification of FINISHED message failed", alert);
 		}
 	}
@@ -160,7 +152,7 @@ public final class Finished extends HandshakeMessage {
 		return verifyData;
 	}
 
-	public static HandshakeMessage fromReader(DatagramReader reader, InetSocketAddress peerAddress) {
-		return new Finished(reader, peerAddress);
+	public static HandshakeMessage fromReader(DatagramReader reader) {
+		return new Finished(reader);
 	}
 }

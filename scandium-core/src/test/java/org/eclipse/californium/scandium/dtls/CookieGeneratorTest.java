@@ -78,50 +78,50 @@ public class CookieGeneratorTest {
 
 	@Test
 	public void testCookieGeneratorGeneratesSameCookie() throws GeneralSecurityException {
-		ClientHello clientHello = ClientHelloTest.createClientHello(peerAddress,
+		ClientHello clientHello = ClientHelloTest.createClientHello(
 				Collections.singletonList(CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256),
 				SignatureAndHashAlgorithm.DEFAULT, Collections.<CertificateType> emptyList(),
 				Collections.<CertificateType> emptyList(), Collections.singletonList(SupportedGroup.secp256r1));
-		byte[] cookie1 = generator.generateCookie(clientHello);
+		byte[] cookie1 = generator.generateCookie(peerAddress, clientHello);
 
 		clientHello.setCookie(cookie1);
 
-		byte[] cookie2 = generator.generateCookie(clientHello);
+		byte[] cookie2 = generator.generateCookie(peerAddress, clientHello);
 		assertArrayEquals(cookie1, cookie2);
 	}
 
 	@Test
 	public void testCookieGeneratorGeneratesDifferentCookie() throws GeneralSecurityException, HandshakeException {
-		ClientHello clientHello1 = ClientHelloTest.createClientHello(peerAddress,
+		ClientHello clientHello1 = ClientHelloTest.createClientHello(
 				Collections.singletonList(CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256),
 				SignatureAndHashAlgorithm.DEFAULT, Collections.<CertificateType> emptyList(),
 				Collections.<CertificateType> emptyList(), Collections.singletonList(SupportedGroup.secp256r1));
-		byte[] cookie1 = generator.generateCookie(clientHello1);
+		byte[] cookie1 = generator.generateCookie(peerAddress, clientHello1);
 		byte[] byteArray = clientHello1.fragmentToByteArray();
-		ClientHello clientHello2 = ClientHello.fromReader(new DatagramReader(byteArray), peerAddress);
+		ClientHello clientHello2 = ClientHello.fromReader(new DatagramReader(byteArray));
 		clientHello2.setCookie(cookie1);
 
-		byte[] cookie2 = generator.generateCookie(clientHello2);
+		byte[] cookie2 = generator.generateCookie(peerAddress, clientHello2);
 		assertArrayEquals(cookie1, cookie2);
 
-		ClientHello clientHello3 = ClientHello.fromReader(new DatagramReader(byteArray), peerAddress2);
+		ClientHello clientHello3 = ClientHello.fromReader(new DatagramReader(byteArray));
 		clientHello3.setCookie(cookie1);
 
-		byte[] cookie3 = generator.generateCookie(clientHello3);
+		byte[] cookie3 = generator.generateCookie(peerAddress2, clientHello3);
 		assertFalse("byte arrays are equal!", Arrays.equals(cookie1, cookie3));
 	}
 
 	@Test
 	public void testCookieGeneratorGeneratesDifferentCookieWhenPeriodExpires()
 			throws GeneralSecurityException, HandshakeException {
-		ClientHello clientHello1 = ClientHelloTest.createClientHello(peerAddress,
+		ClientHello clientHello1 = ClientHelloTest.createClientHello(
 				Collections.singletonList(CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256),
 				SignatureAndHashAlgorithm.DEFAULT, Collections.<CertificateType> emptyList(),
 				Collections.<CertificateType> emptyList(), Collections.singletonList(SupportedGroup.secp256r1));
-		byte[] cookie1 = generator.generateCookie(clientHello1);
+		byte[] cookie1 = generator.generateCookie(peerAddress, clientHello1);
 		time.addTestTimeShift(CookieGenerator.COOKIE_LIFE_TIME + 1000, TimeUnit.NANOSECONDS);
-		byte[] cookie2 = generator.generateCookie(clientHello1);
-		byte[] cookie3 = generator.generatePastCookie(clientHello1);
+		byte[] cookie2 = generator.generateCookie(peerAddress, clientHello1);
+		byte[] cookie3 = generator.generatePastCookie(peerAddress, clientHello1);
 
 		assertFalse("byte arrays are equal!", Arrays.equals(cookie1, cookie2));
 		assertArrayEquals(cookie1, cookie3);
@@ -132,7 +132,7 @@ public class CookieGeneratorTest {
 		final int LOOPS = TestScope.enableIntensiveTests() ? 20000 : 2000;
 		final int COOKIE_USAGE = 100;
 		final CountDownLatch done = new CountDownLatch(LOOPS);
-		final ClientHello clientHello = ClientHelloTest.createClientHello(peerAddress,
+		final ClientHello clientHello = ClientHelloTest.createClientHello(
 				Collections.singletonList(CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256),
 				SignatureAndHashAlgorithm.DEFAULT, Collections.<CertificateType> emptyList(),
 				Collections.<CertificateType> emptyList(), Collections.singletonList(SupportedGroup.secp256r1));
@@ -149,7 +149,7 @@ public class CookieGeneratorTest {
 					public void run() {
 						byte[] cookie;
 						try {
-							cookie = generator.generateCookie(clientHello);
+							cookie = generator.generateCookie(peerAddress, clientHello);
 							cookies.add(new Bytes(cookie, 32, false));
 						} catch (GeneralSecurityException e) {
 							errors.add(e);

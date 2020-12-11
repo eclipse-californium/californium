@@ -15,8 +15,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.net.InetSocketAddress;
-
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -88,13 +86,11 @@ public final class RecordSizeLimitExtension extends HelloExtension {
 	 * Create record size limit extension from extensions data bytes.
 	 * 
 	 * @param extensionDataReader extension data bytes
-	 * @param peerAddress peer address
 	 * @return created record size limit extension
 	 * @throws NullPointerException if extensionData is {@code null}
 	 * @throws HandshakeException if the extension data could not be decoded
 	 */
-	public static RecordSizeLimitExtension fromExtensionDataReader(DatagramReader extensionDataReader,
-			final InetSocketAddress peerAddress) throws HandshakeException {
+	public static RecordSizeLimitExtension fromExtensionDataReader(DatagramReader extensionDataReader) throws HandshakeException {
 		if (extensionDataReader == null) {
 			throw new NullPointerException("record size limit must not be null!");
 		}
@@ -102,7 +98,7 @@ public final class RecordSizeLimitExtension extends HelloExtension {
 		if (recordSizeLimit < MIN_RECORD_SIZE_LIMIT) {
 			throw new HandshakeException("record size limit must be at last " + MIN_RECORD_SIZE_LIMIT
 					+ " bytes, not only " + recordSizeLimit + "!",
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER, peerAddress));
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER));
 		}
 		return new RecordSizeLimitExtension(recordSizeLimit);
 	}

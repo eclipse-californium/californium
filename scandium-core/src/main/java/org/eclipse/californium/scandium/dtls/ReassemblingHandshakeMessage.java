@@ -120,7 +120,7 @@ public final class ReassemblingHandshakeMessage extends GenericHandshakeMessage 
 	 * @param message starting fragmented message
 	 */
 	public ReassemblingHandshakeMessage(FragmentedHandshakeMessage message) {
-		super(message.getMessageType(), message.getPeer());
+		super(message.getMessageType());
 		setMessageSeq(message.getMessageSeq());
 		this.type = message.getMessageType();
 		this.reassembledBytes = new byte[message.getMessageLength()];
@@ -146,9 +146,9 @@ public final class ReassemblingHandshakeMessage extends GenericHandshakeMessage 
 	 * returning.
 	 * 
 	 * @param message fragmented handshake message
-	 * @throws IllegalArgumentException if type, sequence number, total message
-	 *             length, or peer's address doesn't match the previous
-	 *             fragments. Or the fragment exceeds the handshake message.
+	 * @throws IllegalArgumentException if type, sequence number, or total
+	 *             message length, doesn't match the previous fragments. Or the
+	 *             fragment exceeds the handshake message.
 	 */
 	public void add(FragmentedHandshakeMessage message) {
 		if (type != message.getMessageType()) {
@@ -160,9 +160,6 @@ public final class ReassemblingHandshakeMessage extends GenericHandshakeMessage 
 		} else if (getMessageLength() != message.getMessageLength()) {
 			throw new IllegalArgumentException("Fragment message length " + message.getMessageLength()
 					+ " differs from " + getMessageLength() + "!");
-		} else if (!getPeer().equals(message.getPeer())) {
-			throw new IllegalArgumentException(
-					"Fragment message peer " + message.getPeer() + " differs from " + getPeer() + "!");
 		}
 		if (isComplete()) {
 			return;
@@ -252,7 +249,6 @@ public final class ReassemblingHandshakeMessage extends GenericHandshakeMessage 
 		StringBuilder sb = new StringBuilder();
 		sb.append("\tReassembled Handshake Protocol");
 		sb.append(StringUtil.lineSeparator()).append("\tType: ").append(getMessageType());
-		sb.append(StringUtil.lineSeparator()).append("\tPeer: ").append(getPeer());
 		sb.append(StringUtil.lineSeparator()).append("\tMessage Sequence No: ").append(getMessageSeq());
 		sb.append(StringUtil.lineSeparator()).append("\tFragment Offset: ").append(getFragmentOffset());
 		sb.append(StringUtil.lineSeparator()).append("\tFragment Length: ").append(getFragmentLength());

@@ -19,8 +19,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.net.InetSocketAddress;
-
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 
@@ -128,13 +126,12 @@ public abstract class HelloExtension {
 	 * 
 	 * @param typeCode the extension type code
 	 * @param extensionDataReader the serialized extension
-	 * @param peerAddress the IP address and port of the peer that sent this extension
 	 * @return the object representing the extension or <code>null</code> if the extension
 	 * type is not (yet) known to or supported by Scandium.
 	 * @throws HandshakeException if the (supported) extension could not be de-serialized, e.g. due
 	 * to erroneous encoding etc.
 	 */
-	public static HelloExtension fromExtensionDataReader(int typeCode, DatagramReader extensionDataReader, InetSocketAddress peerAddress)
+	public static HelloExtension fromExtensionDataReader(int typeCode, DatagramReader extensionDataReader)
 			throws HandshakeException {
 		ExtensionType type = ExtensionType.getExtensionTypeById(typeCode);
 		if (type != null) {
@@ -151,13 +148,13 @@ public abstract class HelloExtension {
 			case SERVER_CERT_TYPE:
 				return ServerCertificateTypeExtension.fromExtensionDataReader(extensionDataReader);
 			case MAX_FRAGMENT_LENGTH:
-				return MaxFragmentLengthExtension.fromExtensionDataReader(extensionDataReader, peerAddress);
+				return MaxFragmentLengthExtension.fromExtensionDataReader(extensionDataReader);
 			case SERVER_NAME:
-				return ServerNameExtension.fromExtensionDataReader(extensionDataReader, peerAddress);
+				return ServerNameExtension.fromExtensionDataReader(extensionDataReader);
 			case CONNECTION_ID:
-				return ConnectionIdExtension.fromExtensionDataReader(extensionDataReader, peerAddress);
+				return ConnectionIdExtension.fromExtensionDataReader(extensionDataReader);
 			case RECORD_SIZE_LIMIT:
-				return RecordSizeLimitExtension.fromExtensionDataReader(extensionDataReader, peerAddress);
+				return RecordSizeLimitExtension.fromExtensionDataReader(extensionDataReader);
 			default:
 				break;
 			}

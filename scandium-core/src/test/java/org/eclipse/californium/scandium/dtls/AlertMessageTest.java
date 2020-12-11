@@ -25,8 +25,6 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 
 import org.eclipse.californium.elements.category.Small;
@@ -40,7 +38,6 @@ public class AlertMessageTest {
 
 	private static final byte UNKNOWN_LEVEL = 0x20;
 	private static final byte UNKNOWN_DESCRIPTION = (byte) 0xFD;
-	InetSocketAddress peer = InetSocketAddress.createUnresolved("localhost", 10000);
 
 	/**
 	 * Verifies that an alert message can be parsed successfully.
@@ -51,12 +48,11 @@ public class AlertMessageTest {
 		byte[] fragment = new byte[]{AlertLevel.FATAL.getCode(), AlertDescription.HANDSHAKE_FAILURE.getCode()};
 
 		// WHEN parsing the record
-		AlertMessage alert = AlertMessage.fromByteArray(fragment, peer);
+		AlertMessage alert = AlertMessage.fromByteArray(fragment);
 
 		// THEN the level is FATAL and the description is HANDSHAKE_FAILURE
 		assertThat(alert.getLevel(), is(AlertLevel.FATAL));
 		assertThat(alert.getDescription(), is(AlertDescription.HANDSHAKE_FAILURE));
-		assertThat(alert.getPeer(), is(peer));
 	}
 
 	/**
@@ -70,7 +66,7 @@ public class AlertMessageTest {
 
 		// WHEN parsing the record
 		try {
-			AlertMessage.fromByteArray(fragment, peer);
+			AlertMessage.fromByteArray(fragment);
 			fail("Should have thrown " + HandshakeException.class.getName());
 
 			// THEN a fatal handshake exception will be thrown
@@ -90,7 +86,7 @@ public class AlertMessageTest {
 
 		// WHEN parsing the record
 		try {
-			AlertMessage.fromByteArray(fragment, peer);
+			AlertMessage.fromByteArray(fragment);
 			fail("Should have thrown " + HandshakeException.class.getName());
 
 			// THEN a fatal handshake exception will be thrown
@@ -101,8 +97,7 @@ public class AlertMessageTest {
 
 	@Test
 	public void testSerializeWithHandshakeException() throws IOException, ClassNotFoundException {
-		InetSocketAddress peer = new InetSocketAddress(InetAddress.getLoopbackAddress(), 5683);
-		AlertMessage alert = new AlertMessage(AlertLevel.WARNING, AlertDescription.HANDSHAKE_FAILURE, peer);
+		AlertMessage alert = new AlertMessage(AlertLevel.WARNING, AlertDescription.HANDSHAKE_FAILURE);
 		HandshakeException exception = new HandshakeException("test", alert);
 
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -115,7 +110,6 @@ public class AlertMessageTest {
 		assertThat(object, is(instanceOf(HandshakeException.class)));
 		HandshakeException readException = (HandshakeException) object;
 		assertThat(readException.getMessage(), is(exception.getMessage()));
-		assertThat(readException.getAlert().getPeer(), is(exception.getAlert().getPeer()));
 		assertThat(readException.getAlert().getLevel(), is(exception.getAlert().getLevel()));
 		assertThat(readException.getAlert().getDescription(), is(exception.getAlert().getDescription()));
 	}

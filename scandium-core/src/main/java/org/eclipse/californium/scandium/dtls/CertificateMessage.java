@@ -23,7 +23,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.PublicKey;
 import java.security.cert.CertPath;
@@ -114,8 +113,6 @@ public final class CertificateMessage extends HandshakeMessage {
 	 * @param certificateChain
 	 *            the certificate chain with the (first certificate must be the
 	 *            server's)
-	 * @param peerAddress the IP address and port of the peer this
-	 *            message has been received from or should be sent to
 	 * @throws NullPointerException if the certificate chain is <code>null</code>
 	 *            (use an array of length zero to create an <em>empty</em> message)
 	 * @throws IllegalArgumentException if the certificate chain contains any
@@ -123,8 +120,8 @@ public final class CertificateMessage extends HandshakeMessage {
 	 *            certification.
 	 * 
 	 */
-	public CertificateMessage(List<X509Certificate> certificateChain, InetSocketAddress peerAddress) {
-		this(certificateChain, null, peerAddress);
+	public CertificateMessage(List<X509Certificate> certificateChain) {
+		this(certificateChain, null);
 	}
 
 	/**
@@ -134,8 +131,6 @@ public final class CertificateMessage extends HandshakeMessage {
 	 *            must be the server's)
 	 * @param certificateAuthorities the certificate authorities to truncate
 	 *            chain. Maybe {@code null} or empty.
-	 * @param peerAddress the IP address and port of the peer this message has
-	 *            been received from or should be sent to
 	 * @throws NullPointerException if the certificate chain is
 	 *             <code>null</code> (use an array of length zero to create an
 	 *             <em>empty</em> message)
@@ -144,9 +139,8 @@ public final class CertificateMessage extends HandshakeMessage {
 	 *             certification.
 	 * @since 2.1
 	 */
-	public CertificateMessage(List<X509Certificate> certificateChain, List<X500Principal> certificateAuthorities,
-			InetSocketAddress peerAddress) {
-		this(CertPathUtil.generateValidatableCertPath(certificateChain, certificateAuthorities), peerAddress);
+	public CertificateMessage(List<X509Certificate> certificateChain, List<X500Principal> certificateAuthorities) {
+		this(CertPathUtil.generateValidatableCertPath(certificateChain, certificateAuthorities));
 		if (LOGGER.isDebugEnabled()) {
 			int size = certPath.getCertificates().size();
 			if (size < certificateChain.size()) {
@@ -158,8 +152,7 @@ public final class CertificateMessage extends HandshakeMessage {
 		}
 	}
 
-	private CertificateMessage(CertPath peerCertChain, InetSocketAddress peerAddress) {
-		super(peerAddress);
+	private CertificateMessage(CertPath peerCertChain) {
 		if (peerCertChain == null) {
 			throw new NullPointerException("Certificate chain must not be null");
 		}
@@ -197,12 +190,9 @@ public final class CertificateMessage extends HandshakeMessage {
 	 * 
 	 * @param publicKey
 	 *           the public key
-	 * @param peerAddress the IP address and port of the peer this
-	 *           message has been received from or should be sent to
 	 * @since 2.4
 	 */
-	public CertificateMessage(PublicKey publicKey, InetSocketAddress peerAddress) {
-		super(peerAddress);
+	public CertificateMessage(PublicKey publicKey) {
 		this.certPath = null;
 		this.encodedChain = null;
 		this.rawPublicKeyBytes = publicKey == null ? Bytes.EMPTY : publicKey.getEncoded();
@@ -215,13 +205,10 @@ public final class CertificateMessage extends HandshakeMessage {
 	 * 
 	 * @param rawPublicKeyBytes
 	 *           the raw public key (SubjectPublicKeyInfo)
-	 * @param peerAddress the IP address and port of the peer this
-	 *           message has been received from or should be sent to
 	 * @throws NullPointerException if the raw public key byte array is <code>null</code>
 	 *           (use an array of length zero to create an <em>empty</em> message)
 	 */
-	public CertificateMessage(byte[] rawPublicKeyBytes, InetSocketAddress peerAddress) {
-		super(peerAddress);
+	public CertificateMessage(byte[] rawPublicKeyBytes) {
 		if (rawPublicKeyBytes == null) {
 			throw new NullPointerException("Raw public key byte array must not be null");
 		} else {
@@ -338,28 +325,26 @@ public final class CertificateMessage extends HandshakeMessage {
 	 * 
 	 * @param reader reader for the binary encoding of the message.
 	 * @param certificateType negotiated type of certificate the certificate message contains.
-	 * @param peerAddress The IP address and port of the peer that sent the message.
 	 * @return The certificate message.
 	 * @throws HandshakeException if the binary encoding could not be parsed.
 	 * @throws IllegalArgumentException if the certificate type is not supported.
 	 */
 	public static CertificateMessage fromReader(
 			DatagramReader reader,
-			CertificateType certificateType,
-			InetSocketAddress peerAddress) throws HandshakeException {
+			CertificateType certificateType) throws HandshakeException {
 
 		if (CertificateType.RAW_PUBLIC_KEY == certificateType) {
 			LOGGER.debug("Parsing RawPublicKey CERTIFICATE message");
 			byte[] rawPublicKey = reader.readVarBytes(CERTIFICATE_LENGTH_BITS, Bytes.EMPTY);
-			return new CertificateMessage(rawPublicKey, peerAddress);
+			return new CertificateMessage(rawPublicKey);
 		} else if (CertificateType.X_509 == certificateType) {
-			return readX509CertificateMessage(reader, peerAddress);
+			return readX509CertificateMessage(reader);
 		} else {
 			throw new IllegalArgumentException("Certificate type " + certificateType + " not supported!");
 		}
 	}
 
-	private static CertificateMessage readX509CertificateMessage(final DatagramReader reader, final InetSocketAddress peerAddress) throws HandshakeException {
+	private static CertificateMessage readX509CertificateMessage(final DatagramReader reader) throws HandshakeException {
 
 		LOGGER.debug("Parsing X.509 CERTIFICATE message");
 		int certificateChainLength = reader.read(CERTIFICATE_LIST_LENGTH_BITS);
@@ -373,12 +358,12 @@ public final class CertificateMessage extends HandshakeMessage {
 				certs.add(factory.generateCertificate(rangeReader.createRangeInputStream(certificateLength)));
 			}
 
-			return new CertificateMessage(factory.generateCertPath(certs), peerAddress);
+			return new CertificateMessage(factory.generateCertPath(certs));
 
 		} catch (GeneralSecurityException e) {
 			throw new HandshakeException(
 					"Cannot parse X.509 certificate chain provided by peer",
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE, peerAddress),
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE),
 					e);
 		}
 	}

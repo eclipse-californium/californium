@@ -296,12 +296,12 @@ public class InMemoryConnectionStoreTest {
 		InetAddress addr = InetAddress.getByAddress(longToIp(ip));
 		InetSocketAddress peerAddress = new InetSocketAddress(addr, 0);
 		Connection con = new Connection(peerAddress, new SyncSerialExecutor());
-		con.getSessionListener().sessionEstablished(null, newSession(peerAddress));
+		con.getSessionListener().sessionEstablished(null, newSession());
 		return con;
 	}
 
-	private DTLSSession newSession(InetSocketAddress address) {
-		return DTLSSessionTest.newEstablishedServerSession(address, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, true);
+	private DTLSSession newSession() {
+		return DTLSSessionTest.newEstablishedServerSession(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, true);
 	}
 
 	private static byte[] longToIp(long ip) {

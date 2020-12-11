@@ -692,11 +692,11 @@ public abstract class Handshaker implements Destroyable {
 					expectMessage(messageToProcess);
 					// is thrown during processing
 					LOGGER.debug("Processing {} message from peer [{}]", messageToProcess.getContentType(),
-							messageToProcess.getPeer());
+							getPeerAddress());
 					setCurrentReadState();
 					++statesIndex;
 					LOGGER.debug("Processed {} message from peer [{}]", messageToProcess.getContentType(),
-							messageToProcess.getPeer());
+							getPeerAddress());
 				} else if (messageToProcess.getContentType() == ContentType.HANDSHAKE) {
 					if (!processNextHandshakeMessages(epoch, bufferIndex, (HandshakeMessage) messageToProcess)) {
 						break;
@@ -704,9 +704,8 @@ public abstract class Handshaker implements Destroyable {
 				} else {
 					throw new HandshakeException(
 							String.format("Received unexpected message [%s] from peer %s",
-									messageToProcess.getContentType(), messageToProcess.getPeer()),
-							new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE,
-									messageToProcess.getPeer()));
+									messageToProcess.getContentType(), getPeerAddress()),
+							new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
 				}
 				// process next expected record/message (if available yet)
 				session.markRecordAsRead(epoch, recordToProcess.getSequenceNumber());
@@ -719,14 +718,13 @@ public abstract class Handshaker implements Destroyable {
 				final List<Record> records = takeDeferredRecords();
 				if (deferredRecordsSize > 0) {
 					throw new HandshakeException(
-							String.format("Received unexpected message left from peer %s", record.getPeerAddress()),
-							new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE,
-									record.getPeerAddress()));
+							String.format("Received unexpected message left from peer %s", getPeerAddress()),
+							new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
 				}
 				for (Record deferredRecord : records) {
 					if (serialExecutor != null && !serialExecutor.isShutdown()) {
-						final Record dRecord = deferredRecord;
 						try {
+							final Record dRecord = deferredRecord;
 							serialExecutor.execute(new Runnable() {
 
 								@Override
@@ -737,23 +735,22 @@ public abstract class Handshaker implements Destroyable {
 							continue;
 						} catch (RejectedExecutionException ex) {
 							LOGGER.debug("Execution rejected while processing record [type: {}, peer: {}]",
-									record.getType(), record.getPeerAddress(), ex);
+									deferredRecord.getType(), deferredRecord.getPeerAddress(), ex);
 						}
 					}
+					// shutdown or rejected
 					recordLayer.processRecord(deferredRecord, connection);
 				}
 			}
 		} catch (GeneralSecurityException e) {
-			LOGGER.warn("Cannot process handshake message from peer [{}] due to [{}]", getSession().getPeer(),
+			LOGGER.warn("Cannot process handshake message from peer [{}] due to [{}]", getPeerAddress(),
 					e.getMessage(), e);
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR,
-					session.getPeer());
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
 			throw new HandshakeException("Cannot process handshake message, caused by " + e.getMessage(), alert, e);
 		} catch (RuntimeException e) {
-			LOGGER.warn("Cannot process handshake message from peer [{}] due to [{}]", getSession().getPeer(),
+			LOGGER.warn("Cannot process handshake message from peer [{}] due to [{}]", getPeerAddress(),
 					e.getMessage(), e);
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR,
-					session.getPeer());
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
 			throw new HandshakeException("Cannot process handshake message, caused by " + e.getMessage(), alert, e);
 		}
 	}
@@ -793,9 +790,8 @@ public abstract class Handshaker implements Destroyable {
 		while (handshakeMessage != null) {
 			expectMessage(handshakeMessage);
 			if (handshakeMessage.getMessageType() == HandshakeType.FINISHED && epoch == 0) {
-				LOGGER.debug("FINISH with epoch 0 from peer [{}]!", getSession().getPeer());
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE,
-						getSession().getPeer());
+				LOGGER.debug("FINISH with epoch 0 from peer [{}]!", getPeerAddress());
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE);
 				throw new HandshakeException("FINISH with epoch 0!", alert);
 			}
 			if (handshakeMessage instanceof FragmentedHandshakeMessage) {
@@ -838,7 +834,7 @@ public abstract class Handshaker implements Destroyable {
 				if (LOGGER.isDebugEnabled()) {
 					StringBuilder msg = new StringBuilder();
 					msg.append(String.format("Processing %s message from peer [%s], seqn: [%d]",
-							handshakeMessage.getMessageType(), handshakeMessage.getPeer(),
+							handshakeMessage.getMessageType(), getPeerAddress(),
 							handshakeMessage.getMessageSeq()));
 					if (LOGGER.isTraceEnabled()) {
 						msg.append(":").append(StringUtil.lineSeparator()).append(handshakeMessage);
@@ -855,7 +851,7 @@ public abstract class Handshaker implements Destroyable {
 					recursionProtection.unlock();
 				}
 				LOGGER.debug("Processed {} message from peer [{}]", handshakeMessage.getMessageType(),
-						handshakeMessage.getPeer());
+						getPeerAddress());
 				if (!lastFlight) {
 					// last Flight may have changed processing
 					// the handshake message
@@ -883,9 +879,8 @@ public abstract class Handshaker implements Destroyable {
 		if (useStateValidation && states != null) {
 			if (statesIndex >= states.length) {
 				LOGGER.warn("Cannot process {} message from peer [{}], no more expected!", HandshakeState.toString(message),
-						getSession().getPeer());
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR,
-						session.getPeer());
+						getPeerAddress());
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
 				throw new HandshakeException("Cannot process " + HandshakeState.toString(message)
 						+ " handshake message, no more expected!", alert);
 			}
@@ -907,13 +902,12 @@ public abstract class Handshaker implements Destroyable {
 				DTLSFlight flight = pendingFlight.get();
 				if (flight != null && flight.contains(message)) {
 					LOGGER.debug("Cannot process {} message from itself [{}]!",
-							HandshakeState.toString(message), getSession().getPeer());
+							HandshakeState.toString(message), getPeerAddress());
 				} else {
 					LOGGER.debug("Cannot process {} message from peer [{}], {} expected!",
-							HandshakeState.toString(message), getSession().getPeer(), expectedState);
+							HandshakeState.toString(message), getPeerAddress(), expectedState);
 				}
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR,
-						session.getPeer());
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
 				throw new HandshakeException("Cannot process " + HandshakeState.toString(message)
 						+ " handshake message, " + expectedState + " expected!", alert);
 			}
@@ -994,10 +988,10 @@ public abstract class Handshaker implements Destroyable {
 			SecretKey newPskSecret = pskSecretResult.getSecret();
 			if (newPskSecret != null) {
 				if (hostName != null) {
-					LOGGER.trace("client [{}] uses PSK identity [{}] for server [{}]", session.getPeer(), pskIdentity,
+					LOGGER.trace("client [{}] uses PSK identity [{}] for server [{}]", getPeerAddress(), pskIdentity,
 							hostName);
 				} else {
-					LOGGER.trace("client [{}] uses PSK identity [{}]", session.getPeer(), pskIdentity);
+					LOGGER.trace("client [{}] uses PSK identity [{}]", getPeerAddress(), pskIdentity);
 				}
 				PreSharedKeyIdentity pskPrincipal;
 				if (sniEnabled) {
@@ -1019,8 +1013,7 @@ public abstract class Handshaker implements Destroyable {
 				customArgument = pskSecretResult.getCustomArgument();
 				processMasterSecret(newPskSecret);
 			} else {
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_PSK_IDENTITY,
-						session.getPeer());
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_PSK_IDENTITY);
 				if (hostName != null) {
 					throw new HandshakeException(
 							String.format("No pre-shared key found for [virtual host: %s, identity: %s]", hostName,
@@ -1075,8 +1068,7 @@ public abstract class Handshaker implements Destroyable {
 		} else if (certificateVerificationResult.getException() != null) {
 			throw certificateVerificationResult.getException();
 		} else {
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE,
-					session.getPeer());
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE);
 			throw new HandshakeException("Bad Certificate", alert);
 		}
 	}
@@ -1231,23 +1223,19 @@ public abstract class Handshaker implements Destroyable {
 	}
 
 	protected final void setCurrentReadState() {
-		DTLSConnectionState connectionState;
 		if (isClient) {
-			connectionState = DTLSConnectionState.create(session.getCipherSuite(), session.getCompressionMethod(), serverWriteKey, serverWriteIV, serverWriteMACKey);
+			session.createReadState(serverWriteKey, serverWriteIV, serverWriteMACKey);
 		} else {
-			connectionState = DTLSConnectionState.create(session.getCipherSuite(), session.getCompressionMethod(), clientWriteKey, clientWriteIV, clientWriteMACKey);
+			session.createReadState(clientWriteKey, clientWriteIV, clientWriteMACKey);
 		}
-		session.setReadState(connectionState);
 	}
 
 	protected final void setCurrentWriteState() {
-		DTLSConnectionState connectionState;
 		if (isClient) {
-			connectionState = DTLSConnectionState.create(session.getCipherSuite(), session.getCompressionMethod(), clientWriteKey, clientWriteIV, clientWriteMACKey);
+			session.createWriteState(clientWriteKey, clientWriteIV, clientWriteMACKey);
 		} else {
-			connectionState = DTLSConnectionState.create(session.getCipherSuite(), session.getCompressionMethod(), serverWriteKey, serverWriteIV, serverWriteMACKey);
+			session.createWriteState(serverWriteKey, serverWriteIV, serverWriteMACKey);
 		}
-		session.setWriteState(connectionState);
 	}
 
 	/**
@@ -1279,7 +1267,7 @@ public abstract class Handshaker implements Destroyable {
 			break;
 		default:
 			throw new HandshakeException("Cannot create " + fragment.getContentType() + " record for flight",
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, session.getPeer()));
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
 		}
 	}
 
@@ -1322,7 +1310,7 @@ public abstract class Handshaker implements Destroyable {
 			}
 		} catch (IllegalArgumentException ex) {
 			throw new HandshakeException(ex.getMessage(),
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER, fragment.getPeer()));
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER));
 		}
 
 		return null;
@@ -1346,7 +1334,7 @@ public abstract class Handshaker implements Destroyable {
 	 * @return the peer address
 	 */
 	public final InetSocketAddress getPeerAddress() {
-		return session.getPeer();
+		return connection.getPeerAddress();
 	}
 
 	/**
@@ -1366,7 +1354,7 @@ public abstract class Handshaker implements Destroyable {
 	 * @since 2.5
 	 */
 	public DTLSFlight createFlight() {
-		return new DTLSFlight(session, flightNumber);
+		return new DTLSFlight(session, flightNumber, getPeerAddress());
 	}
 
 	/**
@@ -1575,7 +1563,7 @@ public abstract class Handshaker implements Destroyable {
 			List<DatagramPacket> datagrams = flight.getDatagrams(maxDatagramSize, maxFragmentSize,
 					useMultiHandshakeMessagesRecord, useMultiRecordMessages, false);
 			LOGGER.trace("Sending flight of {} message(s) to peer [{}] using {} datagram(s) of max. {} bytes",
-					flight.getNumberOfMessages(), session.getPeer(), datagrams.size(), maxDatagramSize);
+					flight.getNumberOfMessages(), getPeerAddress(), datagrams.size(), maxDatagramSize);
 			recordLayer.sendFlight(datagrams);
 			pendingFlight.set(flight);
 			if (flight.isRetransmissionNeeded()) {
@@ -1606,7 +1594,7 @@ public abstract class Handshaker implements Destroyable {
 				Exception cause = null;
 				String message = "";
 				boolean timeout = false;
-				InetSocketAddress peer = session.getPeer();
+				InetSocketAddress peer = getPeerAddress();
 				if (!connection.isExecuting() || !recordLayer.isRunning()) {
 					message = " Stopped by shutdown!";
 				} else {
@@ -1640,7 +1628,7 @@ public abstract class Handshaker implements Destroyable {
 						}
 
 						LOGGER.trace("Re-transmitting flight for [{}], [{}] retransmissions left",
-								session.getPeer(), maxRetransmissions - tries - 1);
+								peer, maxRetransmissions - tries - 1);
 						try {
 							flight.incrementTries();
 							flight.incrementTimeout();
@@ -1692,11 +1680,11 @@ public abstract class Handshaker implements Destroyable {
 				if (timeout) {
 					handshaker.handshakeFailed(new DtlsHandshakeTimeoutException(
 							"Handshake flight " + flight.getFlightNumber() + " failed!" + message,
-							peer, flight.getFlightNumber()));
+							flight.getFlightNumber()));
 				} else {
 					handshaker.handshakeFailed(
 							new DtlsException("Handshake flight " + flight.getFlightNumber() + " failed!" + message,
-									peer, cause));
+									cause));
 				}
 			}
 		}
@@ -1815,7 +1803,7 @@ public abstract class Handshaker implements Destroyable {
 				}
 			} else {
 				handshakeFailed(
-						new DtlsException("Failed establishing a incomplete session.", connection.getPeerAddress()));
+						new DtlsException("Failed establishing a incomplete session."));
 			}
 		}
 	}
@@ -2048,14 +2036,13 @@ public abstract class Handshaker implements Destroyable {
 	public void verifyCertificate(CertificateMessage message) throws HandshakeException {
 		if (certificateVerifier == null) {
 			LOGGER.debug("Certificate validation failed: no verifier available!");
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE,
-					session.getPeer());
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE);
 			throw new HandshakeException("Trust is not possible!", alert);
 		}
 		Boolean clientUsage = useKeyUsageVerification ? !isClient : null;
 		LOGGER.info("Start certificate verification.");
 		certificateVerificationPending = true;
-		CertificateVerificationResult verificationResult = certificateVerifier.verifyCertificate(connection.getConnectionId(), null, clientUsage, useTruncatedCertificatePathForVerification, message, session);
+		CertificateVerificationResult verificationResult = certificateVerifier.verifyCertificate(connection.getConnectionId(), null, clientUsage, useTruncatedCertificatePathForVerification, message);
 		if (verificationResult != null) {
 			processCertificateVerificationResult(verificationResult);
 		}
