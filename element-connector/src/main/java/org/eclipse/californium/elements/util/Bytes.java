@@ -108,6 +108,14 @@ public class Bytes {
 		return hash;
 	}
 
+	/**
+	 * {@inheritDoc}
+	 * 
+	 * Note: since 3.0 the sub-class may be ignored, depending on the provided
+	 * value of the {@code useClassInEquals} parameter in
+	 * {@link Bytes#Bytes(byte[], int, boolean, boolean)}. The default behavior
+	 * is changed to ignore the sub-class.
+	 */
 	@Override
 	public final boolean equals(Object obj) {
 		if (this == obj) {
