@@ -476,8 +476,10 @@ public class StringUtil {
 	}
 
 	/**
-	 * Get configuration value. Try first {@link System#getenv(String)}, if that
-	 * returns {@code null} or an empty value, then return {@link System#getProperty(String)}.
+	 * Get configuration value.
+	 * 
+	 * Try first {@link System#getenv(String)}, if that returns {@code null} or
+	 * an empty value, then return {@link System#getProperty(String)}.
 	 * 
 	 * @param name the name of the configuration value.
 	 * @return the value, or {@code null}, if neither
@@ -494,9 +496,10 @@ public class StringUtil {
 	}
 
 	/**
-	 * Get long configuration value. Try first {@link System#getenv(String)}, if
-	 * that returns {@code null} or an empty value, then return
-	 * {@link System#getProperty(String)}.
+	 * Get long configuration value.
+	 * 
+	 * Try first {@link System#getenv(String)}, if that returns {@code null} or
+	 * an empty value, then return {@link System#getProperty(String)} as long.
 	 * 
 	 * @param name the name of the configuration value.
 	 * @return the long value, or {@code null}, if neither
@@ -517,17 +520,26 @@ public class StringUtil {
 	}
 
 	/**
-	 * Get boolean configuration value. Try first {@link System#getenv(String)}, if
-	 * that returns {@code null} or an empty value, then return
-	 * {@link System#getProperty(String)}.
+	 * Get boolean configuration value.
+	 * 
+	 * Try first {@link System#getenv(String)}, if that returns {@code null} or
+	 * an empty value, then return {@link System#getProperty(String)} as
+	 * Boolean.
+	 * 
+	 * Since 3.0, return type changed from {@code boolean} to {@code Boolean}.
 	 * 
 	 * @param name the name of the configuration value.
-	 * @return the boolean value.
+	 * @return the boolean value, or {@code null}, if neither
+	 *         {@link System#getenv(String)} nor
+	 *         {@link System#getProperty(String)} returns a value.
 	 * @see #getConfiguration(String)
 	 * @since 2.4
 	 */
-	public static boolean getConfigurationBoolean(String name) {
+	public static Boolean getConfigurationBoolean(String name) {
 		String value = getConfiguration(name);
-		return Boolean.parseBoolean(value);
+		if (value != null && !value.isEmpty()) {
+			return Boolean.valueOf(value);
+		}
+		return null;
 	}
 }

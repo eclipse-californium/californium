@@ -27,7 +27,7 @@ public class TestScope {
 	private static final boolean INTENSIVE_TESTS;
 
 	static {
-		INTENSIVE_TESTS = StringUtil.getConfigurationBoolean("INTENSIVE_TESTS");
+		INTENSIVE_TESTS = Boolean.TRUE.equals(StringUtil.getConfigurationBoolean("INTENSIVE_TESTS"));
 		System.out.println("INTENSIVE TEST " + INTENSIVE_TESTS);
 	}
 
