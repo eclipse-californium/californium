@@ -26,7 +26,7 @@ echo "Please check the available RAM (e.g.: on linux use \"free -m\") and"
 echo "adjust the \"-Xmx6g\" argument in \"CF_OPT\" to about 30% of the available RAM"
 echo
 echo "The required server may be started using:"
-echo "java -d64 -Xmx6g -XX:+UseG1GC -jar cf-extplugtest-server-3.0.0-SNAPSHOT.jar -onlyLoopback -noPlugtest"
+echo "java -Xmx6g -XX:+UseG1GC -jar cf-extplugtest-server-3.0.0-SNAPSHOT.jar -onlyLoopback -noPlugtest"
 echo "Adjust the \"-Xmx6g\" argument also to about 30% of the available RAM."
 echo "The benchmark is mainly used with the loopback interface (localhost), therefore -onlyLoopback is provided."
 echo "To use client and server on different hosts, provide -noLoopback."
@@ -118,8 +118,12 @@ fi
 : "${USE_HTTP:=0}"
 : "${USE_REVERSE:=1}"
 : "${USE_OBSERVE:=1}"
+: "${USE_HANDSHAKES:=1}"
 
 USE_NONESTOP=--no-stop
+
+# export EXECUTER_REMOVE_ON_CANCEL=true
+# export EXECUTER_LOGGING_QUEUE_SIZE_DIFF=1000
 
 MULTIPLIER=10
 : "${REQS:=$((300 * $MULTIPLIER))}"
@@ -135,7 +139,6 @@ REV_REQS=$((2 * $REQS))
 : "${OBS_CLIENTS:=$((50 * $CLIENTS_MULTIPLIER))}"
 
 : "${CALI_AUTH:=--psk-store cali.psk}"
-
 
 if [ ! -s ${CF_JAR} ] ; then
 # search for given version
@@ -275,6 +278,10 @@ benchmark_dtls_handshake()
 
 benchmark_dtls_handshakes()
 {
+   if [ ${USE_HANDSHAKES} -eq 0 ] ; then return; fi
+   if [ ${USE_UDP} -eq 0 ] ; then return; fi
+   if [ ${USE_SECURE} -eq 0 ] ; then return; fi
+
    old=$CALIFORNIUM_STATISTIC
    export CALIFORNIUM_STATISTIC=
    LOOPS=10

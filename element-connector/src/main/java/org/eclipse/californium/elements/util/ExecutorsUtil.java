@@ -21,6 +21,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -32,6 +33,18 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Utility to create executors.
+ * 
+ * According some web sources, using {@link ScheduledFuture#cancel(boolean)} may
+ * cause resource leaks, because the {@link Runnable} is removed delayed.
+ * Especially "long term" scheduled tasks, which are frequently scheduled and
+ * canceled may be affected of that. To mitigate that, since java 7 the
+ * {@link ScheduledThreadPoolExecutor#setRemoveOnCancelPolicy(boolean)} can be
+ * used. The {@link ScheduledThreadPoolExecutor} will be configured using the
+ * value of environment-variable or java-property
+ * {@code "EXECUTER_REMOVE_ON_CANCEL"} or {@link #DEFAULT_REMOVE_ON_CANCEL}.
+ * 
+ * Test with java 11 didn't show such leaks, even if the task are removed
+ * delayed, they are removed much earlier than their scheduled time.
  * 
  * Note: THE INTERNAL/PRIVATE {@code SplitScheduledThreadPoolExecutor} IS A
  * WORKAROUND! IT MAY BE REPLACED IN THE FUTURE. See issue #690.
@@ -62,6 +75,39 @@ public class ExecutorsUtil {
 	private static final int SPLIT_THRESHOLD = 1;
 
 	/**
+	 * Default value for {@link #REMOVE_ON_CANCEL}, if
+	 * {@code "EXECUTER_REMOVE_ON_CANCEL"} is not available.
+	 * 
+	 * @since 3.0
+	 */
+	private static final Boolean DEFAULT_REMOVE_ON_CANCEL = true;
+	/**
+	 * General "remove on cancel" policy. Only applies for java 7 or newer.
+	 * 
+	 * Set by the value of environment-variable or java-property
+	 * {@code "EXECUTER_REMOVE_ON_CANCEL"} or {@link #DEFAULT_REMOVE_ON_CANCEL}.
+	 * 
+	 * @see StringUtil#getConfigurationBoolean(String)
+	 * @since 3.0
+	 */
+	private static final Boolean REMOVE_ON_CANCEL;
+
+	static {
+		Boolean remove = StringUtil.getConfigurationBoolean("EXECUTER_REMOVE_ON_CANCEL");
+		if (remove == null) {
+			remove = DEFAULT_REMOVE_ON_CANCEL;
+		}
+		if (remove != null) {
+			try {
+				ScheduledThreadPoolExecutor.class.getMethod("setRemoveOnCancelPolicy", Boolean.TYPE);
+			} catch (NoSuchMethodException e) {
+				remove = null;
+			}
+		}
+		REMOVE_ON_CANCEL = remove;
+	}
+
+	/**
 	 * Create a scheduled thread pool executor service.
 	 * 
 	 * If the provided number of threads exceeds the {@link #SPLIT_THRESHOLD},
@@ -75,6 +121,7 @@ public class ExecutorsUtil {
 		if (SPLIT_THRESHOLD == 0 || poolSize <= SPLIT_THRESHOLD) {
 			LOGGER.trace("create scheduled thread pool of {} threads", poolSize);
 			ScheduledExecutorService executor = Executors.newScheduledThreadPool(poolSize, threadFactory);
+			setRemoveOnCancelPolicy(executor);
 			executor.execute(WARMUP);
 			return executor;
 		} else {
@@ -109,6 +156,7 @@ public class ExecutorsUtil {
 	public static ScheduledExecutorService newSingleThreadScheduledExecutor(ThreadFactory threadFactory) {
 		LOGGER.trace("create scheduled single thread pool");
 		ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(threadFactory);
+		setRemoveOnCancelPolicy(executor);
 		executor.execute(WARMUP);
 		return executor;
 	}
@@ -117,12 +165,13 @@ public class ExecutorsUtil {
 	 * Create a scheduler with 2 threads in pools.
 	 * 
 	 * Intended to be used for rare executing timers (e.g. cleanup tasks).
+	 * 
 	 * @param namePrefix for thread names.
 	 * @return scheduled executor service
 	 */
 	public static ScheduledThreadPoolExecutor newDefaultSecondaryScheduler(String namePrefix) {
-		ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(2,
-				new NamedThreadFactory(namePrefix));
+		ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(2, new NamedThreadFactory(namePrefix));
+		setRemoveOnCancelPolicy(executor);
 		executor.execute(WARMUP);
 		executor.prestartAllCoreThreads();
 		return executor;
@@ -137,17 +186,25 @@ public class ExecutorsUtil {
 	 * @param executors executors to shutdown
 	 */
 	public static void shutdownExecutorGracefully(long timeMaxToWaitInMs, ExecutorService... executors) {
-		if (executors.length == 0)
+		if (executors.length == 0) {
 			return;
-		
+		}
+
+		long start = ClockUtil.nanoRealtime();
+
 		// shutdown executor
 		for (ExecutorService executor : executors) {
 			executor.shutdown();
 		}
 
+		long time = TimeUnit.NANOSECONDS.toMillis(ClockUtil.nanoRealtime() - start);
+		if (time > timeMaxToWaitInMs) {
+			LOGGER.warn("shutdown {} ms exceeded the maximum {} ms", time, timeMaxToWaitInMs);
+		}
+
 		// wait for task termination
 		try {
-			long timeToWait = timeMaxToWaitInMs / executors.length / 2;
+			long timeToWait = (timeMaxToWaitInMs / executors.length) / 2;
 			for (ExecutorService executor : executors) {
 				if (!executor.awaitTermination(timeToWait, TimeUnit.MILLISECONDS)) {
 					// cancel still executing tasks
@@ -169,21 +226,42 @@ public class ExecutorsUtil {
 				executor.shutdownNow();
 			}
 			Thread.currentThread().interrupt();
+		} finally {
+			time = TimeUnit.NANOSECONDS.toMillis(ClockUtil.nanoRealtime() - start);
+			if (time > timeMaxToWaitInMs) {
+				LOGGER.warn("await termination {} ms exceeded the maximum {} ms", time, timeMaxToWaitInMs);
+			}
 		}
 	}
 
 	/**
-	 * Executor, which uses a {@link ScheduledThreadPoolExecutor}
-	 * with {@link ExecutorsUtil#SPLIT_THRESHOLD} threads for scheduling, and an
+	 * Set remove on cancel policy of provided executor.
+	 * 
+	 * Ignored, if not supported by java vm or executors implementation.
+	 * 
+	 * @param executor executor to set remove on cancel policy
+	 * @since 3.0
+	 */
+	@NotForAndroid
+	private static void setRemoveOnCancelPolicy(ScheduledExecutorService executor) {
+		if (REMOVE_ON_CANCEL != null && executor instanceof ScheduledThreadPoolExecutor) {
+			((ScheduledThreadPoolExecutor) executor).setRemoveOnCancelPolicy(REMOVE_ON_CANCEL);
+		}
+	}
+
+	/**
+	 * Executor, which uses a {@link ScheduledThreadPoolExecutor} with
+	 * {@link ExecutorsUtil#SPLIT_THRESHOLD} threads for scheduling, and an
 	 * additional {@link ThreadPoolExecutor} for execution. This may result in
 	 * better performance for direct job, when many scheduled job are queued for
 	 * execution.
 	 * 
-	 * Note: IT'S A WORKAROUND! IT MAY BE REPLACED IN THE FUTURE! See issue #690.
+	 * Note: IT'S A WORKAROUND! IT MAY BE REPLACED IN THE FUTURE! See issue
+	 * #690.
 	 */
 	private static class SplitScheduledThreadPoolExecutor extends ScheduledThreadPoolExecutor {
 
-		private static final long QUEUE_SIZE_DIFF = 20000;
+		private final long SCHEDULE_EXECUTOR_LOGGING_QUEUE_SIZE_DIFF_DEFAULT = 10000;
 		/**
 		 * Direct thread pool executor for direct execution.
 		 */
@@ -192,6 +270,8 @@ public class ExecutorsUtil {
 		 * Last schedule queue size.
 		 */
 		private AtomicLong scheduleQueueSize = new AtomicLong();
+
+		private final long scheduleLoggingQueueSizeDiff;
 
 		/**
 		 * Create new executor.
@@ -207,11 +287,16 @@ public class ExecutorsUtil {
 		public SplitScheduledThreadPoolExecutor(int corePoolSize, ThreadFactory threadFactory) {
 			super(corePoolSize < SPLIT_THRESHOLD ? corePoolSize : SPLIT_THRESHOLD, threadFactory);
 			setMaximumPoolSize(corePoolSize < SPLIT_THRESHOLD ? corePoolSize : SPLIT_THRESHOLD);
+			Long diff = StringUtil.getConfigurationLong("EXECUTER_LOGGING_QUEUE_SIZE_DIFF");
+			scheduleLoggingQueueSizeDiff = diff == null ? SCHEDULE_EXECUTOR_LOGGING_QUEUE_SIZE_DIFF_DEFAULT : diff;
+			ExecutorsUtil.setRemoveOnCancelPolicy(this);
 			if (corePoolSize > SPLIT_THRESHOLD) {
 				directExecutor = newFixedThreadPool(corePoolSize - SPLIT_THRESHOLD, threadFactory);
 			} else {
 				directExecutor = null;
 			}
+			LOGGER.debug("remove on cancel: {}, split: {}, log-diff: {}", REMOVE_ON_CANCEL, directExecutor != null,
+					scheduleLoggingQueueSizeDiff);
 		}
 
 		@Override
@@ -222,8 +307,9 @@ public class ExecutorsUtil {
 				long lastSize = scheduleQueueSize.get();
 				long size = getQueue().size();
 				long diff = Math.abs(lastSize - size);
-				if (diff > QUEUE_SIZE_DIFF && scheduleQueueSize.compareAndSet(lastSize, size)) {
+				if (diff > scheduleLoggingQueueSizeDiff && scheduleQueueSize.compareAndSet(lastSize, size)) {
 					LOGGER.debug("Job queue {}", size);
+					purge();
 				}
 				directExecutor.execute(command);
 			}
@@ -271,6 +357,16 @@ public class ExecutorsUtil {
 				result.addAll(directExecutor.shutdownNow());
 			}
 			return result;
+		}
+
+		@Override
+		public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
+			if (directExecutor != null) {
+				if (!directExecutor.awaitTermination(timeout / 2, unit)) {
+					return false;
+				}
+			}
+			return super.awaitTermination(timeout / 2, unit);
 		}
 	}
 }

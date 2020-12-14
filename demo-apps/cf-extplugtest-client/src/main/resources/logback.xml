@@ -37,6 +37,10 @@
 		<appender-ref ref="FILE" />
 	</logger>
 
+	<logger name="org.eclipse.californium.elements.util.ExecutorsUtil" level="DEBUG" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
+
 	<logger name="org.eclipse.californium.scandium.dtls.Connection.owner" level="DEBUG" additivity="false">
 		<appender-ref ref="STDOUT_SIMPLE" />
 	</logger>
