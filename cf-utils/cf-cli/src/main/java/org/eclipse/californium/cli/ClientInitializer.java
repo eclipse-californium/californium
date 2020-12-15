@@ -307,6 +307,7 @@ public class ClientInitializer {
 				retransmissionTimeout = dtlsRetransmissionTimeout;
 			}
 			int localPort = clientConfig.localPort == null ? 0 : clientConfig.localPort;
+			Long autoResumption = clientConfig.dtlsAutoResumption;
 			Integer recordSizeLimit = clientConfig.recordSizeLimit;
 			Integer mtu = clientConfig.mtu;
 			if (clientConfig.cidLength != null) {
@@ -397,6 +398,9 @@ public class ClientInitializer {
 			dtlsConfig.setRecordSizeLimit(recordSizeLimit);
 			if (mtu != null) {
 				dtlsConfig.setMaxTransmissionUnit(mtu);
+			}
+			if (autoResumption != null) {
+				dtlsConfig.setAutoResumptionTimeoutMillis(autoResumption);
 			}
 			return dtlsConfig;
 		}

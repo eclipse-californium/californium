@@ -509,7 +509,7 @@ public class BenchmarkClient {
 		countDown(overallRequestsDownCounter);
 		Request request;
 		int accept = TEXT_PLAIN;
-		byte[] payload = config.payloadBytes;
+		byte[] payload = config.payload.payloadBytes;
 		if (config.hono) {
 			request = secure ? Request.newPost() : Request.newPut();
 			if (payload == null) {

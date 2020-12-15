@@ -93,7 +93,7 @@ public class ClientConfig extends ClientBaseConfig {
 		 */
 		public int contentType;
 
-		void defaults() {
+		public void defaults() {
 			if (type != null) {
 				contentType = MediaTypeRegistry.parse(type);
 			} else if (text) {
@@ -142,13 +142,57 @@ public class ClientConfig extends ClientBaseConfig {
 		 * @since 2.4
 		 */
 		@Option(names = "--payload-file", description = "payload from file")
-		public String file;
-	}
+		public String filename;
 
-	/**
-	 * Payload in bytes.
-	 */
-	public byte[] payloadBytes;
+		/**
+		 * Payload in bytes.
+		 */
+		public byte[] payloadBytes;
+
+		public void defaults(int max) {
+			if (payloadBytes == null) {
+				if (text != null) {
+					payloadBytes = text.getBytes();
+				} else if (hex != null) {
+					payloadBytes = StringUtil.hex2ByteArray(hex);
+				} else if (base64 != null) {
+					payloadBytes = StringUtil.base64ToByteArray(base64);
+				} else if (filename != null) {
+					File file = new File(filename);
+					if (file.canRead()) {
+						long length = file.length();
+						if (length <= max) {
+							payloadBytes = new byte[(int)length];
+							InputStream in = null;
+							try {
+								in = new FileInputStream(file);
+								int len = in.read(payloadBytes);
+								if (len != length) {
+									LOGGER.error("file {} with {} bytes, read {} bytes!", file, length, len);
+								}
+							} catch (FileNotFoundException e) {
+								LOGGER.error("Missing file {}", file, e);
+							} catch (IOException e) {
+								LOGGER.error("Error reading file {}", file, e);
+							} finally {
+								if (in != null) {
+									try {
+										in.close();
+									} catch (IOException e) {
+										LOGGER.error("Error closing file {}", file, e);
+									}
+								}
+							}
+						} else {
+							LOGGER.error("file {} with {} bytes is too large! (Maximum {} bytes.)", file, length, max);
+						}
+					} else {
+						LOGGER.error("Can not read file {} ({})", file, file.getAbsolutePath());
+					}
+				}
+			}
+		}
+	}
 
 	/**
 	 * Apply {@link String#format(String, Object...)} to payload. The used
@@ -199,47 +243,9 @@ public class ClientConfig extends ClientBaseConfig {
 		if (contentType != null) {
 			contentType.defaults();
 		}
-		if (payload != null && payloadBytes == null) {
-			if (payload.text != null) {
-				payloadBytes = payload.text.getBytes();
-			} else if (payload.hex != null) {
-				payloadBytes = StringUtil.hex2ByteArray(payload.hex);
-			} else if (payload.base64 != null) {
-				payloadBytes = StringUtil.base64ToByteArray(payload.base64);
-			} else if (payload.file != null) {
-				int max = networkConfig.getInt(Keys.MAX_RESOURCE_BODY_SIZE);
-				File file = new File(payload.file);
-				if (file.canRead()) {
-					long length = file.length();
-					if (length <= max) {
-						payloadBytes = new byte[(int)length];
-						InputStream in = null;
-						try {
-							in = new FileInputStream(file);
-							int len = in.read(payloadBytes);
-							if (len != length) {
-								LOGGER.error("file {} with {} bytes, read {} bytes!", payload.file, length, len);
-							}
-						} catch (FileNotFoundException e) {
-							LOGGER.error("Missing file {}", payload.file, e);
-						} catch (IOException e) {
-							LOGGER.error("Error reading file {}", payload.file, e);
-						} finally {
-							if (in != null) {
-								try {
-									in.close();
-								} catch (IOException e) {
-									LOGGER.error("Error closing file {}", payload.file, e);
-								}
-							}
-						}
-					} else {
-						LOGGER.error("file {} with {} bytes is too large! (Maximum {} bytes.)", payload.file, length, max);
-					}
-				} else {
-					LOGGER.error("Can not read file {} ({})", payload.file, file.getAbsolutePath());
-				}
-			}
+		if (payload != null) {
+			int max = networkConfig.getInt(Keys.MAX_RESOURCE_BODY_SIZE);
+			payload.defaults(max);
 		}
 	}
 
@@ -256,7 +262,7 @@ public class ClientConfig extends ClientBaseConfig {
 	/**
 	 * Negatable transformer. Transforms "--con" to "-non".
 	 */
-	protected static INegatableOptionTransformer messageTypeTransformer = new INegatableOptionTransformer() {
+	public static INegatableOptionTransformer messageTypeTransformer = new INegatableOptionTransformer() {
 
 		private INegatableOptionTransformer delegate = CommandLine.RegexTransformer.createDefault();
 
