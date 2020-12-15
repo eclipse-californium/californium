@@ -378,7 +378,7 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 		}
 
 		/**
-		 * Add {@link Number} value with key.
+		 * Add {@link Integer} value with key.
 		 * 
 		 * Provides a fluent API to chain add functions.
 		 * 
@@ -390,7 +390,25 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 		 * @throws IllegalArgumentException if key is empty
 		 * @throws IllegalStateException if instance is locked
 		 */
-		public Attributes add(String key, Number value) {
+		public Attributes add(String key, Integer value) {
+			addObject(key, value);
+			return this;
+		}
+
+		/**
+		 * Add {@link Long} value with key.
+		 * 
+		 * Provides a fluent API to chain add functions.
+		 * 
+		 * @param key key to add
+		 * @param value value to add
+		 * @return this for chaining
+		 * @throws NullPointerException if key is {@code null}, or a critical
+		 *             value is {@code null}
+		 * @throws IllegalArgumentException if key is empty
+		 * @throws IllegalStateException if instance is locked
+		 */
+		public Attributes add(String key, Long value) {
 			addObject(key, value);
 			return this;
 		}
@@ -448,6 +466,24 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 				throw new IllegalArgumentException("key is empty");
 			}
 			return entries.remove(key) != null;
+		}
+
+		@Override
+		public int hashCode() {
+			return entries.hashCode();
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj)
+				return true;
+			if (obj == null)
+				return false;
+			if (obj instanceof Attributes) {
+				Attributes other = (Attributes) obj;
+				return entries.equals(other.entries);
+			}
+			return false;
 		}
 	}
 }

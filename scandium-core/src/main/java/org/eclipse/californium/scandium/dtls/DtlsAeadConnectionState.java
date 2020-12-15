@@ -29,7 +29,7 @@ import org.eclipse.californium.scandium.dtls.cipher.AeadBlockCipher;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.SecretIvParameterSpec;
 import org.eclipse.californium.scandium.util.SecretUtil;
-import org.eclipse.californium.scandium.util.SerializationUtil;
+import org.eclipse.californium.scandium.util.SecretSerializationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -192,8 +192,8 @@ public class DtlsAeadConnectionState extends DTLSConnectionState {
 
 	@Override
 	public void write(DatagramWriter writer) {
-		SerializationUtil.write(writer, encryptionKey);
-		SerializationUtil.write(writer, iv);
+		SecretSerializationUtil.write(writer, encryptionKey);
+		SecretSerializationUtil.write(writer, iv);
 	}
 
 	/**
@@ -207,7 +207,7 @@ public class DtlsAeadConnectionState extends DTLSConnectionState {
 	 */
 	DtlsAeadConnectionState(CipherSuite cipherSuite, CompressionMethod compressionMethod, DatagramReader reader) {
 		super(cipherSuite, compressionMethod);
-		encryptionKey = SerializationUtil.readSecretKey(reader);
-		iv = SerializationUtil.readIv(reader);
+		encryptionKey = SecretSerializationUtil.readSecretKey(reader);
+		iv = SecretSerializationUtil.readIv(reader);
 	}
 }
