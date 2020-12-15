@@ -161,6 +161,24 @@ public class DatagramWriterTest {
 	}
 
 	@Test
+	public void testWriteVarByteArray() {
+		byte[] data = bin("ab12def671223344556677890a");
+		writer.writeVarBytes(data, Byte.SIZE);
+		byte[] wdata = writer.toByteArray();
+		String expected = String.format("%02X%s", data.length, hex(data));
+		assertEquals(expected, hex(wdata));
+	}
+
+	@Test
+	public void testWriteVarBytes() {
+		byte[] data = bin("ab12def671223344556677890a0011");
+		writer.writeVarBytes(new Bytes(data), Short.SIZE);
+		byte[] wdata = writer.toByteArray();
+		String expected = String.format("%04X%s", data.length, hex(data));
+		assertEquals(expected, hex(wdata));
+	}
+
+	@Test
 	public void testWritePosition() {
 		byte[] data = bin("ab12def671223344556677890a");
 		writer.writeBytes(data);

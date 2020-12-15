@@ -35,7 +35,7 @@ import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.auth.PrincipalSerializer;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.SecretUtil;
-import org.eclipse.californium.scandium.util.SerializationUtil;
+import org.eclipse.californium.scandium.util.SecretSerializationUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
@@ -142,7 +142,7 @@ public final class SessionTicket implements Destroyable {
 		writer.write(compressionMethod.getCode(), CompressionMethod.COMPRESSION_METHOD_BITS);
 
 		// master_secret
-		SerializationUtil.write(writer, masterSecret);
+		SecretSerializationUtil.write(writer, masterSecret);
 
 		// client_identity
 		PrincipalSerializer.serialize(clientIdentity, writer);
@@ -194,7 +194,7 @@ public final class SessionTicket implements Destroyable {
 		}
 
 		// master_secret
-		SecretKey masterSecret = SerializationUtil.readSecretKey(source);
+		SecretKey masterSecret = SecretSerializationUtil.readSecretKey(source);
 
 		// client_identity
 		Principal identity = null;

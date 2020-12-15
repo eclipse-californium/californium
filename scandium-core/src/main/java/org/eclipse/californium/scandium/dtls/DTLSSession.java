@@ -60,6 +60,7 @@ import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.SerializationUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.util.WipAPI;
 import org.eclipse.californium.scandium.auth.PrincipalSerializer;
@@ -67,7 +68,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.util.SecretIvParameterSpec;
 import org.eclipse.californium.scandium.util.SecretUtil;
-import org.eclipse.californium.scandium.util.SerializationUtil;
+import org.eclipse.californium.scandium.util.SecretSerializationUtil;
 import org.eclipse.californium.scandium.util.ServerName;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.eclipse.californium.scandium.util.ServerName.NameType;
@@ -1289,7 +1290,7 @@ public final class DTLSSession implements Destroyable {
 			getWriteState().write(writer);
 		}
 		writer.writeVarBytes(writeConnectionId, Byte.SIZE);
-		SerializationUtil.write(writer, masterSecret);
+		SecretSerializationUtil.write(writer, masterSecret);
 		if (peerIdentity == null) {
 			writer.write(0, Byte.SIZE);
 		} else {
@@ -1379,7 +1380,7 @@ public final class DTLSSession implements Destroyable {
 		if (data != null) {
 			writeConnectionId = new ConnectionId(data);
 		}
-		masterSecret = SerializationUtil.readSecretKey(reader);
+		masterSecret = SecretSerializationUtil.readSecretKey(reader);
 		if (reader.readNextByte() == 1) {
 			try {
 				peerIdentity = PrincipalSerializer.deserialize(reader);

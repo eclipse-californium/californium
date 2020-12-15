@@ -26,7 +26,7 @@ import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.cipher.CbcBlockCipher;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.SecretUtil;
-import org.eclipse.californium.scandium.util.SerializationUtil;
+import org.eclipse.californium.scandium.util.SecretSerializationUtil;
 
 /**
  * DTLS connection state for block cipher.
@@ -125,8 +125,8 @@ public class DtlsBlockConnectionState extends DTLSConnectionState {
 
 	@Override
 	public void write(DatagramWriter writer) {
-		SerializationUtil.write(writer, macKey);
-		SerializationUtil.write(writer, encryptionKey);
+		SecretSerializationUtil.write(writer, macKey);
+		SecretSerializationUtil.write(writer, encryptionKey);
 	}
 
 	/**
@@ -140,8 +140,8 @@ public class DtlsBlockConnectionState extends DTLSConnectionState {
 	 */
 	DtlsBlockConnectionState(CipherSuite cipherSuite, CompressionMethod compressionMethod, DatagramReader reader) {
 		super(cipherSuite, compressionMethod);
-		macKey = SerializationUtil.readSecretKey(reader);
-		encryptionKey = SerializationUtil.readSecretKey(reader);
+		macKey = SecretSerializationUtil.readSecretKey(reader);
+		encryptionKey = SecretSerializationUtil.readSecretKey(reader);
 	}
 
 }

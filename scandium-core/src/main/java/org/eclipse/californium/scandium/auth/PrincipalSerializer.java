@@ -29,7 +29,7 @@ import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.util.Asn1DerDecoder;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
-import org.eclipse.californium.scandium.util.SerializationUtil;
+import org.eclipse.californium.elements.util.SerializationUtil;
 
 /**
  * A helper for serializing and deserializing principals supported by Scandium.
