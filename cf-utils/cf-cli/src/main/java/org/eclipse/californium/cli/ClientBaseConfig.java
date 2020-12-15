@@ -73,6 +73,12 @@ public class ClientBaseConfig extends ConnectorConfig {
 	public Integer localPort;
 
 	/**
+	 * Local port.
+	 */
+	@Option(names = "--dtls-auto-resumption", description = "enable dtls auto-resumption. Value in milliseconds. Default disabled.")
+	public Long dtlsAutoResumption;
+
+	/**
 	 * Destination URI.
 	 */
 	@Parameters(index = "0", paramLabel = LABELT_URI, arity = "0..1", description = "destination URI. Default ${DEFAULT-VALUE}")
