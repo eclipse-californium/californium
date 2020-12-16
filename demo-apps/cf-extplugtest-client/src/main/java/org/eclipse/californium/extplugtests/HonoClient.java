@@ -227,7 +227,7 @@ public class HonoClient {
 			clientConfig.contentType.contentType = MediaTypeRegistry.TEXT_PLAIN;
 		}
 
-		if (clientConfig.payload.payloadBytes == null && request.isIntendedPayload()) {
+		if (clientConfig.payload == null && request.isIntendedPayload()) {
 			applyPayload(clientConfig.mode, request);
 			clientConfig.payload = new Payload();
 			clientConfig.payload.text = request.getPayloadString();

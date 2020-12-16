@@ -509,7 +509,7 @@ public class BenchmarkClient {
 		countDown(overallRequestsDownCounter);
 		Request request;
 		int accept = TEXT_PLAIN;
-		byte[] payload = config.payload.payloadBytes;
+		byte[] payload = config.payload == null ? null : config.payload.payloadBytes;
 		if (config.hono) {
 			request = secure ? Request.newPost() : Request.newPut();
 			if (payload == null) {
@@ -634,13 +634,12 @@ public class BenchmarkClient {
 		@Override
 		public void onError() {
 			if (!stop.get()) {
-				boolean non = false;
+				boolean non = !post.isConfirmable();
 				long c = requestsCounter.get();
 				String msg = "";
 				if (post.getSendError() != null) {
 					msg = post.getSendError().getMessage();
 				} else if (post.isTimedOut()) {
-					non = !post.isConfirmable();
 					msg = "timeout";
 				} else if (post.isRejected()) {
 					msg = "rejected";
