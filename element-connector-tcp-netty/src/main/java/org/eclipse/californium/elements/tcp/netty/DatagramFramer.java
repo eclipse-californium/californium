@@ -63,7 +63,7 @@ public class DatagramFramer extends ByteToMessageDecoder {
 
 			byte[] data = new byte[coapHeaderSize + bodyLength];
 			in.readBytes(data);
-			
+
 			Channel channel = ctx.channel();
 			EndpointContext endpointContext = contextUtil.buildEndpointContext(channel);
 			RawData rawData = RawData.inbound(data, endpointContext, false, ClockUtil.nanoRealtime());

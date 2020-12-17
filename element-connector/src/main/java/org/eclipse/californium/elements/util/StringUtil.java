@@ -23,6 +23,7 @@ import java.lang.reflect.Method;
 import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.regex.Pattern;
@@ -353,6 +354,25 @@ public class StringUtil {
 		} else {
 			return host + ":" + address.getPort();
 		}
+	}
+
+	/**
+	 * Get socket address as string for logging.
+	 * 
+	 * @param address socket address to be converted to string
+	 * @return the socket address as string, or {@code null}, if address is
+	 *         {@code null}.
+	 * @see #toString(InetSocketAddress)
+	 * @since 2.6
+	 */
+	public static String toString(SocketAddress address) {
+		if (address == null) {
+			return null;
+		}
+		if (address instanceof InetSocketAddress) {
+			return toString((InetSocketAddress) address);
+		}
+		return address.toString();
 	}
 
 	/**
