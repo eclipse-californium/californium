@@ -113,6 +113,7 @@ fi
 : "${USE_SECURE:=1}"
 : "${USE_CON:=1}"
 : "${USE_NON:=1}"
+: "${USE_LARGE_BLOCK1:=1}"
 
 : "${USE_HTTP:=0}"
 : "${USE_REVERSE:=1}"
@@ -206,19 +207,25 @@ benchmark()
 
 benchmark_all()
 {
-# GET
+# POST
    if [ ${USE_CON} -ne 0 ] ; then 
+      if [ ${USE_LARGE_BLOCK1} -ne 0 ] ; then 
+         benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP} --payload-random ${PAYLOAD_LARGE}
+      fi
       benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
    fi
 
    if [ ${USE_NON} -ne 0 ] ; then 
-      benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --non --requests ${REQS} ${USE_NONESTOP}
+      if [ ${USE_LARGE_BLOCK1} -ne 0 ] ; then 
+         benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --non --requests ${REQS} ${USE_NONESTOP} --payload-random ${PAYLOAD_LARGE}
+      fi
+      benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
    fi
 
    benchmark_tcp "benchmark?rlen=${PAYLOAD}" --clients ${TCP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
    
    if [ ${USE_CON} -ne 0 ] ; then 
-# GET with separate response
+# POST separate response
       benchmark_udp "benchmark?rlen=${PAYLOAD}&ack" --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
    fi
 

@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.util.Random;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -137,6 +138,14 @@ public class ClientConfig extends ClientBaseConfig {
 		public String base64;
 
 		/**
+		 * Random payload size.
+		 * 
+		 * @since 3.0
+		 */
+		@Option(names = "--payload-random", description = "random payload size")
+		public Integer size;
+
+		/**
 		 * Payload from file.
 		 * 
 		 * @since 2.4
@@ -146,9 +155,21 @@ public class ClientConfig extends ClientBaseConfig {
 
 		/**
 		 * Payload in bytes.
+		 * 
+		 * (Moved from {@link ClientConfig}.)
+		 * 
+		 * @since 3.0
 		 */
 		public byte[] payloadBytes;
 
+		/**
+		 * Setup payload defaults.
+		 * 
+		 * (Moved from {@link ClientConfig}.)
+		 * 
+		 * @param max maximum supported payload size
+		 * @since 3.0
+		 */
 		public void defaults(int max) {
 			if (payloadBytes == null) {
 				if (text != null) {
@@ -157,6 +178,16 @@ public class ClientConfig extends ClientBaseConfig {
 					payloadBytes = StringUtil.hex2ByteArray(hex);
 				} else if (base64 != null) {
 					payloadBytes = StringUtil.base64ToByteArray(base64);
+				} else if (size != null) {
+					if (size <= max) {
+						Random rand = new Random();
+						payloadBytes = new byte[(int) size];
+						for (int index=0; index < size; ++index) {
+							payloadBytes[index] = (byte)(' ' + rand.nextInt(127 - ' '));
+						}
+					} else {
+						LOGGER.error("Random payload with {} bytes is too large! (Maximum {} bytes.)", size, max);
+					}
 				} else if (filename != null) {
 					File file = new File(filename);
 					if (file.canRead()) {
