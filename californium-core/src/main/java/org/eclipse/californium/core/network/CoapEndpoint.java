@@ -86,6 +86,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -210,6 +211,9 @@ public class CoapEndpoint implements Endpoint {
 
 	/** the logger. */
 	private static final Logger LOGGER = LoggerFactory.getLogger(CoapEndpoint.class);
+
+	private final static Logger LOGGER_BAN = LoggerFactory.getLogger("org.eclipse.californium.ban");
+	private final static AtomicBoolean LOGGER_BAN_STARTED = new AtomicBoolean();
 
 	/** The stack of layers that make up the CoAP protocol */
 	protected final CoapStack coapstack;
@@ -360,6 +364,9 @@ public class CoapEndpoint implements Endpoint {
 			EndpointContextMatcher endpointContextMatcher, DataSerializer serializer, DataParser parser,
 			String loggingTag, CoapStackFactory coapStackFactory,
 			Object customStackArgument) {
+		if (LOGGER_BAN.isInfoEnabled() && LOGGER_BAN_STARTED.compareAndSet(false, true)) {
+			LOGGER_BAN.info("Started.");
+		}
 		this.config = config;
 		this.connector = connector;
 		this.connector.setRawDataReceiver(new InboxImpl());
@@ -991,52 +998,70 @@ public class CoapEndpoint implements Endpoint {
 		 * e.g. because the message is malformed, an RST is sent back to the sender.
 		 */
 		private void receiveMessage(final RawData raw) {
-
+			EndpointContext context = raw.getEndpointContext();
 			Message msg = null;
-
+			Exception ex = null;
 			try {
 				msg = parser.parseMessage(raw);
 
 				if (CoAP.isRequest(msg.getRawCode())) {
-
 					receiveRequest((Request) msg);
-
+					return;
 				} else if (CoAP.isResponse(msg.getRawCode())) {
-
 					receiveResponse((Response) msg);
-
+					return;
 				} else if (CoAP.isEmptyMessage(msg.getRawCode())) {
-
 					receiveEmptyMessage((EmptyMessage) msg);
-
+					return;
 				} else {
-					LOGGER.debug("{}silently ignoring non-CoAP message from {}", tag, raw.getEndpointContext());
+					LOGGER.debug("{}silently ignoring non-CoAP message from {}", tag, context);
 				}
-
 			} catch (CoAPMessageFormatException e) {
-
+				ex = e;
 				if (e.isConfirmable() && e.hasMid()) {
 					if (CoAP.isRequest(e.getCode()) && e.getToken() != null) {
 						// respond with BAD OPTION erroneous reliably transmitted request as mandated by CoAP spec
 						// https://tools.ietf.org/html/rfc7252#section-4.2
 						responseBadOption(raw, e);
 						LOGGER.debug("{}respond malformed request from [{}], reason: {}",
-								tag, raw.getEndpointContext(), e.getMessage());
+								tag, context, e.getMessage());
 					} else {
 						// reject erroneous reliably transmitted message as mandated by CoAP spec
 						// https://tools.ietf.org/html/rfc7252#section-4.2
 						reject(raw, e);
 						LOGGER.debug("{}rejected malformed message from [{}], reason: {}",
-								tag, raw.getEndpointContext(), e.getMessage());
+								tag, context, e.getMessage());
 					}
 				} else {
 					// ignore erroneous messages that are not transmitted reliably
-					LOGGER.debug("{}discarding malformed message from [{}]: {}", tag, raw.getEndpointContext(), e.getMessage());
+					LOGGER.debug("{}discarding malformed message from [{}]: {}", tag, context, e.getMessage());
 				}
 			} catch (MessageFormatException e) {
+				ex = e;
 
 				// ignore erroneous messages that are not transmitted reliably
-				LOGGER.debug("{}discarding malformed message from [{}]: {}", tag, raw.getEndpointContext(), e.getMessage());
+				LOGGER.debug("{}discarding malformed message from [{}]: {}", tag, context, e.getMessage());
+			}
+			if (LOGGER_BAN.isInfoEnabled()) {
+				String address = context.getPeerAddress().getAddress().getHostAddress();
+				String protocol = connector.getProtocol();
+				StringBuilder message = new StringBuilder();
+				if (ex != null) {
+					message.append(ex.getMessage().trim());
+					int len = message.length();
+					if (len > 0) {
+						char last = message.charAt(len - 1);
+						if (last != '.' && last != '!' && last != ';' && last != '#') {
+							if (last == ':') {
+								message.setLength(len - 1);
+							}
+							message.append(";");
+						}
+					}
+					message.append(" ");
+				}
+				message.append(StringUtil.byteArray2HexString(raw.getBytes(), StringUtil.NO_SEPARATOR, 8));
+				LOGGER_BAN.info("{}{} {} Ban: {}", tag, message, protocol, address);
 			}
 		}
 

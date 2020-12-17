@@ -46,7 +46,11 @@ public final class TcpDataParser extends DataParser {
 		int len = reader.read(LENGTH_NIBBLE_BITS);
 		int tokenLength = reader.read(TOKEN_LENGTH_BITS);
 		int lengthSize = 0;
-		assertValidTokenLength(tokenLength);
+		if (tokenLength > 8) {
+			// must be treated as a message format error according to CoAP spec
+			// https://tools.ietf.org/html/rfc7252#section-3
+			throw new MessageFormatException("TCP Message has invalid token length (> 8) " + tokenLength);
+		}
 
 		if (len == 13) {
 			lengthSize = 1;

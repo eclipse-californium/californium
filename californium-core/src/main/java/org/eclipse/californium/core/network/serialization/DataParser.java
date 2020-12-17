@@ -124,21 +124,6 @@ public abstract class DataParser {
 	protected abstract MessageHeader parseHeader(DatagramReader reader);
 
 	/**
-	 * Asserts that the length of the token as read from the encoded message complies
-	 * with the CoAP spec.
-	 * 
-	 * @param tokenLength the length value read from the message header.
-	 * @throws MessageFormatException if the value is greater than eight.
-	 */
-	protected static final void assertValidTokenLength(int tokenLength) {
-		if (tokenLength > 8) {
-			// must be treated as a message format error according to CoAP spec
-			// https://tools.ietf.org/html/rfc7252#section-3
-			throw new MessageFormatException("Message has invalid token length (> 8)" + tokenLength);
-		}
-	}
-
-	/**
 	 * Parse options and payload from reader.
 	 * 
 	 * @param reader reader that contains the bytes to parse

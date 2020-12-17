@@ -45,7 +45,11 @@ public final class UdpDataParser extends DataParser {
 		assertCorrectVersion(version);
 		int type = reader.read(TYPE_BITS);
 		int tokenLength = reader.read(TOKEN_LENGTH_BITS);
-		assertValidTokenLength(tokenLength);
+		if (tokenLength > 8) {
+			// must be treated as a message format error according to CoAP spec
+			// https://tools.ietf.org/html/rfc7252#section-3
+			throw new MessageFormatException("UDP Message has invalid token length (> 8) " + tokenLength);
+		}
 		int code = reader.read(CODE_BITS);
 		int mid = reader.read(MESSAGE_ID_BITS);
 		if (!reader.bytesAvailable(tokenLength)) {
@@ -59,7 +63,7 @@ public final class UdpDataParser extends DataParser {
 
 	private void assertCorrectVersion(int version) {
 		if (version != CoAP.VERSION) {
-			throw new MessageFormatException("Message has invalid version: " + version);
+			throw new MessageFormatException("UDP Message has invalid version: " + version);
 		}
 	}
 }
