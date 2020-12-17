@@ -136,7 +136,7 @@ public class BenchmarkClient {
 	/**
 	 * Default block size.
 	 */
-	private static final int DEFAULT_BLOCK_SIZE = 1024;
+	private static final int DEFAULT_BLOCK_SIZE = 64;
 	/**
 	 * Default block size for reverse server. Used for reverse request including
 	 * observes.

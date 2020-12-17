@@ -73,9 +73,11 @@ public class ClientBaseConfig extends ConnectorConfig {
 	public Integer localPort;
 
 	/**
-	 * Local port.
+	 * DTLS auto-resumption timeout in milliseconds.
+	 * 
+	 * @since 3.0
 	 */
-	@Option(names = "--dtls-auto-resumption", description = "enable dtls auto-resumption. Value in milliseconds. Default disabled.")
+	@Option(names = "--dtls-auto-resumption", description = "enable dtls auto-resumption. Value in milliseconds. Default disabled. Recommended value to use 30000 (30s).")
 	public Long dtlsAutoResumption;
 
 	/**
