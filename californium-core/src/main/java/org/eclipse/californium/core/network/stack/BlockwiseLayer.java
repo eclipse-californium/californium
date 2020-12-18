@@ -85,25 +85,30 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Provides transparent handling of the blockwise transfer of a large <em>resource body</em>.
+ * Provides transparent handling of the blockwise transfer of a large
+ * <em>resource body</em>.
  * <p>
- * There are four cases in which such <em>transparent</em> blockwise transfers occur:
+ * There are four cases in which such <em>transparent</em> blockwise transfers
+ * occur:
  * <ul>
- * <li>An outbound request carrying a large body that is too large to be sent in the payload
- * of a single message, is transparently replaced by a sequence of requests transferring individual
- * blocks of the body to the server.</li>
- * <li>An outbound response carrying a large body that is too large to be sent in the payload
- * of a single message, is transparently replaced by a response containing only the first block
- * of the body. The body will be <em>buffered</em> in-memory so that the peer can retrieve the
- * whole body using multiple requests for individual blocks.</li>
- * <li>When an inbound request containing a single block of a large body is received, the payload
- * will be buffered and acknowledged so that the peer can send the rest of the body using a blockwise
- * transfer. Once all blocks have been received, the overall body is re-assembled and forwarded
- * to the {@code Resource} handling the request.</li>
- * <li>When a response is received from a peer containing a single block of a large body is received,
- * the payload will be buffered and a blockwise transfer is started for retrieving the rest of the body.
- * Once all blocks have been received, the overall body is re-assembled and forwarded
- * to the client that has issued the original request.</li>
+ * <li>An outbound request carrying a large body that is too large to be sent in
+ * the payload of a single message, is transparently replaced by a sequence of
+ * requests transferring individual blocks of the body to the server.</li>
+ * <li>An outbound response carrying a large body that is too large to be sent
+ * in the payload of a single message, is transparently replaced by a response
+ * containing only the first block of the body. The body will be
+ * <em>buffered</em> in-memory so that the peer can retrieve the whole body
+ * using multiple requests for individual blocks.</li>
+ * <li>When an inbound request containing a single block of a large body is
+ * received, the payload will be buffered and acknowledged so that the peer can
+ * send the rest of the body using a blockwise transfer. Once all blocks have
+ * been received, the overall body is re-assembled and forwarded to the
+ * {@code Resource} handling the request.</li>
+ * <li>When a response is received from a peer containing a single block of a
+ * large body is received, the payload will be buffered and a blockwise transfer
+ * is started for retrieving the rest of the body. Once all blocks have been
+ * received, the overall body is re-assembled and forwarded to the client that
+ * has issued the original request.</li>
  * </ul>
  * <p>
  * Block-wise transfer does not support concurrent transfer for the same
@@ -111,6 +116,28 @@ import org.slf4j.LoggerFactory;
  * is not really advised. When concurrent transfer is detected we always
  * privilege the most recent transfers. This is the most resilient way, as new
  * transfer will never be blocked by old incomplete transfer.
+ * <p>
+ * Synchronization: The blockwise-layer uses synchronization to prevent from
+ * failures caused by race-conditions. All blockwise-status are kept in
+ * {@link #block1Transfers} or {@link #block1Transfers}. Add, get, remove a
+ * blockwise-status are executed synchronized on these collection.
+ * <ul>
+ * <li>{@link #getOutboundBlock1Status(KeyUri, Exchange, Request, int)}</li>
+ * <li>{@link #getInboundBlock1Status(KeyUri, Exchange, Request)}</li>
+ * <li>{@link #resetInboundBlock1Status(KeyUri, Exchange, Request)}</li>
+ * <li>{@link #getOutboundBlock2Status(KeyUri, Exchange, Response)}</li>
+ * <li>{@link #getInboundBlock2Status(KeyUri, Exchange, Response)}</li>
+ * <li>{@link #addRandomAccessBlock2Status(Exchange, Request)}</li>
+ * <li>{@link #resetOutboundBlock2Status(KeyUri, Exchange, Response)}</li>
+ * <li>{@link #getBlock1Status(KeyUri)}</li>
+ * <li>{@link #getBlock2Status(KeyUri)}</li>
+ * <li>{@link #clearBlock1Status(KeyUri, Block1BlockwiseStatus)}</li>
+ * <li>{@link #clearBlock2Status(KeyUri, Block2BlockwiseStatus)}</li>
+ * </ul>
+ * All operations on a single blockwise-status are executed synchronized to that
+ * status. It's important to always first access the transfer-collection and
+ * within that the status synchronized section. It's not possible to access the
+ * transfer-collection within a synchronized section of a blockwise-status.
  */
 public class BlockwiseLayer extends AbstractLayer {
 
@@ -1174,6 +1201,18 @@ public class BlockwiseLayer extends AbstractLayer {
 		}
 	}
 
+	/**
+	 * Get outbound block1status.
+	 * 
+	 * If not available, create new block1status,
+	 * 
+	 * Synchronized on {@link #block1Transfers}.
+	 * 
+	 * @param key uri-key
+	 * @param exchange blockwise exchange.
+	 * @param request outer request with complete payload.
+	 * @return block1status
+	 */
 	private Block1BlockwiseStatus getOutboundBlock1Status(final KeyUri key, final Exchange exchange, final Request request, int blocksize) {
 
 		synchronized (block1Transfers) {
@@ -1189,6 +1228,18 @@ public class BlockwiseLayer extends AbstractLayer {
 		}
 	}
 
+	/**
+	 * Get inbound block1status.
+	 * 
+	 * If not available, create new block1status,
+	 * 
+	 * Synchronized on {@link #block1Transfers}.
+	 * 
+	 * @param key uri-key
+	 * @param exchange blockwise exchange.
+	 * @param request first received request
+	 * @return new block1status
+	 */
 	private Block1BlockwiseStatus getInboundBlock1Status(final KeyUri key, final Exchange exchange, final Request request) {
 		Block1BlockwiseStatus status;
 		int maxPayloadSize = getMaxResourceBodySize(request);
@@ -1207,22 +1258,46 @@ public class BlockwiseLayer extends AbstractLayer {
 		return status;
 	}
 
+	/**
+	 * Reset inbound block1status.
+	 * 
+	 * Remove and complete previous block1status and start a new block1status.
+	 * 
+	 * Synchronized on {@link #block1Transfers}.
+	 * 
+	 * @param key uri-key
+	 * @param exchange blockwise exchange.
+	 * @param request first received request
+	 * @return new block1status
+	 */
 	private Block1BlockwiseStatus resetInboundBlock1Status(final KeyUri key, final Exchange exchange, final Request request) {
 		Block1BlockwiseStatus removedStatus;
 		Block1BlockwiseStatus newStatus;
 		synchronized (block1Transfers) {
 			removedStatus = block1Transfers.remove(key);
-			LOGGER.debug("inbound block1 transfer reset at {} by peer: {}", removedStatus, request);
 			// remove old status ensures, that getInboundBlock1Status could be
 			// called in synchronized (block1Transfers)
 			newStatus = getInboundBlock1Status(key, exchange, request);
 		}
+		LOGGER.debug("inbound block1 transfer reset at {} by peer: {}", removedStatus, request);
 		if (removedStatus != null) {
 			removedStatus.setComplete(true);
 		}
 		return newStatus;
 	}
 
+	/**
+	 * Get get outbound block2status.
+	 * 
+	 * If not available, create new block2status,
+	 * 
+	 * Synchronized on {@link #block2Transfers}.
+	 * 
+	 * @param key uri-key
+	 * @param exchange blockwise exchange.
+	 * @param response outer response with complete payload.
+	 * @return block2status
+	 */
 	private Block2BlockwiseStatus getOutboundBlock2Status(final KeyUri key, final Exchange exchange, final Response response) {
 
 		Block2BlockwiseStatus status;
@@ -1241,6 +1316,18 @@ public class BlockwiseLayer extends AbstractLayer {
 		return status;
 	}
 
+	/**
+	 * Get get inbound block2status.
+	 * 
+	 * If not available, create new block2status,
+	 * 
+	 * Synchronized on {@link #block2Transfers}.
+	 * 
+	 * @param key uri-key
+	 * @param exchange blockwise exchange.
+	 * @param response first blockwise response.
+	 * @return block2status
+	 */
 	private Block2BlockwiseStatus getInboundBlock2Status(final KeyUri key, final Exchange exchange, final Response response) {
 		int maxPayloadSize = getMaxResourceBodySize(response);
 		synchronized (block2Transfers) {
@@ -1256,6 +1343,15 @@ public class BlockwiseLayer extends AbstractLayer {
 		}
 	}
 
+	/**
+	 * Add random access block2status.
+	 * 
+	 * Synchronized on {@link #block2Transfers}.
+	 * 
+	 * @param exchange blockwise exchange
+	 * @param request blockwise request
+	 * @return uri-key
+	 */
 	private KeyUri addRandomAccessBlock2Status(final Exchange exchange, final Request request) {
 
 		KeyUri key = getKey(exchange, request);
@@ -1263,7 +1359,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		Block2BlockwiseStatus status = Block2BlockwiseStatus.forRandomAccessRequest(exchange, request);
 		synchronized (block2Transfers) {
 			block2Transfers.put(key, status);
-			size = block1Transfers.size();
+			size = block2Transfers.size();
 		}
 		enableStatus = true;
 		addBlock2CleanUpObserver(request, key, status);
@@ -1271,6 +1367,18 @@ public class BlockwiseLayer extends AbstractLayer {
 		return key;
 	}
 
+	/**
+	 * Reset outbound block2status.
+	 * 
+	 * Remove and complete previous block2status and start a new block2status.
+	 * 
+	 * Synchronized on {@link #block2Transfers}.
+	 * 
+	 * @param key uri-key
+	 * @param exchange blockwise exchange.
+	 * @param response outer response with complete payload.
+	 * @return new block2status
+	 */
 	private Block2BlockwiseStatus resetOutboundBlock2Status(KeyUri key, Exchange exchange, Response response) {
 		Block2BlockwiseStatus previousStatus;
 		Block2BlockwiseStatus newStatus;
@@ -1287,6 +1395,14 @@ public class BlockwiseLayer extends AbstractLayer {
 		return newStatus;
 	}
 
+	/**
+	 * Get block1status.
+	 * 
+	 * Synchronized on {@link #block1Transfers}.
+	 * 
+	 * @param key uri-key
+	 * @return block1status, or {@code null}, if not available.
+	 */
 	private Block1BlockwiseStatus getBlock1Status(final KeyUri key) {
 
 		synchronized (block1Transfers) {
@@ -1294,6 +1410,14 @@ public class BlockwiseLayer extends AbstractLayer {
 		}
 	}
 
+	/**
+	 * Get block2status.
+	 * 
+	 * Synchronized on {@link #block2Transfers}.
+	 * 
+	 * @param key uri-key
+	 * @return block2status, or {@code null}, if not available.
+	 */
 	private Block2BlockwiseStatus getBlock2Status(final KeyUri key) {
 
 		synchronized (block2Transfers) {
@@ -1301,6 +1425,16 @@ public class BlockwiseLayer extends AbstractLayer {
 		}
 	}
 
+	/**
+	 * Clear block1status.
+	 * 
+	 * Synchronized on {@link #block1Transfers}.
+	 * 
+	 * @param key uri key
+	 * @param status status to remove
+	 * @return removed status, or {@code null}, if status is not a current
+	 *         transfer.
+	 */
 	private Block1BlockwiseStatus clearBlock1Status(KeyUri key, Block1BlockwiseStatus status) {
 		int size;
 		Block1BlockwiseStatus removedTracker;
@@ -1315,6 +1449,16 @@ public class BlockwiseLayer extends AbstractLayer {
 		return removedTracker;
 	}
 
+	/**
+	 * Clear block2status.
+	 * 
+	 * Synchronized on {@link #block2Transfers}.
+	 * 
+	 * @param key uri key
+	 * @param status status to remove
+	 * @return removed status, or {@code null}, if status is not a current
+	 *         transfer.
+	 */
 	private Block2BlockwiseStatus clearBlock2Status(KeyUri key, Block2BlockwiseStatus status) {
 		int size;
 		Block2BlockwiseStatus removedTracker;
