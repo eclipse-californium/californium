@@ -123,12 +123,10 @@ import org.slf4j.LoggerFactory;
  * blockwise-status are executed synchronized on these collection.
  * <ul>
  * <li>{@link #getOutboundBlock1Status(KeyUri, Exchange, Request, int)}</li>
- * <li>{@link #getInboundBlock1Status(KeyUri, Exchange, Request)}</li>
- * <li>{@link #resetInboundBlock1Status(KeyUri, Exchange, Request)}</li>
- * <li>{@link #getOutboundBlock2Status(KeyUri, Exchange, Response)}</li>
+ * <li>{@link #getInboundBlock1Status(KeyUri, Exchange, Request, boolean)}</li>
+ * <li>{@link #getOutboundBlock2Status(KeyUri, Exchange, Response, boolean)}</li>
  * <li>{@link #getInboundBlock2Status(KeyUri, Exchange, Response)}</li>
  * <li>{@link #addRandomAccessBlock2Status(Exchange, Request)}</li>
- * <li>{@link #resetOutboundBlock2Status(KeyUri, Exchange, Response)}</li>
  * <li>{@link #getBlock1Status(KeyUri)}</li>
  * <li>{@link #getBlock2Status(KeyUri)}</li>
  * <li>{@link #clearBlock1Status(KeyUri, Block1BlockwiseStatus)}</li>
@@ -462,10 +460,10 @@ public class BlockwiseLayer extends AbstractLayer {
 			BlockOption block1 = request.getOptions().getBlock1();
 			LOGGER.debug("inbound request contains block1 option {}", block1);
 			KeyUri key = getKey(exchange, request);
-			Block1BlockwiseStatus status = getInboundBlock1Status(key, exchange, request);
+			Block1BlockwiseStatus status = getInboundBlock1Status(key, exchange, request, false);
 
 			if (block1.getNum() == 0 && status.getCurrentNum() > 0) {
-				status = resetInboundBlock1Status(key, exchange, request);
+				status = getInboundBlock1Status(key, exchange, request, true);
 			}
 
 			if (block1.getNum() != status.getCurrentNum()) {
@@ -630,7 +628,7 @@ public class BlockwiseLayer extends AbstractLayer {
 				KeyUri key = getKey(exchange, response);
 				// We can not handle several block2 transfer for the same client/resource.
 				// So we clean previous transfer (priority to the new one)
-				Block2BlockwiseStatus status = resetOutboundBlock2Status(key, exchange, response);
+				Block2BlockwiseStatus status = getOutboundBlock2Status(key, exchange, response, true);
 				BlockOption block2 = requestBlock2 != null ? requestBlock2
 						: new BlockOption(preferredBlockSzx, false, 0);
 				responseToSend = status.getNextResponseBlock(block2);
@@ -1231,85 +1229,98 @@ public class BlockwiseLayer extends AbstractLayer {
 	/**
 	 * Get inbound block1status.
 	 * 
-	 * If not available, create new block1status,
+	 * If {@code true} is provided for {@code reset}, remove and complete the
+	 * previous block1status. If not available, create new block1status.
 	 * 
 	 * Synchronized on {@link #block1Transfers}.
 	 * 
 	 * @param key uri-key
 	 * @param exchange blockwise exchange.
 	 * @param request first received request
-	 * @return new block1status
+	 * @param reset {@code true}, remove and complete the previous block1status,
+	 *            {@code false} return the previous or new block1status.
+	 * @return block1status
+	 * @since 3.0
 	 */
-	private Block1BlockwiseStatus getInboundBlock1Status(final KeyUri key, final Exchange exchange, final Request request) {
-		Block1BlockwiseStatus status;
+	private Block1BlockwiseStatus getInboundBlock1Status(KeyUri key, Exchange exchange, Request request,
+			boolean reset) {
+
+		Integer size = null;
+		Block1BlockwiseStatus previousStatus = null;
+		Block1BlockwiseStatus status = null;
 		int maxPayloadSize = getMaxResourceBodySize(request);
 		synchronized (block1Transfers) {
-			status = block1Transfers.get(key);
+			if (reset) {
+				previousStatus = block1Transfers.remove(key);
+			} else {
+				status = block1Transfers.get(key);
+			}
 			if (status == null) {
 				status = Block1BlockwiseStatus.forInboundRequest(exchange, request, maxPayloadSize);
 				block1Transfers.put(key, status);
 				enableStatus = true;
-				LOGGER.debug("created tracker for inbound block1 transfer {}, transfers in progress: {}", status,
-						block1Transfers.size());
+				size = block1Transfers.size();
 			}
 		}
-		// register a task for cleaning up if the peer does not send all blocks
+		if (previousStatus != null && !previousStatus.isComplete()) {
+			LOGGER.debug("stop previous block1 transfer {} {} for new {}", key, previousStatus, request);
+			previousStatus.setComplete(true);
+		}
+		if (size != null) {
+			LOGGER.debug("created tracker for inbound block1 transfer {}, transfers in progress: {}", status, size);
+		} else {
+			LOGGER.debug("block1 transfer {} for {}", key, request);
+		}
+		// we register a clean up task in case the peer does not retrieve all
+		// blocks
 		prepareBlock1Cleanup(status, key);
 		return status;
 	}
 
 	/**
-	 * Reset inbound block1status.
+	 * Get outbound block2status.
 	 * 
-	 * Remove and complete previous block1status and start a new block1status.
-	 * 
-	 * Synchronized on {@link #block1Transfers}.
-	 * 
-	 * @param key uri-key
-	 * @param exchange blockwise exchange.
-	 * @param request first received request
-	 * @return new block1status
-	 */
-	private Block1BlockwiseStatus resetInboundBlock1Status(final KeyUri key, final Exchange exchange, final Request request) {
-		Block1BlockwiseStatus removedStatus;
-		Block1BlockwiseStatus newStatus;
-		synchronized (block1Transfers) {
-			removedStatus = block1Transfers.remove(key);
-			// remove old status ensures, that getInboundBlock1Status could be
-			// called in synchronized (block1Transfers)
-			newStatus = getInboundBlock1Status(key, exchange, request);
-		}
-		LOGGER.debug("inbound block1 transfer reset at {} by peer: {}", removedStatus, request);
-		if (removedStatus != null) {
-			removedStatus.setComplete(true);
-		}
-		return newStatus;
-	}
-
-	/**
-	 * Get get outbound block2status.
-	 * 
-	 * If not available, create new block2status,
+	 * If {@code true} is provided for {@code reset}, remove and complete the
+	 * previous block2status. If not available, create new block2status.
 	 * 
 	 * Synchronized on {@link #block2Transfers}.
 	 * 
 	 * @param key uri-key
 	 * @param exchange blockwise exchange.
 	 * @param response outer response with complete payload.
+	 * @param reset {@code true}, remove and complete the previous block2status,
+	 *            {@code false} return the previous or new block2status.
 	 * @return block2status
+	 * @since 3.0
 	 */
-	private Block2BlockwiseStatus getOutboundBlock2Status(final KeyUri key, final Exchange exchange, final Response response) {
+	private Block2BlockwiseStatus getOutboundBlock2Status(KeyUri key, Exchange exchange, Response response,
+			boolean reset) {
 
-		Block2BlockwiseStatus status;
+		Integer size = null;
+		Block2BlockwiseStatus previousStatus = null;
+		Block2BlockwiseStatus status = null;
 		synchronized (block2Transfers) {
-			status = block2Transfers.get(key);
+			if (reset) {
+				previousStatus = block2Transfers.remove(key);
+			} else {
+				status = block2Transfers.get(key);
+			}
 			if (status == null) {
 				status = Block2BlockwiseStatus.forOutboundResponse(exchange, response, preferredBlockSize);
 				block2Transfers.put(key, status);
 				enableStatus = true;
-				LOGGER.debug("created tracker for outbound block2 transfer {}, transfers in progress: {}", status,
-						block2Transfers.size());
+				size  = block2Transfers.size();
 			}
+		}
+		if (previousStatus != null && !previousStatus.isComplete()) {
+			LOGGER.debug("stop previous block2 transfer {} {} for new {}", key, previousStatus, response);
+			previousStatus.completeResponse();
+		}
+		if (size != null) {
+			LOGGER.debug("created tracker for outbound block2 transfer {}, transfers in progress: {}", status,
+					size);
+		} else {
+			LOGGER.debug("block2 transfer {} for {}", key, response);
 		}
 		// we register a clean up task in case the peer does not retrieve all blocks
 		prepareBlock2Cleanup(status, key);
@@ -1365,34 +1376,6 @@ public class BlockwiseLayer extends AbstractLayer {
 		addBlock2CleanUpObserver(request, key, status);
 		LOGGER.debug("created tracker for random access block2 retrieval {}, transfers in progress: {}", status, size);
 		return key;
-	}
-
-	/**
-	 * Reset outbound block2status.
-	 * 
-	 * Remove and complete previous block2status and start a new block2status.
-	 * 
-	 * Synchronized on {@link #block2Transfers}.
-	 * 
-	 * @param key uri-key
-	 * @param exchange blockwise exchange.
-	 * @param response outer response with complete payload.
-	 * @return new block2status
-	 */
-	private Block2BlockwiseStatus resetOutboundBlock2Status(KeyUri key, Exchange exchange, Response response) {
-		Block2BlockwiseStatus previousStatus;
-		Block2BlockwiseStatus newStatus;
-		synchronized (block2Transfers) {
-			previousStatus = block2Transfers.remove(key);
-			newStatus = getOutboundBlock2Status(key, exchange, response);
-		}
-		if (previousStatus != null && !previousStatus.isComplete()) {
-			LOGGER.debug("stop previous block transfer {} {} for new {}", key, previousStatus, response);
-			previousStatus.completeResponse();
-		} else {
-			LOGGER.debug("block transfer {} for {}", key, response);
-		}
-		return newStatus;
 	}
 
 	/**
