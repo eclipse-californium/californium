@@ -1067,6 +1067,10 @@ public class Exchange {
 		}
 	}
 
+	public void resetEndpointContext() {
+		endpointContext.set(null);
+	}
+
 	/**
 	 * Gets transport layer specific information that can be used to correlate a
 	 * response with this exchange's original request.

@@ -100,6 +100,9 @@ public class ReliabilityLayer extends AbstractLayer {
 			prepareRetransmission(exchange, new RetransmissionTask(exchange, request) {
 
 				public void retransmit() {
+					if (request.getEffectiveDestinationContext() != request.getDestinationContext()) {
+						exchange.resetEndpointContext();
+					}
 					sendRequest(exchange, request);
 				}
 			});
