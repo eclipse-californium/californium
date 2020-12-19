@@ -400,6 +400,7 @@ public final class Connection {
 	 * Get endpoint context for writing messages.
 	 * 
 	 * @return endpoint context for writing messages.
+	 * @since 3.0
 	 */
 	public DtlsEndpointContext getWriteContext() {
 		DTLSSession session = getSession();
@@ -413,15 +414,21 @@ public final class Connection {
 	/**
 	 * Get endpoint context for reading messages.
 	 * 
+	 * @param recordsPeer peer address of record. Only used, if connection has
+	 *            no {@link #peerAddress}.
 	 * @return endpoint context for reading messages.
+	 * @since 3.0
 	 */
-	public DtlsEndpointContext getReadContext() {
+	public DtlsEndpointContext getReadContext(InetSocketAddress recordsPeer) {
 		DTLSSession session = getSession();
 		Attributes attributes = session.getConnectionReadContextAttributes();
 		if (router != null) {
 			attributes.add(DtlsEndpointContext.KEY_VIA_ROUTER, "dtls-cid-router");
 		}
-		return new DtlsEndpointContext(peerAddress, session.getHostName(), session.getPeerIdentity(), attributes);
+		if (peerAddress != null) {
+			recordsPeer = peerAddress;
+		}
+		return new DtlsEndpointContext(recordsPeer, session.getHostName(), session.getPeerIdentity(), attributes);
 	}
 
 	/**
