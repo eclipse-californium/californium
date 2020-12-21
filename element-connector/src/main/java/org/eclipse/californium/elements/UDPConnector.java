@@ -267,6 +267,7 @@ public class UDPConnector implements Connector {
 				return;
 			}
 			running = false;
+			LOGGER.debug("UDPConnector on [{}] stopping ...", effectiveAddr);
 
 			// stop all threads
 			for (Thread t : senderThreads) {
@@ -297,7 +298,7 @@ public class UDPConnector implements Connector {
 				}
 			}
 			receiverThreads.clear();
-			LOGGER.info("UDPConnector on [{}] has stopped.", effectiveAddr);
+			LOGGER.debug("UDPConnector on [{}] has stopped.", effectiveAddr);
 		}
 		for (RawData data : pending) {
 			notifyMsgAsInterrupted(data);

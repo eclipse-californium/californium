@@ -159,14 +159,18 @@ public class TcpClientConnector implements Connector {
 
 	@Override
 	public synchronized void stop() {
-		running = false;
-		if (poolMap != null) {
-			poolMap.close();
-		}
-		if (workerGroup != null) {
-			// FixedChannelPool requires a quietPeriod be larger than 0
-			workerGroup.shutdownGracefully(50, 500, TimeUnit.MILLISECONDS).syncUninterruptibly();
-			workerGroup = null;
+		if (running) {
+			LOGGER.debug("Stopping {} client connector ...", getProtocol());
+			running = false;
+			if (poolMap != null) {
+				poolMap.close();
+			}
+			if (workerGroup != null) {
+				// FixedChannelPool requires a quietPeriod be larger than 0
+				workerGroup.shutdownGracefully(50, 500, TimeUnit.MILLISECONDS).syncUninterruptibly();
+				workerGroup = null;
+			}
+			LOGGER.debug("Stopped {} client connector", getProtocol());
 		}
 	}
 

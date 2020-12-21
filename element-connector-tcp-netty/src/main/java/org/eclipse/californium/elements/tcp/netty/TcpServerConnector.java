@@ -148,16 +148,20 @@ public class TcpServerConnector implements Connector {
 
 	@Override
 	public synchronized void stop() {
-		running = false;
-		if (null != bossGroup) {
-			bossGroup.shutdownGracefully(0, 500, TimeUnit.MILLISECONDS).syncUninterruptibly();
-			bossGroup = null;
+		if (running) {
+			running = false;
+			LOGGER.debug("Stopping {} server connector on [{}]", getProtocol(), effectiveLocalAddress);
+			if (null != bossGroup) {
+				bossGroup.shutdownGracefully(0, 500, TimeUnit.MILLISECONDS).syncUninterruptibly();
+				bossGroup = null;
+			}
+			if (null != workerGroup) {
+				workerGroup.shutdownGracefully(0, 500, TimeUnit.MILLISECONDS).syncUninterruptibly();
+				workerGroup = null;
+			}
+			LOGGER.debug("Stopped {} server connector on [{}]", getProtocol(), effectiveLocalAddress);
+			effectiveLocalAddress = localAddress;
 		}
-		if (null != workerGroup) {
-			workerGroup.shutdownGracefully(0, 500, TimeUnit.MILLISECONDS).syncUninterruptibly();
-			workerGroup = null;
-		}
-		effectiveLocalAddress = localAddress;
 	}
 
 	@Override

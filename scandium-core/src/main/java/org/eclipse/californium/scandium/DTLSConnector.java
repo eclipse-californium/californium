@@ -951,13 +951,15 @@ public class DTLSConnector implements Connector, RecordLayer {
 		ExecutorService shutdownTimer = null;
 		ExecutorService shutdown = null;
 		List<Runnable> pending = new ArrayList<>();
+		boolean stop;
 		synchronized (this) {
-			if (running.compareAndSet(true, false)) {
+			stop = running.compareAndSet(true, false);
+			if (stop) {
+				LOGGER.debug("DTLS connector on [{}] stopping ...", lastBindAddress);
 				if (statusLogger != null) {
 					statusLogger.cancel(false);
 					statusLogger = null;
 				}
-				LOGGER.info("Stopping DTLS connector on [{}]", lastBindAddress);
 				for (Thread t : receiverThreads) {
 					t.interrupt();
 				}
@@ -1012,6 +1014,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 			} catch (Exception e) {
 				LOGGER.warn("Shutdown DTLS connector:", e);
 			}
+		}
+		if (stop) {
+			LOGGER.debug("DTLS connector on [{}] stopped.", lastBindAddress);
 		}
 	}
 
@@ -2933,7 +2938,11 @@ public class DTLSConnector implements Connector, RecordLayer {
 					}
 				}
 			} finally {
-				LOGGER.info("Worker thread [{}] has terminated", getName());
+				if (running.get()) {
+					LOGGER.info("Worker thread [{}] has terminated", getName());
+				} else {
+					LOGGER.debug("Worker thread [{}] has terminated", getName());
+				}
 			}
 		}
 

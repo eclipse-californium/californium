@@ -497,10 +497,11 @@ public class CoapEndpoint implements Endpoint {
 
 	@Override
 	public synchronized void stop() {
+		URI uri = getUri();
 		if (!started) {
-			LOGGER.info("{}Endpoint at {} is already stopped", tag, getUri());
+			LOGGER.debug("{}Endpoint at {} is already stopped", tag, uri);
 		} else {
-			LOGGER.info("{}Stopping endpoint at {}", tag, getUri());
+			LOGGER.debug("{}Stopping endpoint at {}", tag, uri);
 			started = false;
 			if (statusLogger != null) {
 				statusLogger.cancel(false);
@@ -514,6 +515,7 @@ public class CoapEndpoint implements Endpoint {
 			for (EndpointObserver obs : observers) {
 				obs.stopped(this);
 			}
+			LOGGER.debug("{}Stopped endpoint at {}", tag, uri);
 		}
 	}
 
