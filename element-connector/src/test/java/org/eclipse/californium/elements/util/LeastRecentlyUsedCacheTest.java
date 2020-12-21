@@ -24,10 +24,9 @@ package org.eclipse.californium.elements.util;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.Matchers.*;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Iterator;
@@ -35,8 +34,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.elements.assume.TimeAssume;
+import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache.EvictionListener;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache.Predicate;
+import org.junit.Rule;
 import org.junit.Test;
 
 /**
@@ -46,6 +47,9 @@ import org.junit.Test;
 public class LeastRecentlyUsedCacheTest {
 
 	private static final long THRESHOLD_MILLIS = 300;
+
+	@Rule
+	public TestTimeRule time = new TestTimeRule();
 
 	LeastRecentlyUsedCache<Integer, String> cache;
 
@@ -58,9 +62,9 @@ public class LeastRecentlyUsedCacheTest {
 		cache.setEvictingOnReadAccess(true);
 		String eldest = cache.getEldest();
 		Integer key = Integer.valueOf(eldest);
-		assertNotNull(cache.get(key));
-		Thread.sleep(THRESHOLD_MILLIS + 100);
-		assertNull(cache.get(key));
+		assertThat(cache.get(key), is(notNullValue()));
+		time.setTestTimeShift(THRESHOLD_MILLIS + 100, TimeUnit.MILLISECONDS);
+		assertThat(cache.get(key), is(nullValue()));
 	}
 
 	@Test
@@ -72,16 +76,17 @@ public class LeastRecentlyUsedCacheTest {
 		cache.setEvictingOnReadAccess(false);
 		String eldest = cache.getEldest();
 		Integer key = Integer.valueOf(eldest);
-		assertNotNull(cache.get(key));
-		Thread.sleep(THRESHOLD_MILLIS + 100);
-		assertNotNull(cache.get(key));
+		assertThat(cache.get(key), is(notNullValue()));
+		assertThat(cache.get(key), is(notNullValue()));
+		time.setTestTimeShift(THRESHOLD_MILLIS + 100, TimeUnit.MILLISECONDS);
+		assertThat(cache.get(key), is(notNullValue()));
 	}
 
 	@Test
 	public void testUpdate() throws InterruptedException {
 		int capacity = 5;
 		int numberOfSessions = 1;
-		TimeAssume assume = new TimeAssume();
+		TimeAssume assume = new TimeAssume(time);
 
 		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfSessions);
 		cache.setEvictingOnReadAccess(true);
@@ -108,7 +113,7 @@ public class LeastRecentlyUsedCacheTest {
 	public void testIteratorWhenExpired() throws InterruptedException {
 		int capacity = 5;
 		int numberOfSessions = 5;
-		TimeAssume assume = new TimeAssume();
+		TimeAssume assume = new TimeAssume(time);
 
 		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfSessions);
 		cache.setEvictingOnReadAccess(true);
@@ -155,6 +160,51 @@ public class LeastRecentlyUsedCacheTest {
 	}
 
 	@Test
+	public void testIteratorTimestamped() throws InterruptedException {
+		int capacity = 5;
+		int numberOfSessions = 5;
+
+		LeastRecentlyUsedCache<Integer, String> clone = new LeastRecentlyUsedCache<>(3, 0);
+
+		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfSessions);
+		cache.setEvictingOnReadAccess(false);
+		cache.remove(2);
+		Iterator<LeastRecentlyUsedCache.Timestamped<String>> valuesIterator = cache.timestampedIterator();
+		LeastRecentlyUsedCache.Timestamped<String> timestamped = valuesIterator.next();
+		LeastRecentlyUsedCache.Timestamped<String> first = timestamped;
+		int id = capacity + 1;
+		assertThat(timestamped, is(notNullValue()));
+		long time1 = timestamped.getLastUpdate();
+		assertTrue(clone.put(id++, timestamped));
+		timestamped = valuesIterator.next();
+		assertThat(timestamped, is(notNullValue()));
+		long time2 = timestamped.getLastUpdate();
+		assertThat(time1, is(lessThan(time2)));
+		time1 = time2;
+		assertTrue(clone.put(id++, timestamped));
+		timestamped = valuesIterator.next();
+		assertThat(timestamped, is(notNullValue()));
+		time2 = timestamped.getLastUpdate();
+		assertThat(time1, is(lessThan(time2)));
+		assertTrue(clone.put(id++, timestamped));
+		timestamped = valuesIterator.next();
+		assertThat(timestamped, is(notNullValue()));
+		time2 = timestamped.getLastUpdate();
+		assertThat(time1, is(lessThanOrEqualTo(time2)));
+
+		assertThat(clone.size(), is(3));
+
+		// fail for time
+		assertFalse(clone.put(id, first));
+		// succeed with time
+		assertTrue(clone.put(id, timestamped));
+
+		assertThat(clone.size(), is(3));
+
+		assertThat(valuesIterator.hasNext(), is(false));
+	}
+
+	@Test
 	public void testFindUniqueFailsWhenExpired() throws InterruptedException {
 		int capacity = 5;
 		int numberOfSessions = 3;
@@ -170,9 +220,9 @@ public class LeastRecentlyUsedCacheTest {
 			}
 
 		};
-		assertNotNull(cache.find(predicate));
-		Thread.sleep(THRESHOLD_MILLIS + 100);
-		assertNull(cache.find(predicate));
+		assertThat(cache.find(predicate), is(notNullValue()));
+		time.setTestTimeShift(THRESHOLD_MILLIS + 100, TimeUnit.MILLISECONDS);
+		assertThat(cache.find(predicate), is(nullValue()));
 	}
 
 	@Test
@@ -191,16 +241,16 @@ public class LeastRecentlyUsedCacheTest {
 			}
 
 		};
-		assertNotNull(cache.find(predicate));
-		Thread.sleep(THRESHOLD_MILLIS + 100);
-		assertNotNull(cache.find(predicate));
+		assertThat(cache.find(predicate), is(notNullValue()));
+		time.setTestTimeShift(THRESHOLD_MILLIS + 100, TimeUnit.MILLISECONDS);
+		assertThat(cache.find(predicate), is(notNullValue()));
 	}
 
 	@Test
 	public void testFindNoneUniqueSucceedsEvenFirstEvicted() throws InterruptedException {
 		int capacity = 5;
 		int numberOfSessions = 3;
-		TimeAssume assume = new TimeAssume();
+		TimeAssume assume = new TimeAssume(time);
 
 		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfSessions);
 		cache.setEvictingOnReadAccess(true);
@@ -233,7 +283,7 @@ public class LeastRecentlyUsedCacheTest {
 
 		String newValue = "50";
 		assertTrue(cache.put(50, newValue));
-		assertNotNull(cache.get(Integer.valueOf(eldest)));
+		assertThat(cache.get(Integer.valueOf(eldest)), is(notNullValue()));
 		assertThat(cache.remainingCapacity(), is(0));
 	}
 
@@ -247,7 +297,7 @@ public class LeastRecentlyUsedCacheTest {
 
 		String newValue = "50";
 		assertTrue(cache.put(Integer.valueOf(newValue), newValue));
-		assertNull(cache.get(Integer.valueOf(eldest)));
+		assertThat(cache.get(Integer.valueOf(eldest)), is(nullValue()));
 	}
 
 	@Test
@@ -262,8 +312,8 @@ public class LeastRecentlyUsedCacheTest {
 		String newValue = "50";
 		Integer key = Integer.valueOf(newValue);
 		assertFalse(cache.put(key, newValue));
-		assertNull(cache.get(key));
-		assertNotNull(cache.get(Integer.valueOf(eldest)));
+		assertThat(cache.get(key), is(nullValue()));
+		assertThat(cache.get(Integer.valueOf(eldest)), is(notNullValue()));
 	}
 
 	@Test

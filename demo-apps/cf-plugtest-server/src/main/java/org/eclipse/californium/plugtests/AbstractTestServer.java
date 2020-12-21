@@ -289,7 +289,7 @@ public abstract class AbstractTestServer extends CoapServer {
 					Matcher matcher = IPV6_SCOPE.matcher(name);
 					if (matcher.matches()) {
 						// apply filter also on interface name
-						name = matcher.group(1) + "%" + ((Inet6Address)addr).getScopedInterface().getName();
+						name = matcher.group(1) + "%" + ((Inet6Address) addr).getScopedInterface().getName();
 						for (String filter : selectAddress) {
 							if (name.matches(filter)) {
 								found = true;
@@ -435,9 +435,9 @@ public abstract class AbstractTestServer extends CoapServer {
 	}
 
 	protected void print(CoapEndpoint endpoint, InterfaceType interfaceType) {
-		System.out.println("listen on " + endpoint.getUri() + " (" + interfaceType + ") max msg size: "
-				+ endpoint.getConfig().getInt(Keys.MAX_MESSAGE_SIZE) + ", block: "
-				+ endpoint.getConfig().getInt(Keys.PREFERRED_BLOCK_SIZE));
+		LOGGER.info("{}listen on {} ({}) max msg size: {}, block size: {}", getTag(), endpoint.getUri(), interfaceType,
+				endpoint.getConfig().getInt(Keys.MAX_MESSAGE_SIZE),
+				endpoint.getConfig().getInt(Keys.PREFERRED_BLOCK_SIZE));
 	}
 
 	public static class PlugPskStore implements AdvancedPskStore {
@@ -479,7 +479,7 @@ public abstract class AbstractTestServer extends CoapServer {
 
 		@Override
 		public void setResultHandler(HandshakeResultHandler resultHandler) {
-			// 
+			//
 		}
 	}
 }

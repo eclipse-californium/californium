@@ -648,7 +648,7 @@ public abstract class Handshaker implements Destroyable {
 					record.getType(), record.getPeerAddress(), StringUtil.lineSeparator(), record);
 			throw new IllegalArgumentException("processing record with wrong epoch! " + record.getEpoch() + " expected " + epoch);
 		}
-		if (record.getReceiveNanos() < flightSendNanos) {
+		if (pendingFlight.get() != null && (flightSendNanos - record.getReceiveNanos()) > 0) {
 			// (see https://github.com/eclipse/californium/issues/1034#issuecomment-526656943)
 			LOGGER.debug("Discarding {} message received from peer [{}] before last flight was sent:{}{}",
 					record.getType(), record.getPeerAddress(), StringUtil.lineSeparator(), record);
@@ -1923,7 +1923,7 @@ public abstract class Handshaker implements Destroyable {
 	 * @since 2.1
 	 */
 	public boolean isExpired() {
-		return !sessionEstablished && pendingFlight.get() != null && nanosExpireTime < ClockUtil.nanoRealtime();
+		return !sessionEstablished && pendingFlight.get() != null && (ClockUtil.nanoRealtime() -nanosExpireTime) > 0;
 	}
 
 	/**

@@ -24,6 +24,7 @@ import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.List;
 
+import org.eclipse.californium.elements.PersistentConnector;
 import org.eclipse.californium.scandium.ConnectionListener;
 
 /**
@@ -31,7 +32,13 @@ import org.eclipse.californium.scandium.ConnectionListener;
  * 
  * @since 1.1
  */
-public interface ResumptionSupportingConnectionStore {
+public interface ResumptionSupportingConnectionStore extends PersistentConnector {
+
+	/**
+	 * Set connection listener.
+	 * 
+	 * @param listener connection listener
+	 */
 	void setConnectionListener(ConnectionListener listener);
 
 	/**

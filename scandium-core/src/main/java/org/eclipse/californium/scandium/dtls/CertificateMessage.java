@@ -335,7 +335,7 @@ public final class CertificateMessage extends HandshakeMessage {
 
 		if (CertificateType.RAW_PUBLIC_KEY == certificateType) {
 			LOGGER.debug("Parsing RawPublicKey CERTIFICATE message");
-			byte[] rawPublicKey = reader.readVarBytes(CERTIFICATE_LENGTH_BITS, Bytes.EMPTY);
+			byte[] rawPublicKey = reader.readVarBytes(CERTIFICATE_LENGTH_BITS);
 			return new CertificateMessage(rawPublicKey);
 		} else if (CertificateType.X_509 == certificateType) {
 			return readX509CertificateMessage(reader);

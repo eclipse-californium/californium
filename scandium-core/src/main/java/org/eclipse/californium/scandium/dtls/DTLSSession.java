@@ -1251,18 +1251,16 @@ public final class DTLSSession implements Destroyable {
 	 * Write dtls session state.
 	 * 
 	 * Note: the stream will contain not encrypted critical credentials. It is
-	 * only intended to be used for PoC, e.g. graceful shutdown. The encoding of
-	 * the content may also change in the future.
+	 * required to protect this data before exporting it. The encoding of the
+	 * content may also change in the future.
 	 * 
 	 * @param writer writer for dtls session state
 	 * @since 3.0
 	 */
 	@WipAPI
 	public void write(DatagramWriter writer) {
-		writer.writeByte((byte) VERSION);
-		int position = writer.space(Short.SIZE);
+		int position = SerializationUtil.writeStartItem(writer, VERSION, Short.SIZE);
 		writer.writeLong(handshakeTime, Long.SIZE);
-		SerializationUtil.write(writer, hostName, Byte.SIZE);
 		if (serverNames == null) {
 			writer.write(0, Byte.SIZE);
 		} else {
@@ -1297,15 +1295,14 @@ public final class DTLSSession implements Destroyable {
 			writer.write(1, Byte.SIZE);
 			PrincipalSerializer.serialize(peerIdentity, writer);
 		}
-		writer.writeSize(position, Short.SIZE);
+		SerializationUtil.writeFinishedItem(writer, position, Short.SIZE);
 	}
 
 	/**
 	 * Read dtls session state.
 	 * 
-	 * Note: the stream will contain not encrypted critical credentials. It is
-	 * only intended to be used for PoC, e.g. graceful shutdown. The encoding of
-	 * the content may also change in the future.
+	 * Note: the stream will contain not encrypted critical credentials. The
+	 * encoding of the content may also change in the future.
 	 * 
 	 * @param reader reader with dtls session state.
 	 * @return read dtls session.
@@ -1314,13 +1311,13 @@ public final class DTLSSession implements Destroyable {
 	 */
 	@WipAPI
 	public static DTLSSession fromReader(DatagramReader reader) {
-		int version = reader.readNextByte() & 0xff;
-		if (version != VERSION) {
-			throw new IllegalArgumentException("Version " + VERSION + " is required! Not " + version);
+		int length = SerializationUtil.readStartItem(reader, VERSION, Short.SIZE);
+		if (0 < length) {
+			DatagramReader rangeReader = reader.createRangeReader(length);
+			return new DTLSSession(rangeReader);
+		} else {
+			return null;
 		}
-		int length = reader.read(Short.SIZE);
-		DatagramReader rangeReader = reader.createRangeReader(length);
-		return new DTLSSession(rangeReader);
 	}
 
 	/**
@@ -1331,11 +1328,14 @@ public final class DTLSSession implements Destroyable {
 	 */
 	private DTLSSession(DatagramReader reader) {
 		handshakeTime = reader.readLong(Long.SIZE);
-		hostName = SerializationUtil.readString(reader, Byte.SIZE);
 		if (reader.readNextByte() == 1) {
 			serverNames = ServerNames.newInstance();
 			try {
 				serverNames.decode(reader);
+				ServerName serverName = serverNames.getServerName(NameType.HOST_NAME);
+				if (serverName != null) {
+					hostName = serverName.getNameAsString();
+				}
 			} catch (IllegalArgumentException e) {
 				serverNames = null;
 			}

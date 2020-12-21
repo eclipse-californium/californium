@@ -20,6 +20,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.coap.Message;
@@ -113,6 +114,7 @@ public class GroupedMessageIdTracker implements MessageIdTracker {
 		this.numberOfGroups = config.getInt(NetworkConfig.Keys.MID_TRACKER_GROUPS);
 		this.sizeOfGroups = (range + numberOfGroups - 1) / numberOfGroups;
 		midLease = new long[numberOfGroups];
+		Arrays.fill(midLease, ClockUtil.nanoRealtime() - 1000);
 	}
 
 	/**
@@ -128,7 +130,7 @@ public class GroupedMessageIdTracker implements MessageIdTracker {
 			int mid = (currentMID & 0xffff) % range;
 			int index = mid / sizeOfGroups;
 			int nextIndex = (index + 1) % numberOfGroups;
-			if (midLease[nextIndex] - now < 0) {
+			if ((midLease[nextIndex] - now) < 0) {
 				midLease[index] = now + exchangeLifetimeNanos;
 				currentMID = mid + 1;
 				return mid + min;

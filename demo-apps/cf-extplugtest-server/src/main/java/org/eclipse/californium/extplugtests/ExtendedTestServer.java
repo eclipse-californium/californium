@@ -19,12 +19,7 @@
  ******************************************************************************/
 package org.eclipse.californium.extplugtests;
 
-import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.OperatingSystemMXBean;
@@ -35,8 +30,7 @@ import java.net.URI;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.Random;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -58,8 +52,8 @@ import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.core.network.interceptors.AnonymizedOriginTracer;
 import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
-import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.PrincipalEndpointContextMatcher;
+import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
@@ -73,7 +67,6 @@ import org.eclipse.californium.plugtests.PlugtestServer;
 import org.eclipse.californium.plugtests.PlugtestServer.BaseConfig;
 import org.eclipse.californium.plugtests.resources.Context;
 import org.eclipse.californium.plugtests.resources.MyIp;
-import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.DtlsClusterConnector;
 import org.eclipse.californium.scandium.DtlsClusterConnector.ClusterNodesProvider;
 import org.eclipse.californium.scandium.DtlsManagedClusterConnector;
@@ -141,6 +134,44 @@ public class ExtendedTestServer extends AbstractTestServer {
 			int processors = Runtime.getRuntime().availableProcessors();
 			config.setInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, processors > 3 ? 2 : 1);
 			config.setInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, processors);
+		}
+
+	};
+
+	private static final class Time implements ClockUtil.Realtime {
+		
+		@Override
+		public long nanoRealtime() {
+			return System.nanoTime() + getTestTimeShiftNanos();
+		}
+
+		/**
+		 * Current test time shift in nanoseconds.
+		 * 
+		 * @see #addTestTimeShift(long, TimeUnit)
+		 * @see #setTestTimeShift(long, TimeUnit)
+		 * @see #getTestTimeShiftNanos()
+		 */
+		private long timeShiftNanos;
+
+		/**
+		 * Set time shift.
+		 * 
+		 * @param shift time shift
+		 * @param unit unit of time shift
+		 */
+		public final synchronized void setTestTimeShift(final long shift, final TimeUnit unit) {
+			LOGGER.debug("set {} {} as timeshift", shift, unit);
+			timeShiftNanos = unit.toNanos(shift);
+		}
+
+		/**
+		 * Gets current time shift in nanoseconds.
+		 * 
+		 * @return time shift in nanoseconds
+		 */
+		public final synchronized long getTestTimeShiftNanos() {
+			return timeShiftNanos;
 		}
 
 	};
@@ -245,7 +276,14 @@ public class ExtendedTestServer extends AbstractTestServer {
 			cmd.usage(System.err);
 			System.exit(-1);
 		}
-
+		Time handler = new Time();
+		long nanoRealtime = ClockUtil.nanoRealtime();
+		long delta = new Random().nextLong();
+		if (nanoRealtime + delta < 0) {
+//			delta = -nanoRealtime;
+		}
+		handler.setTestTimeShift(delta, TimeUnit.NANOSECONDS);
+		ClockUtil.setRealtimeHandler(handler);
 		STATISTIC_LOGGER.error("start!");
 		startManagamentStatistic();
 		try {
@@ -261,7 +299,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 					K8sManagementDiscoverClient.setConfiguration(clusterConfigBuilder);
 					k8sGroup = new K8sManagementDiscoverJdkClient(config.cluster.clusterType.k8sCluster.externalPort);
 					nodeId = k8sGroup.getNodeID();
-					System.out.println("dynamic k8s-cluster!");
+					LOGGER.info("dynamic k8s-cluster!");
 				} else {
 					nodeId = -1;
 					for (ClusterNode cluster : config.cluster.clusterType.simpleCluster.dtlsClusterNodes) {
@@ -274,7 +312,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 						throw new IllegalArgumentException("at least one cluster node must have a dtls interface!");
 					}
 					if (config.cluster.clusterType.simpleCluster.dtlsClusterGroup != null) {
-						System.out.println("dynamic dtls-cluster!");
+						LOGGER.info("dynamic dtls-cluster!");
 						String secret = config.cluster.clusterType.simpleCluster.dtlsClusterGroupSecurity;
 						if (secret != null) {
 							SecretKey key = SecretUtil.create(secret.getBytes(), "PSK");
@@ -283,13 +321,13 @@ public class ExtendedTestServer extends AbstractTestServer {
 							clusterConfigBuilder.setClusterMac(config.cluster.dtlsClusterMac);
 						}
 					} else {
-						System.out.println("static dtls-cluster!");
+						LOGGER.info("static dtls-cluster!");
 					}
 				}
 				netConfig.setInt(Keys.DTLS_CONNECTION_ID_NODE_ID, nodeId);
 			} else if (config.plugtest) {
 				// start standard plugtest server
-				PlugtestServer.start(config);
+				PlugtestServer.init(config);
 			}
 
 			NetworkConfig udpConfig = new NetworkConfig(netConfig);
@@ -305,11 +343,12 @@ public class ExtendedTestServer extends AbstractTestServer {
 
 			ScheduledExecutorService executor = ExecutorsUtil.newScheduledThreadPool(//
 					netConfig.getInt(NetworkConfig.Keys.PROTOCOL_STAGE_THREAD_COUNT), //
-					new NamedThreadFactory("CoapServer(main)#")); //$NON-NLS-1$
+					new NamedThreadFactory("ExtCoapServer(main)#")); //$NON-NLS-1$
 			ScheduledExecutorService secondaryExecutor = ExecutorsUtil
-					.newDefaultSecondaryScheduler("CoapServer(secondary)#");
+					.newDefaultSecondaryScheduler("ExtCoapServer(secondary)#");
 
 			ExtendedTestServer server = new ExtendedTestServer(netConfig, protocolConfig, !config.benchmark);
+			server.setTag("EXTENDED-TEST");
 			server.setExecutors(executor, secondaryExecutor, false);
 			server.add(new ReverseRequest(netConfig, executor));
 			ReverseObserve reverseObserver = new ReverseObserve(netConfig, executor);
@@ -361,6 +400,11 @@ public class ExtendedTestServer extends AbstractTestServer {
 			for (Endpoint ep : server.getEndpoints()) {
 				ep.addNotificationListener(reverseObserver);
 			}
+			PlugtestServer.add(server);
+			PlugtestServer.load(config);
+			// start standard plugtest server and shutdown
+			PlugtestServer.start(executor, secondaryExecutor, config, null);
+
 			server.start();
 
 			// add special interceptor for message traces
@@ -399,8 +443,14 @@ public class ExtendedTestServer extends AbstractTestServer {
 				}
 			}
 
+			PlugtestServer.ActiveInputReader reader = new PlugtestServer.ActiveInputReader();
 			if (!config.benchmark) {
-				System.out.println(ExtendedTestServer.class.getSimpleName() + " without benchmark started ...");
+				LOGGER.info("{} without benchmark started ...", ExtendedTestServer.class.getSimpleName());
+				for (;;) {
+					if (PlugtestServer.console(reader, 15000)) {
+						break;
+					}
+				}
 			} else {
 				NetStatLogger netstat = new NetStatLogger("udp");
 				Runtime runtime = Runtime.getRuntime();
@@ -409,34 +459,22 @@ public class ExtendedTestServer extends AbstractTestServer {
 				if (StringUtil.CALIFORNIUM_VERSION != null) {
 					builder.append(", version ").append(StringUtil.CALIFORNIUM_VERSION);
 				}
-				builder.append(", ").append(max / (1024 * 1024)).append("MB heap.");
-				System.out.println(builder);
-				ActiveInputReader reader = new ActiveInputReader();
+				builder.append(", ").append(max / (1024 * 1024)).append("MB heap, started ...");
+				LOGGER.info("{}", builder);
 				long lastGcCount = 0;
 				for (;;) {
-					try {
-						String line = reader.getLine(15000);
-						if (line != null) {
-							System.out.println("> " + line);
-							if (line.equals("save")) {
-								server.save();
-							} else if (line.equals("load")) {
-								server.load();
-							}
-						}
-					} catch (RuntimeException e) {
-						e.printStackTrace();
-					} catch (InterruptedException e) {
+					if (PlugtestServer.console(reader, 15000)) {
 						break;
 					}
 					long used = runtime.totalMemory() - runtime.freeMemory();
 					int fill = (int) ((used * 100L) / max);
 					if (fill > 80) {
-						System.out.println("Maxium heap size: " + max / (1024 * 1024) + "M " + fill + "% used.");
-						System.out.println("Heap may exceed! Enlarge the maxium heap size.");
-						System.out.println("Or consider to reduce the value of " + Keys.EXCHANGE_LIFETIME);
-						System.out.println("in \"" + CONFIG_FILE + "\" or set");
-						System.out.println(Keys.DEDUPLICATOR + " to " + Keys.NO_DEDUPLICATOR + " there.");
+						LOGGER.info("Maxium heap size: {}M  {}% used.", max / (1024 * 1024), fill);
+						LOGGER.info("Heap may exceed! Enlarge the maxium heap size.");
+						LOGGER.info("Or consider to reduce the value of " + Keys.EXCHANGE_LIFETIME);
+						LOGGER.info("in \"{}\" or set", CONFIG_FILE);
+						LOGGER.info("{} to {} or", Keys.DEDUPLICATOR, Keys.NO_DEDUPLICATOR);
+						LOGGER.info("{} in that file.", Keys.PEERS_MARK_AND_SWEEP_MESSAGES);
 					}
 					long gcCount = 0;
 					for (GarbageCollectorMXBean gcMXBean : ManagementFactory.getGarbageCollectorMXBeans()) {
@@ -458,7 +496,11 @@ public class ExtendedTestServer extends AbstractTestServer {
 					}
 				}
 			}
-
+			PlugtestServer.shutdown();
+			server.stop();
+			ExecutorsUtil.shutdownExecutorGracefully(500, executor, secondaryExecutor);
+			PlugtestServer.exit();
+			LOGGER.info("Exit ...");
 		} catch (Exception e) {
 
 			System.err.printf("Failed to create " + ExtendedTestServer.class.getSimpleName() + ": %s\n",
@@ -467,10 +509,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 			System.err.println("Exiting");
 			System.exit(PlugtestServer.ERR_INIT_FAILED);
 		}
-
 	}
-
-	private Map<DTLSConnector, byte[]> map = new HashMap<>();
 
 	public ExtendedTestServer(NetworkConfig config, Map<Select, NetworkConfig> protocolConfig, boolean noBenchmark)
 			throws SocketException {
@@ -481,43 +520,6 @@ public class ExtendedTestServer extends AbstractTestServer {
 		add(new Benchmark(noBenchmark, maxResourceSize));
 		add(new MyIp(MyIp.RESOURCE_NAME, true));
 		add(new Context(Context.RESOURCE_NAME, true));
-	}
-
-	private void save() {
-		stop();
-		int count = 0;
-		long size = 0;
-		long start = System.nanoTime();
-		for (Endpoint endpoint : getEndpoints()) {
-			if (endpoint instanceof CoapEndpoint) {
-				Connector connector = ((CoapEndpoint) endpoint).getConnector();
-				if (connector instanceof DTLSConnector) {
-					try {
-						ByteArrayOutputStream out = new ByteArrayOutputStream();
-						count += ((DTLSConnector)connector).save(out);
-						size += out.size();
-						map.put((DTLSConnector)connector, out.toByteArray());
-					} catch (IOException e) {
-					}
-				}
-			}
-		}
-		long time = System.nanoTime() -start;
-		System.out.format("%d ms, %d connections, %d bytes%n", TimeUnit.NANOSECONDS.toMillis(time), count, size);
-	}
-
-	private void load() {
-		int count = 0;
-		long size = 0;
-		long start = System.nanoTime();
-		for (DTLSConnector connector : map.keySet()) {
-			byte[] data = map.get(connector);
-			size += data.length;
-			count += connector.load(new ByteArrayInputStream(data));
-		}
-		long time = System.nanoTime() -start;
-		System.out.format("%d ms, %d connections, %d bytes%n", TimeUnit.NANOSECONDS.toMillis(time), count, size);
-		start();
 	}
 
 	private static void startManagamentStatistic() {
@@ -777,46 +779,4 @@ public class ExtendedTestServer extends AbstractTestServer {
 			return new K8sCluster(value.split(";"));
 		}
 	};
-
-	private static class ActiveInputReader {
-
-		BufferedReader in;
-		Queue<String> buffer;
-		Thread thread;
-
-		ActiveInputReader() {
-			in = new BufferedReader(new InputStreamReader(System.in));
-			buffer = new ConcurrentLinkedQueue<>();
-			thread = new Thread(new Runnable() {
-				
-				@Override
-				public void run() {
-					read();
-				}
-			}, "INPUT");
-			thread.start();
-		}
-
-		public void read() {
-			String line = null;
-			try {
-				while ((line = in.readLine()) != null) {
-					buffer.add(line);
-					synchronized (buffer) {
-						buffer.notify();
-					}
-				}
-			} catch (IOException e) {
-			}
-		}
-
-		String getLine(long timeout) throws InterruptedException {
-			if (timeout >= 0) {
-				synchronized (buffer) {
-					buffer.wait(timeout);
-				}
-			}
-			return buffer.poll();
-		}
-	}
 }

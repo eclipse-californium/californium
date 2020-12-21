@@ -123,6 +123,9 @@
 	<logger name="org.eclipse.californium.cluster.K8sManagementClient" level="INFO" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>
+	<logger name="org.eclipse.californium.core.CoapServer" level="INFO" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
 	<logger name="org.eclipse.californium.ban" level="INFO" additivity="false">
 		<appender-ref ref="BAN_FILE" />
 	</logger>

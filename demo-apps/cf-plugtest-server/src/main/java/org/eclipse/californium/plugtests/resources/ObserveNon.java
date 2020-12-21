@@ -57,7 +57,7 @@ public class ObserveNon extends CoapResource {
 		setObserveType(Type.NON);
 
 		// Set timer task scheduling
-		Timer timer = new Timer();
+		Timer timer = new Timer("OBSERVE-NON", true);
 		timer.schedule(new TimeTask(), 0, 5000);
 	}
 

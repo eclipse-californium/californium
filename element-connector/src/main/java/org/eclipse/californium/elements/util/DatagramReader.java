@@ -22,7 +22,13 @@ package org.eclipse.californium.elements.util;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.GeneralSecurityException;
+import java.security.MessageDigest;
+import java.security.spec.AlgorithmParameterSpec;
 import java.util.Arrays;
+
+import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
 
 /**
  * This class describes the functionality to read raw network-ordered datagrams
@@ -72,6 +78,17 @@ public final class DatagramReader {
 			}
 			return new RangeInputStream(buf, offset, count);
 		}
+
+		private void decrypt(Cipher cipher, AlgorithmParameterSpec parameterSpec, SecretKey key)
+				throws GeneralSecurityException {
+			cipher.init(Cipher.DECRYPT_MODE, key, parameterSpec);
+			count = cipher.doFinal(buf, pos, available(), buf, pos) + pos;
+		}
+
+		private void updateMessageDigest( MessageDigest md) {
+			md.update(buf, pos, available());
+		}
+
 	}
 	// Attributes //////////////////////////////////////////////////////////////
 
@@ -374,28 +391,22 @@ public final class DatagramReader {
 	/**
 	 * Read variable length byte arrays.
 	 * 
+	 * Read first the length of the variable bytes according the size in
+	 * {@code numBits}. For the length {@code -1}, {@code null} is returned, and
+	 * for the length {@code 0}, {@link Bytes#EMPTY} is returned.
+	 * 
 	 * @param numBits number of bits used for the size.
-	 * @return read byte array, or {@code null}, if length is {@code 0}
+	 * @return read byte array, {@code null}, or empty array.
 	 * @since 3.0
 	 */
 	public byte[] readVarBytes(int numBits) {
-		return readVarBytes(numBits, null);
-	}
-
-	/**
-	 * Read variable length byte arrays.
-	 * 
-	 * @param numBits number of bits used for the size.
-	 * @param empty number of bits used for the size.
-	 * @return read byte array, may be empty.
-	 * @since 3.0
-	 */
-	public byte[] readVarBytes(int numBits, byte[] empty) {
-		int len = read(numBits);
-		if (len > 0) {
-			return readBytes(len);
+		int varLengthBits = DatagramWriter.getVarLengthBits(numBits);
+		int nullLengthValue = DatagramWriter.getNullLengthValue(varLengthBits);
+		int len = read(varLengthBits);
+		if (len == nullLengthValue) {
+			return null;
 		} else {
-			return empty;
+			return readBytes(len);
 		}
 	}
 
@@ -443,6 +454,45 @@ public final class DatagramReader {
 	 */
 	public int bitsLeft() {
 		return (available() * Byte.SIZE) + (currentBitIndex + 1);
+	}
+
+	/**
+	 * Decrypt content to read.
+	 * 
+	 * Requires reader created with {@link #createRangeReader(int)}.
+	 * 
+	 * @param cipher cipher to use
+	 * @param parameterSpec parameter spec for cipher
+	 * @param key key
+	 * @throws GeneralSecurityException if an crypto-error occurred or reader is
+	 *             not created with {@link #createRangeReader(int)}.
+	 * @since 3.0
+	 */
+	public void decrypt(Cipher cipher, AlgorithmParameterSpec parameterSpec, SecretKey key)
+			throws GeneralSecurityException {
+		if (byteStream instanceof RangeInputStream) {
+			((RangeInputStream) byteStream).decrypt(cipher, parameterSpec, key);
+		} else {
+			throw new GeneralSecurityException("decrpyt requires range-reader!");
+		}
+	}
+
+	/**
+	 * Update message digest with available content.
+	 * 
+	 * Requires reader created with {@link #createRangeReader(int)}.
+	 * 
+	 * @param md message digest to use
+	 * @throws GeneralSecurityException if reader is not created with
+	 *             {@link #createRangeReader(int)}.
+	 * @since 3.0
+	 */
+	public void updateMessageDigest(MessageDigest md) throws GeneralSecurityException {
+		if (byteStream instanceof RangeInputStream) {
+			((RangeInputStream) byteStream).updateMessageDigest(md);
+		} else {
+			throw new GeneralSecurityException("update message-digest requires range-reader!");
+		}
 	}
 
 	/**
@@ -545,7 +595,7 @@ public final class DatagramReader {
 			}
 			return val;
 		} catch (IOException e) {
-			throw new IllegalArgumentException("request byte fails!");
+			throw new IllegalArgumentException("request byte fails!", e);
 		}
 	}
 
@@ -563,7 +613,7 @@ public final class DatagramReader {
 		try {
 			return byteStream.read(buffer, offset, length);
 		} catch (IOException e) {
-			throw new IllegalArgumentException("request bytes fails!");
+			throw new IllegalArgumentException("request bytes fails!", e);
 		}
 	}
 }

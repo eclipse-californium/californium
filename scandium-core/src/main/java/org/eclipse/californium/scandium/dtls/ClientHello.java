@@ -295,9 +295,9 @@ public final class ClientHello extends HandshakeMessage {
 
 		result.random = new Random(reader.readBytes(RANDOM_BYTES));
 
-		result.sessionId = new SessionId(reader.readVarBytes(SESSION_ID_LENGTH_BITS, Bytes.EMPTY));
+		result.sessionId = new SessionId(reader.readVarBytes(SESSION_ID_LENGTH_BITS));
 
-		result.cookie = reader.readVarBytes(COOKIE_LENGTH, Bytes.EMPTY);
+		result.cookie = reader.readVarBytes(COOKIE_LENGTH);
 
 		int cipherSuitesLength = reader.read(CIPHER_SUITS_LENGTH_BITS);
 		DatagramReader rangeReader = reader.createRangeReader(cipherSuitesLength);

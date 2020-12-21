@@ -15,11 +15,15 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.Map;
 
+import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext.Attributes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,19 +38,121 @@ public class SerializationUtil {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(SerializationUtil.class);
 
+	/**
+	 * Serialization version for no items.
+	 * 
+	 * Must not be used as version for
+	 * {@link #writeStartItem(DatagramWriter, int, int)} nor
+	 * {@link #readStartItem(DatagramReader, int, int)}.
+	 */
+	public static final int NO_VERSION = 0;
+
+	/**
+	 * Serialization version for {@link InetSocketAddress}.
+	 */
 	private static final int ADDRESS_VERSION = 1;
-	private static final int ADDRESS_NONE = 0;
+	/**
+	 * Address type is literal.
+	 */
 	private static final int ADDRESS_LITERAL = 1;
+	/**
+	 * Address type is hostname.
+	 */
 	private static final int ADDRESS_NAME = 2;
 
 	/**
-	 * Version number for serialization of {@link Attributes}.
+	 * Serialization version for {@link Attributes}.
 	 */
 	private static final int ATTRIBUTES_VERSION = 1;
-	private static final int ATTRIBUTES_STRING = 0;
-	private static final int ATTRIBUTES_BYTES = 1;
-	private static final int ATTRIBUTES_INTEGER = 2;
-	private static final int ATTRIBUTES_LONG = 3;
+	/**
+	 * Attribute type {@link String}.
+	 */
+	private static final int ATTRIBUTES_STRING = 1;
+	/**
+	 * Attribute type {@link Bytes}.
+	 */
+	private static final int ATTRIBUTES_BYTES = 2;
+	/**
+	 * Attribute type {@link Integer}.
+	 */
+	private static final int ATTRIBUTES_INTEGER = 3;
+	/**
+	 * Attribute type {@link Long}.
+	 */
+	private static final int ATTRIBUTES_LONG = 4;
+
+	/**
+	 * Write no item to output stream.
+	 * 
+	 * @param out output stream.
+	 * @throws IOException if an i/o error occurred
+	 * @see #NO_VERSION
+	 */
+	public static void writeNoItem(OutputStream out) throws IOException {
+		out.write(NO_VERSION);
+	}
+
+	/**
+	 * Write no item to writer.
+	 * 
+	 * @param writer writer
+	 * @see #NO_VERSION
+	 */
+	public static void writeNoItem(DatagramWriter writer) {
+		writer.writeByte((byte) NO_VERSION);
+	}
+
+	/**
+	 * Write start of item.
+	 * 
+	 * @param writer writer
+	 * @param version version of item's serialization
+	 * @param numBits number of bits for the item length
+	 * @return position of the item length
+	 * @see #writeFinishedItem(DatagramWriter, int, int)
+	 */
+	public static int writeStartItem(DatagramWriter writer, int version, int numBits) {
+		if (version == NO_VERSION) {
+			throw new IllegalArgumentException("version must not be " + NO_VERSION + "!");
+		}
+		writer.writeByte((byte) version);
+		return writer.space(numBits);
+	}
+
+	/**
+	 * Write finished.
+	 * 
+	 * @param writer writer
+	 * @param position position returned by
+	 *            {@link #writeStartItem(DatagramWriter, int, int)}.
+	 * @param numBits number of bits for the item length used for
+	 *            {@link #writeStartItem(DatagramWriter, int, int)}.
+	 */
+	public static void writeFinishedItem(DatagramWriter writer, int position, int numBits) {
+		writer.writeSize(position, numBits);
+	}
+
+	/**
+	 * Read item start.
+	 * 
+	 * @param reader reader
+	 * @param version version of item's serialization
+	 * @param numBits number of bits for the item length
+	 * @return length of the item, or {@code -1}, if
+	 *         {@link #writeNoItem(DatagramWriter)} was used.
+	 */
+	public static int readStartItem(DatagramReader reader, int version, int numBits) {
+		if (version == NO_VERSION) {
+			throw new IllegalArgumentException("version must not be " + NO_VERSION + "!");
+		}
+		int read = reader.readNextByte() & 0xff;
+		if (read == NO_VERSION) {
+			return -1;
+		} else if (read != version) {
+			throw new IllegalArgumentException("Version mismatch! " + version + " is required, not " + read);
+		}
+		return reader.read(numBits);
+	}
 
 	/**
 	 * Write {@link String} using {@link StandardCharsets#UTF_8}.
@@ -82,18 +188,19 @@ public class SerializationUtil {
 	 * @param address inet socket address.
 	 */
 	public static void write(DatagramWriter writer, InetSocketAddress address) {
-		writer.writeByte((byte) ADDRESS_VERSION);
 		if (address == null) {
-			writer.writeByte((byte) ADDRESS_NONE);
+			writeNoItem(writer);
 		} else {
+			int position = writeStartItem(writer, ADDRESS_VERSION, Byte.SIZE);
+			writer.write(address.getPort(), Short.SIZE);
 			if (address.isUnresolved()) {
 				writer.writeByte((byte) ADDRESS_NAME);
-				write(writer, address.getHostName(), Byte.SIZE);
+				writer.writeBytes(address.getHostName().getBytes(StandardCharsets.US_ASCII));
 			} else {
 				writer.writeByte((byte) ADDRESS_LITERAL);
-				writer.writeVarBytes(address.getAddress().getAddress(), Byte.SIZE);
+				writer.writeBytes(address.getAddress().getAddress());
 			}
-			writer.write(address.getPort(), Short.SIZE);
+			writeFinishedItem(writer, position, Byte.SIZE);
 		}
 	}
 
@@ -101,42 +208,44 @@ public class SerializationUtil {
 	 * Read inet socket address.
 	 * 
 	 * @param reader reader to read
-	 * @return read inet socket address, or {@code null}, if size was {@code 0}.
+	 * @return read inet socket address, or {@code null}, if no address was
+	 *         written.
 	 */
 	public static InetSocketAddress readAddress(DatagramReader reader) {
-		int version = reader.readNextByte() & 0xff;
-		if (version != ADDRESS_VERSION) {
-			throw new IllegalArgumentException("Version " + ADDRESS_VERSION + " is required! Not " + version);
+		int length = readStartItem(reader, ADDRESS_VERSION, Byte.SIZE);
+		if (length <= 0) {
+			return null;
 		}
-		String name = null;
-		InetAddress address = null;
-		int type = reader.readNextByte() & 0xff;
+		DatagramReader rangeReader = reader.createRangeReader(length);
+		int port = rangeReader.read(Short.SIZE);
+		int type = rangeReader.readNextByte() & 0xff;
+		byte[] address = rangeReader.readBytesLeft();
 		switch (type) {
 		case ADDRESS_NAME:
-			name = readString(reader, Byte.SIZE);
-			break;
+			return new InetSocketAddress(new String(address, StandardCharsets.US_ASCII), port);
 		case ADDRESS_LITERAL:
-			byte[] data = reader.readVarBytes(Byte.SIZE);
 			try {
-				address = InetAddress.getByAddress(data);
+				return new InetSocketAddress(InetAddress.getByAddress(address), port);
 			} catch (UnknownHostException e) {
 			}
 			break;
 		default:
 			return null;
 		}
-		int port = reader.read(Short.SIZE);
-		if (name != null) {
-			return new InetSocketAddress(name, port);
-		} else if (address != null) {
-			return new InetSocketAddress(address, port);
-		}
 		return null;
 	}
 
+	/**
+	 * Write {@link EndpointContext} attributes.
+	 * 
+	 * @param writer writer
+	 * @param entries attributes.
+	 */
 	public static void write(DatagramWriter writer, Map<String, Object> entries) {
-		writer.writeByte((byte) ATTRIBUTES_VERSION);
-		int position = writer.space(Short.SIZE);
+		if (entries == null) {
+			writeNoItem(writer);
+		}
+		int position = writeStartItem(writer, ATTRIBUTES_VERSION, Short.SIZE);
 		for (Map.Entry<String, Object> entry : entries.entrySet()) {
 			write(writer, entry.getKey(), Byte.SIZE);
 			Object value = entry.getValue();
@@ -154,15 +263,20 @@ public class SerializationUtil {
 				writer.writeLong((Long) value, Long.SIZE);
 			}
 		}
-		writer.writeSize(position, Short.SIZE);
+		writeFinishedItem(writer, position, Short.SIZE);
 	}
 
+	/**
+	 * Read {@link EndpointContext} attributes.
+	 * 
+	 * @param reader reader
+	 * @return read attributes, or {@code null}, if no attributes are written.
+	 */
 	public static Attributes readEndpointContexAttributes(DatagramReader reader) {
-		int version = reader.readNextByte() & 0xff;
-		if (version != ATTRIBUTES_VERSION) {
-			throw new IllegalArgumentException("Version " + ATTRIBUTES_VERSION + " is required! Not " + version);
+		int length = readStartItem(reader, ATTRIBUTES_VERSION, Short.SIZE);
+		if (length < 0) {
+			return null;
 		}
-		int length = reader.read(Short.SIZE);
 		DatagramReader rangeReader = reader.createRangeReader(length);
 		Attributes attributes = new Attributes();
 		while (rangeReader.bytesAvailable()) {
@@ -192,6 +306,57 @@ public class SerializationUtil {
 			}
 		}
 		return attributes;
+	}
+
+	/**
+	 * Skip states for connections.
+	 * 
+	 * Note: this "Work In Progress"; the format may change!
+	 * 
+	 * @param in stream to skip connections.
+	 */
+	@WipAPI
+	public static void skipConnections(InputStream in) {
+		// skip header and connections
+		int count = skipBlocks(in, 0);
+		if (count > 0) {
+			// skip mac
+			skipBlocks(in, 1);
+		}
+	}
+
+	/**
+	 * Skip blocks.
+	 * 
+	 * A block uses a 16-bit length encoding. A list of blocks is terminated by
+	 * a block with length {@code 0}.
+	 * 
+	 * Note: this "Work In Progress"; the format may change!
+	 * 
+	 * @param in stream to skip connections.
+	 * @param maxBlocks maximum number of blocks to skip. {@code 0}, for all
+	 *            block up to the end of the input stream or the first block of
+	 *            length {@code 0}.
+	 * @return number of skipped blocks.
+	 * @since 3.0
+	 */
+	@WipAPI
+	public static int skipBlocks(InputStream in, int maxBlocks) {
+		int count = 0;
+		DatagramReader reader = new DatagramReader(in);
+		while (reader.bytesAvailable()) {
+			int len = reader.read(Short.SIZE);
+			if (len > 0) {
+				++count;
+				reader.skip(len);
+				if (maxBlocks > 0 && maxBlocks == count) {
+					break;
+				}
+			} else {
+				break;
+			}
+		}
+		return count;
 	}
 
 }

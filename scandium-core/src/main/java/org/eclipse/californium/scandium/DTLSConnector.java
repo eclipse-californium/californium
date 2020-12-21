@@ -151,6 +151,8 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+import javax.crypto.SecretKey;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -158,6 +160,7 @@ import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.PersistentConnector;
 import org.eclipse.californium.elements.exception.EndpointMismatchException;
 import org.eclipse.californium.elements.exception.EndpointUnconnectedException;
 import org.eclipse.californium.elements.exception.MulticastNotSupportedException;
@@ -166,7 +169,6 @@ import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.DatagramReader;
-import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
@@ -231,7 +233,7 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * side and a separate Connector is created for each address to receive incoming
  * traffic.
  */
-public class DTLSConnector implements Connector, RecordLayer {
+public class DTLSConnector implements Connector, PersistentConnector, RecordLayer {
 
 	/**
 	 * The {@code EndpointContext} key used to store the host name indicated by a
@@ -779,12 +781,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 		if (!socket.isBound()) {
 			socket.bind(bindAddress);
 		}
-		if (lastBindAddress != null && (!socket.getLocalAddress().equals(lastBindAddress.getAddress()) || socket.getLocalPort() != lastBindAddress.getPort())){
-			if (connectionStore instanceof ResumptionSupportingConnectionStore) {
-				((ResumptionSupportingConnectionStore) connectionStore).markAllAsResumptionRequired();
-			} else {
-				connectionStore.clear();
-			}
+		InetSocketAddress actualBindAddress = new InetSocketAddress(socket.getLocalAddress(), socket.getLocalPort());
+		if (lastBindAddress != null && !actualBindAddress.equals(lastBindAddress)) {
+			connectionStore.markAllAsResumptionRequired();
 		}
 
 		if (config.getMaxFragmentLengthCode() != null) {
@@ -846,7 +845,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			}
 		}
 
-		lastBindAddress = new InetSocketAddress(socket.getLocalAddress(), socket.getLocalPort());
+		lastBindAddress = actualBindAddress;
 
 		if (executorService instanceof ScheduledExecutorService) {
 			timer = (ScheduledExecutorService) executorService;
@@ -865,7 +864,13 @@ public class DTLSConnector implements Connector, RecordLayer {
 			}
 			this.hasInternalExecutor = true;
 		}
-
+		Iterator<Connection> iterator = connectionStore.iterator();
+		while (iterator.hasNext()) {
+			Connection connection = iterator.next();
+			if (!connection.isExecuting() && connection.hasEstablishedSession()) {
+				connection.setExecutor(new SerialExecutor(executorService));
+			}
+		}
 		running.set(true);
 
 		int receiverThreadCount = config.getReceiverThreadCount();
@@ -1037,60 +1042,21 @@ public class DTLSConnector implements Connector, RecordLayer {
 		messageHandler = null;
 	}
 
-	/**
-	 * Save state of connections.
-	 * 
-	 * Clear connection store afterwards.
-	 * 
-	 * Note: the stream will contain not encrypted critical credentials. It is
-	 * only intended to be used for PoC, e.g. graceful shutdown. The encoding of
-	 * the content may also change in the future.
-	 * 
-	 * @param out stream to write connections
-	 * @return number of written connections
-	 * @throws IOException if io-error occurred.
-	 * @since 3.0
-	 */
 	@WipAPI
-	public int save(OutputStream out) throws IOException {
+	@Override
+	public int saveConnections(OutputStream out, SecretKey password, long maxAgeInSeconds)
+			throws IOException, GeneralSecurityException {
 		if (isRunning()) {
 			throw new IllegalStateException("Connector is running, save not possible!");
 		}
-		int count = 0;
-		DatagramWriter writer = new DatagramWriter(1024);
-		Iterator<Connection> iterator = connectionStore.iterator();
-		while (iterator.hasNext()) {
-			Connection connection = iterator.next();
-			if (connection.write(writer)) {
-				writer.writeTo(out);
-				++count;
-			}
-		}
-		connectionStore.clear();
-		return count;
+		return connectionStore.saveConnections(out, password, maxAgeInSeconds);
 	}
 
-	/**
-	 * Load state for connections.
-	 * 
-	 * Note: the stream will contain not encrypted critical credentials. It is
-	 * only intended to be used for PoC, e.g. graceful shutdown. The encoding of
-	 * the content may also change in the future.
-	 * 
-	 * @param in stream to read connections.
-	 * @return number of read connections.
-	 * @since 3.0
-	 */
 	@WipAPI
-	public int load(InputStream in) {
-		int count = 0;
-		DatagramReader reader = new DatagramReader(in);
-		while (reader.bytesAvailable()) {
-			Connection connection = Connection.fromReader(reader);
-			connectionStore.put(connection);
-			++count;
-		}
-		return count;
+	@Override
+	public int loadConnections(InputStream in, SecretKey password)
+			throws GeneralSecurityException, IOException {
+		return connectionStore.loadConnections(in, password);
 	}
 
 	/**
@@ -2358,7 +2324,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			throw error;
 		}
 
-		final long now =ClockUtil.nanoRealtime();
+		final long now = ClockUtil.nanoRealtime();
 		if (pendingOutboundMessagesCountdown.decrementAndGet() >= 0) {
 			try {
 				SerialExecutor executor = connection.getExecutor();

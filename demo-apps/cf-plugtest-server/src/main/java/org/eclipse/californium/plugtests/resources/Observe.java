@@ -56,7 +56,7 @@ public class Observe extends CoapResource {
 		setObserveType(Type.CON);
 
 		// Set timer task scheduling
-		Timer timer = new Timer();
+		Timer timer = new Timer("OBSERVE", true);
 		timer.schedule(new TimeTask(), 0, 5000);
 	}
 

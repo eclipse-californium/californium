@@ -772,6 +772,7 @@ public class DTLSConnectorTest {
 		DatagramReader reader = new DatagramReader(writer.toByteArray());
 		Connection connection2 = Connection.fromReader(reader);
 		clientConnectionStore.remove(connection);
+		connection2.setExecutor(new SerialExecutor(executor));
 		clientConnectionStore.put(connection2);
 
 		// Restart it

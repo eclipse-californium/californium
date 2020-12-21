@@ -15,14 +15,14 @@ The additional functions are available at ports 5783 and 5784 instead of the sta
 Start the server with:
 
 ```sh
-java -jar cf-extplugtest-server-2.6.0.jar -h
-
 Usage: ExtendedTestServer [-h] [--[no-]benchmark] [--dtls-only] [--[no-]
                           external] [--[no-]ipv4] [--[no-]ipv6] [--[no-]
                           loopback] [--[no-]plugtest] [--[no-]tcp]
                           [--trust-all] [--client-auth=<clientAuth>]
                           [--interfaces-pattern=<interfacePatterns>[,
-                          <interfacePatterns>...]]... [[--[no-]
+                          <interfacePatterns>...]]... [--store-file=<file>
+                          --store-password64=<password64>
+                          --store-max-age=<maxAge>] [[--[no-]
                           dtls-cluster-backward] [--[no-]dtls-cluster-mac]
                           (--k8s-dtls-cluster=<k8sCluster> |
                           [[--dtls-cluster=<dtlsClusterNodes>[,
@@ -31,42 +31,45 @@ Usage: ExtendedTestServer [-h] [--[no-]benchmark] [--dtls-only] [--[no-]
                           <dtlsClusterGroup>...]]...
                           [--dtls-cluster-group-security=<dtlsClusterGroupSecuri
                           ty>]])]
-      --[no-]benchmark   enable benchmark resource.
+      --[no-]benchmark      enable benchmark resource.
       --client-auth=<clientAuth>
-                         client authentication. Values NONE, WANTED, NEEDED,
-                           default NEEDED.
+                            client authentication. Values NONE, WANTED, NEEDED,
+                              default NEEDED.
       --dtls-cluster=<dtlsClusterNodes>[,<dtlsClusterNodes>...]...
-                         configure DTLS-cluster-node. <dtls-interface>;
-                           <mgmt-interface>;<node-id>. use --- as
-                           <dtls-interface>, for other cluster-nodes.
+                            configure DTLS-cluster-node. <dtls-interface>;
+                              <mgmt-interface>;<node-id>. use --- as
+                              <dtls-interface>, for other cluster-nodes.
       --dtls-cluster-group=<dtlsClusterGroup>[,<dtlsClusterGroup>...]
-                         enable dynamic DTLS-cluster mode. List of
-                           <mgmt-interface1>,<mgmt-interface2>, ...
+                            enable dynamic DTLS-cluster mode. List of
+                              <mgmt-interface1>,<mgmt-interface2>, ...
       --dtls-cluster-group-security=<dtlsClusterGroupSecurity>
-                         enable security for dynamic DTLS-cluster. Preshared
-                           secret for mgmt-interface.
+                            enable security for dynamic DTLS-cluster. Preshared
+                              secret for mgmt-interface.
       --[no-]dtls-cluster-mac
-                         use MAC for cluster traffic to protect original
-                           received address.
-      --dtls-only        only dtls endpoints.
-  -h, --help             display a help message
-      --interfaces=<interfaceNames>[,<interfaceNames>...]
-                         interfaces for endpoints.
+                            use MAC for cluster traffic to protect original
+                              received address.
+      --dtls-only           only dtls endpoints.
+  -h, --help                display a help message
       --interfaces-pattern=<interfacePatterns>[,<interfacePatterns>...]
-                         interface patterns for endpoints.
+                            interface regex patterns for endpoints.
       --k8s-dtls-cluster=<k8sCluster>
-                         enable k8s DTLS-cluster mode. <dtls-interface>;
-                           <mgmt-interface>;external-mgmt-port
+                            enable k8s DTLS-cluster mode. <dtls-interface>;
+                              <mgmt-interface>;external-mgmt-port
       --[no-]dtls-cluster-backward
-                         send messages backwards to the original receiving
-                           connector.
-      --[no-]external    enable endpoints on external network.
-      --[no-]ipv4        enable endpoints for ipv4.
-      --[no-]ipv6        enable endpoints for ipv6.
-      --[no-]loopback    enable endpoints on loopback network.
-      --[no-]plugtest    enable plugtest server.
-      --[no-]tcp         enable endpoints for tcp.
-      --trust-all        trust all valid certificates.
+                            send messages backwards to the original receiving
+                              connector.
+      --[no-]external       enable endpoints on external network.
+      --[no-]ipv4           enable endpoints for ipv4.
+      --[no-]ipv6           enable endpoints for ipv6.
+      --[no-]loopback       enable endpoints on loopback network.
+      --[no-]plugtest       enable plugtest server.
+      --[no-]tcp            enable endpoints for tcp.
+      --store-file=<file>   file store dtls state.
+      --store-max-age=<maxAge>
+                            maximum age of connections in hours.
+      --store-password64=<password64>
+                            password to store dtls state. base 64 encoded.
+      --trust-all           trust all valid certificates.
 ```
 
 To see the set of options and arguments.
@@ -106,7 +109,7 @@ Benchmark started.
 
 (3.0.0-SNAPSHOT)
 
-The benchmark server is now extended to "save" the connection state (into memory) and "restore" it. For demonstration, type
+The benchmark server is now extended to "save" the connection state (into memory) and "load" it again. For demonstration, type
 
 ```sh
 save
@@ -116,7 +119,12 @@ into the console of the server.
 
 ```sh
 > save
-12 ms, 2000 connections, 436893 bytes
+INFO [CoapServer]: PLUG-TEST Stopping server ...
+INFO [CoapServer]: PLUG-TEST Stopped server.
+INFO [CoapServer]: EXTENDED-TEST Stopping server ...
+INFO [CoapServer]: EXTENDED-TEST Stopped server.
+INFO [CoapServer]: 1688 ms, 302106 connections
+INFO [CoapServer]: Saved: 149178411 Bytes (secret)
 ```
 
 The connections will be saved and removed from the connector. The benchmark client will show a significant smaller number of requests. Now load the connections again, type
@@ -129,8 +137,40 @@ into the console of the server.
 
 ```sh
 > load
-20 ms, 2000 connections, 436893 bytes
+INFO [CoapServer]: PLUG-TEST loading coaps://[0:0:0:0:0:0:0:1%1]:5684, 0 connections, 2 servers.
+INFO [CoapServer]: PLUG-TEST loading coaps://127.0.0.1:5684, 56 connections, 2 servers.
+INFO [CoapServer]: EXTENDED-TEST loading coaps://[0:0:0:0:0:0:0:1%1]:5784, 0 connections, 2 servers.
+INFO [CoapServer]: EXTENDED-TEST loading coaps://127.0.0.1:5784, 302050 connections, 2 servers.
+INFO [CoapServer]: 3127 ms, 302106 connections
+INFO [CoapServer]: Loaded: 149178411 Bytes (secret)20 ms, 2000 connections
 ```
+
+It's also possible to restart the server, if the arguments `--store-file` (filename to save and load the states), `--store-password64` (base64 encoded password to save and load the states), and `--store-max-age` (maximum age of connections to be stored. Value in hours) are provided. To demonstrate, type
+
+```sh
+exit
+```
+
+into the console of the server.
+
+```sh
+> exit
+INFO [CoapServer]: PLUG-TEST Stopping server ...
+INFO [CoapServer]: PLUG-TEST Stopped server.
+INFO [CoapServer]: EXTENDED-TEST Stopping server ...
+INFO [CoapServer]: EXTENDED-TEST Stopped server.
+INFO [CoapServer]: Thread [1] main
+INFO [CoapServer]: Thread [202] globalEventExecutor-1-4
+INFO [CoapServer]: Thread [1] main
+INFO [CoapServer]: Thread [202] globalEventExecutor-1-4
+INFO [CoapServer]: Thread [1] main
+INFO [CoapServer]: Exit ...
+INFO [CoapServer]: Shutdown ...
+INFO [CoapServer]: 1993 ms, 302106 connections
+INFO [CoapServer]: Shutdown.
+```
+
+and then start the server again using the same `--store-file` and `--store-password64` as before and also provide the `--store-max-age` for the next restart.
 
 Benchmark client console:
 
