@@ -348,8 +348,8 @@ public class LeastRecentlyUsedCache<K, V> {
 	 * 
 	 * @param key the key to store the value under
 	 * @param value the value to store
-	 * @return {@code true} if the entry could be added to the cache,
-	 *         {@code false} otherwise, e.g. because the cache's remaining
+	 * @return {@code true}, if the entry could be added to the cache,
+	 *         {@code false}, otherwise, e.g. because the cache's remaining
 	 *         capacity is zero and no stale entries can be evicted
 	 * @see #addEvictionListener(EvictionListener)
 	 */
@@ -397,6 +397,63 @@ public class LeastRecentlyUsedCache<K, V> {
 	}
 
 	private void add(K key, V value) {
+		CacheEntry<K, V> entry = new CacheEntry<>(key, value);
+		cache.put(key, entry);
+		entry.addBefore(header);
+	}
+
+	/**
+	 * Puts an entry with timestamp to the cache.
+	 * 
+	 * An entry can be successfully added to the cache if any of the following
+	 * conditions are met:
+	 * <ul>
+	 * <li>The timestamp is newer or equal than the newest entry of the cache.</li>
+	 * <li>The cache's remaining capacity is greater than zero.</li>
+	 * <li>The cache contains at least one <em>stale</em> entry, i.e. an entry
+	 * that has not been accessed for at least the cache's <em> expiration
+	 * threshold</em> period. In such a case the least- recently accessed stale
+	 * entry gets evicted from the cache to make place for the new entry to be
+	 * added.</li>
+	 * </ul>
+	 * 
+	 * If an entry is evicted this method notifies all registered
+	 * {@code EvictionListeners}.
+	 * 
+	 * @param key the key to store the value under
+	 * @param value the timestamped value to store
+	 * @return {@code true}, if the entry could be added to the cache,
+	 *         {@code false}, otherwise.
+	 * @see #addEvictionListener(EvictionListener)
+	 * @since 3.0
+	 */
+	public final boolean put(K key, Timestamped<V> value) {
+		if (value != null) {
+			if (header.before == header || (value.lastUpdate - header.before.lastUpdate >= 0)) {
+				CacheEntry<K, V> existingEntry = cache.get(key);
+				if (existingEntry != null) {
+					existingEntry.remove();
+					add(key, value);
+					return true;
+				} else if (cache.size() < capacity) {
+					add(key, value);
+					return true;
+				} else {
+					CacheEntry<K, V> eldest = header.after;
+					if (eldest.isStale(expirationThresholdNanos)) {
+						eldest.remove();
+						cache.remove(eldest.getKey());
+						add(key, value);
+						notifyEvictionListeners(eldest.getValue());
+						return true;
+					}
+				}
+			}
+		}
+		return false;
+	}
+
+	private void add(K key, Timestamped<V> value) {
 		CacheEntry<K, V> entry = new CacheEntry<>(key, value);
 		cache.put(key, entry);
 		entry.addBefore(header);
@@ -592,7 +649,7 @@ public class LeastRecentlyUsedCache<K, V> {
 	}
 
 	/**
-	 * Gets iterator over all connections contained in this cache.
+	 * Gets iterator over all values contained in this cache.
 	 * <p>
 	 * The iterator returned is backed by this cache's underlying
 	 * {@link ConcurrentHashMap#values()}. The iterator is a "weakly consistent"
@@ -606,10 +663,10 @@ public class LeastRecentlyUsedCache<K, V> {
 	 * applied on {@link Iterator#hasNext()}.
 	 * </p>
 	 * <p>
-	 * Removal of connections from the iterator is unsupported.
+	 * Removal of values from the iterator is unsupported.
 	 * </p>
 	 * 
-	 * @return an iterator over all connections backed by the underlying map.
+	 * @return an iterator over all values backed by the underlying map.
 	 */
 	public final Iterator<V> valuesIterator() {
 		final Iterator<CacheEntry<K, V>> iterator = cache.values().iterator();
@@ -711,6 +768,47 @@ public class LeastRecentlyUsedCache<K, V> {
 		return vs;
 	}
 
+	/**
+	 * Gets iterator over all values with timestamp contained in this cache.
+	 * <p>
+	 * The iterator returned is backed by this cache's underlying doubly-linked
+	 * list. It's not supported to modify the cache when using the iterator.
+	 * </p>
+	 * <p>
+	 * Removal of values from the iterator is unsupported.
+	 * </p>
+	 * 
+	 * @return an iterator over all values backed by the underlying map.
+	 * @since 3.0
+	 */
+	public final Iterator<Timestamped<V>> timestampedIterator() {
+		return new Iterator<Timestamped<V>>() {
+			final int max = cache.size();
+			int counter;
+			CacheEntry<K, V> current = header;
+
+			@Override
+			public boolean hasNext() {
+				return current.after != header && counter < max;
+			}
+
+			@Override
+			public Timestamped<V> next() {
+				if (!hasNext()) {
+					throw new NoSuchElementException();
+				}
+				++counter;
+				current = current.after;
+				return current.getEntry();
+			}
+
+			@Override
+			public void remove() {
+				throw new UnsupportedOperationException();
+			}
+		};
+	}
+
 	private static class CacheEntry<K, V> {
 
 		private final K key;
@@ -726,9 +824,19 @@ public class LeastRecentlyUsedCache<K, V> {
 		}
 
 		private CacheEntry(K key, V value) {
-			this.value = value;
 			this.key = key;
+			this.value = value;
 			this.lastUpdate = ClockUtil.nanoRealtime();
+		}
+
+		private CacheEntry(K key, Timestamped<V> entry) {
+			this.key = key;
+			this.value = entry.getValue();
+			this.lastUpdate = entry.getLastUpdate();
+		}
+
+		private Timestamped<V> getEntry() {
+			return new Timestamped<V>(value, lastUpdate);
 		}
 
 		private K getKey() {
@@ -740,7 +848,7 @@ public class LeastRecentlyUsedCache<K, V> {
 		}
 
 		private boolean isStale(long thresholdNanos) {
-			return ClockUtil.nanoRealtime() - lastUpdate >= thresholdNanos;
+			return (ClockUtil.nanoRealtime() - lastUpdate) >= thresholdNanos;
 		}
 
 		private void recordAccess(CacheEntry<K, V> header) {
@@ -765,6 +873,24 @@ public class LeastRecentlyUsedCache<K, V> {
 		public String toString() {
 			return new StringBuilder("CacheEntry [key: ").append(key).append(", last access: ").append(lastUpdate)
 					.append("]").toString();
+		}
+	}
+
+	public static final class Timestamped<V> {
+		private final V value;
+		private final long lastUpdate;
+
+		public Timestamped(V value, long lastUpdate) {
+			this.value = value;
+			this.lastUpdate = lastUpdate;
+		}
+
+		public V getValue() {
+			return value;
+		}
+
+		public long getLastUpdate() {
+			return lastUpdate;
 		}
 	}
 }

@@ -34,16 +34,37 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.security.GeneralSecurityException;
+import java.security.MessageDigest;
+import java.security.spec.AlgorithmParameterSpec;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 
+import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
+
+import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.ClockUtil;
+import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 import org.eclipse.californium.elements.util.SerialExecutor;
+import org.eclipse.californium.elements.util.SerializationUtil;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.elements.util.WipAPI;
 import org.eclipse.californium.scandium.ConnectionListener;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
+import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
+import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -92,7 +113,7 @@ import org.slf4j.LoggerFactory;
  */
 public class InMemoryConnectionStore implements ResumptionSupportingConnectionStore {
 
-	private static final Logger LOG = LoggerFactory.getLogger(InMemoryConnectionStore.class);
+	private static final Logger LOGGER = LoggerFactory.getLogger(InMemoryConnectionStore.class);
 	private static final int DEFAULT_SMALL_EXTRA_CID_LENGTH = 2; // extra cid bytes additionally to required bytes for small capacity.
 	private static final int DEFAULT_LARGE_EXTRA_CID_LENGTH = 3; // extra cid bytes additionally to required bytes for large capacity.
 	private static final int DEFAULT_CACHE_SIZE = 150000;
@@ -194,7 +215,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 			}
 		});
 
-		LOG.info("Created new InMemoryConnectionStore [capacity: {}, connection expiration threshold: {}s]",
+		LOGGER.info("Created new InMemoryConnectionStore [capacity: {}, connection expiration threshold: {}s]",
 				capacity, threshold);
 	}
 
@@ -247,7 +268,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		}
 		if (sessionCache instanceof ClientSessionCache) {
 			ClientSessionCache clientCache = (ClientSessionCache) sessionCache;
-			LOG.debug("resume client sessions {}", clientCache);
+			LOGGER.debug("{}resume client sessions {}", tag, clientCache);
 			for (InetSocketAddress peer : clientCache) {
 				SessionTicket ticket = clientCache.getSessionTicket(peer);
 				SessionId id = clientCache.getSessionIdentity(peer);
@@ -259,9 +280,9 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 						connection.setConnectionId(connectionId);
 						connections.put(connectionId, connection);
 						connectionsByAddress.put(peer, connection);
-						LOG.debug("{}resume {} {}", tag, peer, id);
+						LOGGER.debug("{}resume {} {}", tag, peer, id);
 					} else {
-						LOG.info("{}drop session {} {}, could not allocated cid!", tag, peer, id);
+						LOGGER.info("{}drop session {} {}, could not allocated cid!", tag, peer, id);
 					}
 				}
 			}
@@ -288,6 +309,9 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	public synchronized boolean put(final Connection connection) {
 
 		if (connection != null) {
+			if (!connection.isExecuting()) {
+				throw new IllegalStateException("Connection is not executing!");
+			}
 			ConnectionId connectionId = connection.getConnectionId();
 			if (connectionId == null) {
 				if (connectionIdGenerator == null) {
@@ -304,10 +328,10 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 				throw new IllegalStateException("Connection id already used! " + connectionId);
 			}
 			if (connections.put(connectionId, connection)) {
-				if (LOG.isTraceEnabled()) {
-					LOG.trace("{}connection: add {} (size {})", tag, connection, connections.size(), new Throwable("connection added!"));
+				if (LOGGER.isTraceEnabled()) {
+					LOGGER.trace("{}connection: add {} (size {})", tag, connection, connections.size(), new Throwable("connection added!"));
 				} else {
-					LOG.debug("{}connection: add {} (size {})", tag, connectionId, connections.size());
+					LOGGER.debug("{}connection: add {} (size {})", tag, connectionId, connections.size());
 				}
 				addToAddressConnections(connection);
 				DTLSSession session = connection.getEstablishedSession();
@@ -316,7 +340,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 				}
 				return true;
 			} else {
-				LOG.warn("{}connection store is full! {} max. entries.", tag, connections.getCapacity());
+				LOGGER.warn("{}connection store is full! {} max. entries.", tag, connections.getCapacity());
 				return false;
 			}
 		} else {
@@ -331,15 +355,15 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		}
 		if (connections.update(connection.getConnectionId())) {
 			if (newPeerAddress == null) {
-				LOG.debug("{}connection: {} updated usage!", tag, connection.getConnectionId());
+				LOGGER.debug("{}connection: {} updated usage!", tag, connection.getConnectionId());
 			} else if (!connection.equalsPeerAddress(newPeerAddress)) {
 				InetSocketAddress oldPeerAddress = connection.getPeerAddress();
-				if (LOG.isTraceEnabled()) {
-					LOG.trace("{}connection: {} updated, address changed from {} to {}!", tag,
+				if (LOGGER.isTraceEnabled()) {
+					LOGGER.trace("{}connection: {} updated, address changed from {} to {}!", tag,
 							connection.getConnectionId(), oldPeerAddress, newPeerAddress,
 							new Throwable("connection updated!"));
 				} else {
-					LOG.debug("{}connection: {} updated, address changed from {} to {}!", tag,
+					LOGGER.debug("{}connection: {} updated, address changed from {} to {}!", tag,
 							connection.getConnectionId(), oldPeerAddress, newPeerAddress);
 				}
 				if (oldPeerAddress != null) {
@@ -351,7 +375,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 			}
 			return true;
 		} else {
-			LOG.debug("{}connection: {} - {} update failed!", tag, connection.getConnectionId(), newPeerAddress);
+			LOGGER.debug("{}connection: {} - {} update failed!", tag, connection.getConnectionId(), newPeerAddress);
 			return false;
 		}
 	}
@@ -445,11 +469,11 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 			DTLSSession establishedSession = connection.getEstablishedSession();
 			if (establishedSession != null) {
 				if (!establishedSession.getSessionIdentifier().equals(id)) {
-					LOG.warn("{}connection {} changed session {}!={}!", tag, connection.getConnectionId(), id,
+					LOGGER.warn("{}connection {} changed session {}!={}!", tag, connection.getConnectionId(), id,
 							establishedSession.getSessionIdentifier());
 				}
 			} else {
-				LOG.warn("{}connection {} lost session {}!", tag, connection.getConnectionId(), id);
+				LOGGER.warn("{}connection {} lost session {}!", tag, connection.getConnectionId(), id);
 			}
 			connections.update(connection.getConnectionId());
 		}
@@ -461,7 +485,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		for (Connection connection : connections.values()) {
 			if (connection.getPeerAddress() != null && !connection.isResumptionRequired()) {
 				connection.setResumptionRequired(true);
-				LOG.debug("{}connection: mark for resumption {}!", tag, connection);
+				LOGGER.debug("{}connection: mark for resumption {}!", tag, connection);
 			}
 		}
 	}
@@ -469,7 +493,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	@Override
 	public synchronized int remainingCapacity() {
 		int remaining = connections.remainingCapacity();
-		LOG.debug("{}connection: size {}, remaining {}!", tag, connections.size(), remaining);
+		LOGGER.debug("{}connection: size {}, remaining {}!", tag, connections.size(), remaining);
 		return remaining;
 	}
 
@@ -477,13 +501,13 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	public synchronized Connection get(final InetSocketAddress peerAddress) {
 		Connection connection = connectionsByAddress.get(peerAddress);
 		if (connection == null) {
-			LOG.debug("{}connection: missing connection for {}!", tag, peerAddress);
+			LOGGER.debug("{}connection: missing connection for {}!", tag, peerAddress);
 		} else {
 			InetSocketAddress address = connection.getPeerAddress();
 			if (address == null) {
-				LOG.warn("{}connection {} lost ip-address {}!", tag, connection.getConnectionId(), peerAddress);
+				LOGGER.warn("{}connection {} lost ip-address {}!", tag, connection.getConnectionId(), peerAddress);
 			} else if (!address.equals(peerAddress)) {
-				LOG.warn("{}connection {} changed ip-address {}!={}!", tag, connection.getConnectionId(), peerAddress, address);
+				LOGGER.warn("{}connection {} changed ip-address {}!={}!", tag, connection.getConnectionId(), peerAddress, address);
 			}
 		}
 		return connection;
@@ -493,13 +517,13 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	public synchronized Connection get(final ConnectionId cid) {
 		Connection connection = connections.get(cid);
 		if (connection == null) {
-			LOG.debug("{}connection: missing connection for {}!", tag, cid);
+			LOGGER.debug("{}connection: missing connection for {}!", tag, cid);
 		} else {
 			ConnectionId connectionId = connection.getConnectionId();
 			if (connectionId == null) {
-				LOG.warn("{}connection lost cid {}!", tag,  cid);
+				LOGGER.warn("{}connection lost cid {}!", tag,  cid);
 			} else if (!connectionId.equals(cid)) {
-				LOG.warn("{}connection changed cid {}!={}!", tag, connectionId, cid);
+				LOGGER.warn("{}connection changed cid {}!={}!", tag, connectionId, cid);
 			}
 		}
 		return connection;
@@ -514,15 +538,24 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	public synchronized boolean remove(final Connection connection, final boolean removeFromSessionCache) {
 		boolean removed = connections.remove(connection.getConnectionId(), connection) == connection;
 		if (removed) {
-			List<Runnable> pendings = connection.getExecutor().shutdownNow();
-			if (LOG.isTraceEnabled()) {
-				LOG.trace("{}connection: remove {} (size {}, left jobs: {})", tag, connection, connections.size(),
-						pendings.size(), new Throwable("connection removed!"));
-			} else if (pendings.isEmpty()) {
-				LOG.debug("{}connection: remove {} (size {})", tag, connection, connections.size());
+			if (connection.isExecuting()) {
+				List<Runnable> pendings = connection.getExecutor().shutdownNow();
+				if (LOGGER.isTraceEnabled()) {
+					LOGGER.trace("{}connection: remove {} (size {}, left jobs: {})", tag, connection, connections.size(),
+							pendings.size(), new Throwable("connection removed!"));
+				} else if (pendings.isEmpty()) {
+					LOGGER.debug("{}connection: remove {} (size {})", tag, connection, connections.size());
+				} else {
+					LOGGER.debug("{}connection: remove {} (size {}, left jobs: {})", tag, connection, connections.size(),
+							pendings.size());
+				}
 			} else {
-				LOG.debug("{}connection: remove {} (size {}, left jobs: {})", tag, connection, connections.size(),
-						pendings.size());
+				if (LOGGER.isTraceEnabled()) {
+					LOGGER.trace("{}connection: remove {} (size {})", tag, connection, connections.size(),
+							new Throwable("connection removed!"));
+				} else {
+					LOGGER.debug("{}connection: remove {} (size {})", tag, connection, connections.size());
+				}
 			}
 			removeFromEstablishedSessions(connection);
 			removeFromAddressConnections(connection);
@@ -578,7 +611,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 						}
 					}
 				};
-				LOG.debug("{}connection: {} - {} added! {} removed from address.", tag, connection.getConnectionId(),
+				LOGGER.debug("{}connection: {} - {} added! {} removed from address.", tag, connection.getConnectionId(),
 						peerAddress, previous.getConnectionId());
 				if (previous.isExecuting()) {
 					previous.getExecutor().execute(removeAddress);
@@ -586,10 +619,10 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 					removeAddress.run();
 				}
 			} else {
-				LOG.debug("{}connection: {} - {} added!", tag, connection.getConnectionId(), peerAddress);
+				LOGGER.debug("{}connection: {} - {} added!", tag, connection.getConnectionId(), peerAddress);
 			}
 		} else {
-			LOG.debug("{}connection: {} - missing address!", tag, connection.getConnectionId());
+			LOGGER.debug("{}connection: {} - missing address!", tag, connection.getConnectionId());
 		}
 	}
 
@@ -625,6 +658,193 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	@Override
 	public Iterator<Connection> iterator() {
 		return connections.valuesIterator();
+	}
+
+	@WipAPI
+	public int saveConnections(OutputStream out, SecretKey password, long maxAgeInSeconds) throws IOException, GeneralSecurityException {
+		Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+		int count = 0;
+		DatagramWriter writer = new DatagramWriter(4096);
+		byte[] nonce = new byte[16];
+		RandomManager.currentSecureRandom().nextBytes(nonce);
+		byte[] data = PseudoRandomFunction.doPRF(
+				CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256.getThreadLocalPseudoRandomFunctionMac(), password,
+				Label.KEY_EXPANSION_LABEL, nonce, 16);
+		SecretKey key = SecretUtil.create(data, "AES");
+		MessageDigest messageDigest = CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256.getThreadLocalMacMessageDigest();
+		try {
+			long startMillis = System.currentTimeMillis();
+			long startNanos = ClockUtil.nanoRealtime();
+			synchronized (connections) {
+				Iterator<LeastRecentlyUsedCache.Timestamped<Connection>> iterator = connections.timestampedIterator();
+				while (iterator.hasNext()) {
+					LeastRecentlyUsedCache.Timestamped<Connection> connection = iterator.next();
+					int position = writer.space(Short.SIZE);
+					long updateNanos = connection.getLastUpdate();
+					long age = TimeUnit.NANOSECONDS.toSeconds(startNanos - updateNanos);
+					if (age > maxAgeInSeconds) {
+						LOGGER.trace("{}skip {} ts, {}s too aged!", tag, updateNanos, age);
+					} else {
+						LOGGER.trace("{}write {} ts, {}s ", tag, updateNanos, age);
+						writer.writeLong(updateNanos, Long.SIZE);
+						if (connection.getValue().write(writer)) {
+							if (count == 0) {
+								DatagramWriter writerHeader = new DatagramWriter(32);
+								int positionHeader = writerHeader.space(Short.SIZE);
+								writerHeader.writeVarBytes(nonce, Byte.SIZE);
+								writerHeader.writeLong(startMillis, Long.SIZE);
+								writerHeader.writeLong(startNanos, Long.SIZE);
+								writerHeader.updateMessageDigest(positionHeader + 2, messageDigest);
+								writerHeader.writeSize(positionHeader, Short.SIZE);
+								writerHeader.writeTo(out);
+								writerHeader.close();
+								messageDigest.update(data);
+							}
+							AlgorithmParameterSpec parameterSpec = new IvParameterSpec(nonce);
+							writer.encrypt(position + 2, cipher, parameterSpec, key);
+							writer.updateMessageDigest(position + 2, messageDigest);
+							writer.writeSize(position, Short.SIZE);
+							writer.writeTo(out);
+							increment(nonce);
+							++count;
+						}
+					}
+				}
+			}
+		} finally {
+			SecretUtil.destroy(key);
+			Bytes.clear(data);
+		}
+		out.write(0);
+		out.write(0);
+		if (count > 0) {
+			// digest
+			byte[] digest = messageDigest.digest(nonce);
+			writer.writeVarBytes(digest, Short.SIZE);
+			writer.writeTo(out);
+		}
+		clear();
+		return count;
+	}
+
+	@WipAPI
+	public int loadConnections(InputStream in, SecretKey password)
+			throws GeneralSecurityException, IOException {
+		Cipher cipher =  Cipher.getInstance("AES/CBC/PKCS5Padding");
+		int count = 0;
+		DatagramReader reader = new DatagramReader(in);
+		int len = reader.read(Short.SIZE);
+		if (len > 0) {
+			boolean read = false;
+			SecretKey key = null;
+			try {
+				MessageDigest messageDigest = CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256.getThreadLocalMacMessageDigest();
+				DatagramReader rangeReader = reader.createRangeReader(len);
+				rangeReader.updateMessageDigest(messageDigest);
+				byte[] nonce = rangeReader.readVarBytes(Byte.SIZE);
+				long millis = rangeReader.readLong(Long.SIZE);
+				long nanos = rangeReader.readLong(Long.SIZE);
+				long startMillis = System.currentTimeMillis();
+				long startNanos = ClockUtil.nanoRealtime();
+				long delta1 = Math.max(TimeUnit.MILLISECONDS.toNanos(startMillis - millis), 0L);
+				long delta2 = startNanos - nanos;
+				long delta = delta2 - delta1;
+				LOGGER.debug("{}delta {} {} => {}", tag, delta1, delta2, delta);
+				byte[] data = PseudoRandomFunction.doPRF(CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256.getThreadLocalPseudoRandomFunctionMac(), password,
+						Label.KEY_EXPANSION_LABEL, nonce, 16);
+				key = SecretUtil.create(data, "AES");
+				messageDigest.update(data);
+				Bytes.clear(data);
+				while (reader.bytesAvailable()) {
+					len = reader.read(Short.SIZE);
+					if (len > 0) {
+						rangeReader = reader.createRangeReader(len);
+						rangeReader.updateMessageDigest(messageDigest);
+						AlgorithmParameterSpec parameterSpec = new IvParameterSpec(nonce);
+						rangeReader.decrypt(cipher, parameterSpec, key);
+						long lastUpdate = rangeReader.readLong(Long.SIZE);
+						Connection connection = Connection.fromReader(rangeReader);
+						if (connection != null) {
+							if (lastUpdate > nanos) {
+								LOGGER.warn("{}read {} ts after {} ", tag, lastUpdate, nanos);
+							}
+							long update = lastUpdate + delta;
+							LOGGER.trace("{}read {} ts, {}s", tag, update,
+									TimeUnit.NANOSECONDS.toSeconds(startNanos - update));
+							restore(connection, update);
+							increment(nonce);
+							++count;
+						}
+					} else {
+						break;
+					}
+				}
+				byte[] calculatedDigest = messageDigest.digest(nonce);
+				byte[] readDigest = reader.readVarBytes(Short.SIZE);
+				read = true;
+				if (!MessageDigest.isEqual(calculatedDigest, readDigest)) {
+					LOGGER.error("{}MessageDigest failure ({} connections)!", tag, count);
+					LOGGER.error("{}calc : {}", tag, StringUtil.byteArray2Hex(calculatedDigest));
+					LOGGER.error("{}read : {}", tag, StringUtil.byteArray2Hex(readDigest));
+					throw new GeneralSecurityException("MAC mismatch!");
+				} else {
+					LOGGER.debug("{}MessageDigest passed {} ({} connections)!", tag, StringUtil.byteArray2Hex(calculatedDigest), count);
+				}
+			} catch (GeneralSecurityException ex) {
+				if (!read) {
+					LOGGER.warn("{}reading failed after {} connections", tag, count, ex);
+					// left connections
+					SerializationUtil.skipBlocks(in, 0);
+					// mac
+					SerializationUtil.skipBlocks(in, 1);
+				}
+				clear();
+				throw ex;
+			} finally {
+				SecretUtil.destroy(key);
+			}
+		}
+		return count;
+	}
+
+	private boolean restore(final Connection connection, long lastUsage) {
+
+		ConnectionId connectionId = connection.getConnectionId();
+		if (connectionId == null) {
+			throw new IllegalStateException("Connection must have a connection id!");
+		} else if (connectionId.isEmpty()) {
+			throw new IllegalStateException("Connection must have a none empty connection id!");
+		} else if (connections.get(connectionId) != null) {
+			throw new IllegalStateException("Connection id already used! " + connectionId);
+		}
+		LeastRecentlyUsedCache.Timestamped<Connection> timestamped = new LeastRecentlyUsedCache.Timestamped<>(connection, lastUsage);
+		synchronized (connections) {
+			if (connections.put(connectionId, timestamped)) {
+				if (LOGGER.isTraceEnabled()) {
+					LOGGER.trace("{}connection: add {} (size {})", tag, connection, connections.size(),
+							new Throwable("connection added!"));
+				} else {
+					LOGGER.debug("{}connection: add {} (size {})", tag, connectionId, connections.size());
+				}
+				addToAddressConnections(connection);
+				DTLSSession session = connection.getEstablishedSession();
+				if (session != null) {
+					putEstablishedSession(session, connection);
+				}
+				return true;
+			} else {
+				LOGGER.warn("{}connection store is full! {} max. entries.", tag, connections.getCapacity());
+				return false;
+			}
+		}
+	}
+
+	private static void increment(byte[] nonce) {
+		for (int pos = 0; pos < nonce.length; ++pos) {
+			if (++nonce[pos] != 0) {
+				break;
+			}
+		}
 	}
 
 }

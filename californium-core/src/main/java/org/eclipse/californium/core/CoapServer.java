@@ -27,10 +27,17 @@
 package org.eclipse.californium.core;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
+
+import javax.crypto.SecretKey;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,8 +51,12 @@ import org.eclipse.californium.core.server.ServerMessageDeliverer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.DiscoveryResource;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.Connector;
+import org.eclipse.californium.elements.PersistentConnector;
+import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
+import org.eclipse.californium.elements.util.SerializationUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 
 /**
@@ -98,7 +109,7 @@ import org.eclipse.californium.elements.util.StringUtil;
 public class CoapServer implements ServerInterface {
 
 	/** The logger. */
-	private static final Logger LOGGER = LoggerFactory.getLogger(CoapServer.class);
+	protected static final Logger LOGGER = LoggerFactory.getLogger(CoapServer.class);
 
 	/** The root resource. */
 	private final Resource root;
@@ -124,6 +135,8 @@ public class CoapServer implements ServerInterface {
 	private boolean detachExecutor;
 
 	private boolean running;
+
+	private volatile String tag;
 
 	/**
 	 * Constructs a default server. The server starts after the method
@@ -163,7 +176,7 @@ public class CoapServer implements ServerInterface {
 		} else {
 			this.config = NetworkConfig.getStandard();
 		}
-
+		setTag(null);
 		// resources
 		this.root = createRoot();
 		this.deliverer = new ServerMessageDeliverer(root);
@@ -226,7 +239,7 @@ public class CoapServer implements ServerInterface {
 			return;
 		}
 
-		LOGGER.info("Starting server");
+		LOGGER.info("{}Starting server", getTag());
 
 		if (executor == null) {
 			// sets the central thread pool for the protocol stage over all
@@ -240,7 +253,7 @@ public class CoapServer implements ServerInterface {
 		if (endpoints.isEmpty()) {
 			// servers should bind to the configured port (while clients should use an ephemeral port through the default endpoint)
 			int port = config.getInt(NetworkConfig.Keys.COAP_PORT);
-			LOGGER.info("no endpoints have been defined for server, setting up server endpoint on default port {}", port);
+			LOGGER.info("{}no endpoints have been defined for server, setting up server endpoint on default port {}", getTag(), port);
 			CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 			builder.setPort(port);
 			builder.setNetworkConfig(config);
@@ -252,7 +265,7 @@ public class CoapServer implements ServerInterface {
 			try {
 				ep.startMulticastReceivers();
 			} catch (IOException e) {
-				LOGGER.error("cannot start server multicast receiver [{}]", ep.getAddress(), e);
+				LOGGER.error("{}cannot start server multicast receiver [{}]", getTag(), ep.getAddress(), e);
 			}
 		}
 		for (Endpoint ep : endpoints) {
@@ -261,7 +274,7 @@ public class CoapServer implements ServerInterface {
 				// only reached on success
 				++started;
 			} catch (IOException e) {
-				LOGGER.error("cannot start server endpoint [{}]", ep.getAddress(), e);
+				LOGGER.error("{}cannot start server endpoint [{}]", getTag(), ep.getAddress(), e);
 			}
 		}
 		if (started == 0) {
@@ -280,11 +293,11 @@ public class CoapServer implements ServerInterface {
 	public synchronized void stop() {
 
 		if (running) {
-			LOGGER.info("Stopping server ...");
+			LOGGER.info("{}Stopping server ...", getTag());
 			for (Endpoint ep : endpoints) {
 				ep.stop();
 			}
-			LOGGER.info("Stopped server.");
+			LOGGER.info("{}Stopped server.", getTag());
 			running = false;
 		}
 	}
@@ -294,7 +307,7 @@ public class CoapServer implements ServerInterface {
 	 */
 	@Override
 	public synchronized void destroy() {
-		LOGGER.info("Destroying server");
+		LOGGER.info("{}Destroying server", getTag());
 		// prevent new tasks from being submitted
 		try {
 			if (!detachExecutor)
@@ -312,7 +325,7 @@ public class CoapServer implements ServerInterface {
 			for (Endpoint ep : endpoints) {
 				ep.destroy();
 			}
-			LOGGER.info("CoAP server has been destroyed");
+			LOGGER.info("{}CoAP server has been destroyed", getTag());
 			running = false;
 		}
 	}
@@ -383,6 +396,20 @@ public class CoapServer implements ServerInterface {
 		return endpoint;
 	}
 
+	@Override
+	public Endpoint getEndpoint(URI uri) {
+		Endpoint endpoint = null;
+
+		for (Endpoint ep : endpoints) {
+			if (uri.equals(ep.getUri())) {
+				endpoint = ep;
+				break;
+			}
+		}
+
+		return endpoint;
+	}
+
 	/**
 	 * Returns the endpoint with a specific socket address.
 	 * @param address the socket address
@@ -393,7 +420,7 @@ public class CoapServer implements ServerInterface {
 		Endpoint endpoint = null;
 
 		for (Endpoint ep : endpoints) {
-			if (ep.getAddress().equals(address)) {
+			if (address.equals(ep.getAddress())) {
 				endpoint = ep;
 				break;
 			}
@@ -417,6 +444,96 @@ public class CoapServer implements ServerInterface {
 	@Override
 	public boolean remove(Resource resource) {
 		return root.delete(resource);
+	}
+
+	/**
+	 * Set server's tag.
+	 * 
+	 * Used for logging and as marker for persistence.
+	 * 
+	 * @param tag tag
+	 * @since 3.0
+	 */
+	public void setTag(String tag) {
+		this.tag = StringUtil.normalizeLoggingTag(tag);
+	}
+
+	@Override
+	public String getTag() {
+		return tag;
+	}
+
+	/**
+	 * Save all connector's connections.
+	 * 
+	 * Each entry contains the {@link #tag}, followed by the
+	 * {@link Endpoint#getUri()} as ASCII string.
+	 * 
+	 * @param out output stream to write to
+	 * @param key password
+	 * @param maxAgeInSeconds maximum age in seconds
+	 * @return number of saved connections.
+	 * @throws IOException if an i/o-error occurred
+	 * @since 3.0
+	 */
+	public int saveAllConnectors(OutputStream out, SecretKey key, long maxAgeInSeconds) throws IOException {
+		stop();
+		int count = 0;
+		DatagramWriter writer = new DatagramWriter();
+		for (Endpoint endpoint : getEndpoints()) {
+			if (endpoint instanceof CoapEndpoint) {
+				Connector connector = ((CoapEndpoint) endpoint).getConnector();
+				if (connector instanceof PersistentConnector) {
+					SerializationUtil.write(writer, getTag(), Byte.SIZE);
+					SerializationUtil.write(writer, endpoint.getUri().toASCIIString(), Byte.SIZE);
+					writer.writeTo(out);
+					try {
+						int saved = ((PersistentConnector) connector).saveConnections(out, key, maxAgeInSeconds);
+						count += saved;
+					} catch (GeneralSecurityException e) {
+						LOGGER.warn("{}saving failed:", getTag(), e);
+					}
+				}
+			}
+		}
+		return count;
+	}
+
+	/**
+	 * Read connections for the connector of the provided uri.
+	 * 
+	 * @param uri uri of connector
+	 * @param in input stream
+	 * @param key password
+	 * @return number of read connections, {@code -1}, if no persistent
+	 *         connector is available for the provided uri.
+	 * @throws IOException if an i/o-error occurred
+	 * @since 3.0
+	 */
+	public int loadConnector(URI uri, InputStream in, SecretKey key) throws IOException {
+		Endpoint endpoint = getEndpoint(uri);
+		if (endpoint == null) {
+			LOGGER.warn("{}connector {} not available!", getTag(), uri);
+			return -1;
+		}
+		PersistentConnector persistentConnector = null;
+		if (endpoint instanceof CoapEndpoint) {
+			Connector connector = ((CoapEndpoint) endpoint).getConnector();
+			if (connector instanceof PersistentConnector) {
+				persistentConnector = (PersistentConnector) connector;
+			}
+		}
+		if (persistentConnector != null) {
+			try {
+				return persistentConnector.loadConnections(in, key);
+			} catch (GeneralSecurityException e) {
+				LOGGER.warn("{}loading failed:", getTag(), e);
+				return 0;
+			}
+		} else {
+			LOGGER.warn("{}connector {} doesn't support persistence!", getTag(), uri);
+		}
+		return -1;
 	}
 
 	/**

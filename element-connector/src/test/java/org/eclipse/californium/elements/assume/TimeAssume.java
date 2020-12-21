@@ -18,6 +18,8 @@ package org.eclipse.californium.elements.assume;
 
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.californium.elements.rule.TestTimeRule;
+import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
@@ -34,6 +36,13 @@ import org.junit.AssumptionViolatedException;
 public class TimeAssume {
 
 	/**
+	 * Shift time in {@link ClockUtil} instead of real sleeps.
+	 * 
+	 * @since 3.0
+	 */
+	private final TestTimeRule timeRule;
+
+	/**
 	 * Enable in time assumption.
 	 * 
 	 * @see system property
@@ -48,9 +57,20 @@ public class TimeAssume {
 
 	/**
 	 * Create new timing assumption.
+	 * 
+	 * @param timeRule to shift time instead of real sleep.
+	 * @since 3.0
+	 */
+	public TimeAssume(TestTimeRule timeRule) {
+		enabled = Boolean.getBoolean(TimeAssume.class.getName() + ".enable");
+		this.timeRule = timeRule;
+	}
+
+	/**
+	 * Create new timing assumption.
 	 */
 	public TimeAssume() {
-		enabled = Boolean.getBoolean(TimeAssume.class.getName() + ".enable");
+		this(null);
 	}
 
 	/**
@@ -60,12 +80,24 @@ public class TimeAssume {
 	 * @throws IllegalArgumentException if timeout is not larger than 0
 	 */
 	public TimeAssume(long timeout) {
-		this();
+		this(null, timeout);
+	}
+
+	/**
+	 * Create new timing assumption with initial timeout.
+	 * 
+	 * @param timeRule to shift time instead of real sleep.
+	 * @param timeout initial timeout in milliseconds
+	 * @throws IllegalArgumentException if timeout is not larger than 0
+	 * @since 3.0
+	 */
+	public TimeAssume(TestTimeRule timeRule, long timeout) {
+		this(timeRule);
 		if (timeout <= 0) {
 			throw new IllegalArgumentException("timeout must be larger than 0!");
 		}
 		if (enabled) {
-			end = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeout);
+			end = ClockUtil.nanoRealtime() + TimeUnit.MILLISECONDS.toNanos(timeout);
 		}
 	}
 
@@ -103,13 +135,17 @@ public class TimeAssume {
 		if (timeout <= 0) {
 			throw new IllegalArgumentException("timeout must be larger than 0!");
 		}
-		long start = System.nanoTime();
-		try {
-			Thread.sleep(milliseconds);
-		} catch (InterruptedException e) {
+		long start = ClockUtil.nanoRealtime();
+		if (timeRule != null) {
+			timeRule.addTestTimeShift(milliseconds, TimeUnit.MILLISECONDS);
+		} else {
+			try {
+				Thread.sleep(milliseconds);
+			} catch (InterruptedException e) {
+			}
 		}
 		long tolerance = milliseconds / 10;
-		long now = System.nanoTime();
+		long now = ClockUtil.nanoRealtime();
 		long time = TimeUnit.NANOSECONDS.toMillis(now - start);
 		if (time < (milliseconds - tolerance)) {
 			throw new AssumptionViolatedException("sleep too short! " + time + " instead of " + milliseconds + " ms");
@@ -127,7 +163,7 @@ public class TimeAssume {
 	 *         assumption, {@code true}, false, if not.
 	 */
 	public boolean inTime() {
-		return !enabled || 0 == end || System.nanoTime() <= end;
+		return !enabled || 0 == end || ClockUtil.nanoRealtime() <= end;
 	}
 
 	/**
@@ -173,7 +209,7 @@ public class TimeAssume {
 			public void describeMismatch(Object item, Description mismatchDescription) {
 				matcher.describeMismatch(item, mismatchDescription);
 				if (!enabled && 0 < end) {
-					long left = end - System.nanoTime();
+					long left = end - ClockUtil.nanoRealtime();
 					if (left < 0) {
 						mismatchDescription.appendText(", assumed time expired! ");
 						mismatchDescription.appendText(Long.toString(TimeUnit.NANOSECONDS.toMillis(-left)));

@@ -20,8 +20,14 @@ package org.eclipse.californium.elements.util;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.security.GeneralSecurityException;
+import java.security.MessageDigest;
+import java.security.spec.AlgorithmParameterSpec;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLong;
+
+import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
 
 /**
  * This class describes the functionality to write raw network-ordered datagrams
@@ -301,15 +307,26 @@ public final class DatagramWriter {
 	/**
 	 * Write variable bytes with length.
 	 * 
+	 * Write first the length of the variable bytes according the size in
+	 * {@code numBits}. For {@code null}, {@code -1} is written as length.
+	 * 
 	 * @param bytes bytes to write
 	 * @param numBits number of bits for encoding the length.
 	 * @since 3.0
 	 */
 	public void writeVarBytes(byte[] bytes, int numBits) {
+		int varLengthBits = getVarLengthBits(numBits);
+		int nullLengthValue = getNullLengthValue(varLengthBits);
 		if (bytes == null) {
-			write(0, numBits);
+			write(nullLengthValue, varLengthBits);
 		} else {
-			write(bytes.length, numBits);
+			if (nullLengthValue == bytes.length) {
+				throw new IllegalArgumentException(bytes.length + " bytes is too large for " + numBits + "!");
+			}
+			if (numBits < varLengthBits && (bytes.length >> numBits) != 0) {
+				throw new IllegalArgumentException(String.format("Truncating value %d to %d-bit integer", bytes.length, numBits));
+			}
+			write(bytes.length, varLengthBits);
 			writeBytes(bytes);
 		}
 	}
@@ -317,17 +334,15 @@ public final class DatagramWriter {
 	/**
 	 * Write Bytes with length.
 	 * 
+	 * Write first the length of the variable bytes according the size in
+	 * {@code numBits}. For {@code null}, {@code -1} is written as length.
+	 * 
 	 * @param bytes bytes to write
 	 * @param numBits number of bits for encoding the length.
 	 * @since 3.0
 	 */
 	public void writeVarBytes(Bytes bytes, int numBits) {
-		if (bytes == null) {
-			write(0, numBits);
-		} else {
-			write(bytes.length(), numBits);
-			writeBytes(bytes.getBytes());
-		}
+		writeVarBytes(bytes == null ? null : bytes.getBytes(), numBits);
 	}
 
 	/**
@@ -384,6 +399,39 @@ public final class DatagramWriter {
 
 		// return the byte array
 		return byteArray;
+	}
+
+	/**
+	 * Encrypt written content.
+	 * 
+	 * @param position starting position to encrypt
+	 * @param cipher cipher to use
+	 * @param parameterSpec parameter spec for cipher
+	 * @param key key
+	 * @throws GeneralSecurityException if an crypto-error occurred
+	 * @since 3.0
+	 */
+	public void encrypt(int position, Cipher cipher, AlgorithmParameterSpec parameterSpec, SecretKey key)
+			throws GeneralSecurityException {
+		cipher.init(Cipher.ENCRYPT_MODE, key, parameterSpec);
+		int length =  count - position;
+		int size = cipher.getOutputSize(length) + position;
+		if (size > buffer.length) {
+			int newSize = calculateBufferSize(size);
+			setBufferSize(newSize);
+		}
+		count = cipher.doFinal(buffer, position, length, buffer, position) + position;
+	}
+
+	/**
+	 * Update message digest with written content.
+	 * 
+	 * @param position starting position to update
+	 * @param md message digest to use
+	 * @since 3.0
+	 */
+	public void updateMessageDigest(int position, MessageDigest md) {
+		md.update(buffer, position, count - position);
 	}
 
 	/**
@@ -575,6 +623,28 @@ public final class DatagramWriter {
 			newSize = MAX_ARRAY_SIZE;
 		}
 		return newSize;
+	}
+
+	public static int getVarLengthBits(int numBits) {
+		if (numBits % 8 != 0) {
+			numBits &= 0xfffffff8;
+			numBits += 8;
+		}
+		return numBits;
+	}
+
+	public static int getNullLengthValue(int varLengthBits) {
+		switch (varLengthBits) {
+		case 8:
+			return 0xff;
+		case 16:
+			return 0xffff;
+		case 24:
+			return 0xffffff;
+		case 32:
+			return 0xffffffff;
+		}
+		throw new IllegalArgumentException("Var length Bits must be a multiple of 8, not " + varLengthBits + "!");
 	}
 
 	// Utilities ///////////////////////////////////////////////////////////////

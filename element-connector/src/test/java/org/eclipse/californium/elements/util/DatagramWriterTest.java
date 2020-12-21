@@ -170,11 +170,46 @@ public class DatagramWriterTest {
 	}
 
 	@Test
+	public void testWriteEmptyVarByteArray() {
+		byte[] data = Bytes.EMPTY;
+		writer.writeVarBytes(data, Byte.SIZE);
+		byte[] wdata = writer.toByteArray();
+		String expected = String.format("%02X%s", 0, hex(data));
+		assertEquals(expected, hex(wdata));
+	}
+
+	@Test
+	public void testWriteNullVarByteArray() {
+		byte[] data = null;
+		writer.writeVarBytes(data, Byte.SIZE);
+		byte[] wdata = writer.toByteArray();
+		String expected = "FF";
+		assertEquals(expected, hex(wdata));
+	}
+
+	@Test
 	public void testWriteVarBytes() {
 		byte[] data = bin("ab12def671223344556677890a0011");
 		writer.writeVarBytes(new Bytes(data), Short.SIZE);
 		byte[] wdata = writer.toByteArray();
 		String expected = String.format("%04X%s", data.length, hex(data));
+		assertEquals(expected, hex(wdata));
+	}
+
+	@Test
+	public void testWriteEmptyVarBytes() {
+		byte[] data = Bytes.EMPTY;
+		writer.writeVarBytes(new Bytes(data), Short.SIZE);
+		byte[] wdata = writer.toByteArray();
+		String expected = String.format("%04X%s", 0, hex(data));
+		assertEquals(expected, hex(wdata));
+	}
+
+	@Test
+	public void testWriteNullVarBytes() {
+		writer.writeVarBytes((Bytes)null, Short.SIZE);
+		byte[] wdata = writer.toByteArray();
+		String expected = "FFFF";
 		assertEquals(expected, hex(wdata));
 	}
 

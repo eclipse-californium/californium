@@ -19,7 +19,6 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -176,7 +175,7 @@ public final class ServerHello extends HandshakeMessage {
 
 		Random random = new Random(reader.readBytes(RANDOM_BYTES));
 
-		SessionId sessionId = new SessionId(reader.readVarBytes(SESSION_ID_LENGTH_BITS, Bytes.EMPTY));
+		SessionId sessionId = new SessionId(reader.readVarBytes(SESSION_ID_LENGTH_BITS));
 
 		int code = reader.read(CIPHER_SUITE_BITS);
 		CipherSuite cipherSuite = CipherSuite.getTypeByCode(code);

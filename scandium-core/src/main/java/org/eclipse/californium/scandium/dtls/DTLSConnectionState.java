@@ -118,9 +118,8 @@ public abstract class DTLSConnectionState implements Destroyable {
 	/**
 	 * Read cipher suite specific connection state from reader.
 	 * 
-	 * Note: the stream will contain not encrypted critical credentials. It is
-	 * only intended to be used for PoC, e.g. graceful shutdown. The encoding of
-	 * the content may also change in the future.
+	 * Note: the stream will contain not encrypted critical credentials. The
+	 * encoding of the content may also change in the future.
 	 * 
 	 * @param cipherSuite cipher suite
 	 * @param compressionMethod compression method
@@ -223,8 +222,8 @@ public abstract class DTLSConnectionState implements Destroyable {
 	 * Write cipher suite specific connection state to writer.
 	 * 
 	 * Note: the stream will contain not encrypted critical credentials. It is
-	 * only intended to be used for PoC, e.g. graceful shutdown. The encoding of
-	 * the content may also change in the future.
+	 * required to protect this data before exporting it. The encoding of the
+	 * content may also change in the future.
 	 * 
 	 * @param writer writer to write state to.
 	 * @since 3.0

@@ -792,8 +792,8 @@ public final class Connection {
 	 * Write connection state.
 	 * 
 	 * Note: the stream will contain not encrypted critical credentials. It is
-	 * only intended to be used for PoC, e.g. graceful shutdown. The encoding of
-	 * the content may also change in the future.
+	 * required to protect this data before exporting it. The encoding of the
+	 * content may also change in the future.
 	 * 
 	 * @param writer writer for connection state
 	 * @return {@code true}, if connection is written, {@code false}, if not.
@@ -801,9 +801,10 @@ public final class Connection {
 	 */
 	@WipAPI
 	public boolean write(DatagramWriter writer) {
-		if (establishedSession != null) {
-			writer.writeByte((byte) VERSION);
-			int position = writer.space(Short.SIZE);
+		if (establishedSession == null) {
+			return false;
+		} else {
+			int position = SerializationUtil.writeStartItem(writer, VERSION, Short.SIZE);
 
 			writer.writeByte(resumptionRequired ? (byte) 1 : (byte) 0);
 			writer.writeVarBytes(cid, Byte.SIZE);
@@ -814,19 +815,16 @@ public final class Connection {
 			// TODO: 
 			// startingClientHelloRandom + startingClientHelloMessageSeq
 			// Requires timeout independent from scheduler!
-			writer.writeSize(position, Short.SIZE);
+			 SerializationUtil.writeFinishedItem(writer, position, Short.SIZE);
 			return true;
-		} else {
-			return false;
 		}
 	}
 
 	/**
 	 * Read connection state.
 	 * 
-	 * Note: the stream will contain not encrypted critical credentials. It is
-	 * only intended to be used for PoC, e.g. graceful shutdown. The encoding of
-	 * the content may also change in the future.
+	 * Note: the stream will contain not encrypted critical credentials. The
+	 * encoding of the content may also change in the future.
 	 * 
 	 * @param reader reader with connection state.
 	 * @return read connection.
@@ -835,13 +833,13 @@ public final class Connection {
 	 */
 	@WipAPI
 	public static Connection fromReader(DatagramReader reader) {
-		int version = reader.readNextByte() & 0xff;
-		if (version != VERSION) {
-			throw new IllegalArgumentException("Version " + VERSION + " is required! Not " + version);
+		int length = SerializationUtil.readStartItem(reader, VERSION, Short.SIZE);
+		if (0 < length) {
+			DatagramReader rangeReader = reader.createRangeReader(length);
+			return new Connection(rangeReader);
+		} else {
+			return null;
 		}
-		int length = reader.read(Short.SIZE);
-		DatagramReader rangeReader = reader.createRangeReader(length);
-		return new Connection(rangeReader);
 	}
 
 	/**
@@ -853,9 +851,7 @@ public final class Connection {
 	private Connection(DatagramReader reader) {
 		resumptionRequired = reader.readNextByte() == 1;
 		byte[] data = reader.readVarBytes(Byte.SIZE);
-		if (data != null) {
-			cid = new ConnectionId(data);
-		}
+		cid = new ConnectionId(data);
 		peerAddress = SerializationUtil.readAddress(reader);
 		establishedSession = DTLSSession.fromReader(reader);
 		if (reader.readNextByte() == 1) {

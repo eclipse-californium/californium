@@ -45,6 +45,24 @@ public class SerializationUtilTest {
 	}
 
 	@Test
+	public void testNullStrings() {
+		String write = null;
+		SerializationUtil.write(writer, write, Byte.SIZE);
+		swap();
+		String read = SerializationUtil.readString(reader, Byte.SIZE);
+		assertEquals(write, read);
+	}
+
+	@Test
+	public void testEmptyStrings() {
+		String write = "";
+		SerializationUtil.write(writer, write, Byte.SIZE);
+		swap();
+		String read = SerializationUtil.readString(reader, Byte.SIZE);
+		assertEquals(write, read);
+	}
+
+	@Test
 	public void testAddressIpv4() {
 		InetSocketAddress write = new InetSocketAddress("192.168.1.5", 5683);
 		SerializationUtil.write(writer, write);
