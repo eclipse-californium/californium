@@ -645,14 +645,9 @@ public class BenchmarkClient {
 					msg = "rejected";
 				}
 				if (!config.stop || non) {
-					if (non) {
-						overallRequestsDownCounter.incrementAndGet();
-						retransmissionCounter.incrementAndGet();
-						LOGGER.debug("{}: Error after {} requests. {}", id, c, msg);
-					} else {
-						transmissionErrorCounter.incrementAndGet();
-						LOGGER.info("{}: Error after {} requests. {}", id, c, msg);
-					}
+					overallRequestsDownCounter.incrementAndGet();
+					transmissionErrorCounter.incrementAndGet();
+					LOGGER.info("{}: Error after {} requests. {}", id, c, msg);
 					if (!next(1000, secure && !non ? 1000 : 0, c > 0, false)) {
 						LOGGER.warn("{}: stopped by error after {} requests. {}", id, c, msg);
 						stop();
