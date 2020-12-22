@@ -892,17 +892,16 @@ public class BenchmarkClient {
 	}
 
 	public long checkOverallRequests(boolean connected, boolean response) {
-		boolean allConnected = connectDownCounter.get() <= 0;
 		if (connected) {
 			if (requestsCounter.get() == 0) {
-				allConnected = connectDownCounter.decrementAndGet() <= 0;
+				connectDownCounter.decrementAndGet();
 			}
 			if (response) {
 				requestsCounter.getAndIncrement();
 			}
 		}
 		long c = response ? countDown(overallResponsesDownCounter) : overallResponsesDownCounter.get();
-		if (c == 0 && allConnected) {
+		if (c == 0 && connectDownCounter.get() <= 0) {
 			overallRequestsDone.countDown();
 			if (overallReverseResponsesDownCounter.getCount() == 0) {
 				stop();
@@ -942,12 +941,11 @@ public class BenchmarkClient {
 		long c = downCounter.get();
 		while (c > 0) {
 			if (downCounter.compareAndSet(c, c - 1)) {
-				--c;
-				break;
+				return c - 1;
 			}
 			c = downCounter.get();
 		}
-		return c;
+		return 0;
 	}
 
 	public static void main(String[] args) throws InterruptedException, IOException {
