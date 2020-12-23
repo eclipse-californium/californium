@@ -707,20 +707,18 @@ public final class OptionSet {
 	 * "http://www.iana.org/assignments/core-parameters/core-parameters.xhtml#content-formats">IANA
 	 * Registry</a>).
 	 * 
-	 * Note: if the value is out of range [0...65535], the content_format is
-	 * reset to {@code null}. In difference to other methods, no
-	 * {@link IllegalArgumentException} will be thrown.
-	 * 
 	 * @param format the Content-Format ID
 	 * @return this OptionSet for a fluent API.
+	 * @throws IllegalArgumentException if value is out of range {@code 0} to
+	 *             {@link MediaTypeRegistry#MAX_TYPE} (since 3.0).
 	 * @see MediaTypeRegistry
 	 */
 	public OptionSet setContentFormat(int format) {
-		if (format > MediaTypeRegistry.UNDEFINED && format <= MediaTypeRegistry.MAX_TYPE) {
-			content_format = format;
-		} else {
-			content_format = null;
+		if (format < 0 || format > MediaTypeRegistry.MAX_TYPE) {
+			throw new IllegalArgumentException(
+					"Content-format option must be between 0 and " + MediaTypeRegistry.MAX_TYPE + " (2 bytes) inclusive");
 		}
+		content_format = format;
 		return this;
 	}
 
