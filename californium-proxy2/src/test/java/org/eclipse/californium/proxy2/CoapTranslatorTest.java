@@ -16,7 +16,7 @@
 package org.eclipse.californium.proxy2;
 
 import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
