@@ -29,6 +29,7 @@ package org.eclipse.californium.elements.tcp.netty;
 import static org.eclipse.californium.elements.tcp.netty.ConnectorTestUtil.*;
 import static org.eclipse.californium.elements.tcp.netty.TlsConnectorTestUtil.*;
 import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.*;
 
 import java.net.InetSocketAddress;
