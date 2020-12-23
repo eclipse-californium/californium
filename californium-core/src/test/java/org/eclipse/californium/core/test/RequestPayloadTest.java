@@ -32,6 +32,7 @@ import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.category.Medium;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.elements.util.ExpectedExceptionWrapper;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
@@ -65,7 +66,7 @@ public class RequestPayloadTest {
 	public TestNameLoggerRule name = new TestNameLoggerRule();
 
 	@Rule
-	public ExpectedException exception = ExpectedException.none();
+	public ExpectedException exception = ExpectedExceptionWrapper.none();
 
 	/**
 	 * Service resource name.

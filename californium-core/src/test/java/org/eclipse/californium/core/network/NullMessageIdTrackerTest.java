@@ -19,7 +19,7 @@ package org.eclipse.californium.core.network;
 import static org.eclipse.californium.core.network.MessageIdTracker.TOTAL_NO_OF_MIDS;
 import static org.eclipse.californium.elements.util.TestConditionTools.inRange;
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.rule.CoapThreadsRule;

@@ -22,7 +22,7 @@ package org.eclipse.californium.core.network;
 import static org.eclipse.californium.core.network.MessageIdTracker.TOTAL_NO_OF_MIDS;
 import static org.eclipse.californium.elements.util.TestConditionTools.inRange;
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;

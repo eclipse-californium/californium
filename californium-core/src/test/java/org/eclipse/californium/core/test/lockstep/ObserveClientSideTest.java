@@ -49,10 +49,9 @@ import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.cr
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createRequest;
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.util.concurrent.TimeUnit;
@@ -429,7 +428,7 @@ public class ObserveClientSideTest {
 				.payload(respPayload.substring(16, 32)).go();
 		// ensure client don't ask for block anymore
 		Message message = server.receiveNextMessage(1000, TimeUnit.MILLISECONDS);
-		assertNull("No block2 message expected anymore", message);
+		assertThat("No block2 message expected anymore", message, is(nullValue()));
 		assertTrue("Blockwise layer must be empty", client.getStack().getBlockwiseLayer().isEmpty());
 
 		// Send new notif without block
@@ -517,7 +516,7 @@ public class ObserveClientSideTest {
 		server.expectEmpty(ACK, mid).go();
 		// Check this one is discard.
 		Response response = request.waitForResponse(1000);
-		assertNull("Older notification must be discard", response);
+		assertThat("Older notification must be discard", response, is(nullValue()));
 
 		// Send next block
 		server.sendResponse(ACK, CONTENT).loadBoth("SECOND_BLOCK").block2(1, false, 16)
@@ -1209,7 +1208,7 @@ public class ObserveClientSideTest {
 		// timeout, retransmission
 		server.expectRequest(CON, GET, path).sameBoth("SECOND_BLOCK").block2(1, false, 16).go();
 
-		assertNull("unexpected message", server.receiveNextMessage(timeoutMillis, TimeUnit.MILLISECONDS));
+		assertThat("unexpected message", server.receiveNextMessage(timeoutMillis, TimeUnit.MILLISECONDS),is(nullValue()));
 
 		// next notify
 		notifyPayload = generateRandomPayload(2 * 16);
@@ -1411,7 +1410,7 @@ public class ObserveClientSideTest {
 		
 		// Ensure we get the right response
 		Response cancelResponse = proactiveCancel.waitForResponse(1000);
-		assertNotNull("We should receive the cancel response", cancelResponse);
+		assertThat("We should receive the cancel response", cancelResponse, is(notNullValue()));
 		assertResponseContainsExpectedPayload(cancelResponse, cancelPayload);
 
 		// Ensure notification is rejected
@@ -1485,7 +1484,7 @@ public class ObserveClientSideTest {
 
 		// Ensure the 2 notifications above was not consider as response for the proactive cancel request
 		Response cancelResponse = proactiveCancel.waitForResponse(500);
-		assertNull("We should not consider notification as response", cancelResponse);
+		assertThat("We should not consider notification as response", cancelResponse, is(nullValue()));
 
 		// Send response to proactive cancel
 		String cancelPayload = generateRandomPayload(32);
@@ -1493,7 +1492,7 @@ public class ObserveClientSideTest {
 
 		// Ensure we get the right response
 		cancelResponse = proactiveCancel.waitForResponse(1000);
-		assertNotNull("We should receive the cancel response", cancelResponse);
+		assertThat("We should receive the cancel response", cancelResponse, is(notNullValue()));
 		assertResponseContainsExpectedPayload(cancelResponse, cancelPayload);
 
 		assertAllEndpointExchangesAreCompleted(client);

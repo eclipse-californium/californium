@@ -32,8 +32,7 @@ import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.cr
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.util.concurrent.TimeUnit;
 
@@ -160,7 +159,7 @@ public class DeduplicationTest {
 		assertResponseContainsExpectedPayload(response, CONTENT, payload);
 
 		response = request.waitForResponse(500);
-		assertNull("Client received duplicate", response);
+		assertThat("Client received duplicate", response, is(nullValue()));
 
 		// may be on the way
 		assertHealthCounter("recv-ignored", is(1L), 1000);
@@ -191,7 +190,7 @@ public class DeduplicationTest {
 		server.expectRequest(CON, GET, path).sameBoth("A").go();
 		server.expectRequest(CON, GET, path).sameBoth("A").go();
 		Message message = server.receiveNextMessage(1000, TimeUnit.MILLISECONDS);
-		assertNull("received unexpected message", message);
+		assertThat("received unexpected message", message, is(nullValue()));
 
 		assertHealthCounter("send-requests", is(1L));
 		assertHealthCounter("send-request retransmissions", is(2L), 1000);
@@ -208,7 +207,7 @@ public class DeduplicationTest {
 		server.expectRequest(CON, GET, path).storeBoth("B").go();
 		server.expectRequest(CON, GET, path).sameBoth("B").go();
 		message = server.receiveNextMessage(1000, TimeUnit.MILLISECONDS);
-		assertNull("received unexpected message", message);
+		assertThat("received unexpected message", message, is(nullValue()));
 
 		assertHealthCounter("send-requests", is(1L));
 		assertHealthCounter("send-request retransmissions", is(1L), 1000);
@@ -231,7 +230,7 @@ public class DeduplicationTest {
 		client.sendRequest(request);
 
 		observer.waitForErrorCalls(1, 1000, TimeUnit.MILLISECONDS);
-		assertNull("Client received unexpected response", request.getResponse());
+		assertThat("Client received unexpected response", request.getResponse(), is(nullValue()));
 
 		assertHealthCounter("send-errors", is(1L), 1000);
 		assertHealthCounter("send-requests", is(0L));
@@ -262,7 +261,7 @@ public class DeduplicationTest {
 		server.expectRequest(CON, GET, path).storeBoth("A").go();
 		server.expectRequest(CON, GET, path).sameBoth("A").go();
 		Message message = server.receiveNextMessage(1000, TimeUnit.MILLISECONDS);
-		assertNull("received unexpected message", message);
+		assertThat("received unexpected message", message, is(nullValue()));
 
 		assertThat(request.getEffectiveDestinationContext().getString(DtlsEndpointContext.KEY_HANDSHAKE_MODE), is(DtlsEndpointContext.HANDSHAKE_MODE_NONE));
 
@@ -277,7 +276,7 @@ public class DeduplicationTest {
 		server.expectRequest(CON, GET, path).storeBoth("A").go();
 		server.expectRequest(CON, GET, path).sameBoth("A").go();
 		message = server.receiveNextMessage(1000, TimeUnit.MILLISECONDS);
-		assertNull("received unexpected message", message);
+		assertThat("received unexpected message", message, is(nullValue()));
 
 		assertThat(request.getEffectiveDestinationContext().get(DtlsEndpointContext.KEY_HANDSHAKE_MODE), is(nullValue()));
 

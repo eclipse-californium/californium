@@ -52,9 +52,8 @@ import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.cr
 import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.util.concurrent.TimeUnit;
@@ -170,7 +169,7 @@ public class BlockwiseClientSideTest {
 
 		request.waitForResponse(ERROR_TIMEOUT_IN_MS);
 		assertTrue("Request should have been cancelled", request.isCanceled());
-		assertNotNull("Request should have failed with error", request.getOnResponseError());
+		assertThat("Request should have failed with error", request.getOnResponseError(), is(notNullValue()));
 	}
 
 	/**
