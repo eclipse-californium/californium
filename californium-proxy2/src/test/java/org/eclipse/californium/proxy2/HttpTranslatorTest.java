@@ -18,7 +18,7 @@ package org.eclipse.californium.proxy2;
 import static org.hamcrest.core.StringContains.*;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
@@ -35,6 +35,7 @@ import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.elements.util.ExpectedExceptionWrapper;
 import org.eclipse.californium.elements.util.StandardCharsets;
 import org.junit.Rule;
 import org.junit.Test;
@@ -45,7 +46,7 @@ public class HttpTranslatorTest {
 	 * No exception expected by default
 	 */
 	@Rule
-	public ExpectedException exception = ExpectedException.none();
+	public ExpectedException exception = ExpectedExceptionWrapper.none();
 
 	@Test
 	public void testPutHttpEntity() throws Exception {
