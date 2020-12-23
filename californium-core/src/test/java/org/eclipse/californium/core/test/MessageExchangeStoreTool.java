@@ -120,7 +120,7 @@ public class MessageExchangeStoreTool {
 		int exchangeLifetime = (int) config.getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME);
 		int sweepInterval = config.getInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL);
 		if (time != null) {
-			time.setTestTimeShift(exchangeLifetime + 1000, TimeUnit.MILLISECONDS);
+			time.addTestTimeShift(exchangeLifetime + 1000, TimeUnit.MILLISECONDS);
 		}
 		waitUntilDeduplicatorShouldBeEmpty(exchangeLifetime, sweepInterval, new TestCondition() {
 

@@ -452,7 +452,7 @@ public class BlockwiseServerSideTest {
 
 		System.out.println("2 consecutive complete PUT with block1 transfer:");
 
-		TimeAssume assume = new TimeAssume();
+		TimeAssume assume = new TimeAssume(time);
 		reqtPayload = generateRandomPayload(300);
 		Token tok = generateNextToken();
 
