@@ -24,8 +24,8 @@ import static org.eclipse.californium.core.network.MatcherTestUtils.receiveRespo
 import static org.eclipse.californium.core.network.MatcherTestUtils.sendRequest;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertSame;
-import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.notNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;

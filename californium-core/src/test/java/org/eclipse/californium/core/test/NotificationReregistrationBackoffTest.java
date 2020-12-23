@@ -17,9 +17,9 @@ package org.eclipse.californium.core.test;
 
 import static org.eclipse.californium.elements.util.TestConditionTools.inRange;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Arrays;
@@ -37,6 +37,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.category.Medium;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.elements.util.ExpectedExceptionWrapper;
 import org.eclipse.californium.elements.util.TestScope;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
@@ -74,7 +75,7 @@ public class NotificationReregistrationBackoffTest {
 	 * No exception expected by default
 	 */
 	@Rule
-	public ExpectedException exception = ExpectedException.none();
+	public ExpectedException exception = ExpectedExceptionWrapper.none();
 
 	/**
 	 * Service resource name.
