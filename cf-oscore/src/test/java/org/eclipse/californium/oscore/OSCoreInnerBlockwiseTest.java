@@ -47,6 +47,7 @@ import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.elements.category.Medium;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.ExpectedExceptionWrapper;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
@@ -195,7 +196,7 @@ public class OSCoreInnerBlockwiseTest {
 	}
 
 	@Rule
-	public ExpectedException exceptionRule = ExpectedException.none();
+	public ExpectedException exceptionRule = ExpectedExceptionWrapper.none();
 
 	/**
 	 * Perform a PUT request that is not sent with (inner) block-wise even

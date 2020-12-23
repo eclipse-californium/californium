@@ -34,6 +34,7 @@ import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.ExpectedExceptionWrapper;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
@@ -114,7 +115,7 @@ public class OSCoreAlgorithmsTest {
 	}
 
 	@Rule
-	public ExpectedException exceptionRule = ExpectedException.none();
+	public ExpectedException exceptionRule = ExpectedExceptionWrapper.none();
 
 	@Test
 	public void testNotSupported() throws Exception {

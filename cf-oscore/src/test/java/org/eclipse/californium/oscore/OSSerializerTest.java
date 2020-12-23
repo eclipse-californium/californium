@@ -24,6 +24,7 @@ import java.util.Arrays;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.cose.AlgorithmID;
+import org.eclipse.californium.elements.util.ExpectedExceptionWrapper;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -53,7 +54,7 @@ public class OSSerializerTest {
 	private static OSCoreCtx ctx = null;
 
 	@Rule
-	public final ExpectedException exception = ExpectedException.none();
+	public final ExpectedException exception = ExpectedExceptionWrapper.none();
 
 	@Before
 	public void setUp() throws Exception {
