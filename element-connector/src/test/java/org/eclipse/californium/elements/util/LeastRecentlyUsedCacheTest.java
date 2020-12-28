@@ -93,18 +93,19 @@ public class LeastRecentlyUsedCacheTest {
 		cache.setUpdatingOnReadAccess(false);
 		String eldest = cache.getEldest();
 		Integer key = Integer.valueOf(eldest);
+		time.setFixedTestTime(true);
 		assume.sleep(THRESHOLD_MILLIS / 2);
 		assertThat(cache.get(key), assume.inTime(is(notNullValue())));
 		// update last-access time
 		assertThat(cache.update(key), assume.inTime(is(true)));
-		assume.sleep((THRESHOLD_MILLIS / 2) + 100);
+		assume.sleep((THRESHOLD_MILLIS / 2) + 50);
 		// not expired
 		assertThat(cache.get(key), assume.inTime(is(notNullValue())));
 		assertThat(cache.update(key), assume.inTime(is(true)));
 		assume.sleep(THRESHOLD_MILLIS / 2);
 		// no update last-access time
 		assertThat(cache.get(key), assume.inTime(is(notNullValue())));
-		assume.sleep((THRESHOLD_MILLIS / 2) + 100);
+		assume.sleep((THRESHOLD_MILLIS / 2) + 50);
 		// expired!
 		assertThat(cache.get(key), assume.inTime(is(nullValue())));
 	}
@@ -117,6 +118,7 @@ public class LeastRecentlyUsedCacheTest {
 
 		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfSessions);
 		cache.setEvictingOnReadAccess(true);
+		time.setFixedTestTime(true);
 		assume.sleep(THRESHOLD_MILLIS / 2);
 		Iterator<String> valuesIterator = cache.valuesIterator();
 		cache.setUpdatingOnReadAccess(true);
@@ -254,6 +256,7 @@ public class LeastRecentlyUsedCacheTest {
 
 		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfSessions);
 		cache.setEvictingOnReadAccess(true);
+		time.setFixedTestTime(true);
 
 		assume.sleep(THRESHOLD_MILLIS / 2);
 
@@ -263,7 +266,7 @@ public class LeastRecentlyUsedCacheTest {
 		assertThat((value = cache.find(predicate, false)), assume.inTime(is(notNullValue())));
 
 		// expires 1.
-		assume.sleep((THRESHOLD_MILLIS / 2) + 100);
+		assume.sleep((THRESHOLD_MILLIS / 2) + 25);
 
 		EvictionCounter counter = new EvictionCounter();
 		cache.addEvictionListener(counter);

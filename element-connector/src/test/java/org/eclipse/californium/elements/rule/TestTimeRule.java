@@ -27,7 +27,8 @@ import org.slf4j.LoggerFactory;
  * Rule to adjust the test time nanoseconds.
  * 
  * Only affects {@link ClockUtil#nanoRealtime()}, but not
- * {@link java.util.concurrent.ScheduledExecutorService} nor {@link Thread#wait()}.
+ * {@link java.util.concurrent.ScheduledExecutorService} nor
+ * {@link Thread#wait()}.
  */
 public class TestTimeRule extends TestWatcher {
 
@@ -40,7 +41,17 @@ public class TestTimeRule extends TestWatcher {
 
 		@Override
 		public long nanoRealtime() {
-			return System.nanoTime() + getTestTimeShiftNanos();
+			long shift;
+			Long fixed;
+			synchronized (TestTimeRule.this) {
+				shift = timeShiftNanos;
+				fixed = timeFixed;
+			}
+			if (fixed != null) {
+				return fixed + shift;
+			} else {
+				return System.nanoTime() + shift;
+			}
 		}
 	};
 
@@ -52,6 +63,34 @@ public class TestTimeRule extends TestWatcher {
 	 * @see #getTestTimeShiftNanos()
 	 */
 	private long timeShiftNanos;
+
+	/**
+	 * Fix test time.
+	 * 
+	 * @see #setFixedTestTime(boolean)
+	 * @since 3.0
+	 */
+	private Long timeFixed;
+
+	/**
+	 * Set fixed test time.
+	 * 
+	 * If enabled, fixes the time of {@link ClockUtil} except the modifications
+	 * applied by {@link #addTestTimeShift(long, TimeUnit)} or
+	 * {@link #setTestTimeShift(long, TimeUnit)}.
+	 * 
+	 * @param enable {@code true} to fix the {@link ClockUtil} time,
+	 *            {@code false}, to release it.
+	 * @since 3.0
+	 */
+	public final synchronized void setFixedTestTime(boolean enable) {
+		LOGGER.debug("set fixed test time {}", enable);
+		if (enable) {
+			timeFixed = System.nanoTime();
+		} else {
+			timeFixed = null;
+		}
+	}
 
 	/**
 	 * Add provided time to {@link #timeShiftNanos}.
