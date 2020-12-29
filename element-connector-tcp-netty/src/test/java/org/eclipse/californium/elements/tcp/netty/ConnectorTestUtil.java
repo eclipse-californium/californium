@@ -54,6 +54,16 @@ public class ConnectorTestUtil {
 
 	public static final ThreadsRule THREADS_RULE = new ThreadsRule("ObjectCleanerThread", "globalEventExecutor-.*");
 
+	static {
+		// Ensure to create the thread groups before the Timeout rule.
+		// Otherwise ThreadGroup.destroy() in FailOnTimeout.evaluate()
+		// would destroy them and cause failures when reusing the destroyed
+		// thread-groups.
+		// see https://github.com/junit-team/junit4/pull/1517
+		new TcpClientConnector(0, 0, 0);
+		new TcpServerConnector(null, 0, 0);
+	}
+
 	public static void stop(List<Connector> list) {
 		for (Connector connector : list) {
 			connector.stop();
