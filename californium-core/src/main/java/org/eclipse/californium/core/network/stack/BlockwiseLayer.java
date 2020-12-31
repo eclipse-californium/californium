@@ -547,18 +547,22 @@ public class BlockwiseLayer extends AbstractLayer {
 			final KeyUri key, final Block2BlockwiseStatus status) {
 
 		Response block;
+		boolean complete;
 		synchronized (status) {
 
 			BlockOption block2 = request.getOptions().getBlock2();
 			block = status.getNextResponseBlock(block2);
-			if (status.isComplete()) {
-				// clean up blockwise status
-				LOGGER.debug("peer has requested last block of blockwise transfer: {}", status);
-				clearBlock2Status(key, status);
-			} else {
+			complete = status.isComplete();
+			if (!complete) {
 				prepareBlock2Cleanup(status, key);
 				LOGGER.debug("peer has requested intermediary block of blockwise transfer: {}", status);
 			}
+		}
+
+		if (complete) {
+			// clean up blockwise status
+			LOGGER.debug("peer has requested last block of blockwise transfer: {}", status);
+			clearBlock2Status(key, status);
 		}
 
 		exchange.setCurrentResponse(block);
