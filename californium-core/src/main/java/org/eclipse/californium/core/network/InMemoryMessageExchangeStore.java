@@ -221,11 +221,11 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		int mid = message.getMID();
 		if (Message.NONE == mid) {
 			InetSocketAddress dest = message.getDestinationContext().getPeerAddress();
-			mid = messageIdProvider.getNextMessageId(dest);
-			if (Message.NONE == mid) {
-				LOGGER.warn("{}cannot send message to {}, all MIDs are in use", tag, dest);
-			} else {
+			try {
+				mid = messageIdProvider.getNextMessageId(dest);
 				message.setMID(mid);
+			} catch(IllegalStateException ex) {
+				LOGGER.warn("{}cannot send message to {}, {}", tag, dest, ex.getMessage());
 			}
 		}
 		return mid;

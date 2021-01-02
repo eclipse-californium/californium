@@ -28,7 +28,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.util.ClockUtil;
 
@@ -83,32 +82,24 @@ public class MapBasedMessageIdTracker implements MessageIdTracker {
 		messageIds = new HashMap<>(range);
 	}
 
-	/**
-	 * Gets the next usable message ID.
-	 * 
-	 * @return a message ID or {@code Message.NONE} if all message IDs are in
-	 *         use currently.
-	 */
+	@Override
 	public int getNextMessageId() {
-		int result = Message.NONE;
-		boolean wrapped = false;
 		final long now = ClockUtil.nanoRealtime();
 		synchronized (messageIds) {
 			// mask mid to the range
 			counter = (counter & 0xffff) % range;
-			int startIdx = counter;
-			while (result < 0 && !wrapped) {
+			final int end = counter + range;
+			while (counter < end) {
 				// mask mid to the range
 				int idx = counter++ % range;
 				Long earliestUsage = messageIds.get(idx);
 				if (earliestUsage == null || (earliestUsage - now) <= 0) {
 					// message Id can be safely re-used
-					result = idx + min;
 					messageIds.put(idx, now + exchangeLifetimeNanos);
+					return idx + min;
 				}
-				wrapped = (counter % range) == startIdx;
-			}
+			};
 		}
-		return result;
+		throw new IllegalStateException("No MID available, all [" + min + "-" + (min + range) + ") MIDs in use!");
 	}
 }

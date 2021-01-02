@@ -125,14 +125,12 @@ public class InMemoryMessageExchangeStoreTest {
 	public void testShouldNotCreateInMemoryMessageExchangeStoreWithoutTokenProvider() {
 		// WHEN trying to create new InMemoryMessageExchangeStore without TokenProvider
 		store = new InMemoryMessageExchangeStore(config, null, null);
-		fail("should have thrown NullPointerException");
 	}
 
 	@Test(expected = NullPointerException.class)
 	public void testShouldNotCreateInMemoryMessageExchangeStoreWithoutResolver() {
 		// WHEN trying to create new InMemoryMessageExchangeStore without TokenProvider
 		store = new InMemoryMessageExchangeStore(config, new RandomTokenGenerator(config), null);
-		fail("should have thrown NullPointerException");
 	}
 
 	public void testRegisterOutboundRequestAcceptsRetransmittedRequest() {

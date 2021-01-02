@@ -29,8 +29,8 @@ public interface MessageIdTracker {
 	/**
 	 * Gets the next usable message ID.
 	 * 
-	 * @return a message ID or {@code -1} if all message IDs are in use
-	 *         currently.
+	 * @return a message ID.
+	 * @throws IllegalStateException if all message IDs are currently in use.
 	 */
 	int getNextMessageId();
 }
