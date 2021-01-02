@@ -23,7 +23,6 @@ package org.eclipse.californium.core.network;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
-import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.util.ClockUtil;
 
@@ -117,12 +116,7 @@ public class GroupedMessageIdTracker implements MessageIdTracker {
 		Arrays.fill(midLease, ClockUtil.nanoRealtime() - 1000);
 	}
 
-	/**
-	 * Gets the next usable message ID.
-	 * 
-	 * @return a message ID or {@code -1} if all message IDs are in use
-	 *         currently.
-	 */
+	@Override
 	public int getNextMessageId() {
 		final long now = ClockUtil.nanoRealtime();
 		synchronized (this) {
@@ -136,7 +130,7 @@ public class GroupedMessageIdTracker implements MessageIdTracker {
 				return mid + min;
 			}
 		}
-		return Message.NONE;
+		throw new IllegalStateException("No MID available, all [" + min + "-" + (min + range) + ") MID-groups in use!");
 	}
 
 	/**

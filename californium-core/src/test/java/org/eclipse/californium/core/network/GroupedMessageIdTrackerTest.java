@@ -18,24 +18,25 @@ package org.eclipse.californium.core.network;
 
 import static org.eclipse.californium.core.network.MessageIdTracker.TOTAL_NO_OF_MIDS;
 import static org.eclipse.californium.elements.util.TestConditionTools.inRange;
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.fail;
 
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.category.Small;
-import org.eclipse.californium.elements.util.TestCondition;
-import org.eclipse.californium.elements.util.TestConditionTools;
+import org.eclipse.californium.elements.util.ExpectedExceptionWrapper;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 
 /**
  * Verifies that GroupedMessageIdTracker correctly marks MIDs as <em>in
@@ -53,6 +54,9 @@ public class GroupedMessageIdTrackerTest {
 	@Rule
 	public CoapThreadsRule cleanup = new CoapThreadsRule();
 
+	@Rule
+	public ExpectedException exception = ExpectedExceptionWrapper.none();
+
 	@Test
 	public void testGetNextMessageIdFailsIfAllMidsAreInUse() throws Exception {
 		// GIVEN a tracker whose MIDs are half in use
@@ -63,13 +67,13 @@ public class GroupedMessageIdTrackerTest {
 			assertThat(mid, is(not(-1)));
 		}
 		// THEN using the complete other half should not be possible
+		exception.expect(IllegalStateException.class);
+		exception.expectMessage(containsString("No MID available, all"));
+
 		for (int i = 0; i < TOTAL_NO_OF_MIDS / 2; i++) {
 			int mid = tracker.getNextMessageId();
-			if (0 > mid) {
-				return;
-			}
+			assertThat(mid, is(inRange(0, TOTAL_NO_OF_MIDS)));
 		}
-		fail("mids should run out.");
 	}
 
 	@Test
@@ -85,14 +89,13 @@ public class GroupedMessageIdTrackerTest {
 			assertThat(mid, is(inRange(minMid, maxMid)));
 		}
 		// THEN using the complete other half should not be possible
+		exception.expect(IllegalStateException.class);
+		exception.expectMessage(containsString("No MID available, all"));
+
 		for (int i = 0; i < rangeMid / 2; i++) {
 			int mid = tracker.getNextMessageId();
-			if (0 > mid) {
-				return;
-			}
 			assertThat(mid, is(inRange(minMid, maxMid)));
 		}
-		fail("mids should run out.");
 	}
 
 	@Test
@@ -106,11 +109,14 @@ public class GroupedMessageIdTrackerTest {
 
 		// WHEN retrieving all message IDs from the tracker
 		long start = System.nanoTime();
-		for (int i = 1; i < TOTAL_NO_OF_MIDS; i++) {
-			int nextMid = tracker.getNextMessageId();
-			if (nextMid < 0) {
-				break;
+		try {
+			for (int i = 1; i < TOTAL_NO_OF_MIDS; i++) {
+				int mid = tracker.getNextMessageId();
+				assertThat(mid, is(inRange(0, TOTAL_NO_OF_MIDS)));
 			}
+			fail("mids expected to run out.");
+		} catch (IllegalStateException ex) {
+			assertThat(ex.getMessage(), containsString("No MID available, all"));
 		}
 
 		// THEN the first message ID is re-used after EXCHANGE_LIFETIME has
@@ -121,20 +127,12 @@ public class GroupedMessageIdTrackerTest {
 			timeLeft = 100;
 		}
 
-		final AtomicInteger mid = new AtomicInteger(-1);
-		TestConditionTools.waitForCondition(timeLeft, 100, TimeUnit.MILLISECONDS, new TestCondition() {
-
-			@Override
-			public boolean isFulFilled() throws IllegalStateException {
-				mid.set(tracker.getNextMessageId());
-				return 0 <= mid.get();
-			}
-		});
-		assertThat(mid.get(), is(not(-1)));
+		int mid = TestTools.waitForNextMID(tracker, inRange(0, TOTAL_NO_OF_MIDS), timeLeft, 50 ,TimeUnit.MILLISECONDS);
+		assertThat(mid, is(inRange(0, TOTAL_NO_OF_MIDS)));
 
 		for (int i = 1; i < groupSize; i++) {
 			int nextMid = tracker.getNextMessageId();
-			assertThat(nextMid, is(not(-1)));
+			assertThat(nextMid, is(inRange(0, TOTAL_NO_OF_MIDS)));
 		}
 	}
 

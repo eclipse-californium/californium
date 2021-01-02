@@ -26,7 +26,6 @@ package org.eclipse.californium.core.network;
 import java.net.InetSocketAddress;
 import java.util.Random;
 
-import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
@@ -136,8 +135,7 @@ public class InMemoryMessageIdProvider implements MessageIdProvider {
 		MessageIdTracker tracker = getTracker(destination);
 		if (tracker == null) {
 			// we have reached the maximum number of active peers
-			// TODO: throw an exception?
-			return Message.NONE;
+			throw new IllegalStateException("No MID available, max. peers " + trackers.size() + " exhausted!");
 		} else {
 			return tracker.getNextMessageId();
 		}
