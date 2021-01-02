@@ -18,11 +18,10 @@
 package org.eclipse.californium.core.network.stack;
 
 import java.net.InetSocketAddress;
-import java.util.Arrays;
 
-import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.elements.util.StringUtil;
 
 /**
  * A key based on a CoAP message's target URI that is scoped to an endpoint address.
@@ -31,10 +30,8 @@ import org.eclipse.californium.core.coap.Response;
  */
 public final class KeyUri {
 
-	private static final int MAX_PORT_NO = (1 << 16) - 1;
 	private final String uri;
-	private final byte[] address;
-	private final int port;
+	private final InetSocketAddress address;
 	private final int hash;
 
 	/**
@@ -42,22 +39,18 @@ public final class KeyUri {
 	 * 
 	 * @param requestUri The URI of the requested resource.
 	 * @param address the endpoint's address.
-	 * @param port the endpoint's port.
 	 * @throws NullPointerException if uri or address is {@code null}
-	 * @throws IllegalArgumentException if port &lt; 0 or port &gt; 65535.
+	 * @since 3.0
 	 */
-	public KeyUri(final String requestUri, final byte[] address, final int port) {
+	public KeyUri(final String requestUri, final InetSocketAddress address) {
 		if (requestUri == null) {
 			throw new NullPointerException("URI must not be null");
 		} else if (address == null) {
 			throw new NullPointerException("address must not be null");
-		} else if (port < 0 || port > MAX_PORT_NO) {
-			throw new IllegalArgumentException("port must be an unsigned 16 bit int");
 		} else {
 			this.uri = requestUri;
 			this.address = address;
-			this.port = port;
-			this.hash = (port * 31 + requestUri.hashCode()) * 31 + Arrays.hashCode(address);
+			this.hash = requestUri.hashCode() * 31 + address.hashCode();
 		}
 	}
 
@@ -73,17 +66,10 @@ public final class KeyUri {
 			return false;
 		}
 		KeyUri other = (KeyUri) obj;
-		if (!Arrays.equals(address, other.address)) {
+		if (!address.equals(other.address)) {
 			return false;
 		}
-		if (port != other.port) {
-			return false;
-		}
-		if (uri == null) {
-			if (other.uri != null) {
-				return false;
-			}
-		} else if (!uri.equals(other.uri)) {
+		if (!uri.equals(other.uri)) {
 			return false;
 		}
 		return true;
@@ -98,7 +84,7 @@ public final class KeyUri {
 	public String toString() {
 		StringBuilder b = new StringBuilder("KeyUri[");
 		b.append(uri);
-		b.append(", ").append(Utils.toHexString(address)).append(":").append(port).append("]");
+		b.append(", ").append(StringUtil.toDisplayString(address)).append("]");
 		return b.toString();
 	}
 
@@ -131,7 +117,7 @@ public final class KeyUri {
 			throw new NullPointerException("response must not be null");
 		} else {
 			InetSocketAddress address = response.getSourceContext().getPeerAddress();
-			return new KeyUri(getUri(request), address.getAddress().getAddress(), address.getPort());
+			return new KeyUri(getUri(request), address);
 		}
 	}
 
@@ -148,7 +134,7 @@ public final class KeyUri {
 			throw new NullPointerException("response must not be null");
 		} else {
 			InetSocketAddress address = response.getDestinationContext().getPeerAddress();
-			return new KeyUri(getUri(request), address.getAddress().getAddress(), address.getPort());
+			return new KeyUri(getUri(request), address);
 		}
 	}
 
@@ -162,7 +148,7 @@ public final class KeyUri {
 	public static KeyUri fromInboundRequest(final Request request) {
 		String uri = getUri(request);
 		InetSocketAddress address = request.getSourceContext().getPeerAddress();
-		return new KeyUri(uri, address.getAddress().getAddress(), address.getPort());
+		return new KeyUri(uri, address);
 	}
 
 	/**
@@ -175,6 +161,6 @@ public final class KeyUri {
 	public static KeyUri fromOutboundRequest(final Request request) {
 		String uri = getUri(request);
 		InetSocketAddress address = request.getDestinationContext().getPeerAddress();
-		return new KeyUri(uri, address.getAddress().getAddress(), address.getPort());
+		return new KeyUri(uri, address);
 	}
 }
