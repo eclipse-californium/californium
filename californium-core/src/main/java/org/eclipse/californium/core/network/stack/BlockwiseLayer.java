@@ -122,7 +122,7 @@ import org.slf4j.LoggerFactory;
  * {@link #block1Transfers} or {@link #block1Transfers}. Add, get, remove a
  * blockwise-status are executed synchronized on these collection.
  * <ul>
- * <li>{@link #getOutboundBlock1Status(KeyUri, Exchange, Request, int)}</li>
+ * <li>{@link #getOutboundBlock1Status(KeyUri, Exchange, Request, int, boolean)}</li>
  * <li>{@link #getInboundBlock1Status(KeyUri, Exchange, Request, boolean)}</li>
  * <li>{@link #getOutboundBlock2Status(KeyUri, Exchange, Response, boolean)}</li>
  * <li>{@link #getInboundBlock2Status(KeyUri, Exchange, Response)}</li>
@@ -367,14 +367,7 @@ public class BlockwiseLayer extends AbstractLayer {
 
 		synchronized (block1Transfers) {
 
-			Block1BlockwiseStatus status = getBlock1Status(key);
-			if (status != null) {
-				// there already is a block1 transfer going on to the resource
-				// cancel the original request and start over with a new tracker
-				status.cancelRequest();
-				clearBlock1Status(key, status);
-			}
-			status = getOutboundBlock1Status(key, exchange, request, blocksize);
+			Block1BlockwiseStatus status = getOutboundBlock1Status(key, exchange, request, blocksize, true);
 
 			final Request block = status.getNextRequestBlock();
 			block.setDestinationContext(request.getDestinationContext());
@@ -401,7 +394,6 @@ public class BlockwiseLayer extends AbstractLayer {
 			});
 
 			addBlock1CleanUpObserver(block, key, status);
-			prepareBlock1Cleanup(status, key);
 			return block;
 		}
 	}
@@ -1216,21 +1208,42 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * @param key uri-key
 	 * @param exchange blockwise exchange.
 	 * @param request outer request with complete payload.
+	 * @param reset {@code true}, remove and cancel a previous block1status and
+	 *            return a new block1status, {@code false}, return the previous
+	 *            or new block1status.
 	 * @return block1status
+	 * @since 3.0
 	 */
-	private Block1BlockwiseStatus getOutboundBlock1Status(final KeyUri key, final Exchange exchange, final Request request, int blocksize) {
+	private Block1BlockwiseStatus getOutboundBlock1Status(KeyUri key, Exchange exchange, Request request, int blocksize, boolean reset) {
 
+		Integer size = null;
+		Block1BlockwiseStatus previousStatus = null;
+		Block1BlockwiseStatus status = null;
 		synchronized (block1Transfers) {
-			Block1BlockwiseStatus status = block1Transfers.get(key);
+			if (reset) {
+				previousStatus = block1Transfers.remove(key);
+			} else {
+				status = block1Transfers.get(key);
+			}
 			if (status == null) {
 				status = Block1BlockwiseStatus.forOutboundRequest(exchange, request, blocksize);
 				block1Transfers.put(key, status);
 				enableStatus = true;
-				LOGGER.debug("created tracker for outbound block1 transfer {}, transfers in progress: {}", status,
-						block1Transfers.size());
+				size = block1Transfers.size();
 			}
-			return status;
 		}
+		if (previousStatus != null && !previousStatus.isComplete()) {
+			LOGGER.debug("stop previous block1 transfer {} {} for new {}", key, previousStatus, request);
+			previousStatus.cancelRequest();
+			previousStatus.setComplete(true);
+		}
+		if (size != null) {
+			LOGGER.debug("created tracker for outbound block1 transfer {}, transfers in progress: {}", status, size);
+		} else {
+			LOGGER.debug("block1 transfer {} for {}", key, request);
+		}
+		prepareBlock1Cleanup(status, key);
+		return status;
 	}
 
 	/**
@@ -1244,8 +1257,9 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * @param key uri-key
 	 * @param exchange blockwise exchange.
 	 * @param request first received request
-	 * @param reset {@code true}, remove and complete the previous block1status,
-	 *            {@code false} return the previous or new block1status.
+	 * @param reset {@code true}, remove and complete a previous block1status and
+	 *            return a new block1status, {@code false}, return the previous
+	 *            or new block1status.
 	 * @return block1status
 	 * @since 3.0
 	 */
