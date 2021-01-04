@@ -134,9 +134,13 @@ import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.Principal;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -265,6 +269,13 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	private final ResumptionSupportingConnectionStore connectionStore;
 
 	/**
+	 * Queue with recent successful handshakes.
+	 * 
+	 * @since 3.0
+	 */
+	private final Queue<Connection> recentHandshakes = new ConcurrentLinkedQueue<>();
+
+	/**
 	 * General auto resumption timeout in milliseconds. {@code null}, if auto
 	 * resumption is not used.
 	 */
@@ -309,6 +320,8 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	 * @since 2.5
 	 */
 	private final ProtocolVersion protocolVersionForHelloVerifyRequests;
+
+	private ScheduledFuture<?> recentHandshakeCleaner;
 
 	private ScheduledFuture<?> statusLogger;
 
@@ -486,23 +499,9 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 						health.endHandshake(true);
 					}
 					final Connection connection = handshaker.getConnection();
-					ScheduledExecutorService timer = DTLSConnector.this.timer;
-					if (timer != null) {
-						try {
-							timer.schedule(new Runnable() {
-
-								@Override
-								public void run() {
-									connection.startByClientHello(null);
-								}
-							}, CLIENT_HELLO_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
-							return;
-						} catch (RejectedExecutionException ex) {
-							LOGGER.debug("stopping.");
-						}
+					if (connection.getStartNanos() != null) {
+						recentHandshakes.add(connection);
 					}
-					// fallback, if execution is rejected
-					connection.startByClientHello(null);
 				}
 
 				@Override
@@ -574,6 +573,33 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 		return new DtlsHealthLogger(configuration.getLoggingTag());
 	}
 
+	/**
+	 * Initialize new create handshaker.
+	 * 
+	 * Add {@link #sessionListener}.
+	 * 
+	 * @param handshaker new create handshaker
+	 */
+	private final void initializeHandshaker(final Handshaker handshaker) {
+		if (sessionListener != null) {
+			handshaker.addSessionListener(sessionListener);
+			if (health != null) {
+				health.startHandshake();
+			}
+		}
+		onInitializeHandshaker(handshaker);
+	}
+
+	/**
+	 * Called after initialization of new create handshaker.
+	 * 
+	 * Intended to be used for subclass specific handshaker initialization.
+	 * 
+	 * @param handshaker new create handshaker
+	 */
+	protected void onInitializeHandshaker(final Handshaker handshaker) {
+	}
+
 	private final void sessionEstablished(Handshaker handshaker, final DTLSSession establishedSession)
 			throws HandshakeException {
 		try {
@@ -616,30 +642,49 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	}
 
 	/**
-	 * Called after initialization of new create handshaker.
+	 * Calculate start time of recent handshakes, which starting client hellos are
+	 * expired.
 	 * 
-	 * Intended to be used for subclass specific handshaker initialization.
+	 * To prevent starting handshakes accidentally from repeated client hellos,
+	 * the client's random is used to filter that for
+	 * {@link #CLIENT_HELLO_TIMEOUT_MILLIS}.
 	 * 
-	 * @param handshaker new create handshaker
+	 * @return system nanoseconds.
+	 * @since 3.0
 	 */
-	protected void onInitializeHandshaker(final Handshaker handshaker) {
+	private long calculateRecentHandshakeExpires() {
+		return ClockUtil.nanoRealtime() - TimeUnit.MILLISECONDS.toNanos(CLIENT_HELLO_TIMEOUT_MILLIS);
 	}
 
 	/**
-	 * Initialize new create handshaker.
+	 * Cleanup recent handshakes.
 	 * 
-	 * Add {@link #sessionListener}.
+	 * Remove starting hello client, if expired.
 	 * 
-	 * @param handshaker new create handshaker
+	 * @since 3.0
 	 */
-	private final void initializeHandshaker(final Handshaker handshaker) {
-		if (sessionListener != null) {
-			handshaker.addSessionListener(sessionListener);
-			if (health != null) {
-				health.startHandshake();
+	private void cleanupRecentHandshakes() {
+		int count = 0;
+		int size = 0;
+		long expires = calculateRecentHandshakeExpires();
+		while (true) {
+			size = recentHandshakes.size();
+			Connection connection = recentHandshakes.peek();
+			if (connection == null) {
+				break;
+			}
+			Long startNanos = connection.getStartNanos();
+			if (startNanos == null || (expires - startNanos) >= 0) {
+				connection.startByClientHello(null);
+				recentHandshakes.poll();
+				++count;
+			} else {
+				break;
 			}
 		}
-		onInitializeHandshaker(handshaker);
+		if (count > 0 || size > 0) {
+			LOGGER.warn("Cleanup {} recent handshakes, left {}!", count, size);
+		}
 	}
 
 	/**
@@ -864,11 +909,53 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 			}
 			this.hasInternalExecutor = true;
 		}
+		long expires = calculateRecentHandshakeExpires();
+		int recentCounter = 0;
+		List<Connection> recent = new ArrayList<>();
 		Iterator<Connection> iterator = connectionStore.iterator();
 		while (iterator.hasNext()) {
 			Connection connection = iterator.next();
-			if (!connection.isExecuting() && connection.hasEstablishedSession()) {
-				connection.setExecutor(new SerialExecutor(executorService));
+			if (connection.hasEstablishedSession()) {
+				if (!connection.isExecuting()) {
+					connection.setExecutor(new SerialExecutor(executorService));
+				}
+				Long start = connection.getStartNanos();
+				if (start != null) {
+					++recentCounter;
+					if ((expires - start) < 0) {
+						recent.add(connection);
+					} else {
+						connection.startByClientHello(null);
+					}
+				}
+			}
+		}
+		if (recentCounter > 0) {
+			LOGGER.warn("Restore {} recent handshakes!", recent.size());
+			if (!recent.isEmpty()) {
+				Collections.sort(recent, new Comparator<Connection>() {
+
+					@Override
+					public int compare(Connection o1, Connection o2) {
+						Long time1 = o1.getStartNanos();
+						Long time2 = o2.getStartNanos();
+						if (time1 != null && time2 != null) {
+							long diff = time1 - time2;
+							if (diff > 0) {
+								return 1;
+							} else if (diff < 0) {
+								return -1;
+							}
+						} else if (time1 == null) {
+							return -1;
+						} else if (time2 == null) {
+							return 1;
+						}
+						return 0;
+					}
+				});
+				recentHandshakes.addAll(recent);
+				cleanupRecentHandshakes();
 			}
 		}
 		running.set(true);
@@ -911,6 +998,19 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 				}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
 			}
 		}
+
+		recentHandshakeCleaner = timer.scheduleWithFixedDelay(new Runnable() {
+
+			@Override
+			public void run() {
+				try {
+					cleanupRecentHandshakes();
+				} catch (Throwable t) {
+					LOGGER.warn("Cleanup recent handshakes failed!", t);
+				}
+			}
+
+		}, 5000, 5000, TimeUnit.MILLISECONDS);
 	}
 
 	/**
@@ -964,6 +1064,10 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 				if (statusLogger != null) {
 					statusLogger.cancel(false);
 					statusLogger = null;
+				}
+				if (recentHandshakeCleaner != null) {
+					recentHandshakeCleaner.cancel(false);
+					recentHandshakeCleaner = null;
 				}
 				for (Thread t : receiverThreads) {
 					t.interrupt();

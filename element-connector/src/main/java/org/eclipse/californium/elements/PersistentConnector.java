@@ -53,13 +53,20 @@ public interface PersistentConnector {
 	/**
 	 * Load connections.
 	 * 
-	 * Note: this "Work In Progress"; the encryption, the states and the format may change!
+	 * Note: this "Work In Progress"; the encryption, the states and the format
+	 * may change!
 	 * 
 	 * @param in input stream to load connections
 	 * @param password password for encryption
 	 * @return number of save connections, {@code -1}, if not supported.
-	 * @throws IOException if an io-error occurred
-	 * @throws GeneralSecurityException if an crypto error occurred
+	 * @throws IOException if an io-error occurred. Indicates, that further
+	 *             loading should be aborted.
+	 * @throws IllegalStateException if an reading error occurred. Continue to
+	 *             load other connection-stores may work, that may be not
+	 *             affected by this error.
+	 * @throws GeneralSecurityException if an crypto error occurred. Continue to
+	 *             load other connection-stores may work, that may be not
+	 *             affected by this error.
 	 */
 	@WipAPI
 	int loadConnections(InputStream in, SecretKey password) throws IOException, GeneralSecurityException;

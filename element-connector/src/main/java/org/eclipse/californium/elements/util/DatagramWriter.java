@@ -503,16 +503,26 @@ public final class DatagramWriter {
 	}
 
 	/**
+	 * Reset writer. If {@link #DatagramWriter(boolean)} secure close is
+	 * enabled, clear the related byte array before releasing it.
+	 * 
+	 * @since 3.0
+	 */
+	public void reset() {
+		if (secureClose) {
+			Arrays.fill(buffer, 0, count, (byte) 0);
+		}
+		count = 0;
+	}
+
+	/**
 	 * Close writer, release resources. If {@link #DatagramWriter(boolean)}
 	 * secure close is enabled, clear the related byte array before releasing
 	 * it.
 	 */
 	public void close() {
-		if (secureClose) {
-			Arrays.fill(buffer, 0, count, (byte) 0);
-		}
+		reset();
 		buffer = Bytes.EMPTY;
-		count = 0;
 	}
 
 	/**

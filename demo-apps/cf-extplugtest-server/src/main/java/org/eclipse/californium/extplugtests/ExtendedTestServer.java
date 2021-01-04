@@ -119,7 +119,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
 			config.setInt(Keys.PEERS_MARK_AND_SWEEP_MESSAGES, 16);
 			config.setString(Keys.DEDUPLICATOR, Keys.DEDUPLICATOR_PEERS_MARK_AND_SWEEP);
-			config.setInt(Keys.MAX_ACTIVE_PEERS, 2000000);
+			config.setInt(Keys.MAX_ACTIVE_PEERS, 1000000);
 			config.setInt(Keys.DTLS_AUTO_RESUME_TIMEOUT, 0);
 			config.setInt(Keys.DTLS_CONNECTION_ID_LENGTH, 6);
 			config.setInt(Keys.DTLS_CONNECTION_ID_NODE_ID, 1);
@@ -130,7 +130,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 			config.setInt(Keys.HEALTH_STATUS_INTERVAL, 60); // 60s
 			config.setInt(Keys.UDP_CONNECTOR_RECEIVE_BUFFER, 0);
 			config.setInt(Keys.UDP_CONNECTOR_SEND_BUFFER, 0);
-			config.setInt(KEY_DTLS_HANDSHAKE_RESULT_DELAY, 500);
+			config.setInt(KEY_DTLS_HANDSHAKE_RESULT_DELAY, 0);
 			int processors = Runtime.getRuntime().availableProcessors();
 			config.setInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, processors > 3 ? 2 : 1);
 			config.setInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, processors);
@@ -498,6 +498,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 			}
 			PlugtestServer.shutdown();
 			server.stop();
+			LOGGER.info("Executor shutdown ...");
 			ExecutorsUtil.shutdownExecutorGracefully(500, executor, secondaryExecutor);
 			PlugtestServer.exit();
 			LOGGER.info("Exit ...");

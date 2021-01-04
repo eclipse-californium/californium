@@ -31,6 +31,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,6 +54,7 @@ import org.eclipse.californium.core.server.resources.DiscoveryResource;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.PersistentConnector;
+import org.eclipse.californium.elements.util.DataStreamReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
@@ -107,6 +109,13 @@ import org.eclipse.californium.elements.util.StringUtil;
  * @see Endpoint
  **/
 public class CoapServer implements ServerInterface {
+
+	/**
+	 * Start mark for connections in stream.
+	 * 
+	 * @since 3.0
+	 */
+	private static final String MARK = "CoAP";
 
 	/** The logger. */
 	protected static final Logger LOGGER = LoggerFactory.getLogger(CoapServer.class);
@@ -484,6 +493,7 @@ public class CoapServer implements ServerInterface {
 			if (endpoint instanceof CoapEndpoint) {
 				Connector connector = ((CoapEndpoint) endpoint).getConnector();
 				if (connector instanceof PersistentConnector) {
+					SerializationUtil.write(writer, MARK, Byte.SIZE);
 					SerializationUtil.write(writer, getTag(), Byte.SIZE);
 					SerializationUtil.write(writer, endpoint.getUri().toASCIIString(), Byte.SIZE);
 					writer.writeTo(out);
@@ -500,20 +510,56 @@ public class CoapServer implements ServerInterface {
 	}
 
 	/**
+	 * Read connector identifier from provided input stream.
+	 * 
+	 * @param in input stream to read from
+	 * @return connector identifier, or {@code null}, if no connector identifier
+	 *         is left.
+	 * @throws IOException if the stream doesn't contain a valid connector
+	 *             identifier.
+	 * @see #loadConnector(ConnectorIdentifier, InputStream, SecretKey)
+	 * @since 3.0
+	 */
+	public static ConnectorIdentifier readConnectorIdentifier(InputStream in) throws IOException {
+		DataStreamReader reader = new DataStreamReader(in);
+		String mark = SerializationUtil.readString(reader, Byte.SIZE);
+		if (mark == null) {
+			return null;
+		}
+		if (!CoapServer.MARK.equals(mark)) {
+			LOGGER.warn("loading failed, out of sync!");
+			throw new IOException("Missing '" + CoapServer.MARK + "'! Found '" + mark + "' instead. " + in.available()
+					+ " bytes left.");
+		}
+		String tag = SerializationUtil.readString(reader, Byte.SIZE);
+		if (tag == null) {
+			throw new IOException("Missing server's tag!");
+		}
+		String uri = SerializationUtil.readString(reader, Byte.SIZE);
+		try {
+			return new ConnectorIdentifier(tag, new URI(uri));
+		} catch (URISyntaxException e) {
+			LOGGER.warn("{}bad URI {}!", tag, uri, e);
+			throw new IOException("Bad URI '" + uri + "'!");
+		}
+	}
+
+	/**
 	 * Read connections for the connector of the provided uri.
 	 * 
-	 * @param uri uri of connector
+	 * @param identifier connector's identifier
 	 * @param in input stream
 	 * @param key password
 	 * @return number of read connections, {@code -1}, if no persistent
 	 *         connector is available for the provided uri.
 	 * @throws IOException if an i/o-error occurred
+	 * @see #readConnectorIdentifier(InputStream)
 	 * @since 3.0
 	 */
-	public int loadConnector(URI uri, InputStream in, SecretKey key) throws IOException {
-		Endpoint endpoint = getEndpoint(uri);
+	public int loadConnector(ConnectorIdentifier identifier, InputStream in, SecretKey key) throws IOException {
+		Endpoint endpoint = getEndpoint(identifier.uri);
 		if (endpoint == null) {
-			LOGGER.warn("{}connector {} not available!", getTag(), uri);
+			LOGGER.warn("{}connector {} not available!", getTag(), identifier.uri);
 			return -1;
 		}
 		PersistentConnector persistentConnector = null;
@@ -526,12 +572,15 @@ public class CoapServer implements ServerInterface {
 		if (persistentConnector != null) {
 			try {
 				return persistentConnector.loadConnections(in, key);
+			} catch (IllegalStateException e) {
+				LOGGER.warn("{}loading failed:", getTag(), e);
+				return 0;
 			} catch (GeneralSecurityException e) {
 				LOGGER.warn("{}loading failed:", getTag(), e);
 				return 0;
 			}
 		} else {
-			LOGGER.warn("{}connector {} doesn't support persistence!", getTag(), uri);
+			LOGGER.warn("{}connector {} doesn't support persistence!", getTag(), identifier.uri);
 		}
 		return -1;
 	}
@@ -606,6 +655,31 @@ public class CoapServer implements ServerInterface {
 		@Override
 		public List<Endpoint> getEndpoints() {
 			return CoapServer.this.getEndpoints();
+		}
+	}
+
+	/**
+	 * Connector identifier.
+	 * 
+	 * @since 3.0
+	 */
+	public static class ConnectorIdentifier {
+
+		/**
+		 * Server's tag.
+		 * 
+		 * @see CoapServer#setTag(String)
+		 * @see CoapServer#getTag()
+		 */
+		public final String tag;
+		/**
+		 * Connectors URI.
+		 */
+		public final URI uri;
+
+		private ConnectorIdentifier(String tag, URI uri) {
+			this.tag = tag;
+			this.uri = uri;
 		}
 	}
 }

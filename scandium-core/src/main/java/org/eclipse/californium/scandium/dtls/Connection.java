@@ -76,11 +76,13 @@ public final class Connection {
 	private final SessionListener sessionListener = new ConnectionSessionListener();
 
 	/**
-	 * Random used by client to start the handshake. Maybe {@code null}, for
-	 * client side connections. Note: used outside of serial-execution!
+	 * Identifier of the Client Hello used to start the handshake. Maybe
+	 * {@code null}, for client side connections. Note: used outside of
+	 * the serial-execution!
+	 * 
+	 * @since 3.0
 	 */
-	private volatile Random startingClientHelloRandom;
-	private int startingClientHelloMessageSeq;
+	private volatile ClientHelloIdentifier startingHelloClient;
 
 	/**
 	 * Expired real time nanoseconds of the last message send or received.
@@ -468,6 +470,22 @@ public final class Connection {
 	}
 
 	/**
+	 * Get system nanos of starting client hello.
+	 * 
+	 * @return system nanos, or {@code null}, if prevention is expired or not
+	 *         used.
+	 * @since 3.0
+	 */
+	public Long getStartNanos() {
+		ClientHelloIdentifier start = this.startingHelloClient;
+		if (start != null) {
+			return start.nanos;
+		} else {
+			return null;
+		}
+	}
+
+	/**
 	 * Checks whether this connection is started for the provided CLIENT_HELLO.
 	 * 
 	 * Use the random and message sequence number contained in the CLIENT_HELLO.
@@ -484,13 +502,9 @@ public final class Connection {
 		if (clientHello == null) {
 			throw new NullPointerException("client hello must not be null!");
 		}
-		Random startingClientHelloRandom = this.startingClientHelloRandom;
-		if (startingClientHelloRandom != null) {
-			if (startingClientHelloRandom.equals(clientHello.getRandom())) {
-				if (startingClientHelloMessageSeq >= clientHello.getMessageSeq()) {
-					return true;
-				}
-			}
+		ClientHelloIdentifier start = this.startingHelloClient;
+		if (start != null) {
+			return start.isStartedByClientHello(clientHello);
 		}
 		return false;
 	}
@@ -509,10 +523,9 @@ public final class Connection {
 	 */
 	public void startByClientHello(ClientHello clientHello) {
 		if (clientHello == null) {
-			startingClientHelloRandom = null;
+			startingHelloClient = null;
 		} else {
-			startingClientHelloMessageSeq = clientHello.getMessageSeq();
-			startingClientHelloRandom = clientHello.getRandom();
+			startingHelloClient = new ClientHelloIdentifier(clientHello);
 		}
 	}
 
@@ -727,6 +740,53 @@ public final class Connection {
 		return builder.toString();
 	}
 
+	/**
+	 * Identifier of starting client hello.
+	 * 
+	 * Keeps random and handshake message sequence number to prevent from
+	 * accidentally starting a handshake again.
+	 * 
+	 * @since 3.0
+	 */
+	private static class ClientHelloIdentifier {
+
+		private final Random clientHelloRandom;
+		private final long nanos;
+		private final int clientHelloMessageSeq;
+
+		private ClientHelloIdentifier(ClientHello clientHello) {
+			clientHelloMessageSeq = clientHello.getMessageSeq();
+			clientHelloRandom = clientHello.getRandom();
+			nanos = ClockUtil.nanoRealtime();
+		}
+
+		private ClientHelloIdentifier(DatagramReader reader, long nanoShift) {
+			clientHelloMessageSeq = reader.read(Short.SIZE);
+			byte[] data = reader.readVarBytes(Byte.SIZE);
+			if (data != null) {
+				clientHelloRandom = new Random(data);
+			} else {
+				clientHelloRandom = null;
+			}
+			nanos = reader.readLong(Long.SIZE) + nanoShift;
+		}
+
+		private boolean isStartedByClientHello(ClientHello clientHello) {
+			if (clientHelloRandom.equals(clientHello.getRandom())) {
+				if (clientHelloMessageSeq >= clientHello.getMessageSeq()) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		private void write(DatagramWriter writer) {
+			writer.write(clientHelloMessageSeq, Short.SIZE);
+			writer.writeVarBytes(clientHelloRandom, Byte.SIZE);
+			writer.writeLong(nanos, Long.SIZE);
+		}
+	}
+
 	private class ConnectionSessionListener implements SessionListener {
 
 		@Override
@@ -773,7 +833,7 @@ public final class Connection {
 				}
 			}
 			if (ongoingHandshake.compareAndSet(handshaker, null)) {
-				startingClientHelloRandom = null;
+				startingHelloClient = null;
 				LOGGER.debug("Handshake with [{}] has failed", handshaker.getPeerAddress());
 			}
 		}
@@ -807,14 +867,18 @@ public final class Connection {
 			int position = SerializationUtil.writeStartItem(writer, VERSION, Short.SIZE);
 
 			writer.writeByte(resumptionRequired ? (byte) 1 : (byte) 0);
+			writer.writeLong(lastMessageNanos, Long.SIZE);
 			writer.writeVarBytes(cid, Byte.SIZE);
 			SerializationUtil.write(writer, peerAddress);
-
+			ClientHelloIdentifier start = startingHelloClient;
+			if (start == null) {
+				writer.writeByte((byte) 0);
+			} else {
+				writer.writeByte((byte) 1);
+				start.write(writer);
+			}
 			establishedSession.write(writer);
 			writer.writeByte(cid != null && cid.equals(establishedSession.getReadConnectionId()) ? (byte) 1 : (byte) 0);
-			// TODO: 
-			// startingClientHelloRandom + startingClientHelloMessageSeq
-			// Requires timeout independent from scheduler!
 			 SerializationUtil.writeFinishedItem(writer, position, Short.SIZE);
 			return true;
 		}
@@ -827,16 +891,18 @@ public final class Connection {
 	 * encoding of the content may also change in the future.
 	 * 
 	 * @param reader reader with connection state.
+	 * @param nanoShift adjusting shift for system time in nanoseconds.
 	 * @return read connection.
 	 * @throws IllegalArgumentException if version differs.
+	 * @throws IllegalStateException if data is erroneous.
 	 * @since 3.0
 	 */
 	@WipAPI
-	public static Connection fromReader(DatagramReader reader) {
+	public static Connection fromReader(DatagramReader reader, long nanoShift) {
 		int length = SerializationUtil.readStartItem(reader, VERSION, Short.SIZE);
 		if (0 < length) {
 			DatagramReader rangeReader = reader.createRangeReader(length);
-			return new Connection(rangeReader);
+			return new Connection(rangeReader, nanoShift);
 		} else {
 			return null;
 		}
@@ -846,13 +912,18 @@ public final class Connection {
 	 * Create instance from reader.
 	 * 
 	 * @param reader reader with connection state.
+	 * @param nanoShift adjusting shift for system time in nanoseconds.
 	 * @since 3.0
 	 */
-	private Connection(DatagramReader reader) {
+	private Connection(DatagramReader reader, long nanoShift) {
 		resumptionRequired = reader.readNextByte() == 1;
+		lastMessageNanos = reader.readLong(Long.SIZE) + nanoShift;
 		byte[] data = reader.readVarBytes(Byte.SIZE);
 		cid = new ConnectionId(data);
 		peerAddress = SerializationUtil.readAddress(reader);
+		if (reader.readNextByte() == 1) {
+			startingHelloClient = new ClientHelloIdentifier(reader, nanoShift);
+		}
 		establishedSession = DTLSSession.fromReader(reader);
 		if (reader.readNextByte() == 1) {
 			establishedSession.setReadConnectionId(cid);

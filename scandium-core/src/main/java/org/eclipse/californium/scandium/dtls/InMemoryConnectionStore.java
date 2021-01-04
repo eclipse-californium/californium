@@ -41,6 +41,8 @@ import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.spec.AlgorithmParameterSpec;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -53,6 +55,7 @@ import javax.crypto.spec.IvParameterSpec;
 
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
+import org.eclipse.californium.elements.util.DataStreamReader;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
@@ -679,13 +682,13 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 				Iterator<LeastRecentlyUsedCache.Timestamped<Connection>> iterator = connections.timestampedIterator();
 				while (iterator.hasNext()) {
 					LeastRecentlyUsedCache.Timestamped<Connection> connection = iterator.next();
-					int position = writer.space(Short.SIZE);
 					long updateNanos = connection.getLastUpdate();
 					long age = TimeUnit.NANOSECONDS.toSeconds(startNanos - updateNanos);
 					if (age > maxAgeInSeconds) {
 						LOGGER.trace("{}skip {} ts, {}s too aged!", tag, updateNanos, age);
 					} else {
 						LOGGER.trace("{}write {} ts, {}s ", tag, updateNanos, age);
+						int position = writer.space(Short.SIZE);
 						writer.writeLong(updateNanos, Long.SIZE);
 						if (connection.getValue().write(writer)) {
 							if (count == 0) {
@@ -707,6 +710,8 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 							writer.writeTo(out);
 							increment(nonce);
 							++count;
+						} else {
+							writer.reset();
 						}
 					}
 				}
@@ -723,6 +728,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 			writer.writeVarBytes(digest, Short.SIZE);
 			writer.writeTo(out);
 		}
+		writer.close();
 		clear();
 		return count;
 	}
@@ -732,7 +738,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 			throws GeneralSecurityException, IOException {
 		Cipher cipher =  Cipher.getInstance("AES/CBC/PKCS5Padding");
 		int count = 0;
-		DatagramReader reader = new DatagramReader(in);
+		DataStreamReader reader = new DataStreamReader(in);
 		int len = reader.read(Short.SIZE);
 		if (len > 0) {
 			boolean read = false;
@@ -744,6 +750,9 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 				byte[] nonce = rangeReader.readVarBytes(Byte.SIZE);
 				long millis = rangeReader.readLong(Long.SIZE);
 				long nanos = rangeReader.readLong(Long.SIZE);
+				if (rangeReader.bytesAvailable()) {
+					throw new IOException("Invalid parameter block! " + (rangeReader.bitsLeft() / Byte.SIZE) + " bytes left!");
+				}
 				long startMillis = System.currentTimeMillis();
 				long startNanos = ClockUtil.nanoRealtime();
 				long delta1 = Math.max(TimeUnit.MILLISECONDS.toNanos(startMillis - millis), 0L);
@@ -755,41 +764,46 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 				key = SecretUtil.create(data, "AES");
 				messageDigest.update(data);
 				Bytes.clear(data);
-				while (reader.bytesAvailable()) {
-					len = reader.read(Short.SIZE);
-					if (len > 0) {
-						rangeReader = reader.createRangeReader(len);
-						rangeReader.updateMessageDigest(messageDigest);
-						AlgorithmParameterSpec parameterSpec = new IvParameterSpec(nonce);
-						rangeReader.decrypt(cipher, parameterSpec, key);
-						long lastUpdate = rangeReader.readLong(Long.SIZE);
-						Connection connection = Connection.fromReader(rangeReader);
-						if (connection != null) {
-							if (lastUpdate > nanos) {
-								LOGGER.warn("{}read {} ts after {} ", tag, lastUpdate, nanos);
-							}
-							long update = lastUpdate + delta;
-							LOGGER.trace("{}read {} ts, {}s", tag, update,
-									TimeUnit.NANOSECONDS.toSeconds(startNanos - update));
-							restore(connection, update);
-							increment(nonce);
-							++count;
+				while ((len = reader.read(Short.SIZE)) > 0) {
+					rangeReader = reader.createRangeReader(len);
+					rangeReader.updateMessageDigest(messageDigest);
+					AlgorithmParameterSpec parameterSpec = new IvParameterSpec(nonce);
+					rangeReader.decrypt(cipher, parameterSpec, key);
+					long lastUpdate = rangeReader.readLong(Long.SIZE);
+					Connection connection = Connection.fromReader(rangeReader, delta);
+					if (connection != null) {
+						if (lastUpdate > nanos) {
+							LOGGER.warn("{}read {} ts after {} ", tag, lastUpdate, nanos);
 						}
-					} else {
-						break;
+						long update = lastUpdate + delta;
+						LOGGER.trace("{}read {} ts, {}s", tag, update,
+								TimeUnit.NANOSECONDS.toSeconds(startNanos - update));
+						restore(connection, update);
+						increment(nonce);
+						++count;
 					}
 				}
-				byte[] calculatedDigest = messageDigest.digest(nonce);
 				byte[] readDigest = reader.readVarBytes(Short.SIZE);
 				read = true;
+				byte[] calculatedDigest = messageDigest.digest(nonce);
 				if (!MessageDigest.isEqual(calculatedDigest, readDigest)) {
 					LOGGER.error("{}MessageDigest failure ({} connections)!", tag, count);
 					LOGGER.error("{}calc : {}", tag, StringUtil.byteArray2Hex(calculatedDigest));
 					LOGGER.error("{}read : {}", tag, StringUtil.byteArray2Hex(readDigest));
+					SimpleDateFormat format = new SimpleDateFormat("HH:mm:ss dd.MM.yyyy");
+					LOGGER.error("{}nonce {} bytes, saved {}", tag, nonce.length, format.format(new Date(millis)));
 					throw new GeneralSecurityException("MAC mismatch!");
 				} else {
 					LOGGER.debug("{}MessageDigest passed {} ({} connections)!", tag, StringUtil.byteArray2Hex(calculatedDigest), count);
 				}
+			} catch (IllegalStateException ex) {
+				LOGGER.warn("{}reading failed after {} connections", tag, count, ex);
+				// left connections
+				SerializationUtil.skipBlocks(in, 0);
+				// mac
+				SerializationUtil.skipBlocks(in, 1);
+				clear();
+				throw ex;
 			} catch (GeneralSecurityException ex) {
 				if (!read) {
 					LOGGER.warn("{}reading failed after {} connections", tag, count, ex);
