@@ -83,15 +83,17 @@ public class CoapUdpStack extends BaseCoapStack {
 	/**
 	 * Creates a new stack for UDP as the transport.
 	 * 
+	 * @param tag logging tag
 	 * @param config The configuration values to use.
 	 * @param outbox The adapter for submitting outbound messages to the transport.
+	 * @since 3.0 logging tag added
 	 */
-	public CoapUdpStack(final NetworkConfig config, final Outbox outbox) {
+	public CoapUdpStack(String tag, NetworkConfig config, Outbox outbox) {
 		super(outbox);
 		Layer layers[] = new Layer[] {
 				createExchangeCleanupLayer(config),
 				createObserveLayer(config),
-				createBlockwiseLayer(config),
+				createBlockwiseLayer(tag, config),
 				createReliabilityLayer(config)};
 
 		setLayers(layers);
@@ -105,8 +107,8 @@ public class CoapUdpStack extends BaseCoapStack {
 		return new ObserveLayer(config);
 	}
 
-	protected Layer createBlockwiseLayer(NetworkConfig config) {
-		return new BlockwiseLayer(config);
+	protected Layer createBlockwiseLayer(String tag,NetworkConfig config) {
+		return new BlockwiseLayer(tag, config);
 	}
 
 	protected Layer createReliabilityLayer(NetworkConfig config) {

@@ -34,7 +34,7 @@ public class OSCoreCoapStackFactory implements CoapStackFactory {
 	private static volatile OSCoreCtxDB defaultCtxDb;
 
 	@Override
-	public CoapStack createCoapStack(String protocol, NetworkConfig config, Outbox outbox, Object customStackArgument) {
+	public CoapStack createCoapStack(String protocol, String tag, NetworkConfig config, Outbox outbox, Object customStackArgument) {
 		if (CoAP.isTcpProtocol(protocol)) {
 			throw new IllegalArgumentException("protocol \"" + protocol + "\" is not supported!");
 		}
@@ -42,7 +42,7 @@ public class OSCoreCoapStackFactory implements CoapStackFactory {
 		if (customStackArgument != null) {
 			ctxDb = (OSCoreCtxDB) customStackArgument;
 		}
-		return new OSCoreStack(config, outbox, ctxDb);
+		return new OSCoreStack(tag, config, outbox, ctxDb);
 	}
 
 	/**

@@ -60,7 +60,7 @@ public class CoapUdpStackTest {
 
 	@Before
 	public void initialize() {
-		stack = new CoapUdpStack(CONFIG, outbox);
+		stack = new CoapUdpStack("udp-test ", CONFIG, outbox);
 		stack.setDeliverer(deliverer);
 		stack.setExecutors(executor, executor);
 

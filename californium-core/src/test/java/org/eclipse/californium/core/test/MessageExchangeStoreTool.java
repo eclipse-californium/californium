@@ -163,11 +163,12 @@ public class MessageExchangeStoreTool {
 
 	private static final CoapStackFactory COAP_STACK_TEST_FACTORY = new CoapStackFactory() {
 
-		public CoapStack createCoapStack(String protocol, NetworkConfig config, Outbox outbox, Object customStackArgument) {
+		@Override
+		public CoapStack createCoapStack(String protocol, String tag, NetworkConfig config, Outbox outbox, Object customStackArgument) {
 			if (CoAP.isTcpProtocol(protocol)) {
 				throw new IllegalArgumentException("protocol \"" + protocol + "\" is not supported!");
 			}
-			return new CoapUdpTestStack(config, outbox);
+			return new CoapUdpTestStack(tag, config, outbox);
 		}
 	};
 
@@ -175,13 +176,13 @@ public class MessageExchangeStoreTool {
 
 		private BlockwiseLayer blockwiseLayer;
 
-		public CoapUdpTestStack(NetworkConfig config, Outbox outbox) {
-			super(config, outbox);
+		public CoapUdpTestStack(String tag, NetworkConfig config, Outbox outbox) {
+			super(tag, config, outbox);
 		}
 
 		@Override
-		protected Layer createBlockwiseLayer(NetworkConfig config) {
-			blockwiseLayer = (BlockwiseLayer) super.createBlockwiseLayer(config);
+		protected Layer createBlockwiseLayer(String tag, NetworkConfig config) {
+			blockwiseLayer = (BlockwiseLayer) super.createBlockwiseLayer(tag, config);
 			return blockwiseLayer;
 		}
 

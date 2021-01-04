@@ -61,7 +61,7 @@ public class CoapTcpStackTest {
 
 	@Before
 	public void initialize() {
-		stack = new CoapTcpStack(CONFIG, outbox);
+		stack = new CoapTcpStack("tcp-test ", CONFIG, outbox);
 		stack.setDeliverer(deliverer);
 		stack.setExecutors(executor, executor);
 
