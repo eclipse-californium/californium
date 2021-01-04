@@ -45,7 +45,7 @@ import java.util.concurrent.TimeUnit;
  * An in-memory cache with a maximum capacity and support for evicting stale
  * entries based on an LRU policy.
  * <p>
- * The cache keeps track of the values' last-access time automatically. Every
+ * The cache keeps track of the value's last-access time automatically. Every
  * time a value is read from or put to the store, the access-time is updated.
  * This update may be suppressed for read access by {@link #updateOnReadAccess}.
  * </p>
@@ -130,7 +130,7 @@ public class LeastRecentlyUsedCache<K, V> {
 	 * {@link #DEFAULT_THRESHOLD_SECS} seconds.
 	 */
 	public LeastRecentlyUsedCache() {
-		this(DEFAULT_INITIAL_CAPACITY, DEFAULT_CAPACITY, DEFAULT_THRESHOLD_SECS);
+		this(DEFAULT_INITIAL_CAPACITY, DEFAULT_CAPACITY, DEFAULT_THRESHOLD_SECS, TimeUnit.SECONDS);
 	}
 
 	/**
@@ -145,8 +145,7 @@ public class LeastRecentlyUsedCache<K, V> {
 	 *            cache if a new entry is to be added to the cache
 	 */
 	public LeastRecentlyUsedCache(final int capacity, final long threshold) {
-
-		this(Math.min(capacity, DEFAULT_INITIAL_CAPACITY), capacity, threshold);
+		this(Math.min(capacity, DEFAULT_INITIAL_CAPACITY), capacity, threshold, TimeUnit.SECONDS);
 	}
 
 	/**
@@ -162,13 +161,31 @@ public class LeastRecentlyUsedCache<K, V> {
 	 *            cache if a new entry is to be added to the cache
 	 */
 	public LeastRecentlyUsedCache(final int initialCapacity, final int maxCapacity, final long threshold) {
+		this(initialCapacity, maxCapacity, threshold, TimeUnit.SECONDS);
+	}
+
+	/**
+	 * Creates a cache based on given configuration parameters.
+	 * 
+	 * @param initialCapacity The initial number of entries the cache will be
+	 *            initialized to support. The cache's capacity will be doubled
+	 *            dynamically every time 0.75 percent of its current capacity is
+	 *            used but it will never exceed <em>maxCapacity</em>.
+	 * @param maxCapacity The maximum number of entries the cache can manage
+	 * @param threshold The period of time of inactivity (in seconds) after
+	 *            which an entry is considered stale and can be evicted from the
+	 *            cache if a new entry is to be added to the cache
+	 * @param unit TimeUnit for threshold
+	 * @since 3.0
+	 */
+	public LeastRecentlyUsedCache(int initialCapacity, int maxCapacity, long threshold, TimeUnit unit) {
 
 		if (initialCapacity > maxCapacity) {
 			throw new IllegalArgumentException("initial capacity must be <= max capacity");
 		} else {
 			this.capacity = maxCapacity;
 			this.cache = new ConcurrentHashMap<>(initialCapacity);
-			setExpirationThreshold(threshold);
+			setExpirationThreshold(threshold, unit);
 			initLinkedList();
 		}
 	}
@@ -193,8 +210,13 @@ public class LeastRecentlyUsedCache<K, V> {
 	/**
 	 * Get evict mode on read access.
 	 * 
+	 * Node: if {@code evicting on read access} and
+	 * {@code updating on read access} are both enabled, the eviction is
+	 * evaluated first!
+	 * 
 	 * @return {@code true}, if entries are evicted on read access, when
 	 *         expired, {@code false}, if not.
+	 * @see #isUpdatingOnReadAccess()
 	 */
 	public boolean isEvictingOnReadAccess() {
 		return evictOnReadAccess;
@@ -203,8 +225,13 @@ public class LeastRecentlyUsedCache<K, V> {
 	/**
 	 * Set evict mode on read access.
 	 * 
+	 * Node: if {@code evicting on read access} and
+	 * {@code updating on read access} are both enabled, the eviction is
+	 * evaluated first!
+	 * 
 	 * @param evict {@code true}, if entries are evicted on read access, when
 	 *            expired, {@code false}, if not.
+	 * @see #setUpdatingOnReadAccess(boolean)
 	 */
 	public void setEvictingOnReadAccess(boolean evict) {
 		evictOnReadAccess = evict;
@@ -213,8 +240,13 @@ public class LeastRecentlyUsedCache<K, V> {
 	/**
 	 * Get update last-access time mode on read access.
 	 * 
+	 * Node: if {@code evicting on read access} and
+	 * {@code updating on read access} are both enabled, the eviction is
+	 * evaluated first!
+	 * 
 	 * @return {@code true}, if entries last-access time is updated on read
 	 *         access, {@code false}, if not.
+	 * @see #isEvictingOnReadAccess()
 	 */
 	public boolean isUpdatingOnReadAccess() {
 		return updateOnReadAccess;
@@ -223,8 +255,13 @@ public class LeastRecentlyUsedCache<K, V> {
 	/**
 	 * Set update last-access time mode on read access.
 	 * 
+	 * Node: if {@code evicting on read access} and
+	 * {@code updating on read access} are both enabled, the eviction is
+	 * evaluated first!
+	 * 
 	 * @param update {@code true},if entries last-access time is updated on read
 	 *            access, {@code false}, if not.
+	 * @see #setEvictingOnReadAccess(boolean)
 	 */
 	public void setUpdatingOnReadAccess(boolean update) {
 		updateOnReadAccess = update;
@@ -566,6 +603,32 @@ public class LeastRecentlyUsedCache<K, V> {
 	}
 
 	/**
+	 * Remove expired entries.
+	 * 
+	 * @param maxEntries maximum expired entries to remove
+	 * @return number of removed expired entries.
+	 * @since 3.0
+	 */
+	public final int removeExpiredEntries(int maxEntries) {
+		int counter = 0;
+		while (maxEntries == 0 || counter < maxEntries) {
+			CacheEntry<K, V> eldest = header.after;
+			if (header == eldest) {
+				break;
+			}
+			if (eldest.isStale(expirationThresholdNanos)) {
+				eldest.remove();
+				cache.remove(eldest.getKey());
+				notifyEvictionListeners(eldest.getValue());
+				++counter;
+			} else {
+				break;
+			}
+		}
+		return counter;
+	}
+
+	/**
 	 * Finds a value based on a predicate.
 	 * 
 	 * Returns the first matching value applying the {@link #evictOnReadAccess}
@@ -669,6 +732,31 @@ public class LeastRecentlyUsedCache<K, V> {
 	 * @return an iterator over all values backed by the underlying map.
 	 */
 	public final Iterator<V> valuesIterator() {
+		return valuesIterator(true);
+	}
+
+	/**
+	 * Gets iterator over all values contained in this cache.
+	 * <p>
+	 * The iterator returned is backed by this cache's underlying
+	 * {@link ConcurrentHashMap#values()}. The iterator is a "weakly consistent"
+	 * iterator that will never throw
+	 * {@link java.util.ConcurrentModificationException}, and guarantees to
+	 * traverse elements as they existed upon construction of the iterator, and
+	 * may (but is not guaranteed to) reflect any modifications subsequent to
+	 * construction.
+	 * </p>
+	 * <p>
+	 * Removal of values from the iterator is unsupported.
+	 * </p>
+	 * 
+	 * @param readAccess {@code true} to enable read access while iterating. The
+	 *            {@link #evictOnReadAccess} and {@link #updateOnReadAccess} are
+	 *            applied on {@link Iterator#hasNext()}, if enabled.
+	 * @return an iterator over all values backed by the underlying map.
+	 * @since 3.0
+	 */
+	public final Iterator<V> valuesIterator(final boolean readAccess) {
 		final Iterator<CacheEntry<K, V>> iterator = cache.values().iterator();
 
 		return new Iterator<V>() {
@@ -682,7 +770,14 @@ public class LeastRecentlyUsedCache<K, V> {
 					nextEntry = null;
 					while (iterator.hasNext()) {
 						CacheEntry<K, V> entry = iterator.next();
-						if (access(entry, iterator) != null) {
+						if (readAccess) {
+							synchronized (LeastRecentlyUsedCache.this) {
+								if (access(entry, iterator) != null) {
+									nextEntry = entry;
+									break;
+								}
+							}
+						} else {
 							nextEntry = entry;
 							break;
 						}

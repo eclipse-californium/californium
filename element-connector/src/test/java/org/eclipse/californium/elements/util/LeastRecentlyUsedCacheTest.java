@@ -111,6 +111,68 @@ public class LeastRecentlyUsedCacheTest {
 	}
 
 	@Test
+	public void testRemoveExpiredEntriesWithLimit() throws InterruptedException {
+		int capacity = 10;
+		int numberOfSessions = 10;
+		TimeAssume assume = new TimeAssume(time);
+
+		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfSessions);
+		cache.setEvictingOnReadAccess(false);
+		cache.setUpdatingOnReadAccess(true);
+		time.setFixedTestTime(true);
+		assume.sleep(THRESHOLD_MILLIS / 2);
+		// update some entries
+		assertThat(cache.get(2), assume.inTime(is(notNullValue())));
+		assertThat(cache.get(8), assume.inTime(is(notNullValue())));
+		assertThat(cache.get(5), assume.inTime(is(notNullValue())));
+
+		// expire not updated entries
+		assume.sleep((THRESHOLD_MILLIS / 2) + 50);
+		// remove with limit
+		assertThat(cache.removeExpiredEntries(3), is(3));
+		// remove with exceeded limit
+		assertThat(cache.removeExpiredEntries(10), is(4));
+		// remove without expired entries
+		assertThat(cache.removeExpiredEntries(1), is(0));
+		// expires all
+		assume.sleep((THRESHOLD_MILLIS / 2) + 50);
+		// remove with exceeded limit
+		assertThat(cache.removeExpiredEntries(10), is(3));
+		// remove without expired entries
+		assertThat(cache.removeExpiredEntries(1), is(0));
+	}
+
+	@Test
+	public void testRemoveExpiredEntriesWithoutLimit() throws InterruptedException {
+		int capacity = 10;
+		int numberOfSessions = 10;
+		TimeAssume assume = new TimeAssume(time);
+
+		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfSessions);
+		cache.setEvictingOnReadAccess(false);
+		cache.setUpdatingOnReadAccess(true);
+		time.setFixedTestTime(true);
+		assume.sleep(THRESHOLD_MILLIS / 2);
+		// update some entries
+		assertThat(cache.get(2), assume.inTime(is(notNullValue())));
+		assertThat(cache.get(8), assume.inTime(is(notNullValue())));
+		assertThat(cache.get(5), assume.inTime(is(notNullValue())));
+
+		// expire not updated entries
+		assume.sleep((THRESHOLD_MILLIS / 2) + 50);
+		// remove all
+		assertThat(cache.removeExpiredEntries(0), is(7));
+		// remove without expired entries
+		assertThat(cache.removeExpiredEntries(0), is(0));
+		// expires all
+		assume.sleep((THRESHOLD_MILLIS / 2) + 50);
+		// remove all
+		assertThat(cache.removeExpiredEntries(0), is(3));
+		// remove without expired entries
+		assertThat(cache.removeExpiredEntries(0), is(0));
+	}
+
+	@Test
 	public void testIteratorWhenExpired() throws InterruptedException {
 		int capacity = 5;
 		int numberOfSessions = 5;
@@ -352,8 +414,7 @@ public class LeastRecentlyUsedCacheTest {
 	 * @param noOfEntries
 	 */
 	private void givenACacheWithEntries(int capacity, long expirationThresholdMillis, int noOfEntries) {
-		cache = new LeastRecentlyUsedCache<>(capacity, 0);
-		cache.setExpirationThreshold(expirationThresholdMillis, TimeUnit.MILLISECONDS);
+		cache = new LeastRecentlyUsedCache<>(capacity, capacity, expirationThresholdMillis, TimeUnit.MILLISECONDS);
 		for (int i = 0; i < noOfEntries; i++) {
 			cache.put(i, Integer.toString(i));
 		}
