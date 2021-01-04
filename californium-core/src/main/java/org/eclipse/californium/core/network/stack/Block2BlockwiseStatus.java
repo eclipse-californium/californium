@@ -295,7 +295,7 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 			// observe option must only be included in first block
 			block.getOptions().removeObserve();
 		} else {
-			block.addMessageObserver(new MessageObserverAdapter() {
+			block.addMessageObserver(0, new MessageObserverAdapter() {
 
 				@Override
 				public void onReadyToSend() {
