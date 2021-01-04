@@ -379,7 +379,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			if (token != null) {
 				block.setToken(token);
 			}
-			block.addMessageObserver(new MessageObserverAdapter() {
+			block.addMessageObserver(0, new MessageObserverAdapter() {
 
 				@Override
 				public void onReadyToSend() {
@@ -1288,8 +1288,9 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * @param key uri-key
 	 * @param exchange blockwise exchange.
 	 * @param response outer response with complete payload.
-	 * @param reset {@code true}, remove and complete the previous block2status,
-	 *            {@code false} return the previous or new block2status.
+	 * @param reset {@code true}, remove and complete a previous block2status
+	 *            and return a new block2status, {@code false} return the
+	 *            previous or new block2status.
 	 * @return block2status
 	 * @since 3.0
 	 */
