@@ -33,7 +33,6 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.SocketException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
@@ -57,7 +56,6 @@ import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.elements.tcp.netty.TlsServerConnector.ClientAuthMode;
 import org.eclipse.californium.elements.util.Bytes;
-import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
@@ -263,6 +261,7 @@ public class PlugtestServer extends AbstractTestServer {
 		ScheduledExecutorService secondaryExecutor = ExecutorsUtil
 				.newDefaultSecondaryScheduler("CoapServer(secondary)#");
 		start(executor, secondaryExecutor, config, new ActiveInputReader());
+		LOGGER.info("Executor shutdown ...");
 		ExecutorsUtil.shutdownExecutorGracefully(500, executor, secondaryExecutor);
 		exit();
 		LOGGER.info("Exit ...");
@@ -336,34 +335,31 @@ public class PlugtestServer extends AbstractTestServer {
 	public static void loadServers(InputStream in, SecretKey key) {
 		int count = 0;
 		long time = System.nanoTime();
-		DatagramReader reader = new DatagramReader(in);
 		try {
-			while (in.available() > 0) {
-				String tag = SerializationUtil.readString(reader, Byte.SIZE);
-				if (tag == null) {
-					break;
-				}
-				String uriString = SerializationUtil.readString(reader, Byte.SIZE);
+			CoapServer.ConnectorIdentifier id;
+			while ((id = CoapServer.readConnectorIdentifier(in)) != null) {
+				boolean foundTag = false;
 				int loaded = -1;
-				try {
-					URI uri = new URI(uriString);
-					for (CoapServer server : servers) {
-						if (tag.equals(server.getTag())) {
-							loaded = server.loadConnector(uri, in, key);
-							if (loaded >= 0) {
-								count += loaded;
-								break;
-							}
+				for (CoapServer server : servers) {
+					if (id.tag.equals(server.getTag())) {
+						foundTag = true;
+						loaded = server.loadConnector(id, in, key);
+						if (loaded >= 0) {
+							count += loaded;
+							break;
 						}
 					}
-				} catch (URISyntaxException e) {
-					LOGGER.warn("{}bad URI {}!", tag, uriString, e);
 				}
-				if (loaded < 0) {
-					SerializationUtil.skipConnections(in);
-					LOGGER.warn("{}loading {} failed, no connector in {} servers!:", tag, uriString, servers.size());
+				if (foundTag) {
+					if (loaded < 0) {
+						SerializationUtil.skipConnections(in);
+						LOGGER.warn("{}loading {} failed, no connector in {} servers!", id.tag, id.uri, servers.size());
+					} else {
+						LOGGER.info("{}loading {}, {} connections, {} servers.", id.tag, id.uri, loaded,
+								servers.size());
+					}
 				} else {
-					LOGGER.info("{}loading {}, {} connections, {} servers.", tag, uriString, loaded, servers.size());
+					SerializationUtil.skipConnections(in);
 				}
 			}
 		} catch (IOException e) {

@@ -770,7 +770,7 @@ public class DTLSConnectorTest {
 		DatagramWriter writer = new DatagramWriter(128);
 		connection.write(writer);
 		DatagramReader reader = new DatagramReader(writer.toByteArray());
-		Connection connection2 = Connection.fromReader(reader);
+		Connection connection2 = Connection.fromReader(reader, 0);
 		clientConnectionStore.remove(connection);
 		connection2.setExecutor(new SerialExecutor(executor));
 		clientConnectionStore.put(connection2);

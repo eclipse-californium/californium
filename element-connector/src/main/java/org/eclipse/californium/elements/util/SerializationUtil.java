@@ -141,7 +141,7 @@ public class SerializationUtil {
 	 * @return length of the item, or {@code -1}, if
 	 *         {@link #writeNoItem(DatagramWriter)} was used.
 	 */
-	public static int readStartItem(DatagramReader reader, int version, int numBits) {
+	public static int readStartItem(DataStreamReader reader, int version, int numBits) {
 		if (version == NO_VERSION) {
 			throw new IllegalArgumentException("version must not be " + NO_VERSION + "!");
 		}
@@ -172,7 +172,7 @@ public class SerializationUtil {
 	 * @param numBits number of bits for encoding the length.
 	 * @return String, or {@code null}, if size was {@code 0}.
 	 */
-	public static String readString(DatagramReader reader, int numBits) {
+	public static String readString(DataStreamReader reader, int numBits) {
 		byte[] data = reader.readVarBytes(numBits);
 		if (data != null) {
 			return new String(data, StandardCharsets.UTF_8);
@@ -211,7 +211,7 @@ public class SerializationUtil {
 	 * @return read inet socket address, or {@code null}, if no address was
 	 *         written.
 	 */
-	public static InetSocketAddress readAddress(DatagramReader reader) {
+	public static InetSocketAddress readAddress(DataStreamReader reader) {
 		int length = readStartItem(reader, ADDRESS_VERSION, Byte.SIZE);
 		if (length <= 0) {
 			return null;
@@ -272,7 +272,7 @@ public class SerializationUtil {
 	 * @param reader reader
 	 * @return read attributes, or {@code null}, if no attributes are written.
 	 */
-	public static Attributes readEndpointContexAttributes(DatagramReader reader) {
+	public static Attributes readEndpointContexAttributes(DataStreamReader reader) {
 		int length = readStartItem(reader, ATTRIBUTES_VERSION, Short.SIZE);
 		if (length < 0) {
 			return null;
@@ -343,16 +343,12 @@ public class SerializationUtil {
 	@WipAPI
 	public static int skipBlocks(InputStream in, int maxBlocks) {
 		int count = 0;
-		DatagramReader reader = new DatagramReader(in);
-		while (reader.bytesAvailable()) {
-			int len = reader.read(Short.SIZE);
-			if (len > 0) {
-				++count;
-				reader.skip(len);
-				if (maxBlocks > 0 && maxBlocks == count) {
-					break;
-				}
-			} else {
+		int len;
+		DataStreamReader reader = new DataStreamReader(in);
+		while ((len = reader.read(Short.SIZE)) > 0) {
+			++count;
+			reader.skip(len);
+			if (maxBlocks > 0 && maxBlocks == count) {
 				break;
 			}
 		}
