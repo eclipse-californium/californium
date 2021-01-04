@@ -332,6 +332,70 @@ public class BenchmarkClient {
 	private static final long DEFAULT_TIMEOUT_SECONDS = 10;
 	private static final long DEFAULT_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(DEFAULT_TIMEOUT_SECONDS);
 	private static final long DTLS_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(120);
+
+	private static class ErrorLoggingFilter {
+
+		private static final long FILTER_PERIOD = DEFAULT_TIMEOUT_NANOS;
+		private final long maxPerPeriod;
+		private long counter;
+		private long startNanos;
+
+		private ErrorLoggingFilter(int maxPerPeriod) {
+			this.startNanos = ClockUtil.nanoRealtime();
+			this.maxPerPeriod = maxPerPeriod;
+		}
+
+		private void warn(String fmt, Object... args) {
+			if (LOGGER.isWarnEnabled()) {
+				log(true, fmt, args);
+			}
+		}
+
+		private void info(String fmt, Object... args) {
+			if (LOGGER.isInfoEnabled()) {
+				log(false, fmt, args);
+			}
+		}
+
+		private void log(boolean warn, String fmt, Object... args) {
+			boolean info = false;
+			Long extraInfo = null;
+			long now = ClockUtil.nanoRealtime();
+			long time = FILTER_PERIOD + startNanos - now;
+			synchronized (this) {
+				info = counter < maxPerPeriod;
+				if (time > 0) {
+					++counter;
+				} else {
+					startNanos = now;
+					if (!info) {
+						extraInfo = counter;
+					}
+					counter = 0;
+				}
+			}
+			if (info) {
+				if (warn) {
+					LOGGER.warn(fmt, args);
+				} else {
+					LOGGER.info(fmt, args);
+				}
+			} else if (extraInfo != null) {
+				int length = args.length;
+				args = Arrays.copyOf(args, length + 1);
+				args[length] = extraInfo;
+				if (warn) {
+					LOGGER.warn(fmt + " ({} additional errors.)", args);
+				} else {
+					LOGGER.info(fmt + " ({} additional errors.)", args);
+				}
+			}
+		}
+	}
+
+	private static final ErrorLoggingFilter errorResponseFilter = new ErrorLoggingFilter(5);
+	private static final ErrorLoggingFilter errorFilter = new ErrorLoggingFilter(3);
+
 	/**
 	 * Atomic down-counter for overall requests.
 	 */
@@ -357,6 +421,12 @@ public class BenchmarkClient {
 	 */
 	private static final AtomicInteger connectDownCounter = new AtomicInteger();
 	/**
+	 * Overall transmission counter. 
+	 * 
+	 * Counts per block request.
+	 */
+	private static final AtomicLong transmissionCounter = new AtomicLong();
+	/**
 	 * Overall retransmission counter.
 	 */
 	private static final AtomicLong retransmissionCounter = new AtomicLong();
@@ -364,6 +434,13 @@ public class BenchmarkClient {
 	 * Message observer to detect retransmissions.
 	 */
 	private static final MessageObserver retransmissionDetector = new MessageObserverAdapter() {
+
+		@Override
+		public void onSent(boolean retransmission) {
+			if (!retransmission) {
+				transmissionCounter.incrementAndGet();
+			}
+		}
 
 		@Override
 		public void onRetransmission() {
@@ -607,21 +684,23 @@ public class BenchmarkClient {
 				long delay = TimeUnit.SECONDS.toMillis(response.getOptions().getMaxAge());
 				int unavailable = overallServiceUnavailable.incrementAndGet();
 				long c = overallResponsesDownCounter.get();
-				LOGGER.debug("{}: {}, Received error response: {} {}", id, unavailable, response.advanced(), c);
+				LOGGER.debug("{}: Received {} unavailabe response: {} {}", id, unavailable, response.advanced(), c);
 				if (!stop.get()) {
 					next(delay < 1000L ? 1000L : delay, -ackTimeout * 2, true, true);
 				}
 			} else if (!config.stop) {
+				String type = post.isConfirmable() ? "CON" : "NON";
 				long c = requestsCounter.get();
 				transmissionErrorCounter.incrementAndGet();
-				LOGGER.warn("{}: Error after {} requests. {} - {}", id, c, response.advanced().getCode(),
+				errorResponseFilter.warn("{}: Error response after {} {}-requests. {} - {}", id, c, type, response.advanced().getCode(),
 						response.advanced().getPayloadString());
 				if (!stop.get()) {
 					next(1000, -ackTimeout * 2, true, true);
 				}
 			} else {
+				String type = post.isConfirmable() ? "CON" : "NON";
 				long c = requestsCounter.get();
-				LOGGER.warn("{}: Received error response: {} {} ({} successful)", id, endpoint.getUri(), response.advanced(), c);
+				LOGGER.warn("{}: Received error response: {} {} ({} {} successful)", id, endpoint.getUri(), response.advanced(), c, type);
 				checkReady(true, true);
 				stop();
 			}
@@ -635,6 +714,7 @@ public class BenchmarkClient {
 		public void onError() {
 			if (!stop.get()) {
 				boolean non = !post.isConfirmable();
+				String type = non ? "NON" : "CON";
 				long c = requestsCounter.get();
 				String msg = "";
 				if (post.getSendError() != null) {
@@ -647,13 +727,14 @@ public class BenchmarkClient {
 				if (!config.stop || non) {
 					overallRequestsDownCounter.incrementAndGet();
 					transmissionErrorCounter.incrementAndGet();
-					LOGGER.info("{}: Error after {} requests. {}", id, c, msg);
-					if (!next(1000, secure && !non ? 1000 : 0, c > 0, false)) {
-						LOGGER.warn("{}: stopped by error after {} requests. {}", id, c, msg);
+					if (next(1000, secure && !non ? 1000 : 0, c > 0, false)) {
+						errorFilter.info("{}: Error after {} {}-requests. {}", id, c, type, msg);
+					} else {
+						LOGGER.warn("{}: stopped by error after {} {}-requests. {}", id, c, type, msg);
 						stop();
 					}
 				} else {
-					LOGGER.error("{}: failed after {} requests! {}", id, c, msg);
+					LOGGER.error("{}: failed after {} {}-requests! {}", id, c, type, msg);
 					checkReady(true, false);
 					stop();
 				}
@@ -808,15 +889,14 @@ public class BenchmarkClient {
 		final Request request = prepareRequest(client, 12);
 		try {
 			request.addMessageObserver(new EndpointContextTracer() {
+
+				private final AtomicBoolean ready = new AtomicBoolean();
 				private final AtomicInteger counter = new AtomicInteger();
 
 				@Override
 				public void onReadyToSend() {
-					int count = counter.getAndIncrement();
-					if (count == 0) {
+					if (ready.compareAndSet(false, true)) {
 						LOGGER.info("Request:{}{}", StringUtil.lineSeparator(), Utils.prettyPrint(request));
-					} else {
-						LOGGER.info("Request: {} retransmissions{}{}", count, StringUtil.lineSeparator(), Utils.prettyPrint(request));
 					}
 				}
 
@@ -828,6 +908,12 @@ public class BenchmarkClient {
 				@Override
 				public void onDtlsRetransmission(int flight) {
 					LOGGER.info(">>> DTLS retransmission, flight  {}", flight);
+				}
+
+				@Override
+				public void onRetransmission() {
+					int count = counter.incrementAndGet();
+					LOGGER.info("Request: {} retransmissions{}{}", count, StringUtil.lineSeparator(), Utils.prettyPrint(request));
 				}
 
 				@Override
@@ -1177,6 +1263,7 @@ public class BenchmarkClient {
 		long requestNanos = System.nanoTime();
 		long reverseResponseNanos = requestNanos;
 		long lastRequestsCountDown = overallResponsesDownCounter.get();
+		long lastTransmissions = transmissionCounter.get();
 		long lastRetransmissions = retransmissionCounter.get();
 		long lastTransmissionErrrors = transmissionErrorCounter.get();
 		int lastUnavailable = overallServiceUnavailable.get();
@@ -1216,6 +1303,8 @@ public class BenchmarkClient {
 			} else {
 				dtlsTime = System.nanoTime();
 			}
+			long transmissions = transmissionCounter.get();
+			long transmissionsDifference = transmissions - lastTransmissions;
 			long retransmissions = retransmissionCounter.get();
 			long retransmissionsDifference = retransmissions - lastRetransmissions;
 			long transmissionErrors = transmissionErrorCounter.get();
@@ -1227,6 +1316,7 @@ public class BenchmarkClient {
 			int honoCmdsDifference = honoCmds - lastHonoCmds;
 
 			lastRequestsCountDown = currentRequestsCountDown;
+			lastTransmissions = transmissions;
 			lastRetransmissions = retransmissions;
 			lastTransmissionErrrors = transmissionErrors;
 			lastUnavailable = unavailable;
@@ -1235,7 +1325,7 @@ public class BenchmarkClient {
 			StringBuilder line = new StringBuilder();
 			line.append(String.format("%d requests (%d reqs/s", currentOverallSentRequests,
 					roundDiv(requestDifference, DEFAULT_TIMEOUT_SECONDS)));
-			line.append(", ").append(formatRetransmissions(retransmissionsDifference, requestDifference));
+			line.append(", ").append(formatRetransmissions(retransmissionsDifference, transmissionsDifference));
 			line.append(", ").append(formatTransmissionErrors(transmissionErrorsDifference, requestDifference));
 			if (unavailable > 0) {
 				line.append(", ").append(formatUnavailable(unavailableDifference, requestDifference));
