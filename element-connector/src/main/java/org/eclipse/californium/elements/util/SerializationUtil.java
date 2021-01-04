@@ -43,7 +43,7 @@ public class SerializationUtil {
 	 * 
 	 * Must not be used as version for
 	 * {@link #writeStartItem(DatagramWriter, int, int)} nor
-	 * {@link #readStartItem(DatagramReader, int, int)}.
+	 * {@link #readStartItem(DataStreamReader, int, int)}.
 	 */
 	public static final int NO_VERSION = 0;
 
