@@ -188,6 +188,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	private final LeastRecentlyUsedCache<KeyUri, Block1BlockwiseStatus> block1Transfers;
 	private final LeastRecentlyUsedCache<KeyUri, Block2BlockwiseStatus> block2Transfers;
 	private final AtomicInteger ignoredBlock2 = new AtomicInteger();
+	private final String tag;
 	private volatile boolean enableStatus;
 	private ScheduledFuture<?> statusLogger;
 	private int maxMessageSize;
@@ -233,10 +234,12 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * If not set, the default value is {@link org.eclipse.californium.core.network.config.NetworkConfigDefaults#DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION}</li>
 	 * </ul>
 
+	 * @param tag logging tag
 	 * @param config The configuration values to use.
+	 * @since 3.0 logging tag added
 	 */
-	public BlockwiseLayer(final NetworkConfig config) {
-
+	public BlockwiseLayer(String tag, NetworkConfig config) {
+		this.tag = tag;
 		maxMessageSize = config.getInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, NetworkConfigDefaults.DEFAULT_MAX_MESSAGE_SIZE);
 		preferredBlockSize = config.getInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, NetworkConfigDefaults.DEFAULT_PREFERRED_BLOCK_SIZE);
 		preferredBlockSzx = BlockOption.size2Szx(preferredBlockSize);
@@ -258,8 +261,8 @@ public class BlockwiseLayer extends AbstractLayer {
 				NetworkConfigDefaults.DEFAULT_BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER);
 
 		LOGGER.info(
-				"BlockwiseLayer uses MAX_MESSAGE_SIZE={}, PREFERRED_BLOCK_SIZE={}, BLOCKWISE_STATUS_LIFETIME={}, MAX_RESOURCE_BODY_SIZE={}, BLOCKWISE_STRICT_BLOCK2_OPTION={}",
-				 maxMessageSize, preferredBlockSize, blockTimeout, maxResourceBodySize, strictBlock2Option);
+				"{}BlockwiseLayer uses MAX_MESSAGE_SIZE={}, PREFERRED_BLOCK_SIZE={}, BLOCKWISE_STATUS_LIFETIME={}, MAX_RESOURCE_BODY_SIZE={}, BLOCKWISE_STRICT_BLOCK2_OPTION={}",
+				 tag, maxMessageSize, preferredBlockSize, blockTimeout, maxResourceBodySize, strictBlock2Option);
 	}
 
 	@Override
@@ -271,7 +274,7 @@ public class BlockwiseLayer extends AbstractLayer {
 				public void run() {
 					if (enableStatus) {
 						{
-							HEALTH_LOGGER.debug("{} block1 transfers", block1Transfers.size());
+							HEALTH_LOGGER.debug("{}{} block1 transfers", tag, block1Transfers.size());
 							Iterator<Block1BlockwiseStatus> iterator = block1Transfers.valuesIterator();
 							int max = 5;
 							while (iterator.hasNext()) {
@@ -283,7 +286,7 @@ public class BlockwiseLayer extends AbstractLayer {
 							}
 						}
 						{
-							HEALTH_LOGGER.debug("{} block2 transfers", block2Transfers.size());
+							HEALTH_LOGGER.debug("{}{} block2 transfers", tag, block2Transfers.size());
 							Iterator<Block2BlockwiseStatus> iterator = block2Transfers.valuesIterator();
 							int max = 5;
 							while (iterator.hasNext()) {
@@ -294,7 +297,7 @@ public class BlockwiseLayer extends AbstractLayer {
 								}
 							}
 						}
-						HEALTH_LOGGER.debug("{} block2 responses ignored", ignoredBlock2.get());
+						HEALTH_LOGGER.debug("{}{} block2 responses ignored", tag, ignoredBlock2.get());
 					}
 				}
 			}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
@@ -469,8 +472,8 @@ public class BlockwiseLayer extends AbstractLayer {
 			if (block1.getNum() != status.getCurrentNum()) {
 				// ERROR, wrong number, Incomplete
 				LOGGER.warn(
-						"peer sent wrong block, expected no. {} but got {}. Responding with 4.08 (Request Entity Incomplete)",
-						status.getCurrentNum(), block1.getNum());
+						"peer {} sent wrong block, expected no. {} but got {}. Responding with 4.08 (Request Entity Incomplete)",
+						key, status.getCurrentNum(), block1.getNum());
 
 				sendBlock1ErrorResponse(key, status, exchange, request, ResponseCode.REQUEST_ENTITY_INCOMPLETE,
 						"wrong block number");

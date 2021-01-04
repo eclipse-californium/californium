@@ -77,16 +77,18 @@ public class CoapTcpStack extends BaseCoapStack {
 	/**
 	 * Creates a new stack using TCP as the transport.
 	 * 
+	 * @param tag logging tag
 	 * @param config The configuration values to use.
 	 * @param outbox The adapter for submitting outbound messages to the transport.
+	 * @since 3.0 logging tag added
 	 */
-	public CoapTcpStack(final NetworkConfig config, final Outbox outbox) {
+	public CoapTcpStack(String tag, NetworkConfig config, Outbox outbox) {
 		super(outbox);
 
 		Layer layers[] = new Layer[] {
 				new TcpExchangeCleanupLayer(),
 				new TcpObserveLayer(config),
-				new BlockwiseLayer(config),
+				new BlockwiseLayer(tag, config),
 				new TcpAdaptionLayer() };
 
 		setLayers(layers);

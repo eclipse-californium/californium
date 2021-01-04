@@ -421,7 +421,7 @@ public class CoapEndpoint implements Endpoint {
 		this.connector.setEndpointContextMatcher(endpointContextMatcher);
 		LOGGER.info("{}{} uses {}", tag, getClass().getSimpleName(), endpointContextMatcher.getName());
 
-		this.coapstack = coapStackFactory.createCoapStack(connector.getProtocol(), config, new OutboxImpl(), customStackArgument);
+		this.coapstack = coapStackFactory.createCoapStack(connector.getProtocol(), this.tag, config, new OutboxImpl(), customStackArgument);
 
 		if (CoAP.isTcpProtocol(connector.getProtocol())) {
 			this.useRequestOffloading = false; // no deduplication
@@ -1790,11 +1790,12 @@ public class CoapEndpoint implements Endpoint {
 	 */
 	public static final CoapStackFactory STANDARD_COAP_STACK_FACTORY = new CoapStackFactory() {
 
-		public CoapStack createCoapStack(String protocol, NetworkConfig config, Outbox outbox, Object customStackArgument) {
+		@Override
+		public CoapStack createCoapStack(String protocol, String tag, NetworkConfig config, Outbox outbox, Object customStackArgument) {
 			if (CoAP.isTcpProtocol(protocol)) {
-				return new CoapTcpStack(config, outbox);
+				return new CoapTcpStack(tag, config, outbox);
 			} else {
-				return new CoapUdpStack(config, outbox);
+				return new CoapUdpStack(tag, config, outbox);
 			}
 		}
 	};

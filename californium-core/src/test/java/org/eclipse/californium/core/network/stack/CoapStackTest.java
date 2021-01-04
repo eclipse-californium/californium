@@ -70,8 +70,8 @@ public class CoapStackTest {
 		Outbox tcpOutbox = mock(Outbox.class);
 
 		List<Object[]> parameters = new ArrayList<>();
-		parameters.add(new Object[]{new CoapTcpStack(CONFIG, tcpOutbox), tcpOutbox});
-		parameters.add(new Object[]{new CoapUdpStack(CONFIG, udpOutbox), udpOutbox});
+		parameters.add(new Object[]{new CoapTcpStack("tcp-test ", CONFIG, tcpOutbox), tcpOutbox});
+		parameters.add(new Object[]{new CoapUdpStack("udp-test ", CONFIG, udpOutbox), udpOutbox});
 		return parameters;
 	}
 

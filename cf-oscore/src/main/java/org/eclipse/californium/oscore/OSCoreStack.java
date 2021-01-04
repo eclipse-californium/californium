@@ -45,12 +45,14 @@ public class OSCoreStack extends BaseCoapStack {
 	/**
 	 * Creates a new stack for UDP as the transport.
 	 * 
+	 * @param tag logging tag
 	 * @param config The configuration values to use.
 	 * @param outbox The adapter for submitting outbound messages to the
 	 *            transport.
 	 * @param ctxDb context DB.
+	 * @since 3.0 logging tag added
 	 */
-	public OSCoreStack(final NetworkConfig config, final Outbox outbox, final OSCoreCtxDB ctxDb) {
+	public OSCoreStack(String tag, NetworkConfig config, Outbox outbox, OSCoreCtxDB ctxDb) {
 		super(outbox);
 		ReliabilityLayer reliabilityLayer;
 		if (config.getBoolean(NetworkConfig.Keys.USE_CONGESTION_CONTROL)) {
@@ -60,9 +62,13 @@ public class OSCoreStack extends BaseCoapStack {
 			reliabilityLayer = new ReliabilityLayer(config);
 		}
 
-		Layer layers[] = new Layer[] { new ObjectSecurityContextLayer(ctxDb), new ExchangeCleanupLayer(config),
-				new ObserveLayer(config), new BlockwiseLayer(config), reliabilityLayer,
-				new ObjectSecurityLayer(ctxDb), };
+		Layer layers[] = new Layer[] {
+				new ObjectSecurityContextLayer(ctxDb),
+				new ExchangeCleanupLayer(config),
+				new ObserveLayer(config),
+				new BlockwiseLayer(tag, config),
+				reliabilityLayer,
+				new ObjectSecurityLayer(ctxDb)};
 		setLayers(layers);
 	}
 }
