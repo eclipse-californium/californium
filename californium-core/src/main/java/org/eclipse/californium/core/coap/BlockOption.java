@@ -29,6 +29,16 @@ import org.eclipse.californium.elements.util.Bytes;
  */
 public final class BlockOption {
 
+	/**
+	 * SZX for BERT blockwise.
+	 * 
+	 * See <a href="https://tools.ietf.org/html/rfc8323#section-6">RFC8323, 6.
+	 * Block-Wise Transfer and Reliable Transports</a>.
+	 * 
+	 * @since 3.0
+	 */
+	public static final int BERT_SZX = 7;
+
 	private final int szx;
 	private final boolean m;
 	private final int num;
@@ -100,7 +110,37 @@ public final class BlockOption {
 			this.num = tempNum;
 		}
 	}
-	
+
+	/**
+	 * Indicates, that BERT is used.
+	 * 
+	 * @return {@code true}, if BERT is used, {@code false}, otherwise.
+	 * @see #BERT_SZX See
+	 *      <a href="https://tools.ietf.org/html/rfc8323#section-6">RFC8323, 6.
+	 *      Block-Wise Transfer and Reliable Transports</a>.
+	 * @since 3.0
+	 */
+	public boolean isBERT() {
+		return szx == BERT_SZX;
+	}
+
+	/**
+	 * Assert, that the payload-size doesn't exceed blocksize.
+	 * 
+	 * @param payloadSize payload-size to check.
+	 * @throw {@link IllegalStateException} if the payload-size exceeds the
+	 *        blocksize.
+	 */
+	public void assertPayloadSize(int payloadSize) {
+		if (szx < BERT_SZX && payloadSize > 0) {
+			int size = getSize();
+			if (payloadSize > size) {
+				throw new IllegalStateException(
+						"Message with " + payloadSize + " bytes payload exceeds the blocksize of " + size + " bytes!");
+			}
+		}
+	}
+
 	/**
 	 * Gets the szx.
 	 *
@@ -112,11 +152,14 @@ public final class BlockOption {
 
 	/**
 	 * Gets the size where {@code size == 1 << (4 + szx)}.
+	 * 
+	 * If {@link #getSzx()} is {@link #BERT_SZX}, 1024 is returned.
 	 *
 	 * @return the size
+	 * @since 3.0 limit size to 1024 to support BERT.
 	 */
 	public int getSize() {
-		return 1 << (4 + szx);
+		return szx2Size(szx);
 	}
 
 	/**

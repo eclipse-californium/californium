@@ -26,6 +26,7 @@ import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Message;
+import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,5 +69,10 @@ public final class UdpDataSerializer extends DataSerializer {
 		writer.write(header.getCode(), CODE_BITS);
 		writer.write(header.getMID(), MESSAGE_ID_BITS);
 		writer.writeBytes(header.getToken().getBytes());
+	}
+
+	@Override
+	protected void assertValidOptions(OptionSet options) {
+		UdpDataParser.assertValidUdpOptions(options);
 	}
 }

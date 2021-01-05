@@ -108,6 +108,14 @@ public class Response extends Message {
 	}
 
 	@Override
+	public void assertPayloadMatchsBlocksize() {
+		BlockOption block2 = getOptions().getBlock2();
+		if (block2 != null) {
+			block2.assertPayloadSize(getPayloadSize());
+		}
+	}
+
+	@Override
 	public String toString() {
 		return toTracingString(code.toString());
 	}
