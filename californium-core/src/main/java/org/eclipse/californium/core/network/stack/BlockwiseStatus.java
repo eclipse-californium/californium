@@ -27,7 +27,6 @@ package org.eclipse.californium.core.network.stack;
 
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
-import java.util.concurrent.ScheduledFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -56,7 +55,6 @@ public abstract class BlockwiseStatus {
 	protected Exchange exchange;
 	protected EndpointContext followUpEndpointContext;
 
-	private ScheduledFuture<?> cleanUpTask;
 	private Message first;
 	private int currentNum;
 	private int currentSzx;
@@ -171,16 +169,27 @@ public abstract class BlockwiseStatus {
 	/**
 	 * Marks the transfer as complete.
 	 * <p>
-	 * Also cancels the <em>cleanUpTask</em> if the transfer is complete.
 	 * 
 	 * @param complete {@code true} if all blocks have been transferred.
 	 */
 	public final synchronized void setComplete(final boolean complete) {
 		this.complete = complete;
-		if (complete && cleanUpTask != null) {
-			cleanUpTask.cancel(false);
-			cleanUpTask = null;
+	}
+
+	/**
+	 * Marks the transfer as complete, if not already completed.
+	 * <p>
+	 * 
+	 * @return {@code true}, if the transfer is completed, {@code false}, if the
+	 *         transfer was already completed.
+	 * @since 3.0
+	 */
+	public final synchronized boolean complete() {
+		boolean complete = !this.complete;
+		if (complete) {
+			this.complete = true;
 		}
+		return complete;
 	}
 
 	/**
@@ -313,22 +322,6 @@ public abstract class BlockwiseStatus {
 			message.setUnintendedPayload();
 		}
 		message.setPayload(getBody());
-	}
-
-	/**
-	 * Sets or replaces the handle for this tracker's corresponding clean-up task.
-	 * <p>
-	 * An already existing handle is used to cancel the existing task before the new handle is
-	 * set.
-	 * 
-	 * @param blockCleanupHandle The handle (may be {@code null}).
-	 */
-	public final synchronized void setBlockCleanupHandle(final ScheduledFuture<?> blockCleanupHandle) {
-
-		if (this.cleanUpTask != null) {
-			this.cleanUpTask.cancel(false);
-		}
-		this.cleanUpTask = blockCleanupHandle;
 	}
 
 	/**

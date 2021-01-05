@@ -126,6 +126,7 @@ public class ObserveServerSideTest {
 				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32)
 				.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, 200)
 				.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, 247)
+				.setLong(NetworkConfig.Keys.BLOCKWISE_STATUS_INTERVAL, 100)
 				.setLong(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, 300);
 
 		testObsResource = new TestObserveResource(RESOURCE_PATH);

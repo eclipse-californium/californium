@@ -53,6 +53,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.net.InetSocketAddress;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.CoapResource;
@@ -67,6 +68,8 @@ import org.eclipse.californium.elements.assume.TimeAssume;
 import org.eclipse.californium.elements.category.Large;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
+import org.eclipse.californium.elements.util.TestCondition;
+import org.eclipse.californium.elements.util.TestConditionTools;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
@@ -98,6 +101,7 @@ public class BlockwiseServerSideTest {
 	private static final int TEST_EXCHANGE_LIFETIME = 247; // milliseconds
 	private static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 100; // milliseconds
 	private static final int TEST_PREFERRED_BLOCK_SIZE = 128; // bytes
+	private static final int TEST_BLOCKWISE_STATUS_INTERVAL = 100;
 	private static final int TEST_BLOCKWISE_STATUS_LIFETIME = 500;
 	private static final int MAX_RESOURCE_BODY_SIZE = 1024;
 	private static final String RESOURCE_PATH = "test";
@@ -124,6 +128,7 @@ public class BlockwiseServerSideTest {
 				.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, MAX_RESOURCE_BODY_SIZE)
 				.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL)
 				.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME)
+				.setLong(NetworkConfig.Keys.BLOCKWISE_STATUS_INTERVAL, TEST_BLOCKWISE_STATUS_INTERVAL)
 				.setLong(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, TEST_BLOCKWISE_STATUS_LIFETIME);
 
 		etag = null;
@@ -367,19 +372,33 @@ public class BlockwiseServerSideTest {
 	@Test
 	public void testIncompleteGET() throws Exception {
 		System.out.println("Incomplete blockwise GET:");
+		time.setFixedTestTime(true);
 		respPayload = generateRandomPayload(300);
 		Token tok = generateNextToken();
 
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).go();
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 128).size2(respPayload.length())
 			.payload(respPayload.substring(0, 128)).go();
-		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
-		
+		time.addTestTimeShift((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75), TimeUnit.MILLISECONDS);
+
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).block2(1, false, 128).go();
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(1, true, 128).payload(respPayload.substring(128, 256)).go();
-		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
-		
+		time.addTestTimeShift((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75), TimeUnit.MILLISECONDS);
+
 		assertTrue(!serverEndpoint.getStack().getBlockwiseLayer().isEmpty());
+
+		time.addTestTimeShift((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75), TimeUnit.MILLISECONDS);
+
+		TestConditionTools.waitForCondition(TEST_BLOCKWISE_STATUS_LIFETIME, TEST_BLOCKWISE_STATUS_INTERVAL, TimeUnit.MILLISECONDS,  new TestCondition() {
+
+			@Override
+			public boolean isFulFilled() throws IllegalStateException {
+				return serverEndpoint.getStack().getBlockwiseLayer().isEmpty();
+			}
+		});
+
+		assertTrue(serverEndpoint.getStack().getBlockwiseLayer().isEmpty());
+
 		serverInterceptor.logNewLine("//////// Missing last GET ////////");
 	}
 
@@ -405,20 +424,33 @@ public class BlockwiseServerSideTest {
 	public void testIncompletePUT() throws Exception {
 
 		System.out.println("Incomplete blockwise PUT:");
-
+		time.setFixedTestTime(true);
 		reqtPayload = generateRandomPayload(300);
 		Token tok = generateNextToken();
 
 		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(0, true, 128).size1(reqtPayload.length())
 			.payload(reqtPayload.substring(0,  128)).go();
 		client.expectResponse(ACK, ResponseCode.CONTINUE, tok, mid).block1(0, true, 128).go();
-		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+		time.addTestTimeShift((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75), TimeUnit.MILLISECONDS);
 
 		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(1, true, 128).payload(reqtPayload.substring(128,  256)).go();
 		client.expectResponse(ACK, ResponseCode.CONTINUE, tok, mid).block1(1, true, 128).go();
-		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+		time.addTestTimeShift((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75), TimeUnit.MILLISECONDS);
 
 		assertTrue(!serverEndpoint.getStack().getBlockwiseLayer().isEmpty());
+
+		time.addTestTimeShift((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75), TimeUnit.MILLISECONDS);
+
+		TestConditionTools.waitForCondition(TEST_BLOCKWISE_STATUS_LIFETIME, TEST_BLOCKWISE_STATUS_INTERVAL, TimeUnit.MILLISECONDS,  new TestCondition() {
+
+			@Override
+			public boolean isFulFilled() throws IllegalStateException {
+				return serverEndpoint.getStack().getBlockwiseLayer().isEmpty();
+			}
+		});
+
+		assertTrue(serverEndpoint.getStack().getBlockwiseLayer().isEmpty());
+		
 		serverInterceptor.logNewLine("//////// Missing last PUT ////////");
 	}
 

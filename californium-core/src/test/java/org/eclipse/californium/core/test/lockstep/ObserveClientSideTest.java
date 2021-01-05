@@ -119,6 +119,7 @@ public class ObserveClientSideTest {
 				.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f)
 				.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL)
 				.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME)
+				.setLong(NetworkConfig.Keys.BLOCKWISE_STATUS_INTERVAL, 200)
 				.setLong(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, 2000);
 		// don't check address, tests explicitly change it!
 		client = new CoapTestEndpoint(TestTools.LOCALHOST_EPHEMERAL, config, false);

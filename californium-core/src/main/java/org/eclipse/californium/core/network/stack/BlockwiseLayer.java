@@ -79,6 +79,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 import org.slf4j.Logger;
@@ -191,10 +192,12 @@ public class BlockwiseLayer extends AbstractLayer {
 	private final String tag;
 	private volatile boolean enableStatus;
 	private ScheduledFuture<?> statusLogger;
+	private ScheduledFuture<?> cleanup;
 	private int maxMessageSize;
 	private int preferredBlockSize;
 	private int preferredBlockSzx;
 	private int blockTimeout;
+	private int blockInterval;
 	private int maxResourceBodySize;
 	private boolean strictBlock2Option;
 	private int healthStatusInterval;
@@ -240,24 +243,47 @@ public class BlockwiseLayer extends AbstractLayer {
 	 */
 	public BlockwiseLayer(String tag, NetworkConfig config) {
 		this.tag = tag;
-		maxMessageSize = config.getInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, NetworkConfigDefaults.DEFAULT_MAX_MESSAGE_SIZE);
-		preferredBlockSize = config.getInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, NetworkConfigDefaults.DEFAULT_PREFERRED_BLOCK_SIZE);
+		maxMessageSize = config.getInt(Keys.MAX_MESSAGE_SIZE, NetworkConfigDefaults.DEFAULT_MAX_MESSAGE_SIZE);
+		preferredBlockSize = config.getInt(Keys.PREFERRED_BLOCK_SIZE,
+				NetworkConfigDefaults.DEFAULT_PREFERRED_BLOCK_SIZE);
 		preferredBlockSzx = BlockOption.size2Szx(preferredBlockSize);
-		blockTimeout = config.getInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME,
+		blockTimeout = config.getInt(Keys.BLOCKWISE_STATUS_LIFETIME,
 				NetworkConfigDefaults.DEFAULT_BLOCKWISE_STATUS_LIFETIME);
-		maxResourceBodySize = config.getInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE,
+		blockInterval = config.getInt(Keys.BLOCKWISE_STATUS_INTERVAL,
+				NetworkConfigDefaults.DEFAULT_BLOCKWISE_STATUS_INTERVAL);
+		maxResourceBodySize = config.getInt(Keys.MAX_RESOURCE_BODY_SIZE,
 				NetworkConfigDefaults.DEFAULT_MAX_RESOURCE_BODY_SIZE);
-		int maxActivePeers = config.getInt(NetworkConfig.Keys.MAX_ACTIVE_PEERS,
-				NetworkConfigDefaults.DEFAULT_MAX_ACTIVE_PEERS);
-		block1Transfers = new LeastRecentlyUsedCache<>(maxActivePeers, TimeUnit.MILLISECONDS.toSeconds(blockTimeout));
+		int maxActivePeers = config.getInt(Keys.MAX_ACTIVE_PEERS, NetworkConfigDefaults.DEFAULT_MAX_ACTIVE_PEERS);
+		block1Transfers = new LeastRecentlyUsedCache<>(maxActivePeers / 10, maxActivePeers, blockTimeout, TimeUnit.MILLISECONDS);
 		block1Transfers.setEvictingOnReadAccess(false);
-		block2Transfers = new LeastRecentlyUsedCache<>(maxActivePeers, TimeUnit.MILLISECONDS.toSeconds(blockTimeout));
+		block1Transfers.addEvictionListener(new LeastRecentlyUsedCache.EvictionListener<Block1BlockwiseStatus>() {
+
+			@Override
+			public void onEviction(Block1BlockwiseStatus status) {
+				if (status.complete()) {
+					LOGGER.debug("{}block1 transfer timed out!", BlockwiseLayer.this.tag);
+					status.timeoutCurrentTranfer();
+				}
+			}
+		});
+		block2Transfers = new LeastRecentlyUsedCache<>(maxActivePeers / 10, maxActivePeers, blockTimeout, TimeUnit.MILLISECONDS);
 		block2Transfers.setEvictingOnReadAccess(false);
-		strictBlock2Option = config.getBoolean(NetworkConfig.Keys.BLOCKWISE_STRICT_BLOCK2_OPTION, NetworkConfigDefaults.DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION);
+		block2Transfers.addEvictionListener(new LeastRecentlyUsedCache.EvictionListener<Block2BlockwiseStatus>() {
 
-		healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
+			@Override
+			public void onEviction(Block2BlockwiseStatus status) {
+				if (status.complete()) {
+					LOGGER.debug("{}block2 transfer timed out!", BlockwiseLayer.this.tag);
+					status.timeoutCurrentTranfer();
+				}
+			}
+		});
+		strictBlock2Option = config.getBoolean(Keys.BLOCKWISE_STRICT_BLOCK2_OPTION,
+				NetworkConfigDefaults.DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION);
 
-		enableAutoFailoverOn413 = config.getBoolean(NetworkConfig.Keys.BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER,
+		healthStatusInterval = config.getInt(Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
+
+		enableAutoFailoverOn413 = config.getBoolean(Keys.BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER,
 				NetworkConfigDefaults.DEFAULT_BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER);
 
 		LOGGER.info(
@@ -275,7 +301,7 @@ public class BlockwiseLayer extends AbstractLayer {
 					if (enableStatus) {
 						{
 							HEALTH_LOGGER.debug("{}{} block1 transfers", tag, block1Transfers.size());
-							Iterator<Block1BlockwiseStatus> iterator = block1Transfers.valuesIterator();
+							Iterator<Block1BlockwiseStatus> iterator = block1Transfers.valuesIterator(false);
 							int max = 5;
 							while (iterator.hasNext()) {
 								HEALTH_LOGGER.debug("   block1 {}", iterator.next());
@@ -287,7 +313,7 @@ public class BlockwiseLayer extends AbstractLayer {
 						}
 						{
 							HEALTH_LOGGER.debug("{}{} block2 transfers", tag, block2Transfers.size());
-							Iterator<Block2BlockwiseStatus> iterator = block2Transfers.valuesIterator();
+							Iterator<Block2BlockwiseStatus> iterator = block2Transfers.valuesIterator(false);
 							int max = 5;
 							while (iterator.hasNext()) {
 								HEALTH_LOGGER.debug("   block2 {}", iterator.next());
@@ -298,10 +324,18 @@ public class BlockwiseLayer extends AbstractLayer {
 							}
 						}
 						HEALTH_LOGGER.debug("{}{} block2 responses ignored", tag, ignoredBlock2.get());
+						cleanupExpiredBlockStatus(true);
 					}
 				}
 			}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
 		}
+		cleanup = secondaryExecutor.scheduleAtFixedRate(new Runnable() {
+
+			@Override
+			public void run() {
+				cleanupExpiredBlockStatus(false);
+			}
+		}, blockInterval, blockInterval, TimeUnit.MILLISECONDS);
 	}
 
 	@Override
@@ -309,6 +343,10 @@ public class BlockwiseLayer extends AbstractLayer {
 		if (statusLogger != null) {
 			statusLogger.cancel(false);
 			statusLogger = null;
+		}
+		if (cleanup != null) {
+			cleanup.cancel(false);
+			cleanup = null;
 		}
 	}
 
@@ -548,16 +586,14 @@ public class BlockwiseLayer extends AbstractLayer {
 			BlockOption block2 = request.getOptions().getBlock2();
 			block = status.getNextResponseBlock(block2);
 			complete = status.isComplete();
-			if (!complete) {
-				prepareBlock2Cleanup(status, key);
-				LOGGER.debug("peer has requested intermediary block of blockwise transfer: {}", status);
-			}
 		}
 
 		if (complete) {
 			// clean up blockwise status
 			LOGGER.debug("peer has requested last block of blockwise transfer: {}", status);
 			clearBlock2Status(key, status);
+		} else {
+			LOGGER.debug("peer has requested intermediary block of blockwise transfer: {}", status);
 		}
 
 		exchange.setCurrentResponse(block);
@@ -942,7 +978,6 @@ public class BlockwiseLayer extends AbstractLayer {
 
 				LOGGER.debug("sending (next) Block1 [num={}]: {}", num, nextBlock);
 				exchange.setCurrentRequest(nextBlock);
-				prepareBlock1Cleanup(status, key);
 				lower().sendRequest(exchange, nextBlock);
 			}
 		} catch (RuntimeException ex) {
@@ -1169,7 +1204,6 @@ public class BlockwiseLayer extends AbstractLayer {
 			} else {
 				LOGGER.debug("requesting next Block2 [num={}]: {}", nextNum, block);
 				exchange.setCurrentRequest(block);
-				prepareBlock2Cleanup(status, key);
 				lower().sendRequest(exchange, block);
 			}
 		} catch (RuntimeException ex) {
@@ -1232,17 +1266,14 @@ public class BlockwiseLayer extends AbstractLayer {
 				size = block1Transfers.size();
 			}
 		}
-		if (previousStatus != null && !previousStatus.isComplete()) {
+		if (previousStatus != null && previousStatus.cancelRequest()) {
 			LOGGER.debug("stop previous block1 transfer {} {} for new {}", key, previousStatus, request);
-			previousStatus.cancelRequest();
-			previousStatus.setComplete(true);
 		}
 		if (size != null) {
 			LOGGER.debug("created tracker for outbound block1 transfer {}, transfers in progress: {}", status, size);
 		} else {
 			LOGGER.debug("block1 transfer {} for {}", key, request);
 		}
-		prepareBlock1Cleanup(status, key);
 		return status;
 	}
 
@@ -1283,9 +1314,8 @@ public class BlockwiseLayer extends AbstractLayer {
 				size = block1Transfers.size();
 			}
 		}
-		if (previousStatus != null && !previousStatus.isComplete()) {
+		if (previousStatus != null && previousStatus.complete()) {
 			LOGGER.debug("stop previous block1 transfer {} {} for new {}", key, previousStatus, request);
-			previousStatus.setComplete(true);
 		}
 		if (size != null) {
 			LOGGER.debug("created tracker for inbound block1 transfer {}, transfers in progress: {}", status, size);
@@ -1294,7 +1324,6 @@ public class BlockwiseLayer extends AbstractLayer {
 		}
 		// we register a clean up task in case the peer does not retrieve all
 		// blocks
-		prepareBlock1Cleanup(status, key);
 		return status;
 	}
 
@@ -1334,9 +1363,8 @@ public class BlockwiseLayer extends AbstractLayer {
 				size  = block2Transfers.size();
 			}
 		}
-		if (previousStatus != null && !previousStatus.isComplete()) {
+		if (previousStatus != null && previousStatus.completeResponse()) {
 			LOGGER.debug("stop previous block2 transfer {} {} for new {}", key, previousStatus, response);
-			previousStatus.completeResponse();
 		}
 		if (size != null) {
 			LOGGER.debug("created tracker for outbound block2 transfer {}, transfers in progress: {}", status,
@@ -1344,8 +1372,6 @@ public class BlockwiseLayer extends AbstractLayer {
 		} else {
 			LOGGER.debug("block2 transfer {} for {}", key, response);
 		}
-		// we register a clean up task in case the peer does not retrieve all blocks
-		prepareBlock2Cleanup(status, key);
 		return status;
 	}
 
@@ -1431,6 +1457,28 @@ public class BlockwiseLayer extends AbstractLayer {
 	}
 
 	/**
+	 * Cleanup expired block status.
+	 * 
+	 * @param dump {code true}, always log using {@link #HEALTH_LOGGER} with
+	 *            {@code debug}, {@code false}, log only using {@link #LOGGER}
+	 *            with {@code info}, when expired status are removed.
+	 */
+	private void cleanupExpiredBlockStatus(boolean dump) {
+		int count = 0;
+		synchronized (block1Transfers) {
+			count += block1Transfers.removeExpiredEntries(128);
+		}
+		synchronized (block2Transfers) {
+			count += block2Transfers.removeExpiredEntries(128);
+		}
+		if (dump) {
+			HEALTH_LOGGER.debug("{}cleaned up {} block transfers!", tag, count);
+		} else if (enableStatus && count > 0) {
+			LOGGER.info("{}cleaned up {} block transfers!", tag, count);
+		}
+	}
+
+	/**
 	 * Clear block1status.
 	 * 
 	 * Synchronized on {@link #block1Transfers}.
@@ -1447,9 +1495,8 @@ public class BlockwiseLayer extends AbstractLayer {
 			removedTracker = block1Transfers.remove(key, status);
 			size = block1Transfers.size();
 		}
-		if (removedTracker != null) {
+		if (removedTracker != null && removedTracker.complete()) {
 			LOGGER.debug("removing block1 tracker [{}], block1 transfers still in progress: {}", key, size);
-			removedTracker.setComplete(true);
 		}
 		return removedTracker;
 	}
@@ -1471,9 +1518,8 @@ public class BlockwiseLayer extends AbstractLayer {
 			removedTracker = block2Transfers.remove(key, status);
 			size = block2Transfers.size();
 		}
-		if (removedTracker != null) {
+		if (removedTracker != null && removedTracker.complete()) {
 			LOGGER.debug("removing block2 tracker [{}], block2 transfers still in progress: {}", key, size);
-			removedTracker.setComplete(true);
 		}
 		return removedTracker;
 	}
@@ -1521,33 +1567,6 @@ public class BlockwiseLayer extends AbstractLayer {
 		return maxPayloadSize;
 	}
 
-	/**
-	 * Schedules a task for cleaning up state when a block1 transfer times out.
-	 * 
-	 * @param status The tracker for the block1 transfer to clean up for.
-	 * @param key The key of the tracker.
-	 */
-	protected void prepareBlock1Cleanup(final Block1BlockwiseStatus status, final KeyUri key) {
-
-		LOGGER.debug("scheduling clean up task for block1 transfer {}", key);
-		ScheduledFuture<?> taskHandle = scheduleBlockCleanupTask(new Runnable() {
-
-			@Override
-			public void run() {
-				try {
-					if (!status.isComplete()) {
-						LOGGER.debug("block1 transfer timed out: {}", key);
-						status.timeoutCurrentTranfer();
-					}
-					clearBlock1Status(key, status);
-				} catch (Exception e) {
-					LOGGER.debug("Unexcepted error while block1 cleaning", e);
-				}
-			}
-		});
-		status.setBlockCleanupHandle(taskHandle);
-	}
-
 	private MessageObserver addBlock1CleanUpObserver(final Request message, final KeyUri key,
 			final Block1BlockwiseStatus status) {
 
@@ -1584,45 +1603,6 @@ public class BlockwiseLayer extends AbstractLayer {
 		};
 		message.addMessageObserver(observer);
 		return observer;
-	}
-
-	/**
-	 * Schedules a task for cleaning up state when a block2 transfer times out.
-	 * 
-	 * @param status The tracker for the block2 transfer to clean up for.
-	 * @param key The key of the tracker.
-	 */
-	protected void prepareBlock2Cleanup(final Block2BlockwiseStatus status, final KeyUri key) {
-
-		LOGGER.debug("scheduling clean up task for block2 transfer {}", key);
-		ScheduledFuture<?> taskHandle = scheduleBlockCleanupTask(new Runnable() {
-
-			@Override
-			public void run() {
-				try {
-					if (!status.isComplete()) {
-						LOGGER.debug("block2 transfer timed out: {}", key);
-						status.timeoutCurrentTranfer();
-					}
-					clearBlock2Status(key, status);
-				} catch (Exception e) {
-					LOGGER.debug("Unexcepted error while block2 cleaning", e);
-				}
-			}
-		});
-		status.setBlockCleanupHandle(taskHandle);
-	}
-
-	private ScheduledFuture<?> scheduleBlockCleanupTask(final Runnable task) {
-
-		// prevent RejectedExecutionException
-		if (executor.isShutdown()) {
-			LOGGER.info("Endpoint is being destroyed: skipping block clean-up");
-			return null;
-
-		} else {
-			return executor.schedule(task , blockTimeout, TimeUnit.MILLISECONDS);
-		}
 	}
 
 	public boolean isEmpty() {

@@ -101,6 +101,7 @@ public class BlockwiseClientSideTest {
 
 	private static final int TEST_EXCHANGE_LIFETIME = 247; // milliseconds
 	private static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 100; // milliseconds
+	private static final int TEST_BLOCKWISE_STATUS_INTERVAL = 50;
 	private static final int TEST_BLOCKWISE_STATUS_LIFETIME = 300;
 
 	private static final int MAX_RESOURCE_BODY_SIZE = 1024;
@@ -130,6 +131,7 @@ public class BlockwiseClientSideTest {
 				.setInt(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1)
 				.setInt(NetworkConfig.Keys.MAX_RETRANSMIT, 2)
 				.setInt(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1)
+				.setInt(NetworkConfig.Keys.BLOCKWISE_STATUS_INTERVAL, TEST_BLOCKWISE_STATUS_INTERVAL)
 				.setInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, TEST_BLOCKWISE_STATUS_LIFETIME);
 
 		client = new CoapTestEndpoint(TestTools.LOCALHOST_EPHEMERAL, config);
