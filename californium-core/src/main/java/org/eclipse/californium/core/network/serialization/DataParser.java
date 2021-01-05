@@ -124,14 +124,29 @@ public abstract class DataParser {
 	protected abstract MessageHeader parseHeader(DatagramReader reader);
 
 	/**
+	 * Assert, if options are supported for the specific protocol flavor.
+	 * 
+	 * @param options option set to validate.
+	 * @throws IllegalArgumentException if at least one option is not valid for
+	 *             the specific flavor.
+	 * @since 3.0
+	 */
+	protected void assertValidOptions(OptionSet options) {
+		// empty default implementation
+	}
+
+	/**
 	 * Parse options and payload from reader.
 	 * 
 	 * @param reader reader that contains the bytes to parse
 	 * @param message message to set parsed options and payload
 	 * @throws NullPointerException if one of the provided parameters is
 	 *             {@code null}
+	 * @since 3.0 not longer {@code static}. Please create either a
+	 *        {@link TcpDataParser} or a {@link UdpDataParser} in order to
+	 *        validate the options according the protocol flavor.
 	 */
-	public static void parseOptionsAndPayload(DatagramReader reader, Message message) {
+	public void parseOptionsAndPayload(DatagramReader reader, Message message) {
 		if (reader == null) {
 			throw new NullPointerException("reader must not be null!");
 		}
@@ -143,46 +158,51 @@ public abstract class DataParser {
 
 		while (reader.bytesAvailable()) {
 			nextByte = reader.readNextByte();
-			if (nextByte != PAYLOAD_MARKER) {
-				// the first 4 bits of the byte represent the option delta
-				int optionDeltaNibble = (0xF0 & nextByte) >> 4;
-				currentOptionNumber = calculateNextOptionNumber(reader, currentOptionNumber, optionDeltaNibble, message);
-
-				// the second 4 bits represent the option length
-				int optionLengthNibble = 0x0F & nextByte;
-				int optionLength = determineValueFromNibble(reader, optionLengthNibble, message);
-
-				// read option
-				if (reader.bytesAvailable(optionLength)) {
-					try {
-						Option option = new Option(currentOptionNumber);
-						option.setValue(reader.readBytes(optionLength));
-
-						if (currentOptionNumber == OptionNumberRegistry.CONTENT_FORMAT) {
-							// OptionSet.setContentFormat(int) API weird => cleanup on 3.0
-							int format = option.getIntegerValue();
-							message.getOptions().setContentFormat(format);
-							if (!message.getOptions().hasContentFormat()) {
-								throw new IllegalArgumentException(
-										"Content Format option must be between 0 and " + MediaTypeRegistry.MAX_TYPE + " (2 bytes) inclusive");
-							}
-						} else {
-							// add option to message
-							message.getOptions().addOption(option);
-						}
-					} catch (IllegalArgumentException ex) {
-						throw new CoAPMessageFormatException(ex.getMessage(), message.getToken(), message.getMID(), message.getRawCode(), message.isConfirmable());
-					}
-				} else {
-					String msg = String.format(
-							"Message contains option of length %d with only fewer bytes left in the message",
-							optionLength);
-					throw new CoAPMessageFormatException(msg, message.getToken(), message.getMID(), message.getRawCode(), message.isConfirmable());
-				}
-			} else
+			if (nextByte == PAYLOAD_MARKER) {
 				break;
-		}
+			}
+			// the first 4 bits of the byte represent the option delta
+			int optionDeltaNibble = (0xF0 & nextByte) >> 4;
+			currentOptionNumber = calculateNextOptionNumber(reader, currentOptionNumber, optionDeltaNibble, message);
 
+			// the second 4 bits represent the option length
+			int optionLengthNibble = 0x0F & nextByte;
+			int optionLength = determineValueFromNibble(reader, optionLengthNibble, message);
+
+			// read option
+			if (reader.bytesAvailable(optionLength)) {
+				try {
+					Option option = new Option(currentOptionNumber);
+					option.setValue(reader.readBytes(optionLength));
+
+					if (currentOptionNumber == OptionNumberRegistry.CONTENT_FORMAT) {
+						// OptionSet.setContentFormat(int) API weird => cleanup on 3.0
+						int format = option.getIntegerValue();
+						message.getOptions().setContentFormat(format);
+						if (!message.getOptions().hasContentFormat()) {
+							throw new IllegalArgumentException(
+									"Content Format option must be between 0 and " + MediaTypeRegistry.MAX_TYPE + " (2 bytes) inclusive");
+						}
+					} else {
+						// add option to message
+						message.getOptions().addOption(option);
+					}
+				} catch (IllegalArgumentException ex) {
+					throw new CoAPMessageFormatException(ex.getMessage(), message.getToken(), message.getMID(), message.getRawCode(), message.isConfirmable());
+				}
+			} else {
+				String msg = String.format(
+						"Message contains option of length %d with only fewer bytes left in the message",
+						optionLength);
+				throw new CoAPMessageFormatException(msg, message.getToken(), message.getMID(), message.getRawCode(), message.isConfirmable());
+			}
+		}
+		try {
+			assertValidOptions(message.getOptions());
+		} catch (IllegalArgumentException ex) {
+			throw new CoAPMessageFormatException(ex.getMessage(), message.getToken(), message.getMID(),
+					message.getRawCode(), message.isConfirmable());
+		}
 		if (nextByte == PAYLOAD_MARKER) {
 			// the presence of a marker followed by a zero-length payload must be processed as a message format error
 			if (!reader.bytesAvailable()) {
@@ -195,6 +215,7 @@ public abstract class DataParser {
 					message.setUnintendedPayload();
 				}
 				message.setPayload(reader.readBytesLeft());
+				message.assertPayloadMatchsBlocksize();
 			}
 		} else {
 			message.setPayload((String) null);

@@ -321,6 +321,14 @@ public class Request extends Message {
 		return this;
 	}
 
+	@Override
+	public void assertPayloadMatchsBlocksize() {
+		BlockOption block1 = getOptions().getBlock1();
+		if (block1 != null) {
+			block1.assertPayloadSize(getPayloadSize());
+		}
+	}
+
 	/**
 	 * Sets this request's proxy URI.
 	 * <p>

@@ -1030,7 +1030,7 @@ public class ObserveClientSideTest {
 	public void testCancelledWhileBlock2Notification() throws Exception {
 
 		System.out.println("cancelled block2 transfer:");
-		respPayload = generateRandomPayload(300);
+		respPayload = generateRandomPayload(45);
 		String path = "test";
 
 		// Established new observe relation with block2

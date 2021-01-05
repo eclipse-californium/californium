@@ -710,6 +710,15 @@ public abstract class Message {
 	}
 
 	/**
+	 * Check, if the payload size matches the {@link BlockOption#getSize()}.
+	 * 
+	 * @throw {@link IllegalStateException} if the {@link BlockOption} is
+	 *        provided but the payload exceeds that.
+	 * @since 3.0
+	 */
+	public abstract void assertPayloadMatchsBlocksize();
+
+	/**
 	 * Get destination endpoint context.
 	 * 
 	 * May be {@code null} for {@link Request} during it's construction.

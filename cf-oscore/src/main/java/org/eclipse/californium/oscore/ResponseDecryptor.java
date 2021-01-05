@@ -29,7 +29,7 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
-import org.eclipse.californium.core.network.serialization.DataParser;
+import org.eclipse.californium.core.network.serialization.UdpDataParser;
 import org.eclipse.californium.cose.Encrypt0Message;
 import org.eclipse.californium.elements.util.DatagramReader;
 
@@ -107,7 +107,7 @@ public class ResponseDecryptor extends Decryptor {
 			
 			// resets option so eOptions gets priority during parse
 			response.setOptions(EMPTY);
-			DataParser.parseOptionsAndPayload(reader, response);
+			new UdpDataParser().parseOptionsAndPayload(reader, response);
 		} catch (Exception e) {
 			LOGGER.error(ErrorDescriptions.DECRYPTION_FAILED);
 			throw new OSException(ErrorDescriptions.DECRYPTION_FAILED);
