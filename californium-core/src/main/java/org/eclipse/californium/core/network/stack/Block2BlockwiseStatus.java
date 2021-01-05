@@ -354,7 +354,6 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 		synchronized (this) {
 			oldExchange = this.exchange;
 			// stop old cleanup task
-			setBlockCleanupHandle(null);
 			this.exchange = null;
 			this.followUpEndpointContext = null;
 		}
@@ -398,14 +397,15 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 	}
 
 	final boolean completeResponse() {
-		Response response;
-		synchronized (this) {
-			response = this.response;
-		}
-		if (response != null) {
-			setComplete(true);
-			response.onComplete();
-			return true;
+		if (complete()) {
+			Response response;
+			synchronized (this) {
+				response = this.response;
+			}
+			if (response != null) {
+				response.onComplete();
+				return true;
+			}
 		}
 		return false;
 	}

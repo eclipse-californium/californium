@@ -64,7 +64,14 @@ public class NetworkConfigDefaults {
 	 * EXCHANGE_LIFETIME of 247s.
 	 */
 	public static final int DEFAULT_BLOCKWISE_STATUS_LIFETIME = 5 * 60 * 1000; // 5 mins [ms]
-	
+
+	/**
+	 * The default interval for removing expired/stale blockwise entries.
+	 * 
+	 * @since 3.0
+	 */
+	public static final int DEFAULT_BLOCKWISE_STATUS_INTERVAL = 5 * 1000; // 5s [ms]
+
 	/**
 	 * The default mode used to respond for early blockwise negotiation when response can be sent on one packet.
 	 * <p>
@@ -221,6 +228,7 @@ public class NetworkConfigDefaults {
 		config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_MAX_MESSAGE_SIZE);
 		config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_BODY_SIZE);
 		config.setInt(Keys.BLOCKWISE_STATUS_LIFETIME, DEFAULT_BLOCKWISE_STATUS_LIFETIME); // [ms]
+		config.setInt(Keys.BLOCKWISE_STATUS_INTERVAL, DEFAULT_BLOCKWISE_STATUS_INTERVAL); // [ms]
 		config.setBoolean(Keys.BLOCKWISE_STRICT_BLOCK2_OPTION, DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION);
 		config.setBoolean(Keys.BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER, DEFAULT_BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER);
 

@@ -159,13 +159,24 @@ public final class Block1BlockwiseStatus extends BlockwiseStatus {
 	}
 
 	/**
-	 * Cancels the request that started the block1 transfer that this is the tracker for.
+	 * Cancels the request that started the block1 transfer that this is the
+	 * tracker for.
 	 * <p>
-	 * This method simply invokes {@link Request#cancel()}.
+	 * {@link #complete()} status and invokes {@link Request#cancel()}, when
+	 * {@code true} gets returned.
+	 * 
+	 * @return {@code true}, if the transfer is completed, {@code false}, if the
+	 *         transfer was already completed.
+	 * @since 3.0 the return values was added.
 	 */
-	public void cancelRequest() {
-		if (request != null) {
-			request.cancel();
+	public boolean cancelRequest() {
+		if (complete()) {
+			if (request != null) {
+				request.cancel();
+			}
+			return true;
+		} else {
+			return false;
 		}
 	}
 

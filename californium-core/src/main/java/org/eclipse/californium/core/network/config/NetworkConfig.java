@@ -189,7 +189,16 @@ public final class NetworkConfig {
 		 * {@link NetworkConfigDefaults#DEFAULT_BLOCKWISE_STATUS_LIFETIME}.
 		 */
 		public static final String BLOCKWISE_STATUS_LIFETIME = "BLOCKWISE_STATUS_LIFETIME";
-		
+		/**
+		 * The interval for removing expired/stale blockwise entries.
+		 * <p>
+		 * The default value of this property is
+		 * {@link NetworkConfigDefaults#DEFAULT_BLOCKWISE_STATUS_INTERVAL}.
+		 * 
+		 * @since 3.0
+		 */
+		public static final String BLOCKWISE_STATUS_INTERVAL = "BLOCKWISE_STATUS_INTERVAL";
+
 		/**
 		 * Property to indicate if the response should always include the Block2 option when client request early blockwise negociation but the response can be sent on one packet.
 		 * <p>
