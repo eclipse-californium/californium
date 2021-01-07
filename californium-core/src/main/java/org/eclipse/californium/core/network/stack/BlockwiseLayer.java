@@ -127,7 +127,6 @@ import org.slf4j.LoggerFactory;
  * <li>{@link #getInboundBlock1Status(KeyUri, Exchange, Request, boolean)}</li>
  * <li>{@link #getOutboundBlock2Status(KeyUri, Exchange, Response, boolean)}</li>
  * <li>{@link #getInboundBlock2Status(KeyUri, Exchange, Response)}</li>
- * <li>{@link #addRandomAccessBlock2Status(Exchange, Request)}</li>
  * <li>{@link #getBlock1Status(KeyUri)}</li>
  * <li>{@link #getBlock2Status(KeyUri)}</li>
  * <li>{@link #clearBlock1Status(KeyUri, Block1BlockwiseStatus)}</li>
@@ -357,16 +356,13 @@ public class BlockwiseLayer extends AbstractLayer {
 
 		if (isTransparentBlockwiseHandlingEnabled() && !request.isMulticast()) {
 
-			BlockOption block2 = request.getOptions().getBlock2();
-			if (block2 != null && block2.getNum() > 0) {
+			if (isRandomAccess(exchange)) {
 				// This is the case if the user has explicitly added a block option
 				// for random access.
 				// Note: We do not regard it as random access when the block number is 0.
 				// This is because the user might just want to do early block
 				// size negotiation but actually want to retrieve the whole body by means of
 				// a transparent blockwise transfer.
-				LOGGER.debug("outbound request contains block2 option, creating random-access blockwise status");
-				addRandomAccessBlock2Status(exchange, request);
 			} else {
 				KeyUri key = getKey(exchange, request);
 				Block2BlockwiseStatus status = getBlock2Status(key);
@@ -387,7 +383,7 @@ public class BlockwiseLayer extends AbstractLayer {
 					clearBlock2Status(key, status);
 					status.completeOldTransfer(null);
 				}
-				
+
 				if (requiresBlockwise(request)) {
 					// This must be a large POST or PUT request
 					requestToSend = startBlockwiseUpload(exchange, request, preferredBlockSize);
@@ -551,7 +547,7 @@ public class BlockwiseLayer extends AbstractLayer {
 					assembled.setToken(request.getToken());
 					// copy scheme
 					assembled.setScheme(request.getScheme());
-					
+
 					// make sure peer's early negotiation of block2 size gets included
 					assembled.getOptions().setBlock2(request.getOptions().getBlock2());
 
@@ -746,10 +742,13 @@ public class BlockwiseLayer extends AbstractLayer {
 			if (response.getMaxResourceBodySize() == 0) {
 				response.setMaxResourceBodySize(exchange.getRequest().getMaxResourceBodySize());
 			}
-			KeyUri key = getKey(exchange, response);
-			Block2BlockwiseStatus status = getBlock2Status(key);
-			if (discardBlock2(key, status, exchange, response)) {
-				return;
+
+			if (!isRandomAccess(exchange)) {
+				KeyUri key = getKey(exchange, response);
+				Block2BlockwiseStatus status = getBlock2Status(key);
+				if (discardBlock2(key, status, exchange, response)) {
+					return;
+				}
 			}
 
 			if (!response.hasBlockOption()) {
@@ -1074,6 +1073,10 @@ public class BlockwiseLayer extends AbstractLayer {
 			// should be removed in 3.x
 			exchange.getRequest().cancel();
 
+		} else if (isRandomAccess(exchange)) {
+			// The client has requested this specific block and we deliver it
+			exchange.setResponse(response);
+			upper().receiveResponse(exchange, response);
 		} else {
 			Block2BlockwiseStatus status;
 			synchronized (block2Transfers) {
@@ -1088,14 +1091,7 @@ public class BlockwiseLayer extends AbstractLayer {
 				// We got the block we expected :-)
 				LOGGER.debug("processing incoming block2 response [num={}]: {}", block2.getNum(), response);
 
-				if (status.isRandomAccess()) {
-
-					// The client has requested this specific block and we deliver it
-					exchange.setResponse(response);
-					clearBlock2Status(key, status);
-					upper().receiveResponse(exchange, response);
-
-				} else if (!status.addBlock(response)) {
+				if (!status.addBlock(response)) {
 
 					String msg = "cannot process payload of block2 response, aborting request";
 					LOGGER.debug(msg);
@@ -1403,30 +1399,6 @@ public class BlockwiseLayer extends AbstractLayer {
 	}
 
 	/**
-	 * Add random access block2status.
-	 * 
-	 * Synchronized on {@link #block2Transfers}.
-	 * 
-	 * @param exchange blockwise exchange
-	 * @param request blockwise request
-	 * @return uri-key
-	 */
-	private KeyUri addRandomAccessBlock2Status(final Exchange exchange, final Request request) {
-
-		KeyUri key = getKey(exchange, request);
-		int size;
-		Block2BlockwiseStatus status = Block2BlockwiseStatus.forRandomAccessRequest(exchange, request);
-		synchronized (block2Transfers) {
-			block2Transfers.put(key, status);
-			size = block2Transfers.size();
-		}
-		enableStatus = true;
-		addBlock2CleanUpObserver(request, key, status);
-		LOGGER.debug("created tracker for random access block2 retrieval {}, transfers in progress: {}", status, size);
-		return key;
-	}
-
-	/**
 	 * Get block1status.
 	 * 
 	 * Synchronized on {@link #block1Transfers}.
@@ -1545,6 +1517,20 @@ public class BlockwiseLayer extends AbstractLayer {
 					maxMessageSize);
 		}
 		return blockwiseRequired;
+	}
+
+	/**
+	 * Check, if exchange is a random-access blockwise exchange.
+	 * 
+	 * @param exchange exchange to check.
+	 * @return {@code true}, if the initiating request,
+	 *         {@link Exchange#getRequest()}, contains a block2 option with a
+	 *         block-number larger as 0. {@code false}, otherwise.
+	 * @since 3.0
+	 */
+	private boolean isRandomAccess(final Exchange exchange) {
+		BlockOption block2 = exchange.getRequest().getOptions().getBlock2();
+		return block2 != null && block2.getNum() > 0;
 	}
 
 	private boolean isTransparentBlockwiseHandlingEnabled() {

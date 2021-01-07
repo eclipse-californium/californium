@@ -50,7 +50,6 @@ public abstract class BlockwiseStatus {
 
 	private final int contentFormat;
 
-	protected boolean randomAccess;
 	protected final ByteBuffer buf;
 	protected Exchange exchange;
 	protected EndpointContext followUpEndpointContext;
@@ -277,17 +276,8 @@ public abstract class BlockwiseStatus {
 
 	@Override
 	public synchronized String toString() {
-		return String.format("[currentNum=%d, currentSzx=%d, bufferSize=%d, complete=%b, random access=%b]",
-				currentNum, currentSzx, getBufferSize(), complete, randomAccess);
-	}
-
-	/**
-	 * Checks whether this status object is used for tracking random block access only.
-	 * 
-	 * @return {@code true} if this tracker is used for random block access only.
-	 */
-	public final synchronized boolean isRandomAccess() {
-		return randomAccess;
+		return String.format("[currentNum=%d, currentSzx=%d, bufferSize=%d, complete=%b]",
+				currentNum, currentSzx, getBufferSize(), complete);
 	}
 
 	/**
