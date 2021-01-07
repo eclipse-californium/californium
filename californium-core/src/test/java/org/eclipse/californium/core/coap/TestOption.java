@@ -15,7 +15,18 @@
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
+import static org.eclipse.californium.core.coap.CoAP.MessageFormat.CODE_BITS;
+import static org.eclipse.californium.core.coap.CoAP.MessageFormat.MESSAGE_ID_BITS;
+import static org.eclipse.californium.core.coap.CoAP.MessageFormat.TOKEN_LENGTH_BITS;
+import static org.eclipse.californium.core.coap.CoAP.MessageFormat.TYPE_BITS;
+import static org.eclipse.californium.core.coap.CoAP.MessageFormat.VERSION;
+import static org.eclipse.californium.core.coap.CoAP.MessageFormat.VERSION_BITS;
+
 import java.util.Arrays;
+
+import org.eclipse.californium.core.network.serialization.DataSerializer;
+import org.eclipse.californium.core.network.serialization.MessageHeader;
+import org.eclipse.californium.elements.util.DatagramWriter;
 
 /**
  * A utility to test malicious options.
@@ -37,4 +48,32 @@ public final class TestOption {
 		return new Option(number).setValueUnchecked(value);
 	}
 
+	/**
+	 * Test {@link DataSerializer} to serialize malformed messages for tests.
+	 */
+	public static class TestDataSerializer extends DataSerializer {
+
+		protected void serializeMessage(DatagramWriter writer, Message message) {
+			int mid = message.getMID();
+			if (mid == Message.NONE) {
+				IllegalArgumentException ex = new IllegalArgumentException("MID required for UDP serialization!");
+				throw ex;
+			}
+			MessageHeader header = new MessageHeader(CoAP.VERSION, message.getType(), message.getToken(),
+					message.getRawCode(), mid, -1);
+			serializeHeader(writer, header);
+			writer.writeCurrentByte();
+			serializeOptionsAndPayload(writer, message.getOptions(), message.getPayload());
+		}
+
+		@Override 
+		protected void serializeHeader(final DatagramWriter writer, final MessageHeader header) {
+			writer.write(VERSION, VERSION_BITS);
+			writer.write(header.getType().value, TYPE_BITS);
+			writer.write(header.getToken().length(), TOKEN_LENGTH_BITS);
+			writer.write(header.getCode(), CODE_BITS);
+			writer.write(header.getMID(), MESSAGE_ID_BITS);
+			writer.writeBytes(header.getToken().getBytes());
+		}
+	}
 }

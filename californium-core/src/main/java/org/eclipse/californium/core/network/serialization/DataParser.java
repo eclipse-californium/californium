@@ -27,6 +27,7 @@
 package org.eclipse.californium.core.network.serialization;
 
 import org.eclipse.californium.core.coap.*;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.util.DatagramReader;
 
@@ -85,6 +86,8 @@ public abstract class DataParser {
 				message.setBytes(msg);
 				return message;
 			}
+		} catch (CoAPMessageFormatException e) {
+			throw e;
 		} catch (MessageFormatException e) {
 			/** use message to add CoAP message specific information */
 			errorMsg = e.getMessage();
@@ -201,7 +204,7 @@ public abstract class DataParser {
 			assertValidOptions(message.getOptions());
 		} catch (IllegalArgumentException ex) {
 			throw new CoAPMessageFormatException(ex.getMessage(), message.getToken(), message.getMID(),
-					message.getRawCode(), message.isConfirmable());
+					message.getRawCode(), message.isConfirmable(), ResponseCode.BAD_REQUEST);
 		}
 		if (nextByte == PAYLOAD_MARKER) {
 			// the presence of a marker followed by a zero-length payload must be processed as a message format error

@@ -89,7 +89,6 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Message.OffloadMode;
 import org.eclipse.californium.core.coap.CoAPMessageFormatException;
@@ -1068,7 +1067,7 @@ public class CoapEndpoint implements Endpoint {
 		}
 
 		private void responseBadOption(final RawData raw, final CoAPMessageFormatException cause) {
-			Response response = new Response(ResponseCode.BAD_OPTION);
+			Response response = new Response(cause.getErrorCode());
 			response.setDestinationContext(raw.getEndpointContext());
 			response.setToken(cause.getToken());
 			response.setMID(cause.getMid());

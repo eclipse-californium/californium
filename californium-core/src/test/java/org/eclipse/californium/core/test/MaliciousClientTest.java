@@ -27,12 +27,14 @@ import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.CoapServer;
+import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.TestOption;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
@@ -114,6 +116,21 @@ public class MaliciousClientTest {
 
 		Message reject = waitForMessage(1000);
 		assertThat("malicous NON not ignored", reject, is(nullValue()));
+	}
+
+	@Test
+	public void testBertRequest() throws Exception {
+		BlockOption block = new BlockOption(BlockOption.BERT_SZX, false, 0);
+		Request get = newGet();
+		get.setConfirmable(true);
+		get.getOptions().setBlock2(block);
+		DataSerializer serializer = new TestOption.TestDataSerializer();
+		RawData rawData = serializer.serializeRequest(get);
+		clientConnector.send(rawData);
+
+		Response response = waitForResponse(1000);
+		assertThat("Response missing", response, is(notNullValue()));
+		assertThat("No BAD_REREQUEST response", response.getCode(), is(ResponseCode.BAD_REQUEST));
 	}
 
 	@Test
