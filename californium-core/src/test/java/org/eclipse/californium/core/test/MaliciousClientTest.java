@@ -19,9 +19,9 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.eclipse.californium.core.coap.TestOption.newOption;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -30,7 +30,6 @@ import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Message;
-import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -160,12 +159,6 @@ public class MaliciousClientTest {
 		assertThat("malicous piggybacked response not ignored", reject, is(nullValue()));
 	}
 
-	private static Option newOption(int number, int length) {
-		byte[] value = new byte[length];
-		Arrays.fill(value, (byte) 'p');
-		return new Option(number, value);
-	}
-
 	private static Response newResponse(ResponseCode code) {
 		Response response = new Response(code);
 		response.setDestinationContext(new AddressEndpointContext(serverEndpoint.getAddress()));
@@ -226,4 +219,5 @@ public class MaliciousClientTest {
 
 		return server;
 	}
+
 }

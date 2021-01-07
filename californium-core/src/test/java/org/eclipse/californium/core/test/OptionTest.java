@@ -395,10 +395,10 @@ public class OptionTest {
 		OptionSet options = new OptionSet();
 		options.addETag(new byte[] { 1, 2, 3 });
 		options.addLocationPath("abc");
-		options.addOption(new Option(7));
+		options.addOption(new Option(7, 1));
 		options.addOption(new Option(43));
 		options.addOption(new Option(33));
-		options.addOption(new Option(17));
+		options.addOption(new Option(17, 1));
 
 		// Check that options are in the set
 		Assert.assertTrue(options.hasOption(OptionNumberRegistry.ETAG));
@@ -426,13 +426,13 @@ public class OptionTest {
 		options.setUriPath("/this/is/a/test");
 
 		Assert.assertEquals(
-				"{\"ETag\":[0x010203,0xbeef], \"Location-Path\":\"abc\", \"Uri-Path\":[\"this\",\"is\",\"a\",\"test\"]}",
+				"{\"ETag\":[0x010203,0xBEEF], \"Location-Path\":\"abc\", \"Uri-Path\":[\"this\",\"is\",\"a\",\"test\"]}",
 				options.toString());
 
 		options.setMaxAge(77);
 
 		Assert.assertEquals(
-				"{\"ETag\":[0x010203,0xbeef], \"Location-Path\":\"abc\", \"Uri-Path\":[\"this\",\"is\",\"a\",\"test\"], \"Max-Age\":77}",
+				"{\"ETag\":[0x010203,0xBEEF], \"Location-Path\":\"abc\", \"Uri-Path\":[\"this\",\"is\",\"a\",\"test\"], \"Max-Age\":77}",
 				options.toString());
 	}
 }
