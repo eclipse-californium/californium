@@ -126,13 +126,14 @@ USE_NONESTOP=--no-stop
 # export EXECUTER_LOGGING_QUEUE_SIZE_DIFF=1000
 
 MULTIPLIER=10
-: "${REQS:=$((300 * $MULTIPLIER))}"
+: "${REQS:=$((500 * $MULTIPLIER))}"
 REQS_EXTRA=$(($REQS + ($REQS/10)))
 REV_REQS=$((2 * $REQS))
 : "${NOTIFIES:=$((100 * $MULTIPLIER))}"
 
 : "${PAYLOAD:=40}"
-: "${PAYLOAD_LARGE:=400}"
+: "${PAYLOAD_LARGE:=5000}"
+: "${REQS_LARGE:=$(($PAYLOAD * $REQS / $PAYLOAD_LARGE))}"
 
 : "${UDP_CLIENTS:=$((200 * $CLIENTS_MULTIPLIER))}"
 : "${TCP_CLIENTS:=$((50 * $CLIENTS_MULTIPLIER))}"
@@ -213,18 +214,21 @@ benchmark_all()
 # POST
    if [ ${USE_CON} -ne 0 ] ; then 
       if [ ${USE_LARGE_BLOCK1} -ne 0 ] ; then 
-         benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP} --payload-random ${PAYLOAD_LARGE}
+         benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS_LARGE} ${USE_NONESTOP} --payload-random ${PAYLOAD_LARGE}
       fi
       benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
    fi
 
    if [ ${USE_NON} -ne 0 ] ; then 
       if [ ${USE_LARGE_BLOCK1} -ne 0 ] ; then 
-         benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --non --requests ${REQS} ${USE_NONESTOP} --payload-random ${PAYLOAD_LARGE}
+         benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --non --requests ${REQS_LARGE} ${USE_NONESTOP} --payload-random ${PAYLOAD_LARGE}
       fi
       benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
    fi
 
+   if [ ${USE_LARGE_BLOCK1} -ne 0 ] ; then 
+      benchmark_tcp "benchmark?rlen=${PAYLOAD}" --clients ${TCP_CLIENTS} --requests ${REQS_LARGE} ${USE_NONESTOP} --payload-random ${PAYLOAD_LARGE}
+   fi
    benchmark_tcp "benchmark?rlen=${PAYLOAD}" --clients ${TCP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
    
    if [ ${USE_CON} -ne 0 ] ; then 
