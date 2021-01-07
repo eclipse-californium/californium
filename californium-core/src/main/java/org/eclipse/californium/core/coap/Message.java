@@ -712,7 +712,7 @@ public abstract class Message {
 	/**
 	 * Check, if the payload size matches the {@link BlockOption#getSize()}.
 	 * 
-	 * @throw {@link IllegalStateException} if the {@link BlockOption} is
+	 * @throws IllegalStateException if the {@link BlockOption} is
 	 *        provided but the payload exceeds that.
 	 * @since 3.0
 	 */

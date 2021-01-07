@@ -128,7 +128,7 @@ public final class BlockOption {
 	 * Assert, that the payload-size doesn't exceed blocksize.
 	 * 
 	 * @param payloadSize payload-size to check.
-	 * @throw {@link IllegalStateException} if the payload-size exceeds the
+	 * @throws IllegalStateException if the payload-size exceeds the
 	 *        blocksize.
 	 */
 	public void assertPayloadSize(int payloadSize) {
