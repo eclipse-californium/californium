@@ -132,7 +132,7 @@ public final class TestTools {
 		StringBuilder buffer = new StringBuilder();
 		int counter = 0;
 		while (counter < length) {
-			buffer.append(Integer.toString(RAND.nextInt(10)));
+			buffer.append(Character.forDigit(RAND.nextInt(10), 10));
 			counter++;
 		}
 		return buffer.toString();

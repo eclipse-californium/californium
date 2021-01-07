@@ -360,7 +360,7 @@ public class LockstepEndpoint {
 		while (true) {
 			Message msg = receiveNextMessage(2, TimeUnit.SECONDS);
 			assertNotNull("did not receive message within expected time frame (2 secs)", msg);
-			
+
 			if (null != midExpectation && null != lastIncomingMessage && lastIncomingMessage.getMID() == msg.getMID()
 					&& lastIncomingMessage.getType() == msg.getType() && !midExpectation.expectMID(msg)) {
 				// received message with same MID but not expected
