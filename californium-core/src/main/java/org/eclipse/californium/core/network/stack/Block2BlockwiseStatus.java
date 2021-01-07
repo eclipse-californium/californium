@@ -34,7 +34,6 @@ import org.slf4j.LoggerFactory;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.OptionSet;
-import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.observe.NotificationOrder;
@@ -115,29 +114,6 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 			// keep track of ETag included in response
 			status.etag = block.getOptions().getETags().get(0);
 		}
-		return status;
-	}
-
-	/**
-	 * Creates a new tracker for retrieving an arbitrary block of a resource.
-	 * 
-	 * @param exchange The message exchange the transfer is part of.
-	 * @param request The request for retrieving the block.
-	 * @return The tracker.
-	 * @throws IllegalArgumentException if the request does not contain a block2 option.
-	 */
-	public static Block2BlockwiseStatus forRandomAccessRequest(final Exchange exchange, final Request request) {
-
-		BlockOption block2 = request.getOptions().getBlock2();
-		if (block2 == null) {
-			throw new IllegalArgumentException("request must contain block2 option");
-		}
-		int contentFormat = request.getOptions().getContentFormat();
-		Block2BlockwiseStatus status = new Block2BlockwiseStatus(0, contentFormat);
-		status.randomAccess = true;
-		status.exchange = exchange;
-		status.setCurrentNum(block2.getNum());
-		status.setCurrentSzx(block2.getSzx());
 		return status;
 	}
 
