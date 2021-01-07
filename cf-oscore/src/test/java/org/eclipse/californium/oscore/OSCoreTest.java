@@ -330,7 +330,7 @@ public class OSCoreTest {
 	public void testEncryptDecryptOptions() throws OSException {
 		Request request = Request.newGet().setURI("coap://localhost:5683");
 		request.getOptions().setLocationPath("/test/path");
-		request.getOptions().addOption(new Option(OptionNumberRegistry.OSCORE));
+		request.getOptions().addOption(new Option(OptionNumberRegistry.OSCORE, Bytes.EMPTY));
 		assertEquals(2, request.getOptions().getLocationPathCount());
 		try {
 			request = ObjectSecurityLayer.prepareSend(dbClient, request);
@@ -531,7 +531,7 @@ public class OSCoreTest {
 		Request request = Request.newPost().setURI(uri);
 		request.setToken(token);
 		db.addContext(token, ctx);
-		request.getOptions().addOption(new Option(OptionNumberRegistry.OSCORE));
+		request.getOptions().addOption(new Option(OptionNumberRegistry.OSCORE, Bytes.EMPTY));
 		db.addSeqByToken(token, ctx.getSenderSeq());
 		return ObjectSecurityLayer.prepareSend(db, request);
 	}
@@ -568,7 +568,7 @@ public class OSCoreTest {
 			response.setPayload(responsePayload);
 			response.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
 		}
-		response.getOptions().addOption(new Option(OptionNumberRegistry.OSCORE));
+		response.getOptions().addOption(new Option(OptionNumberRegistry.OSCORE, Bytes.EMPTY));
 		response.setToken(token);
 
 		return ObjectSecurityLayer.prepareSend(null, response, tid, false, false);
