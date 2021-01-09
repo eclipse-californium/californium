@@ -116,6 +116,7 @@ fi
 : "${USE_LARGE_BLOCK1:=1}"
 
 : "${USE_HTTP:=0}"
+: "${USE_REQUEST:=1}"
 : "${USE_REVERSE:=1}"
 : "${USE_OBSERVE:=1}"
 : "${USE_HANDSHAKES:=1}"
@@ -132,6 +133,7 @@ REV_REQS=$((2 * $REQS))
 : "${NOTIFIES:=$((100 * $MULTIPLIER))}"
 
 : "${PAYLOAD:=40}"
+: "${PAYLOAD_MEDIUM:=400}"
 : "${PAYLOAD_LARGE:=5000}"
 : "${REQS_LARGE:=$(($PAYLOAD * $REQS / $PAYLOAD_LARGE))}"
 
@@ -211,29 +213,31 @@ benchmark()
 
 benchmark_all()
 {
+   if [ ${USE_REQUEST} -eq 1 ] ; then
 # POST
-   if [ ${USE_CON} -ne 0 ] ; then 
-      if [ ${USE_LARGE_BLOCK1} -ne 0 ] ; then 
-         benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS_LARGE} ${USE_NONESTOP} --payload-random ${PAYLOAD_LARGE}
+      if [ ${USE_CON} -ne 0 ] ; then 
+         if [ ${USE_LARGE_BLOCK1} -ne 0 ] ; then 
+            benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS_LARGE} ${USE_NONESTOP} --payload-random ${PAYLOAD_LARGE}
+         fi
+         benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
       fi
-      benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
-   fi
 
-   if [ ${USE_NON} -ne 0 ] ; then 
-      if [ ${USE_LARGE_BLOCK1} -ne 0 ] ; then 
-         benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --non --requests ${REQS_LARGE} ${USE_NONESTOP} --payload-random ${PAYLOAD_LARGE}
+      if [ ${USE_NON} -ne 0 ] ; then 
+         if [ ${USE_LARGE_BLOCK1} -ne 0 ] ; then 
+            benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --non --requests ${REQS_LARGE} ${USE_NONESTOP} --payload-random ${PAYLOAD_LARGE}
+         fi
+         benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
       fi
-      benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
-   fi
 
-   if [ ${USE_LARGE_BLOCK1} -ne 0 ] ; then 
-      benchmark_tcp "benchmark?rlen=${PAYLOAD}" --clients ${TCP_CLIENTS} --requests ${REQS_LARGE} ${USE_NONESTOP} --payload-random ${PAYLOAD_LARGE}
-   fi
-   benchmark_tcp "benchmark?rlen=${PAYLOAD}" --clients ${TCP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
+      if [ ${USE_LARGE_BLOCK1} -ne 0 ] ; then 
+         benchmark_tcp "benchmark?rlen=${PAYLOAD}" --clients ${TCP_CLIENTS} --requests ${REQS_LARGE} ${USE_NONESTOP} --payload-random ${PAYLOAD_LARGE}
+      fi
+      benchmark_tcp "benchmark?rlen=${PAYLOAD}" --clients ${TCP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
    
-   if [ ${USE_CON} -ne 0 ] ; then 
+      if [ ${USE_CON} -ne 0 ] ; then 
 # POST separate response
-      benchmark_udp "benchmark?rlen=${PAYLOAD}&ack" --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
+         benchmark_udp "benchmark?rlen=${PAYLOAD}&ack" --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
+      fi
    fi
 
    if [ ${USE_REVERSE} -eq 1 ] ; then
@@ -251,13 +255,13 @@ benchmark_all()
    
 # observe CON 
       if [ ${USE_CON} -ne 0 ] ; then 
-          benchmark_udp "reverse-observe?obs=25000&res=feed-CON&rlen=${PAYLOAD_LARGE}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --reverse ${NOTIFIES} --min 20 --max 100
+          benchmark_udp "reverse-observe?obs=25000&res=feed-CON&rlen=${PAYLOAD_MEDIUM}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --reverse ${NOTIFIES} --min 20 --max 100
       fi      
 # observe NON
       if [ ${USE_CON} -ne 0 ] ; then 
-         benchmark_udp "reverse-observe?obs=25000&res=feed-NON&rlen=${PAYLOAD_LARGE}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --reverse ${NOTIFIES} --min 20 --max 100
+         benchmark_udp "reverse-observe?obs=25000&res=feed-NON&rlen=${PAYLOAD_MEDIUM}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --reverse ${NOTIFIES} --min 20 --max 100
       fi
-      benchmark_tcp "reverse-observe?obs=25000&res=feed-CON&rlen=${PAYLOAD_LARGE}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --reverse ${NOTIFIES} --min 20 --max 100
+      benchmark_tcp "reverse-observe?obs=25000&res=feed-CON&rlen=${PAYLOAD_MEDIUM}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --reverse ${NOTIFIES} --min 20 --max 100
    fi
 }
 
