@@ -424,7 +424,7 @@ public class BlockwiseTransferTest {
 					exchange.respond(SHORT_GET_RESPONSE);
 				} else if (isEmptyResponseRequested(exchange)){
 					
-					exchange.respond(ResponseCode._UNKNOWN_SUCCESS_CODE);
+					exchange.respond(ResponseCode.CONTENT);
 				}else {
 					
 					exchange.respond(LONG_GET_RESPONSE);

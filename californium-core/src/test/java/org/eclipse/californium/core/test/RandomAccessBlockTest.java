@@ -85,6 +85,8 @@ public class RandomAccessBlockTest {
 	@Before
 	public void startupServer() throws Exception {
 		NetworkConfig config = network.getStandardTestConfig()
+			.setInt(Keys.PREFERRED_BLOCK_SIZE, 16)
+			.setInt(Keys.MAX_MESSAGE_SIZE, 32)
 			.setInt(Keys.MAX_RESOURCE_BODY_SIZE, maxBodySize);
 
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
@@ -141,7 +143,6 @@ public class RandomAccessBlockTest {
 
 		for (int i = 0; i < blockOrder.length; i++) {
 			int num = blockOrder[i];
-			System.out.println("Request block number " + num);
 
 			int szx = BlockOption.size2Szx(16);
 			Request request = Request.newGet();
@@ -150,10 +151,57 @@ public class RandomAccessBlockTest {
 
 			CoapResponse response = client.advanced(request);
 			assertNotNull("Client received no response", response);
+			assertThat(response.getCode(), is(ResponseCode.CONTENT));
 			assertThat(response.getResponseText(), is(expectations[i]));
 			assertTrue(response.getOptions().hasBlock2());
-			assertThat(response.getOptions().getBlock2().getNum(), is(num));
+			assertThat(response.getOptions().getBlock2().getOffset(), is(num * 16));
 			assertThat(response.getOptions().getBlock2().getSzx(), is(szx));
+		}
+		client.shutdown();
+	}
+
+	@Test
+	public void testServerReturnsSmallerIndividualBlocks() throws Exception {
+
+		int[] blockOrder = {2,1};
+		int blocksize = 32;
+		int expectedBlocksize = 16;
+		String[] expectations = {
+				RESP_PAYLOAD.substring(64, 80),
+				RESP_PAYLOAD.substring(32, 48)
+		};
+
+		if (maxBodySize == 0) {
+			expectedBlocksize = blocksize;
+			expectations = new String[] {
+					RESP_PAYLOAD.substring(64),
+					RESP_PAYLOAD.substring(32, 64)
+			};
+		}
+
+		String uri = getUri(serverEndpoint, TARGET);
+		CoapClient client = new CoapClient();
+		client.setEndpoint(clientEndpoint);
+		client.setTimeout(1000L);
+
+		for (int i = 0; i < blockOrder.length; i++) {
+			int num = blockOrder[i];
+
+			// 32 is larger than the server's preference 16
+			// server will respond with smaller blockSxz
+			// https://mailarchive.ietf.org/arch/browse/core/?gbt=1&index=fYy61XmXaaDvu2sk_6hg4aP83Yw
+			int szx = BlockOption.size2Szx(blocksize);
+			Request request = Request.newGet();
+			request.setURI(uri);
+			request.getOptions().setBlock2(szx, false, num);
+
+			CoapResponse response = client.advanced(request);
+			assertNotNull("Client received no response", response);
+			assertThat(response.getCode(), is(ResponseCode.CONTENT));
+			assertThat(response.getResponseText(), is(expectations[i]));
+			assertTrue(response.getOptions().hasBlock2());
+			assertThat(response.getOptions().getBlock2().getOffset(), is(num * blocksize));
+			assertThat(response.getOptions().getBlock2().getSize(), is(expectedBlocksize));
 		}
 		client.shutdown();
 	}

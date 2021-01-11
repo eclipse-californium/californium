@@ -1145,13 +1145,31 @@ public abstract class Message {
 	/**
 	 * Checks whether a given block offset falls into this message's payload.
 	 * 
-	 * @param block2 The offset of the block.
+	 * Note: since 3.0 the block option of the message is also used for the
+	 * check. If this message exactly ends at the offset of the provided block,
+	 * this is also reported as overlapping.
+	 * 
+	 * @param block The offset of the block.
 	 * @return {@code true} if this message has a payload and its size is
 	 *         greater then the offset.
 	 */
-	public boolean hasBlock(final BlockOption block2) {
+	public abstract boolean hasBlock(final BlockOption block);
 
-		return 0 < getPayloadSize() && block2.getOffset() < getPayloadSize();
+	/**
+	 * Checks whether a given block offset falls into this message's payload.
+	 * 
+	 * @param block The offset of the block.
+	 * @param messageOffset The offset of the payload within the resource-body.
+	 * @return {@code true} if this message has a payload and its size is
+	 *         greater then the offset.
+	 * @since 3.0
+	 */
+	protected boolean hasBlock(BlockOption block, BlockOption messageOffset) {
+		int offset = block.getOffset();
+		if (messageOffset != null) {
+			offset -= messageOffset.getOffset();
+		}
+		return 0 <= offset && offset <= getPayloadSize();
 	}
 
 	/**
