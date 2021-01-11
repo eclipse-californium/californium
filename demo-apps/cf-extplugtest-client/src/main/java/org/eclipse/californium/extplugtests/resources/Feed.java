@@ -40,6 +40,7 @@ import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.util.FilteredLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,6 +52,9 @@ import org.slf4j.LoggerFactory;
 public class Feed extends CoapResource {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(Feed.class);
+
+	private static final FilteredLogger ERROR_FILTER = new FilteredLogger(LOGGER, 3, TimeUnit.SECONDS.toNanos(10));
+
 	/**
 	 * Resource name.
 	 */
@@ -183,6 +187,7 @@ public class Feed extends CoapResource {
 			if (message != null) {
 				Response response = Response.createResponse(request, BAD_OPTION);
 				response.setPayload(message);
+				response.addMessageObserver(new SendErrorObserver(response));
 				exchange.respond(response);
 				return;
 			}
@@ -239,6 +244,7 @@ public class Feed extends CoapResource {
 			}
 		}
 		response.addMessageObserver(new MessageCompletionObserver(timeout, interval));
+		response.addMessageObserver(new SendErrorObserver(response));
 		exchange.respond(response);
 	}
 
@@ -305,6 +311,35 @@ public class Feed extends CoapResource {
 			} else {
 				LOGGER.info("client[{}] response {}, {} observer.", id, state, getObserverCount());
 			}
+		}
+	}
+
+	private static class SendErrorObserver extends MessageObserverAdapter {
+
+		private final Response response;
+
+		private SendErrorObserver(Response response) {
+			this.response = response;
+		}
+
+		@Override
+		public void onSendError(Throwable error) {
+			ERROR_FILTER.warn("send failed: {} {}", getMessage(error), response);
+			super.onSendError(error);
+		}
+
+		@Override
+		public void onResponseHandlingError(Throwable error) {
+			ERROR_FILTER.warn("respond failed: {} {}", getMessage(error), response);
+			super.onResponseHandlingError(error);
+		}
+
+		private String getMessage(Throwable error) {
+			String message = error.getMessage();
+			if (message == null) {
+				message = error.getClass().getSimpleName();
+			}
+			return message;
 		}
 	}
 }

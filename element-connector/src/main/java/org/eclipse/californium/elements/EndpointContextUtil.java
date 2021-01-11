@@ -18,6 +18,9 @@
 package org.eclipse.californium.elements;
 
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
+
+import org.eclipse.californium.elements.util.FilteredLogger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +30,8 @@ import org.slf4j.LoggerFactory;
 public class EndpointContextUtil {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(EndpointContextUtil.class);
+
+	private static final FilteredLogger WARN_FILTER = new FilteredLogger(LOGGER, 3, TimeUnit.SECONDS.toNanos(10));
 
 	/**
 	 * Match endpoint contexts based on a set of keys.
@@ -52,7 +57,7 @@ public class EndpointContextUtil {
 			}
 			if (!match) {
 				/* logging differences with warning level */
-				LOGGER.warn("{}, {}: \"{}\" != \"{}\"",  name, key, value1, value2);
+				WARN_FILTER.warn("{}, {}: \"{}\" != \"{}\"",  name, key, value1, value2);
 			} else if (trace) {
 				/* logging matches with finest level */
 				LOGGER.trace("{}, {}: \"{}\" == \"{}\"", name, key, value1, value2);
