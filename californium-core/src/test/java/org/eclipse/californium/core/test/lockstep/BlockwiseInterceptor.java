@@ -84,7 +84,12 @@ public abstract class BlockwiseInterceptor {
 	protected final void appendBlockOption(final int nbr, final BlockOption option) {
 		if (option != null) {
 			buffer.append(", ").append(nbr).append(":").append(option.getNum()).append("/").append(option.isM() ? 1 : 0)
-					.append("/").append(option.getSize());
+					.append("/");
+			if (option.isBERT()) {
+				buffer.append("1024(BERT)");
+			} else {
+				buffer.append(option.getSize());
+			}
 		}
 	}
 
