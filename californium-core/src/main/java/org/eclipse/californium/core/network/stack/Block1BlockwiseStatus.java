@@ -40,11 +40,13 @@ public final class Block1BlockwiseStatus extends BlockwiseStatus {
 	 * @param exchange The message exchange the blockwise transfer is part of.
 	 * @param request initial request of the blockwise transfer
 	 * @param maxSize The maximum size of the body to be buffered.
+	 * @param maxTcpBertBulkBlocks The maximum number of bulk blocks for
+	 *            TCP/BERT. {@code 1} or less, disable BERT.
 	 * @since 3.0
 	 */
 	private Block1BlockwiseStatus(KeyUri keyUri, RemoveHandler removeHandler, Exchange exchange, Request request,
-			int maxSize) {
-		super(keyUri, removeHandler, exchange, request, maxSize);
+			int maxSize, int maxTcpBertBulkBlocks) {
+		super(keyUri, removeHandler, exchange, request, maxSize, maxTcpBertBulkBlocks);
 	}
 
 	/**
@@ -54,13 +56,15 @@ public final class Block1BlockwiseStatus extends BlockwiseStatus {
 	 * @param removeHandler remove handler for blockwise status
 	 * @param exchange The message exchange the transfer is part of.
 	 * @param request initial request of the blockwise transfer
+	 * @param maxTcpBertBulkBlocks The maximum number of bulk blocks for
+	 *            TCP/BERT. {@code 1} or less, disable BERT.
 	 * @return The created tracker
 	 * @since 3.0
 	 */
 	public static Block1BlockwiseStatus forOutboundRequest(KeyUri keyUri, RemoveHandler removeHandler,
-			Exchange exchange, Request request) {
+			Exchange exchange, Request request, int maxTcpBertBulkBlocks) {
 		Block1BlockwiseStatus status = new Block1BlockwiseStatus(keyUri, removeHandler, exchange, request,
-				request.getPayloadSize());
+				request.getPayloadSize(), maxTcpBertBulkBlocks);
 		try {
 			status.addBlock(request.getPayload());
 			status.flipBlocksBuffer();
@@ -77,16 +81,19 @@ public final class Block1BlockwiseStatus extends BlockwiseStatus {
 	 * @param removeHandler remove handler for blockwise status
 	 * @param exchange The message exchange the transfer is part of.
 	 * @param block first received block request of the blockwise transfer
+	 * @param maxTcpBertBulkBlocks The maximum number of bulk blocks for
+	 *            TCP/BERT. {@code 1} or less, disable BERT.
 	 * @return The created tracker
 	 * @since 3.0
 	 */
 	public static Block1BlockwiseStatus forInboundRequest(KeyUri keyUri, RemoveHandler removeHandler, Exchange exchange,
-			Request block, int maxBodySize) {
+			Request block, int maxBodySize, int maxTcpBertBulkBlocks) {
 		int bufferSize = maxBodySize;
 		if (block.getOptions().hasSize1()) {
 			bufferSize = block.getOptions().getSize1();
 		}
-		Block1BlockwiseStatus status = new Block1BlockwiseStatus(keyUri, removeHandler, exchange, block, bufferSize);
+		Block1BlockwiseStatus status = new Block1BlockwiseStatus(keyUri, removeHandler, exchange, block, bufferSize,
+				maxTcpBertBulkBlocks);
 		return status;
 	}
 
@@ -172,7 +179,7 @@ public final class Block1BlockwiseStatus extends BlockwiseStatus {
 		}
 
 		if (0 < bodySize && from < bodySize) {
-			byte[] blockPayload = getBlock(from, size);
+			byte[] blockPayload = getBlock(from, getCurrentPayloadSize());
 			if (blockPayload != null) {
 				m = from + blockPayload.length < bodySize;
 				block.setPayload(blockPayload);

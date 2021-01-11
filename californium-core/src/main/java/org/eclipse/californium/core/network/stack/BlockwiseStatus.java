@@ -51,8 +51,9 @@ public abstract class BlockwiseStatus {
 
 	private final RemoveHandler removeHandler;
 	private final KeyUri keyUri;
-	private final int contentFormat;
 	private final ByteBuffer buf;
+	private final int contentFormat;
+	private final int maxTcpBertBulkBlocks;
 	private Exchange exchange;
 	private EndpointContext followUpEndpointContext;
 
@@ -68,10 +69,12 @@ public abstract class BlockwiseStatus {
 	 * @param exchange exchange of the blockwise transfer
 	 * @param first first message of the blockwise transfer
 	 * @param maxSize The maximum size of the body to be buffered.
+	 * @param maxTcpBertBulkBlocks The maximum number of bulk blocks for
+	 *            TCP/BERT. {@code 1} or less, disable BERT.
 	 * @since 3.0
 	 */
 	protected BlockwiseStatus(KeyUri keyUri, RemoveHandler removeHandler, Exchange exchange, Message first,
-			int maxSize) {
+			int maxSize, int maxTcpBertBulkBlocks) {
 		if (keyUri == null) {
 			throw new NullPointerException("Key URI must not be null!");
 		}
@@ -91,6 +94,10 @@ public abstract class BlockwiseStatus {
 		this.exchange = exchange;
 		this.contentFormat = first.getOptions().getContentFormat();
 		this.buf = ByteBuffer.allocate(maxSize);
+		this.maxTcpBertBulkBlocks = maxTcpBertBulkBlocks;
+		if (maxTcpBertBulkBlocks > 1) {
+			currentSzx = BlockOption.BERT_SZX;
+		}
 	}
 
 	/**
@@ -172,6 +179,19 @@ public abstract class BlockwiseStatus {
 	 */
 	protected final int getCurrentSize() {
 		return BlockOption.szx2Size(currentSzx);
+	}
+
+	/**
+	 * Gets the current payload size in bytes.
+	 * 
+	 * @return The number of bytes corresponding to the current szx code and BERT.
+	 */
+	protected final int getCurrentPayloadSize() {
+		int size = getCurrentSize();
+		if (currentSzx == BlockOption.BERT_SZX) {
+			size *= maxTcpBertBulkBlocks;
+		}
+		return size;
 	}
 
 	/**

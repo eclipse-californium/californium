@@ -211,15 +211,16 @@ public class BlockwiseLayer extends AbstractLayer {
 	private volatile boolean enableStatus;
 	private ScheduledFuture<?> statusLogger;
 	private ScheduledFuture<?> cleanup;
-	private int maxMessageSize;
+	private final int maxTcpBertBulkBlocks;
+	private final int maxMessageSize;
 	private final int preferredBlockSzx;
-	private int blockTimeout;
-	private int blockInterval;
-	private int maxResourceBodySize;
-	private boolean strictBlock2Option;
-	private int healthStatusInterval;
+	private final int blockTimeout;
+	private final int blockInterval;
+	private final int maxResourceBodySize;
+	private final boolean strictBlock2Option;
+	private final int healthStatusInterval;
 	/* @since 2.4 */
-	private boolean enableAutoFailoverOn413;
+	private final boolean enableAutoFailoverOn413;
 
 	/**
 	 * Creates a new blockwise layer for a configuration.
@@ -258,15 +259,26 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * </ul>
 	 * 
 	 * @param tag logging tag
+	 * @param enableBert {@code true}, enable TCP/BERT support, if the
+	 *            configured value for {@link Keys#TCP_NUMBER_OF_BULK_BLOCKS} is
+	 *            larger than {@code 1}. {@code false} disable it.
 	 * @param config The configuration values to use.
 	 * @since 3.0 logging tag added
 	 */
-	public BlockwiseLayer(String tag, NetworkConfig config) {
+	public BlockwiseLayer(String tag, boolean enableBert, NetworkConfig config) {
 		this.tag = tag;
+
+		int blockSize = config.getInt(Keys.PREFERRED_BLOCK_SIZE, NetworkConfigDefaults.DEFAULT_PREFERRED_BLOCK_SIZE);
+		int szx = BlockOption.size2Szx(blockSize);
+		String blockSizeDescription = String.valueOf(blockSize);
+		maxTcpBertBulkBlocks = enableBert ? config.getInt(Keys.TCP_NUMBER_OF_BULK_BLOCKS, 1) : 1;
+		if (maxTcpBertBulkBlocks > 1) {
+			// Change the preferredBlockSize to accommodate BERT.
+			szx = BlockOption.BERT_SZX;
+			blockSizeDescription = "1024(BERT)";
+		}
 		maxMessageSize = config.getInt(Keys.MAX_MESSAGE_SIZE, NetworkConfigDefaults.DEFAULT_MAX_MESSAGE_SIZE);
-		int preferredBlockSize = config.getInt(Keys.PREFERRED_BLOCK_SIZE,
-				NetworkConfigDefaults.DEFAULT_PREFERRED_BLOCK_SIZE);
-		preferredBlockSzx = BlockOption.size2Szx(preferredBlockSize);
+		preferredBlockSzx = szx;
 		blockTimeout = config.getInt(Keys.BLOCKWISE_STATUS_LIFETIME,
 				NetworkConfigDefaults.DEFAULT_BLOCKWISE_STATUS_LIFETIME);
 		blockInterval = config.getInt(Keys.BLOCKWISE_STATUS_INTERVAL,
@@ -310,7 +322,7 @@ public class BlockwiseLayer extends AbstractLayer {
 
 		LOGGER.info(
 				"{}BlockwiseLayer uses MAX_MESSAGE_SIZE={}, PREFERRED_BLOCK_SIZE={}, BLOCKWISE_STATUS_LIFETIME={}, MAX_RESOURCE_BODY_SIZE={}, BLOCKWISE_STRICT_BLOCK2_OPTION={}",
-				tag, maxMessageSize, preferredBlockSize, blockTimeout, maxResourceBodySize, strictBlock2Option);
+				tag, maxMessageSize, blockSizeDescription, blockTimeout, maxResourceBodySize, strictBlock2Option);
 	}
 
 	@Override
@@ -622,7 +634,7 @@ public class BlockwiseLayer extends AbstractLayer {
 					// response body
 					// crop the response down to the requested block
 					BlockOption block2 = getLimitedBlockOption(requestBlock2);
-					Block2BlockwiseStatus.crop(responseToSend, block2);
+					Block2BlockwiseStatus.crop(responseToSend, block2, maxTcpBertBulkBlocks);
 				} else {
 					// peer has requested a non existing block
 					responseToSend = Response.createResponse(exchange.getRequest(), ResponseCode.BAD_OPTION);
@@ -661,7 +673,7 @@ public class BlockwiseLayer extends AbstractLayer {
 				// the response fit into one block
 
 				BlockOption block2 = getLimitedBlockOption(requestBlock2);
-				Block2BlockwiseStatus.crop(responseToSend, block2);
+				Block2BlockwiseStatus.crop(responseToSend, block2, maxTcpBertBulkBlocks);
 			}
 
 			BlockOption block1 = exchange.getBlock1ToAck();
@@ -1215,7 +1227,8 @@ public class BlockwiseLayer extends AbstractLayer {
 				status = block1Transfers.get(key);
 			}
 			if (status == null) {
-				status = Block1BlockwiseStatus.forOutboundRequest(key, removeHandler, exchange, request);
+				status = Block1BlockwiseStatus.forOutboundRequest(key, removeHandler, exchange, request,
+						maxTcpBertBulkBlocks);
 				block1Transfers.put(key, status);
 				enableStatus = true;
 				size = block1Transfers.size();
@@ -1264,7 +1277,8 @@ public class BlockwiseLayer extends AbstractLayer {
 				status = block1Transfers.get(key);
 			}
 			if (status == null) {
-				status = Block1BlockwiseStatus.forInboundRequest(key, removeHandler, exchange, request, maxPayloadSize);
+				status = Block1BlockwiseStatus.forInboundRequest(key, removeHandler, exchange, request, maxPayloadSize,
+						maxTcpBertBulkBlocks);
 				block1Transfers.put(key, status);
 				enableStatus = true;
 				size = block1Transfers.size();
@@ -1314,7 +1328,8 @@ public class BlockwiseLayer extends AbstractLayer {
 				status = block2Transfers.get(key);
 			}
 			if (status == null) {
-				status = Block2BlockwiseStatus.forOutboundResponse(key, removeHandler, exchange, response);
+				status = Block2BlockwiseStatus.forOutboundResponse(key, removeHandler, exchange, response,
+						maxTcpBertBulkBlocks);
 				block2Transfers.put(key, status);
 				enableStatus = true;
 				size = block2Transfers.size();
@@ -1353,7 +1368,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			status = block2Transfers.get(key);
 			if (status == null) {
 				status = Block2BlockwiseStatus.forInboundResponse(key, removeHandler, exchange, response,
-						maxPayloadSize);
+						maxPayloadSize, maxTcpBertBulkBlocks);
 				block2Transfers.put(key, status);
 				enableStatus = true;
 				size = block2Transfers.size();

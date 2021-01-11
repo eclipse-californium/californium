@@ -68,11 +68,13 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 * @param exchange The message exchange the blockwise transfer is part of.
 	 * @param response initial response of the blockwise transfer
 	 * @param maxSize The maximum size of the body to be buffered.
+	 * @param maxTcpBertBulkBlocks The maximum number of bulk blocks for
+	 *            TCP/BERT. {@code 1} or less, disable BERT.
 	 * @since 3.0
 	 */
 	private Block2BlockwiseStatus(KeyUri keyUri, RemoveHandler removeHandler, Exchange exchange, Response response,
-			int maxSize) {
-		super(keyUri, removeHandler, exchange, response, maxSize);
+			int maxSize, int maxTcpBertBulkBlocks) {
+		super(keyUri, removeHandler, exchange, response, maxSize, maxTcpBertBulkBlocks);
 		Integer observeCount = response.getOptions().getObserve();
 		if (observeCount != null && OptionSet.isValidObserveOption(observeCount)) {
 			// mark this tracker with the observe no of the block it has been
@@ -97,13 +99,15 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 * @param removeHandler remove handler for blockwise status
 	 * @param exchange The message exchange the blockwise transfer is part of.
 	 * @param response initial response of the blockwise transfer
+	 * @param maxTcpBertBulkBlocks The maximum number of bulk blocks for
+	 *            TCP/BERT. {@code 1} or less, disable BERT.
 	 * @return created tracker
 	 * @since 3.0
 	 */
 	public static Block2BlockwiseStatus forOutboundResponse(KeyUri keyUri, RemoveHandler removeHandler,
-			Exchange exchange, Response response) {
+			Exchange exchange, Response response, int maxTcpBertBulkBlocks) {
 		int size = response.getPayloadSize();
-		Block2BlockwiseStatus status = new Block2BlockwiseStatus(keyUri, removeHandler, exchange, response, size);
+		Block2BlockwiseStatus status = new Block2BlockwiseStatus(keyUri, removeHandler, exchange, response, size, maxTcpBertBulkBlocks);
 		if (size > 0) {
 			try {
 				status.addBlock(response.getPayload());
@@ -123,16 +127,18 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 * @param exchange The message exchange the blockwise transfer is part of.
 	 * @param block initial block response of the blockwise transfer
 	 * @param maxBodySize The maximum size of the body to be buffered.
+	 * @param maxTcpBertBulkBlocks The maximum number of bulk blocks for
+	 *            TCP/BERT. {@code 1} or less, disable BERT.
 	 * @return created tracker
 	 * @since 3.0
 	 */
 	public static Block2BlockwiseStatus forInboundResponse(KeyUri keyUri, RemoveHandler removeHandler,
-			Exchange exchange, Response block, int maxBodySize) {
+			Exchange exchange, Response block, int maxBodySize, int maxTcpBertBulkBlocks) {
 		int bufferSize = maxBodySize;
 		if (block.getOptions().hasSize2()) {
 			bufferSize = block.getOptions().getSize2();
 		}
-		Block2BlockwiseStatus status = new Block2BlockwiseStatus(keyUri, removeHandler, exchange, block, bufferSize);
+		Block2BlockwiseStatus status = new Block2BlockwiseStatus(keyUri, removeHandler, exchange, block, bufferSize, maxTcpBertBulkBlocks);
 		return status;
 	}
 
@@ -302,7 +308,7 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 		boolean m = false;
 
 		if (0 < bodySize && from < bodySize) {
-			byte[] blockPayload = getBlock(from, size);
+			byte[] blockPayload = getBlock(from, getCurrentPayloadSize());
 			m = from + blockPayload.length < bodySize;
 			block.setPayload(blockPayload);
 		}
@@ -392,13 +398,15 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 	 * 
 	 * @param responseToCrop The response containing the (large) payload.
 	 * @param requestedBlock The block to crop down to.
+	 * @param maxTcpBertBulkBlocks The maximum number of bulk blocks for
+	 *            TCP/BERT. {@code 1} or less, disable BERT.
 	 * @throws NullPointerException if any of the parameters is {@code null}.
 	 * @throws IllegalArgumentException if the response does not contain the
 	 *             block. Clients can check whether a message contains a
 	 *             particular block using the
 	 *             {@link Response#hasBlock(BlockOption)} method.
 	 */
-	public static final void crop(final Response responseToCrop, final BlockOption requestedBlock) {
+	public static final void crop(final Response responseToCrop, final BlockOption requestedBlock, int maxTcpBertBulkBlocks) {
 
 		if (responseToCrop == null) {
 			throw new NullPointerException("response message must not be null");
@@ -413,7 +421,11 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 			if (responseToCrop.getOptions().hasBlock2()) {
 				from -= responseToCrop.getOptions().getBlock2().getOffset();
 			}
-			int to = Math.min(from + requestedBlock.getSize(), bodySize);
+			int size = requestedBlock.getSize();
+			if (requestedBlock.isBERT()) {
+				size *= maxTcpBertBulkBlocks;
+			}
+			int to = Math.min(from + size, bodySize);
 			int length = to - from;
 			boolean m = to < bodySize;
 			responseToCrop.getOptions().setBlock2(requestedBlock.getSzx(), m, requestedBlock.getNum());
