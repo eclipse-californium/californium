@@ -20,7 +20,6 @@ import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
-import org.eclipse.californium.core.test.BlockwiseTransferTest.ReceiveRequestHandler;
 import org.eclipse.californium.elements.util.IntendedTestException;
 
 /**
@@ -104,5 +103,9 @@ public final class ServerBlockwiseInterceptor extends BlockwiseInterceptor imple
 		logNewLine();
 		appendEmptyMessageDetails(message);
 		buffer.append("    ----->");
+	}
+
+	public interface ReceiveRequestHandler {
+		void receiveRequest(Request received);
 	}
 }
