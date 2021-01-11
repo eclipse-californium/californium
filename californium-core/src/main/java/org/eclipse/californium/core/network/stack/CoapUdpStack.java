@@ -108,7 +108,7 @@ public class CoapUdpStack extends BaseCoapStack {
 	}
 
 	protected Layer createBlockwiseLayer(String tag,NetworkConfig config) {
-		return new BlockwiseLayer(tag, config);
+		return new BlockwiseLayer(tag, false, config);
 	}
 
 	protected Layer createReliabilityLayer(NetworkConfig config) {

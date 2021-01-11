@@ -66,7 +66,7 @@ public class OSCoreStack extends BaseCoapStack {
 				new ObjectSecurityContextLayer(ctxDb),
 				new ExchangeCleanupLayer(config),
 				new ObserveLayer(config),
-				new BlockwiseLayer(tag, config),
+				new BlockwiseLayer(tag, false, config),
 				reliabilityLayer,
 				new ObjectSecurityLayer(ctxDb)};
 		setLayers(layers);

@@ -88,7 +88,7 @@ public class CoapTcpStack extends BaseCoapStack {
 		Layer layers[] = new Layer[] {
 				new TcpExchangeCleanupLayer(),
 				new TcpObserveLayer(config),
-				new BlockwiseLayer(tag, config),
+				new BlockwiseLayer(tag, true, config),
 				new TcpAdaptionLayer() };
 
 		setLayers(layers);
