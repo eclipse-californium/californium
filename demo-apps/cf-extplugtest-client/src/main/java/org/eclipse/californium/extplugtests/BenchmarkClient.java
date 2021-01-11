@@ -84,6 +84,7 @@ import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.FilteredLogger;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.extplugtests.resources.Feed;
@@ -333,68 +334,8 @@ public class BenchmarkClient {
 	private static final long DEFAULT_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(DEFAULT_TIMEOUT_SECONDS);
 	private static final long DTLS_TIMEOUT_NANOS = TimeUnit.SECONDS.toNanos(120);
 
-	private static class ErrorLoggingFilter {
-
-		private static final long FILTER_PERIOD = DEFAULT_TIMEOUT_NANOS;
-		private final long maxPerPeriod;
-		private long counter;
-		private long startNanos;
-
-		private ErrorLoggingFilter(int maxPerPeriod) {
-			this.startNanos = ClockUtil.nanoRealtime();
-			this.maxPerPeriod = maxPerPeriod;
-		}
-
-		private void warn(String fmt, Object... args) {
-			if (LOGGER.isWarnEnabled()) {
-				log(true, fmt, args);
-			}
-		}
-
-		private void info(String fmt, Object... args) {
-			if (LOGGER.isInfoEnabled()) {
-				log(false, fmt, args);
-			}
-		}
-
-		private void log(boolean warn, String fmt, Object... args) {
-			boolean info = false;
-			Long extraInfo = null;
-			long now = ClockUtil.nanoRealtime();
-			long time = FILTER_PERIOD + startNanos - now;
-			synchronized (this) {
-				info = counter < maxPerPeriod;
-				if (time > 0) {
-					++counter;
-				} else {
-					startNanos = now;
-					if (!info) {
-						extraInfo = counter;
-					}
-					counter = 0;
-				}
-			}
-			if (info) {
-				if (warn) {
-					LOGGER.warn(fmt, args);
-				} else {
-					LOGGER.info(fmt, args);
-				}
-			} else if (extraInfo != null) {
-				int length = args.length;
-				args = Arrays.copyOf(args, length + 1);
-				args[length] = extraInfo;
-				if (warn) {
-					LOGGER.warn(fmt + " ({} additional errors.)", args);
-				} else {
-					LOGGER.info(fmt + " ({} additional errors.)", args);
-				}
-			}
-		}
-	}
-
-	private static final ErrorLoggingFilter errorResponseFilter = new ErrorLoggingFilter(5);
-	private static final ErrorLoggingFilter errorFilter = new ErrorLoggingFilter(3);
+	private static final FilteredLogger errorResponseFilter = new FilteredLogger(LOGGER, 5, DEFAULT_TIMEOUT_NANOS);
+	private static final FilteredLogger errorFilter = new FilteredLogger(LOGGER, 3, DEFAULT_TIMEOUT_NANOS);
 
 	/**
 	 * Atomic down-counter for overall requests.
