@@ -94,6 +94,11 @@ public class EmptyMessage extends Message {
 		}
 	}
 
+	@Override
+	public boolean hasBlock(final BlockOption block) {
+		return false;
+	}
+
 	/**
 	 * Create a new acknowledgment for the specified message.
 	 *

@@ -18,141 +18,167 @@
 package org.eclipse.californium.core.network.stack;
 
 import org.eclipse.californium.core.coap.BlockOption;
-import org.eclipse.californium.core.coap.OptionSet;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A tracker for the blockwise transfer of a request body.
- *
  */
 public final class Block1BlockwiseStatus extends BlockwiseStatus {
 
-	private Request request;
+	private static final Logger LOGGER = LoggerFactory.getLogger(Block1BlockwiseStatus.class);
 
-	private Block1BlockwiseStatus(final int bufferSize, final int contentFormat) {
-		super(bufferSize, contentFormat);
+	/**
+	 * Create block1wise status.
+	 * 
+	 * @param keyUri key uri of the blockwise transfer
+	 * @param removeHandler remove handler for the blockwise status
+	 * @param exchange The message exchange the blockwise transfer is part of.
+	 * @param request initial request of the blockwise transfer
+	 * @param maxSize The maximum size of the body to be buffered.
+	 * @since 3.0
+	 */
+	private Block1BlockwiseStatus(KeyUri keyUri, RemoveHandler removeHandler, Exchange exchange, Request request,
+			int maxSize) {
+		super(keyUri, removeHandler, exchange, request, maxSize);
 	}
 
 	/**
 	 * Creates a new tracker for sending a request body.
 	 * 
+	 * @param keyUri key uri of the blockwise transfer
+	 * @param removeHandler remove handler for blockwise status
 	 * @param exchange The message exchange the transfer is part of.
-	 * @param request The CoAP request containing the large body in its payload.
-	 * @param preferredBlockSize The size to use for individual blocks.
-	 * @return The tracker.
+	 * @param request initial request of the blockwise transfer
+	 * @return The created tracker
+	 * @since 3.0
 	 */
-	public static Block1BlockwiseStatus forOutboundRequest(final Exchange exchange, final Request request, final int preferredBlockSize) {
-		Block1BlockwiseStatus status = new Block1BlockwiseStatus(0, request.getOptions().getContentFormat());
-		status.request = request;
-		status.exchange = exchange;
-		status.setCurrentSzx(BlockOption.size2Szx(preferredBlockSize));
+	public static Block1BlockwiseStatus forOutboundRequest(KeyUri keyUri, RemoveHandler removeHandler,
+			Exchange exchange, Request request) {
+		Block1BlockwiseStatus status = new Block1BlockwiseStatus(keyUri, removeHandler, exchange, request,
+				request.getPayloadSize());
+		try {
+			status.addBlock(request.getPayload());
+			status.flipBlocksBuffer();
+		} catch (BlockwiseTransferException ex) {
+			LOGGER.warn("buffer overflow on start", ex);
+		}
 		return status;
 	}
 
 	/**
 	 * Creates a new tracker for receiving a request body.
 	 * 
+	 * @param keyUri key uri of the blockwise transfer
+	 * @param removeHandler remove handler for blockwise status
 	 * @param exchange The message exchange the transfer is part of.
-	 * @param block The block of the request body.
-	 * @param maxBodySize The maximum body size that can be buffered.
-	 * @return The tracker.
+	 * @param block first received block request of the blockwise transfer
+	 * @return The created tracker
+	 * @since 3.0
 	 */
-	public static Block1BlockwiseStatus forInboundRequest(final Exchange exchange, final Request block, final int maxBodySize) {
-		int contentFormat = block.getOptions().getContentFormat();
+	public static Block1BlockwiseStatus forInboundRequest(KeyUri keyUri, RemoveHandler removeHandler, Exchange exchange,
+			Request block, int maxBodySize) {
 		int bufferSize = maxBodySize;
 		if (block.getOptions().hasSize1()) {
 			bufferSize = block.getOptions().getSize1();
 		}
-		Block1BlockwiseStatus status = new Block1BlockwiseStatus(bufferSize, contentFormat);
-		status.exchange = exchange;
-		status.setFirst(block);
+		Block1BlockwiseStatus status = new Block1BlockwiseStatus(keyUri, removeHandler, exchange, block, bufferSize);
 		return status;
 	}
 
 	/**
-	 * Gets a request or sending the next block of the body.
-	 * <p>
-	 * This method updates the <em>currentNum</em> and <em>currentSzx</em>
-	 * properties with the given block1 option's values and then invokes
-	 * {@link #getNextRequestBlock()}. The resulting request requires an
-	 * destination endpoint-context to be set (see
-	 * {@link Request#setDestinationContext(org.eclipse.californium.elements.EndpointContext)}).
-	 * </p>
+	 * Add payload for received request to blockwise transfer.
 	 * 
-	 * @param num The block number to update this tracker with before
-	 *            determining the response block.
-	 * @param szx The adapted block size to update this tracker with before
-	 *            determining the response block.
-	 * @return The request.
-	 * @throws IllegalStateException if this tracker does not contain a request
-	 *             body.
+	 * @param requestBlock received block1 request.
+	 * @throws NullPointerException if requestBlock is {@code null}
+	 * @throws IllegalArgumentException if requestBlock has no block1 option
+	 * @throws BlockwiseTransferException if requestBlock doesn't match the
+	 *             current transfer state or overflows the buffer
+	 * @since 3.0
 	 */
-	public synchronized Request getNextRequestBlock(final int num, final int szx) {
+	public synchronized void addBlock(Request requestBlock) throws BlockwiseTransferException {
 
-		if (request == null) {
-			throw new IllegalStateException("no request body");
+		if (requestBlock == null) {
+			throw new NullPointerException("request block must not be null");
 		}
-
-		setCurrentNum(num);
-		setCurrentSzx(szx);
-		return getNextRequestBlock();
+		BlockOption block1 = requestBlock.getOptions().getBlock1();
+		if (block1 == null) {
+			throw new IllegalArgumentException("request block has no block1 option");
+		}
+		int from = getCurrentPosition();
+		int offset = block1.getOffset();
+		if (from != offset) {
+			throw new BlockwiseTransferException(
+					"request block1 offset " + offset + " doesn't match the current position " + from + "!",
+					ResponseCode.REQUEST_ENTITY_INCOMPLETE);
+		}
+		addBlock(requestBlock.getPayload());
+		if (block1.isM()) {
+			setCurrentSzx(block1.getSzx());
+			int size = block1.getSize();
+			from = getCurrentPosition();
+			if (from % size != 0) {
+				throw new BlockwiseTransferException(
+						"Block1 buffer position " + from + " doesn't align with blocksize " + size + "!",
+						ResponseCode.REQUEST_ENTITY_INCOMPLETE);
+			}
+			setCurrentNum(from / size);
+		}
 	}
 
 	/**
-	 * Gets a request or sending the next block of the body.
-	 * <p>
-	 * The returned request's payload is determined based on
-	 * <em>currentNum</em>, <em>currentSzx</em> and the original request's body.
-	 * The resulting request requires an destination endpoint-context to be set
-	 * (see
-	 * {@link Request#setDestinationContext(org.eclipse.californium.elements.EndpointContext)}).
-	 * </p>
+	 * Get a request for sending the next block of the body.
 	 * 
-	 * @return The request.
-	 * @throws IllegalStateException if this tracker does not contain a request
-	 *             body.
+	 * The returned request's payload is determined based on
+	 * {@link #getCurrentPosition()}, the provided {@code blockSzx}, and the
+	 * original request's body.
+	 * 
+	 * @param blockSzx the block szx for the request
+	 * @return the create request
+	 * @throws BlockwiseTransferException if blockSzx is not aligned with the
+	 *             already sent payload
+	 * @since 3.0
 	 */
-	public synchronized Request getNextRequestBlock() {
+	public synchronized Request getNextRequestBlock(int blockSzx) throws BlockwiseTransferException {
+		setCurrentSzx(blockSzx);
+		int size = getCurrentSize();
+		int from = getCurrentPosition();
 
-		if (request == null) {
-			throw new IllegalStateException("no request body");
+		if (from % size != 0) {
+			throw new BlockwiseTransferException(
+					"Block1 buffer position " + from + " doesn't align with blocksize " + size + "!");
 		}
 
-		int num = getCurrentNum();
-		int szx = getCurrentSzx();
+		boolean m = false;
+		int bodySize = getBufferSize();
+		int num = from / size;
+		setCurrentNum(num);
 
-		Request block = new Request(request.getCode());
-		// do not enforce CON, since NON could make sense over SMS or similar transports
-		block.setType(request.getType());
-
-		// copy options
-		block.setOptions(new OptionSet(request.getOptions()));
-		// copy message observers so that a failing blockwise request
-		// also notifies observers registered with the original request
-		block.addMessageObservers(request.getMessageObservers());
-
+		Request block = new Request(((Request) firstMessage).getCode());
+		prepareOutgoingMessage(firstMessage, block, num == 0);
 		if (num == 0) {
 			// indicate overall body size to peer
-			block.getOptions().setSize1(request.getPayloadSize());
+			if (!block.getOptions().hasSize1()) {
+				block.getOptions().setSize1(bodySize);
+			}
+		} else {
+			block.getOptions().removeSize1();
+			// see https://tools.ietf.org/html/rfc7959#section-2.10
+			block.getOptions().setIfNoneMatch(false);
 		}
-		if (request.isUnintendedPayload()) {
-			block.setUnintendedPayload();
-		}
-		block.setMaxResourceBodySize(request.getMaxResourceBodySize());
 
-		int currentSize = getCurrentSize();
-		int from = num * currentSize;
-		int to = Math.min((num + 1) * currentSize, request.getPayloadSize());
-		int length = to - from;
-		if (length > 0) {
-			byte[] blockPayload = new byte[length];
-			System.arraycopy(request.getPayload(), from, blockPayload, 0, length);
-			block.setPayload(blockPayload);
+		if (0 < bodySize && from < bodySize) {
+			byte[] blockPayload = getBlock(from, size);
+			if (blockPayload != null) {
+				m = from + blockPayload.length < bodySize;
+				block.setPayload(blockPayload);
+			}
 		}
-		boolean m = (to < request.getPayloadSize());
-		block.getOptions().setBlock1(szx, m, num);
+		block.getOptions().setBlock1(blockSzx, m, num);
 
 		setComplete(!m);
 		return block;
@@ -171,9 +197,8 @@ public final class Block1BlockwiseStatus extends BlockwiseStatus {
 	 */
 	public boolean cancelRequest() {
 		if (complete()) {
-			if (request != null) {
-				request.cancel();
-			}
+			Request request = (Request) this.firstMessage;
+			request.cancel();
 			return true;
 		} else {
 			return false;
@@ -181,13 +206,13 @@ public final class Block1BlockwiseStatus extends BlockwiseStatus {
 	}
 
 	/**
-	 * Checks whether a response has the same token as the request that initiated
-	 * the block1 transfer that this is the tracker for.
+	 * Checks whether a response has the same token as the request that
+	 * initiated the block1 transfer that this is the tracker for.
 	 * 
 	 * @param response The response to check.
 	 * @return {@code true} if the tokens match.
 	 */
 	public boolean hasMatchingToken(final Response response) {
-		return request != null && response.getToken().equals(request.getToken());
+		return response.getToken().equals(firstMessage.getToken());
 	}
 }

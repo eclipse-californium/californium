@@ -750,6 +750,11 @@ public class Request extends Message {
 		}
 	}
 
+	@Override
+	public boolean hasBlock(final BlockOption block) {
+		return hasBlock(block, getOptions().getBlock1());
+	}
+
 	/**
 	 * Set destination endpoint context.
 	 * 

@@ -21,12 +21,16 @@ import java.net.InetSocketAddress;
 
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.util.StringUtil;
 
 /**
- * A key based on a CoAP message's target URI that is scoped to an endpoint address.
+ * A key based on a CoAP message's target URI that is scoped to an endpoint
+ * address.
  * <p>
- * This class is used by the blockwise layer to correlate blockwise transfer exchanges.
+ * This class is used by the blockwise layer to correlate blockwise transfer
+ * exchanges.
  */
 public final class KeyUri {
 
@@ -105,62 +109,49 @@ public final class KeyUri {
 	}
 
 	/**
-	 * Creates a new key for an incoming response scoped to the response's source endpoint address.
+	 * Creates a new key for a request scoped to the other peer's address.
 	 * 
-	 * @param request The request with the URI of the requested resource.
+	 * @param exchange The exchange.
+	 * @param request The request with the URI of the resource.
+	 * @return The key.
+	 * @throws NullPointerException if any of the parameters is {@code null}.
+	 * @since 3.0
+	 */
+	public static KeyUri getKey(Exchange exchange, Request request) {
+		if (exchange == null) {
+			throw new NullPointerException("exchange must not be null");
+		}
+		String uri = getUri(request);
+		EndpointContext peer;
+		if (exchange.isOfLocalOrigin()) {
+			peer = request.getDestinationContext();
+		} else {
+			peer = request.getSourceContext();
+		}
+		return new KeyUri(uri, peer.getPeerAddress());
+	}
+
+	/**
+	 * Creates a new key for a response scoped to the other peer's address.
+	 * 
+	 * @param exchange The exchange with the URI of the requested resource.
 	 * @param response The response.
 	 * @return The key.
 	 * @throws NullPointerException if any of the parameters is {@code null}.
+	 * @since 3.0
 	 */
-	public static KeyUri fromInboundResponse(final Request request, final Response response) {
-		if (response == null) {
-			throw new NullPointerException("response must not be null");
-		} else {
-			InetSocketAddress address = response.getSourceContext().getPeerAddress();
-			return new KeyUri(getUri(request), address);
+	public static KeyUri getKey(final Exchange exchange, final Response response) {
+		if (exchange == null) {
+			throw new NullPointerException("exchange must not be null");
 		}
-	}
-
-	/**
-	 * Creates a new key for an outgoing response scoped to the response's destination endpoint address.
-	 * 
-	 * @param request The request with the URI of the requested resource.
-	 * @param response The response.
-	 * @return The key.
-	 * @throws NullPointerException if any of the parameters is {@code null}.
-	 */
-	public static KeyUri fromOutboundResponse(final Request request, final Response response) {
-		if (response == null) {
-			throw new NullPointerException("response must not be null");
+		String uri = getUri(exchange.getRequest());
+		EndpointContext peer;
+		if (exchange.isOfLocalOrigin()) {
+			peer = response.getSourceContext();
 		} else {
-			InetSocketAddress address = response.getDestinationContext().getPeerAddress();
-			return new KeyUri(getUri(request), address);
+			peer = response.getDestinationContext();
 		}
+		return new KeyUri(uri, peer.getPeerAddress());
 	}
 
-	/**
-	 * Creates a new key for an incoming request scoped to the request's source endpoint address.
-	 * 
-	 * @param request The request.
-	 * @return The key.
-	 * @throws NullPointerException if the request is {@code null}.
-	 */
-	public static KeyUri fromInboundRequest(final Request request) {
-		String uri = getUri(request);
-		InetSocketAddress address = request.getSourceContext().getPeerAddress();
-		return new KeyUri(uri, address);
-	}
-
-	/**
-	 * Creates a new key for an outgoing request scoped to the request's destination endpoint address.
-	 * 
-	 * @param request The request.
-	 * @return The key.
-	 * @throws NullPointerException if the request is {@code null}.
-	 */
-	public static KeyUri fromOutboundRequest(final Request request) {
-		String uri = getUri(request);
-		InetSocketAddress address = request.getDestinationContext().getPeerAddress();
-		return new KeyUri(uri, address);
-	}
 }

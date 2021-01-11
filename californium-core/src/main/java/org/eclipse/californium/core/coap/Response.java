@@ -173,6 +173,11 @@ public class Response extends Message {
 		return getOptions().hasBlock1() || getOptions().hasBlock2();
 	}
 
+	@Override
+	public boolean hasBlock(final BlockOption block) {
+		return hasBlock(block, getOptions().getBlock2());
+	}
+
 	/**
 	 * Checks whether this response's code indicates an error.
 	 * 

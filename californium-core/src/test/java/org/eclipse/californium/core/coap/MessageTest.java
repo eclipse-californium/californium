@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
@@ -38,6 +39,70 @@ import org.junit.experimental.categories.Category;
 public class MessageTest {
 	@Rule
 	public TestNameLoggerRule name = new TestNameLoggerRule();
+
+	@Test
+	public void testFullRequestHasBlock() {
+		Request put = Request.newPut();
+		put.setPayload("1234567890ABCDEF1234567890ABCDEF");
+		BlockOption start = new BlockOption(0, true, 0);
+		assertThat(put.hasBlock(start), is(true));
+		BlockOption middle = new BlockOption(0, true, 1);
+		assertThat(put.hasBlock(middle), is(true));
+		BlockOption end = new BlockOption(0, true, 2);
+		assertThat(put.hasBlock(end), is(true));
+		BlockOption exceeds = new BlockOption(0, true, 3);
+		assertThat(put.hasBlock(exceeds), is(false));
+	}
+
+	@Test
+	public void testBlockRequestHasBlock() {
+		Request put = Request.newPut();
+		put.setPayload("1234567890ABCDEF1234567890ABCDEF");
+		put.getOptions().setBlock1(0, true, 1);
+
+		BlockOption before = new BlockOption(0, true, 0);
+		assertThat(put.hasBlock(before), is(false));
+		BlockOption start = new BlockOption(0, true, 1);
+		assertThat(put.hasBlock(start), is(true));
+		BlockOption middle = new BlockOption(0, true, 2);
+		assertThat(put.hasBlock(middle), is(true));
+		BlockOption end = new BlockOption(0, true, 3);
+		assertThat(put.hasBlock(end), is(true));
+		BlockOption exceeds = new BlockOption(0, true, 4);
+		assertThat(put.hasBlock(exceeds), is(false));
+	}
+
+	@Test
+	public void testFullResponseHasBlock() {
+		Response content = new Response(ResponseCode.CONTENT);
+		content.setPayload("1234567890ABCDEF1234567890ABCDEF");
+		BlockOption start = new BlockOption(0, true, 0);
+		assertThat(content.hasBlock(start), is(true));
+		BlockOption middle = new BlockOption(0, true, 1);
+		assertThat(content.hasBlock(middle), is(true));
+		BlockOption end = new BlockOption(0, true, 2);
+		assertThat(content.hasBlock(end), is(true));
+		BlockOption exceeds = new BlockOption(0, true, 3);
+		assertThat(content.hasBlock(exceeds), is(false));
+	}
+
+	@Test
+	public void testBlockResponseHasBlock() {
+		Response content = new Response(ResponseCode.CONTENT);
+		content.setPayload("1234567890ABCDEF1234567890ABCDEF");
+		content.getOptions().setBlock2(0, true, 1);
+
+		BlockOption before = new BlockOption(0, true, 0);
+		assertThat(content.hasBlock(before), is(false));
+		BlockOption start = new BlockOption(0, true, 1);
+		assertThat(content.hasBlock(start), is(true));
+		BlockOption middle = new BlockOption(0, true, 2);
+		assertThat(content.hasBlock(middle), is(true));
+		BlockOption end = new BlockOption(0, true, 3);
+		assertThat(content.hasBlock(end), is(true));
+		BlockOption exceeds = new BlockOption(0, true, 4);
+		assertThat(content.hasBlock(exceeds), is(false));
+	}
 
 	@Test
 	public void testInitalEmptyMessageObservers() {
