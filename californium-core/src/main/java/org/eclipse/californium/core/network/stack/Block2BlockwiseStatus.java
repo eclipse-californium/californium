@@ -176,7 +176,7 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 	public final boolean matchTransfer(Exchange exchange) {
 		Integer notification = exchange.getNotificationNumber();
 		if (notification != null && order != null) {
-			return order.getObserve().equals(notification);
+			return order.getObserve() == notification;
 		} else {
 			return notification == null && order == null;
 		}

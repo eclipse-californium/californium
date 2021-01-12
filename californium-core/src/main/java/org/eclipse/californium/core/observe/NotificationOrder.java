@@ -28,7 +28,7 @@ import org.eclipse.californium.elements.util.ClockUtil;
 public class NotificationOrder {
 
 	/** The observe number */
-	protected final Integer number;
+	protected final int number;
 
 	/** The timestamp of the response */
 	protected final long nanoTimestamp;
@@ -36,21 +36,21 @@ public class NotificationOrder {
 	/**
 	 * Creates a new notification order for a given notification.
 	 * 
-	 * @param observe observe of the notification, or {@code null}, if order is
-	 *            not related to a notification.
+	 * @param observe observe of the notification
+	 * @since 3.0 changed type of observe from {@code Integer} to {@code int}.
 	 */
-	public NotificationOrder(Integer observe) {
+	public NotificationOrder(int observe) {
 		this(observe, ClockUtil.nanoRealtime());
 	}
 
 	/**
-	 * Creates a new notification order for a given notification.
+	 * Creates a new notification order for a given notification and nano-time.
 	 * 
-	 * @param observe observe of the notification, or {@code null}, if order is
-	 *            not related to a notification.
+	 * @param observe observe of the notification
 	 * @param nanoTime receive time of notification
+	 * @since 3.0 changed type of observe from {@code Integer} to {@code int}.
 	 */
-	public NotificationOrder(Integer observe, long nanoTime) {
+	public NotificationOrder(int observe, long nanoTime) {
 		number = observe;
 		nanoTimestamp = nanoTime;
 	}
@@ -58,10 +58,10 @@ public class NotificationOrder {
 	/**
 	 * Returns the notification number.
 	 * 
-	 * @return the notification number, or {@code null}, if order is not related
-	 *         to a notification.
+	 * @return the notification number.
+	 * @since 3.0 changed return type from {@code Integer} to {@code int}.
 	 */
-	public Integer getObserve() {
+	public int getObserve() {
 		return number;
 	}
 
@@ -71,7 +71,7 @@ public class NotificationOrder {
 	 * @param response the notification
 	 * @return {@code true} if the notification is new
 	 */
-	public synchronized boolean isNew(Response response) {
+	public boolean isNew(Response response) {
 
 		Integer observe = response.getOptions().getObserve();
 		if (observe == null) {
