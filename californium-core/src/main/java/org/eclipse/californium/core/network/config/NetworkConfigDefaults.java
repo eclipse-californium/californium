@@ -25,6 +25,7 @@
  *                                                    to 8192.
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace USE_STRICT_RESPONSE_MATCHING
  *                                                    by DTLS_RESPONSE_MATCHING
+ *    Pratheek Rai - Added TCP_NUMBER_OF_BULK_BLOCKS for BERT option.
  ******************************************************************************/
 package org.eclipse.californium.core.network.config;
 
@@ -267,6 +268,7 @@ public class NetworkConfigDefaults {
 		config.setInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT, DEFAULT_TCP_CONNECTION_IDLE_TIMEOUT); // s
 		config.setInt(Keys.TCP_WORKER_THREADS, 1);
 		config.setInt(Keys.TCP_CONNECT_TIMEOUT, DEFAULT_TCP_CONNECT_TIMEOUT); // ms
+		config.setInt(Keys.TCP_NUMBER_OF_BULK_BLOCKS, 2);// BERT enabled when > 1.
 		config.setInt(Keys.TLS_HANDSHAKE_TIMEOUT, DEFAULT_TLS_HANDSHAKE_TIMEOUT); // ms
 
 		config.setLong(Keys.SECURE_SESSION_TIMEOUT, DEFAULT_SECURE_SESSION_TIMEOUT);
