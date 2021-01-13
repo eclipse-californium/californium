@@ -867,7 +867,6 @@ public final class Connection {
 			int position = SerializationUtil.writeStartItem(writer, VERSION, Short.SIZE);
 
 			writer.writeByte(resumptionRequired ? (byte) 1 : (byte) 0);
-			writer.writeLong(lastMessageNanos, Long.SIZE);
 			writer.writeVarBytes(cid, Byte.SIZE);
 			SerializationUtil.write(writer, peerAddress);
 			ClientHelloIdentifier start = startingHelloClient;
@@ -892,17 +891,19 @@ public final class Connection {
 	 * 
 	 * @param reader reader with connection state.
 	 * @param nanoShift adjusting shift for system time in nanoseconds.
+	 * @param lastConnectionUpdate system time in nanoseconds of the last
+	 *            connection usage. See {@link #lastMessageNanos}.
 	 * @return read connection.
 	 * @throws IllegalArgumentException if version differs.
 	 * @throws IllegalStateException if data is erroneous.
 	 * @since 3.0
 	 */
 	@WipAPI
-	public static Connection fromReader(DatagramReader reader, long nanoShift) {
+	public static Connection fromReader(DatagramReader reader, long nanoShift, long lastConnectionUpdate) {
 		int length = SerializationUtil.readStartItem(reader, VERSION, Short.SIZE);
 		if (0 < length) {
 			DatagramReader rangeReader = reader.createRangeReader(length);
-			return new Connection(rangeReader, nanoShift);
+			return new Connection(rangeReader, nanoShift, lastConnectionUpdate);
 		} else {
 			return null;
 		}
@@ -913,11 +914,13 @@ public final class Connection {
 	 * 
 	 * @param reader reader with connection state.
 	 * @param nanoShift adjusting shift for system time in nanoseconds.
+	 * @param lastConnectionUpdate system time in nanoseconds of the last
+	 *            connection usage. See {@link #lastMessageNanos}.
 	 * @since 3.0
 	 */
-	private Connection(DatagramReader reader, long nanoShift) {
+	private Connection(DatagramReader reader, long nanoShift, long lastConnectionUpdate) {
 		resumptionRequired = reader.readNextByte() == 1;
-		lastMessageNanos = reader.readLong(Long.SIZE) + nanoShift;
+		lastMessageNanos = lastConnectionUpdate;
 		byte[] data = reader.readVarBytes(Byte.SIZE);
 		cid = new ConnectionId(data);
 		peerAddress = SerializationUtil.readAddress(reader);

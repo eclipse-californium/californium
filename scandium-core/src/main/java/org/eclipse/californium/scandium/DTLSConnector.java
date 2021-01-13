@@ -1856,7 +1856,6 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 			connection.setRouter(record.getRouter());
 			newAddress = record.getPeerAddress();
 		}
-		connection.refreshAutoResumptionTime();
 		connectionStore.update(connection, newAddress);
 		final Handshaker ongoingHandshake = connection.getOngoingHandshake();
 		if (ongoingHandshake != null) {
@@ -2710,7 +2709,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 			record.setAddress(connection.getPeerAddress(), connection.getRouter());
 			sendRecord(record);
 			message.onSent();
-			connection.refreshAutoResumptionTime();
+			connectionStore.update(connection, null);
 		} catch (IOException e) {
 			message.onError(e);
 		} catch (GeneralSecurityException e) {
