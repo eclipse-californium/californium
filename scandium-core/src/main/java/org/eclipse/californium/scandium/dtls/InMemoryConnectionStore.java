@@ -356,6 +356,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		if (connection == null) {
 			return false;
 		}
+		connection.refreshAutoResumptionTime();
 		if (connections.update(connection.getConnectionId())) {
 			if (newPeerAddress == null) {
 				LOGGER.debug("{}connection: {} updated usage!", tag, connection.getConnectionId());
@@ -770,12 +771,12 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 					AlgorithmParameterSpec parameterSpec = new IvParameterSpec(nonce);
 					rangeReader.decrypt(cipher, parameterSpec, key);
 					long lastUpdate = rangeReader.readLong(Long.SIZE);
-					Connection connection = Connection.fromReader(rangeReader, delta);
+					long update = lastUpdate + delta;
+					Connection connection = Connection.fromReader(rangeReader, delta, update);
 					if (connection != null) {
 						if (lastUpdate > nanos) {
 							LOGGER.warn("{}read {} ts after {} ", tag, lastUpdate, nanos);
 						}
-						long update = lastUpdate + delta;
 						LOGGER.trace("{}read {} ts, {}s", tag, update,
 								TimeUnit.NANOSECONDS.toSeconds(startNanos - update));
 						restore(connection, update);
