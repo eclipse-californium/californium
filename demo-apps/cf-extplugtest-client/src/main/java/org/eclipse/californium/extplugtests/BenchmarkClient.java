@@ -87,6 +87,7 @@ import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.FilteredLogger;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.elements.util.TimeStatistic;
 import org.eclipse.californium.extplugtests.resources.Feed;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
@@ -468,6 +469,13 @@ public class BenchmarkClient {
 	 * Close handshake bursts counter.
 	 */
 	private static final AtomicLong handshakeCloseBursts = new AtomicLong();
+
+	private static final TimeStatistic connectRttStatistic = new TimeStatistic(10000, 5, TimeUnit.MILLISECONDS);
+
+	private static final TimeStatistic rttStatistic = new TimeStatistic(10000, 5, TimeUnit.MILLISECONDS);
+
+	private static final TimeStatistic errorRttStatistic = new TimeStatistic(10000, 5, TimeUnit.MILLISECONDS);
+
 	/**
 	 * Offload messages.
 	 */
@@ -560,6 +568,10 @@ public class BenchmarkClient {
 				request.getOptions().setProxyScheme(config.proxy.scheme);
 			}
 		}
+		EndpointContext destinationContext = client.getDestinationContext();
+		if (destinationContext != null) {
+			request.setDestinationContext(destinationContext);
+		}
 		request.setURI(client.getURI());
 		ResponseTimeout timeout = new ResponseTimeout(request, request.isConfirmable() ? nonTimeout : nonTimeout,
 				executorService);
@@ -577,6 +589,7 @@ public class BenchmarkClient {
 
 		@Override
 		public void onLoad(CoapResponse response) {
+			addToStatistic(response);
 			if (response.isSuccess()) {
 				if (!stop.get()) {
 					String cmd = null;
@@ -821,6 +834,16 @@ public class BenchmarkClient {
 		server.start();
 	}
 
+	private void addToStatistic(CoapResponse response) {
+		TimeStatistic statistic = errorRttStatistic;
+		if (requestsCounter.get() == 0) {
+			statistic = connectRttStatistic;
+		} else if (response.isSuccess()) {
+			statistic = rttStatistic;
+		}
+		statistic.add(response.advanced().getRTT(), TimeUnit.MILLISECONDS);
+	}
+
 	/**
 	 * Test request.
 	 * 
@@ -875,6 +898,7 @@ public class BenchmarkClient {
 
 			CoapResponse response = client.advanced(request);
 			if (response != null) {
+				addToStatistic(response);
 				if (response.isSuccess()) {
 					if (LOGGER.isInfoEnabled()) {
 						LOGGER.info("Received response:{}{}", StringUtil.lineSeparator(), Utils.prettyPrint(response));
@@ -1405,8 +1429,12 @@ public class BenchmarkClient {
 					formatPerSecond("reqs", successfullRequest, requestNanos));
 		}
 
+		statisticsLogger.info("connects          : {}", connectRttStatistic.getSummaryAsText());
+		statisticsLogger.info("success-responses : {}", rttStatistic.getSummaryAsText());
+		statisticsLogger.info("errors-responses  : {}", errorRttStatistic.getSummaryAsText());
 		health.dump();
 		netstat.dump();
+
 		if (1 < clients) {
 			synchronized (statistic) {
 				Arrays.sort(statistic);

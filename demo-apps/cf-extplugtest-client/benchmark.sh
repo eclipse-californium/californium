@@ -226,7 +226,7 @@ benchmark_all()
          if [ ${USE_LARGE_BLOCK1} -ne 0 ] ; then 
             benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --non --requests ${REQS_LARGE} ${USE_NONESTOP} --payload-random ${PAYLOAD_LARGE}
          fi
-         benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
+         benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --non --requests ${REQS} ${USE_NONESTOP}
       fi
 
       if [ ${USE_LARGE_BLOCK1} -ne 0 ] ; then 
