@@ -31,7 +31,7 @@ import org.slf4j.Logger;
  */
 public class FilteredLogger {
 
-	private static final boolean ENABLE = Boolean.FALSE
+	private static final boolean ENABLE = !Boolean.FALSE
 			.equals(StringUtil.getConfigurationBoolean("COAP_LOGGING_FILTER"));
 
 	/**
