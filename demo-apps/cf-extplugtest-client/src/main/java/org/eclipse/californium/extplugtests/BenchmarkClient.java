@@ -98,7 +98,10 @@ import org.slf4j.LoggerFactory;
 
 import picocli.CommandLine.ArgGroup;
 import picocli.CommandLine.Command;
+import picocli.CommandLine.Model.CommandSpec;
 import picocli.CommandLine.Option;
+import picocli.CommandLine.ParameterException;
+import picocli.CommandLine.Spec;
 
 /**
  * Simple benchmark client.
@@ -118,19 +121,9 @@ public class BenchmarkClient {
 	 */
 	private static final File CONFIG_FILE = new File("CaliforniumBenchmark.properties");
 	/**
-	 * File name for reverse server network configuration. Used for reverse
-	 * request including observes.
-	 */
-	private static final File REVERSE_SERVER_CONFIG_FILE = new File("CaliforniumReverseServer.properties");
-	/**
 	 * Header for network configuration.
 	 */
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Benchmark Client";
-	/**
-	 * Header for reverse server network configuration. Used for reverse request
-	 * including observes.
-	 */
-	private static final String REVERSE_SERVER_CONFIG_HEADER = "Californium CoAP Properties file for Reverse-Server in Client";
 	/**
 	 * Default maximum resource size.
 	 */
@@ -138,12 +131,7 @@ public class BenchmarkClient {
 	/**
 	 * Default block size.
 	 */
-	private static final int DEFAULT_BLOCK_SIZE = 64;
-	/**
-	 * Default block size for reverse server. Used for reverse request including
-	 * observes.
-	 */
-	private static final int DEFAULT_REVERSE_SERVER_BLOCK_SIZE = 64;
+	private static final int DEFAULT_BLOCK_SIZE = 1024;
 	/**
 	 * Default number of clients.
 	 */
@@ -189,6 +177,7 @@ public class BenchmarkClient {
 			config.setInt(Keys.TCP_CONNECT_TIMEOUT, 30 * 1000); // 20s
 			config.setInt(Keys.TLS_HANDSHAKE_TIMEOUT, 30 * 1000); // 20s
 			config.setInt(Keys.TCP_WORKER_THREADS, 2);
+			config.setInt(Keys.TCP_NUMBER_OF_BULK_BLOCKS, 1); // enabled by cli option!
 			config.setInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT, 1);
 			config.setInt(Keys.NETWORK_STAGE_SENDER_THREAD_COUNT, 1);
 			config.setInt(Keys.PROTOCOL_STAGE_THREAD_COUNT, 1);
@@ -200,20 +189,6 @@ public class BenchmarkClient {
 			config.setInt(ClientInitializer.KEY_DTLS_RETRANSMISSION_MAX, 2);
 		}
 
-	};
-
-	/**
-	 * Special reverse server network configuration defaults handler. Used for
-	 * reverse request including observes.
-	 */
-	private static NetworkConfigDefaultHandler REVERSE_DEFAULTS = new NetworkConfigDefaultHandler() {
-
-		@Override
-		public void applyDefaults(NetworkConfig config) {
-			DEFAULTS.applyDefaults(config);
-			config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_REVERSE_SERVER_BLOCK_SIZE);
-			config.setInt(Keys.PREFERRED_BLOCK_SIZE, DEFAULT_REVERSE_SERVER_BLOCK_SIZE);
-		}
 	};
 
 	@Command(name = "BenchmarkClient", version = "(c) 2018-2020, Bosch.IO GmbH and others.",
@@ -243,6 +218,31 @@ public class BenchmarkClient {
 
 		@Option(names = "--requests", defaultValue = DEFAULT_REQUESTS, description = "number of requests. Default ${DEFAULT-VALUE}.")
 		public int requests;
+
+		/**
+		 * Command spec for {@link ParameterException}.
+		 * 
+		 * @since 3.0
+		 */
+		@Spec
+		CommandSpec spec; // injected by picocli
+
+		/**
+		 * Blockwise options.
+		 * 
+		 * @since 3.0
+		 */
+		@ArgGroup(exclusive = true)
+		BlockwiseOptions blockwiseOptions;
+
+		static class BlockwiseOptions {
+
+			@Option(names = "--blocksize", description = "use blocksize [16, 32, ..., 1024]. Default according CaliforniumBenchmark.properties.")
+			public Integer blocksize;
+
+			@Option(names = "--bertblocks", description = "number of block used for bert-blockwise (TCP only). Default according CaliforniumBenchmark.properties.")
+			public Integer bertBlocks;
+		}
 
 		@Option(names = "--timeout", description = "timeout of requests in milliseconds.")
 		public Integer timeout;
@@ -299,6 +299,13 @@ public class BenchmarkClient {
 
 		public void defaults() {
 			super.defaults();
+			if (blockwiseOptions != null && blockwiseOptions.blocksize != null) {
+				if (blockwiseOptions.blocksize > 1024 || blockwiseOptions.blocksize != Integer.highestOneBit(blockwiseOptions.blocksize)) {
+					throw new ParameterException(spec.commandLine(), String
+							.format("Invalid value '%s' for option '--blocksize': value is not [16, 32, ..., 1024].", blockwiseOptions.blocksize));
+				}
+			}
+
 			if (reverse != null) {
 				reverse.defaults();
 			}
@@ -1019,9 +1026,18 @@ public class BenchmarkClient {
 		int requests = config.requests;
 		int reverseResponses = 0;
 
+		if (config.blockwiseOptions != null) {
+			if (config.blockwiseOptions.bertBlocks != null && config.blockwiseOptions.bertBlocks > 0) {
+				config.networkConfig.setInt(Keys.MAX_MESSAGE_SIZE, 1024);
+				config.networkConfig.setInt(Keys.PREFERRED_BLOCK_SIZE, 1024);
+				config.networkConfig.setInt(Keys.TCP_NUMBER_OF_BULK_BLOCKS, config.blockwiseOptions.bertBlocks);
+			} else if (config.blockwiseOptions.blocksize != null) {
+				config.networkConfig.setInt(Keys.MAX_MESSAGE_SIZE, config.blockwiseOptions.blocksize);
+				config.networkConfig.setInt(Keys.PREFERRED_BLOCK_SIZE, config.blockwiseOptions.blocksize);
+			}
+		}
+
 		if (config.reverse != null) {
-			config.networkConfig = NetworkConfig.createWithFile(REVERSE_SERVER_CONFIG_FILE,
-					REVERSE_SERVER_CONFIG_HEADER, REVERSE_DEFAULTS);
 			reverseResponses = config.reverse.responses;
 		}
 
