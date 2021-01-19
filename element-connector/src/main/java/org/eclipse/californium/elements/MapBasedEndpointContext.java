@@ -202,6 +202,37 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 	}
 
 	/**
+	 * Set entries to endpoint context.
+	 * 
+	 * @param context original endpoint context.
+	 * @param attributes list of attributes (key/value pairs, e.g. key_1,
+	 *            value_1, key_2, value_2 ...)..
+	 * @return new endpoint context with attributes.
+	 * @throws NullPointerException if the provided attributes is {@code null},
+	 *             or one of the attributes is {@code null}.
+	 * @throws IllegalArgumentException if provided attributes list has odd size
+	 *             or contains a duplicate key.
+	 *             @since 3.0
+	 */
+	public static MapBasedEndpointContext setEntries(EndpointContext context, String... attributes) {
+		return setEntries(context, createAttributes(attributes));
+	}
+
+	/**
+	 * Set entries to endpoint context.
+	 * 
+	 * @param context original endpoint context.
+	 * @param attributes map of attributes.
+	 * @return new endpoint context with attributes.
+	 * @throws NullPointerException if the provided attributes is {@code null}
+	 * @since 3.0
+	 */
+	public static MapBasedEndpointContext setEntries(EndpointContext context, Attributes attributes) {
+		return new MapBasedEndpointContext(context.getPeerAddress(), context.getVirtualHost(),
+				context.getPeerIdentity(), attributes);
+	}
+
+	/**
 	 * Add entries to endpoint context.
 	 * 
 	 * @param context original endpoint context.
@@ -231,8 +262,7 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 	public static MapBasedEndpointContext addEntries(EndpointContext context, Attributes attributes) {
 		Attributes allAttributes = new Attributes(context.entries());
 		allAttributes.addAll(attributes);
-		return new MapBasedEndpointContext(context.getPeerAddress(), context.getVirtualHost(),
-				context.getPeerIdentity(), allAttributes);
+		return setEntries(context, allAttributes);
 	}
 
 	/**
