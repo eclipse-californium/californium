@@ -758,7 +758,7 @@ public class BenchmarkClient {
 						delayMillis *= 2;
 					}
 				} else {
-					destinationContext = MapBasedEndpointContext.addEntries(destinationContext,
+					destinationContext = MapBasedEndpointContext.setEntries(destinationContext,
 							DtlsEndpointContext.KEY_HANDSHAKE_MODE, DtlsEndpointContext.HANDSHAKE_MODE_FORCE_FULL);
 					request.setDestinationContext(destinationContext);
 				}
