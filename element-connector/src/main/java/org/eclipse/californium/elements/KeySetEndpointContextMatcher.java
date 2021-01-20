@@ -39,6 +39,8 @@ public abstract class KeySetEndpointContextMatcher implements EndpointContextMat
 	 * Name of matcher. Used for logging.
 	 */
 	private final String name;
+	private final String sendTag;
+	private final String recvTag;
 	/**
 	 * Key set to be used for matching.
 	 * 
@@ -71,6 +73,8 @@ public abstract class KeySetEndpointContextMatcher implements EndpointContextMat
 	 */
 	public KeySetEndpointContextMatcher(String name, String keys[], boolean compareHostname) {
 		this.name = name;
+		this.sendTag = name + " sending";
+		this.recvTag = name + " receiving";
 		this.keys = createKeySet(keys);
 		this.compareHostname = compareHostname;
 	}
@@ -93,7 +97,7 @@ public abstract class KeySetEndpointContextMatcher implements EndpointContextMat
 	public boolean isResponseRelatedToRequest(EndpointContext requestContext, EndpointContext responseContext) {
 
 		boolean result = compareHostname ? isSameVirtualHost(requestContext, responseContext) : true;
-		return result && internalMatch(requestContext, responseContext);
+		return result && internalMatch(recvTag, requestContext, responseContext);
 	}
 
 	@Override
@@ -102,14 +106,14 @@ public abstract class KeySetEndpointContextMatcher implements EndpointContextMat
 			return !messageContext.hasCriticalEntries();
 		}
 		boolean result = compareHostname ? isSameVirtualHost(messageContext, connectionContext) : true;
-		return result && internalMatch(messageContext, connectionContext);
+		return result && internalMatch(sendTag, messageContext, connectionContext);
 	}
 
-	private final boolean internalMatch(EndpointContext requestedContext, EndpointContext availableContext) {
+	private final boolean internalMatch(String tag, EndpointContext requestedContext, EndpointContext availableContext) {
 		if (!requestedContext.hasCriticalEntries()) {
 			return true;
 		}
-		return EndpointContextUtil.match(getName(), keys, requestedContext, availableContext);
+		return EndpointContextUtil.match(tag, keys, requestedContext, availableContext);
 	}
 
 	@Override

@@ -435,7 +435,7 @@ public class UDPConnector implements Connector {
 			if (endpointMatcher != null && !endpointMatcher.isToBeSent(destination, connectionContext)) {
 				LOGGER.warn("UDPConnector ({}) drops {} bytes to {}:{}", effectiveAddr, datagram.getLength(),
 						destinationAddress.getAddress(), destinationAddress.getPort());
-				raw.onError(new EndpointMismatchException());
+				raw.onError(new EndpointMismatchException("UDP sending"));
 				return;
 			}
 			datagram.setData(raw.getBytes());
