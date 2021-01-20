@@ -83,12 +83,12 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 	 *            the client's random (used for signature)
 	 * @param serverRandom
 	 *            the server's random (used for signature)
-	 * @throws GeneralSecurityException if generating the signature providing prove of
+	 * @throws HandshakeException if generating the signature providing prove of
 	 *            possession of the private key fails, e.g. due to an unsupported
 	 *            signature or hash algorithm or an invalid key
 	 */
 	public EcdhEcdsaServerKeyExchange(SignatureAndHashAlgorithm signatureAndHashAlgorithm, XECDHECryptography ecdhe,
-			PrivateKey serverPrivateKey, Random clientRandom, Random serverRandom) throws GeneralSecurityException {
+			PrivateKey serverPrivateKey, Random clientRandom, Random serverRandom) throws HandshakeException {
 		super(ecdhe.getSupportedGroup(), ecdhe.getEncodedPoint());
 		if (signatureAndHashAlgorithm == null) {
 			throw new NullPointerException("signature and hash algorithm cannot be null");
@@ -100,12 +100,16 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 		// These parameters MUST be signed with ECDSA using the private key
 		// corresponding to the public key in the server's Certificate.
 		ThreadLocalSignature localSignature = signatureAndHashAlgorithm.getThreadLocalSignature();
-		Signature signature = localSignature.currentWithCause();
-		signature.initSign(serverPrivateKey, RandomManager.currentSecureRandom());
-
-		updateSignature(signature, clientRandom, serverRandom);
-
-		signatureEncoded = signature.sign();
+		try {
+			Signature signature = localSignature.currentWithCause();
+			signature.initSign(serverPrivateKey, RandomManager.currentSecureRandom());
+			updateSignature(signature, clientRandom, serverRandom);
+			signatureEncoded = signature.sign();
+		} catch (GeneralSecurityException e) {
+			throw new HandshakeException(
+					String.format("Server failed to sign key exchange: %s", e.getMessage()),
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER));
+		}
 	}
 
 	/**
@@ -209,7 +213,7 @@ public final class EcdhEcdsaServerKeyExchange extends ECDHServerKeyExchange {
 
 		if (!verified) {
 			String message = "The server's ECDHE key exchange message's signature could not be verified.";
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.DECRYPT_ERROR);
 			throw new HandshakeException(message, alert);
 		}
 	}

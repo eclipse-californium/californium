@@ -69,7 +69,6 @@ import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -89,6 +88,7 @@ import org.eclipse.californium.elements.util.TestThreadFactory;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchSessionListener;
 import org.eclipse.californium.scandium.ConnectorHelper.RecordCollectorDataHandler;
+import org.eclipse.californium.scandium.ConnectorHelper.AlertCatcher;
 import org.eclipse.californium.scandium.ConnectorHelper.UdpConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
@@ -295,9 +295,6 @@ public class DTLSConnectorTest {
 
 	private void assertConnectionTerminatedOnAlert(final AlertMessage alertToSend) throws Exception {
 
-		SingleAlertCatcher alertCatcher = new SingleAlertCatcher();
-		serverHelper.server.setAlertHandler(alertCatcher);
-
 		givenAnEstablishedSession(false);
 
 		Connection connection = clientConnectionStore.get(serverHelper.serverEndpoint);
@@ -306,7 +303,7 @@ public class DTLSConnectorTest {
 		client.sendAlert(connection, establishedClientContext, alertToSend);
 
 		// THEN assert that the server has removed all connection state with client
-		AlertMessage alert = alertCatcher.waitForFirstAlert(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+		AlertMessage alert = serverHelper.serverAlertCatcher.waitForAlert(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
 		assertNotNull(alert);
 		if (alert.getDescription() == AlertDescription.CLOSE_NOTIFY) {
 			assertThat(serverHelper.serverConnectionStore.get(clientEndpoint), is(notNullValue()));
@@ -999,16 +996,16 @@ public class DTLSConnectorTest {
 	}
 
 	/**
-	 * Verifies that connector ignores CLIENT KEY EXCHANGE with unknown PSK identity.
+	 * Verifies that connector ignores CLIENT KEY EXCHANGE with unknown PSK
+	 * identity.
 	 */
 	@Test
 	public void testConnectorIgnoresUnknownPskIdentity() throws Exception {
-		SingleAlertCatcher alertCatcher = new SingleAlertCatcher();
-		serverHelper.server.setAlertHandler(alertCatcher);
-		ensureConnectorIgnoresBadCredentials(new AdvancedSinglePskStore("unknownIdentity", CLIENT_IDENTITY_SECRET.getBytes()));
-		AlertMessage alert = alertCatcher.waitForFirstAlert(2, TimeUnit.SECONDS);
-		assertNotNull("server side internal alert missing", alert);
-		assertThat(alert.getDescription(), is(AlertDescription.UNKNOWN_PSK_IDENTITY));
+		ensureConnectorIgnoresBadCredentials(
+				new AdvancedSinglePskStore("unknownIdentity", CLIENT_IDENTITY_SECRET.getBytes()));
+		AlertMessage alert = serverHelper.serverAlertCatcher.waitForAlert(2, TimeUnit.SECONDS);
+		assertThat("server side internal alert", alert,
+				is(new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_PSK_IDENTITY)));
 	}
 
 	/**
@@ -1109,11 +1106,11 @@ public class DTLSConnectorTest {
 	@Test
 	public void testNoRenegotiationAllowed() throws Exception {
 		givenAnEstablishedSession(false);
-		
+
 		// Catch alert receive by the client
-		SingleAlertCatcher alertCatcher = new SingleAlertCatcher();
+		AlertCatcher alertCatcher = new AlertCatcher();
 		client.setAlertHandler(alertCatcher);
-		
+
 		// send a CLIENT_HELLO message to the server to renegotiation connection
 		Record record  = new Record(ContentType.HANDSHAKE, establishedClientContext.getWriteEpoch(),
 				createClientHello(), establishedClientContext,
@@ -1122,19 +1119,14 @@ public class DTLSConnectorTest {
 		client.sendRecord(record);
 
 		// ensure server answer with a NO_RENOGIATION alert
-		AlertMessage alert = alertCatcher.waitForFirstAlert(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
-		assertNotNull("Client does not receive alert as answer to renenotiation", alert);
-		assertEquals("Server must answer with a NO_RENEGOTIATION alert", AlertDescription.NO_RENEGOTIATION, alert.getDescription());
-		assertEquals("NO_RENEGOTIATION alert MUST be a warning", AlertLevel.WARNING, alert.getLevel());
+		AlertMessage alert = alertCatcher.waitForAlert(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+		assertThat("client received alert", alert,
+				is(new AlertMessage(AlertLevel.WARNING, AlertDescription.NO_RENEGOTIATION)));
 	}
 
 	@Test
 	public void testNoRenegotiationOnHelloRequest() throws Exception {
 		givenAnEstablishedSession(false);
-		
-		// Catch alert receive by the server
-		SingleAlertCatcher alertCatcher = new SingleAlertCatcher();
-		serverHelper.server.setAlertHandler(alertCatcher);
 
 		// send a HELLO_REQUEST message to the client
 		Record record = new Record(ContentType.HANDSHAKE, serverHelper.establishedServerContext.getWriteEpoch(),
@@ -1144,10 +1136,9 @@ public class DTLSConnectorTest {
 		serverHelper.server.sendRecord(record);
 
 		// ensure client answer with a NO_RENOGIATION alert
-		AlertMessage alert = alertCatcher.waitForFirstAlert(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
-		assertNotNull("Server does not receive alert as answer of HELLO_REQUEST", alert);
-		assertEquals("Client must answer to HELLO_REQUEST with a NO_RENEGOTIATION alert", AlertDescription.NO_RENEGOTIATION, alert.getDescription());
-		assertEquals("NO_RENEGOTIATION alert MUST be a warning", AlertLevel.WARNING, alert.getLevel());
+		AlertMessage alert = serverHelper.serverAlertCatcher.waitForAlert(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+		assertThat("server received alert", alert,
+				is(new AlertMessage(AlertLevel.WARNING, AlertDescription.NO_RENEGOTIATION)));
 	}
 
 	/**
@@ -1300,32 +1291,6 @@ public class DTLSConnectorTest {
 				// in order to prevent sporadic BindExceptions during test execution
 				// give OS some time before allowing test cases to re-bind to same port
 				rawClient.wait(200);
-			}
-		}
-	}
-
-	private static class SingleAlertCatcher implements AlertHandler {
-
-		private CountDownLatch latch = new CountDownLatch(1);
-		private AlertMessage alert;
-
-		@Override
-		public void onAlert(InetSocketAddress peer, AlertMessage alert) {
-			if (latch.getCount() != 0) {
-				this.alert = alert;
-				latch.countDown();
-			}
-		}
-
-		/**
-		 * @return {@code AlertMessage} if the count reached zero and {@code n}
-		 *         if the waiting time elapsed before the count reached zero
-		 */
-		public AlertMessage waitForFirstAlert(long timeout, TimeUnit unit) throws InterruptedException {
-			if (latch.await(timeout, unit)) {
-				return alert;
-			} else {
-				return null;
 			}
 		}
 	}

@@ -55,13 +55,9 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 	 * 
 	 * @since 2.6
 	 */
-	private transient final ProtocolVersion protocolVersion;
+	private final ProtocolVersion protocolVersion;
 
 	// Constructors ///////////////////////////////////////////////////
-
-	protected AlertMessage() {
-		this(null, null, null);
-	}
 
 	/**
 	 * Create new instance of alert message.
@@ -109,6 +105,7 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 	 * Messages</a> for the listing.
 	 */
 	public enum AlertLevel {
+
 		WARNING(1), FATAL(2);
 
 		private byte code;
@@ -125,7 +122,8 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 		 * Gets the alert level for a given code.
 		 * 
 		 * @param code the code
-		 * @return the corresponding level or <code>null</code> if no alert level exists for the given code
+		 * @return the corresponding level or <code>null</code> if no alert
+		 *         level exists for the given code
 		 */
 		public static AlertLevel getLevelByCode(int code) {
 			switch (code) {
@@ -196,7 +194,8 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 		 * Gets the alert description for a given code.
 		 * 
 		 * @param code the code
-		 * @return the corresponding description or <code>null</code> if no alert description exists for the given code
+		 * @return the corresponding description or <code>null</code> if no
+		 *         alert description exists for the given code
 		 */
 		public static AlertDescription getDescriptionByCode(int code) {
 			for (AlertDescription desc : values()) {
@@ -254,12 +253,10 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 		AlertLevel level = AlertLevel.getLevelByCode(levelCode);
 		AlertDescription description = AlertDescription.getDescriptionByCode(descCode);
 		if (level == null) {
-			throw new HandshakeException(
-					String.format("Unknown alert level code [%d]", levelCode),
+			throw new HandshakeException(String.format("Unknown alert level code [%d]", levelCode),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR));
 		} else if (description == null) {
-			throw new HandshakeException(
-					String.format("Unknown alert description code [%d]", descCode),
+			throw new HandshakeException(String.format("Unknown alert description code [%d]", descCode),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR));
 		} else {
 			return new AlertMessage(level, description);
@@ -286,5 +283,26 @@ public final class AlertMessage implements DTLSMessage, Serializable {
 
 	public boolean isFatal() {
 		return AlertLevel.FATAL.equals(level);
+	}
+
+	@Override
+	public int hashCode() {
+		return level.code + (description.code & 0xff) << 8;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj) {
+			return true;
+		} else if (obj == null) {
+			return false;
+		} else if (getClass() != obj.getClass()) {
+			return false;
+		}
+		AlertMessage other = (AlertMessage) obj;
+		if (description != other.description) {
+			return false;
+		}
+		return level == other.level;
 	}
 }

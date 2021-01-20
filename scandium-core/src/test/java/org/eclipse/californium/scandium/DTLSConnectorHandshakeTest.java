@@ -69,12 +69,16 @@ import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.eclipse.californium.elements.util.TestCertificatesTools;
 import org.eclipse.californium.elements.util.TestScope;
+import org.eclipse.californium.scandium.ConnectorHelper.AlertCatcher;
 import org.eclipse.californium.scandium.ConnectorHelper.BuilderSetup;
 import org.eclipse.californium.scandium.ConnectorHelper.BuilderSetups;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchSessionListener;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
+import org.eclipse.californium.scandium.dtls.AlertMessage;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
@@ -138,6 +142,7 @@ public class DTLSConnectorHandshakeTest {
 	AsyncNewAdvancedCertificateVerifier serverVerifier;
 
 	DTLSConnector client;
+	AlertCatcher clientAlertCatcher;
 	InMemoryConnectionStore clientConnectionStore;
 	ApplicationLevelInfoSupplier clientInfoSupplier;
 	ApplicationLevelInfoSupplier serverInfoSupplier;
@@ -322,6 +327,7 @@ public class DTLSConnectorHandshakeTest {
 		when(serverInfoSupplier.getInfo(any(Principal.class), any())).thenReturn(additionalServerInfo);
 		clientInfoSupplier = mock(ApplicationLevelInfoSupplier.class);
 		when(clientInfoSupplier.getInfo(any(Principal.class), any())).thenReturn(additionalClientInfo);
+		clientAlertCatcher = new AlertCatcher();
 	}
 
 	/**
@@ -471,6 +477,7 @@ public class DTLSConnectorHandshakeTest {
 		DtlsConnectorConfig clientConfig = builder.build();
 
 		client = serverHelper.createClient(clientConfig);
+		client.setAlertHandler(clientAlertCatcher);
 		RawData raw = RawData.outbound("Hello World".getBytes(),
 				new AddressEndpointContext(serverHelper.serverEndpoint, hostname, null), null, false);
 		serverHelper.givenAnEstablishedSession(client, raw, true);
@@ -488,6 +495,7 @@ public class DTLSConnectorHandshakeTest {
 		DtlsConnectorConfig clientConfig = builder.build();
 
 		client = serverHelper.createClient(clientConfig);
+		client.setAlertHandler(clientAlertCatcher);
 		client.start();
 		SimpleMessageCallback callback = new SimpleMessageCallback();
 		RawData raw = RawData.outbound("Hello World".getBytes(), destination, callback, false);
@@ -1236,13 +1244,18 @@ public class DTLSConnectorHandshakeTest {
 		assertThat("server side session listener missing", listener, is(notNullValue()));
 		Throwable cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
 		assertThat("server side handshake failure missing", cause, is(notNullValue()));
-		assertThat(cause.getMessage(), containsString("CertificateVerify message could not be verified."));
+
+		AlertMessage alert = serverHelper.serverAlertCatcher.getAlert();
+		assertThat("server side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.DECRYPT_ERROR)));
 
 		listener = serverHelper.sessionListenerMap.get(serverHelper.serverEndpoint);
 		assertThat("client side session listener missing", listener, is(notNullValue()));
 		cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
 		assertThat("client side handshake failure missing", cause, is(notNullValue()));
 		assertThat(cause.getMessage(), containsString("fatal alert"));
+
+		alert = clientAlertCatcher.getAlert();
+		assertThat("client side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.DECRYPT_ERROR)));
 	}
 
 	@Test
@@ -1262,13 +1275,17 @@ public class DTLSConnectorHandshakeTest {
 		assertThat("server side session listener missing", listener, is(notNullValue()));
 		Throwable cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
 		assertThat("server side handshake failure missing", cause, is(notNullValue()));
-		assertThat(cause.getMessage(), containsString("Client Certificate required!"));
+
+		AlertMessage alert = serverHelper.serverAlertCatcher.getAlert();
+		assertThat("server side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE)));
 
 		listener = serverHelper.sessionListenerMap.get(serverHelper.serverEndpoint);
 		assertThat("client side session listener missing", listener, is(notNullValue()));
 		cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
 		assertThat("client side handshake failure missing", cause, is(notNullValue()));
-		assertThat(cause.getMessage(), containsString("fatal alert"));
+
+		alert = clientAlertCatcher.getAlert();
+		assertThat("client side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE)));
 	}
 
 	@Test
@@ -1289,13 +1306,17 @@ public class DTLSConnectorHandshakeTest {
 		assertThat("server side session listener missing", listener, is(notNullValue()));
 		Throwable cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
 		assertThat("server side handshake failure missing", cause, is(notNullValue()));
-		assertThat(cause.getMessage(), containsString("Client proposed unsupported cipher suites only"));
+
+		AlertMessage alert = serverHelper.serverAlertCatcher.getAlert();
+		assertThat("server side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE)));
 
 		listener = serverHelper.sessionListenerMap.get(serverHelper.serverEndpoint);
 		assertThat("client side session listener missing", listener, is(notNullValue()));
 		cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
 		assertThat("client side handshake failure missing", cause, is(notNullValue()));
-		assertThat(cause.getMessage(), containsString("fatal alert"));
+
+		alert = clientAlertCatcher.getAlert();
+		assertThat("client side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE)));
 	}
 
 	@Test

@@ -80,6 +80,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuiteParameters;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuiteSelector;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.util.SecretUtil;
 
@@ -248,7 +249,7 @@ public class ServerHandshaker extends Handshaker {
 	}
 
 	@Override
-	protected void doProcessMessage(HandshakeMessage message) throws HandshakeException, GeneralSecurityException {
+	protected void doProcessMessage(HandshakeMessage message) throws HandshakeException {
 
 		switch (message.getMessageType()) {
 		case CLIENT_HELLO:
@@ -282,9 +283,8 @@ public class ServerHandshaker extends Handshaker {
 				break;
 
 			default:
-				throw new HandshakeException(
-						String.format("Unsupported key exchange algorithm %s", getSession().getKeyExchange().name()),
-						new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
+				// already checked in HandshakeMessage.readServerKeyExchange
+				break;
 			}
 			break;
 
@@ -345,7 +345,7 @@ public class ServerHandshaker extends Handshaker {
 		clientPublicKey = message.getPublicKey();
 		if (clientAuthenticationRequired && clientPublicKey == null) {
 			LOGGER.debug("Client authentication failed: missing certificate!");
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE);
 			throw new HandshakeException("Client Certificate required!", alert);
 		}
 		if (clientPublicKey == null) {
@@ -398,7 +398,7 @@ public class ServerHandshaker extends Handshaker {
 		// check if client sent all expected messages
 		// (i.e. ClientCertificate/CertificateVerify when server sent CertificateRequest)
 		if (clientAuthenticationRequired && states == EMPTY_CLIENT_CERTIFICATE) {
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE);
 			throw new HandshakeException("Client did not send required authentication messages.", alert);
 		}
 
@@ -548,18 +548,24 @@ public class ServerHandshaker extends Handshaker {
 		 * algorithm)
 		 */
 		DTLSSession session = getSession();
-		ServerKeyExchange serverKeyExchange = null;
-		switch (session.getKeyExchange()) {
-		case EC_DIFFIE_HELLMAN:
+		KeyExchangeAlgorithm keyExchangeAlgorithm = session.getKeyExchange();
+
+		if (KeyExchangeAlgorithm.ECDHE_PSK == keyExchangeAlgorithm
+				|| KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN == keyExchangeAlgorithm) {
 			try {
 				ecdhe = new XECDHECryptography(selectedCipherSuiteParameters.getSelectedSupportedGroup());
-				serverKeyExchange = new EcdhEcdsaServerKeyExchange(session.getSignatureAndHashAlgorithm(), ecdhe, privateKey, clientRandom, serverRandom);
-				break;
-			} catch (GeneralSecurityException e) {
-				throw new HandshakeException(
-						String.format("Error performing EC Diffie Hellman key exchange: %s", e.getMessage()),
-						new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
+			} catch (GeneralSecurityException ex) {
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER);
+				throw new HandshakeException("Cannot process handshake message, caused by " + ex.getMessage(), alert,
+						ex);
 			}
+		}
+
+		ServerKeyExchange serverKeyExchange = null;
+		switch (keyExchangeAlgorithm) {
+		case EC_DIFFIE_HELLMAN:
+			serverKeyExchange = new EcdhEcdsaServerKeyExchange(session.getSignatureAndHashAlgorithm(), ecdhe, privateKey, clientRandom, serverRandom);
+			break;
 
 		case PSK:
 			/*
@@ -572,16 +578,8 @@ public class ServerHandshaker extends Handshaker {
 			break;
 
 		case ECDHE_PSK:
-
-			try {
-				ecdhe = new XECDHECryptography(selectedCipherSuiteParameters.getSelectedSupportedGroup());
-				serverKeyExchange = new EcdhPskServerKeyExchange(PskPublicInformation.EMPTY, ecdhe);
-				break;
-			} catch (GeneralSecurityException e) {
-				throw new HandshakeException(
-						String.format("Error performing EC Diffie Hellman key exchange: %s", e.getMessage()),
-						new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
-			}
+			serverKeyExchange = new EcdhPskServerKeyExchange(PskPublicInformation.EMPTY, ecdhe);
+			break;
 
 		default:
 			// NULL does not require the server's key exchange message
@@ -622,15 +620,20 @@ public class ServerHandshaker extends Handshaker {
 	 * 
 	 * @param message the client's key exchange message.
 	 * @return the master secret.
-	 * @throws GeneralSecurityException
+	 * @throws HandshakeException if the ECDHE key agreement fails 
 	 */
-	private SecretKey receivedClientKeyExchange(ECDHClientKeyExchange message) throws GeneralSecurityException {
-		SecretKey premasterSecret = ecdhe.generateSecret(message.getEncodedPoint());
-		SecretKey masterSecret = PseudoRandomFunction.generateMasterSecret(
-				getSession().getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), premasterSecret,
-				generateRandomSeed());
-		SecretUtil.destroy(premasterSecret);
-		return masterSecret;
+	private SecretKey receivedClientKeyExchange(ECDHClientKeyExchange message) throws HandshakeException {
+		try {
+			SecretKey premasterSecret = ecdhe.generateSecret(message.getEncodedPoint());
+			SecretKey masterSecret = PseudoRandomFunction.generateMasterSecret(
+					getSession().getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), premasterSecret,
+					generateRandomSeed());
+			SecretUtil.destroy(premasterSecret);
+			return masterSecret;
+		} catch (GeneralSecurityException ex) {
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER);
+			throw new HandshakeException("Cannot process handshake message, caused by " + ex.getMessage(), alert, ex);
+		}
 	}
 
 	/**
@@ -647,14 +650,18 @@ public class ServerHandshaker extends Handshaker {
 		return requestPskSecretResult(preSharedKeyIdentity, null);
 	}
 
-	private PskSecretResult receivedClientKeyExchange(EcdhPskClientKeyExchange message)
-			throws GeneralSecurityException {
-		// use the client's PSK identity to look up the pre-shared key
-		preSharedKeyIdentity = message.getIdentity();
-		SecretKey otherSecret = ecdhe.generateSecret(message.getEncodedPoint());
-		PskSecretResult masterSecretRequest = requestPskSecretResult(preSharedKeyIdentity, otherSecret);
-		SecretUtil.destroy(otherSecret);
-		return masterSecretRequest;
+	private PskSecretResult receivedClientKeyExchange(EcdhPskClientKeyExchange message) throws HandshakeException {
+		try {
+			// use the client's PSK identity to look up the pre-shared key
+			preSharedKeyIdentity = message.getIdentity();
+			SecretKey otherSecret = ecdhe.generateSecret(message.getEncodedPoint());
+			PskSecretResult masterSecretRequest = requestPskSecretResult(preSharedKeyIdentity, otherSecret);
+			SecretUtil.destroy(otherSecret);
+			return masterSecretRequest;
+		} catch (GeneralSecurityException ex) {
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER);
+			throw new HandshakeException("Cannot process handshake message, caused by " + ex.getMessage(), alert, ex);
+		}
 	}
 
 	protected void processHelloExtensions(final ClientHello clientHello, final HelloExtensions serverHelloExtensions) {
@@ -804,7 +811,7 @@ public class ServerHandshaker extends Handshaker {
 			// if none of the client's proposed cipher suites matches
 			// throw exception
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
-			throw new HandshakeException("Client proposed unsupported cipher suites only", alert);
+			throw new HandshakeException("Client proposed unsupported cipher suites or parameters only", alert);
 		}
 	}
 

@@ -66,6 +66,7 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
@@ -235,7 +236,7 @@ public class ClientHandshaker extends Handshaker {
 	}
 
 	@Override
-	protected void doProcessMessage(HandshakeMessage message) throws HandshakeException, GeneralSecurityException {
+	protected void doProcessMessage(HandshakeMessage message) throws HandshakeException {
 
 		switch (message.getMessageType()) {
 
@@ -260,13 +261,9 @@ public class ClientHandshaker extends Handshaker {
 			case PSK:
 				// server hint is not supported! Therefore no processing is done
 				break;
-			
+
 			case ECDHE_PSK:
 				serverKeyExchange =(EcdhPskServerKeyExchange) message;
-				break;
-				
-			case NULL:
-				LOGGER.info("Received unexpected ServerKeyExchange message in NULL key exchange mode.");
 				break;
 
 			default:
@@ -507,7 +504,7 @@ public class ClientHandshaker extends Handshaker {
 	 * @throws GeneralSecurityException if the client's handshake records cannot
 	 *             be created
 	 */
-	private void receivedServerHelloDone(ServerHelloDone message) throws HandshakeException, GeneralSecurityException {
+	private void receivedServerHelloDone(ServerHelloDone message) throws HandshakeException {
 		flightNumber += 2;
 
 		/*
@@ -516,14 +513,30 @@ public class ClientHandshaker extends Handshaker {
 		 */
 		PskPublicInformation clientIdentity;
 		PskSecretResult masterSecretResult;
-		XECDHECryptography ecdhe = serverKeyExchange == null ? null : new XECDHECryptography(serverKeyExchange.getSupportedGroup());
 		DTLSSession session = getSession();
-		switch (session.getKeyExchange()) {
+		KeyExchangeAlgorithm keyExchangeAlgorithm = session.getKeyExchange();
+		XECDHECryptography ecdhe = null;
+		SecretKey ecdheSecret = null;
+		byte[] encodedPoint = null;
+
+		if (KeyExchangeAlgorithm.ECDHE_PSK == keyExchangeAlgorithm
+				|| KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN == keyExchangeAlgorithm) {
+			try {
+				ecdhe = new XECDHECryptography(serverKeyExchange.getSupportedGroup());
+				ecdheSecret = ecdhe.generateSecret(serverKeyExchange.getEncodedPoint());
+				encodedPoint = ecdhe.getEncodedPoint();
+			} catch (GeneralSecurityException ex) {
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER);
+				throw new HandshakeException("Cannot process handshake message, caused by " + ex.getMessage(), alert,
+						ex);
+			}
+		}
+		switch (keyExchangeAlgorithm) {
 		case EC_DIFFIE_HELLMAN:
-			clientKeyExchange = new ECDHClientKeyExchange(ecdhe.getEncodedPoint());
-			SecretKey premasterSecret = ecdhe.generateSecret(serverKeyExchange.getEncodedPoint());
-			SecretKey masterSecret = PseudoRandomFunction.generateMasterSecret(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), premasterSecret, generateRandomSeed());
-			SecretUtil.destroy(premasterSecret);
+			clientKeyExchange = new ECDHClientKeyExchange(encodedPoint);
+			SecretKey masterSecret = PseudoRandomFunction.generateMasterSecret(
+					session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), ecdheSecret,
+					generateRandomSeed());
 			processMasterSecret(masterSecret);
 			break;
 		case PSK:
@@ -538,21 +551,19 @@ public class ClientHandshaker extends Handshaker {
 		case ECDHE_PSK:
 			clientIdentity = getPskClientIdentity();
 			LOGGER.trace("Using ECDHE PSK identity: {}", clientIdentity);
-			clientKeyExchange = new EcdhPskClientKeyExchange(clientIdentity, ecdhe.getEncodedPoint());
-			SecretKey otherSecret = ecdhe.generateSecret(serverKeyExchange.getEncodedPoint());
-			masterSecretResult = requestPskSecretResult(clientIdentity, otherSecret);
-			SecretUtil.destroy(otherSecret);
+			clientKeyExchange = new EcdhPskClientKeyExchange(clientIdentity, encodedPoint);
+			masterSecretResult = requestPskSecretResult(clientIdentity, ecdheSecret);
 			if (masterSecretResult != null) {
 				processPskSecretResult(masterSecretResult);
 			}
 			break;
 
 		default:
-			throw new HandshakeException(
-					"Unknown key exchange algorithm: " + session.getKeyExchange(),
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
+			// already checked in HandshakeMessage.readClientKeyExchange
+			break;
 		}
 		SecretUtil.destroy(ecdhe);
+		SecretUtil.destroy(ecdheSecret);
 	}
 
 	/**
@@ -616,7 +627,7 @@ public class ClientHandshaker extends Handshaker {
 						"Server wants to use not supported client certificate type " + clientCertificateType,
 						new AlertMessage(
 								AlertLevel.FATAL,
-								AlertDescription.ILLEGAL_PARAMETER));
+								AlertDescription.UNSUPPORTED_CERTIFICATE));
 			}
 
 			// prepare handshake messages
@@ -823,7 +834,7 @@ public class ClientHandshaker extends Handshaker {
 		PskPublicInformation pskIdentity = advancedPskStore.getIdentity(getPeerAddress(), serverName);
 		// look up identity in scope of virtual host
 		if (pskIdentity == null) {
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
 			if (serverName != null) {
 				throw new HandshakeException(String.format("No Identity found for peer [address: %s, virtual host: %s]",
 						getPeerAddress(), getSession().getHostName()), alert);

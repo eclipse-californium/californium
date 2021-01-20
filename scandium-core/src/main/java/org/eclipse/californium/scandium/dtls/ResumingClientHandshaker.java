@@ -37,7 +37,6 @@
 ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -128,7 +127,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	// Methods ////////////////////////////////////////////////////////
 
 	@Override
-	protected void doProcessMessage(HandshakeMessage message) throws HandshakeException, GeneralSecurityException {
+	protected void doProcessMessage(HandshakeMessage message) throws HandshakeException {
 		if (fullHandshake){
 			// handshake resumption was refused by the server
 			// we do a full handshake

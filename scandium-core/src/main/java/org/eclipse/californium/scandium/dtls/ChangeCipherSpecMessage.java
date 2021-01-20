@@ -106,7 +106,7 @@ public final class ChangeCipherSpecMessage implements DTLSMessage {
 			return new ChangeCipherSpecMessage();
 		} else {
 			String message = "Unknown Change Cipher Spec code received: " + code;
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
+			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER);
 			throw new HandshakeException(message, alert);
 		}
 	}

@@ -174,7 +174,7 @@ public final class CertificateVerify extends HandshakeMessage {
 
 		return signatureBytes;
 	}
-	
+
 	/**
 	 * Tries to verify the client's signature contained in the CertificateVerify
 	 * message.
@@ -204,7 +204,7 @@ public final class CertificateVerify extends HandshakeMessage {
 			LOGGER.error("Could not verify the client's signature.", e);
 		}
 		String message = "The client's CertificateVerify message could not be verified.";
-		AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
+		AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.DECRYPT_ERROR);
 		throw new HandshakeException(message, alert);
 	}
 }

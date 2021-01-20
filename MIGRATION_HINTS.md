@@ -19,17 +19,30 @@ If a 2.0.0 or newer is used, it's recommended to update first to 2.6.0 and clean
 
 ## Noteworthy Behavior Changes
 
-### Californium-Core:
-
-`MessageObserver.onAcknowledgement()`:
-
-Since 3.0 this is only called for separate ACKs, not longer for piggy-backed responses.
-
 ### Element-Connector:
 
 `Bytes.equals(Object other)`:
 
 Since 3.0 the sub-class may be ignored, depending on the provided value of the `useClassInEquals` parameter in `Bytes(byte[], int, boolean, boolean)`. The default behavior is changed to ignore the sub-class.
+
+### Scandium:
+
+Redesigned, may cause also unaware changes!
+
+The Alert during the handshakes are adapted (more) towards the definitions in 
+[RFC 5246, Section 7.2, Alert Protocol](https://tools.ietf.org/html/rfc5246#section-7.2).
+
+During the `CLIENT_HELLO` / `SERVER_HELLO` cipher suite and parameter negotiation a
+`HANDSHAKE_FAILURE` is sent, if no common cipher suite or parameter are available.
+If in later messages unsupported parameters are used, a `ILLEGAL_PARAMETER` is sent.
+For unexpected certificate types a `UNSUPPORTED_CERTIFICATE` is sent.
+If certificate verification fails, a `DECRYPT_ERROR` is sent.
+
+### Californium-Core:
+
+`MessageObserver.onAcknowledgement()`:
+
+Since 3.0 this is only called for separate ACKs, not longer for piggy-backed responses.
 
 ## Noteworthy API Changes
 

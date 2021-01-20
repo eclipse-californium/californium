@@ -2327,6 +2327,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 			}
 			sendAlert(connection, handshakeContext, alert);
 			handshaker.handshakeFailed(cause);
+			reportAlertInternal(connection, alert);
 		}
 	}
 

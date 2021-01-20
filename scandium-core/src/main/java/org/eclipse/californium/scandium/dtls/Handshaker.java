@@ -62,7 +62,6 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.Inet6Address;
 import java.net.InetSocketAddress;
-import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.security.Principal;
 import java.security.PrivateKey;
@@ -753,11 +752,6 @@ public abstract class Handshaker implements Destroyable {
 					recordLayer.processRecord(deferredRecord, connection);
 				}
 			}
-		} catch (GeneralSecurityException e) {
-			LOGGER.warn("Cannot process handshake message from peer [{}] due to [{}]", getPeerAddress(),
-					e.getMessage(), e);
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
-			throw new HandshakeException("Cannot process handshake message, caused by " + e.getMessage(), alert, e);
 		} catch (RuntimeException e) {
 			LOGGER.warn("Cannot process handshake message from peer [{}] due to [{}]", getPeerAddress(),
 					e.getMessage(), e);
@@ -780,11 +774,10 @@ public abstract class Handshaker implements Destroyable {
 	 * @return {@code true}, continue processing record, {@code false}, stop
 	 *         processing records.
 	 * @throws HandshakeException if an error occurs processing a message
-	 * @throws GeneralSecurityException if an error occurs processing a message
 	 * @since 2.4
 	 */
 	private boolean processNextHandshakeMessages(int epoch, int bufferIndex, HandshakeMessage handshakeMessage)
-			throws HandshakeException, GeneralSecurityException {
+			throws HandshakeException {
 		if (recursionProtection.isHeldByCurrentThread()) {
 			LOGGER.warn("Called from doProcessMessage, return immediately to process next message!",
 					new Throwable("recursion-protection"));
@@ -915,7 +908,7 @@ public abstract class Handshaker implements Destroyable {
 					LOGGER.debug("Cannot process {} message from peer [{}], {} expected!",
 							HandshakeState.toString(message), getPeerAddress(), expectedState);
 				}
-				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
+				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE);
 				throw new HandshakeException("Cannot process " + HandshakeState.toString(message)
 						+ " handshake message, " + expectedState + " expected!", alert);
 			}
@@ -931,11 +924,9 @@ public abstract class Handshaker implements Destroyable {
 	 * record.
 	 * 
 	 * @param message the message received from the peer
-	 * @throws HandshakeException if the record's plaintext fragment cannot be parsed into
-	 *            a handshake message or cannot be processed properly
-	 * @throws GeneralSecurityException if the record's ciphertext fragment cannot be decrypted
+	 * @throws HandshakeException if the handshake message cannot be processed properly
 	 */
-	protected abstract void doProcessMessage(HandshakeMessage message) throws HandshakeException, GeneralSecurityException;
+	protected abstract void doProcessMessage(HandshakeMessage message) throws HandshakeException;
 
 	/**
 	 * Process asynchronous handshake result.
@@ -1304,7 +1295,7 @@ public abstract class Handshaker implements Destroyable {
 			}
 		} catch (IllegalArgumentException ex) {
 			throw new HandshakeException(ex.getMessage(),
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER));
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR));
 		}
 
 		return null;
