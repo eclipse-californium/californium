@@ -53,9 +53,15 @@ are removed and must be replaced by
 
 `NewAdvancedCertificateVerifier`, and `StaticNewAdvancedCertificateVerifier`.
 
-3) `MtuUtil` is removed and must be replaced by `NetworkInterfacesUtil`.
+3) The `DTLSession` in `NewAdvancedCertificateVerifier.verifyCertificate` is removed. If that is required by your implementation, please open an issue.
 
-4) The `ConnectionExecutionListener` interface is integrated in `ConnectionListener`.
+4) `MtuUtil` is removed and must be replaced by `NetworkInterfacesUtil`.
+
+5) The `ConnectionExecutionListener` interface is integrated in `ConnectionListener`.
+
+6) The DTLSSession is split into `DTLSSession` and `DTLSContext`.
+
+7) The `SessionListener` interface is adapted, `sessionEstablished` is now `contextEstablished`.
 
 ### Californium-Core:
 

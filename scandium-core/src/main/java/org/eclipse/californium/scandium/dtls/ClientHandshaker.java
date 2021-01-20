@@ -185,26 +185,38 @@ public class ClientHandshaker extends Handshaker {
 	/**
 	 * Creates a new handshaker for negotiating a DTLS session with a server.
 	 * 
-	 * @param session
-	 *            the session to negotiate with the server.
-	 * @param recordLayer
-	 *            the object to use for sending flights to the peer.
-	 * @param timer
-	 *            scheduled executor for flight retransmission (since 2.4).
-	 * @param connection
-	 *            the connection related with the session.
-	 * @param config
-	 *            the DTLS configuration.
+	 * @param hostname destination hostname (since 3.0). May be {@code null}.
+	 * @param recordLayer the object to use for sending flights to the peer.
+	 * @param timer scheduled executor for flight retransmission (since 2.4).
+	 * @param connection the connection related with the session.
+	 * @param config the DTLS configuration.
 	 * @param probe {@code true} enable probing for this handshake,
 	 *            {@code false}, not probing handshake.
-	 * @throws IllegalStateException
-	 *            if the message digest required for computing the FINISHED message hash cannot be instantiated.
-	 * @throws NullPointerException
-	 *            if session, recordLayer, timer or config is {@code null}
+	 * @throws NullPointerException if any of the provided parameter is
+	 *             {@code null}, except the hostname.
 	 */
-	public ClientHandshaker(DTLSSession session, RecordLayer recordLayer, ScheduledExecutorService timer, Connection connection,
+	public ClientHandshaker(String hostname, RecordLayer recordLayer, ScheduledExecutorService timer, Connection connection,
 			DtlsConnectorConfig config, boolean probe) {
-		super(true, 0, session, recordLayer, timer, connection, config);
+		this(probe, new DTLSSession(hostname), recordLayer, timer, connection, config);
+	}
+
+	/**
+	 * Creates a new handshaker for negotiating a DTLS session with a server.
+	 * 
+	 * @param probe {@code true} enable probing for this handshake,
+	 *            {@code false}, not probing handshake.
+	 * @param session the session to negotiate with the server.
+	 * @param recordLayer the object to use for sending flights to the peer.
+	 * @param timer scheduled executor for flight retransmission.
+	 * @param connection the connection related with the session.
+	 * @param config the DTLS configuration.
+	 * @throws NullPointerException if any of the provided parameter is
+	 *             {@code null}
+	 * @since 3.0
+	 */
+	protected ClientHandshaker(boolean probe, DTLSSession session, RecordLayer recordLayer, ScheduledExecutorService timer, Connection connection,
+			DtlsConnectorConfig config) {
+		super(0, 0, session, recordLayer, timer, connection, config);
 		this.supportedCipherSuites = config.getSupportedCipherSuites();
 		this.supportedGroups = config.getSupportedGroups();
 		this.maxFragmentLengthCode = config.getMaxFragmentLengthCode();
@@ -216,6 +228,11 @@ public class ClientHandshaker extends Handshaker {
 	}
 
 	// Methods ////////////////////////////////////////////////////////
+
+	@Override
+	protected boolean isClient() {
+		return true;
+	}
 
 	@Override
 	protected void doProcessMessage(HandshakeMessage message) throws HandshakeException, GeneralSecurityException {
@@ -235,8 +252,7 @@ public class ClientHandshaker extends Handshaker {
 			break;
 
 		case SERVER_KEY_EXCHANGE:
-
-			switch (session.getKeyExchange()) {
+			switch (getSession().getKeyExchange()) {
 			case EC_DIFFIE_HELLMAN:
 				receivedServerKeyExchange((EcdhEcdsaServerKeyExchange) message);
 				break;
@@ -255,7 +271,7 @@ public class ClientHandshaker extends Handshaker {
 
 			default:
 				throw new HandshakeException(
-						String.format("Unsupported key exchange algorithm %s", session.getKeyExchange().name()),
+						String.format("Unsupported key exchange algorithm %s", getSession().getKeyExchange().name()),
 						new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
 			}
 			break;
@@ -284,15 +300,14 @@ public class ClientHandshaker extends Handshaker {
 	 * Called when the client received the server's finished message. If the
 	 * data can be verified, encrypted application data can be sent.
 	 * 
-	 * @param message
-	 *            the {@link Finished} message.
-	 * @throws HandshakeException
-	 * @throws GeneralSecurityException if the APPLICATION record cannot be created 
+	 * @param message the {@link Finished} message.
+	 * @throws HandshakeException if the server's finished is not valid or could
+	 *             not be processed
 	 */
-	private void receivedServerFinished(Finished message) throws HandshakeException, GeneralSecurityException {
-		message.verifyData(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, false,
+	private void receivedServerFinished(Finished message) throws HandshakeException {
+		message.verifyData(getSession().getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, false,
 				handshakeHash);
-		sessionEstablished();
+		contextEstablished();
 		handshakeCompleted();
 	}
 
@@ -304,9 +319,8 @@ public class ClientHandshaker extends Handshaker {
 	 * 
 	 * @param message
 	 *            the server's {@link HelloVerifyRequest}.
-	 * @throws HandshakeException if the CLIENT_HELLO record cannot be created
 	 */
-	protected void receivedHelloVerifyRequest(HelloVerifyRequest message) throws HandshakeException {
+	protected void receivedHelloVerifyRequest(HelloVerifyRequest message) {
 		// HelloVerifyRequest and messages before are not included in the handshake hashs
 		handshakeMessages.clear();
 
@@ -338,6 +352,7 @@ public class ClientHandshaker extends Handshaker {
 		}
 
 		serverRandom = message.getRandom();
+		DTLSSession session = getSession();
 		session.setSessionIdentifier(message.getSessionId());
 		CipherSuite cipherSuite = message.getCipherSuite();
 		if (!supportedCipherSuites.contains(cipherSuite)) {
@@ -362,8 +377,8 @@ public class ClientHandshaker extends Handshaker {
 			ConnectionIdExtension extension = message.getConnectionIdExtension();
 			if (extension != null) {
 				ConnectionId connectionId = extension.getConnectionId();
-				session.setWriteConnectionId(connectionId);
-				session.setReadConnectionId(getReadConnectionId());
+				context.setWriteConnectionId(connectionId);
+				context.setReadConnectionId(getReadConnectionId());
 			}
 		}
 		session.setSendCertificateType(message.getClientCertificateType());
@@ -399,6 +414,8 @@ public class ClientHandshaker extends Handshaker {
 							AlertLevel.FATAL,
 							AlertDescription.ILLEGAL_PARAMETER));
 		}
+
+		DTLSSession session = getSession();
 		RecordSizeLimitExtension recordSizeLimitExt = message.getRecordSizeLimit();
 		if (recordSizeLimitExt != null) {
 			session.setRecordSizeLimit(recordSizeLimitExt.getRecordSizeLimit());
@@ -472,20 +489,23 @@ public class ClientHandshaker extends Handshaker {
 		message.verifySignature(serverPublicKey, clientRandom, serverRandom);
 		// server identity has been proven
 		if (peerCertPath != null) {
-			session.setPeerIdentity(new X509CertPath(peerCertPath));
+			getSession().setPeerIdentity(new X509CertPath(peerCertPath));
 		} else {
-			session.setPeerIdentity(new RawPublicKeyIdentity(serverPublicKey));
+			getSession().setPeerIdentity(new RawPublicKeyIdentity(serverPublicKey));
 		}
 		serverKeyExchange = message;
 	}
 
 	/**
 	 * The ServerHelloDone message is sent by the server to indicate the end of
-	 * the ServerHello and associated messages. The client starts to fetch all required credentials.
-	 * If these credentials are available, the processing is continued with {@link #doProcessMasterSecretResult(PskSecretResult)}.
+	 * the ServerHello and associated messages. The client starts to fetch all
+	 * required credentials. If these credentials are available, the processing
+	 * is continued with {@link #doProcessMasterSecretResult(PskSecretResult)}.
 	 * 
-	 * @throws HandshakeException
-	 * @throws GeneralSecurityException if the client's handshake records cannot be created
+	 * @throws HandshakeException if the server's hello done can not be
+	 *             processed.
+	 * @throws GeneralSecurityException if the client's handshake records cannot
+	 *             be created
 	 */
 	private void receivedServerHelloDone(ServerHelloDone message) throws HandshakeException, GeneralSecurityException {
 		flightNumber += 2;
@@ -497,6 +517,7 @@ public class ClientHandshaker extends Handshaker {
 		PskPublicInformation clientIdentity;
 		PskSecretResult masterSecretResult;
 		XECDHECryptography ecdhe = serverKeyExchange == null ? null : new XECDHECryptography(serverKeyExchange.getSupportedGroup());
+		DTLSSession session = getSession();
 		switch (session.getKeyExchange()) {
 		case EC_DIFFIE_HELLMAN:
 			clientKeyExchange = new ECDHClientKeyExchange(ecdhe.getEncodedPoint());
@@ -589,7 +610,7 @@ public class ClientHandshaker extends Handshaker {
 		 * Third, send CertificateVerify message if necessary.
 		 */
 		if (sentClientCertificate && certificateRequest != null && negotiatedSignatureAndHashAlgorithm != null) {
-			CertificateType clientCertificateType = session.sendCertificateType();
+			CertificateType clientCertificateType = getSession().sendCertificateType();
 			if (!isSupportedCertificateType(clientCertificateType, supportedClientCertificateTypes)) {
 				throw new HandshakeException(
 						"Server wants to use not supported client certificate type " + clientCertificateType,
@@ -629,7 +650,7 @@ public class ClientHandshaker extends Handshaker {
 							AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
 		}
 
-		Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), this.masterSecret, isClient, md.digest());
+		Finished finished = new Finished(getSession().getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), this.masterSecret, true, md.digest());
 		wrapMessage(flight, finished);
 
 		// compute handshake hash with client's finished message also
@@ -641,7 +662,7 @@ public class ClientHandshaker extends Handshaker {
 		expectChangeCipherSpecMessage();
 	}
 
-	protected void createCertificateMessage(final DTLSFlight flight) throws HandshakeException {
+	protected void createCertificateMessage(final DTLSFlight flight) {
 
 		/*
 		 * First, if required by server, send Certificate.
@@ -653,7 +674,7 @@ public class ClientHandshaker extends Handshaker {
 			}
 			certificateRequest.selectSignatureAlgorithms(supported);
 			CertificateMessage clientCertificate;
-			if (CertificateType.RAW_PUBLIC_KEY == session.sendCertificateType()) {
+			if (CertificateType.RAW_PUBLIC_KEY == getSession().sendCertificateType()) {
 				// empty certificate, if no proper public key is available
 				PublicKey publicKey = this.publicKey;
 				if (publicKey != null) {
@@ -667,7 +688,7 @@ public class ClientHandshaker extends Handshaker {
 					LOGGER.debug("sending CERTIFICATE message with client RawPublicKey [{}] to server", StringUtil.byteArray2HexString(raw));
 				}
 				clientCertificate = new CertificateMessage(publicKey);
-			} else if (CertificateType.X_509 == session.sendCertificateType()) {
+			} else if (CertificateType.X_509 == getSession().sendCertificateType()) {
 				// empty certificate, if no proper certificate chain is available
 				List<X509Certificate> clientChain = Collections.emptyList();
 				if (certificateChain != null) {
@@ -679,7 +700,7 @@ public class ClientHandshaker extends Handshaker {
 				List<X500Principal> authorities = truncateCertificatePath ? certificateRequest.getCertificateAuthorities() : null;
 				clientCertificate = new CertificateMessage(clientChain, authorities);
 			} else {
-				throw new IllegalArgumentException("Certificate type " + session.sendCertificateType() + " not supported!");
+				throw new IllegalArgumentException("Certificate type " + getSession().sendCertificateType() + " not supported!");
 			}
 			sentClientCertificate = clientCertificate.getMessageLength() > 3;
 			wrapMessage(flight, clientCertificate);
@@ -703,7 +724,6 @@ public class ClientHandshaker extends Handshaker {
 		}
 	}
 
-	@Override
 	public void startHandshake() throws HandshakeException {
 
 		handshakeStarted();
@@ -778,9 +798,9 @@ public class ClientHandshaker extends Handshaker {
 
 	protected void addServerNameIndication(final ClientHello helloMessage) {
 
-		if (sniEnabled && session.getServerNames() != null) {
-			LOGGER.debug("adding SNI extension to CLIENT_HELLO message [{}]", session.getHostName());
-			helloMessage.addExtension(ServerNameExtension.forServerNames(session.getServerNames()));
+		if (sniEnabled && getSession().getServerNames() != null) {
+			LOGGER.debug("adding SNI extension to CLIENT_HELLO message [{}]", getSession().getHostName());
+			helloMessage.addExtension(ServerNameExtension.forServerNames(getSession().getServerNames()));
 		}
 	}
 
@@ -795,8 +815,8 @@ public class ClientHandshaker extends Handshaker {
 	 */
 	protected PskPublicInformation getPskClientIdentity() throws HandshakeException {
 
-		ServerNames serverName = sniEnabled ? session.getServerNames() : null;
-		if (serverName != null && !session.isSniSupported()) {
+		ServerNames serverName = sniEnabled ? getSession().getServerNames() : null;
+		if (serverName != null && !getSession().isSniSupported()) {
 			LOGGER.warn(
 					"client is configured to use SNI but server does not support it, PSK authentication is likely to fail");
 		}
@@ -806,7 +826,7 @@ public class ClientHandshaker extends Handshaker {
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
 			if (serverName != null) {
 				throw new HandshakeException(String.format("No Identity found for peer [address: %s, virtual host: %s]",
-						getPeerAddress(), session.getHostName()), alert);
+						getPeerAddress(), getSession().getHostName()), alert);
 			} else {
 				throw new HandshakeException(
 						String.format("No Identity found for peer [address: %s]", getPeerAddress()), alert);

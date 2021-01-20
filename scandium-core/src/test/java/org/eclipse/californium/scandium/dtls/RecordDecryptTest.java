@@ -53,7 +53,7 @@ public class RecordDecryptTest {
 	static final int EPOCH = 1;
 	static final boolean DUMP = false;
 
-	DTLSSession session;
+	DTLSContext context;
 	byte[] payloadData;
 	int payloadLength = 128;
 
@@ -92,11 +92,12 @@ public class RecordDecryptTest {
 		SecretIvParameterSpec iv = ivLength > 0 ? new SecretIvParameterSpec(Bytes.createBytes(secureRandom, ivLength)) : null;
 		payloadData = Bytes.createBytes(secureRandom, payloadLength);
 
-		session = new DTLSSession();
+		DTLSSession session = new DTLSSession();
 		session.setCipherSuite(cipherSuite);
 		session.setCompressionMethod(CompressionMethod.NULL);
-		session.createReadState(encKey, iv, macKey);
-		session.createWriteState(encKey, iv, macKey);
+		context = new DTLSContext(session, 0);
+		context.createReadState(encKey, iv, macKey);
+		context.createWriteState(encKey, iv, macKey);
 	}
 
 	/**
@@ -122,13 +123,13 @@ public class RecordDecryptTest {
 	 * @throws HandshakeException if a handshake error occurs
 	 */
 	private void testEncryptDecrypt(byte[] payload) throws GeneralSecurityException, HandshakeException {
-		Record record = new Record(ContentType.APPLICATION_DATA, EPOCH, session.getSequenceNumber(EPOCH),
-				new ApplicationMessage(payload), session, true, 0);
+		Record record = new Record(ContentType.APPLICATION_DATA, EPOCH, new ApplicationMessage(payload),
+				context, true, 0);
 		byte[] raw = record.toByteArray();
 		List<Record> list = DtlsTestTools.fromByteArray(raw, null, ClockUtil.nanoRealtime());
 		assertFalse("failed to decode raw message", list.isEmpty());
 		for (Record recv : list) {
-			recv.applySession(session);
+			recv.decodeFragment(context.getReadState());
 			DTLSMessage message = recv.getFragment();
 			assertArrayEquals("decrypted payload differs", payload, message.toByteArray());
 		}
@@ -233,8 +234,8 @@ public class RecordDecryptTest {
 	 */
 	private void testEncryptDecryptRecordFailure(byte[] payload, Juggler juggler)
 			throws GeneralSecurityException, HandshakeException {
-		Record record = new Record(ContentType.APPLICATION_DATA, EPOCH, session.getSequenceNumber(EPOCH),
-				new ApplicationMessage(payload), session, true, 0);
+		Record record = new Record(ContentType.APPLICATION_DATA, EPOCH, new ApplicationMessage(payload),
+				context, true, 0);
 		byte[] raw = record.toByteArray();
 		byte[] jraw = juggler.juggle(raw);
 		dumpDiff(raw, jraw);
@@ -244,7 +245,7 @@ public class RecordDecryptTest {
 				// skip
 				continue;
 			}
-			recv.applySession(session);
+			recv.decodeFragment(context.getReadState());
 			recv.getFragment();
 		}
 	}
@@ -278,15 +279,15 @@ public class RecordDecryptTest {
 	 */
 	private void testEncryptDecryptFragmentFailure(byte[] payload, Juggler juggler)
 			throws GeneralSecurityException, HandshakeException {
-		Record record = new Record(ContentType.APPLICATION_DATA, EPOCH, session.getSequenceNumber(EPOCH),
-				new ApplicationMessage(payload), session, true, 0);
+		Record record = new Record(ContentType.APPLICATION_DATA, EPOCH, new ApplicationMessage(payload),
+				context, true, 0);
 		byte[] fragment = record.getFragmentBytes();
 		byte[] jfragment = juggler.juggle(fragment);
 		dumpDiff(fragment, jfragment);
 		byte[] raw = toByteArray(record, jfragment);
 		List<Record> list = DtlsTestTools.fromByteArray(raw, null, ClockUtil.nanoRealtime());
 		for (Record recv : list) {
-			recv.applySession(session);
+			recv.decodeFragment(context.getReadState());
 			recv.getFragment();
 		}
 	}

@@ -81,7 +81,20 @@ public class Record {
 	 */
 	public static final int RECORD_HEADER_BYTES = RECORD_HEADER_BITS / Byte.SIZE;
 
-	private static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1
+	/**
+	 * The payload length of all headers of a DTLS handshake message payload.
+	 * <ol>
+	 * <li>12 bytes DTLS handshake message header</li>
+	 * <li>13 bytes DTLS record header</li>
+	 * </ol>
+	 * 25 bytes in total.
+	 * 
+	 * @since 3.0 (moved from {@link DTLSSession})
+	 */
+	public static final int DTLS_HANDSHAKE_HEADER_LENGTH = RECORD_HEADER_BYTES +
+								HandshakeMessage.MESSAGE_HEADER_LENGTH_BYTES;
+
+	public static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -183,39 +196,41 @@ public class Record {
 	 *            {@link ContentType#TLS12_CID} is not supported directly.
 	 *            Provide the inner type and {@code true} for the parameter cid
 	 * @param epoch the epoch
-	 * @param sequenceNumber the 48-bit sequence number
 	 * @param fragment the payload
-	 * @param session the session to determine the current write state from
+	 * @param context the dtsl-context to determine the current write state from
 	 * @param cid if {@code true} use write connection id from provided session.
 	 *            Otherwise use {@code null} as connection id
 	 * @param pad if cid is enabled, pad could be used to add that number of
 	 *            zero-bytes as padding to the payload to obfuscate the payload
 	 *            length.
-	 * @throws IllegalArgumentException if the given sequence number is longer
-	 *             than 48 bits or less than 0, the given epoch is less than 0,
-	 *             the provided type is not supported or the fragment could not
-	 *             be converted into bytes. Or the provided session doesn't have
-	 *             a peer address.
+	 * @throws IllegalStateException if the context sequence number is longer
+	 *             than 48 bits.
+	 * @throws IllegalArgumentException if the context sequence number is less
+	 *             than 0, the given epoch is less than 0, the provided type is
+	 *             not supported or the fragment could not be converted into
+	 *             bytes. Or the provided session doesn't have a peer address.
 	 * @throws NullPointerException if the given type, fragment or session is
 	 *             {@code null}.
 	 * @throws GeneralSecurityException if the message could not be encrypted,
 	 *             e.g. because the JVM does not support the negotiated cipher
 	 *             suite's cipher algorithm
+	 * @since 3.0 (removed parameter sequenceNumber)
 	 */
-	public Record(ContentType type, int epoch, long sequenceNumber, DTLSMessage fragment, DTLSSession session,
-			boolean cid, int pad) throws GeneralSecurityException {
-		this(ProtocolVersion.VERSION_DTLS_1_2, epoch, sequenceNumber, 0, false);
+	public Record(ContentType type, int epoch, DTLSMessage fragment, DTLSContext context, boolean cid, int pad)
+			throws GeneralSecurityException {
+		this(ProtocolVersion.VERSION_DTLS_1_2, epoch,
+				(context == null || epoch < 0) ? 0 : context.getSequenceNumber(epoch), 0, false);
 		if (fragment == null) {
 			throw new NullPointerException("Fragment must not be null");
-		} else if (session == null) {
-			throw new NullPointerException("Session must not be null");
+		} else if (context == null) {
+			throw new NullPointerException("Context must not be null");
 		}
 		setType(type);
 		if (cid) {
-			this.connectionId = session.getWriteConnectionId();
+			this.connectionId = context.getWriteConnectionId();
 			this.padding = pad;
 		}
-		setEncodedFragment(session.getWriteState(epoch), fragment);
+		setEncodedFragment(context.getWriteState(epoch), fragment);
 		if (fragmentBytes == null) {
 			throw new IllegalArgumentException("Fragment missing encoded bytes!");
 		}
@@ -583,28 +598,6 @@ public class Record {
 	}
 
 	/**
-	 * Apply session for incoming records and decrypt fragment.
-	 * 
-	 * @param session session to apply. If {@code null} is provided,
-	 *            {@link DTLSConnectionState#NULL} is used for de-cryption.
-	 * @throws GeneralSecurityException if de-cryption fails, e.g. because the
-	 *             JVM does not support the negotiated cipher algorithm, or
-	 *             decoding of the inner plain text of
-	 *             {@link ContentType#TLS12_CID} fails.
-	 * @throws HandshakeException if the TLSPlaintext.fragment could not be
-	 *             parsed into a valid handshake message
-	 * @throws IllegalArgumentException if session was already applied.
-	 */
-	public void applySession(DTLSSession session) throws GeneralSecurityException, HandshakeException {
-		if (fragment != null) {
-			LOGGER.error("session already applied!");
-			throw new IllegalArgumentException("session already applied!");
-		}
-		DTLSConnectionState readState = session == null ? DTLSConnectionState.NULL : session.getReadState();
-		decodeFragment(readState);
-	}
-
-	/**
 	 * Get peer address.
 	 * 
 	 * @return peer address
@@ -653,8 +646,8 @@ public class Record {
 	 * Gets the object representation of this record's
 	 * <em>DTLSPlaintext.fragment</em>.
 	 * 
-	 * For incoming records, the fragment is only available after the session of
-	 * the epoch is {@link #applySession(DTLSSession)}.
+	 * For incoming records, the fragment is only available after the DTLS
+	 * context of the epoch is {@link #applyDtlsReadState(DTLSContext)}.
 	 * 
 	 * @return the plaintext fragment
 	 * @throws IllegalStateException if plaint-text fragment is not available
@@ -673,7 +666,7 @@ public class Record {
 	 * If the record uses the new record type {@link ContentType#TLS12_CID} the
 	 * {@link #type} is updated with the type of the inner plaintext.
 	 * 
-	 * @param incomingReadState read state for incoing messages
+	 * @param readState read state for incoming messages
 	 * @throws InvalidMacException if message authentication failed
 	 * @throws GeneralSecurityException if de-cryption fails, e.g. because the
 	 *             JVM does not support the negotiated cipher algorithm, or
@@ -682,11 +675,17 @@ public class Record {
 	 * @throws HandshakeException if the TLSPlaintext.fragment could not be
 	 *             parsed into a valid handshake message
 	 */
-	private void decodeFragment(DTLSConnectionState incomingReadState)
+	public void decodeFragment(DTLSConnectionState readState)
 			throws GeneralSecurityException, HandshakeException {
+
+		if (fragment != null) {
+			LOGGER.error("DTLS read state already applied!");
+			throw new IllegalArgumentException("DTLS read state already applied!");
+		}
+
 		ContentType actualType = type;
 		// decide, which type of fragment need de-cryption
-		byte[] decryptedMessage = incomingReadState.decrypt(this, fragmentBytes);
+		byte[] decryptedMessage = readState.decrypt(this, fragmentBytes);
 
 		if (ContentType.TLS12_CID == type) {
 			int index = decryptedMessage.length - 1;

@@ -782,7 +782,7 @@ public class DTLSConnectorResumeTest {
 		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, false);
 		SessionId sessionId = serverHelper.establishedServerSession.getSessionIdentifier();
 		Connection connection = clientConnectionStore.get(serverHelper.serverEndpoint);
-		long lastHandshakeTime = connection.getEstablishedSession().getLastHandshakeTime();
+		long lastHandshakeTime = connection.getEstablishedDtlsContext().getLastHandshakeTime();
 		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(sessionId));
 
 		// send close notify, close connection
@@ -807,7 +807,7 @@ public class DTLSConnectorResumeTest {
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
 		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(sessionId));
 		assertClientIdentity(clientPrincipalType);
-		assertThat(lastHandshakeTime, is(not(connection.getEstablishedSession().getLastHandshakeTime())));
+		assertThat(lastHandshakeTime, is(not(connection.getEstablishedDtlsContext().getLastHandshakeTime())));
 	}
 
 	@Test

@@ -47,6 +47,7 @@ import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.Connection;
+import org.eclipse.californium.scandium.dtls.DTLSContext;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
@@ -85,6 +86,7 @@ public class DTLSEndpointContextTest {
 
 	DTLSConnector client;
 	DtlsConnectorConfig clientConfig;
+	DTLSContext establishedClientContext;
 	DTLSSession establishedClientSession;
 	InMemoryConnectionStore clientConnectionStore;
 
@@ -259,8 +261,8 @@ public class DTLSEndpointContextTest {
 				.getLatestInboundMessage().getEndpointContext();
 		assertThat(context, is(notNullValue()));
 		assertThat(context.getSessionId(), is((Bytes)establishedClientSession.getSessionIdentifier()));
-		assertThat(context.getEpoch().intValue(), is(establishedClientSession.getReadEpoch()));
-		assertThat(context.getCipher(), is(establishedClientSession.getReadStateCipher()));
+		assertThat(context.getEpoch().intValue(), is(establishedClientContext.getReadEpoch()));
+		assertThat(context.getCipher(), is(establishedClientContext.getReadStateCipher()));
 	}
 
 	private LatchDecrementingRawDataChannel givenAStartedSession(RawData msgToSend) throws Exception {
@@ -275,6 +277,8 @@ public class DTLSEndpointContextTest {
 	private void assertEstablishedClientSession() {
 		Connection con = clientConnectionStore.get(serverHelper.serverEndpoint);
 		assertNotNull(con);
+		establishedClientContext = con.getEstablishedDtlsContext();
+		assertNotNull(establishedClientContext);
 		establishedClientSession = con.getEstablishedSession();
 		assertNotNull(establishedClientSession);
 	}

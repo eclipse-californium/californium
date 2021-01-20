@@ -31,7 +31,7 @@ import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsClusterConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
-import org.eclipse.californium.scandium.dtls.DTLSSession;
+import org.eclipse.californium.scandium.dtls.DTLSContext;
 import org.eclipse.californium.scandium.dtls.Handshaker;
 import org.eclipse.californium.scandium.dtls.NodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
@@ -241,12 +241,12 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 	protected void processDatagramFromClusterNetwork(Byte type, DatagramPacket clusterPacket) throws IOException {
 		if (useClusterMac) {
 			try {
-				DTLSSession session = ((DTLSConnector) clusterManagementConnector)
-						.getSessionByAddress((InetSocketAddress) clusterPacket.getSocketAddress());
-				if (session == null) {
-					throw new IOException("Cluster MAC could not be validated! Missing session.");
+				DTLSContext context = ((DTLSConnector) clusterManagementConnector)
+						.getDtlsContextByAddress((InetSocketAddress) clusterPacket.getSocketAddress());
+				if (context == null) {
+					throw new IOException("Cluster MAC could not be validated! Missing DTLS context.");
 				}
-				Mac mac = session.getThreadLocalClusterReadMac();
+				Mac mac = context.getThreadLocalClusterReadMac();
 				if (mac == null) {
 					throw new IOException("Cluster MAC could not be validated! Missing keys.");
 				}
@@ -288,12 +288,12 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 	protected void sendDatagramToClusterNetwork(DatagramPacket clusterPacket) throws IOException {
 		if (useClusterMac) {
 			try {
-				DTLSSession session = ((DTLSConnector) clusterManagementConnector)
-						.getSessionByAddress((InetSocketAddress) clusterPacket.getSocketAddress());
-				if (session == null) {
+				DTLSContext context = ((DTLSConnector) clusterManagementConnector)
+						.getDtlsContextByAddress((InetSocketAddress) clusterPacket.getSocketAddress());
+				if (context == null) {
 					throw new IOException("Cluster MAC could not be generated! Missing session.");
 				}
-				Mac mac = session.getThreadLocalClusterWriteMac();
+				Mac mac = context.getThreadLocalClusterWriteMac();
 				if (mac == null) {
 					throw new IOException("Cluster MAC could not be generated! Missing keys.");
 				}

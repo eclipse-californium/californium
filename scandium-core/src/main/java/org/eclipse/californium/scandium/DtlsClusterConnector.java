@@ -31,7 +31,6 @@ import org.eclipse.californium.scandium.config.DtlsClusterConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.ContentType;
-import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.NodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
@@ -384,7 +383,7 @@ public class DtlsClusterConnector extends DTLSConnector {
 	 */
 	protected boolean ensureLength(Byte type, DatagramPacket clusterPacket) {
 		int length = clusterPacket.getLength();
-		if (length < (CLUSTER_ADDRESS_OFFSET + MIN_ADDRESS_LENGTH + DTLSSession.DTLS_HEADER_LENGTH)) {
+		if (length < (CLUSTER_ADDRESS_OFFSET + MIN_ADDRESS_LENGTH + Record.DTLS_HANDSHAKE_HEADER_LENGTH)) {
 			return false;
 		}
 		byte[] data = clusterPacket.getData();
@@ -392,7 +391,7 @@ public class DtlsClusterConnector extends DTLSConnector {
 		int addressLength = data[offset + CLUSTER_ADDRESS_LENGTH_OFFSET] & 0xff;
 		int macLength = getClusterMacLength();
 
-		return length > CLUSTER_ADDRESS_OFFSET + addressLength + macLength + DTLSSession.DTLS_HEADER_LENGTH;
+		return length > CLUSTER_ADDRESS_OFFSET + addressLength + macLength + Record.DTLS_HANDSHAKE_HEADER_LENGTH;
 	}
 
 	/**

@@ -30,7 +30,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.scandium.dtls.DTLSSession;
+import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.RecordLayer;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.SecretUtil;
@@ -344,7 +344,7 @@ public class ConnectorConfig implements Cloneable {
 		networkConfig = NetworkConfig.createWithFile(networkConfigFile, networkConfigHeader,
 				networkConfigDefaultHandler);
 
-		int extra = RecordLayer.IPV4_HEADER_LENGTH + 20 - DTLSSession.DTLS_HEADER_LENGTH
+		int extra = RecordLayer.IPV4_HEADER_LENGTH + 20 - Record.DTLS_HANDSHAKE_HEADER_LENGTH
 				- CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8.getMaxCiphertextExpansion();
 		if (mtu != null && recordSizeLimit == null) {
 			recordSizeLimit = mtu - extra;

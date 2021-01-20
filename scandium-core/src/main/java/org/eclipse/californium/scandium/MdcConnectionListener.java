@@ -20,6 +20,7 @@ import java.net.InetSocketAddress;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
+import org.eclipse.californium.scandium.dtls.DTLSContext;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.SessionId;
 import org.slf4j.MDC;
@@ -58,16 +59,16 @@ public class MdcConnectionListener implements ConnectionListener {
 		if (cid != null) {
 			MDC.put("CONNECTION_ID", cid.getAsString());
 		}
-		SessionId sid = connection.getSessionIdentity();
-		DTLSSession session = connection.getSession();
-		if (session != null) {
-			sid = session.getSessionIdentifier();
-			ConnectionId writeConnectionId = session.getWriteConnectionId();
+		DTLSContext context = connection.getEstablishedDtlsContext();
+		if (context != null) {
+			ConnectionId writeConnectionId = context.getWriteConnectionId();
 			if (writeConnectionId != null && !writeConnectionId.isEmpty()) {
 				MDC.put("WRITE_CONNECTION_ID", writeConnectionId.getAsString());
 			}
 		}
-		if (sid != null) {
+		DTLSSession session = connection.getSession();
+		if (session != null) {
+			SessionId sid = session.getSessionIdentifier();
 			MDC.put("SESSION_ID", sid.toString());
 		}
 	}

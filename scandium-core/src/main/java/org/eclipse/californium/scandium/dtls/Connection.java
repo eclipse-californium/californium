@@ -45,7 +45,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.elements.DtlsEndpointContext;
-import org.eclipse.californium.elements.MapBasedEndpointContext.Attributes;
+import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -55,6 +55,7 @@ import org.eclipse.californium.elements.util.SerializationUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.util.WipAPI;
 import org.eclipse.californium.scandium.ConnectionListener;
+import org.eclipse.californium.scandium.util.SecretUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,8 +94,7 @@ public final class Connection {
 	private InetSocketAddress peerAddress;
 	private InetSocketAddress router;
 	private ConnectionId cid;
-	private SessionTicket ticket;
-	private SessionId sessionId;
+	private DTLSSession resumeSession;
 
 	/**
 	 * Root cause of alert.
@@ -107,7 +107,7 @@ public final class Connection {
 	 */
 	private AlertMessage rootCause;
 
-	private volatile DTLSSession establishedSession;
+	private volatile DTLSContext establishedDtlsContext;
 	// Used to know when an abbreviated handshake should be initiated
 	private volatile boolean resumptionRequired; 
 
@@ -127,8 +127,7 @@ public final class Connection {
 			throw new NullPointerException("Serial executor must not be null");
 		} else {
 			long now = ClockUtil.nanoRealtime();
-			this.sessionId = null;
-			this.ticket = null;
+			this.resumeSession = null;
 			this.peerAddress = peerAddress;
 			this.serialExecutor = serialExecutor;
 			this.lastPeerAddressNanos = now;
@@ -142,20 +141,16 @@ public final class Connection {
 	 * 
 	 * The connection is not {@link #isExecuting()}.
 	 * 
-	 * @param sessionTicket The other connection's current state.
-	 * @param sessionId The other connection's session id.
+	 * @param session The other connection's session.
 	 * @param peerAddress optional peer address for {@link ClientSessionCache}.
 	 *            May be {@code null}.
-	 * @throws NullPointerException if the session ticket or id is {@code null}
+	 * @throws NullPointerException if the session is {@code null}
 	 */
-	public Connection(SessionTicket sessionTicket, SessionId sessionId, InetSocketAddress peerAddress) {
-		if (sessionTicket == null) {
-			throw new NullPointerException("session ticket must not be null");
-		} else if (sessionId == null) {
-			throw new NullPointerException("session identity must not be null");
+	public Connection(DTLSSession session, InetSocketAddress peerAddress) {
+		if (session == null) {
+			throw new NullPointerException("session must not be null");
 		} else {
-			this.ticket = sessionTicket;
-			this.sessionId =sessionId;
+			this.resumeSession = session;
 			this.resumptionRequired = true;
 			this.peerAddress = peerAddress;
 			this.cid = null;
@@ -163,6 +158,12 @@ public final class Connection {
 		}
 	}
 
+	/**
+	 * Set execution listener.
+	 * 
+	 * @param listener listener to set.
+	 * @since 2.4
+	 */
 	public void setExecutionListener(final ConnectionListener listener) {
 		this.connectionListener = listener;
 		SerialExecutor executor = this.serialExecutor;
@@ -186,6 +187,13 @@ public final class Connection {
 		}
 	}
 
+	/**
+	 * Update connection state.
+	 * 
+	 * Calls {@link ConnectionListener#updateExecution(Connection)}.
+	 * 
+	 * @since 2.4
+	 */
 	public void updateConnectionState() {
 		ConnectionListener listener = this.connectionListener;
 		if (listener != null) {
@@ -214,7 +222,8 @@ public final class Connection {
 	 * Gets the serial executor assigned to this connection.
 	 * 
 	 * @return serial executor. May be {@code null}, if the connection was
-	 *         created with {@link #Connection(SessionTicket, SessionId, InetSocketAddress)}.
+	 *         created with {@link #Connection(DTLSSession, InetSocketAddress)}
+	 *         or restored on startup.
 	 */
 	public SerialExecutor getExecutor() {
 		return serialExecutor;
@@ -247,28 +256,21 @@ public final class Connection {
 	 * A connection that is not active is currently being negotiated by means of the <em>ongoingHandshake</em>.
 	 * 
 	 * @return {@code true} if this connection either already has an established session or
-	 *         contains a session ticket that it can be resumed from.
+	 *         contains a session that it can be resumed from.
 	 */
 	public boolean isActive() {
-		return establishedSession != null || ticket != null;
+		return establishedDtlsContext != null || resumeSession != null;
 	}
 
 	/**
-	 * Gets the session identity this connection can be resumed from.
+	 * Gets the session to resume.
 	 * 
-	 * @return The session identity or {@code null} if this connection has not been created from a session ticket.
+	 * @return The session or {@code null}, if this connection has not been
+	 *         created for resumption.
+	 * @since 3.0
 	 */
-	public SessionId getSessionIdentity() {
-		return sessionId;
-	}
-
-	/**
-	 * Gets the session ticket this connection can be resumed from.
-	 * 
-	 * @return The ticket or {@code null} if this connection has not been created from a session ticket.
-	 */
-	public SessionTicket getSessionTicket() {
-		return ticket;
+	public DTLSSession getResumeSession() {
+		return resumeSession;
 	}
 
 	/**
@@ -278,8 +280,8 @@ public final class Connection {
 	 *         otherwise
 	 */
 	public boolean expectCid() {
-		DTLSSession session = getSession();
-		return session != null && session.getWriteConnectionId() != null;
+		DTLSContext context = getDtlsContext();
+		return context != null && context.getWriteConnectionId() != null;
 	}
 
 	/**
@@ -325,7 +327,7 @@ public final class Connection {
 	 * Update the address of this connection's peer.
 	 * 
 	 * If the new address is {@code null}, an ongoing handshake is failed. A
-	 * non-null address could only be applied, if the session is established.
+	 * non-null address could only be applied, if the dtls context is established.
 	 * 
 	 * Note: to keep track of the associated address in the connection store,
 	 * this method must not be called directly. It must be called by calling
@@ -335,12 +337,12 @@ public final class Connection {
 	 * 
 	 * @param peerAddress the address of the peer
 	 * @throws IllegalArgumentException if the address should be updated with a
-	 *             non-null value without an established session.
+	 *             non-null value without an established dtls context.
 	 */
 	public void updatePeerAddress(InetSocketAddress peerAddress) {
 		if (!equalsPeerAddress(peerAddress)) {
-			if (establishedSession == null && peerAddress != null) {
-				throw new IllegalArgumentException("Address change without established sesson is not supported!");
+			if (establishedDtlsContext == null && peerAddress != null) {
+				throw new IllegalArgumentException("Address change without established dtls context is not supported!");
 			}
 			this.lastPeerAddressNanos = ClockUtil.nanoRealtime();
 			InetSocketAddress previous = this.peerAddress;
@@ -348,7 +350,7 @@ public final class Connection {
 			if (peerAddress == null) {
 				final Handshaker pendingHandshaker = getOngoingHandshake();
 				if (pendingHandshaker != null) {
-					if (establishedSession == null || pendingHandshaker.getSession() != establishedSession) {
+					if (establishedDtlsContext == null || pendingHandshaker.getDtlsContext() != establishedDtlsContext) {
 						// this will only call the listener, if no other cause was set before!
 						pendingHandshaker.handshakeFailed(new IOException(previous + " address reused during handshake!"));
 					}
@@ -402,14 +404,19 @@ public final class Connection {
 	 * Get endpoint context for writing messages.
 	 * 
 	 * @return endpoint context for writing messages.
+	 * @throws IllegalStateException if dtls context is not established
 	 * @since 3.0
 	 */
 	public DtlsEndpointContext getWriteContext() {
-		DTLSSession session = getSession();
-		Attributes attributes = session.getConnectionWriteContextAttributes();
+		if (establishedDtlsContext == null) {
+			throw new IllegalStateException("DTLS context must be established!");
+		}
+		MapBasedEndpointContext.Attributes attributes = new MapBasedEndpointContext.Attributes();
+		establishedDtlsContext.addWriteEndpointContext(attributes);
 		if (router != null) {
 			attributes.add(DtlsEndpointContext.KEY_VIA_ROUTER, "dtls-cid-router");
 		}
+		DTLSSession session = establishedDtlsContext.getSession();
 		return new DtlsEndpointContext(peerAddress, session.getHostName(), session.getPeerIdentity(), attributes);
 	}
 
@@ -422,39 +429,71 @@ public final class Connection {
 	 * @since 3.0
 	 */
 	public DtlsEndpointContext getReadContext(InetSocketAddress recordsPeer) {
-		DTLSSession session = getSession();
-		Attributes attributes = session.getConnectionReadContextAttributes();
+		if (establishedDtlsContext == null) {
+			throw new IllegalStateException("DTLS context must be established!");
+		}
+		MapBasedEndpointContext.Attributes attributes = new MapBasedEndpointContext.Attributes();
+		establishedDtlsContext.addReadEndpointContext(attributes);
 		if (router != null) {
 			attributes.add(DtlsEndpointContext.KEY_VIA_ROUTER, "dtls-cid-router");
 		}
 		if (peerAddress != null) {
 			recordsPeer = peerAddress;
 		}
+		DTLSSession session = establishedDtlsContext.getSession();
 		return new DtlsEndpointContext(recordsPeer, session.getHostName(), session.getPeerIdentity(), attributes);
 	}
 
 	/**
-	 * Gets the already established DTLS session that exists with this connection's peer.
+	 * Gets the session containing the connection's <em>current</em> state.
 	 * 
-	 * @return the session or <code>null</code> if no session has been established (yet)
+	 * This is the session of the {@link #establishedDtlsContext}, if not
+	 * {@code null}, or the session negotiated in the {@link #ongoingHandshake}.
+	 * If both are {@code null}, then the {@link #resumeSession} is returned.
+	 * 
+	 * @return the <em>current</em> session, or {@code null}, if no session exists
 	 */
-	public DTLSSession getEstablishedSession() {
-		return establishedSession;
+	public DTLSSession getSession() {
+		DTLSContext dtlsContext = getDtlsContext();
+		if (dtlsContext != null) {
+			return dtlsContext.getSession();
+		}
+		return resumeSession;
 	}
 
 	/**
-	 * Checks whether a session has already been established with the peer.
+	 * Gets the DTLS session of an already established DTLS context that exists with this connection's peer.
 	 * 
-	 * @return <code>true</code> if a session has been established
+	 * @return the session, or {@code null}, if no DTLS context has been established (yet)
 	 */
-	public boolean hasEstablishedSession() {
-		return establishedSession != null;
+	public DTLSSession getEstablishedSession() {
+		DTLSContext context = getEstablishedDtlsContext();
+		return context == null ? null : context.getSession();
+	}
+
+	/**
+	 * Checks, whether a DTLS context has already been established with the peer.
+	 * 
+	 * @return {@code true}, if a DTLS context has been established, {@code false}, otherwise.
+	 * @since 3.0 (replaces hasEstablishedSession)
+	 */
+	public boolean hasEstablishedDtlsContext() {
+		return establishedDtlsContext != null;
+	}
+
+	/**
+	 * Gets the already established DTLS context that exists with this connection's peer.
+	 * 
+	 * @return the DTLS context, or {@code null}, if no DTLS context has been established (yet)
+	 */
+	public DTLSContext getEstablishedDtlsContext() {
+		return establishedDtlsContext;
 	}
 
 	/**
 	 * Gets the handshaker managing the currently ongoing handshake with the peer.
 	 * 
-	 * @return the handshaker or <code>null</code> if no handshake is going on
+	 * @return the handshaker, or {@code null}, if no handshake is going on
 	 */
 	public Handshaker getOngoingHandshake() {
 		return ongoingHandshake.get();
@@ -463,7 +502,7 @@ public final class Connection {
 	/**
 	 * Checks whether there is a handshake going on with the peer.
 	 * 
-	 * @return <code>true</code> if a handshake is going on
+	 * @return {@code true}, if a handshake is going on, {@code false}, otherwise.
 	 */
 	public boolean hasOngoingHandshake() {
 		return ongoingHandshake.get() != null;
@@ -530,71 +569,75 @@ public final class Connection {
 	}
 
 	/**
-	 * Gets the session containing the connection's <em>current</em> state for
+	 * Gets the DTLS context containing the connection's <em>current</em> state for
 	 * the provided epoch.
 	 * 
-	 * This is the {@link #establishedSession}, if not {@code null} and the read
-	 * epoch is matching. Or the session negotiated in the
+	 * This is the {@link #establishedDtlsContext}, if not {@code null} and the read
+	 * epoch is matching. Or the DTLS context negotiated in the
 	 * {@link #ongoingHandshake}, if not {@code null} and the read epoch is
 	 * matching. If both are {@code null}, or the read epoch doesn't match,
 	 * {@code null} is returned.
 	 * 
 	 * @param readEpoch the read epoch to match.
-	 * @return the <em>current</em> session or {@code null}, if neither an
-	 *         established session nor an ongoing handshake exists with an
+	 * @return the <em>current</em> DTLS context, or {@code null}, if neither an
+	 *         established DTLS context nor an ongoing handshake exists with an
 	 *         matching read epoch
+	 * @since 3.0 (replaces getSession(int))
 	 */
-	public DTLSSession getSession(int readEpoch) {
-		DTLSSession session = establishedSession;
-		if (session != null && session.getReadEpoch() == readEpoch) {
-			return session;
+	public DTLSContext getDtlsContext(int readEpoch) {
+		DTLSContext context = establishedDtlsContext;
+		if (context != null && context.getReadEpoch() == readEpoch) {
+			return context;
 		}
 		Handshaker handshaker = ongoingHandshake.get();
 		if (handshaker != null) {
-			session = handshaker.getSession();
-			if (session != null && session.getReadEpoch() == readEpoch) {
-				return session;
+			context = handshaker.getDtlsContext();
+			if (context != null && context.getReadEpoch() == readEpoch) {
+				return context;
 			}
 		}
 		return null;
 	}
 
 	/**
-	 * Gets the session containing the connection's <em>current</em> state.
+	 * Gets the DTLS context containing the connection's <em>current</em> state.
 	 * 
-	 * This is the {@link #establishedSession} if not {@code null} or the
-	 * session negotiated in the {@link #ongoingHandshake}.
+	 * This is the {@link #establishedDtlsContext}, if not {@code null}, or the
+	 * DTLS context negotiated in the {@link #ongoingHandshake}.
 	 * 
-	 * @return the <em>current</em> session or {@code null} if neither an
-	 *         established session nor an ongoing handshake exists
+	 * @return the <em>current</em> DTLS context, or {@code null}, if neither an
+	 *         established DTLS context nor an ongoing handshake exists
+	 * @since 3.0 (replaces getSession())
 	 */
-	public DTLSSession getSession() {
-		DTLSSession session = establishedSession;
-		if (session == null) {
+	public DTLSContext getDtlsContext() {
+		DTLSContext context = establishedDtlsContext;
+		if (context == null) {
 			Handshaker handshaker = ongoingHandshake.get();
 			if (handshaker != null) {
-				session = handshaker.getSession();
+				context = handshaker.getDtlsContext();
 			}
 		}
-		return session;
+		return context;
 	}
 
 	/**
-	 * Reset session.
+	 * Reset DTLS context.
 	 * 
-	 * Prepare connection for new handshake. Reset established session or
-	 * session ticket and remove resumption mark.
+	 * Prepare connection for new handshake. Reset established DTLS context or
+	 * resume session and remove resumption mark.
 	 * 
-	 * @throws IllegalStateException if neither a established session nor a
-	 *             ticket is available
+	 * @throws IllegalStateException if neither a established DTLS context nor a
+	 *             resume session is available
+	 * @since 3.0 (replaces resetSession())
 	 */
-	public void resetSession() {
-		if (establishedSession == null && ticket == null) {
-			throw new IllegalStateException("No session established nor ticket available!");
+	public void resetContext() {
+		if (establishedDtlsContext == null && resumeSession == null) {
+			throw new IllegalStateException("No established context nor session to resume available!");
 		}
-		establishedSession = null;
-		sessionId = null;
-		ticket = null;
+		SecretUtil.destroy(establishedDtlsContext);
+		establishedDtlsContext = null;
+		SecretUtil.destroy(resumeSession);
+		resumeSession = null;
 		resumptionRequired = false;
 		updateConnectionState();
 	}
@@ -606,8 +649,8 @@ public final class Connection {
 	 * @since 2.3
 	 */
 	public boolean isClosed() {
-		DTLSSession session = establishedSession;
-		return session != null && session.isMarkedAsClosed();
+		DTLSContext context = establishedDtlsContext;
+		return context != null && context.isMarkedAsClosed();
 	}
 
 	/**
@@ -621,9 +664,9 @@ public final class Connection {
 	 * @since 2.3
 	 */
 	public void close(Record record) {
-		DTLSSession session = establishedSession;
-		if (session != null) {
-			session.markCloseNotiy(record.getEpoch(), record.getSequenceNumber());
+		DTLSContext context = establishedDtlsContext;
+		if (context != null) {
+			context.markCloseNotiy(record.getEpoch(), record.getSequenceNumber());
 		}
 	}
 
@@ -649,10 +692,17 @@ public final class Connection {
 	 * internal analysis.
 	 * 
 	 * @param rootCause root cause alert
+	 * @return {@code true}, if the root cause is set, {@code false}, if the
+	 *         root cause is already set. (Return value added since 3.0)
 	 * @since 2.5
 	 */
-	public void setRootCause(AlertMessage rootCause) {
-		this.rootCause = rootCause;
+	public boolean setRootCause(AlertMessage rootCause) {
+		if (this.rootCause == null) {
+			this.rootCause = rootCause;
+			return true;
+		} else {
+			return false;
+		}
 	}
 
 	/**
@@ -675,7 +725,7 @@ public final class Connection {
 	 *         expired without exchanging messages.
 	 */
 	public boolean isAutoResumptionRequired(Long autoResumptionTimeoutMillis) {
-		if (!resumptionRequired && autoResumptionTimeoutMillis != null && establishedSession != null) {
+		if (!resumptionRequired && autoResumptionTimeoutMillis != null && establishedDtlsContext != null) {
 			long now = ClockUtil.nanoRealtime();
 			long expires = lastMessageNanos + TimeUnit.MILLISECONDS.toNanos(autoResumptionTimeoutMillis);
 			if ((now - expires) > 0) {
@@ -697,7 +747,9 @@ public final class Connection {
 	}
 
 	/**
-	 * Use to force an abbreviated handshake next time a data will be sent on this connection.
+	 * Use to force an abbreviated handshake next time a data will be sent on
+	 * this connection.
+	 * 
 	 * @param resumptionRequired true to force abbreviated handshake.
 	 */
 	public void setResumptionRequired(boolean resumptionRequired) {
@@ -712,9 +764,10 @@ public final class Connection {
 		}
 		if (peerAddress != null) {
 			builder.append(", ").append(peerAddress);
-			if (getOngoingHandshake() != null) {
+			Handshaker handshaker = getOngoingHandshake();
+			if (handshaker != null) {
 				builder.append(", ongoing handshake ");
-				SessionId id = getOngoingHandshake().getSession().getSessionIdentifier();
+				SessionId id = handshaker.getDtlsContext().getSession().getSessionIdentifier();
 				if (id != null && !id.isEmpty()) {
 					// during handshake this may by not already set
 					builder.append(StringUtil.byteArray2HexString(id.getBytes(), StringUtil.NO_SEPARATOR, 6));
@@ -722,7 +775,7 @@ public final class Connection {
 			}
 			if (isResumptionRequired()) {
 				builder.append(", resumption required");
-			} else if (hasEstablishedSession()) {
+			} else if (hasEstablishedDtlsContext()) {
 				builder.append(", session established ");
 				SessionId id = getEstablishedSession().getSessionIdentifier();
 				if (id != null && !id.isEmpty()) {
@@ -730,9 +783,8 @@ public final class Connection {
 				}
 			}
 		}
-		if (sessionId != null) {
-			builder.append(", ").append(sessionId);
-			builder.append(", ").append(ticket);
+		if (resumeSession != null) {
+			builder.append(", resume ").append(resumeSession);
 		}
 		if (isExecuting()) {
 			builder.append(", is alive");
@@ -796,9 +848,9 @@ public final class Connection {
 		}
 
 		@Override
-		public void sessionEstablished(Handshaker handshaker, DTLSSession session) throws HandshakeException {
-			establishedSession = session;
-			LOGGER.debug("Session with [{}] has been established", peerAddress);
+		public void contextEstablished(Handshaker handshaker, DTLSContext context) throws HandshakeException {
+			establishedDtlsContext = context;
+			LOGGER.debug("Session context with [{}] has been established", peerAddress);
 		}
 
 		@Override
@@ -861,7 +913,7 @@ public final class Connection {
 	 */
 	@WipAPI
 	public boolean write(DatagramWriter writer) {
-		if (establishedSession == null) {
+		if (establishedDtlsContext == null) {
 			return false;
 		} else {
 			int position = SerializationUtil.writeStartItem(writer, VERSION, Short.SIZE);
@@ -876,8 +928,8 @@ public final class Connection {
 				writer.writeByte((byte) 1);
 				start.write(writer);
 			}
-			establishedSession.write(writer);
-			writer.writeByte(cid != null && cid.equals(establishedSession.getReadConnectionId()) ? (byte) 1 : (byte) 0);
+			establishedDtlsContext.write(writer);
+			writer.writeByte(cid != null && cid.equals(establishedDtlsContext.getReadConnectionId()) ? (byte) 1 : (byte) 0);
 			 SerializationUtil.writeFinishedItem(writer, position, Short.SIZE);
 			return true;
 		}
@@ -927,9 +979,9 @@ public final class Connection {
 		if (reader.readNextByte() == 1) {
 			startingHelloClient = new ClientHelloIdentifier(reader, nanoShift);
 		}
-		establishedSession = DTLSSession.fromReader(reader);
+		establishedDtlsContext = DTLSContext.fromReader(reader);
 		if (reader.readNextByte() == 1) {
-			establishedSession.setReadConnectionId(cid);
+			establishedDtlsContext.setReadConnectionId(cid);
 		}
 		reader.assertFinished("connection");
 	}

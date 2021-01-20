@@ -41,10 +41,13 @@ import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
 import java.util.concurrent.ScheduledExecutorService;
 
+import javax.crypto.Mac;
+
 import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.util.SecretUtil;
 
 /**
  * The resuming client handshaker executes a abbreviated handshake by adding a
@@ -76,7 +79,7 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
  * With probing mode, the handshake starts without removing the session. If some
  * data is received, the session is removed and the handshake gets completed. If
  * no data is received, the peer assumes, that the connectivity is lost (even if
- * it's own state indicates connectivity) and just timesout the request. if the
+ * it's own state indicates connectivity) and just timesout the request. If the
  * connectivity is established again, just a new request could be send without a
  * handshake.
  * </p>
@@ -110,15 +113,14 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	 *            {@code false}, not probing handshake.
 	 * @throws IllegalArgumentException
 	 *            if the given session does not contain an identifier.
-	 * @throws IllegalStateException
-	 *            if the message digest required for computing the FINISHED message hash cannot be instantiated.
-	 * @throws NullPointerException
-	 *            if session, recordLayer or config is <code>null</code>
+	 * @throws NullPointerException if any of the provided parameter is
+	 *             {@code null}
 	 */
 	public ResumingClientHandshaker(DTLSSession session, RecordLayer recordLayer, ScheduledExecutorService timer, Connection connection,
 			DtlsConnectorConfig config, boolean probe) {
-		super(session, recordLayer, timer, connection, config, probe);
-		if (session.getSessionIdentifier() == null) {
+		super(probe, session, recordLayer, timer, connection, config);
+		SessionId sessionId = session.getSessionIdentifier();
+		if (sessionId == null || sessionId.isEmpty()) {
 			throw new IllegalArgumentException("Session must contain the ID of the session to resume");
 		}
 	}
@@ -164,6 +166,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	 * 	e.g. because the server selected an unknown or unsupported cipher suite
 	 */
 	protected void receivedServerHello(ServerHello message) throws HandshakeException {
+		DTLSSession session = getSession();
 		if (!session.getSessionIdentifier().equals(message.getSessionId()))
 		{
 			LOGGER.debug(
@@ -172,6 +175,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 			// Server refuse to resume the session, go for a full handshake
 			fullHandshake  = true;
 			states = SEVER_CERTIFICATE;
+			SecretUtil.destroy(context);
 			super.receivedServerHello(message);
 		} else if (!message.getCompressionMethod().equals(session.getCompressionMethod())) {
 			throw new HandshakeException(
@@ -192,8 +196,8 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 				ConnectionIdExtension extension = message.getConnectionIdExtension();
 				if (extension != null) {
 					ConnectionId connectionId = extension.getConnectionId();
-					session.setWriteConnectionId(connectionId);
-					session.setReadConnectionId(getReadConnectionId());
+					context.setWriteConnectionId(connectionId);
+					context.setReadConnectionId(getReadConnectionId());
 				}
 			}
 			expectChangeCipherSpecMessage();
@@ -233,9 +237,10 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 							AlertDescription.INTERNAL_ERROR));
 		}
 
+		Mac mac = getSession().getCipherSuite().getThreadLocalPseudoRandomFunctionMac();
 		// the handshake hash to check the server's verify_data (without the
 		// server's finished message included)
-		message.verifyData(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, false, md.digest());
+		message.verifyData(mac, masterSecret, false, md.digest());
 
 		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage();
 		wrapMessage(flight, changeCipherSpecMessage);
@@ -243,21 +248,19 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 
 		mdWithServerFinish.update(message.getRawMessage());
 		handshakeHash = mdWithServerFinish.digest();
-		Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, isClient, handshakeHash);
+		Finished finished = new Finished(mac, masterSecret, true, handshakeHash);
 		wrapMessage(flight, finished);
 		sendLastFlight(flight);
-		sessionEstablished();
+		contextEstablished();
 	}
 
 	@Override
 	public void startHandshake() throws HandshakeException {
 		handshakeStarted();
-		ClientHello message = new ClientHello(ProtocolVersion.VERSION_DTLS_1_2, session, supportedSignatureAlgorithms,
+		ClientHello message = new ClientHello(ProtocolVersion.VERSION_DTLS_1_2, getSession(), supportedSignatureAlgorithms,
 				supportedClientCertificateTypes, supportedServerCertificateTypes, supportedGroups);
 
 		clientRandom = message.getRandom();
-
-		message.addCompressionMethod(session.getCompressionMethod());
 
 		addConnectionId(message);
 		addRecordSizeLimit(message);

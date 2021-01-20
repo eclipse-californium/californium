@@ -44,7 +44,7 @@ public class SimpleRecordLayer implements RecordLayer {
 			List<Record> records = Record.fromReader(reader, handshaker.connectionIdGenerator, timestamp);
 			for (Record record : records) {
 				try {
-					record.applySession(handshaker.getSession());
+					record.decodeFragment(handshaker.getDtlsContext().getReadState());
 					flight.add(record);
 				} catch (GeneralSecurityException e) {
 					e.printStackTrace();
@@ -64,7 +64,7 @@ public class SimpleRecordLayer implements RecordLayer {
 		Handshaker handshaker = this.handshaker;
 		if (handshaker != null) {
 			try {
-				record.applySession(handshaker.getSession());
+				record.decodeFragment(handshaker.getDtlsContext().getReadState());
 				handshaker.processMessage(record);
 			} catch (HandshakeException e) {
 				e.printStackTrace();
