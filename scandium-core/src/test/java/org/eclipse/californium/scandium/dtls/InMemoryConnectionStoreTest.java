@@ -114,9 +114,9 @@ public class InMemoryConnectionStoreTest {
 
 		// THEN assert that the retrieved connection contains a session ticket
 		assertThat(connectionWithPeer, is(notNullValue()));
-		SessionTicket ticket = connectionWithPeer.getSessionTicket();
-		assertThat(ticket, is(notNullValue()));
-		assertThat(ticket.getMasterSecret(), is(con.getEstablishedSession().getMasterSecret()));
+		DTLSSession resumeSession = connectionWithPeer.getResumeSession();
+		assertThat(resumeSession, is(notNullValue()));
+		assertThat(resumeSession.getMasterSecret(), is(con.getEstablishedSession().getMasterSecret()));
 	}
 
 	@Test
@@ -240,7 +240,7 @@ public class InMemoryConnectionStoreTest {
 		assertThat(store.find(session.getSessionIdentifier()), is(con1));
 
 		Connection con2 =  newConnection(52L);
-		con2.resetSession();
+		con2.resetContext();
 		assertTrue(store.put(con2));
 		assertThat(store.find(session.getSessionIdentifier()), is(con1));
 
@@ -272,7 +272,7 @@ public class InMemoryConnectionStoreTest {
 		assertThat(store.find(session.getSessionIdentifier()), is(con1));
 
 		Connection con2 =  newConnection(51L);
-		con2.resetSession();
+		con2.resetContext();
 		assertTrue(store.put(con2));
 
 		// assert that the store has two entries
@@ -296,12 +296,12 @@ public class InMemoryConnectionStoreTest {
 		InetAddress addr = InetAddress.getByAddress(longToIp(ip));
 		InetSocketAddress peerAddress = new InetSocketAddress(addr, 0);
 		Connection con = new Connection(peerAddress, new SyncSerialExecutor());
-		con.getSessionListener().sessionEstablished(null, newSession());
+		con.getSessionListener().contextEstablished(null, newContext());
 		return con;
 	}
 
-	private DTLSSession newSession() {
-		return DTLSSessionTest.newEstablishedServerSession(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, true);
+	private DTLSContext newContext() {
+		return DTLSContextTest.newEstablishedServerDtlsContext(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, true);
 	}
 
 	private static byte[] longToIp(long ip) {

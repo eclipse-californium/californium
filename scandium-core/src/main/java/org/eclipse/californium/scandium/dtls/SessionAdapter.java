@@ -21,17 +21,18 @@
 package org.eclipse.californium.scandium.dtls;
 
 /**
- * An abstract adapter class for listening handshake. The methods in this
- * class are empty. This class exists as convenience for creating SessionListener objects.
+ * An abstract adapter class for listening handshake. The methods in this class
+ * are empty. This class exists as convenience for creating SessionListener
+ * objects.
  */
-public class SessionAdapter implements SessionListener{
+public class SessionAdapter implements SessionListener {
 
 	@Override
 	public void handshakeStarted(Handshaker handshaker) throws HandshakeException {
 	}
 
 	@Override
-	public void sessionEstablished(Handshaker handshaker, DTLSSession establishedSession) throws HandshakeException {
+	public void contextEstablished(Handshaker handshaker, DTLSContext establishedContext) throws HandshakeException {
 	}
 
 	@Override

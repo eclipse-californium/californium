@@ -73,6 +73,8 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
+import org.eclipse.californium.scandium.dtls.DTLSConnectionState;
+import org.eclipse.californium.scandium.dtls.DTLSContext;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.DebugConnectionStore;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
@@ -114,6 +116,7 @@ public class ConnectorHelper {
 	SimpleRawDataChannel serverRawDataChannel;
 	RawDataProcessor serverRawDataProcessor;
 	Map<InetSocketAddress, LatchSessionListener> sessionListenerMap = new ConcurrentHashMap<>();
+	DTLSContext establishedServerContext;
 	DTLSSession establishedServerSession;
 
 	DtlsConnectorConfig serverConfig;
@@ -327,6 +330,8 @@ public class ConnectorHelper {
 		assertTrue("DTLS handshake timed out after " + MAX_TIME_TO_WAIT_SECS + " seconds", clientChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 		Connection con = serverConnectionStore.get(client.getAddress());
 		assertNotNull(con);
+		establishedServerContext = con.getDtlsContext();
+		assertNotNull(establishedServerContext);
 		establishedServerSession = con.getEstablishedSession();
 		assertNotNull(establishedServerSession);
 		if (releaseSocket) {
@@ -523,7 +528,7 @@ public class ConnectorHelper {
 	static class RecordCollectorDataHandler implements DataHandler {
 
 		private BlockingQueue<List<Record>> records = new LinkedBlockingQueue<>();
-		private Map<Integer, DTLSSession> apply = new HashMap<Integer, DTLSSession>(8);
+		private Map<Integer, DTLSConnectionState> apply = new HashMap<>(8);
 		private final ConnectionIdGenerator cidGenerator;
 
 		RecordCollectorDataHandler() {
@@ -540,11 +545,11 @@ public class ConnectorHelper {
 		 * @param session session to be applied. {@code null} is applied to
 		 *            epoch 0.
 		 */
-		void applySession(DTLSSession session) {
-			if (session == null) {
-				apply.put(0, null);
+		void applyDtlsContext(DTLSContext context) {
+			if (context == null) {
+				apply.put(0, DTLSConnectionState.NULL);
 			} else {
-				apply.put(session.getReadEpoch(), session);
+				apply.put(context.getReadEpoch(), context.getReadState());
 			}
 		}
 
@@ -562,7 +567,7 @@ public class ConnectorHelper {
 				for (Record record : result) {
 					if (apply.containsKey(record.getEpoch())) {
 						try {
-							record.applySession(apply.get(record.getEpoch()));
+							record.decodeFragment(apply.get(record.getEpoch()));
 						} catch (GeneralSecurityException e) {
 							throw new IllegalStateException(e);
 						} catch (HandshakeException e) {
@@ -615,7 +620,7 @@ public class ConnectorHelper {
 		private AtomicReference<Throwable> error = new AtomicReference<Throwable>();
 
 		@Override
-		public void sessionEstablished(Handshaker handshaker, DTLSSession establishedSession)
+		public void contextEstablished(Handshaker handshaker, DTLSContext establishedContext)
 				throws HandshakeException {
 			established.set(true);
 			finished.countDown();

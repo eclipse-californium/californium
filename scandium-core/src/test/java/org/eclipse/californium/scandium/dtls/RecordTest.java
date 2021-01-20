@@ -51,7 +51,7 @@ public class RecordTest {
 		(byte) 0x90, 0x54, (byte) 0xC4, (byte) 0x96, 0x65, (byte) 0xBA, 0x03, (byte) 0x9E};
 	SecretKey key;
 
-	DTLSSession session;
+	DTLSContext context;
 	byte[] payloadData;
 	int payloadLength = 50;
 	// salt: 32bit client write init vector (can be any four bytes)
@@ -67,26 +67,31 @@ public class RecordTest {
 		for ( int i = 0; i < payloadLength; i++) {
 			payloadData[i] = 0x34;
 		}
-		session = new DTLSSession();
+		DTLSSession session = new DTLSSession();
 		session.setCipherSuite(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 		session.setCompressionMethod(CompressionMethod.NULL);
-		session.createReadState(key, new SecretIvParameterSpec(client_iv), null);
+		context = new DTLSContext(session, 0);
+		context.createReadState(key, new SecretIvParameterSpec(client_iv), null);
 	}
 
 	@Test
 	public void testConstructorEnforcesMaxSequenceNo() throws GeneralSecurityException {
-		new Record(ContentType.HANDSHAKE, 0, DtlsTestTools.MAX_SEQUENCE_NO, new HelloRequest(), session, true, 0);
+		DTLSSession session = new DTLSSession();
+		session.setCipherSuite(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+		session.setCompressionMethod(CompressionMethod.NULL);
+		DTLSContext context = new DTLSContext(session, Record.MAX_SEQUENCE_NO);
+		new Record(ContentType.HANDSHAKE, 0, new HelloRequest(), context, true, 0);
 		try {
-			new Record(ContentType.HANDSHAKE, 0, DtlsTestTools.MAX_SEQUENCE_NO + 1, new HelloRequest(), session, true, 0);
+			new Record(ContentType.HANDSHAKE, 0, new HelloRequest(), context, true, 0);
 			Assert.fail("Record constructor should have rejected sequence no > 2^48 - 1");
-		} catch (IllegalArgumentException e) {
+		} catch (IllegalStateException e) {
 			// all is well
 		}
 
 		try {
-			new Record(ContentType.HANDSHAKE, 0, DtlsTestTools.MAX_SEQUENCE_NO + 1, new HelloRequest(), session, false, 0);
+			new Record(ContentType.HANDSHAKE, 0, new HelloRequest(), context, false, 0);
 			Assert.fail("Record constructor should have rejected sequence no > 2^48 - 1");
-		} catch (IllegalArgumentException e) {
+		} catch (IllegalStateException e) {
 			// all is well
 		}
 	}
@@ -136,7 +141,7 @@ public class RecordTest {
 
 		byte[] fragment = newGenericAEADCipherFragment();
 		Record record = new Record(ContentType.APPLICATION_DATA, protocolVer, EPOCH, SEQUENCE_NO, null, fragment, ClockUtil.nanoRealtime(), false);
-		record.applySession(session);
+		record.decodeFragment(context.getReadState());
 
 		byte[] decryptedData = record.getFragment().toByteArray();
 		assertTrue(Arrays.equals(decryptedData, payloadData));

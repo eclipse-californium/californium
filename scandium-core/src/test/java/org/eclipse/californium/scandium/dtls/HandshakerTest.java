@@ -119,13 +119,12 @@ public class HandshakerTest {
 		for (int i = 0; i < receivedMessages.length; i++) {
 			receivedMessages[i++] = 0;
 		}
-
 		session = new DTLSSession();
 		session.setReceiveCertificateType(CertificateType.X_509);
 		session.setParameterAvailable();
 		certificateChain = DtlsTestTools.getServerCertificateChain();
 		trustAnchor = DtlsTestTools.getTrustedCertificates();
-		certificateMessage = createCertificateMessage(session, 1, certificateChain);
+		certificateMessage = createCertificateMessage(1, certificateChain);
 		recordLayer = mock(RecordLayer.class);
 		serverPublicKey = DtlsTestTools.getPublicKey();
 
@@ -164,7 +163,7 @@ public class HandshakerTest {
 		// GIVEN a handshaker not yet expecting the peer's ChangeCipherSpec message
 		TestHandshaker handshaker = new TestHandshaker(session, recordLayer, builder.build());
 		// create keys
-		handshaker.startHandshake();
+		handshaker.createKeys();
 
 		// WHEN the peer sends its ChangeCipherSpec message
 		ChangeCipherSpecMessage ccs = new ChangeCipherSpecMessage();
@@ -172,13 +171,13 @@ public class HandshakerTest {
 		handshaker.decryptAndProcessMessage(ccsRecord);
 
 		// THEN the ChangeCipherSpec message is not processed until the missing message arrives
-		assertThat(handshaker.getSession().getReadEpoch(), is(0));
+		assertThat(handshaker.getDtlsContext().getReadEpoch(), is(0));
 		handshaker.expectChangeCipherSpecMessage();
 		PSKClientKeyExchange msg = new PSKClientKeyExchange(new PskPublicInformation("id"));
 		msg.setMessageSeq(0);
 		Record keyExchangeRecord = getRecordForMessage(0, 6, msg);
 		handshaker.decryptAndProcessMessage(keyExchangeRecord);
-		assertThat(handshaker.getSession().getReadEpoch(), is(1));
+		assertThat(handshaker.getDtlsContext().getReadEpoch(), is(1));
 	}
 
 	@Test
@@ -206,7 +205,7 @@ public class HandshakerTest {
 		ChangeCipherSpecMessage ccs = new ChangeCipherSpecMessage();
 		Record ccsRecord = getRecordForMessage(0, 5, ccs);
 		handshaker.decryptAndProcessMessage(ccsRecord);
-		assertThat(handshaker.getSession().getReadEpoch(), is(1));
+		assertThat(handshaker.getDtlsContext().getReadEpoch(), is(1));
 		assertTrue(handshaker.finishedProcessed.get());
 	}
 
@@ -237,7 +236,7 @@ public class HandshakerTest {
 		givenAHandshakerWithAQueuedFragmentedMessage(futureSeqNo);
 
 		// when processing the missing message with nextseqNo
-		Record record = getRecordForMessage(0, 0, createCertificateMessage(session, nextSeqNo, certificateChain));
+		Record record = getRecordForMessage(0, 0, createCertificateMessage(nextSeqNo, certificateChain));
 		handshakerWithoutAnchors.decryptAndProcessMessage(record);
 
 		// assert that all fragments have been re-assembled and the resulting message with
@@ -249,7 +248,7 @@ public class HandshakerTest {
 
 	private void givenAHandshakerWithAQueuedFragmentedMessage(int seqNo) throws HandshakeException, GeneralSecurityException {
 		// create records containing fragmented message with seqNo 1
-		givenAFragmentedHandshakeMessage(createCertificateMessage(session, seqNo, certificateChain));
+		givenAFragmentedHandshakeMessage(createCertificateMessage(seqNo, certificateChain));
 
 		int i = 1;
 		for (FragmentedHandshakeMessage fragment : handshakeMessageFragments) {
@@ -425,13 +424,13 @@ public class HandshakerTest {
 		}
 	}
 
-	private static Record createClientHelloRecord(DTLSSession session, int epoch, long sequenceNo, int messageSeqNo) throws GeneralSecurityException {
-		ClientHello clientHello = new ClientHello(ProtocolVersion.VERSION_DTLS_1_2, session, Collections.<SignatureAndHashAlgorithm> emptyList(), null, null, SupportedGroup.getPreferredGroups());
+	private static Record createClientHelloRecord(DTLSSession context, int epoch, long sequenceNo, int messageSeqNo) throws GeneralSecurityException {
+		ClientHello clientHello = new ClientHello(ProtocolVersion.VERSION_DTLS_1_2, context, Collections.<SignatureAndHashAlgorithm> emptyList(), null, null, SupportedGroup.getPreferredGroups());
 		clientHello.setMessageSeq(messageSeqNo);
 		return getRecordForMessage(epoch, sequenceNo, clientHello);
 	}
 
-	private static  CertificateMessage createCertificateMessage(DTLSSession session, int seqNo, X509Certificate[] chain) {
+	private static  CertificateMessage createCertificateMessage(int seqNo, X509Certificate[] chain) {
 		CertificateMessage result = new CertificateMessage(Arrays.asList(chain));
 		result.setMessageSeq(seqNo);
 		return result;
@@ -457,13 +456,17 @@ public class HandshakerTest {
 		private AtomicBoolean finishedProcessed = new AtomicBoolean(false);
 
 		TestHandshaker(DTLSSession session, RecordLayer recordLayer, DtlsConnectorConfig config) {
-			super(false, 0, session, recordLayer, timer, new Connection(config.getAddress(), new SyncSerialExecutor()),
+			super(0, 0, session, recordLayer, timer, new Connection(config.getAddress(), new SyncSerialExecutor()),
 					config);
 			getConnection().setConnectionId(new ConnectionId(new byte[] { 1, 2, 3, 4 }));
 		}
 
 		@Override
-		public void startHandshake() {
+		protected boolean isClient() {
+			return false;
+		}
+
+		public void createKeys() {
 			byte[] secret = Bytes.createBytes(RandomManager.currentSecureRandom(), 48);
 			masterSecret = SecretUtil.create(secret, "MAC");
 			clientRandom = new Random();
@@ -496,7 +499,7 @@ public class HandshakerTest {
 		}
 
 		void decryptAndProcessMessage(Record record) throws HandshakeException, GeneralSecurityException {
-			record.applySession(getSession());
+			record.decodeFragment(getDtlsContext().getReadState());
 			processMessage(record);
 		}
 	}

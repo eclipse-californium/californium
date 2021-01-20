@@ -100,7 +100,7 @@ import org.eclipse.californium.scandium.dtls.ClientKeyExchange;
 import org.eclipse.californium.scandium.dtls.CompressionMethod;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.ContentType;
-import org.eclipse.californium.scandium.dtls.DTLSSession;
+import org.eclipse.californium.scandium.dtls.DTLSContext;
 import org.eclipse.californium.scandium.dtls.DtlsHandshakeTimeoutException;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
@@ -162,7 +162,7 @@ public class DTLSConnectorTest {
 	DTLSConnector client;
 	InetSocketAddress clientEndpoint;
 	LatchDecrementingRawDataChannel clientRawDataChannel;
-	DTLSSession establishedClientSession;
+	DTLSContext establishedClientContext;
 	InMemoryConnectionStore clientConnectionStore;
 
 	@BeforeClass
@@ -303,7 +303,7 @@ public class DTLSConnectorTest {
 		Connection connection = clientConnectionStore.get(serverHelper.serverEndpoint);
 		assertNotNull("missing connection", connection);
 		// WHEN sending a CLOSE_NOTIFY alert to the server
-		client.send(alertToSend, establishedClientSession, connection);
+		client.sendAlert(connection, establishedClientContext, alertToSend);
 
 		// THEN assert that the server has removed all connection state with client
 		AlertMessage alert = alertCatcher.waitForFirstAlert(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
@@ -323,7 +323,7 @@ public class DTLSConnectorTest {
 	public void testRetransmission() throws Exception {
 		// Configure UDP connector
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
-		collector.applySession(null);
+		collector.applyDtlsContext(null);
 		UdpConnector rawClient = new UdpConnector(clientEndpoint.getPort(), collector);
 
 		try {
@@ -392,7 +392,7 @@ public class DTLSConnectorTest {
 	public void testNoRetransmissionIfMessageReceived() throws Exception {
 		// Configure UDP connector
 		RecordCollectorDataHandler clientCollector = new RecordCollectorDataHandler();
-		clientCollector.applySession(null);
+		clientCollector.applyDtlsContext(null);
 		UdpConnector rawClient = new UdpConnector(clientEndpoint.getPort(), clientCollector);
 
 		try {
@@ -465,7 +465,7 @@ public class DTLSConnectorTest {
 		// now we try to establish a new session with a client connecting from the
 		// same IP address and port again
 		RecordCollectorDataHandler handler = new RecordCollectorDataHandler();
-		handler.applySession(null);
+		handler.applyDtlsContext(null);
 
 		UdpConnector rawClient = new UdpConnector(clientEndpoint.getPort(), handler);
 		rawClient.start();
@@ -551,7 +551,7 @@ public class DTLSConnectorTest {
 	public void testClientHelloRetransmissionDoNotRestartHandshake() throws Exception {
 		// configure UDP connector
 		RecordCollectorDataHandler handler = new RecordCollectorDataHandler();
-		handler.applySession(null);
+		handler.applyDtlsContext(null);
 		UdpConnector rawClient = new UdpConnector(clientEndpoint.getPort(), handler);
 		try {
 			rawClient.start();
@@ -799,7 +799,7 @@ public class DTLSConnectorTest {
 	public void testConnectorSendsHelloVerifyRequestWithoutCreatingSession() throws Exception {
 		int capacity = serverHelper.serverConnectionStore.remainingCapacity();
 		RecordCollectorDataHandler handler = new RecordCollectorDataHandler();
-		handler.applySession(null);
+		handler.applyDtlsContext(null);
 		UdpConnector rawClient = new UdpConnector(12000, handler);
 
 		try{
@@ -834,7 +834,7 @@ public class DTLSConnectorTest {
 	public void testConnectorSendsHelloVerifyRequestAlsoForLowerVersion() throws Exception {
 
 		RecordCollectorDataHandler handler = new RecordCollectorDataHandler();
-		handler.applySession(null);
+		handler.applyDtlsContext(null);
 		UdpConnector rawClient = new UdpConnector(12000, handler);
 		ProtocolVersion version = ProtocolVersion.VERSION_DTLS_1_0;
 		try {
@@ -880,7 +880,7 @@ public class DTLSConnectorTest {
 	public void testConnectorSendsHelloVerifyRequestAlsoForTooLowVersion() throws Exception {
 
 		RecordCollectorDataHandler handler = new RecordCollectorDataHandler();
-		handler.applySession(null);
+		handler.applyDtlsContext(null);
 		UdpConnector rawClient = new UdpConnector(12000, handler);
 		ProtocolVersion version = ProtocolVersion.valueOf("0.9");
 		try {
@@ -927,7 +927,7 @@ public class DTLSConnectorTest {
 	public void testConnectorSendsHelloVerifyRequestAlsoForHigherVersion() throws Exception {
 
 		RecordCollectorDataHandler handler = new RecordCollectorDataHandler();
-		handler.applySession(null);
+		handler.applyDtlsContext(null);
 		UdpConnector rawClient = new UdpConnector(12000, handler);
 		ProtocolVersion version = ProtocolVersion.valueOf("1.3");
 		try {
@@ -976,7 +976,7 @@ public class DTLSConnectorTest {
 		givenAnEstablishedSession();
 		Connection connection = serverHelper.serverConnectionStore.get(clientEndpoint);
 		assertNotNull(connection);
-		assertThat(connection.hasEstablishedSession(), is(true));
+		assertThat(connection.hasEstablishedDtlsContext(), is(true));
 	}
 
 	@Test
@@ -1089,7 +1089,7 @@ public class DTLSConnectorTest {
 		int maxFragmentLength = client.getMaximumFragmentLength(unknownPeer);
 
 		// then the value is the minimum IPv4 MTU - DTLS/UDP/IP header overhead
-		assertThat(maxFragmentLength, is(DTLSConnector.DEFAULT_IPV4_MTU - DTLSSession.DTLS_HEADER_LENGTH - DTLSConnector.IPV4_HEADER_LENGTH));
+		assertThat(maxFragmentLength, is(DTLSConnector.DEFAULT_IPV4_MTU - Record.DTLS_HANDSHAKE_HEADER_LENGTH - DTLSConnector.IPV4_HEADER_LENGTH));
 	}
 
 	@Test
@@ -1115,9 +1115,9 @@ public class DTLSConnectorTest {
 		client.setAlertHandler(alertCatcher);
 		
 		// send a CLIENT_HELLO message to the server to renegotiation connection
-		Record record  = new Record(ContentType.HANDSHAKE, establishedClientSession.getWriteEpoch(),
-				establishedClientSession.getSequenceNumber(), createClientHello(),
-				establishedClientSession, false, 0);
+		Record record  = new Record(ContentType.HANDSHAKE, establishedClientContext.getWriteEpoch(),
+				createClientHello(), establishedClientContext,
+				false, 0);
 		record.setAddress(serverHelper.serverEndpoint, null);
 		client.sendRecord(record);
 
@@ -1137,9 +1137,9 @@ public class DTLSConnectorTest {
 		serverHelper.server.setAlertHandler(alertCatcher);
 
 		// send a HELLO_REQUEST message to the client
-		Record record = new Record(ContentType.HANDSHAKE, serverHelper.establishedServerSession.getWriteEpoch(),
-				serverHelper.establishedServerSession.getSequenceNumber(), new HelloRequest(),
-				serverHelper.establishedServerSession, false, 0);
+		Record record = new Record(ContentType.HANDSHAKE, serverHelper.establishedServerContext.getWriteEpoch(),
+				new HelloRequest(), serverHelper.establishedServerContext,
+				false, 0);
 		record.setAddress(clientEndpoint, null);
 		serverHelper.server.sendRecord(record);
 
@@ -1216,8 +1216,8 @@ public class DTLSConnectorTest {
 		clientEndpoint = client.getAddress();
 		Connection con = clientConnectionStore.get(serverHelper.serverEndpoint);
 		assertNotNull(con);
-		establishedClientSession = con.getEstablishedSession();
-		assertNotNull(establishedClientSession);
+		establishedClientContext = con.getEstablishedDtlsContext();
+		assertNotNull(establishedClientContext);
 		if (releaseSocket) {
 			client.stop();
 		}
@@ -1247,15 +1247,15 @@ public class DTLSConnectorTest {
 		clientEndpoint = client.getAddress();
 		Connection con = clientConnectionStore.get(serverHelper.serverEndpoint);
 		assertNotNull(con);
-		establishedClientSession = con.getEstablishedSession();
-		assertNotNull(establishedClientSession);
+		establishedClientContext = con.getEstablishedDtlsContext();
+		assertNotNull(establishedClientContext);
 		client.stop();
 	}
 
 	private void givenAnIncompleteHandshake() throws Exception {
 		// configure UDP connector
 		RecordCollectorDataHandler handler = new RecordCollectorDataHandler();
-		handler.applySession(null);
+		handler.applyDtlsContext(null);
 		UdpConnector rawClient = new UdpConnector(clientEndpoint.getPort(), handler);
 
 		try {

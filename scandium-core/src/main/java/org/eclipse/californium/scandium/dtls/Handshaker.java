@@ -101,6 +101,7 @@ import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
@@ -119,12 +120,6 @@ import org.slf4j.LoggerFactory;
 public abstract class Handshaker implements Destroyable {
 
 	protected final Logger LOGGER = LoggerFactory.getLogger(getClass());
-
-	/**
-	 * Indicates whether this handshaker performs the client or server part of
-	 * the protocol.
-	 */
-	protected final boolean isClient;
 
 	protected ProtocolVersion usedProtocol;
 	protected Random clientRandom;
@@ -155,8 +150,11 @@ public abstract class Handshaker implements Destroyable {
 	 * @since 2.4
 	 */
 	private final boolean ipv6;
+	/**
+	 * DTLS context of handshaker.
+	 */
+	protected final DTLSContext context;
 
-	protected final DTLSSession session;
 	/**
 	 * The logic in charge of verifying the chain of certificates asserting this
 	 * handshaker's identity
@@ -184,6 +182,11 @@ public abstract class Handshaker implements Destroyable {
 	 */
 	private int nextReceiveMessageSequence = 0;
 
+	/**
+	 * Indicates last flight of the handshake. The last flight is net
+	 * retransmitted by timeout, it's retransmitted, if the other peer
+	 * retransmits the flight before this.
+	 */
 	private boolean lastFlight;
 
 	/** Realtime nanoseconds of last sending a flight */
@@ -203,7 +206,13 @@ public abstract class Handshaker implements Destroyable {
 	 */
 	protected Integer recordSizeLimit;
 
-	private int deferredRecordsSize;
+	/**
+	 * Accumulated record size of deferred incoming records.
+	 * 
+	 * @see #addDeferredProcessedRecord(Record, Collection)
+	 * @see #removeDeferredProcessedRecord(Record, Collection)
+	 */
+	private int deferredIncomingRecordsSize;
 
 	/** Maximum length of reassembled fragmented handshake messages */
 	private final int maxFragmentedHandshakeMessageLength;
@@ -230,7 +239,9 @@ public abstract class Handshaker implements Destroyable {
 	 * @sine 2.4
 	 */
 	private final ScheduledExecutorService timer;
-
+	/**
+	 * Record layer to send messages.
+	 */
 	private final RecordLayer recordLayer;
 	/**
 	 * Associated connection for this handshaker.
@@ -319,14 +330,18 @@ public abstract class Handshaker implements Destroyable {
 	 * @since 2.4
 	 */
 	private final int retransmissionTimeout;
-
+	/**
+	 * Session listeners.
+	 * 
+	 * @see #addSessionListener(SessionListener)
+	 */
 	private final Set<SessionListener> sessionListeners = new LinkedHashSet<>();
 
 	protected int statesIndex;
 	protected HandshakeState[] states;
 
 	private boolean changeCipherSuiteMessageExpected = false;
-	private boolean sessionEstablished = false;
+	private boolean contextEstablished = false;
 	private boolean handshakeAborted = false;
 	private boolean handshakeFailed = false;
 	private boolean pskRequestPending = false;
@@ -352,8 +367,7 @@ public abstract class Handshaker implements Destroyable {
 	 * Creates a new handshaker for negotiating a DTLS session with a given
 	 * peer.
 	 * 
-	 * @param isClient indicates whether this handshaker plays the client or
-	 *            server role.
+	 * @param initialRecordSequenceNo the initial record sequence number (since 3.0).
 	 * @param initialMessageSeq the initial message sequence number to use and
 	 *            expect in the exchange of handshake messages with the peer.
 	 *            This parameter can be used to initialize the
@@ -366,36 +380,32 @@ public abstract class Handshaker implements Destroyable {
 	 * @param timer scheduled executor for flight retransmission (since 2.4).
 	 * @param connection the connection related to this handshaker.
 	 * @param config the dtls configuration
-	 * @throws NullPointerException if session, recordLayer, or config is
-	 *             <code>null</code>.
-	 * @throws IllegalArgumentException if the initial message sequence number
+	 * @throws NullPointerException if any of the provided parameter is
+	 *             {@code null}
+	 * @throws IllegalArgumentException if the initial record or message sequence number
 	 *             is negative
 	 */
 	@NoPublicAPI
-	protected Handshaker(boolean isClient, int initialMessageSeq, DTLSSession session, RecordLayer recordLayer,
+	protected Handshaker(long initialRecordSequenceNo, int initialMessageSeq, DTLSSession session, RecordLayer recordLayer,
 			ScheduledExecutorService timer, Connection connection, DtlsConnectorConfig config) {
 		if (session == null) {
-			throw new NullPointerException("DTLS Session must not be null");
-		}
-		if (recordLayer == null) {
+			throw new NullPointerException("DTLS Context must not be null");
+		} else if (recordLayer == null) {
 			throw new NullPointerException("Record layer must not be null");
-		}
-		if (timer == null) {
+		} else if (timer == null) {
 			throw new NullPointerException("Timer must not be null");
-		}
-		if (connection == null) {
+		} else if (connection == null) {
 			throw new NullPointerException("Connection must not be null");
-		}
-		if (config == null) {
+		} else if (config == null) {
 			throw new NullPointerException("Dtls Connector Config must not be null");
-		}
-		if (initialMessageSeq < 0) {
+		} else if (initialMessageSeq < 0) {
 			throw new IllegalArgumentException("Initial message sequence number must not be negative");
+		} else if (initialRecordSequenceNo < 0) {
+			throw new IllegalArgumentException("Initial record sequence number must not be negative");
 		}
-		this.isClient = isClient;
 		this.sendMessageSequence = initialMessageSeq;
 		this.nextReceiveMessageSequence = initialMessageSeq;
-		this.session = session;
+		this.context = new DTLSContext(session, initialRecordSequenceNo);
 		this.recordLayer = recordLayer;
 		this.timer = timer;
 		this.connection = connection;
@@ -507,8 +517,8 @@ public abstract class Handshaker implements Destroyable {
 		 */
 		Record getNextRecord(Record candidate) {
 			int recordEpoch = candidate.getEpoch();
-			int sessionEpoch = session.getReadEpoch();
-			if (recordEpoch == sessionEpoch) {
+			int contextEpoch = context.getReadEpoch();
+			if (recordEpoch == contextEpoch) {
 				DTLSMessage fragment = candidate.getFragment();
 				switch (fragment.getContentType()) {
 				case CHANGE_CIPHER_SPEC:
@@ -560,7 +570,7 @@ public abstract class Handshaker implements Destroyable {
 					return null;
 				}
 			} else {
-				throw new IllegalArgumentException("record epoch " + recordEpoch + " doesn't match session " + sessionEpoch);
+				throw new IllegalArgumentException("record epoch " + recordEpoch + " doesn't match dtls context " + contextEpoch);
 			}
 		}
 
@@ -582,7 +592,8 @@ public abstract class Handshaker implements Destroyable {
 	}
 
 	/**
-	 * Compare records by the handshake message seqn and record sequence number
+	 * Compare records by the handshake message sequence number and record
+	 * sequence number
 	 * 
 	 * @param r1 first record to be compared
 	 * @param r2 second record to be compared
@@ -639,10 +650,10 @@ public abstract class Handshaker implements Destroyable {
 	 *             parsed into a handshake message or cannot be processed
 	 *             properly
 	 * @throws IllegalArgumentException if the record's epoch differs from the
-	 *             session's read epoch
+	 *             DTLS context's read epoch
 	 */
 	public final void processMessage(Record record) throws HandshakeException {
-		int epoch = session.getReadEpoch();
+		int epoch = context.getReadEpoch();
 		if (epoch != record.getEpoch()) {
 			LOGGER.debug("Discarding {} message with wrong epoch received from peer [{}]:{}{}",
 					record.getType(), record.getPeerAddress(), StringUtil.lineSeparator(), record);
@@ -667,7 +678,7 @@ public abstract class Handshaker implements Destroyable {
 	 * recursion, returns immediately, if called from
 	 * {@link #doProcessMessage(HandshakeMessage)}.
 	 * 
-	 * @param record message to process. Maybe {@ocde null} to start with the
+	 * @param record message to process. Maybe {@code null} to start with the
 	 *            first message from inbound message buffer.
 	 * @throws HandshakeException if an error occurs processing a message
 	 * @since 2.3
@@ -679,7 +690,7 @@ public abstract class Handshaker implements Destroyable {
 			return;
 		}
 		try {
-			int epoch = session.getReadEpoch();
+			int epoch = context.getReadEpoch();
 			int bufferIndex = 0;
 			Record recordToProcess = record != null ? record : inboundMessageBuffer.getNextRecord();
 			while (recordToProcess != null) {
@@ -703,23 +714,23 @@ public abstract class Handshaker implements Destroyable {
 					}
 				} else {
 					throw new HandshakeException(
-							String.format("Received unexpected message [%s] from peer %s",
+							String.format("Received unexpected message type [%s] from peer %s",
 									messageToProcess.getContentType(), getPeerAddress()),
 							new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
 				}
 				// process next expected record/message (if available yet)
-				session.markRecordAsRead(epoch, recordToProcess.getSequenceNumber());
+				context.markRecordAsRead(epoch, recordToProcess.getSequenceNumber());
 				inboundMessageBuffer.clean(recordToProcess.getSequenceNumber());
 				recordToProcess = inboundMessageBuffer.getNextRecord();
 				++bufferIndex;
 			}
-			if (session.getReadEpoch() > epoch) {
+			if (context.getReadEpoch() > epoch) {
 				final SerialExecutor serialExecutor = connection.getExecutor();
 				final List<Record> records = takeDeferredRecords();
-				if (deferredRecordsSize > 0) {
+				if (deferredIncomingRecordsSize > 0) {
 					throw new HandshakeException(
 							String.format("Received unexpected message left from peer %s", getPeerAddress()),
-							new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
+							new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
 				}
 				for (Record deferredRecord : records) {
 					if (serialExecutor != null && !serialExecutor.isShutdown()) {
@@ -802,7 +813,7 @@ public abstract class Handshaker implements Destroyable {
 			}
 			if (handshakeMessage instanceof GenericHandshakeMessage) {
 				GenericHandshakeMessage genericMessage = (GenericHandshakeMessage) handshakeMessage;
-				HandshakeParameter parameter = session.getParameter();
+				HandshakeParameter parameter = getSession().getParameter();
 				handshakeMessage = HandshakeMessage.fromGenericHandshakeMessage(genericMessage, parameter);
 			}
 			if (lastFlight) {
@@ -818,13 +829,10 @@ public abstract class Handshaker implements Destroyable {
 					return false;
 				}
 				// we already sent the last flight (including our FINISHED
-				// message),
-				// but the other peer does not seem to have received it
-				// because we received
-				// its finished message again, so we simply retransmit our
-				// last flight
-				LOGGER.debug("Received ({}) FINISHED message again, retransmitting last flight...",
-						getPeerAddress());
+				// message), but the other peer does not seem to have received
+				// it because we received its finished message again, so we
+				// simply retransmit our last flight
+				LOGGER.debug("Received ({}) FINISHED message again, retransmitting last flight...", getPeerAddress());
 				flight.incrementTries();
 				// retransmit CCS and FINISH, back-off not required!
 				sendFlight(flight);
@@ -870,7 +878,7 @@ public abstract class Handshaker implements Destroyable {
 	/**
 	 * Check, if message is expected.
 	 * 
-	 * @param message mesage to check
+	 * @param message message to check
 	 * @throws HandshakeException if the message is not expected
 	 * @see #useStateValidation
 	 * @see DtlsConnectorConfig#useHandshakeStateValidation()
@@ -930,18 +938,6 @@ public abstract class Handshaker implements Destroyable {
 	protected abstract void doProcessMessage(HandshakeMessage message) throws HandshakeException, GeneralSecurityException;
 
 	/**
-	 * Starts the handshake by sending the first flight to the peer.
-	 * <p>
-	 * The particular message to be sent depends on this peer's role in the
-	 * handshake, i.e. if this end represents the client or server.
-	 * </p>
-	 * 
-	 * @throws HandshakeException if the message to start the handshake cannot be
-	 *            created and sent using the session's current security parameters.
-	 */
-	public abstract void startHandshake() throws HandshakeException;
-
-	/**
 	 * Process asynchronous handshake result.
 	 * 
 	 * MUST not be called from {@link #doProcessMessage(HandshakeMessage)}
@@ -982,7 +978,7 @@ public abstract class Handshaker implements Destroyable {
 		pskRequestPending = false;
 		try {
 			ensureUndestroyed();
-
+			DTLSSession session = getSession();
 			String hostName = sniEnabled ? session.getHostName() : null;
 			PskPublicInformation pskIdentity = pskSecretResult.getPskPublicInformation();
 			SecretKey newPskSecret = pskSecretResult.getSecret();
@@ -1090,7 +1086,7 @@ public abstract class Handshaker implements Destroyable {
 	 *         {@link #handshakeMessages}
 	 */
 	protected final MessageDigest getHandshakeMessageDigest() {
-		MessageDigest md = session.getCipherSuite().getThreadLocalPseudoRandomFunctionMessageDigest();
+		MessageDigest md = getSession().getCipherSuite().getThreadLocalPseudoRandomFunctionMessageDigest();
 		int index = 0;
 		for (HandshakeMessage handshakeMessage : handshakeMessages) {
 			md.update(handshakeMessage.toByteArray());
@@ -1116,7 +1112,7 @@ public abstract class Handshaker implements Destroyable {
 		ensureUndestroyed();
 		this.masterSecret = SecretUtil.create(masterSecret);
 		calculateKeys(masterSecret);
-		session.setMasterSecret(masterSecret);
+		getSession().setMasterSecret(masterSecret);
 	}
 
 	/**
@@ -1144,17 +1140,17 @@ public abstract class Handshaker implements Destroyable {
 		 * client_cluster_MAC_key[SecurityParameters.enc_key_length]
 		 * server_cluster_MAC_key[SecurityParameters.enc_key_length]
 		 */
-
-		int macKeyLength = session.getCipherSuite().getMacKeyLength();
-		int encKeyLength = session.getCipherSuite().getEncKeyLength();
-		int fixedIvLength = session.getCipherSuite().getFixedIvLength();
+		CipherSuite cipherSuite = context.getSession().getCipherSuite();
+		int macKeyLength = cipherSuite.getMacKeyLength();
+		int encKeyLength = cipherSuite.getEncKeyLength();
+		int fixedIvLength = cipherSuite.getFixedIvLength();
 		int clusterMacKeyLength = generateClusterMacKeys ? encKeyLength : 0;
 		int totalLength = (macKeyLength + encKeyLength + fixedIvLength + clusterMacKeyLength) * 2;
 		// See http://tools.ietf.org/html/rfc5246#section-6.3:
 		//      key_block = PRF(SecurityParameters.master_secret, "key expansion",
 		//                      SecurityParameters.server_random + SecurityParameters.client_random);
 		byte[] seed = Bytes.concatenate(serverRandom, clientRandom);
-		byte[] data = PseudoRandomFunction.doPRF(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret,
+		byte[] data = PseudoRandomFunction.doPRF(cipherSuite.getThreadLocalPseudoRandomFunctionMac(), masterSecret,
 				Label.KEY_EXPANSION_LABEL, seed, totalLength);
 
 		int index = 0;
@@ -1181,10 +1177,10 @@ public abstract class Handshaker implements Destroyable {
 			index += length;
 			SecretKey clusterServerMacKey = SecretUtil.create(data, index, length, "Mac");
 			index += length;
-			if (isClient) {
-				session.setClusterMacKeys(clusterClientMacKey, clusterServerMacKey);
+			if (isClient()) {
+				context.setClusterMacKeys(clusterClientMacKey, clusterServerMacKey);
 			} else {
-				session.setClusterMacKeys(clusterServerMacKey, clusterClientMacKey);
+				context.setClusterMacKeys(clusterServerMacKey, clusterClientMacKey);
 			}
 			SecretUtil.destroy(clusterClientMacKey);
 			SecretUtil.destroy(clusterServerMacKey);
@@ -1214,6 +1210,7 @@ public abstract class Handshaker implements Destroyable {
 	 * @since 2.3
 	 */
 	protected PskSecretResult requestPskSecretResult(PskPublicInformation pskIdentity, SecretKey otherSecret) {
+		DTLSSession session = getSession();
 		ServerNames serverNames = sniEnabled ? session.getServerNames() : null;
 		String hmacAlgorithm = session.getCipherSuite().getPseudoRandomFunctionMacName();
 		pskRequestPending = true;
@@ -1223,52 +1220,49 @@ public abstract class Handshaker implements Destroyable {
 	}
 
 	protected final void setCurrentReadState() {
-		if (isClient) {
-			session.createReadState(serverWriteKey, serverWriteIV, serverWriteMACKey);
+		if (isClient()) {
+			context.createReadState(serverWriteKey, serverWriteIV, serverWriteMACKey);
 		} else {
-			session.createReadState(clientWriteKey, clientWriteIV, clientWriteMACKey);
+			context.createReadState(clientWriteKey, clientWriteIV, clientWriteMACKey);
 		}
 	}
 
 	protected final void setCurrentWriteState() {
-		if (isClient) {
-			session.createWriteState(clientWriteKey, clientWriteIV, clientWriteMACKey);
+		if (isClient()) {
+			context.createWriteState(clientWriteKey, clientWriteIV, clientWriteMACKey);
 		} else {
-			session.createWriteState(serverWriteKey, serverWriteIV, serverWriteMACKey);
+			context.createWriteState(serverWriteKey, serverWriteIV, serverWriteMACKey);
 		}
 	}
 
 	/**
-	 * Wraps a DTLS message fragment into (potentially multiple) DTLS records
-	 * and add them to the flight.
+	 * Add a handshake message to the flight.
 	 * 
-	 * Sets the record's epoch, sequence number and handles fragmentation for
-	 * handshake messages.
+	 * Assigns the handshake message sequence number.
 	 * 
-	 * @param flight the flight to add the wrapped messages
-	 * @param fragment the message fragment
-	 * @throws HandshakeException if the message could not be encrypted using
-	 *             the session's current security parameters
+	 * @param flight the flight to add the messages
+	 * @param handshakeMessage the handshake message
+	 * @since 3.0 (replaces the wrapMessage(DTLSFlight, DTLSMessage) )
 	 */
-	protected final void wrapMessage(DTLSFlight flight, DTLSMessage fragment) throws HandshakeException {
-
-		switch (fragment.getContentType()) {
-		case HANDSHAKE:
-			HandshakeMessage handshakeMessage = (HandshakeMessage) fragment;
-			applySendMessageSequenceNumber(handshakeMessage);
-			if (session.getWriteEpoch() == 0) {
-				handshakeMessages.add(handshakeMessage);
-			}
-			flight.addDtlsMessage(session.getWriteEpoch(), fragment);
-			break;
-		case CHANGE_CIPHER_SPEC:
-			// CCS has only 1 byte payload and doesn't require fragmentation
-			flight.addDtlsMessage(session.getWriteEpoch(), fragment);
-			break;
-		default:
-			throw new HandshakeException("Cannot create " + fragment.getContentType() + " record for flight",
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
+	protected final void wrapMessage(DTLSFlight flight, HandshakeMessage handshakeMessage) {
+		handshakeMessage.setMessageSeq(sendMessageSequence);
+		sendMessageSequence++;
+		int epoch = context.getWriteEpoch();
+		if (epoch == 0) {
+			handshakeMessages.add(handshakeMessage);
 		}
+		flight.addDtlsMessage(epoch, handshakeMessage);
+	}
+
+	/**
+	 * Add a change cipher specs message to the flight.
+	 * 
+	 * @param flight the flight to add change cipher specs wrapped messages
+	 * @param ccsMessage the change cipher specs message
+	 * @since 3.0 (replaces the wrapMessage(DTLSFlight, DTLSMessage) )
+	 */
+	protected final void wrapMessage(DTLSFlight flight, ChangeCipherSpecMessage ccsMessage) {
+		flight.addDtlsMessage(context.getWriteEpoch(), ccsMessage);
 	}
 
 	/**
@@ -1318,13 +1312,25 @@ public abstract class Handshaker implements Destroyable {
 
 	// Getters and Setters ////////////////////////////////////////////
 
+	protected abstract boolean isClient();
+
 	/**
 	 * Gets the session this handshaker is used to establish.
 	 * 
 	 * @return the session
 	 */
 	public final DTLSSession getSession() {
-		return session;
+		return context.getSession();
+	}
+
+	/**
+	 * Gets the dtls context this handshaker is used to establish.
+	 * 
+	 * @return the dtls context
+	 * @since 3.0
+	 */
+	public final DTLSContext getDtlsContext() {
+		return context;
 	}
 
 	/**
@@ -1347,14 +1353,14 @@ public abstract class Handshaker implements Destroyable {
 	}
 
 	/**
-	 * Create new flight with the current {@link #getSession()} and the current
+	 * Create new flight with the current {@link #getDtlsContext()} and the current
 	 * {@link #flightNumber}.
 	 * 
 	 * @return new flight
 	 * @since 2.5
 	 */
 	public DTLSFlight createFlight() {
-		return new DTLSFlight(session, flightNumber, getPeerAddress());
+		return new DTLSFlight(context, flightNumber, getPeerAddress());
 	}
 
 	/**
@@ -1393,19 +1399,6 @@ public abstract class Handshaker implements Destroyable {
 	 */
 	public Random getServerRandom() {
 		return serverRandom;
-	}
-
-	/**
-	 * Sets the handshake message sequence number on an outbound handshake message.
-	 * 
-	 * Also increases the sequence number counter afterwards.
-	 * 
-	 * @param message
-	 *            the handshake message to set the <em>message_seq</em> on
-	 */
-	private void applySendMessageSequenceNumber(HandshakeMessage message) {
-		message.setMessageSeq(sendMessageSequence);
-		sendMessageSequence++;
 	}
 
 	/**
@@ -1449,20 +1442,20 @@ public abstract class Handshaker implements Destroyable {
 	 */
 	private boolean addDeferredProcessedRecord(Record incomingMessage, Collection<Record> collection) {
 		int size = incomingMessage.size();
-		if (deferredRecordsSize + size < maxDeferredProcessedIncomingRecordsSize) {
-			deferredRecordsSize += size;
+		if (deferredIncomingRecordsSize + size < maxDeferredProcessedIncomingRecordsSize) {
+			deferredIncomingRecordsSize += size;
 			collection.add(incomingMessage);
 			return true;
 		} else {
 			LOGGER.debug("Dropped incoming record from peer [{}], limit of {} bytes exceeded by {}+{} bytes!",
-					incomingMessage.getPeerAddress(), maxDeferredProcessedIncomingRecordsSize, deferredRecordsSize, size);
+					incomingMessage.getPeerAddress(), maxDeferredProcessedIncomingRecordsSize, deferredIncomingRecordsSize, size);
 			recordLayer.dropReceivedRecord(incomingMessage);
 			return false;
 		}
 	}
 
 	/**
-	 * Remove record from deferred processing
+	 * Remove record from deferred processing.
 	 * 
 	 * @param incomingMessage incoming record to remove
 	 * @param collection collection to remove the record
@@ -1470,13 +1463,13 @@ public abstract class Handshaker implements Destroyable {
 	private void removeDeferredProcessedRecord(Record incomingMessage, Collection<Record> collection) {
 		if (collection.remove(incomingMessage)) {
 			int size = incomingMessage.size();
-			if (deferredRecordsSize < size) {
+			if (deferredIncomingRecordsSize < size) {
 				LOGGER.warn(
 						"deferred processed incoming records corrupted for peer [{}]! Removing {} bytes exceeds available {} bytes!",
-						incomingMessage.getPeerAddress(), size, deferredRecordsSize);
+						incomingMessage.getPeerAddress(), size, deferredIncomingRecordsSize);
 				throw new IllegalArgumentException("deferred processing of incoming records corrupted!");
 			}
-			deferredRecordsSize -= size;
+			deferredIncomingRecordsSize -= size;
 		}
 	}
 
@@ -1559,7 +1552,7 @@ public abstract class Handshaker implements Destroyable {
 			flightSendNanos = ClockUtil.nanoRealtime();
 			nanosExpireTime = nanosExpireTimeout + flightSendNanos;
 			int maxDatagramSize = recordLayer.getMaxDatagramSize(ipv6);
-			int maxFragmentSize = session.getEffectiveFragmentLimit();
+			int maxFragmentSize = getSession().getEffectiveFragmentLimit();
 			List<DatagramPacket> datagrams = flight.getDatagrams(maxDatagramSize, maxFragmentSize,
 					useMultiHandshakeMessagesRecord, useMultiRecordMessages, false);
 			LOGGER.trace("Sending flight of {} message(s) to peer [{}] using {} datagram(s) of max. {} bytes",
@@ -1588,7 +1581,7 @@ public abstract class Handshaker implements Destroyable {
 		if (!flight.isResponseCompleted()) {
 			Handshaker handshaker = connection.getOngoingHandshake();
 			if (null != handshaker) {
-				if (!handshaker.isProbing() && connection.hasEstablishedSession()) {
+				if (!handshaker.isProbing() && connection.hasEstablishedDtlsContext()) {
 					return;
 				}
 				Exception cause = null;
@@ -1633,7 +1626,7 @@ public abstract class Handshaker implements Destroyable {
 							flight.incrementTries();
 							flight.incrementTimeout();
 							int maxDatagramSize = recordLayer.getMaxDatagramSize(ipv6);
-							int maxFragmentSize = session.getEffectiveFragmentLimit();
+							int maxFragmentSize = getSession().getEffectiveFragmentLimit();
 							boolean backOff = backOffRetransmission > 0 && (tries + 1) > backOffRetransmission;
 							List<DatagramPacket> datagrams = flight.getDatagrams(maxDatagramSize, maxFragmentSize,
 									useMultiHandshakeMessagesRecord, useMultiRecordMessages, backOff);
@@ -1792,14 +1785,14 @@ public abstract class Handshaker implements Destroyable {
 	 * 
 	 * @throws HandshakeException if thrown by listener
 	 */
-	protected final void sessionEstablished() throws HandshakeException {
-		if (!sessionEstablished) {
-			if (this.getSession().getWriteState().hasValidCipherSuite()) {
-				LOGGER.debug("session established {}", connection);
+	protected final void contextEstablished() throws HandshakeException {
+		if (!contextEstablished) {
+			if (context.getWriteState().hasValidCipherSuite()) {
+				LOGGER.debug("dtls context established {}", connection);
 				amendPeerPrincipal();
-				sessionEstablished = true;
+				contextEstablished = true;
 				for (SessionListener sessionListener : sessionListeners) {
-					sessionListener.sessionEstablished(this, this.getSession());
+					sessionListener.contextEstablished(this, context);
 				}
 			} else {
 				handshakeFailed(
@@ -1846,7 +1839,7 @@ public abstract class Handshaker implements Destroyable {
 			for (SessionListener sessionListener : sessionListeners) {
 				sessionListener.handshakeFailed(this, cause);
 			}
-			SecretUtil.destroy(session);
+			SecretUtil.destroy(context);
 			SecretUtil.destroy(this);
 		}
 	}
@@ -1873,29 +1866,31 @@ public abstract class Handshaker implements Destroyable {
 	}
 
 	/**
-	 * Checks, if the session is established.
+	 * Checks, if the dtls context is established.
 	 * 
 	 * Indicates, that the peer has send it's FINISH and is awaiting to receive
 	 * data or alerts in epoch 1.
 	 * 
-	 * @return {@code true}, if the session is established, {@code false},
+	 * @return {@code true}, if the dtls context is established, {@code false},
 	 *         otherwise.
-	 * @since 2.3
+	 * @since 3.0
 	 */
-	public boolean hasSessionEstablished() {
-		return sessionEstablished;
+	public boolean hasContextEstablished() {
+		return contextEstablished;
 	}
 
 	/**
 	 * Test, if handshake was started in probing mode.
 	 * 
-	 * Usually a resuming client handshake removes the session from the
-	 * connection store with the start. Probing removes the session only with
-	 * the first data received back.
+	 * Usually a resuming client handshake removes the DTLS context from the
+	 * connection store with the start. Probing removes DTLS context only with
+	 * the first data received back. If the handshake expires before some data
+	 * is received back, the original DTLS context is used again.
 	 * 
 	 * @return {@code true}, if handshake is in probing mode, {@code false},
 	 *         otherwise.
 	 * @see ResumingClientHandshaker
+	 * @see ClientHandshaker
 	 * @since 2.1
 	 */
 	public boolean isProbing() {
@@ -1923,7 +1918,7 @@ public abstract class Handshaker implements Destroyable {
 	 * @since 2.1
 	 */
 	public boolean isExpired() {
-		return !sessionEstablished && pendingFlight.get() != null && (ClockUtil.nanoRealtime() -nanosExpireTime) > 0;
+		return !contextEstablished && pendingFlight.get() != null && (ClockUtil.nanoRealtime() -nanosExpireTime) > 0;
 	}
 
 	/**
@@ -1946,7 +1941,7 @@ public abstract class Handshaker implements Destroyable {
 	 * @since 2.1
 	 */
 	public boolean isRemovingConnection() {
-		return !handshakeAborted && !connection.hasEstablishedSession();
+		return !handshakeAborted && !connection.hasEstablishedDtlsContext();
 	}
 
 	/**
@@ -2039,7 +2034,7 @@ public abstract class Handshaker implements Destroyable {
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE);
 			throw new HandshakeException("Trust is not possible!", alert);
 		}
-		Boolean clientUsage = useKeyUsageVerification ? !isClient : null;
+		Boolean clientUsage = useKeyUsageVerification ? !isClient() : null;
 		LOGGER.info("Start certificate verification.");
 		certificateVerificationPending = true;
 		CertificateVerificationResult verificationResult = certificateVerifier.verifyCertificate(connection.getConnectionId(), null, clientUsage, useTruncatedCertificatePathForVerification, message);
@@ -2083,7 +2078,7 @@ public abstract class Handshaker implements Destroyable {
 		if (destroyed) {
 			if (handshakeFailed) {
 				throw new IllegalStateException("secrets destroyed after failure!", cause);
-			} else if (sessionEstablished) {
+			} else if (contextEstablished) {
 				throw new IllegalStateException("secrets destroyed after success!");
 			} else {
 				throw new IllegalStateException("secrets destroyed ???");
@@ -2096,6 +2091,7 @@ public abstract class Handshaker implements Destroyable {
 	 */
 	private void amendPeerPrincipal() {
 
+		DTLSSession session = getSession();
 		Principal peerIdentity = session.getPeerIdentity();
 		if (peerIdentity instanceof ExtensiblePrincipal) {
 			// amend the client principal with additional application level information

@@ -33,8 +33,6 @@ import org.eclipse.californium.scandium.util.ServerName;
 
 public final class DtlsTestTools extends TestCertificatesTools {
 
-	public static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1
-
 	public static final int DEFAULT_HANDSHAKE_RESULT_DELAY_MILLIS;
 
 	static {

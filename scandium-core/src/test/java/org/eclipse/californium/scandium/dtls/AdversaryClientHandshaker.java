@@ -40,7 +40,7 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 	/**
 	 * Creates a new handshaker for negotiating a DTLS session with a server.
 	 * 
-	 * @param session the session to negotiate with the server.
+	 * @param context the DTLS context to negotiate with the server.
 	 * @param recordLayer the object to use for sending flights to the peer.
 	 * @param timer scheduled executor for flight retransmission (since 2.4).
 	 * @param connection the connection related with the session.
@@ -52,7 +52,7 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 	 */
 	public AdversaryClientHandshaker(DTLSSession session, RecordLayer recordLayer, ScheduledExecutorService timer, Connection connection,
 			DtlsConnectorConfig config) {
-		super(session, recordLayer, timer, connection, config, false);
+		super(false, session, recordLayer, timer, connection, config);
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -71,7 +71,7 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 		 * Third, send CertificateVerify message if necessary.
 		 */
 		if (certificateRequest != null && negotiatedSignatureAndHashAlgorithm != null) {
-			CertificateType clientCertificateType = session.sendCertificateType();
+			CertificateType clientCertificateType = getSession().sendCertificateType();
 			if (!isSupportedCertificateType(clientCertificateType, supportedClientCertificateTypes)) {
 				throw new HandshakeException(
 						"Server wants to use not supported client certificate type " + clientCertificateType,
@@ -111,7 +111,7 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 							AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
 		}
 
-		Finished finished = new Finished(session.getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, isClient, md.digest());
+		Finished finished = new Finished(getSession().getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, isClient(), md.digest());
 		wrapMessage(flight, finished);
 
 		// compute handshake hash with client's finished message also
@@ -123,12 +123,12 @@ public class AdversaryClientHandshaker extends ClientHandshaker {
 	}
 
 	public void sendApplicationData(final byte[] data) {
-		DTLSFlight flight = new DTLSFlight(getSession(), 100, getPeerAddress()) {
+		DTLSFlight flight = new DTLSFlight(getDtlsContext(), 100, getPeerAddress()) {
 			public List<Record> getRecords(int maxDatagramSize, int maxFragmentSize, boolean useMultiHandshakeMessageRecords)
 					throws HandshakeException {
 				try {
-					Record record = new Record(ContentType.APPLICATION_DATA, session.getWriteEpoch(), session.getSequenceNumber(),
-							new ApplicationMessage(data), session, true, 0);
+					Record record = new Record(ContentType.APPLICATION_DATA, context.getWriteEpoch(), new ApplicationMessage(data),
+							context, true, 0);
 					return Arrays.asList(record);
 				} catch (GeneralSecurityException e) {
 					throw new HandshakeException("Cannot create record",

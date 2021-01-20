@@ -110,10 +110,10 @@ public class DTLSFlight {
 	private final List<EpochMessage> dtlsMessages;
 
 	/**
-	 * The current DTLS session with the peer. Needed to set the record sequence
+	 * The current DTLS context with the peer. Needed to set the record sequence
 	 * number correctly when retransmitted.
 	 */
-	private final DTLSSession session;
+	private final DTLSContext context;
 
 	private final InetSocketAddress peer;
 
@@ -209,18 +209,18 @@ public class DTLSFlight {
 	 * Flights created using this constructor are by default eligible for
 	 * re-transmission.
 	 * 
-	 * @param session the session to get record sequence numbers from when
+	 * @param context the DTLS context to get record sequence numbers from when
 	 *            sending out the flight
 	 * @param flightNumber number of the flight. Used for logging and
 	 *            {@link MessageCallback#onDtlsRetransmission(int)}.
 	 * @param peer destination peer address
-	 * @throws NullPointerException if session is {@code null}
+	 * @throws NullPointerException if context is {@code null}
 	 */
-	public DTLSFlight(DTLSSession session, int flightNumber, InetSocketAddress peer) {
-		if (session == null) {
+	public DTLSFlight(DTLSContext context, int flightNumber, InetSocketAddress peer) {
+		if (context == null) {
 			throw new NullPointerException("Session must not be null");
 		}
-		this.session = session;
+		this.context = context;
 		this.peer = peer;
 		this.records = new ArrayList<Record>();
 		this.dtlsMessages = new ArrayList<EpochMessage>();
@@ -292,7 +292,7 @@ public class DTLSFlight {
 				flushMultiHandshakeMessages();
 				// CCS has only 1 byte payload and doesn't require fragmentation
 				records.add(new Record(message.getContentType(), epochMessage.epoch,
-						session.getSequenceNumber(epochMessage.epoch), message, session, false, 0));
+						message, context, false, 0));
 				LOGGER.debug("Add CCS message of {} bytes for [{}]",
 						message.size(), peer);
 				break;
@@ -318,13 +318,13 @@ public class DTLSFlight {
 	private void wrapHandshakeMessage(EpochMessage epochMessage) throws GeneralSecurityException {
 		HandshakeMessage handshakeMessage = (HandshakeMessage) epochMessage.message;
 		int messageLength = handshakeMessage.getMessageLength();
-		int maxPayloadLength = maxDatagramSize - DTLSSession.DTLS_HEADER_LENGTH;
+		int maxPayloadLength = maxDatagramSize - Record.DTLS_HANDSHAKE_HEADER_LENGTH;
 		int effectiveMaxFragmentSize = maxFragmentSize;
 		boolean useCid = false;
 
 		if (epochMessage.epoch > 0) {
-			maxPayloadLength -= session.getMaxCiphertextExpansion();
-			ConnectionId connectionId = session.getWriteConnectionId();
+			maxPayloadLength -= context.getSession().getMaxCiphertextExpansion();
+			ConnectionId connectionId = context.getWriteConnectionId();
 			if (connectionId != null && !connectionId.isEmpty()) {
 				useCid = true;
 				// connection id + inner record type
@@ -364,7 +364,7 @@ public class DTLSFlight {
 				}
 			}
 			records.add(new Record(ContentType.HANDSHAKE, epochMessage.epoch,
-					session.getSequenceNumber(epochMessage.epoch), handshakeMessage, session, useCid, 0));
+					handshakeMessage, context, useCid, 0));
 			LOGGER.debug("Add {} message of {} bytes for [{}]",
 					handshakeMessage.getMessageType(), messageLength, peer);
 			return;
@@ -405,8 +405,8 @@ public class DTLSFlight {
 
 			offset += fragmentLength;
 
-			records.add(new Record(ContentType.HANDSHAKE, epochMessage.epoch, session.getSequenceNumber(epochMessage.epoch),
-					fragmentedMessage, session, false, 0));
+			records.add(new Record(ContentType.HANDSHAKE, epochMessage.epoch, fragmentedMessage,
+					context, false, 0));
 		}
 	}
 
@@ -418,8 +418,8 @@ public class DTLSFlight {
 	 */
 	private void flushMultiHandshakeMessages() throws GeneralSecurityException {
 		if (multiHandshakeMessage != null) {
-			records.add(new Record(ContentType.HANDSHAKE, multiEpoch, session.getSequenceNumber(multiEpoch),
-					multiHandshakeMessage, session, multiUseCid, 0));
+			records.add(new Record(ContentType.HANDSHAKE, multiEpoch, multiHandshakeMessage,
+					context, multiUseCid, 0));
 			int count = multiHandshakeMessage.getNumberOfHandshakeMessages();
 			if (count > 1) {
 				LOGGER.info("Add {} multi handshake message, epoch {} of {} bytes for [{}]", count, multiEpoch,
@@ -456,8 +456,8 @@ public class DTLSFlight {
 					int epoch = record.getEpoch();
 					DTLSMessage fragment = record.getFragment();
 					boolean useCid = record.useConnectionId();
-					records.set(index, new Record(record.getType(), epoch, session.getSequenceNumber(epoch), fragment,
-							session, useCid, 0));
+					records.set(index, new Record(record.getType(), epoch, fragment, context,
+							useCid, 0));
 				}
 			} else {
 				this.effectiveDatagramSize = maxDatagramSize;

@@ -212,7 +212,7 @@ public class ClientHandshakerTest {
 		ServerHello serverHello = new ServerHello(clientHello.getClientVersion(), new Random(), new SessionId(),
 				cipherSuite, CompressionMethod.NULL, extensions);
 		Record record =  DtlsTestTools.getRecordForMessage(0, 1, serverHello);
-		record.applySession(handshaker.session);
+		record.decodeFragment(handshaker.getDtlsContext().getReadState());
 		try {
 			handshaker.processMessage(record);
 			fail("Broken SERVER_HELLO not detected!");
@@ -261,10 +261,8 @@ public class ClientHandshakerTest {
 		}
 		DtlsConnectorConfig config = builder.build();
 		Connection connection = new Connection(config.getAddress(), new SyncSerialExecutor());
-		DTLSSession session = new DTLSSession();
-		session.setHostName(virtualHost);
 		handshaker = new ClientHandshaker(
-				session,
+				virtualHost,
 				recordLayer,
 				timer,
 				connection,

@@ -155,7 +155,7 @@ public final class ClientHello extends HandshakeMessage {
 		this(version, session.getSessionIdentifier(), Arrays.asList(session.getCipherSuite()),
 				supportedSignatureAndHashAlgorithms, supportedClientCertificateTypes, supportedServerCertificateTypes,
 				supportedGroups);
-		addCompressionMethod(session.getWriteState().getCompressionMethod());
+		addCompressionMethod(session.getCompressionMethod());
 	}
 
 	private ClientHello(

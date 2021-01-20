@@ -277,7 +277,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 				SessionId id = clientCache.getSessionIdentity(peer);
 				if (ticket != null && id != null) {
 					// restore connection from session ticket
-					Connection connection = new Connection(ticket, id, peer);
+					Connection connection = new Connection(new DTLSSession(id, ticket), peer);
 					ConnectionId connectionId = newConnectionId();
 					if (connectionId != null) {
 						connection.setConnectionId(connectionId);
@@ -456,7 +456,9 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 
 				} else if (conFromLocalCache == null) {
 					// this probably means that we are taking over the session from a failed node
-					return new Connection(ticket, id, null);
+					Connection connection = new Connection(new DTLSSession(id, ticket), null);
+					SecretUtil.destroy(ticket);
+					return connection;
 					// connection will be put to first level cache as part of
 					// the abbreviated handshake
 				} else {
@@ -468,13 +470,17 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	}
 
 	private synchronized Connection findLocally(final SessionId id) {
+		if (id == null) {
+			throw new NullPointerException("DTLS Session ID must not be null!");
+		}
 		Connection connection = connectionsByEstablishedSession.get(id);
 		if (connection != null) {
 			DTLSSession establishedSession = connection.getEstablishedSession();
 			if (establishedSession != null) {
-				if (!establishedSession.getSessionIdentifier().equals(id)) {
+				SessionId establishedId = establishedSession.getSessionIdentifier();
+				if (!id.equals(establishedId)) {
 					LOGGER.warn("{}connection {} changed session {}!={}!", tag, connection.getConnectionId(), id,
-							establishedSession.getSessionIdentifier());
+							establishedId);
 				}
 			} else {
 				LOGGER.warn("{}connection {} lost session {}!", tag, connection.getConnectionId(), id);

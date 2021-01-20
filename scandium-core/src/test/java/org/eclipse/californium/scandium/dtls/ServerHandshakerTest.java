@@ -361,7 +361,7 @@ public class ServerHandshakerTest {
 	public void testDoProcessMessageProcessesQueuedMessages() throws Exception {
 		Record nextRecord = givenAHandshakerWithAQueuedMessage();
 		try {
-			nextRecord.applySession(handshaker.getSession());
+			nextRecord.decodeFragment(handshaker.getDtlsContext().getReadState());
 			handshaker.processMessage(nextRecord);
 		} catch (HandshakeException e) {
 			HandshakerTest.failedHandshake(e);
@@ -372,7 +372,7 @@ public class ServerHandshakerTest {
 	private ServerHandshaker newHandshaker(final DtlsConnectorConfig config, final DTLSSession session) throws HandshakeException {
 		Connection connection = new Connection(config.getAddress(), new SyncSerialExecutor());
 		connection.setConnectionId(new ConnectionId(new byte[] { 1, 2, 3, 4 }));
-		ServerHandshaker handshaker =  new ServerHandshaker(0, session, recordLayer, timer, connection, config);
+		ServerHandshaker handshaker =  new ServerHandshaker(0, 0, session, recordLayer, timer, connection, config);
 		recordLayer.setHandshaker(handshaker);
 		return handshaker;
 	}
@@ -396,7 +396,7 @@ public class ServerHandshakerTest {
 		Record keyExchangeRecord =  DtlsTestTools.getRecordForMessage(0, 2, keyExchangeMsg);
 
 		// put KEY_EXCHANGE message with seq no. 2 to inbound message queue
-		keyExchangeRecord.applySession(handshaker.getSession());
+		keyExchangeRecord.decodeFragment(handshaker.getDtlsContext().getReadState());
 		handshaker.processMessage(keyExchangeRecord);
 
 		assertThat(handshaker.handshakeMessages.size(), is(6));
@@ -432,7 +432,7 @@ public class ServerHandshakerTest {
 		List<Record> list = DtlsTestTools.fromByteArray(dtlsRecord, null, ClockUtil.nanoRealtime());
 		assertFalse("Should be able to deserialize DTLS Record from byte array", list.isEmpty());
 		Record record = list.get(0);
-		record.applySession(handshaker.getSession());
+		record.decodeFragment(handshaker.getDtlsContext().getReadState());
 		handshaker.processMessage(record);
 	}
 
