@@ -45,7 +45,7 @@ public class TimeStatistic {
 	 * 
 	 * @param timeRange overall range.
 	 * @param timeSlot time slot width
-	 * @param unit time unit for other values
+	 * @param unit time unit for the both other time values
 	 */
 	public TimeStatistic(long timeRange, long timeSlot, TimeUnit unit) {
 		int size = (int) (timeRange / timeSlot) + 1;
@@ -123,6 +123,7 @@ public class TimeStatistic {
 			}
 		}
 		if (count > 0) {
+			long max = TimeUnit.NANOSECONDS.toMillis(maximumTime.get());
 			long[] times = null;
 			if (percentiles != null && percentiles.length > 0) {
 				Arrays.sort(percentiles);
@@ -138,7 +139,11 @@ public class TimeStatistic {
 					if (hits > 0) {
 						long next = downCount + hits;
 						while (downCount <= line && next > line) {
-							times[linesIndex] = getMillis(index);
+							long time = getMillis(index);
+							if (time > max) {
+								time = max;
+							}
+							times[linesIndex] = time;
 							--linesIndex;
 							if (linesIndex >= 0) {
 								if (percentiles[linesIndex] < 0 || percentiles[linesIndex] > 999) {
@@ -157,8 +162,7 @@ public class TimeStatistic {
 					}
 				}
 			}
-			return new Summary((int) count, sum / count, TimeUnit.NANOSECONDS.toMillis(maximumTime.get()), percentiles,
-					times);
+			return new Summary((int) count, sum / count, max, percentiles, times);
 		} else {
 			return new Summary();
 		}
