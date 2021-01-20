@@ -70,6 +70,7 @@ import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.TestThreadFactory;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
@@ -118,6 +119,7 @@ public class ConnectorHelper {
 	Map<InetSocketAddress, LatchSessionListener> sessionListenerMap = new ConcurrentHashMap<>();
 	DTLSContext establishedServerContext;
 	DTLSSession establishedServerSession;
+	AlertCatcher serverAlertCatcher;
 
 	DtlsConnectorConfig serverConfig;
 
@@ -196,10 +198,13 @@ public class ConnectorHelper {
 		serverConnectionStore = new DebugConnectionStore(SERVER_CONNECTION_STORE_CAPACITY, 5 * 60, serverSessionCache); // connection timeout 5mins
 		serverConnectionStore.setTag("server");
 
+		serverAlertCatcher = new AlertCatcher();
+
 		server = new DtlsTestConnector(serverConfig, serverConnectionStore);
 		serverRawDataProcessor = new MessageCapturingProcessor();
 		serverRawDataChannel = new SimpleRawDataChannel(server, serverRawDataProcessor);
 		server.setRawDataReceiver(serverRawDataChannel);
+		server.setAlertHandler(serverAlertCatcher);
 		server.start();
 		serverEndpoint = server.getAddress();
 	}
@@ -264,7 +269,10 @@ public class ConnectorHelper {
 		if (serverRawDataChannel != null) {
 			serverRawDataChannel.setProcessor(serverRawDataProcessor);
 		}
-		if (server != null) {
+		if (serverAlertCatcher != null) {
+			serverAlertCatcher.resetAlert();
+			server.setAlertHandler(serverAlertCatcher);
+		} else {
 			server.setAlertHandler(null);
 		}
 		sessionListenerMap.clear();
@@ -821,6 +829,54 @@ public class ConnectorHelper {
 			}
 		}
 		return expand.toArray(new BuilderSetups[expand.size()]);
+	}
+
+	public static class AlertCatcher implements AlertHandler {
+
+		private AlertMessage alert;
+
+		@Override
+		public synchronized void onAlert(InetSocketAddress peer, AlertMessage alert) {
+			if (this.alert == null) {
+				this.alert = alert;
+				notify();
+			}
+		}
+
+		/**
+		 * Reset current alert.
+		 * 
+		 * @since 3.0
+		 */
+		public synchronized void resetAlert() {
+			this.alert = null;
+		}
+
+		/**
+		 * Get alert.
+		 * 
+		 * @return alert, or {@code null}, if no alert was received.
+		 * @since 3.0
+		 */
+		public synchronized AlertMessage getAlert() {
+			return alert;
+		}
+
+		/**
+		 * Wait for alert.
+		 * 
+		 * @return {@code AlertMessage} if reported, {@code null}, otherwise.
+		 */
+		public synchronized AlertMessage waitForAlert(long timeout, TimeUnit unit) throws InterruptedException {
+			if (alert == null && timeout > 0) {
+				long millis = unit.toMillis(timeout);
+				if (millis <= 0) {
+					millis = 1;
+				}
+				wait(millis);
+			}
+			return alert;
+		}
 	}
 
 }

@@ -110,7 +110,7 @@ public abstract class ECDHServerKeyExchange extends ServerKeyExchange {
 		if (group == null || !group.isUsable()) {
 			throw new HandshakeException(
 				String.format("Server used unsupported elliptic curve (%d) for ECDH", curveId),
-				new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
+				new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER));
 		}
 		byte[] encodedPoint = reader.readVarBytes(PUBLIC_LENGTH_BITS);
 		return new EcdhData(group, encodedPoint);

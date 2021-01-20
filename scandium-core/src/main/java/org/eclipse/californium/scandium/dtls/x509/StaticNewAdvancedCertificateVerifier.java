@@ -124,7 +124,7 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 			CertPath certChain = message.getCertificateChain();
 			if (certChain == null) {
 				if (trustedRPKs == null) {
-					AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
+					AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNSUPPORTED_CERTIFICATE);
 					throw new HandshakeException("RPK verification not enabled!", alert);
 				}
 				PublicKey publicKey = message.getPublicKey();
@@ -139,7 +139,7 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 				return new CertificateVerificationResult(cid, publicKey, null);
 			} else {
 				if (trustedCertificates == null) {
-					AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
+					AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNSUPPORTED_CERTIFICATE);
 					throw new HandshakeException("x509 verification not enabled!", alert);
 				}
 				try {
@@ -164,7 +164,7 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 					} else if (LOGGER.isDebugEnabled()) {
 						LOGGER.debug("Certificate validation failed due to {}", e.getMessage());
 					}
-					AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE);
+					AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.DECRYPT_ERROR);
 					throw new HandshakeException("Certificate chain could not be validated", alert, e);
 				}
 			}
