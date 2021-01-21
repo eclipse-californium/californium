@@ -225,7 +225,7 @@ public class DTLSConnectorAdvancedTest {
 
 			@Override
 			public CertificateVerificationResult verifyCertificate(final ConnectionId cid, final ServerNames serverName,
-					final Boolean clientUsage, final boolean truncateCertificatePath, final CertificateMessage message) {
+					final boolean clientUsage, final boolean truncateCertificatePath, final CertificateMessage message) {
 				final int delay = getDelay();
 				try {
 					LOGGER.info("verify certificate");

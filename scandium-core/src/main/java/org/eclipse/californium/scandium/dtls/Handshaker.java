@@ -278,15 +278,7 @@ public abstract class Handshaker implements Destroyable {
 	 * Support Server Name Indication TLS extension.
 	 */
 	protected boolean sniEnabled;
-	/**
-	 * Use handshake state machine validation.
-	 */
-	protected boolean useStateValidation;
 
-	/**
-	 * Use key usage verification for x509.
-	 */
-	protected final boolean useKeyUsageVerification;
 	/**
 	 * Truncate certificate path for validation.
 	 */
@@ -419,8 +411,6 @@ public abstract class Handshaker implements Destroyable {
 		this.maxDeferredProcessedOutgoingApplicationDataMessages = config.getMaxDeferredProcessedOutgoingApplicationDataMessages();
 		this.maxDeferredProcessedIncomingRecordsSize = config.getMaxDeferredProcessedIncomingRecordsSize();
 		this.sniEnabled = config.isSniEnabled();
-		this.useStateValidation = config.useHandshakeStateValidation();
-		this.useKeyUsageVerification = config.useKeyUsageVerification();
 		this.useTruncatedCertificatePathForVerification = config.useTruncatedCertificatePathForValidation();
 		this.useEarlyStopRetransmission = config.isEarlyStopRetransmission();
 		this.privateKey = config.getPrivateKey();
@@ -873,11 +863,9 @@ public abstract class Handshaker implements Destroyable {
 	 * 
 	 * @param message message to check
 	 * @throws HandshakeException if the message is not expected
-	 * @see #useStateValidation
-	 * @see DtlsConnectorConfig#useHandshakeStateValidation()
 	 */
 	protected void expectMessage(DTLSMessage message) throws HandshakeException {
-		if (useStateValidation && states != null) {
+		if (states != null) {
 			if (statesIndex >= states.length) {
 				LOGGER.warn("Cannot process {} message from peer [{}], no more expected!", HandshakeState.toString(message),
 						getPeerAddress());
@@ -2025,10 +2013,9 @@ public abstract class Handshaker implements Destroyable {
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE);
 			throw new HandshakeException("Trust is not possible!", alert);
 		}
-		Boolean clientUsage = useKeyUsageVerification ? !isClient() : null;
 		LOGGER.info("Start certificate verification.");
 		certificateVerificationPending = true;
-		CertificateVerificationResult verificationResult = certificateVerifier.verifyCertificate(connection.getConnectionId(), null, clientUsage, useTruncatedCertificatePathForVerification, message);
+		CertificateVerificationResult verificationResult = certificateVerifier.verifyCertificate(connection.getConnectionId(), null, !isClient(), useTruncatedCertificatePathForVerification, message);
 		if (verificationResult != null) {
 			processCertificateVerificationResult(verificationResult);
 		}

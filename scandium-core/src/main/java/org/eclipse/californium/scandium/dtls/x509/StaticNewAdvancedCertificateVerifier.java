@@ -119,7 +119,7 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 
 	@Override
 	public CertificateVerificationResult verifyCertificate(ConnectionId cid, ServerNames serverName,
-			Boolean clientUsage, boolean truncateCertificatePath, CertificateMessage message) {
+			boolean clientUsage, boolean truncateCertificatePath, CertificateMessage message) {
 		try {
 			CertPath certChain = message.getCertificateChain();
 			if (certChain == null) {
@@ -144,7 +144,7 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 				}
 				try {
 					CertPath certPath = message.getCertificateChain();
-					if (clientUsage != null && !message.isEmpty()) {
+					if (!message.isEmpty()) {
 						Certificate certificate = certPath.getCertificates().get(0);
 						if (certificate instanceof X509Certificate) {
 							if (!CertPathUtil.canBeUsedForAuthentication((X509Certificate) certificate, clientUsage)) {
