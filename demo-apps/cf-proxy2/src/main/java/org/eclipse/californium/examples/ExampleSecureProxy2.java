@@ -52,7 +52,7 @@ import org.slf4j.LoggerFactory;
  * 
  * CoAP2CoAP: Insert in Copper: 
  * URI: coap://localhost:PORT/coap2coap 
- * Proxy: coaps://californium.eclipse.org:5684/test
+ * Proxy: coaps://californium.eclipseprojects.io:5684/test
  *
  */
 public class ExampleSecureProxy2 {

@@ -209,7 +209,7 @@ public class BenchmarkClient {
 					"   A blocksize of 64 bytes is used, as defined in",
 					"   \"CaliforniumReverseServer.properties\".)",
 					"",
-					"Note: californium.eclipse.org doesn't support a benchmark",
+					"Note: californium.eclipseprojects.io doesn't support a benchmark",
 					"      and will response with 5.01, NOT_IMPLEMENTED!"
 			})
 	private static class Config extends ClientConfig {
