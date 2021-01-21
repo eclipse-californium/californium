@@ -61,7 +61,6 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.core.coap.BlockOption;
@@ -218,7 +217,7 @@ public class Exchange {
 	 * The realtime in nanoseconds, just before the last message of this
 	 * exchange was sent.
 	 */
-	private final AtomicLong sendNanoTimestamp = new AtomicLong();
+	private volatile long sendNanoTimestamp;
 
 	/**
 	 * The actual request that caused this exchange. Layers below the
@@ -953,14 +952,14 @@ public class Exchange {
 	 * Get the realtime of the last sending of a message in nanoseconds.
 	 * 
 	 * The realtime is just before sending this message to ensure, that the
-	 * message wasn't sent up to this time. This will alos contain the realtime
+	 * message wasn't sent up to this time. This will also contain the realtime
 	 * for ACK or RST messages.
 	 * 
 	 * @return nano-time of last message sending.
 	 * @see ClockUtil#nanoRealtime()
 	 */
 	public long getSendNanoTimestamp() {
-		return sendNanoTimestamp.get();
+		return sendNanoTimestamp;
 	}
 
 	/**
@@ -969,7 +968,7 @@ public class Exchange {
 	 * @param nanoTimestamp realtime in nanoseconds
 	 */
 	public void setSendNanoTimestamp(long nanoTimestamp) {
-		sendNanoTimestamp.set(nanoTimestamp);
+		sendNanoTimestamp = nanoTimestamp;
 	}
 
 	/**
