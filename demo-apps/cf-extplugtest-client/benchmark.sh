@@ -65,8 +65,8 @@ echo
 echo "export USE_TCP=0"
 echo "export REQS=10"
 echo
-echo "Note: sometimes the recommended default configuration is changed." 
-echo "      Please delete therefore the \"Californium???.properties\" to apply the changes." 
+echo "Note: sometimes the recommended default configuration is changed."
+echo "      Please delete therefore the \"Californium???.properties\" to apply the changes."
 echo
 
 # commands to check several limits
@@ -84,21 +84,21 @@ export CALIFORNIUM_STATISTIC="3.0.0"
 
 if [ -z "$1" ]  ; then
      CF_HOST=localhost
-else 
+else
     CF_HOST=$1
     shift
 fi
 
 if [ -z "$1" ]  ; then
      CLIENTS_MULTIPLIER=10
-else 
+else
     CLIENTS_MULTIPLIER=$1
     shift
 fi
 
 if [ -z "$1" ]  ; then
      CF_SEC=
-else 
+else
     CF_SEC=$1
     shift
 fi
@@ -178,27 +178,27 @@ echo ${CF_JAR}
 benchmark_udp()
 {
    if [ ${USE_UDP} -eq 0 ] ; then return; fi
-   if [ ${USE_PLAIN} -ne 0 ] ; then 
+   if [ ${USE_PLAIN} -ne 0 ] ; then
       java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} coap://${CF_HOST}:${PLAIN_PORT}/$@
       if [ ! $? -eq 0 ] ; then exit $?; fi
       sleep 5
-   fi   
-   if [ ${USE_SECURE} -ne 0 ] ; then 
+   fi
+   if [ ${USE_SECURE} -ne 0 ] ; then
       java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} ${CF_SEC} ${CALI_AUTH} coaps://${CF_HOST}:${SECURE_PORT}/$@
       if [ ! $? -eq 0 ] ; then exit $?; fi
       sleep 5
-   fi   
+   fi
  }
 
 benchmark_tcp()
 {
    if [ ${USE_TCP} -eq 0 ] ; then return; fi
-   if [ ${USE_PLAIN} -ne 0 ] ; then 
+   if [ ${USE_PLAIN} -ne 0 ] ; then
       java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} coap+tcp://${CF_HOST}:${PLAIN_PORT}/$@
       if [ ! $? -eq 0 ] ; then exit $?; fi
       sleep 5
    fi
-   if [ ${USE_SECURE} -ne 0 ] ; then 
+   if [ ${USE_SECURE} -ne 0 ] ; then
       java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} coaps+tcp://${CF_HOST}:${SECURE_PORT}/$@
       if [ ! $? -eq 0 ] ; then exit $?; fi
       sleep 5
@@ -215,26 +215,26 @@ benchmark_all()
 {
    if [ ${USE_REQUEST} -eq 1 ] ; then
 # POST
-      if [ ${USE_CON} -ne 0 ] ; then 
-         if [ ${USE_LARGE_BLOCK1} -ne 0 ] ; then 
+      if [ ${USE_CON} -ne 0 ] ; then
+         if [ ${USE_LARGE_BLOCK1} -ne 0 ] ; then
             benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS_LARGE} ${USE_NONESTOP} --payload-random ${PAYLOAD_LARGE} --blocksize 64
          fi
          benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
       fi
 
-      if [ ${USE_NON} -ne 0 ] ; then 
-         if [ ${USE_LARGE_BLOCK1} -ne 0 ] ; then 
+      if [ ${USE_NON} -ne 0 ] ; then
+         if [ ${USE_LARGE_BLOCK1} -ne 0 ] ; then
             benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --non --requests ${REQS_LARGE} ${USE_NONESTOP} --payload-random ${PAYLOAD_LARGE} --blocksize 64
          fi
          benchmark_udp "benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --non --requests ${REQS} ${USE_NONESTOP}
       fi
 
-      if [ ${USE_LARGE_BLOCK1} -ne 0 ] ; then 
+      if [ ${USE_LARGE_BLOCK1} -ne 0 ] ; then
          benchmark_tcp "benchmark?rlen=${PAYLOAD}" --clients ${TCP_CLIENTS} --requests ${REQS_LARGE} ${USE_NONESTOP} --payload-random ${PAYLOAD_LARGE} --bertblocks 4
       fi
       benchmark_tcp "benchmark?rlen=${PAYLOAD}" --clients ${TCP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
-   
-      if [ ${USE_CON} -ne 0 ] ; then 
+
+      if [ ${USE_CON} -ne 0 ] ; then
 # POST separate response
          benchmark_udp "benchmark?rlen=${PAYLOAD}&ack" --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
       fi
@@ -242,38 +242,37 @@ benchmark_all()
 
    if [ ${USE_REVERSE} -eq 1 ] ; then
 # reverse GET
-      if [ ${USE_CON} -ne 0 ] ; then 
-         benchmark_udp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests 2 ${USE_NONESTOP} --reverse ${REV_REQS} --blocksize 64
+      if [ ${USE_CON} -ne 0 ] ; then
+         benchmark_udp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests 2 ${USE_NONESTOP} --reverse ${REV_REQS}
       fi
-      if [ ${USE_NON} -ne 0 ] ; then 
-         benchmark_udp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --non --requests 2 ${USE_NONESTOP} --reverse ${REV_REQS} --blocksize 64
+      if [ ${USE_NON} -ne 0 ] ; then
+         benchmark_udp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --non --requests 2 ${USE_NONESTOP} --reverse ${REV_REQS}
       fi
-      benchmark_tcp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" --clients ${TCP_CLIENTS} --requests 2 ${USE_NONESTOP} --reverse ${REV_REQS} --blocksize 64
+      benchmark_tcp "reverse-request?req=${REQS_EXTRA}&res=feed-CON&rlen=${PAYLOAD}" --clients ${TCP_CLIENTS} --requests 2 ${USE_NONESTOP} --reverse ${REV_REQS}
    fi
-   
+
    if [ ${USE_OBSERVE} -eq 1 ] ; then
-   
-# observe CON 
-      if [ ${USE_CON} -ne 0 ] ; then 
-          benchmark_udp "reverse-observe?obs=25000&res=feed-CON&rlen=${PAYLOAD_MEDIUM}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --reverse ${NOTIFIES} --min 20 --max 100  --blocksize 64
-      fi      
-# observe NON
-      if [ ${USE_CON} -ne 0 ] ; then 
-         benchmark_udp "reverse-observe?obs=25000&res=feed-NON&rlen=${PAYLOAD_MEDIUM}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --reverse ${NOTIFIES} --min 20 --max 100  --blocksize 64
+# observe CON
+      if [ ${USE_CON} -ne 0 ] ; then
+          benchmark_udp "reverse-observe?obs=25000&res=feed-CON&rlen=${PAYLOAD_MEDIUM}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --reverse ${NOTIFIES} --min 20 --max 200 --blocksize 64
       fi
-      benchmark_tcp "reverse-observe?obs=25000&res=feed-CON&rlen=${PAYLOAD_MEDIUM}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --reverse ${NOTIFIES} --min 20 --max 100  --blocksize 64
+# observe NON
+      if [ ${USE_CON} -ne 0 ] ; then
+         benchmark_udp "reverse-observe?obs=25000&res=feed-NON&rlen=${PAYLOAD_MEDIUM}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --reverse ${NOTIFIES} --min 20 --max 200 --blocksize 64
+      fi
+      benchmark_tcp "reverse-observe?obs=25000&res=feed-CON&rlen=${PAYLOAD_MEDIUM}" --clients ${OBS_CLIENTS} --requests 1 ${USE_NONESTOP} --reverse ${NOTIFIES} --min 20 --max 200 --blocksize 64
    fi
 }
 
 benchmark_dtls_handshake()
 {
    if [ ${USE_UDP} -eq 0 ] ; then return; fi
-   if [ ${USE_SECURE} -ne 0 ] ; then 
+   if [ ${USE_SECURE} -ne 0 ] ; then
       START_HS=`date +%s`
       i=0
 
       while [ $i -lt $1 ] ; do
-         java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} $2 "coaps://${CF_HOST}:${SECURE_PORT}/benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests 10 ${USE_NONESTOP} 
+         java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} $2 "coaps://${CF_HOST}:${SECURE_PORT}/benchmark?rlen=${PAYLOAD}" --clients ${UDP_CLIENTS} --requests 10 ${USE_NONESTOP}
          if [ ! $? -eq 0 ] ; then exit $?; fi
          sleep 2
          i=$(($i + 1))
@@ -281,7 +280,7 @@ benchmark_dtls_handshake()
       END_HS=`date +%s`
       TIME=$((${END_HS} - ${START_HS}))
       return $TIME
-   fi 
+   fi
 }
 
 benchmark_dtls_handshakes()
@@ -294,7 +293,7 @@ benchmark_dtls_handshakes()
    export CALIFORNIUM_STATISTIC=
    LOOPS=10
 
-   benchmark_dtls_handshake $LOOPS 
+   benchmark_dtls_handshake $LOOPS
    TIME1=$?
    benchmark_dtls_handshake $LOOPS --auth=ECDHE_PSK
    TIME2=$?

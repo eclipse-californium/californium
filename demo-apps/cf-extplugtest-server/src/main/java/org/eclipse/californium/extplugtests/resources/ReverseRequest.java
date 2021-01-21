@@ -199,14 +199,14 @@ public class ReverseRequest extends CoapResource {
 			GetRequestObserver requestObserver = new GetRequestObserver(endpoint, getRequest, numberOfRequests);
 			getRequest.addMessageObserver(requestObserver);
 			getRequest.send(endpoint);
-		} else if (accept != APPLICATION_OCTET_STREAM){
+		} else if (accept != APPLICATION_OCTET_STREAM) {
 			exchange.respond(CHANGED, overallRequests.get() + " reverse-requests, " + overallSentRequests.get()
 					+ " sent, " + overallPendingRequests.get() + " pending.", TEXT_PLAIN);
 		} else {
 			DatagramWriter writer = new DatagramWriter(24);
-			writer.writeLong(overallRequests.get(),64);
-			writer.writeLong(overallSentRequests.get(),64);
-			writer.writeLong(overallPendingRequests.get(),64);
+			writer.writeLong(overallRequests.get(), 64);
+			writer.writeLong(overallSentRequests.get(), 64);
+			writer.writeLong(overallPendingRequests.get(), 64);
 			exchange.respond(CHANGED, writer.toByteArray(), APPLICATION_OCTET_STREAM);
 			writer.close();
 		}
@@ -231,7 +231,7 @@ public class ReverseRequest extends CoapResource {
 		public void onResponse(final Response response) {
 			job.cancel(false);
 			if (response.isError()) {
-				LOGGER.info("error: {}, pending: {}", response.getCode(), count);
+				LOGGER.info("error: {} {}, pending: {}", outgoingRequest.getScheme(), response.getCode(), count);
 				subtractPending(count);
 			} else {
 				--count;
@@ -255,7 +255,8 @@ public class ReverseRequest extends CoapResource {
 		@Override
 		public void onSendError(Throwable error) {
 			if (error instanceof ConnectorException) {
-				LOGGER.warn("reverse get request failed! MID {}, pending: {}", outgoingRequest.getMID(), count);
+				LOGGER.warn("reverse get request failed! {} MID {}, pending: {}", outgoingRequest.getScheme(),
+						outgoingRequest.getMID(), count);
 				failureLogged = true;
 			}
 			super.onSendError(error);
@@ -265,7 +266,8 @@ public class ReverseRequest extends CoapResource {
 		protected void failed() {
 			job.cancel(false);
 			if (!failureLogged) {
-				LOGGER.debug("reverse get request failed! MID {}, pending: {}", outgoingRequest.getMID(), count);
+				LOGGER.debug("reverse get request failed! {} MID {}, pending: {}", outgoingRequest.getScheme(),
+						outgoingRequest.getMID(), count);
 			}
 			subtractPending(count);
 		}

@@ -62,8 +62,8 @@ import org.slf4j.LoggerFactory;
  * 
  * <dl>
  * <dt>obs=number</dt>
- * <dd>number of notifies before the observation is reregistered.
- * 0 to cancel a established observation</dd>
+ * <dd>number of notifies before the observation is reregistered. 0 to cancel a
+ * established observation</dd>
  * <dt>res=path</dt>
  * <dd>path of resource to observe.</dd>
  * </dl>
@@ -82,8 +82,9 @@ import org.slf4j.LoggerFactory;
  * coap://localhost:???/feed-CON?rlen=400
  * </pre>
  * 
- * (Please refer to the documentation of the Feed resource in the extplugtest client.
- *  "feed-CON" resource will send notifies using CON, "feed-NON" using NON)
+ * (Please refer to the documentation of the Feed resource in the extplugtest
+ * client. "feed-CON" resource will send notifies using CON, "feed-NON" using
+ * NON)
  */
 public class ReverseObserve extends CoapResource implements NotificationListener {
 
@@ -224,8 +225,8 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 					observesByPeer.size() + " active observes, " + overallNotifies.get() + " notifies.", TEXT_PLAIN);
 		} else {
 			DatagramWriter writer = new DatagramWriter(12);
-			writer.writeLong(observesByPeer.size(),32);
-			writer.writeLong(overallNotifies.get(),64);
+			writer.writeLong(observesByPeer.size(), 32);
+			writer.writeLong(overallNotifies.get(), 64);
 			exchange.respond(CHANGED, writer.toByteArray(), APPLICATION_OCTET_STREAM);
 			writer.close();
 		}
@@ -362,7 +363,7 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 			return timeout;
 		}
 
-		private List<String>  getUriQuery() {
+		private List<String> getUriQuery() {
 			return observeUriQuery;
 		}
 
@@ -398,7 +399,8 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 		public void onResponse(final Response response) {
 			Token token = response.getToken();
 			if (response.isError()) {
-				LOGGER.info("Observation response error: {}", response.getCode());
+				LOGGER.info("Observation response error: {} {}", outgoingObserveRequest.getScheme(),
+						response.getCode());
 				remove(response.getCode());
 			} else if (response.isNotification()) {
 				if (registered.compareAndSet(false, true)) {
@@ -422,7 +424,8 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 					}
 				}
 			} else {
-				LOGGER.info("Observation {} not established!", outgoingObserveRequest.getToken());
+				LOGGER.info("Observation {} {} not established!", outgoingObserveRequest.getScheme(),
+						outgoingObserveRequest.getToken());
 				remove(NOT_ACCEPTABLE);
 			}
 		}
@@ -430,7 +433,8 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 		@Override
 		public void onSendError(Throwable error) {
 			if (error instanceof ConnectorException) {
-				LOGGER.warn("Observe request failed! {}", outgoingObserveRequest.getToken());
+				LOGGER.warn("Observe request failed! {} {} {}", outgoingObserveRequest.getScheme(),
+						outgoingObserveRequest.getToken(), error.getMessage());
 				failureLogged = true;
 			}
 			super.onSendError(error);
@@ -439,7 +443,8 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 		@Override
 		protected void failed() {
 			if (!failureLogged) {
-				LOGGER.debug("Observe request failed! {}", outgoingObserveRequest.getToken());
+				LOGGER.debug("Observe request failed! {} {}", outgoingObserveRequest.getScheme(),
+						outgoingObserveRequest.getToken());
 			}
 			remove(INTERNAL_SERVER_ERROR);
 		}
