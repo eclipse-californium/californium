@@ -216,8 +216,12 @@ public class Feed extends CoapResource {
 			int observer = getObserverCount();
 			if (changeScheduled.compareAndSet(false, true)) {
 				if (intervalMin < intervalMax) {
-					float r = random.nextFloat();
-					interval = (int) ((r * r * r) * (intervalMax - intervalMin)) + intervalMin;
+					// adapt linear distribution into cubic distribution
+					// scale from [0...1.0) to [-1.0...1.0)
+					float r = (random.nextFloat() * 2.0F) - 1.0F;
+					// scale r^3 [-1.0...1.0) back to [0...1.0)
+					r = ((r * r * r) + 1.0F) / 2.0F;
+					interval = (int) (r * (intervalMax - intervalMin)) + intervalMin;
 					timeout = intervalMax;
 				} else {
 					interval = intervalMin;
@@ -252,7 +256,7 @@ public class Feed extends CoapResource {
 
 		private final Future<?> timeoutJob;
 		private final AtomicBoolean completed = new AtomicBoolean();
-		private final int interval;
+		private final int delay;
 
 		private MessageCompletionObserver(int timeout, int interval) {
 			if (0 < timeout) {
@@ -260,7 +264,11 @@ public class Feed extends CoapResource {
 			} else {
 				this.timeoutJob = null;
 			}
-			this.interval = interval;
+			if (interval <= 0) {
+				this.delay = -interval;
+			} else {
+				this.delay = -1;
+			}
 		}
 
 		@Override
@@ -290,11 +298,13 @@ public class Feed extends CoapResource {
 		public void run() {
 			// timeout
 			if (completed.compareAndSet(false, true)) {
-				if (interval < 0) {
+				if (0 < delay) {
 					LOGGER.info("client[{}] response didn't complete in time, next change in {} ms, {} observer.", id,
-							-interval, getObserverCount());
+							delay, getObserverCount());
 					timeouts.incrementAndGet();
-					executorService.schedule(change, -interval, TimeUnit.MILLISECONDS);
+					executorService.schedule(change, delay, TimeUnit.MILLISECONDS);
+				} else if (delay == 0) {
+					executorService.execute(change);
 				}
 			}
 		}
@@ -304,10 +314,12 @@ public class Feed extends CoapResource {
 			if (timeoutJob != null) {
 				timeoutJob.cancel(false);
 			}
-			if (interval < 0) {
-				LOGGER.info("client[{}] response {}, next change in {} ms, {} observer.", id, state, -interval,
+			if (0 < delay) {
+				LOGGER.info("client[{}] response {}, next change in {} ms, {} observer.", id, state, delay,
 						getObserverCount());
-				executorService.schedule(change, -interval, TimeUnit.MILLISECONDS);
+				executorService.schedule(change, delay, TimeUnit.MILLISECONDS);
+			} else if (delay == 0) {
+				executorService.execute(change);
 			} else {
 				LOGGER.info("client[{}] response {}, {} observer.", id, state, getObserverCount());
 			}
