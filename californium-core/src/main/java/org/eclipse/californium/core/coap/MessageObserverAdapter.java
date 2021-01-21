@@ -142,7 +142,7 @@ public abstract class MessageObserverAdapter implements MessageObserver {
 	}
 
 	@Override
-	public void onComplete() {
+	public void onTransferComplete() {
 		// empty default implementation
 	}
 

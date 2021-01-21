@@ -372,7 +372,7 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 				response = (Response) this.firstMessage;
 			}
 			if (response != null) {
-				response.onComplete();
+				response.onTransferComplete();
 				return true;
 			}
 		}

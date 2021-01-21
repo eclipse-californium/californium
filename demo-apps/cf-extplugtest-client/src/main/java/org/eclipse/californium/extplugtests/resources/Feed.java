@@ -273,7 +273,7 @@ public class Feed extends CoapResource {
 		}
 
 		@Override
-		public void onComplete() {
+		public void onTransferComplete() {
 			if (completed.compareAndSet(false, true)) {
 				next("completed");
 			}

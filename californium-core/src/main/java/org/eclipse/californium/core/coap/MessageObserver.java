@@ -43,13 +43,19 @@ import org.eclipse.californium.elements.EndpointContext;
  * still has not received anything from the remote endpoint</li>
  * <li>{@link #onCancel()} when the message has been canceled</li>
  * <li>{@link #onReadyToSend()} right before the message is being sent</li>
- * <li>{@link #onConnecting()} right before a connector establish a connection. 
+ * <li>{@link #onConnecting()} right before a connector establish a connection.
  * Not called, if the connection is already established or the connector doesn't
  * require to establish a connection.</li>
- * <li>{@link #onDtlsRetransmission(int)} when a dtls handshake flight is retransmitted.</li>
+ * <li>{@link #onDtlsRetransmission(int)} when a dtls handshake flight is
+ * retransmitted.</li>
  * <li>{@link #onSent(boolean)} right after the message has been sent
  * (successfully)</li>
  * <li>{@link #onSendError(Throwable)} if the message cannot be sent</li>
+ * <li>{@link #onResponseHandlingError(Throwable) if an error happens during
+ * response handling</li>
+ * <li>{@link #onContextEstablished(EndpointContext) when the resulting endpoint
+ * context is reported by the connector</li>
+ * <li>{@link #onTransferComplete() if transfer is successfully complete</li>
  * </ul>
  * <p>
  * The class that is interested in processing a message event either implements
@@ -67,6 +73,7 @@ import org.eclipse.californium.elements.EndpointContext;
  * {@link #onResponse(Response)} can be used to react to each such notification.
  */
 public interface MessageObserver {
+
 	/**
 	 * Check, if observer is internal and is not intended to be cloned.
 	 * 
@@ -169,8 +176,8 @@ public interface MessageObserver {
 	 * Invoked when the resulting endpoint context is reported by the connector.
 	 * 
 	 * Note: usually this callback must be processed in a synchronous manner,
-	 * because on returning, the message is sent. Therefore take special care
-	 * in methods called on this callback.
+	 * because on returning, the message is sent. Therefore take special care in
+	 * methods called on this callback.
 	 * 
 	 * @param endpointContext resulting endpoint context
 	 */
@@ -178,6 +185,8 @@ public interface MessageObserver {
 
 	/**
 	 * Invoked, when transfer is successfully complete.
+	 * 
+	 * @since 3.0 (was onComplete())
 	 */
-	void onComplete();
+	void onTransferComplete();
 }

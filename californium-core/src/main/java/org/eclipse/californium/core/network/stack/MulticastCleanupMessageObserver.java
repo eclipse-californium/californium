@@ -73,7 +73,7 @@ public class MulticastCleanupMessageObserver extends CleanupMessageObserver {
 							exchange.getRequest().setCanceled(true);
 						} else {
 							exchange.setComplete();
-							exchange.getRequest().onComplete();
+							exchange.getRequest().onTransferComplete();
 						}
 					}
 				});

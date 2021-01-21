@@ -82,3 +82,5 @@ are removed and must be replaced by
 6) The `MessagePostProcessInterceptors` interface is integrated in `Endpoint`.
 
 7) The `MulticastReceivers` interface is integrated in `Endpoint`.
+
+8) Renamed `Message.onComplete()` to `onTransferComplete()`, including `MessageObserver.onComplete()`.

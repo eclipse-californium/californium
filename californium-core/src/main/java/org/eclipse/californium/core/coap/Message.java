@@ -177,25 +177,32 @@ public abstract class Message {
 	 */
 	private volatile EndpointContext sourceContext;
 
-	/** Indicates if the message has sent. */
+	/** Indicates, if the message has sent. */
 	private volatile boolean sent;
 
-	/** Indicates if the message has been acknowledged. */
+	/** Indicates, if the message has been acknowledged. */
 	private final AtomicBoolean acknowledged = new AtomicBoolean();
 
-	/** Indicates if the message has been rejected. */
+	/** Indicates, if the message has been rejected. */
 	private volatile boolean rejected;
 
-	/** Indicates if the message has been canceled. */
+	/** Indicates, if the message has been canceled. */
 	private volatile boolean canceled;
 
-	/** Indicates if the message has timed out */
+	/** Indicates, if the message has timed out */
 	private volatile boolean timedOut; // Important for CONs
 
-	/** Indicates if the message is a duplicate. */
+	/** Indicates, if the message is a duplicate. */
 	private volatile boolean duplicate;
 
-	/** Indicates if sending the message caused an error. */
+	/**
+	 * Indicates, if the message-transfer is complete.
+	 * 
+	 * @since 3.0
+	 */
+	private volatile boolean transferComplete;
+
+	/** Indicates, if sending the message caused an error. */
 	private volatile Throwable sendError;
 
 	/** The serialized message as byte array. */
@@ -1039,10 +1046,18 @@ public abstract class Message {
 		}
 	}
 
-	public void onComplete() {
-		LOGGER.trace("Message completed {}", this);
-		for (MessageObserver handler : getMessageObservers()) {
-			handler.onComplete();
+	/**
+	 * Report completion of message-transfer.
+	 * 
+	 * @since 3.0 (was onComplete())
+	 */
+	public void onTransferComplete() {
+		if (!transferComplete) {
+			transferComplete = true;
+			LOGGER.trace("Message transfer completed {}", this);
+			for (MessageObserver handler : getMessageObservers()) {
+				handler.onTransferComplete();
+			}
 		}
 	}
 

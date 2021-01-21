@@ -238,7 +238,7 @@ public abstract class BaseCoapStack implements CoapStack {
 			if (block2 == null || !block2.isM()) {
 				// for blockwise, the original response shares
 				// the MessageObserver with the block response
-				response.onComplete();
+				response.onTransferComplete();
 			}
 		}
 
