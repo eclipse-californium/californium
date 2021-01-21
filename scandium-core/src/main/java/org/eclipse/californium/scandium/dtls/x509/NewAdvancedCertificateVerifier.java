@@ -91,16 +91,15 @@ public interface NewAdvancedCertificateVerifier {
 	 * 
 	 * @param cid connection ID
 	 * @param serverName indicated server names.
-	 * @param clientUsage indicator to check certificate usage. {@code null}
-	 *            don't check key usage, {@code true}, check key usage for
-	 *            client, {@code false} for server.
+	 * @param clientUsage indicator to check certificate usage. {@code true},
+	 *            check key usage for client, {@code false} for server.
 	 * @param truncateCertificatePath {@code true} truncate certificate path at
 	 *            a trusted certificate before validation.
 	 * @param message certificate message to be validated
 	 * @return certificate verification result, or {@code null}, if result is
 	 *         provided asynchronous.
 	 */
-	CertificateVerificationResult verifyCertificate(ConnectionId cid, ServerNames serverName, Boolean clientUsage,
+	CertificateVerificationResult verifyCertificate(ConnectionId cid, ServerNames serverName, boolean clientUsage,
 			boolean truncateCertificatePath, CertificateMessage message);
 
 	/**

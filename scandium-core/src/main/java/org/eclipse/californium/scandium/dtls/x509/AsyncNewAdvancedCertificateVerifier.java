@@ -112,7 +112,7 @@ public class AsyncNewAdvancedCertificateVerifier extends StaticNewAdvancedCertif
 
 	@Override
 	public CertificateVerificationResult verifyCertificate(final ConnectionId cid, final ServerNames serverName,
-			final Boolean clientUsage, final boolean truncateCertificatePath, final CertificateMessage message) {
+			final boolean clientUsage, final boolean truncateCertificatePath, final CertificateMessage message) {
 		if (delayMillis <= 0) {
 			if (delayMillis < 0) {
 				try {
@@ -133,7 +133,7 @@ public class AsyncNewAdvancedCertificateVerifier extends StaticNewAdvancedCertif
 		}
 	}
 
-	private void verifyCertificateAsynchronous(ConnectionId cid, ServerNames serverName, Boolean clientUsage,
+	private void verifyCertificateAsynchronous(ConnectionId cid, ServerNames serverName, boolean clientUsage,
 			boolean truncateCertificatePath, CertificateMessage message) {
 		CertificateVerificationResult result = super.verifyCertificate(cid, serverName, clientUsage,
 				truncateCertificatePath, message);

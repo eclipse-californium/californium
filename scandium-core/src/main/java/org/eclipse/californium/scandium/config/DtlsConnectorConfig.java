@@ -429,16 +429,6 @@ public final class DtlsConnectorConfig {
 	private ApplicationLevelInfoSupplier applicationLevelInfoSupplier;
 
 	/**
-	 * Use the handshake state validation to verify valid handshakes.
-	 */
-	private Boolean useHandshakeStateValidation;
-
-	/**
-	 * Use verification of x509 key usage (extension).
-	 * @since 2.1
-	 */
-	private Boolean useKeyUsageVerification;
-	/**
 	 * Use truncated certificate paths when sending the client's certificate message.
 	 * @since 2.1
 	 */
@@ -1104,25 +1094,6 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Use the handshake state validation to verify valid handshakes.
-	 * 
-	 * @return {@code true}, if handshake state validation is used
-	 */
-	public Boolean useHandshakeStateValidation() {
-		return useHandshakeStateValidation;
-	}
-
-	/**
-	 * Use key usage verification for x509.
-	 * 
-	 * @return {@code true}, if check of key usage (x509 extension) is enabled
-	 * @since 2.1
-	 */
-	public Boolean useKeyUsageVerification() {
-		return useKeyUsageVerification;
-	}
-
-	/**
 	 * Use truncated certificate paths for client's certificate message.
 	 * 
 	 * Truncate certificate path according the received certificate
@@ -1265,10 +1236,8 @@ public final class DtlsConnectorConfig {
 		cloned.useCidUpdateAddressOnNewerRecordFilter = useCidUpdateAddressOnNewerRecordFilter;
 		cloned.connectionIdGenerator = connectionIdGenerator;
 		cloned.applicationLevelInfoSupplier = applicationLevelInfoSupplier;
-		cloned.useHandshakeStateValidation = useHandshakeStateValidation;
 		cloned.useTruncatedCertificatePathForClientsCertificateMessage = useTruncatedCertificatePathForClientsCertificateMessage;
 		cloned.useTruncatedCertificatePathForValidation = useTruncatedCertificatePathForValidation;
-		cloned.useKeyUsageVerification = useKeyUsageVerification;
 		cloned.connectionListener = connectionListener;
 		cloned.healthHandler = healthHandler;
 		cloned.clientOnly = clientOnly;
@@ -2783,37 +2752,6 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Use the handshake state validation to verify valid handshakes.
-		 * 
-		 * Note: the handshake state validation is used by default. If a client
-		 * can't process a handshake in the assumed way, the state validation
-		 * may be disabled at the risk of potential more vulnerability. Please
-		 * report us a capture of such handshakes in order to decide, if the
-		 * state validation gets adapted.
-		 * 
-		 * @param enable {@code true} to enable state machine. Default
-		 *            {@code true}.
-		 * @return this builder for command chaining.
-		 */
-		public Builder setUseHandshakeStateValidation(boolean enable) {
-			config.useHandshakeStateValidation = enable;
-			return this;
-		}
-
-		/**
-		 * Use key usage verification for x509.
-		 * 
-		 * @param enable {@code true} to verify the key usage of x509
-		 *            certificates. Default {@code true}.
-		 * @return this builder for command chaining.
-		 * @since 2.1
-		 */
-		public Builder setKeyUsageVerification(boolean enable) {
-			config.useKeyUsageVerification = enable;
-			return this;
-		}
-
-		/**
 		 * Use truncated certificate paths for client's certificate message.
 		 * 
 		 * Truncate certificate path according the received certificate
@@ -2908,17 +2846,11 @@ public final class DtlsConnectorConfig {
 			if (config.enableReuseAddress == null) {
 				config.enableReuseAddress = Boolean.FALSE;
 			}
-			if (config.useHandshakeStateValidation == null) {
-				config.useHandshakeStateValidation = Boolean.TRUE;
-			}
 			if (config.useTruncatedCertificatePathForClientsCertificateMessage == null) {
 				config.useTruncatedCertificatePathForClientsCertificateMessage = Boolean.TRUE;
 			}
 			if (config.useTruncatedCertificatePathForValidation == null) {
 				config.useTruncatedCertificatePathForValidation = Boolean.TRUE;
-			}
-			if (config.useKeyUsageVerification == null) {
-				config.useKeyUsageVerification = Boolean.TRUE;
 			}
 			if (config.earlyStopRetransmission == null) {
 				config.earlyStopRetransmission = Boolean.TRUE;
