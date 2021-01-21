@@ -145,7 +145,7 @@ public class ReceivetestClient {
 		}
 		if (clientConfig.helpRequested) {
 			System.out.println(
-					"Example: " + ReceivetestClient.class.getSimpleName() + " coap://californium.eclipse.org:5783");
+					"Example: " + ReceivetestClient.class.getSimpleName() + " coap://californium.eclipseprojects.io:5783");
 			System.exit(0);
 		}
 

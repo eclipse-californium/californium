@@ -33,7 +33,7 @@ import org.junit.Test;
 public class DtlsEndpointContextMatcherTest {
 
 	private static final InetSocketAddress ADDRESS = new InetSocketAddress(0);
-	private static final String SCOPE = "californium.eclipse.org";
+	private static final String SCOPE = "californium.eclipseprojects.io";
 
 	private EndpointContext connectorContext;
 	private EndpointContext scopedConnectorContext;
