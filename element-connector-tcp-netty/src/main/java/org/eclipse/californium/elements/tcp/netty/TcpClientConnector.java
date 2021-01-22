@@ -238,7 +238,17 @@ public class TcpClientConnector implements Connector {
 					if (cause instanceof ConnectTimeoutException) {
 						LOGGER.debug("{}", cause.getMessage());
 					} else if (cause instanceof CancellationException) {
-						LOGGER.debug("{}", cause.getMessage());
+						if (isRunning()) {
+							LOGGER.debug("{}", cause.getMessage());
+						} else {
+							LOGGER.trace("{}", cause.getMessage());
+						}
+					} else if (cause instanceof IllegalStateException) {
+						if (isRunning()) {
+							LOGGER.debug("{}", cause.getMessage());
+						} else {
+							LOGGER.trace("{}", cause.getMessage());
+						}
 					} else {
 						LOGGER.warn("Unable to open connection to {}", msg.getAddress(), future.cause());
 					}
