@@ -518,6 +518,10 @@ public class BenchmarkClient {
 	 */
 	private final AtomicInteger observerCounter = new AtomicInteger();
 	/**
+	 * Per client request down counter. Used,if only a few requests per client is expected.
+	 */
+	private final AtomicInteger requestsDownCounter = new AtomicInteger();
+	/**
 	 * Indicate that client has stopped.
 	 * 
 	 * @see #stop()
@@ -686,6 +690,9 @@ public class BenchmarkClient {
 					msg = "rejected";
 				}
 				if (!config.stop || non) {
+					if (requestsDownCounter.get() > 0) {
+						requestsDownCounter.incrementAndGet();
+					}
 					overallRequestsDownCounter.incrementAndGet();
 					transmissionErrorCounter.incrementAndGet();
 					if (next(1000, secure && !non ? 1000 : 0, c > 0, false)) {
@@ -706,6 +713,11 @@ public class BenchmarkClient {
 			final long c = checkOverallRequests(connected, response);
 			if (c == 0) {
 				return false;
+			}
+			if (requestsDownCounter.get() > 0) {
+				if (requestsDownCounter.decrementAndGet() == 0) {
+					return false;
+				}
 			}
 			boolean close = false;
 			boolean full = false;
@@ -818,11 +830,11 @@ public class BenchmarkClient {
 		this.server = new CoapServer(config);
 		if (reverse != null) {
 			Feed feed = new Feed(CoAP.Type.NON, index, maxResourceSize, reverse.min, reverse.max, this.executorService,
-					overallReverseResponsesDownCounter, notifiesCompleteTimeouts);
+					overallReverseResponsesDownCounter, notifiesCompleteTimeouts, stop);
 			feed.addObserver(feedObserver);
 			this.server.add(feed);
 			feed = new Feed(CoAP.Type.CON, index, maxResourceSize, reverse.min, reverse.max, this.executorService,
-					overallReverseResponsesDownCounter, notifiesCompleteTimeouts);
+					overallReverseResponsesDownCounter, notifiesCompleteTimeouts, stop);
 			feed.addObserver(feedObserver);
 			this.server.add(feed);
 		}
@@ -931,7 +943,8 @@ public class BenchmarkClient {
 	 * Prepare first request and follow-up request on response handler calls.
 	 * Must be called after {@link #start()}
 	 */
-	public void startBenchmark() {
+	public void startBenchmark(int requestPerClient) {
+		requestsDownCounter.set(requestPerClient);
 		long c = checkOverallRequests(false, false);
 		if (c > 0) {
 			if (requestsCounter.get() == 0) {
@@ -1023,7 +1036,6 @@ public class BenchmarkClient {
 		final byte[] id = new byte[8];
 
 		final int clients = config.clients;
-		int requests = config.requests;
 		int reverseResponses = 0;
 
 		if (config.blockwiseOptions != null) {
@@ -1057,7 +1069,7 @@ public class BenchmarkClient {
 		}
 		final URI uri = tempUri;
 
-		int overallRequests = (requests * clients);
+		int overallRequests = (config.requests * clients);
 		int overallReverseResponses = (reverseResponses * clients);
 		if (overallRequests < 0) {
 			// overflow
@@ -1249,10 +1261,13 @@ public class BenchmarkClient {
 		long lastTransmissionErrrors = transmissionErrorCounter.get();
 		int lastUnavailable = overallServiceUnavailable.get();
 		int lastHonoCmds = overallHonoCmds.get();
-
+		int requestsPerClient = config.requests <= 10 ? config.requests : -1;
 		for (int index = clients - 1; index >= 0; --index) {
 			BenchmarkClient client = clientList.get(index);
-			client.startBenchmark();
+			if (index == 0) {
+				--requestsPerClient;
+			}
+			client.startBenchmark(requestsPerClient);
 		}
 		System.out.println("Benchmark started.");
 

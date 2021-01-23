@@ -42,6 +42,7 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.ResponseTimeout;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
@@ -108,6 +109,10 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 	 * Maximum number of notifies before reregister is triggered.
 	 */
 	private static final int MAX_NOTIFIES = 10000000;
+	/**
+	 * Timeout for response in milliseconds.
+	 */
+	private static final int RESPONSE_TIMEOUT_MILLIS = 120000;
 
 	/**
 	 * Observation tokens by peer address.
@@ -207,6 +212,7 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 					}
 					observeRequest.setDestinationContext(request.getSourceContext());
 					observeRequest.addMessageObserver(new RequestObserver(exchange, observeRequest, observe));
+					observeRequest.addMessageObserver(new ResponseTimeout(observeRequest, RESPONSE_TIMEOUT_MILLIS, executor));
 					observeRequest.send(endpoint);
 					overallObserves.incrementAndGet();
 				} else {

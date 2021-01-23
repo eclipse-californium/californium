@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -71,6 +72,10 @@ public class Feed extends CoapResource {
 	 * Default interval for notifies in milliseconds.
 	 */
 	public static final int DEFAULT_FEED_INTERVAL_IN_MILLIS = 100;
+	/**
+	 * Default interval for notifies in milliseconds.
+	 */
+	public static final int MIN_FEED_INTERVAL_IN_MILLIS = 20;
 	/**
 	 * Minimum timeout for notifies complete in milliseconds.
 	 */
@@ -133,9 +138,13 @@ public class Feed extends CoapResource {
 	 * Executor to schedule {@link #change} jobs.
 	 */
 	private final ScheduledExecutorService executorService;
+	/**
+	 * Indicate to stop sending responses.
+	 */
+	private final AtomicBoolean stop;
 
 	public Feed(CoAP.Type type, int id, int maxResourceSize, int intervalMin, int intervalMax,
-			ScheduledExecutorService executorService, CountDownLatch counter, AtomicLong timeouts) {
+			ScheduledExecutorService executorService, CountDownLatch counter, AtomicLong timeouts, AtomicBoolean stop) {
 		super(RESOURCE_NAME + "-" + type);
 		this.id = id;
 		this.maxResourceSize = maxResourceSize;
@@ -144,6 +153,7 @@ public class Feed extends CoapResource {
 		this.counter = counter;
 		this.timeouts = timeouts;
 		this.executorService = executorService;
+		this.stop = stop;
 		this.payload = "hello " + id + " feed";
 		setObservable(true);
 		setObserveType(type);
@@ -153,6 +163,9 @@ public class Feed extends CoapResource {
 
 	@Override
 	public void handleGET(CoapExchange exchange) {
+		if (stop.get() && counter.getCount() > 0) {
+			return;
+		}
 		// get request to read out details
 		Request request = exchange.advanced().getRequest();
 
@@ -206,57 +219,65 @@ public class Feed extends CoapResource {
 			}
 		}
 
-		int interval = 0;
-		int timeout = 0;
-		Response response = Response.createResponse(request, CONTENT);
-		response.setToken(request.getToken());
-		response.setPayload(responsePayload);
-		response.getOptions().setContentFormat(TEXT_PLAIN);
-		if (request.isObserve()) {
-			int observer = getObserverCount();
-			if (changeScheduled.compareAndSet(false, true)) {
-				if (intervalMin < intervalMax) {
-					// adapt linear distribution into cubic distribution
-					// scale from [0...1.0) to [-1.0...1.0)
-					float r = (random.nextFloat() * 2.0F) - 1.0F;
-					// scale r^3 [-1.0...1.0) back to [0...1.0)
-					r = ((r * r * r) + 1.0F) / 2.0F;
-					interval = (int) (r * (intervalMax - intervalMin)) + intervalMin;
-					timeout = intervalMax;
-				} else {
-					interval = intervalMin;
-					timeout = intervalMin;
-				}
-				if (interval <= 0) {
-					if (timeout < DEFAULT_TIMEOUT_IN_MILLIS) {
-						timeout = DEFAULT_TIMEOUT_IN_MILLIS;
+		try {
+			int interval = 0;
+			int timeout = 0;
+			Response response = Response.createResponse(request, CONTENT);
+			response.setToken(request.getToken());
+			response.setPayload(responsePayload);
+			response.getOptions().setContentFormat(TEXT_PLAIN);
+			if (request.isObserve()) {
+				int observer = getObserverCount();
+				if (changeScheduled.compareAndSet(false, true)) {
+					if (intervalMin < intervalMax) {
+						// adapt linear distribution into cubic distribution
+						// scale from [0...1.0) to [-1.0...1.0)
+						float r = (random.nextFloat() * 2.0F) - 1.0F;
+						// scale r^3 [-1.0...1.0) back to [0...1.0)
+						r = ((r * r * r) + 1.0F) / 2.0F;
+						interval = (int) (r * (intervalMax - intervalMin)) + intervalMin;
+						timeout = intervalMax;
+					} else {
+						interval = intervalMin;
+						timeout = intervalMin;
 					}
-					LOGGER.info("client[{}] {} observer, wait for response {} completed.", id, observer,
-							response.getToken());
+					if (interval <= 0) {
+						timeout = Math.max(DEFAULT_TIMEOUT_IN_MILLIS, timeout);
+						LOGGER.info("client[{}] {} observer, wait for response {} completed.", id, observer,
+								response.getToken());
+					} else {
+						timeout = 0;
+						interval = Math.max(MIN_FEED_INTERVAL_IN_MILLIS, interval);
+						LOGGER.info("client[{}] next change in {} ms, {} observer.", id, interval, observer);
+					}
 				} else {
-					timeout = 0;
-					LOGGER.info("client[{}] next change in {} ms, {} observer.", id, interval, observer);
-					executorService.schedule(change, interval, TimeUnit.MILLISECONDS);
+					LOGGER.info("client[{}] pending change, {} observer, send {}!", id, observer, response.getToken());
 				}
 			} else {
-				LOGGER.info("client[{}] pending change, {} observer, send {}!", id, observer, response.getToken());
+				LOGGER.info("client[{}] no observe {}!", id, request);
+				if (ack) {
+					exchange.accept();
+				}
 			}
-		} else {
-			LOGGER.info("client[{}] no observe {}!", id, request);
-			if (ack) {
-				exchange.accept();
-			}
+			response.addMessageObserver(new MessageCompletionObserver(timeout, interval));
+			response.addMessageObserver(new SendErrorObserver(response));
+			exchange.respond(response);
+			counter.countDown();
+		} catch (RejectedExecutionException ex) {
+			LOGGER.debug("client[{}] stopped execution.", id);
+			return;
 		}
-		response.addMessageObserver(new MessageCompletionObserver(timeout, interval));
-		response.addMessageObserver(new SendErrorObserver(response));
-		exchange.respond(response);
 	}
 
 	private class MessageCompletionObserver extends MessageObserverAdapter implements Runnable {
 
 		private final Future<?> timeoutJob;
 		private final AtomicBoolean completed = new AtomicBoolean();
-		private final int delay;
+		/**
+		 * Delay of next change in milliseconds. Values larger than 0 millis are
+		 * scheduled on completion of the transfer. 0, for execute
+		 */
+		private final int interval;
 
 		private MessageCompletionObserver(int timeout, int interval) {
 			if (0 < timeout) {
@@ -264,10 +285,15 @@ public class Feed extends CoapResource {
 			} else {
 				this.timeoutJob = null;
 			}
-			if (interval <= 0) {
-				this.delay = -interval;
-			} else {
-				this.delay = -1;
+			this.interval = interval;
+		}
+
+		@Override
+		public void onSent(boolean retransmission) {
+			if (interval > 0 && !retransmission) {
+				if (completed.compareAndSet(false, true)) {
+					executorService.schedule(change, interval, TimeUnit.MILLISECONDS);
+				}
 			}
 		}
 
@@ -283,45 +309,55 @@ public class Feed extends CoapResource {
 		@Override
 		public void onTransferComplete() {
 			if (completed.compareAndSet(false, true)) {
-				next("completed");
+				next("completed", false);
 			}
 		}
 
 		@Override
 		protected void failed() {
 			if (completed.compareAndSet(false, true)) {
-				next("failed");
+				next("failed", true);
 			}
 		}
 
 		@Override
 		public void run() {
 			// timeout
-			if (completed.compareAndSet(false, true)) {
-				if (0 < delay) {
-					LOGGER.info("client[{}] response didn't complete in time, next change in {} ms, {} observer.", id,
-							delay, getObserverCount());
-					timeouts.incrementAndGet();
-					executorService.schedule(change, delay, TimeUnit.MILLISECONDS);
-				} else if (delay == 0) {
-					executorService.execute(change);
+			if (completed.compareAndSet(false, true) && !stop.get() && counter.getCount() > 0) {
+				try {
+					if (interval < 0) {
+						LOGGER.info("client[{}] response didn't complete in time, next change in {} ms, {} observer.",
+								id, -interval, getObserverCount());
+						timeouts.incrementAndGet();
+						executorService.schedule(change, -interval, TimeUnit.MILLISECONDS);
+					} else if (interval == 0) {
+						executorService.execute(change);
+					}
+				} catch (RejectedExecutionException ex) {
+					LOGGER.debug("client[{}] stopped execution.", id);
 				}
 			}
 		}
 
-		private void next(String state) {
-			counter.countDown();
+		private void next(String state, boolean failure) {
 			if (timeoutJob != null) {
 				timeoutJob.cancel(false);
 			}
-			if (0 < delay) {
-				LOGGER.info("client[{}] response {}, next change in {} ms, {} observer.", id, state, delay,
-						getObserverCount());
-				executorService.schedule(change, delay, TimeUnit.MILLISECONDS);
-			} else if (delay == 0) {
-				executorService.execute(change);
-			} else {
-				LOGGER.info("client[{}] response {}, {} observer.", id, state, getObserverCount());
+			if (!stop.get() && counter.getCount() > 0) {
+				try {
+					int time = failure ? Math.max(1000, -interval) : -interval;
+					if (0 < time) {
+						LOGGER.info("client[{}] response {}, next change in {} ms, {} observer.", id, state, time,
+								getObserverCount());
+						executorService.schedule(change, time, TimeUnit.MILLISECONDS);
+					} else if (time == 0) {
+						executorService.execute(change);
+					} else {
+						LOGGER.info("client[{}] response {}, {} observer.", id, state, getObserverCount());
+					}
+				} catch (RejectedExecutionException ex) {
+					LOGGER.debug("client[{}] stopped execution.", id);
+				}
 			}
 		}
 	}
