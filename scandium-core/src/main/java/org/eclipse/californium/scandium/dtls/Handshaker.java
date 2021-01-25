@@ -250,6 +250,7 @@ public abstract class Handshaker implements Destroyable {
 	/** Buffer for received records that can not be processed immediately. */
 	private InboundMessageBuffer inboundMessageBuffer;
 
+	protected final Object peerToLog;
 	/** List of handshake messages */
 	protected final List<HandshakeMessage> handshakeMessages = new ArrayList<HandshakeMessage>();
 
@@ -400,6 +401,7 @@ public abstract class Handshaker implements Destroyable {
 		this.recordLayer = recordLayer;
 		this.timer = timer;
 		this.connection = connection;
+		this.peerToLog = StringUtil.toLog(connection.getPeerAddress());
 		this.connectionIdGenerator = config.getConnectionIdGenerator();
 		this.retransmissionTimeout = config.getRetransmissionTimeout();
 		this.backOffRetransmission = config.getBackOffRetransmission();
@@ -692,11 +694,11 @@ public abstract class Handshaker implements Destroyable {
 					expectMessage(messageToProcess);
 					// is thrown during processing
 					LOGGER.debug("Processing {} message from peer [{}]", messageToProcess.getContentType(),
-							getPeerAddress());
+							peerToLog);
 					setCurrentReadState();
 					++statesIndex;
 					LOGGER.debug("Processed {} message from peer [{}]", messageToProcess.getContentType(),
-							getPeerAddress());
+							peerToLog);
 				} else if (messageToProcess.getContentType() == ContentType.HANDSHAKE) {
 					if (!processNextHandshakeMessages(epoch, bufferIndex, (HandshakeMessage) messageToProcess)) {
 						break;
@@ -704,7 +706,7 @@ public abstract class Handshaker implements Destroyable {
 				} else {
 					throw new HandshakeException(
 							String.format("Received unexpected message type [%s] from peer %s",
-									messageToProcess.getContentType(), getPeerAddress()),
+									messageToProcess.getContentType(), peerToLog),
 							new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
 				}
 				// process next expected record/message (if available yet)
@@ -718,7 +720,7 @@ public abstract class Handshaker implements Destroyable {
 				final List<Record> records = takeDeferredRecords();
 				if (deferredIncomingRecordsSize > 0) {
 					throw new HandshakeException(
-							String.format("Received unexpected message left from peer %s", getPeerAddress()),
+							String.format("Received unexpected message left from peer %s", peerToLog),
 							new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
 				}
 				for (Record deferredRecord : records) {
@@ -743,7 +745,7 @@ public abstract class Handshaker implements Destroyable {
 				}
 			}
 		} catch (RuntimeException e) {
-			LOGGER.warn("Cannot process handshake message from peer [{}] due to [{}]", getPeerAddress(),
+			LOGGER.warn("Cannot process handshake message from peer [{}] due to [{}]", peerToLog,
 					e.getMessage(), e);
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
 			throw new HandshakeException("Cannot process handshake message, caused by " + e.getMessage(), alert, e);
@@ -784,7 +786,7 @@ public abstract class Handshaker implements Destroyable {
 		while (handshakeMessage != null) {
 			expectMessage(handshakeMessage);
 			if (handshakeMessage.getMessageType() == HandshakeType.FINISHED && epoch == 0) {
-				LOGGER.debug("FINISH with epoch 0 from peer [{}]!", getPeerAddress());
+				LOGGER.debug("FINISH with epoch 0 from peer [{}]!", peerToLog);
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE);
 				throw new HandshakeException("FINISH with epoch 0!", alert);
 			}
@@ -815,7 +817,7 @@ public abstract class Handshaker implements Destroyable {
 				// message), but the other peer does not seem to have received
 				// it because we received its finished message again, so we
 				// simply retransmit our last flight
-				LOGGER.debug("Received ({}) FINISHED message again, retransmitting last flight...", getPeerAddress());
+				LOGGER.debug("Received ({}) FINISHED message again, retransmitting last flight...", peerToLog);
 				flight.incrementTries();
 				// retransmit CCS and FINISH, back-off not required!
 				sendFlight(flight);
@@ -825,7 +827,7 @@ public abstract class Handshaker implements Destroyable {
 				if (LOGGER.isDebugEnabled()) {
 					StringBuilder msg = new StringBuilder();
 					msg.append(String.format("Processing %s message from peer [%s], seqn: [%d]",
-							handshakeMessage.getMessageType(), getPeerAddress(),
+							handshakeMessage.getMessageType(), peerToLog,
 							handshakeMessage.getMessageSeq()));
 					if (LOGGER.isTraceEnabled()) {
 						msg.append(":").append(StringUtil.lineSeparator()).append(handshakeMessage);
@@ -842,7 +844,7 @@ public abstract class Handshaker implements Destroyable {
 					recursionProtection.unlock();
 				}
 				LOGGER.debug("Processed {} message from peer [{}]", handshakeMessage.getMessageType(),
-						getPeerAddress());
+						peerToLog);
 				if (!lastFlight) {
 					// last Flight may have changed processing
 					// the handshake message
@@ -868,7 +870,7 @@ public abstract class Handshaker implements Destroyable {
 		if (states != null) {
 			if (statesIndex >= states.length) {
 				LOGGER.warn("Cannot process {} message from peer [{}], no more expected!", HandshakeState.toString(message),
-						getPeerAddress());
+						peerToLog);
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
 				throw new HandshakeException("Cannot process " + HandshakeState.toString(message)
 						+ " handshake message, no more expected!", alert);
@@ -891,10 +893,10 @@ public abstract class Handshaker implements Destroyable {
 				DTLSFlight flight = pendingFlight.get();
 				if (flight != null && flight.contains(message)) {
 					LOGGER.debug("Cannot process {} message from itself [{}]!",
-							HandshakeState.toString(message), getPeerAddress());
+							HandshakeState.toString(message), peerToLog);
 				} else {
 					LOGGER.debug("Cannot process {} message from peer [{}], {} expected!",
-							HandshakeState.toString(message), getPeerAddress(), expectedState);
+							HandshakeState.toString(message), peerToLog, expectedState);
 				}
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE);
 				throw new HandshakeException("Cannot process " + HandshakeState.toString(message)
@@ -963,10 +965,10 @@ public abstract class Handshaker implements Destroyable {
 			SecretKey newPskSecret = pskSecretResult.getSecret();
 			if (newPskSecret != null) {
 				if (hostName != null) {
-					LOGGER.trace("client [{}] uses PSK identity [{}] for server [{}]", getPeerAddress(), pskIdentity,
+					LOGGER.trace("client [{}] uses PSK identity [{}] for server [{}]", peerToLog, pskIdentity,
 							hostName);
 				} else {
-					LOGGER.trace("client [{}] uses PSK identity [{}]", getPeerAddress(), pskIdentity);
+					LOGGER.trace("client [{}] uses PSK identity [{}]", peerToLog, pskIdentity);
 				}
 				PreSharedKeyIdentity pskPrincipal;
 				if (sniEnabled) {
@@ -1535,7 +1537,7 @@ public abstract class Handshaker implements Destroyable {
 			List<DatagramPacket> datagrams = flight.getDatagrams(maxDatagramSize, maxFragmentSize,
 					useMultiHandshakeMessagesRecord, useMultiRecordMessages, false);
 			LOGGER.trace("Sending flight of {} message(s) to peer [{}] using {} datagram(s) of max. {} bytes",
-					flight.getNumberOfMessages(), getPeerAddress(), datagrams.size(), maxDatagramSize);
+					flight.getNumberOfMessages(), peerToLog, datagrams.size(), maxDatagramSize);
 			recordLayer.sendFlight(datagrams);
 			pendingFlight.set(flight);
 			if (flight.isRetransmissionNeeded()) {
@@ -1566,7 +1568,6 @@ public abstract class Handshaker implements Destroyable {
 				Exception cause = null;
 				String message = "";
 				boolean timeout = false;
-				InetSocketAddress peer = getPeerAddress();
 				if (!connection.isExecuting() || !recordLayer.isRunning()) {
 					message = " Stopped by shutdown!";
 				} else {
@@ -1600,7 +1601,7 @@ public abstract class Handshaker implements Destroyable {
 						}
 
 						LOGGER.trace("Re-transmitting flight for [{}], [{}] retransmissions left",
-								peer, maxRetransmissions - tries - 1);
+								peerToLog, maxRetransmissions - tries - 1);
 						try {
 							flight.incrementTries();
 							flight.incrementTimeout();
@@ -1611,7 +1612,7 @@ public abstract class Handshaker implements Destroyable {
 									useMultiHandshakeMessagesRecord, useMultiRecordMessages, backOff);
 							LOGGER.debug(
 									"Resending flight {} of {} message(s) to peer [{}] using {} datagram(s) of max. {} bytes. Retransmission {} of {}.",
-									flight.getFlightNumber(), flight.getNumberOfMessages(), peer, datagrams.size(),
+									flight.getFlightNumber(), flight.getNumberOfMessages(), peerToLog, datagrams.size(),
 									maxDatagramSize, tries + 1, maxRetransmissions);
 							recordLayer.sendFlight(datagrams);
 
@@ -1626,26 +1627,26 @@ public abstract class Handshaker implements Destroyable {
 							// stop retransmission on IOExceptions
 							cause = e;
 							message = " " + e.getMessage();
-							LOGGER.warn("Cannot retransmit flight to peer [{}]", peer, e);
+							LOGGER.warn("Cannot retransmit flight to peer [{}]", peerToLog, e);
 						} catch (HandshakeException e) {
-							LOGGER.warn("Cannot retransmit flight to peer [{}]", peer, e);
+							LOGGER.warn("Cannot retransmit flight to peer [{}]", peerToLog, e);
 							cause = e;
 							message = " " + e.getMessage();
 						}
 					} else if (tries > maxRetransmissions) {
-						LOGGER.debug("Flight for [{}] has reached timeout, discarding ...", peer);
+						LOGGER.debug("Flight for [{}] has reached timeout, discarding ...", peerToLog);
 						message = " Stopped by timeout!";
 						timeout = true;
 					} else {
 						LOGGER.debug(
 								"Flight for [{}] has reached maximum no. [{}] of retransmissions, discarding ...",
-								peer, maxRetransmissions);
+								peerToLog, maxRetransmissions);
 						message = " Stopped by timeout after " + maxRetransmissions + " retransmissions!";
 						timeout = true;
 					}
 				}
 				LOGGER.debug("Flight {} of {} message(s) to peer [{}] failed, {}. Retransmission {} of {}.",
-						flight.getFlightNumber(), flight.getNumberOfMessages(), peer, message, flight.getTries(),
+						flight.getFlightNumber(), flight.getNumberOfMessages(), peerToLog, message, flight.getTries(),
 						maxRetransmissions);
 
 				// inform handshaker

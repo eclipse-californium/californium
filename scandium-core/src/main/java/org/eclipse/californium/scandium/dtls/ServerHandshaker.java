@@ -301,7 +301,7 @@ public class ServerHandshaker extends Handshaker {
 
 		default:
 			throw new HandshakeException(
-					String.format("Received unexpected %s message from peer %s", message.getMessageType(), getPeerAddress()),
+					String.format("Received unexpected %s message from peer %s", message.getMessageType(), peerToLog),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE));
 		}
 	}
@@ -672,7 +672,7 @@ public class ServerHandshaker extends Handshaker {
 			session.setRecordSizeLimit(recordSizeLimitExt.getRecordSizeLimit());
 			int limit = this.recordSizeLimit == null ? session.getMaxFragmentLength() : this.recordSizeLimit;
 			serverHelloExtensions.addExtension(new RecordSizeLimitExtension(limit));
-			LOGGER.debug("Received record size limit [{} bytes] from peer [{}]", limit, getPeerAddress());
+			LOGGER.debug("Received record size limit [{} bytes] from peer [{}]", limit, peerToLog);
 		}
 
 		if (recordSizeLimitExt == null) {
@@ -681,7 +681,7 @@ public class ServerHandshaker extends Handshaker {
 				session.setMaxFragmentLength(maxFragmentLengthExt.getFragmentLength().length());
 				serverHelloExtensions.addExtension(maxFragmentLengthExt);
 				LOGGER.debug("Negotiated max. fragment length [{} bytes] with peer [{}]",
-						maxFragmentLengthExt.getFragmentLength().length(), getPeerAddress());
+						maxFragmentLengthExt.getFragmentLength().length(), peerToLog);
 			}
 		}
 
@@ -697,10 +697,10 @@ public class ServerHandshaker extends Handshaker {
 				session.setSniSupported(true);
 				LOGGER.debug(
 						"using server name indication received from peer [{}]",
-						getPeerAddress());
+						peerToLog);
 			} else {
 				LOGGER.debug("client [{}] included SNI in HELLO but SNI support is disabled",
-						getPeerAddress());
+						peerToLog);
 			}
 		}
 
@@ -806,7 +806,7 @@ public class ServerHandshaker extends Handshaker {
 			}
 			addServerHelloExtensions(cipherSuite, clientHello, serverHelloExtensions);
 			session.setParameterAvailable();
-			LOGGER.debug("Negotiated cipher suite [{}] with peer [{}]", cipherSuite.name(), getPeerAddress());
+			LOGGER.debug("Negotiated cipher suite [{}] with peer [{}]", cipherSuite.name(), peerToLog);
 		} else {
 			// if none of the client's proposed cipher suites matches
 			// throw exception

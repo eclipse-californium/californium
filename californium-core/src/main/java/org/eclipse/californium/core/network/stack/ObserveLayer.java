@@ -48,6 +48,7 @@ import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.ObserveRelation;
+import org.eclipse.californium.elements.util.StringUtil;
 
 /**
  * UDP observe layer.
@@ -229,7 +230,7 @@ public class ObserveLayer extends AbstractLayer {
 		public void onTimeout() {
 			ObserveRelation relation = exchange.getRelation();
 			LOGGER.info("notification for token [{}] timed out. Canceling all relations with source [{}]",
-					relation.getExchange().getRequest().getToken(), relation.getSource());
+					relation.getExchange().getRequest().getToken(), StringUtil.toLog(relation.getSource()));
 			relation.cancelAll();
 		}
 

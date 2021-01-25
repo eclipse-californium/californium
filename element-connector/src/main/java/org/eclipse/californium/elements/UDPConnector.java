@@ -433,8 +433,8 @@ public class UDPConnector implements Connector {
 			EndpointContext connectionContext = new UdpEndpointContext(destinationAddress);
 			EndpointContextMatcher endpointMatcher = UDPConnector.this.endpointContextMatcher;
 			if (endpointMatcher != null && !endpointMatcher.isToBeSent(destination, connectionContext)) {
-				LOGGER.warn("UDPConnector ({}) drops {} bytes to {}:{}", effectiveAddr, datagram.getLength(),
-						destinationAddress.getAddress(), destinationAddress.getPort());
+				LOGGER.warn("UDPConnector ({}) drops {} bytes to {}", effectiveAddr, datagram.getLength(),
+						StringUtil.toLog(destinationAddress));
 				raw.onError(new EndpointMismatchException("UDP sending"));
 				return;
 			}
@@ -450,8 +450,8 @@ public class UDPConnector implements Connector {
 				} catch (IOException ex) {
 					raw.onError(ex);
 				}
-				LOGGER.debug("UDPConnector ({}) sent {} bytes to {}:{}", this, datagram.getLength(),
-						datagram.getAddress(), datagram.getPort());
+				LOGGER.debug("UDPConnector ({}) sent {} bytes to {}", this, datagram.getLength(),
+						StringUtil.toLog(destinationAddress));
 			} else {
 				raw.onError(new IOException("socket already closed!"));
 			}
@@ -474,19 +474,19 @@ public class UDPConnector implements Connector {
 			// too large datagram for our buffer! data could have been
 			// truncated, so we discard it.
 			LOGGER.debug(
-					"UDPConnector ({}) received truncated UDP datagram from {}:{}. Maximum size allowed {}. Discarding ...",
-					effectiveAddr, datagram.getAddress(), datagram.getPort(), receiverPacketSize);
+					"UDPConnector ({}) received truncated UDP datagram from {}. Maximum size allowed {}. Discarding ...",
+					effectiveAddr, StringUtil.toLog(datagram.getSocketAddress()), receiverPacketSize);
 		} else if (dataReceiver == null) {
-			LOGGER.debug("UDPConnector ({}) received UDP datagram from {}:{} without receiver. Discarding ...",
-					effectiveAddr, datagram.getAddress(), datagram.getPort());
+			LOGGER.debug("UDPConnector ({}) received UDP datagram from {} without receiver. Discarding ...",
+					effectiveAddr, StringUtil.toLog(datagram.getSocketAddress()));
 		} else {
 			long timestamp = ClockUtil.nanoRealtime();
 			String local = StringUtil.toString(effectiveAddr);
 			if (multicast) {
 				local = "mc/" + local;
 			}
-			LOGGER.debug("UDPConnector ({}) received {} bytes from {}:{}", local, datagram.getLength(),
-					datagram.getAddress(), datagram.getPort());
+			LOGGER.debug("UDPConnector ({}) received {} bytes from {}", local, datagram.getLength(),
+					StringUtil.toLog(datagram.getSocketAddress()));
 			byte[] bytes = Arrays.copyOfRange(datagram.getData(), datagram.getOffset(), datagram.getLength());
 			RawData msg = RawData.inbound(bytes,
 					new UdpEndpointContext(new InetSocketAddress(datagram.getAddress(), datagram.getPort())), multicast,

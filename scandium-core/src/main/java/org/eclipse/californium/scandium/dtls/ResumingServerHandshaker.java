@@ -106,7 +106,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 
 		default:
 			throw new HandshakeException(
-					String.format("Received unexpected handshake message [%s] from peer %s", message.getMessageType(), getPeerAddress()),
+					String.format("Received unexpected handshake message [%s] from peer %s", message.getMessageType(), peerToLog),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE));
 		}
 

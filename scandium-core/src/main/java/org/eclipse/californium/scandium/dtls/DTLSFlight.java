@@ -46,6 +46,7 @@ import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.NoPublicAPI;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -116,6 +117,8 @@ public class DTLSFlight {
 	private final DTLSContext context;
 
 	private final InetSocketAddress peer;
+	
+	private final Object peerToLog;
 
 	/**
 	 * The number of the flight.
@@ -222,6 +225,7 @@ public class DTLSFlight {
 		}
 		this.context = context;
 		this.peer = peer;
+		this.peerToLog = StringUtil.toLog(peer);
 		this.records = new ArrayList<Record>();
 		this.dtlsMessages = new ArrayList<EpochMessage>();
 		this.retransmissionNeeded = true;
@@ -294,7 +298,7 @@ public class DTLSFlight {
 				records.add(new Record(message.getContentType(), epochMessage.epoch,
 						message, context, false, 0));
 				LOGGER.debug("Add CCS message of {} bytes for [{}]",
-						message.size(), peer);
+						message.size(), peerToLog);
 				break;
 			default:
 				throw new HandshakeException("Cannot create " + message.getContentType() + " record for flight",
@@ -346,7 +350,7 @@ public class DTLSFlight {
 									+ handshakeMessage.size() < effectiveMaxFragmentSize) {
 						multiHandshakeMessage.add(handshakeMessage);
 						LOGGER.debug("Add multi-handshake-message {} message of {} bytes for [{}]",
-								handshakeMessage.getMessageType(), messageLength, peer);
+								handshakeMessage.getMessageType(), messageLength, peerToLog);
 						return;
 					}
 					flushMultiHandshakeMessages();
@@ -358,7 +362,7 @@ public class DTLSFlight {
 						multiEpoch = epochMessage.epoch;
 						multiUseCid = useCid;
 						LOGGER.debug("Start multi-handshake-message with {} message of {} bytes for [{}]",
-								handshakeMessage.getMessageType(), messageLength, peer);
+								handshakeMessage.getMessageType(), messageLength, peerToLog);
 						return;
 					}
 				}
@@ -366,7 +370,7 @@ public class DTLSFlight {
 			records.add(new Record(ContentType.HANDSHAKE, epochMessage.epoch,
 					handshakeMessage, context, useCid, 0));
 			LOGGER.debug("Add {} message of {} bytes for [{}]",
-					handshakeMessage.getMessageType(), messageLength, peer);
+					handshakeMessage.getMessageType(), messageLength, peerToLog);
 			return;
 		}
 
@@ -374,7 +378,7 @@ public class DTLSFlight {
 
 		// message needs to be fragmented
 		LOGGER.debug("Splitting up {} message of {} bytes for [{}] into multiple fragments of max. {} bytes",
-				handshakeMessage.getMessageType(), messageLength, peer, effectiveMaxFragmentSize);
+				handshakeMessage.getMessageType(), messageLength, peerToLog, effectiveMaxFragmentSize);
 		// create N handshake messages, all with the
 		// same message_seq value as the original handshake message
 		byte[] messageBytes = handshakeMessage.fragmentToByteArray();
@@ -423,10 +427,10 @@ public class DTLSFlight {
 			int count = multiHandshakeMessage.getNumberOfHandshakeMessages();
 			if (count > 1) {
 				LOGGER.info("Add {} multi handshake message, epoch {} of {} bytes for [{}]", count, multiEpoch,
-						multiHandshakeMessage.getMessageLength(), peer);
+						multiHandshakeMessage.getMessageLength(), peerToLog);
 			} else {
 				LOGGER.debug("Add {} multi handshake message, epoch {} of {} bytes for [{}]", count, multiEpoch,
-						multiHandshakeMessage.getMessageLength(), peer);
+						multiHandshakeMessage.getMessageLength(), peerToLog);
 			}
 			multiHandshakeMessage = null;
 			multiEpoch = 0;
@@ -518,11 +522,11 @@ public class DTLSFlight {
 			byte[] recordBytes = record.toByteArray();
 			if (recordBytes.length > effectiveDatagramSize) {
 				LOGGER.error("{} record of {} bytes for peer [{}] exceeds max. datagram size [{}], discarding...",
-						record.getType(), recordBytes.length, peer, effectiveDatagramSize);
+						record.getType(), recordBytes.length, peerToLog, effectiveDatagramSize);
 				// TODO: inform application layer, e.g. using error handler
 				continue;
 			}
-			LOGGER.trace("Sending record of {} bytes to peer [{}]:\n{}", recordBytes.length, peer, record);
+			LOGGER.trace("Sending record of {} bytes to peer [{}]:\n{}", recordBytes.length, peerToLog, record);
 			if (multiRecords && record.getType() == ContentType.CHANGE_CIPHER_SPEC) {
 				++index;
 				if (index < records.size()) {
@@ -537,7 +541,7 @@ public class DTLSFlight {
 				byte[] payload = writer.toByteArray();
 				DatagramPacket datagram = new DatagramPacket(payload, payload.length, peer.getAddress(), peer.getPort());
 				datagrams.add(datagram);
-				LOGGER.debug("Sending datagram of {} bytes to peer [{}]", payload.length, peer);
+				LOGGER.debug("Sending datagram of {} bytes to peer [{}]", payload.length, peerToLog);
 			}
 
 			writer.writeBytes(recordBytes);
@@ -546,7 +550,7 @@ public class DTLSFlight {
 		byte[] payload = writer.toByteArray();
 		DatagramPacket datagram = new DatagramPacket(payload, payload.length, peer.getAddress(), peer.getPort());
 		datagrams.add(datagram);
-		LOGGER.debug("Sending datagram of {} bytes to peer [{}]", payload.length, peer);
+		LOGGER.debug("Sending datagram of {} bytes to peer [{}]", payload.length, peerToLog);
 		writer = null;
 		return datagrams;
 	}
@@ -692,12 +696,12 @@ public class DTLSFlight {
 				// schedule retransmission task
 				try {
 					timeoutTask = timer.schedule(task, timeout, TimeUnit.MILLISECONDS);
-					LOGGER.trace("handshake flight to peer {}, retransmission {} ms.", peer, timeout);
+					LOGGER.trace("handshake flight to peer {}, retransmission {} ms.", peerToLog, timeout);
 				} catch (RejectedExecutionException ex) {
 					LOGGER.trace("handshake flight stopped by shutdown.");
 				}
 			} else {
-				LOGGER.trace("handshake flight to peer {}, no retransmission!", peer);
+				LOGGER.trace("handshake flight to peer {}, no retransmission!", peerToLog);
 			}
 		}
 	}

@@ -350,9 +350,11 @@ public final class Connection {
 			if (peerAddress == null) {
 				final Handshaker pendingHandshaker = getOngoingHandshake();
 				if (pendingHandshaker != null) {
-					if (establishedDtlsContext == null || pendingHandshaker.getDtlsContext() != establishedDtlsContext) {
+					if (establishedDtlsContext == null
+							|| pendingHandshaker.getDtlsContext() != establishedDtlsContext) {
 						// this will only call the listener, if no other cause was set before!
-						pendingHandshaker.handshakeFailed(new IOException(previous + " address reused during handshake!"));
+						pendingHandshaker.handshakeFailed(new IOException(
+								StringUtil.toDisplayString(previous) + " address reused during handshake!"));
 					}
 				}
 			} else {
@@ -763,7 +765,7 @@ public final class Connection {
 			builder.append(cid);
 		}
 		if (peerAddress != null) {
-			builder.append(", ").append(peerAddress);
+			builder.append(", ").append(StringUtil.toDisplayString(peerAddress));
 			Handshaker handshaker = getOngoingHandshake();
 			if (handshaker != null) {
 				builder.append(", ongoing handshake ");
@@ -844,13 +846,13 @@ public final class Connection {
 		@Override
 		public void handshakeStarted(Handshaker handshaker) throws HandshakeException {
 			ongoingHandshake.set(handshaker);
-			LOGGER.debug("Handshake with [{}] has been started", handshaker.getPeerAddress());
+			LOGGER.debug("Handshake with [{}] has been started", StringUtil.toLog(peerAddress));
 		}
 
 		@Override
 		public void contextEstablished(Handshaker handshaker, DTLSContext context) throws HandshakeException {
 			establishedDtlsContext = context;
-			LOGGER.debug("Session context with [{}] has been established", peerAddress);
+			LOGGER.debug("Session context with [{}] has been established", StringUtil.toLog(peerAddress));
 		}
 
 		@Override
@@ -867,7 +869,7 @@ public final class Connection {
 				}
 			}
 			if (ongoingHandshake.compareAndSet(handshaker, null)) {
-				LOGGER.debug("Handshake with [{}] has been completed", handshaker.getPeerAddress());
+				LOGGER.debug("Handshake with [{}] has been completed", StringUtil.toLog(peerAddress));
 			}
 		}
 
@@ -886,7 +888,7 @@ public final class Connection {
 			}
 			if (ongoingHandshake.compareAndSet(handshaker, null)) {
 				startingHelloClient = null;
-				LOGGER.debug("Handshake with [{}] has failed", handshaker.getPeerAddress());
+				LOGGER.debug("Handshake with [{}] has failed", StringUtil.toLog(peerAddress));
 			}
 		}
 
