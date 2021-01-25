@@ -280,27 +280,31 @@ public class SerialExecutor extends AbstractExecutorService {
 					@Override
 					public void run() {
 						try {
-							setOwner();
-							ExecutionListener current = listener.get();
 							try {
-								if (current != null) {
-									current.beforeExecution();
-								}
-								command.run();
-							} catch (Throwable t) {
-								LOGGER.error("unexpected error occurred:", t);
-							} finally {
+								setOwner();
+								ExecutionListener current = listener.get();
 								try {
 									if (current != null) {
-										current.afterExecution();
+										current.beforeExecution();
 									}
+									command.run();
 								} catch (Throwable t) {
 									LOGGER.error("unexpected error occurred:", t);
+								} finally {
+									try {
+										if (current != null) {
+											current.afterExecution();
+										}
+									} catch (Throwable t) {
+										LOGGER.error("unexpected error occurred:", t);
+									}
+									clearOwner();
 								}
-								clearOwner();
+							} finally {
+								scheduleNextJob();
 							}
-						} finally {
-							scheduleNextJob();
+						} catch (RejectedExecutionException ex) {
+							LOGGER.debug("shutdown?", ex);
 						}
 					}
 				});

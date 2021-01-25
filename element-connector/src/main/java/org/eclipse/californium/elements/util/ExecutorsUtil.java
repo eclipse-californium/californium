@@ -365,8 +365,10 @@ public class ExecutorsUtil {
 				if (!directExecutor.awaitTermination(timeout / 2, unit)) {
 					return false;
 				}
+				return super.awaitTermination(timeout / 2, unit);
+			} else {
+				return super.awaitTermination(timeout, unit);
 			}
-			return super.awaitTermination(timeout / 2, unit);
 		}
 	}
 }
