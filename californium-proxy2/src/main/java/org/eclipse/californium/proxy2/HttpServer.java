@@ -161,7 +161,7 @@ public class HttpServer {
 		};
 		listener.setDaemon(false);
 		listener.start();
-		LOGGER.info("HttpServer listening on {} started.", StringUtil.toDisplayString(httpInterface));
+		LOGGER.info("HttpServer listening on {} started.", StringUtil.toLog(httpInterface));
 	}
 
 	/**
@@ -174,7 +174,7 @@ public class HttpServer {
 		} catch (IOException e) {
 			LOGGER.error("shutdown failed!", e);
 		}
-		LOGGER.info("HttpServer on {} stopped.", StringUtil.toDisplayString(httpInterface));
+		LOGGER.info("HttpServer on {} stopped.", StringUtil.toLog(httpInterface));
 	}
 
 	/**

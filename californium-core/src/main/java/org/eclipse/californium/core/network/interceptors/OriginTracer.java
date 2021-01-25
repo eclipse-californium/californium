@@ -28,6 +28,7 @@ package org.eclipse.californium.core.network.interceptors;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,14 +53,14 @@ public final class OriginTracer extends MessageInterceptorAdapter {
 
 	@Override
 	public void receiveRequest(Request request) {
-		LOGGER.trace("{}", request.getSourceContext().getPeerAddress());
+		LOGGER.trace("{}", StringUtil.toLog(request.getSourceContext().getPeerAddress()));
 	}
 
 	@Override
 	public void receiveEmptyMessage(EmptyMessage message) {
 		// only log pings
 		if (message.getType() == Type.CON) {
-			LOGGER.trace("{}", message.getSourceContext().getPeerAddress());
+			LOGGER.trace("{}", StringUtil.toLog(message.getSourceContext().getPeerAddress()));
 		}
 	}
 }

@@ -151,7 +151,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 
 		default:
 			throw new HandshakeException(
-					String.format("Received unexpected handshake message [%s] from peer %s", message.getMessageType(), getPeerAddress()),
+					String.format("Received unexpected handshake message [%s] from peer %s", message.getMessageType(), peerToLog),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE));
 		}
 	}
@@ -170,7 +170,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		{
 			LOGGER.debug(
 					"Server [{}] refuses to resume session [{}], performing full handshake instead...",
-					getPeerAddress(), session.getSessionIdentifier());
+					peerToLog, session.getSessionIdentifier());
 			// Server refuse to resume the session, go for a full handshake
 			fullHandshake  = true;
 			states = SEVER_CERTIFICATE;

@@ -647,35 +647,37 @@ public class CoapEndpoint implements Endpoint {
 		InetSocketAddress destinationAddress = request.getDestinationContext().getPeerAddress();
 		if (request.isMulticast()) {
 			if (0 >= multicastBaseMid) {
-				LOGGER.warn("{}multicast messaging to destination {} is not enabled! Please enable it configuring \""
-						+ Keys.MULTICAST_BASE_MID + "\" greater than 0", tag, destinationAddress);
+				LOGGER.warn(
+						"{}multicast messaging to destination {} is not enabled! Please enable it configuring \""
+								+ Keys.MULTICAST_BASE_MID + "\" greater than 0",
+						tag, StringUtil.toLog(destinationAddress));
 				request.setSendError(new IllegalArgumentException("multicast is not enabled!"));
 				return;
 			} else if (request.getType() == Type.CON) {
 				LOGGER.warn(
-						"{}CON request to multicast destination {} is not allowed, as per RFC 7252, 8.1, a client MUST use NON message type for multicast requests ",
-						tag, destinationAddress);
+						"{}CON request to multicast destination {} is not allowed, as per RFC 7252, 8.1, a client MUST use NON message type for multicast requests",
+						tag, StringUtil.toLog(destinationAddress));
 				request.setSendError(new IllegalArgumentException("multicast is not supported for CON!"));
 				return;
 			} else if (request.hasMID() && request.getMID() < multicastBaseMid) {
 				LOGGER.warn(
 						"{}multicast request to group {} has mid {} which is not in the MULTICAST_MID range [{}-65535]",
-						tag, destinationAddress, request.getMID(), multicastBaseMid);
+						tag, StringUtil.toLog(destinationAddress), request.getMID(), multicastBaseMid);
 				request.setSendError(
 						new IllegalArgumentException("multicast mid is not in range [" + multicastBaseMid + "-65535]"));
 				return;
 			}
 		} else if (0 < multicastBaseMid && request.getMID() >= multicastBaseMid) {
-			LOGGER.warn("{}request has mid {}, which is in the MULTICAST_MID range [{}-65535]", tag, destinationAddress,
-					request.getMID(), multicastBaseMid);
+			LOGGER.warn("{}request has mid {}, which is in the MULTICAST_MID range [{}-65535]", tag,
+					StringUtil.toLog(destinationAddress), request.getMID(), multicastBaseMid);
 			request.setSendError(
 					new IllegalArgumentException("unicast mid is in multicast range [" + multicastBaseMid + "-65535]"));
 			return;
 		}
 		if (destinationAddress.isUnresolved()) {
-			LOGGER.warn("{}request has unresolved destination address", tag, destinationAddress);
-			request.setSendError(
-					new IllegalArgumentException(destinationAddress + " is a unresolved address!"));
+			String addr = StringUtil.toDisplayString(destinationAddress);
+			LOGGER.warn("{}request has unresolved destination address {}", tag, addr);
+			request.setSendError(new IllegalArgumentException(addr + " is a unresolved address!"));
 			return;
 		}
 

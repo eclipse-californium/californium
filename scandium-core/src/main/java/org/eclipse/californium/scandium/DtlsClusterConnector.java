@@ -213,7 +213,7 @@ public class DtlsClusterConnector extends DTLSConnector {
 		this.clusterHealth = (health instanceof DtlsClusterHealth) ? (DtlsClusterHealth) health : null;
 		this.startReceiver = startReceiver;
 		LOGGER.info("cluster-node {}: on internal {}, backwards {}", getNodeID(),
-				StringUtil.toDisplayString(clusterInternalSocketAddress), backwardMessages);
+				StringUtil.toLog(clusterInternalSocketAddress), backwardMessages);
 	}
 
 	/**
@@ -257,7 +257,7 @@ public class DtlsClusterConnector extends DTLSConnector {
 			clusterInternalSocket = new DatagramSocket(clusterInternalSocketAddress);
 		} catch (IOException ex) {
 			LOGGER.error("cluster-node {}: management-interface {} failed!", getNodeID(),
-					StringUtil.toDisplayString(clusterInternalSocketAddress));
+					StringUtil.toLog(clusterInternalSocketAddress));
 			throw ex;
 		}
 		super.init(bindAddress, socket, mtu);

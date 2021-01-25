@@ -283,9 +283,9 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 						connection.setConnectionId(connectionId);
 						connections.put(connectionId, connection);
 						connectionsByAddress.put(peer, connection);
-						LOGGER.debug("{}resume {} {}", tag, peer, id);
+						LOGGER.debug("{}resume {} {}", tag, StringUtil.toLog(peer), id);
 					} else {
-						LOGGER.info("{}drop session {} {}, could not allocated cid!", tag, peer, id);
+						LOGGER.info("{}drop session {} {}, could not allocated cid!", tag, StringUtil.toLog(peer), id);
 					}
 				}
 			}
@@ -364,11 +364,11 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 				InetSocketAddress oldPeerAddress = connection.getPeerAddress();
 				if (LOGGER.isTraceEnabled()) {
 					LOGGER.trace("{}connection: {} updated, address changed from {} to {}!", tag,
-							connection.getConnectionId(), oldPeerAddress, newPeerAddress,
+							connection.getConnectionId(), StringUtil.toLog(oldPeerAddress), StringUtil.toLog(newPeerAddress),
 							new Throwable("connection updated!"));
 				} else {
 					LOGGER.debug("{}connection: {} updated, address changed from {} to {}!", tag,
-							connection.getConnectionId(), oldPeerAddress, newPeerAddress);
+							connection.getConnectionId(), StringUtil.toLog(oldPeerAddress), StringUtil.toLog(newPeerAddress));
 				}
 				if (oldPeerAddress != null) {
 					connectionsByAddress.remove(oldPeerAddress, connection);
@@ -379,7 +379,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 			}
 			return true;
 		} else {
-			LOGGER.debug("{}connection: {} - {} update failed!", tag, connection.getConnectionId(), newPeerAddress);
+			LOGGER.debug("{}connection: {} - {} update failed!", tag, connection.getConnectionId(), StringUtil.toLog(newPeerAddress));
 			return false;
 		}
 	}
@@ -511,13 +511,15 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	public synchronized Connection get(final InetSocketAddress peerAddress) {
 		Connection connection = connectionsByAddress.get(peerAddress);
 		if (connection == null) {
-			LOGGER.debug("{}connection: missing connection for {}!", tag, peerAddress);
+			LOGGER.debug("{}connection: missing connection for {}!", tag, StringUtil.toLog(peerAddress));
 		} else {
 			InetSocketAddress address = connection.getPeerAddress();
 			if (address == null) {
-				LOGGER.warn("{}connection {} lost ip-address {}!", tag, connection.getConnectionId(), peerAddress);
+				LOGGER.warn("{}connection {} lost ip-address {}!", tag, connection.getConnectionId(),
+						StringUtil.toLog(peerAddress));
 			} else if (!address.equals(peerAddress)) {
-				LOGGER.warn("{}connection {} changed ip-address {}!={}!", tag, connection.getConnectionId(), peerAddress, address);
+				LOGGER.warn("{}connection {} changed ip-address {}!={}!", tag, connection.getConnectionId(),
+						StringUtil.toLog(peerAddress), StringUtil.toLog(address));
 			}
 		}
 		return connection;
@@ -622,14 +624,14 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 					}
 				};
 				LOGGER.debug("{}connection: {} - {} added! {} removed from address.", tag, connection.getConnectionId(),
-						peerAddress, previous.getConnectionId());
+						StringUtil.toLog(peerAddress), previous.getConnectionId());
 				if (previous.isExecuting()) {
 					previous.getExecutor().execute(removeAddress);
 				} else {
 					removeAddress.run();
 				}
 			} else {
-				LOGGER.debug("{}connection: {} - {} added!", tag, connection.getConnectionId(), peerAddress);
+				LOGGER.debug("{}connection: {} - {} added!", tag, connection.getConnectionId(), StringUtil.toLog(peerAddress));
 			}
 		} else {
 			LOGGER.debug("{}connection: {} - missing address!", tag, connection.getConnectionId());

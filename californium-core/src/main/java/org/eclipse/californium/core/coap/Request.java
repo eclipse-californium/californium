@@ -769,7 +769,6 @@ public class Request extends Message {
 	 * 
 	 * @param peerContext destination endpoint context
 	 * @return this Request
-	 * 
 	 */
 	@Override
 	public Request setDestinationContext(EndpointContext peerContext) {
@@ -784,7 +783,8 @@ public class Request extends Message {
 	 * expects a response back.
 	 * 
 	 * @return this request
-	 * @throws NullPointerException if this request has no destination set.
+	 * @throws IllegalStateException if this request has no valid destination
+	 *             set. (since 3.0, was NullPointerException before)
 	 */
 	public Request send() {
 		send(EndpointManager.getEndpointManager().getDefaultEndpoint(getScheme()));
@@ -797,7 +797,8 @@ public class Request extends Message {
 	 * 
 	 * @param endpoint the endpoint
 	 * @return this request
-	 * @throws NullPointerException if this request has no destination set.
+	 * @throws IllegalStateException if this request has no valid destination
+	 *             set. (since 3.0, was NullPointerException before)
 	 */
 	public Request send(Endpoint endpoint) {
 		validateBeforeSending();
@@ -809,11 +810,14 @@ public class Request extends Message {
 	 * Validate before sending that there is a destination set.
 	 */
 	private void validateBeforeSending() {
+		if (getDestinationContext() == null) {
+			throw new IllegalStateException("Destination is null");
+		}
 		if (getDestinationContext().getPeerAddress().getAddress() == null) {
-			throw new NullPointerException("Destination is null");
+			throw new IllegalStateException("Destination address is null");
 		}
 		if (getDestinationContext().getPeerAddress().getPort() == 0) {
-			throw new NullPointerException("Destination port is 0");
+			throw new IllegalStateException("Destination port is 0");
 		}
 	}
 

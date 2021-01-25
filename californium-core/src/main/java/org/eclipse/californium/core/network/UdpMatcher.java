@@ -238,7 +238,7 @@ public final class UdpMatcher extends BaseMatcher {
 						: previousRequest.getDestinationContext().getPeerAddress();
 				if (group != previousGroup && (group == null || !group.equals(previousGroup))) {
 					LOGGER.warn("received request {} via different multicast groups ({} != {})!", request,
-							StringUtil.toString(group), StringUtil.toString(previousGroup));
+							StringUtil.toLog(group), StringUtil.toLog(previousGroup));
 				}
 			}
 		}
@@ -314,7 +314,7 @@ public final class UdpMatcher extends BaseMatcher {
 
 							if (prev.getCurrentRequest().isMulticast()) {
 								LOGGER.debug("Ignore delayed response {} to multicast request {}", response,
-										prev.getCurrentRequest().getDestinationContext().getPeerAddress());
+										StringUtil.toLog(prev.getCurrentRequest().getDestinationContext().getPeerAddress()));
 								cancel(response, receiver);
 								return;
 							}
@@ -389,7 +389,8 @@ public final class UdpMatcher extends BaseMatcher {
 							if (type != Type.NON) {
 								LOGGER.debug(
 										"ignoring response of type {} for multicast request with token [{}], from {}",
-										response.getType(), response.getTokenString(), response.getSourceContext().getPeerAddress());
+										response.getType(), response.getTokenString(),
+										StringUtil.toLog(response.getSourceContext().getPeerAddress()));
 								cancel(response, receiver);
 								return;
 							}

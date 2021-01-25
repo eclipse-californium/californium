@@ -27,6 +27,8 @@ import java.net.SocketAddress;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 
+import org.eclipse.californium.elements.util.StringUtil;
+
 import io.netty.channel.Channel;
 import io.netty.handler.ssl.SslHandler;
 
@@ -137,11 +139,11 @@ public class TlsServerConnector extends TcpServerConnector {
 	private SSLEngine createSllEngineForChannel(Channel ch) {
 		SocketAddress remoteAddress = ch.remoteAddress();
 		if (remoteAddress instanceof InetSocketAddress) {
+			LOGGER.info("Connection from inet {}", StringUtil.toLog(remoteAddress));
 			InetSocketAddress remote = (InetSocketAddress) remoteAddress;
-			LOGGER.info("Connection from inet {}", remote);
 			return sslContext.createSSLEngine(remote.getAddress().getHostAddress(), remote.getPort());
 		} else {
-			LOGGER.info("Connection from {}", remoteAddress);
+			LOGGER.info("Connection from {}", StringUtil.toLog(remoteAddress));
 			return sslContext.createSSLEngine();
 		}
 	}

@@ -288,7 +288,7 @@ public class ClientHandshaker extends Handshaker {
 
 		default:
 			throw new HandshakeException(
-					String.format("Received unexpected handshake message [%s] from peer %s", message.getMessageType(), getPeerAddress()),
+					String.format("Received unexpected handshake message [%s] from peer %s", message.getMessageType(), peerToLog),
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE));
 		}
 	}
@@ -778,7 +778,7 @@ public class ClientHandshaker extends Handshaker {
 			helloMessage.addExtension(ext);
 			LOGGER.debug(
 					"Indicating record size limit [{}] to server [{}]",
-					recordSizeLimit, getPeerAddress());
+					recordSizeLimit, peerToLog);
 		}
 	}
 
@@ -788,7 +788,7 @@ public class ClientHandshaker extends Handshaker {
 			helloMessage.addExtension(ext);
 			LOGGER.debug(
 					"Indicating max. fragment length [{}] to server [{}]",
-					maxFragmentLengthCode, getPeerAddress());
+					maxFragmentLengthCode, peerToLog);
 		}
 	}
 
@@ -837,10 +837,10 @@ public class ClientHandshaker extends Handshaker {
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
 			if (serverName != null) {
 				throw new HandshakeException(String.format("No Identity found for peer [address: %s, virtual host: %s]",
-						getPeerAddress(), getSession().getHostName()), alert);
+						peerToLog, getSession().getHostName()), alert);
 			} else {
 				throw new HandshakeException(
-						String.format("No Identity found for peer [address: %s]", getPeerAddress()), alert);
+						String.format("No Identity found for peer [address: %s]", peerToLog), alert);
 			}
 		}
 		return pskIdentity;

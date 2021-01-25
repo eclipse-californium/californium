@@ -179,7 +179,7 @@ public class TcpServerConnector implements Connector {
 			throw new NullPointerException("Message must not be null");
 		}
 		if (msg.isMulticast()) {
-			LOGGER.warn("TcpConnector drops {} bytes to multicast {}:{}", msg.getSize(), msg.getAddress(), msg.getPort());
+			LOGGER.warn("TcpConnector drops {} bytes to multicast {}", msg.getSize(), StringUtil.toLog(msg.getInetSocketAddress()));
 			msg.onError(new MulticastNotSupportedException("TCP doesn't support multicast!"));
 			return;
 		}
@@ -191,16 +191,16 @@ public class TcpServerConnector implements Connector {
 		if (channel == null) {
 			// TODO: Is it worth allowing opening a new connection when in server mode?
 			LOGGER.debug("Attempting to send message to an address without an active connection {}",
-					msg.getAddress());
+					StringUtil.toLog(msg.getInetSocketAddress()));
 			msg.onError(new EndpointUnconnectedException());
 			return;
 		}
 		EndpointContext context = contextUtil.buildEndpointContext(channel);
 		final EndpointContextMatcher endpointMatcher = getEndpointContextMatcher();
 		/* check, if the message should be sent with the established connection */
-		if (null != endpointMatcher
-				&& !endpointMatcher.isToBeSent(msg.getEndpointContext(), context)) {
-			LOGGER.warn("TcpConnector drops {} bytes to {}:{}", msg.getSize(), msg.getAddress(), msg.getPort());
+		if (null != endpointMatcher && !endpointMatcher.isToBeSent(msg.getEndpointContext(), context)) {
+			LOGGER.warn("TcpConnector drops {} bytes to {}", msg.getSize(),
+					StringUtil.toLog(msg.getInetSocketAddress()));
 			msg.onError(new EndpointMismatchException());
 			return;
 		}

@@ -33,7 +33,6 @@ package org.eclipse.californium.elements;
 
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.Principal;
 
@@ -175,24 +174,6 @@ public final class RawData {
 	 */
 	public int getSize() {
 		return bytes.length;
-	}
-
-	/**
-	 * Gets the address.
-	 *
-	 * @return the address
-	 */
-	public InetAddress getAddress() {
-		return peerEndpointContext.getPeerAddress().getAddress();
-	}
-
-	/**
-	 * Gets the port.
-	 *
-	 * @return the port
-	 */
-	public int getPort() {
-		return peerEndpointContext.getPeerAddress().getPort();
 	}
 
 	/**

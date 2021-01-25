@@ -65,6 +65,7 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.nio.channels.ClosedChannelException;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -189,7 +190,8 @@ public class TcpClientConnector implements Connector {
 			throw new NullPointerException("Message must not be null");
 		}
 		if (msg.isMulticast()) {
-			LOGGER.warn("TcpConnector drops {} bytes to multicast {}:{}", msg.getSize(), msg.getAddress(), msg.getPort());
+			LOGGER.warn("TcpConnector drops {} bytes to multicast {}", msg.getSize(),
+					StringUtil.toLog(msg.getInetSocketAddress()));
 			msg.onError(new MulticastNotSupportedException("TCP doesn't support multicast!"));
 			return;
 		}
@@ -202,7 +204,8 @@ public class TcpClientConnector implements Connector {
 		final EndpointContextMatcher endpointMatcher = getEndpointContextMatcher();
 		/* check, if a new connection should be established */
 		if (endpointMatcher != null && !connected && !endpointMatcher.isToBeSent(msg.getEndpointContext(), null)) {
-			LOGGER.warn("TcpConnector drops {} bytes to new {}:{}", msg.getSize(), msg.getAddress(), msg.getPort());
+			LOGGER.warn("TcpConnector drops {} bytes to new {}", msg.getSize(),
+					StringUtil.toLog(msg.getInetSocketAddress()));
 			msg.onError(new EndpointMismatchException("no connection"));
 			return;
 		}
@@ -250,7 +253,8 @@ public class TcpClientConnector implements Connector {
 							LOGGER.trace("{}", cause.getMessage());
 						}
 					} else {
-						LOGGER.warn("Unable to open connection to {}", msg.getAddress(), future.cause());
+						LOGGER.warn("Unable to open connection to {}",
+								StringUtil.toLog(msg.getInetSocketAddress()), future.cause());
 					}
 					msg.onError(future.cause());
 				}
@@ -274,8 +278,9 @@ public class TcpClientConnector implements Connector {
 		 * check, if the message should be sent with the established connection
 		 */
 		if (endpointMatcher != null && !endpointMatcher.isToBeSent(msg.getEndpointContext(), context)) {
-			LOGGER.warn("TcpConnector drops {} bytes to {}:{}", msg.getSize(), msg.getAddress(), msg.getPort());
-			msg.onError(new EndpointMismatchException());
+			LOGGER.warn("TcpConnector drops {} bytes to {}", msg.getSize(),
+					StringUtil.toLog(msg.getInetSocketAddress()));
+			msg.onError(new EndpointMismatchException("TCP"));
 			return;
 		}
 		msg.onContextEstablished(context);
@@ -289,8 +294,20 @@ public class TcpClientConnector implements Connector {
 				} else if (future.isCancelled()) {
 					msg.onError(new CancellationException());
 				} else {
-					LOGGER.warn("TcpConnector drops {} bytes to {}:{} caused by", msg.getSize(), msg.getAddress(), msg.getPort(), future.cause());
-					msg.onError(future.cause());
+					Throwable cause = future.cause();
+					if (cause instanceof ClosedChannelException) {
+						if (isRunning()) {
+							LOGGER.debug("TcpConnector drops {} bytes to {}, connection closed!", msg.getSize(),
+									StringUtil.toLog(msg.getInetSocketAddress()));
+						} else {
+							LOGGER.trace("TcpConnector drops {} bytes to {}, connection closed!", msg.getSize(),
+									StringUtil.toLog(msg.getInetSocketAddress()));
+						}
+					} else {
+						LOGGER.warn("TcpConnector drops {} bytes to {} caused by", msg.getSize(),
+								StringUtil.toLog(msg.getInetSocketAddress()), cause);
+					}
+					msg.onError(cause);
 				}
 			}
 		});

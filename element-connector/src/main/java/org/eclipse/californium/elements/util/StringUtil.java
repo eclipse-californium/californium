@@ -408,6 +408,34 @@ public class StringUtil {
 	}
 
 	/**
+	 * Returns a "lazy message supplier" for socket addresses.
+	 * 
+	 * Converts the provided socket address into a display string on calling
+	 * {@link Object#toString()} on the returned object. Emulates the
+	 * {@code MessageSupplier} idea of log4j.
+	 * 
+	 * @param address address to log.
+	 * @return "lazy message supplier".
+	 * @see #toDisplayString(InetSocketAddress)
+	 * @since 3.0
+	 */
+	public static Object toLog(final SocketAddress address) {
+		if (address == null) {
+			return null;
+		}
+		return new Object() {
+
+			public String toString() {
+				if (address instanceof InetSocketAddress) {
+					return toDisplayString((InetSocketAddress) address);
+				} else {
+					return address.toString();
+				}
+			}
+		};
+	}
+
+	/**
 	 * Checks if a given string is a valid host name as defined by
 	 * <a href="http://tools.ietf.org/html/rfc1123">RFC 1123</a>.
 	 * 
