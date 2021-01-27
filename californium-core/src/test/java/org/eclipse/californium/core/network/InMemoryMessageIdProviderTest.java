@@ -106,7 +106,12 @@ public class InMemoryMessageIdProviderTest {
 
 		provider.getNextMessageId(peerAddress);
 		for (int index = 0; index < TOTAL_NO_OF_MIDS * 2; ++index) {
-			provider.getNextMessageId(peerAddress);
+			try {
+				provider.getNextMessageId(peerAddress);
+			} catch (IllegalStateException ex) {
+				System.out.println(ex.getMessage());
+				throw ex;
+			}
 		}
 	}
 
@@ -140,7 +145,12 @@ public class InMemoryMessageIdProviderTest {
 		exception.expect(IllegalStateException.class);
 		exception.expectMessage(containsString("No MID available, max."));
 
-		provider.getNextMessageId(getPeerAddress(MAX_PEERS + 1));
+		try {
+			provider.getNextMessageId(getPeerAddress(MAX_PEERS + 1));
+		} catch (IllegalStateException ex) {
+			System.out.println(ex.getMessage());
+			throw ex;
+		}
 	}
 
 	@Test

@@ -100,6 +100,8 @@ public class MapBasedMessageIdTracker implements MessageIdTracker {
 				}
 			};
 		}
-		throw new IllegalStateException("No MID available, all [" + min + "-" + (min + range) + ") MIDs in use!");
+		String time = TimeUnit.NANOSECONDS.toSeconds(exchangeLifetimeNanos) + "s";
+		throw new IllegalStateException(
+				"No MID available, all [" + min + "-" + (min + range) + ") MIDs in use! (MID lifetime " + time + "!)");
 	}
 }
