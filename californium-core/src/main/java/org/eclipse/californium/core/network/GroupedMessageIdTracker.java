@@ -24,6 +24,7 @@ import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.elements.util.ClockUtil;
 
 /**
@@ -83,10 +84,10 @@ public class GroupedMessageIdTracker implements MessageIdTracker {
 	 * 
 	 * The following configuration values are used:
 	 * <ul>
-	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#MID_TRACKER_GROUPS}
+	 * <li>{@link Keys#MID_TRACKER_GROUPS}
 	 * - determine the group size for the message IDs. Each group is marked as
 	 * <em>in use</em>, if a MID within the group is used.</li>
-	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#EXCHANGE_LIFETIME}
+	 * <li>{@link Keys#EXCHANGE_LIFETIME}
 	 * - each group of a message ID returned by <em>getNextMessageId</em> is
 	 * marked as <em>in use</em> for this amount of time (ms).</li>
 	 * </ul>
@@ -106,7 +107,7 @@ public class GroupedMessageIdTracker implements MessageIdTracker {
 			throw new IllegalArgumentException(
 					"initial MID " + initialMid + " must be in range [" + minMid + "-" + maxMid + ")!");
 		}
-		exchangeLifetimeNanos = TimeUnit.MILLISECONDS.toNanos(config.getLong(NetworkConfig.Keys.EXCHANGE_LIFETIME));
+		exchangeLifetimeNanos = TimeUnit.MILLISECONDS.toNanos(config.getLong(Keys.EXCHANGE_LIFETIME));
 		currentMID = initialMid - minMid;
 		this.min = minMid;
 		this.range = maxMid - minMid;
@@ -130,7 +131,9 @@ public class GroupedMessageIdTracker implements MessageIdTracker {
 				return mid + min;
 			}
 		}
-		throw new IllegalStateException("No MID available, all [" + min + "-" + (min + range) + ") MID-groups in use!");
+		String time = TimeUnit.NANOSECONDS.toSeconds(exchangeLifetimeNanos) + "s";
+		throw new IllegalStateException(
+				"No MID available, all [" + min + "-" + (min + range) + ") MID-groups in use! (MID lifetime " + time + "!)");
 	}
 
 	/**

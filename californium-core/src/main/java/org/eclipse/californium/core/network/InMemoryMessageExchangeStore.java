@@ -58,6 +58,7 @@ import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.eclipse.californium.core.coap.BlockOption;
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -224,8 +225,10 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			try {
 				mid = messageIdProvider.getNextMessageId(dest);
 				message.setMID(mid);
-			} catch(IllegalStateException ex) {
-				LOGGER.warn("{}cannot send message to {}, {}", tag, dest, ex.getMessage());
+			} catch (IllegalStateException ex) {
+				String code = CoAP.toCodeString(message.getRawCode());
+				LOGGER.warn("{}cannot send message {}-{} to {}, {}", tag, message.getType(), code,
+						StringUtil.toLog(dest), ex.getMessage());
 			}
 		}
 		return mid;

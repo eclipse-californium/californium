@@ -58,7 +58,7 @@ public final class CoAP {
 
 	/** The DTLS protocol */
 	public static final String PROTOCOL_DTLS = "DTLS";
-	
+
 	/** The TCP protocol */
 	public static final String PROTOCOL_TCP = "TCP";
 
@@ -244,7 +244,7 @@ public final class CoAP {
 				CoAP.COAP_SECURE_URI_SCHEME.equalsIgnoreCase(uriScheme) ||
 				CoAP.COAP_SECURE_TCP_URI_SCHEME.equalsIgnoreCase(uriScheme);
 	}
-	
+
 	/**
 	 * Get default port for provided uri scheme.
 	 * 
@@ -333,6 +333,30 @@ public final class CoAP {
 	}
 
 	/**
+	 * Converts raw message code into display string.
+	 * 
+	 * @param rawCode message code
+	 * @return display string
+	 * @since 3.0
+	 */
+	public static String toCodeString(int rawCode) {
+		String result = formatCode(rawCode);
+		try {
+			if (isRequest(rawCode)) {
+				Code code = Code.valueOf(rawCode);
+				result += "/" + code.text;
+			} else if (isResponse(rawCode)) {
+				ResponseCode code = ResponseCode.valueOf(rawCode);
+				result += "/" + code.text;
+			} else if (isEmptyMessage(rawCode)) {
+				result += "/EMPTY";
+			}
+		} catch (MessageFormatException ex) {
+		}
+		return result;
+	}
+
+	/**
 	 * CoAP defines four types of messages:
 	 * Confirmable, Non-confirmable, Acknowledgment, Reset.
 	 */
@@ -396,7 +420,7 @@ public final class CoAP {
 
 		/** The server error response class code. */
 		SERVER_ERROR_RESPONSE(5),
-		
+
 		/** The signaling  class code. */
 		SIGNAL(7);
 
@@ -447,10 +471,10 @@ public final class CoAP {
 
 		/** The DELETE code. */
 		DELETE(4),
-		
+
 		/** The FETCH code. */
 		FETCH(5),
-		
+
 		/** The PATCH code. */
 		PATCH(6),
 
@@ -532,7 +556,7 @@ public final class CoAP {
 	 * The enumeration of response codes
 	 */
 	public enum ResponseCode {
-		
+
 		// Success: 2.01 - 2.31
 		_UNKNOWN_SUCCESS_CODE(CodeClass.SUCCESS_RESPONSE, 0), // undefined -- only used to identify class
 		CREATED(CodeClass.SUCCESS_RESPONSE, 1),
