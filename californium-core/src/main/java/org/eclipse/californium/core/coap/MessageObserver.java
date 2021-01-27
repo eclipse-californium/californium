@@ -51,11 +51,11 @@ import org.eclipse.californium.elements.EndpointContext;
  * <li>{@link #onSent(boolean)} right after the message has been sent
  * (successfully)</li>
  * <li>{@link #onSendError(Throwable)} if the message cannot be sent</li>
- * <li>{@link #onResponseHandlingError(Throwable) if an error happens during
+ * <li>{@link #onResponseHandlingError(Throwable)} if an error happens during
  * response handling</li>
- * <li>{@link #onContextEstablished(EndpointContext) when the resulting endpoint
+ * <li>{@link #onContextEstablished(EndpointContext)} when the resulting endpoint
  * context is reported by the connector</li>
- * <li>{@link #onTransferComplete() if transfer is successfully complete</li>
+ * <li>{@link #onTransferComplete()} if transfer is successfully complete</li>
  * </ul>
  * <p>
  * The class that is interested in processing a message event either implements

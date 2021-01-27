@@ -81,6 +81,7 @@ public final class Block1BlockwiseStatus extends BlockwiseStatus {
 	 * @param removeHandler remove handler for blockwise status
 	 * @param exchange The message exchange the transfer is part of.
 	 * @param block first received block request of the blockwise transfer
+	 * @param maxBodySize maximum body size
 	 * @param maxTcpBertBulkBlocks The maximum number of bulk blocks for
 	 *            TCP/BERT. {@code 1} or less, disable BERT.
 	 * @return The created tracker

@@ -646,8 +646,8 @@ public class Record {
 	 * Gets the object representation of this record's
 	 * <em>DTLSPlaintext.fragment</em>.
 	 * 
-	 * For incoming records, the fragment is only available after the DTLS
-	 * context of the epoch is {@link #applyDtlsReadState(DTLSContext)}.
+	 * For incoming records, the fragment is only available after
+	 * {@link #decodeFragment(DTLSConnectionState)}.
 	 * 
 	 * @return the plaintext fragment
 	 * @throws IllegalStateException if plaint-text fragment is not available
@@ -666,7 +666,7 @@ public class Record {
 	 * If the record uses the new record type {@link ContentType#TLS12_CID} the
 	 * {@link #type} is updated with the type of the inner plaintext.
 	 * 
-	 * @param readState read state for incoming messages
+	 * @param readState read state of the epoch for incoming messages
 	 * @throws InvalidMacException if message authentication failed
 	 * @throws GeneralSecurityException if de-cryption fails, e.g. because the
 	 *             JVM does not support the negotiated cipher algorithm, or

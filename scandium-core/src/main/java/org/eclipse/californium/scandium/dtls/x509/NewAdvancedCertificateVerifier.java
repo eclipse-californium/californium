@@ -41,7 +41,7 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * <pre>
  * &#64;Override
  * public CertificateVerificationResult verifyCertificate(ConnectionId cid, ServerNames serverName,
- *		Boolean clientUsage, boolean truncateCertificatePath, CertificateMessage message) {
+ *		boolean clientUsage, boolean truncateCertificatePath, CertificateMessage message) {
  * 	CertPath verifiedCertificate = ... verify certificate ...;
  * 	return new CertificateVerificationResult(cid, verifiedCertificate, null);
  * }
@@ -54,7 +54,7 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * <pre>
  * &#64;Override
  * public CertificateVerificationResult verifyCertificate(ConnectionId cid, ServerNames serverName,
- *		Boolean clientUsage, boolean truncateCertificatePath, CertificateMessage message) {
+ *		boolean clientUsage, boolean truncateCertificatePath, CertificateMessage message) {
  * 	
  * 		start ... verify certificate ... 
  * 			// calls processResult with verified certificate path asynchronous;
@@ -66,7 +66,7 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * 		this.resultHandler = resultHandler;
  * }
  * 
- * 	private void verifyCertificateAsynchronous(ConnectionId cid, ServerNames serverName, Boolean clientUsage,
+ * 	private void verifyCertificateAsynchronous(ConnectionId cid, ServerNames serverName, boolean clientUsage,
  * 			boolean truncateCertificatePath, CertificateMessage message) {
  * 		// executed by different thread!
  * 		CertificateVerificationResult result = ... verify certificate ...
@@ -118,7 +118,7 @@ public interface NewAdvancedCertificateVerifier {
 	 * 
 	 * @param resultHandler handler for asynchronous master secret results. This
 	 *            handler MUST NOT be called from the thread calling
-	 *            {@link #verifyCertificate(ConnectionId, ServerNames, Boolean, boolean, CertificateMessage)},
+	 *            {@link #verifyCertificate(ConnectionId, ServerNames, boolean, boolean, CertificateMessage)},
 	 *            instead just return the result there.
 	 */
 	void setResultHandler(HandshakeResultHandler resultHandler);
