@@ -17,8 +17,8 @@ package org.eclipse.californium.interoperability.test;
 
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertNotNull;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -42,6 +42,9 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.AlertMessage;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 
 /**
@@ -99,6 +102,12 @@ public class CaliforniumUtil extends ConnectorUtil {
 		}
 		super.shutdown();
 		incoming.clear();
+		AlertMessage alert = getAlertCatcher().getAlert();
+		if (alert != null) {
+			getAlertCatcher().resetAlert();
+			assertThat(alert.getDescription(), is(AlertDescription.CLOSE_NOTIFY));
+//			assertThat(alert, is(new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY)));
+		}
 	}
 
 	/**
@@ -297,7 +306,7 @@ public class CaliforniumUtil extends ConnectorUtil {
 	 */
 	public void assertReceivedData(String message, long timeoutMillis) throws InterruptedException {
 		String received = waitForReceivedMessage(timeoutMillis);
-		assertNotNull("Californium server missing message '" + message + "'!", received);
+		assertThat("Californium server missing message '" + message + "'!", received, is(notNullValue()));
 		assertThat(received, is(message));
 	}
 
@@ -310,6 +319,19 @@ public class CaliforniumUtil extends ConnectorUtil {
 	public void assertPrincipalType(final Class<?> expectedPrincipalType) {
 		// assert that peer identity is of given type
 		assertThat(principal.get(), instanceOf(expectedPrincipalType));
+	}
+
+	/**
+	 * Assert, that the alert is exchanged.
+	 * 
+	 * @param expected expected alert
+	 * @throws InterruptedException if waiting for the alert is interrupted.
+	 * @since 3.0
+	 */
+	public void assertAlert(AlertMessage expected) throws InterruptedException {
+		AlertMessage alert = getAlertCatcher().waitForAlert(2000, TimeUnit.MILLISECONDS);
+		assertThat("received alert", alert, is(expected));
+		getAlertCatcher().resetAlert();
 	}
 
 }

@@ -34,6 +34,9 @@ import org.eclipse.californium.interoperability.test.CaliforniumUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.interoperability.test.ScandiumUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.AlertMessage;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -160,6 +163,7 @@ public class LibCoapClientMbedTlsInteroperabilityTest {
 		processUtil.setTrusts(SERVER_RSA_CERTIFICATE);
 		processUtil.startupClient(DESTINATION_URL + "test", TRUST, "Hello, CoAP!", cipherSuite);
 		connect(null, "X509 - Certificate verification failed");
+		californiumUtil.assertAlert(new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_CA));
 	}
 
 	@Test
@@ -169,6 +173,7 @@ public class LibCoapClientMbedTlsInteroperabilityTest {
 		processUtil.setCa(SERVER_RSA_CERTIFICATE);
 		processUtil.startupClient(DESTINATION_URL + "test", CA, "Hello, CoAP!", cipherSuite);
 		connect(null, "X509 - Certificate verification failed");
+		californiumUtil.assertAlert(new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_CA));
 	}
 
 	@Test

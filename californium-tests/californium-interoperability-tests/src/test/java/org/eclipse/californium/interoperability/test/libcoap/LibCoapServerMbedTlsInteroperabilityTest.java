@@ -41,7 +41,10 @@ import org.eclipse.californium.interoperability.test.CaliforniumUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
 import org.eclipse.californium.interoperability.test.ScandiumUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -174,11 +177,12 @@ public class LibCoapServerMbedTlsInteroperabilityTest {
 	public void testLibCoapServerEcdsaCaFails() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
 		processUtil.setCa(SERVER_RSA_CERTIFICATE);
-		// mbedtls uses -R also for accepted issuers list. Therefore onyl use -C
+		// mbedtls uses -R also for accepted issuers list. Therefore only use -C
 		processUtil.startupServer(ACCEPT, CA, cipherSuite);
 
 		californiumUtil.start(BIND, null, cipherSuite);
 		connect(false, "No client certification received from the client");
+		californiumUtil.assertAlert(new AlertMessage(AlertLevel.FATAL, AlertDescription.NO_CERTIFICATE_RESERVED));
 	}
 
 	@Test
@@ -189,6 +193,7 @@ public class LibCoapServerMbedTlsInteroperabilityTest {
 
 		californiumUtil.start(BIND, null, cipherSuite);
 		connect(false, "The certificate is not correctly signed by the trusted CA");
+		californiumUtil.assertAlert(new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_CA));
 	}
 
 	@Test

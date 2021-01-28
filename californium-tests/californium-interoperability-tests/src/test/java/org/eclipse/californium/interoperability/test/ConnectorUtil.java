@@ -25,6 +25,7 @@ import java.util.List;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
+import org.eclipse.californium.scandium.ConnectorHelper;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
@@ -53,6 +54,10 @@ public class ConnectorUtil {
 	public static final String TRUST_CA = "ca";
 	public static final String TRUST_ROOT = "root";
 
+	/**
+	 * Alert catcher.
+	 */
+	private ConnectorHelper.AlertCatcher alertCatcher = new ConnectorHelper.AlertCatcher();
 	/**
 	 * DTLS connector.
 	 */
@@ -159,6 +164,8 @@ public class ConnectorUtil {
 		}
 		dtlsBuilder.setSupportedCipherSuites(suites);
 		connector = new DTLSConnector(dtlsBuilder.build());
+		alertCatcher.resetAlert();
+		connector.setAlertHandler(alertCatcher);
 	}
 
 	/**
@@ -170,4 +177,13 @@ public class ConnectorUtil {
 		return connector;
 	}
 
+	/**
+	 * Get alert catcher for connector.
+	 * 
+	 * @return alert catcher
+	 * @since 3.0
+	 */
+	public ConnectorHelper.AlertCatcher getAlertCatcher() {
+		return alertCatcher;
+	}
 }

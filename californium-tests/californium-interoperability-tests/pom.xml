@@ -36,6 +36,13 @@
 				</dependency>
 				<dependency>
 					<groupId>${project.groupId}</groupId>
+					<artifactId>scandium</artifactId>
+					<classifier>tests</classifier>
+					<scope>test</scope>
+					<type>test-jar</type>
+				</dependency>
+				<dependency>
+					<groupId>${project.groupId}</groupId>
 					<artifactId>californium-core</artifactId>
 					<classifier>tests</classifier>
 					<scope>test</scope>
