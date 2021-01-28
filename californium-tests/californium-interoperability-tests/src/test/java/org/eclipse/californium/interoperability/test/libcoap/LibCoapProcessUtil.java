@@ -51,15 +51,15 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
  * configuration, build and installation
  * 
  * <pre>
- * ./configure --enable-dtls --with-openssl --disable-doxygen --disable-manpages
- * ./configure --enable-dtls --with-tinydtls --disable-doxygen --disable-manpages --program-suffix=-tinydtls
- * ./configure --enable-dtls --with-gnutls --disable-doxygen --disable-manpages --program-suffix=-gnutls
+ * ./configure --disable-shared --enable-dtls --with-openssl --disable-doxygen --disable-manpages
+ * ./configure --disable-shared --enable-dtls --with-tinydtls --disable-doxygen --disable-manpages --program-suffix=-tinydtls
+ * ./configure --disable-shared --enable-dtls --with-gnutls --disable-doxygen --disable-manpages --program-suffix=-gnutls
  * With libcoap 4.3.0:
- * ./configure --enable-dtls --with-mbedtls --disable-doxygen --disable-manpages --program-suffix=-mbedtls
+ * ./configure --disable-shared --enable-dtls --with-mbedtls --disable-doxygen --disable-manpages --program-suffix=-mbedtls
  * </pre>
  * 
  * After {@code sudo make install}, execution of {@code sudo ldconfig} may be
- * required on Ubuntu 18.04.
+ * required on Ubuntu 18.04. If {@code --disable-shared} is added, the binaries are statically linked.
  */
 public class LibCoapProcessUtil extends ProcessUtil {
 
