@@ -39,7 +39,7 @@ public final class ConnectionIdExtension extends HelloExtension {
 	/**
 	 * Connection id to negotiate.
 	 */
-	private ConnectionId id;
+	private final ConnectionId id;
 
 	/**
 	 * Create connection id extension.

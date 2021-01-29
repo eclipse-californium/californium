@@ -47,7 +47,7 @@ public final class RecordSizeLimitExtension extends HelloExtension {
 	/**
 	 * Record size limit to negotiate.
 	 */
-	private int recordSizeLimit;
+	private final int recordSizeLimit;
 
 	/**
 	 * Create record size limit extension.
