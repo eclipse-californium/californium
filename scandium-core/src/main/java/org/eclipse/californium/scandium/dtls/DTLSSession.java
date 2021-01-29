@@ -64,7 +64,6 @@ import org.eclipse.californium.scandium.auth.PrincipalSerializer;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
-import org.eclipse.californium.scandium.util.SecretIvParameterSpec;
 import org.eclipse.californium.scandium.util.SecretSerializationUtil;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerName;
@@ -402,11 +401,7 @@ public final class DTLSSession implements Destroyable {
 	 * <p>
 	 * The value returned is part of the <em>pending connection state</em> which
 	 * has been negotiated with the peer. This means that it is not in effect
-	 * until the <em>pending</em> state becomes the <em>current</em> state using
-	 * one of the
-	 * {@link #createReadState(SecretKey, SecretIvParameterSpec, SecretKey)} or
-	 * {@link #createWriteState(SecretKey, SecretIvParameterSpec, SecretKey)}
-	 * methods.
+	 * until the <em>pending</em> state becomes the <em>current</em> state.
 	 * 
 	 * @return the algorithm identifier
 	 */
@@ -421,10 +416,7 @@ public final class DTLSSession implements Destroyable {
 	 * <p>
 	 * The value set using this method becomes part of the <em>pending
 	 * connection state</em>. This means that it will not be in effect until the
-	 * <em>pending</em> state becomes the <em>current</em> state using one of
-	 * the {@link #createReadState(SecretKey, SecretIvParameterSpec, SecretKey)}
-	 * or {@link #createWriteState(SecretKey, SecretIvParameterSpec, SecretKey)}
-	 * methods.
+	 * <em>pending</em> state becomes the <em>current</em> state.
 	 * 
 	 * @param compressionMethod the algorithm identifier
 	 */
