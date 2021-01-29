@@ -93,7 +93,7 @@ public abstract class HandshakeMessage implements DTLSMessage {
 	private byte[] byteArray;
 
 	/**
-	 * Next handshake message received with the dtls record. {¢ode null}, if no
+	 * Next handshake message received with the dtls record. {@code null}, if no
 	 * additional handshake message is received.
 	 * 
 	 * @since 2.4
