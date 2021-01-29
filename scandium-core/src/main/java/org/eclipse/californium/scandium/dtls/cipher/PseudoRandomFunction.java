@@ -70,7 +70,7 @@ public final class PseudoRandomFunction {
 			return value;
 		}
 
-		public byte[] getBytes() {
+		private byte[] getBytes() {
 			return bytesValue;
 		}
 
