@@ -26,7 +26,7 @@ public enum ContentType {
 
 	CHANGE_CIPHER_SPEC(20), ALERT(21), HANDSHAKE(22), APPLICATION_DATA(23), TLS12_CID(25);
 
-	private int code;
+	private final int code;
 
 	public int getCode() {
 		return code;

@@ -215,9 +215,9 @@ public final class XECDHECryptography implements Destroyable {
 	private PrivateKey privateKey;
 
 	/** The ephemeral public key. */
-	private PublicKey publicKey;
+	private final PublicKey publicKey;
 
-	private byte[] encodedPoint;
+	private final byte[] encodedPoint;
 
 	// Constructors ///////////////////////////////////////////////////
 

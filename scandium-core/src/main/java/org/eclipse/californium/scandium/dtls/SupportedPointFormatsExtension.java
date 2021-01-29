@@ -58,7 +58,7 @@ public class SupportedPointFormatsExtension extends HelloExtension {
 	 * Items in here are ordered according to the client's preferences (favorite
 	 * choice first).
 	 */
-	List<ECPointFormat> ecPointFormatList;
+	private final List<ECPointFormat> ecPointFormatList;
 
 	// Constructors ///////////////////////////////////////////////////
 
@@ -133,9 +133,11 @@ public class SupportedPointFormatsExtension extends HelloExtension {
 	 * 5.1.2. Supported Point Formats Extension</a>.
 	 */
 	public enum ECPointFormat {
-		UNCOMPRESSED(0), ANSIX962_COMPRESSED_PRIME(1), ANSIX962_COMPRESSED_CHAR2(2);
+		UNCOMPRESSED(0),
+		ANSIX962_COMPRESSED_PRIME(1),
+		ANSIX962_COMPRESSED_CHAR2(2);
 
-		private int id;
+		private final int id;
 
 		private ECPointFormat(int id) {
 			this.id = id;

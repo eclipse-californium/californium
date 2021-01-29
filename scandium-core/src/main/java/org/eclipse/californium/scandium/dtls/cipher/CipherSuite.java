@@ -139,7 +139,7 @@ public enum CipherSuite {
 	private final MACAlgorithm macAlgorithm;
 	private final PRFAlgorithm pseudoRandomFunction;
 	private final int maxCipherTextExpansion;
-	private boolean recommendedCipherSuite;
+	private final boolean recommendedCipherSuite;
 
 	// Constructor ////////////////////////////////////////////////////
 

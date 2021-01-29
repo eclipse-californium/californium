@@ -98,10 +98,13 @@ public class MaxFragmentLengthExtension extends HelloExtension {
 	 * <em>Max Fragment Length</em> Hello extension.
 	 */
 	public enum Length {
-		BYTES_512(1, 512), BYTES_1024(2, 1024), BYTES_2048(3, 2048), BYTES_4096(4, 4096);
+		BYTES_512(1, 512),
+		BYTES_1024(2, 1024),
+		BYTES_2048(3, 2048),
+		BYTES_4096(4, 4096);
 
-		private int code;
-		private int length;
+		private final int code;
+		private final int length;
 		
 		private Length(int code, int length) {
 			this.code = code;
