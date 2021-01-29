@@ -28,12 +28,10 @@ import org.eclipse.californium.scandium.util.ServerNames;
  *
  */
 public final class ServerNameExtension extends HelloExtension {
+	
+	private static ServerNameExtension EMPTY_SERVER_NAMES = new ServerNameExtension(null);
 
-	private ServerNames serverNames;
-
-	private ServerNameExtension() {
-		super(ExtensionType.SERVER_NAME);
-	}
+	private final ServerNames serverNames;
 
 	/**
 	 * Creates a new instance for a server name list.
@@ -41,14 +39,10 @@ public final class ServerNameExtension extends HelloExtension {
 	 * This constructor should be used by a client who wants to include the <em>Server Name Indication</em>
 	 * extension in its <em>CLIENT_HELLO</em> handshake message.
 	 * 
-	 * @param serverNames The server names.
-	 * @throws NullPointerException if the server name list is {@code null}.
+	 * @param serverNames The server names. May be {@code null}.
 	 */
 	private ServerNameExtension(final ServerNames serverNames) {
-		this();
-		if (serverNames == null) {
-			throw new NullPointerException("server names must not be null");
-		}
+		super(ExtensionType.SERVER_NAME);
 		this.serverNames = serverNames;
 	}
 
@@ -58,10 +52,10 @@ public final class ServerNameExtension extends HelloExtension {
 	 * This method should be used by a server that wants to include an empty <em>Server Name Indication</em>
 	 * extension in its <em>SERVER_HELLO</em> handshake message.
 	 * 
-	 * @return The new instance.
+	 * @return The empty instance.
 	 */
 	public static ServerNameExtension emptyServerNameIndication() {
-		return new ServerNameExtension();
+		return EMPTY_SERVER_NAMES;
 	}
 
 	/**
@@ -75,6 +69,9 @@ public final class ServerNameExtension extends HelloExtension {
 	 * @throws NullPointerException if the server name list is {@code null}.
 	 */
 	public static ServerNameExtension forServerNames(final ServerNames serverNames) {
+		if (serverNames == null) {
+			throw new NullPointerException("server names must not be null");
+		}
 		return new ServerNameExtension(serverNames);
 	}
 
@@ -97,9 +94,9 @@ public final class ServerNameExtension extends HelloExtension {
 	 * @throws HandshakeException if the byte representation could not be parsed.
 	 */
 	public static ServerNameExtension fromExtensionDataReader(DatagramReader extensionDataReader) throws HandshakeException {
-		if (extensionDataReader == null || !extensionDataReader.bytesAvailable()) {
+		if (!extensionDataReader.bytesAvailable()) {
 			// this is an "empty" Server Name Indication received in a SERVER_HELLO
-			return ServerNameExtension.emptyServerNameIndication();
+			return emptyServerNameIndication();
 		} else {
 			ServerNames serverNames = ServerNames.newInstance();
 			try {
@@ -119,7 +116,7 @@ public final class ServerNameExtension extends HelloExtension {
 	/**
 	 * Gets the server name list conveyed in this extension.
 	 * 
-	 * @return The server names.
+	 * @return The server names. May be {@code null}.
 	 */
 	public ServerNames getServerNames() {
 		return serverNames;
