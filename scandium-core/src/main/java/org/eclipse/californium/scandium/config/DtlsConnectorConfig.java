@@ -54,7 +54,6 @@ import org.eclipse.californium.scandium.ConnectionListener;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.DtlsHealth;
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
-import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.CertificateMessage;
 import org.eclipse.californium.scandium.dtls.CertificateRequest;
 import org.eclipse.californium.scandium.dtls.CertificateType;
@@ -363,8 +362,7 @@ public final class DtlsConnectorConfig {
 	private Boolean sniEnabled;
 
 	/**
-	 * Indicates, that "extend master secret" is used in the CLIENT_HELLO of the
-	 * client side.
+	 * Defines the usage of the "extend master secret" extension.
 	 * 
 	 * See <a href="https://tools.ietf.org/html/rfc7627">RFC 7627</a>
 	 * 
@@ -694,30 +692,22 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Checks whether the connector should support the use of the TLS
-	 * <a href="https://tools.ietf.org/html/rfc7627">RFC 7627</a> Extended
-	 * Master Secret extension</a> in the DTLS handshake.
+	 * Gets the <em>Extended Master Secret</em> TLS extension mode.
+	 * 
 	 * <p>
-	 * If enabled, the client side sends a extend master secret extension, and
-	 * the server side response with a extend master secret extension. Also,
-	 * session resumption will only be possible, if the extend master secret is
-	 * used on both sides. The attempt to resume a session without a extend
-	 * master secret is aborted and reported with
-	 * {@link AlertDescription#HANDSHAKE_FAILURE}.
+	 * See <a href="https://tools.ietf.org/html/rfc7627">RFC 7627, Extended
+	 * Master Secret extension</a> and {@link ExtendedMasterSecretMode} for
+	 * details.
 	 * </p>
 	 * <p>
 	 * The default value of this property is {@code null}. If this property is
 	 * not set explicitly using
-	 * {@link Builder#setExtendedMasterSecretEnabled(boolean)}, then the
-	 * {@link Builder#build()} method will set it to {@code true}.
+	 * {@link Builder#setExtendedMasterSecretMode(ExtendedMasterSecretMode)},
+	 * then the {@link Builder#build()} method will set it to
+	 * {@link ExtendedMasterSecretMode#ENABLED}.
 	 * </p>
-	 * If enabled, the client side must sends a extend master secret extension,
-	 * and the server side must response with a extend master secret extension.
-	 * If one side doesn't agree on using the extend master secret, the
-	 * handshake is aborted and reported with
-	 * {@link AlertDescription#HANDSHAKE_FAILURE}.
 	 * 
-	 * @return {@code true}, if extended master secret is enabled.
+	 * @return the extended master secret mode.
 	 * @since 3.0
 	 */
 	public ExtendedMasterSecretMode getExtendedMasterSecretMode() {
@@ -2695,29 +2685,23 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Sets whether the connector should support the use of the TLS
-		 * <a href="https://tools.ietf.org/html/rfc7627">RFC 7627</a> Extended
-		 * Master Secret extension</a> in the DTLS handshake.
+		 * Sets the <em>Extended Master Secret</em> TLS extension mode.
+		 * 
 		 * <p>
-		 * If enabled, the client side sends a extend master secret extension,
-		 * and the server side response with a extend master secret extension.
-		 * Also, session resumption will only be possible, if the extend master
-		 * secret is used on both sides. The attempt to resume a session without
-		 * a extend master secret is aborted and reported with
-		 * {@link AlertDescription#HANDSHAKE_FAILURE}.
+		 * See <a href="https://tools.ietf.org/html/rfc7627">RFC 7627, Extended
+		 * Master Secret extension</a> and {@link ExtendedMasterSecretMode} for
+		 * details.
 		 * </p>
 		 * <p>
 		 * The default value of this property is {@code null}. If this property
-		 * is not set explicitly, then the {@link Builder#build()} method will
-		 * set it to {@code true}.
+		 * is not set explicitly using
+		 * {@link Builder#setExtendedMasterSecretMode(ExtendedMasterSecretMode)},
+		 * then the {@link Builder#build()} method will set it to
+		 * {@link ExtendedMasterSecretMode#ENABLED}.
 		 * </p>
 		 * 
-		 * @param flag {@code true} if the extended master secret should be
-		 *            used.
+		 * @param mode the extended master secret mode
 		 * @return this builder for command chaining.
-		 * @throws IllegalArgumentException if flag is {@code false}, but
-		 *             {@link #setExtendedMasterSecretRequired(boolean)} was set
-		 *             to {@code true} before.
 		 * @since 3.0
 		 */
 		public Builder setExtendedMasterSecretMode(ExtendedMasterSecretMode mode) {

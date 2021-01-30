@@ -39,6 +39,8 @@ If in later messages unsupported parameters are used, a `ILLEGAL_PARAMETER` is s
 For unexpected certificate types a `UNSUPPORTED_CERTIFICATE` is sent.
 If certificate verification fails, a `DECRYPT_ERROR` is sent.
 
+[RFC 7627, Extended Master Secret](https://tools.ietf.org/html/rfc7627) TLS extension is introduced and enabled by default. If this extension is not used, the session is not resumable (until the configuration is adapted to none or optional).
+
 The encoding of the `SessionTicket` has changed.
 
 ### Californium-Core:

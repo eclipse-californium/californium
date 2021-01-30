@@ -91,6 +91,7 @@ import org.eclipse.californium.scandium.util.SecretUtil;
 @NoPublicAPI
 public class ServerHandshaker extends Handshaker {
 
+
 	private static HandshakeState[] CLIENT_CERTIFICATE = { new HandshakeState(HandshakeType.CERTIFICATE),
 			new HandshakeState(HandshakeType.CLIENT_KEY_EXCHANGE),
 			new HandshakeState(HandshakeType.CERTIFICATE_VERIFY),
@@ -136,7 +137,7 @@ public class ServerHandshaker extends Handshaker {
 	 * 
 	 * @since 2.3
 	 */
-	protected final List<SupportedGroup> supportedGroups;
+	private final List<SupportedGroup> supportedGroups;
 
 	/**
 	 * The certificate types this server supports for client authentication.
@@ -501,6 +502,10 @@ public class ServerHandshaker extends Handshaker {
 		serverRandom = new Random();
 
 		DTLSSession session = getSession();
+		boolean useNoSessionId = this.useNoSessionId;
+		if (extendedMasterSecretMode.is(ExtendedMasterSecretMode.ENABLED) && !clientHello.hasExtendedMasterSecret()) {
+			useNoSessionId = true;
+		}
 		SessionId sessionId = useNoSessionId ? SessionId.emptySessionId() : new SessionId();
 		session.setSessionIdentifier(sessionId);
 
@@ -718,7 +723,7 @@ public class ServerHandshaker extends Handshaker {
 			}
 		}
 
-		if (clientHello.getExtendedMasterSecret() != null) {
+		if (clientHello.hasExtendedMasterSecret()) {
 			if (extendedMasterSecretMode != ExtendedMasterSecretMode.NONE) {
 				session.setExtendedMasterSecret(true);
 				serverHelloExtensions.addExtension(ExtendedMasterSecretExtension.INSTANCE);
@@ -984,18 +989,8 @@ public class ServerHandshaker extends Handshaker {
 		return common;
 	}
 
-	final CertificateType getNegotiatedClientCertificateType() {
-		return selectedCipherSuiteParameters == null ? null
-				: selectedCipherSuiteParameters.getSelectedClientCertificateType();
-	}
-
-	final CertificateType getNegotiatedServerCertificateType() {
-		return selectedCipherSuiteParameters == null ? null
-				: selectedCipherSuiteParameters.getSelectedServerCertificateType();
-	}
-
-	final SupportedGroup getNegotiatedSupportedGroup() {
-		return selectedCipherSuiteParameters == null ? null : selectedCipherSuiteParameters.getSelectedSupportedGroup();
+	final CipherSuiteParameters getNegotiatedCipherSuiteParameters() {
+		return selectedCipherSuiteParameters;
 	}
 
 	@Override

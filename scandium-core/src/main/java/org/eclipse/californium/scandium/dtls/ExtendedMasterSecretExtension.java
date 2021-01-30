@@ -21,8 +21,8 @@ import org.eclipse.californium.elements.util.DatagramWriter;
 /**
  * Extended master secret extension.
  * <p>
- * See <a href="https://tools.ietf.org/html/rfc7627">RFC 7627</a> for additional
- * details.
+ * See <a href="https://tools.ietf.org/html/rfc7627">RFC 7627</a> and
+ * {@link ExtendedMasterSecretMode}for additional details.
  * 
  * @since 3.0
  */

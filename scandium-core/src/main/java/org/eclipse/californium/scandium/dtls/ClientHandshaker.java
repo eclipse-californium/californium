@@ -384,7 +384,7 @@ public class ClientHandshaker extends Handshaker {
 				context.setReadConnectionId(getReadConnectionId());
 			}
 		}
-		if (message.getExtendedMasterSecret() != null) {
+		if (message.hasExtendedMasterSecret()) {
 			session.setExtendedMasterSecret(true);
 		} else if (extendedMasterSecretMode == ExtendedMasterSecretMode.REQUIRED) {
 			throw new HandshakeException("Extended Master Secret required!",

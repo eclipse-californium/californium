@@ -70,7 +70,6 @@ import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawData
 import org.eclipse.californium.scandium.auth.ApplicationLevelInfoSupplier;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
-import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ClientSessionCache;
 import org.eclipse.californium.scandium.dtls.Connection;
@@ -81,8 +80,6 @@ import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.SessionTicket;
-import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
-import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.AsyncAdvancedPskStore;
@@ -1012,6 +1009,7 @@ public class DTLSConnectorResumeTest {
 		client.forceResumeSessionFor(serverHelper.serverEndpoint);
 		Connection connection = clientConnectionStore.get(serverHelper.serverEndpoint);
 		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(sessionId));
+		long time = connection.getEstablishedSession().getCreationTime();
 		client.start();
 
 		// Prepare message sending
@@ -1021,12 +1019,13 @@ public class DTLSConnectorResumeTest {
 		// send message
 		RawData data = RawData.outbound(msg.getBytes(), new AddressEndpointContext(serverHelper.serverEndpoint, SERVERNAME, null), null, false);
 		client.send(data);
+		assertTrue(clientRawDataChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
-		AlertMessage alert = serverHelper.serverAlertCatcher.waitForAlert(4000, TimeUnit.MILLISECONDS);
-		assertThat("server side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER)));
+		// check session id was not equals
+		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
+		assertTrue(connection.getEstablishedSession().getSessionIdentifier().isEmpty());
+		assertThat(time, is(not(connection.getEstablishedSession().getCreationTime())));
 
-		alert = clientAlertCatcher.waitForAlert(4000, TimeUnit.MILLISECONDS);
-		assertThat("client side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER)));
 	}
 
 	@Test

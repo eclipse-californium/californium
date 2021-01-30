@@ -26,8 +26,8 @@
 package org.eclipse.californium.scandium.dtls;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -249,7 +249,7 @@ public class ServerHandshakerTest {
 		// THEN the server selects the PSK based cipher because it does not consider the public
 		// key based cipher a valid option due to the client's lacking support for RPKs
 		assertThat(session.getCipherSuite(), is(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
-		assertThat(handshaker.getNegotiatedServerCertificateType(), is(nullValue()));
+		assertThat(handshaker.getNegotiatedCipherSuiteParameters().getSelectedServerCertificateType(), is(nullValue()));
 	}
 
 	@Test
@@ -264,7 +264,7 @@ public class ServerHandshakerTest {
 			fail("Should have thrown " + HandshakeException.class.getSimpleName());
 		} catch (HandshakeException e) {
 			assertThat(session.getCipherSuite(), is(CipherSuite.TLS_NULL_WITH_NULL_NULL));
-			assertThat(handshaker.getNegotiatedClientCertificateType(), is(nullValue()));
+			assertThat(handshaker.getNegotiatedCipherSuiteParameters(), is(nullValue()));
 		}
 	}
 
@@ -281,7 +281,7 @@ public class ServerHandshakerTest {
 		} catch(HandshakeException e) {
 			// check if handshake has been aborted due to unsupported certificate
 			assertThat(session.getCipherSuite(), is(CipherSuite.TLS_NULL_WITH_NULL_NULL));
-			assertThat(handshaker.getNegotiatedClientCertificateType(), is(nullValue()));
+			assertThat(handshaker.getNegotiatedCipherSuiteParameters(), is(nullValue()));
 		}
 	}
 
@@ -297,8 +297,8 @@ public class ServerHandshakerTest {
 
 		processClientHello(0, extensions);
 		assertThat(session.getCipherSuite(), is(SERVER_CIPHER_SUITE));
-		assertThat(handshaker.getNegotiatedClientCertificateType(), is(CertificateType.X_509));
-		assertThat(handshaker.getNegotiatedServerCertificateType(), is(CertificateType.X_509));
+		assertThat(handshaker.getNegotiatedCipherSuiteParameters().getSelectedClientCertificateType(), is(CertificateType.X_509));
+		assertThat(handshaker.getNegotiatedCipherSuiteParameters().getSelectedServerCertificateType(), is(CertificateType.X_509));
 	}
 
 	@Test
@@ -313,7 +313,7 @@ public class ServerHandshakerTest {
 		} catch(HandshakeException e) {
 			// check if handshake has been aborted due to unsupported certificate
 			assertThat(session.getCipherSuite(), is(CipherSuite.TLS_NULL_WITH_NULL_NULL));
-			assertThat(handshaker.getNegotiatedServerCertificateType(), is(nullValue()));
+			assertThat(handshaker.getNegotiatedCipherSuiteParameters(), is(nullValue()));
 		}
 	}
 
@@ -328,7 +328,7 @@ public class ServerHandshakerTest {
 			fail("Should have thrown " + HandshakeException.class.getSimpleName());
 		} catch(HandshakeException e) {
 			assertThat(session.getCipherSuite(), is(CipherSuite.TLS_NULL_WITH_NULL_NULL));
-			assertThat(handshaker.getNegotiatedSupportedGroup(), nullValue());
+			assertThat(handshaker.getNegotiatedCipherSuiteParameters(), is(nullValue()));
 		}
 	}
 
@@ -341,7 +341,7 @@ public class ServerHandshakerTest {
 		extensions.add(DtlsTestTools.newSupportedEllipticCurvesExtension(0x0000, supportedGroup.getId()));
 		processClientHello(0, extensions);
 		assertThat(session.getCipherSuite(), is(SERVER_CIPHER_SUITE));
-		assertThat(handshaker.getNegotiatedSupportedGroup(), is(supportedGroup));
+		assertThat(handshaker.getNegotiatedCipherSuiteParameters().getSelectedSupportedGroup(), is(supportedGroup));
 	}
 
 	/**
@@ -356,7 +356,7 @@ public class ServerHandshakerTest {
 		// omit supported elliptic curves extension
 		processClientHello(0, null);
 		assertThat(session.getCipherSuite(), is(SERVER_CIPHER_SUITE));
-		assertThat(handshaker.getNegotiatedSupportedGroup(), notNullValue());
+		assertThat(handshaker.getNegotiatedCipherSuiteParameters().getSelectedSupportedGroup(), is(notNullValue()));
 	}
 
 	@Test
@@ -518,4 +518,5 @@ public class ServerHandshakerTest {
 			return SupportedGroup.secp256r1;
 		}
 	}
+
 }
