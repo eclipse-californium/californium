@@ -139,8 +139,8 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 					new AlertMessage(
 							AlertLevel.FATAL,
 							AlertDescription.ILLEGAL_PARAMETER));
-		} else if (extendedMasterSecretMode.ordinal() >= ExtendedMasterSecretMode.ENABLED.ordinal()
-				&& clientHello.getExtendedMasterSecret() == null) {
+		} else if (extendedMasterSecretMode.is(ExtendedMasterSecretMode.ENABLED)
+				&& !clientHello.hasExtendedMasterSecret()) {
 			// https://tools.ietf.org/html/rfc7627#section-5.3
 			//
 			// If the original session used the
@@ -161,7 +161,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 							AlertLevel.FATAL,
 							AlertDescription.ILLEGAL_PARAMETER));
 		} else if (extendedMasterSecretMode == ExtendedMasterSecretMode.OPTIONAL
-				&& session.useExtendedMasterSecret() && clientHello.getExtendedMasterSecret() == null) {
+				&& session.useExtendedMasterSecret() && !clientHello.hasExtendedMasterSecret()) {
 			// https://tools.ietf.org/html/rfc7627#section-5.3
 			//
 			// If the original session used the

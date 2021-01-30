@@ -100,12 +100,9 @@ public abstract class HelloExtension {
 	/**
 	 * Adds binary encoding of this extension's data.
 	 * <p>
-	 * This implementation does not do anything. Sub-classes should
-	 * override this method and use the passed-in writer to add their
-	 * <em>extension_data</em> bytes to the <em>Extension</em> data structure.
-	 * <p>
-	 * <em>NB</em>: Subclasses MUST NOT write the extension's type code to the writer
+	 * <em>Note</em>: Subclasses MUST NOT write the extension's type code to the writer
 	 * as this will already have been done by the {@link #toByteArray()} method.
+	 * </p>
 	 * 
 	 * @param writer the writer to use for serialization
 	 */

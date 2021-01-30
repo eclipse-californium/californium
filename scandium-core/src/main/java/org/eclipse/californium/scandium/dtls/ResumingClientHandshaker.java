@@ -188,7 +188,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 					new AlertMessage(
 							AlertLevel.FATAL,
 							AlertDescription.ILLEGAL_PARAMETER));
-		} else if (session.useExtendedMasterSecret() && message.getExtendedMasterSecret() == null) {
+		} else if (session.useExtendedMasterSecret() && !message.hasExtendedMasterSecret()) {
 			throw new HandshakeException(
 					"Server wants to change extended master secret in resumed session",
 					new AlertMessage(
@@ -252,8 +252,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		setCurrentWriteState();
 
 		mdWithServerFinish.update(message.getRawMessage());
-		handshakeHash = mdWithServerFinish.digest();
-		Finished finished = new Finished(mac, masterSecret, true, handshakeHash);
+		Finished finished = new Finished(mac, masterSecret, true, mdWithServerFinish.digest());
 		wrapMessage(flight, finished);
 		sendLastFlight(flight);
 		contextEstablished();

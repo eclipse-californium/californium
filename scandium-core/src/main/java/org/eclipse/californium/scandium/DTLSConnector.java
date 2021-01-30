@@ -2183,7 +2183,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 			}
 			if (ok && config.getExtendedMasterSecretMode() != ExtendedMasterSecretMode.NONE) {
 				// https://tools.ietf.org/html/rfc7627#section-5.3
-				if (!session.useExtendedMasterSecret() && clientHello.getExtendedMasterSecret() != null) {
+				if (!session.useExtendedMasterSecret() && clientHello.hasExtendedMasterSecret()) {
 					// If the original session did not use the
 					// "extended_master_secret" extension but the new
 					// ClientHello contains the extension, then the
@@ -2685,8 +2685,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 						destroy = true;
 					}
 					full = resume.getSessionIdentifier().isEmpty();
-					if (!full && config.getExtendedMasterSecretMode().ordinal()
-							>= ExtendedMasterSecretMode.ENABLED.ordinal()) {
+					if (!full && config.getExtendedMasterSecretMode().is(ExtendedMasterSecretMode.ENABLED)) {
 						// https://tools.ietf.org/html/rfc7627#section-5.3
 						// The client SHOULD NOT offer an abbreviated handshake
 						// to resume a session that does not use an extended

@@ -106,8 +106,8 @@ public final class ServerHello extends HandshakeMessage {
 	 * @param compressionMethod
 	 *            the negotiated compression method.
 	 * @param extensions
-	 *            a list of extensions supported by the client (may be <code>null</code>).
-	 * @throws NullPointerException if any of the mandatory parameters is <code>null</code>
+	 *            a list of extensions supported by the client.
+	 * @throws NullPointerException if any of the parameters is {@code null}
 	 */
 	public ServerHello(ProtocolVersion version, Random random, SessionId sessionId,
 			CipherSuite cipherSuite, CompressionMethod compressionMethod, HelloExtensions extensions) {
@@ -125,6 +125,9 @@ public final class ServerHello extends HandshakeMessage {
 		}
 		if (compressionMethod == null) {
 			throw new NullPointerException("Negotiated compression method must not be null");
+		}
+		if (extensions == null) {
+			throw new NullPointerException("Negotiated extensions must not be null");
 		}
 		this.serverVersion = version;
 		this.random = random;
@@ -150,9 +153,7 @@ public final class ServerHello extends HandshakeMessage {
 		writer.write(cipherSuite.getCode(), CIPHER_SUITE_BITS);
 		writer.write(compressionMethod.getCode(), COMPRESSION_METHOD_BITS);
 
-		if (extensions != null) {
-			writer.writeBytes(extensions.toByteArray());
-		}
+		writer.writeBytes(extensions.toByteArray());
 
 		return writer.toByteArray();
 	}
@@ -189,10 +190,7 @@ public final class ServerHello extends HandshakeMessage {
 		}
 		CompressionMethod compressionMethod = CompressionMethod.getMethodByCode(reader.read(COMPRESSION_METHOD_BITS));
 
-		HelloExtensions extensions = null;
-		if (reader.bytesAvailable()) {
-			extensions = HelloExtensions.fromReader(reader);
-		}
+		HelloExtensions extensions = HelloExtensions.fromReader(reader);
 
 		return new ServerHello(version, random, sessionId, cipherSuite, compressionMethod, extensions);
 	}
@@ -212,8 +210,7 @@ public final class ServerHello extends HandshakeMessage {
 		 * then the length of the extensions. See
 		 * http://tools.ietf.org/html/rfc5246#section-7.4.1.2
 		 */
-		int extensionsLength = (extensions == null || extensions.isEmpty()) ?
-				0 : (2 + extensions.getLength());
+		int extensionsLength = extensions.isEmpty() ? 0 : (2 + extensions.getLength());
 
 		/*
 		 * fixed sizes: version (2) + random (32) + session ID length (1) +
@@ -304,15 +301,12 @@ public final class ServerHello extends HandshakeMessage {
 	 * @param type extension type. Either {@link ExtensionType#SERVER_CERT_TYPE} or {@link ExtensionType#CLIENT_CERT_TYPE}
 	 * @return the certificate type
 	 */
-	CertificateType getCertificateType(ExtensionType type) {
+	private CertificateType getCertificateType(ExtensionType type) {
 		// default type is always X.509
 		CertificateType result = CertificateType.X_509;
-		if (extensions != null) {
-			CertificateTypeExtension certificateExtension = (CertificateTypeExtension)
-					extensions.getExtension(type);
-			if (certificateExtension != null && !certificateExtension.getCertificateTypes().isEmpty()) {
-				result = certificateExtension.getCertificateTypes().get(0);
-			}
+		CertificateTypeExtension certificateExtension = extensions.getExtension(type);
+		if (certificateExtension != null && !certificateExtension.getCertificateTypes().isEmpty()) {
+			result = certificateExtension.getCertificateTypes().get(0);
 		}
 		return result;
 	}
@@ -320,15 +314,11 @@ public final class ServerHello extends HandshakeMessage {
 	/**
 	 * Gets the <em>MaxFragmentLength</em> extension data from this message.
 	 * 
-	 * @return the extension data or <code>null</code> if this message does not contain the
+	 * @return the extension data or {@code null}, if this message does not contain the
 	 *          <em>MaxFragmentLength</em> extension.
 	 */
 	MaxFragmentLengthExtension getMaxFragmentLength() {
-		if (extensions != null) {
-			return (MaxFragmentLengthExtension) extensions.getExtension(ExtensionType.MAX_FRAGMENT_LENGTH);
-		} else {
-			return null;
-		}
+		return extensions.getExtension(ExtensionType.MAX_FRAGMENT_LENGTH);
 	}
 
 	/**
@@ -339,54 +329,39 @@ public final class ServerHello extends HandshakeMessage {
 	 * @since 2.4
 	 */
 	RecordSizeLimitExtension getRecordSizeLimit() {
-		if (extensions != null) {
-			return (RecordSizeLimitExtension) extensions.getExtension(ExtensionType.RECORD_SIZE_LIMIT);
-		} else {
-			return null;
-		}
+		return extensions.getExtension(ExtensionType.RECORD_SIZE_LIMIT);
 	}
 
 	/**
-	 * Gets the <em>ExtendedMasterSecret</em> extension data from this message.
+	 * Checks whether <em>ExtendedMasterSecret</em> extension is present in this
+	 * message.
 	 * 
-	 * @return the extension data or {@code null}, if this message does not contain the
-	 *          <em>ExtendedMasterSecret</em> extension.
-	 * @since 2.6
+	 * @return {@code true}, if the <em>ExtendedMasterSecret</em> extension is
+	 *         present, {@code false}, otherwise
+	 * @since 3.0
 	 */
-	ExtendedMasterSecretExtension getExtendedMasterSecret() {
-		if (extensions != null) {
-			return (ExtendedMasterSecretExtension) extensions.getExtension(ExtensionType.EXTENDED_MASTER_SECRET);
-		} else {
-			return null;
-		}
+	boolean hasExtendedMasterSecret() {
+		return extensions.getExtension(ExtensionType.EXTENDED_MASTER_SECRET) != null;
 	}
 
 	/**
 	 * Gets the <em>Point Formats</em> extension data from this message.
 	 * 
-	 * @return the extension data or <code>null</code> if this message does not contain the
+	 * @return the extension data or {@code null},  if this message does not contain the
 	 *          <em>SupportedPointFormats</em> extension.
 	 */
 	SupportedPointFormatsExtension getSupportedPointFormatsExtension() {
-		if (extensions != null) {
-			return (SupportedPointFormatsExtension) extensions.getExtension(ExtensionType.EC_POINT_FORMATS);
-		} else {
-			return null;
-		}
+		return extensions.getExtension(ExtensionType.EC_POINT_FORMATS);
 	}
 
 	/**
 	 * Gets the <em>connection id</em> extension data from this message.
 	 * 
-	 * @return the extension data or <code>null</code> if this message does not contain the
+	 * @return the extension data or {@code null},  if this message does not contain the
 	 *          <em>connection id</em> extension.
 	 */
 	public ConnectionIdExtension getConnectionIdExtension() {
-		if (extensions != null) {
-			return (ConnectionIdExtension) extensions.getExtension(ExtensionType.CONNECTION_ID);
-		} else {
-			return null;
-		}
+		return extensions.getExtension(ExtensionType.CONNECTION_ID);
 	}
 
 	/**
@@ -398,7 +373,7 @@ public final class ServerHello extends HandshakeMessage {
 	 * @return {@code true} if the extension is present.
 	 */
 	boolean hasServerNameExtension() {
-		return extensions != null && extensions.getExtension(ExtensionType.SERVER_NAME) != null;
+		return extensions.getExtension(ExtensionType.SERVER_NAME) != null;
 	}
 
 	@Override
@@ -414,9 +389,7 @@ public final class ServerHello extends HandshakeMessage {
 		sb.append(StringUtil.lineSeparator()).append("\t\tCipher Suite: ").append(cipherSuite);
 		sb.append(StringUtil.lineSeparator()).append("\t\tCompression Method: ").append(compressionMethod);
 
-		if (extensions != null) {
-			sb.append(StringUtil.lineSeparator()).append(extensions);
-		}
+		sb.append(StringUtil.lineSeparator()).append(extensions);
 
 		return sb.toString();
 	}

@@ -41,6 +41,7 @@ public interface ConnectionListener {
 	 * Callback, when a executor begin processing a connection.
 	 * 
 	 * @param connection connection
+	 * @since 3.0
 	 */
 	void beforeExecution(Connection connection);
 
@@ -48,6 +49,7 @@ public interface ConnectionListener {
 	 * Callback, when a connection changed its state.
 	 * 
 	 * @param connection connection
+	 * @since 3.0
 	 */
 	void updateExecution(Connection connection);
 
@@ -55,7 +57,8 @@ public interface ConnectionListener {
 	 * Callback, after a executor processed a connection.
 	 * 
 	 * @param connection connection
+	 * @since 3.0
 	 */
 	void afterExecution(Connection connection);
-	
+
 }

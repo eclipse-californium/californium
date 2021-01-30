@@ -1006,7 +1006,7 @@ public class DTLSConnectorHandshakeTest {
 		Throwable cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
 		assertThat("server side handshake failure missing", cause, is(notNullValue()));
 
-		AlertMessage alert = serverHelper.serverAlertCatcher.getAlert();
+		AlertMessage alert = serverHelper.serverAlertCatcher.waitForAlert(2000, TimeUnit.MILLISECONDS);
 		assertThat("server side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE)));
 
 		listener = serverHelper.sessionListenerMap.get(serverHelper.serverEndpoint);
@@ -1014,7 +1014,7 @@ public class DTLSConnectorHandshakeTest {
 		cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
 		assertThat("client side handshake failure missing", cause, is(notNullValue()));
 
-		alert = clientAlertCatcher.getAlert();
+		alert = clientAlertCatcher.waitForAlert(2000, TimeUnit.MILLISECONDS);
 		assertThat("client side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE)));
 	}
 
@@ -1034,7 +1034,7 @@ public class DTLSConnectorHandshakeTest {
 		Throwable cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
 		assertThat("server side handshake failure missing", cause, is(notNullValue()));
 
-		AlertMessage alert = serverHelper.serverAlertCatcher.getAlert();
+		AlertMessage alert = serverHelper.serverAlertCatcher.waitForAlert(2000, TimeUnit.MILLISECONDS);
 		assertThat("server side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE)));
 
 		listener = serverHelper.sessionListenerMap.get(serverHelper.serverEndpoint);
@@ -1042,7 +1042,7 @@ public class DTLSConnectorHandshakeTest {
 		cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
 		assertThat("client side handshake failure missing", cause, is(notNullValue()));
 
-		alert = clientAlertCatcher.getAlert();
+		alert = clientAlertCatcher.waitForAlert(2000, TimeUnit.MILLISECONDS);
 		assertThat("client side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE)));
 	}
 
@@ -1374,7 +1374,7 @@ public class DTLSConnectorHandshakeTest {
 		Throwable cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
 		assertThat("server side handshake failure missing", cause, is(notNullValue()));
 
-		AlertMessage alert = serverHelper.serverAlertCatcher.getAlert();
+		AlertMessage alert = serverHelper.serverAlertCatcher.waitForAlert(2000, TimeUnit.MILLISECONDS);
 		assertThat("server side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.DECRYPT_ERROR)));
 
 		listener = serverHelper.sessionListenerMap.get(serverHelper.serverEndpoint);
@@ -1383,7 +1383,7 @@ public class DTLSConnectorHandshakeTest {
 		assertThat("client side handshake failure missing", cause, is(notNullValue()));
 		assertThat(cause.getMessage(), containsString("fatal alert"));
 
-		alert = clientAlertCatcher.getAlert();
+		alert = clientAlertCatcher.waitForAlert(2000, TimeUnit.MILLISECONDS);
 		assertThat("client side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.DECRYPT_ERROR)));
 	}
 
@@ -1405,7 +1405,7 @@ public class DTLSConnectorHandshakeTest {
 		Throwable cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
 		assertThat("server side handshake failure missing", cause, is(notNullValue()));
 
-		AlertMessage alert = serverHelper.serverAlertCatcher.getAlert();
+		AlertMessage alert = serverHelper.serverAlertCatcher.waitForAlert(2000, TimeUnit.MILLISECONDS);
 		assertThat("server side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE)));
 
 		listener = serverHelper.sessionListenerMap.get(serverHelper.serverEndpoint);
@@ -1413,7 +1413,7 @@ public class DTLSConnectorHandshakeTest {
 		cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
 		assertThat("client side handshake failure missing", cause, is(notNullValue()));
 
-		alert = clientAlertCatcher.getAlert();
+		alert = clientAlertCatcher.waitForAlert(2000, TimeUnit.MILLISECONDS);
 		assertThat("client side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE)));
 	}
 
@@ -1436,7 +1436,7 @@ public class DTLSConnectorHandshakeTest {
 		Throwable cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
 		assertThat("server side handshake failure missing", cause, is(notNullValue()));
 
-		AlertMessage alert = serverHelper.serverAlertCatcher.getAlert();
+		AlertMessage alert = serverHelper.serverAlertCatcher.waitForAlert(2000, TimeUnit.MILLISECONDS);
 		assertThat("server side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE)));
 
 		listener = serverHelper.sessionListenerMap.get(serverHelper.serverEndpoint);
@@ -1444,7 +1444,7 @@ public class DTLSConnectorHandshakeTest {
 		cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
 		assertThat("client side handshake failure missing", cause, is(notNullValue()));
 
-		alert = clientAlertCatcher.getAlert();
+		alert = clientAlertCatcher.waitForAlert(2000, TimeUnit.MILLISECONDS);
 		assertThat("client side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE)));
 	}
 
