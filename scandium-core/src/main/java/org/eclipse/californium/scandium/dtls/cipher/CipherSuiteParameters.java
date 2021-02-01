@@ -20,6 +20,7 @@ import java.security.PublicKey;
 import java.security.cert.X509Certificate;
 import java.util.List;
 
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
@@ -31,6 +32,99 @@ import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.Supported
  * @since 2.3
  */
 public class CipherSuiteParameters {
+
+	/**
+	 * General negotiation mismatch.
+	 * 
+	 * @since 3.0
+	 */
+	public static enum GeneralMismatch {
+
+		/**
+		 * Peers have no common cipher suite.
+		 */
+		CIPHER_SUITE("Peers have no common cipher suite."),
+		/**
+		 * Peers have no common ec-point format.
+		 */
+		EC_FORMAT("Peers have no common ec-point format."),
+		/**
+		 * Peers have no common ec-point format.
+		 */
+		EC_GROUPS("Peers have no common ec-groups.");
+
+		private final String message;
+
+		private GeneralMismatch(String message) {
+			this.message = message;
+		}
+
+		public String getMessage() {
+			return message;
+		}
+	}
+
+	/**
+	 * Certificate based negotiation mismatch.
+	 * 
+	 * @since 3.0
+	 */
+	public static enum CertificateBasedMismatch {
+
+		/**
+		 * Peers have no common server certificate type.
+		 */
+		SERVER_CERT_TYPE("Peers have no common server certificate type."),
+		/**
+		 * Peers have no common client certificate type.
+		 */
+		CLIENT_CERT_TYPE("Peers have no common client certificate type."),
+		/**
+		 * Peers have no common signature and hash algorithm.
+		 */
+		SIGNATURE_ALGORITHMS("Peers have no common signature and hash algorithm."),
+		/**
+		 * The peer's node certificate uses no common ec-group.
+		 */
+		CERTIFICATE_EC_GROUPS("The peer's node certificate uses no common ec-group."),
+		/**
+		 * The peer's node certificate uses no common signature and hash
+		 * algorithm.
+		 */
+		CERTIFICATE_SIGNATURE_ALGORITHMS("The peer's node certificate uses no common signature and hash algorithm."),
+		/**
+		 * The peer's certificate-chain uses no common signature and hash
+		 * algorithm.
+		 */
+		CERTIFICATE_PATH_SIGNATURE_ALGORITHMS(
+				"The peer's certificate-chain uses no common signature and hash algorithm.");
+
+		private final String message;
+
+		private CertificateBasedMismatch(String message) {
+			this.message = message;
+		}
+
+		public String getMessage() {
+			return message;
+		}
+	}
+
+	/**
+	 * General mismatch.
+	 * 
+	 * {@link Mismatch#CIPHER_SUITE}, {@link Mismatch#EC_GROUPS}, or
+	 * {@link Mismatch#EC_FORMAT}.
+	 * 
+	 * @since 3.0
+	 */
+	private GeneralMismatch generalMismatch;
+	/**
+	 * Certificate based mismatch.
+	 * 
+	 * @since 3.0
+	 */
+	private CertificateBasedMismatch certificateMismatch;
 
 	private PublicKey publicKey;
 	private List<X509Certificate> certificateChain;
@@ -111,6 +205,26 @@ public class CipherSuiteParameters {
 		return certificateChain;
 	}
 
+	/**
+	 * Gets general mismatch.
+	 * 
+	 * @return general mismatch, or {@code null}.
+	 * @since 3.0
+	 */
+	public GeneralMismatch getGeneralMismatch() {
+		return generalMismatch;
+	}
+
+	/**
+	 * Gets certificate based mismatch.
+	 * 
+	 * @return certificate based mismatch, or {@code null}.
+	 * @since 3.0
+	 */
+	public CertificateBasedMismatch getCertificateMismatch() {
+		return certificateMismatch;
+	}
+
 	public boolean isClientAuthenticationRequired() {
 		return clientAuthenticationRequired;
 	}
@@ -177,6 +291,29 @@ public class CipherSuiteParameters {
 	}
 
 	/**
+	 * Sets general mismatch.
+	 * 
+	 * @param mismatch general mismatch
+	 * @since 3.0
+	 */
+	public void setGeneralMismatch(GeneralMismatch mismatch) {
+		generalMismatch = mismatch;
+	}
+
+	/**
+	 * Sets certificate based mismatch.
+	 * 
+	 * Once set, this mismatch skips to test other certificate based cipher
+	 * suites for this handshake.
+	 * 
+	 * @param mismatch certificate based mismatch
+	 * @since 3.0
+	 */
+	public void setCertificateMismatch(CertificateBasedMismatch mismatch) {
+		certificateMismatch = mismatch;
+	}
+
+	/**
 	 * Select cipher suite.
 	 * 
 	 * @param cipherSuite selected cipher suite
@@ -213,12 +350,113 @@ public class CipherSuiteParameters {
 	}
 
 	/**
-	 * Select signature and hashe algorithm.
+	 * Select signature and hash algorithm.
 	 * 
-	 * @param signature selected signature and hashe algorithm. Maybe
+	 * @param signature selected signature and hash algorithm. Maybe
 	 *            {@code null}, if not available.
 	 */
 	public void selectSignatureAndHashAlgorithm(SignatureAndHashAlgorithm signature) {
 		this.selectedSignature = signature;
+	}
+
+	/**
+	 * Gets mismatch summary.
+	 * 
+	 * @return mismatch summary, or {@code null}, if not available.
+	 * @since 3.0
+	 */
+	public String getMismatchSummary() {
+		if (generalMismatch != null) {
+			return generalMismatch.getMessage();
+		} else if (certificateMismatch != null) {
+			return certificateMismatch.getMessage();
+		}
+		return null;
+	}
+
+	/**
+	 * Get details description of mismatch.
+	 * 
+	 * @return mismatch details description, or {@code null}, if not available.
+	 * @since 3.0
+	 */
+	public String getMismatchDescription() {
+		String summary = getMismatchSummary();
+		if (summary != null) {
+			StringBuilder builder = new StringBuilder(summary);
+			builder.append(StringUtil.lineSeparator());
+			builder.append("\tcipher suites: ");
+			for (CipherSuite cipherSuite : cipherSuites) {
+				builder.append(cipherSuite.name()).append(",");
+			}
+			builder.setLength(builder.length() - 1);
+			if (certificateMismatch == CertificateBasedMismatch.CERTIFICATE_EC_GROUPS) {
+				builder.append(StringUtil.lineSeparator()).append("\t\tec-groups: ");
+				for (SupportedGroup group : supportedGroups) {
+					builder.append(group.name()).append(",");
+				}
+				builder.setLength(builder.length() - 1);
+			} else if (certificateMismatch == CertificateBasedMismatch.CERTIFICATE_SIGNATURE_ALGORITHMS
+					|| certificateMismatch == CertificateBasedMismatch.CERTIFICATE_PATH_SIGNATURE_ALGORITHMS) {
+				builder.append(StringUtil.lineSeparator()).append("\t\tsignatures: ");
+				for (SignatureAndHashAlgorithm sign : signatures) {
+					builder.append(sign.getJcaName()).append(",");
+				}
+				builder.setLength(builder.length() - 1);
+			}
+			return builder.toString();
+		}
+		return summary;
+	}
+
+	@Override
+	public String toString() {
+		StringBuilder builder = new StringBuilder();
+		builder.append("cipher suites: ");
+		for (CipherSuite cipherSuite : cipherSuites) {
+			builder.append(cipherSuite.name()).append(",");
+		}
+		builder.setLength(builder.length() - 1);
+		builder.append(StringUtil.lineSeparator());
+		if (certificateChain != null && !certificateChain.isEmpty()) {
+			builder.append("x509-DN: [").append(certificateChain.get(0).getSubjectX500Principal().getName());
+			builder.append("]").append(StringUtil.lineSeparator());
+		}
+		if (publicKey != null) {
+			if (clientAuthenticationRequired) {
+				builder.append("client certificate required");
+			} else if (clientAuthenticationWanted) {
+				builder.append("client certificate wanted");
+			} else {
+				builder.append("no client certificate");
+			}
+			builder.append(StringUtil.lineSeparator());
+		}
+		builder.append("server certificate types: ");
+		for (CertificateType cerType : serverCertTypes) {
+			builder.append(cerType.name()).append(",");
+		}
+		builder.setLength(builder.length() - 1);
+		builder.append(StringUtil.lineSeparator());
+		builder.append("client certificate types: ");
+		for (CertificateType cerType : serverCertTypes) {
+			builder.append(cerType.name()).append(",");
+		}
+		builder.setLength(builder.length() - 1);
+		builder.append(StringUtil.lineSeparator());
+		builder.append("ec-groups: ");
+		for (SupportedGroup group : supportedGroups) {
+			builder.append(group.name()).append(",");
+		}
+		builder.setLength(builder.length() - 1);
+		builder.append(StringUtil.lineSeparator());
+		builder.append("signatures: ");
+		for (SignatureAndHashAlgorithm sign : signatures) {
+			builder.append(sign.getJcaName()).append(",");
+		}
+		builder.setLength(builder.length() - 1);
+		builder.append(StringUtil.lineSeparator());
+
+		return builder.toString();
 	}
 }

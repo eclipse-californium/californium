@@ -19,6 +19,8 @@ package org.eclipse.californium.scandium.dtls.cipher;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.CertificateKeyAlgorithm;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuiteParameters.CertificateBasedMismatch;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuiteParameters.GeneralMismatch;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,7 +28,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Default cipher suite selector.
  * 
- * Select cipher suite matching the available security parameters and algorithms.
+ * Select cipher suite matching the available security parameters and
+ * algorithms.
  * 
  * @since 2.3
  */
@@ -38,19 +41,12 @@ public class DefaultCipherSuiteSelector implements CipherSuiteSelector {
 
 	@Override
 	public boolean select(CipherSuiteParameters parameters) {
-		boolean certificateSupportFailed = false;
+		if (parameters.getCipherSuites().isEmpty()) {
+			parameters.setGeneralMismatch(GeneralMismatch.CIPHER_SUITE);
+			return false;
+		}
 		for (CipherSuite cipherSuite : parameters.getCipherSuites()) {
-			if (cipherSuite.requiresServerCertificateMessage()) {
-				if (!certificateSupportFailed) {
-					if (select(cipherSuite, parameters)) {
-						return true;
-					}
-					// if the check for the certificate support
-					// fails, it fails for all other 
-					// certificate based cipher suites as well
-					certificateSupportFailed = true;
-				}
-			} else if (select(cipherSuite, parameters)) {
+			if (select(cipherSuite, parameters)) {
 				return true;
 			}
 		}
@@ -66,12 +62,23 @@ public class DefaultCipherSuiteSelector implements CipherSuiteSelector {
 	 *         {@code false}, otherwise.
 	 */
 	protected boolean select(CipherSuite cipherSuite, CipherSuiteParameters parameters) {
-		if (cipherSuite.isEccBased() && (parameters.getSupportedGroups().isEmpty() || parameters.getFormat() == null)) {
-			// no common supported group or format
-			return false;
+		if (cipherSuite.isEccBased()) {
+			if (parameters.getSupportedGroups().isEmpty()) {
+				// no common supported group
+				parameters.setGeneralMismatch(GeneralMismatch.EC_GROUPS);
+				return false;
+			} else if (parameters.getFormat() == null) {
+				// no common supported format
+				parameters.setGeneralMismatch(GeneralMismatch.EC_FORMAT);
+				return false;
+			}
 		}
 		if (cipherSuite.requiresServerCertificateMessage()) {
-			return selectForCertificate(parameters, cipherSuite);
+			if (parameters.getCertificateMismatch() == null) {
+				return selectForCertificate(parameters, cipherSuite);
+			} else {
+				return false;
+			}
 		} else {
 			// PSK or PSK_ECDHE only requires a selected cipher suite.
 			parameters.select(cipherSuite);
@@ -79,28 +86,53 @@ public class DefaultCipherSuiteSelector implements CipherSuiteSelector {
 		}
 	}
 
+	/**
+	 * Check, if the common parameters match the peer's certificate-chain.
+	 * 
+	 * Sets {@link CipherSuiteParameters#setCertificateMismatch(Mismatch)}, if
+	 * certificate based cipher suites can not be selected. Sets
+	 * {@link CipherSuiteParameters#select(CipherSuite)},
+	 * {@link CipherSuiteParameters#selectServerCertificateType(CertificateType)},
+	 * {@link CipherSuiteParameters#selectSignatureAndHashAlgorithm(SignatureAndHashAlgorithm)},
+	 * and
+	 * {@link CipherSuiteParameters#selectClientCertificateType(CertificateType)},
+	 * if the certificate based cipher suite is selected.
+	 * 
+	 * @param parameters common parameters and certificate-chain.
+	 * @param cipherSuite cipher suite to check.
+	 * @return {@code true}, if the cipher suite is selected, {@code false},
+	 *         otherwise.
+	 * @throws IllegalArgumentException if the certificate-chain is missing or
+	 *             the node certificate is not EC based.
+	 */
 	protected boolean selectForCertificate(CipherSuiteParameters parameters, CipherSuite cipherSuite) {
-		// make sure that we support the client's proposed server certificate types
+		// make sure that we support the client's proposed server certificate
+		// types
 		if (parameters.getServerCertTypes().isEmpty()) {
+			parameters.setCertificateMismatch(CertificateBasedMismatch.SERVER_CERT_TYPE);
 			return false;
 		}
 		boolean clientAuthentication = parameters.isClientAuthenticationRequired()
 				|| parameters.isClientAuthenticationWanted();
 		if (clientAuthentication && parameters.getClientCertTypes().isEmpty()) {
+			parameters.setCertificateMismatch(CertificateBasedMismatch.CLIENT_CERT_TYPE);
 			return false;
 		}
 		if (parameters.getSignatures().isEmpty()) {
+			parameters.setCertificateMismatch(CertificateBasedMismatch.SIGNATURE_ALGORITHMS);
 			return false;
 		}
 		if (cipherSuite.getCertificateKeyAlgorithm() == CertificateKeyAlgorithm.EC) {
 			// check for supported curve in certificate
 			SupportedGroup group = SupportedGroup.fromPublicKey(parameters.getPublicKey());
 			if (group == null || !parameters.getSupportedGroups().contains(group)) {
+				parameters.setCertificateMismatch(CertificateBasedMismatch.CERTIFICATE_EC_GROUPS);
 				return false;
 			}
 			SignatureAndHashAlgorithm signatureAndHashAlgorithm = SignatureAndHashAlgorithm
 					.getSupportedSignatureAlgorithm(parameters.getSignatures(), parameters.getPublicKey());
 			if (signatureAndHashAlgorithm == null) {
+				parameters.setCertificateMismatch(CertificateBasedMismatch.CERTIFICATE_SIGNATURE_ALGORITHMS);
 				return false;
 			}
 			CertificateType certificateType = parameters.getServerCertTypes().get(0);
@@ -122,6 +154,8 @@ public class DefaultCipherSuiteSelector implements CipherSuiteSelector {
 					if (parameters.getServerCertTypes().contains(CertificateType.RAW_PUBLIC_KEY)) {
 						certificateType = CertificateType.RAW_PUBLIC_KEY;
 					} else {
+						parameters
+								.setCertificateMismatch(CertificateBasedMismatch.CERTIFICATE_PATH_SIGNATURE_ALGORITHMS);
 						return false;
 					}
 				}
