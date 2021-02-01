@@ -36,16 +36,21 @@ public class DefaultCipherSuiteSelector implements CipherSuiteSelector {
 
 	protected static final Logger LOGGER = LoggerFactory.getLogger(DefaultCipherSuiteSelector.class);
 
-	/**
-	 * {@code true} to check supporting certificate based cipher suites,
-	 * {@code false}, if the check already failed.
-	 */
-	private boolean checkCertificateSupport = true;
-
 	@Override
 	public boolean select(CipherSuiteParameters parameters) {
+		boolean certificateSupportFailed = false;
 		for (CipherSuite cipherSuite : parameters.getCipherSuites()) {
-			if (select(cipherSuite, parameters)) {
+			if (cipherSuite.requiresServerCertificateMessage()) {
+				if (!certificateSupportFailed) {
+					if (select(cipherSuite, parameters)) {
+						return true;
+					}
+					// if the check for the certificate support
+					// fails, it fails for all other 
+					// certificate based cipher suites as well
+					certificateSupportFailed = true;
+				}
+			} else if (select(cipherSuite, parameters)) {
 				return true;
 			}
 		}
@@ -66,13 +71,7 @@ public class DefaultCipherSuiteSelector implements CipherSuiteSelector {
 			return false;
 		}
 		if (cipherSuite.requiresServerCertificateMessage()) {
-			if (checkCertificateSupport) {
-				if (selectForCertificate(parameters, cipherSuite)) {
-					return true;
-				}
-				checkCertificateSupport = false;
-			}
-			return false;
+			return selectForCertificate(parameters, cipherSuite);
 		} else {
 			// PSK or PSK_ECDHE only requires a selected cipher suite.
 			parameters.select(cipherSuite);
