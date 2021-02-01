@@ -83,6 +83,8 @@ import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.util.SecretUtil;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Server handshaker does the protocol handshaking from the point of view of a
@@ -103,6 +105,7 @@ public class ServerHandshaker extends Handshaker {
 			new HandshakeState(ContentType.CHANGE_CIPHER_SPEC), new HandshakeState(HandshakeType.FINISHED) };
 
 	// Members ////////////////////////////////////////////////////////
+	private final Logger LOGGER_NEGOTIATION = LoggerFactory.getLogger(LOGGER.getName() + ".negotiation");
 
 	/** Does the server use session id? */
 	private boolean useNoSessionId = false;
@@ -826,10 +829,18 @@ public class ServerHandshaker extends Handshaker {
 			session.setParameterAvailable();
 			LOGGER.debug("Negotiated cipher suite [{}] with peer [{}]", cipherSuite.name(), peerToLog);
 		} else {
-			// if none of the client's proposed cipher suites matches
-			// throw exception
+			if (LOGGER_NEGOTIATION.isDebugEnabled()) {
+				LOGGER_NEGOTIATION.debug("{}", clientHello);
+				LOGGER_NEGOTIATION.debug("{}", parameters.getMismatchDescription());
+				LOGGER_NEGOTIATION.trace("Parameters: {}", parameters);
+			}
+			String summary = parameters.getMismatchSummary();
+			if (summary == null) {
+				summary = "Client proposed unsupported cipher suites or parameters only";
+			}
+			// if none of the client's proposed cipher suites matches throw exception
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE);
-			throw new HandshakeException("Client proposed unsupported cipher suites or parameters only", alert);
+			throw new HandshakeException(summary, alert);
 		}
 	}
 

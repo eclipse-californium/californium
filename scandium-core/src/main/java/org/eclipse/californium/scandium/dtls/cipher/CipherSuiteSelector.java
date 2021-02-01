@@ -16,17 +16,26 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.cipher;
 
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuiteParameters.GeneralMismatch;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuiteParameters.CertificateBasedMismatch;
+
 /**
  * @since 2.3
  */
 public interface CipherSuiteSelector {
 
 	/**
-	 * Select ciphersuite and parameters.
+	 * Select cipher-suite and parameters.
 	 * 
-	 * @param parameters common ciphersuites and crypto parameters. On success,
-	 *            the ciphersuite and parameters gets selected in this argument.
-	 * @return {@code true}, if a ciphersuite and parameters could be selected,
+	 * Since 3.0, if no common parameter could be negotiated, use
+	 * {@link CipherSuiteParameters#setGeneralMismatch(GeneralMismatch)} or
+	 * {@link CipherSuiteParameters#setCertificateMismatch(CertificateBasedMismatch)}
+	 * to indicate the mismatch cause.
+	 * 
+	 * @param parameters common cipher-suites and crypto parameters. On success,
+	 *            the cipher-suite and parameters gets selected in this
+	 *            argument.
+	 * @return {@code true}, if a cipher-suite and parameters could be selected,
 	 *         {@code false}, otherwise.
 	 */
 	boolean select(CipherSuiteParameters parameters);
