@@ -29,6 +29,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -60,6 +61,7 @@ import org.junit.runners.Parameterized;
 @Category(Small.class)
 @RunWith(Parameterized.class)
 public class DataParserTest {
+	private static final InetSocketAddress CONNECTOR = new InetSocketAddress(InetAddress.getLoopbackAddress(), 3000);
 
 	private static final EndpointContext ENDPOINT_CONTEXT = new AddressEndpointContext(InetAddress.getLoopbackAddress(), 1000);
 
@@ -95,10 +97,8 @@ public class DataParserTest {
 				.setContentFormat(40).setAccept(40);
 
 		RawData rawData = serializer.serializeRequest(request);
-//		MessageHeader header = parser.parseHeader(rawData);
-//		assertTrue(CoAP.isRequest(header.getCode()));
-//
-//		Request result = parser.parseRequest(rawData);
+		rawData = receive(rawData, CONNECTOR);
+
 		Request result = (Request) parser.parseMessage(rawData);
 		assertEquals(request.getMID(), result.getMID());
 		assertEquals(request.getToken(), result.getToken());
@@ -222,6 +222,7 @@ public class DataParserTest {
 				.addOption(new Option(19205, "Arbitrary2")).addOption(new Option(19205, "Arbitrary3"));
 
 		RawData rawData = serializer.serializeResponse(response);
+		rawData = receive(rawData, CONNECTOR);
 
 		Response result = (Response) parser.parseMessage(rawData);
 		assertEquals(response.getMID(), result.getMID());
@@ -240,11 +241,17 @@ public class DataParserTest {
 		response.setPayload("⠊⠀⠉⠁⠝⠀⠑⠁⠞⠀⠛⠇⠁⠎⠎⠀⠁⠝⠙⠀⠊⠞⠀⠙⠕⠑⠎⠝⠞⠀⠓⠥⠗⠞⠀⠍⠑");
 
 		RawData rawData = serializer.serializeResponse(response);
+		rawData = receive(rawData, CONNECTOR);
 
 		Response result = (Response) parser.parseMessage(rawData);
 		assertEquals("ᚠᛇᚻ᛫ᛒᛦᚦ᛫ᚠᚱᚩᚠᚢᚱ᛫ᚠᛁᚱᚪ᛫ᚷᛖᚻᚹᛦᛚᚳᚢᛗ/γλώσσα/пустынных", response.getOptions().getLocationPathString());
 		assertEquals("ვეპხის=யாமறிந்த&⠊⠀⠉⠁⠝=⠑⠁⠞⠀⠛⠇⠁⠎⠎", response.getOptions().getLocationQueryString());
 		assertEquals("⠊⠀⠉⠁⠝⠀⠑⠁⠞⠀⠛⠇⠁⠎⠎⠀⠁⠝⠙⠀⠊⠞⠀⠙⠕⠑⠎⠝⠞⠀⠓⠥⠗⠞⠀⠍⠑", result.getPayloadString());
 		assertEquals(response.getMID(), result.getMID());
+	}
+
+	private static RawData receive(RawData data, InetSocketAddress connector) {
+		return RawData.inbound(data.getBytes(), data.getEndpointContext(), data.isMulticast(),
+				data.getReceiveNanoTimestamp(), connector);
 	}
 }

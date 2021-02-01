@@ -37,7 +37,6 @@ import org.eclipse.californium.core.network.stack.CoapStack;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.Connector;
-import org.eclipse.californium.elements.UdpMulticastConnector;
 
 /**
  * A communication endpoint multiplexing CoAP message exchanges between (potentially multiple) clients and servers.
@@ -194,35 +193,6 @@ public interface Endpoint {
 	 * @return an immutable list of the registered message post process interceptors.
 	 */
 	List<MessageInterceptor> getPostProcessInterceptors();
-
-	/**
-	 * Add connector as multicast receiver.
-	 * 
-	 * A multicast receiver must return a multicast address on
-	 * {@link Connector#getAddress()}. A {@link UdpMulticastConnector} maybe
-	 * used as multicast receiver, if it joins only one multicast group.
-	 * 
-	 * @param receiver multicast receiver to add
-	 * @throws NullPointerException if receiver is {@code null}
-	 * @throws IllegalArgumentException if receiver doesn't return a multicast
-	 *             address on {@link Connector#getAddress()}
-	 */
-	void addMulticastReceiver(Connector receiver);
-
-	/**
-	 * Remove connector from multicast receivers.
-	 * 
-	 * @param receiver multicast receiver to remove
-	 */
-	void removeMulticastReceiver(Connector receiver);
-
-	/**
-	 * Start multicast receivers to ensure, that all unicast connectors are
-	 * started afterwards.
-	 * 
-	 * @throws IOException if an i/o error occurred.
-	 */
-	void startMulticastReceivers() throws IOException;
 
 	/**
 	 * Send the specified request.

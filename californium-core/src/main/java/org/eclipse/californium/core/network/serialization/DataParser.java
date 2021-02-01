@@ -53,8 +53,16 @@ public abstract class DataParser {
 		if (raw == null) {
 			throw new NullPointerException("raw-data must not be null!");
 		}
+		if (raw.getConnectorAddress() == null) {
+			throw new NullPointerException("raw-data connectos's address must not be null!");
+		}
 		Message message = parseMessage(raw.getBytes());
 		message.setSourceContext(raw.getEndpointContext());
+		if (message instanceof Request) {
+			((Request) message).setLocalAddress(raw.getConnectorAddress(), raw.isMulticast());
+		} else {
+			message.setLocalAddress(raw.getConnectorAddress());
+		}
 		message.setNanoTimestamp(raw.getReceiveNanoTimestamp());
 		return message;
 	}

@@ -40,18 +40,31 @@ import org.slf4j.LoggerFactory;
  * <p>
  * Note: since 2.3, a connector joining only one multicast group, maybe used as
  * "multicast receiver". In that case the {@link #getAddress()} will return this
- * multicast group. If configured as broadcast receiver, it could also be used
- * as "multicast receiver".
+ * multicast group. If configured as broadcast receiver without additional
+ * multicast groups, it could also be used as "multicast receiver".
  * 
- * This enables to setup systems, which listen on different ports for multicast
- * than respond on unicast. It allows to host multiple coap-multicast-server to
- * be hosted on the same peer.
+ * This enables to setup systems, which listen on ports for multicast requests
+ * different from the port to respond on unicast. It allows to host multiple
+ * coap-multicast-server to be hosted on the same peer.
+ * 
+ * To use a {@link UdpMulticastConnector} as multicast receiver,
+ * {@link Builder#setMulticastReceiver(boolean)} must be set to {@code true},
+ * and the {@link UdpMulticastConnector} must be added to the related unicast
+ * {@link UDPConnector} using
+ * {@link UDPConnector#addMulticastReceiver(UdpMulticastConnector)}.
+ * 
+ * A multicast-receiver is not intended to send messages, it only receives them.
+ * Therefore it can only be added as multicast-receiver to an
+ * {@link UDPConnector}. It can not be used as connector for an
+ * {@code CoapEndpoint}, nor can other multicast-receiver be added to a
+ * multicast-receiver.
  * </p>
  * <p>
  * <a href=
  * "https://mailarchive.ietf.org/arch/msg/core/7P8wrsahiuCriozrYc_fVyS6mzg/">
  * Core - mailinglist - Klaus Hartke: Multicast CoAP</a>
  * </p>
+ * 
  * <pre>
  * +---------------+                +-----------------+
  * |               |    request    _|_                |
@@ -147,9 +160,11 @@ public class UdpMulticastConnector extends UDPConnector {
 	 * @param groups list of multicast groups and network interfaces to join. If
 	 *            no broadcast nor multicast address is used as local address,
 	 *            this list must not be empty.
+	 * @throws IllegalArgumentException if multicastReceiver is requested but
+	 *             not exactly one broadcast or multicast address is provided.
 	 */
 	private UdpMulticastConnector(InetSocketAddress localSocketAddress, InetAddress outgoingAddress,
-			NetworkInterface outgoingInterface, List<Join> groups) {
+			NetworkInterface outgoingInterface, List<Join> groups, boolean multicastReceiver) {
 		super(localSocketAddress);
 		setReuseAddress(true);
 		this.outgoingInterface = outgoingInterface;
@@ -158,7 +173,14 @@ public class UdpMulticastConnector extends UDPConnector {
 		InetAddress localAddress = localSocketAddress.getAddress();
 		boolean noGroups = this.groups.isEmpty();
 		if (NetworkInterfacesUtil.isBroadcastAddress(localAddress)) {
-			this.multicast = noGroups;
+			if (multicastReceiver) {
+				if (noGroups) {
+					this.multicast = true;
+				} else {
+					throw new IllegalArgumentException(
+							"Broadcast and additional multicast addresses are nor supported for multicast receiver function!");
+				}
+			}
 		} else {
 			if (noGroups) {
 				if (localAddress.isMulticastAddress()) {
@@ -168,10 +190,15 @@ public class UdpMulticastConnector extends UDPConnector {
 					throw new IllegalArgumentException("missing multicast address to join!");
 				}
 			}
-			this.multicast = this.groups.size() == 1;
-			if (multicast) {
-				this.effectiveAddr = new InetSocketAddress(this.groups.get(0).multicastGroup,
-						localSocketAddress != null ? localSocketAddress.getPort() : 0);
+			if (multicastReceiver) {
+				if (this.groups.size() == 1) {
+					multicast = true;
+					this.effectiveAddr = new InetSocketAddress(this.groups.get(0).multicastGroup,
+							localSocketAddress != null ? localSocketAddress.getPort() : 0);
+				} else {
+					throw new IllegalArgumentException(
+							"Multiple multicast addresses are nor supported for multicast receiver function!");
+				}
 			}
 		}
 	}
@@ -186,6 +213,17 @@ public class UdpMulticastConnector extends UDPConnector {
 	 */
 	public void setLoopbackMode(boolean disable) {
 		this.loopbackDisable = disable;
+	}
+
+	/**
+	 * Checks, if connection is multicast receiver.
+	 * 
+	 * @return {@code true}, if connector is multicast receiver, {@code false},
+	 *         otherwise.
+	 * @since 3.0
+	 */
+	public boolean isMutlicastReceiver() {
+		return multicast;
 	}
 
 	@Override
@@ -297,6 +335,7 @@ public class UdpMulticastConnector extends UDPConnector {
 		private InetAddress outgoingAddress;
 		private NetworkInterface outgoingInterface;
 		private List<Join> groups = new ArrayList<Join>();
+		private boolean multicastReceiver;
 
 		/**
 		 * Create Builder.
@@ -425,8 +464,33 @@ public class UdpMulticastConnector extends UDPConnector {
 			return this;
 		}
 
+		/**
+		 * Enable specific multicast receiver function.
+		 * 
+		 * Requires either exactly one multicast group to be joined, or a
+		 * broadcast address and no additional multicast groups.
+		 * 
+		 * @param enable {@code true}, enable specific multicast receiver
+		 *            function, {@code false}, otherwise.
+		 * @return this builder for command chaining
+		 * @since 3.0
+		 */
+		public Builder setMulticastReceiver(boolean enable) {
+			multicastReceiver = enable;
+			return this;
+		}
+
+		/**
+		 * Create connector from parameters.
+		 * 
+		 * @return created connector
+		 * @throws IllegalArgumentException if multicastReceiver is configured
+		 *             but not exactly one broadcast or multicast address is
+		 *             provided.
+		 */
 		public UdpMulticastConnector build() {
-			return new UdpMulticastConnector(localSocketAddress, outgoingAddress, outgoingInterface, groups);
+			return new UdpMulticastConnector(localSocketAddress, outgoingAddress, outgoingInterface, groups,
+					multicastReceiver);
 		}
 	}
 }
