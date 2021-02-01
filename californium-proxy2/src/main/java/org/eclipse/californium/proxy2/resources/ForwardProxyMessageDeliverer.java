@@ -30,7 +30,6 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.ServerMessageDeliverer;
 import org.eclipse.californium.core.server.resources.Resource;
-import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.proxy2.CoapUriTranslator;
 import org.eclipse.californium.proxy2.TranslationException;
@@ -252,9 +251,6 @@ public class ForwardProxyMessageDeliverer extends ServerMessageDeliverer {
 				if (scheme != null) {
 					scheme = scheme.toLowerCase();
 					resource = scheme2resource.get(scheme);
-					if (resource != null && request.getDestinationContext() == null) {
-						preserveReceivingInterface(exchange);
-					}
 				} else {
 					local = true;
 				}
@@ -267,25 +263,5 @@ public class ForwardProxyMessageDeliverer extends ServerMessageDeliverer {
 			resource = super.findResource(exchange);
 		}
 		return resource;
-	}
-
-	/**
-	 * Preserve the address of the local receiving interface in the requests
-	 * destination.
-	 * 
-	 * The destination maybe required for forward-proxies, if uri-host or
-	 * uri-port options are missing. The
-	 * {@link CoapUriTranslator#getExposedInterface(Request)} is intended to
-	 * provide the mapping of local interfaces to exposed interfaces. If this
-	 * mapping s not possible, all request for the forward-proxy requires the
-	 * uri-host and uri-port option to be contained!
-	 * 
-	 * @param exchange exchange with request and receiving endpoint
-	 */
-	private void preserveReceivingInterface(Exchange exchange) {
-		if (exchange.getEndpoint() != null) {
-			exchange.getRequest()
-					.setDestinationContext(new AddressEndpointContext(exchange.getEndpoint().getAddress()));
-		}
 	}
 }

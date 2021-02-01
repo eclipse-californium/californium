@@ -2,7 +2,7 @@
 
 # Californium (Cf) - Migration Hints
 
-December, 2020
+February, 2021
 
 The version 2.x is now out for about a year and reached version 2.6.0.
 We currently started to work on a 3.0 starting with removing deprecates APIs.
@@ -49,6 +49,8 @@ The encoding of the `SessionTicket` has changed.
 
 Since 3.0 this is only called for separate ACKs, not longer for piggy-backed responses.
 
+The local address of the receiving endpoint is now a separate field, the usage of the destination context for incoming messages is replaced by that. Affects `CoapUriTranslator.getExposedInterface(Request)`.
+
 ## Noteworthy API Changes
 
 ### Element-Connector:
@@ -56,6 +58,10 @@ Since 3.0 this is only called for separate ACKs, not longer for piggy-backed res
 1) The `ExtendedConnector` interface is integrated in `Connector`.
 
 2) The `EndpointContext` supports now `String`, `Number`, and `Bytes`.
+
+3) The `MulticastReceivers` interface (californium-core) is integrated in `UDPConnector`.
+
+4) The `UdpMulticastConnector` must be build using `UdpMulticastConnector.Builder.setMulticastReceiver(true)` in order to be added and used as mutlicast receiver to a `UDPConnector`.
 
 ### Scandium:
 
@@ -103,6 +109,6 @@ are removed and must be replaced by
 
 6) The `MessagePostProcessInterceptors` interface is integrated in `Endpoint`.
 
-7) The `MulticastReceivers` interface is integrated in `Endpoint`.
+7) The `MulticastReceivers` interface is moved into `UDPConnector`.
 
 8) Renamed `Message.onComplete()` to `onTransferComplete()`, including `MessageObserver.onComplete()`.

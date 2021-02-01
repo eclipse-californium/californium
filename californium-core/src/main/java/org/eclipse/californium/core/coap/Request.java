@@ -779,6 +779,19 @@ public class Request extends Message {
 	}
 
 	/**
+	 * Set address of the receiving local endpoint.
+	 * 
+	 * @param local local address of the receiving endpoint
+	 * @param multicast {@code true}, if request is received via a multicast
+	 *            address, {@code false}, otherwise.
+	 * @since 3.0
+	 */
+	public void setLocalAddress(InetSocketAddress local, boolean multicast) {
+		super.setLocalAddress(local);
+		this.multicast = multicast;
+	}
+
+	/**
 	 * Sends the request over the default endpoint to its destination and
 	 * expects a response back.
 	 * 

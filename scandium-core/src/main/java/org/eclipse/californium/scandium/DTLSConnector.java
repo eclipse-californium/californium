@@ -1705,7 +1705,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 				LOGGER.trace("Received APPLICATION_DATA for {}", endpointContext);
 				// create application message.
 				RawData receivedApplicationMessage = RawData.inbound(message.getData(), endpointContext, false,
-						record.getReceiveNanos());
+						record.getReceiveNanos(), lastBindAddress);
 				channel.receiveData(receivedApplicationMessage);
 			}
 		} else if (ongoingHandshake != null) {

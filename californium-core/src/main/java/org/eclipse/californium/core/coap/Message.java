@@ -43,6 +43,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
+import java.net.InetSocketAddress;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
@@ -176,6 +177,13 @@ public abstract class Message {
 	 * Source endpoint context. Used for incoming messages.
 	 */
 	private volatile EndpointContext sourceContext;
+
+	/**
+	 * Local address of received messages.
+	 * 
+	 * @since 3.0
+	 */
+	private InetSocketAddress localAddress;
 
 	/** Indicates, if the message has sent. */
 	private volatile boolean sent;
@@ -817,6 +825,27 @@ public abstract class Message {
 	public Message setSourceContext(EndpointContext peerContext) {
 		this.sourceContext = peerContext;
 		return this;
+	}
+
+	/**
+	 * Set address of the receiving local endpoint.
+	 * 
+	 * @param local local address of the receiving endpoint
+	 * @since 3.0
+	 */
+	public void setLocalAddress(InetSocketAddress local) {
+		this.localAddress = local;
+	}
+
+	/**
+	 * Gets the local address of the receiving endpoint.
+	 * 
+	 * @return local address of the receiving endpoint. {@code null} for
+	 *         outgoing messages.
+	 * @since 3.0
+	 */
+	public InetSocketAddress getLocalAddress() {
+		return localAddress;
 	}
 
 	/**

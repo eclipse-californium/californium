@@ -46,8 +46,10 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import org.eclipse.californium.elements.UdpMulticastConnector.Builder;
 import org.eclipse.californium.elements.exception.EndpointMismatchException;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
@@ -107,6 +109,13 @@ public class UDPConnector implements Connector {
 	/** The outbound message queue. */
 	private final BlockingQueue<RawData> outgoing;
 
+	/**
+	 * The list of multicast receivers.
+	 * 
+	 * @since 3.0
+	 */
+	private final List<UdpMulticastConnector> multicastReceivers = new CopyOnWriteArrayList<>();
+
 	protected volatile boolean running;
 
 	private volatile DatagramSocket socket;
@@ -140,8 +149,10 @@ public class UDPConnector implements Connector {
 
 	/**
 	 * {@code true}, if connector is a multicast receiver, {@code false},
-	 * otherwise. A multicast receiver is currently a
-	 * {@link UdpMulticastConnector}, if it joins only one multicast group.
+	 * otherwise. A multicast receiver is a {@link UdpMulticastConnector}, if it
+	 * joins exactly one multicast group or is bound to broadcast and no
+	 * additional multicast group. {@link Builder#setMulticastReceiver(boolean)}
+	 * must also be set to {@code true}.
 	 * 
 	 * @since 2.3
 	 */
@@ -200,6 +211,10 @@ public class UDPConnector implements Connector {
 			return;
 		}
 
+		for (UdpMulticastConnector multicastReceiver : multicastReceivers) {
+			multicastReceiver.start();
+		}
+
 		DatagramSocket socket = new DatagramSocket(null);
 		socket.setReuseAddress(reuseAddress);
 		socket.bind(localAddr);
@@ -236,8 +251,10 @@ public class UDPConnector implements Connector {
 			receiverThreads.add(new Receiver("UDP-Receiver-" + localAddr + "[" + i + "]"));
 		}
 
-		for (int i = 0; i < senderCount; i++) {
-			senderThreads.add(new Sender("UDP-Sender-" + localAddr + "[" + i + "]"));
+		if (!multicast) {
+			for (int i = 0; i < senderCount; i++) {
+				senderThreads.add(new Sender("UDP-Sender-" + localAddr + "[" + i + "]"));
+			}
 		}
 
 		for (Thread t : receiverThreads) {
@@ -268,6 +285,9 @@ public class UDPConnector implements Connector {
 			}
 			running = false;
 			LOGGER.debug("UDPConnector on [{}] stopping ...", effectiveAddr);
+			for (Connector receiver : multicastReceivers) {
+				receiver.stop();
+			}
 
 			// stop all threads
 			for (Thread t : senderThreads) {
@@ -308,6 +328,9 @@ public class UDPConnector implements Connector {
 	@Override
 	public void destroy() {
 		stop();
+		for (Connector receiver : multicastReceivers) {
+			receiver.destroy();
+		}
 		receiver = null;
 	}
 
@@ -315,6 +338,9 @@ public class UDPConnector implements Connector {
 	public void send(RawData msg) {
 		if (msg == null) {
 			throw new NullPointerException("Message must not be null");
+		}
+		if (multicast) {
+			throw new IllegalStateException("Connector is a multicast receiver!");
 		}
 		// move onError callback out of synchronized block
 		boolean running;
@@ -332,11 +358,55 @@ public class UDPConnector implements Connector {
 	@Override
 	public void setRawDataReceiver(RawDataChannel receiver) {
 		this.receiver = receiver;
+		for (UdpMulticastConnector multicastReceiver : multicastReceivers) {
+			multicastReceiver.setRawDataReceiver(receiver);
+		}
 	}
 
 	@Override
 	public void setEndpointContextMatcher(EndpointContextMatcher matcher) {
 		this.endpointContextMatcher = matcher;
+		for (UdpMulticastConnector multicastReceiver : multicastReceivers) {
+			multicastReceiver.setEndpointContextMatcher(matcher);
+		}
+	}
+
+	/**
+	 * Add multicast-receiver.
+	 * 
+	 * @param multicastReceiver multicast-receiver.
+	 * @throws NullPointerException if multicastReceiver is {@code null}
+	 * @throws IllegalArgumentException if connector is not valid as multicast
+	 *             receiver
+	 * @throws IllegalStateException if connector itself is a multicast receiver
+	 * @since 3.0
+	 */
+	public void addMulticastReceiver(UdpMulticastConnector multicastReceiver) {
+		if (multicastReceiver == null) {
+			throw new NullPointerException("Connector must not be null!");
+		}
+		if (!multicastReceiver.isMutlicastReceiver()) {
+			throw new IllegalArgumentException("Connector is no valid multicast receiver!");
+		}
+		if (multicast) {
+			throw new IllegalStateException("Connector itself is a multicast receiver!");
+		}
+		multicastReceivers.add(multicastReceiver);
+		multicastReceiver.setRawDataReceiver(receiver);
+	}
+
+	/**
+	 * Remove multicast-receiver.
+	 * 
+	 * If removed successful, reset raw-data-receiver to {@code null}.
+	 * 
+	 * @param multicastReceiver multicast-receiver.
+	 * @since 3.0
+	 */
+	public void removeMulticastReceiver(UdpMulticastConnector multicastReceiver) {
+		if (multicastReceivers.remove(multicastReceiver)) {
+			multicastReceiver.setRawDataReceiver(null);
+		}
 	}
 
 	@Override
@@ -393,8 +463,8 @@ public class UDPConnector implements Connector {
 
 	private class Receiver extends NetworkStageThread {
 
-		private DatagramPacket datagram;
-		private int size;
+		private final DatagramPacket datagram;
+		private final int size;
 
 		private Receiver(String name) {
 			super(name);
@@ -415,7 +485,7 @@ public class UDPConnector implements Connector {
 
 	private class Sender extends NetworkStageThread {
 
-		private DatagramPacket datagram;
+		private final DatagramPacket datagram;
 
 		private Sender(String name) {
 			super(name);
@@ -469,19 +539,20 @@ public class UDPConnector implements Connector {
 	 */
 	@Override
 	public void processDatagram(DatagramPacket datagram) {
+		InetSocketAddress connector = effectiveAddr;
 		RawDataChannel dataReceiver = receiver;
 		if (datagram.getLength() > receiverPacketSize) {
 			// too large datagram for our buffer! data could have been
 			// truncated, so we discard it.
 			LOGGER.debug(
 					"UDPConnector ({}) received truncated UDP datagram from {}. Maximum size allowed {}. Discarding ...",
-					effectiveAddr, StringUtil.toLog(datagram.getSocketAddress()), receiverPacketSize);
+					connector, StringUtil.toLog(datagram.getSocketAddress()), receiverPacketSize);
 		} else if (dataReceiver == null) {
 			LOGGER.debug("UDPConnector ({}) received UDP datagram from {} without receiver. Discarding ...",
-					effectiveAddr, StringUtil.toLog(datagram.getSocketAddress()));
+					connector, StringUtil.toLog(datagram.getSocketAddress()));
 		} else {
 			long timestamp = ClockUtil.nanoRealtime();
-			String local = StringUtil.toString(effectiveAddr);
+			String local = StringUtil.toString(connector);
 			if (multicast) {
 				local = "mc/" + local;
 			}
@@ -490,7 +561,7 @@ public class UDPConnector implements Connector {
 			byte[] bytes = Arrays.copyOfRange(datagram.getData(), datagram.getOffset(), datagram.getLength());
 			RawData msg = RawData.inbound(bytes,
 					new UdpEndpointContext(new InetSocketAddress(datagram.getAddress(), datagram.getPort())), multicast,
-					timestamp);
+					timestamp, connector);
 			dataReceiver.receiveData(msg);
 		}
 	}
@@ -522,6 +593,9 @@ public class UDPConnector implements Connector {
 
 	public void setReceiveBufferSize(int size) {
 		this.receiveBufferSize = size;
+		for (UdpMulticastConnector multicastReceiver : multicastReceivers) {
+			multicastReceiver.setReceiveBufferSize(size);
+		}
 	}
 
 	public int getReceiveBufferSize() {
@@ -554,6 +628,9 @@ public class UDPConnector implements Connector {
 
 	public void setReceiverPacketSize(int size) {
 		this.receiverPacketSize = size;
+		for (UdpMulticastConnector multicastReceiver : multicastReceivers) {
+			multicastReceiver.setReceiverPacketSize(size);
+		}
 	}
 
 	public int getReceiverPacketSize() {

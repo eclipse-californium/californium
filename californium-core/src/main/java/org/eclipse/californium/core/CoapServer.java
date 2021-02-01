@@ -272,13 +272,6 @@ public class CoapServer implements ServerInterface {
 		int started = 0;
 		for (Endpoint ep : endpoints) {
 			try {
-				ep.startMulticastReceivers();
-			} catch (IOException e) {
-				LOGGER.error("{}cannot start server multicast receiver [{}]", getTag(), ep.getAddress(), e);
-			}
-		}
-		for (Endpoint ep : endpoints) {
-			try {
 				ep.start();
 				// only reached on success
 				++started;

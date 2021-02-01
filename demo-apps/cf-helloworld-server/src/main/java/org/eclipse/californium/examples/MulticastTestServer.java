@@ -29,7 +29,6 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -93,7 +92,7 @@ public class MulticastTestServer {
 
 			builder = new UdpMulticastConnector.Builder().setLocalAddress(CoAP.MULTICAST_IPV6_SITELOCAL, multicastPort)
 					.addMulticastGroup(CoAP.MULTICAST_IPV6_SITELOCAL, networkInterface);
-			createReceiver(builder, coapEndpoint);
+			createReceiver(builder, udpConnector);
 
 			/*
 			 * https://bugs.openjdk.java.net/browse/JDK-8210493 link-local
@@ -101,7 +100,7 @@ public class MulticastTestServer {
 			 */
 			builder = new UdpMulticastConnector.Builder().setLocalAddress(CoAP.MULTICAST_IPV6_LINKLOCAL, multicastPort)
 					.addMulticastGroup(CoAP.MULTICAST_IPV6_LINKLOCAL, networkInterface);
-			createReceiver(builder, coapEndpoint);
+			createReceiver(builder, udpConnector);
 
 			server.addEndpoint(coapEndpoint);
 			LOGGER.info("IPv6 - multicast");
@@ -117,13 +116,13 @@ public class MulticastTestServer {
 
 			builder = new UdpMulticastConnector.Builder().setLocalAddress(CoAP.MULTICAST_IPV4, multicastPort)
 					.addMulticastGroup(CoAP.MULTICAST_IPV4, networkInterface);
-			createReceiver(builder, coapEndpoint);
+			createReceiver(builder, udpConnector);
 
 			Inet4Address broadcast = NetworkInterfacesUtil.getBroadcastIpv4();
 			if (broadcast != null) {
 				// windows seems to fail to open a broadcast receiver
 				builder = new UdpMulticastConnector.Builder().setLocalAddress(broadcast, multicastPort);
-				createReceiver(builder, coapEndpoint);
+				createReceiver(builder, udpConnector);
 			}
 			server.addEndpoint(coapEndpoint);
 			LOGGER.info("IPv4 - multicast");
@@ -137,34 +136,34 @@ public class MulticastTestServer {
 		LOGGER.info("loopback");
 	}
 
-	private static void createReceiver(UdpMulticastConnector.Builder builder, Endpoint endpoint) {
-		UdpMulticastConnector connector = builder.build();
-		connector.setLoopbackMode(LOOPBACK);
+	private static void createReceiver(UdpMulticastConnector.Builder builder, UDPConnector connector) {
+		UdpMulticastConnector multicastConnector = builder.setMulticastReceiver(true).build();
+		multicastConnector.setLoopbackMode(LOOPBACK);
 		try {
-			connector.start();
+			multicastConnector.start();
 		} catch (BindException ex) {
 			// binding to multicast seems to fail on windows
 			if (builder.getLocalAddress().getAddress().isMulticastAddress()) {
 				int port = builder.getLocalAddress().getPort();
 				builder.setLocalPort(port);
-				connector = builder.build();
-				connector.setLoopbackMode(LOOPBACK);
+				multicastConnector = builder.build();
+				multicastConnector.setLoopbackMode(LOOPBACK);
 				try {
-					connector.start();
+					multicastConnector.start();
 				} catch (IOException e) {
 					e.printStackTrace();
-					connector = null;
+					multicastConnector = null;
 				}
 			} else {
 				ex.printStackTrace();
-				connector = null;
+				multicastConnector = null;
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
-			connector = null;
+			multicastConnector = null;
 		}
-		if (connector != null && endpoint != null) {
-			endpoint.addMulticastReceiver(connector);
+		if (multicastConnector != null && connector != null) {
+			connector.addMulticastReceiver(multicastConnector);
 		}
 	}
 

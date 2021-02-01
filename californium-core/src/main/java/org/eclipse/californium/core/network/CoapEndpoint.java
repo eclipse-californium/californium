@@ -120,7 +120,6 @@ import org.eclipse.californium.core.observe.InMemoryObservationStore;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.core.server.MessageDeliverer;
-import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
@@ -128,10 +127,10 @@ import org.eclipse.californium.elements.MessageCallback;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.UDPConnector;
+import org.eclipse.californium.elements.UdpMulticastConnector;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
-import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -279,13 +278,6 @@ public class CoapEndpoint implements Endpoint {
 
 	/** The list of Notification listener (use for CoAP observer relations) */
 	private List<NotificationListener> notificationListeners = new CopyOnWriteArrayList<>();
-
-	/**
-	 * The list of multicast receivers.
-	 * 
-	 * @since 2.3
-	 */
-	private List<Connector> multicastReceivers = new CopyOnWriteArrayList<>();
 
 	private ScheduledFuture<?> statusLogger;
 
@@ -479,7 +471,6 @@ public class CoapEndpoint implements Endpoint {
 			LOGGER.debug("{}Starting endpoint at {}", tag, getUri());
 
 			matcher.start();
-			startMulticastReceivers();
 			connector.start();
 			coapstack.start();
 			started = true;
@@ -506,9 +497,6 @@ public class CoapEndpoint implements Endpoint {
 				statusLogger.cancel(false);
 				statusLogger = null;
 			}
-			for (Connector receiver : multicastReceivers) {
-				receiver.stop();
-			}
 			connector.stop();
 			matcher.stop();
 			for (EndpointObserver obs : observers) {
@@ -523,9 +511,6 @@ public class CoapEndpoint implements Endpoint {
 		LOGGER.info("{}Destroying endpoint at {}", tag, getUri());
 		if (started) {
 			stop();
-		}
-		for (Connector receiver : multicastReceivers) {
-			receiver.destroy();
 		}
 		connector.destroy();
 		coapstack.destroy();
@@ -610,31 +595,6 @@ public class CoapEndpoint implements Endpoint {
 	@Override
 	public List<MessageInterceptor> getPostProcessInterceptors() {
 		return Collections.unmodifiableList(postProcessInterceptors);
-	}
-
-	@Override
-	public void addMulticastReceiver(final Connector receiver) {
-		if (receiver == null) {
-			throw new NullPointerException("Connector must not be null!");
-		}
-		if (!NetworkInterfacesUtil.isMultiAddress(receiver.getAddress().getAddress())) {
-			throw new IllegalArgumentException("Connector is not a valid multicast receiver!");
-		}
-		multicastReceivers.add(receiver);
-		receiver.setRawDataReceiver(new MulticastReceiverInbox(receiver));
-	}
-
-	@Override
-	public void removeMulticastReceiver(Connector receiver) {
-		multicastReceivers.remove(receiver);
-		receiver.setRawDataReceiver(null);
-	}
-
-	@Override
-	public void startMulticastReceivers() throws IOException {
-		for (Connector receiver : multicastReceivers) {
-			receiver.start();
-		}
 	}
 
 	@Override
@@ -1011,32 +971,51 @@ public class CoapEndpoint implements Endpoint {
 					receiveRequest((Request) msg);
 					return;
 				} else if (CoAP.isResponse(msg.getRawCode())) {
-					receiveResponse((Response) msg);
+					if (raw.isMulticast()) {
+						LOGGER.debug("{}multicast-receiver silently ignoring responses from {}", tag,
+								raw.getEndpointContext());
+
+					} else {
+						receiveResponse((Response) msg);
+					}
 					return;
 				} else if (CoAP.isEmptyMessage(msg.getRawCode())) {
-					receiveEmptyMessage((EmptyMessage) msg);
+					if (raw.isMulticast()) {
+						LOGGER.debug("{}multicast-receiver silently ignoring empty messages from {}", tag,
+								raw.getEndpointContext());
+
+					} else {
+						receiveEmptyMessage((EmptyMessage) msg);
+					}
 					return;
 				} else {
-					LOGGER.debug("{}silently ignoring non-CoAP message from {}", tag, context);
+					if (raw.isMulticast()) {
+						LOGGER.debug("{}multicast-receiver silently ignoring non-CoAP message from {}", tag,
+								raw.getEndpointContext());
+					} else {
+						LOGGER.debug("{}silently ignoring non-CoAP message from {}", tag, context);
+					}
 				}
 			} catch (CoAPMessageFormatException e) {
 				ex = e;
-				if (e.isConfirmable() && e.hasMid()) {
+				if (e.isConfirmable() && e.hasMid() && !raw.isMulticast()) {
 					if (CoAP.isRequest(e.getCode()) && e.getToken() != null) {
-						// respond with BAD OPTION erroneous reliably transmitted request as mandated by CoAP spec
+						// respond with BAD OPTION erroneous reliably
+						// transmitted request as mandated by CoAP spec
 						// https://tools.ietf.org/html/rfc7252#section-4.2
 						responseBadOption(raw, e);
-						LOGGER.debug("{}respond malformed request from [{}], reason: {}",
-								tag, context, e.getMessage());
+						LOGGER.debug("{}respond malformed request from [{}], reason: {}", tag, context, e.getMessage());
 					} else {
-						// reject erroneous reliably transmitted message as mandated by CoAP spec
+						// reject erroneous reliably transmitted message as
+						// mandated by CoAP spec
 						// https://tools.ietf.org/html/rfc7252#section-4.2
 						reject(raw, e);
-						LOGGER.debug("{}rejected malformed message from [{}], reason: {}",
-								tag, context, e.getMessage());
+						LOGGER.debug("{}rejected malformed message from [{}], reason: {}", tag, context,
+								e.getMessage());
 					}
 				} else {
-					// ignore erroneous messages that are not transmitted reliably
+					// ignore erroneous messages that are not transmitted
+					// reliably
 					LOGGER.debug("{}discarding malformed message from [{}]: {}", tag, context, e.getMessage());
 				}
 			} catch (MessageFormatException e) {
@@ -1165,117 +1144,6 @@ public class CoapEndpoint implements Endpoint {
 				} else {
 					 matcher.receiveEmptyMessage(message, endpointStackReceiver);
 				}
-			}
-		}
-	}
-
-	/**
-	 * A multicast receiver uses this channel to forward requests (in form of
-	 * {@link RawData}) to the endpoint. The endpoint creates a new task to
-	 * process the message. The multicast group is set as destionation of the
-	 * received request, {@link Request#isMulticast()} returns therfore
-	 * {@code true}. The task consists of invoking the matcher to look for an
-	 * associated exchange and then forwards the message with the exchange to
-	 * the stack of layers. Responses and empty messages are silently ignored.
-	 * 
-	 * @since 2.3
-	 */
-	private class MulticastReceiverInbox implements RawDataChannel {
-
-		private final Connector connector;
-		private final String scheme;
-
-		private MulticastReceiverInbox(Connector connector) {
-			this.connector = connector;
-			this.scheme = CoAP.getSchemeForProtocol(connector.getProtocol());
-		}
-
-		@Override
-		public void receiveData(final RawData raw) {
-			if (raw.getEndpointContext() == null) {
-				throw new IllegalArgumentException("multicast-receiver received message that does not have a endpoint context");
-			} else if (raw.getEndpointContext().getPeerAddress() == null) {
-				throw new IllegalArgumentException("multicast-receiver received message that does not have a source address");
-			} else if (raw.getEndpointContext().getPeerAddress().getPort() == 0) {
-				throw new IllegalArgumentException("multicast-receiver received message that does not have a source port");
-			} else if (!raw.isMulticast()) {
-				throw new IllegalArgumentException("multicast-receiver received message is not from multicast group");
-			} else {
-
-				// Create a new task to process this message
-				runInProtocolStage(new Runnable() {
-
-					@Override
-					public void run() {
-						receiveMessage(raw);
-					}
-				});
-			}
-		}
-
-		/*
-		 * The endpoint's executor executes this method to convert the raw bytes
-		 * into a message, look for an associated exchange and forward it to the
-		 * stack of layers. If the message is a CON and cannot be parsed, e.g.
-		 * because the message is malformed, an RST is sent back to the sender.
-		 */
-		private void receiveMessage(final RawData raw) {
-
-			Message msg = null;
-
-			try {
-				msg = parser.parseMessage(raw);
-
-				if (CoAP.isRequest(msg.getRawCode())) {
-
-					receiveRequest((Request) msg);
-
-				} else if (CoAP.isResponse(msg.getRawCode())) {
-
-					LOGGER.debug("{}multicast-receiver silently ignoring responses from {}", tag, raw.getEndpointContext());
-
-				} else if (CoAP.isEmptyMessage(msg.getRawCode())) {
-
-					LOGGER.debug("{}multicast-receiver silently ignoring empty messages from {}", tag, raw.getEndpointContext());
-
-				} else {
-					LOGGER.debug("{}multicast-receiver silently ignoring non-CoAP message from {}", tag, raw.getEndpointContext());
-				}
-
-			} catch (MessageFormatException e) {
-
-				// ignore erroneous messages that are not transmitted reliably
-				LOGGER.debug("{}multicast-receiver discarding malformed message from [{}]", tag, raw.getEndpointContext());
-			}
-		}
-
-		private void receiveRequest(final Request request) {
-
-			// set request attributes from raw data
-			request.setScheme(scheme);
-			InetSocketAddress in = connector.getAddress();
-			if (NetworkInterfacesUtil.isMultiAddress(in.getAddress())) {
-				request.setDestinationContext(new AddressEndpointContext(in));
-			} else {
-				LOGGER.warn("{}multicast-receiver is not in multicast group, drop request {}", tag, request);
-				return;
-			}
-
-			if (!started) {
-				LOGGER.debug("{}not running, drop request {}", tag, request);
-				return;
-			}
-
-			/*
-			 * Logging here causes significant performance loss. If necessary,
-			 * add an interceptor that logs the messages, e.g., the
-			 * MessageTracer.
-			 */
-			notifyReceive(interceptors, request);
-
-			// MessageInterceptor might have canceled
-			if (!request.isCanceled()) {
-				matcher.receiveRequest(request, endpointStackReceiver);
 			}
 		}
 	}
@@ -1429,7 +1297,7 @@ public class CoapEndpoint implements Endpoint {
 		 * @see #setConnector(Connector)
 		 * @see #setConnectorWithAutoConfiguration(UDPConnector)
 		 */
-		private boolean applyConfiguration = true;
+		private boolean applyConfiguration = false;
 		/**
 		 * Connector for communication.
 		 * 
@@ -1528,7 +1396,7 @@ public class CoapEndpoint implements Endpoint {
 		 */
 		public Builder setPort(int port) {
 			if (this.bindAddress != null || this.connector != null) {
-				throw new IllegalArgumentException("bind address already defined!");
+				throw new IllegalStateException("bind address already defined!");
 			}
 			this.bindAddress = new InetSocketAddress(port);
 			return this;
@@ -1564,9 +1432,10 @@ public class CoapEndpoint implements Endpoint {
 		 */
 		public Builder setInetSocketAddress(InetSocketAddress address) {
 			if (this.bindAddress != null || this.connector != null) {
-				throw new IllegalArgumentException("bind address already defined!");
+				throw new IllegalStateException("bind address already defined!");
 			}
 			this.bindAddress = address;
+			this.applyConfiguration = true;
 			return this;
 		}
 
@@ -1586,16 +1455,20 @@ public class CoapEndpoint implements Endpoint {
 		 * @param connector connector to be used
 		 * @return this
 		 * @throws IllegalStateException if {@link #bindAddress} is already
-		 *             defined
+		 *             defined, or a multicast-receiver connector is provided.
 		 * @see #bindAddress
 		 * @see #connector
 		 */
 		public Builder setConnector(Connector connector) {
 			if (this.bindAddress != null || this.connector != null) {
-				throw new IllegalArgumentException("bind address already defined!");
+				throw new IllegalStateException("bind address already defined!");
+			}
+			if (connector instanceof UdpMulticastConnector) {
+				if (((UdpMulticastConnector) connector).isMutlicastReceiver()) {
+					throw new IllegalStateException("cunnector must not be multicast receiver!");
+				}
 			}
 			this.connector = connector;
-			this.applyConfiguration = false;
 
 			return this;
 		}
@@ -1615,19 +1488,13 @@ public class CoapEndpoint implements Endpoint {
 		 * @param connector connector to be used
 		 * @return this
 		 * @throws IllegalStateException if {@link #bindAddress} is already
-		 *             defined
-		 * @throws IllegalArgumentException if applyConfiguration is
-		 *             {@code true}, but the connector is not a
-		 *             {@link UDPConnector}
+		 *             defined, or a multicast-receiver connector is provided.
 		 * @see #bindAddress
 		 * @see #connector
 		 */
 		public Builder setConnectorWithAutoConfiguration(UDPConnector connector) {
-			if (this.bindAddress != null || this.connector != null) {
-				throw new IllegalArgumentException("bind address already defined!");
-			}
-			this.connector = connector;
-
+			setConnector(connector);
+			this.applyConfiguration = true;
 			return this;
 		}
 
