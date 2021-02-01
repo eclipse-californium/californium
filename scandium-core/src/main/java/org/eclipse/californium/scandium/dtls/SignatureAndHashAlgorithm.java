@@ -55,7 +55,7 @@ public final class SignatureAndHashAlgorithm {
 		 */
 		INTRINSIC(8);
 
-		private int code;
+		private final int code;
 
 		private HashAlgorithm(int code) {
 			this.code = code;
