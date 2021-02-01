@@ -1356,6 +1356,100 @@ public class DTLSConnectorHandshakeTest {
 	}
 
 	@Test
+	public void testX509HandshakeFailingNoCommonSignatureAlgorithms() throws Exception {
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
+				.setClientAuthenticationWanted(true)
+				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA384_WITH_ECDSA,
+						SignatureAndHashAlgorithm.SHA256_WITH_ECDSA)
+				.setApplicationLevelInfoSupplier(clientInfoSupplier);
+		startServer(builder);
+
+		AsyncNewAdvancedCertificateVerifier clientCertificateVerifier = (AsyncNewAdvancedCertificateVerifier) AsyncNewAdvancedCertificateVerifier
+				.builder().setTrustAllCertificates().build();
+		clientsCertificateVerifiers.add(clientCertificateVerifier);
+
+		builder = DtlsConnectorConfig.builder().setAdvancedCertificateVerifier(clientCertificateVerifier)
+				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA1_WITH_ECDSA)
+				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+
+		startClientFailing(builder, new AddressEndpointContext(serverHelper.serverEndpoint));
+
+		LatchSessionListener listener = serverHelper.sessionListenerMap.get(client.getAddress());
+		assertThat("server side session listener missing", listener, is(notNullValue()));
+		Throwable cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
+		assertThat("server side handshake failure missing", cause, is(notNullValue()));
+
+		AlertMessage alert = serverHelper.serverAlertCatcher.waitForAlert(2000, TimeUnit.MILLISECONDS);
+		assertThat("server side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE)));
+
+		listener = serverHelper.sessionListenerMap.get(serverHelper.serverEndpoint);
+		assertThat("client side session listener missing", listener, is(notNullValue()));
+		cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
+		assertThat("client side handshake failure missing", cause, is(notNullValue()));
+		assertThat(cause.getMessage(), containsString("fatal alert"));
+
+		alert = clientAlertCatcher.waitForAlert(2000, TimeUnit.MILLISECONDS);
+		assertThat("client side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE)));
+
+		serverHelper.serverAlertCatcher.resetAlert();
+		clientAlertCatcher.resetAlert();
+		client.destroy();
+
+		clientCertificateVerifier = (AsyncNewAdvancedCertificateVerifier) AsyncNewAdvancedCertificateVerifier
+				.builder().setTrustAllCertificates().build();
+		clientsCertificateVerifiers.add(clientCertificateVerifier);
+
+		builder = DtlsConnectorConfig.builder()
+				.setAdvancedCertificateVerifier(clientCertificateVerifier)
+				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA384_WITH_ECDSA,
+						SignatureAndHashAlgorithm.SHA256_WITH_ECDSA)
+				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+
+		startClient(false, null, builder);
+		assertThat(serverHelper.establishedServerSession.getCipherSuite(),
+				is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+		assertThat(serverHelper.establishedServerSession.getSignatureAndHashAlgorithm(),
+				is(SignatureAndHashAlgorithm.SHA384_WITH_ECDSA));
+	}
+
+	@Test
+	public void testX509HandshakeFailingCertificateSignatureAlgorithm() throws Exception {
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
+				.setClientAuthenticationWanted(true)
+				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA384_WITH_ECDSA,
+						SignatureAndHashAlgorithm.SHA256_WITH_ECDSA)
+				.setApplicationLevelInfoSupplier(clientInfoSupplier);
+		startServer(builder);
+
+		AsyncNewAdvancedCertificateVerifier clientCertificateVerifier = (AsyncNewAdvancedCertificateVerifier) AsyncNewAdvancedCertificateVerifier
+				.builder().setTrustAllCertificates().build();
+		clientsCertificateVerifiers.add(clientCertificateVerifier);
+
+		builder = DtlsConnectorConfig.builder().setAdvancedCertificateVerifier(clientCertificateVerifier)
+				.setSupportedSignatureAlgorithms(SignatureAndHashAlgorithm.SHA384_WITH_ECDSA)
+				.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+
+		startClientFailing(builder, new AddressEndpointContext(serverHelper.serverEndpoint));
+
+		LatchSessionListener listener = serverHelper.sessionListenerMap.get(client.getAddress());
+		assertThat("server side session listener missing", listener, is(notNullValue()));
+		Throwable cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
+		assertThat("server side handshake failure missing", cause, is(notNullValue()));
+
+		AlertMessage alert = serverHelper.serverAlertCatcher.waitForAlert(2000, TimeUnit.MILLISECONDS);
+		assertThat("server side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE)));
+
+		listener = serverHelper.sessionListenerMap.get(serverHelper.serverEndpoint);
+		assertThat("client side session listener missing", listener, is(notNullValue()));
+		cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
+		assertThat("client side handshake failure missing", cause, is(notNullValue()));
+		assertThat(cause.getMessage(), containsString("fatal alert"));
+
+		alert = clientAlertCatcher.waitForAlert(2000, TimeUnit.MILLISECONDS);
+		assertThat("client side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE)));
+	}
+
+	@Test
 	public void testX509HandshakeFailingWrongClientCertificate() throws Exception {
 		startServer(false, true, false, null);
 
@@ -1428,6 +1522,38 @@ public class DTLSConnectorHandshakeTest {
 		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
 				.setAdvancedCertificateVerifier(clientCertificateVerifier).setRecommendedSupportedGroupsOnly(false)
 				.setSupportedGroups("secp521r1");
+
+		startClientFailing(builder, new AddressEndpointContext(serverHelper.serverEndpoint));
+
+		LatchSessionListener listener = serverHelper.sessionListenerMap.get(client.getAddress());
+		assertThat("server side session listener missing", listener, is(notNullValue()));
+		Throwable cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
+		assertThat("server side handshake failure missing", cause, is(notNullValue()));
+
+		AlertMessage alert = serverHelper.serverAlertCatcher.waitForAlert(2000, TimeUnit.MILLISECONDS);
+		assertThat("server side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE)));
+
+		listener = serverHelper.sessionListenerMap.get(serverHelper.serverEndpoint);
+		assertThat("client side session listener missing", listener, is(notNullValue()));
+		cause = listener.waitForSessionFailed(4000, TimeUnit.MILLISECONDS);
+		assertThat("client side handshake failure missing", cause, is(notNullValue()));
+
+		alert = clientAlertCatcher.waitForAlert(2000, TimeUnit.MILLISECONDS);
+		assertThat("client side alert", alert, is(new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE)));
+	}
+
+	@Test
+	public void testX509HandshakeFailingCertificateCurve() throws Exception {
+		startServer(false, false, false, null);
+
+		AsyncNewAdvancedCertificateVerifier clientCertificateVerifier = (AsyncNewAdvancedCertificateVerifier) AsyncNewAdvancedCertificateVerifier
+				.builder().setTrustAllCertificates().build();
+		clientsCertificateVerifiers.add(clientCertificateVerifier);
+
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
+				.setAdvancedCertificateVerifier(clientCertificateVerifier)
+				.setRecommendedSupportedGroupsOnly(false)
+				.setSupportedGroups("secp384r1");
 
 		startClientFailing(builder, new AddressEndpointContext(serverHelper.serverEndpoint));
 
