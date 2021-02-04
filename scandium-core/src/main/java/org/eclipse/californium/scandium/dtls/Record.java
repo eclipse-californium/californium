@@ -219,7 +219,7 @@ public class Record {
 	public Record(ContentType type, int epoch, DTLSMessage fragment, DTLSContext context, boolean cid, int pad)
 			throws GeneralSecurityException {
 		this(ProtocolVersion.VERSION_DTLS_1_2, epoch,
-				(context == null || epoch < 0) ? 0 : context.getSequenceNumber(epoch), 0, false);
+				(context == null || epoch < 0) ? 0 : context.getNextSequenceNumber(epoch), 0, false);
 		if (fragment == null) {
 			throw new NullPointerException("Fragment must not be null");
 		} else if (context == null) {

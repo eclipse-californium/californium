@@ -351,8 +351,8 @@ public final class DTLSContext implements Destroyable {
 	 * @throws IllegalStateException if the maximum sequence number for the
 	 *             epoch has been reached (2^48 - 1)
 	 */
-	public long getSequenceNumber() {
-		return getSequenceNumber(writeEpoch);
+	public long getNextSequenceNumber() {
+		return getNextSequenceNumber(writeEpoch);
 	}
 
 	/**
@@ -364,7 +364,7 @@ public final class DTLSContext implements Destroyable {
 	 * @throws IllegalStateException if the maximum sequence number for the
 	 *             epoch has been reached (2^48 - 1)
 	 */
-	public long getSequenceNumber(int epoch) {
+	public long getNextSequenceNumber(int epoch) {
 		long sequenceNumber = this.sequenceNumbers[epoch];
 		if (sequenceNumber <= Record.MAX_SEQUENCE_NO) {
 			this.sequenceNumbers[epoch] = sequenceNumber + 1;
@@ -527,20 +527,16 @@ public final class DTLSContext implements Destroyable {
 	 *            window boundary and that calculated value will pass the
 	 *            filter, for other messages the filter is applied.
 	 * @return {@code true} if the record satisfies the conditions above
+	 * @throws IllegalArgumentException if the epoch differs from the current
+	 *             read epoch
 	 * @since 2.4
 	 */
-	public boolean isRecordProcessable(long epoch, long sequenceNo, int useExtendedWindow) {
-		if (epoch < getReadEpoch()) {
-			// record is from a previous epoch
-			// discard record as proposed in DTLS 1.2
-			// http://tools.ietf.org/html/rfc6347#section-4.1
-			return false;
-		} else if (epoch > getReadEpoch()) {
-			// record is from future epoch
-			// discard record as allowed in DTLS 1.2
-			// http://tools.ietf.org/html/rfc6347#section-4.1
-			return false;
-		} else if (sequenceNo < receiveWindowLowerBoundary) {
+	public boolean isRecordProcessable(int epoch, long sequenceNo, int useExtendedWindow) {
+		int readEpoch = getReadEpoch();
+		if (epoch != readEpoch) {
+			throw new IllegalArgumentException("wrong epoch! " + epoch + " != " + readEpoch);
+		}
+		if (sequenceNo < receiveWindowLowerBoundary) {
 			// record lies out of receive window's "left" edge discard
 			if (useExtendedWindow < 0) {
 				// within extended window => pass
@@ -605,30 +601,31 @@ public final class DTLSContext implements Destroyable {
 	 * @param sequenceNo the record's sequence number
 	 * @return {@code true}, if the epoch/sequenceNo is newer than the current
 	 *         newest. {@code false}, if not.
+	 * @throws IllegalArgumentException if the epoch differs from the current
+	 *             read epoch
 	 */
-	public boolean markRecordAsRead(long epoch, long sequenceNo) {
-		if (epoch == getReadEpoch()) {
-			boolean newest = sequenceNo > receiveWindowUpperCurrent;
-			if (newest) {
-				receiveWindowUpperCurrent = sequenceNo;
-				long lowerBoundary = Math.max(0, sequenceNo - RECEIVE_WINDOW_SIZE + 1);
-				long incr = lowerBoundary - receiveWindowLowerBoundary;
-				if (incr > 0) {
-					// slide receive window to the right
-					receivedRecordsVector = receivedRecordsVector >>> incr;
-					receiveWindowLowerBoundary = lowerBoundary;
-				}
-			}
-			long bitMask = 1L << (sequenceNo - receiveWindowLowerBoundary);
-			// mark sequence number as "received" in receive window
-			receivedRecordsVector |= bitMask;
-			LOGGER.debug(
-					"Updated receive window with sequence number [{}]: new upper boundary [{}], new bit vector [{}]",
-					sequenceNo, receiveWindowUpperCurrent, Long.toBinaryString(receivedRecordsVector));
-			return newest;
-		} else {
-			return epoch > getReadEpoch();
+	public boolean markRecordAsRead(int epoch, long sequenceNo) {
+		int readEpoch = getReadEpoch();
+		if (epoch != readEpoch) {
+			throw new IllegalArgumentException("wrong epoch! " + epoch + " != " + readEpoch);
 		}
+		boolean newest = sequenceNo > receiveWindowUpperCurrent;
+		if (newest) {
+			receiveWindowUpperCurrent = sequenceNo;
+			long lowerBoundary = Math.max(0, sequenceNo - RECEIVE_WINDOW_SIZE + 1);
+			long incr = lowerBoundary - receiveWindowLowerBoundary;
+			if (incr > 0) {
+				// slide receive window to the right
+				receivedRecordsVector = receivedRecordsVector >>> incr;
+				receiveWindowLowerBoundary = lowerBoundary;
+			}
+		}
+		long bitMask = 1L << (sequenceNo - receiveWindowLowerBoundary);
+		// mark sequence number as "received" in receive window
+		receivedRecordsVector |= bitMask;
+		LOGGER.debug("Updated receive window with sequence number [{}]: new upper boundary [{}], new bit vector [{}]",
+				sequenceNo, receiveWindowUpperCurrent, Long.toBinaryString(receivedRecordsVector));
+		return newest;
 	}
 
 	/**

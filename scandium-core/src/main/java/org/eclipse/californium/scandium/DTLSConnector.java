@@ -632,7 +632,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 					});
 				}
 			}
-			List<Record> listIn = handshaker.takeDeferredRecords();
+			List<Record> listIn = handshaker.takeDeferredRecordsOfNextEpoch();
 			if (!listIn.isEmpty()) {
 				LOGGER.trace("DTLS context with [{}] established, now process deferred {} incoming messages",
 						handshaker.getPeerAddress(), listIn.size());
@@ -1558,7 +1558,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 			if (context == null) {
 				if (handshaker != null && handshaker.getDtlsContext().getReadEpoch() == 0 && epoch == 1) {
 					// future records, apply session after handshake finished.
-					handshaker.addRecordsForDeferredProcessing(record);
+					handshaker.addRecordsOfNextEpochForDeferredProcessing(record);
 				} else {
 					DROP_LOGGER.debug("Discarding {} record [epoch {}, rseqn {}] received from peer [{}] without an active dtls context",
 							record.getType(), epoch, record.getSequenceNumber(), StringUtil.toLog(record.getPeerAddress()));
@@ -1712,7 +1712,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 			// wait for FINISH
 			// the record is already decoded, so adding it for deferred processing
 			// requires to protect it from applying the session again in processRecord!
-			ongoingHandshake.addRecordsForDeferredProcessing(record);
+			ongoingHandshake.addRecordsOfNextEpochForDeferredProcessing(record);
 		} else {
 			DROP_LOGGER.debug("Discarding APPLICATION_DATA record received from peer [{}]",
 					StringUtil.toLog(record.getPeerAddress()));
@@ -2394,7 +2394,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 				record = new Record(ContentType.ALERT, context.getWriteEpoch(), alert, context,
 						useCid, TLS12_CID_PADDING);
 			} else {
-				record = new Record(ContentType.ALERT, alert.getProtocolVersion(), context.getSequenceNumber(), alert);
+				record = new Record(ContentType.ALERT, alert.getProtocolVersion(), context.getNextSequenceNumber(), alert);
 			}
 			record.setAddress(connection.getPeerAddress(), connection.getRouter());
 			sendRecord(record);

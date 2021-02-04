@@ -228,8 +228,15 @@ public abstract class Handshaker implements Destroyable {
 	private final int maxDeferredProcessedIncomingRecordsSize;
 	/** List of application data messages, which are send deferred after the handshake */
 	private final List<RawData> deferredApplicationData = new ArrayList<RawData>();
-	/** List of received records, which are processed deferred after the epoch changed or the handshake finished */
-	private final List<Record> deferredRecords = new ArrayList<Record>();
+	/**
+	 * List of received records of next epoch.
+	 * 
+	 * Records are processed deferred after the epoch changed or the handshake
+	 * failed.
+	 * 
+	 * @since 3.0 (renamed, was deferredRecords)
+	 */
+	private final List<Record> nextEpochDeferredRecords = new ArrayList<Record>();
 	/** Currently pending flight */
 	private final AtomicReference<DTLSFlight> pendingFlight = new AtomicReference<DTLSFlight>();
 	/**
@@ -478,11 +485,10 @@ public abstract class Handshaker implements Destroyable {
 		 */
 		Record getNextRecord() {
 
-			Record result = null;
-
 			if (isChangeCipherSpecMessageExpected() && changeCipherSpec != null) {
-				result = changeCipherSpec;
+				Record result = changeCipherSpec;
 				changeCipherSpec = null;
+				return result;
 			} else {
 				for (Record record : queue) {
 					int messageSeq = ((HandshakeMessage) record.getFragment()).getMessageSeq();
@@ -491,13 +497,12 @@ public abstract class Handshaker implements Destroyable {
 					}
 					removeDeferredProcessedRecord(record, queue);
 					if (messageSeq == nextReceiveMessageSequence) {
-						result = record;
-						break;
+						return record;
 					}
 				}
 			}
 
-			return result;
+			return null;
 		}
 
 		/**
@@ -579,22 +584,6 @@ public abstract class Handshaker implements Destroyable {
 				throw new IllegalArgumentException("record epoch " + recordEpoch + " doesn't match dtls context " + contextEpoch);
 			}
 		}
-
-		/**
-		 * Cleanup (remove) all records with the provided record sequence number
-		 * 
-		 * @param recordSequenceNumber actual processed record sequence number
-		 */
-		public void clean(long recordSequenceNumber) {
-			if (changeCipherSpec != null && changeCipherSpec.getSequenceNumber() == recordSequenceNumber) {
-				changeCipherSpec = null;
-			}
-			for (Record record : queue) {
-				if (record.getSequenceNumber() == recordSequenceNumber) {
-					removeDeferredProcessedRecord(record, queue);
-				}
-			}
-		}
 	}
 
 	/**
@@ -618,15 +607,13 @@ public abstract class Handshaker implements Destroyable {
 			return -1;
 		} else if (h1.getMessageSeq() > h2.getMessageSeq()) {
 			return 1;
-		} else {
-			if (r1.getSequenceNumber() < r2.getSequenceNumber()) {
-				return -1;
-			} else if (r1.getSequenceNumber() > r2.getSequenceNumber()) {
-				return 1;
-			} else {
-				return 0;
-			}
 		}
+		if (r1.getSequenceNumber() < r2.getSequenceNumber()) {
+			return -1;
+		} else if (r1.getSequenceNumber() > r2.getSequenceNumber()) {
+			return 1;
+		}
+		return 0;
 	}
 
 	/**
@@ -648,7 +635,7 @@ public abstract class Handshaker implements Destroyable {
 	 * delegates processing of the ordered messages to the
 	 * {@link #doProcessMessage(HandshakeMessage)} method. If
 	 * {@link ChangeCipherSpecMessage} is processed, the
-	 * {@link #deferredRecords} are passed again to the {@link RecordLayer} to
+	 * {@link #nextEpochDeferredRecords} are passed again to the {@link RecordLayer} to
 	 * get decrypted and processed.
 	 * 
 	 * @param record the handshake record
@@ -696,7 +683,7 @@ public abstract class Handshaker implements Destroyable {
 			return;
 		}
 		try {
-			int epoch = context.getReadEpoch();
+			final int epoch = context.getReadEpoch();
 			int bufferIndex = 0;
 			Record recordToProcess = record != null ? record : inboundMessageBuffer.getNextRecord();
 			while (recordToProcess != null) {
@@ -715,7 +702,9 @@ public abstract class Handshaker implements Destroyable {
 					LOGGER.debug("Processed {} message from peer [{}]", messageToProcess.getContentType(),
 							peerToLog);
 				} else if (messageToProcess.getContentType() == ContentType.HANDSHAKE) {
-					if (!processNextHandshakeMessages(epoch, bufferIndex, (HandshakeMessage) messageToProcess)) {
+					boolean more = processNextHandshakeMessages(recordToProcess.getEpoch(), bufferIndex, (HandshakeMessage) messageToProcess);
+					context.markRecordAsRead(recordToProcess.getEpoch(), recordToProcess.getSequenceNumber());
+					if (!more) {
 						break;
 					}
 				} else {
@@ -724,18 +713,22 @@ public abstract class Handshaker implements Destroyable {
 									messageToProcess.getContentType(), peerToLog),
 							new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
 				}
-				// process next expected record/message (if available yet)
-				context.markRecordAsRead(epoch, recordToProcess.getSequenceNumber());
-				inboundMessageBuffer.clean(recordToProcess.getSequenceNumber());
 				recordToProcess = inboundMessageBuffer.getNextRecord();
+				if (epoch < context.getReadEpoch()) {
+					if (recordToProcess != null || !inboundMessageBuffer.isEmpty()) {
+						throw new HandshakeException(
+								String.format("Unexpected handshake message left from peer %s", peerToLog),
+								new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
+					}
+				}
 				++bufferIndex;
 			}
-			if (context.getReadEpoch() > epoch) {
+			if (epoch < context.getReadEpoch()) {
 				final SerialExecutor serialExecutor = connection.getExecutor();
-				final List<Record> records = takeDeferredRecords();
+				final List<Record> records = takeDeferredRecordsOfNextEpoch();
 				if (deferredIncomingRecordsSize > 0) {
 					throw new HandshakeException(
-							String.format("Received unexpected message left from peer %s", peerToLog),
+							String.format("Received message of next epoch left from peer %s", peerToLog),
 							new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
 				}
 				for (Record deferredRecord : records) {
@@ -1441,9 +1434,10 @@ public abstract class Handshaker implements Destroyable {
 	 * Add incoming records for deferred processing.
 	 * 
 	 * @param incomingMessage incoming record.
+	 * @since 3.0 (renamed, was addRecordsForDeferredProcessing)
 	 */
-	public void addRecordsForDeferredProcessing(Record incomingMessage) {
-		addDeferredProcessedRecord(incomingMessage, deferredRecords);
+	public void addRecordsOfNextEpochForDeferredProcessing(Record incomingMessage) {
+		addDeferredProcessedRecord(incomingMessage, nextEpochDeferredRecords);
 	}
 
 	/**
@@ -1500,18 +1494,18 @@ public abstract class Handshaker implements Destroyable {
 	}
 
 	/**
-	 * Take deferred incoming records.
+	 * Take deferred incoming records of next epoch.
 	 * 
 	 * @return list if deferred incoming records
 	 */
-	public List<Record> takeDeferredRecords() {
-		List<Record> records = new ArrayList<Record>(deferredRecords);
+	public List<Record> takeDeferredRecordsOfNextEpoch() {
+		List<Record> records = new ArrayList<Record>(nextEpochDeferredRecords);
 		for (Record record : records) {
-			removeDeferredProcessedRecord(record, deferredRecords);
+			removeDeferredProcessedRecord(record, nextEpochDeferredRecords);
 		}
-		if (!deferredRecords.isEmpty()) {
-			LOGGER.warn("{} left deferred records", deferredRecords.size());
-			deferredRecords.clear();
+		if (!nextEpochDeferredRecords.isEmpty()) {
+			LOGGER.warn("{} left deferred records", nextEpochDeferredRecords.size());
+			nextEpochDeferredRecords.clear();
 		}
 		return records;
 	}

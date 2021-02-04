@@ -44,16 +44,16 @@ public class DTLSContextTest {
 		context = newEstablishedServerDtlsContext(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, false);
 	}
 
-	@Test
+	@Test (expected = IllegalArgumentException.class)
 	public void testRecordFromPreviousEpochIsDiscarded() {
 		context.setReadEpoch(1);
-		assertFalse(context.isRecordProcessable(0, 15, 0));
+		context.isRecordProcessable(0, 15, 0);
 	}
 
-	@Test
+	@Test (expected = IllegalArgumentException.class)
 	public void testRecordFromFutureEpochIsDiscarded() {
 		context.setReadEpoch(1);
-		assertFalse(context.isRecordProcessable(2, 15, 0));
+		context.isRecordProcessable(2, 15, 0);
 	}
 
 	@Test
@@ -157,18 +157,18 @@ public class DTLSContextTest {
 		assertFalse(context.markRecordAsRead(epoch, 2));
 	}
 
-	@Test
-	public void testHigherEpochIsNewer() {
+	@Test (expected = IllegalArgumentException.class)
+	public void testHigherEpochFails() {
 		int epoch = context.getReadEpoch();
 		context.markRecordAsRead(epoch, 2);
-		assertTrue(context.markRecordAsRead(epoch + 1, 0));
+		context.markRecordAsRead(epoch + 1, 0);
 	}
 
-	@Test
-	public void testLowerEpochIsNotNewer() {
+	@Test (expected = IllegalArgumentException.class)
+	public void testLowerEpochFails() {
 		int epoch = context.getReadEpoch();
 		context.markRecordAsRead(epoch, 0);
-		assertFalse(context.markRecordAsRead(epoch - 1, 2));
+		context.markRecordAsRead(epoch - 1, 2);
 	}
 
 	@Test
@@ -185,8 +185,8 @@ public class DTLSContextTest {
 	@Test(expected = IllegalStateException.class)
 	public void testGetSequenceNumberEnforcesMaxSequenceNo() {
 		context = new DTLSContext(new DTLSSession(), Record.MAX_SEQUENCE_NO);
-		context.getSequenceNumber(); // should succeed
-		context.getSequenceNumber(); // should throw exception
+		context.getNextSequenceNumber(); // should succeed
+		context.getNextSequenceNumber(); // should throw exception
 	}
 
 	public static DTLSContext newEstablishedServerDtlsContext(CipherSuite cipherSuite, boolean useRawPublicKeys) {
