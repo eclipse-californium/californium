@@ -24,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.netty.channel.Channel;
+import io.netty.util.AttributeKey;
 
 /**
  * Util for building for TCP endpoint context from channel.
@@ -31,6 +32,13 @@ import io.netty.channel.Channel;
 public class TcpContextUtil {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(TcpContextUtil.class);
+
+	/**
+	 * Key for TCP connect timestamp.
+	 * 
+	 * @since 3.0
+	 */
+	private static final AttributeKey<Long> connectTimestamp = AttributeKey.newInstance("connect_millis");
 
 	/**
 	 * Build endpoint context related to the provided channel.
@@ -41,7 +49,12 @@ public class TcpContextUtil {
 	public EndpointContext buildEndpointContext(Channel channel) {
 		InetSocketAddress address = (InetSocketAddress) channel.remoteAddress();
 		String id = channel.id().asShortText();
-		EndpointContext context = new TcpEndpointContext(address, id);
+		Long timestamp = channel.attr(connectTimestamp).get();
+		if (timestamp == null) {
+			timestamp = System.currentTimeMillis();
+			channel.attr(connectTimestamp).set(timestamp);
+		}
+		EndpointContext context = new TcpEndpointContext(address, id, timestamp);
 		LOGGER.debug("{}", context);
 		return context;
 	}

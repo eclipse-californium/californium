@@ -122,7 +122,7 @@ public class TlsContextUtil extends TcpContextUtil {
 				String sslId = StringUtil.byteArray2HexString(sessionId, StringUtil.NO_SEPARATOR, 0);
 				String cipherSuite = sslSession.getCipherSuite();
 				LOGGER.debug("TLS({},{},{})", id, StringUtil.trunc(sslId, 14), cipherSuite);
-				return new TlsEndpointContext(address, principal, id, sslId, cipherSuite);
+				return new TlsEndpointContext(address, principal, id, sslId, cipherSuite, sslSession.getLastAccessedTime());
 			}
 		}
 		// TLS handshake not finished
