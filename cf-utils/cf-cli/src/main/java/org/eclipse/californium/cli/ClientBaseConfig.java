@@ -43,7 +43,7 @@ public class ClientBaseConfig extends ConnectorConfig {
 
 	public static final String LABELT_URI = "URI";
 
-	public static final String DEFAULT_URI = "californium.eclipse.org";
+	public static final String DEFAULT_URI = "californium.eclipseprojects.io";
 
 	public String defaultUri = DEFAULT_URI;
 	/**

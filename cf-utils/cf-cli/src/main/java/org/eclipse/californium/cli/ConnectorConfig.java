@@ -59,12 +59,12 @@ public class ConnectorConfig implements Cloneable {
 	 */
 	public static final int MAX_WIDTH = 60;
 	/**
-	 * Dummy PSK identity for sandbox "californium.eclipse.org". All identities,
+	 * Dummy PSK identity for sandbox "californium.eclipseprojects.io". All identities,
 	 * starting with this prefix, share the "not" secret {@link #PSK_SECRET}.
 	 */
 	public static final String PSK_IDENTITY_PREFIX = "cali.";
 	/**
-	 * Dummy secret for sandbox "californium.eclipse.org".
+	 * Dummy secret for sandbox "californium.eclipseprojects.io".
 	 */
 	public static final SecretKey PSK_SECRET = SecretUtil.create(".fornium".getBytes(), "PSK");
 

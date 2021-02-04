@@ -65,7 +65,7 @@ public class ExampleSecureProxy2CoapClient {
 		// RFC7252 proxy request - use CoAP-URI, proxy scheme and destination to proxy
 		Request request = Request.newGet();
 		request.setDestinationContext(proxy);
-		request.setURI("coap://californium.eclipse.org:5684/test");
+		request.setURI("coap://californium.eclipseprojects.io:5684/test");
 		request.setProxyScheme("coaps");
 		request(client, request);
 
