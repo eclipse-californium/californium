@@ -197,7 +197,7 @@ public class HandshakerTest {
 		Finished finished = new Finished(hmac, new SecretKeySpec(new byte[]{0x00, 0x01}, "MAC"), true, new byte[]{0x00, 0x00});
 		finished.setMessageSeq(0);
 		Record finishedRecord = getRecordForMessage(1, 0, finished);
-		handshaker.addRecordsForDeferredProcessing(finishedRecord);
+		handshaker.addRecordsOfNextEpochForDeferredProcessing(finishedRecord);
 
 		// THEN the FINISHED message is not processed until the missing CHANGE_CIPHER_SPEC message has been
 		// received and processed
