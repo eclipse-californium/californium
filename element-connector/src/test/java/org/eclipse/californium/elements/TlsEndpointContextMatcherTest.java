@@ -34,9 +34,10 @@ public class TlsEndpointContextMatcherTest {
 
 	@Before
 	public void setup() {
-		connectorContext = new TlsEndpointContext(ADDRESS, null, "ID1", "S1", "C1");
-		messageContext = new TlsEndpointContext(ADDRESS, null, "ID1", "S1", "C1");
-		differentMessageContext = new TlsEndpointContext(ADDRESS, null, "ID2", "S2", "C1");
+		long time = System.currentTimeMillis();
+		connectorContext = new TlsEndpointContext(ADDRESS, null, "ID1", "S1", "C1", time);
+		messageContext = new TlsEndpointContext(ADDRESS, null, "ID1", "S1", "C1", time);
+		differentMessageContext = new TlsEndpointContext(ADDRESS, null, "ID2", "S2", "C1", System.currentTimeMillis());
 		matcher = new TlsEndpointContextMatcher();
 	}
 

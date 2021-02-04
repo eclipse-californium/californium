@@ -318,7 +318,7 @@ public class TcpEndpointContextTest {
 		client.start();
 
 		SimpleMessageCallback clientCallback = new SimpleMessageCallback();
-		TcpEndpointContext context = new TcpEndpointContext(getDestination(server.getAddress()), "n.a.");
+		TcpEndpointContext context = new TcpEndpointContext(getDestination(server.getAddress()), "n.a.", System.currentTimeMillis());
 		RawData msg = createMessage(100, context, clientCallback);
 
 		client.send(msg);
@@ -402,7 +402,7 @@ public class TcpEndpointContextTest {
 		clientCatcher.blockUntilSize(2, MESSAGE_TIMEOUT_MILLIS);
 
 		serverCallback = new SimpleMessageCallback();
-		TcpEndpointContext context = new TcpEndpointContext(receivedMsg.getInetSocketAddress(), "n.a.");
+		TcpEndpointContext context = new TcpEndpointContext(receivedMsg.getInetSocketAddress(), "n.a.", System.currentTimeMillis());
 		msg = createMessage(100, context, serverCallback);
 		server.send(msg);
 

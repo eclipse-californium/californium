@@ -33,9 +33,10 @@ public class TcpEndpointContextMatcherTest {
 
 	@Before
 	public void setup() {
-		connectorContext = new TcpEndpointContext(ADDRESS, "ID1");
-		messageContext = new TcpEndpointContext(ADDRESS, "ID1");
-		differentMessageContext = new TcpEndpointContext(ADDRESS, "ID2");
+		long time = System.currentTimeMillis();
+		connectorContext = new TcpEndpointContext(ADDRESS, "ID1", time);
+		messageContext = new TcpEndpointContext(ADDRESS, "ID1", time);
+		differentMessageContext = new TcpEndpointContext(ADDRESS, "ID2", System.currentTimeMillis());
 		matcher = new TcpEndpointContextMatcher();
 	}
 

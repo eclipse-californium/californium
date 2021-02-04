@@ -335,7 +335,7 @@ public class TlsCorrelationTest {
 		server.start();
 		client.start();
 
-		EndpointContext invalidContext = new TlsEndpointContext(server.getAddress(), null, "n.a.", "n.a.", "n.a.");
+		EndpointContext invalidContext = new TlsEndpointContext(server.getAddress(), null, "n.a.", "n.a.", "n.a.", System.currentTimeMillis());
 
 		// message context without connector context => drop
 		SimpleMessageCallback clientCallback = new SimpleMessageCallback();
@@ -444,7 +444,7 @@ public class TlsCorrelationTest {
 		assertTrue(clientCatcher.blockUntilSize(2, CATCHER_TIMEOUT_IN_MS));
 
 		serverCallback = new SimpleMessageCallback();
-		EndpointContext invalidContext = new TlsEndpointContext(receivedMsg.getInetSocketAddress(), null, "n.a.", "n.a.", "n.a.");
+		EndpointContext invalidContext = new TlsEndpointContext(receivedMsg.getInetSocketAddress(), null, "n.a.", "n.a.", "n.a.", System.currentTimeMillis());
 		msg = createMessage(100, invalidContext, serverCallback);
 		server.send(msg);
 
