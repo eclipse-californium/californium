@@ -40,8 +40,8 @@ import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.util.TestScope;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.DebugConnectionStore;
-import org.eclipse.californium.scandium.dtls.InMemoryClientSessionCache;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -78,13 +78,13 @@ public class DTLSConnectorStartStopTest {
 	private static final int MAX_TIME_TO_WAIT_SECS				= 5;
 
 	static ConnectorHelper serverHelper;
-	static InMemoryClientSessionCache clientSessionCache;
 	static String testLogTagHead;
 	static int testLogTagCounter;
 
 	DTLSConnector client;
 	LatchDecrementingRawDataChannel clientChannel;
 	DebugConnectionStore clientConnectionStore;
+	Connection restoreClientConnection;
 
 	String testLogTag = "";
 
@@ -106,7 +106,6 @@ public class DTLSConnectorStartStopTest {
 		}
 		serverHelper = new ConnectorHelper();
 		serverHelper.startServer();
-		clientSessionCache = new InMemoryClientSessionCache();
 	}
 
 	/**
@@ -120,7 +119,7 @@ public class DTLSConnectorStartStopTest {
 	@Before
 	public void setUp() throws IOException, GeneralSecurityException {
 		testLogTag = testLogTagHead + testLogTagCounter++;
-		clientConnectionStore = new DebugConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60, clientSessionCache);
+		clientConnectionStore = new DebugConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60, null);
 		clientConnectionStore.setTag(testLogTag + "-client");
 		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 		DtlsConnectorConfig.Builder builder = serverHelper.newStandardClientConfigBuilder(clientEndpoint)
@@ -130,6 +129,10 @@ public class DTLSConnectorStartStopTest {
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
 		clientChannel = new LatchDecrementingRawDataChannel();
 		client.setRawDataReceiver(clientChannel);
+		if (restoreClientConnection != null) {
+			client.restoreConnection(restoreClientConnection);
+			restoreClientConnection = null;
+		}
 	}
 
 	@After
@@ -233,6 +236,8 @@ public class DTLSConnectorStartStopTest {
 			assertThat(testLogTag + " loop: " + loop + ", missing callbacks " + callback, complete, is(true));
 			lastServerRemaining = serverHelper.serverConnectionStore.remainingCapacity();
 			if (restart) {
+				restoreClientConnection = clientConnectionStore.get(serverHelper.serverEndpoint);
+				restoreClientConnection.setResumptionRequired(true);
 				client.destroy();
 				setup = true;
 			}

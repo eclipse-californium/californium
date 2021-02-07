@@ -95,6 +95,8 @@ are removed and must be replaced by
 
 9) `useHandshakeStateValidation` is removed from configuration. The handshake-state machine is now always.
 
+10) The `ClientSessionCache` is removed and replaced by the `DTLSSession` serialization. The extended `ConnectionListener` and the `DTLSConnector.restoreConnection(Connection connection)` are for saving and restoring `Connection`s.
+
 ### Californium-Core:
 
 1) The `MessageObserver2` interface is integrated in `MessageObserver`.
