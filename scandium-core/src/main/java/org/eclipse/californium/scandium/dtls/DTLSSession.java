@@ -731,6 +731,7 @@ public final class DTLSSession implements Destroyable {
 	@WipAPI
 	public void write(DatagramWriter writer) {
 		int position = SerializationUtil.writeStartItem(writer, VERSION, Short.SIZE);
+		writer.writeLong(creationTime, Long.SIZE);
 		if (serverNames == null) {
 			writer.write(0, Byte.SIZE);
 		} else {
@@ -786,6 +787,7 @@ public final class DTLSSession implements Destroyable {
 	 * @since 3.0
 	 */
 	private DTLSSession(DatagramReader reader) {
+		creationTime = reader.readLong(Long.SIZE);
 		if (reader.readNextByte() == 1) {
 			serverNames = ServerNames.newInstance();
 			try {
