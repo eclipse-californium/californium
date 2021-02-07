@@ -47,6 +47,8 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	/**
 	 * The name of the attribute that contains the timestamp of the last
 	 * handshake of the DTLS session as {@link Number}.
+	 * 
+	 * In milliseconds since midnight, January 1, 1970 UTC.
 	 */
 	public static final String KEY_HANDSHAKE_TIMESTAMP = "DTLS_HANDSHAKE_TIMESTAMP";
 	/**
@@ -72,11 +74,12 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 	public static final String KEY_VIA_ROUTER = KEY_PREFIX_NONE_CRITICAL + "DTLS_VIA_ROUTER";
 	/**
 	 * The name of the attribute that contains a handshake mode. Values see
-	 * {@link #HANDSHAKE_MODE_FORCE_FULL}, {@link #HANDSHAKE_MODE_FORCE}, and
-	 * {@link #HANDSHAKE_MODE_NONE}. Only considered, if endpoint is not
-	 * configured as "server only". If not provided, a handshake will be
-	 * started, if required and the connector is not configured to act as server
-	 * only. None critical attribute, not considered for matching.
+	 * {@link #HANDSHAKE_MODE_FORCE_FULL}, {@link #HANDSHAKE_MODE_FORCE},
+	 * {@link #HANDSHAKE_MODE_PROBE}, and {@link #HANDSHAKE_MODE_NONE}. Only
+	 * considered, if endpoint is not configured as "server only". If not
+	 * provided, a handshake will be started, if required and the connector is
+	 * not configured to act as server only. None critical attribute, not
+	 * considered for matching.
 	 */
 	public static final String KEY_HANDSHAKE_MODE = KEY_PREFIX_NONE_CRITICAL + "DTLS_HANDSHAKE_MODE";
 
@@ -106,8 +109,10 @@ public class DtlsEndpointContext extends MapBasedEndpointContext {
 
 	/**
 	 * The name of the attribute that contains a auto session resumption timeout
-	 * in milliseconds as number. {@code -1}, disable auto session resumption. None
-	 * critical attribute, not considered for matching.
+	 * in milliseconds as number.
+	 * 
+	 * {@code -1}, disable auto session resumption. None critical attribute, not
+	 * considered for matching.
 	 */
 	public static final String KEY_RESUMPTION_TIMEOUT = KEY_PREFIX_NONE_CRITICAL + "DTLS_RESUMPTION_TIMEOUT";
 

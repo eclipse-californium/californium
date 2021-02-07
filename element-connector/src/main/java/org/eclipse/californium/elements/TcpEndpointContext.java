@@ -35,6 +35,9 @@ public class TcpEndpointContext extends MapBasedEndpointContext {
 	public static final String KEY_CONNECTION_ID = "CONNECTION_ID";
 	/**
 	 * Key for TCP connection timestamp as {@link String}.
+	 * 
+	 * In milliseconds since midnight, January 1, 1970 UTC.
+	 * 
 	 * @since 3.0
 	 */
 	public static final String KEY_CONNECTION_TIMESTAMP = "CONNECTION_TIMESTAMP";
