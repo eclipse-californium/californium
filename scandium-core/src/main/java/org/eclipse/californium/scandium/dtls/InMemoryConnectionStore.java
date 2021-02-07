@@ -255,30 +255,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		} else {
 			this.connectionIdGenerator = connectionIdGenerator;
 		}
-		if (sessionCache instanceof ClientSessionCache) {
-			ClientSessionCache clientCache = (ClientSessionCache) sessionCache;
-			LOGGER.debug("{}resume client sessions {}", tag, clientCache);
-			for (InetSocketAddress peer : clientCache) {
-				SessionTicket ticket = clientCache.getSessionTicket(peer);
-				SessionId id = clientCache.getSessionIdentity(peer);
-				if (ticket != null && id != null) {
-					// restore connection from session ticket
-					Connection connection = new Connection(new DTLSSession(id, ticket), peer);
-					ConnectionId connectionId = newConnectionId();
-					if (connectionId != null) {
-						connection.setConnectionId(connectionId);
-						connections.put(connectionId, connection);
-						connectionsByAddress.put(peer, connection);
-						LOGGER.debug("{}resume {} {}", tag, StringUtil.toLog(peer), id);
-					} else {
-						LOGGER.info("{}drop session {} {}, could not allocated cid!", tag, StringUtil.toLog(peer), id);
-					}
-				}
-			}
-		}
-		
 	}
-	
 
 	/**
 	 * {@inheritDoc}
@@ -379,11 +356,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		SessionId sessionId = session.getSessionIdentifier();
 		if (!sessionId.isEmpty()) {
 			if (sessionCache != null) {
-				if (sessionCache instanceof ClientSessionCache) {
-					((ClientSessionCache)sessionCache).put(connection.getPeerAddress(), session);
-				} else {
-					sessionCache.put(session);
-				}
+				sessionCache.put(session);
 			}
 			final Connection previous = connectionsByEstablishedSession.put(sessionId, connection);
 			if (previous != null && previous != connection) {
