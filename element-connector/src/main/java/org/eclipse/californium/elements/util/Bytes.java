@@ -111,10 +111,11 @@ public class Bytes {
 	/**
 	 * {@inheritDoc}
 	 * 
-	 * Note: since 3.0 the sub-class may be ignored, depending on the provided
-	 * value of the {@code useClassInEquals} parameter in
-	 * {@link Bytes#Bytes(byte[], int, boolean, boolean)}. The default behavior
-	 * is changed to ignore the sub-class.
+	 * Note: since 3.0 the sub-class may be ignored. This depends on the
+	 * provided value of the {@code useClassInEquals} parameter in
+	 * {@link Bytes#Bytes(byte[], int, boolean, boolean)} for {@code this}, or
+	 * the {@code other} object. The default behavior is changed to ignore the
+	 * sub-class.
 	 */
 	@Override
 	public final boolean equals(Object obj) {
@@ -123,11 +124,11 @@ public class Bytes {
 		} else if (obj == null) {
 			return false;
 		}
-		if (useClassInEquals && getClass() != obj.getClass()) {
-			return false;
-		}
 		if (obj instanceof Bytes) {
 			Bytes other = (Bytes) obj;
+			if ((useClassInEquals || other.useClassInEquals) && getClass() != obj.getClass()) {
+				return false;
+			}
 			if (hash != other.hash) {
 				return false;
 			}
