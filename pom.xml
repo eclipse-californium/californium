@@ -565,8 +565,8 @@
 				<configuration>
 					<signature>
 						<groupId>net.sf.androidscents.signature</groupId>
-						<artifactId>android-api-level-16</artifactId>
-						<version>4.1.2_r5</version>
+						<artifactId>android-api-level-20</artifactId>
+						<version>4.4W_r1</version>
 					</signature>
 					<annotations>
 						<annotation>org.eclipse.californium.elements.util.NotForAndroid</annotation>

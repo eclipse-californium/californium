@@ -85,7 +85,6 @@ public class StringUtil {
 		CALIFORNIUM_VERSION = StringUtil.class.getPackage().getImplementationVersion();
 	}
 
-	@NotForAndroid
 	private static String toHostString(InetSocketAddress address) {
 		return address.getHostString();
 	}
