@@ -21,8 +21,6 @@ import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 
-import org.eclipse.californium.elements.util.NotForAndroid;
-
 /**
  * A generic Authenticated Encryption with Associated Data block cipher mode.
  */
@@ -123,7 +121,6 @@ public class AeadBlockCipher {
 	 *             e.g. because the ciphertext's block size is not correct
 	 * @throws InvalidMacException if the message could not be authenticated
 	 */
-	@NotForAndroid
 	private final static byte[] jreDecrypt(CipherSuite suite, SecretKey key, byte[] nonce, byte[] additionalData,
 			byte[] crypted, int cryptedOffset, int cryptedLength) throws GeneralSecurityException {
 
@@ -148,7 +145,6 @@ public class AeadBlockCipher {
 	 * @throws GeneralSecurityException if the data could not be encrypted, e.g.
 	 *             because the JVM does not support the AES cipher algorithm
 	 */
-	@NotForAndroid
 	private final static byte[] jreEncrypt(int outputOffset, CipherSuite suite, SecretKey key, byte[] nonce,
 			byte[] additionalData, byte[] message) throws GeneralSecurityException {
 		Cipher cipher = suite.getThreadLocalCipher();
