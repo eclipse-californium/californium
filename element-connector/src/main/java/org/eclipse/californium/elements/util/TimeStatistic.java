@@ -92,6 +92,20 @@ public class TimeStatistic {
 	}
 
 	/**
+	 * Checks, if values are available for this statistic.
+	 * 
+	 * @return {@code true}, if values are available, {@code false}, otherwise.
+	 */
+	public boolean available() {
+		for (int index = 0; index < statistic.length; ++index) {
+			if (statistic[index].get() > 0) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
 	 * Get summary of statistic.
 	 * 
 	 * Include {@code 95%}, {@code 99%}, and {@code 99.9%} percentiles.
