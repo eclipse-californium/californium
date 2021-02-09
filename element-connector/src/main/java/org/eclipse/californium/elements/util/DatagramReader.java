@@ -139,7 +139,7 @@ public final class DatagramReader extends DataStreamReader {
 	public void assertFinished(String message) {
 		int left = bitsLeft();
 		if (left > 0) {
-			throw new IllegalStateException(message + " not finised! " + left + " bits left.");
+			throw new IllegalStateException(message + " not finished! " + left + " bits left.");
 		}
 	}
 
