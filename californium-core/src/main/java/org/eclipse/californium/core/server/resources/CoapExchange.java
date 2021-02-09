@@ -169,7 +169,7 @@ public class CoapExchange {
 	/**
 	 * Gets the request payload as byte array.
 	 *
-	 * @return the request payload
+	 * @return the request payload, or {@code null}, if no payload is available.
 	 */
 	public byte[] getRequestPayload() {
 		return exchange.getRequest().getPayload();
