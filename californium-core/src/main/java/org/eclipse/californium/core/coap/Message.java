@@ -612,7 +612,7 @@ public abstract class Message {
 	/**
 	 * Gets the raw payload.
 	 *
-	 * @return the payload
+	 * @return the payload, or {@code null}, if not available.
 	 * @throws IllegalStateException if message was {@link #offload}ed.
 	 */
 	public byte[] getPayload() {
@@ -707,7 +707,7 @@ public abstract class Message {
 	 * Provides a fluent API to chain setters.
 	 *
 	 * @param payload the new payload. {@code null} or a empty array are not
-	 *            considered to be payload and therefore not cause a
+	 *            considered to be payload and therefore not cause an
 	 *            IllegalArgumentException, if this message must not have
 	 *            payload.
 	 * @return this Message
@@ -1165,7 +1165,7 @@ public abstract class Message {
 	/**
 	 * Gets the serialized message as byte array or {@code null}, if not serialized yet.
 	 *
-	 * @return the bytes of the serialized message or null
+	 * @return the bytes of the serialized message or {@code null}
 	 * @throws IllegalStateException if message was {@link #offload}ed.
 	 */
 	public byte[] getBytes() {
