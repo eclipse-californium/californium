@@ -47,6 +47,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.util.ClockUtil;
+import org.eclipse.californium.elements.util.DataStreamReader;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.SerialExecutor;
@@ -749,6 +750,16 @@ public final class Connection {
 	}
 
 	/**
+	 * Get realtime nanoseconds of last message.
+	 * 
+	 * @return realtime nanoseconds of last message
+	 * @since 3.0
+	 */
+	public long getLastMessageNanos() {
+		return lastMessageNanos;
+	}
+
+	/**
 	 * Use to force an abbreviated handshake next time a data will be sent on
 	 * this connection.
 	 * 
@@ -921,6 +932,7 @@ public final class Connection {
 			int position = SerializationUtil.writeStartItem(writer, VERSION, Short.SIZE);
 
 			writer.writeByte(resumptionRequired ? (byte) 1 : (byte) 0);
+			writer.writeLong(lastMessageNanos, Long.SIZE);
 			writer.writeVarBytes(cid, Byte.SIZE);
 			SerializationUtil.write(writer, peerAddress);
 			ClientHelloIdentifier start = startingHelloClient;
@@ -945,19 +957,16 @@ public final class Connection {
 	 * 
 	 * @param reader reader with connection state.
 	 * @param nanoShift adjusting shift for system time in nanoseconds.
-	 * @param lastConnectionUpdate system time in nanoseconds of the last
-	 *            connection usage. See {@link #lastMessageNanos}.
 	 * @return read connection.
-	 * @throws IllegalArgumentException if version differs.
-	 * @throws IllegalStateException if data is erroneous.
+	 * @throws IllegalArgumentException if version differs or data is erroneous.
 	 * @since 3.0
 	 */
 	@WipAPI
-	public static Connection fromReader(DatagramReader reader, long nanoShift, long lastConnectionUpdate) {
+	public static Connection fromReader(DataStreamReader reader, long nanoShift) {
 		int length = SerializationUtil.readStartItem(reader, VERSION, Short.SIZE);
 		if (0 < length) {
 			DatagramReader rangeReader = reader.createRangeReader(length);
-			return new Connection(rangeReader, nanoShift, lastConnectionUpdate);
+			return new Connection(rangeReader, nanoShift);
 		} else {
 			return null;
 		}
@@ -968,13 +977,11 @@ public final class Connection {
 	 * 
 	 * @param reader reader with connection state.
 	 * @param nanoShift adjusting shift for system time in nanoseconds.
-	 * @param lastConnectionUpdate system time in nanoseconds of the last
-	 *            connection usage. See {@link #lastMessageNanos}.
 	 * @since 3.0
 	 */
-	private Connection(DatagramReader reader, long nanoShift, long lastConnectionUpdate) {
+	private Connection(DatagramReader reader, long nanoShift) {
 		resumptionRequired = reader.readNextByte() == 1;
-		lastMessageNanos = lastConnectionUpdate;
+		lastMessageNanos = reader.readLong(Long.SIZE) + nanoShift;
 		byte[] data = reader.readVarBytes(Byte.SIZE);
 		cid = new ConnectionId(data);
 		peerAddress = SerializationUtil.readAddress(reader);

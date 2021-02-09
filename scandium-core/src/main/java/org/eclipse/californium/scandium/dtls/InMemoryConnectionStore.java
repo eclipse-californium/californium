@@ -38,36 +38,22 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
-import java.security.GeneralSecurityException;
-import java.security.MessageDigest;
-import java.security.spec.AlgorithmParameterSpec;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
-import javax.crypto.Cipher;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.IvParameterSpec;
-
-import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DataStreamReader;
-import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
+import org.eclipse.californium.elements.util.LeastRecentlyUsedCache.Timestamped;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.SerializationUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.elements.util.WipAPI;
 import org.eclipse.californium.scandium.ConnectionListener;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
-import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
-import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -356,8 +342,8 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		if (connection == null) {
 			return false;
 		}
-		connection.refreshAutoResumptionTime();
 		if (connections.update(connection.getConnectionId())) {
+			connection.refreshAutoResumptionTime();
 			if (newPeerAddress == null) {
 				LOGGER.debug("{}connection: {} updated usage!", tag, connection.getConnectionId());
 			} else if (!connection.equalsPeerAddress(newPeerAddress)) {
@@ -673,164 +659,68 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	}
 
 	@WipAPI
-	public int saveConnections(OutputStream out, SecretKey password, long maxAgeInSeconds) throws IOException, GeneralSecurityException {
-		Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+	@Override
+	public int saveConnections(OutputStream out, long maxAgeInSeconds) throws IOException {
 		int count = 0;
 		DatagramWriter writer = new DatagramWriter(4096);
-		byte[] nonce = new byte[16];
-		RandomManager.currentSecureRandom().nextBytes(nonce);
-		byte[] data = PseudoRandomFunction.doPRF(
-				CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256.getThreadLocalPseudoRandomFunctionMac(), password,
-				Label.KEY_EXPANSION_LABEL, nonce, 16);
-		SecretKey key = SecretUtil.create(data, "AES");
-		MessageDigest messageDigest = CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256.getThreadLocalMacMessageDigest();
-		try {
-			long startMillis = System.currentTimeMillis();
-			long startNanos = ClockUtil.nanoRealtime();
-			synchronized (connections) {
-				Iterator<LeastRecentlyUsedCache.Timestamped<Connection>> iterator = connections.timestampedIterator();
-				while (iterator.hasNext()) {
-					LeastRecentlyUsedCache.Timestamped<Connection> connection = iterator.next();
-					long updateNanos = connection.getLastUpdate();
-					long age = TimeUnit.NANOSECONDS.toSeconds(startNanos - updateNanos);
-					if (age > maxAgeInSeconds) {
-						LOGGER.trace("{}skip {} ts, {}s too aged!", tag, updateNanos, age);
+		long startNanos = ClockUtil.nanoRealtime();
+		synchronized (connections) {
+			Iterator<Timestamped<Connection>> iterator = connections.timestampedIterator();
+			while (iterator.hasNext()) {
+				Timestamped<Connection> connection = iterator.next();
+				long updateNanos = connection.getLastUpdate();
+				long age = TimeUnit.NANOSECONDS.toSeconds(startNanos - updateNanos);
+				if (age > maxAgeInSeconds) {
+					LOGGER.trace("{}skip {} ts, {}s too aged!", tag, updateNanos, age);
+				} else {
+					LOGGER.trace("{}write {} ts, {}s ", tag, updateNanos, age);
+					if (connection.getValue().write(writer)) {
+						writer.writeTo(out);
+						++count;
 					} else {
-						LOGGER.trace("{}write {} ts, {}s ", tag, updateNanos, age);
-						int position = writer.space(Short.SIZE);
-						writer.writeLong(updateNanos, Long.SIZE);
-						if (connection.getValue().write(writer)) {
-							if (count == 0) {
-								DatagramWriter writerHeader = new DatagramWriter(32);
-								int positionHeader = writerHeader.space(Short.SIZE);
-								writerHeader.writeVarBytes(nonce, Byte.SIZE);
-								writerHeader.writeLong(startMillis, Long.SIZE);
-								writerHeader.writeLong(startNanos, Long.SIZE);
-								writerHeader.updateMessageDigest(positionHeader + 2, messageDigest);
-								writerHeader.writeSize(positionHeader, Short.SIZE);
-								writerHeader.writeTo(out);
-								writerHeader.close();
-								messageDigest.update(data);
-							}
-							AlgorithmParameterSpec parameterSpec = new IvParameterSpec(nonce);
-							writer.encrypt(position + 2, cipher, parameterSpec, key);
-							writer.updateMessageDigest(position + 2, messageDigest);
-							writer.writeSize(position, Short.SIZE);
-							writer.writeTo(out);
-							increment(nonce);
-							++count;
-						} else {
-							writer.reset();
-						}
+						writer.reset();
 					}
 				}
 			}
-		} finally {
-			SecretUtil.destroy(key);
-			Bytes.clear(data);
 		}
-		out.write(0);
-		out.write(0);
-		if (count > 0) {
-			// digest
-			byte[] digest = messageDigest.digest(nonce);
-			writer.writeVarBytes(digest, Short.SIZE);
-			writer.writeTo(out);
-		}
+		SerializationUtil.writeNoItem(out);
+		out.flush();
 		writer.close();
 		clear();
 		return count;
 	}
 
 	@WipAPI
-	public int loadConnections(InputStream in, SecretKey password)
-			throws GeneralSecurityException, IOException {
-		Cipher cipher =  Cipher.getInstance("AES/CBC/PKCS5Padding");
+	@Override
+	public int loadConnections(InputStream in, long delta) throws IOException {
 		int count = 0;
+		long startNanos = ClockUtil.nanoRealtime();
 		DataStreamReader reader = new DataStreamReader(in);
-		int len = reader.read(Short.SIZE);
-		if (len > 0) {
-			boolean read = false;
-			SecretKey key = null;
-			try {
-				MessageDigest messageDigest = CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256.getThreadLocalMacMessageDigest();
-				DatagramReader rangeReader = reader.createRangeReader(len);
-				rangeReader.updateMessageDigest(messageDigest);
-				byte[] nonce = rangeReader.readVarBytes(Byte.SIZE);
-				long millis = rangeReader.readLong(Long.SIZE);
-				long nanos = rangeReader.readLong(Long.SIZE);
-				if (rangeReader.bytesAvailable()) {
-					throw new IOException("Invalid parameter block! " + (rangeReader.bitsLeft() / Byte.SIZE) + " bytes left!");
+		try {
+			Connection connection;
+			while ((connection = Connection.fromReader(reader, delta)) != null) {
+				long lastUpdate = connection.getLastMessageNanos();
+				if (lastUpdate - delta - startNanos > 0) {
+					LOGGER.warn("{}read {} ts is after {} (future)", tag, lastUpdate, startNanos);
 				}
-				long startMillis = System.currentTimeMillis();
-				long startNanos = ClockUtil.nanoRealtime();
-				long delta1 = Math.max(TimeUnit.MILLISECONDS.toNanos(startMillis - millis), 0L);
-				long delta2 = startNanos - nanos;
-				long delta = delta2 - delta1;
-				LOGGER.debug("{}delta {} {} => {}", tag, delta1, delta2, delta);
-				byte[] data = PseudoRandomFunction.doPRF(CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256.getThreadLocalPseudoRandomFunctionMac(), password,
-						Label.KEY_EXPANSION_LABEL, nonce, 16);
-				key = SecretUtil.create(data, "AES");
-				messageDigest.update(data);
-				Bytes.clear(data);
-				while ((len = reader.read(Short.SIZE)) > 0) {
-					rangeReader = reader.createRangeReader(len);
-					rangeReader.updateMessageDigest(messageDigest);
-					AlgorithmParameterSpec parameterSpec = new IvParameterSpec(nonce);
-					rangeReader.decrypt(cipher, parameterSpec, key);
-					long lastUpdate = rangeReader.readLong(Long.SIZE);
-					long update = lastUpdate + delta;
-					Connection connection = Connection.fromReader(rangeReader, delta, update);
-					if (connection != null) {
-						if (lastUpdate > nanos) {
-							LOGGER.warn("{}read {} ts after {} ", tag, lastUpdate, nanos);
-						}
-						LOGGER.trace("{}read {} ts, {}s", tag, update,
-								TimeUnit.NANOSECONDS.toSeconds(startNanos - update));
-						restore(connection, update);
-						increment(nonce);
-						++count;
-					}
-				}
-				byte[] readDigest = reader.readVarBytes(Short.SIZE);
-				read = true;
-				byte[] calculatedDigest = messageDigest.digest(nonce);
-				if (!MessageDigest.isEqual(calculatedDigest, readDigest)) {
-					LOGGER.error("{}MessageDigest failure ({} connections)!", tag, count);
-					LOGGER.error("{}calc : {}", tag, StringUtil.byteArray2Hex(calculatedDigest));
-					LOGGER.error("{}read : {}", tag, StringUtil.byteArray2Hex(readDigest));
-					SimpleDateFormat format = new SimpleDateFormat("HH:mm:ss dd.MM.yyyy");
-					LOGGER.error("{}nonce {} bytes, saved {}", tag, nonce.length, format.format(new Date(millis)));
-					throw new GeneralSecurityException("MAC mismatch!");
-				} else {
-					LOGGER.debug("{}MessageDigest passed {} ({} connections)!", tag, StringUtil.byteArray2Hex(calculatedDigest), count);
-				}
-			} catch (IllegalStateException ex) {
-				LOGGER.warn("{}reading failed after {} connections", tag, count, ex);
-				// left connections
-				SerializationUtil.skipBlocks(in, 0);
-				// mac
-				SerializationUtil.skipBlocks(in, 1);
-				clear();
-				throw ex;
-			} catch (GeneralSecurityException ex) {
-				if (!read) {
-					LOGGER.warn("{}reading failed after {} connections", tag, count, ex);
-					// left connections
-					SerializationUtil.skipBlocks(in, 0);
-					// mac
-					SerializationUtil.skipBlocks(in, 1);
-				}
-				clear();
-				throw ex;
-			} finally {
-				SecretUtil.destroy(key);
+				LOGGER.trace("{}read {} ts, {}s", tag, lastUpdate,
+						TimeUnit.NANOSECONDS.toSeconds(startNanos - lastUpdate));
+				restore(connection);
+				++count;
 			}
+		} catch (IllegalStateException ex) {
+			LOGGER.warn("{}reading failed after {} connections", tag, count, ex);
+			clear();
+			throw new IllegalArgumentException(ex.getMessage(), ex);
+		} catch (IllegalArgumentException ex) {
+			LOGGER.warn("{}reading failed after {} connections", tag, count, ex);
+			clear();
+			throw ex;
 		}
 		return count;
 	}
 
-	private boolean restore(final Connection connection, long lastUsage) {
+	private boolean restore(final Connection connection) {
 
 		ConnectionId connectionId = connection.getConnectionId();
 		if (connectionId == null) {
@@ -840,9 +730,8 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		} else if (connections.get(connectionId) != null) {
 			throw new IllegalStateException("Connection id already used! " + connectionId);
 		}
-		LeastRecentlyUsedCache.Timestamped<Connection> timestamped = new LeastRecentlyUsedCache.Timestamped<>(connection, lastUsage);
 		synchronized (connections) {
-			if (connections.put(connectionId, timestamped)) {
+			if (connections.put(connectionId, new Timestamped<Connection>(connection, connection.getLastMessageNanos()))) {
 				if (LOGGER.isTraceEnabled()) {
 					LOGGER.trace("{}connection: add {} (size {})", tag, connection, connections.size(),
 							new Throwable("connection added!"));
@@ -861,13 +750,4 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 			}
 		}
 	}
-
-	private static void increment(byte[] nonce) {
-		for (int pos = 0; pos < nonce.length; ++pos) {
-			if (++nonce[pos] != 0) {
-				break;
-			}
-		}
-	}
-
 }

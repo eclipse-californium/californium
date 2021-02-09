@@ -33,6 +33,8 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.SocketException;
 import java.net.URI;
+import java.security.GeneralSecurityException;
+import java.security.spec.AlgorithmParameterSpec;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
@@ -41,7 +43,11 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import javax.crypto.Cipher;
+import javax.crypto.CipherInputStream;
+import javax.crypto.CipherOutputStream;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
 
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
@@ -56,6 +62,7 @@ import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.elements.tcp.netty.TlsServerConnector.ClientAuthMode;
 import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.DataStreamReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
@@ -87,6 +94,10 @@ import org.eclipse.californium.plugtests.resources.Query;
 import org.eclipse.californium.plugtests.resources.Separate;
 import org.eclipse.californium.plugtests.resources.Shutdown;
 import org.eclipse.californium.plugtests.resources.Validate;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
+import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
+import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
 import org.eclipse.californium.scandium.util.SecretUtil;
 
 import picocli.CommandLine;
@@ -171,7 +182,7 @@ public class PlugtestServer extends AbstractTestServer {
 			@Option(names = "--store-file", required = true, description = "file store dtls state.")
 			public String file;
 
-			@Option(names = "--store-password64", required = true, description = "password to store dtls state. base 64 encoded.")
+			@Option(names = "--store-password64", required = false, description = "password to store dtls state. base 64 encoded.")
 			public String password64;
 
 			@Option(names = "--store-max-age", required = true, description = "maximum age of connections in hours.")
@@ -332,10 +343,44 @@ public class PlugtestServer extends AbstractTestServer {
 		servers.add(server);
 	}
 
+	private static Cipher init(int mode, SecretKey password, byte[] seed) {
+		try {
+			CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256;
+			byte[] data = PseudoRandomFunction.doPRF(cipherSuite.getThreadLocalPseudoRandomFunctionMac(), password,
+					Label.KEY_EXPANSION_LABEL, seed, 32);
+			SecretKey key = SecretUtil.create(data, 0, 16, "AES");
+			AlgorithmParameterSpec parameterSpec = new IvParameterSpec(data, 16, 16);
+			Bytes.clear(data);
+			Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+			cipher.init(mode, key, parameterSpec);
+			SecretUtil.destroy(key);
+			return cipher;
+		} catch (GeneralSecurityException ex) {
+			LOGGER.warn("encryption error:", ex);
+			return null;
+		}
+	}
+
 	public static void loadServers(InputStream in, SecretKey key) {
 		int count = 0;
 		long time = System.nanoTime();
 		try {
+			DataStreamReader reader = new DataStreamReader(in);
+			byte[] seed = reader.readVarBytes(Byte.SIZE);
+			if (seed != null && seed.length > 0) {
+				if (key == null) {
+					LOGGER.warn("missing key!");
+					return;
+				}
+				Cipher cipher = init(Cipher.DECRYPT_MODE, key, seed);
+				if (cipher == null) {
+					LOGGER.warn("crypto error!");
+					return;
+				}
+				in = new CipherInputStream(in, cipher);
+			}
+			reader = new DataStreamReader(in);
+			long delta = SerializationUtil.readNanotimeSynchronizationMark(reader);
 			CoapServer.ConnectorIdentifier id;
 			while ((id = CoapServer.readConnectorIdentifier(in)) != null) {
 				boolean foundTag = false;
@@ -343,7 +388,7 @@ public class PlugtestServer extends AbstractTestServer {
 				for (CoapServer server : servers) {
 					if (id.tag.equals(server.getTag())) {
 						foundTag = true;
-						loaded = server.loadConnector(id, in, key);
+						loaded = server.loadConnector(id, in, delta);
 						if (loaded >= 0) {
 							count += loaded;
 							break;
@@ -352,14 +397,14 @@ public class PlugtestServer extends AbstractTestServer {
 				}
 				if (foundTag) {
 					if (loaded < 0) {
-						SerializationUtil.skipConnections(in);
 						LOGGER.warn("{}loading {} failed, no connector in {} servers!", id.tag, id.uri, servers.size());
+						SerializationUtil.skipItems(in, Short.SIZE);
 					} else {
 						LOGGER.info("{}loading {}, {} connections, {} servers.", id.tag, id.uri, loaded,
 								servers.size());
 					}
 				} else {
-					SerializationUtil.skipConnections(in);
+					SerializationUtil.skipItems(in, Short.SIZE);
 				}
 			}
 		} catch (IOException e) {
@@ -375,9 +420,12 @@ public class PlugtestServer extends AbstractTestServer {
 			storeConfig = config.store; 
 			store = new File(config.store.file);
 			if (store.exists()) {
-				byte[] secret = StringUtil.base64ToByteArray(config.store.password64);
-				SecretKey key = SecretUtil.create(secret, "PW");
-				Bytes.clear(secret);
+				SecretKey key = null;
+				if (config.store.password64 != null) {
+					byte[] secret = StringUtil.base64ToByteArray(config.store.password64);
+					key = SecretUtil.create(secret, "PW");
+					Bytes.clear(secret);
+				}
 				try {
 					FileInputStream in = new FileInputStream(store);
 					try {
@@ -400,10 +448,7 @@ public class PlugtestServer extends AbstractTestServer {
 
 	public static void load(String password) {
 		if (state != null) {
-			if (password == null || password.isEmpty()) {
-				password = "secret";
-			}
-			SecretKey key = SecretUtil.create(password.getBytes(), "PW");
+			SecretKey key = toKey(password);
 			ByteArrayInputStream in = new ByteArrayInputStream(state);
 			loadServers(in, key);
 			LOGGER.info("Loaded: {} Bytes ({})", state.length, password);
@@ -482,23 +527,41 @@ public class PlugtestServer extends AbstractTestServer {
 			server.stop();
 		}
 		long start = System.nanoTime();
-		for (CoapServer server : servers) {
-			count += server.saveAllConnectors(out, key, maxAgeInSeconds);
-		}
 		DatagramWriter writer = new DatagramWriter();
+		if (key != null) {
+			byte[] seed = new byte[16];
+			RandomManager.currentSecureRandom().nextBytes(seed);
+			Cipher cipher = init(Cipher.ENCRYPT_MODE, key, seed);
+			if (cipher != null) {
+				writer.writeVarBytes(seed, Byte.SIZE);
+				writer.writeTo(out);
+				out = new CipherOutputStream(out, cipher);
+			} else {
+				LOGGER.warn("crypto error!");
+				writer.reset();
+				key = null;
+			}
+		}
+		if (key == null) {
+			writer.writeVarBytes(Bytes.EMPTY, Byte.SIZE);
+			writer.writeTo(out);
+		}
+		SerializationUtil.writeNanotimeSynchronizationMark(writer);
+		writer.writeTo(out);
+		for (CoapServer server : servers) {
+			count += server.saveAllConnectors(out, maxAgeInSeconds);
+		}
 		SerializationUtil.write(writer, (String) null, Byte.SIZE);
 		writer.writeTo(out);
+		out.close();
 		long time = System.nanoTime() - start;
 		LOGGER.info("{} ms, {} connections", TimeUnit.NANOSECONDS.toMillis(time), count);
 	}
 
 	public static void save(String password) {
-		if (password == null || password.isEmpty()) {
-			password = "secret";
-		}
-		SecretKey key = SecretUtil.create(password.getBytes(), "PW");
+		SecretKey key = toKey(password);
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
-		if (state !=  null) {
+		if (state != null) {
 			Bytes.clear(state);
 		}
 		try {
@@ -511,6 +574,14 @@ public class PlugtestServer extends AbstractTestServer {
 			SecretUtil.destroy(key);
 		}
 		LOGGER.info("Saved: {} Bytes ({})", state.length, password);
+	}
+
+	public static SecretKey toKey(String password) {
+		SecretKey key = null;
+		if (password != null && !password.isEmpty()) {
+			key = SecretUtil.create(password.getBytes(), "PW");
+		}
+		return key;
 	}
 
 	public static boolean console(ActiveInputReader reader, long timeout) {
@@ -543,9 +614,12 @@ public class PlugtestServer extends AbstractTestServer {
 				LOGGER.info("Shutdown ...");
 				if (store != null) {
 					store.delete();
-					byte[] secret = StringUtil.base64ToByteArray(storeConfig.password64);
-					SecretKey key = SecretUtil.create(secret, "PW");
-					Bytes.clear(secret);
+					SecretKey key = null;
+					if (storeConfig.password64 != null) {
+						byte[] secret = StringUtil.base64ToByteArray(storeConfig.password64);
+						key = SecretUtil.create(secret, "PW");
+						Bytes.clear(secret);
+					}
 					try {
 						FileOutputStream out = new FileOutputStream(store);
 						try {
