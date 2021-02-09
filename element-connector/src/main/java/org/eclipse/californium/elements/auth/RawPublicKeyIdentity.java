@@ -130,7 +130,8 @@ public class RawPublicKeyIdentity extends AbstractExtensiblePrincipal<RawPublicK
 			} else if (specKeyAlgorithm == null) {
 				throw new GeneralSecurityException("Key algorithm could not be determined!");
 			}
-			this.publicKey = KeyFactory.getInstance(specKeyAlgorithm).generatePublic(spec);
+			KeyFactory factory = Asn1DerDecoder.getKeyFactory(specKeyAlgorithm);
+			this.publicKey = factory.generatePublic(spec);
 			createNamedInformationUri(subjectInfo);
 		}
 	}

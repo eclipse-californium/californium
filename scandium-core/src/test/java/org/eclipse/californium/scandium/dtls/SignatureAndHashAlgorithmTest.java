@@ -21,7 +21,6 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
 import java.security.GeneralSecurityException;
@@ -135,28 +134,6 @@ public class SignatureAndHashAlgorithmTest {
 	}
 
 	private void signAndVerify(Signature signature, KeyPair pair) throws GeneralSecurityException {
-		String algorithm = signature.getAlgorithm();
-		try {
-			int len = data.length;
-
-			if (algorithm.startsWith("NONEwith") && !algorithm.equals("NONEwithEdDSA")) {
-				len = 64;
-			}
-			signature.initSign(pair.getPrivate());
-			signature.update(data, 0, len);
-			byte[] sign = signature.sign();
-
-			signature.initVerify(pair.getPublic());
-			signature.update(data, 0, len);
-			if (!signature.verify(sign)) {
-				fail(algorithm + " failed!");
-			}
-		} catch (GeneralSecurityException e) {
-			e.printStackTrace();
-			fail(algorithm + " failed with " + e);
-		} catch (RuntimeException e) {
-			e.printStackTrace();
-			fail(algorithm + " failed with " + e);
-		}
+		TestCertificatesTools.assertSigning("", pair.getPrivate(), pair.getPublic(), signature);
 	}
 }

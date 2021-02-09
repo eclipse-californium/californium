@@ -20,13 +20,18 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeNoException;
+import static org.junit.Assume.assumeNotNull;
 
+import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
-import java.security.PublicKey;
+import java.security.Provider;
 
+import org.eclipse.californium.elements.util.Asn1DerDecoder;
+import org.eclipse.californium.elements.util.TestCertificatesTools;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -37,45 +42,117 @@ import org.junit.Test;
 public class RawPublicKeyIdentityTest {
 
 	private static final String URI_PREFIX = "ni:///sha-256;";
-	private static PublicKey publicKey;
+	private static KeyPair ecKeyPair;
+	private static KeyPair ed25519KeyPair;
+	private static KeyPair ed448KeyPair;
 
 	/**
 	 * Creates a public key.
 	 */
 	@BeforeClass
-	public static void init() {
+	public static void init() throws IOException {
 		try {
-			KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
-			KeyPair keyPair = generator.generateKeyPair();
-			publicKey = keyPair.getPublic();
+			KeyPairGenerator generator = KeyPairGenerator.getInstance("EC");
+			ecKeyPair = generator.generateKeyPair();
 		} catch (NoSuchAlgorithmException e) {
-			// should not happen because every VM is required to support RSA
+			assumeNoException("vm's without EC are not usable for CoAP!", e);
+		}
+		Provider edDsaProvider = Asn1DerDecoder.getEdDsaProvider();
+		if (edDsaProvider != null) {
+			try {
+				KeyPairGenerator generator = KeyPairGenerator.getInstance(Asn1DerDecoder.OID_ED25519,
+						Asn1DerDecoder.getEdDsaProvider());
+				ed25519KeyPair = generator.generateKeyPair();
+			} catch (NoSuchAlgorithmException e) {
+				// ignores missing Ed25519
+			}
+			try {
+				KeyPairGenerator generator = KeyPairGenerator.getInstance(Asn1DerDecoder.OID_ED448,
+						Asn1DerDecoder.getEdDsaProvider());
+				ed448KeyPair = generator.generateKeyPair();
+			} catch (NoSuchAlgorithmException e) {
+				// ignores missing Ed448
+			}
 		}
 	}
 
 	@Test
 	public void testGetNameReturnsNamedInterfaceUri() {
-		RawPublicKeyIdentity id = new RawPublicKeyIdentity(publicKey);
+		RawPublicKeyIdentity id = new RawPublicKeyIdentity(ecKeyPair.getPublic());
 		assertThatNameIsValidNamedInterfaceUri(id.getName());
 	}
 
 	@Test
 	public void testGetSubjectInfoReturnsEncodedKey() {
-		RawPublicKeyIdentity id = new RawPublicKeyIdentity(publicKey);
+		RawPublicKeyIdentity id = new RawPublicKeyIdentity(ecKeyPair.getPublic());
 		assertArrayEquals(id.getKey().getEncoded(), id.getSubjectInfo());
 	}
 
 	@Test
-	public void testConstructorCreatesPublicKeyFromSubjectInfo() throws GeneralSecurityException {
+	public void testConstructorCreatesEcPublicKeyFromSubjectInfo() throws GeneralSecurityException {
 
 		// GIVEN a SubjectPublicKeyInfo object
-		byte[] subjectInfo = publicKey.getEncoded();
+		byte[] subjectInfo = ecKeyPair.getPublic().getEncoded();
 
 		// WHEN creating a RawPublicKeyIdentity from it
-		RawPublicKeyIdentity principal = new RawPublicKeyIdentity(subjectInfo, publicKey.getAlgorithm());
+		RawPublicKeyIdentity principal = new RawPublicKeyIdentity(subjectInfo, ecKeyPair.getPublic().getAlgorithm());
 
-		// THEN the principal contains the public key corresponding to the subject info
-		assertThat(principal.getKey(), is(publicKey));
+		// THEN the principal contains the public key corresponding to the
+		// subject info
+		assertThat(principal.getKey(), is(ecKeyPair.getPublic()));
+
+		// WHEN creating a RawPublicKeyIdentity from it
+		principal = new RawPublicKeyIdentity(subjectInfo);
+
+		// THEN the principal contains the public key corresponding to the
+		// subject info
+		assertThat(principal.getKey(), is(ecKeyPair.getPublic()));
+
+		TestCertificatesTools.assertSigning("RPK", ecKeyPair.getPrivate(), principal.getKey(), "SHA256withECDSA");
+	}
+
+	@Test
+	public void testConstructorCreatesEd25519PublicKeyFromSubjectInfo() throws GeneralSecurityException {
+		assumeNotNull("Ed25519 not supported by vm!", ed25519KeyPair);
+		// GIVEN a SubjectPublicKeyInfo object
+		byte[] subjectInfo = ed25519KeyPair.getPublic().getEncoded();
+
+		// WHEN creating a RawPublicKeyIdentity from it
+		RawPublicKeyIdentity principal = new RawPublicKeyIdentity(subjectInfo, ed25519KeyPair.getPublic().getAlgorithm());
+
+		// THEN the principal contains the public key corresponding to the
+		// subject info
+		assertThat(principal.getKey(), is(ed25519KeyPair.getPublic()));
+
+		// WHEN creating a RawPublicKeyIdentity from it
+		principal = new RawPublicKeyIdentity(subjectInfo);
+
+		// THEN the principal contains the public key corresponding to the
+		// subject info
+		assertThat(principal.getKey(), is(ed25519KeyPair.getPublic()));
+		TestCertificatesTools.assertSigning("RPK", ed25519KeyPair.getPrivate(), principal.getKey(), "ED25519");
+	}
+
+	@Test
+	public void testConstructorCreatesEd448PublicKeyFromSubjectInfo() throws GeneralSecurityException {
+		assumeNotNull("Ed448 is not supported by vm!", ed448KeyPair);
+		// GIVEN a SubjectPublicKeyInfo object
+		byte[] subjectInfo = ed448KeyPair.getPublic().getEncoded();
+
+		// WHEN creating a RawPublicKeyIdentity from it
+		RawPublicKeyIdentity principal = new RawPublicKeyIdentity(subjectInfo, ed448KeyPair.getPublic().getAlgorithm());
+
+		// THEN the principal contains the public key corresponding to the
+		// subject info
+		assertThat(principal.getKey(), is(ed448KeyPair.getPublic()));
+
+		// WHEN creating a RawPublicKeyIdentity from it
+		principal = new RawPublicKeyIdentity(subjectInfo);
+
+		// THEN the principal contains the public key corresponding to the
+		// subject info
+		assertThat(principal.getKey(), is(ed448KeyPair.getPublic()));
+		TestCertificatesTools.assertSigning("RPK", ed448KeyPair.getPrivate(), principal.getKey(), "ED448");
 	}
 
 	private static void assertThatNameIsValidNamedInterfaceUri(String name) {

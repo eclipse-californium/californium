@@ -21,8 +21,12 @@ import static org.junit.Assert.fail;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
+import java.security.Provider;
 import java.security.PublicKey;
+import java.security.SecureRandom;
+import java.security.Signature;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
@@ -37,6 +41,9 @@ public class TestCertificatesTools {
 	public static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
 	public static final String EDDSA_KEY_STORE_LOCATION = "certs/eddsaKeyStore.jks";
 	public static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
+	public static final String KEY_STORE_URI = SslContextUtil.CLASSPATH_SCHEME + "certs/keyStore.jks";
+	public static final String EDDSA_KEY_STORE_URI = SslContextUtil.CLASSPATH_SCHEME + "certs/eddsaKeyStore.jks";
+	public static final String TRUST_STORE_URI = SslContextUtil.CLASSPATH_SCHEME + "certs/trustStore.jks";
 	public static final String SERVER_NAME = "server";
 	/**
 	 * Alias for mixed signed server certificate chain. Include ECDSA and RSA
@@ -50,6 +57,9 @@ public class TestCertificatesTools {
 	public static final String CA_ALIAS = "ca";
 	public static final String CA_ALT_ALIAS = "caalt";
 	public static final String NO_SIGNING_ALIAS = "nosigning";
+
+	private static final SecureRandom random = new SecureRandom();
+
 	private static SslContextUtil.Credentials clientCredentials;
 	private static SslContextUtil.Credentials serverCredentials;
 	private static SslContextUtil.Credentials serverRsaCredentials;
@@ -57,35 +67,33 @@ public class TestCertificatesTools {
 	private static X509Certificate rootCaCertificate;
 	private static X509Certificate caCertificate;
 	private static X509Certificate caAlternativeCertificate;
-	private static X509Certificate nosigningCertificate; // a certificate
-															// without
-															// digitalSignature
-															// value in keyusage
-
+	// a certificate without digitalSignature value in keyusage
+	private static X509Certificate nosigningCertificate;
+	
 	static {
 		try {
 			// load key stores once only
-			clientCredentials = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION,
+			clientCredentials = SslContextUtil.loadCredentials(KEY_STORE_URI,
 					CLIENT_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
-			serverCredentials = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION,
+			serverCredentials = SslContextUtil.loadCredentials(KEY_STORE_URI,
 					SERVER_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
-			serverRsaCredentials = SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION,
+			serverRsaCredentials = SslContextUtil.loadCredentials(KEY_STORE_URI,
 					SERVER_RSA_NAME, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 			Certificate[] certificates = SslContextUtil.loadTrustedCertificates(
-					SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, null, TRUST_STORE_PASSWORD);
+					TRUST_STORE_URI, null, TRUST_STORE_PASSWORD);
 
 			trustedCertificates = SslContextUtil.asX509Certificates(certificates);
 			certificates = SslContextUtil.loadTrustedCertificates(
-					SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, ROOT_CA_ALIAS, TRUST_STORE_PASSWORD);
+					TRUST_STORE_URI, ROOT_CA_ALIAS, TRUST_STORE_PASSWORD);
 			rootCaCertificate = (X509Certificate) certificates[0];
 			certificates = SslContextUtil.loadTrustedCertificates(
-					SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, CA_ALIAS, TRUST_STORE_PASSWORD);
+					TRUST_STORE_URI, CA_ALIAS, TRUST_STORE_PASSWORD);
 			caCertificate = (X509Certificate) certificates[0];
 			certificates = SslContextUtil.loadTrustedCertificates(
-					SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, CA_ALT_ALIAS, TRUST_STORE_PASSWORD);
+					TRUST_STORE_URI, CA_ALT_ALIAS, TRUST_STORE_PASSWORD);
 			caAlternativeCertificate = (X509Certificate) certificates[0];
 			X509Certificate[] chain = SslContextUtil.loadCertificateChain(
-					SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, NO_SIGNING_ALIAS, KEY_STORE_PASSWORD);
+					KEY_STORE_URI, NO_SIGNING_ALIAS, KEY_STORE_PASSWORD);
 			nosigningCertificate = chain[0];
 		} catch (IOException | GeneralSecurityException e) {
 			// nothing we can do
@@ -261,6 +269,95 @@ public class TestCertificatesTools {
 		return nosigningCertificate;
 	}
 
+	/**
+	 * Assert, that the provided key could be used for signing and verification.
+	 * 
+	 * @param message message for failure
+	 * @param privateKey private key to sign
+	 * @param pulbicKey public key to verify
+	 * @param algorithm the standard name of the algorithm requested. See the
+	 *            Signature section in the <a href=
+	 *            "https://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Signature">
+	 *            Java Cryptography Architecture Standard Algorithm Name
+	 *            Documentation</a> for information about standard algorithm
+	 *            names. EdDSA variants may be available by third-party library,
+	 *            see {@link Asn1DerDecoder#getEdDsaProvider()}).
+	 * @since 3.0
+	 */
+	public static void assertSigning(String message, PrivateKey privateKey, PublicKey pulbicKey, String algorithm) {
+		try {
+			Signature signature = getSignatureInstance(algorithm);
+			assertSigning(message, privateKey, pulbicKey, signature);
+		} catch (GeneralSecurityException e) {
+			e.printStackTrace();
+			fail(algorithm + " failed with " + e);
+		}
+	}
+
+	/**
+	 * Assert, that the provided key could be used for signing and verification.
+	 * 
+	 * @param message message for failure
+	 * @param privateKey private key to sign
+	 * @param pulbicKey public key to verify
+	 * @param signature signature variant.
+	 * @since 3.0
+	 * @param signature
+	 */
+	public static void assertSigning(String message, PrivateKey privateKey, PublicKey pulbicKey, Signature signature) {
+		String algorithm = signature.getAlgorithm();
+		try {
+			int len = 256;
+			if (algorithm.startsWith("NONEwith") && !algorithm.equals("NONEwithEdDSA")) {
+				len = 64;
+			}
+			byte[] data = Bytes.createBytes(random, len);
+			signature.initSign(privateKey);
+			signature.update(data, 0, len);
+			byte[] sign = signature.sign();
+
+			signature.initVerify(pulbicKey);
+			signature.update(data, 0, len);
+			if (!signature.verify(sign)) {
+				fail(message + ":" + algorithm + " failed!");
+			}
+		} catch (GeneralSecurityException e) {
+			e.printStackTrace();
+			fail(message + ":" + algorithm + " failed with " + e);
+		} catch (RuntimeException e) {
+			e.printStackTrace();
+			fail(message + ":" + algorithm + " failed with " + e);
+		}
+	}
+
+	/**
+	 * Get signature for algorithm.
+	 * 
+	 * For EdDSA use {@link Asn1DerDecoder#getEdDsaProvider()}.
+	 * 
+	 * @param algorithm the standard name of the algorithm requested. See the
+	 *            Signature section in the <a href=
+	 *            "https://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Signature">
+	 *            Java Cryptography Architecture Standard Algorithm Name
+	 *            Documentation</a> for information about standard algorithm
+	 *            names. EdDSA variants may be available by third-party library,
+	 *            see {@link Asn1DerDecoder#getEdDsaProvider()}).
+	 * @return signature
+	 * @throws NoSuchAlgorithmException if algorithm is not supported.
+	 * @since 3.0
+	 */
+	private static Signature getSignatureInstance(String algorithm) throws NoSuchAlgorithmException {
+		String oid = Asn1DerDecoder.getEdDsaStandardAlgorithmName(algorithm, null);
+		if (oid != null) {
+			Provider provider = Asn1DerDecoder.getEdDsaProvider();
+			if (provider != null) {
+				// signature still requires specific EdDSA provider
+				return Signature.getInstance(oid, provider);
+			}
+		}
+		return Signature.getInstance(algorithm);
+	}
+
 	public static void assertEquals(List<? extends Certificate> list1, List<? extends Certificate> list2) {
 		assertEquals("", list1, list2);
 	}
@@ -327,7 +424,7 @@ public class TestCertificatesTools {
 				cert = list1.get(size);
 			}
 			if (cert instanceof X509Certificate) {
-				X500Principal dn = ((X509Certificate)cert).getSubjectX500Principal();
+				X500Principal dn = ((X509Certificate) cert).getSubjectX500Principal();
 				diff.append(tag).append(" additional DN [").append(size).append("] ").append(dn).append(", ");
 			} else {
 				diff.append(tag).append(" additional cert [").append(size).append("] ").append(cert).append(", ");

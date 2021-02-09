@@ -15,6 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
+import static org.eclipse.californium.elements.util.TestCertificatesTools.*;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.instanceOf;
@@ -36,12 +37,7 @@ import org.junit.Test;
 
 public class SslContextUtilCredentialsTest {
 
-	public static final char[] KEY_STORE_PASSWORD = "endPass".toCharArray();
 	public static final String KEY_STORE_PASSWORD_HEX = "656E6450617373";
-	public static final String KEY_STORE_LOCATION = SslContextUtil.CLASSPATH_SCHEME + "certs/keyStore.jks";
-	public static final String EDDSA_KEY_STORE_LOCATION = SslContextUtil.CLASSPATH_SCHEME + "certs/eddsaKeyStore.jks";
-
-	public static final char[] TRUST_STORE_PASSWORD = "rootPass".toCharArray();
 
 	public static final String SERVER_P12_LOCATION = SslContextUtil.CLASSPATH_SCHEME + "certs/server.p12";
 	public static final String SERVER_PEM_LOCATION = SslContextUtil.CLASSPATH_SCHEME + "certs/server.pem";
@@ -55,7 +51,7 @@ public class SslContextUtilCredentialsTest {
 
 	@Test
 	public void testLoadCredentials() throws IOException, GeneralSecurityException {
-		Credentials credentials = SslContextUtil.loadCredentials(KEY_STORE_LOCATION, ALIAS_SERVER, KEY_STORE_PASSWORD,
+		Credentials credentials = SslContextUtil.loadCredentials(KEY_STORE_URI, ALIAS_SERVER, KEY_STORE_PASSWORD,
 				KEY_STORE_PASSWORD);
 		assertThat(credentials, is(notNullValue()));
 		assertThat(credentials.getPrivateKey(), is(notNullValue()));
@@ -72,7 +68,7 @@ public class SslContextUtilCredentialsTest {
 	 */
 	@Test(expected = IllegalArgumentException.class)
 	public void testLoadCredentialsNotFound() throws IOException, GeneralSecurityException {
-		SslContextUtil.loadCredentials(KEY_STORE_LOCATION, ALIAS_MISSING, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+		SslContextUtil.loadCredentials(KEY_STORE_URI, ALIAS_MISSING, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 	}
 
 	/**
@@ -81,7 +77,7 @@ public class SslContextUtilCredentialsTest {
 	 */
 	@Test(expected = IOException.class)
 	public void testLoadCredentialsNoFile() throws IOException, GeneralSecurityException {
-		SslContextUtil.loadCredentials(KEY_STORE_LOCATION + "no-file", ALIAS_SERVER, KEY_STORE_PASSWORD,
+		SslContextUtil.loadCredentials(KEY_STORE_URI + "no-file", ALIAS_SERVER, KEY_STORE_PASSWORD,
 				KEY_STORE_PASSWORD);
 	}
 
@@ -98,7 +94,7 @@ public class SslContextUtilCredentialsTest {
 	 */
 	@Test(expected = NullPointerException.class)
 	public void testLoadCredentialsNoStorePassword() throws IOException, GeneralSecurityException {
-		SslContextUtil.loadCredentials(KEY_STORE_LOCATION, ALIAS_SERVER, null, KEY_STORE_PASSWORD);
+		SslContextUtil.loadCredentials(KEY_STORE_URI, ALIAS_SERVER, null, KEY_STORE_PASSWORD);
 	}
 
 	/**
@@ -106,7 +102,7 @@ public class SslContextUtilCredentialsTest {
 	 */
 	@Test(expected = NullPointerException.class)
 	public void testLoadCredentialsNoKeyPassword() throws IOException, GeneralSecurityException {
-		SslContextUtil.loadCredentials(KEY_STORE_LOCATION, ALIAS_SERVER, KEY_STORE_PASSWORD, null);
+		SslContextUtil.loadCredentials(KEY_STORE_URI, ALIAS_SERVER, KEY_STORE_PASSWORD, null);
 	}
 
 	/**
@@ -114,7 +110,7 @@ public class SslContextUtilCredentialsTest {
 	 */
 	@Test(expected = IOException.class)
 	public void testLoadCredentialsWrongStorePassword() throws IOException, GeneralSecurityException {
-		SslContextUtil.loadCredentials(KEY_STORE_LOCATION, ALIAS_SERVER, KEY_STORE_PASSWORD_HEX.toCharArray(),
+		SslContextUtil.loadCredentials(KEY_STORE_URI, ALIAS_SERVER, KEY_STORE_PASSWORD_HEX.toCharArray(),
 				KEY_STORE_PASSWORD);
 	}
 
@@ -123,19 +119,19 @@ public class SslContextUtilCredentialsTest {
 	 */
 	@Test(expected = GeneralSecurityException.class)
 	public void testLoadCredentialsWrongKeyPassword() throws IOException, GeneralSecurityException {
-		SslContextUtil.loadCredentials(KEY_STORE_LOCATION, ALIAS_SERVER, KEY_STORE_PASSWORD,
+		SslContextUtil.loadCredentials(KEY_STORE_URI, ALIAS_SERVER, KEY_STORE_PASSWORD,
 				KEY_STORE_PASSWORD_HEX.toCharArray());
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testLoadCredentialsSingleParameterWithoutAlias() throws IOException, GeneralSecurityException {
-		SslContextUtil.loadCredentials(KEY_STORE_LOCATION + SslContextUtil.PARAMETER_SEPARATOR + KEY_STORE_PASSWORD_HEX
+		SslContextUtil.loadCredentials(KEY_STORE_URI + SslContextUtil.PARAMETER_SEPARATOR + KEY_STORE_PASSWORD_HEX
 				+ SslContextUtil.PARAMETER_SEPARATOR + KEY_STORE_PASSWORD_HEX + SslContextUtil.PARAMETER_SEPARATOR);
 	}
 
 	@Test
 	public void testLoadCredentialsSingleParameter() throws IOException, GeneralSecurityException {
-		Credentials credentials = SslContextUtil.loadCredentials(KEY_STORE_LOCATION
+		Credentials credentials = SslContextUtil.loadCredentials(KEY_STORE_URI
 				+ SslContextUtil.PARAMETER_SEPARATOR + KEY_STORE_PASSWORD_HEX + SslContextUtil.PARAMETER_SEPARATOR
 				+ KEY_STORE_PASSWORD_HEX + SslContextUtil.PARAMETER_SEPARATOR + ALIAS_SERVER);
 		assertThat(credentials, is(notNullValue()));
@@ -150,7 +146,7 @@ public class SslContextUtilCredentialsTest {
 
 	@Test
 	public void testLoadCertificateChain() throws IOException, GeneralSecurityException {
-		X509Certificate[] chain = SslContextUtil.loadCertificateChain(KEY_STORE_LOCATION, ALIAS_SERVER,
+		X509Certificate[] chain = SslContextUtil.loadCertificateChain(KEY_STORE_URI, ALIAS_SERVER,
 				KEY_STORE_PASSWORD);
 		assertThat(chain, is(notNullValue()));
 		assertThat(chain.length, is(greaterThan(0)));
@@ -160,17 +156,17 @@ public class SslContextUtilCredentialsTest {
 
 	@Test(expected = NullPointerException.class)
 	public void testLoadCertificateChainMissingAlias() throws IOException, GeneralSecurityException {
-		SslContextUtil.loadCertificateChain(KEY_STORE_LOCATION, null, KEY_STORE_PASSWORD);
+		SslContextUtil.loadCertificateChain(KEY_STORE_URI, null, KEY_STORE_PASSWORD);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testLoadCertificateChainEmptyAlias() throws IOException, GeneralSecurityException {
-		SslContextUtil.loadCertificateChain(KEY_STORE_LOCATION, "", KEY_STORE_PASSWORD);
+		SslContextUtil.loadCertificateChain(KEY_STORE_URI, "", KEY_STORE_PASSWORD);
 	}
 
 	@Test
 	public void testLoadKeyManager() throws IOException, GeneralSecurityException {
-		KeyManager[] manager = SslContextUtil.loadKeyManager(KEY_STORE_LOCATION, null, KEY_STORE_PASSWORD,
+		KeyManager[] manager = SslContextUtil.loadKeyManager(KEY_STORE_URI, null, KEY_STORE_PASSWORD,
 				KEY_STORE_PASSWORD);
 		assertThat(manager, is(notNullValue()));
 		assertThat(manager.length, is(greaterThan(0)));
@@ -182,12 +178,12 @@ public class SslContextUtilCredentialsTest {
 	 */
 	@Test(expected = GeneralSecurityException.class)
 	public void testLoadKeyManagerCertificateNotFound() throws IOException, GeneralSecurityException {
-		SslContextUtil.loadKeyManager(KEY_STORE_LOCATION, "missing", KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+		SslContextUtil.loadKeyManager(KEY_STORE_URI, "missing", KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 	}
 
 	@Test
 	public void testCreateKeyManager() throws IOException, GeneralSecurityException {
-		Credentials credentials = SslContextUtil.loadCredentials(KEY_STORE_LOCATION, ALIAS_SERVER, KEY_STORE_PASSWORD,
+		Credentials credentials = SslContextUtil.loadCredentials(KEY_STORE_URI, ALIAS_SERVER, KEY_STORE_PASSWORD,
 				KEY_STORE_PASSWORD);
 		KeyManager[] manager = SslContextUtil.createKeyManager("test", credentials.getPrivateKey(),
 				credentials.getCertificateChain());
@@ -198,21 +194,21 @@ public class SslContextUtilCredentialsTest {
 
 	@Test(expected = NullPointerException.class)
 	public void testCreateKeytManagerNullPrivateKey() throws IOException, GeneralSecurityException {
-		Credentials credentials = SslContextUtil.loadCredentials(KEY_STORE_LOCATION, ALIAS_SERVER, KEY_STORE_PASSWORD,
+		Credentials credentials = SslContextUtil.loadCredentials(KEY_STORE_URI, ALIAS_SERVER, KEY_STORE_PASSWORD,
 				KEY_STORE_PASSWORD);
 		SslContextUtil.createKeyManager("test", null, credentials.getCertificateChain());
 	}
 
 	@Test(expected = NullPointerException.class)
 	public void testCreateKeytManagerNullCertChain() throws IOException, GeneralSecurityException {
-		Credentials credentials = SslContextUtil.loadCredentials(KEY_STORE_LOCATION, ALIAS_SERVER, KEY_STORE_PASSWORD,
+		Credentials credentials = SslContextUtil.loadCredentials(KEY_STORE_URI, ALIAS_SERVER, KEY_STORE_PASSWORD,
 				KEY_STORE_PASSWORD);
 		SslContextUtil.createKeyManager("test", credentials.getPrivateKey(), null);
 	}
 
 	@Test(expected = IllegalArgumentException.class)
 	public void testCreateKeyManagerEmptyCertChain() throws IOException, GeneralSecurityException {
-		Credentials credentials = SslContextUtil.loadCredentials(KEY_STORE_LOCATION, ALIAS_SERVER, KEY_STORE_PASSWORD,
+		Credentials credentials = SslContextUtil.loadCredentials(KEY_STORE_URI, ALIAS_SERVER, KEY_STORE_PASSWORD,
 				KEY_STORE_PASSWORD);
 		SslContextUtil.createKeyManager("test", credentials.getPrivateKey(), new X509Certificate[0]);
 	}
@@ -295,16 +291,19 @@ public class SslContextUtilCredentialsTest {
 		assertThat(credentials, is(notNullValue()));
 		assertThat(credentials.getPrivateKey(), is(notNullValue()));
 		assertThat(credentials.getPubicKey(), is(notNullValue()));
+		assertSigning("PEMv2", credentials.getPrivateKey(), credentials.getPubicKey(), "SHA256withECDSA");
 	}
 
 	@Test
-	public void testLoadEdDsaCertificateCahin() throws IOException, GeneralSecurityException {
+	public void testLoadEdDsaCredentials() throws IOException, GeneralSecurityException {
 		assumeTrue("ED25519 requires JVM support!", Asn1DerDecoder.isSupported("Ed25519"));
-		X509Certificate[] chain = SslContextUtil.loadCertificateChain(EDDSA_KEY_STORE_LOCATION, "clienteddsa",
-				KEY_STORE_PASSWORD);
-		assertThat(chain, is(notNullValue()));
-		assertThat(chain.length, is(greaterThan(0)));
-		assertThat(chain[0].getPublicKey(), is(notNullValue()));
+		Credentials credentials = SslContextUtil.loadCredentials(EDDSA_KEY_STORE_URI, "clienteddsa",
+				KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+		assertThat(credentials, is(notNullValue()));
+		assertThat(credentials.getCertificateChain(), is(notNullValue()));
+		assertThat(credentials.getCertificateChain().length, is(greaterThan(0)));
+		assertThat(credentials.getCertificateChain()[0].getPublicKey(), is(notNullValue()));
+		assertSigning("JKS", credentials.getPrivateKey(), credentials.getPubicKey(), "ED25519");
 	}
 
 	@Test
