@@ -56,6 +56,9 @@ public class DefaultCipherSuiteSelector implements CipherSuiteSelector {
 	/**
 	 * Check, if provided cipher suite is supported by both peers.
 	 * 
+	 * Sets {@link CipherSuiteParameters#setGeneralMismatch(GeneralMismatch)},
+	 * if ec based cipher suites can not be selected.
+	 * 
 	 * @param cipherSuite cipher suite to check,
 	 * @param parameters parameters to be used to check
 	 * @return {@code true}, if cipher suite is supported by both peers,
@@ -89,8 +92,9 @@ public class DefaultCipherSuiteSelector implements CipherSuiteSelector {
 	/**
 	 * Check, if the common parameters match the peer's certificate-chain.
 	 * 
-	 * Sets {@link CipherSuiteParameters#setCertificateMismatch(Mismatch)}, if
-	 * certificate based cipher suites can not be selected. Sets
+	 * Sets
+	 * {@link CipherSuiteParameters#setCertificateMismatch(CertificateBasedMismatch)},
+	 * if certificate based cipher suites can not be selected. Sets
 	 * {@link CipherSuiteParameters#select(CipherSuite)},
 	 * {@link CipherSuiteParameters#selectServerCertificateType(CertificateType)},
 	 * {@link CipherSuiteParameters#selectSignatureAndHashAlgorithm(SignatureAndHashAlgorithm)},
