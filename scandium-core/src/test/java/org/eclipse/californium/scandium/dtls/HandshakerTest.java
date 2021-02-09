@@ -121,7 +121,6 @@ public class HandshakerTest {
 		}
 		session = new DTLSSession();
 		session.setReceiveCertificateType(CertificateType.X_509);
-		session.setParameterAvailable();
 		certificateChain = DtlsTestTools.getServerCertificateChain();
 		trustAnchor = DtlsTestTools.getTrustedCertificates();
 		certificateMessage = createCertificateMessage(1, certificateChain);
@@ -266,7 +265,7 @@ public class HandshakerTest {
 		for (FragmentedHandshakeMessage fragment : handshakeMessageFragments) {
 			GenericHandshakeMessage last = handshakerWithoutAnchors.reassembleFragment(fragment);
 			if (last != null) {
-				result = HandshakeMessage.fromGenericHandshakeMessage(last, handshakerWithoutAnchors.getSession().getParameter());
+				result = HandshakeMessage.fromGenericHandshakeMessage(last, handshakerWithoutAnchors.getParameter());
 			} else {
 				result = null;
 			}
@@ -281,7 +280,7 @@ public class HandshakerTest {
 		for (int i = handshakeMessageFragments.length - 1; i >= 0; i--) {
 			GenericHandshakeMessage last = handshakerWithoutAnchors.reassembleFragment(handshakeMessageFragments[i]);
 			if (last != null) {
-				result = HandshakeMessage.fromGenericHandshakeMessage(last, handshakerWithoutAnchors.getSession().getParameter());
+				result = HandshakeMessage.fromGenericHandshakeMessage(last, handshakerWithoutAnchors.getParameter());
 			} else {
 				result = null;
 			}
@@ -296,7 +295,7 @@ public class HandshakerTest {
 		for (FragmentedHandshakeMessage fragment : handshakeMessageFragments) {
 			GenericHandshakeMessage last = handshakerWithoutAnchors.reassembleFragment(fragment);
 			if (result == null && last != null) {
-				result = HandshakeMessage.fromGenericHandshakeMessage(last, handshakerWithoutAnchors.getSession().getParameter());
+				result = HandshakeMessage.fromGenericHandshakeMessage(last, handshakerWithoutAnchors.getParameter());
 			}
 		}
 		assertThatReassembledMessageEqualsOriginalMessage(result);
@@ -309,7 +308,7 @@ public class HandshakerTest {
 		for (FragmentedHandshakeMessage fragment : handshakeMessageFragments) {
 			GenericHandshakeMessage last = handshakerWithoutAnchors.reassembleFragment(fragment);
 			if (result == null && last != null) {
-				result = HandshakeMessage.fromGenericHandshakeMessage(last, handshakerWithoutAnchors.getSession().getParameter());
+				result = HandshakeMessage.fromGenericHandshakeMessage(last, handshakerWithoutAnchors.getParameter());
 			}
 		}
 		assertThatReassembledMessageEqualsOriginalMessage(result);
