@@ -222,6 +222,27 @@ public class Asn1DerDecoder {
 	private static final EntityDefinition CONTEXT_SPECIFIC_1 = new EntityDefinition(TAG_CONTEXT_1_SPECIFIC,
 			MAX_DEFAULT_LENGTH, "CONTEXT SPECIFIC 1");
 
+	/**
+	 * Alias algorithms for Ed25519.
+	 * 
+	 * @since 3.0
+	 */
+	private static final String[] ED25519_ALIASES = { ED25519, "1.3.101.112", OID_ED25519, EDDSA };
+
+	/**
+	 * Alias algorithms for Ed448.
+	 * 
+	 * @since 3.0
+	 */
+	private static final String[] ED448_ALIASES = { ED448, "1.3.101.113", OID_ED448, EDDSA };
+
+	/**
+	 * Table of algorithm aliases.
+	 * 
+	 * @since 3.0
+	 */
+	private static final String[][] ALGORITHM_ALIASES = { { "DH", "DiffieHellman" }, ED25519_ALIASES, ED448_ALIASES };
+
 	private static final Logger LOGGER = LoggerFactory.getLogger(Asn1DerDecoder.class);
 
 	/**
@@ -307,11 +328,11 @@ public class Asn1DerDecoder {
 			return true;
 		} else {
 			String oid = getEdDsaStandardAlgorithmName(algorithm, null);
-			if ("OID.1.3.101.112".equals(oid)) {
+			if (OID_ED25519.equals(oid)) {
 				return ED25519_SUPPORT;
-			} else if ("OID.1.3.101.113".equals(oid)) {
+			} else if (OID_ED448.equals(oid)) {
 				return ED448_SUPPORT;
-			} else if ("EdDSA".equalsIgnoreCase(algorithm)) {
+			} else if (EDDSA.equalsIgnoreCase(algorithm)) {
 				return ED25519_SUPPORT || ED448_SUPPORT;
 			}
 		}
@@ -697,16 +718,34 @@ public class Asn1DerDecoder {
 	 *         {@code false}, otherwise.
 	 */
 	public static boolean equalKeyAlgorithmSynonyms(String keyAlgorithm1, String keyAlgorithm2) {
-		if (!keyAlgorithm1.equals(keyAlgorithm2)) {
-			// currently just hard encoded check.
-			if (keyAlgorithm1.equals("DH") && keyAlgorithm2.equals("DiffieHellman")) {
-				return true;
-			} else if (keyAlgorithm2.equals("DH") && keyAlgorithm1.equals("DiffieHellman")) {
+		if (keyAlgorithm1.equals(keyAlgorithm2)) {
+			return true;
+		}
+		for (String[] aliases : ALGORITHM_ALIASES) {
+			if (contains(aliases, keyAlgorithm1) && contains(aliases, keyAlgorithm2)) {
 				return true;
 			}
-			return false;
 		}
-		return true;
+		return false;
+	}
+
+	/**
+	 * Checks, whether the set contains the value, or not. The check is done
+	 * using {@link String#equalsIgnoreCase(String)}.
+	 * 
+	 * @param set set of strings
+	 * @param value value to match
+	 * @return {@code true}, if value is contained in set, {@code false},
+	 *         otherwise.
+	 * @since 3.0
+	 */
+	private static boolean contains(String[] set, String value) {
+		for (String item : set) {
+			if (item.equalsIgnoreCase(value)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -735,14 +774,12 @@ public class Asn1DerDecoder {
 	 * @since 2.4
 	 */
 	public static String getEdDsaStandardAlgorithmName(String algorithm, String def) {
-		if (algorithm.equalsIgnoreCase(ED25519) || algorithm.equalsIgnoreCase("1.3.101.112")
-				|| algorithm.equalsIgnoreCase(OID_ED25519)) {
-			return OID_ED25519;
-		} else if (algorithm.equalsIgnoreCase(ED448) || algorithm.equalsIgnoreCase("1.3.101.113")
-				|| algorithm.equalsIgnoreCase(OID_ED448)) {
-			return OID_ED448;
-		} else if (algorithm.equalsIgnoreCase(EDDSA)) {
+		if (algorithm.equalsIgnoreCase(EDDSA)) {
 			return EDDSA;
+		} else if (contains(ED25519_ALIASES, algorithm)) {
+			return OID_ED25519;
+		} else if (contains(ED448_ALIASES, algorithm)) {
+			return OID_ED448;
 		} else {
 			return def;
 		}
@@ -758,7 +795,7 @@ public class Asn1DerDecoder {
 	 * @throws NoSuchAlgorithmException if key algorithm is not supported
 	 * @since 2.4
 	 */
-	private static KeyFactory getKeyFactory(String algorithm) throws NoSuchAlgorithmException {
+	public static KeyFactory getKeyFactory(String algorithm) throws NoSuchAlgorithmException {
 		String oid = null;
 		if (EDDSA_PROVIDER != null) {
 			oid = getEdDsaStandardAlgorithmName(algorithm, null);
