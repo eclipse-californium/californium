@@ -152,6 +152,10 @@ public class Asn1DerDecoderTest {
 		assertSynonym(true, "DiffieHellman", "DH");
 		assertSynonym(false, "DH", "RSA");
 		assertSynonym(false, "DSA", "DiffieHellman");
+		assertSynonym(false, "EC", "ED25519");
+		assertSynonym(false, "ED448", "ED25519");
+		assertSynonym(true, "EdDSA", "ED25519");
+		assertSynonym(true, "EdDSA", "ED448");
 	}
 
 	/**

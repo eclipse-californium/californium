@@ -15,6 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
+import static org.eclipse.californium.elements.util.TestCertificatesTools.*;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsNull.notNullValue;
@@ -33,9 +34,7 @@ import org.junit.Test;
 
 public class SslContextUtilConfigurationTest {
 
-	public static final char[] KEY_STORE_PASSWORD = "endPass".toCharArray();
 	public static final String KEY_STORE_PASSWORD_HEX = "656E6450617373";
-	public static final String KEY_STORE_LOCATION = SslContextUtil.CLASSPATH_SCHEME + "certs/keyStore.jks";
 	public static final String ALIAS_SERVER = "server";
 	public static final String CUSTOM_SCHEME = "test://";
 	public static final String CUSTOM_SCHEME_KEY_STORE_LOCATION = CUSTOM_SCHEME + "keyStore.jks";
@@ -64,14 +63,14 @@ public class SslContextUtilConfigurationTest {
 
 	@Test
 	public void testLoadKeyStoreFromClasspath() throws IOException, GeneralSecurityException {
-		Credentials credentials = SslContextUtil.loadCredentials(KEY_STORE_LOCATION, ALIAS_SERVER, KEY_STORE_PASSWORD,
+		Credentials credentials = SslContextUtil.loadCredentials(KEY_STORE_URI, ALIAS_SERVER, KEY_STORE_PASSWORD,
 				KEY_STORE_PASSWORD);
 		assertThat(credentials, is(notNullValue()));
 	}
 
 	@Test
 	public void testValidKeyStoreWithoutScheme() throws IOException, GeneralSecurityException {
-		Credentials credentials = SslContextUtil.loadCredentials(FILE_KEY_STORE_LOCATION, ALIAS_SERVER,
+		Credentials credentials = SslContextUtil.loadCredentials(KEY_STORE_URI, ALIAS_SERVER,
 				KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 		assertThat(credentials, is(notNullValue()));
 	}
@@ -116,7 +115,7 @@ public class SslContextUtilConfigurationTest {
 	public void testLoadKeyStoreFromClasspathWithCustomConfiguration() throws IOException, GeneralSecurityException {
 		testFactory.close();
 		SslContextUtil.configure(CUSTOM_SCHEME, testFactory);
-		Credentials credentials = SslContextUtil.loadCredentials(KEY_STORE_LOCATION, ALIAS_SERVER, KEY_STORE_PASSWORD,
+		Credentials credentials = SslContextUtil.loadCredentials(KEY_STORE_URI, ALIAS_SERVER, KEY_STORE_PASSWORD,
 				KEY_STORE_PASSWORD);
 		assertThat(credentials, is(notNullValue()));
 	}
@@ -145,7 +144,7 @@ public class SslContextUtilConfigurationTest {
 	public void testConfigureKeyStoreType() throws IOException, GeneralSecurityException {
 		try {
 			SslContextUtil.configure(SslContextUtil.JKS_ENDING, CUSTOM_TYPE);
-			SslContextUtil.loadCredentials(KEY_STORE_LOCATION, ALIAS_SERVER, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
+			SslContextUtil.loadCredentials(KEY_STORE_URI, ALIAS_SERVER, KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 			fail("custom key store type \"" + CUSTOM_TYPE + "\" is not intended to be supported!");
 		} catch (GeneralSecurityException ex) {
 			assertThat(ex.getMessage(), containsString(CUSTOM_TYPE));
