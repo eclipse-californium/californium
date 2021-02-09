@@ -392,7 +392,6 @@ public class ClientHandshaker extends Handshaker {
 		}
 		session.setSendCertificateType(message.getClientCertificateType());
 		session.setSniSupported(message.hasServerNameExtension());
-		session.setParameterAvailable();
 		if (!cipherSuite.requiresServerCertificateMessage()) {
 			states = NO_SEVER_CERTIFICATE;
 		}

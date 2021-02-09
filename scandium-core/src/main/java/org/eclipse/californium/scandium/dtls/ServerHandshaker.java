@@ -826,7 +826,6 @@ public class ServerHandshaker extends Handshaker {
 				}
 			}
 			addServerHelloExtensions(cipherSuite, clientHello, serverHelloExtensions);
-			session.setParameterAvailable();
 			LOGGER.debug("Negotiated cipher suite [{}] with peer [{}]", cipherSuite.name(), peerToLog);
 		} else {
 			if (LOGGER_NEGOTIATION.isDebugEnabled()) {

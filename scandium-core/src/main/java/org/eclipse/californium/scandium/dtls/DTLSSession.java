@@ -148,13 +148,6 @@ public final class DTLSSession implements Destroyable {
 	 */
 	private CertificateType receiveCertificateType = CertificateType.X_509;
 
-	/**
-	 * Indicates, that the handshake parameters are available.
-	 * 
-	 * @see HandshakeParameter
-	 */
-	private boolean parameterAvailable = false;
-
 	private long creationTime;
 	private String hostName;
 	private ServerNames serverNames;
@@ -422,27 +415,6 @@ public final class DTLSSession implements Destroyable {
 	 */
 	void setCompressionMethod(CompressionMethod compressionMethod) {
 		this.compressionMethod = compressionMethod;
-	}
-
-	/**
-	 * Set parameter available. Enables {@link #getParameter()} to return the
-	 * handshake parameter.
-	 */
-	public void setParameterAvailable() {
-		parameterAvailable = true;
-	}
-
-	/**
-	 * Return the handshake parameter, if set available.
-	 * 
-	 * @return the handshake parameter, or {@code null}, if
-	 *         {@link #setParameterAvailable()} wasn't called before.
-	 */
-	public HandshakeParameter getParameter() {
-		if (parameterAvailable) {
-			return new HandshakeParameter(cipherSuite.getKeyExchange(), receiveCertificateType);
-		}
-		return null;
 	}
 
 	final KeyExchangeAlgorithm getKeyExchange() {

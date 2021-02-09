@@ -806,8 +806,7 @@ public abstract class Handshaker implements Destroyable {
 			}
 			if (handshakeMessage instanceof GenericHandshakeMessage) {
 				GenericHandshakeMessage genericMessage = (GenericHandshakeMessage) handshakeMessage;
-				HandshakeParameter parameter = getSession().getParameter();
-				handshakeMessage = HandshakeMessage.fromGenericHandshakeMessage(genericMessage, parameter);
+				handshakeMessage = HandshakeMessage.fromGenericHandshakeMessage(genericMessage, getParameter());
 			}
 			if (lastFlight) {
 				if (flight == null) {
@@ -1321,6 +1320,17 @@ public abstract class Handshaker implements Destroyable {
 	// Getters and Setters ////////////////////////////////////////////
 
 	protected abstract boolean isClient();
+
+	/**
+	 * Get handshake parameter.
+	 * 
+	 * @return handshake parameter.
+	 * @since 3.0 (moved from DTLSSession, without obsolete conditional result)
+	 */
+	HandshakeParameter getParameter() {
+		DTLSSession session = getSession();
+		return new HandshakeParameter(session.getKeyExchange(), session.receiveCertificateType());
+	}
 
 	/**
 	 * Gets the session this handshaker is used to establish.
