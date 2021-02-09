@@ -18,12 +18,6 @@ package org.eclipse.californium.elements.util;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.security.GeneralSecurityException;
-import java.security.MessageDigest;
-import java.security.spec.AlgorithmParameterSpec;
-
-import javax.crypto.Cipher;
-import javax.crypto.SecretKey;
 
 /**
  * This class describes the functionality to read raw network-ordered data
@@ -81,16 +75,6 @@ public class DataStreamReader {
 						"requested " + count + " bytes exceeds available " + available + " bytes.");
 			}
 			return new RangeInputStream(buf, offset, count);
-		}
-
-		private void decrypt(Cipher cipher, AlgorithmParameterSpec parameterSpec, SecretKey key)
-				throws GeneralSecurityException {
-			cipher.init(Cipher.DECRYPT_MODE, key, parameterSpec);
-			count = cipher.doFinal(buf, pos, available(), buf, pos) + pos;
-		}
-
-		private void updateMessageDigest(MessageDigest md) {
-			md.update(buf, pos, available());
 		}
 
 	}
@@ -211,7 +195,7 @@ public class DataStreamReader {
 	 * 
 	 * @return A Long containing the bits read.
 	 * @throws IllegalArgumentException if provided numBits exceeds available
-	 *             bytes
+	 *             bytes, or that value is out of the range {@code [0...64]}.
 	 */
 	public long readLong(final int numBits) {
 		if (numBits < 0 || numBits > Long.SIZE) {
@@ -255,7 +239,7 @@ public class DataStreamReader {
 	 * 
 	 * @return An integer containing the bits read.
 	 * @throws IllegalArgumentException if provided numBits exceeds available
-	 *             bytes
+	 *             bytes, or that value is out of the range {@code [0...32]}.
 	 */
 	public int read(final int numBits) {
 		if (numBits < 0 || numBits > Integer.SIZE) {
@@ -360,43 +344,6 @@ public class DataStreamReader {
 			return null;
 		} else {
 			return readBytes(len);
-		}
-	}
-
-	/**
-	 * Decrypt content to read.
-	 * 
-	 * Requires reader created with {@link #createRangeReader(int)}.
-	 * 
-	 * @param cipher cipher to use
-	 * @param parameterSpec parameter spec for cipher
-	 * @param key key
-	 * @throws GeneralSecurityException if an crypto-error occurred or reader is
-	 *             not created with {@link #createRangeReader(int)}.
-	 */
-	public void decrypt(Cipher cipher, AlgorithmParameterSpec parameterSpec, SecretKey key)
-			throws GeneralSecurityException {
-		if (byteStream instanceof RangeInputStream) {
-			((RangeInputStream) byteStream).decrypt(cipher, parameterSpec, key);
-		} else {
-			throw new GeneralSecurityException("decrpyt requires range-reader!");
-		}
-	}
-
-	/**
-	 * Update message digest with available content.
-	 * 
-	 * Requires reader created with {@link #createRangeReader(int)}.
-	 * 
-	 * @param md message digest to use
-	 * @throws GeneralSecurityException if reader is not created with
-	 *             {@link #createRangeReader(int)}.
-	 */
-	public void updateMessageDigest(MessageDigest md) throws GeneralSecurityException {
-		if (byteStream instanceof RangeInputStream) {
-			((RangeInputStream) byteStream).updateMessageDigest(md);
-		} else {
-			throw new GeneralSecurityException("update message-digest requires range-reader!");
 		}
 	}
 

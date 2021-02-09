@@ -131,15 +131,15 @@ public final class DatagramReader extends DataStreamReader {
 	/**
 	 * Assert, that all data is read.
 	 * 
-	 * @param message message to include in {@link IllegalStateException}
+	 * @param message message to include in {@link IllegalArgumentException}
 	 *            message.
-	 * @throws IllegalStateException if bits are left unread
+	 * @throws IllegalArgumentException if bits are left unread
 	 * @since 3.0
 	 */
 	public void assertFinished(String message) {
 		int left = bitsLeft();
 		if (left > 0) {
-			throw new IllegalStateException(message + " not finished! " + left + " bits left.");
+			throw new IllegalArgumentException(message + " not finished! " + left + " bits left.");
 		}
 	}
 

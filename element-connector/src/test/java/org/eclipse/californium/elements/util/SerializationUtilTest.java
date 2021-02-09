@@ -15,17 +15,28 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
+import static org.eclipse.californium.elements.util.TestConditionTools.inRange;
 
 import java.net.InetSocketAddress;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext.Attributes;
+import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 
 public class SerializationUtilTest {
+
+	private static final long MILLISECOND_IN_NANOS = TimeUnit.MILLISECONDS.toNanos(1);
+
+	@Rule
+	public TestTimeRule time = new TestTimeRule();
 
 	DatagramWriter writer;
 	DatagramReader reader;
@@ -106,6 +117,31 @@ public class SerializationUtilTest {
 		Map<String, Object> read = context.entries();
 		assertEquals(write, read);
 		assertEquals(writeAttributes, readAttributes);
+	}
+
+	@Test
+	public void testNanotimeSynchronizationMark() {
+		long timePassed = ClockUtil.nanoRealtime();
+		SerializationUtil.writeNanotimeSynchronizationMark(writer);
+		timePassed = ClockUtil.nanoRealtime() - timePassed;
+		swap();
+		timePassed -= ClockUtil.nanoRealtime();
+		long delta = SerializationUtil.readNanotimeSynchronizationMark(reader);
+		timePassed += ClockUtil.nanoRealtime();
+		assertThat(delta, is(inRange(-MILLISECOND_IN_NANOS, timePassed + MILLISECOND_IN_NANOS)));
+
+	}
+	@Test
+	public void testNanotimeSynchronizationMarkWithTimeshift() {
+		long timePassed = ClockUtil.nanoRealtime();
+		SerializationUtil.writeNanotimeSynchronizationMark(writer);
+		timePassed = ClockUtil.nanoRealtime() - timePassed;
+		time.addTestTimeShift(10, TimeUnit.MILLISECONDS);
+		swap();
+		timePassed -= ClockUtil.nanoRealtime();
+		long delta = SerializationUtil.readNanotimeSynchronizationMark(reader);
+		timePassed += ClockUtil.nanoRealtime();
+		assertThat(delta, is(inRange(9 * MILLISECOND_IN_NANOS, timePassed + 11 * MILLISECOND_IN_NANOS)));
 	}
 
 	private void swap() {

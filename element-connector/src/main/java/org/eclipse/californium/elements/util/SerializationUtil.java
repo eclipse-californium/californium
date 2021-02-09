@@ -22,6 +22,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext.Attributes;
@@ -80,6 +81,10 @@ public class SerializationUtil {
 	 * Attribute type {@link Long}.
 	 */
 	private static final int ATTRIBUTES_LONG = 4;
+	/**
+	 * Serialization version for nanotime synchronization mark.
+	 */
+	private static final int NANOTIME_SNYC_MARK_VERSION = 1;
 
 	/**
 	 * Write no item to output stream.
@@ -127,6 +132,7 @@ public class SerializationUtil {
 	 *            {@link #writeStartItem(DatagramWriter, int, int)}.
 	 * @param numBits number of bits for the item length used for
 	 *            {@link #writeStartItem(DatagramWriter, int, int)}.
+	 * @see #writeStartItem(DatagramWriter, int, int)
 	 */
 	public static void writeFinishedItem(DatagramWriter writer, int position, int numBits) {
 		writer.writeSize(position, numBits);
@@ -140,6 +146,10 @@ public class SerializationUtil {
 	 * @param numBits number of bits for the item length
 	 * @return length of the item, or {@code -1}, if
 	 *         {@link #writeNoItem(DatagramWriter)} was used.
+	 * @throws IllegalArgumentException if version doesn't match or the read
+	 *             length exceeds the available bytes.
+	 * @see #writeStartItem(DatagramWriter, int, int)
+	 * @see #writeFinishedItem(DatagramWriter, int, int)
 	 */
 	public static int readStartItem(DataStreamReader reader, int version, int numBits) {
 		if (version == NO_VERSION) {
@@ -160,6 +170,7 @@ public class SerializationUtil {
 	 * @param writer writer to write to.
 	 * @param value value to write.
 	 * @param numBits number of bits for encoding the length.
+	 * @see #readString(DataStreamReader, int)
 	 */
 	public static void write(DatagramWriter writer, String value, int numBits) {
 		writer.writeVarBytes(value == null ? null : value.getBytes(StandardCharsets.UTF_8), numBits);
@@ -171,6 +182,7 @@ public class SerializationUtil {
 	 * @param reader reader to read
 	 * @param numBits number of bits for encoding the length.
 	 * @return String, or {@code null}, if size was {@code 0}.
+	 * @see #write(DatagramWriter, String, int)
 	 */
 	public static String readString(DataStreamReader reader, int numBits) {
 		byte[] data = reader.readVarBytes(numBits);
@@ -186,6 +198,7 @@ public class SerializationUtil {
 	 * 
 	 * @param writer writer to write to.
 	 * @param address inet socket address.
+	 * @see #readAddress(DataStreamReader)
 	 */
 	public static void write(DatagramWriter writer, InetSocketAddress address) {
 		if (address == null) {
@@ -210,6 +223,7 @@ public class SerializationUtil {
 	 * @param reader reader to read
 	 * @return read inet socket address, or {@code null}, if no address was
 	 *         written.
+	 * @see #write(DatagramWriter, InetSocketAddress)
 	 */
 	public static InetSocketAddress readAddress(DataStreamReader reader) {
 		int length = readStartItem(reader, ADDRESS_VERSION, Byte.SIZE);
@@ -309,50 +323,61 @@ public class SerializationUtil {
 	}
 
 	/**
-	 * Skip states for connections.
+	 * Write nanotime synchronization mark.
 	 * 
-	 * Note: this "Work In Progress"; the format may change!
+	 * Write {@link System#currentTimeMillis()} and
+	 * {@link ClockUtil#nanoRealtime()} to align uptime with system-time on
+	 * reading.
 	 * 
-	 * @param in stream to skip connections.
+	 * @param writer writer to write to.
+	 * @see #readNanotimeSynchronizationMark(DataStreamReader)
 	 */
-	@WipAPI
-	public static void skipConnections(InputStream in) {
-		// skip header and connections
-		int count = skipBlocks(in, 0);
-		if (count > 0) {
-			// skip mac
-			skipBlocks(in, 1);
-		}
+	public static void writeNanotimeSynchronizationMark(DatagramWriter writer) {
+		int position = writeStartItem(writer, NANOTIME_SNYC_MARK_VERSION, Byte.SIZE);
+		long millis = System.currentTimeMillis();
+		long nanos = ClockUtil.nanoRealtime();
+		writer.writeLong(millis, Long.SIZE);
+		writer.writeLong(nanos, Long.SIZE);
+		writeFinishedItem(writer, position, Byte.SIZE);
 	}
 
 	/**
-	 * Skip blocks.
+	 * Read nanotime synchronization mark.
 	 * 
-	 * A block uses a 16-bit length encoding. A list of blocks is terminated by
-	 * a block with length {@code 0}.
+	 * @param reader reader to read
+	 * @return delta in nanoseconds for nanotime synchronization.
+	 * @see SerializationUtil#writeNanotimeSynchronizationMark(DatagramWriter)
+	 */
+	public static long readNanotimeSynchronizationMark(DataStreamReader reader) {
+		int length = readStartItem(reader, NANOTIME_SNYC_MARK_VERSION, Byte.SIZE);
+		if (length <= 0) {
+			return 0;
+		}
+		DatagramReader rangeReader = reader.createRangeReader(length);
+		long millis = rangeReader.readLong(Long.SIZE);
+		long nanos = rangeReader.readLong(Long.SIZE);
+		rangeReader.assertFinished("times");
+		long startMillis = System.currentTimeMillis();
+		long startNanos = ClockUtil.nanoRealtime();
+		long deltaSystemtime = Math.max(TimeUnit.MILLISECONDS.toNanos(startMillis - millis), 0L);
+		long deltaUptime = startNanos - nanos;
+		long delta = deltaUptime - deltaSystemtime;
+		return delta;
+	}
+
+	/**
+	 * Skip items until "no item" is read.
 	 * 
 	 * Note: this "Work In Progress"; the format may change!
 	 * 
-	 * @param in stream to skip connections.
-	 * @param maxBlocks maximum number of blocks to skip. {@code 0}, for all
-	 *            block up to the end of the input stream or the first block of
-	 *            length {@code 0}.
-	 * @return number of skipped blocks.
-	 * @since 3.0
+	 * @param in stream to skip items.
 	 */
 	@WipAPI
-	public static int skipBlocks(InputStream in, int maxBlocks) {
-		int count = 0;
-		int len;
+	public static void skipItems(InputStream in, int numBits) {
 		DataStreamReader reader = new DataStreamReader(in);
-		while ((len = reader.read(Short.SIZE)) > 0) {
-			++count;
+		while ((reader.readNextByte() & 0xff) != NO_VERSION) {
+			int len = reader.read(numBits);
 			reader.skip(len);
-			if (maxBlocks > 0 && maxBlocks == count) {
-				break;
-			}
 		}
-		return count;
 	}
-
 }

@@ -78,7 +78,6 @@ import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.category.Medium;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.ThreadsRule;
-import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
@@ -770,7 +769,7 @@ public class DTLSConnectorTest {
 		DatagramWriter writer = new DatagramWriter(128);
 		connection.write(writer);
 		DatagramReader reader = new DatagramReader(writer.toByteArray());
-		Connection connection2 = Connection.fromReader(reader, 0, ClockUtil.nanoRealtime());
+		Connection connection2 = Connection.fromReader(reader, 0);
 		clientConnectionStore.remove(connection);
 		connection2.setExecutor(new SerialExecutor(executor));
 		clientConnectionStore.put(connection2);

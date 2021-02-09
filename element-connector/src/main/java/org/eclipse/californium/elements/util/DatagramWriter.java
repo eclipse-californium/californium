@@ -20,14 +20,8 @@ package org.eclipse.californium.elements.util;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.security.GeneralSecurityException;
-import java.security.MessageDigest;
-import java.security.spec.AlgorithmParameterSpec;
 import java.util.Arrays;
 import java.util.concurrent.atomic.AtomicLong;
-
-import javax.crypto.Cipher;
-import javax.crypto.SecretKey;
 
 /**
  * This class describes the functionality to write raw network-ordered datagrams
@@ -399,39 +393,6 @@ public final class DatagramWriter {
 
 		// return the byte array
 		return byteArray;
-	}
-
-	/**
-	 * Encrypt written content.
-	 * 
-	 * @param position starting position to encrypt
-	 * @param cipher cipher to use
-	 * @param parameterSpec parameter spec for cipher
-	 * @param key key
-	 * @throws GeneralSecurityException if an crypto-error occurred
-	 * @since 3.0
-	 */
-	public void encrypt(int position, Cipher cipher, AlgorithmParameterSpec parameterSpec, SecretKey key)
-			throws GeneralSecurityException {
-		cipher.init(Cipher.ENCRYPT_MODE, key, parameterSpec);
-		int length =  count - position;
-		int size = cipher.getOutputSize(length) + position;
-		if (size > buffer.length) {
-			int newSize = calculateBufferSize(size);
-			setBufferSize(newSize);
-		}
-		count = cipher.doFinal(buffer, position, length, buffer, position) + position;
-	}
-
-	/**
-	 * Update message digest with written content.
-	 * 
-	 * @param position starting position to update
-	 * @param md message digest to use
-	 * @since 3.0
-	 */
-	public void updateMessageDigest(int position, MessageDigest md) {
-		md.update(buffer, position, count - position);
 	}
 
 	/**

@@ -18,9 +18,6 @@ package org.eclipse.californium.elements;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.security.GeneralSecurityException;
-
-import javax.crypto.SecretKey;
 
 import org.eclipse.californium.elements.util.WipAPI;
 
@@ -37,38 +34,36 @@ public interface PersistentConnector {
 	 * Connector must be stopped before saving connections. The connections are
 	 * removed after saving.
 	 * 
-	 * Note: this "Work In Progress"; the encryption, the states and the format may change!
+	 * Note: this is "Work In Progress"; the stream will contain not encrypted
+	 * critical credentials. It is required to protect this data before
+	 * exporting it. The encoding of the content may also change in the future.
 	 * 
 	 * @param out output stream to save connections
-	 * @param password password for encryption
 	 * @param maxAgeInSeconds maximum age in seconds
-	 * @return number of save connections, {@code -1}, if not supported.
+	 * @return number of save connections.
 	 * @throws IOException if an io-error occurred
-	 * @throws GeneralSecurityException if an crypto error occurred
 	 * @throws IllegalStateException if connector is running
 	 */
 	@WipAPI
-	int saveConnections(OutputStream out, SecretKey password, long maxAgeInSeconds) throws IOException, GeneralSecurityException;
+	int saveConnections(OutputStream out, long maxAgeInSeconds) throws IOException;
 
 	/**
 	 * Load connections.
 	 * 
-	 * Note: this "Work In Progress"; the encryption, the states and the format
-	 * may change!
+	 * Note: this is "Work In Progress"; the stream will contain not encrypted
+	 * critical credentials. The encoding of the content may also change in the
+	 * future.
 	 * 
 	 * @param in input stream to load connections
-	 * @param password password for encryption
-	 * @return number of save connections, {@code -1}, if not supported.
+	 * @param detla adaption-delta for nano-uptime. In nanoseconds
+	 * @return number of loaded connections.
 	 * @throws IOException if an io-error occurred. Indicates, that further
 	 *             loading should be aborted.
-	 * @throws IllegalStateException if an reading error occurred. Continue to
-	 *             load other connection-stores may work, that may be not
-	 *             affected by this error.
-	 * @throws GeneralSecurityException if an crypto error occurred. Continue to
+	 * @throws IllegalArgumentException if an reading error occurred. Continue to
 	 *             load other connection-stores may work, that may be not
 	 *             affected by this error.
 	 */
 	@WipAPI
-	int loadConnections(InputStream in, SecretKey password) throws IOException, GeneralSecurityException;
+	int loadConnections(InputStream in, long delta) throws IOException;
 
 }

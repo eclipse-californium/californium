@@ -32,7 +32,6 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
@@ -472,13 +471,12 @@ public class CoapServer implements ServerInterface {
 	 * {@link Endpoint#getUri()} as ASCII string.
 	 * 
 	 * @param out output stream to write to
-	 * @param key password
 	 * @param maxAgeInSeconds maximum age in seconds
 	 * @return number of saved connections.
 	 * @throws IOException if an i/o-error occurred
 	 * @since 3.0
 	 */
-	public int saveAllConnectors(OutputStream out, SecretKey key, long maxAgeInSeconds) throws IOException {
+	public int saveAllConnectors(OutputStream out, long maxAgeInSeconds) throws IOException {
 		stop();
 		int count = 0;
 		DatagramWriter writer = new DatagramWriter();
@@ -490,12 +488,8 @@ public class CoapServer implements ServerInterface {
 					SerializationUtil.write(writer, getTag(), Byte.SIZE);
 					SerializationUtil.write(writer, endpoint.getUri().toASCIIString(), Byte.SIZE);
 					writer.writeTo(out);
-					try {
-						int saved = ((PersistentConnector) connector).saveConnections(out, key, maxAgeInSeconds);
-						count += saved;
-					} catch (GeneralSecurityException e) {
-						LOGGER.warn("{}saving failed:", getTag(), e);
-					}
+					int saved = ((PersistentConnector) connector).saveConnections(out, maxAgeInSeconds);
+					count += saved;
 				}
 			}
 		}
@@ -542,14 +536,14 @@ public class CoapServer implements ServerInterface {
 	 * 
 	 * @param identifier connector's identifier
 	 * @param in input stream
-	 * @param key password
+	 * @param detla adaption-delta for nano-uptime. In nanoseconds
 	 * @return number of read connections, {@code -1}, if no persistent
 	 *         connector is available for the provided uri.
 	 * @throws IOException if an i/o-error occurred
 	 * @see #readConnectorIdentifier(InputStream)
 	 * @since 3.0
 	 */
-	public int loadConnector(ConnectorIdentifier identifier, InputStream in, SecretKey key) throws IOException {
+	public int loadConnector(ConnectorIdentifier identifier, InputStream in, long delta) throws IOException {
 		Endpoint endpoint = getEndpoint(identifier.uri);
 		if (endpoint == null) {
 			LOGGER.warn("{}connector {} not available!", getTag(), identifier.uri);
@@ -564,11 +558,8 @@ public class CoapServer implements ServerInterface {
 		}
 		if (persistentConnector != null) {
 			try {
-				return persistentConnector.loadConnections(in, key);
-			} catch (IllegalStateException e) {
-				LOGGER.warn("{}loading failed:", getTag(), e);
-				return 0;
-			} catch (GeneralSecurityException e) {
+				return persistentConnector.loadConnections(in, delta);
+			} catch (IllegalArgumentException e) {
 				LOGGER.warn("{}loading failed:", getTag(), e);
 				return 0;
 			}

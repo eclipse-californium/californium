@@ -155,8 +155,6 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import javax.crypto.SecretKey;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -1081,6 +1079,8 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 					recentHandshakeCleaner.cancel(false);
 					recentHandshakeCleaner = null;
 				}
+				// recent handshakes will be restored from connection store,
+				recentHandshakes.clear();
 				for (Thread t : receiverThreads) {
 					t.interrupt();
 				}
@@ -1160,19 +1160,17 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 
 	@WipAPI
 	@Override
-	public int saveConnections(OutputStream out, SecretKey password, long maxAgeInSeconds)
-			throws IOException, GeneralSecurityException {
+	public int saveConnections(OutputStream out, long maxAgeInSeconds) throws IOException {
 		if (isRunning()) {
 			throw new IllegalStateException("Connector is running, save not possible!");
 		}
-		return connectionStore.saveConnections(out, password, maxAgeInSeconds);
+		return connectionStore.saveConnections(out, maxAgeInSeconds);
 	}
 
 	@WipAPI
 	@Override
-	public int loadConnections(InputStream in, SecretKey password)
-			throws GeneralSecurityException, IOException {
-		return connectionStore.loadConnections(in, password);
+	public int loadConnections(InputStream in, long delta) throws IOException {
+		return connectionStore.loadConnections(in, delta);
 	}
 
 	/**
