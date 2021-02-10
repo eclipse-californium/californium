@@ -155,10 +155,10 @@ public class TestCertificatesTools {
 	public static SslContextUtil.Credentials getCredentials(String alias) {
 		try {
 			try {
-				return SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, alias,
+				return SslContextUtil.loadCredentials(KEY_STORE_URI, alias,
 						KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 			} catch (IllegalArgumentException ex) {
-				return SslContextUtil.loadCredentials(SslContextUtil.CLASSPATH_SCHEME + EDDSA_KEY_STORE_LOCATION, alias,
+				return SslContextUtil.loadCredentials(EDDSA_KEY_STORE_URI, alias,
 						KEY_STORE_PASSWORD, KEY_STORE_PASSWORD);
 			}
 		} catch (IOException | GeneralSecurityException e) {
