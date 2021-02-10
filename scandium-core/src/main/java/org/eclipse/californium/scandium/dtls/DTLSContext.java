@@ -98,6 +98,8 @@ public final class DTLSContext implements Destroyable {
 	private volatile long receiveWindowLowerBoundary = 0;
 	private volatile long receivedRecordsVector = 0;
 
+	private volatile long macErrors = 0;
+
 	private final long handshakeTime;
 	private final DTLSSession session;
 
@@ -350,6 +352,7 @@ public final class DTLSContext implements Destroyable {
 	 * @return the next sequence number
 	 * @throws IllegalStateException if the maximum sequence number for the
 	 *             epoch has been reached (2^48 - 1)
+	 * @since 3.0 (renamed, was getSequenceNumber)
 	 */
 	public long getNextSequenceNumber() {
 		return getNextSequenceNumber(writeEpoch);
@@ -363,6 +366,7 @@ public final class DTLSContext implements Destroyable {
 	 * @return the next sequence number
 	 * @throws IllegalStateException if the maximum sequence number for the
 	 *             epoch has been reached (2^48 - 1)
+	 * @since 3.0 (renamed, was getSequenceNumber)
 	 */
 	public long getNextSequenceNumber(int epoch) {
 		long sequenceNumber = this.sequenceNumbers[epoch];
@@ -664,6 +668,25 @@ public final class DTLSContext implements Destroyable {
 	}
 
 	/**
+	 * Increment the number ofMAC errors (including general encryption errors).
+	 * 
+	 * @since 3.0
+	 */
+	public void incrementMacErrors() {
+		++macErrors;
+	}
+
+	/**
+	 * Gets current number of MAC errors (including general encryption errors).
+	 * 
+	 * @return number of MAC errors
+	 * @since 3.0
+	 */
+	public long getMacErrors() {
+		return macErrors;
+	}
+
+	/**
 	 * Version number for serialization.
 	 */
 	private static final int VERSION = 2;
@@ -681,9 +704,6 @@ public final class DTLSContext implements Destroyable {
 	public void write(DatagramWriter writer) {
 		int position = SerializationUtil.writeStartItem(writer, VERSION, Short.SIZE);
 		writer.writeLong(handshakeTime, Long.SIZE);
-		writer.writeLong(sequenceNumbers[writeEpoch], 48);
-		writer.writeLong(receiveWindowLowerBoundary, 48);
-		writer.writeLong(receivedRecordsVector, 64);
 		session.write(writer);
 		writer.write(readEpoch, Byte.SIZE);
 		if (readEpoch > 0) {
@@ -694,6 +714,7 @@ public final class DTLSContext implements Destroyable {
 			getWriteState().write(writer);
 		}
 		writer.writeVarBytes(writeConnectionId, Byte.SIZE);
+		writeSequenceNumbers(writer);
 		SerializationUtil.writeFinishedItem(writer, position, Short.SIZE);
 	}
 
@@ -725,19 +746,6 @@ public final class DTLSContext implements Destroyable {
 	 */
 	private DTLSContext(DatagramReader reader) {
 		handshakeTime = reader.readLong(Long.SIZE);
-		long sequenceNumbers = reader.readLong(48);
-		receiveWindowLowerBoundary = reader.readLong(48);
-		receivedRecordsVector = reader.readLong(64);
-		receiveWindowUpperCurrent = receiveWindowLowerBoundary;
-		long vector = receivedRecordsVector;
-		if (vector < 0) {
-			receiveWindowUpperCurrent += Long.SIZE;
-		} else {
-			while (vector != 0) {
-				vector >>>= 1;
-				receiveWindowUpperCurrent++;
-			}
-		}
 		session = DTLSSession.fromReader(reader);
 		readEpoch = reader.read(Byte.SIZE);
 		if (readEpoch > 0) {
@@ -749,11 +757,56 @@ public final class DTLSContext implements Destroyable {
 			writeState = DTLSConnectionState.fromReader(session.getCipherSuite(), session.getCompressionMethod(),
 					reader);
 		}
-		this.sequenceNumbers[writeEpoch] = sequenceNumbers;
 		byte[] data = reader.readVarBytes(Byte.SIZE);
 		if (data != null) {
 			writeConnectionId = new ConnectionId(data);
 		}
+		readSequenceNumbers(reader);
 		reader.assertFinished("dtls-context");
+	}
+
+	/**
+	 * Version number for sequence-number serialization.
+	 */
+	private static final int SEQN_VERSION = 1;
+
+	/**
+	 * Write the sequence-number state of this DTLS context.
+	 * 
+	 * @param writer writer for DTLS context state
+	 */
+	@WipAPI
+	public void writeSequenceNumbers(DatagramWriter writer) {
+		int position = SerializationUtil.writeStartItem(writer, SEQN_VERSION, Byte.SIZE);
+		writer.writeLong(sequenceNumbers[writeEpoch], 48);
+		writer.writeLong(receiveWindowLowerBoundary, 48);
+		writer.writeLong(receivedRecordsVector, 64);
+		writer.writeLong(macErrors, 64);
+		SerializationUtil.writeFinishedItem(writer, position, Byte.SIZE);
+	}
+
+	/**
+	 * Read the sequence-number state for this DTLS context.
+	 * 
+	 * @param reader reader with sequence-number state for DTLS context state
+	 */
+	@WipAPI
+	public void readSequenceNumbers(DatagramReader reader) {
+		int length = SerializationUtil.readStartItem(reader, SEQN_VERSION, Byte.SIZE);
+		if (0 < length) {
+			DatagramReader rangeReader = reader.createRangeReader(length);
+			long sequenceNumber = rangeReader.readLong(48);
+			long receiveLowerBoundary = rangeReader.readLong(48);
+			long receivedVector = rangeReader.readLong(64);
+			long errors = rangeReader.readLong(64);
+			rangeReader.assertFinished("dtls-context-sequence-numbers");
+
+			int zeros = Long.numberOfLeadingZeros(receivedVector);
+			sequenceNumbers[writeEpoch] = sequenceNumber;
+			receiveWindowLowerBoundary = receiveLowerBoundary;
+			receivedRecordsVector = receivedVector;
+			receiveWindowUpperCurrent = receiveLowerBoundary + Long.SIZE - zeros - 1;
+			macErrors = errors;
+		}
 	}
 }

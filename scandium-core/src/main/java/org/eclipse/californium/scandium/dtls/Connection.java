@@ -674,6 +674,23 @@ public final class Connection {
 	}
 
 	/**
+	 * Mark record as read in established DTLS context.
+	 * 
+	 * @param record record to mark as read.
+	 * @return {@code true}, if the record is newer than the current newest.
+	 *         {@code false}, if not.
+	 * @since 3.0
+	 */
+	public boolean markRecordAsRead(Record record) {
+		boolean newest = false;
+		DTLSContext context = establishedDtlsContext;
+		if (context != null) {
+			newest = context.markRecordAsRead(record.getEpoch(), record.getSequenceNumber());
+		}
+		return newest;
+	}
+
+	/**
 	 * Gets the root cause alert.
 	 * 
 	 * For some case, the root cause may be hidden and replaced by a general

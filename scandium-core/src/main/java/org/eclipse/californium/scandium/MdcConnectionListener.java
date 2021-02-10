@@ -41,12 +41,24 @@ public class MdcConnectionListener implements ConnectionListener {
 
 	@Override
 	public void onConnectionEstablished(Connection connection) {
-
+		// empty implementation
 	}
 
 	@Override
 	public void onConnectionRemoved(Connection connection) {
+		// empty implementation
+	}
 
+	@Override
+	public boolean onConnectionUpdatesSequenceNumbers(Connection connection, boolean writeSequenceNumber) {
+		// empty implementation, never close
+		return false;
+	}
+
+	@Override
+	public boolean onConnectionMacError(Connection connection) {
+		// empty implementation, never close
+		return false;
 	}
 
 	@Override

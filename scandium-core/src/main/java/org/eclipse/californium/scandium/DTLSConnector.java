@@ -342,8 +342,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	private int ipv6Mtu = DEFAULT_IPV6_MTU;
 	protected int inboundDatagramBufferSize = MAX_DATAGRAM_BUFFER_SIZE;
 
-	private CookieGenerator cookieGenerator = new CookieGenerator();
-	private Object alertHandlerLock= new Object();
+	private final CookieGenerator cookieGenerator = new CookieGenerator();
 
 	private volatile DatagramSocket socket;
 
@@ -364,9 +363,9 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	private volatile EndpointContextMatcher endpointContextMatcher;
 
 	private volatile RawDataChannel messageHandler;
-	private AlertHandler alertHandler;
-	private SessionListener sessionListener;
-	private ConnectionListener connectionListener;
+	private volatile AlertHandler alertHandler;
+	private final SessionListener sessionListener;
+	private final ConnectionListener connectionListener;
 	private ExecutorService executorService;
 	private boolean hasInternalExecutor;
 
@@ -739,12 +738,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 
 				@Override
 				public void run() {
-					DTLSContext context = connection.getEstablishedDtlsContext();
-					if (context != null) {
-						LOGGER.trace("Closing connection with peer [{}]", connection.getPeerAddress());
-						sendAlert(connection, context, new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY));
-						connection.setResumptionRequired(true);
-					}
+					closeConnection(connection);
 				}
 			});
 		}
@@ -1653,6 +1647,15 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 					StringUtil.toLog(record.getPeerAddress()), e);
 			terminateConnectionWithInternalError(connection);
 		} catch (GeneralSecurityException e) {
+			DTLSContext dtlsContext = connection.getEstablishedDtlsContext();
+			if (dtlsContext != null) {
+				dtlsContext.incrementMacErrors();
+				if (connectionListener != null) {
+					if (connectionListener.onConnectionMacError(connection)) {
+						closeConnection(connection);
+					}
+				}
+			}
 			DROP_LOGGER.debug("Discarding {} received from peer [{}] caused by {}",
 					record.getType(), StringUtil.toLog(record.getPeerAddress()), e.getMessage());
 			if (health != null) {
@@ -1663,6 +1666,15 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 		} catch (HandshakeException e) {
 			LOGGER.debug("error occurred while processing record from peer [{}]",
 					StringUtil.toLog(record.getPeerAddress()), e);
+		}
+	}
+
+	private void closeConnection(Connection connection) {
+		DTLSContext context = connection.getEstablishedDtlsContext();
+		if (context != null) {
+			LOGGER.trace("Closing connection with peer [{}]", connection.getPeerAddress());
+			sendAlert(connection, context, new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY));
+			connection.setResumptionRequired(true);
 		}
 	}
 
@@ -1698,7 +1710,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 			// an established, i.e. fully negotiated, session
 			ApplicationMessage message = (ApplicationMessage) record.getFragment();
 
-			updateConnectionAddress(record, connection, dtlsContext);
+			updateConnectionAddress(record, connection);
 
 			final RawDataChannel channel = messageHandler;
 			// finally, forward de-crypted message to application layer
@@ -1727,9 +1739,9 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	 * 
 	 * @param record alert record
 	 * @param connection connection to process the received record
-	 * @param context session applied to decode record
+	 * @param epochContext session applied to decode record
 	 */
-	private void processAlertRecord(Record record, Connection connection, DTLSContext context) {
+	private void processAlertRecord(Record record, Connection connection, DTLSContext epochContext) {
 		AlertMessage alert = (AlertMessage) record.getFragment();
 		Handshaker handshaker = connection.getOngoingHandshake();
 		HandshakeException error = null;
@@ -1741,7 +1753,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 			// we need to respond with a CLOSE_NOTIFY alert and
 			// then close and remove the connection immediately
 			if (connection.hasEstablishedDtlsContext()) {
-				updateConnectionAddress(record, connection, context);
+				updateConnectionAddress(record, connection);
 			} else {
 				error = new HandshakeException("Received 'close notify'", alert);
 				if (handshaker != null) {
@@ -1750,7 +1762,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 			}
 			if (!connection.isResumptionRequired()) {
 				if (connection.getPeerAddress() != null) {
-					sendAlert(connection, context, new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY));
+					sendAlert(connection, epochContext, new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY));
 				}
 				if (connection.hasEstablishedDtlsContext()) {
 					connection.close(record);
@@ -1781,13 +1793,11 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	 * 
 	 * @param record received record.
 	 * @param connection connection of received record
-	 * @param context dtls context of received record
-	 * @since 2.5
+	 * @since 3.0 (removed DTLS context parameter)
 	 */
-	private void updateConnectionAddress(Record record, Connection connection, DTLSContext context) {
+	private void updateConnectionAddress(Record record, Connection connection) {
 		InetSocketAddress newAddress = null;
-		if (context.markRecordAsRead(record.getEpoch(), record.getSequenceNumber())
-				|| !useCidUpdateAddressOnNewerRecordFilter) {
+		if (connection.markRecordAsRead(record) || !useCidUpdateAddressOnNewerRecordFilter) {
 			// address update, it's a newer record!
 			connection.setRouter(record.getRouter());
 			newAddress = record.getPeerAddress();
@@ -1797,6 +1807,11 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 		if (ongoingHandshake != null) {
 			// the handshake has been completed successfully
 			ongoingHandshake.handshakeCompleted();
+		}
+		if (connectionListener != null) {
+			if (connectionListener.onConnectionUpdatesSequenceNumbers(connection, false)) {
+				closeConnection(connection);
+			}
 		}
 	}
 
@@ -2371,10 +2386,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	 */
 	private void reportAlertInternal(Connection connection, AlertMessage alert) {
 		if (connection.setRootCause(alert)) {
-			AlertHandler handler;
-			synchronized (alertHandlerLock) {
-				handler = alertHandler;
-			}
+			AlertHandler handler = alertHandler;
 			if (handler != null) {
 				handler.onAlert(connection.getPeerAddress(), alert);
 			}
@@ -2389,6 +2401,9 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 		} else if (alert == null) {
 			throw new NullPointerException("Alert must not be null");
 		}
+		if (connection.isResumptionRequired()) {
+			return;
+		}
 		try {
 			LOGGER.trace("send ALERT {} for peer {}.", alert, StringUtil.toLog(connection.getPeerAddress()));
 			Record record;
@@ -2401,6 +2416,9 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 			}
 			record.setAddress(connection.getPeerAddress(), connection.getRouter());
 			sendRecord(record);
+			if (connectionListener != null) {
+				connectionListener.onConnectionUpdatesSequenceNumbers(connection, true);
+			}
 		} catch (IOException e) {
 			// already logged ...
 		} catch (GeneralSecurityException e) {
@@ -2764,6 +2782,11 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 			sendRecord(record);
 			message.onSent();
 			connectionStore.update(connection, null);
+			if (connectionListener != null) {
+				if (connectionListener.onConnectionUpdatesSequenceNumbers(connection, true)) {
+					closeConnection(connection);
+				}
+			}
 		} catch (IOException e) {
 			message.onError(e);
 		} catch (GeneralSecurityException e) {
@@ -3256,9 +3279,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	 * @param handler The handler to notify.
 	 */
 	public final void setAlertHandler(AlertHandler handler) {
-		synchronized (alertHandlerLock) {
-			this.alertHandler = handler;
-		}
+		this.alertHandler = handler;
 	}
 
 	private void discardRecord(final Record record, final Throwable cause) {
