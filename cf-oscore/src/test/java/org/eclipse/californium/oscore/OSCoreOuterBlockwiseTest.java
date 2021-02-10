@@ -296,7 +296,7 @@ public class OSCoreOuterBlockwiseTest {
 		assertEquals(response.getCode(), CoAP.ResponseCode.CHANGED);
 		assertFalse(response.getOptions().hasSize2());
 		assertFalse(response.getOptions().hasBlock1());
-		assertNull(response.getPayload());
+		assertEquals(0, response.getPayloadSize());
 		assertEquals(payload, resource.currentPayload);
 		assertEquals(1, resource.getCounter());
 		client.shutdown();

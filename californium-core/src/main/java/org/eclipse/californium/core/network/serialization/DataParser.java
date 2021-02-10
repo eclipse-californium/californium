@@ -29,6 +29,7 @@ package org.eclipse.californium.core.network.serialization;
 import org.eclipse.californium.core.coap.*;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 
 import static org.eclipse.californium.core.coap.CoAP.MessageFormat.PAYLOAD_MARKER;
@@ -229,7 +230,7 @@ public abstract class DataParser {
 				message.assertPayloadMatchsBlocksize();
 			}
 		} else {
-			message.setPayload((String) null);
+			message.setPayload(Bytes.EMPTY);
 		}
 	}
 

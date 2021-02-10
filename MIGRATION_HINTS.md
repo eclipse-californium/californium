@@ -25,6 +25,10 @@ If a 2.0.0 or newer is used, it's recommended to update first to 2.6.0 and clean
 
 Since 3.0 the sub-class may be ignored, depending on the provided value of the `useClassInEquals` parameter in `Bytes(byte[], int, boolean, boolean)`. The default behavior is changed to ignore the sub-class.
 
+`Message.getPayload()`:
+
+Since 3.0 `null` is replaced by `Bytes.EMPTY`. The method will now always return an byte array, which may be empty.
+
 ### Scandium:
 
 Redesigned! May cause also unaware changes! If you detect one, please create an issue on 

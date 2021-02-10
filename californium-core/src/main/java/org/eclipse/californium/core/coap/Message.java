@@ -68,6 +68,7 @@ import org.eclipse.californium.core.network.stack.ReliabilityLayerParameters;
 import org.eclipse.californium.core.observe.ObserveManager;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextUtil;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 
@@ -140,7 +141,7 @@ public abstract class Message {
 	private OptionSet options;
 
 	/** The payload of this message. */
-	private byte[] payload;
+	private byte[] payload = Bytes.EMPTY;
 
 	/** Marks this message to have payload even if this is not intended */
 	private boolean unintendedPayload;
@@ -605,14 +606,13 @@ public abstract class Message {
 	 * @return the payload size
 	 */
 	public int getPayloadSize() {
-		byte[] payload = this.payload;
-		return payload == null ? 0 : payload.length;
+		return payload.length;
 	}
 
 	/**
 	 * Gets the raw payload.
 	 *
-	 * @return the payload, or {@code null}, if not available.
+	 * @return the payload.
 	 * @throws IllegalStateException if message was {@link #offload}ed.
 	 */
 	public byte[] getPayload() {
@@ -633,8 +633,7 @@ public abstract class Message {
 		if (offload != null) {
 			throw new IllegalStateException("message " + offload + " offloaded!");
 		}
-		byte[] payload = this.payload;
-		if (payload == null) {
+		if (payload.length == 0) {
 			return "";
 		} else {
 			return new String(payload, CoAP.UTF8_CHARSET);
@@ -643,7 +642,7 @@ public abstract class Message {
 
 	protected String getPayloadTracingString() {
 		byte[] payload = this.payload;
-		if (null == payload || 0 == payload.length) {
+		if (payload.length == 0) {
 			return "no payload";
 		}
 		boolean text = true;
@@ -682,10 +681,10 @@ public abstract class Message {
 	 * 
 	 * Provides a fluent API to chain setters.
 	 * 
-	 * @param payload the payload as string. {@code null} or a empty string are
-	 *            not considered to be payload and therefore not cause a
-	 *            IllegalArgumentException, if this message must not have
-	 *            payload.
+	 * @param payload the payload as string. {@code null} is replaced by an
+	 *            empty string. An empty string is not considered to be payload
+	 *            and therefore not cause a IllegalArgumentException, if this
+	 *            message must not have payload.
 	 * @return this Message
 	 * @throws IllegalArgumentException if this message must not have payload
 	 * @see #isIntendedPayload()
@@ -693,8 +692,8 @@ public abstract class Message {
 	 * @see #setUnintendedPayload()
 	 */
 	public Message setPayload(String payload) {
-		if (payload == null) {
-			this.payload = null;
+		if (payload == null || payload.isEmpty()) {
+			this.payload = Bytes.EMPTY;
 		} else {
 			setPayload(payload.getBytes(CoAP.UTF8_CHARSET));
 		}
@@ -706,10 +705,10 @@ public abstract class Message {
 	 *
 	 * Provides a fluent API to chain setters.
 	 *
-	 * @param payload the new payload. {@code null} or a empty array are not
-	 *            considered to be payload and therefore not cause an
-	 *            IllegalArgumentException, if this message must not have
-	 *            payload.
+	 * @param payload the new payload. {@code null} is replaced by an empty
+	 *            array. An empty array is not considered to be payload and
+	 *            therefore not cause an IllegalArgumentException, if this
+	 *            message must not have payload.
 	 * @return this Message
 	 * @throws IllegalArgumentException if this message must not have payload
 	 * @see #isIntendedPayload()
@@ -717,10 +716,14 @@ public abstract class Message {
 	 * @see #setUnintendedPayload()
 	 */
 	public Message setPayload(byte[] payload) {
-		if (payload != null && payload.length > 0 && !isIntendedPayload() && !isUnintendedPayload()) {
-			throw new IllegalArgumentException("Message must not have payload!");
+		if (payload == null || payload.length == 0) {
+			this.payload = Bytes.EMPTY;
+		} else {
+			if (!isIntendedPayload() && !isUnintendedPayload()) {
+				throw new IllegalArgumentException("Message must not have payload!");
+			}
+			this.payload = payload;
 		}
-		this.payload = payload;
 		return this;
 	}
 
@@ -1296,7 +1299,7 @@ public abstract class Message {
 			synchronized (acknowledged) {
 				offload = mode;
 				if (mode != null) {
-					payload = null;
+					payload = Bytes.EMPTY;
 					if (mode == OffloadMode.FULL) {
 						bytes = null;
 						if (options != null) {
