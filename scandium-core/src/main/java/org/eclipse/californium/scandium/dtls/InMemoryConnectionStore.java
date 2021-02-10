@@ -700,7 +700,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 			Connection connection;
 			while ((connection = Connection.fromReader(reader, delta)) != null) {
 				long lastUpdate = connection.getLastMessageNanos();
-				if (lastUpdate - delta - startNanos > 0) {
+				if (lastUpdate - startNanos > 0) {
 					LOGGER.warn("{}read {} ts is after {} (future)", tag, lastUpdate, startNanos);
 				}
 				LOGGER.trace("{}read {} ts, {}s", tag, lastUpdate,
