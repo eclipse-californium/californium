@@ -720,7 +720,9 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 		return count;
 	}
 
-	private boolean restore(final Connection connection) {
+	@WipAPI
+	@Override
+	public boolean restore(Connection connection) {
 
 		ConnectionId connectionId = connection.getConnectionId();
 		if (connectionId == null) {
@@ -731,7 +733,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 			throw new IllegalStateException("Connection id already used! " + connectionId);
 		}
 		synchronized (connections) {
-			if (connections.put(connectionId, new Timestamped<Connection>(connection, connection.getLastMessageNanos()))) {
+			if (connections.put(connectionId, connection, connection.getLastMessageNanos())) {
 				if (LOGGER.isTraceEnabled()) {
 					LOGGER.trace("{}connection: add {} (size {})", tag, connection, connections.size(),
 							new Throwable("connection added!"));

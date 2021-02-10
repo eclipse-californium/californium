@@ -1173,6 +1173,11 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 		return connectionStore.loadConnections(in, delta);
 	}
 
+	@WipAPI
+	public boolean restoreConnection(Connection connection) {
+		return connectionStore.restore(connection);
+	}
+
 	/**
 	 * Start to terminate connections related to the provided principals.
 	 * 

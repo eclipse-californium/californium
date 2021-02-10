@@ -37,6 +37,7 @@ import org.eclipse.californium.elements.assume.TimeAssume;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache.EvictionListener;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache.Predicate;
+import org.eclipse.californium.elements.util.LeastRecentlyUsedCache.Timestamped;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -233,39 +234,137 @@ public class LeastRecentlyUsedCacheTest {
 		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfSessions);
 		cache.setEvictingOnReadAccess(false);
 		cache.remove(2);
+
+		assertOrder(cache, false);
+
 		Iterator<LeastRecentlyUsedCache.Timestamped<String>> valuesIterator = cache.timestampedIterator();
 		LeastRecentlyUsedCache.Timestamped<String> timestamped = valuesIterator.next();
+		assertThat("missing 1.", timestamped, is(notNullValue()));
 		LeastRecentlyUsedCache.Timestamped<String> first = timestamped;
 		int id = capacity + 1;
-		assertThat(timestamped, is(notNullValue()));
-		long time1 = timestamped.getLastUpdate();
-		assertTrue(clone.put(id++, timestamped));
+		assertTrue(clone.put(id++, timestamped.getValue(), timestamped.getLastUpdate()));
 		timestamped = valuesIterator.next();
-		assertThat(timestamped, is(notNullValue()));
-		long time2 = timestamped.getLastUpdate();
-		assertThat(time1, is(lessThan(time2)));
-		time1 = time2;
-		assertTrue(clone.put(id++, timestamped));
+		assertThat("missing 2.", timestamped, is(notNullValue()));
+		assertTrue(clone.put(id++, timestamped.getValue(), timestamped.getLastUpdate()));
 		timestamped = valuesIterator.next();
-		assertThat(timestamped, is(notNullValue()));
-		time2 = timestamped.getLastUpdate();
-		assertThat(time1, is(lessThan(time2)));
-		assertTrue(clone.put(id++, timestamped));
+		assertThat("missing 3.", timestamped, is(notNullValue()));
+		assertTrue(clone.put(id++, timestamped.getValue(), timestamped.getLastUpdate()));
 		timestamped = valuesIterator.next();
-		assertThat(timestamped, is(notNullValue()));
-		time2 = timestamped.getLastUpdate();
-		assertThat(time1, is(lessThanOrEqualTo(time2)));
+		assertThat("missing 4.", timestamped, is(notNullValue()));
 
 		assertThat(clone.size(), is(3));
 
-		// fail for time
-		assertFalse(clone.put(id, first));
-		// succeed with time
-		assertTrue(clone.put(id, timestamped));
+		assertOrder(clone, false);
+
+		// succeed with earlier time
+		assertTrue(clone.put(id++, first.getValue(), first.getLastUpdate()));
+		// succeed with newer time
+		assertTrue(clone.put(id++, timestamped.getValue(), timestamped.getLastUpdate()));
+		// fail with too earlier time
+		assertFalse(clone.put(id++, first.getValue(), first.getLastUpdate()));
 
 		assertThat(clone.size(), is(3));
 
-		assertThat(valuesIterator.hasNext(), is(false));
+		assertOrder(clone, false);
+	}
+
+	@Test
+	public void testPutNewTimestamped() throws InterruptedException {
+		int capacity = 5;
+		int numberOfSessions = 5;
+
+		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfSessions);
+		cache.setEvictingOnReadAccess(false);
+		cache.setUpdatingOnReadAccess(false);
+		time.addTestTimeShift(THRESHOLD_MILLIS * 2, TimeUnit.MILLISECONDS);
+		Timestamped<String> first = cache.getTimestamped(0);
+		long time = first.getLastUpdate();
+		int id = capacity + 1;
+
+		// replace eldest by same time
+		assertTrue(cache.put(id, "new1", time));
+		// fails, too old
+		assertFalse(cache.put(id + 1, "new2", time - 1));
+		// replace eldest by newer
+		assertTrue(cache.put(id + 1, "new3", time + 1));
+		assertOrder(cache, false);
+
+		assertThat(cache.getTimestamped(0), is(nullValue()));
+		assertThat(cache.getTimestamped(id), is(nullValue()));
+		assertThat(cache.getTimestamped(id + 1), is(new Timestamped<String>("new3", time + 1)));
+
+		id += 2;
+		Timestamped<String> middle = cache.getTimestamped(3);
+
+		assertTrue(cache.put(id, "new4", middle.getLastUpdate()));
+		assertOrder(cache, false);
+		assertTrue(cache.put(id + 1, "new5", middle.getLastUpdate() - 1));
+		assertOrder(cache, false);
+		assertTrue(cache.put(id + 2, "new6", middle.getLastUpdate() + 1));
+		assertOrder(cache, false);
+
+		assertThat(cache.getTimestamped(id), is(new Timestamped<String>("new4", middle.getLastUpdate())));
+		assertThat(cache.getTimestamped(id + 1), is(new Timestamped<String>("new5", middle.getLastUpdate() - 1)));
+		assertThat(cache.getTimestamped(id + 2), is(new Timestamped<String>("new6", middle.getLastUpdate() + 1)));
+
+		id += 3;
+		Timestamped<String> last = cache.getTimestamped(4);
+		assertTrue(cache.put(id, "new7", last.getLastUpdate()));
+		assertOrder(cache, false);
+		assertTrue(cache.put(id + 1, "new8", last.getLastUpdate() - 1));
+		assertOrder(cache, false);
+		assertTrue(cache.put(id + 2, "new9", last.getLastUpdate() + 1));
+		assertOrder(cache, false);
+
+		assertThat(cache.getTimestamped(id), is(new Timestamped<String>("new7", last.getLastUpdate())));
+		assertThat(cache.getTimestamped(id + 1), is(new Timestamped<String>("new8", last.getLastUpdate() - 1)));
+		assertThat(cache.getTimestamped(id + 2), is(new Timestamped<String>("new9", last.getLastUpdate() + 1)));
+
+	}
+
+	@Test
+	public void testPutUpdatedTimestamped() throws InterruptedException {
+		int capacity = 5;
+		int numberOfSessions = 5;
+
+		givenACacheWithEntries(capacity, THRESHOLD_MILLIS, numberOfSessions);
+		cache.setEvictingOnReadAccess(false);
+		cache.setUpdatingOnReadAccess(false);
+		time.addTestTimeShift(THRESHOLD_MILLIS * 2, TimeUnit.MILLISECONDS);
+		Timestamped<String> first = cache.getTimestamped(0);
+		long time = first.getLastUpdate();
+
+		// replace eldest by same time
+		assertTrue(cache.put(0, "new1", time));
+		// replace eldest by earlier time
+		assertTrue(cache.put(0, "new2", time - 1));
+		// replace eldest by newer
+		assertTrue(cache.put(0, "new3", time + 1));
+		assertOrder(cache, false);
+
+		assertThat(cache.getTimestamped(0), is(new Timestamped<String>("new3", time + 1)));
+
+		Timestamped<String> middle = cache.getTimestamped(3);
+
+		assertTrue(cache.put(3, "new4", middle.getLastUpdate()));
+		assertOrder(cache, false);
+		assertTrue(cache.put(3, "new5", middle.getLastUpdate() - 1));
+		assertOrder(cache, false);
+		assertTrue(cache.put(3, "new6", middle.getLastUpdate() + 1));
+		assertOrder(cache, false);
+
+		assertThat(cache.getTimestamped(3), is(new Timestamped<String>("new6", middle.getLastUpdate() + 1)));
+
+		Timestamped<String> last = cache.getTimestamped(4);
+		assertTrue(cache.put(4, "new7", last.getLastUpdate()));
+		assertOrder(cache, false);
+		assertTrue(cache.put(4, "new8", last.getLastUpdate() - 1));
+		assertOrder(cache, false);
+		assertTrue(cache.put(4, "new9", last.getLastUpdate() + 1));
+		assertOrder(cache, false);
+
+		assertThat(cache.getTimestamped(4), is(new Timestamped<String>("new9", last.getLastUpdate() + 1)));
+
 	}
 
 	@Test
@@ -405,6 +504,33 @@ public class LeastRecentlyUsedCacheTest {
 		}
 		assertThat(evicted.get(), is(noOfSessions - capacity));
 		assertThat(cache.remainingCapacity(), is(0));
+	}
+
+	private void assertOrder(LeastRecentlyUsedCache<Integer, String> cache, boolean print) {
+		int index = 0;
+		Iterator<LeastRecentlyUsedCache.Timestamped<String>> valuesIterator = cache.timestampedIterator();
+		Long time = null;
+		long last = 0;
+		while (valuesIterator.hasNext()) {
+			Timestamped<String> entry = valuesIterator.next();
+			if (time == null) {
+				last = entry.getLastUpdate();
+				time = last;
+				if (print) {
+					System.out.println("start: " + time);
+				}
+			} else {
+				long now = entry.getLastUpdate();
+				assertThat("order violation position " + index + " , value " + entry.getValue(), now,
+						is(greaterThanOrEqualTo(last)));
+				last = now;
+			}
+			if (print) {
+				long diff = entry.getLastUpdate() - time;
+				System.out.println(entry.getValue() + ": " + diff);
+			}
+			++index;
+		}
 	}
 
 	/**
