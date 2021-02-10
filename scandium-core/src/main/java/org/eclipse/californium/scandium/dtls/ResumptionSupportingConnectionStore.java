@@ -54,6 +54,15 @@ public interface ResumptionSupportingConnectionStore extends PersistentConnector
 	void attach(ConnectionIdGenerator connectionIdGenerator);
 
 	/**
+	 * Restore connection.
+	 * 
+	 * @param connection connection to restore.
+	 * @return {@code true}, on success, {@code false}, otherwise.
+	 * @since 3.0
+	 */
+	boolean restore(Connection connection);
+
+	/**
 	 * Puts a connection into the store.
 	 * 
 	 * The connection is primary associated with its connection id
