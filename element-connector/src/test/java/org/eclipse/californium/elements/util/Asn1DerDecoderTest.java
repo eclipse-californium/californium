@@ -16,16 +16,19 @@
 package org.eclipse.californium.elements.util;
 
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeNoException;
 
 import java.io.IOException;
+import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 
+import org.eclipse.californium.elements.util.Asn1DerDecoder.Keys;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -51,6 +54,12 @@ public class Asn1DerDecoderTest {
 	 */
 	private static final String RSA_BASE64 = "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCNPpjuSuq6BQ3/YGWbVpmNa0q+/vURtkbwPJIocT/b8QqmqdebnQxvADv9UpwWSrEyPkzY8Mq9bJRzRokJ8KQKbf9DTVFQmRmzikIk/Jwcm4+ST2plfHxDnywT9EYPrnNf6TrL/6fZsN0x1NMtr5unnlTND66HGNp+YMjqFgfnWwIDAQAB";
 	/**
+	 * EdDSA subject public key, ASN.1 DER / Base64 encoded.
+	 * 
+	 * @since 3.0
+	 */
+	private static final String EDDSA_BASE64 = "MCowBQYDK2VwAyEAGb9ECWmEzf6FQbrBZ9w7lshQhqowtrbLDFw4rXAxZuE=";
+	/**
 	 * DH private key, ASN.1 DER / Base64 encoded.
 	 */
 	private static final String DH_PRIVATE_KEY_BASE64 = "MIIBqQIBADCCARsGCSqGSIb3DQEDATCCAQwCggEBAP//////////yQ/aoiFowjTExmKLgNwc0SkCTgiKZ8x0Agu+pjsTmyJRSgh5jjQE3e+VGbPNOkMbMCsKbfJfFDdP4TVtbVHCReSFtXZiXn7G9ExC6aY37WsL/1y29Aa37e44a/taiZ+lrp8kEXxLH+ZJKGZR7ORbPcIAfLihY78FmNpINhxV05ppFj+o/STPX4NlXSPco62WHGLzViCFUrue1SkHcJaWbWcMNU5KvJgE8XRsCMoYIXwykF5GLjbOO+OedywYDoYDmyeDouwHoo+1xV3wb0xSyd4ry/aVWBcYOZVJfOqVauUV0iYYmPoFEBVyjlqKrKpo//////////8CAQICAgQABIGEAoGBAONq49y1IsHNiwJ29e6ajPsikR/SZM+g0aWIVlTT4CFZxQggHw5lSmZ0rtFig8ZNjAxozWB2Bkb8+592oHNDf683N9MCtPC98B+BL98PvCRt8/GVHX0eOTHyiIl/xJYcKznlYUlXNuwmjmLM3PyLkzyOfzNaE7elYoaqBrm3YeRF";
@@ -66,6 +75,18 @@ public class Asn1DerDecoderTest {
 	 * RSA private key, ASN.1 DER / Base64 encoded.
 	 */
 	private static final String RSA_PRIVATE_KEY_BASE64 = "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCu1A2ebEmUwPw0AUm9jQmZyiQTNADG4x7tXBGg7mIFiqgSDjwAWCGxx6RJ5kOMmhkNHU2bFq+42brWxNWAJxPtWC9j7fX4+i1h9koo8CS5LmPFxdgZnPanyl8XEwq54wKmvGAoiKRSfGNKn8FPIdRZMfJKd9+8dn3Qwvgzw0uHvVsg2cmJLsi/cfFuG54SO6uwPHylNPxdWpcKED8rKsFVWYv8FYyj6xN2fl8G2pBMVI1LYZRCmQjStoaFt8QsFi9L3U5yzdVDadwSdWLrvYbUGaZ4+64YRrDjf3kGRDNT46KpAg9hcXhusVIJVN+oe/t5Dp7wUuPtHuU6ZbJCH8rfAgMBAAECggEBAITZDiA8GQ24N+0srWQkMA9000TkV1LKc03akGrBuiqL2nsd5eo9Dh2Rnv2ow9urnS2h/r7C1nSYvqlEmRfwmevY/unogOjY8nNmO6QwFzfAUICQfk24QJXv6aIXDieCoRkiO8+RRYyIiMrD6pi/FCVTFtIPlSwYvjJMdV6gIFzb+sDTMROvLNYsIMVybTzcCMzXt7yMrPgP9gXM1Y3/+vaJNPF8mdBtS+VMnbhl2B4sXnpwxrm5QjcOvGABjf16gAUKa5EGU6BDpH+H/xHNnCkTo+mSe5jGg71VCRRPKxoVbGmUD7x+Rx4hRlfsp7PnujW1guCEe5cO/mnYXBa+zAECgYEA78WD/ZUyXlqJv/fsQfhdn8rEd0y2L9U/8ku8nZIIGGN0+cYDBG3P2d9qgd2pKmDvepM18tw8E0T3csL+/FsfiiREsB4uO19syk6i4/vW6T7s+Z3w5FZu1/RspzcW0SEIMV6lszyRTcauifT4rNvbmCFWaN7BvX0HE1Y5uC2rFh8CgYEAuqlG0U4Wpn2eLK7hFgdQTWc2xh2KjYEreSm6rAd8LtqYTvV1NsJN6MRk558zss06PRVx0vEoi9yzVszO1WRu8niZUIFbbxZUJYeNP9fHH+m6PcBm1tvyRGneBhzcNPSNBp5gLYGKExG9bDOEYQU3fTkf14iVpxkkf81vrazZM0ECgYBkl6ILdleeXC+keTgGaVOmIWSRhH5+zOG6HmowVT7ONJOz4o4LgqKMDn5Zo4xAOlDeRPqCPEF7+Bg0bniZmQU/aH3kwZS11hAHRDx0l4iPbJXxF4Ej2ttAAMzAzozlCg2s4L911fhEABHj0QGvS8HyLjJZZvMzM0wPocIvcgFwEwKBgG7+XWf0YS+bHsU/MATjUHLWXxGrW0oNdwZTM/c7dDKANXUuLAblv2Ib9kxstFcsBedwqwBd+lhAYjvJCWyGjhqMb84ZPX9u7ZZrZiiCbJujZeV2VTCKFSNtOGK2IpMyn/FBl7s3fh0cvWBrudnfOkGyCCcnxqVYJAYC6NeDIpyBAoGBANdZuLSCOoNc60Askcc+IlhiAr01+nXw6EChmHHYsnmlt68ymG3MZXJ0knSHVLBsd8SKsMlZaIXik1qK1IFCn6UeR9+NBv5t3xPplWBky8qKJPfwYoPCFsdwXgLmI46zmGjsIw7LxQ9bS/mNus01x1lkLAHnZzfUjOG+5LBckTNz";
+	/**
+	 * EdDSA v1 private key, ASN.1 DER / Base64 encoded.
+	 */
+	private static final String EDDSA_PRIVATE_KEY_BASE64 = "MC4CAQAwBQYDK2VwBCIEINTuctv5E1hK1bbY8fdp+K06/nwoy/HU++CXqI9EdVhC";
+	/**
+	 * EC v2 private key, ASN.1 DER / Base64 encoded.
+	 */
+	private static final String EC_PRIVATE_KEY_V2_BASE64 = "MHcCAQEEIGDNwnadKqfjorTbDAVsWmWHTf2fBoU2b6HwtgKkiiNvoAoGCCqGSM49AwEHoUQDQgAE40FK6QvIFN+T6fAQLIv0PA9IrbrgxHSOcwspNx1V2xqWKs6/rSle/uMXo4KIzCl+HVKlr+nshvXrpOesdvJAaQ==";
+	/**
+	 * EdDSA v2 private key, ASN.1 DER / Base64 encoded.
+	 */
+	private static final String EDDSA_PRIVATE_KEY_V2_BASE64 = "MHICAQEwBQYDK2VwBCIEINTuctv5E1hK1bbY8fdp+K06/nwoy/HU++CXqI9EdVhCoB8wHQYKKoZIhvcNAQkJFDEPDA1DdXJkbGUgQ2hhaXJzgSEAGb9ECWmEzf6FQbrBZ9w7lshQhqowtrbLDFw4rXAxZuE=";
 
 	/**
 	 * Sequence, ASN.1 DER encoded.
@@ -106,39 +127,55 @@ public class Asn1DerDecoderTest {
 	}
 
 	/**
-	 * Test, if decoder can read RSA subject public key algorithm.
+	 * Test, if decoder can read RSA subject public key and algorithm.
 	 */
 	@Test
-	public void testKeyAlgorithmRsa() throws IOException {
+	public void testKeyAlgorithmRsa() throws IOException, GeneralSecurityException {
 		byte[] data = Base64.decode(RSA_BASE64);
 		assertThat(Asn1DerDecoder.readSubjectPublicKeyAlgorithm(data), is("RSA"));
+		assertThat(Asn1DerDecoder.readSubjectPublicKey(data), is(notNullValue()));
 	}
 
 	/**
-	 * Test, if decoder can read DSA subject public key algorithm.
+	 * Test, if decoder can read DSA subject public key and algorithm.
 	 */
 	@Test
-	public void testKeyAlgorithmDsa() throws IOException {
+	public void testKeyAlgorithmDsa() throws IOException, GeneralSecurityException {
 		byte[] data = Base64.decode(DSA_BASE64);
 		assertThat(Asn1DerDecoder.readSubjectPublicKeyAlgorithm(data), is("DSA"));
+		assertThat(Asn1DerDecoder.readSubjectPublicKey(data), is(notNullValue()));
 	}
 
 	/**
-	 * Test, if decoder can read EC subject public key algorithm.
+	 * Test, if decoder can read EC subject public key and algorithm.
 	 */
 	@Test
-	public void testKeyAlgorithmEc() throws IOException {
+	public void testKeyAlgorithmEc() throws IOException, GeneralSecurityException {
 		byte[] data = Base64.decode(EC_BASE64);
 		assertThat(Asn1DerDecoder.readSubjectPublicKeyAlgorithm(data), is("EC"));
+		assertThat(Asn1DerDecoder.readSubjectPublicKey(data), is(notNullValue()));
 	}
 
 	/**
-	 * Test, if decoder can read DH subject public key algorithm.
+	 * Test, if decoder can read DH subject public key and algorithm.
 	 */
 	@Test
-	public void testKeyAlgorithmDH() throws IOException {
+	public void testKeyAlgorithmDH() throws IOException, GeneralSecurityException {
 		byte[] data = Base64.decode(DH_BASE64);
 		assertThat(Asn1DerDecoder.readSubjectPublicKeyAlgorithm(data), is("DH"));
+		assertThat(Asn1DerDecoder.readSubjectPublicKey(data), is(notNullValue()));
+	}
+
+	/**
+	 * Test, if decoder can read EdDSa subject public key and algorithm.
+	 */
+	@Test
+	public void testKeyAlgorithmEddsa() throws IOException, GeneralSecurityException {
+		byte[] data = Base64.decode(EDDSA_BASE64);
+		assertThat(Asn1DerDecoder.readSubjectPublicKeyAlgorithm(data), is("ED25519"));
+		if (Asn1DerDecoder.isSupported("ED25519")) {
+			assertThat(Asn1DerDecoder.readSubjectPublicKey(data), is(notNullValue()));
+		}
 	}
 
 	/**
@@ -159,39 +196,101 @@ public class Asn1DerDecoderTest {
 	}
 
 	/**
-	 * Test, if decoder can read EC private key algorithm.
+	 * Test, if decoder can read EC private key and algorithm.
 	 */
 	@Test
-	public void testPrivateKeyAlgorithmRSA() throws IOException {
+	public void testPrivateKeyAlgorithmRSA() throws IOException, GeneralSecurityException {
 		byte[] data = Base64.decode(RSA_PRIVATE_KEY_BASE64);
 		assertThat(Asn1DerDecoder.readPrivateKeyAlgorithm(data), is("RSA"));
+		assertThat(Asn1DerDecoder.readPrivateKey(data), is(notNullValue()));
 	}
 
 	/**
-	 * Test, if decoder can read EC private key algorithm.
+	 * Test, if decoder can read EC private key and algorithm.
 	 */
 	@Test
-	public void testPrivateKeyAlgorithmDsa() throws IOException {
+	public void testPrivateKeyAlgorithmDsa() throws IOException, GeneralSecurityException {
 		byte[] data = Base64.decode(DSA_PRIVATE_KEY_BASE64);
 		assertThat(Asn1DerDecoder.readPrivateKeyAlgorithm(data), is("DSA"));
+		assertThat(Asn1DerDecoder.readPrivateKey(data), is(notNullValue()));
 	}
 
 	/**
-	 * Test, if decoder can read EC private key algorithm.
+	 * Test, if decoder can read EC private key and algorithm.
 	 */
 	@Test
-	public void testPrivateKeyAlgorithmEc() throws IOException {
+	public void testPrivateKeyAlgorithmEc() throws IOException, GeneralSecurityException {
 		byte[] data = Base64.decode(EC_PRIVATE_KEY_BASE64);
 		assertThat(Asn1DerDecoder.readPrivateKeyAlgorithm(data), is("EC"));
+		assertThat(Asn1DerDecoder.readPrivateKey(data), is(notNullValue()));
 	}
 
 	/**
-	 * Test, if decoder can read EC private key algorithm.
+	 * Test, if decoder can read DH private key and algorithm.
 	 */
 	@Test
-	public void testPrivateKeyAlgorithmDH() throws IOException {
+	public void testPrivateKeyAlgorithmDH() throws IOException, GeneralSecurityException {
 		byte[] data = Base64.decode(DH_PRIVATE_KEY_BASE64);
 		assertThat(Asn1DerDecoder.readPrivateKeyAlgorithm(data), is("DH"));
+		assertThat(Asn1DerDecoder.readPrivateKey(data), is(notNullValue()));
+	}
+
+	/**
+	 * Test, if decoder can read EdDSA private key and algorithm.
+	 */
+	@Test
+	public void testPrivateKeyAlgorithmEddsa() throws IOException, GeneralSecurityException {
+		byte[] data = Base64.decode(EDDSA_PRIVATE_KEY_BASE64);
+		assertThat(Asn1DerDecoder.readPrivateKeyAlgorithm(data), is("ED25519"));
+		if (Asn1DerDecoder.isSupported("ED25519")) {
+			assertThat(Asn1DerDecoder.readPrivateKey(data), is(notNullValue()));
+		}
+	}
+
+	/**
+	 * Test, if decoder can read EC v2 private key and algorithm.
+	 */
+	@Test
+	public void testPrivateKeyAlgorithmEcV2() throws IOException {
+		byte[] data = Base64.decode(EC_PRIVATE_KEY_V2_BASE64);
+		assertThat(Asn1DerDecoder.readPrivateKeyAlgorithm(data), is(Asn1DerDecoder.ECv2));
+	}
+
+	/**
+	 * Test, if decoder can read EdDSA v2 private key algorithm.
+	 */
+	@Test
+	public void testPrivateKeyAlgorithmEdDsaV2() throws IOException {
+		byte[] data = Base64.decode(EDDSA_PRIVATE_KEY_V2_BASE64);
+		assertThat(Asn1DerDecoder.readPrivateKeyAlgorithm(data), is(Asn1DerDecoder.ED25519v2));
+	}
+
+	/**
+	 * Test, if decoder can read EC v2 private key.
+	 */
+	@Test
+	public void testReadPrivateKeyEcV2() throws IOException, GeneralSecurityException {
+		byte[] data = Base64.decode(EC_PRIVATE_KEY_V2_BASE64);
+		Keys keys = Asn1DerDecoder.readPrivateKey(data);
+		assertThat(keys, is(notNullValue()));
+		assertThat(keys.getPrivateKey(), is(notNullValue()));
+		assertThat(keys.getPublicKey(), is(notNullValue()));
+		TestCertificatesTools.assertSigning("asn.1", keys.getPrivateKey(), keys.getPublicKey(), "SHA256withECDSA");
+	}
+
+	/**
+	 * Test, if decoder throws NoSuchAlgorithmException when reading EdDSA v2 private key.
+	 */
+	@Test
+	public void testReadPrivateKeyEdDsaV2() throws IOException, GeneralSecurityException {
+		if (Asn1DerDecoder.isSupported("ED25519")) {
+			byte[] data = Base64.decode(EDDSA_PRIVATE_KEY_V2_BASE64);
+			Keys keys = Asn1DerDecoder.readPrivateKey(data);
+			assertThat(keys, is(notNullValue()));
+			assertThat(keys.getPrivateKey(), is(notNullValue()));
+			assertThat(keys.getPublicKey(), is(notNullValue()));
+			TestCertificatesTools.assertSigning("asn.1", keys.getPrivateKey(), keys.getPublicKey(), "ED25519");
+		}
 	}
 
 	/**
@@ -226,9 +325,19 @@ public class Asn1DerDecoderTest {
 		assertKeyAlgorithmGenerated("DH");
 	}
 
+	/**
+	 * Test, if decoder can read EC public and private key algorithm.
+	 */
+	@Test
+	public void testEdDsaKeyAlgorithmGenerated() throws IOException {
+		if (Asn1DerDecoder.isSupported("ED25519")) {
+			assertKeyAlgorithmGenerated("ED25519");
+		}
+	}
+
 	private void assertKeyAlgorithmGenerated(String algorithm) throws IOException {
 		try {
-			KeyPairGenerator generator = KeyPairGenerator.getInstance(algorithm);
+			KeyPairGenerator generator = Asn1DerDecoder.getKeyPairGenerator(algorithm);
 			KeyPair keyPair = generator.generateKeyPair();
 			byte[] data = keyPair.getPrivate().getEncoded();
 			assertThat("reading private key algorithm failed!", Asn1DerDecoder.readPrivateKeyAlgorithm(data), is(algorithm));

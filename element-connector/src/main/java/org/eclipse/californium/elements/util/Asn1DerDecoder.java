@@ -85,6 +85,14 @@ public class Asn1DerDecoder {
 	 */
 	public static final String ED25519 = "ED25519";
 	/**
+	 * Key algorithm Ed25519 v2 (RFC 8410), not to be used by KeyFactory.
+	 * 
+	 * @see #readEdDsaPrivateKeyV2(byte[])
+	 * 
+	 * @since 3.0
+	 */
+	public static final String ED25519v2 = "ED25519.v2";
+	/**
 	 * Key algorithm ED448 (RFC 8422).
 	 * 
 	 * Used with {@link #getEdDsaProvider()}.
@@ -92,6 +100,14 @@ public class Asn1DerDecoder {
 	 * @since 2.4
 	 */
 	public static final String ED448 = "ED448";
+	/**
+	 * Key algorithm Ed448 v2 (RFC 8410), not to be used by KeyFactory.
+	 * 
+	 * @see #readEdDsaPrivateKeyV2(byte[])
+	 * 
+	 * @since 3.0
+	 */
+	public static final String ED448v2 = "ED448.v2";
 	/**
 	 * OID key algorithm ED25519 (RFC 8422).
 	 * 
@@ -160,6 +176,12 @@ public class Asn1DerDecoder {
 	 */
 	private static final int TAG_CONTEXT_1_SPECIFIC = 0xA1;
 	/**
+	 * Tag for ASN.1 CONTEXT SPECIFIC PRIMITIVE 1.
+	 * 
+	 * @since 3.0
+	 */
+	private static final int TAG_CONTEXT_1_SPECIFIC_PRIMITIVE = 0x81;
+	/**
 	 * ASN.1 OID for RSA public key.
 	 */
 	private static final byte[] OID_RSA_PUBLIC_KEY = { 0x2A, (byte) 0x86, 0x48, (byte) 0x86, (byte) 0xF7, 0x0D, 0x01,
@@ -221,6 +243,13 @@ public class Asn1DerDecoder {
 	 */
 	private static final EntityDefinition CONTEXT_SPECIFIC_1 = new EntityDefinition(TAG_CONTEXT_1_SPECIFIC,
 			MAX_DEFAULT_LENGTH, "CONTEXT SPECIFIC 1");
+	/**
+	 * ASN.1 entity definition for CONTEXT_SPECIFIC_PRIMITIVE_1.
+	 * 
+	 * @since 3.0
+	 */
+	private static final EntityDefinition CONTEXT_SPECIFIC_PRIMITIVE_1 = new EntityDefinition(TAG_CONTEXT_1_SPECIFIC_PRIMITIVE,
+			MAX_DEFAULT_LENGTH, "CONTEXT SPECIFIC PRIMITIVE 1");
 
 	/**
 	 * Alias algorithms for Ed25519.
@@ -297,6 +326,56 @@ public class Asn1DerDecoder {
 		EDDSA_PROVIDER = provider;
 		ED25519_SUPPORT = ed25519;
 		ED448_SUPPORT = ed448;
+	}
+
+	/**
+	 * Checks, whether the set contains the value, or not. The check is done
+	 * using {@link String#equalsIgnoreCase(String)}.
+	 * 
+	 * @param set set of strings
+	 * @param value value to match
+	 * @return {@code true}, if value is contained in set, {@code false},
+	 *         otherwise.
+	 * @since 3.0
+	 */
+	private static boolean contains(String[] set, String value) {
+		for (String item : set) {
+			if (item.equalsIgnoreCase(value)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Gets the algorithm of the public key.
+	 * 
+	 * The v2 variants are not supported by the java 7 KeyFactory.
+	 * 
+	 * @param oid OID of public key.
+	 * @param version version of format. {@code 0}, for v1, {@code 2} for v2.
+	 * @return {@link #EC}, {@link #RSA}, {@link #DSA}, {@link #DH},
+	 *         {@link #ED25519}, and {@link #ED448} for v1, {@link #ECv2},
+	 *         {@link #ED25519v2}, and {@link #ED448v2} for v2, {@code null}, if
+	 *         unknown.
+	 * @since 3.0
+	 */
+	private static String getPublicKeyAlgorithm(final byte[] oid, int version) {
+		String algorithm = null;
+		if (Arrays.equals(oid, OID_EC_PUBLIC_KEY)) {
+			algorithm = version == 0 ? EC : ECv2;
+		} else if (Arrays.equals(oid, OID_RSA_PUBLIC_KEY)) {
+			algorithm = version == 0 ? RSA : null;
+		} else if (Arrays.equals(oid, OID_DSA_PUBLIC_KEY)) {
+			algorithm = version == 0 ? DSA : null;
+		} else if (Arrays.equals(oid, OID_DH_PUBLIC_KEY)) {
+			algorithm = version == 0 ? DH : null;
+		} else if (Arrays.equals(oid, OID_ED25519_PUBLIC_KEY)) {
+			algorithm = version == 0 ? ED25519 : ED25519v2;
+		} else if (Arrays.equals(oid, OID_ED448_PUBLIC_KEY)) {
+			algorithm = version == 0 ? ED448 : ED448v2;
+		}
+		return algorithm;
 	}
 
 	/**
@@ -428,21 +507,7 @@ public class Asn1DerDecoder {
 		// oid, algorithm
 		byte[] value = readOidValue(reader);
 
-		String algorithm = null;
-		if (Arrays.equals(value, OID_EC_PUBLIC_KEY)) {
-			algorithm = EC;
-		} else if (Arrays.equals(value, OID_RSA_PUBLIC_KEY)) {
-			algorithm = RSA;
-		} else if (Arrays.equals(value, OID_DSA_PUBLIC_KEY)) {
-			algorithm = DSA;
-		} else if (Arrays.equals(value, OID_DH_PUBLIC_KEY)) {
-			algorithm = DH;
-		} else if (Arrays.equals(value, OID_ED25519_PUBLIC_KEY)) {
-			algorithm = ED25519;
-		} else if (Arrays.equals(value, OID_ED448_PUBLIC_KEY)) {
-			algorithm = ED448;
-		}
-		return algorithm;
+		return getPublicKeyAlgorithm(value, 0);
 	}
 
 	/**
@@ -491,16 +556,16 @@ public class Asn1DerDecoder {
 	 * Supports:
 	 * 
 	 * <pre>
-	 * v1, <a href="https://tools.ietf.org/html/rfc5208">RFC 5208 - PKCS8</a>
+	 * v1 (PKCS8), <a href="https://tools.ietf.org/html/rfc5208">RFC 5208</a>
 	 * PrivateKeyInfo ::= SEQUENCE {
 	 *  version                   Version,
 	 *  privateKeyAlgorithm       PrivateKeyAlgorithmIdentifier,
 	 *  privateKey                PrivateKey,
 	 *  attributes           [0]  IMPLICIT Attributes OPTIONAL }
 	 * 
-	 * v2, <a href=
-	"https://tools.ietf.org/html/rfc5958">RFC 5958 - PKCS12 (EC only!)</a>
-	 * 
+	 * v2 (PKCS12), 
+	 * <a href="https://tools.ietf.org/html/rfc5958">RFC 5958 - (EC only!)</a>,
+	 * <a href="https://tools.ietf.org/html/rfc8410">RFC 8410 - EdDSA</a>
 	 * OneAsymmetricKey ::= SEQUENCE {
 	 *  version                   Version,
 	 *  privateKeyAlgorithm       PrivateKeyAlgorithmIdentifier,
@@ -513,11 +578,14 @@ public class Asn1DerDecoder {
 	 * </pre>
 	 * 
 	 * @param data private key encoded in ASN.1 DER
-	 * @return key algorithm name to be used by KeyFactory, "EC.v2" for RFC 5958
-	 *         encoding, which is not supported directly by java 7 KeyFactory.
-	 *         Or {@code null}, if the OID of the private key is unknown.
+	 * @return key algorithm name to be used by KeyFactory, or {@link #ECv2},
+	 *         {@link #ED25519v2}, and {@link #ED448v2} for v2, which are not
+	 *         supported by the java 7 KeyFactory, or {@code null}, if unknown.
 	 * @throws IllegalArgumentException if the private key algorithm could not
 	 *             be read
+	 * @see #readEcPrivateKeyV2(byte[])
+	 * @see #readEdDsaPrivateKeyV2(byte[])
+	 * @see #readPrivateKey(byte[])
 	 */
 	public static String readPrivateKeyAlgorithm(final byte[] data) {
 		String algorithm = null;
@@ -527,49 +595,42 @@ public class Asn1DerDecoder {
 		// INTEGER version
 		byte[] readValue = INTEGER.readValue(reader);
 		int version = INTEGER.toInteger(readValue);
-		if (version == 0) {
-			// RFC 5208, v1
+		if (version < 0 && version > 1) {
+			throw new IllegalArgumentException("Version 0x" + Integer.toHexString(version) + " not supported!");
+		}
+		try {
 			// inner sequence, AlgorithmIdentifier
-			reader = SEQUENCE.createRangeReader(reader, false);
+			DatagramReader sequenceReader = SEQUENCE.createRangeReader(reader, false);
 			// oid, algorithm
-			byte[] value = readOidValue(reader);
-			if (Arrays.equals(value, OID_EC_PUBLIC_KEY)) {
-				algorithm = EC;
-			} else if (Arrays.equals(value, OID_RSA_PUBLIC_KEY)) {
-				algorithm = RSA;
-			} else if (Arrays.equals(value, OID_DSA_PUBLIC_KEY)) {
-				algorithm = DSA;
-			} else if (Arrays.equals(value, OID_DH_PUBLIC_KEY)) {
-				algorithm = DH;
-			} else if (Arrays.equals(value, OID_ED25519_PUBLIC_KEY)) {
-				algorithm = ED25519;
-			} else if (Arrays.equals(value, OID_ED448_PUBLIC_KEY)) {
-				algorithm = ED448;
-			}
-		} else if (version == 1) {
-			// RFC 5958
-			// OCTET_STRING
-			OCTET_STRING.createRangeReader(reader, false);
-			// oid, algorithm
-			byte[] oid = readOidValue(CONTEXT_SPECIFIC_0.createRangeReader(reader, false));
-			String oidAsString = "0x" + StringUtil.byteArray2Hex(oid);
-			try {
-				oidAsString = OID.toString(oid);
+			byte[] value = readOidValue(sequenceReader);
+			algorithm = getPublicKeyAlgorithm(value, version);
+		} catch (IllegalArgumentException ex) {
+			if (version == 1) {
+				// RFC 5958
+
+				// OCTET_STRING, skip private key
+				OCTET_STRING.createRangeReader(reader, false);
+				// oid, algorithm
+				byte[] oid = readOidValue(CONTEXT_SPECIFIC_0.createRangeReader(reader, false));
+				String oidAsString = "0x" + StringUtil.byteArray2Hex(oid);
 				try {
-					ECParameterSpec ecParameterSpec = getECParameterSpec(oidAsString);
-					if (ecParameterSpec != null) {
-						algorithm = ECv2;
+					oidAsString = OID.toString(oid);
+					try {
+						ECParameterSpec ecParameterSpec = getECParameterSpec(oidAsString);
+						if (ecParameterSpec != null) {
+							algorithm = ECv2;
+						}
+					} catch (GeneralSecurityException e) {
 					}
-				} catch (GeneralSecurityException e) {
+				} catch (IllegalArgumentException e) {
+					// if oid byte array is invalid
 				}
-			} catch (IllegalArgumentException e) {
-				// if oid byte array is invalid
+				if (algorithm == null) {
+					throw new IllegalArgumentException("OID " + oidAsString + " not supported!");
+				}
+			} else {
+				throw ex;
 			}
-			if (algorithm == null) {
-				throw new IllegalArgumentException("OID " + oidAsString + " not supported!");
-			}
-		} else {
-			throw new IllegalArgumentException("Version 0x" + StringUtil.byteArray2Hex(data) + " not supported!");
 		}
 		return algorithm;
 	}
@@ -582,15 +643,16 @@ public class Asn1DerDecoder {
 	 * Supports:
 	 * 
 	 * <pre>
-	 * v1, <a href="https://tools.ietf.org/html/rfc5208">RFC 5208 - PKCS8</a>
+	 * v1 (PKCS8), <a href="https://tools.ietf.org/html/rfc5208">RFC 5208</a>
 	 * PrivateKeyInfo ::= SEQUENCE {
 	 *  version                   Version,
 	 *  privateKeyAlgorithm       PrivateKeyAlgorithmIdentifier,
 	 *  privateKey                PrivateKey,
 	 *  attributes           [0]  IMPLICIT Attributes OPTIONAL }
 	 * 
-	 * v2, <a href="https://tools.ietf.org/html/rfc5958">RFC 5958 - PKCS12 (EC only!)</a>
-	 * 
+	 * v2 (PKCS12), 
+	 * <a href="https://tools.ietf.org/html/rfc5958">RFC 5958 - (EC only!)</a>,
+	 * <a href="https://tools.ietf.org/html/rfc8410">RFC 8410 - EdDSA</a>
 	 * OneAsymmetricKey ::= SEQUENCE {
 	 *  version                   Version,
 	 *  privateKeyAlgorithm       PrivateKeyAlgorithmIdentifier,
@@ -604,15 +666,17 @@ public class Asn1DerDecoder {
 	 * 
 	 * @param data private key encoded in ASN.1 DER
 	 * @return keys with private key for RFC 5208 encoding and optional public
-	 *         key for RFC 5958 encoding. Or {@code null}, if the OID of the
-	 *         private key is unknown.
+	 *         key for RFC 5958 or RFC8410 encoding. Or {@code null}, if the OID
+	 *         of the private key is unknown.
 	 * @throws GeneralSecurityException if private key could not be read
 	 */
 	public static Keys readPrivateKey(final byte[] data) throws GeneralSecurityException {
 		Keys keys = null;
 		String algorithm = readPrivateKeyAlgorithm(data);
 		if (algorithm != null) {
-			if (algorithm.equals(ECv2)) {
+			if (algorithm == ED25519v2 || algorithm == ED448v2) {
+				keys = readEdDsaPrivateKeyV2(data);
+			} else if (algorithm == ECv2) {
 				keys = readEcPrivateKeyV2(data);
 			} else {
 				KeyFactory factory = getKeyFactory(algorithm);
@@ -640,6 +704,11 @@ public class Asn1DerDecoder {
 		// INTEGER version
 		byte[] readValue = INTEGER.readValue(reader);
 		if (readValue.length == 1 && readValue[0] == 1) {
+			try {
+				SEQUENCE.createRangeReader(reader, false);
+			} catch(IllegalArgumentException ex) {
+				// ignore, optional
+			}
 			// RFC 5958
 			// OCTET_STRING
 			byte[] privateKeyValue = OCTET_STRING.readValue(reader);
@@ -708,6 +777,75 @@ public class Asn1DerDecoder {
 	}
 
 	/**
+	 * Read EdDSA private key (and public key) from PKCS12 / RFC 8410 v2 format.
+	 * 
+	 * See <a href="https://tools.ietf.org/html/rfc8410">RFC 8410 - EdDSA</a>.
+	 * 
+	 * @param data eddsa private key encoded according RFC 8410 v2
+	 * @return keys with private and public key. {@code null}, if keys could not
+	 *         be read.
+	 * @throws GeneralSecurityException if decoding fails.
+	 * @since 3.0
+	 */
+	public static Keys readEdDsaPrivateKeyV2(final byte[] data) throws GeneralSecurityException {
+		Keys keys = null;
+		// outer sequence, PrivateKeyInfo
+		DatagramReader reader = new DatagramReader(data, false);
+		reader = SEQUENCE.createRangeReader(reader, false);
+		// INTEGER version
+		byte[] readValue = INTEGER.readValue(reader);
+		if (readValue.length == 1 && readValue[0] == 1) {
+			// inner sequence, AlgorithmIdentifier
+			byte[] keyAlgorithm = SEQUENCE.readEntity(reader);
+
+			// read algorithm identifier from inner sequence
+			DatagramReader oidReader = new DatagramReader(keyAlgorithm, false);
+			oidReader = SEQUENCE.createRangeReader(oidReader, false);
+			// oid, algorithm
+			byte[] oidValue = readOidValue(oidReader);
+			String algorithm = OID.toString(oidValue);
+
+			// RFC 8410
+			// OCTET_STRING
+			byte[] privateKeyValue = OCTET_STRING.readEntity(reader);
+			// context 0, skip
+			CONTEXT_SPECIFIC_0.createRangeReader(reader, false);
+			KeyFactory factory = getKeyFactory(algorithm);
+			keys = new Keys();
+			{
+				// convert to EdDSA v1 - PKCS8
+				DatagramWriter privateKey = new DatagramWriter(48);
+				privateKey.writeByte((byte) TAG_SEQUENCE);
+				int positionLen = privateKey.space(Byte.SIZE);
+				privateKey.writeByte((byte) TAG_INTEGER);
+				privateKey.writeByte((byte) 1); // version length
+				privateKey.writeByte((byte) 0); // version 0
+				privateKey.writeBytes(keyAlgorithm);
+				privateKey.writeBytes(privateKeyValue);
+				privateKey.writeSize(positionLen, Byte.SIZE);
+
+				EncodedKeySpec privateKeySpec = new PKCS8EncodedKeySpec(privateKey.toByteArray());
+				keys.privateKey = factory.generatePrivate(privateKeySpec);
+			}
+			{
+				// convert to X509
+				DatagramWriter publicKey = new DatagramWriter(44);
+				publicKey.writeByte((byte) TAG_SEQUENCE);
+				int positionLen = publicKey.space(Byte.SIZE);
+				publicKey.writeBytes(keyAlgorithm);
+				publicKey.writeByte((byte) TAG_BIT_STRING);
+				int positionBits = publicKey.space(Byte.SIZE);
+				publicKey.writeBytes(CONTEXT_SPECIFIC_PRIMITIVE_1.readValue(reader));
+				publicKey.writeSize(positionBits, Byte.SIZE);
+				publicKey.writeSize(positionLen, Byte.SIZE);
+				X509EncodedKeySpec publicKeySpec = new X509EncodedKeySpec(publicKey.toByteArray());
+				keys.publicKey = factory.generatePublic(publicKeySpec);
+			}
+		}
+		return keys;
+	}
+
+	/**
 	 * Check for equal key algorithm synonyms.
 	 * 
 	 * Currently on "DH" and "DiffieHellman" are supported synonyms.
@@ -723,25 +861,6 @@ public class Asn1DerDecoder {
 		}
 		for (String[] aliases : ALGORITHM_ALIASES) {
 			if (contains(aliases, keyAlgorithm1) && contains(aliases, keyAlgorithm2)) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	/**
-	 * Checks, whether the set contains the value, or not. The check is done
-	 * using {@link String#equalsIgnoreCase(String)}.
-	 * 
-	 * @param set set of strings
-	 * @param value value to match
-	 * @return {@code true}, if value is contained in set, {@code false},
-	 *         otherwise.
-	 * @since 3.0
-	 */
-	private static boolean contains(String[] set, String value) {
-		for (String item : set) {
-			if (item.equalsIgnoreCase(value)) {
 				return true;
 			}
 		}
@@ -804,6 +923,26 @@ public class Asn1DerDecoder {
 			return KeyFactory.getInstance(oid, EDDSA_PROVIDER);
 		} else {
 			return KeyFactory.getInstance(algorithm);
+		}
+	}
+
+	/**
+	 * Get KeyPairGenerator for algorithm.
+	 * 
+	 * @param algorithm key algorithm
+	 * @return key pair generator
+	 * @throws NoSuchAlgorithmException if key algorithm is not supported
+	 * @since 3.0
+	 */
+	public static KeyPairGenerator getKeyPairGenerator(String algorithm) throws NoSuchAlgorithmException {
+		String oid = null;
+		if (EDDSA_PROVIDER != null) {
+			oid = getEdDsaStandardAlgorithmName(algorithm, null);
+		}
+		if (oid != null) {
+			return KeyPairGenerator.getInstance(oid, EDDSA_PROVIDER);
+		} else {
+			return KeyPairGenerator.getInstance(algorithm);
 		}
 	}
 
@@ -1005,13 +1144,12 @@ public class Asn1DerDecoder {
 				throw new IllegalArgumentException(String.format("Not enough bytes for %s! Required %d, available %d.",
 						description, HEADER_LENGTH, leftBytes));
 			}
-			// mark reader, if the entity must be returned
-			if (entity) {
-				reader.mark();
-			}
+			// mark reader, if the entity must be returned, or the tag doesn't match
+			reader.mark();
 			// check tag
 			int tag = reader.read(Byte.SIZE);
 			if (tag != expectedTag) {
+				reader.reset();
 				throw new IllegalArgumentException(
 						String.format("No %s, found %02x instead of %02x!", description, tag, expectedTag));
 			}
