@@ -41,11 +41,13 @@ package org.eclipse.californium.scandium.dtls;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ConcurrentModificationException;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DataStreamReader;
 import org.eclipse.californium.elements.util.DatagramReader;
@@ -787,6 +789,55 @@ public final class Connection {
 	}
 
 	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + ((cid == null) ? 0 : cid.hashCode());
+		result = prime * result + ((establishedDtlsContext == null) ? 0 : establishedDtlsContext.hashCode());
+		result = prime * result + (int) (lastMessageNanos ^ (lastMessageNanos >>> 32));
+		result = prime * result + ((peerAddress == null) ? 0 : peerAddress.hashCode());
+		result = prime * result + (resumptionRequired ? 1231 : 1237);
+		result = prime * result + ((router == null) ? 0 : router.hashCode());
+		result = prime * result + ((rootCause == null) ? 0 : rootCause.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj) {
+			return true;
+		} else if (obj == null) {
+			return false;
+		}
+		if (getClass() != obj.getClass()) {
+			return false;
+		}
+		Connection other = (Connection) obj;
+		if (!Bytes.equals(cid, other.cid)) {
+			return false;
+		}
+		if (resumptionRequired != other.resumptionRequired) {
+			return false;
+		}
+		if (lastMessageNanos != other.lastMessageNanos) {
+			return false;
+		}
+		if (!Objects.equals(establishedDtlsContext, other.establishedDtlsContext)) {
+			return false;
+		}
+		if (!Objects.equals(peerAddress, other.peerAddress)) {
+			return false;
+		}
+		if (!Objects.equals(router, other.router)) {
+			return false;
+		}
+		if (!Objects.equals(rootCause, other.rootCause)) {
+			return false;
+		}
+		return true;
+	}
+
+	@Override
 	public String toString() {
 		StringBuilder builder = new StringBuilder("dtls-con: ");
 		if (cid != null) {
@@ -943,27 +994,25 @@ public final class Connection {
 	 */
 	@WipAPI
 	public boolean write(DatagramWriter writer) {
-		if (establishedDtlsContext == null) {
+		if (establishedDtlsContext == null || establishedDtlsContext.isMarkedAsClosed() || rootCause != null) {
 			return false;
-		} else {
-			int position = SerializationUtil.writeStartItem(writer, VERSION, Short.SIZE);
-
-			writer.writeByte(resumptionRequired ? (byte) 1 : (byte) 0);
-			writer.writeLong(lastMessageNanos, Long.SIZE);
-			writer.writeVarBytes(cid, Byte.SIZE);
-			SerializationUtil.write(writer, peerAddress);
-			ClientHelloIdentifier start = startingHelloClient;
-			if (start == null) {
-				writer.writeByte((byte) 0);
-			} else {
-				writer.writeByte((byte) 1);
-				start.write(writer);
-			}
-			establishedDtlsContext.write(writer);
-			writer.writeByte(cid != null && cid.equals(establishedDtlsContext.getReadConnectionId()) ? (byte) 1 : (byte) 0);
-			 SerializationUtil.writeFinishedItem(writer, position, Short.SIZE);
-			return true;
 		}
+		int position = SerializationUtil.writeStartItem(writer, VERSION, Short.SIZE);
+		writer.writeByte(resumptionRequired ? (byte) 1 : (byte) 0);
+		writer.writeLong(lastMessageNanos, Long.SIZE);
+		writer.writeVarBytes(cid, Byte.SIZE);
+		SerializationUtil.write(writer, peerAddress);
+		ClientHelloIdentifier start = startingHelloClient;
+		if (start == null) {
+			writer.writeByte((byte) 0);
+		} else {
+			writer.writeByte((byte) 1);
+			start.write(writer);
+		}
+		establishedDtlsContext.write(writer);
+		writer.writeByte(cid != null && cid.equals(establishedDtlsContext.getReadConnectionId()) ? (byte) 1 : (byte) 0);
+		 SerializationUtil.writeFinishedItem(writer, position, Short.SIZE);
+		return true;
 	}
 
 	/**
@@ -994,18 +1043,25 @@ public final class Connection {
 	 * 
 	 * @param reader reader with connection state.
 	 * @param nanoShift adjusting shift for system time in nanoseconds.
+	 * @throws IllegalArgumentException if the data is erroneous
 	 * @since 3.0
 	 */
 	private Connection(DatagramReader reader, long nanoShift) {
 		resumptionRequired = reader.readNextByte() == 1;
 		lastMessageNanos = reader.readLong(Long.SIZE) + nanoShift;
 		byte[] data = reader.readVarBytes(Byte.SIZE);
+		if (data == null) {
+			throw new IllegalArgumentException("CID must not be null!");
+		}
 		cid = new ConnectionId(data);
 		peerAddress = SerializationUtil.readAddress(reader);
 		if (reader.readNextByte() == 1) {
 			startingHelloClient = new ClientHelloIdentifier(reader, nanoShift);
 		}
 		establishedDtlsContext = DTLSContext.fromReader(reader);
+		if (establishedDtlsContext == null) {
+			throw new IllegalArgumentException("DTLS Context must not be null!");
+		}
 		if (reader.readNextByte() == 1) {
 			establishedDtlsContext.setReadConnectionId(cid);
 		}

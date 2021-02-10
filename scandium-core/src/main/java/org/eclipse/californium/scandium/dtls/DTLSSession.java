@@ -48,6 +48,7 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.security.GeneralSecurityException;
 import java.security.Principal;
+import java.util.Objects;
 
 import javax.crypto.SecretKey;
 import javax.security.auth.DestroyFailedException;
@@ -64,6 +65,7 @@ import org.eclipse.californium.scandium.auth.PrincipalSerializer;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.util.SecretSerializationUtil;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerName;
@@ -119,6 +121,14 @@ public final class DTLSSession implements Destroyable {
 	 */
 	private SignatureAndHashAlgorithm signatureAndHashAlgorithm;
 
+	/**
+	 * Specifies the negotiated ec-group to be used for the ECDHE key exchange
+	 * message.
+	 * 
+	 * @since 3.0
+	 */
+	private SupportedGroup ecGroup;
+
 	private CompressionMethod compressionMethod = CompressionMethod.NULL;
 
 	/**
@@ -132,7 +142,7 @@ public final class DTLSSession implements Destroyable {
 
 	/**
 	 * The 48-byte master secret shared by client and server to derive key
-	 * material from.
+	 * material from. Only set for resumable sessions!
 	 */
 	private SecretKey masterSecret = null;
 
@@ -220,6 +230,14 @@ public final class DTLSSession implements Destroyable {
 	public void destroy() throws DestroyFailedException {
 		SecretUtil.destroy(masterSecret);
 		masterSecret = null;
+		extendedMasterSecret = false;
+		cipherSuite = CipherSuite.TLS_NULL_WITH_NULL_NULL;
+		compressionMethod = CompressionMethod.NULL;
+		signatureAndHashAlgorithm = null;
+		ecGroup = null;
+		peerIdentity = null;
+		sendCertificateType = CertificateType.X_509;
+		receiveCertificateType = CertificateType.X_509;
 	}
 
 	@Override
@@ -643,6 +661,29 @@ public final class DTLSSession implements Destroyable {
 	}
 
 	/**
+	 * Gets the negotiated ec-group to be used for the ECDHE key exchange
+	 * message.
+	 * 
+	 * @return negotiated ec-group
+	 * 
+	 * @since 3.0
+	 */
+	public SupportedGroup getEcGroup() {
+		return ecGroup;
+	}
+
+	/**
+	 * Sets the negotiated ec-group to be used for the ECDHE key exchange
+	 * 
+	 * @param ecGroup negotiated ec-group
+	 * 
+	 * @since 3.0
+	 */
+	void setEcGroup(SupportedGroup ecGroup) {
+		this.ecGroup = ecGroup;
+	}
+
+	/**
 	 * Gets the authenticated peer's identity.
 	 * 
 	 * @return the identity or {@code null}, if the peer has not been
@@ -685,6 +726,66 @@ public final class DTLSSession implements Destroyable {
 				masterSecret, getServerNames(), getPeerIdentity(), creationTime);
 	}
 
+	@Override
+	public int hashCode() {
+		return sessionIdentifier == null ? (int) creationTime : sessionIdentifier.hashCode();
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj) {
+			return true;
+		} else if (obj == null) {
+			return false;
+		} else if (getClass() != obj.getClass()) {
+			return false;
+		}
+		DTLSSession other = (DTLSSession) obj;
+		if (!SecretUtil.equals(masterSecret, other.masterSecret)) {
+			return false;
+		}
+		if (!Bytes.equals(sessionIdentifier, other.sessionIdentifier)) {
+			return false;
+		}
+		if (cipherSuite != other.cipherSuite) {
+			return false;
+		}
+		if (compressionMethod != other.compressionMethod) {
+			return false;
+		}
+		if (extendedMasterSecret != other.extendedMasterSecret) {
+			return false;
+		}
+		if (peerSupportsSni != other.peerSupportsSni) {
+			return false;
+		}
+		if (sendCertificateType != other.sendCertificateType) {
+			return false;
+		}
+		if (receiveCertificateType != other.receiveCertificateType) {
+			return false;
+		}
+		if (ecGroup != other.ecGroup) {
+			return false;
+		}
+		if (creationTime != other.creationTime) {
+			return false;
+		}
+		if (!Objects.equals(signatureAndHashAlgorithm, other.signatureAndHashAlgorithm)) {
+			return false;
+		}
+		if (!Objects.equals(serverNames, other.serverNames)) {
+			return false;
+		}
+		if (!Objects.equals(recordSizeLimit, other.recordSizeLimit)) {
+			return false;
+		}
+		if (!Objects.equals(peerIdentity, other.peerIdentity)) {
+			return false;
+		}
+		return true;
+	}
+
 	/**
 	 * Version number for serialization.
 	 */
@@ -719,8 +820,23 @@ public final class DTLSSession implements Destroyable {
 		writer.writeVarBytes(sessionIdentifier, Byte.SIZE);
 		writer.write(cipherSuite.getCode(), Short.SIZE);
 		writer.write(compressionMethod.getCode(), Byte.SIZE);
+		writer.write(sendCertificateType.getCode(), Byte.SIZE);
+		writer.write(receiveCertificateType.getCode(), Byte.SIZE);
 		writer.write(extendedMasterSecret ? 1 : 0, Byte.SIZE);
 		SecretSerializationUtil.write(writer, masterSecret);
+		if (signatureAndHashAlgorithm == null) {
+			writer.write(0, Byte.SIZE);
+		} else {
+			writer.write(1, Byte.SIZE);
+			writer.write(signatureAndHashAlgorithm.getHash().getCode(), Byte.SIZE);
+			writer.write(signatureAndHashAlgorithm.getSignature().getCode(), Byte.SIZE);
+		}
+		if (ecGroup == null) {
+			writer.write(0, Byte.SIZE);
+		} else {
+			writer.write(1, Byte.SIZE);
+			writer.write(ecGroup.getId(), Short.SIZE);
+		}
 		if (peerIdentity == null) {
 			writer.write(0, Byte.SIZE);
 		} else {
@@ -738,7 +854,8 @@ public final class DTLSSession implements Destroyable {
 	 * 
 	 * @param reader reader with dtls session state.
 	 * @return read dtls session.
-	 * @throws IllegalArgumentException if version differs.
+	 * @throws IllegalArgumentException if version differs or the data is
+	 *             erroneous
 	 * @since 3.0
 	 */
 	@WipAPI
@@ -756,6 +873,8 @@ public final class DTLSSession implements Destroyable {
 	 * Create instance from reader.
 	 * 
 	 * @param reader reader with dtls session state.
+	 * @throws IllegalArgumentException if version differs or the data is
+	 *             erroneous
 	 * @since 3.0
 	 */
 	private DTLSSession(DatagramReader reader) {
@@ -784,10 +903,38 @@ public final class DTLSSession implements Destroyable {
 		}
 		int code = reader.read(Short.SIZE);
 		cipherSuite = CipherSuite.getTypeByCode(code);
+		if (cipherSuite == null) {
+			throw new IllegalArgumentException("unknown cipher suite 0x" + Integer.toHexString(code) + "!");
+		}
 		code = reader.read(Byte.SIZE);
 		compressionMethod = CompressionMethod.getMethodByCode(code);
+		if (compressionMethod == null) {
+			throw new IllegalArgumentException("unknown compression method 0x" + Integer.toHexString(code) + "!");
+		}
+		code = reader.read(Byte.SIZE);
+		sendCertificateType = CertificateType.getTypeFromCode(code);
+		if (sendCertificateType == null) {
+			throw new IllegalArgumentException("unknown send certificate type 0x" + Integer.toHexString(code) + "!");
+		}
+		code = reader.read(Byte.SIZE);
+		receiveCertificateType = CertificateType.getTypeFromCode(code);
+		if (receiveCertificateType == null) {
+			throw new IllegalArgumentException("unknown send certificate type 0x" + Integer.toHexString(code) + "!");
+		}
 		extendedMasterSecret = (reader.read(Byte.SIZE) == 1);
 		masterSecret = SecretSerializationUtil.readSecretKey(reader);
+		if (reader.readNextByte() == 1) {
+			int hashId = reader.read(Byte.SIZE);
+			int signatureId = reader.read(Byte.SIZE);
+			signatureAndHashAlgorithm = new SignatureAndHashAlgorithm(hashId, signatureId);
+		}
+		if (reader.readNextByte() == 1) {
+			int groupId = reader.read(Short.SIZE);
+			ecGroup = SupportedGroup.fromId(groupId);
+			if (ecGroup == null) {
+				throw new IllegalArgumentException("unknown ec-group 0x" + Integer.toHexString(groupId) + "!");
+			}
+		}
 		if (reader.readNextByte() == 1) {
 			try {
 				peerIdentity = PrincipalSerializer.deserialize(reader);

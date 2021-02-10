@@ -135,6 +135,8 @@ public class DTLSConnectorStartStopTest {
 	@After
 	public void cleanUp() {
 		if (client != null) {
+			client.stop();
+			ConnectorHelper.assertReloadConnections("client", client);
 			client.destroy();
 		}
 		serverHelper.cleanUpServer();

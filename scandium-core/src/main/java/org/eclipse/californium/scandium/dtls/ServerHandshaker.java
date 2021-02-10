@@ -561,7 +561,9 @@ public class ServerHandshaker extends Handshaker {
 		if (KeyExchangeAlgorithm.ECDHE_PSK == keyExchangeAlgorithm
 				|| KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN == keyExchangeAlgorithm) {
 			try {
-				ecdhe = new XECDHECryptography(selectedCipherSuiteParameters.getSelectedSupportedGroup());
+				SupportedGroup ecGroup = selectedCipherSuiteParameters.getSelectedSupportedGroup();
+				ecdhe = new XECDHECryptography(ecGroup);
+				session.setEcGroup(ecGroup);
 			} catch (GeneralSecurityException ex) {
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER);
 				throw new HandshakeException("Cannot process handshake message, caused by " + ex.getMessage(), alert,

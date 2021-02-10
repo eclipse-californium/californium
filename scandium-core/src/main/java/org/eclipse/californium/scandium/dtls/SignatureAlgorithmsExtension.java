@@ -68,8 +68,8 @@ public class SignatureAlgorithmsExtension extends HelloExtension {
 		writer.write(listLength, LIST_LENGTH_BITS);
 
 		for (SignatureAndHashAlgorithm signatureAndHashAlgorithm : signatureAndHashAlgorithms) {
-			writer.write(signatureAndHashAlgorithm.getHash().getCode(), SIGNATURE_BITS);
-			writer.write(signatureAndHashAlgorithm.getSignature().getCode(), HASH_BITS);
+			writer.write(signatureAndHashAlgorithm.getHash().getCode(), HASH_BITS);
+			writer.write(signatureAndHashAlgorithm.getSignature().getCode(), SIGNATURE_BITS);
 		}
 	}
 
@@ -79,8 +79,8 @@ public class SignatureAlgorithmsExtension extends HelloExtension {
 		int listLength = extensionDataReader.read(LIST_LENGTH_BITS);
 		DatagramReader rangeReader = extensionDataReader.createRangeReader(listLength);
 		while (rangeReader.bytesAvailable()) {
-			int hashId = rangeReader.read(SIGNATURE_BITS);
-			int signatureId = rangeReader.read(HASH_BITS);
+			int hashId = rangeReader.read(HASH_BITS);
+			int signatureId = rangeReader.read(SIGNATURE_BITS);
 
 			signatureAndHashAlgorithms.add(new SignatureAndHashAlgorithm(hashId, signatureId));
 		}

@@ -353,9 +353,13 @@ public class DTLSConnectorHandshakeTest {
 			serverVerifier = null;
 		}
 		if (serverHelper != null) {
+			serverHelper.server.stop();
+			ConnectorHelper.assertReloadConnections("server", serverHelper.server);
 			serverHelper.destroyServer();
 		}
 		if (client != null) {
+			client.stop();
+			ConnectorHelper.assertReloadConnections("client", client);
 			client.destroy();
 		}
 	}

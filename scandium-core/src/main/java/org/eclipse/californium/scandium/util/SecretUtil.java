@@ -175,6 +175,31 @@ public class SecretUtil {
 		return new SecretIvParameterSpec(iv, 0, iv.length);
 	}
 
+	/**
+	 * Indicates whether some secret keys are "equal to" each other.
+	 * 
+	 * @param key1 first key to check
+	 * @param key2 second key to check
+	 * @return {@code true}, if the keys are equal, {@code false}, otherwise.
+	 * @since 3.0
+	 */
+	public static boolean equals(SecretKey key1, SecretKey key2) {
+		if (key1 == key2) {
+			return true;
+		} else if (key1 == null || key2 == null) {
+			return false;
+		}
+		if (!key1.getAlgorithm().equals(key2.getAlgorithm())) {
+			return false;
+		}
+		byte[] secret1 = key1.getEncoded();
+		byte[] secret2 = key2.getEncoded();
+		boolean ok = Arrays.equals(secret1, secret2);
+		Bytes.clear(secret1);
+		Bytes.clear(secret2);
+		return ok;
+	}
+
 	private static class DestroyableSecretKeySpec implements KeySpec, SecretKey, Destroyable {
 
 		private static final long serialVersionUID = 6578238307397289933L;

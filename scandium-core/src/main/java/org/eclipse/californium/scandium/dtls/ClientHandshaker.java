@@ -537,9 +537,16 @@ public class ClientHandshaker extends Handshaker {
 		if (KeyExchangeAlgorithm.ECDHE_PSK == keyExchangeAlgorithm
 				|| KeyExchangeAlgorithm.EC_DIFFIE_HELLMAN == keyExchangeAlgorithm) {
 			try {
-				ecdhe = new XECDHECryptography(serverKeyExchange.getSupportedGroup());
-				ecdheSecret = ecdhe.generateSecret(serverKeyExchange.getEncodedPoint());
-				encodedPoint = ecdhe.getEncodedPoint();
+				SupportedGroup ecGroup = serverKeyExchange.getSupportedGroup();
+				if (supportedGroups.contains(ecGroup)) {
+					ecdhe = new XECDHECryptography(ecGroup);
+					ecdheSecret = ecdhe.generateSecret(serverKeyExchange.getEncodedPoint());
+					encodedPoint = ecdhe.getEncodedPoint();
+					session.setEcGroup(ecGroup);
+				} else {
+					AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER);
+					throw new HandshakeException("Cannot process handshake message, ec-group not offered! ", alert);
+				}
 			} catch (GeneralSecurityException ex) {
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER);
 				throw new HandshakeException("Cannot process handshake message, caused by " + ex.getMessage(), alert,
@@ -632,12 +639,12 @@ public class ClientHandshaker extends Handshaker {
 	 * @since 2.5
 	 */
 	private void processServerHelloDone() throws HandshakeException {
-
+		DTLSSession session = getSession();
 		/*
 		 * Third, send CertificateVerify message if necessary.
 		 */
 		if (sentClientCertificate && certificateRequest != null && negotiatedSignatureAndHashAlgorithm != null) {
-			CertificateType clientCertificateType = getSession().sendCertificateType();
+			CertificateType clientCertificateType = session.sendCertificateType();
 			if (!isSupportedCertificateType(clientCertificateType, supportedClientCertificateTypes)) {
 				throw new HandshakeException(
 						"Server wants to use not supported client certificate type " + clientCertificateType,
@@ -649,7 +656,7 @@ public class ClientHandshaker extends Handshaker {
 			// prepare handshake messages
 
 			CertificateVerify certificateVerify = new CertificateVerify(negotiatedSignatureAndHashAlgorithm, privateKey, handshakeMessages);
-
+			session.setSignatureAndHashAlgorithm(negotiatedSignatureAndHashAlgorithm);
 			wrapMessage(flight5, certificateVerify);
 		}
 

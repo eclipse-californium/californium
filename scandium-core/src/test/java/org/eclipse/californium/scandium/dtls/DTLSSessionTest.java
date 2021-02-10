@@ -19,11 +19,14 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.security.GeneralSecurityException;
+import java.security.cert.X509Certificate;
 import java.util.Random;
 
 import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
@@ -42,7 +45,7 @@ public class DTLSSessionTest {
 
 	@Before
 	public void setUp() throws Exception {
-		session = newEstablishedServerSession(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, false);
+		session = newEstablishedServerSession(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CertificateType.X_509);
 	}
 
 	@Test
@@ -57,7 +60,7 @@ public class DTLSSessionTest {
 	@Test
 	public void testSessionCanBeResumedFromSessionTicket() throws GeneralSecurityException {
 		// GIVEN a session ticket for an established server session
-		session = newEstablishedServerSession(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, true);
+		session = newEstablishedServerSession(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CertificateType.RAW_PUBLIC_KEY);
 		SessionTicket ticket = session.getSessionTicket();
 
 		// WHEN creating a new session to be resumed from the ticket
@@ -70,7 +73,7 @@ public class DTLSSessionTest {
 	@Test
 	public void testSessionWithServerNamesCanBeResumedFromSessionTicket() throws GeneralSecurityException {
 		// GIVEN a session ticket for an established server session
-		session = newEstablishedServerSession(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, true);
+		session = newEstablishedServerSession(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CertificateType.RAW_PUBLIC_KEY);
 		session.setHostName("test");
 		SessionTicket ticket = session.getSessionTicket();
 
@@ -84,7 +87,7 @@ public class DTLSSessionTest {
 	@Test
 	public void testSessionCanBeResumedFromSerializedSessionTicket() throws GeneralSecurityException {
 		// GIVEN a session ticket for an established server session
-		session = newEstablishedServerSession(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, true);
+		session = newEstablishedServerSession(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CertificateType.RAW_PUBLIC_KEY);
 		SessionTicket ticket = serialize(session.getSessionTicket());
 
 		// WHEN creating a new session to be resumed from the ticket
@@ -97,7 +100,7 @@ public class DTLSSessionTest {
 	@Test
 	public void testSessionWithServerNamesCanBeResumedFromSerializedSessionTicket() throws GeneralSecurityException {
 		// GIVEN a session ticket for an established server session
-		session = newEstablishedServerSession(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, true);
+		session = newEstablishedServerSession(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CertificateType.RAW_PUBLIC_KEY);
 		session.setHostName("test");
 		SessionTicket ticket = serialize(session.getSessionTicket());
 
@@ -106,6 +109,37 @@ public class DTLSSessionTest {
 
 		// THEN the new session contains all relevant pending state to perform an abbreviated handshake
 		assertThatSessionsHaveSameRelevantPropertiesForResumption(sessionToResume, session);
+	}
+
+	@Test
+	public void testReloadEcdsaSession() throws GeneralSecurityException {
+		// GIVEN a session ticket for an established server session
+		session = newEstablishedServerSession(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CertificateType.RAW_PUBLIC_KEY);
+		session.setHostName("test");
+
+		DTLSSession session2 = reload(session);
+		assertThat(session2, is(session));
+	}
+
+	@Test
+	public void testReloadPskSession() throws GeneralSecurityException {
+		// GIVEN a session ticket for an established server session
+		session = newEstablishedServerSession(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8, CertificateType.RAW_PUBLIC_KEY);
+		session.setHostName("test");
+
+		DTLSSession session2 = reload(session);
+		assertThat(session2, is(session));
+	}
+
+	@Test
+	public void testReloadEcdsaEd25519Session() throws GeneralSecurityException {
+		// GIVEN a session ticket for an established server session
+		session = newEstablishedServerSession(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CertificateType.RAW_PUBLIC_KEY);
+		session.setHostName("test");
+		session.setSignatureAndHashAlgorithm(SignatureAndHashAlgorithm.INTRINSIC_WITH_ED25519);
+
+		DTLSSession session2 = reload(session);
+		assertThat(session2, is(session));
 	}
 
 	public static void assertThatSessionsHaveSameRelevantPropertiesForResumption(DTLSSession sessionToResume, DTLSSession establishedSession) {
@@ -117,9 +151,8 @@ public class DTLSSessionTest {
 		assertThat(sessionToResume.getServerNames(), is(establishedSession.getServerNames()));
 	}
 
-	public static DTLSSession newEstablishedServerSession(CipherSuite cipherSuite, boolean useRawPublicKeys) {
+	public static DTLSSession newEstablishedServerSession(CipherSuite cipherSuite, CertificateType type) {
 
-		CertificateType type = useRawPublicKeys ? CertificateType.RAW_PUBLIC_KEY : CertificateType.X_509;
 		DTLSSession session = new DTLSSession();
 		session.setSessionIdentifier(new SessionId());
 		session.setCipherSuite(cipherSuite);
@@ -127,8 +160,24 @@ public class DTLSSessionTest {
 		session.setReceiveCertificateType(type);
 		session.setSendCertificateType(type);
 		session.setMasterSecret(new SecretKeySpec(getRandomBytes(48), "MAC"));
-		session.setPeerIdentity(new PreSharedKeyIdentity("client_identity"));
+		if (cipherSuite.isPskBased()) {
+			session.setPeerIdentity(new PreSharedKeyIdentity("client_identity"));
+		} else {
+			X509Certificate[] chain = DtlsTestTools.getServerCertificateChain();
+			if (type == CertificateType.RAW_PUBLIC_KEY) {
+				session.setPeerIdentity(new RawPublicKeyIdentity(chain[0].getPublicKey()));
+			} else {
+				session.setPeerIdentity(X509CertPath.fromCertificatesChain(chain));
+			}
+		}
 		return session;
+	}
+
+	private static DTLSSession reload(DTLSSession context) {
+		DatagramWriter writer = new DatagramWriter();
+		context.write(writer);
+		DatagramReader reader = new DatagramReader(writer.toByteArray());
+		return DTLSSession.fromReader(reader);
 	}
 
 	private static byte[] getRandomBytes(int length) {

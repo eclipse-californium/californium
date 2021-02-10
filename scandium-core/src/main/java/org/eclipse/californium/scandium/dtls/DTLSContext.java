@@ -24,6 +24,7 @@ import javax.security.auth.Destroyable;
 
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.SerializationUtil;
@@ -118,15 +119,20 @@ public final class DTLSContext implements Destroyable {
 	 *            CLIENT_HELLO record (see
 	 *            <a href="http://tools.ietf.org/html/rfc6347#section-4.2.1">
 	 *            section 4.2.1 of RFC 6347 (DTLS 1.2)</a> for details)
+	 * @throws NullPointerException if session is {@code null}
+	 * @throws IllegalArgumentException if sequence number is out of the valid
+	 *             range {@code [0...2^48)}.
 	 */
-	protected DTLSContext(DTLSSession session, long initialRecordSequenceNo) {
+	DTLSContext(DTLSSession session, long initialRecordSequenceNo) {
+		if (session == null) {
+			throw new NullPointerException("session must not be null!");
+		}
 		if (initialRecordSequenceNo < 0 || initialRecordSequenceNo > Record.MAX_SEQUENCE_NO) {
 			throw new IllegalArgumentException("Initial sequence number must be greater than 0 and less than 2^48");
-		} else {
-			this.session = session;
-			this.handshakeTime = System.currentTimeMillis();
-			this.sequenceNumbers[0] = initialRecordSequenceNo;
 		}
+		this.session = session;
+		this.handshakeTime = System.currentTimeMillis();
+		this.sequenceNumbers[0] = initialRecordSequenceNo;
 	}
 
 	// Getters and Setters ////////////////////////////////////////////
@@ -655,6 +661,83 @@ public final class DTLSContext implements Destroyable {
 		readSequenceNumberClosed = sequenceNo;
 	}
 
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + (int) (handshakeTime ^ (handshakeTime >>> 32));
+		if (markedAsclosed) {
+			result = prime * result + readEpochClosed;
+			result = prime * result + (int) (readSequenceNumberClosed);
+		} else {
+			result = prime * result + readEpoch;
+			result = prime * result + (int) (receiveWindowUpperCurrent);
+		}
+		result = prime * result + writeEpoch;
+		result = prime * result + (int) sequenceNumbers[writeEpoch];
+		result = prime * result + (int) (receiveWindowLowerBoundary);
+		result = prime * result + (int) (receivedRecordsVector ^ (receivedRecordsVector >>> 32));
+		result = prime * result + ((readConnectionId == null) ? 0 : readConnectionId.hashCode());
+		result = prime * result + ((writeConnectionId == null) ? 0 : writeConnectionId.hashCode());
+		result = prime * result + session.hashCode();
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj) {
+			return true;
+		} else if (obj == null) {
+			return false;
+		}
+		if (getClass() != obj.getClass()) {
+			return false;
+		}
+		DTLSContext other = (DTLSContext) obj;
+		if (!session.equals(other.session)) {
+			return false;
+		}
+		if (handshakeTime != other.handshakeTime) {
+			return false;
+		}
+		if (markedAsclosed != other.markedAsclosed) {
+			return false;
+		}
+		if (markedAsclosed) {
+			if (readEpochClosed != other.readEpochClosed) {
+				return false;
+			}
+			if (readSequenceNumberClosed != other.readSequenceNumberClosed) {
+				return false;
+			}
+		}
+		if (!Bytes.equals(readConnectionId, other.readConnectionId)) {
+			return false;
+		}
+		if (!Bytes.equals(writeConnectionId, other.writeConnectionId)) {
+			return false;
+		}
+		if (readEpoch != other.readEpoch) {
+			return false;
+		}
+		if (receiveWindowLowerBoundary != other.receiveWindowLowerBoundary) {
+			return false;
+		}
+		if (receiveWindowUpperCurrent != other.receiveWindowUpperCurrent) {
+			return false;
+		}
+		if (receivedRecordsVector != other.receivedRecordsVector) {
+			return false;
+		}
+		if (writeEpoch != other.writeEpoch) {
+			return false;
+		}
+		if (sequenceNumbers[writeEpoch] != other.sequenceNumbers[writeEpoch]) {
+			return false;
+		}
+		return true;
+	}
+
 	/**
 	 * Re-initializes the receive window to detect duplicates for a new epoch.
 	 * 
@@ -701,7 +784,10 @@ public final class DTLSContext implements Destroyable {
 	 * @param writer writer for DTLS context state
 	 */
 	@WipAPI
-	public void write(DatagramWriter writer) {
+	public boolean write(DatagramWriter writer) {
+		if (markedAsclosed) {
+			return false;
+		}
 		int position = SerializationUtil.writeStartItem(writer, VERSION, Short.SIZE);
 		writer.writeLong(handshakeTime, Long.SIZE);
 		session.write(writer);
@@ -716,6 +802,7 @@ public final class DTLSContext implements Destroyable {
 		writer.writeVarBytes(writeConnectionId, Byte.SIZE);
 		writeSequenceNumbers(writer);
 		SerializationUtil.writeFinishedItem(writer, position, Short.SIZE);
+		return true;
 	}
 
 	/**
@@ -726,7 +813,8 @@ public final class DTLSContext implements Destroyable {
 	 * 
 	 * @param reader reader with DTLS context state.
 	 * @return read DTLS context.
-	 * @throws IllegalArgumentException if version differs.
+	 * @throws IllegalArgumentException if version differs or the data is
+	 *             erroneous
 	 */
 	@WipAPI
 	public static DTLSContext fromReader(DatagramReader reader) {
@@ -743,19 +831,25 @@ public final class DTLSContext implements Destroyable {
 	 * Create instance from reader.
 	 * 
 	 * @param reader reader with DTLS context state.
+	 * @throws IllegalArgumentException if the data is erroneous
 	 */
 	private DTLSContext(DatagramReader reader) {
 		handshakeTime = reader.readLong(Long.SIZE);
 		session = DTLSSession.fromReader(reader);
+		if (session == null) {
+			throw new IllegalArgumentException("read session must not be null!");
+		}
 		readEpoch = reader.read(Byte.SIZE);
 		if (readEpoch > 0) {
 			readState = DTLSConnectionState.fromReader(session.getCipherSuite(), session.getCompressionMethod(),
 					reader);
 		}
 		writeEpoch = reader.read(Byte.SIZE);
-		if (writeEpoch > 0) {
+		if (writeEpoch == 1) {
 			writeState = DTLSConnectionState.fromReader(session.getCipherSuite(), session.getCompressionMethod(),
 					reader);
+		} else if (writeEpoch > 1) {
+			throw new IllegalArgumentException("write epoch must be 1!");
 		}
 		byte[] data = reader.readVarBytes(Byte.SIZE);
 		if (data != null) {
@@ -789,6 +883,7 @@ public final class DTLSContext implements Destroyable {
 	 * Read the sequence-number state for this DTLS context.
 	 * 
 	 * @param reader reader with sequence-number state for DTLS context state
+	 * @throws IllegalArgumentException if the data is erroneous
 	 */
 	@WipAPI
 	public void readSequenceNumbers(DatagramReader reader) {

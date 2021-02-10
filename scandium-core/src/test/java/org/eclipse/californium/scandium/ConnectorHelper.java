@@ -36,9 +36,13 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -64,6 +68,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.PersistentConnector;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
 import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
@@ -358,6 +363,27 @@ public class ConnectorHelper {
 		@SuppressWarnings("unchecked")
 		ExtensiblePrincipal<? extends Principal> p = (ExtensiblePrincipal<? extends Principal>) peerIdentity;
 		assertThat(p.getExtendedInfo().get(key, String.class), is(expectedValue));
+	}
+
+	public static void assertReloadConnections(String tag, PersistentConnector connector) {
+		try {
+			ByteArrayOutputStream out = new ByteArrayOutputStream();
+			int saveCount = connector.saveConnections(out, 1000);
+			byte[] data1 = out.toByteArray();
+			int readCount = connector.loadConnections(new ByteArrayInputStream(data1), 0);
+			assertEquals(tag + " read mismatch", saveCount, readCount);
+			out = new ByteArrayOutputStream();
+			int saveCount2 = connector.saveConnections(out, 1000);
+			byte[] data2 = out.toByteArray();
+			assertEquals(tag + " 2. save mismatch", saveCount, saveCount2);
+			assertTrue(tag + " data mismatch", Arrays.equals(data1, data2));
+		} catch (IllegalStateException e) {
+			e.printStackTrace();
+			fail(tag + ": " + e.getMessage());
+		} catch (IOException e) {
+			e.printStackTrace();
+			fail(tag + " io-error: " + e.getMessage());
+		}
 	}
 
 	static class LatchDecrementingRawDataChannel implements RawDataChannel {

@@ -232,4 +232,21 @@ public class Bytes {
 	public static void clear(byte[] data) {
 		Arrays.fill(data, (byte) 0);
 	}
+
+	/**
+	 * Indicates whether some bytes are "equal to" each other.
+	 * 
+	 * @param a first bytes to check
+	 * @param b second bytes to check
+	 * @return {@code true}, if the bytes are equal, {@code false}, otherwise.
+	 * @since 3.0
+	 */
+	public static boolean equals(Bytes a, Bytes b) {
+		if (a == b) {
+			return true;
+		} else if (a == null || b == null) {
+			return false;
+		}
+		return a.equals(b);
+	}
 }

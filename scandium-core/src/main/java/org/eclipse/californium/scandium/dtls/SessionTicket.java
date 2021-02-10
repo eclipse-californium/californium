@@ -22,14 +22,12 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.security.GeneralSecurityException;
 import java.security.Principal;
-import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 import javax.crypto.SecretKey;
 import javax.security.auth.DestroyFailedException;
 import javax.security.auth.Destroyable;
 
-import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.auth.PrincipalSerializer;
@@ -267,16 +265,10 @@ public final class SessionTicket implements Destroyable {
 		if (hashCode != other.hashCode) {
 			return false;
 		}
-		// the SecretKeySpe equals seems to leak the others secret ;-(.
-		byte[] secret1 = masterSecret.getEncoded();
-		byte[] secret2 = other.masterSecret.getEncoded();
-		if (!Arrays.equals(secret1, secret2)) {
-			Bytes.clear(secret1);
-			Bytes.clear(secret2);
+		// the SecretKeySpec equals seems to leak the others secret ;-(.
+		if (!SecretUtil.equals(masterSecret, other.masterSecret)) {
 			return false;
 		}
-		Bytes.clear(secret1);
-		Bytes.clear(secret2);
 		if (!protocolVersion.equals(other.protocolVersion)) {
 			return false;
 		}
