@@ -169,10 +169,21 @@ public class CoapExchange {
 	/**
 	 * Gets the request payload as byte array.
 	 *
-	 * @return the request payload, or {@code null}, if no payload is available.
+	 * @return the request payload.
 	 */
 	public byte[] getRequestPayload() {
 		return exchange.getRequest().getPayload();
+	}
+
+	/**
+	 * Gets the size (amount of bytes) of the request payload. Be aware that this might
+	 * differ from the payload string length due to the UTF-8 encoding.
+	 *
+	 * @return the request payload size.
+	 * @since 3.0
+	 */
+	public int getRequestPayloadSize() {
+		return exchange.getRequest().getPayloadSize();
 	}
 
 	/**

@@ -38,7 +38,7 @@ public class CoapResponse {
 
 	/** The insternal response. */
 	private Response response;
-	
+
 	/**
 	 * Instantiates a new coap response.
 	 *
@@ -56,7 +56,7 @@ public class CoapResponse {
 	public ResponseCode getCode() {
 		return response.getCode();
 	}
-	
+
 	/**
 	 * Checks if the response code is a successful code.
 	 *
@@ -65,7 +65,7 @@ public class CoapResponse {
 	public boolean isSuccess() {
 		return CoAP.ResponseCode.isSuccess(response.getCode());
 	}
-	
+
 	/**
 	 * Gets the payload of this response as string.
 	 *
@@ -74,7 +74,7 @@ public class CoapResponse {
 	public String getResponseText() {
 		return response.getPayloadString();
 	}
-	
+
 	/**
 	 * Gets the payload of this response as byte array.
 	 *
@@ -83,7 +83,18 @@ public class CoapResponse {
 	public byte[] getPayload() {
 		return response.getPayload();
 	}
-	
+
+	/**
+	 * Gets the size (amount of bytes) of the payload. Be aware that this might
+	 * differ from the payload string length due to the UTF-8 encoding.
+	 *
+	 * @return the payload size
+	 * @since 3.0
+	 */
+	public int getPayloadSize() {
+		return response.getPayloadSize();
+	}
+
 	/**
 	 * Gets the set of options of this response.
 	 *

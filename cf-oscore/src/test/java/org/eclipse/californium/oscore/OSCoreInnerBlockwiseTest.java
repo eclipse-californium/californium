@@ -20,7 +20,6 @@ package org.eclipse.californium.oscore;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -189,7 +188,7 @@ public class OSCoreInnerBlockwiseTest {
 		assertEquals(response.getCode(), CoAP.ResponseCode.CHANGED);
 		assertFalse(response.getOptions().hasSize2());
 		assertTrue(response.getOptions().hasBlock1());
-		assertNull(response.getPayload());
+		assertEquals(0, response.getPayloadSize());
 		assertEquals(payload, resource.currentPayload);
 		assertEquals(1, resource.getCounter());
 		client.shutdown();
