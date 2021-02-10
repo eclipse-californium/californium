@@ -693,6 +693,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	@WipAPI
 	@Override
 	public int loadConnections(InputStream in, long delta) throws IOException {
+		boolean clear = true;
 		int count = 0;
 		long startNanos = ClockUtil.nanoRealtime();
 		DataStreamReader reader = new DataStreamReader(in);
@@ -708,14 +709,16 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 				restore(connection);
 				++count;
 			}
-		} catch (IllegalStateException ex) {
-			LOGGER.warn("{}reading failed after {} connections", tag, count, ex);
-			clear();
-			throw new IllegalArgumentException(ex.getMessage(), ex);
+			clear = false;
 		} catch (IllegalArgumentException ex) {
 			LOGGER.warn("{}reading failed after {} connections", tag, count, ex);
 			clear();
 			throw ex;
+		} finally {
+			if (clear) {
+				clear();
+				count = 0;
+			}
 		}
 		return count;
 	}

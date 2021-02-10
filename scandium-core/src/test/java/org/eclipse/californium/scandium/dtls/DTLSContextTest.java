@@ -15,6 +15,8 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -24,8 +26,9 @@ import java.util.Random;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
-import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.SecretIvParameterSpec;
 import org.junit.Before;
@@ -41,7 +44,7 @@ public class DTLSContextTest {
 
 	@Before
 	public void setUp() throws Exception {
-		context = newEstablishedServerDtlsContext(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, false);
+		context = newEstablishedServerDtlsContext(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CertificateType.X_509);
 	}
 
 	@Test (expected = IllegalArgumentException.class)
@@ -73,6 +76,9 @@ public class DTLSContextTest {
 		assertTrue(context.isRecordProcessable(0, 1, 0));
 		assertFalse(context.isRecordProcessable(0, 2, 0));
 		assertFalse(context.isRecordProcessable(0, 64, 0));
+
+		DTLSContext context2 = reload(context);
+		assertThat(context2, is(context));
 	}
 
 	@Test
@@ -94,6 +100,9 @@ public class DTLSContextTest {
 		assertFalse(context.isRecordProcessable(0, 2, -1));
 		assertFalse(context.isRecordProcessable(0, 64, -1));
 		assertTrue(context.isRecordProcessable(0, 100, -1));
+
+		DTLSContext context2 = reload(context);
+		assertThat(context2, is(context));
 	}
 
 	@Test
@@ -117,6 +126,9 @@ public class DTLSContextTest {
 		assertTrue(context.isRecordProcessable(0, 12, 8));
 		assertFalse(context.isRecordProcessable(0, 80, 8));
 		assertTrue(context.isRecordProcessable(0, 100, 8));
+
+		DTLSContext context2 = reload(context);
+		assertThat(context2, is(context));
 	}
 
 	@Test
@@ -131,6 +143,9 @@ public class DTLSContextTest {
 		context.incrementReadEpoch();
 		assertTrue(context.isRecordProcessable(context.getReadEpoch(), 0, 0));
 		assertTrue(context.isRecordProcessable(context.getReadEpoch(), 2, 0));
+
+		DTLSContext context2 = reload(context);
+		assertThat(context2, is(context));
 	}
 
 	@Test
@@ -189,7 +204,7 @@ public class DTLSContextTest {
 		context.getNextSequenceNumber(); // should throw exception
 	}
 
-	public static DTLSContext newEstablishedServerDtlsContext(CipherSuite cipherSuite, boolean useRawPublicKeys) {
+	public static DTLSContext newEstablishedServerDtlsContext(CipherSuite cipherSuite, CertificateType type) {
 		SecretKey macKey = null;
 		if (cipherSuite.getMacKeyLength() > 0) {
 			macKey = new SecretKeySpec(getRandomBytes(cipherSuite.getMacKeyLength()), "AES");
@@ -197,20 +212,20 @@ public class DTLSContextTest {
 		SecretKey encryptionKey = new SecretKeySpec(getRandomBytes(cipherSuite.getEncKeyLength()), "AES");
 		SecretIvParameterSpec iv = new SecretIvParameterSpec(getRandomBytes(cipherSuite.getFixedIvLength()));
 
-		CertificateType type = useRawPublicKeys ? CertificateType.RAW_PUBLIC_KEY : CertificateType.X_509;
-		DTLSSession session = new DTLSSession();
-		session.setSessionIdentifier(new SessionId());
-		session.setCipherSuite(cipherSuite);
-		session .setCompressionMethod(CompressionMethod.NULL);
-		session.setReceiveCertificateType(type);
-		session.setSendCertificateType(type);
-		session.setMasterSecret(new SecretKeySpec(getRandomBytes(48), "MAC"));
-		session.setPeerIdentity(new PreSharedKeyIdentity("client_identity"));
-
+		DTLSSession session = DTLSSessionTest.newEstablishedServerSession(cipherSuite, type);
 		DTLSContext context = new DTLSContext(session, 0);
 		context.createReadState(encryptionKey, iv, macKey);
 		context.createWriteState(encryptionKey, iv, macKey);
 		return context;
+	}
+
+	private static DTLSContext reload(DTLSContext context) {
+		DatagramWriter writer = new DatagramWriter();
+		if (context.write(writer)) {
+			DatagramReader reader = new DatagramReader(writer.toByteArray());
+			return DTLSContext.fromReader(reader);
+		}
+		return null;
 	}
 
 	private static byte[] getRandomBytes(int length) {

@@ -463,6 +463,8 @@ public class DTLSConnectorResumeTest {
 	@After
 	public void cleanUp() {
 		if (client != null) {
+			client.stop();
+			ConnectorHelper.assertReloadConnections("client", client);
 			client.destroy();
 		}
 		lastReceivedFlight = null;

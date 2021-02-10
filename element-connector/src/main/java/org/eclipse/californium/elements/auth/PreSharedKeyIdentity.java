@@ -17,6 +17,8 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.auth;
 
+import java.util.Objects;
+
 import org.eclipse.californium.elements.util.StringUtil;
 
 /**
@@ -196,13 +198,6 @@ public final class PreSharedKeyIdentity extends AbstractExtensiblePrincipal<PreS
 			return false;
 		}
 		PreSharedKeyIdentity other = (PreSharedKeyIdentity) obj;
-		if (name == null) {
-			if (other.name != null) {
-				return false;
-			}
-		} else if (!name.equals(other.name)) {
-			return false;
-		}
-		return true;
+		return Objects.equals(name, other.name);
 	}
 }

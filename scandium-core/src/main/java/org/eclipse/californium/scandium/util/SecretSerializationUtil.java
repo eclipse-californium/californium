@@ -38,7 +38,7 @@ public class SecretSerializationUtil {
 	 */
 	public static void write(DatagramWriter writer, SecretKey key) {
 		if (key == null || SecretUtil.isDestroyed(key)) {
-			writer.write(0, Byte.SIZE);
+			writer.writeVarBytes((byte[]) null, Byte.SIZE);
 		} else {
 			byte[] encoded = key.getEncoded();
 			writer.writeVarBytes(encoded, Byte.SIZE);
@@ -51,18 +51,27 @@ public class SecretSerializationUtil {
 	 * Read secret key.
 	 * 
 	 * @param reader reader to read
-	 * @return read secret key, or {@code null}, if size was {@code 0}.
+	 * @return read secret key, or {@code null}, if {@link null} was written.
+	 * @throws IllegalArgumentException if the data is erroneous
 	 */
 	public static SecretKey readSecretKey(DatagramReader reader) {
+		SecretKey key = null;
 		byte[] data = reader.readVarBytes(Byte.SIZE);
 		if (data != null) {
-			String algo = SerializationUtil.readString(reader, Byte.SIZE);
-			SecretKey key = SecretUtil.create(data, algo.intern());
-			Bytes.clear(data);
-			return key;
-		} else {
-			return null;
+			if (data.length == 0) {
+				throw new IllegalArgumentException("key must not be empty!");
+			}
+			try {
+				String algo = SerializationUtil.readString(reader, Byte.SIZE);
+				if (algo == null) {
+					throw new IllegalArgumentException("key must have algorithm!");
+				}
+				key = SecretUtil.create(data, algo.intern());
+			} finally {
+				Bytes.clear(data);
+			}
 		}
+		return key;
 	}
 
 	/**

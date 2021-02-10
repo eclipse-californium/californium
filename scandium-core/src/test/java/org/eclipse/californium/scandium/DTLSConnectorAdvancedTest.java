@@ -338,6 +338,8 @@ public class DTLSConnectorAdvancedTest {
 	public void cleanUp() {
 		timer.cancelAll();
 		if (alternativeServerHelper != null) {
+			alternativeServerHelper.server.stop();
+			ConnectorHelper.assertReloadConnections("alt-server", alternativeServerHelper.server);
 			alternativeServerHelper.destroyServer();
 		}
 		if (clientCertificateVerifier != null) {
@@ -345,6 +347,8 @@ public class DTLSConnectorAdvancedTest {
 			clientCertificateVerifier = null;
 		}
 		if (client != null) {
+			client.stop();
+			ConnectorHelper.assertReloadConnections("client", client);
 			client.destroy();
 		}
 		lastReceivedFlight = null;

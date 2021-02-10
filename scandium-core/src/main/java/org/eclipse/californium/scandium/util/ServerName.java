@@ -141,13 +141,10 @@ public class ServerName {
 			return false;
 		}
 		ServerName other = (ServerName) obj;
-		if (!Arrays.equals(name, other.name)) {
-			return false;
-		}
 		if (type != other.type) {
 			return false;
 		}
-		return true;
+		return Arrays.equals(name, other.name);
 	}
 
 

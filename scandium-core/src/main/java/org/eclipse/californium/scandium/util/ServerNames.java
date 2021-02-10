@@ -215,9 +215,6 @@ public final class ServerNames implements Iterable<ServerName> {
 		if (names.size() != other.names.size()) {
 			return false;
 		}
-		if (!names.containsAll(other.names)) {
-			return false;
-		}
-		return true;
+		return names.containsAll(other.names);
 	}
 }
