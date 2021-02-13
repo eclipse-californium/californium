@@ -25,10 +25,6 @@ If a 2.0.0 or newer is used, it's recommended to update first to 2.6.0 and clean
 
 Since 3.0 the sub-class may be ignored, depending on the provided value of the `useClassInEquals` parameter in `Bytes(byte[], int, boolean, boolean)`. The default behavior is changed to ignore the sub-class.
 
-`Message.getPayload()`:
-
-Since 3.0 `null` is replaced by `Bytes.EMPTY`. The method will now always return an byte array, which may be empty.
-
 ### Scandium:
 
 Redesigned! May cause also unaware changes! If you detect one, please create an issue on 
@@ -54,6 +50,14 @@ The encoding of the `SessionTicket` has changed.
 Since 3.0 this is only called for separate ACKs, not longer for piggy-backed responses.
 
 The local address of the receiving endpoint is now a separate field, the usage of the destination context for incoming messages is replaced by that. Affects `CoapUriTranslator.getExposedInterface(Request)`.
+
+`Blockwise Implementation` [RFC 7959](https://tools.ietf.org/html/rfc7959):
+
+Since 3.0 the blockwise implementation has been redesigned. That includes the blockwise request/response matching, which is not longer based on the block's `num` in the Block Option [RFC 7959 - 2.2.  Structure of a Block Option](https://tools.ietf.org/html/rfc7959#section-2.2). It's now based on the calculated block's offset `num * size` [IETF core-mailing list](https://mailarchive.ietf.org/arch/msg/core/z9_HsDxAQJ17cqFwz2QhViOsZDI/)
+
+`Message.getPayload()`:
+
+Since 3.0 `null` is replaced by `Bytes.EMPTY`. The method will now always return an byte array, which may be empty.
 
 ## Noteworthy API Changes
 
