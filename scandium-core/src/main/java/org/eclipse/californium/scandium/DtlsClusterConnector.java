@@ -24,8 +24,10 @@ import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.elements.util.FilteredLogger;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsClusterConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -67,6 +69,9 @@ import org.slf4j.LoggerFactory;
 public class DtlsClusterConnector extends DTLSConnector {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(DtlsClusterConnector.class);
+
+	private final FilteredLogger FILTER = new FilteredLogger(LOGGER, 3, TimeUnit.SECONDS.toNanos(10));
+
 	/**
 	 * Offset of cluster record type.
 	 */
@@ -493,7 +498,7 @@ public class DtlsClusterConnector extends DTLSConnector {
 								}
 							}
 						} else {
-							LOGGER.debug(
+							FILTER.debug(
 									"cluster-node {}: received foreign message from {} for unknown node {}, {} bytes, dropping.",
 									getNodeID(), source, incomingNodeId, length);
 							if (clusterHealth != null) {
@@ -507,10 +512,10 @@ public class DtlsClusterConnector extends DTLSConnector {
 								length);
 					}
 				} else {
-					LOGGER.debug("cluster-node {}: received broken CID message from {}", getNodeID(), source);
+					FILTER.debug("cluster-node {}: received broken CID message from {}", getNodeID(), source);
 				}
 			} else {
-				LOGGER.debug("cluster-node {}: received too short CID message from {}", getNodeID(), source);
+				FILTER.debug("cluster-node {}: received too short CID message from {}", getNodeID(), source);
 			}
 		} else {
 			LOGGER.trace("cluster-node {}: received no CID message from {}, {} bytes.", getNodeID(), source, length);

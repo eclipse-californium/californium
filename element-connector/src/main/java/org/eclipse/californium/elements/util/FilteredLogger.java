@@ -18,6 +18,7 @@ package org.eclipse.californium.elements.util;
 import java.util.Arrays;
 
 import org.slf4j.Logger;
+import org.slf4j.event.Level;
 
 /**
  * FilteredLogger.
@@ -77,7 +78,7 @@ public class FilteredLogger {
 	 */
 	public void warn(String fmt, Object... args) {
 		if (logger.isWarnEnabled()) {
-			log(true, fmt, args);
+			log(Level.WARN, fmt, args);
 		}
 	}
 
@@ -89,13 +90,36 @@ public class FilteredLogger {
 	 */
 	public void info(String fmt, Object... args) {
 		if (logger.isInfoEnabled()) {
-			log(false, fmt, args);
+			log(Level.INFO, fmt, args);
 		}
 	}
 
-	private void log(boolean warn, String fmt, Object... args) {
+	/**
+	 * Filter debug logging.
+	 * 
+	 * @param fmt format
+	 * @param args arguments
+	 */
+	public void debug(String fmt, Object... args) {
+		if (logger.isDebugEnabled()) {
+			log(Level.DEBUG, fmt, args);
+		}
+	}
+
+	/**
+	 * Filter trace logging.
+	 * 
+	 * @param fmt format
+	 * @param args arguments
+	 */
+	public void trace(String fmt, Object... args) {
+		if (logger.isTraceEnabled()) {
+			log(Level.TRACE, fmt, args);
+		}
+	}
+
+	private void log(Level level, String fmt, Object... args) {
 		boolean info;
-		Long extraInfo = null;
 		if (ENABLE) {
 			info = false;
 			long now = ClockUtil.nanoRealtime();
@@ -107,7 +131,11 @@ public class FilteredLogger {
 				} else {
 					startNanos = now;
 					if (!info) {
-						extraInfo = counter;
+						int length = args.length;
+						args = Arrays.copyOf(args, length + 1);
+						args[length] = counter;
+						fmt += " ({} additional errors.)";
+						info = true;
 					}
 					counter = 0;
 				}
@@ -116,19 +144,22 @@ public class FilteredLogger {
 			info = true;
 		}
 		if (info) {
-			if (warn) {
+			switch (level) {
+			case ERROR:
+				logger.error(fmt, args);
+				break;
+			case WARN:
 				logger.warn(fmt, args);
-			} else {
+				break;
+			case INFO:
 				logger.info(fmt, args);
-			}
-		} else if (extraInfo != null) {
-			int length = args.length;
-			args = Arrays.copyOf(args, length + 1);
-			args[length] = extraInfo;
-			if (warn) {
-				logger.warn(fmt + " ({} additional errors.)", args);
-			} else {
-				logger.info(fmt + " ({} additional errors.)", args);
+				break;
+			case DEBUG:
+				logger.debug(fmt, args);
+				break;
+			case TRACE:
+				logger.trace(fmt, args);
+				break;
 			}
 		}
 	}
