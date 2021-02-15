@@ -209,7 +209,7 @@ public class SslContextUtil {
 	 * @since 2.4
 	 */
 	@NotForAndroid
-	private static final TrustManager TRUST_ALL = new X509ExtendedTrustAllManager();
+	private static final TrustManager TRUST_ALL = new SimpleX509ExtendedTrustManager(new X509Certificate[0]);
 
 	static {
 		Asn1DerDecoder.getEdDsaProvider();
@@ -1099,11 +1099,35 @@ public class SslContextUtil {
 	 * Create trust manager trusting all.
 	 * 
 	 * @return trust manager trusting all
+	 * @see #createSimpleTrustManager(Certificate[])
 	 * @since 2.4
 	 */
 	@NotForAndroid
 	public static TrustManager[] createTrustAllManager() {
 		return new TrustManager[] { TRUST_ALL };
+	}
+
+	/**
+	 * Create simple trust manager from trusted certificates.
+	 * 
+	 * Validate certificate chains, but does not validate the destination by the
+	 * subject. Use with care! This usually requires, that no public trust root
+	 * is used!
+	 * 
+	 * @param trusts trusted certificates. If an empty array is provided, the
+	 *            trust anchor is not checked.
+	 * @return trust manager
+	 * @throws NullPointerException if trusted certificates is {@code null}.
+	 * @see #createTrustAllManager()
+	 * @since 3.0
+	 */
+	@NotForAndroid
+	public static TrustManager[] createSimpleTrustManager(Certificate[] trusts) throws GeneralSecurityException {
+		if (null == trusts) {
+			throw new NullPointerException("trusted certificates must be provided!");
+		}
+		X509Certificate[] x509trusts = asX509Certificates(trusts);
+		return new TrustManager[] { new SimpleX509ExtendedTrustManager(x509trusts) };
 	}
 
 	/**
@@ -1343,18 +1367,29 @@ public class SslContextUtil {
 	}
 
 	/**
-	 * Trust all manager.
+	 * Simple trust manager.
 	 * 
-	 * Validate certificate chain trusting all chain roots.
-	 * {@link X509ExtendedTrustAllManager#getAcceptedIssuers()} returns an empty
-	 * array.
+	 * Validate certificate chains, but does not validate the destination by the
+	 * subject. Use with care! This usually requires, that no public trust root
+	 * is used!
 	 * 
-	 * @since 2.4
+	 * @since 3.0 (was X509ExtendedTrustAllManager)
 	 */
 	@NotForAndroid
-	private static class X509ExtendedTrustAllManager extends X509ExtendedTrustManager {
+	private static class SimpleX509ExtendedTrustManager extends X509ExtendedTrustManager {
 
-		private static final X509Certificate[] NO_ISSUERS = new X509Certificate[0];
+		private final X509Certificate[] trusts;
+
+		/**
+		 * Create simple trust manager.
+		 * 
+		 * @param trusts trusted certificates. If an empty array is provided,
+		 *            the trust anchor is not checked.
+		 * @since 3.0
+		 */
+		private SimpleX509ExtendedTrustManager(X509Certificate[] trusts) {
+			this.trusts = trusts;
+		}
 
 		/**
 		 * Validate certificate chain trusting all chain roots.
@@ -1377,7 +1412,7 @@ public class SslContextUtil {
 				}
 				CertPath path = CertPathUtil.generateValidatableCertPath(Arrays.asList(chain), null);
 				try {
-					CertPathUtil.validateCertificatePathWithIssuer(false, path, NO_ISSUERS);
+					CertPathUtil.validateCertificatePathWithIssuer(true, path, trusts);
 					LOGGER.trace("check certificate {}[{}] for {} validated!", chain[0].getSubjectDN(),
 							chain.length,
 							client ? "client" : "server");
@@ -1405,7 +1440,7 @@ public class SslContextUtil {
 
 		@Override
 		public X509Certificate[] getAcceptedIssuers() {
-			return NO_ISSUERS;
+			return trusts;
 		}
 
 		@Override
