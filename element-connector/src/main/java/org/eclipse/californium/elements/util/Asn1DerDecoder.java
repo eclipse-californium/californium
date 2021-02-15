@@ -15,6 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
+import java.lang.reflect.InvocationTargetException;
 import java.math.BigInteger;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
@@ -306,7 +307,7 @@ public class Asn1DerDecoder {
 			try {
 				Class<?> clz = Class.forName(NET_I2P_CRYPTO_EDDSA + ".EdDSASecurityProvider");
 				if (clz != null) {
-					provider = (Provider) clz.newInstance();
+					provider = (Provider) clz.getDeclaredConstructor().newInstance();
 					Security.addProvider(provider);
 					ed25519 = true;
 					ed448 = false;
@@ -317,6 +318,14 @@ public class Asn1DerDecoder {
 			} catch (InstantiationException e2) {
 				cause = e2;
 			} catch (IllegalAccessException e2) {
+				cause = e2;
+			} catch (IllegalArgumentException e2) {
+				cause = e2;
+			} catch (InvocationTargetException e2) {
+				cause = e2;
+			} catch (NoSuchMethodException e2) {
+				cause = e2;
+			} catch (SecurityException e2) {
 				cause = e2;
 			}
 			if (provider == null) {
