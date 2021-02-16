@@ -54,7 +54,6 @@ SERVER_LARGE_KEY_STORE_P12=serverLarge.p12
 SERVER_RSA_KEY_STORE_P12=serverRsa.p12
 ROOT_TRUST_STORE_P12=rootTrustStore.p12
 
-
 # PEM 
 TRUST_STORE_PEM=trustStore.pem
 ROOT_TRUST_STORE_PEM=rootTrustStore.pem
@@ -228,6 +227,7 @@ export_pem() {
 } 
 
 copy_pem() {
+  echo "copy to californium-interoperability-tests"
   DESTINATION_DIR=../../../../californium-tests/californium-interoperability-tests
   cp $TRUST_STORE_PEM $DESTINATION_DIR
   cp $ROOT_TRUST_STORE_PEM $DESTINATION_DIR
@@ -239,6 +239,11 @@ copy_pem() {
   cp $SERVER_LARGE_KEY_STORE_PEM $DESTINATION_DIR
   cp $SERVER_RSA_KEY_STORE_PEM $DESTINATION_DIR
   cp $EC_PRIVATE_KEY_PEM $DESTINATION_DIR
+  echo "copy to cf-extplugtest-server"
+  DESTINATION_DIR=../../../../demo-apps/cf-extplugtest-server/service
+  cp $CA_TRUST_STORE_PEM $DESTINATION_DIR
+  cp $CLIENT_KEY_STORE_PEM $DESTINATION_DIR
+  cp $SERVER_KEY_STORE_PEM $DESTINATION_DIR
 }
 
 jobs () {
@@ -259,11 +264,6 @@ jobs () {
 	;;
   esac
 }
-
-openssl x509 -inform PEM -in $ROOT_TRUST_STORE_PEM -outform DER -out root.der
-openssl x509 -inform PEM -in $CA_TRUST_STORE_PEM -outform DER -out ca.der
-openssl x509 -inform PEM -in $CLIENT_KEY_STORE_PEM -outform DER -out $CLIENT_KEY_STORE_DER
-exit 1
 
 if [ -z "$1" ]  ; then
      echo "default: remove create export copy"
