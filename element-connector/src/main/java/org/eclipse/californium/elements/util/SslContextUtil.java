@@ -1110,9 +1110,9 @@ public class SslContextUtil {
 	/**
 	 * Create simple trust manager from trusted certificates.
 	 * 
-	 * Validate certificate chains, but does not validate the destination by the
-	 * subject. Use with care! This usually requires, that no public trust root
-	 * is used!
+	 * Validate certificate chains, but does not validate the destination using
+	 * the subject. Use with care! This usually requires, that no public trust
+	 * root is used!
 	 * 
 	 * @param trusts trusted certificates. If an empty array is provided, the
 	 *            trust anchor is not checked.
@@ -1413,7 +1413,7 @@ public class SslContextUtil {
 				CertPath path = CertPathUtil.generateValidatableCertPath(Arrays.asList(chain), null);
 				try {
 					CertPathUtil.validateCertificatePathWithIssuer(true, path, trusts);
-					LOGGER.trace("check certificate {}[{}] for {} validated!", chain[0].getSubjectDN(),
+					LOGGER.trace("check certificate {} [chain.length={}] for {} validated!", chain[0].getSubjectDN(),
 							chain.length,
 							client ? "client" : "server");
 				} catch (GeneralSecurityException e) {
