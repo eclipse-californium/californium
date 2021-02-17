@@ -1,0 +1,480 @@
+/*******************************************************************************
+ * Copyright (c) 2021 Bosch.IO GmbH and others.
+ * 
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v2.0
+ * and Eclipse Distribution License v1.0 which accompany this distribution.
+ * 
+ * The Eclipse Public License is available at
+ *    http://www.eclipse.org/legal/epl-v20.html
+ * and the Eclipse Distribution License is available at
+ *    http://www.eclipse.org/org/documents/edl-v10.html.
+ * 
+ * Contributors:
+ *    Bosch IO.GmbH - initial creation
+ ******************************************************************************/
+package org.eclipse.californium.cluster;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.net.InetAddress;
+import java.security.GeneralSecurityException;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Set;
+
+import javax.net.ssl.SSLContext;
+
+import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.scandium.DTLSConnector;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+
+/**
+ * K8s management API implementation.
+ *
+ * Uses k8s management API to list or read cluster-pods:
+ * 
+ * <ul>
+ * <li>{@code "${KUBECTL_HOST}/api/v1/namespaces/default/pods"}</li>
+ * <li>{@code "${KUBECTL_HOST}/api/v1/namespaces/${KUBECTL_NAMESPACE}/pods}"</li>
+ * <li>{@code "${KUBECTL_HOST}/api/v1/namespaces/${KUBECTL_NAMESPACE}/pods?labelSelector=${KUBECTL_SELECTOR}"}</li>
+ * <li>{@code "${KUBECTL_HOST}/api/v1/namespaces/${KUBECTL_NAMESPACE}/pods/name}"</li>
+ * </ul>
+ * 
+ * Supported environment variables:
+ * <dl>
+ * <dt>KUBECTL_NODE_ID</dt>
+ * <dd>node-id (number). Optional, if missing, extracted from the tail of the
+ * hostname.</dd>
+ * <dt>KUBECTL_HOST</dt>
+ * <dd>k8s API host. e.g. "https://10.152.183.1"</dd>
+ * <dt>KUBECTL_TOKEN</dt>
+ * <dd>bearer token for k8s API.</dd>
+ * <dt>KUBECTL_NAMESPACE</dt>
+ * <dd>namespace to select cluster pods. Optional, default is "default".</dd>
+ * </dl>
+ * 
+ * @since 3.0 (extracted from {@link K8sManagementDiscoverClient}.
+ */
+public abstract class K8sManagementClient {
+
+	private static final String K8S_API_VERSION = "v1";
+	private static final String KUBECTL_NODE_ID = "KUBECTL_NODE_ID";
+	private static final String KUBECTL_HOST = "KUBECTL_HOST";
+	private static final String KUBECTL_TOKEN = "KUBECTL_TOKEN";
+	private static final String KUBECTL_NAMESPACE = "KUBECTL_NAMESPACE";
+
+	/**
+	 * Logger.
+	 */
+	protected static final Logger LOGGER = LoggerFactory.getLogger(K8sManagementClient.class);
+
+	/**
+	 * Node-id of this {@link DTLSConnector}.
+	 */
+	private final int nodeId;
+	/**
+	 * Hostname.
+	 */
+	protected final String hostName;
+	/**
+	 * k8s API host URL. e.g. "https://10.152.183.1".
+	 */
+	private final String hostUrl;
+	/**
+	 * Bearer token for k8s API.
+	 */
+	private final String token;
+	/**
+	 * k8s namespace of cid-cluster pods.
+	 */
+	private final String namespace;
+	/**
+	 * http client ssl context.
+	 */
+	private final SSLContext sslContext;
+
+	/**
+	 * Create k8s management client.
+	 * 
+	 * @throws GeneralSecurityException if initializing ssl context fails
+	 * @throws IOException if loading trust store fails
+	 */
+	public K8sManagementClient() throws GeneralSecurityException, IOException {
+		this.hostName = InetAddress.getLocalHost().getHostName();
+		Integer node = null;
+		String id = StringUtil.getConfiguration(KUBECTL_NODE_ID);
+		if (id != null && !id.isEmpty()) {
+			try {
+				node = Integer.valueOf(id);
+			} catch (NumberFormatException ex) {
+				LOGGER.warn("KUBECTL_NODE_ID: {}", id, ex);
+			}
+		}
+		if (node == null) {
+			int pos = hostName.lastIndexOf("-");
+			if (pos >= 0) {
+				id = hostName.substring(pos + 1);
+				try {
+					node = Integer.valueOf(id);
+				} catch (NumberFormatException ex) {
+					LOGGER.warn("HOSTNAME: {}", hostName, ex);
+				}
+			}
+		}
+		if (node != null) {
+			nodeId = node;
+		} else {
+			throw new IllegalArgumentException("node-id not available!");
+		}
+		this.hostUrl = StringUtil.getConfiguration(KUBECTL_HOST);
+		this.token = StringUtil.getConfiguration(KUBECTL_TOKEN);
+		this.namespace = StringUtil.getConfiguration(KUBECTL_NAMESPACE);
+		LOGGER.info("Node-ID: {}, host: {}, namespace: {}", nodeId, hostUrl, namespace);
+		if (token != null) {
+			int len = token.length();
+			int end = len > 20 ? 10 : len / 2;
+			LOGGER.info("bearer token {}... ({} bytes)", token.substring(0, end), len);
+		} else {
+			LOGGER.info("no bearer token!");
+		}
+		sslContext = CredentialsUtil.getK8sHttpsClientContext();
+	}
+
+	/**
+	 * Get hostname.
+	 * 
+	 * @return hostname
+	 */
+	public String getHostName() {
+		return hostName;
+	}
+
+	/**
+	 * Get node-id.
+	 * 
+	 * @return node-id
+	 */
+	public int getNodeID() {
+		return nodeId;
+	}
+
+	/**
+	 * Execute http GET request.
+	 * 
+	 * @param url url of get request
+	 * @param token bearer token for authentication
+	 * @param sslContext ssl context to verify API server.
+	 * @return http result.
+	 * @throws IOException if an i/o error occurred.
+	 * @throws GeneralSecurityException if an security error occurred.
+	 */
+	public abstract HttpResult executeHttpRequest(String url, String token, SSLContext sslContext)
+			throws IOException, GeneralSecurityException;
+
+	/**
+	 * Get k8s management URL.
+	 * 
+	 * @return {@code "${KUBECTL_HOST}/api/v1/namespaces/${KUBECTL_NAMESPACE}}
+	 */
+	public String getK8sManagementUrl() {
+		StringBuilder url = new StringBuilder(hostUrl);
+		url.append("/api/v1/namespaces/");
+		if (namespace != null) {
+			url.append(namespace);
+		} else {
+			url.append("default");
+		}
+		return url.toString();
+	}
+
+	/**
+	 * Get pods from k8s API.
+	 * 
+	 * @param append text to append to the {@link #getK8sManagementUrl()}, or
+	 *            {@code null}.
+	 * @return set of pods. May be empty, if no matching pod is found.
+	 * @throws IOException if an i/o error occurs during the http GET
+	 * @throws GeneralSecurityException if an security error occurs during the
+	 *             http GET
+	 * @throws HttpResultException if the http result is not as expected
+	 */
+	public Set<Pod> getPods(String append) throws IOException, GeneralSecurityException, HttpResultException {
+		String url = getK8sManagementUrl() + "/pods";
+		if (append != null && !append.isEmpty()) {
+			url += append;
+		}
+		Set<Pod> pods = new HashSet<>();
+		HttpResult result = executeHttpRequest(url, token, sslContext);
+		try {
+			InputStream content = result.getContent();
+			if (content != null) {
+				// Get the response
+				Reader reader = new InputStreamReader(content);
+				JsonElement element = JsonParser.parseReader(reader);
+
+				if (LOGGER.isDebugEnabled()) {
+					GsonBuilder builder = new GsonBuilder();
+					builder.setPrettyPrinting();
+					Gson gson = builder.create();
+					LOGGER.trace("{}", gson.toJson(element));
+				}
+				String apiVersion = getApiVersion(element);
+				if (apiVersion == null) {
+					LOGGER.warn("API version unknown!");
+				} else if (!K8S_API_VERSION.equals(apiVersion)) {
+					LOGGER.warn("API version {} not support! Requires {}.", apiVersion, K8S_API_VERSION);
+				}
+
+				JsonElement childElement = getChild(element, "kind");
+				if (childElement != null) {
+					String kind = childElement.getAsString();
+					if (kind.equalsIgnoreCase("Pod")) {
+						Pod pod = getPod(element);
+						if (pod != null) {
+							pods.add(pod);
+						}
+					} else if (kind.equalsIgnoreCase("PodList")) {
+						childElement = getChild(element, "items");
+						if (childElement != null && childElement.isJsonArray()) {
+							JsonArray jsonArray = childElement.getAsJsonArray();
+							for (JsonElement item : jsonArray) {
+								Pod pod = getPod(item);
+								if (pod != null) {
+									pods.add(pod);
+								}
+							}
+						}
+					}
+				}
+
+				for (Pod pod : pods) {
+					LOGGER.debug("{}", pod);
+				}
+				LOGGER.debug("host: {}", hostName);
+			} else {
+				throw new HttpResultException(result);
+			}
+		} finally {
+			result.close();
+		}
+
+		return pods;
+	}
+
+	/**
+	 * Get api version from json.
+	 * 
+	 * @param item json item
+	 * @return api version, or {@code null}, if not available.
+	 */
+	private String getApiVersion(JsonElement item) {
+		JsonElement childElement = getChild(item, "apiVersion");
+		if (childElement != null) {
+			return childElement.getAsString();
+		}
+		return null;
+	}
+
+	/**
+	 * Get Pod from json.
+	 * 
+	 * @param item json item
+	 * @return Pod
+	 */
+	private Pod getPod(JsonElement item) {
+		String name = null;
+		Map<String, String> labels = null;
+		String phase = null;
+		boolean ready = false;
+		String group = null;
+		String address = null;
+		Set<String> addresses = new HashSet<>();
+		JsonElement childElement = getChild(item, "metadata/name");
+		if (childElement != null) {
+			name = childElement.getAsString();
+		}
+		childElement = getChild(item, "metadata/labels");
+		if (childElement != null && childElement.isJsonObject()) {
+			JsonObject labelsElement = childElement.getAsJsonObject();
+			Set<Entry<String, JsonElement>> set = labelsElement.entrySet();
+			labels = new HashMap<>(set.size());
+			for (Entry<String, JsonElement> label : set) {
+				labels.put(label.getKey(), label.getValue().getAsString());
+			}
+			group = labels.get("controller-revision-hash");
+			if (group == null) {
+				group = labels.get("pod-template-hash");
+			}
+			if (group == null) {
+				group = labels.get("deployment");
+			}
+		}
+		childElement = getChild(item, "status/phase");
+		if (childElement != null) {
+			phase = childElement.getAsString();
+		}
+		childElement = getChild(item, "status/podIP");
+		if (childElement != null) {
+			address = childElement.getAsString();
+			addresses.add(address);
+		}
+		childElement = getChild(item, "status/podIPs");
+		if (childElement != null && childElement.isJsonArray()) {
+			JsonArray ipArray = childElement.getAsJsonArray();
+			for (JsonElement ip : ipArray) {
+				if (ip.isJsonObject()) {
+					childElement = getChild(ip, "ip");
+					if (childElement != null) {
+						String multiAddress = childElement.getAsString();
+						if (address == null) {
+							address = multiAddress;
+						}
+						addresses.add(multiAddress);
+					}
+				}
+			}
+		}
+		childElement = getChild(item, "status/conditions");
+		if (childElement != null && childElement.isJsonArray()) {
+			JsonArray conditions = childElement.getAsJsonArray();
+			for (JsonElement condition : conditions) {
+				if (condition.isJsonObject()) {
+					JsonElement typeElement = getChild(condition, "type");
+					JsonElement statusElement = getChild(condition, "status");
+					if (typeElement != null && statusElement != null) {
+						if (typeElement.getAsString().equalsIgnoreCase("Ready")) {
+							ready = statusElement.getAsString().equalsIgnoreCase("True");
+						}
+					}
+				}
+			}
+		}
+		return new Pod(name, labels, group, phase, ready, address, addresses);
+	}
+
+	/**
+	 * Get child element.
+	 * 
+	 * @param element base element
+	 * @param path path to child
+	 * @return child element, or {@code null}, if not available.
+	 */
+	private JsonElement getChild(JsonElement element, String path) {
+		String[] pathItems = path.split("/");
+		return getChild(element, pathItems, 0);
+	}
+
+	/**
+	 * Get child element from sub-path.
+	 * 
+	 * @param element base element
+	 * @param path path array
+	 * @param pathIndex current index in path array.
+	 * @return child element, or {@code null}, if not available.
+	 */
+	private JsonElement getChild(JsonElement element, String[] path, int pathIndex) {
+		JsonElement current = null;
+		String name = path[pathIndex];
+		if (element.isJsonArray()) {
+			JsonArray jsonArray = element.getAsJsonArray();
+			int index = Integer.parseInt(name);
+			current = jsonArray.get(index);
+		} else if (element.isJsonObject()) {
+			JsonObject jsonObject = element.getAsJsonObject();
+			current = jsonObject.get(name);
+		}
+		if (current != null && pathIndex + 1 < path.length) {
+			return getChild(current, path, pathIndex + 1);
+		}
+		return current;
+	}
+
+	/**
+	 * k8s API information of pods.
+	 */
+	public static class Pod {
+
+		/**
+		 * Name of pod.
+		 */
+		public final String name;
+		/**
+		 * Labels of pods.
+		 */
+		public final Map<String, String> labels;
+		/**
+		 * Group tag of pod. Either value of
+		 * "metadata/labels/controller-revision-hash",
+		 * "metadata/labels/pod-template-hash", or "metadata/labels/deployment".
+		 */
+		public final String group;
+		/**
+		 * Status phase of pod.
+		 */
+		public final String phase;
+		/**
+		 * Ready status of pod.
+		 */
+		public final boolean ready;
+		/**
+		 * ip-address of pod.
+		 */
+		public final String address;
+		/**
+		 * List of ip-addresses of pod.
+		 */
+		public final Set<String> addresses;
+
+		/**
+		 * Create pod information instance.
+		 * 
+		 * @param name pod name
+		 * @param label pod label
+		 * @param group pod group
+		 * @param phase status phase
+		 * @param address pod address
+		 * @param addresses pod addresses
+		 */
+		private Pod(String name, Map<String, String> labels, String group, String phase, boolean ready, String address,
+				Set<String> addresses) {
+			this.name = name;
+			this.labels = labels;
+			this.group = group;
+			this.phase = phase;
+			this.ready = ready;
+			this.address = address;
+			this.addresses = addresses;
+		}
+
+		@Override
+		public String toString() {
+			StringBuilder builder = new StringBuilder("pod: ");
+			builder.append(name).append(", group: ").append(group).append(", phase: ").append(phase);
+			builder.append(ready ? " - ready" : " - not ready");
+			if (addresses.size() > 1) {
+				builder.append(StringUtil.lineSeparator());
+				builder.append("   ip: ");
+				for (String maddress : addresses) {
+					builder.append(maddress).append(",");
+				}
+				builder.setLength(builder.length() - 1);
+			} else {
+				builder.append(", ip: ").append(address);
+			}
+			return builder.toString();
+		}
+	}
+}

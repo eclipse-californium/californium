@@ -16,12 +16,8 @@
 package org.eclipse.californium.cluster;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
 import java.security.GeneralSecurityException;
 
-import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLContext;
 
 /**
@@ -44,23 +40,9 @@ public class K8sManagementDiscoverJdkClient extends K8sManagementDiscoverClient 
 	}
 
 	@Override
-	public InputStream getPods(String url, String token, SSLContext sslContext)
+	public HttpResult executeHttpRequest(String url, String token, SSLContext sslContext)
 			throws IOException, GeneralSecurityException {
 
-		URL get = new URL(url);
-		HttpsURLConnection con = (HttpsURLConnection) get.openConnection();
-		con.setSSLSocketFactory(sslContext.getSocketFactory());
-		con.setRequestProperty("Authorization", "Bearer " + token);
-		con.setConnectTimeout(CONNECT_TIMEOUT_MILLIS);
-		con.setReadTimeout(REQUEST_TIMEOUT_MILLIS);
-		int responseCode = con.getResponseCode();
-		LOGGER.info("Sending 'GET' request to URL : {}", url);
-		LOGGER.info("Response Code : {} - {}", responseCode, con.getResponseMessage());
-		InputStream inputStream = con.getInputStream();
-		if (responseCode == HttpURLConnection.HTTP_OK) {
-			return inputStream;
-		}
-		inputStream.close();
-		return null;
+		return new JdkHttpClient().get(url, token, sslContext);
 	}
 }

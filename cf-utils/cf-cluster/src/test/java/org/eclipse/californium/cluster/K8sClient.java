@@ -39,7 +39,7 @@ public class K8sClient {
 		System.setProperty("KUBECTL_NODE_ID", "10");
 		System.setProperty("KUBECTL_HOST", "https://10.152.183.1");
 		System.setProperty("KUBECTL_NAMESPACE", "cali");
-		System.setProperty("KUBECTL_SELECTOR", "app%3Dcf-extserver");
+		System.setProperty("KUBECTL_SELECTOR_LABEL", "controller-revision-hash");
 		try {
 			K8sManagementDiscoverClient client = new K8sManagementDiscoverJdkClient(5885);
 			List<InetSocketAddress> discoverScope = client.getClusterNodesDiscoverScope();

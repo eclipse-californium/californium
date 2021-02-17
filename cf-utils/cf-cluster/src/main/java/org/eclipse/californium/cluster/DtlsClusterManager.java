@@ -58,7 +58,7 @@ import org.slf4j.LoggerFactory;
  * 
  * @since 2.5
  */
-public class DtlsClusterManager {
+public class DtlsClusterManager implements Readiness {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(DtlsClusterManager.class);
 
@@ -70,6 +70,10 @@ public class DtlsClusterManager {
 	 * Type of cluster management node-id response.
 	 */
 	private static final byte MAGIC_ID_PONG = (byte) 60;
+	/**
+	 * Size of ping/pong message.
+	 */
+	private static final int PING_PONG_MESSAGE_SIZE = 6;
 	/**
 	 * Protocol for cluster management.
 	 */
@@ -105,6 +109,11 @@ public class DtlsClusterManager {
 	private final DtlsClusterManagerConfig configuration;
 
 	/**
+	 * Random for order of messages.
+	 */
+	private final Random rand = new Random(ClockUtil.nanoRealtime());
+
+	/**
 	 * Logging callback for sending cluster management messages.
 	 */
 	private final MessageCallback messageLoggingCallback = new MessageCallback() {
@@ -136,6 +145,8 @@ public class DtlsClusterManager {
 	};
 
 	private final EndpointContextMatcher matcher;
+
+	private volatile boolean ready;
 
 	/**
 	 * Schedule for cluster management timer.
@@ -179,6 +190,18 @@ public class DtlsClusterManager {
 	}
 
 	/**
+	 * {@inheritDoc}
+	 * 
+	 * Reports ready, if all
+	 * {@link ClusterNodesDiscover#getInitialClusterNodes()} are initially
+	 * discovered.
+	 */
+	@Override
+	public boolean isReady() {
+		return ready;
+	}
+
+	/**
 	 * Start cluster manager.
 	 * 
 	 * Schedule timer with
@@ -189,6 +212,7 @@ public class DtlsClusterManager {
 			return;
 		}
 		long intervalMillis = configuration.getTimerIntervalMillis();
+		long initialDelay = Math.min(intervalMillis / 2, 100);
 		schedule = timer.scheduleWithFixedDelay(new Runnable() {
 
 			@Override
@@ -199,7 +223,7 @@ public class DtlsClusterManager {
 					LOGGER.warn("cluster-node {}: discover", tag, t);
 				}
 			}
-		}, intervalMillis / 2, intervalMillis, TimeUnit.MILLISECONDS);
+		}, initialDelay, intervalMillis, TimeUnit.MILLISECONDS);
 	}
 
 	/**
@@ -214,6 +238,24 @@ public class DtlsClusterManager {
 		}
 	}
 
+	private ClusterState checkState(int size, ClusterState foreignState) {
+		if (ready) {
+			return ClusterState.INITIALIZED;
+		}
+		int nodes = discoverScope.getInitialClusterNodes();
+		if (foreignState != null && foreignState == ClusterState.INITIALIZED) {
+			LOGGER.info("cluster-node {}: {}/{} nodes => cluster initialized!", tag, size, nodes);
+			return ClusterState.INITIALIZED;
+		}
+		if (size >= nodes) {
+			LOGGER.info("cluster-node {}: {}/{} nodes => cluster up!", tag, size, nodes);
+			return ClusterState.UP;
+		} else {
+			LOGGER.info("cluster-node {}: {}/{} nodes.", tag, size, nodes);
+			return ClusterState.START;
+		}
+	}
+
 	/**
 	 * Process cluster management data.
 	 * 
@@ -223,18 +265,23 @@ public class DtlsClusterManager {
 		final byte[] data = clusterData.getBytes();
 
 		final byte type = data[0];
-		if (clusterData.getSize() < 5) {
+		if (clusterData.getSize() < 6) {
 			// nothing to do
 			return;
 		}
+		int count = 0;
+		ClusterState state = ClusterState.START;
 		InetSocketAddress router = (InetSocketAddress) clusterData.getInetSocketAddress();
 		if (type == MAGIC_ID_PING) {
 			int foreignNodeId = decodePingPong(data);
 			if (nodeId != foreignNodeId) {
-				nodesDiscoverer.update(foreignNodeId, router, clusterData.getEndpointContext(), matcher);
-				LOGGER.info("cluster-node {}: >update node {} to {}", tag, foreignNodeId, router);
+				ClusterState foreignState = decodePingPongState(data);
+				count = nodesDiscoverer.update(foreignNodeId, router, clusterData.getEndpointContext(), matcher,
+						foreignState);
+				LOGGER.info("cluster-node {}: >update node {}/{} to {}", tag, foreignNodeId, foreignState, router);
 				// reset packet size
-				encodePingPong(data, MAGIC_ID_PONG, nodeId);
+				state = checkState(count + 1, foreignState);
+				encodePingPong(data, MAGIC_ID_PONG, nodeId, state);
 				RawData outbound = RawData.outbound(data, clusterData.getEndpointContext(), null, false);
 				clusterConnector.getClusterManagementConnector().send(outbound);
 			} else {
@@ -242,8 +289,22 @@ public class DtlsClusterManager {
 			}
 		} else if (type == MAGIC_ID_PONG) {
 			int foreignNodeId = decodePingPong(data);
-			nodesDiscoverer.update(foreignNodeId, router, clusterData.getEndpointContext(), matcher);
-			LOGGER.info("cluster-node {}: <update node {} to {}", tag, foreignNodeId, router);
+			ClusterState foreignState = decodePingPongState(data);
+			count = nodesDiscoverer.update(foreignNodeId, router, clusterData.getEndpointContext(), matcher,
+					foreignState);
+			state = checkState(count + 1, foreignState);
+			LOGGER.info("cluster-node {}: <update node {}/{} to {}", tag, foreignNodeId, foreignState, router);
+		}
+		if (!ready && state.isUp()) {
+			count = nodesDiscoverer.up() + 1;
+			int nodes = discoverScope.getInitialClusterNodes();
+			if (count >= nodes || state == ClusterState.INITIALIZED) {
+				LOGGER.info("cluster-node {}: {}/{} nodes up => cluster ready!", tag, count, nodes);
+				ready = true;
+				nodesDiscoverer.flush(clusterConnector.getClusterManagementConnector());
+			} else {
+				LOGGER.info("cluster-node {}: {}/{} nodes up.", tag, count, nodes);
+			}
 		}
 	}
 
@@ -263,18 +324,36 @@ public class DtlsClusterManager {
 	}
 
 	/**
+	 * Decode node-id from {@link #MAGIC_ID_PING} or {@link #MAGIC_ID_PING}
+	 * messages.
+	 * 
+	 * @param data received cluster management data
+	 * @return node-id
+	 */
+	private static ClusterState decodePingPongState(byte[] data) {
+		int num = data[5] & 0xff;
+		for (ClusterState state : ClusterState.values()) {
+			if (state.ordinal() == num) {
+				return state;
+			}
+		}
+		return null;
+	}
+
+	/**
 	 * Encode type and node-id.
 	 * 
 	 * @param data cluster management data to send
 	 * @param type {@link #MAGIC_ID_PING} or {@link #MAGIC_ID_PING}
 	 * @param nodeId node-id
 	 */
-	private static void encodePingPong(byte[] data, byte type, int nodeId) {
+	private static void encodePingPong(byte[] data, byte type, int nodeId, ClusterState state) {
 		data[0] = type;
 		data[1] = (byte) (nodeId);
 		data[2] = (byte) (nodeId >> 8);
 		data[3] = (byte) (nodeId >> 16);
 		data[4] = (byte) (nodeId >> 24);
+		data[5] = (byte) state.ordinal();
 	}
 
 	/**
@@ -292,6 +371,13 @@ public class DtlsClusterManager {
 		 */
 		List<InetSocketAddress> getClusterNodesDiscoverScope();
 
+		/**
+		 * Get initial number of dtls-nodes in cluster.
+		 * 
+		 * @return initial number of dtls-nodes.
+		 * @since 3.0
+		 */
+		int getInitialClusterNodes();
 	}
 
 	/**
@@ -302,7 +388,7 @@ public class DtlsClusterManager {
 		/**
 		 * Buffer for cluster management message.
 		 */
-		private final byte[] discoverBuffer = new byte[5];
+		private final byte[] discoverBuffer = new byte[PING_PONG_MESSAGE_SIZE];
 		/**
 		 * Map of node-ids to nodes.
 		 */
@@ -311,10 +397,6 @@ public class DtlsClusterManager {
 		 * Map of management interface addresses to nodes.
 		 */
 		private final ConcurrentMap<InetSocketAddress, Node> nodesByAddress = new ConcurrentHashMap<>();
-		/**
-		 * Random for order of messages.
-		 */
-		private final Random rand = new Random(ClockUtil.nanoRealtime());
 		/**
 		 * Nanos of next discover operation.
 		 */
@@ -346,9 +428,10 @@ public class DtlsClusterManager {
 		 * 
 		 * @param nodeId node-id
 		 * @param address cluster management interface address
+		 * @return number of current cluster nodes in map.
 		 */
-		public synchronized void update(int nodeId, InetSocketAddress address, EndpointContext context,
-				EndpointContextMatcher matcher) {
+		public synchronized int update(int nodeId, InetSocketAddress address, EndpointContext context,
+				EndpointContextMatcher matcher, ClusterState state) {
 			if (DtlsClusterManager.this.nodeId == nodeId) {
 				throw new IllegalArgumentException("Own node ID not supported!");
 			}
@@ -357,11 +440,22 @@ public class DtlsClusterManager {
 				iNode = new Node(nodeId);
 				nodesById.put(nodeId, iNode);
 			}
-			iNode.update(address, context, matcher);
+			iNode.update(address, context, matcher, state);
 			Node aNode = nodesByAddress.put(address, iNode);
 			if (aNode != null && aNode != iNode) {
 				nodesById.remove(nodeId, aNode);
 			}
+			return nodesById.size();
+		}
+
+		public synchronized int up() {
+			int count = 0;
+			for (Node node : nodesById.values()) {
+				if (node.getState().isUp()) {
+					++count;
+				}
+			}
+			return count;
 		}
 
 		/**
@@ -383,13 +477,48 @@ public class DtlsClusterManager {
 			synchronized (rand) {
 				if (clusterManagementConnector != null && clusterManagementConnector.isRunning()) {
 					long now = ClockUtil.nanoRealtime();
-					encodePingPong(discoverBuffer, MAGIC_ID_PING, nodeId);
+					ClusterState state = checkState(nodesById.size() + 1, null);
+					encodePingPong(discoverBuffer, MAGIC_ID_PING, nodeId, state);
 					boolean discover = refresh(now, clusterManagementConnector) || nodesById.isEmpty()
 							|| nextDiscover - now <= 0;
 					if (discover && clusterManagementConnector.isRunning()) {
 						discover(clusterManagementConnector);
 						nextDiscover = ClockUtil.nanoRealtime()
 								+ TimeUnit.MILLISECONDS.toNanos(configuration.getDiscoverIntervalMillis());
+					}
+				}
+			}
+		}
+
+		/**
+		 * Flush nodes.
+		 * 
+		 * Send current state immediately.
+		 * 
+		 * @param clusterManagementConnector connector for cluster management
+		 * @since 3.0
+		 */
+		public void flush(Connector clusterManagementConnector) {
+			synchronized (rand) {
+				if (clusterManagementConnector != null && clusterManagementConnector.isRunning()) {
+					ClusterState state = checkState(nodesById.size() + 1, null);
+					encodePingPong(discoverBuffer, MAGIC_ID_PING, nodeId, state);
+					List<Node> nodes = new ArrayList<>();
+					for (Node node : nodesById.values()) {
+						if (node.nodeId == nodeId) {
+							// self, not intended to be included
+						} else {
+							nodes.add(node);
+						}
+					}
+					while (!nodes.isEmpty()) {
+						int pos = rand.nextInt(nodes.size());
+						Node node = nodes.remove(pos);
+						if (clusterManagementConnector.isRunning()) {
+							RawData outbound = RawData.outbound(discoverBuffer, node.context, messageLoggingCallback, false);
+							clusterManagementConnector.send(outbound);
+							LOGGER.info("cluster-node {}: update node {} at {}", tag, node.nodeId, node.address);
+						}
 					}
 				}
 			}
@@ -487,6 +616,8 @@ public class DtlsClusterManager {
 		 */
 		private EndpointContext context;
 
+		private ClusterState state;
+
 		/**
 		 * Create node.
 		 * 
@@ -503,7 +634,7 @@ public class DtlsClusterManager {
 		 * @param address cluster management interface address
 		 */
 		private synchronized void update(InetSocketAddress address, EndpointContext context,
-				EndpointContextMatcher matcher) {
+				EndpointContextMatcher matcher, ClusterState state) {
 			this.address = address;
 			if (this.context == null) {
 				this.context = context;
@@ -511,6 +642,7 @@ public class DtlsClusterManager {
 				matcher.isResponseRelatedToRequest(this.context, context);
 			}
 			this.time = ClockUtil.nanoRealtime();
+			this.state = state;
 		}
 
 		/**
@@ -523,6 +655,18 @@ public class DtlsClusterManager {
 		private synchronized boolean isBefore(long timeNanos) {
 			return timeNanos - time > 0;
 		}
+
+		private ClusterState getState() {
+			return state;
+		}
 	}
 
+	enum ClusterState {
+
+		START, UP, INITIALIZED;
+
+		public boolean isUp() {
+			return this == UP || this == INITIALIZED;
+		}
+	}
 }

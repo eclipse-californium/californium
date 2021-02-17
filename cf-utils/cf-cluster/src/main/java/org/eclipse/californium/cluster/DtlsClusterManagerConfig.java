@@ -35,13 +35,13 @@ public final class DtlsClusterManagerConfig {
 	 * 
 	 * @see #refreshIntervalMillis
 	 */
-	public static final long DEFAULT_REFRESH_INTERVAL_MILLIS = 6000;
+	public static final long DEFAULT_REFRESH_INTERVAL_MILLIS = 4000;
 	/**
 	 * Default discover interval in milliseconds.
 	 * 
 	 * @see #discoverIntervalMillis
 	 */
-	public static final long DEFAULT_DISCOVER_INTERVAL_MILLIS = 30000;
+	public static final long DEFAULT_DISCOVER_INTERVAL_MILLIS = 10000;
 
 	/**
 	 * Timer interval in milliseconds.
@@ -237,7 +237,7 @@ public final class DtlsClusterManagerConfig {
 				config.refreshIntervalMillis = DEFAULT_REFRESH_INTERVAL_MILLIS;
 			}
 			if (config.expirationTimeMillis == null) {
-				config.expirationTimeMillis = config.timerIntervalMillis * 2;
+				config.expirationTimeMillis = config.refreshIntervalMillis + config.timerIntervalMillis;
 			}
 			if (config.discoverIntervalMillis == null) {
 				config.discoverIntervalMillis = DEFAULT_DISCOVER_INTERVAL_MILLIS;
