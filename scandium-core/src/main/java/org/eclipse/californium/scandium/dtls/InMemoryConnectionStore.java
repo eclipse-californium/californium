@@ -161,9 +161,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 	 *            which a connection is considered stale and can be evicted from
 	 *            the store if a new connection is to be added to the store
 	 * @param sessionCache a second level cache to use for <em>current</em>
-	 *            connection state of established DTLS sessions. If implements
-	 *            {@link ClientSessionCache}, restore connection from the cache
-	 *            and mark them to resume.
+	 *            connection state of established DTLS sessions.
 	 */
 	public InMemoryConnectionStore(int capacity, long threshold, SessionCache sessionCache) {
 		this.connections = new LeastRecentlyUsedCache<>(capacity, threshold);
@@ -415,7 +413,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 
 				} else if (conFromLocalCache == null) {
 					// this probably means that we are taking over the session from a failed node
-					Connection connection = new Connection(new DTLSSession(id, ticket), null);
+					Connection connection = new Connection(new DTLSSession(id, ticket));
 					SecretUtil.destroy(ticket);
 					return connection;
 					// connection will be put to first level cache as part of
@@ -633,7 +631,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 
 	@WipAPI
 	@Override
-	public int saveConnections(OutputStream out, long maxAgeInSeconds) throws IOException {
+	public int saveConnections(OutputStream out, long maxQuietPeriodInSeconds) throws IOException {
 		int count = 0;
 		DatagramWriter writer = new DatagramWriter(4096);
 		long startNanos = ClockUtil.nanoRealtime();
@@ -642,11 +640,11 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 			while (iterator.hasNext()) {
 				Timestamped<Connection> connection = iterator.next();
 				long updateNanos = connection.getLastUpdate();
-				long age = TimeUnit.NANOSECONDS.toSeconds(startNanos - updateNanos);
-				if (age > maxAgeInSeconds) {
-					LOGGER.trace("{}skip {} ts, {}s too aged!", tag, updateNanos, age);
+				long quiet = TimeUnit.NANOSECONDS.toSeconds(startNanos - updateNanos);
+				if (quiet > maxQuietPeriodInSeconds) {
+					LOGGER.trace("{}skip {} ts, {}s too quiet!", tag, updateNanos, quiet);
 				} else {
-					LOGGER.trace("{}write {} ts, {}s ", tag, updateNanos, age);
+					LOGGER.trace("{}write {} ts, {}s ", tag, updateNanos, quiet);
 					if (connection.getValue().write(writer)) {
 						writer.writeTo(out);
 						++count;

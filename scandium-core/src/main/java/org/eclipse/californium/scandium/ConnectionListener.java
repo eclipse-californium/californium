@@ -27,7 +27,7 @@ import org.eclipse.californium.scandium.dtls.Connection;
  * executer.
  * 
  * <pre>
- * @Override
+ * &#64;Override
  * public void onConnectionEstablished(Connection connection) {
  *    // access the data 
  *    // get immutable data 
@@ -37,7 +37,7 @@ import org.eclipse.californium.scandium.dtls.Connection;
  *    connection.write(writer);
  *    // delegate processing
  *    myAppExecuter.execute(new Runnable() {
- *       @Override
+ *       &#64;Override
  *       public void run() {
  *          // process the data asynchronous
  *          ... id.getBytes() ...

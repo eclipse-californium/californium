@@ -1154,11 +1154,11 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 
 	@WipAPI
 	@Override
-	public int saveConnections(OutputStream out, long maxAgeInSeconds) throws IOException {
+	public int saveConnections(OutputStream out, long maxQuietPeriodInSeconds) throws IOException {
 		if (isRunning()) {
 			throw new IllegalStateException("Connector is running, save not possible!");
 		}
-		return connectionStore.saveConnections(out, maxAgeInSeconds);
+		return connectionStore.saveConnections(out, maxQuietPeriodInSeconds);
 	}
 
 	@WipAPI

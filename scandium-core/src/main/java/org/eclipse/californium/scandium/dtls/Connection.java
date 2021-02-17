@@ -145,17 +145,14 @@ public final class Connection {
 	 * The connection is not {@link #isExecuting()}.
 	 * 
 	 * @param session The other connection's session.
-	 * @param peerAddress optional peer address for {@link ClientSessionCache}.
-	 *            May be {@code null}.
 	 * @throws NullPointerException if the session is {@code null}
 	 */
-	public Connection(DTLSSession session, InetSocketAddress peerAddress) {
+	public Connection(DTLSSession session) {
 		if (session == null) {
 			throw new NullPointerException("session must not be null");
 		} else {
 			this.resumeSession = session;
 			this.resumptionRequired = true;
-			this.peerAddress = peerAddress;
 			this.cid = null;
 			this.serialExecutor = null;
 		}
@@ -225,7 +222,7 @@ public final class Connection {
 	 * Gets the serial executor assigned to this connection.
 	 * 
 	 * @return serial executor. May be {@code null}, if the connection was
-	 *         created with {@link #Connection(DTLSSession, InetSocketAddress)}
+	 *         created with {@link #Connection(DTLSSession)}
 	 *         or restored on startup.
 	 */
 	public SerialExecutor getExecutor() {

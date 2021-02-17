@@ -51,7 +51,7 @@ public class SecretSerializationUtil {
 	 * Read secret key.
 	 * 
 	 * @param reader reader to read
-	 * @return read secret key, or {@code null}, if {@link null} was written.
+	 * @return read secret key, or {@code null}, if {@code null} was written.
 	 * @throws IllegalArgumentException if the data is erroneous
 	 */
 	public static SecretKey readSecretKey(DatagramReader reader) {

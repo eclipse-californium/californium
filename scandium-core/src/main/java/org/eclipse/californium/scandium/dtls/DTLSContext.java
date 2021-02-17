@@ -777,11 +777,15 @@ public final class DTLSContext implements Destroyable {
 	/**
 	 * Write DTLS context state.
 	 * 
+	 * Only writes state, if not already marked as closed.
+	 * 
 	 * Note: the stream will contain not encrypted critical credentials. It is
 	 * required to protect this data before exporting it. The encoding of the
 	 * content may also change in the future.
 	 * 
 	 * @param writer writer for DTLS context state
+	 * @return {@code true}, if connection was written, {@code false},
+	 *         otherwise, if the dtls context is marked as closed.
 	 */
 	@WipAPI
 	public boolean write(DatagramWriter writer) {
