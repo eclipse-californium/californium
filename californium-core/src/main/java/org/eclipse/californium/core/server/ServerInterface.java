@@ -40,7 +40,15 @@ import org.eclipse.californium.core.server.resources.Resource;
 public interface ServerInterface {
 
 	// be a server
-	
+
+	/**
+	 * Server is running.
+	 * 
+	 * @return {@code true}, if running, {@code false}, otherwise.
+	 * @since 3.0
+	 */
+	boolean isRunning();
+
 	/**
 	 * Starts the server by starting all endpoints this server is assigned to.
 	 * Each endpoint binds to its port. If no endpoint is assigned to the

@@ -142,7 +142,7 @@ public class CoapServer implements ServerInterface {
 	 */
 	private boolean detachExecutor;
 
-	private boolean running;
+	private volatile boolean running;
 
 	private volatile String tag;
 
@@ -235,6 +235,11 @@ public class CoapServer implements ServerInterface {
 		}
 	}
 
+	@Override
+	public boolean isRunning() {
+		return running;
+	}
+
 	/**
 	 * Starts the server by starting all endpoints this server is assigned to.
 	 * Each endpoint binds to its port. If no endpoint is assigned to the
@@ -294,12 +299,12 @@ public class CoapServer implements ServerInterface {
 	public synchronized void stop() {
 
 		if (running) {
+			running = false;
 			LOGGER.info("{}Stopping server ...", getTag());
 			for (Endpoint ep : endpoints) {
 				ep.stop();
 			}
 			LOGGER.info("{}Stopped server.", getTag());
-			running = false;
 		}
 	}
 
