@@ -36,8 +36,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
-import javax.crypto.SecretKey;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,6 +46,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.server.ServerInterface;
 import org.eclipse.californium.core.server.ServerMessageDeliverer;
+import org.eclipse.californium.core.server.ServersSerializationUtil;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.DiscoveryResource;
 import org.eclipse.californium.core.server.resources.Resource;
@@ -59,6 +58,7 @@ import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.SerializationUtil;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.elements.util.WipAPI;
 
 /**
  * An execution environment for CoAP {@link Resource}s.
@@ -475,13 +475,22 @@ public class CoapServer implements ServerInterface {
 	 * Each entry contains the {@link #tag}, followed by the
 	 * {@link Endpoint#getUri()} as ASCII string.
 	 * 
+	 * Note: this is "Work In Progress"; the stream will contain not encrypted
+	 * critical credentials. It is required to protect this data before
+	 * exporting it. The encoding of the content may also change in the future.
+	 * 
 	 * @param out output stream to write to
-	 * @param maxAgeInSeconds maximum age in seconds
+	 * @param maxQuietPeriodInSeconds maximum quiet period of the connections in
+	 *            seconds. Connections without traffic for that time are skipped
+	 *            during serialization.
 	 * @return number of saved connections.
 	 * @throws IOException if an i/o-error occurred
+	 * @see ServersSerializationUtil#saveServers(OutputStream, long, List)
+	 * @see PersistentConnector#saveConnections(OutputStream, long)
 	 * @since 3.0
 	 */
-	public int saveAllConnectors(OutputStream out, long maxAgeInSeconds) throws IOException {
+	@WipAPI
+	public int saveAllConnectors(OutputStream out, long maxQuietPeriodInSeconds) throws IOException {
 		stop();
 		int count = 0;
 		DatagramWriter writer = new DatagramWriter();
@@ -493,7 +502,7 @@ public class CoapServer implements ServerInterface {
 					SerializationUtil.write(writer, getTag(), Byte.SIZE);
 					SerializationUtil.write(writer, endpoint.getUri().toASCIIString(), Byte.SIZE);
 					writer.writeTo(out);
-					int saved = ((PersistentConnector) connector).saveConnections(out, maxAgeInSeconds);
+					int saved = ((PersistentConnector) connector).saveConnections(out, maxQuietPeriodInSeconds);
 					count += saved;
 				}
 			}
@@ -509,9 +518,12 @@ public class CoapServer implements ServerInterface {
 	 *         is left.
 	 * @throws IOException if the stream doesn't contain a valid connector
 	 *             identifier.
-	 * @see #loadConnector(ConnectorIdentifier, InputStream, SecretKey)
+	 * @see #loadConnector(ConnectorIdentifier, InputStream, long)
+	 * @see ServersSerializationUtil#loadServers(InputStream, List)
+	 * @see PersistentConnector#loadConnections(InputStream, long)
 	 * @since 3.0
 	 */
+	@WipAPI
 	public static ConnectorIdentifier readConnectorIdentifier(InputStream in) throws IOException {
 		DataStreamReader reader = new DataStreamReader(in);
 		String mark = SerializationUtil.readString(reader, Byte.SIZE);
@@ -541,13 +553,19 @@ public class CoapServer implements ServerInterface {
 	 * 
 	 * @param identifier connector's identifier
 	 * @param in input stream
-	 * @param detla adaption-delta for nano-uptime. In nanoseconds
+	 * @param delta adjust-delta for nano-uptime. In nanoseconds. The stream
+	 *            contains timestamps based on nano-uptime. On loading, this
+	 *            requires to adjust these timestamps according the current nano
+	 *            uptime and the passed real time.
 	 * @return number of read connections, {@code -1}, if no persistent
 	 *         connector is available for the provided uri.
 	 * @throws IOException if an i/o-error occurred
 	 * @see #readConnectorIdentifier(InputStream)
+	 * @see ServersSerializationUtil#loadServers(InputStream, List)
+	 * @see PersistentConnector#loadConnections(InputStream, long)
 	 * @since 3.0
 	 */
+	@WipAPI
 	public int loadConnector(ConnectorIdentifier identifier, InputStream in, long delta) throws IOException {
 		Endpoint endpoint = getEndpoint(identifier.uri);
 		if (endpoint == null) {

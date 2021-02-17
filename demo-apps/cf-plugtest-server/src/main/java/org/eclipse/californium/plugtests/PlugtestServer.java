@@ -60,13 +60,13 @@ import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.core.network.interceptors.AnonymizedOriginTracer;
 import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
+import org.eclipse.californium.core.server.ServersSerializationUtil;
 import org.eclipse.californium.elements.tcp.netty.TlsServerConnector.ClientAuthMode;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DataStreamReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
-import org.eclipse.californium.elements.util.SerializationUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.plugtests.resources.Context;
 import org.eclipse.californium.plugtests.resources.Create;
@@ -96,8 +96,8 @@ import org.eclipse.californium.plugtests.resources.Shutdown;
 import org.eclipse.californium.plugtests.resources.Validate;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
-import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
+import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
 import org.eclipse.californium.scandium.util.SecretUtil;
 
 import picocli.CommandLine;
@@ -362,62 +362,27 @@ public class PlugtestServer extends AbstractTestServer {
 	}
 
 	public static void loadServers(InputStream in, SecretKey key) {
-		int count = 0;
-		long time = System.nanoTime();
-		try {
-			DataStreamReader reader = new DataStreamReader(in);
-			byte[] seed = reader.readVarBytes(Byte.SIZE);
-			if (seed != null && seed.length > 0) {
-				if (key == null) {
-					LOGGER.warn("missing key!");
-					return;
-				}
-				Cipher cipher = init(Cipher.DECRYPT_MODE, key, seed);
-				if (cipher == null) {
-					LOGGER.warn("crypto error!");
-					return;
-				}
-				in = new CipherInputStream(in, cipher);
+		DataStreamReader reader = new DataStreamReader(in);
+		byte[] seed = reader.readVarBytes(Byte.SIZE);
+		if (seed != null && seed.length > 0) {
+			if (key == null) {
+				LOGGER.warn("missing key!");
+				return;
 			}
-			reader = new DataStreamReader(in);
-			long delta = SerializationUtil.readNanotimeSynchronizationMark(reader);
-			CoapServer.ConnectorIdentifier id;
-			while ((id = CoapServer.readConnectorIdentifier(in)) != null) {
-				boolean foundTag = false;
-				int loaded = -1;
-				for (CoapServer server : servers) {
-					if (id.tag.equals(server.getTag())) {
-						foundTag = true;
-						loaded = server.loadConnector(id, in, delta);
-						if (loaded >= 0) {
-							count += loaded;
-							break;
-						}
-					}
-				}
-				if (foundTag) {
-					if (loaded < 0) {
-						LOGGER.warn("{}loading {} failed, no connector in {} servers!", id.tag, id.uri, servers.size());
-						SerializationUtil.skipItems(in, Short.SIZE);
-					} else {
-						LOGGER.info("{}loading {}, {} connections, {} servers.", id.tag, id.uri, loaded,
-								servers.size());
-					}
-				} else {
-					SerializationUtil.skipItems(in, Short.SIZE);
-				}
+			Cipher cipher = init(Cipher.DECRYPT_MODE, key, seed);
+			if (cipher == null) {
+				LOGGER.warn("crypto error!");
+				return;
 			}
-		} catch (IOException e) {
-			LOGGER.warn("loading failed:", e);
+			in = new CipherInputStream(in, cipher);
 		}
-		time = System.nanoTime() - time;
-		LOGGER.info("{} ms, {} connections", TimeUnit.NANOSECONDS.toMillis(time), count);
+		ServersSerializationUtil.loadServers(in, servers);
 	}
 
 	public static void load(BaseConfig config) {
 
 		if (config.store != null) {
-			storeConfig = config.store; 
+			storeConfig = config.store;
 			store = new File(config.store.file);
 			if (store.exists()) {
 				SecretKey key = null;
@@ -457,12 +422,17 @@ public class PlugtestServer extends AbstractTestServer {
 				server.start();
 			}
 			SecretUtil.destroy(key);
+			try {
+				in.close();
+			} catch (IOException e) {
+			}
 		} else {
 			LOGGER.info("no data to load!");
 		}
 	}
 
-	public static void start(ScheduledExecutorService mainExecutor, ScheduledExecutorService secondaryExecutor, BaseConfig config, ActiveInputReader inputReader) {
+	public static void start(ScheduledExecutorService mainExecutor, ScheduledExecutorService secondaryExecutor,
+			BaseConfig config, ActiveInputReader inputReader) {
 		registerShutdown();
 
 		if (server != null) {
@@ -522,11 +492,6 @@ public class PlugtestServer extends AbstractTestServer {
 	}
 
 	public static void saveServers(OutputStream out, SecretKey key, long maxAgeInSeconds) throws IOException {
-		int count = 0;
-		for (CoapServer server : servers) {
-			server.stop();
-		}
-		long start = System.nanoTime();
 		DatagramWriter writer = new DatagramWriter();
 		if (key != null) {
 			byte[] seed = new byte[16];
@@ -546,16 +511,8 @@ public class PlugtestServer extends AbstractTestServer {
 			writer.writeVarBytes(Bytes.EMPTY, Byte.SIZE);
 			writer.writeTo(out);
 		}
-		SerializationUtil.writeNanotimeSynchronizationMark(writer);
-		writer.writeTo(out);
-		for (CoapServer server : servers) {
-			count += server.saveAllConnectors(out, maxAgeInSeconds);
-		}
-		SerializationUtil.write(writer, (String) null, Byte.SIZE);
-		writer.writeTo(out);
+		ServersSerializationUtil.saveServers(out, maxAgeInSeconds, servers);
 		out.close();
-		long time = System.nanoTime() - start;
-		LOGGER.info("{} ms, {} connections", TimeUnit.NANOSECONDS.toMillis(time), count);
 	}
 
 	public static void save(String password) {
@@ -568,6 +525,7 @@ public class PlugtestServer extends AbstractTestServer {
 			// max age 10 minutes
 			saveServers(out, key, 60 * 10);
 			state = out.toByteArray();
+			out.close();
 		} catch (IOException ex) {
 			LOGGER.warn("saving failed:", ex);
 		} finally {

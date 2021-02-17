@@ -346,6 +346,8 @@ public class SerializationUtil {
 	 * 
 	 * @param reader reader to read
 	 * @return delta in nanoseconds for nanotime synchronization.
+	 * @throws IllegalArgumentException if version doesn't match or the read
+	 *             length exceeds the available bytes.
 	 * @see SerializationUtil#writeNanotimeSynchronizationMark(DatagramWriter)
 	 */
 	public static long readNanotimeSynchronizationMark(DataStreamReader reader) {
