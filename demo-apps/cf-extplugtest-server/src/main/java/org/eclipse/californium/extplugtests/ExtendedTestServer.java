@@ -27,20 +27,25 @@ import java.lang.management.ThreadMXBean;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import javax.crypto.SecretKey;
+import javax.net.ssl.SSLContext;
 
 import org.eclipse.californium.cluster.DtlsClusterManagerConfig;
+import org.eclipse.californium.cluster.CredentialsUtil;
 import org.eclipse.californium.cluster.DtlsClusterManager;
 import org.eclipse.californium.cluster.DtlsClusterManager.ClusterNodesDiscover;
 import org.eclipse.californium.cluster.K8sManagementDiscoverClient;
 import org.eclipse.californium.cluster.K8sManagementDiscoverJdkClient;
+import org.eclipse.californium.cluster.Readiness;
+import org.eclipse.californium.cluster.JdkK8sMonitorService;
+import org.eclipse.californium.cluster.RestoreHttpClient;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
@@ -53,7 +58,6 @@ import org.eclipse.californium.core.network.interceptors.AnonymizedOriginTracer;
 import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.elements.PrincipalEndpointContextMatcher;
-import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
@@ -138,44 +142,6 @@ public class ExtendedTestServer extends AbstractTestServer {
 
 	};
 
-	private static final class Time implements ClockUtil.Realtime {
-		
-		@Override
-		public long nanoRealtime() {
-			return System.nanoTime() + getTestTimeShiftNanos();
-		}
-
-		/**
-		 * Current test time shift in nanoseconds.
-		 * 
-		 * @see #addTestTimeShift(long, TimeUnit)
-		 * @see #setTestTimeShift(long, TimeUnit)
-		 * @see #getTestTimeShiftNanos()
-		 */
-		private long timeShiftNanos;
-
-		/**
-		 * Set time shift.
-		 * 
-		 * @param shift time shift
-		 * @param unit unit of time shift
-		 */
-		public final synchronized void setTestTimeShift(final long shift, final TimeUnit unit) {
-			LOGGER.debug("set {} {} as timeshift", shift, unit);
-			timeShiftNanos = unit.toNanos(shift);
-		}
-
-		/**
-		 * Gets current time shift in nanoseconds.
-		 * 
-		 * @return time shift in nanoseconds
-		 */
-		public final synchronized long getTestTimeShiftNanos() {
-			return timeShiftNanos;
-		}
-
-	};
-
 	@Command(name = "ExtendedTestServer", version = "(c) 2017-2020, Bosch.IO GmbH and others.")
 	private static class Config extends PlugtestServer.BaseConfig {
 
@@ -227,6 +193,12 @@ public class ExtendedTestServer extends AbstractTestServer {
 
 		}
 
+		@Option(names = "--k8s-restore", description = "enable k8s restore for graceful restart. https interface to load connections.")
+		public InetSocketAddress k8sRestore;
+
+		@Option(names = "--k8s-monitor", description = "enable k8s monitor. http interface for k8s monitoring.")
+		public InetSocketAddress k8sMonitor;
+
 		public void register(CommandLine cmd) {
 			cmd.registerConverter(ClusterNode.class, clusterDefinition);
 			cmd.registerConverter(InetSocketAddress.class, addressDefinition);
@@ -255,6 +227,8 @@ public class ExtendedTestServer extends AbstractTestServer {
 
 	private static final Config config = new Config();
 
+	private List<Readiness> components = new ArrayList<>();
+
 	public static void main(String[] args) {
 		CommandLine cmd = new CommandLine(config);
 		config.register(cmd);
@@ -276,14 +250,6 @@ public class ExtendedTestServer extends AbstractTestServer {
 			cmd.usage(System.err);
 			System.exit(-1);
 		}
-		Time handler = new Time();
-		long nanoRealtime = ClockUtil.nanoRealtime();
-		long delta = new Random().nextLong();
-		if (nanoRealtime + delta < 0) {
-//			delta = -nanoRealtime;
-		}
-		handler.setTestTimeShift(delta, TimeUnit.NANOSECONDS);
-		ClockUtil.setRealtimeHandler(handler);
 		STATISTIC_LOGGER.error("start!");
 		startManagamentStatistic();
 		try {
@@ -353,10 +319,10 @@ public class ExtendedTestServer extends AbstractTestServer {
 			server.add(new ReverseRequest(netConfig, executor));
 			ReverseObserve reverseObserver = new ReverseObserve(netConfig, executor);
 			server.add(reverseObserver);
-
 			if (k8sGroup != null) {
+				DtlsClusterConnectorConfig clusterConfig = clusterConfigBuilder.build();
 				server.addClusterEndpoint(secondaryExecutor, config.cluster.clusterType.k8sCluster.dtls,
-						k8sGroup.getNodeID(), clusterConfigBuilder.build(), null, k8sGroup, config);
+						k8sGroup.getNodeID(), clusterConfig, null, k8sGroup, config);
 			} else if (config.cluster != null && config.cluster.clusterType.simpleCluster != null) {
 				ClusterGroup group = null;
 				DtlsClusterConnector.ClusterNodesProvider nodes = null;
@@ -400,6 +366,22 @@ public class ExtendedTestServer extends AbstractTestServer {
 			for (Endpoint ep : server.getEndpoints()) {
 				ep.addNotificationListener(reverseObserver);
 			}
+			InetSocketAddress httpLocal = config.k8sMonitor;
+			InetSocketAddress httpsRestore= config.k8sRestore;
+			SSLContext context = null;
+			if (httpsRestore != null) {
+				context = CredentialsUtil.getClusterInternalHttpsServerContext();
+			}
+			final JdkK8sMonitorService monitor = new JdkK8sMonitorService(httpLocal, httpsRestore, context);
+			monitor.addServer(server);
+			RestoreHttpClient client = null;
+			SSLContext clientContext = CredentialsUtil.getClusterInternalHttpsClientContext();
+			if (clientContext != null && k8sGroup != null) {
+				client = new RestoreHttpClient();
+				monitor.addComponent(client);
+			}
+			monitor.start();
+
 			PlugtestServer.add(server);
 			PlugtestServer.load(config);
 			// start standard plugtest server and shutdown
@@ -446,6 +428,12 @@ public class ExtendedTestServer extends AbstractTestServer {
 			PlugtestServer.ActiveInputReader reader = new PlugtestServer.ActiveInputReader();
 			if (!config.benchmark) {
 				LOGGER.info("{} without benchmark started ...", ExtendedTestServer.class.getSimpleName());
+				while (!server.isReady()) {
+					Thread.sleep(500);
+				}
+				if (client != null) {
+					client.restore(k8sGroup, httpsRestore.getPort(), clientContext, server);
+				}
 				for (;;) {
 					if (PlugtestServer.console(reader, 15000)) {
 						break;
@@ -461,6 +449,12 @@ public class ExtendedTestServer extends AbstractTestServer {
 				}
 				builder.append(", ").append(max / (1024 * 1024)).append("MB heap, started ...");
 				LOGGER.info("{}", builder);
+				while (!server.isReady()) {
+					Thread.sleep(500);
+				}
+				if (client != null) {
+					client.restore(k8sGroup, httpsRestore.getPort(), clientContext, server);
+				}
 				long lastGcCount = 0;
 				for (;;) {
 					if (PlugtestServer.console(reader, 15000)) {
@@ -512,17 +506,6 @@ public class ExtendedTestServer extends AbstractTestServer {
 		}
 	}
 
-	public ExtendedTestServer(NetworkConfig config, Map<Select, NetworkConfig> protocolConfig, boolean noBenchmark)
-			throws SocketException {
-		super(config, protocolConfig);
-		int maxResourceSize = config.getInt(Keys.MAX_RESOURCE_BODY_SIZE);
-		// add resources to the server
-		add(new RequestStatistic());
-		add(new Benchmark(noBenchmark, maxResourceSize));
-		add(new MyIp(MyIp.RESOURCE_NAME, true));
-		add(new Context(Context.RESOURCE_NAME, true));
-	}
-
 	private static void startManagamentStatistic() {
 		ThreadMXBean mxBean = ManagementFactory.getThreadMXBean();
 		if (mxBean.isThreadCpuTimeSupported() && !mxBean.isThreadCpuTimeEnabled()) {
@@ -566,6 +549,26 @@ public class ExtendedTestServer extends AbstractTestServer {
 		if (!(loadAverage < 0.0d)) {
 			logger.info("average load: {}", String.format("%.2f", loadAverage));
 		}
+	}
+
+	public ExtendedTestServer(NetworkConfig config, Map<Select, NetworkConfig> protocolConfig, boolean noBenchmark)
+			throws SocketException {
+		super(config, protocolConfig);
+		int maxResourceSize = config.getInt(Keys.MAX_RESOURCE_BODY_SIZE);
+		// add resources to the server
+		add(new RequestStatistic());
+		add(new Benchmark(noBenchmark, maxResourceSize));
+		add(new MyIp(MyIp.RESOURCE_NAME, true));
+		add(new Context(Context.RESOURCE_NAME, true));
+	}
+
+	private boolean isReady() {
+		for (Readiness component : components) {
+			if (!component.isReady()) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	private void addClusterEndpoint(ScheduledExecutorService secondaryExecutor, InetSocketAddress dtlsInterface,
@@ -648,6 +651,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 					manager.stop();
 				}
 			};
+			components.add( manager);
 		} else if (nodesProvider != null) {
 			builder.setConnector(new DtlsClusterConnector(dtlsConfigBuilder.build(), configuration, nodesProvider));
 		}
@@ -701,6 +705,11 @@ public class ExtendedTestServer extends AbstractTestServer {
 		@Override
 		public List<InetSocketAddress> getClusterNodesDiscoverScope() {
 			return group;
+		}
+
+		@Override
+		public int getInitialClusterNodes() {
+			return group.size();
 		}
 	}
 

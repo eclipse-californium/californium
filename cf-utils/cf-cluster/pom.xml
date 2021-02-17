@@ -18,8 +18,7 @@
 	<description>Californium (Cf) Cluster</description>
 
 	<properties>
-		<httpclient.version>4.5.6</httpclient.version>
-		<httpclient.version.spec>version="[${versionmask;==;${httpclient.version}},${versionmask;+;${httpclient.version}})"</httpclient.version.spec>
+		<animal.sniffer.skip>true</animal.sniffer.skip>
 	</properties>
 
 	<dependencies>
@@ -32,6 +31,10 @@
 			<artifactId>scandium</artifactId>
 		</dependency>
 		<dependency>
+			<groupId>${project.groupId}</groupId>
+			<artifactId>californium-core</artifactId>
+		</dependency>
+		<dependency>
 			<groupId>com.google.code.gson</groupId>
 			<artifactId>gson</artifactId>
 		</dependency>
@@ -39,6 +42,13 @@
 		<dependency>
 			<groupId>junit</groupId>
 			<artifactId>junit</artifactId>
+		</dependency>
+
+		<!-- runtime dependencies -->
+		<dependency>
+			<groupId>ch.qos.logback</groupId>
+			<artifactId>logback-classic</artifactId>
+			<scope>runtime</scope>
 		</dependency>
 
 	</dependencies>

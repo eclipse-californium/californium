@@ -152,6 +152,7 @@ public abstract class AbstractTestServer extends CoapServer {
 
 	protected SslContextUtil.Credentials serverCredentials = null;
 	protected Certificate[] trustedCertificates = null;
+	protected SSLContext serverSslContext = null;
 
 	protected AbstractTestServer(NetworkConfig config, Map<Select, NetworkConfig> selectConfig) {
 		super(config);
@@ -212,6 +213,29 @@ public abstract class AbstractTestServer extends CoapServer {
 		}
 	}
 
+	protected SSLContext getServerSslContext(boolean trustAll, String protocol) {
+		initCredentials();
+		try {
+			if (serverCredentials.getPrivateKey() != null) {
+				KeyManager[] keyManager = SslContextUtil.createKeyManager(SERVER_NAME,
+						serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain());
+
+				TrustManager[] trustManager;
+				if (trustAll) {
+					trustManager = SslContextUtil.createTrustAllManager();
+				} else {
+					trustManager = SslContextUtil.createTrustManager(SERVER_NAME, trustedCertificates);
+				}
+				SSLContext sslContext = SSLContext.getInstance(protocol);
+				sslContext.init(keyManager, trustManager, null);
+				return sslContext;
+			}
+		} catch (GeneralSecurityException e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+
 	/**
 	 * Add endpoints.
 	 * 
@@ -230,25 +254,11 @@ public abstract class AbstractTestServer extends CoapServer {
 		int coapPort = config.getInt(Keys.COAP_PORT);
 		int coapsPort = config.getInt(Keys.COAP_SECURE_PORT);
 
-		SSLContext serverSslContext = null;
-
 		if (protocols.contains(Protocol.DTLS) || protocols.contains(Protocol.TLS)) {
-			try {
-				initCredentials();
-				KeyManager[] keyManager = SslContextUtil.createKeyManager(SERVER_NAME,
-						serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain());
-
-				TrustManager[] trustManager;
-				if (cliConfig.trustall) {
-					trustManager = SslContextUtil.createTrustAllManager();
-				} else {
-					trustManager = SslContextUtil.createTrustManager(SERVER_NAME, trustedCertificates);
-				}
-				serverSslContext = SSLContext.getInstance(SslContextUtil.DEFAULT_SSL_PROTOCOL);
-				serverSslContext.init(keyManager, trustManager, null);
-
-			} catch (GeneralSecurityException e) {
-				e.printStackTrace();
+			initCredentials();
+			serverSslContext  = getServerSslContext(cliConfig.trustall, SslContextUtil.DEFAULT_SSL_PROTOCOL);
+			if (serverSslContext == null && protocols.contains(Protocol.TLS)) {
+				throw new IllegalArgumentException("TLS not supported, credentials missing!");
 			}
 		}
 		List<InetAddress> used = new ArrayList<>();

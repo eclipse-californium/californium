@@ -14,74 +14,6 @@
 # *    Achim Kraus (Bosch.IO GmbH) - initial script
 # ******************************************************************************/
 
-# Note: the image of the container is applied later with 
-# ... patch statefulset cf-extserver --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value":"'${REGISTRY}/${CONTAINER}'"}]'
-
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: cf-extserver
-  labels:
-    app: cf-extserver
-spec:
-  replicas: 3
-  podManagementPolicy: "Parallel"  
-  selector:
-    matchLabels:
-      app: cf-extserver
-  serviceName: "cf-extserver"
-  template:
-    metadata:
-      labels:
-        app: cf-extserver
-    spec:
-      containers:
-      - name: cf-extserver
-        env:
-        - name: KUBECTL_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: cf-extserver-config
-              key:  kubectl_token
-        - name: KUBECTL_HOST
-          valueFrom:
-            secretKeyRef:
-              name: cf-extserver-config
-              key:  kubectl_host
-        - name: KUBECTL_NAMESPACE
-          valueFrom:
-            secretKeyRef:
-              name: cf-extserver-config
-              key:  kubectl_namespace
-        - name: KUBECTL_SELECTOR
-          valueFrom:
-            secretKeyRef:
-              name: cf-extserver-config
-              key:  kubectl_selector
-        - name: DTLS_CID_MGMT_IDENTITY
-          valueFrom:
-            secretKeyRef:
-              name: cf-extserver-config
-              key:  dtls_cid_mgmt_identity
-        - name: DTLS_CID_MGMT_SECRET_BASE64
-          valueFrom:
-            secretKeyRef:
-              name: cf-extserver-config
-              key:  dtls_cid_mgmt_secret_base64
-        ports:
-        - name: cf-http
-          containerPort: 8080
-          protocol: TCP
-        - name: cf-coap2
-          containerPort: 5783
-          protocol: UDP
-        - name: cf-coaps2
-          containerPort: 5784
-          protocol: UDP
-        - name: cf-coaps-mgmt
-          containerPort: 5884
-          protocol: UDP
----
 apiVersion: v1
 kind: Service
 metadata:
@@ -90,6 +22,7 @@ spec:
   selector:
     app: cf-extserver
   type: NodePort
+  externalTrafficPolicy: Local
   ports: 
   - name: coap2
     port: 5783

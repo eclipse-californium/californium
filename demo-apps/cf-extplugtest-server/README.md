@@ -19,9 +19,11 @@ Usage: ExtendedTestServer [-h] [--[no-]benchmark] [--dtls-only] [--[no-]
                           external] [--[no-]ipv4] [--[no-]ipv6] [--[no-]
                           loopback] [--[no-]plugtest] [--[no-]tcp]
                           [--trust-all] [--client-auth=<clientAuth>]
+                          [--k8s-monitor=<k8sMonitor>]
+                          [--k8s-restore=<k8sRestore>]
                           [--interfaces-pattern=<interfacePatterns>[,
                           <interfacePatterns>...]]... [--store-file=<file>
-                          --store-password64=<password64>
+                          [--store-password64=<password64>]
                           --store-max-age=<maxAge>] [[--[no-]
                           dtls-cluster-backward] [--[no-]dtls-cluster-mac]
                           (--k8s-dtls-cluster=<k8sCluster> |
@@ -55,6 +57,12 @@ Usage: ExtendedTestServer [-h] [--[no-]benchmark] [--dtls-only] [--[no-]
       --k8s-dtls-cluster=<k8sCluster>
                             enable k8s DTLS-cluster mode. <dtls-interface>;
                               <mgmt-interface>;external-mgmt-port
+      --k8s-monitor=<k8sMonitor>
+                            enable k8s monitor. http interface for k8s
+                              monitoring.
+      --k8s-restore=<k8sRestore>
+                            enable k8s restore for graceful restart. https
+                              interface to load connections.
       --[no-]dtls-cluster-backward
                             send messages backwards to the original receiving
                               connector.
@@ -183,6 +191,24 @@ Benchmark client console:
 ```
 
 Note: if it takes too long between "save" and "load", the clients will detect a timeout and trigger new handshakes. So just pause a small couple of seconds!
+
+## k8s Blue/Green Update With DTLS Graceful Restart
+
+To perform a blue/green update with DTLS graceful restart, the script [deploy_microk8s.sh](service/deploy_microk8s.sh) contains the statements to do so.
+The application must be installed the first time.
+
+```sh
+service/deploy_microk8s.sh install
+```
+and afterwards update are applied with
+
+```sh
+service/deploy_microk8s.sh update0
+```
+
+You may apply that blue/green update while the benchmark client puts load on your k8s demonstration setup.
+
+See [cf-cluster README.md](../../cf-utils/cf-cluster/README.md) for more details.
 
 ## Receive Test
 
@@ -373,6 +399,9 @@ java -jar cf-nat-2.6.0.jar :5784 <host>:15784 <host>:25784 <host>:35784
 
 ### k8s Nodes
 
+**Note:**
+> the term "node" is used for k8s with a very different meaning. The k8s demonstration setup is using a single k8s-node only. Multiple k8s-nodes are not tested nor supported right now. The term "node" used here means a Californium DTLS endpoint, which builds with other "nodes" a cluster.
+
 Start nodes in a container using port `5784`, and `<any>:5884` as own cluster-management-interface. Additionally provide the external port of the cluster-management-interface also with `5884`.
 
 ```sh
@@ -381,8 +410,12 @@ CMD ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75", "-jar", "/op
 
 Example `CMD` statement for docker (":5884" for "<any>:5884", "5884" for just port 5884, see [Dockerfile](service/Dockerfile)).
 
-To use this container with k8s, a "statefulSet" is required (see [k8s.yaml](service/k8s.yaml) for "StatefulSet" and "Service" description). Some configuration values are passed in using the "secret" "cf-extserver-config".
-To deploy this into a local microk8s instance, the script [deploy_microk8s.sh](service/deploy_microk8s.sh) contains the statements to build the container, to push it to the local repository, create the "secret" and then apply the k8s description into the k8s namespace "cali".
+To use this container with k8s, the k8s demonstration setup requires a [service](service/k8s.yaml)
+and a [statefulset a](service/k8sa.yaml). Some configuration values are passed in using the "secret" "cf-extserver-config". To deploy this into a local microk8s instance, the script [deploy_microk8s.sh](service/deploy_microk8s.sh) contains the statements to build the container, to push it to the local repository, create the "secret" and then apply the k8s description into the k8s namespace "cali".
+
+```sh
+service/deploy_microk8s.sh install
+```
 
 In that k8s mode, the cluster-nodes group is requested from the k8s management APIs for pods.
 The pods in the example are marked with 
@@ -391,13 +424,13 @@ The pods in the example are marked with
 "metadata: labels: app: cf-extserver"
 ```
 
-so a 
+so a
 
 ```
 GET /api/v1/namespaces/<namespace>/pods/?labelSelector=app%3Dcf-extserver
 ```
 
-can be used to select the right pod-set for this cid-cluster.
+can be used to select the right pod-set for this cid-cluster. If blue/green updates should be used, the label "controller-revision-hash" and the current value of the own pod must be used.
 
 In that mode, the `address:cid` pairs of the other/foreign nodes of the pods-set are dynamically created using the same additional messages of the cluster-management-protocol, then in `Dynamic Nodes` above.
 
@@ -455,7 +488,7 @@ This assumes, that the k8s "cf-extserver-service" is of type `NodePort`.
 
 If you execute the client multiple times, you will see different `node-id`s, when the requests are processed by different nodes.
 
-Note: if the line with `read-cid` is missing, the DTLS Connection ID support is not enabled. Check, if `DTLS_CONNECTION_ID_LENGTH` is set in "Californium.properties" to a number. Even `0` will enable it. But an empty value disables the DTLS Connection ID support!
+**Note:** if the line with `read-cid` is missing, the DTLS Connection ID support is not enabled. Check, if `DTLS_CONNECTION_ID_LENGTH` is set in "Californium.properties" to a number. Even `0` will enable it. But an empty value disables the DTLS Connection ID support!
 
 For the other two variants above, `Static Nodes` or `Dynamic Nodes`, the `cf-nat` may be used as load-balancer. In that cases, just use the address of the `cf-nat` as destination, e.g.
 
@@ -595,7 +628,6 @@ cf-extserver-1   1070m        341Mi
 cf-extserver-2   1054m        321Mi
 ```
 
-
 You may also restart pods using k8s,
 
 ```sh
@@ -682,6 +714,7 @@ Node 1
 ```sh
 java -jar target/cf-extplugtest-server-2.6.0.jar --dtls-cluster ":15784;localhost:15884;1" --dtls-cluster-group="localhost:25884" --no-dtls-cluster-backward
 ```
+
 Node 2
 
 ```sh
