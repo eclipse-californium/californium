@@ -136,6 +136,7 @@ public interface Connector {
 	 * Connector is running.
 	 * 
 	 * @return {@code true}, if running, {@code false}, otherwise.
+	 * @since 3.0
 	 */
 	boolean isRunning();
 
@@ -143,6 +144,7 @@ public interface Connector {
 	 * Process datagram.
 	 * 
 	 * @param datagram datagram to process
+	 * @since 3.0
 	 */
 	void processDatagram(DatagramPacket datagram);
 
