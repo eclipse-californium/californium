@@ -163,7 +163,7 @@ public class LibCoapProcessUtil extends ProcessUtil {
 	 */
 	public ProcessResult prepareLibCoapClientMbedTls(long timeMillis) {
 		client = LIBCOAP_CLIENT_MBEDTLS;
-		return prepareLibCoapApplication(client, "MbedTLS", timeMillis);
+		return prepareLibCoapApplication(client, "Mbed TLS", timeMillis);
 	}
 
 	/**
@@ -210,7 +210,7 @@ public class LibCoapProcessUtil extends ProcessUtil {
 	 */
 	public ProcessResult prepareLibCoapServerMbedTls(long timeMillis) {
 		server = LIBCOAP_SERVER_MBEDTLS;
-		return prepareLibCoapApplication(server, "MbedTLS", timeMillis);
+		return prepareLibCoapApplication(server, "Mbed TLS", timeMillis);
 	}
 
 	/**
