@@ -476,21 +476,22 @@ public class DtlsClusterConnector extends DTLSConnector {
 					int incomingNodeId = nodeCidGenerator.getNodeId(cid);
 					if (getNodeID() != incomingNodeId) {
 						LOGGER.trace("cluster-node {}: received foreign message for {} from {}", getNodeID(),
-								incomingNodeId, source);
+								incomingNodeId, StringUtil.toLog(source));
 						InetSocketAddress clusterNode = nodesProvider.getClusterNode(incomingNodeId);
 						if (clusterNode != null) {
 							DatagramPacket clusterPacket = encode(RECORD_TYPE_INCOMING, packet, null);
 							clusterPacket.setSocketAddress(clusterNode);
 							try {
 								LOGGER.trace("cluster-node {}: forwards received message from {} to {}, {} bytes",
-										getNodeID(), source, clusterNode, length);
+										getNodeID(), StringUtil.toLog(source), StringUtil.toLog(clusterNode), length);
 								sendDatagramToClusterNetwork(clusterPacket);
 								if (clusterHealth != null) {
 									clusterHealth.forwardMessage();
 								}
 								return;
 							} catch (IOException e) {
-								LOGGER.info("cluster-node {}: forward error:", getNodeID(), e);
+								LOGGER.info("cluster-node {}: error forwarding to {}/{}:", getNodeID(), incomingNodeId,
+										StringUtil.toLog(clusterNode), e);
 								if (clusterHealth != null) {
 									clusterHealth.dropForwardMessage();
 								} else {
@@ -500,7 +501,7 @@ public class DtlsClusterConnector extends DTLSConnector {
 						} else {
 							FILTER.debug(
 									"cluster-node {}: received foreign message from {} for unknown node {}, {} bytes, dropping.",
-									getNodeID(), source, incomingNodeId, length);
+									getNodeID(), StringUtil.toLog(source), incomingNodeId, length);
 							if (clusterHealth != null) {
 								clusterHealth.dropForwardMessage();
 							} else {
@@ -508,17 +509,17 @@ public class DtlsClusterConnector extends DTLSConnector {
 							}
 						}
 					} else {
-						LOGGER.trace("cluster-node {}: received own message from {}, {} bytes", getNodeID(), source,
+						LOGGER.trace("cluster-node {}: received own message from {}, {} bytes", getNodeID(), StringUtil.toLog(source),
 								length);
 					}
 				} else {
-					FILTER.debug("cluster-node {}: received broken CID message from {}", getNodeID(), source);
+					FILTER.debug("cluster-node {}: received broken CID message from {}", getNodeID(), StringUtil.toLog(source));
 				}
 			} else {
-				FILTER.debug("cluster-node {}: received too short CID message from {}", getNodeID(), source);
+				FILTER.debug("cluster-node {}: received too short CID message from {}", getNodeID(), StringUtil.toLog(source));
 			}
 		} else {
-			LOGGER.trace("cluster-node {}: received no CID message from {}, {} bytes.", getNodeID(), source, length);
+			LOGGER.trace("cluster-node {}: received no CID message from {}, {} bytes.", getNodeID(), StringUtil.toLog(source), length);
 		}
 		super.processDatagram(packet, null);
 	}
@@ -538,7 +539,7 @@ public class DtlsClusterConnector extends DTLSConnector {
 				byte[] recordBytes = record.toByteArray();
 				int length = recordBytes.length;
 				byte[] datagramBytes = new byte[length + MAX_DATAGRAM_OFFSET];
-				LOGGER.trace("cluster-node {}: backwards send message for {} to {}, {} bytes", getNodeID(), destination,
+				LOGGER.trace("cluster-node {}: backwards send message for {} to {}, {} bytes", getNodeID(), StringUtil.toLog(destination),
 						router, length);
 				DatagramPacket datagram = new DatagramPacket(datagramBytes, datagramBytes.length, destination);
 				DatagramPacket clusterPacket = encode(RECORD_TYPE_OUTGOING, datagram, recordBytes);
@@ -563,7 +564,7 @@ public class DtlsClusterConnector extends DTLSConnector {
 						"Cluster internal destination " + StringUtil.toString(router) + " not longer available!");
 			}
 		} else {
-			LOGGER.trace("cluster-node {}: sends message to {}, {} bytes", getNodeID(), destination, record.size());
+			LOGGER.trace("cluster-node {}: sends message to {}, {} bytes", getNodeID(), StringUtil.toLog(destination), record.size());
 			super.sendRecord(record);
 		}
 	}

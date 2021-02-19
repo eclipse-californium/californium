@@ -31,6 +31,7 @@ import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsClusterConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.DTLSContext;
 import org.eclipse.californium.scandium.dtls.Handshaker;
 import org.eclipse.californium.scandium.dtls.NodeConnectionIdGenerator;
@@ -149,11 +150,52 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 		if (identity != null) {
 			SecretKey secretkey = clusterConfiguration.getSecretKey();
 			DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
-					.setAddress(clusterConfiguration.getAddress()).setReceiverThreadCount(0).setMaxConnections(1024)
-					.setSocketReceiveBufferSize(mgmtReceiveBuffer).setSocketSendBufferSize(mgmtSendBuffer)
-					.setAdvancedPskStore(new AdvancedSinglePskStore(identity, secretkey));
+					.setAddress(clusterConfiguration.getAddress())
+					.setReceiverThreadCount(0).setMaxConnections(1024)
+					.setSocketReceiveBufferSize(mgmtReceiveBuffer)
+					.setSocketSendBufferSize(mgmtSendBuffer)
+					.setAdvancedPskStore(new AdvancedSinglePskStore(identity, secretkey))
+					.setRetransmissionTimeout(500)
+					.setBackOffRetransmission(0)
+					.setMaxRetransmissions(3)
+					.setConnectionListener(new ConnectionListener() {
+
+						@Override
+						public void updateExecution(Connection connection) {
+						}
+
+						@Override
+						public boolean onConnectionUpdatesSequenceNumbers(Connection connection,
+								boolean writeSequenceNumber) {
+							return false;
+						}
+
+						@Override
+						public void onConnectionRemoved(Connection connection) {
+							LOGGER.info("cluster-node {}: lost connection {}!", getNodeID(),
+									connection.getPeerAddress());
+						}
+
+						@Override
+						public boolean onConnectionMacError(Connection connection) {
+							return false;
+						}
+
+						@Override
+						public void onConnectionEstablished(Connection connection) {
+						}
+
+						@Override
+						public void beforeExecution(Connection connection) {
+						}
+
+						@Override
+						public void afterExecution(Connection connection) {
+						}
+					});
 			SecretUtil.destroy(secretkey);
 			this.clusterManagementConnector = new ClusterManagementDtlsConnector(builder.build());
+
 			this.useClusterMac = clusterConfiguration.useClusterMac();
 			this.protocol = this.useClusterMac ? PROTOCOL_MANAGEMENT_DTLS_MAC : PROTOCOL_MANAGEMENT_DTLS;
 		} else {
@@ -291,7 +333,7 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 				DTLSContext context = ((DTLSConnector) clusterManagementConnector)
 						.getDtlsContextByAddress((InetSocketAddress) clusterPacket.getSocketAddress());
 				if (context == null) {
-					throw new IOException("Cluster MAC could not be generated! Missing session.");
+					throw new IOException("Cluster MAC could not be generated! Missing dtls context.");
 				}
 				Mac mac = context.getThreadLocalClusterWriteMac();
 				if (mac == null) {
