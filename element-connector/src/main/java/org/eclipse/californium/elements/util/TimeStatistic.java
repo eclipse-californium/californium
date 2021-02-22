@@ -63,7 +63,7 @@ public class TimeStatistic {
 	 * @param unit time unit
 	 */
 	public void add(long time, TimeUnit unit) {
-		if (time > 0) {
+		if (time >= 0) {
 			long nanons = unit.toNanos(time);
 			int index = (int) (nanons / slotWidthNanos);
 			if (index < statistic.length) {

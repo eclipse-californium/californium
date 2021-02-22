@@ -366,9 +366,9 @@ public class BenchmarkClient {
 	 */
 	private static final AtomicInteger clientCounter = new AtomicInteger();
 	/**
-	 * Client counter.
+	 * Initial connect counter. On success, matches client counter.
 	 */
-	private static final AtomicInteger connectDownCounter = new AtomicInteger();
+	private static final AtomicInteger initialConnectDownCounter = new AtomicInteger();
 	/**
 	 * Overall transmission counter. 
 	 * 
@@ -483,6 +483,18 @@ public class BenchmarkClient {
 
 	private static final TimeStatistic errorRttStatistic = new TimeStatistic(10000, 5, TimeUnit.MILLISECONDS);
 
+	private static volatile String[] args;
+	private static volatile int clients;
+	private static volatile int overallRequests;
+	private static volatile int overallReverseResponses;
+	private static volatile long startRequestNanos;
+	private static volatile long timeRequestNanos;
+	private static volatile long startReverseResponseNanos;
+	private static volatile long timeReverseResponseNanos;
+	private static volatile HealthStatisticLogger health;
+	private static volatile NetStatLogger netstat;
+	private static volatile boolean done;
+
 	/**
 	 * Offload messages.
 	 */
@@ -521,6 +533,10 @@ public class BenchmarkClient {
 	 * Per client request down counter. Used,if only a few requests per client is expected.
 	 */
 	private final AtomicInteger requestsDownCounter = new AtomicInteger();
+	/**
+	 * Indicate that client is pending to connect.
+	 */
+	private final AtomicBoolean connect = new AtomicBoolean(true);
 	/**
 	 * Indicate that client has stopped.
 	 * 
@@ -587,6 +603,7 @@ public class BenchmarkClient {
 		ResponseTimeout timeout = new ResponseTimeout(request, request.isConfirmable() ? nonTimeout : nonTimeout,
 				executorService);
 		request.addMessageObserver(timeout);
+		request.addMessageObserver(retransmissionDetector);
 		return request;
 	}
 
@@ -720,31 +737,35 @@ public class BenchmarkClient {
 				}
 			}
 			boolean close = false;
-			boolean full = false;
-			boolean force = forceHandshake > 0;
-			if (!force) {
-				close = (config.closes != 0 && (c % config.closes == 0));
-				full = (config.handshakes != 0 && (c % config.handshakes == 0));
-				if (config.bursts > 0) {
-					if (close) {
-						handshakeCloseBursts.compareAndSet(0, config.bursts);
-					} else {
-						close = countDown(handshakeCloseBursts) > 0;
-					}
-					if (full) {
-						handshakeFullBursts.compareAndSet(0, config.bursts);
-					} else {
-						full = countDown(handshakeFullBursts) > 0;
+			boolean dtlsReconnect = false;
+			if (dtlsConnector != null) {
+				boolean full = false;
+				boolean force = forceHandshake > 0;
+				if (!force) {
+					close = (config.closes != 0 && (c % config.closes == 0));
+					full = (config.handshakes != 0 && (c % config.handshakes == 0));
+					if (config.bursts > 0) {
+						if (close) {
+							handshakeCloseBursts.compareAndSet(0, config.bursts);
+						} else {
+							close = countDown(handshakeCloseBursts) > 0;
+						}
+						if (full) {
+							handshakeFullBursts.compareAndSet(0, config.bursts);
+						} else {
+							full = countDown(handshakeFullBursts) > 0;
+						}
 					}
 				}
+				dtlsReconnect = close || full || force;
 			}
-			final boolean reconnect = dtlsConnector != null && (close || full || force);
+			final boolean reconnect = dtlsReconnect;
 			final Request request = prepareRequest(client, c);
 			if (request == null) {
 				return false;
 			}
-			request.addMessageObserver(retransmissionDetector);
 			if (reconnect) {
+				connect.set(true);
 				EndpointContext destinationContext = request.getDestinationContext();
 				client.setDestinationContext(null);
 				if (forceHandshake < 0) {
@@ -855,12 +876,13 @@ public class BenchmarkClient {
 
 	private void addToStatistic(CoapResponse response) {
 		TimeStatistic statistic = errorRttStatistic;
-		if (requestsCounter.get() == 0) {
+		if (connect.compareAndSet(true, false)) {
 			statistic = connectRttStatistic;
 		} else if (response.isSuccess()) {
 			statistic = rttStatistic;
 		}
-		statistic.add(response.advanced().getRTT(), TimeUnit.MILLISECONDS);
+		Long rtt = response.advanced().getRTT();
+		statistic.add(rtt, TimeUnit.MILLISECONDS);
 	}
 
 	/**
@@ -965,14 +987,14 @@ public class BenchmarkClient {
 	public long checkOverallRequests(boolean connected, boolean response) {
 		if (connected) {
 			if (requestsCounter.get() == 0) {
-				connectDownCounter.decrementAndGet();
+				initialConnectDownCounter.decrementAndGet();
 			}
 			if (response) {
 				requestsCounter.getAndIncrement();
 			}
 		}
 		long c = response ? countDown(overallResponsesDownCounter) : overallResponsesDownCounter.get();
-		if (c == 0 && connectDownCounter.get() <= 0) {
+		if (c == 0 && initialConnectDownCounter.get() <= 0) {
 			overallRequestsDone.countDown();
 			if (overallReverseResponsesDownCounter.getCount() == 0) {
 				stop();
@@ -1021,6 +1043,7 @@ public class BenchmarkClient {
 
 	public static void main(String[] args) throws InterruptedException, IOException {
 
+		BenchmarkClient.args = args;
 		startManagamentStatistic();
 		config.networkConfigHeader = CONFIG_HEADER;
 		config.networkConfigDefaultHandler = DEFAULTS;
@@ -1036,6 +1059,7 @@ public class BenchmarkClient {
 		final byte[] id = new byte[8];
 
 		final int clients = config.clients;
+		BenchmarkClient.clients = clients;
 		int reverseResponses = 0;
 
 		if (config.blockwiseOptions != null) {
@@ -1069,8 +1093,8 @@ public class BenchmarkClient {
 		}
 		final URI uri = tempUri;
 
-		int overallRequests = (config.requests * clients);
-		int overallReverseResponses = (reverseResponses * clients);
+		overallRequests = (config.requests * clients);
+		overallReverseResponses = (reverseResponses * clients);
 		if (overallRequests < 0) {
 			// overflow
 			overallRequests = Integer.MAX_VALUE;
@@ -1110,7 +1134,7 @@ public class BenchmarkClient {
 						config.reverse.min, config.reverse.max);
 			}
 		}
-		connectDownCounter.set(clients);
+		initialConnectDownCounter.set(clients);
 		final boolean psk = config.authenticationModes.contains(AuthenticationMode.PSK)
 				|| config.authenticationModes.contains(AuthenticationMode.ECDHE_PSK);
 		final boolean rpk = config.authenticationModes.contains(AuthenticationMode.RPK);
@@ -1139,8 +1163,8 @@ public class BenchmarkClient {
 		final ThreadLocalKeyPairGenerator keyPairGenerator = rpk ? createKeyPairGenerator() : null;
 		// Create & start clients
 		final AtomicBoolean errors = new AtomicBoolean();
-		final HealthStatisticLogger health = new HealthStatisticLogger(uri.getScheme(), !CoAP.isTcpScheme(uri.getScheme()));
-		final NetStatLogger netstat = new NetStatLogger("udp");
+		health = new HealthStatisticLogger(uri.getScheme(), !CoAP.isTcpScheme(uri.getScheme()));
+		netstat = new NetStatLogger("udp");
 		final int pskOffset = config.pskIndex != null ? config.pskIndex : 0;
 		for (int index = 0; index < clients; ++index) {
 			final int currentIndex = index;
@@ -1253,8 +1277,8 @@ public class BenchmarkClient {
 
 		// Start Test
 		boolean stale = false;
-		long requestNanos = System.nanoTime();
-		long reverseResponseNanos = requestNanos;
+		startRequestNanos = System.nanoTime();
+		startReverseResponseNanos = startRequestNanos;
 		long lastRequestsCountDown = overallResponsesDownCounter.get();
 		long lastTransmissions = transmissionCounter.get();
 		long lastRetransmissions = retransmissionCounter.get();
@@ -1269,6 +1293,7 @@ public class BenchmarkClient {
 			}
 			client.startBenchmark(requestsPerClient);
 		}
+		registerShutdown();
 		System.out.println("Benchmark started.");
 
 		long dtlsTime = System.nanoTime();
@@ -1276,7 +1301,7 @@ public class BenchmarkClient {
 		while (!overallRequestsDone.await(DEFAULT_TIMEOUT_NANOS, TimeUnit.NANOSECONDS)) {
 			long currentRequestsCountDown = overallResponsesDownCounter.get();
 			int numberOfClients = clientCounter.get();
-			int connectsPending = connectDownCounter.get();
+			int connectsPending = initialConnectDownCounter.get();
 			long requestDifference = (lastRequestsCountDown - currentRequestsCountDown);
 			long currentOverallSentRequests = overallRequests - currentRequestsCountDown;
 			if ((requestDifference == 0 && currentRequestsCountDown < overallRequests)
@@ -1286,11 +1311,11 @@ public class BenchmarkClient {
 				long dtlsTimeout = System.nanoTime() - dtlsTime;
 				if (!dtls || (dtlsTimeout - DTLS_TIMEOUT_NANOS) > 0) {
 					if (dtls) {
-						requestNanos += dtlsTimeout;
+						startRequestNanos += dtlsTimeout;
 					} else {
-						requestNanos += DEFAULT_TIMEOUT_NANOS;
+						startRequestNanos += DEFAULT_TIMEOUT_NANOS;
 					}
-					reverseResponseNanos = requestNanos;
+					startReverseResponseNanos = startRequestNanos;
 					stale = true;
 					System.out.format("%d requests, stale (%d clients, %d pending)%n", currentOverallSentRequests,
 							numberOfClients, connectsPending);
@@ -1336,8 +1361,8 @@ public class BenchmarkClient {
 			line.append(")");
 			System.out.println(line);
 		}
-		long overallSentRequests = overallRequests - overallResponsesDownCounter.get();
-		requestNanos = System.nanoTime() - requestNanos;
+//		long overallSentRequests = overallRequests - overallResponsesDownCounter.get();
+		timeRequestNanos = System.nanoTime() - startRequestNanos;
 
 		boolean observe = false;
 		long lastReverseResponsesCountDown = overallReverseResponsesDownCounter.getCount();
@@ -1367,7 +1392,7 @@ public class BenchmarkClient {
 				if ((config.reverse.max < TimeUnit.NANOSECONDS.toMillis(time - DEFAULT_TIMEOUT_NANOS)) || (numberOfClients == 0)) {
 					// no new notifies for interval max, clients are stale, or no clients left
 					// adjust start time with timeout
-					reverseResponseNanos += time;
+					startReverseResponseNanos += time;
 					stale = true;
 					if (observe) {
 						System.out.format("%d notifies, stale (%d clients, %d observes)%n",
@@ -1392,11 +1417,10 @@ public class BenchmarkClient {
 				}
 			}
 		}
-		long overallSentReverseResponses = overallReverseResponses - overallReverseResponsesDownCounter.getCount();
-		reverseResponseNanos = System.nanoTime() - reverseResponseNanos;
+//		long overallSentReverseResponses = overallReverseResponses - overallReverseResponsesDownCounter.getCount();
+		timeReverseResponseNanos = System.nanoTime() - startReverseResponseNanos;
 
 		System.out.format("%d benchmark clients %s.%n", clients, stale ? "stopped" : "finished");
-		Logger statisticsLogger = printManagamentStatistic(args, reverseResponseNanos);
 
 		// stop and collect per client requests
 		final int statistic[] = new int[clients];
@@ -1420,51 +1444,6 @@ public class BenchmarkClient {
 		stop.await();
 		Thread.sleep(1000);
 		executor.shutdown();
-		statisticsLogger.info("{} requests sent, {} expected", overallSentRequests, overallRequests);
-		statisticsLogger.info("{} requests in {} ms{}", overallSentRequests, TimeUnit.NANOSECONDS.toMillis(requestNanos),
-				formatPerSecond("reqs", overallSentRequests, requestNanos));
-		if (overallReverseResponses > 0) {
-			if (observe) {
-				statisticsLogger.info("{} notifies sent, {} expected, {} observe request", overallSentReverseResponses,
-						overallReverseResponses, overallObservationRegistrationCounter.get());
-				statisticsLogger.info("{} notifies in {} ms{}", overallSentReverseResponses,
-						TimeUnit.NANOSECONDS.toMillis(reverseResponseNanos),
-						formatPerSecond("notifies", overallSentReverseResponses, reverseResponseNanos));
-				statisticsLogger.info("{} notifies could not be completed", notifiesCompleteTimeouts.get());
-			} else {
-				statisticsLogger.info("{} reverse-responses sent, {} expected", overallSentReverseResponses,
-						overallReverseResponses);
-				statisticsLogger.info("{} reverse-responses in {} ms{}", overallSentReverseResponses,
-						TimeUnit.NANOSECONDS.toMillis(reverseResponseNanos),
-						formatPerSecond("reverse-responses", overallSentReverseResponses, reverseResponseNanos));
-			}
-		}
-		long retransmissions = retransmissionCounter.get();
-		if (retransmissions > 0) {
-			statisticsLogger.info("{}", formatRetransmissions(retransmissions, overallSentRequests));
-		}
-		long transmissionErrors = transmissionErrorCounter.get();
-		if (transmissionErrors > 0) {
-			statisticsLogger.info("{}", formatTransmissionErrors(transmissionErrors, overallSentRequests));
-		}
-		if (overallSentRequests < overallRequests) {
-			statisticsLogger.info("Stale at {} messages ({}%)", overallSentRequests,
-					(overallSentRequests * 100L) / overallRequests);
-		}
-		int unavailables = overallServiceUnavailable.get();
-		if (unavailables > 0) {
-			System.out.println(formatUnavailable(unavailables, overallSentRequests));
-			long successfullRequest = overallSentRequests - unavailables;
-			System.out.format("%d successful requests in %dms%s%n", successfullRequest,
-					TimeUnit.NANOSECONDS.toMillis(requestNanos),
-					formatPerSecond("reqs", successfullRequest, requestNanos));
-		}
-
-		statisticsLogger.info("connects          : {}", connectRttStatistic.getSummaryAsText());
-		statisticsLogger.info("success-responses : {}", rttStatistic.getSummaryAsText());
-		statisticsLogger.info("errors-responses  : {}", errorRttStatistic.getSummaryAsText());
-		health.dump();
-		netstat.dump();
 
 		if (1 < clients) {
 			synchronized (statistic) {
@@ -1483,6 +1462,7 @@ public class BenchmarkClient {
 			}
 			System.out.println(formatClientRequests(statistic, clients, last));
 		}
+		done = true;
 	}
 
 	private static ThreadLocalKeyPairGenerator createKeyPairGenerator() {
@@ -1560,6 +1540,84 @@ public class BenchmarkClient {
 			logger.info("average load: {}", String.format("%.2f", loadAverage));
 		}
 		return logger;
+	}
+
+	private static void printResults() {
+		long now = System.nanoTime();
+		if (timeRequestNanos == 0) {
+			timeRequestNanos = now - startRequestNanos;
+		}		
+		if (timeReverseResponseNanos == 0) {
+			timeReverseResponseNanos = now - startReverseResponseNanos;
+		}
+		if (!done) {
+			System.out.format("%n%d benchmark clients interrupted.%n", clients);
+		}
+		long overallSentRequests = overallRequests - overallResponsesDownCounter.get();
+		long overallSentReverseResponses = overallReverseResponses - overallReverseResponsesDownCounter.getCount();
+		Logger statisticsLogger = printManagamentStatistic(args, timeReverseResponseNanos);
+		statisticsLogger.info("{} requests sent, {} expected", overallSentRequests, overallRequests);
+		statisticsLogger.info("{} requests in {} ms{}", overallSentRequests, TimeUnit.NANOSECONDS.toMillis(timeRequestNanos),
+				formatPerSecond("reqs", overallSentRequests, timeRequestNanos));
+		if (overallReverseResponses > 0) {
+			if (overallObservationRegistrationCounter.get() > 0) {
+				statisticsLogger.info("{} notifies sent, {} expected, {} observe request", overallSentReverseResponses,
+						overallReverseResponses, overallObservationRegistrationCounter.get());
+				statisticsLogger.info("{} notifies in {} ms{}", overallSentReverseResponses,
+						TimeUnit.NANOSECONDS.toMillis(timeReverseResponseNanos),
+						formatPerSecond("notifies", overallSentReverseResponses, timeReverseResponseNanos));
+				statisticsLogger.info("{} notifies could not be completed", notifiesCompleteTimeouts.get());
+			} else {
+				statisticsLogger.info("{} reverse-responses sent, {} expected", overallSentReverseResponses,
+						overallReverseResponses);
+				statisticsLogger.info("{} reverse-responses in {} ms{}", overallSentReverseResponses,
+						TimeUnit.NANOSECONDS.toMillis(timeReverseResponseNanos),
+						formatPerSecond("reverse-responses", overallSentReverseResponses, timeReverseResponseNanos));
+			}
+		}
+		long retransmissions = retransmissionCounter.get();
+		if (retransmissions > 0) {
+			statisticsLogger.info("{}", formatRetransmissions(retransmissions, overallSentRequests));
+		}
+		long transmissionErrors = transmissionErrorCounter.get();
+		if (transmissionErrors > 0) {
+			statisticsLogger.info("{}", formatTransmissionErrors(transmissionErrors, overallSentRequests));
+		}
+		if (overallSentRequests < overallRequests) {
+			if (done) {
+				statisticsLogger.info("Stale at {} messages ({}%)", overallSentRequests,
+						(overallSentRequests * 100L) / overallRequests);
+			} else {
+				statisticsLogger.info("Interrupted at {} messages ({}%)", overallSentRequests,
+						(overallSentRequests * 100L) / overallRequests);
+			}
+		}
+		int unavailables = overallServiceUnavailable.get();
+		if (unavailables > 0) {
+			System.out.println(formatUnavailable(unavailables, overallSentRequests));
+			long successfullRequest = overallSentRequests - unavailables;
+			System.out.format("%d successful requests in %dms%s%n", successfullRequest,
+					TimeUnit.NANOSECONDS.toMillis(timeRequestNanos),
+					formatPerSecond("reqs", successfullRequest, timeRequestNanos));
+		}
+
+		statisticsLogger.info("connects          : {}", connectRttStatistic.getSummaryAsText());
+		statisticsLogger.info("success-responses : {}", rttStatistic.getSummaryAsText());
+		statisticsLogger.info("errors-responses  : {}", errorRttStatistic.getSummaryAsText());
+
+		health.dump();
+		netstat.dump();
+	}
+
+	private static void registerShutdown() {
+		LOGGER.info("register shutdown hook.");
+		Runtime.getRuntime().addShutdownHook(new Thread("SHUTDOWN") {
+
+			@Override
+			public void run() {
+				printResults();
+			}
+		});
 	}
 
 	private static String formatRetransmissions(long retransmissions, long requests) {

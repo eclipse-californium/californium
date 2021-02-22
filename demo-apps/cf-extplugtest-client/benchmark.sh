@@ -111,7 +111,7 @@ fi
 : "${USE_UDP:=1}"
 : "${USE_PLAIN:=1}"
 : "${USE_SECURE:=1}"
-: "${USE_CON:=1}"
+: "${USE_CON:=2}"                         # 0:= not used, 1 := used, 2 := also with separate response  
 : "${USE_NON:=1}"
 : "${USE_LARGE_BLOCK1:=1}"
 
@@ -121,7 +121,7 @@ fi
 : "${USE_OBSERVE:=1}"
 : "${USE_HANDSHAKES:=1}"
 
-USE_NONESTOP=--no-stop
+: "${USE_NONESTOP:=--no-stop}"
 
 # export EXECUTER_REMOVE_ON_CANCEL=true
 # export EXECUTER_LOGGING_QUEUE_SIZE_DIFF=1000
@@ -234,7 +234,7 @@ benchmark_all()
       fi
       benchmark_tcp "benchmark?rlen=${PAYLOAD}" --clients ${TCP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
 
-      if [ ${USE_CON} -ne 0 ] ; then
+      if [ ${USE_CON} -eq 2 ] ; then
 # POST separate response
          benchmark_udp "benchmark?rlen=${PAYLOAD}&ack" --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP}
       fi
@@ -341,12 +341,12 @@ proxy()
    fi 
 }
 
-START_BENCHMARK=`date +%s`
+START_BENCHMARK=$(date +%s)
 
 #proxy
 benchmark_all
 benchmark_dtls_handshakes
 
-END_BENCHMARK=`date +%s`
+END_BENCHMARK=$(date +%s)
 
 echo "ALL:" $((${END_BENCHMARK} - ${START_BENCHMARK}))
