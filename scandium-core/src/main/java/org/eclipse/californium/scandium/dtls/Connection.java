@@ -98,7 +98,6 @@ public final class Connection {
 	private InetSocketAddress peerAddress;
 	private InetSocketAddress router;
 	private ConnectionId cid;
-	private DTLSSession resumeSession;
 
 	/**
 	 * Root cause of alert.
@@ -131,31 +130,10 @@ public final class Connection {
 			throw new NullPointerException("Serial executor must not be null");
 		} else {
 			long now = ClockUtil.nanoRealtime();
-			this.resumeSession = null;
 			this.peerAddress = peerAddress;
 			this.serialExecutor = serialExecutor;
 			this.lastPeerAddressNanos = now;
 			this.lastMessageNanos = now;
-		}
-	}
-
-	/**
-	 * Creates a new connection from a session ticket containing <em>current</em> state from another
-	 * connection that should be resumed.
-	 * 
-	 * The connection is not {@link #isExecuting()}.
-	 * 
-	 * @param session The other connection's session.
-	 * @throws NullPointerException if the session is {@code null}
-	 */
-	public Connection(DTLSSession session) {
-		if (session == null) {
-			throw new NullPointerException("session must not be null");
-		} else {
-			this.resumeSession = session;
-			this.resumptionRequired = true;
-			this.cid = null;
-			this.serialExecutor = null;
 		}
 	}
 
@@ -260,18 +238,7 @@ public final class Connection {
 	 *         contains a session that it can be resumed from.
 	 */
 	public boolean isActive() {
-		return establishedDtlsContext != null || resumeSession != null;
-	}
-
-	/**
-	 * Gets the session to resume.
-	 * 
-	 * @return The session or {@code null}, if this connection has not been
-	 *         created for resumption.
-	 * @since 3.0
-	 */
-	public DTLSSession getResumeSession() {
-		return resumeSession;
+		return establishedDtlsContext != null;
 	}
 
 	/**
@@ -452,7 +419,6 @@ public final class Connection {
 	 * 
 	 * This is the session of the {@link #establishedDtlsContext}, if not
 	 * {@code null}, or the session negotiated in the {@link #ongoingHandshake}.
-	 * If both are {@code null}, then the {@link #resumeSession} is returned.
 	 * 
 	 * @return the <em>current</em> session, or {@code null}, if no session exists
 	 */
@@ -461,7 +427,20 @@ public final class Connection {
 		if (dtlsContext != null) {
 			return dtlsContext.getSession();
 		}
-		return resumeSession;
+		return null;
+	}
+
+	/**
+	 * Gets the DTLS session id of an already established DTLS context that
+	 * exists with this connection's peer.
+	 * 
+	 * @return the session id, or {@code null}, if no DTLS context has been
+	 *         established (yet)
+	 * @since 3.0
+	 */
+	public SessionId getEstablishedSessionIdentifier() {
+		DTLSContext context = getEstablishedDtlsContext();
+		return context == null ? null : context.getSession().getSessionIdentifier();
 	}
 
 	/**
@@ -634,13 +613,11 @@ public final class Connection {
 	 * @since 3.0 (replaces resetSession())
 	 */
 	public void resetContext() {
-		if (establishedDtlsContext == null && resumeSession == null) {
-			throw new IllegalStateException("No established context nor session to resume available!");
+		if (establishedDtlsContext == null) {
+			throw new IllegalStateException("No established context to resume available!");
 		}
 		SecretUtil.destroy(establishedDtlsContext);
 		establishedDtlsContext = null;
-		SecretUtil.destroy(resumeSession);
-		resumeSession = null;
 		resumptionRequired = false;
 		updateConnectionState();
 	}
@@ -862,9 +839,6 @@ public final class Connection {
 				}
 			}
 		}
-		if (resumeSession != null) {
-			builder.append(", resume ").append(resumeSession);
-		}
 		if (isExecuting()) {
 			builder.append(", is alive");
 		}
@@ -1009,7 +983,7 @@ public final class Connection {
 		}
 		establishedDtlsContext.write(writer);
 		writer.writeByte(cid != null && cid.equals(establishedDtlsContext.getReadConnectionId()) ? (byte) 1 : (byte) 0);
-		 SerializationUtil.writeFinishedItem(writer, position, Short.SIZE);
+		SerializationUtil.writeFinishedItem(writer, position, Short.SIZE);
 		return true;
 	}
 

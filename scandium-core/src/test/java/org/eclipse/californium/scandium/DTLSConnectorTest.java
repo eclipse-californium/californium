@@ -770,7 +770,7 @@ public class DTLSConnectorTest {
 		connection.write(writer);
 		DatagramReader reader = new DatagramReader(writer.toByteArray());
 		Connection connection2 = Connection.fromReader(reader, 0);
-		clientConnectionStore.remove(connection);
+		clientConnectionStore.remove(connection, true);
 		connection2.setExecutor(new SerialExecutor(executor));
 		clientConnectionStore.put(connection2);
 
@@ -1064,7 +1064,7 @@ public class DTLSConnectorTest {
 					.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), CertificateType.RAW_PUBLIC_KEY)
 					.setClientAuthenticationRequired(false);
 			serverHelper.startServer(serverConfig);
-			serverHelper.givenAnEstablishedSession(client);
+			serverHelper.givenAnEstablishedSession(client, true);
 			assertThat(serverHelper.serverRawDataProcessor.getClientEndpointContext().getPeerIdentity(), is(nullValue()));
 		} finally {
 			serverHelper.destroyServer();

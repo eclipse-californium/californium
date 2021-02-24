@@ -43,6 +43,10 @@ If certificate verification fails, a `DECRYPT_ERROR` is sent.
 
 The encoding of the `SessionTicket` has changed.
 
+The `SessionCache` and resumption handshake behavior is changed. `SessionCache` is renamed to `SessionStore` and intended to return on calls "immediately". If the `SessionStore` is not used, the `InMemoryConnectionStore` limits the number of connection per session to one. That results in cleanup additionally connection earlier than with an `SessionStore`. That behavior without `SessionStore` is very close to that of the 2.6., except, that failing handshakes using the same ip-address/port as the current connection will not remove this current connection. Using the `SessionStore` changes the behavior of 2.6 more. Some connections may be cleaned up later by eviction of the least recently used connection. And the `SessionStore` is assumed to be weakly consistent, without it's strictly consistent.
+
+Please Note: the new `SessionStore` feature is not well tested! If used and causing trouble, don't hesitate to create an issue.
+
 ### Californium-Core:
 
 `MessageObserver.onAcknowledgement()`:
@@ -100,6 +104,12 @@ are removed and must be replaced by
 9) `useHandshakeStateValidation` is removed from configuration. The handshake-state machine is now always.
 
 10) The `ClientSessionCache` is removed and replaced by the `DTLSSession` serialization. The extended `ConnectionListener` and the `DTLSConnector.restoreConnection(Connection connection)` are for saving and restoring `Connection`s.
+
+11) The `SessionCache` is renamed into `SessionStore`. It's now part of the `DtlsConnectorConfig` and not longer a parameter of the constructor for the `DTLSConnector`.
+
+12) The `ResumptionSupportingConnectionStore.remove(Connection)` is removed, use `ResumptionSupportingConnectionStore.remove(Connection, boolean)` and provided explicit, if the session is to be removed from the session store as well.
+
+13) The `ResumptionSupportingConnectionStore.find(SessionId)` returns now a new DTLSSession instead of a connection.
 
 ### Californium-Core:
 

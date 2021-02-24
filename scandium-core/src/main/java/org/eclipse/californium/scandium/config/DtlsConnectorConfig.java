@@ -60,9 +60,11 @@ import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.ExtendedMasterSecretMode;
 import org.eclipse.californium.scandium.dtls.HelloVerifyRequest;
+import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.ProtocolVersion;
 import org.eclipse.californium.scandium.dtls.RecordLayer;
-import org.eclipse.californium.scandium.dtls.SessionCache;
+import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
+import org.eclipse.californium.scandium.dtls.SessionStore;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
@@ -449,12 +451,27 @@ public final class DtlsConnectorConfig {
 	 */
 	private Boolean useTruncatedCertificatePathForValidation;
 
+	/**
+	 * Connection Listener.
+	 */
 	private ConnectionListener connectionListener;
 
+	/**
+	 * Session store for {@link InMemoryConnectionStore}.
+	 * 
+	 * If a custom {@link ResumptionSupportingConnectionStore} is used, the
+	 * session store must be provided directly to that implementation. In that
+	 * case, the configured session store here will be ignored.
+	 * 
+	 * @see DTLSConnector#createConnectionStore
+	 * @since 3.0
+	 */
+	private SessionStore sessionStore;
+
 	private DtlsHealth healthHandler;
-	
+
 	private Boolean clientOnly;
-	
+
 	private Boolean recommendedCipherSuitesOnly;
 
 	private Boolean recommendedSupportedGroupsOnly;
@@ -718,7 +735,7 @@ public final class DtlsConnectorConfig {
 	 * Threshold to use a HELLO_VERIFY_REQUEST also for session resumption in
 	 * percent of {@link #getMaxConnections()}. Though a CLIENT_HELLO with an
 	 * session id is used in session resumption, that session ID could be used
-	 * to check.
+	 * to as weaker verification, that the peer controls the source address.
 	 * 
 	 * <pre>
 	 * Value 
@@ -734,12 +751,12 @@ public final class DtlsConnectorConfig {
 	 * a verify request is used to ensure, that the peer really owns that
 	 * endpoint. If a peer resumes a session, and the endpoint of the peer is
 	 * either unused or not related to a established session, this threshold
-	 * controls, if a verify request is sued or not. If more resumption
+	 * controls, if a verify request is used or not. If more resumption
 	 * handshakes without verified peers are pending than this threshold, then a
 	 * verify request is used.
 	 * 
 	 * Note: a value larger than 0 will call
-	 * {@link SessionCache#get(org.eclipse.californium.scandium.dtls.SessionId)}.
+	 * {@link SessionStore#get(org.eclipse.californium.scandium.dtls.SessionId)}.
 	 * If that implementation is expensive, please ensure, that this value is
 	 * configured with {@code 0}. Otherwise, CLIENT_HELLOs with invalid session
 	 * ids may be spoofed and gets too expensive.
@@ -1160,6 +1177,22 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * Gets session store for {@link InMemoryConnectionStore}.
+	 * 
+	 * If a custom {@link ResumptionSupportingConnectionStore} is used, the
+	 * session store must be provided directly to that implementation. In that
+	 * case, the configured session store here will be ignored.
+	 * 
+	 * @return session store, or {@code null}, if not provided.
+	 * 
+	 * @see DTLSConnector#createConnectionStore
+	 * @since 3.0
+	 */
+	public SessionStore getSessionStore() {
+		return sessionStore;
+	}
+
+	/**
 	 * Get instance logging tag.
 	 * 
 	 * @return logging tag.
@@ -1273,6 +1306,7 @@ public final class DtlsConnectorConfig {
 		cloned.useTruncatedCertificatePathForClientsCertificateMessage = useTruncatedCertificatePathForClientsCertificateMessage;
 		cloned.useTruncatedCertificatePathForValidation = useTruncatedCertificatePathForValidation;
 		cloned.connectionListener = connectionListener;
+		cloned.sessionStore = sessionStore;
 		cloned.healthHandler = healthHandler;
 		cloned.clientOnly = clientOnly;
 		cloned.recommendedCipherSuitesOnly = recommendedCipherSuitesOnly;
@@ -2714,7 +2748,7 @@ public final class DtlsConnectorConfig {
 		 * a HELLO_VERIFY_REQUEST should be used also for session resumption.
 		 * 
 		 * Note: a value larger than 0 will call
-		 * {@link SessionCache#get(org.eclipse.californium.scandium.dtls.SessionId)}.
+		 * {@link SessionStore#get(org.eclipse.californium.scandium.dtls.SessionId)}.
 		 * If that implementation is expensive, please ensure, that this value
 		 * is configured with {@code 0}. Otherwise, CLIENT_HELLOs with invalid
 		 * session ids may be spoofed and gets too expensive.
@@ -2857,6 +2891,25 @@ public final class DtlsConnectorConfig {
 
 		public Builder setConnectionListener(ConnectionListener connectionListener) {
 			config.connectionListener = connectionListener;
+			return this;
+		}
+
+		/**
+		 * Sets the session store for {@link InMemoryConnectionStore}.
+		 * 
+		 * If a custom {@link ResumptionSupportingConnectionStore} is used, the
+		 * session store must be provided directly to that implementation. In
+		 * that case, the configured session store here will be ignored.
+		 * 
+		 * @param sessionStore session store, or {@code null}, if not to be
+		 *            used.
+		 * @return this builder for command chaining.
+		 * 
+		 * @see DTLSConnector#createConnectionStore
+		 * @since 3.0
+		 */
+		public Builder setSessionStore(SessionStore sessionStore) {
+			config.sessionStore = sessionStore;
 			return this;
 		}
 
