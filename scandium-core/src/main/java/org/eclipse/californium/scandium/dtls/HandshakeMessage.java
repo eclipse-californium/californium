@@ -510,6 +510,9 @@ public abstract class HandshakeMessage implements DTLSMessage {
 		if (byteArray != null) {
 			throw new IllegalStateException("message is already serialized!");
 		}
+		if (messageSeq < 0 || messageSeq > 0xffff) {
+			throw new IllegalArgumentException("Handshake message sequence number " + messageSeq + " out of range [0...65535]!");
+		}
 		this.messageSeq = messageSeq;
 	}
 

@@ -221,6 +221,8 @@ public final class DTLSSession implements Destroyable {
 		cipherSuite = session.getCipherSuite();
 		compressionMethod = session.getCompressionMethod();
 		extendedMasterSecret = session.useExtendedMasterSecret();
+		sendCertificateType = session.sendCertificateType();
+		receiveCertificateType = session.receiveCertificateType();
 		setServerNames(session.getServerNames());
 	}
 

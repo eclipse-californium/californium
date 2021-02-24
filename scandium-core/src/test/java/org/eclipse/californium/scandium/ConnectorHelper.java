@@ -86,7 +86,7 @@ import org.eclipse.californium.scandium.dtls.DebugConnectionStore;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.Handshaker;
-import org.eclipse.californium.scandium.dtls.InMemorySessionCache;
+import org.eclipse.californium.scandium.dtls.TestInMemorySessionStore;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
 import org.eclipse.californium.scandium.dtls.SessionAdapter;
@@ -118,7 +118,7 @@ public class ConnectorHelper {
 	DTLSConnector server;
 	InetSocketAddress serverEndpoint;
 	DebugConnectionStore serverConnectionStore;
-	InMemorySessionCache serverSessionCache;
+	TestInMemorySessionStore serverSessionStore;
 	SimpleRawDataChannel serverRawDataChannel;
 	RawDataProcessor serverRawDataProcessor;
 	Map<InetSocketAddress, LatchSessionListener> sessionListenerMap = new ConcurrentHashMap<>();
@@ -169,7 +169,6 @@ public class ConnectorHelper {
 	 */
 	public void startServer(DtlsConnectorConfig.Builder builder) throws IOException, GeneralSecurityException {
 		builder.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
-				.setMaxConnections(SERVER_CONNECTION_STORE_CAPACITY)
 				.setReceiverThreadCount(1)
 				.setConnectionThreadCount(2)
 				.setLoggingTag("server")
@@ -178,6 +177,12 @@ public class ConnectorHelper {
 		DtlsConnectorConfig incompleteConfig = builder.getIncompleteConfig();
 		if (incompleteConfig.getMaxTransmissionUnitLimit() == null) {
 			builder.setMaxTransmissionUnit(1024);
+		}
+		if (incompleteConfig.getMaxConnections() == null) {
+			builder.setMaxConnections(SERVER_CONNECTION_STORE_CAPACITY);
+		}
+		if (incompleteConfig.getStaleConnectionThreshold() == null) {
+			builder.setStaleConnectionThreshold(60 * 5); // connection timeout 5mins
 		}
 
 		ensurePskStore(builder);
@@ -199,8 +204,8 @@ public class ConnectorHelper {
 
 		serverConfig = builder.build();
 
-		serverSessionCache = new InMemorySessionCache();
-		serverConnectionStore = new DebugConnectionStore(SERVER_CONNECTION_STORE_CAPACITY, 5 * 60, serverSessionCache); // connection timeout 5mins
+		serverSessionStore = new TestInMemorySessionStore();
+		serverConnectionStore = new DebugConnectionStore(serverConfig.getMaxConnections(), serverConfig.getStaleConnectionThreshold(), serverSessionStore);
 		serverConnectionStore.setTag("server");
 
 		serverAlertCatcher = new AlertCatcher();
@@ -268,6 +273,9 @@ public class ConnectorHelper {
 		if (serverConnectionStore != null) {
 			serverConnectionStore.clear();
 		}
+		if (serverSessionStore != null) {
+			serverSessionStore.clear();
+		}
 		if (serverRawDataProcessor != null) {
 			serverRawDataProcessor.clear();
 		}
@@ -322,10 +330,6 @@ public class ConnectorHelper {
 				.setConnectionThreadCount(2)
 				.setIdentity(DtlsTestTools.getClientPrivateKey(), DtlsTestTools.getClientCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509)
 				.setAdvancedCertificateVerifier(clientCertificateVerifier);
-	}
-
-	LatchDecrementingRawDataChannel givenAnEstablishedSession(DTLSConnector client) throws Exception {
-		return givenAnEstablishedSession(client, true);
 	}
 
 	LatchDecrementingRawDataChannel givenAnEstablishedSession(DTLSConnector client, boolean releaseSocket) throws Exception {

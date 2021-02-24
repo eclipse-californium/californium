@@ -36,7 +36,6 @@ import org.eclipse.californium.scandium.dtls.DTLSContext;
 import org.eclipse.californium.scandium.dtls.Handshaker;
 import org.eclipse.californium.scandium.dtls.NodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
-import org.eclipse.californium.scandium.dtls.SessionCache;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.slf4j.Logger;
@@ -111,23 +110,7 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 	 */
 	public DtlsManagedClusterConnector(DtlsConnectorConfig configuration,
 			DtlsClusterConnectorConfig clusterConfiguration) {
-		this(configuration, clusterConfiguration, (SessionCache) null);
-	}
-
-	/**
-	 * Create dtls connector with dynamic cluster support.
-	 * 
-	 * @param configuration dtls configuration
-	 * @param clusterConfiguration cluster internal connector configuration
-	 * @param sessionCache session cache. May be {@code null}.
-	 * @throws IllegalArgumentException if the configuration doesn't provide a
-	 *             cid generator, or the cid generator only supports, but
-	 *             doesn't use cids, or the cid generator is no
-	 *             {@link NodeConnectionIdGenerator}.
-	 */
-	public DtlsManagedClusterConnector(DtlsConnectorConfig configuration,
-			DtlsClusterConnectorConfig clusterConfiguration, SessionCache sessionCache) {
-		this(configuration, clusterConfiguration, createConnectionStore(configuration, sessionCache));
+		this(configuration, clusterConfiguration, createConnectionStore(configuration));
 	}
 
 	/**

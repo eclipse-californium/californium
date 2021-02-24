@@ -29,7 +29,7 @@ import org.eclipse.californium.scandium.util.SecretUtil;
  * A simple session cache that stores {@code SessionTickets} in a hash map.
  *
  */
-public class InMemorySessionCache implements SessionCache {
+public class TestInMemorySessionStore implements SessionStore {
 
 	private final Map<SessionId, byte[]> cache = new ConcurrentHashMap<>();
 
@@ -78,5 +78,14 @@ public class InMemorySessionCache implements SessionCache {
 	@Override
 	public void remove(final SessionId id) {
 		cache.remove(id);
+	}
+
+	public void clear() {
+		cache.clear();
+		establishedSessionCounter.set(0);
+	}
+
+	public int size() {
+		return cache.size();
 	}
 }

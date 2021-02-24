@@ -105,20 +105,26 @@ public interface ResumptionSupportingConnectionStore extends PersistentConnector
 	/**
 	 * Associates the connection with the session id.
 	 * 
-	 * Removes previous associated connection from store.
+	 * Removes previous associated connection from store, if no second level
+	 * session store is used.
 	 * 
-	 * @param session established session.
 	 * @param connection connection of established session
+	 * @throws IllegalArgumentException if connection has no established session
+	 * @since 3.0 (the parameter session is removed)
 	 */
-	void putEstablishedSession(DTLSSession session, Connection connection);
+	void putEstablishedSession(Connection connection);
 
 	/**
 	 * Remove the association of the connection with the session id.
 	 * 
-	 * @param session established session.
+	 * Removes associated connection from store, if no second level session
+	 * store is used.
+	 * 
 	 * @param connection connection of established session
+	 * @throws IllegalArgumentException if connection has no established session
+	 * @since 3.0 (the parameter session is removed)
 	 */
-	void removeFromEstablishedSessions(DTLSSession session, Connection connection);
+	void removeFromEstablishedSessions(Connection connection);
 
 	/**
 	 * Gets the number of additional connection this store can manage.
@@ -152,28 +158,19 @@ public interface ResumptionSupportingConnectionStore extends PersistentConnector
 	 * @return the matching connection or <code>null</code> if no connection
 	 *         with an established session with the given ID exists
 	 */
-	Connection find(SessionId id);
+	DTLSSession find(SessionId id);
 
 	/**
-	 * Removes a connection from the store and session cache.
+	 * Removes a connection from the store and optional from the session store.
 	 * 
 	 * @param connection the connection to remove
-	 * @return <code>true</code> if the connection was removed,
-	 *         <code>false</code>, otherwise
-	 */
-	boolean remove(Connection connection);
-
-	/**
-	 * Removes a connection from the store and optional from the session cache.
-	 * 
-	 * @param connection the connection to remove
-	 * @param removeFromSessionCache <code>true</code> if the session of the
-	 *            connection should be removed from the session cache,
+	 * @param removeFromSessionStore <code>true</code> if the session of the
+	 *            connection should be removed from the session store,
 	 *            <code>false</code>, otherwise
 	 * @return <code>true</code> if the connection was removed,
 	 *         <code>false</code>, otherwise
 	 */
-	boolean remove(Connection connection, boolean removeFromSessionCache);
+	boolean remove(Connection connection, boolean removeFromSessionStore);
 
 	/**
 	 * Removes all connections from the store.

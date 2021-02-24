@@ -1925,8 +1925,8 @@ public class DTLSConnectorAdvancedTest {
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler(clientCidGenerator);
 		UdpConnector rawClient = new UdpConnector(0, collector);
 		TestRecordLayer clientRecordLayer = new TestRecordLayer(rawClient);
-		int remain = serverHelper.serverConnectionStore.remainingCapacity();
 		try {
+			int remain = serverHelper.serverConnectionStore.remainingCapacity();
 
 			// Start connector
 			rawClient.start();
@@ -1967,6 +1967,11 @@ public class DTLSConnectorAdvancedTest {
 			assertNotNull(serverSideConnection);
 			boolean expectedCid = ConnectionId.useConnectionId(serverCidGenerator) && ConnectionId.supportsConnectionId(clientCidGenerator);
 			assertThat(serverSideConnection.expectCid(), is(expectedCid));
+
+			if (expectedCid) {
+				// with cid, the connection is still accessible and therefore not removed.
+				remain = serverHelper.serverConnectionStore.remainingCapacity();
+			}
 
 			// Create resume handshaker
 			sessionListener = new LatchSessionListener();

@@ -36,13 +36,11 @@ public final class DebugConnectionStore extends InMemoryConnectionStore {
 	 * @param threshold the period of time of inactivity (in seconds) after
 	 *            which a connection is considered stale and can be evicted from
 	 *            the store if a new connection is to be added to the store
-	 * @param sessionCache a second level cache to use for <em>current</em>
-	 *            connection state of established DTLS sessions. If implements
-	 *            {@link ClientSessionCache}, restore connection from the cache
-	 *            and mark them to resume.
+	 * @param sessionStore a second level store to use for <em>current</em>
+	 *            connection state of established DTLS sessions.
 	 */
-	public DebugConnectionStore(final int capacity, final long threshold, final SessionCache sessionCache) {
-		super(capacity, threshold, sessionCache);
+	public DebugConnectionStore(final int capacity, final long threshold, final SessionStore sessionStore) {
+		super(capacity, threshold, sessionStore);
 	}
 
 	/**
@@ -107,7 +105,7 @@ public final class DebugConnectionStore extends InMemoryConnectionStore {
 				dump(connectionsByAddress);
 				failure.append(" connections by address not empty!");
 			}
-			if (!connectionsByEstablishedSession.isEmpty()) {
+			if (connectionsByEstablishedSession != null && !connectionsByEstablishedSession.isEmpty()) {
 				LOG.warn("  {}connections by session not empty!", tag);
 				dump(connectionsByEstablishedSession);
 				failure.append(" connections by sessions not empty!");
@@ -135,16 +133,18 @@ public final class DebugConnectionStore extends InMemoryConnectionStore {
 					failure.append(" connections by address mixed up!");
 				}
 			}
-			for (SessionId session : connectionsByEstablishedSession.keySet()) {
-				Connection connection = connectionsByEstablishedSession.get(session);
-				if (!session.equals(connection.getEstablishedSession().getSessionIdentifier())) {
-					LOG.warn("  {}connections by session mixed up {} - {}", tag, session,
-							connection.getEstablishedSession().getSessionIdentifier());
-					failure.append(" connections by session mixed up!");
-				}
-				if (connections.get(connection.getConnectionId()) == null) {
-					LOG.warn("  {}connections by session not available by cid! {} - {}", tag, session, connection);
-					failure.append(" connections by session mixed up!");
+			if (connectionsByEstablishedSession != null) {
+				for (SessionId session : connectionsByEstablishedSession.keySet()) {
+					Connection connection = connectionsByEstablishedSession.get(session);
+					if (!session.equals(connection.getEstablishedSession().getSessionIdentifier())) {
+						LOG.warn("  {}connections by session mixed up {} - {}", tag, session,
+								connection.getEstablishedSession().getSessionIdentifier());
+						failure.append(" connections by session mixed up!");
+					}
+					if (connections.get(connection.getConnectionId()) == null) {
+						LOG.warn("  {}connections by session not available by cid! {} - {}", tag, session, connection);
+						failure.append(" connections by session mixed up!");
+					}
 				}
 			}
 		}

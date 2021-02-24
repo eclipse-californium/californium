@@ -104,8 +104,11 @@ public class DTLSConnectorStartStopTest {
 			rand.nextBytes(logid);
 			testLogTagHead = StringUtil.byteArray2HexString(logid, StringUtil.NO_SEPARATOR, 0) + "-";
 		}
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder();
+		builder.setMaxConnections(1000);
+		builder.setStaleConnectionThreshold(10);
 		serverHelper = new ConnectorHelper();
-		serverHelper.startServer();
+		serverHelper.startServer(builder);
 	}
 
 	/**
@@ -177,7 +180,7 @@ public class DTLSConnectorStartStopTest {
 	private void testStopCallsMessageCallbackOnError(final int pending, final int loops, boolean restart)
 			throws InterruptedException, IOException, GeneralSecurityException {
 		byte[] data = { 0, 1, 2 };
-		int lastServerRemaining = -1;
+		int lastServerSession = -1;
 		InetSocketAddress dest = serverHelper.serverEndpoint;
 		EndpointContext context = new AddressEndpointContext(dest);
 		boolean setup = false;
@@ -207,9 +210,9 @@ public class DTLSConnectorStartStopTest {
 			assertTrue(testLogTag + " loop: " + loop + ", " + pending + " msgs," 
 					+ " DTLS handshake timed out after " + MAX_TIME_TO_WAIT_SECS + " seconds",
 					clientChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
-			if (lastServerRemaining > -1) {
+			if (lastServerSession > -1) {
 				assertThat(testLogTag + " number of server sessions changed!", 
-						serverHelper.serverConnectionStore.remainingCapacity(), is(lastServerRemaining));
+						serverHelper.serverSessionStore.size(), is(lastServerSession));
 			}
 
 			for (int index = 1; index < pending; ++index) {
@@ -234,7 +237,7 @@ public class DTLSConnectorStartStopTest {
 				}
 			}
 			assertThat(testLogTag + " loop: " + loop + ", missing callbacks " + callback, complete, is(true));
-			lastServerRemaining = serverHelper.serverConnectionStore.remainingCapacity();
+			lastServerSession = serverHelper.serverSessionStore.size();
 			if (restart) {
 				restoreClientConnection = clientConnectionStore.get(serverHelper.serverEndpoint);
 				restoreClientConnection.setResumptionRequired(true);
