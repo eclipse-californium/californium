@@ -1962,6 +1962,12 @@ public class DTLSConnectorAdvancedTest {
 			assertTrue("client handshake failed",
 					sessionListener.waitForSessionEstablished(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 
+			// Ensure server side connection expects cid
+			Connection serverSideConnection = serverHelper.serverConnectionStore.get(rawClient.getAddress());
+			assertNotNull(serverSideConnection);
+			boolean expectedCid = ConnectionId.useConnectionId(serverCidGenerator) && ConnectionId.supportsConnectionId(clientCidGenerator);
+			assertThat(serverSideConnection.expectCid(), is(expectedCid));
+
 			// Create resume handshaker
 			sessionListener = new LatchSessionListener();
 			DTLSSession resumableSession = new DTLSSession(clientHandshaker.getSession());
@@ -2093,6 +2099,12 @@ public class DTLSConnectorAdvancedTest {
 
 			// application data
 			rs = waitForFlightReceived("app data", collector, 1);
+
+			// Ensure server side connection expects cid
+			Connection clientSideConnection = clientConnectionStore.get(rawServer.getAddress());
+			assertNotNull(clientSideConnection);
+			boolean expectedCid = ConnectionId.useConnectionId(clientCidGenerator) && ConnectionId.supportsConnectionId(serverCidGenerator);
+			assertThat(clientSideConnection.expectCid(), is(expectedCid));
 
 			sessionListener = new LatchSessionListener();
 			DTLSSession resumableSession = new DTLSSession(serverHandshaker.getSession());

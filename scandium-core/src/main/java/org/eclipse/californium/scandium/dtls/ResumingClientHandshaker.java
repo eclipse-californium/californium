@@ -197,7 +197,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		} else {
 			verifyServerHelloExtensions(message);
 			serverRandom = message.getRandom();
-			if (connectionIdGenerator != null) {
+			if (supportsConnectionId()) {
 				ConnectionIdExtension extension = message.getConnectionIdExtension();
 				if (extension != null) {
 					ConnectionId connectionId = extension.getConnectionId();

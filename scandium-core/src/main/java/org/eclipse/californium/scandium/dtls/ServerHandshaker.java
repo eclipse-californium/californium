@@ -717,7 +717,7 @@ public class ServerHandshaker extends Handshaker {
 			}
 		}
 
-		if (connectionIdGenerator != null) {
+		if (supportsConnectionId()) {
 			ConnectionIdExtension connectionIdExtension = clientHello.getConnectionIdExtension();
 			if (connectionIdExtension != null) {
 				context.setWriteConnectionId(connectionIdExtension.getConnectionId());

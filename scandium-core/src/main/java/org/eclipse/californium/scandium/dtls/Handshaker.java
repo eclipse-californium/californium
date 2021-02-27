@@ -1382,6 +1382,18 @@ public abstract class Handshaker implements Destroyable {
 	}
 
 	/**
+	 * Check, if this peer supports cid.
+	 * 
+	 * @return {@code true}, if the this peer supports cid, {@code false}, if
+	 *         not.
+	 * @see ConnectionId#supportsConnectionId(ConnectionIdGenerator)
+	 * @since 3.0
+	 */
+	public boolean supportsConnectionId() {
+		return ConnectionId.supportsConnectionId(connectionIdGenerator);
+	}
+
+	/**
 	 * Get read connection ID for inbound records
 	 * 
 	 * @return connection ID for inbound records. {@code null}, if connection ID
@@ -1390,14 +1402,14 @@ public abstract class Handshaker implements Destroyable {
 	 * @since 2.5
 	 */
 	public ConnectionId getReadConnectionId() {
-		if (connectionIdGenerator == null) {
-			return null;
-		} else if (connectionIdGenerator.useConnectionId()) {
+		if (ConnectionId.useConnectionId(connectionIdGenerator)) {
 			// use the already created unique cid
 			return connection.getConnectionId();
-		} else {
+		} else if (ConnectionId.supportsConnectionId(connectionIdGenerator)) {
 			// use empty cid
 			return ConnectionId.EMPTY;
+		} else {
+			return null;
 		}
 	}
 
