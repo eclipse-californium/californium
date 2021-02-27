@@ -1461,7 +1461,6 @@ public class DTLSConnector implements Connector, RecordLayer {
 				return;
 			}
 
-			boolean useCid = connectionIdGenerator != null && connectionIdGenerator.useConnectionId();
 			if (record.getType() == ContentType.TLS12_CID) {
 				// !useCid already dropped in Record.fromByteArray
 				if (epoch == 0) {
@@ -1472,7 +1471,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 					}
 					return;
 				}
-			} else if (epoch > 0 && useCid && connection.expectCid()) {
+			} else if (epoch > 0 && connection.expectCid()) {
 				DROP_LOGGER.debug("Discarding record received from peer [{}], CID required!", record.getPeerAddress());
 				if (health != null) {
 					health.receivingRecord(true);

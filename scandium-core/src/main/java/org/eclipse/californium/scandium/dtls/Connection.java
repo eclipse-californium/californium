@@ -271,7 +271,7 @@ public final class Connection {
 	 */
 	public boolean expectCid() {
 		DTLSSession session = getSession();
-		return session != null && session.getWriteConnectionId() != null;
+		return session != null && session.getReadConnectionId() != null && !session.getReadConnectionId().isEmpty();
 	}
 
 	/**
