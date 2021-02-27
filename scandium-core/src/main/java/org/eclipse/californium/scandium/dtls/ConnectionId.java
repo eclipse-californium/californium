@@ -20,7 +20,8 @@ import org.eclipse.californium.elements.util.Bytes;
 /**
  * Implementation of DTLS connection id.
  * 
- * <a href="https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id">draft-ietf-tls-dtls-connection-id</a>
+ * <a href=
+ * "https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id">draft-ietf-tls-dtls-connection-id</a>
  */
 public class ConnectionId extends Bytes {
 
@@ -31,7 +32,8 @@ public class ConnectionId extends Bytes {
 	 * 
 	 * @param connectionId connectionId bytes
 	 * @throws NullPointerException if connectionId is {@code null}
-	 * @throws IllegalArgumentException if connectionId length is larger than 255
+	 * @throws IllegalArgumentException if connectionId length is larger than
+	 *             255
 	 */
 	public ConnectionId(byte[] connectionId) {
 		super(connectionId);
@@ -40,5 +42,47 @@ public class ConnectionId extends Bytes {
 	@Override
 	public String toString() {
 		return new StringBuilder("CID=").append(getAsString()).toString();
+	}
+
+	/**
+	 * Check, if provided generator supports cid.
+	 * 
+	 * Any none {@code null} generator supports cid. This check is therefore
+	 * equivalent to {@code generator != null}.
+	 * 
+	 * @param generator cid generator.
+	 * @return {@code true}, if the provided generator supports cid,
+	 *         {@code false}, if not.
+	 * @since 3.0
+	 */
+	public static boolean supportsConnectionId(ConnectionIdGenerator generator) {
+		return generator != null;
+	}
+
+	/**
+	 * Check, if provided generator use cid.
+	 * 
+	 * @param generator cid generator.
+	 * @return {@code true}, if the provided generator use cid, {@code false},
+	 *         if not.
+	 * @see ConnectionIdGenerator#useConnectionId()
+	 * @since 3.0
+	 */
+	public static boolean useConnectionId(ConnectionIdGenerator generator) {
+		return generator != null && generator.useConnectionId();
+	}
+
+	/**
+	 * Check, if provided cid is used for records.
+	 * 
+	 * Only none {@link ConnectionId#isEmpty()} cids are used for records.
+	 * 
+	 * @param cid cid
+	 * @return {@code true}, if the provided cid is used for records,
+	 *         {@code false}, if not.
+	 * @since 3.0
+	 */
+	public static boolean useConnectionId(ConnectionId cid) {
+		return cid != null && !cid.isEmpty();
 	}
 }

@@ -376,7 +376,7 @@ public class ClientHandshaker extends Handshaker {
 		}
 		session.setCompressionMethod(message.getCompressionMethod());
 		verifyServerHelloExtensions(message);
-		if (connectionIdGenerator != null) {
+		if (supportsConnectionId()) {
 			ConnectionIdExtension extension = message.getConnectionIdExtension();
 			if (extension != null) {
 				ConnectionId connectionId = extension.getConnectionId();
@@ -820,7 +820,7 @@ public class ClientHandshaker extends Handshaker {
 	}
 
 	protected void addConnectionId(final ClientHello helloMessage) {
-		if (connectionIdGenerator != null) {
+		if (supportsConnectionId()) {
 			final ConnectionId connectionId;
 			if (connectionIdGenerator.useConnectionId()) {
 				// use the already created unique cid

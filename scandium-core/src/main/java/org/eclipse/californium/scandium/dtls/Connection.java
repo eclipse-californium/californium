@@ -81,8 +81,9 @@ public final class Connection {
 
 	/**
 	 * Identifier of the Client Hello used to start the handshake. Maybe
-	 * {@code null}, for client side connections. Note: used outside of
-	 * the serial-execution!
+	 * {@code null}, for client side connections.
+	 * 
+	 * Note: used outside of the serial-execution!
 	 * 
 	 * @since 3.0
 	 */
@@ -281,7 +282,7 @@ public final class Connection {
 	 */
 	public boolean expectCid() {
 		DTLSContext context = getDtlsContext();
-		return context != null && context.getWriteConnectionId() != null;
+		return context != null && ConnectionId.useConnectionId(context.getReadConnectionId());
 	}
 
 	/**
