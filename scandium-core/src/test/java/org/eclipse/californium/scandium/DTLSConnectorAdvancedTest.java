@@ -3047,7 +3047,8 @@ public class DTLSConnectorAdvancedTest {
 			RandomManager.currentRandom().nextBytes(cidBytes);
 			cid = new ConnectionId(cidBytes);
 		}
-		Connection connection = new Connection(peer, new SerialExecutor(executor));
+		Connection connection = new Connection(peer);
+		connection.setConnectorContext(new SerialExecutor(executor), null);
 		connection.setConnectionId(cid);
 		return connection;
 	}

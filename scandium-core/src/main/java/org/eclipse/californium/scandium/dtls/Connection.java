@@ -42,6 +42,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.ConcurrentModificationException;
 import java.util.Objects;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -79,6 +80,8 @@ public final class Connection {
 	private final AtomicReference<Handshaker> ongoingHandshake = new AtomicReference<Handshaker>();
 	private final SessionListener sessionListener = new ConnectionSessionListener();
 
+	private volatile ConnectionListener connectionListener;
+
 	/**
 	 * Identifier of the Client Hello used to start the handshake. Maybe
 	 * {@code null}, for client side connections.
@@ -88,6 +91,11 @@ public final class Connection {
 	 * @since 3.0
 	 */
 	private volatile ClientHelloIdentifier startingHelloClient;
+
+	private volatile DTLSContext establishedDtlsContext;
+
+	// Used to know when an abbreviated handshake should be initiated
+	private volatile boolean resumptionRequired; 
 
 	/**
 	 * Expired real time nanoseconds of the last message send or received.
@@ -110,59 +118,20 @@ public final class Connection {
 	 */
 	private AlertMessage rootCause;
 
-	private volatile DTLSContext establishedDtlsContext;
-	// Used to know when an abbreviated handshake should be initiated
-	private volatile boolean resumptionRequired; 
-
-	private volatile ConnectionListener connectionListener;
-
 	/**
 	 * Creates a new connection to a given peer.
 	 * 
 	 * @param peerAddress the IP address and port of the peer the connection exists with
-	 * @param serialExecutor serial executor.
-	 * @throws NullPointerException if the peer address or the serial executor is {@code null}
+	 * @throws NullPointerException if the peer address is {@code null}
 	 */
-	public Connection(InetSocketAddress peerAddress, SerialExecutor serialExecutor) {
+	public Connection(InetSocketAddress peerAddress) {
 		if (peerAddress == null) {
 			throw new NullPointerException("Peer address must not be null");
-		} else if (serialExecutor == null) {
-			throw new NullPointerException("Serial executor must not be null");
 		} else {
 			long now = ClockUtil.nanoRealtime();
 			this.peerAddress = peerAddress;
-			this.serialExecutor = serialExecutor;
 			this.lastPeerAddressNanos = now;
 			this.lastMessageNanos = now;
-		}
-	}
-
-	/**
-	 * Set execution listener.
-	 * 
-	 * @param listener listener to set.
-	 * @since 2.4
-	 */
-	public void setExecutionListener(final ConnectionListener listener) {
-		this.connectionListener = listener;
-		SerialExecutor executor = this.serialExecutor;
-		if (executor != null) {
-			if (listener == null) {
-				executor.setExecutionListener(null);
-			} else {
-				executor.setExecutionListener(new ExecutionListener() {
-
-					@Override
-					public void beforeExecution() {
-						listener.beforeExecution(Connection.this);
-					}
-
-					@Override
-					public void afterExecution() {
-						listener.afterExecution(Connection.this);
-					}
-				});
-			}
 		}
 	}
 
@@ -181,28 +150,47 @@ public final class Connection {
 	}
 
 	/**
-	 * Set new executor to restart execution for stopped connection.
+	 * Set connector's context.
 	 * 
-	 * @param serialExecutor new serial executor
-	 * @throws NullPointerException if the serial executor is {@code null}
+	 * @param executor executor to be used for {@link SerialExecutor}
+	 * @param listener connection listener.
+	 * @return this connection
+	 * @throws NullPointerException if the executor is {@code null}
 	 * @throws IllegalStateException if the connection is already executing
+	 * @since 3.0 (combines previous setExecutor and setExecutionListener) 
 	 */
-	public void setExecutor(SerialExecutor serialExecutor) {
-		if (serialExecutor == null) {
-			throw new NullPointerException("Serial executor must not be null1");
+	public Connection setConnectorContext(Executor executor, ConnectionListener listener) {
+		if (executor == null) {
+			throw new NullPointerException("Executor must not be null!");
 		} else if (isExecuting()) {
-			throw new IllegalStateException("Serial executor already available!");
+			throw new IllegalStateException("Executor already available!");
 		}
-		this.serialExecutor = serialExecutor;
-		setExecutionListener(this.connectionListener);
+		this.serialExecutor = new SerialExecutor(executor);
+		this.connectionListener = listener;
+		if (listener == null) {
+			serialExecutor.setExecutionListener(null);
+		} else {
+			serialExecutor.setExecutionListener(new ExecutionListener() {
+
+				@Override
+				public void beforeExecution() {
+					connectionListener.beforeExecution(Connection.this);
+				}
+
+				@Override
+				public void afterExecution() {
+					connectionListener.afterExecution(Connection.this);
+				}
+			});
+		}
+		return this;
 	}
 
 	/**
 	 * Gets the serial executor assigned to this connection.
 	 * 
-	 * @return serial executor. May be {@code null}, if the connection was
-	 *         created with {@link #Connection(DTLSSession)}
-	 *         or restored on startup.
+	 * @return serial executor. May be {@code null}, if the connection is
+	 *         restored on startup.
 	 */
 	public SerialExecutor getExecutor() {
 		return serialExecutor;

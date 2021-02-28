@@ -455,7 +455,7 @@ public class HandshakerTest {
 		private AtomicBoolean finishedProcessed = new AtomicBoolean(false);
 
 		TestHandshaker(DTLSSession session, RecordLayer recordLayer, DtlsConnectorConfig config) {
-			super(0, 0, session, recordLayer, timer, new Connection(config.getAddress(), new SyncSerialExecutor()),
+			super(0, 0, session, recordLayer, timer, new Connection(config.getAddress()).setConnectorContext(new SyncExecutor(), null),
 					config);
 			getConnection().setConnectionId(new ConnectionId(new byte[] { 1, 2, 3, 4 }));
 		}

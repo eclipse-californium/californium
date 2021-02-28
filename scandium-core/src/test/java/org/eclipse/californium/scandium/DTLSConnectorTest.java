@@ -771,7 +771,7 @@ public class DTLSConnectorTest {
 		DatagramReader reader = new DatagramReader(writer.toByteArray());
 		Connection connection2 = Connection.fromReader(reader, 0);
 		clientConnectionStore.remove(connection, true);
-		connection2.setExecutor(new SerialExecutor(executor));
+		connection2.setConnectorContext(new SerialExecutor(executor), null);
 		clientConnectionStore.put(connection2);
 
 		// Restart it
@@ -981,9 +981,9 @@ public class DTLSConnectorTest {
 	public void testConnectorTerminatesHandshakeIfConnectionStoreIsExhausted() throws Exception {
 		serverHelper.serverConnectionStore.clear();
 		assertEquals(SERVER_CONNECTION_STORE_CAPACITY, serverHelper.serverConnectionStore.remainingCapacity());
-		assertTrue(serverHelper.serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.1", 5050), new SerialExecutor(executor))));
-		assertTrue(serverHelper.serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.2", 5050), new SerialExecutor(executor))));
-		assertTrue(serverHelper.serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.3", 5050), new SerialExecutor(executor))));
+		assertTrue(serverHelper.serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.1", 5050)).setConnectorContext(new SerialExecutor(executor), null)));
+		assertTrue(serverHelper.serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.2", 5050)).setConnectorContext(new SerialExecutor(executor), null)));
+		assertTrue(serverHelper.serverConnectionStore.put(new Connection(new InetSocketAddress("192.168.0.3", 5050)).setConnectorContext(new SerialExecutor(executor), null)));
 
 		clientRawDataChannel.setLatchCount(1);
 		client.setRawDataReceiver(clientRawDataChannel);

@@ -891,7 +891,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 			Connection connection = iterator.next();
 			if (connection.hasEstablishedDtlsContext()) {
 				if (!connection.isExecuting()) {
-					connection.setExecutor(new SerialExecutor(executorService));
+					connection.setConnectorContext(executorService, connectionListener);
 				}
 				Long start = connection.getStartNanos();
 				if (start != null) {
@@ -1316,8 +1316,8 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 				connection = connectionStore.get(peerAddress);
 				if (connection == null && create) {
 					LOGGER.trace("create new connection for {}", peerAddress);
-					Connection newConnection = new Connection(peerAddress, new SerialExecutor(executor));
-					newConnection.setExecutionListener(connectionListener);
+					Connection newConnection = new Connection(peerAddress);
+					newConnection.setConnectorContext(executor, connectionListener);
 					if (running.get()) {
 						// only add, if connector is running!
 						if (!connectionStore.put(newConnection)) {
@@ -1331,7 +1331,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 				LOGGER.trace("no connection available for {},{}", peerAddress, cid);
 			} else if (!connection.isExecuting() && running.get()) {
 				LOGGER.trace("revive connection for {},{}", peerAddress, cid);
-				connection.setExecutor(new SerialExecutor(executor));
+				connection.setConnectorContext(executor, connectionListener);
 			} else {
 				LOGGER.trace("connection available for {},{}", peerAddress, cid);
 			}
@@ -1926,8 +1926,8 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 						}
 					}
 					if (connection == null) {
-						connection = new Connection(peerAddress, new SerialExecutor(getExecutorService()));
-						connection.setExecutionListener(connectionListener);
+						connection = new Connection(peerAddress);
+						connection.setConnectorContext(getExecutorService(), connectionListener);
 						connection.startByClientHello(clientHello);
 						if (!connectionStore.put(connection)) {
 							return;

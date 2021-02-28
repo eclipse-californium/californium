@@ -391,7 +391,7 @@ public class InMemoryConnectionStoreTest {
 	private Connection newConnection(long ip) throws HandshakeException, UnknownHostException {
 		InetAddress addr = InetAddress.getByAddress(longToIp(ip));
 		InetSocketAddress peerAddress = new InetSocketAddress(addr, 0);
-		Connection con = new Connection(peerAddress, new SyncSerialExecutor());
+		Connection con = new Connection(peerAddress).setConnectorContext(new SyncExecutor(), null);
 		DTLSContext dtlsContext = DTLSContextTest.newEstablishedServerDtlsContext(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CertificateType.RAW_PUBLIC_KEY);
 		con.getSessionListener().contextEstablished(null, dtlsContext);
 		return con;
