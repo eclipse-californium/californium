@@ -260,7 +260,8 @@ public class ClientHandshakerTest {
 			builder.setClientAuthenticationRequired(false);
 		}
 		DtlsConnectorConfig config = builder.build();
-		Connection connection = new Connection(config.getAddress(), new SyncSerialExecutor());
+		Connection connection = new Connection(config.getAddress());
+		connection.setConnectorContext(new SyncExecutor(), null);
 		handshaker = new ClientHandshaker(
 				virtualHost,
 				recordLayer,
