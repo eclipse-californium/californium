@@ -135,12 +135,17 @@
 	<logger name="org.eclipse.californium.core.CoapServer" level="INFO" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>
+	<logger name="org.eclipse.californium.core.server.ServersSerializationUtil" level="INFO" additivity="false">
+		<appender-ref ref="STDOUT" />
+	</logger>
 	<logger name="org.eclipse.californium.elements.util.SslContextLoggingUtil" level="INFO" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>
 	<logger name="org.eclipse.californium.ban" level="INFO" additivity="false">
 		<appender-ref ref="BAN_FILE" />
 	</logger>
+
+ServersSerializationUtil
 
 	<root level="WARN">
 		<appender-ref ref="STDOUT" />

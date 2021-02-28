@@ -367,20 +367,26 @@ public class ExtendedTestServer extends AbstractTestServer {
 				ep.addNotificationListener(reverseObserver);
 			}
 			InetSocketAddress httpLocal = config.k8sMonitor;
-			InetSocketAddress httpsRestore= config.k8sRestore;
+			InetSocketAddress httpsRestore = config.k8sRestore;
 			SSLContext context = null;
+			RestoreHttpClient client = null;
+			SSLContext clientContext = null;
+	
 			if (httpsRestore != null) {
 				context = CredentialsUtil.getClusterInternalHttpsServerContext();
 			}
-			final JdkK8sMonitorService monitor = new JdkK8sMonitorService(httpLocal, httpsRestore, context);
-			monitor.addServer(server);
-			RestoreHttpClient client = null;
-			SSLContext clientContext = CredentialsUtil.getClusterInternalHttpsClientContext();
-			if (clientContext != null && k8sGroup != null) {
-				client = new RestoreHttpClient();
-				monitor.addComponent(client);
+			if (httpLocal != null || httpsRestore != null) {
+				final JdkK8sMonitorService monitor = new JdkK8sMonitorService(httpLocal, httpsRestore, context);
+				monitor.addServer(server);
+				if (context != null && k8sGroup != null) {
+					clientContext = CredentialsUtil.getClusterInternalHttpsClientContext();
+					if (clientContext != null) {
+						client = new RestoreHttpClient();
+						monitor.addComponent(client);
+					}
+				}
+				monitor.start();
 			}
-			monitor.start();
 
 			PlugtestServer.add(server);
 			PlugtestServer.load(config);
