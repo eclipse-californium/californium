@@ -58,13 +58,12 @@ public class DTLSSessionTest {
 	}
 
 	@Test
-	public void testSessionCanBeResumedFromSessionTicket() throws GeneralSecurityException {
-		// GIVEN a session ticket for an established server session
+	public void testSessionCanBeResumedFromSession() throws GeneralSecurityException {
+		// GIVEN a session for an established server session
 		session = newEstablishedServerSession(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CertificateType.RAW_PUBLIC_KEY);
-		SessionTicket ticket = session.getSessionTicket();
 
-		// WHEN creating a new session to be resumed from the ticket
-		DTLSSession sessionToResume = new DTLSSession(session.getSessionIdentifier(), ticket);
+		// WHEN creating a new session to be resumed from the session
+		DTLSSession sessionToResume = new DTLSSession(session);
 
 		// THEN the new session contains all relevant pending state to perform an abbreviated handshake
 		assertThatSessionsHaveSameRelevantPropertiesForResumption(sessionToResume, session);
@@ -72,26 +71,24 @@ public class DTLSSessionTest {
 
 	@Test
 	public void testSessionWithServerNamesCanBeResumedFromSessionTicket() throws GeneralSecurityException {
-		// GIVEN a session ticket for an established server session
+		// GIVEN a session with servername for an established server session
 		session = newEstablishedServerSession(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CertificateType.RAW_PUBLIC_KEY);
 		session.setHostName("test");
-		SessionTicket ticket = session.getSessionTicket();
 
-		// WHEN creating a new session to be resumed from the ticket
-		DTLSSession sessionToResume = new DTLSSession(session.getSessionIdentifier(), ticket);
+		// WHEN creating a new session to be resumed from the session
+		DTLSSession sessionToResume = new DTLSSession(session);
 
 		// THEN the new session contains all relevant pending state to perform an abbreviated handshake
 		assertThatSessionsHaveSameRelevantPropertiesForResumption(sessionToResume, session);
 	}
 
 	@Test
-	public void testSessionCanBeResumedFromSerializedSessionTicket() throws GeneralSecurityException {
+	public void testSessionCanBeResumedFromSerializedSession() throws GeneralSecurityException {
 		// GIVEN a session ticket for an established server session
 		session = newEstablishedServerSession(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CertificateType.RAW_PUBLIC_KEY);
-		SessionTicket ticket = serialize(session.getSessionTicket());
 
-		// WHEN creating a new session to be resumed from the ticket
-		DTLSSession sessionToResume = new DTLSSession(session.getSessionIdentifier(), ticket);
+		// WHEN creating a new session to be resumed from the serialized session
+		DTLSSession sessionToResume = serialize(session);
 
 		// THEN the new session contains all relevant pending state to perform an abbreviated handshake
 		assertThatSessionsHaveSameRelevantPropertiesForResumption(sessionToResume, session);
@@ -102,10 +99,9 @@ public class DTLSSessionTest {
 		// GIVEN a session ticket for an established server session
 		session = newEstablishedServerSession(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CertificateType.RAW_PUBLIC_KEY);
 		session.setHostName("test");
-		SessionTicket ticket = serialize(session.getSessionTicket());
 
 		// WHEN creating a new session to be resumed from the ticket
-		DTLSSession sessionToResume = new DTLSSession(session.getSessionIdentifier(), ticket);
+		DTLSSession sessionToResume = serialize(session);
 
 		// THEN the new session contains all relevant pending state to perform an abbreviated handshake
 		assertThatSessionsHaveSameRelevantPropertiesForResumption(sessionToResume, session);
@@ -185,13 +181,13 @@ public class DTLSSessionTest {
 		RANDOM.nextBytes(result);
 		return result;
 	}
-	
-	private static SessionTicket serialize(SessionTicket ticket) {
+
+	private static DTLSSession serialize(DTLSSession session) {
 		DatagramWriter writer = new DatagramWriter(true);
-		ticket.encode(writer);
+		session.write(writer);
 		byte[] ticketBytes = writer.toByteArray();
 		DatagramReader reader = new DatagramReader(ticketBytes);
-		SessionTicket result = SessionTicket.decode(reader);
+		DTLSSession result = DTLSSession.fromReader(reader);
 		Bytes.clear(ticketBytes);
 		writer.close();
 		return result;

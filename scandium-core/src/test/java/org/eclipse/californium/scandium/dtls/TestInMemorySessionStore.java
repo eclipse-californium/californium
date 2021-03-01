@@ -38,41 +38,28 @@ public class TestInMemorySessionStore implements SessionStore {
 	 */
 	public final AtomicInteger establishedSessionCounter = new AtomicInteger();
 
-	/**
-	 * Puts a ticket to the cache.
-	 * <p>
-	 * This method is mainly intended for supporting test cases.
-	 * 
-	 * @param id
-	 * @param ticket
-	 */
-	public void put(final SessionId id, final SessionTicket ticket) {
-		if (id != null && ticket != null) {
-			DatagramWriter writer = new DatagramWriter(true);
-			ticket.encode(writer);
-			cache.put(id, writer.toByteArray());
-			writer.close();
-		}
-	}
-
 	@Override
 	public void put(final DTLSSession session) {
-		SessionTicket ticket;
-		if (session != null && (ticket = session.getSessionTicket()) != null) {
+		if (session != null && !session.getSessionIdentifier().isEmpty()) {
+			DatagramWriter writer = new DatagramWriter(true);
+			session.write(writer);
+			cache.put(session.getSessionIdentifier(), writer.toByteArray());
 			establishedSessionCounter.incrementAndGet();
-			put(session.getSessionIdentifier(), ticket);
-			SecretUtil.destroy(ticket);
 		}
 	}
 
 	@Override
-	public SessionTicket get(final SessionId id) {
-		byte[] ticket = cache.get(id);
-		if (ticket == null) {
+	public DTLSSession get(final SessionId id) {
+		byte[] data = cache.get(id);
+		if (data == null) {
 			return null;
-		} else {
-			return SessionTicket.decode(new DatagramReader(ticket));
 		}
+		DTLSSession session = DTLSSession.fromReader(new DatagramReader(data));
+		if (session != null && !session.getSessionIdentifier().equals(id)) {
+			SecretUtil.destroy(session);
+			return null;
+		}
+		return session;
 	}
 
 	@Override

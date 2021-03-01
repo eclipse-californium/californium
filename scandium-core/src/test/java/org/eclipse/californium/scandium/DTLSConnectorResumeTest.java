@@ -74,12 +74,12 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.Connection;
+import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.eclipse.californium.scandium.dtls.ExtendedMasterSecretMode;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.SessionId;
-import org.eclipse.californium.scandium.dtls.SessionTicket;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.AsyncAdvancedPskStore;
@@ -678,7 +678,7 @@ public class DTLSConnectorResumeTest {
 	}
 
 	@Test
-	public void testConnectorResumesSessionFromSharedSessionTicket() throws Exception {
+	public void testConnectorResumesSessionFromSharedSession() throws Exception {
 		// Do a first handshake
 		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, true);
 		InetSocketAddress clientAddress = clientRawDataChannel.getAddress();
@@ -690,14 +690,14 @@ public class DTLSConnectorResumeTest {
 		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(establishedSessionId));
 		client.start();
 
-		// save session ticket
-		SessionTicket sessionTicket = serverHelper.establishedServerSession.getSessionTicket();
-		assertThat(sessionTicket, is(notNullValue()));
+		// save session
+		DTLSSession session = new DTLSSession(serverHelper.establishedServerSession);
+		assertThat(session, is(notNullValue()));
 		// remove connection from server's connection store
 		serverHelper.remove(clientAddress, true);
 		assertThat(serverHelper.serverSessionStore.get(establishedSessionId), is(nullValue()));
 		// add ticket to session cache to mimic a fail over from another node
-		serverHelper.serverSessionStore.put(establishedSessionId, sessionTicket);
+		serverHelper.serverSessionStore.put(session);
 
 		// Prepare message sending
 		final String msg = "Hello Again";

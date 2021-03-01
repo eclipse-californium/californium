@@ -31,45 +31,59 @@ package org.eclipse.californium.scandium.dtls;
  * connections.
  * </p>
  * 
- * Note: since 3.0 {@link #get(SessionId)} is intended to return immediately! If
- * that takes longer, it blocks the connection store and results in down-graded
- * performance.
+ * Note: since 3.0 this interface clarifies, that it is intended to return
+ * immediately! If calls takes longer, that results in down-graded performance.
+ * That was mainly also the situation before 3.0.
  * 
  * Note: using this interface for the {@link InMemoryConnectionStore} is not
  * well tested! If used and causing trouble, don't hesitate to create an issue.
+ * 
+ * @since 3.0 (renamed SessionCache)
  */
 public interface SessionStore {
 
 	/**
 	 * Adds an established session to the session store.
 	 * 
-	 * If the session doesn't support resumption (session id is empty), it's not
-	 * added to the session store
+	 * The session is identified by its session id, which is returned by
+	 * {@link DTLSSession#getSessionIdentifier()}. If the session doesn't
+	 * support resumption (session id is empty), it's not added to the session
+	 * store. Later access in {@link #get(SessionId)} or
+	 * {@link #remove(SessionId)} must use then use the value of the contained
+	 * session id as parameter.
 	 * 
-	 * @param session The session to add.
+	 * Note: since 3.0 this interface intended to return immediately! If calls
+	 * takes longer, that results in down-graded performance.
+	 * 
+	 * @param session The session to add. The value of
+	 *            {@link DTLSSession#getSessionIdentifier()} is used in
+	 *            {@link #get(SessionId)} and {@link #remove(SessionId)}.
 	 */
 	void put(DTLSSession session);
 
 	/**
 	 * Gets a session from the session store.
 	 * 
-	 * Note: since 3.0 {@link #get(SessionId)} is intended to return
-	 * immediately! If that takes longer, it blocks the connection store and
-	 * results in down-graded performance.
+	 * Note: since 3.0 this interface intended to return immediately! If calls
+	 * takes longer, that results in down-graded performance.
 	 * 
-	 * @param id The session identifier to look up.
-	 * @return a session ticker for the session with the given ID, or
-	 *         {@code null}, if the session store does not contain a session
-	 *         with the given ID. A returned ticket is to be destroyed after
-	 *         usage. The session ticket can only be used for resumption
-	 *         handshakes.
+	 * @param id The session identifier to look up. See
+	 *            {@link DTLSSession#getSessionIdentifier()}.
+	 * @return a session with the given ID, or {@code null}, if the session
+	 *         store does not contain a session with the given ID. A returned
+	 *         session is to be destroyed after usage.
+	 * @since 3.0 (return type changed to DTLSSession)
 	 */
-	SessionTicket get(SessionId id);
+	DTLSSession get(SessionId id);
 
 	/**
 	 * Removes a session from the session store.
 	 * 
-	 * @param id The identifier of the session to remove.
+	 * Note: since 3.0 this interface intended to return immediately! If calls
+	 * takes longer, that results in down-graded performance.
+	 * 
+	 * @param id The identifier of the session to remove. See
+	 *            {@link DTLSSession#getSessionIdentifier()}.
 	 */
 	void remove(SessionId id);
 }

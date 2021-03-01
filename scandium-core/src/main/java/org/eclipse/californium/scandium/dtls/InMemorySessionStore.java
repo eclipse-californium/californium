@@ -16,6 +16,7 @@
 package org.eclipse.californium.scandium.dtls;
 
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
+import org.eclipse.californium.scandium.util.SecretUtil;
 
 /**
  * A simple session store that stores {@code DTLSSession} in a LRU cache.
@@ -50,22 +51,22 @@ public class InMemorySessionStore implements SessionStore {
 	@Override
 	public void put(final DTLSSession session) {
 		if (session != null && !session.getSessionIdentifier().isEmpty()) {
-			store.put(session.getSessionIdentifier(), new DTLSSession(session));
+			DTLSSession clone = new DTLSSession(session);
+			if (!store.put(session.getSessionIdentifier(), clone)) {
+				SecretUtil.destroy(clone);
+			}
 		}
 	}
 
 	@Override
-	public SessionTicket get(final SessionId id) {
+	public DTLSSession get(final SessionId id) {
 		DTLSSession session = store.get(id);
-		if (session == null) {
-			return null;
-		} else {
-			return session.getSessionTicket();
-		}
+		return session == null ? null : new DTLSSession(session);
 	}
 
 	@Override
 	public void remove(final SessionId id) {
-		store.remove(id);
+		DTLSSession session = store.remove(id);
+		SecretUtil.destroy(session);
 	}
 }

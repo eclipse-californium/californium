@@ -105,7 +105,7 @@ are removed and must be replaced by
 
 10) The `ClientSessionCache` is removed and replaced by the `DTLSSession` serialization. The extended `ConnectionListener` and the `DTLSConnector.restoreConnection(Connection connection)` are for saving and restoring `Connection`s.
 
-11) The `SessionCache` is renamed into `SessionStore`. It's now part of the `DtlsConnectorConfig` and not longer a parameter of the constructor for the `DTLSConnector`.
+11) The `SessionCache` is renamed into `SessionStore`. It's now part of the `DtlsConnectorConfig` and not longer a parameter of the constructor for the `DTLSConnector`. `SessionStore.get(SessionId)` returns now a `DTLSSession` instead of the now obsolete  and removed `SessionTicket`.
 
 12) The `ResumptionSupportingConnectionStore.remove(Connection)` is removed, use `ResumptionSupportingConnectionStore.remove(Connection, boolean)` and provided explicit, if the session is to be removed from the session store as well.
 
