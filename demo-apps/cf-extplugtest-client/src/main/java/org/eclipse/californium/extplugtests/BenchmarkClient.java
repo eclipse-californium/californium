@@ -759,6 +759,10 @@ public class BenchmarkClient {
 				}
 				dtlsReconnect = close || full || force;
 			}
+			if (dtlsReconnect) {
+				// reset destination context
+				client.setDestinationContext(null);
+			}
 			final boolean reconnect = dtlsReconnect;
 			final Request request = prepareRequest(client, c);
 			if (request == null) {
@@ -767,7 +771,6 @@ public class BenchmarkClient {
 			if (reconnect) {
 				connect.set(true);
 				EndpointContext destinationContext = request.getDestinationContext();
-				client.setDestinationContext(null);
 				if (forceHandshake < 0) {
 					forceHandshake = -forceHandshake;
 				}
