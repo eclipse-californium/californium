@@ -396,28 +396,24 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 			return null;
 		} else {
 			DTLSSession session = null;
-			SessionTicket ticket = null;
 			if (sessionStore != null) {
-				ticket = sessionStore.get(id);
+				session = sessionStore.get(id);
 			}
 			synchronized (this) {
 				Connection connection = findLocally(id);
 				if (connection != null) {
-					if (sessionStore != null && ticket == null) {
+					if (sessionStore == null) {
+						DTLSSession establishedSession = connection.getEstablishedSession();
+						if (establishedSession != null) {
+							session = new DTLSSession(establishedSession);
+						}
+					} else if (session == null) {
 						// remove corresponding connection from this store
 						remove(connection, false);
 						return null;
 					}
-					DTLSSession establishedSession = connection.getEstablishedSession();
-					if (establishedSession != null) {
-						session = new DTLSSession(establishedSession);
-					}
 				}
 			}
-			if (session == null && ticket != null) {
-				session = new DTLSSession(id, ticket);
-			}
-			SecretUtil.destroy(ticket);
 			return session;
 		}
 	}
