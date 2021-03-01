@@ -133,6 +133,12 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 					new AlertMessage(
 							AlertLevel.FATAL,
 							AlertDescription.ILLEGAL_PARAMETER));
+		} else if (!session.getProtocolVersion().equals(clientHello.getClientVersion())) {
+			throw new HandshakeException(
+					"Client wants to change protocol version in resumed session",
+					new AlertMessage(
+							AlertLevel.FATAL,
+							AlertDescription.ILLEGAL_PARAMETER));
 		} else if (!clientHello.getCompressionMethods().contains(compressionMethod)) {
 			throw new HandshakeException(
 					"Client wants to change compression method in resumed session",

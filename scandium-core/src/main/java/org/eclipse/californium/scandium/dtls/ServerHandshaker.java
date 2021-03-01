@@ -511,6 +511,7 @@ public class ServerHandshaker extends Handshaker {
 		}
 		SessionId sessionId = useNoSessionId ? SessionId.emptySessionId() : new SessionId();
 		session.setSessionIdentifier(sessionId);
+		session.setProtocolVersion(serverVersion);
 
 		// currently only NULL compression supported, no negotiation needed
 		if (!clientHello.getCompressionMethods().contains(CompressionMethod.NULL)) {

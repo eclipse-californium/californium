@@ -349,7 +349,7 @@ public class ClientHandshaker extends Handshaker {
 		// store the negotiated values
 
 		usedProtocol = message.getServerVersion();
-		if (usedProtocol.compareTo(ProtocolVersion.VERSION_DTLS_1_2) != 0) {
+		if (!usedProtocol.equals(ProtocolVersion.VERSION_DTLS_1_2)) {
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.PROTOCOL_VERSION);
 			throw new HandshakeException("The client only supports DTLS v1.2, not " + usedProtocol + "!", alert);
 		}
@@ -357,6 +357,7 @@ public class ClientHandshaker extends Handshaker {
 		serverRandom = message.getRandom();
 		DTLSSession session = getSession();
 		session.setSessionIdentifier(message.getSessionId());
+		session.setProtocolVersion(usedProtocol);
 		CipherSuite cipherSuite = message.getCipherSuite();
 		if (!supportedCipherSuites.contains(cipherSuite)) {
 			throw new HandshakeException(

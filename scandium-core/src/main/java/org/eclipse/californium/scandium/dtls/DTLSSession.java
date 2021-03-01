@@ -88,6 +88,15 @@ public final class DTLSSession implements Destroyable {
 	private SessionId sessionIdentifier;
 
 	/**
+	 * Protocol version.
+	 * 
+	 * Only {@link ProtocolVersion#VERSION_DTLS_1_2} is supported.
+	 * 
+	 * @since 3.0
+	 */
+	private ProtocolVersion protocolVersion = ProtocolVersion.VERSION_DTLS_1_2;
+
+	/**
 	 * Peer identity.
 	 */
 	private Principal peerIdentity;
@@ -199,11 +208,16 @@ public final class DTLSSession implements Destroyable {
 	public DTLSSession(SessionId id, SessionTicket ticket) {
 		creationTime = ticket.getTimestamp();
 		sessionIdentifier = id;
+		protocolVersion = ticket.getProtocolVersion();
 		masterSecret = SecretUtil.create(ticket.getMasterSecret());
 		peerIdentity = ticket.getClientIdentity();
 		cipherSuite = ticket.getCipherSuite();
 		compressionMethod = ticket.getCompressionMethod();
 		extendedMasterSecret = ticket.useExtendedMasterSecret();
+		sendCertificateType = ticket.getSendCertificateType();
+		receiveCertificateType = ticket.getReceiveCertificateType();
+		maxFragmentLength = ticket.getMaxFragmentLength();
+		recordSizeLimit = ticket.getRecordSizeLimit();
 		setServerNames(ticket.getServerNames());
 	}
 
@@ -216,13 +230,18 @@ public final class DTLSSession implements Destroyable {
 	public DTLSSession(DTLSSession session) {
 		creationTime = session.getCreationTime();
 		sessionIdentifier = session.getSessionIdentifier();
+		protocolVersion = session.getProtocolVersion();
 		masterSecret = session.getMasterSecret();
 		peerIdentity = session.getPeerIdentity();
 		cipherSuite = session.getCipherSuite();
 		compressionMethod = session.getCompressionMethod();
+		signatureAndHashAlgorithm = session.getSignatureAndHashAlgorithm();
+		ecGroup = session.getEcGroup();
 		extendedMasterSecret = session.useExtendedMasterSecret();
 		sendCertificateType = session.sendCertificateType();
 		receiveCertificateType = session.receiveCertificateType();
+		recordSizeLimit = session.getRecordSizeLimit();
+		maxFragmentLength = session.getMaxFragmentLength();
 		setServerNames(session.getServerNames());
 	}
 
@@ -278,6 +297,35 @@ public final class DTLSSession implements Destroyable {
 		} else {
 			throw new IllegalArgumentException("no new session identifier?");
 		}
+	}
+
+	/**
+	 * Gets protocol version.
+	 * 
+	 * Only {@link ProtocolVersion#VERSION_DTLS_1_2} is supported.
+	 * 
+	 * @return protocol version.
+	 * @since 3.0
+	 */
+	public ProtocolVersion getProtocolVersion() {
+		return protocolVersion;
+	}
+
+	/**
+	 * Sets protocol version.
+	 * 
+	 * Only {@link ProtocolVersion#VERSION_DTLS_1_2} is supported.
+	 * 
+	 * @param protocolVersion protocol version
+	 * @throws IllegalArgumentException if other version as
+	 *             {@link ProtocolVersion#VERSION_DTLS_1_2} is provided.
+	 * @since 3.0
+	 */
+	void setProtocolVersion(ProtocolVersion protocolVersion) {
+		if (!ProtocolVersion.VERSION_DTLS_1_2.equals(protocolVersion)) {
+			throw new IllegalArgumentException(protocolVersion + " is not supported!");
+		}
+		this.protocolVersion = ProtocolVersion.VERSION_DTLS_1_2;
 	}
 
 	/**
@@ -655,7 +703,6 @@ public final class DTLSSession implements Destroyable {
 	 * server key exchange message.
 	 * 
 	 * @param signatureAndHashAlgorithm negotiated signature and hash algorithm
-	 * 
 	 * @since 2.3
 	 */
 	void setSignatureAndHashAlgorithm(SignatureAndHashAlgorithm signatureAndHashAlgorithm) {
@@ -667,7 +714,6 @@ public final class DTLSSession implements Destroyable {
 	 * message.
 	 * 
 	 * @return negotiated ec-group
-	 * 
 	 * @since 3.0
 	 */
 	public SupportedGroup getEcGroup() {
@@ -678,7 +724,6 @@ public final class DTLSSession implements Destroyable {
 	 * Sets the negotiated ec-group to be used for the ECDHE key exchange
 	 * 
 	 * @param ecGroup negotiated ec-group
-	 * 
 	 * @since 3.0
 	 */
 	void setEcGroup(SupportedGroup ecGroup) {
@@ -724,8 +769,7 @@ public final class DTLSSession implements Destroyable {
 		} else if (sessionIdentifier.isEmpty()) {
 			return null;
 		}
-		return new SessionTicket(ProtocolVersion.VERSION_DTLS_1_2, cipherSuite, compressionMethod, extendedMasterSecret,
-				masterSecret, getServerNames(), getPeerIdentity(), creationTime);
+		return new SessionTicket(this);
 	}
 
 	@Override
@@ -783,6 +827,9 @@ public final class DTLSSession implements Destroyable {
 			return false;
 		}
 		if (!Objects.equals(peerIdentity, other.peerIdentity)) {
+			return false;
+		}
+		if (!Objects.equals(protocolVersion, other.protocolVersion)) {
 			return false;
 		}
 		return true;

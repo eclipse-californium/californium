@@ -194,6 +194,12 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 					new AlertMessage(
 							AlertLevel.FATAL,
 							AlertDescription.ILLEGAL_PARAMETER));
+		} else if (!session.getProtocolVersion().equals(message.getServerVersion())) {
+			throw new HandshakeException(
+					"Server wants to change protocol version in resumed session",
+					new AlertMessage(
+							AlertLevel.FATAL,
+							AlertDescription.ILLEGAL_PARAMETER));
 		} else {
 			verifyServerHelloExtensions(message);
 			serverRandom = message.getRandom();

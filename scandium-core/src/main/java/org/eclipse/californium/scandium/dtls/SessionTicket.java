@@ -32,6 +32,7 @@ import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.auth.PrincipalSerializer;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.SecretSerializationUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
@@ -52,60 +53,130 @@ public final class SessionTicket implements Destroyable {
 	private final SecretKey masterSecret;
 	private final CipherSuite cipherSuite;
 	private final CompressionMethod compressionMethod;
+	private final SignatureAndHashAlgorithm signatureAndHashAlgorithm;
+	private final SupportedGroup ecGroup;
 	private final boolean extendedMasterSecret;
 	private final ServerNames serverNames;
 	private final Principal clientIdentity;
+	private final CertificateType sendCertificateType;
+	private final CertificateType receiveCertificateType;
+	private final Integer recordSizeLimit;
+	private final int maxFragmentLength;
 	private final long timestampMillis;
 
 	/**
-	 * Creates a ticket from a set of crypto params.
+	 * Creates a ticket from a dtls session.
 	 * 
-	 * @param protocolVersion protocol version. Must not be {@code null}.
-	 * @param cipherSuite cipher suite. Must not be {@code null}.
-	 * @param compressionMethod compression mode. Must not be {@code null}.
-	 * @param extendedMasterSecret {@code true}, if the extended master secret
-	 *            is used, {@code false}, otherwise.
-	 * @param masterSecret master secret. Must not be {@code null}.
-	 * @param serverNames server names. May be {@code null}, if no server name
-	 *            is provided, or SNI is not used.
-	 * @param clientIdentity client identity. May be {@code null} for
-	 *            unauthenticated clients.
-	 * @param timestampMillis timestamp of session creation. In milliseconds
-	 *            since 1970.1.1 0:00 (@link System#currentTimeMillis()}.
-	 * @throws NullPointerException if one of the mandatory parameter is
-	 *             {@code null}
-	 * @since 3.0 (added parameter extendedMasterSecret)
+	 * @param session dtls session
+	 * @throws NullPointerException if the session is {@code null}
+	 * @since 3.0
 	 */
-	SessionTicket(ProtocolVersion protocolVersion, CipherSuite cipherSuite, CompressionMethod compressionMethod,
-			boolean extendedMasterSecret, SecretKey masterSecret, ServerNames serverNames, Principal clientIdentity,
-			long timestampMillis) {
-
-		if (protocolVersion == null) {
-			throw new NullPointerException("Protcol version must not be null");
-		} else if (cipherSuite == null) {
-			throw new NullPointerException("Cipher suite must not be null");
-		} else if (compressionMethod == null) {
-			throw new NullPointerException("Compression method must not be null");
-		} else if (masterSecret == null) {
-			throw new NullPointerException("Master secret must not be null");
-		} else {
-			this.protocolVersion = protocolVersion;
-			this.extendedMasterSecret = extendedMasterSecret;
-			this.masterSecret = SecretUtil.create(masterSecret);
-			this.cipherSuite = cipherSuite;
-			this.compressionMethod = compressionMethod;
-			this.serverNames = serverNames;
-			this.clientIdentity = clientIdentity;
-			this.timestampMillis = timestampMillis;
-			// the master secret is intended to be unique
-			// therefore the hash code only consider that master secret
-			this.hashCode = this.masterSecret.hashCode();
+	SessionTicket(DTLSSession session) {
+		if (session == null) {
+			throw new NullPointerException("Session must not be null");
 		}
+		this.protocolVersion = session.getProtocolVersion();
+		this.extendedMasterSecret = session.useExtendedMasterSecret();
+		this.masterSecret = session.getMasterSecret();
+		this.cipherSuite = session.getCipherSuite();
+		this.compressionMethod = session.getCompressionMethod();
+		this.signatureAndHashAlgorithm = session.getSignatureAndHashAlgorithm();
+		this.ecGroup = session.getEcGroup();
+		this.serverNames = session.getServerNames();
+		this.clientIdentity = session.getPeerIdentity();
+		this.sendCertificateType = session.sendCertificateType();
+		this.receiveCertificateType = session.receiveCertificateType();
+		this.recordSizeLimit = session.getRecordSizeLimit();
+		this.maxFragmentLength = session.getMaxFragmentLength();
+		this.timestampMillis = session.getCreationTime();
+		// the master secret is intended to be unique
+		// therefore the hash code only consider that master secret
+		this.hashCode = this.masterSecret.hashCode();
 	}
 
 	/**
-	 * Serializes this session into a plain text <em>session ticket</em>
-	 * similar to the structure defined in
+	 * Creates a ticket from a reader.
+	 * 
+	 * @param source datagram reader
+	 * @since 3.0
+	 */
+	private SessionTicket(DatagramReader source) {
+		// protocol_version
+		int major = source.read(Byte.SIZE);
+		int minor = source.read(Byte.SIZE);
+		protocolVersion = ProtocolVersion.valueOf(major, minor);
+
+		// cipher_suite
+		cipherSuite = CipherSuite.getTypeByCode(source.read(CipherSuite.CIPHER_SUITE_BITS));
+		if (cipherSuite == null) {
+			throw new IllegalArgumentException("cipher suite could not be read");
+		}
+
+		// compression_method
+		compressionMethod = CompressionMethod.getMethodByCode(source.read(CompressionMethod.COMPRESSION_METHOD_BITS));
+		if (compressionMethod == null) {
+			throw new IllegalArgumentException("compression method could not be read");
+		}
+
+		extendedMasterSecret = (source.read(Byte.SIZE) == 1);
+
+		// master_secret
+		masterSecret = SecretSerializationUtil.readSecretKey(source);
+
+		// client_identity
+		try {
+			clientIdentity = PrincipalSerializer.deserialize(source);
+		} catch (GeneralSecurityException e) {
+			throw new IllegalArgumentException("principal could not be read", e);
+		}
+
+		// timestamp
+		timestampMillis = TimeUnit.SECONDS.toMillis(source.readLong(Integer.SIZE));
+
+		sendCertificateType = CertificateType.getTypeFromCode(source.read(Byte.SIZE));
+
+		receiveCertificateType = CertificateType.getTypeFromCode(source.read(Byte.SIZE));
+
+		maxFragmentLength = source.read(Short.SIZE);
+
+		if (source.read(Byte.SIZE) == 1) {
+			recordSizeLimit = source.read(Short.SIZE);
+		} else {
+			recordSizeLimit = null;
+		}
+
+		if (source.read(Byte.SIZE) == 1) {
+			int hashId = source.read(Byte.SIZE);
+			int signatureId = source.read(Byte.SIZE);
+			signatureAndHashAlgorithm = new SignatureAndHashAlgorithm(hashId, signatureId);
+		} else {
+			signatureAndHashAlgorithm = null;
+		}
+
+		if (source.read(Byte.SIZE) == 1) {
+			int id = source.read(Short.SIZE);
+			ecGroup = SupportedGroup.fromId(id);
+		} else {
+			ecGroup = null;
+		}
+
+		ServerNames serverNames = null;
+		if (source.read(Byte.SIZE) == 1) {
+			serverNames = ServerNames.newInstance();
+			try {
+				serverNames.decode(source);
+			} catch (IllegalArgumentException e) {
+				serverNames = null;
+			}
+		}
+		this.serverNames = serverNames;
+
+		this.hashCode = this.masterSecret.hashCode();
+	}
+
+	/**
+	 * Serializes this session into a plain text <em>session ticket</em> similar
+	 * to the structure defined in
 	 * <a href="https://tools.ietf.org/html/rfc5077">RFC 5077</a>.
 	 * 
 	 * <pre>
@@ -118,7 +189,13 @@ public final class SessionTicket implements Destroyable {
 	 *   opaque master_secret[48];
 	 *   ClientIdentity client_identity;
 	 *   uint32 timestamp;
-	 *   *ServerNames server_names;*
+	 *   uint8 send certificate type; *
+	 *   uint8 receive certificate type; *
+	 *   uint16 max fragment length; *
+	 *   uint8 record size use; *
+	 *   uint16 record size; **
+	 *   uint8 server_names use; *
+	 *   ServerNames server_names; **
 	 * } StatePlaintext;
 	 * </pre>
 	 * <p>
@@ -156,10 +233,47 @@ public final class SessionTicket implements Destroyable {
 		PrincipalSerializer.serialize(clientIdentity, writer);
 
 		// timestamp
-		writer.writeLong(TimeUnit.MILLISECONDS.toSeconds(timestampMillis), 32);
+		writer.writeLong(TimeUnit.MILLISECONDS.toSeconds(timestampMillis), Integer.SIZE);
+
+		// send certificate type
+		writer.write(sendCertificateType.getCode(), Byte.SIZE);
+
+		// receive certificate type
+		writer.write(receiveCertificateType.getCode(), Byte.SIZE);
+
+		// max fragment length
+		writer.write(maxFragmentLength, Short.SIZE);
+
+		if (recordSizeLimit == null) {
+			writer.write(0, Byte.SIZE);
+		} else {
+			writer.write(1, Byte.SIZE);
+			// record size limit
+			writer.write(recordSizeLimit, Short.SIZE);
+		}
+
+		// signatureAndHashAlgorithm
+		if (signatureAndHashAlgorithm == null) {
+			writer.write(0, Byte.SIZE);
+		} else {
+			writer.write(1, Byte.SIZE);
+			writer.write(signatureAndHashAlgorithm.getHash().getCode(), Byte.SIZE);
+			writer.write(signatureAndHashAlgorithm.getSignature().getCode(), Byte.SIZE);
+		}
+
+		// ec group
+		if (ecGroup == null) {
+			writer.write(0, Byte.SIZE);
+		} else {
+			writer.write(1, Byte.SIZE);
+			writer.write(ecGroup.getId(), Short.SIZE);
+		}
 
 		// server names
-		if (serverNames != null) {
+		if (serverNames == null) {
+			writer.write(0, Byte.SIZE);
+		} else {
+			writer.write(1, Byte.SIZE);
 			serverNames.encode(writer);
 		}
 	}
@@ -194,55 +308,11 @@ public final class SessionTicket implements Destroyable {
 			throw new IllegalArgumentException("Version mismatch! " + VERSION + " is required, not " + version);
 		}
 
-		// protocol_version
-		int major = source.read(Byte.SIZE);
-		int minor = source.read(Byte.SIZE);
-		ProtocolVersion ver = ProtocolVersion.valueOf(major, minor);
-
-		// cipher_suite
-		CipherSuite cipherSuite = CipherSuite.getTypeByCode(source.read(CipherSuite.CIPHER_SUITE_BITS));
-		if (cipherSuite == null) {
-			return null;
-		}
-
-		// compression_method
-		CompressionMethod compressionMethod = CompressionMethod
-				.getMethodByCode(source.read(CompressionMethod.COMPRESSION_METHOD_BITS));
-		if (compressionMethod == null) {
-			return null;
-		}
-
-		boolean extendedMasterSecret = (source.read(Byte.SIZE) == 1);
-
-		// master_secret
-		SecretKey masterSecret = SecretSerializationUtil.readSecretKey(source);
-
-		// client_identity
-		Principal identity = null;
 		try {
-			identity = PrincipalSerializer.deserialize(source);
-		} catch (GeneralSecurityException e) {
+			return new SessionTicket(source);
+		} catch (IllegalArgumentException ex) {
 			return null;
 		}
-
-		// timestamp
-		long timestampMillis = TimeUnit.SECONDS.toMillis(source.readLong(32));
-
-		ServerNames serverNames = null;
-		if (source.bytesAvailable()) {
-			serverNames = ServerNames.newInstance();
-			try {
-				serverNames.decode(source);
-			} catch (IllegalArgumentException e) {
-				serverNames = null;
-			}
-		}
-
-		// assemble session
-		SessionTicket ticket = new SessionTicket(ver, cipherSuite, compressionMethod, extendedMasterSecret,
-				masterSecret, serverNames, identity, timestampMillis);
-		SecretUtil.destroy(masterSecret);
-		return ticket;
 	}
 
 	@Override
@@ -309,7 +379,7 @@ public final class SessionTicket implements Destroyable {
 	 * @return the master secret
 	 */
 	public final SecretKey getMasterSecret() {
-		return masterSecret;
+		return SecretUtil.create(masterSecret);
 	}
 
 	/**
@@ -328,6 +398,27 @@ public final class SessionTicket implements Destroyable {
 	 */
 	public final CompressionMethod getCompressionMethod() {
 		return compressionMethod;
+	}
+	/**
+	 * Gets the negotiated signature and hash algorithm to be used to sign the
+	 * server key exchange message.
+	 * 
+	 * @return negotiated signature and hash algorithm
+	 * @since 3.0
+	 */
+	public final SignatureAndHashAlgorithm getSignatureAndHashAlgorithm() {
+		return signatureAndHashAlgorithm;
+	}
+
+	/**
+	 * Gets the negotiated ec-group to be used for the ECDHE key exchange
+	 * message.
+	 * 
+	 * @return negotiated ec-group
+	 * @since 3.0
+	 */
+	public final SupportedGroup getEcGroup() {
+		return ecGroup;
 	}
 
 	/**
@@ -357,6 +448,22 @@ public final class SessionTicket implements Destroyable {
 	 */
 	public final Principal getClientIdentity() {
 		return clientIdentity;
+	}
+
+	public final int getMaxFragmentLength() {
+		return maxFragmentLength;
+	}
+
+	public final Integer getRecordSizeLimit() {
+		return recordSizeLimit;
+	}
+
+	public final CertificateType getSendCertificateType() {
+		return sendCertificateType;
+	}
+
+	public final CertificateType getReceiveCertificateType() {
+		return receiveCertificateType;
 	}
 
 	/**
