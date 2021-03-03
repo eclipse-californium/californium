@@ -83,7 +83,7 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 	 * @throws NullPointerException if exchange is {@code null}.
 	 */
 	@Override
-	public final void deliverRequest(final Exchange exchange) {
+	public void deliverRequest(final Exchange exchange) {
 		if (exchange == null) {
 			throw new NullPointerException("exchange must not be null");
 		}

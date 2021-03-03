@@ -132,7 +132,7 @@ public class CoapServer implements ServerInterface {
 	 * assigned, it will bind to CoAP's default port 5683.
 	 */
 	public CoapServer() {
-		this(NetworkConfig.getStandard());
+		this(NetworkConfig.getStandard(), null ,null);
 	}
 
 	/**
@@ -144,7 +144,7 @@ public class CoapServer implements ServerInterface {
 	 *            will bind to CoAP's default port 5683 on {@link #start()}.
 	 */
 	public CoapServer(final int... ports) {
-		this(NetworkConfig.getStandard(), ports);
+		this(NetworkConfig.getStandard(), null, null, ports);
 	}
 
 	/**
@@ -158,6 +158,24 @@ public class CoapServer implements ServerInterface {
 	 *            will bind to CoAP's default port 5683 on {@link #start()}.
 	 */
 	public CoapServer(final NetworkConfig config, final int... ports) {
+		this(config, null, null, ports);
+	}
+
+	/**
+	 * Constructs a server with the specified configuration that listens to the
+	 * specified ports after method {@link #start()} is called.
+	 *
+	 * @param config the configuration, if {@code null} the configuration
+	 *            returned by {@link NetworkConfig#getStandard()} is used.
+	 * @param ports the ports to bind to. If empty or {@code null} and no
+	 *            endpoints are added with {@link #addEndpoint(Endpoint)}, it
+	 *            will bind to CoAP's default port 5683 on {@link #start()}.
+	 * @param rootResource the Resource to set as root.
+	 * 	 		  If {@code null} will use {@link #createRoot()} method to set root.
+	 * @param messageDeliverer the MessageDeliverer to use.
+	 * 	 		  If {@code null} will create new instance of ServerMessageDeliverer class.
+	 */
+	public CoapServer(final NetworkConfig config, final Resource rootResource, final MessageDeliverer messageDeliverer, final int... ports) {
 		// global configuration that is passed down (can be observed for changes)
 		if (config != null) {
 			this.config = config;
@@ -166,8 +184,16 @@ public class CoapServer implements ServerInterface {
 		}
 
 		// resources
-		this.root = createRoot();
-		this.deliverer = new ServerMessageDeliverer(root);
+		if (rootResource !=  null) {
+			this.root = rootResource;
+		} else {
+			this.root = createRoot();
+		}
+		if (messageDeliverer != null) {
+			this.deliverer = messageDeliverer;
+		} else {
+			this.deliverer = new ServerMessageDeliverer(root);
+		}
 
 		CoapResource wellKnown = new CoapResource(".well-known");
 		wellKnown.setVisible(false);
