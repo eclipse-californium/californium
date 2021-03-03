@@ -115,6 +115,8 @@ public class LibCoapProcessUtil extends ProcessUtil {
 	private String ca;
 	private String trusts;
 
+	private boolean serverMode;
+
 	/**
 	 * Create instance.
 	 */
@@ -320,6 +322,7 @@ public class LibCoapProcessUtil extends ProcessUtil {
 
 	public void startupClient(String destination, LibCoapAuthenticationMode authMode, String message,
 			CipherSuite... ciphers) throws IOException, InterruptedException {
+		serverMode = false;
 		List<CipherSuite> list = Arrays.asList(ciphers);
 		List<String> args = new ArrayList<String>();
 		args.add(client);
@@ -360,6 +363,7 @@ public class LibCoapProcessUtil extends ProcessUtil {
 
 	public void startupServer(String accept, LibCoapAuthenticationMode authMode, CipherSuite... ciphers)
 			throws IOException, InterruptedException {
+		serverMode = true;
 		List<CipherSuite> list = Arrays.asList(ciphers);
 		List<String> args = new ArrayList<String>();
 		// provide coap port, coaps will be +1
@@ -417,6 +421,9 @@ public class LibCoapProcessUtil extends ProcessUtil {
 	}
 
 	public ProcessResult stop(long timeoutMillis) throws InterruptedException, IOException {
+		if (serverMode) {
+			super.stop();
+		}
 		return waitResult(timeoutMillis);
 	}
 

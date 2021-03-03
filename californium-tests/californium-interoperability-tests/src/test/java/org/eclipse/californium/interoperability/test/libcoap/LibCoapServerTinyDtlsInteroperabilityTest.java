@@ -148,7 +148,6 @@ public class LibCoapServerTinyDtlsInteroperabilityTest {
 				assertTrue("missing " + check, processUtil.waitConsole(check, TIMEOUT_MILLIS));
 			}
 		}
-		processUtil.stop();
 		return processUtil.stop(TIMEOUT_MILLIS);
 	}
 }

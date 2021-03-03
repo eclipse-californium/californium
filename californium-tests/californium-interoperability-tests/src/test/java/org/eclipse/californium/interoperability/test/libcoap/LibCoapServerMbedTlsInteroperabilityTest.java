@@ -284,7 +284,6 @@ public class LibCoapServerMbedTlsInteroperabilityTest {
 				assertTrue("missing " + check, processUtil.waitConsole(check, TIMEOUT_MILLIS));
 			}
 		}
-		processUtil.stop();
 		return processUtil.stop(TIMEOUT_MILLIS);
 	}
 }
