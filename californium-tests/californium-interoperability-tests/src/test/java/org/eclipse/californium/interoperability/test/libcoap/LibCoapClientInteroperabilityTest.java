@@ -24,6 +24,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.number.OrderingComparison.greaterThan;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeNotNull;
 
@@ -31,6 +32,8 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.NoResponseOption;
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
@@ -128,6 +131,19 @@ public class LibCoapClientInteroperabilityTest {
 		processUtil.startupClient(DESTINATION_URL + "test", PSK, "Hello, CoAP!", cipherSuite);
 		connect("Hello, CoAP!", "Greetings!");
 		californiumUtil.assertPrincipalType(PreSharedKeyIdentity.class);
+	}
+
+	@Test
+	public void testLibCoapClientPskNoResponse() throws Exception {
+		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
+		californiumUtil.start(BIND, null, cipherSuite);
+		processUtil.setClientMessageType(CoAP.Type.NON);
+		processUtil.setClientOption(new NoResponseOption(NoResponseOption.SUPPRESS_SUCCESS).toOption());
+		processUtil.startupClient(DESTINATION_URL + "test", PSK, "Hello, CoAP!", cipherSuite);
+		californiumUtil.assertReceivedData("Hello, CoAP!", TIMEOUT_MILLIS);
+		assertFalse("unexpected \"Greetings!\" received", processUtil.waitConsole("Greetings!", TIMEOUT_MILLIS));
+		californiumUtil.assertPrincipalType(PreSharedKeyIdentity.class);
+		processUtil.stop(TIMEOUT_MILLIS);
 	}
 
 	@Test

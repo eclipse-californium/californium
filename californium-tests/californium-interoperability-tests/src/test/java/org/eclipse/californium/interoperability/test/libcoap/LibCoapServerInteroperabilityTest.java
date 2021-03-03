@@ -19,6 +19,8 @@ import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_R
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.CA;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.CHAIN;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.TRUST;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -28,14 +30,19 @@ import static org.junit.Assume.assumeNotNull;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.NoResponseOption;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.ResponseTimeout;
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.elements.util.DaemonThreadFactory;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.interoperability.test.CaliforniumUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil.ProcessResult;
@@ -108,6 +115,37 @@ public class LibCoapServerInteroperabilityTest {
 		californiumUtil.start(BIND, null, cipherSuite);
 		connect(true);
 		californiumUtil.assertPrincipalType(PreSharedKeyIdentity.class);
+	}
+
+	@Test
+	public void testLibCoapServerPskNoResponse() throws Exception {
+		ScheduledExecutorService scheduledExecutor = ExecutorsUtil
+				.newSingleThreadScheduledExecutor(new DaemonThreadFactory("timeout", ExecutorsUtil.TIMER_THREAD_GROUP));
+		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
+		processUtil.startupServer(ACCEPT, CHAIN, cipherSuite);
+
+		californiumUtil.start(BIND, null, cipherSuite);
+
+		Request request = Request.newPut();
+		request.setConfirmable(false);
+		request.setURI("coaps://" + StringUtil.toString(DESTINATION) + "/example_data");
+		request.setPayload("no response");
+		request.getOptions().setNoResponse(NoResponseOption.SUPPRESS_SUCCESS);
+		request.addMessageObserver(new ResponseTimeout(request, 2000, scheduledExecutor));
+		CoapResponse response = californiumUtil.send(request);
+		assertNull("received suppressed response", response);
+
+		request = Request.newGet();
+		request.setURI("coaps://" + StringUtil.toString(DESTINATION) + "/example_data");
+		request.addMessageObserver(new ResponseTimeout(request, 2000, scheduledExecutor));
+		response = californiumUtil.send(request);
+		assertNotNull(response);
+		assertEquals("no response", response.getResponseText());
+		californiumUtil.assertPrincipalType(PreSharedKeyIdentity.class);
+
+		ExecutorsUtil.shutdownExecutorGracefully(2000, scheduledExecutor);
+		processUtil.stop();
+		processUtil.stop(TIMEOUT_MILLIS);
 	}
 
 	@Test
