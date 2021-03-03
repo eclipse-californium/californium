@@ -16,9 +16,13 @@
 package org.eclipse.californium.scandium.dtls;
 
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 
+import java.io.IOException;
 import java.security.GeneralSecurityException;
+import java.security.Principal;
 import java.security.cert.X509Certificate;
 import java.util.Random;
 
@@ -28,6 +32,7 @@ import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
 import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.util.Base64;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -41,6 +46,7 @@ public class DTLSSessionTest {
 
 	static final int DEFAULT_MAX_FRAGMENT_LENGTH = 16384; //2^14 as defined in DTLS 1.2 spec
 	private static final Random RANDOM = new Random();
+	
 	DTLSSession session;
 
 	@Before
@@ -70,7 +76,7 @@ public class DTLSSessionTest {
 	}
 
 	@Test
-	public void testSessionWithServerNamesCanBeResumedFromSessionTicket() throws GeneralSecurityException {
+	public void testSessionWithServerNamesCanBeResumedFromSession() throws GeneralSecurityException {
 		// GIVEN a session with servername for an established server session
 		session = newEstablishedServerSession(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CertificateType.RAW_PUBLIC_KEY);
 		session.setHostName("test");
@@ -95,7 +101,7 @@ public class DTLSSessionTest {
 	}
 
 	@Test
-	public void testSessionWithServerNamesCanBeResumedFromSerializedSessionTicket() throws GeneralSecurityException {
+	public void testSessionWithServerNamesCanBeResumedFromSerializedSession() throws GeneralSecurityException {
 		// GIVEN a session ticket for an established server session
 		session = newEstablishedServerSession(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CertificateType.RAW_PUBLIC_KEY);
 		session.setHostName("test");
@@ -105,6 +111,39 @@ public class DTLSSessionTest {
 
 		// THEN the new session contains all relevant pending state to perform an abbreviated handshake
 		assertThatSessionsHaveSameRelevantPropertiesForResumption(sessionToResume, session);
+	}
+
+	@Test
+	public void testSessionCanBeResumedFromSerializedSessionTicket() throws GeneralSecurityException, IOException {
+		// sample data from 2.6
+		String data64 = "/v3ArgClNS0EbAWLkxtF0bqRjNT8WDrPbfY344Rt4B55S/W6w1GZ0IqMxiNqwhsV+RmEFEkCAAAPY2xpZW50X2lkZW50aXR5YD+vuQ==";
+		DatagramReader reader = new DatagramReader(Base64.decode(data64));
+		SessionId id = new SessionId();
+		DTLSSession session = DTLSSession.fromSessionTicket(id, reader);
+		assertThat(session.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+		assertThat(session.getCompressionMethod(), is(CompressionMethod.NULL));
+		assertThat(session.getMasterSecret(), is(notNullValue()));
+		assertThat(session.getPeerIdentity(), is(notNullValue()));
+		// the 2.6 test uses a fixed principal, which doesn't match the cipher suite.
+		assertThat(session.getPeerIdentity(), is((Principal) new PreSharedKeyIdentity("client_identity")));
+		assertThat(session.getServerNames(), is(nullValue()));
+	}
+
+	@Test
+	public void testSessionWithServerNamesCanBeResumedFromSerializedSessionTicket() throws GeneralSecurityException, IOException {
+		// sample data from 2.6
+		String data64 = "/v3ArgCoEjdlcuOwEr14SfIGy43WEeenGoayfQ4Ukds9hUBeyV5rCgtWIINAw5iGME4VP4ECAAAPY2xpZW50X2lkZW50aXR5YD+vuQAHAAAEdGVzdA==";
+		DatagramReader reader = new DatagramReader(Base64.decode(data64));
+		SessionId id = new SessionId();
+		DTLSSession session = DTLSSession.fromSessionTicket(id, reader);
+		assertThat(session.getCipherSuite(), is(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+		assertThat(session.getCompressionMethod(), is(CompressionMethod.NULL));
+		assertThat(session.getMasterSecret(), is(notNullValue()));
+		assertThat(session.getPeerIdentity(), is(notNullValue()));
+		// the 2.6 test uses a fixed principal, which doesn't match the cipher suite.
+		assertThat(session.getPeerIdentity(), is((Principal) new PreSharedKeyIdentity("client_identity")));
+		assertThat(session.getServerNames(), is(notNullValue()));
+		assertThat(session.getHostName(), is("test"));
 	}
 
 	@Test
