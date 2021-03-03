@@ -48,7 +48,9 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.security.GeneralSecurityException;
 import java.security.Principal;
+import java.util.Iterator;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
 import javax.crypto.SecretKey;
 import javax.security.auth.DestroyFailedException;
@@ -71,6 +73,8 @@ import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerName;
 import org.eclipse.californium.scandium.util.ServerName.NameType;
 import org.eclipse.californium.scandium.util.ServerNames;
+import org.eclipse.californium.scandium.util.backwardscompatibility.BackwardsCompatiblePrincipalSerializer;
+import org.eclipse.californium.scandium.util.backwardscompatibility.BackwardsCompatibleServerNames;
 
 /**
  * Represents a DTLS session between two peers.
@@ -946,5 +950,83 @@ public final class DTLSSession implements Destroyable {
 			}
 		}
 		reader.assertFinished("dtls-session");
+	}
+
+	/**
+	 * Read DTLS session from encoded representation of the obsolete and removed
+	 * {@code SessionTicket}.
+	 * 
+	 * Backwards compatibility.
+	 * 
+	 * @param id session id for dtls session
+	 * @param source reader with the encoded {@code SessionTicket}
+	 * @return dtls session
+	 * @throws IllegalArgumentException if the data is erroneous
+	 * @since 3.0
+	 */
+	public static DTLSSession fromSessionTicket(SessionId id, DatagramReader source) {
+		if (source == null) {
+			throw new NullPointerException("reader must not be null");
+		}
+		return new DTLSSession(id, source);
+	}
+
+	/**
+	 * Create instance from encoded {@code SessionTicket}.
+	 * 
+	 * @param id session id for dtls session
+	 * @param source reader with the encoded {@code SessionTicket}
+	 * @throws IllegalArgumentException if the data is erroneous
+	 * @since 3.0
+	 * 
+	 */
+	private DTLSSession(SessionId id, DatagramReader source) {
+		sessionIdentifier = id;
+
+		// protocol_version
+		int major = source.read(8);
+		int minor = source.read(8);
+		protocolVersion = ProtocolVersion.valueOf(major, minor);
+
+		// cipher_suite
+		int code = source.read(CipherSuite.CIPHER_SUITE_BITS);
+		cipherSuite = CipherSuite.getTypeByCode(code);
+		if (cipherSuite == null) {
+			throw new IllegalArgumentException("unknown cipher suite 0x" + Integer.toHexString(code) + "!");
+		}
+
+		// compression_method
+		code = source.read(CompressionMethod.COMPRESSION_METHOD_BITS);
+		compressionMethod = CompressionMethod.getMethodByCode(code);
+		if (compressionMethod == null) {
+			throw new IllegalArgumentException("unknown compression method 0x" + Integer.toHexString(code) + "!");
+		}
+
+		// master_secret
+		byte[] secret = source.readBytes(48);
+		masterSecret = SecretUtil.create(secret, "MAC");
+		Bytes.clear(secret);
+
+		// client_identity
+		try {
+			peerIdentity = BackwardsCompatiblePrincipalSerializer.deserialize(source);
+		} catch (GeneralSecurityException e) {
+			throw new IllegalArgumentException("peer identity broken!");
+		}
+
+		// timestamp
+		creationTime = TimeUnit.SECONDS.toMillis(source.readLong(32));
+
+		ServerNames serverNames = null;
+		if (source.bytesAvailable()) {
+			BackwardsCompatibleServerNames readServerNames = new BackwardsCompatibleServerNames();
+			readServerNames.decode(source);
+			serverNames = ServerNames.newInstance();
+			Iterator<ServerName> iterator = readServerNames.iterator();
+			while (iterator.hasNext()) {
+				serverNames.add(iterator.next());
+			}
+		}
+		setServerNames(serverNames);
 	}
 }
