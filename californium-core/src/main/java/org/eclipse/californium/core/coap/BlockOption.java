@@ -65,28 +65,11 @@ public final class BlockOption {
 	}
 
 	/**
-	 * Instantiates a new block option with the same values as the specified
-	 * block option.
-	 * 
-	 * @param origin the origin
-	 * @throws NullPointerException if the specified block option is null
-	 */
-	public BlockOption(final BlockOption origin) {
-		if (origin == null) {
-			throw new NullPointerException("origin must not be null");
-		} else {
-			this.szx = origin.getSzx();
-			this.m = origin.isM();
-			this.num = origin.getNum();
-		}
-	}
-
-	/**
 	 * Instantiates a new block option from the specified bytes (1-3 bytes).
 	 *
 	 * @param value the bytes
 	 * @throws NullPointerException if the specified bytes are null
-	 * @throws IllegalArgumentException if the specified value's length larger than 3
+	 * @throws IllegalArgumentException if the specified value's length is larger than 3
 	 */
 	public BlockOption(final byte[] value) {
 

@@ -147,10 +147,8 @@ public final class OptionSet {
 		proxy_uri           = origin.proxy_uri;
 		proxy_scheme        = origin.proxy_scheme;
 
-		if (origin.block1 != null)
-			block1          = new BlockOption(origin.block1);
-		if (origin.block2 != null)
-			block2          = new BlockOption(origin.block2);
+		block1              = origin.block1;
+		block2              = origin.block2;
 
 		size1               = origin.size1;
 		size2               = origin.size2;
