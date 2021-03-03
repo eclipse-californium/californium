@@ -81,13 +81,14 @@ public final class OptionSet {
 	private Integer      size2;
 	private Integer      observe;
 	private byte[]       oscore;
+	private NoResponseOption no_response;
 
 	// Arbitrary options
 	private List<Option> others;
 
 	/**
-	 * {@code true} if URI-path or URI-query are set independent from
-	 * {@link Request#setURI}. Preserve them from being cleand up, if the URI
+	 * {@code true}, if URI-path or URI-query are set independent from
+	 * {@link Request#setURI}. Preserve them from being cleaned up, if the URI
 	 * doesn't contain them.
 	 */
 	private boolean explicitUriOptions;
@@ -119,6 +120,7 @@ public final class OptionSet {
 		size2               = null;
 		observe             = null;
 		oscore              = null;
+		no_response         = null;
 
 		others              = null; // new LinkedList<>();
 	}
@@ -156,6 +158,7 @@ public final class OptionSet {
 		if(origin.oscore != null) {
 			oscore          = origin.oscore.clone();
 		}
+		no_response         = origin.no_response;
 		others              = copyList(origin.others);
 	}
 
@@ -189,6 +192,7 @@ public final class OptionSet {
 		size2 = null;
 		observe = null;
 		oscore = null;
+		no_response = null;
 		if (others != null)
 			others.clear();
 	}
@@ -1420,7 +1424,62 @@ public final class OptionSet {
 	}
 
 	/**
-	 * Checks if an arbitrary option is present.
+	 * Gets the NoResponse option.
+	 * 
+	 * @return the NoResponse option, or, {@code null}, if the option is not present
+	 * @since 3.0
+	 */
+	public NoResponseOption getNoResponse() {
+		return no_response;
+	}
+
+	/**
+	 * Checks, if the NoResponse option is present.
+	 * 
+	 * @return {@code true}, if present
+	 * @since 3.0
+	 */
+	public boolean hasNoResponse() {
+		return no_response != null;
+	}
+
+	/**
+	 * Sets the NoResponse option value.
+	 * 
+	 * @param noResponse the NoResponse pattern
+	 * @return this OptionSet for a fluent API.
+	 * @since 3.0
+	 */
+	public OptionSet setNoResponse(int noResponse) {
+		this.no_response = new NoResponseOption(noResponse);
+		return this;
+	}
+
+	/**
+	 * Sets the NoResponse option value.
+	 * 
+	 * @param noResponse the NoResponse option
+	 * @return this OptionSet for a fluent API.
+	 * @since 3.0
+	 */
+	public OptionSet setNoResponse(NoResponseOption noResponse) {
+		this.no_response = noResponse;
+		return this;
+	}
+
+	/**
+	 * Removes the NoResponse option.
+	 * 
+	 * @return this OptionSet for a fluent API.
+	 * @since 3.0
+	 */
+	public OptionSet removeNoResponse() {
+		this.no_response = null;
+		return this;
+	}
+
+	/**
+	 * Checks, if an arbitrary option is present.
 	 * 
 	 * @param number the option number
 	 * @return {@code true}, if present
@@ -1510,6 +1569,8 @@ public final class OptionSet {
 			options.add(new Option(OptionNumberRegistry.SIZE2, getSize2()));
 		if (hasOscore())
 			options.add(new Option(OptionNumberRegistry.OSCORE, getOscore()));
+		if (hasNoResponse())
+			options.add(getNoResponse().toOption());
 
 		if (others != null)
 			options.addAll(others);
@@ -1595,6 +1656,9 @@ public final class OptionSet {
 			break;
 		case OptionNumberRegistry.OSCORE:
 			setOscore(option.getValue());
+			break;
+		case OptionNumberRegistry.NO_RESPONSE:
+			setNoResponse(option.getIntegerValue());
 			break;
 		default:
 			getOthersInternal().add(option);

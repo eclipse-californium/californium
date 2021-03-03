@@ -20,8 +20,12 @@
 package org.eclipse.californium.core.coap;
 
 /**
- * This class describes the CoAP Option Number Registry as defined in
- * RFC 7252, Section 12.2 and other CoAP extensions.
+ * This class describes the CoAP Option Number Registry as defined in RFC 7252,
+ * Section 12.2 and other CoAP extensions.
+ * 
+ * <a href=
+ * "https://www.iana.org/assignments/core-parameters/core-parameters.xhtml#option-numbers">
+ * IANA - CoAP Option Numbers</a>.
  */
 public final class OptionNumberRegistry {
 	public static final int UNKNOWN			= -1;
@@ -48,36 +52,39 @@ public final class OptionNumberRegistry {
 	public static final int RESERVED_3		= 136;
 	public static final int RESERVED_4		= 140;
 
-	// draft-ietf-core-observe-14
+	// RFC 7641
 	public static final int OBSERVE			= 6;
 
-	// draft-ietf-core-block-14
+	// RFC 7959
 	public static final int BLOCK2			= 23;
 	public static final int BLOCK1			= 27;
 	public static final int SIZE2			= 28;
 
-	//TODO temporary assignment
+	// RFC 8613
 	public static final int OSCORE			= 9;
+
+	// RFC 7967
+	public static final int NO_RESPONSE		= 258;
 
 	/**
 	 * Option names.
 	 */
 	public static class Names {
-		public static final String Reserved 		= "Reserved";
+		public static final String Reserved			= "Reserved";
 
-		public static final String If_Match 		= "If-Match";
-		public static final String Uri_Host 		= "Uri-Host";
-		public static final String ETag 			= "ETag";
-		public static final String If_None_Match 	= "If-None-Match";
-		public static final String Uri_Port 		= "Uri-Port";
-		public static final String Location_Path 	= "Location-Path";
-		public static final String Uri_Path 		= "Uri-Path";
+		public static final String If_Match			= "If-Match";
+		public static final String Uri_Host			= "Uri-Host";
+		public static final String ETag				= "ETag";
+		public static final String If_None_Match	= "If-None-Match";
+		public static final String Uri_Port			= "Uri-Port";
+		public static final String Location_Path	= "Location-Path";
+		public static final String Uri_Path			= "Uri-Path";
 		public static final String Content_Format	= "Content-Format";
-		public static final String Max_Age 			= "Max-Age";
-		public static final String Uri_Query 		= "Uri-Query";
-		public static final String Accept 			= "Accept";
-		public static final String Location_Query 	= "Location-Query";
-		public static final String Proxy_Uri 		= "Proxy-Uri";
+		public static final String Max_Age			= "Max-Age";
+		public static final String Uri_Query		= "Uri-Query";
+		public static final String Accept			= "Accept";
+		public static final String Location_Query	= "Location-Query";
+		public static final String Proxy_Uri		= "Proxy-Uri";
 		public static final String Proxy_Scheme		= "Proxy-Scheme";
 		public static final String Size1			= "Size1";
 
@@ -87,7 +94,9 @@ public final class OptionNumberRegistry {
 		public static final String Block1			= "Block1";
 		public static final String Size2			= "Size2";
 
-		public static final String Object_Security  = "Object-Security";
+		public static final String Object_Security	= "Object-Security";
+
+		public static final String No_Response		= "No-Response";
 	}
 
 	/**
@@ -124,6 +133,7 @@ public final class OptionNumberRegistry {
 		case SIZE2:
 		case SIZE1:
 		case ACCEPT:
+		case NO_RESPONSE:
 			return optionFormats.INTEGER;
 		case IF_NONE_MATCH:
 			return optionFormats.EMPTY;
@@ -201,6 +211,14 @@ public final class OptionNumberRegistry {
 		 * When an option is not Unsafe, it is not a Cache-Key (NoCacheKey) if
 		 * and only if bits 3-5 are all set to 1; all other bit combinations
 		 * mean that it indeed is a Cache-Key
+		 * 
+		 * https://tools.ietf.org/html/rfc7252#page-40
+		 * 
+		 * Critical = (onum & 1);
+		 * UnSafe = (onum & 2);
+		 * NoCacheKey = ((onum & 0x1e) == 0x1c);
+		 * 
+		 *    Figure 11: Determining Characteristics from an Option Number
 		 */
 		return (optionNumber & 0x1E) == 0x1C;
 	}
@@ -239,6 +257,7 @@ public final class OptionNumberRegistry {
 		case BLOCK2:
 		case SIZE1:
 		case SIZE2:
+		case NO_RESPONSE:
 		default:
 			return true;
 		case ETAG:
@@ -306,6 +325,9 @@ public final class OptionNumberRegistry {
 		case CONTENT_FORMAT:
 		case ACCEPT:
 			max = 2;
+			break;
+		case NO_RESPONSE:
+			max = 1;
 			break;
 		case URI_PATH:
 		case URI_QUERY:
@@ -417,11 +439,13 @@ public final class OptionNumberRegistry {
 			return Names.Size1;
 		case OSCORE:
 			return Names.Object_Security;
+		case NO_RESPONSE:
+			return Names.No_Response;
 		default:
 			return String.format("Unknown (%d)", optionNumber);
 		}
 	}
-	
+
 	public static int toNumber(String name) {
 		if (Names.If_Match.equals(name))			return IF_MATCH;
 		else if (Names.Uri_Host.equals(name))		return URI_HOST;
@@ -443,6 +467,7 @@ public final class OptionNumberRegistry {
 		else if (Names.Size2.equals(name))			return SIZE2;
 		else if (Names.Size1.equals(name))			return SIZE1;
 		else if (Names.Object_Security.equals(name)) return OSCORE;
+		else if (Names.No_Response.equals(name))	return NO_RESPONSE;
 		else return UNKNOWN;
 	}
 

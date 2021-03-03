@@ -126,6 +126,7 @@ public class MessageExchangeStoreTool {
 
 			@Override
 			public boolean isFulFilled() throws IllegalStateException {
+				System.out.println("check empty " + System.currentTimeMillis());
 				return endpoint.isEmpty() && endpoint.getRequestChecker().allRequestsTerminated();
 			}
 		});
