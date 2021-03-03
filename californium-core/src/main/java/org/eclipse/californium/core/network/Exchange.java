@@ -67,6 +67,7 @@ import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
+import org.eclipse.californium.core.coap.NoResponseOption;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
@@ -413,15 +414,26 @@ public class Exchange {
 	 * If no destination context is provided, use the source context of the
 	 * request.
 	 * 
-	 * Note: since 2.3, error responses for multicast requests are not sent. (See
-	 * {@link UdpMulticastConnector} for receiving multicast requests).
+	 * Note: since 2.3, error responses for multicast requests are not sent.
+	 * (See {@link UdpMulticastConnector} for receiving multicast requests).
+	 * 
+	 * Note: since 3.0, {@link NoResponseOption} is considered. That may cause
+	 * to send error responses also for multicast requests.
 	 * 
 	 * @param response the response
 	 * @since 2.3 error responses for multicast requests are not sent
+	 * @since 3.0 {@link NoResponseOption} is considered
 	 */
 	public void sendResponse(Response response) {
 		Request current = currentRequest;
-		if (current.isMulticast() && response.isError()) {
+		if (current.getOptions().hasNoResponse()) {
+			NoResponseOption noResponse = current.getOptions().getNoResponse();
+			if (noResponse.suppress(response.getCode())) {
+				if (!current.acknowledge()) {
+					return;
+				}
+			}
+		} else if (current.isMulticast() && response.isError()) {
 			return;
 		}
 		if (response.getDestinationContext() == null) {

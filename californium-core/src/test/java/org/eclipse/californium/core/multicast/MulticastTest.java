@@ -36,6 +36,7 @@ import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.coap.NoResponseOption;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
@@ -133,6 +134,18 @@ public class MulticastTest {
 				}
 			}
 		});
+		server1.add(new CoapResource("error") {
+
+			@Override
+			public void handleGET(CoapExchange exchange) {
+				exchange.respond(ResponseCode.NOT_FOUND);
+				if (exchange.isMulticastRequest()) {
+					System.out.println("server 1 mc error");
+				} else {
+					System.out.println("server 1 error");
+				}
+			}
+		});
 		server1.start();
 		cleanup.add(server1);
 
@@ -161,6 +174,18 @@ public class MulticastTest {
 			public void handleGET(CoapExchange exchange) {
 				exchange.respond(ResponseCode.CONTENT, "no!");
 				System.out.println("server 2 no");
+			}
+		});
+		server2.add(new CoapResource("error") {
+
+			@Override
+			public void handleGET(CoapExchange exchange) {
+				exchange.respond(ResponseCode.NOT_FOUND);
+				if (exchange.isMulticastRequest()) {
+					System.out.println("server 2 mc error");
+				} else {
+					System.out.println("server 2 error");
+				}
 			}
 		});
 		server2.start();
@@ -207,6 +232,18 @@ public class MulticastTest {
 					System.out.println("server 3 mc reject");
 				} else {
 					System.out.println("server 3 reject");
+				}
+			}
+		});
+		server3.add(new CoapResource("error") {
+
+			@Override
+			public void handleGET(CoapExchange exchange) {
+				exchange.respond(ResponseCode.NOT_FOUND);
+				if (exchange.isMulticastRequest()) {
+					System.out.println("server 3 mc error");
+				} else {
+					System.out.println("server 3 error");
 				}
 			}
 		});
@@ -421,6 +458,120 @@ public class MulticastTest {
 		assertHealthCounter("recv-rejects", is(0L));
 		// server 3 blocks sending rejects
 		assertHealthCounter("recv-ignored", is(1L), TIMEOUT_MILLIS);
+	}
+
+	@Test
+	public void clientUnicastError() throws InterruptedException {
+		String uri = "coap://" + StringUtil.toString(unicast) + "/error";
+		CoapClient client = new CoapClient();
+		cleanup.add(client);
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+		builder.setNetworkConfig(config);
+		CoapEndpoint endpoint = builder.build();
+		cleanup.add(endpoint);
+		endpoint.addPostProcessInterceptor(health);
+		client.setEndpoint(endpoint);
+		CountingCoapHandler handler = new CountingCoapHandler();
+		Request request = Request.newGet();
+		request.setURI(uri);
+		request.setType(Type.NON);
+		System.out.println("Unicast: " + uri);
+		System.out.println(Utils.prettyPrint(request));
+		client.advanced(handler, request);
+		CoapResponse response = handler.waitOnLoad(TIMEOUT_MILLIS);
+		assertThat(response, is(notNullValue()));
+		assertThat(response.getCode(), is(ResponseCode.NOT_FOUND));
+
+		assertHealthCounter("send-requests", is(1L), TIMEOUT_MILLIS);
+		assertHealthCounter("send-rejects", is(0L));
+		assertHealthCounter("send-request retransmissions", is(0L));
+		assertHealthCounter("recv-responses", is(1L));
+		assertHealthCounter("recv-duplicate responses", is(0L));
+		assertHealthCounter("recv-acks", is(0L));
+		assertHealthCounter("recv-rejects", is(0L), TIMEOUT_MILLIS);
+		assertHealthCounter("recv-ignored", is(0L));
+	}
+
+	@Test
+	public void clientMulticastCheckError() throws InterruptedException {
+		String uri = "coap://" + CoAP.MULTICAST_IPV4.getHostAddress() + ":" + PORT + "/error";
+		CountingCoapHandler handler = new CountingCoapHandler();
+		Request request = Request.newGet();
+		request.setURI(uri);
+		request.setType(Type.NON);
+		System.out.println("Multicast: " + uri);
+		System.out.println(Utils.prettyPrint(request));
+		CoapClient client = new CoapClient();
+		cleanup.add(client);
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+		builder.setNetworkConfig(config);
+		CoapEndpoint endpoint = builder.build();
+		cleanup.add(endpoint);
+		endpoint.addPostProcessInterceptor(health);
+		client.setEndpoint(endpoint);
+		client.advanced(handler, request);
+		CoapResponse response = handler.waitOnLoad(TIMEOUT_MILLIS);
+		assertThat("missing response", response, is(notNullValue()));
+		assertThat(response.getCode(), is(ResponseCode.NOT_FOUND));
+
+		response = handler.waitOnLoad(TIMEOUT_MILLIS);
+		assertThat("missing response", response, is(notNullValue()));
+		assertThat(response.getCode(), is(ResponseCode.NOT_FOUND));
+
+		response = handler.waitOnLoad(TIMEOUT_MILLIS);
+		assertThat("unexpected response", response, is(nullValue()));
+
+		assertHealthCounter("send-requests", is(1L), TIMEOUT_MILLIS);
+		assertHealthCounter("send-rejects", is(0L));
+		assertHealthCounter("send-request retransmissions", is(0L));
+		// multicast suppress error responses
+		assertHealthCounter("recv-responses", is(2L), TIMEOUT_MILLIS);
+		assertHealthCounter("recv-duplicate responses", is(0L));
+		assertHealthCounter("recv-acks", is(0L));
+		assertHealthCounter("recv-rejects", is(0L));
+		assertHealthCounter("recv-ignored", is(0L), TIMEOUT_MILLIS);
+	}
+
+	@Test
+	public void clientMulticastCheckErrorWithNoResponse() throws InterruptedException {
+		String uri = "coap://" + CoAP.MULTICAST_IPV4.getHostAddress() + ":" + PORT + "/error";
+		CountingCoapHandler handler = new CountingCoapHandler();
+		Request request = Request.newGet();
+		request.setURI(uri);
+		request.setType(Type.NON);
+		request.getOptions().setNoResponse(NoResponseOption.SUPPRESS_SERVER_ERROR);
+		System.out.println("Multicast: " + uri);
+		System.out.println(Utils.prettyPrint(request));
+		CoapClient client = new CoapClient();
+		cleanup.add(client);
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+		builder.setNetworkConfig(config);
+		CoapEndpoint endpoint = builder.build();
+		cleanup.add(endpoint);
+		endpoint.addPostProcessInterceptor(health);
+		client.setEndpoint(endpoint);
+		client.advanced(handler, request);
+		CoapResponse response = handler.waitOnLoad(TIMEOUT_MILLIS);
+		assertThat("missing response", response, is(notNullValue()));
+		assertThat(response.getCode(), is(ResponseCode.NOT_FOUND));
+
+		response = handler.waitOnLoad(TIMEOUT_MILLIS);
+		assertThat("missing response", response, is(notNullValue()));
+		assertThat(response.getCode(), is(ResponseCode.NOT_FOUND));
+
+		response = handler.waitOnLoad(TIMEOUT_MILLIS);
+		assertThat("missing response", response, is(notNullValue()));
+		assertThat(response.getCode(), is(ResponseCode.NOT_FOUND));
+
+		assertHealthCounter("send-requests", is(1L), TIMEOUT_MILLIS);
+		assertHealthCounter("send-rejects", is(0L));
+		assertHealthCounter("send-request retransmissions", is(0L));
+		// multicast suppress error responses, but no-response overrules that
+		assertHealthCounter("recv-responses", is(3L), TIMEOUT_MILLIS);
+		assertHealthCounter("recv-duplicate responses", is(0L));
+		assertHealthCounter("recv-acks", is(0L));
+		assertHealthCounter("recv-rejects", is(0L));
+		assertHealthCounter("recv-ignored", is(0L), TIMEOUT_MILLIS);
 	}
 
 	private void assertHealthCounter(final String name, final Matcher<? super Long> matcher, long timeout)
