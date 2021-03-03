@@ -30,6 +30,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Matcher;
 
+import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.coap.Option;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.interoperability.test.ProcessUtil;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 
@@ -115,6 +119,9 @@ public class LibCoapProcessUtil extends ProcessUtil {
 	private String ca;
 	private String trusts;
 
+	private Option clientOption;
+	private CoAP.Type type;
+
 	private boolean serverMode;
 
 	/**
@@ -130,6 +137,9 @@ public class LibCoapProcessUtil extends ProcessUtil {
 		privateKey = null;
 		ca = null;
 		trusts = null;
+		clientOption = null;
+		type = null;
+		serverMode = false;
 	}
 
 	/**
@@ -320,6 +330,14 @@ public class LibCoapProcessUtil extends ProcessUtil {
 		this.trusts = trusts;
 	}
 
+	public void setClientOption(Option option) {
+		this.clientOption = option;
+	}
+
+	public void setClientMessageType(CoAP.Type type) {
+		this.type = type;
+	}
+
 	public void startupClient(String destination, LibCoapAuthenticationMode authMode, String message,
 			CipherSuite... ciphers) throws IOException, InterruptedException {
 		serverMode = false;
@@ -355,6 +373,14 @@ public class LibCoapProcessUtil extends ProcessUtil {
 				}
 				add(args, authMode);
 			}
+		}
+		if (clientOption != null) {
+			args.add("-O");
+			byte[] value = clientOption.getValue();
+			args.add(clientOption.getNumber() + ",0x" + StringUtil.byteArray2Hex(value));
+		}
+		if (type == Type.NON) {
+			args.add("-N");
 		}
 		args.add(destination);
 		print(args);
