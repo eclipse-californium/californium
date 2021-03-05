@@ -15,6 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
+import org.eclipse.californium.core.coap.CoAP.CodeClass;
 import org.eclipse.californium.elements.util.Bytes;
 
 /**
