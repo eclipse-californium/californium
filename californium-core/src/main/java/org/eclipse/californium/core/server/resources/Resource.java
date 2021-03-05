@@ -20,13 +20,11 @@
 package org.eclipse.californium.core.server.resources;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import org.eclipse.californium.core.CoapResource;
-import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.observe.ObserveRelation;
 import org.eclipse.californium.core.server.ServerMessageDeliverer;
@@ -263,13 +261,4 @@ public interface Resource {
 	 */
 	public ScheduledThreadPoolExecutor getSecondaryExecutor();
 
-	/**
-	 * Gets the endpoints this resource is bound to. As long as a resource is
-	 * not added to a server, it should return an empty list. After a resource
-	 * is added, it should return the endpoint list of its parent. The root of
-	 * the server will than return the actual list of endpoints.
-	 * 
-	 * @return the endpoints
-	 */
-	public List<Endpoint> getEndpoints();
 }

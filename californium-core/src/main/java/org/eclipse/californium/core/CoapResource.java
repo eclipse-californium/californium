@@ -32,9 +32,7 @@
  ******************************************************************************/
 package org.eclipse.californium.core;
 
-import java.net.URI;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -43,9 +41,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.ReentrantLock;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Code;
@@ -63,6 +58,8 @@ import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.core.server.resources.ResourceAttributes;
 import org.eclipse.californium.core.server.resources.ResourceObserver;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * CoapResource is a basic implementation of a resource. Extend this class to
@@ -360,52 +357,42 @@ public  class CoapResource implements Resource {
 
 	/**
 	 * Creates a {@link CoapClient} that uses the same executor as this resource
-	 * and one of the endpoints that this resource belongs to. If no executor is
-	 * defined by this resource or any parent, the client will not have an
-	 * executor (it still works). If this resource is not yet added to a server
-	 * or the server has no endpoints, the client has no specific endpoint and
-	 * will use Californium's default endpoint.
+	 * and the endpoint of the incoming exchange. The {@link CoapClient} is
+	 * detached from the executors of this resource, a
+	 * {@link CoapClient#shutdown()} will therefore not shutdown the resources
+	 * executor.
 	 * 
-	 * @return the CoAP client
+	 * @param incoming incoming exchange to determine the endpoint for outgoing
+	 *            requests
+	 * @return the CoAP client.
+	 * @throws IllegalStateException if executors are not available
+	 * @since 3.0
 	 */
-	public CoapClient createClient() {
+	public CoapClient createClient(CoapExchange incoming) {
+		return createClient(incoming.advanced().getEndpoint());
+	}
+
+	/**
+	 * Creates a {@link CoapClient} that uses the same executor as this resource
+	 * and the provided endpoint. The endpoint may be accessed by
+	 * {@link Exchange#getEndpoint()}. The {@link CoapClient} is detached from
+	 * the executors of this resource, a {@link CoapClient#shutdown()} will
+	 * therefore not shutdown the resources executor.
+	 * 
+	 * @param outgoing endpoint for outgoing request.
+	 * @return the CoAP client.
+	 * @throws IllegalStateException if executors are not available
+	 * @since 3.0
+	 */
+	public CoapClient createClient(Endpoint outgoing) {
 		CoapClient client = new CoapClient();
-		client.setExecutors(getExecutor(), getSecondaryExecutor(), false);
-		final List<Endpoint> endpoints = getEndpoints();
-		if (!endpoints.isEmpty()) {
-			client.setEndpoint(endpoints.get(0));
+		try {
+			client.setExecutors(getExecutor(), getSecondaryExecutor(), true);
+		} catch (NullPointerException ex) {
+			throw new IllegalStateException("At least one executor is not availabe!");
 		}
+		client.setEndpoint(outgoing);
 		return client;
-	}
-
-	/**
-	 * Creates a {@link CoapClient} that uses the same executor as this resource
-	 * and one of the endpoints that this resource belongs to. If no executor is
-	 * defined by this resource or any parent, the client will not have an
-	 * executor (it still works). If this resource is not yet added to a server
-	 * or the server has no endpoints, the client has no specific endpoint and
-	 * will use Californium's default endpoint.
-	 * 
-	 * @param uri the uri
-	 * @return the CoAP client
-	 */
-	public CoapClient createClient(URI uri) {
-		return createClient().setURI(uri.toString());
-	}
-
-	/**
-	 * Creates a {@link CoapClient} that uses the same executor as this resource
-	 * and one of the endpoints that this resource belongs to. If no executor is
-	 * defined by this resource or any parent, the client will not have an
-	 * executor (it still works). If this resource is not yet added to a server
-	 * or the server has no endpoints, the client has no specific endpoint and
-	 * will use Californium's default endpoint.
-	 *
-	 * @param uri the URI string
-	 * @return the CoAP client
-	 */
-	public CoapClient createClient(String uri) {
-		return createClient().setURI(uri);
 	}
 
 	/* (non-Javadoc)
@@ -924,15 +911,4 @@ public  class CoapResource implements Resource {
 		semaphore.acquire();
 	}
 
-	/* (non-Javadoc)
-	 * @see org.eclipse.californium.core.server.resources.Resource#getEndpoints()
-	 */
-	public List<Endpoint> getEndpoints() {
-		final Resource parent = getParent();
-		if (parent == null) {
-			return Collections.emptyList();
-		} else {
-			return parent.getEndpoints();
-		}
-	}
 }

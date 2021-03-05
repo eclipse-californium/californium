@@ -659,10 +659,6 @@ public class CoapServer implements ServerInterface {
 			exchange.respond(ResponseCode.CONTENT, msg);
 		}
 
-		@Override
-		public List<Endpoint> getEndpoints() {
-			return CoapServer.this.getEndpoints();
-		}
 	}
 
 	/**
