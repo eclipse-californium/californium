@@ -73,7 +73,8 @@ public class AnnounceResource extends CoapResource {
 	
 	@Override
 	public void handlePOST(CoapExchange exchange) {
-		CoapClient client = this.createClient(exchange.getRequestText());
+		CoapClient client = this.createClient(exchange);
+		client.setURI(exchange.getRequestText());
 		CoapObserveRelation relation = client.observe(handler);
 		synchronized(relationStorage) {
 			relationStorage.put(exchange.getSourceSocketAddress(), relation);
