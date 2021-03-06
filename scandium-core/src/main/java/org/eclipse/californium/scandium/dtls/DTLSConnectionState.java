@@ -80,7 +80,7 @@ public abstract class DTLSConnectionState implements Destroyable {
 		}
 
 		@Override
-		public void write(DatagramWriter writer) {
+		public void writeTo(DatagramWriter writer) {
 			throw new RuntimeException("Not suppported!");
 		}
 
@@ -229,6 +229,6 @@ public abstract class DTLSConnectionState implements Destroyable {
 	 * @since 3.0
 	 */
 	@WipAPI
-	public abstract void write(DatagramWriter writer);
+	public abstract void writeTo(DatagramWriter writer);
 
 }

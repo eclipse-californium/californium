@@ -661,7 +661,7 @@ public class InMemoryConnectionStore implements ResumptionSupportingConnectionSt
 					LOGGER.trace("{}skip {} ts, {}s too quiet!", tag, updateNanos, quiet);
 				} else {
 					LOGGER.trace("{}write {} ts, {}s ", tag, updateNanos, quiet);
-					if (connection.getValue().write(writer)) {
+					if (connection.getValue().writeTo(writer)) {
 						writer.writeTo(out);
 						++count;
 					} else {

@@ -953,7 +953,7 @@ public final class Connection {
 	 * @since 3.0
 	 */
 	@WipAPI
-	public boolean write(DatagramWriter writer) {
+	public boolean writeTo(DatagramWriter writer) {
 		if (establishedDtlsContext == null || establishedDtlsContext.isMarkedAsClosed() || rootCause != null) {
 			return false;
 		}
@@ -969,7 +969,7 @@ public final class Connection {
 			writer.writeByte((byte) 1);
 			start.write(writer);
 		}
-		establishedDtlsContext.write(writer);
+		establishedDtlsContext.writeTo(writer);
 		writer.writeByte(cid != null && cid.equals(establishedDtlsContext.getReadConnectionId()) ? (byte) 1 : (byte) 0);
 		SerializationUtil.writeFinishedItem(writer, position, Short.SIZE);
 		return true;

@@ -788,20 +788,20 @@ public final class DTLSContext implements Destroyable {
 	 *         otherwise, if the dtls context is marked as closed.
 	 */
 	@WipAPI
-	public boolean write(DatagramWriter writer) {
+	public boolean writeTo(DatagramWriter writer) {
 		if (markedAsclosed) {
 			return false;
 		}
 		int position = SerializationUtil.writeStartItem(writer, VERSION, Short.SIZE);
 		writer.writeLong(handshakeTime, Long.SIZE);
-		session.write(writer);
+		session.writeTo(writer);
 		writer.write(readEpoch, Byte.SIZE);
 		if (readEpoch > 0) {
-			getReadState().write(writer);
+			getReadState().writeTo(writer);
 		}
 		writer.write(writeEpoch, Byte.SIZE);
 		if (writeEpoch > 0) {
-			getWriteState().write(writer);
+			getWriteState().writeTo(writer);
 		}
 		writer.writeVarBytes(writeConnectionId, Byte.SIZE);
 		writeSequenceNumbers(writer);
