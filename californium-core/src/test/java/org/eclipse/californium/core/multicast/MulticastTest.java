@@ -485,10 +485,10 @@ public class MulticastTest {
 		assertHealthCounter("send-requests", is(1L), TIMEOUT_MILLIS);
 		assertHealthCounter("send-rejects", is(0L));
 		assertHealthCounter("send-request retransmissions", is(0L));
-		assertHealthCounter("recv-responses", is(1L));
+		assertHealthCounter("recv-responses", is(1L), TIMEOUT_MILLIS);
 		assertHealthCounter("recv-duplicate responses", is(0L));
 		assertHealthCounter("recv-acks", is(0L));
-		assertHealthCounter("recv-rejects", is(0L), TIMEOUT_MILLIS);
+		assertHealthCounter("recv-rejects", is(0L));
 		assertHealthCounter("recv-ignored", is(0L));
 	}
 
@@ -529,7 +529,7 @@ public class MulticastTest {
 		assertHealthCounter("recv-duplicate responses", is(0L));
 		assertHealthCounter("recv-acks", is(0L));
 		assertHealthCounter("recv-rejects", is(0L));
-		assertHealthCounter("recv-ignored", is(0L), TIMEOUT_MILLIS);
+		assertHealthCounter("recv-ignored", is(0L));
 	}
 
 	@Test
@@ -571,7 +571,7 @@ public class MulticastTest {
 		assertHealthCounter("recv-duplicate responses", is(0L));
 		assertHealthCounter("recv-acks", is(0L));
 		assertHealthCounter("recv-rejects", is(0L));
-		assertHealthCounter("recv-ignored", is(0L), TIMEOUT_MILLIS);
+		assertHealthCounter("recv-ignored", is(0L));
 	}
 
 	private void assertHealthCounter(final String name, final Matcher<? super Long> matcher, long timeout)
