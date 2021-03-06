@@ -767,7 +767,7 @@ public class DTLSConnectorTest {
 		Connection connection = clientConnectionStore.get(serverHelper.serverEndpoint);
 		assertArrayEquals(sessionId, connection.getEstablishedSession().getSessionIdentifier().getBytes());
 		DatagramWriter writer = new DatagramWriter(128);
-		connection.write(writer);
+		connection.writeTo(writer);
 		DatagramReader reader = new DatagramReader(writer.toByteArray());
 		Connection connection2 = Connection.fromReader(reader, 0);
 		clientConnectionStore.remove(connection, true);

@@ -171,7 +171,7 @@ public class DTLSSessionTest {
 
 	private static DTLSSession reload(DTLSSession context) {
 		DatagramWriter writer = new DatagramWriter();
-		context.write(writer);
+		context.writeTo(writer);
 		DatagramReader reader = new DatagramReader(writer.toByteArray());
 		return DTLSSession.fromReader(reader);
 	}
@@ -184,7 +184,7 @@ public class DTLSSessionTest {
 
 	private static DTLSSession serialize(DTLSSession session) {
 		DatagramWriter writer = new DatagramWriter(true);
-		session.write(writer);
+		session.writeTo(writer);
 		byte[] ticketBytes = writer.toByteArray();
 		DatagramReader reader = new DatagramReader(ticketBytes);
 		DTLSSession result = DTLSSession.fromReader(reader);

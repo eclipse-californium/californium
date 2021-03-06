@@ -221,7 +221,7 @@ public class DTLSContextTest {
 
 	private static DTLSContext reload(DTLSContext context) {
 		DatagramWriter writer = new DatagramWriter();
-		if (context.write(writer)) {
+		if (context.writeTo(writer)) {
 			DatagramReader reader = new DatagramReader(writer.toByteArray());
 			return DTLSContext.fromReader(reader);
 		}

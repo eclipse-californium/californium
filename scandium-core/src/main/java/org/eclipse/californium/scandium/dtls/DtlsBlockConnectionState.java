@@ -124,7 +124,7 @@ public class DtlsBlockConnectionState extends DTLSConnectionState {
 	}
 
 	@Override
-	public void write(DatagramWriter writer) {
+	public void writeTo(DatagramWriter writer) {
 		SecretSerializationUtil.write(writer, macKey);
 		SecretSerializationUtil.write(writer, encryptionKey);
 	}

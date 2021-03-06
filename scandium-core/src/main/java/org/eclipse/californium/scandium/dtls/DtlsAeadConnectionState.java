@@ -191,7 +191,7 @@ public class DtlsAeadConnectionState extends DTLSConnectionState {
 	}
 
 	@Override
-	public void write(DatagramWriter writer) {
+	public void writeTo(DatagramWriter writer) {
 		SecretSerializationUtil.write(writer, encryptionKey);
 		SecretSerializationUtil.write(writer, iv);
 	}

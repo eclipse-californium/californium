@@ -805,7 +805,7 @@ public final class DTLSSession implements Destroyable {
 	 * @since 3.0
 	 */
 	@WipAPI
-	public void write(DatagramWriter writer) {
+	public void writeTo(DatagramWriter writer) {
 		int position = SerializationUtil.writeStartItem(writer, VERSION, Short.SIZE);
 		writer.writeLong(creationTime, Long.SIZE);
 		if (serverNames == null) {

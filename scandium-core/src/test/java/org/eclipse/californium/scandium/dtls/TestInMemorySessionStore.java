@@ -42,7 +42,7 @@ public class TestInMemorySessionStore implements SessionStore {
 	public void put(final DTLSSession session) {
 		if (session != null && !session.getSessionIdentifier().isEmpty()) {
 			DatagramWriter writer = new DatagramWriter(true);
-			session.write(writer);
+			session.writeTo(writer);
 			cache.put(session.getSessionIdentifier(), writer.toByteArray());
 			establishedSessionCounter.incrementAndGet();
 		}
