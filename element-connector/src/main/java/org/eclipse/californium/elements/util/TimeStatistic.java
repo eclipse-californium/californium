@@ -15,9 +15,10 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
-import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
+
+import org.eclipse.californium.elements.util.Statistic.Scale;
+import org.eclipse.californium.elements.util.Statistic.Summary;
 
 /**
  * Time statistic.
@@ -28,17 +29,18 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class TimeStatistic {
 
-	/**
-	 * Time slot width in nano-seconds.
-	 */
-	private final long slotWidthNanos;
-	/**
-	 * Tables of counters. Time slot is defined by {@code index} and
-	 * {@link #slotWidthNanos}.
-	 */
-	private final AtomicLong[] statistic;
+	private static final Scale NANOS_TO_MILLIS = new Scale() {
 
-	private final AtomicLong maximumTime = new AtomicLong();
+		@Override
+		public long scale(long value) {
+			return TimeUnit.NANOSECONDS.toMillis(value);
+		}
+	};
+
+	/**
+	 * Statistic of nano-seconds.
+	 */
+	private final Statistic statistic;
 
 	/**
 	 * Create time statistic.
@@ -48,12 +50,9 @@ public class TimeStatistic {
 	 * @param unit time unit for the both other time values
 	 */
 	public TimeStatistic(long timeRange, long timeSlot, TimeUnit unit) {
-		int size = (int) (timeRange / timeSlot) + 1;
-		statistic = new AtomicLong[size];
-		for (int index = 0; index < size; ++index) {
-			statistic[index] = new AtomicLong();
-		}
-		slotWidthNanos = unit.toNanos(timeSlot);
+		long range = unit.toNanos(timeRange);
+		long slot = unit.toNanos(timeSlot);
+		statistic = new Statistic(range, slot);
 	}
 
 	/**
@@ -64,31 +63,9 @@ public class TimeStatistic {
 	 */
 	public void add(long time, TimeUnit unit) {
 		if (time >= 0) {
-			long nanons = unit.toNanos(time);
-			int index = (int) (nanons / slotWidthNanos);
-			if (index < statistic.length) {
-				statistic[index].incrementAndGet();
-			} else {
-				statistic[statistic.length - 1].incrementAndGet();
-			}
-			long value = maximumTime.get();
-			while (nanons > value) {
-				if (maximumTime.compareAndSet(value, nanons)) {
-					break;
-				}
-				value = maximumTime.get();
-			}
+			long nanos = unit.toNanos(time);
+			statistic.add(nanos);
 		}
-	}
-
-	/**
-	 * Get upper limit of time slot.
-	 * 
-	 * @param index index of time slot.
-	 * @return upper limit time of slot in milliseconds
-	 */
-	private long getMillis(int index) {
-		return TimeUnit.NANOSECONDS.toMillis((index + 1) * slotWidthNanos);
 	}
 
 	/**
@@ -97,157 +74,32 @@ public class TimeStatistic {
 	 * @return {@code true}, if values are available, {@code false}, otherwise.
 	 */
 	public boolean available() {
-		for (int index = 0; index < statistic.length; ++index) {
-			if (statistic[index].get() > 0) {
-				return true;
-			}
-		}
-		return false;
+		return statistic.available();
 	}
 
 	/**
 	 * Get summary of statistic.
 	 * 
-	 * Include {@code 95%}, {@code 99%}, and {@code 99.9%} percentiles.
+	 * Include {@code 95%}, {@code 99%}, and {@code 99.9%} percentiles. The
+	 * values are normalized to milliseconds.
 	 * 
 	 * @return summary as text
 	 */
 	public String getSummaryAsText() {
-		return getSummary(950, 990, 999).toString();
+		return getSummary(950, 990, 999).toString(" ms");
 	}
 
 	/**
 	 * Get summary of statistic.
 	 * 
+	 * The values are normalized to milliseconds.
+	 * 
 	 * @param percentiles per mill percentiles, e.g. {@code 990} for
-	 *            {@code 99%}.
+	 *            {@code 99%}. If no percentiles are provided, only the average
+	 *            and the maximum is included in the summary.
 	 * @return summary
 	 */
 	public Summary getSummary(int... percentiles) {
-		long sum = 0;
-		long count = 0;
-		for (int index = 0; index < statistic.length; ++index) {
-			long hits = statistic[index].get();
-			if (hits > 0) {
-				count += hits;
-				sum += hits * getMillis(index);
-				if (sum < 0) {
-					throw new IllegalStateException();
-				}
-			}
-		}
-		if (count > 0) {
-			long max = TimeUnit.NANOSECONDS.toMillis(maximumTime.get());
-			long[] times = null;
-			if (percentiles != null && percentiles.length > 0) {
-				Arrays.sort(percentiles);
-				times = new long[percentiles.length];
-				int linesIndex = percentiles.length - 1;
-				if (percentiles[linesIndex] < 0 || percentiles[linesIndex] > 999) {
-					throw new IllegalArgumentException("line " + percentiles[linesIndex] + " is not in [0...999]%%");
-				}
-				long line = count * (1000 - percentiles[linesIndex]) / 1000;
-				long downCount = 0;
-				for (int index = statistic.length - 1; index >= 0; --index) {
-					long hits = statistic[index].get();
-					if (hits > 0) {
-						long next = downCount + hits;
-						while (downCount <= line && next > line) {
-							long time = getMillis(index);
-							if (time > max) {
-								time = max;
-							}
-							times[linesIndex] = time;
-							--linesIndex;
-							if (linesIndex >= 0) {
-								if (percentiles[linesIndex] < 0 || percentiles[linesIndex] > 999) {
-									throw new IllegalArgumentException(
-											"line " + percentiles[linesIndex] + " is not in [0...999]%%");
-								}
-								line = count * (1000 - percentiles[linesIndex]) / 1000;
-							} else {
-								break;
-							}
-						}
-						if (linesIndex < 0) {
-							break;
-						}
-						downCount = next;
-					}
-				}
-			}
-			return new Summary((int) count, sum / count, max, percentiles, times);
-		} else {
-			return new Summary();
-		}
-	}
-
-	public static class Summary {
-
-		final int count;
-		final long average;
-		final long maximum;
-		final int[] percentiles;
-		final long[] times;
-
-		public Summary() {
-			this.count = 0;
-			this.average = 0;
-			this.maximum = 0;
-			this.percentiles = null;
-			this.times = null;
-		}
-
-		public Summary(int count, long average, long maximum, int[] percentiles, long times[]) {
-			this.count = count;
-			this.average = average;
-			this.maximum = maximum;
-			this.percentiles = percentiles;
-			this.times = times;
-		}
-
-		public int getCount() {
-			return count;
-		}
-
-		public long getAverageMillis() {
-			return average;
-		}
-
-		public long getMaximumMillis() {
-			return maximum;
-		}
-
-		public int getPercentileCount() {
-			return percentiles != null ? percentiles.length : 0;
-		}
-
-		public long getPercentilePerMill(int index) {
-			return percentiles != null ? percentiles[index] : -1;
-		}
-
-		public long getPercentileTimeMills(int index) {
-			return times != null ? times[index] : -1;
-		}
-
-		public String toString() {
-			if (count > 0) {
-				StringBuilder summary = new StringBuilder();
-				summary.append(String.format("all: %d, avg.: %d ms", count, average));
-				for (int index = 0; index < percentiles.length; ++index) {
-					int p = percentiles[index] / 10;
-					int pm = percentiles[index] % 10;
-					if (pm > 0) {
-						summary.append(String.format(", %d.%d%%: %d ms", p, pm, times[index]));
-					} else {
-						summary.append(String.format(", %d%%: %d ms", p, times[index]));
-					}
-				}
-				summary.append(String.format(", max.: %d ms", maximum));
-				return summary.toString();
-			} else {
-				return "no values available!";
-			}
-		}
+		return new Summary(statistic.getSummary(percentiles), NANOS_TO_MILLIS);
 	}
 }
