@@ -206,7 +206,8 @@ public class ReliabilityLayer extends AbstractLayer {
 	public void receiveRequest(final Exchange exchange, final Request request) {
 
 		if (request.isDuplicate()) {
-			if (exchange.getSendNanoTimestamp() > request.getNanoTimestamp()) {
+			long send = exchange.getSendNanoTimestamp();
+			if (send == 0 || (send - request.getNanoTimestamp()) > 0) {
 				// received before response was sent
 				int count = counter.incrementAndGet();
 				LOGGER.debug("{}: {} duplicate request {}, server sent response delayed, ignore request", count,
@@ -293,7 +294,8 @@ public class ReliabilityLayer extends AbstractLayer {
 		if (response.getType() == Type.CON) {
 			boolean ack = true;
 			if (response.isDuplicate()) {
-				if (response.getNanoTimestamp() < exchange.getSendNanoTimestamp()) {
+				long send = exchange.getSendNanoTimestamp();
+				if (send == 0 || (send - response.getNanoTimestamp()) > 0) {
 					// received response duplicate before ACK/RST
 					// or last request retransmission was sent
 					// => drop response

@@ -217,7 +217,9 @@ public class Exchange {
 
 	/**
 	 * The realtime in nanoseconds, just before the last message of this
-	 * exchange was sent.
+	 * exchange was sent. {@code 0}, if no message was sent until now. In the
+	 * extremely rare cases, that the realtime in nanosecond is actually
+	 * {@code 0}, the value is adapted to {@code -1}.
 	 */
 	private volatile long sendNanoTimestamp;
 
@@ -965,7 +967,10 @@ public class Exchange {
 	 * message wasn't sent up to this time. This will also contain the realtime
 	 * for ACK or RST messages.
 	 * 
-	 * @return nano-time of last message sending.
+	 * @return nano-time of last message sending. {@code 0}, if no message was
+	 *         sent until now. In the extremely rare cases, that the realtime in
+	 *         nanosecond is actually {@code 0}, the value is adapted to
+	 *         {@code -1}.
 	 * @see ClockUtil#nanoRealtime()
 	 */
 	public long getSendNanoTimestamp() {
@@ -975,7 +980,10 @@ public class Exchange {
 	/**
 	 * Set the realtime of the last sending of a message in nanoseconds.
 	 * 
-	 * @param nanoTimestamp realtime in nanoseconds
+	 * @param nanoTimestamp realtime in nanoseconds.{@code 0}, if no message was
+	 *            sent until now. In the extremely rare cases, that the realtime
+	 *            in nanosecond is actually {@code 0}, the value must be adapted
+	 *            to {@code -1}.
 	 */
 	public void setSendNanoTimestamp(long nanoTimestamp) {
 		sendNanoTimestamp = nanoTimestamp;

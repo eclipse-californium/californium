@@ -1238,7 +1238,7 @@ public class CoapEndpoint implements Endpoint {
 
 		@Override
 		protected void onContextEstablished(EndpointContext context, long nanoTimestamp) {
-			exchange.setSendNanoTimestamp(nanoTimestamp);
+			exchange.setSendNanoTimestamp(nanoTimestamp == 0 ? -1 : nanoTimestamp);
 			exchange.setEndpointContext(context);
 		}
 	}
