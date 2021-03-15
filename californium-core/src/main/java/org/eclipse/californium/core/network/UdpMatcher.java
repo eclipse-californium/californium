@@ -293,20 +293,13 @@ public final class UdpMatcher extends BaseMatcher {
 		Exchange tempExchange = exchangeStore.get(idByToken);
 
 		if (tempExchange == null) {
-			// we didn't find a message exchange for the token from the response
-			// let's try to find an existing observation for the token
-			tempExchange = matchNotifyResponse(response);
-		}
-
-		if (tempExchange == null) {
 			// There is no exchange with the given token,
-			// nor is there an active observation for that token.
-			// finally check if the response is a duplicate
 			if (response.getType() != Type.ACK) {
-				// deduplication is only relevant for CON/NON messages
+				// check, if the response is a duplicate
 				final KeyMID idByMID = new KeyMID(response.getMID(), peer);
 				final Exchange prev = exchangeStore.find(idByMID);
 				if (prev != null) {
+					// response is duplicate
 					prev.execute(new Runnable() {
 
 						@Override
@@ -340,17 +333,26 @@ public final class UdpMatcher extends BaseMatcher {
 							reject(response, receiver);
 						}
 					});
+					return;
+				}
+			}
+			// we didn't find a message exchange for the token from the response
+			// nor a duplicate. let's try to find an existing observation for
+			// the token
+			tempExchange = matchNotifyResponse(response);
+			if (tempExchange == null) {
+				if (response.getType() == Type.ACK) {
+					// piggy-backed => discard message
+					LOGGER.trace("discarding by [{}] unmatchable piggy-backed response from [{}]: {}", idByToken,
+							response.getSourceContext(), response);
+					cancel(response, receiver);
 				} else {
 					LOGGER.trace("discarding by [{}] unmatchable response from [{}]: {}", idByToken,
 							response.getSourceContext(), response);
 					reject(response, receiver);
 				}
-			} else {
-				LOGGER.trace("discarding by [{}] unmatchable piggy-backed response from [{}]: {}", idByToken,
-						response.getSourceContext(), response);
-				cancel(response, receiver);
+				return;
 			}
-			return;
 		}
 
 		final Exchange exchange = tempExchange;
