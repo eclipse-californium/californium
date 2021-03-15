@@ -517,9 +517,13 @@ public class ReliabilityLayer extends AbstractLayer {
 					// Trigger MessageObservers
 					message.retransmitting();
 
-					// MessageObserver might have canceled
+					// MessageObserver might have canceled or completed
 					if (message.isCanceled()) {
 						LOGGER.trace("Timeout: for {}, {} got canceled, do not retransmit", exchange, message);
+						return;
+					}
+					if (exchange.isComplete()) {
+						LOGGER.debug("Timeout: for {}, {} got completed, do not retransmit", exchange, message);
 						return;
 					}
 					retransmit();

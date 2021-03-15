@@ -168,7 +168,7 @@ public class ObserveLayer extends AbstractLayer {
 	}
 
 	private void prepareSelfReplacement(Exchange exchange, Response response) {
-		response.addMessageObserver(new NotificationController(exchange));
+		response.addMessageObserver(new NotificationController(exchange, response));
 	}
 
 	/**
@@ -177,52 +177,68 @@ public class ObserveLayer extends AbstractLayer {
 	private class NotificationController extends MessageObserverAdapter {
 
 		private Exchange exchange;
+		private Response response;
 
-		public NotificationController(Exchange exchange) {
+		public NotificationController(Exchange exchange, Response response) {
 			this.exchange = exchange;
+			this.response = response;
 		}
 
 		@Override
 		public void onAcknowledgement() {
-			ObserveRelation relation = exchange.getRelation();
-			final Response next = relation.getNextControlNotification();
-			relation.setCurrentControlNotification(next);
-			// next may be null
-			relation.setNextControlNotification(null);
-			if (next != null) {
-				LOGGER.debug("notification has been acknowledged, send the next one");
-				// Create a new task for sending next response so that we
-				// can leave the sync-block
-				exchange.execute(new Runnable() {
+			exchange.execute(new Runnable() {
 
-					@Override
-					public void run() {
-						ObserveLayer.super.sendResponse(exchange, next);
+				@Override
+				public void run() {
+					ObserveRelation relation = exchange.getRelation();
+					if (relation.getCurrentControlNotification() == response) {
+						final Response next = relation.getNextControlNotification();
+						// next may be null
+						relation.setCurrentControlNotification(next);
+						relation.setNextControlNotification(null);
+						if (next != null) {
+							if (relation.isCanceled()) {
+								next.cancel();
+							} else {
+								LOGGER.trace("notification has been acknowledged, send the next one");
+								ObserveLayer.super.sendResponse(exchange, next);
+							}
+						}
 					}
-				});
-			}
+				}
+			});
 		}
 
 		@Override
 		public void onRetransmission() {
 			// called within the exchange executor context.
 			ObserveRelation relation = exchange.getRelation();
-			final Response next = relation.getNextControlNotification();
-			if (next != null) {
-				LOGGER.debug("notification has timed out and there is a fresher notification for the retransmission");
-				// Cancel the original retransmission and 
-				// send the fresh notification here
-				exchange.getCurrentResponse().cancel();
-				// Convert all notification retransmissions to CON
-				if (next.getType() != Type.CON) {
-					next.setType(Type.CON);
-					prepareSelfReplacement(exchange, next);
+			if (relation.getCurrentControlNotification() == response) {
+				Response next = relation.getNextControlNotification();
+				if (relation.isCanceled()) {
+					response.cancel();
+					if (next != null) {
+						next.cancel();
+						next = null;
+					}
 				}
-				relation.setCurrentControlNotification(next);
-				relation.setNextControlNotification(null);
-				// Create a new task for sending next response so that we
-				// can leave the sync-block
-				ObserveLayer.super.sendResponse(exchange, next);
+				if (next != null) {
+					LOGGER.trace(
+							"notification has timed out and there is a fresher notification for the retransmission");
+					// Cancel the original retransmission and
+					// send the fresh notification here
+					response.cancel();
+					// Convert all notification retransmissions to CON
+					if (next.getType() != Type.CON) {
+						next.setType(Type.CON);
+						prepareSelfReplacement(exchange, next);
+					}
+					relation.setCurrentControlNotification(next);
+					relation.setNextControlNotification(null);
+					// Create a new task for sending next response so that we
+					// can leave the sync-block
+					ObserveLayer.super.sendResponse(exchange, next);
+				}
 			}
 		}
 
