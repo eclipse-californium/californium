@@ -235,6 +235,36 @@ public class HandshakerTest {
 	}
 
 	@Test
+	public void testProcessMessageRemoveExtraRecords() throws HandshakeException, GeneralSecurityException {
+		int current = 0;
+		int next = 1;
+		int last = 2;
+		Record record0 = createClientHelloRecord(session, 0, current, current);
+		Record record1 = createClientHelloRecord(session, 0, next, next);
+		Record record2 = createClientHelloRecord(session, 0, next + 1, next);
+		Record record3 = createClientHelloRecord(session, 0, next + 2, last);
+
+		// send record with future handshake sequence number
+		handshakerWithoutAnchors.decryptAndProcessMessage(record1);
+		assertThat(receivedMessages[next], is(0));
+
+		// send second record with future handshake sequence number
+		handshakerWithoutAnchors.decryptAndProcessMessage(record2);
+		assertThat(receivedMessages[next], is(0));
+
+		// send record with more future handshake sequence number
+		handshakerWithoutAnchors.decryptAndProcessMessage(record3);
+		assertThat(receivedMessages[last], is(0));
+
+		// send record with matching handshake sequence number
+		// flush processing of other record
+		handshakerWithoutAnchors.decryptAndProcessMessage(record0);
+		assertThat(receivedMessages[current], is(1));
+		assertThat(receivedMessages[next], is(1));
+		assertThat(receivedMessages[last], is(1));
+	}
+
+	@Test
 	public void testProcessMessageReassemblesFragmentedMessages() throws GeneralSecurityException, HandshakeException {
 		int nextSeqNo = 0;
 		int futureSeqNo = 1;
