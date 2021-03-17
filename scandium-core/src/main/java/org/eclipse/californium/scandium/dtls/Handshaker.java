@@ -490,7 +490,8 @@ public abstract class Handshaker implements Destroyable {
 				changeCipherSpec = null;
 				return result;
 			} else {
-				for (Record record : queue) {
+				while (!queue.isEmpty()) {
+					Record record = queue.first();
 					int messageSeq = ((HandshakeMessage) record.getFragment()).getMessageSeq();
 					if (messageSeq > nextReceiveMessageSequence) {
 						break;
