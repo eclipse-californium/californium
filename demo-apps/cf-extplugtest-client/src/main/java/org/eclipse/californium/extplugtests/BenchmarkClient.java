@@ -828,12 +828,12 @@ public class BenchmarkClient {
 	 * @param executor executor for client
 	 * @param secondaryExecutor intended to be used for rare executing timers (e.g. cleanup tasks). 
 	 */
-	public BenchmarkClient(int index, Config.Reverse reverse, URI uri, Endpoint endpoint,
+	public BenchmarkClient(int index, Config.Reverse reverse, URI uri, CoapEndpoint endpoint,
 			ScheduledExecutorService executor, ScheduledThreadPoolExecutor secondaryExecutor) {
 		this.secure = CoAP.isSecureScheme(uri.getScheme());
-		Connector connector = ((CoapEndpoint)endpoint).getConnector();
+		Connector connector = endpoint.getConnector();
 		this.dtlsConnector = secure && connector instanceof DTLSConnector ? (DTLSConnector) connector : null;
-		this.id = "client-" + index;
+		this.id = endpoint.getTag();
 		this.uri = uri;
 		int maxResourceSize = endpoint.getConfig().getInt(Keys.MAX_RESOURCE_BODY_SIZE);
 		if (executor == null) {
@@ -1167,6 +1167,7 @@ public class BenchmarkClient {
 		final AtomicBoolean errors = new AtomicBoolean();
 		health = new HealthStatisticLogger(uri.getScheme(), !CoAP.isTcpScheme(uri.getScheme()));
 		netstat = new NetStatLogger("udp");
+		final String tag = config.tag == null ? "client-" : config.tag;
 		final int pskOffset = config.pskIndex != null ? config.pskIndex : 0;
 		for (int index = 0; index < clients; ++index) {
 			final int currentIndex = index;
@@ -1196,8 +1197,6 @@ public class BenchmarkClient {
 					if (errors.get()) {
 						return;
 					}
-					CoapEndpoint.Builder endpointBuilder = new CoapEndpoint.Builder();
-					endpointBuilder.setNetworkConfig(config.networkConfig);
 					ClientConfig connectionConfig = config;
 					if (secure) {
 						if (rpk) {
@@ -1221,6 +1220,10 @@ public class BenchmarkClient {
 							connectionConfig = connectionConfig.create(identity, secret);
 						}
 					}
+					if (connectionConfig == config) {
+						connectionConfig = config.create();
+					}
+					connectionConfig.tag = tag + currentIndex;
 					CoapEndpoint coapEndpoint = ClientInitializer.createEndpoint(connectionConfig, connectorExecutor);
 					if (health.isEnabled()) {
 						coapEndpoint.addPostProcessInterceptor(health);

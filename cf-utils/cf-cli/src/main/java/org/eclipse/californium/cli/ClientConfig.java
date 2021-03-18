@@ -281,6 +281,11 @@ public class ClientConfig extends ClientBaseConfig {
 	}
 
 	@Override
+	public ClientConfig create() {
+		return (ClientConfig) super.create();
+	}
+
+	@Override
 	public ClientConfig create(String id, byte[] secret) {
 		return (ClientConfig) super.create(id, secret);
 	}

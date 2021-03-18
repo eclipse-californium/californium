@@ -429,6 +429,14 @@ public class CoapEndpoint implements Endpoint {
 		}
 	}
 
+	/**
+	 * Get logging tag.
+	 * @return
+	 */
+	public String getTag() {
+		return tag;
+	}
+
 	@Override
 	public synchronized void start() throws IOException {
 		if (started) {
