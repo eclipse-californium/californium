@@ -46,6 +46,7 @@ import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.SecretUtil;
 
 /**
@@ -267,9 +268,13 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	@Override
 	public void startHandshake() throws HandshakeException {
 		handshakeStarted();
+
 		DTLSSession session = getSession();
 		ClientHello message = new ClientHello(ProtocolVersion.VERSION_DTLS_1_2, session, supportedSignatureAlgorithms,
 				supportedClientCertificateTypes, supportedServerCertificateTypes, supportedGroups);
+		if (CipherSuite.containsEccBasedCipherSuite(message.getCipherSuites())) {
+			expectEcc();
+		}
 
 		clientRandom = message.getRandom();
 

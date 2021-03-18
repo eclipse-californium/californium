@@ -95,7 +95,7 @@ public class DTLSFlight {
 	/**
 	 * Maximum timeout according RFC 6347, Section 4.2.4.1, Timer Values.
 	 */
-	private static final int MAX_TIMEOUT_MILLIS = 60 * 1000; // 60s
+	public static final int MAX_TIMEOUT_MILLIS = 60 * 1000; // 60s
 
 	/**
 	 * List of prepared records of flight.

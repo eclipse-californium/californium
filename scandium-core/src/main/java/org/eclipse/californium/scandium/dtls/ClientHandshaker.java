@@ -327,6 +327,9 @@ public class ClientHandshaker extends Handshaker {
 		// HelloVerifyRequest and messages before are not included in the handshake hashs
 		handshakeMessages.clear();
 
+		if (CipherSuite.containsEccBasedCipherSuite(clientHello.getCipherSuites())) {
+			expectEcc();
+		}
 		clientHello.setCookie(message.getCookie());
 
 		flightNumber = 3;
@@ -641,6 +644,10 @@ public class ClientHandshaker extends Handshaker {
 	 */
 	private void processServerHelloDone() throws HandshakeException {
 		DTLSSession session = getSession();
+		if (session.getCipherSuite().isEccBased()) {
+			expectEcc();
+		}
+
 		/*
 		 * Third, send CertificateVerify message if necessary.
 		 */
@@ -655,7 +662,6 @@ public class ClientHandshaker extends Handshaker {
 			}
 
 			// prepare handshake messages
-
 			CertificateVerify certificateVerify = new CertificateVerify(negotiatedSignatureAndHashAlgorithm, privateKey, handshakeMessages);
 			session.setSignatureAndHashAlgorithm(negotiatedSignatureAndHashAlgorithm);
 			wrapMessage(flight5, certificateVerify);
@@ -765,6 +771,10 @@ public class ClientHandshaker extends Handshaker {
 
 		ClientHello startMessage = new ClientHello(maxProtocolVersion, supportedCipherSuites, supportedSignatureAlgorithms,
 				supportedClientCertificateTypes, supportedServerCertificateTypes, supportedGroups);
+
+		if (CipherSuite.containsEccBasedCipherSuite(startMessage.getCipherSuites())) {
+			expectEcc();
+		}
 
 		// store client random for later calculations
 		clientRandom = startMessage.getRandom();
