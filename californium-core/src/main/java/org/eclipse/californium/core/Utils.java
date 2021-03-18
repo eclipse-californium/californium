@@ -25,6 +25,7 @@
 package org.eclipse.californium.core;
 
 import java.security.Principal;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -94,32 +95,32 @@ public final class Utils {
 	/**
 	 * Formats a {@link Request} into a readable String representation. 
 	 * 
-	 * @param r the Request
+	 * @param request the Request
 	 * @return the pretty print
 	 */
-	public static String prettyPrint(Request r) {
+	public static String prettyPrint(Request request) {
 
 		String nl = StringUtil.lineSeparator();
 		StringBuilder sb = new StringBuilder();
 
 		sb.append("==[ CoAP Request ]=============================================").append(nl);
-		sb.append(String.format("MID    : %d%n", r.getMID()));
-		sb.append(String.format("Token  : %s%n", r.getTokenString()));
-		sb.append(String.format("Type   : %s%n", r.getType()));
-		Code code = r.getCode();
+		sb.append(String.format("MID    : %d%n", request.getMID()));
+		sb.append(String.format("Token  : %s%n", request.getTokenString()));
+		sb.append(String.format("Type   : %s%n", request.getType()));
+		Code code = request.getCode();
 		if (code == null) {
 			sb.append("Method : 0.00 - PING").append(nl);
 		} else {
 			sb.append(String.format("Method : %s - %s%n", code.text, code.name()));
 		}
-		if (r.getOffloadMode() != null) {
+		if (request.getOffloadMode() != null) {
 			sb.append("(offloaded)").append(nl);
 		} else {
-			sb.append(String.format("Options: %s%n", r.getOptions()));
-			sb.append(String.format("Payload: %d Bytes%n", r.getPayloadSize()));
-			if (r.getPayloadSize() > 0 && MediaTypeRegistry.isPrintable(r.getOptions().getContentFormat())) {
+			sb.append(String.format("Options: %s%n", request.getOptions()));
+			sb.append(String.format("Payload: %d Bytes%n", request.getPayloadSize()));
+			if (request.getPayloadSize() > 0 && MediaTypeRegistry.isPrintable(request.getOptions().getContentFormat())) {
 				sb.append("---------------------------------------------------------------").append(nl);
-				sb.append(r.getPayloadString());
+				sb.append(request.getPayloadString());
 				sb.append(nl);
 			}
 		}
@@ -131,43 +132,44 @@ public final class Utils {
 	/**
 	 * Formats a {@link CoapResponse} into a readable String representation. 
 	 * 
-	 * @param r the CoapResponse
+	 * @param response the CoapResponse
 	 * @return the pretty print
 	 */
-	public static String prettyPrint(CoapResponse r) {
-		return prettyPrint(r.advanced());
+	public static String prettyPrint(CoapResponse response) {
+		return prettyPrint(response.advanced());
 	}
 
 	/**
 	 * Formats a {@link Response} into a readable String representation. 
 	 * 
-	 * @param r the Response
+	 * @param response the Response
 	 * @return the pretty print
 	 */
-	public static String prettyPrint(Response r) {
+	public static String prettyPrint(Response response) {
 		String nl = StringUtil.lineSeparator();
 		StringBuilder sb = new StringBuilder();
 
 		sb.append("==[ CoAP Response ]============================================").append(nl);
-		sb.append(String.format("MID    : %d%n", r.getMID()));
-		sb.append(String.format("Token  : %s%n", r.getTokenString()));
-		sb.append(String.format("Type   : %s%n", r.getType()));
-		ResponseCode code = r.getCode();
+		sb.append(String.format("MID    : %d%n", response.getMID()));
+		sb.append(String.format("Token  : %s%n", response.getTokenString()));
+		sb.append(String.format("Type   : %s%n", response.getType()));
+		ResponseCode code = response.getCode();
 		sb.append(String.format("Status : %s - %s%n", code, code.name()));
-		if (r.getOffloadMode() != null) {
-			if (r.getRTT() != null) {
-				sb.append(String.format("RTT    : %d ms%n", r.getRTT()));
-				sb.append("(offloaded)").append(nl);
+		Long rtt = response.getApplicationRttNanos();
+		if (response.getOffloadMode() != null) {
+			if (rtt != null) {
+				sb.append(String.format("RTT    : %d ms%n", TimeUnit.NANOSECONDS.toMillis(rtt)));
 			}
+			sb.append("(offloaded)").append(nl);
 		} else {
-			sb.append(String.format("Options: %s%n", r.getOptions()));
-			if (r.getRTT() != null) {
-				sb.append(String.format("RTT    : %d ms%n", r.getRTT()));
+			sb.append(String.format("Options: %s%n", response.getOptions()));
+			if (rtt != null) {
+				sb.append(String.format("RTT    : %d ms%n", TimeUnit.NANOSECONDS.toMillis(rtt)));
 			}
-			sb.append(String.format("Payload: %d Bytes%n", r.getPayloadSize()));
-			if (r.getPayloadSize() > 0 && MediaTypeRegistry.isPrintable(r.getOptions().getContentFormat())) {
+			sb.append(String.format("Payload: %d Bytes%n", response.getPayloadSize()));
+			if (response.getPayloadSize() > 0 && MediaTypeRegistry.isPrintable(response.getOptions().getContentFormat())) {
 				sb.append("---------------------------------------------------------------").append(nl);
-				sb.append(r.getPayloadString());
+				sb.append(response.getPayloadString());
 				sb.append(nl);
 			}
 		}

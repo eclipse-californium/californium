@@ -267,7 +267,7 @@ public class HonoClient {
 		List<Long> rtt = new ArrayList<Long>(clientConfig.requests);
 		CoapResponse coapResponse = exchange(clientConfig, client, request, true);
 		if (coapResponse != null && getCommand(coapResponse) == null) {
-			rtt.add(coapResponse.advanced().getRTT());
+			rtt.add(coapResponse.advanced().getApplicationRttNanos());
 			Request followUpRequests = null;
 			for (int index = 1; index < clientConfig.requests; ++index) {
 				followUpRequests = new Request(code);
@@ -290,7 +290,7 @@ public class HonoClient {
 						}
 					}
 				}
-				rtt.add(coapResponse.advanced().getRTT());
+				rtt.add(coapResponse.advanced().getApplicationRttNanos());
 			}
 			start = System.nanoTime() - start;
 			if (followUpRequests != null && coapResponse != null) {
@@ -307,12 +307,13 @@ public class HonoClient {
 				Long time = rtt.get(index);
 				if (time != null) {
 					++count;
-					System.out.format("RTT[%d] : %d ms %n", index, time);
-					if (500 < time) {
+					long millis = TimeUnit.NANOSECONDS.toMillis(time);
+					System.out.format("RTT[%d] : %d ms %n", index, millis);
+					if (500 < millis) {
 						++overtimeCount;
-						overtime += time;
+						overtime += millis;
 					}
-					average += time;
+					average += millis;
 				}
 			}
 			System.out.format("Overall time: %d [ms] %n", TimeUnit.NANOSECONDS.toMillis(start));

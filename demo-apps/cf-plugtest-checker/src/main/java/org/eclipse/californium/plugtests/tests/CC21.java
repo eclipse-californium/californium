@@ -17,6 +17,7 @@ package org.eclipse.californium.plugtests.tests;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
@@ -95,7 +96,7 @@ public class CC21 extends TestClientAbstract {
 				if (verbose) {
 					System.out.println("Response received");
 					System.out.println("Time elapsed (ms): "
-							+ response.getRTT());
+							+ TimeUnit.NANOSECONDS.toMillis(response.getApplicationRttNanos()));
 					Utils.prettyPrint(response);
 				}
 
@@ -121,7 +122,7 @@ public class CC21 extends TestClientAbstract {
 					if (verbose) {
 						System.out.println("Response received");
 						System.out.println("Time elapsed (ms): "
-								+ response.getRTT());
+								+ TimeUnit.NANOSECONDS.toMillis(response.getApplicationRttNanos()));
 						Utils.prettyPrint(response);
 					}
 
@@ -155,7 +156,7 @@ public class CC21 extends TestClientAbstract {
 						if (verbose) {
 							System.out.println("Response received");
 							System.out.println("Time elapsed (ms): "
-									+ response.getRTT());
+									+ TimeUnit.NANOSECONDS.toMillis(response.getApplicationRttNanos()));
 							Utils.prettyPrint(response);
 						}
 
