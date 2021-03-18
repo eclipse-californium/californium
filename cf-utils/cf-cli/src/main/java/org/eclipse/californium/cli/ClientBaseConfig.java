@@ -193,13 +193,41 @@ public class ClientBaseConfig extends ConnectorConfig {
 	}
 
 	/**
-	 * Create client configuration clone with different PSK identity and secret.
+	 * Create client configuration clone.
+	 * 
+	 * Beside the {@link #authentication} shallow cloning is applied.
+	 * 
+	 * @return created client configuration clone.
+	 * @since 3.0
+	 */
+	public ClientBaseConfig create() {
+		ClientBaseConfig clone = null;
+		try {
+			clone = (ClientBaseConfig) clone();
+			if (authentication != null) {
+				clone.authentication = new Authentication();
+				clone.authentication.anonymous = authentication.anonymous;
+				if (authentication.credentials != null) {
+					clone.authentication.credentials = new SslContextUtil.Credentials(
+							authentication.credentials.getPrivateKey(), authentication.credentials.getPubicKey(),
+							authentication.credentials.getCertificateChain());
+				}
+			}
+		} catch (CloneNotSupportedException e) {
+			e.printStackTrace();
+		}
+		return clone;
+	}
+
+	/**
+	 * Create client configuration shallow clone with different PSK identity and
+	 * secret.
 	 * 
 	 * @param id psk identity
 	 * @param secret secret. if {@code null} and
 	 *            {@link ConnectorConfig#PSK_IDENTITY_PREFIX} is used, use
 	 *            {@link ConnectorConfig#PSK_SECRET}
-	 * @return create client configuration clone.
+	 * @return created client configuration shallow clone.
 	 */
 	public ClientBaseConfig create(String id, byte[] secret) {
 		ClientBaseConfig clone = null;
@@ -216,9 +244,11 @@ public class ClientBaseConfig extends ConnectorConfig {
 	/**
 	 * Create client configuration clone with different ec key pair.
 	 * 
+	 * Beside the {@link #authentication} shallow cloning is applied.
+	 * 
 	 * @param privateKey private key
 	 * @param publicKey public key
-	 * @return create client configuration clone.
+	 * @return created client configuration clone.
 	 */
 	public ClientBaseConfig create(PrivateKey privateKey, PublicKey publicKey) {
 		ClientBaseConfig clone = null;

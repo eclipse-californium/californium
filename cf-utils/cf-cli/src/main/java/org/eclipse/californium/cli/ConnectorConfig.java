@@ -111,6 +111,9 @@ public class ConnectorConfig implements Cloneable {
 			"--netconfig" }, paramLabel = "FILE", description = "network config file. Default ${DEFAULT-VALUE}.")
 	public File networkConfigFile;
 
+	@Option(names = "--tag", description = "use logging tag.")
+	public String tag;
+
 	/**
 	 * Use record-size-limit for DTLS handshake.
 	 */

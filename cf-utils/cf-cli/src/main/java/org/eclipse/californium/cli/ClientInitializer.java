@@ -228,6 +228,7 @@ public class ClientInitializer {
 				CliConnectorFactory factory = connectorFactories.get(protocol);
 				if (factory != null) {
 					CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+					builder.setLoggingTag(clientConfig.tag);
 					Connector connector = factory.create(clientConfig, executor);
 					if (connector instanceof UDPConnector) {
 						builder.setConnectorWithAutoConfiguration((UDPConnector) connector);
