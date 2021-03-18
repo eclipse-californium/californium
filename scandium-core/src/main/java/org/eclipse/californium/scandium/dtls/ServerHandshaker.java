@@ -531,6 +531,9 @@ public class ServerHandshaker extends Handshaker {
 
 		ServerHello serverHello = new ServerHello(serverVersion, serverRandom, sessionId,
 				session.getCipherSuite(), session.getCompressionMethod(), serverHelloExtensions);
+		if (serverHello.getCipherSuite().isEccBased()) {
+			expectEcc();
+		}
 		wrapMessage(flight, serverHello);
 	}
 

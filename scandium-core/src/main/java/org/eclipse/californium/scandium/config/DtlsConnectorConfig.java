@@ -210,6 +210,20 @@ public final class DtlsConnectorConfig {
 	private Integer retransmissionTimeout;
 
 	/**
+	 * The initial additional timer value for retransmission, if ECC
+	 * calculations are expected.
+	 * 
+	 * ECC calculations may be time intensive, especially for smaller
+	 * micro-controllers without ecc-hardware support. The additional timeout
+	 * prevents Californium from resending a flight too early. The extra time is
+	 * used for the DTLS-client, if a ECDSA or ECDHE cipher suite is proposed,
+	 * and for the DTLS-server, if a ECDSA or ECDHE cipher suite is selected.
+	 * 
+	 * @since 3.0
+	 */
+	private Integer additionalTimeoutForEcc;
+
+	/**
 	 * Number of retransmissions before the attempt to transmit a flight in
 	 * back-off mode.
 	 * 
@@ -588,6 +602,28 @@ public final class DtlsConnectorConfig {
 	 */
 	public Integer getRetransmissionTimeout() {
 		return retransmissionTimeout;
+	}
+
+	/**
+	 * Gets the additional (initial) time to wait before a handshake flight of
+	 * messages gets re-transmitted, when the other peer is expected to perform
+	 * ECC calculations.
+	 * 
+	 * ECC calculations may be time intensive, especially for smaller
+	 * micro-controllers without ecc-hardware support. The additional timeout
+	 * prevents Californium from resending a flight too early. The extra time is
+	 * used for the DTLS-client, if a ECDSA or ECDHE cipher suite is proposed,
+	 * and for the DTLS-server, if a ECDSA or ECDHE cipher suite is selected.
+	 * 
+	 * This timeout is added to {@link #getRetransmissionTimeout()} and on each
+	 * retransmission, the resulting time is doubled.
+	 * 
+	 * @return the additional (initial) time to wait in milliseconds. Default is
+	 *         {@code 0} milliseconds.
+	 * @since 3.0
+	 */
+	public Integer getAdditionalTimeoutForEcc() {
+		return additionalTimeoutForEcc;
 	}
 
 	/**
@@ -1264,6 +1300,7 @@ public final class DtlsConnectorConfig {
 		cloned.enableMultiHandshakeMessageRecords = enableMultiHandshakeMessageRecords;
 		cloned.protocolVersionForHelloVerifyRequests = protocolVersionForHelloVerifyRequests;
 		cloned.retransmissionTimeout = retransmissionTimeout;
+		cloned.additionalTimeoutForEcc = additionalTimeoutForEcc;
 		cloned.maxRetransmissions = maxRetransmissions;
 		cloned.maxTransmissionUnit = maxTransmissionUnit;
 		cloned.maxTransmissionUnitLimit = maxTransmissionUnitLimit;
@@ -2281,6 +2318,35 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
+		 * Sets the additional (starting) time to wait before a handshake
+		 * package gets re-transmitted, when the other peer is expected to
+		 * perform ECC calculations.
+		 * 
+		 * ECC calculations may be time intensive, especially for smaller
+		 * micro-controllers without ecc-hardware support. The additional
+		 * timeout prevents Californium from resending a flight too early. The
+		 * extra time is used for the DTLS-client, if a ECDSA or ECDHE cipher
+		 * suite is proposed, and for the DTLS-server, if a ECDSA or ECDHE
+		 * cipher suite is selected.
+		 * 
+		 * This timeout is added to {@link #getRetransmissionTimeout()} and on
+		 * each retransmission, the resulting time is doubled.
+		 * 
+		 * @param timeout the additional time in milliseconds. Default is
+		 *            {@code 0} milliseconds.
+		 * @return this builder for command chaining
+		 * @throws IllegalArgumentException if the given timeout is negative
+		 * @since 3.0
+		 */
+		public Builder setAdditionalTimeoutForEcc(int timeout) {
+			if (timeout < 0) {
+				throw new IllegalArgumentException("Additional timeout for ECC must not be negative");
+			}
+			config.additionalTimeoutForEcc = timeout;
+			return this;
+		}
+
+		/**
 		 * Sets the advanced key store to use for authenticating clients based on a
 		 * pre-shared key.
 		 * 
@@ -2972,6 +3038,9 @@ public final class DtlsConnectorConfig {
 			}
 			if (config.maxRetransmissions == null) {
 				config.maxRetransmissions = DEFAULT_MAX_RETRANSMISSIONS;
+			}
+			if (config.additionalTimeoutForEcc == null) {
+				config.additionalTimeoutForEcc = 0;
 			}
 			if (config.backOffRetransmission == null) {
 				config.backOffRetransmission = config.maxRetransmissions / 2;

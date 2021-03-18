@@ -192,6 +192,7 @@ public class DTLSConnectorTest {
 			.setServerOnly(true)
 			.setLoggingTag("server")
 			.setRetransmissionTimeout(500)
+			.setAdditionalTimeoutForEcc(2000)
 			.setMaxRetransmissions(2);
 		serverHelper = new ConnectorHelper();
 		serverHelper.startServer(builder);
@@ -315,10 +316,30 @@ public class DTLSConnectorTest {
 	}
 
 	/**
-	 * Verify we send retransmission.
+	 * Verify we send retransmission with standard timeout.
 	 */
 	@Test
-	public void testRetransmission() throws Exception {
+	public void testRetransmissionNoEcc() throws Exception {
+		testRetransmission(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
+	}
+
+	/**
+	 * Verify we send retransmission with extended timeout.
+	 */
+	@Test
+	public void testRetransmissionPskEcc() throws Exception {
+		testRetransmission(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256);
+	}
+
+	/**
+	 * Verify we send retransmission with extended timeout.
+	 */
+	@Test
+	public void testRetransmissionEcc() throws Exception {
+		testRetransmission(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
+	}
+
+	private void testRetransmission(CipherSuite cipherSuite) throws Exception {
 		// Configure UDP connector
 		RecordCollectorDataHandler collector = new RecordCollectorDataHandler();
 		collector.applyDtlsContext(null);
@@ -329,7 +350,7 @@ public class DTLSConnectorTest {
 			clientEndpoint = rawClient.getAddress();
 
 			// Send CLIENT_HELLO
-			ClientHello clientHello = createClientHello();
+			ClientHello clientHello = createClientHello(cipherSuite);
 			rawClient.sendRecord(serverHelper.serverEndpoint,
 					DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 0, clientHello.toByteArray()));
 
@@ -365,9 +386,14 @@ public class DTLSConnectorTest {
 			assertThat("Expected SERVER_HELLO from server", msg.getMessageType(), is(HandshakeType.SERVER_HELLO));
 
 			// Do not reply
+			// Handle retransmission of SERVER HELLO
+
+			int timeout = cipherSuite.isEccBased() ? 2000 : 200;
+			rs = collector.waitForRecords(timeout, TimeUnit.MILLISECONDS);
+			assertNull("retransmission too early", rs); // check there is no timeout
 
 			// Handle retransmission of SERVER HELLO
-			rs = collector.waitForRecords(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS);
+			rs = collector.waitForRecords(1000, TimeUnit.MILLISECONDS);
 			assertNotNull("timeout", rs); // check there is no timeout
 			con = serverHelper.serverConnectionStore.get(clientEndpoint);
 			assertNotNull(con);
@@ -556,7 +582,7 @@ public class DTLSConnectorTest {
 			clientEndpoint = rawClient.getAddress();
 
 			// send CLIENT_HELLO
-			ClientHello clientHello = createClientHello();
+			ClientHello clientHello = createClientHello(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
 			rawClient.sendRecord(
 					serverHelper.serverEndpoint,
 					DtlsTestTools.newDTLSRecord(ContentType.HANDSHAKE.getCode(), 0, 0, clientHello.toByteArray()));

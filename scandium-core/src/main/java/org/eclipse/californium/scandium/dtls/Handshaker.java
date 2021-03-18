@@ -344,6 +344,12 @@ public abstract class Handshaker implements Destroyable {
 	 */
 	private final int retransmissionTimeout;
 	/**
+	 * Additional timeout for ECC.
+	 * 
+	 * @since 3.0
+	 */
+	private final int additionalTimeoutForEcc;
+	/**
 	 * Session listeners.
 	 * 
 	 * @see #addSessionListener(SessionListener)
@@ -353,6 +359,7 @@ public abstract class Handshaker implements Destroyable {
 	protected int statesIndex;
 	protected HandshakeState[] states;
 
+	private boolean eccExpected = false;
 	private boolean changeCipherSuiteMessageExpected = false;
 	private boolean contextEstablished = false;
 	private boolean handshakeAborted = false;
@@ -425,6 +432,7 @@ public abstract class Handshaker implements Destroyable {
 		this.peerToLog = StringUtil.toLog(connection.getPeerAddress());
 		this.connectionIdGenerator = config.getConnectionIdGenerator();
 		this.retransmissionTimeout = config.getRetransmissionTimeout();
+		this.additionalTimeoutForEcc = config.getAdditionalTimeoutForEcc();
 		this.backOffRetransmission = config.getBackOffRetransmission();
 		this.maxRetransmissions = config.getMaxRetransmissions();
 		this.recordSizeLimit = config.getRecordSizeLimit();
@@ -448,6 +456,10 @@ public abstract class Handshaker implements Destroyable {
 		// add all timeouts for retries and the initial timeout twice
 		// to get a short extra timespan for regular handshake timeouts
 		int timeoutMillis = retransmissionTimeout;
+		if (CipherSuite.containsEccBasedCipherSuite(config.getSupportedCipherSuites())) {
+			timeoutMillis += additionalTimeoutForEcc;
+		}
+		timeoutMillis = Math.min(timeoutMillis, DTLSFlight.MAX_TIMEOUT_MILLIS);
 		int expireTimeoutMillis = timeoutMillis * 2;
 		for (int retry = 0; retry < maxRetransmissions; ++retry) {
 			timeoutMillis = DTLSFlight.incrementTimeout(timeoutMillis);
@@ -1580,15 +1592,22 @@ public abstract class Handshaker implements Destroyable {
 	public void sendFlight(DTLSFlight flight) {
 		completePendingFlight();
 		try {
-			flight.setTimeout(retransmissionTimeout);
+			int timeout = retransmissionTimeout;
+			if (eccExpected) {
+				timeout += additionalTimeoutForEcc;
+				eccExpected = false;
+			}
+			timeout = Math.min(timeout, DTLSFlight.MAX_TIMEOUT_MILLIS);
+			flight.setTimeout(timeout);
 			flightSendNanos = ClockUtil.nanoRealtime();
 			nanosExpireTime = nanosExpireTimeout + flightSendNanos;
 			int maxDatagramSize = recordLayer.getMaxDatagramSize(ipv6);
 			int maxFragmentSize = getSession().getEffectiveFragmentLimit();
 			List<DatagramPacket> datagrams = flight.getDatagrams(maxDatagramSize, maxFragmentSize,
 					useMultiHandshakeMessagesRecord, useMultiRecordMessages, false);
-			LOGGER.trace("Sending flight of {} message(s) to peer [{}] using {} datagram(s) of max. {} bytes",
-					flight.getNumberOfMessages(), peerToLog, datagrams.size(), maxDatagramSize);
+			LOGGER.trace(
+					"Sending flight of {} message(s) to peer [{}] using {} datagram(s) of max. {} bytes and {} ms timeout.",
+					flight.getNumberOfMessages(), peerToLog, datagrams.size(), maxDatagramSize, timeout);
 			recordLayer.sendFlight(datagrams);
 			pendingFlight.set(flight);
 			if (flight.isRetransmissionNeeded()) {
@@ -2043,6 +2062,17 @@ public abstract class Handshaker implements Destroyable {
 	 */
 	protected final void expectChangeCipherSpecMessage() {
 		this.changeCipherSuiteMessageExpected = true;
+	}
+
+	/**
+	 * Marks this handshaker to expect the peer to calculate some ECC function.
+	 * {@link #additionalTimeoutForEcc} will be added for the next flight in
+	 * that case.
+	 * 
+	 * @since 3.0
+	 */
+	protected void expectEcc() {
+		this.eccExpected = true;
 	}
 
 	/**
