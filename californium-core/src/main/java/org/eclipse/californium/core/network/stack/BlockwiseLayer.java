@@ -743,7 +743,7 @@ public class BlockwiseLayer extends AbstractLayer {
 					resp.setSourceContext(response.getSourceContext());
 					resp.setPayload(response.getPayload());
 					resp.setOptions(response.getOptions());
-					resp.setRTT(exchange.calculateRTT());
+					resp.setApplicationRttNanos(exchange.calculateApplicationRtt());
 					exchange.setResponse(resp);
 					upper().receiveResponse(exchange, resp);
 				} else {
@@ -1121,7 +1121,7 @@ public class BlockwiseLayer extends AbstractLayer {
 					status.assembleReceivedMessage(assembled);
 
 					// set overall transfer RTT
-					assembled.setRTT(exchange.calculateRTT());
+					assembled.setApplicationRttNanos(exchange.calculateApplicationRtt());
 
 					clearBlock2Status(status);
 					LOGGER.debug("{}assembled response: {}", tag, assembled);

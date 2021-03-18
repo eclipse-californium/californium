@@ -58,7 +58,6 @@ import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -222,6 +221,26 @@ public class Exchange {
 	 * {@code 0}, the value is adapted to {@code -1}.
 	 */
 	private volatile long sendNanoTimestamp;
+
+	/**
+	 * Indicates, that the transmission is started.
+	 * 
+	 * @since 3.0
+	 */
+	private boolean transmissionRttStart;
+	/**
+	 * Indicates, that the transmission round trip time is set.
+	 * 
+	 * @since 3.0
+	 */
+	private boolean transmissionRttSet;
+	/**
+	 * Nanotimestamp for transmission round trip. Either start time or time
+	 * span.
+	 * 
+	 * @since 3.0
+	 */
+	private long transmissionRttTimestamp;
 
 	/**
 	 * The actual request that caused this exchange. Layers below the
@@ -990,14 +1009,51 @@ public class Exchange {
 	}
 
 	/**
+	 * Start transmission RTT.
+	 * 
+	 * @since 3.0
+	 */
+	public void startTransmissionRtt() {
+		transmissionRttStart = true;
+		transmissionRttSet = false;
+		transmissionRttTimestamp = ClockUtil.nanoRealtime();
+	}
+
+	/**
+	 * Calculate transmission round trip time.
+	 * 
+	 * {@link #startTransmissionRtt()} must be called before.
+	 * 
+	 * @return transmission round trip time in nanoseconds.
+	 * @throws IllegalStateException if {@link #startTransmissionRtt()} wasn't
+	 *             called before.
+	 * @since 3.0
+	 */
+	public long calculateTransmissionRtt() {
+		if (!transmissionRttSet && !transmissionRttStart) {
+			throw new IllegalStateException("startTransmissionRtt must be called before!");
+		}
+		if (!transmissionRttSet) {
+			transmissionRttSet = true;
+			transmissionRttStart = false;
+			transmissionRttTimestamp = ClockUtil.nanoRealtime() - transmissionRttTimestamp;
+			if (transmissionRttTimestamp == 0) {
+				transmissionRttTimestamp = 1;
+			}
+		}
+		return transmissionRttTimestamp;
+	}
+
+	/**
 	 * Calculates the RTT (round trip time) of this exchange.
 	 * 
 	 * MUST be called on receiving the response.
 	 * 
-	 * @return RTT in milliseconds
+	 * @return RTT in nanoseconds
+	 * @since 3.0 (was calculateRTT returning milliseconds)
 	 */
-	public long calculateRTT() {
-		return TimeUnit.NANOSECONDS.toMillis(ClockUtil.nanoRealtime() - nanoTimestamp);
+	public long calculateApplicationRtt() {
+		return ClockUtil.nanoRealtime() - nanoTimestamp;
 	}
 
 	/**

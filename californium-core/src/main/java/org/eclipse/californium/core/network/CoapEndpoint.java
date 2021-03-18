@@ -294,7 +294,10 @@ public class CoapEndpoint implements Endpoint {
 		public void receiveResponse(Exchange exchange, Response response) {
 			if (exchange != null && !response.isCanceled()) {
 				exchange.setEndpoint(CoapEndpoint.this);
-				response.setRTT(exchange.calculateRTT());
+				if (!exchange.isNotification()) {
+					response.setApplicationRttNanos(exchange.calculateApplicationRtt());
+					response.setTransmissionRttNanos(exchange.calculateTransmissionRtt());
+				}
 				coapstack.receiveResponse(exchange, response);
 			}
 			notifyReceive(postProcessInterceptors, response);
@@ -304,6 +307,12 @@ public class CoapEndpoint implements Endpoint {
 		public void receiveEmptyMessage(Exchange exchange, EmptyMessage message) {
 			if (exchange != null && !message.isCanceled()) {
 				exchange.setEndpoint(CoapEndpoint.this);
+				if (!exchange.isOfLocalOrigin()) {
+					Response response = exchange.getCurrentResponse();
+					if (response != null && response.isConfirmable()) {
+						response.setTransmissionRttNanos(exchange.calculateTransmissionRtt());
+					}
+				}
 				coapstack.receiveEmptyMessage(exchange, message);
 			}
 			notifyReceive(postProcessInterceptors, message);
@@ -827,6 +836,9 @@ public class CoapEndpoint implements Endpoint {
 				exchange.executeComplete();
 
 			} else {
+				if (exchange.getFailedTransmissionCount() == 0) {
+					exchange.startTransmissionRtt();
+				}
 				RawData message = serializer.serializeRequest(request,
 						new ExchangeCallback<Request>(exchange, request) {
 
@@ -875,7 +887,9 @@ public class CoapEndpoint implements Endpoint {
 								}
 							}
 						});
-
+				if (response.isConfirmable() && exchange.getFailedTransmissionCount() == 0) {
+					exchange.startTransmissionRtt();
+				}
 				connector.send(data);
 			}
 		}

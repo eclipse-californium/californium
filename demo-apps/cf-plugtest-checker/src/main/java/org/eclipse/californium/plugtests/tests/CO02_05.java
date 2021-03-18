@@ -17,6 +17,7 @@ package org.eclipse.californium.plugtests.tests;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.Request;
@@ -109,7 +110,7 @@ public class CO02_05 extends TestClientAbstract {
 						// print response info
 						if (verbose) {
 							System.out.println("Response received");
-							System.out.println("Time elapsed (ms): " + response.getRTT());
+							System.out.println("Time elapsed (ms): " + TimeUnit.NANOSECONDS.toMillis(response.getApplicationRttNanos()));
 							Utils.prettyPrint(response);
 						}
 

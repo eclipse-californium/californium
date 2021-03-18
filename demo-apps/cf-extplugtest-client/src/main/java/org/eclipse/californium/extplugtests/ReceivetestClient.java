@@ -35,6 +35,7 @@ import java.net.URISyntaxException;
 import java.text.SimpleDateFormat;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.cli.ClientConfig;
@@ -260,9 +261,9 @@ public class ReceivetestClient {
 		} else {
 			System.out.println("Response: " + raw.length + " bytes, Payload: " + response.getPayloadSize() + " bytes");
 		}
-		Long rtt = response.getRTT();
+		Long rtt = response.getApplicationRttNanos();
 		if (rtt != null) {
-			System.out.println("RTT: " + rtt + "ms");
+			System.out.println("RTT: " + TimeUnit.NANOSECONDS.toMillis(rtt) + "ms");
 		}
 		System.out.println();
 	}

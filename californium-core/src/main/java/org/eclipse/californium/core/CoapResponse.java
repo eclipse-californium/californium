@@ -43,8 +43,12 @@ public class CoapResponse {
 	 * Instantiates a new coap response.
 	 *
 	 * @param response the response
+	 * @throws NullPointerException if response is {@code null}
 	 */
 	protected CoapResponse(Response response) {
+		if (response == null) {
+			throw new NullPointerException("Response must not be null!");
+		}
 		this.response = response;
 	}
 
@@ -111,5 +115,10 @@ public class CoapResponse {
 	 */
 	public Response advanced() {
 		return response;
+	}
+
+	@Override
+	public String toString() {
+		return response.toString();
 	}
 }

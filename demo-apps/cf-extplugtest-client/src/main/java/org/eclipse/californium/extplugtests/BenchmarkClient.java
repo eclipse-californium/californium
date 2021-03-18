@@ -883,8 +883,8 @@ public class BenchmarkClient {
 		} else if (response.isSuccess()) {
 			statistic = rttStatistic;
 		}
-		Long rtt = response.advanced().getRTT();
-		statistic.add(rtt, TimeUnit.MILLISECONDS);
+		Long rtt = response.advanced().getApplicationRttNanos();
+		statistic.add(rtt, TimeUnit.NANOSECONDS);
 	}
 
 	/**

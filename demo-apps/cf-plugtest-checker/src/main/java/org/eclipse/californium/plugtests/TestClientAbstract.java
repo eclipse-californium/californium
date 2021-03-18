@@ -20,6 +20,7 @@ import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -277,7 +278,7 @@ public abstract class TestClientAbstract {
 				// print response info
 				if (verbose) {
 					System.out.println("Response received");
-					System.out.println("Time elapsed (ms): " + response.getRTT());
+					System.out.println("Time elapsed (ms): " + TimeUnit.NANOSECONDS.toMillis(response.getApplicationRttNanos()));
 					if (requests > 1) {
 						System.out.println(requests + " blocks");
 					}

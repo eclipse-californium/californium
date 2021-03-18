@@ -47,9 +47,24 @@ public class Response extends Message {
 	private final CoAP.ResponseCode code;
 
 	/**
-	 * RTT (round trip time) in milliseconds.
+	 * Application RTT (round trip time) in nanoseconds.
+	 * 
+	 * Includes delays for congestion control and multiple requests for
+	 * blockwise transfers.
+	 * 
+	 * @since 3.0 (was rtt in milliseconds)
 	 */
-	private volatile Long rtt;
+	private volatile Long applicationRttNanos;
+
+	/**
+	 * Transmission RTT (round trip time) in nanoseconds.
+	 * 
+	 * Excludes delays for congestion control and applies to the last single
+	 * exchange, for a request or a con-response.
+	 * 
+	 * @since 3.0
+	 */
+	private volatile Long transmissionRttNanos;
 
 	/**
 	 * Creates a response to the provided received request with the specified
@@ -121,21 +136,55 @@ public class Response extends Message {
 	}
 
 	/**
-	 * Return RTT (round trip time).
+	 * Return application RTT (round trip time).
 	 * 
-	 * @return RTT in milliseconds, or {@code null}, if not set.
+	 * Includes delays for congestion control and multiple requests for
+	 * blockwise transfers.
+	 * 
+	 * @return application RTT in nanoseconds, or {@code null}, if not set.
+	 * @since 3.0 (was getRTT in milliseconds)
 	 */
-	public Long getRTT() {
-		return rtt;
+	public Long getApplicationRttNanos() {
+		return applicationRttNanos;
 	}
 
 	/**
-	 * Set RTT (round trip time) .
+	 * Set application RTT (round trip time) .
 	 * 
-	 * @param rtt round trip time of response in milliseconds
+	 * Includes delays for congestion control and multiple requests for
+	 * blockwise transfers.
+	 * 
+	 * @param rttNanos application round trip time of response in nanoseconds
+	 * @since 3.0 (was setRTT with milliseconds)
 	 */
-	public void setRTT(long rtt) {
-		this.rtt = rtt;
+	public void setApplicationRttNanos(long rttNanos) {
+		this.applicationRttNanos = rttNanos;
+	}
+
+	/**
+	 * Return transmission RTT (round trip time).
+	 * 
+	 * Excludes delays for congestion control and applies to the last single
+	 * exchange, for a request or a con-response.
+	 * 
+	 * @return transmission RTT in nanoseconds, or {@code null}, if not set.
+	 * @since 3.0
+	 */
+	public Long getTransmissionRttNanos() {
+		return transmissionRttNanos;
+	}
+
+	/**
+	 * Set transmission RTT (round trip time).
+	 * 
+	 * Excludes delays for congestion control and applies to the last single
+	 * exchange, for a request or a con-response.
+	 * 
+	 * @param rtt transmission round trip time of response in nanoseconds
+	 * @since 3.0
+	 */
+	public void setTransmissionRttNanos(long rtt) {
+		this.transmissionRttNanos = rtt;
 	}
 
 	/**
