@@ -43,6 +43,7 @@ import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
+import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
 import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 import org.slf4j.Logger;
@@ -80,6 +81,7 @@ public class ExampleDTLSClient {
 					CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509);
 			builder.setAdvancedCertificateVerifier(StaticNewAdvancedCertificateVerifier.builder()
 					.setTrustedCertificates(trustedCertificates).setTrustAllRPKs().build());
+			builder.setConnectionIdGenerator(new SingleNodeConnectionIdGenerator(0));
 			builder.setConnectionThreadCount(1);
 			dtlsConnector = new DTLSConnector(builder.build());
 			dtlsConnector.setRawDataReceiver(new RawDataChannel() {
