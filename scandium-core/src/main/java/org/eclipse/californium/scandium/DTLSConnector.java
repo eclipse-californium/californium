@@ -1414,7 +1414,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 				if (connectionStore.get(connection.getConnectionId()) != connection) {
 					// connection removed, then drop record
 					DROP_LOGGER.debug("Discarding {} record [epoch {}, rseqn {}] received from peer [{}], handshake expired!",
-							record.getType(), epoch, record.getSequenceNumber(), record.getPeerAddress(), epoch);
+							record.getType(), epoch, record.getSequenceNumber(), record.getPeerAddress());
 					if (health != null) {
 						health.receivingRecord(true);
 					}
