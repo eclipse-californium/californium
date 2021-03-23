@@ -16,10 +16,12 @@
 package org.eclipse.californium.interoperability.test.libcoap;
 
 import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_RSA_CERTIFICATE;
+import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.CA;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.CHAIN;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.PSK;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.TRUST;
+import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.REQUEST_TIMEOUT_MILLIS;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeNotNull;
 
@@ -68,7 +70,6 @@ public class LibCoapClientGnuTlsInteroperabilityTest {
 	private static final String CLIENT_PRIVATE_KEY = "clientPrivateKey.pem";
 	private static final String DESTINATION = "127.0.0.1:" + ScandiumUtil.PORT;
 	private static final String DESTINATION_URL = "coaps://" + DESTINATION + "/";
-	private static final long TIMEOUT_MILLIS = 2000;
 
 	private static LibCoapProcessUtil processUtil;
 	private static CaliforniumUtil californiumUtil;
@@ -103,6 +104,7 @@ public class LibCoapClientGnuTlsInteroperabilityTest {
 
 	@Before
 	public void start() throws InterruptedException {
+		processUtil.setTag(name.getName());
 		processUtil.setPrivateKey(clientPrivateKey);
 	}
 
@@ -189,7 +191,7 @@ public class LibCoapClientGnuTlsInteroperabilityTest {
 		processUtil.setTrusts(SERVER_RSA_CERTIFICATE);
 		processUtil.startupClient(DESTINATION_URL + "test", TRUST, "Hello, CoAP!", cipherSuite);
 		connect(null, "The peer certificate's CA is unknown");
-		californiumUtil.assertAlert(new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_CA));
+		californiumUtil.assertAlert(TIMEOUT_MILLIS, new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_CA));
 	}
 
 	@Test
@@ -200,7 +202,7 @@ public class LibCoapClientGnuTlsInteroperabilityTest {
 		processUtil.setCa(SERVER_RSA_CERTIFICATE);
 		processUtil.startupClient(DESTINATION_URL + "test", CA, "Hello, CoAP!", cipherSuite);
 		connect(null, "The peer certificate's CA is unknown");
-		californiumUtil.assertAlert(new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_CA));
+		californiumUtil.assertAlert(TIMEOUT_MILLIS, new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_CA));
 	}
 
 	@Test
@@ -217,11 +219,11 @@ public class LibCoapClientGnuTlsInteroperabilityTest {
 	public ProcessResult connect(String sendMessage, String... patterns) throws Exception {
 		if (patterns != null) {
 			for (String check : patterns) {
-				assertTrue("missing " + check, processUtil.waitConsole(check, TIMEOUT_MILLIS));
+				assertTrue("missing " + check, processUtil.waitConsole(check, REQUEST_TIMEOUT_MILLIS.get()));
 			}
 		}
 		if (sendMessage != null) {
-			californiumUtil.assertReceivedData(sendMessage, TIMEOUT_MILLIS);
+			californiumUtil.assertReceivedData(sendMessage, REQUEST_TIMEOUT_MILLIS.get());
 		}
 		return processUtil.stop(TIMEOUT_MILLIS);
 	}

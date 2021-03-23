@@ -15,12 +15,17 @@
  ******************************************************************************/
 package org.eclipse.californium.interoperability.test;
 
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.fail;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.cert.Certificate;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.util.SslContextUtil;
@@ -28,6 +33,9 @@ import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.eclipse.californium.scandium.ConnectorHelper;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.AlertMessage;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -138,6 +146,7 @@ public class ConnectorUtil {
 		}
 		dtlsBuilder.setAddress(bind);
 		dtlsBuilder.setRecommendedCipherSuitesOnly(false);
+		dtlsBuilder.setAdditionalTimeoutForEcc(1000);
 		dtlsBuilder.setConnectionThreadCount(2);
 		dtlsBuilder.setReceiverThreadCount(2);
 		dtlsBuilder.setConnectionIdGenerator(new SingleNodeConnectionIdGenerator(6));
@@ -185,5 +194,47 @@ public class ConnectorUtil {
 	 */
 	public ConnectorHelper.AlertCatcher getAlertCatcher() {
 		return alertCatcher;
+	}
+
+	/**
+	 * Assert, that the alert is exchanged.
+	 * 
+	 * @param timeout timeout in milliseconds
+	 * @param expected expected alert
+	 * 
+	 * @throws InterruptedException if waiting for the alert is interrupted.
+	 * @since 3.0
+	 */
+	public void assertAlert(long timeout, AlertMessage expected) throws InterruptedException {
+		AlertMessage alert = getAlertCatcher().waitForAlert(timeout, TimeUnit.MILLISECONDS);
+		assertThat("received alert", alert, is(expected));
+		getAlertCatcher().resetAlert();
+	}
+
+	/**
+	 * Assert, that either no or only one of the expected alerts is received.
+	 * 
+	 * @param expectedAlerts expected alerts. Default is CLOSE_NOTIFY.
+	 * @sine 3.0
+	 */
+	public void assertNoUnexpectedAlert(AlertMessage... expectedAlerts) {
+		if (expectedAlerts == null || expectedAlerts.length == 0) {
+			expectedAlerts = new AlertMessage[] { new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY) };
+		}
+		AlertMessage alert = getAlertCatcher().getAlert();
+		if (alert != null) {
+			getAlertCatcher().resetAlert();
+			StringBuffer description = new StringBuffer();
+			description.append(alert.getLevel()).append("/").append(alert.getDescription())
+					.append(" is not of expected ");
+			for (AlertMessage expected : expectedAlerts) {
+				if (expected.equals(alert)) {
+					return;
+				}
+				description.append(expected.getLevel()).append("/").append(expected.getDescription()).append(", ");
+			}
+			description.setLength(description.length() - 1);
+			fail(description.toString());
+		}
 	}
 }

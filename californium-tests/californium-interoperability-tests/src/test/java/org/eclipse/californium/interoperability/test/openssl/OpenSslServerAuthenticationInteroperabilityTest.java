@@ -16,6 +16,7 @@
 package org.eclipse.californium.interoperability.test.openssl;
 
 import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_RSA_CERTIFICATE;
+import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.CHAIN;
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.TRUST;
@@ -39,6 +40,7 @@ import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -65,8 +67,6 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 			ScandiumUtil.PORT);
 	private static final String ACCEPT = "127.0.0.1:" + ScandiumUtil.PORT;
 
-	private static final long TIMEOUT_MILLIS = 2000;
-
 	private static OpenSslProcessUtil processUtil;
 	private static ScandiumUtil scandiumUtil;
 	private static CipherSuite cipherSuite;
@@ -90,6 +90,11 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 		if (processUtil != null) {
 			processUtil.shutdown();
 		}
+	}
+
+	@Before
+	public void start() {
+		processUtil.setTag(name.getName());
 	}
 
 	@After

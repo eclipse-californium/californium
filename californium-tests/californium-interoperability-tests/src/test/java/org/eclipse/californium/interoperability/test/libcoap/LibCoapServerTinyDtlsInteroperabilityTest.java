@@ -15,8 +15,10 @@
  ******************************************************************************/
 package org.eclipse.californium.interoperability.test.libcoap;
 
+import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.PSK;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.RPK;
+import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.REQUEST_TIMEOUT_MILLIS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -40,6 +42,7 @@ import org.eclipse.californium.interoperability.test.ScandiumUtil;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -58,7 +61,6 @@ public class LibCoapServerTinyDtlsInteroperabilityTest {
 	private static final InetSocketAddress DESTINATION = new InetSocketAddress(InetAddress.getLoopbackAddress(),
 			ScandiumUtil.PORT);
 	private static final String ACCEPT = "127.0.0.1:" + ScandiumUtil.PORT;
-	private static final long TIMEOUT_MILLIS = 2000;
 
 	private static LibCoapProcessUtil processUtil;
 	private static CaliforniumUtil californiumUtil;
@@ -82,6 +84,11 @@ public class LibCoapServerTinyDtlsInteroperabilityTest {
 		if (processUtil != null) {
 			processUtil.shutdown();
 		}
+	}
+
+	@Before
+	public void start() {
+		processUtil.setTag(name.getName());
 	}
 
 	@After
@@ -145,7 +152,7 @@ public class LibCoapServerTinyDtlsInteroperabilityTest {
 		}
 		if (patterns != null) {
 			for (String check : patterns) {
-				assertTrue("missing " + check, processUtil.waitConsole(check, TIMEOUT_MILLIS));
+				assertTrue("missing " + check, processUtil.waitConsole(check, REQUEST_TIMEOUT_MILLIS.get()));
 			}
 		}
 		return processUtil.stop(TIMEOUT_MILLIS);

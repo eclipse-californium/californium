@@ -17,7 +17,6 @@ package org.eclipse.californium.interoperability.test;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeNotNull;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -28,6 +27,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 
 /**
@@ -35,10 +35,23 @@ import org.eclipse.californium.elements.util.StringUtil;
  */
 public class ProcessUtil {
 
+	public static final long TIMEOUT_MILLIS = 2000;
+
 	/**
 	 * Process of external tool.
 	 */
 	private Process process;
+	/**
+	 * Tag for logging.
+	 */
+	private String tag;
+
+	/**
+	 * Realtime nanoseconds of last console output of external tool.
+	 * 
+	 * @since 3.0
+	 */
+	private long lastConsoleUpdate = ClockUtil.nanoRealtime();
 	/**
 	 * Console output of external tool. Considered to be rather small.
 	 */
@@ -48,25 +61,24 @@ public class ProcessUtil {
 	 */
 	private ProcessResult result;
 
-	private volatile boolean stopped;
+	private boolean stopped;
 
 	/**
 	 * Create instance.
 	 */
 	public ProcessUtil() {
+		setTag("");
 	}
 
 	/**
 	 * Shutdown external tool.
 	 */
 	public void shutdown() throws InterruptedException {
-		if (process != null) {
-			process.destroy();
-			ProcessResult result = waitResult(1000);
-			assumeNotNull(result);
-			process = null;
-			setConsole("");
-		}
+		stop();
+		waitResult(TIMEOUT_MILLIS);
+		setProcess(null);
+		tag = "";
+		setConsole("");
 	}
 
 	public void print(List<String> args) {
@@ -75,6 +87,21 @@ public class ProcessUtil {
 			System.out.print(" ");
 		}
 		System.out.println();
+	}
+
+	/**
+	 * Set logging tag for exit message.
+	 * 
+	 * @param tag logging tag for exit message
+	 * @since 3.0
+	 */
+	public void setTag(String tag) {
+		if (tag == null) {
+			tag = "";
+		} else if (!tag.isEmpty()) {
+			tag = ", " + tag;
+		}
+		this.tag = tag;
 	}
 
 	/**
@@ -95,11 +122,12 @@ public class ProcessUtil {
 	 */
 	public void execute(List<String> args) throws IOException {
 		setConsole("");
-		stopped = false;
+		setStopped(false);
 		ProcessBuilder builder = new ProcessBuilder(args);
 		builder.redirectErrorStream(true);
-		process = builder.start();
-		startReadingOutput(process);
+		Process process = builder.start();
+		setProcess(process);
+		startReadingOutput(process, tag);
 	}
 
 	/**
@@ -109,6 +137,7 @@ public class ProcessUtil {
 	 * @throws IOException if an error occurred when writing
 	 */
 	public void send(String message) throws IOException {
+		Process process = getProcess();
 		if (process != null) {
 			System.out.println("< " + message);
 			process.getOutputStream().write(message.getBytes());
@@ -140,9 +169,14 @@ public class ProcessUtil {
 	 */
 	public synchronized boolean waitConsole(String regex, long timeoutMillis) throws InterruptedException {
 		boolean found;
+		long lastConsoleUpdate = this.lastConsoleUpdate;
 		long end = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
 		Pattern pattern = Pattern.compile(regex);
 		while (!(found = pattern.matcher(console).find())) {
+			if (lastConsoleUpdate != this.lastConsoleUpdate) {
+				lastConsoleUpdate = this.lastConsoleUpdate;
+				end = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
+			}
 			long left = TimeUnit.NANOSECONDS.toMillis(end - System.nanoTime());
 			if (left > 0) {
 				wait(left);
@@ -162,9 +196,23 @@ public class ProcessUtil {
 	 * @throws InterruptedException if waiting for result was interrupted
 	 */
 	public void assertConsole(String regex) throws InterruptedException {
-		ProcessResult result = waitResult(2000);
+		ProcessResult result = waitResult(TIMEOUT_MILLIS);
 		assertNotNull("process not finished!", result);
 		assertTrue("\"" + regex + "\" missing in console output!", result.contains(regex));
+	}
+
+	/**
+	 * Get console quiet period in milliseconds.
+	 * 
+	 * @return milliseconds since the last console update.
+	 * @since 3.0
+	 */
+	public long getConsoleQuietMillis() {
+		long last;
+		synchronized (this) {
+			last = lastConsoleUpdate;
+		}
+		return TimeUnit.NANOSECONDS.toMillis(ClockUtil.nanoRealtime() - last);
 	}
 
 	/**
@@ -178,9 +226,15 @@ public class ProcessUtil {
 	 * @throws InterruptedException if waiting for finish was interrupted
 	 */
 	public synchronized ProcessResult waitResult(long timeoutMillis) throws InterruptedException {
+		Process process = getProcess();
 		if (process != null) {
+			long lastConsoleUpdate = this.lastConsoleUpdate;
 			long end = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
 			while (result == null) {
+				if (lastConsoleUpdate != this.lastConsoleUpdate) {
+					lastConsoleUpdate = this.lastConsoleUpdate;
+					end = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
+				}
 				long left = TimeUnit.NANOSECONDS.toMillis(end - System.nanoTime());
 				if (left > 0) {
 					wait(left);
@@ -189,7 +243,7 @@ public class ProcessUtil {
 				}
 			}
 			if (result != null) {
-				process = null;
+				setProcess(null);
 			}
 		}
 		return result;
@@ -198,27 +252,55 @@ public class ProcessUtil {
 	/**
 	 * Stop the process.
 	 * 
-	 * @throws InterruptedException
+	 * @return {@code true}, if stop is forced, {@code false}, otherwise.
+	 * @since 3.0 (add return value)
 	 */
-	public void stop() throws InterruptedException {
+	public boolean stop() {
+		Process process = getProcess();
 		if (process != null) {
-			stopped = true;
-			process.destroy();
+			try {
+				process.exitValue();
+				System.out.println("process stopped" + tag);
+			} catch (IllegalThreadStateException ex) {
+				setStopped(true);
+				process.destroy();
+				System.out.println("process forced stopped" + tag);
+				return true;
+			}
 		}
+		return false;
+	}
+
+	private synchronized void setStopped(boolean stopped) {
+		this.stopped = stopped;
+	}
+
+	private synchronized boolean isStopped() {
+		return stopped;
+	}
+
+	private synchronized void setProcess(Process process) {
+		this.process = process;
+	}
+
+	private synchronized Process getProcess() {
+		return process;
 	}
 
 	/**
 	 * Start reading output.
 	 * 
 	 * @param process process to read output
+	 * @param tag logging tag for exit message
 	 */
-	private void startReadingOutput(final Process process) {
+	private void startReadingOutput(final Process process, final String tag) {
 		setResult(null);
 		Thread thread = new Thread(new Runnable() {
 
 			@Override
 			public void run() {
 				try {
+					boolean stopped = false;
 					long time = System.nanoTime();
 					Reader reader = null;
 					StringBuilder console = new StringBuilder();
@@ -227,6 +309,7 @@ public class ProcessUtil {
 						char[] buffer = new char[2048];
 						int read;
 						while ((read = reader.read(buffer)) >= 0) {
+							stopped = isStopped();
 							if (stopped) {
 								break;
 							}
@@ -237,6 +320,7 @@ public class ProcessUtil {
 							setConsole(console.toString());
 						}
 					} catch (IOException e) {
+						stopped = isStopped();
 						if (!stopped) {
 							e.printStackTrace();
 						}
@@ -249,9 +333,15 @@ public class ProcessUtil {
 						}
 					}
 					int rc = process.waitFor();
-					time = System.nanoTime() - time;
-					System.out.println(
-							"exit: " + process.exitValue() + " (" + TimeUnit.NANOSECONDS.toMillis(time) + "ms).");
+					time = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - time);
+					StringBuilder message = new StringBuilder("> exit: ");
+					message.append(process.exitValue());
+					message.append(" (").append(time).append("ms");
+					if (stopped) {
+						message.append(", stopped");
+					}
+					message.append(tag).append(").");
+					System.out.println(message);
 					setResult(new ProcessResult(rc, console.toString()));
 				} catch (InterruptedException e) {
 					e.printStackTrace();
@@ -268,6 +358,7 @@ public class ProcessUtil {
 	 */
 	private synchronized void setConsole(String console) {
 		this.console = console;
+		this.lastConsoleUpdate = ClockUtil.nanoRealtime();
 		notifyAll();
 	}
 
