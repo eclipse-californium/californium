@@ -393,7 +393,7 @@ public class Record {
 							return records;
 						}
 					} catch (RuntimeException ex) {
-						LOGGER.debug("Received TLS_CID record, failed to read cid. Discarding ...", ex.getMessage());
+						LOGGER.debug("Received TLS_CID record, failed to read cid. Discarding ...", ex);
 						return records;
 					}
 				} else {
