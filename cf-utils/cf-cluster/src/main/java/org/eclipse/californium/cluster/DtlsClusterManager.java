@@ -622,7 +622,6 @@ public class DtlsClusterManager implements Readiness {
 		 * Create node.
 		 * 
 		 * @param nodeId node-id.
-		 * @param address cluster management interface address
 		 */
 		private Node(int nodeId) {
 			this.nodeId = nodeId;

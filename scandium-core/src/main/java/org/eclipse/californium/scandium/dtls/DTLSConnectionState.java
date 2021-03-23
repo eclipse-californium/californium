@@ -153,12 +153,6 @@ public abstract class DTLSConnectionState implements Destroyable {
 	 *            the cipher and MAC algorithm to use for encrypting message content
 	 * @param compressionMethod
 	 *            the algorithm to use for compressing message content
-	 * @param encryptionKey
-	 *            the secret key to use for encrypting message content
-	 * @param iv
-	 *            the initialization vector to use for encrypting message content
-	 * @param macKey
-	 *            the key to use for creating/verifying message authentication codes (MAC)
 	 * @throws NullPointerException if any of the parameter is {@code null}
 	 */
 	DTLSConnectionState(CipherSuite cipherSuite, CompressionMethod compressionMethod) {

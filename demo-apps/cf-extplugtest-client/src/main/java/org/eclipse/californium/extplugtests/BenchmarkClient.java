@@ -822,11 +822,10 @@ public class BenchmarkClient {
 	 * Create client.
 	 * 
 	 * @param index index of client. used for thread names.
-	 * @param intervalMin minimum notifies interval in milliseconds
-	 * @param intervalMax maximum notifies interval in milliseconds
+	 * @param reverse reverse configuration with minimum and maxium notifies interval
 	 * @param uri destination URI
 	 * @param endpoint local endpoint to exchange messages
-	 * @param executor
+	 * @param executor executor for client
 	 * @param secondaryExecutor intended to be used for rare executing timers (e.g. cleanup tasks). 
 	 */
 	public BenchmarkClient(int index, Config.Reverse reverse, URI uri, Endpoint endpoint,

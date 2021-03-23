@@ -185,7 +185,7 @@ public final class DTLSSession implements Destroyable {
 	 * Creates a session using default values for all fields, except the
 	 * {@link #hostName} and {@link #serverNames}.
 	 * 
-	 * @param hostname, or {@code null}, if not used.
+	 * @param hostname hostname, or {@code null}, if not used.
 	 * @see #setHostName(String)
 	 * @since 3.0
 	 */
@@ -716,7 +716,7 @@ public final class DTLSSession implements Destroyable {
 	/**
 	 * Sets the authenticated peer's identity.
 	 * 
-	 * @param the identity
+	 * @param peerIdentity the identity
 	 * @throws NullPointerException if the identity is {@code null}
 	 */
 	void setPeerIdentity(Principal peerIdentity) {

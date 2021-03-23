@@ -442,7 +442,7 @@ public abstract class K8sManagementClient {
 		 * Create pod information instance.
 		 * 
 		 * @param name pod name
-		 * @param label pod label
+		 * @param labels pod labels
 		 * @param group pod group
 		 * @param phase status phase
 		 * @param address pod address
