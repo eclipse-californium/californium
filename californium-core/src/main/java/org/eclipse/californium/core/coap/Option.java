@@ -87,7 +87,9 @@ public class Option implements Comparable<Option> {
 	/**
 	 * Instantiates a new option with the specified option number.
 	 * 
-	 * The value must be set using one of the setters.
+	 * Note: The value must be set using one of the setters or other
+	 * constructors. Since 3.0, the value will be validated. Using
+	 * {@code Bytes.EMPTY} as default would fail in too many cases.
 	 * 
 	 * @param number the option number
 	 * @see #setValue(byte[])

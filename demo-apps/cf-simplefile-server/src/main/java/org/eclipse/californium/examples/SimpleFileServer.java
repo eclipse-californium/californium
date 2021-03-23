@@ -100,8 +100,7 @@ public class SimpleFileServer extends AbstractTestServer {
 			cmd.usage(System.err);
 			System.exit(-1);
 		}
-		
-		
+
 		NetworkConfig netConfig = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 		NetworkConfig udpConfig = new NetworkConfig(netConfig);
 		udpConfig.setInt(Keys.MAX_MESSAGE_SIZE, 64);
@@ -174,7 +173,7 @@ public class SimpleFileServer extends AbstractTestServer {
 		 * 
 		 * @param config network configuration
 		 * @param coapRootPath CoAP resource (base) name
-		 * @param fileRootPath path to file root
+		 * @param filesRoot files root
 		 * @param maxFileLength maximum file length
 		 */
 		public FileResource(NetworkConfig config, String coapRootPath, File filesRoot) {
@@ -285,7 +284,7 @@ public class SimpleFileServer extends AbstractTestServer {
 			try {
 				return file.getCanonicalPath().startsWith(root.getCanonicalPath());
 			} catch (IOException ex) {
-				LOG.warn("File {0}:", file.getAbsolutePath(), ex);
+				LOG.warn("File {}:", file.getAbsolutePath(), ex);
 				return false;
 			}
 		}

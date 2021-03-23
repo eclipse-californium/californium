@@ -257,7 +257,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 			DtlsClusterConnectorConfig.Builder clusterConfigBuilder = DtlsClusterConnectorConfig.builder();
 			NetworkConfig netConfig = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 			if (config.cluster != null) {
-				int nodeId;
+				int nodeId = -1;
 				clusterConfigBuilder.setBackwardMessage(config.cluster.backwardClusterMessages);
 				if (config.cluster.clusterType.k8sCluster != null) {
 					clusterConfigBuilder.setAddress(config.cluster.clusterType.k8sCluster.cluster);
@@ -266,8 +266,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 					k8sGroup = new K8sManagementDiscoverJdkClient(config.cluster.clusterType.k8sCluster.externalPort);
 					nodeId = k8sGroup.getNodeID();
 					LOGGER.info("dynamic k8s-cluster!");
-				} else {
-					nodeId = -1;
+				} else if (config.cluster.clusterType.simpleCluster != null) {
 					for (ClusterNode cluster : config.cluster.clusterType.simpleCluster.dtlsClusterNodes) {
 						if (cluster.dtls != null) {
 							nodeId = cluster.nodeId;
@@ -437,7 +436,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 				while (!server.isReady()) {
 					Thread.sleep(500);
 				}
-				if (client != null) {
+				if (httpsRestore != null && client != null) {
 					client.restore(k8sGroup, httpsRestore.getPort(), clientContext, server);
 				}
 				for (;;) {
@@ -458,7 +457,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 				while (!server.isReady()) {
 					Thread.sleep(500);
 				}
-				if (client != null) {
+				if (httpsRestore != null && client != null) {
 					client.restore(k8sGroup, httpsRestore.getPort(), clientContext, server);
 				}
 				long lastGcCount = 0;

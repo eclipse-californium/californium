@@ -399,13 +399,13 @@ public class DtlsClusterConnector extends DTLSConnector {
 			}
 			return;
 		}
-		if (type == RECORD_TYPE_INCOMING) {
+		if (RECORD_TYPE_INCOMING.equals(type)) {
 			LOGGER.trace("cluster-node {}: received forwarded message", getNodeID());
 			super.processDatagram(packet, router);
 			if (clusterHealth != null) {
 				clusterHealth.processForwardedMessage();
 			}
-		} else if (type == RECORD_TYPE_OUTGOING) {
+		} else if (RECORD_TYPE_OUTGOING.equals(type)) {
 			LOGGER.trace("cluster-node {}: received backwarded outgoing message", getNodeID());
 			super.sendNextDatagramOverNetwork(packet);
 			if (clusterHealth != null) {

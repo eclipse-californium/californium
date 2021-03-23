@@ -604,7 +604,7 @@ public class Asn1DerDecoder {
 		// INTEGER version
 		byte[] readValue = INTEGER.readValue(reader);
 		int version = INTEGER.toInteger(readValue);
-		if (version < 0 && version > 1) {
+		if (version < 0 || version > 1) {
 			throw new IllegalArgumentException("Version 0x" + Integer.toHexString(version) + " not supported!");
 		}
 		try {

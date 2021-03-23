@@ -588,6 +588,10 @@ public final class NetworkConfig {
 	 */
 	public Integer getOptInteger(final String key) {
 		return getNumberValue(new PropertyParser<Integer>() {
+			@Override
+			public String getTypeName() {
+				return "Integer";
+			}
 
 			@Override
 			public Integer parseValue(String value) {
@@ -606,6 +610,10 @@ public final class NetworkConfig {
 	 */
 	public Long getOptLong(final String key) {
 		return getNumberValue(new PropertyParser<Long>() {
+			@Override
+			public String getTypeName() {
+				return "Long";
+			}
 
 			@Override
 			public Long parseValue(String value) {
@@ -636,6 +644,10 @@ public final class NetworkConfig {
 	 */
 	public int getInt(final String key, final int defaultValue) {
 		return getNumberValue(new PropertyParser<Integer>() {
+			@Override
+			public String getTypeName() {
+				return "int";
+			}
 
 			@Override
 			public Integer parseValue(String value) {
@@ -666,6 +678,10 @@ public final class NetworkConfig {
 	 */
 	public long getLong(final String key, final long defaultValue) {
 		return getNumberValue(new PropertyParser<Long>() {
+			@Override
+			public String getTypeName() {
+				return "long";
+			}
 
 			@Override
 			public Long parseValue(String value) {
@@ -697,6 +713,10 @@ public final class NetworkConfig {
 	 */
 	public float getFloat(final String key, final float defaultValue) {
 		return getNumberValue(new PropertyParser<Float>() {
+			@Override
+			public String getTypeName() {
+				return "float";
+			}
 
 			@Override
 			public Float parseValue(String value) {
@@ -728,6 +748,10 @@ public final class NetworkConfig {
 	 */
 	public double getDouble(final String key, final double defaultValue) {
 		return getNumberValue(new PropertyParser<Double>() {
+			@Override
+			public String getTypeName() {
+				return "double";
+			}
 
 			@Override
 			public Double parseValue(String value) {
@@ -739,16 +763,15 @@ public final class NetworkConfig {
 	private <T> T getNumberValue(final PropertyParser<T> parser, final String key, final T defaultValue) {
 		T result = defaultValue;
 		String value = properties.getProperty(key);
-		if (value != null && !value.isEmpty()) {
-			try {
-				result = parser.parseValue(value);
-			} catch (NumberFormatException e) {
-				LOGGER.warn("value for key [{}] is not a {0}, returning default value", key, defaultValue.getClass());
-			}
-		} else if (value == null) {
+		if (value == null) {
 			LOGGER.debug("key [{}] is undefined, returning default value", key);
-		} else {
+		} else if (value.isEmpty()) {
 			LOGGER.debug("key [{}] is empty, returning default value", key);
+		}
+		try {
+			result = parser.parseValue(value);
+		} catch (NumberFormatException e) {
+			LOGGER.warn("value for key [{}] is not a {}, returning default value", key, parser.getTypeName());
 		}
 		return result;
 	}
@@ -788,7 +811,7 @@ public final class NetworkConfig {
 	}
 
 	private interface PropertyParser<T> {
-
+		String getTypeName();
 		T parseValue(String value);
 	}
 

@@ -175,13 +175,13 @@ public class ObserveTest {
 		// ensure relations are established
 		assertNotNull("Client received no response", resp1);
 		assertTrue(resp1.getOptions().hasObserve());
-		assertTrue(resourceX.getObserverCount() == 1);
+		assertEquals(1, resourceX.getObserverCount());
 		assertEquals(resp1.getPayloadString(), resourceX.currentResponse);
 
 		Response resp2 = requestB.waitForResponse(1000);
 		assertNotNull("Client received no response", resp2);
 		assertTrue(resp2.getOptions().hasObserve());
-		assertTrue(resourceY.getObserverCount() == 1);
+		assertEquals(1, resourceY.getObserverCount());
 		assertEquals(resp2.getPayloadString(), resourceY.currentResponse);
 
 		System.out.println(System.lineSeparator() + "Observe relation established, resource changes");
@@ -194,7 +194,7 @@ public class ObserveTest {
 		// (which will go lost, see ClientMessageInterceptor)
 
 		// wait for the server to timeout, see ClientMessageInterceptor.
-		waitforit.await(1000, TimeUnit.MILLISECONDS);
+		assertTrue(waitforit.await(1000, TimeUnit.MILLISECONDS));
 
 		Thread.sleep(500);
 
@@ -203,9 +203,9 @@ public class ObserveTest {
 		// - request B to resource Y
 
 		// check that relations to resource X AND Y have been canceled
-		assertTrue(resourceX.getObserverCount() == 0);
-		assertTrue(resourceY.getObserverCount() == 0);
-		
+		assertEquals(0, resourceX.getObserverCount());
+		assertEquals(0, resourceY.getObserverCount());
+
 		observations.setStoreException(new ObservationStoreException("test"));
 
 		Request requestC = Request.newGet();

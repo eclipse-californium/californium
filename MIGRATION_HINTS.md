@@ -25,6 +25,10 @@ If a 2.0.0 or newer is used, it's recommended to update first to 2.6.0 and clean
 
 Since 3.0 the sub-class may be ignored, depending on the provided value of the `useClassInEquals` parameter in `Bytes(byte[], int, boolean, boolean)`. The default behavior is changed to ignore the sub-class.
 
+`Option(int number)`:
+
+Since 3.0, the value is not initialized and must be provided with a separate setter call or using a other `Option` constructor. Though the 3.0 will now validate the option value, using `Bytes.EMPTY` as default would fail in too many cases.
+
 ### Scandium:
 
 Redesigned! May cause also unaware changes! If you detect one, please create an issue on 

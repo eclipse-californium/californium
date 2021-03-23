@@ -223,11 +223,11 @@ public class SecretUtil {
 		 */
 		private volatile boolean destroyed;
 
-		public DestroyableSecretKeySpec(byte[] key, String algorithm) {
+		private DestroyableSecretKeySpec(byte[] key, String algorithm) {
 			this(key, 0, key == null ? 0 : key.length, algorithm);
 		}
 
-		public DestroyableSecretKeySpec(byte[] key, int offset, int len, String algorithm) {
+		private DestroyableSecretKeySpec(byte[] key, int offset, int len, String algorithm) {
 			if (key == null) {
 				throw new NullPointerException("Key missing");
 			}

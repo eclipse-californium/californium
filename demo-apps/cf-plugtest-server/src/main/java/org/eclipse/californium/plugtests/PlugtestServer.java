@@ -526,12 +526,12 @@ public class PlugtestServer extends AbstractTestServer {
 			saveServers(out, key, 60 * 10);
 			state = out.toByteArray();
 			out.close();
+			LOGGER.info("Saved: {} Bytes ({})", state.length, password);
 		} catch (IOException ex) {
 			LOGGER.warn("saving failed:", ex);
 		} finally {
 			SecretUtil.destroy(key);
 		}
-		LOGGER.info("Saved: {} Bytes ({})", state.length, password);
 	}
 
 	public static SecretKey toKey(String password) {

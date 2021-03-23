@@ -384,10 +384,8 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 		String result = super.toString();
 		if (order != null) {
 			StringBuilder builder = new StringBuilder(result);
-			if (order != null) {
-				builder.setLength(result.length() - 1);
-				builder.append(", observe=").append(order.getObserve()).append("]");
-			}
+			builder.setLength(result.length() - 1);
+			builder.append(", observe=").append(order.getObserve()).append("]");
 			result = builder.toString();
 		}
 		return result;

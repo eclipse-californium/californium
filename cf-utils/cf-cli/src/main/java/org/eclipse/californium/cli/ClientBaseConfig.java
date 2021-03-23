@@ -132,11 +132,11 @@ public class ClientBaseConfig extends ConnectorConfig {
 		// allow quick hostname as argument
 		String scheme = CoAP.getSchemeFromUri(uri);
 		if (scheme == null) {
-			if (authenticationModes != null && !authenticationModes.isEmpty()) {
+			if (authenticationModes.isEmpty()) {
+				uri = CoAP.COAP_URI_SCHEME + "://" + uri;
+			} else {
 				uri = CoAP.COAP_SECURE_URI_SCHEME + "://" + uri;
 				secure = true;
-			} else {
-				uri = CoAP.COAP_URI_SCHEME + "://" + uri;
 			}
 		} else {
 			secure = CoAP.isSecureScheme(scheme);

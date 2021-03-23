@@ -489,7 +489,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			Request origin = exchange.getRequest();
 			Request current = exchange.getCurrentRequest();
 			String pending = exchange.getRetransmissionHandle() == null ? "" : "/pending";
-			if (origin != current && !origin.getToken().equals(current.getToken())) {
+			if (origin != null && origin != current && !origin.getToken().equals(current.getToken())) {
 				HEALTH_LOGGER.debug("  {}, {}, retransmission {}{}, org {}, {}, {}", exchangeEntry.getKey(),
 						exchange, exchange.getFailedTransmissionCount(), pending, origin.getToken(),
 						current, exchange.getCurrentResponse());
