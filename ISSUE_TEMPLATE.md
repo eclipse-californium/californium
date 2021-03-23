@@ -3,8 +3,9 @@
 Issues may be answered much faster, if you provide more details ahead!
 
 * branch your faced the issue. Currently 
-   * 1.0 is the current release,
-   * 1.1 is the previous master (no plans to continue this)
+   * (1.0 is the previous release, usually no bugfixes are applied)
+   * (1.1 is the previous master, no plans to continue this)
+   * 2.6.x is the current release,
    * and master (previous 2.0) is the development branch and our upcoming release!
 * If you use a SNAPSHOT, ensure your updated to the latest. Please provide the
   commit your using

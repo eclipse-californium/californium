@@ -44,7 +44,7 @@ echo "Try to adjust the \"-Xmx\" to a larger value than the 30%."
 echo
 echo "Depending on your OS and configuration, the maximum number of sockets or threads may be limited."
 echo "For linux, these maximum number may be increased, if the host has enough resources (RAM and CPU)"
-echo "to execute it. On Ubunut 18.04, please adjust the values \"DefaultLimitNOFILE\" in \"/etc/systemd/user.conf\""
+echo "to execute it. On Ubuntu 18.04, please adjust the values \"DefaultLimitNOFILE\" in \"/etc/systemd/user.conf\""
 echo "and \"/etc/systemd/system.conf\" accordingly to the number of wanted sockets, and uncomment it by removing"
 echo "the leading \"#\". For plain coap, currently more threads are required. Adjust \"UserTasksMax\" in"
 echo "\"/etc/systemd/logind.conf\" to twice the number of sockets plus 500 more. With that, up to 10000"
