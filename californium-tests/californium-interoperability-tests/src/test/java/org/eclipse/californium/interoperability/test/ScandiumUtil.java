@@ -71,6 +71,7 @@ public class ScandiumUtil extends ConnectorUtil {
 		super.shutdown();
 		channel = null;
 		receivedData = null;
+		assertNoUnexpectedAlert();
 	}
 
 	/**

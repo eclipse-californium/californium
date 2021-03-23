@@ -21,6 +21,7 @@ import static org.eclipse.californium.interoperability.test.OpenSslUtil.CLIENT_C
 import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_RSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.OpenSslUtil.TRUSTSTORE;
+import static org.junit.Assume.assumeTrue;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -153,6 +154,8 @@ public class OpenSslProcessUtil extends ProcessUtil {
 		}
 		add(args, curves, sigAlgs);
 		execute(args);
+		// ensure, server is ready to ACCEPT messages
+		assumeTrue(waitConsole("ACCEPT", TIMEOUT_MILLIS));
 		return "(" + openSslCiphers.replace(":", "|") + ")";
 	}
 

@@ -16,9 +16,11 @@
 package org.eclipse.californium.interoperability.test.libcoap;
 
 import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_RSA_CERTIFICATE;
+import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.CA;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.CHAIN;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.TRUST;
+import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.REQUEST_TIMEOUT_MILLIS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -48,6 +50,7 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -66,7 +69,6 @@ public class LibCoapServerMbedTlsInteroperabilityTest {
 	private static final InetSocketAddress DESTINATION = new InetSocketAddress(InetAddress.getLoopbackAddress(),
 			ScandiumUtil.PORT);
 	private static final String ACCEPT = "127.0.0.1:" + ScandiumUtil.PORT;
-	private static final long TIMEOUT_MILLIS = 2000;
 
 	private static LibCoapProcessUtil processUtil;
 	private static CaliforniumUtil californiumUtil;
@@ -90,6 +92,11 @@ public class LibCoapServerMbedTlsInteroperabilityTest {
 		if (processUtil != null) {
 			processUtil.shutdown();
 		}
+	}
+
+	@Before
+	public void start() {
+		processUtil.setTag(name.getName());
 	}
 
 	@After
@@ -182,7 +189,7 @@ public class LibCoapServerMbedTlsInteroperabilityTest {
 
 		californiumUtil.start(BIND, null, cipherSuite);
 		connect(false, "No client certification received from the client");
-		californiumUtil.assertAlert(new AlertMessage(AlertLevel.FATAL, AlertDescription.NO_CERTIFICATE_RESERVED));
+		californiumUtil.assertAlert(TIMEOUT_MILLIS, new AlertMessage(AlertLevel.FATAL, AlertDescription.NO_CERTIFICATE_RESERVED));
 	}
 
 	@Test
@@ -193,7 +200,7 @@ public class LibCoapServerMbedTlsInteroperabilityTest {
 
 		californiumUtil.start(BIND, null, cipherSuite);
 		connect(false, "The certificate is not correctly signed by the trusted CA");
-		californiumUtil.assertAlert(new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_CA));
+		californiumUtil.assertAlert(TIMEOUT_MILLIS, new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_CA));
 	}
 
 	@Test
@@ -243,12 +250,12 @@ public class LibCoapServerMbedTlsInteroperabilityTest {
 		processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
 		LibCoapProcessUtil clientProcessUtil = new LibCoapProcessUtil();
+		clientProcessUtil.prepareLibCoapClientMbedTls(TIMEOUT_MILLIS);
 		clientProcessUtil.startupClient("coaps://" + ACCEPT + "/time", TRUST, null, cipherSuite);
 		String check = "\\d+:\\d+:\\d+";
-		assertTrue(clientProcessUtil.waitConsole(check, TIMEOUT_MILLIS));
+		assertTrue(clientProcessUtil.waitConsole(check, REQUEST_TIMEOUT_MILLIS.get()));
 		System.out.println("match: " + check);
 		clientProcessUtil.stop(TIMEOUT_MILLIS);
-		processUtil.stop();
 		processUtil.stop(TIMEOUT_MILLIS);
 	}
 
@@ -281,7 +288,7 @@ public class LibCoapServerMbedTlsInteroperabilityTest {
 		}
 		if (patterns != null) {
 			for (String check : patterns) {
-				assertTrue("missing " + check, processUtil.waitConsole(check, TIMEOUT_MILLIS));
+				assertTrue("missing " + check, processUtil.waitConsole(check, REQUEST_TIMEOUT_MILLIS.get()));
 			}
 		}
 		return processUtil.stop(TIMEOUT_MILLIS);

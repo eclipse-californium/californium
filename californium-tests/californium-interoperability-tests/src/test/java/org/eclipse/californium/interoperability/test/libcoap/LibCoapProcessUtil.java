@@ -21,6 +21,7 @@ import static org.eclipse.californium.interoperability.test.OpenSslUtil.OPENSSL_
 import static org.eclipse.californium.interoperability.test.OpenSslUtil.ROOT_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.OpenSslUtil.TRUSTSTORE;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeNotNull;
 import static org.junit.Assume.assumeTrue;
 
@@ -28,6 +29,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Matcher;
 
 import org.eclipse.californium.core.coap.CoAP;
@@ -63,7 +65,8 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
  * </pre>
  * 
  * After {@code sudo make install}, execution of {@code sudo ldconfig} may be
- * required on Ubuntu 18.04. If {@code --disable-shared} is added, the binaries are statically linked.
+ * required on Ubuntu 18.04. If {@code --disable-shared} is added, the binaries
+ * are statically linked.
  */
 public class LibCoapProcessUtil extends ProcessUtil {
 
@@ -94,6 +97,8 @@ public class LibCoapProcessUtil extends ProcessUtil {
 		TRUST
 	}
 
+	public static final String VALGRIND = "valgrind";
+
 	public static final String LIBCOAP_CLIENT_TINYDTLS = "coap-client-tinydtls";
 	public static final String LIBCOAP_CLIENT_GNUTLS = "coap-client-gnutls";
 	public static final String LIBCOAP_CLIENT_MBEDTLS = "coap-client-mbedtls";
@@ -107,11 +112,19 @@ public class LibCoapProcessUtil extends ProcessUtil {
 
 	public static final String RAW_PUBLIC_KEY_PAIR = "ec_private.pem";
 
+	public static final long VALGRIND_TIMEOUT_MILLIS = TIMEOUT_MILLIS * 3;
+
+	public static final AtomicLong REQUEST_TIMEOUT_MILLIS = new AtomicLong(TIMEOUT_MILLIS);
+
+	private String valgrind = VALGRIND;
+
 	private String client = LIBCOAP_CLIENT;
 	private String server = LIBCOAP_SERVER;
 
 	private String version;
 	private String dtlsVersion;
+	private String valgrindVersion;
+	private boolean valgrindActive;
 
 	private String verboseLevel = DEFAULT_VERBOSE_LEVEL;
 	private String certificate;
@@ -140,6 +153,8 @@ public class LibCoapProcessUtil extends ProcessUtil {
 		clientOption = null;
 		type = null;
 		serverMode = false;
+		valgrindActive = false;
+		REQUEST_TIMEOUT_MILLIS.set(TIMEOUT_MILLIS);
 	}
 
 	/**
@@ -245,6 +260,11 @@ public class LibCoapProcessUtil extends ProcessUtil {
 	 * @return result of libcoap application. {@code null}, if not available.
 	 */
 	public ProcessResult prepareLibCoapApplication(String application, String dtlsLibrary, long timeMillis) {
+
+		if (!Boolean.FALSE.equals(StringUtil.getConfigurationBoolean("USE_VALGRIND"))) {
+			prepareValgrind(timeMillis);
+		}
+
 		try {
 			// use not supported option -h to trigger the help message!
 			execute(application, "-h");
@@ -258,6 +278,35 @@ public class LibCoapProcessUtil extends ProcessUtil {
 			assumeNotNull(matcher);
 			dtlsVersion = matcher.group(1);
 
+			return result;
+		} catch (InterruptedException ex) {
+			return null;
+		} catch (IOException ex) {
+			return null;
+		} catch (RuntimeException ex) {
+			return null;
+		}
+	}
+
+	/**
+	 * Prepare to use valgrind for memory checks
+	 * 
+	 * @param timeMillis timeout in milliseconds
+	 * @return result of valgrind application. {@code null}, if not available.
+	 * @since 3.0
+	 */
+	public ProcessResult prepareValgrind(long timeMillis) {
+		try {
+			execute(valgrind, "--version");
+			ProcessResult result = waitResult(timeMillis);
+			if (result == null) {
+				return null;
+			}
+			Matcher matcher = result.match(valgrind + "-(\\S+)");
+			if (matcher == null) {
+				return null;
+			}
+			valgrindVersion = matcher.group(1);
 			return result;
 		} catch (InterruptedException ex) {
 			return null;
@@ -343,6 +392,7 @@ public class LibCoapProcessUtil extends ProcessUtil {
 		serverMode = false;
 		List<CipherSuite> list = Arrays.asList(ciphers);
 		List<String> args = new ArrayList<String>();
+		addValgrind(args);
 		args.add(client);
 		if (verboseLevel != null) {
 			args.add("-v");
@@ -418,9 +468,11 @@ public class LibCoapProcessUtil extends ProcessUtil {
 		}
 		print(args);
 		execute(args);
+		// wait for DEBG created DTLS endpoint [::]:5684
+		assumeTrue(waitConsole("created DTLS endpoint (\\[[^]]*\\]|[^:]*):5684", TIMEOUT_MILLIS));
 	}
 
-	public void add(List<String> args, LibCoapAuthenticationMode authMode) throws IOException, InterruptedException {
+	public void add(List<String> args, LibCoapAuthenticationMode authMode) {
 		switch (authMode) {
 		case PSK:
 			break;
@@ -446,11 +498,31 @@ public class LibCoapProcessUtil extends ProcessUtil {
 		}
 	}
 
-	public ProcessResult stop(long timeoutMillis) throws InterruptedException, IOException {
-		if (serverMode) {
-			super.stop();
+	public void addValgrind(List<String> args) {
+		if (valgrindVersion != null) {
+			valgrindActive = true;
+			args.add(valgrind);
+			args.add("--track-origins=yes");
+			args.add("--leak-check=yes");
+			args.add("--show-reachable=yes");
+			REQUEST_TIMEOUT_MILLIS.set(VALGRIND_TIMEOUT_MILLIS);
 		}
-		return waitResult(timeoutMillis);
+	}
+
+	public ProcessResult stop(long timeoutMillis) throws InterruptedException, IOException {
+		boolean forced = false;
+		if (serverMode) {
+			forced = super.stop();
+		}
+		ProcessResult result = waitResult(timeoutMillis);
+		if (!serverMode && result == null) {
+			forced = super.stop();
+			result = waitResult(timeoutMillis);
+		}
+		if (valgrindActive && !forced && result != null) {
+			assertTrue(result.contains("ERROR SUMMARY: 0 errors "));
+		}
+		return result;
 	}
 
 }

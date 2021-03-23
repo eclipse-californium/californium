@@ -15,6 +15,7 @@
  ******************************************************************************/
 package org.eclipse.californium.interoperability.test.openssl;
 
+import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeNotNull;
 import static org.junit.Assume.assumeTrue;
@@ -57,7 +58,6 @@ public class OpenSslClientInteroperabilityTest {
 	private static final InetSocketAddress BIND = new InetSocketAddress(InetAddress.getLoopbackAddress(),
 			ScandiumUtil.PORT);
 	private static final String DESTINATION = "127.0.0.1:" + ScandiumUtil.PORT;
-	private static final long TIMEOUT_MILLIS = 2000;
 
 	private static OpenSslProcessUtil processUtil;
 	private static ScandiumUtil scandiumUtil;
@@ -119,6 +119,7 @@ public class OpenSslClientInteroperabilityTest {
 	 */
 	@Test
 	public void testOpenSslClient() throws Exception {
+		processUtil.setTag("openssl-client, " + cipherSuite.name());
 		scandiumUtil.start(BIND, null, cipherSuite);
 
 		String cipher = processUtil.startupClient(DESTINATION, OpenSslProcessUtil.AuthenticationMode.CERTIFICATE,
@@ -142,6 +143,7 @@ public class OpenSslClientInteroperabilityTest {
 	 */
 	@Test
 	public void testOpenSslClientMultiFragments() throws Exception {
+		processUtil.setTag("openssl-client, multifragments per record, " + cipherSuite.name());
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
 		builder.setEnableMultiHandshakeMessageRecords(true);
 		scandiumUtil.start(BIND, false, builder, null, cipherSuite);

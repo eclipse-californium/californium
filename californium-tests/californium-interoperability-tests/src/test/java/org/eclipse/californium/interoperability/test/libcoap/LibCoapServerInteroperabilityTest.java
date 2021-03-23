@@ -16,9 +16,11 @@
 package org.eclipse.californium.interoperability.test.libcoap;
 
 import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_RSA_CERTIFICATE;
+import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.CA;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.CHAIN;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.TRUST;
+import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.REQUEST_TIMEOUT_MILLIS;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertEquals;
@@ -55,6 +57,7 @@ import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -73,7 +76,6 @@ public class LibCoapServerInteroperabilityTest {
 	private static final InetSocketAddress DESTINATION = new InetSocketAddress(InetAddress.getLoopbackAddress(),
 			ScandiumUtil.PORT);
 	private static final String ACCEPT = "127.0.0.1:" + ScandiumUtil.PORT;
-	private static final long TIMEOUT_MILLIS = 2000;
 
 	private static LibCoapProcessUtil processUtil;
 	private static CaliforniumUtil californiumUtil;
@@ -97,6 +99,11 @@ public class LibCoapServerInteroperabilityTest {
 		if (processUtil != null) {
 			processUtil.shutdown();
 		}
+	}
+
+	@Before
+	public void start() {
+		processUtil.setTag(name.getName());
 	}
 
 	@After
@@ -144,7 +151,6 @@ public class LibCoapServerInteroperabilityTest {
 		californiumUtil.assertPrincipalType(PreSharedKeyIdentity.class);
 
 		ExecutorsUtil.shutdownExecutorGracefully(2000, scheduledExecutor);
-		processUtil.stop();
 		processUtil.stop(TIMEOUT_MILLIS);
 	}
 
@@ -218,7 +224,7 @@ public class LibCoapServerInteroperabilityTest {
 
 		californiumUtil.start(BIND, null, cipherSuite);
 		connect(false, "unable to get local issuer certificate");
-		californiumUtil.assertAlert(new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_CA));
+		californiumUtil.assertAlert(TIMEOUT_MILLIS, new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_CA));
 	}
 
 	@Test
@@ -229,7 +235,7 @@ public class LibCoapServerInteroperabilityTest {
 
 		californiumUtil.start(BIND, null, cipherSuite);
 		connect(false, "peer did not return a certificate");
-		californiumUtil.assertAlert(new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
+		californiumUtil.assertAlert(TIMEOUT_MILLIS, new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE));
 	}
 
 	@Test
@@ -279,10 +285,9 @@ public class LibCoapServerInteroperabilityTest {
 		LibCoapProcessUtil clientProcessUtil = new LibCoapProcessUtil();
 		clientProcessUtil.startupClient("coaps://" + ACCEPT + "/time", TRUST, null, cipherSuite);
 		String check = "\\d+:\\d+:\\d+";
-		assertTrue(clientProcessUtil.waitConsole(check, TIMEOUT_MILLIS));
+		assertTrue(clientProcessUtil.waitConsole(check, REQUEST_TIMEOUT_MILLIS.get()));
 		System.out.println("match: " + check);
 		clientProcessUtil.stop(TIMEOUT_MILLIS);
-		processUtil.stop();
 		processUtil.stop(TIMEOUT_MILLIS);
 	}
 
@@ -315,7 +320,7 @@ public class LibCoapServerInteroperabilityTest {
 		}
 		if (patterns != null) {
 			for (String check : patterns) {
-				assertTrue("missing " + check, processUtil.waitConsole(check, TIMEOUT_MILLIS));
+				assertTrue("missing " + check, processUtil.waitConsole(check, REQUEST_TIMEOUT_MILLIS.get()));
 			}
 		}
 		return processUtil.stop(TIMEOUT_MILLIS);

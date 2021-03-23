@@ -15,8 +15,10 @@
  ******************************************************************************/
 package org.eclipse.californium.interoperability.test.libcoap;
 
+import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.PSK;
 import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.LibCoapAuthenticationMode.RPK;
+import static org.eclipse.californium.interoperability.test.libcoap.LibCoapProcessUtil.REQUEST_TIMEOUT_MILLIS;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeNotNull;
 
@@ -34,6 +36,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.junit.After;
 import org.junit.AfterClass;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Rule;
@@ -53,7 +56,6 @@ public class LibCoapClientTinyDtlsInteroperabilityTest {
 			ScandiumUtil.PORT);
 	private static final String DESTINATION = "127.0.0.1:" + ScandiumUtil.PORT;
 	private static final String DESTINATION_URL = "coaps://" + DESTINATION + "/";
-	private static final long TIMEOUT_MILLIS = 2000;
 
 	private static LibCoapProcessUtil processUtil;
 	private static CaliforniumUtil californiumUtil;
@@ -77,6 +79,11 @@ public class LibCoapClientTinyDtlsInteroperabilityTest {
 		if (processUtil != null) {
 			processUtil.shutdown();
 		}
+	}
+
+	@Before
+	public void start() {
+		processUtil.setTag(name.getName());
 	}
 
 	@After
@@ -111,7 +118,7 @@ public class LibCoapClientTinyDtlsInteroperabilityTest {
 	}
 
 	@Test
-	public void testLibCoapClientTinyDtlsPskNoSessionIdt() throws Exception {
+	public void testLibCoapClientTinyDtlsPskNoSessionId() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
 		builder.setNoServerSessionId(true);
@@ -136,12 +143,13 @@ public class LibCoapClientTinyDtlsInteroperabilityTest {
 	}
 
 	public ProcessResult connect(String sendMessage, String... patterns) throws Exception {
+		long timeout = REQUEST_TIMEOUT_MILLIS.get();
 		if (patterns != null) {
 			for (String check : patterns) {
-				assertTrue("missing " + check, processUtil.waitConsole(check, TIMEOUT_MILLIS));
+				assertTrue("missing " + check + " (" + timeout + "ms)", processUtil.waitConsole(check, timeout));
 			}
 		}
-		californiumUtil.assertReceivedData(sendMessage, TIMEOUT_MILLIS);
+		californiumUtil.assertReceivedData(sendMessage, timeout);
 		return processUtil.stop(TIMEOUT_MILLIS);
 	}
 }
