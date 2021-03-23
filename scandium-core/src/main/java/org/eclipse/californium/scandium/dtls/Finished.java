@@ -76,7 +76,7 @@ public final class Finished extends HandshakeMessage {
 	/**
 	 * Called when reconstructing byteArray.
 	 * 
-	 * @param verifyData the raw verify data
+	 * @param reader reader with the raw verify data
 	 */
 	private Finished(DatagramReader reader) {
 		this.verifyData = reader.readBytesLeft();

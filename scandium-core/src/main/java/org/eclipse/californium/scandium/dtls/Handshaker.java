@@ -532,7 +532,7 @@ public abstract class Handshaker implements Destroyable {
 		 * for later processing when the message's sequence number becomes the
 		 * next expected one.
 		 * 
-		 * @param record the record containing the message to check
+		 * @param candidate the candidate record containing the message to check
 		 * @return the record containing a message if the message is up for
 		 *         immediate processing or {@code null}, if the message cannot
 		 *         be processed immediately

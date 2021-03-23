@@ -257,7 +257,7 @@ public class ContextRederivation {
 	 * @param db db the context db
 	 * @param ctx the context
 	 * @param contextID the context ID in the incoming request
-	 * @param RID the RID in the incoming request
+	 * @param rid the RID in the incoming request
 	 * @return an updated context
 	 * @throws OSException if context re-derivation fails
 	 */

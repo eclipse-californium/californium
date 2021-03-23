@@ -91,7 +91,9 @@ public final class RawData {
 	 * {@link #outbound(byte[], EndpointContext, MessageCallback, boolean)}.
 	 *
 	 * @param data the data that is to be sent or has been received
-	 * @param endpointContext remote peers endpoint context.
+	 * @param peerEndpointContext remote peers endpoint context.
+	 * @param callback the handler to call when this message has been sent (may
+	 *            be {@code null}).
 	 * @param multicast indicates whether the data represents a multicast
 	 *            message
 	 * @param nanoTimestamp nano-timestamp for received messages. {@code 0} for

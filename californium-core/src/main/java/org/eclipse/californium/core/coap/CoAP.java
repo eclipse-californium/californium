@@ -601,9 +601,10 @@ public final class CoAP {
 		public final String text;
 
 		/**
-		 * Instantiates a new response code with the specified integer value.
-		 *
-		 * @param value the integer value
+		 * Instantiates a new response code with the specified integer values.
+		 * 
+		 * @param codeClass code class
+		 * @param codeDetail code detail
 		 */
 		private ResponseCode(final CodeClass codeClass, final int codeDetail) {
 			this.codeClass = codeClass.value;

@@ -500,7 +500,7 @@ public class CertPathUtil {
 	 * certificate with that subject. The final check is then left to PKIX
 	 * {@link CertPathValidator}.
 	 * 
-	 * @param subject subject to search
+	 * @param certificate certificate with subject to search
 	 * @param certificates to search
 	 * @return certificate with provided subject, or {@code null}, if no one was
 	 *         found. It's only granted, that the returned certificate has that
