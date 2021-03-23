@@ -20,21 +20,31 @@ package org.eclipse.californium.elements.exception;
  */
 public class ConnectorException extends Exception {
 
-    private static final long serialVersionUID = 1L;
+	private static final long serialVersionUID = 1L;
 
-    /**
-     * Create new instance.
-     */
-    public ConnectorException() {
-        super();
-    }
+	/**
+	 * Create new instance.
+	 */
+	public ConnectorException() {
+		super();
+	}
 
-    /**
-     * Create new instance with message.
-     *
-     * @param message message
-     */
-    public ConnectorException(String message) {
-        super(message);
-    }
+	/**
+	 * Create new instance with message.
+	 *
+	 * @param message message
+	 */
+	public ConnectorException(String message) {
+		super(message);
+	}
+
+	@Override
+	public String getMessage() {
+		String msg = super.getMessage();
+		if (msg == null) {
+			msg = getClass().getSimpleName();
+		}
+		return msg;
+	}
+
 }
