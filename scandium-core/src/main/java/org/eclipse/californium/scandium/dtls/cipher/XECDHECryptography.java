@@ -296,6 +296,9 @@ public final class XECDHECryptography implements Destroyable {
 		if (encodedPoint == null) {
 			throw new NullPointerException("encoded point must not be null!");
 		}
+		if (privateKey == null) {
+			throw new IllegalStateException("private key must not be destroyed");
+		}
 		PublicKey peerPublicKey;
 		int keySize = supportedGroup.getKeySizeInBytes();
 		// extract public key
@@ -323,19 +326,7 @@ public final class XECDHECryptography implements Destroyable {
 			peerPublicKey = keyFactory.generatePublic(spec);
 		}
 		check("IN: ", peerPublicKey, encodedPoint);
-		return generateSecret(peerPublicKey);
-	}
 
-	/**
-	 * Runs the specified key agreement algorithm (ECDH) to generate the
-	 * premaster secret.
-	 * 
-	 * @param peerPublicKey
-	 *            the other peer's ephemeral public key.
-	 * @return the premaster secret.
-	 * @throws GeneralSecurityException if a crypt error occurred.
-	 */
-	private SecretKey generateSecret(PublicKey peerPublicKey) throws GeneralSecurityException {
 		KeyAgreement keyAgreement = null;
 		if (supportedGroup.getAlgorithmName().equals(EC_KEYPAIR_GENERATOR_ALGORITHM)) {
 			keyAgreement = ECDH_KEY_AGREEMENT.currentWithCause();
@@ -347,6 +338,7 @@ public final class XECDHECryptography implements Destroyable {
 		byte[] secret = keyAgreement.generateSecret();
 		SecretKey secretKey = SecretUtil.create(secret, "TlsPremasterSecret");
 		Bytes.clear(secret);
+
 		return secretKey;
 	}
 

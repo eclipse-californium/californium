@@ -88,7 +88,7 @@ public class InMemoryMessageIdProvider implements MessageIdProvider {
 			throw new NullPointerException("Config must not be null");
 		}
 		String textualMode = null;
-		TrackerMode mode = TrackerMode.GROUPED;
+		TrackerMode mode;
 		try {
 			textualMode = config.getString(Keys.MID_TRACKER);
 			mode = TrackerMode.valueOf(textualMode);

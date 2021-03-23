@@ -287,9 +287,9 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 								getNodeID(), protocol, StringUtil.byteArray2Hex(mac2), StringUtil.byteArray2Hex(mac3));
 					}
 					if (clusterHealth != null) {
-						if (type == RECORD_TYPE_INCOMING) {
+						if (RECORD_TYPE_INCOMING.equals(type)) {
 							clusterHealth.badForwardMessage();
-						} else if (type == RECORD_TYPE_OUTGOING) {
+						} else if (RECORD_TYPE_OUTGOING.equals(type)) {
 							clusterHealth.badBackwardMessage();
 						}
 					}
@@ -460,7 +460,7 @@ public class DtlsManagedClusterConnector extends DtlsClusterConnector {
 	/**
 	 * Cluster management connector using DTLS.
 	 */
-	private class ClusterManagementDtlsConnector extends DTLSConnector  {
+	private class ClusterManagementDtlsConnector extends DTLSConnector {
 
 		public ClusterManagementDtlsConnector(DtlsConnectorConfig configuration) {
 			super(configuration);

@@ -1129,7 +1129,7 @@ public class BenchmarkClient {
 				!config.stop ? "none-stop " : "", secure ? "secure " : "", overallRequests, proxyMessage, uri);
 
 		if (config.reverse != null && overallReverseResponses > 0) {
-			if (config.reverse.min == config.reverse.max) {
+			if (config.reverse.min.equals(config.reverse.max)) {
 				System.out.format("Expect %d notifies, interval %d [ms]%n", overallReverseResponses,
 						config.reverse.min);
 			} else {

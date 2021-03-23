@@ -258,26 +258,27 @@ public class SerializationUtil {
 	public static void write(DatagramWriter writer, Map<String, Object> entries) {
 		if (entries == null) {
 			writeNoItem(writer);
-		}
-		int position = writeStartItem(writer, ATTRIBUTES_VERSION, Short.SIZE);
-		for (Map.Entry<String, Object> entry : entries.entrySet()) {
-			write(writer, entry.getKey(), Byte.SIZE);
-			Object value = entry.getValue();
-			if (value instanceof String) {
-				writer.writeByte((byte) ATTRIBUTES_STRING);
-				write(writer, (String) value, Byte.SIZE);
-			} else if (value instanceof Bytes) {
-				writer.writeByte((byte) ATTRIBUTES_BYTES);
-				writer.writeVarBytes((Bytes) value, Byte.SIZE);
-			} else if (value instanceof Integer) {
-				writer.writeByte((byte) ATTRIBUTES_INTEGER);
-				writer.write((Integer) value, Integer.SIZE);
-			} else if (value instanceof Long) {
-				writer.writeByte((byte) ATTRIBUTES_LONG);
-				writer.writeLong((Long) value, Long.SIZE);
+		} else {
+			int position = writeStartItem(writer, ATTRIBUTES_VERSION, Short.SIZE);
+			for (Map.Entry<String, Object> entry : entries.entrySet()) {
+				write(writer, entry.getKey(), Byte.SIZE);
+				Object value = entry.getValue();
+				if (value instanceof String) {
+					writer.writeByte((byte) ATTRIBUTES_STRING);
+					write(writer, (String) value, Byte.SIZE);
+				} else if (value instanceof Bytes) {
+					writer.writeByte((byte) ATTRIBUTES_BYTES);
+					writer.writeVarBytes((Bytes) value, Byte.SIZE);
+				} else if (value instanceof Integer) {
+					writer.writeByte((byte) ATTRIBUTES_INTEGER);
+					writer.write((Integer) value, Integer.SIZE);
+				} else if (value instanceof Long) {
+					writer.writeByte((byte) ATTRIBUTES_LONG);
+					writer.writeLong((Long) value, Long.SIZE);
+				}
 			}
+			writeFinishedItem(writer, position, Short.SIZE);
 		}
-		writeFinishedItem(writer, position, Short.SIZE);
 	}
 
 	/**

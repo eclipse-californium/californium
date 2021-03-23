@@ -170,7 +170,7 @@ public class UdpMulticastConnector extends UDPConnector {
 		this.outgoingInterface = outgoingInterface;
 		this.outgoingAddress = outgoingAddress;
 		this.groups.addAll(groups);
-		InetAddress localAddress = localSocketAddress.getAddress();
+		InetAddress localAddress = localAddr.getAddress();
 		boolean noGroups = this.groups.isEmpty();
 		if (NetworkInterfacesUtil.isBroadcastAddress(localAddress)) {
 			if (multicastReceiver) {
@@ -194,7 +194,7 @@ public class UdpMulticastConnector extends UDPConnector {
 				if (this.groups.size() == 1) {
 					multicast = true;
 					this.effectiveAddr = new InetSocketAddress(this.groups.get(0).multicastGroup,
-							localSocketAddress != null ? localSocketAddress.getPort() : 0);
+							localAddr.getPort());
 				} else {
 					throw new IllegalArgumentException(
 							"Multiple multicast addresses are nor supported for multicast receiver function!");

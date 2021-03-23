@@ -87,13 +87,13 @@ public class WorkQueueExecutor implements ScheduledExecutorService {
 	@Override
 	public ScheduledFuture<?> scheduleAtFixedRate(Runnable command,
 			long initialDelay, long period, TimeUnit unit) {
-		return scheduleAtFixedRate(command, initialDelay, period, unit);
+		return timerService.scheduleAtFixedRate(command, initialDelay, period, unit);
 	}
 
 	@Override
 	public ScheduledFuture<?> scheduleWithFixedDelay(Runnable command,
 			long initialDelay, long delay, TimeUnit unit) {
-		return scheduleWithFixedDelay(command, initialDelay, delay, unit);
+		return timerService.scheduleWithFixedDelay(command, initialDelay, delay, unit);
 	}
 	
 	@Override

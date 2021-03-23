@@ -30,6 +30,8 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.eclipse.californium.elements.util.Bytes;
+
 /**
  * {@code OptionSet} is a collection of all options of a request or a response.
  * {@code OptionSet} provides methods to add, remove and modify all options
@@ -183,7 +185,7 @@ public final class OptionSet {
 			uri_query_list.clear();
 		accept = null;
 		if (location_query_list != null)
-			location_path_list.clear();
+			location_query_list.clear();
 		proxy_uri = null;
 		proxy_scheme = null;
 		block1 = null;
@@ -403,7 +405,9 @@ public final class OptionSet {
 	 */
 	public OptionSet addETag(byte[] etag) {
 		checkOptionValue(OptionNumberRegistry.ETAG, etag);
-		getETags().add(etag);
+		if (!containsETag(etag)) {
+			getETags().add(etag.clone());
+		}
 		return this;
 	}
 
@@ -412,9 +416,20 @@ public final class OptionSet {
 	 * 
 	 * @param etag the ETag to remove
 	 * @return this OptionSet for a fluent API.
+	 * @throws NullPointerException if the etag is {@code null}
+	 * @throws IllegalArgumentException if the etag has less than 1 or more than
+	 *             8 bytes.
 	 */
 	public OptionSet removeETag(byte[] etag) {
-		getETags().remove(etag);
+		checkOptionValue(OptionNumberRegistry.ETAG, etag);
+		if (etag_list != null) {
+			for (int index = 0; index < etag_list.size(); ++index) {
+				if (Arrays.equals(etag_list.get(index), etag)) {
+					etag_list.remove(index);
+					break;
+				}
+			}
+		}
 		return this;
 	}
 
@@ -1481,6 +1496,9 @@ public final class OptionSet {
 	/**
 	 * Checks, if an arbitrary option is present.
 	 * 
+	 * Note: implementation uses {@link #asSortedList()} and is therefore not
+	 * recommended to be called too frequently.
+	 * 
 	 * @param number the option number
 	 * @return {@code true}, if present
 	 */
@@ -1530,7 +1548,7 @@ public final class OptionSet {
 			for (byte[] value : etag_list)
 				options.add(new Option(OptionNumberRegistry.ETAG, value));
 		if (hasIfNoneMatch())
-			options.add(new Option(OptionNumberRegistry.IF_NONE_MATCH));
+			options.add(new Option(OptionNumberRegistry.IF_NONE_MATCH, Bytes.EMPTY));
 		if (hasUriPort())
 			options.add(new Option(OptionNumberRegistry.URI_PORT, getUriPort()));
 		if (location_path_list != null)
