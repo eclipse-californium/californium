@@ -466,7 +466,7 @@ public final class CertificateRequest extends HandshakeMessage {
 		String algorithm = cert.getPublicKey().getAlgorithm();
 		for (ClientCertificateType type : certificateTypes) {
 			if (!type.isCompatibleWithKeyAlgorithm(algorithm)) {
-				LOGGER.debug("type: {}, is not compatible with KeyAlgorithm[{}]: {}", type, algorithm);
+				LOGGER.debug("type: {}, is not compatible with KeyAlgorithm[{}]", type, algorithm);
 				continue;
 			}
 			// KeyUsage is an optional extension which may be used to restrict
