@@ -618,7 +618,7 @@ public class BlockwiseLayer extends AbstractLayer {
 
 			if (isRandomAccess(exchange)) {
 
-				// peer has issued a random block access request
+				// peer has issued a random block access request using option block2 in request
 
 				if (responseBlock2 != null && requestBlock2.getOffset() != responseBlock2.getOffset()) {
 					LOGGER.warn(
@@ -1508,7 +1508,7 @@ public class BlockwiseLayer extends AbstractLayer {
 
 		boolean block2Required = strictBlock2Option && requestBlock2 != null;
 		if (block2Required) {
-			LOGGER.debug("{}response requires requested blockwise transfer", tag, requestBlock2);
+			LOGGER.debug("{}response requires requested {} blockwise transfer", tag, requestBlock2);
 		}
 		return block2Required;
 	}

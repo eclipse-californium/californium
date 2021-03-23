@@ -1511,7 +1511,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 					DROP_LOGGER.debug(
 							"Discarding {} record [epoch {}, rseqn {}] received from peer [{}], handshake expired!",
 							record.getType(), epoch, record.getSequenceNumber(),
-							StringUtil.toLog(record.getPeerAddress()), epoch);
+							StringUtil.toLog(record.getPeerAddress()));
 					if (health != null) {
 						health.receivingRecord(true);
 					}
