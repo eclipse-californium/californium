@@ -192,7 +192,7 @@ public class TcpServerConnector implements Connector {
 			// TODO: Is it worth allowing opening a new connection when in server mode?
 			LOGGER.debug("Attempting to send message to an address without an active connection {}",
 					StringUtil.toLog(msg.getInetSocketAddress()));
-			msg.onError(new EndpointUnconnectedException());
+			msg.onError(new EndpointUnconnectedException(getProtocol() + " client not connected!"));
 			return;
 		}
 		EndpointContext context = contextUtil.buildEndpointContext(channel);

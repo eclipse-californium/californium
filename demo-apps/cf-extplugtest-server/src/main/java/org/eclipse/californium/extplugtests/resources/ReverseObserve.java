@@ -49,6 +49,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.elements.exception.EndpointUnconnectedException;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -439,8 +440,10 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 		@Override
 		public void onSendError(Throwable error) {
 			if (error instanceof ConnectorException) {
-				LOGGER.warn("Observe request failed! {} {} {}", outgoingObserveRequest.getScheme(),
-						outgoingObserveRequest.getToken(), error.getMessage());
+				if (!(error instanceof EndpointUnconnectedException)) {
+					LOGGER.warn("Observe request failed! {} {} {}", outgoingObserveRequest.getScheme(),
+							outgoingObserveRequest.getToken(), error.getMessage());
+				}
 				failureLogged = true;
 			}
 			super.onSendError(error);
