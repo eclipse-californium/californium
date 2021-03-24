@@ -751,7 +751,7 @@ public final class DTLSContext implements Destroyable {
 	}
 
 	/**
-	 * Increment the number ofMAC errors (including general encryption errors).
+	 * Increment the number of MAC errors (including general encryption errors).
 	 * 
 	 * @since 3.0
 	 */
