@@ -103,7 +103,7 @@ public class CCMBlockCipher {
 		private final int nonceL;
 
 		private BlockCipher(Cipher cipher, byte[] nonce) {
-			super(cipher == null ? 0 : cipher.getBlockSize());
+			super(cipher.getBlockSize());
 			this.cipher = cipher;
 			this.nonceL = nonce.length;
 			int L = blockSize - 1 - nonceL;
@@ -157,7 +157,7 @@ public class CCMBlockCipher {
 		 */
 		private MacCipher(Cipher cipher, byte[] nonce, byte[] a, byte[] m, int numAuthenticationBytes)
 				throws ShortBufferException {
-			super(cipher == null ? 0 : cipher.getBlockSize());
+			super(cipher.getBlockSize());
 			this.cipher = cipher;
 			int lengthM = m.length;
 			int lengthA = a.length;
@@ -232,7 +232,7 @@ public class CCMBlockCipher {
 				 * into 16-octet blocks, and then padding the last block with
 				 * zeroes if necessary.
 				 */
-				if (lengthA > 0 && lengthA < first) {
+				if (lengthA < first) {
 					// 2 bytes (0x0001 ... 0xFEFF)
 					xorInt(0, 2, lengthA);
 					offset = 2;

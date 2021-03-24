@@ -867,7 +867,7 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors, M
 				return;
 			}
 		} else if (0 < multicastBaseMid && request.getMID() >= multicastBaseMid) {
-			LOGGER.warn("{}request has mid {}, which is in the MULTICAST_MID range [{}-65535]", tag, destinationAddress,
+			LOGGER.warn("{}request to {} has mid {}, which is in the MULTICAST_MID range [{}-65535]", tag, destinationAddress,
 					request.getMID(), multicastBaseMid);
 			request.setSendError(
 					new IllegalArgumentException("unicast mid is in multicast range [" + multicastBaseMid + "-65535]"));
@@ -1101,9 +1101,7 @@ public class CoapEndpoint implements Endpoint, MessagePostProcessInterceptors, M
 
 			// MessageInterceptor might have canceled
 			if (response.isCanceled() || response.getSendError() != null) {
-				if (null != exchange) {
-					exchange.executeComplete();
-				}
+				exchange.executeComplete();
 			} else {
 				RawData data = serializer.serializeResponse(response,
 						new ExchangeCallback<Response>(exchange, response) {

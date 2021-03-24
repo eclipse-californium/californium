@@ -176,7 +176,11 @@ public class MappingProperties extends Properties {
 
 	public void load(String fileName) throws IOException {
 		InputStream in = new FileInputStream(fileName);
-		load(in);
+		try {
+			load(in);
+		} finally {
+			in.close();
+		}
 	}
 
 	public void set(String key, int value) {
@@ -193,7 +197,11 @@ public class MappingProperties extends Properties {
 
 	public void store(String fileName) throws IOException {
 		OutputStream out = new FileOutputStream(fileName);
-		store(out, HEADER);
+		try {
+			store(out, HEADER);
+		} finally {
+			out.close();
+		}
 	}
 
 	private void init() {

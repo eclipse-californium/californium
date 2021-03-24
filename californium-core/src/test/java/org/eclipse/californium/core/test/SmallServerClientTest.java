@@ -96,7 +96,10 @@ public class SmallServerClientTest {
 			public void deliverRequest(Exchange exchange) {
 				System.out.println("server received request");
 				exchange.sendAccept();
-				try { Thread.sleep(500); } catch (Exception e) {}
+				try { 
+					Thread.sleep(500);
+				} catch (InterruptedException e) {
+				}
 				Response response = new Response(ResponseCode.CONTENT);
 				response.setConfirmable(false);
 				response.setPayload(SERVER_RESPONSE);

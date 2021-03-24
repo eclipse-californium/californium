@@ -43,7 +43,6 @@ import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
@@ -118,8 +117,7 @@ public class ServerHandshakerTest {
 
 		DatagramWriter writer = new DatagramWriter();
 		// uint32 gmt_unix_time
-		Date now = new Date();
-		writer.writeLong(Math.round(now.getTime() / 1000), 32);
+		writer.writeLong(System.currentTimeMillis() / 1000, 32);
 		// opaque random_bytes[28]
 		for (int i = 0; i < 28; i++) {
 			writer.write(i, 8);

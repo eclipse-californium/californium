@@ -336,22 +336,24 @@ public abstract class TestClientAbstract {
 
 		public void close() {
 			Request origin = observe;
-			if (origin != null && origin.isObserve()) {
-				Request cancel = Request.newGet();
-				cancel.setDestinationContext(origin.getDestinationContext());
-				// use same Token
-				cancel.setToken(origin.getToken());
-				// copy options
-				cancel.setOptions(origin.getOptions());
-				// set Observe to cancel
-				cancel.setObserveCancel();
-				endpoint.sendRequest(cancel);
-				try {
-					cancel.waitForResponse(2000);
-				} catch (InterruptedException e) {
+			if (origin != null) {
+				if (origin.isObserve()) {
+					Request cancel = Request.newGet();
+					cancel.setDestinationContext(origin.getDestinationContext());
+					// use same Token
+					cancel.setToken(origin.getToken());
+					// copy options
+					cancel.setOptions(origin.getOptions());
+					// set Observe to cancel
+					cancel.setObserveCancel();
+					endpoint.sendRequest(cancel);
+					try {
+						cancel.waitForResponse(2000);
+					} catch (InterruptedException e) {
+					}
 				}
+				endpoint.cancelObservation(origin.getToken());
 			}
-			endpoint.cancelObservation(origin.getToken());
 			endpoint.removeNotificationListener(this);
 		}
 
@@ -850,43 +852,36 @@ public abstract class TestClientAbstract {
 	 */
 	protected boolean checkToken(Token expectedToken, Token actualToken) {
 
-		boolean success = true;
-
-		if (expectedToken == null || expectedToken.isEmpty()) {
-
-			success = actualToken == null || actualToken.isEmpty();
-
-			if (!success) {
-				System.out.printf("FAIL: Expected empty token, but was %s\n", actualToken.getAsString());
-			} else {
+		if (expectedToken == null) {
+			expectedToken = Token.EMPTY;
+		}
+		if (actualToken == null) {
+			actualToken = Token.EMPTY;
+		}
+		if (expectedToken.isEmpty()) {
+			if (actualToken.isEmpty()) {
 				System.out.println("PASS: Correct empty token");
+			} else {
+				System.out.printf("FAIL: Expected empty token, but was %s\n", actualToken.getAsString());
+				return false;
 			}
-
-			return success;
-
 		} else {
 
-			success = actualToken.length() <= 8;
-			success &= actualToken.length() >= 1;
-
-			// eval token length
-			if (!success) {
-				System.out.printf("FAIL: Expected token %s, but %s has illeagal length\n",
-						expectedToken.getAsString(), actualToken.getAsString());
-				return success;
+			if (actualToken.length() < 1 || actualToken.length() > 8) {
+				System.out.printf("FAIL: Expected token %s, but %s has illeagal length\n", expectedToken.getAsString(),
+						actualToken.getAsString());
+				return false;
 			}
 
-			success &= expectedToken.equals(actualToken);
-
-			if (!success) {
+			if (expectedToken.equals(actualToken)) {
+				System.out.printf("PASS: Correct token (%s)\n", actualToken.getAsString());
+			} else {
 				System.out.printf("FAIL: Expected token %s, but was %s\n", expectedToken.getAsString(),
 						actualToken.getAsString());
-			} else {
-				System.out.printf("PASS: Correct token (%s)\n", actualToken.getAsString());
+				return false;
 			}
-
-			return success;
 		}
+		return true;
 	}
 
 	protected boolean checkDiscovery(String expextedResource, String actualDiscovery) {
