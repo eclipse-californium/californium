@@ -256,7 +256,7 @@ public abstract class AbstractTestServer extends CoapServer {
 
 		if (protocols.contains(Protocol.DTLS) || protocols.contains(Protocol.TLS)) {
 			initCredentials();
-			serverSslContext  = getServerSslContext(cliConfig.trustall, SslContextUtil.DEFAULT_SSL_PROTOCOL);
+			serverSslContext = getServerSslContext(cliConfig.trustall, SslContextUtil.DEFAULT_SSL_PROTOCOL);
 			if (serverSslContext == null && protocols.contains(Protocol.TLS)) {
 				throw new IllegalArgumentException("TLS not supported, credentials missing!");
 			}

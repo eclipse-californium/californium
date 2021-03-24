@@ -1580,7 +1580,7 @@ public class Base64
 		{
 			// Set up some useful variables
 			java.io.File file = new java.io.File( filename );
-			byte[] buffer = new byte[ Math.max((int)(file.length() * 1.4+1),40) ]; // Need max() for math on small files (v2.2.1); Need +1 for a few corner cases (v2.3.5)
+			byte[] buffer = new byte[ Math.max((int)(file.length() * 1.4 + 1),40) ]; // Need max() for math on small files (v2.2.1); Need +1 for a few corner cases (v2.3.5)
 			int length   = 0;
 			int numBytes = 0;
 
