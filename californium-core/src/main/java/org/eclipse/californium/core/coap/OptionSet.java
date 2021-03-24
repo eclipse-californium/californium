@@ -181,7 +181,7 @@ public final class OptionSet {
 			uri_query_list.clear();
 		accept = null;
 		if (location_query_list != null)
-			location_path_list.clear();
+			location_query_list.clear();
 		proxy_uri = null;
 		proxy_scheme = null;
 		block1 = null;
@@ -384,14 +384,14 @@ public final class OptionSet {
 	 * 
 	 * @param etag the ETag to add
 	 * @return this OptionSet for a fluent API.
+	 * @throws IllegalArgumentException if the etag is {@code null}
 	 */
 	public OptionSet addETag(byte[] etag) {
 		if (etag==null)
 			throw new IllegalArgumentException("ETag option must not be null");
-		// TODO: ProxyHttp uses ETags that are larger than 8 bytes (20).
-//		if (opaque.length < 1 || 8 < opaque.length)
-//			throw new IllegalArgumentException("ETag option's length must be between 1 and 8 inclusive but was "+opaque.length);
-		getETags().add(etag);
+		if (!containsETag(etag)) {
+			getETags().add(etag.clone());
+		}
 		return this;
 	}
 
@@ -402,7 +402,14 @@ public final class OptionSet {
 	 * @return this OptionSet for a fluent API.
 	 */
 	public OptionSet removeETag(byte[] etag) {
-		getETags().remove(etag);
+		if (etag_list != null && etag != null && etag.length > 0) {
+			for (int index = 0; index < etag_list.size(); ++index) {
+				if (Arrays.equals(etag_list.get(index), etag)) {
+					etag_list.remove(index);
+					break;
+				}
+			}
+		}
 		return this;
 	}
 
@@ -1393,6 +1400,9 @@ public final class OptionSet {
 
 	/**
 	 * Checks if an arbitrary option is present.
+	 * 
+	 * Note: implementation uses {@link #asSortedList()} and is therefore not
+	 * recommended to be called too frequently.
 	 * 
 	 * @param number the option number
 	 * @return true if present

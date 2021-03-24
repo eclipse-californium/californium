@@ -112,7 +112,7 @@ public class AsyncAdvancedPskStore implements AdvancedPskStore {
 	 * @return this psk store for command chaining
 	 */
 	public AsyncAdvancedPskStore setSecretMode(boolean enableGenerateMasterSecret) {
-		this.generateMasterSecret = generateMasterSecret;
+		this.generateMasterSecret = enableGenerateMasterSecret;
 		return this;
 	}
 

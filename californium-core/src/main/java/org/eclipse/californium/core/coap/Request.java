@@ -197,6 +197,8 @@ public class Request extends Message {
 	/** The current response for the request. */
 	private Response response;
 
+	private boolean ready;
+
 	/**
 	 * Request's scheme.
 	 * 
@@ -1066,7 +1068,7 @@ public class Request extends Message {
 		long expiresNano = ClockUtil.nanoRealtime() + TimeUnit.MILLISECONDS.toNanos(timeout);
 		long leftTimeout = timeout;
 		synchronized (this) {
-			while (this.response == null && !isCanceled() && !isTimedOut() && !isRejected() && getSendError() == null) {
+			while (!ready && response == null) {
 				wait(leftTimeout);
 				// timeout expired?
 				if (timeout > 0) {
@@ -1096,6 +1098,7 @@ public class Request extends Message {
 		super.setTimedOut(timedOut);
 		if (timedOut) {
 			synchronized (this) {
+				ready = true;
 				notifyAll();
 			}
 		}
@@ -1112,6 +1115,7 @@ public class Request extends Message {
 		super.setCanceled(canceled);
 		if (canceled) {
 			synchronized (this) {
+				ready = true;
 				notifyAll();
 			}
 		}
@@ -1122,6 +1126,7 @@ public class Request extends Message {
 		super.setRejected(rejected);
 		if (rejected) {
 			synchronized (this) {
+				ready = true;
 				notifyAll();
 			}
 		}
@@ -1132,6 +1137,7 @@ public class Request extends Message {
 		super.setSendError(sendError);
 		if (sendError != null) {
 			synchronized (this) {
+				ready = true;
 				notifyAll();
 			}
 		}
@@ -1165,6 +1171,7 @@ public class Request extends Message {
 			}
 
 			synchronized (this) {
+				ready = true;
 				notifyAll();
 			}
 		}

@@ -16,6 +16,7 @@
 package org.eclipse.californium.plugtests.resources;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.Request;
@@ -26,13 +27,15 @@ import static org.eclipse.californium.core.coap.CoAP.ResponseCode.*;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.*;
 
 /**
- * This resource implements a test of specification for the ETSI IoT CoAP Plugtests, London, UK, 7--9 Mar 2014.
+ * This resource implements a test of specification for the ETSI IoT CoAP
+ * Plugtests, London, UK, 7--9 Mar 2014.
  */
 public class Validate extends CoapResource {
+	private static final byte[] EMPTY_ETAG = { 0 };
 
 	private byte[] data = null;
 	private int dataCf = TEXT_PLAIN;
-	private byte[] etag = {0,0,0,0};
+	private byte[] etag = EMPTY_ETAG;
 
 	public Validate() {
 		super("validate");
@@ -41,41 +44,34 @@ public class Validate extends CoapResource {
 
 	@Override
 	public void handleGET(CoapExchange exchange) {
-		
+
 		// get request to read out details
 		Request request = exchange.advanced().getRequest();
 
 		// successively create response
 		Response response;
-		
+
 		if (exchange.getRequestOptions().containsETag(etag)) {
-			
+
 			response = new Response(VALID);
-			response.getOptions().addETag(etag.clone());
-			
+			response.getOptions().addETag(etag);
+
 			// automatically change now
 			storeData(null, UNDEFINED);
 		} else {
 			response = new Response(CONTENT);
 
-			if (data==null) {
-				etag = ByteBuffer.allocate(2).putShort( (short) (Math.random()*0x10000) ).array();
-				
+			if (data == null) {
+
 				StringBuilder payload = new StringBuilder();
-				payload.append(
-						String.format(
-								"Type: %d (%s)\nCode: %d (%s)\nMID: %d", 
-								request.getType().value, 
-								request.getType(), 
-								request.getCode().value, 
-								request.getCode(),
-								request.getMID()));
-		
+				payload.append(String.format("Type: %d (%s)\nCode: %d (%s)\nMID: %d", request.getType().value,
+						request.getType(), request.getCode().value, request.getCode(), request.getMID()));
+
 				if (!request.hasEmptyToken()) {
 					payload.append("\nToken: ");
 					payload.append(request.getTokenString());
 				}
-				
+
 				if (payload.length() > 64) {
 					payload.delete(63, payload.length());
 					payload.append('»');
@@ -86,23 +82,23 @@ public class Validate extends CoapResource {
 				response.setPayload(data);
 				response.getOptions().setContentFormat(dataCf);
 			}
-			response.getOptions().addETag(etag.clone());
+			response.getOptions().addETag(etag);
 		}
 		exchange.respond(response);
 	}
 
 	@Override
 	public void handlePUT(CoapExchange exchange) {
-		
+
 		if (exchange.getRequestOptions().isIfMatch(etag)) {
 			if (exchange.getRequestOptions().hasContentFormat()) {
 				storeData(exchange.getRequestPayload(), exchange.getRequestOptions().getContentFormat());
-				exchange.setETag(etag.clone());
+				exchange.setETag(etag);
 				exchange.respond(CHANGED);
 			} else {
 				exchange.respond(BAD_REQUEST, "Content-Format not set");
 			}
-		} else if (exchange.getRequestOptions().hasIfNoneMatch() && data==null) {
+		} else if (exchange.getRequestOptions().hasIfNoneMatch() && data == null) {
 			storeData(exchange.getRequestPayload(), exchange.getRequestOptions().getContentFormat());
 			exchange.respond(CREATED);
 		} else {
@@ -119,29 +115,28 @@ public class Validate extends CoapResource {
 	}
 
 	// Internal ////////////////////////////////////////////////////////////////
-	
+
 	/*
-	 * Convenience function to store data contained in a 
-	 * PUT/POST-Request. Notifies observing endpoints about
-	 * the change of its contents.
+	 * Convenience function to store data contained in a PUT/POST-Request. Notifies
+	 * observing endpoints about the change of its contents.
 	 */
 	private synchronized void storeData(byte[] payload, int cf) {
-		
-		if (payload!=null) {
+
+		if (payload != null) {
 			data = payload;
 			dataCf = cf;
-			
-			etag = ByteBuffer.allocate(4).putInt( data.hashCode() ).array();
-	
+
+			etag = ByteBuffer.allocate(4).putInt(Arrays.hashCode(data)).array();
+
 			// set payload and content type
 			getAttributes().clearContentType();
 			getAttributes().addContentType(dataCf);
 			getAttributes().setMaximumSizeEstimate(data.length);
 		} else {
 			data = null;
-			etag = ByteBuffer.allocate(2).putShort( (short) (Math.random()*0x10000) ).array();
+			etag = EMPTY_ETAG;
 		}
-		
+
 		// signal that resource state changed
 		changed();
 	}

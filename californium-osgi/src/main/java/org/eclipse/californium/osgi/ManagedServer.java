@@ -216,9 +216,11 @@ public class ManagedServer implements ManagedService, ServiceTrackerCustomizer<R
 	@Override
 	public Resource addingService(ServiceReference<Resource> reference) {
 		Resource resource = context.getService(reference);
-		LOGGER.debug("Adding resource [{}]", resource.getName());
 		if (resource != null) {
+			LOGGER.debug("Adding resource [{}]", resource.getName());
 			managedServer.add(resource);
+		} else {
+			LOGGER.debug("Failed adding resource for [{}], not available!", reference);
 		}
 		return resource;
 	}
