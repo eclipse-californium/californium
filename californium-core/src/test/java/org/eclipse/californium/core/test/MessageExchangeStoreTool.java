@@ -304,6 +304,11 @@ public class MessageExchangeStoreTool {
 				}
 
 				@Override
+				public void onResponseHandlingError(Throwable error) {
+					requests.remove(request);
+				}
+
+				@Override
 				public void onTimeout() {
 					requests.remove(request);
 				}

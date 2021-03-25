@@ -54,6 +54,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.util.concurrent.TimeUnit;
@@ -79,7 +80,6 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-
 
 /**
  * Test cases verifying the client side behavior of the examples from
@@ -169,8 +169,7 @@ public class BlockwiseClientSideTest {
 		server.expectRequest(CON, GET, path).storeBoth("A").go();
 		server.sendResponse(ACK, CONTENT).loadBoth("A").size2(MAX_RESOURCE_BODY_SIZE + 10).block2(0, true, 128).payload(respPayload).go();
 
-		request.waitForResponse(ERROR_TIMEOUT_IN_MS);
-		assertTrue("Request should have been cancelled", request.isCanceled());
+		assertNull(request.waitForResponse(ERROR_TIMEOUT_IN_MS));
 		assertThat("Request should have failed with error", request.getOnResponseError(), is(notNullValue()));
 	}
 

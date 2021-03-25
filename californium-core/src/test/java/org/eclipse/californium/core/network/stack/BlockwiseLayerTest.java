@@ -125,7 +125,7 @@ public class BlockwiseLayerTest {
 		exchange.setRequest(req);
 		blockwiseLayer.receiveResponse(exchange, response);
 
-		verify(requestObserver).onCancel();
+		verify(requestObserver).onResponseHandlingError(Mockito.any(IllegalStateException.class));
 	}
 
 	/**

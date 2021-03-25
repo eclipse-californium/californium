@@ -1088,9 +1088,6 @@ public class BlockwiseLayer extends AbstractLayer {
 					response.getOptions().getSize2(), getMaxResourceBodySize(response));
 			LOGGER.debug("{}{}", tag, msg);
 			exchange.getRequest().setOnResponseError(new IllegalStateException(msg));
-			// TODO we keep the cancel event for backward compatibility but this
-			// should be removed in 3.x
-			exchange.getRequest().cancel();
 
 		} else if (isRandomAccess(exchange)) {
 			// The client has requested this specific block and we deliver it
