@@ -1205,6 +1205,8 @@ public class CoapClient {
 			CoapResponse response = synchronous(request, outEndpoint);
 			if (response == null || !response.advanced().getOptions().hasObserve()) {
 				relation.setCanceled(true);
+			} else {
+				relation.waitForResponse(2000);
 			}
 			return relation;
 		} else {
