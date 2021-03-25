@@ -27,6 +27,8 @@
 package org.eclipse.californium.core.observe;
 
 import java.net.InetSocketAddress;
+import java.util.concurrent.TimeUnit;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,8 +36,8 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.StringUtil;
-
 
 /**
  * The ObserveRelation is a server-side control structure. It represents a
@@ -71,7 +73,7 @@ public class ObserveRelation {
 	/** Indicates if the relation is canceled */
 	private volatile boolean canceled;
 
-	private long interestCheckTimer = System.currentTimeMillis();
+	private long interestCheckTimer = ClockUtil.nanoRealtime();
 	private int interestCheckCounter = 1;
 
 	/**
@@ -92,7 +94,8 @@ public class ObserveRelation {
 		this.resource = resource;
 		this.exchange = exchange;
 		NetworkConfig config = exchange.getEndpoint().getConfig();
-		checkIntervalTime = config.getLong(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_TIME);
+		checkIntervalTime = TimeUnit.MILLISECONDS
+				.toNanos(config.getLong(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_TIME));
 		checkIntervalCount = config.getInt(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_COUNT);
 
 		this.key = StringUtil.toString(getSource()) + "#" + exchange.getRequest().getTokenString();
@@ -110,6 +113,7 @@ public class ObserveRelation {
 
 	/**
 	 * Sets the established field.
+	 * 
 	 * @throws IllegalStateException if the relation was already canceled.
 	 */
 	public void setEstablished() {
@@ -123,6 +127,7 @@ public class ObserveRelation {
 
 	/**
 	 * Check, if this relation is canceled.
+	 * 
 	 * @return {@code true}, if relation was canceled, {@code false}, otherwise.
 	 */
 	public boolean isCanceled() {
@@ -132,13 +137,14 @@ public class ObserveRelation {
 	/**
 	 * Cancel this observe relation. This methods invokes the cancel methods of
 	 * the resource and the endpoint.
+	 * 
 	 * @throws IllegalStateException if relation wasn't established.
 	 */
 	public void cancel() {
 		if (!canceled) {
 			if (!established) {
-				throw new IllegalStateException(String.format("Observe relation %s with %s not established (%s)!", getKey(),
-						resource.getURI(), exchange));
+				throw new IllegalStateException(String.format("Observe relation %s with %s not established (%s)!",
+						getKey(), resource.getURI(), exchange));
 			}
 			LOGGER.debug("Canceling observe relation {} with {} ({})", getKey(), resource.getURI(), exchange);
 			// stop ongoing retransmissions
@@ -197,38 +203,101 @@ public class ObserveRelation {
 		return endpoint.getAddress();
 	}
 
+	/**
+	 * Check, if notification is still requested.
+	 * 
+	 * Send notification as CON response in order to challenge the client to
+	 * acknowledge the message.
+	 * 
+	 * @return {@code true}, to check the observer relation with a
+	 *         CON-notification, {@code false}, otherwise.
+	 */
 	public boolean check() {
 		boolean check = false;
-		check |= this.interestCheckTimer + checkIntervalTime < System.currentTimeMillis();
+		check |= (ClockUtil.nanoRealtime() - interestCheckTimer - checkIntervalTime) > 0;
 		check |= (++interestCheckCounter >= checkIntervalCount);
 		if (check) {
-			this.interestCheckTimer = System.currentTimeMillis();
+			this.interestCheckTimer = ClockUtil.nanoRealtime();
 			this.interestCheckCounter = 0;
 		}
 		return check;
 	}
 
-	public Response getCurrentControlNotification() {
-		return recentControlNotification;
-	}
-
-	public void setCurrentControlNotification(Response recentControlNotification) {
-		this.recentControlNotification = recentControlNotification;
-	}
-
-	public Response getNextControlNotification() {
-		return nextControlNotification;
-	}
-
-	public void setNextControlNotification(Response nextControlNotification) {
-		if (this.nextControlNotification != null && nextControlNotification != null) {
-			// complete deprecated response
-			this.nextControlNotification.onTransferComplete();
+	/**
+	 * Check, if sending the provided notification is postponed.
+	 * 
+	 * Postponed notification are kept and sent after the current notification.
+	 * 
+	 * @param response notification to check.
+	 * @return {@code true}, if sending the notification is postponed,
+	 *         {@code false}, if not.
+	 * @since 3.0
+	 */
+	public boolean isPostponedNotification(Response response) {
+		if (isInTransit(recentControlNotification)) {
+			if (nextControlNotification != null) {
+				// complete deprecated response
+				nextControlNotification.onTransferComplete();
+			}
+			nextControlNotification = response;
+			return true;
+		} else {
+			recentControlNotification = response;
+			nextControlNotification = null;
+			return false;
 		}
-		this.nextControlNotification = nextControlNotification;
 	}
 
+	/**
+	 * Get next notification.
+	 * 
+	 * @param response current notification
+	 * @param acknowledged {@code true}, if the current notification was
+	 *            acknowledged, or {@code false}, on retransmission (caused by
+	 *            missing acknowledged)
+	 * @return next notification, or {@code null}, if no next notification is
+	 *         available.
+	 * @since 3.0
+	 */
+	public Response getNextNotification(Response response, boolean acknowledged) {
+		Response next = null;
+		if (recentControlNotification == response) {
+			next = nextControlNotification;
+			if (next != null || acknowledged) {
+				// next may be null
+				recentControlNotification = next;
+				nextControlNotification = null;
+			}
+		}
+		return next;
+	}
+
+	/**
+	 * Get key, identifying this observer relation.
+	 * 
+	 * Combination of source-address and token.
+	 * 
+	 * @return identifying key
+	 */
 	public String getKey() {
 		return this.key;
 	}
+
+	/**
+	 * Returns {@code true}, if the specified response is still in transit. A
+	 * response is in transit if it has not yet been acknowledged, rejected or
+	 * its current transmission has not yet timed out.
+	 * 
+	 * @param response notification to check.
+	 * @return {@code true}, if notification is in transit, {@code false},
+	 *         otherwise.
+	 * @sine 3.0
+	 */
+	private static boolean isInTransit(final Response response) {
+		if (response == null || !response.isConfirmable()) {
+			return false;
+		}
+		return !response.isAcknowledged() && !response.isTimedOut() && !response.isRejected();
+	}
+
 }
