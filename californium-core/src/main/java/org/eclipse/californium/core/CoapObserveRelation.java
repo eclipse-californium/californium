@@ -66,9 +66,34 @@ public class CoapObserveRelation extends ClientObserveRelation {
 	}
 
 	/**
-	 * Gets the current notification or null if none has arrived yet.
+	 * Wait for first response.
+	 * 
+	 * Though {@link Request#waitForResponse(long)} may be executed asynchronous
+	 * to the {@link #onResponse(Response)} processing of the notifications,
+	 * {@link #getCurrent()} may still return {@code null}, while
+	 * {@link Request#waitForResponse(long)} returns a response.
+	 * 
+	 * @param timeoutMillis timeout in milliseconds for the first response.
+	 * @return first response, or {@code null}, if not response is reported
+	 *         within the provided timeout.
+	 * @since 3.0
+	 */
+	public synchronized CoapResponse waitForResponse(long timeoutMillis) {
+		if (current == null) {
+			try {
+				wait(timeoutMillis);
+			} catch (InterruptedException e) {
+			}
+		}
+		return current;
+	}
+
+	/**
+	 * Gets the current notification.
 	 *
-	 * @return the current notification
+	 * @return the current notification, or {@code null}, if none has arrived
+	 *         yet
+	 * @see #waitForResponse(long)
 	 */
 	public CoapResponse getCurrent() {
 		return current;
@@ -108,7 +133,10 @@ public class CoapObserveRelation extends ClientObserveRelation {
 		if (null != response) {
 			isNew = super.onResponse(response.advanced());
 			if (isNew) {
-				current = response;
+				synchronized (this) {
+					current = response;
+					notifyAll();
+				}
 			}
 		}
 		return isNew;
@@ -117,7 +145,10 @@ public class CoapObserveRelation extends ClientObserveRelation {
 	@Override
 	public boolean onResponse(Response response) {
 		if (super.onResponse(response)) {
-			current = new CoapResponse(response);
+			synchronized (this) {
+				current = new CoapResponse(response);
+				notifyAll();
+			}
 			return true;
 		} else {
 			return false;
