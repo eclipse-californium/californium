@@ -27,6 +27,7 @@ public class CountingMessageObserver extends MessageObserverAdapter {
 	public AtomicInteger sentCalls = new AtomicInteger();
 	public AtomicInteger loadCalls = new AtomicInteger();
 	public AtomicInteger errorCalls = new AtomicInteger();
+	public AtomicInteger responseErrorCalls = new AtomicInteger();
 
 	@Override
 	public void onSent(boolean retransmission) {
@@ -57,7 +58,7 @@ public class CountingMessageObserver extends MessageObserverAdapter {
 		}
 		System.out.println("Received " + counter + ". Notification: " + response);
 	}
-	
+
 	@Override
 	public void onSendError(Throwable error) {
 		int counter;
@@ -67,7 +68,17 @@ public class CountingMessageObserver extends MessageObserverAdapter {
 		}
 		System.out.println(counter + " Errors!");
 	}
-	
+
+	@Override
+	public void onResponseHandlingError(Throwable error) {
+		int counter;
+		synchronized (this) {
+			counter = responseErrorCalls.incrementAndGet();
+			notifyAll();
+		}
+		System.out.println(counter + " Response-Errors!");
+	}
+
 	public boolean waitForSentCalls(final int counter, final long timeout, final TimeUnit unit)
 			throws InterruptedException {
 		return waitForCalls(counter, timeout, unit, sentCalls);
@@ -86,6 +97,11 @@ public class CountingMessageObserver extends MessageObserverAdapter {
 	public boolean waitForErrorCalls(final int counter, final long timeout, final TimeUnit unit)
 			throws InterruptedException {
 		return waitForCalls(counter, timeout, unit, errorCalls);
+	}
+
+	public boolean waitForResponseErrorCalls(final int counter, final long timeout, final TimeUnit unit)
+			throws InterruptedException {
+		return waitForCalls(counter, timeout, unit, responseErrorCalls);
 	}
 
 	private synchronized boolean waitForCalls(final int counter, final long timeout, final TimeUnit unit,

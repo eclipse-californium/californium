@@ -29,6 +29,8 @@ Since 3.0 the sub-class may be ignored, depending on the provided value of the `
 
 Since 3.0, the value is not initialized and must be provided with a separate setter call or using a other `Option` constructor. Though the 3.0 will now validate the option value, using `Bytes.EMPTY` as default would fail in too many cases.
 
+`Request.setOnResponseError(Throwable error)` is not longer accompanied by `Request.setCanceled(boolean canceled)`.
+
 ### Scandium:
 
 Redesigned! May cause also unaware changes! If you detect one, please create an issue on 

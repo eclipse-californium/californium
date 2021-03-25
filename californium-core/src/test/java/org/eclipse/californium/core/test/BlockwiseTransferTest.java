@@ -213,7 +213,7 @@ public class BlockwiseTransferTest {
 		Request req = Request.newGet().setURI(getUri(serverEndpoint, RESOURCE_BIG));
 		req.addMessageObserver(observer);
 		clientEndpoint.sendRequest(req);
-		assertTrue(observer.waitForCancelCalls(1, 1000, TimeUnit.MILLISECONDS));
+		assertTrue(observer.waitForResponseErrorCalls(1, 1000, TimeUnit.MILLISECONDS));
 	}
 	
 	/**
