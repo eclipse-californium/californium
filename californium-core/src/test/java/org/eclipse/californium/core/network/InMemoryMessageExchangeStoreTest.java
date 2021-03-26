@@ -139,7 +139,7 @@ public class InMemoryMessageExchangeStoreTest {
 		store.registerOutboundRequest(exchange);
 
 		// WHEN registering the same request as a re-transmission
-		exchange.setFailedTransmissionCount(1);
+		exchange.incrementFailedTransmissionCount();
 		store.registerOutboundRequest(exchange);
 
 		// THEN the store contains the re-transmitted request

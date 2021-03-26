@@ -119,11 +119,9 @@ import org.slf4j.LoggerFactory;
  * concurrent collections in the matcher and therefore establish a "happens
  * before" order (as long as threads accessing the exchange via the matcher).
  * But some methods are out of scope of that and use Exchange directly (e.g.
- * {@link #setEndpointContext(EndpointContext)} the "sender thread" or
- * {@link #setFailedTransmissionCount(int)} the "retransmission thread
- * (executor)"). Therefore use at least volatile for the fields. This doesn't
- * ensure, that Exchange is thread safe, it only ensures the visibility of the
- * states.
+ * {@link #setEndpointContext(EndpointContext)} the "sender thread"). Therefore
+ * some fields use at least volatile. This doesn't ensure, that Exchange is
+ * thread safe, it only ensures the visibility of the states.
  */
 public class Exchange {
 
@@ -168,6 +166,22 @@ public class Exchange {
 	 * Otherwise many change in the tests would be required.
 	 */
 	private final SerialExecutor executor;
+	/** The nano timestamp when this exchange has been created */
+	private final long nanoTimestamp;
+	/**
+	 * Enable to keep the original request in the exchange store. Intended to be
+	 * used for observe request with blockwise response to be able to react on
+	 * newer notifies during an ongoing transfer.
+	 */
+	private final boolean keepRequestInStore;
+	/**
+	 * Mark exchange as notification.
+	 */
+	private final boolean notification;
+	// indicates where the request of this exchange has been initiated.
+	// (as suggested by effective Java, item 40.)
+	private final Origin origin;
+
 	/**
 	 * Caller of {@link #setComplete()}. Intended for debug logging.
 	 */
@@ -186,20 +200,6 @@ public class Exchange {
 	/** Indicates if the exchange is complete */
 	private final AtomicBoolean complete = new AtomicBoolean();
 
-	/** The nano timestamp when this exchange has been created */
-	private final long nanoTimestamp;
-
-	/**
-	 * Enable to keep the original request in the exchange store. Intended to be
-	 * used for observe request with blockwise response to be able to react on
-	 * newer notifies during an ongoing transfer.
-	 */
-	private final boolean keepRequestInStore;
-
-	/**
-	 * Mark exchange as notification.
-	 */
-	private final boolean notification;
 	/**
 	 * The key mid for the current request.
 	 */
@@ -270,21 +270,20 @@ public class Exchange {
 	// Matching needs to know when receiving duplicate
 	private volatile Response currentResponse;
 
-	// indicates where the request of this exchange has been initiated.
-	// (as suggested by effective Java, item 40.)
-	private final Origin origin;
-
 	// true if the exchange has failed due to a timeout
 	private volatile boolean timedOut;
 
+	// the timeout scale factor, exponential back-off between retransmissions, if larger than 1.0F.
+	private float timeoutScale;
+
 	// the timeout of the current request or response set by reliability layer
-	private volatile int currentTimeout;
+	private int currentTimeout;
 
 	// the amount of attempted transmissions that have not succeeded yet
 	private volatile int failedTransmissionCount = 0;
 
 	// handle to cancel retransmission
-	private ScheduledFuture<?> retransmissionHandle;
+	private volatile ScheduledFuture<?> retransmissionHandle;
 
 	// If the request was sent with a block1 option the response has to send its
 	// first block piggy-backed with the Block1 option of the last request block
@@ -549,6 +548,8 @@ public class Exchange {
 	public void setCurrentRequest(Request newCurrentRequest) {
 		assertOwner();
 		if (currentRequest != newCurrentRequest) {
+			// reset retransmission also for remote exchanges
+			// enables to replace newer notifies for CON notifies in transit
 			setRetransmissionHandle(null);
 			failedTransmissionCount = 0;
 			LOGGER.debug("{} replace {} by {}", this, currentRequest, newCurrentRequest);
@@ -742,30 +743,94 @@ public class Exchange {
 		}
 	}
 
+	/**
+	 * Get failed transmissions count.
+	 * 
+	 * @return number of failed transmissions
+	 */
 	public int getFailedTransmissionCount() {
 		return failedTransmissionCount;
 	}
 
-	public void setFailedTransmissionCount(int failedTransmissionCount) {
-		this.failedTransmissionCount = failedTransmissionCount;
+	/**
+	 * Increment the failed transmission count.
+	 * 
+	 * @return incremented number of failed transmissions
+	 * @since 3.0
+	 */
+	public int incrementFailedTransmissionCount() {
+		assertOwner();
+		return ++failedTransmissionCount;
 	}
 
+	/**
+	 * Get timeout scale factor for exponential back-off between retransmissions.
+	 * 
+	 * @return timeout scale factor for exponential back-off.
+	 * @since 3.0
+	 */
+	public float getTimeoutScale() {
+		return timeoutScale;
+	}
+
+	/**
+	 * Set timeout scale factor for exponential back-off between
+	 * retransmissions.
+	 * 
+	 * @param scale timeout scale factor. Must be at least 1.0. If larger than
+	 *            1.0, an exponential back-off between retransmissions is used.
+	 * @throws IllegalArgumentException if value is not at least 1.0.
+	 * @since 3.0
+	 */
+	public void setTimeoutScale(float scale) {
+		if (scale < 1.0F) {
+			throw new IllegalArgumentException("Timeout scale factor must be at least 1.0, not " + scale);
+		}
+		timeoutScale = scale;
+	}
+
+	/**
+	 * Get current timeout.
+	 * 
+	 * Timeout for retransmission, if no ACK, RST nor response is received.
+	 * 
+	 * @return current timeout in milliseconds
+	 */
 	public int getCurrentTimeout() {
 		return currentTimeout;
 	}
 
+	/**
+	 * Set current timeout.
+	 * 
+	 * Timeout for retransmission, if no ACK, RST nor response is received.
+	 * 
+	 * @param currentTimeout current timeout in milliseconds. Must be larger
+	 *            than 0.
+	 */
 	public void setCurrentTimeout(int currentTimeout) {
+		if (currentTimeout <= 1) {
+			throw new IllegalArgumentException("Timeout  must be larger than 1 ms, not " + currentTimeout);
+		}
 		this.currentTimeout = currentTimeout;
 	}
 
-	public ScheduledFuture<?> getRetransmissionHandle() {
-		return retransmissionHandle;
+	/**
+	 * Check, if ACK, RST or response for transmission is pending.
+	 * 
+	 * @return {@code true}, if ACK, RST or response is pending, {@code false},
+	 *         if not.
+	 * @since 3.0 (was getRetransmissionHandle)
+	 */
+	public boolean isTransmissionPending() {
+		return retransmissionHandle != null;
 	}
 
 	/**
 	 * Set retransmission handle.
 	 * 
-	 * @param newRetransmissionHandle new retransmission handle
+	 * @param newRetransmissionHandle new retransmission handle. May be
+	 *            {@code null}, if no retransmission is required.
 	 * @throws ConcurrentModificationException if not executed within
 	 *             {@link #execute(Runnable)}.
 	 */

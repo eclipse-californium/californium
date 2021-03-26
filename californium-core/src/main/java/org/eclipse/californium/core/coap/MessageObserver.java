@@ -49,12 +49,16 @@ import org.eclipse.californium.elements.EndpointContext;
  * <li>{@link #onDtlsRetransmission(int)} when a dtls handshake flight is
  * retransmitted.</li>
  * <li>{@link #onSent(boolean)} right after the message has been sent
- * (successfully)</li>
+ * (successfully). The order of this callback related to
+ * {@link #onAcknowledgement()} or {@link #onResponse(Response)} is undefined.
+ * For some cases {@link #onContextEstablished(EndpointContext)} may be the
+ * better choice.</li>
  * <li>{@link #onSendError(Throwable)} if the message cannot be sent</li>
  * <li>{@link #onResponseHandlingError(Throwable)} if an error happens during
  * response handling</li>
- * <li>{@link #onContextEstablished(EndpointContext)} when the resulting endpoint
- * context is reported by the connector</li>
+ * <li>{@link #onContextEstablished(EndpointContext)} when the resulting
+ * endpoint context is reported by the connector, short before actually send the
+ * message</li>
  * <li>{@link #onTransferComplete()} if transfer is successfully complete</li>
  * </ul>
  * <p>
@@ -71,6 +75,12 @@ import org.eclipse.californium.elements.EndpointContext;
  * endpoint and a resource. However, when a request establishes a CoAP observe
  * relationship to a resource which sends notifications, the method
  * {@link #onResponse(Response)} can be used to react to each such notification.
+ * <p>
+ * Note: Due to the execution model of Californium, all callbacks must be
+ * processed in a none-blocking manner. Otherwise the performance will get
+ * downgraded and deadlocks are risked. The order of the callbacks is also not
+ * strictly defined. Especially {@link #onSent(boolean)} may be called after
+ * {@link #onAcknowledgement()} or {@link #onResponse(Response)}.
  */
 public interface MessageObserver {
 
