@@ -182,7 +182,7 @@ public class AsyncAdvancedPskStore implements AdvancedPskStore {
 	 * Get secret asynchronous and forward it to the {@link #resultHandler}.
 	 * 
 	 * @param cid connection id for stateless asynchronous implementations.
-	 * @param serverName server names. Maybe {@code null}, if SNI is not enabled
+	 * @param serverNames server names. Maybe {@code null}, if SNI is not enabled
 	 *            or not used by the client.
 	 * @param identity psk identity. Maybe normalized
 	 * @param hmacAlgorithm HMAC algorithm name for PRF.

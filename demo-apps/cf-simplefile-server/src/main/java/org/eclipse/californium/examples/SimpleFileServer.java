@@ -174,7 +174,6 @@ public class SimpleFileServer extends AbstractTestServer {
 		 * @param config network configuration
 		 * @param coapRootPath CoAP resource (base) name
 		 * @param filesRoot files root
-		 * @param maxFileLength maximum file length
 		 */
 		public FileResource(NetworkConfig config, String coapRootPath, File filesRoot) {
 			super(coapRootPath);
