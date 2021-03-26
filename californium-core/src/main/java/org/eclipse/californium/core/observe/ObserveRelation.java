@@ -285,7 +285,7 @@ public class ObserveRelation {
 
 	/**
 	 * Returns {@code true}, if the specified response is still in transit. A
-	 * response is in transit if it has not yet been acknowledged, rejected or
+	 * response is in transit, if it has not yet been acknowledged, rejected or
 	 * its current transmission has not yet timed out.
 	 * 
 	 * @param response notification to check.
