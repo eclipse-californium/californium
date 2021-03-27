@@ -65,6 +65,7 @@ import org.eclipse.californium.core.coap.CoAP.Type;
 
 import java.net.InetSocketAddress;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
@@ -77,6 +78,8 @@ import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.eclipse.californium.elements.util.StringUtil;
 
 /**
@@ -232,13 +235,23 @@ public final class UdpMatcher extends BaseMatcher {
 					LOGGER.warn("new request {} could not be registered! Deduplication disabled!", request);
 				}
 			} else if (previousRequest.isMulticast() || request.isMulticast()) {
+				// check, if request is received via multiple interfaces
 				InetSocketAddress group = request.getDestinationContext() == null ? null
 						: request.getDestinationContext().getPeerAddress();
 				InetSocketAddress previousGroup = previousRequest.getDestinationContext() == null ? null
 						: previousRequest.getDestinationContext().getPeerAddress();
-				if (group != previousGroup && (group == null || !group.equals(previousGroup))) {
-					LOGGER.warn("received request {} via different multicast groups ({} != {})!", request,
-							StringUtil.toLog(group), StringUtil.toLog(previousGroup));
+				if (!NetworkInterfacesUtil.equals(group, previousGroup)) {
+					boolean differs = Bytes.equals(request.getToken(), previousRequest.getToken());
+					long timeDiff = TimeUnit.NANOSECONDS
+							.toMillis(Math.abs(request.getNanoTimestamp() - previousRequest.getNanoTimestamp()));
+					if (differs) {
+						LOGGER.info(
+								"received different requests {} with same MID via different multicast groups ({} != {}) within {}ms!",
+								request, StringUtil.toLog(group), StringUtil.toLog(previousGroup), timeDiff);
+					} else {
+						LOGGER.warn("received requests {} via different multicast groups ({} != {}) within {}ms!",
+								request, StringUtil.toLog(group), StringUtil.toLog(previousGroup), timeDiff);
+					}
 				}
 			}
 		}

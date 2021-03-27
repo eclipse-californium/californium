@@ -20,6 +20,7 @@ import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InterfaceAddress;
 import java.net.NetworkInterface;
+import java.net.SocketAddress;
 import java.net.SocketException;
 import java.util.Collection;
 import java.util.Enumeration;
@@ -399,5 +400,29 @@ public class NetworkInterfacesUtil {
 	public static boolean isMultiAddress(InetAddress address) {
 		initialize();
 		return address != null && (address.isMulticastAddress() || broadcastAddresses.contains(address));
+	}
+
+	/**
+	 * Check, if both provided addresses are equal.
+	 * 
+	 * @param address1 address 1. May be {@code null}, if not available.
+	 * @param address2 address 2. May be {@code null}, if not available.
+	 * @return {@code true}, if both addresses are equal, {@link false}, if not.
+	 * @since 3.0
+	 */
+	public static boolean equals(InetAddress address1, InetAddress address2) {
+		return address1 == address2 || (address1 != null && address1.equals(address2));
+	}
+
+	/**
+	 * Check, if both provided socket addresses are equal.
+	 * 
+	 * @param address1 address 1. May be {@code null}, if not available.
+	 * @param address2 address 2. May be {@code null}, if not available.
+	 * @return {@code true}, if both addresses are equal, {@link false}, if not.
+	 * @since 3.0
+	 */
+	public static boolean equals(SocketAddress address1, SocketAddress address2) {
+		return address1 == address2 || (address1 != null && address1.equals(address2));
 	}
 }
