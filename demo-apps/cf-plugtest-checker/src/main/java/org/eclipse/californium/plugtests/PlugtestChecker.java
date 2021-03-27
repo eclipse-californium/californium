@@ -31,11 +31,8 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Modifier;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import org.eclipse.californium.cli.ClientBaseConfig;
 import org.eclipse.californium.cli.ClientInitializer;
@@ -86,12 +83,6 @@ public class PlugtestChecker {
 	/** The server uri. */
 	private String serverURI = null;
 
-	/** The test map. */
-	private final Map<String, Class<?>> testMap = new HashMap<String, Class<?>>();
-
-	/** The test list. */
-	protected List<String> testsToRun = new ArrayList<String>();
-
 	/**
 	 * Default constructor. Loads with reflection each nested class that is a
 	 * derived type of TestClientAbstract.
@@ -104,16 +95,6 @@ public class PlugtestChecker {
 		}
 
 		this.serverURI = serverURI;
-
-		// fill the map with each nested class not abstract that instantiate
-		// TestClientAbstract
-		for (Class<?> clientTest : this.getClass().getDeclaredClasses()) {
-			if (!Modifier.isAbstract(clientTest.getModifiers())
-					&& (clientTest.getSuperclass() == TestClientAbstract.class)) {
-
-				this.testMap.put(clientTest.getSimpleName(), clientTest);
-			}
-		}
 	}
 
 	/**
