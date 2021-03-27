@@ -189,11 +189,13 @@ public class LibCoapServerGnuTlsInteroperabilityTest {
 		processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
 		californiumUtil.start(BIND, null, cipherSuite);
-		ProcessResult result = connect(true);
 
 		if (processUtil.compareVersion("4.3.0") >= 0) {
-			assertTrue(result.contains("'cf-client'"));
+			connect(true, "'cf-client'");
+		} else {
+			connect(true);
 		}
+
 		californiumUtil.assertPrincipalType(X509CertPath.class);
 	}
 
@@ -245,9 +247,10 @@ public class LibCoapServerGnuTlsInteroperabilityTest {
 		processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
 		californiumUtil.start(BIND, null, cipherSuite);
-		ProcessResult result = connect(true);
 		if (processUtil.compareVersion("4.3.0") >= 0) {
-			assertTrue(result.contains("'cf-client'"));
+			connect(true, "'cf-client'");
+		} else {
+			connect(true);
 		}
 		californiumUtil.assertPrincipalType(X509CertPath.class);
 	}

@@ -160,12 +160,8 @@ public class LibCoapServerMbedTlsInteroperabilityTest {
 		processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
 		californiumUtil.start(BIND, null, cipherSuite);
-		ProcessResult result = connect(true);
+		connect(true, "parse certificate verify", "CN=cf-client,");
 
-		if (processUtil.compareVersion("4.3.0") >= 0) {
-			assertTrue(result.contains("parse certificate verify"));
-			assertTrue(result.contains("CN=cf-client,"));
-		}
 		californiumUtil.assertPrincipalType(X509CertPath.class);
 	}
 
@@ -211,11 +207,7 @@ public class LibCoapServerMbedTlsInteroperabilityTest {
 		processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
 		californiumUtil.start(BIND, null, cipherSuite);
-		ProcessResult result = connect(true);
-		if (processUtil.compareVersion("4.3.0") >= 0) {
-			assertTrue(result.contains("parse certificate verify"));
-			assertTrue(result.contains("CN=cf-client,"));
-		}
+		connect(true, "parse certificate verify", "CN=cf-client,");
 		californiumUtil.assertPrincipalType(X509CertPath.class);
 	}
 

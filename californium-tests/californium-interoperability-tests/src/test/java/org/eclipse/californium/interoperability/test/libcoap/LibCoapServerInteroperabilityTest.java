@@ -196,11 +196,10 @@ public class LibCoapServerInteroperabilityTest {
 		processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
 		californiumUtil.start(BIND, null, cipherSuite);
-		ProcessResult result = connect(true);
-
 		if (processUtil.compareVersion("4.3.0") >= 0) {
-			assertTrue(result.contains("write certificate request"));
-			assertTrue(result.contains("'cf-client'"));
+			connect(true, "write certificate request", "'cf-client'");
+		} else {
+			connect(true);
 		}
 		californiumUtil.assertPrincipalType(X509CertPath.class);
 	}
@@ -245,10 +244,10 @@ public class LibCoapServerInteroperabilityTest {
 		processUtil.startupServer(ACCEPT, TRUST, cipherSuite);
 
 		californiumUtil.start(BIND, null, cipherSuite);
-		ProcessResult result = connect(true);
 		if (processUtil.compareVersion("4.3.0") >= 0) {
-			assertTrue(result.contains("write certificate request"));
-			assertTrue(result.contains("'cf-client'"));
+			connect(true, "write certificate request", "'cf-client'");
+		} else {
+			connect(true);
 		}
 		californiumUtil.assertPrincipalType(X509CertPath.class);
 	}

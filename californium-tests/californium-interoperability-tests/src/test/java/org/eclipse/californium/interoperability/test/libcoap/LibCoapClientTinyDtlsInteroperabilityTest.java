@@ -136,9 +136,7 @@ public class LibCoapClientTinyDtlsInteroperabilityTest {
 		californiumUtil.start(BIND, null, cipherSuite);
 
 		processUtil.startupClient(DESTINATION_URL + "test", RPK, "Hello, CoAP!", cipherSuite);
-		ProcessResult result = connect("Hello, CoAP!", "Greetings!");
-		assertTrue(result.contains("certificate \\(11\\)"));
-		assertTrue(result.contains("certificate_verify \\(15\\)"));
+		connect("Hello, CoAP!", "Greetings!", "certificate \\(11\\)", "certificate_verify \\(15\\)");
 		californiumUtil.assertPrincipalType(RawPublicKeyIdentity.class);
 	}
 
