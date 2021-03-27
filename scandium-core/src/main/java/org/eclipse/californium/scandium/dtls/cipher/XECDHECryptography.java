@@ -328,18 +328,20 @@ public final class XECDHECryptography implements Destroyable {
 		}
 		check("IN: ", peerPublicKey, encodedPoint);
 
+		SecretKey secretKey = null;
 		KeyAgreement keyAgreement = null;
 		if (supportedGroup.getAlgorithmName().equals(EC_KEYPAIR_GENERATOR_ALGORITHM)) {
 			keyAgreement = ECDH_KEY_AGREEMENT.currentWithCause();
 		} else if (supportedGroup.getAlgorithmName().equals(XDH_KEYPAIR_GENERATOR_ALGORITHM)) {
 			keyAgreement = XDH_KEY_AGREEMENT.currentWithCause();
 		}
-		keyAgreement.init(privateKey);
-		keyAgreement.doPhase(peerPublicKey, true);
-		byte[] secret = keyAgreement.generateSecret();
-		SecretKey secretKey = SecretUtil.create(secret, "TlsPremasterSecret");
-		Bytes.clear(secret);
-
+		if (keyAgreement != null) {
+			keyAgreement.init(privateKey);
+			keyAgreement.doPhase(peerPublicKey, true);
+			byte[] secret = keyAgreement.generateSecret();
+			secretKey = SecretUtil.create(secret, "TlsPremasterSecret");
+			Bytes.clear(secret);
+		}
 		return secretKey;
 	}
 
