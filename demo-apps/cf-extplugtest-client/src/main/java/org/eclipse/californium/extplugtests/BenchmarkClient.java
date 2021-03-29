@@ -265,6 +265,9 @@ public class BenchmarkClient {
 		@Option(names = "--handshakes-burst", description = "number of closes or full-handshakes in sequence.")
 		public Integer bursts;
 
+		@Option(names = "--nstart", description = "number of concurrent requests.")
+		public Integer nstart;
+
 		@ArgGroup(exclusive = false)
 		Reverse reverse;
 
@@ -981,6 +984,15 @@ public class BenchmarkClient {
 			if (request != null) {
 				request.addMessageObserver(retransmissionDetector);
 				client.advanced(new TestHandler(request), request);
+			}
+			if (config.nstart != null) {
+				for (int counter=1; counter < config.nstart; ++counter) {
+					request = prepareRequest(client, c);
+					if (request != null) {
+						request.addMessageObserver(retransmissionDetector);
+						client.advanced(new TestHandler(request), request);
+					}
+				}
 			}
 		}
 	}
