@@ -81,7 +81,12 @@ public class StringUtil {
 			// android before API 18
 		}
 		SUPPORT_HOST_STRING = support;
-		CALIFORNIUM_VERSION = StringUtil.class.getPackage().getImplementationVersion();
+		String version = null;
+		Package pack = StringUtil.class.getPackage();
+		if (pack != null) {
+			version = pack.getImplementationVersion();
+		}
+		CALIFORNIUM_VERSION = version;
 	}
 
 	@NotForAndroid
