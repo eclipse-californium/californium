@@ -1,26 +1,11 @@
-# Add project specific ProGuard rules here.
-# By default, the flags in this file are appended to flags specified
-# in C:\Tools\Android\sdk/tools/proguard/proguard-android.txt
-# You can edit the include path and order by changing the proguardFiles
-# directive in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# For more details, see http://developer.android.com/guide/developing/tools/proguard.html
 
-# Add any project specific keep options here:
+# Californium should not need any R8 rules for it to work properly.
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
--keep class org.eclipse.** { *; }
--keep interface org.eclipse.** { *; }
--keep enum org.eclipse.** { *; }
--keep class io.netty.** { *; }
--keep interface io.netty.** { *; }
--keep enum io.netty.** { *; }
--dontwarn org.eclipse.**
--dontwarn org.slf4j.**
--dontwarn io.netty.**
+
+# The rules below are only added here for testing the sample app, you do not need to add them in your project.
+# Keep line numbers for debugging
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
+# Move all classes to the root package to see what happens with Californium
+-repackageclasses ''
