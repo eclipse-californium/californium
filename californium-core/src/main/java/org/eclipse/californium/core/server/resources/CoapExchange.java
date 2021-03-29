@@ -287,8 +287,7 @@ public class CoapExchange {
 	 *            to send requests.
 	 * 
 	 * @see Exchange#sendResponse(Response)
-	 * @see <a href="https://tools.ietf.org/html/rfc8516">RFC8516 - Too Many
-	 *      Requests</a>.
+	 * @see <a href="https://tools.ietf.org/html/rfc8516" target="_top">RFC8516 - Too Many Requests</a>
 	 * @since 3.0
 	 */
 	public void respondClientOverload(int seconds) {

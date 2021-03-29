@@ -38,8 +38,7 @@ import org.eclipse.californium.elements.util.Bytes;
  * client.
  * </pre>
  * 
- * @see <a href="https://tools.ietf.org/html/rfc7967">RFC7967 - No Server
- *      Response</a>.
+ * @see <a href="https://tools.ietf.org/html/rfc7967" target="_top"> RFC7967 - No Server Response</a>
  * @since 3.0
  */
 public final class NoResponseOption {

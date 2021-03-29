@@ -407,7 +407,7 @@ public class NetworkInterfacesUtil {
 	 * 
 	 * @param address1 address 1. May be {@code null}, if not available.
 	 * @param address2 address 2. May be {@code null}, if not available.
-	 * @return {@code true}, if both addresses are equal, {@link false}, if not.
+	 * @return {@code true}, if both addresses are equal, {@code false}, if not.
 	 * @since 3.0
 	 */
 	public static boolean equals(InetAddress address1, InetAddress address2) {
@@ -419,7 +419,7 @@ public class NetworkInterfacesUtil {
 	 * 
 	 * @param address1 address 1. May be {@code null}, if not available.
 	 * @param address2 address 2. May be {@code null}, if not available.
-	 * @return {@code true}, if both addresses are equal, {@link false}, if not.
+	 * @return {@code true}, if both addresses are equal, {@code false}, if not.
 	 * @since 3.0
 	 */
 	public static boolean equals(SocketAddress address1, SocketAddress address2) {

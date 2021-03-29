@@ -149,6 +149,8 @@ public interface MessageObserver {
 	 * <p>
 	 * Triggered, when the message was sent by a connector.
 	 * 
+	 * Note: the callback may occur "out of order" due the used threading!
+	 * 
 	 * @param retransmission {@code true}, if the message is sent by
 	 *            retransmission, {@code false}, if the message is sent the
 	 *            first time.

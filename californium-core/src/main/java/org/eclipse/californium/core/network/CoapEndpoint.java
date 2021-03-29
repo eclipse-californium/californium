@@ -440,7 +440,9 @@ public class CoapEndpoint implements Endpoint {
 
 	/**
 	 * Get logging tag.
-	 * @return
+	 * 
+	 * @return the logging tag
+	 * @since 3.0
 	 */
 	public String getTag() {
 		return tag;
