@@ -21,6 +21,7 @@ import static org.eclipse.californium.interoperability.test.OpenSslUtil.CLIENT_C
 import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.OpenSslUtil.SERVER_RSA_CERTIFICATE;
 import static org.eclipse.californium.interoperability.test.OpenSslUtil.TRUSTSTORE;
+import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeTrue;
 
 import java.io.IOException;
@@ -45,7 +46,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
  * "https://bintray.com/vszakats/generic/download_file?file_path=openssl-1.1.1c-win64-mingw.zip">OpenSsl
  * for Windows</a> and add that to your path.
  * 
- * Note: the windows version 1.1.1a to 1.1.1d of the openssl s_server seems to
+ * Note: the windows version 1.1.1a to 1.1.1k of the openssl s_server seems to
  * be broken. It starts only to accept, when the first message is entered.
  * Therefore the test are skipped on windows.
  */
@@ -93,6 +94,19 @@ public class OpenSslProcessUtil extends ProcessUtil {
 			return null;
 		} catch (IOException ex) {
 			return null;
+		}
+	}
+
+	public void assumeServerVersion() {
+		String os = System.getProperty("os.name");
+		if (os.startsWith("Windows")) {
+			try {
+				ProcessResult result = waitResult(2000);
+				assumeFalse("Windows openssl server 1.1.1 seems to be broken!",
+						result.contains("OpenSSL 1\\.1\\.1[a-k]"));
+			} catch (InterruptedException ex) {
+				assumeFalse("result for openssl version missing!", true);
+			}
 		}
 	}
 
