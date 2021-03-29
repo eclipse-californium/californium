@@ -16,7 +16,6 @@
 package org.eclipse.californium.interoperability.test.openssl;
 
 import static org.eclipse.californium.interoperability.test.ProcessUtil.TIMEOUT_MILLIS;
-import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeNotNull;
 import static org.junit.Assume.assumeTrue;
 
@@ -73,10 +72,7 @@ public class OpenSslServerInteroperabilityTest {
 		ProcessResult result = processUtil.getOpenSslVersion(TIMEOUT_MILLIS);
 		assumeNotNull(result);
 		assumeTrue(result.contains("OpenSSL 1\\.1\\."));
-		String os = System.getProperty("os.name");
-		if (os.startsWith("Windows")) {
-			assumeFalse("Windows openssl server 1.1.1 seems to be broken!", result.contains("OpenSSL 1\\.1\\.1[abcd]"));
-		}
+		processUtil.assumeServerVersion();
 		scandiumUtil = new ScandiumUtil(true);
 	}
 

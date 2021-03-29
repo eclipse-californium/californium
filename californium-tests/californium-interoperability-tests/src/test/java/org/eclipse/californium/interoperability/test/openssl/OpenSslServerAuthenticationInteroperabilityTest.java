@@ -21,7 +21,6 @@ import static org.eclipse.californium.interoperability.test.openssl.OpenSslProce
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.CHAIN;
 import static org.eclipse.californium.interoperability.test.openssl.OpenSslProcessUtil.AuthenticationMode.TRUST;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeFalse;
 import static org.junit.Assume.assumeNotNull;
 import static org.junit.Assume.assumeTrue;
 
@@ -77,10 +76,7 @@ public class OpenSslServerAuthenticationInteroperabilityTest {
 		ProcessResult result = processUtil.getOpenSslVersion(TIMEOUT_MILLIS);
 		assumeNotNull(result);
 		assumeTrue(result.contains("OpenSSL 1\\.1\\."));
-		String os = System.getProperty("os.name");
-		if (os.startsWith("Windows")) {
-			assumeFalse("Windows openssl server 1.1.1 seems to be broken!", result.contains("OpenSSL 1\\.1\\.1[abcd]"));
-		}
+		processUtil.assumeServerVersion();
 		scandiumUtil = new ScandiumUtil(true);
 		cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8;
 	}
