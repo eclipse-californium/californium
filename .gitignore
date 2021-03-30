@@ -17,9 +17,8 @@ local.properties
 # Android #
 ###########
 .gradle
-gradle/
-gradlew*
 build/
+!gradlew.bat
 
 # Maven #
 #########
@@ -63,6 +62,9 @@ target/
 *.rar
 *.tar
 *.zip
+
+# the gradle-wrapper.jar should be included in the Android demo so
+!gradle-wrapper.jar
 
 # Logs and databases #
 ######################
