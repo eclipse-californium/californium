@@ -22,7 +22,8 @@ package org.eclipse.californium.examples;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
-import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
+import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -47,35 +48,43 @@ public class ConfigureDtls {
     public static final String PSK_IDENTITY = "password";
     public static final byte[] PSK_SECRET = "sesame".getBytes();
     private static final String TRUST_NAME = null; // loads all the certificates
-    private static final String KEY_STORE_LOCATION = "certs/client.p12";
+    private static final String KEY_STORE_LOCATION = "certs/%s.p12";
     private static final String TRUST_STORE_LOCATION = "certs/trustStore.p12";
     private static final char[] TRUST_STORE_PASSWORD = "rootPass".toCharArray();
     private static final char[] KEY_STORE_PASSWORD = "endPass".toCharArray();
 
     public static void loadCredentials(DtlsConnectorConfig.Builder dtlsConfig, String alias){
 
+        boolean credentialsSet = false;
         SslContextUtil.Credentials endpointCredentials = null;
         Certificate[] trustedCertificates = null;
-        try {
-            endpointCredentials = SslContextUtil.loadCredentials(
-                    SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, alias, KEY_STORE_PASSWORD,
-                    KEY_STORE_PASSWORD);
-            trustedCertificates = SslContextUtil.loadTrustedCertificates(
-                    SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, TRUST_NAME, TRUST_STORE_PASSWORD);
-        } catch (GeneralSecurityException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
+        if (CERTIFICATE_MODE || RPK_MODE) {
+            try {
+                String location = String.format(KEY_STORE_LOCATION, alias);
+                endpointCredentials = SslContextUtil.loadCredentials(
+                        SslContextUtil.CLASSPATH_SCHEME + location, alias, KEY_STORE_PASSWORD,
+                        KEY_STORE_PASSWORD);
+                trustedCertificates = SslContextUtil.loadTrustedCertificates(
+                        SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, TRUST_NAME, TRUST_STORE_PASSWORD);
+            } catch (GeneralSecurityException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            if (CERTIFICATE_MODE && endpointCredentials != null && trustedCertificates != null) {
+                dtlsConfig.setIdentity(endpointCredentials.getPrivateKey(), endpointCredentials.getCertificateChain(), CertificateType.X_509);
+                dtlsConfig.setAdvancedCertificateVerifier(StaticNewAdvancedCertificateVerifier.builder().setTrustedCertificates(trustedCertificates).build());
+                dtlsConfig.setRetransmissionTimeout(2000);
+                dtlsConfig.setMaxRetransmissions(3);
+                credentialsSet = true;
+            } else if (RPK_MODE && endpointCredentials != null) {
+                dtlsConfig.setIdentity(endpointCredentials.getPrivateKey(), endpointCredentials.getCertificateChain(), CertificateType.RAW_PUBLIC_KEY);
+                dtlsConfig.setAdvancedCertificateVerifier(StaticNewAdvancedCertificateVerifier.builder().setTrustAllRPKs().build());
+                credentialsSet = true;
+            }
         }
-        if (PSK_MODE) {
-            dtlsConfig.setPskStore(new StaticPskStore(PSK_IDENTITY, PSK_SECRET));
-        } else if (CERTIFICATE_MODE) {
-            dtlsConfig.setTrustStore(trustedCertificates);
-            dtlsConfig.setIdentity(endpointCredentials.getPrivateKey(),
-                    endpointCredentials.getCertificateChain(), CertificateType.X_509);
-        } else if (RPK_MODE) {
-            dtlsConfig.setIdentity(endpointCredentials.getPrivateKey(),
-                    endpointCredentials.getCertificateChain(), CertificateType.RAW_PUBLIC_KEY);
+        if (PSK_MODE || !credentialsSet) {
+            dtlsConfig.setAdvancedPskStore(new AdvancedSinglePskStore(PSK_IDENTITY, PSK_SECRET));
         }
     }
 }

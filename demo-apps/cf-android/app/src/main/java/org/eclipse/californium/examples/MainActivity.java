@@ -37,6 +37,8 @@ import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 
+import java.util.concurrent.TimeUnit;
+
 public class MainActivity extends AppCompatActivity {
 
     public static final String CLIENT_NAME = "client";
@@ -123,7 +125,10 @@ public class MainActivity extends AppCompatActivity {
             if (response!=null) {
                 ((TextView)findViewById(R.id.textCode)).setText(response.getCode().toString());
                 ((TextView)findViewById(R.id.textCodeName)).setText(response.getCode().name());
-                ((TextView)findViewById(R.id.textRtt)).setText(response.advanced().getRTT()+" ms");
+                Long rtt = response.advanced().getApplicationRttNanos();
+                if (rtt != null) {
+                    ((TextView) findViewById(R.id.textRtt)).setText(TimeUnit.NANOSECONDS.toMillis(rtt) + " ms");
+                }
                 ((TextView)findViewById(R.id.textContent)).setText(response.getResponseText());
             } else {
                 ((TextView)findViewById(R.id.textCodeName)).setText("No response");
