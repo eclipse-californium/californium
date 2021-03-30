@@ -16,9 +16,9 @@
  ******************************************************************************/
 package org.eclipse.californium.examples;
 
+import android.app.Activity;
 import android.content.Intent;
 import android.os.AsyncTask;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
@@ -39,7 +39,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 
 import java.util.concurrent.TimeUnit;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends Activity {
 
     public static final String CLIENT_NAME = "client";
 

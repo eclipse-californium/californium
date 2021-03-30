@@ -1,16 +1,15 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools" tools:context=".MainActivity">
     <group>
     <item android:id="@+id/action_sandbox" android:title="@string/action_sandbox"
-        android:orderInCategory="1" app:showAsAction="never" />
+        android:orderInCategory="1" android:showAsAction="never" />
     <item android:id="@+id/action_local" android:title="@string/action_local"
-        android:orderInCategory="2" app:showAsAction="never" />
+        android:orderInCategory="2" android:showAsAction="never" />
     <item android:id="@+id/action_local_dtls" android:title="@string/action_local_dtls"
-        android:orderInCategory="3" app:showAsAction="never" />
+        android:orderInCategory="3" android:showAsAction="never" />
     </group>
     <group>
     <item android:id="@+id/action_start" android:title="@string/action_start"
-        android:orderInCategory="4" app:showAsAction="never" android:checkable="true" />
+        android:orderInCategory="4" android:showAsAction="never" android:checkable="true" />
 </group>
 </menu>
