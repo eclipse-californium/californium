@@ -85,6 +85,11 @@ public class StringUtil {
 		Package pack = StringUtil.class.getPackage();
 		if (pack != null) {
 			version = pack.getImplementationVersion();
+			if ("0.0".equals(version)) {
+				// that seems to be a dummy value used,
+				// if the version is not available
+				version = null;
+			}
 		}
 		CALIFORNIUM_VERSION = version;
 	}
