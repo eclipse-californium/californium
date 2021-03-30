@@ -263,6 +263,23 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 
 	private static final long CLIENT_HELLO_TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(60);
 
+	/**
+	 * Indicates, that MDC support is available.
+	 * 
+	 * @see MDC
+	 */
+	public static final boolean MDC_SUPPORT;
+
+	static {
+		boolean mdc = false;
+		try {
+			MDC.clear();
+			mdc = true;
+		} catch (Throwable ex) {
+		}
+		MDC_SUPPORT = mdc;
+	}
+
 	/** all the configuration options for the DTLS connector */ 
 	protected final DtlsConnectorConfig config;
 
@@ -943,7 +960,9 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 
 				@Override
 				public void doWork() throws Exception {
-					MDC.clear();
+					if (MDC_SUPPORT) {
+						MDC.clear();
+					}
 					packet.setData(receiverBuffer);
 					receiveNextDatagramFromNetwork(packet);
 				}
@@ -1382,7 +1401,9 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	 */
 	protected void processDatagram(DatagramPacket packet, InetSocketAddress router) {
 		InetSocketAddress peerAddress = (InetSocketAddress) packet.getSocketAddress();
-		MDC.put("PEER", StringUtil.toString(peerAddress));
+		if (MDC_SUPPORT) {
+			MDC.put("PEER", StringUtil.toString(peerAddress));
+		}
 		if (health != null) {
 			health.receivingRecord(false);
 		}
@@ -1421,9 +1442,13 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 
 				@Override
 				public void run() {
-					MDC.put("PEER", StringUtil.toString(firstRecord.getPeerAddress()));
+					if (MDC_SUPPORT) {
+						MDC.put("PEER", StringUtil.toString(firstRecord.getPeerAddress()));
+					}
 					processNewClientHello(firstRecord);
-					MDC.clear();
+					if (MDC_SUPPORT) {
+						MDC.clear();
+					}
 				}
 			});
 			return;
