@@ -42,7 +42,6 @@ android {
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
-    implementation 'com.android.support:appcompat-v7:22.2.1'
     implementation 'org.eclipse.californium:californium-core:3.0.0-SNAPSHOT'
     implementation 'org.eclipse.californium:element-connector:3.0.0-SNAPSHOT'
     implementation 'org.eclipse.californium:scandium:3.0.0-SNAPSHOT'
