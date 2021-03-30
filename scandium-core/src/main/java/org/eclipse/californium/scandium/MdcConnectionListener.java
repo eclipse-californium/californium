@@ -30,9 +30,7 @@ import org.slf4j.MDC;
  * 
  * Set:
  * 
- * {@code "PEER"}
- * {@code "CONNECTION_ID"}
- * {@code "WRITE_CONNECTION_ID"}
+ * {@code "PEER"} {@code "CONNECTION_ID"} {@code "WRITE_CONNECTION_ID"}
  * {@code "SESSION_ID"}
  * 
  * @since 2.4
@@ -63,25 +61,27 @@ public class MdcConnectionListener implements ConnectionListener {
 
 	@Override
 	public void beforeExecution(Connection connection) {
-		InetSocketAddress peerAddress = connection.getPeerAddress();
-		if (peerAddress != null) {
-			MDC.put("PEER", StringUtil.toString(peerAddress));
-		}
-		ConnectionId cid = connection.getConnectionId();
-		if (cid != null) {
-			MDC.put("CONNECTION_ID", cid.getAsString());
-		}
-		DTLSContext context = connection.getEstablishedDtlsContext();
-		if (context != null) {
-			ConnectionId writeConnectionId = context.getWriteConnectionId();
-			if (writeConnectionId != null && !writeConnectionId.isEmpty()) {
-				MDC.put("WRITE_CONNECTION_ID", writeConnectionId.getAsString());
+		if (DTLSConnector.MDC_SUPPORT) {
+			InetSocketAddress peerAddress = connection.getPeerAddress();
+			if (peerAddress != null) {
+				MDC.put("PEER", StringUtil.toString(peerAddress));
 			}
-		}
-		DTLSSession session = connection.getSession();
-		if (session != null) {
-			SessionId sid = session.getSessionIdentifier();
-			MDC.put("SESSION_ID", sid.toString());
+			ConnectionId cid = connection.getConnectionId();
+			if (cid != null) {
+				MDC.put("CONNECTION_ID", cid.getAsString());
+			}
+			DTLSContext context = connection.getEstablishedDtlsContext();
+			if (context != null) {
+				ConnectionId writeConnectionId = context.getWriteConnectionId();
+				if (writeConnectionId != null && !writeConnectionId.isEmpty()) {
+					MDC.put("WRITE_CONNECTION_ID", writeConnectionId.getAsString());
+				}
+			}
+			DTLSSession session = connection.getSession();
+			if (session != null) {
+				SessionId sid = session.getSessionIdentifier();
+				MDC.put("SESSION_ID", sid.toString());
+			}
 		}
 	}
 
@@ -92,7 +92,9 @@ public class MdcConnectionListener implements ConnectionListener {
 
 	@Override
 	public void afterExecution(Connection connection) {
-		MDC.clear();
+		if (DTLSConnector.MDC_SUPPORT) {
+			MDC.clear();
+		}
 	}
 
 }
