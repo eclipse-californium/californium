@@ -18,8 +18,9 @@ package org.eclipse.californium.examples;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -29,14 +30,14 @@ import android.widget.TextView;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
-import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 public class MainActivity extends Activity {
@@ -88,52 +89,55 @@ public class MainActivity extends Activity {
         return super.onOptionsItemSelected(item);
     }
 
-    public void clickGet(View view) {
-        String uri = ((EditText)findViewById(R.id.editUri)).getText().toString();
-        new CoapGetTask().execute(uri);
-    }
+    private final Executor executor = Executors.newSingleThreadExecutor();
+    private final Handler handler = new Handler(Looper.getMainLooper());
 
+    public void clickGet(View view) {
+        final String uri = ((EditText)findViewById(R.id.editUri)).getText().toString();
+
+        // reset text fields
+        ((TextView)findViewById(R.id.textCode)).setText("");
+        ((TextView)findViewById(R.id.textCodeName)).setText("Loading...");
+        ((TextView)findViewById(R.id.textRtt)).setText("");
+        ((TextView)findViewById(R.id.textContent)).setText("");
+
+        executor.execute(new Runnable() {
+            @Override
+            public void run() {
+                CoapResponse response;
+                try {
+                    CoapClient client = new CoapClient(uri);
+                    response = client.get();
+                } catch(Exception ex) {
+                    Log.e("coap", ex.getMessage(), ex);
+                    response = null;
+                }
+
+                final CoapResponse finalResponse = response;
+                handler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        if (finalResponse != null) {
+                            ((TextView)findViewById(R.id.textCode)).setText(finalResponse.getCode().toString());
+                            ((TextView)findViewById(R.id.textCodeName)).setText(finalResponse.getCode().name());
+                            Long rtt = finalResponse.advanced().getApplicationRttNanos();
+                            if (rtt != null) {
+                                ((TextView) findViewById(R.id.textRtt)).setText(TimeUnit.NANOSECONDS.toMillis(rtt) + " ms");
+                            }
+                            ((TextView)findViewById(R.id.textContent)).setText(finalResponse.getResponseText());
+                        } else {
+                            ((TextView)findViewById(R.id.textCodeName)).setText("No response");
+                        }
+                    }
+                });
+            }
+        });
+    }
 
     @Override
     public void onDestroy() {
-
         super.onDestroy();
         stopService(new Intent(this,ServerService.class));
-    }
-
-    class CoapGetTask extends AsyncTask<String, String, CoapResponse> {
-
-        protected void onPreExecute() {
-            // reset text fields
-            ((TextView)findViewById(R.id.textCode)).setText("");
-            ((TextView)findViewById(R.id.textCodeName)).setText("Loading...");
-            ((TextView)findViewById(R.id.textRtt)).setText("");
-            ((TextView)findViewById(R.id.textContent)).setText("");
-        }
-
-        protected CoapResponse doInBackground(String... args) {
-            try {
-                CoapClient client = new CoapClient(args[0]);
-                return client.get();
-            } catch(Exception ex) {
-                Log.e("coap", ex.getMessage(), ex);
-                return null;
-            }
-        }
-
-        protected void onPostExecute(CoapResponse response) {
-            if (response!=null) {
-                ((TextView)findViewById(R.id.textCode)).setText(response.getCode().toString());
-                ((TextView)findViewById(R.id.textCodeName)).setText(response.getCode().name());
-                Long rtt = response.advanced().getApplicationRttNanos();
-                if (rtt != null) {
-                    ((TextView) findViewById(R.id.textRtt)).setText(TimeUnit.NANOSECONDS.toMillis(rtt) + " ms");
-                }
-                ((TextView)findViewById(R.id.textContent)).setText(response.getResponseText());
-            } else {
-                ((TextView)findViewById(R.id.textCodeName)).setText("No response");
-            }
-        }
     }
 
     /**
