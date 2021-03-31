@@ -51,6 +51,8 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import com.upokecenter.cbor.CBORObject;
+
 /**
  * Class that implements test of functionality for re-derivation of contexts. As
  * detailed in Appendix B.2. of the OSCORE RFC:
@@ -151,7 +153,6 @@ public class ContextRederivationTest {
 		RequestTestObserver requestTestObserver = new RequestTestObserver();
 		r.addMessageObserver(requestTestObserver);
 		CoapResponse resp = c.advanced(r);
-
 		System.out.println((Utils.prettyPrint(resp)));
 
 		OSCoreCtx currCtx = dbClient.getContext(serverUri);
@@ -236,7 +237,6 @@ public class ContextRederivationTest {
 		RequestTestObserver requestTestObserver = new RequestTestObserver();
 		r.addMessageObserver(requestTestObserver);
 		CoapResponse resp = c.advanced(r);
-
 		System.out.println((Utils.prettyPrint(resp)));
 
 		OSCoreCtx currCtx = dbClient.getContext(serverUri);
@@ -258,11 +258,17 @@ public class ContextRederivationTest {
 				"SHA256", contextS2);
 		byte[] messageHmacValue = Arrays.copyOfRange(currCtx.getIdContext(), SEGMENT_LENGTH, SEGMENT_LENGTH * 2);
 
+		// Ensure that the ID Context in the OSCORE option in this response
+		// (response #1) is a CBOR byte string
+		byte[] respOscoreOpt = resp.getOptions().getOscore();
+		byte[] respIdContext = Arrays.copyOfRange(respOscoreOpt, 2, respOscoreOpt.length);
+		byte[] respIdContextDecoded = CBORObject.DecodeFromBytes(respIdContext).GetByteString();
+		// Check its length (R2)
+		assertEquals(2 * SEGMENT_LENGTH, respIdContextDecoded.length);
+
 		// The OSCORE option in the response should include the correct R2 value
 		byte[] contextR2 = Bytes.concatenate(contextS2, hmacOutput);
-		byte[] oscoreOption = resp.getOptions().getOscore();
-		byte[] oscoreOptionR2 = Arrays.copyOfRange(oscoreOption, oscoreOption.length - 2 * SEGMENT_LENGTH,
-				oscoreOption.length);
+		byte[] oscoreOptionR2 = respIdContextDecoded;
 		assertArrayEquals(contextR2, oscoreOptionR2);
 		assertArrayEquals(hmacOutput, messageHmacValue);
 
