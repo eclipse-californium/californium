@@ -510,6 +510,12 @@ public class OSCoreCtx {
 			throw new IllegalStateException("Context ID cannot be included for a context without one set.");
 		}
 		
+		// If Context ID is not to be included clear the overriding Context ID
+		// possibly set to be included in messages
+		if (!includeContextId) {
+			this.overrideContextId = null;
+		}
+
 		this.includeContextId = includeContextId;
 	}
 
