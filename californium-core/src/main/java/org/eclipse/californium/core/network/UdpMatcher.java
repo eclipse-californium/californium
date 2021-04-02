@@ -236,12 +236,10 @@ public final class UdpMatcher extends BaseMatcher {
 				}
 			} else if (previousRequest.isMulticast() || request.isMulticast()) {
 				// check, if request is received via multiple interfaces
-				InetSocketAddress group = request.getDestinationContext() == null ? null
-						: request.getDestinationContext().getPeerAddress();
-				InetSocketAddress previousGroup = previousRequest.getDestinationContext() == null ? null
-						: previousRequest.getDestinationContext().getPeerAddress();
+				InetSocketAddress group = request.getLocalAddress();
+				InetSocketAddress previousGroup = previousRequest.getLocalAddress();
 				if (!NetworkInterfacesUtil.equals(group, previousGroup)) {
-					boolean differs = Bytes.equals(request.getToken(), previousRequest.getToken());
+					boolean differs = !Bytes.equals(request.getToken(), previousRequest.getToken());
 					long timeDiff = TimeUnit.NANOSECONDS
 							.toMillis(Math.abs(request.getNanoTimestamp() - previousRequest.getNanoTimestamp()));
 					if (differs) {

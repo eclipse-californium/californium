@@ -31,6 +31,8 @@ Since 3.0, the value is not initialized and must be provided with a separate set
 
 `Request.setOnResponseError(Throwable error)` is not longer accompanied by `Request.setCanceled(boolean canceled)`.
 
+For incoming traffic `Message.localAddress` contains now the address of the receiving Connector. Before the `Message.destinationContext` was used. The `Message.localAddress` supportes `UDPCOnnector` with `MulticastReceivers`.
+
 ### Scandium:
 
 Redesigned! May cause also unaware changes! If you detect one, please create an issue on 

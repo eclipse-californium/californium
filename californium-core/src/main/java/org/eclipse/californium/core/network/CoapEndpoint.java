@@ -1487,7 +1487,7 @@ public class CoapEndpoint implements Endpoint {
 			}
 			if (connector instanceof UdpMulticastConnector) {
 				if (((UdpMulticastConnector) connector).isMutlicastReceiver()) {
-					throw new IllegalStateException("cunnector must not be multicast receiver!");
+					throw new IllegalStateException("connector must not be a multicast receiver!");
 				}
 			}
 			this.connector = connector;
