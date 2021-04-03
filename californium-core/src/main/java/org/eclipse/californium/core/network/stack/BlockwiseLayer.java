@@ -78,6 +78,7 @@ import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
+import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -114,6 +115,16 @@ import org.slf4j.LoggerFactory;
  * is not really advised. When concurrent transfer is detected we always
  * privilege the most recent transfers. This is the most resilient way, as new
  * transfer will never be blocked by old incomplete transfer.
+ * <p>
+ * The transparent bockwise mode is enabled by using a value larger than
+ * {@code 0} for {@link Keys#MAX_RESOURCE_BODY_SIZE}. If the transparent
+ * bockwise mode is enabled, the {@link Resource} is intended to provide the
+ * full payload. The application should not use any block option, that is filled
+ * in by the stack in transparent mode. Only in rare cases the application may
+ * use a block option, but that easily ends up in undefined behavior. Usually
+ * disabling the transparent bockwise mode setting
+ * {@link Keys#MAX_RESOURCE_BODY_SIZE} to {@code 0} is the better option, if
+ * application block options are required.
  * <p>
  * Synchronization: The blockwise-layer uses synchronization to prevent from
  * failures caused by race-conditions. All blockwise-status are kept in
@@ -600,7 +611,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	/**
 	 * Invoked when a response is sent to a peer.
 	 * <p>
-	 * This method initiates a blockwise transfer if the response's payload
+	 * This method initiates a blockwise transfer, if the response's payload
 	 * exceeds {@code MAX_MESSAGE_SIZE}.
 	 * 
 	 * @param exchange The exchange the response is part of.
@@ -614,20 +625,22 @@ public class BlockwiseLayer extends AbstractLayer {
 		if (isTransparentBlockwiseHandlingEnabled()) {
 
 			BlockOption requestBlock2 = exchange.getRequest().getOptions().getBlock2();
-			BlockOption responseBlock2 = response.getOptions().getBlock2();
 
 			if (isRandomAccess(exchange)) {
 
-				// peer has issued a random block access request using option block2 in request
+				BlockOption responseBlock2 = response.getOptions().getBlock2();
 
-				if (responseBlock2 != null && requestBlock2.getOffset() != responseBlock2.getOffset()) {
-					LOGGER.warn(
-							"{}resource [{}] implementation error, peer requested block offset {} but resource returned block offest {}",
-							tag, exchange.getRequest().getURI(), requestBlock2.getOffset(), responseBlock2.getOffset());
-					responseToSend = Response.createResponse(exchange.getRequest(), ResponseCode.INTERNAL_SERVER_ERROR);
-					responseToSend.setType(response.getType());
-					responseToSend.setMID(response.getMID());
-					responseToSend.addMessageObservers(response.getMessageObservers());
+				// peer has issued a random block access request using option block2 in request
+				if (responseBlock2 != null) {
+					if (requestBlock2.getOffset() != responseBlock2.getOffset()) {
+						LOGGER.warn(
+								"{}resource [{}] implementation error, peer requested block offset {} but resource returned block offest {}",
+								tag, exchange.getRequest().getURI(), requestBlock2.getOffset(), responseBlock2.getOffset());
+						responseToSend = Response.createResponse(exchange.getRequest(), ResponseCode.INTERNAL_SERVER_ERROR);
+						responseToSend.setType(response.getType());
+						responseToSend.setMID(response.getMID());
+						responseToSend.addMessageObservers(response.getMessageObservers());
+					}
 				} else if (response.hasBlock(requestBlock2)) {
 					// the resource implementation does not support blockwise
 					// retrieval but instead has responded with the full
@@ -635,21 +648,18 @@ public class BlockwiseLayer extends AbstractLayer {
 					// crop the response down to the requested block
 					BlockOption block2 = getLimitedBlockOption(requestBlock2);
 					Block2BlockwiseStatus.crop(responseToSend, block2, maxTcpBertBulkBlocks);
-				} else {
+				} else if (!response.isError()) {
 					// peer has requested a non existing block
 					responseToSend = Response.createResponse(exchange.getRequest(), ResponseCode.BAD_OPTION);
 					responseToSend.setType(response.getType());
 					responseToSend.setMID(response.getMID());
-					responseToSend.getOptions().setBlock2(requestBlock2);
 					responseToSend.addMessageObservers(response.getMessageObservers());
 				}
-
 			} else if (requiresBlock2wise(response, requestBlock2)) {
 
 				// the client either has not included a block2 option at all or
-				// has
-				// included a block2 option with num = 0 (early negotiation of
-				// block size)
+				// has included a block2 option with num = 0 (early negotiation
+				// of block size)
 
 				KeyUri key = KeyUri.getKey(exchange, response);
 				// We can not handle several block2 transfer for the same

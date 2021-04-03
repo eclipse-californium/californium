@@ -2,9 +2,9 @@
 
 # Californium (Cf) - Migration Hints
 
-February, 2021
+April, 2021
 
-The version 2.x is now out for about a year and reached version 2.6.0.
+The version 2.x is now out for about a year and reached version 2.6.2.
 We currently started to work on a 3.0 starting with removing deprecates APIs.
 
 To migrate to the 3.0 this gives some hints to do so. If you miss something, don't hesitate to create an issue.
@@ -15,7 +15,7 @@ Please, keep in mind, that the 3.0 API is under develop.
 
 This document doesn't contain hints for migrating versions before 2.0. That excludes also hints to migrate any of the 2.0 MILESTONE releases.
 
-If a 2.0.0 or newer is used, it's recommended to update first to 2.6.0 and cleanup all deprecation using the documentation on the deprecation.
+If a 2.0.0 or newer is used, it's recommended to update first to 2.6.2 and cleanup all deprecation using the documentation on the deprecation.
 
 ## Noteworthy Behavior Changes
 
@@ -28,10 +28,6 @@ Since 3.0 the sub-class may be ignored, depending on the provided value of the `
 `Option(int number)`:
 
 Since 3.0, the value is not initialized and must be provided with a separate setter call or using a other `Option` constructor. Though the 3.0 will now validate the option value, using `Bytes.EMPTY` as default would fail in too many cases.
-
-`Request.setOnResponseError(Throwable error)` is not longer accompanied by `Request.setCanceled(boolean canceled)`.
-
-For incoming traffic `Message.localAddress` contains now the address of the receiving Connector. Before the `Message.destinationContext` was used. The `Message.localAddress` supportes `UDPCOnnector` with `MulticastReceivers`.
 
 ### Scandium:
 
@@ -61,15 +57,18 @@ Please Note: the new `SessionStore` feature is not well tested! If used and caus
 
 Since 3.0 this is only called for separate ACKs, not longer for piggy-backed responses.
 
-The local address of the receiving endpoint is now a separate field, the usage of the destination context for incoming messages is replaced by that. Affects `CoapUriTranslator.getExposedInterface(Request)`.
+The local address of the receiving endpoint is now a separate field, the usage of the destination context for incoming messages is replaced by that. Affects `CoapUriTranslator.getExposedInterface(Request)`.  This `Message.localAddress` also supports `UDPCOnnector` with `MulticastReceivers`.
 
 `Blockwise Implementation` [RFC 7959](https://tools.ietf.org/html/rfc7959):
 
-Since 3.0 the blockwise implementation has been redesigned. That includes the blockwise request/response matching, which is not longer based on the block's `num` in the Block Option [RFC 7959 - 2.2.  Structure of a Block Option](https://tools.ietf.org/html/rfc7959#section-2.2). It's now based on the calculated block's offset `num * size` [IETF core-mailing list](https://mailarchive.ietf.org/arch/msg/core/z9_HsDxAQJ17cqFwz2QhViOsZDI/)
+Since 3.0 the blockwise implementation has been redesigned. That includes the blockwise request/response matching, which is not longer based on the block's `num` in the Block Option [RFC 7959 - 2.2.  Structure of a Block Option](https://tools.ietf.org/html/rfc7959#section-2.2). It's now based on the calculated block's offset `num * size` [IETF core-mailing list](https://mailarchive.ietf.org/arch/msg/core/z9_HsDxAQJ17cqFwz2QhViOsZDI/).
+Using the "transparent blockwise mode" (MAX_RESOURCE_BODY_SIZE larger than 0) in mix with application block options seems to be not completely defined. There are currently two use-cases, block2 early negotiation, and "random block access". But it seems to be hard, to document and test, what is exactly the API for such a mixed usage. Please consider to disable the "transparent blockwise mode" (MAX_RESOURCE_BODY_SIZE with 0), if application block options are required. Maybe these mixed (corner) cases gets discussed in a future version of Californium.
 
 `Message.getPayload()`:
 
 Since 3.0 `null` is replaced by `Bytes.EMPTY`. The method will now always return an byte array, which may be empty.
+
+`Request.setOnResponseError(Throwable error)` is not longer accompanied by `Request.setCanceled(boolean canceled)`.
 
 ## Noteworthy API Changes
 

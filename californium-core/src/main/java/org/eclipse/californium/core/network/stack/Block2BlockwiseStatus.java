@@ -411,21 +411,23 @@ public final class Block2BlockwiseStatus extends BlockwiseStatus {
 		} else if (requestedBlock == null) {
 			throw new NullPointerException("block option must not be null");
 		} else if (!responseToCrop.hasBlock(requestedBlock)) {
-			throw new IllegalArgumentException("given response does not contain block ");
+			throw new IllegalArgumentException("given response does not contain block");
 		} else {
 
 			int bodySize = responseToCrop.getPayloadSize();
 			int from = requestedBlock.getOffset();
-			if (responseToCrop.getOptions().hasBlock2()) {
-				from -= responseToCrop.getOptions().getBlock2().getOffset();
-			}
 			int size = requestedBlock.getSize();
 			if (requestedBlock.isBERT()) {
 				size *= maxTcpBertBulkBlocks;
 			}
+			boolean m = false;
+			if (responseToCrop.getOptions().hasBlock2()) {
+				from -= responseToCrop.getOptions().getBlock2().getOffset();
+				m = responseToCrop.getOptions().getBlock2().isM();
+			}
 			int to = Math.min(from + size, bodySize);
 			int length = to - from;
-			boolean m = to < bodySize;
+			m = m || to < bodySize;
 			responseToCrop.getOptions().setBlock2(requestedBlock.getSzx(), m, requestedBlock.getNum());
 
 			LOGGER.debug("cropping response body [size={}] to block {}", bodySize, requestedBlock);
