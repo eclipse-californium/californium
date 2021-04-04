@@ -2644,7 +2644,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 			boolean probing = DtlsEndpointContext.HANDSHAKE_MODE_PROBE.equals(handshakeMode);
 			boolean full = DtlsEndpointContext.HANDSHAKE_MODE_FORCE_FULL.equals(handshakeMode);
 			boolean force = probing || full || DtlsEndpointContext.HANDSHAKE_MODE_FORCE.equals(handshakeMode);
-			if (force || markedAsClosed || connection.isAutoResumptionRequired(getAutResumptionTimeout(message))) {
+			if (force || markedAsClosed || connection.isAutoResumptionRequired(getAutoResumptionTimeout(message))) {
 				// create the session to resume from the previous one.
 				if (serverOnly) {
 					DROP_LOGGER.trace(
@@ -2935,7 +2935,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	 *         resumption.
 	 * @since 2.1
 	 */
-	private Long getAutResumptionTimeout(RawData message) {
+	private Long getAutoResumptionTimeout(RawData message) {
 		Long timeout = autoResumptionTimeoutMillis;
 		Number contextTimeout = message.getEndpointContext().getNumber(DtlsEndpointContext.KEY_RESUMPTION_TIMEOUT);
 		if (contextTimeout != null) {

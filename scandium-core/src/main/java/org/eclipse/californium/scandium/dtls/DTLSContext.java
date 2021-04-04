@@ -655,7 +655,7 @@ public final class DTLSContext implements Destroyable {
 	 * @param sequenceNo sequence number of close notify
 	 * @see #isMarkedAsClosed()
 	 */
-	public void markCloseNotiy(int epoch, long sequenceNo) {
+	public void markCloseNotify(int epoch, long sequenceNo) {
 		markedAsclosed = true;
 		readEpochClosed = epoch;
 		readSequenceNumberClosed = sequenceNo;

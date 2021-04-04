@@ -634,7 +634,7 @@ public final class Connection {
 	public void close(Record record) {
 		DTLSContext context = establishedDtlsContext;
 		if (context != null) {
-			context.markCloseNotiy(record.getEpoch(), record.getSequenceNumber());
+			context.markCloseNotify(record.getEpoch(), record.getSequenceNumber());
 		}
 	}
 
