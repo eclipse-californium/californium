@@ -72,6 +72,8 @@ import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoi
 import org.eclipse.californium.elements.category.Medium;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
+import org.eclipse.californium.elements.util.TestCondition;
+import org.eclipse.californium.elements.util.TestConditionTools;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
@@ -162,15 +164,22 @@ public class BlockwiseClientSideTest {
 
 		respPayload = generateRandomPayload(128);
 		String path = "test";
-		Request request = createRequest(GET, path, server);
+		final Request request = createRequest(GET, path, server);
 
 		client.sendRequest(request);
 		server.expectRequest(CON, GET, path).storeBoth("A").go();
 		server.sendResponse(ACK, CONTENT).loadBoth("A").size2(MAX_RESOURCE_BODY_SIZE + 10).block2(0, true, 128).payload(respPayload).go();
 
 		request.waitForResponse(ERROR_TIMEOUT_IN_MS);
-		assertTrue("Request should have been cancelled", request.isCanceled());
 		assertNotNull("Request should have failed with error", request.getOnResponseError());
+		// race condition, though the response error notifies the request before the cancel
+		TestConditionTools.waitForCondition(ERROR_TIMEOUT_IN_MS, ERROR_TIMEOUT_IN_MS/10, TimeUnit.MILLISECONDS, new TestCondition() {
+			@Override
+			public boolean isFulFilled() throws IllegalStateException {
+				return request.isCanceled();
+			}
+		});
+		assertTrue("Request should have been cancelled", request.isCanceled());
 	}
 
 	/**
