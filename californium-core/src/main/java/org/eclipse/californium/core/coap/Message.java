@@ -938,7 +938,7 @@ public abstract class Message {
 
 	/**
 	 * Marks this message as timed out. Confirmable messages in particular might
-	 * time out.
+	 * timeout.
 	 * 
 	 * @param timedOut {@code true} if timed out
 	 */
@@ -1220,10 +1220,10 @@ public abstract class Message {
 	}
 
 	/**
-	 * Gets the nano timestamp when this message has been received, sent, or
-	 * {@code 0}, if neither has happened yet. The sent timestamp is garanted to
+	 * Gets the nano timestamp, when this message has been received, sent, or
+	 * {@code 0}, if neither has happened yet. The sent timestamp is granted to
 	 * be not after sending, therefore it's very short before actual sending the
-	 * message. And the receive timestamp is garanted te be not before receiving
+	 * message. And the receive timestamp is granted to be not before receiving
 	 * the message, therefore it's very short after actual receiving the
 	 * message.
 	 * 
