@@ -2933,7 +2933,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	 * @param message message to check for auto resumption timeout.
 	 * @return resulting timeout in milliseconds. {@code null} for no auto
 	 *         resumption.
-	 * @since 2.1
+	 * @since 3.0 (fixed typo, was "getAutResumptionTimeout" before)
 	 */
 	private Long getAutoResumptionTimeout(RawData message) {
 		Long timeout = autoResumptionTimeoutMillis;
