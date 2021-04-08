@@ -20,6 +20,7 @@ import java.util.Map;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Counter statistic manager.
@@ -58,6 +59,8 @@ abstract public class CounterStatisticManager {
 	 * Handle of scheduled task.
 	 */
 	private ScheduledFuture<?> taskHandle;
+
+	private AtomicBoolean running = new AtomicBoolean();
 
 	/**
 	 * Create passive statistic manager.
@@ -154,11 +157,14 @@ abstract public class CounterStatisticManager {
 	 */
 	public synchronized void start() {
 		if (executor != null && taskHandle == null) {
+			running.set(true);
 			taskHandle = executor.scheduleAtFixedRate(new Runnable() {
 
 				@Override
 				public void run() {
-					dump();
+					if (running.get()) {
+						dump();
+					}
 				}
 
 			}, interval, interval, TimeUnit.SECONDS);
@@ -167,11 +173,18 @@ abstract public class CounterStatisticManager {
 
 	/**
 	 * Stop active calls of {@link #dump()}.
+	 * 
+	 * @return {@code true}, if stopped, {@code false}, if was already stopped.
+	 * @since 3.0 (added return value)
 	 */
-	public synchronized void stop() {
+	public synchronized boolean stop() {
 		if (taskHandle != null) {
+			running.set(false);
 			taskHandle.cancel(false);
 			taskHandle = null;
+			return true;
+		} else {
+			return false;
 		}
 	}
 

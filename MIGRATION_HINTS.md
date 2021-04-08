@@ -139,3 +139,5 @@ are removed and must be replaced by
 7) The `MulticastReceivers` interface is moved into `UDPConnector`.
 
 8) Renamed `Message.onComplete()` to `onTransferComplete()`, including `MessageObserver.onComplete()`.
+
+9) Changed `Exchange.getRetransmissionHandle()` to `isTransmissionPending()`.

@@ -90,9 +90,12 @@ public class ReliabilityLayer extends AbstractLayer {
 	 */
 	@Override
 	public void sendRequest(Exchange exchange, Request request) {
-
 		LOGGER.debug("{} send request", exchange);
+		prepareRequest(exchange, request);
+		lower().sendRequest(exchange, request);
+	}
 
+	protected void prepareRequest(Exchange exchange, Request request) {
 		if (request.getType() == null) {
 			request.setType(Type.CON);
 		}
@@ -112,7 +115,6 @@ public class ReliabilityLayer extends AbstractLayer {
 				}
 			});
 		}
-		lower().sendRequest(exchange, request);
 	}
 
 	/**
@@ -123,28 +125,30 @@ public class ReliabilityLayer extends AbstractLayer {
 	 */
 	@Override
 	public void sendResponse(Exchange exchange, Response response) {
-
 		LOGGER.debug("{} send response {}", exchange, response);
+		prepareResponse(exchange, response);
+		lower().sendResponse(exchange, response);
+	}
+
+	protected void prepareResponse(Exchange exchange, Response response) {
 
 		// If a response type is set, we do not mess around with it.
 		// Only if none is set, we have to decide for one here.
-
 		Type respType = response.getType();
 		if (respType == null) {
 			Type reqType = exchange.getCurrentRequest().getType();
 			if (exchange.getCurrentRequest().acknowledge()) {
 				// send piggy-backed response
 				response.setType(Type.ACK);
-				response.setMID(exchange.getCurrentRequest().getMID());
 			} else {
 				// send separate CON or NON response depending on the request's type
 				response.setType(reqType);
 			}
-
+			respType = response.getType();
 			LOGGER.trace("{} switched response message type from {} to {} (request was {})", exchange, respType,
-					response.getType(), reqType);
-
-		} else if (respType == Type.ACK || respType == Type.RST) {
+					respType, reqType);
+		}
+		if (respType == Type.ACK || respType == Type.RST) {
 			response.setMID(exchange.getCurrentRequest().getMID());
 		}
 
@@ -161,7 +165,6 @@ public class ReliabilityLayer extends AbstractLayer {
 				}
 			});
 		}
-		lower().sendResponse(exchange, response);
 	}
 
 	/**
@@ -194,7 +197,7 @@ public class ReliabilityLayer extends AbstractLayer {
 	 * anything.
 	 */
 	@Override
-	public void receiveRequest(final Exchange exchange, final Request request) {
+	public void receiveRequest(Exchange exchange, Request request) {
 
 		if (request.isDuplicate()) {
 			long send = exchange.getSendNanoTimestamp();
@@ -275,7 +278,13 @@ public class ReliabilityLayer extends AbstractLayer {
 	 * we stop it here and do not forward it to the upper layer.
 	 */
 	@Override
-	public void receiveResponse(final Exchange exchange, final Response response) {
+	public void receiveResponse(Exchange exchange, Response response) {
+		if (processResponse(exchange, response)) {
+			upper().receiveResponse(exchange, response);
+		}
+	}
+
+	protected boolean processResponse(Exchange exchange, Response response) {
 
 		exchange.setRetransmissionHandle(null);
 
@@ -297,7 +306,7 @@ public class ReliabilityLayer extends AbstractLayer {
 					int count = counter.incrementAndGet();
 					LOGGER.debug("{}: {} duplicate response {}, server sent ACK delayed, ignore response", count,
 							exchange, response);
-					return;
+					return false;
 				}
 				// resend last ack or rst, don't update, request state may have
 				// changed!
@@ -330,10 +339,11 @@ public class ReliabilityLayer extends AbstractLayer {
 			if (response.getType() != Type.CON) {
 				LOGGER.debug("{} ignoring duplicate response", exchange);
 			}
+			return false;
 		} else {
 			exchange.getCurrentRequest().setAcknowledged(true);
 			exchange.setCurrentResponse(response);
-			upper().receiveResponse(exchange, response);
+			return true;
 		}
 	}
 
@@ -342,7 +352,13 @@ public class ReliabilityLayer extends AbstractLayer {
 	 * acknowledged or rejected respectively and cancel its retransmission.
 	 */
 	@Override
-	public void receiveEmptyMessage(final Exchange exchange, final EmptyMessage message) {
+	public void receiveEmptyMessage(Exchange exchange, EmptyMessage message) {
+		if (processEmptyMessage(exchange, message)) {
+			upper().receiveEmptyMessage(exchange, message);
+		}
+	}
+
+	protected boolean processEmptyMessage(final Exchange exchange, final EmptyMessage message) {
 
 		exchange.setRetransmissionHandle(null);
 		// TODO: If this is an observe relation, the current response might not
@@ -367,10 +383,9 @@ public class ReliabilityLayer extends AbstractLayer {
 			currentMessage.setRejected(true);
 		} else {
 			LOGGER.warn("{} received empty message that is neither ACK nor RST: {}", exchange, message);
-			return;
+			return false;
 		}
-
-		upper().receiveEmptyMessage(exchange, message);
+		return true;
 	}
 
 	/**
@@ -544,6 +559,7 @@ public class ReliabilityLayer extends AbstractLayer {
 					LOGGER.debug("Timeout: for {} retry {} of {}", exchange, failedCount, message);
 					int max = getReliabilityLayerParameters().getMaxRetransmit();
 					if (failedCount <= max) {
+
 						LOGGER.debug("Timeout: for {} retransmit message, failed-count: {}, message: {}", exchange,
 								failedCount, message);
 

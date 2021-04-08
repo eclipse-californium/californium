@@ -483,6 +483,8 @@ public class BenchmarkClient {
 
 	private static final TimeStatistic errorRttStatistic = new TimeStatistic(10000, 5, TimeUnit.MILLISECONDS);
 
+	private static final TimeStatistic transmissioRttStatistic = new TimeStatistic(10000, 5, TimeUnit.MILLISECONDS);
+
 	private static volatile String[] args;
 	private static volatile int clients;
 	private static volatile int overallRequests;
@@ -882,6 +884,7 @@ public class BenchmarkClient {
 			statistic = connectRttStatistic;
 		} else if (response.isSuccess()) {
 			statistic = rttStatistic;
+			transmissioRttStatistic.add(response.advanced().getTransmissionRttNanos(), TimeUnit.NANOSECONDS);
 		}
 		Long rtt = response.advanced().getApplicationRttNanos();
 		statistic.add(rtt, TimeUnit.NANOSECONDS);
@@ -1609,6 +1612,8 @@ public class BenchmarkClient {
 		statisticsLogger.info("connects          : {}", connectRttStatistic.getSummaryAsText());
 		statisticsLogger.info("success-responses : {}", rttStatistic.getSummaryAsText());
 		statisticsLogger.info("errors-responses  : {}", errorRttStatistic.getSummaryAsText());
+
+		statisticsLogger.info("success-responses : {}", transmissioRttStatistic.getSummaryAsText());
 
 		health.dump();
 		netstat.dump();
