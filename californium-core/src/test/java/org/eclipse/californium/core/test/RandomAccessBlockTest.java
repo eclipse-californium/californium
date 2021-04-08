@@ -52,7 +52,6 @@ import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -183,99 +182,6 @@ public class RandomAccessBlockTest {
 					is(block2.getOffset() + response.getPayloadSize() < RESP_PAYLOAD.length()));
 		}
 		assertThat(REQUEST_COUNTER.get(), is(blockOrder.length));
-		client.shutdown();
-	}
-
-	@Test
-	public void testServerReturnsFullPayload() throws Exception {
-		// We do not test for block 0 because the client is currently unable to
-		// know if the user attempts to just retrieve block 0 or if he wants to
-		// do early block negotiation with a specific size but actually wants to
-		// retrieve all blocks.
-
-		int[] blockOrder = { 0, 2, 1, 5, 3 };
-		String[] expectations = { 
-				RESP_PAYLOAD.substring(0, 16), 
-				RESP_PAYLOAD.substring(32, 48), 
-				RESP_PAYLOAD.substring(16, 32),
-				RESP_PAYLOAD.substring(80 /* until the end */), 
-				RESP_PAYLOAD.substring(48, 64) };
-
-		String uri = getUri(serverEndpoint, TARGET);
-		CoapClient client = new CoapClient();
-		client.setEndpoint(clientEndpoint);
-		client.setTimeout(1000L);
-
-		for (int i = 0; i < blockOrder.length; i++) {
-			int num = blockOrder[i];
-
-			int szx = BlockOption.size2Szx(16);
-			Request request = Request.newGet();
-			request.setURI(uri);
-			request.getOptions().setBlock2(szx, false, num);
-
-			CoapResponse response = client.advanced(request);
-			assertNotNull(i + ": Client received no response", response);
-			assertThat(REQUEST_COUNTER.get(), is(i + 1));
-			assertThat(i + ": ", response.getCode(), is(ResponseCode.CONTENT));
-			assertThat(i + ": ", response.getResponseText(), is(expectations[i]));
-			assertTrue(i + ": ", response.getOptions().hasBlock2());
-			BlockOption block2 = response.getOptions().getBlock2();
-			assertThat(i + ": " + block2.toString(), block2.getOffset(), is(num * 16));
-			assertThat(i + ": " + block2.toString(), block2.getSzx(), is(szx));
-			assertThat(i + ": " + block2.toString(), block2.isM(),
-					is(block2.getOffset() + response.getPayloadSize() < RESP_PAYLOAD.length()));
-		}
-		assertThat(REQUEST_COUNTER.get(), is(blockOrder.length));
-		client.shutdown();
-	}
-
-	@Test
-	@Ignore
-	public void testServerReturnsSmallerIndividualBlocks() throws Exception {
-
-		int[] blockOrder = { 2, 1 };
-		int blocksize = 32;
-		int expectedBlocksize = 16;
-		String[] expectations = { 
-				RESP_PAYLOAD.substring(64, 80), 
-				RESP_PAYLOAD.substring(32, 48) };
-
-		if (maxBodySize == 0) {
-			expectedBlocksize = blocksize;
-			expectations = new String[] { 
-					RESP_PAYLOAD.substring(64), 
-					RESP_PAYLOAD.substring(32, 64) };
-		}
-
-		String uri = getUri(serverEndpoint, TARGET);
-		CoapClient client = new CoapClient();
-		client.setEndpoint(clientEndpoint);
-		client.setTimeout(1000L);
-
-		for (int i = 0; i < blockOrder.length; i++) {
-			int num = blockOrder[i];
-
-			// 32 is larger than the server's preference 16
-			// server will respond with smaller blockSxz
-			// https://mailarchive.ietf.org/arch/browse/core/?gbt=1&index=fYy61XmXaaDvu2sk_6hg4aP83Yw
-			int szx = BlockOption.size2Szx(blocksize);
-			Request request = Request.newGet();
-			request.setURI(uri);
-			request.getOptions().setBlock2(szx, false, num);
-
-			CoapResponse response = client.advanced(request);
-			assertNotNull(i + ": Client received no response", response);
-			assertThat(REQUEST_COUNTER.get(), is(i + 1));
-			assertThat(i + ": ", response.getCode(), is(ResponseCode.CONTENT));
-			assertThat(i + ": ", response.getResponseText(), is(expectations[i]));
-			assertTrue(i + ": ", response.getOptions().hasBlock2());
-			BlockOption block2 = response.getOptions().getBlock2();
-			assertThat(i + ": " + block2.toString(), block2.getOffset(), is(num * blocksize));
-			assertThat(i + ": " + block2.toString(), block2.getSize(), is(expectedBlocksize));
-			assertThat(i + ": " + block2.toString(), block2.isM(),
-					is(block2.getOffset() + response.getPayloadSize() < RESP_PAYLOAD.length()));
-		}
 		client.shutdown();
 	}
 
