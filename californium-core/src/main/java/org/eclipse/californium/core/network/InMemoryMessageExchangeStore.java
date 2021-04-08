@@ -227,7 +227,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 				message.setMID(mid);
 			} catch (IllegalStateException ex) {
 				String code = CoAP.toCodeString(message.getRawCode());
-				LOGGER.warn("{}cannot send message {}-{} to {}, {}", tag, message.getType(), code,
+				LOGGER.debug("{}cannot send message {}-{} to {}, {}", tag, message.getType(), code,
 						StringUtil.toLog(dest), ex.getMessage());
 			}
 		}
