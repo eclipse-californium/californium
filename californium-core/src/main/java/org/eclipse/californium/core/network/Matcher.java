@@ -22,6 +22,7 @@
 package org.eclipse.californium.core.network;
 
 import org.eclipse.californium.core.coap.EmptyMessage;
+import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
@@ -57,20 +58,23 @@ public interface Matcher {
 	/**
 	 * Notifies this matcher about a request message being sent to a peer.
 	 * <p>
-	 * Implementations should make sure that the request being sent
-	 * has a valid token and message ID set (if appropriate for the
-	 * underlying transport protocol).
+	 * Implementations should make sure that the request being sent has a valid
+	 * token and message ID set (if appropriate for the underlying transport
+	 * protocol).
 	 * <p>
 	 * This method is also a signal for the matcher to begin tracking the
 	 * request message. This includes both
 	 * <ul>
-	 * <li>keeping track of the message ID if the request is sent as a CON
-	 * so that it can later be matched to an ACK or RST sent by the peer in
+	 * <li>keeping track of the message ID if the request is sent as a CON so
+	 * that it can later be matched to an ACK or RST sent by the peer in
 	 * response.</li>
 	 * <li>keeping track of the token so that it can be used to identify the
 	 * response to the request (regardless of whether the peer sends it
 	 * piggy-backed in an ACK or as a separate message).</li>
 	 * </ul>
+	 * <p>
+	 * Errors and exceptions are intended to be reported as
+	 * {@link Message#setSendError(Throwable)}.
 	 * 
 	 * @param exchange the message exchange that the request is sent as part of.
 	 */
@@ -86,6 +90,9 @@ public interface Matcher {
 	 * This method is also a signal for the matcher to begin tracking the
 	 * response message if it is sent as a CON so that it can later be matched
 	 * to an ACK or RST sent by the peer in response.
+	 * <p>
+	 * Errors and exceptions are intended to be reported as
+	 * {@link Message#setSendError(Throwable)}.
 	 * 
 	 * @param exchange the message exchange that the response is sent as part of.
 	 */
@@ -96,6 +103,9 @@ public interface Matcher {
 	 * <p>
 	 * An implementation should remove the given exchange from its internal records if
 	 * the message is an RST.
+	 * <p>
+	 * Errors and exceptions are intended to be reported as
+	 * {@link Message#setSendError(Throwable)}.
 	 * 
 	 * @param exchange the exchange that the message is sent as part of.
 	 * @param message the message being sent to the peer.

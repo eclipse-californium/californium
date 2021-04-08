@@ -125,7 +125,7 @@ public final class UdpMatcher extends BaseMatcher {
 			if (exchangeStore.assignMessageId(request) != Message.NONE) {
 				registerObserve(request);
 			} else {
-				LOGGER.warn("message IDs exhausted, could not register outbound observe request for tracking");
+				LOGGER.debug("message IDs exhausted, could not register outbound observe request for tracking");
 				request.setSendError(new IllegalStateException("automatic message IDs exhausted"));
 				return;
 			}
@@ -136,7 +136,7 @@ public final class UdpMatcher extends BaseMatcher {
 				exchange.setRemoveHandler(exchangeRemoveHandler);
 				LOGGER.debug("tracking open request [{}, {}]", exchange.getKeyMID(), exchange.getKeyToken());
 			} else {
-				LOGGER.warn("message IDs exhausted, could not register outbound request for tracking");
+				LOGGER.debug("message IDs exhausted, could not register outbound request for tracking");
 				request.setSendError(new IllegalStateException("automatic message IDs exhausted"));
 			}
 		} catch (IllegalArgumentException ex) {
@@ -157,9 +157,12 @@ public final class UdpMatcher extends BaseMatcher {
 			// If this is a CON notification we now can forget
 			// all previous NON notifications
 			exchange.removeNotifications();
-			exchangeStore.registerOutboundResponse(exchange);
-			LOGGER.debug("tracking open response [{}]", exchange.getKeyMID());
-			ready = false;
+			if (exchangeStore.registerOutboundResponse(exchange)) {
+				LOGGER.debug("tracking open response [{}]", exchange.getKeyMID());
+				ready = false;
+			} else {
+				response.setSendError(new IllegalStateException("automatic message IDs exhausted"));
+			}
 		} else if (response.getType() == Type.NON) {
 			if (response.isNotification()) {
 				// this is a NON notification
@@ -167,13 +170,18 @@ public final class UdpMatcher extends BaseMatcher {
 				// by a peer that wants to cancel the observation
 				// these NON notifications will later be removed from the
 				// exchange store when Exchange.setComplete() is called
-				exchangeStore.registerOutboundResponse(exchange);
-				ready = false;
+				if (exchangeStore.registerOutboundResponse(exchange)) {
+					ready = false;
+				} else {
+					response.setSendError(new IllegalStateException("automatic message IDs exhausted"));
+				}
 			} else {
 				// we only need to assign an unused MID but we do not need to
 				// register the exchange under the MID since we do not
 				// expect/want a reply that we would need to match it against
-				exchangeStore.assignMessageId(response);
+				if (exchangeStore.assignMessageId(response) == Message.NONE) {
+					response.setSendError(new IllegalStateException("automatic message IDs exhausted"));
+				}
 			}
 		}
 
