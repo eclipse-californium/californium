@@ -94,7 +94,7 @@ public class CoapUdpStack extends BaseCoapStack {
 				createExchangeCleanupLayer(config),
 				createObserveLayer(config),
 				createBlockwiseLayer(tag, config),
-				createReliabilityLayer(config)};
+				createReliabilityLayer(tag, config)};
 
 		setLayers(layers);
 	}
@@ -107,14 +107,14 @@ public class CoapUdpStack extends BaseCoapStack {
 		return new ObserveLayer(config);
 	}
 
-	protected Layer createBlockwiseLayer(String tag,NetworkConfig config) {
+	protected Layer createBlockwiseLayer(String tag, NetworkConfig config) {
 		return new BlockwiseLayer(tag, false, config);
 	}
 
-	protected Layer createReliabilityLayer(NetworkConfig config) {
+	protected Layer createReliabilityLayer(String tag, NetworkConfig config) {
 		ReliabilityLayer reliabilityLayer;
 		if (config.getBoolean(NetworkConfig.Keys.USE_CONGESTION_CONTROL) == true) {
-			reliabilityLayer = CongestionControlLayer.newImplementation(config);
+			reliabilityLayer = CongestionControlLayer.newImplementation(tag, config);
 			LOGGER.info("Enabling congestion control: {}", reliabilityLayer.getClass().getSimpleName());
 		} else {
 			reliabilityLayer = new ReliabilityLayer(config);

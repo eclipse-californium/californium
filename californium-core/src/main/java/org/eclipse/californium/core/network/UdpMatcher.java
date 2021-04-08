@@ -219,10 +219,10 @@ public final class UdpMatcher extends BaseMatcher {
 			EndpointContext sourceContext = request.getSourceContext();
 			Request previousRequest = previous.getCurrentRequest();
 			EndpointContext previousSourceContext;
-			if (previous.getOrigin() == Origin.REMOTE) {
-				previousSourceContext = previousRequest.getSourceContext();
-			} else {
+			if (previous.isOfLocalOrigin()) {
 				previousSourceContext = previousRequest.getDestinationContext();
+			} else {
+				previousSourceContext = previousRequest.getSourceContext();
 			}
 			// the previous response would be send with its previous context
 			// using the current request context as connection context
@@ -264,7 +264,7 @@ public final class UdpMatcher extends BaseMatcher {
 					try {
 						receiver.receiveRequest(previous, request);
 					} catch (RuntimeException ex) {
-						LOGGER.warn("error receiving request {} again!", request, ex);
+						LOGGER.warn("error receiving again request {}", request, ex);
 						if (!request.isMulticast()) {
 							receiver.reject(request);
 						}
