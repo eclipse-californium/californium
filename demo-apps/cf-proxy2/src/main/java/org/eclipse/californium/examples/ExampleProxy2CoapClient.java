@@ -25,6 +25,7 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.examples.util.CoapResponsePrinter;
 import org.eclipse.californium.proxy2.resources.ProxyHttpClientResource;
 
 /**
@@ -62,27 +63,9 @@ public class ExampleProxy2CoapClient {
 	private static void request(CoapClient client, Request request) {
 		try {
 			CoapResponse response = client.advanced(request);
-			printResponse(response);
+			CoapResponsePrinter.printResponse(response);
 		} catch (ConnectorException | IOException e) {
 			e.printStackTrace();
-		}
-	}
-
-	private static void printResponse(CoapResponse response) {
-		if (response != null) {
-			int format = response.getOptions().getContentFormat();
-			if (format != MediaTypeRegistry.TEXT_PLAIN && format != MediaTypeRegistry.UNDEFINED) {
-				System.out.print(MediaTypeRegistry.toString(format));
-			}
-			String text = response.getResponseText();
-			if (text.isEmpty()) {
-				System.out.println(response.getCode() + "/" + response.getCode().name());
-			} else {
-				System.out.println(
-						response.getCode() + "/" + response.getCode().name() + " --- " + response.getResponseText());
-			}
-		} else {
-			System.out.println("timeout!");
 		}
 	}
 
@@ -158,7 +141,7 @@ public class ExampleProxy2CoapClient {
 		request.setPayload("coap-client");
 		try {
 			CoapResponse response = client.advanced(request);
-			printResponse(response);
+			CoapResponsePrinter.printResponse(response);
 		} catch (ConnectorException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
@@ -170,7 +153,7 @@ public class ExampleProxy2CoapClient {
 		client.setURI("coap://localhost:5685/coap-target");
 		try {
 			CoapResponse response = client.post("coap-client", MediaTypeRegistry.TEXT_PLAIN);
-			printResponse(response);
+			CoapResponsePrinter.printResponse(response);
 		} catch (ConnectorException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
@@ -180,7 +163,7 @@ public class ExampleProxy2CoapClient {
 		client.setURI("coap://localhost:8000/http-target");
 		try {
 			CoapResponse response = client.post("coap-client", MediaTypeRegistry.TEXT_PLAIN);
-			printResponse(response);
+			CoapResponsePrinter.printResponse(response);
 		} catch (ConnectorException e) {
 			e.printStackTrace();
 		} catch (IOException e) {
@@ -190,7 +173,7 @@ public class ExampleProxy2CoapClient {
 		client.setURI("http://localhost:8000/http-target");
 		try {
 			CoapResponse response = client.post("coap-client", MediaTypeRegistry.TEXT_PLAIN);
-			printResponse(response);
+			CoapResponsePrinter.printResponse(response);
 		} catch (ConnectorException e) {
 			e.printStackTrace();
 		} catch (IOException e) {

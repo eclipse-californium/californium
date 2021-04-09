@@ -30,7 +30,7 @@ import org.junit.Test;
 /**
  * This tests checks the functionality of the CoapTranslator.
  */
-public class CoapTranslatorTest {
+public class Coap2CoapTranslatorTest {
 
 	@Test
 	public void testTranslateDeprecatedRequest() throws TranslationException {

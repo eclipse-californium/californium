@@ -23,7 +23,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.proxy2.ClientSingleEndpoint;
-import org.eclipse.californium.proxy2.ProxyHttpServer;
+import org.eclipse.californium.proxy2.http.server.ProxyHttpServer;
 import org.eclipse.californium.proxy2.resources.ForwardProxyMessageDeliverer;
 import org.eclipse.californium.proxy2.resources.ProxyCoapClientResource;
 import org.eclipse.californium.proxy2.resources.ProxyCoapResource;

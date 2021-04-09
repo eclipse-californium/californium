@@ -44,11 +44,11 @@ import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.proxy2.ClientEndpoints;
 import org.eclipse.californium.proxy2.ClientSingleEndpoint;
 import org.eclipse.californium.proxy2.Coap2CoapTranslator;
-import org.eclipse.californium.proxy2.Coap2HttpTranslator;
 import org.eclipse.californium.proxy2.EndpointPool;
-import org.eclipse.californium.proxy2.Http2CoapTranslator;
-import org.eclipse.californium.proxy2.HttpClientFactory;
-import org.eclipse.californium.proxy2.ProxyHttpServer;
+import org.eclipse.californium.proxy2.http.Coap2HttpTranslator;
+import org.eclipse.californium.proxy2.http.Http2CoapTranslator;
+import org.eclipse.californium.proxy2.http.HttpClientFactory;
+import org.eclipse.californium.proxy2.http.server.ProxyHttpServer;
 import org.eclipse.californium.proxy2.resources.ProxyCoapClientResource;
 import org.eclipse.californium.proxy2.resources.ProxyCoapResource;
 import org.eclipse.californium.proxy2.resources.ProxyHttpClientResource;
@@ -135,7 +135,7 @@ public class CrossExampleProxy2 {
 	private static String start;
 
 	private CoapServer coapProxyServer;
-	private boolean useEndpointsPool;
+	private boolean useEndpointsPool = true;
 	private ClientEndpoints endpoints;
 	private ProxyHttpServer httpServer;
 	private int coapPort;
@@ -210,6 +210,8 @@ public class CrossExampleProxy2 {
 		System.out.println("** CoAP Proxy at: coap://localhost:" + coapPort + "/coap2http");
 		System.out.println("** CoAP Proxy at: coap://localhost:" + coapPort + "/coap2coap");
 		this.cache = cacheResource;
+		// receiving on any address => enable LocalAddressResolver
+		proxyMessageDeliverer.startLocalAddressResolver();
 	}
 
 	public static void main(String args[]) throws IOException {

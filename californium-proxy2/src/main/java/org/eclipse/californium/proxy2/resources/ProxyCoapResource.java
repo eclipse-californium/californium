@@ -27,19 +27,21 @@ import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.ServerMessageDeliverer;
 import org.eclipse.californium.proxy2.ClientEndpoints;
 import org.eclipse.californium.proxy2.Coap2CoapTranslator;
-import org.eclipse.californium.proxy2.Coap2HttpTranslator;
 import org.eclipse.californium.proxy2.CoapUriTranslator;
-import org.eclipse.californium.proxy2.Http2CoapTranslator;
 import org.eclipse.californium.proxy2.TranslationException;
+import org.eclipse.californium.proxy2.http.Coap2HttpTranslator;
+import org.eclipse.californium.proxy2.http.Http2CoapTranslator;
 
 /**
  * Resource that forwards a coap request.
  * 
- * According <a href="https://tools.ietf.org/html/rfc7252#section-5.7" target="_blank">RFC 7252,
- * 5.7 Proxying</a> proxies are classified into <a href=
- * "https://tools.ietf.org/html/rfc7252#section-5.7.2" target="_blank">Forward-Proxies</a> and
- * <a href=
- * "https://tools.ietf.org/html/rfc7252#section-5.7.3" target="_blank">Reverse-Proxies</a>.
+ * According
+ * <a href="https://tools.ietf.org/html/rfc7252#section-5.7" target="_blank">RFC
+ * 7252, 5.7 Proxying</a> proxies are classified into
+ * <a href= "https://tools.ietf.org/html/rfc7252#section-5.7.2" target=
+ * "_blank">Forward-Proxies</a> and
+ * <a href= "https://tools.ietf.org/html/rfc7252#section-5.7.3" target=
+ * "_blank">Reverse-Proxies</a>.
  * 
  * The forward-proxies operates in a generic way. The destination to sent the
  * request by the proxy is contained in the request itself. It is provided in
@@ -191,8 +193,8 @@ public abstract class ProxyCoapResource extends CoapResource {
 	 * @return coap resource, or {@code null}, if destination scheme is not
 	 *         supported.
 	 */
-	public static ProxyCoapResource createReverseProxy(String name, boolean visible, boolean accept, final boolean copyQuery,
-			final URI destination, ClientEndpoints... endpointsList) {
+	public static ProxyCoapResource createReverseProxy(String name, boolean visible, boolean accept,
+			final boolean copyQuery, final URI destination, ClientEndpoints... endpointsList) {
 		String scheme = destination.getScheme();
 		for (ClientEndpoints endpoints : endpointsList) {
 			if (endpoints.getScheme().equals(scheme)) {

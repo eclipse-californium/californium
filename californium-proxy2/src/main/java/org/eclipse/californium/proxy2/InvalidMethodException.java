@@ -33,7 +33,7 @@ public class InvalidMethodException extends TranslationException {
 	}
 
 	public InvalidMethodException(ResponseCode error) {
-		super();
+		super(error.name());
 		this.error = error;
 	}
 

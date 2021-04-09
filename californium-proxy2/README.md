@@ -254,3 +254,19 @@ Until here the things should have been not too complicated. But that starts with
 
 -  `ForwardProxyMessageDeliverer` offers a set of exposed service addresses in order to configure them instead of detect them. 
 
+**Note**: if you use a co-located proxy-server, providing the destination in the URI as IP-literal is not recommended, though this results in not including a URI-host option. Please use a DNS name in the URI, or ensure by explicitly setting the URI-host option, that it is included. (Using the DNS name for the proxy destination is not relevant, it's just the address used in the URI.)
+
+```java
+AddressEndpointContext proxy = new AddressEndpointContext(new InetSocketAddress("127.0.0.1", PROXY_PORT));
+request.setDestinationContext(proxy);
+// not recommended! literal IP, same as proxy
+request.setURI("coap://127.0.0.1/coap-target");
+```
+
+```java
+AddressEndpointContext proxy = new AddressEndpointContext(new InetSocketAddress("127.0.0.1", PROXY_PORT));
+request.setDestinationContext(proxy);
+// recommended!
+request.setURI("coap://localhost/coap-target");
+```
+

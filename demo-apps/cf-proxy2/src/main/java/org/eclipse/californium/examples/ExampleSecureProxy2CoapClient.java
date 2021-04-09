@@ -20,10 +20,10 @@ import java.io.IOException;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
-import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.examples.util.CoapResponsePrinter;
 import org.eclipse.californium.examples.util.SecureEndpointPool;
 
 /**
@@ -38,19 +38,7 @@ public class ExampleSecureProxy2CoapClient {
 	private static void request(CoapClient client, Request request) {
 		try {
 			CoapResponse response = client.advanced(request);
-			if (response != null) {
-				int format = response.getOptions().getContentFormat();
-				if (format != MediaTypeRegistry.TEXT_PLAIN && format != MediaTypeRegistry.UNDEFINED) {
-					System.out.print(MediaTypeRegistry.toString(format));
-				}
-				String text = response.getResponseText();
-				if (text.isEmpty()) {
-					System.out.println(response.getCode() + "/" + response.getCode().name());
-				} else {
-					System.out.println(response.getCode() + "/" + response.getCode().name() + " --- "
-							+ response.getResponseText());
-				}
-			}
+			CoapResponsePrinter.printResponse(response);
 		} catch (ConnectorException | IOException e) {
 			e.printStackTrace();
 		}
@@ -61,7 +49,8 @@ public class ExampleSecureProxy2CoapClient {
 		CoapClient client = new CoapClient();
 
 		AddressEndpointContext proxy = new AddressEndpointContext("localhost", PROXY_PORT);
-		// RFC7252 proxy request - use CoAP-URI, proxy scheme and destination to proxy
+		// RFC7252 proxy request - use CoAP-URI, proxy scheme and destination to
+		// proxy
 		Request request = Request.newGet();
 		request.setDestinationContext(proxy);
 		request.setURI("coap://californium.eclipseprojects.io:5684/test");

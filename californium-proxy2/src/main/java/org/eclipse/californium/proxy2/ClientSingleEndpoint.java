@@ -24,7 +24,7 @@ import org.eclipse.californium.core.network.Endpoint;
 /**
  * A single endpoint.
  * 
- * A {@link CoapEndpoint} process multiple request. The choosen "congestion
+ * A {@link CoapEndpoint} process multiple request. The chosen "congestion
  * control" strategy may limit that.
  */
 public class ClientSingleEndpoint implements ClientEndpoints {
