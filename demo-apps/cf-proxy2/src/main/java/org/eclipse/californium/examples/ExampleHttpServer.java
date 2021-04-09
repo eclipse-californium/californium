@@ -25,7 +25,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.SimpleCounterStatistic;
-import org.eclipse.californium.proxy2.HttpServer;
+import org.eclipse.californium.proxy2.http.server.HttpServer;
 
 /**
  * Example HTTP server for proxy demonstration.

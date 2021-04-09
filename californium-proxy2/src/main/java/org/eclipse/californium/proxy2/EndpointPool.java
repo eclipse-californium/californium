@@ -86,7 +86,7 @@ public class EndpointPool implements ClientEndpoints {
 	/**
 	 * Create endpoint pool with specific network configuration and executors.
 	 * 
-	 * Requries extra initialization of the pool calling {@link #init(int)}.
+	 * Requires extra initialization of the pool calling {@link #init(int)}.
 	 * 
 	 * @param size size of pool
 	 * @param config network configuration to create endpoints.
@@ -142,7 +142,7 @@ public class EndpointPool implements ClientEndpoints {
 	 * Get endpoint from pool.
 	 * 
 	 * @return An Endpoint that is not in use.
-	 * @throws IOException if an i/o error occurrs creating a new endpoint.
+	 * @throws IOException if an i/o error occurs creating a new endpoint.
 	 */
 	protected Endpoint getEndpoint() throws IOException {
 		Endpoint endpoint = pool.poll();
@@ -156,10 +156,11 @@ public class EndpointPool implements ClientEndpoints {
 	/**
 	 * Create new endpoint.
 	 * 
-	 * Maybe overriden to create endpoints using other schemes and protocols.
+	 * Maybe overridden to create endpoints using other schemes and protocols.
 	 * 
 	 * @return new created endpoint.
-	 * @throws IOException
+	 * @throws IOException if the endpoint could not be started, e.g. because
+	 *             the endpoint's port is already in use.
 	 */
 	protected Endpoint createEndpoint() throws IOException {
 		Endpoint endpoint = new CoapEndpoint.Builder().setNetworkConfig(config).build();

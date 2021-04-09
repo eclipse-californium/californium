@@ -14,7 +14,7 @@
  *    Bosch IO GmbH - derived from org.eclipse.californium.proxy
  ******************************************************************************/
 
-package org.eclipse.californium.proxy2;
+package org.eclipse.californium.proxy2.http.server;
 
 import java.io.IOException;
 
@@ -24,6 +24,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
+import org.eclipse.californium.proxy2.http.Http2CoapTranslator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,7 +60,7 @@ public class ProxyHttpServer {
 
 			@Override
 			public void deliverRequest(Exchange exchange) {
-				ProxyHttpServer.this.handleRequest(exchange);
+				handleRequest(exchange);
 			}
 
 			@Override
@@ -75,9 +76,8 @@ public class ProxyHttpServer {
 	 * {@link #setHttpTranslator(Http2CoapTranslator)},
 	 * {@link Http2CoapTranslator} is used as default implementation.
 	 * 
-	 * @throws IOException in case if a non-recoverable I/O error.
 	 */
-	public void start() throws IOException {
+	public void start() {
 		if (!handlerRegistered) {
 			if (proxyCoapDeliverer != null) {
 				httpStack.registerProxyRequestHandler();
@@ -86,6 +86,7 @@ public class ProxyHttpServer {
 			if (localCoapDeliverer != null) {
 				httpStack.registerLocalRequestHandler();
 			}
+			httpStack.registerDefaultHandler();
 			if (translator == null) {
 				translator = new Http2CoapTranslator();
 			}
@@ -102,6 +103,11 @@ public class ProxyHttpServer {
 		httpStack.stop();
 	}
 
+	/**
+	 * Handles incoming coap requests.
+	 * 
+	 * @param exchange coap exchange
+	 */
 	public void handleRequest(final Exchange exchange) {
 		final Request request = exchange.getRequest();
 		LOGGER.info("ProxyEndpoint handles request {}", request);
@@ -122,7 +128,8 @@ public class ProxyHttpServer {
 	}
 
 	/**
-	 * Set http translator for incoming http requests and outgoing http responses.
+	 * Set http translator for incoming http requests and outgoing http
+	 * responses.
 	 * 
 	 * set in {@link HttpStack} on {@link #start()}.
 	 * 

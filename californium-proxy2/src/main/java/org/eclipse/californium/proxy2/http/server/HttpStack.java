@@ -14,30 +14,23 @@
  *    Bosch IO GmbH - derived from org.eclipse.californium.proxy
  ******************************************************************************/
 
-package org.eclipse.californium.proxy2;
+package org.eclipse.californium.proxy2.http.server;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
 import java.util.Locale;
 
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpException;
-import org.apache.http.HttpInetConnection;
-import org.apache.http.HttpRequest;
-import org.apache.http.HttpResponse;
-import org.apache.http.HttpVersion;
-import org.apache.http.StatusLine;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.EnglishReasonPhraseCatalog;
-import org.apache.http.message.BasicStatusLine;
-import org.apache.http.nio.protocol.BasicAsyncRequestConsumer;
-import org.apache.http.nio.protocol.HttpAsyncExchange;
-import org.apache.http.nio.protocol.HttpAsyncRequestConsumer;
-import org.apache.http.nio.protocol.HttpAsyncRequestHandler;
-import org.apache.http.nio.protocol.UriHttpAsyncRequestHandlerMapper;
-import org.apache.http.protocol.HttpContext;
-import org.apache.http.protocol.HttpCoreContext;
+import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.http.EndpointDetails;
+import org.apache.hc.core5.http.HttpException;
+import org.apache.hc.core5.http.HttpRequest;
+import org.apache.hc.core5.http.Message;
+import org.apache.hc.core5.http.impl.EnglishReasonPhraseCatalog;
+import org.apache.hc.core5.http.message.RequestLine;
+import org.apache.hc.core5.http.nio.AsyncServerRequestHandler.ResponseTrigger;
+import org.apache.hc.core5.http.nio.support.AsyncResponseBuilder;
+import org.apache.hc.core5.http.protocol.HttpContext;
+import org.apache.hc.core5.http.protocol.HttpCoreContext;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
@@ -46,6 +39,13 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.proxy2.InvalidFieldException;
+import org.eclipse.californium.proxy2.InvalidMethodException;
+import org.eclipse.californium.proxy2.TranslationException;
+import org.eclipse.californium.proxy2.http.ContentTypedEntity;
+import org.eclipse.californium.proxy2.http.CrossProtocolTranslator;
+import org.eclipse.californium.proxy2.http.Http2CoapTranslator;
+import org.eclipse.californium.proxy2.http.ProxyResponseProducer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,7 +54,7 @@ import org.slf4j.LoggerFactory;
  * thread that it is always blocked on the listen primitive. For each connection
  * this thread creates a new thread that handles the client/server dialog.
  * 
- * <a href="https://tools.ietf.org/html/rfc8075">RFC8075 - HTTP2CoAP</a>
+ * <a href="https://tools.ietf.org/html/rfc8075" target="_blank">RFC8075 - HTTP2CoAP</a>
  */
 public class HttpStack {
 
@@ -109,9 +109,6 @@ public class HttpStack {
 	 */
 	public HttpStack(NetworkConfig config, InetSocketAddress httpInterface) throws IOException {
 		server = new HttpServer(config, httpInterface);
-		// register the default handler for root URIs
-		// wrapping a common request handler with an async request handler
-		server.setSimpleResource("*", SERVER_NAME + " on %s.", null);
 	}
 
 	/**
@@ -127,15 +124,28 @@ public class HttpStack {
 	}
 
 	/**
+	 * Register default handler for proxy http-server itself.
+	 * 
+	 * Usually only called, if http-request is no proxy-request.
+	 * 
+	 * @since 3.0
+	 */
+	void registerDefaultHandler() {
+		// register the default handler for root URIs
+		// wrapping a common request handler with an async request handler
+		server.setSimpleResource("*", SERVER_NAME + " on %s.", null);
+	}
+
+	/**
 	 * Register "local" request handler.
 	 *
 	 * Handles requests for
 	 * "http://<proxy-host>:<proxy-port>/local/<local-coap-path>".
 	 */
 	void registerLocalRequestHandler() {
-		UriHttpAsyncRequestHandlerMapper registry = server.getRequestHandlerMapper();
+		String name = "/" + LOCAL_RESOURCE_NAME;
 		// register the handler for local coap resources
-		registry.register("/" + LOCAL_RESOURCE_NAME + "/*", new ProxyAsyncRequestHandler(LOCAL_RESOURCE_NAME, false));
+		server.register(name + "/*", new ProxyAsyncRequestHandler(name, false));
 	}
 
 	/**
@@ -145,12 +155,11 @@ public class HttpStack {
 	 * "http://<proxy-host>:<proxy-port>/proxy/<destination-uri>".
 	 */
 	void registerProxyRequestHandler() {
-		UriHttpAsyncRequestHandlerMapper registry = server.getRequestHandlerMapper();
+		String name = "/" + PROXY_RESOURCE_NAME;
 		// register the handler for proxy coap resources
-		ProxyAsyncRequestHandler handler = new ProxyAsyncRequestHandler(PROXY_RESOURCE_NAME, true);
-		registry.register("/" + PROXY_RESOURCE_NAME + "/*", handler);
-		registry.register("/" + PROXY_RESOURCE_NAME, handler);
-		registry.register("http*", handler);
+		ProxyAsyncRequestHandler handler = new ProxyAsyncRequestHandler(name, true);
+		server.register(name + "/*", handler);
+		server.register(name, handler);
 	}
 
 	/**
@@ -164,17 +173,15 @@ public class HttpStack {
 	 * "http://<destination>:<port>/<destination-uri>/<destination-scheme>:".
 	 */
 	void registerHttpProxyRequestHandler() {
-		UriHttpAsyncRequestHandlerMapper registry = server.getRequestHandlerMapper();
+		String name = "/" + PROXY_RESOURCE_NAME;
 		// register the handler for proxy coap resources
-		registry.register("http*", new ProxyAsyncRequestHandler(PROXY_RESOURCE_NAME, true));
+		server.registerProxy(new ProxyAsyncRequestHandler(name, true));
 	}
 
 	/**
 	 * Start http server.
-	 * 
-	 * @throws IOException in case if a non-recoverable I/O error.
 	 */
-	public void start() throws IOException {
+	public void start() {
 		server.start();
 	}
 
@@ -201,7 +208,7 @@ public class HttpStack {
 	 * thread-safe because the local resource is set in the constructor and then
 	 * only read by the methods.
 	 */
-	private class ProxyAsyncRequestHandler implements HttpAsyncRequestHandler<HttpRequest> {
+	private class ProxyAsyncRequestHandler extends ByteBufferAsyncServerRequestHandler {
 
 		private final String resourceName;
 		private final boolean proxyingEnabled;
@@ -217,35 +224,28 @@ public class HttpStack {
 			this.proxyingEnabled = proxyingEnabled;
 		}
 
-		/*
-		 * (non-Javadoc)
-		 * 
-		 * @see
-		 * org.apache.http.nio.protocol.HttpAsyncRequestHandler#handle(java.
-		 * lang.Object, org.apache.http.nio.protocol.HttpAsyncExchange,
-		 * org.apache.http.protocol.HttpContext)
-		 */
 		@Override
-		public void handle(HttpRequest httpRequest, final HttpAsyncExchange httpExchange, HttpContext httpContext)
-				throws HttpException, IOException {
+		public void handle(final Message<HttpRequest, ContentTypedEntity> message,
+				final ResponseTrigger responseTrigger, final HttpContext context) throws HttpException, IOException {
 
-			HttpInetConnection connection = (HttpInetConnection) httpContext
-					.getAttribute(HttpCoreContext.HTTP_CONNECTION);
-			InetSocketAddress endpoint = new InetSocketAddress(connection.getLocalAddress(), connection.getLocalPort());
-			InetSocketAddress source = new InetSocketAddress(connection.getRemoteAddress(), connection.getRemotePort());
+			final HttpCoreContext coreContext = HttpCoreContext.adapt(context);
+			final EndpointDetails connection = coreContext.getEndpointDetails();
+			final HttpRequest request = message.getHead();
+			InetSocketAddress endpoint = (InetSocketAddress) connection.getLocalAddress();
+			InetSocketAddress source = (InetSocketAddress) connection.getRemoteAddress();
 
 			LOGGER.debug("handler {}, proxy {}", resourceName, proxyingEnabled);
 			LOGGER.debug("Incoming http request: on {} from {}{}   {}", endpoint, source, StringUtil.lineSeparator(),
-					httpRequest.getRequestLine());
+					new RequestLine(request));
 
 			try {
 				// translate the request in a valid coap request
-				final Request coapRequest = translator.getCoapRequest(httpRequest, resourceName, proxyingEnabled);
+				final Request coapRequest = translator.getCoapRequest(message, resourceName, proxyingEnabled);
 				// if (Bench_Help.DO_LOG)
 				LOGGER.info("Received HTTP request and translate to {}", coapRequest);
 				coapRequest.setSourceContext(new AddressEndpointContext(source));
-				// use destination of incoming request to keep the receiving interface.
-				coapRequest.setDestinationContext(new AddressEndpointContext(endpoint));
+				// keep the receiving interface.
+				coapRequest.setLocalAddress(endpoint);
 				// handle the request
 				Exchange exchange = new Exchange(coapRequest, Origin.REMOTE, null) {
 
@@ -256,72 +256,61 @@ public class HttpStack {
 
 					@Override
 					public void sendReject() {
-						sendSimpleHttpResponse(httpExchange, HttpTranslator.STATUS_NOT_FOUND, null);
+						sendSimpleHttpResponse(CrossProtocolTranslator.STATUS_NOT_FOUND, null, responseTrigger,
+								context);
 					}
 
 					@Override
 					public void sendResponse(Response response) {
 						coapRequest.setResponse(response);
-						sendHttpResponse(httpExchange, response);
+						sendHttpResponse(request, response, responseTrigger, context);
 						LOGGER.debug("HTTP returned {}", response);
 					}
 				};
 				requestDeliverer.deliverRequest(exchange);
 			} catch (InvalidMethodException e) {
 				LOGGER.warn("Method not implemented", e);
-				sendSimpleHttpResponse(httpExchange, HttpTranslator.STATUS_WRONG_METHOD, e.getMessage());
+				sendSimpleHttpResponse(CrossProtocolTranslator.STATUS_WRONG_METHOD, e.getMessage(), responseTrigger,
+						context);
 			} catch (InvalidFieldException e) {
 				LOGGER.warn("Request malformed", e);
-				sendSimpleHttpResponse(httpExchange, HttpTranslator.STATUS_URI_MALFORMED, e.getMessage());
+				sendSimpleHttpResponse(CrossProtocolTranslator.STATUS_URI_MALFORMED, e.getMessage(), responseTrigger,
+						context);
 			} catch (TranslationException e) {
 				LOGGER.warn("Failed to translate the http request in a valid coap request", e);
-				sendSimpleHttpResponse(httpExchange, HttpTranslator.STATUS_TRANSLATION_ERROR, e.getMessage());
+				sendSimpleHttpResponse(CrossProtocolTranslator.STATUS_TRANSLATION_ERROR, e.getMessage(),
+						responseTrigger, context);
 			} catch (Throwable e) {
 				LOGGER.error("Unexpected error", e);
-				sendSimpleHttpResponse(httpExchange, HttpTranslator.STATUS_INTERNAL_SERVER_ERROR, e.getMessage());
+				sendSimpleHttpResponse(CrossProtocolTranslator.STATUS_INTERNAL_SERVER_ERROR, e.getMessage(),
+						responseTrigger, context);
 			}
-		}
-
-		/*
-		 * (non-Javadoc)
-		 * 
-		 * @see
-		 * org.apache.http.nio.protocol.HttpAsyncRequestHandler#processRequest
-		 * (org.apache.http.HttpRequest, org.apache.http.protocol.HttpContext)
-		 */
-		@Override
-		public HttpAsyncRequestConsumer<HttpRequest> processRequest(HttpRequest httpRequest, HttpContext httpContext)
-				throws HttpException, IOException {
-			// Buffer request content in memory for simplicity
-			return new BasicAsyncRequestConsumer();
 		}
 	}
 
 	/**
-	 * Sedn http response.
+	 * Send http response.
 	 * 
 	 * @param httpExchange http exchange
 	 * @param coapResponse coap response
 	 */
-	private void sendHttpResponse(HttpAsyncExchange httpExchange, Response coapResponse) {
+	private void sendHttpResponse(HttpRequest request, Response coapResponse, ResponseTrigger responseTrigger,
+			HttpContext context) {
 		LOGGER.debug("Incoming response: {}", coapResponse);
-
-		// get the sample http response
-		HttpResponse httpResponse = httpExchange.getResponse();
 
 		try {
 			// translate the coap response in an http response
-			translator.getHttpResponse(httpExchange.getRequest(), coapResponse, httpResponse);
+			ProxyResponseProducer httpResponse = translator.getHttpResponse(request, coapResponse);
 
 			LOGGER.debug("Outgoing http response: {}", httpResponse.getStatusLine());
 			// send the response
-			httpExchange.submitResponse();
+			responseTrigger.submitResponse(httpResponse, context);
 		} catch (TranslationException e) {
 			LOGGER.warn("Failed to translate coap response to http response: {}", e.getMessage());
-			sendSimpleHttpResponse(httpExchange, HttpTranslator.STATUS_TRANSLATION_ERROR, null);
+			sendSimpleHttpResponse(CrossProtocolTranslator.STATUS_TRANSLATION_ERROR, null, responseTrigger, context);
 		} catch (Throwable e) {
 			LOGGER.warn("Failed to translate coap response to http response: {}", e.getMessage(), e);
-			sendSimpleHttpResponse(httpExchange, HttpTranslator.STATUS_TRANSLATION_ERROR, null);
+			sendSimpleHttpResponse(CrossProtocolTranslator.STATUS_TRANSLATION_ERROR, null, responseTrigger, context);
 		}
 	}
 
@@ -332,28 +321,25 @@ public class HttpStack {
 	 * @param httpCode the http code
 	 * @param message additional message, maybe {@code null}
 	 */
-	private static void sendSimpleHttpResponse(HttpAsyncExchange httpExchange, int httpCode, String message) {
-		// get the empty response from the exchange
-		HttpResponse httpResponse = httpExchange.getResponse();
-
-		// create and set the status line
+	private static void sendSimpleHttpResponse(int httpCode, String message, ResponseTrigger responseTrigger,
+			HttpContext context) {
+		// create diagnose message
 		String reason = EnglishReasonPhraseCatalog.INSTANCE.getReason(httpCode, Locale.ENGLISH);
-		StatusLine statusLine = new BasicStatusLine(HttpVersion.HTTP_1_1, httpCode, reason);
-		httpResponse.setStatusLine(statusLine);
-
-		try {
-			StringBuilder payload = new StringBuilder();
-			payload.append(httpCode).append(": ").append(reason);
-			if (message != null) {
-				payload.append("\r\n\r\n").append(message);
-			}
-			HttpEntity entity = new StringEntity(payload.toString());
-			httpResponse.setEntity(entity);
-		} catch (UnsupportedEncodingException e) {
+		StringBuilder payload = new StringBuilder();
+		payload.append(httpCode).append(": ").append(reason);
+		if (message != null) {
+			payload.append("\r\n\r\n").append(message);
 		}
 
-		// send the error response
-		httpExchange.submitResponse();
+		try {
+			responseTrigger.submitResponse(
+					AsyncResponseBuilder.create(httpCode).setEntity(payload.toString(), ContentType.TEXT_PLAIN).build(),
+					context);
+		} catch (HttpException e) {
+			LOGGER.warn("Failed to send response: {}", e.getMessage(), e);
+		} catch (IOException e) {
+			LOGGER.warn("Failed to send response: {}", e.getMessage(), e);
+		}
 	}
 
 }

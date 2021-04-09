@@ -70,6 +70,14 @@ Since 3.0 `null` is replaced by `Bytes.EMPTY`. The method will now always return
 
 `Request.setOnResponseError(Throwable error)` is not longer accompanied by `Request.setCanceled(boolean canceled)`.
 
+### Californium-Proxy2:
+
+The apache http-components have been updated to http-client 5.0.3 and http-core 5.0.2.
+That requires to update all custom cross-proxy implementations as well.
+Please consider the migration information on the [apache http-components web-page](https://hc.apache.org/)
+
+The updated proxy2 now processes more coap-options and http-headers.
+
 ## Noteworthy API Changes
 
 ### Element-Connector:
@@ -141,3 +149,15 @@ are removed and must be replaced by
 8) Renamed `Message.onComplete()` to `onTransferComplete()`, including `MessageObserver.onComplete()`.
 
 9) Changed `Exchange.getRetransmissionHandle()` to `isTransmissionPending()`.
+
+10) Add `DelivererException` to `ServerMessageDeliverer.findResource(Exchange exchange)` and `ServerMessageDeliverer.findResource(List<String> list)`
+
+11) Change the return type of `MediaTypeRegistry.parseWildcard(String wildcard)` from `Integer[]` to `int[]`.
+
+### Californium-Proxy2:
+
+1) Update to http-client 5.0.3 and http-core 5.0.2. The apache http-components are not encapsulated. Therefore this update causes several API changes, where these classes are used. Please consider the migration information on the [apache http-components web-page](https://hc.apache.org/)
+
+2) Add package `org.eclipse.californium.proxy2.http` and moved all http-translation relevant classes into that. Rename `HttpTranslator` into `CrossProtocolTranslator`
+
+3) Add package `org.eclipse.californium.proxy2.http.server` and moved the http-server specific classes into that.

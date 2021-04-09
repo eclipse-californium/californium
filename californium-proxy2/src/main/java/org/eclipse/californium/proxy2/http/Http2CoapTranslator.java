@@ -13,27 +13,23 @@
  * Contributors:
  *    Bosch IO GmbH - derived from org.eclipse.californium.proxy
  ******************************************************************************/
-package org.eclipse.californium.proxy2;
+package org.eclipse.californium.proxy2.http;
 
-import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URLEncoder;
 import java.util.List;
 import java.util.Locale;
 
-import org.apache.http.Header;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpEntityEnclosingRequest;
-import org.apache.http.HttpRequest;
-import org.apache.http.HttpResponse;
-import org.apache.http.HttpVersion;
-import org.apache.http.NameValuePair;
-import org.apache.http.StatusLine;
-import org.apache.http.client.utils.URLEncodedUtils;
-import org.apache.http.entity.ContentType;
-import org.apache.http.impl.EnglishReasonPhraseCatalog;
-import org.apache.http.message.BasicStatusLine;
+import org.apache.hc.core5.http.ContentType;
+import org.apache.hc.core5.http.Header;
+import org.apache.hc.core5.http.HttpRequest;
+import org.apache.hc.core5.http.HttpVersion;
+import org.apache.hc.core5.http.Message;
+import org.apache.hc.core5.http.Method;
+import org.apache.hc.core5.http.NameValuePair;
+import org.apache.hc.core5.http.impl.EnglishReasonPhraseCatalog;
+import org.apache.hc.core5.http.message.BasicHttpResponse;
+import org.apache.hc.core5.net.URLEncodedUtils;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -43,6 +39,8 @@ import org.eclipse.californium.core.coap.OptionNumberRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.elements.util.StandardCharsets;
+import org.eclipse.californium.proxy2.InvalidFieldException;
+import org.eclipse.californium.proxy2.TranslationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,20 +53,54 @@ public class Http2CoapTranslator {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(Http2CoapTranslator.class);
 
-	protected final HttpTranslator httpTranslator;
+	protected final CrossProtocolTranslator httpTranslator;
+	protected final CrossProtocolTranslator.EtagTranslator etagTranslator;
 
+	/**
+	 * Creates http2coap translator from properties file.
+	 * 
+	 * @param mappingPropertiesFileName properties file name
+	 * @see CrossProtocolTranslator#CrossProtocolTranslator(String)
+	 */
 	public Http2CoapTranslator(String mappingPropertiesFileName) {
-		httpTranslator = new HttpTranslator(mappingPropertiesFileName);
-	}
-
-	public Http2CoapTranslator() {
-		httpTranslator = new HttpTranslator();
+		this(new CrossProtocolTranslator(mappingPropertiesFileName),
+				new CrossProtocolTranslator.CoapServerEtagTranslator());
 	}
 
 	/**
-	 * Gets the coap request. Creates the CoAP request from the HTTP method and
-	 * mapping it through the properties file. The URI is translated by
-	 * extracting the part after the provided httpResource.
+	 * Creates http2coap translator with default translator.
+	 * 
+	 * @see CrossProtocolTranslator#CrossProtocolTranslator()
+	 */
+	public Http2CoapTranslator() {
+		this(new CrossProtocolTranslator(), new CrossProtocolTranslator.CoapServerEtagTranslator());
+	}
+
+	/**
+	 * Creates http2coap translator with provided translator.
+	 * 
+	 * @param httpTranslator translator
+	 * @param etagTranslator translator for etag
+	 * @throws NullPointerException if any translator is {@code null}.
+	 */
+	public Http2CoapTranslator(CrossProtocolTranslator httpTranslator,
+			CrossProtocolTranslator.EtagTranslator etagTranslator) {
+		if (httpTranslator == null) {
+			throw new NullPointerException("http-translator must not be null!");
+		}
+		if (etagTranslator == null) {
+			throw new NullPointerException("etag-translator must not be null!");
+		}
+		this.httpTranslator = httpTranslator;
+		this.etagTranslator = etagTranslator;
+	}
+
+	/**
+	 * Gets the coap request.
+	 * 
+	 * Creates the CoAP request from the HTTP method and mapping it through the
+	 * properties file. The URI is translated by extracting the part after the
+	 * provided httpResource.
 	 * (http://proxyname.domain:80/proxy/coap://coapserver:5683/resource
 	 * converted in coap://coapserver:5683/resource.) It support proxy requests
 	 * or request mapped to a local coap-server. It also support http-request
@@ -88,18 +120,20 @@ public class Http2CoapTranslator {
 	 *            resource.
 	 * @return the coap request
 	 * @throws TranslationException the translation exception
+	 * @throws NullPointerException if one of the provided arguments is
+	 *             {@code null}.
 	 */
-	public Request getCoapRequest(HttpRequest httpRequest, String httpResource, boolean proxyingEnabled)
-			throws TranslationException {
+	public Request getCoapRequest(Message<HttpRequest, ContentTypedEntity> httpRequest, String httpResource,
+			boolean proxyingEnabled) throws TranslationException {
 		if (httpRequest == null) {
-			throw new NullPointerException("httpRequest == null");
+			throw new NullPointerException("httpRequest must not be null!");
 		}
 		if (httpResource == null) {
-			throw new NullPointerException("httpResource == null");
+			throw new NullPointerException("httpResource must not be null!");
 		}
 
 		// get the http method
-		String httpMethod = httpRequest.getRequestLine().getMethod().toLowerCase();
+		String httpMethod = httpRequest.getHead().getMethod();
 
 		// get the coap method
 		Code code = httpTranslator.getCoapCode(httpMethod);
@@ -108,46 +142,28 @@ public class Http2CoapTranslator {
 		Request coapRequest = new Request(code, Type.CON);
 
 		// get the uri
-		URI uri = null;
-		String uriString = httpRequest.getRequestLine().getUri();
-		LOGGER.debug("URI <= '{}'", uriString);
-
-		// decode the uri to translate the application/x-www-form-urlencoded
-		// format
+		URI uri;
 		try {
-			uri = new URI(uriString);
-		} catch (URISyntaxException e) {
-			try {
-				String encoded = URLEncoder.encode(uriString, "UTF-8");
-				uri = new URI(encoded);
-				uriString = encoded;
-			} catch (URISyntaxException ex) {
-				LOGGER.debug("Malformed uri", e);
-				throw new TranslationException("Malformed uri: " + e.getMessage());
-			} catch (UnsupportedEncodingException ex) {
-				LOGGER.debug("Malformed uri", e);
-				throw new TranslationException("Malformed uri: " + e.getMessage());
-			}
-		} catch (IllegalArgumentException e) {
-			LOGGER.debug("Malformed uri", e);
-			throw new TranslationException("Malformed uri: " + e.getMessage());
-		} catch (Throwable e) {
-			LOGGER.warn("Malformed uri", e);
-			throw new InvalidFieldException("Malformed uri: " + e.getMessage());
+			uri = httpRequest.getHead().getUri();
+			LOGGER.debug("URI <= '{}'", uri);
+		} catch (URISyntaxException ex) {
+			throw new TranslationException("Malformed uri: " + ex.getMessage());
 		}
 
+		if (!httpResource.startsWith("/")) {
+			httpResource = "/" + httpResource;
+		}
 		// if the uri contains the proxy resource name, the request should be
 		// forwarded and it is needed to get the real requested coap server's
-		// uri
-		// e.g.:
+		// uri e.g.:
 		// /proxy/coap://vslab-dhcp-17.inf.ethz.ch:5684/helloWorld
 		// proxy resource: /proxy
 		// coap server: coap://vslab-dhcp-17.inf.ethz.ch:5684
 		// coap resource: helloWorld
 		String path = uri.getPath();
 		LOGGER.debug("URI path => '{}'", path);
-		if (path.startsWith("/" + httpResource + "/")) {
-			path = path.substring(httpResource.length() + 2);
+		if (path.startsWith(httpResource + "/")) {
+			path = path.substring(httpResource.length() + 1);
 			String target = path;
 			if (uri.getQuery() != null) {
 				target = path + "?" + uri.getQuery();
@@ -168,7 +184,7 @@ public class Http2CoapTranslator {
 					// if the uri hasn't the indication of the scheme, add it
 					if (uri.getScheme() == null) {
 						throw new InvalidFieldException(
-								"Malformed uri: destination scheme missing! Use http://<proxy-host>/" + httpResource
+								"Malformed uri: destination scheme missing! Use http://<proxy-host>" + httpResource
 										+ "/coap://<destination-host>/<path>");
 					}
 					// the uri will be set as a proxy-uri option
@@ -177,7 +193,7 @@ public class Http2CoapTranslator {
 				} else {
 					if (uri.getScheme() != null) {
 						throw new InvalidFieldException(
-								"Malformed uri: local destination doesn't support scheme! Use http://<proxy-host>/"
+								"Malformed uri: local destination doesn't support scheme! Use http://<proxy-host>"
 										+ httpResource + "/<path>");
 					}
 					// the uri will be set as a coap-uri
@@ -189,7 +205,7 @@ public class Http2CoapTranslator {
 				LOGGER.warn("Malformed destination uri", e);
 				throw new InvalidFieldException("Malformed destination uri: " + target + "!");
 			}
-		} else if (proxyingEnabled && path.equals("/" + httpResource)) {
+		} else if (proxyingEnabled && path.equals(httpResource)) {
 			String target = null;
 			if (uri.getQuery() != null) {
 				List<NameValuePair> query = URLEncodedUtils.parse(uri.getQuery(), StandardCharsets.UTF_8);
@@ -201,7 +217,7 @@ public class Http2CoapTranslator {
 				}
 			}
 			if (target == null) {
-				throw new InvalidFieldException("Malformed uri: target_uri is missing! Use http://<proxy-host>/"
+				throw new InvalidFieldException("Malformed uri: target_uri is missing! Use http://<proxy-host>"
 						+ httpResource + "?target_uri=coap://<destination-host>/<path>");
 			}
 			try {
@@ -209,9 +225,8 @@ public class Http2CoapTranslator {
 				// forwarding proxy
 				// if the uri hasn't the indication of the scheme, add it
 				if (uri.getScheme() == null) {
-					throw new InvalidFieldException(
-							"Malformed uri: destination scheme missing! Use http://<proxy-host>/" + httpResource
-									+ "?target_uri=coap://<destination-host>/<path>");
+					throw new InvalidFieldException("Malformed uri: destination scheme missing! Use http://<proxy-host>"
+							+ httpResource + "?target_uri=coap://<destination-host>/<path>");
 				}
 				// the uri will be set as a proxy-uri option
 				LOGGER.debug("URI destination => '{}'", target);
@@ -234,7 +249,7 @@ public class Http2CoapTranslator {
 						coapRequest.getOptions().setProxyUri(destination.toASCIIString());
 					} catch (URISyntaxException e) {
 						LOGGER.debug("Malformed proxy uri", e);
-						throw new TranslationException("Malformed proxy uri: '" + uriString + "' " + e.getMessage());
+						throw new TranslationException("Malformed proxy uri: '" + uri + "' " + e.getMessage());
 					}
 				} else {
 					throw new TranslationException(
@@ -245,27 +260,16 @@ public class Http2CoapTranslator {
 						"Malformed proxy uri: target scheme missing! Use http://<destination-host>/<path>/<target-scheme>:");
 			}
 		} else {
-			throw new IllegalArgumentException("URI '" + uriString + "' doesn't match handler '" + httpResource + "'!");
+			throw new IllegalArgumentException("URI '" + uri + "' doesn't match handler '" + httpResource + "'!");
 		}
 
 		// translate the http headers in coap options
-		List<Option> coapOptions = httpTranslator.getCoapOptions(httpRequest.getAllHeaders());
-		for (Option option : coapOptions) {
-			coapRequest.getOptions().addOption(option);
-		}
+		List<Option> coapOptions = httpTranslator.getCoapOptions(httpRequest.getHead().getHeaders(), etagTranslator);
+		coapRequest.getOptions().addOptions(coapOptions);
 
 		// set the payload if the http entity is present
-		if (httpRequest instanceof HttpEntityEnclosingRequest) {
-			HttpEntity httpEntity = ((HttpEntityEnclosingRequest) httpRequest).getEntity();
-
-			// translate the http entity in coap payload
-			byte[] payload = httpTranslator.getCoapPayload(httpEntity);
-			coapRequest.setPayload(payload);
-
-			// set the content-type
-			int coapContentType = httpTranslator.getCoapMediaType(httpRequest);
-			coapRequest.getOptions().setContentFormat(coapContentType);
-		}
+		ContentTypedEntity entity = httpRequest.getBody();
+		httpTranslator.setCoapPayload(entity, coapRequest);
 
 		return coapRequest;
 	}
@@ -281,32 +285,31 @@ public class Http2CoapTranslator {
 	 * 
 	 * @param httpRequest http-request
 	 * @param coapResponse the coap-response
-	 * @param httpResponse http-response to be filled with the coap-response
+	 * @return httpResponse producer
 	 * @throws TranslationException the translation exception
+	 * @throws NullPointerException if one of the provided arguments is
+	 *             {@code null}.
 	 */
-	public void getHttpResponse(HttpRequest httpRequest, Response coapResponse, HttpResponse httpResponse)
+	public ProxyResponseProducer getHttpResponse(HttpRequest httpRequest, Response coapResponse)
 			throws TranslationException {
 		if (httpRequest == null) {
-			throw new IllegalArgumentException("httpRequest == null");
+			throw new NullPointerException("HTTP request must not be null!");
 		}
 		if (coapResponse == null) {
-			throw new IllegalArgumentException("coapResponse == null");
-		}
-		if (httpResponse == null) {
-			throw new IllegalArgumentException("httpResponse == null");
+			throw new NullPointerException("CoAP response must not be null!");
 		}
 
 		// get/set the response code
 		ResponseCode coapCode = coapResponse.getCode();
 		int httpCode = httpTranslator.getHttpCode(coapResponse.getCode());
 
-		// create the http response and set the status line
+		BasicHttpResponse httpResponse = new BasicHttpResponse(httpCode);
+		httpResponse.setVersion(HttpVersion.HTTP_1_1);
 		String reason = EnglishReasonPhraseCatalog.INSTANCE.getReason(httpCode, Locale.ENGLISH);
-		StatusLine statusLine = new BasicStatusLine(HttpVersion.HTTP_1_1, httpCode, reason);
-		httpResponse.setStatusLine(statusLine);
+		httpResponse.setReasonPhrase(reason);
 
 		// set the headers
-		Header[] headers = httpTranslator.getHttpHeaders(coapResponse.getOptions().asSortedList());
+		Header[] headers = httpTranslator.getHttpHeaders(coapResponse.getOptions().asSortedList(), etagTranslator);
 		httpResponse.setHeaders(headers);
 
 		// set max-age if not already set
@@ -314,30 +317,29 @@ public class Http2CoapTranslator {
 			httpResponse.setHeader("cache-control", "max-age=" + OptionNumberRegistry.Defaults.MAX_AGE);
 		}
 
-		// get the http entity if the request was not HEAD
-		if (!httpRequest.getRequestLine().getMethod().equalsIgnoreCase("head")) {
+		ContentTypedEntity httpEntity = null;
+
+		if (!Method.HEAD.name().equalsIgnoreCase(httpRequest.getMethod())) {
+			// get the http entity if the request was not HEAD
 
 			// if the content-type is not set in the coap response and if the
 			// response contains an error, then the content-type should set to
 			// text-plain
 			if (coapResponse.getOptions().getContentFormat() == MediaTypeRegistry.UNDEFINED
 					&& (ResponseCode.isClientError(coapCode) || ResponseCode.isServerError(coapCode))) {
-				LOGGER.info("Set contenttype to TEXT_PLAIN");
+				LOGGER.info("Set content-type to TEXT_PLAIN");
 				coapResponse.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
 				if (coapResponse.getPayloadSize() == 0) {
 					coapResponse.setPayload(httpCode + ": " + reason);
 				}
 			}
-
-			HttpEntity httpEntity = httpTranslator.getHttpEntity(coapResponse);
+			httpEntity = httpTranslator.getHttpEntity(coapResponse);
 			if (httpEntity != null) {
-				httpResponse.setEntity(httpEntity);
-
 				// get the content-type from the entity and set the header
-				ContentType contentType = ContentType.get(httpEntity);
+				ContentType contentType = httpEntity.getContentType();
 				httpResponse.setHeader("content-type", contentType.toString());
 			}
 		}
+		return new ProxyResponseProducer(httpResponse, ContentTypedEntity.createProducer(httpEntity));
 	}
-
 }

@@ -8,7 +8,7 @@
 		</encoder>
 	</appender>
 
-	<logger name="org.eclipse.californium.proxy2" level="DEBUG" additivity="false">
+	<logger name="org.eclipse.californium.proxy2" level="WARN" additivity="false">
 		<appender-ref ref="STDOUT" />
 	</logger>
 	<logger name="org.eclipse.californium.unixhealth.NetStatLogger" level="DEBUG" additivity="false">

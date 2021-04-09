@@ -111,7 +111,7 @@ public final class OptionNumberRegistry {
 	/**
 	 * The format types of CoAP options.
 	 */
-	public static enum optionFormats {
+	public static enum OptionFormat {
 		INTEGER, STRING, OPAQUE, UNKNOWN, EMPTY
 	}
 
@@ -122,7 +122,7 @@ public final class OptionNumberRegistry {
 	 *            The option number
 	 * @return The option format corresponding to the option number
 	 */
-	public static optionFormats getFormatByNr(int optionNumber) {
+	public static OptionFormat getFormatByNr(int optionNumber) {
 		switch (optionNumber) {
 		case CONTENT_FORMAT:
 		case MAX_AGE:
@@ -134,9 +134,9 @@ public final class OptionNumberRegistry {
 		case SIZE1:
 		case ACCEPT:
 		case NO_RESPONSE:
-			return optionFormats.INTEGER;
+			return OptionFormat.INTEGER;
 		case IF_NONE_MATCH:
-			return optionFormats.EMPTY;
+			return OptionFormat.EMPTY;
 		case URI_HOST:
 		case URI_PATH:
 		case URI_QUERY:
@@ -144,13 +144,13 @@ public final class OptionNumberRegistry {
 		case LOCATION_QUERY:
 		case PROXY_URI:
 		case PROXY_SCHEME:
-			return optionFormats.STRING;
+			return OptionFormat.STRING;
 		case ETAG:
 		case IF_MATCH:
 		case OSCORE:
-			return optionFormats.OPAQUE;
+			return OptionFormat.OPAQUE;
 		default:
-			return optionFormats.UNKNOWN;
+			return OptionFormat.UNKNOWN;
 		}
 	}
 

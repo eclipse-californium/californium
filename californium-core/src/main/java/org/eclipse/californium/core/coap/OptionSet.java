@@ -1606,6 +1606,38 @@ public final class OptionSet {
 	}
 
 	/**
+	 * Add options.
+	 * 
+	 * @param options list with options to add
+	 * @return this OptionSet for a fluent API.
+	 * @since 3.0
+	 */
+	public OptionSet addOptions(Option... options) {
+		if (options != null) {
+			for (Option option : options) {
+				addOption(option);
+			}
+		}
+		return this;
+	}
+
+	/**
+	 * Add options.
+	 * 
+	 * @param options list with options to add
+	 * @return this OptionSet for a fluent API.
+	 * @since 3.0
+	 */
+	public OptionSet addOptions(List<Option> options) {
+		if (options != null) {
+			for (Option option : options) {
+				addOption(option);
+			}
+		}
+		return this;
+	}
+
+	/**
 	 * Adds an arbitrary option.
 	 * <p>
 	 * Known options are checked if they are repeatable.
@@ -1687,14 +1719,15 @@ public final class OptionSet {
 	/**
 	 * Add other option bypassing the validation check.
 	 * 
-	 * If standard options are added by this function, the validation check is
-	 * bypassed! That maybe used for tests, but will result in failing
-	 * communication, if used for something else. Please use
+	 * If standard options are added by this function, the additional validation
+	 * checks are bypassed! That maybe used for tests, but will result in
+	 * failing communication, if used for something else. Please use
 	 * {@link #addOption(Option)} for all options, including others, which are
 	 * not intended for tests.
 	 * 
 	 * @param option the Option object to add
 	 * @return this OptionSet for a fluent API.
+	 * @see Option#setValueUnchecked(byte[])
 	 * @since 2.3
 	 */
 	public OptionSet addOtherOption(Option option) {

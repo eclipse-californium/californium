@@ -115,15 +115,16 @@ fi
 : "${USE_NON:=1}"
 : "${USE_LARGE_BLOCK1:=1}"
 
-: "${USE_HTTP:=0}"
 : "${USE_REQUEST:=1}"
 : "${USE_REVERSE:=1}"
 : "${USE_OBSERVE:=1}"
 : "${USE_HANDSHAKES:=1}"
+: "${USE_PROXY:=0}"
+: "${USE_HTTP:=0}"
 
 : "${USE_NONESTOP:=--no-stop}"
 
-: "${USE_NSTART:=--nstart 5}"
+: "${USE_NSTART:=--nstart 1}"
 
 # export EXECUTER_REMOVE_ON_CANCEL=true
 # export EXECUTER_LOGGING_QUEUE_SIZE_DIFF=1000
@@ -287,9 +288,7 @@ benchmark_dtls_handshake()
 
 benchmark_dtls_handshakes()
 {
-   if [ ${USE_HANDSHAKES} -eq 0 ] ; then return; fi
-   if [ ${USE_UDP} -eq 0 ] ; then return; fi
-   if [ ${USE_SECURE} -eq 0 ] ; then return; fi
+   if [ ${USE_HANDSHAKES} -eq 0 ] || [ ${USE_UDP} -eq 0 ] || [ ${USE_SECURE} -eq 0 ] ; then return; fi
 
    old=$CALIFORNIUM_STATISTIC
    export CALIFORNIUM_STATISTIC=
@@ -325,7 +324,7 @@ longterm()
 
 proxy()
 {
-   if [ ${USE_UDP} -eq 0 ] ; then return; fi
+   if [ ${USE_PROXY} -eq 0 ] || [ ${USE_UDP} -eq 0 ] ; then return; fi
    if [ ${USE_PLAIN} -ne 0 ] ; then
       if [ ${USE_HTTP} -ne 0 ] ; then 
          java ${CF_OPT} -cp ${CF_JAR} ${CF_EXEC} "coap://${CF_HOST}:8000/http-target" --clients ${UDP_CLIENTS} --requests ${REQS} --proxy "localhost:5683:http"
@@ -345,7 +344,7 @@ proxy()
 
 START_BENCHMARK=$(date +%s)
 
-#proxy
+proxy
 benchmark_all
 benchmark_dtls_handshakes
 

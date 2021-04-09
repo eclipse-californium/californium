@@ -21,6 +21,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -80,8 +81,9 @@ public class CoapUriTranslator {
 	 * the exposed one. That interface may be required, if the request doesn't
 	 * contain a uri-host or uri-port option. In that case, the interface is
 	 * used to fill in the missing information. This default implementation
-	 * returns {@code null} and so requires, that the requests contains the
-	 * uri-host and uri-port option.
+	 * returns {@link Message#getLocalAddress()}, if this is not an any address.
+	 * Otherwise, {@code null} is returned and requires, that the requests
+	 * contains the uri-host and uri-port option.
 	 * 
 	 * @param incomingRequest the received request. The request's local address
 	 *            contains the address of the local receiving interface.
@@ -89,7 +91,13 @@ public class CoapUriTranslator {
 	 * @since 3.0 use local address instead of destination context
 	 */
 	public InetSocketAddress getExposedInterface(Request incomingRequest) {
-		return null;
+		InetSocketAddress incoming = incomingRequest.getLocalAddress();
+		if (incoming != null) {
+			if (incoming.getAddress().isAnyLocalAddress()) {
+				return null;
+			}
+		}
+		return incoming;
 	}
 
 	/**
@@ -121,7 +129,7 @@ public class CoapUriTranslator {
 				String host = options.getUriHost();
 				if (host == null) {
 					if (exposed == null) {
-						throw new TranslationException("Destination host missing!");
+						throw new TranslationException("Destination host missing! Neither the Uri-Host nor the exposed interface is available!");
 					}
 					host = StringUtil.getUriHostname(exposed.getAddress());
 				}

@@ -50,7 +50,7 @@ public class StatsResource extends CoapResource {
 	/**
 	 * Instantiates a new stats resource.
 	 * 
-	 * @param cacheResource
+	 * @param cacheResource resource cache
 	 */
 	public StatsResource(CacheResource cacheResource) {
 		super("stats");

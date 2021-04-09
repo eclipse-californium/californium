@@ -27,6 +27,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.util.DatagramWriter;
 
 /**
  * Example CoAP server for proxy demonstration.
@@ -74,18 +75,27 @@ public class ExampleCoapServer {
 
 			@Override
 			public void handleGET(CoapExchange exchange) {
+				String payload = "Hi! I am the coap server on port " + port + ". Request " + counter.incrementAndGet()
+						+ ".";
 				exchange.setMaxAge(15);
-				exchange.respond(ResponseCode.CONTENT,
-						"Hi! I am the coap server on port " + port + ". Request " + counter.incrementAndGet() + ".",
-						MediaTypeRegistry.TEXT_PLAIN);
+				int hash = payload.hashCode();
+				DatagramWriter etag = new DatagramWriter(4);
+				etag.write(hash, 32);
+				exchange.setETag(etag.toByteArray());
+				exchange.respond(ResponseCode.CONTENT, payload, MediaTypeRegistry.TEXT_PLAIN);
 			}
 
 			@Override
 			public void handlePOST(CoapExchange exchange) {
 				String message = exchange.advanced().getRequest().getPayloadString();
+				String payload = "Hi, " + message + "! I am the coap server on port " + port + ". Request "
+						+ counter.incrementAndGet() + ".";
 				exchange.setMaxAge(1);
-				exchange.respond(ResponseCode.CONTENT, "Hi, " + message + "! I am the coap server on port " + port
-						+ ". Request " + counter.incrementAndGet() + ".", MediaTypeRegistry.TEXT_PLAIN);
+				int hash = payload.hashCode();
+				DatagramWriter etag = new DatagramWriter(4);
+				etag.write(hash, 32);
+				exchange.setETag(etag.toByteArray());
+				exchange.respond(ResponseCode.CONTENT, payload, MediaTypeRegistry.TEXT_PLAIN);
 			}
 
 		});

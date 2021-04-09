@@ -23,8 +23,6 @@
 package org.eclipse.californium.core.server;
 
 import java.net.InetSocketAddress;
-import java.util.Deque;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.Executor;
 
@@ -90,29 +88,36 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 		}
 		boolean processed = preDeliverRequest(exchange);
 		if (!processed) {
-			final Resource resource = findResource(exchange);
-			if (resource != null) {
-				checkForObserveOption(exchange, resource);
+			try {
+				final Resource resource = findResource(exchange);
+				if (resource != null) {
+					checkForObserveOption(exchange, resource);
 
-				// Get the executor and let it process the request
-				Executor executor = resource.getExecutor();
-				if (executor != null) {
-					executor.execute(new Runnable() {
+					// Get the executor and let it process the request
+					Executor executor = resource.getExecutor();
+					if (executor != null) {
+						executor.execute(new Runnable() {
 
-						public void run() {
-							resource.handleRequest(exchange);
-						}
-					});
+							public void run() {
+								resource.handleRequest(exchange);
+							}
+						});
+					} else {
+						resource.handleRequest(exchange);
+					}
 				} else {
-					resource.handleRequest(exchange);
+					if (LOGGER.isInfoEnabled()) {
+						Request request = exchange.getRequest();
+						LOGGER.info("did not find resource /{} requested by {}",
+								request.getOptions().getUriPathString(),
+								StringUtil.toLog(request.getSourceContext().getPeerAddress()));
+					}
+					exchange.sendResponse(new Response(ResponseCode.NOT_FOUND));
 				}
-			} else {
-				if (LOGGER.isInfoEnabled()) {
-					Request request = exchange.getRequest();
-					LOGGER.info("did not find resource /{} requested by {}", request.getOptions().getUriPathString(),
-							StringUtil.toLog(request.getSourceContext().getPeerAddress()));
-				}
-				exchange.sendResponse(new Response(ResponseCode.NOT_FOUND));
+			} catch (DelivererException ex) {
+				Response response = new Response(ex.getErrorResponseCode());
+				response.setPayload(ex.getMessage());
+				exchange.sendResponse(response);
 			}
 		}
 	}
@@ -154,7 +159,8 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 
 			if (request.isObserve()) {
 				// Requests wants to observe and resource allows it :-)
-				LOGGER.debug("initiating an observe relation between {} and resource {}, {}", StringUtil.toLog(source), resource.getURI(), exchange);
+				LOGGER.debug("initiating an observe relation between {} and resource {}, {}", StringUtil.toLog(source),
+						resource.getURI(), exchange);
 				ObservingEndpoint remote = observeManager.findObservingEndpoint(source);
 				ObserveRelation relation = new ObserveRelation(remote, resource, exchange);
 				remote.addObserveRelation(relation);
@@ -187,32 +193,36 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 
 	/**
 	 * Searches in the resource tree for the specified path. A parent resource
-	 * may accept requests to subresources, e.g., to allow addresses with
+	 * may accept requests to sub-resources, e.g., to allow addresses with
 	 * wildcards like <code>coap://example.com:5683/devices/*</code>
 	 * 
 	 * @param exchange The exchange containing the inbound request including the
 	 *            path of resource names
 	 * @return the resource or {@code null}, if not found
-	 * @since 2.1
+	 * @throws DelivererException if an other error is detected.
+	 * @since 3.0 (added DelivererException)
 	 */
-	protected Resource findResource(Exchange exchange) {
+	protected Resource findResource(Exchange exchange) throws DelivererException {
 		return findResource(exchange.getRequest().getOptions().getUriPath());
 	}
 
 	/**
 	 * Searches in the resource tree for the specified path. A parent resource
-	 * may accept requests to subresources, e.g., to allow addresses with
+	 * may accept requests to sub-resources, e.g., to allow addresses with
 	 * wildcards like <code>coap://example.com:5683/devices/*</code>
 	 * 
-	 * @param list the path as list of resource names
+	 * @param path the path as list of resource names
 	 * @return the resource or {@code null}, if not found
+	 * @throws DelivererException if an other error is detected.
+	 * @since 3.0 (added DelivererException)
 	 */
-	protected Resource findResource(final List<String> list) {
-		Deque<String> path = new LinkedList<String>(list);
+	protected Resource findResource(final List<String> path) throws DelivererException {
 		Resource current = getRootResource();
-		while (!path.isEmpty() && current != null) {
-			String name = path.removeFirst();
+		for (String name : path) {
 			current = current.getChild(name);
+			if (current == null) {
+				break;
+			}
 		}
 		return current;
 	}

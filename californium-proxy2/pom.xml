@@ -18,15 +18,10 @@
 	<description>Cross-proxy2 module</description>
 
 	<properties>
-		<httpasyncclient.version>4.1.4</httpasyncclient.version>
-		<httpasyncclient.version.spec>
-			version="[${versionmask;==;${httpasyncclient.version}},${versionmask;+;${httpasyncclient.version}})"
-		</httpasyncclient.version.spec>
-		<httpclient.version>4.5.6</httpclient.version>
-		<httpclient.version.spec>version="[${versionmask;==;${httpclient.version}},${versionmask;+;${httpclient.version}})"</httpclient.version.spec>
-		<!-- use same version for httpcore and httpcore-nio -->
-		<httpcore.version>4.4.10</httpcore.version>
-		<httpcore.version.spec>version="[${versionmask;==;${httpcore.version}},${versionmask;+;${httpcore.version}})"</httpcore.version.spec>
+		<httpclient5.version>5.0.3</httpclient5.version>
+		<httpclient5.version.spec>version="[${versionmask;==;${httpclient5.version}},${versionmask;+;${httpclient5.version}})"</httpclient5.version.spec>
+		<httpcore5.version>5.0.2</httpcore5.version>
+		<httpcore5.version.spec>version="[${versionmask;==;${httpcore5.version}},${versionmask;+;${httpcore5.version}})"</httpcore5.version.spec>
 	</properties>
 
 	<dependencies>
@@ -54,20 +49,22 @@
 			</exclusions>
 		</dependency>
 		<dependency>
-			<groupId>org.apache.httpcomponents</groupId>
-			<artifactId>httpasyncclient</artifactId>
-			<version>${httpasyncclient.version}</version>
+			<groupId>org.apache.httpcomponents.client5</groupId>
+			<artifactId>httpclient5</artifactId>
+			<version>${httpclient5.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>commons-codec</groupId>
+					<artifactId>commons-codec</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
-			<groupId>org.apache.httpcomponents</groupId>
-			<artifactId>httpcore</artifactId>
-			<version>${httpcore.version}</version>
+			<groupId>org.apache.httpcomponents.core5</groupId>
+			<artifactId>httpcore5</artifactId>
+			<version>${httpcore5.version}</version>
 		</dependency>
-		<dependency>
-			<groupId>org.apache.httpcomponents</groupId>
-			<artifactId>httpcore-nio</artifactId>
-			<version>${httpcore.version}</version>
-		</dependency>
+		<!-- 
 		<dependency>
 			<groupId>org.apache.httpcomponents</groupId>
 			<artifactId>httpclient</artifactId>
@@ -79,6 +76,7 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
+		 -->
 
 		<!-- test dependencies -->
 		<dependency>
@@ -106,8 +104,12 @@
 							<item>
 								<regex>true</regex>
 								<code>java\.class\.externalClassExposedInAPI</code>
-								<package>org\.apache\.http(\..*)*</package>
+								<package>org\.apache\.hc\..*</package>
 								<justification>
+									A generic encapsulation is currently not considered.
+									Note: updates of the apache-http-components may require to
+									adapt custom cross-proxy code as well. Please consider the
+									apache web-page for migration.
 								</justification>
 							</item>
 							<item>
@@ -138,25 +140,8 @@
 							org.eclipse.californium.proxy2*
 						</Export-Package>
 						<Import-Package>
-							org.apache.http; ${httpcore.version.spec},
-							org.apache.http.client.*; ${httpclient.version.spec},
-							org.apache.http.concurrent; ${httpcore.version.spec},
-							org.apache.http.conn*; ${httpclient.version.spec},
-							org.apache.http.entity; ${httpcore.version.spec},
-							org.apache.http.impl; ${httpcore.version.spec},
-							org.apache.http.impl.client; ${httpclient.version.spec},
-							org.apache.http.impl.nio; ${httpcore.version.spec},
-							org.apache.http.impl.nio.client; ${httpasyncclient.version.spec},
-							org.apache.http.impl.nio.conn; ${httpasyncclient.version.spec},
-							org.apache.http.impl.nio.reactor; ${httpcore.version.spec},
-							org.apache.http.message; ${httpcore.version.spec},
-							org.apache.http.nio; ${httpcore.version.spec},
-							org.apache.http.nio.conn; ${httpasyncclient.version.spec},
-							org.apache.http.nio.protocol; ${httpcore.version.spec},
-							org.apache.http.nio.reactor; ${httpcore.version.spec},
-							org.apache.http.params; ${httpcore.version.spec},
-							org.apache.http.protocol; ${httpcore.version.spec},
-							org.apache.http.util; ${httpcore.version.spec},
+							org.apache.hc.core5.*; ${httpcore5.version.spec},
+							org.apache.hc.client5.*; ${httpclient5.version.spec},
 							*
 						</Import-Package>
 						<Bundle-SymbolicName>${project.groupId}.proxy2</Bundle-SymbolicName>

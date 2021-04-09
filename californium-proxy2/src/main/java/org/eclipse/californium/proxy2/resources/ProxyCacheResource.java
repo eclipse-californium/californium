@@ -70,7 +70,11 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 	private static final long CACHE_SIZE = NetworkConfig.getStandard().getInt(NetworkConfig.Keys.HTTP_CACHE_SIZE);
 
 	/**
-	 * The cache. http://code.google.com/p/guava-libraries/wiki/CachesExplained
+	 * The cache.
+	 * 
+	 * @see <a href=
+	 *      "http://code.google.com/p/guava-libraries/wiki/CachesExplained"
+	 *      target="_blank"> Guava - Caches Explained</a>
 	 */
 	private final LoadingCache<CacheKey, Response> responseCache;
 
@@ -81,7 +85,10 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 	private boolean enabled = false;
 
 	/**
-	 * Instantiates a new proxy cache resource.
+	 * Instantiates a new disabled proxy cache resource.
+	 * 
+	 * @see #setEnabled(boolean)
+	 * @see #isEnabled()
 	 */
 	public ProxyCacheResource() {
 		this(false);
@@ -89,6 +96,10 @@ public class ProxyCacheResource extends CoapResource implements CacheResource {
 
 	/**
 	 * Instantiates a new proxy cache resource.
+	 * 
+	 * @param enabled {@code true}, enable proxy, or {@code false}, otherwise.
+	 * @see #setEnabled(boolean)
+	 * @see #isEnabled()
 	 */
 	public ProxyCacheResource(boolean enabled) {
 		super("cache");

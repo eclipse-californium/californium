@@ -16,8 +16,10 @@
 
 package org.eclipse.californium.proxy2.resources;
 
+import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.Collection;
 import java.util.HashMap;
@@ -25,9 +27,11 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.server.DelivererException;
 import org.eclipse.californium.core.server.ServerMessageDeliverer;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
@@ -40,7 +44,7 @@ import org.slf4j.LoggerFactory;
  * Forward proxy message deliverer
  * 
  * Delivers message either to proxy resources registered for the destination
- * scheme, or, to local resources using the requests path.
+ * scheme, or, to local resources using the request's path.
  * 
  * A request is considered for the forward-proxy, if either
  * <ul>
@@ -54,7 +58,8 @@ import org.slf4j.LoggerFactory;
  * of the provided translator. If a {@link ProxyCoapResource} was added, which
  * handles this destination scheme, the request delivered to that resource. For
  * none-compliant proxies, the translator implementation may return {@code null}
- * for special request to bypass the forward-proxy processing.
+ * from {@link CoapUriTranslator#getDestinationScheme(Request)} for specific
+ * request to bypass the forward-proxy processing.
  * 
  * Requests not processed by the forward-proxy are processed as standard request
  * by the coap-server.
@@ -88,6 +93,21 @@ public class ForwardProxyMessageDeliverer extends ServerMessageDeliverer {
 	 * local ports.
 	 */
 	private final Set<Integer> exposedPorts;
+
+	/**
+	 * Indicates, that {@link #addExposedServiceAddresses(InetSocketAddress...)}
+	 * was called with a any address.
+	 * 
+	 * @since 3.0
+	 */
+	private boolean exposedAnyAddress;
+
+	/**
+	 * Datagram socket to resolve the local address.
+	 * 
+	 * @since 3.0
+	 */
+	private DatagramSocket localAddressResolverSocket;
 
 	/**
 	 * Create message deliverer with forward-proxy support.
@@ -128,9 +148,13 @@ public class ForwardProxyMessageDeliverer extends ServerMessageDeliverer {
 	/**
 	 * Add exposed service address to suppress recursive requests.
 	 * 
+	 * If a {@link InetAddress#isAnyLocalAddress()} is provided, sets
+	 * {@link #exposedAnyAddress}.
+	 * 
 	 * @param exposed list of exposed interface addresses to suppress recursive
 	 *            proxy request. The exposed interfaces may differ from the
 	 *            local one, if containers are used.
+	 * @return this forward proxy message deliverer
 	 * @throws NullPointerException if {@code null} is provided
 	 * @throws IllegalArgumentException if list is empty
 	 */
@@ -141,12 +165,14 @@ public class ForwardProxyMessageDeliverer extends ServerMessageDeliverer {
 		if (exposed.length == 0) {
 			throw new IllegalArgumentException("exposed interfaces must not be empty!");
 		}
+		boolean exposedAnyAddress = false;
 		Collection<InetAddress> all = NetworkInterfacesUtil.getNetworkInterfaces();
 		for (InetSocketAddress inetAddress : exposed) {
 			LOGGER.info("address {}", inetAddress);
 			this.exposedPorts.add(inetAddress.getPort());
 			InetAddress address = inetAddress.getAddress();
 			if (address.isAnyLocalAddress()) {
+				exposedAnyAddress = true;
 				for (InetAddress eAddress : all) {
 					this.exposedServices.add(new InetSocketAddress(eAddress, inetAddress.getPort()));
 					this.exposedHosts.add(eAddress);
@@ -165,6 +191,11 @@ public class ForwardProxyMessageDeliverer extends ServerMessageDeliverer {
 		for (InetSocketAddress inetAddress : exposedServices) {
 			LOGGER.info("Exposed service {}", inetAddress);
 		}
+		if (exposedAnyAddress) {
+			synchronized (this) {
+				this.exposedAnyAddress = true;
+			}
+		}
 		return this;
 	}
 
@@ -172,6 +203,7 @@ public class ForwardProxyMessageDeliverer extends ServerMessageDeliverer {
 	 * Add proxy coap resources as standard forward-proxies.
 	 * 
 	 * @param proxies list of proxy resources.
+	 * @return this forward proxy message deliverer
 	 * @throws NullPointerException if {@code null} is provided
 	 * @throws IllegalArgumentException if list is empty
 	 */
@@ -194,13 +226,54 @@ public class ForwardProxyMessageDeliverer extends ServerMessageDeliverer {
 	}
 
 	/**
+	 * Start local address resolver.
+	 * 
+	 * If data is received through an any-address, the address resolver tries to
+	 * determine the local address used to send data back. Must be called after
+	 * {@link #addExposedServiceAddresses(InetSocketAddress...)} with a
+	 * {@link InetAddress#isAnyLocalAddress()}, otherwise the resolver is not
+	 * required and not started.
+	 * 
+	 * @return {@code true}, if address resolver is running, {@code false}, if
+	 *         not (caused by errors).
+	 * @see #stopLocalAddressResolver()
+	 * @since 3.0
+	 */
+	public synchronized boolean startLocalAddressResolver() {
+		try {
+			if (exposedAnyAddress && localAddressResolverSocket == null) {
+				localAddressResolverSocket = new DatagramSocket();
+			}
+		} catch (SocketException e) {
+			LOGGER.warn("");
+		}
+		return localAddressResolverSocket != null;
+	}
+
+	/**
+	 * Stop local address resolver.
+	 * 
+	 * @see #startLocalAddressResolver()
+	 * @since 3.0
+	 */
+	public synchronized void stopLocalAddressResolver() {
+		if (localAddressResolverSocket != null) {
+			localAddressResolverSocket.close();
+			localAddressResolverSocket = null;
+		}
+	}
+
+	/**
 	 * {@inheritDoc}
 	 * 
 	 * Route proxy requests to registered proxy resources. Suppress forwarding
 	 * of proxy request to own exposed interfaces reducing recursion.
+	 * 
+	 * @throws DelivererException if proxy scheme is not supported
+	 * @since 3.0 (throws DelivererException)
 	 */
 	@Override
-	protected Resource findResource(Exchange exchange) {
+	protected Resource findResource(Exchange exchange) throws DelivererException {
 		Resource resource = null;
 		Request request = exchange.getRequest();
 		OptionSet options = request.getOptions();
@@ -251,6 +324,21 @@ public class ForwardProxyMessageDeliverer extends ServerMessageDeliverer {
 				if (scheme != null) {
 					scheme = scheme.toLowerCase();
 					resource = scheme2resource.get(scheme);
+					if (resource == null) {
+						throw new DelivererException(ResponseCode.PROXY_NOT_SUPPORTED, scheme + "not supported!");
+					}
+					if (options.getUriHost() == null) {
+						// no URI-host
+						InetSocketAddress localSocketAddress = request.getLocalAddress();
+						if (localSocketAddress == null || localSocketAddress.getAddress().isAnyLocalAddress()) {
+							// no or any local address
+							InetAddress localAddress = resolveLocalAddress(request.getSourceContext().getPeerAddress());
+							if (localAddress != null) {
+								request.setLocalAddress(
+										new InetSocketAddress(localAddress, localSocketAddress.getPort()));
+							}
+						}
+					}
 				} else {
 					local = true;
 				}
@@ -263,5 +351,30 @@ public class ForwardProxyMessageDeliverer extends ServerMessageDeliverer {
 			resource = super.findResource(exchange);
 		}
 		return resource;
+	}
+
+	/**
+	 * Resolve local address.
+	 * 
+	 * If data is received through an any-address, the address resolver tries to
+	 * determine the local address used to send data back.
+	 * 
+	 * @param destination the source address of the received message is used as
+	 *            destination address to resolve the local address.
+	 * @return resolved local address, or {@code null}, if not available.
+	 */
+	private synchronized InetAddress resolveLocalAddress(InetSocketAddress destination) {
+		try {
+			if (localAddressResolverSocket != null) {
+				localAddressResolverSocket.connect(destination);
+				InetAddress localAddress = localAddressResolverSocket.getLocalAddress();
+				localAddressResolverSocket.disconnect();
+				if (!localAddress.isAnyLocalAddress()) {
+					return localAddress;
+				}
+			}
+		} catch (SocketException e) {
+		}
+		return null;
 	}
 }
