@@ -16,13 +16,13 @@ A http request is processed by opening a TCP connection to the destination host-
 wget http://destination:8000/http-target
 ```
 
-Http-request sent:
+That opens a TCP connection to `destination:8000` and sends the http-request:
 
 ```
 GET /http-target HTTP/1.1
 ```
 
-If a http proxy is used, that TCP connection is opened to the proxy-service instead of the destination host-service. The request is then sent to the proxy, that should process the request on its behalf. But the destination seems to be lost. Therefore, if the http-client sends a request to a proxy, the client adds the destination as well to the request line itself.
+If a http proxy is used, that TCP connection is opened to the proxy-service instead of the destination-service. The request is then sent to the proxy, that should process the request on its behalf. But the destination seems to be lost. Therefore, if the http-client sends a request to a proxy, the client adds the destination as well to the request line itself.
 
 Http-request sent via proxy:
 
@@ -30,13 +30,28 @@ Http-request sent via proxy:
 GET http://destination:8000/http-target HTTP/1.1
 ```
 
-That does the trick.
+That does the trick. It requires the http-client to know, that a proxy is used. For browsers there is usually a configuration page, where the usage of a proxy can be configured. Http-client libraries offers usually also a possibility to configure that, e.g.
+
+```java
+HttpHost proxy = new HttpHost("proxy-host", 8080, "http");
+HttpClient client = HttpClientBuilder.create().setProxy(proxy).build();
+HttpGet request = new HttpGet("http://destination:8000/http-target");
+HttpResponse response = client.execute(request);
+```
+
+Some may now ask themselves, where URLs as
+
+```
+http://proxy-host:8080/proxy/http://destination:8000/http-target
+```
+
+are the used. That is not for a simple forwarding proxy, that is used for special reverse-proxies.
 
 ## CoAP Proxy
 
-The same happens for coap.
+The same principles are used for coap-proxies.
 
-If the coap-request is sent directly to the destination coap-service, the destination may not be included in the uri-host and uri-port options of that request [5.10.1 URI options](https://tools.ietf.org/html/rfc7252#section-5.10.1), or, if included, these options contains the values for this destination coap-service.
+If the coap-request is sent directly to a coap destination-service, the destination may not be included in the uri-host and uri-port options of that request [5.10.1 URI options](https://tools.ietf.org/html/rfc7252#section-5.10.1). If included, these options contains the values for this coap destination-service.
 
 Coap-request:
 
@@ -44,7 +59,7 @@ Coap-request:
 CON, MID:5446, GET, TKN:08 2c 09 b6 8c 37 6b aa, /coap-target
 ```
 
-If the request is sent to a proxy, the uri-host and/or uri-port must contain the destination coap-service:
+If the request is sent to a proxy, the uri-host and/or uri-port must contain the coap destination-service, not the destination the coap-request is sent to:
 
 Coap-request via proxy:
 
@@ -52,25 +67,50 @@ Coap-request via proxy:
 CON, MID:18236, GET, TKN:80 e3 48 28 96 6a 8e 18, coap://destination/coap-target
 ```
 
+Using Californium, that works with:
+
+```java
+AddressEndpointContext proxy = new AddressEndpointContext(new InetSocketAddress("proxy-host", PROXY_PORT));
+request.setDestinationContext(proxy);
+request.setURI("coap://destination/coap-target");
+```
+
+(Please set the `DestinationContext` before the `URI`, as documented in the javadocs of `Request`.)
+
 ## CoAP Cross Proxy
 
-If a proxy should only process coap-request on its behalf, then all would be as easy and simple as above, no real difference to http. If a coap-request should be translated into a http-request and vice versa, the processing may get a tick more complicated. The first question, which comes in mind, is, how should a coap-proxy know, that the coap-request it received, should be translated into http and then send to a http-server? The answer is the sames as with the destination service; that information is added to the request. CoAP offers for that a special [5.10.2 Proxy-Scheme](https://tools.ietf.org/html/rfc7252#section-5.10.2) option.
+If a proxy should only process coap-request on its behalf, then all would be as easy and simple as above, no real difference to http.
+
+If a coap-request should be translated into a http-request and vice versa, the processing may get a tick more complicated. The first question, which comes in mind, is, how should a coap-proxy know, that the coap-request it received, should be translated into http and then send to a http-server? The answer is the same as with the destination service; that information is added to the request. CoAP offers for that a special [5.10.2 Proxy-Scheme](https://tools.ietf.org/html/rfc7252#section-5.10.2) option.
 
 Coap2http-request via proxy using proxy-scheme:
 
 ```
-CON, MID:4119, GET, TKN:d0 c0 81 bf af 8e 96 bf, coap://localhost:8000/http-target, coap.opt.proxy_scheme: http
+CON, MID:4119, GET, TKN:d0 c0 81 bf af 8e 96 bf, coap://destination:8000/http-target, coap.opt.proxy_scheme: http
 ```
 
-[6. CoAP URIs](https://tools.ietf.org/html/rfc7252#section-6) doesn't offer all a http URI offers. For that, if required, CoAP offers also [5.10.2 Proxy-Uri](https://tools.ietf.org/html/rfc7252#section-5.10.2) option.
+```java
+AddressEndpointContext proxy = new AddressEndpointContext(new InetSocketAddress("proxy-host", PROXY_PORT));
+request.setDestinationContext(proxy);
+request.setURI("coap://destination:8000/http-target");
+request.setProxyScheme("http");
+```
 
-Coap2http-request via proxy using proxy-uri:
+According [RFC7252, 6. CoAP URIs](https://tools.ietf.org/html/rfc7252#section-6) doesn't offer all a http URI offers. If these http extras are required, CoAP offers a [5.10.2 Proxy-Uri](https://tools.ietf.org/html/rfc7252#section-5.10.2) option.
+
+Coap2http-request via proxy using a proxy-uri:
 
 ```
 CON, MID:4121, GET, TKN:24 60 3f d0 3b 12 ef d0, coap.opt.proxy_uri: http://user@destination:8000/http-target
 ```
 
 It is intended to use either the proxy-uri or the other options uri-host, uri-port, uri-path, uri-query, and proxy-scheme.
+
+```java
+AddressEndpointContext proxy = new AddressEndpointContext(new InetSocketAddress("proxy-host", PROXY_PORT));
+request.setDestinationContext(proxy);
+request.setProxyUri("http://user@destination:8000/http-target");
+```
 
 ## Http2CoAP Cross Proxy
 
