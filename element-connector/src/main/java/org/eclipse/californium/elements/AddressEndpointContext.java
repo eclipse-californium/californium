@@ -43,6 +43,23 @@ public class AddressEndpointContext implements EndpointContext {
 	/**
 	 * Creates a context for an IP address and port.
 	 * 
+	 * @param address address of peer
+	 * @param port port of peer
+	 * @throws NullPointerException if provided address is {@code null}.
+	 * @since 3.0
+	 */
+	public AddressEndpointContext(String address, int port) {
+		if (address == null) {
+			throw new NullPointerException("missing peer inet address!");
+		}
+		this.peerAddress = new InetSocketAddress(address, port);
+		this.peerIdentity = null;
+		this.virtualHost = null;
+	}
+
+	/**
+	 * Creates a context for an IP address and port.
+	 * 
 	 * @param address IP address of peer
 	 * @param port port of peer
 	 * @throws NullPointerException if provided address is {@code null}.
