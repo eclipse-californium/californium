@@ -17,7 +17,6 @@
 package org.eclipse.californium.examples;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
@@ -100,7 +99,7 @@ public class ExampleProxy2CoapClient {
 		System.out.println("Proxy-URI: " + request.getOptions().getProxyUri());
 		request(client, request);
 
-		AddressEndpointContext proxy = new AddressEndpointContext(new InetSocketAddress("localhost", PROXY_PORT));
+		AddressEndpointContext proxy = new AddressEndpointContext("localhost", PROXY_PORT);
 		// RFC7252 proxy request - use CoAP-URI, proxy scheme, and destination to proxy
 		request = Request.newGet();
 		request.setDestinationContext(proxy);
