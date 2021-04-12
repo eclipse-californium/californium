@@ -62,21 +62,27 @@ public class ExampleProxy2CoapClient {
 	private static void request(CoapClient client, Request request) {
 		try {
 			CoapResponse response = client.advanced(request);
-			if (response != null) {
-				int format = response.getOptions().getContentFormat();
-				if (format != MediaTypeRegistry.TEXT_PLAIN && format != MediaTypeRegistry.UNDEFINED) {
-					System.out.print(MediaTypeRegistry.toString(format));
-				}
-				String text = response.getResponseText();
-				if (text.isEmpty()) {
-					System.out.println(response.getCode() + "/" + response.getCode().name());
-				} else {
-					System.out.println(response.getCode() + "/" + response.getCode().name() + " --- "
-							+ response.getResponseText());
-				}
-			}
+			printResponse(response);
 		} catch (ConnectorException | IOException e) {
 			e.printStackTrace();
+		}
+	}
+
+	private static void printResponse(CoapResponse response) {
+		if (response != null) {
+			int format = response.getOptions().getContentFormat();
+			if (format != MediaTypeRegistry.TEXT_PLAIN && format != MediaTypeRegistry.UNDEFINED) {
+				System.out.print(MediaTypeRegistry.toString(format));
+			}
+			String text = response.getResponseText();
+			if (text.isEmpty()) {
+				System.out.println(response.getCode() + "/" + response.getCode().name());
+			} else {
+				System.out.println(
+						response.getCode() + "/" + response.getCode().name() + " --- " + response.getResponseText());
+			}
+		} else {
+			System.out.println("timeout!");
 		}
 	}
 
@@ -100,7 +106,8 @@ public class ExampleProxy2CoapClient {
 		request(client, request);
 
 		AddressEndpointContext proxy = new AddressEndpointContext("localhost", PROXY_PORT);
-		// RFC7252 proxy request - use CoAP-URI, proxy scheme, and destination to proxy
+		// RFC7252 proxy request - use CoAP-URI, proxy scheme, and destination
+		// to proxy
 		request = Request.newGet();
 		request.setDestinationContext(proxy);
 		request.setURI("coap://localhost:8000/http-target");
@@ -124,6 +131,7 @@ public class ExampleProxy2CoapClient {
 		request(client, request);
 
 		// RFC7252 proxy request - use CoAP-URI, and destination to proxy
+		// => 4.04 NOT FOUND, the proxy itself has no resource "coap-target"
 		request = Request.newGet();
 		request.setDestinationContext(proxy);
 		request.setURI("coap://localhost:5683/coap-target");
@@ -140,6 +148,54 @@ public class ExampleProxy2CoapClient {
 		request.setURI("coap://localhost:5683/targets/destination2");
 		System.out.println("Reverse-Proxy: " + request.getURI());
 		request(client, request);
+
+		System.out.println("CoapClient using Proxy:");
+		request = Request.newPost();
+		// Request: first destination, then URI
+		request.setDestinationContext(proxy);
+		request.setURI("coap://localhost:8000/http-target");
+		request.setProxyScheme("http");
+		request.setPayload("coap-client");
+		try {
+			CoapResponse response = client.advanced(request);
+			printResponse(response);
+		} catch (ConnectorException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+		client.enableProxy(true);
+		client.setDestinationContext(proxy);
+		client.setURI("coap://localhost:5685/coap-target");
+		try {
+			CoapResponse response = client.post("coap-client", MediaTypeRegistry.TEXT_PLAIN);
+			printResponse(response);
+		} catch (ConnectorException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		client.setProxyScheme("http");
+		client.setURI("coap://localhost:8000/http-target");
+		try {
+			CoapResponse response = client.post("coap-client", MediaTypeRegistry.TEXT_PLAIN);
+			printResponse(response);
+		} catch (ConnectorException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		client.setProxyScheme(null);
+		client.setURI("http://localhost:8000/http-target");
+		try {
+			CoapResponse response = client.post("coap-client", MediaTypeRegistry.TEXT_PLAIN);
+			printResponse(response);
+		} catch (ConnectorException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 
 		client.shutdown();
 	}

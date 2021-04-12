@@ -34,6 +34,7 @@ import org.eclipse.californium.core.server.resources.CoapExchange;
  * {@link coap://localhost:5683/coap-target}
  */
 public class ExampleCoapServer {
+
 	/**
 	 * File name for network configuration.
 	 */
@@ -77,6 +78,14 @@ public class ExampleCoapServer {
 				exchange.respond(ResponseCode.CONTENT,
 						"Hi! I am the coap server on port " + port + ". Request " + counter.incrementAndGet() + ".",
 						MediaTypeRegistry.TEXT_PLAIN);
+			}
+
+			@Override
+			public void handlePOST(CoapExchange exchange) {
+				String message = exchange.advanced().getRequest().getPayloadString();
+				exchange.setMaxAge(1);
+				exchange.respond(ResponseCode.CONTENT, "Hi, " + message + "! I am the coap server on port " + port
+						+ ". Request " + counter.incrementAndGet() + ".", MediaTypeRegistry.TEXT_PLAIN);
 			}
 
 		});

@@ -58,6 +58,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.BlockOption;
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.LinkFormat;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
@@ -91,6 +92,19 @@ public class CoapClient {
 
 	/** The destination URI */
 	private String uri;
+
+	/**
+	 * Enable proxy mode of client.
+	 * 
+	 * @since 3.0
+	 */
+	private boolean useProxy;
+	/**
+	 * The proxy scheme, or {@code null}, if not used.
+	 * 
+	 * @since 3.0
+	 */
+	private String proxyScheme;
 
 	/**
 	 * Destination endpoint context.
@@ -220,15 +234,33 @@ public class CoapClient {
 	/**
 	 * Sets the destination URI of this client.
 	 *
-	 * Reset {@link #destinationContext} also.
+	 * Resets {@link #destinationContext} also, if neither {@link #useProxy} is
+	 * {@code true}, nor a {@link #proxyScheme} is used. Therefore one of both
+	 * must be set before the URI, in order to prevent the (proxy-)destination
+	 * from being reset.
 	 * 
 	 * @param uri the uri
 	 * @return the CoAP client
 	 */
 	public CoapClient setURI(String uri) {
-		this.destinationContext.set(null);
+		if (!useProxy && proxyScheme == null) {
+			this.destinationContext.set(null);
+		}
 		this.uri = uri;
 		return this;
+	}
+
+	/**
+	 * Get destination endpoint context.
+	 * 
+	 * A proxy-service may be used as destination as well. 
+	 * 
+	 * @return destination endpoint context. Maybe {@code null}, if not
+	 *         available.
+	 * @since 2.3
+	 */
+	public EndpointContext getDestinationContext() {
+		return this.destinationContext.get();
 	}
 
 	/**
@@ -245,14 +277,54 @@ public class CoapClient {
 	}
 
 	/**
-	 * Get destination endpoint context.
+	 * Checks, if a proxy is used by this client.
+	 *
+	 * Prevents {@link #setURI(String)} from reseting the
+	 * {@link #destinationContext} and removing the proxy-service.
 	 * 
-	 * @return destination endpoint context. Maybe {@code null}, if not
-	 *         available.
-	 * @since 2.3
+	 * @return {@code true}, if a proxy is used, {@code false}, if not.
+	 * @since 3.0
 	 */
-	public EndpointContext getDestinationContext() {
-		return this.destinationContext.get();
+	public boolean useProxy() {
+		return useProxy;
+	}
+
+	/**
+	 * Enable this client to use a proxy.
+	 * 
+	 * @param enable {@code true}, if a proxy is used, {@code false}, if not.
+	 * @return the CoAP client
+	 * @since 3.0
+	 */
+	public CoapClient enableProxy(boolean enable) {
+		this.useProxy = enable;
+		return this;
+	}
+
+	/**
+	 * Gets the proxy-scheme of this client.
+	 * 
+	 * Prevents {@link #setURI(String)} from reseting the
+	 * {@link #destinationContext} and removing the proxy-service.
+	 *
+	 * @return the proxy-scheme, or {@code null}, if not used.
+	 * @since 3.0
+	 */
+	public String getProxyScheme() {
+		return proxyScheme;
+	}
+
+	/**
+	 * Sets the proxy-scheme of this client.
+	 * 
+	 * @param proxyScheme the proxy-scheme of the client. e.g. "http", or
+	 *            {@code null}, if not used.
+	 * @return the CoAP client
+	 * @since 3.0
+	 */
+	public CoapClient setProxyScheme(String proxyScheme) {
+		this.proxyScheme = proxyScheme;
+		return this;
 	}
 
 	/**
@@ -1370,9 +1442,21 @@ public class CoapClient {
 		EndpointContext context = destinationContext.get();
 		if (context != null && request.getDestinationContext() == null) {
 			request.setDestinationContext(context);
-			request.setURI(uri);
+			if (useProxy && proxyScheme == null) {
+				String scheme = CoAP.getSchemeFromUri(uri);
+				if (scheme != null && !CoAP.isSupportedScheme(scheme)) {
+					request.setProxyUri(uri);
+				} else {
+					request.setURI(uri);
+				}
+			} else {
+				request.setURI(uri);
+			}
 		} else if (!request.hasURI() && !request.hasProxyURI()) {
 			request.setURI(uri);
+		}
+		if (proxyScheme != null && !request.hasProxyURI()) {
+			request.setProxyScheme(proxyScheme);
 		}
 		return request;
 	}
