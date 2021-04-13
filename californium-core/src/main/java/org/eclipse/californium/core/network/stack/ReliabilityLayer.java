@@ -531,7 +531,7 @@ public class ReliabilityLayer extends AbstractLayer {
 					current = exchange.getCurrentResponse();
 				}
 				if (message != current) {
-					LOGGER.debug("Timeout: for {}, message has changed!");
+					LOGGER.debug("Timeout: for {}, message has changed!", exchange);
 					return;
 				}
 

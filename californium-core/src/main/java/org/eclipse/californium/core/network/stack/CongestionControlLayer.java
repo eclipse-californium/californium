@@ -607,7 +607,7 @@ public abstract class CongestionControlLayer extends ReliabilityLayer {
 				});
 			} else {
 				int jobs = count.getAndSet(0);
-				LOGGER.debug("{}queue for outgoing notify stopped after {} jobs! (overall left {})", tag, jobs);
+				LOGGER.debug("{}queue for outgoing notify stopped after {} jobs!", tag, jobs);
 			}
 		}
 	}
