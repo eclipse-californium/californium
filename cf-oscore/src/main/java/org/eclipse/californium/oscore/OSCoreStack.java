@@ -57,7 +57,7 @@ public class OSCoreStack extends BaseCoapStack {
 		ReliabilityLayer reliabilityLayer;
 		if (config.getBoolean(NetworkConfig.Keys.USE_CONGESTION_CONTROL)) {
 			reliabilityLayer = CongestionControlLayer.newImplementation(tag, config);
-			LOGGER.info("{}Enabling congestion control: {0}", tag, reliabilityLayer.getClass().getSimpleName());
+			LOGGER.info("{}Enabling congestion control: {}", tag, reliabilityLayer.getClass().getSimpleName());
 		} else {
 			reliabilityLayer = new ReliabilityLayer(config);
 		}
