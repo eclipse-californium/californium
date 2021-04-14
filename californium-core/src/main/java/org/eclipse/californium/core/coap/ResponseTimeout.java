@@ -89,8 +89,10 @@ public class ResponseTimeout extends MessageObserverAdapter implements Runnable 
 	public void onSent(boolean retransmission) {
 		if (!retransmission && (!request.isConfirmable() || !request.hasMID())) {
 			// either NON or TCP (no MID)
-			LOGGER.trace("start non-response timeout {}", timeout);
-			scheduleTimeout();
+			if (request.getResponse() == null) {
+				LOGGER.trace("start non-response timeout {}", timeout);
+				scheduleTimeout();
+			}
 		}
 	}
 
@@ -102,8 +104,10 @@ public class ResponseTimeout extends MessageObserverAdapter implements Runnable 
 	@Override
 	public void onAcknowledgement() {
 		if (request.isConfirmable()) {
-			LOGGER.trace("start con-response timeout {}", timeout);
-			scheduleTimeout();
+			if (request.getResponse() == null) {
+				LOGGER.trace("start con-response timeout {}", timeout);
+				scheduleTimeout();
+			}
 		}
 	}
 
@@ -136,8 +140,10 @@ public class ResponseTimeout extends MessageObserverAdapter implements Runnable 
 	 */
 	@Override
 	public void run() {
-		LOGGER.trace("response timeout!");
-		request.setTimedOut(true);
+		if (request.getResponse() == null) {
+			LOGGER.trace("response timeout!");
+			request.setTimedOut(true);
+		}
 	}
 
 }
