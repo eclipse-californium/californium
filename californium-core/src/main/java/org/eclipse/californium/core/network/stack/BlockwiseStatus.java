@@ -390,6 +390,7 @@ public abstract class BlockwiseStatus {
 		}
 		// The assembled request will contain the options of the first block
 		message.setSourceContext(firstMessage.getSourceContext());
+		message.setLocalAddress(firstMessage.getLocalAddress());
 		message.setType(firstMessage.getType());
 		message.setMID(firstMessage.getMID());
 		message.setToken(firstMessage.getToken());
