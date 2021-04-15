@@ -245,7 +245,7 @@ public class HttpTranslator {
 					// iterate for each content-type indicated
 					for (String headerFragment : headerValue.split(",")) {
 						// translate the content-type
-						Integer[] coapContentTypes = { MediaTypeRegistry.UNDEFINED };
+						int[] coapContentTypes = { MediaTypeRegistry.UNDEFINED };
 						if (headerFragment.contains("*")) {
 							coapContentTypes = MediaTypeRegistry.parseWildcard(headerFragment);
 						} else {
