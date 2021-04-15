@@ -41,7 +41,7 @@ import org.slf4j.LoggerFactory;
  * {@link ScheduledThreadPoolExecutor#setRemoveOnCancelPolicy(boolean)} can be
  * used. The {@link ScheduledThreadPoolExecutor} will be configured using the
  * value of environment-variable or java-property
- * {@code "EXECUTER_REMOVE_ON_CANCEL"} or {@link #DEFAULT_REMOVE_ON_CANCEL}.
+ * {@code "EXECUTER_REMOVE_ON_CANCEL"}.
  * 
  * Test with java 11 didn't show such leaks, even if the task are removed
  * delayed, they are removed much earlier than their scheduled time.
