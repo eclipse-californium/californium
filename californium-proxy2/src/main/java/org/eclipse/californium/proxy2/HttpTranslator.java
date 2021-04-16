@@ -570,7 +570,9 @@ public class HttpTranslator {
 			CharsetEncoder encoder = toCharset.newEncoder();
 			ByteBuffer byteBuffer = encoder.encode(charBuffer);
 			encoder.flush(byteBuffer);
-			payload = byteBuffer.array();
+
+			payload  = new byte[byteBuffer.remaining()];
+			byteBuffer.get(payload);
 		} catch (UnmappableCharacterException e) {
 			// thrown when an input character (or byte) sequence is valid but
 			// cannot be mapped to an output byte (or character) sequence.
