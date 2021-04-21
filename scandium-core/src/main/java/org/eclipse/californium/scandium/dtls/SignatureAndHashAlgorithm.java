@@ -28,22 +28,22 @@ import java.util.List;
 import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalSignature;
 
 /**
- * See <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1">RFC 5246</a>
+ * See <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1" target="_blank">RFC 5246</a>
  * for details.
  * 
  * Since 2.4: added support for 
- * <a href="https://tools.ietf.org/html/rfc8422#section-5.1.3">RFC 8422</a>.
+ * <a href="https://tools.ietf.org/html/rfc8422#section-5.1.3" target="_blank">RFC 8422</a>.
  */
 public final class SignatureAndHashAlgorithm {
 
 	/**
 	 * Hash algorithms as defined by
-	 * <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1">RFC 5246</a>.
+	 * <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1" target="_blank">RFC 5246</a>.
 	 * <P>
 	 * Code is at most 255 (1 byte needed for representation).
 	 * 
 	 * Since 2.4: added {@link #INTRINSIC} defined by
-	 * <a href="https://tools.ietf.org/html/rfc8422#section-5.1.3">RFC 8422</a>.
+	 * <a href="https://tools.ietf.org/html/rfc8422#section-5.1.3" target="_blank">RFC 8422</a>.
 	 */
 	public static enum HashAlgorithm {
 
@@ -66,8 +66,8 @@ public final class SignatureAndHashAlgorithm {
 		 * 
 		 * @param code The algorithm's code.
 		 * @return The algorithm or {@code null} if no algorithm is defined for the given code by
-		 *         <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1">RFC 5246, Appendix A.4.1</a>, or
-		 *         <a href="https://tools.ietf.org/html/rfc8422#section-5.1.3">RFC 8422, Section 5.1.3</a>.
+		 *         <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1" target="_blank">RFC 5246, Appendix A.4.1</a>, or
+		 *         <a href="https://tools.ietf.org/html/rfc8422#section-5.1.3" target="_blank">RFC 8422, Section 5.1.3</a>.
 		 */
 		public static HashAlgorithm getAlgorithmByCode(int code) {
 			switch (code) {
@@ -95,8 +95,8 @@ public final class SignatureAndHashAlgorithm {
 
 		/**
 		 * Gets the code of this algorithm as defined by
-		 * <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1">RFC 5246, Appendix A.4.1</a>, or
-		 * <a href="https://tools.ietf.org/html/rfc8422#section-5.1.3">RFC 8422, Section 5.1.3</a>.
+		 * <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1" target="_blank">RFC 5246, Appendix A.4.1</a>, or
+		 * <a href="https://tools.ietf.org/html/rfc8422#section-5.1.3" target="_blank">RFC 8422, Section 5.1.3</a>.
 		 * 
 		 * @return The code.
 		 */
@@ -107,12 +107,12 @@ public final class SignatureAndHashAlgorithm {
 
 	/**
 	 * Signature algorithms as defined by
-	 * <a href="http://tools.ietf.org/html/rfc5246#appendix-A.4.1">RFC 5246</a>.
+	 * <a href="http://tools.ietf.org/html/rfc5246#appendix-A.4.1" target="_blank">RFC 5246</a>.
 	 * <p>
 	 * Code is at most 255 (1 byte needed for representation).
 	 * 
 	 * Since 2.4: added {@link #ED25519} and {@link #ED448} defined by
-	 * <a href="http://tools.ietf.org/html/rfc8422#section-5.1.3">RFC 8422</a>.
+	 * <a href="http://tools.ietf.org/html/rfc8422#section-5.1.3" target="_blank">RFC 8422</a>.
 	 */
 	public static enum SignatureAlgorithm {
 
@@ -143,8 +143,8 @@ public final class SignatureAndHashAlgorithm {
 		 * 
 		 * @param code The algorithm's code.
 		 * @return The algorithm or {@code null} if no algorithm is defined for the given code by
-		 *         <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1">RFC 5246, Appendix A.4.1</a>, or
-		 *         <a href="https://tools.ietf.org/html/rfc8422#section-5.1.3">RFC 8422, Section 5.1.3</a>.
+		 *         <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1" target="_blank">RFC 5246, Appendix A.4.1</a>, or
+		 *         <a href="https://tools.ietf.org/html/rfc8422#section-5.1.3" target="_blank">RFC 8422, Section 5.1.3</a>.
 		 */
 		public static SignatureAlgorithm getAlgorithmByCode(int code) {
 			switch (code) {
@@ -168,8 +168,8 @@ public final class SignatureAndHashAlgorithm {
 
 		/**
 		 * Gets the code of this algorithm as defined by
-		 * <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1">RFC 5246, Appendix A.4.1</a>, or
-		 * <a href="https://tools.ietf.org/html/rfc8422#section-5.1.3">RFC 8422, Section 5.1.3</a>.
+		 * <a href="https://tools.ietf.org/html/rfc5246#appendix-A.4.1" target="_blank">RFC 5246, Appendix A.4.1</a>, or
+		 * <a href="https://tools.ietf.org/html/rfc8422#section-5.1.3" target="_blank">RFC 8422, Section 5.1.3</a>.
 		 * 
 		 * @return The code.
 		 */
@@ -548,7 +548,7 @@ public final class SignatureAndHashAlgorithm {
 	}
 
 	/**
-	 * Gets the <a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Signature">
+	 * Gets the <a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Signature" target="_blank">
 	 * JCA standard name</a> corresponding to this combination of hash and signature algorithm.
 	 * <p>
 	 * The name returned by this method can be used to instantiate a {@code java.security.Signature} object like this:

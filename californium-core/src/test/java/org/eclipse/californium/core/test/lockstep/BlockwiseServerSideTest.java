@@ -82,7 +82,7 @@ import org.junit.experimental.categories.Category;
 
 /**
  * Test cases verifying the server side behavior of the examples from
- * <a href="https://tools.ietf.org/html/rfc7959#section-3">RFC 7958, Section 3</em>.
+ * <a href="https://tools.ietf.org/html/rfc7959#section-3" target="_blank">RFC 7958, Section 3</em>.
  */
 @Category(Large.class)
 public class BlockwiseServerSideTest {

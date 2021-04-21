@@ -317,8 +317,8 @@ public final class NetworkConfig {
 		/**
 		 * DTLS connection id length.
 		 * 
-		 * <a href="https://tools.ietf.org/html/draft-ietf-tls-dtls-connection-id-02">
-		 * draft-ietf-tls-dtls-connection-id-02</a>
+		 * <a href="https://tools.ietf.org/html/draft-ietf-tls-dtls-connection-id-06" target="_blank">
+		 * draft-ietf-tls-dtls-connection-id-06</a>
 		 * 
 		 * <ul>
 		 * <li>{@code ""} disabled support for connection id.</li>

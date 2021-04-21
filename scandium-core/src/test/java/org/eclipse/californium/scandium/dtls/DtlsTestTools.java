@@ -138,7 +138,7 @@ public final class DtlsTestTools extends TestCertificatesTools {
 	 * Parses a sequence of <em>DTLSCiphertext</em> structures into {@code Record} instances.
 	 * 
 	 * The binary representation is expected to comply with the <em>DTLSCiphertext</em> structure
-	 * defined in <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1">RFC6347, Section 4.3.1</a>.
+	 * defined in <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1" target="_blank">RFC6347, Section 4.3.1</a>.
 	 * 
 	 * @param byteArray the raw binary representation containing one or more DTLSCiphertext structures
 	 * @param cidGenerator the connection id generator. May be {@code null}.

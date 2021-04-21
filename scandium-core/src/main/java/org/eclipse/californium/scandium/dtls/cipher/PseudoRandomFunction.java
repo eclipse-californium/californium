@@ -30,7 +30,7 @@ import org.eclipse.californium.scandium.util.SecretUtil;
 /**
  * The Pseudo Random Function as defined in TLS 1.2.
  * 
- * @see <a href="http://tools.ietf.org/html/rfc5246#section-5">RFC 5246</a>
+ * @see <a href="http://tools.ietf.org/html/rfc5246#section-5" target="_blank">RFC 5246</a>
  */
 public final class PseudoRandomFunction {
 
@@ -94,7 +94,7 @@ public final class PseudoRandomFunction {
 
 	/**
 	 * Does the pseudo random function as defined in
-	 * <a href="http://tools.ietf.org/html/rfc5246#section-5">RFC 5246</a>.
+	 * <a href="http://tools.ietf.org/html/rfc5246#section-5" target="_blank">RFC 5246</a>.
 	 * 
 	 * @param hmac MAC algorithm.  e.g. HmacSHA256
 	 * @param secret the secret to use for the secure hash function
@@ -109,7 +109,7 @@ public final class PseudoRandomFunction {
 
 	/**
 	 * Does the pseudo random function as defined in <a
-	 * href="http://tools.ietf.org/html/rfc5246#section-5">RFC 5246</a>.
+	 * href="http://tools.ietf.org/html/rfc5246#section-5" target="_blank">RFC 5246</a>.
 	 * 
 	 * @param hmac MAC algorithm. e.g. HmacSHA256
 	 * @param secret the secret to use for the secure hash function
@@ -124,7 +124,7 @@ public final class PseudoRandomFunction {
 
 	/**
 	 * Performs the secret expansion as described in <a
-	 * href="http://tools.ietf.org/html/rfc5246#section-5">RFC 5246</a>.
+	 * href="http://tools.ietf.org/html/rfc5246#section-5" target="_blank">RFC 5246</a>.
 	 * 
 	 * @param hmac the cryptographic hash function to use for expansion.
 	 * @param label the label to use for creating the original data
@@ -217,7 +217,7 @@ public final class PseudoRandomFunction {
 	 *            EC Diffie-Hellman exchange (ECDHE_PSK).
 	 * @param pskSecret PSK secret.
 	 * @return byte array with generated premaster secret.
-	 * @see <a href="http://tools.ietf.org/html/rfc4279#section-2">RFC 4279</a>
+	 * @see <a href="http://tools.ietf.org/html/rfc4279#section-2" target="_blank">RFC 4279</a>
 	 */
 	public static SecretKey generatePremasterSecretFromPSK(SecretKey otherSecret, SecretKey pskSecret) {
 		/*

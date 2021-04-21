@@ -46,7 +46,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
  * It checks whether such a session still exists and if so,
  * generates the new keys from the previously established master secret.
  * The message flow is depicted in <a
- * href="http://tools.ietf.org/html/rfc5246#section-7.3">Figure 2</a>.
+ * href="http://tools.ietf.org/html/rfc5246#section-7.3" target="_blank">Figure 2</a>.
  */
 @NoPublicAPI
 public class ResumingServerHandshaker extends ServerHandshaker {

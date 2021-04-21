@@ -44,13 +44,13 @@ import org.slf4j.LoggerFactory;
  * ASN.1 DER decoder for SEQUENCEs and OIDs.
  * <p>
  * To support EdDSA, either java 15, or java 11 with
- * <a href="https://github.com/str4d/ed25519-java">ed25519-java</a> is required
+ * <a href="https://github.com/str4d/ed25519-java" target="_blank">ed25519-java</a> is required
  * at runtime. Using java 15 to build Californium, leaves out {@code ed25519-java}, using
  * java 11 for building, includes {@code ed25519-java} by default. If
  * {@code ed25519-java} should <b>NOT</b> be included into the Californium's
  * jars, add {@code -Dno.net.i2p.crypto.eddsa=true} to maven's arguments. In
  * that case, it's still possible to use {@code ed25519-java}, if the <a href=
- * "https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar">eddsa-0.3.0.jar</a>
+ * "https://repo1.maven.org/maven2/net/i2p/crypto/eddsa/0.3.0/eddsa-0.3.0.jar" target="_blank">eddsa-0.3.0.jar</a>
  * is provided to the classpath separately.
  * </p>
  */
@@ -135,7 +135,7 @@ public class Asn1DerDecoder {
 	public static final String EDDSA = "EdDSA";
 	/**
 	 * ECPoint uncompressed.
-	 * <a href="https://tools.ietf.org/html/rfc5480#section-2.2">RFC 5480, Section 2.2</a>
+	 * <a href="https://tools.ietf.org/html/rfc5480#section-2.2" target="_blank">RFC 5480, Section 2.2</a>
 	 * 
 	 * @since 2.3
 	 */
@@ -279,7 +279,7 @@ public class Asn1DerDecoder {
 	 * Provider for EdDsa.
 	 * 
 	 * Either java 15 SunEC, or, for java version before, external java 7
-	 * <a href="https://github.com/str4d/ed25519-java">net.i2p.crypto.eddsa</a>.
+	 * <a href="https://github.com/str4d/ed25519-java" target="_blank">net.i2p.crypto.eddsa</a>.
 	 * 
 	 * @since 2.4
 	 */
@@ -391,7 +391,7 @@ public class Asn1DerDecoder {
 	 * Get EdDSA provider.
 	 * 
 	 * Either java 15 SunEC, or, for java version before, external java 7
-	 * <a href="https://github.com/str4d/ed25519-java">net.i2p.crypto.eddsa</a>.
+	 * <a href="https://github.com/str4d/ed25519-java" target="_blank">net.i2p.crypto.eddsa</a>.
 	 * 
 	 * To disable external java 7 EdDSA provider, set
 	 * "net_i2p_crypto_eddsa_disable" to true in environment or system
@@ -487,7 +487,7 @@ public class Asn1DerDecoder {
 	 * Read key algorithm from subjects public key encoded in ASN.1 DER.
 	 * 
 	 * <pre>
-	 * <a href="https://tools.ietf.org/html/rfc5480">RFC 5480</a>
+	 * <a href="https://tools.ietf.org/html/rfc5480" target="_blank">RFC 5480</a>
 	 * SubjectPublicKeyInfo ::= SEQUENCE { 
 	 *    algorithm AlgorithmIdentifier,
 	 *    subjectPublicKey BIT STRING 
@@ -525,7 +525,7 @@ public class Asn1DerDecoder {
 	 * Read public key from subjects public key encoded in ASN.1 DER.
 	 * 
 	 * <pre>
-	 * <a href="https://tools.ietf.org/html/rfc5480">RFC 5480</a>
+	 * <a href="https://tools.ietf.org/html/rfc5480" target="_blank">RFC 5480</a>
 	 * SubjectPublicKeyInfo ::= SEQUENCE { 
 	 *    algorithm AlgorithmIdentifier,
 	 *    subjectPublicKey BIT STRING 
@@ -565,7 +565,7 @@ public class Asn1DerDecoder {
 	 * Supports:
 	 * 
 	 * <pre>
-	 * v1 (PKCS8), <a href="https://tools.ietf.org/html/rfc5208">RFC 5208</a>
+	 * v1 (PKCS8), <a href="https://tools.ietf.org/html/rfc5208" target="_blank">RFC 5208</a>
 	 * PrivateKeyInfo ::= SEQUENCE {
 	 *  version                   Version,
 	 *  privateKeyAlgorithm       PrivateKeyAlgorithmIdentifier,
@@ -573,8 +573,8 @@ public class Asn1DerDecoder {
 	 *  attributes           [0]  IMPLICIT Attributes OPTIONAL }
 	 * 
 	 * v2 (PKCS12), 
-	 * <a href="https://tools.ietf.org/html/rfc5958">RFC 5958 - (EC only!)</a>,
-	 * <a href="https://tools.ietf.org/html/rfc8410">RFC 8410 - EdDSA</a>
+	 * <a href="https://tools.ietf.org/html/rfc5958" target="_blank">RFC 5958 - (EC only!)</a>,
+	 * <a href="https://tools.ietf.org/html/rfc8410" target="_blank">RFC 8410 - EdDSA</a>
 	 * OneAsymmetricKey ::= SEQUENCE {
 	 *  version                   Version,
 	 *  privateKeyAlgorithm       PrivateKeyAlgorithmIdentifier,
@@ -652,7 +652,7 @@ public class Asn1DerDecoder {
 	 * Supports:
 	 * 
 	 * <pre>
-	 * v1 (PKCS8), <a href="https://tools.ietf.org/html/rfc5208">RFC 5208</a>
+	 * v1 (PKCS8), <a href="https://tools.ietf.org/html/rfc5208" target="_blank">RFC 5208</a>
 	 * PrivateKeyInfo ::= SEQUENCE {
 	 *  version                   Version,
 	 *  privateKeyAlgorithm       PrivateKeyAlgorithmIdentifier,
@@ -660,8 +660,8 @@ public class Asn1DerDecoder {
 	 *  attributes           [0]  IMPLICIT Attributes OPTIONAL }
 	 * 
 	 * v2 (PKCS12), 
-	 * <a href="https://tools.ietf.org/html/rfc5958">RFC 5958 - (EC only!)</a>,
-	 * <a href="https://tools.ietf.org/html/rfc8410">RFC 8410 - EdDSA</a>
+	 * <a href="https://tools.ietf.org/html/rfc5958" target="_blank">RFC 5958 - (EC only!)</a>,
+	 * <a href="https://tools.ietf.org/html/rfc8410" target="_blank">RFC 8410 - EdDSA</a>
 	 * OneAsymmetricKey ::= SEQUENCE {
 	 *  version                   Version,
 	 *  privateKeyAlgorithm       PrivateKeyAlgorithmIdentifier,
@@ -755,7 +755,7 @@ public class Asn1DerDecoder {
 	 * Read EC public key from encoded ec public key.
 	 * 
 	 * <pre>
-	 * <a href="https://tools.ietf.org/html/rfc5480#section-2.2">RFC 5480, Section 2.2</a>
+	 * <a href="https://tools.ietf.org/html/rfc5480#section-2.2" target="_blank">RFC 5480, Section 2.2</a>
 	 *  byte[0]        : compression := 4 (not compressed)
 	 *  byte[1..n]     : x
 	 *  byte[n+1..n+n] : y
@@ -788,7 +788,7 @@ public class Asn1DerDecoder {
 	/**
 	 * Read EdDSA private key (and public key) from PKCS12 / RFC 8410 v2 format.
 	 * 
-	 * See <a href="https://tools.ietf.org/html/rfc8410">RFC 8410 - EdDSA</a>.
+	 * See <a href="https://tools.ietf.org/html/rfc8410" target="_blank">RFC 8410 - EdDSA</a>.
 	 * 
 	 * @param data eddsa private key encoded according RFC 8410 v2
 	 * @return keys with private and public key. {@code null}, if keys could not

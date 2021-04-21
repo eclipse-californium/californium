@@ -456,7 +456,7 @@ public class ServerHandshaker extends Handshaker {
 	 * 
 	 * Prepares the next flight (mandatory messages depend on the cipher suite / key exchange
 	 * algorithm). Mandatory messages are ServerHello and ServerHelloDone; see
-	 * <a href="http://tools.ietf.org/html/rfc5246#section-7.3">Figure 1.
+	 * <a href="http://tools.ietf.org/html/rfc5246#section-7.3" target="_blank">Figure 1.
 	 * Message flow for a full handshake</a> for details about the messages in
 	 * the next flight.
 	 * 
@@ -791,7 +791,7 @@ public class ServerHandshaker extends Handshaker {
 	 * </p>
 	 * <p>
 	 * The <em>SSL_NULL_WITH_NULL_NULL</em> cipher suite is <em>never</em>
-	 * negotiated as mandated by <a href="http://tools.ietf.org/html/rfc5246#appendix-A.5">
+	 * negotiated as mandated by <a href="http://tools.ietf.org/html/rfc5246#appendix-A.5" target="_blank">
 	 * RFC 5246 Appendix A.5</a>
 	 * </p>
 	 * 

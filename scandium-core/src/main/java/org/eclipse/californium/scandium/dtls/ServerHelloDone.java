@@ -23,7 +23,7 @@ import org.eclipse.californium.elements.util.Bytes;
  * The ServerHelloDone message is sent by the server to indicate the end of the
  * {@link ServerHello} and associated messages. After sending this message, the
  * server will wait for a client response. See
- * <a href="http://tools.ietf.org/html/rfc5246#section-7.4.5">RFC 5246</a> for
+ * <a href="http://tools.ietf.org/html/rfc5246#section-7.4.5" target="_blank">RFC 5246</a> for
  * details.
  */
 public final class ServerHelloDone extends HandshakeMessage {

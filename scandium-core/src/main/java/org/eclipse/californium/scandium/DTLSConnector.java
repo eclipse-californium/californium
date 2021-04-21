@@ -226,7 +226,7 @@ import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
  * A {@link Connector} using <em>Datagram TLS</em> (DTLS) as specified in
- * <a href="http://tools.ietf.org/html/rfc6347">RFC 6347</a> for securing data
+ * <a href="http://tools.ietf.org/html/rfc6347" target="_blank">RFC 6347</a> for securing data
  * exchanged between networked clients and a server application.
  * 
  * Note: using IPv6 interfaces with multiple addresses including permanent and
@@ -1007,7 +1007,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	}
 
 	/**
-	 * Force connector to an abbreviated handshake. See <a href="https://tools.ietf.org/html/rfc5246#section-7.3">RFC 5246</a>.
+	 * Force connector to an abbreviated handshake. See <a href="https://tools.ietf.org/html/rfc5246#section-7.3" target="_blank">RFC 5246</a>.
 	 * 
 	 * The abbreviated handshake will be done next time data will be sent with {@link #send(RawData)}.
 	 * @param peer the peer for which we will force to do an abbreviated handshake
@@ -1021,7 +1021,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 
 	/**
 	 * Marks all established sessions currently maintained by this connector to be resumed by means
-	 * of an <a href="https://tools.ietf.org/html/rfc5246#section-7.3">abbreviated handshake</a> the
+	 * of an <a href="https://tools.ietf.org/html/rfc5246#section-7.3" target="_blank">abbreviated handshake</a> the
 	 * next time a message is being sent to the corresponding peer using {@link #send(RawData)}.
 	 * <p>
 	 * This method's execution time is proportional to the number of connections this connector maintains.
@@ -2953,7 +2953,7 @@ public class DTLSConnector implements Connector, PersistentConnector, RecordLaye
 	 * peer in a single DTLS record.
 	 * <p>
 	 * The value of this property serves as an upper boundary for the <em>DTLSPlaintext.length</em>
-	 * field defined in <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1">DTLS 1.2 spec,
+	 * field defined in <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1" target="_blank">DTLS 1.2 spec,
 	 * Section 4.3.1</a>. This means that an application can assume that any message containing at
 	 * most as many bytes as indicated by this method, will be delivered to the peer in a single
 	 * unfragmented datagram.

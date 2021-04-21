@@ -52,7 +52,7 @@ import org.eclipse.californium.scandium.util.SecretUtil;
 /**
  * The resuming client handshaker executes a abbreviated handshake by adding a
  * valid session identifier into its ClientHello message. The message flow is
- * depicted in <a href="http://tools.ietf.org/html/rfc5246#section-7.3">Figure
+ * depicted in <a href="http://tools.ietf.org/html/rfc5246#section-7.3" target="_blank">Figure
  * 2</a>. The new keys will be generated from the master secret established from
  * a previous full handshake.
  * 

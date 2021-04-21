@@ -26,7 +26,7 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
  * <p>
  * Instances of this class can be serialized to and deserialized from the
  * <em>MaxFragmentLength</em> data structure defined in <a
- * href="http://tools.ietf.org/html/rfc6066#section-4">RFC 6066, Section 4</a>.
+ * href="http://tools.ietf.org/html/rfc6066#section-4" target="_blank">RFC 6066, Section 4</a>.
  */
 public class MaxFragmentLengthExtension extends HelloExtension {
 
@@ -57,7 +57,7 @@ public class MaxFragmentLengthExtension extends HelloExtension {
 
 	/**
 	 * Creates an instance from a <em>MaxFragmentLength</em> structure as defined
-	 * in <a href="http://tools.ietf.org/html/rfc6066#section-4">RFC 6066, Section 4</a>.
+	 * in <a href="http://tools.ietf.org/html/rfc6066#section-4" target="_blank">RFC 6066, Section 4</a>.
 	 * 
 	 * @param extensionDataReader the extension data struct containing the length code
 	 * @return the extension object

@@ -57,7 +57,7 @@ public class PseudoRandomFunctionTest {
 
 	/**
 	 * Verifies TLS1.2PRF-SHA256
-	 * <a href="http://www.ietf.org/mail-archive/web/tls/current/msg03416.html">
+	 * <a href="http://www.ietf.org/mail-archive/web/tls/current/msg03416.html" target="_blank">
 	 * test vector</a>.
 	 */
 	@Test

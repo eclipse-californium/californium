@@ -18,14 +18,14 @@ package org.eclipse.californium.scandium.dtls;
 /**
  * Extended master secret mode.
  * <p>
- * See <a href="https://tools.ietf.org/html/rfc7627">RFC 7627</a> for additional
+ * See <a href="https://tools.ietf.org/html/rfc7627" target="_blank">RFC 7627</a> for additional
  * details.
  * </p>
  * <p>
- * <a href="https://tools.ietf.org/html/rfc7925#section-16">RFC7925, 16. Session
+ * <a href="https://tools.ietf.org/html/rfc7925#section-16" target="_blank">RFC7925, 16. Session
  * Hash</a> recommends to use this extension. Please, obey the different
  * behavior on session resumption according
- * <a href="https://tools.ietf.org/html/rfc7627#section-5.3">RFC 7627, 5.3.
+ * <a href="https://tools.ietf.org/html/rfc7627#section-5.3" target="_blank">RFC 7627, 5.3.
  * Client and Server Behavior: Abbreviated Handshake</a>, if one side doesn't
  * support this extension.
  * </p>

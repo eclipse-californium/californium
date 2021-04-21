@@ -25,7 +25,7 @@ import org.eclipse.californium.elements.util.StringUtil;
  * Reassemble fragmented handshake messages.
  * 
  * According
- * <a href="https://datatracker.ietf.org/doc/rfc6347#section-4.2.3">RFC 6347,
+ * <a href="https://datatracker.ietf.org/doc/rfc6347#section-4.2.3" target="_blank">RFC 6347,
  * Section 4.2.3</a> "DTLS implementations MUST be able to handle overlapping
  * fragment ranges". Therefore the processing of overlapping fragments is
  * optimized by early testing, if it contains a new data-range and merging of

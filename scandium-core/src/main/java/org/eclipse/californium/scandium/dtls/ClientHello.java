@@ -44,7 +44,7 @@ import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.Supported
  * ClientHello as its first message. The client can also send a ClientHello in
  * response to a {@link HelloRequest} or on its own initiative in order to
  * re-negotiate the security parameters in an existing connection. See
- * <a href="http://tools.ietf.org/html/rfc5246#section-7.4.1.2">RFC 5246</a>.
+ * <a href="http://tools.ietf.org/html/rfc5246#section-7.4.1.2" target="_blank">RFC 5246</a>.
  */
 @NoPublicAPI
 public final class ClientHello extends HandshakeMessage {

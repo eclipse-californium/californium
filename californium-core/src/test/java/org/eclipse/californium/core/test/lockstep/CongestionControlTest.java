@@ -51,7 +51,7 @@ import org.junit.experimental.categories.Category;
 
 /**
  * Test cases verifying the client side behavior of the examples from
- * <a href="https://tools.ietf.org/html/rfc7959#section-3">RFC 7958, Section 3</em>.
+ * <a href="https://tools.ietf.org/html/rfc7959#section-3" target="_blank">RFC 7958, Section 3</em>.
  */
 @Category(Medium.class)
 public class CongestionControlTest {

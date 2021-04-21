@@ -19,7 +19,7 @@ package org.eclipse.californium.core.network.stack.congestioncontrol;
 /**
  * Retransmission timeout calculator.
  * 
- * @see <a href="https://tools.ietf.org/html/rfc6298" target="_top"> RFC6298 -
+ * @see <a href="https://tools.ietf.org/html/rfc6298" target="_blank"> RFC6298 -
  *      Computing TCP's Retransmission Timer</a>
  * @since 3.0
  */

@@ -143,7 +143,7 @@ public final class DTLSSession implements Destroyable {
 	/**
 	 * Use extended master secret.
 	 * 
-	 * See <a href="https://tools.ietf.org/html/rfc7627">RFC 7627</a>.
+	 * See <a href="https://tools.ietf.org/html/rfc7627" target="_blank">RFC 7627</a>.
 	 * 
 	 * @since 3.0
 	 */
@@ -469,7 +469,7 @@ public final class DTLSSession implements Destroyable {
 	/**
 	 * Set use extended master secret.
 	 * 
-	 * See <a href="https://tools.ietf.org/html/rfc7627">RFC 7627</a>.
+	 * See <a href="https://tools.ietf.org/html/rfc7627" target="_blank">RFC 7627</a>.
 	 * 
 	 * @param enable {@code true}, to enable the use of the extended master
 	 *            secret, {@code false}, if the master secret (RFC 5246) is
@@ -483,7 +483,7 @@ public final class DTLSSession implements Destroyable {
 	/**
 	 * Gets use extended master secret.
 	 * 
-	 * See <a href="https://tools.ietf.org/html/rfc7627">RFC 7627</a>.
+	 * See <a href="https://tools.ietf.org/html/rfc7627" target="_blank">RFC 7627</a>.
 	 * 
 	 * @return {@code true}, to enable the use of the extended master secret,
 	 *         {@code false}, if the master secret (RFC 5246) is used.
@@ -514,7 +514,7 @@ public final class DTLSSession implements Destroyable {
 	 * @throws NullPointerException if the master secret is {@code null}
 	 * @throws IllegalArgumentException if the secret is not exactly 48 bytes
 	 *             (see
-	 *             <a href="http://tools.ietf.org/html/rfc5246#section-8.1"> RFC
+	 *             <a href="http://tools.ietf.org/html/rfc5246#section-8.1" target="_blank"> RFC
 	 *             5246 (TLS 1.2), section 8.1</a>)
 	 * @throws IllegalStateException if the master secret is already set
 	 */
@@ -563,7 +563,7 @@ public final class DTLSSession implements Destroyable {
 	 * <p>
 	 * The value of this property corresponds directly to the
 	 * <em>DTLSPlaintext.length</em> field as defined in
-	 * <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1">DTLS 1.2 spec,
+	 * <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1" target="_blank">DTLS 1.2 spec,
 	 * Section 4.3.1</a>.
 	 * <p>
 	 * The default value of this property is 2^14 bytes.
@@ -593,7 +593,7 @@ public final class DTLSSession implements Destroyable {
 	 * <p>
 	 * The value of this property serves as an upper boundary for the
 	 * <em>DTLSPlaintext.length</em> field defined in
-	 * <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1">DTLS 1.2 spec,
+	 * <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1" target="_blank">DTLS 1.2 spec,
 	 * Section 4.3.1</a>. This means that an application can assume that any
 	 * message containing at most as many bytes as indicated by this method,
 	 * will be delivered to the peer in a single unfragmented IP datagram.

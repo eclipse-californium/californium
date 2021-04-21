@@ -34,7 +34,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
  * The server will send this message in response to a {@link ClientHello}
  * message when it was able to find an acceptable set of algorithms. If it
  * cannot find such a match, it will respond with a handshake failure alert. See
- * <a href="http://tools.ietf.org/html/rfc5246#section-7.4.1.3">RFC 5246</a> for
+ * <a href="http://tools.ietf.org/html/rfc5246#section-7.4.1.3" target="_blank">RFC 5246</a> for
  * further details.
  */
 public final class ServerHello extends HandshakeMessage {
@@ -92,7 +92,7 @@ public final class ServerHello extends HandshakeMessage {
 
 	/**
 	 * Constructs a full <em>ServerHello</em> message.
-	 * See <a href="http://tools.ietf.org/html/rfc5246#section-7.4.1.3">
+	 * See <a href="http://tools.ietf.org/html/rfc5246#section-7.4.1.3" target="_blank">
 	 * RFC 5246 (TLS 1.2), Section 7.4.1.3. Server Hello</a> for details.
 	 * 
 	 * @param version

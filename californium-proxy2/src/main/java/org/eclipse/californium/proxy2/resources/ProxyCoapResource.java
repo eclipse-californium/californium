@@ -35,11 +35,11 @@ import org.eclipse.californium.proxy2.TranslationException;
 /**
  * Resource that forwards a coap request.
  * 
- * According <a href="https://tools.ietf.org/html/rfc7252#section-5.7">RFC 7252,
+ * According <a href="https://tools.ietf.org/html/rfc7252#section-5.7" target="_blank">RFC 7252,
  * 5.7 Proxying</a> proxies are classified into <a href=
- * "https://tools.ietf.org/html/rfc7252#section-5.7.2">Forward-Proxies</a> and
+ * "https://tools.ietf.org/html/rfc7252#section-5.7.2" target="_blank">Forward-Proxies</a> and
  * <a href=
- * "https://tools.ietf.org/html/rfc7252#section-5.7.3">Reverse-Proxies</a>.
+ * "https://tools.ietf.org/html/rfc7252#section-5.7.3" target="_blank">Reverse-Proxies</a>.
  * 
  * The forward-proxies operates in a generic way. The destination to sent the
  * request by the proxy is contained in the request itself. It is provided in

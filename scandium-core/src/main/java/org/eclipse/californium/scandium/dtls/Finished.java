@@ -43,7 +43,7 @@ import org.slf4j.LoggerFactory;
  * protected with the just negotiated algorithms, keys, and secrets. The value
  * handshake_messages includes all handshake messages starting at
  * {@link ClientHello} up to, but not including, this {@link Finished} message.
- * See <a href="http://tools.ietf.org/html/rfc5246#section-7.4.9">RFC 5246</a>.
+ * See <a href="http://tools.ietf.org/html/rfc5246#section-7.4.9" target="_blank">RFC 5246</a>.
  */
 public final class Finished extends HandshakeMessage {
 
@@ -57,7 +57,7 @@ public final class Finished extends HandshakeMessage {
 
 	/**
 	 * Generates the verify data according to <a
-	 * href="http://tools.ietf.org/html/rfc5246#section-7.4.9">RFC 5246</a>:<br>
+	 * href="http://tools.ietf.org/html/rfc5246#section-7.4.9" target="_blank">RFC 5246</a>:<br>
 	 * <code>PRF(master_secret, finished_label, Hash(handshake_messages))</code>.
 	 * 
 	 * @param hmac
@@ -85,7 +85,7 @@ public final class Finished extends HandshakeMessage {
 	// Methods ////////////////////////////////////////////////////////
 	
 	/**
-	 * See <a href="http://tools.ietf.org/html/rfc5246#section-7.4.9">RFC
+	 * See <a href="http://tools.ietf.org/html/rfc5246#section-7.4.9" target="_blank">RFC
 	 * 5246</a>: All of the data from all messages in this handshake (not
 	 * including any HelloRequest messages) up to, but not including, this
 	 * message. This is only data visible at the handshake layer and does not

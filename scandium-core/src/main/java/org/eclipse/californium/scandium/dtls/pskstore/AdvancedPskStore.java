@@ -109,7 +109,7 @@ public interface AdvancedPskStore {
 	 * @param hmacAlgorithm HMAC algorithm name for PRF.
 	 * @param otherSecret other secret from ECDHE, or {@code null}. Must be
 	 *            cloned for asynchronous use. See
-	 *            <a href="https://tools.ietf.org/html/rfc5489#page-4"> RFC
+	 *            <a href="https://tools.ietf.org/html/rfc5489#page-4" target="_blank"> RFC
 	 *            5489, other secret</a>
 	 * @param seed seed for PRF.
 	 * @param useExtendedMasterSecret If the master secret is created,

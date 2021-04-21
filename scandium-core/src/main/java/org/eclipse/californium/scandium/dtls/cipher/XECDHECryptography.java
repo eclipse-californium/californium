@@ -105,7 +105,7 @@ import javax.security.auth.Destroyable;
  * 
  * results in same secrets {@code secret1} and {@code secret2}.
  * 
- * @see <a href="https://tools.ietf.org/html/rfc7748">RFC 7748</a>
+ * @see <a href="https://tools.ietf.org/html/rfc7748" target="_blank">RFC 7748</a>
  * @since 2.3
  */
 public final class XECDHECryptography implements Destroyable {
@@ -120,7 +120,7 @@ public final class XECDHECryptography implements Destroyable {
 	 * The algorithm for the elliptic curve key pair generation.
 	 * 
 	 * See also <a href=
-	 * "http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#KeyPairGenerator"
+	 * "http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#KeyPairGenerator" target="_blank"
 	 * >KeyPairGenerator Algorithms</a>.
 	 */
 	private static final String EC_KEYPAIR_GENERATOR_ALGORITHM = "EC";
@@ -514,10 +514,10 @@ public final class XECDHECryptography implements Destroyable {
 
 	/**
 	 * The <em>Supported Groups</em> as defined in the official
-	 * <a href="http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-8">
+	 * <a href="http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-8" target="_blank">
 	 * IANA Transport Layer Security (TLS) Parameters</a>.
 	 * 
-	 * Also see <a href="http://tools.ietf.org/html/rfc4492#section-5.1.1">RFC 4492,
+	 * Also see <a href="http://tools.ietf.org/html/rfc4492#section-5.1.1" target="_blank">RFC 4492,
 	 * Section 5.1.1 Supported Elliptic Curves Extension</a>.
 	 */
 	public enum SupportedGroup {
