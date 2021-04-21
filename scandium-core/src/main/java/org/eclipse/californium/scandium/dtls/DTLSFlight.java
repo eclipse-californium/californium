@@ -62,7 +62,7 @@ import org.slf4j.LoggerFactory;
  * peer's next flight has arrived in its total. A flight needs not only consist
  * of {@code HandshakeMessage}s but may also contain {@code AlertMessage}s and
  * {@code ChangeCipherSpecMessage}s. See
- * <a href="http://tools.ietf.org/html/rfc6347#section-4.2.4">RFC 6347</a> for
+ * <a href="http://tools.ietf.org/html/rfc6347#section-4.2.4" target="_blank">RFC 6347</a> for
  * details.
  * 
  * Scandium offers also the possibility to stop the retransmission with

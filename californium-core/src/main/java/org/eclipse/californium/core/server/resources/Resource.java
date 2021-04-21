@@ -60,9 +60,9 @@ import org.eclipse.californium.core.server.ServerMessageDeliverer;
  * A resource is able to respond to CoAP requests. The requests are contained in
  * an instance of type {@link Exchange} that contains additional information
  * about the current exchange. The request will always be a complete request and
- * not only a block as defined in the CoAP draft (<a
- * href="http://tools.ietf.org/html/draft-ietf-core-block-12">
- * http://tools.ietf.org/html/draft-ietf-core-block-12</a>)
+ * not only a block as defined in the CoAP RFC7959 (<a
+ * href="https://tools.ietf.org/html/rfc7959" target="_blank">
+ * RFC 7959 - Block-Wise Transfers in the Constrained Application Protocol (CoAP)</a>)
  * </p><p>
  * When a request arrives at the server, the {@link ServerMessageDeliverer}
  * searches in the resource tree for the destination resource. It travels down

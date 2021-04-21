@@ -26,7 +26,7 @@ import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
 /**
  * Implementation of byte array based PSK public information (hint or identity).
  * 
- * Note: <a href="https://tools.ietf.org/html/rfc4279#section-5.1">RFC 4279, Section
+ * Note: <a href="https://tools.ietf.org/html/rfc4279#section-5.1" target="_blank">RFC 4279, Section
  * 5.1</a> defines to use UTF-8 to encode the identities. However, some peers
  * seems to use non UTF-8 encoded identities. This byte array based
  * implementation allows to support such non-compliant clients. The string based

@@ -27,7 +27,7 @@ import org.eclipse.californium.elements.util.NoPublicAPI;
 /**
  * An abstraction of the DTLS record layer's capabilities for sending records to
  * peers. MTU values according
- * <a href="https://en.wikipedia.org/wiki/Maximum_transmission_unit">MTU - Wikipedia</a>.
+ * <a href="https://en.wikipedia.org/wiki/Maximum_transmission_unit" target="_blank">MTU - Wikipedia</a>.
  */
 @NoPublicAPI
 public interface RecordLayer {

@@ -23,11 +23,11 @@ import org.eclipse.californium.elements.util.StringUtil;
 /**
  * {@link ClientKeyExchange} message for PSK-ECDH based key exchange methods.
  * Contains the client's ephemeral public key as encoded point and the PSK
- * idenity. See <a href="https://tools.ietf.org/html/rfc5489#section-2">RFC
+ * idenity. See <a href="https://tools.ietf.org/html/rfc5489#section-2" target="_blank">RFC
  * 5489</a> for details. It is assumed, that the client's ECDH public key is not
  * in the client's certificate, so it must be provided here.
  * 
- * According <a href= "https://tools.ietf.org/html/rfc8422#section-5.1.1">RFC
+ * According <a href= "https://tools.ietf.org/html/rfc8422#section-5.1.1" target="_blank">RFC
  * 8422, 5.1.1. Supported Elliptic Curves Extension</a> only "named curves" are
  * valid, the "prime" and "char2" curve descriptions are deprecated. Also only
  * "UNCOMPRESSED" as point format is valid, the other formats have been

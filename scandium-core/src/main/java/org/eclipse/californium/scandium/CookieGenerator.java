@@ -46,7 +46,7 @@ import org.eclipse.californium.scandium.util.SecretUtil;
  * </pre>
  *
  * as suggested
- * <a href="http://tools.ietf.org/html/rfc6347#section-4.2.1">here</a>.
+ * <a href="http://tools.ietf.org/html/rfc6347#section-4.2.1" target="_blank">here</a>.
  *
  * Note: redesigned in 2.3 to use {@link ThreadLocalMac} instead of
  * {@link Mac#clone()}.
@@ -144,7 +144,7 @@ public class CookieGenerator {
 	 * </pre>
 	 *
 	 * as suggested
-	 * <a href="http://tools.ietf.org/html/rfc6347#section-4.2.1">here</a>.
+	 * <a href="http://tools.ietf.org/html/rfc6347#section-4.2.1" target="_blank">here</a>.
 	 *
 	 * @param peer address of the peer
 	 * @param clientHello received client hello to generate a cookie for
@@ -176,7 +176,7 @@ public class CookieGenerator {
 	 * </pre>
 	 *
 	 * as suggested
-	 * <a href="http://tools.ietf.org/html/rfc6347#section-4.2.1">here</a>.
+	 * <a href="http://tools.ietf.org/html/rfc6347#section-4.2.1" target="_blank">here</a>.
 	 *
 	 * @param peer address of the peer
 	 * @param clientHello received client hello to generate a cookie for

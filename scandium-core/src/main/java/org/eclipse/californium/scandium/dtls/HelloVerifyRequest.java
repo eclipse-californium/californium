@@ -25,7 +25,7 @@ import org.eclipse.californium.elements.util.StringUtil;
  * The server send this request after receiving a {@link ClientHello} message to
  * prevent Denial-of-Service Attacks.
  * <p>
- * See <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1">RFC 6347</a>
+ * See <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1" target="_blank">RFC 6347</a>
  * for the definition.
  * </p>
  * <p>
@@ -43,13 +43,13 @@ import org.eclipse.californium.elements.util.StringUtil;
  * A DTLS 1.2 server can either (SHOULD) send a version 1.0, or (MUST use same
  * version) 1.2. This question is pending in the IETF TLS mailing list, see
  * <a href=
- * "https://mailarchive.ietf.org/arch/msg/tls/rQ3El3ROKTN0rpzhRpJCaKOrUyU/">RFC
+ * "https://mailarchive.ietf.org/arch/msg/tls/rQ3El3ROKTN0rpzhRpJCaKOrUyU/" target="_blank">RFC
  * 6347 - Section 4.2.1 - used version in a HelloVerifyReques</a>.
  * </p>
  * <p>
  * There may be many assumptions about the intended behavior. One is to postpone
  * the version negotiation according
- * <a href= "https://tools.ietf.org/html/rfc5246#appendix-E.1">RFC 5246 - E.1 -
+ * <a href= "https://tools.ietf.org/html/rfc5246#appendix-E.1" target="_blank">RFC 5246 - E.1 -
  * Compatibility with TLS 1.0/1.1 and SSL 3.0</a> until the endpoint ownership is
  * verified. That prevents sending protocol-version alerts to wrong clients.
  * </p>

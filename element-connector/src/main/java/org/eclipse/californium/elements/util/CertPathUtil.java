@@ -58,7 +58,7 @@ import org.slf4j.LoggerFactory;
  * </dl>
  * 
  * References:
- * <a href="https://tools.ietf.org/html/rfc5246#section-7.4.2">RFC5246, Section
+ * <a href="https://tools.ietf.org/html/rfc5246#section-7.4.2" target="_blank">RFC5246, Section
  * 7.4.2, Server Certificate</a>
  * <p>
  * "Because certificate validation requires that root keys be distributed
@@ -68,7 +68,7 @@ import org.slf4j.LoggerFactory;
  * case."
  * </p>
  * 
- * <a href="http://tools.ietf.org/html/rfc5246#section-7.4.6">RFC5246, Section
+ * <a href="http://tools.ietf.org/html/rfc5246#section-7.4.6" target="_blank">RFC5246, Section
  * 7.4.6, Client Certificate </a>
  * <p>
  * "If the certificate_authorities list in the certificate request message was
@@ -76,7 +76,7 @@ import org.slf4j.LoggerFactory;
  * by one of the listed CAs."
  * </p>
  * 
- * <a href="https://tools.ietf.org/html/rfc5280#section-6">RFC5280, Section 6,
+ * <a href="https://tools.ietf.org/html/rfc5280#section-6" target="_blank">RFC5280, Section 6,
  * Certification Path Validation</a>
  * <p>
  * "Valid paths begin with certificates issued by a trust anchor." ... "The

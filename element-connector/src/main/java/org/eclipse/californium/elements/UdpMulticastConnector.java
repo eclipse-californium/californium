@@ -84,7 +84,7 @@ import org.slf4j.LoggerFactory;
  * Generally try to omit to use the "any" address at any place. Neither for the
  * unicast socket nor the multicast bind-address. For IPv6 - multicast with
  * link-scope, this may fail caused by
- * <a href="https://bugs.openjdk.java.net/browse/JDK-8210493">Bind to node- or
+ * <a href="https://bugs.openjdk.java.net/browse/JDK-8210493" target="_blank">Bind to node- or
  * linklocal ipv6 multicast address fails</a>. Please always check your server
  * logs for messages of the pattern "received request {} via different multicast
  * groups ({} != {})!". That indicates, that the multicast request is accidently
@@ -93,7 +93,7 @@ import org.slf4j.LoggerFactory;
  * </p>
  * <p>
  * <a href=
- * "https://stackoverflow.com/questions/19392173/multicastsocket-constructors-and-binding-to-port-or-socketaddress">
+ * "https://stackoverflow.com/questions/19392173/multicastsocket-constructors-and-binding-to-port-or-socketaddress" target="_blank">
  * Stackoverflow - MulticastSocket - Constructors binding to port or
  * socketaddress</a>
  * </p>

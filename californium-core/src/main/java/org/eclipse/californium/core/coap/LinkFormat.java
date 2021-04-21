@@ -161,11 +161,11 @@ public class LinkFormat {
 	/**
 	 * Check whether the given resource matches the given list of queries.
 	 *
-	 * Queries are interpreted according to <a href="https://tools.ietf.org/html/rfc6690#section-4.1">RFC 6690</a>,
+	 * Queries are interpreted according to <a href="https://tools.ietf.org/html/rfc6690#section-4.1" target="_blank">RFC 6690</a>,
 	 * section 4.1, with the important difference that more than one query can be passed to the function. The
 	 * resource only matches the list of queries if the resource matches every query in the list. This functionality
 	 * is required to implement resource directory filtering according to the
-	 * <a href="https://tools.ietf.org/html/draft-ietf-core-resource-directory-11#section-7">Resource directory</a>
+	 * <a href="https://tools.ietf.org/html/draft-ietf-core-resource-directory-11#section-7" target="_blank">Resource directory</a>
 	 * draft, which requires support for matching multiple attributes.
 	 *
 	 * @param resource The resource to match.

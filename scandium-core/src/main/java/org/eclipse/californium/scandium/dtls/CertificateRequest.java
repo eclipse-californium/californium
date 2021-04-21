@@ -46,7 +46,7 @@ import org.slf4j.LoggerFactory;
  * This message, if sent, will immediately follow the {@link ServerKeyExchange} message (if it is sent;
  * otherwise, this message follows the server's {@link CertificateMessage} message).
  * 
- * @see <a href="http://tools.ietf.org/html/rfc5246#section-7.4.4">RFC 5246, 7.4.4. Certificate Request</a>
+ * @see <a href="http://tools.ietf.org/html/rfc5246#section-7.4.4" target="_blank">RFC 5246, 7.4.4. Certificate Request</a>
  */
 @NoPublicAPI
 public final class CertificateRequest extends HandshakeMessage {
@@ -224,7 +224,7 @@ public final class CertificateRequest extends HandshakeMessage {
 
 	/**
 	 * Certificate types that the client may offer. See <a
-	 * href="http://tools.ietf.org/html/rfc5246#section-7.4.4">RFC 5246</a> for
+	 * href="http://tools.ietf.org/html/rfc5246#section-7.4.4" target="_blank">RFC 5246</a> for
 	 * details.
 	 */
 	public static enum ClientCertificateType {
@@ -252,7 +252,7 @@ public final class CertificateRequest extends HandshakeMessage {
 
 		/**
 		 * Gets this certificate type's binary code as defined by
-		 * <a href="http://tools.ietf.org/html/rfc5246#section-7.4.4">RFC 5246, Section 7.4.4</a>.
+		 * <a href="http://tools.ietf.org/html/rfc5246#section-7.4.4" target="_blank">RFC 5246, Section 7.4.4</a>.
 		 * 
 		 * @return The code.
 		 */
@@ -287,7 +287,7 @@ public final class CertificateRequest extends HandshakeMessage {
 
 		/**
 		 * Gets a certificate type by its code as defined by
-		 * <a href="http://tools.ietf.org/html/rfc5246#section-7.4.4">RFC 5246, Section 7.4.4</a>.
+		 * <a href="http://tools.ietf.org/html/rfc5246#section-7.4.4" target="_blank">RFC 5246, Section 7.4.4</a>.
 		 * 
 		 * @param code The code.
 		 * @return The certificate type or {@code null} if the given code is not defined.

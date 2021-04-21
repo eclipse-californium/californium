@@ -28,7 +28,7 @@ import org.eclipse.californium.elements.util.DatagramWriter;
 
 /**
  * The DataSerialized serializes outgoing messages to byte arrays based on CoAP TCP/TLS spec:
- * <a href="https://tools.ietf.org/html/draft-ietf-core-coap-tcp-tls-02">draft-ietf-core-coap-tcp-tls-02</a> 
+ * <a href="https://tools.ietf.org/html/draft-ietf-core-coap-tcp-tls-02" target="_blank">draft-ietf-core-coap-tcp-tls-02</a> 
  */
 public final class TcpDataSerializer extends DataSerializer {
 

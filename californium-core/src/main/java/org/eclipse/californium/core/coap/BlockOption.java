@@ -32,7 +32,7 @@ public final class BlockOption {
 	/**
 	 * SZX for BERT blockwise.
 	 * 
-	 * See <a href="https://tools.ietf.org/html/rfc8323#section-6">RFC8323, 6.
+	 * See <a href="https://tools.ietf.org/html/rfc8323#section-6" target="_blank">RFC8323, 6.
 	 * Block-Wise Transfer and Reliable Transports</a>.
 	 * 
 	 * @since 3.0
@@ -99,7 +99,7 @@ public final class BlockOption {
 	 * 
 	 * @return {@code true}, if BERT is used, {@code false}, otherwise.
 	 * @see #BERT_SZX See
-	 *      <a href="https://tools.ietf.org/html/rfc8323#section-6">RFC8323, 6.
+	 *      <a href="https://tools.ietf.org/html/rfc8323#section-6" target="_blank">RFC8323, 6.
 	 *      Block-Wise Transfer and Reliable Transports</a>.
 	 * @since 3.0
 	 */
@@ -241,7 +241,7 @@ public final class BlockOption {
 
 	/**
 	 * Gets the 3-bit SZX code for a block size as specified by
-	 * <a href="https://tools.ietf.org/html/rfc7959#section-2.2">RFC 7959, Section 2.2</a>:
+	 * <a href="https://tools.ietf.org/html/rfc7959#section-2.2" target="_blank">RFC 7959, Section 2.2</a>:
 	 * 
 	 * <pre>
 	 * 16 bytes = 2^4 --&gt; 0

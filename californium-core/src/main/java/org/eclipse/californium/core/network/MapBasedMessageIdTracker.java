@@ -35,7 +35,7 @@ import org.eclipse.californium.elements.util.ClockUtil;
  * A helper for keeping track of message IDs using a map.
  * <p>
  * According to the
- * <a href="https://tools.ietf.org/html/rfc7252#section-4.4">CoAP spec</a>
+ * <a href="https://tools.ietf.org/html/rfc7252#section-4.4" target="_blank">CoAP spec</a>
  * 
  * <pre>
  * The same Message ID MUST NOT be reused (in communicating with the

@@ -48,10 +48,10 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
  * 4.2.1 (maybe newer) and is intended to work with openssl as DTLS
  * implementation.
  * 
- * Check <a href="https://libcoap.net/">libcoap.net</a> for further information.
- * <a href="https://libcoap.net/install.html">install</a> describes how to build
+ * Check <a href="https://libcoap.net/" target="_blank">libcoap.net</a> for further information.
+ * <a href="https://libcoap.net/install.html" target="_blank">install</a> describes how to build
  * it locally, the sources are available at
- * <a href="https://github.com/obgm/libcoap">github -libcoap</a>.
+ * <a href="https://github.com/obgm/libcoap" target="_blank">github -libcoap</a>.
  * 
  * If tinydtls, mbedtls or gnutls should be also tested, prepare additional
  * configuration, build and installation

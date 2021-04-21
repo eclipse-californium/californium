@@ -24,7 +24,7 @@ import org.eclipse.californium.scandium.util.ServerNames;
 /**
  * Conveys information specified by the <em>Server Name Indication</em> TLS extension.
  * <p>
- * See <a href="https://tools.ietf.org/html/rfc6066#section-3">RFC 6066, Section 3</a> for additional details.
+ * See <a href="https://tools.ietf.org/html/rfc6066#section-3" target="_blank">RFC 6066, Section 3</a> for additional details.
  *
  */
 public final class ServerNameExtension extends HelloExtension {

@@ -63,7 +63,7 @@ public class LibCoapClientGnuTlsInteroperabilityTest {
 
 	/**
 	 * Gnutls seems to require a encoded private key with the optional public
-	 * key. <a href="https://tools.ietf.org/html/rfc5915#section-3">RFC 5915 -
+	 * key. <a href="https://tools.ietf.org/html/rfc5915#section-3" target="_blank">RFC 5915 -
 	 * Section 3</a> Unclear, how to achieve that with openssl 1.1.1, seems to
 	 * be the output of openssl 1.0
 	 */

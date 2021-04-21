@@ -205,14 +205,14 @@ public class Request extends Message {
 	 * {@link OptionSet#setUriHost(String)} depends on the destination, it's not
 	 * supported to change the destination afterwards. Excludes to use a Proxy-URI,
 	 * see
-	 * <a href="https://tools.ietf.org/html/rfc7252#section-5.10.2">Proxy-URI</a>
+	 * <a href="https://tools.ietf.org/html/rfc7252#section-5.10.2" target="_blank">Proxy-URI</a>
 	 */
 	private boolean uri;
 	/**
 	 * Indicates, that {@link #setProxyUri(String)} was called.
 	 * 
 	 * Excludes to use a CoAP-URI, see
-	 * <a href="https://tools.ietf.org/html/rfc7252#section-5.10.2">Proxy-URI</a>
+	 * <a href="https://tools.ietf.org/html/rfc7252#section-5.10.2" target="_blank">Proxy-URI</a>
 	 */
 	private boolean proxyUri;
 	/**
@@ -220,7 +220,7 @@ public class Request extends Message {
 	 * 
 	 * Used with a CoAP-URI to build the effective destination URI.
 	 * Excludes to use a Proxy-URI, see
-	 * <a href="https://tools.ietf.org/html/rfc7252#section-5.10.2">Proxy-URI</a>
+	 * <a href="https://tools.ietf.org/html/rfc7252#section-5.10.2" target="_blank">Proxy-URI</a>
 	 */
 	private boolean proxyScheme;
 
@@ -337,7 +337,7 @@ public class Request extends Message {
 	 * Requires the proxy destination address provided by
 	 * {@link #setDestinationContext(EndpointContext)}. Using a Proxy-URI
 	 * excludes to use a CoAP-URI, see
-	 * <a href="https://tools.ietf.org/html/rfc7252#section-5.10.2">Proxy-URI</a>
+	 * <a href="https://tools.ietf.org/html/rfc7252#section-5.10.2" target="_blank">Proxy-URI</a>
 	 * To escape this strict Proxy-/CoAP-URI exclusion for backwards compatibility,
 	 * set the options directly in the options-set using {@link #getOptions()}.
 	 * </p>
@@ -381,7 +381,7 @@ public class Request extends Message {
 	 * 
 	 * Used with a CoAP-URI to build the effective destination URI.
 	 * Excludes to use a Proxy-URI, see
-	 * <a href="https://tools.ietf.org/html/rfc7252#section-5.10.2">Proxy-URI</a>
+	 * <a href="https://tools.ietf.org/html/rfc7252#section-5.10.2" target="_blank">Proxy-URI</a>
 	 * 
 	 * Provides a fluent API to chain setters.
 	 * 
@@ -423,7 +423,7 @@ public class Request extends Message {
 	 * Provides a fluent API to chain setters.
 	 * 
 	 * @param uri A CoAP URI as specified by
-	 *            <a href="https://tools.ietf.org/html/rfc7252#section-6">
+	 *            <a href="https://tools.ietf.org/html/rfc7252#section-6" target="_blank">
 	 *            Section 6 of RFC 7252</a>
 	 * @return This request for command chaining.
 	 * @throws NullPointerException if the URI is {@code null}.
@@ -513,7 +513,7 @@ public class Request extends Message {
 
 	/**
 	 * Sets this request's options from a given URI as defined in
-	 * <a href="https://tools.ietf.org/html/rfc7252#section-6.4">RFC 7252,
+	 * <a href="https://tools.ietf.org/html/rfc7252#section-6.4" target="_blank">RFC 7252,
 	 * Section 6.4</a>.
 	 * <p>
 	 * This method requires the <em>destination</em> to be set already because
@@ -585,9 +585,9 @@ public class Request extends Message {
 	 * will also be left empty, if the provided port matches the destination's
 	 * port.
 	 * 
-	 * See <a href="https://tools.ietf.org/html/rfc7252#section-6.4">Decomposing
+	 * See <a href="https://tools.ietf.org/html/rfc7252#section-6.4" target="_blank">Decomposing
 	 * URIs into Options</a> and <a href=
-	 * "https://tools.ietf.org/html/rfc7252#section-5.7.2">Forward-Proxies</a>
+	 * "https://tools.ietf.org/html/rfc7252#section-5.7.2" target="_blank">Forward-Proxies</a>
 	 * for proxy support.
 	 * 
 	 * @param uri The URI to set the options from.
@@ -699,7 +699,7 @@ public class Request extends Message {
 
 	/**
 	 * Gets a URI derived from this request's options and properties as defined
-	 * by <a href="https://tools.ietf.org/html/rfc7252#section-6.5">RFC 7252,
+	 * by <a href="https://tools.ietf.org/html/rfc7252#section-6.5" target="_blank">RFC 7252,
 	 * Section 6.5</a>.
 	 * <p>
 	 * This method falls back to using <em>localhost</em> as the host part in

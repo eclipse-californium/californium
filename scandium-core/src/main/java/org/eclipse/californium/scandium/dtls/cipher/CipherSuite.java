@@ -51,9 +51,9 @@ import org.eclipse.californium.elements.util.DatagramWriter;
  * A cipher suite defines a key exchange algorithm, a bulk cipher algorithm, a
  * MAC algorithm, a pseudo random number (PRF) algorithm and a cipher type.
  * 
- * See <a href="http://tools.ietf.org/html/rfc5246#appendix-A.6">RFC 5246</a>
+ * See <a href="http://tools.ietf.org/html/rfc5246#appendix-A.6" target="_blank">RFC 5246</a>
  * for details.
- * See <a href="http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml">
+ * See <a href="http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml" target="_blank">
  * Transport Layer Security Parameters</a> for the official codes for the cipher
  * suites.
  */
@@ -86,7 +86,7 @@ public enum CipherSuite {
 
 	// PSK cipher suites, ordered by default preference, see getPskCiperSuites ///
 
-	/**See <a href="https://tools.ietf.org/html/rfc8442#section-3">RFC 8442</a> for details*/
+	/**See <a href="https://tools.ietf.org/html/rfc8442#section-3" target="_blank">RFC 8442</a> for details*/
 	/**Note: compatibility not tested! openssl 1.1.1 seems not supporting them */
 	TLS_ECDHE_PSK_WITH_AES_128_GCM_SHA256(0xD001, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.ECDHE_PSK, CipherSpec.AES_128_GCM, MACAlgorithm.NULL, true),
 	TLS_ECDHE_PSK_WITH_AES_256_GCM_SHA378(0xD002, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.ECDHE_PSK, CipherSpec.AES_256_GCM, MACAlgorithm.NULL, true, PRFAlgorithm.TLS_PRF_SHA384),
@@ -100,7 +100,7 @@ public enum CipherSuite {
 	TLS_PSK_WITH_AES_128_CCM(0xC0A4, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_CCM, MACAlgorithm.NULL, true),
 	TLS_PSK_WITH_AES_256_CCM(0xC0A5, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_256_CCM, MACAlgorithm.NULL, true),
 
-	/**See <a href="https://tools.ietf.org/html/rfc5489#section-3.2">RFC 5489</a> for details*/
+	/**See <a href="https://tools.ietf.org/html/rfc5489#section-3.2" target="_blank">RFC 5489</a> for details*/
 	TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256(0xC037, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.ECDHE_PSK, CipherSpec.AES_128_CBC, MACAlgorithm.HMAC_SHA256, false),
 	TLS_PSK_WITH_AES_128_CBC_SHA256(0x00AE, CertificateKeyAlgorithm.NONE, KeyExchangeAlgorithm.PSK, CipherSpec.AES_128_CBC, MACAlgorithm.HMAC_SHA256, false),
 
@@ -130,7 +130,7 @@ public enum CipherSuite {
 
 	/**
 	 * 16 bit identification, i.e. 0x0000 for SSL_NULL_WITH_NULL_NULL, see <a
-	 * href="http://tools.ietf.org/html/rfc5246#appendix-A.5">RFC 5246</a>.
+	 * href="http://tools.ietf.org/html/rfc5246#appendix-A.5" target="_blank">RFC 5246</a>.
 	 */
 	private final int code;
 	private final CertificateKeyAlgorithm certificateKeyAlgorithm;
@@ -194,7 +194,7 @@ public enum CipherSuite {
 	 * 
 	 * The name can be used to instantiate a <code>javax.crypto.Cipher</code> object
 	 * (if a security provider is available in the JVM supporting the transformation).
-	 * See <a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Cipher">
+	 * See <a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Cipher" target="_blank">
 	 * Java Security Documentation</a>.
 	 * 
 	 * @return the transformation
@@ -216,7 +216,7 @@ public enum CipherSuite {
 	/**
 	 * Gets the 16-bit IANA assigned identification code of the cipher suite.
 	 * 
-	 * See <a href="http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4">
+	 * See <a href="http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4" target="_blank">
 	 * TLS Cipher Suite Registry</a>.
 	 * 
 	 * @return the identification code
@@ -299,7 +299,7 @@ public enum CipherSuite {
 	 * The name can be used to instantiate a <code>javax.crypto.Mac</code>
 	 * instance.
 	 * 
-	 * See <a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Mac">
+	 * See <a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Mac" target="_blank">
 	 * Java Security Documentation</a>.
 	 * 
 	 * @return the name or <code>null</code> for the <em>NULL</em> MAC
@@ -416,7 +416,7 @@ public enum CipherSuite {
 	 * The name can be used to instantiate a <code>javax.crypto.Mac</code>
 	 * instance.
 	 * 
-	 * See <a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Mac">
+	 * See <a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Mac" target="_blank">
 	 * Java Security Documentation</a>.
 	 * 
 	 * @return the name of the pseudo-random function
@@ -608,7 +608,7 @@ public enum CipherSuite {
 	 * Gets a cipher suite by its numeric code.
 	 * 
 	 * @param code the cipher's
-	 *    <a href="http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4">
+	 *    <a href="http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4" target="_blank">
 	 *    IANA assigned code</a>
 	 * @return the cipher suite or <code>null</code> if the code is unknown
 	 */
@@ -628,7 +628,7 @@ public enum CipherSuite {
 	 * Gets a cipher suite by its (official) name.
 	 * 
 	 * @param name the cipher's
-	 *    <a href="http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4">
+	 *    <a href="http://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-4" target="_blank">
 	 *    IANA assigned name</a>
 	 * @return the cipher suite or <code>null</code> if the name is unknown
 	 */
@@ -808,7 +808,7 @@ public enum CipherSuite {
 		 * The name can be used to instantiate a <code>javax.crypto.Mac</code>
 		 * instance.
 		 * 
-		 * See <a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Mac">
+		 * See <a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Mac" target="_blank">
 		 * Java Security Documentation</a>.
 		 * 
 		 * @return the name or <code>null</code> for the {@link #NULL} MAC
@@ -823,7 +823,7 @@ public enum CipherSuite {
 		 * The name can be used to instantiate a <code>java.security.MessageDigest</code>
 		 * instance.
 		 * 
-		 * See <a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#MessageDigest">
+		 * See <a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#MessageDigest" target="_blank">
 		 * Java Security Documentation</a>.
 		 * 
 		 * @return the name or <code>null</code> for the {@link #NULL} MAC
@@ -971,7 +971,7 @@ public enum CipherSuite {
 		 * 
 		 * The name can be used to instantiate a <code>javax.crypto.Cipher</code> object
 		 * (if a security provider is available in the JVM supporting the transformation).
-		 * See <a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Cipher">
+		 * See <a href="http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#Cipher" target="_blank">
 		 * Java Security Documentation</a>.
 		 * 
 		 * @return the transformation

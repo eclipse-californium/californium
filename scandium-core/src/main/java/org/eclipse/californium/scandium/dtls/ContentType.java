@@ -20,7 +20,7 @@ package org.eclipse.californium.scandium.dtls;
  * The content type represents a higher-level protocol to process the enclosed
  * fragment. It is one of the four types: ChangeCipherSpec, Alert, Handshake,
  * ApplicationData. For further details see <a
- * href="http://tools.ietf.org/html/rfc5246#appendix-A.1">RFC 5246</a>.
+ * href="http://tools.ietf.org/html/rfc5246#appendix-A.1" target="_blank">RFC 5246</a>.
  */
 public enum ContentType {
 
@@ -56,8 +56,8 @@ public enum ContentType {
 		case 23:
 			return ContentType.APPLICATION_DATA;
 		case 25:
-			/** See <a href="https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/">Draft dtls-connection-id</a> **/
-			/** See <a href="https://mailarchive.ietf.org/arch/msg/tls/3wCyihI6Y7ZlciwcSDaQ322myYY">IANA code point assignment</a> **/
+			/** See <a href="https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/" target="_blank">Draft dtls-connection-id</a> **/
+			/** See <a href="https://mailarchive.ietf.org/arch/msg/tls/3wCyihI6Y7ZlciwcSDaQ322myYY" target="_blank">IANA code point assignment</a> **/
 			return ContentType.TLS12_CID;
 
 		default:

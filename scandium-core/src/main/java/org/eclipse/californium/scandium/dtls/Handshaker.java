@@ -368,7 +368,7 @@ public abstract class Handshaker implements Destroyable {
 	private boolean certificateVerificationPending = false;
 	/**
 	 * Other secret for ECDHE-PSK cipher suites.
-	 * <a href="https://tools.ietf.org/html/rfc5489#page-4"> RFC 5489, other
+	 * <a href="https://tools.ietf.org/html/rfc5489#page-4" target="_blank"> RFC 5489, other
 	 * secret</a>
 	 */
 	private SecretKey otherSecret;
@@ -1102,7 +1102,7 @@ public abstract class Handshaker implements Destroyable {
 	 * block to generate the encryption, MAC and IV keys. Also set the master
 	 * secret to the session for resumption handshakes.
 	 * 
-	 * See <a href="http://tools.ietf.org/html/rfc5246#section-6.3">RFC5246</a>
+	 * See <a href="http://tools.ietf.org/html/rfc5246#section-6.3" target="_blank">RFC5246</a>
 	 * for further details about the keys.
 	 * 
 	 * @param masterSecret the master secret.

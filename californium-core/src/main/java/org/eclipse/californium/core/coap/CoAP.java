@@ -97,12 +97,12 @@ public final class CoAP {
 	public static final InetAddress MULTICAST_IPV4 = new InetSocketAddress("224.0.1.187", 0).getAddress();
 	/**
 	 * IPv6 multicast address for CoAP, RFC 7252, 12.8., FF0X::FD, link-local.
-	 * See <a href="https://tools.ietf.org/html/rfc7346#section-2">RFC7346, IPv6 Multicast Address Scopes</a> 
+	 * See <a href="https://tools.ietf.org/html/rfc7346#section-2" target="_blank">RFC7346, IPv6 Multicast Address Scopes</a> 
 	 */
 	public static final InetAddress MULTICAST_IPV6_LINKLOCAL = new InetSocketAddress("[FF02::FD]", 0).getAddress();
 	/**
 	 * IPv6 multicast address for CoAP, RFC 7252, 12.8., FF0X::FD, site-local.
-	 * See <a href="https://tools.ietf.org/html/rfc7346#section-2">RFC7346, IPv6 Multicast Address Scopes</a> 
+	 * See <a href="https://tools.ietf.org/html/rfc7346#section-2" target="_blank">RFC7346, IPv6 Multicast Address Scopes</a> 
 	 */
 	public static final InetAddress MULTICAST_IPV6_SITELOCAL = new InetSocketAddress("[FF05::FD]", 0).getAddress();
 
@@ -485,11 +485,11 @@ public final class CoAP {
 		 * The custom code 30.
 		 * 
 		 * Support for openHAB custom CoAP extension, CoIoT, used for shelly binding.
-		 * <a href="https://shelly-api-docs.shelly.cloud/images/CoIoT%20for%20Shelly%20devices%20(rev%201.0)%20.pdf">CoIot Shelly</a>.
+		 * <a href="https://shelly-api-docs.shelly.cloud/images/CoIoT%20for%20Shelly%20devices%20(rev%201.0)%20.pdf" target="_blank">CoIot Shelly</a>.
 		 * 
-		 * Note: though this code is not assigned byt IANA, it may cause future incompatibilities.
+		 * Note: though this code is not assigned by IANA, it may cause future incompatibilities.
 		 * If the IANA assigns this value, this will get replaced!
-		 * <a href="https://www.iana.org/assignments/core-parameters/core-parameters.xhtml#method-codes">IANA CoAP Codes</a>.
+		 * <a href="https://www.iana.org/assignments/core-parameters/core-parameters.xhtml#method-codes" target="_blank">IANA CoAP Codes</a>.
 		 */
 		CUSTOM_30(30);
 

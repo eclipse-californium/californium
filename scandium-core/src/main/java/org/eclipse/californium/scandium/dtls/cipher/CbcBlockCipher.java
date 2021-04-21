@@ -45,7 +45,7 @@ public class CbcBlockCipher {
 	/**
 	 * Converts a given TLSCiphertext.fragment to a TLSCompressed.fragment
 	 * structure as defined by
-	 * <a href="http://tools.ietf.org/html/rfc5246#section-6.2.3.2"> RFC 5246,
+	 * <a href="http://tools.ietf.org/html/rfc5246#section-6.2.3.2" target="_blank"> RFC 5246,
 	 * section 6.2.3.2</a>:
 	 * 
 	 * <pre>
@@ -151,7 +151,7 @@ public class CbcBlockCipher {
 	/**
 	 * Converts a given TLSCompressed.fragment to a TLSCiphertext.fragment
 	 * structure as defined by
-	 * <a href="http://tools.ietf.org/html/rfc5246#section-6.2.3.2"> RFC 5246,
+	 * <a href="http://tools.ietf.org/html/rfc5246#section-6.2.3.2" target="_blank"> RFC 5246,
 	 * section 6.2.3.2</a>
 	 * 
 	 * <pre>
@@ -216,7 +216,7 @@ public class CbcBlockCipher {
 
 	/**
 	 * Calculates a MAC for use with CBC block ciphers as specified by
-	 * <a href="http://tools.ietf.org/html/rfc5246#section-6.2.3.2"> RFC 5246,
+	 * <a href="http://tools.ietf.org/html/rfc5246#section-6.2.3.2" target="_blank"> RFC 5246,
 	 * section 6.2.3.2</a>.
 	 * 
 	 * @param hmac mac function

@@ -63,7 +63,7 @@ public class RequestTest {
 	}
 
 	/**
-	 * Verifies that the URI examples from <a href="https://tools.ietf.org/html/rfc7252#section-6.3">
+	 * Verifies that the URI examples from <a href="https://tools.ietf.org/html/rfc7252#section-6.3" target="_blank">
 	 * RFC 7252, Section 6.3</a> result in the same option values.
 	 * @throws URISyntaxException 
 	 */

@@ -30,7 +30,7 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
  * ChangeCipherSpec message is sent by both the client and the server to notify
  * the receiving party that subsequent records will be protected under the newly
  * negotiated CipherSpec and keys. For further details see <a
- * href="http://tools.ietf.org/html/rfc5246#section-7.1">RFC 5246</a>.
+ * href="http://tools.ietf.org/html/rfc5246#section-7.1" target="_blank">RFC 5246</a>.
  */
 public final class ChangeCipherSpecMessage implements DTLSMessage {
 
@@ -51,7 +51,7 @@ public final class ChangeCipherSpecMessage implements DTLSMessage {
 	// Change Cipher Spec Enum ////////////////////////////////////////
 
 	/**
-	 * See <a href="http://tools.ietf.org/html/rfc5246#section-7.1">RFC 5246</a>
+	 * See <a href="http://tools.ietf.org/html/rfc5246#section-7.1" target="_blank">RFC 5246</a>
 	 * for specification.
 	 */
 	public enum CCSType {
