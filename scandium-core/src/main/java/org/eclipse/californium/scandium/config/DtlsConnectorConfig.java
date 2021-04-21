@@ -117,9 +117,31 @@ public final class DtlsConnectorConfig {
 	 */
 	public static final long DEFAULT_STALE_CONNECTION_TRESHOLD = 30 * 60; // 30 minutes
 	/**
-	 * The default value for the {@link #retransmissionTimeout} property in milliseconds.
+	 * The default value for the {@link #retransmissionTimeout} property in
+	 * milliseconds.
+	 * 
+	 * @since 3.0 2s instead of 1s (following ACK timeout in <a href="https://tools.ietf.org/html/rfc7252#section-4.8" target="_blank">RFC7252</a>).
 	 */
-	public static final int DEFAULT_RETRANSMISSION_TIMEOUT_MS = 1000;
+	public static final int DEFAULT_RETRANSMISSION_TIMEOUT_MS = 2000;
+	/**
+	 * The retransmission timeout according <a href="https://tools.ietf.org/html/rfc6347#section-4.2.4.1" target="_blank">RFC6347</a>.
+	 * 
+	 * @since 3.0
+	 */
+	public static final int RFC6347_RETRANSMISSION_TIMEOUT_MS = 1000;
+	/**
+	 * The retransmission timeout according <a href="https://tools.ietf.org/html/rfc7925#section-11" target="_blank">RFC7925</a>.
+	 * 
+	 * @since 3.0
+	 */
+	public static final int RFC7925_RETRANSMISSION_TIMEOUT_MS = 9000;
+	/**
+	 * The default value for the {@link #additionalTimeoutForEcc} property in
+	 * milliseconds.
+	 * 
+	 * @since 3.0
+	 */
+	public static final int DEFAULT_ADDITIONAL_TIMEOUT_FOR_ECC_MS = 0;
 	/**
 	 * The default value for the {@link #maxRetransmissions} property.
 	 */
@@ -227,7 +249,7 @@ public final class DtlsConnectorConfig {
 	 * Number of retransmissions before the attempt to transmit a flight in
 	 * back-off mode.
 	 * 
-	 * <a href="https://tools.ietf.org/html/rfc6347#page-12>RFC 6347, Section
+	 * <a href="https://tools.ietf.org/html/rfc6347#page-12 target="_blank">RFC 6347, Section
 	 * 4.1.1.1, Page 12</a>
 	 * 
 	 * In back-off mode, UDP datagrams of maximum 512 bytes are used. Each
@@ -373,14 +395,14 @@ public final class DtlsConnectorConfig {
 	 * includes a server name specific PSK secret lookup and to forward the
 	 * server name to the CoAP stack in the {@link org.eclipse.californium.elements.EndpointContext}.
 	 * 
-	 * See <a href="https://tools.ietf.org/html/rfc6066#section-3">RFC 6066, Section 3</a>
+	 * See <a href="https://tools.ietf.org/html/rfc6066#section-3" target="_blank">RFC 6066, Section 3</a>
 	 */
 	private Boolean sniEnabled;
 
 	/**
 	 * Defines the usage of the "extend master secret" extension.
 	 * 
-	 * See <a href="https://tools.ietf.org/html/rfc7627">RFC 7627</a>
+	 * See <a href="https://tools.ietf.org/html/rfc7627" target="_blank">RFC 7627</a>
 	 * 
 	 * @since 3.0
 	 */
@@ -568,7 +590,7 @@ public final class DtlsConnectorConfig {
 	 * 
 	 * Before version 2.5.0, Californium used fixed the protocol version DTLS
 	 * 1.2 to send the HelloVerifyRequest. According
-	 * <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1">RFC 6347,
+	 * <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1" target="_blank">RFC 6347,
 	 * 4.2.1. Denial-of-Service Countermeasures</a>, that HelloVerifyRequest
 	 * SHOULD be sent using protocol version DTLS 1.0. But that found to be
 	 * ambiguous, because it's also requested that "The server MUST use the same
@@ -619,7 +641,7 @@ public final class DtlsConnectorConfig {
 	 * retransmission, the resulting time is doubled.
 	 * 
 	 * @return the additional (initial) time to wait in milliseconds. Default is
-	 *         {@code 0} milliseconds.
+	 *         {@link #DEFAULT_ADDITIONAL_TIMEOUT_FOR_ECC_MS}.
 	 * @since 3.0
 	 */
 	public Integer getAdditionalTimeoutForEcc() {
@@ -648,7 +670,7 @@ public final class DtlsConnectorConfig {
 	 * Number of retransmissions before the attempt to transmit a flight in
 	 * back-off mode.
 	 * 
-	 * <a href="https://tools.ietf.org/html/rfc6347#page-12"> RFC 6347, Section
+	 * <a href="https://tools.ietf.org/html/rfc6347#page-12" target="_blank"> RFC 6347, Section
 	 * 4.1.1.1, Page 12</a>
 	 * 
 	 * In back-off mode, UDP datagrams of maximum 512 bytes, or the negotiated
@@ -723,7 +745,7 @@ public final class DtlsConnectorConfig {
 
 	/**
 	 * Checks whether the connector should support the use of the TLS
-	 * <a href="https://tools.ietf.org/html/rfc6066#section-3"> Server Name
+	 * <a href="https://tools.ietf.org/html/rfc6066#section-3" target="_blank"> Server Name
 	 * Indication extension</a> in the DTLS handshake.
 	 * <p>
 	 * If enabled, the client side should send a server name extension, if the
@@ -748,7 +770,7 @@ public final class DtlsConnectorConfig {
 	 * Gets the <em>Extended Master Secret</em> TLS extension mode.
 	 * 
 	 * <p>
-	 * See <a href="https://tools.ietf.org/html/rfc7627">RFC 7627, Extended
+	 * See <a href="https://tools.ietf.org/html/rfc7627" target="_blank">RFC 7627, Extended
 	 * Master Secret extension</a> and {@link ExtendedMasterSecretMode} for
 	 * details.
 	 * </p>
@@ -1608,7 +1630,7 @@ public final class DtlsConnectorConfig {
 		 * in a single DTLS record.
 		 * <p>
 		 * The value of this property is used to indicate to peers the <em>Maximum Fragment Length</em>
-		 * as defined in <a href="http://tools.ietf.org/html/rfc6066#section-4">RFC 6066, Section 4</a>.
+		 * as defined in <a href="http://tools.ietf.org/html/rfc6066#section-4" target="_blank">RFC 6066, Section 4</a>.
 		 * It is also used to determine the amount of memory that will be allocated for receiving UDP datagrams
 		 * sent by peers from the network interface.
 		 * </p>
@@ -1680,7 +1702,7 @@ public final class DtlsConnectorConfig {
 		 * 
 		 * Before version 2.5.0, Californium used fixed the protocol version
 		 * DTLS 1.2 to send the HelloVerifyRequest. According
-		 * <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1">RFC 6347,
+		 * <a href="https://tools.ietf.org/html/rfc6347#section-4.2.1" target="_blank">RFC 6347,
 		 * 4.2.1. Denial-of-Service Countermeasures</a>, that HelloVerifyRequest
 		 * SHOULD be sent using protocol version DTLS 1.0. But that found to be
 		 * ambiguous, because it's also requested that "The server MUST use the
@@ -1773,7 +1795,7 @@ public final class DtlsConnectorConfig {
 		 * Number of retransmissions before the attempt to transmit a flight in
 		 * back-off mode.
 		 * 
-		 * <a href="https://tools.ietf.org/html/rfc6347#page-12"> RFC 6347,
+		 * <a href="https://tools.ietf.org/html/rfc6347#page-12" target="_blank"> RFC 6347,
 		 * Section 4.1.1.1, Page 12</a>
 		 * 
 		 * In back-off mode, UDP datagrams of maximum 512 bytes or the
@@ -2769,7 +2791,7 @@ public final class DtlsConnectorConfig {
 
 		/**
 		 * Sets whether the connector should support the use of the TLS
-		 * <a href="https://tools.ietf.org/html/rfc6066#section-3">
+		 * <a href="https://tools.ietf.org/html/rfc6066#section-3" target="_blank">
 		 * Server Name Indication extension</a> in the DTLS handshake.
 		 * <p>
 		 * The default value of this property is {@code null}. If this property
@@ -2788,7 +2810,7 @@ public final class DtlsConnectorConfig {
 		 * Sets the <em>Extended Master Secret</em> TLS extension mode.
 		 * 
 		 * <p>
-		 * See <a href="https://tools.ietf.org/html/rfc7627">RFC 7627, Extended
+		 * See <a href="https://tools.ietf.org/html/rfc7627" target="_blank">RFC 7627, Extended
 		 * Master Secret extension</a> and {@link ExtendedMasterSecretMode} for
 		 * details.
 		 * </p>
@@ -3036,11 +3058,11 @@ public final class DtlsConnectorConfig {
 			if (config.retransmissionTimeout == null) {
 				config.retransmissionTimeout = DEFAULT_RETRANSMISSION_TIMEOUT_MS;
 			}
+			if (config.additionalTimeoutForEcc == null) {
+				config.additionalTimeoutForEcc = DEFAULT_ADDITIONAL_TIMEOUT_FOR_ECC_MS;
+			}
 			if (config.maxRetransmissions == null) {
 				config.maxRetransmissions = DEFAULT_MAX_RETRANSMISSIONS;
-			}
-			if (config.additionalTimeoutForEcc == null) {
-				config.additionalTimeoutForEcc = 0;
 			}
 			if (config.backOffRetransmission == null) {
 				config.backOffRetransmission = config.maxRetransmissions / 2;
