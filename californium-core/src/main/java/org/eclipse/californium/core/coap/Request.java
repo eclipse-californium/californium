@@ -928,10 +928,18 @@ public class Request extends Message {
 	}
 
 	/**
-	 * Wait for the response. This function blocks until there is a response or
-	 * the request has been canceled.
+	 * Wait for the response.
 	 * 
-	 * @return the response
+	 * This function blocks until there is a response, the request gets rejected
+	 * by the server, has been canceled, timed out, or an error occurred.
+	 * <p>
+	 * This method also sets the response to {@code null} so that succeeding
+	 * calls will wait for the next response. Repeatedly calling this method is
+	 * useful if the client expects multiple responses, e.g., multiple responses
+	 * to a multicast request.
+	 * 
+	 * @return the response, or ({@code null}, if an other event terminated the
+	 *         request)
 	 * @throws InterruptedException the interrupted exception
 	 */
 	public Response waitForResponse() throws InterruptedException {
@@ -940,25 +948,25 @@ public class Request extends Message {
 
 	/**
 	 * Waits for the arrival of the response to this request.
-	 * <p>
-	 * This function blocks until there is a response, the request has been
-	 * canceled or the specified timeout has expired. A timeout of 0 is
-	 * interpreted as infinity. If a response is already here, this method
-	 * returns it immediately.
-	 * <p>
-	 * The calling thread returns if either a response arrives, the request gets
-	 * rejected by the server, the request gets canceled or, in case of a
-	 * confirmable request, timeouts. In that case, if no response has arrived
-	 * yet the return value is null.
-	 * <p>
-	 * This method also sets the response to null so that succeeding calls will
-	 * wait for the next response. Repeatedly calling this method is useful if
-	 * the client expects multiple responses, e.g., multiple notifications to an
-	 * observe request or multiple responses to a multicast request.
 	 * 
-	 * @param timeout the maximum time to wait in milliseconds.
-	 * @return the response (null if timeout occurred)
+	 * This function blocks until there is a response, the request gets rejected
+	 * by the server, has been canceled, timed out, or an error occurred. Or the
+	 * specified wait-timeout has expired. A wait-timeout of 0 is interpreted as
+	 * infinity. If a response is already here, this method returns it
+	 * immediately. Also, if one of the other terminating events has already
+	 * occurred, e.g. the request was rejected or has been canceled.
+	 * <p>
+	 * This method also sets the response to {@code null} so that succeeding
+	 * calls will wait for the next response. Repeatedly calling this method is
+	 * useful if the client expects multiple responses, e.g. multiple responses
+	 * to a multicast request.
+	 * 
+	 * @param timeout the maximum time to wait in milliseconds. {@code 0} waits
+	 *            until a response is received or an other event occurred.
+	 * @return the response, or {@code null}, if timeout occurred, or an other
+	 *         event terminated the request
 	 * @throws InterruptedException the interrupted exception
+	 * @see Object#wait(long)
 	 */
 	public Response waitForResponse(long timeout) throws InterruptedException {
 		long expiresNano = ClockUtil.nanoRealtime() + TimeUnit.MILLISECONDS.toNanos(timeout);
