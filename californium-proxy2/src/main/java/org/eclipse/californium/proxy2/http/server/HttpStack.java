@@ -291,8 +291,10 @@ public class HttpStack {
 	/**
 	 * Send http response.
 	 * 
-	 * @param httpExchange http exchange
+	 * @param request related http request
 	 * @param coapResponse coap response
+	 * @param responseTrigger http response trigger
+	 * @param context http context
 	 */
 	private void sendHttpResponse(HttpRequest request, Response coapResponse, ResponseTrigger responseTrigger,
 			HttpContext context) {
@@ -317,9 +319,10 @@ public class HttpStack {
 	/**
 	 * Send simple http response.
 	 *
-	 * @param httpExchange the http exchange
 	 * @param httpCode the http code
-	 * @param message additional message, maybe {@code null}
+	 * @param message additional message, may be {@code null}
+	 * @param responseTrigger http response trigger
+	 * @param context http context
 	 */
 	private static void sendSimpleHttpResponse(int httpCode, String message, ResponseTrigger responseTrigger,
 			HttpContext context) {
