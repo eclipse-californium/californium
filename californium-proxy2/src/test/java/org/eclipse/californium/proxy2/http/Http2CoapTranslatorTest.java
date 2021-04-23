@@ -35,6 +35,7 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.elements.util.ExpectedExceptionWrapper;
 import org.eclipse.californium.proxy2.TranslationException;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -46,6 +47,16 @@ public class Http2CoapTranslatorTest {
 	 */
 	@Rule
 	public ExpectedException exception = ExpectedExceptionWrapper.none();
+
+	private CrossProtocolTranslator crossTranslator;
+	private Http2CoapTranslator translator;
+
+	@Before
+	public void init() {
+		MappingProperties defaultMappings = new MappingProperties();
+		crossTranslator = new CrossProtocolTranslator(defaultMappings);
+		translator = new Http2CoapTranslator(crossTranslator, new CrossProtocolTranslator.CoapServerEtagTranslator());
+	}
 
 	@Test
 	public void testPutHttpEntity() throws Exception {
@@ -85,7 +96,7 @@ public class Http2CoapTranslatorTest {
 	public void testHttp2CoapLocalUri() throws Exception {
 		Message<HttpRequest, ContentTypedEntity> request = create("GET", "/local/l-target?para1=1&para2=t");
 
-		Request coapRequest = new Http2CoapTranslator().getCoapRequest(request, "local", false);
+		Request coapRequest = translator.getCoapRequest(request, "local", false);
 		assertThat(coapRequest.getCode(), is(CoAP.Code.GET));
 		assertThat(coapRequest.getURI(), is("coap://localhost/l-target?para1=1&para2=t"));
 	}
@@ -97,7 +108,7 @@ public class Http2CoapTranslatorTest {
 		Message<HttpRequest, ContentTypedEntity> request = create("GET",
 				"/local/coap://destination/target?para1=1&para2=t");
 
-		new Http2CoapTranslator().getCoapRequest(request, "local", false);
+		translator.getCoapRequest(request, "local", false);
 	}
 
 	@Test
@@ -105,7 +116,7 @@ public class Http2CoapTranslatorTest {
 		Message<HttpRequest, ContentTypedEntity> request = create("PUT",
 				"/proxy/coap://destination:5683/target?para1=1&para2=t", "put");
 
-		Request coapRequest = new Http2CoapTranslator().getCoapRequest(request, "proxy", true);
+		Request coapRequest = translator.getCoapRequest(request, "proxy", true);
 		assertThat(coapRequest.getCode(), is(CoAP.Code.PUT));
 		assertThat(coapRequest.getOptions().getProxyUri(), is("coap://destination:5683/target?para1=1&para2=t"));
 		assertThat(coapRequest.getPayloadString(), is("put"));
@@ -118,7 +129,7 @@ public class Http2CoapTranslatorTest {
 		Message<HttpRequest, ContentTypedEntity> request = create("PUT",
 				"/proxy/coap//destination:5683/target?para1=1&para2=t", "put");
 
-		new Http2CoapTranslator().getCoapRequest(request, "proxy", true);
+		translator.getCoapRequest(request, "proxy", true);
 	}
 
 	@Test
@@ -126,7 +137,7 @@ public class Http2CoapTranslatorTest {
 		Message<HttpRequest, ContentTypedEntity> request = create("POST",
 				"http://destination:5683/target/coap:?para1=1&para2=t", "post");
 
-		Request coapRequest = new Http2CoapTranslator().getCoapRequest(request, "proxy", true);
+		Request coapRequest = translator.getCoapRequest(request, "proxy", true);
 		assertThat(coapRequest.getCode(), is(CoAP.Code.POST));
 		assertThat(coapRequest.getOptions().getProxyUri(), is("coap://destination:5683/target?para1=1&para2=t"));
 		assertThat(coapRequest.getPayloadString(), is("post"));
@@ -139,7 +150,7 @@ public class Http2CoapTranslatorTest {
 		Message<HttpRequest, ContentTypedEntity> request = create("POST",
 				"http://destination:5683/target?para1=1&para2=t", "post");
 
-		new Http2CoapTranslator().getCoapRequest(request, "proxy", true);
+		translator.getCoapRequest(request, "proxy", true);
 	}
 
 	@Test
@@ -147,7 +158,7 @@ public class Http2CoapTranslatorTest {
 		Message<HttpRequest, ContentTypedEntity> request = create("POST",
 				"http://destination:5683/target/coap:?para1=1&para2=t", "pÖstÄ");
 
-		Request coapRequest = new Http2CoapTranslator().getCoapRequest(request, "proxy", true);
+		Request coapRequest = translator.getCoapRequest(request, "proxy", true);
 		assertThat(coapRequest.getCode(), is(CoAP.Code.POST));
 		assertThat(coapRequest.getOptions().getProxyUri(), is("coap://destination:5683/target?para1=1&para2=t"));
 		assertThat(coapRequest.getPayload().length, is(7));
@@ -160,7 +171,7 @@ public class Http2CoapTranslatorTest {
 		Message<HttpRequest, ContentTypedEntity> request = create("POST",
 				"http://destination:5683/target/coap:?para1=1&para2=t", "pÖstÄ", contentType);
 
-		Request coapRequest = new Http2CoapTranslator().getCoapRequest(request, "proxy", true);
+		Request coapRequest = translator.getCoapRequest(request, "proxy", true);
 		assertThat(coapRequest.getCode(), is(CoAP.Code.POST));
 		assertThat(coapRequest.getOptions().getProxyUri(), is("coap://destination:5683/target?para1=1&para2=t"));
 		assertThat(coapRequest.getPayload().length, is(7));
@@ -168,7 +179,7 @@ public class Http2CoapTranslatorTest {
 	}
 
 	private void validateCharset(Request request, Charset charset) throws TranslationException {
-		ContentTypedEntity httpEntity = new CrossProtocolTranslator().getHttpEntity(request);
+		ContentTypedEntity httpEntity = crossTranslator.getHttpEntity(request);
 		Charset httpEntityCharset = httpEntity.getContentType().getCharset();
 
 		assertThat(httpEntityCharset, equalTo(charset));

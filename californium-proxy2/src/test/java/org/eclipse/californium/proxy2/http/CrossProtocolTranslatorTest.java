@@ -48,9 +48,10 @@ public class CrossProtocolTranslatorTest {
 	@Rule
 	public ExpectedException exception = ExpectedExceptionWrapper.none();
 
-	private CrossProtocolTranslator translator = new CrossProtocolTranslator();
-	private CrossProtocolTranslator.EtagTranslator httpEtagTranslator = new CrossProtocolTranslator.HttpServerEtagTranslator();;
-	private CrossProtocolTranslator.EtagTranslator coapEtagTranslator = new CrossProtocolTranslator.CoapServerEtagTranslator();;
+	private MappingProperties defaultMappings = new MappingProperties();
+	private CrossProtocolTranslator translator = new CrossProtocolTranslator(defaultMappings);
+	private CrossProtocolTranslator.EtagTranslator httpEtagTranslator = new CrossProtocolTranslator.HttpServerEtagTranslator();
+	private CrossProtocolTranslator.EtagTranslator coapEtagTranslator = new CrossProtocolTranslator.CoapServerEtagTranslator();
 
 	@Test
 	public void testCoapResponseCode() throws Exception {

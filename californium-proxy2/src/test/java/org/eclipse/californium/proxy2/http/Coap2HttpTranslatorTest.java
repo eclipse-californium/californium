@@ -32,6 +32,7 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.proxy2.TranslationException;
+import org.junit.Before;
 import org.junit.Test;
 
 /**
@@ -39,10 +40,18 @@ import org.junit.Test;
  */
 public class Coap2HttpTranslatorTest {
 
+	private Coap2HttpTranslator translator;
+
+	@Before
+	public void init() {
+		MappingProperties defaultMappings = new MappingProperties();
+		CrossProtocolTranslator crossTranslator = new CrossProtocolTranslator(defaultMappings);
+		translator = new Coap2HttpTranslator(crossTranslator, new CrossProtocolTranslator.HttpServerEtagTranslator());
+	}
+
 	@Test
 	public void testTranslateRequestWithConversion()
 			throws TranslationException, HttpException, IOException, URISyntaxException {
-		Coap2HttpTranslator translator = new Coap2HttpTranslator();
 
 		Request request = Request.newPut();
 		request.setDestinationContext(new AddressEndpointContext(new InetSocketAddress("localhost", 5684)));
@@ -69,7 +78,6 @@ public class Coap2HttpTranslatorTest {
 	@Test
 	public void testTranslateRequestWithoutConversion()
 			throws TranslationException, HttpException, IOException, URISyntaxException {
-		Coap2HttpTranslator translator = new Coap2HttpTranslator();
 
 		Request request = Request.newPut();
 		request.setDestinationContext(new AddressEndpointContext(new InetSocketAddress("localhost", 5684)));
@@ -96,7 +104,6 @@ public class Coap2HttpTranslatorTest {
 	@Test
 	public void testTranslateRequestUrlEncoding()
 			throws TranslationException, HttpException, IOException, URISyntaxException {
-		Coap2HttpTranslator translator = new Coap2HttpTranslator();
 
 		Request request = Request.newPut();
 		request.setDestinationContext(new AddressEndpointContext(new InetSocketAddress("localhost", 5684)));

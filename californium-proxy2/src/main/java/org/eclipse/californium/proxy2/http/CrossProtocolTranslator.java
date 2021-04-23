@@ -66,9 +66,27 @@ public class CrossProtocolTranslator {
 	/**
 	 * Property file containing the mappings between coap messages and http
 	 * messages.
+	 * 
+	 * @since 3.0 (adapted to lazy initialization)
 	 */
-	private static final MappingProperties DEFAULT_HTTP_TRANSLATION_PROPERTIES = new MappingProperties(
-			"Proxy2.properties");
+	private static MappingProperties defaultMappingProperties;
+
+	/**
+	 * Get default mapping properties.
+	 * 
+	 * Load mapping properties from default file. On very first execution,
+	 * creates also the mapping properties file.
+	 * 
+	 * @return default mapping properties
+	 * @since 3.0
+	 */
+	private static synchronized MappingProperties getDefaultMappingProperties() {
+		if (defaultMappingProperties == null) {
+			defaultMappingProperties = new MappingProperties("Proxy2.properties");
+		}
+		return defaultMappingProperties;
+	}
+
 	private final MappingProperties translationMapping;
 	private final HeaderValueParser parser = new BasicHeaderValueParser();
 
@@ -97,7 +115,7 @@ public class CrossProtocolTranslator {
 	 * @see #DEFAULT_HTTP_TRANSLATION_PROPERTIES
 	 */
 	public CrossProtocolTranslator() {
-		translationMapping = DEFAULT_HTTP_TRANSLATION_PROPERTIES;
+		translationMapping = getDefaultMappingProperties();
 	}
 
 	/**
@@ -138,7 +156,7 @@ public class CrossProtocolTranslator {
 	 * @see MappingProperties#getCoapCode(String)
 	 */
 	public Code getCoapCode(String httpMethod) throws InvalidMethodException {
-		// error handling is implemented in the mapping! 
+		// error handling is implemented in the mapping!
 		return translationMapping.getCoapCode(httpMethod);
 	}
 
@@ -286,10 +304,9 @@ public class CrossProtocolTranslator {
 					HeaderElement[] headerElements = parser.parseElements(headerValue, cursor);
 					for (HeaderElement element : headerElements) {
 						if (element.getName().equalsIgnoreCase("no-cache")) {
-							maxAge =0;
+							maxAge = 0;
 							break;
-						} else 
-						if (element.getName().equalsIgnoreCase("max-age")) {
+						} else if (element.getName().equalsIgnoreCase("max-age")) {
 							String value = element.getValue();
 							try {
 								maxAge = Integer.parseInt(value);
