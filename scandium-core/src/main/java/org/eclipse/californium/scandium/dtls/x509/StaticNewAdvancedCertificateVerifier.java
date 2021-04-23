@@ -147,9 +147,8 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 					throw new HandshakeException("x509 verification not enabled!", alert);
 				}
 				try {
-					CertPath certPath = message.getCertificateChain();
 					if (clientUsage != null && !message.isEmpty()) {
-						Certificate certificate = certPath.getCertificates().get(0);
+						Certificate certificate = certChain.getCertificates().get(0);
 						if (certificate instanceof X509Certificate) {
 							if (!CertPathUtil.canBeUsedForAuthentication((X509Certificate) certificate, clientUsage)) {
 								LOGGER.debug("Certificate validation failed: key usage doesn't match");
@@ -159,7 +158,7 @@ public class StaticNewAdvancedCertificateVerifier implements NewAdvancedCertific
 							}
 						}
 					}
-					certChain = CertPathUtil.validateCertificatePathWithIssuer(truncateCertificatePath, certPath,
+					certChain = CertPathUtil.validateCertificatePathWithIssuer(truncateCertificatePath, certChain,
 							trustedCertificates);
 					return new CertificateVerificationResult(cid, certChain, null);
 				} catch (GeneralSecurityException e) {
