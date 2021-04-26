@@ -64,3 +64,6 @@ Alternatively adapt the dependency from "cf-cli" to "cf-cli-tcp-netty" in the cl
   </dependencies>
 ```
 
+## Eclipse IDE - Run As - Java Application
+
+The Eclipse IDE requires the "cf-cli-tcp-netty" project as well. Add that using the context menu "Properties" of the project, select in the left list the topic "Java Build Path" and there the tab "Projects". Add here the project "cf-cli-tcp-netty".

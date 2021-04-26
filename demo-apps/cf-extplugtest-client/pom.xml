@@ -1,10 +1,11 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <project
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
-	xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+	xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
 	<modelVersion>4.0.0</modelVersion>
-	
+
 	<parent>
 		<groupId>org.eclipse.californium</groupId>
 		<artifactId>demo-apps</artifactId>
@@ -16,6 +17,10 @@
 	<description>Californium (Cf) extended ETSI Plugtest client</description>
 
 	<properties>
+		<!-- explicitly skip unit test! The eclipse IDE seems to create a test 
+			folder, if am additional project dependency to "cf-cli-tcp-netty" is added 
+			in order to execute the demo from the IDE with tcp-support -->
+		<maven.test.skip>true</maven.test.skip>
 		<assembly.mainClass>org.eclipse.californium.extplugtests.Client</assembly.mainClass>
 	</properties>
 
@@ -30,7 +35,7 @@
 			<artifactId>cf-unix-health</artifactId>
 			<version>${project.version}</version>
 		</dependency>
-		
+
 		<!-- runtime dependencies -->
 		<dependency>
 			<groupId>${project.groupId}</groupId>

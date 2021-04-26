@@ -29,6 +29,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 
@@ -44,6 +46,7 @@ import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
@@ -93,6 +96,7 @@ public class ClientInitializer {
 
 	private static final List<String> loadErrors = new ArrayList<>();
 	private static final Map<String, CliConnectorFactory> connectorFactories = new ConcurrentHashMap<>();
+	private static final Set<String> registeredProtocols = new TreeSet<>();
 
 	static {
 		connectorFactories.put(CoAP.PROTOCOL_UDP, new UdpConnectorFactory());
@@ -104,10 +108,15 @@ public class ClientInitializer {
 		if (!factories.isEmpty()) {
 			String[] initializers = factories.split("#");
 			for (String initializer : initializers) {
+				registeredProtocols.clear();
 				try {
 					Class.forName(initializer);
 				} catch (ClassNotFoundException e) {
 					loadErrors.add(initializer);
+				}
+				if (!registeredProtocols.isEmpty()) {
+					LOGGER.info("loaded {} - {}", initializer, registeredProtocols);
+					registeredProtocols.clear();
 				}
 			}
 		}
@@ -123,6 +132,7 @@ public class ClientInitializer {
 	 * @since 2.4
 	 */
 	public static CliConnectorFactory registerConnectorFactory(String protocol, CliConnectorFactory factory) {
+		registeredProtocols.add(protocol);
 		return connectorFactories.put(protocol, factory);
 	}
 
@@ -134,6 +144,7 @@ public class ClientInitializer {
 	 * @since 2.4
 	 */
 	public static CliConnectorFactory unregisterConnectorFactory(String protocol) {
+		registeredProtocols.remove(protocol);
 		return connectorFactories.remove(protocol);
 	}
 
@@ -243,13 +254,14 @@ public class ClientInitializer {
 					return endpoint;
 				} else {
 					if (CoAP.isTcpProtocol(protocol) && loadErrors.contains(DEFAULT_TCP_MODULE)) {
-						throw new IllegalArgumentException(protocol + " is not supported! Tcp-module not found!");
+						throw new IllegalArgumentException(
+								"Protocol '" + protocol + " is not supported! TCP-module not found!");
 					} else {
-						throw new IllegalArgumentException(protocol + " is not supported!");
+						throw new IllegalArgumentException("Protocol '" + protocol + "' is not supported!");
 					}
 				}
 			} else {
-				throw new IllegalArgumentException(scheme + " is not supported!");
+				throw new IllegalArgumentException("Scheme '" + scheme + "' is unknown!");
 			}
 		} else {
 			throw new IllegalArgumentException("Missing scheme in " + clientConfig.uri);
@@ -348,12 +360,11 @@ public class ClientInitializer {
 			}
 
 			if (clientConfig.authentication != null && clientConfig.authentication.credentials != null) {
+				Credentials identity = clientConfig.authentication.credentials;
 				if (certificateTypes.contains(CertificateType.X_509)) {
-					dtlsConfig.setIdentity(clientConfig.authentication.credentials.getPrivateKey(),
-							clientConfig.authentication.credentials.getCertificateChain(), certificateTypes);
+					dtlsConfig.setIdentity(identity.getPrivateKey(), identity.getCertificateChain(), certificateTypes);
 				} else if (certificateTypes.contains(CertificateType.RAW_PUBLIC_KEY)) {
-					dtlsConfig.setIdentity(clientConfig.authentication.credentials.getPrivateKey(),
-							clientConfig.authentication.credentials.getPubicKey());
+					dtlsConfig.setIdentity(identity.getPrivateKey(), identity.getPubicKey());
 				}
 			}
 
@@ -441,7 +452,8 @@ public class ClientInitializer {
 
 		@Override
 		public PskSecretResult requestPskSecretResult(ConnectionId cid, ServerNames serverName,
-				PskPublicInformation identity, String hmacAlgorithm, SecretKey otherSecret, byte[] seed, boolean useExtendedMasterSecret) {
+				PskPublicInformation identity, String hmacAlgorithm, SecretKey otherSecret, byte[] seed,
+				boolean useExtendedMasterSecret) {
 
 			SecretKey secret = null;
 			if (this.identity.equals(identity)) {

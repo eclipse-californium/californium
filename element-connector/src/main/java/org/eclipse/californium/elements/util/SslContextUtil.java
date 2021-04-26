@@ -225,7 +225,7 @@ public class SslContextUtil {
 		TrustManager trustAll;
 		try {
 			trustAll = new SimpleX509ExtendedTrustManager(new X509Certificate[0]);
-		} catch(NoClassDefFoundError ex) {
+		} catch (NoClassDefFoundError ex) {
 			useExtendedTrustManager = false;
 			trustAll = new SimpleX509TrustManager(new X509Certificate[0]);
 		}
@@ -277,8 +277,11 @@ public class SslContextUtil {
 	 * @throws IllegalArgumentException if keys doesn't match
 	 *             keystore#hexstorepwd#hexkeypwd#alias or no matching trusts
 	 *             are found
+	 * @throws IncompleteCredentialsException if either private key or
+	 *             certificate chain and public key is missing.
 	 * @throws NullPointerException if credentials is {@code null}.
 	 * @see #PARAMETER_SEPARATOR
+	 * @since 3.0 IncompleteCredentialsException added
 	 */
 	public static Credentials loadCredentials(String credentials) throws IOException, GeneralSecurityException {
 		if (null == credentials) {
@@ -437,19 +440,36 @@ public class SslContextUtil {
 	 * @throws GeneralSecurityException if security setup failed.
 	 * @throws IllegalArgumentException if alias is empty, or no matching
 	 *             credentials are found.
+	 * @throws IncompleteCredentialsException if either private key or
+	 *             certificate chain and public key is missing.
 	 * @throws NullPointerException if keyStoreUri, storePassword, keyPassword,
 	 *             or alias is {@code null}.
+	 * @since 3.0 IncompleteCredentialsException added
 	 */
 	public static Credentials loadCredentials(String keyStoreUri, String alias, char[] storePassword,
 			char[] keyPassword) throws IOException, GeneralSecurityException {
 		KeyStoreConfiguration configuration = getKeyStoreConfigurationFromUri(keyStoreUri);
 		if (configuration.simpleStore != null) {
 			Credentials credentials = loadSimpleKeyStore(keyStoreUri, configuration);
-			if (credentials.privateKey == null) {
-				throw new IllegalArgumentException("credentials missing! No private key found!");
+			if (credentials.getTrustedCertificates() != null) {
+				// only certificate loaded
+				try {
+					CertificateFactory factory = CertificateFactory.getInstance("X.509");
+					CertPath certPath = factory.generateCertPath(Arrays.asList(credentials.getTrustedCertificates()));
+					List<? extends Certificate> path = certPath.getCertificates();
+					X509Certificate[] x509Certificates = path.toArray(new X509Certificate[path.size()]);
+					credentials = new Credentials(null, null, x509Certificates);
+					throw new IncompleteCredentialsException(credentials, "credentials missing! No private key found!");
+				} catch (GeneralSecurityException ex) {
+					LOGGER.warn("Load PEM {}:", keyStoreUri, ex);
+				}
 			}
-			if (credentials.chain == null && credentials.publicKey == null) {
-				throw new IllegalArgumentException(
+			if (credentials.publicKey == null && credentials.privateKey == null) {
+				throw new IllegalArgumentException("credentials missing! No keys found!");
+			} else if (credentials.privateKey == null) {
+				throw new IncompleteCredentialsException(credentials, "credentials missing! No private key found!");
+			} else if (credentials.publicKey == null) {
+				throw new IncompleteCredentialsException(credentials,
 						"credentials missing! Neither certificate chain nor public key found!");
 			}
 			return credentials;
@@ -962,9 +982,10 @@ public class SslContextUtil {
 
 		// Search for duplicates
 		Set<X509Certificate> set = new HashSet<>();
-		for (X509Certificate certificate: certificates) {
+		for (X509Certificate certificate : certificates) {
 			if (!set.add(certificate)) {
-				throw new IllegalArgumentException("Truststore contains certificates duplicates with subject: " + certificate.getSubjectX500Principal());
+				throw new IllegalArgumentException("Truststore contains certificates duplicates with subject: "
+						+ certificate.getSubjectX500Principal());
 			}
 		}
 	}
@@ -1312,6 +1333,66 @@ public class SslContextUtil {
 		}
 	}
 
+	/**
+	 * Report incomplete credentials.
+	 * 
+	 * Missing private or public key.
+	 * 
+	 * @since 3.0
+	 */
+	public static class IncompleteCredentialsException extends IllegalArgumentException {
+
+		private static final long serialVersionUID = -53656L;
+
+		/**
+		 * Incomplete credentials.
+		 * 
+		 * Either private or public key is missing.
+		 */
+		private final Credentials incompleteCredentials;
+
+		/**
+		 * Create incomplete credentials exception.
+		 * 
+		 * @param incompleteCredentials incomplete credentials
+		 */
+		public IncompleteCredentialsException(Credentials incompleteCredentials) {
+			this.incompleteCredentials = incompleteCredentials;
+		}
+
+		/**
+		 * Create incomplete credentials exception with message.
+		 * 
+		 * @param incompleteCredentials incomplete credentials
+		 * @param message message
+		 */
+		public IncompleteCredentialsException(Credentials incompleteCredentials, String message) {
+			super(message);
+			this.incompleteCredentials = incompleteCredentials;
+		}
+
+		/**
+		 * Create incomplete credentials exception with message and root cause.
+		 * 
+		 * @param incompleteCredentials incomplete credentials
+		 * @param message message
+		 * @param cause root cause
+		 */
+		public IncompleteCredentialsException(Credentials incompleteCredentials, String message, Throwable cause) {
+			super(message, cause);
+			this.incompleteCredentials = incompleteCredentials;
+		}
+
+		/**
+		 * Get incomplete credentials.
+		 * 
+		 * @return incomplete credentials
+		 */
+		public Credentials getIncompleteCredentials() {
+			return incompleteCredentials;
+		}
+	}
+
 	public static interface SimpleKeyStore {
 
 		/**
@@ -1412,14 +1493,15 @@ public class SslContextUtil {
 		/**
 		 * Validate certificate chain trusting all chain roots.
 		 * 
-		 * @param trusts  trusted certificates. If an empty array is provided,
+		 * @param trusts trusted certificates. If an empty array is provided,
 		 *            the trust anchor is not checked.
 		 * @param chain chain to be validate
 		 * @param client {@code true} for client's chain, {@code false}, for
 		 *            server's chain.
 		 * @throws CertificateException if the validation fails.
 		 */
-		private static void validateChain(X509Certificate[] trusts, X509Certificate[] chain, boolean client) throws CertificateException {
+		private static void validateChain(X509Certificate[] trusts, X509Certificate[] chain, boolean client)
+				throws CertificateException {
 			if (chain != null && chain.length > 0) {
 				LOGGER.debug("check certificate {} for {}", chain[0].getSubjectDN(), client ? "client" : "server");
 				if (!CertPathUtil.canBeUsedForAuthentication(chain[0], client)) {
@@ -1434,8 +1516,7 @@ public class SslContextUtil {
 				try {
 					CertPathUtil.validateCertificatePathWithIssuer(true, path, trusts);
 					LOGGER.trace("check certificate {} [chain.length={}] for {} validated!", chain[0].getSubjectDN(),
-							chain.length,
-							client ? "client" : "server");
+							chain.length, client ? "client" : "server");
 				} catch (GeneralSecurityException e) {
 					LOGGER.debug("check certificate {} for {} failed on {}!", chain[0].getSubjectDN(),
 							client ? "client" : "server", e.getMessage());
