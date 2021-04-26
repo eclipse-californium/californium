@@ -52,12 +52,12 @@ echo
 # cat /proc/sys/vm/max_map_count
 # prlimit
 
-CF_JAR=cf-extplugtest-client-2.6.0-SNAPSHOT.jar
+CF_JAR=cf-extplugtest-client-3.0.0-SNAPSHOT.jar
 CF_JAR_FIND='cf-extplugtest-client-*.jar'
 CF_EXEC="org.eclipse.californium.extplugtests.BenchmarkClient"
 CF_OPT="-XX:+UseG1GC -Xmx6g -Xverify:none"
 
-export CALIFORNIUM_STATISTIC="2.6.0-hono"
+export CALIFORNIUM_STATISTIC="3.0.0-hono"
 
 # store psk credentials in "hono.psk"
 #   format:
@@ -79,10 +79,10 @@ else
 fi
 
 if [ -z "$1" ]  ; then
-	kubectl="kubectl"
-	if ! [ -x "$(command -v kubectl)" ]; then
-	  if [ -x "$(command -v microk8s.kubectl)" ]; then
-	     kubectl="microk8s.kubectl"
+	kubectl="microk8s.kubectl"
+	if ! [ -x "$(command -v microk8s.kubectl)" ]; then
+	  if [ -x "$(command -v kubectl)" ]; then
+	     kubectl="kubectl"
 	  else
 	     echo "missing kubectl, please provid hono-host!"
 	     exit 1
