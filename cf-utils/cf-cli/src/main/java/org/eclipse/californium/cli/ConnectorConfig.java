@@ -29,6 +29,8 @@ import javax.crypto.SecretKey;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.elements.util.SslContextUtil;
+import org.eclipse.californium.elements.util.SslContextUtil.Credentials;
+import org.eclipse.californium.elements.util.SslContextUtil.IncompleteCredentialsException;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.Record;
 import org.eclipse.californium.scandium.dtls.RecordLayer;
@@ -59,8 +61,9 @@ public class ConnectorConfig implements Cloneable {
 	 */
 	public static final int MAX_WIDTH = 60;
 	/**
-	 * Dummy PSK identity for sandbox "californium.eclipseprojects.io". All identities,
-	 * starting with this prefix, share the "not" secret {@link #PSK_SECRET}.
+	 * Dummy PSK identity for sandbox "californium.eclipseprojects.io". All
+	 * identities, starting with this prefix, share the "not" secret
+	 * {@link #PSK_SECRET}.
 	 */
 	public static final String PSK_IDENTITY_PREFIX = "cali.";
 	/**
@@ -141,17 +144,76 @@ public class ConnectorConfig implements Cloneable {
 	public static class Authentication {
 
 		/**
-		 * X509 credentials loaded from store.
+		 * X509/RPK credentials loaded from store.
+		 * 
+		 * @see #defaults()
 		 */
-		@Option(names = { "-c",
-				"--cert" }, description = "certificate store. Format keystore#hexstorepwd#hexkeypwd#alias or keystore.pem")
-		public SslContextUtil.Credentials credentials;
+		public Credentials credentials;
+
+		/**
+		 * X509/RPK Identity loaded from store.
+		 */
+		@ArgGroup(exclusive = false)
+		public Identity identity;
 
 		/**
 		 * X509 trusts all.
 		 */
 		@Option(names = "--anonymous", description = "anonymous, no certificate.")
 		public boolean anonymous;
+
+		public void defaults() {
+			if (!anonymous) {
+				if (identity.certificate == null) {
+					LOGGER.info("x509 identity from private key.");
+					credentials = identity.privateKey;
+				} else if (identity.certificate.getPrivateKey() == null) {
+					LOGGER.info("x509 identity from certificate and private key.");
+					credentials = new Credentials(identity.privateKey.getPrivateKey(),
+							identity.certificate.getPubicKey(), identity.certificate.getCertificateChain());
+				} else {
+					LOGGER.info("x509 identity from certificate.");
+					credentials = identity.certificate;
+				}
+				if (credentials.getPrivateKey() == null) {
+					throw new IllegalArgumentException("Missing private key!");
+				}
+				if (credentials.getPubicKey() == null) {
+					throw new IllegalArgumentException("Missing public key or certificate!");
+				}
+			}
+		}
+	}
+
+	/**
+	 * X509 identity.
+	 *
+	 * If the private key is stored separately, it's loaded by different option
+	 * {@link Identity#privateKey} and included in the
+	 * {@link Identity#credentials} calling {@link #defaults()}.
+	 * 
+	 * @since 3.0
+	 */
+	public static class Identity {
+
+		/**
+		 * X509 credentials loaded from store and/or the {@link #privateKey}
+		 * option.
+		 */
+		@Option(names = { "-c",
+				"--cert" }, description = "certificate store. Format keystore#hexstorepwd#hexkeypwd#alias or keystore.pem")
+		public Credentials certificate;
+
+		/**
+		 * X509 private key loaded from store.
+		 * 
+		 * {@link ConnectorConfig#defaults()} prepares {@link #credentials} with
+		 * the keys from this.
+		 * 
+		 * @since 3.0
+		 */
+		@Option(names = "--private-key", description = "private key store. Format keystore#hexstorepwd#hexkeypwd#alias or keystore.pem")
+		public Credentials privateKey;
 
 	}
 
@@ -223,9 +285,9 @@ public class ConnectorConfig implements Cloneable {
 	public static class Secret {
 
 		/**
-		 * Secret key in utf-8.
+		 * Secret key in UTF-8.
 		 */
-		@Option(names = { "-s", "--secret" }, description = "PSK secret, utf8")
+		@Option(names = { "-s", "--secret" }, description = "PSK secret, UTF-8")
 		public String text;
 
 		/**
@@ -302,37 +364,19 @@ public class ConnectorConfig implements Cloneable {
 			authenticationModes = new ArrayList<ConnectorConfig.AuthenticationMode>();
 		}
 		if (authenticationModes.isEmpty()) {
-			if (identity != null || secretKey != null || pskStore != null) {
-				authenticationModes.add(AuthenticationMode.PSK);
+			defaultAuthenticationModes();
+		}
+		if (authenticationModes.contains(AuthenticationMode.X509)
+				|| authenticationModes.contains(AuthenticationMode.RPK)) {
+			if (trust == null) {
+				trust = new Trust();
 			}
-			if (authentication != null) {
-				authenticationModes.add(AuthenticationMode.X509);
-			}
-		} else {
-			if (authenticationModes.contains(AuthenticationMode.X509)
-					|| authenticationModes.contains(AuthenticationMode.RPK)) {
-				if (trust == null) {
-					trust = new Trust();
-				}
-				if (trust.trusts == null) {
-					if (trust.trustall) {
-						trust.trusts = new Certificate[0];
-					} else {
-						try {
-							trust.trusts = SslContextUtil.loadTrustedCertificates(defaultEcTrusts);
-						} catch (GeneralSecurityException e) {
-							e.printStackTrace();
-						} catch (IOException e) {
-							e.printStackTrace();
-						}
-					}
-				}
-				if (authentication == null) {
-					authentication = new Authentication();
-				}
-				if (!authentication.anonymous && authentication.credentials == null) {
+			if (trust.trusts == null) {
+				if (trust.trustall) {
+					trust.trusts = new Certificate[0];
+				} else {
 					try {
-						authentication.credentials = SslContextUtil.loadCredentials(defaultEcCredentials);
+						trust.trusts = SslContextUtil.loadTrustedCertificates(defaultEcTrusts);
 					} catch (GeneralSecurityException e) {
 						e.printStackTrace();
 					} catch (IOException e) {
@@ -340,6 +384,21 @@ public class ConnectorConfig implements Cloneable {
 					}
 				}
 			}
+			if (authentication == null) {
+				authentication = new Authentication();
+			}
+			if (!authentication.anonymous && authentication.identity == null) {
+				try {
+					authentication.identity = new Identity();
+					authentication.identity.certificate = SslContextUtil.loadCredentials(defaultEcCredentials);
+					LOGGER.info("x509 default identity.");
+				} catch (GeneralSecurityException e) {
+					e.printStackTrace();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+			authentication.defaults();
 		}
 		if (cipherHelpRequested || authHelpRequested) {
 			helpRequested = true;
@@ -353,6 +412,15 @@ public class ConnectorConfig implements Cloneable {
 			recordSizeLimit = mtu - extra;
 		} else if (mtu == null && recordSizeLimit != null) {
 			mtu = recordSizeLimit + extra;
+		}
+	}
+
+	protected void defaultAuthenticationModes() {
+		if (identity != null || secretKey != null || pskStore != null) {
+			authenticationModes.add(AuthenticationMode.PSK);
+		}
+		if (authentication != null) {
+			authenticationModes.add(AuthenticationMode.X509);
 		}
 	}
 
@@ -412,7 +480,11 @@ public class ConnectorConfig implements Cloneable {
 
 		@Override
 		public SslContextUtil.Credentials convert(String value) throws Exception {
-			return SslContextUtil.loadCredentials(value);
+			try {
+				return SslContextUtil.loadCredentials(value);
+			} catch (IncompleteCredentialsException ex) {
+				return ex.getIncompleteCredentials();
+			}
 		}
 
 	};

@@ -15,12 +15,9 @@
  ******************************************************************************/
 package org.eclipse.californium.cli;
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.cert.Certificate;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.elements.util.SslContextUtil;
@@ -29,10 +26,10 @@ import org.eclipse.californium.elements.util.StringUtil;
 import picocli.CommandLine;
 import picocli.CommandLine.IDefaultValueProvider;
 import picocli.CommandLine.ITypeConverter;
-import picocli.CommandLine.Option;
-import picocli.CommandLine.Parameters;
 import picocli.CommandLine.Model.ArgSpec;
 import picocli.CommandLine.Model.PositionalParamSpec;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
 
 /**
  * Client basic command line configuration.
@@ -119,17 +116,6 @@ public class ClientBaseConfig extends ConnectorConfig {
 
 	@Override
 	public void defaults() {
-		super.defaults();
-		if (proxy == null) {
-			String proxySpec = StringUtil.getConfiguration("COAP_PROXY");
-			if (proxySpec != null && !proxySpec.isEmpty()) {
-				try {
-					proxy = proxyReader.convert(proxySpec);
-				} catch (Exception e) {
-				}
-			}
-		}
-		// allow quick hostname as argument
 		String scheme = CoAP.getSchemeFromUri(uri);
 		if (scheme == null) {
 			if (authenticationModes.isEmpty()) {
@@ -142,53 +128,43 @@ public class ClientBaseConfig extends ConnectorConfig {
 			secure = CoAP.isSecureScheme(scheme);
 			tcp = CoAP.isTcpScheme(scheme);
 		}
+		super.defaults();
+		if (proxy == null) {
+			String proxySpec = StringUtil.getConfiguration("COAP_PROXY");
+			if (proxySpec != null && !proxySpec.isEmpty()) {
+				try {
+					proxy = proxyReader.convert(proxySpec);
+				} catch (Exception e) {
+				}
+			}
+		}
 		if (uri.endsWith("/")) {
 			uri = uri.substring(uri.length() - 1);
 		}
 		if (secure) {
-			if (tcp) {
-				if (trust == null) {
-					trust = new Trust();
-				}
-				if (trust.trusts == null) {
-					if (trust.trustall) {
-						trust.trusts = new Certificate[0];
-					} else {
-						try {
-							trust.trusts = SslContextUtil.loadTrustedCertificates(defaultEcTrusts);
-						} catch (GeneralSecurityException e) {
-							e.printStackTrace();
-						} catch (IOException e) {
-							e.printStackTrace();
+			if (!tcp) {
+				if (authenticationModes.isEmpty() || authenticationModes.contains(AuthenticationMode.PSK)
+						|| authenticationModes.contains(AuthenticationMode.ECDHE_PSK)) {
+					if (identity == null && secret == null) {
+						identity = defaultIdentity;
+						secret = new ConnectorConfig.Secret();
+						secret.text = defaultSecret;
+						if (authenticationModes.isEmpty()) {
+							authenticationModes.add(AuthenticationMode.PSK);
 						}
 					}
 				}
-				if (authentication == null) {
-					authentication = new Authentication();
-				}
-				if (!authentication.anonymous && authentication.credentials == null) {
-					try {
-						authentication.credentials = SslContextUtil.loadCredentials(defaultEcCredentials);
-					} catch (GeneralSecurityException e) {
-						e.printStackTrace();
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-				}
-				if (authenticationModes.isEmpty()) {
-					authenticationModes.add(AuthenticationMode.X509);
-				}
-			} else if (authenticationModes.isEmpty() || authenticationModes.contains(AuthenticationMode.PSK)
-					|| authenticationModes.contains(AuthenticationMode.ECDHE_PSK)) {
-				if (identity == null && secret == null) {
-					identity = defaultIdentity;
-					secret = new ConnectorConfig.Secret();
-					secret.text = defaultSecret;
-					if (authenticationModes.isEmpty()) {
-						authenticationModes.add(AuthenticationMode.PSK);
-					}
-				}
 			}
+		}
+	}
+
+	@Override
+	protected void defaultAuthenticationModes() {
+		if (tcp) {
+			// x509 only
+			authenticationModes.add(AuthenticationMode.X509);
+		} else {
+			super.defaultAuthenticationModes();
 		}
 	}
 
@@ -208,9 +184,7 @@ public class ClientBaseConfig extends ConnectorConfig {
 				clone.authentication = new Authentication();
 				clone.authentication.anonymous = authentication.anonymous;
 				if (authentication.credentials != null) {
-					clone.authentication.credentials = new SslContextUtil.Credentials(
-							authentication.credentials.getPrivateKey(), authentication.credentials.getPubicKey(),
-							authentication.credentials.getCertificateChain());
+					clone.authentication.credentials = authentication.credentials;
 				}
 			}
 		} catch (CloneNotSupportedException e) {
