@@ -154,6 +154,10 @@ are removed and must be replaced by
 
 11) Change the return type of `MediaTypeRegistry.parseWildcard(String wildcard)` from `Integer[]` to `int[]`.
 
+12) Removed `Resource.getSecondaryExecutor()` and change the return type of `Resource.getExecutor()` from `ExecutorService` to the simpler `Executor`. Specific `Resource` implementation may maintain the executors as required by them.
+
+13) Removed `CoapResource.createClient(???)`. Though `Resource.getExecutor()` may return `null`, it depends on the implementation of the `Resource` not to return `null`, but that changes other executions. Therefore implement `createClient(???)` for the specific `Resources` and provide the executors there. 
+
 ### Californium-Proxy2:
 
 1) Update to http-client 5.0.3 and http-core 5.0.2. The apache http-components are not encapsulated. Therefore this update causes several API changes, where these classes are used. Please consider the migration information on the [apache http-components web-page](https://hc.apache.org/)

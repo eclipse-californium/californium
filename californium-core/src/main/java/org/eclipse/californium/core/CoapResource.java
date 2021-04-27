@@ -37,8 +37,6 @@ import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -47,7 +45,6 @@ import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.observe.ObserveNotificationOrderer;
 import org.eclipse.californium.core.observe.ObserveRelation;
@@ -132,7 +129,6 @@ import org.slf4j.LoggerFactory;
  * ResourceObserver is invoked whenever the name or path of a resource changes,
  * when a child resource is added or removed or when a CoAP observe relation is
  * added or canceled.
- * // TODO: make example with createClient().get() 
  */
 public  class CoapResource implements Resource {
 
@@ -353,46 +349,6 @@ public  class CoapResource implements Resource {
 			}
 			response.getOptions().setObserve(notificationOrderer.getCurrent());
 		} // ObserveLayer takes care of the else case
-	}
-
-	/**
-	 * Creates a {@link CoapClient} that uses the same executor as this resource
-	 * and the endpoint of the incoming exchange. The {@link CoapClient} is
-	 * detached from the executors of this resource, a
-	 * {@link CoapClient#shutdown()} will therefore not shutdown the resources
-	 * executor.
-	 * 
-	 * @param incoming incoming exchange to determine the endpoint for outgoing
-	 *            requests
-	 * @return the CoAP client.
-	 * @throws IllegalStateException if executors are not available
-	 * @since 3.0
-	 */
-	public CoapClient createClient(CoapExchange incoming) {
-		return createClient(incoming.advanced().getEndpoint());
-	}
-
-	/**
-	 * Creates a {@link CoapClient} that uses the same executor as this resource
-	 * and the provided endpoint. The endpoint may be accessed by
-	 * {@link Exchange#getEndpoint()}. The {@link CoapClient} is detached from
-	 * the executors of this resource, a {@link CoapClient#shutdown()} will
-	 * therefore not shutdown the resources executor.
-	 * 
-	 * @param outgoing endpoint for outgoing request.
-	 * @return the CoAP client.
-	 * @throws IllegalStateException if executors are not available
-	 * @since 3.0
-	 */
-	public CoapClient createClient(Endpoint outgoing) {
-		CoapClient client = new CoapClient();
-		try {
-			client.setExecutors(getExecutor(), getSecondaryExecutor(), true);
-		} catch (NullPointerException ex) {
-			throw new IllegalStateException("At least one executor is not availabe!");
-		}
-		client.setEndpoint(outgoing);
-		return client;
 	}
 
 	/* (non-Javadoc)
@@ -863,14 +819,9 @@ public  class CoapResource implements Resource {
 	/* (non-Javadoc)
 	 * @see org.eclipse.californium.core.server.resources.Resource#getExecutor()
 	 */
-	public ExecutorService getExecutor() {
+	public Executor getExecutor() {
 		final Resource parent = getParent();
 		return parent != null ? parent.getExecutor() : null;
-	}
-
-	public ScheduledThreadPoolExecutor getSecondaryExecutor() {
-		final Resource parent = getParent();
-		return parent != null ? parent.getSecondaryExecutor() : null;
 	}
 
 	/**

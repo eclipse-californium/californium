@@ -21,8 +21,6 @@ package org.eclipse.californium.core.server.resources;
 
 import java.util.Collection;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.network.Exchange;
@@ -245,20 +243,12 @@ public interface Resource {
 	 * @param relation the relation
 	 */
 	public void removeObserveRelation(ObserveRelation relation);
-	
+
 	/**
 	 * Gets the executor of this resource.
 	 *
-	 * @return the executor
+	 * @return the executor. {@code null}, if no executor is used.
 	 */
-	public ExecutorService getExecutor();
-
-	/**
-	 * Gets the scheduled executor of this resource. Generally used for rare
-	 * executing timers (e.g. cleanup tasks).
-	 *
-	 * @return the executor
-	 */
-	public ScheduledThreadPoolExecutor getSecondaryExecutor();
+	public Executor getExecutor();
 
 }
