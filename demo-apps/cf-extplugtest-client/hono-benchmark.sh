@@ -120,6 +120,7 @@ USE_NONESTOP=--no-stop
 MULTIPLIER=10
 : "${REQS:=$((5 * $MULTIPLIER))}"
 : "${UDP_CLIENTS:=$((1 * $CLIENTS_MULTIPLIER))}"
+: "${USE_PAYLOAD:=--payload-format}"
 
 if [ ! -s ${CF_JAR} ] ; then
 # search for given version
@@ -172,28 +173,28 @@ benchmark_all()
 {
    if [ ${USE_NO_CAC} -ne 0 ]  && [ ${USE_CON} -ne 0 ]  ; then 
       if [ ${USE_TELEMETRY} -ne 0 ] ; then 
-         benchmark_udp "telemetry"  --hono --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP} ${USE_INTERVAL}
+         benchmark_udp "telemetry"  --hono --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_PAYLOAD} ${USE_NONESTOP} ${USE_INTERVAL}
       fi
       if [ ${USE_EVENT} -ne 0 ] ; then 
-         benchmark_udp "event"  --hono --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP} ${USE_INTERVAL} --
+         benchmark_udp "event"  --hono --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_PAYLOAD} ${USE_NONESTOP} ${USE_INTERVAL}
       fi
    fi
    if [ ${USE_NO_CAC} -ne 0 ]  && [ ${USE_NON} -ne 0 ]  ; then 
       if [ ${USE_TELEMETRY} -ne 0 ] ; then 
-         benchmark_udp "telemetry"  --hono --clients ${UDP_CLIENTS} --non --requests ${REQS} ${USE_NONESTOP} ${USE_INTERVAL}
+         benchmark_udp "telemetry"  --hono --clients ${UDP_CLIENTS} --non --requests ${REQS} ${USE_PAYLOAD} ${USE_NONESTOP} ${USE_INTERVAL}
       fi
    fi
    if [ ${USE_CAC} -ne 0 ]  && [ ${USE_CON} -ne 0 ]; then 
       if [ ${USE_TELEMETRY} -ne 0 ] ; then 
-         benchmark_udp "telemetry?hono-ttd=10"  --hono --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP} ${USE_INTERVAL}
+         benchmark_udp "telemetry?hono-ttd=10"  --hono --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_PAYLOAD} ${USE_NONESTOP} ${USE_INTERVAL}
       fi
       if [ ${USE_EVENT} -ne 0 ] ; then 
-         benchmark_udp "event?hono-ttd=10"  --hono --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_NONESTOP} ${USE_INTERVAL}
+         benchmark_udp "event?hono-ttd=10"  --hono --clients ${UDP_CLIENTS} --requests ${REQS} ${USE_PAYLOAD} ${USE_NONESTOP} ${USE_INTERVAL}
       fi
    fi
    if [ ${USE_CAC} -ne 0 ]  && [ ${USE_NON} -ne 0 ]; then 
       if [ ${USE_TELEMETRY} -ne 0 ] ; then 
-         benchmark_udp "telemetry?hono-ttd=10"  --hono --clients ${UDP_CLIENTS} --non --requests ${REQS} ${USE_NONESTOP} ${USE_INTERVAL}
+         benchmark_udp "telemetry?hono-ttd=10"  --hono --clients ${UDP_CLIENTS} --non --requests ${REQS} ${USE_PAYLOAD} ${USE_NONESTOP} ${USE_INTERVAL}
       fi
    fi
 }
