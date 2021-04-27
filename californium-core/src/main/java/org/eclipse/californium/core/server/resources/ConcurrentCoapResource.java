@@ -132,7 +132,7 @@ public class ConcurrentCoapResource extends CoapResource {
 	 * @see org.eclipse.californium.core.server.resources.CoapResource#getExecutor()
 	 */
 	@Override
-	public ExecutorService getExecutor() {
+	public Executor getExecutor() {
 		if (executor != null) return executor;
 		else return super.getExecutor();
 	}
