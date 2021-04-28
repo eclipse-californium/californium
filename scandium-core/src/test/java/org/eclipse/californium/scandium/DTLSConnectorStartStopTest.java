@@ -107,7 +107,7 @@ public class DTLSConnectorStartStopTest {
 		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder();
 		builder.setMaxConnections(1000);
 		builder.setStaleConnectionThreshold(10);
-		serverHelper = new ConnectorHelper();
+		serverHelper = new ConnectorHelper(true);
 		serverHelper.startServer(builder);
 	}
 

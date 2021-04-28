@@ -1968,8 +1968,10 @@ public class DTLSConnectorAdvancedTest {
 			boolean expectedCid = ConnectionId.useConnectionId(serverCidGenerator) && ConnectionId.supportsConnectionId(clientCidGenerator);
 			assertThat(serverSideConnection.expectCid(), is(expectedCid));
 
-			if (expectedCid) {
+			if (!serverHelper.useSessionStore || expectedCid) {
 				// with cid, the connection is still accessible and therefore not removed.
+				// without session store, a session-connection map is used and so the
+				// connection is still accessible and therefore not removed.
 				remain = serverHelper.serverConnectionStore.remainingCapacity();
 			}
 

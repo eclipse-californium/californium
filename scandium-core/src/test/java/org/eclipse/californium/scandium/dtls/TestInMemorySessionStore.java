@@ -31,35 +31,48 @@ import org.eclipse.californium.scandium.util.SecretUtil;
  */
 public class TestInMemorySessionStore implements SessionStore {
 
-	private final Map<SessionId, byte[]> cache = new ConcurrentHashMap<>();
+	private final boolean serialize;
+	private final Map<SessionId, Object> cache = new ConcurrentHashMap<>();
 
 	/**
 	 * Count for {@link #put(DTLSSession)} calls.
 	 */
 	public final AtomicInteger establishedSessionCounter = new AtomicInteger();
 
+	public TestInMemorySessionStore(boolean serialize) {
+		this.serialize = serialize;
+	}
+
 	@Override
 	public void put(final DTLSSession session) {
 		if (session != null && !session.getSessionIdentifier().isEmpty()) {
-			DatagramWriter writer = new DatagramWriter(true);
-			session.writeTo(writer);
-			cache.put(session.getSessionIdentifier(), writer.toByteArray());
+			if (serialize) {
+				DatagramWriter writer = new DatagramWriter(true);
+				session.writeTo(writer);
+				cache.put(session.getSessionIdentifier(), writer.toByteArray());
+			} else {
+				cache.put(session.getSessionIdentifier(), new DTLSSession(session));
+			}
 			establishedSessionCounter.incrementAndGet();
 		}
 	}
 
 	@Override
 	public DTLSSession get(final SessionId id) {
-		byte[] data = cache.get(id);
+		Object data = cache.get(id);
 		if (data == null) {
 			return null;
 		}
-		DTLSSession session = DTLSSession.fromReader(new DatagramReader(data));
-		if (session != null && !session.getSessionIdentifier().equals(id)) {
-			SecretUtil.destroy(session);
-			return null;
+		if (serialize) {
+			DTLSSession session = DTLSSession.fromReader(new DatagramReader((byte[]) data));
+			if (session != null && !session.getSessionIdentifier().equals(id)) {
+				SecretUtil.destroy(session);
+				return null;
+			}
+			return session;
+		} else {
+			return new DTLSSession((DTLSSession) data);
 		}
-		return session;
 	}
 
 	@Override
