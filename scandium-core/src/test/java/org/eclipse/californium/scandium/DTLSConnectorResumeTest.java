@@ -48,6 +48,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.DtlsEndpointContext;
@@ -56,6 +57,7 @@ import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext.Attributes;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.auth.AdditionalInfo;
+import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.auth.X509CertPath;
@@ -128,6 +130,7 @@ public class DTLSConnectorResumeTest {
 	static AsyncAdvancedPskStore clientPskStore;
 	static AsyncNewAdvancedCertificateVerifier clientCertificateVerifier;
 	static AdvancedMultiPskStore clientInMemoryPskStore;
+	static AtomicReference<AdditionalInfo> applicationInfo = new AtomicReference<>();
 
 	private static final int CLIENT_CONNECTION_STORE_CAPACITY = 5;
 	private static final int MAX_TIME_TO_WAIT_SECS = 2;
@@ -383,15 +386,11 @@ public class DTLSConnectorResumeTest {
 	@BeforeClass
 	public static void startServer() throws Exception {
 
-		Map<String, Object> info = new HashMap<>();
-		info.put(KEY_DEVICE_ID, DEVICE_ID);
-		final AdditionalInfo applicationLevelInfo = AdditionalInfo.from(info);
-
 		ApplicationLevelInfoSupplier supplier = new ApplicationLevelInfoSupplier() {
 
 			@Override
 			public AdditionalInfo getInfo(Principal clientIdentity, Object customArgument) {
-				return applicationLevelInfo;
+				return applicationInfo.get();
 			}
 		};
 
@@ -410,7 +409,7 @@ public class DTLSConnectorResumeTest {
 				.setAdvancedCertificateVerifier(serverCertificateVerifier)
 				.setAdvancedPskStore(serverPskStore);
 
-		serverHelper = new ConnectorHelper();
+		serverHelper = new ConnectorHelper(true);
 		serverHelper.startServer(builder);
 		executor = ExecutorsUtil.newFixedThreadPool(2, new TestThreadFactory("DTLS-RESUME-"));
 		clientPrivateKey = DtlsTestTools.getClientPrivateKey();
@@ -451,6 +450,10 @@ public class DTLSConnectorResumeTest {
 
 	@Before
 	public void setUp() throws Exception {
+		Map<String, Object> info = new HashMap<>();
+		info.put(KEY_DEVICE_ID, DEVICE_ID);
+		applicationInfo.set(AdditionalInfo.from(info));
+
 		clientConnectionStore = new InMemoryConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60);
 
 		DtlsConnectorConfig.Builder builder = createClientConfigBuilder("client", null);
@@ -720,6 +723,14 @@ public class DTLSConnectorResumeTest {
 		LatchDecrementingRawDataChannel clientRawDataChannel = serverHelper.givenAnEstablishedSession(client, true);
 		SessionId sessionId = serverHelper.establishedServerSession.getSessionIdentifier();
 
+		Principal peer = serverHelper.establishedServerSession.getPeerIdentity();
+		assertThat(peer, is(instanceOf(ExtensiblePrincipal.class)));
+		ExtensiblePrincipal<?> principal = (ExtensiblePrincipal<?>) peer;
+		assertThat(principal.getExtendedInfo().get(KEY_DEVICE_ID, String.class), is(DEVICE_ID));
+
+		// reset the application level info, may be not available on resumption
+		applicationInfo.set(null);
+
 		// Force a resume session the next time we send data
 		client.forceResumeSessionFor(serverHelper.serverEndpoint);
 		Connection connection = clientConnectionStore.get(serverHelper.serverEndpoint);
@@ -739,6 +750,12 @@ public class DTLSConnectorResumeTest {
 		connection = clientConnectionStore.get(serverHelper.serverEndpoint);
 		assertThat(connection.getEstablishedSession().getSessionIdentifier(), is(sessionId));
 		assertClientIdentity(clientPrincipalType);
+
+		peer = serverHelper.establishedServerSession.getPeerIdentity();
+		assertThat(peer, is(instanceOf(ExtensiblePrincipal.class)));
+		principal = (ExtensiblePrincipal<?>) peer;
+		assertThat(principal.getExtendedInfo().get(KEY_DEVICE_ID, String.class), is(DEVICE_ID));
+
 	}
 
 	@Test

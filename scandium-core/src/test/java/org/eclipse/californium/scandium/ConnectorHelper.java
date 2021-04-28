@@ -115,6 +115,7 @@ public class ConnectorHelper {
 
 	static final ThreadFactory TEST_UDP_THREAD_FACTORY = new TestThreadFactory("TEST-UDP-");
 
+	boolean useSessionStore;
 	DTLSConnector server;
 	InetSocketAddress serverEndpoint;
 	DebugConnectionStore serverConnectionStore;
@@ -127,6 +128,14 @@ public class ConnectorHelper {
 	AlertCatcher serverAlertCatcher;
 
 	DtlsConnectorConfig serverConfig;
+
+	public ConnectorHelper() {
+		this(false);
+	}
+
+	public ConnectorHelper(boolean useSessionStore) {
+		this.useSessionStore = useSessionStore;
+	}
 
 	/**
 	 * Configures and starts a connector representing the <em>server side</em> of a DTLS connection.
@@ -204,7 +213,9 @@ public class ConnectorHelper {
 
 		serverConfig = builder.build();
 
-		serverSessionStore = new TestInMemorySessionStore();
+		if (useSessionStore) {
+			serverSessionStore = new TestInMemorySessionStore(false);
+		}
 		serverConnectionStore = new DebugConnectionStore(serverConfig.getMaxConnections(), serverConfig.getStaleConnectionThreshold(), serverSessionStore);
 		serverConnectionStore.setTag("server");
 

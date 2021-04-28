@@ -111,7 +111,7 @@ public class InMemoryConnectionStoreTest {
 	public void testFindRetrievesSharedConnection() {
 
 		// GIVEN an empty connection store with a session store shared by another node
-		SessionStore sessionStore = new TestInMemorySessionStore();
+		SessionStore sessionStore = new TestInMemorySessionStore(true);
 		sessionStore.put(con.getEstablishedSession());
 		store = new InMemoryConnectionStore(INITIAL_CAPACITY, 1000, sessionStore);
 
@@ -128,7 +128,7 @@ public class InMemoryConnectionStoreTest {
 
 		// GIVEN a connection store with a session store shared by another node
 		// and a (local) connection based on this session
-		SessionStore sessionStore = new TestInMemorySessionStore();
+		SessionStore sessionStore = new TestInMemorySessionStore(true);
 		sessionStore.put(con.getEstablishedSession());
 		store = new InMemoryConnectionStore(INITIAL_CAPACITY, 1000, sessionStore);
 		store.attach(null);
