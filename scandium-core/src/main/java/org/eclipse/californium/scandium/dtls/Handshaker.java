@@ -2158,13 +2158,15 @@ public abstract class Handshaker implements Destroyable {
 			@SuppressWarnings("unchecked")
 			ExtensiblePrincipal<? extends Principal> extensibleClientIdentity = (ExtensiblePrincipal<? extends Principal>) peerIdentity;
 			AdditionalInfo additionalInfo = getAdditionalPeerInfo(peerIdentity);
-			session.setPeerIdentity(extensibleClientIdentity.amend(additionalInfo));
+			if (additionalInfo != null) {
+				session.setPeerIdentity(extensibleClientIdentity.amend(additionalInfo));
+			}
 		}
 	}
 
 	private AdditionalInfo getAdditionalPeerInfo(Principal peerIdentity) {
 		if (applicationLevelInfoSupplier == null || peerIdentity == null) {
-			return AdditionalInfo.empty();
+			return null;
 		} else {
 			return applicationLevelInfoSupplier.getInfo(peerIdentity, customArgument);
 		}
