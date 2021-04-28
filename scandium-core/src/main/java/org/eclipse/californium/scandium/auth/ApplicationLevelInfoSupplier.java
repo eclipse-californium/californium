@@ -31,7 +31,9 @@ public interface ApplicationLevelInfoSupplier {
 	 * 
 	 * @param peerIdentity The peer identity.
 	 * @param customArgument a custom argument.
-	 * @return The additional information about the peer.
+	 * @return The additional information about the peer. {@code null}, if no
+	 *         new additional information is available.
+	 * @since 3.0 add custom argument and definition of returning {@code null}
 	 */
 	AdditionalInfo getInfo(Principal peerIdentity, Object customArgument);
 
