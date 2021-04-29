@@ -19,7 +19,6 @@
 	<description>Californium (Cf) Command Line Interface support for TCP using netty.io</description>
 
 	<properties>
-		<picocli.version>4.2.0</picocli.version>
 		<animal.sniffer.skip>true</animal.sniffer.skip>
 		<revapi.skip>true</revapi.skip>
 	</properties>
