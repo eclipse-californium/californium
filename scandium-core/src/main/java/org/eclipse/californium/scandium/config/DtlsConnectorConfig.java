@@ -426,10 +426,12 @@ public final class DtlsConnectorConfig {
 	private Integer verifyPeersOnResumptionThreshold;
 
 	/**
-	 * Indicates, that no session id is used by this server. The sessions are not
-	 * cached by this server and can not be resumed.
+	 * Indicates, that a session id is used by this server. The sessions are
+	 * cached by this server and can be resumed.
+	 * 
+	 * @since 3.0 (was useNoServerSessionId with inverse logic)
 	 */
-	private Boolean useNoServerSessionId;
+	private Boolean useServerSessionId;
 
 	/**
 	 * Use anti replay filter.
@@ -1154,13 +1156,16 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Indicates, that no session id is used by this server and so session are
-	 * also not cached by this server and can not be resumed.
+	 * Indicates, that session id is used by this server and so session are
+	 * cached by this server and can be resumed.
 	 * 
-	 * @return {@code true} if no session id is used by this server.
+	 * @return {@code true}, if session id is used by this server,
+	 *         {@code false}, if no session id us used by this server and
+	 *         therefore the session can not be resumed. Default {@code true}.
+	 * @since 3.0 (was useNoServerSessionId with inverse logic)
 	 */
-	public Boolean useNoServerSessionId() {
-		return useNoServerSessionId;
+	public Boolean useServerSessionId() {
+		return useServerSessionId;
 	}
 
 	/**
@@ -1355,7 +1360,7 @@ public final class DtlsConnectorConfig {
 		cloned.sniEnabled = sniEnabled;
 		cloned.extendedMasterSecretMode = extendedMasterSecretMode;
 		cloned.verifyPeersOnResumptionThreshold = verifyPeersOnResumptionThreshold;
-		cloned.useNoServerSessionId = useNoServerSessionId;
+		cloned.useServerSessionId = useServerSessionId;
 		cloned.loggingTag = loggingTag;
 		cloned.useAntiReplayFilter = useAntiReplayFilter;
 		cloned.useExtendedWindowFilter = useExtendedWindowFilter;
@@ -1539,9 +1544,9 @@ public final class DtlsConnectorConfig {
 			} else if (config.clientAuthenticationRequired != null || config.clientAuthenticationWanted != null) {
 				throw new IllegalStateException(
 						"client only is in contradiction to server side client authentication!");
-			} else if (config.useNoServerSessionId != null && config.useNoServerSessionId.booleanValue()) {
+			} else if (config.useServerSessionId != null && !config.useServerSessionId.booleanValue()) {
 				throw new IllegalStateException(
-						"client only is in contradiction to server side 'no server session id'!");
+						"client only is in contradiction to server side 'server session id'!");
 			}
 			config.clientOnly = true;
 			return this;
@@ -2859,16 +2864,18 @@ public final class DtlsConnectorConfig {
 		/**
 		 * Set whether session id is used by this server or not.
 		 * 
-		 * @param flag {@code true} if no session id is used by this server.
+		 * @param flag {@code true} if session id is used by this server,
+		 *            {@code false}, if not. Default {@code true}.
 		 * @return this builder for command chaining.
 		 * @throws IllegalArgumentException if no session id should be used and
 		 *             the configuration is for client only.
+		 * @since 3.0 (was setNoServerSessionId with inverse logic)
 		 */
-		public Builder setNoServerSessionId(boolean flag) {
-			if (Boolean.TRUE.equals(config.clientOnly) && flag) {
+		public Builder setUseServerSessionId(boolean flag) {
+			if (Boolean.TRUE.equals(config.clientOnly) && !flag) {
 				throw new IllegalArgumentException("not applicable for client only!");
 			}
-			config.useNoServerSessionId = flag;
+			config.useServerSessionId = flag;
 			return this;
 		}
 
@@ -3099,8 +3106,8 @@ public final class DtlsConnectorConfig {
 					config.defaultHandshakeMode = DtlsEndpointContext.HANDSHAKE_MODE_AUTO;
 				}
 			}
-			if (config.useNoServerSessionId == null) {
-				config.useNoServerSessionId = Boolean.FALSE;
+			if (config.useServerSessionId == null) {
+				config.useServerSessionId = Boolean.TRUE;
 			}
 			if (config.outboundMessageBufferSize == null) {
 				config.outboundMessageBufferSize = 100000;

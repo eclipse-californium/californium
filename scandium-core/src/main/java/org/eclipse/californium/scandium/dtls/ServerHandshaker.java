@@ -108,7 +108,7 @@ public class ServerHandshaker extends Handshaker {
 	private final Logger LOGGER_NEGOTIATION = LoggerFactory.getLogger(LOGGER.getName() + ".negotiation");
 
 	/** Does the server use session id? */
-	private boolean useNoSessionId = false;
+	private boolean useSessionId = true;
 
 	/** Is the client wanted to authenticate itself? */
 	private boolean clientAuthenticationWanted = false;
@@ -233,7 +233,7 @@ public class ServerHandshaker extends Handshaker {
 
 		this.clientAuthenticationWanted = config.isClientAuthenticationWanted();
 		this.clientAuthenticationRequired = config.isClientAuthenticationRequired();
-		this.useNoSessionId = config.useNoServerSessionId();
+		this.useSessionId = config.useServerSessionId();
 
 		// the server handshake uses the config with exchanged roles!
 		this.supportedClientCertificateTypes = config.getTrustCertificateTypes();
@@ -505,11 +505,11 @@ public class ServerHandshaker extends Handshaker {
 		serverRandom = new Random();
 
 		DTLSSession session = getSession();
-		boolean useNoSessionId = this.useNoSessionId;
+		boolean useSessionId = this.useSessionId;
 		if (extendedMasterSecretMode.is(ExtendedMasterSecretMode.ENABLED) && !clientHello.hasExtendedMasterSecret()) {
-			useNoSessionId = true;
+			useSessionId = false;
 		}
-		SessionId sessionId = useNoSessionId ? SessionId.emptySessionId() : new SessionId();
+		SessionId sessionId = useSessionId ? new SessionId() : SessionId.emptySessionId();
 		session.setSessionIdentifier(sessionId);
 		session.setProtocolVersion(serverVersion);
 

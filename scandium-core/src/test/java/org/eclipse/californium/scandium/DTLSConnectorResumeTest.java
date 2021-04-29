@@ -966,7 +966,7 @@ public class DTLSConnectorResumeTest {
 		ConnectorHelper serverWithoutSessionId = new ConnectorHelper();
 		try {
 			DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
-					.setNoServerSessionId(true)
+					.setUseServerSessionId(false)
 					.setSniEnabled(true);
 			serverWithoutSessionId.startServer(builder);
 

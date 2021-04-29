@@ -810,7 +810,7 @@ public class DTLSConnectorAdvancedTest {
 		TestRecordLayer serverRecordLayer = new TestRecordLayer(rawServer);
 
 		DtlsConnectorConfig serverConfig = new DtlsConnectorConfig.Builder(serverHelper.serverConfig)
-				.setNoServerSessionId(true).build();
+				.setUseServerSessionId(false).build();
 
 		try {
 			// Start connector (Server)
@@ -1072,7 +1072,7 @@ public class DTLSConnectorAdvancedTest {
 		TestRecordLayer serverRecordLayer = new TestRecordLayer(rawServer);
 
 		DtlsConnectorConfig serverConfig = new DtlsConnectorConfig.Builder(serverHelper.serverConfig)
-				.setNoServerSessionId(true).build();
+				.setUseServerSessionId(false).build();
 
 		try {
 			// Start connector (Server)
