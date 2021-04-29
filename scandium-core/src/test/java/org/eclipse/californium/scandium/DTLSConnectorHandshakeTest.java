@@ -1053,7 +1053,7 @@ public class DTLSConnectorHandshakeTest {
 	@Test
 	public void testPskHandshakeWithoutSession() throws Exception {
 		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder().setClientAuthenticationRequired(false)
-				.setClientAuthenticationWanted(false).setSniEnabled(false).setNoServerSessionId(true)
+				.setClientAuthenticationWanted(false).setSniEnabled(false).setUseServerSessionId(false)
 				.setApplicationLevelInfoSupplier(clientInfoSupplier);
 		startServer(builder);
 		startClientPsk(false, null, null, PSK_STORE);
@@ -1068,7 +1068,7 @@ public class DTLSConnectorHandshakeTest {
 	public void testPskHandshakePskSecret() throws Exception {
 		serverPskStore = new AsyncAdvancedPskStore(PSK_STORE).setSecretMode(false);
 		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder().setClientAuthenticationRequired(false)
-				.setClientAuthenticationWanted(false).setSniEnabled(false).setNoServerSessionId(true)
+				.setClientAuthenticationWanted(false).setSniEnabled(false).setUseServerSessionId(false)
 				.setApplicationLevelInfoSupplier(clientInfoSupplier).setAdvancedPskStore(serverPskStore);
 		startServer(builder);
 		startClientPsk(false, null, null, PSK_STORE);
@@ -1083,7 +1083,7 @@ public class DTLSConnectorHandshakeTest {
 	public void testPskHandshakeMasterSecret() throws Exception {
 		serverPskStore = new AsyncAdvancedPskStore(PSK_STORE).setSecretMode(true);
 		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder().setClientAuthenticationRequired(false)
-				.setClientAuthenticationWanted(false).setSniEnabled(false).setNoServerSessionId(true)
+				.setClientAuthenticationWanted(false).setSniEnabled(false).setUseServerSessionId(false)
 				.setApplicationLevelInfoSupplier(clientInfoSupplier).setAdvancedPskStore(serverPskStore);
 		startServer(builder);
 		startClientPsk(false, null, null, PSK_STORE);

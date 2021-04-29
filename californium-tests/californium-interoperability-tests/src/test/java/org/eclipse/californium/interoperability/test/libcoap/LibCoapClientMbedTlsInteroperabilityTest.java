@@ -125,7 +125,7 @@ public class LibCoapClientMbedTlsInteroperabilityTest {
 	public void testLibCoapClientPskNoSessionId() throws Exception {
 		CipherSuite cipherSuite = CipherSuite.TLS_PSK_WITH_AES_128_CCM_8;
 		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
-		builder.setNoServerSessionId(true);
+		builder.setUseServerSessionId(false);
 		californiumUtil.start(BIND, false, builder, null, cipherSuite);
 
 		processUtil.startupClient(DESTINATION_URL + "test", PSK, "Hello, CoAP!", cipherSuite);

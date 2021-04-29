@@ -128,6 +128,8 @@ are removed and must be replaced by
 
 13) The `ResumptionSupportingConnectionStore.find(SessionId)` returns now a new DTLSSession instead of a connection.
 
+14) Change `useNoServerSessionId` into `useServerSessionId` with inverse logic.
+
 ### Californium-Core:
 
 1) The `MessageObserver2` interface is integrated in `MessageObserver`.
