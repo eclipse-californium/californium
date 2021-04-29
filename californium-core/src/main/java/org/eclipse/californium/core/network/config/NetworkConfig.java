@@ -765,7 +765,9 @@ public final class NetworkConfig {
 		String value = properties.getProperty(key);
 		if (value == null) {
 			LOGGER.debug("key [{}] is undefined, returning default value", key);
-		} else if (value.isEmpty()) {
+		}
+		value = value.trim();
+		if (value.isEmpty()) {
 			LOGGER.debug("key [{}] is empty, returning default value", key);
 		}
 		try {
