@@ -765,15 +765,17 @@ public final class NetworkConfig {
 		String value = properties.getProperty(key);
 		if (value == null) {
 			LOGGER.debug("key [{}] is undefined, returning default value", key);
+			return result;
 		}
 		value = value.trim();
 		if (value.isEmpty()) {
 			LOGGER.debug("key [{}] is empty, returning default value", key);
+			return result;
 		}
 		try {
 			result = parser.parseValue(value);
 		} catch (NumberFormatException e) {
-			LOGGER.warn("value for key [{}] is not a {}, returning default value", key, parser.getTypeName());
+			LOGGER.warn("value '{}' for key [{}] is not a {}, returning default value", value, key, parser.getTypeName());
 		}
 		return result;
 	}
