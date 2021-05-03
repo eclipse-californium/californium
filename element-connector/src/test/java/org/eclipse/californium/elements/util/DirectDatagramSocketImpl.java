@@ -47,6 +47,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -330,7 +331,7 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 			throw new PortUnreachableException(message);
 		}
 		for (DirectDatagramSocketImpl destinationSocket : destinations) {
-			if (destinationSocket.matches(destinationAddress)) {
+			if (destinationSocket != null && destinationSocket.matches(destinationAddress)) {
 				if (!destinationSocket.incomingQueue.offer(exchange)) {
 					if (LOGGER.isErrorEnabled()) {
 						LOGGER.error("packet dropped! {}", exchange.format(currentSetup));
@@ -458,7 +459,7 @@ public class DirectDatagramSocketImpl extends AbstractDatagramSocketImpl {
 	 *             no free port is available.
 	 */
 	private int bind(int lport) throws SocketException {
-		List<DirectDatagramSocketImpl> newDestinations = new ArrayList<>();
+		List<DirectDatagramSocketImpl> newDestinations = new CopyOnWriteArrayList<>();
 		newDestinations.add(this);
 		if (0 >= lport) {
 			int count = AUTO_PORT_RANGE_SIZE;
