@@ -790,14 +790,18 @@ public final class NetworkConfig {
 	 */
 	public boolean getBoolean(final String key, final boolean defaultValue) {
 		String value = properties.getProperty(key);
-		if (value != null) {
-			return Boolean.parseBoolean(value);
-		} else {
-			LOGGER.warn("Key [{}] is undefined, returning defaultValue", key);
+		if (value == null) {
+			LOGGER.debug("key [{}] is undefined, returning default value", key);
 			return defaultValue;
 		}
+		value = value.trim();
+		if (value.isEmpty()) {
+			LOGGER.debug("key [{}] is empty, returning default value", key);
+			return defaultValue;
+		}
+		return Boolean.parseBoolean(value);
 	}
-	
+
 	/**
 	 * Gets the value for the specified key as boolean or false if not found.
 	 *
