@@ -51,7 +51,7 @@ The `SessionCache` and resumption handshake behavior is changed. `SessionCache` 
 
 Please Note: the new `SessionStore` feature is not well tested! If used and causing trouble, don't hesitate to create an issue.
 
-The `ApplicationLevelInfoSupplier.getinfo()` supports now to return `null` in order to not alter the additional information.
+The `ApplicationLevelInfoSupplier.getInfo()` supports now to return `null` in order to not alter the additional information.
 
 ### Californium-Core:
 
