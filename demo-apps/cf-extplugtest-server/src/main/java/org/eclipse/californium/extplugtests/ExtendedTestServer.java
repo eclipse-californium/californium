@@ -69,7 +69,7 @@ import org.eclipse.californium.extplugtests.resources.ReverseRequest;
 import org.eclipse.californium.plugtests.AbstractTestServer;
 import org.eclipse.californium.plugtests.PlugtestServer;
 import org.eclipse.californium.plugtests.PlugtestServer.BaseConfig;
-import org.eclipse.californium.plugtests.resources.Context;
+import org.eclipse.californium.plugtests.resources.MyContext;
 import org.eclipse.californium.plugtests.resources.MyIp;
 import org.eclipse.californium.scandium.DtlsClusterConnector;
 import org.eclipse.californium.scandium.DtlsClusterConnector.ClusterNodesProvider;
@@ -563,7 +563,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 		add(new RequestStatistic());
 		add(new Benchmark(noBenchmark, maxResourceSize));
 		add(new MyIp(MyIp.RESOURCE_NAME, true));
-		add(new Context(Context.RESOURCE_NAME, true));
+		add(new MyContext(MyContext.RESOURCE_NAME, true));
 	}
 
 	private boolean isReady() {
@@ -595,6 +595,7 @@ public class ExtendedTestServer extends AbstractTestServer {
 		int dtlsReceiverThreads = netConfig.getInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT);
 		int maxPeers = netConfig.getInt(Keys.MAX_ACTIVE_PEERS);
 		int handshakeResultDelay = netConfig.getInt(KEY_DTLS_HANDSHAKE_RESULT_DELAY, 0);
+		boolean useServerSessionId = netConfig.getBoolean(KEY_DTLS_SERVER_USE_SESSION_ID, true);
 		Integer healthStatusInterval = netConfig.getOptInteger(Keys.HEALTH_STATUS_INTERVAL); // seconds
 		Integer recvBufferSize = netConfig.getOptInteger(Keys.UDP_CONNECTOR_RECEIVE_BUFFER);
 		Integer sendBufferSize = netConfig.getOptInteger(Keys.UDP_CONNECTOR_SEND_BUFFER);
@@ -629,6 +630,8 @@ public class ExtendedTestServer extends AbstractTestServer {
 		dtlsConfigBuilder.setConnectionListener(new MdcConnectionListener());
 		dtlsConfigBuilder.setCidUpdateAddressOnNewerRecordFilter(true);
 		dtlsConfigBuilder.setLoggingTag("node-" + nodeId);
+		dtlsConfigBuilder.setUseServerSessionId(useServerSessionId);
+		
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		EndpointObserver endpointObserver = null;
 		if (nodesDiscoverer != null) {

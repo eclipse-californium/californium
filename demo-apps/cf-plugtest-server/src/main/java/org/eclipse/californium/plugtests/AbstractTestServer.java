@@ -141,6 +141,7 @@ public abstract class AbstractTestServer extends CoapServer {
 	public static final SecretKey OPENSSL_PSK_SECRET = SecretUtil.create("secretPSK".getBytes(), "PSK");
 
 	public static final String KEY_DTLS_HANDSHAKE_RESULT_DELAY = "DTLS_HANDSHAKE_RESULT_DELAY";
+	public static final String KEY_DTLS_SERVER_USE_SESSION_ID = "DTLS_SERVER_USE_SESSION_ID";
 
 	public static final Pattern HONO_IDENTITY_PATTERN = Pattern.compile("^[^@]{8,}@.{8,}$");
 	public static final SecretKey HONO_PSK_SECRET = SecretUtil.create("secret".getBytes(), "PSK");
@@ -350,6 +351,7 @@ public abstract class AbstractTestServer extends CoapServer {
 					int dtlsReceiverThreads = dtlsConfig.getInt(Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT);
 					int maxPeers = dtlsConfig.getInt(Keys.MAX_ACTIVE_PEERS);
 					int handshakeResultDelay = dtlsConfig.getInt(KEY_DTLS_HANDSHAKE_RESULT_DELAY, 0);
+					boolean useServerSessionId = dtlsConfig.getBoolean(KEY_DTLS_SERVER_USE_SESSION_ID, true);
 					Integer cidLength = dtlsConfig.getOptInteger(Keys.DTLS_CONNECTION_ID_LENGTH);
 					Integer cidNode = dtlsConfig.getOptInteger(Keys.DTLS_CONNECTION_ID_NODE_ID);
 					Integer healthStatusInterval = config.getInt(Keys.HEALTH_STATUS_INTERVAL); // seconds
@@ -366,6 +368,7 @@ public abstract class AbstractTestServer extends CoapServer {
 					}
 					AsyncAdvancedPskStore asyncPskStore = new AsyncAdvancedPskStore(new PlugPskStore());
 					asyncPskStore.setDelay(handshakeResultDelay);
+					dtlsConfigBuilder.setUseServerSessionId(useServerSessionId);
 					dtlsConfigBuilder.setAdvancedPskStore(asyncPskStore);
 					dtlsConfigBuilder.setAddress(bindToAddress);
 					dtlsConfigBuilder.setRecommendedCipherSuitesOnly(false);
