@@ -234,7 +234,7 @@ public class Bytes {
 	}
 
 	/**
-	 * Indicates whether some bytes are "equal to" each other.
+	 * Checks, whether some bytes are "equal to" each other.
 	 * 
 	 * @param a first bytes to check
 	 * @param b second bytes to check
