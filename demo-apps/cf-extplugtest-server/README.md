@@ -448,14 +448,14 @@ Using a k8s "StatefulSet" comes with a "in-cluster load balancing" based on the 
 To test the dtls-cid-cluster a coap-client can be used. For the k8s approach, start it with
 
 ```sh
-java -jar cf-client-3.0.0-M1.jar --method GET coaps://<host>:30784/context
+java -jar cf-client-3.0.0-M1.jar --method GET coaps://<host>:30784/mycontext
 
 ==[ CoAP Request ]=============================================
 MID    : 12635
 Token  : E042D951531E7FDB
 Type   : CON
 Method : 0.01 - GET
-Options: {"Uri-Host":"<host>", "Uri-Path":"context"}
+Options: {"Uri-Host":"<host>", "Uri-Path":"mycontext"}
 Payload: 0 Bytes
 ===============================================================
 
@@ -493,7 +493,7 @@ If you execute the client multiple times, you will see different `node-id`s, whe
 For the other two variants above, `Static Nodes` or `Dynamic Nodes`, the `cf-nat` may be used as load-balancer. In that cases, just use the address of the `cf-nat` as destination, e.g.
 
 ```sh
-java -jar cf-client-3.0.0-M1.jar --method GET coaps://<nat>:5784/context
+java -jar cf-client-3.0.0-M1.jar --method GET coaps://<nat>:5784/mycontext
 ```
 
 ### Test the dtls-cid-cluster with Cf-NAT 
@@ -519,7 +519,7 @@ remove <host:port> - remove destination from load balancer
 reverse (on|off) - enable/disable reverse address updates.
 ```
 
-Start two [cf-browser-3.0.0-M1](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-browser/3.0.0-M1/cf-browser-3.0.0-M1.jar) instances. Enter as destination `coaps://<nat-host>:5784/context` and execute a `GET` in both clients. Do they show different `node-ids`? If not, restart one as long as you get two different `node-id`s. Also check, if the line with `read-cid` is missing. If so, the DTLS Connection ID support is not enabled. Check, if `DTLS_CONNECTION_ID_LENGTH` is set in "Californium.properties" to a number. Even `0` will enable it. But a empty value disables the DTLS Connection ID support!
+Start two [cf-browser-3.0.0-M1](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-browser/3.0.0-M1/cf-browser-3.0.0-M1.jar) instances. Enter as destination `coaps://<nat-host>:5784/mycontext` and execute a `GET` in both clients. Do they show different `node-ids`? If not, restart one as long as you get two different `node-id`s. Also check, if the line with `read-cid` is missing. If so, the DTLS Connection ID support is not enabled. Check, if `DTLS_CONNECTION_ID_LENGTH` is set in "Californium.properties" to a number. Even `0` will enable it. But a empty value disables the DTLS Connection ID support!
 
 ```sh
 ip: ?.?.?.?

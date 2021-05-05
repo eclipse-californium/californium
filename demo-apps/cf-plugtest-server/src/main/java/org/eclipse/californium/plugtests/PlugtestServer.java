@@ -68,7 +68,7 @@ import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.plugtests.resources.Context;
+import org.eclipse.californium.plugtests.resources.MyContext;
 import org.eclipse.californium.plugtests.resources.Create;
 import org.eclipse.californium.plugtests.resources.DefaultTest;
 import org.eclipse.californium.plugtests.resources.Hono;
@@ -671,6 +671,6 @@ public class PlugtestServer extends AbstractTestServer {
 		add(new Hono("telemetry"));
 		add(new Hono("event"));
 		add(new MyIp(MyIp.RESOURCE_NAME, false));
-		add(new Context(Context.RESOURCE_NAME, false));
+		add(new MyContext(MyContext.RESOURCE_NAME, false));
 	}
 }

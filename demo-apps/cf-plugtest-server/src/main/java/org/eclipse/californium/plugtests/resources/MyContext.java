@@ -45,13 +45,13 @@ import com.upokecenter.cbor.CBORObject;
 /**
  * Context resource.
  * 
- * @since 2.5
+ * @since 3.0 (renamed, was Context)
  */
-public class Context extends CoapResource {
+public class MyContext extends CoapResource {
 
-	public static final String RESOURCE_NAME = "context";
+	public static final String RESOURCE_NAME = "mycontext";
 
-	public Context(String name, boolean visible) {
+	public MyContext(String name, boolean visible) {
 		super(name, visible);
 		getAttributes().setTitle("Communication Context");
 		getAttributes().addContentType(TEXT_PLAIN);
@@ -108,7 +108,7 @@ public class Context extends CoapResource {
 		if (endpoint != null) {
 			NetworkConfig config = endpoint.getConfig();
 			String nodeId = config.getString(NetworkConfig.Keys.DTLS_CONNECTION_ID_NODE_ID);
-			if (nodeId != null) {
+			if (nodeId != null && !nodeId.isEmpty()) {
 				formatter.add("node-id", nodeId);
 			}
 		}
@@ -122,6 +122,13 @@ public class Context extends CoapResource {
 		}
 		if (cipherSuite != null) {
 			formatter.add("cipher-suite", cipherSuite);
+		}
+		String sessionId = context.getString(DtlsEndpointContext.KEY_SESSION_ID);
+		if (sessionId == null) {
+			sessionId = context.getString(TlsEndpointContext.KEY_SESSION_ID);
+		}
+		if (sessionId != null) {
+			formatter.add("session-id", sessionId);
 		}
 		String cid = context.getString(DtlsEndpointContext.KEY_READ_CONNECTION_ID);
 		if (cid != null) {
