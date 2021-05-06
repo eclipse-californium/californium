@@ -511,7 +511,7 @@ public final class ClientHello extends HandshakeMessage {
 
 	/**
 	 * 
-	 * @return the client's certificate type extension if available, otherwise
+	 * @return the server's certificate type extension if available, otherwise
 	 *         <code>null</code>.
 	 */
 	public ServerCertificateTypeExtension getServerCertificateTypeExtension() {
