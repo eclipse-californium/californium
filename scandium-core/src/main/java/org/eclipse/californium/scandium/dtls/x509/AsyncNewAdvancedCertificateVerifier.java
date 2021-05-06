@@ -79,16 +79,16 @@ public class AsyncNewAdvancedCertificateVerifier extends StaticNewAdvancedCertif
 	 * @param delayMillis delay in milliseconds to report result. {@code 0} or
 	 *            negative delays using synchronous blocking behaviour. Positive
 	 *            delays using asynchronous none-blocking behaviour.
-	 * @return this psk store for command chaining
+	 * @return this certificate verifier for command chaining
 	 */
 	public AsyncNewAdvancedCertificateVerifier setDelay(int delayMillis) {
 		this.delayMillis = delayMillis;
 		if (delayMillis > 0) {
-			LOGGER.info("Asynchronous delayed PSK store {}ms.", delayMillis);
+			LOGGER.info("Asynchronous delayed certificate verifier {}ms.", delayMillis);
 		} else if (delayMillis < 0) {
-			LOGGER.info("Synchronous delayed PSK store {}ms.", -delayMillis);
+			LOGGER.info("Synchronous delayed certificate verifier {}ms.", -delayMillis);
 		} else {
-			LOGGER.info("Synchronous PSK store.");
+			LOGGER.info("Synchronous certificate verifier.");
 		}
 		return this;
 	}
