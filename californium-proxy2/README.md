@@ -45,7 +45,7 @@ Some may now ask themselves, where URLs as
 http://proxy-host:8080/proxy/http://destination:8000/http-target
 ```
 
-are the used. That is not for a simple forwarding proxy, that is used for special reverse-proxies.
+are then used? That is not for a simple forwarding proxy, that is used for special reverse-proxies.
 
 ## CoAP Proxy
 
