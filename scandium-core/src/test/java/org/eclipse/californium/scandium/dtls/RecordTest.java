@@ -35,6 +35,7 @@ import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.scandium.dtls.cipher.CCMBlockCipher;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.SecretIvParameterSpec;
+import org.eclipse.californium.scandium.util.SecretUtil;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -70,7 +71,9 @@ public class RecordTest {
 		DTLSSession session = new DTLSSession();
 		session.setCipherSuite(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 		session.setCompressionMethod(CompressionMethod.NULL);
-		context = new DTLSContext(session, 0);
+		context = new DTLSContext(0);
+		context.getSession().set(session);
+		SecretUtil.destroy(session);
 		context.createReadState(key, new SecretIvParameterSpec(client_iv), null);
 	}
 
@@ -79,7 +82,9 @@ public class RecordTest {
 		DTLSSession session = new DTLSSession();
 		session.setCipherSuite(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
 		session.setCompressionMethod(CompressionMethod.NULL);
-		DTLSContext context = new DTLSContext(session, Record.MAX_SEQUENCE_NO);
+		DTLSContext context = new DTLSContext(Record.MAX_SEQUENCE_NO);
+		context.getSession().set(session);
+		SecretUtil.destroy(session);
 		new Record(ContentType.HANDSHAKE, 0, new HelloRequest(), context, true, 0);
 		try {
 			new Record(ContentType.HANDSHAKE, 0, new HelloRequest(), context, true, 0);

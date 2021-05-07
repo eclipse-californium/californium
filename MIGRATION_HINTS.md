@@ -53,6 +53,8 @@ Please Note: the new `SessionStore` feature is not well tested! If used and caus
 
 The `ApplicationLevelInfoSupplier.getInfo()` supports now to return `null` in order to not alter the additional information.
 
+The `ResumingServerHandshaker` supports now a none-blocking `ResumptionVerifier` and a fall-back to a full handshake.
+
 ### Californium-Core:
 
 `MessageObserver.onAcknowledgement()`:

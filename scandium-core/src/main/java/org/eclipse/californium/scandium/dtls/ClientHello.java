@@ -38,6 +38,7 @@ import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
+import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
  * When a client first connects to a server, it is required to send the
@@ -362,22 +363,39 @@ public final class ClientHello extends HandshakeMessage {
 
 	// Getters and Setters ////////////////////////////////////////////
 
+	/**
+	 * Get protocol version.
+	 * 
+	 * @return protocol version.
+	 */
 	public ProtocolVersion getClientVersion() {
 		return clientVersion;
 	}
 
+	/**
+	 * Get client random
+	 * 
+	 * @return client random
+	 */
 	public Random getRandom() {
 		return random;
 	}
 
+	/**
+	 * Get session id.
+	 * 
+	 * @return session id. May be empty.
+	 * @see #hasSessionId()
+	 */
 	public SessionId getSessionId() {
 		return sessionId;
 	}
 
 	/**
-	 * Checks whether this message contains a session ID.
+	 * Checks, whether this message contains a session ID.
 	 * 
 	 * @return {@code true}, if the message contains a non-empty session ID
+	 * @see #getSessionId()
 	 */
 	public boolean hasSessionId() {
 		return !sessionId.isEmpty();
@@ -390,6 +408,17 @@ public final class ClientHello extends HandshakeMessage {
 	 */
 	public byte[] getCookie() {
 		return cookie;
+	}
+
+	/**
+	 * Checks, whether this message contains a cookie.
+	 * 
+	 * @return {@code true}, if the message contains a non-empty cookie
+	 * @see #getCookie()
+	 * @since 3.0
+	 */
+	public boolean hasCookie() {
+		return cookie.length > 0;
 	}
 
 	/**
@@ -433,18 +462,41 @@ public final class ClientHello extends HandshakeMessage {
 		return Collections.unmodifiableList(supportedCipherSuites);
 	}
 
+	/**
+	 * Get compression methods.
+	 * 
+	 * @return unmodifiable list of compression methods. Only
+	 *         {@link CompressionMethod#NULL} is supported.
+	 */
 	public List<CompressionMethod> getCompressionMethods() {
 		return Collections.unmodifiableList(compressionMethods);
 	}
 
+	/**
+	 * Set compression methods.
+	 * 
+	 * @param compressionMethods list of compression methods. Only
+	 *            {@link CompressionMethod#NULL} is supported.
+	 */
 	public void setCompressionMethods(List<CompressionMethod> compressionMethods) {
 		this.compressionMethods.addAll(compressionMethods);
 	}
 
+	/**
+	 * Add compression method.
+	 * 
+	 * @param compressionMethod compression method. Only
+	 *            {@link CompressionMethod#NULL} is supported.
+	 */
 	public void addCompressionMethod(CompressionMethod compressionMethod) {
 		compressionMethods.add(compressionMethod);
 	}
 
+	/**
+	 * Add hello extension.
+	 * 
+	 * @param extension hello extension to add
+	 */
 	void addExtension(HelloExtension extension) {
 		extensions.addExtension(extension);
 	}
@@ -452,7 +504,7 @@ public final class ClientHello extends HandshakeMessage {
 	/**
 	 * Gets the client hello extensions the client has included in this message.
 	 * 
-	 * @return The extensions or {@code null} if no extensions are used.
+	 * @return The extensions. May be empty, if no extensions are used.
 	 */
 	public HelloExtensions getExtensions() {
 		return extensions;
@@ -479,6 +531,7 @@ public final class ClientHello extends HandshakeMessage {
 	}
 
 	/**
+	 * Gets the client's certificate type extension.
 	 * 
 	 * @return the client's certificate type extension if available, otherwise
 	 *         {@code null}.
@@ -488,8 +541,9 @@ public final class ClientHello extends HandshakeMessage {
 	}
 
 	/**
+	 * Gets the servers's certificate type extension.
 	 * 
-	 * @return the client's certificate type extension if available, otherwise
+	 * @return the servers's certificate type extension if available, otherwise
 	 *         {@code null}.
 	 */
 	public ServerCertificateTypeExtension getServerCertificateTypeExtension() {
@@ -537,6 +591,18 @@ public final class ClientHello extends HandshakeMessage {
 	 */
 	public ServerNameExtension getServerNameExtension() {
 		return extensions.getExtension(ExtensionType.SERVER_NAME);
+	}
+
+	/**
+	 * Gets the <em>Server Names</em> of the extension data from this message.
+	 * 
+	 * @return the server names, or {@code null}, if this message does not
+	 *         contain the <em>Server Name Indication</em> extension.
+	 * @since 3.0
+	 */
+	public ServerNames getServerNames() {
+		ServerNameExtension extension = getServerNameExtension();
+		return extension == null ? null : extension.getServerNames();
 	}
 
 	/**

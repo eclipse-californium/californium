@@ -35,8 +35,7 @@ import org.eclipse.californium.elements.util.DatagramWriter;
  * in <a href="http://tools.ietf.org/html/rfc3749" target="_blank">Transport Layer Security
  * Protocol Compression Methods</a>.
  * <p>
- * Note that only the {@link #NULL} compression method is supported at the
- * moment.
+ * Note, that only the {@link #NULL} compression method is supported.
  */
 public enum CompressionMethod {
 	NULL(0x00),

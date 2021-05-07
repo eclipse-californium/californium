@@ -31,6 +31,7 @@ import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.SecretIvParameterSpec;
+import org.eclipse.californium.scandium.util.SecretUtil;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -188,9 +189,9 @@ public class DTLSContextTest {
 
 	@Test
 	public void testConstructorEnforcesMaxSequenceNo() {
-		context = new DTLSContext(new DTLSSession(), Record.MAX_SEQUENCE_NO); // should succeed
+		context = new DTLSContext(Record.MAX_SEQUENCE_NO); // intended to succeed
 		try {
-			context = new DTLSContext(new DTLSSession(), Record.MAX_SEQUENCE_NO + 1); // should fail
+			context = new DTLSContext(Record.MAX_SEQUENCE_NO + 1); // intended to fail
 			fail("DTLSSession constructor should have refused initial sequence number > 2^48 - 1");
 		} catch (IllegalArgumentException e) {
 			// ok
@@ -199,7 +200,7 @@ public class DTLSContextTest {
 
 	@Test(expected = IllegalStateException.class)
 	public void testGetSequenceNumberEnforcesMaxSequenceNo() {
-		context = new DTLSContext(new DTLSSession(), Record.MAX_SEQUENCE_NO);
+		context = new DTLSContext(Record.MAX_SEQUENCE_NO);
 		context.getNextSequenceNumber(); // should succeed
 		context.getNextSequenceNumber(); // should throw exception
 	}
@@ -213,7 +214,9 @@ public class DTLSContextTest {
 		SecretIvParameterSpec iv = new SecretIvParameterSpec(getRandomBytes(cipherSuite.getFixedIvLength()));
 
 		DTLSSession session = DTLSSessionTest.newEstablishedServerSession(cipherSuite, type);
-		DTLSContext context = new DTLSContext(session, 0);
+		DTLSContext context = new DTLSContext(0);
+		context.getSession().set(session);
+		SecretUtil.destroy(session);
 		context.createReadState(encryptionKey, iv, macKey);
 		context.createWriteState(encryptionKey, iv, macKey);
 		return context;

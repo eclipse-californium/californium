@@ -99,7 +99,6 @@ public class ServerHandshakerTest {
 	@Before
 	public void setup() throws Exception {
 		timer = new TestScheduledExecutorService();
-		session = new DTLSSession();
 		recordLayer = new SimpleRecordLayer();
 		NewAdvancedCertificateVerifier verifier = StaticNewAdvancedCertificateVerifier.builder().setTrustedCertificates(trustedCertificates).build();
 		config = DtlsConnectorConfig.builder()
@@ -109,7 +108,8 @@ public class ServerHandshakerTest {
 				.setSupportedCipherSuites(SERVER_CIPHER_SUITE)
 				.setExtendedMasterSecretMode(ExtendedMasterSecretMode.ENABLED)
 				.build();
-		handshaker = newHandshaker(config, session);
+		handshaker = newHandshaker(config);
+		session = handshaker.getSession();
 
 		DatagramWriter writer = new DatagramWriter();
 		// uint32 gmt_unix_time
@@ -231,7 +231,8 @@ public class ServerHandshakerTest {
 				.setAdvancedCertificateVerifier(verifier)
 				.setExtendedMasterSecretMode(ExtendedMasterSecretMode.ENABLED)
 				.build();
-		handshaker = newHandshaker(config, session);
+		handshaker = newHandshaker(config);
+		session = handshaker.getSession();
 
 		// WHEN a client sends a hello message indicating that it only supports X.509 certs
 		// but offering both a public key based as well as a pre-shared key based cipher
@@ -369,10 +370,10 @@ public class ServerHandshakerTest {
 		assertThatAllMessagesHaveBeenProcessedInOrder();
 	}
 
-	private ServerHandshaker newHandshaker(final DtlsConnectorConfig config, final DTLSSession session) throws HandshakeException {
+	private ServerHandshaker newHandshaker(final DtlsConnectorConfig config) throws HandshakeException {
 		Connection connection = new Connection(config.getAddress()).setConnectorContext(new SyncExecutor(), null);
 		connection.setConnectionId(new ConnectionId(new byte[] { 1, 2, 3, 4 }));
-		ServerHandshaker handshaker =  new ServerHandshaker(0, 0, session, recordLayer, timer, connection, config);
+		ServerHandshaker handshaker =  new ServerHandshaker(0, 0, recordLayer, timer, connection, config);
 		recordLayer.setHandshaker(handshaker);
 		return handshaker;
 	}

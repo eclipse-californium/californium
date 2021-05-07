@@ -34,6 +34,7 @@ import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
 import org.eclipse.californium.scandium.util.SecretIvParameterSpec;
+import org.eclipse.californium.scandium.util.SecretUtil;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -95,7 +96,9 @@ public class RecordDecryptTest {
 		DTLSSession session = new DTLSSession();
 		session.setCipherSuite(cipherSuite);
 		session.setCompressionMethod(CompressionMethod.NULL);
-		context = new DTLSContext(session, 0);
+		context = new DTLSContext(0);
+		context.getSession().set(session);
+		SecretUtil.destroy(session);
 		context.createReadState(encKey, iv, macKey);
 		context.createWriteState(encKey, iv, macKey);
 	}

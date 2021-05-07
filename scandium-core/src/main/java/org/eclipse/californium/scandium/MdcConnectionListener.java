@@ -80,7 +80,9 @@ public class MdcConnectionListener implements ConnectionListener {
 			DTLSSession session = connection.getSession();
 			if (session != null) {
 				SessionId sid = session.getSessionIdentifier();
-				MDC.put("SESSION_ID", sid.toString());
+				if (sid != null && !sid.isEmpty()) {
+					MDC.put("SESSION_ID", sid.toString());
+				}
 			}
 		}
 	}

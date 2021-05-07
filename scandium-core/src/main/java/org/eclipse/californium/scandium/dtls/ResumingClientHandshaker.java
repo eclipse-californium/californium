@@ -51,10 +51,16 @@ import org.eclipse.californium.scandium.util.SecretUtil;
 
 /**
  * The resuming client handshaker executes a abbreviated handshake by adding a
- * valid session identifier into its ClientHello message. The message flow is
- * depicted in <a href="http://tools.ietf.org/html/rfc5246#section-7.3" target="_blank">Figure
+ * valid session identifier into its ClientHello message.
+ * 
+ * The message flow is depicted in
+ * <a href="https://tools.ietf.org/html/rfc6347#page-21" target="_blank">Figure
  * 2</a>. The new keys will be generated from the master secret established from
- * a previous full handshake.
+ * a previous full handshake. If the server denies to resume the session with
+ * the provided session id, the handshaker falls back to a full-handshake,
+ * depicted in
+ * <a href="https://tools.ietf.org/html/rfc6347#page-21" target="_blank">Figure
+ * 1</a>.
  * 
  * <p>
  * This implementation offers a probing mode.
@@ -118,11 +124,12 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	 */
 	public ResumingClientHandshaker(DTLSSession session, RecordLayer recordLayer, ScheduledExecutorService timer, Connection connection,
 			DtlsConnectorConfig config, boolean probe) {
-		super(probe, session, recordLayer, timer, connection, config);
+		super(null, recordLayer, timer, connection, config, probe);
 		SessionId sessionId = session.getSessionIdentifier();
 		if (sessionId == null || sessionId.isEmpty()) {
 			throw new IllegalArgumentException("Session must contain the ID of the session to resume");
 		}
+		getSession().set(session);
 	}
 
 	// Methods ////////////////////////////////////////////////////////
