@@ -190,7 +190,7 @@ public class ConnectorConfig implements Cloneable {
 	 *
 	 * If the private key is stored separately, it's loaded by different option
 	 * {@link Identity#privateKey} and included in the
-	 * {@link Identity#credentials} calling {@link #defaults()}.
+	 * {@link Authentication#credentials} calling {@link #defaults()}.
 	 * 
 	 * @since 3.0
 	 */
@@ -199,6 +199,9 @@ public class ConnectorConfig implements Cloneable {
 		/**
 		 * X509 credentials loaded from store and/or the {@link #privateKey}
 		 * option.
+		 * 
+		 * If provided, {@link ConnectorConfig#defaults()} prepares
+		 * {@link Authentication#credentials} with the data from this.
 		 */
 		@Option(names = { "-c",
 				"--cert" }, description = "certificate store. Format keystore#hexstorepwd#hexkeypwd#alias or keystore.pem")
@@ -207,10 +210,8 @@ public class ConnectorConfig implements Cloneable {
 		/**
 		 * X509 private key loaded from store.
 		 * 
-		 * {@link ConnectorConfig#defaults()} prepares {@link #credentials} with
-		 * the keys from this.
-		 * 
-		 * @since 3.0
+		 * If provided, {@link ConnectorConfig#defaults()} prepares
+		 * {@link Authentication#credentials} with the keys from this.
 		 */
 		@Option(names = "--private-key", description = "private key store. Format keystore#hexstorepwd#hexkeypwd#alias or keystore.pem")
 		public Credentials privateKey;

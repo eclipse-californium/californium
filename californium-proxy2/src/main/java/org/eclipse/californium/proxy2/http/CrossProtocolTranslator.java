@@ -112,7 +112,7 @@ public class CrossProtocolTranslator {
 	/**
 	 * Creates http translator default properties file.
 	 * 
-	 * @see #DEFAULT_HTTP_TRANSLATION_PROPERTIES
+	 * @see #getDefaultMappingProperties()
 	 */
 	public CrossProtocolTranslator() {
 		translationMapping = getDefaultMappingProperties();
