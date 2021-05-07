@@ -85,7 +85,7 @@ public final class DTLSSession implements Destroyable {
 	/**
 	 * An arbitrary byte sequence chosen by the server to identify this session.
 	 */
-	private SessionId sessionIdentifier;
+	private SessionId sessionIdentifier = SessionId.emptySessionId();
 
 	/**
 	 * Protocol version.
@@ -201,6 +201,20 @@ public final class DTLSSession implements Destroyable {
 	 * @param session session to resume
 	 */
 	public DTLSSession(DTLSSession session) {
+		set(session);
+	}
+
+	// Getters and Setters ////////////////////////////////////////////
+
+	/**
+	 * Sets session.
+	 * 
+	 * Sets all fields of this session from the values of the provided session.
+	 * 
+	 * @param session session to set
+	 * @since 3.0
+	 */
+	public void set(DTLSSession session) {
 		creationTime = session.getCreationTime();
 		sessionIdentifier = session.getSessionIdentifier();
 		protocolVersion = session.getProtocolVersion();
@@ -217,8 +231,6 @@ public final class DTLSSession implements Destroyable {
 		maxFragmentLength = session.getMaxFragmentLength();
 		setServerNames(session.getServerNames());
 	}
-
-	// Getters and Setters ////////////////////////////////////////////
 
 	@Override
 	public void destroy() throws DestroyFailedException {
@@ -257,12 +269,14 @@ public final class DTLSSession implements Destroyable {
 	 * @param sessionIdentifier new session identifier
 	 * @throws NullPointerException if the provided session identifier is
 	 *             {@code null}
+	 * @throws IllegalArgumentException if the provided session identifier is
+	 *             neither empty nor different to the available one.
 	 */
 	void setSessionIdentifier(SessionId sessionIdentifier) {
 		if (sessionIdentifier == null) {
 			throw new NullPointerException("session identifier must not be null!");
 		}
-		if (!sessionIdentifier.equals(this.sessionIdentifier)) {
+		if (!sessionIdentifier.equals(this.sessionIdentifier) || sessionIdentifier.isEmpty()) {
 			// reset master secret
 			SecretUtil.destroy(this.masterSecret);
 			this.masterSecret = null;

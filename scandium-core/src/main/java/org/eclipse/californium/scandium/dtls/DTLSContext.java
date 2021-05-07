@@ -107,30 +107,26 @@ public final class DTLSContext implements Destroyable {
 	// Constructor ////////////////////////////////////////////////////
 
 	/**
-	 * Creates a new DTLS context initialized with a DTLS session and a given
-	 * record sequence number.
+	 * Creates a new DTLS context initialized with a given record sequence
+	 * number.
 	 *
-	 * @param session the DTLS session
 	 * @param initialRecordSequenceNo the initial record sequence number to
 	 *            start from in epoch 0. When starting a new handshake with a
 	 *            client that has successfully exchanged a cookie with the
 	 *            server, the sequence number to use in the SERVER_HELLO record
 	 *            MUST be the same as the one from the successfully validated
 	 *            CLIENT_HELLO record (see
-	 *            <a href="http://tools.ietf.org/html/rfc6347#section-4.2.1" target="_blank">
-	 *            section 4.2.1 of RFC 6347 (DTLS 1.2)</a> for details)
-	 * @throws NullPointerException if session is {@code null}
+	 *            <a href="http://tools.ietf.org/html/rfc6347#section-4.2.1"
+	 *            target="_blank"> section 4.2.1 of RFC 6347 (DTLS 1.2)</a> for
+	 *            details)
 	 * @throws IllegalArgumentException if sequence number is out of the valid
 	 *             range {@code [0...2^48)}.
 	 */
-	DTLSContext(DTLSSession session, long initialRecordSequenceNo) {
-		if (session == null) {
-			throw new NullPointerException("session must not be null!");
-		}
+	DTLSContext(long initialRecordSequenceNo) {
 		if (initialRecordSequenceNo < 0 || initialRecordSequenceNo > Record.MAX_SEQUENCE_NO) {
 			throw new IllegalArgumentException("Initial sequence number must be greater than 0 and less than 2^48");
 		}
-		this.session = session;
+		this.session = new DTLSSession();
 		this.handshakeTime = System.currentTimeMillis();
 		this.sequenceNumbers[0] = initialRecordSequenceNo;
 	}

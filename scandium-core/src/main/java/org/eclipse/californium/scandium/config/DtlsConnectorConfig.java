@@ -72,6 +72,8 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuiteSelector;
 import org.eclipse.californium.scandium.dtls.cipher.DefaultCipherSuiteSelector;
 import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.resumption.ConnectionStoreResumptionVerifier;
+import org.eclipse.californium.scandium.dtls.resumption.ResumptionVerifier;
 import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.util.ListUtils;
 
@@ -410,7 +412,7 @@ public final class DtlsConnectorConfig {
 
 	/**
 	 * Threshold of pending handshakes without verified peer for session
-	 * resumption in percent of {link {@link #maxConnections}. If more such
+	 * resumption in percent of {@link #maxConnections}. If more such
 	 * handshakes are pending, then use a verify request to ensure, that the
 	 * used client hello is not spoofed.
 	 * 
@@ -505,6 +507,15 @@ public final class DtlsConnectorConfig {
 	 * @since 3.0
 	 */
 	private SessionStore sessionStore;
+
+	/**
+	 * Server side verifier for DTLS session resumption.
+	 * 
+	 * Supports none-blocking processing.
+	 * 
+	 * @since 3.0
+	 */
+	private ResumptionVerifier resumptionVerifier;
 
 	private DtlsHealth healthHandler;
 
@@ -795,7 +806,7 @@ public final class DtlsConnectorConfig {
 	 * Threshold to use a HELLO_VERIFY_REQUEST also for session resumption in
 	 * percent of {@link #getMaxConnections()}. Though a CLIENT_HELLO with an
 	 * session id is used in session resumption, that session ID could be used
-	 * to as weaker verification, that the peer controls the source address.
+	 * as weaker verification, that the peer controls the source address.
 	 * 
 	 * <pre>
 	 * Value 
@@ -803,23 +814,24 @@ public final class DtlsConnectorConfig {
 	 * 1 ... 100 : dynamically use a verify request.
 	 * </pre>
 	 * 
-	 * Peers are identified by their endpoint (ip-address and port) and dtls
-	 * sessions have a id and may be also related to an endpoint. If a peer
-	 * resumes its own session (by id, and that session is related to the same
-	 * endpoint as the peer), no verify request is used. If a peer resumes as
-	 * session (by id), but a different session is related to its endpoint, then
-	 * a verify request is used to ensure, that the peer really owns that
-	 * endpoint. If a peer resumes a session, and the endpoint of the peer is
-	 * either unused or not related to a established session, this threshold
-	 * controls, if a verify request is used or not. If more resumption
-	 * handshakes without verified peers are pending than this threshold, then a
-	 * verify request is used.
+	 * Peers are identified by their endpoint (ip-address and port). To protect
+	 * the server from congestion by address spoofing, a HELLO_VERIFY_REQUEST is
+	 * used. That adds one exchange and with that, additional latency. In cases
+	 * of session resumption, the server may also use the dtls session ID as a
+	 * weaker proof of a valid client. Unfortunately there are several
+	 * elaborated attacks to that (e.g. on-path-attacker may alter the
+	 * source-address). To mitigate this vulnerability, this threshold defines a
+	 * maximum percentage of handshakes without HELLO_VERIFY_REQUEST. If more
+	 * resumption handshakes without verified peers are pending than this
+	 * threshold, then a HELLO_VERIFY_REQUEST is used again. Additionally, if a
+	 * peer resumes a session (by id), but a different session is related to its
+	 * endpoint, then a verify request is used to ensure, that the peer really
+	 * owns that endpoint.
 	 * 
-	 * Note: a value larger than 0 will call
-	 * {@link SessionStore#get(org.eclipse.californium.scandium.dtls.SessionId)}.
-	 * If that implementation is expensive, please ensure, that this value is
+	 * Note: a value larger than 0 will call the {@link ResumptionVerifier}. If
+	 * that implementation is expensive, please ensure, that this value is
 	 * configured with {@code 0}. Otherwise, CLIENT_HELLOs with invalid session
-	 * ids may be spoofed and gets too expensive.
+	 * IDs may be spoofed and gets too expensive.
 	 * 
 	 * @return threshold handshakes without verified peer in percent of
 	 *         {@link #getMaxConnections()}.
@@ -1256,6 +1268,25 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * Gets the resumption verifier.
+	 * 
+	 * If the client provides a session id in the client hello, this verifier is
+	 * used to ensure, that a valid session to resume is available. An
+	 * implementation may check a maximum time, or, if the credentials are
+	 * expired (e.g. x509 valid range). The default verifier will just checks,
+	 * if a DTLS session with that session id is available in the
+	 * {@link ResumptionSupportingConnectionStore}.
+	 * 
+	 * @return resumption verifier. May be {@code null}, if
+	 *         {@link #useServerSessionId()} is {@code false} and session
+	 *         resumption is not supported.
+	 * @since 3.0
+	 */
+	public ResumptionVerifier getResumptionVerifier() {
+		return resumptionVerifier;
+	}
+
+	/**
 	 * Get instance logging tag.
 	 * 
 	 * @return logging tag.
@@ -1371,6 +1402,7 @@ public final class DtlsConnectorConfig {
 		cloned.useTruncatedCertificatePathForValidation = useTruncatedCertificatePathForValidation;
 		cloned.connectionListener = connectionListener;
 		cloned.sessionStore = sessionStore;
+		cloned.resumptionVerifier = resumptionVerifier;
 		cloned.healthHandler = healthHandler;
 		cloned.clientOnly = clientOnly;
 		cloned.recommendedCipherSuitesOnly = recommendedCipherSuitesOnly;
@@ -2840,8 +2872,7 @@ public final class DtlsConnectorConfig {
 		 * Sets threshold in percent of {@link #setMaxConnections(int)}, whether
 		 * a HELLO_VERIFY_REQUEST should be used also for session resumption.
 		 * 
-		 * Note: a value larger than 0 will call
-		 * {@link SessionStore#get(org.eclipse.californium.scandium.dtls.SessionId)}.
+		 * Note: a value larger than 0 will call the {@link ResumptionVerifier}.
 		 * If that implementation is expensive, please ensure, that this value
 		 * is configured with {@code 0}. Otherwise, CLIENT_HELLOs with invalid
 		 * session ids may be spoofed and gets too expensive.
@@ -2851,7 +2882,8 @@ public final class DtlsConnectorConfig {
 		 *            is based on
 		 *            {@link DtlsConnectorConfig#DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT}
 		 * @return this builder for command chaining.
-		 * @throws IllegalArgumentException if threshold is not between 0 and 100
+		 * @throws IllegalArgumentException if threshold is not between 0 and
+		 *             100
 		 */
 		public Builder setVerifyPeersOnResumptionThreshold(int threshold) {
 			if (threshold < 0 || threshold > 100) {
@@ -3005,6 +3037,25 @@ public final class DtlsConnectorConfig {
 		 */
 		public Builder setSessionStore(SessionStore sessionStore) {
 			config.sessionStore = sessionStore;
+			return this;
+		}
+
+		/**
+		 * Sets the resumption verifier.
+		 * 
+		 * If the client provides a session id in the client hello, this
+		 * verifier is used to ensure, that a valid session to resume is
+		 * available. An implementation may check a maximum time, or, if the
+		 * credentials are expired (e.g. x509 valid range). The default verifier
+		 * will just checks, if a DTLS session with that session id is available
+		 * in the {@link ResumptionSupportingConnectionStore}.
+		 * 
+		 * @param resumptionVerifier the resumption verifier
+		 * @return this builder for command chaining.
+		 * @since 3.0
+		 */
+		public Builder setResumptionVerifier(ResumptionVerifier resumptionVerifier) {
+			config.resumptionVerifier = resumptionVerifier;
 			return this;
 		}
 
@@ -3174,6 +3225,10 @@ public final class DtlsConnectorConfig {
 
 			if (config.cipherSuiteSelector == null && !config.clientOnly) {
 				config.cipherSuiteSelector = new DefaultCipherSuiteSelector();
+			}
+
+			if (config.resumptionVerifier == null && config.useServerSessionId && !config.clientOnly) {
+				config.resumptionVerifier = new ConnectionStoreResumptionVerifier();
 			}
 
 			// check cipher consistency

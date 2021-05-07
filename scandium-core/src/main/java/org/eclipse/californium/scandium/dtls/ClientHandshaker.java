@@ -76,7 +76,37 @@ import org.eclipse.californium.scandium.util.ServerNames;
 /**
  * ClientHandshaker does the protocol handshaking from the point of view of a
  * client. It is driven by handshake messages as delivered by the parent
- * {@link Handshaker} class.
+ * {@link Handshaker} class. The message flow is depicted in
+ * <a href="https://tools.ietf.org/html/rfc6347#page-21" target= "_blank">Figure
+ * 1</a>.
+ * 
+ * <p>
+ * This implementation offers a probing mode.
+ * 
+ * If a mobile peer doesn't get a ACK or response that may have two different
+ * causes:
+ * </p>
+ * 
+ * <ol>
+ * <li>server has lost session (association)</li>
+ * <li>connectivity is lost</li>
+ * </ol>
+ * 
+ * <p>
+ * The second is sometime hard to detect; the peer's state is connected, but
+ * effectively it's not working. In that case, after some retransmissions, the
+ * peer starts a handshake. Without the probing mode starting a handshake
+ * removes on the client the session. If the handshake timesout (though the
+ * connection is not working), the peer still requires a new handshake after the
+ * connectivity is established again.
+ * 
+ * With probing mode, the handshake starts without removing the session. If some
+ * data is received, the session is removed and the handshake gets completed. If
+ * no data is received, the peer assumes, that the connectivity is lost (even if
+ * it's own state indicates connectivity) and just timesout the request. If the
+ * connectivity is established again, just a new request could be send without a
+ * handshake.
+ * </p>
  */
 @NoPublicAPI
 public class ClientHandshaker extends Handshaker {
@@ -202,28 +232,9 @@ public class ClientHandshaker extends Handshaker {
 	 * @throws NullPointerException if any of the provided parameter is
 	 *             {@code null}, except the hostname.
 	 */
-	public ClientHandshaker(String hostname, RecordLayer recordLayer, ScheduledExecutorService timer, Connection connection,
-			DtlsConnectorConfig config, boolean probe) {
-		this(probe, new DTLSSession(hostname), recordLayer, timer, connection, config);
-	}
-
-	/**
-	 * Creates a new handshaker for negotiating a DTLS session with a server.
-	 * 
-	 * @param probe {@code true} enable probing for this handshake,
-	 *            {@code false}, not probing handshake.
-	 * @param session the session to negotiate with the server.
-	 * @param recordLayer the object to use for sending flights to the peer.
-	 * @param timer scheduled executor for flight retransmission.
-	 * @param connection the connection related with the session.
-	 * @param config the DTLS configuration.
-	 * @throws NullPointerException if any of the provided parameter is
-	 *             {@code null}
-	 * @since 3.0
-	 */
-	protected ClientHandshaker(boolean probe, DTLSSession session, RecordLayer recordLayer, ScheduledExecutorService timer, Connection connection,
-			DtlsConnectorConfig config) {
-		super(0, 0, session, recordLayer, timer, connection, config);
+	public ClientHandshaker(String hostname, RecordLayer recordLayer, ScheduledExecutorService timer,
+			Connection connection, DtlsConnectorConfig config, boolean probe) {
+		super(0, 0, recordLayer, timer, connection, config);
 		this.supportedCipherSuites = config.getSupportedCipherSuites();
 		this.supportedGroups = config.getSupportedGroups();
 		this.maxFragmentLengthCode = config.getMaxFragmentLengthCode();
@@ -232,6 +243,7 @@ public class ClientHandshaker extends Handshaker {
 		this.supportedClientCertificateTypes = config.getIdentityCertificateTypes();
 		this.supportedSignatureAlgorithms = config.getSupportedSignatureAlgorithms();
 		this.probe = probe;
+		getSession().setHostName(hostname);
 	}
 
 	// Methods ////////////////////////////////////////////////////////

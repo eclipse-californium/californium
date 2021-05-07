@@ -85,6 +85,7 @@ import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.AsyncAdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.resumption.AsyncResumptionVerifier;
 import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.junit.After;
@@ -124,6 +125,7 @@ public class DTLSConnectorResumeTest {
 	static ConnectorHelper serverHelper;
 	static AsyncAdvancedPskStore serverPskStore;
 	static AsyncNewAdvancedCertificateVerifier serverCertificateVerifier;
+	static AsyncResumptionVerifier serverResumptionVerifier;
 	static ExecutorService executor;
 	static PrivateKey clientPrivateKey;
 	static X509Certificate[] clientCertificateChain;
@@ -179,6 +181,7 @@ public class DTLSConnectorResumeTest {
 				serverPskStore.setDelay(0);
 				clientPskStore.setSecretMode(true);
 				serverPskStore.setSecretMode(true);
+				serverResumptionVerifier.setDelay(0);
 				builder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
 						.setAdvancedPskStore(clientPskStore);
 			}
@@ -200,6 +203,7 @@ public class DTLSConnectorResumeTest {
 				serverPskStore.setDelay(100);
 				clientPskStore.setSecretMode(true);
 				serverPskStore.setSecretMode(true);
+				serverResumptionVerifier.setDelay(100);
 				builder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
 						.setEnableMultiHandshakeMessageRecords(true).setAdvancedPskStore(clientPskStore);
 			}
@@ -221,6 +225,7 @@ public class DTLSConnectorResumeTest {
 				serverPskStore.setDelay(0);
 				clientPskStore.setSecretMode(false);
 				serverPskStore.setSecretMode(false);
+				serverResumptionVerifier.setDelay(0);
 				builder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
 						.setEnableMultiHandshakeMessageRecords(true).setAdvancedPskStore(clientPskStore);
 			}
@@ -242,6 +247,7 @@ public class DTLSConnectorResumeTest {
 				serverPskStore.setDelay(100);
 				clientPskStore.setSecretMode(false);
 				serverPskStore.setSecretMode(false);
+				serverResumptionVerifier.setDelay(100);
 				builder.setSupportedCipherSuites(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8)
 						.setAdvancedPskStore(clientPskStore);
 			}
@@ -263,6 +269,7 @@ public class DTLSConnectorResumeTest {
 				serverPskStore.setDelay(100);
 				clientPskStore.setSecretMode(true);
 				serverPskStore.setSecretMode(true);
+				serverResumptionVerifier.setDelay(100);
 				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256)
 						.setEnableMultiHandshakeMessageRecords(true).setAdvancedPskStore(clientPskStore);
 			}
@@ -284,6 +291,7 @@ public class DTLSConnectorResumeTest {
 				serverPskStore.setDelay(0);
 				clientPskStore.setSecretMode(false);
 				serverPskStore.setSecretMode(false);
+				serverResumptionVerifier.setDelay(0);
 				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CCM_8_SHA256)
 						.setAdvancedPskStore(clientPskStore);
 			}
@@ -303,6 +311,7 @@ public class DTLSConnectorResumeTest {
 			public void setup(Builder builder) {
 				clientCertificateVerifier.setDelay(0);
 				serverCertificateVerifier.setDelay(0);
+				serverResumptionVerifier.setDelay(0);
 				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
 						.setIdentity(clientPrivateKey, clientCertificateChain, CertificateType.X_509)
 						.setAdvancedCertificateVerifier(clientCertificateVerifier)
@@ -323,6 +332,7 @@ public class DTLSConnectorResumeTest {
 			public void setup(Builder builder) {
 				clientCertificateVerifier.setDelay(100);
 				serverCertificateVerifier.setDelay(100);
+				serverResumptionVerifier.setDelay(100);
 				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
 						.setEnableMultiHandshakeMessageRecords(true)
 						.setIdentity(clientPrivateKey, clientCertificateChain, CertificateType.X_509)
@@ -342,6 +352,9 @@ public class DTLSConnectorResumeTest {
 
 			@Override
 			public void setup(Builder builder) {
+				clientCertificateVerifier.setDelay(0);
+				serverCertificateVerifier.setDelay(0);
+				serverResumptionVerifier.setDelay(0);
 				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
 						.setIdentity(clientPrivateKey, clientCertificateChain, CertificateType.RAW_PUBLIC_KEY)
 						.setTrustCertificateTypes(CertificateType.RAW_PUBLIC_KEY)
@@ -363,6 +376,7 @@ public class DTLSConnectorResumeTest {
 			public void setup(Builder builder) {
 				clientCertificateVerifier.setDelay(100);
 				serverCertificateVerifier.setDelay(100);
+				serverResumptionVerifier.setDelay(100);
 				builder.setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8)
 						.setIdentity(clientPrivateKey, clientCertificateChain, CertificateType.RAW_PUBLIC_KEY)
 						.setTrustCertificateTypes(CertificateType.RAW_PUBLIC_KEY)
@@ -374,7 +388,7 @@ public class DTLSConnectorResumeTest {
 		if (TestScope.enableIntensiveTests()) {
 			return Arrays.asList(setups);
 		} else {
-			return Arrays.asList(Arrays.copyOf(setups, 1));
+			return Arrays.asList(Arrays.copyOf(setups, 2));
 		}
 	}
 
@@ -403,11 +417,14 @@ public class DTLSConnectorResumeTest {
 				.setTrustedCertificates(DtlsTestTools.getTrustedCertificates())
 				.setTrustAllRPKs()
 				.build();
+		serverResumptionVerifier = new AsyncResumptionVerifier();
+
 		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
 				.setSniEnabled(true)
 				.setApplicationLevelInfoSupplier(supplier)
 				.setAdvancedCertificateVerifier(serverCertificateVerifier)
-				.setAdvancedPskStore(serverPskStore);
+				.setAdvancedPskStore(serverPskStore)
+				.setResumptionVerifier(serverResumptionVerifier);
 
 		serverHelper = new ConnectorHelper(true);
 		serverHelper.startServer(builder);
@@ -443,6 +460,10 @@ public class DTLSConnectorResumeTest {
 		if (serverCertificateVerifier != null) {
 			serverCertificateVerifier.shutdown();
 			serverCertificateVerifier = null;
+		}
+		if (serverResumptionVerifier != null) {
+			serverResumptionVerifier.shutdown();
+			serverResumptionVerifier = null;
 		}
 		serverHelper.destroyServer();
 		ExecutorsUtil.shutdownExecutorGracefully(100, executor);

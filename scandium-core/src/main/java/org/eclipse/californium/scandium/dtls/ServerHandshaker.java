@@ -88,11 +88,13 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Server handshaker does the protocol handshaking from the point of view of a
- * server. It is message-driven by the parent {@link Handshaker} class.
+ * server. It is message-driven by the parent {@link Handshaker} class. The
+ * message flow is depicted in
+ * <a href="https://tools.ietf.org/html/rfc6347#page-21" target= "_blank">Figure
+ * 1</a>.
  */
 @NoPublicAPI
 public class ServerHandshaker extends Handshaker {
-
 
 	private static HandshakeState[] CLIENT_CERTIFICATE = { new HandshakeState(HandshakeType.CERTIFICATE),
 			new HandshakeState(HandshakeType.CLIENT_KEY_EXCHANGE),
@@ -199,33 +201,7 @@ public class ServerHandshaker extends Handshaker {
 	 */
 	public ServerHandshaker(long initialRecordSequenceNo, int initialMessageSequenceNo, RecordLayer recordLayer,
 			ScheduledExecutorService timer, Connection connection, DtlsConnectorConfig config) {
-		this(initialRecordSequenceNo, initialMessageSequenceNo, new DTLSSession(), recordLayer, timer, connection, config);
-	}
-
-	/**
-	 * Creates a handshaker for negotiating a DTLS session with a client.
-	 * 
-	 * @param initialRecordSequenceNo the initial record sequence number
-	 * @param initialMessageSequenceNo the initial message sequence number to
-	 *            expect from the peer (this parameter can be used to initialize
-	 *            the <em>receive_next_seq</em> counter to another value than 0,
-	 *            e.g. if one or more cookie exchange round-trips have been
-	 *            performed with the peer before the handshake starts).
-	 * @param session the session to negotiate with the client.
-	 * @param recordLayer the object to use for sending flights to the peer.
-	 * @param timer scheduled executor for flight retransmission (since 2.4).
-	 * @param connection the connection related with the session.
-	 * @param config the DTLS configuration.
-	 * @throws IllegalArgumentException if the initial record or message
-	 *             sequence number is negative
-	 * @throws NullPointerException if any of the provided parameter is
-	 *             {@code null}
-	 * @since 3.0
-	 */
-	protected ServerHandshaker(long initialRecordSequenceNo, int initialMessageSequenceNo, DTLSSession session,
-			RecordLayer recordLayer, ScheduledExecutorService timer, Connection connection,
-			DtlsConnectorConfig config) {
-		super(initialRecordSequenceNo, initialMessageSequenceNo, session, recordLayer, timer, connection, config);
+		super(initialRecordSequenceNo, initialMessageSequenceNo, recordLayer, timer, connection, config);
 
 		this.cipherSuiteSelector = config.getCipherSuiteSelector();
 		this.supportedCipherSuites = config.getSupportedCipherSuites();
@@ -257,6 +233,7 @@ public class ServerHandshaker extends Handshaker {
 
 		switch (message.getMessageType()) {
 		case CLIENT_HELLO:
+			handshakeStarted();
 			receivedClientHello((ClientHello) message);
 			break;
 
@@ -427,7 +404,6 @@ public class ServerHandshaker extends Handshaker {
 					new AlertMessage(
 							AlertLevel.FATAL,
 							AlertDescription.INTERNAL_ERROR));
-//			LOGGER.error("Cannot compute digest for server's Finish handshake message", e);
 		}
 
 		Mac mac = getSession().getCipherSuite().getThreadLocalPseudoRandomFunctionMac();
@@ -464,9 +440,7 @@ public class ServerHandshaker extends Handshaker {
 	 *            the client's hello message.
 	 * @throws HandshakeException if the server's response message(s) cannot be created
 	 */
-	private void receivedClientHello(final ClientHello clientHello) throws HandshakeException {
-
-		handshakeStarted();
+	protected void receivedClientHello(final ClientHello clientHello) throws HandshakeException {
 
 		byte[] cookie = clientHello.getCookie();
 		flightNumber = (cookie != null && cookie.length > 0) ? 4 : 2;

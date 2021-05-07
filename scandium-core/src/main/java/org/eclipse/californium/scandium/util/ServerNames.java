@@ -217,4 +217,22 @@ public final class ServerNames implements Iterable<ServerName> {
 		}
 		return names.containsAll(other.names);
 	}
+
+	/**
+	 * Checks, whether hostnames are "equal to" each other.
+	 * 
+	 * @param hostnameA first hostname to check
+	 * @param hostnameB second hostname to check
+	 * @return {@code true}, if the hostnames are equal ignoring the case,
+	 *         {@code false}, otherwise.
+	 * @since 3.0
+	 */
+	public static boolean equalsIgnoreCase(String hostnameA, String hostnameB) {
+		if (hostnameA == hostnameB) {
+			return true;
+		} else if (hostnameA == null || hostnameB == null) {
+			return false;
+		}
+		return hostnameA.equalsIgnoreCase(hostnameB);
+	}
 }

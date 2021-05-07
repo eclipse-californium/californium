@@ -395,7 +395,6 @@ public abstract class Handshaker implements Destroyable {
 	 *            a value larger than 0, e.g. if one or more cookie exchange
 	 *            round-trips have been performed with the peer before the
 	 *            handshake starts.
-	 * @param session the session this handshaker is negotiating.
 	 * @param recordLayer the object to use for sending flights to the peer.
 	 * @param timer scheduled executor for flight retransmission (since 2.4).
 	 * @param connection the connection related to this handshaker.
@@ -406,11 +405,9 @@ public abstract class Handshaker implements Destroyable {
 	 *             is negative
 	 */
 	@NoPublicAPI
-	protected Handshaker(long initialRecordSequenceNo, int initialMessageSeq, DTLSSession session, RecordLayer recordLayer,
+	protected Handshaker(long initialRecordSequenceNo, int initialMessageSeq, RecordLayer recordLayer,
 			ScheduledExecutorService timer, Connection connection, DtlsConnectorConfig config) {
-		if (session == null) {
-			throw new NullPointerException("DTLS Context must not be null");
-		} else if (recordLayer == null) {
+		if (recordLayer == null) {
 			throw new NullPointerException("Record layer must not be null");
 		} else if (timer == null) {
 			throw new NullPointerException("Timer must not be null");
@@ -425,7 +422,7 @@ public abstract class Handshaker implements Destroyable {
 		}
 		this.sendMessageSequence = initialMessageSeq;
 		this.nextReceiveMessageSequence = initialMessageSeq;
-		this.context = new DTLSContext(session, initialRecordSequenceNo);
+		this.context = new DTLSContext(initialRecordSequenceNo);
 		this.recordLayer = recordLayer;
 		this.timer = timer;
 		this.connection = connection;
@@ -1007,7 +1004,7 @@ public abstract class Handshaker implements Destroyable {
 					SecretUtil.destroy(newPskSecret);
 					newPskSecret = masterSecret;
 				}
-				customArgument = pskSecretResult.getCustomArgument();
+				setCustomArgument(pskSecretResult);
 				processMasterSecret(newPskSecret);
 			} else {
 				AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.UNKNOWN_PSK_IDENTITY);
@@ -1056,11 +1053,11 @@ public abstract class Handshaker implements Destroyable {
 		if (certificateVerificationResult.getCertificatePath() != null) {
 			peerCertPath = certificateVerificationResult.getCertificatePath();
 			certificateVerfied = true;
-			customArgument = certificateVerificationResult.getCustomArgument();
+			setCustomArgument(certificateVerificationResult);
 			processCertificateVerified();
 		} else if (certificateVerificationResult.getPublicKey() != null) {
 			certificateVerfied = true;
-			customArgument = certificateVerificationResult.getCustomArgument();
+			setCustomArgument(certificateVerificationResult);
 			processCertificateVerified();
 		} else if (certificateVerificationResult.getException() != null) {
 			throw certificateVerificationResult.getException();
@@ -1068,6 +1065,16 @@ public abstract class Handshaker implements Destroyable {
 			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.BAD_CERTIFICATE);
 			throw new HandshakeException("Bad Certificate", alert);
 		}
+	}
+
+	/**
+	 * Set custom argument for {@link ApplicationLevelInfoSupplier}.
+	 * 
+	 * @param result handshake result with custom argument.
+	 * @since 3.0
+	 */
+	protected void setCustomArgument(HandshakeResult result) {
+		this.customArgument = result.getCustomArgument();
 	}
 
 	/**

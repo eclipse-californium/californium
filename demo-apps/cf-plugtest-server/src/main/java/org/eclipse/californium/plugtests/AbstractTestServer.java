@@ -61,6 +61,8 @@ import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.AsyncAdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.resumption.AsyncResumptionVerifier;
+import org.eclipse.californium.scandium.dtls.resumption.ConnectionStoreResumptionVerifier;
 import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
 import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
@@ -399,6 +401,9 @@ public abstract class AbstractTestServer extends CoapServer {
 					dtlsConfigBuilder.setSocketReceiveBufferSize(recvBufferSize);
 					dtlsConfigBuilder.setSocketSendBufferSize(sendBufferSize);
 					dtlsConfigBuilder.setRetransmissionTimeout(retransmissionTimeout);
+					AsyncResumptionVerifier resumptionVerifier = new AsyncResumptionVerifier();
+					resumptionVerifier.setDelay(handshakeResultDelay);
+					dtlsConfigBuilder.setResumptionVerifier(resumptionVerifier);
 					switch (cliConfig.clientAuth) {
 					case NONE:
 						dtlsConfigBuilder.setClientAuthenticationRequired(false);
