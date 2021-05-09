@@ -1344,7 +1344,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 		final Record firstRecord = records.get(0);
 
 		if (records.size() == 1 && firstRecord.isNewClientHello()) {
-			executorService.execute(new Runnable() {
+			getExecutorService().execute(new Runnable() {
 
 				@Override
 				public void run() {
@@ -1898,6 +1898,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 			final AvailableConnections connections = new AvailableConnections();
 			if (isClientInControlOfSourceIpAddress(clientHello, record, connections)) {
 				boolean verify = false;
+				ExecutorService executorService = getExecutorService();
 				Connection connection;
 				synchronized (connectionStore) {
 					connection = connectionStore.get(peerAddress);
@@ -1933,7 +1934,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 						}
 					}
 					if (connection == null) {
-						connection = new Connection(peerAddress, new SerialExecutor(getExecutorService()));
+						connection = new Connection(peerAddress, new SerialExecutor(executorService));
 						connection.setExecutionListener(connectionExecutionListener);
 						connection.startByClientHello(clientHello);
 						if (!connectionStore.put(connection)) {
