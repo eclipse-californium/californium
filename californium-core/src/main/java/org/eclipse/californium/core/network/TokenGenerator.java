@@ -27,7 +27,7 @@ import org.eclipse.californium.core.coap.Token;
 public interface TokenGenerator {
 
 	/**
-	 * Scope of token
+	 * Scope of token.
 	 */
 	public enum Scope {
 		LONG_TERM, SHORT_TERM, SHORT_TERM_CLIENT_LOCAL
@@ -53,9 +53,9 @@ public interface TokenGenerator {
 	 * intended to create a next token calling this method again.
 	 * 
 	 * Note: the application may provide own tokens by calling
-	 * {@link Request#setToken(Token)}. such tokens must also obey the scope
+	 * {@link Request#setToken(Token)}. Such tokens must also obey the scope
 	 * rules of this generator. And it must be ensured, that these tokens are
-	 * also unique according there scope.
+	 * also unique according their scope.
 	 * 
 	 * @param scope {@code LONG_TERM} for observe request within the long-term
 	 *            scope, {@code SHORT_TERM} for multicast request with
